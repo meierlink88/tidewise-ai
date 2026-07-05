@@ -1,0 +1,22 @@
+@import '../../styles/tokens.scss';
+
+.empty-state {
+  padding: 48px 24px;
+  border: 1px dashed $color-border;
+  border-radius: $radius-card;
+  text-align: center;
+}
+
+.empty-state__title {
+  display: block;
+  color: $color-text-secondary;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.empty-state__description {
+  display: block;
+  margin-top: 10px;
+  color: $color-text-muted;
+  font-size: 24px;
+}

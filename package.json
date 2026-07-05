@@ -1,0 +1,20 @@
+{
+  "name": "tidewise-ai",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend/miniapp"
+  ],
+  "scripts": {
+    "dev:weapp": "npm --workspace frontend/miniapp run dev:weapp",
+    "dev:tt": "npm --workspace frontend/miniapp run dev:tt",
+    "build:weapp": "npm --workspace frontend/miniapp run build:weapp",
+    "build:tt": "npm --workspace frontend/miniapp run build:tt",
+    "typecheck": "npm --workspace frontend/miniapp run typecheck",
+    "lint": "npm --workspace frontend/miniapp run lint",
+    "format": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
+}

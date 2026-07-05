@@ -1,0 +1,27 @@
+@import '../../styles/tokens.scss';
+
+.feed-page__list {
+  margin-top: 28px;
+}
+
+.feed-page__item {
+  margin-bottom: 20px;
+  padding: 24px;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+  background: $color-surface;
+}
+
+.feed-page__item-title {
+  display: block;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.feed-page__item-meta {
+  display: block;
+  margin-top: 10px;
+  color: $color-text-muted;
+  font-size: 24px;
+}

@@ -8,19 +8,19 @@
 
 ## Workspace Boundary
 
-当前 TRAE 工作区应打开本目录：
+当前 Codex Desktop 工作区应打开本目录：
 
 ```text
 /Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai
 ```
 
-本目录是源码工程根目录，也是 OpenSpec 根目录。所有工程代码、OpenSpec 变更、主规格、TRAE skills、项目级 agent 规则都应以本目录为工作根。
+本目录是源码工程根目录，也是 OpenSpec 根目录。所有工程代码、OpenSpec 变更、主规格、Codex OpenSpec skills、项目级 agent 规则都应以本目录为工作根。
 
 上级目录结构用途如下：
 
 ```text
 观潮家/
-├── tidewise-ai/ # 源码工程根目录，OpenSpec 根目录，TRAE 工作区根目录
+├── tidewise-ai/ # 源码工程根目录，OpenSpec 根目录，Codex Desktop 工作区根目录
 ├── doc/        # 项目文档空间，放商业计划、产品设计、架构文档、数据模型等
 └── prototype/  # 原型设计目录，放高保真原型和设计参考
 ```
@@ -36,6 +36,12 @@
 ## OpenSpec Methodology
 
 本项目严格按照 OpenSpec 方法论执行工程开发。正式工程变更必须先创建 OpenSpec change，再实现代码。
+
+OpenSpec 内容语言规则：
+
+- 所有 OpenSpec 生成内容默认使用中文。
+- 只有 OpenSpec 规范要求保留的框架性文案、固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。
+- proposal、design、tasks、spec requirements 和 scenarios 的正文、说明、任务描述、风险、取舍、影响范围和验收内容都应使用中文。
 
 标准流程：
 
@@ -129,39 +135,45 @@ AI agent 必须在已有实现基础上增量迭代，不得另起一套。
 
 前端：
 
-- MVP 首端为微信小程序。
-- 前端通过微信小程序平台发布。
+- MVP 首端为跨平台小程序，首批目标至少包含微信小程序和抖音小程序。
+- 前端采用 Taro + React + TypeScript 技术栈。
+- 前端源码位于 `frontend/miniapp/`。
+- 前端通过各小程序平台分别发布。
 - 小程序端只负责展示、交互、轻状态和 API 调用。
-- 小程序端不得保存模型密钥、支付密钥、数据库连接或后端凭证。
+- 小程序端不得保存模型密钥、Agent 平台密钥、支付密钥、数据库连接或后端凭证。
 
 后端：
 
-- API/BFF、AI 推理、RAG、知识图谱、数据采集、订阅推送、支付回调等能力作为服务端应用独立部署。
-- MVP 阶段可采用模块化单体，后续再拆分为独立服务。
+- 后端采用 Go 语言技术栈，优先使用 Go + Gin 构建高并发 API/BFF 服务。
+- 后端技术选型同时要求适合 AI 编程协作：语言和框架应具备强类型、清晰工程约定、直接编译反馈、易测试和低歧义代码风格。
+- 后端源码位于 `backend/`。
+- API/BFF、领域模块、Agent 平台集成、数据访问、订阅推送、支付回调等能力作为服务端应用独立部署。
+- AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责 API 调用、回调接收、结构化结果校验、落库和展示。
+- MVP 阶段后端采用模块化单体，后续再按容量、部署和团队边界拆分为独立服务。
 
 部署：
 
 - frontend 和 backend 分离部署。
-- 微信小程序 frontend 发布到微信小程序平台。
-- backend API/BFF 和 intelligence services 部署到服务端环境。
+- frontend 分别发布到微信、抖音等小程序平台。
+- backend API/BFF 和异步任务能力部署到服务端环境。
 
 ## Frontend Direction
 
 MVP 阶段前端采用：
 
 ```text
-原生微信小程序 + TypeScript + WXSS
+Taro + React + TypeScript
 ```
 
-当前不引入 Taro、uni-app 或其他跨平台框架。项目应通过端无关 API、稳定 DTO、清晰 models、services 和设计系统为未来跨平台预留能力。
+选择 Taro 是因为项目需要同时支持微信和抖音小程序，并为后续 H5 或更多小程序平台保留空间。Taro 官方支持微信、抖音等多个小程序平台，且支持 React/Vue 等现代前端开发体验；本项目默认采用 React 技术路线。
 
-微信小程序源码建议位于：
+跨平台小程序源码位于：
 
 ```text
-apps/miniprogram/
+frontend/miniapp/
 ```
 
-如果某个既有 OpenSpec artifact 中仍出现 `miniprogram/` 作为根目录，应在实现前确认是否需要调整为 `apps/miniprogram/`，避免未来 monorepo 演进时产生迁移成本。
+如果某个既有 OpenSpec artifact 中仍出现 `apps/miniprogram/`、`miniprogram/` 或原生小程序结构，应在实现前调整为 `frontend/miniapp/` 和 Taro 工程结构。
 
 ## Backend Direction
 
@@ -174,23 +186,27 @@ init-backend-skeleton
 推荐后续目录方向：
 
 ```text
-apps/api/                  # API/BFF 服务
-services/intelligence/     # 后续 AI 推理服务
-services/ingestion/        # 后续数据采集服务
-services/graph/            # 后续图谱服务
-services/rag/              # 后续 RAG 服务
-packages/shared-types/     # 前后端共享类型
-packages/api-contracts/    # API 契约
-infra/                     # 数据库、容器、部署配置
+backend/api/                # Go API/BFF 服务入口
+backend/modules/            # 领域模块
+backend/integrations/       # Agent 平台、支付、消息、外部数据源等外部集成
+backend/repositories/       # 数据访问层
+backend/contracts/          # API 契约定义或生成入口
+backend/jobs/               # 异步任务、定时任务、回调处理
+backend/config/             # local/uat/prod 非敏感配置模板
+backend/internal/config/    # Go 强类型配置加载和校验
+infra/                      # 基础设施、容器、部署、数据库迁移和 CI/CD 配置
 ```
 
-不要在小程序 change 中实现真实后端能力。后端工程、API 契约、数据库、AI 服务和部署拓扑应通过独立 OpenSpec change 设计和实现。
+不要在小程序 change 中实现真实后端能力。后端工程、API 契约、数据库、Agent 平台集成和部署拓扑应通过独立 OpenSpec change 设计和实现。
+
+后端必须标准化支持 local、uat、prod 三类环境配置。配置文件可以保存非敏感结构化配置，数据库密码、Agent 平台 API key、支付密钥、JWT secret 等敏感信息必须通过环境变量或部署平台 secret 注入，不得提交到 repo。业务代码只能依赖统一的 Go 强类型 config，不得散落读取环境变量或硬编码环境差异。
 
 ## Code Style
 
 - 不要在源码中添加注释，除非用户明确要求。
-- 优先使用 TypeScript 类型表达数据结构和契约。
-- 页面逻辑应通过 data/setData、bindtap、wx:for、wx:if 等小程序数据驱动方式实现。
+- 前端优先使用 TypeScript 类型表达数据结构和契约。
+- 后端优先使用 Go 类型表达服务端领域模型、请求响应结构和数据访问结构。
+- 前端页面逻辑应采用 Taro/React 数据驱动方式实现，使用组件 props、state/hooks、条件渲染和列表渲染表达交互状态。
 - 禁止在生产小程序代码中使用 `document`、`window`、`innerHTML`、内联 `onclick` 或浏览器 DOM 操作。
 - mock 数据应放在 dedicated data modules，不要散落在页面 markup 中。
 - API 调用必须经过 services/request 边界。
@@ -198,7 +214,7 @@ infra/                     # 数据库、容器、部署配置
 ## Security
 
 - 不得提交、写入或打印密钥、token、数据库连接串、模型 API key、支付密钥或个人隐私信息。
-- 小程序端不得包含服务端执行逻辑、RAG 编排、Agent 调度或数据库访问。
+- 小程序端不得包含服务端执行逻辑、RAG 编排、Agent 调度、Agent 平台密钥或数据库访问。
 - 投研和 AI 分析内容必须保持决策辅助定位，不得表达为直接投资建议。
 
 ## Useful Context Files

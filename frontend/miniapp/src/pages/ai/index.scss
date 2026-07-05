@@ -1,0 +1,23 @@
+@import '../../styles/tokens.scss';
+
+.ai-page__notice {
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px solid #f3d08a;
+  border-radius: $radius-card;
+  background: #fff7e6;
+  color: #7a4b00;
+  font-size: 24px;
+  line-height: 1.5;
+}
+
+.ai-page__message {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+  background: $color-surface;
+  color: $color-text-secondary;
+  font-size: 28px;
+  line-height: 1.55;
+}

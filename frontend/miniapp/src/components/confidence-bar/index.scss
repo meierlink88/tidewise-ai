@@ -1,0 +1,25 @@
+@import '../../styles/tokens.scss';
+
+.confidence-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.confidence-bar__track {
+  flex: 1;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.confidence-bar__fill {
+  height: 100%;
+  background: $color-brand;
+}
+
+.confidence-bar__label {
+  color: $color-text-muted;
+  font-size: 24px;
+}
