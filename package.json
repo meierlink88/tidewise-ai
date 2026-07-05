@@ -12,6 +12,10 @@
     "build:tt": "npm --workspace frontend/miniapp run build:tt",
     "typecheck": "npm --workspace frontend/miniapp run typecheck",
     "lint": "npm --workspace frontend/miniapp run lint",
+    "backend:dev": "cd backend && go run ./cmd/api",
+    "backend:test": "cd backend && go test ./...",
+    "backend:fmt": "cd backend && gofmt -w .",
+    "backend:vet": "cd backend && go vet ./...",
     "format": "prettier --check ."
   },
   "devDependencies": {

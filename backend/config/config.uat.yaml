@@ -1,0 +1,21 @@
+app:
+  name: tidewise-api
+  env: uat
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout_seconds: 5
+  write_timeout_seconds: 10
+log:
+  level: info
+agent_platform:
+  base_url: https://agent-uat.example.com
+  callback_path: /api/v1/agent/callbacks
+database:
+  host: db-uat.example.internal
+  port: 5432
+  name: tidewise_uat
+redis:
+  address: redis-uat.example.internal:6379
+security:
+  jwt_issuer: tidewise-uat

@@ -1,0 +1,21 @@
+app:
+  name: tidewise-api
+  env: prod
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout_seconds: 5
+  write_timeout_seconds: 10
+log:
+  level: warn
+agent_platform:
+  base_url: https://agent.example.com
+  callback_path: /api/v1/agent/callbacks
+database:
+  host: db-prod.example.internal
+  port: 5432
+  name: tidewise_prod
+redis:
+  address: redis-prod.example.internal:6379
+security:
+  jwt_issuer: tidewise

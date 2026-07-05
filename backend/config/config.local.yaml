@@ -1,0 +1,21 @@
+app:
+  name: tidewise-api
+  env: local
+server:
+  host: 127.0.0.1
+  port: 8080
+  read_timeout_seconds: 5
+  write_timeout_seconds: 10
+log:
+  level: debug
+agent_platform:
+  base_url: http://localhost:9000
+  callback_path: /api/v1/agent/callbacks
+database:
+  host: localhost
+  port: 5432
+  name: tidewise_local
+redis:
+  address: localhost:6379
+security:
+  jwt_issuer: tidewise-local
