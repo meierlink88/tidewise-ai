@@ -48,6 +48,10 @@
 - **WHEN** 内部能力在模块化单体代码、worker 代码或独立服务之间迁移
 - **THEN** 面向客户端的 API/BFF 契约仍然是稳定集成边界，除非另一个 OpenSpec change 明确修改该契约
 
+#### Scenario: 落地后端骨架
+- **WHEN** Go API/BFF 后端骨架被创建
+- **THEN** 骨架必须位于 `backend/`，并提供可编译、可测试、可本地启动的服务端入口
+
 ### Requirement: 外部 Agent 平台集成边界
 系统 SHALL 将 AI 推理、Agent 工作流、RAG 检索、Prompt 编排、工具调用和模型调用交由外部 Agent 平台承载，并在本工程后端保留调用、回调、校验、落库和展示接口边界。
 
@@ -99,6 +103,10 @@
 #### Scenario: 使用配置
 - **WHEN** 业务模块需要访问环境相关配置
 - **THEN** 业务代码必须依赖统一 config 对象，而不是散落读取环境变量或硬编码 local/uat/prod 分支
+
+#### Scenario: 验证配置骨架
+- **WHEN** 后端骨架提供 local、uat、prod 配置模板
+- **THEN** 模板必须保留环境差异结构，同时不得包含真实 secret 或生产凭证
 
 ### Requirement: 部署边界
 系统 SHALL 将 Taro 小程序发布与 Go API/BFF、worker、Agent 平台集成、采集、图谱、RAG 数据边界和基础设施部署职责分离。
