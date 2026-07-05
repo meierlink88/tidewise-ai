@@ -1,0 +1,40 @@
+schema: spec-driven
+
+context: |
+  Project name: 观潮家.
+  Product domain: WeChat Mini Program for global macro and market event intelligence, focused on event tracking, causal reasoning, sector/asset transmission analysis, subscriptions, and AI-assisted market interpretation. The product provides decision support and must not present content as direct investment advice.
+
+  Repository layout:
+  - /Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai is the source engineering root and the OpenSpec root. All implementation code, mini program configuration, OpenSpec changes, specs, and TRAE OpenSpec skills live here.
+  - /Users/meierlink/Documents/david/创业项目/观潮家/prototype is the prototype/design directory. It contains high-fidelity prototype assets and should be treated as reference material, not production source code.
+  - /Users/meierlink/Documents/david/创业项目/观潮家/doc is the documentation workspace for business plans, product design, architecture notes, data models, and other planning documents. It is reference material unless a change explicitly asks to update documentation.
+
+  Current engineering state:
+  - The tidewise-ai directory starts from a greenfield source-code baseline.
+  - OpenSpec 1.5.0 is configured in tidewise-ai with the spec-driven schema.
+  - TRAE integration uses OpenSpec skills under .trae/skills/openspec-*/SKILL.md.
+  - There is not yet a WeChat Mini Program app skeleton in tidewise-ai.
+
+  Target platform and implementation expectations:
+  - Build as a WeChat Mini Program unless a later approved OpenSpec change decides otherwise.
+  - Prefer native Mini Program structure and conventions: app.js, app.json, app.wxss, project.config.json, pages/<page>/<page>.wxml|wxss|js|json, reusable components, and data/services modules.
+  - Keep prototype visuals and product documents outside the source implementation unless explicitly requested.
+  - Convert prototype DOM/HTML behavior into Mini Program data-driven rendering with setData, bindtap, wx:for, wx:if, component props, and page data.
+  - Avoid browser-only APIs such as document, window, innerHTML, direct DOM mutation, and inline onclick handlers in production Mini Program code.
+  - Extract mock/domain data from UI code into dedicated data or service modules when implementing screens.
+  - Do not add comments to source code unless explicitly requested.
+  - Follow security best practices and never hard-code or log secrets, tokens, or private credentials.
+
+rules:
+  proposal:
+    - "State which repository areas are in scope: tidewise-ai source, prototype reference, or doc updates."
+    - "Include non-goals when a change could otherwise spill into prototype or documentation work."
+  design:
+    - "Describe Mini Program page/component/data boundaries when UI implementation is involved."
+    - "Call out any migration from prototype-only behavior to production Mini Program behavior."
+  specs:
+    - "Write user-observable requirements and scenarios, not implementation checklists."
+    - "Include investment-advice safety expectations when analysis, recommendations, or AI responses are affected."
+  tasks:
+    - "Break implementation into verifiable tasks aligned with Mini Program files or modules."
+    - "Include validation tasks appropriate for WeChat Mini Program development."
