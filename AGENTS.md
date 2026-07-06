@@ -198,6 +198,10 @@ AI agent 必须在已有实现基础上增量迭代，不得另起一套。
 - 后端技术选型同时要求适合 AI 编程协作：语言和框架应具备强类型、清晰工程约定、直接编译反馈、易测试和低歧义代码风格。
 - 后端源码位于 `backend/`。
 - API/BFF、领域模块、Agent 平台集成、数据访问、订阅推送、支付回调等能力作为服务端应用独立部署。
+- MVP 阶段结构化主存储采用 PostgreSQL，缓存、限流、幂等和短期任务状态采用 Redis。
+- MVP 阶段暂不直接引入独立图数据库或向量数据库；初始图谱关系优先通过 PostgreSQL 结构化关系表达，RAG、向量召回和 Prompt 编排优先由外部 Agent 平台承载。
+- 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。
+- 数据采集层属于后端 ingestion 边界，支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种路径。采集结果必须经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后再进入存储边界。
 - AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责 API 调用、回调接收、结构化结果校验、落库和展示。
 - MVP 阶段后端采用模块化单体，后续再按容量、部署和团队边界拆分为独立服务。
 
@@ -236,18 +240,32 @@ init-backend-skeleton
 推荐后续目录方向：
 
 ```text
-backend/api/                # Go API/BFF 服务入口
-backend/modules/            # 领域模块
-backend/integrations/       # Agent 平台、支付、消息、外部数据源等外部集成
-backend/repositories/       # 数据访问层
-backend/contracts/          # API 契约定义或生成入口
-backend/jobs/               # 异步任务、定时任务、回调处理
-backend/config/             # local/uat/prod 非敏感配置模板
-backend/internal/config/    # Go 强类型配置加载和校验
-infra/                      # 基础设施、容器、部署、数据库迁移和 CI/CD 配置
+backend/cmd/api/                 # API/BFF 进程入口
+backend/contracts/               # API 契约和 Agent 回写契约来源
+backend/config/                  # local/uat/prod 非敏感配置模板
+backend/internal/config/         # Go 强类型配置加载和校验
+backend/internal/http/           # router、handler、middleware、HTTP DTO 映射
+backend/internal/application/    # 用例编排、事务边界、调用 repository/integration/job
+backend/internal/domain/         # 领域模型、枚举、领域规则和值对象
+backend/internal/ingestion/      # 数据采集、清洗、标准化、去重和入库编排
+backend/internal/repositories/   # PostgreSQL 数据访问接口与实现边界
+backend/internal/integrations/   # Agent 平台、支付、消息、外部数据源等外部集成
+backend/internal/jobs/           # 异步任务、定时任务、回调后处理
+infra/                           # 基础设施、容器、部署、数据库迁移和 CI/CD 配置
 ```
 
-不要在小程序 change 中实现真实后端能力。后端工程、API 契约、数据库、Agent 平台集成和部署拓扑应通过独立 OpenSpec change 设计和实现。
+后端依赖方向：
+
+```text
+http -> application -> domain
+application -> repositories / integrations / jobs
+repositories -> domain
+integrations -> contracts / config
+ingestion -> integrations / repositories / domain
+jobs -> application / repositories / integrations
+```
+
+不要在小程序 change 中实现真实后端能力。后端工程、API 契约、数据库、采集层、Agent 平台集成和部署拓扑应通过独立 OpenSpec change 设计和实现。
 
 后端必须标准化支持 local、uat、prod 三类环境配置。配置文件可以保存非敏感结构化配置，数据库密码、Agent 平台 API key、支付密钥、JWT secret 等敏感信息必须通过环境变量或部署平台 secret 注入，不得提交到 repo。业务代码只能依赖统一的 Go 强类型 config，不得散落读取环境变量或硬编码环境差异。
 

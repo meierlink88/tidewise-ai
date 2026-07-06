@@ -10,10 +10,11 @@ context: |
   - /Users/meierlink/Documents/david/创业项目/观潮家/doc 是项目文档空间，放商业计划、产品设计、架构说明、数据模型和其他规划文档。除非某个 change 明确要求更新文档，否则只作为参考材料。
 
   当前工程状态：
-  - tidewise-ai 目录仍处于绿地源码基线。
   - tidewise-ai 已使用 spec-driven schema 配置 OpenSpec 1.5.0。
   - Codex Desktop 集成使用 .codex/skills/openspec-*/SKILL.md 下的 OpenSpec skills。
-  - tidewise-ai 中尚未包含 Taro 跨平台小程序应用骨架或 Go 后端骨架。
+  - tidewise-ai 已包含 Taro + React + TypeScript 跨平台小程序工程壳，源码位于 `frontend/miniapp/`，当前支持微信和抖音小程序构建目标。
+  - tidewise-ai 已包含 Go + Gin API/BFF 后端骨架，源码位于 `backend/`，当前具备配置加载、健康检查、环境配置模板和最小后端边界。
+  - 当前主规格包含 `technical-architecture`、`mini-program-foundation` 和 `backend-foundation`，后续正式模块必须基于这些主规格增量设计。
 
   目标平台和实现预期：
   - 除非后续已批准的 OpenSpec change 另有决定，否则前端按 Taro + React + TypeScript 跨平台小程序建设。
@@ -22,6 +23,11 @@ context: |
   - 后端技术选型同时要求适合 AI 编程协作：语言和框架应具备强类型、清晰工程约定、直接编译反馈、易测试和低歧义代码风格。
   - 后端必须标准化支持 local、uat、prod 三类环境配置。非敏感配置结构可以入库，敏感信息必须通过环境变量或部署平台 secret 注入，不得提交到 repo。
   - 后端业务代码只能依赖统一的 Go 强类型 config，不得散落读取环境变量或硬编码环境差异。
+  - MVP 阶段结构化主存储默认采用 PostgreSQL，缓存、限流、幂等和短期任务状态默认采用 Redis。真实数据库连接、迁移和本地基础设施必须通过后续 OpenSpec change 实现。
+  - MVP 阶段暂不直接引入独立图数据库或向量数据库。初始图谱关系优先通过 PostgreSQL 结构化关系表达，RAG、向量召回和 Prompt 编排优先由外部 Agent 平台承载；如需引入图谱数据库或向量数据库，必须通过独立 OpenSpec change 明确设计。
+  - 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。当前 `frontend/miniapp/src/models` 是前端展示模型，不等同于正式 API 契约。
+  - 后端正式模块默认采用模块化单体分层：`internal/http` 负责协议适配，`internal/application` 负责编排，`internal/domain` 负责领域模型和规则，`internal/ingestion` 负责采集清洗标准化，`internal/repositories` 负责数据访问，`internal/integrations` 负责外部系统适配，`internal/jobs` 负责异步任务。
+  - 数据采集层属于后端 ingestion 边界，支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种路径。采集结果必须经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后，才能进入 PostgreSQL、未来向量数据库或未来图谱数据库边界。
   - AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责后端 API 调用、回调接收、结构化结果校验、落库和展示。
   - 除非用户明确要求，prototype 视觉资产和产品文档必须留在源码实现之外。
   - 将 prototype 中的 DOM/HTML 行为转换为 Taro/React 数据驱动渲染方式，避免浏览器 DOM 操作和平台专属实现直接进入业务层。
