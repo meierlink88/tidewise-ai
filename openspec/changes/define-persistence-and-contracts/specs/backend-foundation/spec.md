@@ -11,6 +11,10 @@
 - **WHEN** 后续 change 添加跨 repository、integration 或 job 的业务流程
 - **THEN** 该流程必须放入应用服务边界，并保持领域规则和基础设施细节可测试
 
+#### Scenario: 添加采集流程
+- **WHEN** 后续 change 添加自研爬虫采集、外部 Agent API 采集结果接入、清洗、标准化或去重流程
+- **THEN** 该流程必须放入 ingestion 边界，并通过 integrations、jobs 和 repositories 协作完成
+
 ### Requirement: 后端数据访问边界
 系统 SHALL 通过 repository 边界访问 PostgreSQL，并通过明确的缓存或短期状态边界访问 Redis。
 

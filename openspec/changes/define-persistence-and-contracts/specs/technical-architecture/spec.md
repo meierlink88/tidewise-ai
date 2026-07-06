@@ -32,3 +32,14 @@
 #### Scenario: 拆分独立服务
 - **WHEN** 后续 change 拟将某个能力从模块化单体拆分为独立服务
 - **THEN** 该 change 必须说明部署、契约、数据所有权和回滚影响
+
+### Requirement: 数据采集层架构边界
+系统 SHALL 将数据采集层定义为服务端输入层，由 ingestion 编排清洗标准化流程，由 integrations 适配自研爬虫和外部 Agent API，由 jobs 调度采集任务，由 repositories 保存标准化结果。
+
+#### Scenario: 规划采集能力
+- **WHEN** 后续 change 规划热点事件、政策事件、市场异动、公告、产业动态或热度信号采集
+- **THEN** 该 change 必须说明自研爬虫、外部 Agent API、清洗标准化、入库和后续分析触发之间的边界
+
+#### Scenario: 使用采集数据
+- **WHEN** 后续 change 需要把采集结果用于事件流、Agent 分析、报告生成、订阅推送或图谱关系
+- **THEN** 该 change 必须使用经过清洗标准化和来源追踪的数据，而不是直接使用原始爬虫结果或外部 Agent 原始响应

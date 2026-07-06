@@ -1,7 +1,7 @@
 ## 1. Artifact Review
 
 - [ ] 1.1 审阅 `proposal.md`，确认本 change 只定义正式模块开发前的持久化、契约、Agent 回写、异步任务和前端 API 接入架构，不实现业务功能。
-- [ ] 1.2 审阅 `design.md`，确认 PostgreSQL、Redis、图谱/向量延后、API 契约、后端分层、Agent 回写和异步任务取舍符合当前 MVP 方向。
+- [ ] 1.2 审阅 `design.md`，确认 PostgreSQL、Redis、图谱/向量延后、API 契约、后端分层、数据采集、Agent 回写和异步任务取舍符合当前 MVP 方向。
 - [ ] 1.3 审阅 `specs/persistence-and-contracts/spec.md`，确认新增 capability 的 requirements 可以作为后续模块开发前置事实。
 - [ ] 1.4 审阅 `specs/technical-architecture/spec.md`、`specs/backend-foundation/spec.md` 和 `specs/mini-program-foundation/spec.md`，确认 delta requirements 与已有主规格不冲突。
 
@@ -16,7 +16,8 @@
 - [ ] 3.1 确认前端现有 `frontend/miniapp/src/services/request.ts` 仍保持 mock-first，不在本 change 中切换真实 API。
 - [ ] 3.2 确认后端现有 `backend/internal/http`、`internal/config`、`internal/repositories`、`internal/integrations` 和 `internal/jobs` 不被本 change 改成真实业务实现。
 - [ ] 3.3 确认本 change 不新增真实数据库连接、迁移脚本、Redis 连接、Agent 平台调用、认证登录、支付或业务 handler。
-- [ ] 3.4 确认本 change 不修改 `../doc` 或 `../prototype`。
+- [ ] 3.4 确认本 change 不新增真实爬虫脚本、外部数据源抓取器、采集调度器、清洗流水线或外部 Agent API 采集实现。
+- [ ] 3.5 确认本 change 不修改 `../doc` 或 `../prototype`。
 
 ## 4. Validation
 

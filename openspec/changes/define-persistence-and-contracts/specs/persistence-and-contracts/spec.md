@@ -22,6 +22,28 @@
 - **WHEN** 后续 change 需要 RAG 检索、向量召回或 Prompt 编排
 - **THEN** 该能力必须优先经由外部 Agent 平台或明确的服务端集成边界承载，而不是在前端或业务 handler 中直接实现
 
+### Requirement: 数据采集输入边界
+系统 SHALL 将热点事件和外部信号采集定义为后端 ingestion 能力，并支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种输入路径。
+
+#### Scenario: 自研爬虫采集数据
+- **WHEN** 后续 change 通过自研爬虫脚本采集新闻、公告、政策、市场异动、行业事件或热度信号
+- **THEN** 采集结果必须进入后端 ingestion 清洗和标准化边界，而不是由前端或业务 handler 直接使用
+
+#### Scenario: 接入 Agent 采集结果
+- **WHEN** 后续 change 通过外部 Agent API 获取已经采集或初步分析后的事件数据
+- **THEN** 后端必须通过 integration 边界接入该结果，并交由 ingestion 进行结构化校验、清洗、标准化和入库
+
+### Requirement: 采集数据标准化和存储分流
+系统 SHALL 对采集后的原始数据执行来源追踪、去重、清洗、标准化和质量标记，并按数据形态进入关系型、向量或图谱存储边界。
+
+#### Scenario: 标准化采集结果
+- **WHEN** 采集层收到自研爬虫或外部 Agent API 的原始结果
+- **THEN** 系统必须生成标准化事件、来源、时间、标签、实体、置信度和处理状态，而不是直接把原始结果作为系统事实
+
+#### Scenario: 分流不同数据形态
+- **WHEN** 标准化后的数据包含结构化事件、语义向量、实体关系或事件传导链
+- **THEN** 系统必须根据数据形态进入 PostgreSQL、未来向量数据库或未来图谱数据库边界，并在独立 change 中定义非 PostgreSQL 存储的引入方式
+
 ### Requirement: API 契约边界
 系统 SHALL 在真实业务 API 实现前定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。
 
