@@ -1,15 +1,15 @@
 ## 1. Artifact Review
 
 - [ ] 1.1 审阅 `proposal.md`，确认本 change 范围是数据库构建和采集层编码，不实现前端页面、AI 推理、图数据库或向量数据库。
-- [ ] 1.2 审阅 `design.md`，确认 ER 设计、三个参考系统采集通道、SDK 边界、限流、凭证和原始文档职责符合当前架构。
+- [ ] 1.2 审阅 `design.md`，确认 ER 字段级 schema mapping、三个参考系统采集通道、SDK 边界、限流、凭证和原始文档职责符合当前架构。
 - [ ] 1.3 审阅 `specs/event-knowledge-schema/spec.md` 和 `specs/data-ingestion-layer/spec.md`，确认新增 capability 能约束后续实现。
 - [ ] 1.4 审阅 `specs/backend-foundation/spec.md`、`specs/persistence-and-contracts/spec.md` 和 `specs/technical-architecture/spec.md`，确认 delta requirements 不冲突。
 
 ## 2. Database Migration Foundation
 
 - [ ] 2.1 确定迁移目录和迁移工具策略，优先复用当前 Go 后端工程约定，避免引入不必要复杂依赖。
-- [ ] 2.2 新增 PostgreSQL schema migration，覆盖实体节点、实体关系、各类 profile、采集源目录、原始文档、事件、证据、标签和事件实体关联表。
-- [ ] 2.3 为关键字段添加主键、外键、唯一约束、状态字段、时间字段、内容哈希索引和常用查询索引。
+- [ ] 2.2 新增 PostgreSQL schema migration，按 `design.md` 的 `Schema field mapping` 覆盖实体节点、实体关系、各类 profile、采集源目录、原始文档、事件、证据、标签和事件实体关联表及核心字段。
+- [ ] 2.3 为 `Schema field mapping` 中的关键字段添加主键、外键、唯一约束、状态字段、时间字段、内容哈希索引和常用查询索引。
 - [ ] 2.4 提供 down migration、兼容回滚说明或可审阅的回滚策略。
 - [ ] 2.5 添加迁移文件解析或 schema 结构验证测试。
 
@@ -17,7 +17,7 @@
 
 - [ ] 3.1 扩展 `backend/internal/config` 和 `backend/config/config.*.yaml`，加入采集、对象存储、限流和迁移相关非敏感配置。
 - [ ] 3.2 保持真实数据库密码、API key、token、cookie、RSSHub base URL 密钥和云服务密钥只通过环境变量或部署平台 secret 注入。
-- [ ] 3.3 新增领域模型和值对象，表达实体、采集源、原始文档、事件、事件证据、标签和事件实体关联。
+- [ ] 3.3 新增领域模型和值对象，按 `Schema field mapping` 表达实体、采集源、原始文档、事件、事件证据、标签和事件实体关联。
 - [ ] 3.4 添加配置校验和领域模型测试，覆盖缺失配置、非法状态、时间字段和哈希字段。
 
 ## 4. Repository Layer

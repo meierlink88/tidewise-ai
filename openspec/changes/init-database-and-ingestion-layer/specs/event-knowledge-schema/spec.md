@@ -55,6 +55,10 @@
 - **WHEN** 开发者或部署流程初始化 PostgreSQL
 - **THEN** 必须能够从 repo 内的迁移来源创建事件知识 schema
 
+#### Scenario: 遵循字段映射
+- **WHEN** 本 change 实现 PostgreSQL migration
+- **THEN** migration 必须覆盖 `design.md` 中 `Schema field mapping` 列出的 ER 核心字段、主键和外键关系
+
 #### Scenario: 审阅回滚策略
 - **WHEN** schema 变更需要回滚或降级
 - **THEN** 本 change 必须提供 down migration、兼容迁移说明或明确的回滚策略

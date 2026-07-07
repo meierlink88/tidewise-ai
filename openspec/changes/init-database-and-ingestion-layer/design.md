@@ -62,6 +62,43 @@
 - `event_tag_maps`
 - `event_entity_links`
 
+Schema field mapping 以外部 ER 文档为来源，在本 change 内固化为 migration 实现基线。字段名采用 PostgreSQL snake_case。基础类型约定为：`uuid` 映射 PostgreSQL `uuid`，`string` 映射 `text` 或受限 `varchar`，`boolean` 映射 `boolean`，`int` 映射 `integer`，`date` 映射 `date`，`datetime` 映射 `timestamptz`。实现可以补充 `created_at`、`updated_at` 等工程审计字段，但不得删除下列 ER 核心字段。
+
+| 表 | 核心字段 |
+|---|---|
+| `entity_nodes` | `id` PK, `entity_type`, `layer_code`, `name`, `canonical_name`, `aliases`, `status` |
+| `entity_edges` | `id` PK, `from_entity_id` FK -> `entity_nodes.id`, `to_entity_id` FK -> `entity_nodes.id`, `relation_type`, `evidence_note`, `status` |
+| `economy_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `country_code`, `currency_code`, `region` |
+| `policy_body_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `body_type`, `jurisdiction`, `policy_domain` |
+| `market_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `market_type`, `economy_entity_id` FK -> `entity_nodes.id`, `currency_code`, `timezone` |
+| `index_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `index_code`, `index_type`, `market_entity_id` FK -> `entity_nodes.id`, `provider`, `currency_code`, `list_date` |
+| `sector_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `sector_system`, `sector_code`, `sector_type`, `exchange_scope`, `constituent_count`, `list_date`, `parent_sector_entity_id` FK -> `entity_nodes.id` |
+| `chain_node_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `chain_position` |
+| `company_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `registration_economy_entity_id` FK -> `entity_nodes.id`, `area`, `industry_name`, `controller_name`, `controller_type` |
+| `security_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `ticker`, `symbol`, `exchange`, `market_board`, `security_type`, `issuer_company_entity_id` FK -> `entity_nodes.id`, `list_date`, `delist_date`, `list_status`, `currency_code` |
+| `instrument_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `instrument_type`, `underlying_entity_id` FK -> `entity_nodes.id`, `exchange`, `currency_code` |
+| `metric_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `metric_type`, `unit`, `frequency` |
+| `commodity_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `commodity_type` |
+| `person_profiles` | `entity_id` PK/FK -> `entity_nodes.id`, `role_title`, `organization_entity_id` FK -> `entity_nodes.id`, `economy_entity_id` FK -> `entity_nodes.id` |
+| `source_catalogs` | `id` PK, `ingest_channel`, `provider_key`, `connector_key`, `parser_key`, `source_type`, `source_name`, `source_url`, `source_level`, `topic_hint`, `route_template`, `code_style`, `auth_required`, `auth_type`, `credential_ref`, `rate_limit_policy`, `usage_policy`, `status` |
+| `raw_documents` | `id` PK, `source_id` FK -> `source_catalogs.id`, `ingest_channel`, `source_type`, `source_name`, `source_url`, `source_external_id`, `title`, `content_text`, `raw_object_uri`, `raw_mime_type`, `language`, `published_at`, `collected_at`, `content_hash`, `ingest_status` |
+| `events` | `id` PK, `title`, `summary`, `event_time`, `first_seen_at`, `knowable_at`, `event_status`, `fact_status`, `dedupe_key`, `primary_source_id` FK -> `event_sources.id` |
+| `event_sources` | `id` PK, `event_id` FK -> `events.id`, `raw_document_id` FK -> `raw_documents.id`, `source_level`, `evidence_excerpt`, `evidence_hash` |
+| `event_tag_defs` | `id` PK, `tag_kind`, `code`, `name` |
+| `event_tag_maps` | `id` PK, `event_id` FK -> `events.id`, `tag_id` FK -> `event_tag_defs.id`, `assign_source`, `review_status` |
+| `event_entity_links` | `id` PK, `event_id` FK -> `events.id`, `entity_id` FK -> `entity_nodes.id`, `entity_role`, `assign_source`, `review_status`, `evidence_note` |
+
+关键约束和索引方向：
+
+- 各 profile 表的 `entity_id` 必须同时作为主键和外键，表达一实体一扩展 profile。
+- `entity_edges` 需要支持按 `from_entity_id`、`to_entity_id` 和 `relation_type` 查询。
+- `source_catalogs` 需要支持按 `status`、`provider_key`、`ingest_channel`、`connector_key` 查询。
+- `raw_documents` 需要支持按 `source_id`、`source_external_id`、`content_hash`、`published_at`、`collected_at` 和 `ingest_status` 查询；幂等约束优先围绕 `source_id + source_external_id` 和 `source_id + content_hash` 设计。
+- `events` 需要支持按 `dedupe_key`、`event_time`、`first_seen_at`、`knowable_at`、`event_status`、`fact_status` 查询。
+- `event_sources` 需要支持按 `event_id`、`raw_document_id` 和 `evidence_hash` 查询。
+- `event_tag_maps` 和 `event_entity_links` 不放样例数据，但需要支持后续抽取、审核和回滚。
+- `events.primary_source_id` 与 `event_sources.event_id` 存在插入顺序问题，migration 或 repository 实现需要通过可空字段、延迟更新或事务内两阶段写入处理。
+
 选择理由：
 
 - 主规格已经明确 MVP 阶段 PostgreSQL 是结构化主存储。
