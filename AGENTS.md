@@ -98,6 +98,7 @@ openspec/changes/<change-name>/
 - 读取该 change 的 `proposal.md`、`design.md`、`tasks.md` 和相关 `specs/**/spec.md`。
 - 读取受影响的现有代码文件。
 - 说明将复用哪些已有页面、组件、services、models、data、store 或配置。
+- 如果 change 涉及后端功能实现，必须先设计并实现 Go 单元测试或可自动化测试用例，再编写生产代码。
 - 严格按照 tasks 顺序执行。
 - 完成一个任务后立即把对应 checkbox 从 `- [ ]` 改为 `- [x]`。
 
@@ -178,6 +179,29 @@ AI agent 必须在已有实现基础上增量迭代，不得另起一套。
 - 不得因为新 change 而重建已有工程骨架。
 
 如果现有实现不符合新设计，应先更新 design 和 tasks，再执行迁移或重构。
+
+## Testing And TDD Workflow
+
+本项目后端研发默认采用 TDD 测试先行。该规则适用于所有涉及 Go 后端实现的 OpenSpec change，而不是某一个单独 change 的临时约定。
+
+后端功能实现顺序：
+
+1. 先阅读当前 change 的 specs、design 和 tasks，明确本次功能点的可验证行为。
+2. 先编写 Go 单元测试、table-driven tests、fixture、fake 或 `httptest` 用例。
+3. 运行对应包的 `go test`，确认测试能表达目标行为。
+4. 编写最小生产实现让测试通过。
+5. 运行对应包测试和 `go test ./...`。
+6. 必要时重构实现，但不得删除或削弱已确认的行为测试。
+
+后端测试规则：
+
+- Go 后端测试优先使用官方 `testing` 体系和 `go test ./...`。
+- 可以使用 Go 生态成熟断言库，但不得为了测试引入重型或不必要框架。
+- 单元测试不得依赖真实外部网络、真实 API key、真实 cookie、真实 token 或生产数据库。
+- 外部 HTTP、RSS、RSSHub、Eastmoney、Agent API 或 webhook 行为必须通过 fixture、fake server、interface fake 或 `httptest` 验证。
+- repository、migration 和数据库相关能力优先使用接口 fake、SQL/migration 静态验证和可重复集成测试；需要真实 PostgreSQL 时必须明确标记为集成测试边界。
+- 新增后端功能点没有对应测试时，不应标记 tasks 完成。
+- change 完成前必须运行 `go test ./...`；如果受本地环境限制无法运行，必须在最终说明中明确阻塞原因和未验证风险。
 
 ## Engineering Architecture
 

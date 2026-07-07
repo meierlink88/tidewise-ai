@@ -27,6 +27,8 @@ context: |
   - MVP 阶段暂不直接引入独立图数据库或向量数据库。初始图谱关系优先通过 PostgreSQL 结构化关系表达，RAG、向量召回和 Prompt 编排优先由外部 Agent 平台承载；如需引入图谱数据库或向量数据库，必须通过独立 OpenSpec change 明确设计。
   - 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。当前 `frontend/miniapp/src/models` 是前端展示模型，不等同于正式 API 契约。
   - 后端正式模块默认采用模块化单体分层：`internal/http` 负责协议适配，`internal/application` 负责编排，`internal/domain` 负责领域模型和规则，`internal/ingestion` 负责采集清洗标准化，`internal/repositories` 负责数据访问，`internal/integrations` 负责外部系统适配，`internal/jobs` 负责异步任务。
+  - 所有涉及 Go 后端实现的正式 change 默认采用 TDD 测试先行：先设计并实现 Go 单元测试、table-driven tests、fixture、fake 或 `httptest` 用例，再编写生产代码，最后通过对应包测试和 `go test ./...` 才能视为验证完成。
+  - 后端单元测试不得依赖真实外部网络、真实 API key、真实 cookie、真实 token 或生产数据库。外部来源、Agent API、RSS/RSSHub、Eastmoney、webhook 和数据库边界必须通过 fixture、fake、`httptest`、接口 fake、SQL/migration 静态验证或明确标记的可重复集成测试验证。
   - 数据采集层属于后端 ingestion 边界，支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种路径。采集结果必须经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后，才能进入 PostgreSQL、未来向量数据库或未来图谱数据库边界。
   - AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责后端 API 调用、回调接收、结构化结果校验、落库和展示。
   - 除非用户明确要求，prototype 视觉资产和产品文档必须留在源码实现之外。
@@ -48,9 +50,13 @@ rules:
   design:
     - "涉及 UI 实现时，必须描述小程序页面、组件和数据边界。"
     - "如果涉及从 prototype-only 行为迁移到生产小程序行为，必须明确说明迁移方式。"
+    - "涉及 Go 后端实现时，必须描述测试先行策略、关键测试边界、fixture/fake 使用方式和 `go test ./...` 验证要求。"
   specs:
     - "编写用户可观察的 requirements 和 scenarios，不要把 specs 写成实现 checklist。"
     - "当影响分析、推荐或 AI 响应时，必须包含投资建议安全边界。"
+    - "涉及后端能力时，必须包含可自动化测试或验证通过的完成标准。"
   tasks:
     - "将实现拆成可验证任务，并与小程序文件或模块对齐。"
     - "包含适合 Taro 跨平台小程序和 Go 后端开发的验证任务。"
+    - "涉及 Go 后端实现时，tasks 必须把测试任务放在对应生产实现任务之前。"
+    - "新增后端功能点必须先完成 Go 单元测试、fixture、fake 或集成测试边界，再标记实现任务完成。"
