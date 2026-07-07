@@ -11,6 +11,7 @@
 ## What Changes
 
 - 新增 PostgreSQL 数据库迁移基础，覆盖实体图谱基础表、采集源目录、原始文档、事件事实、事件证据、事件标签和事件实体关联。
+- 将数据库 DDL/migration 文件作为 repo 内长期保留的 schema 演进来源，后续任何数据库结构变化都必须通过增量 migration 同步表达。
 - 在 `design.md` 中固化 ER 字段级 schema mapping，作为 migration 和领域模型实现基线，避免后续实现只依赖外部文档路径或 AI 自行推断字段。
 - 新增后端 ingestion 代码骨架，建立 `source_registry`、`connector_registry`、`parser_registry`、`credential_resolver`、`rate_limiter`、`raw_object_store` 和 `raw_document_writer` 等边界。
 - 新增第一批采集通道设计与实现范围：`rss_feed`、`http_eastmoney`、`rsshub_feed`、`web_fetch`、`local_file`。
@@ -35,7 +36,7 @@
 ## Impact
 
 - 影响仓库区域：`backend/`、未来新增的 `infra/` 或迁移目录、`openspec/changes/init-database-and-ingestion-layer/`。
-- 影响后端工程：需要新增数据库迁移来源、采集层 Go 包、领域模型、repository 边界、integration connector 边界和相关测试。
+- 影响后端工程：需要新增版本化 SQL migration 来源、启动迁移检查、采集层 Go 包、领域模型、repository 边界、integration connector 边界和相关测试。
 - 影响配置：需要扩展 local/uat/prod 非敏感配置，表达数据库、Redis、采集限流、对象存储和外部源基础配置；敏感凭证仍通过环境变量或部署平台 secret 注入。
 - 影响外部系统：参考 Vibe-Research、Vibe-Trading、Stock 的采集通道设计，但不直接复制这些系统的业务推理、前端代码、模拟数据或真实凭证。
 - 不影响前端页面，不修改 `frontend/miniapp/src`。

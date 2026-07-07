@@ -7,15 +7,16 @@
 
 ## 2. Database Migration Foundation
 
-- [ ] 2.1 确定迁移目录和迁移工具策略，优先复用当前 Go 后端工程约定，避免引入不必要复杂依赖。
+- [ ] 2.1 在 `backend/migrations/` 建立 `goose` 兼容的版本化 SQL migration 目录，并确认 DDL 文件作为 schema 演进唯一来源。
 - [ ] 2.2 新增 PostgreSQL schema migration，按 `design.md` 的 `Schema field mapping` 覆盖实体节点、实体关系、各类 profile、采集源目录、原始文档、事件、证据、标签和事件实体关联表及核心字段。
 - [ ] 2.3 为 `Schema field mapping` 中的关键字段添加主键、外键、唯一约束、状态字段、时间字段、内容哈希索引和常用查询索引。
-- [ ] 2.4 提供 down migration、兼容回滚说明或可审阅的回滚策略。
-- [ ] 2.5 添加迁移文件解析或 schema 结构验证测试。
+- [ ] 2.4 提供 down migration、兼容回滚说明或可审阅的回滚策略，并禁止通过清空数据或重建全库完成升级和回滚。
+- [ ] 2.5 添加迁移文件解析、版本顺序或 schema 结构验证测试。
+- [ ] 2.6 实现启动迁移检查/runner 边界，能够读取已执行版本、检测 pending migrations，并按配置执行非破坏性增量迁移。
 
 ## 3. Backend Config And Domain Models
 
-- [ ] 3.1 扩展 `backend/internal/config` 和 `backend/config/config.*.yaml`，加入采集、对象存储、限流和迁移相关非敏感配置。
+- [ ] 3.1 扩展 `backend/internal/config` 和 `backend/config/config.*.yaml`，加入采集、对象存储、限流和迁移相关非敏感配置，包括是否允许启动自动执行 pending migration。
 - [ ] 3.2 保持真实数据库密码、API key、token、cookie、RSSHub base URL 密钥和云服务密钥只通过环境变量或部署平台 secret 注入。
 - [ ] 3.3 新增领域模型和值对象，按 `Schema field mapping` 表达实体、采集源、原始文档、事件、事件证据、标签和事件实体关联。
 - [ ] 3.4 添加配置校验和领域模型测试，覆盖缺失配置、非法状态、时间字段和哈希字段。
@@ -58,7 +59,7 @@
 - [ ] 8.1 运行 `openspec validate init-database-and-ingestion-layer`，修复所有 OpenSpec 错误。
 - [ ] 8.2 在 `backend/` 下运行 `go test ./...`。
 - [ ] 8.3 在 `backend/` 下运行 `go vet ./...`。
-- [ ] 8.4 运行迁移解析、schema 或 SQL 静态验证命令。
+- [ ] 8.4 运行迁移解析、版本顺序、schema 或 SQL 静态验证命令，确认 migration 不依赖清空数据或重建全库。
 - [ ] 8.5 扫描本 change 和新增代码，确认没有真实 secret、token、cookie、数据库密码、API key 或生产连接串。
 - [ ] 8.6 运行 `openspec validate --all`，确认本 change 与主规格关系可验证。
 - [ ] 8.7 运行 `git status --short`，确认提交范围只包含本 change 的 OpenSpec artifacts 和预期后端实现文件。

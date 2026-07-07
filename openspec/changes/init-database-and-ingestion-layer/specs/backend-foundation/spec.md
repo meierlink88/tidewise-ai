@@ -12,11 +12,19 @@
 - **THEN** 访问外部来源的实现必须通过 integrations 或 connector 边界，而不是散落在 repository 或 handler 中
 
 ### Requirement: 数据库迁移实现边界
-系统 SHALL 在后端或基础设施区域提供数据库迁移来源，使 PostgreSQL schema 可以在 local、uat、prod 环境一致创建和审阅。
+系统 SHALL 在后端或基础设施区域提供数据库迁移来源，使 PostgreSQL schema 可以在 local、uat、prod 环境一致创建、审阅和增量更新。
 
 #### Scenario: 添加迁移文件
 - **WHEN** 本 change 创建事件知识和采集相关表
 - **THEN** 必须在 repo 内提供迁移文件或迁移 runner 可识别的来源，并说明执行方式
+
+#### Scenario: 启动检查迁移版本
+- **WHEN** Go 后端启动并连接 PostgreSQL
+- **THEN** 后端必须能够检查数据库已执行 migration 版本和 repo 内 pending migration，并按环境配置决定是否自动执行
+
+#### Scenario: 避免并发迁移
+- **WHEN** 多个后端实例同时启动并发现 pending migration
+- **THEN** migration runner 必须通过 PostgreSQL advisory lock、迁移工具锁或等价机制避免并发 DDL
 
 #### Scenario: 测试迁移来源
 - **WHEN** 开发者验证后端持久化基础

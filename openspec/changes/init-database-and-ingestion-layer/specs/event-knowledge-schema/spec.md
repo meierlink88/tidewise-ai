@@ -49,11 +49,19 @@
 - **THEN** 必须通过独立 OpenSpec change 定义对应 schema 和安全边界
 
 ### Requirement: schema 迁移和回滚
-系统 SHALL 为事件知识 schema 提供可审阅的数据库迁移来源，并保证 local、uat、prod 使用同一套迁移定义。
+系统 SHALL 为事件知识 schema 提供可审阅、版本化、长期保留的数据库迁移来源，并保证 local、uat、prod 使用同一套迁移定义。
 
 #### Scenario: 执行迁移
 - **WHEN** 开发者或部署流程初始化 PostgreSQL
 - **THEN** 必须能够从 repo 内的迁移来源创建事件知识 schema
+
+#### Scenario: 保留版本化 DDL 文件
+- **WHEN** 本 change 或后续 change 修改数据库表、字段、索引、约束或枚举检查
+- **THEN** 必须在 repo 内追加或更新对应阶段允许修改的版本化 SQL migration 文件，并让该文件成为 schema 变化的审阅依据
+
+#### Scenario: 增量演进已有数据
+- **WHEN** 数据库已经存在业务数据且需要执行 schema 更新
+- **THEN** migration 必须以增量方式演进结构，不得通过清空表、删除全库、重建全库或丢弃既有业务数据来完成升级
 
 #### Scenario: 遵循字段映射
 - **WHEN** 本 change 实现 PostgreSQL migration
@@ -61,4 +69,4 @@
 
 #### Scenario: 审阅回滚策略
 - **WHEN** schema 变更需要回滚或降级
-- **THEN** 本 change 必须提供 down migration、兼容迁移说明或明确的回滚策略
+- **THEN** 本 change 必须提供 down migration、兼容迁移说明或明确的回滚策略，且回滚策略不得依赖清空业务数据

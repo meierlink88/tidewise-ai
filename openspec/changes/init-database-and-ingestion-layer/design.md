@@ -17,6 +17,7 @@
 **Goals:**
 
 - 建立 PostgreSQL migration 来源，覆盖 ER 设计中的实体、关系、采集源、原始文档、事件、证据、标签和事件实体关联表。
+- 建立 repo 内长期保留的版本化 SQL DDL/migration 来源，后续任何数据库结构变更都必须通过增量 migration 表达。
 - 建立后端 `internal/ingestion` 代码骨架，承载采集编排、清洗、标准化、去重和写入流程。
 - 建立采集源目录、连接器注册、解析器注册、凭证解析、限流、原始对象保存和原始文档写入的可测试接口。
 - 第一阶段实现 Go 可直接承载的通道边界：`rss_feed`、`http_eastmoney`、`rsshub_feed`、`web_fetch`、`local_file`。
@@ -110,6 +111,39 @@ Schema field mapping 以外部 ER 文档为来源，在本 change 内固化为 m
 - 直接引入图数据库：路径查询更自然，但会提前增加部署和一致性复杂度。
 - 先只写 JSON 文件：开发快，但无法支撑后续正式 API、审计、幂等和回滚。
 
+### Decision: 版本化 SQL migration 是 schema 变更唯一来源
+
+本项目不采用运行时根据 Go struct 或 ORM 自动推断数据库结构的方式。数据库表、索引、约束、枚举检查和后续结构调整必须保存在 repo 内的版本化 SQL migration 文件中，并作为 PostgreSQL schema 演进的唯一来源。
+
+默认实现策略：
+
+- migration 目录使用 `backend/migrations/`。
+- Go 迁移工具优先采用 `pressly/goose`。
+- migration 文件使用 `000001_xxx.sql` 这类递增版本命名，并保留 `-- +goose Up` 和 `-- +goose Down` 段。
+- 已经在共享环境或生产环境执行过的 migration 文件不得被重写来表达新 schema；后续变化必须追加新版本 migration。
+- `goose_db_version` 或等价版本表记录已执行版本，后端启动时根据版本表检测 pending migrations。
+- local 和 uat 默认允许启动时自动执行 pending migrations；prod 也使用同一套迁移文件和检查逻辑，但是否自动执行由部署配置显式控制。
+- 启动迁移执行前必须获取 PostgreSQL advisory lock 或迁移工具等价锁，避免多实例同时改 schema。
+- 自动迁移只允许执行可审阅的增量 DDL，不允许通过清空数据、重建全库或无保护删除字段来完成升级。
+
+数据保留原则：
+
+- 允许的常规增量包括新增表、新增可空字段、新增带默认值字段、新增索引、新增非破坏性约束和兼容性回填。
+- 删除表、删除字段、重命名字段、收紧非空约束、大规模类型变更等破坏性操作必须拆成独立 OpenSpec change，并使用 expand-contract、数据回填、兼容窗口和人工确认。
+- 在已有数据环境中执行 migration 时，失败必须中止启动或部署，不得自动 fallback 到清库重建。
+
+选择理由：
+
+- Go 生态更成熟的生产方式是显式 SQL migration，而不是 Java ORM 风格的 `ddl-auto update`。
+- 版本化 DDL 能让 Codex、人工 reviewer 和部署流程看到真实 schema 变化。
+- 启动检查可以降低本地和测试环境漏跑 migration 的风险，同时通过配置控制生产环境风险。
+
+备选方案：
+
+- ORM 自动迁移：开发早期方便，但容易产生不可审阅、不可回滚或环境不一致的 schema 变化。
+- 只提供手工 SQL 文档：可审阅但容易漏执行，无法和启动检查、版本表、CI 验证形成闭环。
+- Atlas 或 golang-migrate：也可满足版本化迁移需求，但本阶段 `goose` 的 SQL 文件和 Go 内嵌调用更直接，AI 编码歧义更低。
+
 ### Decision: 采集层先以 `RAW_DOCUMENT` 为边界
 
 采集层输出统一原始文档模型，包含来源、外部 ID、标题、正文、原始对象 URI、语言、发布时间、采集时间、内容哈希和状态。后续 AI 抽取再从 `RAW_DOCUMENT` 生成或更新 `EVENT`、`EVENT_SOURCE`、`EVENT_TAG_MAP` 和 `EVENT_ENTITY_LINK`。
@@ -184,7 +218,8 @@ Schema field mapping 以外部 ER 文档为来源，在本 change 内固化为 m
 
 ## Risks / Trade-offs
 
-- [Risk] 第一阶段 schema 覆盖面较大，migration 容易变复杂。→ Mitigation：优先创建稳定基础表和索引，复杂图/向量能力延后，迁移保持可审阅。
+- [Risk] 第一阶段 schema 覆盖面较大，migration 容易变复杂。→ Mitigation：优先创建稳定基础表和索引，复杂图/向量能力延后，迁移保持可审阅，并通过版本表和启动检查保证环境一致。
+- [Risk] 启动自动迁移在生产多实例环境中可能产生并发 DDL 或破坏性误操作。→ Mitigation：迁移执行必须加 PostgreSQL advisory lock，prod 自动执行由配置显式开启，破坏性 migration 必须独立 review 且默认禁止自动执行。
 - [Risk] Eastmoney、RSSHub、网页抓取等公开源存在限流、反爬或路由不稳定。→ Mitigation：所有 provider 走统一限流、timeout、UA 和错误状态，不让单源失败中断整体采集批次。
 - [Risk] Tushare/AKShare SDK 无法在 Go 主服务内直接运行。→ Mitigation：本 change 只定义 SDK connector 边界和配置，真实 Python worker 接入另开 change。
 - [Risk] 采集层可能被误用为分析层。→ Mitigation：spec 明确禁止本阶段写入影响方向、评分、传导强度和预测结论。
@@ -193,23 +228,23 @@ Schema field mapping 以外部 ER 文档为来源，在本 change 内固化为 m
 
 ## Migration Plan
 
-1. 创建迁移目录和 PostgreSQL up/down 或兼容迁移文件。
-2. 创建核心 schema、索引、唯一约束和必要枚举检查。
-3. 扩展后端配置，加入采集、对象存储、限流和迁移相关非敏感配置。
+1. 创建 `backend/migrations/`，使用 `goose` 兼容的版本化 SQL migration 文件保留 DDL。
+2. 创建核心 schema、索引、唯一约束和必要枚举检查，并通过版本表记录已执行 migration。
+3. 扩展后端配置，加入采集、对象存储、限流和启动迁移检查相关非敏感配置。
 4. 新增 `internal/ingestion`、`internal/domain`、`internal/repositories` 和 `internal/integrations` 中的采集相关接口和实现。
-5. 实现 Go 可直接运行的第一批 connector 和 parser，并用测试覆盖标准化、幂等、限流和错误处理。
-6. 保持 `sdk_tushare`、`sdk_akshare` 为声明式边界，不接真实 Python SDK。
-7. 运行 `go test ./...`、`go vet ./...`、`openspec validate init-database-and-ingestion-layer` 和 `openspec validate --all`。
+5. 在 API 启动流程中加入 migration checker/runner，按配置检查并执行 pending migration。
+6. 实现 Go 可直接运行的第一批 connector 和 parser，并用测试覆盖标准化、幂等、限流和错误处理。
+7. 保持 `sdk_tushare`、`sdk_akshare` 为声明式边界，不接真实 Python SDK。
+8. 运行 `go test ./...`、`go vet ./...`、migration 静态/解析验证、`openspec validate init-database-and-ingestion-layer` 和 `openspec validate --all`。
 
 回滚策略：
 
-- schema 变更通过 down migration 或兼容迁移回滚。
+- schema 变更通过 down migration、兼容迁移或新版本修复 migration 回滚；不得通过清空数据或重建全库回滚。
 - 采集层代码可以通过禁用 `source_catalogs.status` 或环境配置关闭。
 - 原始对象保存失败不得写入成功状态的 `RAW_DOCUMENT`。
 
 ## Open Questions
 
 - 对象存储第一阶段使用本地文件目录、S3 兼容 URI 还是仅接口和测试 fake，需要在 apply 前确认默认实现。
-- migration 工具采用纯 SQL 目录、Goose、golang-migrate 或自研最小 runner，需要在实现时结合当前 Go 工程依赖选择。
 - `SOURCE_CATALOG` 是否需要在本 change 中提供最小 seed 数据，还是只提供 schema 和测试 fixture。
 - Redis 限流是否在本 change 中真实接入，还是先提供进程内限流并保留 Redis 边界。
