@@ -1,0 +1,45 @@
+## ADDED Requirements
+
+### Requirement: 采集层代码边界
+系统 SHALL 在 Go 后端中新增 `internal/ingestion` 边界，用于承载采集编排、清洗、标准化、去重和写入流程，并通过 `integrations`、`repositories`、`domain` 和 `jobs` 协作。
+
+#### Scenario: 新增采集模块
+- **WHEN** 本 change 添加采集层代码
+- **THEN** 采集编排必须位于后端 ingestion 边界，而不是放入 HTTP handler、main 入口或前端服务中
+
+#### Scenario: 协作外部连接器
+- **WHEN** 采集流程需要访问 RSS、HTTP API、RSSHub、网页、本地文件或未来 SDK worker
+- **THEN** 访问外部来源的实现必须通过 integrations 或 connector 边界，而不是散落在 repository 或 handler 中
+
+### Requirement: 数据库迁移实现边界
+系统 SHALL 在后端或基础设施区域提供数据库迁移来源，使 PostgreSQL schema 可以在 local、uat、prod 环境一致创建和审阅。
+
+#### Scenario: 添加迁移文件
+- **WHEN** 本 change 创建事件知识和采集相关表
+- **THEN** 必须在 repo 内提供迁移文件或迁移 runner 可识别的来源，并说明执行方式
+
+#### Scenario: 测试迁移来源
+- **WHEN** 开发者验证后端持久化基础
+- **THEN** 必须能够通过自动化测试或可重复命令确认迁移文件可解析且结构符合预期
+
+### Requirement: 采集配置扩展
+系统 SHALL 扩展后端强类型配置，使采集层可以读取非敏感的 provider、限流、对象存储和本地运行配置。
+
+#### Scenario: 加载采集配置
+- **WHEN** Go 后端启动并加载 local、uat 或 prod 配置
+- **THEN** config 对象必须包含采集层运行所需的非敏感配置，并在启动阶段校验必填字段
+
+#### Scenario: 注入采集凭证
+- **WHEN** 采集连接器需要真实 API key、token、cookie、数据库密码或云服务密钥
+- **THEN** 这些值必须通过环境变量或部署平台 secret 注入，不得写入环境配置文件
+
+### Requirement: 采集层测试边界
+系统 SHALL 为采集层 registry、parser、writer、credential resolver 和 rate limiter 提供可自动化验证的单元测试或集成测试边界。
+
+#### Scenario: 验证标准化
+- **WHEN** 测试 RSS、Eastmoney JSON、RSSHub XML、网页内容或本地文件输入
+- **THEN** 采集层必须能生成统一原始文档候选对象，并处理空值、时间、语言、哈希和来源字段
+
+#### Scenario: 验证安全边界
+- **WHEN** 测试凭证解析和配置加载
+- **THEN** 测试不得包含真实密钥，且代码不得绕过统一 config 和 credential resolver 读取敏感值
