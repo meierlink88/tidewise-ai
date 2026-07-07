@@ -20,6 +20,7 @@
 - 建立 repo 内长期保留的版本化 SQL DDL/migration 来源，后续任何数据库结构变更都必须通过增量 migration 表达。
 - 建立后端 `internal/ingestion` 代码骨架，承载采集编排、清洗、标准化、去重和写入流程。
 - 建立采集源目录、连接器注册、解析器注册、凭证解析、限流、原始对象保存和原始文档写入的可测试接口。
+- 建立 TDD 测试先行开发约束，后端功能点必须先有 Go 单元测试或可自动化验证的测试用例，再写生产实现。
 - 第一阶段实现 Go 可直接承载的通道边界：`rss_feed`、`http_eastmoney`、`rsshub_feed`、`web_fetch`、`local_file`。
 - 为 `sdk_tushare` 和 `sdk_akshare` 建立配置和接口边界，明确后续通过 Python worker、sidecar 或内部 HTTP wrapper 接入。
 - 保持采集层只写 `RAW_DOCUMENT` 和基础采集状态，不把情绪评分、影响方向、传导强度、预测结论写入本阶段数据模型。
@@ -216,10 +217,45 @@ Schema field mapping 以外部 ER 文档为来源，在本 change 内固化为 m
 - 只写 PostgreSQL 不保存原始对象：实现简单但审计能力不足。
 - 原始对象和结构化记录混在一个模块：职责不清，不利于后续替换对象存储。
 
+### Decision: Go 后端采用 TDD 测试先行
+
+本 change 的后端实现采用 TDD 节奏。每个功能点在写生产代码前，必须先设计测试场景并提交对应 Go 测试代码；生产实现以让测试通过为目标推进，然后再进行必要重构。
+
+默认测试机制：
+
+- 单元测试使用 Go 官方 `testing` 体系和 `go test ./...` 作为基础验证入口。
+- 复杂断言可使用 Go 生态成熟断言库，例如 `testify/require`，但不得让测试依赖不稳定外部网络。
+- registry、parser、credential resolver、rate limiter、raw object store、raw document writer 和 migration checker 优先使用 table-driven tests。
+- HTTP/RSS/RSSHub/Eastmoney/web fetch 相关逻辑使用 fake server、fixture 文件或 `httptest`，不得在单元测试中访问真实外部站点。
+- repository 和 migration 相关能力优先通过接口 fake、SQL 静态解析、迁移文件解析和必要的本地集成测试验证；需要真实 PostgreSQL 时应作为可重复集成测试边界单独标识。
+- 每个生产模块的边界行为至少覆盖成功路径、非法输入、重复数据、外部失败、超时或限流、安全凭证隐藏等关键场景。
+
+执行顺序：
+
+1. 先从 `tasks.md` 中选择一个小功能点。
+2. 先写测试用例和测试 fixture，让测试能表达目标行为。
+3. 运行对应包的 `go test`，确认测试在实现前失败或缺失实现。
+4. 编写最小生产实现让测试通过。
+5. 运行对应包测试和 `go test ./...`。
+6. 需要时重构，但不得降低测试覆盖的行为边界。
+
+选择理由：
+
+- Go 的强类型、快速编译和官方测试体系适合 TDD，也适合 AI 编程时用测试约束实现歧义。
+- 本 change 涉及 ingestion、数据库、限流、凭证和外部连接器，测试先行能防止实现边界漂移。
+- 采集层必须长期可维护，测试 fixture 可以沉淀外部数据格式认知，减少后续 provider 调整时的回归风险。
+
+备选方案：
+
+- 实现后补测试：短期更快，但容易让测试只验证当前实现而不是验证需求。
+- 只做集成测试：能验证链路，但定位慢，且外部源不稳定会影响日常开发。
+- 引入重型 BDD 框架：表达力强，但会增加 Go 工程复杂度，不适合作为 MVP 默认。
+
 ## Risks / Trade-offs
 
 - [Risk] 第一阶段 schema 覆盖面较大，migration 容易变复杂。→ Mitigation：优先创建稳定基础表和索引，复杂图/向量能力延后，迁移保持可审阅，并通过版本表和启动检查保证环境一致。
 - [Risk] 启动自动迁移在生产多实例环境中可能产生并发 DDL 或破坏性误操作。→ Mitigation：迁移执行必须加 PostgreSQL advisory lock，prod 自动执行由配置显式开启，破坏性 migration 必须独立 review 且默认禁止自动执行。
+- [Risk] TDD 会让初期实现速度看起来变慢。→ Mitigation：以小功能点和 table-driven tests 推进，优先覆盖边界行为，不追求无意义覆盖率数字。
 - [Risk] Eastmoney、RSSHub、网页抓取等公开源存在限流、反爬或路由不稳定。→ Mitigation：所有 provider 走统一限流、timeout、UA 和错误状态，不让单源失败中断整体采集批次。
 - [Risk] Tushare/AKShare SDK 无法在 Go 主服务内直接运行。→ Mitigation：本 change 只定义 SDK connector 边界和配置，真实 Python worker 接入另开 change。
 - [Risk] 采集层可能被误用为分析层。→ Mitigation：spec 明确禁止本阶段写入影响方向、评分、传导强度和预测结论。
@@ -231,11 +267,12 @@ Schema field mapping 以外部 ER 文档为来源，在本 change 内固化为 m
 1. 创建 `backend/migrations/`，使用 `goose` 兼容的版本化 SQL migration 文件保留 DDL。
 2. 创建核心 schema、索引、唯一约束和必要枚举检查，并通过版本表记录已执行 migration。
 3. 扩展后端配置，加入采集、对象存储、限流和启动迁移检查相关非敏感配置。
-4. 新增 `internal/ingestion`、`internal/domain`、`internal/repositories` 和 `internal/integrations` 中的采集相关接口和实现。
+4. 按 TDD 节奏先为迁移、配置、领域模型、repository、ingestion、connector 和 parser 编写 Go 单元测试或测试 fixture。
 5. 在 API 启动流程中加入 migration checker/runner，按配置检查并执行 pending migration。
-6. 实现 Go 可直接运行的第一批 connector 和 parser，并用测试覆盖标准化、幂等、限流和错误处理。
-7. 保持 `sdk_tushare`、`sdk_akshare` 为声明式边界，不接真实 Python SDK。
-8. 运行 `go test ./...`、`go vet ./...`、migration 静态/解析验证、`openspec validate init-database-and-ingestion-layer` 和 `openspec validate --all`。
+6. 新增 `internal/ingestion`、`internal/domain`、`internal/repositories` 和 `internal/integrations` 中的采集相关接口和实现。
+7. 实现 Go 可直接运行的第一批 connector 和 parser，并用测试覆盖标准化、幂等、限流和错误处理。
+8. 保持 `sdk_tushare`、`sdk_akshare` 为声明式边界，不接真实 Python SDK。
+9. 运行 `go test ./...`、`go vet ./...`、migration 静态/解析验证、`openspec validate init-database-and-ingestion-layer` 和 `openspec validate --all`。
 
 回滚策略：
 

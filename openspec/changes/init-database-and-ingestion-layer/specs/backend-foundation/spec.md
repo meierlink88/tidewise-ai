@@ -51,3 +51,18 @@
 #### Scenario: 验证安全边界
 - **WHEN** 测试凭证解析和配置加载
 - **THEN** 测试不得包含真实密钥，且代码不得绕过统一 config 和 credential resolver 读取敏感值
+
+### Requirement: Go 后端 TDD 测试先行
+系统 SHALL 在后端功能开发中采用测试先行方式，先设计并实现 Go 单元测试或可自动化测试用例，再编写生产代码。
+
+#### Scenario: 开发新功能点
+- **WHEN** 本 change 实现 migration checker、config、domain、repository、ingestion、connector、parser 或 jobs 功能点
+- **THEN** 必须先提交对应 Go 测试代码或测试 fixture，再提交满足测试的生产实现
+
+#### Scenario: 使用 Go 测试生态
+- **WHEN** 后端测试需要验证纯函数、接口行为、HTTP 交互、解析器或错误处理
+- **THEN** 应优先使用 Go 官方 `testing`、table-driven tests、`httptest`、fake 或成熟断言工具，并避免单元测试依赖真实外部网络
+
+#### Scenario: 验证完成标准
+- **WHEN** 本 change 声明实现完成
+- **THEN** `backend/` 下 `go test ./...` 必须通过，除非存在明确记录且经人工确认的外部环境阻塞
