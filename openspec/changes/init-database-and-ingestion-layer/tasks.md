@@ -31,13 +31,13 @@
 
 ## 5. Ingestion Core
 
-- [ ] 5.1 先为 `backend/internal/ingestion` 编写 registry、parser、credential resolver、rate limiter、raw object store 和 raw document writer 的单元测试。
-- [ ] 5.2 实现 `source_registry`，按 `status`、`provider_key`、`ingest_channel` 选择采集源。
-- [ ] 5.3 实现 `connector_registry` 和 `parser_registry`，支持连接器、解析器注册、查找和未注册错误处理。
-- [ ] 5.4 实现 `credential_resolver`，根据 `credential_ref` 解析环境变量或 secret 引用，但不打印真实凭证。
-- [ ] 5.5 实现 `rate_limiter`，按 `provider_key` 和 `rate_limit_policy` 执行进程内限流，并保留 Redis 分布式限流扩展点。
-- [ ] 5.6 实现 `raw_object_store` 接口和本地开发默认实现，保存原始 HTML、JSON、XML、PDF、CSV 或文本对象并返回 `raw_object_uri`。
-- [ ] 5.7 实现 `raw_document_writer`，统一处理清洗正文、内容哈希、幂等写入、状态和错误记录。
+- [x] 5.1 先为 `backend/internal/ingestion` 编写 registry、parser、credential resolver、rate limiter、raw object store 和 raw document writer 的单元测试。
+- [x] 5.2 实现 `source_registry`，按 `status`、`provider_key`、`ingest_channel` 选择采集源。
+- [x] 5.3 实现 `connector_registry` 和 `parser_registry`，支持连接器、解析器注册、查找和未注册错误处理。
+- [x] 5.4 实现 `credential_resolver`，根据 `credential_ref` 解析环境变量或 secret 引用，但不打印真实凭证。
+- [x] 5.5 实现 `rate_limiter`，按 `provider_key` 和 `rate_limit_policy` 执行进程内限流，并保留 Redis 分布式限流扩展点。
+- [x] 5.6 实现 `raw_object_store` 接口和本地开发默认实现，保存原始 HTML、JSON、XML、PDF、CSV 或文本对象并返回 `raw_object_uri`。
+- [x] 5.7 实现 `raw_document_writer`，统一处理清洗正文、内容哈希、幂等写入、状态和错误记录。
 
 ## 6. First Connector And Parser Set
 
