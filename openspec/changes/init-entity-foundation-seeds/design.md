@@ -12,6 +12,7 @@
 
 - 新增 `alliance_org` 实体类型和 `alliance_org_profiles` 表。
 - 建立所有实体 profile 表的一阶段基础 seed 数据，覆盖联盟组织、经济体、政策机构、市场、指数、板块、产业链节点、公司、证券、交易工具、指标、商品和人物。
+- 将 review 已确认的具体初始化范围固化到 `seed-scope.md`，实现时必须以该文档作为 seed 内容和统计口径依据。
 - 用 repo 内结构化 seed 文件表达实体节点、profile、实体关系和统计口径。
 - 提供实体 seed loader、validator、service 和命令入口，支持幂等 upsert 和可审阅 report。
 - 按 TDD 方式先写 migration 静态测试、loader/validator 测试、repository/service 测试，再实现生产代码。
@@ -64,19 +65,19 @@ official_url TEXT NOT NULL DEFAULT ''
 
 | 实体类型 | 一阶段 seed 口径 |
 | --- | --- |
-| `alliance_org` | 核心国际组织和联盟组织 |
-| `economy` | 中国、美国、香港、全球等基础经济体 |
-| `policy_body` | 中美核心政策机构和监管机构 |
-| `market` | A 股、港股、美股、加密市场等市场层实体 |
-| `index` | 沪深港美核心宽基指数 |
-| `sector` | 东方财富概念、东方财富行业、申万行业等板块体系或少量重点板块 |
-| `chain_node` | 上游、中游、下游、终端需求等通用产业链节点 |
-| `company` | 少量 MVP 关注池样例公司或系统测试公司 |
-| `security` | 与样例公司对应的少量证券实体 |
-| `instrument` | 股票、指数、ETF、期货、外汇、加密资产等交易工具类型 |
-| `metric` | 价格、成交量、成交额、涨跌幅、市值、PE、PB、换手率等常用指标 |
-| `commodity` | 原油、黄金、天然气、铜、美元指数等宏观传导常用标的 |
-| `person` | 少量核心政策人物或 KOL 样例人物 |
+| `alliance_org` | 10 个核心联盟组织和国际组织 |
+| `economy` | 50 个对全球经济或股票市场有重要影响的经济体，主名称使用“中国香港”“中国台湾” |
+| `policy_body` | 30 个核心政策机构，国外机构使用中文主名称，英文简称进入 aliases |
+| `market` | 32 个股票、交易所、外汇、商品期货、加密资产市场 |
+| `index` | 45 个全球和中国市场关键指数 |
+| `sector` | 同花顺概念、行业、指数三类板块各 20 个，共 60 个，按初始化热度快照记录 |
+| `chain_node` | 具体产业链节点，不使用“上游资源”等大类节点作为唯一节点 |
+| `company` | 按每个具体产业链节点前 10 强上市公司生成，去重后写入唯一公司主体 |
+| `security` | 每家公司至少关联 1 条主证券，必要时附带 A/H/ADR 等多证券 |
+| `instrument` | 股票、商品期货、外汇、数字资产 4 类交易工具 |
+| `metric` | 42 个行情、交易、估值、资金、宏观、商品和产业供需指标 |
+| `commodity` | 45 个能源、金属、黑色系、电池材料、农产品和化工品 |
+| `person` | 30 个核心政策人物、地缘人物、企业人物和 KOL |
 
 备选方案是只初始化联盟组织、经济体和市场。该方案更小，但无法满足“初始化所有实体表”的目标，也会让 repository 和 seed 能力只覆盖局部表。
 
@@ -92,9 +93,9 @@ official_url TEXT NOT NULL DEFAULT ''
 
 备选方案是把基础数据写进 SQL migration。该方案首次初始化简单，但后续基础库调整会把数据资产和 schema 变更绑死，也不利于单元测试和环境差异控制。
 
-### Decision: company/security 只做一阶段最小基准集
+### Decision: company/security 按产业链节点生成
 
-全量公司和证券数量大、更新频繁，且应来自后续数据源和 provider。当前 change 只要求 company/security 表具备 seed 能力和少量基准记录，保证所有 profile 表都能被初始化、测试和查询。全量 A 股或跨市场证券导入放到后续数据源 change。
+公司和证券不逐一人工确认，而是按具体产业链节点生成：每个已确认产业链节点选择前 10 强上市公司，每家公司必须能关联至少一个主证券代码。公司主体写入 `company_profiles`，证券代码、交易所、币种和上市状态写入 `security_profiles`。公司与证券通过 `issues` 关系连接，公司与产业链节点通过 `participates_in` 关系连接。同一家公司可关联多个产业链节点，但 company 实体只保留一份。
 
 备选方案是本 change 导入全量股票池。该方案看起来完整，但会提前引入 provider 数据质量、代码映射、退市状态、更新频率和版权边界，超出实体基础库 change 的职责。
 
