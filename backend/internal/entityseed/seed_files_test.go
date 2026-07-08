@@ -71,3 +71,32 @@ func TestEconomySeedFile(t *testing.T) {
 		t.Fatalf("economy:tw name = %q, want 中国台湾", names["economy:tw"])
 	}
 }
+
+func TestPolicyBodySeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "policy_bodies.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 30; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypePolicyBody {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypePolicyBody)
+		}
+		if hasASCIILetter(entity.Name) {
+			t.Fatalf("entity %q name = %q, want Chinese display name", entity.Key, entity.Name)
+		}
+	}
+}
+
+func hasASCIILetter(value string) bool {
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			return true
+		}
+	}
+	return false
+}
