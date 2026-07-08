@@ -5,6 +5,7 @@
 ## What Changes
 
 - 新增调研来源的版本化 seed 数据，统一覆盖 Vibe-Research、Vibe-Trading 和 Stock 中可纳入本系统的数据源，包括内容/事件类、行情类、板块类、SDK 类和本地回灌类来源。
+- 明确本 change 的数据源接入完成目标：Vibe-Research 接入 `backend/news_sources.json` 中 108 条 RSS 配置并识别 106 个去重 URL；Vibe-Trading 接入 `agent/backtest/loaders/registry.py` 中排除 `auto` 后的 18 个 loader source；Stock 接入约 78 个新闻网页、东方财富股票/指数/板块、AkShare 样例股票/指数、Tushare 动态 provider 等可治理来源。
 - 新增采集源 seed 运行入口，使 local/uat/prod 可以通过同一套结构把来源写入 PostgreSQL 的 `source_catalogs`，且不得提交真实凭证。
 - 为 `source_catalogs` 增加可扩展的 `source_config` 结构，用于表达 RSSHub route 参数、网页解析策略、分页参数、股票/指数/板块代码列表、市场范围、数据频率、SDK 方法名、字段映射、采集类别等不适合硬塞进单一 URL 的配置。
 - 将真实采集能力分阶段落地：第一阶段保证内容/事件类来源可运行；第二阶段接入 Eastmoney 等 HTTP 行情和板块来源；第三阶段为 Tushare、AKShare 等 SDK 来源提供 worker/wrapper 型 connector 边界和统一元信息治理。
@@ -31,4 +32,5 @@
 - 影响 `backend/internal/integrations`：需要确保内容来源、HTTP 行情/板块来源和 SDK worker/wrapper 来源使用清晰 connector/parser 边界，不引入真实外部网络单元测试。
 - 影响 `backend/cmd`：需要新增或扩展采集源 seed 命令，用于把 repo 内来源清单写入目标环境数据库。
 - 影响 repo 内新增数据资产：需要增加分阶段来源清单文件，作为工程可审计输入，并能统计系统当前接入来源总数、类型、用途、provider 和状态。
+- 验收时必须能通过 seed report 或等价查询看到三组来源计数：Vibe-Research 108 条配置、Vibe-Trading 18 个 loader source、Stock 约 78 个来源条目，并说明 URL 去重、provider 级来源和代码列表型来源的统计口径。
 - 不修改 `prototype` 和 `doc` 目录，不直接迁移外部样例系统源码，不提交任何 API key、cookie、token 或生产连接信息。

@@ -6,11 +6,20 @@
 
 因此本 change 改为全类型来源纳入 `source_catalogs`，但真实采集按阶段落地：内容/事件类来源优先可运行；Eastmoney HTTP 行情和板块类来源在同一 change 内建立可测试 connector/parser 边界；Tushare、AKShare 等 SDK 来源先完成元信息登记和 worker/wrapper connector 边界，真实 Python SDK worker 可作为后续 change 独立实现。
 
+本 change 的数据源接入完成目标采用以下计数口径：
+
+| 来源系统 | 完成目标 | 口径 |
+| --- | ---: | --- |
+| Vibe-Research | 108 条配置，106 个唯一 URL | 读取 `/Users/meierlink/Documents/股票趋势验证/Vibe-Research/backend/news_sources.json` 的 `sources` 数组；seed 保留 108 条配置记录，同时在 report 中输出 URL 去重数量 |
+| Vibe-Trading | 18 个 loader source | 读取 `/Users/meierlink/Documents/股票趋势验证/Vibe-Trading/agent/backtest/loaders/registry.py` 中 `VALID_SOURCES`，排除 `auto` |
+| Stock | 约 78 个来源条目 | 覆盖新闻网页、东方财富股票/指数/板块、AkShare 样例股票/指数、Tushare 动态 provider、本地历史文件等可治理来源；允许 provider 级来源、endpoint 来源和代码列表型来源并存，但必须在 `source_config.kind` 中说明粒度 |
+
 ## Goals / Non-Goals
 
 **Goals:**
 
 - 将调研得到的内容类、行情类、板块类、SDK 类和本地回灌类来源整理为 repo 内版本化 source seed 文件。
+- 完成 Vibe-Research 108 条、Vibe-Trading 18 条、Stock 约 78 条来源的 seed 接入，并输出可审阅统计。
 - 通过命令把 source seed 幂等写入 PostgreSQL `source_catalogs`。
 - 为 `source_catalogs` 增加 `source_config` JSONB 字段，用来承载来源特有参数。
 - 提供来源目录统计能力，使系统可以按 provider、通道、类型、用途和状态统计当前接入来源。
@@ -45,6 +54,19 @@
 3. SDK 类来源完成元信息登记、凭证引用和 worker/wrapper connector stub，真实 SDK worker 后续独立实现。
 
 备选方案是只导入内容源。该方案短期更快，但会让行情、板块、SDK 来源继续散落在调研结论和脚本里，无法统一统计、治理和审计。另一个备选方案是一次性真实实现所有 provider 采集，这会显著扩大外部依赖和凭证风险，不适合当前 change。
+
+### Decision: 数量验收以 seed report 为准
+
+来源接入完成不只看清单文件存在，还必须由 seed loader 或 seed command 输出结构化 report，至少包含：
+
+- `total_configured_sources`: 已解析来源条目总数。
+- `by_origin_system`: 按 Vibe-Research、Vibe-Trading、Stock 分组的数量。
+- `unique_urls`: 至少覆盖 Vibe-Research 的 URL 去重计数。
+- `by_source_type`: 内容、行情、板块、SDK、本地回灌等分类数量。
+- `by_status`: active、inactive、disabled 等状态数量。
+- `by_provider`: provider 维度数量。
+
+Vibe-Research 的 108 条配置和 106 个唯一 URL 是硬性验收；Vibe-Trading 的 18 个 loader source 是硬性验收；Stock 的“约 78”需要在 seed report 中给出实际解析数量和来源说明，因为 Stock 同时存在代码列表、样例股票、动态 provider 和历史输出文件，最终条目数由配置粒度决定。
 
 ### Decision: 使用 repo 内 seed 文件作为来源目录资产
 
@@ -87,6 +109,7 @@ Tushare、AKShare、Baostock、Futu 和 Mootdx 的运行方式差异明显，有
 - [Risk] 外部来源 URL、provider API 或 SDK 可用性可能变化。→ Mitigation：seed 测试只验证配置结构，采集单元测试使用 `httptest`、fixture 和 fake SDK worker；真实连通性作为显式 smoke，不作为单元测试。
 - [Risk] 并发采集可能触发 provider 限流或反爬。→ Mitigation：默认并发保守，按 `provider_key` 执行限流，单源失败不影响整体任务完成。
 - [Risk] `source_config` 过度自由导致配置质量参差。→ Mitigation：seed loader 必须做结构校验，至少校验必填字段、connector/parser 组合、URL/route 形式和 JSON 对象类型。
+- [Risk] Stock 来源目标是“约 78”，实现时可能因去重、代码列表合并或 provider 级登记导致数量有轻微差异。→ Mitigation：seed report 必须输出实际数量、统计口径和差异说明；Vibe-Research 108/106 与 Vibe-Trading 18 保持硬约束。
 - [Risk] 行情类和板块类来源粒度不一致，有的是 provider，有的是 endpoint，有的是代码列表。→ Mitigation：用 `source_type`、`source_config.kind` 和 `stage` 明确粒度；provider 级来源和具体 endpoint/代码列表来源都允许登记，但必须能解释用途。
 - [Risk] SDK 类来源登记后暂时不能真实执行。→ Mitigation：通过 `status`、`stage`、`auth_required`、`credential_ref` 和明确 connector 错误表达“已治理但待 worker 实现”，不得伪造成采集成功。
 - [Risk] 来源中存在重复 URL 或同源不同主题。→ Mitigation：seed 文件允许稳定 ID，但测试必须检查重复 ID，重复 URL 需要明确允许或归并。

@@ -7,6 +7,10 @@
 - **WHEN** 系统执行采集源 seed
 - **THEN** 系统必须从 repo 内结构化清单加载 Vibe-Research、Vibe-Trading 和 Stock 中可纳入观潮家的来源，并映射为 `source_catalogs` 记录
 
+#### Scenario: 达到来源接入数量目标
+- **WHEN** 系统完成本 change 的来源 seed
+- **THEN** 系统必须接入 Vibe-Research 的 108 条 RSS 配置并报告 106 个唯一 URL、Vibe-Trading 排除 `auto` 后的 18 个 loader source、以及 Stock 的约 78 个新闻网页、东方财富股票/指数/板块、AkShare 样例股票/指数和 Tushare 动态 provider 等来源条目
+
 #### Scenario: 区分来源类型
 - **WHEN** 来源清单包含 RSS、网页新闻、RSSHub route、Eastmoney HTTP、行情 provider、板块代码、SDK provider 或本地文件
 - **THEN** 系统必须通过 `ingest_channel`、`provider_key`、`connector_key`、`parser_key`、`source_type`、`source_config`、`usage_policy` 和 `status` 表达来源用途、类型、执行路径和当前启用状态
@@ -21,7 +25,7 @@
 
 #### Scenario: 统计接入来源
 - **WHEN** 来源 seed 完成或开发者查询来源目录
-- **THEN** 系统必须能够按 provider、通道、来源类型、用途和状态统计当前接入的数据源数量
+- **THEN** 系统必须能够按来源系统、provider、通道、来源类型、用途和状态统计当前接入的数据源数量，并输出 Vibe-Research、Vibe-Trading 和 Stock 三组来源的实际计数与统计口径
 
 ### Requirement: 采集源扩展配置
 系统 SHALL 支持通过 `source_config` 保存来源专属结构化参数，使不同 connector 和 parser 可以在不频繁修改表结构的情况下读取扩展配置。

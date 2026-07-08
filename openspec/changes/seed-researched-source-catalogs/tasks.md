@@ -10,15 +10,19 @@
 ## 2. 全类型来源 seed 数据
 
 - [ ] 2.1 设计 repo 内来源清单格式，并编写 loader/validator 测试，覆盖必填字段、重复 ID、无效 URL、无效 connector/parser、敏感字段禁止写入。
-- [ ] 2.2 新增内容/事件类来源清单，导入 Vibe-Research 的 RSS 来源、Stock 的新闻网页来源和可表达的 RSSHub route 来源。
-- [ ] 2.3 新增行情类来源清单，导入 Vibe-Trading 和 Stock 中可治理的 Eastmoney、Sina、Tencent、Yahoo、Stooq、Finnhub、FMP、Tiingo、Alpha Vantage、OKX、CCXT 等 provider 或 endpoint 元信息。
-- [ ] 2.4 新增板块类来源清单，导入 Stock 的 Eastmoney 概念板块、预定义重点板块、指数和 AKShare 板块来源元信息。
-- [ ] 2.5 新增 SDK 类来源清单，导入 Tushare、AKShare、Baostock、Futu、Mootdx 等 SDK provider 元信息、授权方式、凭证引用和 worker/wrapper 阶段状态。
-- [ ] 2.6 新增本地回灌类来源清单，表达 CSV、JSON、文本等历史材料导入来源。
-- [ ] 2.7 实现来源清单 loader 和 validator。
-- [ ] 2.8 为 seed service 编写 fake repository 测试，覆盖幂等 upsert、错误中断、统计 report、禁用来源保留和多类型来源分类。
-- [ ] 2.9 实现 seed service，将来源清单写入 `source_catalogs` 并输出分类统计。
-- [ ] 2.10 新增 `cmd/source-seed` 或等价命令入口，支持读取默认清单并写入当前环境 PostgreSQL。
+- [ ] 2.2 新增 Vibe-Research 内容来源清单，导入 `backend/news_sources.json` 中 108 条 RSS 配置，并在测试中验证 URL 去重后为 106 个唯一 URL。
+- [ ] 2.3 新增 Vibe-Trading 行情/SDK/provider 来源清单，导入 `registry.py` 中排除 `auto` 后的 18 个 loader source。
+- [ ] 2.4 新增 Stock 来源清单，导入约 78 个新闻网页、东方财富股票/指数/板块、AkShare 样例股票/指数、Tushare 动态 provider、本地历史文件等可治理来源，并在清单中说明实际数量和统计口径。
+- [ ] 2.5 新增内容/事件类来源清单分组，覆盖 RSS、网页新闻、RSSHub route 和本地历史材料回灌。
+- [ ] 2.6 新增行情类来源清单分组，覆盖 Eastmoney、Sina、Tencent、Yahoo、Stooq、Finnhub、FMP、Tiingo、Alpha Vantage、OKX、CCXT 等 provider 或 endpoint 元信息。
+- [ ] 2.7 新增板块类来源清单分组，覆盖 Stock 的 Eastmoney 概念板块、预定义重点板块、指数和 AKShare 板块来源元信息。
+- [ ] 2.8 新增 SDK 类来源清单分组，覆盖 Tushare、AKShare、Baostock、Futu、Mootdx 等 SDK provider 元信息、授权方式、凭证引用和 worker/wrapper 阶段状态。
+- [ ] 2.9 新增本地回灌类来源清单分组，表达 CSV、JSON、文本等历史材料导入来源。
+- [ ] 2.10 实现来源清单 loader 和 validator。
+- [ ] 2.11 为 seed service 编写 fake repository 测试，覆盖幂等 upsert、错误中断、统计 report、禁用来源保留和多类型来源分类。
+- [ ] 2.12 实现 seed service，将来源清单写入 `source_catalogs` 并输出分类统计。
+- [ ] 2.13 新增 `cmd/source-seed` 或等价命令入口，支持读取默认清单并写入当前环境 PostgreSQL。
+- [ ] 2.14 为 seed report 编写测试，验证输出 Vibe-Research 108/106、Vibe-Trading 18、Stock 实际接入数量、总来源数量、类型分布、provider 分布和状态分布。
 
 ## 3. 内容、HTTP 和 SDK connector 边界
 
@@ -43,5 +47,6 @@
 - [ ] 5.2 运行 `go test ./...`，确保单元测试和 gated 集成测试边界保持通过。
 - [ ] 5.3 运行 `openspec validate seed-researched-source-catalogs`。
 - [ ] 5.4 在本地 PostgreSQL 执行 migration 和 source seed，验证 `source_catalogs` 中新增全部调研来源数量、类型分布、用途、状态和关键字段。
-- [ ] 5.5 使用少量内容来源和 Eastmoney HTTP 来源执行显式 smoke，验证多来源 report、写入数量、重复写入和错误输出符合预期。
-- [ ] 5.6 验证 SDK 类来源在没有真实 worker 时只记录明确失败或保持 inactive，不得写入伪造原始文档。
+- [ ] 5.5 验证本地 seed report 明确输出 Vibe-Research 108 条配置/106 个唯一 URL、Vibe-Trading 18 个 loader source、Stock 约 78 个来源条目或实际数量及口径说明。
+- [ ] 5.6 使用少量内容来源和 Eastmoney HTTP 来源执行显式 smoke，验证多来源 report、写入数量、重复写入和错误输出符合预期。
+- [ ] 5.7 验证 SDK 类来源在没有真实 worker 时只记录明确失败或保持 inactive，不得写入伪造原始文档。
