@@ -16,7 +16,7 @@
 
 #### Scenario: 保存采集上下文
 - **WHEN** AI Web Research item 写入原始文档边界
-- **THEN** 系统必须保留 provider、model、api_protocol、prompt_version、prompt_purpose、search_options、content_origin、retrieval_method 和原始返回片段等非敏感元数据
+- **THEN** 系统必须保留 provider、model、api_protocol、prompt_version、prompt_purpose、search_options、content_origin、retrieval_method、source_attribution_type、来源说明和原始返回片段等非敏感元数据
 
 #### Scenario: 排除敏感元数据
 - **WHEN** 保存 AI Web Research 原始返回或请求元数据

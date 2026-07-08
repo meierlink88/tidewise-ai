@@ -27,8 +27,12 @@
 
 #### Scenario: 标准化结构化 item
 - **WHEN** AI Web Research parser 接收到已校验的 item
-- **THEN** 系统必须生成包含标题、正文或摘要、来源 URL、来源名称、发布时间、采集时间、内容哈希、来源等级、内容来源类型和 raw metadata 的原始文档候选对象
+- **THEN** 系统必须生成包含标题、正文或摘要、来源 URL 或来源说明、来源名称、发布时间、采集时间、内容哈希、来源等级、内容来源类型、来源归因类型和 raw metadata 的原始文档候选对象
 
 #### Scenario: 幂等处理重复结果
 - **WHEN** AI Web Research 多次返回相同来源 URL、外部 ID 或内容哈希的 item
 - **THEN** 系统必须复用现有 raw document 幂等策略，不得创建重复事实基础
+
+#### Scenario: 处理无 URL 但有来源说明的结果
+- **WHEN** AI Web Research item 没有来源 URL 但有来源名称、来源说明、引用文本或 provider 来源描述
+- **THEN** 系统必须使用内容哈希、标题、发布时间和来源归因信息参与幂等判断，并在 raw metadata 中保留原始来源说明

@@ -45,7 +45,7 @@ connector 内部使用统一请求模型表达 provider、protocol、model、pro
 
 ### Decision: 返回结构采用对象包裹 `items` 数组
 
-模型响应必须解析为 JSON 对象，并包含 `items` 数组。每个 item 至少包含标题、来源 URL 或来源说明、正文或摘要、内容来源类型和相关性说明。对象外层可以记录批次、查询时间、模型、提示词版本和统计信息。
+模型响应必须解析为 JSON 对象，并包含 `items` 数组。每个 item 至少包含标题、来源归因、正文或摘要、内容来源类型和相关性说明。来源归因优先使用真实 URL；如果 provider 只返回来源名称、引用文本、搜索结果来源说明或模型可解释的来源描述，也可以入库，但必须标记为非 URL 来源归因。对象外层可以记录批次、查询时间、模型、提示词版本和统计信息。
 
 备选方案是要求模型直接返回裸数组。裸数组难以扩展批次元数据，也不便于记录模型执行状态和错误。
 
@@ -53,10 +53,16 @@ connector 内部使用统一请求模型表达 provider、protocol、model、pro
 
 如果 item 的正文来自真实网页抓取，应标记为 `fetched_source_text`；如果只来自搜索摘录，应标记为 `search_snippet`；如果是模型根据搜索结果总结，应标记为 `llm_generated_summary`。后续事件抽取不得把模型总结误认为原始新闻全文。
 
+### Decision: 来源归因不强制要求 URL
+
+AI Web Research 的入库门槛不是“必须有可点击链接”，而是“必须有可审计来源归因”。`source_url` 是最高优先级来源字段；当 provider 无法返回 URL 时，parser 可以接受 `source_name`、`source_reference`、`citation_text` 或 `provider_source_note` 等来源说明，并在 raw metadata 中记录 `source_attribution_type=url|named_source|citation_text|provider_note`。
+
+如果 item 同时缺少 URL、来源名称、引用文本和 provider 来源说明，系统必须拒绝该条目。后续事件抽取应根据 `source_attribution_type`、`content_origin` 和 `retrieval_method` 判断证据强弱。
+
 ## Risks / Trade-offs
 
 - [Risk] 不同模型 provider 的联网搜索能力差异大。→ Mitigation：通过 `api_protocol`、`search_enabled`、`search_options` 和 provider-neutral 请求模型表达差异，首期用 fake/fixture 验证边界。
-- [Risk] 模型返回非 JSON、字段缺失或编造来源。→ Mitigation：parser 必须严格校验 JSON schema、URL、标题、内容、内容来源类型和条数上限，失败时不写入伪造文档。
+- [Risk] 模型返回非 JSON、字段缺失或编造来源。→ Mitigation：parser 必须严格校验 JSON schema、来源归因、标题、内容、内容来源类型和条数上限，失败时不写入伪造文档；没有 URL 但有来源说明的条目必须降级标记来源归因类型。
 - [Risk] `source_config` 变成任意配置垃圾桶。→ Mitigation：为 `llm_web_research` 定义必填字段、禁止字段和类型校验，测试覆盖无效配置。
 - [Risk] 提示词过长或频繁修改影响审计。→ Mitigation：保存 `prompt_version`、`prompt_purpose` 和执行元数据；后续如提示词治理复杂，再独立 change 引入 prompt 模板表或 repo prompt 文件。
 - [Risk] AI 搜索成本和限流不可控。→ Mitigation：复用 provider 级限流，要求 `max_results`、timeout 和批次大小可配置，并在 report 中记录成功、失败和跳过数量。
@@ -69,12 +75,12 @@ connector 内部使用统一请求模型表达 provider、protocol、model、pro
 3. 实现 `llm_web_research` connector、`llm_research_items` parser 和 registry 注册。
 4. 将 AI source 纳入现有 runtime/scheduler 可触发路径，复用 source catalog、credential resolver、rate limit 和 report。
 5. 使用 fake provider 端到端验证 100 条结构化 item 中的少量 fixture 可以幂等写入 raw document 候选对象。
-6. 待用户提供 Qwen API 调用方式后，通过独立验证或 gated smoke 判断 Qwen 接口是否支持稳定联网搜索，再决定是否启用真实 Qwen source。
+6. 待用户提供 Qwen API 调用方式后，通过独立验证或 gated smoke 判断 Qwen 接口是否支持稳定联网搜索、是否返回 URL 或来源说明，再决定真实 Qwen source 的来源归因策略。
 
 回滚策略：如真实 provider 不稳定，可将 AI Web Research source 的 `status` 改为 `inactive` 或 `disabled`，保留 connector 代码和历史 raw document，不删除已有采集数据。
 
 ## Open Questions
 
 - Qwen 目标 API 是 OpenAI-compatible Chat、Responses、DashScope 原生接口，还是百炼应用 API？
-- Qwen API 的联网搜索返回中是否包含可解析的 URL、引用、网页正文或仅有模型总结？
-- 首期是否需要二次 `web_fetch` 抓取模型返回的 URL，还是先只保存模型返回的结构化结果并标记内容来源？
+- Qwen OpenAI-compatible Chat 接口已验证可接受联网搜索参数，但当前测试不稳定返回 URL；首期应允许保存 provider 返回的来源说明，并通过 `source_attribution_type` 标记证据强弱。
+- 首期如果 provider 返回 URL，可以二次 `web_fetch` 或保留 URL；如果只返回来源说明，则先保存结构化结果并标记内容来源与来源归因类型。

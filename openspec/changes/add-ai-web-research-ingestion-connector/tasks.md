@@ -14,9 +14,9 @@
 
 ## 3. Parser 和原始文档标准化
 
-- [ ] 3.1 编写 AI 搜索结果 parser 测试，覆盖 `items` 数组、标题、正文或摘要、来源 URL、来源名称、发布时间、语言、地域、主题标签、证据摘录、相关性说明和内容来源类型。
+- [ ] 3.1 编写 AI 搜索结果 parser 测试，覆盖 `items` 数组、标题、正文或摘要、来源 URL、来源名称、来源说明、引用文本、发布时间、语言、地域、主题标签、证据摘录、相关性说明和内容来源类型。
 - [ ] 3.2 实现 `llm_research_items` parser，将有效 item 转换为统一 raw document candidate。
-- [ ] 3.3 编写无效输出测试，覆盖裸数组、缺少 items、超过 max_results、未知 `content_origin`、缺少来源和越界投资判断字段。
+- [ ] 3.3 编写无效输出测试，覆盖裸数组、缺少 items、超过 max_results、未知 `content_origin`、同时缺少 URL/来源名称/来源说明/引用文本和越界投资判断字段。
 - [ ] 3.4 实现输出 schema 校验和越界字段处理，确保利好利空、买入卖出、涨跌预测、传导强度和事件评分不会写成系统事实。
 
 ## 4. Connector 注册和采集 runtime
@@ -29,7 +29,7 @@
 ## 5. 可验证 smoke 和 Qwen 能力验证准备
 
 - [ ] 5.1 增加 fake AI Web Research smoke fixture，验证结构化 items 可以转换为 raw document 候选对象并输出可审阅 report。
-- [ ] 5.2 为后续真实 Qwen API 验证预留 gated smoke 参数，要求显式提供环境变量和 source ID，不得在普通单元测试中访问真实网络。
+- [ ] 5.2 为后续真实 Qwen API 验证预留 gated smoke 参数，要求显式提供环境变量和 source ID，不得在普通单元测试中访问真实网络，并记录 provider 是否返回 URL、来源说明或仅返回模型总结。
 - [ ] 5.3 更新本地说明，描述 `credential_ref`、`source_config`、提示词配置、真实 API key 注入和 fake/gated smoke 的运行方式。
 - [ ] 5.4 运行 `go test ./...`，确保后端单元测试和 gated 集成测试边界通过。
 - [ ] 5.5 运行 `openspec validate add-ai-web-research-ingestion-connector`。

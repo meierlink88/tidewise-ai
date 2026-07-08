@@ -27,7 +27,15 @@
 
 #### Scenario: 解析有效结果
 - **WHEN** provider 返回包含 `items` 数组的结构化 JSON
-- **THEN** parser 必须逐条校验标题、来源 URL 或来源说明、正文或摘要、内容来源类型、发布时间、语言、地域、主题标签、证据摘录和相关性说明
+- **THEN** parser 必须逐条校验标题、来源归因、正文或摘要、内容来源类型、发布时间、语言、地域、主题标签、证据摘录和相关性说明
+
+#### Scenario: 接受非 URL 来源归因
+- **WHEN** AI Web Research item 没有来源 URL，但包含来源名称、来源说明、引用文本或 provider 返回的来源描述
+- **THEN** parser 可以将该 item 转换为原始文档候选对象，并必须在 raw metadata 中记录 `source_attribution_type` 和原始来源说明
+
+#### Scenario: 拒绝无来源归因结果
+- **WHEN** AI Web Research item 同时缺少来源 URL、来源名称、来源说明、引用文本和 provider 来源描述
+- **THEN** 系统必须拒绝该条目进入 raw document 写入边界，并在采集 report 中记录跳过原因
 
 #### Scenario: 拒绝无效结果
 - **WHEN** provider 返回非 JSON、缺少 `items`、条目字段缺失、条数超过配置上限或内容来源类型不受支持
@@ -46,7 +54,7 @@
 
 #### Scenario: 保存搜索摘录
 - **WHEN** AI Web Research item 只有搜索结果摘要或片段
-- **THEN** 原始文档候选对象必须标记 `content_origin=search_snippet`，并保留来源 URL、搜索元数据和证据摘录
+- **THEN** 原始文档候选对象必须标记 `content_origin=search_snippet`，并保留来源归因、搜索元数据和证据摘录
 
 ### Requirement: 采集职责安全边界
 系统 SHALL 保证 AI Web Research connector 只采集和保存原始材料，不生成投资建议或事件图谱事实。

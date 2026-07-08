@@ -9,7 +9,7 @@
 - 新增 AI Web Research 采集 connector：由 `source_catalogs` 中的 active source 驱动，读取 `source_config` 中的模型、接口、搜索、提示词和输出 schema 配置。
 - 将大模型 API 的非敏感运行参数放入 `source_config`，包括 `api_base_url`、`api_protocol`、`model`、`prompt`、`prompt_version`、`freshness_window`、`max_results`、`search_options` 和输出 schema。
 - 将真实 API key 继续放在环境变量或部署 secret 中，`source_catalogs.credential_ref` 只保存凭证引用名，不保存真实密钥。
-- 定义 AI Web Research 返回结构化数组的契约，要求结果包含标题、正文或摘要、来源 URL、来源名称、发布时间、语言、地域、主题标签、证据摘录和相关性说明。
+- 定义 AI Web Research 返回结构化数组的契约，要求结果包含标题、正文或摘要、来源归因、发布时间、语言、地域、主题标签、证据摘录和相关性说明；来源归因优先使用真实 URL，也允许使用 provider 返回的来源名称、引用文本或检索来源说明。
 - 将模型返回的每个结构化条目标准化为原始文档候选对象，并通过现有 repository 幂等写入 `raw_documents`。
 - 为内容来源质量增加明确标记：区分来自网页原文的 `fetched_source_text`、来自搜索摘要的 `search_snippet` 和来自模型总结的 `llm_generated_summary`。
 - 保持采集层职责边界：不得在本 change 中生成事件、标签、实体关联、实体关系、利好利空判断、涨跌预测、传导强度或投资建议。
