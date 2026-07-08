@@ -135,6 +135,74 @@ func TestIndexSeedFile(t *testing.T) {
 	}
 }
 
+func TestSectorSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "sectors.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 60; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeSector {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeSector)
+		}
+	}
+}
+
+func TestChainNodeSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "chain_nodes.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, wantMinimum := len(manifest.Entities), 33; got < wantMinimum {
+		t.Fatalf("entities = %d, want at least %d", got, wantMinimum)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeChainNode {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeChainNode)
+		}
+	}
+}
+
+func TestMetricSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "metrics.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 42; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeMetric {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeMetric)
+		}
+	}
+}
+
+func TestCommoditySeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "commodities.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 45; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeCommodity {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeCommodity)
+		}
+	}
+}
+
 func hasASCIILetter(value string) bool {
 	for _, r := range value {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
