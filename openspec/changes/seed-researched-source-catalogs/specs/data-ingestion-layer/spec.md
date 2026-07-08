@@ -1,30 +1,53 @@
 ## ADDED Requirements
 
 ### Requirement: 版本化采集源清单
-系统 SHALL 使用 repo 内版本化采集源清单维护第一批可接入来源，并通过统一 seed 流程写入采集源目录。
+系统 SHALL 使用 repo 内版本化采集源清单维护可接入来源，并通过统一 seed 流程把内容类、行情类、板块类、SDK 类和本地回灌类来源写入采集源目录。
 
-#### Scenario: 加载第一批内容来源
+#### Scenario: 加载调研来源
 - **WHEN** 系统执行采集源 seed
-- **THEN** 系统必须从 repo 内结构化清单加载第一批调研来源，并把 Vibe-Research RSS 源和 Stock 新闻网页源映射为 `source_catalogs` 记录
+- **THEN** 系统必须从 repo 内结构化清单加载 Vibe-Research、Vibe-Trading 和 Stock 中可纳入观潮家的来源，并映射为 `source_catalogs` 记录
+
+#### Scenario: 区分来源类型
+- **WHEN** 来源清单包含 RSS、网页新闻、RSSHub route、Eastmoney HTTP、行情 provider、板块代码、SDK provider 或本地文件
+- **THEN** 系统必须通过 `ingest_channel`、`provider_key`、`connector_key`、`parser_key`、`source_type`、`source_config`、`usage_policy` 和 `status` 表达来源用途、类型、执行路径和当前启用状态
 
 #### Scenario: 校验来源清单
 - **WHEN** seed 流程读取来源清单
-- **THEN** 系统必须校验来源 ID、名称、通道、provider、connector、parser、来源类型、授权策略、限流策略、状态和使用说明，遇到无效配置时拒绝写入并返回明确错误
+- **THEN** 系统必须校验来源 ID、名称、通道、provider、connector、parser、来源类型、授权策略、限流策略、状态、阶段和使用说明，遇到无效配置时拒绝写入并返回明确错误
 
 #### Scenario: 幂等写入来源
 - **WHEN** 同一来源清单被重复执行 seed
 - **THEN** 系统必须按稳定来源 ID 幂等 upsert `source_catalogs`，不得创建重复来源记录
 
+#### Scenario: 统计接入来源
+- **WHEN** 来源 seed 完成或开发者查询来源目录
+- **THEN** 系统必须能够按 provider、通道、来源类型、用途和状态统计当前接入的数据源数量
+
 ### Requirement: 采集源扩展配置
 系统 SHALL 支持通过 `source_config` 保存来源专属结构化参数，使不同 connector 和 parser 可以在不频繁修改表结构的情况下读取扩展配置。
 
 #### Scenario: 保存扩展配置
-- **WHEN** 采集源包含 RSSHub route 参数、网页解析策略、分类标签、分页参数或代码列表
+- **WHEN** 采集源包含 RSSHub route 参数、网页解析策略、分类标签、分页参数、股票/指数/板块代码列表、市场范围、数据频率、SDK 方法名、字段映射或 fallback 策略
 - **THEN** 系统必须把这些非敏感结构化参数保存到 `source_config`，并在读取 active source 时还原给采集执行路径
 
 #### Scenario: 禁止保存敏感信息
 - **WHEN** 采集源需要 API key、cookie、bearer token 或私有 RSSHub 访问凭证
 - **THEN** `source_config` 不得保存真实敏感值，必须只保存 `credential_ref` 或非敏感配置
+
+### Requirement: 分阶段 connector 接入
+系统 SHALL 允许不同类型来源按阶段接入 connector，并用明确状态表达已可运行、待凭证、待 worker 或暂不可用。
+
+#### Scenario: 内容来源可运行
+- **WHEN** 来源使用 `rss_feed`、`rsshub_feed`、`web_fetch` 或 `local_file` 连接器且不需要私有凭证
+- **THEN** 系统必须能够通过现有或新增 parser 把内容标准化为原始文档候选对象
+
+#### Scenario: HTTP 行情和板块来源
+- **WHEN** 来源使用 Eastmoney、Sina、Tencent、Yahoo、Stooq 或类似 HTTP provider
+- **THEN** 系统必须通过 provider 专属 connector/parser 或通用 HTTP connector/parser 表达采集路径，并保留限流、字段映射和数据频率配置
+
+#### Scenario: SDK 来源边界
+- **WHEN** 来源使用 Tushare、AKShare、Baostock、Futu、Mootdx 或类似 SDK provider
+- **THEN** 系统必须能在 `source_catalogs` 中登记该来源的 provider、授权方式、凭证引用、SDK 方法和执行状态；如果真实 worker 或 wrapper 尚未实现，connector 必须返回明确错误，不得伪造采集成功
 
 ### Requirement: 多来源并发采集
 系统 SHALL 支持对多个 active source 进行可配置并发采集，并保持单源失败隔离、provider 限流和可测试的汇总报告。
