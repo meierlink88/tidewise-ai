@@ -1,5 +1,7 @@
 ## Why
 
+优先级说明：本 change 已从当前第一优先级后移为第二优先级。当前第一优先级为 `init-entity-foundation-seeds`，先补充联盟组织实体表并完成所有实体表的一阶段初始化；本 change 后续再执行调研数据源接入、source catalog seed、connector 修改和多来源采集能力。
+
 当前采集层已经具备本地 PostgreSQL 写入、采集源目录、连接器、解析器和真实 RSS smoke 闭环，但可复用的数据源仍停留在调研结论和外部样例系统中，没有形成 repo 内可审计、可初始化、可测试、可统一治理的采集源资产。现在需要把前期调研中适合观潮家的内容类、行情类、板块类和 SDK 类来源统一纳入 `source_catalogs` 管理，并让采集任务能够稳定处理多个来源。
 
 ## What Changes

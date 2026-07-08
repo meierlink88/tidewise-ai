@@ -1,5 +1,7 @@
 ## Context
 
+优先级说明：本 change 已后移为第二优先级。当前第一优先级由 `init-entity-foundation-seeds` 承担，先补充 `alliance_org` 联盟组织实体和所有实体 profile 的一阶段初始化；本 change 保留原数据源接入、source catalog seed、connector 和并发采集设计，等待实体基础库 change 完成后再推进。
+
 当前 `enable-local-db-and-live-ingestion-smoke` 已经让采集层具备本地 PostgreSQL 连接、migration、`source_catalogs`、`raw_documents`、真实 RSS smoke 和幂等写入能力。现有 `IngestionJob.Run` 会读取多个 active source，但实现上通过 `for _, source := range sources` 顺序执行，因此当前支持一次任务处理多个来源，不支持多个来源并发抓取。
 
 前期调研的三个系统里，可进入观潮家的来源不是单一粒度：Vibe-Research 主要是策展 RSS 内容源；Vibe-Trading 主要是行情、SDK、RSSHub 和 loader provider；Stock 同时包含新闻网页、Eastmoney 行情、指数、概念板块、Tushare、AKShare 和本地文件输出。这个 change 的核心不应只是“跑通一批 RSS”，而是建立统一来源目录能力，让系统后续能回答“我们一共接入了多少数据源、每个来源的用途、类型、provider、凭证、限流、连接器和状态是什么”。
