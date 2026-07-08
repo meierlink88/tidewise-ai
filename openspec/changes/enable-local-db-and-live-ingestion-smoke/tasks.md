@@ -20,10 +20,10 @@
 
 ## 4. 真实采集 smoke
 
-- [ ] 4.1 为 smoke runner 编写测试，使用 `httptest` 模拟公开 RSS/Atom 来源，验证 source seed、connector/parser/job/writer 编排和结构化 report。
-- [ ] 4.2 实现 smoke runner，使其可配置公开来源、最大采集条数、provider/source 过滤和输出 JSON report。
-- [ ] 4.3 增加 `backend/cmd/ingest-smoke` 命令，使用真实 PostgreSQL repository 和现有 ingestion job 执行本地采集入库。
-- [ ] 4.4 确认 smoke 失败时返回明确错误，不写入伪造文档，也不把失败标记为成功。
+- [x] 4.1 为 smoke runner 编写测试，使用 `httptest` 模拟公开 RSS/Atom 来源，验证 source seed、connector/parser/job/writer 编排和结构化 report。
+- [x] 4.2 实现 smoke runner，使其可配置公开来源、最大采集条数、provider/source 过滤和输出 JSON report。
+- [x] 4.3 增加 `backend/cmd/ingest-smoke` 命令，使用真实 PostgreSQL repository 和现有 ingestion job 执行本地采集入库。
+- [x] 4.4 确认 smoke 失败时返回明确错误，不写入伪造文档，也不把失败标记为成功。
 
 ## 5. 本地基础设施和运行说明
 

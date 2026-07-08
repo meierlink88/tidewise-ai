@@ -44,6 +44,20 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 	}
 }
 
+func (r *InMemoryRepository) SeedSource(_ context.Context, source domain.SourceCatalog) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for index, existing := range r.sources {
+		if existing.ID == source.ID {
+			r.sources[index] = source
+			return nil
+		}
+	}
+	r.sources = append(r.sources, source)
+	return nil
+}
+
 func (r *InMemoryRepository) ActiveSources(_ context.Context, filter SourceCatalogFilter) ([]domain.SourceCatalog, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -108,6 +122,19 @@ func (r *InMemoryRepository) RawDocument(id string) (domain.RawDocument, bool) {
 
 	doc, ok := r.documents[id]
 	return doc, ok
+}
+
+func (r *InMemoryRepository) RawDocumentCount(_ context.Context, sourceID string) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	count := 0
+	for _, doc := range r.documents {
+		if sourceID == "" || doc.SourceID == sourceID {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func (r *InMemoryRepository) findDuplicate(doc domain.RawDocument) (domain.RawDocument, bool) {
