@@ -6,10 +6,10 @@
 
 ## 2. 迁移执行器和启动检查
 
-- [ ] 2.1 为 migration service 编写测试，覆盖 check-only、auto apply、pending migration 报告、advisory lock 调用和错误路径。
-- [ ] 2.2 引入 PostgreSQL driver、goose 或等价迁移执行依赖，并实现真实 migration service。
-- [ ] 2.3 增加 `backend/cmd/dbmigrate` 命令，支持检查和应用 repo 内 `backend/migrations`。
-- [ ] 2.4 将 API 启动流程接入 migration 检查，并按 `migration.auto_apply` 决定自动执行或拒绝未知 schema 启动。
+- [x] 2.1 为 migration service 编写测试，覆盖 check-only、auto apply、pending migration 报告、advisory lock 调用和错误路径。
+- [x] 2.2 引入 PostgreSQL driver、goose 或等价迁移执行依赖，并实现真实 migration service。
+- [x] 2.3 增加 `backend/cmd/dbmigrate` 命令，支持检查和应用 repo 内 `backend/migrations`。
+- [x] 2.4 将 API 启动流程接入 migration 检查，并按 `migration.auto_apply` 决定自动执行或拒绝未知 schema 启动。
 
 ## 3. PostgreSQL repository 和稳定 UUID
 
