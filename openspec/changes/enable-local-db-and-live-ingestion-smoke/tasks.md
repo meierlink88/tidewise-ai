@@ -13,10 +13,10 @@
 
 ## 3. PostgreSQL repository 和稳定 UUID
 
-- [ ] 3.1 为稳定 UUID 生成编写 table-driven tests，覆盖合法 UUID 透传、非 UUID 候选 ID 映射、source/external ID/hash 幂等生成。
-- [ ] 3.2 实现采集源和原始文档写库所需的稳定 UUID helper。
-- [ ] 3.3 为 PostgreSQL repository 编写测试或显式集成测试边界，覆盖 active sources 查询、source seed/upsert、raw document 幂等写入、重复检测和状态更新。
-- [ ] 3.4 实现 `source_catalogs` 和 `raw_documents` 的 PostgreSQL repository 最小闭环。
+- [x] 3.1 为稳定 UUID 生成编写 table-driven tests，覆盖合法 UUID 透传、非 UUID 候选 ID 映射、source/external ID/hash 幂等生成。
+- [x] 3.2 实现采集源和原始文档写库所需的稳定 UUID helper。
+- [x] 3.3 为 PostgreSQL repository 编写测试或显式集成测试边界，覆盖 active sources 查询、source seed/upsert、raw document 幂等写入、重复检测和状态更新。
+- [x] 3.4 实现 `source_catalogs` 和 `raw_documents` 的 PostgreSQL repository 最小闭环。
 
 ## 4. 真实采集 smoke
 
