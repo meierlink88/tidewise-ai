@@ -41,13 +41,13 @@
 
 ## 6. First Connector And Parser Set
 
-- [ ] 6.1 先为每个 connector 和 parser 准备 fixture 与单元测试，不访问真实外部站点。
-- [ ] 6.2 实现 `rss_feed` connector 和 `rss_item` parser，覆盖标准 RSS/Atom 标题、链接、摘要、发布时间和正文候选内容。
-- [ ] 6.3 实现 `http_eastmoney` connector 和 Eastmoney JSON parser，统一 User-Agent、timeout、限流和错误处理。
-- [ ] 6.4 实现 `rsshub_feed` connector，支持 `RSSHUB_BASE_URL`、`route_template`、`code_style`、timeout 和安全 XML 解析。
-- [ ] 6.5 实现 `web_fetch` connector 和 HTML/text parser，保存原始对象并提取可读正文。
-- [ ] 6.6 实现 `local_file` connector 和 CSV/JSON/text parser，用于本地历史材料回灌。
-- [ ] 6.7 为 `sdk_tushare` 和 `sdk_akshare` 建立声明式 connector stub，明确需要后续 Python worker、sidecar 或内部 HTTP wrapper 执行真实 SDK。
+- [x] 6.1 先为每个 connector 和 parser 准备 fixture 与单元测试，不访问真实外部站点。
+- [x] 6.2 实现 `rss_feed` connector 和 `rss_item` parser，覆盖标准 RSS/Atom 标题、链接、摘要、发布时间和正文候选内容。
+- [x] 6.3 实现 `http_eastmoney` connector 和 Eastmoney JSON parser，统一 User-Agent、timeout、限流和错误处理。
+- [x] 6.4 实现 `rsshub_feed` connector，支持 `RSSHUB_BASE_URL`、`route_template`、`code_style`、timeout 和安全 XML 解析。
+- [x] 6.5 实现 `web_fetch` connector 和 HTML/text parser，保存原始对象并提取可读正文。
+- [x] 6.6 实现 `local_file` connector 和 CSV/JSON/text parser，用于本地历史材料回灌。
+- [x] 6.7 为 `sdk_tushare` 和 `sdk_akshare` 建立声明式 connector stub，明确需要后续 Python worker、sidecar 或内部 HTTP wrapper 执行真实 SDK。
 
 ## 7. Jobs And Operational Boundary
 
