@@ -92,6 +92,49 @@ func TestPolicyBodySeedFile(t *testing.T) {
 	}
 }
 
+func TestMarketSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "markets.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 32; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeMarket {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeMarket)
+		}
+		if strings.Contains(entity.Name, "香港") && !strings.Contains(entity.Name, "中国香港") {
+			t.Fatalf("entity %q name = %q, want 中国香港 political naming rule", entity.Key, entity.Name)
+		}
+		if strings.Contains(entity.Name, "台湾") && !strings.Contains(entity.Name, "中国台湾") {
+			t.Fatalf("entity %q name = %q, want 中国台湾 political naming rule", entity.Key, entity.Name)
+		}
+	}
+}
+
+func TestIndexSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "indices.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 45; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeIndex {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeIndex)
+		}
+		if strings.Contains(entity.Name, "台湾") && !strings.Contains(entity.Name, "中国台湾") {
+			t.Fatalf("entity %q name = %q, want 中国台湾 political naming rule", entity.Key, entity.Name)
+		}
+	}
+}
+
 func hasASCIILetter(value string) bool {
 	for _, r := range value {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
