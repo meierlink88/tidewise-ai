@@ -312,23 +312,7 @@ func TestRelationshipSeedFile(t *testing.T) {
 }
 
 func entityFoundationSeedPaths() []string {
-	base := filepath.Join("..", "..", "data", "entity_foundation")
-	return []string{
-		filepath.Join(base, "alliance_orgs.json"),
-		filepath.Join(base, "economies.json"),
-		filepath.Join(base, "policy_bodies.json"),
-		filepath.Join(base, "markets.json"),
-		filepath.Join(base, "indices.json"),
-		filepath.Join(base, "sectors.json"),
-		filepath.Join(base, "chain_nodes.json"),
-		filepath.Join(base, "metrics.json"),
-		filepath.Join(base, "commodities.json"),
-		filepath.Join(base, "companies.json"),
-		filepath.Join(base, "securities.json"),
-		filepath.Join(base, "instruments.json"),
-		filepath.Join(base, "persons.json"),
-		filepath.Join(base, "relationships.json"),
-	}
+	return DefaultSeedPaths(filepath.Join("..", "..", "data", "entity_foundation"))
 }
 
 func profileString(t *testing.T, raw json.RawMessage, key string) string {
