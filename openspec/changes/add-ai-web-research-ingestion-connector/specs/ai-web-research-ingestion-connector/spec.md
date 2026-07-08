@@ -1,22 +1,30 @@
 ## ADDED Requirements
 
 ### Requirement: AI Web Research 采集连接器
-系统 SHALL 将 Tavily Web Search 与 LLM 结构化整理接入为 `source_catalogs` 驱动的采集连接器，并将检索结果标准化为原始文档候选对象。
+系统 SHALL 将 Web Search API provider 与 LLM 结构化整理接入为 `source_catalogs` 驱动的采集连接器，并将检索结果标准化为原始文档候选对象。
 
 #### Scenario: 执行 AI Web Research source
 - **WHEN** 采集任务读取到 active 状态且 `connector_key=llm_web_research` 的采集源
-- **THEN** 系统必须根据该 source 的 `provider_key`、`credential_ref`、`source_config` 和限流策略调用 Tavily search adapter、LLM normalizer 或 fake provider
+- **THEN** 系统必须根据该 source 的 `provider_key`、`credential_ref`、`source_config` 和限流策略调用对应 Web Search adapter、LLM normalizer 或 fake provider
 
 #### Scenario: Tavily 搜索召回
 - **WHEN** AI Web Research source 配置 `search_provider=tavily`
 - **THEN** 系统必须通过 Tavily 搜索获取标题、URL、摘要、来源、发布时间、搜索排名和原始搜索元数据，并把搜索失败、空结果和参数错误写入采集 report
 
+#### Scenario: 中文搜索 provider 召回
+- **WHEN** AI Web Research source 配置 `search_provider=bocha_web_search` 或 `search_provider=searchapi_baidu`
+- **THEN** 系统必须通过对应 adapter 获取中文搜索结果的标题、URL、摘要、来源站点、发布时间、搜索排名和原始 provider 元数据，并把搜索失败、空结果和参数错误写入采集 report
+
+#### Scenario: 中国财经来源优先
+- **WHEN** AI Web Research source 配置中国财经类 `provider_profile`、来源偏好或可信域名
+- **THEN** 系统必须优先保留、排序或标记中国官方机构、交易所、主流财经媒体和可信中文财经站点结果，并在 raw metadata 中记录命中的来源偏好
+
 #### Scenario: LLM 结构化整理
-- **WHEN** Tavily 返回搜索结果
+- **WHEN** Web Search provider 返回搜索结果
 - **THEN** 系统可以调用 LLM normalizer 将搜索结果整理为 `items` JSON，但不得把 LLM 生成的 model、query_time 或未经校验的来源字段当作系统事实
 
 #### Scenario: 缺少凭证引用
-- **WHEN** AI Web Research source 需要 Tavily API key 或 LLM API key 但凭证引用为空或无法解析到真实 secret
+- **WHEN** AI Web Research source 需要 Web Search API key 或 LLM API key 但凭证引用为空或无法解析到真实 secret
 - **THEN** 系统必须跳过该 source 并记录明确错误，不得调用外部 API 或写入伪造原始文档
 
 ### Requirement: AI connector source_config
@@ -24,7 +32,7 @@
 
 #### Scenario: 读取模型运行参数
 - **WHEN** connector 准备执行 AI Web Research source
-- **THEN** 系统必须能够从 `source_config` 读取 search provider、搜索选项、LLM provider、API base URL、API 协议、模型名、提示词、提示词版本、时间窗口、最大结果数、语言和输出 schema
+- **THEN** 系统必须能够从 `source_config` 读取 search provider、provider profile、搜索选项、来源偏好、可信域名、LLM provider、API base URL、API 协议、模型名、提示词、提示词版本、时间窗口、最大结果数、语言和输出 schema
 
 #### Scenario: 拒绝敏感配置
 - **WHEN** `source_config` 包含 API key、bearer token、cookie 或其他真实凭证字段
