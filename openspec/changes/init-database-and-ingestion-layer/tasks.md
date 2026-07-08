@@ -24,10 +24,10 @@
 
 ## 4. Repository Layer
 
-- [ ] 4.1 先编写 repository 接口行为测试或 fake 测试，覆盖 `source_catalogs` 读取、`raw_documents` 幂等写入、重复数据和采集状态更新。
-- [ ] 4.2 实现基于 `source_id`、`source_external_id` 和 `content_hash` 的幂等写入策略。
-- [ ] 4.3 添加 repository 测试或可替换 fake，确保 ingestion 层不直接执行 SQL。
-- [ ] 4.4 确认 handler、main 入口和前端代码不直接访问数据库。
+- [x] 4.1 先编写 repository 接口行为测试或 fake 测试，覆盖 `source_catalogs` 读取、`raw_documents` 幂等写入、重复数据和采集状态更新。
+- [x] 4.2 实现基于 `source_id`、`source_external_id` 和 `content_hash` 的幂等写入策略。
+- [x] 4.3 添加 repository 测试或可替换 fake，确保 ingestion 层不直接执行 SQL。
+- [x] 4.4 确认 handler、main 入口和前端代码不直接访问数据库。
 
 ## 5. Ingestion Core
 
