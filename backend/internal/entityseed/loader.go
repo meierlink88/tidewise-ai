@@ -49,6 +49,31 @@ func LoadFile(path string) (Manifest, error) {
 	return Load(data)
 }
 
+func LoadFiles(paths ...string) (Manifest, error) {
+	var merged Manifest
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return Manifest{}, fmt.Errorf("read entity seed manifest %q: %w", path, err)
+		}
+		if err := rejectForbiddenReasoningFields(data); err != nil {
+			return Manifest{}, fmt.Errorf("%s: %w", path, err)
+		}
+		var manifest Manifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return Manifest{}, fmt.Errorf("decode entity seed manifest %q: %w", path, err)
+		}
+		merged.Entities = append(merged.Entities, manifest.Entities...)
+		merged.Profiles = append(merged.Profiles, manifest.Profiles...)
+		merged.Relationships = append(merged.Relationships, manifest.Relationships...)
+	}
+	if err := Validate(merged); err != nil {
+		return Manifest{}, err
+	}
+	normalizeDefaults(&merged)
+	return merged, nil
+}
+
 func Load(data []byte) (Manifest, error) {
 	if err := rejectForbiddenReasoningFields(data); err != nil {
 		return Manifest{}, err

@@ -282,6 +282,55 @@ func TestPersonSeedFile(t *testing.T) {
 	}
 }
 
+func TestRelationshipSeedFile(t *testing.T) {
+	manifest, err := LoadFiles(entityFoundationSeedPaths()...)
+	if err != nil {
+		t.Fatalf("LoadFiles() error = %v", err)
+	}
+
+	if got, wantMinimum := len(manifest.Relationships), 70; got < wantMinimum {
+		t.Fatalf("relationships = %d, want at least %d", got, wantMinimum)
+	}
+
+	relationTypes := map[string]struct{}{}
+	for _, relationship := range manifest.Relationships {
+		relationTypes[relationship.RelationType] = struct{}{}
+	}
+	for _, required := range []string{
+		"member_of",
+		"has_market",
+		"tracks_index",
+		"issues",
+		"participates_in",
+		"affiliated_with",
+		"applies_to",
+	} {
+		if _, ok := relationTypes[required]; !ok {
+			t.Fatalf("missing relationship type %q", required)
+		}
+	}
+}
+
+func entityFoundationSeedPaths() []string {
+	base := filepath.Join("..", "..", "data", "entity_foundation")
+	return []string{
+		filepath.Join(base, "alliance_orgs.json"),
+		filepath.Join(base, "economies.json"),
+		filepath.Join(base, "policy_bodies.json"),
+		filepath.Join(base, "markets.json"),
+		filepath.Join(base, "indices.json"),
+		filepath.Join(base, "sectors.json"),
+		filepath.Join(base, "chain_nodes.json"),
+		filepath.Join(base, "metrics.json"),
+		filepath.Join(base, "commodities.json"),
+		filepath.Join(base, "companies.json"),
+		filepath.Join(base, "securities.json"),
+		filepath.Join(base, "instruments.json"),
+		filepath.Join(base, "persons.json"),
+		filepath.Join(base, "relationships.json"),
+	}
+}
+
 func profileString(t *testing.T, raw json.RawMessage, key string) string {
 	t.Helper()
 
