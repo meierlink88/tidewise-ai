@@ -1,22 +1,26 @@
 ## ADDED Requirements
 
 ### Requirement: AI Web Research 采集连接器
-系统 SHALL 将 Web Search API provider 与 LLM 结构化整理接入为 `source_catalogs` 驱动的采集连接器，并将检索结果标准化为原始文档候选对象。
+系统 SHALL 将多个 Web Search API tool 与 LLM 结构化整理接入为 `source_catalogs` 驱动的单一 AI Web Research 采集连接器，并将检索结果标准化为原始文档候选对象。
 
 #### Scenario: 执行 AI Web Research source
 - **WHEN** 采集任务读取到 active 状态且 `connector_key=llm_web_research` 的采集源
-- **THEN** 系统必须根据该 source 的 `provider_key`、`credential_ref`、`source_config` 和限流策略调用对应 Web Search adapter、LLM normalizer 或 fake provider
+- **THEN** 系统必须根据该 source 的 `provider_key`、`credential_ref`、`source_config.web_search_plan` 和限流策略调用一个或多个 Web Search adapter、LLM normalizer 或 fake provider
 
-#### Scenario: Tavily 搜索召回
-- **WHEN** AI Web Research source 配置 `search_provider=tavily`
+#### Scenario: Tavily 搜索工具召回
+- **WHEN** AI Web Research source 的 `web_search_plan` 包含 `provider=tavily`
 - **THEN** 系统必须通过 Tavily 搜索获取标题、URL、摘要、来源、发布时间、搜索排名和原始搜索元数据，并把搜索失败、空结果和参数错误写入采集 report
 
-#### Scenario: 中文搜索 provider 召回
-- **WHEN** AI Web Research source 配置 `search_provider=bocha_web_search` 或 `search_provider=searchapi_baidu`
+#### Scenario: 中文搜索工具召回
+- **WHEN** AI Web Research source 的 `web_search_plan` 包含 `provider=bocha_web_search` 或 `provider=searchapi_baidu`
 - **THEN** 系统必须通过对应 adapter 获取中文搜索结果的标题、URL、摘要、来源站点、发布时间、搜索排名和原始 provider 元数据，并把搜索失败、空结果和参数错误写入采集 report
 
+#### Scenario: 多搜索工具合并
+- **WHEN** AI Web Research source 的 `web_search_plan` 配置多个搜索工具
+- **THEN** 系统必须按配置的 parallel、fallback 或 sequential 模式执行搜索，并在调用 LLM 前完成结果归一化、URL 规范化、标题或内容哈希去重、可信域名标记、排序和总量截断
+
 #### Scenario: 中国财经来源优先
-- **WHEN** AI Web Research source 配置中国财经类 `provider_profile`、来源偏好或可信域名
+- **WHEN** AI Web Research source 配置中国财经类来源偏好或可信域名
 - **THEN** 系统必须优先保留、排序或标记中国官方机构、交易所、主流财经媒体和可信中文财经站点结果，并在 raw metadata 中记录命中的来源偏好
 
 #### Scenario: LLM 结构化整理
@@ -32,7 +36,11 @@
 
 #### Scenario: 读取模型运行参数
 - **WHEN** connector 准备执行 AI Web Research source
-- **THEN** 系统必须能够从 `source_config` 读取 search provider、provider profile、搜索选项、来源偏好、可信域名、LLM provider、API base URL、API 协议、模型名、提示词、提示词版本、时间窗口、最大结果数、语言和输出 schema
+- **THEN** 系统必须能够从 `source_config` 读取 `web_search_plan`、来源偏好、可信域名、LLM provider、API base URL、API 协议、模型名、`prompt_ref`、`prompt_version`、`prompt_variables`、时间窗口、最大结果数、语言和输出 schema
+
+#### Scenario: 读取 repo prompt 文件
+- **WHEN** connector 准备调用 LLM normalizer
+- **THEN** 系统必须根据 `prompt_ref` 和 `prompt_version` 加载 repo 内版本化 prompt 文件，并用 `prompt_variables` 渲染运行时变量，不得要求 `source_config` 保存完整提示词正文
 
 #### Scenario: 拒绝敏感配置
 - **WHEN** `source_config` 包含 API key、bearer token、cookie 或其他真实凭证字段

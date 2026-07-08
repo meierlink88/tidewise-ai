@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: AI Web Research 采集通道
-系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发多个 Web Search provider、可选网页抓取和 LLM 结构化整理。
+系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发单一 AI connector 内的多个 Web Search tool、可选网页抓取和 LLM 结构化整理。
 
 #### Scenario: source catalog 驱动 AI 采集
 - **WHEN** 采集源使用 `ingest_channel=llm_web_research`、`connector_key=llm_web_research` 和 `parser_key=llm_research_items`
@@ -11,20 +11,20 @@
 - **WHEN** 后续 scheduler 读取多个 active source 并包含 AI Web Research source
 - **THEN** AI Web Research source 必须与其他 connector 一样进入统一调度、限流、失败隔离、汇总 report 和幂等写入流程
 
-#### Scenario: 多 provider profile 触发
-- **WHEN** source catalog 中存在 `tavily_global`、`bocha_cn_finance` 或 `searchapi_baidu_cn` 等 AI Web Research provider profile
-- **THEN** 系统必须按 source 自身配置选择对应 Web Search adapter，不得把所有 AI Web Research source 固定到单一 provider
+#### Scenario: 多 Web Search tool 触发
+- **WHEN** source catalog 中的 AI Web Research source 配置 `web_search_plan`
+- **THEN** 系统必须在同一个 `llm_web_research` connector 内按 source 自身配置选择一个或多个 Web Search adapter，不得为每个搜索 API 创建独立 AI connector
 
 ### Requirement: AI 采集源配置校验
 系统 SHALL 对 AI Web Research source 的 `source_config` 执行 connector 专属校验，确保采集运行参数完整、非敏感且可审计。
 
 #### Scenario: 校验必填参数
 - **WHEN** seed 或运行时加载 AI Web Research source
-- **THEN** 系统必须校验 `search_provider`、`provider_profile`、`search_options`、`source_preferences`、`trusted_domains`、`llm_provider`、`api_base_url`、`api_protocol`、`model`、`prompt`、`prompt_version`、`max_results` 和 `output_schema` 的类型与取值
+- **THEN** 系统必须校验 `web_search_plan`、tool provider、tool credential ref、tool options、source_preferences、trusted_domains、`llm_provider`、`api_base_url`、`api_protocol`、`model`、`prompt_ref`、`prompt_version`、`prompt_variables`、`max_results` 和 `output_schema` 的类型与取值
 
 #### Scenario: 保护提示词和模型参数
 - **WHEN** 开发者查看 repo 内 AI Web Research source seed
-- **THEN** seed 可以包含提示词、模型名、base URL、Web Search provider 参数、来源偏好、可信域名和凭证引用名，但不得包含真实 API key、token、cookie 或私有凭证值
+- **THEN** seed 可以包含提示词引用、模型名、base URL、Web Search tool 参数、来源偏好、可信域名和凭证引用名，但不得包含完整长提示词正文、真实 API key、token、cookie 或私有凭证值
 
 #### Scenario: 搜索工具失败隔离
 - **WHEN** 任一 Web Search provider 返回鉴权失败、参数错误、限流、超时或空结果
