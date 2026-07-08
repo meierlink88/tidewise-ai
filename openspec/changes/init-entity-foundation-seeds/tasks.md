@@ -7,9 +7,9 @@
 
 ## 2. 实体 seed 文件和校验
 
-- [ ] 2.1 设计 repo 内实体 seed 文件格式，并编写 loader/validator 测试，覆盖必填字段、重复实体 key、重复关系、悬空 profile、悬空关系和禁止推理结论字段。
-- [ ] 2.2 实现实体 seed loader 和 validator。
-- [ ] 2.3 根据 `seed-scope.md` 编写联盟组织 seed 数据，覆盖 10 个核心联盟组织。
+- [x] 2.1 设计 repo 内实体 seed 文件格式，并编写 loader/validator 测试，覆盖必填字段、重复实体 key、重复关系、悬空 profile、悬空关系和禁止推理结论字段。
+- [x] 2.2 实现实体 seed loader 和 validator。
+- [x] 2.3 根据 `seed-scope.md` 编写联盟组织 seed 数据，覆盖 10 个核心联盟组织。
 - [ ] 2.4 根据 `seed-scope.md` 编写经济体 seed 数据，覆盖 50 个经济体，并验证中国香港、中国台湾命名规则。
 - [ ] 2.5 根据 `seed-scope.md` 编写政策机构 seed 数据，覆盖 30 个机构，并验证中文主名称和 aliases。
 - [ ] 2.6 根据 `seed-scope.md` 编写市场和指数 seed 数据，覆盖 32 个市场和 45 个指数。
