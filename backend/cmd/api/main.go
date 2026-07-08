@@ -8,7 +8,7 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
 	httpserver "github.com/meierlink88/tidewise-ai/backend/internal/http"
-	"github.com/meierlink88/tidewise-ai/backend/internal/migrations"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	migrationCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Database.ConnectTimeoutSeconds)*time.Second)
 	defer cancel()
 
-	migrationReport, err := migrations.CheckPostgres(migrationCtx, cfg, cfg.Migration.AutoApply)
+	migrationReport, err := dbmigration.CheckPostgres(migrationCtx, cfg, cfg.Migration.AutoApply)
 	if err != nil {
 		log.Fatalf("check migrations: %v", err)
 	}

@@ -36,8 +36,11 @@ func TestPostgresRepositoryIntegration(t *testing.T) {
 		SourceURL:     "https://example.com/feed.xml",
 		SourceLevel:   "secondary",
 		AuthType:      "none",
-		UsagePolicy:   "integration-test",
-		Status:        domain.SourceCatalogStatusActive,
+		SourceConfig: map[string]any{
+			"kind": "rss_feed",
+		},
+		UsagePolicy: "integration-test",
+		Status:      domain.SourceCatalogStatusActive,
 	}
 
 	if err := repo.SeedSource(ctx, source); err != nil {
@@ -50,6 +53,9 @@ func TestPostgresRepositoryIntegration(t *testing.T) {
 	}
 	if len(sources) == 0 {
 		t.Fatal("ActiveSources() returned no rows")
+	}
+	if got := sources[0].SourceConfig["kind"]; got != "rss_feed" {
+		t.Fatalf("SourceConfig[kind] = %v, want rss_feed", got)
 	}
 
 	doc := domain.RawDocument{

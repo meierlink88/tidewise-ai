@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
+	entityseed "github.com/meierlink88/tidewise-ai/backend/internal/apps/entityfoundation/seed"
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/database"
-	"github.com/meierlink88/tidewise-ai/backend/internal/entityseed"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
 )
 
 func main() {

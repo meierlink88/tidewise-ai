@@ -219,6 +219,7 @@ type SourceCatalog struct {
 	AuthRequired    bool
 	AuthType        string
 	CredentialRef   string
+	SourceConfig    map[string]any
 	RateLimitPolicy map[string]any
 	UsagePolicy     string
 	Status          SourceCatalogStatus

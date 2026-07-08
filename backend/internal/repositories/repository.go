@@ -11,10 +11,21 @@ import (
 type SourceCatalogFilter struct {
 	ProviderKey   string
 	IngestChannel string
+	SourceType    string
 }
 
 type SourceCatalogRepository interface {
 	ActiveSources(context.Context, SourceCatalogFilter) ([]domain.SourceCatalog, error)
+	SourceCatalogStats(context.Context) (SourceCatalogStats, error)
+}
+
+type SourceCatalogStats struct {
+	Total           int
+	ByProviderKey   map[string]int
+	ByIngestChannel map[string]int
+	BySourceType    map[string]int
+	ByUsagePolicy   map[string]int
+	ByStatus        map[string]int
 }
 
 type RawDocumentRepository interface {
@@ -36,7 +47,9 @@ type InMemoryRepository struct {
 
 func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 	copiedSources := make([]domain.SourceCatalog, len(sources))
-	copy(copiedSources, sources)
+	for index, source := range sources {
+		copiedSources[index] = cloneSource(normalizeInMemorySource(source))
+	}
 
 	return &InMemoryRepository{
 		sources:   copiedSources,
@@ -48,6 +61,7 @@ func (r *InMemoryRepository) SeedSource(_ context.Context, source domain.SourceC
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	source = cloneSource(normalizeInMemorySource(source))
 	for index, existing := range r.sources {
 		if existing.ID == source.ID {
 			r.sources[index] = source
@@ -73,10 +87,29 @@ func (r *InMemoryRepository) ActiveSources(_ context.Context, filter SourceCatal
 		if filter.IngestChannel != "" && source.IngestChannel != filter.IngestChannel {
 			continue
 		}
-		result = append(result, source)
+		if filter.SourceType != "" && source.SourceType != filter.SourceType {
+			continue
+		}
+		result = append(result, cloneSource(normalizeInMemorySource(source)))
 	}
 
 	return result, nil
+}
+
+func (r *InMemoryRepository) SourceCatalogStats(_ context.Context) (SourceCatalogStats, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	stats := newSourceCatalogStats()
+	for _, source := range r.sources {
+		stats.Total++
+		incrementStats(stats.ByProviderKey, source.ProviderKey)
+		incrementStats(stats.ByIngestChannel, source.IngestChannel)
+		incrementStats(stats.BySourceType, source.SourceType)
+		incrementStats(stats.ByUsagePolicy, source.UsagePolicy)
+		incrementStats(stats.ByStatus, string(source.Status))
+	}
+	return stats, nil
 }
 
 func (r *InMemoryRepository) UpsertRawDocument(_ context.Context, doc domain.RawDocument) (RawDocumentWriteResult, error) {
@@ -151,4 +184,57 @@ func (r *InMemoryRepository) findDuplicate(doc domain.RawDocument) (domain.RawDo
 	}
 
 	return domain.RawDocument{}, false
+}
+
+func cloneSource(source domain.SourceCatalog) domain.SourceCatalog {
+	source.SourceConfig = cloneMap(source.SourceConfig)
+	source.RateLimitPolicy = cloneMap(source.RateLimitPolicy)
+	return source
+}
+
+func normalizeInMemorySource(source domain.SourceCatalog) domain.SourceCatalog {
+	if source.SourceLevel == "" {
+		source.SourceLevel = "secondary"
+	}
+	if source.AuthType == "" {
+		source.AuthType = "none"
+	}
+	if source.Status == "" {
+		source.Status = domain.SourceCatalogStatusActive
+	}
+	if source.SourceConfig == nil {
+		source.SourceConfig = map[string]any{}
+	}
+	if source.RateLimitPolicy == nil {
+		source.RateLimitPolicy = map[string]any{}
+	}
+	return source
+}
+
+func cloneMap(value map[string]any) map[string]any {
+	if value == nil {
+		return map[string]any{}
+	}
+	copied := make(map[string]any, len(value))
+	for key, item := range value {
+		copied[key] = item
+	}
+	return copied
+}
+
+func newSourceCatalogStats() SourceCatalogStats {
+	return SourceCatalogStats{
+		ByProviderKey:   map[string]int{},
+		ByIngestChannel: map[string]int{},
+		BySourceType:    map[string]int{},
+		ByUsagePolicy:   map[string]int{},
+		ByStatus:        map[string]int{},
+	}
+}
+
+func incrementStats(counts map[string]int, key string) {
+	if key == "" {
+		key = "unknown"
+	}
+	counts[key]++
 }

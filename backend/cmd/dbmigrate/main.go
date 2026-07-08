@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/migrations"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	report, err := migrations.CheckPostgres(ctx, cfg, *apply)
+	report, err := dbmigration.CheckPostgres(ctx, cfg, *apply)
 	if err != nil {
 		log.Fatalf("run migrations: %v", err)
 	}

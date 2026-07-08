@@ -26,6 +26,7 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
 - `000001_init_event_knowledge_schema.sql`：创建事件知识 schema、实体节点、实体关系和各类 profile 表。
 - `000002_add_alliance_org_profiles.sql`：补充联盟组织 profile 表。
 - `000003_add_sector_seed_snapshot_fields.sql`：补充板块初始化热度快照字段 `rank_snapshot` 和 `snapshot_date`。
+- `000004_add_source_catalog_source_config.sql`：为 `source_catalogs` 补充 `source_config` JSONB 扩展配置字段。
 
 实体基础库 seed 使用 repo 内版本化 JSON 文件：
 
@@ -50,4 +51,27 @@ SELECT entity_type, COUNT(*) FROM entity_nodes GROUP BY entity_type ORDER BY ent
 SELECT relation_type, COUNT(*) FROM entity_edges GROUP BY relation_type ORDER BY relation_type;
 SELECT COUNT(*) FROM alliance_org_profiles;
 SELECT COUNT(*) FROM sector_profiles WHERE snapshot_date IS NOT NULL OR rank_snapshot > 0;
+```
+
+采集源目录 seed 使用 repo 内版本化 JSON 文件：
+
+```text
+backend/data/source_catalogs/
+```
+
+本地执行采集源 seed 前，应先执行 migration：
+
+```bash
+cd backend
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/source-seed
+```
+
+`cmd/source-seed` 会输出来源统计 report，重复执行应按稳定来源 ID 幂等 upsert，不应创建重复 `source_catalogs` 记录。常用核验 SQL：
+
+```sql
+SELECT COUNT(*) FROM source_catalogs;
+SELECT provider_key, COUNT(*) FROM source_catalogs GROUP BY provider_key ORDER BY COUNT(*) DESC, provider_key;
+SELECT source_type, COUNT(*) FROM source_catalogs GROUP BY source_type ORDER BY source_type;
+SELECT status, COUNT(*) FROM source_catalogs GROUP BY status ORDER BY status;
 ```

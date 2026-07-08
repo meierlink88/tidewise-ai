@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
+	ingestionruntime "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/runtime"
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/database"
-	"github.com/meierlink88/tidewise-ai/backend/internal/jobs"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 )
 
@@ -20,6 +20,7 @@ func main() {
 	sourceURL := flag.String("source-url", firstEnv("TIDEWISE_SMOKE_SOURCE_URL"), "RSS source URL for local ingestion smoke")
 	sourceName := flag.String("source-name", firstEnv("TIDEWISE_SMOKE_SOURCE_NAME"), "RSS source name for local ingestion smoke")
 	maxDocuments := flag.Int("max-documents", 3, "maximum documents to write")
+	concurrency := flag.Int("concurrency", 1, "maximum source concurrency for local ingestion smoke")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -38,12 +39,13 @@ func main() {
 	defer db.Close()
 
 	repo := repositories.NewPostgresRepository(db)
-	runner := jobs.NewIngestionSmokeRunner(repo, &http.Client{Timeout: timeout})
-	report, err := runner.Run(ctx, jobs.IngestionSmokeOptions{
+	runner := ingestionruntime.NewIngestionSmokeRunner(repo, &http.Client{Timeout: timeout})
+	report, err := runner.Run(ctx, ingestionruntime.IngestionSmokeOptions{
 		SourceURL:    *sourceURL,
 		SourceName:   *sourceName,
 		MaxDocuments: *maxDocuments,
 		Timeout:      timeout,
+		Concurrency:  *concurrency,
 	})
 	if err != nil {
 		content, marshalErr := json.MarshalIndent(report, "", "  ")

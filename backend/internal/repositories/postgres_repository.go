@@ -20,6 +20,10 @@ func NewPostgresRepository(db *sql.DB) PostgresRepository {
 
 func (r PostgresRepository) SeedSource(ctx context.Context, source domain.SourceCatalog) error {
 	source = normalizeSource(source)
+	sourceConfig, err := json.Marshal(source.SourceConfig)
+	if err != nil {
+		return fmt.Errorf("marshal source config: %w", err)
+	}
 	policy, err := json.Marshal(source.RateLimitPolicy)
 	if err != nil {
 		return fmt.Errorf("marshal rate limit policy: %w", err)
@@ -29,11 +33,11 @@ func (r PostgresRepository) SeedSource(ctx context.Context, source domain.Source
 INSERT INTO source_catalogs (
     id, ingest_channel, provider_key, connector_key, parser_key, source_type,
     source_name, source_url, source_level, topic_hint, route_template, code_style,
-    auth_required, auth_type, credential_ref, rate_limit_policy, usage_policy, status
+    auth_required, auth_type, credential_ref, source_config, rate_limit_policy, usage_policy, status
 ) VALUES (
     $1, $2, $3, $4, $5, $6,
     $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16::jsonb, $17, $18
+    $13, $14, $15, $16::jsonb, $17::jsonb, $18, $19
 ) ON CONFLICT (id) DO UPDATE SET
     ingest_channel = EXCLUDED.ingest_channel,
     provider_key = EXCLUDED.provider_key,
@@ -49,13 +53,14 @@ INSERT INTO source_catalogs (
     auth_required = EXCLUDED.auth_required,
     auth_type = EXCLUDED.auth_type,
     credential_ref = EXCLUDED.credential_ref,
+    source_config = EXCLUDED.source_config,
     rate_limit_policy = EXCLUDED.rate_limit_policy,
     usage_policy = EXCLUDED.usage_policy,
     status = EXCLUDED.status,
     updated_at = now()
 `, source.ID, source.IngestChannel, source.ProviderKey, source.ConnectorKey, source.ParserKey, source.SourceType,
 		source.SourceName, source.SourceURL, source.SourceLevel, source.TopicHint, source.RouteTemplate, source.CodeStyle,
-		source.AuthRequired, source.AuthType, source.CredentialRef, string(policy), source.UsagePolicy, source.Status)
+		source.AuthRequired, source.AuthType, source.CredentialRef, string(sourceConfig), string(policy), source.UsagePolicy, source.Status)
 	if err != nil {
 		return fmt.Errorf("seed source catalog: %w", err)
 	}
@@ -67,13 +72,14 @@ func (r PostgresRepository) ActiveSources(ctx context.Context, filter SourceCata
 	rows, err := r.db.QueryContext(ctx, `
 SELECT id, ingest_channel, provider_key, connector_key, parser_key, source_type,
        source_name, source_url, source_level, topic_hint, route_template, code_style,
-       auth_required, auth_type, credential_ref, rate_limit_policy, usage_policy, status
+       auth_required, auth_type, credential_ref, source_config, rate_limit_policy, usage_policy, status
 FROM source_catalogs
 WHERE status = 'active'
   AND ($1 = '' OR provider_key = $1)
   AND ($2 = '' OR ingest_channel = $2)
+  AND ($3 = '' OR source_type = $3)
 ORDER BY source_name, id
-`, filter.ProviderKey, filter.IngestChannel)
+`, filter.ProviderKey, filter.IngestChannel, filter.SourceType)
 	if err != nil {
 		return nil, fmt.Errorf("query active source catalogs: %w", err)
 	}
@@ -92,6 +98,53 @@ ORDER BY source_name, id
 	}
 
 	return sources, nil
+}
+
+func (r PostgresRepository) SourceCatalogStats(ctx context.Context) (SourceCatalogStats, error) {
+	stats := newSourceCatalogStats()
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM source_catalogs`).Scan(&stats.Total); err != nil {
+		return SourceCatalogStats{}, fmt.Errorf("count source catalogs: %w", err)
+	}
+	for _, group := range []struct {
+		column string
+		target map[string]int
+	}{
+		{column: "provider_key", target: stats.ByProviderKey},
+		{column: "ingest_channel", target: stats.ByIngestChannel},
+		{column: "source_type", target: stats.BySourceType},
+		{column: "usage_policy", target: stats.ByUsagePolicy},
+		{column: "status", target: stats.ByStatus},
+	} {
+		if err := r.loadSourceCatalogStatsGroup(ctx, group.column, group.target); err != nil {
+			return SourceCatalogStats{}, err
+		}
+	}
+	return stats, nil
+}
+
+func (r PostgresRepository) loadSourceCatalogStatsGroup(ctx context.Context, column string, target map[string]int) error {
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
+SELECT COALESCE(NULLIF(%s, ''), 'unknown') AS stat_key, COUNT(*)
+FROM source_catalogs
+GROUP BY stat_key
+`, column))
+	if err != nil {
+		return fmt.Errorf("query source catalog stats by %s: %w", column, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key string
+		var count int
+		if err := rows.Scan(&key, &count); err != nil {
+			return fmt.Errorf("scan source catalog stats by %s: %w", column, err)
+		}
+		target[key] = count
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate source catalog stats by %s: %w", column, err)
+	}
+	return nil
 }
 
 func (r PostgresRepository) UpsertRawDocument(ctx context.Context, doc domain.RawDocument) (RawDocumentWriteResult, error) {
@@ -210,6 +263,7 @@ type sourceScanner interface {
 
 func scanSource(scanner sourceScanner) (domain.SourceCatalog, error) {
 	var source domain.SourceCatalog
+	var configBytes []byte
 	var policyBytes []byte
 	if err := scanner.Scan(
 		&source.ID,
@@ -227,6 +281,7 @@ func scanSource(scanner sourceScanner) (domain.SourceCatalog, error) {
 		&source.AuthRequired,
 		&source.AuthType,
 		&source.CredentialRef,
+		&configBytes,
 		&policyBytes,
 		&source.UsagePolicy,
 		&source.Status,
@@ -237,6 +292,14 @@ func scanSource(scanner sourceScanner) (domain.SourceCatalog, error) {
 		if err := json.Unmarshal(policyBytes, &source.RateLimitPolicy); err != nil {
 			return domain.SourceCatalog{}, fmt.Errorf("parse rate limit policy: %w", err)
 		}
+	}
+	if len(configBytes) > 0 {
+		if err := json.Unmarshal(configBytes, &source.SourceConfig); err != nil {
+			return domain.SourceCatalog{}, fmt.Errorf("parse source config: %w", err)
+		}
+	}
+	if source.SourceConfig == nil {
+		source.SourceConfig = map[string]any{}
 	}
 	if source.RateLimitPolicy == nil {
 		source.RateLimitPolicy = map[string]any{}
@@ -294,6 +357,9 @@ func normalizeSource(source domain.SourceCatalog) domain.SourceCatalog {
 	}
 	if source.RateLimitPolicy == nil {
 		source.RateLimitPolicy = map[string]any{}
+	}
+	if source.SourceConfig == nil {
+		source.SourceConfig = map[string]any{}
 	}
 	return source
 }
