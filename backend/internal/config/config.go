@@ -55,9 +55,15 @@ type AgentPlatformConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
-	Name string `yaml:"name"`
+	Host                   string `yaml:"host"`
+	Port                   int    `yaml:"port"`
+	Name                   string `yaml:"name"`
+	User                   string `yaml:"user"`
+	SSLMode                string `yaml:"ssl_mode"`
+	MaxOpenConns           int    `yaml:"max_open_conns"`
+	MaxIdleConns           int    `yaml:"max_idle_conns"`
+	ConnMaxLifetimeSeconds int    `yaml:"conn_max_lifetime_seconds"`
+	ConnectTimeoutSeconds  int    `yaml:"connect_timeout_seconds"`
 }
 
 type RedisConfig struct {
@@ -90,6 +96,7 @@ type SecurityConfig struct {
 
 type SecretConfig struct {
 	AgentPlatformAPIKey string
+	DatabaseURL         string
 	DatabasePassword    string
 	JWTSecret           string
 	PaymentSecret       string
@@ -118,6 +125,7 @@ func Load() (Config, error) {
 	cfg.App.Env = env
 	cfg.Secrets = SecretConfig{
 		AgentPlatformAPIKey: os.Getenv("AGENT_PLATFORM_API_KEY"),
+		DatabaseURL:         firstEnv("TIDEWISE_DATABASE_URL", "DATABASE_URL"),
 		DatabasePassword:    os.Getenv("DATABASE_PASSWORD"),
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		PaymentSecret:       os.Getenv("PAYMENT_SECRET"),
@@ -194,6 +202,24 @@ func (c Config) Validate() error {
 	if c.Database.Name == "" {
 		return fmt.Errorf("database.name is required")
 	}
+	if c.Database.User == "" {
+		return fmt.Errorf("database.user is required")
+	}
+	if c.Database.SSLMode == "" {
+		return fmt.Errorf("database.ssl_mode is required")
+	}
+	if c.Database.MaxOpenConns <= 0 {
+		return fmt.Errorf("database.max_open_conns must be positive")
+	}
+	if c.Database.MaxIdleConns <= 0 {
+		return fmt.Errorf("database.max_idle_conns must be positive")
+	}
+	if c.Database.ConnMaxLifetimeSeconds <= 0 {
+		return fmt.Errorf("database.conn_max_lifetime_seconds must be positive")
+	}
+	if c.Database.ConnectTimeoutSeconds <= 0 {
+		return fmt.Errorf("database.connect_timeout_seconds must be positive")
+	}
 	if c.Redis.Address == "" {
 		return fmt.Errorf("redis.address is required")
 	}
@@ -227,4 +253,40 @@ func (c Config) Validate() error {
 
 func (s ServerConfig) Address() string {
 	return net.JoinHostPort(s.Host, fmt.Sprintf("%d", s.Port))
+}
+
+func (c Config) PostgresURL() (string, error) {
+	if c.Secrets.DatabaseURL != "" {
+		if _, err := url.ParseRequestURI(c.Secrets.DatabaseURL); err != nil {
+			return "", fmt.Errorf("database url must be a valid URL: %w", err)
+		}
+		return c.Secrets.DatabaseURL, nil
+	}
+
+	values := url.Values{}
+	values.Set("sslmode", c.Database.SSLMode)
+	values.Set("connect_timeout", fmt.Sprintf("%d", c.Database.ConnectTimeoutSeconds))
+
+	dsn := url.URL{
+		Scheme:   "postgres",
+		Host:     net.JoinHostPort(c.Database.Host, fmt.Sprintf("%d", c.Database.Port)),
+		Path:     c.Database.Name,
+		RawQuery: values.Encode(),
+	}
+	if c.Secrets.DatabasePassword != "" {
+		dsn.User = url.UserPassword(c.Database.User, c.Secrets.DatabasePassword)
+	} else {
+		dsn.User = url.User(c.Database.User)
+	}
+
+	return dsn.String(), nil
+}
+
+func firstEnv(names ...string) string {
+	for _, name := range names {
+		if value := os.Getenv(name); value != "" {
+			return value
+		}
+	}
+	return ""
 }

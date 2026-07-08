@@ -1,0 +1,3028 @@
+{
+  "sources": [
+    {
+      "id": "vibe-research:rss:ai:openai",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "OpenAI",
+      "source_url": "https://openai.com/news/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:google-research",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Google Research",
+      "source_url": "https://research.google/blog/rss/",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:hugging-face",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Hugging Face",
+      "source_url": "https://huggingface.co/blog/feed.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:source",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "量子位",
+      "source_url": "https://www.qbitai.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:mit-tech-review-ai",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "MIT Tech Review AI",
+      "source_url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:the-verge-ai",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "The Verge AI",
+      "source_url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:techcrunch-ai",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "TechCrunch AI",
+      "source_url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:arxiv-cs-ai",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "arXiv cs.AI",
+      "source_url": "https://export.arxiv.org/rss/cs.AI",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:kdnuggets",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "KDnuggets",
+      "source_url": "https://www.kdnuggets.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:marktechpost",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "MarkTechPost",
+      "source_url": "https://www.marktechpost.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:bair-blog",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "BAIR Blog",
+      "source_url": "https://bair.berkeley.edu/blog/feed.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:import-ai",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Import AI",
+      "source_url": "https://importai.substack.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:deepmind",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "DeepMind",
+      "source_url": "https://deepmind.google/blog/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:source-2",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "智东西",
+      "source_url": "https://zhidx.com/rss",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:source-3",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "机器之心",
+      "source_url": "https://wechat2rss.xlab.app/feed/51e92aad2728acdd1fda7314be32b16639353001.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:ai:source-4",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "新智元",
+      "source_url": "https://wechat2rss.xlab.app/feed/ede30346413ea70dbef5d485ea5cbb95cca446e7.xml",
+      "source_level": "secondary",
+      "topic_hint": "ai",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "ai",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:digitimes",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "DIGITIMES",
+      "source_url": "https://www.digitimes.com/rss/daily.xml",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:semianalysis",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "SemiAnalysis",
+      "source_url": "https://semianalysis.substack.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:semiconductor-engineering",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Semiconductor Engineering",
+      "source_url": "https://semiengineering.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:ee-times",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "EE Times",
+      "source_url": "https://www.eetimes.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:ieee-spectrum",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "IEEE Spectrum 半导体",
+      "source_url": "https://spectrum.ieee.org/feeds/topic/semiconductors.rss",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:semiwiki",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "SemiWiki",
+      "source_url": "https://semiwiki.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:semiconductor-today",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Semiconductor Today",
+      "source_url": "https://www.semiconductor-today.com/rss/news.xml",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:electronics-weekly",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Electronics Weekly",
+      "source_url": "https://www.electronicsweekly.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:semi:all-about-circuits",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "All About Circuits",
+      "source_url": "https://www.allaboutcircuits.com/rss/news/",
+      "source_level": "secondary",
+      "topic_hint": "semi",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "semi",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:robot:the-robot-report",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "The Robot Report",
+      "source_url": "https://www.therobotreport.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "robot",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "robot",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:robot:ieee-spectrum",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "IEEE Spectrum 机器人",
+      "source_url": "https://spectrum.ieee.org/feeds/topic/robotics.rss",
+      "source_level": "secondary",
+      "topic_hint": "robot",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "robot",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:robot:robohub",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Robohub",
+      "source_url": "https://robohub.org/feed/",
+      "source_level": "secondary",
+      "topic_hint": "robot",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "robot",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:robot:robotics-automation",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Robotics & Automation",
+      "source_url": "https://roboticsandautomationnews.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "robot",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "robot",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:robot:robotics-business-review",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Robotics Business Review",
+      "source_url": "https://www.roboticsbusinessreview.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "robot",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "robot",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:auto:electrek",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Electrek",
+      "source_url": "https://electrek.co/feed/",
+      "source_level": "secondary",
+      "topic_hint": "auto",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "auto",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:auto:insideevs",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "InsideEVs",
+      "source_url": "https://insideevs.com/rss/articles/all/",
+      "source_level": "secondary",
+      "topic_hint": "auto",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "auto",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:auto:the-verge-transport",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "The Verge Transport",
+      "source_url": "https://www.theverge.com/rss/transportation/index.xml",
+      "source_level": "secondary",
+      "topic_hint": "auto",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "auto",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:auto:techcrunch-transport",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "TechCrunch Transport",
+      "source_url": "https://techcrunch.com/category/transportation/feed/",
+      "source_level": "secondary",
+      "topic_hint": "auto",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "auto",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:auto:cnevpost",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "CnEVPost",
+      "source_url": "https://cnevpost.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "auto",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "auto",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:cleantechnica",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "CleanTechnica",
+      "source_url": "https://cleantechnica.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:utility-dive",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Utility Dive",
+      "source_url": "https://www.utilitydive.com/feeds/news/",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:pv-magazine",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "pv magazine",
+      "source_url": "https://www.pv-magazine.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:energy-storage-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Energy Storage News",
+      "source_url": "https://www.energy-storage.news/feed/",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:oilprice",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "OilPrice",
+      "source_url": "https://oilprice.com/rss/main",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:canary-media",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Canary Media",
+      "source_url": "https://www.canarymedia.com/articles.rss",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:pv-tech",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "PV Tech",
+      "source_url": "https://www.pv-tech.org/feed/",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:renewable-energy-world",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Renewable Energy World",
+      "source_url": "https://www.renewableenergyworld.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:energy:source",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "国际能源网",
+      "source_url": "https://www.in-en.com/feed/rss.php?mid=21",
+      "source_level": "secondary",
+      "topic_hint": "energy",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "energy",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:stat-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "STAT News",
+      "source_url": "https://www.statnews.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:endpoints-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Endpoints News",
+      "source_url": "https://endpts.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:fiercebiotech",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "FierceBiotech",
+      "source_url": "https://www.fiercebiotech.com/rss/xml",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:fiercepharma",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "FiercePharma",
+      "source_url": "https://www.fiercepharma.com/rss/xml",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:biopharma-dive",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "BioPharma Dive",
+      "source_url": "https://www.biopharmadive.com/feeds/news/",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:gen",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "GEN",
+      "source_url": "https://www.genengnews.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:bio:nature-biotech",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Nature Biotech",
+      "source_url": "https://www.nature.com/nbt.rss",
+      "source_level": "secondary",
+      "topic_hint": "bio",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "bio",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:space:spacenews",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "SpaceNews",
+      "source_url": "https://spacenews.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "space",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "space",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:space:space-com",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Space.com",
+      "source_url": "https://www.space.com/feeds/all",
+      "source_level": "secondary",
+      "topic_hint": "space",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "space",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:space:spaceflight-now",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Spaceflight Now",
+      "source_url": "https://spaceflightnow.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "space",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "space",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:space:payload",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Payload",
+      "source_url": "https://payloadspace.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "space",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "space",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:space:nasa",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "NASA",
+      "source_url": "https://www.nasa.gov/news-release/feed/",
+      "source_level": "secondary",
+      "topic_hint": "space",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "space",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:space:nasaspaceflight",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "NASASpaceflight",
+      "source_url": "https://www.nasaspaceflight.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "space",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "space",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:security:krebs-on-security",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Krebs on Security",
+      "source_url": "https://krebsonsecurity.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "security",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "security",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:security:the-hacker-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "The Hacker News",
+      "source_url": "https://feeds.feedburner.com/TheHackersNews",
+      "source_level": "secondary",
+      "topic_hint": "security",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "security",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:security:bleepingcomputer",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "BleepingComputer",
+      "source_url": "https://www.bleepingcomputer.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "security",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "security",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:security:dark-reading",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Dark Reading",
+      "source_url": "https://www.darkreading.com/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "security",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "security",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:security:securityweek",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "SecurityWeek",
+      "source_url": "https://www.securityweek.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "security",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "security",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:techcrunch",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "TechCrunch",
+      "source_url": "https://techcrunch.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:the-verge",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "The Verge",
+      "source_url": "https://www.theverge.com/rss/index.xml",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:ars-technica",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Ars Technica",
+      "source_url": "https://feeds.arstechnica.com/arstechnica/index",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:hacker-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Hacker News",
+      "source_url": "https://hnrss.org/frontpage",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:wired",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "WIRED",
+      "source_url": "https://www.wired.com/feed/rss",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:engadget",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Engadget",
+      "source_url": "https://www.engadget.com/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:techmeme",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Techmeme",
+      "source_url": "https://www.techmeme.com/feed.xml",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:36",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "36氪",
+      "source_url": "https://36kr.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:source",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "钛媒体",
+      "source_url": "https://www.tmtpost.com/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:source-2",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "少数派",
+      "source_url": "https://sspai.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:it",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "IT之家",
+      "source_url": "https://www.ithome.com/rss/",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:github-blog",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "GitHub Blog",
+      "source_url": "https://github.blog/feed/",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:stratechery",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Stratechery",
+      "source_url": "https://stratechery.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:source-3",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "虎嗅",
+      "source_url": "https://rss.huxiu.com/",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:source-4",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "动点科技",
+      "source_url": "https://cn.technode.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:source-5",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "月光博客",
+      "source_url": "https://www.williamlong.info/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:solidot",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Solidot",
+      "source_url": "https://www.solidot.org/index.rss",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:tech:source-6",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "白鲸出海",
+      "source_url": "https://www.baijingapp.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "tech",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "tech",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:engadget",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Engadget",
+      "source_url": "https://www.engadget.com/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:9to5mac",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "9to5Mac",
+      "source_url": "https://9to5mac.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:9to5google",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "9to5Google",
+      "source_url": "https://9to5google.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:gsmarena",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "GSMArena",
+      "source_url": "https://www.gsmarena.com/rss-news-reviews.php3",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:android-authority",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Android Authority",
+      "source_url": "https://www.androidauthority.com/feed/",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:dpreview",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "DPReview",
+      "source_url": "https://www.dpreview.com/feeds/news.xml",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:consumer:source",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "少数派",
+      "source_url": "https://sspai.com/feed",
+      "source_level": "secondary",
+      "topic_hint": "consumer",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "consumer",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:cnbc",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "CNBC",
+      "source_url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:financial-times",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Financial Times",
+      "source_url": "https://www.ft.com/rss/home",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:wsj-markets",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "WSJ Markets",
+      "source_url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:marketwatch",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "MarketWatch",
+      "source_url": "https://feeds.marketwatch.com/marketwatch/topstories/",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:yahoo-finance",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Yahoo Finance",
+      "source_url": "https://finance.yahoo.com/news/rssindex",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:source",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "华尔街见闻",
+      "source_url": "https://dedicated.wallstreetcn.com/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:finextra",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Finextra",
+      "source_url": "https://www.finextra.com/rss/headlines.aspx",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:sec",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "SEC",
+      "source_url": "https://www.sec.gov/news/pressreleases.rss",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:federal-reserve",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Federal Reserve",
+      "source_url": "https://www.federalreserve.gov/feeds/press_all.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:seeking-alpha",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Seeking Alpha",
+      "source_url": "https://seekingalpha.com/market_currents.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:source-2",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "东方财富股票",
+      "source_url": "http://rss.eastmoney.com/rss_stock.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:source-3",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "东方财富资讯",
+      "source_url": "http://rss.eastmoney.com/rss_partener.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:macro:source-4",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "经济观察网",
+      "source_url": "http://www.eeo.com.cn/rss.xml",
+      "source_level": "secondary",
+      "topic_hint": "macro",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "macro",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:nature-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Nature News",
+      "source_url": "https://www.nature.com/nature.rss",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:sciencedaily",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "ScienceDaily",
+      "source_url": "https://www.sciencedaily.com/rss/all.xml",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:quanta-magazine",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Quanta Magazine",
+      "source_url": "https://api.quantamagazine.org/feed/",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:new-scientist",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "New Scientist",
+      "source_url": "https://www.newscientist.com/feed/home/",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:live-science",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Live Science",
+      "source_url": "https://www.livescience.com/feeds/all",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:mit-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "MIT News",
+      "source_url": "https://news.mit.edu/rss/research",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:science-news",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Science News",
+      "source_url": "https://www.sciencenews.org/feed",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    },
+    {
+      "id": "vibe-research:rss:science:ars-technica-science",
+      "origin_system": "Vibe-Research",
+      "stage": "content",
+      "ingest_channel": "rss_feed",
+      "provider_key": "rss",
+      "connector_key": "rss_feed",
+      "parser_key": "rss_item",
+      "source_type": "news",
+      "source_group": "content_events",
+      "source_name": "Ars Technica Science",
+      "source_url": "https://feeds.arstechnica.com/arstechnica/science",
+      "source_level": "secondary",
+      "topic_hint": "science",
+      "auth_required": false,
+      "auth_type": "none",
+      "credential_ref": "",
+      "rate_limit_policy": {
+        "requests_per_minute": 30
+      },
+      "usage_policy": "research_and_event_detection",
+      "source_config": {
+        "kind": "rss_feed",
+        "original_hint": "science",
+        "original_type": "rss"
+      },
+      "status": "active"
+    }
+  ]
+}

@@ -72,6 +72,7 @@ func TestLoadReadsInjectedSecretNames(t *testing.T) {
 	t.Setenv("TIDEWISE_CONFIG_DIR", filepath.Join("..", "..", "config"))
 	t.Setenv("APP_ENV", string(EnvLocal))
 	t.Setenv("AGENT_PLATFORM_API_KEY", "test-agent-key")
+	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://test-user:test-password@localhost:5432/tidewise_local?sslmode=disable")
 	t.Setenv("DATABASE_PASSWORD", "test-database-password")
 	t.Setenv("JWT_SECRET", "test-jwt-secret")
 	t.Setenv("PAYMENT_SECRET", "test-payment-secret")
@@ -83,6 +84,7 @@ func TestLoadReadsInjectedSecretNames(t *testing.T) {
 	}
 
 	if cfg.Secrets.AgentPlatformAPIKey == "" ||
+		cfg.Secrets.DatabaseURL == "" ||
 		cfg.Secrets.DatabasePassword == "" ||
 		cfg.Secrets.JWTSecret == "" ||
 		cfg.Secrets.PaymentSecret == "" ||
@@ -115,6 +117,18 @@ func TestLoadReadsOperationalConfig(t *testing.T) {
 	if cfg.RateLimit.DefaultRequestsPerMinute <= 0 {
 		t.Fatal("cfg.RateLimit.DefaultRequestsPerMinute must be positive")
 	}
+	if cfg.Database.User == "" {
+		t.Fatal("cfg.Database.User is empty")
+	}
+	if cfg.Database.SSLMode == "" {
+		t.Fatal("cfg.Database.SSLMode is empty")
+	}
+	if cfg.Database.MaxOpenConns <= 0 {
+		t.Fatal("cfg.Database.MaxOpenConns must be positive")
+	}
+	if cfg.Database.ConnectTimeoutSeconds <= 0 {
+		t.Fatal("cfg.Database.ConnectTimeoutSeconds must be positive")
+	}
 }
 
 func TestProdMigrationAutoApplyDisabledByDefault(t *testing.T) {
@@ -139,6 +153,7 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 		},
 		Secrets: SecretConfig{
 			AgentPlatformAPIKey: "agent-secret",
+			DatabaseURL:         "postgres://user:database-secret@localhost/db",
 			DatabasePassword:    "database-secret",
 			JWTSecret:           "jwt-secret",
 			PaymentSecret:       "payment-secret",
@@ -154,6 +169,7 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 	serialized := string(content)
 	for _, secret := range []string{
 		"agent-secret",
+		"postgres://user:database-secret@localhost/db",
 		"database-secret",
 		"jwt-secret",
 		"payment-secret",
@@ -161,6 +177,62 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 	} {
 		if strings.Contains(serialized, secret) {
 			t.Fatalf("serialized config leaked secret %q", secret)
+		}
+	}
+}
+
+func TestDatabaseConnectionStringUsesInjectedURLFirst(t *testing.T) {
+	cfg := Config{
+		Database: DatabaseConfig{
+			Host:                  "localhost",
+			Port:                  5432,
+			Name:                  "tidewise_local",
+			User:                  "tidewise",
+			SSLMode:               "disable",
+			ConnectTimeoutSeconds: 5,
+		},
+		Secrets: SecretConfig{
+			DatabaseURL: "postgres://override:secret@localhost:5432/override?sslmode=disable",
+		},
+	}
+
+	dsn, err := cfg.PostgresURL()
+	if err != nil {
+		t.Fatalf("PostgresURL() error = %v", err)
+	}
+
+	if dsn != cfg.Secrets.DatabaseURL {
+		t.Fatalf("PostgresURL() = %q, want injected URL", dsn)
+	}
+}
+
+func TestDatabaseConnectionStringBuildsFromConfigAndPassword(t *testing.T) {
+	cfg := Config{
+		Database: DatabaseConfig{
+			Host:                  "db.local",
+			Port:                  5432,
+			Name:                  "tidewise_local",
+			User:                  "tidewise",
+			SSLMode:               "disable",
+			ConnectTimeoutSeconds: 7,
+		},
+		Secrets: SecretConfig{
+			DatabasePassword: "test-password",
+		},
+	}
+
+	dsn, err := cfg.PostgresURL()
+	if err != nil {
+		t.Fatalf("PostgresURL() error = %v", err)
+	}
+
+	for _, want := range []string{
+		"postgres://tidewise:test-password@db.local:5432/tidewise_local",
+		"connect_timeout=7",
+		"sslmode=disable",
+	} {
+		if !strings.Contains(dsn, want) {
+			t.Fatalf("PostgresURL() = %q, want to contain %q", dsn, want)
 		}
 	}
 }

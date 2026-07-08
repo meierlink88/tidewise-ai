@@ -15,6 +15,12 @@ database:
   host: localhost
   port: 5432
   name: tidewise_local
+  user: tidewise
+  ssl_mode: disable
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime_seconds: 300
+  connect_timeout_seconds: 5
 redis:
   address: localhost:6379
 migration:

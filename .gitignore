@@ -1,5 +1,10 @@
 .DS_Store
 .trae-local/
+.env.local
+.env.*.local
+backend/.env.local
+infra/local/.env.local
+.data/
 
 node_modules/
 dist/

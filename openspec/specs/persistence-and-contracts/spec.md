@@ -96,6 +96,28 @@
 - **WHEN** 采集源目录、原始文档或事件证据相关结构需要创建或调整
 - **THEN** 必须通过 repo 内版本化 SQL migration 创建或增量修改，不得只在代码模型中表达数据库结构
 
+### Requirement: 本地持久化 smoke 链路
+系统 SHALL 提供本地可重复运行的持久化 smoke 链路，覆盖数据库连接、migration、采集源 seed、真实采集、原始文档入库和幂等复跑验证。
+
+#### Scenario: 完成本地持久化闭环
+- **WHEN** 开发者按本地说明配置 PostgreSQL 并运行迁移和采集 smoke
+- **THEN** 系统必须能在 local 数据库中看到采集源记录、原始文档记录和迁移版本记录
+
+#### Scenario: 复跑 smoke
+- **WHEN** 开发者在已有 smoke 数据的 local 数据库上再次运行采集 smoke
+- **THEN** 系统必须保持幂等，不得因为同一来源同一文档重复创建多条事实基础记录
+
+### Requirement: 本地基础设施配置边界
+系统 SHALL 将本地 PostgreSQL 运行所需的非敏感配置和示例模板保存在 repo 内，并将真实 secret 留给环境变量或未提交文件。
+
+#### Scenario: 查看本地配置模板
+- **WHEN** 开发者查看本地数据库或 smoke 运行模板
+- **THEN** 模板必须说明需要的变量名和用途，但不得包含真实密码、真实 token 或生产连接串
+
+#### Scenario: 切换 local、uat、prod
+- **WHEN** 后续环境需要执行同一套 migration
+- **THEN** 系统必须通过环境配置和 secret 注入切换连接目标，而不是修改 migration 文件或业务代码
+
 ### Requirement: 采集结果结构化校验
 系统 SHALL 在原始文档进入数据库前执行结构化校验和质量标记，确保后续事件抽取不依赖未校验的外部响应。
 
@@ -117,3 +139,75 @@
 #### Scenario: 展示分析结果
 - **WHEN** 后续前端或 API 展示基于采集数据生成的分析内容
 - **THEN** 展示内容必须保持决策辅助定位，不得表达为直接投资建议
+
+### Requirement: 版本化实体基础库初始化
+系统 SHALL 通过 repo 内版本化实体 seed 初始化和更新实体基础库，而不是依赖手工数据库操作、临时 SQL 或散落脚本。
+
+#### Scenario: 初始化实体基础库
+- **WHEN** local、uat 或 prod 环境需要初始化一阶段实体基础库
+- **THEN** 运维或开发者必须能够运行统一 seed 命令，将 repo 内实体清单写入 PostgreSQL，并得到实体总数、类型分布、profile 写入数量和关系写入数量的统计报告
+
+#### Scenario: 覆盖所有实体 profile
+- **WHEN** 一阶段实体 seed 完成
+- **THEN** PostgreSQL 中必须至少完成联盟组织、经济体、政策机构、市场、指数、板块、产业链节点、公司、证券、交易工具、指标、商品和人物这些实体 profile 表的初始化验证
+
+#### Scenario: 幂等更新实体基础库
+- **WHEN** 同一套实体 seed 在同一数据库中重复执行
+- **THEN** 系统必须按稳定实体 key 幂等 upsert，不得创建重复实体、重复 profile 或重复关系
+
+#### Scenario: 审计实体基础库变更
+- **WHEN** 后续新增、禁用或修改基础实体、profile 属性或基础关系
+- **THEN** 该变更必须体现在 repo 内实体 seed、测试和必要 migration 中，而不是只修改数据库现状
+
+#### Scenario: 保持决策辅助边界
+- **WHEN** 实体 seed 初始化基础实体和关系
+- **THEN** seed 数据不得包含投资建议、预测结论、利好利空判断、传导强度或事件评分
+
+### Requirement: 采集源扩展配置持久化
+系统 SHALL 在 PostgreSQL 采集源目录中持久化非敏感扩展配置，使来源参数可以随 `source_catalogs` 一起查询、审计和迁移。
+
+#### Scenario: 创建扩展配置字段
+- **WHEN** 数据库迁移执行到本 change 的版本
+- **THEN** PostgreSQL 必须为 `source_catalogs` 提供 `source_config` JSONB 字段，默认值为空 JSON 对象，并且不得影响既有来源记录读取
+
+#### Scenario: 读取扩展配置
+- **WHEN** repository 查询 active source 或 seed 后读取来源记录
+- **THEN** 系统必须返回 `source_config` 中的非敏感结构化参数，供后续 connector、parser 或 job 使用
+
+### Requirement: 版本化来源初始化
+系统 SHALL 通过 repo 内版本化来源清单初始化和更新统一采集源目录，而不是依赖手工数据库操作或散落脚本。
+
+#### Scenario: 初始化来源目录
+- **WHEN** local、uat 或 prod 环境需要初始化第一批采集源
+- **THEN** 运维或开发者必须能够运行统一 seed 命令，将 repo 内来源清单写入目标 PostgreSQL，并得到接入来源总数和分类统计
+
+#### Scenario: 审计来源变更
+- **WHEN** 后续新增、禁用或修改采集来源
+- **THEN** 该变更必须体现在 repo 内来源清单、测试和必要 migration 中，而不是只修改数据库现状
+
+#### Scenario: 保护敏感配置
+- **WHEN** 来源初始化涉及需要凭证的 provider
+- **THEN** seed 数据必须只写入授权类型和凭证引用，不得写入真实 API key、cookie、token 或私有数据库连接信息
+
+#### Scenario: 管理多类型来源
+- **WHEN** 来源清单包含内容、行情、板块或本地回灌来源
+- **THEN** PostgreSQL 中的 `source_catalogs` 必须能够保存这些来源的用途、类型、provider、connector、parser、扩展配置、授权策略、限流策略和状态，便于统一查询和治理
+
+### Requirement: 统一 migration 和 seed 数据边界
+系统 SHALL 在 MVP 阶段保持 backend 统一 PostgreSQL migration 和 repo 内 seed 数据资产边界，后端子系统不得在普通功能 change 中创建独立 migration 根或独立数据库。
+
+#### Scenario: 使用统一 migration
+- **WHEN** 小程序 API、管理后台 API、采集子系统或后端运维命令需要调整 PostgreSQL schema
+- **THEN** 该变更必须使用 `backend/migrations` 作为统一 migration 来源，除非已有独立 OpenSpec change 决定拆分数据库
+
+#### Scenario: 区分 migration 文件和执行器
+- **WHEN** 后端需要读取、检查或执行 PostgreSQL migration
+- **THEN** Go 执行器代码必须位于 `backend/internal/platform/dbmigration`，并且 SQL migration 文件必须继续位于 `backend/migrations`
+
+#### Scenario: 管理 seed 数据资产
+- **WHEN** 后端需要维护采集源清单、实体基础库或其他 repo 内长期 seed 数据
+- **THEN** 数据资产必须放在 `backend/data/<data-domain>` 并通过对应 seed 命令和 repository 边界写入数据库
+
+#### Scenario: 禁止隐式拆库
+- **WHEN** 普通功能 change 修改某个后端子系统
+- **THEN** 不得顺手创建子系统私有数据库、私有 migration 目录或私有 schema 管理机制

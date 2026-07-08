@@ -1,0 +1,154 @@
+{
+  "entities": [
+    {
+      "key": "alliance_org:opec_plus",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "OPEC+",
+      "canonical_name": "OPEC+",
+      "aliases": ["欧佩克+", "欧佩克与非欧佩克产油国合作机制", "OPEC Plus"],
+      "profile": {
+        "org_code": "OPEC_PLUS",
+        "org_type": "energy_alliance",
+        "primary_domain": "energy",
+        "scope_region": "global",
+        "official_url": "https://www.opec.org"
+      }
+    },
+    {
+      "key": "alliance_org:opec",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "石油输出国组织",
+      "canonical_name": "石油输出国组织",
+      "aliases": ["欧佩克", "OPEC", "Organization of the Petroleum Exporting Countries"],
+      "profile": {
+        "org_code": "OPEC",
+        "org_type": "international_organization",
+        "primary_domain": "energy",
+        "scope_region": "global",
+        "official_url": "https://www.opec.org"
+      }
+    },
+    {
+      "key": "alliance_org:g7",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "七国集团",
+      "canonical_name": "七国集团",
+      "aliases": ["G7", "Group of Seven"],
+      "profile": {
+        "org_code": "G7",
+        "org_type": "economic_forum",
+        "primary_domain": "macro_policy",
+        "scope_region": "global",
+        "official_url": "https://www.g7italy.it"
+      }
+    },
+    {
+      "key": "alliance_org:g20",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "二十国集团",
+      "canonical_name": "二十国集团",
+      "aliases": ["G20", "Group of Twenty"],
+      "profile": {
+        "org_code": "G20",
+        "org_type": "economic_forum",
+        "primary_domain": "macro_policy",
+        "scope_region": "global",
+        "official_url": "https://www.g20.org"
+      }
+    },
+    {
+      "key": "alliance_org:wto",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "世界贸易组织",
+      "canonical_name": "世界贸易组织",
+      "aliases": ["WTO", "World Trade Organization"],
+      "profile": {
+        "org_code": "WTO",
+        "org_type": "international_organization",
+        "primary_domain": "trade",
+        "scope_region": "global",
+        "official_url": "https://www.wto.org"
+      }
+    },
+    {
+      "key": "alliance_org:imf",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "国际货币基金组织",
+      "canonical_name": "国际货币基金组织",
+      "aliases": ["IMF", "International Monetary Fund"],
+      "profile": {
+        "org_code": "IMF",
+        "org_type": "international_organization",
+        "primary_domain": "finance",
+        "scope_region": "global",
+        "official_url": "https://www.imf.org"
+      }
+    },
+    {
+      "key": "alliance_org:world_bank",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "世界银行",
+      "canonical_name": "世界银行",
+      "aliases": ["World Bank", "World Bank Group", "世界银行集团"],
+      "profile": {
+        "org_code": "WORLD_BANK",
+        "org_type": "international_organization",
+        "primary_domain": "development_finance",
+        "scope_region": "global",
+        "official_url": "https://www.worldbank.org"
+      }
+    },
+    {
+      "key": "alliance_org:oecd",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "经济合作与发展组织",
+      "canonical_name": "经济合作与发展组织",
+      "aliases": ["经合组织", "OECD", "Organisation for Economic Co-operation and Development"],
+      "profile": {
+        "org_code": "OECD",
+        "org_type": "international_organization",
+        "primary_domain": "macro_policy",
+        "scope_region": "global",
+        "official_url": "https://www.oecd.org"
+      }
+    },
+    {
+      "key": "alliance_org:eu",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "欧洲联盟",
+      "canonical_name": "欧洲联盟",
+      "aliases": ["欧盟", "EU", "European Union"],
+      "profile": {
+        "org_code": "EU",
+        "org_type": "regional_union",
+        "primary_domain": "macro_policy",
+        "scope_region": "europe",
+        "official_url": "https://european-union.europa.eu"
+      }
+    },
+    {
+      "key": "alliance_org:brics",
+      "entity_type": "alliance_org",
+      "layer_code": "alliance",
+      "name": "金砖国家",
+      "canonical_name": "金砖国家",
+      "aliases": ["BRICS", "金砖国家合作机制"],
+      "profile": {
+        "org_code": "BRICS",
+        "org_type": "economic_forum",
+        "primary_domain": "macro_policy",
+        "scope_region": "global",
+        "official_url": "https://brics-russia2024.ru"
+      }
+    }
+  ]
+}

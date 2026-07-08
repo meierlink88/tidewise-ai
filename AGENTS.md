@@ -37,134 +37,53 @@
 
 本项目严格按照 OpenSpec 方法论执行工程开发。正式工程变更必须先创建 OpenSpec change，再实现代码。
 
-OpenSpec 内容语言规则：
+OpenSpec 细则见 `.agents/openspec-workflow.md`。处理任何 OpenSpec change 前必须读取该文件。
 
-- 所有 OpenSpec 生成内容默认使用中文。
-- 只有 OpenSpec 规范要求保留的框架性文案、固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。
-- proposal、design、tasks、spec requirements 和 scenarios 的正文、说明、任务描述、风险、取舍、影响范围和验收内容都应使用中文。
+## Agent Rule Index
 
-标准流程：
+`AGENTS.md` 保留项目总纲、硬规则和规则路由。细分工程规则放在 `.agents/` 目录，agent 必须按任务类型读取对应文件。
 
-```text
-Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive
-```
+当前细分规则：
 
-各阶段含义：
+- 处理 OpenSpec change 生命周期、artifact、sync 或 archive 时，必须读取 `.agents/openspec-workflow.md`。
+- 处理 branch、worktree、commit、push 或 PR 时，必须读取 `.agents/git-workflow.md`。
+- 处理 Go 后端、API、采集器、数据库、integration 或部署边界时，必须读取 `.agents/backend-boundaries.md`。
+- 处理 Go 后端实现、bugfix、重构或验证时，必须读取 `.agents/testing-tdd.md`。
 
-- Explore：讨论问题、架构、边界和取舍，不直接写实现代码。
-- Propose：创建 `openspec/changes/<change-name>/`，生成 proposal、specs、design、tasks。
-- Review：人工确认 artifacts 是否符合方向和范围。
-- Apply：严格按 tasks 实现代码，并在完成后更新任务状态。
-- Validate：运行可用验证命令，检查配置、类型、lint、测试或运行结果。
-- Sync：将 delta specs 同步到 `openspec/specs/`，使其成为当前系统事实。
-- Archive：完成后归档 change，保留历史决策与实现记录。
+后续可以继续拆分：
 
-## OpenSpec Directory Model
+- `.agents/frontend-boundaries.md`：前端、小程序、设计稿转实现边界。
+- `.agents/design-to-frontend.md`：设计系统 + HTML 设计稿 -> 前端实现流程。
 
-OpenSpec 文件含义：
+## Superpowers Integration
 
-```text
-openspec/
-├── config.yaml   # 项目上下文、技术约束和 artifact 规则
-├── specs/        # 当前系统已经生效的主规格
-└── changes/      # 正在设计或实现的变更
-```
+本项目可以使用 Superpowers plugin 作为工程执行辅助机制。OpenSpec 是 change 生命周期、系统事实和正式 artifacts 的来源，Superpowers 只用于补强具体执行方法。
 
-每个 change 通常包含：
+固定使用原则：
 
-```text
-openspec/changes/<change-name>/
-├── proposal.md   # 为什么做、做什么、不做什么、影响范围
-├── design.md     # 怎么做、技术选型、架构边界、风险取舍
-├── tasks.md      # 可执行实现清单
-└── specs/        # 本次变更的 delta requirements
-```
+- OpenSpec 负责 `Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive`。
+- Superpowers 负责需求澄清、TDD、系统化调试、完成前验证、代码审查、分支收尾等执行纪律。
+- GitHub plugin 负责 GitHub 侧的 PR、CI、review comments、push 和协作发布动作。
+- 如果 Superpowers 默认规则与 `AGENTS.md`、OpenSpec artifacts 或项目 Git 规则冲突，必须以 `AGENTS.md` 和 OpenSpec 为准。
+- Superpowers 不应默认产生独立于 OpenSpec 的长期 artifacts；正式 change artifacts 仍只以 `openspec/changes/<change-name>/` 和 `openspec/specs/` 为准。
+- 只有当任务特别复杂且用户明确同意时，才允许额外创建 `docs/superpowers/plans/` 下的计划文件。
 
-主规格 `openspec/specs/` 是系统当前行为和能力的事实来源。新 change 必须基于主规格和现有代码增量设计。
+推荐节点映射：
+
+- Explore 阶段可以使用 `superpowers:brainstorming` 辅助澄清问题、范围和取舍。
+- Apply 阶段涉及后端功能、bugfix、重构或行为变更时，必须使用 `superpowers:test-driven-development` 辅助测试先行。
+- 遇到缺陷、测试失败或行为异常时，必须使用 `superpowers:systematic-debugging` 辅助排查，不得直接猜测式修改。
+- 在声明任务完成、提交、push、创建 PR 或进入 archive 前，必须使用 `superpowers:verification-before-completion` 辅助完成新鲜验证。
+- 完成主要功能、准备合并或用户要求 review 时，可以使用 `superpowers:requesting-code-review` 辅助审查。
+- 需要并行 change、长任务隔离或多个 Codex 线程协作时，可以使用 `superpowers:using-git-worktrees` 辅助判断是否创建额外 worktree，但 worktree 命名和 OpenSpec change 边界仍遵守本文件规则。
 
 ## Iteration Rules
 
-开始任何新 change 前，必须：
-
-- 读取 `openspec/config.yaml`。
-- 读取相关主规格 `openspec/specs/**/spec.md`。
-- 检查相关已有代码目录和文件。
-- 总结当前系统状态，再提出增量方案。
-- 优先复用和扩展已有模块，不要创建平行结构。
-- 明确本次 change 的 scope、non-goals 和 impact。
-
-实现任何 change 前，必须：
-
-- 读取该 change 的 `proposal.md`、`design.md`、`tasks.md` 和相关 `specs/**/spec.md`。
-- 读取受影响的现有代码文件。
-- 说明将复用哪些已有页面、组件、services、models、data、store 或配置。
-- 如果 change 涉及后端功能实现，必须先设计并实现 Go 单元测试或可自动化测试用例，再编写生产代码。
-- 严格按照 tasks 顺序执行。
-- 完成一个任务后立即把对应 checkbox 从 `- [ ]` 改为 `- [x]`。
-
-实现过程中如果发现设计不匹配，必须：
-
-- 暂停继续编码。
-- 说明 design/spec/tasks 与现实代码的冲突。
-- 先更新 OpenSpec artifacts 或征求用户确认。
-- 不得在 artifacts 过期时继续盲目实现。
-
-完成 change 后，必须：
-
-- 运行适当验证。
-- 确认 tasks 全部完成。
-- 同步 delta specs 到 `openspec/specs/`。
-- 归档 change 到 `openspec/changes/archive/`。
+新 change 必须基于主规格和现有代码增量设计，优先复用已有模块，不得创建平行结构。详细 Explore、Propose、Apply、Validate、Sync、Archive 规则见 `.agents/openspec-workflow.md`。
 
 ## Git Branch, Worktree, and Commit Workflow
 
-OpenSpec change 是本项目的正式工作单元。Git branch 是 change 的交付边界，commit 是阶段性检查点，worktree 只用于并行隔离。
-
-除项目初始 baseline、紧急小修或用户明确要求直接在 `main` 操作外，正式 OpenSpec change 必须从 `main` 创建独立分支：
-
-```text
-codex/<change-name>
-```
-
-标准分支流程：
-
-```text
-1. 确认 `main` 干净，并从 `main` 开始。
-2. 创建或切换到 `codex/<change-name>`。
-3. 执行 Explore/Propose，生成或更新 `openspec/changes/<change-name>/` artifacts。
-4. 运行 `openspec validate <change-name>`。
-5. 提交 propose 检查点，推荐 commit message：`spec: propose <change-name>`。
-6. 等待或完成 Review，确认 artifacts 可以进入实现。
-7. 执行 Apply，严格按 `tasks.md` 顺序实现。
-8. 每完成一组可验证任务后更新 checkbox，并按需要提交阶段性 commit。
-9. tasks 全部完成后运行适当验证。
-10. Sync delta specs 到 `openspec/specs/`。
-11. Archive change 到 `openspec/changes/archive/`。
-12. 运行 `openspec validate --all`。
-13. 提交 archive 检查点，推荐 commit message：`spec: archive <change-name>`。
-14. 通过 PR 或明确确认后合并回 `main`。
-```
-
-commit 规则：
-
-- propose artifacts 完整且 `openspec validate <change-name>` 通过后，应提交一次 `spec: propose <change-name>`。
-- apply 过程中，完成一组有独立验证意义的任务后可以提交一次，例如 `chore: add backend config foundation` 或 `feat: add backend health endpoints`。
-- 不要在 tasks 未更新、验证未运行或 artifacts 明显过期时提交完成态代码。
-- sync/archive 完成且 `openspec validate --all` 通过后，应提交一次 `spec: archive <change-name>`。
-- commit 前必须检查 `git status --short`，确认没有把 `node_modules`、构建产物、缓存、真实 secret 或无关文件加入提交。
-
-worktree 规则：
-
-- 默认一个 change 使用当前 worktree 加一个独立 branch 即可。
-- 当多个 change 并行、某个 change 长期未完成但需要切换任务、或多个 Codex 线程同时工作时，才创建额外 worktree。
-- worktree 目录建议放在 `tidewise-ai` 同级目录，并带 `tidewise-ai-wt-<change-name>` 前缀。
-- 不要在两个 worktree 中同时修改同一个 OpenSpec change，避免 tasks 状态和 specs delta 冲突。
-
-`main` 规则：
-
-- `main` 应保持可验证、可恢复的稳定状态。
-- `main` 可以包含已 propose 但未 apply 的轻量 active change；不应长期包含半实现代码。
-- 合并回 `main` 前应确认 OpenSpec 校验通过，且相关 tasks、sync/archive 状态与代码实现一致。
+OpenSpec change 是本项目的正式工作单元。Git branch 是 change 的交付边界，commit 是阶段性检查点，worktree 只用于并行隔离。详细规则见 `.agents/git-workflow.md`。
 
 ## Anti-Duplication Rules
 
@@ -182,26 +101,7 @@ AI agent 必须在已有实现基础上增量迭代，不得另起一套。
 
 ## Testing And TDD Workflow
 
-本项目后端研发默认采用 TDD 测试先行。该规则适用于所有涉及 Go 后端实现的 OpenSpec change，而不是某一个单独 change 的临时约定。
-
-后端功能实现顺序：
-
-1. 先阅读当前 change 的 specs、design 和 tasks，明确本次功能点的可验证行为。
-2. 先编写 Go 单元测试、table-driven tests、fixture、fake 或 `httptest` 用例。
-3. 运行对应包的 `go test`，确认测试能表达目标行为。
-4. 编写最小生产实现让测试通过。
-5. 运行对应包测试和 `go test ./...`。
-6. 必要时重构实现，但不得删除或削弱已确认的行为测试。
-
-后端测试规则：
-
-- Go 后端测试优先使用官方 `testing` 体系和 `go test ./...`。
-- 可以使用 Go 生态成熟断言库，但不得为了测试引入重型或不必要框架。
-- 单元测试不得依赖真实外部网络、真实 API key、真实 cookie、真实 token 或生产数据库。
-- 外部 HTTP、RSS、RSSHub、Eastmoney、Agent API 或 webhook 行为必须通过 fixture、fake server、interface fake 或 `httptest` 验证。
-- repository、migration 和数据库相关能力优先使用接口 fake、SQL/migration 静态验证和可重复集成测试；需要真实 PostgreSQL 时必须明确标记为集成测试边界。
-- 新增后端功能点没有对应测试时，不应标记 tasks 完成。
-- change 完成前必须运行 `go test ./...`；如果受本地环境限制无法运行，必须在最终说明中明确阻塞原因和未验证风险。
+本项目后端研发默认采用 TDD 测试先行。涉及 Go 后端实现、bugfix、重构或验证时，必须读取 `.agents/testing-tdd.md`。
 
 ## Engineering Architecture
 
@@ -255,39 +155,9 @@ frontend/miniapp/
 
 ## Backend Direction
 
-后端工程应作为独立 change 设计，例如：
+后端采用单 Go module、多可部署子系统结构。可部署进程放在 `backend/cmd/*`，业务子系统应用逻辑放在 `backend/internal/apps/*`，共享基础层放在 `backend/internal/domain`、`backend/internal/repositories`、`backend/internal/config`、`backend/internal/integrations` 和 `backend/internal/platform`。
 
-```text
-init-backend-skeleton
-```
-
-推荐后续目录方向：
-
-```text
-backend/cmd/api/                 # API/BFF 进程入口
-backend/contracts/               # API 契约和 Agent 回写契约来源
-backend/config/                  # local/uat/prod 非敏感配置模板
-backend/internal/config/         # Go 强类型配置加载和校验
-backend/internal/http/           # router、handler、middleware、HTTP DTO 映射
-backend/internal/application/    # 用例编排、事务边界、调用 repository/integration/job
-backend/internal/domain/         # 领域模型、枚举、领域规则和值对象
-backend/internal/ingestion/      # 数据采集、清洗、标准化、去重和入库编排
-backend/internal/repositories/   # PostgreSQL 数据访问接口与实现边界
-backend/internal/integrations/   # Agent 平台、支付、消息、外部数据源等外部集成
-backend/internal/jobs/           # 异步任务、定时任务、回调后处理
-infra/                           # 基础设施、容器、部署、数据库迁移和 CI/CD 配置
-```
-
-后端依赖方向：
-
-```text
-http -> application -> domain
-application -> repositories / integrations / jobs
-repositories -> domain
-integrations -> contracts / config
-ingestion -> integrations / repositories / domain
-jobs -> application / repositories / integrations
-```
+处理任何后端 change 前，必须读取 `.agents/backend-boundaries.md`，并按其中的子系统归属、integration 边界、connector 归属和依赖方向执行。
 
 不要在小程序 change 中实现真实后端能力。后端工程、API 契约、数据库、采集层、Agent 平台集成和部署拓扑应通过独立 OpenSpec change 设计和实现。
 
@@ -315,6 +185,10 @@ jobs -> application / repositories / integrations
 
 ```text
 AGENTS.md
+.agents/openspec-workflow.md
+.agents/git-workflow.md
+.agents/backend-boundaries.md
+.agents/testing-tdd.md
 openspec/config.yaml
 ../doc/architecture.md
 ```
