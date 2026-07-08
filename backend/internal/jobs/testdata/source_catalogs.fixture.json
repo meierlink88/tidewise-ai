@@ -1,0 +1,13 @@
+[
+  {
+    "id": "source-fixture-rss",
+    "ingest_channel": "rss_feed",
+    "provider_key": "fixture",
+    "connector_key": "rss_feed",
+    "parser_key": "rss_item",
+    "source_type": "news",
+    "source_name": "Fixture RSS",
+    "source_url": "https://example.test/rss.xml",
+    "status": "active"
+  }
+]
