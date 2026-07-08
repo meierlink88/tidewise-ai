@@ -1,6 +1,7 @@
 package entityseed
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -201,6 +202,94 @@ func TestCommoditySeedFile(t *testing.T) {
 			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeCommodity)
 		}
 	}
+}
+
+func TestCompanySecuritySeedFiles(t *testing.T) {
+	companies, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "companies.json"))
+	if err != nil {
+		t.Fatalf("LoadFile(companies) error = %v", err)
+	}
+	securities, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "securities.json"))
+	if err != nil {
+		t.Fatalf("LoadFile(securities) error = %v", err)
+	}
+
+	if got, wantMinimum := len(companies.Entities), 70; got < wantMinimum {
+		t.Fatalf("companies = %d, want at least %d", got, wantMinimum)
+	}
+	if got, want := len(securities.Entities), len(companies.Entities); got != want {
+		t.Fatalf("securities = %d, want one primary security for each of %d companies", got, want)
+	}
+
+	companyKeys := make(map[string]struct{}, len(companies.Entities))
+	for _, entity := range companies.Entities {
+		if entity.EntityType != domain.EntityTypeCompany {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeCompany)
+		}
+		companyKeys[entity.Key] = struct{}{}
+	}
+
+	coveredCompanies := make(map[string]struct{}, len(securities.Entities))
+	for _, entity := range securities.Entities {
+		if entity.EntityType != domain.EntityTypeSecurity {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeSecurity)
+		}
+		issuer := profileString(t, entity.Profile, "issuer_company_entity_id")
+		if _, ok := companyKeys[issuer]; !ok {
+			t.Fatalf("security %q issuer %q does not exist in companies seed", entity.Key, issuer)
+		}
+		coveredCompanies[issuer] = struct{}{}
+	}
+	if got, want := len(coveredCompanies), len(companyKeys); got != want {
+		t.Fatalf("covered companies = %d, want %d", got, want)
+	}
+}
+
+func TestInstrumentSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "instruments.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 4; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypeInstrument {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeInstrument)
+		}
+	}
+}
+
+func TestPersonSeedFile(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "data", "entity_foundation", "persons.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Entities), 30; got != want {
+		t.Fatalf("entities = %d, want %d", got, want)
+	}
+
+	for _, entity := range manifest.Entities {
+		if entity.EntityType != domain.EntityTypePerson {
+			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypePerson)
+		}
+		if hasASCIILetter(entity.Name) && entity.Name != "Meta" && entity.Name != "ABB" {
+			t.Fatalf("entity %q name = %q, want Chinese display name", entity.Key, entity.Name)
+		}
+	}
+}
+
+func profileString(t *testing.T, raw json.RawMessage, key string) string {
+	t.Helper()
+
+	var profile map[string]string
+	if err := json.Unmarshal(raw, &profile); err != nil {
+		t.Fatalf("decode profile: %v", err)
+	}
+	return profile[key]
 }
 
 func hasASCIILetter(value string) bool {

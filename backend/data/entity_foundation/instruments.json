@@ -1,0 +1,8 @@
+{
+  "entities": [
+    {"key": "instrument:stock", "entity_type": "instrument", "layer_code": "instrument", "name": "股票", "canonical_name": "股票", "aliases": ["权益证券", "Equity"], "profile": {"instrument_type": "stock", "underlying_entity_id": "", "exchange": "", "currency_code": "MULTI"}},
+    {"key": "instrument:commodity_futures", "entity_type": "instrument", "layer_code": "instrument", "name": "商品期货", "canonical_name": "商品期货", "aliases": ["Commodity Futures"], "profile": {"instrument_type": "commodity_futures", "underlying_entity_id": "", "exchange": "", "currency_code": "MULTI"}},
+    {"key": "instrument:foreign_exchange", "entity_type": "instrument", "layer_code": "instrument", "name": "外汇", "canonical_name": "外汇", "aliases": ["Forex", "FX"], "profile": {"instrument_type": "foreign_exchange", "underlying_entity_id": "", "exchange": "global_fx", "currency_code": "MULTI"}},
+    {"key": "instrument:digital_asset", "entity_type": "instrument", "layer_code": "instrument", "name": "数字资产", "canonical_name": "数字资产", "aliases": ["加密资产", "Crypto Asset"], "profile": {"instrument_type": "digital_asset", "underlying_entity_id": "", "exchange": "global_crypto", "currency_code": "USD"}}
+  ]
+}
