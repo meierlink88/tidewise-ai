@@ -11,3 +11,12 @@
 - 破坏性结构调整必须拆成独立 OpenSpec change，并包含兼容窗口、数据回填和人工确认。
 
 初始 schema 的 down 段不自动删除业务表。需要回滚初始 schema 时，应通过已审阅的前向修复 migration 或数据库备份恢复执行，避免在有数据环境中误删事实基础。
+
+本地执行 migration 时，优先使用后端命令入口：
+
+```bash
+cd backend
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
+```
+
+只检查 pending migration 时不加 `-apply`。
