@@ -21,8 +21,8 @@
 
 - [x] 3.1 为实体 seed repository 编写 fake 和 table-driven 测试，覆盖实体节点、profile、关系的幂等 upsert。
 - [x] 3.2 实现实体 seed repository 或复用既有 repository 边界完成实体、profile、关系写入。
-- [ ] 3.3 为实体 seed service 编写测试，覆盖写入顺序、错误中断、重复执行、统计 report 和部分禁用实体处理。
-- [ ] 3.4 实现实体 seed service，输出实体总数、类型分布、层级分布、profile 计数、关系计数和 created/updated/unchanged/failed 统计。
+- [x] 3.3 为实体 seed service 编写测试，覆盖写入顺序、错误中断、重复执行、统计 report 和部分禁用实体处理。
+- [x] 3.4 实现实体 seed service，输出实体总数、类型分布、层级分布、profile 计数、关系计数和 created/updated/unchanged/failed 统计。
 - [ ] 3.5 新增 `cmd/entity-seed` 或等价命令入口，支持读取默认实体 seed 并写入当前环境 PostgreSQL。
 
 ## 4. 本地验证和 OpenSpec 校验
