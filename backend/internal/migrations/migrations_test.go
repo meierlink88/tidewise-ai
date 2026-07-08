@@ -75,6 +75,8 @@ func TestInitialEventKnowledgeMigrationDefinesCriticalConstraints(t *testing.T) 
 		"primary key",
 		"references entity_nodes",
 		"unique (org_code)",
+		"rank_snapshot integer not null default 0",
+		"snapshot_date date",
 		"references source_catalogs",
 		"references raw_documents",
 		"references events",
