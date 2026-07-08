@@ -33,8 +33,8 @@
 
 ## 6. 验证和 OpenSpec
 
-- [ ] 6.1 运行 `go test ./...`，确认默认测试不依赖真实 PostgreSQL 或真实网络。
-- [ ] 6.2 在具备 local PostgreSQL 的环境下运行 migration 命令，确认关键表和 migration 版本记录真实存在。
-- [ ] 6.3 在具备 local PostgreSQL 和网络访问的环境下运行真实采集 smoke，确认至少 1 条真实原始文档写入 `raw_documents`。
-- [ ] 6.4 复跑真实采集 smoke，确认重复文档不会产生无意义重复记录。
-- [ ] 6.5 运行 `openspec validate enable-local-db-and-live-ingestion-smoke` 和 `openspec validate --all`。
+- [x] 6.1 运行 `go test ./...`，确认默认测试不依赖真实 PostgreSQL 或真实网络。
+- [x] 6.2 在具备 local PostgreSQL 的环境下运行 migration 命令，确认关键表和 migration 版本记录真实存在。
+- [x] 6.3 在具备 local PostgreSQL 和网络访问的环境下运行真实采集 smoke，确认至少 1 条真实原始文档写入 `raw_documents`。
+- [x] 6.4 复跑真实采集 smoke，确认重复文档不会产生无意义重复记录。
+- [x] 6.5 运行 `openspec validate enable-local-db-and-live-ingestion-smoke` 和 `openspec validate --all`。

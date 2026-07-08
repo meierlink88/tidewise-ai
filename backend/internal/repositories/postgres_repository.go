@@ -157,11 +157,22 @@ WHERE id = $1
 
 func (r PostgresRepository) RawDocumentCount(ctx context.Context, sourceID string) (int, error) {
 	var count int
+	if sourceID == "" {
+		err := r.db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM raw_documents
+`).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("count raw documents: %w", err)
+		}
+		return count, nil
+	}
+
 	err := r.db.QueryRowContext(ctx, `
 SELECT COUNT(*)
 FROM raw_documents
-WHERE ($1 = '' OR source_id = $1)
-`, normalizeOptionalUUID(sourceID)).Scan(&count)
+WHERE source_id = $1
+`, NormalizeUUID(sourceID)).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count raw documents: %w", err)
 	}
@@ -297,13 +308,6 @@ func normalizeRawDocument(doc domain.RawDocument) domain.RawDocument {
 		doc.IngestStatus = domain.IngestStatusCollected
 	}
 	return doc
-}
-
-func normalizeOptionalUUID(id string) any {
-	if id == "" {
-		return ""
-	}
-	return NormalizeUUID(id)
 }
 
 func nullString(value string) any {
