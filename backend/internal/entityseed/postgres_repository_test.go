@@ -18,6 +18,24 @@ func TestEntitySeedUUIDsAreStable(t *testing.T) {
 	}
 }
 
+func TestPostgresEntityWriteNormalizesNilAliases(t *testing.T) {
+	entity := Entity{
+		Key:           "sector:test",
+		EntityType:    domain.EntityTypeSector,
+		LayerCode:     "sector",
+		Name:          "测试板块",
+		CanonicalName: "测试板块",
+	}
+	if entity.Aliases != nil {
+		t.Fatal("test setup expected nil aliases")
+	}
+
+	entity.Aliases = normalizeEntityAliases(entity.Aliases)
+	if entity.Aliases == nil {
+		t.Fatal("aliases should be normalized to an empty slice")
+	}
+}
+
 func TestProfileTableName(t *testing.T) {
 	cases := map[domain.EntityType]string{
 		domain.EntityTypeAllianceOrg: "alliance_org_profiles",

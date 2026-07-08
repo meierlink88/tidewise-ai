@@ -27,9 +27,9 @@
 
 ## 4. 本地验证和 OpenSpec 校验
 
-- [ ] 4.1 更新本地数据库说明，补充联盟组织 migration、实体 seed 和 report 查询命令。
-- [ ] 4.2 运行 `go test ./...`，确保单元测试和 gated 集成测试边界保持通过。
-- [ ] 4.3 运行 `openspec validate init-entity-foundation-seeds`。
-- [ ] 4.4 在本地 PostgreSQL 执行 migration 和 entity seed，验证所有实体 profile 表都有一阶段初始化数据。
-- [ ] 4.5 验证 entity seed 重复执行不会创建重复实体、重复 profile 或重复关系。
-- [ ] 4.6 运行 `openspec validate --all`。
+- [x] 4.1 更新本地数据库说明，补充联盟组织 migration、实体 seed 和 report 查询命令。
+- [x] 4.2 运行 `go test ./...`，确保单元测试和 gated 集成测试边界保持通过。
+- [x] 4.3 运行 `openspec validate init-entity-foundation-seeds`。
+- [x] 4.4 在本地 PostgreSQL 执行 migration 和 entity seed，验证所有实体 profile 表都有一阶段初始化数据。
+- [x] 4.5 验证 entity seed 重复执行不会创建重复实体、重复 profile 或重复关系。
+- [x] 4.6 运行 `openspec validate --all`。

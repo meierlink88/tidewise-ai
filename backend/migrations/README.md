@@ -20,3 +20,34 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
 ```
 
 只检查 pending migration 时不加 `-apply`。
+
+当前实体基础库相关 migration：
+
+- `000001_init_event_knowledge_schema.sql`：创建事件知识 schema、实体节点、实体关系和各类 profile 表。
+- `000002_add_alliance_org_profiles.sql`：补充联盟组织 profile 表。
+- `000003_add_sector_seed_snapshot_fields.sql`：补充板块初始化热度快照字段 `rank_snapshot` 和 `snapshot_date`。
+
+实体基础库 seed 使用 repo 内版本化 JSON 文件：
+
+```text
+backend/data/entity_foundation/
+```
+
+本地执行实体 seed 前，应先执行 migration：
+
+```bash
+cd backend
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/entity-seed
+```
+
+`cmd/entity-seed` 默认读取 `data/entity_foundation` 下的实体 seed 文件，并输出 JSON report。重复执行同一组 seed 应保持幂等，report 中应主要体现为 `unchanged`，不应新增重复实体、重复 profile 或重复关系。
+
+可用以下 SQL 快速核验初始化范围：
+
+```sql
+SELECT entity_type, COUNT(*) FROM entity_nodes GROUP BY entity_type ORDER BY entity_type;
+SELECT relation_type, COUNT(*) FROM entity_edges GROUP BY relation_type ORDER BY relation_type;
+SELECT COUNT(*) FROM alliance_org_profiles;
+SELECT COUNT(*) FROM sector_profiles WHERE snapshot_date IS NOT NULL OR rank_snapshot > 0;
+```

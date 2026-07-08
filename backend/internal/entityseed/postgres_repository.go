@@ -25,6 +25,7 @@ func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (Wr
 	if entity.Status == "" {
 		entity.Status = domain.StatusActive
 	}
+	entity.Aliases = normalizeEntityAliases(entity.Aliases)
 	if err := validateEntity(entity); err != nil {
 		return WriteResult{}, err
 	}
@@ -405,4 +406,11 @@ func entitySeedUUID(key string) string {
 
 func relationshipSeedUUID(key string) string {
 	return repoids.NormalizeUUID("entity_relationship", key)
+}
+
+func normalizeEntityAliases(aliases []string) []string {
+	if aliases == nil {
+		return []string{}
+	}
+	return aliases
 }
