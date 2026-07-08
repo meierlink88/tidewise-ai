@@ -17,10 +17,10 @@
 
 ## 3. Backend Config And Domain Models
 
-- [ ] 3.1 扩展 `backend/internal/config` 和 `backend/config/config.*.yaml`，加入采集、对象存储、限流和迁移相关非敏感配置，包括是否允许启动自动执行 pending migration。
-- [ ] 3.2 保持真实数据库密码、API key、token、cookie、RSSHub base URL 密钥和云服务密钥只通过环境变量或部署平台 secret 注入。
-- [ ] 3.3 先编写配置校验和领域模型测试，覆盖缺失配置、非法状态、时间字段、哈希字段和敏感配置不落盘。
-- [ ] 3.4 新增领域模型和值对象，按 `Schema field mapping` 表达实体、采集源、原始文档、事件、事件证据、标签和事件实体关联。
+- [x] 3.1 扩展 `backend/internal/config` 和 `backend/config/config.*.yaml`，加入采集、对象存储、限流和迁移相关非敏感配置，包括是否允许启动自动执行 pending migration。
+- [x] 3.2 保持真实数据库密码、API key、token、cookie、RSSHub base URL 密钥和云服务密钥只通过环境变量或部署平台 secret 注入。
+- [x] 3.3 先编写配置校验和领域模型测试，覆盖缺失配置、非法状态、时间字段、哈希字段和敏感配置不落盘。
+- [x] 3.4 新增领域模型和值对象，按 `Schema field mapping` 表达实体、采集源、原始文档、事件、事件证据、标签和事件实体关联。
 
 ## 4. Repository Layer
 

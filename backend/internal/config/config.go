@@ -25,6 +25,10 @@ type Config struct {
 	AgentPlatform AgentPlatformConfig `yaml:"agent_platform"`
 	Database      DatabaseConfig      `yaml:"database"`
 	Redis         RedisConfig         `yaml:"redis"`
+	Migration     MigrationConfig     `yaml:"migration"`
+	Ingestion     IngestionConfig     `yaml:"ingestion"`
+	ObjectStore   ObjectStoreConfig   `yaml:"object_store"`
+	RateLimit     RateLimitConfig     `yaml:"rate_limit"`
 	Security      SecurityConfig      `yaml:"security"`
 	Secrets       SecretConfig        `yaml:"-"`
 }
@@ -58,6 +62,26 @@ type DatabaseConfig struct {
 
 type RedisConfig struct {
 	Address string `yaml:"address"`
+}
+
+type MigrationConfig struct {
+	Directory string `yaml:"directory"`
+	AutoApply bool   `yaml:"auto_apply"`
+	LockKey   string `yaml:"lock_key"`
+}
+
+type IngestionConfig struct {
+	DefaultTimeoutSeconds int `yaml:"default_timeout_seconds"`
+	BatchSize             int `yaml:"batch_size"`
+}
+
+type ObjectStoreConfig struct {
+	Provider  string `yaml:"provider"`
+	LocalPath string `yaml:"local_path"`
+}
+
+type RateLimitConfig struct {
+	DefaultRequestsPerMinute int `yaml:"default_requests_per_minute"`
 }
 
 type SecurityConfig struct {
@@ -172,6 +196,27 @@ func (c Config) Validate() error {
 	}
 	if c.Redis.Address == "" {
 		return fmt.Errorf("redis.address is required")
+	}
+	if c.Migration.Directory == "" {
+		return fmt.Errorf("migration.directory is required")
+	}
+	if c.Migration.LockKey == "" {
+		return fmt.Errorf("migration.lock_key is required")
+	}
+	if c.Ingestion.DefaultTimeoutSeconds <= 0 {
+		return fmt.Errorf("ingestion.default_timeout_seconds must be positive")
+	}
+	if c.Ingestion.BatchSize <= 0 {
+		return fmt.Errorf("ingestion.batch_size must be positive")
+	}
+	if c.ObjectStore.Provider == "" {
+		return fmt.Errorf("object_store.provider is required")
+	}
+	if c.ObjectStore.Provider == "local" && c.ObjectStore.LocalPath == "" {
+		return fmt.Errorf("object_store.local_path is required when provider is local")
+	}
+	if c.RateLimit.DefaultRequestsPerMinute <= 0 {
+		return fmt.Errorf("rate_limit.default_requests_per_minute must be positive")
 	}
 	if c.Security.JWTIssuer == "" {
 		return fmt.Errorf("security.jwt_issuer is required")

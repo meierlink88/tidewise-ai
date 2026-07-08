@@ -17,5 +17,17 @@ database:
   name: tidewise_local
 redis:
   address: localhost:6379
+migration:
+  directory: migrations
+  auto_apply: true
+  lock_key: tidewise_schema_migration
+ingestion:
+  default_timeout_seconds: 10
+  batch_size: 50
+object_store:
+  provider: local
+  local_path: .data/raw-objects
+rate_limit:
+  default_requests_per_minute: 60
 security:
   jwt_issuer: tidewise-local

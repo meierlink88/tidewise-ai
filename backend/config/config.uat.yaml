@@ -17,5 +17,17 @@ database:
   name: tidewise_uat
 redis:
   address: redis-uat.example.internal:6379
+migration:
+  directory: migrations
+  auto_apply: true
+  lock_key: tidewise_schema_migration
+ingestion:
+  default_timeout_seconds: 10
+  batch_size: 100
+object_store:
+  provider: local
+  local_path: /var/lib/tidewise/raw-objects
+rate_limit:
+  default_requests_per_minute: 120
 security:
   jwt_issuer: tidewise-uat
