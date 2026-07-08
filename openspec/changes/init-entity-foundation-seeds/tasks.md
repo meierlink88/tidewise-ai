@@ -1,9 +1,9 @@
 ## 1. 联盟组织 schema 和领域模型
 
-- [ ] 1.1 为 `alliance_org_profiles` migration 编写静态测试，验证新增表、主键、外键、字段、索引和非破坏性迁移要求。
-- [ ] 1.2 新增 `alliance_org_profiles` 的 PostgreSQL 增量 migration，不得重写既有 `000001` migration。
-- [ ] 1.3 为 `AllianceOrgProfile` 和实体类型校验编写 Go 单元测试。
-- [ ] 1.4 扩展 domain model，加入 `alliance_org` 实体类型和联盟组织 profile 结构。
+- [x] 1.1 为 `alliance_org_profiles` migration 编写静态测试，验证新增表、主键、外键、字段、索引和非破坏性迁移要求。
+- [x] 1.2 新增 `alliance_org_profiles` 的 PostgreSQL 增量 migration，不得重写既有 `000001` migration。
+- [x] 1.3 为 `AllianceOrgProfile` 和实体类型校验编写 Go 单元测试。
+- [x] 1.4 扩展 domain model，加入 `alliance_org` 实体类型和联盟组织 profile 结构。
 
 ## 2. 实体 seed 文件和校验
 

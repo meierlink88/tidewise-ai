@@ -13,9 +13,27 @@ const (
 	StatusMerged   Status = "merged"
 )
 
+type EntityType string
+
+const (
+	EntityTypeAllianceOrg EntityType = "alliance_org"
+	EntityTypeEconomy     EntityType = "economy"
+	EntityTypePolicyBody  EntityType = "policy_body"
+	EntityTypeMarket      EntityType = "market"
+	EntityTypeIndex       EntityType = "index"
+	EntityTypeSector      EntityType = "sector"
+	EntityTypeChainNode   EntityType = "chain_node"
+	EntityTypeCompany     EntityType = "company"
+	EntityTypeSecurity    EntityType = "security"
+	EntityTypeInstrument  EntityType = "instrument"
+	EntityTypeMetric      EntityType = "metric"
+	EntityTypeCommodity   EntityType = "commodity"
+	EntityTypePerson      EntityType = "person"
+)
+
 type EntityNode struct {
 	ID            string
-	EntityType    string
+	EntityType    EntityType
 	LayerCode     string
 	Name          string
 	CanonicalName string
@@ -30,6 +48,9 @@ func (e EntityNode) Validate() error {
 	if e.EntityType == "" {
 		return fmt.Errorf("entity type is required")
 	}
+	if !validEntityType(e.EntityType) {
+		return fmt.Errorf("unsupported entity type %q", e.EntityType)
+	}
 	if e.LayerCode == "" {
 		return fmt.Errorf("layer code is required")
 	}
@@ -41,6 +62,28 @@ func (e EntityNode) Validate() error {
 	}
 	if !validStatus(e.Status, StatusActive, StatusInactive, StatusMerged) {
 		return fmt.Errorf("unsupported entity status %q", e.Status)
+	}
+	return nil
+}
+
+type AllianceOrgProfile struct {
+	EntityID      string
+	OrgCode       string
+	OrgType       string
+	PrimaryDomain string
+	ScopeRegion   string
+	OfficialURL   string
+}
+
+func (p AllianceOrgProfile) Validate() error {
+	if p.EntityID == "" {
+		return fmt.Errorf("entity id is required")
+	}
+	if p.OrgCode == "" {
+		return fmt.Errorf("org code is required")
+	}
+	if p.OrgType == "" {
+		return fmt.Errorf("org type is required")
 	}
 	return nil
 }
@@ -340,4 +383,23 @@ func validStatus[T comparable](value T, allowed ...T) bool {
 		}
 	}
 	return false
+}
+
+func validEntityType(value EntityType) bool {
+	return validStatus(
+		value,
+		EntityTypeAllianceOrg,
+		EntityTypeEconomy,
+		EntityTypePolicyBody,
+		EntityTypeMarket,
+		EntityTypeIndex,
+		EntityTypeSector,
+		EntityTypeChainNode,
+		EntityTypeCompany,
+		EntityTypeSecurity,
+		EntityTypeInstrument,
+		EntityTypeMetric,
+		EntityTypeCommodity,
+		EntityTypePerson,
+	)
 }

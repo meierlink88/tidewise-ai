@@ -41,6 +41,7 @@ func TestInitialEventKnowledgeMigrationDefinesCoreTables(t *testing.T) {
 	for _, table := range []string{
 		"entity_nodes",
 		"entity_edges",
+		"alliance_org_profiles",
 		"economy_profiles",
 		"policy_body_profiles",
 		"market_profiles",
@@ -73,6 +74,7 @@ func TestInitialEventKnowledgeMigrationDefinesCriticalConstraints(t *testing.T) 
 	for _, fragment := range []string{
 		"primary key",
 		"references entity_nodes",
+		"unique (org_code)",
 		"references source_catalogs",
 		"references raw_documents",
 		"references events",
@@ -94,6 +96,8 @@ func TestInitialEventKnowledgeMigrationDefinesQueryIndexes(t *testing.T) {
 	for _, indexName := range []string{
 		"idx_entity_edges_from_entity_id",
 		"idx_entity_edges_to_entity_id",
+		"idx_alliance_org_profiles_org_type",
+		"idx_alliance_org_profiles_primary_domain",
 		"idx_source_catalogs_status",
 		"idx_source_catalogs_provider_channel",
 		"idx_raw_documents_source_id",

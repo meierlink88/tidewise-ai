@@ -8,7 +8,7 @@ import (
 func TestEntityNodeValidate(t *testing.T) {
 	node := EntityNode{
 		ID:            "entity-1",
-		EntityType:    "company",
+		EntityType:    EntityTypeCompany,
 		LayerCode:     "company",
 		Name:          "示例公司",
 		CanonicalName: "示例公司",
@@ -22,6 +22,41 @@ func TestEntityNodeValidate(t *testing.T) {
 	node.Status = "unknown"
 	if err := node.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want invalid status error")
+	}
+}
+
+func TestEntityNodeValidateRejectsUnsupportedEntityType(t *testing.T) {
+	node := EntityNode{
+		ID:            "entity-1",
+		EntityType:    "unknown",
+		LayerCode:     "unknown",
+		Name:          "未知实体",
+		CanonicalName: "未知实体",
+		Status:        StatusActive,
+	}
+
+	if err := node.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want unsupported entity type error")
+	}
+}
+
+func TestAllianceOrgProfileValidate(t *testing.T) {
+	profile := AllianceOrgProfile{
+		EntityID:      "entity-1",
+		OrgCode:       "OPEC_PLUS",
+		OrgType:       "energy_alliance",
+		PrimaryDomain: "energy",
+		ScopeRegion:   "global",
+		OfficialURL:   "https://www.opec.org",
+	}
+
+	if err := profile.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	profile.OrgCode = ""
+	if err := profile.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want missing org code error")
 	}
 }
 

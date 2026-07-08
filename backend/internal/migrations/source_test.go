@@ -16,14 +16,19 @@ func TestFileSourceListsVersionedMigrations(t *testing.T) {
 		t.Fatalf("ListMigrations() error = %v", err)
 	}
 
-	if got, want := migrationVersions(migrations), []string{"000001"}; !reflect.DeepEqual(got, want) {
+	if got, want := migrationVersions(migrations), []string{"000001", "000002"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("migration versions = %v, want %v", got, want)
 	}
 	if migrations[0].Name != "000001_init_event_knowledge_schema.sql" {
 		t.Fatalf("migration name = %q", migrations[0].Name)
 	}
-	if migrations[0].Path == "" {
-		t.Fatal("migration path is empty")
+	if migrations[1].Name != "000002_add_alliance_org_profiles.sql" {
+		t.Fatalf("migration name = %q", migrations[1].Name)
+	}
+	for _, migration := range migrations {
+		if migration.Path == "" {
+			t.Fatalf("migration %s path is empty", migration.Name)
+		}
 	}
 }
 
