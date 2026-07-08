@@ -1,0 +1,49 @@
+package migrations
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
+
+func TestFileSourceListsVersionedMigrations(t *testing.T) {
+	source := FileSource{Dir: filepath.Join("..", "..", "migrations")}
+
+	migrations, err := source.ListMigrations(context.Background())
+	if err != nil {
+		t.Fatalf("ListMigrations() error = %v", err)
+	}
+
+	if got, want := migrationVersions(migrations), []string{"000001"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("migration versions = %v, want %v", got, want)
+	}
+	if migrations[0].Name != "000001_init_event_knowledge_schema.sql" {
+		t.Fatalf("migration name = %q", migrations[0].Name)
+	}
+	if migrations[0].Path == "" {
+		t.Fatal("migration path is empty")
+	}
+}
+
+func TestFileSourceRejectsDuplicateVersions(t *testing.T) {
+	dir := t.TempDir()
+	writeMigrationFixture(t, dir, "000001_first.sql")
+	writeMigrationFixture(t, dir, "000001_second.sql")
+
+	source := FileSource{Dir: dir}
+
+	if _, err := source.ListMigrations(context.Background()); err == nil {
+		t.Fatal("ListMigrations() error = nil, want duplicate version error")
+	}
+}
+
+func writeMigrationFixture(t *testing.T, dir string, name string) {
+	t.Helper()
+
+	content := []byte("-- +goose Up\nSELECT 1;\n-- +goose Down\nSELECT 1;\n")
+	if err := os.WriteFile(filepath.Join(dir, name), content, 0o600); err != nil {
+		t.Fatalf("write migration fixture: %v", err)
+	}
+}

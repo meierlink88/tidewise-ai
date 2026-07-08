@@ -1,19 +1,19 @@
 ## 1. Artifact Review
 
-- [ ] 1.1 审阅 `proposal.md`，确认本 change 范围是数据库构建和采集层编码，不实现前端页面、AI 推理、图数据库或向量数据库。
-- [ ] 1.2 审阅 `design.md`，确认 ER 字段级 schema mapping、三个参考系统采集通道、SDK 边界、限流、凭证、TDD 测试先行和原始文档职责符合当前架构。
-- [ ] 1.3 审阅 `specs/event-knowledge-schema/spec.md` 和 `specs/data-ingestion-layer/spec.md`，确认新增 capability 能约束后续实现。
-- [ ] 1.4 审阅 `specs/backend-foundation/spec.md`、`specs/persistence-and-contracts/spec.md` 和 `specs/technical-architecture/spec.md`，确认 delta requirements 不冲突。
-- [ ] 1.5 确认 apply 阶段执行顺序为先写 Go 单元测试或 fixture，再写生产实现，最后运行对应包测试和全量测试。
+- [x] 1.1 审阅 `proposal.md`，确认本 change 范围是数据库构建和采集层编码，不实现前端页面、AI 推理、图数据库或向量数据库。
+- [x] 1.2 审阅 `design.md`，确认 ER 字段级 schema mapping、三个参考系统采集通道、SDK 边界、限流、凭证、TDD 测试先行和原始文档职责符合当前架构。
+- [x] 1.3 审阅 `specs/event-knowledge-schema/spec.md` 和 `specs/data-ingestion-layer/spec.md`，确认新增 capability 能约束后续实现。
+- [x] 1.4 审阅 `specs/backend-foundation/spec.md`、`specs/persistence-and-contracts/spec.md` 和 `specs/technical-architecture/spec.md`，确认 delta requirements 不冲突。
+- [x] 1.5 确认 apply 阶段执行顺序为先写 Go 单元测试或 fixture，再写生产实现，最后运行对应包测试和全量测试。
 
 ## 2. Database Migration Foundation
 
-- [ ] 2.1 在 `backend/migrations/` 建立 `goose` 兼容的版本化 SQL migration 目录，并确认 DDL 文件作为 schema 演进唯一来源。
-- [ ] 2.2 先编写 migration 文件解析、版本顺序和关键 DDL 结构测试，再新增 PostgreSQL schema migration。
-- [ ] 2.3 为 `Schema field mapping` 中的关键字段添加主键、外键、唯一约束、状态字段、时间字段、内容哈希索引和常用查询索引。
-- [ ] 2.4 提供 down migration、兼容回滚说明或可审阅的回滚策略，并禁止通过清空数据或重建全库完成升级和回滚。
-- [ ] 2.5 先编写启动迁移检查/runner 的单元测试，覆盖无 pending migration、有 pending migration、禁用自动执行、迁移失败和并发锁场景。
-- [ ] 2.6 实现启动迁移检查/runner 边界，能够读取已执行版本、检测 pending migrations，并按配置执行非破坏性增量迁移。
+- [x] 2.1 在 `backend/migrations/` 建立 `goose` 兼容的版本化 SQL migration 目录，并确认 DDL 文件作为 schema 演进唯一来源。
+- [x] 2.2 先编写 migration 文件解析、版本顺序和关键 DDL 结构测试，再新增 PostgreSQL schema migration。
+- [x] 2.3 为 `Schema field mapping` 中的关键字段添加主键、外键、唯一约束、状态字段、时间字段、内容哈希索引和常用查询索引。
+- [x] 2.4 提供 down migration、兼容回滚说明或可审阅的回滚策略，并禁止通过清空数据或重建全库完成升级和回滚。
+- [x] 2.5 先编写启动迁移检查/runner 的单元测试，覆盖无 pending migration、有 pending migration、禁用自动执行、迁移失败和并发锁场景。
+- [x] 2.6 实现启动迁移检查/runner 边界，能够读取已执行版本、检测 pending migrations，并按配置执行非破坏性增量迁移。
 
 ## 3. Backend Config And Domain Models
 
