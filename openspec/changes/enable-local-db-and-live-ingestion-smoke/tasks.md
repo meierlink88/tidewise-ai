@@ -1,8 +1,8 @@
 ## 1. 配置和数据库连接
 
-- [ ] 1.1 为数据库 config 扩展编写 Go 测试，覆盖 local/uat/prod 非敏感字段、password 环境变量注入、连接串覆盖和 secret 不落配置文件。
-- [ ] 1.2 实现数据库 config 扩展、连接串构建、连接池参数和 ping 边界，保持业务模块只依赖统一 config。
-- [ ] 1.3 更新 `backend/config/config.local.yaml`、`config.uat.yaml`、`config.prod.yaml` 的非敏感数据库字段，并保留真实 password/token 的环境变量注入方式。
+- [x] 1.1 为数据库 config 扩展编写 Go 测试，覆盖 local/uat/prod 非敏感字段、password 环境变量注入、连接串覆盖和 secret 不落配置文件。
+- [x] 1.2 实现数据库 config 扩展、连接串构建、连接池参数和 ping 边界，保持业务模块只依赖统一 config。
+- [x] 1.3 更新 `backend/config/config.local.yaml`、`config.uat.yaml`、`config.prod.yaml` 的非敏感数据库字段，并保留真实 password/token 的环境变量注入方式。
 
 ## 2. 迁移执行器和启动检查
 

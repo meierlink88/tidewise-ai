@@ -15,6 +15,12 @@ database:
   host: db-prod.example.internal
   port: 5432
   name: tidewise_prod
+  user: tidewise_prod
+  ssl_mode: require
+  max_open_conns: 30
+  max_idle_conns: 15
+  conn_max_lifetime_seconds: 300
+  connect_timeout_seconds: 5
 redis:
   address: redis-prod.example.internal:6379
 migration:
