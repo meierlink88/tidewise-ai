@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: AI Web Research 采集通道
-系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发大模型联网搜索采集。
+系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发 Tavily 搜索、可选网页抓取和 LLM 结构化整理。
 
 #### Scenario: source catalog 驱动 AI 采集
 - **WHEN** 采集源使用 `ingest_channel=llm_web_research`、`connector_key=llm_web_research` 和 `parser_key=llm_research_items`
@@ -16,11 +16,15 @@
 
 #### Scenario: 校验必填参数
 - **WHEN** seed 或运行时加载 AI Web Research source
-- **THEN** 系统必须校验 `api_base_url`、`api_protocol`、`model`、`prompt`、`prompt_version`、`max_results`、`output_schema` 和 `search_options` 的类型与取值
+- **THEN** 系统必须校验 `search_provider`、`search_options`、`llm_provider`、`api_base_url`、`api_protocol`、`model`、`prompt`、`prompt_version`、`max_results` 和 `output_schema` 的类型与取值
 
 #### Scenario: 保护提示词和模型参数
 - **WHEN** 开发者查看 repo 内 AI Web Research source seed
-- **THEN** seed 可以包含提示词、模型名、base URL 和搜索参数，但不得包含真实 API key、token、cookie 或私有凭证值
+- **THEN** seed 可以包含提示词、模型名、base URL、Tavily 搜索参数和凭证引用名，但不得包含真实 API key、token、cookie 或私有凭证值
+
+#### Scenario: 搜索工具失败隔离
+- **WHEN** Tavily 搜索返回鉴权失败、参数错误、限流、超时或空结果
+- **THEN** 系统必须记录 source 级失败或跳过原因，并保证同一批次中的其他 source 可以继续执行
 
 ### Requirement: AI 搜索结果原始文档标准化
 系统 SHALL 将 AI Web Research 返回的结构化 items 标准化为与其他 connector 一致的原始文档候选对象。
