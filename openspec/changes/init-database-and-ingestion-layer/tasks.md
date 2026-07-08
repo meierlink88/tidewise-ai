@@ -58,11 +58,11 @@
 
 ## 8. Validation
 
-- [ ] 8.1 运行 `openspec validate init-database-and-ingestion-layer`，修复所有 OpenSpec 错误。
-- [ ] 8.2 在 `backend/` 下运行 `go test ./...`。
-- [ ] 8.3 在 `backend/` 下运行 `go vet ./...`。
-- [ ] 8.4 运行迁移解析、版本顺序、schema 或 SQL 静态验证命令，确认 migration 不依赖清空数据或重建全库。
-- [ ] 8.5 扫描本 change 和新增代码，确认没有真实 secret、token、cookie、数据库密码、API key 或生产连接串。
-- [ ] 8.6 运行 `openspec validate --all`，确认本 change 与主规格关系可验证。
-- [ ] 8.7 运行 `git status --short`，确认提交范围只包含本 change 的 OpenSpec artifacts 和预期后端实现文件。
-- [ ] 8.8 确认所有新增后端功能点都有对应 Go 单元测试或明确标记的集成测试，且测试全部通过后才进入 sync/archive。
+- [x] 8.1 运行 `openspec validate init-database-and-ingestion-layer`，修复所有 OpenSpec 错误。
+- [x] 8.2 在 `backend/` 下运行 `go test ./...`。
+- [x] 8.3 在 `backend/` 下运行 `go vet ./...`。
+- [x] 8.4 运行迁移解析、版本顺序、schema 或 SQL 静态验证命令，确认 migration 不依赖清空数据或重建全库。
+- [x] 8.5 扫描本 change 和新增代码，确认没有真实 secret、token、cookie、数据库密码、API key 或生产连接串。
+- [x] 8.6 运行 `openspec validate --all`，确认本 change 与主规格关系可验证。
+- [x] 8.7 运行 `git status --short`，确认提交范围只包含本 change 的 OpenSpec artifacts 和预期后端实现文件。
+- [x] 8.8 确认所有新增后端功能点都有对应 Go 单元测试或明确标记的集成测试，且测试全部通过后才进入 sync/archive。
