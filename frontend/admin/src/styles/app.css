@@ -605,6 +605,11 @@ select {
   align-items: start;
   display: grid;
   gap: 18px;
+  grid-template-columns: minmax(0, 0.3fr) minmax(0, 0.7fr);
+}
+
+.scheduler-form-card .scheduler-form-grid,
+.scheduler-form-card .fixed-time-grid {
   grid-template-columns: 1fr;
 }
 
