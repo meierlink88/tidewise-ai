@@ -226,7 +226,7 @@ select {
 
 .admin-content {
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 26px 0 0;
   scrollbar-gutter: stable;
   width: 100%;
@@ -252,7 +252,15 @@ select {
   font-size: 12px;
 }
 
-.data-ingestion-center,
+.data-ingestion-center {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  max-width: none;
+  min-height: 0;
+  width: 100%;
+}
+
 .scheduler-settings {
   max-width: none;
   width: 100%;
@@ -363,15 +371,19 @@ select {
 
 .data-ingestion-tabs-bar {
   background: var(--background-50);
-  margin-bottom: 18px;
   padding-bottom: 16px;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
 }
 
 .data-ingestion-tabs-bar .ui-tabs {
   margin-bottom: 0;
+}
+
+.data-ingestion-scroll-area {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .ui-tab {

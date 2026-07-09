@@ -54,7 +54,7 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);');
   });
 
-  it('uses a fixed shell with header, footer, sidebar, and scrollable workspace', () => {
+  it('uses a fixed shell with header, footer, sidebar, and bounded workspace', () => {
     const shell = readFileSync(join(process.cwd(), 'src/layouts/AdminShell.tsx'), 'utf8');
     const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
 
@@ -63,18 +63,19 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).toContain('height: 100vh;');
     expect(stylesheet).toContain('overflow: hidden;');
     expect(stylesheet).toContain('grid-template-rows: auto minmax(0, 1fr) auto;');
-    expect(stylesheet).toContain('overflow-y: auto;');
+    expect(stylesheet).toContain('.admin-content {\n  min-height: 0;\n  overflow: hidden;');
   });
 
-  it('keeps the full data ingestion tab bar fixed above scrolling content', () => {
+  it('keeps data ingestion tabs outside the only scrolling content area', () => {
     const page = readFileSync(join(process.cwd(), 'src/pages/DataIngestionCenter.tsx'), 'utf8');
     const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
 
     expect(page).toContain('data-ingestion-tabs-bar');
+    expect(page).toContain('data-ingestion-scroll-area');
+    expect(stylesheet).toContain('grid-template-rows: auto minmax(0, 1fr);');
     expect(stylesheet).toContain('.data-ingestion-tabs-bar');
-    expect(stylesheet).toContain('position: sticky;');
-    expect(stylesheet).toContain('top: 0;');
     expect(stylesheet).toContain('z-index: 10;');
-    expect(stylesheet).toContain('.data-ingestion-tabs-bar .ui-tabs');
+    expect(stylesheet).toContain('.data-ingestion-scroll-area');
+    expect(stylesheet).toContain('overflow-y: auto;');
   });
 });

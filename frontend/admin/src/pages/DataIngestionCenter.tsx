@@ -176,86 +176,88 @@ export default function DataIngestionCenter({ token }: { token: string }) {
       <div className="data-ingestion-tabs-bar">
         <Tabs active={activeTab} items={tabItems} onChange={setActiveTab} />
       </div>
-      {error ? <div className="ui-alert danger">{error}</div> : null}
+      <div className="data-ingestion-scroll-area">
+        {error ? <div className="ui-alert danger">{error}</div> : null}
 
-      {activeTab === 'raw' ? (
-        <TabPanel label="全球政经原始数据列表">
-          <Card>
-            <form className="toolbar-form" onSubmit={submitRawSearch}>
-              <Field label="原始数据标题搜索">
-                <div className="search-input-row">
-                  <Icon name="search" />
-                  <Input aria-label="原始数据标题搜索" onChange={(event) => setRawTitle(event.target.value)} value={rawTitle} />
-                </div>
-              </Field>
-              <Button type="submit">搜索原始数据</Button>
-            </form>
-            <DataTable columns={rawColumns} emptyText={loading ? '正在加载原始数据' : '暂无原始数据'} getRowKey={(item) => item.id} items={rawPage.items} />
-            <Pagination page={rawPage.page} pageSize={rawPage.page_size} total={rawPage.total} onPageChange={(page) => setRawQuery((current) => ({ ...current, page }))} />
-          </Card>
-        </TabPanel>
-      ) : null}
+        {activeTab === 'raw' ? (
+          <TabPanel label="全球政经原始数据列表">
+            <Card>
+              <form className="toolbar-form" onSubmit={submitRawSearch}>
+                <Field label="原始数据标题搜索">
+                  <div className="search-input-row">
+                    <Icon name="search" />
+                    <Input aria-label="原始数据标题搜索" onChange={(event) => setRawTitle(event.target.value)} value={rawTitle} />
+                  </div>
+                </Field>
+                <Button type="submit">搜索原始数据</Button>
+              </form>
+              <DataTable columns={rawColumns} emptyText={loading ? '正在加载原始数据' : '暂无原始数据'} getRowKey={(item) => item.id} items={rawPage.items} />
+              <Pagination page={rawPage.page} pageSize={rawPage.page_size} total={rawPage.total} onPageChange={(page) => setRawQuery((current) => ({ ...current, page }))} />
+            </Card>
+          </TabPanel>
+        ) : null}
 
-      {activeTab === 'events' ? (
-        <TabPanel label="全球事件列表">
-          <Card>
-            <form className="toolbar-form event-filter-form" onSubmit={submitEventSearch}>
-              <Field label="事件标题搜索">
-                <Input aria-label="事件标题搜索" onChange={(event) => setEventTitle(event.target.value)} value={eventTitle} />
-              </Field>
-              <Field label="事件状态">
-                <Select aria-label="事件状态" onChange={(event) => setEventStatus(event.target.value)} value={eventStatus}>
-                  <option value="">全部</option>
-                  <option value="candidate">候选</option>
-                  <option value="confirmed">已确认</option>
-                  <option value="archived">已归档</option>
-                </Select>
-              </Field>
-              <Field label="事实状态">
-                <Select aria-label="事实状态" onChange={(event) => setFactStatus(event.target.value)} value={factStatus}>
-                  <option value="">全部</option>
-                  <option value="unverified">未核验</option>
-                  <option value="verified">已核验</option>
-                  <option value="disputed">有争议</option>
-                </Select>
-              </Field>
-              <Field label="事件时间开始">
-                <Input aria-label="事件时间开始" onChange={(event) => setEventTimeFrom(event.target.value)} type="datetime-local" value={eventTimeFrom} />
-              </Field>
-              <Field label="事件时间结束">
-                <Input aria-label="事件时间结束" onChange={(event) => setEventTimeTo(event.target.value)} type="datetime-local" value={eventTimeTo} />
-              </Field>
-              <Button type="submit">搜索事件</Button>
-            </form>
-            <DataTable columns={eventColumns} emptyText={loading ? '正在加载全球事件' : '暂无全球事件'} getRowKey={(item) => item.id} items={eventPage.items} />
-            <Pagination page={eventPage.page} pageSize={eventPage.page_size} total={eventPage.total} onPageChange={(page) => setEventQuery((current) => ({ ...current, page }))} />
-          </Card>
-        </TabPanel>
-      ) : null}
+        {activeTab === 'events' ? (
+          <TabPanel label="全球事件列表">
+            <Card>
+              <form className="toolbar-form event-filter-form" onSubmit={submitEventSearch}>
+                <Field label="事件标题搜索">
+                  <Input aria-label="事件标题搜索" onChange={(event) => setEventTitle(event.target.value)} value={eventTitle} />
+                </Field>
+                <Field label="事件状态">
+                  <Select aria-label="事件状态" onChange={(event) => setEventStatus(event.target.value)} value={eventStatus}>
+                    <option value="">全部</option>
+                    <option value="candidate">候选</option>
+                    <option value="confirmed">已确认</option>
+                    <option value="archived">已归档</option>
+                  </Select>
+                </Field>
+                <Field label="事实状态">
+                  <Select aria-label="事实状态" onChange={(event) => setFactStatus(event.target.value)} value={factStatus}>
+                    <option value="">全部</option>
+                    <option value="unverified">未核验</option>
+                    <option value="verified">已核验</option>
+                    <option value="disputed">有争议</option>
+                  </Select>
+                </Field>
+                <Field label="事件时间开始">
+                  <Input aria-label="事件时间开始" onChange={(event) => setEventTimeFrom(event.target.value)} type="datetime-local" value={eventTimeFrom} />
+                </Field>
+                <Field label="事件时间结束">
+                  <Input aria-label="事件时间结束" onChange={(event) => setEventTimeTo(event.target.value)} type="datetime-local" value={eventTimeTo} />
+                </Field>
+                <Button type="submit">搜索事件</Button>
+              </form>
+              <DataTable columns={eventColumns} emptyText={loading ? '正在加载全球事件' : '暂无全球事件'} getRowKey={(item) => item.id} items={eventPage.items} />
+              <Pagination page={eventPage.page} pageSize={eventPage.page_size} total={eventPage.total} onPageChange={(page) => setEventQuery((current) => ({ ...current, page }))} />
+            </Card>
+          </TabPanel>
+        ) : null}
 
-      {activeTab === 'sources' ? (
-        <TabPanel label="搜索通道列表">
-          <Card>
-            <div className="toolbar-form compact-toolbar">
-              <Field label="通道状态">
-                <Select aria-label="通道状态" onChange={(event) => setSourceStatus(event.target.value)} value={sourceStatus}>
-                  <option value="">全部</option>
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                  <option value="disabled">disabled</option>
-                </Select>
-              </Field>
-            </div>
-            <DataTable columns={sourceColumns} emptyText={loading ? '正在加载搜索通道' : '暂无搜索通道'} getRowKey={(item) => item.id} items={sourceItems} />
-          </Card>
-        </TabPanel>
-      ) : null}
+        {activeTab === 'sources' ? (
+          <TabPanel label="搜索通道列表">
+            <Card>
+              <div className="toolbar-form compact-toolbar">
+                <Field label="通道状态">
+                  <Select aria-label="通道状态" onChange={(event) => setSourceStatus(event.target.value)} value={sourceStatus}>
+                    <option value="">全部</option>
+                    <option value="active">active</option>
+                    <option value="inactive">inactive</option>
+                    <option value="disabled">disabled</option>
+                  </Select>
+                </Field>
+              </div>
+              <DataTable columns={sourceColumns} emptyText={loading ? '正在加载搜索通道' : '暂无搜索通道'} getRowKey={(item) => item.id} items={sourceItems} />
+            </Card>
+          </TabPanel>
+        ) : null}
 
-      {activeTab === 'scheduler' ? (
-        <TabPanel label="调度器">
-          <SchedulerSettings token={token} />
-        </TabPanel>
-      ) : null}
+        {activeTab === 'scheduler' ? (
+          <TabPanel label="调度器">
+            <SchedulerSettings token={token} />
+          </TabPanel>
+        ) : null}
+      </div>
     </section>
   );
 }
