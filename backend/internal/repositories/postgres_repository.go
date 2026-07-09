@@ -234,6 +234,123 @@ WHERE source_id = $1
 	return count, nil
 }
 
+func (r PostgresRepository) ListRawDocuments(ctx context.Context, filter RawDocumentListFilter) (RawDocumentPage, error) {
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	var total int
+	if err := r.db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM raw_documents
+WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
+`, filter.Title).Scan(&total); err != nil {
+		return RawDocumentPage{}, fmt.Errorf("count raw documents: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id, source_id, ingest_channel, source_type, source_name, source_url,
+       source_external_id, title, content_text, raw_object_uri, raw_mime_type,
+       language, published_at, collected_at, content_hash, ingest_status
+FROM raw_documents
+WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
+ORDER BY collected_at DESC, id
+LIMIT $2 OFFSET $3
+`, filter.Title, pageSize, (page-1)*pageSize)
+	if err != nil {
+		return RawDocumentPage{}, fmt.Errorf("query raw documents: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.RawDocument, 0)
+	for rows.Next() {
+		doc, err := scanRawDocument(rows)
+		if err != nil {
+			return RawDocumentPage{}, err
+		}
+		items = append(items, doc)
+	}
+	if err := rows.Err(); err != nil {
+		return RawDocumentPage{}, fmt.Errorf("iterate raw documents: %w", err)
+	}
+	return RawDocumentPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+func (r PostgresRepository) ListEvents(ctx context.Context, filter EventListFilter) (EventPage, error) {
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	var total int
+	if err := r.db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM events
+WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
+  AND ($2 = '' OR event_status = $2)
+  AND ($3 = '' OR fact_status = $3)
+  AND ($4::timestamptz IS NULL OR event_time >= $4)
+  AND ($5::timestamptz IS NULL OR event_time <= $5)
+  AND ($6::timestamptz IS NULL OR first_seen_at >= $6)
+  AND ($7::timestamptz IS NULL OR first_seen_at <= $7)
+`, filter.Title, string(filter.EventStatus), string(filter.FactStatus), nullTime(filter.EventTimeFrom), nullTime(filter.EventTimeTo), nullTime(filter.FirstSeenFrom), nullTime(filter.FirstSeenTo)).Scan(&total); err != nil {
+		return EventPage{}, fmt.Errorf("count events: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id, title, summary, event_time, first_seen_at, knowable_at,
+       event_status, fact_status, dedupe_key, primary_source_id
+FROM events
+WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
+  AND ($2 = '' OR event_status = $2)
+  AND ($3 = '' OR fact_status = $3)
+  AND ($4::timestamptz IS NULL OR event_time >= $4)
+  AND ($5::timestamptz IS NULL OR event_time <= $5)
+  AND ($6::timestamptz IS NULL OR first_seen_at >= $6)
+  AND ($7::timestamptz IS NULL OR first_seen_at <= $7)
+ORDER BY first_seen_at DESC, event_time DESC NULLS LAST, id
+LIMIT $8 OFFSET $9
+`, filter.Title, string(filter.EventStatus), string(filter.FactStatus), nullTime(filter.EventTimeFrom), nullTime(filter.EventTimeTo), nullTime(filter.FirstSeenFrom), nullTime(filter.FirstSeenTo), pageSize, (page-1)*pageSize)
+	if err != nil {
+		return EventPage{}, fmt.Errorf("query events: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.Event, 0)
+	for rows.Next() {
+		event, err := scanEvent(rows)
+		if err != nil {
+			return EventPage{}, err
+		}
+		items = append(items, event)
+	}
+	if err := rows.Err(); err != nil {
+		return EventPage{}, fmt.Errorf("iterate events: %w", err)
+	}
+	return EventPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+func (r PostgresRepository) ListSourceCatalogs(ctx context.Context, filter SourceCatalogListFilter) ([]domain.SourceCatalog, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id, ingest_channel, provider_key, connector_key, parser_key, source_type,
+       source_name, source_url, source_level, topic_hint, route_template, code_style,
+       auth_required, auth_type, credential_ref, source_config, rate_limit_policy, usage_policy, status
+FROM source_catalogs
+WHERE ($1 = '' OR status = $1)
+ORDER BY provider_key, source_name, id
+`, string(filter.Status))
+	if err != nil {
+		return nil, fmt.Errorf("query source catalogs: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.SourceCatalog, 0)
+	for rows.Next() {
+		source, err := scanSource(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, source)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate source catalogs: %w", err)
+	}
+	return items, nil
+}
+
 func (r PostgresRepository) LoadSchedulerConfig(ctx context.Context) (domain.SchedulerConfig, error) {
 	row := r.db.QueryRowContext(ctx, `
 SELECT id, enabled, mode, interval_minutes, fixed_times, concurrency,
@@ -603,6 +720,37 @@ func scanRawDocument(scanner rawDocumentScanner) (domain.RawDocument, error) {
 		doc.PublishedAt = &publishedAt.Time
 	}
 	return doc, nil
+}
+
+func scanEvent(scanner rawDocumentScanner) (domain.Event, error) {
+	var event domain.Event
+	var eventTime sql.NullTime
+	var knowableAt sql.NullTime
+	var primarySourceID sql.NullString
+	if err := scanner.Scan(
+		&event.ID,
+		&event.Title,
+		&event.Summary,
+		&eventTime,
+		&event.FirstSeenAt,
+		&knowableAt,
+		&event.EventStatus,
+		&event.FactStatus,
+		&event.DedupeKey,
+		&primarySourceID,
+	); err != nil {
+		return domain.Event{}, fmt.Errorf("scan event: %w", err)
+	}
+	if eventTime.Valid {
+		event.EventTime = &eventTime.Time
+	}
+	if knowableAt.Valid {
+		event.KnowableAt = &knowableAt.Time
+	}
+	if primarySourceID.Valid {
+		event.PrimarySourceID = primarySourceID.String
+	}
+	return event, nil
 }
 
 func scanIngestionRun(scanner rawDocumentScanner) (domain.IngestionRun, error) {

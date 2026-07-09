@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import AdminShell from './layouts/AdminShell';
 import AdminLogin from './pages/AdminLogin';
-import SchedulerSettings from './pages/SchedulerSettings';
+import DataIngestionCenter from './pages/DataIngestionCenter';
 import './styles/app.css';
 
 const tokenStorageKey = 'tidewise_admin_token';
@@ -24,8 +24,8 @@ export default function App() {
   }
 
   return (
-    <AdminShell onLogout={handleLogout}>
-      <SchedulerSettings token={token} />
+    <AdminShell currentTitle="数据采集中心" onLogout={handleLogout}>
+      <DataIngestionCenter token={token} />
     </AdminShell>
   );
 }

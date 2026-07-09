@@ -1,4 +1,22 @@
 :root {
+  --minimal-background: var(--background, #ffffff);
+  --minimal-foreground: var(--foreground, #0f172a);
+  --minimal-card: var(--card, var(--background));
+  --minimal-card-foreground: var(--card-foreground, var(--foreground));
+  --minimal-primary: var(--primary, #18181b);
+  --minimal-primary-foreground: var(--primary-foreground, #ffffff);
+  --minimal-secondary: var(--secondary, var(--muted, var(--card)));
+  --minimal-muted: var(--muted, var(--card));
+  --minimal-muted-foreground: var(--muted-foreground, var(--foreground));
+  --minimal-border: var(--border, currentColor);
+  --minimal-input: var(--input, var(--border));
+  --minimal-ring: var(--ring, var(--primary));
+  --minimal-sidebar: var(--sidebar, var(--background));
+  --minimal-sidebar-foreground: var(--sidebar-foreground, var(--foreground));
+  --minimal-sidebar-primary: var(--sidebar-primary, var(--primary));
+  --minimal-sidebar-primary-foreground: var(--sidebar-primary-foreground, var(--primary-foreground));
+  --minimal-sidebar-accent: var(--sidebar-accent, var(--muted));
+
   --brand-50: #fafafa;
   --brand-100: #f4f4f5;
   --brand-200: #e4e4e7;
@@ -9,16 +27,60 @@
   --brand-700: #3f3f46;
   --brand-800: #27272a;
   --brand-900: #18181b;
+
   --background-50: #ffffff;
   --background-100: #fafafa;
   --background-200: #f5f5f5;
   --background-300: #e5e5e5;
+  --background-400: #d4d4d4;
+  --background-500: #a3a3a3;
+  --background-600: #404040;
   --background-700: #262626;
+  --background-800: #171717;
+  --background-900: #0a0a0a;
+
+  --text-50: #fafafa;
+  --text-100: #ededed;
+  --text-200: #d4d4d4;
   --text-300: #a1a1a1;
   --text-400: #858585;
   --text-500: #6e6e6e;
+  --text-600: #525252;
   --text-700: #404040;
+  --text-800: #171717;
   --text-900: #0a0a0a;
+
+  --icon-50: #fafafa;
+  --icon-100: #e5e5e5;
+  --icon-200: #d4d4d4;
+  --icon-300: #b0b0b0;
+  --icon-400: #8f8f8f;
+  --icon-500: #6e6e6e;
+  --icon-600: #525252;
+  --icon-700: #404040;
+  --icon-800: #262626;
+  --icon-900: #0a0a0a;
+
+  --background: var(--background-50);
+  --card: var(--background-50);
+  --muted: var(--background-100);
+  --foreground: var(--brand-900);
+  --card-foreground: var(--brand-900);
+  --primary: var(--brand-900);
+  --primary-foreground: var(--brand-50);
+  --secondary: var(--brand-100);
+  --muted-foreground: var(--brand-500);
+  --border: var(--brand-200);
+  --border-strong: var(--brand-300);
+  --input: var(--brand-200);
+  --ring: var(--brand-900);
+  --sidebar: var(--brand-50);
+  --sidebar-foreground: var(--brand-900);
+  --sidebar-primary: var(--brand-900);
+  --sidebar-primary-foreground: var(--brand-50);
+  --sidebar-accent: var(--brand-100);
+  --sidebar-border: var(--brand-200);
+
   --success: #16a34a;
   --success-subtle: #f0fdf4;
   --success-border: #bbf7d0;
@@ -27,27 +89,26 @@
   --destructive-subtle: #fef2f2;
   --destructive-border: #fecaca;
   --destructive-text: #b91c1c;
-  --background: var(--background-50);
-  --foreground: var(--brand-900);
-  --card: var(--background-50);
-  --muted: var(--background-100);
-  --muted-foreground: var(--brand-500);
-  --primary: var(--brand-900);
-  --primary-foreground: var(--brand-50);
-  --secondary: var(--brand-100);
-  --border: var(--brand-200);
-  --border-strong: var(--brand-300);
-  --ring: var(--brand-900);
-  --sidebar: var(--brand-50);
-  --sidebar-primary: var(--brand-900);
-  --sidebar-primary-foreground: var(--brand-50);
-  --sidebar-accent: var(--brand-100);
-  --sidebar-border: var(--brand-200);
+
   --chart-1: var(--brand-200);
   --chart-2: var(--brand-400);
   --chart-3: var(--brand-600);
   --chart-4: var(--brand-800);
   --chart-5: var(--brand-900);
+
+  --font-sans: Geist, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: "DM Serif Display", ui-serif, serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+  --space-4: var(--spacing);
+  --radius: 25.2px;
+  --radius-md: 25.2px;
+  --radius-sm: 14px;
+  --radius-lg: 25.2px;
+  --shadow-sm: 0px 0px 0px 0px rgba(0, 0, 0, 0);
+  --shadow-md: 0px 0px 0px 0px rgba(0, 0, 0, 0);
+
   --color-surface: var(--background);
   --color-surface-muted: var(--muted);
   --color-text: var(--foreground);
@@ -64,12 +125,4 @@
   --color-danger-200: var(--destructive-border);
   --color-danger-600: var(--destructive);
   --color-danger-700: var(--destructive-text);
-  --font-sans: Geist, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: "DM Serif Display", ui-serif, serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
-  --space-4: 0.25rem;
-  --radius-md: 0.75rem;
-  --radius-sm: 0.375rem;
-  --radius-lg: 1rem;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 1px 0 rgba(0, 0, 0, 0.03);
 }

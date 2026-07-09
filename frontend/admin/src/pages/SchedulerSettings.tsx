@@ -58,7 +58,7 @@ export default function SchedulerSettings({
         setConfig(next);
         setRecentRun(loadedConfig.recent_run);
         if (hasToken) {
-          void loadRuns(token, 10)
+          void loadRuns(token, 50)
             .then((runs) => {
               if (active) {
                 setRecentRuns(runs);
@@ -126,107 +126,124 @@ export default function SchedulerSettings({
         <span className="eyebrow">Ingestion Scheduler</span>
         <h1>调度器设置</h1>
       </div>
-      <Card>
-        {loading ? (
-          <div className="loading-state">正在加载调度器设置</div>
-        ) : (
-          <div className="form-grid">
-            <Switch
-              checked={config.enabled}
-              label="启用调度"
-              onChange={(enabled) => setConfig((current) => ({ ...current, enabled }))}
-            />
-            <Field label="调度模式">
-              <Select
-                aria-label="调度模式"
-                onChange={(event) => setConfig((current) => ({ ...current, mode: event.target.value as SchedulerConfig['mode'] }))}
-                value={config.mode}
-              >
-                <option value="interval">间隔运行</option>
-                <option value="fixed_times">固定时间</option>
-              </Select>
-            </Field>
-            {config.mode === 'interval' ? (
-              <Field label="间隔分钟">
+      <div className="scheduler-grid">
+        <Card className="scheduler-form-card">
+          {loading ? (
+            <div className="loading-state">正在加载调度器设置</div>
+          ) : (
+            <div className="form-grid scheduler-form-grid">
+              <Switch
+                checked={config.enabled}
+                label="启用调度"
+                onChange={(enabled) => setConfig((current) => ({ ...current, enabled }))}
+              />
+              <Field label="调度模式">
+                <Select
+                  aria-label="调度模式"
+                  onChange={(event) => setConfig((current) => ({ ...current, mode: event.target.value as SchedulerConfig['mode'] }))}
+                  value={config.mode}
+                >
+                  <option value="interval">间隔运行</option>
+                  <option value="fixed_times">固定时间</option>
+                </Select>
+              </Field>
+              {config.mode === 'interval' ? (
+                <Field label="间隔分钟">
+                  <Input
+                    min={1}
+                    onChange={(event) => setConfig((current) => ({ ...current, interval_minutes: numberValue(event.target.value) }))}
+                    type="number"
+                    value={config.interval_minutes}
+                  />
+                </Field>
+              ) : (
+                <div className="fixed-time-grid">
+                  {[0, 1, 2, 3, 4].map((index) => (
+                    <Field key={index} label={`固定时间 ${index + 1}`}>
+                      <Input
+                        aria-label={`固定时间 ${index + 1}`}
+                        onChange={(event) => setConfig((current) => ({
+                          ...current,
+                          fixed_times: updateFixedTime(current.fixed_times, index, event.target.value)
+                        }))}
+                        placeholder="09:00"
+                        value={config.fixed_times[index] ?? ''}
+                      />
+                    </Field>
+                  ))}
+                </div>
+              )}
+              <Field label="并发数">
                 <Input
                   min={1}
-                  onChange={(event) => setConfig((current) => ({ ...current, interval_minutes: numberValue(event.target.value) }))}
+                  onChange={(event) => setConfig((current) => ({ ...current, concurrency: numberValue(event.target.value) }))}
                   type="number"
-                  value={config.interval_minutes}
+                  value={config.concurrency}
                 />
               </Field>
-            ) : (
-              <div className="fixed-time-grid">
-                {[0, 1, 2, 3, 4].map((index) => (
-                  <Field key={index} label={`固定时间 ${index + 1}`}>
-                    <Input
-                      aria-label={`固定时间 ${index + 1}`}
-                      onChange={(event) => setConfig((current) => ({
-                        ...current,
-                        fixed_times: updateFixedTime(current.fixed_times, index, event.target.value)
-                      }))}
-                      placeholder="09:00"
-                      value={config.fixed_times[index] ?? ''}
-                    />
-                  </Field>
-                ))}
-              </div>
-            )}
-            <Field label="并发数">
-              <Input
-                min={1}
-                onChange={(event) => setConfig((current) => ({ ...current, concurrency: numberValue(event.target.value) }))}
-                type="number"
-                value={config.concurrency}
-              />
-            </Field>
-            <Field label="批次大小">
-              <Input
-                min={1}
-                onChange={(event) => setConfig((current) => ({ ...current, batch_size: numberValue(event.target.value) }))}
-                type="number"
-                value={config.batch_size}
-              />
-            </Field>
-            <Field label="超时秒数">
-              <Input
-                min={1}
-                onChange={(event) => setConfig((current) => ({ ...current, timeout_seconds: numberValue(event.target.value) }))}
-                type="number"
-                value={config.timeout_seconds}
-              />
-            </Field>
+              <Field label="批次大小">
+                <Input
+                  min={1}
+                  onChange={(event) => setConfig((current) => ({ ...current, batch_size: numberValue(event.target.value) }))}
+                  type="number"
+                  value={config.batch_size}
+                />
+              </Field>
+              <Field label="超时秒数">
+                <Input
+                  min={1}
+                  onChange={(event) => setConfig((current) => ({ ...current, timeout_seconds: numberValue(event.target.value) }))}
+                  type="number"
+                  value={config.timeout_seconds}
+                />
+              </Field>
+            </div>
+          )}
+          <div className="form-actions">
+            <Button disabled={!hasToken || saving || loading} onClick={handleSave}>
+              {saving ? '保存中' : '保存设置'}
+            </Button>
+            {notice ? <div className={`ui-alert ${notice.tone}`}>{notice.text}</div> : null}
           </div>
-        )}
-        <div className="form-actions">
-          <Button disabled={!hasToken || saving || loading} onClick={handleSave}>
-            {saving ? '保存中' : '保存设置'}
-          </Button>
-          {notice ? <div className={`ui-alert ${notice.tone}`}>{notice.text}</div> : null}
-        </div>
-      </Card>
-      {recentRun ? (
-        <Card className="run-summary">
-          <div>
-            <span className="summary-label">最近一轮：{recentRun.status}</span>
-            <StatusBadge tone={statusTone(recentRun.status)}>{recentRun.status}</StatusBadge>
-          </div>
-          <div>
-            <span className="summary-label">执行轮次 {summary.total}</span>
-            <strong>{summary.total}</strong>
-          </div>
-          <div>
-            <span className="summary-label">结果统计</span>
-            <strong>成功 {summary.succeeded} / 失败 {summary.failed}</strong>
-          </div>
-          {recentRun.finished_at ? (
+        </Card>
+        <Card className="scheduler-records" aria-label="调度器执行记录">
+          <div className="card-heading-row">
             <div>
-              <span className="summary-label">结束时间</span>
-              <strong>{formatDateTime(recentRun.finished_at)}</strong>
+              <span className="eyebrow">Latest 50</span>
+              <h2>执行记录</h2>
+            </div>
+            <StatusBadge tone={summary.failed > 0 ? 'danger' : 'success'}>{summary.total ? `${summary.total} 轮` : '暂无'}</StatusBadge>
+          </div>
+          {recentRun ? (
+            <div className="run-summary">
+              <div>
+                <span className="summary-label">最近一轮：{recentRun.status}</span>
+                <StatusBadge tone={statusTone(recentRun.status)}>{recentRun.status}</StatusBadge>
+              </div>
+              <div>
+                <span className="summary-label">执行轮次 {summary.total}</span>
+                <strong>{summary.total}</strong>
+              </div>
+              <div>
+                <span className="summary-label">结果统计</span>
+                <strong>成功 {summary.succeeded} / 失败 {summary.failed}</strong>
+              </div>
             </div>
           ) : null}
+          <div className="run-list">
+            {recentRuns.length ? recentRuns.map((run) => (
+              <div className="run-list-item" key={run.id}>
+                <div>
+                  <strong>{run.id}</strong>
+                  <span>{formatDateTime(run.started_at)}</span>
+                </div>
+                <StatusBadge tone={statusTone(run.status)}>{run.status}</StatusBadge>
+                <span>source {run.succeeded_sources}/{run.total_sources}</span>
+              </div>
+            )) : <div className="ui-table-empty">暂无执行记录</div>}
+          </div>
         </Card>
-      ) : null}
+      </div>
     </section>
   );
 }
