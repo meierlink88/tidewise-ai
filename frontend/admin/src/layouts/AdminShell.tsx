@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Button from '../components/ui/Button';
+import Icon from '../components/ui/Icon';
 
 interface AdminShellProps {
   children: ReactNode;
@@ -10,19 +11,38 @@ export default function AdminShell({ children, onLogout }: AdminShellProps) {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <div className="admin-brand">观潮家</div>
-        <div className="admin-section">Workspace</div>
+        <div className="admin-brand">
+          <span className="admin-brand-mark">M</span>
+          <div>
+            <strong>观潮家 Admin</strong>
+            <span>Market intelligence ops</span>
+          </div>
+        </div>
+        <div className="admin-section">WORKSPACE</div>
         <nav className="admin-nav" aria-label="管理后台菜单">
           <button className="admin-nav-item active" type="button">
-            <span className="nav-dot" />
-            <span>调度器设置</span>
+            <span className="admin-nav-icon-slot">
+              <Icon name="database" />
+            </span>
+            <span>数据采集中心</span>
+            <small>Today</small>
           </button>
         </nav>
+        <div className="admin-sidebar-foot">
+          <span>SYSTEM NOTE</span>
+          <strong>Flat surfaces, precise rhythm</strong>
+        </div>
       </aside>
       <div className="admin-main">
         <header className="admin-header">
-          <span className="admin-header-kicker">Admin Console</span>
-          <Button variant="secondary" onClick={onLogout}>退出登录</Button>
+          <div>
+            <span className="admin-header-kicker">Admin Console</span>
+            <strong>Operational workspace</strong>
+          </div>
+          <Button variant="secondary" onClick={onLogout}>
+            <Icon name="log-out" />
+            退出登录
+          </Button>
         </header>
         <main className="admin-content">{children}</main>
       </div>

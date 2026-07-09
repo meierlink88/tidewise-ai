@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { loadEvents, loadRawDocuments, loadSourceCatalogs } from './api/dataIngestion';
 import { loadSchedulerConfig, loadSchedulerRuns } from './api/scheduler';
 
 vi.mock('./api/scheduler', async () => {
@@ -11,6 +12,16 @@ vi.mock('./api/scheduler', async () => {
     loadSchedulerConfig: vi.fn(),
     loadSchedulerRuns: vi.fn(),
     saveSchedulerConfig: vi.fn()
+  };
+});
+
+vi.mock('./api/dataIngestion', async () => {
+  const actual = await vi.importActual<typeof import('./api/dataIngestion')>('./api/dataIngestion');
+  return {
+    ...actual,
+    loadEvents: vi.fn(),
+    loadRawDocuments: vi.fn(),
+    loadSourceCatalogs: vi.fn()
   };
 });
 
@@ -42,6 +53,9 @@ describe('App admin login', () => {
       timezone: 'Asia/Shanghai'
     });
     vi.mocked(loadSchedulerRuns).mockResolvedValue([]);
+    vi.mocked(loadRawDocuments).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
+    vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
+    vi.mocked(loadSourceCatalogs).mockResolvedValue({ items: [] });
   });
 
   it('shows a login page with the local admin token hint before entering the admin shell', () => {
@@ -49,7 +63,7 @@ describe('App admin login', () => {
 
     expect(screen.getByRole('heading', { name: '观潮家管理后台' })).toBeInTheDocument();
     expect(screen.getByText('测试 token：local-admin-token')).toBeInTheDocument();
-    expect(screen.queryByText('调度器设置')).not.toBeInTheDocument();
+    expect(screen.queryByText('数据采集中心')).not.toBeInTheDocument();
   });
 
   it('logs in with an admin token and logs out back to the login page', async () => {
@@ -60,8 +74,8 @@ describe('App admin login', () => {
     await user.type(screen.getByLabelText('Admin Token'), 'local-admin-token');
     await user.click(screen.getByRole('button', { name: '登录' }));
 
-    expect(await screen.findByRole('heading', { name: '调度器设置' })).toBeInTheDocument();
-    expect(loadSchedulerConfig).toHaveBeenCalledWith('local-admin-token');
+    expect(await screen.findByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
+    expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');
 
     await user.click(screen.getByRole('button', { name: '退出登录' }));

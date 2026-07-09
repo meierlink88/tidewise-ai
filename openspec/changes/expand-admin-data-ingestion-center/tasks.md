@@ -20,28 +20,28 @@
 
 ## 4. Frontend TDD And Verification
 
-- [ ] 4.1 按 `.codex/skills/minimal-dashboard-design/library-consumption.json` 推荐顺序读取 Minimal Dashboard 设计资料，记录本次需要转译的 token、组件和布局要点。
-- [ ] 4.2 为管理后台 API client 或页面行为补充可自动化测试，覆盖四个 tab 的请求参数和基础渲染。
-- [ ] 4.3 为分页、状态筛选、事件筛选和 source parser 不展示行为补充测试或可重复验证步骤。
-- [ ] 4.4 增加可重复的设计一致性检查，至少覆盖无 Ant Design 依赖、关键 token 对齐、sidebar 图标菜单、表格/卡片/tab/按钮基础形态。
+- [x] 4.1 按 `.codex/skills/minimal-dashboard-design/library-consumption.json` 推荐顺序读取 Minimal Dashboard 设计资料，记录本次需要转译的 token、组件和布局要点。
+- [x] 4.2 为管理后台 API client 或页面行为补充可自动化测试，覆盖四个 tab 的请求参数和基础渲染。
+- [x] 4.3 为分页、状态筛选、事件筛选和 source parser 不展示行为补充测试或可重复验证步骤。
+- [x] 4.4 增加可重复的设计一致性检查，至少覆盖无 Ant Design 依赖、关键 token 对齐、sidebar 图标菜单、表格/卡片/tab/按钮基础形态。
 
 ## 5. Frontend Implementation
 
-- [ ] 5.1 校准 `frontend/admin/src/styles/tokens.css`，使 color families、semantic aliases、字体族、4px spacing、25.2px 主圆角和低阴影/零阴影策略可追溯到 Minimal Dashboard skill。
-- [ ] 5.2 增加或调整字体加载和 fallback 策略，确保 Geist、DM Serif Display、Geist Mono 字体族声明有实际生效路径或稳定降级路径。
-- [ ] 5.3 将 admin shell 调整为 Minimal Dashboard 风格 sidebar 和顶部工作区，包含品牌区、分组 label、图标菜单项、高对比 active 状态和克制的 header 操作。
-- [ ] 5.4 增加 Minimal Dashboard 风格 `Icon`、`Tabs`、`DataTable`、`Pagination` 等必要自有 UI 组件。
-- [ ] 5.5 将 sidebar 中 `调度器设置` 改为 `数据采集中心`。
-- [ ] 5.6 新增 `数据采集中心` 页面，包含 `原始数据`、`全球事件`、`搜索通道`、`调度器` 四个 tab。
-- [ ] 5.7 实现原始数据列表，支持标题搜索、分页和空状态。
-- [ ] 5.8 实现全球事件列表，支持标题搜索、四类筛选、分页和空状态。
-- [ ] 5.9 实现搜索通道列表，支持状态筛选，不分页，不展示 parser。
-- [ ] 5.10 调整调度器 tab 为左侧配置、右侧最近 50 条执行记录列表。
+- [x] 5.1 校准 `frontend/admin/src/styles/tokens.css`，使 color families、semantic aliases、字体族、4px spacing、25.2px 主圆角和低阴影/零阴影策略可追溯到 Minimal Dashboard skill。
+- [x] 5.2 增加或调整字体加载和 fallback 策略，确保 Geist、DM Serif Display、Geist Mono 字体族声明有实际生效路径或稳定降级路径。
+- [x] 5.3 将 admin shell 调整为 Minimal Dashboard 风格 sidebar 和顶部工作区，包含品牌区、分组 label、图标菜单项、高对比 active 状态和克制的 header 操作。
+- [x] 5.4 增加 Minimal Dashboard 风格 `Icon`、`Tabs`、`DataTable`、`Pagination` 等必要自有 UI 组件。
+- [x] 5.5 将 sidebar 中 `调度器设置` 改为 `数据采集中心`。
+- [x] 5.6 新增 `数据采集中心` 页面，包含 `原始数据`、`全球事件`、`搜索通道`、`调度器` 四个 tab。
+- [x] 5.7 实现原始数据列表，支持标题搜索、分页和空状态。
+- [x] 5.8 实现全球事件列表，支持标题搜索、四类筛选、分页和空状态。
+- [x] 5.9 实现搜索通道列表，支持状态筛选，不分页，不展示 parser。
+- [x] 5.10 调整调度器 tab 为左侧配置、右侧最近 50 条执行记录列表。
 
 ## 6. Final Validation
 
-- [ ] 6.1 运行 `openspec validate expand-admin-data-ingestion-center`。
-- [ ] 6.2 运行后端测试、前端测试和构建验证。
-- [ ] 6.3 在本地管理后台人工验证四个 tab、分页、筛选、保存调度器配置和执行记录展示。
-- [ ] 6.4 使用本地浏览器截图验收 Minimal Dashboard 设计一致性，重点检查 sidebar、按钮、卡片、表格、tab、分页、字体和文本溢出。
-- [ ] 6.5 更新 tasks 完成状态，准备 sync specs、archive 和 PR。
+- [x] 6.1 运行 `openspec validate expand-admin-data-ingestion-center`。
+- [x] 6.2 运行后端测试、前端测试和构建验证。
+- [x] 6.3 在本地管理后台人工验证四个 tab、分页、筛选、保存调度器配置和执行记录展示。
+- [x] 6.4 使用本地浏览器截图验收 Minimal Dashboard 设计一致性，重点检查 sidebar、按钮、卡片、表格、tab、分页、字体和文本溢出。
+- [x] 6.5 更新 tasks 完成状态，准备 sync specs、archive 和 PR。
