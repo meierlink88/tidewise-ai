@@ -75,11 +75,12 @@ SELECT id, ingest_channel, provider_key, connector_key, parser_key, source_type,
        auth_required, auth_type, credential_ref, source_config, rate_limit_policy, usage_policy, status
 FROM source_catalogs
 WHERE status = 'active'
-  AND ($1 = '' OR provider_key = $1)
-  AND ($2 = '' OR ingest_channel = $2)
-  AND ($3 = '' OR source_type = $3)
+  AND ($1 = '' OR id = $1)
+  AND ($2 = '' OR provider_key = $2)
+  AND ($3 = '' OR ingest_channel = $3)
+  AND ($4 = '' OR source_type = $4)
 ORDER BY source_name, id
-`, filter.ProviderKey, filter.IngestChannel, filter.SourceType)
+`, filter.SourceID, filter.ProviderKey, filter.IngestChannel, filter.SourceType)
 	if err != nil {
 		return nil, fmt.Errorf("query active source catalogs: %w", err)
 	}

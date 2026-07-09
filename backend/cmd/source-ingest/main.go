@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	ingestionconnectors "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/connectors"
@@ -20,23 +21,31 @@ import (
 )
 
 type sourceIngestOptions struct {
+	sourceID      string
 	providerKey   string
 	ingestChannel string
 	sourceType    string
 	concurrency   int
 	rsshubBaseURL string
 	promptRoot    string
+	requiredEnv   string
 }
 
 func main() {
 	options := sourceIngestOptions{}
+	flag.StringVar(&options.sourceID, "source-id", "", "filter active source catalogs by id")
 	flag.StringVar(&options.providerKey, "provider", "", "filter active source catalogs by provider_key")
 	flag.StringVar(&options.ingestChannel, "channel", "", "filter active source catalogs by ingest_channel")
 	flag.StringVar(&options.sourceType, "source-type", "", "filter active source catalogs by source_type")
 	flag.IntVar(&options.concurrency, "concurrency", 1, "maximum source concurrency")
 	flag.StringVar(&options.rsshubBaseURL, "rsshub-base-url", firstEnv("TIDEWISE_RSSHUB_BASE_URL"), "RSSHub base URL for rsshub_feed sources")
 	flag.StringVar(&options.promptRoot, "prompt-root", defaultPromptRoot(), "repo prompt root for AI ingestion sources")
+	flag.StringVar(&options.requiredEnv, "require-env", "", "comma-separated environment variables required before running gated ingestion smoke")
 	flag.Parse()
+
+	if missing := missingRequiredEnvNames(parseRequiredEnvNames(options.requiredEnv), os.Getenv); len(missing) > 0 {
+		log.Fatalf("missing required environment variables: %s", strings.Join(missing, ","))
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -87,6 +96,7 @@ func main() {
 
 func sourceCatalogFilter(options sourceIngestOptions) repositories.SourceCatalogFilter {
 	return repositories.SourceCatalogFilter{
+		SourceID:      options.sourceID,
 		ProviderKey:   options.providerKey,
 		IngestChannel: options.ingestChannel,
 		SourceType:    options.sourceType,
@@ -119,4 +129,26 @@ func defaultPromptRoot() string {
 		}
 	}
 	return "data/prompts"
+}
+
+func parseRequiredEnvNames(value string) []string {
+	parts := strings.Split(value, ",")
+	names := make([]string, 0, len(parts))
+	for _, part := range parts {
+		name := strings.TrimSpace(part)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func missingRequiredEnvNames(names []string, lookup func(string) string) []string {
+	missing := make([]string, 0)
+	for _, name := range names {
+		if lookup(name) == "" {
+			missing = append(missing, name)
+		}
+	}
+	return missing
 }

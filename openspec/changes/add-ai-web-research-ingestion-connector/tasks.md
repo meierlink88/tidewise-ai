@@ -34,8 +34,8 @@
 
 ## 5. 可验证 smoke 和真实 provider 验证准备
 
-- [ ] 5.1 增加 fake Web Search providers + fake LLM AI Web Research smoke fixture，验证搜索结果和结构化 items 可以转换为 raw document 候选对象并输出可审阅 report。
-- [ ] 5.2 为真实 Tavily、博查和真实 LLM API 验证预留 gated smoke 参数，要求显式提供环境变量和 source ID，不得在普通单元测试中访问真实网络，并记录搜索结果数量、URL 数量、中国可信来源数量、抓取成功数、LLM 结构化成功数和跳过原因。
-- [ ] 5.3 更新本地说明，描述 `credential_ref`、`source_config.credential_refs`、`web_search_plan` 配置、来源偏好、可信域名、LLM 配置、prompt 文件、prompt 引用、真实 API key 注入和 fake/gated smoke 的运行方式。
-- [ ] 5.4 运行 `go test ./...`，确保后端单元测试和 gated 集成测试边界通过。
-- [ ] 5.5 运行 `openspec validate add-ai-web-research-ingestion-connector`。
+- [x] 5.1 增加 fake Web Search providers + fake LLM AI Web Research smoke fixture，验证搜索结果和结构化 items 可以转换为 raw document 候选对象并输出可审阅 report。
+- [x] 5.2 为真实 Tavily、博查和真实 LLM API 验证预留 gated smoke 参数，要求显式提供环境变量和 source ID，不得在普通单元测试中访问真实网络，并记录搜索结果数量、URL 数量、中国可信来源数量、抓取成功数、LLM 结构化成功数和跳过原因。
+- [x] 5.3 更新本地说明，描述 `credential_ref`、`source_config.credential_refs`、`web_search_plan` 配置、来源偏好、可信域名、LLM 配置、prompt 文件、prompt 引用、真实 API key 注入和 fake/gated smoke 的运行方式。
+- [x] 5.4 运行 `go test ./...`，确保后端单元测试和 gated 集成测试边界通过。
+- [x] 5.5 运行 `openspec validate add-ai-web-research-ingestion-connector`。

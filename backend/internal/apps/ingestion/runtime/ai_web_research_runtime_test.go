@@ -58,6 +58,13 @@ func TestRuntimeRunsAIWebResearchSourceThroughRawDocumentWriter(t *testing.T) {
 	if report.Succeeded != 1 || report.Failed != 0 {
 		t.Fatalf("report = %+v, want one success", report)
 	}
+	reportJSON, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal report: %v", err)
+	}
+	if !strings.Contains(string(reportJSON), `"succeeded":1`) {
+		t.Fatalf("report json = %s, want reviewable success count", reportJSON)
+	}
 	count, err := repo.RawDocumentCount(context.Background(), source.ID)
 	if err != nil {
 		t.Fatalf("RawDocumentCount() error = %v", err)

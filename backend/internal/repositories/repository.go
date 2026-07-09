@@ -9,6 +9,7 @@ import (
 )
 
 type SourceCatalogFilter struct {
+	SourceID      string
 	ProviderKey   string
 	IngestChannel string
 	SourceType    string
@@ -79,6 +80,9 @@ func (r *InMemoryRepository) ActiveSources(_ context.Context, filter SourceCatal
 	var result []domain.SourceCatalog
 	for _, source := range r.sources {
 		if source.Status != domain.SourceCatalogStatusActive {
+			continue
+		}
+		if filter.SourceID != "" && source.ID != filter.SourceID {
 			continue
 		}
 		if filter.ProviderKey != "" && source.ProviderKey != filter.ProviderKey {
