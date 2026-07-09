@@ -32,6 +32,47 @@ describe('SchedulerSettings', () => {
     }));
   });
 
+  it('disables saving until admin token is provided', async () => {
+    const loadConfig = vi.fn().mockResolvedValue({
+      enabled: false,
+      mode: 'interval',
+      interval_minutes: 60,
+      fixed_times: [],
+      concurrency: 1,
+      batch_size: 10,
+      timeout_seconds: 180,
+      source_filter: {},
+      timezone: 'Asia/Shanghai'
+    });
+
+    render(<SchedulerSettings token="" loadConfig={loadConfig} saveConfig={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: '保存设置' })).toBeDisabled();
+  });
+
+  it('shows save failure reason', async () => {
+    const user = userEvent.setup();
+    const loadConfig = vi.fn().mockResolvedValue({
+      enabled: false,
+      mode: 'interval',
+      interval_minutes: 60,
+      fixed_times: [],
+      concurrency: 1,
+      batch_size: 10,
+      timeout_seconds: 180,
+      source_filter: {},
+      timezone: 'Asia/Shanghai'
+    });
+    const saveConfig = vi.fn().mockRejectedValue(new Error('unauthorized'));
+
+    render(<SchedulerSettings token="wrong-token" loadConfig={loadConfig} saveConfig={saveConfig} />);
+
+    await screen.findByText('调度器设置');
+    await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+    expect(await screen.findByText('保存失败：unauthorized')).toBeInTheDocument();
+  });
+
   it('hides system source and timezone fields while preserving backend source filter', async () => {
     const user = userEvent.setup();
     const loadConfig = vi.fn().mockResolvedValue({

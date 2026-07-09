@@ -32,6 +32,7 @@ export default function SchedulerSettings({
   const [saving, setSaving] = useState(false);
   const [recentRun, setRecentRun] = useState<SchedulerConfig['recent_run']>();
   const [systemConfig, setSystemConfig] = useState<SchedulerConfig>(defaultConfig);
+  const hasToken = token.trim().length > 0;
 
   useEffect(() => {
     let active = true;
@@ -64,6 +65,10 @@ export default function SchedulerSettings({
   }, [form, loadConfig, token]);
 
   const handleSave = async () => {
+    if (!hasToken) {
+      message.warning('请先输入 Admin Token');
+      return;
+    }
     const values = await form.validateFields();
     const payload = normalizeConfig({
       ...systemConfig,
@@ -78,6 +83,8 @@ export default function SchedulerSettings({
         setSystemConfig(normalizeConfig(saved as SchedulerConfig));
       }
       message.success('已保存');
+    } catch (error) {
+      message.error(`保存失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSaving(false);
     }
@@ -132,7 +139,7 @@ export default function SchedulerSettings({
               <InputNumber min={1} className="full-width" />
             </Form.Item>
           </div>
-          <Button type="primary" loading={saving} onClick={handleSave}>
+          <Button type="primary" loading={saving} disabled={!hasToken} onClick={handleSave}>
             保存设置
           </Button>
         </Form>

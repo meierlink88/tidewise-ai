@@ -47,4 +47,15 @@ describe('scheduler api client', () => {
       }
     }));
   });
+
+  it('includes api error message when request fails', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'unauthorized' })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(loadSchedulerConfig('wrong-token')).rejects.toThrow('unauthorized');
+  });
 });

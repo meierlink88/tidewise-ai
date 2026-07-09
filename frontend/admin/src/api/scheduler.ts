@@ -61,7 +61,18 @@ function authHeaders(token: string): Record<string, string> {
 
 async function readJSON<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    throw new Error(`request failed with status ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
   return response.json() as Promise<T>;
+}
+
+async function responseErrorMessage(response: Response): Promise<string> {
+  try {
+    const payload = await response.json() as { error?: string };
+    if (payload.error) {
+      return payload.error;
+    }
+  } catch {
+  }
+  return `request failed with status ${response.status}`;
 }
