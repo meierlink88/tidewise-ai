@@ -52,3 +52,4 @@
 - [x] 6.8 运行 `go test ./...` 和 `openspec validate add-ai-web-research-ingestion-connector`。
 - [x] 6.9 修复博查 Web Search API 真实响应 envelope 解析，覆盖 `{code, data.webPages.value}` 响应结构。
 - [x] 6.10 兼容真实 LLM 返回的 `content_origin=web_content`，保证 AI Web Research smoke 可以解析并写入原始文档。
+- [x] 6.11 显式关闭 DeepSeek/OpenAI-compatible normalizer 的思考模式，避免结构化采集因默认深度思考变慢。

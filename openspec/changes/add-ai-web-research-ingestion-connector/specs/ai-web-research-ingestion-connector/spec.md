@@ -27,6 +27,10 @@
 - **WHEN** Web Search provider 返回搜索结果
 - **THEN** 系统可以调用 LLM normalizer 将搜索结果整理为 `items` JSON，但不得把 LLM 生成的 model、query_time 或未经校验的来源字段当作系统事实
 
+#### Scenario: 关闭结构化整理思考模式
+- **WHEN** 系统调用 DeepSeek/OpenAI-compatible LLM normalizer 执行搜索结果结构化整理
+- **THEN** 请求必须显式关闭思考模式，使模型只执行快速 JSON 标准化，不把深度思考作为采集链路默认行为
+
 #### Scenario: 缺少凭证引用
 - **WHEN** AI Web Research source 需要 Web Search API key 或 LLM API key 但凭证引用为空或无法解析到真实 secret
 - **THEN** 系统必须跳过该 source 并记录明确错误，不得调用外部 API 或写入伪造原始文档

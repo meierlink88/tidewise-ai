@@ -45,6 +45,7 @@ func (n OpenAICompatibleNormalizer) Normalize(ctx context.Context, request LLMNo
 		},
 		"response_format": map[string]string{"type": "json_object"},
 		"stream":          false,
+		"thinking":        map[string]string{"type": "disabled"},
 	}
 	data, err := json.Marshal(body)
 	if err != nil {

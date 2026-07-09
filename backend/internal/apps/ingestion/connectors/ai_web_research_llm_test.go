@@ -53,6 +53,13 @@ func TestOpenAICompatibleNormalizerMapsRequestAndResponse(t *testing.T) {
 	if captured["model"] != "deepseek-v4-pro" {
 		t.Fatalf("model = %v, want deepseek-v4-pro", captured["model"])
 	}
+	thinking, ok := captured["thinking"].(map[string]any)
+	if !ok {
+		t.Fatalf("thinking = %v, want disabled thinking config", captured["thinking"])
+	}
+	if thinking["type"] != "disabled" {
+		t.Fatalf("thinking.type = %v, want disabled", thinking["type"])
+	}
 	messages, ok := captured["messages"].([]any)
 	if !ok || len(messages) != 2 {
 		t.Fatalf("messages = %v, want system and user messages", captured["messages"])
