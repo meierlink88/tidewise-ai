@@ -61,7 +61,7 @@
 - **THEN** 系统必须只选择 `source_catalogs.status=active` 的来源
 
 #### Scenario: 按全局过滤条件采集
-- **WHEN** 调度配置包含 provider、channel、source type 或 source ID 过滤条件
+- **WHEN** 调度配置包含 provider、channel 或 source type 过滤条件
 - **THEN** 调度器必须只把匹配过滤条件的 active source 传给采集运行时
 
 #### Scenario: 并发执行

@@ -10,7 +10,7 @@
 - interval 模式支持按分钟或小时配置循环执行，例如每 15 分钟、每 2 小时触发一次。
 - 固定时间模式支持配置至少 5 个每日固定触发时间，例如 09:00、12:00、15:00、18:00、21:00；调度器进程持续驻留，到点触发，执行完成后等待下一次触发。
 - 调度器只负责全局触发策略、运行状态、失败隔离和 run 记录；实际采集必须复用现有 `IngestionJob`、connector、parser、writer、provider rate limiter 和并发控制。
-- 调度执行时从 `source_catalogs` 选择 active source，可按全局过滤条件限制 provider、channel、source type 或单个 source；默认不重新定义每个 source 的独立调度频率。
+- 调度执行时从 `source_catalogs` 选择 active source，可按全局过滤条件限制 provider、channel 或 source type；默认不支持按单个 active source 调度，也不重新定义每个 source 的独立调度频率。
 - 新增调度配置持久化，保存全局启用状态、调度模式、interval、固定时间列表、并发数、batch size、超时、过滤条件和最近运行摘要。
 - 新增采集运行记录，保存每次调度 run、每个 source 的执行结果、写入数量、重复数量、失败原因和耗时。
 - 新增 `backend/cmd/ingestion-scheduler` 进程入口，支持持续运行和单轮验证。

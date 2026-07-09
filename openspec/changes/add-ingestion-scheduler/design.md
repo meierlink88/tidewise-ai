@@ -8,7 +8,7 @@
 - 后端 admin API：提供调度配置和运行状态的管理接口。
 - Web admin：提供独立管理后台，当前只实现调度器设置菜单。
 
-调度器本阶段只负责全局调度策略，不实现 per-source 独立 cron UI。执行时仍然读取 active source，可通过全局过滤条件限定 provider、channel、source type 或 source ID。后续如果需要为每个来源配置独立频率，应通过单独 change 扩展 source schedule state。
+调度器本阶段只负责全局调度策略，不实现 per-source 独立 cron UI，也不支持按单个 active source 调度。执行时仍然读取 active source，可通过全局过滤条件限定 provider、channel 或 source type。后续如果需要为每个来源配置独立频率，应通过单独 change 扩展 source schedule state。
 
 ## Goals / Non-Goals
 
@@ -189,7 +189,7 @@ Admin 前端不保存真实后端 secret。MVP 可让用户在页面输入 Admin
 - `concurrency`：采集并发数。
 - `batch_size`：单轮最多处理 source 数。
 - `timeout_seconds`：单轮采集超时。
-- `source_filter`：可选过滤条件，包含 `provider_key`、`ingest_channel`、`source_type`、`source_id`。
+- `source_filter`：可选来源范围过滤条件，只包含 `provider_key`、`ingest_channel` 和 `source_type`，不包含单个 source ID。
 
 ## Testing Strategy
 

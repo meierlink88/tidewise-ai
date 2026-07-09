@@ -20,5 +20,5 @@
 - **THEN** 系统必须保持与现有串行执行等价的处理语义和 report 结构
 
 #### Scenario: 接受调度器过滤条件
-- **WHEN** 全局调度器按配置触发采集并传入 provider、channel、source type 或 source ID 过滤条件
+- **WHEN** 全局调度器按配置触发采集并传入 provider、channel 或 source type 过滤条件
 - **THEN** 采集任务必须只处理匹配过滤条件的 active source，并返回成功、失败、错误和写入统计，供调度器持久化运行结果
