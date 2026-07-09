@@ -10,9 +10,10 @@
 
 - 固化 Minimal Dashboard 为管理后台标准设计系统。
 - 建立 `frontend/admin` 自有 tokens、基础 UI 组件和后台布局边界。
+- 新增 Admin Token 登录页，登录后进入后台 shell。
 - 将当前调度器设置页从 Ant Design 迁移为 Minimal Dashboard 风格。
 - 保持调度器 API、数据模型和保存逻辑不变，只调整前端展示和组件实现。
-- 补充前端测试，验证迁移后仍能加载配置、保存配置、显示最近运行和处理 token 缺失。
+- 补充前端测试，验证迁移后仍能登录、加载配置、保存配置、显示最近运行和处理 token 缺失。
 
 **Non-Goals:**
 
@@ -58,6 +59,10 @@ frontend/admin/src/components/ui/
 
 frontend/admin/src/layouts/
 └── AdminShell.tsx
+
+frontend/admin/src/pages/
+├── AdminLogin.tsx
+└── SchedulerSettings.tsx
 ```
 
 ### Decision: Ant Design 作为历史实现迁移掉
@@ -68,7 +73,19 @@ frontend/admin/src/layouts/
 
 ### Decision: 调度器设置页是第一个样板页面
 
-调度器设置页需要保留已有功能：Admin Token 输入、启停调度、interval/fixed time 模式、并发数、batch size、超时秒数、保存设置、最近运行摘要。视觉结构改为 Minimal Dashboard 的 sidebar、card、button、table/status 模式。
+调度器设置页需要保留已有功能：启停调度、interval/fixed time 模式、并发数、batch size、超时秒数、保存设置、最近运行摘要。视觉结构改为 Minimal Dashboard 的 sidebar、card、button、table/status 模式。
+
+### Decision: Admin Token 登录页替代右上角 token 输入
+
+`App` 负责管理登录状态：未登录时渲染 `AdminLogin`，登录成功后渲染 `AdminShell` 和调度器设置页面。登录页接收 Admin Token，保存到现有 `localStorage` key，并继续由 API client 使用 `Authorization: Bearer <token>` 调用后端。
+
+本地测试阶段可以在登录输入框下方显示 `local-admin-token` 作为测试提示。该提示只服务 local 验证，不代表生产环境可以暴露真实 Admin Token。生产环境后续应通过构建配置关闭提示或不配置提示文本。
+
+备选方案：
+
+- 保留右上角 token 输入：实现最少，但体验不像真实后台登录，也容易让用户误以为页面未登录状态仍可操作。
+- 使用后端 session 或 JWT 登录：更正式，但会扩大后端鉴权范围，不适合本 change。
+- 使用 Admin Token 登录页：符合当前后端能力，改动集中在前端，并能自然承接后续正式登录体系。
 
 ## Risks / Trade-offs
 
@@ -76,12 +93,14 @@ frontend/admin/src/layouts/
 - [Risk] 移除 Ant Design 会增加自有表单组件维护成本。→ 本 change 只实现当前页面需要的最小 UI primitives，避免一次性造完整组件库。
 - [Risk] preview HTML 直接复制会引入 DOM/样式污染。→ agent 规则明确禁止复制 preview HTML，只允许转译为 React 和 CSS。
 - [Risk] Codex 新会话可能不知道 prototype 中的源资料。→ repo-local skill 和 `.agents/frontend-boundaries.md` 固化读取入口。
+- [Risk] 测试阶段显示 Admin Token 提示可能被误用到生产。→ 提示只作为 local/dev 行为写入前端配置和文案，不改变后端鉴权，不提交生产真实 token。
 
 ## Migration Plan
 
 1. 安装并验证 `.codex/skills/minimal-dashboard-design/`。
 2. 更新 agent 前端规则，要求 admin 开发使用 Minimal Dashboard skill。
 3. 建立 admin tokens、UI primitives 和后台 shell。
-4. 迁移调度器设置页，保持 API 行为和测试语义不变。
-5. 移除或停用 Ant Design 默认依赖。
-6. 运行 `npm test`、`npm run build` 和 `openspec validate adopt-minimalist-admin-design-system`。
+4. 新增 Admin Token 登录页，移除后台右上角 token 输入。
+5. 迁移调度器设置页，保持 API 行为和测试语义不变。
+6. 移除或停用 Ant Design 默认依赖。
+7. 运行 `npm test`、`npm run build` 和 `openspec validate adopt-minimalist-admin-design-system`。

@@ -30,6 +30,25 @@
 - **WHEN** 管理后台新增或修改页面
 - **THEN** 页面必须复用 `frontend/admin/src/layouts/` 下的后台 shell、sidebar 和内容布局模式
 
+### Requirement: Admin Token 登录页
+系统 SHALL 提供独立登录页，使管理员输入 Admin Token 后进入管理后台，而不是在后台页面右上角临时输入 token。
+
+#### Scenario: 未登录访问后台
+- **WHEN** 管理员未提供或未保存 Admin Token
+- **THEN** 系统必须展示符合 Minimal Dashboard 设计系统的登录页，而不是展示调度器设置页面
+
+#### Scenario: 使用 Admin Token 登录
+- **WHEN** 管理员在登录页输入 Admin Token 并提交
+- **THEN** 系统必须保存 token 到本地会话状态，并在后续管理 API 请求中继续携带 `Authorization: Bearer <token>`
+
+#### Scenario: 本地测试 token 提示
+- **WHEN** 管理后台运行在本地测试阶段
+- **THEN** 登录输入框下方可以展示当前测试 Admin Token 提示，便于开发者验证登录流程
+
+#### Scenario: 退出登录
+- **WHEN** 管理员点击退出登录
+- **THEN** 系统必须清除本地保存的 Admin Token，并返回登录页
+
 ## MODIFIED Requirements
 
 ### Requirement: 独立 Web 管理后台
@@ -49,6 +68,10 @@
 
 ### Requirement: 调度器设置页面
 系统 SHALL 在管理后台提供符合 Minimal Dashboard 设计系统的调度器设置菜单，使管理员可以查看和修改全局采集调度配置。
+
+#### Scenario: 登录后访问调度器设置
+- **WHEN** 管理员已通过 Admin Token 登录
+- **THEN** 页面必须在管理后台 shell 中展示调度器设置菜单和内容区
 
 #### Scenario: 仅包含调度器设置菜单
 - **WHEN** 本 change 完成后用户打开管理后台

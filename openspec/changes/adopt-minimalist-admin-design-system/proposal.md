@@ -9,7 +9,9 @@
 - 新增 `.agents/frontend-boundaries.md`，规定 admin 开发必须使用 Minimal Dashboard skill、tokens、组件模式、图标和 dashboard kit。
 - 修改管理后台主规格：Ant Design 不再是长期标准设计系统，后续 admin 页面默认使用 Minimal Dashboard 自有样式和组件边界。
 - 在本 change 中迁移当前调度器设置页面，使它成为 Minimal Dashboard 在 admin 后台的第一个生产实现样板。
-- 补充调度器设置页面的后续体验需求，包括运行状态表达、最近运行记录展示、保存反馈、token 状态和基础响应式布局。
+- 新增管理后台登录页，使用 Admin Token 登录后进入后台，不再要求用户在后台页面右上角输入 token。
+- 在本地测试阶段，登录输入框下方可以显示当前测试 Admin Token 提示，便于人工验证；该提示不得改变后端鉴权协议。
+- 补充调度器设置页面的后续体验需求，包括运行状态表达、最近运行记录展示、保存反馈、登录状态和基础响应式布局。
 
 ## Capabilities
 
@@ -27,5 +29,6 @@
 - 影响 Codex repo-local skill：`.codex/skills/minimal-dashboard-design/`。
 - 影响原始设计资料归档：`../prototype/.design_library/minimal-dashboard/`。
 - 影响管理后台前端：`frontend/admin/` 的样式、组件结构、依赖和测试。
+- 影响管理后台前端交互：新增登录页和登出入口，替换当前右上角 token 输入方式。
 - 不影响 `frontend/miniapp/` 小程序工程。
 - 不影响后端调度器 API、数据库 migration、采集运行逻辑和 Admin Token 鉴权协议。
