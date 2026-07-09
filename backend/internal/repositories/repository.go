@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +44,48 @@ type RawDocumentWriteResult struct {
 	DuplicateOf string
 }
 
+type RawDocumentListFilter struct {
+	Title    string
+	Page     int
+	PageSize int
+}
+
+type RawDocumentPage struct {
+	Items    []domain.RawDocument
+	Total    int
+	Page     int
+	PageSize int
+}
+
+type EventListFilter struct {
+	Title         string
+	EventStatus   domain.EventStatus
+	FactStatus    domain.FactStatus
+	EventTimeFrom *time.Time
+	EventTimeTo   *time.Time
+	FirstSeenFrom *time.Time
+	FirstSeenTo   *time.Time
+	Page          int
+	PageSize      int
+}
+
+type EventPage struct {
+	Items    []domain.Event
+	Total    int
+	Page     int
+	PageSize int
+}
+
+type SourceCatalogListFilter struct {
+	Status domain.SourceCatalogStatus
+}
+
+type AdminQueryRepository interface {
+	ListRawDocuments(context.Context, RawDocumentListFilter) (RawDocumentPage, error)
+	ListEvents(context.Context, EventListFilter) (EventPage, error)
+	ListSourceCatalogs(context.Context, SourceCatalogListFilter) ([]domain.SourceCatalog, error)
+}
+
 type SchedulerRepository interface {
 	LoadSchedulerConfig(context.Context) (domain.SchedulerConfig, error)
 	SaveSchedulerConfig(context.Context, domain.SchedulerConfig) (domain.SchedulerConfig, error)
@@ -56,6 +99,7 @@ type InMemoryRepository struct {
 	mu              sync.Mutex
 	sources         []domain.SourceCatalog
 	documents       map[string]domain.RawDocument
+	events          map[string]domain.Event
 	schedulerConfig domain.SchedulerConfig
 	ingestionRuns   map[string]domain.IngestionRun
 	runSources      map[string][]domain.IngestionRunSource
@@ -70,6 +114,7 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 	return &InMemoryRepository{
 		sources:         copiedSources,
 		documents:       map[string]domain.RawDocument{},
+		events:          map[string]domain.Event{},
 		schedulerConfig: defaultSchedulerConfig(),
 		ingestionRuns:   map[string]domain.IngestionRun{},
 		runSources:      map[string][]domain.IngestionRunSource{},
@@ -88,6 +133,18 @@ func (r *InMemoryRepository) SeedSource(_ context.Context, source domain.SourceC
 		}
 	}
 	r.sources = append(r.sources, source)
+	return nil
+}
+
+func (r *InMemoryRepository) SeedEvent(_ context.Context, event domain.Event) error {
+	if err := event.Validate(); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.events[event.ID] = cloneEvent(event)
 	return nil
 }
 
@@ -193,6 +250,102 @@ func (r *InMemoryRepository) RawDocumentCount(_ context.Context, sourceID string
 		}
 	}
 	return count, nil
+}
+
+func (r *InMemoryRepository) ListRawDocuments(_ context.Context, filter RawDocumentListFilter) (RawDocumentPage, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	title := strings.ToLower(strings.TrimSpace(filter.Title))
+	items := make([]domain.RawDocument, 0, len(r.documents))
+	for _, doc := range r.documents {
+		if title != "" && !strings.Contains(strings.ToLower(doc.Title), title) {
+			continue
+		}
+		items = append(items, cloneRawDocument(doc))
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CollectedAt.After(items[j].CollectedAt)
+	})
+	total := len(items)
+	items = pageSlice(items, page, pageSize)
+	return RawDocumentPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+func (r *InMemoryRepository) ListEvents(_ context.Context, filter EventListFilter) (EventPage, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	title := strings.ToLower(strings.TrimSpace(filter.Title))
+	items := make([]domain.Event, 0, len(r.events))
+	for _, event := range r.events {
+		if title != "" && !strings.Contains(strings.ToLower(event.Title), title) {
+			continue
+		}
+		if filter.EventStatus != "" && event.EventStatus != filter.EventStatus {
+			continue
+		}
+		if filter.FactStatus != "" && event.FactStatus != filter.FactStatus {
+			continue
+		}
+		if filter.EventTimeFrom != nil {
+			if event.EventTime == nil || event.EventTime.Before(*filter.EventTimeFrom) {
+				continue
+			}
+		}
+		if filter.EventTimeTo != nil {
+			if event.EventTime == nil || event.EventTime.After(*filter.EventTimeTo) {
+				continue
+			}
+		}
+		if filter.FirstSeenFrom != nil && event.FirstSeenAt.Before(*filter.FirstSeenFrom) {
+			continue
+		}
+		if filter.FirstSeenTo != nil && event.FirstSeenAt.After(*filter.FirstSeenTo) {
+			continue
+		}
+		items = append(items, cloneEvent(event))
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if !items[i].FirstSeenAt.Equal(items[j].FirstSeenAt) {
+			return items[i].FirstSeenAt.After(items[j].FirstSeenAt)
+		}
+		if items[i].EventTime == nil {
+			return false
+		}
+		if items[j].EventTime == nil {
+			return true
+		}
+		return items[i].EventTime.After(*items[j].EventTime)
+	})
+	total := len(items)
+	items = pageSlice(items, page, pageSize)
+	return EventPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+func (r *InMemoryRepository) ListSourceCatalogs(_ context.Context, filter SourceCatalogListFilter) ([]domain.SourceCatalog, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	items := make([]domain.SourceCatalog, 0, len(r.sources))
+	for _, source := range r.sources {
+		if filter.Status != "" && source.Status != filter.Status {
+			continue
+		}
+		items = append(items, cloneSource(normalizeInMemorySource(source)))
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].ProviderKey != items[j].ProviderKey {
+			return items[i].ProviderKey < items[j].ProviderKey
+		}
+		if items[i].SourceName != items[j].SourceName {
+			return items[i].SourceName < items[j].SourceName
+		}
+		return items[i].ID < items[j].ID
+	})
+	return items, nil
 }
 
 func (r *InMemoryRepository) LoadSchedulerConfig(_ context.Context) (domain.SchedulerConfig, error) {
@@ -336,6 +489,26 @@ func cloneSource(source domain.SourceCatalog) domain.SourceCatalog {
 	return source
 }
 
+func cloneRawDocument(doc domain.RawDocument) domain.RawDocument {
+	if doc.PublishedAt != nil {
+		value := *doc.PublishedAt
+		doc.PublishedAt = &value
+	}
+	return doc
+}
+
+func cloneEvent(event domain.Event) domain.Event {
+	if event.EventTime != nil {
+		value := *event.EventTime
+		event.EventTime = &value
+	}
+	if event.KnowableAt != nil {
+		value := *event.KnowableAt
+		event.KnowableAt = &value
+	}
+	return event
+}
+
 func normalizeInMemorySource(source domain.SourceCatalog) domain.SourceCatalog {
 	if source.SourceLevel == "" {
 		source.SourceLevel = "secondary"
@@ -417,6 +590,28 @@ func cloneSchedulerConfig(config domain.SchedulerConfig) domain.SchedulerConfig 
 func cloneIngestionRun(run domain.IngestionRun) domain.IngestionRun {
 	run.SchedulerConfig = cloneMap(run.SchedulerConfig)
 	return run
+}
+
+func normalizePage(page int, pageSize int) (int, int) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	return page, pageSize
+}
+
+func pageSlice[T any](items []T, page int, pageSize int) []T {
+	start := (page - 1) * pageSize
+	if start >= len(items) {
+		return []T{}
+	}
+	end := start + pageSize
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[start:end]
 }
 
 func newSourceCatalogStats() SourceCatalogStats {

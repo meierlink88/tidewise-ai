@@ -1,22 +1,22 @@
 ## 1. OpenSpec Review
 
-- [ ] 1.1 确认 proposal、design、delta spec 和 tasks 覆盖本次只读管理后台范围。
-- [ ] 1.2 运行 `openspec validate expand-admin-data-ingestion-center` 并修正 artifact 问题。
+- [x] 1.1 确认 proposal、design、delta spec 和 tasks 覆盖本次只读管理后台范围。
+- [x] 1.2 运行 `openspec validate expand-admin-data-ingestion-center` 并修正 artifact 问题。
 
 ## 2. Backend TDD
 
-- [ ] 2.1 为 `GET /admin/raw-documents` 编写 Admin API 测试，覆盖 Admin Token、分页默认值、标题搜索和空结果。
-- [ ] 2.2 为 `GET /admin/events` 编写 Admin API 测试，覆盖 Admin Token、分页默认值、标题搜索、`event_status`、`fact_status`、`event_time` 范围和 `first_seen_at` 范围。
-- [ ] 2.3 为 `GET /admin/source-catalogs` 编写 Admin API 测试，覆盖 Admin Token、状态筛选和不返回 parser 字段。
-- [ ] 2.4 为 `GET /admin/scheduler/runs?limit=50` 补充测试，确认返回最近 50 条执行记录且统计语义为调度轮次内 source 结果。
+- [x] 2.1 为 `GET /admin/raw-documents` 编写 Admin API 测试，覆盖 Admin Token、分页默认值、标题搜索和空结果。
+- [x] 2.2 为 `GET /admin/events` 编写 Admin API 测试，覆盖 Admin Token、分页默认值、标题搜索、`event_status`、`fact_status`、`event_time` 范围和 `first_seen_at` 范围。
+- [x] 2.3 为 `GET /admin/source-catalogs` 编写 Admin API 测试，覆盖 Admin Token、状态筛选和不返回 parser 字段。
+- [x] 2.4 为 `GET /admin/scheduler/runs?limit=50` 补充测试，确认返回最近 50 条执行记录且统计语义为调度轮次内 source 结果。
 
 ## 3. Backend Implementation
 
-- [ ] 3.1 增加 admin 查询 filter、result 和 DTO，统一分页响应结构。
-- [ ] 3.2 在 repository 层实现原始数据分页查询、全球事件分页查询和搜索通道状态查询。
-- [ ] 3.3 在 `backend/internal/apps/adminapi` 增加原始数据、全球事件和搜索通道路由。
-- [ ] 3.4 复用现有调度器 run 查询接口，确保前端可以稳定获取最近 50 条执行记录。
-- [ ] 3.5 运行后端相关包测试和 `go test ./...`。
+- [x] 3.1 增加 admin 查询 filter、result 和 DTO，统一分页响应结构。
+- [x] 3.2 在 repository 层实现原始数据分页查询、全球事件分页查询和搜索通道状态查询。
+- [x] 3.3 在 `backend/internal/apps/adminapi` 增加原始数据、全球事件和搜索通道路由。
+- [x] 3.4 复用现有调度器 run 查询接口，确保前端可以稳定获取最近 50 条执行记录。
+- [x] 3.5 运行后端相关包测试和 `go test ./...`。
 
 ## 4. Frontend TDD And Verification
 
