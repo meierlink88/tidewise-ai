@@ -7,6 +7,9 @@ import (
 )
 
 type AIWebResearchConfig struct {
+	CollectionMode    string
+	SearchPlanMode    string
+	SearchQueries     []SearchQueryConfig
 	WebSearchPlan     WebSearchPlan
 	CredentialRefs    map[string]string
 	LLMProvider       string
@@ -20,6 +23,15 @@ type AIWebResearchConfig struct {
 	OutputSchema      map[string]any
 	SourcePreferences map[string]any
 	TrustedDomains    []string
+}
+
+type SearchQueryConfig struct {
+	Query      string
+	Region     string
+	Topic      string
+	Providers  []string
+	MaxResults int
+	Options    map[string]any
 }
 
 type WebSearchPlan struct {
@@ -62,8 +74,15 @@ func ParseAIWebResearchConfig(source domain.SourceCatalog) (AIWebResearchConfig,
 	if err != nil {
 		return AIWebResearchConfig{}, err
 	}
+	searchQueries, err := parseSearchQueries(config["search_queries"])
+	if err != nil {
+		return AIWebResearchConfig{}, err
+	}
 
 	parsed := AIWebResearchConfig{
+		CollectionMode:    optionalConfigString(config, "collection_mode"),
+		SearchPlanMode:    optionalConfigString(config, "search_plan_mode"),
+		SearchQueries:     searchQueries,
 		WebSearchPlan:     plan,
 		CredentialRefs:    credentialRefs,
 		LLMProvider:       requiredConfigString(config, "llm_provider"),
@@ -78,6 +97,43 @@ func ParseAIWebResearchConfig(source domain.SourceCatalog) (AIWebResearchConfig,
 		SourcePreferences: sourcePreferences,
 		TrustedDomains:    trustedDomains,
 	}
+	if parsed.CollectionMode == "" {
+		parsed.CollectionMode = "llm_normalized_items"
+	}
+	if parsed.SearchPlanMode == "" {
+		parsed.SearchPlanMode = "source_topic_hint"
+	}
+	if parsed.CollectionMode == "search_results" && parsed.SearchPlanMode == "static_query_plan" {
+		if len(parsed.SearchQueries) == 0 {
+			return AIWebResearchConfig{}, fmt.Errorf("search_queries are required")
+		}
+		if parsed.MaxResults <= 0 {
+			return AIWebResearchConfig{}, fmt.Errorf("max_results must be positive")
+		}
+		return parsed, nil
+	}
+	if parsed.CollectionMode == "search_results" && parsed.SearchPlanMode == "llm_query_plan" {
+		if err := validateLLMSettings(parsed); err != nil {
+			return AIWebResearchConfig{}, err
+		}
+		if parsed.CredentialRefs["planner"] == "" {
+			return AIWebResearchConfig{}, fmt.Errorf("credential_refs.planner is required")
+		}
+		if connectorPositiveInt(parsed.PromptVariables["max_queries"]) <= 0 {
+			return AIWebResearchConfig{}, fmt.Errorf("prompt_variables.max_queries must be positive")
+		}
+		return parsed, nil
+	}
+	if err := validateLLMSettings(parsed); err != nil {
+		return AIWebResearchConfig{}, err
+	}
+	if parsed.MaxResults <= 0 {
+		return AIWebResearchConfig{}, fmt.Errorf("max_results must be positive")
+	}
+	return parsed, nil
+}
+
+func validateLLMSettings(parsed AIWebResearchConfig) error {
 	for _, check := range []struct {
 		name  string
 		value string
@@ -90,13 +146,43 @@ func ParseAIWebResearchConfig(source domain.SourceCatalog) (AIWebResearchConfig,
 		{name: "prompt_version", value: parsed.PromptVersion},
 	} {
 		if check.value == "" {
-			return AIWebResearchConfig{}, fmt.Errorf("%s is required", check.name)
+			return fmt.Errorf("%s is required", check.name)
 		}
 	}
-	if parsed.MaxResults <= 0 {
-		return AIWebResearchConfig{}, fmt.Errorf("max_results must be positive")
+	return nil
+}
+
+func parseSearchQueries(value any) ([]SearchQueryConfig, error) {
+	if value == nil {
+		return nil, nil
 	}
-	return parsed, nil
+	rawItems, ok := value.([]any)
+	if !ok {
+		return nil, fmt.Errorf("search_queries must be an array")
+	}
+	queries := make([]SearchQueryConfig, 0, len(rawItems))
+	for _, item := range rawItems {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("search query must be an object")
+		}
+		query := SearchQueryConfig{
+			Query:      jsonStringValue(itemMap["query"]),
+			Region:     jsonStringValue(itemMap["region"]),
+			Topic:      jsonStringValue(itemMap["topic"]),
+			Providers:  stringSliceValue(itemMap["providers"]),
+			MaxResults: connectorPositiveInt(itemMap["max_results"]),
+			Options:    optionalAnyMap(itemMap["options"]),
+		}
+		if query.Query == "" {
+			return nil, fmt.Errorf("search query is required")
+		}
+		if query.MaxResults <= 0 {
+			return nil, fmt.Errorf("search query max_results must be positive")
+		}
+		queries = append(queries, query)
+	}
+	return queries, nil
 }
 
 func parseWebSearchPlan(value any) (WebSearchPlan, error) {
@@ -148,9 +234,16 @@ func requiredConfigString(config map[string]any, key string) string {
 	return jsonStringValue(config[key])
 }
 
+func optionalConfigString(config map[string]any, key string) string {
+	return jsonStringValue(config[key])
+}
+
 func parseStringMap(config map[string]any, key string) (map[string]string, error) {
 	value, ok := config[key]
 	if !ok {
+		if key == "credential_refs" {
+			return map[string]string{}, nil
+		}
 		return nil, fmt.Errorf("%s is required", key)
 	}
 	raw, ok := value.(map[string]any)
@@ -193,6 +286,18 @@ func parseStringSlice(config map[string]any, key string) ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("%s must be an array", key)
 	}
+	return stringSliceItems(raw), nil
+}
+
+func stringSliceValue(value any) []string {
+	raw, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	return stringSliceItems(raw)
+}
+
+func stringSliceItems(raw []any) []string {
 	result := make([]string, 0, len(raw))
 	for _, item := range raw {
 		text := jsonStringValue(item)
@@ -200,7 +305,7 @@ func parseStringSlice(config map[string]any, key string) ([]string, error) {
 			result = append(result, text)
 		}
 	}
-	return result, nil
+	return result
 }
 
 func connectorPositiveInt(value any) int {

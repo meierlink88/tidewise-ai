@@ -133,6 +133,13 @@ func TestAIWebResearchSourceGroupCoversInitialSearchProviders(t *testing.T) {
 		if source.SourceConfig["kind"] != "llm_web_research" {
 			t.Fatalf("source %q kind = %v, want llm_web_research", source.ID, source.SourceConfig["kind"])
 		}
+		if source.SourceConfig["search_plan_mode"] != "llm_query_plan" {
+			t.Fatalf("source %q search_plan_mode = %v, want llm_query_plan", source.ID, source.SourceConfig["search_plan_mode"])
+		}
+		credentialRefs, ok := source.SourceConfig["credential_refs"].(map[string]any)
+		if !ok || credentialRefs["planner"] == "" {
+			t.Fatalf("source %q credential_refs.planner is missing", source.ID)
+		}
 		plan, ok := source.SourceConfig["web_search_plan"].(map[string]any)
 		if !ok {
 			t.Fatalf("source %q web_search_plan is missing", source.ID)
@@ -158,6 +165,9 @@ func TestAIWebResearchSourceGroupCoversInitialSearchProviders(t *testing.T) {
 		promptRef, ok := source.SourceConfig["prompt_ref"].(string)
 		if !ok || promptRef == "" {
 			t.Fatalf("source %q prompt_ref is missing", source.ID)
+		}
+		if promptRef != "ingestion/ai_web_research/search-plan.v1.md" {
+			t.Fatalf("source %q prompt_ref = %q, want search plan prompt", source.ID, promptRef)
 		}
 		promptPath := filepath.Join("..", "..", "..", "..", "data", "prompts", filepath.FromSlash(promptRef))
 		if _, err := os.Stat(promptPath); err != nil {

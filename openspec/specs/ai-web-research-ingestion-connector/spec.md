@@ -1,7 +1,11 @@
-## ADDED Requirements
+## Purpose
+
+定义 AI Web Research 采集连接器的当前系统事实，覆盖 `source_catalogs` 驱动的多 Web Search API tool、LLM 查询计划、repo prompt、结构化搜索结果契约、原始文档内容来源标记和采集职责安全边界。
+
+## Requirements
 
 ### Requirement: AI Web Research 采集连接器
-系统 SHALL 将多个 Web Search API tool 与 LLM 结构化整理接入为 `source_catalogs` 驱动的单一 AI Web Research 采集连接器，并将检索结果标准化为原始文档候选对象。
+系统 SHALL 将多个 Web Search API tool 接入为 `source_catalogs` 驱动的单一 AI Web Research 采集连接器，并将检索结果标准化为原始文档候选对象。
 
 #### Scenario: 执行 AI Web Research source
 - **WHEN** 采集任务读取到 active 状态且 `connector_key=llm_web_research` 的采集源
@@ -17,7 +21,15 @@
 
 #### Scenario: 多搜索工具合并
 - **WHEN** AI Web Research source 的 `web_search_plan` 配置多个搜索工具
-- **THEN** 系统必须按配置的 parallel、fallback 或 sequential 模式执行搜索，并在调用 LLM 前完成结果归一化、URL 规范化、标题或内容哈希去重、可信域名标记、排序和总量截断
+- **THEN** 系统必须按配置的 parallel、fallback 或 sequential 模式执行搜索，并完成结果归一化、URL 规范化、标题或内容哈希去重、可信域名标记、排序和总量截断
+
+#### Scenario: 固定查询计划采集
+- **WHEN** AI Web Research source 配置 `collection_mode=search_results`、`search_plan_mode=static_query_plan` 和 `search_queries`
+- **THEN** 系统必须按 `search_queries` 中的查询条件执行 Web Search，并由 Go 程序把搜索结果映射为包含 `items` 数组的 JSON 响应，不得调用 LLM normalizer 格式化搜索结果
+
+#### Scenario: 查询级 provider 限定
+- **WHEN** `search_queries` 中某条查询声明 `providers`
+- **THEN** 系统必须只使用该查询允许的 Web Search tool 执行搜索；未声明 `providers` 时可以使用 `web_search_plan` 中的全部 tool
 
 #### Scenario: 中国财经来源优先
 - **WHEN** AI Web Research source 配置中国财经类来源偏好或可信域名
@@ -26,6 +38,18 @@
 #### Scenario: LLM 结构化整理
 - **WHEN** Web Search provider 返回搜索结果
 - **THEN** 系统可以调用 LLM normalizer 将搜索结果整理为 `items` JSON，但不得把 LLM 生成的 model、query_time 或未经校验的来源字段当作系统事实
+
+#### Scenario: LLM 查询计划
+- **WHEN** AI Web Research source 配置 `collection_mode=search_results`、`search_plan_mode=llm_query_plan`、`prompt_ref`、`prompt_version`、`prompt_variables` 和 LLM planner 参数
+- **THEN** 系统必须加载 repo prompt，将采集意图、时间窗口、地区配比、主题范围、来源偏好、排除规则、provider 白名单和查询数量上限传给 LLM planner，并要求 planner 只返回 `queries` 查询计划 JSON
+
+#### Scenario: 校验 LLM 查询计划
+- **WHEN** LLM planner 返回查询计划
+- **THEN** 系统必须校验 `queries` 为对象数组、`query` 非空、`providers` 只包含 `web_search_plan` 已允许的 provider、`max_results` 为正且不超过配置上限、查询数量不超过配置上限，并拒绝包含 `items`、`title`、`content_text`、`source_url`、事件、标签、实体关系或 raw document 字段的响应
+
+#### Scenario: 执行模型生成的查询计划
+- **WHEN** LLM 查询计划通过校验
+- **THEN** 系统必须将其转换为与固定查询计划相同的搜索请求结构，复用 Web Search adapter、合并去重、可信域名排序、程序化 `items` 映射、parser 校验和 raw document 写入链路，不得调用 LLM normalizer 格式化搜索结果
 
 #### Scenario: 关闭结构化整理思考模式
 - **WHEN** 系统调用 DeepSeek/OpenAI-compatible LLM normalizer 执行搜索结果结构化整理
@@ -38,12 +62,16 @@
 ### Requirement: AI connector source_config
 系统 SHALL 使用 `source_config` 保存 AI Web Research connector 的非敏感运行参数，并拒绝包含真实密钥的配置。
 
+#### Scenario: 读取固定查询计划
+- **WHEN** connector 准备执行阶段一 AI Web Research source
+- **THEN** 系统必须能够从 `source_config` 读取 `collection_mode`、`search_plan_mode`、`search_queries`、`web_search_plan`、来源偏好、可信域名、最大结果数、语言和输出 schema
+
 #### Scenario: 读取模型运行参数
 - **WHEN** connector 准备执行 AI Web Research source
-- **THEN** 系统必须能够从 `source_config` 读取 `web_search_plan`、来源偏好、可信域名、LLM provider、API base URL、API 协议、模型名、`prompt_ref`、`prompt_version`、`prompt_variables`、时间窗口、最大结果数、语言和输出 schema
+- **THEN** 系统必须能够从 `source_config` 读取可选的 LLM provider、API base URL、API 协议、模型名、`prompt_ref`、`prompt_version` 和 `prompt_variables`，用于后续 LLM 查询计划或兼容 normalizer 模式
 
 #### Scenario: 读取 repo prompt 文件
-- **WHEN** connector 准备调用 LLM normalizer
+- **WHEN** connector 准备调用 LLM search planner 或兼容 LLM normalizer
 - **THEN** 系统必须根据 `prompt_ref` 和 `prompt_version` 加载 repo 内版本化 prompt 文件，并用 `prompt_variables` 渲染运行时变量，不得要求 `source_config` 保存完整提示词正文
 
 #### Scenario: 拒绝敏感配置
@@ -51,7 +79,7 @@
 - **THEN** 系统必须拒绝加载该 source 或返回配置错误，真实凭证只能通过 `credential_ref` 注入
 
 ### Requirement: 结构化搜索结果契约
-系统 SHALL 要求 AI Web Research provider 返回可校验的结构化 JSON 对象，并以 `items` 数组表达待写入的原始材料。
+系统 SHALL 要求 AI Web Research connector 返回可校验的结构化 JSON 对象，并以 `items` 数组表达待写入的原始材料。
 
 #### Scenario: 解析有效结果
 - **WHEN** provider 返回包含 `items` 数组的结构化 JSON

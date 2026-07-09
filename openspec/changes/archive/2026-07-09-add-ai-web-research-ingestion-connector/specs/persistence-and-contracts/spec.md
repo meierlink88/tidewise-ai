@@ -5,7 +5,7 @@
 
 #### Scenario: 保存 AI connector 配置
 - **WHEN** AI Web Research source 被 seed 到 `source_catalogs`
-- **THEN** PostgreSQL 必须保存该 source 的 `web_search_plan`、搜索选项、来源偏好、可信域名、LLM provider、API base URL、API 协议、模型名、`prompt_ref`、`prompt_version`、`prompt_variables`、时间窗口、结果上限、语言和输出 schema 等非敏感配置
+- **THEN** PostgreSQL 必须保存该 source 的 `collection_mode`、`search_plan_mode`、固定查询计划、`web_search_plan`、搜索选项、来源偏好、可信域名、LLM planner provider、API base URL、API 协议、模型名、`prompt_ref`、`prompt_version`、`prompt_variables`、时间窗口、结果上限、语言和输出 schema 等非敏感配置
 
 #### Scenario: 引用真实凭证
 - **WHEN** AI Web Research source 需要调用真实 Web Search API 或真实模型 API
@@ -16,7 +16,7 @@
 
 #### Scenario: 保存采集上下文
 - **WHEN** AI Web Research item 写入原始文档边界
-- **THEN** 系统必须保留 web_search_plan 摘要、参与召回的 search tool、llm_provider、model、api_protocol、prompt_ref、prompt_version、prompt_purpose、search_options、source_preferences、trusted_domain_match、content_origin、retrieval_method、source_attribution_type、来源说明、provider 搜索元数据和原始返回片段等非敏感元数据
+- **THEN** 系统必须保留 search_plan_mode、查询计划来源、web_search_plan 摘要、参与召回的 search tool、llm_provider、model、api_protocol、prompt_ref、prompt_version、prompt_purpose、search_options、source_preferences、trusted_domain_match、content_origin、retrieval_method、source_attribution_type、来源说明、provider 搜索元数据和原始返回片段等非敏感元数据
 
 #### Scenario: 排除敏感元数据
 - **WHEN** 保存 AI Web Research 原始返回或请求元数据

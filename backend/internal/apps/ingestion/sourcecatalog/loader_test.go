@@ -130,6 +130,64 @@ func TestLoadManifestValidatesAIWebResearchSourceConfig(t *testing.T) {
 	}
 }
 
+func TestLoadManifestAllowsAIWebResearchStaticSearchPlanWithoutLLMSettings(t *testing.T) {
+	path := writeManifest(t, `{
+		"sources": [
+			{
+				"id": "tidewise:ai-web-research:static",
+				"origin_system": "Tidewise",
+				"stage": "ai_web_research",
+				"ingest_channel": "ai_web_research",
+				"provider_key": "llm_web_research",
+				"connector_key": "llm_web_research",
+				"parser_key": "llm_research_items",
+				"source_type": "news",
+				"source_group": "ai_web_research",
+				"source_name": "AI Web Research 固定查询采集",
+				"source_url": "tidewise://ai-web-research/static",
+				"source_level": "secondary",
+				"topic_hint": "近24小时全球政经财经热点",
+				"auth_required": true,
+				"auth_type": "api_key",
+				"credential_ref": "",
+				"rate_limit_policy": {"requests_per_minute": 6},
+				"usage_policy": "ai_web_research_governance",
+				"source_config": {
+					"kind": "llm_web_research",
+					"collection_mode": "search_results",
+					"search_plan_mode": "static_query_plan",
+					"search_queries": [
+						{
+							"query": "近24小时 中国 财经 政策 A股 港股 产业影响",
+							"providers": ["bocha_web_search"],
+							"max_results": 20
+						}
+					],
+					"web_search_plan": {
+						"mode": "parallel",
+						"tools": [
+							{"provider": "bocha_web_search", "credential_ref": "env:BOCHA_API_KEY", "max_results": 20}
+						]
+					},
+					"max_results": 20,
+					"output_schema": {"type": "llm_research_items.v1"},
+					"source_preferences": {"region": "china_finance"},
+					"trusted_domains": ["pbc.gov.cn", "sse.com.cn"]
+				},
+				"status": "inactive"
+			}
+		]
+	}`)
+
+	manifest, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+	if manifest.Sources[0].SourceConfig["search_plan_mode"] != "static_query_plan" {
+		t.Fatalf("search_plan_mode = %v, want static_query_plan", manifest.Sources[0].SourceConfig["search_plan_mode"])
+	}
+}
+
 func TestLoadManifestRejectsAIWebResearchSourceWithoutSearchPlan(t *testing.T) {
 	path := writeManifest(t, `{
 		"sources": [

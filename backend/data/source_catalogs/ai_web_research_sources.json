@@ -21,6 +21,8 @@
       "usage_policy": "ai_web_research_governance",
       "source_config": {
         "kind": "llm_web_research",
+        "collection_mode": "search_results",
+        "search_plan_mode": "llm_query_plan",
         "web_search_plan": {
           "mode": "parallel",
           "tools": [
@@ -52,22 +54,27 @@
           ]
         },
         "credential_refs": {
-          "llm": "env:DEEPSEEK_API_KEY"
+          "planner": "env:QWEN_API_KEY"
         },
-        "llm_provider": "deepseek",
-        "api_base_url": "https://api.deepseek.com",
+        "llm_provider": "qwen",
+        "api_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "api_protocol": "openai_compatible",
-        "model": "deepseek-v4-pro",
-        "prompt_ref": "ingestion/ai_web_research/cn-finance-daily.v1.md",
+        "model": "qwen3.7-plus",
+        "prompt_ref": "ingestion/ai_web_research/search-plan.v1.md",
         "prompt_version": "v1",
         "prompt_variables": {
           "language": "zh-CN",
           "time_window": "24h",
-          "max_items": 20,
-          "region": "china"
+          "max_queries": 6,
+          "max_results_per_query": 20,
+          "region_mix": "中国财经来源为主，少量全球来源用于补充外部冲击",
+          "topic_scope": "央行、财政、贸易、能源、地缘冲突、产业政策、科技供应链、A股、港股和产业链影响",
+          "source_preferences": "中国官方机构、交易所、主流财经媒体、可信中文财经站点优先",
+          "allowed_providers": "bocha_web_search,tavily",
+          "excluded_scope": "纯个股公告、普通公司新闻、价格预测、投资建议、营销软文和无来源线索内容"
         },
         "freshness_window": "24h",
-        "max_results": 20,
+        "max_results": 50,
         "output_schema": {
           "type": "llm_research_items.v1"
         },
@@ -113,6 +120,8 @@
       "usage_policy": "ai_web_research_governance",
       "source_config": {
         "kind": "llm_web_research",
+        "collection_mode": "search_results",
+        "search_plan_mode": "llm_query_plan",
         "web_search_plan": {
           "mode": "parallel",
           "tools": [
@@ -144,22 +153,27 @@
           ]
         },
         "credential_refs": {
-          "llm": "env:DEEPSEEK_API_KEY"
+          "planner": "env:QWEN_API_KEY"
         },
-        "llm_provider": "deepseek",
-        "api_base_url": "https://api.deepseek.com",
+        "llm_provider": "qwen",
+        "api_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "api_protocol": "openai_compatible",
-        "model": "deepseek-v4-pro",
-        "prompt_ref": "ingestion/ai_web_research/global-macro-daily.v1.md",
+        "model": "qwen3.7-plus",
+        "prompt_ref": "ingestion/ai_web_research/search-plan.v1.md",
         "prompt_version": "v1",
         "prompt_variables": {
           "language": "zh-CN",
           "time_window": "24h",
-          "max_items": 20,
-          "region": "global"
+          "max_queries": 6,
+          "max_results_per_query": 20,
+          "region_mix": "全球英文来源为主，中国中文来源用于补充中国市场相关影响",
+          "topic_scope": "央行、财政、贸易、能源、地缘冲突、产业政策、科技供应链、全球宏观和股票市场影响",
+          "source_preferences": "Reuters、AP、Bloomberg、FT、央行、国际组织、OPEC、WTO 和中国重要官方来源优先",
+          "allowed_providers": "tavily,bocha_web_search",
+          "excluded_scope": "纯个股公告、普通公司新闻、价格预测、投资建议、营销软文和无来源线索内容"
         },
         "freshness_window": "24h",
-        "max_results": 20,
+        "max_results": 50,
         "output_schema": {
           "type": "llm_research_items.v1"
         },

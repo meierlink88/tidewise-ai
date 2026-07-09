@@ -31,6 +31,26 @@ func TestLoaderLoadsVersionedPromptAndRendersVariables(t *testing.T) {
 	}
 }
 
+func TestLoaderLoadsSearchPlanPromptVariables(t *testing.T) {
+	root := t.TempDir()
+	writePrompt(t, root, "ingestion/ai_web_research/search-plan.v1.md", "最大查询数={{max_queries}}\n工具={{allowed_providers}}\n排除={{excluded_scope}}")
+
+	prompt, err := Loader{Root: root}.Load("ingestion/ai_web_research/search-plan.v1.md", "v1", map[string]any{
+		"max_queries":       6,
+		"allowed_providers": "tavily,bocha_web_search",
+		"excluded_scope":    "投资建议",
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !strings.Contains(prompt.Text, "最大查询数=6") {
+		t.Fatalf("Text = %q, want max queries rendered", prompt.Text)
+	}
+	if !strings.Contains(prompt.Text, "工具=tavily,bocha_web_search") {
+		t.Fatalf("Text = %q, want allowed providers rendered", prompt.Text)
+	}
+}
+
 func TestLoaderRejectsVersionMismatch(t *testing.T) {
 	root := t.TempDir()
 	writePrompt(t, root, "ingestion/ai_web_research/cn-finance-daily.v1.md", "正文")

@@ -2,7 +2,9 @@
 
 ## AI Web Research 采集
 
-`llm_web_research` 是采集子系统中的一个 connector。它通过 `source_catalogs` 驱动，先调用 Web Search API 获取候选材料，再调用 OpenAI-compatible LLM normalizer 输出结构化 JSON，最后由 `llm_research_items` parser 转成统一 `raw_documents` 候选对象。
+`llm_web_research` 是采集子系统中的一个 connector。它通过 `source_catalogs` 驱动，可以使用固定查询计划，也可以先调用 OpenAI-compatible LLM search planner 把采集意图转换为查询计划；随后由 Go 程序调用 Web Search API 获取候选材料、去重排序并映射为结构化 `items`，最后由 `llm_research_items` parser 转成统一 `raw_documents` 候选对象。
+
+当前正式 AI source 使用 `collection_mode=search_results` 和 `search_plan_mode=llm_query_plan`。LLM 只负责生成 `queries` 查询计划，不负责生成新闻标题、正文、URL、事件、标签、实体关系或 raw document 字段。
 
 当前支持的 Web Search tool：
 
@@ -23,13 +25,15 @@ backend/data/source_catalogs/ai_web_research_sources.json
 - `parser_key`: 固定为 `llm_research_items`。
 - `source_config.web_search_plan`: 配置一个或多个 Web Search tool、执行模式、每个 tool 的 `max_results`、`credential_ref` 和 provider options。
 - `source_config.web_search_plan.tools[].base_url`: 配置 Web Search provider 的官方地址、代理网关或私有化服务地址；代码默认地址只作为 fallback。
-- `source_config.credential_refs.llm`: LLM API key 的环境变量引用。
-- `source_config.api_base_url`: LLM OpenAI-compatible base URL。
-- `source_config.model`: LLM 模型名。
-- `source_config.prompt_ref`: repo prompt 文件引用。
+- `source_config.collection_mode`: 当前正式路径为 `search_results`。
+- `source_config.search_plan_mode`: 当前正式路径为 `llm_query_plan`，固定查询回归测试使用 `static_query_plan`。
+- `source_config.credential_refs.planner`: LLM planner API key 的环境变量引用。
+- `source_config.api_base_url`: LLM planner OpenAI-compatible base URL。
+- `source_config.model`: LLM planner 模型名。
+- `source_config.prompt_ref`: repo prompt 文件引用，当前正式路径使用 `ingestion/ai_web_research/search-plan.v1.md`。
 - `source_config.prompt_version`: prompt 版本。
 - `source_config.prompt_variables`: prompt 渲染变量。
-- `source_config.max_results`: 单次结构化结果上限。
+- `source_config.max_results`: 单次搜索结果总上限。
 - `source_config.trusted_domains`: 可信来源域名，用于排序和审计。
 
 真实密钥不得写入 `source_config`、seed 文件、配置文件或源码，只能通过 `credential_ref` 引用环境变量或部署 secret。
@@ -58,7 +62,8 @@ go test ./internal/apps/ingestion/runtime
 
 - 多 Web Search tool 合并、去重、排序和 provider report。
 - nested `credential_ref` 解析。
-- LLM 结构化 JSON 输出。
+- LLM 查询计划输出和校验。
+- Go 程序化映射搜索结果为结构化 `items`。
 - `llm_research_items` parser 校验。
 - 复用现有 `IngestionJob` 和 `RawDocumentWriter` 幂等写入路径。
 
@@ -70,13 +75,13 @@ go test ./internal/apps/ingestion/runtime
 
 ```bash
 APP_ENV=local DATABASE_PASSWORD=tidewise-local-dev-password \
-TAVILY_API_KEY=... BOCHA_API_KEY=... DEEPSEEK_API_KEY=... \
+TAVILY_API_KEY=... BOCHA_API_KEY=... QWEN_API_KEY=... \
 go run ./cmd/source-ingest \
-  -source-id tidewise:ai-web-research:cn-finance-daily \
   -provider llm_web_research \
   -channel ai_web_research \
   -source-type news \
-  -require-env TAVILY_API_KEY,BOCHA_API_KEY,DEEPSEEK_API_KEY
+  -concurrency 1 \
+  -require-env TAVILY_API_KEY,BOCHA_API_KEY,QWEN_API_KEY
 ```
 
-运行前应确认目标 source 已 seed 到本地数据库，且 source 状态为 `active`。真实验证结果以 `source-ingest` 输出的 JSON report 和 `raw_documents` 入库结果为准。
+运行前应确认目标 source 已 seed 到本地数据库，且需要验证的 AI source 状态为 `active`。PostgreSQL 中的 `source_catalogs.id` 是规范化 UUID；如需只跑单个 source，应先查询真实 UUID 再使用 `-source-id`。真实验证结果以 `source-ingest` 输出的 JSON report 和 `raw_documents` 入库结果为准。

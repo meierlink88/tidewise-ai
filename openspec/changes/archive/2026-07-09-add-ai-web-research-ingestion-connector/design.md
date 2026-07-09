@@ -2,19 +2,20 @@
 
 当前采集层已经通过 `source_catalogs`、connector、parser、runtime 和 repository 写入 `raw_documents`。`source_config` 已作为 `source_catalogs` 的 JSONB 扩展字段存在，可保存 connector 专属的非敏感运行参数；真实凭证通过 `credential_ref` 指向环境变量或部署 secret。
 
-本 change 的设计目标是把 Web Search API provider 接入为开放互联网材料召回工具，并用大模型对召回结果做结构化整理。它不是事件图谱抽取能力，也不是外部 Agent 平台编排能力。它只负责按采集系统统一触发方式执行搜索、可选网页抓取、结构化整理和 raw document 候选对象写入。
+本 change 的设计目标是把 Web Search API provider 接入为开放互联网材料召回工具，并把搜索结果确定性标准化为 raw document 候选对象。它不是事件图谱抽取能力，也不是外部 Agent 平台编排能力。它只负责按采集系统统一触发方式执行搜索、可选网页抓取、程序侧结构化和 raw document 候选对象写入。
 
-前期验证结论是：`Tavily Search API + DeepSeek/OpenAI-compatible LLM normalizer` 可以返回中国财经和全球政经候选材料，但单一 Tavily provider 对中国本土财经来源覆盖不稳定。因此首期设计必须让同一个 AI Web Research connector 在 Web Search tool 层组合多个 API，并通过搜索计划、来源偏好和可信域名白名单提高中国财经来源召回质量。
+前期验证结论是：Tavily 和博查可以返回中国财经和全球政经候选材料，但单一 Tavily provider 对中国本土财经来源覆盖不稳定。进一步验证也表明，将搜索结果再交给 LLM normalizer 格式化会带来延迟、成本和字段稳定性问题。因此阶段一必须让同一个 AI Web Research connector 在 Web Search tool 层组合多个 API，并由 Go 程序把搜索结果直接映射为 `items` JSON；阶段二引入 LLM search planner，让模型只负责把采集意图提示词生成查询计划。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- 新增 `llm_web_research` connector 和 `llm_research_items` parser，使 Web Search API + LLM Web Research 成为 `source_catalogs` 驱动的采集通道。
-- 通过 `source_config` 保存非敏感运行参数：Web Search tool plan、来源偏好、可信域名、LLM provider、API base URL、协议类型、模型名、提示词引用、提示词版本、提示词变量、结果条数、时间窗口、语言和输出 schema。
+- 新增 `llm_web_research` connector 和 `llm_research_items` parser，使 Web Search API 成为 `source_catalogs` 驱动的采集通道。
+- 通过 `source_config` 保存非敏感运行参数：采集模式、查询计划模式、固定搜索查询、Web Search tool plan、来源偏好、可信域名、结果条数、时间窗口、语言和输出 schema。
+- 阶段二支持 `search_plan_mode=llm_query_plan`，通过 LLM provider、API base URL、协议类型、模型名、提示词引用、提示词版本和提示词变量生成查询计划；无论使用哪个模型，搜索执行和 raw document 字段映射仍由 Go 程序完成。
 - 将较长的 prompt 正文保存为 repo 内版本化文件，`source_config` 只保存 `prompt_ref`、`prompt_version` 和少量运行变量。
 - 通过 `credential_ref` 或 `source_config.credential_refs` 引用真实 API key，禁止把 Web Search provider key、LLM key 写入 `source_config`、seed 文件、配置文件或源码。
-- 约束模型返回结构化 JSON 对象，核心字段为 `items` 数组，每个 item 可转为一条原始文档候选对象。
+- 约束 connector 返回结构化 JSON 对象，核心字段为 `items` 数组，每个 item 可转为一条原始文档候选对象。阶段一该对象由 Go 程序生成，而不是由 LLM 生成。
 - 记录内容来源质量，区分网页原文、搜索摘录和模型总结，供后续事件抽取判断证据质量。
 - 单元测试使用 fake 或 `httptest` 验证多 Web Search provider 搜索请求、LLM 结构化请求、响应解析、凭证缺失、非法 JSON、结构化校验和 raw document 转换。
 
@@ -22,7 +23,8 @@
 
 - 不在本 change 中抽取事件、标签、实体关联或实体关系。
 - 不在本 change 中生成投资建议、涨跌预测、利好利空、传导强度或事件评分。
-- 不要求大模型天然具备联网搜索；首期搜索能力由明确的 Web Search API provider 提供，LLM 只负责结构化整理。DeepSeek tool-call loop 可作为后续增强，不作为首期必要路径。
+- 不要求大模型天然具备联网搜索；首期搜索能力由明确的 Web Search API provider 提供，LLM 不参与搜索结果格式化。DeepSeek tool-call loop 或 LLM search planner 可作为后续增强，不作为阶段一必要路径。
+- 不让 LLM search planner 输出新闻正文、标题、来源 URL、事件、标签、实体关系或 raw document items。
 - 不在本 change 中建设 prompt 管理后台或数据库 prompt 模板表；MVP 阶段提示词以 repo 文件方式版本化管理。
 - 不引入独立图数据库、向量数据库、外部 Agent 工作流平台或前端展示。
 
@@ -42,7 +44,7 @@ AI connector 的搜索计划、搜索选项、LLM API base URL、协议类型、
 
 ### Decision: 一个 AI connector 内组合多个 Web Search API
 
-首期不依赖 Qwen、DeepSeek 或其他大模型自带联网能力。connector 先由 Go 后端确定性调用 Web Search API，获取标题、URL、摘要、来源、发布时间、原始搜索元数据和可选 raw content，再把搜索结果交给 LLM 做结构化整理。
+首期不依赖 Qwen、DeepSeek 或其他大模型自带联网能力。connector 先由 Go 后端确定性调用 Web Search API，获取标题、URL、摘要、来源、发布时间、原始搜索元数据和可选 raw content，再由 Go 程序把搜索结果映射为 `items` JSON。
 
 备选方案是直接让模型通过 Chat Completions 自己搜索。前期验证显示 Qwen 和 DeepSeek Chat 直接调用容易出现旧新闻、错误时间、伪造 model、缺失 URL 或空数组，不能作为稳定采集源。Tavily 作为明确搜索工具更利于审计、重试、限流和测试。
 
@@ -109,17 +111,79 @@ backend/data/prompts/ingestion/ai_web_research/
 
 这样做的好处是提示词可以被 git diff、OpenSpec review、代码 review 和测试 fixture 明确审计；`source_config` 仍然负责“这个 source 用哪个 prompt 和哪些变量”，但不承担长文本模板的维护职责。后续如果需要运营后台在线编辑 prompt，再通过独立 change 引入 prompt template 表、发布流程和审批机制。
 
-### Decision: LLM 结构化整理与搜索召回分离
+### Decision: 阶段一使用固定查询计划和程序化入库映射
 
-connector 内部使用统一请求模型表达 web search plan、LLM provider、protocol、model、prompt ref、prompt variables、search options、max results 和 timeout。Web Search tools 负责搜索召回；connector 负责合并和去重；LLM 负责把搜索结果整理为 `items` JSON；parser 负责硬校验和 raw document candidate 转换。
+阶段一新增 `collection_mode=search_results` 和 `search_plan_mode=static_query_plan`。`source_config.search_queries` 保存一组人工设计的查询条件，每个查询可以指定 query 文本、地区、主题、允许的 provider、结果上限和少量查询选项。connector 按这些查询调用 `web_search_plan` 中的 Tavily 和博查 adapter，合并所有搜索结果，执行 URL 去重、可信域名排序和总量截断，然后由 Go 程序生成与现有 parser 兼容的 `items` JSON。
 
-DeepSeek Tool Calls 可以在后续版本中作为增强模式：模型先返回 `web_search` 或 `web_fetch` tool call，Go 后端执行 Tavily 或网页抓取，再回传工具结果。但首期优先实现确定性搜索/fetch + LLM normalizer，降低 agent 多轮不稳定性。
+阶段一的关键边界是：LLM 不负责格式化搜索结果，不生成 `title`、`content_text`、`source_url` 等入库字段。字段来源必须来自 Web Search provider 返回的标题、URL、snippet、summary、raw content、siteName 和发布时间。`content_origin` 根据 provider 内容质量由程序设置为 `web_content` 或 `search_snippet`。
+
+示例配置：
+
+```json
+{
+  "collection_mode": "search_results",
+  "search_plan_mode": "static_query_plan",
+  "search_queries": [
+    {
+      "query": "近24小时 中国 财经 政策 A股 港股 产业影响",
+      "region": "china",
+      "topic": "china_policy_market",
+      "providers": ["bocha_web_search"],
+      "max_results": 30
+    },
+    {
+      "query": "past 24 hours global macro geopolitical market impact stocks",
+      "region": "global",
+      "topic": "global_macro_market",
+      "providers": ["tavily"],
+      "max_results": 30
+    }
+  ]
+}
+```
+
+这种方式牺牲了一部分“自动理解采集意图”的灵活性，但换来低延迟、低成本、可测试和可审计。阶段一跑通后，再进入阶段二，让 LLM search planner 根据自然语言采集意图生成 `search_queries`，而不是生成 raw document items。
+
+### Decision: 阶段二使用 LLM search planner 生成查询计划
+
+阶段二新增 `search_plan_mode=llm_query_plan`。采集源仍然使用同一个 `llm_web_research` connector，但 `source_config.search_queries` 不再作为唯一查询来源。connector 根据 `prompt_ref` 加载 repo prompt，将采集意图、时间窗口、地区比例、主题范围、来源偏好、排除规则、允许 provider 和查询数量上限传给 LLM planner。planner 必须只返回查询计划对象：
+
+```json
+{
+  "queries": [
+    {
+      "query": "近24小时 中国 央行 财政政策 A股 港股 产业影响",
+      "region": "china",
+      "topic": "china_policy_market",
+      "providers": ["bocha_web_search"],
+      "max_results": 20,
+      "reason": "覆盖中国政策变化对资本市场和产业链的影响"
+    }
+  ]
+}
+```
+
+LLM planner 不得返回新闻结果、正文、标题、URL、事件、标签或实体关系。Go 后端必须把 planner 输出当作不可信输入进行校验：`queries` 必须是对象数组，`query` 非空，`providers` 只能包含已注册且在 `web_search_plan` 允许范围内的 provider，`max_results` 必须为正且不超过 source 配置上限，查询数量不得超过 `prompt_variables.max_queries` 或 source 配置上限。校验通过后，connector 将 planner 输出转换为阶段一已经支持的 `SearchQueryConfig`，继续复用搜索执行、去重、排序、映射和 parser 链路。
+
+阶段二的 prompt 沿用 repo prompt 文件机制，但 prompt 主题从“整理搜索结果为 items JSON”改为“把采集意图转换为查询计划 JSON”。示例路径：
+
+```text
+backend/data/prompts/ingestion/ai_web_research/search-plan.v1.md
+```
+
+提示词正文应描述要采集的政经信息范围，例如近 24 小时、全球和中国混合、央行、财政、贸易、能源、地缘冲突、产业政策、科技供应链，并明确排除纯个股公告、普通公司新闻、投资建议和价格预测。提示词可以要求模型给出 `reason`，但 `reason` 只作为查询计划解释，不进入 raw document 事实字段。
+
+### Decision: LLM 查询计划与搜索召回分离
+
+connector 内部使用统一请求模型表达 web search plan、查询计划模式、LLM provider、protocol、model、prompt ref、prompt variables、search options、max results 和 timeout。LLM search planner 只负责生成查询计划；Web Search tools 负责搜索召回；connector 负责合并和去重；程序负责把搜索结果整理为 `items` JSON；parser 负责硬校验和 raw document candidate 转换。
+
+DeepSeek Tool Calls 可以在后续版本中作为增强模式：模型先返回 `web_search` 或 `web_fetch` tool call，Go 后端执行 Tavily 或网页抓取，再回传工具结果。但阶段二优先选择更简单的 LLM search planner：模型只返回查询计划，Go 后端执行查询和入库映射，降低 agent 多轮不稳定性。
 
 ### Decision: 返回结构采用对象包裹 `items` 数组
 
-模型响应必须解析为 JSON 对象，并包含 `items` 数组。每个 item 至少包含标题、来源归因、正文或摘要、内容来源类型和相关性说明。来源归因优先使用真实 URL；如果 provider 只返回来源名称、引用文本、搜索结果来源说明或模型可解释的来源描述，也可以入库，但必须标记为非 URL 来源归因。对象外层可以记录批次、查询时间、模型、提示词版本和统计信息。
+connector 响应必须解析为 JSON 对象，并包含 `items` 数组。每个 item 至少包含标题、来源归因、正文或摘要和内容来源类型。来源归因优先使用真实 URL；如果 provider 只返回来源名称、引用文本或搜索结果来源说明，也可以入库，但必须标记为非 URL 来源归因。对象外层可以记录批次、查询时间、查询模式、provider 统计信息和跳过数量。
 
-备选方案是要求模型直接返回裸数组。裸数组难以扩展批次元数据，也不便于记录模型执行状态和错误。
+备选方案是要求 connector 直接返回裸数组。裸数组难以扩展批次元数据，也不便于记录查询计划、provider 执行状态和错误。
 
 ### Decision: raw document 保留证据质量标记
 
@@ -178,11 +242,13 @@ sequenceDiagram
     participant Connector as "LLMWebResearchConnector"
     participant Config as "ParseAIWebResearchConfig"
     participant Prompt as "PromptStoreLoader"
+    participant Planner as "OpenAICompatibleSearchPlanner"
+    participant Validator as "SearchQueryPlanValidator"
     participant Search as "SearchPlanExecutor"
     participant Cred as "CredentialResolver"
     participant Tavily as "TavilySearchAdapter"
     participant Bocha as "BochaSearchAdapter"
-    participant LLM as "OpenAICompatibleNormalizer"
+    participant Mapper as "SearchResultItemsMapper"
     participant Parser as "LLMResearchItemsParser"
     participant Writer as "RawDocumentWriter"
     participant DB as "raw_documents"
@@ -195,26 +261,35 @@ sequenceDiagram
     Job->>Connector: Fetch(ctx, source, credential)
     Connector->>Config: ParseAIWebResearchConfig(source)
     Config-->>Connector: AIWebResearchConfig
-    Connector->>Prompt: LoadPrompt(prompt_ref, version, variables)
-    Prompt-->>Connector: rendered prompt
-    Connector->>Search: Search(web_search_plan, query, max_results)
-    loop each tool
-        Search->>Cred: Resolve(tool.credential_ref)
-        Cred-->>Search: API key
-        alt provider=tavily
-            Search->>Tavily: Search(request with tool.base_url)
-            Tavily-->>Search: SearchResponse
-        else provider=bocha_web_search
-            Search->>Bocha: Search(request with tool.base_url)
-            Bocha-->>Search: SearchResponse
-        end
+    alt search_plan_mode=llm_query_plan
+        Connector->>Prompt: LoadPrompt(prompt_ref, prompt_version, variables)
+        Prompt-->>Connector: rendered prompt
+        Connector->>Planner: Plan(ctx, prompt, source_config)
+        Planner-->>Connector: SearchQueryPlan
+        Connector->>Validator: Validate(plan, web_search_plan, limits)
+        Validator-->>Connector: []SearchQueryConfig
+    else search_plan_mode=static_query_plan
+        Connector->>Config: Read search_queries
+        Config-->>Connector: []SearchQueryConfig
     end
-    Search->>Search: dedupe / trusted-domain rank / limit
-    Search-->>Connector: SearchPlanResult
-    Connector->>Cred: Resolve(credential_refs.llm)
-    Cred-->>Connector: LLM API key
-    Connector->>LLM: Normalize(model, prompt, searchResults)
-    LLM-->>Connector: JSON object {items:[...]}
+    loop each validated search_query
+        Connector->>Search: Search(web_search_plan, query, max_results)
+        loop each selected tool
+            Search->>Cred: Resolve(tool.credential_ref)
+            Cred-->>Search: API key
+            alt provider=tavily
+                Search->>Tavily: Search(request with tool.base_url)
+                Tavily-->>Search: SearchResponse
+            else provider=bocha_web_search
+                Search->>Bocha: Search(request with tool.base_url)
+                Bocha-->>Search: SearchResponse
+            end
+        end
+        Search->>Search: dedupe / trusted-domain rank / limit
+        Search-->>Connector: SearchPlanResult
+    end
+    Connector->>Mapper: Map(search results, source, config)
+    Mapper-->>Connector: JSON object {items:[...]}
     Connector-->>Job: RawResponse(application/json)
     Job->>Parser: Parse(source, RawResponse)
     Parser-->>Job: []RawDocumentCandidate
@@ -231,10 +306,34 @@ sequenceDiagram
 classDiagram
     class LLMWebResearchConnector {
         +SearchExecutor
+        +SearchPlanner
+        +QueryPlanValidator
         +Normalizer
         +PromptLoader
         +CredentialResolver
         +Fetch(ctx, source, credential) RawResponse
+    }
+    class SearchPlanner {
+        <<interface>>
+        +Plan(ctx, request) SearchQueryPlan
+    }
+    class OpenAICompatibleSearchPlanner {
+        +Client
+        +BaseURL
+        +Plan(ctx, request) SearchQueryPlan
+    }
+    class SearchQueryPlanValidator {
+        +Validate(plan, config) []SearchQueryConfig
+    }
+    class SearchQueryPlan {
+        +Queries
+    }
+    class SearchQueryConfig {
+        +Query
+        +Region
+        +Topic
+        +Providers
+        +MaxResults
     }
     class SearchPlanExecutor {
         +Adapters
@@ -269,6 +368,9 @@ classDiagram
         +BaseURL
         +Normalize(ctx, request) LLMNormalizeResponse
     }
+    class SearchResultItemsMapper {
+        +Map(source, config, results) map
+    }
     class LLMResearchItemsParser {
         +Parse(ctx, source, response) []RawDocumentCandidate
     }
@@ -285,9 +387,15 @@ classDiagram
     }
 
     LLMWebResearchConnector --> SearchPlanExecutor
+    LLMWebResearchConnector --> SearchPlanner
+    LLMWebResearchConnector --> SearchQueryPlanValidator
+    LLMWebResearchConnector --> SearchResultItemsMapper
     LLMWebResearchConnector --> OpenAICompatibleNormalizer
     LLMWebResearchConnector --> PromptStoreLoader
     LLMWebResearchConnector --> CredentialResolver
+    SearchPlanner <|.. OpenAICompatibleSearchPlanner
+    OpenAICompatibleSearchPlanner --> SearchQueryPlan
+    SearchQueryPlanValidator --> SearchQueryConfig
     SearchPlanExecutor --> WebSearchToolConfig
     SearchPlanExecutor --> SearchAdapter
     SearchPlanExecutor --> CredentialResolver
@@ -301,12 +409,15 @@ classDiagram
 - [Risk] 不同 Web Search provider 的参数、计费、字段和时间语义差异导致搜索失败或结果不可比。→ Mitigation：为每个 provider adapter 定义请求/响应归一化测试，统一输出 search result candidate，并在 raw metadata 保留 provider 原始响应。
 - [Risk] 中国财经来源被全球搜索工具稀释。→ Mitigation：新增中文搜索 tool、可信域名白名单、来源偏好和结果后处理排序；中国财经类 source 默认不只依赖 Tavily。
 - [Risk] 多搜索工具并发调用导致成本和延迟不可控。→ Mitigation：`web_search_plan` 必须配置每个 tool 的 `max_results`、timeout、失败策略和总结果上限；report 必须记录每个 tool 的耗时、结果数和失败原因。
-- [Risk] 不同模型 provider 的结构化能力差异大。→ Mitigation：通过 `api_protocol`、`llm_provider`、`output_schema` 和 provider-neutral 请求模型表达差异，首期用 fake/fixture 验证边界。
-- [Risk] 模型返回非 JSON、字段缺失或编造来源。→ Mitigation：parser 必须严格校验 JSON schema、来源归因、标题、内容、内容来源类型和条数上限，失败时不写入伪造文档；没有 URL 但有来源说明的条目必须降级标记来源归因类型。
+- [Risk] 固定查询计划覆盖不足。→ Mitigation：阶段一把 query 明确配置在 `source_config.search_queries`，用多条中英文查询覆盖中国财经、全球宏观、央行、财政、能源、贸易、地缘和科技产业链；阶段二再由 LLM search planner 动态生成查询计划。
+- [Risk] 程序化映射只能使用 provider 返回的摘要或正文，语义整理能力弱。→ Mitigation：采集层只负责原始材料入库；事件提取、标签和实体关联由后续独立 change 处理，不在采集阶段提前推理。
+- [Risk] 不同模型 provider 的查询计划能力差异大。→ Mitigation：阶段一不依赖模型；阶段二如引入 LLM search planner，通过 `api_protocol`、`llm_provider` 和 provider-neutral 请求模型表达差异，并用 fake/fixture 验证边界。
+- [Risk] LLM search planner 生成过宽、过窄或重复查询，导致召回噪声或遗漏。→ Mitigation：planner 输出必须通过查询数量、provider 白名单、`max_results`、禁止字段、主题和地区字段校验；必要时通过 prompt 版本和 source 配置调优。
+- [Risk] LLM search planner 输出新闻正文或 raw document item，重新把采集链路变成模型造数。→ Mitigation：校验器必须拒绝包含 `items`、`title`、`content_text`、`source_url`、事件、标签或实体关系字段的 planner 响应。
 - [Risk] `source_config` 变成任意配置垃圾桶。→ Mitigation：为 `llm_web_research` 定义必填字段、禁止字段和类型校验，测试覆盖无效配置。
 - [Risk] 提示词过长或频繁修改影响审计。→ Mitigation：提示词正文使用 repo prompt 文件管理，`source_config` 只保存 `prompt_ref`、`prompt_version` 和 `prompt_variables`；后续如提示词治理复杂，再独立 change 引入 prompt 模板表。
-- [Risk] Web Search tool 和 LLM 结构化成本、限流不可控。→ Mitigation：复用 provider 级限流，要求 `max_results`、timeout、搜索深度、批次大小、tool 失败策略和 fallback 策略可配置，并在 report 中记录搜索成功、搜索失败、LLM 成功、LLM 失败和跳过数量。
-- [Risk] 模型总结被误用为事实原文。→ Mitigation：强制记录 `content_origin` 和 `retrieval_method`，后续事件抽取可按证据质量降权或跳过。
+- [Risk] Web Search tool 成本、限流不可控。→ Mitigation：复用 provider 级限流，要求 `max_results`、timeout、搜索深度、批次大小、tool 失败策略和 fallback 策略可配置，并在 report 中记录搜索成功、搜索失败和跳过数量。
+- [Risk] 搜索摘要被误用为事实原文。→ Mitigation：强制记录 `content_origin` 和 `retrieval_method`，后续事件抽取可按证据质量降权或跳过。
 
 ## Migration Plan
 
@@ -316,11 +427,14 @@ classDiagram
 4. 将 AI source 纳入现有 runtime/scheduler 可触发路径，复用 source catalog、credential resolver、rate limit 和 report。
 5. 使用 fake Web Search provider 和 fake LLM 端到端验证搜索结果可以转为结构化 items，并幂等写入 raw document 候选对象。
 6. 通过 gated smoke 验证真实 Tavily、博查 source 的搜索返回字段、错误处理和成本统计；LLM 真实调用同样必须显式启用，不得进入普通单元测试。
+7. 阶段一追加固定查询计划模式：解析 `collection_mode=search_results`、`search_plan_mode=static_query_plan` 和 `search_queries`，connector 在该模式下跳过 prompt loader 与 LLM normalizer，由 Go 程序把搜索结果映射为 `items` JSON。
+8. 阶段二追加 LLM 查询计划模式：解析 `search_plan_mode=llm_query_plan`、LLM planner 参数、`prompt_ref`、`prompt_version` 和 `prompt_variables`，由模型把采集意图生成查询计划，Go 后端校验后复用阶段一搜索执行和入库映射链路。
+9. 使用 fake LLM planner 验证查询计划生成、非法字段拒绝、provider 白名单、查询数量限制和无 LLM normalizer 的 raw document 映射；再通过 gated smoke 验证真实模型生成查询计划的耗时和召回质量。
 
 回滚策略：如真实 provider 不稳定，可将 AI Web Research source 的 `status` 改为 `inactive` 或 `disabled`，保留 connector 代码和历史 raw document，不删除已有采集数据。
 
 ## Open Questions
 
 - Tavily 作为已验证默认 Web Search tool 保留；中国财经 source 首期使用博查作为中文搜索通道，仍需确认博查的真实搜索质量、成本、限流和凭证开通方式。
-- 首期 LLM normalizer 可以先支持 OpenAI-compatible provider，并通过 `source_config.llm_provider` 配置 Qwen、DeepSeek 或其他模型。
+- 阶段二 LLM search planner 先支持 OpenAI-compatible provider，并通过 `source_config.llm_provider` 配置 Qwen、DeepSeek 或其他模型；默认不要求模型具备原生联网搜索能力。
 - DeepSeek Tool Calls 可作为后续增强模式，但不阻塞 Tavily deterministic search/fetch + LLM normalizer 的首期实现。

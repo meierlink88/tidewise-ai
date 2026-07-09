@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: AI Web Research 采集通道
-系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发单一 AI connector 内的多个 Web Search tool、可选网页抓取和 LLM 结构化整理。
+系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发单一 AI connector 内的多个 Web Search tool、可选网页抓取和程序化原始文档标准化。
 
 #### Scenario: source catalog 驱动 AI 采集
 - **WHEN** 采集源使用 `ingest_channel=llm_web_research`、`connector_key=llm_web_research` 和 `parser_key=llm_research_items`
@@ -15,12 +15,20 @@
 - **WHEN** source catalog 中的 AI Web Research source 配置 `web_search_plan`
 - **THEN** 系统必须在同一个 `llm_web_research` connector 内按 source 自身配置选择一个或多个 Web Search adapter，不得为每个搜索 API 创建独立 AI connector
 
+#### Scenario: 固定查询计划触发
+- **WHEN** source catalog 中的 AI Web Research source 配置 `search_plan_mode=static_query_plan`
+- **THEN** 系统必须按 `source_config.search_queries` 中的查询条件执行搜索，并把搜索结果程序化映射为 parser 可校验的结构化 items
+
+#### Scenario: 模型查询计划触发
+- **WHEN** source catalog 中的 AI Web Research source 配置 `search_plan_mode=llm_query_plan`
+- **THEN** 系统必须先通过 repo prompt 和 LLM planner 生成查询计划，校验通过后再按统一 Web Search tool 链路执行搜索，并把搜索结果程序化映射为 parser 可校验的结构化 items
+
 ### Requirement: AI 采集源配置校验
 系统 SHALL 对 AI Web Research source 的 `source_config` 执行 connector 专属校验，确保采集运行参数完整、非敏感且可审计。
 
 #### Scenario: 校验必填参数
 - **WHEN** seed 或运行时加载 AI Web Research source
-- **THEN** 系统必须校验 `web_search_plan`、tool provider、tool credential ref、tool options、source_preferences、trusted_domains、`llm_provider`、`api_base_url`、`api_protocol`、`model`、`prompt_ref`、`prompt_version`、`prompt_variables`、`max_results` 和 `output_schema` 的类型与取值
+- **THEN** 系统必须校验 `collection_mode`、`search_plan_mode`、`search_queries`、`web_search_plan`、tool provider、tool credential ref、tool options、source_preferences、trusted_domains、`max_results` 和 `output_schema` 的类型与取值；LLM provider、API base URL、模型名、`prompt_ref`、`prompt_version`、`prompt_variables`、planner 凭证引用和查询数量上限只在启用 LLM 查询计划或兼容 normalizer 模式时作为必填项校验
 
 #### Scenario: 保护提示词和模型参数
 - **WHEN** 开发者查看 repo 内 AI Web Research source seed

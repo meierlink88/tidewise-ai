@@ -211,13 +211,6 @@ func validateAIWebResearchSourceConfig(config map[string]any) error {
 	for _, key := range []string{
 		"kind",
 		"web_search_plan",
-		"credential_refs",
-		"llm_provider",
-		"api_base_url",
-		"api_protocol",
-		"model",
-		"prompt_ref",
-		"prompt_version",
 		"max_results",
 		"output_schema",
 		"source_preferences",
@@ -229,6 +222,26 @@ func validateAIWebResearchSourceConfig(config map[string]any) error {
 	}
 	if jsonStringValue(config["kind"]) != "llm_web_research" {
 		return fmt.Errorf("source_config kind must be llm_web_research")
+	}
+	isStaticSearchPlan := jsonStringValue(config["collection_mode"]) == "search_results" && jsonStringValue(config["search_plan_mode"]) == "static_query_plan"
+	if isStaticSearchPlan {
+		if err := validateStaticSearchQueries(config["search_queries"]); err != nil {
+			return err
+		}
+	} else {
+		for _, key := range []string{
+			"credential_refs",
+			"llm_provider",
+			"api_base_url",
+			"api_protocol",
+			"model",
+			"prompt_ref",
+			"prompt_version",
+		} {
+			if _, ok := config[key]; !ok {
+				return fmt.Errorf("%s is required", key)
+			}
+		}
 	}
 	plan, ok := config["web_search_plan"].(map[string]any)
 	if !ok {
@@ -264,8 +277,15 @@ func validateAIWebResearchSourceConfig(config map[string]any) error {
 			return fmt.Errorf("web_search_plan tool max_results must be positive")
 		}
 	}
-	if _, ok := config["credential_refs"].(map[string]any); !ok {
-		return fmt.Errorf("credential_refs must be an object")
+	if refs, ok := config["credential_refs"]; ok {
+		if _, ok := refs.(map[string]any); !ok {
+			return fmt.Errorf("credential_refs must be an object")
+		}
+	}
+	if !isStaticSearchPlan {
+		if _, ok := config["credential_refs"].(map[string]any); !ok {
+			return fmt.Errorf("credential_refs must be an object")
+		}
 	}
 	if configPositiveInt(config["max_results"]) <= 0 {
 		return fmt.Errorf("max_results must be positive")
@@ -278,6 +298,38 @@ func validateAIWebResearchSourceConfig(config map[string]any) error {
 	}
 	if _, ok := config["trusted_domains"].([]any); !ok {
 		return fmt.Errorf("trusted_domains must be an array")
+	}
+	return nil
+}
+
+func validateStaticSearchQueries(value any) error {
+	queries, ok := value.([]any)
+	if !ok || len(queries) == 0 {
+		return fmt.Errorf("search_queries are required")
+	}
+	for _, query := range queries {
+		queryConfig, ok := query.(map[string]any)
+		if !ok {
+			return fmt.Errorf("search query must be an object")
+		}
+		if jsonStringValue(queryConfig["query"]) == "" {
+			return fmt.Errorf("search query is required")
+		}
+		if configPositiveInt(queryConfig["max_results"]) <= 0 {
+			return fmt.Errorf("search query max_results must be positive")
+		}
+		if providers, ok := queryConfig["providers"]; ok {
+			providerItems, ok := providers.([]any)
+			if !ok {
+				return fmt.Errorf("search query providers must be an array")
+			}
+			for _, item := range providerItems {
+				provider := jsonStringValue(item)
+				if provider != "tavily" && provider != "bocha_web_search" {
+					return fmt.Errorf("unsupported search query provider %q", provider)
+				}
+			}
+		}
 	}
 	return nil
 }

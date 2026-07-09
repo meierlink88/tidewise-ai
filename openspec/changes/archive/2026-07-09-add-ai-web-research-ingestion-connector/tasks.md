@@ -53,3 +53,29 @@
 - [x] 6.9 修复博查 Web Search API 真实响应 envelope 解析，覆盖 `{code, data.webPages.value}` 响应结构。
 - [x] 6.10 兼容真实 LLM 返回的 `content_origin=web_content`，保证 AI Web Research smoke 可以解析并写入原始文档。
 - [x] 6.11 显式关闭 DeepSeek/OpenAI-compatible normalizer 的思考模式，避免结构化采集因默认深度思考变慢。
+
+## 7. 阶段一固定查询计划和程序化入库映射
+
+- [x] 7.1 更新 proposal、design 和 delta specs，明确阶段一采用 `search_results` + `static_query_plan`，LLM 只作为后续查询计划增强，不负责格式化 raw document items。
+- [x] 7.2 编写配置解析测试，覆盖 `collection_mode`、`search_plan_mode`、`search_queries`、查询级 provider 限定、查询级 `max_results` 和阶段一无需 LLM 必填参数。
+- [x] 7.3 实现 AI Web Research 配置解析扩展，支持固定查询计划并保持既有 LLM normalizer 兼容路径。
+- [x] 7.4 编写 connector 测试，验证 `search_results/static_query_plan` 模式会执行多条查询、按查询限定 provider、程序化生成 `items` JSON，并且不会调用 prompt loader 或 LLM normalizer。
+- [x] 7.5 实现搜索结果到 `items` JSON 的 Go 侧映射，复用现有 `llm_research_items` parser 和 raw document 写入路径。
+- [x] 7.6 更新 AI Web Research source seed，加入中国财经和全球宏观的固定查询计划，提升正式运行时的召回数量和中外来源覆盖。
+- [x] 7.7 运行 `go test ./backend/internal/apps/ingestion/connectors ./backend/internal/apps/ingestion/parsers`。
+- [x] 7.8 运行 `go test ./...` 和 `openspec validate add-ai-web-research-ingestion-connector`。
+
+## 8. 阶段二 LLM 查询计划
+
+- [x] 8.1 更新 proposal、design、delta specs 和 diagrams，明确阶段二采用 `search_results` + `llm_query_plan`，LLM 只负责把采集意图生成查询计划，不负责格式化 raw document items。
+- [x] 8.2 编写配置解析测试，覆盖 `search_plan_mode=llm_query_plan`、LLM provider、API base URL、API 协议、模型名、planner 凭证引用、`prompt_ref`、`prompt_version`、`prompt_variables.max_queries` 和阶段二必填项。
+- [x] 8.3 实现 AI Web Research 配置解析扩展，支持 `llm_query_plan` 并保持 `static_query_plan` 已验证路径不回退。
+- [x] 8.4 编写 repo prompt loader/planner 测试，使用 fake LLM 返回查询计划 JSON，验证 prompt 变量渲染、版本匹配、路径安全和请求构造。
+- [x] 8.5 新增采集意图到查询计划的 repo prompt 文件，例如 `backend/data/prompts/ingestion/ai_web_research/search-plan.v1.md`，提示词不要求模型输出新闻正文或 raw document item。
+- [x] 8.6 编写 LLM planner 输出校验测试，覆盖非法 JSON、缺少 `queries`、空 query、未知 provider、查询数量超限、单查询 `max_results` 超限，以及包含 `items`、`title`、`content_text`、`source_url`、事件、标签或实体关系字段。
+- [x] 8.7 实现 OpenAI-compatible LLM search planner 和查询计划校验器，输出通过校验后转换为阶段一已支持的 `SearchQueryConfig`。
+- [x] 8.8 编写 connector 测试，验证 `search_results/llm_query_plan` 模式会先调用 planner，再调用 Web Search tool，并由 Go 程序映射 `items` JSON，不调用 LLM normalizer 格式化搜索结果。
+- [x] 8.9 更新 AI Web Research source seed，使中国财经和全球宏观 source 能通过 `prompt_ref`、`prompt_variables` 和 LLM planner 生成查询计划，同时保留固定查询计划 fixture 用于测试和回归对照。
+- [x] 8.10 运行 `go test ./backend/internal/apps/ingestion/connectors ./backend/internal/apps/ingestion/parsers`。
+- [x] 8.11 运行 `go test ./...` 和 `openspec validate add-ai-web-research-ingestion-connector`。
+- [x] 8.12 使用 gated smoke 验证真实模型生成查询计划、Tavily/博查执行搜索、程序化映射入库的耗时、结果数量、中国来源覆盖和失败原因。
