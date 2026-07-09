@@ -53,6 +53,13 @@ export async function saveSchedulerConfig(token: string, config: SchedulerConfig
   return readJSON(response);
 }
 
+export async function loadSchedulerRuns(token: string, limit = 10): Promise<SchedulerRun[]> {
+  const response = await fetch(`/admin/scheduler/runs?limit=${limit}`, {
+    headers: authHeaders(token)
+  });
+  return readJSON(response);
+}
+
 function authHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`

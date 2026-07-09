@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadSchedulerConfig, saveSchedulerConfig } from './scheduler';
+import { loadSchedulerConfig, loadSchedulerRuns, saveSchedulerConfig } from './scheduler';
 
 describe('scheduler api client', () => {
   it('adds admin token header when loading config', async () => {
@@ -57,5 +57,19 @@ describe('scheduler api client', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(loadSchedulerConfig('wrong-token')).rejects.toThrow('unauthorized');
+  });
+
+  it('loads scheduler runs with a limit', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => []
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await loadSchedulerRuns('secret-token', 5);
+
+    expect(fetchMock).toHaveBeenCalledWith('/admin/scheduler/runs?limit=5', {
+      headers: { Authorization: 'Bearer secret-token' }
+    });
   });
 });

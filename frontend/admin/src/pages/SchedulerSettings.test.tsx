@@ -101,6 +101,7 @@ describe('SchedulerSettings', () => {
     expect(screen.queryByLabelText('Source Type')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('时区')).not.toBeInTheDocument();
 
+    await screen.findByDisplayValue('5');
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
     expect(saveConfig).toHaveBeenCalledWith('secret', expect.objectContaining({
@@ -130,5 +131,44 @@ describe('SchedulerSettings', () => {
 
     expect(await screen.findByDisplayValue('09:00')).toBeInTheDocument();
     expect(screen.getByDisplayValue('21:00')).toBeInTheDocument();
+  });
+
+  it('summarizes scheduler execution runs instead of source results', async () => {
+    const loadConfig = vi.fn().mockResolvedValue({
+      enabled: true,
+      mode: 'interval',
+      interval_minutes: 5,
+      fixed_times: [],
+      concurrency: 1,
+      batch_size: 10,
+      timeout_seconds: 180,
+      source_filter: {},
+      timezone: 'Asia/Shanghai',
+      recent_run: {
+        id: 'run-4',
+        trigger_type: 'interval',
+        status: 'succeeded',
+        started_at: '2026-07-09T19:47:11+08:00',
+        finished_at: '2026-07-09T19:47:48+08:00',
+        total_sources: 2,
+        succeeded_sources: 2,
+        failed_sources: 0,
+        skipped_sources: 0,
+        error_summary: ''
+      }
+    });
+    const loadRuns = vi.fn().mockResolvedValue([
+      { id: 'run-4', status: 'succeeded', trigger_type: 'interval', started_at: '2026-07-09T19:47:11+08:00', finished_at: '2026-07-09T19:47:48+08:00', total_sources: 2, succeeded_sources: 2, failed_sources: 0, skipped_sources: 0, error_summary: '' },
+      { id: 'run-3', status: 'succeeded', trigger_type: 'interval', started_at: '2026-07-09T19:42:11+08:00', finished_at: '2026-07-09T19:42:48+08:00', total_sources: 2, succeeded_sources: 2, failed_sources: 0, skipped_sources: 0, error_summary: '' },
+      { id: 'run-2', status: 'failed', trigger_type: 'interval', started_at: '2026-07-09T19:37:11+08:00', finished_at: '2026-07-09T19:37:50+08:00', total_sources: 2, succeeded_sources: 1, failed_sources: 1, skipped_sources: 0, error_summary: 'error' },
+      { id: 'run-1', status: 'partial', trigger_type: 'interval', started_at: '2026-07-09T19:31:41+08:00', finished_at: '2026-07-09T19:32:19+08:00', total_sources: 2, succeeded_sources: 1, failed_sources: 1, skipped_sources: 0, error_summary: 'partial' }
+    ]);
+
+    render(<SchedulerSettings token="secret" loadConfig={loadConfig} loadRuns={loadRuns} saveConfig={vi.fn()} />);
+
+    expect(await screen.findByText('执行轮次 4')).toBeInTheDocument();
+    expect(screen.getByText('成功 2 / 失败 2')).toBeInTheDocument();
+    expect(screen.getByText('最近一轮：succeeded')).toBeInTheDocument();
+    expect(screen.queryByText('成功 2 / 失败 0')).not.toBeInTheDocument();
   });
 });

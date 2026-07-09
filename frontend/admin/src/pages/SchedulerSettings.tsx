@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Button, Card, Form, Input, InputNumber, Select, Space, Switch, Typography, message } from 'antd';
-import type { SchedulerConfig } from '../api/scheduler';
-import { loadSchedulerConfig as defaultLoadSchedulerConfig, saveSchedulerConfig as defaultSaveSchedulerConfig } from '../api/scheduler';
+import type { SchedulerConfig, SchedulerRun } from '../api/scheduler';
+import {
+  loadSchedulerConfig as defaultLoadSchedulerConfig,
+  loadSchedulerRuns as defaultLoadSchedulerRuns,
+  saveSchedulerConfig as defaultSaveSchedulerConfig
+} from '../api/scheduler';
 
 interface SchedulerSettingsProps {
   token: string;
   loadConfig?: (token: string) => Promise<SchedulerConfig>;
+  loadRuns?: (token: string, limit?: number) => Promise<SchedulerRun[]>;
   saveConfig?: (token: string, config: SchedulerConfig) => Promise<unknown>;
 }
 
@@ -24,6 +29,7 @@ const defaultConfig: SchedulerConfig = {
 export default function SchedulerSettings({
   token,
   loadConfig = defaultLoadSchedulerConfig,
+  loadRuns = defaultLoadSchedulerRuns,
   saveConfig = defaultSaveSchedulerConfig
 }: SchedulerSettingsProps) {
   const [form] = Form.useForm<SchedulerConfig>();
@@ -31,6 +37,7 @@ export default function SchedulerSettings({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [recentRun, setRecentRun] = useState<SchedulerConfig['recent_run']>();
+  const [recentRuns, setRecentRuns] = useState<SchedulerRun[]>([]);
   const [systemConfig, setSystemConfig] = useState<SchedulerConfig>(defaultConfig);
   const hasToken = token.trim().length > 0;
 
@@ -47,11 +54,28 @@ export default function SchedulerSettings({
         form.setFieldsValue(next);
         setMode(next.mode);
         setRecentRun(config.recent_run);
+        if (hasToken) {
+          void loadRuns(token, 10)
+            .then((runs) => {
+              if (active) {
+                setRecentRuns(runs);
+              }
+            })
+            .catch(() => {
+              if (active) {
+                setRecentRuns([]);
+              }
+            });
+        }
+        if (!hasToken) {
+          setRecentRuns([]);
+        }
       })
       .catch(() => {
         if (active) {
           form.setFieldsValue(defaultConfig);
           setSystemConfig(defaultConfig);
+          setRecentRuns([]);
         }
       })
       .finally(() => {
@@ -62,7 +86,7 @@ export default function SchedulerSettings({
     return () => {
       active = false;
     };
-  }, [form, loadConfig, token]);
+  }, [form, hasToken, loadConfig, loadRuns, token]);
 
   const handleSave = async () => {
     if (!hasToken) {
@@ -146,12 +170,30 @@ export default function SchedulerSettings({
       </Card>
       {recentRun ? (
         <Card className="run-summary">
-          <Typography.Text>最近运行：{recentRun.status}</Typography.Text>
-          <Typography.Text>成功 {recentRun.succeeded_sources} / 失败 {recentRun.failed_sources}</Typography.Text>
+          <Typography.Text>最近一轮：{recentRun.status}</Typography.Text>
+          <Typography.Text>执行轮次 {executionSummary(recentRuns).total}</Typography.Text>
+          <Typography.Text>成功 {executionSummary(recentRuns).succeeded} / 失败 {executionSummary(recentRuns).failed}</Typography.Text>
+          {recentRun.finished_at ? <Typography.Text>结束时间：{formatDateTime(recentRun.finished_at)}</Typography.Text> : null}
         </Card>
       ) : null}
     </section>
   );
+}
+
+function executionSummary(runs: SchedulerRun[]) {
+  const completedRuns = runs.filter((run) => run.status !== 'running');
+  return {
+    total: completedRuns.length,
+    succeeded: completedRuns.filter((run) => run.status === 'succeeded').length,
+    failed: completedRuns.filter((run) => run.status === 'failed' || run.status === 'partial' || run.status === 'skipped').length
+  };
+}
+
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString('zh-CN', {
+    hour12: false,
+    timeZone: 'Asia/Shanghai'
+  });
 }
 
 function normalizeConfig(config: SchedulerConfig): SchedulerConfig {
