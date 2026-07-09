@@ -75,7 +75,7 @@ SELECT id, ingest_channel, provider_key, connector_key, parser_key, source_type,
        auth_required, auth_type, credential_ref, source_config, rate_limit_policy, usage_policy, status
 FROM source_catalogs
 WHERE status = 'active'
-  AND ($1 = '' OR id = $1)
+  AND ($1 = '' OR id::text = $1)
   AND ($2 = '' OR provider_key = $2)
   AND ($3 = '' OR ingest_channel = $3)
   AND ($4 = '' OR source_type = $4)
