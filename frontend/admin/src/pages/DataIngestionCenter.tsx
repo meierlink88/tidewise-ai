@@ -151,6 +151,7 @@ export default function DataIngestionCenter({ token }: { token: string }) {
     { key: 'provider', header: 'Provider', render: (item) => item.provider_key },
     { key: 'channel', header: 'Channel', render: (item) => item.ingest_channel },
     { key: 'type', header: '类型', render: (item) => item.source_type },
+    { key: 'url', header: 'URL', render: (item) => <span className="table-url">{item.source_url || '-'}</span> },
     { key: 'status', header: '状态', render: (item) => <StatusBadge tone={statusTone(item.status)}>{item.status}</StatusBadge> }
   ], []);
 

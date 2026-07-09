@@ -110,6 +110,7 @@ describe('DataIngestionCenter', () => {
     await screen.findByRole('tab', { name: '原始数据' });
     await user.click(screen.getByRole('tab', { name: '搜索通道' }));
     expect(await screen.findByText('AI 全球政经搜索')).toBeInTheDocument();
+    expect(screen.getByText('https://example.com')).toBeInTheDocument();
     expect(screen.queryByText('parser')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: '调度器' }));

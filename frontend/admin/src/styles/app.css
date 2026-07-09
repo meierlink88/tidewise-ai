@@ -464,6 +464,12 @@ select {
   border-bottom: 0;
 }
 
+.table-url {
+  display: inline-block;
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+
 .ui-table-empty {
   align-items: center;
   background: var(--color-surface-muted);
