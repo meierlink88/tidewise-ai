@@ -166,8 +166,12 @@ func TestAIWebResearchSourceGroupCoversInitialSearchProviders(t *testing.T) {
 		if !ok || promptRef == "" {
 			t.Fatalf("source %q prompt_ref is missing", source.ID)
 		}
-		if promptRef != "ingestion/ai_web_research/search-plan.v1.md" {
+		if promptRef != "ingestion/ai_web_research/search-plan.v2.md" {
 			t.Fatalf("source %q prompt_ref = %q, want search plan prompt", source.ID, promptRef)
+		}
+		promptVersion, ok := source.SourceConfig["prompt_version"].(string)
+		if !ok || promptVersion != "v2" {
+			t.Fatalf("source %q prompt_version = %v, want v2", source.ID, source.SourceConfig["prompt_version"])
 		}
 		promptPath := filepath.Join("..", "..", "..", "..", "data", "prompts", filepath.FromSlash(promptRef))
 		if _, err := os.Stat(promptPath); err != nil {

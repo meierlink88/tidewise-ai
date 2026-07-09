@@ -51,6 +51,34 @@ func TestLoaderLoadsSearchPlanPromptVariables(t *testing.T) {
 	}
 }
 
+func TestAIWebResearchPromptAssetsOnlyExposeSearchPlanContract(t *testing.T) {
+	promptDir := filepath.Join("..", "..", "..", "data", "prompts", "ingestion", "ai_web_research")
+
+	for _, oldNormalizerPrompt := range []string{"cn-finance-daily.v1.md", "global-macro-daily.v1.md"} {
+		if _, err := os.Stat(filepath.Join(promptDir, oldNormalizerPrompt)); err == nil {
+			t.Fatalf("old normalizer prompt %q must not remain in active prompt assets", oldNormalizerPrompt)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat old normalizer prompt %q: %v", oldNormalizerPrompt, err)
+		}
+	}
+
+	searchPlanPrompt := filepath.Join(promptDir, "search-plan.v2.md")
+	data, err := os.ReadFile(searchPlanPrompt)
+	if err != nil {
+		t.Fatalf("read search plan prompt: %v", err)
+	}
+
+	text := string(data)
+	for _, forbidden := range []string{"`items` 数组", "`meta` 对象", "`content_text`", "`content_origin`", "原始文档候选对象"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("search plan prompt contains forbidden raw document output contract %q", forbidden)
+		}
+	}
+	if !strings.Contains(text, "`queries`") {
+		t.Fatalf("search plan prompt must require queries output")
+	}
+}
+
 func TestLoaderRejectsVersionMismatch(t *testing.T) {
 	root := t.TempDir()
 	writePrompt(t, root, "ingestion/ai_web_research/cn-finance-daily.v1.md", "正文")
