@@ -76,6 +76,8 @@ describe('App admin login', () => {
 
     expect(await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByRole('heading', { name: '数据采集中心' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('main')).queryByText('Data Ingestion')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('main')).queryByText('查看采集原始数据、事件结果、搜索通道和调度器运行记录。')).not.toBeInTheDocument();
     expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');
 

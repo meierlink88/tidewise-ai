@@ -173,13 +173,6 @@ export default function DataIngestionCenter({ token }: { token: string }) {
 
   return (
     <section className="data-ingestion-center">
-      <div className="page-title page-title-row">
-        <div>
-          <span className="eyebrow">Data Ingestion</span>
-          <p>查看采集原始数据、事件结果、搜索通道和调度器运行记录。</p>
-        </div>
-      </div>
-
       <Tabs active={activeTab} items={tabItems} onChange={setActiveTab} />
       {error ? <div className="ui-alert danger">{error}</div> : null}
 
