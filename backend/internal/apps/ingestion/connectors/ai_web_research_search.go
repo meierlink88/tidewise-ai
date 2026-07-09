@@ -15,6 +15,7 @@ type SearchAdapter interface {
 
 type SearchRequest struct {
 	Query          string
+	BaseURL        string
 	MaxResults     int
 	Credential     string
 	Options        map[string]any
@@ -66,6 +67,7 @@ func (e SearchPlanExecutor) Search(ctx context.Context, plan WebSearchPlan, requ
 			return SearchPlanResult{}, fmt.Errorf("search adapter %q is not registered", tool.Provider)
 		}
 		toolRequest := request
+		toolRequest.BaseURL = tool.BaseURL
 		toolRequest.MaxResults = firstPositive(tool.MaxResults, request.MaxResults)
 		toolRequest.Options = tool.Options
 		if e.CredentialResolver != nil {

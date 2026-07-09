@@ -67,6 +67,15 @@ openspec/changes/<change-name>/
 - 严格按照 tasks 顺序执行。
 - 完成一个任务后立即把对应 checkbox 从 `- [ ]` 改为 `- [x]`。
 
+## Design Diagram Rules
+
+复杂后端 change 的 `design.md` 必须包含架构图示：
+
+- 涉及后端流程、跨模块调用、外部 API、scheduler、connector、事件抽取、图谱写入、异步任务或部署边界时，必须包含 Mermaid sequence diagram。
+- 涉及新增核心类型、接口、adapter、repository、service、parser、connector、worker 或跨包依赖关系时，必须包含 Mermaid class diagram 或 component diagram。
+- 图中的节点名称必须尽量使用真实包名、类型名、接口名、connector key、parser key 或数据表名，不得只画抽象概念。
+- 简单配置、文案、小范围测试修复或不涉及结构变化的小修可以不强制补图，但 design 中应说明原因。
+
 ## When Design And Code Diverge
 
 实现过程中如果发现设计不匹配，必须：

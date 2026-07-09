@@ -39,3 +39,14 @@
 - [x] 5.3 更新本地说明，描述 `credential_ref`、`source_config.credential_refs`、`web_search_plan` 配置、来源偏好、可信域名、LLM 配置、prompt 文件、prompt 引用、真实 API key 注入和 fake/gated smoke 的运行方式。
 - [x] 5.4 运行 `go test ./...`，确保后端单元测试和 gated 集成测试边界通过。
 - [x] 5.5 运行 `openspec validate add-ai-web-research-ingestion-connector`。
+
+## 6. Review 整改
+
+- [x] 6.1 更新 design，补充 AI Web Research 的 sequence diagram、class/component diagram、Go 技术框架判断、adapter 命名规范、base URL 配置化和 adapter HTTP 公共抽象取舍。
+- [x] 6.2 更新项目 agent 规则，要求后续复杂后端 design 包含 sequence diagram 和 class/component diagram。
+- [x] 6.3 编写配置解析测试，覆盖 `web_search_plan.tools[].base_url`。
+- [x] 6.4 编写 Tavily/博查 adapter 测试，覆盖 tool 级 `base_url` 覆盖默认 base URL。
+- [x] 6.5 实现 tool 级 base URL 配置化，更新 source seed 示例。
+- [x] 6.6 抽出 Web Search adapter HTTP JSON 请求公共 helper，减少 Tavily/博查重复代码。
+- [x] 6.7 调整 adapter 文件命名，使主要类型与文件职责一致。
+- [x] 6.8 运行 `go test ./...` 和 `openspec validate add-ai-web-research-ingestion-connector`。

@@ -57,15 +57,17 @@ AI connector 的搜索计划、搜索选项、LLM API base URL、协议类型、
     {
       "provider": "tavily",
       "role": "global_general",
+      "base_url": "https://api.tavily.com",
       "max_results": 10,
-      "credential_ref": "TAVILY_API_KEY",
+      "credential_ref": "env:TAVILY_API_KEY",
       "options": {}
     },
     {
       "provider": "bocha_web_search",
       "role": "china_finance_primary",
+      "base_url": "https://api.bochaai.com",
       "max_results": 10,
-      "credential_ref": "BOCHA_API_KEY",
+      "credential_ref": "env:BOCHA_API_KEY",
       "options": {}
     }
   ]
@@ -128,6 +130,171 @@ DeepSeek Tool Calls 可以在后续版本中作为增强模式：模型先返回
 AI Web Research 的入库门槛不是“必须有可点击链接”，而是“必须有可审计来源归因”。`source_url` 是最高优先级来源字段；当 provider 无法返回 URL 时，parser 可以接受 `source_name`、`source_reference`、`citation_text` 或 `provider_source_note` 等来源说明，并在 raw metadata 中记录 `source_attribution_type=url|named_source|citation_text|provider_note`。
 
 如果 item 同时缺少 URL、来源名称、引用文本和 provider 来源说明，系统必须拒绝该条目。后续事件抽取应根据 `source_attribution_type`、`content_origin` 和 `retrieval_method` 判断证据强弱。
+
+### Decision: Search tool base URL 必须支持配置化
+
+Tavily、博查等 Web Search provider 的官方 base URL 可以作为代码默认值，但 source catalog 必须允许在 `web_search_plan.tools[].base_url` 中覆盖。这样 local、uat、prod 可以通过不同 source seed 或数据库配置接入官方地址、代理网关、企业网关或私有化搜索服务，而不需要修改代码。
+
+真实 API key 仍然只能通过 `credential_ref` 引用环境变量或部署 secret。`base_url` 只允许保存非敏感地址，不得包含 token、query key 或用户隐私参数。
+
+### Decision: Adapter 文件名和主要类型保持一致
+
+Go 不要求一个文件只放一个类型，但本项目需要让 AI agent 和人类开发者能快速定位职责。AI Web Research adapter 文件应以主要 provider 类型命名，例如：
+
+```text
+ai_web_research_tavily_adapter.go
+ai_web_research_bocha_adapter.go
+```
+
+公共搜索编排、公共 HTTP helper、LLM normalizer 和 source config 解析应拆在各自文件中，避免一个文件同时承担 provider 适配、请求构造、响应映射和注册职责。
+
+### Decision: Adapter 抽象到 HTTP helper，不抽成万能 provider 框架
+
+当前已有 `SearchAdapter`、`SearchRequest`、`SearchResponse` 和 `SearchResultCandidate` 作为稳定抽象。Tavily 和博查的 HTTP 请求存在重复逻辑，包括 JSON marshal、POST 请求、Bearer 鉴权、状态码处理、响应读取和 JSON decode，应抽出公共 helper。
+
+但不同 provider 的请求字段、响应字段、分页、时间语义和错误语义差异较大，首期不引入“万能搜索 provider 框架”。每个 adapter 仍然保留 provider-specific request mapping 和 response mapping，公共层只处理确定重复且低歧义的 HTTP JSON 调用。
+
+### Decision: Go 后端采用轻框架组合，不引入 Spring 式大框架
+
+本项目后端已经使用 Gin 作为 HTTP API 框架、pgx 作为 PostgreSQL driver、goose 作为数据库迁移工具，并使用 Go 标准库完成 HTTP client、context 和 testing。Go 生态没有类似 Java Spring 的单一事实标准大框架，主流工程实践是轻框架、显式依赖、清晰 package 边界和 interface 驱动测试。
+
+当前阶段不引入 DI 大框架、ORM 大框架或全家桶应用框架。理由是：
+
+- 采集器、scheduler、connector 和后台任务更依赖清晰边界，而不是 Web 框架魔法。
+- 显式构造和 interface 对 AI 编程更稳定，编译反馈直接，调试路径短。
+- 现有模块化单体结构已经能支持 API、ingestion、scheduler 和后续后台 worker 的独立入口。
+
+后续如出现明确需要，可以按场景引入专项成熟库，例如 scheduler 使用 `robfig/cron`，异步任务队列评估 `asynq`，但不把它们作为本 change 的前置依赖。
+
+## Diagrams
+
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Trigger as "source-ingest / scheduler"
+    participant Job as "IngestionJob"
+    participant Registry as "core.Registry"
+    participant Connector as "LLMWebResearchConnector"
+    participant Config as "ParseAIWebResearchConfig"
+    participant Prompt as "PromptStoreLoader"
+    participant Search as "SearchPlanExecutor"
+    participant Cred as "CredentialResolver"
+    participant Tavily as "TavilySearchAdapter"
+    participant Bocha as "BochaSearchAdapter"
+    participant LLM as "OpenAICompatibleNormalizer"
+    participant Parser as "LLMResearchItemsParser"
+    participant Writer as "RawDocumentWriter"
+    participant DB as "raw_documents"
+
+    Trigger->>Job: Run(filter)
+    Job->>Registry: Connector("llm_web_research")
+    Registry-->>Job: LLMWebResearchConnector
+    Job->>Registry: Parser("llm_research_items")
+    Registry-->>Job: LLMResearchItemsParser
+    Job->>Connector: Fetch(ctx, source, credential)
+    Connector->>Config: ParseAIWebResearchConfig(source)
+    Config-->>Connector: AIWebResearchConfig
+    Connector->>Prompt: LoadPrompt(prompt_ref, version, variables)
+    Prompt-->>Connector: rendered prompt
+    Connector->>Search: Search(web_search_plan, query, max_results)
+    loop each tool
+        Search->>Cred: Resolve(tool.credential_ref)
+        Cred-->>Search: API key
+        alt provider=tavily
+            Search->>Tavily: Search(request with tool.base_url)
+            Tavily-->>Search: SearchResponse
+        else provider=bocha_web_search
+            Search->>Bocha: Search(request with tool.base_url)
+            Bocha-->>Search: SearchResponse
+        end
+    end
+    Search->>Search: dedupe / trusted-domain rank / limit
+    Search-->>Connector: SearchPlanResult
+    Connector->>Cred: Resolve(credential_refs.llm)
+    Cred-->>Connector: LLM API key
+    Connector->>LLM: Normalize(model, prompt, searchResults)
+    LLM-->>Connector: JSON object {items:[...]}
+    Connector-->>Job: RawResponse(application/json)
+    Job->>Parser: Parse(source, RawResponse)
+    Parser-->>Job: []RawDocumentCandidate
+    loop each candidate
+        Job->>Writer: Write(candidate)
+        Writer->>DB: UpsertRawDocument
+    end
+    Job-->>Trigger: IngestionReport
+```
+
+### Class / Component Diagram
+
+```mermaid
+classDiagram
+    class LLMWebResearchConnector {
+        +SearchExecutor
+        +Normalizer
+        +PromptLoader
+        +CredentialResolver
+        +Fetch(ctx, source, credential) RawResponse
+    }
+    class SearchPlanExecutor {
+        +Adapters
+        +TrustedDomains
+        +CredentialResolver
+        +Search(ctx, plan, request) SearchPlanResult
+    }
+    class SearchAdapter {
+        <<interface>>
+        +Search(ctx, request) SearchResponse
+    }
+    class TavilySearchAdapter {
+        +Client
+        +BaseURL
+        +Search(ctx, request) SearchResponse
+    }
+    class BochaSearchAdapter {
+        +Client
+        +BaseURL
+        +Search(ctx, request) SearchResponse
+    }
+    class WebSearchToolConfig {
+        +Provider
+        +Role
+        +BaseURL
+        +CredentialRef
+        +MaxResults
+        +Options
+    }
+    class OpenAICompatibleNormalizer {
+        +Client
+        +BaseURL
+        +Normalize(ctx, request) LLMNormalizeResponse
+    }
+    class LLMResearchItemsParser {
+        +Parse(ctx, source, response) []RawDocumentCandidate
+    }
+    class PromptStoreLoader {
+        +Root
+        +LoadPrompt(ref, version, variables) string
+    }
+    class CredentialResolver {
+        <<interface>>
+        +Resolve(ref) string
+    }
+    class RawDocumentWriter {
+        +Write(ctx, candidate) RawDocumentWriteResult
+    }
+
+    LLMWebResearchConnector --> SearchPlanExecutor
+    LLMWebResearchConnector --> OpenAICompatibleNormalizer
+    LLMWebResearchConnector --> PromptStoreLoader
+    LLMWebResearchConnector --> CredentialResolver
+    SearchPlanExecutor --> WebSearchToolConfig
+    SearchPlanExecutor --> SearchAdapter
+    SearchPlanExecutor --> CredentialResolver
+    SearchAdapter <|.. TavilySearchAdapter
+    SearchAdapter <|.. BochaSearchAdapter
+    LLMResearchItemsParser --> RawDocumentWriter
+```
 
 ## Risks / Trade-offs
 

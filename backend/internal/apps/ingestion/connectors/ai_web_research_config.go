@@ -30,6 +30,7 @@ type WebSearchPlan struct {
 type WebSearchToolConfig struct {
 	Provider      string
 	Role          string
+	BaseURL       string
 	CredentialRef string
 	MaxResults    int
 	Options       map[string]any
@@ -121,6 +122,7 @@ func parseWebSearchPlan(value any) (WebSearchPlan, error) {
 		tool := WebSearchToolConfig{
 			Provider:      jsonStringValue(toolMap["provider"]),
 			Role:          jsonStringValue(toolMap["role"]),
+			BaseURL:       jsonStringValue(toolMap["base_url"]),
 			CredentialRef: jsonStringValue(toolMap["credential_ref"]),
 			MaxResults:    connectorPositiveInt(toolMap["max_results"]),
 			Options:       optionalAnyMap(toolMap["options"]),

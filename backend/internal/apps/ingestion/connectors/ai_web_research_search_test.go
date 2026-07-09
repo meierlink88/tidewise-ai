@@ -134,6 +134,28 @@ func TestSearchPlanExecutorFallbackSkipsLaterToolsAfterSuccess(t *testing.T) {
 	}
 }
 
+func TestSearchPlanExecutorPassesToolBaseURLToAdapter(t *testing.T) {
+	adapter := &capturingSearchAdapter{}
+	executor := SearchPlanExecutor{
+		Adapters: map[string]SearchAdapter{
+			"tavily": adapter,
+		},
+	}
+
+	_, err := executor.Search(context.Background(), WebSearchPlan{
+		Mode: "parallel",
+		Tools: []WebSearchToolConfig{
+			{Provider: "tavily", BaseURL: "https://proxy.example.com/tavily", CredentialRef: "env:TAVILY_API_KEY", MaxResults: 5},
+		},
+	}, SearchRequest{Query: "news", MaxResults: 5})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	if adapter.lastRequest.BaseURL != "https://proxy.example.com/tavily" {
+		t.Fatalf("BaseURL = %q, want configured tool base url", adapter.lastRequest.BaseURL)
+	}
+}
+
 type fakeSearchAdapter struct {
 	results []SearchResultCandidate
 	err     error
@@ -153,4 +175,13 @@ type countingSearchAdapter struct {
 func (a *countingSearchAdapter) Search(context.Context, SearchRequest) (SearchResponse, error) {
 	a.calls++
 	return SearchResponse{Results: []SearchResultCandidate{{Provider: "bocha_web_search", Title: "新闻", URL: "https://example.com/bocha"}}}, nil
+}
+
+type capturingSearchAdapter struct {
+	lastRequest SearchRequest
+}
+
+func (a *capturingSearchAdapter) Search(_ context.Context, request SearchRequest) (SearchResponse, error) {
+	a.lastRequest = request
+	return SearchResponse{Results: []SearchResultCandidate{{Provider: "tavily", Title: "新闻", URL: "https://example.com/news"}}}, nil
 }

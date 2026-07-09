@@ -81,6 +81,8 @@ OpenSpec 细则见 `.agents/openspec-workflow.md`。处理任何 OpenSpec change
 
 新 change 必须基于主规格和现有代码增量设计，优先复用已有模块，不得创建平行结构。详细 Explore、Propose、Apply、Validate、Sync、Archive 规则见 `.agents/openspec-workflow.md`。
 
+复杂后端 change 的 `design.md` 必须包含 Mermaid sequence diagram 和 class/component diagram，具体规则见 `.agents/openspec-workflow.md`。
+
 ## Git Branch, Worktree, and Commit Workflow
 
 OpenSpec change 是本项目的正式工作单元。Git branch 是 change 的交付边界，commit 是阶段性检查点，worktree 只用于并行隔离。详细规则见 `.agents/git-workflow.md`。

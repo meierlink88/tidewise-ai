@@ -1,11 +1,7 @@
 package connectors
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +13,7 @@ type TavilySearchAdapter struct {
 }
 
 func (a TavilySearchAdapter) Search(ctx context.Context, request SearchRequest) (SearchResponse, error) {
-	baseURL := strings.TrimRight(a.BaseURL, "/")
+	baseURL := strings.TrimRight(firstNonEmpty(request.BaseURL, a.BaseURL), "/")
 	if baseURL == "" {
 		baseURL = "https://api.tavily.com"
 	}
@@ -30,40 +26,9 @@ func (a TavilySearchAdapter) Search(ctx context.Context, request SearchRequest) 
 			body[key] = value
 		}
 	}
-	data, err := json.Marshal(body)
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("encode tavily request: %w", err)
-	}
-
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/search", bytes.NewReader(data))
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("build tavily request: %w", err)
-	}
-	httpRequest.Header.Set("Content-Type", "application/json")
-	if request.Credential != "" {
-		httpRequest.Header.Set("Authorization", "Bearer "+request.Credential)
-	}
-
-	client := a.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	response, err := client.Do(httpRequest)
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("call tavily: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return SearchResponse{}, fmt.Errorf("tavily status %d", response.StatusCode)
-	}
-	content, err := io.ReadAll(response.Body)
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("read tavily response: %w", err)
-	}
-
 	var payload tavilySearchResponse
-	if err := json.Unmarshal(content, &payload); err != nil {
-		return SearchResponse{}, fmt.Errorf("decode tavily response: %w", err)
+	if err := postSearchJSON(ctx, a.Client, "tavily", baseURL, "/search", request.Credential, body, &payload); err != nil {
+		return SearchResponse{}, err
 	}
 	results := make([]SearchResultCandidate, 0, len(payload.Results))
 	for index, item := range payload.Results {

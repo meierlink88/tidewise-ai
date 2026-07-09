@@ -22,8 +22,14 @@ func TestParseAIWebResearchConfigReadsSearchToolsAndLLMSettings(t *testing.T) {
 	if config.WebSearchPlan.Tools[0].Provider != "tavily" {
 		t.Fatalf("first provider = %q, want tavily", config.WebSearchPlan.Tools[0].Provider)
 	}
+	if config.WebSearchPlan.Tools[0].BaseURL != "https://proxy.example.com/tavily" {
+		t.Fatalf("first base url = %q, want configured tavily proxy", config.WebSearchPlan.Tools[0].BaseURL)
+	}
 	if config.WebSearchPlan.Tools[1].Provider != "bocha_web_search" {
 		t.Fatalf("second provider = %q, want bocha_web_search", config.WebSearchPlan.Tools[1].Provider)
+	}
+	if config.WebSearchPlan.Tools[1].BaseURL != "https://proxy.example.com/bocha" {
+		t.Fatalf("second base url = %q, want configured bocha proxy", config.WebSearchPlan.Tools[1].BaseURL)
 	}
 	if config.CredentialRefs["llm"] != "env:DEEPSEEK_API_KEY" {
 		t.Fatalf("LLM credential ref = %q, want env ref", config.CredentialRefs["llm"])
@@ -128,6 +134,7 @@ func aiWebResearchFixtureConfig() map[string]any {
 			"tools": []any{
 				map[string]any{
 					"provider":       "tavily",
+					"base_url":       "https://proxy.example.com/tavily",
 					"credential_ref": "env:TAVILY_API_KEY",
 					"max_results":    10,
 					"options": map[string]any{
@@ -138,6 +145,7 @@ func aiWebResearchFixtureConfig() map[string]any {
 				},
 				map[string]any{
 					"provider":       "bocha_web_search",
+					"base_url":       "https://proxy.example.com/bocha",
 					"credential_ref": "env:BOCHA_API_KEY",
 					"max_results":    10,
 					"options": map[string]any{

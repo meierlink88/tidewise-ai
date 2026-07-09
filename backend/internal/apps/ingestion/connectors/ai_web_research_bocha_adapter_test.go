@@ -97,3 +97,24 @@ func TestBochaSearchAdapterReturnsProviderError(t *testing.T) {
 		t.Fatalf("Search() error = %v, want status error", err)
 	}
 }
+
+func TestBochaSearchAdapterUsesRequestBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/web-search" {
+			t.Fatalf("path = %q, want /v1/web-search", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"webPages":{"value":[]}}`))
+	}))
+	defer server.Close()
+
+	_, err := BochaSearchAdapter{Client: server.Client(), BaseURL: "https://wrong.example.com"}.Search(context.Background(), SearchRequest{
+		BaseURL:    server.URL,
+		Query:      "财经",
+		MaxResults: 1,
+		Credential: "bocha-key",
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+}

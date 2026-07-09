@@ -27,6 +27,7 @@
             {
               "provider": "tavily",
               "role": "global_general",
+              "base_url": "https://api.tavily.com",
               "max_results": 10,
               "credential_ref": "env:TAVILY_API_KEY",
               "options": {
@@ -39,6 +40,7 @@
             {
               "provider": "bocha_web_search",
               "role": "china_finance_primary",
+              "base_url": "https://api.bochaai.com",
               "max_results": 10,
               "credential_ref": "env:BOCHA_API_KEY",
               "options": {
@@ -117,6 +119,7 @@
             {
               "provider": "tavily",
               "role": "global_general",
+              "base_url": "https://api.tavily.com",
               "max_results": 10,
               "credential_ref": "env:TAVILY_API_KEY",
               "options": {
@@ -129,6 +132,7 @@
             {
               "provider": "bocha_web_search",
               "role": "china_finance_primary",
+              "base_url": "https://api.bochaai.com",
               "max_results": 10,
               "credential_ref": "env:BOCHA_API_KEY",
               "options": {

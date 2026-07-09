@@ -22,6 +22,7 @@ backend/data/source_catalogs/ai_web_research_sources.json
 - `connector_key`: 固定为 `llm_web_research`。
 - `parser_key`: 固定为 `llm_research_items`。
 - `source_config.web_search_plan`: 配置一个或多个 Web Search tool、执行模式、每个 tool 的 `max_results`、`credential_ref` 和 provider options。
+- `source_config.web_search_plan.tools[].base_url`: 配置 Web Search provider 的官方地址、代理网关或私有化服务地址；代码默认地址只作为 fallback。
 - `source_config.credential_refs.llm`: LLM API key 的环境变量引用。
 - `source_config.api_base_url`: LLM OpenAI-compatible base URL。
 - `source_config.model`: LLM 模型名。

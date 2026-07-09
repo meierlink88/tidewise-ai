@@ -1,11 +1,7 @@
 package connectors
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -16,7 +12,7 @@ type BochaSearchAdapter struct {
 }
 
 func (a BochaSearchAdapter) Search(ctx context.Context, request SearchRequest) (SearchResponse, error) {
-	baseURL := strings.TrimRight(a.BaseURL, "/")
+	baseURL := strings.TrimRight(firstNonEmpty(request.BaseURL, a.BaseURL), "/")
 	if baseURL == "" {
 		baseURL = "https://api.bochaai.com"
 	}
@@ -29,40 +25,9 @@ func (a BochaSearchAdapter) Search(ctx context.Context, request SearchRequest) (
 			body[key] = value
 		}
 	}
-	data, err := json.Marshal(body)
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("encode bocha request: %w", err)
-	}
-
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/v1/web-search", bytes.NewReader(data))
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("build bocha request: %w", err)
-	}
-	httpRequest.Header.Set("Content-Type", "application/json")
-	if request.Credential != "" {
-		httpRequest.Header.Set("Authorization", "Bearer "+request.Credential)
-	}
-
-	client := a.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	response, err := client.Do(httpRequest)
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("call bocha: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return SearchResponse{}, fmt.Errorf("bocha status %d", response.StatusCode)
-	}
-	content, err := io.ReadAll(response.Body)
-	if err != nil {
-		return SearchResponse{}, fmt.Errorf("read bocha response: %w", err)
-	}
-
 	var payload bochaSearchResponse
-	if err := json.Unmarshal(content, &payload); err != nil {
-		return SearchResponse{}, fmt.Errorf("decode bocha response: %w", err)
+	if err := postSearchJSON(ctx, a.Client, "bocha", baseURL, "/v1/web-search", request.Credential, body, &payload); err != nil {
+		return SearchResponse{}, err
 	}
 	results := make([]SearchResultCandidate, 0, len(payload.WebPages.Value))
 	for index, item := range payload.WebPages.Value {

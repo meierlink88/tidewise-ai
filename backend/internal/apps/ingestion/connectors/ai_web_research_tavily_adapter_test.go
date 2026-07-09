@@ -105,3 +105,24 @@ func TestTavilySearchAdapterReturnsProviderError(t *testing.T) {
 		t.Fatalf("Search() error = %v, want status error", err)
 	}
 }
+
+func TestTavilySearchAdapterUsesRequestBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/search" {
+			t.Fatalf("path = %q, want /search", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[]}`))
+	}))
+	defer server.Close()
+
+	_, err := TavilySearchAdapter{Client: server.Client(), BaseURL: "https://wrong.example.com"}.Search(context.Background(), SearchRequest{
+		BaseURL:    server.URL,
+		Query:      "news",
+		MaxResults: 1,
+		Credential: "test-key",
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+}
