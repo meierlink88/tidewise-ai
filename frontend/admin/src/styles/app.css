@@ -1,0 +1,69 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f7fb;
+  color: #1f2633;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.app-shell {
+  min-height: 100%;
+}
+
+.app-sidebar {
+  padding: 20px 12px;
+}
+
+.app-sidebar h3 {
+  color: #ffffff;
+  margin: 0 12px 20px;
+}
+
+.app-header {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #e6eaf0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 24px;
+}
+
+.token-input {
+  max-width: 320px;
+}
+
+.app-content {
+  padding: 24px;
+}
+
+.scheduler-settings {
+  max-width: 1080px;
+}
+
+.page-title {
+  margin-bottom: 16px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 8px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.full-width {
+  width: 100%;
+}
+
+.run-summary {
+  margin-top: 16px;
+}
+
+.run-summary .ant-card-body {
+  display: flex;
+  gap: 24px;
+}

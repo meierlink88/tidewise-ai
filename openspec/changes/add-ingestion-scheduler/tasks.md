@@ -36,11 +36,11 @@
 
 ## 6. Admin 前端
 
-- [ ] 6.1 初始化 `frontend/admin/` 为 Vite + React + TypeScript + Ant Design 独立 Web 管理后台，不影响 `frontend/miniapp/`。
-- [ ] 6.2 为 scheduler settings 页面编写前端测试，覆盖 token header 注入、加载配置、保存配置、interval 模式、固定时间模式和表单校验。
-- [ ] 6.3 实现 admin 布局和单一菜单“调度器设置”。
-- [ ] 6.4 实现调度器设置页面，支持启停、模式切换、interval、至少 5 个固定时间、并发数、batch size、timeout、source filter、保存和最近运行摘要展示。
-- [ ] 6.5 验证 admin 前端本地启动、页面可访问、表单不溢出、请求携带 Admin Token，并记录本地访问方式。
+- [x] 6.1 初始化 `frontend/admin/` 为 Vite + React + TypeScript + Ant Design 独立 Web 管理后台，不影响 `frontend/miniapp/`。
+- [x] 6.2 为 scheduler settings 页面编写前端测试，覆盖 token header 注入、加载配置、保存配置、interval 模式、固定时间模式和表单校验。
+- [x] 6.3 实现 admin 布局和单一菜单“调度器设置”。
+- [x] 6.4 实现调度器设置页面，支持启停、模式切换、interval、至少 5 个固定时间、并发数、batch size、timeout、source filter、保存和最近运行摘要展示。
+- [x] 6.5 验证 admin 前端本地启动、页面可访问、表单不溢出、请求携带 Admin Token，并记录本地访问方式。
 
 ## 7. 文档和验证
 
