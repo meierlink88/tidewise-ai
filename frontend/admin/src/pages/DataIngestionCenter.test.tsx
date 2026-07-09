@@ -61,13 +61,17 @@ describe('DataIngestionCenter', () => {
     await user.selectOptions(screen.getByLabelText('事实状态'), 'verified');
     await user.type(screen.getByLabelText('事件时间开始'), '2026-07-09T00:00');
     await user.type(screen.getByLabelText('事件时间结束'), '2026-07-10T00:00');
+    await user.type(screen.getByLabelText('首次发现开始'), '2026-07-08T00:00');
+    await user.type(screen.getByLabelText('首次发现结束'), '2026-07-11T00:00');
     await user.click(screen.getByRole('button', { name: '搜索事件' }));
 
     expect(dataIngestionAPI.loadEvents).toHaveBeenLastCalledWith('secret-token', expect.objectContaining({
       page: 1,
       title: '美联储',
       event_status: 'confirmed',
-      fact_status: 'verified'
+      fact_status: 'verified',
+      first_seen_from: '2026-07-07T16:00:00.000Z',
+      first_seen_to: '2026-07-10T16:00:00.000Z'
     }));
   });
 

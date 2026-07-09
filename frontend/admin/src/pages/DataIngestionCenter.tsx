@@ -42,6 +42,8 @@ export default function DataIngestionCenter({ token }: { token: string }) {
   const [factStatus, setFactStatus] = useState('');
   const [eventTimeFrom, setEventTimeFrom] = useState('');
   const [eventTimeTo, setEventTimeTo] = useState('');
+  const [firstSeenFrom, setFirstSeenFrom] = useState('');
+  const [firstSeenTo, setFirstSeenTo] = useState('');
   const [eventQuery, setEventQuery] = useState<EventQuery>({ page: 1, title: '' });
   const [eventPage, setEventPage] = useState({ items: [] as EventItem[], total: 0, page: 1, page_size: pageSize });
   const [sourceStatus, setSourceStatus] = useState('');
@@ -168,7 +170,9 @@ export default function DataIngestionCenter({ token }: { token: string }) {
       event_status: eventStatus || undefined,
       fact_status: factStatus || undefined,
       event_time_from: toRFC3339(eventTimeFrom),
-      event_time_to: toRFC3339(eventTimeTo)
+      event_time_to: toRFC3339(eventTimeTo),
+      first_seen_from: toRFC3339(firstSeenFrom),
+      first_seen_to: toRFC3339(firstSeenTo)
     });
   };
 
@@ -226,6 +230,12 @@ export default function DataIngestionCenter({ token }: { token: string }) {
                 </Field>
                 <Field label="事件时间结束">
                   <Input aria-label="事件时间结束" onChange={(event) => setEventTimeTo(event.target.value)} type="datetime-local" value={eventTimeTo} />
+                </Field>
+                <Field label="首次发现开始">
+                  <Input aria-label="首次发现开始" onChange={(event) => setFirstSeenFrom(event.target.value)} type="datetime-local" value={firstSeenFrom} />
+                </Field>
+                <Field label="首次发现结束">
+                  <Input aria-label="首次发现结束" onChange={(event) => setFirstSeenTo(event.target.value)} type="datetime-local" value={firstSeenTo} />
                 </Field>
                 <Button type="submit">搜索事件</Button>
               </form>
