@@ -181,7 +181,7 @@
 - **THEN** 系统必须通过采集子系统 provider 专属 connector/parser 或通用 HTTP connector/parser 表达采集路径，并保留限流、字段映射和数据频率配置
 
 ### Requirement: 多来源并发采集
-系统 SHALL 支持对多个 active source 进行可配置并发采集，并保持单源失败隔离、provider 限流和可测试的汇总报告。
+系统 SHALL 支持对多个 active source 进行可配置并发采集，并保持单源失败隔离、provider 限流、可测试的汇总报告和全局调度器触发兼容性。
 
 #### Scenario: 并发执行多个来源
 - **WHEN** 采集任务读取到多个 active source 且并发数大于 1
@@ -198,6 +198,10 @@
 #### Scenario: 保持串行兼容
 - **WHEN** 采集任务并发数设置为 1
 - **THEN** 系统必须保持与现有串行执行等价的处理语义和 report 结构
+
+#### Scenario: 接受调度器过滤条件
+- **WHEN** 全局调度器按配置触发采集并传入 provider、channel 或 source type 过滤条件
+- **THEN** 采集任务必须只处理匹配过滤条件的 active source，并返回成功、失败、错误和写入统计，供调度器持久化运行结果
 
 ### Requirement: AI Web Research 采集通道
 系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发单一 AI connector 内的多个 Web Search tool、可选网页抓取和程序化原始文档标准化。
