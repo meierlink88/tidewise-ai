@@ -9,14 +9,14 @@
 
 ## 2. Web Search Provider 和 LLM 调用边界
 
-- [ ] 2.1 使用 fake 或 `httptest` 编写 provider-neutral search adapter 测试，覆盖成功响应、鉴权失败、参数错误、超时、空结果、返回 URL/snippet/raw content、来源名称、发布时间和 provider 错误。
-- [ ] 2.2 使用 fake 或 `httptest` 编写 Tavily search adapter 测试，覆盖 `topic`、`search_depth`、`time_range`、`include_domains`、`exclude_domains`、`include_raw_content`、usage 和 request id 映射。
-- [ ] 2.3 使用 fake 或 `httptest` 编写博查 search adapter 测试，覆盖 `query`、`freshness`、`summary`、`count`、中文来源字段、summary、siteName、datePublished 和 provider 原始响应映射。
-- [ ] 2.4 使用 fake 或 `httptest` 编写 LLM normalizer 调用测试，覆盖成功结构化响应、鉴权失败、超时、非 JSON 响应、空 items 和 provider 错误。
-- [ ] 2.5 实现 provider-neutral 请求结构和 `web_search_plan` 编排，使 connector 可以表达多 Web Search tool、调用模式、失败策略、LLM provider、API 协议、模型、prompt 引用、搜索选项、来源偏好、可信域名、最大结果数和 timeout。
-- [ ] 2.6 实现 Tavily、博查 search adapter 和首个 OpenAI-compatible LLM normalizer 客户端边界，真实网络调用必须可被 fake/`httptest` 替换。
-- [ ] 2.7 为凭证解析和请求构造编写安全测试，确保 Authorization header、API key 查询参数、cookie 和 bearer token 不进入日志、raw metadata 或 source_config。
-- [ ] 2.8 编写多 Web Search tool 合并测试，覆盖 parallel、fallback、去重、可信域名排序、总结果上限、单工具失败和 report 明细。
+- [x] 2.1 使用 fake 或 `httptest` 编写 provider-neutral search adapter 测试，覆盖成功响应、鉴权失败、参数错误、超时、空结果、返回 URL/snippet/raw content、来源名称、发布时间和 provider 错误。
+- [x] 2.2 使用 fake 或 `httptest` 编写 Tavily search adapter 测试，覆盖 `topic`、`search_depth`、`time_range`、`include_domains`、`exclude_domains`、`include_raw_content`、usage 和 request id 映射。
+- [x] 2.3 使用 fake 或 `httptest` 编写博查 search adapter 测试，覆盖 `query`、`freshness`、`summary`、`count`、中文来源字段、summary、siteName、datePublished 和 provider 原始响应映射。
+- [x] 2.4 使用 fake 或 `httptest` 编写 LLM normalizer 调用测试，覆盖成功结构化响应、鉴权失败、超时、非 JSON 响应、空 items 和 provider 错误。
+- [x] 2.5 实现 provider-neutral 请求结构和 `web_search_plan` 编排，使 connector 可以表达多 Web Search tool、调用模式、失败策略、LLM provider、API 协议、模型、prompt 引用、搜索选项、来源偏好、可信域名、最大结果数和 timeout。
+- [x] 2.6 实现 Tavily、博查 search adapter 和首个 OpenAI-compatible LLM normalizer 客户端边界，真实网络调用必须可被 fake/`httptest` 替换。
+- [x] 2.7 为凭证解析和请求构造编写安全测试，确保 Authorization header、API key 查询参数、cookie 和 bearer token 不进入日志、raw metadata 或 source_config。
+- [x] 2.8 编写多 Web Search tool 合并测试，覆盖 parallel、fallback、去重、可信域名排序、总结果上限、单工具失败和 report 明细。
 
 ## 3. Parser 和原始文档标准化
 
