@@ -12,6 +12,33 @@
 - **WHEN** 后续管理后台新增其他运营菜单
 - **THEN** `数据采集中心` 必须作为一个独立一级菜单存在，不得占用整个 admin portal 的产品定位
 
+### Requirement: Minimal Dashboard 设计一致性
+系统 SHALL 在 `数据采集中心` 开发前完成 Minimal Dashboard 设计一致性整改，使管理后台不只是移除 Ant Design 依赖，而是使用 Minimal Dashboard 的 token、组件结构、图标和布局语言。
+
+#### Scenario: 使用设计系统读取顺序
+- **WHEN** agent 实现或修改 `frontend/admin`
+- **THEN** 必须按 `.codex/skills/minimal-dashboard-design/library-consumption.json` 的推荐顺序读取设计系统资料
+- **AND** 必须把相关 token、组件 reference、preview 和 dashboard kit 转译为 React/CSS 实现
+
+#### Scenario: 对齐视觉 token
+- **WHEN** 管理后台页面渲染
+- **THEN** token 必须覆盖 Minimal Dashboard 的 color families、semantic aliases、字体族、4px spacing、主圆角和低阴影/零阴影策略
+
+#### Scenario: 对齐后台布局
+- **WHEN** 管理员登录后进入管理后台
+- **THEN** sidebar 必须使用品牌区、分组 label、图标菜单项和高对比 active 状态
+- **AND** 页面主内容必须保持 Minimal Dashboard 的灰阶、边框、数据密度和克制强调色风格
+
+#### Scenario: 对齐基础组件
+- **WHEN** 页面使用按钮、卡片、表格、tab、状态标记或分页
+- **THEN** 必须优先使用 `frontend/admin/src/components/ui/` 下按 Minimal Dashboard 转译的自有组件
+- **AND** 不得新增或恢复 Ant Design 作为默认 UI 依赖
+
+#### Scenario: 截图验收
+- **WHEN** 前端实现完成
+- **THEN** 必须通过本地浏览器截图检查桌面视口下的 sidebar、按钮、卡片、表格和 tab 是否符合 Minimal Dashboard 风格
+- **AND** 页面不得出现文本溢出、控件重叠或明显退回通用后台模板风格
+
 ### Requirement: 原始数据列表
 系统 SHALL 在 `数据采集中心` 的 `原始数据` tab 展示 `raw_documents` 只读列表，并支持分页和标题模糊搜索。
 

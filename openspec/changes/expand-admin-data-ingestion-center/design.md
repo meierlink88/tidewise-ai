@@ -45,6 +45,18 @@
 
 调度器页面的统计含义应是执行轮次结果，而不是 source 数量结果。记录列表展示每一轮 run 的状态、触发类型、开始时间、结束时间、总 source 数、成功 source 数、失败 source 数、跳过 source 数和错误摘要。
 
+### Decision: Minimal Dashboard 设计一致性作为前端前置门禁
+
+本 change 的前端实现不得只停留在“没有 Ant Design 依赖”或“使用自有组件”。实现前必须先完成一次 Minimal Dashboard 设计一致性整改，按 `.codex/skills/minimal-dashboard-design/library-consumption.json` 的推荐顺序读取设计资料，并把关键设计特征落到生产组件：
+
+- `frontend/admin/src/styles/tokens.css` 必须以 `colors_and_type.css` 或 `css.json` 为来源，保留 10-step color families、semantic aliases、`25.2px` 主圆角、4px spacing 和零阴影/低阴影策略。
+- 字体必须有明确加载策略。无法稳定加载 Geist、DM Serif Display、Geist Mono 时，必须记录 fallback 行为，并确保页面不依赖未加载字体才能排版正常。
+- sidebar 必须按 Minimal Dashboard 的 frame、section label、nav item、active marker、footer item 结构实现，菜单项优先使用设计系统图标资产。
+- button、card、table、navigation/tabs、status pill 必须按对应 `components/*.json` 和 preview 的结构转译为 React 组件，不得直接复制 preview HTML。
+- 页面文案保持短、准、运营后台化，避免解释性长句堆在 UI 上。
+
+这项门禁的目标是让新页面建立在真实 Minimal Dashboard 组件系统上，而不是在旧后台样式上继续叠功能。
+
 ## Backend Design
 
 ### Admin API
@@ -168,8 +180,21 @@ classDiagram
 - `DataTable`：用于只读表格、空状态和紧凑行展示。
 - `Pagination`：用于原始数据和全球事件分页。
 - `StatusBadge` 扩展：用于 `active`、`inactive`、`disabled`、`succeeded`、`failed` 等状态。
+- `Icon`：用于引用 `.codex/skills/minimal-dashboard-design/assets/icons/` 中的 SVG 图标，服务 sidebar、按钮和状态操作。
 
 表格应保持 Minimal Dashboard 的安静数据密度：中性边框、低阴影、蓝色只用于激活态和主要操作。
+
+### Design Conformance Checklist
+
+前端实现完成后必须逐项核对：
+
+- `package.json` 不新增 Ant Design 依赖。
+- `frontend/admin/src/styles/tokens.css` 的 token 来源可追溯到 Minimal Dashboard skill。
+- 页面实际加载或合理 fallback 到 Geist、DM Serif Display、Geist Mono 字体族。
+- sidebar 使用品牌图标、分组 label、图标菜单项和高对比 active 状态。
+- primary button、secondary button、card、table、tabs、status pill 的圆角、边框、阴影、间距和色彩符合 Minimal Dashboard preview 的方向。
+- `数据采集中心` 四个 tab 截图需要与 Minimal Dashboard 的数据密集、灰阶、克制蓝色强调风格一致。
+- 通过浏览器截图检查桌面宽度下没有文本溢出、控件重叠或表格布局崩坏。
 
 ## Testing Strategy
 
@@ -185,12 +210,14 @@ classDiagram
 
 前端实现后需要验证：
 
+- Minimal Dashboard 设计一致性 checklist 全部通过。
 - 登录后 sidebar 显示 `数据采集中心`。
 - 四个 tab 可切换，且刷新后不会破坏 Admin Token 请求。
 - 原始数据和全球事件列表分页固定 50 条。
 - 原始数据标题搜索、事件标题搜索和四个事件筛选项能正确调用 API。
 - 搜索通道可以按状态筛选，且页面不展示 parser。
 - 调度器 tab 能保存配置，并展示最近 50 条执行记录。
+- 使用本地浏览器截图验收 `数据采集中心` 页面和 `调度器` tab 的视觉结果。
 
 ## Risks
 

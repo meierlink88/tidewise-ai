@@ -11,7 +11,8 @@
   - `搜索通道`：展示 `source_catalogs` 列表，支持按 `active`、`inactive`、`disabled` 状态筛选，不分页，不展示 parser 字段。
   - `调度器`：保留现有调度器配置能力，并在同一页面右侧展示最近 50 条调度执行记录。
 - 新增只读 Admin API，用于查询原始数据、事件、搜索通道和最近调度执行记录。
-- 管理后台继续复用 Admin Token 鉴权、Minimal Dashboard 设计系统、自有 UI primitives 和现有 admin shell。
+- 管理后台继续复用 Admin Token 鉴权和现有 admin shell，但必须先完成一次 Minimal Dashboard 设计一致性整改，避免只做“去 Ant Design 化”的简化 UI。
+- 前端实现必须基于 `.codex/skills/minimal-dashboard-design/library-consumption.json` 的推荐读取顺序，重新校准 token、字体、sidebar、navigation、button、card、table、tabs 和图标使用方式。
 - 不做编辑、删除、审核、重跑采集、事件详情页、事件抽取、事件关系图谱或新增数据库表。
 
 ## Capabilities
@@ -33,6 +34,8 @@
 - 前端：
   - `frontend/admin/src/api/` 增加数据采集中心 API client。
   - `frontend/admin/src/pages/` 增加或重组数据采集中心页面和 4 个 tab。
+  - `frontend/admin/src/styles/` 必须对齐 Minimal Dashboard token、字体和阴影/圆角规则。
+  - `frontend/admin/src/layouts/` 必须把 sidebar、header 和导航形态调整为 Minimal Dashboard 风格。
   - `frontend/admin/src/components/ui/` 可按需要补充 table、tabs、pagination 等 Minimal Dashboard 风格基础组件。
 - OpenSpec：
   - 更新 `admin-console` delta spec，明确 `数据采集中心` 的只读查询、分页、筛选和调度记录展示行为。
