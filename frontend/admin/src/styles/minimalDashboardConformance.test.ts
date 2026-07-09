@@ -62,4 +62,13 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).toContain('grid-template-rows: auto minmax(0, 1fr) auto;');
     expect(stylesheet).toContain('overflow-y: auto;');
   });
+
+  it('keeps data ingestion tabs fixed at the top of the scrollable workspace', () => {
+    const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
+
+    expect(stylesheet).toContain('.data-ingestion-center > .ui-tabs');
+    expect(stylesheet).toContain('position: sticky;');
+    expect(stylesheet).toContain('top: 0;');
+    expect(stylesheet).toContain('z-index: 10;');
+  });
 });

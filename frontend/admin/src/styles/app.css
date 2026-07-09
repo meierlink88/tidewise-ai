@@ -361,6 +361,12 @@ select {
   padding: 5px;
 }
 
+.data-ingestion-center > .ui-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 .ui-tab {
   background: transparent;
   border: 0;
