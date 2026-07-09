@@ -211,11 +211,13 @@ select {
 
 .admin-content {
   padding: 26px 0 0;
+  width: 100%;
 }
 
 .data-ingestion-center,
 .scheduler-settings {
-  max-width: 1280px;
+  max-width: none;
+  width: 100%;
 }
 
 .page-title {
@@ -559,7 +561,7 @@ select {
   align-items: start;
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);
+  grid-template-columns: 1fr;
 }
 
 .card-heading-row {

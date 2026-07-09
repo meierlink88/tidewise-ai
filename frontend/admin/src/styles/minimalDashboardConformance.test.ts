@@ -42,4 +42,12 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).toContain('.ui-pagination');
     expect(stylesheet).toContain('.ui-status::before');
   });
+
+  it('uses full-width content surfaces and stacks scheduler panels vertically', () => {
+    const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
+
+    expect(stylesheet).toContain('max-width: none;');
+    expect(stylesheet).toContain('grid-template-columns: 1fr;');
+    expect(stylesheet).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);');
+  });
 });
