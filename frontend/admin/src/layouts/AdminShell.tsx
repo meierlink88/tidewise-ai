@@ -4,10 +4,11 @@ import Icon from '../components/ui/Icon';
 
 interface AdminShellProps {
   children: ReactNode;
+  currentTitle: string;
   onLogout: () => void;
 }
 
-export default function AdminShell({ children, onLogout }: AdminShellProps) {
+export default function AdminShell({ children, currentTitle, onLogout }: AdminShellProps) {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
@@ -37,7 +38,7 @@ export default function AdminShell({ children, onLogout }: AdminShellProps) {
         <header className="admin-header">
           <div>
             <span className="admin-header-kicker">Admin Console</span>
-            <strong>Operational workspace</strong>
+            <h1 className="admin-header-title">{currentTitle}</h1>
           </div>
           <Button variant="secondary" onClick={onLogout}>
             <Icon name="log-out" />

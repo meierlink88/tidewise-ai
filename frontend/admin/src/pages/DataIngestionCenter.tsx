@@ -176,7 +176,6 @@ export default function DataIngestionCenter({ token }: { token: string }) {
       <div className="page-title page-title-row">
         <div>
           <span className="eyebrow">Data Ingestion</span>
-          <h1>数据采集中心</h1>
           <p>查看采集原始数据、事件结果、搜索通道和调度器运行记录。</p>
         </div>
       </div>

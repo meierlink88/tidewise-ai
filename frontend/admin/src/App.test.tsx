@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -74,7 +74,8 @@ describe('App admin login', () => {
     await user.type(screen.getByLabelText('Admin Token'), 'local-admin-token');
     await user.click(screen.getByRole('button', { name: '登录' }));
 
-    expect(await screen.findByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
+    expect(await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).queryByRole('heading', { name: '数据采集中心' })).not.toBeInTheDocument();
     expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');
 

@@ -24,7 +24,7 @@ export default function App() {
   }
 
   return (
-    <AdminShell onLogout={handleLogout}>
+    <AdminShell currentTitle="数据采集中心" onLogout={handleLogout}>
       <DataIngestionCenter token={token} />
     </AdminShell>
   );

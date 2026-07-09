@@ -110,10 +110,17 @@ select {
   width: 32px;
 }
 
-.admin-brand strong,
-.admin-header strong {
+.admin-brand strong {
   display: block;
   font-size: 15px;
+}
+
+.admin-header-title {
+  display: block;
+  font-size: 15px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .admin-brand span:last-child {
