@@ -72,6 +72,10 @@
 - **WHEN** AI Web Research item 的正文来自真实网页抓取或 provider 返回的网页正文
 - **THEN** 原始文档候选对象必须标记 `content_origin=fetched_source_text`
 
+#### Scenario: 兼容网页内容别名
+- **WHEN** 真实 LLM provider 返回 `content_origin=web_content`
+- **THEN** parser 可以将其作为网页内容来源别名接受，但不得把未知内容来源类型静默写入原始文档边界
+
 #### Scenario: 保存模型总结
 - **WHEN** AI Web Research item 的正文来自模型根据搜索结果生成的总结
 - **THEN** 原始文档候选对象必须标记 `content_origin=llm_generated_summary`，不得把该内容伪装成原始新闻全文

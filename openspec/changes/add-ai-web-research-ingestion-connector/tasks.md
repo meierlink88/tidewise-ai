@@ -50,3 +50,5 @@
 - [x] 6.6 抽出 Web Search adapter HTTP JSON 请求公共 helper，减少 Tavily/博查重复代码。
 - [x] 6.7 调整 adapter 文件命名，使主要类型与文件职责一致。
 - [x] 6.8 运行 `go test ./...` 和 `openspec validate add-ai-web-research-ingestion-connector`。
+- [x] 6.9 修复博查 Web Search API 真实响应 envelope 解析，覆盖 `{code, data.webPages.value}` 响应结构。
+- [x] 6.10 兼容真实 LLM 返回的 `content_origin=web_content`，保证 AI Web Research smoke 可以解析并写入原始文档。

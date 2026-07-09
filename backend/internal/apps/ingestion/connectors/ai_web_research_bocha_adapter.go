@@ -29,8 +29,13 @@ func (a BochaSearchAdapter) Search(ctx context.Context, request SearchRequest) (
 	if err := postSearchJSON(ctx, a.Client, "bocha", baseURL, "/v1/web-search", request.Credential, body, &payload); err != nil {
 		return SearchResponse{}, err
 	}
-	results := make([]SearchResultCandidate, 0, len(payload.WebPages.Value))
-	for index, item := range payload.WebPages.Value {
+	data := payload.Data
+	if len(data.WebPages.Value) == 0 && len(payload.WebPages.Value) > 0 {
+		data.Type = payload.Type
+		data.WebPages = payload.WebPages
+	}
+	results := make([]SearchResultCandidate, 0, len(data.WebPages.Value))
+	for index, item := range data.WebPages.Value {
 		results = append(results, SearchResultCandidate{
 			Provider:    "bocha_web_search",
 			Title:       strings.TrimSpace(item.Name),
@@ -49,16 +54,30 @@ func (a BochaSearchAdapter) Search(ctx context.Context, request SearchRequest) (
 	return SearchResponse{
 		Results: results,
 		Raw: map[string]any{
-			"type": payload.Type,
+			"code":   payload.Code,
+			"log_id": payload.LogID,
+			"type":   firstNonEmpty(data.Type, payload.Type),
 		},
 	}, nil
 }
 
 type bochaSearchResponse struct {
-	Type     string `json:"_type"`
-	WebPages struct {
-		Value []bochaWebPage `json:"value"`
-	} `json:"webPages"`
+	Code     int             `json:"code"`
+	LogID    string          `json:"log_id"`
+	Message  string          `json:"message"`
+	Msg      string          `json:"msg"`
+	Type     string          `json:"_type"`
+	WebPages bochaWebPages   `json:"webPages"`
+	Data     bochaSearchData `json:"data"`
+}
+
+type bochaSearchData struct {
+	Type     string        `json:"_type"`
+	WebPages bochaWebPages `json:"webPages"`
+}
+
+type bochaWebPages struct {
+	Value []bochaWebPage `json:"value"`
 }
 
 type bochaWebPage struct {

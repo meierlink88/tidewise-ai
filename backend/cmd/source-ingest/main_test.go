@@ -42,3 +42,15 @@ func TestRequiredEnvParsingAndMissingDetection(t *testing.T) {
 		t.Fatalf("missing = %v, want %v", missing, want)
 	}
 }
+
+func TestIngestionTimeoutSecondsUsesOverrideWhenProvided(t *testing.T) {
+	if got := ingestionTimeoutSeconds(sourceIngestOptions{timeoutSeconds: 45}, 10); got != 45 {
+		t.Fatalf("timeout seconds = %d, want override", got)
+	}
+	if got := ingestionTimeoutSeconds(sourceIngestOptions{timeoutSeconds: 0}, 10); got != 10 {
+		t.Fatalf("timeout seconds = %d, want config default", got)
+	}
+	if got := ingestionTimeoutSeconds(sourceIngestOptions{timeoutSeconds: -1}, 10); got != 10 {
+		t.Fatalf("timeout seconds = %d, want config default for negative override", got)
+	}
+}

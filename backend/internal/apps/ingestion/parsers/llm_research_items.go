@@ -80,7 +80,7 @@ func validateLLMResearchItem(item llmResearchItem) error {
 		return fmt.Errorf("content_text is required")
 	}
 	if !validContentOrigin(item.ContentOrigin) {
-		return fmt.Errorf("unsupported content_origin")
+		return fmt.Errorf("unsupported content_origin %q", item.ContentOrigin)
 	}
 	if firstNonEmpty(item.SourceURL, item.SourceName, item.SourceReference, item.CitationText, item.ProviderSourceNote) == "" {
 		return fmt.Errorf("source attribution is required")
@@ -107,7 +107,7 @@ func rejectDisallowedInvestmentFields(raw map[string]json.RawMessage) error {
 
 func validContentOrigin(value string) bool {
 	switch strings.TrimSpace(value) {
-	case "fetched_source_text", "search_snippet", "llm_generated_summary":
+	case "fetched_source_text", "search_snippet", "llm_generated_summary", "web_content":
 		return true
 	default:
 		return false

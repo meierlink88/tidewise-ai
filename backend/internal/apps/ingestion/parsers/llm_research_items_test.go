@@ -94,6 +94,32 @@ func TestLLMResearchItemsParserAcceptsNamedSourceAttribution(t *testing.T) {
 	}
 }
 
+func TestLLMResearchItemsParserAcceptsWebContentOrigin(t *testing.T) {
+	source := llmResearchParserFixtureSource(map[string]any{"max_results": 5})
+	response := coreingestion.RawResponse{
+		ContentType: "application/json",
+		Content: []byte(`{
+			"items": [
+				{
+					"title": "博查搜索返回的财经材料",
+					"content_text": "博查搜索返回的网页内容摘要。",
+					"source_name": "证券时报",
+					"source_url": "https://epaper.stcn.com/con/202607/09/content_2948107.html",
+					"content_origin": "web_content"
+				}
+			]
+		}`),
+	}
+
+	docs, err := LLMResearchItemsParser{}.Parse(context.Background(), source, response)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(docs) != 1 {
+		t.Fatalf("docs len = %d, want 1", len(docs))
+	}
+}
+
 func TestLLMResearchItemsParserRejectsInvalidOutput(t *testing.T) {
 	cases := []struct {
 		name      string

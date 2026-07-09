@@ -21,14 +21,15 @@ import (
 )
 
 type sourceIngestOptions struct {
-	sourceID      string
-	providerKey   string
-	ingestChannel string
-	sourceType    string
-	concurrency   int
-	rsshubBaseURL string
-	promptRoot    string
-	requiredEnv   string
+	sourceID       string
+	providerKey    string
+	ingestChannel  string
+	sourceType     string
+	concurrency    int
+	timeoutSeconds int
+	rsshubBaseURL  string
+	promptRoot     string
+	requiredEnv    string
 }
 
 func main() {
@@ -38,6 +39,7 @@ func main() {
 	flag.StringVar(&options.ingestChannel, "channel", "", "filter active source catalogs by ingest_channel")
 	flag.StringVar(&options.sourceType, "source-type", "", "filter active source catalogs by source_type")
 	flag.IntVar(&options.concurrency, "concurrency", 1, "maximum source concurrency")
+	flag.IntVar(&options.timeoutSeconds, "timeout-seconds", 0, "override ingestion timeout seconds for this run")
 	flag.StringVar(&options.rsshubBaseURL, "rsshub-base-url", firstEnv("TIDEWISE_RSSHUB_BASE_URL"), "RSSHub base URL for rsshub_feed sources")
 	flag.StringVar(&options.promptRoot, "prompt-root", defaultPromptRoot(), "repo prompt root for AI ingestion sources")
 	flag.StringVar(&options.requiredEnv, "require-env", "", "comma-separated environment variables required before running gated ingestion smoke")
@@ -52,7 +54,7 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	timeout := time.Duration(cfg.Ingestion.DefaultTimeoutSeconds) * time.Second
+	timeout := time.Duration(ingestionTimeoutSeconds(options, cfg.Ingestion.DefaultTimeoutSeconds)) * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -108,6 +110,13 @@ func normalizeConcurrency(value int) int {
 		return 1
 	}
 	return value
+}
+
+func ingestionTimeoutSeconds(options sourceIngestOptions, defaultSeconds int) int {
+	if options.timeoutSeconds > 0 {
+		return options.timeoutSeconds
+	}
+	return defaultSeconds
 }
 
 func firstEnv(names ...string) string {
