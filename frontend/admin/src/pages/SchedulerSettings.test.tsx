@@ -32,6 +32,46 @@ describe('SchedulerSettings', () => {
     }));
   });
 
+  it('hides system source and timezone fields while preserving backend source filter', async () => {
+    const user = userEvent.setup();
+    const loadConfig = vi.fn().mockResolvedValue({
+      enabled: false,
+      mode: 'interval',
+      interval_minutes: 5,
+      fixed_times: [],
+      concurrency: 1,
+      batch_size: 10,
+      timeout_seconds: 180,
+      source_filter: {
+        provider_key: 'llm_web_research',
+        ingest_channel: 'ai_web_research',
+        source_type: 'news'
+      },
+      timezone: 'UTC'
+    });
+    const saveConfig = vi.fn().mockResolvedValue({});
+
+    render(<SchedulerSettings token="secret" loadConfig={loadConfig} saveConfig={saveConfig} />);
+
+    await screen.findByText('调度器设置');
+
+    expect(screen.queryByLabelText('Provider')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Channel')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Source Type')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('时区')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+    expect(saveConfig).toHaveBeenCalledWith('secret', expect.objectContaining({
+      timezone: 'Asia/Shanghai',
+      source_filter: {
+        provider_key: 'llm_web_research',
+        ingest_channel: 'ai_web_research',
+        source_type: 'news'
+      }
+    }));
+  });
+
   it('renders fixed time mode with five time inputs', async () => {
     const loadConfig = vi.fn().mockResolvedValue({
       enabled: true,

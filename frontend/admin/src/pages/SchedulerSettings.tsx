@@ -31,6 +31,7 @@ export default function SchedulerSettings({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [recentRun, setRecentRun] = useState<SchedulerConfig['recent_run']>();
+  const [systemConfig, setSystemConfig] = useState<SchedulerConfig>(defaultConfig);
 
   useEffect(() => {
     let active = true;
@@ -41,6 +42,7 @@ export default function SchedulerSettings({
           return;
         }
         const next = normalizeConfig(config);
+        setSystemConfig(next);
         form.setFieldsValue(next);
         setMode(next.mode);
         setRecentRun(config.recent_run);
@@ -48,6 +50,7 @@ export default function SchedulerSettings({
       .catch(() => {
         if (active) {
           form.setFieldsValue(defaultConfig);
+          setSystemConfig(defaultConfig);
         }
       })
       .finally(() => {
@@ -62,10 +65,18 @@ export default function SchedulerSettings({
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    const payload = normalizeConfig(values);
+    const payload = normalizeConfig({
+      ...systemConfig,
+      ...values,
+      source_filter: systemConfig.source_filter,
+      timezone: defaultConfig.timezone
+    });
     setSaving(true);
     try {
-      await saveConfig(token, payload);
+      const saved = await saveConfig(token, payload);
+      if (saved && typeof saved === 'object') {
+        setSystemConfig(normalizeConfig(saved as SchedulerConfig));
+      }
       message.success('已保存');
     } finally {
       setSaving(false);
@@ -119,18 +130,6 @@ export default function SchedulerSettings({
             </Form.Item>
             <Form.Item label="超时秒数" name="timeout_seconds" rules={[{ required: true, type: 'number', min: 1 }]}>
               <InputNumber min={1} className="full-width" />
-            </Form.Item>
-            <Form.Item label="Provider" name={['source_filter', 'provider_key']}>
-              <Input />
-            </Form.Item>
-            <Form.Item label="Channel" name={['source_filter', 'ingest_channel']}>
-              <Input />
-            </Form.Item>
-            <Form.Item label="Source Type" name={['source_filter', 'source_type']}>
-              <Input />
-            </Form.Item>
-            <Form.Item label="时区" name="timezone" rules={[{ required: true }]}>
-              <Input />
             </Form.Item>
           </div>
           <Button type="primary" loading={saving} onClick={handleSave}>
