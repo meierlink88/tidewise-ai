@@ -42,3 +42,12 @@ func TestNormalizeTickSeconds(t *testing.T) {
 		t.Fatalf("normalizeTickSeconds() = %d, want config default for negative override", got)
 	}
 }
+
+func TestSchedulerHTTPTimeoutSecondsAllowsLongAIRequests(t *testing.T) {
+	if got := schedulerHTTPTimeoutSeconds(10); got != 180 {
+		t.Fatalf("schedulerHTTPTimeoutSeconds() = %d, want 180", got)
+	}
+	if got := schedulerHTTPTimeoutSeconds(240); got != 240 {
+		t.Fatalf("schedulerHTTPTimeoutSeconds() = %d, want config value", got)
+	}
+}

@@ -44,11 +44,11 @@
 
 ## 7. 文档和验证
 
-- [ ] 7.1 更新 `infra/local/README.md`，补充 migration、admin API、admin 前端、scheduler 单轮、scheduler 持续运行和验证 SQL。
-- [ ] 7.2 运行 `go test ./...`，确保单元测试、fixture 测试和 gated 集成测试边界保持通过。
-- [ ] 7.3 运行 admin 前端测试和构建验证。
-- [ ] 7.4 运行 `openspec validate add-ingestion-scheduler`。
-- [ ] 7.5 在本地 PostgreSQL 执行 migration，并配置只启用 AI Web Research 或少量低风险 active source 的调度过滤条件。
-- [ ] 7.6 运行 `ingestion-scheduler -once` 或等价命令，验证生成 run 记录、source 结果和 `raw_documents` 幂等写入。
-- [ ] 7.7 启动持续调度器，验证 interval 触发一次真实采集后可停止进程，且 run 记录可查询。
-- [ ] 7.8 启动 admin API 和 `frontend/admin/`，通过页面读取和保存调度器配置。
+- [x] 7.1 更新 `infra/local/README.md`，补充 migration、admin API、admin 前端、scheduler 单轮、scheduler 持续运行和验证 SQL。
+- [x] 7.2 运行 `go test ./...`，确保单元测试、fixture 测试和 gated 集成测试边界保持通过。
+- [x] 7.3 运行 admin 前端测试和构建验证。
+- [x] 7.4 运行 `openspec validate add-ingestion-scheduler`。
+- [x] 7.5 在本地 PostgreSQL 执行 migration，并配置只启用 AI Web Research 或少量低风险 active source 的调度过滤条件。
+- [x] 7.6 运行 `ingestion-scheduler -once` 或等价命令，验证生成 run 记录、source 结果和 `raw_documents` 幂等写入。
+- [x] 7.7 启动持续调度器，验证 interval 触发一次真实采集后可停止进程，且 run 记录可查询。
+- [x] 7.8 启动 admin API 和 `frontend/admin/`，通过页面读取和保存调度器配置。

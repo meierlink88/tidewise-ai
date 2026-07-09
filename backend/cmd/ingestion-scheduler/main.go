@@ -51,7 +51,7 @@ func main() {
 	}
 	defer db.Close()
 
-	timeout := time.Duration(cfg.Ingestion.DefaultTimeoutSeconds) * time.Second
+	timeout := time.Duration(schedulerHTTPTimeoutSeconds(cfg.Ingestion.DefaultTimeoutSeconds)) * time.Second
 	client := &http.Client{Timeout: timeout}
 	registry := core.NewRegistry()
 	ingestionconnectors.RegisterContentConnectors(registry, client, options.rsshubBaseURL)
@@ -134,6 +134,13 @@ func normalizeTickSeconds(value int, defaultSeconds int) int {
 		return value
 	}
 	return defaultSeconds
+}
+
+func schedulerHTTPTimeoutSeconds(defaultSeconds int) int {
+	if defaultSeconds >= 180 {
+		return defaultSeconds
+	}
+	return 180
 }
 
 type runtimeRunner struct {
