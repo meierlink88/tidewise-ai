@@ -1,6 +1,7 @@
 package sourcecatalog
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -113,6 +114,56 @@ func TestContentEventSourceGroupCoversExpectedConnectorKinds(t *testing.T) {
 	assertConnectorPresent(t, manifest, "web_fetch")
 	assertConnectorPresent(t, manifest, "rsshub_feed")
 	assertConnectorPresent(t, manifest, "local_backfill")
+}
+
+func TestAIWebResearchSourceGroupCoversInitialSearchProviders(t *testing.T) {
+	manifest, err := LoadFile(filepath.Join("..", "..", "..", "..", "data", "source_catalogs", "ai_web_research_sources.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v", err)
+	}
+
+	if got, want := len(manifest.Sources), 2; got != want {
+		t.Fatalf("sources = %d, want %d", got, want)
+	}
+
+	for _, source := range manifest.Sources {
+		if source.ConnectorKey != "llm_web_research" || source.ParserKey != "llm_research_items" {
+			t.Fatalf("source %q connector/parser = %s/%s, want llm_web_research/llm_research_items", source.ID, source.ConnectorKey, source.ParserKey)
+		}
+		if source.SourceConfig["kind"] != "llm_web_research" {
+			t.Fatalf("source %q kind = %v, want llm_web_research", source.ID, source.SourceConfig["kind"])
+		}
+		plan, ok := source.SourceConfig["web_search_plan"].(map[string]any)
+		if !ok {
+			t.Fatalf("source %q web_search_plan is missing", source.ID)
+		}
+		tools, ok := plan["tools"].([]any)
+		if !ok || len(tools) != 2 {
+			t.Fatalf("source %q tools = %v, want two tools", source.ID, plan["tools"])
+		}
+		seen := map[string]bool{}
+		for _, tool := range tools {
+			toolConfig, ok := tool.(map[string]any)
+			if !ok {
+				t.Fatalf("source %q tool = %v, want object", source.ID, tool)
+			}
+			provider, _ := toolConfig["provider"].(string)
+			seen[provider] = true
+		}
+		for _, provider := range []string{"tavily", "bocha_web_search"} {
+			if !seen[provider] {
+				t.Fatalf("source %q expected web search provider %q", source.ID, provider)
+			}
+		}
+		promptRef, ok := source.SourceConfig["prompt_ref"].(string)
+		if !ok || promptRef == "" {
+			t.Fatalf("source %q prompt_ref is missing", source.ID)
+		}
+		promptPath := filepath.Join("..", "..", "..", "..", "data", "prompts", filepath.FromSlash(promptRef))
+		if _, err := os.Stat(promptPath); err != nil {
+			t.Fatalf("source %q prompt file %q error = %v", source.ID, promptRef, err)
+		}
+	}
 }
 
 func TestMarketSourceGroupCoversResearchedHTTPProviders(t *testing.T) {

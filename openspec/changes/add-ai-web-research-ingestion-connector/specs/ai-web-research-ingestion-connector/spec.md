@@ -12,7 +12,7 @@
 - **THEN** 系统必须通过 Tavily 搜索获取标题、URL、摘要、来源、发布时间、搜索排名和原始搜索元数据，并把搜索失败、空结果和参数错误写入采集 report
 
 #### Scenario: 中文搜索工具召回
-- **WHEN** AI Web Research source 的 `web_search_plan` 包含 `provider=bocha_web_search` 或 `provider=searchapi_baidu`
+- **WHEN** AI Web Research source 的 `web_search_plan` 包含 `provider=bocha_web_search`
 - **THEN** 系统必须通过对应 adapter 获取中文搜索结果的标题、URL、摘要、来源站点、发布时间、搜索排名和原始 provider 元数据，并把搜索失败、空结果和参数错误写入采集 report
 
 #### Scenario: 多搜索工具合并

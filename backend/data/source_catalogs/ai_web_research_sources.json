@@ -1,0 +1,182 @@
+{
+  "sources": [
+    {
+      "id": "tidewise:ai-web-research:cn-finance-daily",
+      "origin_system": "Tidewise",
+      "stage": "ai_web_research",
+      "ingest_channel": "ai_web_research",
+      "provider_key": "llm_web_research",
+      "connector_key": "llm_web_research",
+      "parser_key": "llm_research_items",
+      "source_type": "news",
+      "source_group": "ai_web_research",
+      "source_name": "AI Web Research 中文财经日度采集",
+      "source_url": "tidewise://ai-web-research/cn-finance-daily",
+      "source_level": "secondary",
+      "topic_hint": "近24小时中国财经政经热点",
+      "auth_required": true,
+      "auth_type": "api_key",
+      "credential_ref": "",
+      "rate_limit_policy": {"requests_per_minute": 6},
+      "usage_policy": "ai_web_research_governance",
+      "source_config": {
+        "kind": "llm_web_research",
+        "web_search_plan": {
+          "mode": "parallel",
+          "tools": [
+            {
+              "provider": "tavily",
+              "role": "global_general",
+              "max_results": 10,
+              "credential_ref": "env:TAVILY_API_KEY",
+              "options": {
+                "topic": "news",
+                "search_depth": "advanced",
+                "time_range": "day",
+                "include_raw_content": true
+              }
+            },
+            {
+              "provider": "bocha_web_search",
+              "role": "china_finance_primary",
+              "max_results": 10,
+              "credential_ref": "env:BOCHA_API_KEY",
+              "options": {
+                "freshness": "oneDay",
+                "summary": true,
+                "count": 10
+              }
+            }
+          ]
+        },
+        "credential_refs": {
+          "llm": "env:DEEPSEEK_API_KEY"
+        },
+        "llm_provider": "deepseek",
+        "api_base_url": "https://api.deepseek.com",
+        "api_protocol": "openai_compatible",
+        "model": "deepseek-v4-pro",
+        "prompt_ref": "ingestion/ai_web_research/cn-finance-daily.v1.md",
+        "prompt_version": "v1",
+        "prompt_variables": {
+          "language": "zh-CN",
+          "time_window": "24h",
+          "max_items": 20,
+          "region": "china"
+        },
+        "freshness_window": "24h",
+        "max_results": 20,
+        "output_schema": {
+          "type": "llm_research_items.v1"
+        },
+        "source_preferences": {
+          "region": "china_finance",
+          "language": "zh-CN"
+        },
+        "trusted_domains": [
+          "pbc.gov.cn",
+          "stats.gov.cn",
+          "mofcom.gov.cn",
+          "sse.com.cn",
+          "szse.cn",
+          "hkex.com.hk",
+          "xinhuanet.com",
+          "cls.cn",
+          "stcn.com",
+          "cs.com.cn",
+          "cnstock.com",
+          "yicai.com"
+        ]
+      },
+      "status": "inactive"
+    },
+    {
+      "id": "tidewise:ai-web-research:global-macro-daily",
+      "origin_system": "Tidewise",
+      "stage": "ai_web_research",
+      "ingest_channel": "ai_web_research",
+      "provider_key": "llm_web_research",
+      "connector_key": "llm_web_research",
+      "parser_key": "llm_research_items",
+      "source_type": "news",
+      "source_group": "ai_web_research",
+      "source_name": "AI Web Research 全球宏观日度采集",
+      "source_url": "tidewise://ai-web-research/global-macro-daily",
+      "source_level": "secondary",
+      "topic_hint": "近24小时全球政经宏观热点",
+      "auth_required": true,
+      "auth_type": "api_key",
+      "credential_ref": "",
+      "rate_limit_policy": {"requests_per_minute": 6},
+      "usage_policy": "ai_web_research_governance",
+      "source_config": {
+        "kind": "llm_web_research",
+        "web_search_plan": {
+          "mode": "parallel",
+          "tools": [
+            {
+              "provider": "tavily",
+              "role": "global_general",
+              "max_results": 10,
+              "credential_ref": "env:TAVILY_API_KEY",
+              "options": {
+                "topic": "news",
+                "search_depth": "advanced",
+                "time_range": "day",
+                "include_raw_content": true
+              }
+            },
+            {
+              "provider": "bocha_web_search",
+              "role": "china_finance_primary",
+              "max_results": 10,
+              "credential_ref": "env:BOCHA_API_KEY",
+              "options": {
+                "freshness": "oneDay",
+                "summary": true,
+                "count": 10
+              }
+            }
+          ]
+        },
+        "credential_refs": {
+          "llm": "env:DEEPSEEK_API_KEY"
+        },
+        "llm_provider": "deepseek",
+        "api_base_url": "https://api.deepseek.com",
+        "api_protocol": "openai_compatible",
+        "model": "deepseek-v4-pro",
+        "prompt_ref": "ingestion/ai_web_research/global-macro-daily.v1.md",
+        "prompt_version": "v1",
+        "prompt_variables": {
+          "language": "zh-CN",
+          "time_window": "24h",
+          "max_items": 20,
+          "region": "global"
+        },
+        "freshness_window": "24h",
+        "max_results": 20,
+        "output_schema": {
+          "type": "llm_research_items.v1"
+        },
+        "source_preferences": {
+          "region": "global_macro",
+          "language": "zh-CN"
+        },
+        "trusted_domains": [
+          "reuters.com",
+          "apnews.com",
+          "bloomberg.com",
+          "ft.com",
+          "ecb.europa.eu",
+          "federalreserve.gov",
+          "imf.org",
+          "worldbank.org",
+          "opec.org",
+          "wto.org"
+        ]
+      },
+      "status": "inactive"
+    }
+  ]
+}

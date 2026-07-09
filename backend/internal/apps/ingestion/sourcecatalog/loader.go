@@ -158,6 +158,11 @@ func validateSource(source Source) error {
 	if !validConnectorParser(source.ConnectorKey, source.ParserKey) {
 		return fmt.Errorf("unsupported connector/parser combination %q/%q", source.ConnectorKey, source.ParserKey)
 	}
+	if source.ConnectorKey == "llm_web_research" {
+		if err := validateAIWebResearchSourceConfig(source.SourceConfig); err != nil {
+			return err
+		}
+	}
 	if err := validateSourceLocator(source); err != nil {
 		return err
 	}
@@ -185,13 +190,14 @@ func validateSourceLocator(source Source) error {
 
 func validConnectorParser(connector string, parser string) bool {
 	valid := map[string]map[string]struct{}{
-		"rss_feed":        {"rss_item": {}},
-		"rsshub_feed":     {"rss_item": {}},
-		"web_fetch":       {"text": {}},
-		"local_file":      {"text": {}},
-		"eastmoney":       {"eastmoney_json": {}, "text": {}},
-		"market_provider": {"provider_metadata": {}},
-		"local_backfill":  {"file_manifest": {}},
+		"rss_feed":         {"rss_item": {}},
+		"rsshub_feed":      {"rss_item": {}},
+		"web_fetch":        {"text": {}},
+		"local_file":       {"text": {}},
+		"eastmoney":        {"eastmoney_json": {}, "text": {}},
+		"market_provider":  {"provider_metadata": {}},
+		"local_backfill":   {"file_manifest": {}},
+		"llm_web_research": {"llm_research_items": {}},
 	}
 	parsers, ok := valid[connector]
 	if !ok {
@@ -199,6 +205,81 @@ func validConnectorParser(connector string, parser string) bool {
 	}
 	_, ok = parsers[parser]
 	return ok
+}
+
+func validateAIWebResearchSourceConfig(config map[string]any) error {
+	for _, key := range []string{
+		"kind",
+		"web_search_plan",
+		"credential_refs",
+		"llm_provider",
+		"api_base_url",
+		"api_protocol",
+		"model",
+		"prompt_ref",
+		"prompt_version",
+		"max_results",
+		"output_schema",
+		"source_preferences",
+		"trusted_domains",
+	} {
+		if _, ok := config[key]; !ok {
+			return fmt.Errorf("%s is required", key)
+		}
+	}
+	if jsonStringValue(config["kind"]) != "llm_web_research" {
+		return fmt.Errorf("source_config kind must be llm_web_research")
+	}
+	plan, ok := config["web_search_plan"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("web_search_plan must be an object")
+	}
+	mode := jsonStringValue(plan["mode"])
+	if mode == "" {
+		return fmt.Errorf("web_search_plan mode is required")
+	}
+	if mode != "parallel" && mode != "fallback" && mode != "sequential" {
+		return fmt.Errorf("unsupported web_search_plan mode %q", mode)
+	}
+	tools, ok := plan["tools"].([]any)
+	if !ok || len(tools) == 0 {
+		return fmt.Errorf("web_search_plan tools are required")
+	}
+	for _, tool := range tools {
+		toolConfig, ok := tool.(map[string]any)
+		if !ok {
+			return fmt.Errorf("web_search_plan tool must be an object")
+		}
+		provider := jsonStringValue(toolConfig["provider"])
+		if provider == "" {
+			return fmt.Errorf("web_search_plan tool provider is required")
+		}
+		if provider != "tavily" && provider != "bocha_web_search" {
+			return fmt.Errorf("unsupported web_search provider %q", provider)
+		}
+		if jsonStringValue(toolConfig["credential_ref"]) == "" {
+			return fmt.Errorf("web_search_plan tool credential_ref is required")
+		}
+		if configPositiveInt(toolConfig["max_results"]) <= 0 {
+			return fmt.Errorf("web_search_plan tool max_results must be positive")
+		}
+	}
+	if _, ok := config["credential_refs"].(map[string]any); !ok {
+		return fmt.Errorf("credential_refs must be an object")
+	}
+	if configPositiveInt(config["max_results"]) <= 0 {
+		return fmt.Errorf("max_results must be positive")
+	}
+	if _, ok := config["output_schema"].(map[string]any); !ok {
+		return fmt.Errorf("output_schema must be an object")
+	}
+	if _, ok := config["source_preferences"].(map[string]any); !ok {
+		return fmt.Errorf("source_preferences must be an object")
+	}
+	if _, ok := config["trusted_domains"].([]any); !ok {
+		return fmt.Errorf("trusted_domains must be an array")
+	}
+	return nil
 }
 
 func normalizeDefaults(manifest *Manifest) {
@@ -212,6 +293,34 @@ func normalizeDefaults(manifest *Manifest) {
 		if manifest.Sources[i].RateLimitPolicy == nil {
 			manifest.Sources[i].RateLimitPolicy = map[string]any{}
 		}
+	}
+}
+
+func jsonStringValue(value any) string {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case float64:
+		return strings.TrimSpace(fmt.Sprintf("%g", v))
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
+}
+
+func configPositiveInt(value any) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case int64:
+		return int(v)
+	default:
+		return 0
 	}
 }
 

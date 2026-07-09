@@ -1,0 +1,71 @@
+package promptstore
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestLoaderLoadsVersionedPromptAndRendersVariables(t *testing.T) {
+	root := t.TempDir()
+	writePrompt(t, root, "ingestion/ai_web_research/cn-finance-daily.v1.md", "版本={{prompt_version}}\n语言={{language}}\n窗口={{time_window}}")
+
+	prompt, err := Loader{Root: root}.Load("ingestion/ai_web_research/cn-finance-daily.v1.md", "v1", map[string]any{
+		"prompt_version": "v1",
+		"language":       "zh-CN",
+		"time_window":    "24h",
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if prompt.Ref != "ingestion/ai_web_research/cn-finance-daily.v1.md" {
+		t.Fatalf("Ref = %q, want prompt ref", prompt.Ref)
+	}
+	if prompt.Version != "v1" {
+		t.Fatalf("Version = %q, want v1", prompt.Version)
+	}
+	if !strings.Contains(prompt.Text, "语言=zh-CN") || !strings.Contains(prompt.Text, "窗口=24h") {
+		t.Fatalf("Text = %q, want rendered variables", prompt.Text)
+	}
+}
+
+func TestLoaderRejectsVersionMismatch(t *testing.T) {
+	root := t.TempDir()
+	writePrompt(t, root, "ingestion/ai_web_research/cn-finance-daily.v1.md", "正文")
+
+	_, err := Loader{Root: root}.Load("ingestion/ai_web_research/cn-finance-daily.v1.md", "v2", nil)
+	if err == nil || !strings.Contains(err.Error(), "prompt version mismatch") {
+		t.Fatalf("Load() error = %v, want version mismatch", err)
+	}
+}
+
+func TestLoaderRejectsMissingVariable(t *testing.T) {
+	root := t.TempDir()
+	writePrompt(t, root, "ingestion/ai_web_research/cn-finance-daily.v1.md", "语言={{language}}")
+
+	_, err := Loader{Root: root}.Load("ingestion/ai_web_research/cn-finance-daily.v1.md", "v1", nil)
+	if err == nil || !strings.Contains(err.Error(), "missing prompt variable") {
+		t.Fatalf("Load() error = %v, want missing variable", err)
+	}
+}
+
+func TestLoaderRejectsPathTraversal(t *testing.T) {
+	_, err := Loader{Root: t.TempDir()}.Load("../secret.md", "v1", nil)
+	if err == nil || !strings.Contains(err.Error(), "invalid prompt ref") {
+		t.Fatalf("Load() error = %v, want invalid prompt ref", err)
+	}
+}
+
+func writePrompt(t *testing.T, root string, ref string, text string) {
+	t.Helper()
+
+	path := filepath.Join(root, filepath.FromSlash(ref))
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("mkdir prompt dir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatalf("write prompt: %v", err)
+	}
+}

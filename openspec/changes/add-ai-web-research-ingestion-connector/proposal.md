@@ -9,7 +9,7 @@
 ## What Changes
 
 - 新增 AI Web Research 采集 connector：由 `source_catalogs` 中的 active source 驱动，读取 `source_config` 中的 Web Search tool plan、LLM 结构化参数、提示词引用、来源偏好和输出 schema 配置。
-- 首期保持一个 `llm_web_research` connector，在 connector 内部新增 `web_search_plan` 编排层，默认可组合 `tavily`、`bocha_web_search` 和 `searchapi_baidu` 三类搜索工具：Tavily 用于全球通用搜索和已验证链路，博查用于中文 AI 搜索，SearchAPI Baidu 用于百度搜索结果补充。
+- 首期保持一个 `llm_web_research` connector，在 connector 内部新增 `web_search_plan` 编排层，明确接入 `tavily` 和 `bocha_web_search` 两类搜索工具：Tavily 用于全球通用搜索和已验证链路，博查用于中文 AI 搜索和中国财经来源补充。百度 SERP 等其他搜索通道不进入本 change 的首期实现范围，后续如需要再通过独立 change 评估。
 - 由 Go 后端按 `web_search_plan` 确定性调用一个或多个搜索 API，获取 URL、标题、摘要、发布时间、来源名称、搜索排名、provider 原始元数据和可选网页正文，完成去重、合并和排序后，再交给 LLM 做结构化整理。
 - 将 Web Search 工具、LLM 和提示词的非敏感运行参数放入 `source_config`，包括 `web_search_plan`、`source_preferences`、`trusted_domains`、`llm_provider`、`api_base_url`、`api_protocol`、`model`、`prompt_ref`、`prompt_version`、`prompt_variables`、`freshness_window`、`max_results` 和输出 schema。
 - 将较长的提示词正文放入 repo 内版本化 prompt 文件，`source_config` 不直接保存完整提示词正文，只保存 `prompt_ref`、`prompt_version` 和少量变量。
