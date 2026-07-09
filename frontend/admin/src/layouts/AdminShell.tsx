@@ -45,6 +45,10 @@ export default function AdminShell({ children, onLogout }: AdminShellProps) {
           </Button>
         </header>
         <main className="admin-content">{children}</main>
+        <footer className="admin-footer">
+          <span>LOCAL ADMIN</span>
+          <strong>数据采集中心</strong>
+        </footer>
       </div>
     </div>
   );

@@ -50,4 +50,16 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).toContain('grid-template-columns: 1fr;');
     expect(stylesheet).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);');
   });
+
+  it('uses a fixed shell with header, footer, sidebar, and scrollable workspace', () => {
+    const shell = readFileSync(join(process.cwd(), 'src/layouts/AdminShell.tsx'), 'utf8');
+    const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
+
+    expect(shell).toContain('admin-footer');
+    expect(stylesheet).toContain('background: var(--background-50);');
+    expect(stylesheet).toContain('height: 100vh;');
+    expect(stylesheet).toContain('overflow: hidden;');
+    expect(stylesheet).toContain('grid-template-rows: auto minmax(0, 1fr) auto;');
+    expect(stylesheet).toContain('overflow-y: auto;');
+  });
 });
