@@ -53,8 +53,9 @@ type SearchProviderReport struct {
 }
 
 type SearchPlanExecutor struct {
-	Adapters       map[string]SearchAdapter
-	TrustedDomains []string
+	Adapters           map[string]SearchAdapter
+	TrustedDomains     []string
+	CredentialResolver CredentialResolver
 }
 
 func (e SearchPlanExecutor) Search(ctx context.Context, plan WebSearchPlan, request SearchRequest) (SearchPlanResult, error) {
@@ -67,6 +68,18 @@ func (e SearchPlanExecutor) Search(ctx context.Context, plan WebSearchPlan, requ
 		toolRequest := request
 		toolRequest.MaxResults = firstPositive(tool.MaxResults, request.MaxResults)
 		toolRequest.Options = tool.Options
+		if e.CredentialResolver != nil {
+			credential, err := e.CredentialResolver.Resolve(tool.CredentialRef)
+			if err != nil {
+				result.ProviderReports = append(result.ProviderReports, SearchProviderReport{
+					Provider: tool.Provider,
+					Status:   "failed",
+					Error:    err.Error(),
+				})
+				continue
+			}
+			toolRequest.Credential = credential
+		}
 		response, err := adapter.Search(ctx, toolRequest)
 		report := SearchProviderReport{Provider: tool.Provider}
 		if err != nil {

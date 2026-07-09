@@ -27,10 +27,10 @@
 
 ## 4. Connector 注册和采集 runtime
 
-- [ ] 4.1 为 connector/parser registry 编写测试，验证 `llm_web_research` 和 `llm_research_items` 可以被采集 runtime 根据 source catalog 找到。
-- [ ] 4.2 实现 AI Web Research connector 和 parser 注册，归属 `internal/apps/ingestion` 子系统。
-- [ ] 4.3 为 runtime 执行 AI source 编写测试，覆盖单源成功、单源失败、凭证缺失、provider 限流配置和 report 汇总。
-- [ ] 4.4 确认 AI source 能复用现有 raw document 幂等写入路径，不为 AI connector 创建独立写库机制。
+- [x] 4.1 为 connector/parser registry 编写测试，验证 `llm_web_research` 和 `llm_research_items` 可以被采集 runtime 根据 source catalog 找到。
+- [x] 4.2 实现 AI Web Research connector 和 parser 注册，归属 `internal/apps/ingestion` 子系统。
+- [x] 4.3 为 runtime 执行 AI source 编写测试，覆盖单源成功、单源失败、凭证缺失、provider 限流配置和 report 汇总。
+- [x] 4.4 确认 AI source 能复用现有 raw document 幂等写入路径，不为 AI connector 创建独立写库机制。
 
 ## 5. 可验证 smoke 和真实 provider 验证准备
 

@@ -25,6 +25,7 @@ type sourceIngestOptions struct {
 	sourceType    string
 	concurrency   int
 	rsshubBaseURL string
+	promptRoot    string
 }
 
 func main() {
@@ -34,6 +35,7 @@ func main() {
 	flag.StringVar(&options.sourceType, "source-type", "", "filter active source catalogs by source_type")
 	flag.IntVar(&options.concurrency, "concurrency", 1, "maximum source concurrency")
 	flag.StringVar(&options.rsshubBaseURL, "rsshub-base-url", firstEnv("TIDEWISE_RSSHUB_BASE_URL"), "RSSHub base URL for rsshub_feed sources")
+	flag.StringVar(&options.promptRoot, "prompt-root", defaultPromptRoot(), "repo prompt root for AI ingestion sources")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -54,6 +56,11 @@ func main() {
 	client := &http.Client{Timeout: timeout}
 	registry := core.NewRegistry()
 	ingestionconnectors.RegisterContentConnectors(registry, client, options.rsshubBaseURL)
+	ingestionconnectors.RegisterAIWebResearchConnectors(registry, ingestionconnectors.AIWebResearchRegistryOptions{
+		Client:             client,
+		PromptRoot:         options.promptRoot,
+		CredentialResolver: core.EnvCredentialResolver{},
+	})
 	registry.RegisterConnector("eastmoney", ingestionconnectors.EastmoneyConnector{Client: client})
 	registry.RegisterParser("eastmoney_json", ingestionparsers.EastmoneyJSONParser{})
 
@@ -100,4 +107,16 @@ func firstEnv(names ...string) string {
 		}
 	}
 	return ""
+}
+
+func defaultPromptRoot() string {
+	if value := firstEnv("TIDEWISE_PROMPT_ROOT"); value != "" {
+		return value
+	}
+	for _, candidate := range []string{"data/prompts", "backend/data/prompts"} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return "data/prompts"
 }
