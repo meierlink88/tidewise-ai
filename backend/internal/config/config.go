@@ -103,6 +103,7 @@ type SecretConfig struct {
 	JWTSecret           string
 	PaymentSecret       string
 	CloudSecret         string
+	AdminAPIToken       string
 }
 
 func Load() (Config, error) {
@@ -132,6 +133,7 @@ func Load() (Config, error) {
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		PaymentSecret:       os.Getenv("PAYMENT_SECRET"),
 		CloudSecret:         os.Getenv("CLOUD_SECRET"),
+		AdminAPIToken:       os.Getenv("ADMIN_API_TOKEN"),
 	}
 
 	if err := cfg.Validate(); err != nil {

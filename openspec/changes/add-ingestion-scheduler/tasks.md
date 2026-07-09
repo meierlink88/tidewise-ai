@@ -28,11 +28,11 @@
 
 ## 5. Admin API
 
-- [ ] 5.1 为 Admin Token middleware 编写 `httptest` 测试，覆盖 token 缺失、token 错误、token 正确和未配置 token 时拒绝访问。
-- [ ] 5.2 实现 Admin Token middleware，通过 `ADMIN_API_TOKEN` 校验 `Authorization: Bearer <token>`。
-- [ ] 5.3 为 scheduler admin API 编写 `httptest` 测试，覆盖查询配置、保存配置、查询最近 run、非法调度模式、非法固定时间、非法 interval、非法并发和非法 batch size。
-- [ ] 5.4 在 `backend/internal/apps/adminapi` 实现 scheduler admin handler、DTO 校验和 repository 调用。
-- [ ] 5.5 新增或补齐 `backend/cmd/admin-api` 入口，负责加载配置、组装 repository、注册 admin 路由和启动 HTTP 服务。
+- [x] 5.1 为 Admin Token middleware 编写 `httptest` 测试，覆盖 token 缺失、token 错误、token 正确和未配置 token 时拒绝访问。
+- [x] 5.2 实现 Admin Token middleware，通过 `ADMIN_API_TOKEN` 校验 `Authorization: Bearer <token>`。
+- [x] 5.3 为 scheduler admin API 编写 `httptest` 测试，覆盖查询配置、保存配置、查询最近 run、非法调度模式、非法固定时间、非法 interval、非法并发和非法 batch size。
+- [x] 5.4 在 `backend/internal/apps/adminapi` 实现 scheduler admin handler、DTO 校验和 repository 调用。
+- [x] 5.5 新增或补齐 `backend/cmd/admin-api` 入口，负责加载配置、组装 repository、注册 admin 路由和启动 HTTP 服务。
 
 ## 6. Admin 前端
 
