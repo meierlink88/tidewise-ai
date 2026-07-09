@@ -49,10 +49,10 @@ OpenSpec 细则见 `.agents/openspec-workflow.md`。处理任何 OpenSpec change
 - 处理 branch、worktree、commit、push 或 PR 时，必须读取 `.agents/git-workflow.md`。
 - 处理 Go 后端、API、采集器、数据库、integration 或部署边界时，必须读取 `.agents/backend-boundaries.md`。
 - 处理 Go 后端实现、bugfix、重构或验证时，必须读取 `.agents/testing-tdd.md`。
+- 处理前端、小程序、管理后台、设计系统、设计稿转实现或 UI 组件时，必须读取 `.agents/frontend-boundaries.md`。
 
 后续可以继续拆分：
 
-- `.agents/frontend-boundaries.md`：前端、小程序、设计稿转实现边界。
 - `.agents/design-to-frontend.md`：设计系统 + HTML 设计稿 -> 前端实现流程。
 
 ## Superpowers Integration
@@ -117,6 +117,8 @@ AI agent 必须在已有实现基础上增量迭代，不得另起一套。
 - 前端通过各小程序平台分别发布。
 - 小程序端只负责展示、交互、轻状态和 API 调用。
 - 小程序端不得保存模型密钥、Agent 平台密钥、支付密钥、数据库连接或后端凭证。
+- Web 管理后台源码位于 `frontend/admin/`，采用 Vite + React + TypeScript，标准设计系统为 Minimal Dashboard。
+- 处理 `frontend/admin` 时，必须使用 repo-local skill `.codex/skills/minimal-dashboard-design/`，不得继续把 Ant Design 作为后台默认设计系统。
 
 后端：
 
@@ -155,6 +157,26 @@ frontend/miniapp/
 
 如果某个既有 OpenSpec artifact 中仍出现 `apps/miniprogram/`、`miniprogram/` 或原生小程序结构，应在实现前调整为 `frontend/miniapp/` 和 Taro 工程结构。
 
+管理后台源码位于：
+
+```text
+frontend/admin/
+```
+
+管理后台标准设计系统为 Minimal Dashboard。Codex repo-local skill 位于：
+
+```text
+.codex/skills/minimal-dashboard-design/
+```
+
+Minimal Dashboard 原始设计系统资料归档位于：
+
+```text
+../prototype/.design_library/minimal-dashboard/
+```
+
+后续新增或修改管理后台页面时，必须读取 `.agents/frontend-boundaries.md` 和 `.codex/skills/minimal-dashboard-design/SKILL.md`，并把设计系统内容转译为 React 组件和 CSS tokens，不得直接复制 preview HTML 或 DOM 脚本。
+
 ## Backend Direction
 
 后端采用单 Go module、多可部署子系统结构。可部署进程放在 `backend/cmd/*`，业务子系统应用逻辑放在 `backend/internal/apps/*`，共享基础层放在 `backend/internal/domain`、`backend/internal/repositories`、`backend/internal/config`、`backend/internal/integrations` 和 `backend/internal/platform`。
@@ -190,6 +212,7 @@ AGENTS.md
 .agents/openspec-workflow.md
 .agents/git-workflow.md
 .agents/backend-boundaries.md
+.agents/frontend-boundaries.md
 .agents/testing-tdd.md
 openspec/config.yaml
 ../doc/architecture.md

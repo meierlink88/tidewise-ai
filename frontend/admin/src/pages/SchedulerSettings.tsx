@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Form, Input, InputNumber, Select, Space, Switch, Typography, message } from 'antd';
 import type { SchedulerConfig, SchedulerRun } from '../api/scheduler';
 import {
   loadSchedulerConfig as defaultLoadSchedulerConfig,
   loadSchedulerRuns as defaultLoadSchedulerRuns,
   saveSchedulerConfig as defaultSaveSchedulerConfig
 } from '../api/scheduler';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Field from '../components/ui/Field';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import StatusBadge from '../components/ui/StatusBadge';
+import Switch from '../components/ui/Switch';
 
 interface SchedulerSettingsProps {
   token: string;
@@ -32,28 +38,25 @@ export default function SchedulerSettings({
   loadRuns = defaultLoadSchedulerRuns,
   saveConfig = defaultSaveSchedulerConfig
 }: SchedulerSettingsProps) {
-  const [form] = Form.useForm<SchedulerConfig>();
-  const [mode, setMode] = useState<SchedulerConfig['mode']>('interval');
+  const [config, setConfig] = useState<SchedulerConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [recentRun, setRecentRun] = useState<SchedulerConfig['recent_run']>();
   const [recentRuns, setRecentRuns] = useState<SchedulerRun[]>([]);
-  const [systemConfig, setSystemConfig] = useState<SchedulerConfig>(defaultConfig);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string }>();
   const hasToken = token.trim().length > 0;
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     loadConfig(token)
-      .then((config) => {
+      .then((loadedConfig) => {
         if (!active) {
           return;
         }
-        const next = normalizeConfig(config);
-        setSystemConfig(next);
-        form.setFieldsValue(next);
-        setMode(next.mode);
-        setRecentRun(config.recent_run);
+        const next = normalizeConfig(loadedConfig);
+        setConfig(next);
+        setRecentRun(loadedConfig.recent_run);
         if (hasToken) {
           void loadRuns(token, 10)
             .then((runs) => {
@@ -66,15 +69,13 @@ export default function SchedulerSettings({
                 setRecentRuns([]);
               }
             });
-        }
-        if (!hasToken) {
+        } else {
           setRecentRuns([]);
         }
       })
       .catch(() => {
         if (active) {
-          form.setFieldsValue(defaultConfig);
-          setSystemConfig(defaultConfig);
+          setConfig(defaultConfig);
           setRecentRuns([]);
         }
       })
@@ -86,94 +87,144 @@ export default function SchedulerSettings({
     return () => {
       active = false;
     };
-  }, [form, hasToken, loadConfig, loadRuns, token]);
+  }, [hasToken, loadConfig, loadRuns, token]);
 
   const handleSave = async () => {
     if (!hasToken) {
-      message.warning('请先输入 Admin Token');
+      setNotice({ tone: 'danger', text: '请先登录' });
       return;
     }
-    const values = await form.validateFields();
+    const validationError = validateConfig(config);
+    if (validationError) {
+      setNotice({ tone: 'danger', text: validationError });
+      return;
+    }
     const payload = normalizeConfig({
-      ...systemConfig,
-      ...values,
-      source_filter: systemConfig.source_filter,
+      ...config,
       timezone: defaultConfig.timezone
     });
     setSaving(true);
+    setNotice(undefined);
     try {
       const saved = await saveConfig(token, payload);
       if (saved && typeof saved === 'object') {
-        setSystemConfig(normalizeConfig(saved as SchedulerConfig));
+        setConfig(normalizeConfig(saved as SchedulerConfig));
       }
-      message.success('已保存');
+      setNotice({ tone: 'success', text: '已保存' });
     } catch (error) {
-      message.error(`保存失败：${error instanceof Error ? error.message : '未知错误'}`);
+      setNotice({ tone: 'danger', text: `保存失败：${error instanceof Error ? error.message : '未知错误'}` });
     } finally {
       setSaving(false);
     }
   };
 
+  const summary = executionSummary(recentRuns);
+
   return (
     <section className="scheduler-settings">
       <div className="page-title">
-        <Typography.Title level={2}>调度器设置</Typography.Title>
+        <span className="eyebrow">Ingestion Scheduler</span>
+        <h1>调度器设置</h1>
       </div>
-      <Card loading={loading}>
-        <Form form={form} layout="vertical" initialValues={defaultConfig} onValuesChange={(_, values) => setMode(values.mode ?? 'interval')}>
+      <Card>
+        {loading ? (
+          <div className="loading-state">正在加载调度器设置</div>
+        ) : (
           <div className="form-grid">
-            <Form.Item label="启用调度" name="enabled" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item label="调度模式" name="mode" rules={[{ required: true }]}>
+            <Switch
+              checked={config.enabled}
+              label="启用调度"
+              onChange={(enabled) => setConfig((current) => ({ ...current, enabled }))}
+            />
+            <Field label="调度模式">
               <Select
-                options={[
-                  { label: '间隔运行', value: 'interval' },
-                  { label: '固定时间', value: 'fixed_times' }
-                ]}
-              />
-            </Form.Item>
-            {mode === 'interval' ? (
-              <Form.Item label="间隔分钟" name="interval_minutes" rules={[{ required: true, type: 'number', min: 1 }]}>
-                <InputNumber min={1} className="full-width" />
-              </Form.Item>
+                aria-label="调度模式"
+                onChange={(event) => setConfig((current) => ({ ...current, mode: event.target.value as SchedulerConfig['mode'] }))}
+                value={config.mode}
+              >
+                <option value="interval">间隔运行</option>
+                <option value="fixed_times">固定时间</option>
+              </Select>
+            </Field>
+            {config.mode === 'interval' ? (
+              <Field label="间隔分钟">
+                <Input
+                  min={1}
+                  onChange={(event) => setConfig((current) => ({ ...current, interval_minutes: numberValue(event.target.value) }))}
+                  type="number"
+                  value={config.interval_minutes}
+                />
+              </Field>
             ) : (
-              <Form.Item label="固定时间" required>
-                <Space direction="vertical" className="full-width">
-                  {[0, 1, 2, 3, 4].map((index) => (
-                    <Form.Item
-                      key={index}
-                      name={['fixed_times', index]}
-                      rules={[{ required: true, pattern: /^\d{2}:\d{2}$/ }]}
-                      noStyle
-                    >
-                      <Input aria-label={`固定时间 ${index + 1}`} />
-                    </Form.Item>
-                  ))}
-                </Space>
-              </Form.Item>
+              <div className="fixed-time-grid">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <Field key={index} label={`固定时间 ${index + 1}`}>
+                    <Input
+                      aria-label={`固定时间 ${index + 1}`}
+                      onChange={(event) => setConfig((current) => ({
+                        ...current,
+                        fixed_times: updateFixedTime(current.fixed_times, index, event.target.value)
+                      }))}
+                      placeholder="09:00"
+                      value={config.fixed_times[index] ?? ''}
+                    />
+                  </Field>
+                ))}
+              </div>
             )}
-            <Form.Item label="并发数" name="concurrency" rules={[{ required: true, type: 'number', min: 1 }]}>
-              <InputNumber min={1} className="full-width" />
-            </Form.Item>
-            <Form.Item label="批次大小" name="batch_size" rules={[{ required: true, type: 'number', min: 1 }]}>
-              <InputNumber min={1} className="full-width" />
-            </Form.Item>
-            <Form.Item label="超时秒数" name="timeout_seconds" rules={[{ required: true, type: 'number', min: 1 }]}>
-              <InputNumber min={1} className="full-width" />
-            </Form.Item>
+            <Field label="并发数">
+              <Input
+                min={1}
+                onChange={(event) => setConfig((current) => ({ ...current, concurrency: numberValue(event.target.value) }))}
+                type="number"
+                value={config.concurrency}
+              />
+            </Field>
+            <Field label="批次大小">
+              <Input
+                min={1}
+                onChange={(event) => setConfig((current) => ({ ...current, batch_size: numberValue(event.target.value) }))}
+                type="number"
+                value={config.batch_size}
+              />
+            </Field>
+            <Field label="超时秒数">
+              <Input
+                min={1}
+                onChange={(event) => setConfig((current) => ({ ...current, timeout_seconds: numberValue(event.target.value) }))}
+                type="number"
+                value={config.timeout_seconds}
+              />
+            </Field>
           </div>
-          <Button type="primary" loading={saving} disabled={!hasToken} onClick={handleSave}>
-            保存设置
+        )}
+        <div className="form-actions">
+          <Button disabled={!hasToken || saving || loading} onClick={handleSave}>
+            {saving ? '保存中' : '保存设置'}
           </Button>
-        </Form>
+          {notice ? <div className={`ui-alert ${notice.tone}`}>{notice.text}</div> : null}
+        </div>
       </Card>
       {recentRun ? (
         <Card className="run-summary">
-          <Typography.Text>最近一轮：{recentRun.status}</Typography.Text>
-          <Typography.Text>执行轮次 {executionSummary(recentRuns).total}</Typography.Text>
-          <Typography.Text>成功 {executionSummary(recentRuns).succeeded} / 失败 {executionSummary(recentRuns).failed}</Typography.Text>
-          {recentRun.finished_at ? <Typography.Text>结束时间：{formatDateTime(recentRun.finished_at)}</Typography.Text> : null}
+          <div>
+            <span className="summary-label">最近一轮：{recentRun.status}</span>
+            <StatusBadge tone={statusTone(recentRun.status)}>{recentRun.status}</StatusBadge>
+          </div>
+          <div>
+            <span className="summary-label">执行轮次 {summary.total}</span>
+            <strong>{summary.total}</strong>
+          </div>
+          <div>
+            <span className="summary-label">结果统计</span>
+            <strong>成功 {summary.succeeded} / 失败 {summary.failed}</strong>
+          </div>
+          {recentRun.finished_at ? (
+            <div>
+              <span className="summary-label">结束时间</span>
+              <strong>{formatDateTime(recentRun.finished_at)}</strong>
+            </div>
+          ) : null}
         </Card>
       ) : null}
     </section>
@@ -196,11 +247,53 @@ function formatDateTime(value: string): string {
   });
 }
 
+function numberValue(value: string): number {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : 0;
+}
+
+function statusTone(status: string): 'success' | 'danger' | 'neutral' {
+  if (status === 'succeeded') {
+    return 'success';
+  }
+  if (status === 'failed' || status === 'partial' || status === 'skipped') {
+    return 'danger';
+  }
+  return 'neutral';
+}
+
+function updateFixedTime(values: string[], index: number, value: string): string[] {
+  const next = normalizeFixedTimes(values);
+  next[index] = value;
+  return next;
+}
+
+function normalizeFixedTimes(values: string[]): string[] {
+  const next = values.length ? [...values] : [...defaultConfig.fixed_times];
+  while (next.length < 5) {
+    next.push(defaultConfig.fixed_times[next.length] ?? '09:00');
+  }
+  return next.slice(0, 5);
+}
+
+function validateConfig(config: SchedulerConfig): string | undefined {
+  if (config.mode === 'interval' && config.interval_minutes < 1) {
+    return '间隔分钟必须大于 0';
+  }
+  if (config.mode === 'fixed_times' && !normalizeFixedTimes(config.fixed_times).every((value) => /^\d{2}:\d{2}$/.test(value))) {
+    return '固定时间必须使用 HH:mm 格式';
+  }
+  if (config.concurrency < 1 || config.batch_size < 1 || config.timeout_seconds < 1) {
+    return '并发数、批次大小和超时秒数必须大于 0';
+  }
+  return undefined;
+}
+
 function normalizeConfig(config: SchedulerConfig): SchedulerConfig {
   return {
     ...defaultConfig,
     ...config,
-    fixed_times: config.fixed_times?.length ? config.fixed_times : defaultConfig.fixed_times,
+    fixed_times: normalizeFixedTimes(config.fixed_times ?? []),
     source_filter: config.source_filter ?? {}
   };
 }
