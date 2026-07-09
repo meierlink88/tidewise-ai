@@ -3,7 +3,9 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -40,10 +42,22 @@ type RawDocumentWriteResult struct {
 	DuplicateOf string
 }
 
+type SchedulerRepository interface {
+	LoadSchedulerConfig(context.Context) (domain.SchedulerConfig, error)
+	SaveSchedulerConfig(context.Context, domain.SchedulerConfig) (domain.SchedulerConfig, error)
+	CreateIngestionRun(context.Context, domain.IngestionRun) (domain.IngestionRun, error)
+	RecordIngestionRunSource(context.Context, domain.IngestionRunSource) error
+	CompleteIngestionRun(context.Context, domain.IngestionRun) error
+	RecentIngestionRuns(context.Context, int) ([]domain.IngestionRun, error)
+}
+
 type InMemoryRepository struct {
-	mu        sync.Mutex
-	sources   []domain.SourceCatalog
-	documents map[string]domain.RawDocument
+	mu              sync.Mutex
+	sources         []domain.SourceCatalog
+	documents       map[string]domain.RawDocument
+	schedulerConfig domain.SchedulerConfig
+	ingestionRuns   map[string]domain.IngestionRun
+	runSources      map[string][]domain.IngestionRunSource
 }
 
 func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
@@ -53,8 +67,11 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 	}
 
 	return &InMemoryRepository{
-		sources:   copiedSources,
-		documents: map[string]domain.RawDocument{},
+		sources:         copiedSources,
+		documents:       map[string]domain.RawDocument{},
+		schedulerConfig: defaultSchedulerConfig(),
+		ingestionRuns:   map[string]domain.IngestionRun{},
+		runSources:      map[string][]domain.IngestionRunSource{},
 	}
 }
 
@@ -174,6 +191,125 @@ func (r *InMemoryRepository) RawDocumentCount(_ context.Context, sourceID string
 	return count, nil
 }
 
+func (r *InMemoryRepository) LoadSchedulerConfig(_ context.Context) (domain.SchedulerConfig, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return cloneSchedulerConfig(r.schedulerConfig), nil
+}
+
+func (r *InMemoryRepository) SaveSchedulerConfig(_ context.Context, config domain.SchedulerConfig) (domain.SchedulerConfig, error) {
+	config = normalizeSchedulerConfig(config)
+	if err := config.Validate(); err != nil {
+		return domain.SchedulerConfig{}, err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if config.ConfigVersion <= 0 {
+		config.ConfigVersion = 1
+	}
+	now := time.Now()
+	if config.CreatedAt.IsZero() {
+		config.CreatedAt = now
+	}
+	config.UpdatedAt = now
+	r.schedulerConfig = cloneSchedulerConfig(config)
+	return cloneSchedulerConfig(r.schedulerConfig), nil
+}
+
+func (r *InMemoryRepository) CreateIngestionRun(_ context.Context, run domain.IngestionRun) (domain.IngestionRun, error) {
+	if err := run.Validate(); err != nil {
+		return domain.IngestionRun{}, err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+	if run.CreatedAt.IsZero() {
+		run.CreatedAt = now
+	}
+	run.UpdatedAt = now
+	run.SchedulerConfig = cloneMap(run.SchedulerConfig)
+	r.ingestionRuns[run.ID] = run
+	return cloneIngestionRun(run), nil
+}
+
+func (r *InMemoryRepository) RecordIngestionRunSource(_ context.Context, result domain.IngestionRunSource) error {
+	if err := result.Validate(); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.ingestionRuns[result.RunID]; !ok {
+		return fmt.Errorf("ingestion run %q not found", result.RunID)
+	}
+	now := time.Now()
+	if result.CreatedAt.IsZero() {
+		result.CreatedAt = now
+	}
+	result.UpdatedAt = now
+	r.runSources[result.RunID] = append(r.runSources[result.RunID], result)
+	return nil
+}
+
+func (r *InMemoryRepository) CompleteIngestionRun(_ context.Context, run domain.IngestionRun) error {
+	if err := run.Validate(); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.ingestionRuns[run.ID]; !ok {
+		return fmt.Errorf("ingestion run %q not found", run.ID)
+	}
+	run.UpdatedAt = time.Now()
+	run.SchedulerConfig = cloneMap(run.SchedulerConfig)
+	r.ingestionRuns[run.ID] = run
+
+	config := r.schedulerConfig
+	config.LastRunID = run.ID
+	config.LastRunAt = &run.StartedAt
+	config.UpdatedAt = run.UpdatedAt
+	r.schedulerConfig = config
+	return nil
+}
+
+func (r *InMemoryRepository) RecentIngestionRuns(_ context.Context, limit int) ([]domain.IngestionRun, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if limit <= 0 {
+		limit = 20
+	}
+	runs := make([]domain.IngestionRun, 0, len(r.ingestionRuns))
+	for _, run := range r.ingestionRuns {
+		runs = append(runs, cloneIngestionRun(run))
+	}
+	sort.Slice(runs, func(i, j int) bool {
+		return runs[i].StartedAt.After(runs[j].StartedAt)
+	})
+	if len(runs) > limit {
+		runs = runs[:limit]
+	}
+	return runs, nil
+}
+
+func (r *InMemoryRepository) IngestionRunSources(runID string) []domain.IngestionRunSource {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	items := r.runSources[runID]
+	copied := make([]domain.IngestionRunSource, len(items))
+	copy(copied, items)
+	return copied
+}
+
 func (r *InMemoryRepository) findDuplicate(doc domain.RawDocument) (domain.RawDocument, bool) {
 	for _, existing := range r.documents {
 		if existing.SourceID != doc.SourceID {
@@ -224,6 +360,59 @@ func cloneMap(value map[string]any) map[string]any {
 		copied[key] = item
 	}
 	return copied
+}
+
+func defaultSchedulerConfig() domain.SchedulerConfig {
+	return domain.SchedulerConfig{
+		ID:              "default",
+		Enabled:         false,
+		Mode:            domain.SchedulerModeInterval,
+		IntervalMinutes: 60,
+		Concurrency:     1,
+		BatchSize:       10,
+		TimeoutSeconds:  180,
+		SourceFilter:    domain.SchedulerSourceFilter{},
+		Timezone:        "Asia/Shanghai",
+		ConfigVersion:   1,
+	}
+}
+
+func normalizeSchedulerConfig(config domain.SchedulerConfig) domain.SchedulerConfig {
+	if config.ID == "" {
+		config.ID = "default"
+	}
+	if config.Mode == "" {
+		config.Mode = domain.SchedulerModeInterval
+	}
+	if config.Mode == domain.SchedulerModeInterval && config.IntervalMinutes == 0 {
+		config.IntervalMinutes = 60
+	}
+	if config.Concurrency == 0 {
+		config.Concurrency = 1
+	}
+	if config.BatchSize == 0 {
+		config.BatchSize = 10
+	}
+	if config.TimeoutSeconds == 0 {
+		config.TimeoutSeconds = 180
+	}
+	if config.Timezone == "" {
+		config.Timezone = "Asia/Shanghai"
+	}
+	if config.ConfigVersion == 0 {
+		config.ConfigVersion = 1
+	}
+	return config
+}
+
+func cloneSchedulerConfig(config domain.SchedulerConfig) domain.SchedulerConfig {
+	config.FixedTimes = append([]string(nil), config.FixedTimes...)
+	return config
+}
+
+func cloneIngestionRun(run domain.IngestionRun) domain.IngestionRun {
+	run.SchedulerConfig = cloneMap(run.SchedulerConfig)
+	return run
 }
 
 func newSourceCatalogStats() SourceCatalogStats {

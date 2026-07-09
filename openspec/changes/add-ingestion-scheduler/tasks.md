@@ -1,15 +1,15 @@
 ## 1. 调度持久化结构
 
-- [ ] 1.1 为调度相关 migration 编写静态测试，验证新增表、索引、外键、默认值、非破坏性迁移和敏感字段禁止写入。
-- [ ] 1.2 新增调度 migration，创建 `ingestion_scheduler_configs`、`ingestion_runs`、`ingestion_run_sources`。
-- [ ] 1.3 为全局调度配置、调度模式、固定时间、run 记录和 source 结果补充 domain model 测试。
-- [ ] 1.4 实现调度配置、run 记录和 source 结果的 domain model。
+- [x] 1.1 为调度相关 migration 编写静态测试，验证新增表、索引、外键、默认值、非破坏性迁移和敏感字段禁止写入。
+- [x] 1.2 新增调度 migration，创建 `ingestion_scheduler_configs`、`ingestion_runs`、`ingestion_run_sources`。
+- [x] 1.3 为全局调度配置、调度模式、固定时间、run 记录和 source 结果补充 domain model 测试。
+- [x] 1.4 实现调度配置、run 记录和 source 结果的 domain model。
 
 ## 2. Repository 调度能力
 
-- [ ] 2.1 为 repository 编写测试，覆盖读取默认配置、保存配置、创建 run、写入 source 结果、完成 run 汇总和查询最近 run。
-- [ ] 2.2 扩展 repository 接口、内存实现和 PostgreSQL 实现，支持调度器和 admin API 需要的读写能力。
-- [ ] 2.3 编写 PostgreSQL gated 集成测试，验证 migration 后调度表与已有 `source_catalogs`、`raw_documents` 共存且不破坏已有数据。
+- [x] 2.1 为 repository 编写测试，覆盖读取默认配置、保存配置、创建 run、写入 source 结果、完成 run 汇总和查询最近 run。
+- [x] 2.2 扩展 repository 接口、内存实现和 PostgreSQL 实现，支持调度器和 admin API 需要的读写能力。
+- [x] 2.3 编写 PostgreSQL gated 集成测试，验证 migration 后调度表与已有 `source_catalogs`、`raw_documents` 共存且不破坏已有数据。
 
 ## 3. Scheduler service
 
