@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -25,8 +26,9 @@ func TestPostgresRepositoryIntegration(t *testing.T) {
 
 	ctx := context.Background()
 	repo := NewPostgresRepository(db)
+	runID := fmt.Sprintf("integration-%d", time.Now().UnixNano())
 	source := domain.SourceCatalog{
-		ID:            "integration-source",
+		ID:            runID + "-source",
 		IngestChannel: "rss_feed",
 		ProviderKey:   "rss",
 		ConnectorKey:  "rss_feed",
@@ -59,16 +61,16 @@ func TestPostgresRepositoryIntegration(t *testing.T) {
 	}
 
 	doc := domain.RawDocument{
-		ID:               "integration-doc-a",
+		ID:               runID + "-doc-a",
 		SourceID:         source.ID,
 		IngestChannel:    "rss_feed",
 		SourceType:       "news",
 		SourceName:       "集成测试来源",
 		SourceURL:        "https://example.com/item-a",
-		SourceExternalID: "item-a",
+		SourceExternalID: runID + "-item-a",
 		Title:            "集成测试标题",
 		ContentText:      "集成测试正文",
-		ContentHash:      "integration-hash-a",
+		ContentHash:      runID + "-hash-a",
 		CollectedAt:      time.Now(),
 		IngestStatus:     domain.IngestStatusCollected,
 	}
@@ -82,8 +84,8 @@ func TestPostgresRepositoryIntegration(t *testing.T) {
 	}
 
 	duplicate := doc
-	duplicate.ID = "integration-doc-b"
-	duplicate.ContentHash = "integration-hash-b"
+	duplicate.ID = runID + "-doc-b"
+	duplicate.ContentHash = runID + "-hash-b"
 	second, err := repo.UpsertRawDocument(ctx, duplicate)
 	if err != nil {
 		t.Fatalf("UpsertRawDocument() duplicate error = %v", err)

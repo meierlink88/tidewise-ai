@@ -43,6 +43,7 @@ func TestInMemoryRepositoryListsActiveSources(t *testing.T) {
 	})
 
 	sources, err := repo.ActiveSources(context.Background(), SourceCatalogFilter{
+		SourceID:      "source-1",
 		ProviderKey:   "rss",
 		IngestChannel: "rss_feed",
 		SourceType:    "news",

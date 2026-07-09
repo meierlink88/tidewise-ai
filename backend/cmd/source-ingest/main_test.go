@@ -1,30 +1,56 @@
 package main
 
-import "testing"
+import (
+	"reflect"
+	"testing"
 
-func TestSourceIngestOptionsBuildFilter(t *testing.T) {
+	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+)
+
+func TestSourceCatalogFilterIncludesSourceID(t *testing.T) {
 	filter := sourceCatalogFilter(sourceIngestOptions{
-		providerKey:   "eastmoney",
-		ingestChannel: "eastmoney",
-		sourceType:    "market",
+		sourceID:      "tidewise:ai-web-research:cn-finance-daily",
+		providerKey:   "llm_web_research",
+		ingestChannel: "ai_web_research",
+		sourceType:    "news",
 	})
 
-	if filter.ProviderKey != "eastmoney" {
-		t.Fatalf("ProviderKey = %q, want eastmoney", filter.ProviderKey)
+	want := repositories.SourceCatalogFilter{
+		SourceID:      "tidewise:ai-web-research:cn-finance-daily",
+		ProviderKey:   "llm_web_research",
+		IngestChannel: "ai_web_research",
+		SourceType:    "news",
 	}
-	if filter.IngestChannel != "eastmoney" {
-		t.Fatalf("IngestChannel = %q, want eastmoney", filter.IngestChannel)
-	}
-	if filter.SourceType != "market" {
-		t.Fatalf("SourceType = %q, want market", filter.SourceType)
+	if !reflect.DeepEqual(filter, want) {
+		t.Fatalf("filter = %+v, want %+v", filter, want)
 	}
 }
 
-func TestNormalizeSourceIngestConcurrency(t *testing.T) {
-	if got := normalizeConcurrency(0); got != 1 {
-		t.Fatalf("normalizeConcurrency(0) = %d, want 1", got)
+func TestRequiredEnvParsingAndMissingDetection(t *testing.T) {
+	names := parseRequiredEnvNames(" TAVILY_API_KEY, BOCHA_API_KEY,,DEEPSEEK_API_KEY ")
+	if want := []string{"TAVILY_API_KEY", "BOCHA_API_KEY", "DEEPSEEK_API_KEY"}; !reflect.DeepEqual(names, want) {
+		t.Fatalf("names = %v, want %v", names, want)
 	}
-	if got := normalizeConcurrency(4); got != 4 {
-		t.Fatalf("normalizeConcurrency(4) = %d, want 4", got)
+
+	missing := missingRequiredEnvNames(names, func(name string) string {
+		if name == "TAVILY_API_KEY" {
+			return "present"
+		}
+		return ""
+	})
+	if want := []string{"BOCHA_API_KEY", "DEEPSEEK_API_KEY"}; !reflect.DeepEqual(missing, want) {
+		t.Fatalf("missing = %v, want %v", missing, want)
+	}
+}
+
+func TestIngestionTimeoutSecondsUsesOverrideWhenProvided(t *testing.T) {
+	if got := ingestionTimeoutSeconds(sourceIngestOptions{timeoutSeconds: 45}, 10); got != 45 {
+		t.Fatalf("timeout seconds = %d, want override", got)
+	}
+	if got := ingestionTimeoutSeconds(sourceIngestOptions{timeoutSeconds: 0}, 10); got != 10 {
+		t.Fatalf("timeout seconds = %d, want config default", got)
+	}
+	if got := ingestionTimeoutSeconds(sourceIngestOptions{timeoutSeconds: -1}, 10); got != 10 {
+		t.Fatalf("timeout seconds = %d, want config default for negative override", got)
 	}
 }
