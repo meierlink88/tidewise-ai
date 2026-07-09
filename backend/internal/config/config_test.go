@@ -111,6 +111,12 @@ func TestLoadReadsOperationalConfig(t *testing.T) {
 	if cfg.Ingestion.DefaultTimeoutSeconds <= 0 {
 		t.Fatal("cfg.Ingestion.DefaultTimeoutSeconds must be positive")
 	}
+	if cfg.Ingestion.SchedulerTickSeconds <= 0 {
+		t.Fatal("cfg.Ingestion.SchedulerTickSeconds must be positive")
+	}
+	if cfg.Ingestion.SchedulerTimezone != "Asia/Shanghai" {
+		t.Fatalf("cfg.Ingestion.SchedulerTimezone = %q, want Asia/Shanghai", cfg.Ingestion.SchedulerTimezone)
+	}
 	if cfg.ObjectStore.LocalPath == "" {
 		t.Fatal("cfg.ObjectStore.LocalPath is empty")
 	}

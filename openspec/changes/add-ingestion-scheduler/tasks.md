@@ -13,12 +13,12 @@
 
 ## 3. Scheduler service
 
-- [ ] 3.1 使用 fake clock 和 table-driven tests 编写 `TriggerPlanner` 测试，覆盖 interval、固定时间、跨天、禁用状态、非法配置和至少 5 个固定时间。
-- [ ] 3.2 实现 `TriggerPlanner`，负责判断是否到期和计算下一次触发时间。
-- [ ] 3.3 在 `internal/apps/ingestion/scheduler` 使用 fake repository、fake runner 和 fake clock 编写 scheduler service 测试，覆盖未启用、无 active source、成功执行、失败隔离、run 记录汇总和 source filter 传递。
-- [ ] 3.4 实现 scheduler service，负责读取全局配置、创建 run、按全局过滤条件调用现有 ingestion runtime、写入 source 结果、完成 run 汇总和输出 report。
-- [ ] 3.5 为并发数、batch size、tick 间隔、超时、应用时区和默认关闭策略编写配置测试。
-- [ ] 3.6 实现调度器配置加载，确保 local、uat、prod 通过统一 config 读取非敏感配置，敏感信息仍只通过环境变量或 secret 注入。
+- [x] 3.1 使用 fake clock 和 table-driven tests 编写 `TriggerPlanner` 测试，覆盖 interval、固定时间、跨天、禁用状态、非法配置和至少 5 个固定时间。
+- [x] 3.2 实现 `TriggerPlanner`，负责判断是否到期和计算下一次触发时间。
+- [x] 3.3 在 `internal/apps/ingestion/scheduler` 使用 fake repository、fake runner 和 fake clock 编写 scheduler service 测试，覆盖未启用、无 active source、成功执行、失败隔离、run 记录汇总和 source filter 传递。
+- [x] 3.4 实现 scheduler service，负责读取全局配置、创建 run、按全局过滤条件调用现有 ingestion runtime、写入 source 结果、完成 run 汇总和输出 report。
+- [x] 3.5 为并发数、batch size、tick 间隔、超时、应用时区和默认关闭策略编写配置测试。
+- [x] 3.6 实现调度器配置加载，确保 local、uat、prod 通过统一 config 读取非敏感配置，敏感信息仍只通过环境变量或 secret 注入。
 
 ## 4. 命令入口和本地运行
 

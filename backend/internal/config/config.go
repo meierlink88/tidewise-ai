@@ -77,8 +77,10 @@ type MigrationConfig struct {
 }
 
 type IngestionConfig struct {
-	DefaultTimeoutSeconds int `yaml:"default_timeout_seconds"`
-	BatchSize             int `yaml:"batch_size"`
+	DefaultTimeoutSeconds int    `yaml:"default_timeout_seconds"`
+	BatchSize             int    `yaml:"batch_size"`
+	SchedulerTickSeconds  int    `yaml:"scheduler_tick_seconds"`
+	SchedulerTimezone     string `yaml:"scheduler_timezone"`
 }
 
 type ObjectStoreConfig struct {
@@ -234,6 +236,12 @@ func (c Config) Validate() error {
 	}
 	if c.Ingestion.BatchSize <= 0 {
 		return fmt.Errorf("ingestion.batch_size must be positive")
+	}
+	if c.Ingestion.SchedulerTickSeconds <= 0 {
+		return fmt.Errorf("ingestion.scheduler_tick_seconds must be positive")
+	}
+	if c.Ingestion.SchedulerTimezone == "" {
+		return fmt.Errorf("ingestion.scheduler_timezone is required")
 	}
 	if c.ObjectStore.Provider == "" {
 		return fmt.Errorf("object_store.provider is required")

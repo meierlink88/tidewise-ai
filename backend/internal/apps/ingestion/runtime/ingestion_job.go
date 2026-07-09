@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/core"
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
@@ -39,10 +40,29 @@ type IngestionJobOptions struct {
 }
 
 type IngestionReport struct {
-	Total     int      `json:"total"`
-	Succeeded int      `json:"succeeded"`
-	Failed    int      `json:"failed"`
-	Errors    []string `json:"errors,omitempty"`
+	Total         int                     `json:"total"`
+	Succeeded     int                     `json:"succeeded"`
+	Failed        int                     `json:"failed"`
+	Errors        []string                `json:"errors,omitempty"`
+	SourceResults []SourceIngestionResult `json:"source_results,omitempty"`
+}
+
+type SourceIngestionStatus string
+
+const (
+	SourceIngestionStatusSucceeded SourceIngestionStatus = "succeeded"
+	SourceIngestionStatusFailed    SourceIngestionStatus = "failed"
+)
+
+type SourceIngestionResult struct {
+	SourceID           string                `json:"source_id"`
+	Status             SourceIngestionStatus `json:"status"`
+	DocumentsWritten   int                   `json:"documents_written"`
+	DocumentsDuplicate int                   `json:"documents_duplicate"`
+	Error              string                `json:"error,omitempty"`
+	StartedAt          time.Time             `json:"started_at"`
+	FinishedAt         time.Time             `json:"finished_at"`
+	DurationMillis     int                   `json:"duration_millis"`
 }
 
 func NewIngestionJob(
@@ -86,9 +106,11 @@ func (j IngestionJob) Run(ctx context.Context, filter repositories.SourceCatalog
 	report := IngestionReport{Total: len(sources)}
 	if j.concurrency <= 1 || len(sources) <= 1 {
 		for _, source := range sources {
-			if err := j.runSource(ctx, source); err != nil {
+			result := j.runSource(ctx, source)
+			report.SourceResults = append(report.SourceResults, result)
+			if result.Status == SourceIngestionStatusFailed {
 				report.Failed++
-				report.Errors = append(report.Errors, err.Error())
+				report.Errors = append(report.Errors, result.Error)
 				continue
 			}
 			report.Succeeded++
@@ -101,7 +123,7 @@ func (j IngestionJob) Run(ctx context.Context, filter repositories.SourceCatalog
 		workerCount = len(sources)
 	}
 	sourceJobs := make(chan domain.SourceCatalog)
-	results := make(chan error, len(sources))
+	results := make(chan SourceIngestionResult, len(sources))
 	var wg sync.WaitGroup
 	for range workerCount {
 		wg.Add(1)
@@ -119,10 +141,11 @@ func (j IngestionJob) Run(ctx context.Context, filter repositories.SourceCatalog
 	wg.Wait()
 	close(results)
 
-	for err := range results {
-		if err != nil {
+	for result := range results {
+		report.SourceResults = append(report.SourceResults, result)
+		if result.Status == SourceIngestionStatusFailed {
 			report.Failed++
-			report.Errors = append(report.Errors, err.Error())
+			report.Errors = append(report.Errors, result.Error)
 			continue
 		}
 		report.Succeeded++
@@ -131,39 +154,61 @@ func (j IngestionJob) Run(ctx context.Context, filter repositories.SourceCatalog
 	return report
 }
 
-func (j IngestionJob) runSource(ctx context.Context, source domain.SourceCatalog) error {
+func (j IngestionJob) runSource(ctx context.Context, source domain.SourceCatalog) (result SourceIngestionResult) {
+	result = SourceIngestionResult{
+		SourceID:  source.ID,
+		Status:    SourceIngestionStatusSucceeded,
+		StartedAt: time.Now(),
+	}
+	defer func() {
+		result.FinishedAt = time.Now()
+		result.DurationMillis = int(result.FinishedAt.Sub(result.StartedAt).Milliseconds())
+	}()
+
 	credentialValue, err := j.credentials.Resolve(source.CredentialRef)
 	if err != nil {
-		return err
+		return result.failed(err)
 	}
 	if err := j.limiter.Allow(source.ProviderKey, policyFromSource(source)); err != nil {
-		return err
+		return result.failed(err)
 	}
 
 	connector, err := j.registry.Connector(source.ConnectorKey)
 	if err != nil {
-		return err
+		return result.failed(err)
 	}
 	parser, err := j.registry.Parser(source.ParserKey)
 	if err != nil {
-		return err
+		return result.failed(err)
 	}
 
 	response, err := connector.Fetch(ctx, source, core.Credential{Value: credentialValue})
 	if err != nil {
-		return err
+		return result.failed(err)
 	}
 	candidates, err := parser.Parse(ctx, source, response)
 	if err != nil {
-		return err
+		return result.failed(err)
 	}
 	for _, candidate := range candidates {
-		if _, err := j.writer.Write(ctx, candidate); err != nil {
-			return err
+		writeResult, err := j.writer.Write(ctx, candidate)
+		if err != nil {
+			return result.failed(err)
+		}
+		if writeResult.Created {
+			result.DocumentsWritten++
+		} else {
+			result.DocumentsDuplicate++
 		}
 	}
 
-	return nil
+	return result
+}
+
+func (r SourceIngestionResult) failed(err error) SourceIngestionResult {
+	r.Status = SourceIngestionStatusFailed
+	r.Error = err.Error()
+	return r
 }
 
 func policyFromSource(source domain.SourceCatalog) core.RateLimitPolicy {
