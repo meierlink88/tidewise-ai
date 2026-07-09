@@ -173,7 +173,9 @@ export default function DataIngestionCenter({ token }: { token: string }) {
 
   return (
     <section className="data-ingestion-center">
-      <Tabs active={activeTab} items={tabItems} onChange={setActiveTab} />
+      <div className="data-ingestion-tabs-bar">
+        <Tabs active={activeTab} items={tabItems} onChange={setActiveTab} />
+      </div>
       {error ? <div className="ui-alert danger">{error}</div> : null}
 
       {activeTab === 'raw' ? (

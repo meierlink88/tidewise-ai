@@ -66,12 +66,15 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).toContain('overflow-y: auto;');
   });
 
-  it('keeps data ingestion tabs fixed at the top of the scrollable workspace', () => {
+  it('keeps the full data ingestion tab bar fixed above scrolling content', () => {
+    const page = readFileSync(join(process.cwd(), 'src/pages/DataIngestionCenter.tsx'), 'utf8');
     const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
 
-    expect(stylesheet).toContain('.data-ingestion-center > .ui-tabs');
+    expect(page).toContain('data-ingestion-tabs-bar');
+    expect(stylesheet).toContain('.data-ingestion-tabs-bar');
     expect(stylesheet).toContain('position: sticky;');
     expect(stylesheet).toContain('top: 0;');
     expect(stylesheet).toContain('z-index: 10;');
+    expect(stylesheet).toContain('.data-ingestion-tabs-bar .ui-tabs');
   });
 });
