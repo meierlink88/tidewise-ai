@@ -5,11 +5,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '127.0.0.1',
-    port: 5174
-  },
-  test: {
-    environment: 'jsdom',
-    setupFiles: './src/test-setup.ts',
-    globals: true
+    port: 5174,
+    proxy: {
+      '/admin': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true
+      }
+    }
   }
 });
