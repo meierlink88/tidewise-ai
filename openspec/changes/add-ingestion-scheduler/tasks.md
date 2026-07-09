@@ -22,9 +22,9 @@
 
 ## 4. 命令入口和本地运行
 
-- [ ] 4.1 为 `cmd/ingestion-scheduler` 编写命令参数测试，覆盖 `-once`、持续模式、tick 间隔、配置刷新、退出信号和 dry run 或等价安全预览参数。
-- [ ] 4.2 实现 `cmd/ingestion-scheduler`，通过 `internal/apps/ingestion/scheduler` 组装调度服务，支持单轮运行和持续 worker loop，并在收到取消信号时完成当前轮次后退出。
-- [ ] 4.3 保留并验证 `source-ingest` 手动触发路径，确保调度器实现不破坏 provider/channel/source-type 指定采集。
+- [x] 4.1 为 `cmd/ingestion-scheduler` 编写命令参数测试，覆盖 `-once`、持续模式、tick 间隔、配置刷新、退出信号和 dry run 或等价安全预览参数。
+- [x] 4.2 实现 `cmd/ingestion-scheduler`，通过 `internal/apps/ingestion/scheduler` 组装调度服务，支持单轮运行和持续 worker loop，并在收到取消信号时完成当前轮次后退出。
+- [x] 4.3 保留并验证 `source-ingest` 手动触发路径，确保调度器实现不破坏 provider/channel/source-type 指定采集。
 
 ## 5. Admin API
 

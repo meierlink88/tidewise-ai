@@ -80,7 +80,8 @@ WHERE status = 'active'
   AND ($3 = '' OR ingest_channel = $3)
   AND ($4 = '' OR source_type = $4)
 ORDER BY source_name, id
-`, filter.SourceID, filter.ProviderKey, filter.IngestChannel, filter.SourceType)
+LIMIT CASE WHEN $5 > 0 THEN $5 ELSE 2147483647 END
+`, filter.SourceID, filter.ProviderKey, filter.IngestChannel, filter.SourceType, filter.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("query active source catalogs: %w", err)
 	}

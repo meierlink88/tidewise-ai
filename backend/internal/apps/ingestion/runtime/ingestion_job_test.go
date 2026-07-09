@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 	coreingestion "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/core"
+	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 )
 

@@ -57,12 +57,12 @@ func TestServiceRunOnceCreatesRunAndRecordsSourceResults(t *testing.T) {
 		Errors:    []string{"source-2 failed"},
 		SourceResults: []ingestionruntime.SourceIngestionResult{
 			{
-				SourceID:          "source-1",
-				Status:            ingestionruntime.SourceIngestionStatusSucceeded,
-				DocumentsWritten:  3,
-				StartedAt:         started,
-				FinishedAt:        started.Add(time.Second),
-				DurationMillis:    1000,
+				SourceID:         "source-1",
+				Status:           ingestionruntime.SourceIngestionStatusSucceeded,
+				DocumentsWritten: 3,
+				StartedAt:        started,
+				FinishedAt:       started.Add(time.Second),
+				DurationMillis:   1000,
 			},
 			{
 				SourceID:       "source-2",
@@ -89,20 +89,28 @@ func TestServiceRunOnceCreatesRunAndRecordsSourceResults(t *testing.T) {
 	if runner.filter.ProviderKey != "llm_web_research" || runner.filter.IngestChannel != "ai_web_research" || runner.filter.SourceType != "news" {
 		t.Fatalf("runner filter = %+v, want configured global filter", runner.filter)
 	}
+	if runner.filter.Limit != 20 {
+		t.Fatalf("runner filter Limit = %d, want 20", runner.filter.Limit)
+	}
+	if runner.options.Concurrency != 2 || runner.options.TimeoutSeconds != 180 {
+		t.Fatalf("runner options = %+v, want configured concurrency and timeout", runner.options)
+	}
 	if len(repo.IngestionRunSources(report.RunID)) != 2 {
 		t.Fatalf("run source results = %d, want 2", len(repo.IngestionRunSources(report.RunID)))
 	}
 }
 
 type fakeRunner struct {
-	called bool
-	filter repositories.SourceCatalogFilter
-	report ingestionruntime.IngestionReport
+	called  bool
+	filter  repositories.SourceCatalogFilter
+	options RunOptions
+	report  ingestionruntime.IngestionReport
 }
 
-func (r *fakeRunner) Run(_ context.Context, filter repositories.SourceCatalogFilter) ingestionruntime.IngestionReport {
+func (r *fakeRunner) Run(_ context.Context, filter repositories.SourceCatalogFilter, options RunOptions) ingestionruntime.IngestionReport {
 	r.called = true
 	r.filter = filter
+	r.options = options
 	return r.report
 }
 

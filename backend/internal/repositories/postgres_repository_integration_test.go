@@ -132,14 +132,14 @@ func TestPostgresRepositorySchedulerIntegration(t *testing.T) {
 	}
 
 	config, err := repo.SaveSchedulerConfig(ctx, domain.SchedulerConfig{
-		ID:             "default",
-		Enabled:        true,
-		Mode:           domain.SchedulerModeInterval,
+		ID:              "default",
+		Enabled:         true,
+		Mode:            domain.SchedulerModeInterval,
 		IntervalMinutes: 60,
-		Concurrency:    2,
-		BatchSize:      10,
-		TimeoutSeconds: 180,
-		Timezone:       "Asia/Shanghai",
+		Concurrency:     2,
+		BatchSize:       10,
+		TimeoutSeconds:  180,
+		Timezone:        "Asia/Shanghai",
 		SourceFilter: domain.SchedulerSourceFilter{
 			ProviderKey:   "llm_web_research",
 			IngestChannel: "ai_web_research",

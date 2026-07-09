@@ -15,17 +15,23 @@ type Repository interface {
 }
 
 type Runner interface {
-	Run(context.Context, repositories.SourceCatalogFilter) ingestionruntime.IngestionReport
+	Run(context.Context, repositories.SourceCatalogFilter, RunOptions) ingestionruntime.IngestionReport
 }
 
 type ServiceOptions struct {
 	Clock func() time.Time
 }
 
+type RunOptions struct {
+	Concurrency    int
+	TimeoutSeconds int
+}
+
 type Service struct {
 	repository Repository
 	runner     Runner
 	clock      func() time.Time
+	planner    TriggerPlanner
 }
 
 type RunReport struct {
@@ -47,6 +53,7 @@ func NewService(repository Repository, runner Runner, options ServiceOptions) Se
 		repository: repository,
 		runner:     runner,
 		clock:      clock,
+		planner:    TriggerPlanner{},
 	}
 }
 
@@ -61,7 +68,26 @@ func (s Service) RunOnce(ctx context.Context, trigger domain.SchedulerTriggerTyp
 	if err := config.Validate(); err != nil {
 		return RunReport{}, err
 	}
+	return s.runWithConfig(ctx, trigger, config)
+}
 
+func (s Service) RunDue(ctx context.Context) (RunReport, error) {
+	config, err := s.repository.LoadSchedulerConfig(ctx)
+	if err != nil {
+		return RunReport{}, err
+	}
+	now := s.clock()
+	if !s.planner.ShouldRun(now, config, config.LastRunAt) {
+		return RunReport{Status: domain.SchedulerRunStatusSkipped}, nil
+	}
+	trigger := domain.SchedulerTriggerInterval
+	if config.Mode == domain.SchedulerModeFixedTimes {
+		trigger = domain.SchedulerTriggerFixedTime
+	}
+	return s.runWithConfig(ctx, trigger, config)
+}
+
+func (s Service) runWithConfig(ctx context.Context, trigger domain.SchedulerTriggerType, config domain.SchedulerConfig) (RunReport, error) {
 	startedAt := s.clock()
 	run, err := s.repository.CreateIngestionRun(ctx, domain.IngestionRun{
 		ID:              runID(startedAt),
@@ -74,7 +100,10 @@ func (s Service) RunOnce(ctx context.Context, trigger domain.SchedulerTriggerTyp
 		return RunReport{}, err
 	}
 
-	runtimeReport := s.runner.Run(ctx, sourceCatalogFilter(config.SourceFilter))
+	runtimeReport := s.runner.Run(ctx, sourceCatalogFilter(config), RunOptions{
+		Concurrency:    config.Concurrency,
+		TimeoutSeconds: config.TimeoutSeconds,
+	})
 	for _, result := range runtimeReport.SourceResults {
 		if err := s.repository.RecordIngestionRunSource(ctx, sourceRunResult(run.ID, result)); err != nil {
 			return RunReport{}, err
@@ -105,11 +134,12 @@ func (s Service) RunOnce(ctx context.Context, trigger domain.SchedulerTriggerTyp
 	}, nil
 }
 
-func sourceCatalogFilter(filter domain.SchedulerSourceFilter) repositories.SourceCatalogFilter {
+func sourceCatalogFilter(config domain.SchedulerConfig) repositories.SourceCatalogFilter {
 	return repositories.SourceCatalogFilter{
-		ProviderKey:   filter.ProviderKey,
-		IngestChannel: filter.IngestChannel,
-		SourceType:    filter.SourceType,
+		ProviderKey:   config.SourceFilter.ProviderKey,
+		IngestChannel: config.SourceFilter.IngestChannel,
+		SourceType:    config.SourceFilter.SourceType,
+		Limit:         config.BatchSize,
 	}
 }
 

@@ -372,15 +372,15 @@ func TestInMemoryRepositoryRecordsIngestionRuns(t *testing.T) {
 	}
 
 	sourceResult := domain.IngestionRunSource{
-		ID:                "run-source-1",
-		RunID:             "run-1",
-		SourceID:          "source-1",
-		Status:            domain.SchedulerSourceRunStatusSucceeded,
-		DocumentsWritten:  5,
+		ID:                 "run-source-1",
+		RunID:              "run-1",
+		SourceID:           "source-1",
+		Status:             domain.SchedulerSourceRunStatusSucceeded,
+		DocumentsWritten:   5,
 		DocumentsDuplicate: 2,
-		StartedAt:         started,
-		FinishedAt:        &finished,
-		DurationMillis:    120,
+		StartedAt:          started,
+		FinishedAt:         &finished,
+		DurationMillis:     120,
 	}
 	if err := repo.RecordIngestionRunSource(context.Background(), sourceResult); err != nil {
 		t.Fatalf("RecordIngestionRunSource() error = %v", err)

@@ -181,14 +181,14 @@ func TestIngestionRunValidate(t *testing.T) {
 
 func TestIngestionRunSourceValidate(t *testing.T) {
 	result := IngestionRunSource{
-		ID:                "run-source-1",
-		RunID:             "run-1",
-		SourceID:          "source-1",
-		Status:            SchedulerSourceRunStatusSucceeded,
-		DocumentsWritten:  2,
+		ID:                 "run-source-1",
+		RunID:              "run-1",
+		SourceID:           "source-1",
+		Status:             SchedulerSourceRunStatusSucceeded,
+		DocumentsWritten:   2,
 		DocumentsDuplicate: 1,
-		StartedAt:         time.Now(),
-		DurationMillis:    120,
+		StartedAt:          time.Now(),
+		DurationMillis:     120,
 	}
 
 	if err := result.Validate(); err != nil {

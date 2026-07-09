@@ -15,6 +15,7 @@ type SourceCatalogFilter struct {
 	ProviderKey   string
 	IngestChannel string
 	SourceType    string
+	Limit         int
 }
 
 type SourceCatalogRepository interface {
@@ -112,6 +113,9 @@ func (r *InMemoryRepository) ActiveSources(_ context.Context, filter SourceCatal
 			continue
 		}
 		result = append(result, cloneSource(normalizeInMemorySource(source)))
+		if filter.Limit > 0 && len(result) >= filter.Limit {
+			break
+		}
 	}
 
 	return result, nil
