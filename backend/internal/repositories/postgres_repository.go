@@ -80,7 +80,8 @@ WHERE status = 'active'
   AND ($3 = '' OR ingest_channel = $3)
   AND ($4 = '' OR source_type = $4)
 ORDER BY source_name, id
-`, filter.SourceID, filter.ProviderKey, filter.IngestChannel, filter.SourceType)
+LIMIT CASE WHEN $5 > 0 THEN $5 ELSE 2147483647 END
+`, filter.SourceID, filter.ProviderKey, filter.IngestChannel, filter.SourceType, filter.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("query active source catalogs: %w", err)
 	}
@@ -233,6 +234,211 @@ WHERE source_id = $1
 	return count, nil
 }
 
+func (r PostgresRepository) LoadSchedulerConfig(ctx context.Context) (domain.SchedulerConfig, error) {
+	row := r.db.QueryRowContext(ctx, `
+SELECT id, enabled, mode, interval_minutes, fixed_times, concurrency,
+       batch_size, timeout_seconds, source_filter, timezone, config_version,
+       last_run_id, last_run_at, created_at, updated_at
+FROM ingestion_scheduler_configs
+WHERE id = 'default'
+`)
+	config, err := scanSchedulerConfig(row)
+	if err == sql.ErrNoRows {
+		return defaultSchedulerConfig(), nil
+	}
+	if err != nil {
+		return domain.SchedulerConfig{}, fmt.Errorf("load scheduler config: %w", err)
+	}
+	return config, nil
+}
+
+func (r PostgresRepository) SaveSchedulerConfig(ctx context.Context, config domain.SchedulerConfig) (domain.SchedulerConfig, error) {
+	config = normalizeSchedulerConfig(config)
+	if err := config.Validate(); err != nil {
+		return domain.SchedulerConfig{}, err
+	}
+	fixedTimes, err := json.Marshal(config.FixedTimes)
+	if err != nil {
+		return domain.SchedulerConfig{}, fmt.Errorf("marshal fixed times: %w", err)
+	}
+	sourceFilter, err := json.Marshal(schedulerSourceFilterMap(config.SourceFilter))
+	if err != nil {
+		return domain.SchedulerConfig{}, fmt.Errorf("marshal scheduler source filter: %w", err)
+	}
+
+	row := r.db.QueryRowContext(ctx, `
+INSERT INTO ingestion_scheduler_configs (
+    id, enabled, mode, interval_minutes, fixed_times, concurrency,
+    batch_size, timeout_seconds, source_filter, timezone, config_version
+) VALUES (
+    $1, $2, $3, $4, $5::jsonb, $6,
+    $7, $8, $9::jsonb, $10, 1
+) ON CONFLICT (id) DO UPDATE SET
+    enabled = EXCLUDED.enabled,
+    mode = EXCLUDED.mode,
+    interval_minutes = EXCLUDED.interval_minutes,
+    fixed_times = EXCLUDED.fixed_times,
+    concurrency = EXCLUDED.concurrency,
+    batch_size = EXCLUDED.batch_size,
+    timeout_seconds = EXCLUDED.timeout_seconds,
+    source_filter = EXCLUDED.source_filter,
+    timezone = EXCLUDED.timezone,
+    config_version = ingestion_scheduler_configs.config_version + 1,
+    updated_at = now()
+RETURNING id, enabled, mode, interval_minutes, fixed_times, concurrency,
+          batch_size, timeout_seconds, source_filter, timezone, config_version,
+          last_run_id, last_run_at, created_at, updated_at
+`, config.ID, config.Enabled, config.Mode, nullablePositiveInt(config.IntervalMinutes), string(fixedTimes), config.Concurrency,
+		config.BatchSize, config.TimeoutSeconds, string(sourceFilter), config.Timezone)
+
+	saved, err := scanSchedulerConfig(row)
+	if err != nil {
+		return domain.SchedulerConfig{}, fmt.Errorf("save scheduler config: %w", err)
+	}
+	return saved, nil
+}
+
+func (r PostgresRepository) CreateIngestionRun(ctx context.Context, run domain.IngestionRun) (domain.IngestionRun, error) {
+	run.ID = NormalizeUUID(run.ID)
+	if err := run.Validate(); err != nil {
+		return domain.IngestionRun{}, err
+	}
+	schedulerConfig, err := json.Marshal(cloneMap(run.SchedulerConfig))
+	if err != nil {
+		return domain.IngestionRun{}, fmt.Errorf("marshal run scheduler config: %w", err)
+	}
+
+	row := r.db.QueryRowContext(ctx, `
+INSERT INTO ingestion_runs (
+    id, trigger_type, status, started_at, finished_at, total_sources,
+    succeeded_sources, failed_sources, skipped_sources, scheduler_config, error_summary
+) VALUES (
+    $1, $2, $3, $4, $5,
+    $6, $7, $8, $9, $10::jsonb, $11
+) RETURNING id, trigger_type, status, started_at, finished_at, total_sources,
+            succeeded_sources, failed_sources, skipped_sources, scheduler_config,
+            error_summary, created_at, updated_at
+`, run.ID, run.TriggerType, run.Status, run.StartedAt, nullTime(run.FinishedAt),
+		run.TotalSources, run.SucceededSources, run.FailedSources, run.SkippedSources, string(schedulerConfig), run.ErrorSummary)
+
+	created, err := scanIngestionRun(row)
+	if err != nil {
+		return domain.IngestionRun{}, fmt.Errorf("create ingestion run: %w", err)
+	}
+	return created, nil
+}
+
+func (r PostgresRepository) RecordIngestionRunSource(ctx context.Context, result domain.IngestionRunSource) error {
+	result.ID = NormalizeUUID(result.ID)
+	result.RunID = NormalizeUUID(result.RunID)
+	result.SourceID = NormalizeUUID(result.SourceID)
+	if err := result.Validate(); err != nil {
+		return err
+	}
+
+	_, err := r.db.ExecContext(ctx, `
+INSERT INTO ingestion_run_sources (
+    id, run_id, source_id, status, documents_written, documents_duplicate,
+    error_message, started_at, finished_at, duration_millis
+) VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10
+) ON CONFLICT (id) DO UPDATE SET
+    status = EXCLUDED.status,
+    documents_written = EXCLUDED.documents_written,
+    documents_duplicate = EXCLUDED.documents_duplicate,
+    error_message = EXCLUDED.error_message,
+    started_at = EXCLUDED.started_at,
+    finished_at = EXCLUDED.finished_at,
+    duration_millis = EXCLUDED.duration_millis,
+    updated_at = now()
+`, result.ID, result.RunID, result.SourceID, result.Status, result.DocumentsWritten, result.DocumentsDuplicate,
+		result.ErrorMessage, result.StartedAt, nullTime(result.FinishedAt), result.DurationMillis)
+	if err != nil {
+		return fmt.Errorf("record ingestion run source: %w", err)
+	}
+	return nil
+}
+
+func (r PostgresRepository) CompleteIngestionRun(ctx context.Context, run domain.IngestionRun) error {
+	run.ID = NormalizeUUID(run.ID)
+	if err := run.Validate(); err != nil {
+		return err
+	}
+	schedulerConfig, err := json.Marshal(cloneMap(run.SchedulerConfig))
+	if err != nil {
+		return fmt.Errorf("marshal completed run scheduler config: %w", err)
+	}
+
+	result, err := r.db.ExecContext(ctx, `
+UPDATE ingestion_runs
+SET status = $2,
+    finished_at = $3,
+    total_sources = $4,
+    succeeded_sources = $5,
+    failed_sources = $6,
+    skipped_sources = $7,
+    scheduler_config = $8::jsonb,
+    error_summary = $9,
+    updated_at = now()
+WHERE id = $1
+`, run.ID, run.Status, nullTime(run.FinishedAt), run.TotalSources, run.SucceededSources,
+		run.FailedSources, run.SkippedSources, string(schedulerConfig), run.ErrorSummary)
+	if err != nil {
+		return fmt.Errorf("complete ingestion run: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read completed run affected rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("ingestion run %q not found", run.ID)
+	}
+
+	_, err = r.db.ExecContext(ctx, `
+UPDATE ingestion_scheduler_configs
+SET last_run_id = $1,
+    last_run_at = $2,
+    updated_at = now()
+WHERE id = 'default'
+`, run.ID, run.StartedAt)
+	if err != nil {
+		return fmt.Errorf("update scheduler last run: %w", err)
+	}
+	return nil
+}
+
+func (r PostgresRepository) RecentIngestionRuns(ctx context.Context, limit int) ([]domain.IngestionRun, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id, trigger_type, status, started_at, finished_at, total_sources,
+       succeeded_sources, failed_sources, skipped_sources, scheduler_config,
+       error_summary, created_at, updated_at
+FROM ingestion_runs
+ORDER BY started_at DESC
+LIMIT $1
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query recent ingestion runs: %w", err)
+	}
+	defer rows.Close()
+
+	runs := make([]domain.IngestionRun, 0)
+	for rows.Next() {
+		run, err := scanIngestionRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent ingestion runs: %w", err)
+	}
+	return runs, nil
+}
+
 func (r PostgresRepository) findDuplicate(ctx context.Context, doc domain.RawDocument) (domain.RawDocument, bool, error) {
 	row := r.db.QueryRowContext(ctx, `
 SELECT id, source_id, ingest_channel, source_type, source_name, source_url,
@@ -312,6 +518,60 @@ type rawDocumentScanner interface {
 	Scan(dest ...any) error
 }
 
+func scanSchedulerConfig(scanner rawDocumentScanner) (domain.SchedulerConfig, error) {
+	var config domain.SchedulerConfig
+	var interval sql.NullInt64
+	var fixedTimesBytes []byte
+	var sourceFilterBytes []byte
+	var lastRunID sql.NullString
+	var lastRunAt sql.NullTime
+	if err := scanner.Scan(
+		&config.ID,
+		&config.Enabled,
+		&config.Mode,
+		&interval,
+		&fixedTimesBytes,
+		&config.Concurrency,
+		&config.BatchSize,
+		&config.TimeoutSeconds,
+		&sourceFilterBytes,
+		&config.Timezone,
+		&config.ConfigVersion,
+		&lastRunID,
+		&lastRunAt,
+		&config.CreatedAt,
+		&config.UpdatedAt,
+	); err != nil {
+		return domain.SchedulerConfig{}, err
+	}
+	if interval.Valid {
+		config.IntervalMinutes = int(interval.Int64)
+	}
+	if len(fixedTimesBytes) > 0 {
+		if err := json.Unmarshal(fixedTimesBytes, &config.FixedTimes); err != nil {
+			return domain.SchedulerConfig{}, fmt.Errorf("parse scheduler fixed times: %w", err)
+		}
+	}
+	if len(sourceFilterBytes) > 0 {
+		var sourceFilter map[string]string
+		if err := json.Unmarshal(sourceFilterBytes, &sourceFilter); err != nil {
+			return domain.SchedulerConfig{}, fmt.Errorf("parse scheduler source filter: %w", err)
+		}
+		config.SourceFilter = domain.SchedulerSourceFilter{
+			ProviderKey:   sourceFilter["provider_key"],
+			IngestChannel: sourceFilter["ingest_channel"],
+			SourceType:    sourceFilter["source_type"],
+		}
+	}
+	if lastRunID.Valid {
+		config.LastRunID = lastRunID.String
+	}
+	if lastRunAt.Valid {
+		config.LastRunAt = &lastRunAt.Time
+	}
+	return config, nil
+}
+
 func scanRawDocument(scanner rawDocumentScanner) (domain.RawDocument, error) {
 	var doc domain.RawDocument
 	var sourceExternalID sql.NullString
@@ -343,6 +603,41 @@ func scanRawDocument(scanner rawDocumentScanner) (domain.RawDocument, error) {
 		doc.PublishedAt = &publishedAt.Time
 	}
 	return doc, nil
+}
+
+func scanIngestionRun(scanner rawDocumentScanner) (domain.IngestionRun, error) {
+	var run domain.IngestionRun
+	var finishedAt sql.NullTime
+	var schedulerConfigBytes []byte
+	if err := scanner.Scan(
+		&run.ID,
+		&run.TriggerType,
+		&run.Status,
+		&run.StartedAt,
+		&finishedAt,
+		&run.TotalSources,
+		&run.SucceededSources,
+		&run.FailedSources,
+		&run.SkippedSources,
+		&schedulerConfigBytes,
+		&run.ErrorSummary,
+		&run.CreatedAt,
+		&run.UpdatedAt,
+	); err != nil {
+		return domain.IngestionRun{}, err
+	}
+	if finishedAt.Valid {
+		run.FinishedAt = &finishedAt.Time
+	}
+	if len(schedulerConfigBytes) > 0 {
+		if err := json.Unmarshal(schedulerConfigBytes, &run.SchedulerConfig); err != nil {
+			return domain.IngestionRun{}, fmt.Errorf("parse run scheduler config: %w", err)
+		}
+	}
+	if run.SchedulerConfig == nil {
+		run.SchedulerConfig = map[string]any{}
+	}
+	return run, nil
 }
 
 func normalizeSource(source domain.SourceCatalog) domain.SourceCatalog {
@@ -389,4 +684,25 @@ func nullTime(value *time.Time) any {
 		return nil
 	}
 	return *value
+}
+
+func nullablePositiveInt(value int) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
+}
+
+func schedulerSourceFilterMap(filter domain.SchedulerSourceFilter) map[string]string {
+	result := map[string]string{}
+	if filter.ProviderKey != "" {
+		result["provider_key"] = filter.ProviderKey
+	}
+	if filter.IngestChannel != "" {
+		result["ingest_channel"] = filter.IngestChannel
+	}
+	if filter.SourceType != "" {
+		result["source_type"] = filter.SourceType
+	}
+	return result
 }

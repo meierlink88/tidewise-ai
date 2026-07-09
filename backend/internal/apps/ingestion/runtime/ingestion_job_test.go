@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 	coreingestion "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/core"
+	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 )
 
@@ -40,6 +40,23 @@ func TestRuntimeRunsSourcesWithFailureIsolation(t *testing.T) {
 	}
 	if _, ok := repo.RawDocument("raw-source-1"); !ok {
 		t.Fatal("successful source raw document was not written")
+	}
+
+	resultsBySource := map[string]SourceIngestionResult{}
+	for _, result := range report.SourceResults {
+		resultsBySource[result.SourceID] = result
+	}
+	if resultsBySource["source-1"].Status != SourceIngestionStatusSucceeded {
+		t.Fatalf("source-1 status = %q, want succeeded", resultsBySource["source-1"].Status)
+	}
+	if resultsBySource["source-1"].DocumentsWritten != 1 {
+		t.Fatalf("source-1 DocumentsWritten = %d, want 1", resultsBySource["source-1"].DocumentsWritten)
+	}
+	if resultsBySource["source-2"].Status != SourceIngestionStatusFailed {
+		t.Fatalf("source-2 status = %q, want failed", resultsBySource["source-2"].Status)
+	}
+	if !strings.Contains(resultsBySource["source-2"].Error, "missing_connector") {
+		t.Fatalf("source-2 error = %q, want missing connector", resultsBySource["source-2"].Error)
 	}
 }
 

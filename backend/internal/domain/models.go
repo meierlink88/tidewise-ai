@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -251,6 +252,182 @@ type RawDocument struct {
 	CollectedAt      time.Time
 	ContentHash      string
 	IngestStatus     IngestStatus
+}
+
+type SchedulerMode string
+
+const (
+	SchedulerModeInterval   SchedulerMode = "interval"
+	SchedulerModeFixedTimes SchedulerMode = "fixed_times"
+)
+
+type SchedulerTriggerType string
+
+const (
+	SchedulerTriggerManualOnce SchedulerTriggerType = "manual_once"
+	SchedulerTriggerInterval   SchedulerTriggerType = "interval"
+	SchedulerTriggerFixedTime  SchedulerTriggerType = "fixed_time"
+)
+
+type SchedulerRunStatus string
+
+const (
+	SchedulerRunStatusRunning   SchedulerRunStatus = "running"
+	SchedulerRunStatusSucceeded SchedulerRunStatus = "succeeded"
+	SchedulerRunStatusFailed    SchedulerRunStatus = "failed"
+	SchedulerRunStatusPartial   SchedulerRunStatus = "partial"
+	SchedulerRunStatusSkipped   SchedulerRunStatus = "skipped"
+)
+
+type SchedulerSourceRunStatus string
+
+const (
+	SchedulerSourceRunStatusSucceeded SchedulerSourceRunStatus = "succeeded"
+	SchedulerSourceRunStatusFailed    SchedulerSourceRunStatus = "failed"
+	SchedulerSourceRunStatusSkipped   SchedulerSourceRunStatus = "skipped"
+)
+
+type SchedulerSourceFilter struct {
+	ProviderKey   string
+	IngestChannel string
+	SourceType    string
+}
+
+type SchedulerConfig struct {
+	ID              string
+	Enabled         bool
+	Mode            SchedulerMode
+	IntervalMinutes int
+	FixedTimes      []string
+	Concurrency     int
+	BatchSize       int
+	TimeoutSeconds  int
+	SourceFilter    SchedulerSourceFilter
+	Timezone        string
+	ConfigVersion   int
+	LastRunID       string
+	LastRunAt       *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+func (c SchedulerConfig) Validate() error {
+	if c.ID == "" {
+		return fmt.Errorf("scheduler config id is required")
+	}
+	if !validStatus(c.Mode, SchedulerModeInterval, SchedulerModeFixedTimes) {
+		return fmt.Errorf("unsupported scheduler mode %q", c.Mode)
+	}
+	if c.Mode == SchedulerModeInterval && c.IntervalMinutes <= 0 {
+		return fmt.Errorf("interval minutes must be positive")
+	}
+	if c.Mode == SchedulerModeFixedTimes {
+		if err := validateFixedTimes(c.FixedTimes); err != nil {
+			return err
+		}
+	}
+	if c.Concurrency <= 0 {
+		return fmt.Errorf("concurrency must be positive")
+	}
+	if c.BatchSize <= 0 {
+		return fmt.Errorf("batch size must be positive")
+	}
+	if c.TimeoutSeconds <= 0 {
+		return fmt.Errorf("timeout seconds must be positive")
+	}
+	if strings.TrimSpace(c.Timezone) == "" {
+		return fmt.Errorf("timezone is required")
+	}
+	return nil
+}
+
+type IngestionRun struct {
+	ID               string
+	TriggerType      SchedulerTriggerType
+	Status           SchedulerRunStatus
+	StartedAt        time.Time
+	FinishedAt       *time.Time
+	TotalSources     int
+	SucceededSources int
+	FailedSources    int
+	SkippedSources   int
+	SchedulerConfig  map[string]any
+	ErrorSummary     string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+func (r IngestionRun) Validate() error {
+	if r.ID == "" {
+		return fmt.Errorf("ingestion run id is required")
+	}
+	if !validStatus(r.TriggerType, SchedulerTriggerManualOnce, SchedulerTriggerInterval, SchedulerTriggerFixedTime) {
+		return fmt.Errorf("unsupported scheduler trigger type %q", r.TriggerType)
+	}
+	if !validStatus(r.Status, SchedulerRunStatusRunning, SchedulerRunStatusSucceeded, SchedulerRunStatusFailed, SchedulerRunStatusPartial, SchedulerRunStatusSkipped) {
+		return fmt.Errorf("unsupported scheduler run status %q", r.Status)
+	}
+	if r.StartedAt.IsZero() {
+		return fmt.Errorf("started at is required")
+	}
+	if r.TotalSources < 0 || r.SucceededSources < 0 || r.FailedSources < 0 || r.SkippedSources < 0 {
+		return fmt.Errorf("run counts must be non-negative")
+	}
+	return nil
+}
+
+type IngestionRunSource struct {
+	ID                 string
+	RunID              string
+	SourceID           string
+	Status             SchedulerSourceRunStatus
+	DocumentsWritten   int
+	DocumentsDuplicate int
+	ErrorMessage       string
+	StartedAt          time.Time
+	FinishedAt         *time.Time
+	DurationMillis     int
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+func (s IngestionRunSource) Validate() error {
+	if s.ID == "" {
+		return fmt.Errorf("ingestion run source id is required")
+	}
+	if s.RunID == "" {
+		return fmt.Errorf("run id is required")
+	}
+	if s.SourceID == "" {
+		return fmt.Errorf("source id is required")
+	}
+	if !validStatus(s.Status, SchedulerSourceRunStatusSucceeded, SchedulerSourceRunStatusFailed, SchedulerSourceRunStatusSkipped) {
+		return fmt.Errorf("unsupported source run status %q", s.Status)
+	}
+	if s.StartedAt.IsZero() {
+		return fmt.Errorf("started at is required")
+	}
+	if s.DocumentsWritten < 0 || s.DocumentsDuplicate < 0 || s.DurationMillis < 0 {
+		return fmt.Errorf("source run counts must be non-negative")
+	}
+	return nil
+}
+
+func validateFixedTimes(values []string) error {
+	if len(values) == 0 {
+		return fmt.Errorf("fixed times are required")
+	}
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		if _, err := time.Parse("15:04", value); err != nil {
+			return fmt.Errorf("fixed time %q must use HH:mm format", value)
+		}
+		if _, ok := seen[value]; ok {
+			return fmt.Errorf("fixed time %q is duplicated", value)
+		}
+		seen[value] = struct{}{}
+	}
+	return nil
 }
 
 func (d RawDocument) Validate() error {

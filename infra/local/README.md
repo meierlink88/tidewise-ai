@@ -132,6 +132,97 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/source-ingest \
   -concurrency 1
 ```
 
+## 运行采集调度器
+
+调度器读取 PostgreSQL 中的全局调度配置，默认关闭。先执行 migration，再用 SQL 或管理后台启用调度配置。建议本地先限制到 AI Web Research 或少量低风险来源：
+
+```sql
+UPDATE ingestion_scheduler_configs
+SET enabled = true,
+    mode = 'interval',
+    interval_minutes = 60,
+    concurrency = 1,
+    batch_size = 10,
+    timeout_seconds = 180,
+    source_filter = '{"provider_key":"llm_web_research","ingest_channel":"ai_web_research","source_type":"news"}'::jsonb,
+    timezone = 'Asia/Shanghai',
+    updated_at = now()
+WHERE id = 'default';
+```
+
+单轮运行用于 smoke 和排障：
+
+```bash
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/ingestion-scheduler -once
+```
+
+查看当前调度配置，不触发采集：
+
+```bash
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/ingestion-scheduler -dry-run
+```
+
+持续运行用于模拟生产进程。进程会按 `ingestion.scheduler_tick_seconds` 检查是否到期，只有全局配置到期时才触发采集：
+
+```bash
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/ingestion-scheduler
+```
+
+也可以覆盖 tick 间隔：
+
+```bash
+APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/ingestion-scheduler -tick-seconds 15
+```
+
+验证调度 run 和 source 级结果：
+
+```sql
+SELECT id, trigger_type, status, started_at, finished_at, total_sources, succeeded_sources, failed_sources
+FROM ingestion_runs
+ORDER BY started_at DESC
+LIMIT 5;
+
+SELECT run_id, source_id, status, documents_written, documents_duplicate, error_message
+FROM ingestion_run_sources
+ORDER BY started_at DESC
+LIMIT 20;
+```
+
+## 运行 Admin API 和管理后台
+
+Admin API 使用 `ADMIN_API_TOKEN` 鉴权。真实 token 只通过环境变量注入，不写入 repo：
+
+```bash
+APP_ENV=local DATABASE_PASSWORD=<local-password> ADMIN_API_TOKEN=<local-admin-token> go run ./cmd/admin-api
+```
+
+管理后台位于：
+
+```text
+frontend/admin/
+```
+
+首次运行需要安装依赖：
+
+```bash
+cd frontend/admin
+npm install
+```
+
+本地启动：
+
+```bash
+npm run dev -- --port 5174
+```
+
+默认访问：
+
+```text
+http://127.0.0.1:5174/
+```
+
+页面右上角输入 `ADMIN_API_TOKEN` 后，可以在“调度器设置”中读取和保存全局调度配置。本阶段管理后台只包含调度器设置菜单，后续采集源管理、原始数据列表和事件列表通过独立 change 扩展。
+
 ## 常见失败
 
 - `ping postgres`：本地 PostgreSQL 未启动、端口不对、数据库不存在或 password 未注入。
@@ -139,3 +230,4 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/source-ingest \
 - `fetch url status` 或 `parse rss feed`：公开来源临时不可用、限流或返回格式变化。可以用 `-source-url` 临时替换来源。
 - `source ingest failed`：通常表示某些 active source 的 connector/parser 未注册、外部来源不可达或被限流；先缩小 `-provider`、`-channel`、`-source-type` 过滤范围排查。
 - `insert raw document`：通常表示 migration 未执行、source seed 失败或 schema 与 repository 不一致。
+- `admin token is not configured`：启动 `cmd/admin-api` 时没有注入 `ADMIN_API_TOKEN`。

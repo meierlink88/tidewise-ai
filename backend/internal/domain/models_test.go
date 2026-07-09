@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -100,5 +101,102 @@ func TestEventValidate(t *testing.T) {
 	event.FactStatus = "certain"
 	if err := event.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want invalid fact status error")
+	}
+}
+
+func TestSchedulerConfigValidateIntervalMode(t *testing.T) {
+	config := SchedulerConfig{
+		ID:              "default",
+		Enabled:         false,
+		Mode:            SchedulerModeInterval,
+		IntervalMinutes: 60,
+		Concurrency:     2,
+		BatchSize:       20,
+		TimeoutSeconds:  180,
+		Timezone:        "Asia/Shanghai",
+		SourceFilter: SchedulerSourceFilter{
+			ProviderKey:   "llm_web_research",
+			IngestChannel: "ai_web_research",
+			SourceType:    "news",
+		},
+	}
+
+	if err := config.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	config.IntervalMinutes = 0
+	if err := config.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want invalid interval error")
+	}
+}
+
+func TestSchedulerConfigValidateFixedTimes(t *testing.T) {
+	config := SchedulerConfig{
+		ID:             "default",
+		Enabled:        true,
+		Mode:           SchedulerModeFixedTimes,
+		FixedTimes:     []string{"09:00", "12:00", "15:00", "18:00", "21:00"},
+		Concurrency:    1,
+		BatchSize:      10,
+		TimeoutSeconds: 180,
+		Timezone:       "Asia/Shanghai",
+	}
+
+	if err := config.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	config.FixedTimes = []string{"09:00", "09:00"}
+	if err := config.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want duplicate fixed time error")
+	}
+}
+
+func TestSchedulerSourceFilterDoesNotExposeSingleSource(t *testing.T) {
+	filterType := reflect.TypeOf(SchedulerSourceFilter{})
+	if _, ok := filterType.FieldByName("SourceID"); ok {
+		t.Fatal("SchedulerSourceFilter must not expose SourceID")
+	}
+}
+
+func TestIngestionRunValidate(t *testing.T) {
+	run := IngestionRun{
+		ID:           "run-1",
+		TriggerType:  SchedulerTriggerManualOnce,
+		Status:       SchedulerRunStatusRunning,
+		StartedAt:    time.Now(),
+		TotalSources: 3,
+	}
+
+	if err := run.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	run.Status = "unknown"
+	if err := run.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want invalid run status error")
+	}
+}
+
+func TestIngestionRunSourceValidate(t *testing.T) {
+	result := IngestionRunSource{
+		ID:                 "run-source-1",
+		RunID:              "run-1",
+		SourceID:           "source-1",
+		Status:             SchedulerSourceRunStatusSucceeded,
+		DocumentsWritten:   2,
+		DocumentsDuplicate: 1,
+		StartedAt:          time.Now(),
+		DurationMillis:     120,
+	}
+
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	result.DocumentsWritten = -1
+	if err := result.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want negative document count error")
 	}
 }

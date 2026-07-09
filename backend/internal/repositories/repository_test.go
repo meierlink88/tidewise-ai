@@ -296,6 +296,119 @@ func TestInMemoryRepositoryUpdatesRawDocumentStatus(t *testing.T) {
 	}
 }
 
+func TestInMemoryRepositoryLoadsDefaultSchedulerConfig(t *testing.T) {
+	repo := NewInMemoryRepository(nil)
+
+	config, err := repo.LoadSchedulerConfig(context.Background())
+	if err != nil {
+		t.Fatalf("LoadSchedulerConfig() error = %v", err)
+	}
+
+	if config.Enabled {
+		t.Fatal("default scheduler config must be disabled")
+	}
+	if config.Mode != domain.SchedulerModeInterval {
+		t.Fatalf("Mode = %q, want %q", config.Mode, domain.SchedulerModeInterval)
+	}
+	if config.IntervalMinutes != 60 {
+		t.Fatalf("IntervalMinutes = %d, want 60", config.IntervalMinutes)
+	}
+	if config.SourceFilter.ProviderKey != "" || config.SourceFilter.IngestChannel != "" || config.SourceFilter.SourceType != "" {
+		t.Fatalf("SourceFilter = %+v, want empty global filter", config.SourceFilter)
+	}
+}
+
+func TestInMemoryRepositorySavesSchedulerConfig(t *testing.T) {
+	repo := NewInMemoryRepository(nil)
+	config := domain.SchedulerConfig{
+		ID:             "default",
+		Enabled:        true,
+		Mode:           domain.SchedulerModeFixedTimes,
+		FixedTimes:     []string{"09:00", "12:00", "15:00", "18:00", "21:00"},
+		Concurrency:    3,
+		BatchSize:      30,
+		TimeoutSeconds: 240,
+		Timezone:       "Asia/Shanghai",
+		SourceFilter: domain.SchedulerSourceFilter{
+			ProviderKey:   "llm_web_research",
+			IngestChannel: "ai_web_research",
+			SourceType:    "news",
+		},
+	}
+
+	saved, err := repo.SaveSchedulerConfig(context.Background(), config)
+	if err != nil {
+		t.Fatalf("SaveSchedulerConfig() error = %v", err)
+	}
+	loaded, err := repo.LoadSchedulerConfig(context.Background())
+	if err != nil {
+		t.Fatalf("LoadSchedulerConfig() error = %v", err)
+	}
+
+	if saved.ConfigVersion != 1 {
+		t.Fatalf("saved ConfigVersion = %d, want 1", saved.ConfigVersion)
+	}
+	if !reflect.DeepEqual(loaded.FixedTimes, config.FixedTimes) {
+		t.Fatalf("FixedTimes = %v, want %v", loaded.FixedTimes, config.FixedTimes)
+	}
+	if loaded.SourceFilter.ProviderKey != "llm_web_research" {
+		t.Fatalf("ProviderKey = %q, want llm_web_research", loaded.SourceFilter.ProviderKey)
+	}
+}
+
+func TestInMemoryRepositoryRecordsIngestionRuns(t *testing.T) {
+	repo := NewInMemoryRepository(nil)
+	started := time.Now().Add(-time.Minute)
+	finished := time.Now()
+	run := domain.IngestionRun{
+		ID:          "run-1",
+		TriggerType: domain.SchedulerTriggerManualOnce,
+		Status:      domain.SchedulerRunStatusRunning,
+		StartedAt:   started,
+	}
+
+	if _, err := repo.CreateIngestionRun(context.Background(), run); err != nil {
+		t.Fatalf("CreateIngestionRun() error = %v", err)
+	}
+
+	sourceResult := domain.IngestionRunSource{
+		ID:                 "run-source-1",
+		RunID:              "run-1",
+		SourceID:           "source-1",
+		Status:             domain.SchedulerSourceRunStatusSucceeded,
+		DocumentsWritten:   5,
+		DocumentsDuplicate: 2,
+		StartedAt:          started,
+		FinishedAt:         &finished,
+		DurationMillis:     120,
+	}
+	if err := repo.RecordIngestionRunSource(context.Background(), sourceResult); err != nil {
+		t.Fatalf("RecordIngestionRunSource() error = %v", err)
+	}
+
+	run.Status = domain.SchedulerRunStatusSucceeded
+	run.FinishedAt = &finished
+	run.TotalSources = 1
+	run.SucceededSources = 1
+	if err := repo.CompleteIngestionRun(context.Background(), run); err != nil {
+		t.Fatalf("CompleteIngestionRun() error = %v", err)
+	}
+
+	runs, err := repo.RecentIngestionRuns(context.Background(), 5)
+	if err != nil {
+		t.Fatalf("RecentIngestionRuns() error = %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("recent runs length = %d, want 1", len(runs))
+	}
+	if runs[0].Status != domain.SchedulerRunStatusSucceeded {
+		t.Fatalf("run status = %q, want succeeded", runs[0].Status)
+	}
+	if got := repo.IngestionRunSources("run-1"); len(got) != 1 {
+		t.Fatalf("run source results length = %d, want 1", len(got))
+	}
+}
+
 func validRawDocument(id string) domain.RawDocument {
 	return domain.RawDocument{
 		ID:            id,

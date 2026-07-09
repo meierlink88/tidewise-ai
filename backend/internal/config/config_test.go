@@ -77,6 +77,7 @@ func TestLoadReadsInjectedSecretNames(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-jwt-secret")
 	t.Setenv("PAYMENT_SECRET", "test-payment-secret")
 	t.Setenv("CLOUD_SECRET", "test-cloud-secret")
+	t.Setenv("ADMIN_API_TOKEN", "test-admin-token")
 
 	cfg, err := Load()
 	if err != nil {
@@ -88,7 +89,8 @@ func TestLoadReadsInjectedSecretNames(t *testing.T) {
 		cfg.Secrets.DatabasePassword == "" ||
 		cfg.Secrets.JWTSecret == "" ||
 		cfg.Secrets.PaymentSecret == "" ||
-		cfg.Secrets.CloudSecret == "" {
+		cfg.Secrets.CloudSecret == "" ||
+		cfg.Secrets.AdminAPIToken == "" {
 		t.Fatal("expected injected secret placeholders to be loaded")
 	}
 }
@@ -110,6 +112,12 @@ func TestLoadReadsOperationalConfig(t *testing.T) {
 	}
 	if cfg.Ingestion.DefaultTimeoutSeconds <= 0 {
 		t.Fatal("cfg.Ingestion.DefaultTimeoutSeconds must be positive")
+	}
+	if cfg.Ingestion.SchedulerTickSeconds <= 0 {
+		t.Fatal("cfg.Ingestion.SchedulerTickSeconds must be positive")
+	}
+	if cfg.Ingestion.SchedulerTimezone != "Asia/Shanghai" {
+		t.Fatalf("cfg.Ingestion.SchedulerTimezone = %q, want Asia/Shanghai", cfg.Ingestion.SchedulerTimezone)
 	}
 	if cfg.ObjectStore.LocalPath == "" {
 		t.Fatal("cfg.ObjectStore.LocalPath is empty")
@@ -158,6 +166,7 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 			JWTSecret:           "jwt-secret",
 			PaymentSecret:       "payment-secret",
 			CloudSecret:         "cloud-secret",
+			AdminAPIToken:       "admin-token",
 		},
 	}
 
@@ -174,6 +183,7 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 		"jwt-secret",
 		"payment-secret",
 		"cloud-secret",
+		"admin-token",
 	} {
 		if strings.Contains(serialized, secret) {
 			t.Fatalf("serialized config leaked secret %q", secret)

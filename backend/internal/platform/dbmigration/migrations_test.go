@@ -159,6 +159,45 @@ func TestSourceCatalogSourceConfigMigrationIsAdditive(t *testing.T) {
 	}
 }
 
+func TestIngestionSchedulerMigrationDefinesConfigAndRunTables(t *testing.T) {
+	content := strings.ToLower(readMigration(t, filepath.Join("..", "..", "..", "migrations", "000005_add_ingestion_scheduler.sql")))
+
+	for _, fragment := range []string{
+		"create table if not exists ingestion_scheduler_configs",
+		"create table if not exists ingestion_runs",
+		"create table if not exists ingestion_run_sources",
+		"enabled boolean not null default false",
+		"mode text not null",
+		"interval_minutes integer",
+		"fixed_times jsonb not null default '[]'::jsonb",
+		"source_filter jsonb not null default '{}'::jsonb",
+		"source_id uuid not null references source_catalogs",
+		"run_id uuid not null references ingestion_runs",
+		"idx_ingestion_runs_started_at",
+		"idx_ingestion_run_sources_run_id",
+		"idx_ingestion_run_sources_source_id",
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("scheduler migration must contain fragment %q", fragment)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"admin_api_token",
+		"api_key",
+		"bearer token",
+		"database_url",
+		"drop table",
+		"drop column",
+		"truncate table",
+		"delete from",
+	} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("scheduler migration must not contain sensitive or destructive fragment %q", forbidden)
+		}
+	}
+}
+
 func migrationFiles(t *testing.T) []string {
 	t.Helper()
 
