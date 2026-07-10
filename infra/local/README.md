@@ -74,7 +74,7 @@ APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-
 APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector rebuild-entities
 ```
 
-`project-entities` 会读取 PostgreSQL 的 `entity_nodes` 和 `entity_edges`，写入 Neo4j 的 `TidewiseEntity` 命名空间。`rebuild-entities` 只清理本系统 `projection_namespace=tidewise` 的实体图，不会清空整个 Neo4j database。
+`project-entities` 会读取 PostgreSQL 的 `entity_nodes` 和 `entity_edges`，写入 Neo4j 的 `Entity` 标签，并通过 `projection_namespace=tidewise` 标识本系统投影。`rebuild-entities` 只清理该命名空间的实体图，不会清空整个 Neo4j database。
 
 ## 执行 migration
 

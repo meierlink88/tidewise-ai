@@ -22,7 +22,8 @@
 - [x] 3.2 等待用户逐项 review 并明确确认第一批关系清单，未确认前不得写入正式 seed 或数据库。
 - [x] 3.3 编写第一批 seed fixture 和校验测试，再将已确认 `member_of` 关系写入正式关系 seed 文件。
 - [x] 3.4 运行 `entity-seed` 写入 local PostgreSQL，核验 `member_of` 数量、方向、端点和来源字段。
-- [ ] 3.5 运行 `graph-projector rebuild-entities`，核验 Neo4j 实体节点和 `MEMBER_OF` 关系与 PG 一致，并等待用户图谱验收。
+- [x] 3.5 使用 TDD 将 Neo4j 节点标签收敛为单一 `Entity`，继续通过 `projection_namespace` 隔离本系统投影，重建并核验节点与 `MEMBER_OF` 关系。
+- [ ] 3.6 等待用户完成第一批联盟关系图谱验收。
 
 ## 4. 第二批：经济体与市场关系
 

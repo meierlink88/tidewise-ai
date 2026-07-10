@@ -71,6 +71,8 @@ seed validator 必须按照 `relation_type` 校验允许的 from/to 实体类型
 
 每批关系写入 PG 后，先校验 PG 节点数量、该批关系数量、关系方向和来源字段，再运行 `graph-projector rebuild-entities`。Neo4j 只接收 PostgreSQL 中 active 的已审阅关系，不允许手工补关系。
 
+Neo4j 投影节点统一使用 `Entity` 标签，不再叠加与数据集合完全相同的 `TidewiseEntity` 标签。所有图数据都来自 PostgreSQL，节点归属继续通过 `projection_namespace=tidewise` 标识；重建和清理必须使用 `Entity + projection_namespace` 限定范围。
+
 ```mermaid
 sequenceDiagram
     participant Reviewer as 用户 Review

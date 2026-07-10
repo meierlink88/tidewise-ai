@@ -14,3 +14,7 @@
 #### Scenario: 按已审阅 PG 关系重建
 - **WHEN** 某一关系批次已写入 PostgreSQL 并运行 `graph-projector rebuild-entities`
 - **THEN** Neo4j 必须移除历史投影关系并只投影当前 active `entity_edges`，不得保留 PostgreSQL 中不存在的关系
+
+#### Scenario: 使用单一实体标签和命名空间
+- **WHEN** PostgreSQL 实体被投影到 Neo4j
+- **THEN** 节点必须使用 `Entity` 标签并通过 `projection_namespace=tidewise` 标识归属，不得叠加与同一数据集合重复的 `TidewiseEntity` 标签
