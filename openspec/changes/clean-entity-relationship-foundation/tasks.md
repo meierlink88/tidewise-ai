@@ -19,9 +19,9 @@
 ## 3. 第一批：联盟组织与国家/经济体关系
 
 - [x] 3.1 基于联盟组织官方或权威来源整理 `member_of` 审阅清单，包含中文名称、实体 key、关系方向、来源名称、来源 URL 和核验时间。
-- [ ] 3.2 等待用户逐项 review 并明确确认第一批关系清单，未确认前不得写入正式 seed 或数据库。
-- [ ] 3.3 编写第一批 seed fixture 和校验测试，再将已确认 `member_of` 关系写入正式关系 seed 文件。
-- [ ] 3.4 运行 `entity-seed` 写入 local PostgreSQL，核验 `member_of` 数量、方向、端点和来源字段。
+- [x] 3.2 等待用户逐项 review 并明确确认第一批关系清单，未确认前不得写入正式 seed 或数据库。
+- [x] 3.3 编写第一批 seed fixture 和校验测试，再将已确认 `member_of` 关系写入正式关系 seed 文件。
+- [x] 3.4 运行 `entity-seed` 写入 local PostgreSQL，核验 `member_of` 数量、方向、端点和来源字段。
 - [ ] 3.5 运行 `graph-projector rebuild-entities`，核验 Neo4j 实体节点和 `MEMBER_OF` 关系与 PG 一致，并等待用户图谱验收。
 
 ## 4. 第二批：经济体与市场关系

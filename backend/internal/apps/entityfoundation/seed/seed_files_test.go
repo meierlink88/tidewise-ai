@@ -288,8 +288,36 @@ func TestRelationshipSeedFile(t *testing.T) {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
 
-	if got := len(manifest.Relationships); got != 0 {
-		t.Fatalf("relationships = %d, want empty reviewed baseline", got)
+	if got, want := len(manifest.Relationships), 223; got != want {
+		t.Fatalf("relationships = %d, want %d reviewed member_of relationships", got, want)
+	}
+
+	wantCounts := map[string]int{
+		"alliance_org:opec_plus":  9,
+		"alliance_org:opec":       5,
+		"alliance_org:g7":         8,
+		"alliance_org:g20":        20,
+		"alliance_org:wto":        48,
+		"alliance_org:imf":        46,
+		"alliance_org:world_bank": 46,
+		"alliance_org:oecd":       22,
+		"alliance_org:eu":         9,
+		"alliance_org:brics":      10,
+	}
+	gotCounts := make(map[string]int, len(wantCounts))
+	for _, relationship := range manifest.Relationships {
+		if relationship.RelationType != "member_of" {
+			t.Fatalf("relationship %q type = %q, want member_of", relationship.Key, relationship.RelationType)
+		}
+		if relationship.SourceName == "" || relationship.SourceURL == "" || relationship.VerifiedAt.IsZero() {
+			t.Fatalf("relationship %q provenance is incomplete", relationship.Key)
+		}
+		gotCounts[relationship.To]++
+	}
+	for target, want := range wantCounts {
+		if got := gotCounts[target]; got != want {
+			t.Errorf("member_of target %q count = %d, want %d", target, got, want)
+		}
 	}
 }
 

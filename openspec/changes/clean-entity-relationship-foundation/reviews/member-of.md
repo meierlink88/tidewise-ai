@@ -215,13 +215,13 @@
 
 ## Review 结论记录
 
-- [ ] OPEC+ 清单确认
-- [ ] OPEC 清单确认
-- [ ] G7 清单确认
-- [ ] G20 清单确认
-- [ ] WTO 清单确认
-- [ ] IMF 清单确认
-- [ ] World Bank 清单确认
-- [ ] OECD 清单确认
-- [ ] EU 清单确认
-- [ ] BRICS 清单确认
+- [x] OPEC+ 清单确认
+- [x] OPEC 清单确认
+- [x] G7 清单确认
+- [x] G20 清单确认
+- [x] WTO 清单确认
+- [x] IMF 清单确认
+- [x] World Bank 清单确认
+- [x] OECD 清单确认
+- [x] EU 清单确认
+- [x] BRICS 清单确认
