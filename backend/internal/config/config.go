@@ -25,6 +25,7 @@ type Config struct {
 	AgentPlatform AgentPlatformConfig `yaml:"agent_platform"`
 	Database      DatabaseConfig      `yaml:"database"`
 	Redis         RedisConfig         `yaml:"redis"`
+	Neo4j         Neo4jConfig         `yaml:"neo4j"`
 	Migration     MigrationConfig     `yaml:"migration"`
 	Ingestion     IngestionConfig     `yaml:"ingestion"`
 	ObjectStore   ObjectStoreConfig   `yaml:"object_store"`
@@ -68,6 +69,16 @@ type DatabaseConfig struct {
 
 type RedisConfig struct {
 	Address string `yaml:"address"`
+}
+
+type Neo4jConfig struct {
+	Enabled               bool   `yaml:"enabled"`
+	URI                   string `yaml:"uri"`
+	Database              string `yaml:"database"`
+	UsernameEnv           string `yaml:"username_env"`
+	PasswordEnv           string `yaml:"password_env"`
+	ConnectTimeoutSeconds int    `yaml:"connect_timeout_seconds"`
+	MaxConnectionPoolSize int    `yaml:"max_connection_pool_size"`
 }
 
 type MigrationConfig struct {
@@ -226,6 +237,30 @@ func (c Config) Validate() error {
 	}
 	if c.Redis.Address == "" {
 		return fmt.Errorf("redis.address is required")
+	}
+	if c.Neo4j.Enabled {
+		if c.Neo4j.URI == "" {
+			return fmt.Errorf("neo4j.uri is required when neo4j is enabled")
+		}
+		parsed, err := url.ParseRequestURI(c.Neo4j.URI)
+		if err != nil || (parsed.Scheme != "bolt" && parsed.Scheme != "neo4j" && parsed.Scheme != "neo4j+s" && parsed.Scheme != "bolt+s") {
+			return fmt.Errorf("neo4j.uri must be a valid Neo4j URI")
+		}
+		if c.Neo4j.Database == "" {
+			return fmt.Errorf("neo4j.database is required when neo4j is enabled")
+		}
+		if c.Neo4j.UsernameEnv == "" {
+			return fmt.Errorf("neo4j.username_env is required when neo4j is enabled")
+		}
+		if c.Neo4j.PasswordEnv == "" {
+			return fmt.Errorf("neo4j.password_env is required when neo4j is enabled")
+		}
+		if c.Neo4j.ConnectTimeoutSeconds <= 0 {
+			return fmt.Errorf("neo4j.connect_timeout_seconds must be positive when neo4j is enabled")
+		}
+		if c.Neo4j.MaxConnectionPoolSize <= 0 {
+			return fmt.Errorf("neo4j.max_connection_pool_size must be positive when neo4j is enabled")
+		}
 	}
 	if c.Migration.Directory == "" {
 		return fmt.Errorf("migration.directory is required")

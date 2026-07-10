@@ -296,6 +296,113 @@ func TestInMemoryRepositoryUpdatesRawDocumentStatus(t *testing.T) {
 	}
 }
 
+func TestInMemoryRepositoryListsEntityGraphSnapshot(t *testing.T) {
+	repo := NewInMemoryRepository(nil)
+	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
+
+	repo.SeedGraphEntity(GraphEntityNode{
+		ID:            "entity-1",
+		EntityKey:     "economy:cn",
+		EntityType:    domain.EntityTypeEconomy,
+		LayerCode:     "economy",
+		Name:          "中国",
+		CanonicalName: "中国",
+		Status:        domain.StatusActive,
+		UpdatedAt:     now,
+	})
+	repo.SeedGraphEntity(GraphEntityNode{
+		ID:            "entity-2",
+		EntityType:    domain.EntityTypeAllianceOrg,
+		LayerCode:     "alliance",
+		Name:          "G20",
+		CanonicalName: "二十国集团",
+		Status:        domain.StatusActive,
+		UpdatedAt:     now.Add(time.Minute),
+	})
+	repo.SeedGraphEdge(GraphEntityEdge{
+		ID:           "edge-1",
+		FromEntityID: "entity-1",
+		ToEntityID:   "entity-2",
+		RelationType: "member_of",
+		EvidenceNote: "基础关系",
+		Status:       domain.StatusActive,
+		UpdatedAt:    now.Add(2 * time.Minute),
+	})
+
+	nodes, err := repo.ListGraphEntityNodes(context.Background())
+	if err != nil {
+		t.Fatalf("ListGraphEntityNodes() error = %v", err)
+	}
+	edges, err := repo.ListGraphEntityEdges(context.Background())
+	if err != nil {
+		t.Fatalf("ListGraphEntityEdges() error = %v", err)
+	}
+
+	if got, want := graphEntityNodeIDs(nodes), []string{"entity-1", "entity-2"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("node ids = %v, want %v", got, want)
+	}
+	if nodes[1].EntityKey != "alliance_org:entity-2" {
+		t.Fatalf("fallback entity key = %q, want alliance_org:entity-2", nodes[1].EntityKey)
+	}
+	if len(edges) != 1 || edges[0].RelationType != "member_of" {
+		t.Fatalf("edges = %+v, want member_of edge", edges)
+	}
+}
+
+func TestInMemoryRepositoryRecordsGraphProjectionRuns(t *testing.T) {
+	repo := NewInMemoryRepository(nil)
+	started := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)
+	finished := started.Add(2 * time.Second)
+
+	run, err := repo.CreateGraphProjectionRun(context.Background(), GraphProjectionRun{
+		ID:             "run-1",
+		ProjectionType: GraphProjectionTypeEntityGraph,
+		Mode:           GraphProjectionModeProjectEntities,
+		Status:         GraphProjectionRunStatusRunning,
+		StartedAt:      started,
+		ConfigSummary:  map[string]any{"namespace": "tidewise"},
+	})
+	if err != nil {
+		t.Fatalf("CreateGraphProjectionRun() error = %v", err)
+	}
+	if run.Status != GraphProjectionRunStatusRunning {
+		t.Fatalf("created run status = %q", run.Status)
+	}
+
+	if err := repo.RecordGraphProjectionRunItem(context.Background(), GraphProjectionRunItem{
+		ID:           "item-1",
+		RunID:        "run-1",
+		ItemType:     GraphProjectionRunItemTypeRelationship,
+		ItemKey:      "edge-1",
+		Status:       GraphProjectionRunItemStatusFailed,
+		ErrorMessage: "missing endpoint",
+	}); err != nil {
+		t.Fatalf("RecordGraphProjectionRunItem() error = %v", err)
+	}
+
+	run.Status = GraphProjectionRunStatusPartial
+	run.FinishedAt = &finished
+	run.SourceRowCount = 3
+	run.ProjectedCount = 2
+	run.SkippedCount = 0
+	run.FailedCount = 1
+	run.ErrorSummary = "1 relationship failed"
+	if err := repo.CompleteGraphProjectionRun(context.Background(), run); err != nil {
+		t.Fatalf("CompleteGraphProjectionRun() error = %v", err)
+	}
+
+	runs, err := repo.RecentGraphProjectionRuns(context.Background(), 5)
+	if err != nil {
+		t.Fatalf("RecentGraphProjectionRuns() error = %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("recent run count = %d, want 1", len(runs))
+	}
+	if runs[0].Status != GraphProjectionRunStatusPartial || runs[0].FailedCount != 1 {
+		t.Fatalf("recent run = %+v, want partial with one failure", runs[0])
+	}
+}
+
 func TestInMemoryRepositoryListsRawDocumentsWithPaginationAndTitleSearch(t *testing.T) {
 	repo := NewInMemoryRepository(nil)
 	base := time.Date(2026, 7, 9, 10, 0, 0, 0, time.UTC)
@@ -523,6 +630,14 @@ func validRawDocumentWithTitle(id string, title string, collectedAt time.Time) d
 }
 
 func rawDocumentIDs(items []domain.RawDocument) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	return ids
+}
+
+func graphEntityNodeIDs(items []GraphEntityNode) []string {
 	ids := make([]string, 0, len(items))
 	for _, item := range items {
 		ids = append(ids, item.ID)

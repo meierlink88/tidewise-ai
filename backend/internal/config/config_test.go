@@ -137,6 +137,115 @@ func TestLoadReadsOperationalConfig(t *testing.T) {
 	if cfg.Database.ConnectTimeoutSeconds <= 0 {
 		t.Fatal("cfg.Database.ConnectTimeoutSeconds must be positive")
 	}
+	if !cfg.Neo4j.Enabled {
+		t.Fatal("local neo4j should be enabled")
+	}
+	if cfg.Neo4j.URI == "" {
+		t.Fatal("cfg.Neo4j.URI is empty")
+	}
+	if cfg.Neo4j.Database == "" {
+		t.Fatal("cfg.Neo4j.Database is empty")
+	}
+	if cfg.Neo4j.UsernameEnv == "" {
+		t.Fatal("cfg.Neo4j.UsernameEnv is empty")
+	}
+	if cfg.Neo4j.PasswordEnv == "" {
+		t.Fatal("cfg.Neo4j.PasswordEnv is empty")
+	}
+	if cfg.Neo4j.ConnectTimeoutSeconds <= 0 {
+		t.Fatal("cfg.Neo4j.ConnectTimeoutSeconds must be positive")
+	}
+	if cfg.Neo4j.MaxConnectionPoolSize <= 0 {
+		t.Fatal("cfg.Neo4j.MaxConnectionPoolSize must be positive")
+	}
+}
+
+func TestLoadSupportsNeo4jDisabledByDefaultForUATAndProd(t *testing.T) {
+	t.Setenv("TIDEWISE_CONFIG_DIR", filepath.Join("..", "..", "config"))
+
+	for _, env := range []Environment{EnvUAT, EnvProd} {
+		t.Run(string(env), func(t *testing.T) {
+			t.Setenv("APP_ENV", string(env))
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+
+			if cfg.Neo4j.Enabled {
+				t.Fatalf("%s neo4j should be disabled by default", env)
+			}
+		})
+	}
+}
+
+func TestLoadRejectsInvalidEnabledNeo4jConfig(t *testing.T) {
+	base := fullConfigYAML()
+
+	tests := []struct {
+		name    string
+		neo4j   string
+		wantErr string
+	}{
+		{
+			name: "missing uri",
+			neo4j: `neo4j:
+  enabled: true
+  database: neo4j
+  username_env: NEO4J_USERNAME
+  password_env: NEO4J_PASSWORD
+  connect_timeout_seconds: 5
+  max_connection_pool_size: 10
+`,
+			wantErr: "neo4j.uri is required when neo4j is enabled",
+		},
+		{
+			name: "missing username env",
+			neo4j: `neo4j:
+  enabled: true
+  uri: bolt://localhost:7687
+  database: neo4j
+  password_env: NEO4J_PASSWORD
+  connect_timeout_seconds: 5
+  max_connection_pool_size: 10
+`,
+			wantErr: "neo4j.username_env is required when neo4j is enabled",
+		},
+		{
+			name: "invalid timeout",
+			neo4j: `neo4j:
+  enabled: true
+  uri: bolt://localhost:7687
+  database: neo4j
+  username_env: NEO4J_USERNAME
+  password_env: NEO4J_PASSWORD
+  connect_timeout_seconds: 0
+  max_connection_pool_size: 10
+`,
+			wantErr: "neo4j.connect_timeout_seconds must be positive when neo4j is enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("TIDEWISE_CONFIG_DIR", dir)
+			t.Setenv("APP_ENV", string(EnvLocal))
+
+			content := strings.Replace(base, "__NEO4J__", tt.neo4j, 1)
+			if err := os.WriteFile(filepath.Join(dir, "config.local.yaml"), []byte(content), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+
+			_, err := Load()
+			if err == nil {
+				t.Fatal("Load() error = nil, want error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Load() error = %q, want to contain %q", err.Error(), tt.wantErr)
+			}
+		})
+	}
 }
 
 func TestProdMigrationAutoApplyDisabledByDefault(t *testing.T) {
@@ -245,4 +354,48 @@ func TestDatabaseConnectionStringBuildsFromConfigAndPassword(t *testing.T) {
 			t.Fatalf("PostgresURL() = %q, want to contain %q", dsn, want)
 		}
 	}
+}
+
+func fullConfigYAML() string {
+	return `app:
+  name: tidewise-api
+server:
+  host: 127.0.0.1
+  port: 8080
+  read_timeout_seconds: 5
+  write_timeout_seconds: 10
+log:
+  level: debug
+agent_platform:
+  base_url: http://localhost:9000
+  callback_path: /api/v1/agent/callbacks
+database:
+  host: localhost
+  port: 5432
+  name: tidewise_local
+  user: tidewise
+  ssl_mode: disable
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime_seconds: 300
+  connect_timeout_seconds: 5
+redis:
+  address: localhost:6379
+__NEO4J__migration:
+  directory: migrations
+  auto_apply: true
+  lock_key: tidewise_schema_migration
+ingestion:
+  default_timeout_seconds: 10
+  batch_size: 50
+  scheduler_tick_seconds: 30
+  scheduler_timezone: Asia/Shanghai
+object_store:
+  provider: local
+  local_path: .data/raw-objects
+rate_limit:
+  default_requests_per_minute: 60
+security:
+  jwt_issuer: tidewise-local
+`
 }

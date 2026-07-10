@@ -36,6 +36,20 @@ func TestPostgresEntityWriteNormalizesNilAliases(t *testing.T) {
 	}
 }
 
+func TestEntityUpsertSQLPersistsBusinessKey(t *testing.T) {
+	statement := buildEntityUpsert()
+
+	for _, fragment := range []string{
+		"entity_key",
+		"entity_key = excluded.entity_key",
+		"entity_nodes.entity_key is distinct from excluded.entity_key",
+	} {
+		if !strings.Contains(strings.ToLower(statement), fragment) {
+			t.Fatalf("entity upsert statement missing %q: %s", fragment, statement)
+		}
+	}
+}
+
 func TestProfileTableName(t *testing.T) {
 	cases := map[domain.EntityType]string{
 		domain.EntityTypeAllianceOrg: "alliance_org_profiles",

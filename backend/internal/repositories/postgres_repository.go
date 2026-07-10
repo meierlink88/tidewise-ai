@@ -351,6 +351,186 @@ ORDER BY provider_key, source_name, id
 	return items, nil
 }
 
+func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEntityNode, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id,
+       COALESCE(NULLIF(entity_key, ''), entity_type || ':' || id::text) AS entity_key,
+       entity_type, layer_code, name, canonical_name, status, updated_at
+FROM entity_nodes
+ORDER BY id
+`)
+	if err != nil {
+		return nil, fmt.Errorf("query graph entity nodes: %w", err)
+	}
+	defer rows.Close()
+
+	nodes := make([]GraphEntityNode, 0)
+	for rows.Next() {
+		var node GraphEntityNode
+		if err := rows.Scan(
+			&node.ID,
+			&node.EntityKey,
+			&node.EntityType,
+			&node.LayerCode,
+			&node.Name,
+			&node.CanonicalName,
+			&node.Status,
+			&node.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan graph entity node: %w", err)
+		}
+		nodes = append(nodes, normalizeGraphEntityNode(node))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate graph entity nodes: %w", err)
+	}
+	return nodes, nil
+}
+
+func (r PostgresRepository) ListGraphEntityEdges(ctx context.Context) ([]GraphEntityEdge, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id, from_entity_id, to_entity_id, relation_type, evidence_note, status, updated_at
+FROM entity_edges
+ORDER BY id
+`)
+	if err != nil {
+		return nil, fmt.Errorf("query graph entity edges: %w", err)
+	}
+	defer rows.Close()
+
+	edges := make([]GraphEntityEdge, 0)
+	for rows.Next() {
+		var edge GraphEntityEdge
+		if err := rows.Scan(
+			&edge.ID,
+			&edge.FromEntityID,
+			&edge.ToEntityID,
+			&edge.RelationType,
+			&edge.EvidenceNote,
+			&edge.Status,
+			&edge.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan graph entity edge: %w", err)
+		}
+		edges = append(edges, edge)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate graph entity edges: %w", err)
+	}
+	return edges, nil
+}
+
+func (r PostgresRepository) CreateGraphProjectionRun(ctx context.Context, run GraphProjectionRun) (GraphProjectionRun, error) {
+	run = normalizeGraphProjectionRun(run)
+	run.ID = NormalizeUUID(run.ID)
+	configSummary, err := json.Marshal(cloneMap(run.ConfigSummary))
+	if err != nil {
+		return GraphProjectionRun{}, fmt.Errorf("marshal graph projection config summary: %w", err)
+	}
+
+	row := r.db.QueryRowContext(ctx, `
+INSERT INTO graph_projection_runs (
+    id, projection_type, mode, status, started_at, finished_at, source_row_count,
+    projected_count, skipped_count, failed_count, error_summary, config_summary
+) VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10, $11, $12::jsonb
+) RETURNING id, projection_type, mode, status, started_at, finished_at,
+            source_row_count, projected_count, skipped_count, failed_count,
+            error_summary, config_summary
+`, run.ID, run.ProjectionType, run.Mode, run.Status, run.StartedAt, nullTime(run.FinishedAt),
+		run.SourceRowCount, run.ProjectedCount, run.SkippedCount, run.FailedCount, run.ErrorSummary, string(configSummary))
+
+	created, err := scanGraphProjectionRun(row)
+	if err != nil {
+		return GraphProjectionRun{}, fmt.Errorf("create graph projection run: %w", err)
+	}
+	return created, nil
+}
+
+func (r PostgresRepository) RecordGraphProjectionRunItem(ctx context.Context, item GraphProjectionRunItem) error {
+	item.ID = NormalizeUUID(item.ID)
+	item.RunID = NormalizeUUID(item.RunID)
+
+	_, err := r.db.ExecContext(ctx, `
+INSERT INTO graph_projection_run_items (
+    id, run_id, item_type, item_key, status, error_message
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+`, item.ID, item.RunID, item.ItemType, item.ItemKey, item.Status, item.ErrorMessage)
+	if err != nil {
+		return fmt.Errorf("record graph projection run item: %w", err)
+	}
+	return nil
+}
+
+func (r PostgresRepository) CompleteGraphProjectionRun(ctx context.Context, run GraphProjectionRun) error {
+	run.ID = NormalizeUUID(run.ID)
+	run = normalizeGraphProjectionRun(run)
+	configSummary, err := json.Marshal(cloneMap(run.ConfigSummary))
+	if err != nil {
+		return fmt.Errorf("marshal completed graph projection config summary: %w", err)
+	}
+
+	result, err := r.db.ExecContext(ctx, `
+UPDATE graph_projection_runs
+SET status = $2,
+    finished_at = $3,
+    source_row_count = $4,
+    projected_count = $5,
+    skipped_count = $6,
+    failed_count = $7,
+    error_summary = $8,
+    config_summary = $9::jsonb,
+    updated_at = now()
+WHERE id = $1
+`, run.ID, run.Status, nullTime(run.FinishedAt), run.SourceRowCount, run.ProjectedCount,
+		run.SkippedCount, run.FailedCount, run.ErrorSummary, string(configSummary))
+	if err != nil {
+		return fmt.Errorf("complete graph projection run: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read completed graph projection run affected rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("graph projection run %q not found", run.ID)
+	}
+	return nil
+}
+
+func (r PostgresRepository) RecentGraphProjectionRuns(ctx context.Context, limit int) ([]GraphProjectionRun, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id, projection_type, mode, status, started_at, finished_at,
+       source_row_count, projected_count, skipped_count, failed_count,
+       error_summary, config_summary
+FROM graph_projection_runs
+ORDER BY started_at DESC
+LIMIT $1
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query recent graph projection runs: %w", err)
+	}
+	defer rows.Close()
+
+	runs := make([]GraphProjectionRun, 0)
+	for rows.Next() {
+		run, err := scanGraphProjectionRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent graph projection runs: %w", err)
+	}
+	return runs, nil
+}
+
 func (r PostgresRepository) LoadSchedulerConfig(ctx context.Context) (domain.SchedulerConfig, error) {
 	row := r.db.QueryRowContext(ctx, `
 SELECT id, enabled, mode, interval_minutes, fixed_times, concurrency,
@@ -784,6 +964,40 @@ func scanIngestionRun(scanner rawDocumentScanner) (domain.IngestionRun, error) {
 	}
 	if run.SchedulerConfig == nil {
 		run.SchedulerConfig = map[string]any{}
+	}
+	return run, nil
+}
+
+func scanGraphProjectionRun(scanner rawDocumentScanner) (GraphProjectionRun, error) {
+	var run GraphProjectionRun
+	var finishedAt sql.NullTime
+	var configSummaryBytes []byte
+	if err := scanner.Scan(
+		&run.ID,
+		&run.ProjectionType,
+		&run.Mode,
+		&run.Status,
+		&run.StartedAt,
+		&finishedAt,
+		&run.SourceRowCount,
+		&run.ProjectedCount,
+		&run.SkippedCount,
+		&run.FailedCount,
+		&run.ErrorSummary,
+		&configSummaryBytes,
+	); err != nil {
+		return GraphProjectionRun{}, err
+	}
+	if finishedAt.Valid {
+		run.FinishedAt = &finishedAt.Time
+	}
+	if len(configSummaryBytes) > 0 {
+		if err := json.Unmarshal(configSummaryBytes, &run.ConfigSummary); err != nil {
+			return GraphProjectionRun{}, fmt.Errorf("parse graph projection config summary: %w", err)
+		}
+	}
+	if run.ConfigSummary == nil {
+		run.ConfigSummary = map[string]any{}
 	}
 	return run, nil
 }

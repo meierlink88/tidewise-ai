@@ -194,3 +194,100 @@ func TestPostgresRepositorySchedulerIntegration(t *testing.T) {
 		t.Fatal("RecentIngestionRuns() returned no rows")
 	}
 }
+
+func TestPostgresRepositoryGraphProjectionIntegration(t *testing.T) {
+	dsn := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run PostgreSQL graph projection repository integration test")
+	}
+
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	repo := NewPostgresRepository(db)
+	runID := fmt.Sprintf("graph-integration-%d", time.Now().UnixNano())
+	firstEntityID := NormalizeUUID(runID, "entity-a")
+	secondEntityID := NormalizeUUID(runID, "entity-b")
+	edgeID := NormalizeUUID(runID, "edge")
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO entity_nodes (
+    id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
+) VALUES
+    ($1, $2, 'economy', 'economy', '中国', '中国', '{}'::text[], 'active'),
+    ($3, $4, 'alliance_org', 'alliance', 'G20', '二十国集团', '{}'::text[], 'active')
+ON CONFLICT (id) DO UPDATE SET
+    entity_key = EXCLUDED.entity_key,
+    updated_at = now()
+`, firstEntityID, runID+"-economy:cn", secondEntityID, runID+"-alliance:g20"); err != nil {
+		t.Fatalf("insert graph entities: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO entity_edges (
+    id, from_entity_id, to_entity_id, relation_type, evidence_note, status
+) VALUES (
+    $1, $2, $3, 'member_of', 'integration test', 'active'
+) ON CONFLICT (id) DO UPDATE SET
+    relation_type = EXCLUDED.relation_type,
+    evidence_note = EXCLUDED.evidence_note,
+    updated_at = now()
+`, edgeID, firstEntityID, secondEntityID); err != nil {
+		t.Fatalf("insert graph edge: %v", err)
+	}
+
+	nodes, err := repo.ListGraphEntityNodes(ctx)
+	if err != nil {
+		t.Fatalf("ListGraphEntityNodes() error = %v", err)
+	}
+	if len(nodes) == 0 {
+		t.Fatal("ListGraphEntityNodes() returned no rows")
+	}
+	edges, err := repo.ListGraphEntityEdges(ctx)
+	if err != nil {
+		t.Fatalf("ListGraphEntityEdges() error = %v", err)
+	}
+	if len(edges) == 0 {
+		t.Fatal("ListGraphEntityEdges() returned no rows")
+	}
+
+	started := time.Now()
+	finished := started.Add(time.Second)
+	run, err := repo.CreateGraphProjectionRun(ctx, GraphProjectionRun{
+		ID:             runID + "-run",
+		ProjectionType: GraphProjectionTypeEntityGraph,
+		Mode:           GraphProjectionModeProjectEntities,
+		Status:         GraphProjectionRunStatusRunning,
+		StartedAt:      started,
+		ConfigSummary:  map[string]any{"namespace": "tidewise"},
+	})
+	if err != nil {
+		t.Fatalf("CreateGraphProjectionRun() error = %v", err)
+	}
+	if err := repo.RecordGraphProjectionRunItem(ctx, GraphProjectionRunItem{
+		ID:       runID + "-item",
+		RunID:    run.ID,
+		ItemType: GraphProjectionRunItemTypeEntity,
+		ItemKey:  firstEntityID,
+		Status:   GraphProjectionRunItemStatusProjected,
+	}); err != nil {
+		t.Fatalf("RecordGraphProjectionRunItem() error = %v", err)
+	}
+	run.Status = GraphProjectionRunStatusSucceeded
+	run.FinishedAt = &finished
+	run.SourceRowCount = 2
+	run.ProjectedCount = 2
+	if err := repo.CompleteGraphProjectionRun(ctx, run); err != nil {
+		t.Fatalf("CompleteGraphProjectionRun() error = %v", err)
+	}
+	runs, err := repo.RecentGraphProjectionRuns(ctx, 5)
+	if err != nil {
+		t.Fatalf("RecentGraphProjectionRuns() error = %v", err)
+	}
+	if len(runs) == 0 {
+		t.Fatal("RecentGraphProjectionRuns() returned no rows")
+	}
+}
