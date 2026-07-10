@@ -60,6 +60,10 @@ backend 和 admin portal 都应在 CI 阶段构建为镜像并推送到 GHCR。U
 
 这样可以保证部署产物和 CI 验证使用同一份提交，降低 UAT 机器依赖 Go、Node、npm cache 或未提交文件的风险。备选方案是在 UAT runner 上 `git pull` 后编译，虽然更直观，但不可重复性和回滚成本更高。
 
+### Decision: UAT 镜像目标为 Linux ARM64
+
+当前 UAT Docker host 运行在 Apple Silicon Mini 的 Linux ARM64 虚拟化环境中。因此 GitHub-hosted runner 必须通过 Buildx 构建并发布 `linux/arm64` backend 和 admin portal 镜像；UAT runner 只拉取对应架构的镜像。第一版不额外发布 `linux/amd64` 多架构 manifest，以缩短 UAT 发布链路；后续新增 AMD64 部署目标时应通过独立 change 扩展为多架构发布。
+
 ### Decision: backend image 包含服务进程和 migration 命令
 
 backend Dockerfile 应从 `backend/` Go module 构建至少两个可执行文件：`admin-api` 和 `dbmigrate`。UAT compose 默认运行 `admin-api`；部署流程在启动或更新服务前用同一 backend image 运行 `dbmigrate -apply`。

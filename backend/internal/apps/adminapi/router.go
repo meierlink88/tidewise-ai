@@ -131,6 +131,9 @@ func NewRouter(repository schedulerRepository, adminToken string) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
+	router.GET("/healthz", healthHandler())
+	router.GET("/readyz", readyHandler())
+
 	admin := router.Group("/admin")
 	admin.Use(adminTokenMiddleware(adminToken))
 	admin.GET("/raw-documents", listRawDocuments(repository))
@@ -140,6 +143,18 @@ func NewRouter(repository schedulerRepository, adminToken string) *gin.Engine {
 	admin.PUT("/scheduler/config", updateSchedulerConfig(repository))
 	admin.GET("/scheduler/runs", listSchedulerRuns(repository))
 	return router
+}
+
+func healthHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+	}
+}
+
+func readyHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "ready"})
+	}
 }
 
 func listRawDocuments(repository schedulerRepository) gin.HandlerFunc {
