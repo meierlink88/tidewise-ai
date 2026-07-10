@@ -242,6 +242,36 @@ func TestGraphProjectionMigrationDefinesRunTables(t *testing.T) {
 	}
 }
 
+func TestEntityEdgeProvenanceMigrationIsAdditive(t *testing.T) {
+	content := strings.ToLower(readMigration(t, filepath.Join("..", "..", "..", "migrations", "000007_add_entity_edge_provenance.sql")))
+
+	for _, fragment := range []string{
+		"alter table entity_edges",
+		"add column if not exists source_name text not null default ''",
+		"add column if not exists source_url text not null default ''",
+		"add column if not exists verified_at timestamptz",
+		"entity edge provenance rollback requires a reviewed forward migration or restored backup",
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("entity edge provenance migration must contain fragment %q", fragment)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"drop table",
+		"drop column",
+		"truncate table",
+		"delete from",
+		"password",
+		"api_key",
+		"database_url",
+	} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("entity edge provenance migration must not contain forbidden fragment %q", forbidden)
+		}
+	}
+}
+
 func migrationFiles(t *testing.T) []string {
 	t.Helper()
 
