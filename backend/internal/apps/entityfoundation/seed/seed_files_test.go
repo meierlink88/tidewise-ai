@@ -288,26 +288,8 @@ func TestRelationshipSeedFile(t *testing.T) {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
 
-	if got, wantMinimum := len(manifest.Relationships), 70; got < wantMinimum {
-		t.Fatalf("relationships = %d, want at least %d", got, wantMinimum)
-	}
-
-	relationTypes := map[string]struct{}{}
-	for _, relationship := range manifest.Relationships {
-		relationTypes[relationship.RelationType] = struct{}{}
-	}
-	for _, required := range []string{
-		"member_of",
-		"has_market",
-		"tracks_index",
-		"issues",
-		"participates_in",
-		"affiliated_with",
-		"applies_to",
-	} {
-		if _, ok := relationTypes[required]; !ok {
-			t.Fatalf("missing relationship type %q", required)
-		}
+	if got := len(manifest.Relationships); got != 0 {
+		t.Fatalf("relationships = %d, want empty reviewed baseline", got)
 	}
 }
 

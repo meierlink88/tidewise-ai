@@ -1,20 +1,20 @@
 ## 1. 关系来源 schema 和校验基础
 
-- [ ] 1.1 编写 migration 静态测试，覆盖 `entity_edges` 增量增加 `source_name`、`source_url`、`verified_at`，并确认 migration 不包含删除实体、清空业务表或重建全库语句。
-- [ ] 1.2 编写关系 loader 和 policy validator 测试，覆盖 7 类正式关系的 from/to 实体类型、方向、来源字段、URL、核验时间、自环、重复关系、悬空实体和推理性字段。
-- [ ] 1.3 编写 relationship repository 和 seed report 测试，覆盖来源字段幂等写入、更新、unchanged、失败和按关系类型统计。
-- [ ] 1.4 编写 graph relation mapper 测试，确保 7 类正式关系都映射为明确 Neo4j 类型，特别覆盖当前尚未显式映射的 `applies_to`。
-- [ ] 1.5 实现增量 migration、关系来源模型、policy validator、repository、report 和 graph relation mapper，使上述测试通过。
+- [x] 1.1 编写 migration 静态测试，覆盖 `entity_edges` 增量增加 `source_name`、`source_url`、`verified_at`，并确认 migration 不包含删除实体、清空业务表或重建全库语句。
+- [x] 1.2 编写关系 loader 和 policy validator 测试，覆盖 7 类正式关系的 from/to 实体类型、方向、来源字段、URL、核验时间、自环、重复关系、悬空实体和推理性字段。
+- [x] 1.3 编写 relationship repository 和 seed report 测试，覆盖来源字段幂等写入、更新、unchanged、失败和按关系类型统计。
+- [x] 1.4 编写 graph relation mapper 测试，确保 7 类正式关系都映射为明确 Neo4j 类型，特别覆盖当前尚未显式映射的 `applies_to`。
+- [x] 1.5 实现增量 migration、关系来源模型、policy validator、repository、report 和 graph relation mapper，使上述测试通过。
 
 ## 2. 建立空关系基线
 
-- [ ] 2.1 编写 seed 文件静态测试，确认实体主数据路径仍完整加载，并且空关系基线不会自动加载原有 78 条历史样例关系。
-- [ ] 2.2 将关系 seed 收敛到按关系族管理的目录，移除默认旧样例关系并保留可逐批加入的空基线结构。
-- [ ] 2.3 在 local PostgreSQL 应用增量 migration，验证实体节点、profile、采集和事件相关表数据未丢失。
-- [ ] 2.4 清空前核验 local 数据库目标和数量，记录 `entity_nodes`、各 profile 与 `entity_edges` 数量，不连接 uat 或 prod。
-- [ ] 2.5 在事务中清空 local PostgreSQL `entity_edges`，验证关系为零且实体节点与 profile 数量保持不变。
-- [ ] 2.6 清空 local Neo4j 全部节点和关系数据，验证节点数和关系数均为零，同时约束和索引仍存在。
-- [ ] 2.7 再次运行 `entity-seed`，验证实体主数据保持幂等且 PostgreSQL 关系仍为零。
+- [x] 2.1 编写 seed 文件静态测试，确认实体主数据路径仍完整加载，并且空关系基线不会自动加载原有 78 条历史样例关系。
+- [x] 2.2 将关系 seed 收敛到按关系族管理的目录，移除默认旧样例关系并保留可逐批加入的空基线结构。
+- [x] 2.3 在 local PostgreSQL 应用增量 migration，验证实体节点、profile、采集和事件相关表数据未丢失。
+- [x] 2.4 清空前核验 local 数据库目标和数量，记录 `entity_nodes`、各 profile 与 `entity_edges` 数量，不连接 uat 或 prod。
+- [x] 2.5 在事务中清空 local PostgreSQL `entity_edges`，验证关系为零且实体节点与 profile 数量保持不变。
+- [x] 2.6 清空 local Neo4j 全部节点和关系数据，验证节点数和关系数均为零，同时约束和索引仍存在。
+- [x] 2.7 再次运行 `entity-seed`，验证实体主数据保持幂等且 PostgreSQL 关系仍为零。
 
 ## 3. 第一批：联盟组织与国家/经济体关系
 

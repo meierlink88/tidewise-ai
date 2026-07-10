@@ -32,6 +32,7 @@ var knownRelationTypes = map[string]string{
 	"issues":          "ISSUES",
 	"participates_in": "PARTICIPATES_IN",
 	"affiliated_with": "AFFILIATED_WITH",
+	"applies_to":      "APPLIES_TO",
 	"related_to":      "RELATED_TO",
 	"self":            "RELATED_TO",
 }

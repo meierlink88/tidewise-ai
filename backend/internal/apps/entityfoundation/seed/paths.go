@@ -22,7 +22,13 @@ func DefaultSeedPaths(seedDir string) []string {
 		"securities.json",
 		"instruments.json",
 		"persons.json",
-		"relationships.json",
+		filepath.Join("relationships", "member_of.json"),
+		filepath.Join("relationships", "has_market.json"),
+		filepath.Join("relationships", "tracks_index.json"),
+		filepath.Join("relationships", "issues.json"),
+		filepath.Join("relationships", "participates_in.json"),
+		filepath.Join("relationships", "affiliated_with.json"),
+		filepath.Join("relationships", "applies_to.json"),
 	}
 	paths := make([]string, 0, len(names))
 	for _, name := range names {
