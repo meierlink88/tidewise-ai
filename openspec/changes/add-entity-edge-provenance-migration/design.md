@@ -36,6 +36,10 @@ local PostgreSQL 已应用 `000007_add_entity_edge_provenance.sql`，`entity_edg
 
 先在 `backend/internal/platform/dbmigration/migrations_test.go` 中添加失败断言，再添加 SQL migration。测试验证 migration 文件、字段片段、`IF NOT EXISTS`、禁止破坏性 DDL 和不含 secret；完成时运行 `go test ./...`。
 
+### 以测试输入生成日期筛选预期
+
+admin portal 的 `datetime-local` 输入会按测试运行时区转换为 ISO 时间。测试必须从同一输入值通过 `new Date(value).toISOString()` 生成断言，不能硬编码某一时区的 UTC 偏移结果。该修复只稳定测试，不改变页面或 API 的日期转换行为。
+
 ## Risks / Trade-offs
 
 - [UAT migration 失败导致部署停止] → 既有 workflow 必须在启动新 backend 前执行 migration，失败时保持服务不替换；执行前保留 UAT PostgreSQL 备份。
