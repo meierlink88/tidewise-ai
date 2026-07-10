@@ -15,5 +15,5 @@
 
 ## 4. UAT schema 发布
 
-- [ ] 4.1 通过 PR 合并后触发现有 UAT workflow，确认 `dbmigrate -apply` 应用 `000007` 且 backend/admin 健康检查通过。
-- [ ] 4.2 在 UAT 只读核验 `entity_edges` 三个字段和 migration 版本存在；不在本 change 中恢复 local 业务数据。
+- [x] 4.1 通过 PR 合并后触发现有 UAT workflow，确认 `dbmigrate -apply` 应用 `000007` 且 backend/admin 健康检查通过。
+- [x] 4.2 在 UAT 只读核验 `entity_edges` 三个字段和 migration 版本存在；不在本 change 中恢复 local 业务数据。
