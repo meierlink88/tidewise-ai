@@ -1,0 +1,137 @@
+name: Deploy UAT
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag. Defaults to the triggering commit SHA.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  UAT_ENV_FILE: /Users/mac/tidewise-uat/infra/.env
+
+jobs:
+  build-and-push:
+    name: Build and publish images
+    runs-on: ubuntu-latest
+    outputs:
+      backend_image: ${{ steps.images.outputs.backend_image }}
+      admin_image: ${{ steps.images.outputs.admin_image }}
+      image_tag: ${{ steps.images.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image names
+        id: images
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          repo="$(basename "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          tag="${{ inputs.image_tag }}"
+          if [ -z "$tag" ]; then
+            tag="${GITHUB_SHA}"
+          fi
+          echo "image_tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=${REGISTRY}/${owner}/${repo}-backend:${tag}" >> "$GITHUB_OUTPUT"
+          echo "admin_image=${REGISTRY}/${owner}/${repo}-admin:${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.images.outputs.backend_image }}
+
+      - name: Build and push admin portal image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend/admin
+          file: frontend/admin/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.images.outputs.admin_image }}
+
+  deploy:
+    name: Deploy to UAT
+    runs-on: [self-hosted, tidewise, uat]
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: read
+    environment: uat
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load UAT runtime environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$UAT_ENV_FILE" ]; then
+            echo "UAT environment file is missing: $UAT_ENV_FILE" >&2
+            exit 1
+          fi
+          install -m 600 "$UAT_ENV_FILE" infra/uat/.env
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write deployment image overrides
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "BACKEND_IMAGE=${{ needs.build-and-push.outputs.backend_image }}"
+            echo "ADMIN_IMAGE=${{ needs.build-and-push.outputs.admin_image }}"
+          } > infra/uat/.env.images
+
+      - name: Pull UAT images
+        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml pull
+
+      - name: Run database migrations
+        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml run --rm backend dbmigrate -apply
+
+      - name: Start UAT services
+        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml up -d
+
+      - name: Check backend health
+        run: |
+          set -euo pipefail
+          backend_port="$(grep -E '^BACKEND_HTTP_PORT=' infra/uat/.env | cut -d= -f2- || true)"
+          backend_port="${backend_port:-8080}"
+          curl -fsS "http://127.0.0.1:${backend_port}/healthz"
+          curl -fsS "http://127.0.0.1:${backend_port}/readyz"
+
+      - name: Check admin portal health
+        run: |
+          set -euo pipefail
+          admin_port="$(grep -E '^ADMIN_HTTP_PORT=' infra/uat/.env | cut -d= -f2- || true)"
+          admin_port="${admin_port:-8081}"
+          curl -fsS "http://127.0.0.1:${admin_port}/healthz"
