@@ -119,7 +119,7 @@ jobs:
         run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml run --rm backend dbmigrate -apply
 
       - name: Start UAT services
-        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml up -d
+        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml up -d --wait --wait-timeout 90
 
       - name: Check backend health
         run: |

@@ -48,7 +48,7 @@ echo <read-only-ghcr-token> | docker login ghcr.io -u <github-user> --password-s
 ```bash
 docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml pull
 docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml run --rm backend dbmigrate -apply
-docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml up -d
+docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml up -d --wait --wait-timeout 90
 ```
 
 部署后检查：
