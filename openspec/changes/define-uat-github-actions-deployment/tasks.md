@@ -20,7 +20,7 @@
 
 - [x] 4.1 新增 CI workflow，在 GitHub-hosted runner 上运行 backend `go test ./...`、admin portal 测试或类型检查和生产构建。
 - [x] 4.2 新增镜像构建和发布步骤，将 backend 与 admin portal 镜像推送到 GHCR，并使用 commit SHA tag。
-- [x] 4.3 新增 UAT deploy workflow 或 job，使用 `runs-on: [self-hosted, tidewise, uat]`，拉取镜像、执行 `dbmigrate -apply`、等待 compose healthcheck 成功后启动服务并运行 HTTP 健康检查。
+- [x] 4.3 新增 UAT deploy workflow 或 job，使用 `runs-on: [self-hosted, tidewise, uat]`，拉取镜像、执行 `dbmigrate -apply`、等待 compose healthcheck 成功后在服务容器内运行 HTTP 健康检查。
 - [x] 4.4 限制 UAT 部署为手动触发或受控触发，并在 workflow 中避免让 GitHub-hosted runner 访问办公室内网资源。
 
 ## 5. 验证与收尾

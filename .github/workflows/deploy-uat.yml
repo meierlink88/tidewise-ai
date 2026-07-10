@@ -123,15 +123,8 @@ jobs:
 
       - name: Check backend health
         run: |
-          set -euo pipefail
-          backend_port="$(grep -E '^BACKEND_HTTP_PORT=' infra/uat/.env | cut -d= -f2- || true)"
-          backend_port="${backend_port:-8080}"
-          curl -fsS "http://127.0.0.1:${backend_port}/healthz"
-          curl -fsS "http://127.0.0.1:${backend_port}/readyz"
+          docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml exec -T backend wget -qO- http://127.0.0.1:8080/healthz
+          docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml exec -T backend wget -qO- http://127.0.0.1:8080/readyz
 
       - name: Check admin portal health
-        run: |
-          set -euo pipefail
-          admin_port="$(grep -E '^ADMIN_HTTP_PORT=' infra/uat/.env | cut -d= -f2- || true)"
-          admin_port="${admin_port:-8081}"
-          curl -fsS "http://127.0.0.1:${admin_port}/healthz"
+        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml exec -T admin wget -qO- http://127.0.0.1:8080/healthz

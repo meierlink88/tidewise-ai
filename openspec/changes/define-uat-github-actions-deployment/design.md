@@ -127,7 +127,7 @@ flowchart LR
 
 - [Risk] self-hosted runner 权限过大，可能影响 UAT 主机安全。→ Mitigation：runner 使用专用机器或专用系统用户，workflow 只允许受保护分支或手动触发，runner label 精确匹配 `self-hosted,tidewise,uat`。
 - [Risk] GHCR 权限或私有镜像拉取失败。→ Mitigation：优先使用 GitHub Actions `GITHUB_TOKEN` 推送；UAT runner 配置只读拉取凭证或使用 GitHub runner 上下文登录 GHCR。
-- [Risk] migration 执行成功但服务启动失败或启动后立即探测过早。→ Mitigation：部署流程必须先拉取镜像、执行 migration，再使用带超时的 `docker compose up -d --wait` 等待容器 healthcheck 成功，最后运行 backend `/healthz`、`/readyz` 和 admin HTTP 检查；失败时保留上一版本回滚说明。
+- [Risk] migration 执行成功但服务启动失败、启动后立即探测过早，或 Colima 主机端口转发与容器网络不一致。→ Mitigation：部署流程必须先拉取镜像、执行 migration，再使用带超时的 `docker compose up -d --wait` 等待容器 healthcheck 成功，最后通过 `docker compose exec -T` 在 backend/admin 容器内运行 HTTP 健康检查；失败时保留上一版本回滚说明。
 - [Risk] admin portal 的 API base URL 在构建时固化后不适配 UAT。→ Mitigation：第一版明确 UAT 配置来源，优先使用 compose/nginx/runtime 配置或可审计构建参数；不得把 secret 编译进前端。
 - [Risk] 云端 CI 误连接真实内网数据库。→ Mitigation：CI 只运行不依赖真实外部服务的测试和构建；数据库 migration apply 只在 UAT self-hosted runner 部署阶段执行。
 

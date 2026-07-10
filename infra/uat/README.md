@@ -54,9 +54,9 @@ docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml up -d 
 部署后检查：
 
 ```bash
-curl -fsS http://127.0.0.1:${BACKEND_HTTP_PORT:-8080}/healthz
-curl -fsS http://127.0.0.1:${BACKEND_HTTP_PORT:-8080}/readyz
-curl -fsS http://127.0.0.1:${ADMIN_HTTP_PORT:-8081}/healthz
+docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml exec -T backend wget -qO- http://127.0.0.1:8080/healthz
+docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml exec -T backend wget -qO- http://127.0.0.1:8080/readyz
+docker compose --env-file infra/uat/.env -f infra/uat/docker-compose.yaml exec -T admin wget -qO- http://127.0.0.1:8080/healthz
 ```
 
 ## 回滚
