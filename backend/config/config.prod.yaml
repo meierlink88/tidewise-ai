@@ -23,6 +23,14 @@ database:
   connect_timeout_seconds: 5
 redis:
   address: redis-prod.example.internal:6379
+neo4j:
+  enabled: false
+  uri: bolt://neo4j-prod.example.internal:7687
+  database: neo4j
+  username_env: NEO4J_USERNAME
+  password_env: NEO4J_PASSWORD
+  connect_timeout_seconds: 5
+  max_connection_pool_size: 20
 migration:
   directory: migrations
   auto_apply: false

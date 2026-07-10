@@ -30,9 +30,11 @@ func TestBackendSubsystemPackagesExist(t *testing.T) {
 		"internal/apps/ingestion/connectors",
 		"internal/apps/ingestion/parsers",
 		"internal/apps/ingestion/health",
+		"internal/apps/graphprojection",
 		"internal/platform",
 		"internal/platform/database",
 		"internal/platform/dbmigration",
+		"internal/platform/graphdb",
 	}
 
 	for _, suffix := range expected {
@@ -71,6 +73,9 @@ func TestBackendForbiddenDependencies(t *testing.T) {
 		case containsPath(pkg.ImportPath, "/internal/apps/miniappapi"),
 			containsPath(pkg.ImportPath, "/internal/apps/adminapi"):
 			assertNoImport(t, pkg, "/internal/apps/ingestion/connectors")
+			assertNoImport(t, pkg, "/internal/platform/graphdb")
+		case containsPath(pkg.ImportPath, "/internal/apps/ingestion"):
+			assertNoImport(t, pkg, "/internal/platform/graphdb")
 		case containsPath(pkg.ImportPath, "/internal/apps/ingestion/connectors"):
 			assertNoImport(t, pkg, "/internal/repositories")
 			assertNoImport(t, pkg, "/internal/platform/database")

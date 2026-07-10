@@ -1,4 +1,4 @@
-# Local PostgreSQL And Ingestion Smoke
+# Local PostgreSQL, Neo4j And Ingestion Smoke
 
 本目录提供 local PostgreSQL 和真实采集 smoke 的本地运行说明。这里的模板只用于开发环境，不得复用为 uat 或 prod secret 来源。
 
@@ -26,6 +26,55 @@ user: tidewise
 ```
 
 真实 password 通过环境变量注入，不写入 repo。
+
+## 本地 Neo4j
+
+Neo4j 是从 PostgreSQL 事实源投影出来的图谱查询库。local 环境默认在 `backend/config/config.local.yaml` 中启用 Neo4j，但真实用户名和密码只通过环境变量注入。
+
+如果使用 Docker Compose：
+
+```bash
+cp infra/local/.env.example infra/local/.env.local
+```
+
+修改 `infra/local/.env.local` 中的 `NEO4J_USERNAME` 和 `NEO4J_PASSWORD` 后启动：
+
+```bash
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.neo4j.yaml up -d
+```
+
+Neo4j Browser 默认访问：
+
+```text
+http://localhost:7474
+```
+
+Bolt 连接地址与 local config 对齐：
+
+```text
+bolt://localhost:7687
+```
+
+图谱投影命令位于 `backend/cmd/graph-projector`。真实 Neo4j smoke 必须显式启用，普通 `go test ./...` 不会连接 Neo4j：
+
+```bash
+APP_ENV=local \
+DATABASE_PASSWORD=<local-postgres-password> \
+NEO4J_USERNAME=<local-neo4j-user> \
+NEO4J_PASSWORD=<local-neo4j-password> \
+TIDEWISE_ENABLE_NEO4J_SMOKE=true \
+go test ./cmd/graph-projector ./internal/platform/graphdb ./internal/apps/graphprojection
+```
+
+手动检查连接和投影：
+
+```bash
+APP_ENV=local NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector check
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector project-entities
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector rebuild-entities
+```
+
+`project-entities` 会读取 PostgreSQL 的 `entity_nodes` 和 `entity_edges`，写入 Neo4j 的 `TidewiseEntity` 命名空间。`rebuild-entities` 只清理本系统 `projection_namespace=tidewise` 的实体图，不会清空整个 Neo4j database。
 
 ## 执行 migration
 

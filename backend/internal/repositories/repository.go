@@ -95,6 +95,97 @@ type SchedulerRepository interface {
 	RecentIngestionRuns(context.Context, int) ([]domain.IngestionRun, error)
 }
 
+type GraphProjectionType string
+
+const (
+	GraphProjectionTypeEntityGraph GraphProjectionType = "entity_graph"
+)
+
+type GraphProjectionMode string
+
+const (
+	GraphProjectionModeProjectEntities GraphProjectionMode = "project_entities"
+	GraphProjectionModeRebuildEntities GraphProjectionMode = "rebuild_entities"
+)
+
+type GraphProjectionRunStatus string
+
+const (
+	GraphProjectionRunStatusRunning   GraphProjectionRunStatus = "running"
+	GraphProjectionRunStatusSucceeded GraphProjectionRunStatus = "succeeded"
+	GraphProjectionRunStatusFailed    GraphProjectionRunStatus = "failed"
+	GraphProjectionRunStatusPartial   GraphProjectionRunStatus = "partial"
+)
+
+type GraphProjectionRunItemType string
+
+const (
+	GraphProjectionRunItemTypeEntity       GraphProjectionRunItemType = "entity_node"
+	GraphProjectionRunItemTypeRelationship GraphProjectionRunItemType = "entity_relationship"
+)
+
+type GraphProjectionRunItemStatus string
+
+const (
+	GraphProjectionRunItemStatusProjected GraphProjectionRunItemStatus = "projected"
+	GraphProjectionRunItemStatusSkipped   GraphProjectionRunItemStatus = "skipped"
+	GraphProjectionRunItemStatusFailed    GraphProjectionRunItemStatus = "failed"
+)
+
+type GraphEntityNode struct {
+	ID            string
+	EntityKey     string
+	EntityType    domain.EntityType
+	LayerCode     string
+	Name          string
+	CanonicalName string
+	Status        domain.Status
+	UpdatedAt     time.Time
+}
+
+type GraphEntityEdge struct {
+	ID           string
+	FromEntityID string
+	ToEntityID   string
+	RelationType string
+	EvidenceNote string
+	Status       domain.Status
+	UpdatedAt    time.Time
+}
+
+type GraphProjectionRun struct {
+	ID             string
+	ProjectionType GraphProjectionType
+	Mode           GraphProjectionMode
+	Status         GraphProjectionRunStatus
+	StartedAt      time.Time
+	FinishedAt     *time.Time
+	SourceRowCount int
+	ProjectedCount int
+	SkippedCount   int
+	FailedCount    int
+	ErrorSummary   string
+	ConfigSummary  map[string]any
+}
+
+type GraphProjectionRunItem struct {
+	ID           string
+	RunID        string
+	ItemType     GraphProjectionRunItemType
+	ItemKey      string
+	Status       GraphProjectionRunItemStatus
+	ErrorMessage string
+}
+
+type GraphProjectionRepository interface {
+	ListGraphEntityNodes(context.Context) ([]GraphEntityNode, error)
+	ListGraphEntityEdges(context.Context) ([]GraphEntityEdge, error)
+	CreateGraphProjectionRun(context.Context, GraphProjectionRun) (GraphProjectionRun, error)
+	RecordGraphProjectionRunItem(context.Context, GraphProjectionRunItem) error
+	CompleteGraphProjectionRun(context.Context, GraphProjectionRun) error
+	RecentGraphProjectionRuns(context.Context, int) ([]GraphProjectionRun, error)
+}
+
 type InMemoryRepository struct {
 	mu              sync.Mutex
 	sources         []domain.SourceCatalog
@@ -103,6 +194,10 @@ type InMemoryRepository struct {
 	schedulerConfig domain.SchedulerConfig
 	ingestionRuns   map[string]domain.IngestionRun
 	runSources      map[string][]domain.IngestionRunSource
+	graphEntities   map[string]GraphEntityNode
+	graphEdges      map[string]GraphEntityEdge
+	graphRuns       map[string]GraphProjectionRun
+	graphRunItems   map[string][]GraphProjectionRunItem
 }
 
 func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
@@ -118,6 +213,10 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 		schedulerConfig: defaultSchedulerConfig(),
 		ingestionRuns:   map[string]domain.IngestionRun{},
 		runSources:      map[string][]domain.IngestionRunSource{},
+		graphEntities:   map[string]GraphEntityNode{},
+		graphEdges:      map[string]GraphEntityEdge{},
+		graphRuns:       map[string]GraphProjectionRun{},
+		graphRunItems:   map[string][]GraphProjectionRunItem{},
 	}
 }
 
@@ -192,6 +291,96 @@ func (r *InMemoryRepository) SourceCatalogStats(_ context.Context) (SourceCatalo
 		incrementStats(stats.ByStatus, string(source.Status))
 	}
 	return stats, nil
+}
+
+func (r *InMemoryRepository) SeedGraphEntity(entity GraphEntityNode) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.graphEntities[entity.ID] = normalizeGraphEntityNode(entity)
+}
+
+func (r *InMemoryRepository) SeedGraphEdge(edge GraphEntityEdge) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.graphEdges[edge.ID] = edge
+}
+
+func (r *InMemoryRepository) ListGraphEntityNodes(context.Context) ([]GraphEntityNode, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	nodes := make([]GraphEntityNode, 0, len(r.graphEntities))
+	for _, node := range r.graphEntities {
+		nodes = append(nodes, normalizeGraphEntityNode(node))
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].ID < nodes[j].ID
+	})
+	return nodes, nil
+}
+
+func (r *InMemoryRepository) ListGraphEntityEdges(context.Context) ([]GraphEntityEdge, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	edges := make([]GraphEntityEdge, 0, len(r.graphEdges))
+	for _, edge := range r.graphEdges {
+		edges = append(edges, edge)
+	}
+	sort.Slice(edges, func(i, j int) bool {
+		return edges[i].ID < edges[j].ID
+	})
+	return edges, nil
+}
+
+func (r *InMemoryRepository) CreateGraphProjectionRun(_ context.Context, run GraphProjectionRun) (GraphProjectionRun, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	run = normalizeGraphProjectionRun(run)
+	r.graphRuns[run.ID] = cloneGraphProjectionRun(run)
+	return cloneGraphProjectionRun(run), nil
+}
+
+func (r *InMemoryRepository) RecordGraphProjectionRunItem(_ context.Context, item GraphProjectionRunItem) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.graphRuns[item.RunID]; !ok {
+		return fmt.Errorf("graph projection run %q not found", item.RunID)
+	}
+	r.graphRunItems[item.RunID] = append(r.graphRunItems[item.RunID], item)
+	return nil
+}
+
+func (r *InMemoryRepository) CompleteGraphProjectionRun(_ context.Context, run GraphProjectionRun) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.graphRuns[run.ID]; !ok {
+		return fmt.Errorf("graph projection run %q not found", run.ID)
+	}
+	r.graphRuns[run.ID] = cloneGraphProjectionRun(normalizeGraphProjectionRun(run))
+	return nil
+}
+
+func (r *InMemoryRepository) RecentGraphProjectionRuns(_ context.Context, limit int) ([]GraphProjectionRun, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	runs := make([]GraphProjectionRun, 0, len(r.graphRuns))
+	for _, run := range r.graphRuns {
+		runs = append(runs, cloneGraphProjectionRun(run))
+	}
+	sort.Slice(runs, func(i, j int) bool {
+		return runs[i].StartedAt.After(runs[j].StartedAt)
+	})
+	if limit > 0 && len(runs) > limit {
+		runs = runs[:limit]
+	}
+	return runs, nil
 }
 
 func (r *InMemoryRepository) UpsertRawDocument(_ context.Context, doc domain.RawDocument) (RawDocumentWriteResult, error) {
@@ -526,6 +715,41 @@ func normalizeInMemorySource(source domain.SourceCatalog) domain.SourceCatalog {
 		source.RateLimitPolicy = map[string]any{}
 	}
 	return source
+}
+
+func normalizeGraphEntityNode(node GraphEntityNode) GraphEntityNode {
+	if node.EntityKey == "" && node.EntityType != "" && node.ID != "" {
+		node.EntityKey = fmt.Sprintf("%s:%s", node.EntityType, node.ID)
+	}
+	if node.Status == "" {
+		node.Status = domain.StatusActive
+	}
+	return node
+}
+
+func normalizeGraphProjectionRun(run GraphProjectionRun) GraphProjectionRun {
+	if run.ProjectionType == "" {
+		run.ProjectionType = GraphProjectionTypeEntityGraph
+	}
+	if run.Mode == "" {
+		run.Mode = GraphProjectionModeProjectEntities
+	}
+	if run.Status == "" {
+		run.Status = GraphProjectionRunStatusRunning
+	}
+	if run.ConfigSummary == nil {
+		run.ConfigSummary = map[string]any{}
+	}
+	return run
+}
+
+func cloneGraphProjectionRun(run GraphProjectionRun) GraphProjectionRun {
+	if run.FinishedAt != nil {
+		value := *run.FinishedAt
+		run.FinishedAt = &value
+	}
+	run.ConfigSummary = cloneMap(run.ConfigSummary)
+	return run
 }
 
 func cloneMap(value map[string]any) map[string]any {

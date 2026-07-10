@@ -27,6 +27,8 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
 - `000002_add_alliance_org_profiles.sql`：补充联盟组织 profile 表。
 - `000003_add_sector_seed_snapshot_fields.sql`：补充板块初始化热度快照字段 `rank_snapshot` 和 `snapshot_date`。
 - `000004_add_source_catalog_source_config.sql`：为 `source_catalogs` 补充 `source_config` JSONB 扩展配置字段。
+- `000005_add_ingestion_scheduler.sql`：创建采集调度器配置、执行批次和 source 级执行记录表。
+- `000006_add_graph_projection_runs.sql`：补充 `entity_nodes.entity_key`，创建 Neo4j 图谱投影 run 和明细记录表。
 
 实体基础库 seed 使用 repo 内版本化 JSON 文件：
 
@@ -74,4 +76,39 @@ SELECT COUNT(*) FROM source_catalogs;
 SELECT provider_key, COUNT(*) FROM source_catalogs GROUP BY provider_key ORDER BY COUNT(*) DESC, provider_key;
 SELECT source_type, COUNT(*) FROM source_catalogs GROUP BY source_type ORDER BY source_type;
 SELECT status, COUNT(*) FROM source_catalogs GROUP BY status ORDER BY status;
+```
+
+## Neo4j 图谱投影记录
+
+PostgreSQL 仍然是实体、关系、事件和证据链的事实源。Neo4j 只保存从 PostgreSQL 派生的图谱查询视图；Neo4j 数据清空后，应通过 `graph-projector` 从 PostgreSQL 重新投影。
+
+`graph_projection_runs` 和 `graph_projection_run_items` 用于审计每次实体图投影的输入数量、成功数量、跳过数量、失败数量和错误摘要。常用核验 SQL：
+
+```sql
+SELECT id, projection_type, mode, status, started_at, finished_at,
+       source_row_count, projected_count, skipped_count, failed_count, error_summary
+FROM graph_projection_runs
+ORDER BY started_at DESC
+LIMIT 5;
+
+SELECT run_id, item_type, item_key, status, error_message
+FROM graph_projection_run_items
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+本地执行实体图投影前，应先完成 migration、实体 seed，并启动 Neo4j：
+
+```bash
+cd backend
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> go run ./cmd/dbmigrate -apply
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> go run ./cmd/entity-seed
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector check
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector project-entities
+```
+
+需要清理并重建本系统命名空间下的实体图时使用：
+
+```bash
+APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./cmd/graph-projector rebuild-entities
 ```

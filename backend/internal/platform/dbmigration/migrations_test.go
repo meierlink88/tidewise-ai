@@ -198,6 +198,50 @@ func TestIngestionSchedulerMigrationDefinesConfigAndRunTables(t *testing.T) {
 	}
 }
 
+func TestGraphProjectionMigrationDefinesRunTables(t *testing.T) {
+	content := strings.ToLower(readMigration(t, filepath.Join("..", "..", "..", "migrations", "000006_add_graph_projection_runs.sql")))
+
+	for _, fragment := range []string{
+		"alter table entity_nodes",
+		"add column if not exists entity_key text not null default ''",
+		"create index if not exists idx_entity_nodes_entity_key",
+		"create table if not exists graph_projection_runs",
+		"create table if not exists graph_projection_run_items",
+		"projection_type text not null",
+		"mode text not null",
+		"status text not null",
+		"source_row_count integer not null default 0",
+		"projected_count integer not null default 0",
+		"skipped_count integer not null default 0",
+		"failed_count integer not null default 0",
+		"config_summary jsonb not null default '{}'::jsonb",
+		"run_id uuid not null references graph_projection_runs",
+		"item_key text not null",
+		"idx_graph_projection_runs_started_at",
+		"idx_graph_projection_runs_type_status",
+		"idx_graph_projection_run_items_run_id",
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("graph projection migration must contain fragment %q", fragment)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"api_key",
+		"password",
+		"bearer token",
+		"database_url",
+		"drop table",
+		"drop column",
+		"truncate table",
+		"delete from",
+	} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("graph projection migration must not contain sensitive or destructive fragment %q", forbidden)
+		}
+	}
+}
+
 func migrationFiles(t *testing.T) []string {
 	t.Helper()
 

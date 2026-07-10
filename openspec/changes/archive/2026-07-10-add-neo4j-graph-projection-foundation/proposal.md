@@ -24,7 +24,7 @@
 
 - `technical-architecture`: 将原先“未来独立图数据库边界”细化为 Neo4j 图谱投影库，并明确 PostgreSQL 仍是权威事实源。
 - `persistence-and-contracts`: 增加非 PostgreSQL 图谱存储的引入规则，要求 Neo4j 投影必须可从 PostgreSQL 重建，不得作为事实源。
-- `event-knowledge-schema`: 明确 `entity_nodes`、`entity_relationships` 和后续事件关系表是 Neo4j 投影来源。
+- `event-knowledge-schema`: 明确 `entity_nodes`、`entity_edges` 和后续事件关系表是 Neo4j 投影来源。
 - `backend-subsystem-boundaries`: 增加图谱投影子系统和 Neo4j 平台连接归属边界，避免投影逻辑散落在采集器、管理后台 API 或实体 seed 中。
 
 ## Impact

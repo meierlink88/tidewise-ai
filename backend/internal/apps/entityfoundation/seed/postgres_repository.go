@@ -30,33 +30,10 @@ func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (Wr
 		return WriteResult{}, err
 	}
 
-	statement := `
-WITH upsert AS (
-    INSERT INTO entity_nodes (
-        id, entity_type, layer_code, name, canonical_name, aliases, status
-    ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        entity_type = EXCLUDED.entity_type,
-        layer_code = EXCLUDED.layer_code,
-        name = EXCLUDED.name,
-        canonical_name = EXCLUDED.canonical_name,
-        aliases = EXCLUDED.aliases,
-        status = EXCLUDED.status,
-        updated_at = now()
-    WHERE entity_nodes.entity_type IS DISTINCT FROM EXCLUDED.entity_type
-       OR entity_nodes.layer_code IS DISTINCT FROM EXCLUDED.layer_code
-       OR entity_nodes.name IS DISTINCT FROM EXCLUDED.name
-       OR entity_nodes.canonical_name IS DISTINCT FROM EXCLUDED.canonical_name
-       OR entity_nodes.aliases IS DISTINCT FROM EXCLUDED.aliases
-       OR entity_nodes.status IS DISTINCT FROM EXCLUDED.status
-    RETURNING xmax = 0 AS inserted
-)
-SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
-`
+	statement := buildEntityUpsert()
 	action, err := r.queryWriteAction(ctx, statement,
 		entitySeedUUID(entity.Key),
+		entity.Key,
 		entity.EntityType,
 		entity.LayerCode,
 		entity.Name,
@@ -68,6 +45,36 @@ SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FRO
 		return WriteResult{}, fmt.Errorf("upsert entity %q: %w", entity.Key, err)
 	}
 	return WriteResult{Key: entity.Key, Action: action}, nil
+}
+
+func buildEntityUpsert() string {
+	return `
+WITH upsert AS (
+    INSERT INTO entity_nodes (
+        id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        entity_key = EXCLUDED.entity_key,
+        entity_type = EXCLUDED.entity_type,
+        layer_code = EXCLUDED.layer_code,
+        name = EXCLUDED.name,
+        canonical_name = EXCLUDED.canonical_name,
+        aliases = EXCLUDED.aliases,
+        status = EXCLUDED.status,
+        updated_at = now()
+    WHERE entity_nodes.entity_key IS DISTINCT FROM EXCLUDED.entity_key
+       OR entity_nodes.entity_type IS DISTINCT FROM EXCLUDED.entity_type
+       OR entity_nodes.layer_code IS DISTINCT FROM EXCLUDED.layer_code
+       OR entity_nodes.name IS DISTINCT FROM EXCLUDED.name
+       OR entity_nodes.canonical_name IS DISTINCT FROM EXCLUDED.canonical_name
+       OR entity_nodes.aliases IS DISTINCT FROM EXCLUDED.aliases
+       OR entity_nodes.status IS DISTINCT FROM EXCLUDED.status
+    RETURNING xmax = 0 AS inserted
+)
+SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
+`
 }
 
 func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) (WriteResult, error) {
