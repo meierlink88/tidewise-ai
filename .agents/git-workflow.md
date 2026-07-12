@@ -28,7 +28,9 @@ codex/<change-name>
 13. 检查 scoped diff，只暂存当前 change 文件并提交 archive 检查点，推荐 commit message：`spec: archive <change-name>`。
 14. 验证 `git status --short` 不再包含当前 change 的未提交文件，并用 `git log -1` 确认 archive commit 存在。
 15. 使用 `superpowers:finishing-a-development-branch` 和 GitHub plugin，通过 PR 或明确确认后合并回 `main`。
-16. 只有完成 archive commit 和分支交付后，change 才进入 `delivered` 状态并允许启动下一 change。
+16. PR 合并后确认默认分支已包含 change 的 archive commit，并删除远端 change branch。
+17. 切换出 change worktree 后删除本地 change branch；如果该 worktree 由本项目创建，则移除 worktree 并执行 `git worktree prune`。
+18. 只有完成 archive commit、分支交付和 branch/worktree cleanup 后，change 才进入 `delivered` 状态并允许启动下一 change。
 ```
 
 ## Commit Rules
@@ -66,6 +68,18 @@ git merge-base HEAD origin/main
 ```
 
 任一条件不满足时，必须先完成上一 change 的 scoped commit/交付，或创建并切换到新 change 的独立 worktree。OpenSpec archive 成功只代表 `archived`，不代表 Git 已 `delivered`。
+
+## Delivered Change Cleanup
+
+PR 合并或本地合并成功后必须完成：
+
+- 验证 `origin/main` 已包含 change 的最终 commit。
+- 删除远端 `codex/<change-name>` branch。
+- 确认没有 worktree 正在使用该 branch 后，删除本地 branch。
+- 仅清理本项目创建且路径可确认的 change worktree；不得删除 Codex Desktop 或其他工具拥有的未知 worktree。
+- 对已移除的项目自有 worktree 运行 `git worktree prune`，并用 `git worktree list` 验证没有残留。
+
+删除 branch 或 worktree 前必须确认其中没有未提交和未跟踪文件。若存在文件，先迁移到对应新 change 的 branch/worktree，不得强制删除。
 
 ## GitHub Rules
 
