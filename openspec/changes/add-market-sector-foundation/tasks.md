@@ -76,6 +76,6 @@
 - [x] 7.6 TDD RED：覆盖 PostgreSQL `LEFT JOIN sector_profiles` source、GraphEntityNode/GraphNode 强类型字段、industry/theme mapping、非 sector 隔离、缺失/非法分类、writer 参数和 projector failed/skipped report
 - [x] 7.7 扩展现有单一实体投影链，从 `sector_profiles.classification_code` 读取真实枚举并写入 Neo4j 同名属性；active sector 缺失或非法值 fail-closed，非 sector 不携带并清除残留属性，不按 key 推导
 - [x] 7.8 运行 repositories/graphprojection/cmd 聚焦测试、真实 PostgreSQL 只读 classification source 测试、全量 Go、OpenSpec、diff 与 secret 检查；本任务不得运行 graph-projector 或写 Neo4j
-- [ ] 7.9 经新的独立 stateful 审批后再次 `rebuild-entities`，除 551/383、52/0、关系、alias、namespace 和重复验收外，必须通过 Cypher 明确查询 `classification_code` 为 industry_sector=29、theme_sector=23 且非 sector 无该属性
+- [x] 7.9 经独立审批再次执行 `rebuild-entities`，run succeeded 且 source/projected=934/934、skipped/failed=0/0；Neo4j 为 551 Entity、383 关系、52 active canonical sector、0 legacy，`classification_code` 精确为 industry_sector=29、theme_sector=23、缺失/非法=0、非 sector 携带=0，`COVERS_SECTOR`=52、`TRACKED_BY_BENCHMARK`=0，29 条 audit-owned aliases 在 PG 全量 present 且 Neo4j 抽查通过，实体/关系类型、namespace、重复、悬空端点和 `TidewiseEntity` 验收全部闭合，PostgreSQL version 13 与 52/60/60/89/52/0 未漂移
 
-> **暂停门：** 当前 Neo4j 保留第二次重建的 551 节点/383 关系，但 sector classification 属性缺失。未经新的独立审批不得再次重建、手工 Cypher 修图、Sync、Archive 或创建 PR。
+> **暂停门：** Apply tasks 与 local PostgreSQL/Neo4j stateful 验收已完成，等待主对话最终 Apply Review。未经独立审批不得 Sync、Archive 或创建 PR。
