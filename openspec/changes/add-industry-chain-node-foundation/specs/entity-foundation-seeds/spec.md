@@ -16,7 +16,7 @@
 
 #### Scenario: 拒绝 AI candidate 直接入库
 - **WHEN** physical constraint 仅由 AI 生成或缺少权威技术来源
-- **THEN** seed validator 必须阻止其进入 approved seed、PostgreSQL 或 Neo4j
+- **THEN** seed validator 必须阻止其进入 approved seed 或 PostgreSQL 事实
 
 #### Scenario: 拒绝非物理约束
 - **WHEN** seed 包含市场结构、供应商集中、认证、监管、融资、替代难度或当前投研结论

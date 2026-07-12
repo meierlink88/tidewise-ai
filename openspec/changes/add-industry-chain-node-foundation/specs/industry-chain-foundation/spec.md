@@ -29,9 +29,17 @@
 - **WHEN** 权威技术证据表明一个节点可替代另一个节点的相同功能位置
 - **THEN** 系统必须保存单向 `substitutes_for`，不得自动生成反向关系
 
+#### Scenario: 保存 canonical topology edge
+- **WHEN** 业务事实是 supplier 向 receiver 直接供应
+- **THEN** 系统必须只保存 supplier → receiver 的 `supplies_to`，不得再以 receiver → supplier 的 `depends_on` 重复表达同一事实
+
+#### Scenario: 独立机制允许共存
+- **WHEN** 相同端点存在独立证据证明直接供应和无法自然表达为供应的功能/基础设施依赖是两种不同机制
+- **THEN** `supplies_to` 与 `depends_on` 才可共存，并必须分别保存证据
+
 #### Scenario: 拒绝冲突拓扑
 - **WHEN** 同一方向端点同时包含 `substitutes_for` 与 `supplies_to` 或 `depends_on`
-- **THEN** validator 必须拒绝该冲突；`supplies_to` 与 `depends_on` 共存时必须分别提供客观证据
+- **THEN** validator 必须拒绝该冲突
 
 ### Requirement: 物理约束定义
 系统 SHALL 使用 `industry_chain_physical_constraints` 保存相对稳定的物理/工程机制，并将 AI candidate、权威技术证据和人工 Review 作为 approved 事实门禁。
@@ -42,7 +50,11 @@
 
 #### Scenario: AI 只生成 candidate
 - **WHEN** AI 根据 Serenity 启发识别潜在物理约束
-- **THEN** 系统只能创建 candidate，缺少权威技术证据和人工批准时不得进入 approved、正式 seed、Neo4j 或推理事实输入
+- **THEN** 系统只能创建 candidate，缺少权威技术证据和人工批准时不得进入 approved、正式 seed 或推理事实输入
+
+#### Scenario: 物理约束不进入 Neo4j
+- **WHEN** future reasoning 完成 Neo4j chain/node 路径查询
+- **THEN** 系统必须通过 repository 按 chain/node/topology edge 从 PostgreSQL 补充读取 physical constraints，不得依赖当前图投影返回 constraint
 
 #### Scenario: 拒绝非物理和推理字段
 - **WHEN** 约束包含 supplier concentration、qualification、know-how、regulation、substitution difficulty、审批、融资、severity、score、受益承压、利好利空或预测

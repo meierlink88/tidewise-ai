@@ -24,7 +24,7 @@
 - `event-knowledge-schema`: 增加静态产业链 profile、membership、topology 和 physical constraint 的 PostgreSQL 增量 schema。
 - `entity-foundation-seeds`: 将 `industry_chain` 纳入实体基础库，改进 `chain_node` profile，并为两条试点 seed 增加人工 Review 门禁。
 - `entity-relationship-curation`: 增加产业链相关客观跨实体关系的类型、方向、来源和分层写入规则。
-- `neo4j-graph-projection-foundation`: 增加产业链定义、membership、稳定拓扑、物理约束及已审阅跨实体关系的 active-only 投影规则。
+- `neo4j-graph-projection-foundation`: 增加产业链定义、membership、稳定拓扑及已审阅跨实体关系的 active-only 投影规则；物理约束保留在 PostgreSQL，不进入当前图投影。
 
 ## Impact
 
@@ -32,3 +32,4 @@
 - `industry_chain_metric_definitions`、`industry_chain_metric_bindings`、通用 `observation_records`、node/flow observations、revision/quality/idempotency governance、ingestion observation writer 全部移到后续 `add-industry-chain-observation-foundation`。
 - 本 change 不实现事件抽取、推理结果持久化、API、UI 或真实 observation connector；不修改 `frontend/`、`prototype/`、项目外 `doc/` 或其他 OpenSpec change。
 - 不改变 PostgreSQL 事实源、Neo4j 可重建投影和 `Review → Write → Rebuild → Query` 分层门禁。
+- Propose 阶段不执行任何有状态操作；进入 Apply 后，migration、seed/write、Neo4j rebuild 和 query 仍必须按层分别取得用户明确授权。

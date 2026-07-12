@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: MVP 产业链跨实体关系 policy
-系统 SHALL 只为 `scoped_to_economy`、`uses_commodity`、`produces_commodity`、`observed_by_benchmark` 和经 Review 确认命名的 sector mapping 定义允许端点、方向、来源和语义。
+系统 SHALL 只为 `scoped_to_economy`、`uses_commodity`、`produces_commodity`、`observed_by_benchmark` 和 `mapped_to_sector` 定义允许端点、方向、来源和语义。
 
 #### Scenario: 连接 economy 与 commodity
 - **WHEN** economy scope 或节点商品投入/产出通过 Review
@@ -11,9 +11,9 @@
 - **WHEN** benchmark 可客观观察某产业链或节点
 - **THEN** 只允许 `industry_chain|chain_node → benchmark` 的 `observed_by_benchmark` 并保存完整 provenance
 
-#### Scenario: sector mapping 不表达身份
+#### Scenario: mapped_to_sector 不表达身份
 - **WHEN** 产业链或节点映射到中国 canonical sector
-- **THEN** relation type 必须使用经 Review 批准的客观分析映射名称，不得使用暗示产业链与 sector 身份等价的语义
+- **THEN** 必须使用 `mapped_to_sector` 并保存来源；该关系不表达身份、法定覆盖或影响方向
 
 ### Requirement: 全球 benchmark 到中国板块的正确路径
 系统 SHALL 通过 chain/node 的 benchmark 与 sector 客观映射形成跨市场传导输入，不得伪造海外市场覆盖中国板块。
