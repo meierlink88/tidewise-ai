@@ -26,10 +26,10 @@ Skill 不得覆盖项目的 artifact 路径、change 顺序、分支命名、安
 | Apply | `openspec-apply-change` | TDD、debug、计划执行或 Subagent Skills |
 | Validate | OpenSpec CLI 和项目验证命令 | `superpowers:verification-before-completion` |
 | Sync | `openspec-sync-specs` | 完成前验证 |
-| Archive | `openspec-archive-change` | 完成前验证 |
-| Branch finish | `superpowers:finishing-a-development-branch` | GitHub plugin |
+| Archive | `openspec-archive-change` | 完成前验证；不得把 archive 成功视为 change 已关闭 |
+| Deliver | `superpowers:finishing-a-development-branch` | scoped archive commit、GitHub plugin、push/PR/merge |
 
-不得跳过人工 Review 直接从 Propose 进入 Apply。只有 tasks 全部完成、主规格已同步、change 已归档且 `openspec validate --all` 通过后，才能进入 branch finish、PR 或 merge。
+不得跳过人工 Review 直接从 Propose 进入 Apply。只有 tasks 全部完成、主规格已同步、change 已归档且 `openspec validate --all` 通过后，才能进入 Deliver、PR 或 merge。只有 archive commit 已存在且当前 change 没有未提交文件后，才能声明 change 已关闭或开始下一 change。
 
 ## Artifact Ownership
 
@@ -55,6 +55,7 @@ Skill 不得覆盖项目的 artifact 路径、change 顺序、分支命名、安
 - 并行 change 或长任务隔离使用 `superpowers:using-git-worktrees`；在 Codex Desktop 中优先使用与独立任务绑定的原生 worktree。
 - branch 收尾使用 `superpowers:finishing-a-development-branch`，但必须位于 `openspec-archive-change` 之后。
 - commit、push 和创建 PR 优先使用 `github:yeet`。
+- 创建新 change 前必须执行 `.agents/git-workflow.md` 的 New Change Gate；branch 名称不匹配、工作区包含其他 change 修改或上一 change 未 delivered 时，必须先切换到新 change 的独立 branch/worktree。
 - CI 失败使用 `github:gh-fix-ci`。
 - PR review comments 使用 `github:gh-address-comments`，并结合 `superpowers:receiving-code-review`。
 

@@ -11,7 +11,7 @@
 ## Standard Flow
 
 ```text
-Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive
+Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 ```
 
 生命周期必须由 repo-local OpenSpec Skills 驱动：
@@ -23,6 +23,7 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive
 - Validate：运行 OpenSpec CLI 和项目验证命令，并遵守 `superpowers:verification-before-completion`。
 - Sync：`openspec-sync-specs`，将 delta specs 同步为当前系统事实。
 - Archive：`openspec-archive-change`，完成后归档历史决策与实现记录。
+- Deliver：按照 `.agents/git-workflow.md` 完成 archive commit、push 和 PR/merge；只有 Deliver 完成后 change 才可视为关闭。
 
 详细 Skill 组合和 artifact 归属见 `.agents/skill-routing.md`。
 
@@ -95,6 +96,20 @@ openspec/changes/<change-name>/
 - 确认 tasks 全部完成。
 - 同步 delta specs 到 `openspec/specs/`。
 - 归档 change 到 `openspec/changes/archive/`。
+- 运行 `openspec validate --all`。
+- 检查 `git status --short`，只暂存当前 change 的源码、测试、主规格和 archive 文件。
+- 提交 `spec: archive <change-name>` 检查点，并按 `.agents/git-workflow.md` 完成 push 和 PR/merge。
+- 在 archive commit 存在且当前 change 不再有未提交文件前，不得声明 change 已关闭，也不得开始下一个 change。
+
+## Starting The Next Change
+
+开始新 change 前必须完成交付隔离检查：
+
+- 上一个 change 必须已经完成 archive commit；工作区不得残留上一个 change 的未提交文件。
+- 执行 `git fetch origin`，新 change 必须从最新 `origin/main` 创建 `codex/<change-name>` 分支。
+- 当前 branch 名称必须与新 change 匹配；禁止在上一个 change 的 branch 中创建或实现新 change。
+- 如果当前 worktree 不干净、已有其他 active change，或需要保留上一分支用于 PR review，必须为新 change 创建独立 worktree 并切换到对应 branch。
+- 在 Codex Desktop 中优先使用新任务绑定的原生 worktree；无法使用时再按 `.agents/git-workflow.md` 创建 Git worktree。
 
 ## Artifact Ownership
 
