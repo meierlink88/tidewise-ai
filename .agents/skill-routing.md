@@ -27,7 +27,7 @@ Skill 不得覆盖项目的 artifact 路径、change 顺序、分支命名、安
 | Validate | OpenSpec CLI 和项目验证命令 | `superpowers:verification-before-completion` |
 | Sync | `openspec-sync-specs` | 完成前验证 |
 | Archive | `openspec-archive-change` | 完成前验证；不得把 archive 成功视为 change 已关闭 |
-| Deliver | `superpowers:finishing-a-development-branch` | scoped archive commit、GitHub plugin、push/PR/merge |
+| Deliver | `superpowers:finishing-a-development-branch` | scoped archive commit、GitHub plugin、push/PR/merge、branch/worktree cleanup |
 
 不得跳过人工 Review 直接从 Propose 进入 Apply。只有 tasks 全部完成、主规格已同步、change 已归档且 `openspec validate --all` 通过后，才能进入 Deliver、PR 或 merge。只有 archive commit 已存在且当前 change 没有未提交文件后，才能声明 change 已关闭或开始下一 change。
 
