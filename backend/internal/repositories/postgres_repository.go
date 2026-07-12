@@ -438,14 +438,15 @@ ORDER BY provider_key, source_name, id
 }
 
 const graphEntityNodesQuery = `
-SELECT id,
-       COALESCE(NULLIF(entity_key, ''), entity_type || ':' || id::text) AS entity_key,
-       entity_type, layer_code, name, canonical_name,
-       COALESCE(array_to_json(aliases)::text, '[]') AS aliases,
-       status, updated_at
-FROM entity_nodes
-WHERE status = 'active'
-ORDER BY id
+SELECT node.id,
+       COALESCE(NULLIF(node.entity_key, ''), node.entity_type || ':' || node.id::text) AS entity_key,
+       node.entity_type, node.layer_code, node.name, node.canonical_name,
+       COALESCE(array_to_json(node.aliases)::text, '[]') AS aliases,
+       node.status, node.updated_at, sector.classification_code
+FROM entity_nodes node
+LEFT JOIN sector_profiles sector ON sector.entity_id = node.id
+WHERE node.status = 'active'
+ORDER BY node.id
 `
 
 const graphEntityEdgesQuery = `
@@ -471,6 +472,7 @@ func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEn
 	for rows.Next() {
 		var node GraphEntityNode
 		var aliasesJSON string
+		var classificationCode sql.NullString
 		if err := rows.Scan(
 			&node.ID,
 			&node.EntityKey,
@@ -481,11 +483,15 @@ func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEn
 			&aliasesJSON,
 			&node.Status,
 			&node.UpdatedAt,
+			&classificationCode,
 		); err != nil {
 			return nil, fmt.Errorf("scan graph entity node: %w", err)
 		}
 		if err := json.Unmarshal([]byte(aliasesJSON), &node.Aliases); err != nil {
 			return nil, fmt.Errorf("decode graph entity aliases: %w", err)
+		}
+		if classificationCode.Valid {
+			node.ClassificationCode = domain.SectorClassification(classificationCode.String)
 		}
 		nodes = append(nodes, normalizeGraphEntityNode(node))
 	}

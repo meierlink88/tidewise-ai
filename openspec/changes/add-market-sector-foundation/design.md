@@ -207,6 +207,8 @@ Neo4j 节点仍使用单一 `Entity` 标签和 `projection_namespace='tidewise'`
 
 首次 convergence 后 stateful rebuild 暴露出既有 `ListGraphEntityNodes` 会读取全部状态实体：Neo4j 因而出现 611 个节点，其中包含 60 个 inactive legacy sector。修复边界固定在通用 projection source：PostgreSQL repository 只读取 active `entity_nodes`，只读取自身 active 且 from/to 端点均 active 的 `entity_edges`；Memory repository 保持等价语义，projector 再做同样的 fail-closed 防御并以过滤后的行数记录 `source_rows`。该规则适用于所有实体类型，不删除 PostgreSQL 历史实体，也不引入 sector 特例。
 
+active-only 修复后的第二次 stateful rebuild 已得到 551 nodes、383 relationships 和 934/934 成功计数，但验收发现 Neo4j sector 节点没有 `classification_code`，29/23 只能由 key 前缀推导。修复继续复用单一 `GraphEntityNode -> GraphNode -> Neo4j Entity` 链：PostgreSQL 节点 source 对 `sector_profiles` 做 `LEFT JOIN`，以 `domain.SectorClassification` 承载可选真实值；sector 缺失或非法枚举由 mapper fail-closed，非 sector 字段保持空且 writer 清除残留属性。不得按 key 推导，不新增 profile 节点或平行投影。
+
 ### Decision 6: 后续 Apply 必须测试先行
 
 后端实现阶段按 TDD 执行：

@@ -7,6 +7,18 @@
 - **WHEN** graph projector 读取 active `sector` 实体和 profile
 - **THEN** Neo4j 必须创建统一 `Entity` 节点并保留 `projection_namespace`、`entity_key`、`entity_type=sector`、名称、规范名称、状态和可查询的板块分类属性
 
+#### Scenario: 从 sector profile 投影分类属性
+- **WHEN** PostgreSQL active sector 的 `sector_profiles.classification_code` 属于已批准枚举
+- **THEN** repository 必须通过现有实体节点 source 读取真实 profile 值，mapper 和 writer 必须将其写为 Neo4j `classification_code` 属性，不得从 entity key 推导或创建平行 profile 节点
+
+#### Scenario: 缺失或非法板块分类 fail-closed
+- **WHEN** active sector 缺失 `sector_profiles`、`classification_code` 为空或值不属于已批准枚举
+- **THEN** projector 必须拒绝该 sector 节点投影并在既有 run item/report 中记录 failed；依赖该节点的关系按既有缺失端点策略记录 skipped，不得静默推导
+
+#### Scenario: 非板块节点不保留分类属性
+- **WHEN** graph projector 写入任意非 sector 实体
+- **THEN** 参数不得携带 sector `classification_code`，writer 必须清除同一 namespace 节点可能残留的该属性
+
 #### Scenario: 投影市场覆盖板块关系
 - **WHEN** PostgreSQL 包含 active `covers_sector` 实体关系
 - **THEN** Neo4j 必须将其映射为 `COVERS_SECTOR`，并保留 edge ID、原始 relation type、来源、状态、更新时间和投影命名空间

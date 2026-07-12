@@ -7,8 +7,10 @@ import (
 
 func TestPostgresGraphProjectionQueriesRequireActiveRowsAndEndpoints(t *testing.T) {
 	nodes := strings.ToLower(graphEntityNodesQuery)
-	if !strings.Contains(nodes, "where status = 'active'") {
-		t.Fatalf("node projection query does not require active status: %s", graphEntityNodesQuery)
+	for _, fragment := range []string{"left join sector_profiles", "classification_code", "where node.status = 'active'"} {
+		if !strings.Contains(nodes, fragment) {
+			t.Fatalf("node projection query missing %q: %s", fragment, graphEntityNodesQuery)
+		}
 	}
 
 	edges := strings.ToLower(graphEntityEdgesQuery)

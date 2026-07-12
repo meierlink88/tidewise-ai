@@ -498,6 +498,34 @@ func TestInMemoryRepositoryListsOnlyActiveGraphProjectionInputs(t *testing.T) {
 	}
 }
 
+func TestInMemoryRepositoryPreservesSectorClassificationForProjection(t *testing.T) {
+	repo := NewInMemoryRepository(nil)
+	now := time.Date(2026, 7, 12, 12, 0, 0, 0, time.UTC)
+	repo.SeedGraphEntity(GraphEntityNode{
+		ID: "sector", EntityKey: "sector:industry_test", EntityType: domain.EntityTypeSector,
+		LayerCode: "sector", Name: "测试行业", CanonicalName: "测试行业",
+		ClassificationCode: domain.SectorClassificationIndustry, Status: domain.StatusActive, UpdatedAt: now,
+	})
+	repo.SeedGraphEntity(GraphEntityNode{
+		ID: "market", EntityKey: "market:test", EntityType: domain.EntityTypeMarket,
+		LayerCode: "market", Name: "测试市场", CanonicalName: "测试市场", Status: domain.StatusActive, UpdatedAt: now,
+	})
+
+	nodes, err := repo.ListGraphEntityNodes(context.Background())
+	if err != nil {
+		t.Fatalf("ListGraphEntityNodes() error = %v", err)
+	}
+	if len(nodes) != 2 {
+		t.Fatalf("nodes = %+v, want two active nodes", nodes)
+	}
+	if nodes[1].ClassificationCode != domain.SectorClassificationIndustry {
+		t.Fatalf("sector classification = %q", nodes[1].ClassificationCode)
+	}
+	if nodes[0].ClassificationCode != "" {
+		t.Fatalf("non-sector classification = %q, want empty", nodes[0].ClassificationCode)
+	}
+}
+
 func TestInMemoryRepositoryRecordsGraphProjectionRuns(t *testing.T) {
 	repo := NewInMemoryRepository(nil)
 	started := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)

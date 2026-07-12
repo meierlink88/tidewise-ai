@@ -71,6 +71,35 @@ func TestProjectorDefensivelyExcludesInactiveNodesAndEdges(t *testing.T) {
 	}
 }
 
+func TestProjectorFailsInvalidSectorClassificationWithoutPollutingOtherNodes(t *testing.T) {
+	repo := newProjectorRepository()
+	valid := projectorNode("market", "market:test")
+	valid.EntityType = domain.EntityTypeMarket
+	invalid := projectorNode("sector", "sector:invalid")
+	invalid.EntityType = domain.EntityTypeSector
+	invalid.LayerCode = "sector"
+	repo.nodes = []repositories.GraphEntityNode{valid, invalid}
+	repo.edges = []repositories.GraphEntityEdge{{
+		ID: "edge", FromEntityID: valid.ID, ToEntityID: invalid.ID,
+		RelationType: "covers_sector", Status: domain.StatusActive, UpdatedAt: repo.now,
+	}}
+	writer := &recordingGraphWriter{}
+
+	report, err := NewProjector(repo, writer, "tidewise", func() time.Time { return repo.now }).ProjectEntities(context.Background(), ProjectOptions{Mode: repositories.GraphProjectionModeRebuildEntities})
+	if err != nil {
+		t.Fatalf("ProjectEntities() error = %v", err)
+	}
+	if report.Status != repositories.GraphProjectionRunStatusPartial || report.SourceRowCount != 3 || report.ProjectedCount != 1 || report.FailedCount != 1 || report.SkippedCount != 1 {
+		t.Fatalf("report = %+v, want one projected non-sector and failed sector plus skipped edge", report)
+	}
+	if len(writer.nodes) != 1 || writer.nodes[0].EntityID != valid.ID || writer.nodes[0].ClassificationCode != "" || writer.nodes[0].Namespace != "tidewise" {
+		t.Fatalf("writer nodes = %+v", writer.nodes)
+	}
+	if len(writer.deletedNamespaces) != 1 || writer.deletedNamespaces[0] != "tidewise" {
+		t.Fatalf("deleted namespaces = %+v", writer.deletedNamespaces)
+	}
+}
+
 func TestProjectorExcludesBenchmarkObservationsFromSourceRowsAndGraphWrites(t *testing.T) {
 	repo := newProjectorRepository()
 	benchmarkNode := projectorNode("benchmark-1", "benchmark:us_10y_treasury_yield")

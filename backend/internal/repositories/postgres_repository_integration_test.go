@@ -347,6 +347,13 @@ func TestPostgresGraphProjectionSourcesOnlyContainActiveRows(t *testing.T) {
 		if node.Status != domain.StatusActive {
 			t.Fatalf("projection source contains inactive node %s with status %s", node.ID, node.Status)
 		}
+		if node.EntityType == domain.EntityTypeSector {
+			if node.ClassificationCode != domain.SectorClassificationIndustry && node.ClassificationCode != domain.SectorClassificationTheme && node.ClassificationCode != domain.SectorClassificationMarket && node.ClassificationCode != domain.SectorClassificationStyle && node.ClassificationCode != domain.SectorClassificationRegion {
+				t.Fatalf("projection sector %s has invalid classification %q", node.ID, node.ClassificationCode)
+			}
+		} else if node.ClassificationCode != "" {
+			t.Fatalf("non-sector projection node %s has classification %q", node.ID, node.ClassificationCode)
+		}
 		activeIDs[node.ID] = struct{}{}
 	}
 	edges, err := repo.ListGraphEntityEdges(context.Background())

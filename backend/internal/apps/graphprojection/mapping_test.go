@@ -44,6 +44,45 @@ func TestMapEntityNodePreservesProjectionFields(t *testing.T) {
 	}
 }
 
+func TestMapEntityNodeProjectsOnlyValidSectorClassification(t *testing.T) {
+	for _, classification := range []domain.SectorClassification{domain.SectorClassificationIndustry, domain.SectorClassificationTheme} {
+		node := repositories.GraphEntityNode{
+			ID: "sector-1", EntityKey: "sector:test", EntityType: domain.EntityTypeSector,
+			LayerCode: "sector", Name: "测试板块", CanonicalName: "测试板块",
+			ClassificationCode: classification, Status: domain.StatusActive,
+		}
+		mapped, err := MapEntityNode(node, "tidewise")
+		if err != nil {
+			t.Fatalf("MapEntityNode(%q) error = %v", classification, err)
+		}
+		if mapped.ClassificationCode != classification {
+			t.Fatalf("classification = %q, want %q", mapped.ClassificationCode, classification)
+		}
+	}
+
+	nonSector, err := MapEntityNode(repositories.GraphEntityNode{
+		ID: "market-1", EntityKey: "market:test", EntityType: domain.EntityTypeMarket,
+		LayerCode: "market", Name: "测试市场", CanonicalName: "测试市场", Status: domain.StatusActive,
+	}, "tidewise")
+	if err != nil {
+		t.Fatalf("MapEntityNode(non-sector) error = %v", err)
+	}
+	if nonSector.ClassificationCode != "" {
+		t.Fatalf("non-sector classification = %q, want empty", nonSector.ClassificationCode)
+	}
+
+	for _, classification := range []domain.SectorClassification{"", "index_sector"} {
+		_, err := MapEntityNode(repositories.GraphEntityNode{
+			ID: "sector-invalid", EntityKey: "sector:invalid", EntityType: domain.EntityTypeSector,
+			LayerCode: "sector", Name: "非法板块", CanonicalName: "非法板块",
+			ClassificationCode: classification, Status: domain.StatusActive,
+		}, "tidewise")
+		if err == nil || !strings.Contains(err.Error(), "sector classification") {
+			t.Fatalf("classification %q error = %v, want sector classification error", classification, err)
+		}
+	}
+}
+
 func TestMapEntityNodeRejectsMissingRequiredFields(t *testing.T) {
 	_, err := MapEntityNode(repositories.GraphEntityNode{
 		ID:         "entity-1",

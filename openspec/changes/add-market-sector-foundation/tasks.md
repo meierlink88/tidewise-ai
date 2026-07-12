@@ -72,6 +72,10 @@
 - [x] 7.2 TDD RED：增加 PostgreSQL/Memory source 与 projector 混合状态测试，复现 inactive 节点、inactive edge 和 active edge 指向 inactive 端点仍进入 source/projected count 的缺陷
 - [x] 7.3 在通用 repository source 增加 active node 与 active 双端点 edge 过滤，并在 projector 增加 fail-closed 防御；不按 sector 特判，不改变 namespace、关系映射或 PostgreSQL 事实源边界
 - [x] 7.4 运行 repository/graphprojection 聚焦测试、真实 PostgreSQL 只读 source 测试、全量 Go、OpenSpec、diff 与 secret 检查并提交修复 checkpoint；本任务不得再次运行 graph-projector 或写 Neo4j
-- [ ] 7.5 经新的独立 stateful 审批后重新执行 `rebuild-entities`，验收仅 551 个 active Entity、383 条 active 双端点关系、52 canonical sector、0 legacy sector、52 `COVERS_SECTOR`、0 `TRACKED_BY_BENCHMARK`，并完成 namespace、重复、属性与既有实体关系查询
+- [x] 7.5 经独立审批重新执行 `rebuild-entities`，run succeeded 且 source/projected=934/934，得到 551 active Entity、383 条关系、52 canonical sector、0 legacy、52 `COVERS_SECTOR`、0 `TRACKED_BY_BENCHMARK`；但 sector `classification_code` 显式属性计数为 0，因未满足属性验收而暂停，未手工 Cypher 修图
+- [x] 7.6 TDD RED：覆盖 PostgreSQL `LEFT JOIN sector_profiles` source、GraphEntityNode/GraphNode 强类型字段、industry/theme mapping、非 sector 隔离、缺失/非法分类、writer 参数和 projector failed/skipped report
+- [x] 7.7 扩展现有单一实体投影链，从 `sector_profiles.classification_code` 读取真实枚举并写入 Neo4j 同名属性；active sector 缺失或非法值 fail-closed，非 sector 不携带并清除残留属性，不按 key 推导
+- [x] 7.8 运行 repositories/graphprojection/cmd 聚焦测试、真实 PostgreSQL 只读 classification source 测试、全量 Go、OpenSpec、diff 与 secret 检查；本任务不得运行 graph-projector 或写 Neo4j
+- [ ] 7.9 经新的独立 stateful 审批后再次 `rebuild-entities`，除 551/383、52/0、关系、alias、namespace 和重复验收外，必须通过 Cypher 明确查询 `classification_code` 为 industry_sector=29、theme_sector=23 且非 sector 无该属性
 
-> **暂停门：** 当前 Neo4j 保留首次失败现场 611 节点/383 关系。未经新的独立审批不得再次重建、手工 Cypher 修图、Sync、Archive 或创建 PR。
+> **暂停门：** 当前 Neo4j 保留第二次重建的 551 节点/383 关系，但 sector classification 属性缺失。未经新的独立审批不得再次重建、手工 Cypher 修图、Sync、Archive 或创建 PR。

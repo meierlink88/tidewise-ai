@@ -148,15 +148,16 @@ const (
 )
 
 type GraphEntityNode struct {
-	ID            string
-	EntityKey     string
-	EntityType    domain.EntityType
-	LayerCode     string
-	Name          string
-	CanonicalName string
-	Aliases       []string
-	Status        domain.Status
-	UpdatedAt     time.Time
+	ID                 string
+	EntityKey          string
+	EntityType         domain.EntityType
+	LayerCode          string
+	Name               string
+	CanonicalName      string
+	Aliases            []string
+	ClassificationCode domain.SectorClassification
+	Status             domain.Status
+	UpdatedAt          time.Time
 }
 
 type GraphEntityEdge struct {
