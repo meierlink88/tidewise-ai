@@ -9,6 +9,7 @@
     "dev:weapp": "npm --workspace frontend/miniapp run dev:weapp",
     "dev:tt": "npm --workspace frontend/miniapp run dev:tt",
     "build:weapp": "npm --workspace frontend/miniapp run build:weapp",
+    "preview:weapp": "npm --workspace frontend/miniapp run preview:weapp",
     "build:tt": "npm --workspace frontend/miniapp run build:tt",
     "typecheck": "npm --workspace frontend/miniapp run typecheck",
     "lint": "npm --workspace frontend/miniapp run lint",

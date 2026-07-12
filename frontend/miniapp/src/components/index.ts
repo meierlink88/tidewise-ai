@@ -5,3 +5,4 @@ export * from './insight-panel';
 export * from './confidence-bar';
 export * from './tag-list';
 export * from './empty-state';
+export * from './daily-brief';

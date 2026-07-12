@@ -9,6 +9,16 @@
 - 小程序和管理后台是两个独立前端子系统，不共享页面、路由、平台 API 或构建入口。
 - 小程序不得包含后台管理能力；管理后台不得混入小程序平台 API。
 
+## Miniapp 视觉事实源
+
+- 生产小程序页面必须服从已批准 OpenSpec change 指定的 page-level canonical visual/interaction source、固定路径、版本指纹、viewport 和验收范围。
+- 已批准 change 指定 canonical 页面时，该页面最终渲染拥有 page-level 视觉裁决权；旧 `ganchaojia-design` skill 只作为历史与基础 token/component 参考，不得用其冲突规则覆盖 canonical 页面。
+- 未指定 canonical 页面时，可以读取旧 `ganchaojia-design` skill 理解历史视觉语言，但不得自动把它声明为当前生产页面事实源。
+- prototype 目录保持只读。生产实现只能在 `frontend/miniapp/src/styles`、现有 components 和 page compositions 中提炼必要设计抽象，不得复制 HTML、DOM/内联脚本、整套 design library、prototype shell、annotation 或 debug 资产。
+- 原型图片、字体、SVG 或其他资产只有在生产运行确实需要且授权明确时才能复制到 `frontend/miniapp/src/assets`，并在当前 change 中记录固定来源、用途和 SHA-256。
+- page-level 验收使用已批准 viewport 的 canonical 截图基线和视觉对比；微信、抖音安全区、原生导航、字体渲染或平台组件差异必须记录原因、影响和等价处理。
+- 页面稳定并通过视觉验收后，repo-local miniapp design skill 只能由后续独立 OpenSpec change 评估，不得在页面 change 中提前固化。
+
 ## Admin 设计系统
 
 管理后台标准设计系统是 Minimal Dashboard。
