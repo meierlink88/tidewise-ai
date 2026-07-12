@@ -61,8 +61,9 @@ Superpowers 默认要求在 `docs/superpowers/specs/` 和 `docs/superpowers/plan
 
 ### Decision: Git 隔离和远端操作使用明确 Skill 路由
 
+- 开始新 change 前必须执行 `git fetch origin`，并以最新 `origin/main` 为起点创建 `codex/<change-name>`，不得仅依赖可能过期的本地 `main`。
 - 一个正式 OpenSpec change 对应一个 `codex/<change-name>` branch。
-- `using-git-worktrees` 只在并行 change、长期隔离或多线程协作时使用，worktree 不能替代 branch。
+- `using-git-worktrees` 只在并行 change、长期隔离或多线程协作时使用，worktree 不能替代 branch；在 Codex Desktop 中优先创建与独立任务绑定的原生 worktree。
 - `finishing-a-development-branch` 只能在 tasks 完成、sync、archive 和 `validate --all` 后进入。
 - push 和创建 PR 优先使用 `github:yeet`；CI 失败使用 `github:gh-fix-ci`；PR 意见处理使用 `github:gh-address-comments` 和 `receiving-code-review`。
 

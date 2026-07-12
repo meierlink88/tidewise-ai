@@ -47,13 +47,17 @@
 ### Requirement: Git 隔离和收尾必须服从 change 边界
 系统 MUST 为正式 OpenSpec change 使用独立 `codex/<change-name>` branch，并只在并行隔离需要时增加 worktree。
 
+#### Scenario: 从最新主分支开始 change
+- **WHEN** Agent 准备创建新的正式 OpenSpec change
+- **THEN** Agent 必须先更新远端引用，并基于最新 `origin/main` 创建独立 branch 或 worktree，不得使用未经确认的本地 `main` 作为基线
+
 #### Scenario: 串行执行单一 change
 - **WHEN** 当前没有其他未完成 change 需要保留工作目录
 - **THEN** Agent 必须使用独立 branch，并且不得仅为普通任务额外创建 worktree
 
 #### Scenario: 并行执行 change
 - **WHEN** 当前 change 尚未结束且用户批准启动另一个 change
-- **THEN** Agent 必须使用 `using-git-worktrees` 创建隔离 worktree，并为新 change 创建独立 branch
+- **THEN** Agent 必须使用 `using-git-worktrees` 创建隔离 worktree，并为新 change 创建独立 branch；在 Codex Desktop 可用时优先创建与独立任务绑定的原生 worktree
 
 #### Scenario: 准备 PR 或 merge
 - **WHEN** 实现与测试已经完成

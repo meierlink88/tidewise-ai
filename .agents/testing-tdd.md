@@ -1,17 +1,12 @@
 # Testing And TDD
 
-本项目后端研发默认采用 TDD 测试先行。该规则适用于所有涉及 Go 后端实现的 OpenSpec change，而不是某一个单独 change 的临时约定。
+本项目后端研发默认采用 TDD 测试先行。涉及功能、bugfix、重构或行为变更时必须使用 `superpowers:test-driven-development`；遇到失败或异常时必须使用 `superpowers:systematic-debugging`。本文件只补充 Go 和项目边界。
 
-## Backend TDD Flow
+## Backend TDD Gate
 
-后端功能实现顺序：
-
-1. 先阅读当前 change 的 specs、design 和 tasks，明确本次功能点的可验证行为。
-2. 先编写 Go 单元测试、table-driven tests、fixture、fake 或 `httptest` 用例。
-3. 运行对应包的 `go test`，确认测试能表达目标行为。
-4. 编写最小生产实现让测试通过。
-5. 运行对应包测试和 `go test ./...`。
-6. 必要时重构实现，但不得删除或削弱已确认的行为测试。
+- 严格执行 RED、GREEN、REFACTOR，并保留实际失败与通过证据。
+- 先编写 Go 单元测试、table-driven tests、fixture、fake 或 `httptest`，再编写生产实现。
+- 对应包测试通过后运行 `go test ./...`；重构不得删除或削弱已确认的行为测试。
 
 ## Test Boundary Rules
 
@@ -40,4 +35,4 @@
 
 ## Verification Before Completion
 
-在声明完成、提交、push、创建 PR 或 archive 前，必须运行新鲜验证并读取输出。不能依赖旧日志、记忆或“应该能过”的判断。
+在声明完成、提交、push、创建 PR、sync 或 archive 前，必须使用 `superpowers:verification-before-completion` 运行新鲜验证并读取输出。不能依赖旧日志、记忆或“应该能过”的判断。
