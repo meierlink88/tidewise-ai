@@ -2,11 +2,13 @@
 
 - [x] 1.1（首次清单验收否决后已返工）不机械沿用旧 `sectors.json`，从事件推理角度重新推荐 concept、industry、index_sector 各 20 个原始候选，并把旧 60 条仅作为迁移对照
 - [x] 1.2（返工完成）按已确认权重和六维独立 0/3/5 锚点评估新 60 个候选，逐项保存 evidence/source；未核验行情敏感度按 0 分，不为数量目标虚增评分
-- [x] 1.3（返工完成）重构 `candidate-review.md`，同时呈现原始候选 60、建议正式 57、旧 PG 逐项迁移、source/benchmark 建议、重复与覆盖统计；由 Git 保留 Review 历史
-- [ ] 1.4 暂停并提交候选 Review 清单给用户逐项 Review；批准清单前不得执行 migration、正式 seed、PG 写入或 Neo4j 写入/重建
-- [ ] 1.5 按用户 Review 结果确认具体候选、合并/保留、上下位/交叉关系、`tracked_by_benchmark` 关联和人工 override；三类各 Top 20 进入候选池和评分框架不再作为待确认事项
-- [ ] 1.6 更新 Review 后的 seed 草案，确保 Top 排名只作为来源快照，不作为长期 stable key 或唯一入选依据，最终正式 sector 约 50-60 个
-- [ ] 1.7 标注核心约 30、扩展约 20、观察约 10 的运行分层技术落点，明确其属于推理调度或 Review 边界，不属于实体身份字段
+- [x] 1.3（返工完成）重构 `candidate-review.md`，同时呈现原始候选 60、建议正式 52、旧 PG 逐项迁移、source/benchmark 建议、重复与覆盖统计；由 Git 保留 Review 历史
+- [x] 1.4 用户已批准候选方向与语义候选池；批准不等于行情证据，migration、正式 seed、PG 写入或 Neo4j 写入/重建仍未获授权
+- [x] 1.5 按用户 Review 收敛八组 canonical 合并、官方指数 source mapping/`tracked_by_benchmark` 候选和低分组 `MVP覆盖override/待后续行情验证`；原始六维评分保持不变
+- [x] 1.6 在 Review artifact 中完成旧 PG 替换对照与建议正式 52 个 canonical sector 的 seed 草案边界；Top/顺序不进入 stable key 或实体身份，尚未修改正式 seed
+- [x] 1.7 标注核心30、扩展15、观察7的推理调度建议，明确分层不属于实体身份字段
+
+> **暂停门：** tasks 1.x Review 收敛完成。进入 task 2 migration/TDD 前必须获得主对话再次批准；当前不得修改 backend、正式 seed、PostgreSQL 或 Neo4j。
 
 ## 2. Profile 与 migration 测试先行
 

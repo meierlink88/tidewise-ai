@@ -5,9 +5,22 @@
 - 状态：待用户逐项 Review；task 1.4 保持未完成。本文件不是正式 seed，不触发 migration、PostgreSQL 写入或 Neo4j 投影。
 - 本轮从事件推理角度推荐 `industry`、`concept`、`index_sector` 各 20 个原始候选，共 60 个；顺序是 Review 优先级，不是同花顺、东方财富或 PG 热度排名。
 - 旧 `backend/data/entity_foundation/sectors.json` 的 60 条只作为迁移输入，逐项列于“旧 PG 迁移对照”，不再决定新候选池。
-- 建议正式入选 57 个 canonical sector：行业骨架 20、概念来源主导 20、指数板块来源主导 17；X03/C06、X05/C04、X09/C01 三组同义候选合并为同一 canonical sector 并保留多来源 mapping。
+- 用户已批准语义候选池方向。canonical 去重后建议正式入选 52 个：行业骨架 20、概念来源主导 20、指数板块来源主导 12；八组同义候选合并为同一 canonical sector 并保留多来源 mapping。
 - 未核验任何同花顺/东方财富代码、Top 排名或历史行情；官方指数代码仅在本轮官方资料明确出现时才可引用，本清单主表仍不以代码作为身份。
 - 所有结论均为 Review recommendation，不表达投资建议。
+
+### Review 批准与 MVP 覆盖 override
+
+- `approver=user`
+- `approved_scope=semantic_candidate_pool_and_canonical_dedup_direction`
+- `reason=事件传导覆盖与长期主题价值`
+- `applies_to=C01-C20,X11-X20`（原始评分低于 70 分的 30 项）
+- `override_status=MVP覆盖override/待后续行情验证`
+- `Q_status=待后续以真实行情和事件窗口验证；当前仍为0分`
+- `evidence_effect=用户批准不构成行情证据，不改变任何六维原始分或总分`
+- `approved_at=2026-07-12`
+
+该 override 只允许低于 70 分候选进入后续 MVP seed 设计与补证流程；被 canonical 合并的 X11/X13/X15 仍只保留 source mapping 与 benchmark 候选，不单独计入正式 sector。
 
 ### Candidate 与 source mapping identity 边界
 
@@ -100,18 +113,18 @@
 | X01 | 科创半导体材料设备 / STAR Semiconductor Materials and Equipment | `industry_sector`; `sector:industry_star_semiconductor_materials_equipment` | 晶圆厂资本开支、出口管制、材料供给；半导体电子 | 4/4/0/5/4/4=71 | S5；E/T产业环节明确，Q0，D5官方定义，L4，M4 | 同名官方指数；扩展 | 入选 |
 | X02 | 科创芯片设计 / STAR Chip Design | `industry_sector`; `sector:industry_star_chip_design` | 芯片迭代、终端需求、EDA/IP与监管；半导体电子 | 4/4/0/5/4/4=71 | S5；E/T设计环节独立，Q0，D5，L4，M4 | 同名官方指数；扩展 | 入选 |
 | X03 | 中证卫星产业 / CSI Satellite Industry | `theme_sector`; `sector:theme_commercial_space_satellite` | 发射、组网、订单与遥感应用；国防航天卫星 | 4/4/0/5/4/4=71 | S6；E/T完整产业链明确，Q0，D5，L4，M4 | 中证卫星产业；扩展 | 合并至 C06，保留 mapping |
-| X04 | 中证卫星导航产业 / CSI Navigation Satellite Industry | `theme_sector`; `sector:theme_satellite_navigation_index_exposure` | 北斗应用、终端、频谱与导航服务；国防航天卫星 | 4/4/0/5/4/4=71 | S7；E/T导航链明确，Q0，D5，L4，M4 | 中证卫星导航；扩展 | 入选；与C07交叉但范围待核验 |
+| X04 | 中证卫星导航产业 / CSI Navigation Satellite Industry | `theme_sector`; `sector:theme_satellite_communications_navigation` | 北斗应用、终端、频谱与导航服务；国防航天卫星 | 4/4/0/5/4/4=71 | S7；E/T导航链明确，Q0，D5，L4，M4 | 中证卫星导航；扩展 | 合并至 C07；官方指数作为 source mapping + `tracked_by_benchmark` 候选 |
 | X05 | 国证机器人产业 / CNI Robot Industry | `theme_sector`; `sector:theme_robotics_embodied_ai` | 自动化投资、机器人技术与零部件；工业基建 | 4/4/0/5/4/4=71 | S8；E/T机器人链明确，Q0，D5，L4，M4 | 国证机器人产业；扩展 | 合并至 C04，保留 mapping |
-| X06 | 国证风电光伏装备 / CNI Wind and Solar Equipment | `industry_sector`; `sector:industry_wind_solar_equipment_index_exposure` | 装机、招标、贸易与材料成本；能源电力 | 4/4/0/5/4/4=71 | S8；E/T装备定义明确，Q0，D5，L4，M4 | 国证风电光伏装备；扩展 | 入选；与C15交叉待核验 |
-| X07 | 国证新能源电池 / CNI New Energy Battery | `industry_sector`; `sector:industry_new_energy_battery_index_exposure` | 储能、动力电池、系统集成与安全；汽车新能源 | 4/4/0/5/4/4=71 | S8；E/T电池链明确，Q0，D5，L4，M4 | 国证新能源电池；扩展 | 入选 |
+| X06 | 国证风电光伏装备 / CNI Wind and Solar Equipment | `theme_sector`; `sector:theme_wind_solar_equipment` | 装机、招标、贸易与材料成本；能源电力 | 4/4/0/5/4/4=71 | S8；E/T装备定义明确，Q0，D5，L4，M4 | 国证风电光伏装备；扩展 | 合并至 C15；官方指数作为 source mapping + `tracked_by_benchmark` 候选 |
+| X07 | 国证新能源电池 / CNI New Energy Battery | `industry_sector`; `sector:industry_new_energy_batteries` | 储能、动力电池、系统集成与安全；汽车新能源 | 4/4/0/5/4/4=71 | S8；E/T电池链明确，Q0，D5，L4，M4 | 国证新能源电池；扩展 | 入选 |
 | X08 | 国证通用航空产业 / CNI General Aviation Industry | `theme_sector`; `sector:theme_general_aviation_industry` | 空域、适航、机场与航空器需求；交通公用/政策主题 | 4/4/0/5/4/4=71 | S9；E/T通航链明确，Q0，D5公告确认，L4，M4 | 国证通用航空产业；扩展 | 入选；与C05交叉不等同 |
 | X09 | 创业板人工智能 / ChiNext Artificial Intelligence | `theme_sector`; `sector:theme_artificial_intelligence` | AI技术、算力、应用与监管；AI软件通信 | 4/4/0/5/4/4=71 | S9；E/T主题明确，Q0，D5公告确认，L4，M4 | 创业板人工智能；扩展 | 合并至 C01，保留 mapping |
 | X10 | 国证化肥农药 / CNI Fertilizer and Pesticide | `industry_sector`; `sector:industry_fertilizer_pesticide` | 农资价格、种植周期、环保与粮食安全；消费农业/有色化工材料 | 4/4/0/5/4/4=71 | S9；E/T农化链明确，Q0，D5公告确认，L4，M4 | 国证化肥农药；扩展 | 入选 |
-| X11 | 上证信息安全 / SSE Information Security | `theme_sector`; `sector:theme_information_security_index_exposure` | 网络安全事件、合规与政企预算；AI软件通信 | 4/4/0/4/4/4=68 | S10；E/T安全支出明确，Q0，D4方法待取，L4，M4 | 上证信息安全；观察 | 入选；与C08交叉待核验 |
-| X12 | 中证高端制造 / CSI Advanced Manufacturing | `industry_sector`; `sector:industry_advanced_manufacturing_index_exposure` | 设备更新、制造投资、技术突破；工业基建 | 4/4/0/4/4/4=68 | S10；E/T制造链明确，Q0，D4，L4，M4 | 中证高端制造；观察 | 入选 |
-| X13 | 中证基建 / CSI Infrastructure | `industry_sector`; `sector:industry_infrastructure_index_exposure` | 财政、专项债、项目开工；工业基建 | 4/4/0/4/4/4=68 | S10；E/T基建周期明确，Q0，D4，L4，M4 | 中证基建；观察 | 入选；与I10交叉待核验 |
+| X11 | 上证信息安全 / SSE Information Security | `theme_sector`; `sector:theme_cyber_data_security` | 网络安全事件、合规与政企预算；AI软件通信 | 4/4/0/4/4/4=68 | S10；E/T安全支出明确，Q0，D4方法待取，L4，M4 | 上证信息安全；观察 | 合并至 C08；官方指数作为 source mapping + `tracked_by_benchmark` 候选 |
+| X12 | 中证高端制造 / CSI Advanced Manufacturing | `industry_sector`; `sector:industry_advanced_manufacturing` | 设备更新、制造投资、技术突破；工业基建 | 4/4/0/4/4/4=68 | S10；E/T制造链明确，Q0，D4，L4，M4 | 中证高端制造；观察 | 入选 |
+| X13 | 中证基建 / CSI Infrastructure | `industry_sector`; `sector:industry_construction_infrastructure` | 财政、专项债、项目开工；工业基建 | 4/4/0/4/4/4=68 | S10；E/T基建周期明确，Q0，D4，L4，M4 | 中证基建；观察 | 合并至 I10；官方指数作为 source mapping + `tracked_by_benchmark` 候选 |
 | X14 | 中证银发经济 / CSI Silver Economy | `theme_sector`; `sector:theme_silver_economy` | 人口、养老政策、医疗与消费服务；医药生科/消费农业 | 4/4/0/4/4/4=68 | S10；E/T人口政策明确，Q0，D4，L4，M4 | 中证银发经济；观察 | 入选 |
-| X15 | 中证全指汽车 / CSI All Share Automobiles | `industry_sector`; `sector:industry_automobile_index_exposure` | 销量、关税、技术与供应链；汽车新能源 | 4/4/0/4/4/4=68 | S10；E/T汽车链明确，Q0，D4，L4，M4 | 中证全指汽车；观察 | 入选；与I13交叉待核验 |
+| X15 | 中证全指汽车 / CSI All Share Automobiles | `industry_sector`; `sector:industry_automobiles_components` | 销量、关税、技术与供应链；汽车新能源 | 4/4/0/4/4/4=68 | S10；E/T汽车链明确，Q0，D4，L4，M4 | 中证全指汽车；观察 | 合并至 I13；官方指数作为 source mapping + `tracked_by_benchmark` 候选 |
 | X16 | 科创新能源 / STAR New Energy | `theme_sector`; `sector:theme_star_new_energy` | 装机、技术、贸易与资本开支；能源电力 | 4/4/0/4/4/4=68 | S11；E/T新能源明确，Q0，D4，L4，M4 | 科创新能源；观察 | 入选 |
 | X17 | 科创工业机械 / STAR Industrial Machinery | `industry_sector`; `sector:industry_star_industrial_machinery` | 制造资本开支、工控与设备更新；工业基建 | 4/4/0/4/4/4=68 | S11；E/T工业机械明确，Q0，D4，L4，M4 | 科创工业机械；观察 | 入选 |
 | X18 | 科创生物医药 / STAR Biomedicine | `industry_sector`; `sector:industry_star_biomedicine` | 审批、临床、医保与研发；医药生科 | 4/4/0/4/4/4=68 | S12；E/T生物医药明确，Q0，D4，L4，M4 | 科创生物医药；观察 | 入选 |
@@ -121,19 +134,28 @@
 ## 建议正式入选结果
 
 - 原始候选：60。
-- 建议正式 canonical sector：57；`industry` 来源主导 20、`concept` 来源主导 20、`index_sector` 来源主导 17。
-- 合并但保留多来源 mapping：X03→C06、X05→C04、X09→C01，共减少 3 个重复 canonical sector。
-- 70 分及以上：30 个（行业 20、官方定义较完整指数板块 10）；低于 70 分：30 个。低分主要因为 Q=0 和具体 source mapping/方法证据不足，不因目标数量提升分数。
+- 建议正式 canonical sector：52；`industry` 来源主导 20、`concept` 来源主导 20、`index_sector` 来源主导 12。
+- 合并但保留多来源 mapping 与 benchmark 候选：X03→C06、X04→C07、X05→C04、X06→C15、X09→C01、X11→C08、X13→I10、X15→I13，共减少 8 个重复 canonical sector。
+- 原始候选评分保持不变：70 分及以上 30 个，低于 70 分 30 个。用户对低分组批准 `MVP覆盖override/待后续行情验证`，Q 仍为0，不因批准或数量目标提升分数。
 - 本轮没有 benchmark-only 的新原始候选；所有 X 项均为产业/主题指数板块。对应指数实体仍应作为 benchmark，通过 `tracked_by_benchmark` 关联，而不是替代 sector。
+
+### 推理调度分层（不进入实体身份）
+
+- 核心 30：I01-I20、C01-C10。
+- 扩展 15：C11-C20，以及去重后独立保留的 X01、X02、X07、X08、X10。
+- 观察 7：去重后独立保留的 X12、X14、X16-X20。
+- 被合并的八个 X 来源继承目标 canonical sector 的调度层，不单独占配额。
+- 分层只属于后续推理调度配置/Review 视图，不写入 `entity_key`、semantic classification 或不可变主数据字段。
 
 ## 重复、上下位与交叉关系建议
 
 | 关系 | 建议 |
 | --- | --- |
-| C01 ↔ X09、C04 ↔ X05、C06 ↔ X03 | 完全同义方向，合并 canonical sector，保留 concept/index_sector 两条 source mapping |
-| C06 > C07；X03 > X04 | 卫星产业为上位，卫星通信导航为下位；本 change 暂不写正式层级边 |
+| C01 ↔ X09、C04 ↔ X05、C06 ↔ X03、C07 ↔ X04 | 同义语义合并 canonical sector，保留 concept/index_sector 多来源 mapping；对应官方指数为 benchmark 候选 |
+| C06 > C07；X03 > X04 | 卫星产业为上位，卫星通信导航为下位；X04 合并 C07，不单独创建 `index_exposure` 实体 |
 | I11 > X01/X02；C09 ↔ I11/X01/X02 | 行业骨架、产业环节、政策主题分别保留，建立交叉关系建议，不强制合并 |
-| I14 > C10/C11/C13/C15；X06/X07/X16 交叉 | 电力设备与电池为行业骨架，储能/新电池/智能电网/风光为主题或指数暴露 |
+| C15 ↔ X06；C08 ↔ X11；I10 ↔ X13；I13 ↔ X15 | 语义和范围基本一致，合并 canonical sector；官方指数只保留 source mapping 与 `tracked_by_benchmark` 候选 |
+| I14 > C10/C11/C13/C15；X07/X16 交叉 | 电力设备与电池为行业骨架，储能/新电池/智能电网/风光为主题或指数暴露 |
 | I09 > C04/X05/X17/X20 | 高端机械为行业骨架，机器人、工业机械、高端装备是不同粒度暴露 |
 | I15 > C17/C18/X18；I17 ↔ X10 | 医药与农业行业骨架分别承载细分主题/指数暴露 |
 
@@ -235,8 +257,6 @@
 
 ## 待用户 Review
 
-1. 批准或调整建议正式 57 个 canonical sector，以及三组同义合并。
-2. 决定低于 70 分的 30 项是否进入补证流程；未经 override 不因数量目标自动批准。
-3. 确认 I02、I07、I12-I16 等较宽行业骨架是否需要拆分；拆分会改变最终总数。
-4. 对 X04、X06-X08、X10-X20 获取逐条编制方案后，再确认 `tracked_by_benchmark` 和 source mapping。
-5. 确认旧数字货币、跨境电商、传媒、中药、医疗服务等对象是合并、独立保留还是作为高质量候补；若拆分后仍保持证据充分，最终总数可在 50-60 内调整。
+1. 用户已批准语义候选池方向、52 个 canonical 去重方向，以及低分组进入 `MVP覆盖override/待后续行情验证`；原始评分不变。
+2. task 2 前仍需主对话再次批准 migration/TDD 范围；当前不得修改 backend、正式 seed、PG 或 Neo4j。
+3. 后续需对 X04、X06-X08、X10-X20 获取逐条编制方案，再生成正式 source mapping identity 与 `tracked_by_benchmark` 关系草案。
