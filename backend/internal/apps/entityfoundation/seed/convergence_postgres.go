@@ -345,7 +345,7 @@ func moveSectorReferences(ctx context.Context, tx *sql.Tx, convergenceID, legacy
 		return counts, err
 	}
 	var aliasEntityID string
-	err = tx.QueryRowContext(ctx, `UPDATE entity_nodes SET aliases=array_append(aliases,$1), updated_at=NOW() WHERE id=$2 AND NOT ($1=ANY(aliases)) RETURNING id`, alias, targetID).Scan(&aliasEntityID)
+	err = tx.QueryRowContext(ctx, `UPDATE entity_nodes SET aliases=ARRAY(SELECT DISTINCT value FROM unnest(aliases || ARRAY[$1::text]) AS value ORDER BY value), updated_at=NOW() WHERE id=$2 AND NOT ($1=ANY(aliases)) RETURNING id`, alias, targetID).Scan(&aliasEntityID)
 	if err == sql.ErrNoRows {
 		return counts, nil
 	}
@@ -456,6 +456,10 @@ func convergenceAuditMutationExpression(checksumParameter, modeParameter int) st
 
 func convergenceOperationMutationExpression(operationParameter int) string {
 	return fmt.Sprintf("jsonb_build_object('operation',$%d::text)", operationParameter)
+}
+
+func currentConvergenceOwnedAliasesQuery() string {
+	return `SELECT am.to_entity_id::text,am.alias,am.alias=ANY(n.aliases) AS present FROM entity_convergence_alias_moves am JOIN entity_convergences c ON c.id=am.convergence_id JOIN entity_nodes n ON n.id=am.to_entity_id WHERE c.manifest_version=(SELECT MAX(manifest_version) FROM entity_convergence_manifests) ORDER BY am.to_entity_id,am.alias`
 }
 
 func applyRecordedCorrectionMoves(ctx context.Context, tx *sql.Tx, previousID, currentID string, targetType domain.EntityType, targetID any, targetKey string) (sectorMoveCounts, error) {

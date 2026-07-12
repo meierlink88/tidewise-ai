@@ -113,6 +113,14 @@
 - **WHEN** 同一版本 convergence 或普通 seed 在成功后重复执行
 - **THEN** 系统不得新增重复 entity、mapping、edge 或 audit row，且必须报告 already-converged/unchanged 结果
 
+#### Scenario: 普通 seed 保留当前 convergence alias 所有权
+- **WHEN** 普通 entity seed 更新已收敛 canonical entity 的 aliases
+- **THEN** 系统必须以正式 seed aliases 加当前最大合法 manifest 的 alias mutation audit 作为最终集合，保留当前 audit-owned aliases，并删除不再属于正式 seed且没有当前 convergence audit 所有权的普通 alias
+
+#### Scenario: 前向恢复缺失 convergence alias
+- **WHEN** 已应用 convergence 的环境因旧版普通 seed 覆盖而缺失当前 alias mutation audit 记录的 alias
+- **THEN** 前向 repair migration 必须只从当前最大 manifest 的 append-only alias audit 恢复缺失值，重复执行不得再次更新；尚无 convergence manifest 的 fresh 环境必须 no-op
+
 #### Scenario: Memory 与 PostgreSQL 原子语义一致
 - **WHEN** 相同 convergence manifest 分别由 MemoryRepository 和 PostgresRepository 执行
 - **THEN** 两者必须对 preflight、引用冲突、rollback、状态变化和 report 产生等价结果

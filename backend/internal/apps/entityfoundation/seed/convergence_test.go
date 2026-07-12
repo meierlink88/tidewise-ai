@@ -450,6 +450,66 @@ func TestReviewedConvergenceClosesCanonicalSeedCountsInMemory(t *testing.T) {
 	}
 }
 
+func TestMemoryOrdinarySeedPreservesCurrentConvergenceAliasesOnly(t *testing.T) {
+	repo := NewMemoryRepository()
+	manifest := reviewedConvergenceFixture(t)
+	for _, item := range manifest.Convergences {
+		legacy := Entity{Key: item.LegacyEntityKey, EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: item.LegacyName, CanonicalName: item.LegacyName, Status: domain.StatusActive, Profile: []byte(`{"sector_system":"ths","sector_type":"concept"}`)}
+		if _, err := repo.UpsertEntity(context.Background(), legacy); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
+	seedManifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewService(repo).ApplySectorConvergence(context.Background(), seedManifest, manifest, SectorConvergenceModeInitial); err != nil {
+		t.Fatal(err)
+	}
+	var ownedAlias, targetKey string
+	for _, item := range manifest.Convergences {
+		if item.TargetEntityType == domain.EntityTypeSector {
+			ownedAlias = item.LegacyName
+			targetKey = item.TargetEntityKey
+			break
+		}
+	}
+	target := repo.entities[targetKey]
+	target.Aliases = append(target.Aliases, "temporary ordinary alias")
+	repo.entities[targetKey] = target
+	var seedEntity Entity
+	for _, entity := range seedManifest.Entities {
+		if entity.Key == targetKey {
+			seedEntity = entity
+			break
+		}
+	}
+	result, err := repo.UpsertEntity(context.Background(), seedEntity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Action != WriteUpdated {
+		t.Fatalf("action = %q", result.Action)
+	}
+	aliases := repo.entities[targetKey].Aliases
+	if !containsString(aliases, ownedAlias) {
+		t.Fatalf("owned alias %q was removed: %v", ownedAlias, aliases)
+	}
+	if containsString(aliases, "temporary ordinary alias") {
+		t.Fatalf("ordinary alias was retained: %v", aliases)
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
 func reviewedConvergenceFixture(t *testing.T) SectorConvergenceManifest {
 	t.Helper()
 	manifest, err := LoadSectorConvergenceFile(filepath.Join("..", "..", "..", "..", "data", "entity_foundation", "sector_convergences.json"))

@@ -69,12 +69,22 @@ func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (Wr
 
 func buildEntityUpsert() string {
 	return `
-WITH upsert AS (
+WITH current_convergence_aliases AS (
+    SELECT COALESCE(array_agg(DISTINCT am.alias ORDER BY am.alias), '{}'::text[]) AS aliases
+    FROM entity_convergence_alias_moves am
+    JOIN entity_convergences c ON c.id = am.convergence_id
+    WHERE am.to_entity_id = $1
+      AND c.manifest_version = (SELECT MAX(manifest_version) FROM entity_convergence_manifests)
+), incoming AS (
+    SELECT $1::uuid AS id, $2::text AS entity_key, $3::text AS entity_type,
+           $4::text AS layer_code, $5::text AS name, $6::text AS canonical_name,
+           ARRAY(SELECT DISTINCT alias FROM unnest($7::text[] || ca.aliases) AS alias ORDER BY alias) AS aliases,
+           $8::text AS status
+    FROM current_convergence_aliases ca
+), upsert AS (
     INSERT INTO entity_nodes (
         id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-    ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8
-    )
+    ) SELECT id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status FROM incoming
     ON CONFLICT (id) DO UPDATE SET
         entity_key = EXCLUDED.entity_key,
         entity_type = EXCLUDED.entity_type,

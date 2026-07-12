@@ -43,6 +43,7 @@ type MemoryRepository struct {
 	convergenceReviews           map[int64]string
 	convergenceAudits            map[string]SectorConvergence
 	convergenceRelationshipMoves map[string][]string
+	convergenceOwnedAliases      map[string]map[string]struct{}
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -55,6 +56,7 @@ func NewMemoryRepository() *MemoryRepository {
 		convergenceReviews:           map[int64]string{},
 		convergenceAudits:            map[string]SectorConvergence{},
 		convergenceRelationshipMoves: map[string][]string{},
+		convergenceOwnedAliases:      map[string]map[string]struct{}{},
 	}
 }
 
@@ -138,6 +140,7 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 		audits[key] = value
 	}
 	relationshipMoves := cloneStringSliceMap(r.convergenceRelationshipMoves)
+	ownedAliases := cloneStringSetMap(r.convergenceOwnedAliases)
 	report := SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, RetiredLegacy: len(manifest.Convergences), AuditCreated: len(manifest.Convergences)}
 	for _, item := range manifest.Convergences {
 		auditKey := item.LegacyEntityKey + "|" + fmt.Sprint(manifest.ManifestVersion)
@@ -172,6 +175,14 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 			if !ok {
 				return SectorConvergenceReport{}, fmt.Errorf("missing previous convergence audit for %q", item.LegacyEntityKey)
 			}
+			if previous.TargetEntityType == domain.EntityTypeSector && previous.TargetEntityKey != item.TargetEntityKey {
+				if owned := ownedAliases[previous.TargetEntityKey]; owned != nil {
+					delete(owned, previous.LegacyName)
+					oldTarget := entities[previous.TargetEntityKey]
+					oldTarget.Aliases = removeAlias(oldTarget.Aliases, previous.LegacyName)
+					entities[previous.TargetEntityKey] = oldTarget
+				}
+			}
 			sourceKey := previous.TargetEntityKey
 			if sourceKey == "" {
 				sourceKey = item.LegacyEntityKey
@@ -200,6 +211,10 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 		legacy.Status = domain.StatusInactive
 		entities[item.LegacyEntityKey] = legacy
 		if item.TargetEntityType == domain.EntityTypeSector {
+			if ownedAliases[item.TargetEntityKey] == nil {
+				ownedAliases[item.TargetEntityKey] = map[string]struct{}{}
+			}
+			ownedAliases[item.TargetEntityKey][item.LegacyName] = struct{}{}
 			target := entities[item.TargetEntityKey]
 			found := false
 			for _, alias := range target.Aliases {
@@ -284,9 +299,32 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 	r.relationships = relationships
 	r.convergenceAudits = audits
 	r.convergenceRelationshipMoves = relationshipMoves
+	r.convergenceOwnedAliases = ownedAliases
 	r.convergenceManifests[manifest.ManifestVersion] = manifest.ManifestChecksum
 	r.convergenceReviews[manifest.ManifestVersion] = manifest.ReviewSourceURL + manifest.ReviewedAt.String()
 	return report, nil
+}
+
+func cloneStringSetMap(input map[string]map[string]struct{}) map[string]map[string]struct{} {
+	output := make(map[string]map[string]struct{}, len(input))
+	for key, values := range input {
+		cloned := make(map[string]struct{}, len(values))
+		for value := range values {
+			cloned[value] = struct{}{}
+		}
+		output[key] = cloned
+	}
+	return output
+}
+
+func removeAlias(values []string, target string) []string {
+	output := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != target {
+			output = append(output, value)
+		}
+	}
+	return output
 }
 
 func cloneStringSliceMap(input map[string][]string) map[string][]string {
@@ -370,6 +408,11 @@ func (r *MemoryRepository) UpsertEntity(_ context.Context, entity Entity) (Write
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	owned := make([]string, 0, len(r.convergenceOwnedAliases[entity.Key]))
+	for alias := range r.convergenceOwnedAliases[entity.Key] {
+		owned = append(owned, alias)
+	}
+	entity.Aliases = mergeAliasSets(entity.Aliases, owned)
 
 	existing, ok := r.entities[entity.Key]
 	if !ok {
@@ -381,6 +424,23 @@ func (r *MemoryRepository) UpsertEntity(_ context.Context, entity Entity) (Write
 	}
 	r.entities[entity.Key] = entity
 	return WriteResult{Key: entity.Key, Action: WriteUpdated}, nil
+}
+
+func mergeAliasSets(groups ...[]string) []string {
+	seen := map[string]struct{}{}
+	for _, group := range groups {
+		for _, alias := range group {
+			if alias != "" {
+				seen[alias] = struct{}{}
+			}
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for alias := range seen {
+		result = append(result, alias)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func (r *MemoryRepository) UpsertProfile(_ context.Context, profile Profile) (WriteResult, error) {

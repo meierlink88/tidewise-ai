@@ -83,6 +83,15 @@ func TestEntityUpsertSQLPersistsBusinessKey(t *testing.T) {
 	}
 }
 
+func TestEntityUpsertSQLScopesAliasOwnershipToCurrentConvergence(t *testing.T) {
+	statement := strings.ToLower(buildEntityUpsert())
+	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "max(manifest_version)", "am.to_entity_id = $1", "unnest($7::text[]"} {
+		if !strings.Contains(statement, fragment) {
+			t.Fatalf("entity upsert missing %q", fragment)
+		}
+	}
+}
+
 func TestProfileTableName(t *testing.T) {
 	cases := map[domain.EntityType]string{
 		domain.EntityTypeAllianceOrg: "alliance_org_profiles",
