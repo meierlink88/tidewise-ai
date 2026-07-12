@@ -34,8 +34,8 @@
 - **THEN** Agent 必须按层展示拟执行范围并取得明确批准，不得从只读审计推定写入授权
 
 #### Scenario: 启动并行 change
-- **WHEN** 另一个 change 仍在 review、实现或未合并状态
-- **THEN** 在 Codex Desktop 可用时，Agent 必须通过 Desktop 新任务创建受管 worktree，并在受管任务内从最新 `origin/main` 创建或切换匹配的 `codex/<change-name>` branch，不得手工执行 `git worktree add`，且不得混入其他 change 的文件
+- **WHEN** 另一个 change 仍 active，且用户明确批准启动无依赖、无共享写状态的 independent parallel change
+- **THEN** Agent 必须通过 Desktop 新任务创建独立受管 worktree，在其中从最新 `origin/main` 创建或切换匹配的 `codex/<change-name>` branch，并记录文件、artifact 和数据库状态边界
 
 #### Scenario: 在 Codex Desktop 中启动新 change
 - **WHEN** Agent 在 Codex Desktop 可用的环境中启动任何新 change
@@ -71,3 +71,32 @@
 #### Scenario: 精简结果进入人工 Review
 - **WHEN** Agent 完成规则正文修改并准备请求人工验收
 - **THEN** Agent 必须提供前后行数与字节数、压缩率、覆盖矩阵、重复/冲突扫描、链接检查、scoped diff 和 `openspec validate streamline-agent-rules` 的新鲜结果
+
+## MODIFIED Requirements
+
+### Requirement: Git 隔离和收尾必须服从 change 边界
+系统 MUST 为正式 OpenSpec change 使用独立 `codex/<change-name>` branch；在 Codex Desktop 可用时，所有新 change 必须通过 Desktop 新任务创建独立受管 worktree，并按 sequential successor 或 explicitly approved independent parallel change 的关系门禁执行。
+
+#### Scenario: 从最新主分支开始 change
+- **WHEN** Agent 准备创建新的正式 OpenSpec change
+- **THEN** Agent 必须先更新远端引用，并在 Desktop-managed worktree 中基于最新 `origin/main` 创建或切换匹配的 `codex/<change-name>` branch，保持工作区 clean 且 scoped
+
+#### Scenario: 启动 sequential successor change
+- **WHEN** 新 change 依赖当前 change 的产物或接续同一产品、数据或交付链工作
+- **THEN** Agent 必须等待前序 change 完成 archive commit、Deliver 和隔离清理后再启动，不得用新 worktree 绕过依赖顺序
+
+#### Scenario: 启动 explicitly approved independent parallel change
+- **WHEN** 另一 change 仍 active 且用户明确批准启动无依赖的独立 parallel change
+- **THEN** Agent 必须使用独立 Desktop-managed task/worktree 和 branch，记录文件、OpenSpec artifacts/tasks 与数据库状态边界，并确保不共享源码文件或写状态
+
+#### Scenario: 并行边界发生变化
+- **WHEN** 并行 change 执行中出现产物依赖、文件重叠或共享数据库写状态
+- **THEN** Agent 必须立即暂停相关工作并重新排序，不得继续并行
+
+#### Scenario: Desktop 机制不可用时使用 fallback
+- **WHEN** Codex Desktop 受管机制不可用且用户明确批准 fallback
+- **THEN** Agent 才可按 `.agents/git-workflow.md` 创建路径和所有权明确的 project-owned worktree
+
+#### Scenario: 准备 PR 或 merge
+- **WHEN** 实现、测试和 Apply 后人工 Review 已经完成
+- **THEN** Agent 只有在 OpenSpec Sync、Archive、`openspec validate --all` 和 archive commit 完成后才能进入 PR 或 merge
