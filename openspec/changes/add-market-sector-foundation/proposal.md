@@ -6,9 +6,11 @@
 
 ## What Changes
 
-- 定义第一版市场板块实体基础能力，覆盖板块分类法、稳定 `entity_key`、中文主名称、英文 aliases、来源系统、市场范围、父子层级和可审阅快照字段。
+- 定义第一版市场板块实体基础能力，覆盖外部来源分类、语义板块分类、稳定 `entity_key`、中文主名称、英文 aliases、来源系统、市场范围、父子层级和可审阅快照字段。
+- 明确同花顺“概念板块、行业板块、指数板块”三类在产品语义里都可以作为 `sector` 候选；`index_sector` 不因名称带“指数”而自动降级为 benchmark。
+- 采纳已确认的 MVP 板块选择方法：三类各 Top 20 形成约 60 个原始候选池，按事件可解释性、传导独立性、行情敏感度、数据完整性、长期稳定性和市场代表性评分，原则上 70 分以上进入 MVP，最终形成约 50-60 个正式 sector。
 - 明确板块与 `market`、`economy`、`benchmark` 的关系草案：PG 仍为实体与关系事实源，Neo4j 只投影已审阅的实体关系，不投影行情时序或事件推理结论。
-- 收紧 `sector`、`chain_node`、`benchmark`、`commodity`、`metric`、`index` 的概念边界，避免后续产业链、商品价格、宏观指标和事件推理编排重复建模。
+- 收紧 external/source taxonomy、semantic sector 和 market benchmark 三层概念边界，避免把来源分类、可被事件影响的产业/主题暴露、用于量化验证的行情标尺混成同一个实体职责。
 - 设计实现阶段应复用 `backend/data/entity_foundation/sectors.json`、`sector_profiles`、`entity_edges`、`relationship_policy.go` 和 graph projection 映射，不创建平行 seed、平行 profile 或平行图谱写入路径。
 - 明确投研安全边界：板块基础数据只能表达客观分类、来源、市场范围和审阅关系，不表达具体股票推荐、买卖建议、涨跌预测、受益承压或传导强度。
 
@@ -28,4 +30,4 @@
 - 不涉及 `prototype` 目录，不从高保真原型复制 HTML、DOM 操作或内联脚本。
 - 不涉及上级 `doc` 目录；长期产品文档如需更新，应由独立文档 change 处理。
 - 不修改或混入 active change `add-ai-event-extraction-pipeline`，也不触碰 `add-sdk-source-worker-connectors` worktree。
-- 后续实现会影响后端实体基础库 seed、Go loader/validator、repository/migration、graph projection 映射和 OpenSpec 主规格；不新增前端 API、不新增小程序页面、不接入真实行情源。
+- 后续实现会影响后端实体基础库 seed、Go loader/validator、repository/migration、graph projection 映射和 OpenSpec 主规格；不新增前端 API、不新增小程序页面、不接入真实行情源；候选评分和核心/扩展/观察分层用于 Review 与推理调度，不得被误固化为实体身份。

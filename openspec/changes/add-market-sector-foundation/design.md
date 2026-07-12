@@ -4,12 +4,12 @@
 
 现有状态适合初始化“行情源板块快照”，但还不足以作为事件驱动投研的长期板块基础层：
 
-- `sector_type=index` 容易与正式 `index` 实体混淆。
+- `sector_type=index` 容易与正式 `index` 实体混淆；但用户已澄清同花顺“指数板块”示例是“半导体材料设备”“卫星产业”这类板块，不是上证指数、VIX 或国债收益率这类宏观 benchmark，因此它们仍应允许映射为 `sector`。
 - `exchange_scope` 只能粗略表达市场范围，不能明确连接到 `market:a_share`、`market:hk_stock`、`market:us_stock` 等既有市场实体。
 - 现有关系策略没有允许 `market -> sector`、`sector -> benchmark` 或 `sector -> chain_node` 的客观关系。
 - 事件推理后续会需要“事件影响到哪些板块”，但本 change 不能把推理结论、涨跌预测或股票推荐写入基础 seed。
 
-用户当前倾向以同花顺作为候选池来源，概念、行业、指数三个来源分类各取 Top 20，约 60 个候选，用于评估事件推理 MVP 是否够用。当前设计将该思路作为 Review 决策点：40-60 个候选适合作为 MVP 起步规模，但不建议把来源排名机械转成长期主数据；同花顺的“概念/行业/指数”是候选源分类，观潮家的 `sector`、`benchmark`、`index`、`chain_node` 是领域实体类型，两者必须经过筛选和去重映射。
+用户已确认以同花顺作为候选池来源，概念板块、行业板块、指数板块三个来源分类各取 Top 20，形成约 60 个原始候选，用于事件推理 MVP。三类都属于 `sector` 候选，Top 仅用于候选生成，不是永久主数据属性；同花顺的“概念板块/行业板块/指数板块”是 external/source taxonomy，观潮家的语义板块是 semantic sector，benchmark 是 market benchmark，三层必须拆开建模。
 
 本 change 仍处于 Propose 阶段，只定义后续实现方案，不修改源码、migration、seed 或 Neo4j 数据。
 
@@ -19,9 +19,13 @@
 
 - 建立 `market-sector-foundation` 能力，定义市场板块实体的分类法、稳定标识、命名规则、关系边界和可验证完成标准。
 - 复用既有 `entity_nodes`、`sector_profiles`、`entity_edges`、`backend/data/entity_foundation/sectors.json`、`backend/internal/apps/entityfoundation/seed`、`backend/internal/apps/graphprojection`。
-- 明确第一版板块分类：`market_sector`、`theme_sector`、`industry_sector`、`style_sector`、`region_sector`、`index_proxy_sector`，其中 `index_proxy_sector` 只表示行情源把指数作为板块分组展示，不替代正式 `index` 实体。
+- 明确第一版板块分类：`market_sector`、`theme_sector`、`industry_sector`、`style_sector`、`region_sector`、`index_sector`。其中 `index_sector` 表达来源系统定义的指数板块或指数型板块暴露，仍是 `sector` 候选，不替代正式 `index` 实体，也不等于 benchmark。
+- 明确三层概念：external/source taxonomy 保存来源系统分类，例如 `concept`、`industry`、`index_sector`；semantic sector 表达可被事件影响的产业/主题暴露；market benchmark 表达用于量化验证的可观测行情标尺。
 - 定义候选准入策略：Top 排名只保存为来源快照，长期入选必须通过事件可映射性、传导差异、稳定性、市场覆盖、数据可获得性和重叠度筛选。
-- 给出 MVP 候选配额建议：行业骨架约 25-30 个，事件主题约 15-20 个，指数代理或参考 benchmark 约 5-10 个，总量控制在 40-60 个，等待用户 Review 后定稿。
+- 给出 MVP 候选策略：同花顺概念板块、行业板块、指数板块各 Top 20 均进入 Review 候选池，总量约 60 个；筛选重点是去重、交叉关系和职责判别，而不是预先削减 `index_sector` 配额。
+- 采纳 MVP 候选评估策略：按事件可解释性 25、传导独立性 20、行情敏感度 15、数据完整性 15、长期稳定性 15、市场代表性 10 评分，原则上 70 分以上进入 MVP。
+- 明确最终正式 sector 规模约 50-60 个，覆盖金融地产、能源电力、有色化工材料、工业基建、半导体电子、AI 软件通信、汽车新能源、医药生科、消费农业、交通公用、国防航天卫星、政策主题等传导簇。
+- 明确运行分层：核心约 30、扩展约 20、观察约 10，用于推理调度优先级或 Review 工作流，不作为实体身份、稳定 key 或不可变主数据属性。
 - 为后续实现定义关系草案：`market -> covers_sector -> sector`、`sector -> observes_benchmark -> benchmark`、`sector -> maps_to_chain_node -> chain_node`。其中第一版推荐只实现 `covers_sector`，其余关系进入后续人工 review。
 - 明确 PG/Neo4j 边界：PostgreSQL 是板块实体、profile 和关系事实源；Neo4j 只投影已审阅 active 实体关系；板块行情时序、事件推理结果、传导强度和推荐内容不进入实体基础图。
 - 定义 TDD 策略：实现阶段先补 seed loader/relationship policy/migration/projection tests，再修改生产代码，并以 `go test ./...` 作为最终验证。
@@ -41,13 +45,16 @@
 
 推荐方案：继续使用 `entity_nodes.entity_type='sector'` 和 `sector_profiles`。后续 implementation 通过增量 migration 扩展 `sector_profiles`，补充可长期使用的字段：
 
-- `classification_code`：内部标准化分类代码，例如 `theme_sector`、`industry_sector`。
+- `classification_code`：内部标准化分类代码，例如 `theme_sector`、`industry_sector`、`index_sector`。
+- `source_taxonomy_type`：来源系统分类，例如 `concept`、`industry`、`index_sector`。
 - `source_system`：来源系统，例如 `ths`、`citics`、`gics`、`custom_tidewise`。
 - `source_sector_code`：来源系统原始板块代码。
 - `primary_market_entity_id`：主要市场范围，引用 `entity_nodes` 中的 `market`。
 - `primary_economy_entity_id`：主要经济体范围，引用 `entity_nodes` 中的 `economy`，允许全球类板块为空。
 - `methodology_url`：分类方法或来源说明 URL。
 - `review_status`：`candidate`、`approved`、`rejected`。
+- `selection_score` 和评分分项不建议进入长期 `sector_profiles` 作为实体身份字段；如实现阶段确需保存，应放入候选 Review 文件、source snapshot 或单独评估记录，避免把动态评估固化为主数据本体。
+- `runtime_tier` 不建议作为第一版主数据硬字段；核心、扩展、观察分层更适合作为推理调度配置或 Review 状态视图。
 
 备选方案 A：新增 `market_sector_profiles` 表。优点是语义更窄，缺点是与已有 `sector_profiles`、loader、seed、repository、projection 形成平行结构。
 
@@ -67,7 +74,7 @@ sector:<source_system>_<classification>_<slug>
 
 - `sector:ths_theme_ai`
 - `sector:ths_industry_semiconductor_components`
-- `sector:ths_index_proxy_csi300`
+- `sector:ths_index_sector_satellite_industry`
 - `sector:tidewise_theme_energy_transition`
 
 迁移旧数据时，不应批量删除现有 key；应通过审阅后的前向迁移或 seed 更新把 `sector:ths_concept_ai` 等旧 key 映射到新分类策略。若 key 需要改名，必须使用兼容迁移或保留 alias/merged 状态，避免 Neo4j、事件链接和审计记录断裂。
@@ -90,15 +97,23 @@ sector:<source_system>_<classification>_<slug>
 
 不采用 `sector -> company/security` 作为基础关系，因为成分股会随时间变动，且容易被误用为推荐列表。后续如需要成分关系，应通过独立 change 定义时间版本、来源和状态。
 
-### Decision 4.5: 候选源分类与领域实体类型分离
+### Decision 4.5: external/source taxonomy、semantic sector、market benchmark 三层分离
 
-同花顺候选的 `concept`、`industry`、`index` 只表示来源系统如何组织行情页面，不直接决定观潮家实体类型。转换规则如下：
+同花顺候选的概念板块、行业板块、指数板块都可以作为 `sector` 候选。`source_taxonomy_type` 只表示来源系统如何组织行情页面，不直接决定观潮家领域职责。观潮家采用三层概念：
+
+| 层次 | 作用 | 示例 | 存储建议 |
+| --- | --- | --- | --- |
+| external/source taxonomy | 记录同花顺等来源系统的候选分类 | `concept`、`industry`、`index_sector` | `sector_profiles.source_taxonomy_type` 或候选审阅元数据 |
+| semantic sector | 表达可被事件影响的产业/主题暴露 | 半导体材料设备、卫星产业、低空经济 | `entity_type=sector` + `sector_profiles.classification_code` |
+| market benchmark | 表达用于量化验证的可观测行情标尺 | 某板块指数行情序列、正式指数代码、885/886 板块指数代码 | `benchmark` 或与 sector 的已审阅参考关系 |
+
+转换规则如下：
 
 | 候选源分类 | 推荐领域处理 | 入选原则 |
 | --- | --- | --- |
 | 同花顺行业 Top 20 | 优先进入 `industry_sector` 候选 | 作为稳定板块骨架，但需覆盖金融地产、资源能源、工业制造、科技成长、消费医药、交通公用、国防安全等主要传导簇 |
 | 同花顺概念 Top 20 | 选择进入 `theme_sector` 候选 | 必须可解释、非短期炒作、有稳定定义，优先政策、技术、商品冲击可映射主题 |
-| 同花顺指数 Top 20 | 默认不直接进入 `sector` | 宽基指数、波动率、利率、收益率、商品价格属于 `benchmark`；只有确实代表行业/主题板块表现的指数，才作为 `sector` 的参考 benchmark 或 `index_proxy_sector` 候选 |
+| 同花顺指数板块 Top 20 | 允许进入 `index_sector` 候选 | 只要其表达行业/主题板块暴露，就仍是 `sector` 候选；若同时有正式指数代码、成分样本和行情序列，则另建或关联 benchmark 作为量化验证标尺 |
 
 建议筛选评分维度：
 
@@ -111,18 +126,25 @@ sector:<source_system>_<classification>_<slug>
 | 数据可获得性 | 是否有可持续行情、指数或来源说明 | 保证后续验证 |
 | 重叠度 | 与已有行业、主题、benchmark 是否高度重复 | 决定合并、降级或淘汰 |
 
-建议 Review 配额：
+建议 Review 策略：
 
-- 行业骨架：25-30 个，优先覆盖主要传导簇。
-- 事件主题：15-20 个，优先政策/技术/商品冲击可解释主题。
-- 指数代理或参考 benchmark：5-10 个，仅保留能解释板块表现的对象；宽基、利率、收益率、商品价格和波动率进入 benchmark 体系。
-- 总量：40-60 个。若同花顺 Top 60 中重复、短炒或 benchmark 类对象过多，应替换为更稳定的候选。
+- 概念板块、行业板块、指数板块各 Top 20 都进入 Review 候选池，总量约 60 个。
+- 按已确认权重评估候选：事件可解释性 25、传导独立性 20、行情敏感度 15、数据完整性 15、长期稳定性 15、市场代表性 10；原则上 70 分以上进入 MVP。
+- 最终正式 sector 约 50-60 个，必须覆盖金融地产、能源电力、有色化工材料、工业基建、半导体电子、AI 软件通信、汽车新能源、医药生科、消费农业、交通公用、国防航天卫星、政策主题等传导簇。
+- 不预设削减 `index_sector` 配额；重点检查指数板块是否与行业/概念重复、是否表达稳定产业/主题暴露、是否需要关联 benchmark。
+- 若某个指数板块由中证、国证等指数提供方编制，具备正式指数代码、成分样本和行情序列，则 sector 表达“可被事件影响的产业/主题暴露”，benchmark 表达“用于量化验证的可观测行情标尺”，两者可以一对一或多对一关联。
+- 同花顺概念板块即使具备 885/886 等板块指数代码和行情，也不自动变成 benchmark-only；它首先仍可作为 semantic sector，行情代码作为 benchmark 或 source metadata 审阅。
+- 若 Top 60 中存在高度重复或短期炒作对象，应在 Review 中合并、降级或替换，而不是按来源分类机械保留。
+- 运行上分为核心约 30、扩展约 20、观察约 10；该分层服务推理调度频率、Review 优先级或候选池管理，不应成为 `entity_key`、`classification_code` 或不可变实体身份。
 
 去重规则：
 
 - 同名或近义行业/概念优先合并为一个领域 `sector`，来源别名进入 aliases 或 source metadata。
 - 行业和概念重叠时，保留行业作为稳定骨架，概念仅在存在独立事件触发逻辑时保留。
-- 指数若已有正式 `index` 或 `benchmark` 实体，不复制为 `sector`；需要表达参考关系时通过后续已审阅关系连接。
+- 同一产业/主题在概念板块、行业板块、指数板块中重复出现时，保留一个 canonical `sector`，将其他来源分类作为 aliases、source mappings 或 cross-reference，而不是创建多个语义重复 sector。
+- 完全同义且范围一致的候选合并为一个 canonical `sector`，保留多个来源映射。
+- 不同粒度或部分重叠的板块分别保留，并通过后续已审阅的上下位或交叉关系表达，不用合并抹平差异。
+- 指数板块若同时有正式行情序列，不复制 sector 职责；sector 保留事件暴露职责，benchmark 保留量化行情标尺职责，通过后续已审阅关系连接。
 - 商品、利率、收益率、波动率、汇率和加密资产参考价格不得作为 `sector`。
 
 ### Decision 5: Neo4j 只投影实体和已审阅关系
@@ -239,9 +261,11 @@ classDiagram
 
 ## Risks / Trade-offs
 
-- `sector_type=index` 历史语义可能误导后续实现 -> 通过 `index_proxy_sector` 明确其只是来源系统展示分组，不替代正式 `index` 实体。
+- `sector_type=index` 历史语义可能误导后续实现 -> 通过 `index_sector` 明确其表示来源系统定义的指数板块暴露，不替代正式 `index` 实体，也不等于 benchmark。
+- `index_sector` 可能再次被误读为 benchmark-only -> 在 profile 中同时保存 `source_taxonomy_type` 和 `classification_code`，并在 Review 清单中分别判定 semantic sector 和 market benchmark 职责。
 - 板块关系过早扩张会把推理结论写成事实 -> 第一版只允许客观来源可核验关系，事件影响和传导强度留给后续事件推理 change。
 - 旧 `sector_code` 不是权威代码，可能与来源系统真实代码不一致 -> 新增 `source_sector_code` 和 `methodology_url`，旧字段保留兼容，正式 source code 需人工 review。
+- 候选评分和运行分层可能被误当成实体身份 -> 将评分和核心/扩展/观察作为 Review 或推理调度层数据处理，第一版不把它们放入 stable key 或长期身份字段。
 - 多市场板块可能不适合单一 `primary_market_entity_id` -> 第一版用主市场字段表达主要范围，多市场覆盖通过多条 `covers_sector` 关系表达。
 - 成分股关系容易被理解为推荐 -> 本 change 不建立 sector-company/security 基础关系，后续需要时必须引入时间版本和非推荐说明。
 - Neo4j 查询想直接看板块属性 -> 投影仍以 PG 为事实源；可投影必要 profile 属性，但不得把 Neo4j 变成独立维护入口。
@@ -259,9 +283,10 @@ classDiagram
 
 ## Open Questions
 
-- 首批正式板块是否以同花顺 Top 20×3 约 60 个作为候选池，但按行业骨架 25-30、事件主题 15-20、指数代理/参考 benchmark 5-10 的配额筛选？
+- 首批正式板块已确认以同花顺概念板块、行业板块、指数板块 Top 20×3 约 60 个作为原始候选池，并按已确认评分权重、70 分原则线、去重、交叉映射和 benchmark 关联规则审阅。
 - `sector:ths_concept_*` 是否在本 change 实现中改名为 `sector:ths_theme_*`，还是保持旧 key 并只新增 `classification_code`？
 - `covers_sector` 是否第一版只连接抽象市场，如 `market:a_share`、`market:hk_stock`、`market:us_stock`，而不连接具体交易所？
 - `sector -> benchmark` 的关系名称是否复用 `observes_benchmark`，还是新增更窄的 `uses_benchmark` / `tracked_by_benchmark`？
 - 产业链节点映射是否应由本 change 只预留规范，实际关系放入后续 `industry-chain` 专门 change？
-- 哪些同花顺“指数”候选应被判定为 benchmark/index，而不是 sector，需要用户逐项 Review。
+- 哪些同花顺指数板块需要一对一或多对一关联 benchmark，哪些只保留 source metadata，需要用户逐项 Review。
+- 核心/扩展/观察分层在实现阶段应落在推理调度配置、候选 Review 记录还是 source snapshot，仍需 Review 技术落点。
