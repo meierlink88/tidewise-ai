@@ -55,8 +55,8 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 
 ## Git And Desktop Hard Gates
 
-- 在 Codex Desktop 可用时，所有新 change 和并行 change 必须通过 Desktop 新任务创建受管 worktree；agent 不得手工执行 `git worktree add`。
-- 在受管任务内从最新 `origin/main` 创建或切换 `codex/<change-name>`；不得沿用其他 change 的 branch 或混入其文件。
+- 新 change 默认按顺序推进；仅用户明确批准、无依赖且无共享文件或数据库写状态的独立并行 change 可同时启动，出现依赖或共享写状态必须暂停并重新排序。
+- Desktop 可用时，所有新 change 必须由 Desktop 新任务创建独立受管 worktree，并在其中从最新 `origin/main` 创建或切换 `codex/<change-name>`；不得手工执行 `git worktree add` 或混入其他 change。
 - 只有 Desktop 受管机制不可用且用户明确批准 fallback 时，才允许按 `.agents/git-workflow.md` 创建项目自有 worktree。
 - Desktop-managed worktree 只能由 Desktop 释放；agent 不得对托管目录执行 `rm` 或 `git worktree remove`。
 - PR merge 后必须按 worktree 所有权有序清理远端 branch、worktree/任务和本地 branch；Desktop 未释放时记录待清理状态，不得宣称 cleanup 或 Deliver 完成。

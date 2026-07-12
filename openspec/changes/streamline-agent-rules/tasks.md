@@ -24,3 +24,9 @@
 - [x] 4.3 检查根路由表、规则文件和 OpenSpec artifacts 中引用的 repo 内路径均存在，确认不存在失效链接或要求无差别读取全部规则的残留文本。
 - [x] 4.4 运行 `openspec validate streamline-agent-rules`，检查 `git diff --check`、`git status --short` 和 scoped diff，确认只包含本 change 允许的规则与 artifacts，且未触碰其他 active change/worktree。
 - [x] 4.5 提交精简后的规则实现前，将前后尺寸、覆盖矩阵、Desktop 强制受管与两类 cleanup 验证、重复/冲突扫描、链接检查、OpenSpec validate 和 scoped diff 交由用户人工 Review；未批准不得进入 Sync、Archive 或 Deliver。
+
+## 5. Apply Review 修订
+
+- [x] 5.1 将 New Change Gate 拆分为全部 change 公共条件、sequential successor 和 explicitly approved independent parallel 两条路径，明确依赖、用户批准、文件/artifact/数据库写状态所有权边界。
+- [x] 5.2 将 OpenSpec 与根硬门中的“不得启动下一 change”限定为 sequential successor；并行过程中出现依赖或共享写状态时必须暂停并重新排序。
+- [x] 5.3 更新覆盖矩阵和冲突扫描，重新验证根文件尺寸、路径、OpenSpec、diff 与 scoped change 范围。

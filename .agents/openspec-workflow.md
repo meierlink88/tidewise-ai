@@ -23,7 +23,7 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 5. **Validate**：运行 OpenSpec CLI 与任务相关验证，读取新鲜结果；失败或未验证项必须明确报告。
 6. **Sync**：tasks 全部完成且第二次人工 Review 通过后，才可将 delta specs 同步到主规格。
 7. **Archive**：Sync 后归档 change，运行 `openspec validate --all` 并提交 scoped archive checkpoint；archive 不等于 delivered。
-8. **Deliver**：Archive commit 存在且工作区无当前 change 未提交文件后，才可按 `.agents/git-workflow.md` push、PR/merge 和 cleanup。完成 Deliver 前不得宣称 change 关闭或启动下一 change。
+8. **Deliver**：Archive commit 存在且工作区无当前 change 未提交文件后，才可按 `.agents/git-workflow.md` push、PR/merge 和 cleanup。完成 Deliver 前不得宣称 change 关闭，也不得启动依赖其产物或接续其工作的 sequential successor change；用户明确批准且无依赖、无共享写状态的 independent parallel change 可按 Git 门禁独立启动。
 
 ## Review And Stateful Operation Gates
 
