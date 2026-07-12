@@ -23,7 +23,7 @@
 - **THEN** Agent 必须读取该 change artifacts、受影响主规格与相关代码，并依据实际 Git 或领域动作加载对应规则
 
 ### Requirement: 规则精简必须保留关键工程硬门
-系统 MUST 在规则精简后继续明确约束 OpenSpec 唯一生命周期、Codex Desktop 原生任务/worktree 优先、change branch/worktree 隔离、人工 Review 与有状态操作审批、sync/archive/deliver 顺序、交付后清理、数据事实源和通用安全边界。
+系统 MUST 在规则精简后继续明确约束 OpenSpec 唯一生命周期、Codex Desktop 受管任务/worktree 强制入口、change branch/worktree 隔离、人工 Review 与有状态操作审批、sync/archive/deliver 顺序、按 worktree 所有权交付清理、数据事实源和通用安全边界。
 
 #### Scenario: 未完成人工 Review
 - **WHEN** change 的 proposal artifacts 尚未获得人工确认
@@ -35,11 +35,27 @@
 
 #### Scenario: 启动并行 change
 - **WHEN** 另一个 change 仍在 review、实现或未合并状态
-- **THEN** Agent 必须从最新 `origin/main` 使用匹配的 `codex/<change-name>` branch 和隔离 worktree，优先使用 Codex Desktop 原生任务/worktree，且不得混入其他 change 的文件
+- **THEN** 在 Codex Desktop 可用时，Agent 必须通过 Desktop 新任务创建受管 worktree，并在受管任务内从最新 `origin/main` 创建或切换匹配的 `codex/<change-name>` branch，不得手工执行 `git worktree add`，且不得混入其他 change 的文件
 
-#### Scenario: 完成交付清理
-- **WHEN** change 的 PR 已合并
-- **THEN** Agent 必须验证默认分支包含最终 commit，删除远端和本地 change branch，只清理路径与所有权可确认的项目自有 worktree，并归档对应 Codex Desktop 任务
+#### Scenario: 在 Codex Desktop 中启动新 change
+- **WHEN** Agent 在 Codex Desktop 可用的环境中启动任何新 change
+- **THEN** Agent 必须先通过 Desktop 新任务创建受管 worktree，再在该受管任务内创建或切换 `codex/<change-name>` branch，不得把当前 worktree 中手工创建 branch/worktree 作为等价默认路径
+
+#### Scenario: Desktop 机制不可用时创建 fallback worktree
+- **WHEN** Codex Desktop 受管任务/worktree 机制不可用且用户明确批准 fallback
+- **THEN** Agent 才可按 `.agents/git-workflow.md` 创建项目自有 worktree，并在其中从最新 `origin/main` 创建或切换匹配的 `codex/<change-name>` branch
+
+#### Scenario: 清理 Desktop-managed worktree
+- **WHEN** 使用 Desktop-managed worktree 的 change 已完成 PR merge 且默认分支已验证包含最终 commit
+- **THEN** Agent 必须依次删除远端 change branch、归档或关闭对应 Desktop 任务、等待并验证 Desktop 已释放托管 worktree，再删除仍存在的本地 change branch
+
+#### Scenario: Desktop 尚未释放托管 worktree
+- **WHEN** 对应 Desktop 任务已请求归档或关闭但托管 worktree 仍未释放
+- **THEN** Agent 不得执行 `rm` 或 `git worktree remove`，不得声明 cleanup 完成，并必须记录待清理状态
+
+#### Scenario: 清理 project-owned fallback worktree
+- **WHEN** 使用用户批准 fallback 创建的项目自有 worktree 的 change 已完成 PR merge 且默认分支已验证包含最终 commit
+- **THEN** Agent 必须依次删除远端 change branch、仅对所有权与路径均确认的项目自有 worktree 执行 `git worktree remove`，再删除本地 change branch
 
 #### Scenario: 维护图数据边界
 - **WHEN** Agent 设计或修改实体、事件或关系存储和图投影
@@ -50,7 +66,7 @@
 - **THEN** Agent 不得直接复制 prototype 代码、提交或打印 secret，也不得把内容表达为直接投资建议
 
 ### Requirement: 规则精简必须可量化验证
-系统 SHALL 在 Apply 中记录精简前后根 `AGENTS.md` 的行数与字节数，维护关键规则覆盖矩阵，并验证重复/冲突、文件链接和 OpenSpec artifacts。
+系统 SHALL 在 Apply 中记录精简前后根 `AGENTS.md` 的行数、字符数与字节数，维护关键规则覆盖矩阵，并验证 Desktop 强制受管与两类 cleanup 顺序、重复/冲突、文件链接和 OpenSpec artifacts。
 
 #### Scenario: 精简结果进入人工 Review
 - **WHEN** Agent 完成规则正文修改并准备请求人工验收
