@@ -30,3 +30,23 @@
 #### Scenario: convergence 后重建图谱
 - **WHEN** PostgreSQL 已完成 sector convergence 并进行下一次实体图重建
 - **THEN** Neo4j 只能投影 52 个 active canonical sector，不得保留 60 个 inactive legacy sector 节点或指向它们的 active 关系
+
+## MODIFIED Requirements
+
+### Requirement: 实体节点图谱投影
+系统 SHALL 只将 PostgreSQL 当前 `status='active'` 的 `entity_nodes` 投影为 Neo4j 当前查询视图；inactive 或 merged 实体保留在 PostgreSQL 事实源和审计链中，不进入重建后的当前投影。
+
+#### Scenario: 仅投影 active 实体节点
+- **WHEN** 图谱投影 source 同时包含 active、inactive 或 merged 状态的任意实体类型
+- **THEN** repository 和 projector 必须只把 active 实体计入 source rows 并写入统一 `Entity` 标签和指定 `projection_namespace`
+
+#### Scenario: 不投影 inactive legacy sector
+- **WHEN** convergence 将 60 个 legacy sector 标记为 inactive
+- **THEN** 重建后的 Neo4j 不得包含这些 legacy sector，且不得通过 sector 特例绕过适用于所有实体类型的 active 状态边界
+
+### Requirement: 实体关系图谱投影
+系统 SHALL 只投影 PostgreSQL 当前 `status='active'` 且起点、终点实体均为 active 的 `entity_edges`，并保持关系类型安全、可审计和可重建。
+
+#### Scenario: 排除 inactive 关系或端点
+- **WHEN** entity edge 自身 inactive，或任一端点实体为 inactive、merged 或不存在
+- **THEN** repository 不得把该 edge 计入 projection source rows，projector 也不得写入对应 Neo4j 关系

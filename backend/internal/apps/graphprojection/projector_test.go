@@ -40,6 +40,37 @@ func TestProjectorProjectsEntitiesAndRelationships(t *testing.T) {
 	}
 }
 
+func TestProjectorDefensivelyExcludesInactiveNodesAndEdges(t *testing.T) {
+	repo := newProjectorRepository()
+	activeA := projectorNode("active-a", "economy:active-a")
+	activeB := projectorNode("active-b", "market:active-b")
+	inactive := projectorNode("inactive", "sector:legacy")
+	inactive.Status = domain.StatusInactive
+	repo.nodes = []repositories.GraphEntityNode{activeA, inactive, activeB}
+	repo.edges = []repositories.GraphEntityEdge{
+		{ID: "active-edge", FromEntityID: activeA.ID, ToEntityID: activeB.ID, RelationType: "has_market", Status: domain.StatusActive, UpdatedAt: repo.now},
+		{ID: "inactive-endpoint", FromEntityID: activeB.ID, ToEntityID: inactive.ID, RelationType: "covers_sector", Status: domain.StatusActive, UpdatedAt: repo.now},
+		{ID: "inactive-edge", FromEntityID: activeA.ID, ToEntityID: activeB.ID, RelationType: "has_market", Status: domain.StatusInactive, UpdatedAt: repo.now},
+	}
+	writer := &recordingGraphWriter{}
+
+	report, err := NewProjector(repo, writer, "tidewise", func() time.Time { return repo.now }).ProjectEntities(context.Background(), ProjectOptions{})
+	if err != nil {
+		t.Fatalf("ProjectEntities() error = %v", err)
+	}
+	if report.SourceRowCount != 3 || report.ProjectedCount != 3 || report.SkippedCount != 0 || report.FailedCount != 0 {
+		t.Fatalf("report counts = %+v, want three active source rows projected", report)
+	}
+	if len(writer.nodes) != 2 || len(writer.relationships) != 1 || writer.relationships[0].EdgeID != "active-edge" {
+		t.Fatalf("writer nodes/relationships = %+v/%+v", writer.nodes, writer.relationships)
+	}
+	for _, node := range writer.nodes {
+		if node.Status != string(domain.StatusActive) || node.Namespace != "tidewise" {
+			t.Fatalf("projected node = %+v, want active tidewise node", node)
+		}
+	}
+}
+
 func TestProjectorExcludesBenchmarkObservationsFromSourceRowsAndGraphWrites(t *testing.T) {
 	repo := newProjectorRepository()
 	benchmarkNode := projectorNode("benchmark-1", "benchmark:us_10y_treasury_yield")

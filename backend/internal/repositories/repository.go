@@ -385,6 +385,9 @@ func (r *InMemoryRepository) ListGraphEntityNodes(context.Context) ([]GraphEntit
 
 	nodes := make([]GraphEntityNode, 0, len(r.graphEntities))
 	for _, node := range r.graphEntities {
+		if node.Status != domain.StatusActive {
+			continue
+		}
 		nodes = append(nodes, normalizeGraphEntityNode(node))
 	}
 	sort.Slice(nodes, func(i, j int) bool {
@@ -399,6 +402,11 @@ func (r *InMemoryRepository) ListGraphEntityEdges(context.Context) ([]GraphEntit
 
 	edges := make([]GraphEntityEdge, 0, len(r.graphEdges))
 	for _, edge := range r.graphEdges {
+		from, fromOK := r.graphEntities[edge.FromEntityID]
+		to, toOK := r.graphEntities[edge.ToEntityID]
+		if edge.Status != domain.StatusActive || !fromOK || !toOK || from.Status != domain.StatusActive || to.Status != domain.StatusActive {
+			continue
+		}
 		edges = append(edges, edge)
 	}
 	sort.Slice(edges, func(i, j int) bool {

@@ -437,16 +437,31 @@ ORDER BY provider_key, source_name, id
 	return items, nil
 }
 
-func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEntityNode, error) {
-	rows, err := r.db.QueryContext(ctx, `
+const graphEntityNodesQuery = `
 SELECT id,
        COALESCE(NULLIF(entity_key, ''), entity_type || ':' || id::text) AS entity_key,
        entity_type, layer_code, name, canonical_name,
        COALESCE(array_to_json(aliases)::text, '[]') AS aliases,
        status, updated_at
 FROM entity_nodes
+WHERE status = 'active'
 ORDER BY id
-`)
+`
+
+const graphEntityEdgesQuery = `
+SELECT edge.id, edge.from_entity_id, edge.to_entity_id, edge.relation_type,
+       edge.evidence_note, edge.status, edge.updated_at
+FROM entity_edges edge
+JOIN entity_nodes from_node ON from_node.id = edge.from_entity_id
+JOIN entity_nodes to_node ON to_node.id = edge.to_entity_id
+WHERE edge.status = 'active'
+  AND from_node.status = 'active'
+  AND to_node.status = 'active'
+ORDER BY edge.id
+`
+
+func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEntityNode, error) {
+	rows, err := r.db.QueryContext(ctx, graphEntityNodesQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query graph entity nodes: %w", err)
 	}
@@ -481,11 +496,7 @@ ORDER BY id
 }
 
 func (r PostgresRepository) ListGraphEntityEdges(ctx context.Context) ([]GraphEntityEdge, error) {
-	rows, err := r.db.QueryContext(ctx, `
-SELECT id, from_entity_id, to_entity_id, relation_type, evidence_note, status, updated_at
-FROM entity_edges
-ORDER BY id
-`)
+	rows, err := r.db.QueryContext(ctx, graphEntityEdgesQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query graph entity edges: %w", err)
 	}

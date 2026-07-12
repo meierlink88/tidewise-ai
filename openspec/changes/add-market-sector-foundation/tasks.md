@@ -65,3 +65,13 @@
 - [x] 6.10 经独立审批 apply `000013`，仅规范两组 current provenance alias 顺序且 alias 集合与其余数据指纹不变；首次普通 seed 仅恢复 95 个非 sector entity 的正式 alias 顺序（Created=0、Updated=95），非 alias 字段与 alias 集合不变；立即第二次普通 seed 为 Created=0、Updated=0，同版本 convergence 为 audit_unchanged=60 且其余写计数为 0。最终 local PostgreSQL 为 version 13，52 active canonical、60 inactive legacy、60 audits、89 mappings、52 covers、0 tracked、reference/alias moves 各 29，audit-owned aliases present/missing=29/0，悬空与 active legacy 引用均为 0
 
 > **暂停门：** Task 6 已完成并等待 PostgreSQL 状态验收。未经独立审批不得运行 Neo4j graph projection、Sync、Archive 或创建 PR。
+
+## 7. Active-only Neo4j projection 修复与重验
+
+- [x] 7.1 记录首次 stateful rebuild 失败现场：项目命令成功但把 PostgreSQL 全部 611 个实体投影到 Neo4j，形成 112 个 sector（52 active canonical + 60 inactive legacy）、383 条关系；PostgreSQL version 13 与 52/60/60/89/52/0 事实未漂移，未手工修图
+- [x] 7.2 TDD RED：增加 PostgreSQL/Memory source 与 projector 混合状态测试，复现 inactive 节点、inactive edge 和 active edge 指向 inactive 端点仍进入 source/projected count 的缺陷
+- [x] 7.3 在通用 repository source 增加 active node 与 active 双端点 edge 过滤，并在 projector 增加 fail-closed 防御；不按 sector 特判，不改变 namespace、关系映射或 PostgreSQL 事实源边界
+- [x] 7.4 运行 repository/graphprojection 聚焦测试、真实 PostgreSQL 只读 source 测试、全量 Go、OpenSpec、diff 与 secret 检查并提交修复 checkpoint；本任务不得再次运行 graph-projector 或写 Neo4j
+- [ ] 7.5 经新的独立 stateful 审批后重新执行 `rebuild-entities`，验收仅 551 个 active Entity、383 条 active 双端点关系、52 canonical sector、0 legacy sector、52 `COVERS_SECTOR`、0 `TRACKED_BY_BENCHMARK`，并完成 namespace、重复、属性与既有实体关系查询
+
+> **暂停门：** 当前 Neo4j 保留首次失败现场 611 节点/383 关系。未经新的独立审批不得再次重建、手工 Cypher 修图、Sync、Archive 或创建 PR。
