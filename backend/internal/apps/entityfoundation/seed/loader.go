@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -38,6 +39,9 @@ type Relationship struct {
 	To           string        `json:"to"`
 	RelationType string        `json:"relation_type"`
 	EvidenceNote string        `json:"evidence_note,omitempty"`
+	SourceName   string        `json:"source_name"`
+	SourceURL    string        `json:"source_url"`
+	VerifiedAt   time.Time     `json:"verified_at"`
 	Status       domain.Status `json:"status,omitempty"`
 }
 
@@ -129,6 +133,7 @@ func Validate(manifest Manifest) error {
 	}
 
 	relationshipKeys := make(map[string]struct{}, len(manifest.Relationships))
+	relationshipTuples := make(map[string]struct{}, len(manifest.Relationships))
 	for _, relationship := range manifest.Relationships {
 		if relationship.Key == "" {
 			return fmt.Errorf("relationship key is required")
@@ -151,10 +156,18 @@ func Validate(manifest Manifest) error {
 		if relationship.RelationType == "" {
 			return fmt.Errorf("relationship %q relation type is required", relationship.Key)
 		}
+		if err := validateRelationshipPolicy(relationship, entityKeys); err != nil {
+			return fmt.Errorf("relationship %q: %w", relationship.Key, err)
+		}
+		tuple := strings.Join([]string{relationship.From, strings.ToLower(relationship.RelationType), relationship.To}, "|")
+		if _, ok := relationshipTuples[tuple]; ok {
+			return fmt.Errorf("duplicate relationship tuple %q", tuple)
+		}
 		if relationship.Status != "" && relationship.Status != domain.StatusActive && relationship.Status != domain.StatusInactive {
 			return fmt.Errorf("relationship %q unsupported status %q", relationship.Key, relationship.Status)
 		}
 		relationshipKeys[relationship.Key] = struct{}{}
+		relationshipTuples[tuple] = struct{}{}
 	}
 
 	return nil

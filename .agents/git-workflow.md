@@ -25,8 +25,10 @@ codex/<change-name>
 10. Sync delta specs 到 `openspec/specs/`。
 11. Archive change 到 `openspec/changes/archive/`。
 12. 运行 `openspec validate --all`。
-13. 提交 archive 检查点，推荐 commit message：`spec: archive <change-name>`。
-14. 使用 `superpowers:finishing-a-development-branch` 和 GitHub plugin，通过 PR 或明确确认后合并回 `main`。
+13. 检查 scoped diff，只暂存当前 change 文件并提交 archive 检查点，推荐 commit message：`spec: archive <change-name>`。
+14. 验证 `git status --short` 不再包含当前 change 的未提交文件，并用 `git log -1` 确认 archive commit 存在。
+15. 使用 `superpowers:finishing-a-development-branch` 和 GitHub plugin，通过 PR 或明确确认后合并回 `main`。
+16. 只有完成 archive commit 和分支交付后，change 才进入 `delivered` 状态并允许启动下一 change。
 ```
 
 ## Commit Rules
@@ -44,6 +46,26 @@ codex/<change-name>
 - 创建并行 worktree 时使用 `superpowers:using-git-worktrees`，并确保它基于最新 `origin/main`。
 - 在 Codex Desktop 中优先创建与独立任务绑定的原生 worktree；手工 worktree 只作为原生能力不可用时的替代方案。
 - 不要在两个 worktree 中同时修改同一个 OpenSpec change，避免 tasks 状态和 specs delta 冲突。
+
+## New Change Gate
+
+创建或实现新 OpenSpec change 前必须同时满足：
+
+- 上一个 change 的 archive commit 已存在，且其源码、测试、主规格和 archive 文件均被 Git 跟踪。
+- 当前 branch 为 `codex/<new-change-name>`，并基于最新 `origin/main`；不得沿用上一个 change 的 branch。
+- 当前 worktree 不包含其他 change 的未提交修改。
+- 如果另一个 change 仍在 review、PR 或实现中，必须为新 change 使用独立 worktree，禁止在同一 worktree 混合两个 change。
+
+建议检查命令：
+
+```bash
+git status --short
+git branch --show-current
+git log -1 --oneline
+git merge-base HEAD origin/main
+```
+
+任一条件不满足时，必须先完成上一 change 的 scoped commit/交付，或创建并切换到新 change 的独立 worktree。OpenSpec archive 成功只代表 `archived`，不代表 Git 已 `delivered`。
 
 ## GitHub Rules
 

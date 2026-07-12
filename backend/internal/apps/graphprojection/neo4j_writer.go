@@ -27,7 +27,7 @@ func (w Neo4jGraphWriter) UpsertEntities(ctx context.Context, nodes []GraphNode)
 	params := map[string]any{"nodes": graphNodeParams(nodes)}
 	query := `
 UNWIND $nodes AS row
-MERGE (entity:Entity:TidewiseEntity {
+MERGE (entity:Entity {
     entity_id: row.entity_id,
     projection_namespace: row.projection_namespace
 })
@@ -64,11 +64,11 @@ func (w Neo4jGraphWriter) UpsertRelationships(ctx context.Context, relationships
 		params := map[string]any{"relationships": graphRelationshipParams(grouped[relationshipType])}
 		query := fmt.Sprintf(`
 UNWIND $relationships AS row
-MATCH (from:Entity:TidewiseEntity {
+MATCH (from:Entity {
     entity_id: row.from_entity_id,
     projection_namespace: row.projection_namespace
 })
-MATCH (to:Entity:TidewiseEntity {
+MATCH (to:Entity {
     entity_id: row.to_entity_id,
     projection_namespace: row.projection_namespace
 })
@@ -91,7 +91,7 @@ SET relationship.original_relation_type = row.original_relation_type,
 
 func (w Neo4jGraphWriter) DeleteNamespace(ctx context.Context, namespace string) error {
 	query := `
-MATCH (entity:TidewiseEntity {projection_namespace: $namespace})
+MATCH (entity:Entity {projection_namespace: $namespace})
 DETACH DELETE entity
 `
 	return w.driver.ExecuteWrite(ctx, w.database, query, map[string]any{"namespace": namespace})

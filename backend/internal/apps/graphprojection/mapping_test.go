@@ -63,6 +63,7 @@ func TestMapRelationTypeUsesSafeKnownTypes(t *testing.T) {
 		"issues":          "ISSUES",
 		"participates_in": "PARTICIPATES_IN",
 		"affiliated_with": "AFFILIATED_WITH",
+		"applies_to":      "APPLIES_TO",
 	}
 
 	for input, want := range cases {

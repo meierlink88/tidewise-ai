@@ -262,6 +262,7 @@ func TestEntityEdgeProvenanceMigrationIsAdditive(t *testing.T) {
 		"drop column",
 		"truncate table",
 		"delete from",
+		"drop schema",
 		"password",
 		"api_key",
 		"database_url",

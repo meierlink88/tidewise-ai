@@ -36,13 +36,16 @@ func TestNeo4jGraphWriterUpsertsEntityNodes(t *testing.T) {
 	call := driver.calls[0]
 	for _, fragment := range []string{
 		"unwind $nodes as row",
-		"merge (entity:entity:tidewiseentity",
+		"merge (entity:entity",
 		"projection_namespace",
 		"entity.entity_key = row.entity_key",
 	} {
 		if !strings.Contains(strings.ToLower(call.query), fragment) {
 			t.Fatalf("node upsert query missing %q: %s", fragment, call.query)
 		}
+	}
+	if strings.Contains(strings.ToLower(call.query), "tidewiseentity") {
+		t.Fatalf("node upsert query contains obsolete TidewiseEntity label: %s", call.query)
 	}
 	if call.database != "neo4j" {
 		t.Fatalf("database = %q, want neo4j", call.database)
@@ -80,13 +83,17 @@ func TestNeo4jGraphWriterUpsertsRelationshipsByType(t *testing.T) {
 	query := driver.calls[0].query
 	for _, fragment := range []string{
 		"unwind $relationships as row",
-		"match (from:Entity:TidewiseEntity",
+		"match (from:Entity",
+		"match (to:Entity",
 		"merge (from)-[relationship:MEMBER_OF",
 		"relationship.original_relation_type = row.original_relation_type",
 	} {
 		if !strings.Contains(strings.ToLower(query), strings.ToLower(fragment)) {
 			t.Fatalf("relationship upsert query missing %q: %s", fragment, query)
 		}
+	}
+	if strings.Contains(strings.ToLower(query), "tidewiseentity") {
+		t.Fatalf("relationship upsert query contains obsolete TidewiseEntity label: %s", query)
 	}
 }
 
@@ -99,13 +106,16 @@ func TestNeo4jGraphWriterDeletesOnlyNamespace(t *testing.T) {
 	}
 	query := driver.calls[0].query
 	for _, fragment := range []string{
-		"match (entity:tidewiseentity",
+		"match (entity:entity",
 		"projection_namespace: $namespace",
 		"detach delete entity",
 	} {
 		if !strings.Contains(strings.ToLower(query), fragment) {
 			t.Fatalf("delete query missing %q: %s", fragment, query)
 		}
+	}
+	if strings.Contains(strings.ToLower(query), "tidewiseentity") {
+		t.Fatalf("delete query contains obsolete TidewiseEntity label: %s", query)
 	}
 }
 

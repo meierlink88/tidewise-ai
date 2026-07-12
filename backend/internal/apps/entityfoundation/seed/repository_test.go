@@ -3,6 +3,7 @@ package seed
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -98,6 +99,9 @@ func TestMemoryRepositoryUpsertsProfilesAndRelationshipsIdempotently(t *testing.
 		From:         "economy:cn",
 		To:           "alliance_org:g20",
 		RelationType: "member_of",
+		SourceName:   "G20",
+		SourceURL:    "https://g20.org/members/",
+		VerifiedAt:   time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC),
 		Status:       domain.StatusActive,
 	}
 
@@ -130,6 +134,29 @@ func TestMemoryRepositoryUpsertsProfilesAndRelationshipsIdempotently(t *testing.
 				t.Fatalf("action = %q, want %q", result.Action, wantActions[index])
 			}
 		})
+	}
+}
+
+func TestMemoryRepositoryUpdatesRelationshipProvenance(t *testing.T) {
+	repo := NewMemoryRepository()
+	for _, entity := range []Entity{
+		{Key: "economy:cn", EntityType: domain.EntityTypeEconomy, LayerCode: "economy", Name: "中国", CanonicalName: "中国"},
+		{Key: "alliance_org:g20", EntityType: domain.EntityTypeAllianceOrg, LayerCode: "alliance", Name: "二十国集团", CanonicalName: "二十国集团"},
+	} {
+		if _, err := repo.UpsertEntity(context.Background(), entity); err != nil {
+			t.Fatalf("UpsertEntity() error = %v", err)
+		}
+	}
+	relationship := Relationship{
+		Key: "relationship:cn_member_of_g20", From: "economy:cn", To: "alliance_org:g20", RelationType: "member_of",
+		SourceName: "G20", SourceURL: "https://g20.org/members/", VerifiedAt: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC),
+	}
+	if result, err := repo.UpsertRelationship(context.Background(), relationship); err != nil || result.Action != WriteCreated {
+		t.Fatalf("UpsertRelationship(create) = %+v, %v", result, err)
+	}
+	relationship.SourceURL = "https://www.g20.org/en/about-the-g20/members/"
+	if result, err := repo.UpsertRelationship(context.Background(), relationship); err != nil || result.Action != WriteUpdated {
+		t.Fatalf("UpsertRelationship(update) = %+v, %v", result, err)
 	}
 }
 

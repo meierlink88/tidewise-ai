@@ -3,6 +3,7 @@ package seed
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -15,6 +16,38 @@ func TestEntitySeedUUIDsAreStable(t *testing.T) {
 	}
 	if first == entitySeedUUID("economy:us") {
 		t.Fatalf("entitySeedUUID() should differ for different keys")
+	}
+}
+
+func TestRelationshipUpsertSQLPersistsProvenance(t *testing.T) {
+	verifiedAt := time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)
+	statement, args := buildRelationshipUpsert(Relationship{
+		Key:          "relationship:cn_member_of_g20",
+		From:         "economy:cn",
+		To:           "alliance_org:g20",
+		RelationType: "member_of",
+		EvidenceNote: "成员列表",
+		SourceName:   "G20",
+		SourceURL:    "https://g20.org/members/",
+		VerifiedAt:   verifiedAt,
+		Status:       domain.StatusActive,
+	})
+
+	for _, fragment := range []string{
+		"source_name", "source_url", "verified_at",
+		"source_name = excluded.source_name",
+		"source_url = excluded.source_url",
+		"verified_at = excluded.verified_at",
+	} {
+		if !strings.Contains(strings.ToLower(statement), fragment) {
+			t.Fatalf("relationship upsert statement missing %q: %s", fragment, statement)
+		}
+	}
+	if got, want := len(args), 9; got != want {
+		t.Fatalf("relationship upsert args = %d, want %d", got, want)
+	}
+	if args[6] != "G20" || args[7] != "https://g20.org/members/" || args[8] != verifiedAt {
+		t.Fatalf("relationship provenance args = %#v", args[6:])
 	}
 }
 

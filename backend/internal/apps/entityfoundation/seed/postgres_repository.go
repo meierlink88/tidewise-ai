@@ -112,16 +112,30 @@ func (r PostgresRepository) UpsertRelationship(ctx context.Context, relationship
 	if relationship.RelationType == "" {
 		return WriteResult{}, fmt.Errorf("relationship %q relation type is required", relationship.Key)
 	}
+	if err := validateRelationshipProvenance(relationship); err != nil {
+		return WriteResult{}, fmt.Errorf("relationship %q: %w", relationship.Key, err)
+	}
 	if relationship.Status != domain.StatusActive && relationship.Status != domain.StatusInactive {
 		return WriteResult{}, fmt.Errorf("relationship %q unsupported status %q", relationship.Key, relationship.Status)
 	}
 
+	statement, args := buildRelationshipUpsert(relationship)
+	action, err := r.queryWriteAction(ctx, statement, args...)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("upsert relationship %q: %w", relationship.Key, err)
+	}
+	return WriteResult{Key: relationship.Key, Action: action}, nil
+}
+
+func buildRelationshipUpsert(relationship Relationship) (string, []any) {
 	statement := `
 WITH upsert AS (
     INSERT INTO entity_edges (
-        id, from_entity_id, to_entity_id, relation_type, evidence_note, status
+        id, from_entity_id, to_entity_id, relation_type, evidence_note, status,
+        source_name, source_url, verified_at
     ) VALUES (
-        $1, $2, $3, $4, $5, $6
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9
     )
     ON CONFLICT (id) DO UPDATE SET
         from_entity_id = EXCLUDED.from_entity_id,
@@ -129,28 +143,34 @@ WITH upsert AS (
         relation_type = EXCLUDED.relation_type,
         evidence_note = EXCLUDED.evidence_note,
         status = EXCLUDED.status,
+		source_name = EXCLUDED.source_name,
+		source_url = EXCLUDED.source_url,
+		verified_at = EXCLUDED.verified_at,
         updated_at = now()
     WHERE entity_edges.from_entity_id IS DISTINCT FROM EXCLUDED.from_entity_id
        OR entity_edges.to_entity_id IS DISTINCT FROM EXCLUDED.to_entity_id
        OR entity_edges.relation_type IS DISTINCT FROM EXCLUDED.relation_type
        OR entity_edges.evidence_note IS DISTINCT FROM EXCLUDED.evidence_note
        OR entity_edges.status IS DISTINCT FROM EXCLUDED.status
+	   OR entity_edges.source_name IS DISTINCT FROM EXCLUDED.source_name
+	   OR entity_edges.source_url IS DISTINCT FROM EXCLUDED.source_url
+	   OR entity_edges.verified_at IS DISTINCT FROM EXCLUDED.verified_at
     RETURNING xmax = 0 AS inserted
 )
 SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
 `
-	action, err := r.queryWriteAction(ctx, statement,
+	args := []any{
 		relationshipSeedUUID(relationship.Key),
 		entitySeedUUID(relationship.From),
 		entitySeedUUID(relationship.To),
 		relationship.RelationType,
 		relationship.EvidenceNote,
 		relationship.Status,
-	)
-	if err != nil {
-		return WriteResult{}, fmt.Errorf("upsert relationship %q: %w", relationship.Key, err)
+		relationship.SourceName,
+		relationship.SourceURL,
+		relationship.VerifiedAt,
 	}
-	return WriteResult{Key: relationship.Key, Action: action}, nil
+	return statement, args
 }
 
 func (r PostgresRepository) queryWriteAction(ctx context.Context, statement string, args ...any) (WriteAction, error) {
