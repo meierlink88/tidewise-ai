@@ -16,6 +16,7 @@
 - 补充 canonical convergence：使用结构化 manifest 把本地既有 60 个 source-bound sector 收敛到 52 个 active canonical sector，保留旧 UUID 和审计记录、迁移引用并停用旧实体，避免普通 seed 形成 112 个 active sector。
 - 增加显式 convergence 执行模式、单事务和数据库前置门禁；普通 `entity-seed` 在检测到 active legacy sector 时必须拒绝写入 canonical seed，不得隐式停用主数据。
 - convergence target 必须类型安全：29 个旧 concept/industry 指向等价 canonical sector，15 个误建为 sector 的旧 index 指向已有正式 index，16 个无等价 target 的旧对象只退休；事件相关或产业链相关不得作为同义合并依据。
+- convergence audit 采用 append-only 版本历史：独立 audit ID 与 `(legacy_entity_id, manifest_version)` 唯一约束；同版本重跑幂等，新版本只能通过人工 Review 的显式前向纠错追加，历史行不得覆盖。
 
 ## Capabilities
 

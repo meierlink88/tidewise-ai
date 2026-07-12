@@ -116,3 +116,31 @@
 #### Scenario: Memory 与 PostgreSQL 原子语义一致
 - **WHEN** 相同 convergence manifest 分别由 MemoryRepository 和 PostgresRepository 执行
 - **THEN** 两者必须对 preflight、引用冲突、rollback、状态变化和 report 产生等价结果
+
+#### Scenario: 同版本重复执行幂等
+- **WHEN** 已应用 manifest version 使用完全相同 checksum 和逐项 payload 再次显式执行
+- **THEN** 系统必须返回 already-converged/unchanged，不得新增 manifest、convergence、mutation audit、entity、mapping 或 edge
+
+#### Scenario: 新版本 append-only
+- **WHEN** 人工 Review 批准完整新版本并通过显式前向纠错模式执行
+- **THEN** 系统必须以独立 ID 追加 manifest 和每个 legacy 的新审计行，并保持所有旧版本行不变；`UNIQUE(legacy_entity_id, manifest_version)` 必须防止同版本重复审计
+
+#### Scenario: 禁止修改历史审计
+- **WHEN** repository 调用方尝试 UPDATE 或 DELETE 已应用的 convergence manifest、逐项结论或 mutation audit
+- **THEN** repository 必须拒绝该操作，数据库约束、权限或 trigger 必须提供防御性保护
+
+#### Scenario: 确定当前结论
+- **WHEN** 同一 legacy entity 存在多个已应用 manifest version
+- **THEN** 当前结论必须由最大合法 manifest version 确定，且每个版本只能存在一条该 legacy 的结论，不得依赖回写 `is_current`
+
+#### Scenario: 阻断非法版本
+- **WHEN** 新 manifest version 小于或等于当前版本但 payload 不同、跳过 previous version、缺少 Review 元数据、checksum 不匹配或不是完整 60 项
+- **THEN** 系统必须在任何业务写入和审计 INSERT 前失败
+
+#### Scenario: 前向纠错迁移当前状态
+- **WHEN** 新版本修改某 legacy 的 target 或 action
+- **THEN** 系统必须锁定并验证上一 current 结论、上一版本记录的 reference/alias mutations 和当前 legacy mapping，只迁移有 provenance 且未漂移的引用，并在同一事务追加新 audit；任何漂移或类型冲突必须整体回滚
+
+#### Scenario: 纠错 mapping 与 alias
+- **WHEN** target 从 sector 改为另一 sector、index 或无 target
+- **THEN** 系统必须按新结论更新或拒绝 operational legacy mapping，只撤销由上一 convergence 添加且无其他 current 来源依赖的 alias，不得覆盖旧 audit 或盲目迁移 target 的其他引用

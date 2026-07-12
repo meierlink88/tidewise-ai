@@ -225,7 +225,11 @@ local PostgreSQL 已应用 `000010_add_market_sector_foundation.sql`。当前数
 
 新 canonical 实体继续使用 canonical key 派生的确定性 UUID。旧 UUID 不复用、不改主键、不删除，所有处置完成后旧实体改为 `inactive`。数据库新增结构化 `entity_convergences` 审计表，保存 `legacy_entity_id`、可空 `target_entity_id`、`target_entity_type`、action、manifest version、review source 和时间。`target_entity_id` 可以指向 reviewed canonical sector 或已存在且名称/范围等价的 index；不得命名为 `canonical_sector_id` 或假设 target 永远是 sector。
 
-`entity_convergences` 第一版字段固定为：`legacy_entity_id UUID PRIMARY KEY REFERENCES entity_nodes(id)`、`target_entity_id UUID NULL REFERENCES entity_nodes(id)`、`target_entity_type TEXT NULL`、`action TEXT NOT NULL`、`manifest_version TEXT NOT NULL`、`review_source_url TEXT NOT NULL`、`reason TEXT NOT NULL`、`converged_at TIMESTAMPTZ NOT NULL`。action check 只允许 `replace`、`merge`、`retire_without_canonical`、`replace_with_existing_index`、`retire_without_target`。loader/service 必须联合校验：replace/merge 要求 target type=sector；replace_with_existing_index 要求 target type=index 且 target 已存在；两个 retire action 要求 target ID/type 均为空。数据库 check 负责 target nullability，实际 entity type 由锁内 repository 查询校验。
+不可变历史模型固定使用两层表：`entity_convergence_manifests` 保存完整版本，字段为 `manifest_version BIGINT PRIMARY KEY CHECK (manifest_version > 0)`、`previous_manifest_version BIGINT NULL REFERENCES entity_convergence_manifests(manifest_version)`、`manifest_checksum TEXT UNIQUE NOT NULL`、`review_source_url TEXT NOT NULL`、`reviewed_at TIMESTAMPTZ NOT NULL`、`applied_at TIMESTAMPTZ NOT NULL`，并 check 首版 previous 为空、后续 previous 小于当前；`entity_convergences` 保存逐 legacy 结论，字段为 `id UUID PRIMARY KEY`、`legacy_entity_id UUID NOT NULL REFERENCES entity_nodes(id)`、`target_entity_id UUID NULL REFERENCES entity_nodes(id)`、`target_entity_type TEXT NULL`、`action TEXT NOT NULL`、`manifest_version BIGINT NOT NULL REFERENCES entity_convergence_manifests(manifest_version)`、`reason TEXT NOT NULL`、`converged_at TIMESTAMPTZ NOT NULL`，并设置 `UNIQUE(legacy_entity_id, manifest_version)`。`id` 由 legacy key + manifest version 确定性生成。
+
+不使用 `is_current`，避免为了切换 current 而 UPDATE 历史行。每个 legacy 的当前结论由最大合法 `manifest_version` 唯一确定；每个新版本必须是完整 60 项快照，并声明 `previous_manifest_version` 等于数据库当前最大版本。action check 只允许 `replace`、`merge`、`retire_without_canonical`、`replace_with_existing_index`、`retire_without_target`。replace/merge 要求 target type=sector；replace_with_existing_index 要求 target type=index 且 target 已存在；两个 retire action 要求 target ID/type 均为空。数据库 check 负责 target nullability，实际 entity type 由锁内 repository 查询校验。
+
+repository 不提供 UPDATE/DELETE convergence audit API。数据库 migration 通过权限/trigger 或等价保护拒绝 `entity_convergences` 与已应用 manifest 的 UPDATE/DELETE；普通运行路径只能 INSERT。相同版本、相同 checksum 和逐项 payload 重跑返回 unchanged；相同版本但 checksum/payload 不同、版本小于当前、跳过 previous version、缺少人工 Review 元数据或不完整 60 项都必须在写入前阻断。
 
 重新审阅后，29 个 concept/industry 旧对象有等价或明确范围上卷的 canonical sector target：旧中文名追加到 canonical aliases，并依据旧 profile 创建 legacy source mapping。11 个仅事件相关、跨链相关、范围收窄或对象层级差异过大的旧对象使用 `retire_without_canonical`，不创建错误 mapping。20 个旧 index 中，15 个指向 `indices.json` 已有等价 index，5 个使用 `retire_without_target`；二者都不创建 sector source mapping、不改变 index/benchmark 语义。最终 mapping 公式为正式 Review 60 + legacy sector target 29 = `sector_source_mappings=89`。
 
@@ -354,6 +358,36 @@ local PostgreSQL 已应用 `000010_add_market_sector_foundation.sql`。当前数
 - MemoryRepository 通过 clone-on-write 模拟同一原子语义，失败时原状态不变；PG repository 使用 `sql.Tx`。两者必须产生一致 report：preflight、created/updated/unchanged、redirected references、retired legacy、conflicts 和 blocked references。
 - 成功后普通 seed 重跑应幂等；显式 convergence 重跑也应报告 60 条 already-converged，不新增实体、mapping、edge 或审计行。
 
+#### 前向纠错模式
+
+- 新 manifest version 只能通过显式 `-apply-sector-convergence-correction` 执行，必须是完整 60 项、版本严格递增、声明当前 previous version，并携带新的人工 Review URL/时间；普通 seed、首次 convergence flag 和普通重跑均不能追加新版本。
+- 首次及每次纠错都把实际引用迁移写入 append-only `entity_convergence_reference_moves`，记录 `convergence_id`、table/column、稳定 row identity、from/to entity ID 和处理结果；alias 变更写入 `entity_convergence_alias_moves`。这些 mutation audit 同样禁止 UPDATE/DELETE。
+- 纠错事务先锁定当前最大版本、60 个 legacy、旧/新 target、当前 legacy mappings 和上一版本 mutation rows；逐项验证数据库当前 target/action、引用 row identity、alias 和 mapping 仍与上一版本结果一致。任何外部漂移、缺失 row 或类型不兼容都必须 rollback。
+- target 变化时，只迁移上一版本 audit 明确记录且仍指向预期旧 target 的引用，不得把旧 target 的全部引用整体搬迁。sector 专属引用仍按 target type fail-closed；edge 必须重新经过 relationship policy。
+- legacy source mapping 是 operational projection：新 sector target 时更新到新 target；改为无 target/index target 时标记 rejected 并保留上一 target 用于审计，不创建错误 mapping。alias 只撤销上一版本由 convergence 添加且没有其他 current 来源需要的值，再按新结论添加。旧 legacy entity 始终保持 inactive。
+- 新版本的 60 条 `entity_convergences`、mutation audit、引用/mapping/alias 调整和 manifest row 必须位于同一事务；失败不得留下半个版本。成功后当前结论由新最大版本确定，旧版本所有 audit row 保持不可变。
+
+```mermaid
+sequenceDiagram
+    participant CLI as cmd/entity-seed correction mode
+    participant Service as Service.ApplySectorConvergenceCorrection
+    participant Repo as PostgresRepository(sql.Tx)
+    participant Audit as entity_convergence manifests/audits
+    participant PG as PostgreSQL operational tables
+    CLI->>Service: full manifest version N, previous N-1, Review metadata
+    Service->>Repo: lock current version + legacy/targets/mutations
+    Repo->>Audit: verify N-1 is current and immutable
+    Repo->>PG: verify recorded references, aliases and mappings have not drifted
+    alt invalid version, payload mismatch or drift
+        Repo->>PG: ROLLBACK
+        Repo-->>Service: blocked report
+    else valid forward correction
+        Repo->>PG: move only recorded compatible references and adjust operational mapping/alias
+        Repo->>Audit: INSERT version N + 60 conclusions + mutation audit
+        Repo->>PG: COMMIT
+    end
+```
+
 ```mermaid
 sequenceDiagram
     participant CLI as cmd/entity-seed
@@ -401,12 +435,19 @@ classDiagram
       DetectUnknownReferences()
     }
     class entity_convergences
+    class entity_convergence_manifests
+    class entity_convergence_reference_moves
+    class entity_convergence_alias_moves
     class entity_nodes
     class sector_source_mappings
     SectorConvergence --> Service
     Service --> Repository
     Repository --> SectorReferenceRegistry
     Repository --> entity_convergences
+    Repository --> entity_convergence_manifests
+    Repository --> entity_convergence_reference_moves
+    Repository --> entity_convergence_alias_moves
+    entity_convergences --> entity_convergence_manifests
     entity_convergences --> entity_nodes
     sector_source_mappings --> entity_nodes
 ```
