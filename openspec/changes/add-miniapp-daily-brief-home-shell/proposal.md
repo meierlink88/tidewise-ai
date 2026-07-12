@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- 将现有 `pages/index` 增量演进为默认首页“今日观潮”，把它调整为 pages 与 tabBar 第一项并将 tab 文案改为“首页”；其他 tab 页面与源码保持不变。
+- 将现有 `pages/index` 增量演进为唯一注册的微信首页“今日观潮”；生产 `app.json` 不包含 `tabBar`，其他页面源码保持不变但不进入本期微信首页 shell 构建或导航。
 - 为首页定义 loading、empty、error、ready 四态；错误态可重试，空态不伪造市场结论。
 - 建立版本化前端候选契约、service port、mock adapter、dedicated mock data、页面 view model/template 与 section registry；页面不直接读取 fixture，未来 HTTP adapter 可替换 mock adapter而无需重写页面。
 - 评估 mock-only 的 `DailyBriefV1`、`ReasoningConclusionV1`、`ImpactAssessmentV1`、`EvidenceItemV1` 及首页确有需要的引用结构，明确它们不是冻结的后端 API 契约。
@@ -15,6 +15,7 @@
 - 将原型中的个股推荐、公司排序和买卖暗示替换为市场、板块、benchmark、商品、经济体或产业链实体，并持续标注“不构成投资建议”。
 - 在 Apply 更新 `.agents/frontend-boundaries.md`：旧 `ganchaojia-design` skill 保留为历史和基础 token 参考，但不再拥有生产小程序 page-level 最终视觉裁决权。
 - 补充微信构建、本地微信开发者工具防错导入/预览和截图视觉验收任务；本 change 暂不把抖音构建或预览作为验收目标。
+- 提供可跨 worktree 复用的 `preview:weapp` 发布流程，把已验证构建原子同步到默认 `~/WeChatProjects/tidewise-ai-preview`，并写入非敏感 build provenance；目标可由环境变量覆盖。
 
 ## Capabilities
 

@@ -1,4 +1,4 @@
-import { appPages, appTabBar } from './constants/app-navigation';
+import { appPages } from './constants/app-navigation';
 
 export default defineAppConfig({
   pages: [...appPages],
@@ -7,6 +7,5 @@ export default defineAppConfig({
     navigationBarBackgroundColor: '#0f172a',
     navigationBarTitleText: '观潮家',
     navigationBarTextStyle: 'white'
-  },
-  tabBar: appTabBar
+  }
 });

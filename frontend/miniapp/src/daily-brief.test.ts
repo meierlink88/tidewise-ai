@@ -6,7 +6,7 @@ import { createInitialResourceState, resourceStateReducer } from './models/resou
 import { getVisibleHomeSections, homeSectionRegistry } from './templates/home-sections';
 import { getGraphComingSoonMessage } from './utils/coming-soon';
 import { getConfidenceLabel, getDirectionMeta, getResourceStateCopy } from './components/daily-brief/ui-meta';
-import { appPages, appTabBar } from './constants/app-navigation';
+import { appPages } from './constants/app-navigation';
 
 describe('mock-only daily brief contract', () => {
   it('uses the mock schema and only approved impact entity types', () => {
@@ -32,17 +32,8 @@ describe('mock-only daily brief contract', () => {
 });
 
 describe('app home navigation', () => {
-  it('starts on 今日观潮 and uses the canonical blue selected state', () => {
-    expect(appPages[0]).toBe('pages/index/index');
-    expect(appTabBar.list[0]).toEqual({ pagePath: 'pages/index/index', text: '首页' });
-    expect(appTabBar.selectedColor).toBe('#2563eb');
-  });
-
-  it('keeps every existing tab exactly once', () => {
-    expect(appPages).toEqual([
-      'pages/index/index', 'pages/feed/index', 'pages/ai/index', 'pages/sectors/index', 'pages/subscribe/index'
-    ]);
-    expect(new Set(appTabBar.list.map((item) => item.pagePath)).size).toBe(5);
+  it('registers only 今日观潮 in the WeChat home shell', () => {
+    expect(appPages).toEqual(['pages/index/index']);
   });
 });
 

@@ -68,7 +68,7 @@ export default function IndexPage() {
         ) : null}
         {visibleSections.has('safety-note') ? <SafetyNote text={brief.disclaimer} /> : null}
       </View>
-      <Button className='daily-brief-page__ask' onClick={() => Taro.switchTab({ url: '/pages/ai/index' })}>问潮</Button>
+      <Button className='daily-brief-page__ask' onClick={() => Taro.showToast({ title: '问潮即将开放', icon: 'none' })}>问潮</Button>
     </View>
   );
 }

@@ -1,6 +1,6 @@
 ## Context
 
-`frontend/miniapp/` 已是具有微信和抖音构建能力的 Taro + React + TypeScript 工程，具备五个一级 tab、components、models、dedicated data、services、request、styles 和 utils。当前 change 仅以微信小程序作为运行与视觉验收目标；既有抖音依赖和脚本保留但不在本 change 验收。
+`frontend/miniapp/` 已是具有微信和抖音构建能力的 Taro + React + TypeScript 工程，保留既有页面源码、components、models、dedicated data、services、request、styles 和 utils。当前 change 仅注册 `pages/index/index` 并以微信小程序作为运行与视觉验收目标；既有其他页面源码、抖音依赖和脚本保留但不进入本 change 导航或验收。
 
 本 change 只交付首页“今日观潮”Mock shell。`/Users/meierlink/Documents/david/创业项目/观潮家/prototype2/miniprogram.html` 首页最终渲染是已批准的 page-level canonical visual/interaction source，优先级高于旧 `ganchaojia-design` skill。旧 skill 及关联 design library 仅解释历史 token 和基础组件来源，不能覆盖首页最终效果。
 
@@ -10,7 +10,7 @@
 
 **Goals:**
 
-- 在现有 `pages/index` 交付“今日观潮”默认首页，调整为 pages 与 tabBar 第一项并使用“首页”文案和 canonical 蓝色选中态；保持其他四个 tab 页面与源码不变。
+- 在现有 `pages/index` 交付“今日观潮”唯一微信首页；移除生产 app config 的 `tabBar`，只注销而不删除其他页面源码。
 - 覆盖日报摘要、市场/情绪结论、主题、主线、影响、证据、安全声明和 canonical 首页交互。
 - 覆盖 loading、empty、error、ready 四态并支持错误重试。
 - 以 mock-only 候选 contracts、service port、mock adapter、dedicated fixtures、view model/template 和 section registry 隔离页面与数据来源。
@@ -40,9 +40,9 @@ Apply 开始前必须重算三个指纹；任一变化都暂停实现并返回 R
 
 ## Decisions
 
-### Decision 1: 只增量替换 index 首页
+### Decision 1: 单页微信首页 shell
 
-保持 `pages/index/index` 路径和五 tab 结构，把“指数”占位内容替换为“今日观潮”，并将其调整为默认 page 与首个“首页”tab。选中态映射 canonical 蓝色，其他 tab 的正常态、页面路径与源码保持不变。不注册任何图谱页面。
+保持 `pages/index/index` 路径，把“指数”占位内容替换为“今日观潮”。canonical HTML 已无底部菜单，因此 app config 的 pages 精确为该首页且不定义 `tabBar`。feed、ai、sectors、subscribe 页面源码不删除、不重构，只是不注册到本期微信首页 shell。首页“问潮”视觉入口保留并显示未开放 toast，不切换到未注册页面。不注册任何图谱页面。
 
 ### Decision 2: “看图谱”保留视觉入口并使用轻提示占位
 
@@ -112,11 +112,17 @@ Apply 使用 TDD 为 contract mapper、resource reducer、section registry、moc
 
 本地人工验收说明必须给出微信构建产物路径、微信开发者工具导入方式、测试 AppID/本地模式注意事项、确认启动即进入首页、切换 mock 四态、操作折叠/主线/占位入口和采集 375×812 截图的步骤。CLI 无法替代开发者工具渲染，因此人工预览结果作为 Apply evidence 单独记录。
 
+### Decision 10: 固定微信预览发布目录
+
+根与 miniapp workspace 提供 `preview:weapp`，固定执行 `build:weapp → verify:weapp-output → publish:weapp`。发布器默认使用 `os.homedir()/WeChatProjects/tidewise-ai-preview`，可通过 `TIDEWISE_WEAPP_PREVIEW_DIR` 覆盖，源码不硬编码个人绝对路径。
+
+发布使用目标同级 staging/backup 目录完成可重复替换：先完整复制并写 marker，再将旧目标换出、staging 原子 rename 为目标，最后只清理目标同级的本次 backup。危险目标（文件系统根、home 本身、source 本身）在任何删除前拒绝。`tidewise-build.json` 只记录 branch、commit、builtAt、`weapp` target 和 source `app.json` SHA-256，不含环境变量或 secret。`dist` 和固定预览目录均不提交 Git。
+
 ## Component Diagram
 
 ```mermaid
 flowchart TD
-    App["app.config.ts<br/>首页 first + 其余四 tab"]
+    App["app.config.ts<br/>仅注册首页，无 tabBar"]
     Home["pages/index<br/>今日观潮首页"]
     Registry["templates/home-sections<br/>section registry"]
     Mapper["templates/daily-brief<br/>contract -> view model"]
@@ -202,11 +208,11 @@ sequenceDiagram
 | 核心影响、方向、周期、强度与不确定性 | impact cards | 已实现；对象限定为市场/板块/benchmark/商品/经济体/产业链 |
 | 证据来源、标题、时间与可信度 | evidence cards | 已实现 |
 | 决策辅助/非投资建议声明 | safety-note section | 已实现 |
-| 首页悬浮“问潮”入口 | fixed FAB，切换至既有 AI tab | 已实现 |
-| 底部 tabBar 首页选中态 | `pages/index/index` 与 tabBar 第一项“首页”，selectedColor `#2563eb` | 已实现并由配置单测与构建产物门禁锁定 |
+| 首页悬浮“问潮”入口 | fixed FAB，显示“问潮即将开放”toast | 已实现；不导航到未注册页面 |
+| 无底部菜单 | app pages 精确为 `pages/index/index` 且无 `tabBar` | 已实现并由配置单测与构建产物门禁锁定 |
 | prototype 状态栏、胶囊、头像和标注/debug shell | 使用微信原生容器；prototype shell 资产不进入生产 | 按已批准平台等价转译/排除，不是内容缺失 |
 
-该审计只证明结构覆盖，不替代像素验收。安全区、字体栅格化、图片裁切、波浪轮廓、主线切换控件位置和平台 tabBar 实际渲染，均须在微信开发者工具 375×812 截图对比后才能通过。
+该审计只证明结构覆盖，不替代像素验收。安全区、字体栅格化、图片裁切、波浪轮廓和主线切换控件位置，均须在微信开发者工具 375×812 截图对比后才能通过。
 
 ## Risks / Trade-offs
 
@@ -245,7 +251,7 @@ sequenceDiagram
 
 失败截图的 tab 文案、顺序和青色 selected state 与左列逐项一致，因此根因是导入路径或开发者工具缓存指向旧 main `dist`。这只能排除该截图作为新 UI 证据，不能证明当前实现已达到 canonical 视觉要求。后续必须先通过 worktree 路径与 tab/颜色指纹门禁，再对正确构建的 375×812 截图逐项复盘视觉差异。
 
-不提交 `dist`，也不通过修改生产 UI 添加验收标识。构建身份以当前 task 的绝对导入路径、生成的 `dist/app.json` 和 `npm run verify:weapp-output --workspace @tidewise/miniapp` 共同确认。
+不提交 `dist`，也不通过修改生产 UI 添加验收标识。后续改为发布到不依赖 worktree 生命周期的固定预览目录；构建身份以无底部菜单的 `app.json`、`tidewise-build.json` 和 `verify:weapp-output` 共同确认。
 
 ## Apply Evidence
 

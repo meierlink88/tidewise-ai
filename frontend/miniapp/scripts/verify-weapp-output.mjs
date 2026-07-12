@@ -8,10 +8,8 @@ const stylesheet = resolve(root, 'dist/pages/index/index.wxss')
 const image = resolve(root, 'dist/assets/home-header-sea.jpg')
 const expectedImageHash = '667dcd64bcfb7c3d40e4f5f5a6d0b9be1f88a90824e5e3db88527f08703b6fdc'
 
-if (appConfig.pages[0] !== 'pages/index/index') throw new Error('今日观潮不是默认页面')
-if (appConfig.tabBar.list[0]?.pagePath !== 'pages/index/index') throw new Error('今日观潮不是首个 tab')
-if (appConfig.tabBar.list[0]?.text !== '首页') throw new Error('首个 tab 文案不是首页')
-if (appConfig.tabBar.selectedColor !== '#2563eb') throw new Error('选中态不是 canonical 蓝色')
+if (JSON.stringify(appConfig.pages) !== JSON.stringify(['pages/index/index'])) throw new Error('微信首页 shell 必须只注册今日观潮')
+if ('tabBar' in appConfig) throw new Error('微信首页 shell 不得包含 tabBar')
 
 const stylesheetSize = (await stat(stylesheet)).size
 if (stylesheetSize >= 64 * 1024) throw new Error(`首页 WXSS 体积过大: ${stylesheetSize} bytes`)

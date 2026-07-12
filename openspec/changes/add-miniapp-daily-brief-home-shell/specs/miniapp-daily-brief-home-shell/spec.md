@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: 今日观潮首页
-系统 SHALL 将现有 index page 作为小程序默认页面和首个“首页”tab 提供“今日观潮”，以日报摘要、市场与情绪状态、主题、主线结论、影响判断和证据摘要帮助用户理解当日全球政经事件及其市场传导；其他 tab 页面与源码保持不变。
+系统 SHALL 将现有 index page 作为微信小程序唯一注册页面提供“今日观潮”，以日报摘要、市场与情绪状态、主题、主线结论、影响判断和证据摘要帮助用户理解当日全球政经事件及其市场传导；生产 `app.json` 不含 `tabBar`，其他页面源码保持不变但不进入本期构建或导航。
 
 #### Scenario: 启动小程序
 - **WHEN** 用户启动微信小程序
-- **THEN** 系统首先打开 `pages/index/index`，tabBar 首项文案为“首页”且选中态使用 canonical 蓝色
+- **THEN** 系统首先打开 `pages/index/index`，页面列表精确只有该首页且不显示底部菜单
 
 #### Scenario: 查看今日简报
-- **WHEN** 用户打开 index tab 且今日简报可用
+- **WHEN** 用户打开今日观潮首页且今日简报可用
 - **THEN** 页面展示简报时间、摘要、市场状态、情绪状态、主题和至少一条主线结论
 
 #### Scenario: 查看主线内容
@@ -150,7 +150,7 @@
 - **THEN** repo-local miniapp design skill 由后续独立 change 评估
 
 ### Requirement: 微信构建及本地预览
-系统 SHALL 使今日观潮首页在微信小程序目标成功编译，并提供带产物身份核对门禁的本地微信开发者工具导入、预览和截图验收说明。本 change 不要求抖音构建或预览；既有抖音依赖和脚本可以保留。
+系统 SHALL 使今日观潮首页在微信小程序目标成功编译，并提供固定发布目录、build provenance 与产物身份核对门禁。本 change 不要求抖音构建或预览；既有抖音依赖和脚本可以保留。
 
 #### Scenario: 构建微信小程序
 - **WHEN** 开发者运行微信构建命令
@@ -158,12 +158,16 @@
 
 #### Scenario: 导入微信开发者工具
 - **WHEN** 开发者按 repo 说明导入微信构建产物
-- **THEN** 只能导入当前 Desktop task worktree 的 `frontend/miniapp/dist`，并在视觉验收前核对 tab 依次为“首页/行情/AI 助手/板块/订阅”且首页选中态为 canonical 蓝色
+- **THEN** 首次只导入默认 `~/WeChatProjects/tidewise-ai-preview` 或环境变量覆盖目录，后续通过 `preview:weapp` 更新并在开发者工具编译/刷新
 
 #### Scenario: 产物身份不匹配
-- **WHEN** 开发者工具显示“行情/指数/AI 助手/板块/订阅”或首页选中态不是 canonical 蓝色
-- **THEN** 必须判定为导入路径或缓存错误，停止视觉验收，清缓存并删除旧项目后从当前 worktree 重新导入
+- **WHEN** 开发者工具显示任何底部菜单、`app.json` 注册非首页页面，或 provenance 与预期 branch/commit/build target 不符
+- **THEN** 必须判定为发布目录或缓存错误，停止视觉验收，重新发布并清缓存后从固定目录刷新或重导入
+
+#### Scenario: 发布微信预览
+- **WHEN** 开发者运行根或 miniapp workspace 的 `preview:weapp`
+- **THEN** 系统按 build→verify→publish 顺序把当前 weapp `dist` 可重复同步到固定目录，清除目标内旧产物但不触碰目录外文件，并写入 branch、commit、builtAt、build target 与 source app.json hash
 
 #### Scenario: 采集微信验收证据
-- **WHEN** 当前 worktree 产物身份核对通过
+- **WHEN** 固定预览目录的产物身份核对通过
 - **THEN** 可以打开 index 首页、切换 mock 四态、预览 canonical 交互并采集 375×812 验收截图
