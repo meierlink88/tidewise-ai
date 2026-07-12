@@ -46,7 +46,7 @@
 
 ## 5. 验证与交付边界
 
-- [ ] 5.1 运行 `go test ./...`，确认后端全部自动化测试通过
-- [ ] 5.2 运行 `openspec validate add-market-sector-foundation`，确认 change artifacts 仍有效
-- [ ] 5.3 检查 scoped diff，确认未修改 `prototype`、上级 `doc`、`add-ai-event-extraction-pipeline` 或 `add-sdk-source-worker-connectors` 相关内容
-- [ ] 5.4 在用户明确批准 Apply 后，按阶段提交实现 commit；未经 Review 不执行 seed 写入、数据库迁移应用或 Neo4j 重建
+- [x] 5.1 运行 `go test ./... -count=1`，确认后端全部自动化测试通过
+- [x] 5.2 运行 `openspec validate add-market-sector-foundation` 并检查 sync/archive 前 artifact 阶段措辞，确认 change artifacts 有效且与已完成实现一致
+- [x] 5.3 从 change merge-base 到 HEAD 审计完整 scoped diff、secrets、临时 provenance、stable key、semantic classification、禁止文案、关系端点与数据闭合，确认未修改 `prototype`、上级 `doc`、`add-ai-event-extraction-pipeline` 或 `add-sdk-source-worker-connectors` 相关内容
+- [x] 5.4 用户已逐阶段批准本 change 的 Apply 实现与 checkpoint commits；该批准不包含真实 migration apply、seed 写入、PostgreSQL/Neo4j 写入或图谱重建，以上操作仍需独立审批

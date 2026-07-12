@@ -2,7 +2,7 @@
 
 现有实体基础库已经有 `sector` 实体和 60 条同花顺风格板块快照，但它们仍偏向行情源清单，没有明确市场板块分类法、稳定标识策略、中文主名/英文别名规则，以及与市场、经济体、benchmark 的客观关系边界。事件驱动投研需要先把“板块”变成可审阅、可投影、可被事件推理引用的基础实体，否则后续事件抽取、产业链节点、商品和指标分析容易把 sector、industry-chain node、benchmark、commodity、metric 混成一层。
 
-本 change 只完成 Explore -> Propose -> Validate -> propose commit，不进入 Apply；不会实现源码、迁移、seed 数据或 Neo4j 重建。
+本 change 在提案阶段先完成 Explore -> Propose -> Validate；经后续逐阶段 Review 批准后，已实现 migration 文件、loader/repository、关系策略、投影映射和正式 seed，但尚未执行 migration apply、PostgreSQL 写入或 Neo4j 重建。
 
 ## What Changes
 
@@ -26,7 +26,7 @@
 
 ## Impact
 
-- 仓库区域：只涉及 `tidewise-ai` 源码工程内 OpenSpec artifacts；后续 Apply 才会修改 `backend/` 代码、`backend/data/entity_foundation/` seed、`backend/migrations/` 和相关测试。
+- 仓库区域：涉及 `tidewise-ai` 源码工程内 OpenSpec artifacts，以及经阶段 Review 批准的 `backend/` 实现、`backend/data/entity_foundation/` seed、`backend/migrations/` 和相关测试。
 - 不涉及 `prototype` 目录，不从高保真原型复制 HTML、DOM 操作或内联脚本。
 - 不涉及上级 `doc` 目录；长期产品文档如需更新，应由独立文档 change 处理。
 - 不修改或混入 active change `add-ai-event-extraction-pipeline`，也不触碰 `add-sdk-source-worker-connectors` worktree。

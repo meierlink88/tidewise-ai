@@ -11,7 +11,7 @@
 
 用户已确认以同花顺作为候选池来源，概念板块、行业板块、指数板块三个来源分类各取 Top 20，形成约 60 个原始候选，用于事件推理 MVP。三类都属于 `sector` 候选，Top 仅用于候选生成，不是永久主数据属性；同花顺的“概念板块/行业板块/指数板块”是 external/source taxonomy，观潮家的语义板块是 semantic sector，benchmark 是 market benchmark，三层必须拆开建模。
 
-本 change 仍处于 Propose 阶段，只定义后续实现方案，不修改源码、migration、seed 或 Neo4j 数据。
+本设计在 Propose 阶段形成，并已按用户逐阶段批准完成对应源码、migration 文件和 seed 实现；PostgreSQL 仍是事实源，但尚未执行 migration apply、seed 写入或 Neo4j 投影。
 
 ## Goals / Non-Goals
 
