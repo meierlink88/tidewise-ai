@@ -40,6 +40,41 @@ func TestProjectorProjectsEntitiesAndRelationships(t *testing.T) {
 	}
 }
 
+func TestProjectorWritesBenchmarkChainNodeSectorPathWithoutOverseasMarketCover(t *testing.T) {
+	repo := newProjectorRepository()
+	benchmark := projectorNode("benchmark", "benchmark:global")
+	benchmark.EntityType = domain.EntityTypeBenchmark
+	chain := projectorNode("chain", "industry_chain:test")
+	chain.EntityType = domain.EntityTypeIndustryChain
+	node := projectorNode("node", "chain_node:test")
+	node.EntityType = domain.EntityTypeChainNode
+	sector := projectorNode("sector", "sector:cn")
+	sector.EntityType = domain.EntityTypeSector
+	sector.ClassificationCode = domain.SectorClassificationTheme
+	repo.nodes = []repositories.GraphEntityNode{benchmark, chain, node, sector}
+	repo.edges = []repositories.GraphEntityEdge{
+		{ID: "observed", FromEntityID: chain.ID, ToEntityID: benchmark.ID, RelationType: "observed_by_benchmark", Status: domain.StatusActive},
+		{ID: "membership", FromEntityID: node.ID, ToEntityID: chain.ID, RelationType: "member_of_chain", Status: domain.StatusActive},
+		{ID: "sector-map", FromEntityID: node.ID, ToEntityID: sector.ID, RelationType: "mapped_to_sector", Status: domain.StatusActive},
+	}
+	writer := &recordingGraphWriter{}
+	if _, err := NewProjector(repo, writer, "tidewise", func() time.Time { return repo.now }).ProjectEntities(context.Background(), ProjectOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, relationship := range writer.relationships {
+		got[relationship.RelationshipType] = true
+		if relationship.RelationshipType == "COVERS_SECTOR" {
+			t.Fatal("projected overseas market COVERS_SECTOR")
+		}
+	}
+	for _, want := range []string{"OBSERVED_BY_BENCHMARK", "MEMBER_OF_CHAIN", "MAPPED_TO_SECTOR"} {
+		if !got[want] {
+			t.Fatalf("missing projected path relation %s: %+v", want, writer.relationships)
+		}
+	}
+}
+
 func TestProjectorDefensivelyExcludesInactiveNodesAndEdges(t *testing.T) {
 	repo := newProjectorRepository()
 	activeA := projectorNode("active-a", "economy:active-a")

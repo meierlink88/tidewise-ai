@@ -94,11 +94,12 @@ func TestEntityUpsertSQLScopesAliasOwnershipToCurrentConvergence(t *testing.T) {
 
 func TestProfileTableName(t *testing.T) {
 	cases := map[domain.EntityType]string{
-		domain.EntityTypeAllianceOrg: "alliance_org_profiles",
-		domain.EntityTypeEconomy:     "economy_profiles",
-		domain.EntityTypeSector:      "sector_profiles",
-		domain.EntityTypeSecurity:    "security_profiles",
-		domain.EntityTypePerson:      "person_profiles",
+		domain.EntityTypeAllianceOrg:   "alliance_org_profiles",
+		domain.EntityTypeEconomy:       "economy_profiles",
+		domain.EntityTypeSector:        "sector_profiles",
+		domain.EntityTypeIndustryChain: "industry_chain_profiles",
+		domain.EntityTypeSecurity:      "security_profiles",
+		domain.EntityTypePerson:        "person_profiles",
 	}
 
 	for entityType, want := range cases {
@@ -111,6 +112,27 @@ func TestProfileTableName(t *testing.T) {
 				t.Fatalf("profileTableName() = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestIndustryChainAndChainNodeProfileUpsertFields(t *testing.T) {
+	chainSQL, _, err := buildProfileUpsert("industry_chain:test", domain.EntityTypeIndustryChain, []byte(`{"chain_code":"test","definition":"test","boundary_note":"","scope_type":"global","version":1,"review_status":"approved","source_name":"review","source_url":"https://example.com","verified_at":"2026-07-12T00:00:00Z"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"industry_chain_profiles", "chain_code", "scope_type", "review_status", "verified_at"} {
+		if !strings.Contains(chainSQL, fragment) {
+			t.Fatalf("industry chain profile SQL missing %q", fragment)
+		}
+	}
+	nodeSQL, _, err := buildProfileUpsert("chain_node:test", domain.EntityTypeChainNode, []byte(`{"chain_position":"midstream","node_category":"component","definition":"test","unit_of_analysis":"component","granularity_note":"test"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"node_category", "definition", "unit_of_analysis", "granularity_note"} {
+		if !strings.Contains(nodeSQL, fragment) {
+			t.Fatalf("chain node profile SQL missing %q", fragment)
+		}
 	}
 }
 

@@ -34,29 +34,37 @@ type Repository interface {
 }
 
 type MemoryRepository struct {
-	mu                           sync.Mutex
-	entities                     map[string]Entity
-	profiles                     map[string]Profile
-	sectorSourceMappings         map[string]SectorSourceMapping
-	relationships                map[string]Relationship
-	convergenceManifests         map[int64]string
-	convergenceReviews           map[int64]string
-	convergenceAudits            map[string]SectorConvergence
-	convergenceRelationshipMoves map[string][]string
-	convergenceOwnedAliases      map[string][]string
+	mu                               sync.Mutex
+	entities                         map[string]Entity
+	profiles                         map[string]Profile
+	sectorSourceMappings             map[string]SectorSourceMapping
+	relationships                    map[string]Relationship
+	convergenceManifests             map[int64]string
+	convergenceReviews               map[int64]string
+	convergenceAudits                map[string]SectorConvergence
+	convergenceRelationshipMoves     map[string][]string
+	convergenceOwnedAliases          map[string][]string
+	industryChainProfiles            map[string]domain.IndustryChainProfile
+	industryChainMemberships         map[string]domain.IndustryChainMembership
+	industryChainTopologyEdges       map[string]domain.IndustryChainTopologyEdge
+	industryChainPhysicalConstraints map[string]domain.IndustryChainPhysicalConstraint
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		entities:                     map[string]Entity{},
-		profiles:                     map[string]Profile{},
-		sectorSourceMappings:         map[string]SectorSourceMapping{},
-		relationships:                map[string]Relationship{},
-		convergenceManifests:         map[int64]string{},
-		convergenceReviews:           map[int64]string{},
-		convergenceAudits:            map[string]SectorConvergence{},
-		convergenceRelationshipMoves: map[string][]string{},
-		convergenceOwnedAliases:      map[string][]string{},
+		entities:                         map[string]Entity{},
+		profiles:                         map[string]Profile{},
+		sectorSourceMappings:             map[string]SectorSourceMapping{},
+		relationships:                    map[string]Relationship{},
+		convergenceManifests:             map[int64]string{},
+		convergenceReviews:               map[int64]string{},
+		convergenceAudits:                map[string]SectorConvergence{},
+		convergenceRelationshipMoves:     map[string][]string{},
+		convergenceOwnedAliases:          map[string][]string{},
+		industryChainProfiles:            map[string]domain.IndustryChainProfile{},
+		industryChainMemberships:         map[string]domain.IndustryChainMembership{},
+		industryChainTopologyEdges:       map[string]domain.IndustryChainTopologyEdge{},
+		industryChainPhysicalConstraints: map[string]domain.IndustryChainPhysicalConstraint{},
 	}
 }
 

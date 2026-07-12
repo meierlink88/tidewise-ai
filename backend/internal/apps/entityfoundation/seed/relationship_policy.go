@@ -1,6 +1,7 @@
 package seed
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -14,18 +15,23 @@ type relationshipTypePolicy struct {
 }
 
 var relationshipPolicies = map[string]relationshipTypePolicy{
-	"member_of":            {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeAllianceOrg}},
-	"has_market":           {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeMarket}},
-	"tracks_index":         {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeIndex}},
-	"observes_benchmark":   {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
-	"covers_sector":        {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeSector}},
-	"tracked_by_benchmark": {from: []domain.EntityType{domain.EntityTypeSector}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
-	"measures":             {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeMetric}},
-	"references":           {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeCommodity, domain.EntityTypeInstrument}},
-	"issues":               {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeSecurity}},
-	"participates_in":      {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeChainNode}},
-	"affiliated_with":      {from: []domain.EntityType{domain.EntityTypePerson}, to: []domain.EntityType{domain.EntityTypePolicyBody, domain.EntityTypeCompany}},
-	"applies_to":           {from: []domain.EntityType{domain.EntityTypeMetric}, to: []domain.EntityType{domain.EntityTypeInstrument, domain.EntityTypeCommodity, domain.EntityTypeChainNode}},
+	"member_of":             {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeAllianceOrg}},
+	"has_market":            {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeMarket}},
+	"tracks_index":          {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeIndex}},
+	"observes_benchmark":    {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
+	"covers_sector":         {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeSector}},
+	"tracked_by_benchmark":  {from: []domain.EntityType{domain.EntityTypeSector}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
+	"measures":              {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeMetric}},
+	"references":            {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeCommodity, domain.EntityTypeInstrument}},
+	"issues":                {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeSecurity}},
+	"participates_in":       {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeChainNode}},
+	"affiliated_with":       {from: []domain.EntityType{domain.EntityTypePerson}, to: []domain.EntityType{domain.EntityTypePolicyBody, domain.EntityTypeCompany}},
+	"applies_to":            {from: []domain.EntityType{domain.EntityTypeMetric}, to: []domain.EntityType{domain.EntityTypeInstrument, domain.EntityTypeCommodity, domain.EntityTypeChainNode}},
+	"scoped_to_economy":     {from: []domain.EntityType{domain.EntityTypeIndustryChain}, to: []domain.EntityType{domain.EntityTypeEconomy}},
+	"uses_commodity":        {from: []domain.EntityType{domain.EntityTypeChainNode}, to: []domain.EntityType{domain.EntityTypeCommodity}},
+	"produces_commodity":    {from: []domain.EntityType{domain.EntityTypeChainNode}, to: []domain.EntityType{domain.EntityTypeCommodity}},
+	"observed_by_benchmark": {from: []domain.EntityType{domain.EntityTypeIndustryChain, domain.EntityTypeChainNode}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
+	"mapped_to_sector":      {from: []domain.EntityType{domain.EntityTypeIndustryChain, domain.EntityTypeChainNode}, to: []domain.EntityType{domain.EntityTypeSector}},
 }
 
 func validateRelationshipPolicy(relationship Relationship, entities map[string]Entity) error {
@@ -47,6 +53,9 @@ func validateRelationshipPolicy(relationship Relationship, entities map[string]E
 	if !containsEntityType(policy.from, from.EntityType) || !containsEntityType(policy.to, to.EntityType) {
 		return fmt.Errorf("relationship type %q does not allow %q -> %q", relationship.RelationType, from.EntityType, to.EntityType)
 	}
+	if strings.EqualFold(relationship.RelationType, "covers_sector") && overseasMarketCoversChinaSector(from, to) {
+		return fmt.Errorf("overseas market cannot cover China sector")
+	}
 	if err := validateRelationshipProvenance(relationship); err != nil {
 		return err
 	}
@@ -54,6 +63,16 @@ func validateRelationshipPolicy(relationship Relationship, entities map[string]E
 		return fmt.Errorf("relationship evidence contains forbidden reasoning text")
 	}
 	return nil
+}
+
+func overseasMarketCoversChinaSector(from, to Entity) bool {
+	var marketProfile, sectorProfile map[string]any
+	if json.Unmarshal(from.Profile, &marketProfile) != nil || json.Unmarshal(to.Profile, &sectorProfile) != nil {
+		return false
+	}
+	marketEconomy, _ := marketProfile["economy_entity_id"].(string)
+	sectorEconomy, _ := sectorProfile["primary_economy_entity_id"].(string)
+	return sectorEconomy == "economy:cn" && marketEconomy != "" && marketEconomy != "economy:cn"
 }
 
 func validateRelationshipProvenance(relationship Relationship) error {

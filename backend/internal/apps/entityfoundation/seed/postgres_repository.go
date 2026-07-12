@@ -463,8 +463,27 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			}
 		}
 		return fields, nil
+	case domain.EntityTypeIndustryChain:
+		return []profileField{
+			{"chain_code", text("chain_code")},
+			{"definition", text("definition")},
+			{"boundary_note", text("boundary_note")},
+			{"scope_type", text("scope_type")},
+			{"primary_economy_entity_id", ref("primary_economy_entity_id")},
+			{"version", number("version")},
+			{"review_status", text("review_status")},
+			{"source_name", text("source_name")},
+			{"source_url", text("source_url")},
+			{"verified_at", text("verified_at")},
+		}, nil
 	case domain.EntityTypeChainNode:
-		return []profileField{{"chain_position", text("chain_position")}}, nil
+		fields := []profileField{{"chain_position", text("chain_position")}}
+		for _, name := range []string{"node_category", "definition", "unit_of_analysis", "granularity_note"} {
+			if _, ok := profile[name]; ok {
+				fields = append(fields, profileField{name, text(name)})
+			}
+		}
+		return fields, nil
 	case domain.EntityTypeCompany:
 		return []profileField{
 			{"registration_economy_entity_id", ref("registration_economy_entity_id")},
@@ -528,6 +547,8 @@ func profileTableName(entityType domain.EntityType) (string, error) {
 		return "benchmark_profiles", nil
 	case domain.EntityTypeSector:
 		return "sector_profiles", nil
+	case domain.EntityTypeIndustryChain:
+		return "industry_chain_profiles", nil
 	case domain.EntityTypeChainNode:
 		return "chain_node_profiles", nil
 	case domain.EntityTypeCompany:

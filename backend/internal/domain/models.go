@@ -17,20 +17,21 @@ const (
 type EntityType string
 
 const (
-	EntityTypeAllianceOrg EntityType = "alliance_org"
-	EntityTypeEconomy     EntityType = "economy"
-	EntityTypePolicyBody  EntityType = "policy_body"
-	EntityTypeMarket      EntityType = "market"
-	EntityTypeIndex       EntityType = "index"
-	EntityTypeBenchmark   EntityType = "benchmark"
-	EntityTypeSector      EntityType = "sector"
-	EntityTypeChainNode   EntityType = "chain_node"
-	EntityTypeCompany     EntityType = "company"
-	EntityTypeSecurity    EntityType = "security"
-	EntityTypeInstrument  EntityType = "instrument"
-	EntityTypeMetric      EntityType = "metric"
-	EntityTypeCommodity   EntityType = "commodity"
-	EntityTypePerson      EntityType = "person"
+	EntityTypeAllianceOrg   EntityType = "alliance_org"
+	EntityTypeEconomy       EntityType = "economy"
+	EntityTypePolicyBody    EntityType = "policy_body"
+	EntityTypeMarket        EntityType = "market"
+	EntityTypeIndex         EntityType = "index"
+	EntityTypeBenchmark     EntityType = "benchmark"
+	EntityTypeSector        EntityType = "sector"
+	EntityTypeIndustryChain EntityType = "industry_chain"
+	EntityTypeChainNode     EntityType = "chain_node"
+	EntityTypeCompany       EntityType = "company"
+	EntityTypeSecurity      EntityType = "security"
+	EntityTypeInstrument    EntityType = "instrument"
+	EntityTypeMetric        EntityType = "metric"
+	EntityTypeCommodity     EntityType = "commodity"
+	EntityTypePerson        EntityType = "person"
 )
 
 type EntityNode struct {
@@ -719,9 +720,11 @@ type EventTagDef struct {
 type ReviewStatus string
 
 const (
-	ReviewStatusPending  ReviewStatus = "pending"
-	ReviewStatusApproved ReviewStatus = "approved"
-	ReviewStatusRejected ReviewStatus = "rejected"
+	ReviewStatusCandidate ReviewStatus = "candidate"
+	ReviewStatusReviewed  ReviewStatus = "reviewed"
+	ReviewStatusPending   ReviewStatus = "pending"
+	ReviewStatusApproved  ReviewStatus = "approved"
+	ReviewStatusRejected  ReviewStatus = "rejected"
 )
 
 type EventTagMap struct {
@@ -761,6 +764,7 @@ func validEntityType(value EntityType) bool {
 		EntityTypeIndex,
 		EntityTypeBenchmark,
 		EntityTypeSector,
+		EntityTypeIndustryChain,
 		EntityTypeChainNode,
 		EntityTypeCompany,
 		EntityTypeSecurity,
