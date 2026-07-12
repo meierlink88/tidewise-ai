@@ -1,36 +1,34 @@
 ## Why
 
-现有实体基础库只有 33 个全局扁平 `chain_node`，缺少独立产业链身份、链内节点粒度、稳定拓扑、结构性约束和可审计的动态观测库表，无法可靠支撑“全球事件/benchmark 变化如何经产业链传导到中国市场板块”的事件驱动推理。本 change 的重点是提炼并实现可复用、可核验且与推理结论分离的产业链数据模型、表字段和数据库约束，再由后续 change 接入事件抽取、推理和小程序展示。
+现有实体基础库只有 33 个扁平 `chain_node`，缺少独立产业链身份、链内成员、稳定拓扑和经证据审阅的物理约束，无法为全球事件到中国市场板块的产业链传导提供可靠静态骨架。本 change 收缩为静态产业链基础；动态 observation 平台必须由后续独立 change 设计，避免本 change 同时拥有主数据、采集治理和时序写入。
 
 ## What Changes
 
-- 新增独立 `industry_chain` 主数据类型与 profile，明确产业链的稳定身份、范围、版本和 Review 状态；保留并改进既有 `chain_node`，不建立平行节点体系。
-- 新增链内节点成员与稳定拓扑模型，区分链内阶段/角色与节点全局属性，支持上下游、投入、产出、依赖、替代和瓶颈候选等有来源、可审阅的客观关系。
-- 新增结构性约束定义表，明确约束对象、约束类型、形成机制、替代难度、扩产方式和证据来源，但不保存当前瓶颈严重度或投资判断。
-- 扩展实体关系 policy，使产业链及节点能够与 `economy`、`commodity`、`benchmark`、`sector`、`metric` 等实体建立方向明确的客观关系；禁止把推理方向、影响强度、利好利空或预测结论固化为主数据。
-- 建立通用 observation governance envelope 与产业链 typed observation contracts，覆盖节点指标和拓扑流量/约束观测，禁止单一万能 EAV 表；首版只定义必要存储、幂等、质量和采集交接契约。
-- 新增独立 `industry_chain_metric_definitions` 与 `industry_chain_metric_bindings`，使产业链指标拥有领域口径、约束方向和节点/拓扑适用范围；现有 `metric_profiles` 只作为可选语义桥接，不再被产业链 observation 直接引用。
-- 使 PostgreSQL 成为产业链、拓扑、跨实体关系与观测事实源；Neo4j 继续只投影 active 主数据和已审阅 active 稳定关系，不投影时序 observation 或未审阅候选。
-- 定义事件提取、event-driven reasoning、benchmark/商品/指标、市场板块与小程序展示的消费边界，尤其禁止用海外市场 `COVERS_SECTOR` 直接指向中国板块。
-- 将 Serenity 的公开方法论转化为系统设计目标：`market story → system change → required parts → value-chain layers → scarce constraints → evidence → risks/falsification`，同时把稳定事实、动态观测与时点推理结果严格分层。
-- 以 AI 算力基础设施、半导体制造、机器人三条链作为首批试点 Review 候选，用于验证共享节点、跨链复用和不同制造链泛化；新能源汽车/储能、创新药/生物制造保留为第二批候选。本 change 的 Propose 阶段不把候选直接写入正式 seed。
+- 新增 `industry_chain` 实体及 `industry_chain_profiles`，保存稳定代码、定义、范围、版本、来源和 Review 状态。
+- 增量改进既有 `chain_node_profiles`，补充节点分类、定义、分析单位和粒度说明；链内阶段与角色进入独立 membership。
+- 新增 `industry_chain_memberships`，表达同一节点在不同产业链中的阶段、角色、顺序和核心性。
+- 新增 `industry_chain_topology_edges`，以 `supplies_to`、`depends_on`、`substitutes_for` 表达链内稳定客观拓扑；商品投入/产出继续复用 `entity_edges`。
+- 新增 `industry_chain_physical_constraints`，只保存经权威技术证据和人工 Review 批准的相对稳定物理/工程机制，不保存市场结构、认证、监管、融资、当前严重度、评分或投研结论。
+- 扩展 `entity_edges` relationship policy，连接产业链/节点与 economy、commodity、benchmark、sector；全球 benchmark 必须经 chain/node 映射到中国 sector，海外 market 不得错误 `COVERS_SECTOR` 中国板块。
+- 首批只以 AI 算力基础设施、半导体制造两条产业链作为 Review 候选，每链约 10–15 个节点，去重后约 20–30 个节点；机器人、新能源汽车/储能、创新药/生物制造移到第二批。
+- Serenity 只提供“从系统变化识别物理卡点”的启发，不提供正式数据库 schema；本 change 的物理约束枚举是 Tidewise adaptation。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `industry-chain-foundation`: 定义产业链主数据、链内节点成员、稳定拓扑、瓶颈分析输入契约、typed observations、MVP 候选 Review 与下游消费边界。
+- `industry-chain-foundation`: 定义静态产业链主数据、链内成员、稳定拓扑、物理约束、两条试点 Review 和未来 observation/reasoning 消费边界。
 
 ### Modified Capabilities
 
-- `event-knowledge-schema`: 增加产业链 profile、拓扑和 observation 的 PostgreSQL 增量 schema 事实边界。
-- `entity-foundation-seeds`: 将 `industry_chain` 纳入实体基础库，改进 `chain_node` profile，并为首批 seed 增加独立人工 Review 与写入门禁。
-- `entity-relationship-curation`: 增加产业链相关客观关系的类型、方向、来源与分层写入规则。
-- `neo4j-graph-projection-foundation`: 增加产业链定义、链内稳定拓扑和已审阅跨实体关系的 active-only 投影规则，并明确 observation 不投影。
+- `event-knowledge-schema`: 增加静态产业链 profile、membership、topology 和 physical constraint 的 PostgreSQL 增量 schema。
+- `entity-foundation-seeds`: 将 `industry_chain` 纳入实体基础库，改进 `chain_node` profile，并为两条试点 seed 增加人工 Review 门禁。
+- `entity-relationship-curation`: 增加产业链相关客观跨实体关系的类型、方向、来源和分层写入规则。
+- `neo4j-graph-projection-foundation`: 增加产业链定义、membership、稳定拓扑、物理约束及已审阅跨实体关系的 active-only 投影规则。
 
 ## Impact
 
-- 预期 Apply 影响 `backend/migrations/`、`backend/internal/domain/`、`backend/internal/apps/entityfoundation/seed/`、`backend/internal/repositories/`、`backend/internal/apps/graphprojection/`、`backend/data/entity_foundation/` 及相应 Go/SQL 测试。
-- 首版采集只定义 source catalog/ingestion 到 typed observation writer 的结构化交接契约；具体外部 connector、Agent 推理实现、动态瓶颈结论和市场预测不在本 change 范围。
-- 本 change 不修改 `frontend/miniapp/`、`frontend/admin/`、`prototype/` 或项目外 `doc/`；只定义未来 API/小程序展示消费边界，不实现 UI。
-- 不引入新数据库、独立 migration 根、万能 EAV、前端密钥或模型编排依赖；不改变 PostgreSQL 事实源与 Neo4j 可重建投影的架构边界。
+- 预期 Apply 只影响 `backend/migrations/`、`backend/internal/domain/`、`backend/internal/apps/entityfoundation/seed/`、`backend/internal/repositories/`、`backend/internal/apps/graphprojection/`、`backend/data/entity_foundation/` 及测试。
+- `industry_chain_metric_definitions`、`industry_chain_metric_bindings`、通用 `observation_records`、node/flow observations、revision/quality/idempotency governance、ingestion observation writer 全部移到后续 `add-industry-chain-observation-foundation`。
+- 本 change 不实现事件抽取、推理结果持久化、API、UI 或真实 observation connector；不修改 `frontend/`、`prototype/`、项目外 `doc/` 或其他 OpenSpec change。
+- 不改变 PostgreSQL 事实源、Neo4j 可重建投影和 `Review → Write → Rebuild → Query` 分层门禁。
