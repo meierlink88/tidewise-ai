@@ -31,7 +31,8 @@
 - [x] 5.2a 用户已批准 canonical topology 方向；已在版本化可执行 seed 中准备 24 条 topology 并完成 policy/report 测试，无 `substitutes_for`
 - [ ] 5.2b 仅在用户逐项批准后，才将 15 条 physical constraint candidate 或 12 条 `mapped_to_sector` candidate 从 review-only fixture 晋级为可执行 seed；economy/commodity/benchmark 保持空
 - [x] 5.3 已在 `stateful-execution-plan.md` 展示 migration、master seed、membership、topology、physical constraint、`mapped_to_sector`、Neo4j rebuild/query 的范围、顺序、预计统计、验证与回滚边界；所有 stateful 操作仍需逐层明确授权
-- [ ] 5.4 按层执行 `Review → Write → Rebuild → Query`，每层由用户验收后才能推进下一层
+- [x] 5.4a 2026-07-13 在用户单独授权后，为 local PostgreSQL 创建并校验 pg_dump 备份，仅执行 `000014`，并以只读 Query 验收 version=14、4 张空新表、profile 增量列、约束/索引、33 个既有节点和 planned ID 零冲突
+- [ ] 5.4b 从 Layer 2 chain/node master 开始继续按层执行 `Review → Write → Rebuild → Query`；上一层验收不得推定下一层授权
 
 ## 6. 完整验证与 Apply 后 Review
 
