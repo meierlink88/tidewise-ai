@@ -40,6 +40,41 @@ func TestProjectorProjectsEntitiesAndRelationships(t *testing.T) {
 	}
 }
 
+func TestProjectorExcludesBenchmarkObservationsFromSourceRowsAndGraphWrites(t *testing.T) {
+	repo := newProjectorRepository()
+	benchmarkNode := projectorNode("benchmark-1", "benchmark:us_10y_treasury_yield")
+	benchmarkNode.EntityType = domain.EntityTypeBenchmark
+	benchmarkNode.LayerCode = "market"
+	repo.nodes = []repositories.GraphEntityNode{benchmarkNode}
+	repo.observations = []domain.BenchmarkObservation{
+		{
+			ID:                "observation-1",
+			BenchmarkEntityID: "benchmark-1",
+			ObservedAt:        repo.now,
+			Value:             "4.25",
+			Unit:              "percent",
+			SourceName:        "US Treasury",
+			QualityStatus:     domain.BenchmarkObservationQualityValidated,
+		},
+	}
+	writer := &recordingGraphWriter{}
+
+	report, err := NewProjector(repo, writer, "tidewise", func() time.Time { return repo.now }).ProjectEntities(context.Background(), ProjectOptions{})
+	if err != nil {
+		t.Fatalf("ProjectEntities() error = %v", err)
+	}
+
+	if report.SourceRowCount != 1 {
+		t.Fatalf("SourceRowCount = %d, want only one entity row and no observation rows", report.SourceRowCount)
+	}
+	if len(writer.nodes) != 1 || len(writer.relationships) != 0 {
+		t.Fatalf("writer nodes/relationships = %d/%d, want 1/0 with no observation writes", len(writer.nodes), len(writer.relationships))
+	}
+	if writer.nodes[0].EntityID != "benchmark-1" {
+		t.Fatalf("writer node entity ID = %q, want benchmark definition only", writer.nodes[0].EntityID)
+	}
+}
+
 func TestProjectorRecordsSkippedRelationshipAsPartial(t *testing.T) {
 	repo := newProjectorRepository()
 	repo.nodes = []repositories.GraphEntityNode{projectorNode("entity-1", "economy:cn")}
@@ -124,9 +159,10 @@ func projectorNode(id string, key string) repositories.GraphEntityNode {
 }
 
 type projectorRepository struct {
-	nodes []repositories.GraphEntityNode
-	edges []repositories.GraphEntityEdge
-	now   time.Time
+	nodes        []repositories.GraphEntityNode
+	edges        []repositories.GraphEntityEdge
+	observations []domain.BenchmarkObservation
+	now          time.Time
 
 	createdRuns   []repositories.GraphProjectionRun
 	completedRuns []repositories.GraphProjectionRun

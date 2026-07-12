@@ -61,6 +61,76 @@ func TestAllianceOrgProfileValidate(t *testing.T) {
 	}
 }
 
+func TestBenchmarkEntityTypeAndProfileValidate(t *testing.T) {
+	node := EntityNode{
+		ID:            "benchmark-1",
+		EntityType:    EntityTypeBenchmark,
+		LayerCode:     "benchmark",
+		Name:          "美国10年期国债收益率",
+		CanonicalName: "美国10年期国债收益率",
+		Status:        StatusActive,
+	}
+	if err := node.Validate(); err != nil {
+		t.Fatalf("benchmark EntityNode.Validate() error = %v", err)
+	}
+
+	profile := BenchmarkProfile{
+		EntityID:           "benchmark-1",
+		BenchmarkType:      BenchmarkTypeGovernmentBondYield,
+		OfficialSeriesCode: "",
+		Provider:           "us_treasury",
+		Tenor:              "10Y",
+		CurrencyCode:       "USD",
+		Unit:               "percent",
+		Frequency:          "daily",
+		SourceURL:          "https://home.treasury.gov/",
+	}
+	if err := profile.Validate(); err != nil {
+		t.Fatalf("BenchmarkProfile.Validate() error = %v", err)
+	}
+
+	profile.BenchmarkType = "index"
+	if err := profile.Validate(); err == nil {
+		t.Fatal("BenchmarkProfile.Validate() error = nil, want invalid benchmark type error")
+	}
+}
+
+func TestBenchmarkObservationQualityStatusValidate(t *testing.T) {
+	validStatuses := []BenchmarkObservationQualityStatus{
+		BenchmarkObservationQualityRaw,
+		BenchmarkObservationQualityValidated,
+		BenchmarkObservationQualitySuspect,
+		BenchmarkObservationQualityRejected,
+	}
+	for _, status := range validStatuses {
+		observation := BenchmarkObservation{
+			ID:                "observation-1",
+			BenchmarkEntityID: "benchmark-1",
+			ObservedAt:        time.Now(),
+			Value:             "4.25",
+			Unit:              "percent",
+			SourceName:        "US Treasury",
+			QualityStatus:     status,
+		}
+		if err := observation.Validate(); err != nil {
+			t.Fatalf("BenchmarkObservation.Validate() status %q error = %v", status, err)
+		}
+	}
+
+	observation := BenchmarkObservation{
+		ID:                "observation-1",
+		BenchmarkEntityID: "benchmark-1",
+		ObservedAt:        time.Now(),
+		Value:             "4.25",
+		Unit:              "percent",
+		SourceName:        "US Treasury",
+		QualityStatus:     "estimated",
+	}
+	if err := observation.Validate(); err == nil {
+		t.Fatal("BenchmarkObservation.Validate() error = nil, want invalid quality status error")
+	}
+}
+
 func TestRawDocumentValidate(t *testing.T) {
 	document := RawDocument{
 		ID:            "raw-1",

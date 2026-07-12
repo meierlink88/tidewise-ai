@@ -286,6 +286,18 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"currency_code", text("currency_code")},
 			{"list_date", date("list_date")},
 		}, nil
+	case domain.EntityTypeBenchmark:
+		return []profileField{
+			{"benchmark_type", text("benchmark_type")},
+			{"official_series_code", text("official_series_code")},
+			{"provider", text("provider")},
+			{"tenor", text("tenor")},
+			{"underlying_symbol", text("underlying_symbol")},
+			{"currency_code", text("currency_code")},
+			{"unit", text("unit")},
+			{"frequency", text("frequency")},
+			{"source_url", text("source_url")},
+		}, nil
 	case domain.EntityTypeSector:
 		return []profileField{
 			{"sector_system", text("sector_system")},
@@ -359,6 +371,8 @@ func profileTableName(entityType domain.EntityType) (string, error) {
 		return "market_profiles", nil
 	case domain.EntityTypeIndex:
 		return "index_profiles", nil
+	case domain.EntityTypeBenchmark:
+		return "benchmark_profiles", nil
 	case domain.EntityTypeSector:
 		return "sector_profiles", nil
 	case domain.EntityTypeChainNode:

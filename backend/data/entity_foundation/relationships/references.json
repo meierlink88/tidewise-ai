@@ -1,0 +1,9 @@
+{
+  "relationships": [
+    {"key":"relationship:ice_brent_crude_front_month_settlement_references_brent_crude","from":"benchmark:ice_brent_crude_front_month_settlement","to":"commodity:brent_crude","relation_type":"references","source_name":"ICE Futures Europe","source_url":"https://www.ice.com/products/219/Brent-Crude-Futures","verified_at":"2026-07-12T00:00:00+08:00","status":"active"},
+    {"key":"relationship:nymex_wti_crude_front_month_settlement_references_wti_crude","from":"benchmark:nymex_wti_crude_front_month_settlement","to":"commodity:wti_crude","relation_type":"references","source_name":"CME Group","source_url":"https://www.cmegroup.com/markets/energy/crude-oil/light-sweet-crude.contractSpecs.html","verified_at":"2026-07-12T00:00:00+08:00","status":"active"},
+    {"key":"relationship:lbma_gold_price_pm_references_gold","from":"benchmark:lbma_gold_price_pm","to":"commodity:gold","relation_type":"references","source_name":"LBMA","source_url":"https://www.lbma.org.uk/prices-and-data/about-lbma-daily-auction-prices","verified_at":"2026-07-12T00:00:00+08:00","status":"active"},
+    {"key":"relationship:cme_cf_bitcoin_reference_rate_references_digital_asset","from":"benchmark:cme_cf_bitcoin_reference_rate","to":"instrument:digital_asset","relation_type":"references","source_name":"CME Group and CF Benchmarks","source_url":"https://www.cmegroup.com/cryptooptionsfaq","verified_at":"2026-07-12T00:00:00+08:00","status":"active"},
+    {"key":"relationship:cme_cf_ether_dollar_reference_rate_references_digital_asset","from":"benchmark:cme_cf_ether_dollar_reference_rate","to":"instrument:digital_asset","relation_type":"references","source_name":"CME Group and CF Benchmarks","source_url":"https://www.cmegroup.com/cryptooptionsfaq","verified_at":"2026-07-12T00:00:00+08:00","status":"active"}
+  ]
+}

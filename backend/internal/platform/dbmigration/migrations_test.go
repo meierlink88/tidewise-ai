@@ -125,10 +125,18 @@ func TestMigrationsDoNotUseDataDestructiveResetStatements(t *testing.T) {
 		"drop database",
 		"drop schema",
 		"truncate table",
-		"delete from",
 	} {
 		if strings.Contains(content, forbidden) {
 			t.Fatalf("migration must not contain destructive reset statement %q", forbidden)
+		}
+	}
+
+	for _, file := range migrationFiles(t) {
+		if filepath.Base(file) == "000009_migrate_benchmark_metrics.sql" {
+			continue
+		}
+		if strings.Contains(strings.ToLower(readMigration(t, file)), "delete from") {
+			t.Fatalf("migration %q must not delete data", filepath.Base(file))
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -187,7 +188,47 @@ func validateEntity(entity Entity) error {
 		Aliases:       entity.Aliases,
 		Status:        status,
 	}
-	return node.Validate()
+	if err := node.Validate(); err != nil {
+		return err
+	}
+	if entity.EntityType == domain.EntityTypeBenchmark {
+		return validateBenchmarkSearchNames(entity)
+	}
+	return nil
+}
+
+func validateBenchmarkSearchNames(entity Entity) error {
+	nameHasHan := containsUnicodeScript(entity.Name, unicode.Han)
+	canonicalHasHan := containsUnicodeScript(entity.CanonicalName, unicode.Han)
+	if nameHasHan || canonicalHasHan {
+		if !nameHasHan || !canonicalHasHan {
+			return fmt.Errorf("benchmark name and canonical name must use the same Chinese primary-name policy")
+		}
+		if !aliasesContainUnicodeScript(entity.Aliases, unicode.Latin) {
+			return fmt.Errorf("benchmark with Chinese primary name requires an English alias")
+		}
+		return nil
+	}
+	if containsUnicodeScript(entity.Name, unicode.Latin) && containsUnicodeScript(entity.CanonicalName, unicode.Latin) {
+		if !aliasesContainUnicodeScript(entity.Aliases, unicode.Han) {
+			return fmt.Errorf("benchmark with English primary name requires a Chinese alias")
+		}
+		return nil
+	}
+	return fmt.Errorf("benchmark primary name must be Chinese or English")
+}
+
+func containsUnicodeScript(value string, script *unicode.RangeTable) bool {
+	return strings.IndexFunc(value, func(r rune) bool { return unicode.Is(script, r) }) >= 0
+}
+
+func aliasesContainUnicodeScript(aliases []string, script *unicode.RangeTable) bool {
+	for _, alias := range aliases {
+		if containsUnicodeScript(alias, script) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateProfileData(entityType domain.EntityType, data json.RawMessage) error {
@@ -224,6 +265,8 @@ func requiredProfileFields(entityType domain.EntityType) []string {
 		return []string{"market_type"}
 	case domain.EntityTypeIndex:
 		return []string{"index_code", "index_type"}
+	case domain.EntityTypeBenchmark:
+		return []string{"benchmark_type", "provider", "currency_code", "unit", "frequency", "source_url"}
 	case domain.EntityTypeSector:
 		return []string{"sector_system", "sector_code", "sector_type"}
 	case domain.EntityTypeChainNode:

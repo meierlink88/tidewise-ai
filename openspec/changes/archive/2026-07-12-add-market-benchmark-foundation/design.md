@@ -63,13 +63,15 @@ PG 继续作为事实源，保存 `entity_nodes`、`benchmark_profiles`、`bench
 - `benchmark -> measures -> metric`：具体 benchmark 测量的通用维度。
 - `benchmark -> references -> commodity/instrument`：benchmark 对应的实物标的或交易工具类别。
 
-五个国债收益率连接 `metric:government_bond_yield`；Brent/WTI 连接 `metric:oil_price` 和对应 commodity；黄金、BTC、ETH 连接通用 `metric:latest_price`，黄金引用 `commodity:gold`，BTC/ETH 引用 `instrument:digital_asset` 并通过 `underlying_symbol` 区分。
+五个国债收益率连接 `metric:government_bond_yield`；Brent/WTI 连接 `metric:oil_price` 和对应 commodity；黄金连接本 change 新增的 `metric:gold_price` 并引用 `commodity:gold`；BTC/ETH 连接 `metric:exchange_rate`，引用 `instrument:digital_asset` 并通过 `underlying_symbol` 区分。WTI 在当前不新增 NYMEX 市场实体的约束下暂由 `market:global_commodity_futures` 观测，后续独立新增 `market:nymex` 后迁移到精确端点。
 
 不在关系中保存涨跌、利好利空、影响方向或强度。
 
 ### Decision: 首批 seed 先 review 后写入
 
 首批 10 个 benchmark 保留此前审阅的权威来源，但重新核验名称、类型、provider、官方 series code、单位、频率和关系。无法确认官方代码时 `official_series_code` 保持 null，禁止使用 `CN_10Y_GOV_YIELD` 等内部占位符冒充官方代码。
+
+tasks 4.1-4.3 的 repo/PG 只读审计、精确迁移方案、首批 10 个 benchmark 候选和三类关系候选统一记录在 [Benchmark Foundation 审阅清单](reviews/benchmark-foundation-review.md)。该清单在 task 4.4 用户明确确认前不得转写为正式 seed 或数据库数据。
 
 ### Decision: 将 fear_index 迁移为 implied_volatility
 
@@ -169,4 +171,3 @@ classDiagram
 
 - 首批 10 个 benchmark 的最终官方 series code、频率和单位在 review 清单中逐项确认。
 - 真实行情 connector、历史回填范围和 observation 分区策略由后续 `add-benchmark-market-data-ingestion` change 决定。
-
