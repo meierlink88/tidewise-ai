@@ -56,7 +56,7 @@
 
 #### Scenario: 更新无代码来源快照
 - **WHEN** 新快照再次出现同一无代码 source mapping identity
-- **THEN** 系统必须幂等更新该 mapping 的最新 `rank_snapshot`、`snapshot_date` 和 `source_url`，不得为每个快照创建新 mapping；第一版历史快照只保留在 Git 版本化的 `openspec/changes/add-market-sector-foundation/candidate-review.md`，不新增历史 snapshot 表
+- **THEN** 系统必须幂等更新该 mapping 的最新 `rank_snapshot`、`snapshot_date` 和 `source_url`，不得为每个快照创建新 mapping；第一版历史快照只保留在 Git 版本化的 `openspec/changes/archive/2026-07-12-add-market-sector-foundation/candidate-review.md`，不新增历史 snapshot 表
 
 ### Requirement: 市场板块关系 seed 策略
 系统 SHALL 只把已经 Review 的板块客观关系写入正式关系 seed。

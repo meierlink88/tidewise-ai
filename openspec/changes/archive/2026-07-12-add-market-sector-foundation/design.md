@@ -108,7 +108,7 @@ sector_source_mapping:<sector_key>:<source_system>:<source_taxonomy_type>:<sourc
 
 唯一约束：`(source_system, source_taxonomy_type, source_sector_code)` 在 `source_sector_code` 非空时唯一；无代码时使用 `(source_system, source_taxonomy_type, source_sector_name_normalized, source_market_scope)` 作为稳定来源身份，唯一键不得包含 `snapshot_date`。名称归一化规则必须由 loader 的确定性函数统一执行，原始 `source_sector_name` 仍用于审计和展示。一个 canonical sector 可以有多条 source mapping；一条 approved source mapping 只能指向一个 canonical sector。
 
-第一版不新增历史 snapshot 表。重复采集同一 source identity 时，对 mapping 行的 `rank_snapshot`、`snapshot_date` 和 `source_url` 执行幂等覆盖更新，表示最新一次来源观察；本轮生成的完整约 60 项候选清单固定保存到 `openspec/changes/add-market-sector-foundation/candidate-review.md`，由 Git 版本记录保留当次排名、评分证据和审阅结论。需要长期查询多期排名历史时，再由独立 change 设计 `sector_source_mapping_snapshots` 或采集事实表，不能通过重复创建 mapping 行模拟历史。
+第一版不新增历史 snapshot 表。重复采集同一 source identity 时，对 mapping 行的 `rank_snapshot`、`snapshot_date` 和 `source_url` 执行幂等覆盖更新，表示最新一次来源观察；本轮生成的完整约 60 项候选清单固定保存到 `openspec/changes/archive/2026-07-12-add-market-sector-foundation/candidate-review.md`，由 Git 版本记录保留当次排名、评分证据和审阅结论。需要长期查询多期排名历史时，再由独立 change 设计 `sector_source_mapping_snapshots` 或采集事实表，不能通过重复创建 mapping 行模拟历史。
 
 seed 形态：`backend/data/entity_foundation/sectors.json` 保留 canonical sector 实体和 profile；新增 `backend/data/entity_foundation/sector_source_mappings.json` 或同等专用 manifest 保存 source mappings。PostgreSQL 是 mapping 的事实源。Neo4j 第一版不投影 `sector_source_mappings`，只投影 canonical sector 节点和已审阅 `entity_edges`，避免把候选来源噪声带入实体图。
 
