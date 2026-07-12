@@ -70,7 +70,6 @@
 | `produces_commodity` | chain_node → commodity | 节点产出商品 |
 | `observed_by_benchmark` | chain_node/industry_chain → benchmark | 可观测 benchmark |
 | `represented_by_sector` | chain_node/industry_chain → sector | 中国或指定市场板块的客观映射 |
-| `measured_by` | chain_node/industry_chain/topology projection owner → metric | 适用指标定义 |
 
 全球 benchmark 的路径是 `benchmark ← observed_by — chain/node — represented_by → 中国 sector`。海外 `market` 只能 `covers_sector` 其自身客观覆盖范围，不得为了传导查询而 `COVERS_SECTOR` 中国板块。
 
@@ -88,14 +87,14 @@
 
 领域值只进入 typed tables：
 
-- `industry_chain_node_observations`：`observation_id`、`industry_chain_entity_id`、`chain_node_entity_id`、`metric_entity_id`、`value_numeric`、`unit`、`period_start`、`period_end`；用于产能、产量、库存、利用率、交期、价格等已建模 metric。
-- `industry_chain_flow_observations`：`observation_id`、`topology_edge_id`、`metric_entity_id`、`value_numeric`、`unit`、`period_start`、`period_end`；用于贸易量、投入量、产出量或依赖流量。
+- `industry_chain_node_observations`：引用产业链专用指标定义，用于产能、产量、库存、利用率、交期、价格等节点观测。
+- `industry_chain_flow_observations`：引用产业链专用指标定义，用于贸易量、投入量、产出量或依赖流量。
 
 不使用 `attribute_name/value_text` 万能 EAV。第一版 connector 范围只允许复用 ingestion 的 `source_catalogs → raw_documents → parser/validator → typed observation writer` 契约；实际 provider/connector 清单、授权和频率必须在后续采集 change 中逐项批准。无明确 metric、单位、时间窗口或来源的观察不得写入 validated 状态。
 
 ### 4. Schema field mapping（本 change 的主要设计交付）
 
-以下 8 张表构成首版产业链数据模型。`entity_nodes` 继续保存统一实体身份，`entity_edges` 继续保存跨实体客观关系，`metric_profiles` 定义可观测指标，`raw_documents` 保存外部证据原文；不创建平行实体表、关系总表或万能 EAV。
+以下 10 张表构成首版产业链数据模型。`entity_nodes` 继续保存统一实体身份，`entity_edges` 继续保存跨实体客观关系，现有 `metric_profiles` 保持市场/宏观/商品/benchmark 通用指标语义并仅作为可选桥接，`raw_documents` 保存外部证据原文；不创建平行实体表、关系总表或万能 EAV。
 
 #### 4.1 `industry_chain_profiles`
 
@@ -184,7 +183,51 @@
 
 `chain_node_entity_id` 与 `topology_edge_id` 必须恰好一个非空；对象必须属于同一产业链。该表只保存“存在何种结构性约束及其机制”，不保存 severity、score、benefit/pressure 或当前是否形成瓶颈。
 
-#### 4.6 `observation_records`
+#### 4.6 `industry_chain_metric_definitions`
+
+| 字段 | 类型 | 约束 | 语义 |
+|---|---|---|---|
+| `id` | UUID | PK | 产业链指标定义身份，不进入 `entity_nodes` |
+| `metric_code` | VARCHAR(96) | NOT NULL, UNIQUE | 稳定领域代码 |
+| `name` | TEXT | NOT NULL | 中文指标名称 |
+| `definition` | TEXT | NOT NULL | 指标口径与边界 |
+| `metric_category` | VARCHAR(48) | CHECK `demand/supply/capacity/inventory/price/lead_time/qualification/yield/order/trade_flow/financial` | 产业链指标分类 |
+| `subject_type` | VARCHAR(32) | CHECK `chain_node/topology_edge` | 允许的观测主体 |
+| `value_type` | VARCHAR(32) | CHECK `numeric/integer/percentage/duration` | 值类型 |
+| `unit` | VARCHAR(64) | NOT NULL | 标准单位 |
+| `frequency` | VARCHAR(32) | CHECK `realtime/daily/weekly/monthly/quarterly/event` | 默认频率 |
+| `aggregation_method` | VARCHAR(32) | CHECK `sum/average/latest/min/max/weighted_average` | 跨记录聚合口径 |
+| `constraint_direction` | VARCHAR(32) | CHECK `higher_tighter/lower_tighter/contextual` | 数值变化与约束收紧方向 |
+| `applicable_constraint_type` | VARCHAR(48) | nullable, 与 constraint enum 一致 | 可选的主要约束类型 |
+| `base_metric_entity_id` | UUID | nullable FK → `entity_nodes(id)` | 可选桥接现有通用 metric，必须为 entity_type=metric |
+| `source_name` | TEXT | NOT NULL | 指标口径来源 |
+| `source_url` | TEXT | NOT NULL | 来源 URL |
+| `review_status` | VARCHAR(32) | CHECK `candidate/reviewed/approved` | Review 状态 |
+| `status` | VARCHAR(32) | CHECK `active/inactive` | 生命周期状态 |
+| `created_at/updated_at` | TIMESTAMPTZ | NOT NULL | 审计时间 |
+
+该表是产业链领域指标目录。即便桥接 `metric:capacity_utilization`，`industry_chain_metric:wafer_fab_utilization` 仍独立保存晶圆制造口径、主体、单位、频率和约束方向。
+
+#### 4.7 `industry_chain_metric_bindings`
+
+| 字段 | 类型 | 约束 | 语义 |
+|---|---|---|---|
+| `id` | UUID | PK | 指标适用关系身份 |
+| `industry_chain_entity_id` | UUID | NOT NULL FK | chain scope |
+| `chain_node_entity_id` | UUID | nullable FK | 节点主体 |
+| `topology_edge_id` | UUID | nullable FK | 拓扑边主体 |
+| `industry_chain_metric_id` | UUID | NOT NULL FK → `industry_chain_metric_definitions(id)` | 领域指标 |
+| `constraint_id` | UUID | nullable FK → `industry_chain_constraints(id)` | 可选关联结构性约束 |
+| `is_required` | BOOLEAN | NOT NULL DEFAULT false | 是否为该主体的核心观测指标 |
+| `source_name` | TEXT | NOT NULL | 绑定依据来源 |
+| `source_url` | TEXT | NOT NULL | 来源 URL |
+| `verified_at` | TIMESTAMPTZ | NOT NULL | 核验时间 |
+| `review_status` | VARCHAR(32) | CHECK `candidate/reviewed/approved` | Review 状态 |
+| `status` | VARCHAR(32) | CHECK `active/inactive` | 生命周期状态 |
+
+节点和拓扑边必须恰好一个非空且属于同一产业链；指标 `subject_type` 必须与绑定主体一致。唯一键分别为 `(industry_chain_entity_id, chain_node_entity_id, industry_chain_metric_id)` 或 `(industry_chain_entity_id, topology_edge_id, industry_chain_metric_id)`，通过 partial unique index 实现。
+
+#### 4.8 `observation_records`
 
 | 字段 | 类型 | 约束 | 语义 |
 |---|---|---|---|
@@ -204,7 +247,7 @@
 
 唯一键：`(observation_type, source_catalog_id, source_external_id, observed_at, revision)`；索引：`(observation_type, observed_at DESC)`、`(source_catalog_id, collected_at DESC)`。`validated` 必须存在且只存在一个匹配 typed row；这一跨表不变量由同一 repository transaction、deferred constraint trigger 或等价数据库防御共同保证，不能只依赖调用方约定。
 
-#### 4.7 `industry_chain_node_observations`
+#### 4.9 `industry_chain_node_observations`
 
 | 字段 | 类型 | 约束 | 语义 |
 |---|---|---|---|
@@ -212,28 +255,28 @@
 | `industry_chain_entity_id` | UUID | NOT NULL FK | chain scope |
 | `chain_node_entity_id` | UUID | NOT NULL FK | 必须为该链 membership |
 | `constraint_id` | UUID | nullable FK → `industry_chain_constraints(id)` | 可选关联结构性约束 |
-| `metric_entity_id` | UUID | NOT NULL FK → `entity_nodes(id)` | 必须为 metric |
+| `industry_chain_metric_id` | UUID | NOT NULL FK → `industry_chain_metric_definitions(id)` | 必须为 `subject_type=chain_node` 的 approved active 指标 |
 | `value_numeric` | NUMERIC | NOT NULL | 数值 |
 | `unit` | VARCHAR(64) | NOT NULL | 与 metric 定义兼容 |
 | `period_start/period_end` | TIMESTAMPTZ | nullable | 观察期间；end 不早于 start |
 
-索引：`(chain_node_entity_id, metric_entity_id)`；与 `observation_records(observation_type, observed_at DESC)` join 支撑时序查询。禁止在此表存 arbitrary text value。
+索引：`(chain_node_entity_id, industry_chain_metric_id)`；与 `observation_records(observation_type, observed_at DESC)` join 支撑时序查询。对应 chain/node/metric 组合必须存在 approved active binding。禁止在此表存 arbitrary text value。
 
-#### 4.8 `industry_chain_flow_observations`
+#### 4.10 `industry_chain_flow_observations`
 
 | 字段 | 类型 | 约束 | 语义 |
 |---|---|---|---|
 | `observation_id` | UUID | PK, FK → `observation_records(id)` | 必须对应 flow metric 类型 |
 | `topology_edge_id` | UUID | NOT NULL FK → `industry_chain_topology_edges(id)` | 被观测的稳定流向 |
 | `constraint_id` | UUID | nullable FK → `industry_chain_constraints(id)` | 可选关联边级约束 |
-| `metric_entity_id` | UUID | NOT NULL FK | 流量/贸易/投入产出 metric |
+| `industry_chain_metric_id` | UUID | NOT NULL FK → `industry_chain_metric_definitions(id)` | 必须为 `subject_type=topology_edge` 的 approved active 指标 |
 | `value_numeric` | NUMERIC | NOT NULL | 数值 |
 | `unit` | VARCHAR(64) | NOT NULL | 单位 |
 | `period_start/period_end` | TIMESTAMPTZ | nullable | 观察期间 |
 
-索引：`(topology_edge_id, metric_entity_id)`；chain scope 从 topology edge 唯一确定，不重复存储 `industry_chain_entity_id`。
+索引：`(topology_edge_id, industry_chain_metric_id)`；对应 topology edge/metric 组合必须存在 approved active binding。chain scope 从 topology edge 唯一确定，不重复存储 `industry_chain_entity_id`。
 
-#### 4.9 复用 `entity_edges` 的跨实体关系字段
+#### 4.11 复用 `entity_edges` 的跨实体关系字段
 
 不新增跨实体关系表。继续复用 `entity_edges(id, from_entity_id, to_entity_id, relation_type, evidence_note, source_name, source_url, verified_at, status, created_at, updated_at)`，只扩展 relationship policy：
 
@@ -241,7 +284,6 @@
 - `chain_node → commodity`: `uses_commodity` / `produces_commodity`；
 - `industry_chain|chain_node → benchmark`: `observed_by_benchmark`；
 - `industry_chain|chain_node → sector`: `represented_by_sector`；
-- `industry_chain|chain_node → metric`: `measured_by`。
 
 公司与节点继续使用既有 `company → chain_node: participates_in`，但必须补充来源；“公司受益于瓶颈”不是客观关系，不进入 `entity_edges`。
 
@@ -253,7 +295,7 @@ Serenity 原仓库是 prompt/workflow、证据规范、示例和本地 scorecard
 |---|---|---|
 | value-chain / required parts | `industry_chain_profiles`、`chain_node_profiles`、`industry_chain_memberships` | 稳定、经 Review 的主数据 |
 | upstream/downstream/dependency/substitution | `industry_chain_topology_edges` | 有来源、经 Review 的稳定拓扑 |
-| power/bandwidth/heat/yield/purity/lead-time/capacity 等约束信号 | `metric_profiles` + `industry_chain_node_observations` / `industry_chain_flow_observations` | 带时点、来源和质量的客观观察 |
+| power/bandwidth/heat/yield/purity/lead-time/capacity 等约束信号 | `industry_chain_metric_definitions` + bindings + node/flow observations | 带领域口径、适用主体、时点、来源和质量的客观观察 |
 | filing/order/certification/project/technical evidence | `raw_documents`、未来 event evidence/claim contract、`observation_records` provenance | 证据事实与证据等级 |
 | scarce-layer ranking、company priority、market gap、catalyst、risk、kill switch | 未来 event-driven reasoning result contract | 动态、可重算、带证据和有效期的推理结果 |
 
@@ -364,6 +406,23 @@ classDiagram
       +string mechanism
       +string review_status
     }
+    class IndustryChainMetricDefinition {
+      +UUID id
+      +string metric_code
+      +string metric_category
+      +string subject_type
+      +string unit
+      +string constraint_direction
+      +UUID base_metric_entity_id
+    }
+    class IndustryChainMetricBinding {
+      +UUID id
+      +UUID industry_chain_entity_id
+      +UUID chain_node_entity_id
+      +UUID topology_edge_id
+      +UUID industry_chain_metric_id
+      +UUID constraint_id
+    }
     class EntityEdge {
       +UUID from_entity_id
       +UUID to_entity_id
@@ -380,13 +439,13 @@ classDiagram
     class IndustryChainNodeObservation {
       +UUID observation_id
       +UUID chain_node_entity_id
-      +UUID metric_entity_id
+      +UUID industry_chain_metric_id
       +decimal value_numeric
     }
     class IndustryChainFlowObservation {
       +UUID observation_id
       +UUID topology_edge_id
-      +UUID metric_entity_id
+      +UUID industry_chain_metric_id
       +decimal value_numeric
     }
 
@@ -398,9 +457,15 @@ classDiagram
     IndustryChainProfile "1" --> "many" IndustryChainConstraint
     ChainNodeProfile "1" --> "many" IndustryChainConstraint
     IndustryChainTopologyEdge "1" --> "many" IndustryChainConstraint
+    IndustryChainMetricDefinition "1" --> "many" IndustryChainMetricBinding
+    IndustryChainProfile "1" --> "many" IndustryChainMetricBinding
+    ChainNodeProfile "1" --> "many" IndustryChainMetricBinding
+    IndustryChainTopologyEdge "1" --> "many" IndustryChainMetricBinding
     EntityNode "2" --> "many" EntityEdge
     ObservationRecord "1" --> "0..1" IndustryChainNodeObservation
     ObservationRecord "1" --> "0..1" IndustryChainFlowObservation
+    IndustryChainMetricDefinition "1" --> "many" IndustryChainNodeObservation
+    IndustryChainMetricDefinition "1" --> "many" IndustryChainFlowObservation
     IndustryChainTopologyEdge "1" --> "many" IndustryChainFlowObservation
 ```
 

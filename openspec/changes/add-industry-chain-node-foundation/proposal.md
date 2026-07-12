@@ -9,6 +9,7 @@
 - 新增结构性约束定义表，明确约束对象、约束类型、形成机制、替代难度、扩产方式和证据来源，但不保存当前瓶颈严重度或投资判断。
 - 扩展实体关系 policy，使产业链及节点能够与 `economy`、`commodity`、`benchmark`、`sector`、`metric` 等实体建立方向明确的客观关系；禁止把推理方向、影响强度、利好利空或预测结论固化为主数据。
 - 建立通用 observation governance envelope 与产业链 typed observation contracts，覆盖节点指标和拓扑流量/约束观测，禁止单一万能 EAV 表；首版只定义必要存储、幂等、质量和采集交接契约。
+- 新增独立 `industry_chain_metric_definitions` 与 `industry_chain_metric_bindings`，使产业链指标拥有领域口径、约束方向和节点/拓扑适用范围；现有 `metric_profiles` 只作为可选语义桥接，不再被产业链 observation 直接引用。
 - 使 PostgreSQL 成为产业链、拓扑、跨实体关系与观测事实源；Neo4j 继续只投影 active 主数据和已审阅 active 稳定关系，不投影时序 observation 或未审阅候选。
 - 定义事件提取、event-driven reasoning、benchmark/商品/指标、市场板块与小程序展示的消费边界，尤其禁止用海外市场 `COVERS_SECTOR` 直接指向中国板块。
 - 将 Serenity 的公开方法论转化为系统设计目标：`market story → system change → required parts → value-chain layers → scarce constraints → evidence → risks/falsification`，同时把稳定事实、动态观测与时点推理结果严格分层。

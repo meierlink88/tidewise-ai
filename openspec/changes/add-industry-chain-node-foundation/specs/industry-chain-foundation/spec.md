@@ -41,15 +41,23 @@
 - **THEN** 记录只能保存形成机制、替代路径、扩产路径、来源和 Review 状态，不得包含当前严重度、传导强度、受益承压或预测结论
 
 ### Requirement: 产业链 typed observation
-系统 SHALL 使用通用 observation governance envelope 管理来源、时间、幂等、质量和修订，并使用产业链节点指标表与拓扑流量表保存领域值，不得使用单一万能 EAV 表。
+系统 SHALL 使用独立产业链指标定义和主体 binding 约束观测口径，使用通用 observation governance envelope 管理来源、时间、幂等、质量和修订，并使用产业链节点指标表与拓扑流量表保存领域值，不得使用单一万能 EAV 表。
+
+#### Scenario: 定义产业链专用指标
+- **WHEN** Review 批准产能利用率、交期、良率、供应商数量、订单或流量指标
+- **THEN** 系统必须保存独立 metric code、定义、类别、主体类型、值类型、单位、频率、聚合方法和约束方向，不得要求其成为 `entity_nodes` 中的通用 metric
+
+#### Scenario: 绑定指标与观测主体
+- **WHEN** 某指标适用于特定产业链节点或 topology edge
+- **THEN** 系统必须保存唯一 binding，并校验指标 `subject_type`、chain scope、可选 constraint 和 Review 状态一致
 
 #### Scenario: 保存节点指标观察
 - **WHEN** ingestion 提交节点产能、产量、库存、利用率、交期或价格观察
-- **THEN** 系统必须同时保存 governance envelope 与 typed node observation，并校验 chain、node、metric、单位、观察期和来源
+- **THEN** 系统必须同时保存 governance envelope 与 typed node observation，并校验 chain、node、产业链指标、approved binding、单位、观察期和来源
 
 #### Scenario: 保存拓扑流量观察
 - **WHEN** ingestion 提交贸易量、投入量、产出量或依赖流量观察
-- **THEN** 系统必须引用有效 topology edge 和 metric，并以 typed flow observation 保存数值和观察期
+- **THEN** 系统必须引用有效 topology edge、产业链指标和 approved binding，并以 typed flow observation 保存数值和观察期
 
 #### Scenario: 拒绝万能属性写入
 - **WHEN** 写入请求只提供任意属性名和文本值而没有明确 typed contract

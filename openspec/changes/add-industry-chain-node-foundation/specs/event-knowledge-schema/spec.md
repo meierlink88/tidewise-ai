@@ -12,11 +12,15 @@
 - **THEN** 必须保留节点 UUID、stable key、名称与既有 `chain_position`，不得删除、复制或隐式重分类节点
 
 ### Requirement: Observation governance 与 typed schema
-系统 SHALL 通过增量 migration 创建 `observation_records`、`industry_chain_node_observations` 和 `industry_chain_flow_observations`，并保证一个 envelope 只能对应符合其 `observation_type` 的 typed row。
+系统 SHALL 通过增量 migration 创建 `industry_chain_metric_definitions`、`industry_chain_metric_bindings`、`observation_records`、`industry_chain_node_observations` 和 `industry_chain_flow_observations`，并保证一个 envelope 只能对应符合其 `observation_type` 的 typed row。
 
 #### Scenario: 创建 observation schema
 - **WHEN** migration 被执行
-- **THEN** PostgreSQL 必须创建来源、时间、修订、质量、幂等约束和 typed 外键，并拒绝缺少有效 metric 或领域端点的 validated observation
+- **THEN** PostgreSQL 必须创建产业链指标口径、主体 binding、来源、时间、修订、质量、幂等约束和 typed 外键，并拒绝缺少 approved active 领域指标、有效 binding 或领域端点的 validated observation
+
+#### Scenario: 产业链指标与现有 metric 分离
+- **WHEN** migration 创建产业链指标定义
+- **THEN** observation 必须引用 `industry_chain_metric_definitions`，不得直接引用现有 `metric_profiles`；指标定义只能通过 nullable `base_metric_entity_id` 可选桥接 `entity_type=metric` 的通用语义
 
 #### Scenario: 非破坏性升级
 - **WHEN** 已有 benchmark observations、事件或采集数据的数据库应用 migration

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: 产业链跨实体关系 policy
-系统 SHALL 为 `scoped_to_economy`、`uses_commodity`、`produces_commodity`、`observed_by_benchmark`、`represented_by_sector` 和 `measured_by` 定义允许的 from/to 实体类型、方向、来源和语义。
+系统 SHALL 为 `scoped_to_economy`、`uses_commodity`、`produces_commodity`、`observed_by_benchmark` 和 `represented_by_sector` 定义允许的 from/to 实体类型、方向、来源和语义；产业链指标适用关系必须进入专用 binding 表而不是 `entity_edges`。
 
 #### Scenario: 连接产业链与经济体
 - **WHEN** economy-scope 产业链关系通过 Review
@@ -11,9 +11,9 @@
 - **WHEN** 节点投入或产出商品关系通过 Review
 - **THEN** 只允许 `chain_node -> commodity` 的 `uses_commodity` 或 `produces_commodity`，且两种语义不得互换
 
-#### Scenario: 连接 benchmark、metric 与 sector
-- **WHEN** 产业链或节点的可观测指标和市场映射通过 Review
-- **THEN** 系统必须使用 `observed_by_benchmark`、`measured_by` 或 `represented_by_sector` 的明确方向并保存完整 provenance
+#### Scenario: 连接 benchmark 与 sector
+- **WHEN** 产业链或节点的 benchmark 和市场映射通过 Review
+- **THEN** 系统必须使用 `observed_by_benchmark` 或 `represented_by_sector` 的明确方向并保存完整 provenance，且不得用 `measured_by` 连接产业链专用指标
 
 ### Requirement: 全球 benchmark 到中国板块的正确传导路径
 系统 SHALL 通过产业链或节点的客观映射连接全球 benchmark 与中国 canonical sector，不得伪造海外市场覆盖中国板块的事实。
