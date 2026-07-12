@@ -76,3 +76,35 @@
 #### Scenario: 写入 benchmark 跟踪关系
 - **WHEN** `tracked_by_benchmark` 关系获得人工 Review
 - **THEN** seed 必须只允许 `sector -> benchmark` 方向，并保存来源名称、来源 URL、核验时间和状态，且不得使用 `observes_benchmark` 表达该方向
+
+### Requirement: 旧板块 canonical convergence
+
+系统 SHALL 通过版本化结构化 manifest 和显式执行模式，把既有 source-bound sector 收敛到 reviewed canonical sector，禁止普通 seed 隐式制造重复 active 主数据。
+
+#### Scenario: 普通 seed 遇到 active legacy sector
+- **WHEN** 数据库存在 manifest 覆盖的 active legacy sector，且 canonical sector 尚未完成 convergence
+- **THEN** 普通 `entity-seed` 必须在任何写入前失败，并提示使用经过 Review 的显式 convergence 模式
+
+#### Scenario: 原子执行 convergence
+- **WHEN** 操作者显式批准并执行 sector convergence
+- **THEN** 系统必须在单一事务内校验 60 项 manifest、写入 52 个 canonical sector、迁移已注册引用、停用 60 个 legacy sector、写入审计记录、source mappings 和 reviewed relationships；任一步失败必须整体回滚
+
+#### Scenario: 保留旧身份审计
+- **WHEN** replace、merge 或 benchmark-only retirement 完成
+- **THEN** 系统不得删除或复用旧 UUID，必须保留旧 entity key/profile 并将旧实体标记 inactive，同时在 `entity_convergences` 保存结构化处置结果
+
+#### Scenario: 迁移已知和未来引用
+- **WHEN** legacy sector 被现有或未来 entity edge/FK 引用
+- **THEN** replace/merge 必须按显式 reference registry 重定向引用；benchmark-only 或未注册引用必须阻断 convergence，不能依赖当前数据库没有关系的偶然状态
+
+#### Scenario: 保留 legacy 来源
+- **WHEN** concept/industry legacy sector 收敛到 canonical target
+- **THEN** 系统必须把旧中文名追加为 canonical alias，并从旧 profile 生成指向 canonical 的 legacy source mapping；benchmark-only 不得伪造 sector mapping 或 benchmark 实体
+
+#### Scenario: convergence 幂等
+- **WHEN** 同一版本 convergence 或普通 seed 在成功后重复执行
+- **THEN** 系统不得新增重复 entity、mapping、edge 或 audit row，且必须报告 already-converged/unchanged 结果
+
+#### Scenario: Memory 与 PostgreSQL 原子语义一致
+- **WHEN** 相同 convergence manifest 分别由 MemoryRepository 和 PostgresRepository 执行
+- **THEN** 两者必须对 preflight、引用冲突、rollback、状态变化和 report 产生等价结果

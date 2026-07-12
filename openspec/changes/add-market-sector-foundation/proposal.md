@@ -2,7 +2,7 @@
 
 现有实体基础库已经有 `sector` 实体和 60 条同花顺风格板块快照，但它们仍偏向行情源清单，没有明确市场板块分类法、稳定标识策略、中文主名/英文别名规则，以及与市场、经济体、benchmark 的客观关系边界。事件驱动投研需要先把“板块”变成可审阅、可投影、可被事件推理引用的基础实体，否则后续事件抽取、产业链节点、商品和指标分析容易把 sector、industry-chain node、benchmark、commodity、metric 混成一层。
 
-本 change 在提案阶段先完成 Explore -> Propose -> Validate；经后续逐阶段 Review 批准后，已实现 migration 文件、loader/repository、关系策略、投影映射和正式 seed，但尚未执行 migration apply、PostgreSQL 写入或 Neo4j 重建。
+本 change 在提案阶段先完成 Explore -> Propose -> Validate；经后续逐阶段 Review 批准后，已实现 migration 文件、loader/repository、关系策略、投影映射和正式 seed。local PostgreSQL 已应用 migration `000010`，但正式 entity seed、关系写入和 Neo4j 重建尚未执行。
 
 ## What Changes
 
@@ -13,6 +13,8 @@
 - 收紧 external/source taxonomy、semantic sector 和 market benchmark 三层概念边界，避免把来源分类、可被事件影响的产业/主题暴露、用于量化验证的行情标尺混成同一个实体职责。
 - 设计实现阶段应复用 `backend/data/entity_foundation/sectors.json`、`sector_profiles`、`entity_edges`、`relationship_policy.go` 和 graph projection 映射，不创建平行 seed、平行 profile 或平行图谱写入路径。
 - 明确投研安全边界：板块基础数据只能表达客观分类、来源、市场范围和审阅关系，不表达具体股票推荐、买卖建议、涨跌预测、受益承压或传导强度。
+- 补充 canonical convergence：使用结构化 manifest 把本地既有 60 个 source-bound sector 收敛到 52 个 active canonical sector，保留旧 UUID 和审计记录、迁移引用并停用旧实体，避免普通 seed 形成 112 个 active sector。
+- 增加显式 convergence 执行模式、单事务和数据库前置门禁；普通 `entity-seed` 在检测到 active legacy sector 时必须拒绝写入 canonical seed，不得隐式停用主数据。
 
 ## Capabilities
 
@@ -31,3 +33,4 @@
 - 不涉及上级 `doc` 目录；长期产品文档如需更新，应由独立文档 change 处理。
 - 不修改或混入 active change `add-ai-event-extraction-pipeline`，也不触碰 `add-sdk-source-worker-connectors` worktree。
 - 后续实现会影响后端实体基础库 seed、Go loader/validator、repository/migration、graph projection 映射和 OpenSpec 主规格；不新增前端 API、不新增小程序页面、不接入真实行情源；候选评分和核心/扩展/观察分层用于 Review 与推理调度，不得被误固化为实体身份。
+- local PostgreSQL 已应用 migration `000010`，但正式 52 sector、60 source mapping 和 52 `covers_sector` 尚未写入；后续 convergence 实现和 local 应用仍需分阶段 Review。

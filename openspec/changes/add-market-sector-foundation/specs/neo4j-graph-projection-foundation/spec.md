@@ -26,3 +26,7 @@
 #### Scenario: 不投影推理结论
 - **WHEN** 后续事件推理生成板块影响评分、传导强度、受益承压或预测结论
 - **THEN** 这些内容不得通过实体基础图投影为 Neo4j 的基础实体关系
+
+#### Scenario: convergence 后重建图谱
+- **WHEN** PostgreSQL 已完成 sector convergence 并进行下一次实体图重建
+- **THEN** Neo4j 只能投影 52 个 active canonical sector，不得保留 60 个 inactive legacy sector 节点或指向它们的 active 关系

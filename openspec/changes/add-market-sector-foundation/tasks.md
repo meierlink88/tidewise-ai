@@ -50,3 +50,18 @@
 - [x] 5.2 运行 `openspec validate add-market-sector-foundation` 并检查 sync/archive 前 artifact 阶段措辞，确认 change artifacts 有效且与已完成实现一致
 - [x] 5.3 从 change merge-base 到 HEAD 审计完整 scoped diff、secrets、临时 provenance、stable key、semantic classification、禁止文案、关系端点与数据闭合，确认未修改 `prototype`、上级 `doc`、`add-ai-event-extraction-pipeline` 或 `add-sdk-source-worker-connectors` 相关内容
 - [x] 5.4 用户已逐阶段批准本 change 的 Apply 实现与 checkpoint commits；该批准不包含真实 migration apply、seed 写入、PostgreSQL/Neo4j 写入或图谱重建，以上操作仍需独立审批
+
+## 6. Canonical convergence 重新设计与实现
+
+- [x] 6.1 记录 local PostgreSQL 已应用 migration `000010`、仍有 60 个 active legacy sector、mapping/covers 均为 0，正式 entity seed 因预检会产生 112 active sector 而未执行
+- [x] 6.2 在 proposal/design/delta specs 中固定 60 项处置矩阵、12 replace/28 merge/20 benchmark-only retire、旧 UUID 保留、引用迁移、显式 CLI、单事务和最终 52 active 边界；`candidate-review.md` 保持不变
+- [ ] 6.3 TDD RED：增加 convergence manifest loader/domain 测试，覆盖 60 项完整性、action/target 约束、canonical/legacy key 唯一性、alias/source/reference policy 和禁止推理字段
+- [ ] 6.4 TDD RED：增加 Memory/PG service/repository 测试，覆盖普通 seed fail-closed、显式 convergence、单事务 rollback、40 条引用重定向与 legacy mapping、20 条 retirement、未知 FK 阻断和 edge 冲突收敛
+- [ ] 6.5 TDD RED：增加 CLI 与 migration 静态测试，覆盖 `-apply-sector-convergence` 显式门禁、`entity_convergences` schema/FK/check/unique 约束和非破坏性 rollback 说明
+- [ ] 6.6 实现 `sector_convergences.json`、domain/loader、`entity_convergences` migration、`SectorReferenceRegistry`、Memory clone-on-write、PostgreSQL `sql.Tx`、service report 和 CLI 显式模式；不得修改 `candidate-review.md` 的批准快照
+- [ ] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 在 legacy active 时零写入、显式 convergence 结果为 52 active/60 inactive/60 audit/100 mappings/52 covers/0 tracked，重复执行幂等
+- [ ] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
+- [ ] 6.9 经独立审批后在 local 先 apply 新 migration，再执行显式 convergence；记录前后实体、profile、mapping、edge、audit、引用和状态计数，失败时保留现场且不得手工修库
+- [ ] 6.10 local 重复执行显式 convergence 和普通 seed，确认幂等；在 PostgreSQL 验收 52 active canonical、60 inactive legacy、无悬空引用后暂停，等待 Neo4j graph projection 独立审批
+
+> **重新打开门：** 当前 change 因 canonical convergence 缺口不再是完成状态。下一阶段只能在主对话批准本设计后进入 6.3-6.8；本轮不得修改生产代码、seed 或数据库。

@@ -126,3 +126,15 @@
 #### Scenario: 展示板块基础数据
 - **WHEN** 后续 API 或前端展示板块基础数据
 - **THEN** 展示内容必须表达为市场理解和事件映射辅助，不得表达为具体股票推荐或交易建议
+
+### Requirement: canonical active 集合唯一性
+
+系统 SHALL 保证 convergence 后 active sector 集合只包含 reviewed canonical sector，legacy source-bound sector 仅作为 inactive 审计记录存在。
+
+#### Scenario: 收敛最终计数
+- **WHEN** 已批准的 60 项 legacy convergence 和正式 sector seed 完成
+- **THEN** PostgreSQL 必须包含 52 个 active canonical sector 和 60 个 inactive legacy sector，不得出现 112 个 active sector
+
+#### Scenario: benchmark-only 旧对象退休
+- **WHEN** 20 个旧宽基或市场指数被标记为 `retire_as_benchmark_only`
+- **THEN** 它们必须退出 active sector 集合，且在没有独立 Review 前不得自动创建 benchmark 实体或 `tracked_by_benchmark` 关系
