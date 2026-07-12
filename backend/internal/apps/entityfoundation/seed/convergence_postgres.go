@@ -118,9 +118,13 @@ func (r PostgresRepository) ApplySectorConvergence(ctx context.Context, entities
 		}
 		if mode == SectorConvergenceModeCorrection {
 			previousID := repoids.NormalizeUUID("entity_convergence", fmt.Sprintf("%s|%d", item.LegacyEntityKey, *manifest.PreviousManifestVersion))
-			if err := applyRecordedCorrectionMoves(ctx, tx, previousID, auditID, item.TargetEntityType, targetID); err != nil {
+			moves, err := applyRecordedCorrectionMoves(ctx, tx, previousID, auditID, item.TargetEntityType, targetID, item.TargetEntityKey)
+			if err != nil {
 				return SectorConvergenceReport{}, fmt.Errorf("correction drift for %q: %w", item.LegacyEntityKey, err)
 			}
+			report.ReferencesMoved += moves.references
+			report.MappingsChanged += moves.mappings
+			report.AliasesChanged += moves.aliases
 		}
 		if item.TargetEntityType == domain.EntityTypeSector {
 			mapping := SectorSourceMapping{
@@ -445,10 +449,18 @@ func insertReferenceMove(ctx context.Context, tx *sql.Tx, convergenceID, table, 
 	return err
 }
 
-func applyRecordedCorrectionMoves(ctx context.Context, tx *sql.Tx, previousID, currentID string, targetType domain.EntityType, targetID any) error {
+func applyRecordedCorrectionMoves(ctx context.Context, tx *sql.Tx, previousID, currentID string, targetType domain.EntityType, targetID any, targetKey string) (sectorMoveCounts, error) {
+	var counts sectorMoveCounts
+	var previousTargetID, previousTargetType sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT target_entity_id, target_entity_type FROM entity_convergences WHERE id=$1`, previousID).Scan(&previousTargetID, &previousTargetType); err != nil {
+		return counts, err
+	}
+	if previousTargetID.Valid != previousTargetType.Valid || (previousTargetType.Valid && previousTargetType.String != string(domain.EntityTypeSector) && previousTargetType.String != string(domain.EntityTypeIndex)) {
+		return counts, fmt.Errorf("previous convergence target snapshot is invalid")
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT reference_table,reference_column,reference_row_id,from_entity_id,to_entity_id FROM entity_convergence_reference_moves WHERE convergence_id=$1 ORDER BY reference_table,reference_column,reference_row_id`, previousID)
 	if err != nil {
-		return err
+		return counts, err
 	}
 	defer rows.Close()
 	type move struct {
@@ -459,82 +471,192 @@ func applyRecordedCorrectionMoves(ctx context.Context, tx *sql.Tx, previousID, c
 	for rows.Next() {
 		var m move
 		if err := rows.Scan(&m.table, &m.column, &m.rowID, &m.fromID, &m.toID); err != nil {
-			return err
+			return counts, err
 		}
 		moves = append(moves, m)
 	}
 	if err := rows.Err(); err != nil {
-		return err
+		return counts, err
 	}
 	for _, m := range moves {
-		if !m.toID.Valid {
-			if m.table == "entity_edges" && m.column == "status" {
-				var status string
-				if err := tx.QueryRowContext(ctx, `SELECT status FROM entity_edges WHERE id=$1`, m.rowID).Scan(&status); err != nil {
-					return err
+		if m.table == "entity_edges" && (m.column == "from_entity_id" || m.column == "to_entity_id" || m.column == "status") {
+			if err := applyRecordedEdgeTransition(ctx, tx, currentID, m.table, m.column, m.rowID, m.fromID, m.toID, previousTargetID, targetType, targetID, targetKey); err != nil {
+				return counts, err
+			}
+			counts.references++
+			continue
+		}
+		if m.table == "sector_source_mappings" && m.column == "sector_entity_id" {
+			sourceID := m.fromID
+			expectedStatus := "rejected"
+			operation := "forward_correction_mapping_reactivate"
+			if m.toID.Valid {
+				sourceID = m.toID.String
+				expectedStatus = "merged"
+				operation = "forward_correction_mapping_redirect"
+			}
+			var result sql.Result
+			if targetType == domain.EntityTypeSector {
+				result, err = tx.ExecContext(ctx, `UPDATE sector_source_mappings SET sector_entity_id=$1,mapping_status='merged',updated_at=NOW() WHERE id=$2 AND sector_entity_id=$3 AND mapping_status=$4`, targetID, m.rowID, sourceID, expectedStatus)
+				if err == nil {
+					err = insertReferenceMove(ctx, tx, currentID, m.table, m.column, m.rowID, sourceID, targetID, operation)
 				}
-				if status != "inactive" {
-					return fmt.Errorf("recorded deactivated edge %s drifted", m.rowID)
-				}
-				if err := insertReferenceMove(ctx, tx, currentID, m.table, m.column, m.rowID, m.fromID, nil, "forward_correction_verified"); err != nil {
-					return err
+			} else {
+				result, err = tx.ExecContext(ctx, `UPDATE sector_source_mappings SET mapping_status='rejected',updated_at=NOW() WHERE id=$1 AND sector_entity_id=$2 AND mapping_status=$3`, m.rowID, sourceID, expectedStatus)
+				if err == nil {
+					err = insertReferenceMove(ctx, tx, currentID, m.table, m.column, m.rowID, sourceID, nil, "forward_correction_mapping_reject")
 				}
 			}
+			if err != nil {
+				return counts, err
+			}
+			affected, _ := result.RowsAffected()
+			if affected != 1 {
+				return counts, fmt.Errorf("recorded mapping row %s drifted", m.rowID)
+			}
+			counts.mappings++
+			continue
+		}
+		if !m.toID.Valid {
 			continue
 		}
 		var result sql.Result
 		switch m.table + "." + m.column {
-		case "entity_edges.from_entity_id", "entity_edges.to_entity_id":
-			if targetType == domain.EntityTypeSector {
-				result, err = tx.ExecContext(ctx, fmt.Sprintf(`UPDATE entity_edges SET %s=$1,updated_at=NOW() WHERE id=$2 AND %s=$3`, m.column, m.column), targetID, m.rowID, m.toID.String)
-			} else {
-				result, err = tx.ExecContext(ctx, `UPDATE entity_edges SET status='inactive',updated_at=NOW() WHERE id=$1 AND status='active'`, m.rowID)
-			}
-		case "sector_source_mappings.sector_entity_id":
-			if targetType == domain.EntityTypeSector {
-				result, err = tx.ExecContext(ctx, `UPDATE sector_source_mappings SET sector_entity_id=$1,updated_at=NOW() WHERE id=$2 AND sector_entity_id=$3`, targetID, m.rowID, m.toID.String)
-			} else {
-				result, err = tx.ExecContext(ctx, `UPDATE sector_source_mappings SET mapping_status='rejected',updated_at=NOW() WHERE id=$1 AND sector_entity_id=$2`, m.rowID, m.toID.String)
-			}
 		case "sector_profiles.parent_sector_entity_id":
 			if targetType != domain.EntityTypeSector {
-				return fmt.Errorf("sector-specific parent reference cannot target %s", targetType)
+				return counts, fmt.Errorf("sector-specific parent reference cannot target %s", targetType)
 			}
 			result, err = tx.ExecContext(ctx, `UPDATE sector_profiles SET parent_sector_entity_id=$1 WHERE entity_id=$2 AND parent_sector_entity_id=$3`, targetID, m.rowID, m.toID.String)
 		default:
 			continue
 		}
 		if err != nil {
-			return err
+			return counts, err
 		}
 		affected, _ := result.RowsAffected()
 		if affected != 1 {
-			return fmt.Errorf("recorded reference %s.%s row %s drifted", m.table, m.column, m.rowID)
+			return counts, fmt.Errorf("recorded reference %s.%s row %s drifted", m.table, m.column, m.rowID)
 		}
 		if err := insertReferenceMove(ctx, tx, currentID, m.table, m.column, m.rowID, m.toID.String, targetID, "forward_correction"); err != nil {
-			return err
+			return counts, err
+		}
+		if m.table == "sector_source_mappings" {
+			counts.mappings++
+		} else {
+			counts.references++
 		}
 	}
 	aliasRows, err := tx.QueryContext(ctx, `SELECT alias,to_entity_id FROM entity_convergence_alias_moves WHERE convergence_id=$1 ORDER BY alias`, previousID)
 	if err != nil {
-		return err
+		return counts, err
 	}
 	defer aliasRows.Close()
 	for aliasRows.Next() {
 		var alias, oldTarget string
 		if err := aliasRows.Scan(&alias, &oldTarget); err != nil {
-			return err
+			return counts, err
 		}
 		result, err := tx.ExecContext(ctx, `UPDATE entity_nodes SET aliases=array_remove(aliases,$1),updated_at=NOW() WHERE id=$2 AND $1=ANY(aliases)`, alias, oldTarget)
+		if err != nil {
+			return counts, err
+		}
+		affected, _ := result.RowsAffected()
+		if affected != 1 {
+			return counts, fmt.Errorf("recorded alias %q drifted", alias)
+		}
+		counts.aliases++
+	}
+	return counts, aliasRows.Err()
+}
+
+type recordedConvergenceEdge struct {
+	id, fromID, fromKey, toID, toKey, relationType, evidence, sourceName, sourceURL string
+	fromType, toType                                                                domain.EntityType
+	verifiedAt                                                                      time.Time
+	status                                                                          domain.Status
+}
+
+func applyRecordedEdgeTransition(ctx context.Context, tx *sql.Tx, currentID, table, column, rowID, legacyID string, recordedToID, previousTargetID sql.NullString, targetType domain.EntityType, targetID any, targetKey string) error {
+	if table != "entity_edges" {
+		return fmt.Errorf("unsupported recorded edge table %q", table)
+	}
+	if column == "status" {
+		if previousTargetID.Valid || recordedToID.Valid {
+			return fmt.Errorf("recorded no-target edge %s provenance drifted", rowID)
+		}
+	} else if !previousTargetID.Valid || !recordedToID.Valid || previousTargetID.String != recordedToID.String {
+		return fmt.Errorf("recorded edge %s target provenance drifted", rowID)
+	}
+	edge, err := loadRecordedConvergenceEdge(ctx, tx, rowID)
+	if err != nil {
+		return err
+	}
+	sourceID := legacyID
+	expectedStatus := domain.StatusInactive
+	if column != "status" {
+		sourceID = recordedToID.String
+		expectedStatus = domain.StatusActive
+	}
+	sourceKey := ""
+	if edge.fromID == sourceID {
+		sourceKey = edge.fromKey
+	} else if edge.toID == sourceID {
+		sourceKey = edge.toKey
+	} else {
+		return fmt.Errorf("recorded edge %s endpoint drifted", rowID)
+	}
+	if edge.status != expectedStatus {
+		return fmt.Errorf("recorded edge %s status drifted", rowID)
+	}
+	relationship := Relationship{Key: edge.id, From: edge.fromKey, To: edge.toKey, RelationType: edge.relationType, EvidenceNote: edge.evidence, SourceName: edge.sourceName, SourceURL: edge.sourceURL, VerifiedAt: edge.verifiedAt, Status: edge.status}
+	entities := map[string]Entity{edge.fromKey: {Key: edge.fromKey, EntityType: edge.fromType}, edge.toKey: {Key: edge.toKey, EntityType: edge.toType}}
+	if targetKey != "" {
+		entities[targetKey] = Entity{Key: targetKey, EntityType: targetType}
+	}
+	planned, disposition, err := planConvergenceRelationship(relationship, entities, sourceKey, targetKey)
+	if err != nil {
+		return fmt.Errorf("recorded edge %q is incompatible: %w", rowID, err)
+	}
+	if disposition == convergenceEdgeDeactivate {
+		result, err := tx.ExecContext(ctx, `UPDATE entity_edges SET status='inactive',updated_at=NOW() WHERE id=$1 AND status=$2`, rowID, expectedStatus)
 		if err != nil {
 			return err
 		}
 		affected, _ := result.RowsAffected()
 		if affected != 1 {
-			return fmt.Errorf("recorded alias %q drifted", alias)
+			return fmt.Errorf("recorded edge %s drifted", rowID)
 		}
+		return insertReferenceMove(ctx, tx, currentID, "entity_edges", "status", rowID, sourceID, nil, "forward_correction_deactivate")
 	}
-	return aliasRows.Err()
+	endpointColumn := "to_entity_id"
+	currentEndpointID := edge.toID
+	if planned.From != relationship.From {
+		endpointColumn = "from_entity_id"
+		currentEndpointID = edge.fromID
+	}
+	if currentEndpointID != sourceID {
+		return fmt.Errorf("recorded edge %s planned endpoint drifted", rowID)
+	}
+	statement := fmt.Sprintf(`UPDATE entity_edges SET %s=$1,status='active',updated_at=NOW() WHERE id=$2 AND %s=$3 AND status=$4`, endpointColumn, endpointColumn)
+	result, err := tx.ExecContext(ctx, statement, targetID, rowID, sourceID, expectedStatus)
+	if err != nil {
+		return err
+	}
+	affected, _ := result.RowsAffected()
+	if affected != 1 {
+		return fmt.Errorf("recorded edge %s drifted", rowID)
+	}
+	operation := "forward_correction_redirect"
+	if expectedStatus == domain.StatusInactive {
+		operation = "forward_correction_reactivate_redirect"
+	}
+	return insertReferenceMove(ctx, tx, currentID, "entity_edges", endpointColumn, rowID, sourceID, targetID, operation)
+}
+
+func loadRecordedConvergenceEdge(ctx context.Context, tx *sql.Tx, rowID string) (recordedConvergenceEdge, error) {
+	var edge recordedConvergenceEdge
+	err := tx.QueryRowContext(ctx, `SELECT e.id, fn.id, fn.entity_key, fn.entity_type, tn.id, tn.entity_key, tn.entity_type, e.relation_type, e.evidence_note, e.source_name, e.source_url, e.verified_at, e.status FROM entity_edges e JOIN entity_nodes fn ON fn.id=e.from_entity_id JOIN entity_nodes tn ON tn.id=e.to_entity_id WHERE e.id=$1 FOR UPDATE OF e`, rowID).Scan(&edge.id, &edge.fromID, &edge.fromKey, &edge.fromType, &edge.toID, &edge.toKey, &edge.toType, &edge.relationType, &edge.evidence, &edge.sourceName, &edge.sourceURL, &edge.verifiedAt, &edge.status)
+	return edge, err
 }
 
 func resolveConvergenceEdgeConflicts(ctx context.Context, tx *sql.Tx, version int64) error {

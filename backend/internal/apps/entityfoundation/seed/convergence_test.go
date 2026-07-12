@@ -268,6 +268,122 @@ func TestPostgresConvergenceRelationshipPlanRedirectsIndexAndDeactivatesNoTarget
 	}
 }
 
+func TestConvergenceRelationshipTransitionMatrix(t *testing.T) {
+	verifiedAt := reviewedConvergenceFixture(t).ReviewedAt
+	type transition struct {
+		name, relation, fromTarget, toTarget string
+		fromType, toType                     domain.EntityType
+		initialStatus                        domain.Status
+		wantDisposition                      convergenceEdgeDisposition
+	}
+	cases := []transition{
+		{name: "sector-to-sector", relation: "covers_sector", fromTarget: "sector:old", toTarget: "sector:new", fromType: domain.EntityTypeSector, toType: domain.EntityTypeSector, initialStatus: domain.StatusActive, wantDisposition: convergenceEdgeRedirect},
+		{name: "sector-to-index", relation: "tracks_index", fromTarget: "sector:old", toTarget: "index:new", fromType: domain.EntityTypeSector, toType: domain.EntityTypeIndex, initialStatus: domain.StatusActive, wantDisposition: convergenceEdgeRedirect},
+		{name: "index-to-index", relation: "tracks_index", fromTarget: "index:old", toTarget: "index:new", fromType: domain.EntityTypeIndex, toType: domain.EntityTypeIndex, initialStatus: domain.StatusActive, wantDisposition: convergenceEdgeRedirect},
+		{name: "index-to-sector", relation: "covers_sector", fromTarget: "index:old", toTarget: "sector:new", fromType: domain.EntityTypeIndex, toType: domain.EntityTypeSector, initialStatus: domain.StatusActive, wantDisposition: convergenceEdgeRedirect},
+		{name: "target-to-no-target", relation: "covers_sector", fromTarget: "sector:old", toTarget: "", fromType: domain.EntityTypeSector, initialStatus: domain.StatusActive, wantDisposition: convergenceEdgeDeactivate},
+		{name: "no-target-to-sector", relation: "covers_sector", fromTarget: "sector:legacy", toTarget: "sector:new", fromType: domain.EntityTypeSector, toType: domain.EntityTypeSector, initialStatus: domain.StatusInactive, wantDisposition: convergenceEdgeRedirect},
+		{name: "no-target-to-index", relation: "tracks_index", fromTarget: "sector:legacy", toTarget: "index:new", fromType: domain.EntityTypeSector, toType: domain.EntityTypeIndex, initialStatus: domain.StatusInactive, wantDisposition: convergenceEdgeRedirect},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rel := Relationship{Key: "relationship:test", From: "market:test", To: tc.fromTarget, RelationType: tc.relation, SourceName: "review", SourceURL: "https://example.com/review", VerifiedAt: verifiedAt, Status: tc.initialStatus}
+			entities := map[string]Entity{"market:test": {Key: "market:test", EntityType: domain.EntityTypeMarket}, tc.fromTarget: {Key: tc.fromTarget, EntityType: tc.fromType}}
+			if tc.toTarget != "" {
+				entities[tc.toTarget] = Entity{Key: tc.toTarget, EntityType: tc.toType}
+			}
+			planned, disposition, err := planConvergenceRelationship(rel, entities, tc.fromTarget, tc.toTarget)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if disposition != tc.wantDisposition {
+				t.Fatalf("disposition = %q", disposition)
+			}
+			if tc.toTarget == "" {
+				if planned.Status != domain.StatusInactive {
+					t.Fatalf("status = %q", planned.Status)
+				}
+			} else if planned.To != tc.toTarget || planned.Status != domain.StatusActive {
+				t.Fatalf("planned = %+v", planned)
+			}
+		})
+	}
+}
+
+func TestConvergenceRelationshipTransitionRejectsIncompatiblePolicy(t *testing.T) {
+	verifiedAt := reviewedConvergenceFixture(t).ReviewedAt
+	rel := Relationship{Key: "relationship:test", From: "market:test", To: "sector:old", RelationType: "covers_sector", SourceName: "review", SourceURL: "https://example.com/review", VerifiedAt: verifiedAt, Status: domain.StatusActive}
+	entities := map[string]Entity{"market:test": {Key: "market:test", EntityType: domain.EntityTypeMarket}, "sector:old": {Key: "sector:old", EntityType: domain.EntityTypeSector}, "index:new": {Key: "index:new", EntityType: domain.EntityTypeIndex}}
+	if _, _, err := planConvergenceRelationship(rel, entities, "sector:old", "index:new"); err == nil {
+		t.Fatal("incompatible transition error = nil")
+	}
+}
+
+func TestMemoryCorrectionUsesRecordedRowsForNoTargetAndIndexSwap(t *testing.T) {
+	repo := NewMemoryRepository()
+	seedMemoryConvergenceEntities(t, repo)
+	manifest := reviewedConvergenceFixture(t)
+	market := Entity{Key: "market:test", EntityType: domain.EntityTypeMarket, LayerCode: "market", Name: "测试市场", CanonicalName: "测试市场", Status: domain.StatusActive}
+	if _, err := repo.UpsertEntity(context.Background(), market); err != nil {
+		t.Fatal(err)
+	}
+	noTargetIndex, indexTarget := -1, -1
+	for i, item := range manifest.Convergences {
+		if item.Action == SectorConvergenceRetireWithoutTarget && noTargetIndex < 0 {
+			noTargetIndex = i
+		}
+		if item.Action == SectorConvergenceReplaceWithExistingIndex && indexTarget < 0 {
+			indexTarget = i
+		}
+	}
+	noTargetLegacy, indexLegacy := manifest.Convergences[noTargetIndex].LegacyEntityKey, manifest.Convergences[indexTarget].LegacyEntityKey
+	indexKey := ""
+	for i, item := range manifest.Convergences {
+		if i != indexTarget && item.Action == SectorConvergenceReplaceWithExistingIndex {
+			indexKey = item.TargetEntityKey
+			break
+		}
+	}
+	for key, to := range map[string]string{"relationship:no_target": noTargetLegacy, "relationship:index": indexLegacy} {
+		repo.relationships[key] = Relationship{Key: key, From: "market:test", To: to, RelationType: "tracks_index", SourceName: "review", SourceURL: manifest.ReviewSourceURL, VerifiedAt: manifest.ReviewedAt, Status: domain.StatusActive}
+	}
+	service := NewService(repo)
+	if _, err := service.ApplySectorConvergence(context.Background(), Manifest{}, manifest, SectorConvergenceModeInitial); err != nil {
+		t.Fatal(err)
+	}
+	if repo.relationships["relationship:no_target"].Status != domain.StatusInactive {
+		t.Fatal("no-target initial edge not inactive")
+	}
+	previous := int64(1)
+	correction := mutateConvergenceManifest(manifest, func(m *SectorConvergenceManifest) {
+		m.ManifestVersion = 2
+		m.PreviousManifestVersion = &previous
+		m.ReviewSourceURL += "?review=swap"
+		m.ReviewedAt = m.ReviewedAt.AddDate(0, 0, 1)
+		m.Convergences[noTargetIndex].Action = SectorConvergenceReplaceWithExistingIndex
+		m.Convergences[noTargetIndex].TargetEntityKey = indexKey
+		m.Convergences[noTargetIndex].TargetEntityType = domain.EntityTypeIndex
+		m.Convergences[indexTarget].Action = SectorConvergenceRetireWithoutTarget
+		m.Convergences[indexTarget].TargetEntityKey = ""
+		m.Convergences[indexTarget].TargetEntityType = ""
+		m.ManifestChecksum = sectorConvergenceChecksum(m.Convergences)
+	})
+	report, err := service.ApplySectorConvergence(context.Background(), Manifest{}, correction, SectorConvergenceModeCorrection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := repo.relationships["relationship:no_target"]
+	if restored.Status != domain.StatusActive || restored.To != indexKey {
+		t.Fatalf("restored edge = %+v", restored)
+	}
+	if repo.relationships["relationship:index"].Status != domain.StatusInactive {
+		t.Fatalf("retired edge = %+v", repo.relationships["relationship:index"])
+	}
+	if report.ReferencesMoved != 2 {
+		t.Fatalf("references moved = %d", report.ReferencesMoved)
+	}
+}
+
 func TestNormalSeedFailsClosedWithActiveLegacySectors(t *testing.T) {
 	repo := NewMemoryRepository()
 	legacy := Entity{Key: "sector:ths_concept_ai", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能", CanonicalName: "人工智能", Status: domain.StatusActive, Profile: []byte(`{"sector_system":"ths","sector_type":"concept"}`)}

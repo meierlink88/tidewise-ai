@@ -86,6 +86,7 @@ func planConvergenceRelationship(relationship Relationship, entities map[string]
 	if relationship.To == legacyKey {
 		relationship.To = targetKey
 	}
+	relationship.Status = domain.StatusActive
 	if err := validateRelationshipPolicy(relationship, entities); err != nil {
 		return Relationship{}, "", err
 	}

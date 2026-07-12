@@ -34,25 +34,27 @@ type Repository interface {
 }
 
 type MemoryRepository struct {
-	mu                   sync.Mutex
-	entities             map[string]Entity
-	profiles             map[string]Profile
-	sectorSourceMappings map[string]SectorSourceMapping
-	relationships        map[string]Relationship
-	convergenceManifests map[int64]string
-	convergenceReviews   map[int64]string
-	convergenceAudits    map[string]SectorConvergence
+	mu                           sync.Mutex
+	entities                     map[string]Entity
+	profiles                     map[string]Profile
+	sectorSourceMappings         map[string]SectorSourceMapping
+	relationships                map[string]Relationship
+	convergenceManifests         map[int64]string
+	convergenceReviews           map[int64]string
+	convergenceAudits            map[string]SectorConvergence
+	convergenceRelationshipMoves map[string][]string
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		entities:             map[string]Entity{},
-		profiles:             map[string]Profile{},
-		sectorSourceMappings: map[string]SectorSourceMapping{},
-		relationships:        map[string]Relationship{},
-		convergenceManifests: map[int64]string{},
-		convergenceReviews:   map[int64]string{},
-		convergenceAudits:    map[string]SectorConvergence{},
+		entities:                     map[string]Entity{},
+		profiles:                     map[string]Profile{},
+		sectorSourceMappings:         map[string]SectorSourceMapping{},
+		relationships:                map[string]Relationship{},
+		convergenceManifests:         map[int64]string{},
+		convergenceReviews:           map[int64]string{},
+		convergenceAudits:            map[string]SectorConvergence{},
+		convergenceRelationshipMoves: map[string][]string{},
 	}
 }
 
@@ -135,8 +137,10 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 	for key, value := range r.convergenceAudits {
 		audits[key] = value
 	}
+	relationshipMoves := cloneStringSliceMap(r.convergenceRelationshipMoves)
 	report := SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, RetiredLegacy: len(manifest.Convergences), AuditCreated: len(manifest.Convergences)}
 	for _, item := range manifest.Convergences {
+		auditKey := item.LegacyEntityKey + "|" + fmt.Sprint(manifest.ManifestVersion)
 		legacy, ok := entities[item.LegacyEntityKey]
 		if !ok || legacy.EntityType != domain.EntityTypeSector {
 			return SectorConvergenceReport{}, fmt.Errorf("unknown legacy sector %q", item.LegacyEntityKey)
@@ -162,6 +166,37 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 		if mode == SectorConvergenceModeCorrection && legacy.Status != domain.StatusInactive {
 			return SectorConvergenceReport{}, fmt.Errorf("correction drift for legacy sector %q", item.LegacyEntityKey)
 		}
+		if mode == SectorConvergenceModeCorrection {
+			previousKey := item.LegacyEntityKey + "|" + fmt.Sprint(current)
+			previous, ok := audits[previousKey]
+			if !ok {
+				return SectorConvergenceReport{}, fmt.Errorf("missing previous convergence audit for %q", item.LegacyEntityKey)
+			}
+			sourceKey := previous.TargetEntityKey
+			if sourceKey == "" {
+				sourceKey = item.LegacyEntityKey
+			}
+			for _, key := range relationshipMoves[previousKey] {
+				relationship, ok := relationships[key]
+				if !ok {
+					return SectorConvergenceReport{}, fmt.Errorf("recorded relationship %q is missing", key)
+				}
+				expectedStatus := domain.StatusActive
+				if previous.TargetEntityKey == "" {
+					expectedStatus = domain.StatusInactive
+				}
+				if relationship.Status != expectedStatus || (relationship.From != sourceKey && relationship.To != sourceKey) {
+					return SectorConvergenceReport{}, fmt.Errorf("recorded relationship %q drifted", key)
+				}
+				planned, _, err := planConvergenceRelationship(relationship, entities, sourceKey, item.TargetEntityKey)
+				if err != nil {
+					return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, BlockedReferences: 1}, fmt.Errorf("recorded relationship %q is incompatible: %w", key, err)
+				}
+				relationships[key] = planned
+				relationshipMoves[auditKey] = append(relationshipMoves[auditKey], key)
+				report.ReferencesMoved++
+			}
+		}
 		legacy.Status = domain.StatusInactive
 		entities[item.LegacyEntityKey] = legacy
 		if item.TargetEntityType == domain.EntityTypeSector {
@@ -185,18 +220,30 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 			}
 			mappings[identity] = mapping
 			for key, relationship := range relationships {
+				if mode == SectorConvergenceModeCorrection {
+					continue
+				}
+				moved := false
 				if relationship.From == item.LegacyEntityKey {
 					relationship.From = item.TargetEntityKey
 					report.ReferencesMoved++
+					moved = true
 				}
 				if relationship.To == item.LegacyEntityKey {
 					relationship.To = item.TargetEntityKey
 					report.ReferencesMoved++
+					moved = true
 				}
 				relationships[key] = relationship
+				if moved {
+					relationshipMoves[auditKey] = append(relationshipMoves[auditKey], key)
+				}
 			}
 		} else if item.TargetEntityType == domain.EntityTypeIndex {
 			for key, relationship := range relationships {
+				if mode == SectorConvergenceModeCorrection {
+					continue
+				}
 				if relationship.From != item.LegacyEntityKey && relationship.To != item.LegacyEntityKey {
 					continue
 				}
@@ -211,15 +258,20 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 					report.ReferencesMoved++
 				}
 				relationships[key] = planned
+				relationshipMoves[auditKey] = append(relationshipMoves[auditKey], key)
 			}
 		} else {
 			for key, relationship := range relationships {
+				if mode == SectorConvergenceModeCorrection {
+					continue
+				}
 				if relationship.From == item.LegacyEntityKey || relationship.To == item.LegacyEntityKey {
 					planned, _, _ := planConvergenceRelationship(relationship, entities, item.LegacyEntityKey, "")
 					if relationship.Status != domain.StatusInactive {
 						report.ReferencesMoved++
 					}
 					relationships[key] = planned
+					relationshipMoves[auditKey] = append(relationshipMoves[auditKey], key)
 				}
 			}
 		}
@@ -231,9 +283,18 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 	r.sectorSourceMappings = mappings
 	r.relationships = relationships
 	r.convergenceAudits = audits
+	r.convergenceRelationshipMoves = relationshipMoves
 	r.convergenceManifests[manifest.ManifestVersion] = manifest.ManifestChecksum
 	r.convergenceReviews[manifest.ManifestVersion] = manifest.ReviewSourceURL + manifest.ReviewedAt.String()
 	return report, nil
+}
+
+func cloneStringSliceMap(input map[string][]string) map[string][]string {
+	output := make(map[string][]string, len(input))
+	for key, values := range input {
+		output[key] = append([]string(nil), values...)
+	}
+	return output
 }
 
 func profileReferencesEntity(data []byte, field, entityKey string) bool {
