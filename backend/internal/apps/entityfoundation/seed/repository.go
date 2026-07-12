@@ -2,6 +2,7 @@ package seed
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -134,6 +135,7 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 	for key, value := range r.convergenceAudits {
 		audits[key] = value
 	}
+	report := SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, RetiredLegacy: len(manifest.Convergences), AuditCreated: len(manifest.Convergences)}
 	for _, item := range manifest.Convergences {
 		legacy, ok := entities[item.LegacyEntityKey]
 		if !ok || legacy.EntityType != domain.EntityTypeSector {
@@ -143,6 +145,18 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 			target, ok := entities[item.TargetEntityKey]
 			if !ok || target.EntityType != item.TargetEntityType {
 				return SectorConvergenceReport{}, fmt.Errorf("invalid convergence target %q", item.TargetEntityKey)
+			}
+		}
+		if item.TargetEntityType != domain.EntityTypeSector {
+			for _, mapping := range mappings {
+				if mapping.SectorEntityKey == item.LegacyEntityKey {
+					return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, BlockedReferences: 1}, fmt.Errorf("sector-only source mapping blocks convergence of %q to %q", item.LegacyEntityKey, item.TargetEntityType)
+				}
+			}
+			for _, profile := range profiles {
+				if profileReferencesEntity(profile.Data, "parent_sector_entity_id", item.LegacyEntityKey) {
+					return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, BlockedReferences: 1}, fmt.Errorf("sector-only parent reference blocks convergence of %q to %q", item.LegacyEntityKey, item.TargetEntityType)
+				}
 			}
 		}
 		if mode == SectorConvergenceModeCorrection && legacy.Status != domain.StatusInactive {
@@ -162,23 +176,50 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 			if !found {
 				target.Aliases = append(target.Aliases, item.LegacyName)
 				entities[item.TargetEntityKey] = target
+				report.AliasesChanged++
 			}
 			mapping := normalizeSectorSourceMapping(SectorSourceMapping{SectorEntityKey: item.TargetEntityKey, SourceSystem: "ths", SourceTaxonomyType: item.LegacyTaxonomy, SourceSectorName: item.LegacyName, SourceMarketScope: "cn_a_share", SourceURL: manifest.ReviewSourceURL, MappingStatus: "merged", ReviewNote: item.Reason})
-			mappings[sectorSourceMappingIdentity(mapping)] = mapping
+			identity := sectorSourceMappingIdentity(mapping)
+			if existing, ok := mappings[identity]; !ok || !reflect.DeepEqual(existing, mapping) {
+				report.MappingsChanged++
+			}
+			mappings[identity] = mapping
 			for key, relationship := range relationships {
 				if relationship.From == item.LegacyEntityKey {
 					relationship.From = item.TargetEntityKey
+					report.ReferencesMoved++
 				}
 				if relationship.To == item.LegacyEntityKey {
 					relationship.To = item.TargetEntityKey
+					report.ReferencesMoved++
 				}
 				relationships[key] = relationship
+			}
+		} else if item.TargetEntityType == domain.EntityTypeIndex {
+			for key, relationship := range relationships {
+				if relationship.From != item.LegacyEntityKey && relationship.To != item.LegacyEntityKey {
+					continue
+				}
+				planned, _, err := planConvergenceRelationship(relationship, entities, item.LegacyEntityKey, item.TargetEntityKey)
+				if err != nil {
+					return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, BlockedReferences: 1}, fmt.Errorf("index target relationship %q is incompatible: %w", key, err)
+				}
+				if relationship.From == item.LegacyEntityKey {
+					report.ReferencesMoved++
+				}
+				if relationship.To == item.LegacyEntityKey {
+					report.ReferencesMoved++
+				}
+				relationships[key] = planned
 			}
 		} else {
 			for key, relationship := range relationships {
 				if relationship.From == item.LegacyEntityKey || relationship.To == item.LegacyEntityKey {
-					relationship.Status = domain.StatusInactive
-					relationships[key] = relationship
+					planned, _, _ := planConvergenceRelationship(relationship, entities, item.LegacyEntityKey, "")
+					if relationship.Status != domain.StatusInactive {
+						report.ReferencesMoved++
+					}
+					relationships[key] = planned
 				}
 			}
 		}
@@ -192,7 +233,15 @@ func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifes
 	r.convergenceAudits = audits
 	r.convergenceManifests[manifest.ManifestVersion] = manifest.ManifestChecksum
 	r.convergenceReviews[manifest.ManifestVersion] = manifest.ReviewSourceURL + manifest.ReviewedAt.String()
-	return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, RetiredLegacy: len(manifest.Convergences), AuditCreated: len(manifest.Convergences), MappingsChanged: 29}, nil
+	return report, nil
+}
+
+func profileReferencesEntity(data []byte, field, entityKey string) bool {
+	var values map[string]any
+	if json.Unmarshal(data, &values) != nil {
+		return false
+	}
+	return strings.TrimSpace(fmt.Sprint(values[field])) == entityKey
 }
 
 func resolveMemoryRelationshipConflicts(relationships map[string]Relationship) {

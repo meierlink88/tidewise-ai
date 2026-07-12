@@ -187,6 +187,87 @@ func TestMemoryCorrectionDriftRollsBackAndEdgeConflictsResolveDeterministically(
 	}
 }
 
+func TestMemoryIndexTargetRedirectsPolicyCompatibleEdgeAndNoTargetDeactivates(t *testing.T) {
+	repo := NewMemoryRepository()
+	seedMemoryConvergenceEntities(t, repo)
+	market := Entity{Key: "market:test", EntityType: domain.EntityTypeMarket, LayerCode: "market", Name: "测试市场", CanonicalName: "测试市场", Status: domain.StatusActive}
+	if _, err := repo.UpsertEntity(context.Background(), market); err != nil {
+		t.Fatal(err)
+	}
+	manifest := reviewedConvergenceFixture(t)
+	indexLegacy, noTargetLegacy := "", ""
+	for _, item := range manifest.Convergences {
+		if item.Action == SectorConvergenceReplaceWithExistingIndex && indexLegacy == "" {
+			indexLegacy = item.LegacyEntityKey
+		}
+		if item.Action == SectorConvergenceRetireWithoutTarget && noTargetLegacy == "" {
+			noTargetLegacy = item.LegacyEntityKey
+		}
+	}
+	verifiedAt := manifest.ReviewedAt
+	repo.relationships["relationship:index_redirect"] = Relationship{Key: "relationship:index_redirect", From: "market:test", To: indexLegacy, RelationType: "tracks_index", SourceName: "review", SourceURL: manifest.ReviewSourceURL, VerifiedAt: verifiedAt, Status: domain.StatusActive}
+	repo.relationships["relationship:no_target"] = Relationship{Key: "relationship:no_target", From: "market:test", To: noTargetLegacy, RelationType: "tracks_index", SourceName: "review", SourceURL: manifest.ReviewSourceURL, VerifiedAt: verifiedAt, Status: domain.StatusActive}
+	if _, err := NewService(repo).ApplySectorConvergence(context.Background(), Manifest{}, manifest, SectorConvergenceModeInitial); err != nil {
+		t.Fatal(err)
+	}
+	redirected := repo.relationships["relationship:index_redirect"]
+	if redirected.To == indexLegacy || redirected.Status != domain.StatusActive {
+		t.Fatalf("index relationship = %+v", redirected)
+	}
+	if target := repo.entities[redirected.To]; target.EntityType != domain.EntityTypeIndex {
+		t.Fatalf("redirect target = %+v", target)
+	}
+	if got := repo.relationships["relationship:no_target"].Status; got != domain.StatusInactive {
+		t.Fatalf("no-target edge status = %q", got)
+	}
+}
+
+func TestMemoryIndexTargetBlocksSectorOnlyMapping(t *testing.T) {
+	repo := NewMemoryRepository()
+	seedMemoryConvergenceEntities(t, repo)
+	manifest := reviewedConvergenceFixture(t)
+	var legacy string
+	for _, item := range manifest.Convergences {
+		if item.Action == SectorConvergenceReplaceWithExistingIndex {
+			legacy = item.LegacyEntityKey
+			break
+		}
+	}
+	mapping := normalizeSectorSourceMapping(SectorSourceMapping{SectorEntityKey: legacy, SourceSystem: "legacy", SourceTaxonomyType: "index_sector", SourceSectorName: "legacy index", SourceMarketScope: "global", MappingStatus: "approved"})
+	repo.sectorSourceMappings[sectorSourceMappingIdentity(mapping)] = mapping
+	before := repo.ConvergenceAuditCount()
+	report, err := NewService(repo).ApplySectorConvergence(context.Background(), Manifest{}, manifest, SectorConvergenceModeInitial)
+	if err == nil || !strings.Contains(err.Error(), "sector-only") {
+		t.Fatalf("sector-only error = %v", err)
+	}
+	if report.BlockedReferences != 1 {
+		t.Fatalf("blocked references = %d", report.BlockedReferences)
+	}
+	if repo.ConvergenceAuditCount() != before || repo.entities[legacy].Status != domain.StatusActive {
+		t.Fatal("blocked convergence was not atomic")
+	}
+}
+
+func TestPostgresConvergenceRelationshipPlanRedirectsIndexAndDeactivatesNoTarget(t *testing.T) {
+	verifiedAt := reviewedConvergenceFixture(t).ReviewedAt
+	relationship := Relationship{Key: "relationship:test", From: "market:test", To: "sector:legacy", RelationType: "tracks_index", SourceName: "review", SourceURL: "https://example.com/review", VerifiedAt: verifiedAt, Status: domain.StatusActive}
+	entities := map[string]Entity{"market:test": {Key: "market:test", EntityType: domain.EntityTypeMarket}, "sector:legacy": {Key: "sector:legacy", EntityType: domain.EntityTypeSector}, "index:csi300": {Key: "index:csi300", EntityType: domain.EntityTypeIndex}}
+	redirected, disposition, err := planConvergenceRelationship(relationship, entities, "sector:legacy", "index:csi300")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if disposition != convergenceEdgeRedirect || redirected.To != "index:csi300" || redirected.Status != domain.StatusActive {
+		t.Fatalf("redirect plan = %+v %q", redirected, disposition)
+	}
+	retired, disposition, err := planConvergenceRelationship(relationship, entities, "sector:legacy", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if disposition != convergenceEdgeDeactivate || retired.Status != domain.StatusInactive {
+		t.Fatalf("retire plan = %+v %q", retired, disposition)
+	}
+}
+
 func TestNormalSeedFailsClosedWithActiveLegacySectors(t *testing.T) {
 	repo := NewMemoryRepository()
 	legacy := Entity{Key: "sector:ths_concept_ai", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能", CanonicalName: "人工智能", Status: domain.StatusActive, Profile: []byte(`{"sector_system":"ths","sector_type":"concept"}`)}

@@ -54,17 +54,42 @@ type SectorConvergence struct {
 }
 
 type SectorConvergenceReport struct {
-	ManifestVersion int64 `json:"manifest_version"`
-	RetiredLegacy   int   `json:"retired_legacy"`
-	AuditCreated    int   `json:"audit_created"`
-	AuditUnchanged  int   `json:"audit_unchanged"`
-	ReferencesMoved int   `json:"references_moved"`
-	MappingsChanged int   `json:"mappings_changed"`
-	AliasesChanged  int   `json:"aliases_changed"`
+	ManifestVersion   int64 `json:"manifest_version"`
+	RetiredLegacy     int   `json:"retired_legacy"`
+	AuditCreated      int   `json:"audit_created"`
+	AuditUnchanged    int   `json:"audit_unchanged"`
+	ReferencesMoved   int   `json:"references_moved"`
+	MappingsChanged   int   `json:"mappings_changed"`
+	AliasesChanged    int   `json:"aliases_changed"`
+	BlockedReferences int   `json:"blocked_references"`
 }
 
 type sectorConvergenceRepository interface {
 	ApplySectorConvergence(context.Context, Manifest, SectorConvergenceManifest, SectorConvergenceMode) (SectorConvergenceReport, error)
+}
+
+type convergenceEdgeDisposition string
+
+const (
+	convergenceEdgeRedirect   convergenceEdgeDisposition = "redirect"
+	convergenceEdgeDeactivate convergenceEdgeDisposition = "deactivate"
+)
+
+func planConvergenceRelationship(relationship Relationship, entities map[string]Entity, legacyKey, targetKey string) (Relationship, convergenceEdgeDisposition, error) {
+	if targetKey == "" {
+		relationship.Status = domain.StatusInactive
+		return relationship, convergenceEdgeDeactivate, nil
+	}
+	if relationship.From == legacyKey {
+		relationship.From = targetKey
+	}
+	if relationship.To == legacyKey {
+		relationship.To = targetKey
+	}
+	if err := validateRelationshipPolicy(relationship, entities); err != nil {
+		return Relationship{}, "", err
+	}
+	return relationship, convergenceEdgeRedirect, nil
 }
 
 func LoadSectorConvergenceFile(path string) (SectorConvergenceManifest, error) {

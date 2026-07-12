@@ -13,12 +13,19 @@ CREATE TABLE entity_convergences (
     id UUID PRIMARY KEY,
     legacy_entity_id UUID NOT NULL REFERENCES entity_nodes(id),
     target_entity_id UUID REFERENCES entity_nodes(id),
+    target_entity_type TEXT,
     manifest_version BIGINT NOT NULL REFERENCES entity_convergence_manifests(manifest_version),
     action TEXT NOT NULL CHECK (action IN ('replace', 'merge', 'retire_without_canonical', 'replace_with_existing_index', 'retire_without_target')),
     legacy_taxonomy TEXT NOT NULL,
+    reason TEXT NOT NULL CHECK (btrim(reason) <> ''),
     mutation_provenance JSONB NOT NULL DEFAULT '{}'::jsonb,
     converged_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (legacy_entity_id, manifest_version)
+    UNIQUE (legacy_entity_id, manifest_version),
+    CONSTRAINT chk_entity_convergences_target_snapshot CHECK (
+        (action IN ('replace', 'merge') AND target_entity_id IS NOT NULL AND target_entity_type = 'sector')
+        OR (action = 'replace_with_existing_index' AND target_entity_id IS NOT NULL AND target_entity_type = 'index')
+        OR (action IN ('retire_without_canonical', 'retire_without_target') AND target_entity_id IS NULL AND target_entity_type IS NULL)
+    )
 );
 
 CREATE TABLE entity_convergence_reference_moves (

@@ -88,7 +88,7 @@ func (r PostgresRepository) ApplySectorConvergence(ctx context.Context, entities
 		}
 	}
 	if err := preflightSectorReferences(ctx, tx, manifest, NewSectorReferenceRegistry()); err != nil {
-		return SectorConvergenceReport{}, err
+		return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, BlockedReferences: 1}, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO entity_convergence_manifests (manifest_version, previous_manifest_version, manifest_checksum, review_source_url, reviewed_at, applied_mode) VALUES ($1,$2,$3,$4,$5,$6)`, manifest.ManifestVersion, manifest.PreviousManifestVersion, manifest.ManifestChecksum, manifest.ReviewSourceURL, manifest.ReviewedAt, mode); err != nil {
 		return SectorConvergenceReport{}, fmt.Errorf("insert convergence manifest: %w", err)
@@ -112,7 +112,8 @@ func (r PostgresRepository) ApplySectorConvergence(ctx context.Context, entities
 			return SectorConvergenceReport{}, fmt.Errorf("correction drift for legacy sector %q", item.LegacyEntityKey)
 		}
 		auditID := repoids.NormalizeUUID("entity_convergence", fmt.Sprintf("%s|%d", item.LegacyEntityKey, manifest.ManifestVersion))
-		if _, err := tx.ExecContext(ctx, `INSERT INTO entity_convergences (id, legacy_entity_id, target_entity_id, manifest_version, action, legacy_taxonomy, mutation_provenance) VALUES ($1,$2,$3,$4,$5,$6,jsonb_build_object('manifest_checksum',$7,'mode',$8))`, auditID, legacyID, targetID, manifest.ManifestVersion, item.Action, item.LegacyTaxonomy, manifest.ManifestChecksum, mode); err != nil {
+		statement, args := buildConvergenceAuditInsert(auditID, legacyID, targetID, manifest, item, mode)
+		if _, err := tx.ExecContext(ctx, statement, args...); err != nil {
 			return SectorConvergenceReport{}, fmt.Errorf("insert convergence audit %q: %w", item.LegacyEntityKey, err)
 		}
 		if mode == SectorConvergenceModeCorrection {
@@ -145,6 +146,12 @@ func (r PostgresRepository) ApplySectorConvergence(ctx context.Context, entities
 			report.ReferencesMoved += moves.references
 			report.MappingsChanged += moves.mappings
 			report.AliasesChanged += moves.aliases
+		} else if item.TargetEntityType == domain.EntityTypeIndex {
+			moves, err := redirectLegacyEdgesToIndex(ctx, tx, auditID, legacyID, item.LegacyEntityKey, targetID.(string), item.TargetEntityKey)
+			if err != nil {
+				return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, BlockedReferences: 1}, err
+			}
+			report.ReferencesMoved += moves
 		} else {
 			moves, err := deactivateLegacyEdges(ctx, tx, auditID, legacyID)
 			if err != nil {
@@ -165,6 +172,15 @@ func (r PostgresRepository) ApplySectorConvergence(ctx context.Context, entities
 		return SectorConvergenceReport{}, fmt.Errorf("commit sector convergence: %w", err)
 	}
 	return report, nil
+}
+
+func buildConvergenceAuditInsert(auditID, legacyID string, targetID any, manifest SectorConvergenceManifest, item SectorConvergence, mode SectorConvergenceMode) (string, []any) {
+	var targetType any
+	if item.TargetEntityType != "" {
+		targetType = item.TargetEntityType
+	}
+	statement := `INSERT INTO entity_convergences (id, legacy_entity_id, target_entity_id, target_entity_type, manifest_version, action, legacy_taxonomy, reason, mutation_provenance) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,jsonb_build_object('manifest_checksum',$9,'mode',$10))`
+	return statement, []any{auditID, legacyID, targetID, targetType, manifest.ManifestVersion, item.Action, item.LegacyTaxonomy, item.Reason, manifest.ManifestChecksum, mode}
 }
 
 func currentConvergenceManifest(ctx context.Context, tx *sql.Tx) (int64, string, string, error) {
@@ -358,6 +374,69 @@ func deactivateLegacyEdges(ctx context.Context, tx *sql.Tx, convergenceID, legac
 		count++
 	}
 	return count, rows.Err()
+}
+
+func redirectLegacyEdgesToIndex(ctx context.Context, tx *sql.Tx, convergenceID, legacyID, legacyKey, targetID, targetKey string) (int, error) {
+	rows, err := tx.QueryContext(ctx, `
+SELECT e.id, fn.entity_key, fn.entity_type, tn.entity_key, tn.entity_type,
+       e.relation_type, e.evidence_note, e.source_name, e.source_url, e.verified_at, e.status
+FROM entity_edges e
+JOIN entity_nodes fn ON fn.id=e.from_entity_id
+JOIN entity_nodes tn ON tn.id=e.to_entity_id
+WHERE e.status='active' AND (e.from_entity_id=$1 OR e.to_entity_id=$1)
+ORDER BY e.id FOR UPDATE OF e`, legacyID)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	type edge struct {
+		id, fromKey, toKey, relationType, evidence, sourceName, sourceURL string
+		fromType, toType                                                  domain.EntityType
+		verifiedAt                                                        time.Time
+		status                                                            domain.Status
+	}
+	var edges []edge
+	for rows.Next() {
+		var item edge
+		if err := rows.Scan(&item.id, &item.fromKey, &item.fromType, &item.toKey, &item.toType, &item.relationType, &item.evidence, &item.sourceName, &item.sourceURL, &item.verifiedAt, &item.status); err != nil {
+			return 0, err
+		}
+		edges = append(edges, item)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	moved := 0
+	for _, item := range edges {
+		relationship := Relationship{Key: item.id, From: item.fromKey, To: item.toKey, RelationType: item.relationType, EvidenceNote: item.evidence, SourceName: item.sourceName, SourceURL: item.sourceURL, VerifiedAt: item.verifiedAt, Status: item.status}
+		entities := map[string]Entity{item.fromKey: {Key: item.fromKey, EntityType: item.fromType}, item.toKey: {Key: item.toKey, EntityType: item.toType}, targetKey: {Key: targetKey, EntityType: domain.EntityTypeIndex}}
+		fromMoved := relationship.From == legacyKey
+		toMoved := relationship.To == legacyKey
+		planned, _, err := planConvergenceRelationship(relationship, entities, legacyKey, targetKey)
+		if err != nil {
+			return moved, fmt.Errorf("index target relationship %q is incompatible: %w", item.id, err)
+		}
+		relationship = planned
+		if fromMoved {
+			if _, err := tx.ExecContext(ctx, `UPDATE entity_edges SET from_entity_id=$1,updated_at=NOW() WHERE id=$2 AND from_entity_id=$3`, targetID, item.id, legacyID); err != nil {
+				return moved, err
+			}
+			if err := insertReferenceMove(ctx, tx, convergenceID, "entity_edges", "from_entity_id", item.id, legacyID, targetID, "redirect_to_index"); err != nil {
+				return moved, err
+			}
+			moved++
+		}
+		if toMoved {
+			if _, err := tx.ExecContext(ctx, `UPDATE entity_edges SET to_entity_id=$1,updated_at=NOW() WHERE id=$2 AND to_entity_id=$3`, targetID, item.id, legacyID); err != nil {
+				return moved, err
+			}
+			if err := insertReferenceMove(ctx, tx, convergenceID, "entity_edges", "to_entity_id", item.id, legacyID, targetID, "redirect_to_index"); err != nil {
+				return moved, err
+			}
+			moved++
+		}
+	}
+	return moved, nil
 }
 
 func insertReferenceMove(ctx context.Context, tx *sql.Tx, convergenceID, table, column, rowID, fromID string, toID any, operation string) error {
