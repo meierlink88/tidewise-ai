@@ -117,6 +117,10 @@
 - **WHEN** 普通 entity seed 更新已收敛 canonical entity 的 aliases
 - **THEN** 系统必须以正式 seed aliases 加当前最大合法 manifest 的 alias mutation audit 作为最终集合，保留当前 audit-owned aliases，并删除不再属于正式 seed且没有当前 convergence audit 所有权的普通 alias
 
+#### Scenario: alias 顺序不制造无意义更新
+- **WHEN** entity 没有 current convergence-owned alias，或正式 alias 与 current audit alias 需要合并
+- **THEN** 正式 aliases 必须按 seed 首次出现顺序保留，current audit aliases 必须按 mutation provenance 顺序去重追加；NULL/空数组、重复 alias 和两层同名 alias 不得导致重复值、全量排序或无意义 UPDATE
+
 #### Scenario: 前向恢复缺失 convergence alias
 - **WHEN** 已应用 convergence 的环境因旧版普通 seed 覆盖而缺失当前 alias mutation audit 记录的 alias
 - **THEN** 前向 repair migration 必须只从当前最大 manifest 的 append-only alias audit 恢复缺失值，重复执行不得再次更新；尚无 convergence manifest 的 fresh 环境必须 no-op

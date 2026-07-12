@@ -3,6 +3,7 @@ package seed
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -467,12 +468,19 @@ func TestMemoryOrdinarySeedPreservesCurrentConvergenceAliasesOnly(t *testing.T) 
 	if _, err := NewService(repo).ApplySectorConvergence(context.Background(), seedManifest, manifest, SectorConvergenceModeInitial); err != nil {
 		t.Fatal(err)
 	}
-	var ownedAlias, targetKey string
+	var targetKey string
 	for _, item := range manifest.Convergences {
 		if item.TargetEntityType == domain.EntityTypeSector {
-			ownedAlias = item.LegacyName
-			targetKey = item.TargetEntityKey
-			break
+			count := 0
+			for _, candidate := range manifest.Convergences {
+				if candidate.TargetEntityKey == item.TargetEntityKey {
+					count++
+				}
+			}
+			if count > 1 {
+				targetKey = item.TargetEntityKey
+				break
+			}
 		}
 	}
 	target := repo.entities[targetKey]
@@ -493,8 +501,14 @@ func TestMemoryOrdinarySeedPreservesCurrentConvergenceAliasesOnly(t *testing.T) 
 		t.Fatalf("action = %q", result.Action)
 	}
 	aliases := repo.entities[targetKey].Aliases
-	if !containsString(aliases, ownedAlias) {
-		t.Fatalf("owned alias %q was removed: %v", ownedAlias, aliases)
+	expected := append([]string(nil), seedEntity.Aliases...)
+	for _, item := range manifest.Convergences {
+		if item.TargetEntityKey == targetKey && !containsString(expected, item.LegacyName) {
+			expected = append(expected, item.LegacyName)
+		}
+	}
+	if !reflect.DeepEqual(aliases, expected) {
+		t.Fatalf("aliases = %v, want %v", aliases, expected)
 	}
 	if containsString(aliases, "temporary ordinary alias") {
 		t.Fatalf("ordinary alias was retained: %v", aliases)
@@ -508,6 +522,25 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func TestMergeSeedAndOwnedAliasesPreservesOrderAndOwnership(t *testing.T) {
+	cases := []struct {
+		name              string
+		seed, owned, want []string
+	}{
+		{name: "nil", want: []string{}},
+		{name: "seed order", seed: []string{"中文", "English"}, want: []string{"中文", "English"}},
+		{name: "deduplicate", seed: []string{"A", "A", "B"}, owned: []string{"B", "C", "C"}, want: []string{"A", "B", "C"}},
+		{name: "owned provenance order", seed: []string{"Formal"}, owned: []string{"Legacy 2", "Legacy 1"}, want: []string{"Formal", "Legacy 2", "Legacy 1"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := mergeSeedAndOwnedAliases(tc.seed, tc.owned); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
 }
 
 func reviewedConvergenceFixture(t *testing.T) SectorConvergenceManifest {

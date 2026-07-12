@@ -62,6 +62,6 @@
 - [x] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 零写入、首次 convergence 为 52 active/60 inactive/60 current audit/89 mappings/52 covers/0 tracked，同版本重跑不新增 audit，新版本只 append 且当前结论唯一确定，非法版本与纠错漂移整体 rollback
 - [x] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
 - [x] 6.9 经独立审批后在 local apply migration `000011` 并执行一次首次显式 convergence；验收 52 active canonical、60 inactive legacy、60 current audit、89 mappings、52 covers、0 tracked，reference/alias moves 各 29 且无悬空或 active legacy 引用；期间两次失败均完整回滚并在修复获批后继续，未手工修库
-- [ ] 6.10 已确认同版本 convergence 重跑完全幂等；普通 seed 首次重跑错误覆盖 29 条 audit-owned aliases（24 个 canonical entity）后停止且未手工修库。经独立审批 apply 前向 migration `000012` 恢复当前 audit aliases，再重跑普通 seed并确认 entity/profile/mapping/edge/manifest/audit/move 指纹全部不变；验收 52 active canonical、60 inactive legacy、无悬空引用后暂停等待 Neo4j graph projection 独立审批
+- [ ] 6.10 已确认同版本 convergence 重跑完全幂等；普通 seed 首次覆盖 29 条 audit aliases，apply `000012` 恢复后再次因全量 alias 排序无意义更新 95 个非 sector entity，两次均停止且未手工修库。经独立审批先 apply `000013` 规范两组 current provenance 顺序，再运行一次普通 seed恢复 95 条正式 alias 顺序（预期 Updated=95），立即第二次运行必须 Updated=0；随后同版本 convergence 必须零写，并复核全部 entity/profile/mapping/edge/manifest/audit/move 指纹、52 active canonical、60 inactive legacy及无悬空引用后暂停等待 Neo4j graph projection 独立审批
 
 > **重新打开门：** 当前 change 因 canonical convergence 缺口不再是完成状态。下一阶段只能在主对话批准本设计后进入 6.3-6.8；本轮不得修改生产代码、seed 或数据库。

@@ -85,7 +85,7 @@ func TestEntityUpsertSQLPersistsBusinessKey(t *testing.T) {
 
 func TestEntityUpsertSQLScopesAliasOwnershipToCurrentConvergence(t *testing.T) {
 	statement := strings.ToLower(buildEntityUpsert())
-	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "max(manifest_version)", "am.to_entity_id = $1", "unnest($7::text[]"} {
+	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "max(manifest_version)", "am.to_entity_id = $1", "coalesce($7::text[]", "order by am.moved_at,am.id", "sa.aliases || oa.aliases"} {
 		if !strings.Contains(statement, fragment) {
 			t.Fatalf("entity upsert missing %q", fragment)
 		}

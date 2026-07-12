@@ -68,19 +68,12 @@ func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (Wr
 }
 
 func buildEntityUpsert() string {
-	return `
-WITH current_convergence_aliases AS (
-    SELECT COALESCE(array_agg(DISTINCT am.alias ORDER BY am.alias), '{}'::text[]) AS aliases
-    FROM entity_convergence_alias_moves am
-    JOIN entity_convergences c ON c.id = am.convergence_id
-    WHERE am.to_entity_id = $1
-      AND c.manifest_version = (SELECT MAX(manifest_version) FROM entity_convergence_manifests)
-), incoming AS (
+	return `WITH ` + entityAliasOwnershipCTEs(1, 7) + `, incoming AS (
     SELECT $1::uuid AS id, $2::text AS entity_key, $3::text AS entity_type,
            $4::text AS layer_code, $5::text AS name, $6::text AS canonical_name,
-           ARRAY(SELECT DISTINCT alias FROM unnest($7::text[] || ca.aliases) AS alias ORDER BY alias) AS aliases,
+           sa.aliases || oa.aliases AS aliases,
            $8::text AS status
-    FROM current_convergence_aliases ca
+    FROM seed_aliases sa CROSS JOIN owned_aliases oa
 ), upsert AS (
     INSERT INTO entity_nodes (
         id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
@@ -103,8 +96,35 @@ WITH current_convergence_aliases AS (
        OR entity_nodes.status IS DISTINCT FROM EXCLUDED.status
     RETURNING xmax = 0 AS inserted
 )
-SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
-`
+SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')`
+}
+
+func entityAliasOwnershipCTEs(entityParameter, aliasesParameter int) string {
+	return fmt.Sprintf(`seed_aliases AS (
+    SELECT COALESCE(array_agg(alias ORDER BY first_ordinality), '{}'::text[]) AS aliases
+    FROM (
+        SELECT alias,MIN(ordinality) AS first_ordinality
+        FROM unnest(COALESCE($%d::text[], '{}'::text[])) WITH ORDINALITY AS seed(alias,ordinality)
+        WHERE alias <> ''
+        GROUP BY alias
+    ) deduplicated_seed
+), ranked_owned_aliases AS (
+    SELECT am.alias,am.moved_at,am.id,
+           row_number() OVER (PARTITION BY am.alias ORDER BY am.moved_at,am.id) AS alias_rank
+    FROM entity_convergence_alias_moves am
+    JOIN entity_convergences c ON c.id = am.convergence_id
+    CROSS JOIN seed_aliases sa
+    WHERE am.to_entity_id = $%d
+      AND c.manifest_version = (SELECT MAX(manifest_version) FROM entity_convergence_manifests)
+      AND NOT (am.alias = ANY(sa.aliases))
+), owned_aliases AS (
+    SELECT COALESCE(array_agg(alias ORDER BY moved_at,id), '{}'::text[]) AS aliases
+    FROM ranked_owned_aliases WHERE alias_rank=1
+)`, aliasesParameter, entityParameter)
+}
+
+func currentConvergenceAliasMergeQuery() string {
+	return `WITH ` + entityAliasOwnershipCTEs(1, 2) + ` SELECT to_json(sa.aliases || oa.aliases) FROM seed_aliases sa CROSS JOIN owned_aliases oa`
 }
 
 func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) (WriteResult, error) {
