@@ -269,3 +269,90 @@ func TestMemoryRepositoryUpdatesLatestSectorSourceMappingSnapshotIdempotently(t 
 		t.Fatalf("source mapping count = %d, want 1", got)
 	}
 }
+
+func TestMemoryRepositoryUpdatesReviewFieldsWithoutReplacingNewerSnapshot(t *testing.T) {
+	repo := NewMemoryRepository()
+	for _, entity := range []Entity{
+		{Key: "sector:theme_ai", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能", CanonicalName: "人工智能", Aliases: []string{"Artificial Intelligence"}},
+		{Key: "sector:theme_ai_merged", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能产业", CanonicalName: "人工智能产业", Aliases: []string{"Artificial Intelligence Industry"}},
+	} {
+		if _, err := repo.UpsertEntity(context.Background(), entity); err != nil {
+			t.Fatalf("UpsertEntity() error = %v", err)
+		}
+	}
+	current := SectorSourceMapping{
+		SectorEntityKey: "sector:theme_ai", SourceSystem: "ths", SourceTaxonomyType: "concept",
+		SourceSectorCode: "885001", SourceSectorName: "人工智能", SourceMarketScope: "cn_a_share",
+		SourceURL: "https://example.com/newer", RankSnapshot: 2, SnapshotDate: "2026-07-12",
+		MappingStatus: "candidate",
+	}
+	if _, err := repo.UpsertSectorSourceMapping(context.Background(), current); err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(current) error = %v", err)
+	}
+	olderReview := current
+	olderReview.SectorEntityKey = "sector:theme_ai_merged"
+	olderReview.SourceURL = "https://example.com/older"
+	olderReview.RankSnapshot = 9
+	olderReview.SnapshotDate = "2026-07-01"
+	olderReview.MappingStatus = "merged"
+	olderReview.ReviewNote = "reviewed canonical merge"
+	result, err := repo.UpsertSectorSourceMapping(context.Background(), olderReview)
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(older review) error = %v", err)
+	}
+	if result.Action != WriteUpdated {
+		t.Fatalf("older review action = %q, want updated", result.Action)
+	}
+	stored := repo.sectorSourceMappings[sectorSourceMappingIdentity(normalizeSectorSourceMapping(olderReview))]
+	if stored.SectorEntityKey != olderReview.SectorEntityKey || stored.MappingStatus != "merged" || stored.ReviewNote != olderReview.ReviewNote {
+		t.Fatalf("review fields not updated: %+v", stored)
+	}
+	if stored.RankSnapshot != current.RankSnapshot || stored.SnapshotDate != current.SnapshotDate || stored.SourceURL != current.SourceURL {
+		t.Fatalf("newer snapshot fields replaced: %+v", stored)
+	}
+	unchanged, err := repo.UpsertSectorSourceMapping(context.Background(), SectorSourceMapping{
+		SectorEntityKey: olderReview.SectorEntityKey, SourceSystem: olderReview.SourceSystem,
+		SourceTaxonomyType: olderReview.SourceTaxonomyType, SourceSectorCode: olderReview.SourceSectorCode,
+		SourceSectorName: olderReview.SourceSectorName, SourceMarketScope: olderReview.SourceMarketScope,
+		MappingStatus: olderReview.MappingStatus, ReviewNote: olderReview.ReviewNote,
+	})
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(no snapshot unchanged) error = %v", err)
+	}
+	if unchanged.Action != WriteUnchanged {
+		t.Fatalf("no snapshot unchanged action = %q, want unchanged", unchanged.Action)
+	}
+}
+
+func TestMemoryRepositoryAllowsApprovalWithoutReplacingExistingSnapshot(t *testing.T) {
+	repo := NewMemoryRepository()
+	entity := Entity{Key: "sector:theme_ai", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能", CanonicalName: "人工智能", Aliases: []string{"Artificial Intelligence"}}
+	if _, err := repo.UpsertEntity(context.Background(), entity); err != nil {
+		t.Fatalf("UpsertEntity() error = %v", err)
+	}
+	current := SectorSourceMapping{
+		SectorEntityKey: entity.Key, SourceSystem: "ths", SourceTaxonomyType: "concept",
+		SourceSectorCode: "885001", SourceSectorName: "人工智能", SourceURL: "https://example.com/latest",
+		RankSnapshot: 2, SnapshotDate: "2026-07-12", MappingStatus: "candidate",
+	}
+	if _, err := repo.UpsertSectorSourceMapping(context.Background(), current); err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(current) error = %v", err)
+	}
+	approval := current
+	approval.SourceURL = ""
+	approval.RankSnapshot = 0
+	approval.SnapshotDate = ""
+	approval.MappingStatus = "approved"
+	approval.ReviewNote = "approved by user"
+	result, err := repo.UpsertSectorSourceMapping(context.Background(), approval)
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(approval) error = %v", err)
+	}
+	if result.Action != WriteUpdated {
+		t.Fatalf("approval action = %q, want updated", result.Action)
+	}
+	stored := repo.sectorSourceMappings[sectorSourceMappingIdentity(normalizeSectorSourceMapping(approval))]
+	if stored.MappingStatus != "approved" || stored.SnapshotDate != current.SnapshotDate || stored.SourceURL != current.SourceURL {
+		t.Fatalf("approval/snapshot state = %+v", stored)
+	}
+}

@@ -138,9 +138,24 @@ WITH upsert AS (
         source_sector_name = EXCLUDED.source_sector_name,
         source_sector_name_normalized = EXCLUDED.source_sector_name_normalized,
         source_market_scope = EXCLUDED.source_market_scope,
-        source_url = EXCLUDED.source_url,
-        rank_snapshot = EXCLUDED.rank_snapshot,
-        snapshot_date = EXCLUDED.snapshot_date,
+        source_url = CASE
+            WHEN sector_source_mappings.snapshot_date IS NULL
+              OR (EXCLUDED.snapshot_date IS NOT NULL AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date)
+            THEN EXCLUDED.source_url
+            ELSE sector_source_mappings.source_url
+        END,
+        rank_snapshot = CASE
+            WHEN sector_source_mappings.snapshot_date IS NULL
+              OR (EXCLUDED.snapshot_date IS NOT NULL AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date)
+            THEN EXCLUDED.rank_snapshot
+            ELSE sector_source_mappings.rank_snapshot
+        END,
+        snapshot_date = CASE
+            WHEN sector_source_mappings.snapshot_date IS NULL
+              OR (EXCLUDED.snapshot_date IS NOT NULL AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date)
+            THEN EXCLUDED.snapshot_date
+            ELSE sector_source_mappings.snapshot_date
+        END,
         mapping_status = EXCLUDED.mapping_status,
         review_note = EXCLUDED.review_note,
         updated_at = NOW()
@@ -148,14 +163,14 @@ WITH upsert AS (
        OR sector_source_mappings.source_sector_name IS DISTINCT FROM EXCLUDED.source_sector_name
        OR sector_source_mappings.source_sector_name_normalized IS DISTINCT FROM EXCLUDED.source_sector_name_normalized
        OR sector_source_mappings.source_market_scope IS DISTINCT FROM EXCLUDED.source_market_scope
-       OR sector_source_mappings.source_url IS DISTINCT FROM EXCLUDED.source_url
-       OR sector_source_mappings.rank_snapshot IS DISTINCT FROM EXCLUDED.rank_snapshot
-       OR sector_source_mappings.snapshot_date IS DISTINCT FROM EXCLUDED.snapshot_date
        OR sector_source_mappings.mapping_status IS DISTINCT FROM EXCLUDED.mapping_status
-       OR sector_source_mappings.review_note IS DISTINCT FROM EXCLUDED.review_note)
-      AND (sector_source_mappings.snapshot_date IS NULL
-           OR (EXCLUDED.snapshot_date IS NOT NULL
-               AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date))
+       OR sector_source_mappings.review_note IS DISTINCT FROM EXCLUDED.review_note
+       OR ((sector_source_mappings.snapshot_date IS NULL
+            OR (EXCLUDED.snapshot_date IS NOT NULL
+                AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date))
+           AND (sector_source_mappings.source_url IS DISTINCT FROM EXCLUDED.source_url
+                OR sector_source_mappings.rank_snapshot IS DISTINCT FROM EXCLUDED.rank_snapshot
+                OR sector_source_mappings.snapshot_date IS DISTINCT FROM EXCLUDED.snapshot_date)))
     RETURNING xmax = 0 AS inserted
 )
 SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')

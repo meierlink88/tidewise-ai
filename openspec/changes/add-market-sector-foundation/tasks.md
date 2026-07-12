@@ -8,16 +8,18 @@
 - [x] 1.6 在 Review artifact 中完成旧 PG 替换对照与建议正式 52 个 canonical sector 的 seed 草案边界；Top/顺序不进入 stable key 或实体身份，尚未修改正式 seed
 - [x] 1.7 标注核心30、扩展15、观察7的推理调度建议，明确分层不属于实体身份字段
 
-> **暂停门：** tasks 1.x Review 收敛完成。进入 task 2 migration/TDD 前必须获得主对话再次批准；当前不得修改 backend、正式 seed、PostgreSQL 或 Neo4j。
+> **阶段记录：** tasks 1.x Review 收敛完成，主对话已批准进入 task 2；正式 seed、migration apply、PostgreSQL 写入和 Neo4j 仍未获授权。
 
 ## 2. Profile 与 migration 测试先行
 
 - [x] 2.1 在 `backend/migrations` 增加 migration 静态测试，先验证 `sector_profiles` 增量字段、`sector_source_mappings` 结构、有代码与无代码稳定唯一约束不含 `snapshot_date`、`source_market_scope` 非空且默认空串、非破坏性 SQL、外键引用和回滚说明
 - [x] 2.2 在 `backend/internal/apps/entityfoundation/seed` 增加 sector profile 和 source mapping loader 测试，覆盖 semantic classification 不含 `index_sector`、source taxonomy 可为 `index_sector`、主要市场、主要经济体、中文主名、英文 alias 和 Review 状态，并验证有代码/无代码 identity、名称规范化与最新快照幂等覆盖
 - [x] 2.3 已取得 RED：migration 测试因缺少 `000010` 失败；domain/seed 测试因缺少 semantic classification、source mapping 类型、loader 与 upsert 能力失败；引用测试确认错误 market 类型在实现前被接受
-- [x] 2.4 追加非破坏性 `000010_add_market_sector_foundation.sql`，补充 `sector_profiles` semantic classification、主要市场、主要经济体、方法 URL、Review 状态字段，并新增 `sector_source_mappings` 作为多来源映射事实表
-- [x] 2.5 更新 domain、repository、service 和 seed loader，使新版 sector profile 与 source mapping 字段可校验、可写入、可幂等更新；同一 source identity 只覆盖 mapping 行的最新 `rank_snapshot`、`snapshot_date` 和 `source_url`，未新增历史 snapshot 表
-- [x] 2.6 复跑聚焦测试、相关 package tests 和 `go test ./...`，确认通过；未执行 migration apply 或任何 PostgreSQL 写入
+- [x] 2.4 追加非破坏性 `000010_add_market_sector_foundation.sql`，先按旧 `sector_type` 确定性回填 semantic classification，再设置 default、NOT NULL 与 check；补充主要市场、主要经济体、方法 URL、Review 状态字段，并新增 `sector_source_mappings` 作为多来源映射事实表
+- [x] 2.5 更新 domain、repository、service 和 seed loader，使新版 sector profile 与 source mapping 字段可校验、可写入、可幂等更新；source identity 和非快照审阅字段始终按输入更新，只有不旧于现有记录的输入才覆盖 `rank_snapshot`、`snapshot_date` 和 `source_url`，未新增历史 snapshot 表
+- [x] 2.6 复跑 migration 回填与约束静态测试、Memory/PG 快照门禁一致性回归、相关 package tests 和 `go test ./...`，确认通过；未执行 migration apply 或任何 PostgreSQL 写入
+
+> **暂停门：** task 2 已完成并等待主对话验收。进入 task 3 关系策略与图谱投影前必须再次获得批准。
 
 ## 3. 关系策略与图谱投影
 

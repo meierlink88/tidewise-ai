@@ -1,10 +1,22 @@
 -- +goose Up
 ALTER TABLE sector_profiles
-    ADD COLUMN IF NOT EXISTS classification_code TEXT NOT NULL DEFAULT 'market_sector',
+    ADD COLUMN IF NOT EXISTS classification_code TEXT,
     ADD COLUMN IF NOT EXISTS primary_market_entity_id UUID REFERENCES entity_nodes(id),
     ADD COLUMN IF NOT EXISTS primary_economy_entity_id UUID REFERENCES entity_nodes(id),
     ADD COLUMN IF NOT EXISTS methodology_url TEXT NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'candidate';
+
+UPDATE sector_profiles
+SET classification_code = CASE
+    WHEN LOWER(TRIM(sector_type)) = 'industry' THEN 'industry_sector'
+    WHEN LOWER(TRIM(sector_type)) = 'concept' THEN 'theme_sector'
+    ELSE 'market_sector'
+END
+WHERE classification_code IS NULL OR TRIM(classification_code) = '';
+
+ALTER TABLE sector_profiles
+    ALTER COLUMN classification_code SET DEFAULT 'market_sector',
+    ALTER COLUMN classification_code SET NOT NULL;
 
 ALTER TABLE sector_profiles
     ADD CONSTRAINT chk_sector_profiles_classification_code CHECK (

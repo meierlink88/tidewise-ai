@@ -154,13 +154,20 @@ func TestSectorSourceMappingUpsertUsesStableIdentityAndLatestSnapshot(t *testing
 	}
 	for _, fragment := range []string{
 		"insert into sector_source_mappings", "on conflict (id) do update set",
-		"rank_snapshot = excluded.rank_snapshot", "snapshot_date = excluded.snapshot_date",
-		"source_url = excluded.source_url", "updated_at = now()",
+		"sector_entity_id = excluded.sector_entity_id",
+		"mapping_status = excluded.mapping_status", "review_note = excluded.review_note",
+		"rank_snapshot = case", "snapshot_date = case", "source_url = case",
 		"excluded.snapshot_date >= sector_source_mappings.snapshot_date",
+		"sector_source_mappings.mapping_status is distinct from excluded.mapping_status",
+		"sector_source_mappings.review_note is distinct from excluded.review_note",
+		"updated_at = now()",
 	} {
 		if !strings.Contains(strings.ToLower(statement), fragment) {
 			t.Fatalf("source mapping upsert missing %q", fragment)
 		}
+	}
+	if strings.Contains(strings.ToLower(statement), ")\n      and (sector_source_mappings.snapshot_date") {
+		t.Fatal("snapshot recency must not gate non-snapshot review field updates")
 	}
 	if got, want := len(args), 13; got != want {
 		t.Fatalf("source mapping args = %d, want %d", got, want)

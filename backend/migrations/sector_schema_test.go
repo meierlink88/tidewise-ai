@@ -10,6 +10,13 @@ func TestMarketSectorSchemaMigrationDefinesProfilesAndSourceMappings(t *testing.
 	for _, fragment := range []string{
 		"alter table sector_profiles",
 		"add column if not exists classification_code text",
+		"update sector_profiles",
+		"set classification_code = case",
+		"when lower(trim(sector_type)) = 'industry' then 'industry_sector'",
+		"when lower(trim(sector_type)) = 'concept' then 'theme_sector'",
+		"else 'market_sector'",
+		"alter column classification_code set default 'market_sector'",
+		"alter column classification_code set not null",
 		"add column if not exists primary_market_entity_id uuid references entity_nodes(id)",
 		"add column if not exists primary_economy_entity_id uuid references entity_nodes(id)",
 		"add column if not exists methodology_url text",
@@ -34,6 +41,15 @@ func TestMarketSectorSchemaMigrationDefinesProfilesAndSourceMappings(t *testing.
 	}
 	if strings.Contains(sql, "source_sector_name_normalized, source_market_scope, snapshot_date") {
 		t.Fatal("source mapping identity must not include snapshot_date")
+	}
+	addColumn := strings.Index(sql, "add column if not exists classification_code text")
+	backfill := strings.Index(sql, "update sector_profiles")
+	setNotNull := strings.Index(sql, "alter column classification_code set not null")
+	if addColumn < 0 || backfill <= addColumn || setNotNull <= backfill {
+		t.Fatalf("classification migration order = add:%d backfill:%d not-null:%d", addColumn, backfill, setNotNull)
+	}
+	if strings.Contains(sql[addColumn:backfill], "classification_code text not null default") {
+		t.Fatal("classification column must not apply a blanket default before deterministic backfill")
 	}
 }
 
