@@ -1,102 +1,97 @@
 # Git Workflow
 
-OpenSpec change 是本项目的正式工作单元。Git branch 是 change 的交付边界，commit 是阶段性检查点，worktree 只用于并行隔离。
+OpenSpec change 是正式工作单元，`codex/<change-name>` branch 是交付边界，commit 是检查点，worktree 用于 change 隔离。OpenSpec 阶段语义见 `.agents/openspec-workflow.md`。
 
-## Branch Rules
+## Desktop-Managed Worktree Gate
 
-除项目初始 baseline、紧急小修或用户明确要求直接在 `main` 操作外，正式 OpenSpec change 必须从最新 `origin/main` 创建独立分支：
-
-```text
-codex/<change-name>
-```
-
-标准分支流程：
-
-```text
-1. 执行 `git fetch origin`，更新远端引用。
-2. 基于最新 `origin/main` 创建 `codex/<change-name>`，不得仅依赖可能过期的本地 `main`。
-3. 执行 Explore/Propose，生成或更新 `openspec/changes/<change-name>/` artifacts。
-4. 运行 `openspec validate <change-name>`。
-5. 提交 propose 检查点，推荐 commit message：`spec: propose <change-name>`。
-6. 等待或完成 Review，确认 artifacts 可以进入实现。
-7. 执行 Apply，严格按 `tasks.md` 顺序实现。
-8. 每完成一组可验证任务后更新 checkbox，并按需要提交阶段性 commit。
-9. tasks 全部完成后运行适当验证。
-10. Sync delta specs 到 `openspec/specs/`。
-11. Archive change 到 `openspec/changes/archive/`。
-12. 运行 `openspec validate --all`。
-13. 检查 scoped diff，只暂存当前 change 文件并提交 archive 检查点，推荐 commit message：`spec: archive <change-name>`。
-14. 验证 `git status --short` 不再包含当前 change 的未提交文件，并用 `git log -1` 确认 archive commit 存在。
-15. 使用 `superpowers:finishing-a-development-branch` 和 GitHub plugin，通过 PR 或明确确认后合并回 `main`。
-16. PR 合并后确认默认分支已包含 change 的 archive commit，并删除远端 change branch。
-17. 切换出 change worktree 后删除本地 change branch；如果该 worktree 由本项目创建，则移除 worktree 并执行 `git worktree prune`。
-18. 只有完成 archive commit、分支交付和 branch/worktree cleanup 后，change 才进入 `delivered` 状态并允许启动下一 change。
-```
-
-## Commit Rules
-
-- propose artifacts 完整且 `openspec validate <change-name>` 通过后，应提交一次 `spec: propose <change-name>`。
-- apply 过程中，完成一组有独立验证意义的任务后可以提交一次，例如 `chore: add backend config foundation` 或 `feat: add backend health endpoints`。
-- 不要在 tasks 未更新、验证未运行或 artifacts 明显过期时提交完成态代码。
-- sync/archive 完成且 `openspec validate --all` 通过后，应提交一次 `spec: archive <change-name>`。
-- commit 前必须检查 `git status --short`，确认没有把 `node_modules`、构建产物、缓存、真实 secret 或无关文件加入提交。
-
-## Worktree Rules
-
-- 默认一个 change 使用当前 worktree 加一个独立 branch 即可。
-- 当多个 change 并行、某个 change 长期未完成但需要切换任务、或多个 Codex 线程同时工作时，才创建额外 worktree。
-- 创建并行 worktree 时使用 `superpowers:using-git-worktrees`，并确保它基于最新 `origin/main`。
-- 在 Codex Desktop 中优先创建与独立任务绑定的原生 worktree；手工 worktree 只作为原生能力不可用时的替代方案。
-- 不要在两个 worktree 中同时修改同一个 OpenSpec change，避免 tasks 状态和 specs delta 冲突。
+- 在 Codex Desktop 可用时，所有新 change 和并行 change 必须先通过 Desktop 新任务创建受管 worktree；agent 不得手工执行 `git worktree add`。
+- branch 必须在 Desktop 受管任务内从最新 `origin/main` 创建或切换为 `codex/<change-name>`，不得把当前 worktree 手工创建 branch/worktree 作为等价默认路径。
+- 只有 Codex Desktop 受管机制不可用且用户明确批准 fallback 时，agent 才可创建项目自有 Git worktree。两个条件缺一不可。
+- 不得在两个 worktree 修改同一 change，也不得把其他 active change 的文件混入当前 branch。
 
 ## New Change Gate
 
-创建或实现新 OpenSpec change 前必须同时满足：
+创建或实现新 change 前必须：
 
-- 上一个 change 的 archive commit 已存在，且其源码、测试、主规格和 archive 文件均被 Git 跟踪。
-- 当前 branch 为 `codex/<new-change-name>`，并基于最新 `origin/main`；不得沿用上一个 change 的 branch。
-- 当前 worktree 不包含其他 change 的未提交修改。
-- 如果另一个 change 仍在 review、PR 或实现中，必须为新 change 使用独立 worktree，禁止在同一 worktree 混合两个 change。
+1. 确认上一 change 已有 archive commit，且没有未提交的源码、测试、主规格或 archive 文件。
+2. 执行 `git fetch origin`，确认基线为最新 `origin/main`，不得依赖可能过期的本地 `main`。
+3. 在 Desktop 新任务创建的受管 worktree 内创建或切换 `codex/<change-name>`。
+4. 确认 `git status --short` 干净，branch 名称匹配且不包含其他 change 修改。
 
-建议检查命令：
+建议检查：
 
 ```bash
 git status --short
 git branch --show-current
 git log -1 --oneline
 git merge-base HEAD origin/main
+git worktree list
 ```
 
-任一条件不满足时，必须先完成上一 change 的 scoped commit/交付，或创建并切换到新 change 的独立 worktree。OpenSpec archive 成功只代表 `archived`，不代表 Git 已 `delivered`。
+任一条件不满足时不得继续。无法使用 Desktop 时必须先报告原因并取得用户对 project-owned fallback 的明确批准。
 
-## Delivered Change Cleanup
+## Approved Fallback Worktree
 
-PR 合并或本地合并成功后必须完成：
+仅在 fallback 获批后，才可按以下边界创建项目自有 worktree：
 
-- 验证 `origin/main` 已包含 change 的最终 commit。
-- 删除远端 `codex/<change-name>` branch。
-- 确认没有 worktree 正在使用该 branch 后，删除本地 branch。
-- 仅清理本项目创建且路径可确认的 change worktree；不得删除 Codex Desktop 或其他工具拥有的未知 worktree。
-- 对已移除的项目自有 worktree 运行 `git worktree prune`，并用 `git worktree list` 验证没有残留。
+- 基于最新 `origin/main` 创建 `codex/<change-name>`。
+- 路径必须位于项目明确管理的 worktree 区域，并记录路径与所有权。
+- 创建前后检查其他 worktree 与 branch，避免同一 change 被重复占用。
+- fallback worktree 必须保持 scoped changes；不得移动或复制其他 active change 的未提交文件。
 
-删除 branch 或 worktree 前必须确认其中没有未提交和未跟踪文件。若存在文件，先迁移到对应新 change 的 branch/worktree，不得强制删除。
+## Commit Checkpoints
 
-## GitHub Rules
+- Propose artifacts 完整且 `openspec validate <change-name>` 通过后：`spec: propose <change-name>`。
+- Apply 中每组独立可验证任务可以提交阶段性 checkpoint；tasks 必须同步更新。
+- Sync/Archive 完成且 `openspec validate --all` 通过后：`spec: archive <change-name>`。
+- commit 前运行新鲜验证、`git diff --check` 和 `git status --short`，只暂存当前 change 文件；不得加入依赖目录、构建产物、缓存、secret 或无关文件。
 
-- commit、push 和创建 PR 优先使用 `github:yeet`。
-- CI 失败使用 `github:gh-fix-ci`。
-- PR review comments 使用 `github:gh-address-comments`，并先按 `superpowers:receiving-code-review` 验证意见。
-- tasks、sync、archive 和 `openspec validate --all` 未完成前，不得进入 `superpowers:finishing-a-development-branch` 或创建完成态 PR。
+## Push, PR And Merge Gate
 
-## Main Rules
+- Propose checkpoint 可以 push 供 Review；不得把它表达为完成态 PR。
+- tasks、Apply 后人工 Review、Sync、Archive、`openspec validate --all` 和 archive commit 未完成前，不得创建完成态 PR 或 merge。
+- Deliver 使用 `superpowers:finishing-a-development-branch`，commit/push/PR 优先使用 GitHub plugin。
+- CI 失败使用 `github:gh-fix-ci`；PR review comments 使用 `github:gh-address-comments` 并先验证意见。
+- merge 前确认主规格、归档和代码一致；merge 后先验证 `origin/main` 包含最终 archive commit，再开始 cleanup。
 
-- `main` 应保持可验证、可恢复的稳定状态。
-- `main` 可以包含已 propose 但未 apply 的轻量 active change；不应长期包含半实现代码。
-- 合并回 `main` 前应确认 OpenSpec 校验通过，且相关 tasks、sync/archive 状态与代码实现一致。
+## Desktop-Managed Cleanup
 
-## Safety Rules
+Desktop-managed worktree 必须严格按以下顺序清理：
 
-- 不要 revert 用户或其他 agent 的无关改动。
-- 不要使用 `git reset --hard`、`git checkout --` 等破坏性命令，除非用户明确要求。
-- 如果工作区存在无关变更，忽略它们；如果相关变更影响当前任务，先读懂并兼容。
-- push、PR、merge 前必须先运行与当前 change 匹配的验证。
+1. PR merge 后验证 `origin/main` 包含 change 的最终 archive commit。
+2. 删除远端 `codex/<change-name>` branch。
+3. 归档或关闭对应 Codex Desktop 任务，让 Desktop 释放托管 worktree。
+4. 使用 Desktop 状态与 `git worktree list` 验证托管 worktree 已释放。
+5. 仅在释放后删除仍存在的本地 change branch。
+
+Agent 不得对 Desktop-managed worktree 执行 `rm`、`git worktree remove` 或其他手工目录移除。若 Desktop 尚未释放，必须记录待清理状态，不得删除仍被占用的本地 branch，也不得宣称 cleanup、Deliver 或 change closure 完成。
+
+## Project-Owned Fallback Cleanup
+
+经用户批准创建的 project-owned fallback worktree 必须严格按以下顺序清理：
+
+1. PR merge 后验证 `origin/main` 包含 change 的最终 archive commit。
+2. 删除远端 `codex/<change-name>` branch。
+3. 确认 worktree 路径、所有权、branch 和工作区状态；只有路径与所有权均明确且无未提交/未跟踪文件时，才执行 `git worktree remove <path>`。
+4. 删除本地 change branch。
+5. 对已移除的项目自有 worktree 执行 `git worktree prune`，再用 `git worktree list` 验证无残留。
+
+不得删除 Codex Desktop、其他工具或所有权不明的 worktree。发现未提交或未跟踪文件时必须暂停并迁移到对应 change，不得强制删除。
+
+## Delivered State
+
+只有同时满足以下条件，change 才是 `delivered`：
+
+- `origin/main` 包含最终 archive commit。
+- 远端 change branch 已删除。
+- 对应 Desktop-managed 或 project-owned worktree 已按所属路径完整释放。
+- 不再有被占用或待清理的本地 change branch/worktree。
+- 当前 change 没有未提交文件。
+
+Archive 成功只代表 `archived`，不代表 `delivered`。Deliver 未完成不得声明 change 关闭或开始下一 change。
+
+## Safety
+
+- 不 revert 用户或其他 agent 的无关改动。
+- 不使用 `git reset --hard`、`git checkout --` 或强制删除，除非用户明确要求。
+- push、PR、merge 和 cleanup 前必须运行与当前阶段匹配的新鲜验证。

@@ -1,118 +1,76 @@
 # OpenSpec Workflow
 
-本项目严格按照 OpenSpec 方法论执行工程开发。正式工程变更必须先创建 OpenSpec change，再实现代码。
+OpenSpec 是正式工程 change 的唯一生命周期和 artifacts 来源。正式变更必须先创建 change，再实现代码；Skill 映射见 `.agents/skill-routing.md`，Git 交付见 `.agents/git-workflow.md`。
 
-## Language Rules
+## Language And Artifact Rules
 
-- 所有 OpenSpec 生成内容默认使用中文。
-- 只有 OpenSpec 规范要求保留的框架性文案、固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。
-- proposal、design、tasks、spec requirements 和 scenarios 的正文、说明、任务描述、风险、取舍、影响范围和验收内容都应使用中文。
+- OpenSpec 内容默认使用中文；仅固定标题、关键字、命令、路径、代码标识和协议字段保留英文。
+- 主规格 `openspec/specs/` 是已生效能力的事实来源；新 change 必须基于主规格和现有代码增量设计。
+- Proposal、design、delta specs、tasks 和归档历史都归 OpenSpec 所有，不得建立平行长期事实来源。
 
-## Standard Flow
+## Lifecycle
 
 ```text
 Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 ```
 
-生命周期必须由 repo-local OpenSpec Skills 驱动：
+阶段不得跳过或调换：
 
-- Explore：`openspec-explore`，需要创意澄清时结合 `superpowers:brainstorming`。
-- Propose：`openspec-propose`，生成 proposal、specs、design、tasks。
-- Review：用户人工确认 artifacts 是否符合方向和范围。
-- Apply：`openspec-apply-change`，严格按 tasks 实现并即时更新状态。
-- Validate：运行 OpenSpec CLI 和项目验证命令，并遵守 `superpowers:verification-before-completion`。
-- Sync：`openspec-sync-specs`，将 delta specs 同步为当前系统事实。
-- Archive：`openspec-archive-change`，完成后归档历史决策与实现记录。
-- Deliver：按照 `.agents/git-workflow.md` 完成 archive commit、push、PR/merge 和已合并 change 的 branch/worktree cleanup；只有 Deliver 完成后 change 才可视为关闭。
+1. **Explore**：读取相关主规格、现有 change 和代码，确认当前状态、范围、非目标和复用点；只读探索不得推定实现或写入授权。
+2. **Propose**：创建中文 `proposal.md`、`design.md`、delta specs 和 `tasks.md`，明确影响范围、风险和验证方式。
+3. **Review**：用户人工确认全部 artifacts。未获明确批准不得进入 Apply；Skill 默认流程或自动化不得替代人工 Review。
+4. **Apply**：读取当前 change 全部 artifacts、受影响主规格、相关代码和命中任务规则，严格按 tasks 顺序实施；每完成一项立即更新 checkbox。
+5. **Validate**：运行 OpenSpec CLI 与任务相关验证，读取新鲜结果；失败或未验证项必须明确报告。
+6. **Sync**：tasks 全部完成且第二次人工 Review 通过后，才可将 delta specs 同步到主规格。
+7. **Archive**：Sync 后归档 change，运行 `openspec validate --all` 并提交 scoped archive checkpoint；archive 不等于 delivered。
+8. **Deliver**：Archive commit 存在且工作区无当前 change 未提交文件后，才可按 `.agents/git-workflow.md` push、PR/merge 和 cleanup。完成 Deliver 前不得宣称 change 关闭或启动下一 change。
 
-详细 Skill 组合和 artifact 归属见 `.agents/skill-routing.md`。
+## Review And Stateful Operation Gates
 
-## Directory Model
+- Propose 后必须停在人工 Review；批准前不得修改生产规则、源码、数据库或图谱。
+- Apply 完成后必须提供 scoped diff 与验证证据并再次等待人工 Review；批准前不得 Sync、Archive 或 Deliver。
+- 数据库 migration/apply、seed、业务写入、图谱关系写入、图谱投影重建或清理等有状态操作，必须先展示范围、顺序、预期影响和回滚边界，再取得用户明确批准。
+- 分层数据或图谱工作必须逐层执行 `Review -> Write -> Rebuild -> Query`；上一层未验收不得进入下一层。
+- 只读审计、设计批准、Apply 批准或某一层写入批准都不得被解释为其他有状态操作的授权。
 
-```text
-openspec/
-├── config.yaml   # 项目上下文、技术约束和 artifact 规则
-├── specs/        # 当前系统已经生效的主规格
-└── changes/      # 正在设计或实现的变更
-```
+## Starting Or Continuing A Change
 
-每个 change 通常包含：
+开始新 change 前必须：
 
-```text
-openspec/changes/<change-name>/
-├── proposal.md   # 为什么做、做什么、不做什么、影响范围
-├── design.md     # 怎么做、技术选型、架构边界、风险取舍
-├── tasks.md      # 可执行实现清单
-└── specs/        # 本次变更的 delta requirements
-```
+- 读取 `openspec/config.yaml`、受影响主规格、相关代码及命中的 `.agents` 规则。
+- 确认 scope、non-goals、复用点和影响区域，禁止创建平行结构。
+- 通过 `.agents/git-workflow.md` 的 New Change Gate；OpenSpec 不重复维护 branch/worktree 操作细节。
 
-主规格 `openspec/specs/` 是系统当前行为和能力的事实来源。新 change 必须基于主规格和现有代码增量设计。
+继续已有 change 时只读取：
 
-## Before Starting A Change
+- 该 change 的 proposal、design、tasks 和 delta specs。
+- 受影响主规格和相关代码。
+- 由实际生命周期、Git、后端、前端或测试动作命中的对应 `.agents` 文件。
 
-开始任何新 change 前，必须：
+不得因为开始任务而无差别读取全部规则、全部主规格或项目外文档。
 
-- 读取 `openspec/config.yaml`。
-- 读取相关主规格 `openspec/specs/**/spec.md`。
-- 检查相关已有代码目录和文件。
-- 总结当前系统状态，再提出增量方案。
-- 优先复用和扩展已有模块，不要创建平行结构。
-- 明确本次 change 的 scope、non-goals 和 impact。
+## Apply Rules
 
-## Before Applying A Change
+- 实现前说明复用哪些已有页面、组件、services、models、data、store、repository 或配置。
+- 不得在未检查现有实现前生成平行页面、service、model、store、data 或 config 层。
+- Go 后端功能、bugfix 或重构必须服从 `.agents/testing-tdd.md`，先测试再实现。
+- 若 design/spec/tasks 与代码现实冲突，立即暂停；先更新 artifacts 或征求用户确认，不得在过期设计上继续。
+- 用户要求暂停时保留 change 和 tasks 状态，使其可恢复。
 
-实现任何 change 前，必须：
+## Design Requirements
 
-- 读取该 change 的 `proposal.md`、`design.md`、`tasks.md` 和相关 `specs/**/spec.md`。
-- 读取受影响的现有代码文件。
-- 说明将复用哪些已有页面、组件、services、models、data、store 或配置。
-- 如果 change 涉及后端功能实现，必须先设计并实现 Go 单元测试或可自动化测试用例，再编写生产代码。
-- 严格按照 tasks 顺序执行。
-- 完成一个任务后立即把对应 checkbox 从 `- [ ]` 改为 `- [x]`。
+复杂后端 change 的 `design.md` 必须包含真实边界图示：
 
-## Design Diagram Rules
+- 后端流程、跨模块调用、外部 API、scheduler、connector、事件抽取、图谱写入、异步任务或部署边界：Mermaid sequence diagram。
+- 新增核心类型、接口、adapter、repository、service、parser、connector、worker 或跨包依赖：Mermaid class 或 component diagram。
+- 简单配置、文案或小范围测试修复可以不画图，但 design 必须说明原因。
 
-复杂后端 change 的 `design.md` 必须包含架构图示：
+## Completion Gates
 
-- 涉及后端流程、跨模块调用、外部 API、scheduler、connector、事件抽取、图谱写入、异步任务或部署边界时，必须包含 Mermaid sequence diagram。
-- 涉及新增核心类型、接口、adapter、repository、service、parser、connector、worker 或跨包依赖关系时，必须包含 Mermaid class diagram 或 component diagram。
-- 图中的节点名称必须尽量使用真实包名、类型名、接口名、connector key、parser key 或数据表名，不得只画抽象概念。
-- 简单配置、文案、小范围测试修复或不涉及结构变化的小修可以不强制补图，但 design 中应说明原因。
+进入 Sync 前必须同时满足：
 
-## When Design And Code Diverge
+- tasks 全部完成并有对应验证证据。
+- design、delta specs 和实现一致。
+- 用户已完成 Apply 后人工 Review。
 
-实现过程中如果发现设计不匹配，必须：
-
-- 暂停继续编码。
-- 说明 design/spec/tasks 与现实代码的冲突。
-- 先更新 OpenSpec artifacts 或征求用户确认。
-- 不得在 artifacts 过期时继续盲目实现。
-
-## Completing A Change
-
-完成 change 后，必须：
-
-- 运行适当验证。
-- 确认 tasks 全部完成。
-- 同步 delta specs 到 `openspec/specs/`。
-- 归档 change 到 `openspec/changes/archive/`。
-- 运行 `openspec validate --all`。
-- 检查 `git status --short`，只暂存当前 change 的源码、测试、主规格和 archive 文件。
-- 提交 `spec: archive <change-name>` 检查点，并按 `.agents/git-workflow.md` 完成 push、PR/merge 和 branch/worktree cleanup。
-- 在 archive commit 存在且当前 change 不再有未提交文件前，不得声明 change 已关闭，也不得开始下一个 change。
-
-## Starting The Next Change
-
-开始新 change 前必须完成交付隔离检查：
-
-- 上一个 change 必须已经完成 archive commit；工作区不得残留上一个 change 的未提交文件。
-- 执行 `git fetch origin`，新 change 必须从最新 `origin/main` 创建 `codex/<change-name>` 分支。
-- 当前 branch 名称必须与新 change 匹配；禁止在上一个 change 的 branch 中创建或实现新 change。
-- 如果当前 worktree 不干净、已有其他 active change，或需要保留上一分支用于 PR review，必须为新 change 创建独立 worktree 并切换到对应 branch。
-- 在 Codex Desktop 中优先使用新任务绑定的原生 worktree；无法使用时再按 `.agents/git-workflow.md` 创建 Git worktree。
-
-## Artifact Ownership
-
-- OpenSpec artifacts 是唯一正式工程事实来源。
-- brainstorming 结论进入 `design.md`，writing-plans 结果进入 `tasks.md`；默认不得生成平行的 Superpowers 长期 artifacts。
-- 如果用户要求暂停某个 change，不要删除 change；应保持 tasks 状态和 artifacts 可恢复。
+进入 Archive 前必须完成 Sync；进入 Deliver 前必须完成 Archive、`openspec validate --all` 和 archive commit。Git 提交、PR、merge、branch/worktree cleanup 的完整操作只在 `.agents/git-workflow.md` 维护。
