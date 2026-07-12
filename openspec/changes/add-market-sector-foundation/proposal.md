@@ -22,7 +22,7 @@
 ### Modified Capabilities
 - `entity-foundation-seeds`: 将现有一阶段实体 seed 中的 `sector` 从快照清单收紧为可审阅的市场板块基础实体，并补充市场板块关系族的 seed/校验边界。
 - `neo4j-graph-projection-foundation`: 补充板块实体和已审阅板块关系的 Neo4j 投影边界，明确不投影板块行情时序、事件推理结论或股票推荐。
-- `market-benchmark-foundation`: 明确板块与 benchmark 的关系只能表达“观察/关联的市场基准”类客观关系，不能把 benchmark 当板块、指标、商品或事件结论复制。
+- `market-benchmark-foundation`: 明确板块与 benchmark 的关系只能通过新的 `tracked_by_benchmark` 表达 `sector -> benchmark` 客观跟踪关系，不改变既有 `market -> observes_benchmark -> benchmark` 语义，不能把 benchmark 当板块、指标、商品或事件结论复制。
 
 ## Impact
 

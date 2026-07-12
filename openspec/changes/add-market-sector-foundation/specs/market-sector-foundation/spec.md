@@ -5,7 +5,7 @@
 
 #### Scenario: 初始化板块领域分类
 - **WHEN** 系统准备将候选板块纳入正式实体基础库
-- **THEN** 每个候选必须被归入 `industry_sector`、`theme_sector`、`market_sector`、`style_sector`、`region_sector` 或 `index_sector` 之一，不得只沿用来源系统的概念、行业或指数板块分类作为领域分类
+- **THEN** 每个候选必须被归入 `industry_sector`、`theme_sector`、`market_sector`、`style_sector` 或 `region_sector` 之一，不得把来源系统的概念、行业或指数板块分类直接作为领域分类
 
 #### Scenario: 区分三层概念
 - **WHEN** 来源系统将候选标记为概念板块、行业板块或指数板块
@@ -24,7 +24,7 @@
 
 #### Scenario: 生成稳定板块 key
 - **WHEN** 板块候选通过 Review 并进入正式 seed
-- **THEN** `entity_key` 必须采用稳定可读格式并包含来源系统、领域分类和 slug，不得使用来源排名、当天热度或快照序号作为长期 key
+- **THEN** canonical `entity_key` 必须采用来源无关的稳定可读格式并包含语义分类和 canonical slug，不得使用来源系统、来源排名、当天热度或快照序号作为长期 key
 
 #### Scenario: 保存中文主名称
 - **WHEN** 板块实体保存中文市场常用名称
@@ -48,6 +48,18 @@
 #### Scenario: 使用已确认评分权重
 - **WHEN** 开发者评估 MVP sector 候选
 - **THEN** 必须按事件可解释性 25、传导独立性 20、行情敏感度 15、数据完整性 15、长期稳定性 15、市场代表性 10 计算候选评估结果，并原则上只让 70 分以上候选进入 MVP
+
+#### Scenario: 使用统一评分量表
+- **WHEN** 开发者为候选任一评分项打分
+- **THEN** 必须使用 0 到 5 的基础量表并按权重换算，其中 0 表示无证据或无关，1 表示弱相关且缺少稳定来源，2 表示有关系但证据不足，3 表示满足基础入选条件，4 表示证据和差异较强，5 表示高确定性、稳定、可观测且代表性强
+
+#### Scenario: 保存评分证据
+- **WHEN** 候选评分被记录到 Review 清单
+- **THEN** 每个评分项必须保存证据说明、来源名称、来源 URL 或本地 source mapping 引用、评估来源和评估时间
+
+#### Scenario: 缺失数据处理和 override
+- **WHEN** 某个评分项缺少证据
+- **THEN** 该项必须按 0 分处理；若因传导簇覆盖需要保留低于 70 分或缺失数据候选，必须记录人工 override reason、override approver、替代证据和覆盖缺口
 
 #### Scenario: 应用准入评分维度
 - **WHEN** 开发者整理候选 Review 清单
@@ -78,7 +90,7 @@
 
 #### Scenario: 板块参考 benchmark
 - **WHEN** 某个板块需要观察一个可核验 benchmark 作为行情或宏观参考
-- **THEN** 系统必须通过已审阅关系连接现有或新增 benchmark，使 sector 表达可被事件影响的产业/主题暴露，benchmark 表达可观测行情标尺
+- **THEN** 系统必须通过 `sector -> tracked_by_benchmark -> benchmark` 已审阅关系连接现有或新增 benchmark，使 sector 表达可被事件影响的产业/主题暴露，benchmark 表达可观测行情标尺，并不得改变现有 `market -> observes_benchmark -> benchmark` 语义
 
 #### Scenario: 不写推理关系
 - **WHEN** 事件抽取或 Agent 分析认为某事件可能影响某板块

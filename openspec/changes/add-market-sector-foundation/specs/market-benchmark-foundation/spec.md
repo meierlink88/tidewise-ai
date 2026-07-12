@@ -36,7 +36,7 @@
 
 #### Scenario: 保存参考关系
 - **WHEN** 用户确认某个板块需要观察某个 benchmark
-- **THEN** 系统必须复用现有 benchmark 实体并保存已审阅关系，不得创建同名 benchmark 副本
+- **THEN** 系统必须复用现有 benchmark 实体并通过 `sector -> tracked_by_benchmark -> benchmark` 保存已审阅关系，不得创建同名 benchmark 副本，也不得修改既有 `market -> observes_benchmark -> benchmark` 语义
 
 #### Scenario: 一对一或多对一关联
 - **WHEN** 一个或多个 sector 共享同一可观测行情标尺
