@@ -27,9 +27,10 @@
 
 ## 5. 两条试点与有状态分层门禁
 
-- [ ] 5.1 仅在用户批准两条链和节点清单后新增 industry chain、chain node 改进与 membership seed，并运行 seed/loader 测试；不得执行数据库写入
-- [ ] 5.2 仅在用户逐项批准 topology、physical constraint 和各跨实体关系族后新增版本化 seed 文件并运行 policy/report 测试
-- [ ] 5.3 展示 migration、master seed、membership、topology、physical constraint、每个关系族和 Neo4j rebuild 的范围、顺序、影响及回滚边界，并分别取得明确 stateful 授权
+- [x] 5.1 用户已批准两条链、26 个去重节点与 membership；已新增 `industry_chains_v1.json` 并完成 seed/loader/report 测试，未执行数据库写入
+- [x] 5.2a 用户已批准 canonical topology 方向；已在版本化可执行 seed 中准备 24 条 topology 并完成 policy/report 测试，无 `substitutes_for`
+- [ ] 5.2b 仅在用户逐项批准后，才将 15 条 physical constraint candidate 或 12 条 `mapped_to_sector` candidate 从 review-only fixture 晋级为可执行 seed；economy/commodity/benchmark 保持空
+- [x] 5.3 已在 `stateful-execution-plan.md` 展示 migration、master seed、membership、topology、physical constraint、`mapped_to_sector`、Neo4j rebuild/query 的范围、顺序、预计统计、验证与回滚边界；所有 stateful 操作仍需逐层明确授权
 - [ ] 5.4 按层执行 `Review → Write → Rebuild → Query`，每层由用户验收后才能推进下一层
 
 ## 6. 完整验证与 Apply 后 Review
