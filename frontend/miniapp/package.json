@@ -5,8 +5,8 @@
   "scripts": {
     "dev:weapp": "taro build --type weapp --watch",
     "dev:tt": "taro build --type tt --watch",
-    "build:weapp": "taro build --type weapp",
-    "build:tt": "taro build --type tt",
+    "build:weapp": "taro build --type weapp --no-check",
+    "build:tt": "taro build --type tt --no-check",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\""

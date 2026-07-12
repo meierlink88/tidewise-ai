@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mockDailyBrief } from './data/daily-brief/mock-daily-brief';
 import { MockDailyBriefAdapter } from './services/daily-brief/mock-adapter';
 import { mapDailyBriefToHome } from './templates/daily-brief';
 import { createInitialResourceState, resourceStateReducer } from './models/resource-state';
 import { getVisibleHomeSections, homeSectionRegistry } from './templates/home-sections';
 import { getGraphComingSoonMessage } from './utils/coming-soon';
+import { getConfidenceLabel, getDirectionMeta, getResourceStateCopy } from './components/daily-brief/ui-meta';
 
 describe('mock-only daily brief contract', () => {
   it('uses the mock schema and only approved impact entity types', () => {
@@ -36,6 +37,20 @@ describe('MockDailyBriefAdapter', () => {
   it('throws a displayable error for the error scenario', async () => {
     const adapter = new MockDailyBriefAdapter('error');
     await expect(adapter.getDailyBrief()).rejects.toThrow('今日观潮加载失败');
+  });
+
+  it('keeps the loading scenario pending for deterministic visual QA', async () => {
+    vi.useFakeTimers();
+    const adapter = new MockDailyBriefAdapter('loading', 30_000);
+    const result = adapter.getDailyBrief();
+    let settled = false;
+    void result.then(() => { settled = true; });
+
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toEqual(mockDailyBrief);
+    vi.useRealTimers();
   });
 });
 
@@ -83,10 +98,44 @@ describe('home section registry', () => {
     const visible = getVisibleHomeSections({ ...view, themes: [] });
     expect(visible.map((section) => section.key)).not.toContain('themes');
   });
+
+  it('drives every optional rendering boundary from view content', () => {
+    const view = mapDailyBriefToHome(mockDailyBrief);
+    const emptyOptional = {
+      ...view,
+      themes: [],
+      conclusions: view.conclusions.map((item) => ({ ...item, impacts: [], evidence: [] }))
+    };
+
+    expect(getVisibleHomeSections(emptyOptional).map((section) => section.key)).toEqual([
+      'brief-summary', 'conclusions', 'safety-note'
+    ]);
+  });
 });
 
 describe('graph placeholder', () => {
   it('uses the approved non-navigating feedback copy', () => {
     expect(getGraphComingSoonMessage()).toBe('推导图谱即将开放');
+  });
+});
+
+describe('daily brief presentation metadata', () => {
+  it('pairs every direction color with readable text and symbol', () => {
+    expect(getDirectionMeta('up')).toEqual({ label: '向上', symbol: '↑', className: 'up' });
+    expect(getDirectionMeta('down')).toEqual({ label: '承压', symbol: '↓', className: 'down' });
+    expect(getDirectionMeta('neutral')).toEqual({ label: '中性', symbol: '—', className: 'neutral' });
+    expect(getDirectionMeta('divergent')).toEqual({ label: '分化', symbol: '↕', className: 'divergent' });
+  });
+
+  it('provides explicit loading, empty and error copy', () => {
+    expect(getResourceStateCopy('loading').title).toBe('正在汇集今日信号');
+    expect(getResourceStateCopy('empty').title).toBe('今日暂无可展示简报');
+    expect(getResourceStateCopy('error')).toEqual({ title: '今日观潮加载失败', action: '重新加载' });
+  });
+
+  it('does not overstate low-confidence evidence', () => {
+    expect(getConfidenceLabel('high')).toBe('高可信');
+    expect(getConfidenceLabel('medium')).toBe('中可信');
+    expect(getConfidenceLabel('low')).toBe('待验证');
   });
 });

@@ -16,29 +16,29 @@
 
 ## 3. 轻量视觉基础与共享组件
 
-- [ ] 3.1 在 `frontend/miniapp/src/styles` 增量映射首页实际使用的 canonical 色阶、字体、间距、圆角、阴影、状态和 motion tokens，不复制整套 design library，并用静态扫描确认不存在远程 Google Fonts 或 Web-only CSS。
-- [ ] 3.2 先为共享 resource-state、chip/card/button 和安全声明组件的 props/渲染 helper 编写测试，再在现有 components 边界实现最小 primitives。
-- [ ] 3.3 实现首页 brief hero、波浪分隔、摘要折叠、主线、影响和证据 page compositions，保持业务文案来自 view model，不使用 `document`、`window`、`innerHTML`、内联事件或直接 DOM mutation。
+- [x] 3.1 在 `frontend/miniapp/src/styles` 增量映射首页实际使用的 canonical 色阶、字体、间距、圆角、阴影、状态和 motion tokens，不复制整套 design library，并用静态扫描确认不存在远程 Google Fonts 或 Web-only CSS。
+- [x] 3.2 先为共享 resource-state、chip/card/button 和安全声明组件的 props/渲染 helper 编写测试，再在现有 components 边界实现最小 primitives。
+- [x] 3.3 实现首页 brief hero、波浪分隔、摘要折叠、主线、影响和证据 page compositions，保持业务文案来自 view model，不使用 `document`、`window`、`innerHTML`、内联事件或直接 DOM mutation。
 - [x] 3.4 如 `home-header-sea.jpg` 已确认必要且授权明确，将其复制到 `frontend/miniapp/src/assets` 并记录来源与 SHA-256；否则暂停该视觉项并返回 Review，不自行替换 canonical 背景。
 
 ## 4. 今日观潮首页实现
 
-- [ ] 4.1 将现有 `pages/index` 占位内容增量替换为 service 驱动的“今日观潮”template，保持 index tab 路径与其他四个 tab 不变。
-- [ ] 4.2 实现 loading、empty、error、ready 四态和错误重试，确保 empty/error 不显示伪造结论、影响或证据。
-- [ ] 4.3 实现 canonical 摘要展开/折叠和首版主线切换，使用 Taro/React 受控状态并覆盖微信、抖音共同交互路径。
-- [ ] 4.4 保留 canonical “看图谱”视觉入口；按 Review 批准策略实现“推导图谱即将开放”轻提示或等价禁用反馈，确认不导航、不请求、不渲染图谱。
-- [ ] 4.5 清理 fixture 中的个股、公司买卖信号、收益目标和推荐排序，只展示市场、板块、benchmark、商品、经济体或产业链实体，并在首页保持“不构成投资建议”声明。
+- [x] 4.1 将现有 `pages/index` 占位内容增量替换为 service 驱动的“今日观潮”template，保持 index tab 路径与其他四个 tab 不变。
+- [x] 4.2 实现 loading、empty、error、ready 四态和错误重试，确保 empty/error 不显示伪造结论、影响或证据。
+- [x] 4.3 实现 canonical 摘要展开/折叠和首版主线切换，使用 Taro/React 受控状态并覆盖微信、抖音共同交互路径。
+- [x] 4.4 保留 canonical “看图谱”视觉入口；按 Review 批准策略实现“推导图谱即将开放”轻提示或等价禁用反馈，确认不导航、不请求、不渲染图谱。
+- [x] 4.5 清理 fixture 中的个股、公司买卖信号、收益目标和推荐排序，只展示市场、板块、benchmark、商品、经济体或产业链实体，并在首页保持“不构成投资建议”声明。
 
 ## 5. 自动验证与双端构建
 
-- [ ] 5.1 运行首页业务单元测试并确认 ready/empty/error、mapper、adapter、registry、占位策略与安全边界用例全部通过。
-- [ ] 5.2 运行 miniapp lint 和 TypeScript typecheck，确认无错误且源码扫描不包含 DOM/browser-only API、远程字体、硬编码 secret 或图谱实现模块。
-- [ ] 5.3 运行 `npm run build:weapp --workspace @tidewise/miniapp`，确认微信构建成功并记录产物路径；不提交构建产物。
-- [ ] 5.4 运行 `npm run build:tt --workspace @tidewise/miniapp`，确认抖音构建成功；不提交构建产物。
+- [x] 5.1 运行首页业务单元测试并确认 ready/empty/error、mapper、adapter、registry、占位策略与安全边界用例全部通过。
+- [x] 5.2 运行 miniapp lint 和 TypeScript typecheck，确认无错误且源码扫描不包含 DOM/browser-only API、远程字体、硬编码 secret 或图谱实现模块。
+- [x] 5.3 运行 `npm run build:weapp --workspace @tidewise/miniapp`，确认微信构建成功并记录产物路径；不提交构建产物。
+- [x] 5.4 运行 `npm run build:tt --workspace @tidewise/miniapp`，确认抖音构建成功；不提交构建产物。
 
 ## 6. 微信开发者工具与视觉验收
 
-- [ ] 6.1 在 repo 内补充本地微信开发者工具说明，包含微信构建命令、产物导入目录、测试 AppID/本地模式注意事项、打开 index tab和清理构建产物步骤。
+- [x] 6.1 在 repo 内补充本地微信开发者工具说明，包含微信构建命令、产物导入目录、测试 AppID/本地模式注意事项、打开 index tab和清理构建产物步骤。
 - [ ] 6.2 在微信开发者工具导入构建产物，逐项预览 ready、loading、empty、error、摘要展开/折叠、主线切换和“看图谱”占位反馈，记录可复现结果。
 - [ ] 6.3 在 375×812 viewport 采集 canonical 与微信实现截图，完成首页关键视觉映射对比；逐项记录安全区、导航、字体或平台组件的等价差异，未解释偏差不得通过。
 - [ ] 6.4 使用抖音构建产物完成可用的本地预览或模拟器 smoke；若环境不支持，明确记录未验证项、原因和风险，不用微信结果替代抖音证据。

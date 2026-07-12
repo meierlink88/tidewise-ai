@@ -203,5 +203,15 @@ sequenceDiagram
 
 ## Open Questions
 
-- Review 是否确认“看图谱”点击后使用轻提示“推导图谱即将开放”（推荐），而不是禁用入口？
-- `home-header-sea.jpg` 的生产使用授权是否明确？Apply 前必须确认；未确认时不得复制。
+无。Proposal Review 已确认“看图谱”使用轻提示“推导图谱即将开放”，并明确授权 `home-header-sea.jpg` 用于生产小程序。
+
+## Apply Evidence
+
+- 用户已明确授权 `/Users/meierlink/Documents/david/创业项目/观潮家/prototype2/assets/home-header-sea.jpg` 用于生产小程序；目标文件及 provenance 为 `frontend/miniapp/src/assets/home-header-sea.jpg` 与 `frontend/miniapp/src/assets/README.md`。
+- Apply 前重算结果与 proposal 完全一致：HTML `ad90bcc8...f69a`、token CSS `3605c972...a889`、component CSS `f0c32a31...57c1`、海面资产 `667dcd64...b6fdc`。
+- TDD red：首轮因缺少 `mock-daily-brief` module 失败；第二轮因缺少 `components/daily-brief/ui-meta` module 失败。对应生产边界实现后分别获得 11/11 与 13/13 green。
+- Taro 4.2 native doctor 在当前 macOS 环境读取 system configuration 时 panic；定位到 `@tarojs/plugin-doctor-darwin-*` 后使用官方 `--no-check` 跳过前置 doctor，实际 webpack 编译正常执行。
+- weapp/tt 共用 `dist`，并行构建会互相清理输出目录；构建与说明统一改为顺序执行。
+- 自动截图尝试 H5 等价渲染时确认 workspace 未安装 `@tarojs/plugin-platform-h5`。本 change 不为视觉 QA 扩大目标平台或新增 H5 依赖；微信开发者工具 375×812 人工截图保留为 Apply 后 Review 待验收项。
+- 当前环境没有抖音开发者工具或可调用的抖音模拟器会话；只确认 tt webpack 编译成功，抖音本地预览 task 保持未完成，不能用微信或 CLI 构建替代。
+- 已知非阻塞构建警告：现有 Sass `@import` 弃用提示；海面图内联使首页平台样式约 260 KiB；webpack 无异步 chunk 性能建议。它们不影响双端编译，但需在后续性能/样式现代化 change 中评估。
