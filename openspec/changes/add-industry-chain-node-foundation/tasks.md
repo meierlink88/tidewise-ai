@@ -1,8 +1,8 @@
 ## 1. Apply 前 Review 与候选冻结
 
 - [x] 1.1 由用户 Review 并批准 4 张新表、`chain_node_profiles` 增量字段、三类 topology、13 类 physical constraint、`mapped_to_sector`、两条试点范围和 stateful 操作门禁；2026-07-12 主对话正式确认进入 Apply 候选冻结阶段
-- [x] 1.2 在 `candidate-review.md` 整理 AI 算力基础设施与半导体制造，每链约 10–15 节点、现有 33 节点复用/改进/新增判断、去重后约 20–30 节点及权威来源；第二批链不进入本 change seed
-- [x] 1.3 分别生成 membership、topology、physical constraint、economy/commodity/benchmark/sector 关系 Review 清单，记录后续 `Review → Write → Rebuild → Query` 顺序
+- [x] 1.2 在 `candidate-review.md` 整理 AI 算力基础设施 12 节点与半导体制造 15 节点，对现有 33 节点给出复用/改进/新增判断，去重为 26 节点并登记来源与证据缺口；第二批链不进入本 change seed
+- [x] 1.3 分别生成 membership、canonical topology、physical constraint、economy/commodity/benchmark/sector 关系 Review 清单；按 Review 修正封装方向、以 IC design 衔接 EDA 与制造、移除孤立 electric_power membership，并记录后续 `Review → Write → Rebuild → Query` 顺序
 
 ## 2. 静态 schema 与领域模型（TDD）
 
