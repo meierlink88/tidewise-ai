@@ -27,43 +27,26 @@
 
 ## 4. 第二批：经济体与市场关系
 
-- [ ] 4.1 整理 `has_market` 权威来源审阅清单并等待用户确认。
-- [ ] 4.2 先编写 seed fixture 和校验测试，再写入已确认 `has_market` 关系。
-- [ ] 4.3 写入 PG、核验关系与来源字段，重建 Neo4j 并完成该批图谱验收。
+- [x] 4.1 整理现有市场的 `has_market` 权威来源审阅清单并完成用户确认：通过 27 条无歧义关系，暂缓欧洲股票市场、ICE 和 3 条全球聚合市场关系。
+- [x] 4.2 整理第一版事件投研所需的补充市场实体审阅清单，覆盖核心主权债券市场、关键商品交易场所、沙特阿拉伯、印度尼西亚和越南股票市场，明确抽象市场与交易场所分类，并等待用户确认。
+- [x] 4.3 先编写市场实体和 `has_market` seed fixture、分类校验及关系校验测试，再写入 review 通过的新增市场实体和全部已确认关系。
+- [x] 4.4 运行 `entity-seed` 写入 PG，核验新增市场 profile、关系数量、方向和来源字段。
+- [x] 4.5 重建 Neo4j，核验 `HAS_MARKET` 投影并完成该批图谱验收。
 
 ## 5. 第三批：市场与指数关系
 
-- [ ] 5.1 整理 `tracks_index` 权威来源审阅清单并等待用户确认。
-- [ ] 5.2 先编写 seed fixture 和校验测试，再写入已确认 `tracks_index` 关系。
-- [ ] 5.3 写入 PG、核验关系与来源字段，重建 Neo4j 并完成该批图谱验收。
+- [x] 5.1 整理 `tracks_index` 权威来源审阅清单；经语义复核后将范围收紧为正式指数，并登记 10 个延后到 benchmark change 的价格、收益率和参考利率概念。
+- [x] 5.2 先编写市场、指数和 `tracks_index` seed fixture、归属及 benchmark 排除测试，再写入 review 通过的 43 个正式指数和 43 条关系。
+- [x] 5.3 对 local PG 精确移除 10 个误归类 index 及对应 `tracks_index`，重新运行 `entity-seed`，核验 43 个指数、43 条关系、方向和来源字段。
+- [x] 5.4 重建 Neo4j，核验 43 条 `TRACKS_INDEX` 投影并完成该批图谱验收。
 
-## 6. 第四批：公司与证券关系
+## 6. 后续关系优先级调整
 
-- [ ] 6.1 整理 `issues` 权威来源审阅清单并等待用户确认。
-- [ ] 6.2 先编写 seed fixture 和校验测试，再写入已确认 `issues` 关系。
-- [ ] 6.3 写入 PG、核验关系与来源字段，重建 Neo4j 并完成该批图谱验收。
+- [x] 6.1 完成投研优先级复核，保留 `issues` 候选清单但不写入数据，并将 `issues`、`participates_in`、`affiliated_with`、`applies_to` 延后到 benchmark 与市场产业传导基础完成之后。
 
-## 7. 第五批：公司与产业链节点关系
+## 7. 最终验证和说明
 
-- [ ] 7.1 整理 `participates_in` 权威来源审阅清单并等待用户确认，不把板块归类、利好利空或传导判断写成客观关系。
-- [ ] 7.2 先编写 seed fixture 和校验测试，再写入已确认 `participates_in` 关系。
-- [ ] 7.3 写入 PG、核验关系与来源字段，重建 Neo4j 并完成该批图谱验收。
-
-## 8. 第六批：人物从属关系
-
-- [ ] 8.1 整理 `affiliated_with` 权威来源审阅清单并等待用户确认，关系只表达可核验的当前任职或从属事实。
-- [ ] 8.2 先编写 seed fixture 和校验测试，再写入已确认 `affiliated_with` 关系。
-- [ ] 8.3 写入 PG、核验关系与来源字段，重建 Neo4j 并完成该批图谱验收。
-
-## 9. 第七批：指标适用关系
-
-- [ ] 9.1 整理 `applies_to` 定义依据和审阅清单并等待用户确认。
-- [ ] 9.2 先编写 seed fixture 和校验测试，再写入已确认 `applies_to` 关系。
-- [ ] 9.3 写入 PG、核验关系与来源字段，重建 Neo4j 并完成该批图谱验收。
-
-## 10. 最终验证和说明
-
-- [ ] 10.1 增加最终数据一致性检查，核验 repo seed、PostgreSQL active `entity_edges` 和 Neo4j 关系数量及类型一致。
-- [ ] 10.2 更新实体 seed 和 Neo4j 本地说明，记录关系 review gate、来源字段、空基线、逐批写入和重建命令。
-- [ ] 10.3 运行 `go test ./...`。
-- [ ] 10.4 运行 `openspec validate clean-entity-relationship-foundation` 和 `openspec validate --all`。
+- [x] 7.1 增加最终数据一致性检查，核验 repo seed、PostgreSQL active `entity_edges` 和 Neo4j 关系数量及类型一致。
+- [x] 7.2 更新实体 seed 和 Neo4j 本地说明，记录关系 review gate、来源字段、空基线、逐批写入、暂缓关系和重建命令。
+- [x] 7.3 运行 `go test ./...`。
+- [x] 7.4 运行 `openspec validate clean-entity-relationship-foundation` 和 `openspec validate --all`。

@@ -3,7 +3,7 @@
 ## 审阅口径
 
 - 核验日期：2026-07-10。
-- 本清单只使用当前 `economies.json` 和 `markets.json` 已存在的实体，不新增或修改实体主数据。
+- 本清单只审阅 2026-07-10 时 `economies.json` 和 `markets.json` 已存在的实体；第一版投研覆盖所需的新增市场另行形成补充审阅清单。
 - 候选关系方向统一为 `economy -> market`，关系类型统一为 `has_market`。
 - 候选关系首先从市场 profile 的 `economy_entity_id` 提取，再用监管机构、交易所或权威市场组织官网核验。
 - 每个市场实体只允许对应一个经济体实体；存在跨区域或聚合语义歧义的关系单独列为待决项。
@@ -80,11 +80,13 @@
 | `economy:global -> market:global_crypto`（全球加密资产市场） | 金融稳定理事会加密资产专题 | https://www.fsb.org/work-of-the-fsb/financial-innovation-and-structural-change/crypto-assets-and-global-stablecoins/ |
 
 - 问题：`economy:global` 是分析用聚合实体，不是真实经济体；三个市场也是跨地域聚合市场。
-- 建议：保留这 3 条关系。它们明确表达“全球分析范围包含全球市场”，不会与具体国家市场归属冲突。
+- Review 结论：不写入这 3 条关系。`economy:global` 是分析聚合实体，不代表真实属地，跨地域市场后续通过分析范围或适用关系表达。
 
 ## Review 结论记录
 
-- [ ] 27 条直接关系确认
-- [ ] 欧洲股票市场处理方案确认
-- [ ] 洲际交易所处理方案确认
-- [ ] 3 条全球聚合市场关系确认
+- [x] 27 条直接关系确认
+- [x] 欧洲股票市场暂不写入，待名称和覆盖范围调整后重新审阅
+- [x] 洲际交易所暂不写入，待拆分具体交易场所后重新审阅
+- [x] 3 条全球聚合市场关系不写入 `has_market`
+
+确认日期：2026-07-12。

@@ -70,3 +70,22 @@
 #### Scenario: 显式运行真实 Neo4j smoke
 - **WHEN** 开发者显式启用 Neo4j smoke 环境变量并提供本地 Neo4j 凭证
 - **THEN** 系统可以连接真实 Neo4j 执行少量投影验证，并且该 smoke 默认不得在普通 `go test ./...` 中自动运行
+
+### Requirement: 空投影和已审阅关系重建
+系统 SHALL 支持清空 local Neo4j 投影数据，并在关系分批审阅后仅从 PostgreSQL 当前事实重建实体图谱。
+
+#### Scenario: 建立空 Neo4j 投影
+- **WHEN** 开发者在确认 local 环境后执行关系清洗基线重置
+- **THEN** 系统必须允许删除 Neo4j 中全部节点和关系数据，同时保留 database、约束、索引和连接配置
+
+#### Scenario: PG 无关系时重建实体图
+- **WHEN** PostgreSQL `entity_edges` 为空并运行 `graph-projector rebuild-entities`
+- **THEN** Neo4j 必须只包含可投影实体节点且不包含任何实体关系
+
+#### Scenario: 按已审阅 PG 关系重建
+- **WHEN** 某一关系批次已写入 PostgreSQL 并运行 `graph-projector rebuild-entities`
+- **THEN** Neo4j 必须移除历史投影关系并只投影当前 active `entity_edges`，不得保留 PostgreSQL 中不存在的关系
+
+#### Scenario: 使用单一实体标签和命名空间
+- **WHEN** PostgreSQL 实体被投影到 Neo4j
+- **THEN** 节点必须使用 `Entity` 标签并通过 `projection_namespace=tidewise` 标识归属，不得叠加与同一数据集合重复的 `TidewiseEntity` 标签

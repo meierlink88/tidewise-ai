@@ -99,10 +99,27 @@ func TestMarketSeedFile(t *testing.T) {
 		t.Fatalf("LoadFile() error = %v", err)
 	}
 
-	if got, want := len(manifest.Entities), 32; got != want {
+	if got, want := len(manifest.Entities), 47; got != want {
 		t.Fatalf("entities = %d, want %d", got, want)
 	}
 
+	requiredMarketTypes := map[string]string{
+		"market:cn_bond":                   "bond_market",
+		"market:us_treasury":               "bond_market",
+		"market:euro_area_government_bond": "bond_market",
+		"market:jgb":                       "bond_market",
+		"market:uk_gilt":                   "bond_market",
+		"market:ine":                       "commodity_futures_exchange",
+		"market:dce":                       "commodity_futures_exchange",
+		"market:czce":                      "commodity_futures_exchange",
+		"market:lme":                       "commodity_futures_exchange",
+		"market:ice_futures_europe":        "commodity_futures_exchange",
+		"market:saudi_stock":               "stock_market",
+		"market:indonesia_stock":           "stock_market",
+		"market:vietnam_stock":             "stock_market",
+		"market:global_equity":             "stock_market",
+		"market:global_precious_metals":    "commodity_spot_market",
+	}
 	for _, entity := range manifest.Entities {
 		if entity.EntityType != domain.EntityTypeMarket {
 			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeMarket)
@@ -113,6 +130,15 @@ func TestMarketSeedFile(t *testing.T) {
 		if strings.Contains(entity.Name, "台湾") && !strings.Contains(entity.Name, "中国台湾") {
 			t.Fatalf("entity %q name = %q, want 中国台湾 political naming rule", entity.Key, entity.Name)
 		}
+		if wantType, ok := requiredMarketTypes[entity.Key]; ok {
+			if gotType := profileString(t, entity.Profile, "market_type"); gotType != wantType {
+				t.Fatalf("entity %q market_type = %q, want %q", entity.Key, gotType, wantType)
+			}
+			delete(requiredMarketTypes, entity.Key)
+		}
+	}
+	if len(requiredMarketTypes) > 0 {
+		t.Fatalf("missing reviewed market entities: %v", requiredMarketTypes)
 	}
 }
 
@@ -122,10 +148,31 @@ func TestIndexSeedFile(t *testing.T) {
 		t.Fatalf("LoadFile() error = %v", err)
 	}
 
-	if got, want := len(manifest.Entities), 45; got != want {
+	if got, want := len(manifest.Entities), 43; got != want {
 		t.Fatalf("entities = %d, want %d", got, want)
 	}
 
+	requiredMarketAssignments := map[string]string{
+		"index:dji":               "market:us_stock",
+		"index:msci_world":        "market:global_equity",
+		"index:msci_em":           "market:global_equity",
+		"index:ccdc_bond":         "market:cn_bond",
+		"index:tasi":              "market:saudi_stock",
+		"index:jakarta_composite": "market:indonesia_stock",
+		"index:vn_index":          "market:vietnam_stock",
+	}
+	deferredBenchmarkKeys := map[string]struct{}{
+		"index:cn_10y_government_bond_yield":        {},
+		"index:us_10y_treasury_yield":               {},
+		"index:euro_area_10y_government_bond_yield": {},
+		"index:jgb_10y_yield":                       {},
+		"index:uk_10y_gilt_yield":                   {},
+		"index:brent_continuous":                    {},
+		"index:wti_continuous":                      {},
+		"index:xau_spot":                            {},
+		"index:btc_price":                           {},
+		"index:eth_price":                           {},
+	}
 	for _, entity := range manifest.Entities {
 		if entity.EntityType != domain.EntityTypeIndex {
 			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeIndex)
@@ -133,6 +180,18 @@ func TestIndexSeedFile(t *testing.T) {
 		if strings.Contains(entity.Name, "台湾") && !strings.Contains(entity.Name, "中国台湾") {
 			t.Fatalf("entity %q name = %q, want 中国台湾 political naming rule", entity.Key, entity.Name)
 		}
+		if wantMarket, ok := requiredMarketAssignments[entity.Key]; ok {
+			if gotMarket := profileString(t, entity.Profile, "market_entity_id"); gotMarket != wantMarket {
+				t.Fatalf("entity %q market_entity_id = %q, want %q", entity.Key, gotMarket, wantMarket)
+			}
+			delete(requiredMarketAssignments, entity.Key)
+		}
+		if _, deferred := deferredBenchmarkKeys[entity.Key]; deferred {
+			t.Fatalf("benchmark candidate %q must not remain in index seed", entity.Key)
+		}
+	}
+	if len(requiredMarketAssignments) > 0 {
+		t.Fatalf("missing reviewed index assignments: %v", requiredMarketAssignments)
 	}
 }
 
@@ -288,8 +347,8 @@ func TestRelationshipSeedFile(t *testing.T) {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
 
-	if got, want := len(manifest.Relationships), 223; got != want {
-		t.Fatalf("relationships = %d, want %d reviewed member_of relationships", got, want)
+	if got, want := len(manifest.Relationships), 306; got != want {
+		t.Fatalf("relationships = %d, want %d reviewed relationships", got, want)
 	}
 
 	wantCounts := map[string]int{
@@ -305,14 +364,38 @@ func TestRelationshipSeedFile(t *testing.T) {
 		"alliance_org:brics":      10,
 	}
 	gotCounts := make(map[string]int, len(wantCounts))
+	relationTypeCounts := make(map[string]int)
+	forbiddenHasMarketTargets := map[string]struct{}{
+		"market:europe_stock":             {},
+		"market:ice":                      {},
+		"market:global_fx":                {},
+		"market:global_commodity_futures": {},
+		"market:global_crypto":            {},
+		"market:global_equity":            {},
+		"market:global_precious_metals":   {},
+	}
 	for _, relationship := range manifest.Relationships {
-		if relationship.RelationType != "member_of" {
-			t.Fatalf("relationship %q type = %q, want member_of", relationship.Key, relationship.RelationType)
-		}
 		if relationship.SourceName == "" || relationship.SourceURL == "" || relationship.VerifiedAt.IsZero() {
 			t.Fatalf("relationship %q provenance is incomplete", relationship.Key)
 		}
-		gotCounts[relationship.To]++
+		relationTypeCounts[relationship.RelationType]++
+		if relationship.RelationType == "member_of" {
+			gotCounts[relationship.To]++
+		}
+		if relationship.RelationType == "has_market" {
+			if _, forbidden := forbiddenHasMarketTargets[relationship.To]; forbidden {
+				t.Fatalf("deferred has_market target %q was included", relationship.To)
+			}
+		}
+	}
+	if got, want := relationTypeCounts["member_of"], 223; got != want {
+		t.Errorf("member_of count = %d, want %d", got, want)
+	}
+	if got, want := relationTypeCounts["has_market"], 40; got != want {
+		t.Errorf("has_market count = %d, want %d", got, want)
+	}
+	if got, want := relationTypeCounts["tracks_index"], 43; got != want {
+		t.Errorf("tracks_index count = %d, want %d", got, want)
 	}
 	for target, want := range wantCounts {
 		if got := gotCounts[target]; got != want {

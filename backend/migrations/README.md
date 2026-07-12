@@ -46,6 +46,14 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/entity-seed
 
 `cmd/entity-seed` 默认读取 `data/entity_foundation` 下的实体 seed 文件，并输出 JSON report。重复执行同一组 seed 应保持幂等，report 中应主要体现为 `unchanged`，不应新增重复实体、重复 profile 或重复关系。
 
+关系 seed 按 `data/entity_foundation/relationships/` 下的关系族文件管理。任何关系批次都必须先完成人工 review，再进入正式 JSON、PostgreSQL 和 Neo4j；候选审阅清单本身不代表已批准数据。当前已批准并写入的关系族为：
+
+- `member_of`：223 条。
+- `has_market`：40 条。
+- `tracks_index`：43 条，只连接正式编制指数。
+
+`issues`、`participates_in`、`affiliated_with` 和 `applies_to` 当前保持空 seed。它们在 benchmark 与市场、板块、商品、产业链传导基础完成前不得提前写入。
+
 可用以下 SQL 快速核验初始化范围：
 
 ```sql
@@ -54,6 +62,39 @@ SELECT relation_type, COUNT(*) FROM entity_edges GROUP BY relation_type ORDER BY
 SELECT COUNT(*) FROM alliance_org_profiles;
 SELECT COUNT(*) FROM sector_profiles WHERE snapshot_date IS NOT NULL OR rank_snapshot > 0;
 ```
+
+最终实体图一致性核验分三层执行：
+
+1. repo seed：实体 seed 测试必须通过，并核对各关系文件数量。
+2. PostgreSQL：只统计 active `entity_edges`，当前应为 `member_of=223`、`has_market=40`、`tracks_index=43`，合计 306。
+3. Neo4j：重建结果必须为 548 个 `Entity` 节点和 306 条关系，且关系类型计数与 PostgreSQL 完全一致。
+
+PostgreSQL 查询：
+
+```sql
+SELECT relation_type, COUNT(*)
+FROM entity_edges
+WHERE status = 'active'
+GROUP BY relation_type
+ORDER BY relation_type;
+
+SELECT COUNT(*) AS active_entity_count
+FROM entity_nodes
+WHERE status = 'active';
+```
+
+Neo4j 查询：
+
+```cypher
+MATCH (n:Entity {projection_namespace: 'tidewise'})
+RETURN count(n) AS entity_count;
+
+MATCH (:Entity {projection_namespace: 'tidewise'})-[r]->(:Entity {projection_namespace: 'tidewise'})
+RETURN type(r) AS relation_type, count(r) AS relation_count
+ORDER BY relation_type;
+```
+
+任一层数量不一致时，不得手工修改 Neo4j；应先修正 repo seed 或 PostgreSQL 事实，再运行 `graph-projector rebuild-entities`。
 
 采集源目录 seed 使用 repo 内版本化 JSON 文件：
 
