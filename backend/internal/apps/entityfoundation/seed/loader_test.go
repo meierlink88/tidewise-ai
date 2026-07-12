@@ -290,6 +290,51 @@ func TestValidateRelationshipPolicyAcceptsSupportedTypeDirections(t *testing.T) 
 	}
 }
 
+func TestValidateMarketSectorRelationshipPolicies(t *testing.T) {
+	verifiedAt := time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC)
+	entities := map[string]Entity{
+		"market:a_share":        {Key: "market:a_share", EntityType: domain.EntityTypeMarket},
+		"sector:industry_banks": {Key: "sector:industry_banks", EntityType: domain.EntityTypeSector},
+		"benchmark:bank_index":  {Key: "benchmark:bank_index", EntityType: domain.EntityTypeBenchmark},
+	}
+	valid := []Relationship{
+		{Key: "covers", From: "market:a_share", To: "sector:industry_banks", RelationType: "covers_sector"},
+		{Key: "tracks", From: "sector:industry_banks", To: "benchmark:bank_index", RelationType: "tracked_by_benchmark"},
+		{Key: "observes", From: "market:a_share", To: "benchmark:bank_index", RelationType: "observes_benchmark"},
+	}
+	for _, relationship := range valid {
+		relationship.SourceName = "官方来源"
+		relationship.SourceURL = "https://example.com/methodology"
+		relationship.VerifiedAt = verifiedAt
+		relationship.EvidenceNote = "客观分类与行情跟踪关系"
+		if err := validateRelationshipPolicy(relationship, entities); err != nil {
+			t.Fatalf("validateRelationshipPolicy(%s) error = %v", relationship.RelationType, err)
+		}
+	}
+
+	base := Relationship{
+		Key: "invalid", SourceName: "官方来源", SourceURL: "https://example.com/methodology",
+		VerifiedAt: verifiedAt, EvidenceNote: "客观关系",
+	}
+	cases := map[string]Relationship{
+		"covers reverse":             {Key: base.Key, From: "sector:industry_banks", To: "market:a_share", RelationType: "covers_sector", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"tracked reverse":            {Key: base.Key, From: "benchmark:bank_index", To: "sector:industry_banks", RelationType: "tracked_by_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"observes cannot be sector":  {Key: base.Key, From: "sector:industry_banks", To: "benchmark:bank_index", RelationType: "observes_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"unknown endpoint":           {Key: base.Key, From: "market:a_share", To: "sector:missing", RelationType: "covers_sector", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"self relationship":          {Key: base.Key, From: "sector:industry_banks", To: "sector:industry_banks", RelationType: "tracked_by_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"missing provenance":         {Key: base.Key, From: "market:a_share", To: "sector:industry_banks", RelationType: "covers_sector"},
+		"reasoning evidence":         {Key: base.Key, From: "market:a_share", To: "sector:industry_banks", RelationType: "covers_sector", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt, EvidenceNote: "事件评分显示该板块受益"},
+		"investment advice evidence": {Key: base.Key, From: "sector:industry_banks", To: "benchmark:bank_index", RelationType: "tracked_by_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt, EvidenceNote: "投资建议：买入"},
+	}
+	for name, relationship := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := validateRelationshipPolicy(relationship, entities); err == nil {
+				t.Fatal("validateRelationshipPolicy() error = nil")
+			}
+		})
+	}
+}
+
 func TestLoadManifestAcceptsBenchmarkProfileWithNullableOfficialSeriesCode(t *testing.T) {
 	manifest, err := Load([]byte(`{
 	  "entities": [

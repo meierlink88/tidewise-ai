@@ -23,12 +23,14 @@
 
 ## 3. 关系策略与图谱投影
 
-- [ ] 3.1 在 `backend/internal/apps/entityfoundation/seed` 增加 relationship policy 测试，覆盖 `covers_sector` 只允许 `market -> sector`、`tracked_by_benchmark` 只允许 `sector -> benchmark`、拒绝反向、拒绝复用 `observes_benchmark`、拒绝推理文案和拒绝悬空端点
-- [ ] 3.2 在 `backend/internal/apps/graphprojection` 增加 relation mapping 测试，覆盖 `covers_sector -> COVERS_SECTOR` 和 `tracked_by_benchmark -> TRACKED_BY_BENCHMARK`
-- [ ] 3.3 运行新增关系与投影测试，确认在实现前失败
-- [ ] 3.4 更新 `relationship_policy.go`，增加 `covers_sector` 和 `tracked_by_benchmark` 客观关系策略；暂不正式允许未审阅的 `sector -> chain_node` 关系写入 seed
-- [ ] 3.5 更新 `graphprojection/mapping.go`，增加 `COVERS_SECTOR` 和 `TRACKED_BY_BENCHMARK` 映射，并保持未知或不安全关系 fallback 行为
-- [ ] 3.6 复跑关系与投影测试，确认通过
+- [x] 3.1 在 `backend/internal/apps/entityfoundation/seed` 增加 relationship policy 测试，覆盖 `covers_sector` 只允许 `market -> sector`、`tracked_by_benchmark` 只允许 `sector -> benchmark`、拒绝反向、拒绝复用 `observes_benchmark`、拒绝推理文案和拒绝悬空端点
+- [x] 3.2 在 `backend/internal/apps/graphprojection` 增加 relation mapping 测试，覆盖 `covers_sector -> COVERS_SECTOR` 和 `tracked_by_benchmark -> TRACKED_BY_BENCHMARK`
+- [x] 3.3 运行新增关系与投影测试，确认 seed policy 因不支持 `covers_sector` 失败，projection mapping 因两条新关系均回退为 `RELATED_TO` 失败
+- [x] 3.4 更新 `relationship_policy.go`，增加 `covers_sector` 和 `tracked_by_benchmark` 客观关系策略；暂不正式允许未审阅的 `sector -> chain_node` 关系写入 seed
+- [x] 3.5 更新 `graphprojection/mapping.go`，增加 `COVERS_SECTOR` 和 `TRACKED_BY_BENCHMARK` 映射，并保持未知或不安全关系 fallback 行为
+- [x] 3.6 复跑关系与投影聚焦测试及两个完整 package tests，确认通过
+
+> **暂停门：** task 3 已完成并等待主对话验收。进入 task 4 正式 seed 数据与关系文件前必须再次获得批准。
 
 ## 4. Seed 数据与安全校验
 

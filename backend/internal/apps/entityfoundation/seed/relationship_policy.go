@@ -14,16 +14,18 @@ type relationshipTypePolicy struct {
 }
 
 var relationshipPolicies = map[string]relationshipTypePolicy{
-	"member_of":          {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeAllianceOrg}},
-	"has_market":         {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeMarket}},
-	"tracks_index":       {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeIndex}},
-	"observes_benchmark": {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
-	"measures":           {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeMetric}},
-	"references":         {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeCommodity, domain.EntityTypeInstrument}},
-	"issues":             {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeSecurity}},
-	"participates_in":    {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeChainNode}},
-	"affiliated_with":    {from: []domain.EntityType{domain.EntityTypePerson}, to: []domain.EntityType{domain.EntityTypePolicyBody, domain.EntityTypeCompany}},
-	"applies_to":         {from: []domain.EntityType{domain.EntityTypeMetric}, to: []domain.EntityType{domain.EntityTypeInstrument, domain.EntityTypeCommodity, domain.EntityTypeChainNode}},
+	"member_of":            {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeAllianceOrg}},
+	"has_market":           {from: []domain.EntityType{domain.EntityTypeEconomy}, to: []domain.EntityType{domain.EntityTypeMarket}},
+	"tracks_index":         {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeIndex}},
+	"observes_benchmark":   {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
+	"covers_sector":        {from: []domain.EntityType{domain.EntityTypeMarket}, to: []domain.EntityType{domain.EntityTypeSector}},
+	"tracked_by_benchmark": {from: []domain.EntityType{domain.EntityTypeSector}, to: []domain.EntityType{domain.EntityTypeBenchmark}},
+	"measures":             {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeMetric}},
+	"references":           {from: []domain.EntityType{domain.EntityTypeBenchmark}, to: []domain.EntityType{domain.EntityTypeCommodity, domain.EntityTypeInstrument}},
+	"issues":               {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeSecurity}},
+	"participates_in":      {from: []domain.EntityType{domain.EntityTypeCompany}, to: []domain.EntityType{domain.EntityTypeChainNode}},
+	"affiliated_with":      {from: []domain.EntityType{domain.EntityTypePerson}, to: []domain.EntityType{domain.EntityTypePolicyBody, domain.EntityTypeCompany}},
+	"applies_to":           {from: []domain.EntityType{domain.EntityTypeMetric}, to: []domain.EntityType{domain.EntityTypeInstrument, domain.EntityTypeCommodity, domain.EntityTypeChainNode}},
 }
 
 func validateRelationshipPolicy(relationship Relationship, entities map[string]Entity) error {

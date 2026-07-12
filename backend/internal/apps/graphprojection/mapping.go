@@ -26,18 +26,20 @@ type RelationshipMapReport struct {
 var safeRelationPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
 
 var knownRelationTypes = map[string]string{
-	"member_of":          "MEMBER_OF",
-	"has_market":         "HAS_MARKET",
-	"tracks_index":       "TRACKS_INDEX",
-	"observes_benchmark": "OBSERVES_BENCHMARK",
-	"measures":           "MEASURES",
-	"references":         "REFERENCES",
-	"issues":             "ISSUES",
-	"participates_in":    "PARTICIPATES_IN",
-	"affiliated_with":    "AFFILIATED_WITH",
-	"applies_to":         "APPLIES_TO",
-	"related_to":         "RELATED_TO",
-	"self":               "RELATED_TO",
+	"member_of":            "MEMBER_OF",
+	"has_market":           "HAS_MARKET",
+	"tracks_index":         "TRACKS_INDEX",
+	"observes_benchmark":   "OBSERVES_BENCHMARK",
+	"covers_sector":        "COVERS_SECTOR",
+	"tracked_by_benchmark": "TRACKED_BY_BENCHMARK",
+	"measures":             "MEASURES",
+	"references":           "REFERENCES",
+	"issues":               "ISSUES",
+	"participates_in":      "PARTICIPATES_IN",
+	"affiliated_with":      "AFFILIATED_WITH",
+	"applies_to":           "APPLIES_TO",
+	"related_to":           "RELATED_TO",
+	"self":                 "RELATED_TO",
 }
 
 func MapEntityNode(node repositories.GraphEntityNode, namespace string) (GraphNode, error) {
