@@ -40,6 +40,10 @@ describe('DataIngestionCenter', () => {
 
   it('applies raw title search and event filters', async () => {
     const user = userEvent.setup();
+    const eventTimeFrom = '2026-07-09T00:00';
+    const eventTimeTo = '2026-07-10T00:00';
+    const firstSeenFrom = '2026-07-08T00:00';
+    const firstSeenTo = '2026-07-11T00:00';
     vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.spyOn(dataIngestionAPI, 'loadSourceCatalogs').mockResolvedValue({ items: [] });
@@ -59,10 +63,10 @@ describe('DataIngestionCenter', () => {
     await user.type(screen.getByLabelText('事件标题搜索'), '美联储');
     await user.selectOptions(screen.getByLabelText('事件状态'), 'confirmed');
     await user.selectOptions(screen.getByLabelText('事实状态'), 'verified');
-    await user.type(screen.getByLabelText('事件时间开始'), '2026-07-09T00:00');
-    await user.type(screen.getByLabelText('事件时间结束'), '2026-07-10T00:00');
-    await user.type(screen.getByLabelText('首次发现开始'), '2026-07-08T00:00');
-    await user.type(screen.getByLabelText('首次发现结束'), '2026-07-11T00:00');
+    await user.type(screen.getByLabelText('事件时间开始'), eventTimeFrom);
+    await user.type(screen.getByLabelText('事件时间结束'), eventTimeTo);
+    await user.type(screen.getByLabelText('首次发现开始'), firstSeenFrom);
+    await user.type(screen.getByLabelText('首次发现结束'), firstSeenTo);
     await user.click(screen.getByRole('button', { name: '搜索事件' }));
 
     expect(dataIngestionAPI.loadEvents).toHaveBeenLastCalledWith('secret-token', expect.objectContaining({
@@ -70,8 +74,10 @@ describe('DataIngestionCenter', () => {
       title: '美联储',
       event_status: 'confirmed',
       fact_status: 'verified',
-      first_seen_from: '2026-07-07T16:00:00.000Z',
-      first_seen_to: '2026-07-10T16:00:00.000Z'
+      event_time_from: new Date(eventTimeFrom).toISOString(),
+      event_time_to: new Date(eventTimeTo).toISOString(),
+      first_seen_from: new Date(firstSeenFrom).toISOString(),
+      first_seen_to: new Date(firstSeenTo).toISOString()
     }));
   });
 

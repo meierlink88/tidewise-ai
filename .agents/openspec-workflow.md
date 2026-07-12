@@ -14,15 +14,17 @@
 Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive
 ```
 
-各阶段含义：
+生命周期必须由 repo-local OpenSpec Skills 驱动：
 
-- Explore：讨论问题、架构、边界和取舍，不直接写实现代码。
-- Propose：创建 `openspec/changes/<change-name>/`，生成 proposal、specs、design、tasks。
-- Review：人工确认 artifacts 是否符合方向和范围。
-- Apply：严格按 tasks 实现代码，并在完成后更新任务状态。
-- Validate：运行可用验证命令，检查配置、类型、lint、测试或运行结果。
-- Sync：将 delta specs 同步到 `openspec/specs/`，使其成为当前系统事实。
-- Archive：完成后归档 change，保留历史决策与实现记录。
+- Explore：`openspec-explore`，需要创意澄清时结合 `superpowers:brainstorming`。
+- Propose：`openspec-propose`，生成 proposal、specs、design、tasks。
+- Review：用户人工确认 artifacts 是否符合方向和范围。
+- Apply：`openspec-apply-change`，严格按 tasks 实现并即时更新状态。
+- Validate：运行 OpenSpec CLI 和项目验证命令，并遵守 `superpowers:verification-before-completion`。
+- Sync：`openspec-sync-specs`，将 delta specs 同步为当前系统事实。
+- Archive：`openspec-archive-change`，完成后归档历史决策与实现记录。
+
+详细 Skill 组合和 artifact 归属见 `.agents/skill-routing.md`。
 
 ## Directory Model
 
@@ -96,6 +98,6 @@ openspec/changes/<change-name>/
 
 ## Artifact Ownership
 
-- OpenSpec artifacts 是正式工程事实来源。
-- Superpowers 可以辅助澄清、TDD、debug 和验证，但不应默认产生与 OpenSpec 平行的长期设计事实。
+- OpenSpec artifacts 是唯一正式工程事实来源。
+- brainstorming 结论进入 `design.md`，writing-plans 结果进入 `tasks.md`；默认不得生成平行的 Superpowers 长期 artifacts。
 - 如果用户要求暂停某个 change，不要删除 change；应保持 tasks 状态和 artifacts 可恢复。

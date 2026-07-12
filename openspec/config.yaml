@@ -13,8 +13,8 @@ context: |
   - tidewise-ai 已使用 spec-driven schema 配置 OpenSpec 1.5.0。
   - Codex Desktop 集成使用 .codex/skills/openspec-*/SKILL.md 下的 OpenSpec skills。
   - tidewise-ai 已包含 Taro + React + TypeScript 跨平台小程序工程壳，源码位于 `frontend/miniapp/`，当前支持微信和抖音小程序构建目标。
-  - tidewise-ai 已包含 Go + Gin API/BFF 后端骨架，源码位于 `backend/`，当前具备配置加载、健康检查、环境配置模板和最小后端边界。
-  - 当前主规格包含 `technical-architecture`、`mini-program-foundation` 和 `backend-foundation`，后续正式模块必须基于这些主规格增量设计。
+  - tidewise-ai 后端采用单 Go module、多可部署进程结构，源码位于 `backend/`；业务子系统位于 `internal/apps`，共享基础层位于 `internal/domain`、`internal/repositories`、`internal/config` 和 `internal/platform`。
+  - 当前已具备数据采集、调度、管理 API、实体基础数据和 PostgreSQL 到 Neo4j 图投影等能力；后续正式模块必须基于 `openspec/specs/` 主规格和现有代码增量设计。
 
   目标平台和实现预期：
   - 除非后续已批准的 OpenSpec change 另有决定，否则前端按 Taro + React + TypeScript 跨平台小程序建设。
@@ -23,14 +23,14 @@ context: |
   - 后端技术选型同时要求适合 AI 编程协作：语言和框架应具备强类型、清晰工程约定、直接编译反馈、易测试和低歧义代码风格。
   - 后端必须标准化支持 local、uat、prod 三类环境配置。非敏感配置结构可以入库，敏感信息必须通过环境变量或部署平台 secret 注入，不得提交到 repo。
   - 后端业务代码只能依赖统一的 Go 强类型 config，不得散落读取环境变量或硬编码环境差异。
-  - MVP 阶段结构化主存储默认采用 PostgreSQL，缓存、限流、幂等和短期任务状态默认采用 Redis。真实数据库连接、迁移和本地基础设施必须通过后续 OpenSpec change 实现。
-  - MVP 阶段暂不直接引入独立图数据库或向量数据库。初始图谱关系优先通过 PostgreSQL 结构化关系表达，RAG、向量召回和 Prompt 编排优先由外部 Agent 平台承载；如需引入图谱数据库或向量数据库，必须通过独立 OpenSpec change 明确设计。
+  - 结构化主存储采用 PostgreSQL，缓存、限流、幂等和短期任务状态采用 Redis；数据库结构通过版本化增量 migration 管理，本地基础设施位于 `infra/local/`。
+  - PostgreSQL 是实体、事件和关系事实源；Neo4j 保存可从 PostgreSQL 重建的图投影，用于路径查询和图谱推理。向量召回和 Prompt 编排仍优先由外部 Agent 平台承载。
   - 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。当前 `frontend/miniapp/src/models` 是前端展示模型，不等同于正式 API 契约。
-  - 后端正式模块默认采用模块化单体分层：`internal/http` 负责协议适配，`internal/application` 负责编排，`internal/domain` 负责领域模型和规则，`internal/ingestion` 负责采集清洗标准化，`internal/repositories` 负责数据访问，`internal/integrations` 负责外部系统适配，`internal/jobs` 负责异步任务。
+  - 后端采用单 Go module、多可部署子系统结构：`cmd/*` 是进程入口，`internal/apps/*` 是业务子系统，`internal/domain` 是领域模型，`internal/repositories` 是数据访问，`internal/config` 是强类型配置，`internal/platform` 是共享技术基础层。
   - 所有涉及 Go 后端实现的正式 change 默认采用 TDD 测试先行：先设计并实现 Go 单元测试、table-driven tests、fixture、fake 或 `httptest` 用例，再编写生产代码，最后通过对应包测试和 `go test ./...` 才能视为验证完成。
   - 后端单元测试不得依赖真实外部网络、真实 API key、真实 cookie、真实 token 或生产数据库。外部来源、Agent API、RSS/RSSHub、Eastmoney、webhook 和数据库边界必须通过 fixture、fake、`httptest`、接口 fake、SQL/migration 静态验证或明确标记的可重复集成测试验证。
-  - 数据采集层属于后端 ingestion 边界，支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种路径。采集结果必须经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后，才能进入 PostgreSQL、未来向量数据库或未来图谱数据库边界。
-  - AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责后端 API 调用、回调接收、结构化结果校验、落库和展示。
+  - 数据采集层属于后端 `internal/apps/ingestion` 边界，支持 connector、外部 Agent API 和 AI web research 采集。原始数据经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后进入 PostgreSQL，再由下游流程生成事件、关系和 Neo4j 图投影。
+  - AI 能力可以接入外部 Agent 平台或模型 API；本工程负责 provider adapter、调用编排、结构化校验、回调、落库和展示，敏感凭证必须通过环境变量或部署 secret 注入。
   - 除非用户明确要求，prototype 视觉资产和产品文档必须留在源码实现之外。
   - 将 prototype 中的 DOM/HTML 行为转换为 Taro/React 数据驱动渲染方式，避免浏览器 DOM 操作和平台专属实现直接进入业务层。
   - 生产小程序代码中不得使用 document、window、innerHTML、直接 DOM mutation 或内联 onclick 等浏览器专属 API。
@@ -40,10 +40,6 @@ context: |
   - OpenSpec 生成内容默认必须使用中文。只有 OpenSpec 规范要求的框架性文案、固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。
 
 rules:
-  language:
-    - "所有 OpenSpec artifact 正文内容默认必须使用中文。"
-    - "只有 OpenSpec 规范要求的框架性文案、固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。"
-    - "proposal、design、tasks、requirement、scenario、rationale、risk、impact 和 validation 描述必须使用中文。"
   proposal:
     - "明确说明本 change 涉及哪些仓库区域：tidewise-ai 源码、prototype 参考或 doc 更新。"
     - "当 change 可能外溢到 prototype 或文档工作时，必须写清楚非目标。"

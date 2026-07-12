@@ -242,7 +242,7 @@ func TestGraphProjectionMigrationDefinesRunTables(t *testing.T) {
 	}
 }
 
-func TestEntityRelationshipProvenanceMigrationIsAdditive(t *testing.T) {
+func TestEntityEdgeProvenanceMigrationIsAdditive(t *testing.T) {
 	content := strings.ToLower(readMigration(t, filepath.Join("..", "..", "..", "migrations", "000007_add_entity_edge_provenance.sql")))
 
 	for _, fragment := range []string{
@@ -263,9 +263,12 @@ func TestEntityRelationshipProvenanceMigrationIsAdditive(t *testing.T) {
 		"truncate table",
 		"delete from",
 		"drop schema",
+		"password",
+		"api_key",
+		"database_url",
 	} {
 		if strings.Contains(content, forbidden) {
-			t.Fatalf("entity edge provenance migration must not contain destructive fragment %q", forbidden)
+			t.Fatalf("entity edge provenance migration must not contain forbidden fragment %q", forbidden)
 		}
 	}
 }

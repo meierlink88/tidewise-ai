@@ -15,6 +15,38 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 )
 
+func TestHealthAndReadyEndpointsDoNotRequireAdminToken(t *testing.T) {
+	repo := repositories.NewInMemoryRepository(nil)
+	router := NewRouter(repo, "secret")
+
+	for _, item := range []struct {
+		path      string
+		wantField string
+		wantValue string
+	}{
+		{path: "/healthz", wantField: "status", wantValue: "ok"},
+		{path: "/readyz", wantField: "status", wantValue: "ready"},
+	} {
+		t.Run(item.path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, item.path, nil)
+			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status code = %d, want %d", response.Code, http.StatusOK)
+			}
+
+			var body map[string]string
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body[item.wantField] != item.wantValue {
+				t.Fatalf("%s = %q, want %q", item.wantField, body[item.wantField], item.wantValue)
+			}
+		})
+	}
+}
+
 func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredToken(t *testing.T) {
 	repo := repositories.NewInMemoryRepository(nil)
 

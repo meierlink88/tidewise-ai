@@ -9,4 +9,4 @@ ALTER TABLE entity_edges
     ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
 
 -- +goose Down
--- Entity edge provenance rollback requires a reviewed forward migration or restored backup.
+SELECT 'entity edge provenance rollback requires a reviewed forward migration or restored backup';
