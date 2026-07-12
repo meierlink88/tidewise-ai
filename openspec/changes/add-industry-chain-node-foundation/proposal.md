@@ -10,7 +10,8 @@
 - 建立通用 observation governance envelope 与产业链 typed observation contracts，覆盖节点指标和拓扑流量/约束观测，禁止单一万能 EAV 表；首版只定义必要存储、幂等、质量和采集交接契约。
 - 使 PostgreSQL 成为产业链、拓扑、跨实体关系与观测事实源；Neo4j 继续只投影 active 主数据和已审阅 active 稳定关系，不投影时序 observation 或未审阅候选。
 - 定义事件提取、event-driven reasoning、benchmark/商品/指标、市场板块与小程序展示的消费边界，尤其禁止用海外市场 `COVERS_SECTOR` 直接指向中国板块。
-- 提出 AI 算力基础设施、半导体制造、机器人、新能源汽车/储能、创新药/生物制造五条首批 MVP 候选及选取规则；本 change 的 Propose 阶段不把候选直接写入正式 seed。
+- 将 Serenity 的公开方法论转化为系统设计目标：`market story → system change → required parts → value-chain layers → scarce constraints → evidence → risks/falsification`，同时把稳定事实、动态观测与时点推理结果严格分层。
+- 以 AI 算力基础设施、半导体制造、机器人三条链作为首批试点 Review 候选，用于验证共享节点、跨链复用和不同制造链泛化；新能源汽车/储能、创新药/生物制造保留为第二批候选。本 change 的 Propose 阶段不把候选直接写入正式 seed。
 
 ## Capabilities
 

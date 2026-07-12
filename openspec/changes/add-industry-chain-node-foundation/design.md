@@ -2,7 +2,9 @@
 
 当前 `entity_nodes` 已支持 `chain_node`，`chain_node_profiles` 只有 `chain_position`；版本化 seed 中有 33 个节点，但不存在独立产业链、链内成员、链内拓扑和产业链 typed observation。`entity_edges` 已承载带来源的客观跨实体关系，`graphprojection` 只读取 active 实体与 active 端点关系，PostgreSQL 是事实源，Neo4j 是可重建投影。
 
-本设计把 Serenity 方法论的“市场故事 → 系统变化 → 必需部件 → 产业链层级 → 稀缺约束 → 证据 → 风险”转换为数据边界：前四项落到稳定主数据和拓扑；稀缺约束由 typed observation 提供可验证输入；证据进入来源/观测治理；风险与传导结论由后续 event-driven reasoning 动态生成，不固化为主数据。
+本设计基于 `muxuuu/serenity-skill` 的公开仓库进行方法论适配，而不是复制其 Skill 实现。该项目把研究流程写成 `market story → system change → required parts → supply-chain layers → scarce constraints → public companies → evidence → market gap → falsification`，要求先排产业链层级再排公司，并通过低供应商数量、长认证周期、扩产困难、专用设备/纯度/know-how、客户预付款或产能预订等信号寻找稀缺层；证据按交易所/财报/公告/监管与技术文件、可信媒体与行业资料、社交线索分级，最后必须给出证伪条件和下一步核验动作。来源：[SKILL.md](https://github.com/muxuuu/serenity-skill/blob/main/SKILL.md)、[Deep Research Workflow](https://github.com/muxuuu/serenity-skill/blob/main/references/deep-research-workflow.md)、[Evidence Ladder](https://github.com/muxuuu/serenity-skill/blob/main/references/evidence-ladder.md)。
+
+对观潮家而言，Serenity 的价值不是提供一套可直接落库的产业链事实，也不是产生自动交易信号，而是提供全球事件驱动分析的推理骨架和数据完备性检查：前四项约束稳定主数据和拓扑的粒度；稀缺约束要求 typed observation；证据要求 claim/provenance/quality；风险与证伪条件约束动态推理输出。公司优先级、估值差、催化剂时点和 scorecard 分数属于运行时判断，不得固化为产业链主数据。
 
 ## Goals / Non-Goals
 
@@ -14,11 +16,12 @@
 - 定义 observation governance envelope 与产业链 typed observation tables，支撑瓶颈分析输入。
 - 保持 PostgreSQL 事实源、Neo4j active-only 可重建投影和分层数据写入门禁。
 - 为后续事件抽取、推理、API 与小程序展示提供稳定读取契约。
+- 让数据模型能够回答 Serenity 的核心问题：什么系统发生变化、哪些部件不可绕开、哪个层级难扩产、证据是什么、什么事实会推翻判断。
 
 **Non-Goals:**
 
 - 本轮不实现或执行 migration、seed、PG 写入、Neo4j 重建、connector、Agent 推理、API 或 UI。
-- 不把五条 MVP 候选直接写入正式 seed；不承诺未经 Review 的 10–20 节点清单。
+- 不把三条首批试点或两条第二批候选直接写入正式 seed；不承诺未经 Review 的 10–20 节点清单。
 - 不存储利好利空、影响强度、确定性瓶颈、事件评分、资产预测或投资建议。
 - 不修改 `prototype/`、项目外 `doc/`、小程序 change 或 `add-ai-event-extraction-pipeline`。
 
@@ -89,28 +92,54 @@
 
 不使用 `attribute_name/value_text` 万能 EAV。第一版 connector 范围只允许复用 ingestion 的 `source_catalogs → raw_documents → parser/validator → typed observation writer` 契约；实际 provider/connector 清单、授权和频率必须在后续采集 change 中逐项批准。无明确 metric、单位、时间窗口或来源的观察不得写入 validated 状态。
 
-### 4. MVP 候选与节点粒度规则
+### 4. Serenity 方法论的数据模型映射
 
-Review 候选：AI 算力基础设施、半导体制造、机器人、新能源汽车/储能、创新药/生物制造。选择规则：
+Serenity 原仓库是 prompt/workflow、证据规范、示例和本地 scorecard 的组合，不是数据库 schema。观潮家按下面四层吸收其方法，避免把方法论输出误当客观事实：
+
+| Serenity 研究对象 | 观潮家模型 | 持久化性质 |
+|---|---|---|
+| value-chain / required parts | `industry_chain_profiles`、`chain_node_profiles`、`industry_chain_memberships` | 稳定、经 Review 的主数据 |
+| upstream/downstream/dependency/substitution | `industry_chain_topology_edges` | 有来源、经 Review 的稳定拓扑 |
+| power/bandwidth/heat/yield/purity/lead-time/capacity 等约束信号 | `metric_profiles` + `industry_chain_node_observations` / `industry_chain_flow_observations` | 带时点、来源和质量的客观观察 |
+| filing/order/certification/project/technical evidence | `raw_documents`、未来 event evidence/claim contract、`observation_records` provenance | 证据事实与证据等级 |
+| scarce-layer ranking、company priority、market gap、catalyst、risk、kill switch | 未来 event-driven reasoning result contract | 动态、可重算、带证据和有效期的推理结果 |
+
+未来推理输入/输出契约至少包含以下结构，但本 change 不新增其持久化表：
+
+- `ResearchScope`：`market_scope`、`theme`、`as_of`、`time_horizon`、`industry_chain_ids`；
+- `SystemChangeHypothesis`：需求波、系统压力、必需技术变化、关联事件与证据；
+- `LayerAssessment`：chain membership/layer、不可绕开原因、supplier concentration、qualification/lead-time/expansion constraint signals；
+- `EvidenceAssessment`：claim、source document、`strong | medium | weak | needs_checking`、支持/反驳方向、核验时间；
+- `ScarcityAssessment`：按需求压力、架构耦合、瓶颈严重性、供应商集中、扩产难度和证据质量形成的可解释评估；
+- `CandidateExposure`：company/sector/benchmark 与节点或稀缺层的客观位置，禁止把“受益”直接写成事实关系；
+- `RiskCondition`：替代设计、扩产追上、需求不足、客户流失、治理/融资/地缘风险及可判定的 downgrade/kill-switch 条件。
+
+Serenity scorecard 的 `valuation_disconnect`、`catalyst_timing` 以及融资、治理、流动性等 penalty 只能用于分析运行，不进入 `industry_chain_*` 主数据或 topology；其固定权重也不作为本系统默认规则，因为不同市场、时间窗和事件类型需要独立校准。
+
+### 5. MVP 试点与节点粒度规则
+
+首批试点 Review 候选固定为 AI 算力基础设施、半导体制造、机器人；新能源汽车/储能、创新药/生物制造保留为第二批扩展候选。选择前三条的原因：AI 算力基础设施和半导体制造可以验证 GPU、EDA、半导体设备、电力、数据中心等共享节点与跨链复用，机器人可以验证传感器、工业母机、稀土/材料、执行器等另一类制造链的泛化能力，同时三条链都符合 Serenity 原仓库重点示例领域和“物理扩产约束可验证”的条件。
+
+试点规则：
 
 1. 全球宏观/政策/科技事件频率高，存在可解释的跨经济体传导；
 2. 至少有一类权威 commodity、benchmark 或 metric observation；
 3. 能客观映射到中国 canonical sector，但不依赖错误 market coverage；
 4. 节点可保持 10–20 个可辨识的“资源/材料/设备/部件/工艺/产品/服务”单元；
-5. 五链去重后目标约 60–90 个节点，复用现有 33 个节点，新增节点必须有定义、粒度和来源；
+5. 每条试点链建议 10–20 个节点，三链去重后以约 30–50 个节点为 Review 目标，优先复用现有 33 个节点；新增节点必须有定义、粒度和来源；
 6. 至少存在一个可由动态 observation 验证的稀缺约束候选；
 7. 不以短期热点、单家公司、单个证券或推理结论作为稳定节点。
 
-五条链的最终范围、每链节点、复用/新增清单、拓扑和跨实体关系都必须作为单独 Review 清单；批准后仍按 `Review → Write → Rebuild → Query` 逐层执行。
+三条试点链的最终范围、每链节点、复用/新增清单、拓扑和跨实体关系都必须作为单独 Review 清单；第二批两条链不在本 change 的 seed 目标内。批准后仍按 `Review → Write → Rebuild → Query` 逐层执行。
 
-### 5. 事件、推理与展示契约
+### 6. 事件、推理与展示契约
 
 - 事件抽取只产出事件事实、证据和实体链接候选，不修改产业链主数据或稳定拓扑。
 - event-driven reasoning 读取 active chain/topology、validated observations、事件证据、benchmark/commodity/metric 与 sector 映射，产出带证据、时点和不确定性的动态分析结果。
 - 瓶颈分析输入包含：链/节点/边身份、metric、值、单位、观察期、来源、质量状态；输出必须进入后续独立推理 schema，不回写 topology 的 `relation_type` 或主数据字段。
 - 后续 API DTO 必须区分 `master_data`、`observation`、`reasoning_result`，小程序只通过服务端 API 展示；AI 内容必须明确为市场理解与决策辅助，不得表达为直接投资建议。
 
-### 6. 真实模块与数据流
+### 7. 真实模块与数据流
 
 ```mermaid
 sequenceDiagram
@@ -210,7 +239,7 @@ classDiagram
     IndustryChainTopologyEdge "1" --> "many" IndustryChainFlowObservation
 ```
 
-### 7. TDD 与验证
+### 8. TDD 与验证
 
 Apply 必须按 RED → GREEN → REFACTOR：先写 migration 静态测试、domain/profile validator table tests、seed fixture/relationship policy tests、memory/postgres repository tests、graph mapping/projector tests，再写生产实现。数据库测试使用 SQL/migration 静态验证和明确标记的本地 PostgreSQL integration；connector 契约使用 fixture/fake，不访问真实网络。最终运行目标包测试、`go test ./...`、`openspec validate add-industry-chain-node-foundation`、`git diff --check`。
 
@@ -218,7 +247,8 @@ Apply 必须按 RED → GREEN → REFACTOR：先写 migration 静态测试、dom
 
 - [链内专用拓扑与 `entity_edges` 两种关系存储增加理解成本] → 以“是否需要 chain scope/membership constraint”为唯一分界，并在 repository DTO 中分开命名。
 - [33 个旧节点粒度不一致] → 保留稳定 key，先通过 candidate review 标记复用、改名、拆分或新增，不在 migration 隐式改写身份。
-- [五条链可能超过单 change 可审阅规模] → 结构实现与 seed 写入分层；如候选超过 90 个去重节点或来源不足，Apply 前拆出后续 seed change。
+- [三条试点仍可能超过单 change 可审阅规模] → 每链限制 10–20 节点并优先复用；如去重后超过 50 个节点或来源不足，Apply 前缩减到 2 条链或拆出后续 seed change。
+- [Serenity scorecard 被误用为自动选股规则] → 只复用其因素分类与证据/证伪纪律，不复制固定权重，不把评分写入主数据，不输出交易指令。
 - [结构性瓶颈候选被误读为当前结论] → 枚举命名为 `bottleneck_candidate_for`，动态结论只能来自带时点的 reasoning result。
 - [通用 envelope 过早抽象] → envelope 只保留 provenance/quality/idempotency，共有业务值全部留在 typed tables。
 - [Neo4j 与 PostgreSQL 漂移] → 只允许从 PG rebuild，投影 active/approved 定义与 active reviewed relationships，不直接写 Neo4j。
@@ -233,7 +263,7 @@ Apply 必须按 RED → GREEN → REFACTOR：先写 migration 静态测试、dom
 
 ## Open Questions
 
-- 五条候选是否全部进入首批，还是先批准其中 2–3 条以控制 Review 规模？
+- 首批按 AI 算力基础设施、半导体制造、机器人三条试点推进，还是进一步缩减为其中两条？
 - 节点粒度是否以可独立观测和可映射 sector 为硬门槛，还是允许少量纯工艺节点？
 - `bottleneck_candidate_for` 是否保留为稳定拓扑枚举，或只由 observation/reasoning 产生候选？
 - 首批允许哪些 `represented_by_sector`、`observed_by_benchmark` 与 commodity/metric 关系？

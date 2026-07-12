@@ -59,12 +59,27 @@
 - **WHEN** API 或小程序展示产业链传导或瓶颈分析
 - **THEN** 输出必须携带证据和不确定性并定位为市场理解与决策辅助，不得表达为直接投资建议
 
-### Requirement: 首批 MVP 候选 Review
-系统 SHALL 将 AI 算力基础设施、半导体制造、机器人、新能源汽车/储能、创新药/生物制造作为首批候选，并依据事件价值、可观测性、中国板块映射、节点粒度、稀缺约束和来源完整性进行人工 Review。
+### Requirement: Serenity 研究契约映射
+系统 SHALL 将市场故事、系统变化、必需部件、产业链层级、稀缺约束、证据等级和证伪条件映射为可解释的分析契约，并保持稳定事实、动态 observation 和 reasoning result 分离。
+
+#### Scenario: 形成稀缺层分析输入
+- **WHEN** event-driven reasoning 评估某一产业链稀缺层
+- **THEN** 输入必须关联 chain/node/topology、需求或系统变化事件、约束 metric observations 和分级证据，而不得只依赖市场热度或公司叙事
+
+#### Scenario: scorecard 不成为主数据
+- **WHEN** 分析使用需求拐点、架构耦合、供应商集中、扩产难度、估值差、催化剂或风险 penalty
+- **THEN** 评分、权重和排序必须作为带时点的可重算 reasoning result，不得写入产业链 profile、membership、topology 或客观 `entity_edges`
+
+#### Scenario: 输出证伪条件
+- **WHEN** 系统输出稀缺层、公司位置或市场板块传导判断
+- **THEN** reasoning result 必须包含证据等级、缺失证据、主要风险和可判定的 downgrade/kill-switch 条件
+
+### Requirement: 首批 MVP 试点 Review
+系统 SHALL 将 AI 算力基础设施、半导体制造、机器人作为首批试点候选，将新能源汽车/储能、创新药/生物制造保留为第二批，并依据事件价值、可观测性、中国板块映射、节点粒度、稀缺约束和来源完整性进行人工 Review。
 
 #### Scenario: 形成候选清单
 - **WHEN** Propose 或 Apply 准备首批产业链
-- **THEN** 系统必须展示每链建议 10–20 个节点及复用/新增依据，并以五链去重后约 60–90 个节点作为审阅目标而非自动写入配额
+- **THEN** 系统必须展示每条试点链建议 10–20 个节点及复用/新增依据，并以三链去重后约 30–50 个节点作为审阅目标而非自动写入配额
 
 #### Scenario: 未批准候选不进入 seed
 - **WHEN** 链范围、节点、拓扑或跨实体关系尚未逐项获得人工 Review

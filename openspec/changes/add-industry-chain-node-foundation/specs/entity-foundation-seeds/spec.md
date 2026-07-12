@@ -16,7 +16,7 @@
 
 #### Scenario: Propose 不写正式 seed
 - **WHEN** change 仍处于 Propose 或第一次 Review
-- **THEN** 五条 MVP 候选及建议的 60–90 个去重节点不得写入 `backend/data/entity_foundation/`
+- **THEN** 三条首批试点候选及建议的 30–50 个去重节点、两条第二批候选不得写入 `backend/data/entity_foundation/`
 
 #### Scenario: 输出 seed report
 - **WHEN** 经批准的产业链 seed 在未来执行
