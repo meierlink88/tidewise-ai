@@ -16,7 +16,7 @@ func TestFileSourceListsVersionedMigrations(t *testing.T) {
 		t.Fatalf("ListMigrations() error = %v", err)
 	}
 
-	if got, want := migrationVersions(migrations), []string{"000001", "000002", "000003", "000004", "000005", "000006", "000007"}; !reflect.DeepEqual(got, want) {
+	if got, want := migrationVersions(migrations), []string{"000001", "000002", "000003", "000004", "000005", "000006", "000007", "000008", "000009"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("migration versions = %v, want %v", got, want)
 	}
 	if migrations[0].Name != "000001_init_event_knowledge_schema.sql" {

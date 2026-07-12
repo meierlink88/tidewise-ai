@@ -137,6 +137,49 @@ func TestMemoryRepositoryUpsertsProfilesAndRelationshipsIdempotently(t *testing.
 	}
 }
 
+func TestMemoryRepositoryUpsertsBenchmarkProfileIdempotently(t *testing.T) {
+	repo := NewMemoryRepository()
+	entity := Entity{
+		Key:           "benchmark:us_10y_treasury_yield",
+		EntityType:    domain.EntityTypeBenchmark,
+		LayerCode:     "benchmark",
+		Name:          "美国10年期国债收益率",
+		CanonicalName: "美国10年期国债收益率",
+		Aliases:       []string{"US 10Y Treasury Yield"},
+		Status:        domain.StatusActive,
+	}
+	if _, err := repo.UpsertEntity(context.Background(), entity); err != nil {
+		t.Fatalf("UpsertEntity() error = %v", err)
+	}
+
+	profile := Profile{
+		EntityKey:  entity.Key,
+		EntityType: domain.EntityTypeBenchmark,
+		Data: []byte(`{
+		  "benchmark_type":"government_bond_yield",
+		  "official_series_code":null,
+		  "provider":"us_treasury",
+		  "tenor":"10Y",
+		  "currency_code":"USD",
+		  "unit":"percent",
+		  "frequency":"daily",
+		  "source_url":"https://home.treasury.gov/"
+		}`),
+	}
+
+	first, err := repo.UpsertProfile(context.Background(), profile)
+	if err != nil {
+		t.Fatalf("UpsertProfile(first) error = %v", err)
+	}
+	second, err := repo.UpsertProfile(context.Background(), profile)
+	if err != nil {
+		t.Fatalf("UpsertProfile(second) error = %v", err)
+	}
+	if first.Action != WriteCreated || second.Action != WriteUnchanged {
+		t.Fatalf("actions = %q/%q, want created/unchanged", first.Action, second.Action)
+	}
+}
+
 func TestMemoryRepositoryUpdatesRelationshipProvenance(t *testing.T) {
 	repo := NewMemoryRepository()
 	for _, entity := range []Entity{

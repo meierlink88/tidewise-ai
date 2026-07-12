@@ -235,7 +235,7 @@ func TestMetricSeedFile(t *testing.T) {
 		t.Fatalf("LoadFile() error = %v", err)
 	}
 
-	if got, want := len(manifest.Entities), 42; got != want {
+	if got, want := len(manifest.Entities), 43; got != want {
 		t.Fatalf("entities = %d, want %d", got, want)
 	}
 
@@ -347,7 +347,7 @@ func TestRelationshipSeedFile(t *testing.T) {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
 
-	if got, want := len(manifest.Relationships), 306; got != want {
+	if got, want := len(manifest.Relationships), 331; got != want {
 		t.Fatalf("relationships = %d, want %d reviewed relationships", got, want)
 	}
 

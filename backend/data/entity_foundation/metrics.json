@@ -23,7 +23,7 @@
     {"key": "metric:margin_balance", "entity_type": "metric", "layer_code": "metric", "name": "融资余额", "canonical_name": "融资余额", "profile": {"metric_type": "leverage", "unit": "currency", "frequency": "trading_day"}},
     {"key": "metric:short_selling_balance", "entity_type": "metric", "layer_code": "metric", "name": "融券余额", "canonical_name": "融券余额", "profile": {"metric_type": "leverage", "unit": "currency", "frequency": "trading_day"}},
     {"key": "metric:volatility", "entity_type": "metric", "layer_code": "metric", "name": "波动率", "canonical_name": "波动率", "profile": {"metric_type": "market_volatility", "unit": "percent", "frequency": "daily_or_period"}},
-    {"key": "metric:fear_index", "entity_type": "metric", "layer_code": "metric", "name": "恐慌指数", "canonical_name": "恐慌指数", "profile": {"metric_type": "sentiment", "unit": "index", "frequency": "trading_day"}},
+    {"key": "metric:implied_volatility", "entity_type": "metric", "layer_code": "metric", "name": "隐含波动率", "canonical_name": "隐含波动率", "profile": {"metric_type": "market_volatility", "unit": "percent", "frequency": "trading_day"}},
     {"key": "metric:cpi", "entity_type": "metric", "layer_code": "metric", "name": "CPI", "canonical_name": "CPI", "profile": {"metric_type": "macro", "unit": "percent", "frequency": "monthly"}},
     {"key": "metric:ppi", "entity_type": "metric", "layer_code": "metric", "name": "PPI", "canonical_name": "PPI", "profile": {"metric_type": "macro", "unit": "percent", "frequency": "monthly"}},
     {"key": "metric:pmi", "entity_type": "metric", "layer_code": "metric", "name": "PMI", "canonical_name": "PMI", "profile": {"metric_type": "macro", "unit": "index", "frequency": "monthly"}},
@@ -41,6 +41,7 @@
     {"key": "metric:capacity_utilization", "entity_type": "metric", "layer_code": "metric", "name": "产能利用率", "canonical_name": "产能利用率", "profile": {"metric_type": "industry_supply_demand", "unit": "percent", "frequency": "monthly"}},
     {"key": "metric:freight_rate", "entity_type": "metric", "layer_code": "metric", "name": "运价", "canonical_name": "运价", "profile": {"metric_type": "logistics", "unit": "price", "frequency": "weekly_or_daily"}},
     {"key": "metric:electricity_price", "entity_type": "metric", "layer_code": "metric", "name": "电价", "canonical_name": "电价", "profile": {"metric_type": "energy_price", "unit": "price", "frequency": "period"}},
-    {"key": "metric:oil_price", "entity_type": "metric", "layer_code": "metric", "name": "油价", "canonical_name": "油价", "profile": {"metric_type": "energy_price", "unit": "price", "frequency": "trading_day"}}
+    {"key": "metric:oil_price", "entity_type": "metric", "layer_code": "metric", "name": "油价", "canonical_name": "油价", "profile": {"metric_type": "energy_price", "unit": "price", "frequency": "trading_day"}},
+    {"key": "metric:gold_price", "entity_type": "metric", "layer_code": "metric", "name": "黄金价格", "canonical_name": "黄金价格", "profile": {"metric_type": "market_price", "unit": "price", "frequency": "trading_day"}}
   ]
 }

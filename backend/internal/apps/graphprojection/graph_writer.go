@@ -12,6 +12,7 @@ type GraphNode struct {
 	LayerCode     string
 	Name          string
 	CanonicalName string
+	Aliases       []string
 	Status        string
 	Namespace     string
 	UpdatedAt     time.Time

@@ -44,6 +44,21 @@ type RawDocumentWriteResult struct {
 	DuplicateOf string
 }
 
+type BenchmarkObservationRepository interface {
+	UpsertBenchmarkObservation(context.Context, domain.BenchmarkObservation) (BenchmarkObservationWriteResult, error)
+	ListBenchmarkObservations(context.Context, BenchmarkObservationFilter) ([]domain.BenchmarkObservation, error)
+}
+
+type BenchmarkObservationWriteResult struct {
+	Observation domain.BenchmarkObservation
+	Created     bool
+}
+
+type BenchmarkObservationFilter struct {
+	BenchmarkEntityID string
+	Limit             int
+}
+
 type RawDocumentListFilter struct {
 	Title    string
 	Page     int
@@ -139,6 +154,7 @@ type GraphEntityNode struct {
 	LayerCode     string
 	Name          string
 	CanonicalName string
+	Aliases       []string
 	Status        domain.Status
 	UpdatedAt     time.Time
 }
@@ -198,6 +214,7 @@ type InMemoryRepository struct {
 	graphEdges      map[string]GraphEntityEdge
 	graphRuns       map[string]GraphProjectionRun
 	graphRunItems   map[string][]GraphProjectionRunItem
+	observations    map[string]domain.BenchmarkObservation
 }
 
 func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
@@ -217,6 +234,7 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 		graphEdges:      map[string]GraphEntityEdge{},
 		graphRuns:       map[string]GraphProjectionRun{},
 		graphRunItems:   map[string][]GraphProjectionRunItem{},
+		observations:    map[string]domain.BenchmarkObservation{},
 	}
 }
 
@@ -305,6 +323,60 @@ func (r *InMemoryRepository) SeedGraphEdge(edge GraphEntityEdge) {
 	defer r.mu.Unlock()
 
 	r.graphEdges[edge.ID] = edge
+}
+
+func (r *InMemoryRepository) UpsertBenchmarkObservation(_ context.Context, observation domain.BenchmarkObservation) (BenchmarkObservationWriteResult, error) {
+	if err := observation.Validate(); err != nil {
+		return BenchmarkObservationWriteResult{}, err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entity, ok := r.graphEntities[observation.BenchmarkEntityID]
+	if !ok {
+		return BenchmarkObservationWriteResult{}, fmt.Errorf("benchmark entity %q not found", observation.BenchmarkEntityID)
+	}
+	if entity.EntityType != domain.EntityTypeBenchmark {
+		return BenchmarkObservationWriteResult{}, fmt.Errorf("entity %q type %q is not benchmark", observation.BenchmarkEntityID, entity.EntityType)
+	}
+
+	key := benchmarkObservationKey(observation.BenchmarkEntityID, observation.ObservedAt, observation.SourceName)
+	existing, ok := r.observations[key]
+	if ok {
+		observation.ID = existing.ID
+		r.observations[key] = observation
+		return BenchmarkObservationWriteResult{Observation: observation, Created: false}, nil
+	}
+	r.observations[key] = observation
+	return BenchmarkObservationWriteResult{Observation: observation, Created: true}, nil
+}
+
+func (r *InMemoryRepository) ListBenchmarkObservations(_ context.Context, filter BenchmarkObservationFilter) ([]domain.BenchmarkObservation, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	observations := make([]domain.BenchmarkObservation, 0, len(r.observations))
+	for _, observation := range r.observations {
+		if filter.BenchmarkEntityID != "" && observation.BenchmarkEntityID != filter.BenchmarkEntityID {
+			continue
+		}
+		observations = append(observations, observation)
+	}
+	sort.SliceStable(observations, func(i, j int) bool {
+		if !observations[i].ObservedAt.Equal(observations[j].ObservedAt) {
+			return observations[i].ObservedAt.After(observations[j].ObservedAt)
+		}
+		return observations[i].SourceName < observations[j].SourceName
+	})
+	if filter.Limit > 0 && len(observations) > filter.Limit {
+		observations = observations[:filter.Limit]
+	}
+	return observations, nil
+}
+
+func benchmarkObservationKey(benchmarkEntityID string, observedAt time.Time, sourceName string) string {
+	return strings.Join([]string{benchmarkEntityID, observedAt.UTC().Format(time.RFC3339Nano), strings.ToLower(strings.TrimSpace(sourceName))}, "|")
 }
 
 func (r *InMemoryRepository) ListGraphEntityNodes(context.Context) ([]GraphEntityNode, error) {
@@ -718,6 +790,7 @@ func normalizeInMemorySource(source domain.SourceCatalog) domain.SourceCatalog {
 }
 
 func normalizeGraphEntityNode(node GraphEntityNode) GraphEntityNode {
+	node.Aliases = append([]string(nil), node.Aliases...)
 	if node.EntityKey == "" && node.EntityType != "" && node.ID != "" {
 		node.EntityKey = fmt.Sprintf("%s:%s", node.EntityType, node.ID)
 	}

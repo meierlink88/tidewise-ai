@@ -36,6 +36,7 @@ SET entity.entity_key = row.entity_key,
     entity.layer_code = row.layer_code,
     entity.name = row.name,
     entity.canonical_name = row.canonical_name,
+    entity.aliases = row.aliases,
     entity.status = row.status,
     entity.updated_at = row.updated_at
 `
@@ -107,6 +108,7 @@ func graphNodeParams(nodes []GraphNode) []map[string]any {
 			"layer_code":           node.LayerCode,
 			"name":                 node.Name,
 			"canonical_name":       node.CanonicalName,
+			"aliases":              append([]string(nil), node.Aliases...),
 			"status":               node.Status,
 			"projection_namespace": node.Namespace,
 			"updated_at":           neo4jTimeParam(node.UpdatedAt),

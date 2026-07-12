@@ -19,6 +19,7 @@ func TestMapEntityNodePreservesProjectionFields(t *testing.T) {
 		LayerCode:     "economy",
 		Name:          "中国",
 		CanonicalName: "中国",
+		Aliases:       []string{"China", "PRC"},
 		Status:        domain.StatusActive,
 		UpdatedAt:     now,
 	}, "tidewise")
@@ -34,6 +35,9 @@ func TestMapEntityNodePreservesProjectionFields(t *testing.T) {
 	}
 	if node.Name != "中国" || node.CanonicalName != "中国" || node.Status != "active" {
 		t.Fatalf("node display fields = %+v", node)
+	}
+	if len(node.Aliases) != 2 || node.Aliases[0] != "China" || node.Aliases[1] != "PRC" {
+		t.Fatalf("node aliases = %v, want PostgreSQL aliases", node.Aliases)
 	}
 	if node.Namespace != "tidewise" || !node.UpdatedAt.Equal(now) {
 		t.Fatalf("node projection fields = %+v", node)
@@ -57,13 +61,16 @@ func TestMapEntityNodeRejectsMissingRequiredFields(t *testing.T) {
 
 func TestMapRelationTypeUsesSafeKnownTypes(t *testing.T) {
 	cases := map[string]string{
-		"member_of":       "MEMBER_OF",
-		"HAS_MARKET":      "HAS_MARKET",
-		"tracks_index":    "TRACKS_INDEX",
-		"issues":          "ISSUES",
-		"participates_in": "PARTICIPATES_IN",
-		"affiliated_with": "AFFILIATED_WITH",
-		"applies_to":      "APPLIES_TO",
+		"member_of":          "MEMBER_OF",
+		"HAS_MARKET":         "HAS_MARKET",
+		"tracks_index":       "TRACKS_INDEX",
+		"issues":             "ISSUES",
+		"participates_in":    "PARTICIPATES_IN",
+		"affiliated_with":    "AFFILIATED_WITH",
+		"applies_to":         "APPLIES_TO",
+		"observes_benchmark": "OBSERVES_BENCHMARK",
+		"measures":           "MEASURES",
+		"references":         "REFERENCES",
 	}
 
 	for input, want := range cases {

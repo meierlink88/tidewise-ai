@@ -19,6 +19,7 @@ func TestNeo4jGraphWriterUpsertsEntityNodes(t *testing.T) {
 		LayerCode:     "economy",
 		Name:          "中国",
 		CanonicalName: "中国",
+		Aliases:       []string{"China", "PRC"},
 		Status:        "active",
 		Namespace:     "tidewise",
 		UpdatedAt:     localTime,
@@ -39,6 +40,7 @@ func TestNeo4jGraphWriterUpsertsEntityNodes(t *testing.T) {
 		"merge (entity:entity",
 		"projection_namespace",
 		"entity.entity_key = row.entity_key",
+		"entity.aliases = row.aliases",
 	} {
 		if !strings.Contains(strings.ToLower(call.query), fragment) {
 			t.Fatalf("node upsert query missing %q: %s", fragment, call.query)
@@ -51,6 +53,10 @@ func TestNeo4jGraphWriterUpsertsEntityNodes(t *testing.T) {
 		t.Fatalf("database = %q, want neo4j", call.database)
 	}
 	nodes := call.params["nodes"].([]map[string]any)
+	aliases, ok := nodes[0]["aliases"].([]string)
+	if !ok || len(aliases) != 2 || aliases[0] != "China" || aliases[1] != "PRC" {
+		t.Fatalf("aliases param = %#v, want PostgreSQL aliases", nodes[0]["aliases"])
+	}
 	if got, ok := nodes[0]["updated_at"].(string); !ok || got != localTime.UTC().Format(time.RFC3339Nano) {
 		t.Fatalf("updated_at param = %#v, want UTC RFC3339 string", nodes[0]["updated_at"])
 	}

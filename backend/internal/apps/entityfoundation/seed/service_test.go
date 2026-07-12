@@ -75,6 +75,41 @@ func TestServiceStopsOnRepositoryError(t *testing.T) {
 	}
 }
 
+func TestServiceReportsBenchmarkProfileCounts(t *testing.T) {
+	repo := NewMemoryRepository()
+	service := NewService(repo)
+	manifest := Manifest{
+		Entities: []Entity{
+			testSeedEntity("benchmark:us_10y_treasury_yield", domain.EntityTypeBenchmark, "benchmark", `{
+			  "benchmark_type":"government_bond_yield",
+			  "official_series_code":null,
+			  "provider":"us_treasury",
+			  "tenor":"10Y",
+			  "currency_code":"USD",
+			  "unit":"percent",
+			  "frequency":"daily",
+			  "source_url":"https://home.treasury.gov/"
+			}`),
+		},
+	}
+
+	first, err := service.Apply(context.Background(), manifest, ApplyOptions{})
+	if err != nil {
+		t.Fatalf("Apply(first) error = %v", err)
+	}
+	second, err := service.Apply(context.Background(), manifest, ApplyOptions{})
+	if err != nil {
+		t.Fatalf("Apply(second) error = %v", err)
+	}
+
+	if first.ByEntityType[domain.EntityTypeBenchmark] != 1 || first.ProfileCounts["benchmark_profiles"] != 1 {
+		t.Fatalf("first benchmark counts = %#v %#v", first.ByEntityType, first.ProfileCounts)
+	}
+	if second.Unchanged != 2 || second.Created != 0 || second.ProfileCounts["benchmark_profiles"] != 1 {
+		t.Fatalf("second report = %#v, want idempotent unchanged entity and profile", second)
+	}
+}
+
 func TestServiceSkipsInactiveEntitiesByDefault(t *testing.T) {
 	repo := &recordingRepository{}
 	service := NewService(repo)
@@ -129,12 +164,19 @@ func (r *recordingRepository) record(call string, key string) (WriteResult, erro
 }
 
 func testSeedEntity(key string, entityType domain.EntityType, layerCode string, profile string) Entity {
+	name := key
+	aliases := []string(nil)
+	if entityType == domain.EntityTypeBenchmark {
+		name = "测试基准"
+		aliases = []string{"Test Benchmark"}
+	}
 	return Entity{
 		Key:           key,
 		EntityType:    entityType,
 		LayerCode:     layerCode,
-		Name:          key,
-		CanonicalName: key,
+		Name:          name,
+		CanonicalName: name,
+		Aliases:       aliases,
 		Status:        domain.StatusActive,
 		Profile:       []byte(profile),
 	}
