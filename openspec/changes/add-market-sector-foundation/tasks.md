@@ -62,6 +62,6 @@
 - [x] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 零写入、首次 convergence 为 52 active/60 inactive/60 current audit/89 mappings/52 covers/0 tracked，同版本重跑不新增 audit，新版本只 append 且当前结论唯一确定，非法版本与纠错漂移整体 rollback
 - [x] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
 - [x] 6.9 经独立审批后在 local apply migration `000011` 并执行一次首次显式 convergence；验收 52 active canonical、60 inactive legacy、60 current audit、89 mappings、52 covers、0 tracked，reference/alias moves 各 29 且无悬空或 active legacy 引用；期间两次失败均完整回滚并在修复获批后继续，未手工修库
-- [ ] 6.10 已确认同版本 convergence 重跑完全幂等；普通 seed 首次覆盖 29 条 audit aliases，apply `000012` 恢复后再次因全量 alias 排序无意义更新 95 个非 sector entity，两次均停止且未手工修库。经独立审批先 apply `000013` 规范两组 current provenance 顺序，再运行一次普通 seed恢复 95 条正式 alias 顺序（预期 Updated=95），立即第二次运行必须 Updated=0；随后同版本 convergence 必须零写，并复核全部 entity/profile/mapping/edge/manifest/audit/move 指纹、52 active canonical、60 inactive legacy及无悬空引用后暂停等待 Neo4j graph projection 独立审批
+- [x] 6.10 经独立审批 apply `000013`，仅规范两组 current provenance alias 顺序且 alias 集合与其余数据指纹不变；首次普通 seed 仅恢复 95 个非 sector entity 的正式 alias 顺序（Created=0、Updated=95），非 alias 字段与 alias 集合不变；立即第二次普通 seed 为 Created=0、Updated=0，同版本 convergence 为 audit_unchanged=60 且其余写计数为 0。最终 local PostgreSQL 为 version 13，52 active canonical、60 inactive legacy、60 audits、89 mappings、52 covers、0 tracked、reference/alias moves 各 29，audit-owned aliases present/missing=29/0，悬空与 active legacy 引用均为 0
 
-> **重新打开门：** 当前 change 因 canonical convergence 缺口不再是完成状态。下一阶段只能在主对话批准本设计后进入 6.3-6.8；本轮不得修改生产代码、seed 或数据库。
+> **暂停门：** Task 6 已完成并等待 PostgreSQL 状态验收。未经独立审批不得运行 Neo4j graph projection、Sync、Archive 或创建 PR。
