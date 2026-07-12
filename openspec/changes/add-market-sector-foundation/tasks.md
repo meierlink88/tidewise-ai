@@ -12,12 +12,12 @@
 
 ## 2. Profile 与 migration 测试先行
 
-- [ ] 2.1 在 `backend/migrations` 增加 migration 静态测试，先验证 `sector_profiles` 增量字段、`sector_source_mappings` 结构、有代码与无代码稳定唯一约束不含 `snapshot_date`、`source_market_scope` 非空且默认空串、非破坏性 SQL、外键引用和回滚说明
-- [ ] 2.2 在 `backend/internal/apps/entityfoundation/seed` 增加 sector profile 和 source mapping loader 测试，覆盖 semantic classification 不含 `index_sector`、source taxonomy 可为 `index_sector`、主要市场、主要经济体、中文主名、英文 alias、Review 状态、无代码名称规范化、同一 source identity 最新快照幂等覆盖，并验证动态评分不会被当成实体身份
-- [ ] 2.3 运行新增 migration 与 loader 测试，确认在实现前失败且失败原因指向缺失字段或校验逻辑
-- [ ] 2.4 追加非破坏性 migration，补充 `sector_profiles` semantic classification、主要市场、主要经济体、方法 URL、Review 状态字段，并新增 `sector_source_mappings` 作为多来源映射事实表
-- [ ] 2.5 更新 domain、repository 和 seed loader，使新版 sector profile 与 source mapping 字段可校验、可写入、可幂等更新；同一 source identity 只覆盖 mapping 行的最新 `rank_snapshot`、`snapshot_date` 和 `source_url`，第一版不新增历史 snapshot 表，完整历史留在版本化候选 Review artifact
-- [ ] 2.6 复跑对应 migration 与 loader 测试，确认通过
+- [x] 2.1 在 `backend/migrations` 增加 migration 静态测试，先验证 `sector_profiles` 增量字段、`sector_source_mappings` 结构、有代码与无代码稳定唯一约束不含 `snapshot_date`、`source_market_scope` 非空且默认空串、非破坏性 SQL、外键引用和回滚说明
+- [x] 2.2 在 `backend/internal/apps/entityfoundation/seed` 增加 sector profile 和 source mapping loader 测试，覆盖 semantic classification 不含 `index_sector`、source taxonomy 可为 `index_sector`、主要市场、主要经济体、中文主名、英文 alias 和 Review 状态，并验证有代码/无代码 identity、名称规范化与最新快照幂等覆盖
+- [x] 2.3 已取得 RED：migration 测试因缺少 `000010` 失败；domain/seed 测试因缺少 semantic classification、source mapping 类型、loader 与 upsert 能力失败；引用测试确认错误 market 类型在实现前被接受
+- [x] 2.4 追加非破坏性 `000010_add_market_sector_foundation.sql`，补充 `sector_profiles` semantic classification、主要市场、主要经济体、方法 URL、Review 状态字段，并新增 `sector_source_mappings` 作为多来源映射事实表
+- [x] 2.5 更新 domain、repository、service 和 seed loader，使新版 sector profile 与 source mapping 字段可校验、可写入、可幂等更新；同一 source identity 只覆盖 mapping 行的最新 `rank_snapshot`、`snapshot_date` 和 `source_url`，未新增历史 snapshot 表
+- [x] 2.6 复跑聚焦测试、相关 package tests 和 `go test ./...`，确认通过；未执行 migration apply 或任何 PostgreSQL 写入
 
 ## 3. 关系策略与图谱投影
 

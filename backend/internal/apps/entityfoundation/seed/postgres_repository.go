@@ -96,6 +96,79 @@ func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) 
 	return WriteResult{Key: profile.EntityKey, Action: action}, nil
 }
 
+func (r PostgresRepository) UpsertSectorSourceMapping(ctx context.Context, mapping SectorSourceMapping) (WriteResult, error) {
+	statement, args, err := buildSectorSourceMappingUpsert(mapping)
+	if err != nil {
+		return WriteResult{}, err
+	}
+	action, err := r.queryWriteAction(ctx, statement, args...)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("upsert sector source mapping %q: %w", sectorSourceMappingIdentity(mapping), err)
+	}
+	return WriteResult{Key: sectorSourceMappingIdentity(mapping), Action: action}, nil
+}
+
+func buildSectorSourceMappingUpsert(mapping SectorSourceMapping) (string, []any, error) {
+	mapping = normalizeSectorSourceMapping(mapping)
+	if err := validateSectorSourceMapping(mapping); err != nil {
+		return "", nil, err
+	}
+	var snapshotDate any
+	if mapping.SnapshotDate != "" {
+		parsed, err := time.Parse("2006-01-02", mapping.SnapshotDate)
+		if err != nil {
+			return "", nil, fmt.Errorf("invalid sector source mapping snapshot date %q", mapping.SnapshotDate)
+		}
+		snapshotDate = parsed
+	}
+	identity := sectorSourceMappingIdentity(mapping)
+	statement := `
+WITH upsert AS (
+    INSERT INTO sector_source_mappings (
+        id, sector_entity_id, source_system, source_taxonomy_type, source_sector_code,
+        source_sector_name, source_sector_name_normalized, source_market_scope, source_url,
+        rank_snapshot, snapshot_date, mapping_status, review_note
+    ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9,
+        $10, $11, $12, $13
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        sector_entity_id = EXCLUDED.sector_entity_id,
+        source_sector_name = EXCLUDED.source_sector_name,
+        source_sector_name_normalized = EXCLUDED.source_sector_name_normalized,
+        source_market_scope = EXCLUDED.source_market_scope,
+        source_url = EXCLUDED.source_url,
+        rank_snapshot = EXCLUDED.rank_snapshot,
+        snapshot_date = EXCLUDED.snapshot_date,
+        mapping_status = EXCLUDED.mapping_status,
+        review_note = EXCLUDED.review_note,
+        updated_at = NOW()
+    WHERE (sector_source_mappings.sector_entity_id IS DISTINCT FROM EXCLUDED.sector_entity_id
+       OR sector_source_mappings.source_sector_name IS DISTINCT FROM EXCLUDED.source_sector_name
+       OR sector_source_mappings.source_sector_name_normalized IS DISTINCT FROM EXCLUDED.source_sector_name_normalized
+       OR sector_source_mappings.source_market_scope IS DISTINCT FROM EXCLUDED.source_market_scope
+       OR sector_source_mappings.source_url IS DISTINCT FROM EXCLUDED.source_url
+       OR sector_source_mappings.rank_snapshot IS DISTINCT FROM EXCLUDED.rank_snapshot
+       OR sector_source_mappings.snapshot_date IS DISTINCT FROM EXCLUDED.snapshot_date
+       OR sector_source_mappings.mapping_status IS DISTINCT FROM EXCLUDED.mapping_status
+       OR sector_source_mappings.review_note IS DISTINCT FROM EXCLUDED.review_note)
+      AND (sector_source_mappings.snapshot_date IS NULL
+           OR (EXCLUDED.snapshot_date IS NOT NULL
+               AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date))
+    RETURNING xmax = 0 AS inserted
+)
+SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
+`
+	args := []any{
+		sectorSourceMappingSeedUUID(identity), entitySeedUUID(mapping.SectorEntityKey), mapping.SourceSystem,
+		mapping.SourceTaxonomyType, mapping.SourceSectorCode, mapping.SourceSectorName,
+		mapping.SourceSectorNameNormalized, mapping.SourceMarketScope, mapping.SourceURL,
+		mapping.RankSnapshot, snapshotDate, mapping.MappingStatus, mapping.ReviewNote,
+	}
+	return statement, args, nil
+}
+
 func (r PostgresRepository) UpsertRelationship(ctx context.Context, relationship Relationship) (WriteResult, error) {
 	if relationship.Status == "" {
 		relationship.Status = domain.StatusActive
@@ -299,7 +372,7 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"source_url", text("source_url")},
 		}, nil
 	case domain.EntityTypeSector:
-		return []profileField{
+		fields := []profileField{
 			{"sector_system", text("sector_system")},
 			{"sector_code", text("sector_code")},
 			{"sector_type", text("sector_type")},
@@ -309,7 +382,22 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"parent_sector_entity_id", ref("parent_sector_entity_id")},
 			{"rank_snapshot", number("rank_snapshot")},
 			{"snapshot_date", date("snapshot_date")},
-		}, nil
+		}
+		for _, field := range []struct {
+			name  string
+			value func(string) any
+		}{
+			{"classification_code", text},
+			{"primary_market_entity_id", ref},
+			{"primary_economy_entity_id", ref},
+			{"methodology_url", text},
+			{"review_status", text},
+		} {
+			if _, ok := profile[field.name]; ok {
+				fields = append(fields, profileField{field.name, field.value(field.name)})
+			}
+		}
+		return fields, nil
 	case domain.EntityTypeChainNode:
 		return []profileField{{"chain_position", text("chain_position")}}, nil
 	case domain.EntityTypeCompany:
@@ -447,6 +535,10 @@ func entitySeedUUID(key string) string {
 
 func relationshipSeedUUID(key string) string {
 	return repoids.NormalizeUUID("entity_relationship", key)
+}
+
+func sectorSourceMappingSeedUUID(identity string) string {
+	return repoids.NormalizeUUID("sector_source_mapping", identity)
 }
 
 func normalizeEntityAliases(aliases []string) []string {

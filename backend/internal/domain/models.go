@@ -237,14 +237,96 @@ func (o BenchmarkObservation) Validate() error {
 }
 
 type SectorProfile struct {
-	EntityID             string
-	SectorSystem         string
-	SectorCode           string
-	SectorType           string
-	ExchangeScope        string
-	ConstituentCount     int
-	ListDate             *time.Time
-	ParentSectorEntityID string
+	EntityID               string
+	SectorSystem           string
+	SectorCode             string
+	SectorType             string
+	ExchangeScope          string
+	ConstituentCount       int
+	ListDate               *time.Time
+	ParentSectorEntityID   string
+	ClassificationCode     SectorClassification
+	PrimaryMarketEntityID  string
+	PrimaryEconomyEntityID string
+	MethodologyURL         string
+	ReviewStatus           SectorReviewStatus
+}
+
+type SectorClassification string
+
+const (
+	SectorClassificationIndustry SectorClassification = "industry_sector"
+	SectorClassificationTheme    SectorClassification = "theme_sector"
+	SectorClassificationMarket   SectorClassification = "market_sector"
+	SectorClassificationStyle    SectorClassification = "style_sector"
+	SectorClassificationRegion   SectorClassification = "region_sector"
+)
+
+type SectorReviewStatus string
+
+const (
+	SectorReviewCandidate SectorReviewStatus = "candidate"
+	SectorReviewApproved  SectorReviewStatus = "approved"
+	SectorReviewRejected  SectorReviewStatus = "rejected"
+)
+
+func (p SectorProfile) Validate() error {
+	if p.EntityID == "" {
+		return fmt.Errorf("entity id is required")
+	}
+	if !validStatus(p.ClassificationCode, SectorClassificationIndustry, SectorClassificationTheme, SectorClassificationMarket, SectorClassificationStyle, SectorClassificationRegion) {
+		return fmt.Errorf("unsupported sector classification %q", p.ClassificationCode)
+	}
+	if !validStatus(p.ReviewStatus, SectorReviewCandidate, SectorReviewApproved, SectorReviewRejected) {
+		return fmt.Errorf("unsupported sector review status %q", p.ReviewStatus)
+	}
+	return nil
+}
+
+type SectorSourceTaxonomyType string
+
+const (
+	SectorSourceTaxonomyConcept     SectorSourceTaxonomyType = "concept"
+	SectorSourceTaxonomyIndustry    SectorSourceTaxonomyType = "industry"
+	SectorSourceTaxonomyIndexSector SectorSourceTaxonomyType = "index_sector"
+)
+
+type SectorSourceMappingStatus string
+
+const (
+	SectorSourceMappingCandidate SectorSourceMappingStatus = "candidate"
+	SectorSourceMappingApproved  SectorSourceMappingStatus = "approved"
+	SectorSourceMappingRejected  SectorSourceMappingStatus = "rejected"
+	SectorSourceMappingMerged    SectorSourceMappingStatus = "merged"
+)
+
+type SectorSourceMapping struct {
+	ID                         string
+	SectorEntityID             string
+	SourceSystem               string
+	SourceTaxonomyType         SectorSourceTaxonomyType
+	SourceSectorCode           string
+	SourceSectorName           string
+	SourceSectorNameNormalized string
+	SourceMarketScope          string
+	SourceURL                  string
+	RankSnapshot               int
+	SnapshotDate               *time.Time
+	MappingStatus              SectorSourceMappingStatus
+	ReviewNote                 string
+}
+
+func (m SectorSourceMapping) Validate() error {
+	if m.ID == "" || m.SectorEntityID == "" || m.SourceSystem == "" || m.SourceSectorName == "" || m.SourceSectorNameNormalized == "" {
+		return fmt.Errorf("sector source mapping identity fields are required")
+	}
+	if !validStatus(m.SourceTaxonomyType, SectorSourceTaxonomyConcept, SectorSourceTaxonomyIndustry, SectorSourceTaxonomyIndexSector) {
+		return fmt.Errorf("unsupported source taxonomy type %q", m.SourceTaxonomyType)
+	}
+	if !validStatus(m.MappingStatus, SectorSourceMappingCandidate, SectorSourceMappingApproved, SectorSourceMappingRejected, SectorSourceMappingMerged) {
+		return fmt.Errorf("unsupported sector source mapping status %q", m.MappingStatus)
+	}
+	return nil
 }
 
 type ChainNodeProfile struct {

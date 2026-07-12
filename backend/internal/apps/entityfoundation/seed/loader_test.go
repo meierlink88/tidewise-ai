@@ -489,3 +489,111 @@ func writeManifest(t *testing.T, content string) string {
 	}
 	return path
 }
+
+func TestLoadValidatesSectorSemanticClassificationAndSourceTaxonomy(t *testing.T) {
+	valid := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+	    "name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector","review_status":"approved"}
+	  }],
+	  "sector_source_mappings": [{
+	    "sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"index_sector",
+	    "source_sector_name":" 人工智能 ","source_market_scope":"cn_a_share","mapping_status":"approved"
+	  }]
+	}`)
+	manifest, err := Load(valid)
+	if err != nil {
+		t.Fatalf("Load(valid) error = %v", err)
+	}
+	if got := manifest.SectorSourceMappings[0].SourceSectorNameNormalized; got != "人工智能" {
+		t.Fatalf("normalized source name = %q, want 人工智能", got)
+	}
+	invalidClassification := strings.Replace(string(valid), `"theme_sector"`, `"index_sector"`, 1)
+	if _, err := Load([]byte(invalidClassification)); err == nil || !strings.Contains(err.Error(), "unsupported sector classification") {
+		t.Fatalf("Load(index_sector classification) error = %v", err)
+	}
+	invalidTaxonomy := strings.Replace(string(valid), `"index_sector"`, `"benchmark"`, 1)
+	if _, err := Load([]byte(invalidTaxonomy)); err == nil || !strings.Contains(err.Error(), "unsupported source taxonomy type") {
+		t.Fatalf("Load(benchmark taxonomy) error = %v", err)
+	}
+}
+
+func TestLoadRejectsDuplicateSectorSourceMappingIdentityAcrossSnapshots(t *testing.T) {
+	data := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+	    "name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector"}
+	  }],
+	  "sector_source_mappings": [
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_name":"人工 智能","source_market_scope":"cn_a_share","snapshot_date":"2026-07-01"},
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_name":"人工智能","source_market_scope":"cn_a_share","snapshot_date":"2026-07-08"}
+	  ]
+	}`)
+	if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "duplicate sector source mapping identity") {
+		t.Fatalf("Load(duplicate mapping) error = %v", err)
+	}
+}
+
+func TestLoadRejectsDuplicateCodedSectorSourceMappingAcrossSnapshots(t *testing.T) {
+	data := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector","name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector"}
+	  }],
+	  "sector_source_mappings": [
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_code":"885001","source_sector_name":"人工智能","snapshot_date":"2026-07-01"},
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_code":"885001","source_sector_name":"AI","snapshot_date":"2026-07-08"}
+	  ]
+	}`)
+	if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "duplicate sector source mapping identity") {
+		t.Fatalf("Load(duplicate coded mapping) error = %v", err)
+	}
+}
+
+func TestLoadValidatesSectorPrimaryMarketAndEconomyReferenceTypes(t *testing.T) {
+	valid := `{
+	  "entities": [
+	    {"key":"market:cn_a_share","entity_type":"market","layer_code":"market","name":"中国A股","canonical_name":"中国A股","profile":{"market_type":"stock_market"}},
+	    {"key":"economy:cn","entity_type":"economy","layer_code":"economy","name":"中国","canonical_name":"中国","profile":{"country_code":"CN","currency_code":"CNY"}},
+	    {"key":"sector:theme_ai","entity_type":"sector","layer_code":"sector","name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	     "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector","primary_market_entity_id":"market:cn_a_share","primary_economy_entity_id":"economy:cn"}}
+	  ]
+	}`
+	if _, err := Load([]byte(valid)); err != nil {
+		t.Fatalf("Load(valid references) error = %v", err)
+	}
+	invalidMarket := strings.Replace(valid, `"primary_market_entity_id":"market:cn_a_share"`, `"primary_market_entity_id":"economy:cn"`, 1)
+	if _, err := Load([]byte(invalidMarket)); err == nil || !strings.Contains(err.Error(), "primary_market_entity_id must reference market") {
+		t.Fatalf("Load(invalid market reference) error = %v", err)
+	}
+}
+
+func TestLoadRequiresEnglishAliasForCanonicalChineseSector(t *testing.T) {
+	data := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+	    "name":"人工智能","canonical_name":"人工智能",
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector"}
+	  }]
+	}`)
+	if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "sector with Chinese primary name requires an English alias") {
+		t.Fatalf("Load(missing English alias) error = %v", err)
+	}
+}
+
+func TestLoadRejectsSectorSelectionScoreAndRuntimeTier(t *testing.T) {
+	for _, field := range []string{"selection_score", "runtime_tier"} {
+		data := []byte(`{
+		  "entities": [{
+		    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+		    "name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+		    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector","` + field + `":"forbidden"}
+		  }]
+		}`)
+		if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "forbidden reasoning field") {
+			t.Fatalf("Load(%s) error = %v", field, err)
+		}
+	}
+}

@@ -270,3 +270,23 @@ func TestIngestionRunSourceValidate(t *testing.T) {
 		t.Fatal("Validate() error = nil, want negative document count error")
 	}
 }
+
+func TestSectorProfileAndSourceMappingValidateSemanticBoundaries(t *testing.T) {
+	profile := SectorProfile{EntityID: "sector-id", ClassificationCode: SectorClassificationTheme, ReviewStatus: SectorReviewApproved}
+	if err := profile.Validate(); err != nil {
+		t.Fatalf("SectorProfile.Validate() error = %v", err)
+	}
+	profile.ClassificationCode = SectorClassification("index_sector")
+	if err := profile.Validate(); err == nil {
+		t.Fatal("SectorProfile.Validate() expected index_sector rejection")
+	}
+	mapping := SectorSourceMapping{
+		ID: "mapping-id", SectorEntityID: "sector-id", SourceSystem: "ths",
+		SourceTaxonomyType: SectorSourceTaxonomyIndexSector,
+		SourceSectorName:   "人工智能", SourceSectorNameNormalized: "人工智能",
+		MappingStatus: SectorSourceMappingApproved,
+	}
+	if err := mapping.Validate(); err != nil {
+		t.Fatalf("SectorSourceMapping.Validate() error = %v", err)
+	}
+}

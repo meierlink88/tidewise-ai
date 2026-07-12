@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
 
 type WriteAction string
@@ -23,22 +25,55 @@ type WriteResult struct {
 type Repository interface {
 	UpsertEntity(context.Context, Entity) (WriteResult, error)
 	UpsertProfile(context.Context, Profile) (WriteResult, error)
+	UpsertSectorSourceMapping(context.Context, SectorSourceMapping) (WriteResult, error)
 	UpsertRelationship(context.Context, Relationship) (WriteResult, error)
 }
 
 type MemoryRepository struct {
-	mu            sync.Mutex
-	entities      map[string]Entity
-	profiles      map[string]Profile
-	relationships map[string]Relationship
+	mu                   sync.Mutex
+	entities             map[string]Entity
+	profiles             map[string]Profile
+	sectorSourceMappings map[string]SectorSourceMapping
+	relationships        map[string]Relationship
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		entities:      map[string]Entity{},
-		profiles:      map[string]Profile{},
-		relationships: map[string]Relationship{},
+		entities:             map[string]Entity{},
+		profiles:             map[string]Profile{},
+		sectorSourceMappings: map[string]SectorSourceMapping{},
+		relationships:        map[string]Relationship{},
 	}
+}
+
+func (r *MemoryRepository) UpsertSectorSourceMapping(_ context.Context, mapping SectorSourceMapping) (WriteResult, error) {
+	mapping = normalizeSectorSourceMapping(mapping)
+	if err := validateSectorSourceMapping(mapping); err != nil {
+		return WriteResult{}, err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	entity, ok := r.entities[mapping.SectorEntityKey]
+	if !ok || entity.EntityType != domain.EntityTypeSector {
+		return WriteResult{}, fmt.Errorf("unknown sector source mapping entity key %q", mapping.SectorEntityKey)
+	}
+	identity := sectorSourceMappingIdentity(mapping)
+	existing, ok := r.sectorSourceMappings[identity]
+	if !ok {
+		r.sectorSourceMappings[identity] = mapping
+		return WriteResult{Key: identity, Action: WriteCreated}, nil
+	}
+	if existing.SnapshotDate != "" && (mapping.SnapshotDate == "" || mapping.SnapshotDate < existing.SnapshotDate) {
+		mapping.RankSnapshot = existing.RankSnapshot
+		mapping.SnapshotDate = existing.SnapshotDate
+		mapping.SourceURL = existing.SourceURL
+	}
+	if reflect.DeepEqual(existing, mapping) {
+		return WriteResult{Key: identity, Action: WriteUnchanged}, nil
+	}
+	r.sectorSourceMappings[identity] = mapping
+	return WriteResult{Key: identity, Action: WriteUpdated}, nil
 }
 
 func (r *MemoryRepository) UpsertEntity(_ context.Context, entity Entity) (WriteResult, error) {
@@ -135,4 +170,10 @@ func (r *MemoryRepository) EntityCount() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.entities)
+}
+
+func (r *MemoryRepository) SectorSourceMappingCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.sectorSourceMappings)
 }

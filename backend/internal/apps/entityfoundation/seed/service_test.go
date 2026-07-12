@@ -151,6 +151,10 @@ func (r *recordingRepository) UpsertProfile(_ context.Context, profile Profile) 
 	return r.record("profile:"+profile.EntityKey, profile.EntityKey)
 }
 
+func (r *recordingRepository) UpsertSectorSourceMapping(_ context.Context, mapping SectorSourceMapping) (WriteResult, error) {
+	return r.record("sector_source_mapping:"+sectorSourceMappingIdentity(normalizeSectorSourceMapping(mapping)), mapping.SectorEntityKey)
+}
+
 func (r *recordingRepository) UpsertRelationship(_ context.Context, relationship Relationship) (WriteResult, error) {
 	return r.record("relationship:"+relationship.Key, relationship.Key)
 }

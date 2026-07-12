@@ -124,3 +124,55 @@ func TestProfileUpsertSQLIncludesSectorSnapshotFields(t *testing.T) {
 		}
 	}
 }
+
+func TestProfileUpsertSQLIncludesMarketSectorFields(t *testing.T) {
+	statement, _, err := buildProfileUpsert("sector:theme_ai", domain.EntityTypeSector, []byte(`{
+		"sector_system":"tidewise","sector_code":"","sector_type":"theme",
+		"classification_code":"theme_sector","primary_market_entity_id":"market:cn_a_share",
+		"primary_economy_entity_id":"economy:cn","methodology_url":"https://example.com/methodology",
+		"review_status":"approved"
+	}`))
+	if err != nil {
+		t.Fatalf("buildProfileUpsert() error = %v", err)
+	}
+	for _, fragment := range []string{"classification_code", "primary_market_entity_id", "primary_economy_entity_id", "methodology_url", "review_status"} {
+		if !strings.Contains(statement, fragment) {
+			t.Fatalf("sector profile upsert missing %q", fragment)
+		}
+	}
+}
+
+func TestSectorSourceMappingUpsertUsesStableIdentityAndLatestSnapshot(t *testing.T) {
+	mapping := SectorSourceMapping{
+		SectorEntityKey: "sector:theme_ai", SourceSystem: "ths", SourceTaxonomyType: "concept",
+		SourceSectorCode: "885001", SourceSectorName: "人工智能", SourceURL: "https://example.com/latest",
+		RankSnapshot: 2, SnapshotDate: "2026-07-12", MappingStatus: "approved",
+	}
+	statement, args, err := buildSectorSourceMappingUpsert(mapping)
+	if err != nil {
+		t.Fatalf("buildSectorSourceMappingUpsert() error = %v", err)
+	}
+	for _, fragment := range []string{
+		"insert into sector_source_mappings", "on conflict (id) do update set",
+		"rank_snapshot = excluded.rank_snapshot", "snapshot_date = excluded.snapshot_date",
+		"source_url = excluded.source_url", "updated_at = now()",
+		"excluded.snapshot_date >= sector_source_mappings.snapshot_date",
+	} {
+		if !strings.Contains(strings.ToLower(statement), fragment) {
+			t.Fatalf("source mapping upsert missing %q", fragment)
+		}
+	}
+	if got, want := len(args), 13; got != want {
+		t.Fatalf("source mapping args = %d, want %d", got, want)
+	}
+	firstID := args[0]
+	mapping.RankSnapshot = 9
+	mapping.SnapshotDate = "2026-07-19"
+	_, laterArgs, err := buildSectorSourceMappingUpsert(mapping)
+	if err != nil {
+		t.Fatalf("buildSectorSourceMappingUpsert(later) error = %v", err)
+	}
+	if laterArgs[0] != firstID {
+		t.Fatalf("mapping id changed across snapshots: %v != %v", laterArgs[0], firstID)
+	}
+}

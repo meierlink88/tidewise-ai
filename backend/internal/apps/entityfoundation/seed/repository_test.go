@@ -223,3 +223,49 @@ func TestMemoryRepositoryRejectsDanglingWrites(t *testing.T) {
 		t.Fatal("UpsertRelationship() expected dangling relationship error")
 	}
 }
+
+func TestMemoryRepositoryUpdatesLatestSectorSourceMappingSnapshotIdempotently(t *testing.T) {
+	repo := NewMemoryRepository()
+	entity := Entity{Key: "sector:theme_ai", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能", CanonicalName: "人工智能", Aliases: []string{"Artificial Intelligence"}}
+	if _, err := repo.UpsertEntity(context.Background(), entity); err != nil {
+		t.Fatalf("UpsertEntity() error = %v", err)
+	}
+	mapping := SectorSourceMapping{
+		SectorEntityKey: entity.Key, SourceSystem: "ths", SourceTaxonomyType: "concept",
+		SourceSectorName: "人工 智能", SourceMarketScope: "cn_a_share",
+		RankSnapshot: 1, SnapshotDate: "2026-07-01", MappingStatus: "approved",
+	}
+	first, err := repo.UpsertSectorSourceMapping(context.Background(), mapping)
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(first) error = %v", err)
+	}
+	mapping.SourceSectorName = "人工智能"
+	mapping.RankSnapshot = 4
+	mapping.SnapshotDate = "2026-07-08"
+	mapping.SourceURL = "https://example.com/latest"
+	second, err := repo.UpsertSectorSourceMapping(context.Background(), mapping)
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(second) error = %v", err)
+	}
+	third, err := repo.UpsertSectorSourceMapping(context.Background(), mapping)
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(third) error = %v", err)
+	}
+	if first.Action != WriteCreated || second.Action != WriteUpdated || third.Action != WriteUnchanged {
+		t.Fatalf("actions = %q/%q/%q, want created/updated/unchanged", first.Action, second.Action, third.Action)
+	}
+	older := mapping
+	older.RankSnapshot = 1
+	older.SnapshotDate = "2026-07-01"
+	older.SourceURL = "https://example.com/older"
+	olderResult, err := repo.UpsertSectorSourceMapping(context.Background(), older)
+	if err != nil {
+		t.Fatalf("UpsertSectorSourceMapping(older) error = %v", err)
+	}
+	if olderResult.Action != WriteUnchanged {
+		t.Fatalf("older snapshot action = %q, want unchanged", olderResult.Action)
+	}
+	if got := repo.SectorSourceMappingCount(); got != 1 {
+		t.Fatalf("source mapping count = %d, want 1", got)
+	}
+}
