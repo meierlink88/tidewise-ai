@@ -12,6 +12,7 @@ func TestSkillDrivenWorkflowRules(t *testing.T) {
 	agents := readWorkflowRuleFile(t, filepath.Join(root, "AGENTS.md"))
 	routing := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "skill-routing.md"))
 	gitWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "git-workflow.md"))
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
 
 	assertWorkflowContains(t, agents, ".agents/skill-routing.md")
 	for _, want := range []string{
@@ -24,28 +25,62 @@ func TestSkillDrivenWorkflowRules(t *testing.T) {
 		"superpowers:test-driven-development",
 		"superpowers:systematic-debugging",
 		"superpowers:verification-before-completion",
-		"superpowers:using-git-worktrees",
 		"superpowers:finishing-a-development-branch",
 		"github:yeet",
 		"docs/superpowers/specs/",
 		"docs/superpowers/plans/",
-		"OpenSpec 是唯一正式",
+		"OpenSpec 拥有唯一正式 change 生命周期和 artifacts",
 	} {
 		assertWorkflowContains(t, routing, want)
 	}
 
-	assertWorkflowOrder(t, routing, "openspec-archive-change", "superpowers:finishing-a-development-branch")
-	assertWorkflowOrder(t, gitWorkflow,
-		"tasks 全部完成后",
-		"Sync delta specs",
-		"Archive change",
-		"openspec validate --all",
-		"superpowers:finishing-a-development-branch",
+	assertWorkflowSectionContains(t, routing, "## Worktree Skill Routing",
+		"Codex Desktop 可用时，由 Desktop 新任务机制创建受管 worktree",
+		"只有 Codex Desktop 受管机制不可用且用户明确批准 fallback 时，才使用 `superpowers:using-git-worktrees` 创建 project-owned worktree",
+		".agents/git-workflow.md",
 	)
 
-	for _, want := range []string{"git fetch origin", "origin/main", "Codex Desktop", "原生 worktree"} {
-		assertWorkflowContains(t, gitWorkflow, want)
-	}
+	assertWorkflowOrder(t, routing, "openspec-archive-change", "superpowers:finishing-a-development-branch")
+	assertWorkflowOrder(t, openspecWorkflow,
+		"Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver",
+		"**Explore**",
+		"**Propose**",
+		"**Review**",
+		"**Apply**",
+		"**Validate**",
+		"**Sync**",
+		"**Archive**",
+		"**Deliver**",
+	)
+	assertWorkflowSectionContains(t, openspecWorkflow, "## Review And Stateful Operation Gates",
+		"Propose 后必须停在人工 Review",
+		"Apply 完成后必须提供 scoped diff 与验证证据并再次等待人工 Review",
+	)
+	assertWorkflowSectionContains(t, gitWorkflow, "## Desktop-Managed Worktree Gate",
+		"在 Codex Desktop 可用时，所有新 change 和并行 change 必须先通过 Desktop 新任务创建受管 worktree；agent 不得手工执行 `git worktree add`",
+		"只有 Codex Desktop 受管机制不可用且用户明确批准 fallback 时，agent 才可创建项目自有 Git worktree。两个条件缺一不可",
+	)
+	assertWorkflowSectionContains(t, gitWorkflow, "## New Change Gate",
+		"git fetch origin",
+		"origin/main",
+		"### Sequential Successor Change",
+		"完成 archive commit、Deliver 和 worktree/branch 隔离清理后才能启动",
+		"### Explicitly Approved Independent Parallel Change",
+		"用户明确批准并行",
+		"无产物或执行顺序依赖",
+	)
+	assertWorkflowSectionOrder(t, gitWorkflow, "## Desktop-Managed Cleanup",
+		"删除远端 `codex/<change-name>` branch",
+		"归档或关闭对应 Codex Desktop 任务",
+		"验证托管 worktree 已释放",
+		"删除仍存在的本地 change branch",
+	)
+	assertWorkflowSectionOrder(t, gitWorkflow, "## Project-Owned Fallback Cleanup",
+		"删除远端 `codex/<change-name>` branch",
+		"git worktree remove <path>",
+		"删除本地 change branch",
+		"git worktree prune",
+	)
 }
 
 func TestOpenSpecConfigUsesSupportedRulesAndCurrentArchitecture(t *testing.T) {
@@ -116,6 +151,34 @@ func assertWorkflowOrder(t *testing.T, content string, values ...string) {
 		}
 		previous = index
 	}
+}
+
+func assertWorkflowSectionContains(t *testing.T, content, heading string, values ...string) {
+	t.Helper()
+	section := workflowSection(t, content, heading)
+	for _, value := range values {
+		if !strings.Contains(section, value) {
+			t.Fatalf("workflow rule section %q missing %q", heading, value)
+		}
+	}
+}
+
+func assertWorkflowSectionOrder(t *testing.T, content, heading string, values ...string) {
+	t.Helper()
+	assertWorkflowOrder(t, workflowSection(t, content, heading), values...)
+}
+
+func workflowSection(t *testing.T, content, heading string) string {
+	t.Helper()
+	start := strings.Index(content, heading)
+	if start < 0 {
+		t.Fatalf("workflow rule content missing section %q", heading)
+	}
+	section := content[start+len(heading):]
+	if end := strings.Index(section, "\n## "); end >= 0 {
+		section = section[:end]
+	}
+	return section
 }
 
 func containsWorkflowValue(values []string, want string) bool {
