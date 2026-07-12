@@ -23,15 +23,22 @@
 - **THEN** Review 必须拒绝其作为稳定 `chain_node`
 
 ### Requirement: 稳定产业链拓扑
-系统 SHALL 在产业链范围内保存有来源、可审阅且端点均为 active membership 的稳定拓扑，并支持 `upstream_of`、`input_to`、`output_to`、`depends_on`、`substitutes_for` 和 `bottleneck_candidate_for`。
+系统 SHALL 在产业链范围内保存有来源、可审阅且端点均为 active membership 的稳定拓扑，并支持 `upstream_of`、`input_to`、`output_to`、`depends_on` 和 `substitutes_for`。
 
 #### Scenario: 写入稳定拓扑
 - **WHEN** 一条拓扑关系已通过 Review 且来源、方向、端点和核验时间完整
 - **THEN** 系统必须按 chain scope 幂等保存并拒绝自环、重复关系或非成员端点
 
-#### Scenario: 区分结构性候选与当前瓶颈
-- **WHEN** 拓扑包含 `bottleneck_candidate_for`
-- **THEN** 该关系只能表达结构性稀缺约束候选，不得包含当前严重度、传导强度、受益承压或预测结论
+### Requirement: 结构性约束定义
+系统 SHALL 通过独立 constraint 记录表达节点或拓扑边可能限制系统扩张的客观机制，并将其与当前瓶颈判断分离。
+
+#### Scenario: 约束对象唯一
+- **WHEN** 系统保存结构性约束
+- **THEN** constraint 必须恰好引用一个同链节点或一条同链 topology edge，不得两者同时为空或同时非空
+
+#### Scenario: 区分约束定义与当前瓶颈
+- **WHEN** 系统保存 supplier concentration、qualification cycle、expansion lead time、capacity、purity、yield、specialized equipment、know-how、regulation、infrastructure connection 或 substitution 约束
+- **THEN** 记录只能保存形成机制、替代路径、扩产路径、来源和 Review 状态，不得包含当前严重度、传导强度、受益承压或预测结论
 
 ### Requirement: 产业链 typed observation
 系统 SHALL 使用通用 observation governance envelope 管理来源、时间、幂等、质量和修订，并使用产业链节点指标表与拓扑流量表保存领域值，不得使用单一万能 EAV 表。
