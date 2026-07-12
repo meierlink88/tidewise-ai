@@ -61,7 +61,7 @@
 - [x] 6.6 实现 `sector_convergences.json`、domain/loader、append-only convergence migrations、`SectorReferenceRegistry`、Memory clone-on-write、PostgreSQL `sql.Tx`、mutation provenance、service report 和首次/纠错显式 CLI；不得修改 `candidate-review.md` 的批准快照
 - [x] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 零写入、首次 convergence 为 52 active/60 inactive/60 current audit/89 mappings/52 covers/0 tracked，同版本重跑不新增 audit，新版本只 append 且当前结论唯一确定，非法版本与纠错漂移整体 rollback
 - [x] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
-- [ ] 6.9 经独立审批后在 local 先 apply 新 migration，再执行显式 convergence；记录前后实体、profile、mapping、edge、audit、引用和状态计数，失败时保留现场且不得手工修库
+- [x] 6.9 经独立审批后在 local apply migration `000011` 并执行一次首次显式 convergence；验收 52 active canonical、60 inactive legacy、60 current audit、89 mappings、52 covers、0 tracked，reference/alias moves 各 29 且无悬空或 active legacy 引用；期间两次失败均完整回滚并在修复获批后继续，未手工修库
 - [ ] 6.10 local 重复执行显式 convergence 和普通 seed，确认幂等；在 PostgreSQL 验收 52 active canonical、60 inactive legacy、无悬空引用后暂停，等待 Neo4j graph projection 独立审批
 
 > **重新打开门：** 当前 change 因 canonical convergence 缺口不再是完成状态。下一阶段只能在主对话批准本设计后进入 6.3-6.8；本轮不得修改生产代码、seed 或数据库。
