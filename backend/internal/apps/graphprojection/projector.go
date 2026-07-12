@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 )
 
@@ -69,6 +70,7 @@ func (p Projector) ProjectEntities(ctx context.Context, options ProjectOptions) 
 	if err != nil {
 		return p.finishWithError(ctx, run, 1, err)
 	}
+	nodes, edges = activeProjectionSource(nodes, edges)
 	run.SourceRowCount = len(nodes) + len(edges)
 
 	graphNodes := make([]GraphNode, 0, len(nodes))
@@ -141,6 +143,31 @@ func (p Projector) ProjectEntities(ctx context.Context, options ProjectOptions) 
 		run.Status = repositories.GraphProjectionRunStatusSucceeded
 	}
 	return p.finish(ctx, run)
+}
+
+func activeProjectionSource(nodes []repositories.GraphEntityNode, edges []repositories.GraphEntityEdge) ([]repositories.GraphEntityNode, []repositories.GraphEntityEdge) {
+	activeNodes := make([]repositories.GraphEntityNode, 0, len(nodes))
+	nodeStatuses := make(map[string]domain.Status, len(nodes))
+	for _, node := range nodes {
+		nodeStatuses[node.ID] = node.Status
+		if node.Status != domain.StatusActive {
+			continue
+		}
+		activeNodes = append(activeNodes, node)
+	}
+	activeEdges := make([]repositories.GraphEntityEdge, 0, len(edges))
+	for _, edge := range edges {
+		if edge.Status != domain.StatusActive {
+			continue
+		}
+		fromStatus, fromKnown := nodeStatuses[edge.FromEntityID]
+		toStatus, toKnown := nodeStatuses[edge.ToEntityID]
+		if (fromKnown && fromStatus != domain.StatusActive) || (toKnown && toStatus != domain.StatusActive) {
+			continue
+		}
+		activeEdges = append(activeEdges, edge)
+	}
+	return activeNodes, activeEdges
 }
 
 func (p Projector) finishWithError(ctx context.Context, run repositories.GraphProjectionRun, failedCount int, err error) (repositories.GraphProjectionRun, error) {

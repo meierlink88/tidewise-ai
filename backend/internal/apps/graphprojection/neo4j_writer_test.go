@@ -62,6 +62,31 @@ func TestNeo4jGraphWriterUpsertsEntityNodes(t *testing.T) {
 	}
 }
 
+func TestNeo4jGraphWriterWritesClassificationOnlyForSector(t *testing.T) {
+	driver := &recordingCypherDriver{}
+	writer := NewNeo4jGraphWriter(driver, "neo4j")
+	_, err := writer.UpsertEntities(context.Background(), []GraphNode{
+		{EntityID: "sector", EntityKey: "sector:test", EntityType: "sector", LayerCode: "sector", Name: "测试板块", CanonicalName: "测试板块", ClassificationCode: "industry_sector", Status: "active", Namespace: "tidewise"},
+		{EntityID: "market", EntityKey: "market:test", EntityType: "market", LayerCode: "market", Name: "测试市场", CanonicalName: "测试市场", Status: "active", Namespace: "tidewise"},
+	})
+	if err != nil {
+		t.Fatalf("UpsertEntities() error = %v", err)
+	}
+	query := strings.ToLower(driver.calls[0].query)
+	for _, fragment := range []string{"classification_code", "remove entity.classification_code"} {
+		if !strings.Contains(query, fragment) {
+			t.Fatalf("node upsert query missing %q: %s", fragment, query)
+		}
+	}
+	nodes := driver.calls[0].params["nodes"].([]map[string]any)
+	if nodes[0]["classification_code"] != "industry_sector" {
+		t.Fatalf("sector params = %#v", nodes[0])
+	}
+	if _, ok := nodes[1]["classification_code"]; ok {
+		t.Fatalf("non-sector params contain classification_code: %#v", nodes[1])
+	}
+}
+
 func TestNeo4jGraphWriterUpsertsRelationshipsByType(t *testing.T) {
 	driver := &recordingCypherDriver{}
 	writer := NewNeo4jGraphWriter(driver, "neo4j")

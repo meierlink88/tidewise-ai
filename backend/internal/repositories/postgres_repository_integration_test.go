@@ -326,6 +326,53 @@ INSERT INTO entity_edges (
 	}
 }
 
+func TestPostgresGraphProjectionSourcesOnlyContainActiveRows(t *testing.T) {
+	dsn := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run PostgreSQL graph projection source integration test")
+	}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	repo := NewPostgresRepository(db)
+	nodes, err := repo.ListGraphEntityNodes(context.Background())
+	if err != nil {
+		t.Fatalf("ListGraphEntityNodes() error = %v", err)
+	}
+	activeIDs := make(map[string]struct{}, len(nodes))
+	for _, node := range nodes {
+		if node.Status != domain.StatusActive {
+			t.Fatalf("projection source contains inactive node %s with status %s", node.ID, node.Status)
+		}
+		if node.EntityType == domain.EntityTypeSector {
+			if node.ClassificationCode != domain.SectorClassificationIndustry && node.ClassificationCode != domain.SectorClassificationTheme && node.ClassificationCode != domain.SectorClassificationMarket && node.ClassificationCode != domain.SectorClassificationStyle && node.ClassificationCode != domain.SectorClassificationRegion {
+				t.Fatalf("projection sector %s has invalid classification %q", node.ID, node.ClassificationCode)
+			}
+		} else if node.ClassificationCode != "" {
+			t.Fatalf("non-sector projection node %s has classification %q", node.ID, node.ClassificationCode)
+		}
+		activeIDs[node.ID] = struct{}{}
+	}
+	edges, err := repo.ListGraphEntityEdges(context.Background())
+	if err != nil {
+		t.Fatalf("ListGraphEntityEdges() error = %v", err)
+	}
+	for _, edge := range edges {
+		if edge.Status != domain.StatusActive {
+			t.Fatalf("projection source contains inactive edge %s", edge.ID)
+		}
+		if _, ok := activeIDs[edge.FromEntityID]; !ok {
+			t.Fatalf("projection edge %s has inactive or absent from endpoint %s", edge.ID, edge.FromEntityID)
+		}
+		if _, ok := activeIDs[edge.ToEntityID]; !ok {
+			t.Fatalf("projection edge %s has inactive or absent to endpoint %s", edge.ID, edge.ToEntityID)
+		}
+	}
+}
+
 func TestPostgresRepositoryBenchmarkObservationIntegration(t *testing.T) {
 	dsn := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
 	if dsn == "" {

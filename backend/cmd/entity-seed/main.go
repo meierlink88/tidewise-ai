@@ -17,7 +17,12 @@ import (
 func main() {
 	seedDir := flag.String("seed-dir", entityseed.DefaultSeedDir, "entity foundation seed directory")
 	includeInactive := flag.Bool("include-inactive", false, "include inactive entities in seed writes")
+	applySectorConvergence := flag.Bool("apply-sector-convergence", false, "apply the reviewed initial sector convergence")
+	applySectorConvergenceCorrection := flag.Bool("apply-sector-convergence-correction", false, "apply a reviewed forward sector convergence correction")
 	flag.Parse()
+	if *applySectorConvergence && *applySectorConvergenceCorrection {
+		log.Fatal("apply-sector-convergence and apply-sector-convergence-correction cannot be used together")
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -40,6 +45,26 @@ func main() {
 	defer db.Close()
 
 	service := entityseed.NewService(entityseed.NewPostgresRepository(db))
+	if *applySectorConvergence || *applySectorConvergenceCorrection {
+		convergence, err := entityseed.LoadSectorConvergenceFile(*seedDir + "/sector_convergences.json")
+		if err != nil {
+			log.Fatalf("load sector convergence manifest: %v", err)
+		}
+		mode := entityseed.SectorConvergenceModeInitial
+		if *applySectorConvergenceCorrection {
+			mode = entityseed.SectorConvergenceModeCorrection
+		}
+		report, err := service.ApplySectorConvergence(ctx, manifest, convergence, mode)
+		if err != nil {
+			log.Fatalf("apply sector convergence: %v", err)
+		}
+		content, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			log.Fatalf("encode sector convergence report: %v", err)
+		}
+		fmt.Fprintln(os.Stdout, string(content))
+		return
+	}
 	report, err := service.Apply(ctx, manifest, entityseed.ApplyOptions{IncludeInactive: *includeInactive})
 	if err != nil {
 		log.Fatalf("apply entity seed: %v", err)

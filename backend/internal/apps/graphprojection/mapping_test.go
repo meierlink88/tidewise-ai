@@ -44,6 +44,45 @@ func TestMapEntityNodePreservesProjectionFields(t *testing.T) {
 	}
 }
 
+func TestMapEntityNodeProjectsOnlyValidSectorClassification(t *testing.T) {
+	for _, classification := range []domain.SectorClassification{domain.SectorClassificationIndustry, domain.SectorClassificationTheme} {
+		node := repositories.GraphEntityNode{
+			ID: "sector-1", EntityKey: "sector:test", EntityType: domain.EntityTypeSector,
+			LayerCode: "sector", Name: "测试板块", CanonicalName: "测试板块",
+			ClassificationCode: classification, Status: domain.StatusActive,
+		}
+		mapped, err := MapEntityNode(node, "tidewise")
+		if err != nil {
+			t.Fatalf("MapEntityNode(%q) error = %v", classification, err)
+		}
+		if mapped.ClassificationCode != classification {
+			t.Fatalf("classification = %q, want %q", mapped.ClassificationCode, classification)
+		}
+	}
+
+	nonSector, err := MapEntityNode(repositories.GraphEntityNode{
+		ID: "market-1", EntityKey: "market:test", EntityType: domain.EntityTypeMarket,
+		LayerCode: "market", Name: "测试市场", CanonicalName: "测试市场", Status: domain.StatusActive,
+	}, "tidewise")
+	if err != nil {
+		t.Fatalf("MapEntityNode(non-sector) error = %v", err)
+	}
+	if nonSector.ClassificationCode != "" {
+		t.Fatalf("non-sector classification = %q, want empty", nonSector.ClassificationCode)
+	}
+
+	for _, classification := range []domain.SectorClassification{"", "index_sector"} {
+		_, err := MapEntityNode(repositories.GraphEntityNode{
+			ID: "sector-invalid", EntityKey: "sector:invalid", EntityType: domain.EntityTypeSector,
+			LayerCode: "sector", Name: "非法板块", CanonicalName: "非法板块",
+			ClassificationCode: classification, Status: domain.StatusActive,
+		}, "tidewise")
+		if err == nil || !strings.Contains(err.Error(), "sector classification") {
+			t.Fatalf("classification %q error = %v, want sector classification error", classification, err)
+		}
+	}
+}
+
 func TestMapEntityNodeRejectsMissingRequiredFields(t *testing.T) {
 	_, err := MapEntityNode(repositories.GraphEntityNode{
 		ID:         "entity-1",
@@ -61,16 +100,18 @@ func TestMapEntityNodeRejectsMissingRequiredFields(t *testing.T) {
 
 func TestMapRelationTypeUsesSafeKnownTypes(t *testing.T) {
 	cases := map[string]string{
-		"member_of":          "MEMBER_OF",
-		"HAS_MARKET":         "HAS_MARKET",
-		"tracks_index":       "TRACKS_INDEX",
-		"issues":             "ISSUES",
-		"participates_in":    "PARTICIPATES_IN",
-		"affiliated_with":    "AFFILIATED_WITH",
-		"applies_to":         "APPLIES_TO",
-		"observes_benchmark": "OBSERVES_BENCHMARK",
-		"measures":           "MEASURES",
-		"references":         "REFERENCES",
+		"member_of":            "MEMBER_OF",
+		"HAS_MARKET":           "HAS_MARKET",
+		"tracks_index":         "TRACKS_INDEX",
+		"issues":               "ISSUES",
+		"participates_in":      "PARTICIPATES_IN",
+		"affiliated_with":      "AFFILIATED_WITH",
+		"applies_to":           "APPLIES_TO",
+		"observes_benchmark":   "OBSERVES_BENCHMARK",
+		"covers_sector":        "COVERS_SECTOR",
+		"tracked_by_benchmark": "TRACKED_BY_BENCHMARK",
+		"measures":             "MEASURES",
+		"references":           "REFERENCES",
 	}
 
 	for input, want := range cases {
@@ -81,6 +122,37 @@ func TestMapRelationTypeUsesSafeKnownTypes(t *testing.T) {
 			}
 			if got != want {
 				t.Fatalf("MapRelationType() = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestMapMarketSectorRelationshipsPreservesOriginalType(t *testing.T) {
+	nodes := map[string]GraphNode{
+		"market":    {EntityID: "market"},
+		"sector":    {EntityID: "sector"},
+		"benchmark": {EntityID: "benchmark"},
+	}
+	cases := []struct {
+		from         string
+		to           string
+		relationType string
+		mappedType   string
+	}{
+		{from: "market", to: "sector", relationType: "covers_sector", mappedType: "COVERS_SECTOR"},
+		{from: "sector", to: "benchmark", relationType: "tracked_by_benchmark", mappedType: "TRACKED_BY_BENCHMARK"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.relationType, func(t *testing.T) {
+			relationship, report := MapEntityRelationship(repositories.GraphEntityEdge{
+				ID: "edge-" + tc.relationType, FromEntityID: tc.from, ToEntityID: tc.to,
+				RelationType: tc.relationType, Status: domain.StatusActive,
+			}, nodes, "tidewise")
+			if report.Status != RelationshipMapStatusProjected || relationship == nil {
+				t.Fatalf("mapping report = %+v, relationship = %+v", report, relationship)
+			}
+			if relationship.RelationshipType != tc.mappedType || relationship.OriginalRelationType != tc.relationType {
+				t.Fatalf("relationship = %+v", relationship)
 			}
 		})
 	}

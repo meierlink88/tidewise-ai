@@ -143,12 +143,20 @@ type recordingRepository struct {
 	failOnCall string
 }
 
+func (r *recordingRepository) HasActiveLegacySectors(context.Context) (bool, error) {
+	return false, nil
+}
+
 func (r *recordingRepository) UpsertEntity(_ context.Context, entity Entity) (WriteResult, error) {
 	return r.record("entity:"+entity.Key, entity.Key)
 }
 
 func (r *recordingRepository) UpsertProfile(_ context.Context, profile Profile) (WriteResult, error) {
 	return r.record("profile:"+profile.EntityKey, profile.EntityKey)
+}
+
+func (r *recordingRepository) UpsertSectorSourceMapping(_ context.Context, mapping SectorSourceMapping) (WriteResult, error) {
+	return r.record("sector_source_mapping:"+sectorSourceMappingIdentity(normalizeSectorSourceMapping(mapping)), mapping.SectorEntityKey)
 }
 
 func (r *recordingRepository) UpsertRelationship(_ context.Context, relationship Relationship) (WriteResult, error) {

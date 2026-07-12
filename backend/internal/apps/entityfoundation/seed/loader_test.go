@@ -69,19 +69,22 @@ func TestLoadManifestValidatesEntitiesAndRelationships(t *testing.T) {
 	}
 }
 
-func TestDefaultSeedPathsIncludeBenchmarkFiles(t *testing.T) {
+func TestDefaultSeedPathsIncludeReviewedMarketSectorFiles(t *testing.T) {
 	paths := DefaultSeedPaths("seed-root")
 	required := map[string]struct{}{
-		filepath.Join("seed-root", "benchmarks.json"):                          {},
-		filepath.Join("seed-root", "relationships", "observes_benchmark.json"): {},
-		filepath.Join("seed-root", "relationships", "measures.json"):           {},
-		filepath.Join("seed-root", "relationships", "references.json"):         {},
+		filepath.Join("seed-root", "benchmarks.json"):                            {},
+		filepath.Join("seed-root", "sector_source_mappings.json"):                {},
+		filepath.Join("seed-root", "relationships", "observes_benchmark.json"):   {},
+		filepath.Join("seed-root", "relationships", "covers_sector.json"):        {},
+		filepath.Join("seed-root", "relationships", "tracked_by_benchmark.json"): {},
+		filepath.Join("seed-root", "relationships", "measures.json"):             {},
+		filepath.Join("seed-root", "relationships", "references.json"):           {},
 	}
 	for _, path := range paths {
 		delete(required, path)
 	}
 	if len(required) > 0 {
-		t.Fatalf("DefaultSeedPaths() missing benchmark paths: %v", required)
+		t.Fatalf("DefaultSeedPaths() missing reviewed market sector paths: %v", required)
 	}
 }
 
@@ -290,6 +293,51 @@ func TestValidateRelationshipPolicyAcceptsSupportedTypeDirections(t *testing.T) 
 	}
 }
 
+func TestValidateMarketSectorRelationshipPolicies(t *testing.T) {
+	verifiedAt := time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC)
+	entities := map[string]Entity{
+		"market:a_share":        {Key: "market:a_share", EntityType: domain.EntityTypeMarket},
+		"sector:industry_banks": {Key: "sector:industry_banks", EntityType: domain.EntityTypeSector},
+		"benchmark:bank_index":  {Key: "benchmark:bank_index", EntityType: domain.EntityTypeBenchmark},
+	}
+	valid := []Relationship{
+		{Key: "covers", From: "market:a_share", To: "sector:industry_banks", RelationType: "covers_sector"},
+		{Key: "tracks", From: "sector:industry_banks", To: "benchmark:bank_index", RelationType: "tracked_by_benchmark"},
+		{Key: "observes", From: "market:a_share", To: "benchmark:bank_index", RelationType: "observes_benchmark"},
+	}
+	for _, relationship := range valid {
+		relationship.SourceName = "官方来源"
+		relationship.SourceURL = "https://example.com/methodology"
+		relationship.VerifiedAt = verifiedAt
+		relationship.EvidenceNote = "客观分类与行情跟踪关系"
+		if err := validateRelationshipPolicy(relationship, entities); err != nil {
+			t.Fatalf("validateRelationshipPolicy(%s) error = %v", relationship.RelationType, err)
+		}
+	}
+
+	base := Relationship{
+		Key: "invalid", SourceName: "官方来源", SourceURL: "https://example.com/methodology",
+		VerifiedAt: verifiedAt, EvidenceNote: "客观关系",
+	}
+	cases := map[string]Relationship{
+		"covers reverse":             {Key: base.Key, From: "sector:industry_banks", To: "market:a_share", RelationType: "covers_sector", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"tracked reverse":            {Key: base.Key, From: "benchmark:bank_index", To: "sector:industry_banks", RelationType: "tracked_by_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"observes cannot be sector":  {Key: base.Key, From: "sector:industry_banks", To: "benchmark:bank_index", RelationType: "observes_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"unknown endpoint":           {Key: base.Key, From: "market:a_share", To: "sector:missing", RelationType: "covers_sector", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"self relationship":          {Key: base.Key, From: "sector:industry_banks", To: "sector:industry_banks", RelationType: "tracked_by_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt},
+		"missing provenance":         {Key: base.Key, From: "market:a_share", To: "sector:industry_banks", RelationType: "covers_sector"},
+		"reasoning evidence":         {Key: base.Key, From: "market:a_share", To: "sector:industry_banks", RelationType: "covers_sector", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt, EvidenceNote: "事件评分显示该板块受益"},
+		"investment advice evidence": {Key: base.Key, From: "sector:industry_banks", To: "benchmark:bank_index", RelationType: "tracked_by_benchmark", SourceName: base.SourceName, SourceURL: base.SourceURL, VerifiedAt: base.VerifiedAt, EvidenceNote: "投资建议：买入"},
+	}
+	for name, relationship := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := validateRelationshipPolicy(relationship, entities); err == nil {
+				t.Fatal("validateRelationshipPolicy() error = nil")
+			}
+		})
+	}
+}
+
 func TestLoadManifestAcceptsBenchmarkProfileWithNullableOfficialSeriesCode(t *testing.T) {
 	manifest, err := Load([]byte(`{
 	  "entities": [
@@ -488,4 +536,112 @@ func writeManifest(t *testing.T, content string) string {
 		t.Fatalf("write manifest: %v", err)
 	}
 	return path
+}
+
+func TestLoadValidatesSectorSemanticClassificationAndSourceTaxonomy(t *testing.T) {
+	valid := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+	    "name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector","review_status":"approved"}
+	  }],
+	  "sector_source_mappings": [{
+	    "sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"index_sector",
+	    "source_sector_name":" 人工智能 ","source_market_scope":"cn_a_share","mapping_status":"approved"
+	  }]
+	}`)
+	manifest, err := Load(valid)
+	if err != nil {
+		t.Fatalf("Load(valid) error = %v", err)
+	}
+	if got := manifest.SectorSourceMappings[0].SourceSectorNameNormalized; got != "人工智能" {
+		t.Fatalf("normalized source name = %q, want 人工智能", got)
+	}
+	invalidClassification := strings.Replace(string(valid), `"theme_sector"`, `"index_sector"`, 1)
+	if _, err := Load([]byte(invalidClassification)); err == nil || !strings.Contains(err.Error(), "unsupported sector classification") {
+		t.Fatalf("Load(index_sector classification) error = %v", err)
+	}
+	invalidTaxonomy := strings.Replace(string(valid), `"index_sector"`, `"benchmark"`, 1)
+	if _, err := Load([]byte(invalidTaxonomy)); err == nil || !strings.Contains(err.Error(), "unsupported source taxonomy type") {
+		t.Fatalf("Load(benchmark taxonomy) error = %v", err)
+	}
+}
+
+func TestLoadRejectsDuplicateSectorSourceMappingIdentityAcrossSnapshots(t *testing.T) {
+	data := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+	    "name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector"}
+	  }],
+	  "sector_source_mappings": [
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_name":"人工 智能","source_market_scope":"cn_a_share","snapshot_date":"2026-07-01"},
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_name":"人工智能","source_market_scope":"cn_a_share","snapshot_date":"2026-07-08"}
+	  ]
+	}`)
+	if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "duplicate sector source mapping identity") {
+		t.Fatalf("Load(duplicate mapping) error = %v", err)
+	}
+}
+
+func TestLoadRejectsDuplicateCodedSectorSourceMappingAcrossSnapshots(t *testing.T) {
+	data := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector","name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector"}
+	  }],
+	  "sector_source_mappings": [
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_code":"885001","source_sector_name":"人工智能","snapshot_date":"2026-07-01"},
+	    {"sector_entity_key":"sector:theme_ai","source_system":"ths","source_taxonomy_type":"concept","source_sector_code":"885001","source_sector_name":"AI","snapshot_date":"2026-07-08"}
+	  ]
+	}`)
+	if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "duplicate sector source mapping identity") {
+		t.Fatalf("Load(duplicate coded mapping) error = %v", err)
+	}
+}
+
+func TestLoadValidatesSectorPrimaryMarketAndEconomyReferenceTypes(t *testing.T) {
+	valid := `{
+	  "entities": [
+	    {"key":"market:cn_a_share","entity_type":"market","layer_code":"market","name":"中国A股","canonical_name":"中国A股","profile":{"market_type":"stock_market"}},
+	    {"key":"economy:cn","entity_type":"economy","layer_code":"economy","name":"中国","canonical_name":"中国","profile":{"country_code":"CN","currency_code":"CNY"}},
+	    {"key":"sector:theme_ai","entity_type":"sector","layer_code":"sector","name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+	     "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector","primary_market_entity_id":"market:cn_a_share","primary_economy_entity_id":"economy:cn"}}
+	  ]
+	}`
+	if _, err := Load([]byte(valid)); err != nil {
+		t.Fatalf("Load(valid references) error = %v", err)
+	}
+	invalidMarket := strings.Replace(valid, `"primary_market_entity_id":"market:cn_a_share"`, `"primary_market_entity_id":"economy:cn"`, 1)
+	if _, err := Load([]byte(invalidMarket)); err == nil || !strings.Contains(err.Error(), "primary_market_entity_id must reference market") {
+		t.Fatalf("Load(invalid market reference) error = %v", err)
+	}
+}
+
+func TestLoadRequiresEnglishAliasForCanonicalChineseSector(t *testing.T) {
+	data := []byte(`{
+	  "entities": [{
+	    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+	    "name":"人工智能","canonical_name":"人工智能",
+	    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector"}
+	  }]
+	}`)
+	if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "sector with Chinese primary name requires an English alias") {
+		t.Fatalf("Load(missing English alias) error = %v", err)
+	}
+}
+
+func TestLoadRejectsSectorSelectionScoreAndRuntimeTier(t *testing.T) {
+	for _, field := range []string{"selection_score", "runtime_tier"} {
+		data := []byte(`{
+		  "entities": [{
+		    "key":"sector:theme_ai","entity_type":"sector","layer_code":"sector",
+		    "name":"人工智能","canonical_name":"人工智能","aliases":["Artificial Intelligence"],
+		    "profile":{"sector_system":"tidewise","sector_code":"","sector_type":"theme","classification_code":"theme_sector","` + field + `":"forbidden"}
+		  }]
+		}`)
+		if _, err := Load(data); err == nil || !strings.Contains(err.Error(), "forbidden reasoning field") {
+			t.Fatalf("Load(%s) error = %v", field, err)
+		}
+	}
 }

@@ -1,0 +1,81 @@
+## 1. Review 准备与候选清单
+
+- [x] 1.1（首次清单验收否决后已返工）不机械沿用旧 `sectors.json`，从事件推理角度重新推荐 concept、industry、index_sector 各 20 个原始候选，并把旧 60 条仅作为迁移对照
+- [x] 1.2（返工完成）按已确认权重和六维独立 0/3/5 锚点评估新 60 个候选，逐项保存 evidence/source；未核验行情敏感度按 0 分，不为数量目标虚增评分
+- [x] 1.3（返工完成）重构 `candidate-review.md`，同时呈现原始候选 60、建议正式 52、旧 PG 逐项迁移、source/benchmark 建议、重复与覆盖统计；由 Git 保留 Review 历史
+- [x] 1.4 用户已批准候选方向与语义候选池；批准不等于行情证据，migration、正式 seed、PG 写入或 Neo4j 写入/重建仍未获授权
+- [x] 1.5 按用户 Review 收敛八组 canonical 合并、官方指数 source mapping/`tracked_by_benchmark` 候选和低分组 `MVP覆盖override/待后续行情验证`；原始六维评分保持不变
+- [x] 1.6 在 Review artifact 中完成旧 PG 替换对照与建议正式 52 个 canonical sector 的 seed 草案边界；Top/顺序不进入 stable key 或实体身份，尚未修改正式 seed
+- [x] 1.7 标注核心30、扩展15、观察7的推理调度建议，明确分层不属于实体身份字段
+
+> **阶段记录：** tasks 1.x Review 收敛完成，主对话已批准进入 task 2；正式 seed、migration apply、PostgreSQL 写入和 Neo4j 仍未获授权。
+
+## 2. Profile 与 migration 测试先行
+
+- [x] 2.1 在 `backend/migrations` 增加 migration 静态测试，先验证 `sector_profiles` 增量字段、`sector_source_mappings` 结构、有代码与无代码稳定唯一约束不含 `snapshot_date`、`source_market_scope` 非空且默认空串、非破坏性 SQL、外键引用和回滚说明
+- [x] 2.2 在 `backend/internal/apps/entityfoundation/seed` 增加 sector profile 和 source mapping loader 测试，覆盖 semantic classification 不含 `index_sector`、source taxonomy 可为 `index_sector`、主要市场、主要经济体、中文主名、英文 alias 和 Review 状态，并验证有代码/无代码 identity、名称规范化与最新快照幂等覆盖
+- [x] 2.3 已取得 RED：migration 测试因缺少 `000010` 失败；domain/seed 测试因缺少 semantic classification、source mapping 类型、loader 与 upsert 能力失败；引用测试确认错误 market 类型在实现前被接受
+- [x] 2.4 追加非破坏性 `000010_add_market_sector_foundation.sql`，先按旧 `sector_type` 确定性回填 semantic classification，再设置 default、NOT NULL 与 check；补充主要市场、主要经济体、方法 URL、Review 状态字段，并新增 `sector_source_mappings` 作为多来源映射事实表
+- [x] 2.5 更新 domain、repository、service 和 seed loader，使新版 sector profile 与 source mapping 字段可校验、可写入、可幂等更新；source identity 和非快照审阅字段始终按输入更新，只有不旧于现有记录的输入才覆盖 `rank_snapshot`、`snapshot_date` 和 `source_url`，未新增历史 snapshot 表
+- [x] 2.6 复跑 migration 回填与约束静态测试、Memory/PG 快照门禁一致性回归、相关 package tests 和 `go test ./...`，确认通过；未执行 migration apply 或任何 PostgreSQL 写入
+
+> **暂停门：** task 2 已完成并等待主对话验收。进入 task 3 关系策略与图谱投影前必须再次获得批准。
+
+## 3. 关系策略与图谱投影
+
+- [x] 3.1 在 `backend/internal/apps/entityfoundation/seed` 增加 relationship policy 测试，覆盖 `covers_sector` 只允许 `market -> sector`、`tracked_by_benchmark` 只允许 `sector -> benchmark`、拒绝反向、拒绝复用 `observes_benchmark`、拒绝推理文案和拒绝悬空端点
+- [x] 3.2 在 `backend/internal/apps/graphprojection` 增加 relation mapping 测试，覆盖 `covers_sector -> COVERS_SECTOR` 和 `tracked_by_benchmark -> TRACKED_BY_BENCHMARK`
+- [x] 3.3 运行新增关系与投影测试，确认 seed policy 因不支持 `covers_sector` 失败，projection mapping 因两条新关系均回退为 `RELATED_TO` 失败
+- [x] 3.4 更新 `relationship_policy.go`，增加 `covers_sector` 和 `tracked_by_benchmark` 客观关系策略；暂不正式允许未审阅的 `sector -> chain_node` 关系写入 seed
+- [x] 3.5 更新 `graphprojection/mapping.go`，增加 `COVERS_SECTOR` 和 `TRACKED_BY_BENCHMARK` 映射，并保持未知或不安全关系 fallback 行为
+- [x] 3.6 复跑关系与投影聚焦测试及两个完整 package tests，确认通过
+
+> **暂停门：** task 3 已完成并等待主对话验收。进入 task 4 正式 seed 数据与关系文件前必须再次获得批准。
+
+## 4. Seed 数据与安全校验
+
+- [x] 4.1 增加 seed fixture 测试，验证 52 个 reviewed sector、canonical key 来源无关、三类各 20 个来源候选映射、主要传导簇代表覆盖、中文主名/英文 alias 和 Review 状态
+- [x] 4.2 增加 forbidden reasoning 测试，验证 sector profile 和 sector relationship 中出现受益、投资建议等字段或文案时会被拒绝
+- [x] 4.3 运行新增 seed 测试，确认旧 sector 数量、缺失 source mapping/关系文件和默认路径在数据更新前失败
+- [x] 4.4 按用户 Review 结果更新 `backend/data/entity_foundation/sectors.json` 和 `backend/data/entity_foundation/sector_source_mappings.json`，完成 60 候选到 52 canonical 的去重、分类收敛和八组多来源映射；未核验来源代码均使用无代码 Review identity
+- [x] 4.5 增加 `backend/data/entity_foundation/relationships/covers_sector.json`，仅写入 52 条已 Review 的 `market:a_share -> sector` 客观覆盖关系
+- [x] 4.6 增加空的 `backend/data/entity_foundation/relationships/tracked_by_benchmark.json` manifest；当前 benchmark seed 不包含已审阅产业指数实体，因此不创建悬空或臆造关系，并保持现有 `observes_benchmark` 只用于 `market -> benchmark`
+- [x] 4.7 复跑聚焦 seed 测试和完整 entityfoundation seed package tests，确认通过
+
+> **暂停门：** task 4 已完成并等待主对话验收。进入 task 5 全 change 验证、sync 或 archive 前必须再次获得批准。
+
+## 5. 验证与交付边界
+
+- [x] 5.1 运行 `go test ./... -count=1`，确认后端全部自动化测试通过
+- [x] 5.2 运行 `openspec validate add-market-sector-foundation` 并检查 sync/archive 前 artifact 阶段措辞，确认 change artifacts 有效且与已完成实现一致
+- [x] 5.3 从 change merge-base 到 HEAD 审计完整 scoped diff、secrets、临时 provenance、stable key、semantic classification、禁止文案、关系端点与数据闭合，确认未修改 `prototype`、上级 `doc`、`add-ai-event-extraction-pipeline` 或 `add-sdk-source-worker-connectors` 相关内容
+- [x] 5.4 用户已逐阶段批准本 change 的 Apply 实现与 checkpoint commits；该批准不包含真实 migration apply、seed 写入、PostgreSQL/Neo4j 写入或图谱重建，以上操作仍需独立审批
+
+## 6. Canonical convergence 重新设计与实现
+
+- [x] 6.1 记录 local PostgreSQL 已应用 migration `000010`、仍有 60 个 active legacy sector、mapping/covers 均为 0，正式 entity seed 因预检会产生 112 active sector 而未执行
+- [x] 6.2 在 proposal/design/delta specs 中固定复核后的 60 项处置矩阵：10 replace、19 merge、11 retire_without_canonical、15 replace_with_existing_index、5 retire_without_target；旧 UUID 保留、类型安全引用迁移、显式 CLI、单事务和最终 52 active 边界；`candidate-review.md` 保持不变
+- [x] 6.3 TDD RED：增加 convergence manifest loader/domain 测试，覆盖完整 60 项、正整数 manifest version、previous version、checksum/Review 元数据、action/target 约束、canonical/legacy key 唯一性、alias/source/reference policy、同版本 payload regression 和禁止推理字段
+- [x] 6.4 TDD RED：增加 Memory/PG service/repository 测试，覆盖普通 seed fail-closed、首次显式 convergence、单事务 rollback、29 条 sector target、15 条 existing index target、16 条无 target、未知 FK、edge 冲突，以及新版本 target 纠错时 reference/mapping/alias provenance 验证
+- [x] 6.5 TDD RED：增加 CLI 与 migration 静态测试，覆盖 `-apply-sector-convergence`、`-apply-sector-convergence-correction` 双重门禁，`entity_convergence_manifests`、独立 audit ID、`UNIQUE(legacy_entity_id, manifest_version)`、append-only mutation audit、历史 UPDATE/DELETE 防护和 invalid version regression
+- [x] 6.6 实现 `sector_convergences.json`、domain/loader、append-only convergence migrations、`SectorReferenceRegistry`、Memory clone-on-write、PostgreSQL `sql.Tx`、mutation provenance、service report 和首次/纠错显式 CLI；不得修改 `candidate-review.md` 的批准快照
+- [x] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 零写入、首次 convergence 为 52 active/60 inactive/60 current audit/89 mappings/52 covers/0 tracked，同版本重跑不新增 audit，新版本只 append 且当前结论唯一确定，非法版本与纠错漂移整体 rollback
+- [x] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
+- [x] 6.9 经独立审批后在 local apply migration `000011` 并执行一次首次显式 convergence；验收 52 active canonical、60 inactive legacy、60 current audit、89 mappings、52 covers、0 tracked，reference/alias moves 各 29 且无悬空或 active legacy 引用；期间两次失败均完整回滚并在修复获批后继续，未手工修库
+- [x] 6.10 经独立审批 apply `000013`，仅规范两组 current provenance alias 顺序且 alias 集合与其余数据指纹不变；首次普通 seed 仅恢复 95 个非 sector entity 的正式 alias 顺序（Created=0、Updated=95），非 alias 字段与 alias 集合不变；立即第二次普通 seed 为 Created=0、Updated=0，同版本 convergence 为 audit_unchanged=60 且其余写计数为 0。最终 local PostgreSQL 为 version 13，52 active canonical、60 inactive legacy、60 audits、89 mappings、52 covers、0 tracked、reference/alias moves 各 29，audit-owned aliases present/missing=29/0，悬空与 active legacy 引用均为 0
+
+> **暂停门：** Task 6 已完成并等待 PostgreSQL 状态验收。未经独立审批不得运行 Neo4j graph projection、Sync、Archive 或创建 PR。
+
+## 7. Active-only Neo4j projection 修复与重验
+
+- [x] 7.1 记录首次 stateful rebuild 失败现场：项目命令成功但把 PostgreSQL 全部 611 个实体投影到 Neo4j，形成 112 个 sector（52 active canonical + 60 inactive legacy）、383 条关系；PostgreSQL version 13 与 52/60/60/89/52/0 事实未漂移，未手工修图
+- [x] 7.2 TDD RED：增加 PostgreSQL/Memory source 与 projector 混合状态测试，复现 inactive 节点、inactive edge 和 active edge 指向 inactive 端点仍进入 source/projected count 的缺陷
+- [x] 7.3 在通用 repository source 增加 active node 与 active 双端点 edge 过滤，并在 projector 增加 fail-closed 防御；不按 sector 特判，不改变 namespace、关系映射或 PostgreSQL 事实源边界
+- [x] 7.4 运行 repository/graphprojection 聚焦测试、真实 PostgreSQL 只读 source 测试、全量 Go、OpenSpec、diff 与 secret 检查并提交修复 checkpoint；本任务不得再次运行 graph-projector 或写 Neo4j
+- [x] 7.5 经独立审批重新执行 `rebuild-entities`，run succeeded 且 source/projected=934/934，得到 551 active Entity、383 条关系、52 canonical sector、0 legacy、52 `COVERS_SECTOR`、0 `TRACKED_BY_BENCHMARK`；但 sector `classification_code` 显式属性计数为 0，因未满足属性验收而暂停，未手工 Cypher 修图
+- [x] 7.6 TDD RED：覆盖 PostgreSQL `LEFT JOIN sector_profiles` source、GraphEntityNode/GraphNode 强类型字段、industry/theme mapping、非 sector 隔离、缺失/非法分类、writer 参数和 projector failed/skipped report
+- [x] 7.7 扩展现有单一实体投影链，从 `sector_profiles.classification_code` 读取真实枚举并写入 Neo4j 同名属性；active sector 缺失或非法值 fail-closed，非 sector 不携带并清除残留属性，不按 key 推导
+- [x] 7.8 运行 repositories/graphprojection/cmd 聚焦测试、真实 PostgreSQL 只读 classification source 测试、全量 Go、OpenSpec、diff 与 secret 检查；本任务不得运行 graph-projector 或写 Neo4j
+- [x] 7.9 经独立审批再次执行 `rebuild-entities`，run succeeded 且 source/projected=934/934、skipped/failed=0/0；Neo4j 为 551 Entity、383 关系、52 active canonical sector、0 legacy，`classification_code` 精确为 industry_sector=29、theme_sector=23、缺失/非法=0、非 sector 携带=0，`COVERS_SECTOR`=52、`TRACKED_BY_BENCHMARK`=0，29 条 audit-owned aliases 在 PG 全量 present 且 Neo4j 抽查通过，实体/关系类型、namespace、重复、悬空端点和 `TidewiseEntity` 验收全部闭合，PostgreSQL version 13 与 52/60/60/89/52/0 未漂移
+
+> **暂停门：** Apply tasks 与 local PostgreSQL/Neo4j stateful 验收已完成，等待主对话最终 Apply Review。未经独立审批不得 Sync、Archive 或创建 PR。

@@ -3,19 +3,22 @@ package graphprojection
 import (
 	"context"
 	"time"
+
+	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
 
 type GraphNode struct {
-	EntityID      string
-	EntityKey     string
-	EntityType    string
-	LayerCode     string
-	Name          string
-	CanonicalName string
-	Aliases       []string
-	Status        string
-	Namespace     string
-	UpdatedAt     time.Time
+	EntityID           string
+	EntityKey          string
+	EntityType         string
+	LayerCode          string
+	Name               string
+	CanonicalName      string
+	Aliases            []string
+	ClassificationCode domain.SectorClassification
+	Status             string
+	Namespace          string
+	UpdatedAt          time.Time
 }
 
 type GraphRelationship struct {

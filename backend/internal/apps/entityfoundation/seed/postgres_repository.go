@@ -14,11 +14,31 @@ import (
 )
 
 type PostgresRepository struct {
-	db *sql.DB
+	db   postgresExecutor
+	root *sql.DB
+}
+
+type postgresExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 func NewPostgresRepository(db *sql.DB) PostgresRepository {
-	return PostgresRepository{db: db}
+	return PostgresRepository{db: db, root: db}
+}
+
+func (r PostgresRepository) HasActiveLegacySectors(ctx context.Context) (bool, error) {
+	var exists bool
+	err := r.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1 FROM entity_nodes
+    WHERE entity_type = 'sector' AND status = 'active' AND entity_key LIKE 'sector:ths\_%' ESCAPE '\'
+)`).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check active legacy sectors: %w", err)
+	}
+	return exists, nil
 }
 
 func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (WriteResult, error) {
@@ -48,13 +68,16 @@ func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (Wr
 }
 
 func buildEntityUpsert() string {
-	return `
-WITH upsert AS (
+	return `WITH ` + entityAliasOwnershipCTEs(1, 7) + `, incoming AS (
+    SELECT $1::uuid AS id, $2::text AS entity_key, $3::text AS entity_type,
+           $4::text AS layer_code, $5::text AS name, $6::text AS canonical_name,
+           sa.aliases || oa.aliases AS aliases,
+           $8::text AS status
+    FROM seed_aliases sa CROSS JOIN owned_aliases oa
+), upsert AS (
     INSERT INTO entity_nodes (
         id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-    ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8
-    )
+    ) SELECT id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status FROM incoming
     ON CONFLICT (id) DO UPDATE SET
         entity_key = EXCLUDED.entity_key,
         entity_type = EXCLUDED.entity_type,
@@ -73,8 +96,35 @@ WITH upsert AS (
        OR entity_nodes.status IS DISTINCT FROM EXCLUDED.status
     RETURNING xmax = 0 AS inserted
 )
-SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
-`
+SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')`
+}
+
+func entityAliasOwnershipCTEs(entityParameter, aliasesParameter int) string {
+	return fmt.Sprintf(`seed_aliases AS (
+    SELECT COALESCE(array_agg(alias ORDER BY first_ordinality), '{}'::text[]) AS aliases
+    FROM (
+        SELECT alias,MIN(ordinality) AS first_ordinality
+        FROM unnest(COALESCE($%d::text[], '{}'::text[])) WITH ORDINALITY AS seed(alias,ordinality)
+        WHERE alias <> ''
+        GROUP BY alias
+    ) deduplicated_seed
+), ranked_owned_aliases AS (
+    SELECT am.alias,am.moved_at,am.id,
+           row_number() OVER (PARTITION BY am.alias ORDER BY am.moved_at,am.id) AS alias_rank
+    FROM entity_convergence_alias_moves am
+    JOIN entity_convergences c ON c.id = am.convergence_id
+    CROSS JOIN seed_aliases sa
+    WHERE am.to_entity_id = $%d
+      AND c.manifest_version = (SELECT MAX(manifest_version) FROM entity_convergence_manifests)
+      AND NOT (am.alias = ANY(sa.aliases))
+), owned_aliases AS (
+    SELECT COALESCE(array_agg(alias ORDER BY moved_at,id), '{}'::text[]) AS aliases
+    FROM ranked_owned_aliases WHERE alias_rank=1
+)`, aliasesParameter, entityParameter)
+}
+
+func currentConvergenceAliasMergeQuery() string {
+	return `WITH ` + entityAliasOwnershipCTEs(1, 2) + ` SELECT to_json(sa.aliases || oa.aliases) FROM seed_aliases sa CROSS JOIN owned_aliases oa`
 }
 
 func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) (WriteResult, error) {
@@ -94,6 +144,94 @@ func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) 
 		return WriteResult{}, fmt.Errorf("upsert profile %q: %w", profile.EntityKey, err)
 	}
 	return WriteResult{Key: profile.EntityKey, Action: action}, nil
+}
+
+func (r PostgresRepository) UpsertSectorSourceMapping(ctx context.Context, mapping SectorSourceMapping) (WriteResult, error) {
+	statement, args, err := buildSectorSourceMappingUpsert(mapping)
+	if err != nil {
+		return WriteResult{}, err
+	}
+	action, err := r.queryWriteAction(ctx, statement, args...)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("upsert sector source mapping %q: %w", sectorSourceMappingIdentity(mapping), err)
+	}
+	return WriteResult{Key: sectorSourceMappingIdentity(mapping), Action: action}, nil
+}
+
+func buildSectorSourceMappingUpsert(mapping SectorSourceMapping) (string, []any, error) {
+	mapping = normalizeSectorSourceMapping(mapping)
+	if err := validateSectorSourceMapping(mapping); err != nil {
+		return "", nil, err
+	}
+	var snapshotDate any
+	if mapping.SnapshotDate != "" {
+		parsed, err := time.Parse("2006-01-02", mapping.SnapshotDate)
+		if err != nil {
+			return "", nil, fmt.Errorf("invalid sector source mapping snapshot date %q", mapping.SnapshotDate)
+		}
+		snapshotDate = parsed
+	}
+	identity := sectorSourceMappingIdentity(mapping)
+	statement := `
+WITH upsert AS (
+    INSERT INTO sector_source_mappings (
+        id, sector_entity_id, source_system, source_taxonomy_type, source_sector_code,
+        source_sector_name, source_sector_name_normalized, source_market_scope, source_url,
+        rank_snapshot, snapshot_date, mapping_status, review_note
+    ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9,
+        $10, $11, $12, $13
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        sector_entity_id = EXCLUDED.sector_entity_id,
+        source_sector_name = EXCLUDED.source_sector_name,
+        source_sector_name_normalized = EXCLUDED.source_sector_name_normalized,
+        source_market_scope = EXCLUDED.source_market_scope,
+        source_url = CASE
+            WHEN sector_source_mappings.snapshot_date IS NULL
+              OR (EXCLUDED.snapshot_date IS NOT NULL AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date)
+            THEN EXCLUDED.source_url
+            ELSE sector_source_mappings.source_url
+        END,
+        rank_snapshot = CASE
+            WHEN sector_source_mappings.snapshot_date IS NULL
+              OR (EXCLUDED.snapshot_date IS NOT NULL AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date)
+            THEN EXCLUDED.rank_snapshot
+            ELSE sector_source_mappings.rank_snapshot
+        END,
+        snapshot_date = CASE
+            WHEN sector_source_mappings.snapshot_date IS NULL
+              OR (EXCLUDED.snapshot_date IS NOT NULL AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date)
+            THEN EXCLUDED.snapshot_date
+            ELSE sector_source_mappings.snapshot_date
+        END,
+        mapping_status = EXCLUDED.mapping_status,
+        review_note = EXCLUDED.review_note,
+        updated_at = NOW()
+    WHERE (sector_source_mappings.sector_entity_id IS DISTINCT FROM EXCLUDED.sector_entity_id
+       OR sector_source_mappings.source_sector_name IS DISTINCT FROM EXCLUDED.source_sector_name
+       OR sector_source_mappings.source_sector_name_normalized IS DISTINCT FROM EXCLUDED.source_sector_name_normalized
+       OR sector_source_mappings.source_market_scope IS DISTINCT FROM EXCLUDED.source_market_scope
+       OR sector_source_mappings.mapping_status IS DISTINCT FROM EXCLUDED.mapping_status
+       OR sector_source_mappings.review_note IS DISTINCT FROM EXCLUDED.review_note
+       OR ((sector_source_mappings.snapshot_date IS NULL
+            OR (EXCLUDED.snapshot_date IS NOT NULL
+                AND EXCLUDED.snapshot_date >= sector_source_mappings.snapshot_date))
+           AND (sector_source_mappings.source_url IS DISTINCT FROM EXCLUDED.source_url
+                OR sector_source_mappings.rank_snapshot IS DISTINCT FROM EXCLUDED.rank_snapshot
+                OR sector_source_mappings.snapshot_date IS DISTINCT FROM EXCLUDED.snapshot_date)))
+    RETURNING xmax = 0 AS inserted
+)
+SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
+`
+	args := []any{
+		sectorSourceMappingSeedUUID(identity), entitySeedUUID(mapping.SectorEntityKey), mapping.SourceSystem,
+		mapping.SourceTaxonomyType, mapping.SourceSectorCode, mapping.SourceSectorName,
+		mapping.SourceSectorNameNormalized, mapping.SourceMarketScope, mapping.SourceURL,
+		mapping.RankSnapshot, snapshotDate, mapping.MappingStatus, mapping.ReviewNote,
+	}
+	return statement, args, nil
 }
 
 func (r PostgresRepository) UpsertRelationship(ctx context.Context, relationship Relationship) (WriteResult, error) {
@@ -299,7 +437,7 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"source_url", text("source_url")},
 		}, nil
 	case domain.EntityTypeSector:
-		return []profileField{
+		fields := []profileField{
 			{"sector_system", text("sector_system")},
 			{"sector_code", text("sector_code")},
 			{"sector_type", text("sector_type")},
@@ -309,7 +447,22 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"parent_sector_entity_id", ref("parent_sector_entity_id")},
 			{"rank_snapshot", number("rank_snapshot")},
 			{"snapshot_date", date("snapshot_date")},
-		}, nil
+		}
+		for _, field := range []struct {
+			name  string
+			value func(string) any
+		}{
+			{"classification_code", text},
+			{"primary_market_entity_id", ref},
+			{"primary_economy_entity_id", ref},
+			{"methodology_url", text},
+			{"review_status", text},
+		} {
+			if _, ok := profile[field.name]; ok {
+				fields = append(fields, profileField{field.name, field.value(field.name)})
+			}
+		}
+		return fields, nil
 	case domain.EntityTypeChainNode:
 		return []profileField{{"chain_position", text("chain_position")}}, nil
 	case domain.EntityTypeCompany:
@@ -447,6 +600,10 @@ func entitySeedUUID(key string) string {
 
 func relationshipSeedUUID(key string) string {
 	return repoids.NormalizeUUID("entity_relationship", key)
+}
+
+func sectorSourceMappingSeedUUID(identity string) string {
+	return repoids.NormalizeUUID("sector_source_mapping", identity)
 }
 
 func normalizeEntityAliases(aliases []string) []string {

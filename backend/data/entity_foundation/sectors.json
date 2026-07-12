@@ -1,64 +1,992 @@
 {
   "entities": [
-    {"key": "sector:ths_concept_ai", "entity_type": "sector", "layer_code": "sector", "name": "人工智能", "canonical_name": "人工智能", "profile": {"sector_system": "ths", "sector_code": "concept_001", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 1, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_compute_power", "entity_type": "sector", "layer_code": "sector", "name": "算力", "canonical_name": "算力", "profile": {"sector_system": "ths", "sector_code": "concept_002", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 2, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_data_center", "entity_type": "sector", "layer_code": "sector", "name": "数据中心", "canonical_name": "数据中心", "profile": {"sector_system": "ths", "sector_code": "concept_003", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 3, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_semiconductor", "entity_type": "sector", "layer_code": "sector", "name": "半导体概念", "canonical_name": "半导体概念", "profile": {"sector_system": "ths", "sector_code": "concept_004", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 4, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_chip", "entity_type": "sector", "layer_code": "sector", "name": "芯片概念", "canonical_name": "芯片概念", "profile": {"sector_system": "ths", "sector_code": "concept_005", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 5, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_robot", "entity_type": "sector", "layer_code": "sector", "name": "机器人概念", "canonical_name": "机器人概念", "profile": {"sector_system": "ths", "sector_code": "concept_006", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 6, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_low_altitude", "entity_type": "sector", "layer_code": "sector", "name": "低空经济", "canonical_name": "低空经济", "profile": {"sector_system": "ths", "sector_code": "concept_007", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 7, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_commercial_space", "entity_type": "sector", "layer_code": "sector", "name": "商业航天", "canonical_name": "商业航天", "profile": {"sector_system": "ths", "sector_code": "concept_008", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 8, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_satellite_nav", "entity_type": "sector", "layer_code": "sector", "name": "卫星导航", "canonical_name": "卫星导航", "profile": {"sector_system": "ths", "sector_code": "concept_009", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 9, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_defense", "entity_type": "sector", "layer_code": "sector", "name": "军工", "canonical_name": "军工", "profile": {"sector_system": "ths", "sector_code": "concept_010", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 10, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_nev", "entity_type": "sector", "layer_code": "sector", "name": "新能源汽车", "canonical_name": "新能源汽车", "profile": {"sector_system": "ths", "sector_code": "concept_011", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 11, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_solid_state_battery", "entity_type": "sector", "layer_code": "sector", "name": "固态电池", "canonical_name": "固态电池", "profile": {"sector_system": "ths", "sector_code": "concept_012", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 12, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_energy_storage", "entity_type": "sector", "layer_code": "sector", "name": "储能", "canonical_name": "储能", "profile": {"sector_system": "ths", "sector_code": "concept_013", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 13, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_photovoltaic", "entity_type": "sector", "layer_code": "sector", "name": "光伏概念", "canonical_name": "光伏概念", "profile": {"sector_system": "ths", "sector_code": "concept_014", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 14, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_wind_power", "entity_type": "sector", "layer_code": "sector", "name": "风电", "canonical_name": "风电", "profile": {"sector_system": "ths", "sector_code": "concept_015", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 15, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_hydrogen", "entity_type": "sector", "layer_code": "sector", "name": "氢能源", "canonical_name": "氢能源", "profile": {"sector_system": "ths", "sector_code": "concept_016", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 16, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_nuclear_power", "entity_type": "sector", "layer_code": "sector", "name": "核电", "canonical_name": "核电", "profile": {"sector_system": "ths", "sector_code": "concept_017", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 17, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_digital_currency", "entity_type": "sector", "layer_code": "sector", "name": "数字货币", "canonical_name": "数字货币", "profile": {"sector_system": "ths", "sector_code": "concept_018", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 18, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_cross_border_ecommerce", "entity_type": "sector", "layer_code": "sector", "name": "跨境电商", "canonical_name": "跨境电商", "profile": {"sector_system": "ths", "sector_code": "concept_019", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 19, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_concept_soe_reform", "entity_type": "sector", "layer_code": "sector", "name": "国企改革", "canonical_name": "国企改革", "profile": {"sector_system": "ths", "sector_code": "concept_020", "sector_type": "concept", "exchange_scope": "CN", "rank_snapshot": 20, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_semiconductor_components", "entity_type": "sector", "layer_code": "sector", "name": "半导体及元件", "canonical_name": "半导体及元件", "profile": {"sector_system": "ths", "sector_code": "industry_001", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 1, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_communication_equipment", "entity_type": "sector", "layer_code": "sector", "name": "通信设备", "canonical_name": "通信设备", "profile": {"sector_system": "ths", "sector_code": "industry_002", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 2, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_software", "entity_type": "sector", "layer_code": "sector", "name": "计算机应用", "canonical_name": "计算机应用", "profile": {"sector_system": "ths", "sector_code": "industry_003", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 3, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_media", "entity_type": "sector", "layer_code": "sector", "name": "传媒", "canonical_name": "传媒", "profile": {"sector_system": "ths", "sector_code": "industry_004", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 4, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_securities", "entity_type": "sector", "layer_code": "sector", "name": "证券", "canonical_name": "证券", "profile": {"sector_system": "ths", "sector_code": "industry_005", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 5, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_bank", "entity_type": "sector", "layer_code": "sector", "name": "银行", "canonical_name": "银行", "profile": {"sector_system": "ths", "sector_code": "industry_006", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 6, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_insurance", "entity_type": "sector", "layer_code": "sector", "name": "保险及其他", "canonical_name": "保险及其他", "profile": {"sector_system": "ths", "sector_code": "industry_007", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 7, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_auto", "entity_type": "sector", "layer_code": "sector", "name": "汽车整车", "canonical_name": "汽车整车", "profile": {"sector_system": "ths", "sector_code": "industry_008", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 8, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_auto_parts", "entity_type": "sector", "layer_code": "sector", "name": "汽车零部件", "canonical_name": "汽车零部件", "profile": {"sector_system": "ths", "sector_code": "industry_009", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 9, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_power_equipment", "entity_type": "sector", "layer_code": "sector", "name": "电力设备", "canonical_name": "电力设备", "profile": {"sector_system": "ths", "sector_code": "industry_010", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 10, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_pv_equipment", "entity_type": "sector", "layer_code": "sector", "name": "光伏设备", "canonical_name": "光伏设备", "profile": {"sector_system": "ths", "sector_code": "industry_011", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 11, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_battery", "entity_type": "sector", "layer_code": "sector", "name": "电池", "canonical_name": "电池", "profile": {"sector_system": "ths", "sector_code": "industry_012", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 12, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_medical_service", "entity_type": "sector", "layer_code": "sector", "name": "医疗服务", "canonical_name": "医疗服务", "profile": {"sector_system": "ths", "sector_code": "industry_013", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 13, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_chemical_pharma", "entity_type": "sector", "layer_code": "sector", "name": "化学制药", "canonical_name": "化学制药", "profile": {"sector_system": "ths", "sector_code": "industry_014", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 14, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_tcm", "entity_type": "sector", "layer_code": "sector", "name": "中药", "canonical_name": "中药", "profile": {"sector_system": "ths", "sector_code": "industry_015", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 15, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_industrial_metal", "entity_type": "sector", "layer_code": "sector", "name": "工业金属", "canonical_name": "工业金属", "profile": {"sector_system": "ths", "sector_code": "industry_016", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 16, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_coal", "entity_type": "sector", "layer_code": "sector", "name": "煤炭开采加工", "canonical_name": "煤炭开采加工", "profile": {"sector_system": "ths", "sector_code": "industry_017", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 17, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_oil_processing", "entity_type": "sector", "layer_code": "sector", "name": "石油加工贸易", "canonical_name": "石油加工贸易", "profile": {"sector_system": "ths", "sector_code": "industry_018", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 18, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_real_estate", "entity_type": "sector", "layer_code": "sector", "name": "房地产开发", "canonical_name": "房地产开发", "profile": {"sector_system": "ths", "sector_code": "industry_019", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 19, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_industry_consumer_electronics", "entity_type": "sector", "layer_code": "sector", "name": "消费电子", "canonical_name": "消费电子", "profile": {"sector_system": "ths", "sector_code": "industry_020", "sector_type": "industry", "exchange_scope": "CN", "rank_snapshot": 20, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_sse50", "entity_type": "sector", "layer_code": "sector", "name": "上证50", "canonical_name": "上证50", "profile": {"sector_system": "ths", "sector_code": "index_001", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 1, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_csi300", "entity_type": "sector", "layer_code": "sector", "name": "沪深300", "canonical_name": "沪深300", "profile": {"sector_system": "ths", "sector_code": "index_002", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 2, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_csi500", "entity_type": "sector", "layer_code": "sector", "name": "中证500", "canonical_name": "中证500", "profile": {"sector_system": "ths", "sector_code": "index_003", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 3, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_csi1000", "entity_type": "sector", "layer_code": "sector", "name": "中证1000", "canonical_name": "中证1000", "profile": {"sector_system": "ths", "sector_code": "index_004", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 4, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_star50", "entity_type": "sector", "layer_code": "sector", "name": "科创50", "canonical_name": "科创50", "profile": {"sector_system": "ths", "sector_code": "index_005", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 5, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_chinext50", "entity_type": "sector", "layer_code": "sector", "name": "创业板50", "canonical_name": "创业板50", "profile": {"sector_system": "ths", "sector_code": "index_006", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 6, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_szse100", "entity_type": "sector", "layer_code": "sector", "name": "深证100", "canonical_name": "深证100", "profile": {"sector_system": "ths", "sector_code": "index_007", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 7, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_bse50", "entity_type": "sector", "layer_code": "sector", "name": "北证50", "canonical_name": "北证50", "profile": {"sector_system": "ths", "sector_code": "index_008", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 8, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_csi_a500", "entity_type": "sector", "layer_code": "sector", "name": "中证A500", "canonical_name": "中证A500", "profile": {"sector_system": "ths", "sector_code": "index_009", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 9, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_csi_dividend", "entity_type": "sector", "layer_code": "sector", "name": "中证红利", "canonical_name": "中证红利", "profile": {"sector_system": "ths", "sector_code": "index_010", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 10, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_cctv50", "entity_type": "sector", "layer_code": "sector", "name": "央视50", "canonical_name": "央视50", "profile": {"sector_system": "ths", "sector_code": "index_011", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 11, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_csi_all", "entity_type": "sector", "layer_code": "sector", "name": "中证全指", "canonical_name": "中证全指", "profile": {"sector_system": "ths", "sector_code": "index_012", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 12, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_wind_all_a", "entity_type": "sector", "layer_code": "sector", "name": "万得全A", "canonical_name": "万得全A", "profile": {"sector_system": "ths", "sector_code": "index_013", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 13, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_cni2000", "entity_type": "sector", "layer_code": "sector", "name": "国证2000", "canonical_name": "国证2000", "profile": {"sector_system": "ths", "sector_code": "index_014", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 14, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_hsi", "entity_type": "sector", "layer_code": "sector", "name": "恒生指数", "canonical_name": "恒生指数", "profile": {"sector_system": "ths", "sector_code": "index_015", "sector_type": "index", "exchange_scope": "HK", "rank_snapshot": 15, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_hstech", "entity_type": "sector", "layer_code": "sector", "name": "恒生科技指数", "canonical_name": "恒生科技指数", "profile": {"sector_system": "ths", "sector_code": "index_016", "sector_type": "index", "exchange_scope": "HK", "rank_snapshot": 16, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_ndx", "entity_type": "sector", "layer_code": "sector", "name": "纳斯达克100", "canonical_name": "纳斯达克100", "profile": {"sector_system": "ths", "sector_code": "index_017", "sector_type": "index", "exchange_scope": "US", "rank_snapshot": 17, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_sp500", "entity_type": "sector", "layer_code": "sector", "name": "标普500", "canonical_name": "标普500", "profile": {"sector_system": "ths", "sector_code": "index_018", "sector_type": "index", "exchange_scope": "US", "rank_snapshot": 18, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_sox", "entity_type": "sector", "layer_code": "sector", "name": "费城半导体指数", "canonical_name": "费城半导体指数", "profile": {"sector_system": "ths", "sector_code": "index_019", "sector_type": "index", "exchange_scope": "US", "rank_snapshot": 19, "snapshot_date": "2026-07-08"}},
-    {"key": "sector:ths_index_msci_china_a50", "entity_type": "sector", "layer_code": "sector", "name": "MSCI中国A50互联互通", "canonical_name": "MSCI中国A50互联互通", "profile": {"sector_system": "ths", "sector_code": "index_020", "sector_type": "index", "exchange_scope": "CN", "rank_snapshot": 20, "snapshot_date": "2026-07-08"}}
+    {
+      "key": "sector:industry_banking",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "银行",
+      "canonical_name": "银行",
+      "aliases": [
+        "Banking"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_securities_insurance",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "证券与保险",
+      "canonical_name": "证券与保险",
+      "aliases": [
+        "Securities and Insurance"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_real_estate_property",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "房地产与物业",
+      "canonical_name": "房地产与物业",
+      "aliases": [
+        "Real Estate and Property Services"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_coal",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "煤炭",
+      "canonical_name": "煤炭",
+      "aliases": [
+        "Coal"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_oil_gas_refining",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "石油天然气与炼化",
+      "canonical_name": "石油天然气与炼化",
+      "aliases": [
+        "Oil Gas and Refining"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_power_utilities",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "电力与公用事业",
+      "canonical_name": "电力与公用事业",
+      "aliases": [
+        "Power and Utilities"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_nonferrous_new_materials",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "有色金属与新材料",
+      "canonical_name": "有色金属与新材料",
+      "aliases": [
+        "Nonferrous Metals and New Materials"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_basic_chemicals",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "基础化工",
+      "canonical_name": "基础化工",
+      "aliases": [
+        "Basic Chemicals"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_advanced_machinery_automation",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "高端机械与工业自动化",
+      "canonical_name": "高端机械与工业自动化",
+      "aliases": [
+        "Advanced Machinery and Automation"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_construction_infrastructure",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "建筑与基础设施",
+      "canonical_name": "建筑与基础设施",
+      "aliases": [
+        "Construction and Infrastructure"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_semiconductors_electronics",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "半导体与电子",
+      "canonical_name": "半导体与电子",
+      "aliases": [
+        "Semiconductors and Electronics"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_software_communications",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "软件与通信",
+      "canonical_name": "软件与通信",
+      "aliases": [
+        "Software and Communications"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_automobiles_components",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "汽车与零部件",
+      "canonical_name": "汽车与零部件",
+      "aliases": [
+        "Automobiles and Components"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_power_equipment_batteries",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "电力设备与电池",
+      "canonical_name": "电力设备与电池",
+      "aliases": [
+        "Power Equipment and Batteries"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_pharma_biotech",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "医药与生物科技",
+      "canonical_name": "医药与生物科技",
+      "aliases": [
+        "Pharmaceuticals and Biotechnology"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_consumer_retail",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "消费与零售",
+      "canonical_name": "消费与零售",
+      "aliases": [
+        "Consumer and Retail"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_agriculture_food",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "农业与食品",
+      "canonical_name": "农业与食品",
+      "aliases": [
+        "Agriculture and Food"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_transportation_logistics",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "交通运输与物流",
+      "canonical_name": "交通运输与物流",
+      "aliases": [
+        "Transportation and Logistics"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_environment_water",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "环保与水务",
+      "canonical_name": "环保与水务",
+      "aliases": [
+        "Environmental Services and Water Utilities"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_defense_aerospace",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "国防与航空航天",
+      "canonical_name": "国防与航空航天",
+      "aliases": [
+        "Defense and Aerospace"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_artificial_intelligence",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "人工智能",
+      "canonical_name": "人工智能",
+      "aliases": [
+        "Artificial Intelligence"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_computing_infrastructure",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "算力基础设施",
+      "canonical_name": "算力基础设施",
+      "aliases": [
+        "Computing Infrastructure"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_data_centers_cloud",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "数据中心与云",
+      "canonical_name": "数据中心与云",
+      "aliases": [
+        "Data Centers and Cloud"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_robotics_embodied_ai",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "机器人与具身智能",
+      "canonical_name": "机器人与具身智能",
+      "aliases": [
+        "Robotics and Embodied AI"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_low_altitude_economy",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "低空经济",
+      "canonical_name": "低空经济",
+      "aliases": [
+        "Low-altitude Economy"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_commercial_space_satellite",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "商业航天与卫星产业",
+      "canonical_name": "商业航天与卫星产业",
+      "aliases": [
+        "Commercial Space and Satellite Industry"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_satellite_communications_navigation",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "卫星通信与导航",
+      "canonical_name": "卫星通信与导航",
+      "aliases": [
+        "Satellite Communications and Navigation"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_cyber_data_security",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "网络与数据安全",
+      "canonical_name": "网络与数据安全",
+      "aliases": [
+        "Cybersecurity and Data Security"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_semiconductor_resilience",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "半导体自主可控",
+      "canonical_name": "半导体自主可控",
+      "aliases": [
+        "Semiconductor Supply-chain Resilience"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_advanced_energy_storage",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "新型储能",
+      "canonical_name": "新型储能",
+      "aliases": [
+        "Advanced Energy Storage"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_next_generation_batteries",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "固态与新一代电池",
+      "canonical_name": "固态与新一代电池",
+      "aliases": [
+        "Solid-state and Next-generation Batteries"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_hydrogen_energy",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "氢能",
+      "canonical_name": "氢能",
+      "aliases": [
+        "Hydrogen Energy"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_smart_grid",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "智能电网",
+      "canonical_name": "智能电网",
+      "aliases": [
+        "Smart Grid"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_nuclear_advanced_energy",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "核电与先进核能",
+      "canonical_name": "核电与先进核能",
+      "aliases": [
+        "Nuclear Power and Advanced Nuclear Energy"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_wind_solar_equipment",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "风电与光伏装备",
+      "canonical_name": "风电与光伏装备",
+      "aliases": [
+        "Wind and Solar Equipment"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_intelligent_connected_nev",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "智能网联新能源汽车",
+      "canonical_name": "智能网联新能源汽车",
+      "aliases": [
+        "Intelligent Connected New Energy Vehicles"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_innovative_drugs",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "创新药",
+      "canonical_name": "创新药",
+      "aliases": [
+        "Innovative Drugs"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_advanced_medical_devices",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "高端医疗器械",
+      "canonical_name": "高端医疗器械",
+      "aliases": [
+        "Advanced Medical Devices"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_digital_economy_data_elements",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "数字经济与数据要素",
+      "canonical_name": "数字经济与数据要素",
+      "aliases": [
+        "Digital Economy and Data Elements"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_soe_reform_technology",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "国企改革与央企科技",
+      "canonical_name": "国企改革与央企科技",
+      "aliases": [
+        "SOE Reform and Central SOE Technology"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_star_semiconductor_materials_equipment",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创半导体材料设备",
+      "canonical_name": "科创半导体材料设备",
+      "aliases": [
+        "STAR Semiconductor Materials and Equipment"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_star_chip_design",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创芯片设计",
+      "canonical_name": "科创芯片设计",
+      "aliases": [
+        "STAR Chip Design"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_new_energy_batteries",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "国证新能源电池",
+      "canonical_name": "国证新能源电池",
+      "aliases": [
+        "CNI New Energy Battery"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_general_aviation_industry",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "国证通用航空产业",
+      "canonical_name": "国证通用航空产业",
+      "aliases": [
+        "CNI General Aviation Industry"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_fertilizer_pesticide",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "国证化肥农药",
+      "canonical_name": "国证化肥农药",
+      "aliases": [
+        "CNI Fertilizer and Pesticide"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_advanced_manufacturing",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "中证高端制造",
+      "canonical_name": "中证高端制造",
+      "aliases": [
+        "CSI Advanced Manufacturing"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_silver_economy",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "中证银发经济",
+      "canonical_name": "中证银发经济",
+      "aliases": [
+        "CSI Silver Economy"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:theme_star_new_energy",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创新能源",
+      "canonical_name": "科创新能源",
+      "aliases": [
+        "STAR New Energy"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "theme",
+        "exchange_scope": "CN",
+        "classification_code": "theme_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_star_industrial_machinery",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创工业机械",
+      "canonical_name": "科创工业机械",
+      "aliases": [
+        "STAR Industrial Machinery"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_star_biomedicine",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创生物医药",
+      "canonical_name": "科创生物医药",
+      "aliases": [
+        "STAR Biomedicine"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_star_new_materials",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创新材料",
+      "canonical_name": "科创新材料",
+      "aliases": [
+        "STAR New Materials"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    },
+    {
+      "key": "sector:industry_star_advanced_equipment",
+      "entity_type": "sector",
+      "layer_code": "sector",
+      "name": "科创高端装备",
+      "canonical_name": "科创高端装备",
+      "aliases": [
+        "STAR Advanced Equipment"
+      ],
+      "status": "active",
+      "profile": {
+        "sector_system": "canonical",
+        "sector_type": "industry",
+        "exchange_scope": "CN",
+        "classification_code": "industry_sector",
+        "methodology_url": "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md",
+        "review_status": "approved"
+      }
+    }
   ]
 }

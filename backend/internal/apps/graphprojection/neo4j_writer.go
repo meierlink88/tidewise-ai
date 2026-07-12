@@ -39,6 +39,10 @@ SET entity.entity_key = row.entity_key,
     entity.aliases = row.aliases,
     entity.status = row.status,
     entity.updated_at = row.updated_at
+FOREACH (_ IN CASE WHEN row.classification_code IS NULL THEN [1] ELSE [] END |
+    REMOVE entity.classification_code)
+FOREACH (_ IN CASE WHEN row.classification_code IS NULL THEN [] ELSE [1] END |
+    SET entity.classification_code = row.classification_code)
 `
 	if err := w.driver.ExecuteWrite(ctx, w.database, query, params); err != nil {
 		return GraphWriteResult{}, err
@@ -101,7 +105,7 @@ DETACH DELETE entity
 func graphNodeParams(nodes []GraphNode) []map[string]any {
 	params := make([]map[string]any, 0, len(nodes))
 	for _, node := range nodes {
-		params = append(params, map[string]any{
+		item := map[string]any{
 			"entity_id":            node.EntityID,
 			"entity_key":           node.EntityKey,
 			"entity_type":          node.EntityType,
@@ -112,7 +116,11 @@ func graphNodeParams(nodes []GraphNode) []map[string]any {
 			"status":               node.Status,
 			"projection_namespace": node.Namespace,
 			"updated_at":           neo4jTimeParam(node.UpdatedAt),
-		})
+		}
+		if node.ClassificationCode != "" {
+			item["classification_code"] = string(node.ClassificationCode)
+		}
+		params = append(params, item)
 	}
 	return params
 }

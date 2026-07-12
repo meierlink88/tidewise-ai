@@ -26,18 +26,20 @@ type RelationshipMapReport struct {
 var safeRelationPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
 
 var knownRelationTypes = map[string]string{
-	"member_of":          "MEMBER_OF",
-	"has_market":         "HAS_MARKET",
-	"tracks_index":       "TRACKS_INDEX",
-	"observes_benchmark": "OBSERVES_BENCHMARK",
-	"measures":           "MEASURES",
-	"references":         "REFERENCES",
-	"issues":             "ISSUES",
-	"participates_in":    "PARTICIPATES_IN",
-	"affiliated_with":    "AFFILIATED_WITH",
-	"applies_to":         "APPLIES_TO",
-	"related_to":         "RELATED_TO",
-	"self":               "RELATED_TO",
+	"member_of":            "MEMBER_OF",
+	"has_market":           "HAS_MARKET",
+	"tracks_index":         "TRACKS_INDEX",
+	"observes_benchmark":   "OBSERVES_BENCHMARK",
+	"covers_sector":        "COVERS_SECTOR",
+	"tracked_by_benchmark": "TRACKED_BY_BENCHMARK",
+	"measures":             "MEASURES",
+	"references":           "REFERENCES",
+	"issues":               "ISSUES",
+	"participates_in":      "PARTICIPATES_IN",
+	"affiliated_with":      "AFFILIATED_WITH",
+	"applies_to":           "APPLIES_TO",
+	"related_to":           "RELATED_TO",
+	"self":                 "RELATED_TO",
 }
 
 func MapEntityNode(node repositories.GraphEntityNode, namespace string) (GraphNode, error) {
@@ -62,22 +64,42 @@ func MapEntityNode(node repositories.GraphEntityNode, namespace string) (GraphNo
 	if node.Status == "" {
 		return GraphNode{}, fmt.Errorf("entity status is required")
 	}
+	if node.EntityType == domain.EntityTypeSector && !validSectorClassification(node.ClassificationCode) {
+		return GraphNode{}, fmt.Errorf("unsupported sector classification %q", node.ClassificationCode)
+	}
 	if namespace == "" {
 		return GraphNode{}, fmt.Errorf("projection namespace is required")
 	}
 
 	return GraphNode{
-		EntityID:      node.ID,
-		EntityKey:     node.EntityKey,
-		EntityType:    string(node.EntityType),
-		LayerCode:     node.LayerCode,
-		Name:          node.Name,
-		CanonicalName: node.CanonicalName,
-		Aliases:       append([]string(nil), node.Aliases...),
-		Status:        string(node.Status),
-		Namespace:     namespace,
-		UpdatedAt:     node.UpdatedAt,
+		EntityID:           node.ID,
+		EntityKey:          node.EntityKey,
+		EntityType:         string(node.EntityType),
+		LayerCode:          node.LayerCode,
+		Name:               node.Name,
+		CanonicalName:      node.CanonicalName,
+		Aliases:            append([]string(nil), node.Aliases...),
+		ClassificationCode: sectorClassification(node),
+		Status:             string(node.Status),
+		Namespace:          namespace,
+		UpdatedAt:          node.UpdatedAt,
 	}, nil
+}
+
+func validSectorClassification(value domain.SectorClassification) bool {
+	switch value {
+	case domain.SectorClassificationIndustry, domain.SectorClassificationTheme, domain.SectorClassificationMarket, domain.SectorClassificationStyle, domain.SectorClassificationRegion:
+		return true
+	default:
+		return false
+	}
+}
+
+func sectorClassification(node repositories.GraphEntityNode) domain.SectorClassification {
+	if node.EntityType == domain.EntityTypeSector {
+		return node.ClassificationCode
+	}
+	return ""
 }
 
 func MapRelationType(relationType string) (string, error) {

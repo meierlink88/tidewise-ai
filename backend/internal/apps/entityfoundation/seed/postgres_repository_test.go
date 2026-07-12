@@ -83,6 +83,15 @@ func TestEntityUpsertSQLPersistsBusinessKey(t *testing.T) {
 	}
 }
 
+func TestEntityUpsertSQLScopesAliasOwnershipToCurrentConvergence(t *testing.T) {
+	statement := strings.ToLower(buildEntityUpsert())
+	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "max(manifest_version)", "am.to_entity_id = $1", "coalesce($7::text[]", "order by am.moved_at,am.id", "sa.aliases || oa.aliases"} {
+		if !strings.Contains(statement, fragment) {
+			t.Fatalf("entity upsert missing %q", fragment)
+		}
+	}
+}
+
 func TestProfileTableName(t *testing.T) {
 	cases := map[domain.EntityType]string{
 		domain.EntityTypeAllianceOrg: "alliance_org_profiles",
@@ -122,5 +131,64 @@ func TestProfileUpsertSQLIncludesSectorSnapshotFields(t *testing.T) {
 		if !strings.Contains(statement, fragment) {
 			t.Fatalf("statement missing %q: %s", fragment, statement)
 		}
+	}
+}
+
+func TestProfileUpsertSQLIncludesMarketSectorFields(t *testing.T) {
+	statement, _, err := buildProfileUpsert("sector:theme_ai", domain.EntityTypeSector, []byte(`{
+		"sector_system":"tidewise","sector_code":"","sector_type":"theme",
+		"classification_code":"theme_sector","primary_market_entity_id":"market:cn_a_share",
+		"primary_economy_entity_id":"economy:cn","methodology_url":"https://example.com/methodology",
+		"review_status":"approved"
+	}`))
+	if err != nil {
+		t.Fatalf("buildProfileUpsert() error = %v", err)
+	}
+	for _, fragment := range []string{"classification_code", "primary_market_entity_id", "primary_economy_entity_id", "methodology_url", "review_status"} {
+		if !strings.Contains(statement, fragment) {
+			t.Fatalf("sector profile upsert missing %q", fragment)
+		}
+	}
+}
+
+func TestSectorSourceMappingUpsertUsesStableIdentityAndLatestSnapshot(t *testing.T) {
+	mapping := SectorSourceMapping{
+		SectorEntityKey: "sector:theme_ai", SourceSystem: "ths", SourceTaxonomyType: "concept",
+		SourceSectorCode: "885001", SourceSectorName: "人工智能", SourceURL: "https://example.com/latest",
+		RankSnapshot: 2, SnapshotDate: "2026-07-12", MappingStatus: "approved",
+	}
+	statement, args, err := buildSectorSourceMappingUpsert(mapping)
+	if err != nil {
+		t.Fatalf("buildSectorSourceMappingUpsert() error = %v", err)
+	}
+	for _, fragment := range []string{
+		"insert into sector_source_mappings", "on conflict (id) do update set",
+		"sector_entity_id = excluded.sector_entity_id",
+		"mapping_status = excluded.mapping_status", "review_note = excluded.review_note",
+		"rank_snapshot = case", "snapshot_date = case", "source_url = case",
+		"excluded.snapshot_date >= sector_source_mappings.snapshot_date",
+		"sector_source_mappings.mapping_status is distinct from excluded.mapping_status",
+		"sector_source_mappings.review_note is distinct from excluded.review_note",
+		"updated_at = now()",
+	} {
+		if !strings.Contains(strings.ToLower(statement), fragment) {
+			t.Fatalf("source mapping upsert missing %q", fragment)
+		}
+	}
+	if strings.Contains(strings.ToLower(statement), ")\n      and (sector_source_mappings.snapshot_date") {
+		t.Fatal("snapshot recency must not gate non-snapshot review field updates")
+	}
+	if got, want := len(args), 13; got != want {
+		t.Fatalf("source mapping args = %d, want %d", got, want)
+	}
+	firstID := args[0]
+	mapping.RankSnapshot = 9
+	mapping.SnapshotDate = "2026-07-19"
+	_, laterArgs, err := buildSectorSourceMappingUpsert(mapping)
+	if err != nil {
+		t.Fatalf("buildSectorSourceMappingUpsert(later) error = %v", err)
+	}
+	if laterArgs[0] != firstID {
+		t.Fatalf("mapping id changed across snapshots: %v != %v", laterArgs[0], firstID)
 	}
 }

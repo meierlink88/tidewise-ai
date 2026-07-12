@@ -9,12 +9,14 @@ import (
 	"unicode"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
+	"golang.org/x/text/unicode/norm"
 )
 
 type Manifest struct {
-	Entities      []Entity       `json:"entities"`
-	Profiles      []Profile      `json:"profiles,omitempty"`
-	Relationships []Relationship `json:"relationships,omitempty"`
+	Entities             []Entity              `json:"entities"`
+	Profiles             []Profile             `json:"profiles,omitempty"`
+	SectorSourceMappings []SectorSourceMapping `json:"sector_source_mappings,omitempty"`
+	Relationships        []Relationship        `json:"relationships,omitempty"`
 }
 
 type Entity struct {
@@ -32,6 +34,21 @@ type Profile struct {
 	EntityKey  string            `json:"entity_key"`
 	EntityType domain.EntityType `json:"entity_type"`
 	Data       json.RawMessage   `json:"data"`
+}
+
+type SectorSourceMapping struct {
+	SectorEntityKey            string `json:"sector_entity_key"`
+	SourceSystem               string `json:"source_system"`
+	SourceTaxonomyType         string `json:"source_taxonomy_type"`
+	SourceSectorCode           string `json:"source_sector_code,omitempty"`
+	SourceSectorName           string `json:"source_sector_name"`
+	SourceSectorNameNormalized string `json:"source_sector_name_normalized,omitempty"`
+	SourceMarketScope          string `json:"source_market_scope"`
+	SourceURL                  string `json:"source_url,omitempty"`
+	RankSnapshot               int    `json:"rank_snapshot,omitempty"`
+	SnapshotDate               string `json:"snapshot_date,omitempty"`
+	MappingStatus              string `json:"mapping_status,omitempty"`
+	ReviewNote                 string `json:"review_note,omitempty"`
 }
 
 type Relationship struct {
@@ -70,6 +87,7 @@ func LoadFiles(paths ...string) (Manifest, error) {
 		}
 		merged.Entities = append(merged.Entities, manifest.Entities...)
 		merged.Profiles = append(merged.Profiles, manifest.Profiles...)
+		merged.SectorSourceMappings = append(merged.SectorSourceMappings, manifest.SectorSourceMappings...)
 		merged.Relationships = append(merged.Relationships, manifest.Relationships...)
 	}
 	if err := Validate(merged); err != nil {
@@ -112,6 +130,13 @@ func Validate(manifest Manifest) error {
 		}
 		entityKeys[entity.Key] = entity
 	}
+	for _, entity := range manifest.Entities {
+		if entity.EntityType == domain.EntityTypeSector {
+			if err := validateSectorProfileReferences(entity.Profile, entityKeys); err != nil {
+				return fmt.Errorf("entity %q profile: %w", entity.Key, err)
+			}
+		}
+	}
 
 	for _, profile := range manifest.Profiles {
 		if profile.EntityKey == "" {
@@ -131,6 +156,28 @@ func Validate(manifest Manifest) error {
 		if err := validateProfileData(entityType, profile.Data); err != nil {
 			return fmt.Errorf("profile %q: %w", profile.EntityKey, err)
 		}
+		if entityType == domain.EntityTypeSector {
+			if err := validateSectorProfileReferences(profile.Data, entityKeys); err != nil {
+				return fmt.Errorf("profile %q: %w", profile.EntityKey, err)
+			}
+		}
+	}
+
+	mappingIdentities := make(map[string]struct{}, len(manifest.SectorSourceMappings))
+	for _, mapping := range manifest.SectorSourceMappings {
+		normalized := normalizeSectorSourceMapping(mapping)
+		entity, ok := entityKeys[normalized.SectorEntityKey]
+		if !ok || entity.EntityType != domain.EntityTypeSector {
+			return fmt.Errorf("sector source mapping references unknown sector %q", normalized.SectorEntityKey)
+		}
+		if err := validateSectorSourceMapping(normalized); err != nil {
+			return err
+		}
+		identity := sectorSourceMappingIdentity(normalized)
+		if _, exists := mappingIdentities[identity]; exists {
+			return fmt.Errorf("duplicate sector source mapping identity %q", identity)
+		}
+		mappingIdentities[identity] = struct{}{}
 	}
 
 	relationshipKeys := make(map[string]struct{}, len(manifest.Relationships))
@@ -194,6 +241,19 @@ func validateEntity(entity Entity) error {
 	if entity.EntityType == domain.EntityTypeBenchmark {
 		return validateBenchmarkSearchNames(entity)
 	}
+	if entity.EntityType == domain.EntityTypeSector && !strings.HasPrefix(entity.Key, "sector:ths_") {
+		return validateSectorSearchNames(entity)
+	}
+	return nil
+}
+
+func validateSectorSearchNames(entity Entity) error {
+	if !containsUnicodeScript(entity.Name, unicode.Han) || !containsUnicodeScript(entity.CanonicalName, unicode.Han) {
+		return fmt.Errorf("sector name and canonical name must use Chinese primary names")
+	}
+	if !aliasesContainUnicodeScript(entity.Aliases, unicode.Latin) {
+		return fmt.Errorf("sector with Chinese primary name requires an English alias")
+	}
 	return nil
 }
 
@@ -250,7 +310,130 @@ func validateProfileData(entityType domain.EntityType, data json.RawMessage) err
 			return fmt.Errorf("%s is required", field)
 		}
 	}
+	if entityType == domain.EntityTypeSector {
+		if err := validateSectorProfileFields(fields); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func validateSectorProfileFields(fields map[string]json.RawMessage) error {
+	if raw, ok := fields["classification_code"]; ok && string(raw) != "null" {
+		var value domain.SectorClassification
+		if err := json.Unmarshal(raw, &value); err != nil || !validSectorClassification(value) {
+			return fmt.Errorf("unsupported sector classification %q", value)
+		}
+	}
+	if raw, ok := fields["review_status"]; ok && string(raw) != "null" {
+		var value domain.SectorReviewStatus
+		if err := json.Unmarshal(raw, &value); err != nil || !validSectorReviewStatus(value) {
+			return fmt.Errorf("unsupported sector review status %q", value)
+		}
+	}
+	return nil
+}
+
+func validateSectorProfileReferences(data json.RawMessage, entityKeys map[string]Entity) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	for _, reference := range []struct {
+		field      string
+		entityType domain.EntityType
+	}{
+		{"primary_market_entity_id", domain.EntityTypeMarket},
+		{"primary_economy_entity_id", domain.EntityTypeEconomy},
+	} {
+		raw, ok := fields[reference.field]
+		if !ok || string(raw) == "null" {
+			continue
+		}
+		var key string
+		if err := json.Unmarshal(raw, &key); err != nil || strings.TrimSpace(key) == "" {
+			continue
+		}
+		entity, exists := entityKeys[key]
+		if !exists || entity.EntityType != reference.entityType {
+			return fmt.Errorf("%s must reference %s", reference.field, reference.entityType)
+		}
+	}
+	return nil
+}
+
+func validSectorClassification(value domain.SectorClassification) bool {
+	switch value {
+	case domain.SectorClassificationIndustry, domain.SectorClassificationTheme, domain.SectorClassificationMarket, domain.SectorClassificationStyle, domain.SectorClassificationRegion:
+		return true
+	default:
+		return false
+	}
+}
+
+func validSectorReviewStatus(value domain.SectorReviewStatus) bool {
+	switch value {
+	case domain.SectorReviewCandidate, domain.SectorReviewApproved, domain.SectorReviewRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeSectorSourceMapping(mapping SectorSourceMapping) SectorSourceMapping {
+	mapping.SectorEntityKey = strings.TrimSpace(mapping.SectorEntityKey)
+	mapping.SourceSystem = strings.ToLower(strings.TrimSpace(mapping.SourceSystem))
+	mapping.SourceTaxonomyType = strings.ToLower(strings.TrimSpace(mapping.SourceTaxonomyType))
+	mapping.SourceSectorCode = strings.TrimSpace(mapping.SourceSectorCode)
+	mapping.SourceSectorName = strings.TrimSpace(mapping.SourceSectorName)
+	mapping.SourceSectorNameNormalized = normalizeSectorSourceName(mapping.SourceSectorName)
+	mapping.SourceMarketScope = strings.ToLower(strings.TrimSpace(mapping.SourceMarketScope))
+	mapping.SourceURL = strings.TrimSpace(mapping.SourceURL)
+	mapping.MappingStatus = strings.ToLower(strings.TrimSpace(mapping.MappingStatus))
+	if mapping.MappingStatus == "" {
+		mapping.MappingStatus = string(domain.SectorSourceMappingCandidate)
+	}
+	mapping.ReviewNote = strings.TrimSpace(mapping.ReviewNote)
+	return mapping
+}
+
+func normalizeSectorSourceName(value string) string {
+	normalized := norm.NFKC.String(strings.TrimSpace(value))
+	return strings.ToLower(strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || unicode.IsPunct(r) {
+			return -1
+		}
+		return r
+	}, normalized))
+}
+
+func validateSectorSourceMapping(mapping SectorSourceMapping) error {
+	if mapping.SectorEntityKey == "" || mapping.SourceSystem == "" || mapping.SourceSectorName == "" || mapping.SourceSectorNameNormalized == "" {
+		return fmt.Errorf("sector source mapping identity fields are required")
+	}
+	switch domain.SectorSourceTaxonomyType(mapping.SourceTaxonomyType) {
+	case domain.SectorSourceTaxonomyConcept, domain.SectorSourceTaxonomyIndustry, domain.SectorSourceTaxonomyIndexSector:
+	default:
+		return fmt.Errorf("unsupported source taxonomy type %q", mapping.SourceTaxonomyType)
+	}
+	switch domain.SectorSourceMappingStatus(mapping.MappingStatus) {
+	case domain.SectorSourceMappingCandidate, domain.SectorSourceMappingApproved, domain.SectorSourceMappingRejected, domain.SectorSourceMappingMerged:
+	default:
+		return fmt.Errorf("unsupported sector source mapping status %q", mapping.MappingStatus)
+	}
+	if mapping.SnapshotDate != "" {
+		if _, err := time.Parse("2006-01-02", mapping.SnapshotDate); err != nil {
+			return fmt.Errorf("invalid sector source mapping snapshot date %q", mapping.SnapshotDate)
+		}
+	}
+	return nil
+}
+
+func sectorSourceMappingIdentity(mapping SectorSourceMapping) string {
+	if mapping.SourceSectorCode != "" {
+		return strings.Join([]string{mapping.SourceSystem, mapping.SourceTaxonomyType, mapping.SourceSectorCode}, "|")
+	}
+	return strings.Join([]string{mapping.SourceSystem, mapping.SourceTaxonomyType, mapping.SourceSectorNameNormalized, mapping.SourceMarketScope}, "|")
 }
 
 func requiredProfileFields(entityType domain.EntityType) []string {
@@ -268,7 +451,7 @@ func requiredProfileFields(entityType domain.EntityType) []string {
 	case domain.EntityTypeBenchmark:
 		return []string{"benchmark_type", "provider", "currency_code", "unit", "frequency", "source_url"}
 	case domain.EntityTypeSector:
-		return []string{"sector_system", "sector_code", "sector_type"}
+		return []string{"sector_system", "sector_type"}
 	case domain.EntityTypeChainNode:
 		return []string{"chain_position"}
 	case domain.EntityTypeSecurity:
@@ -296,6 +479,9 @@ func normalizeDefaults(manifest *Manifest) {
 		if manifest.Relationships[i].Status == "" {
 			manifest.Relationships[i].Status = domain.StatusActive
 		}
+	}
+	for i := range manifest.SectorSourceMappings {
+		manifest.SectorSourceMappings[i] = normalizeSectorSourceMapping(manifest.SectorSourceMappings[i])
 	}
 }
 
@@ -336,6 +522,8 @@ func forbiddenReasoningField(field string) bool {
 		"transmission_strength",
 		"prediction",
 		"investment_advice",
+		"selection_score",
+		"runtime_tier",
 		"bullish",
 		"bearish",
 		"利好",
