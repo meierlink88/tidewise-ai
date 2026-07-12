@@ -1,8 +1,8 @@
 ## 1. Review 准备与候选清单
 
-- [x] 1.1 基于 `backend/data/entity_foundation/sectors.json` 整理同花顺概念板块、行业板块、指数板块 Top 20×3 候选 Review 清单，标注 external/source taxonomy、semantic sector 分类、market benchmark 关联判断、事件可映射性、传导差异、稳定性、市场覆盖、数据可获得性和重叠度
-- [x] 1.2 按已确认权重计算候选评估：事件可解释性 25、传导独立性 20、行情敏感度 15、数据完整性 15、长期稳定性 15、市场代表性 10；六项分别依据 design 的独立 0/3/5 锚点取分，1/2/4 仅作锚点间中间档，并逐项保存 evidence/source，缺失项按 0 分
-- [x] 1.3 在 `openspec/changes/add-market-sector-foundation/candidate-review.md` 生成完整约 60 个候选 Review 清单，包含 canonical sector key 草案、source mapping identity、评分分项、总分、传导簇覆盖、合并/保留建议、benchmark 关联建议、核心/扩展/观察建议和 override 字段，并由 Git 版本记录保留本次来源快照历史
+- [x] 1.1（首次清单验收否决后已返工）不机械沿用旧 `sectors.json`，从事件推理角度重新推荐 concept、industry、index_sector 各 20 个原始候选，并把旧 60 条仅作为迁移对照
+- [x] 1.2（返工完成）按已确认权重和六维独立 0/3/5 锚点评估新 60 个候选，逐项保存 evidence/source；未核验行情敏感度按 0 分，不为数量目标虚增评分
+- [x] 1.3（返工完成）重构 `candidate-review.md`，同时呈现原始候选 60、建议正式 57、旧 PG 逐项迁移、source/benchmark 建议、重复与覆盖统计；由 Git 保留 Review 历史
 - [ ] 1.4 暂停并提交候选 Review 清单给用户逐项 Review；批准清单前不得执行 migration、正式 seed、PG 写入或 Neo4j 写入/重建
 - [ ] 1.5 按用户 Review 结果确认具体候选、合并/保留、上下位/交叉关系、`tracked_by_benchmark` 关联和人工 override；三类各 Top 20 进入候选池和评分框架不再作为待确认事项
 - [ ] 1.6 更新 Review 后的 seed 草案，确保 Top 排名只作为来源快照，不作为长期 stable key 或唯一入选依据，最终正式 sector 约 50-60 个
