@@ -7,6 +7,10 @@
 - **WHEN** migration 被执行
 - **THEN** PostgreSQL 必须按 design field mapping 创建字段、FK、枚举检查、唯一约束、索引、自环约束和节点/边恰一主体约束
 
+#### Scenario: 保存 AI 来源 provenance
+- **WHEN** 经人工 Review 批准的 physical constraint 最初由 AI 生成
+- **THEN** `industry_chain_physical_constraints.generated_by_ai` 必须保存为 true，且 migration 不得创建 `approved_by_human`、approval gate 或审批平台表
+
 #### Scenario: 兼容已有节点
 - **WHEN** migration 应用于已有 33 个 `chain_node` 的数据库
 - **THEN** 必须保留 UUID、stable key、名称和既有 `chain_position`，不得删除、复制或隐式重分类节点

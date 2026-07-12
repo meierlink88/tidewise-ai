@@ -50,7 +50,11 @@
 
 #### Scenario: AI 只生成 candidate
 - **WHEN** AI 根据 Serenity 启发识别潜在物理约束
-- **THEN** 系统只能创建 candidate，缺少权威技术证据和人工批准时不得进入 approved、正式 seed 或推理事实输入
+- **THEN** 系统只能创建 candidate；缺少权威技术证据和显式人工 approval gate 时，不得进入 approved、正式 seed 或推理事实输入
+
+#### Scenario: 人工批准后保留 AI 来源
+- **WHEN** AI candidate 已取得权威技术证据、人工 Review 将 `review_status` 批准为 approved，且 seed/write 执行上下文携带显式人工 approval gate
+- **THEN** 系统必须允许 approved 写入并保持 `generated_by_ai=true`；`ApprovedByHuman` / `IndustryChainApprovalGate` 不得持久化为物理约束事实字段，也不得替代 `review_status`
 
 #### Scenario: 物理约束不进入 Neo4j
 - **WHEN** future reasoning 完成 Neo4j chain/node 路径查询
