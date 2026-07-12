@@ -72,7 +72,7 @@ sector:<semantic_classification>_<canonical_slug>
 - `sector:theme_ai`
 - `sector:industry_semiconductor_materials_equipment`
 - `sector:theme_satellite_industry`
-- `sector:tidewise_theme_energy_transition`
+- `sector:theme_energy_transition`
 
 source mapping identity 使用单独结构表达，推荐格式为：
 
@@ -99,12 +99,16 @@ sector_source_mapping:<sector_key>:<source_system>:<source_taxonomy_type>:<sourc
 - `source_taxonomy_type`：来源分类，例如 `concept`、`industry`、`index_sector`。
 - `source_sector_code`：来源板块代码；没有正式代码时允许为空。
 - `source_sector_name`：来源原始名称。
+- `source_sector_name_normalized`：来源名称经过 Unicode/空白、全半角和约定标点归一化后的稳定匹配值；不得包含排名或快照日期。
+- `source_market_scope`：无代码来源存在同名跨市场对象时使用的稳定市场或范围限定，例如 `cn_a_share`；字段为非空字符串，无歧义时固定写空串，避免 PostgreSQL `NULL` 绕过唯一约束。
 - `source_url`：来源页面或方法说明 URL。
-- `rank_snapshot` 和 `snapshot_date`：候选生成快照，只用于 Review，不作为主数据身份。
+- `rank_snapshot` 和 `snapshot_date`：该 mapping 最近一次候选观察，只用于 Review，不作为主数据身份。
 - `mapping_status`：`candidate`、`approved`、`rejected`、`merged`。
 - `review_note`：合并、保留或排除理由。
 
-唯一约束：`(source_system, source_taxonomy_type, source_sector_code)` 在 `source_sector_code` 非空时唯一；否则使用 `(source_system, source_taxonomy_type, source_sector_name, snapshot_date)` 防止同一候选重复导入。一个 canonical sector 可以有多条 source mapping；一条 approved source mapping 只能指向一个 canonical sector。
+唯一约束：`(source_system, source_taxonomy_type, source_sector_code)` 在 `source_sector_code` 非空时唯一；无代码时使用 `(source_system, source_taxonomy_type, source_sector_name_normalized, source_market_scope)` 作为稳定来源身份，唯一键不得包含 `snapshot_date`。名称归一化规则必须由 loader 的确定性函数统一执行，原始 `source_sector_name` 仍用于审计和展示。一个 canonical sector 可以有多条 source mapping；一条 approved source mapping 只能指向一个 canonical sector。
+
+第一版不新增历史 snapshot 表。重复采集同一 source identity 时，对 mapping 行的 `rank_snapshot`、`snapshot_date` 和 `source_url` 执行幂等覆盖更新，表示最新一次来源观察；本轮生成的完整约 60 项候选清单固定保存到 `openspec/changes/add-market-sector-foundation/candidate-review.md`，由 Git 版本记录保留当次排名、评分证据和审阅结论。需要长期查询多期排名历史时，再由独立 change 设计 `sector_source_mapping_snapshots` 或采集事实表，不能通过重复创建 mapping 行模拟历史。
 
 seed 形态：`backend/data/entity_foundation/sectors.json` 保留 canonical sector 实体和 profile；新增 `backend/data/entity_foundation/sector_source_mappings.json` 或同等专用 manifest 保存 source mappings。PostgreSQL 是 mapping 的事实源。Neo4j 第一版不投影 `sector_source_mappings`，只投影 canonical sector 节点和已审阅 `entity_edges`，避免把候选来源噪声带入实体图。
 
@@ -157,16 +161,16 @@ seed 形态：`backend/data/entity_foundation/sectors.json` 保留 canonical sec
 | 数据可获得性 | 是否有可持续行情、指数或来源说明 | 保证后续验证 |
 | 重叠度 | 与已有行业、主题、benchmark 是否高度重复 | 决定合并、降级或淘汰 |
 
-评分量表固定为每项 0-5 分，再按权重换算为 100 分制：
+评分固定为六个维度分别使用 0-5 分，再按权重换算为 100 分制。各维度独立判断，不能用另一个维度的证据抬高本项；1、2、4 分仅用于对应 0、3、5 锚点之间的中间状态：
 
-| 原始分 | 锚点 |
-| --- | --- |
-| 0 | 无证据、不可判定或与事件推理无关 |
-| 1 | 只有弱相关描述，缺少稳定定义或来源 |
-| 2 | 有可描述关系，但传导路径、行情或来源证据不足 |
-| 3 | 满足基础入选条件，有明确事件映射和至少一个可靠来源 |
-| 4 | 具备较强可解释性、可观测行情或稳定来源，且与既有候选差异清楚 |
-| 5 | 具备高确定性事件映射、独立传导路径、稳定定义、可持续行情和代表性来源 |
+| 维度 | 0 分锚点 | 3 分锚点 | 5 分锚点 |
+| --- | --- | --- | --- |
+| 事件可解释性 | 无法列出明确事件类型，或只能以涨跌/热度解释 | 至少能列出一种宏观、政策、产业、商品或技术事件及可陈述的影响通道 | 能列出两类以上可区分事件、方向条件和完整证据链，且不依赖交易推荐语言 |
+| 传导独立性 | 与已有候选完全同义且范围一致，没有独立保留理由 | 与相邻候选存在可说明的暴露、环节或受影响条件差异 | 具有清晰独立传导节点和边界，在代表性事件下可产生与相邻候选显著不同的响应路径 |
+| 行情敏感度 | 无可用行情，或历史观察未显示事件窗口响应 | 有连续行情，并有至少一个有来源的事件窗口显示可辨识响应 | 有多个不同事件窗口或统计证据显示方向/幅度响应稳定且显著区别于宽基噪声 |
+| 数据完整性 | 缺少稳定来源定义、代码/名称映射或可持续行情中的关键项 | 来源定义和稳定 mapping 可追溯，且至少具备可持续行情或正式 benchmark 关联之一 | 定义、代码/名称映射、成分/方法说明、连续行情和更新时间均完整可追溯 |
+| 长期稳定性 | 短期炒作词或定义频繁变化，无法跨周期复用 | 名称和核心范围有稳定来源，预期可跨至少一个年度周期复用 | 有多年持续定义或正式分类方法，历史范围变化可追踪且不改变核心语义 |
+| 市场代表性 | 仅覆盖极窄对象且无目标市场代表证据 | 覆盖一个主要目标市场/传导簇，并有来源规模、成分或市场采用证据 | 在主要目标市场或关键传导簇具有广泛覆盖，且有权威分类、成分规模或多来源采用证据 |
 
 每项评分必须保存 evidence/source：至少包含证据说明、来源名称、来源 URL 或本地 seed/source mapping 引用、评估人或评估来源、评估时间。缺失数据默认该项为 0；如因为覆盖关键传导簇需要保留缺失项候选，必须记录人工 override reason、override approver 和替代证据。70 分原则线与传导簇覆盖冲突时，可以人工补位，但必须记录被补位候选、被替换候选或缺口说明。
 
@@ -206,9 +210,10 @@ Neo4j 节点仍使用单一 `Entity` 标签和 `projection_namespace='tidewise'`
 后端实现阶段按 TDD 执行：
 
 - loader test 先验证新版 sector profile 必填字段、旧字段兼容、禁用推理字段、重复 key 和悬空关系。
-- migration test 先验证 `sector_profiles` 增量字段、非破坏性 SQL 和回滚说明。
-- relationship policy test 先验证 `covers_sector` 方向为 `market -> sector`，并拒绝反向、推理文案和未知端点。
-- graph projection mapping test 先验证 `covers_sector` 映射为 `COVERS_SECTOR`，未知或不安全类型仍 fallback。
+- source mapping test 先验证 `sector_source_mappings` 有代码/无代码唯一键、名称规范化、同一 identity 的最新快照覆盖更新和多来源指向 canonical sector。
+- migration test 先验证 `sector_profiles`、`sector_source_mappings` 增量结构、稳定唯一约束、非破坏性 SQL 和回滚说明。
+- relationship policy test 先验证 `covers_sector` 方向为 `market -> sector`、`tracked_by_benchmark` 方向为 `sector -> benchmark`，并拒绝反向、复用 `observes_benchmark`、推理文案和未知端点。
+- graph projection mapping test 先验证 `covers_sector` 映射为 `COVERS_SECTOR`、`tracked_by_benchmark` 映射为 `TRACKED_BY_BENCHMARK`，未知或不安全类型仍 fallback。
 - seed fixture test 先验证首批 reviewed sector 清单数量、分类分布、中文主名/英文 alias 和来源字段。
 - 最终运行 `go test ./...`。
 
@@ -269,6 +274,8 @@ classDiagram
         +source_taxonomy_type
         +source_sector_code
         +source_sector_name
+        +source_sector_name_normalized
+        +source_market_scope
         +source_url
         +rank_snapshot
         +snapshot_date
