@@ -44,10 +44,10 @@
 - [x] 6.1 在 repo 内补充本地微信开发者工具说明，包含 `preview:weapp`、固定发布目录、首次导入、刷新、测试 AppID/本地模式和 provenance 核对步骤。
 - [x] 6.1a 记录首次人工验收误导入主仓库旧 `dist` 的根因与 app.json 证据，并加入 worktree 绝对路径、tab/颜色指纹、清缓存和删除旧项目重导入门禁。
 - [x] 6.1b 将默认固定验收目录迁移到 `~/Documents/WeChatProjects/tidewise-ai-preview`，保留环境变量覆盖并明确旧目录不再更新但暂不删除。
-- [ ] 6.2 在微信开发者工具导入构建产物，逐项预览 ready、loading、empty、error、摘要展开/折叠、主线切换和“看图谱”占位反馈，记录可复现结果。
-- [ ] 6.3 在 375×812 viewport 采集 canonical 与微信实现截图，完成首页关键视觉映射对比；逐项记录安全区、导航、字体或平台组件的等价差异，未解释偏差不得通过。
+- [x] 6.2 用户在微信开发者工具从固定目录完成构建产物预览，并在主对话明确确认首页交互与结果通过；不虚构未提供的截图文件。
+- [x] 6.3 用户完成 canonical 与微信实现的人工视觉判断并明确表示“可以算验收通过”；验收证据为主对话确认，不声称存在仓库内截图资产。
 
 ## 7. Apply 后人工 Review 门禁
 
 - [x] 7.1 运行 `openspec validate add-miniapp-daily-brief-home-shell`、`git diff --check`、scoped `git status` 和相关新鲜验证，确认未修改 prototype、后端、数据库、其他 tab 或 active change。
-- [ ] 7.2 汇总 Apply scoped diff、自动验证、微信开发者工具记录、视觉对比、资产 provenance 和未验证风险，提交完整 Apply 后人工 Review；批准前不得 Sync、Archive 或 Deliver。
+- [x] 7.2 汇总 Apply scoped diff、自动验证、微信开发者工具人工确认、视觉验收结论、资产 provenance 和风险，提交最终 Apply checkpoint 等待主对话最终 Apply Review；批准前不得 Sync、Archive 或 Deliver。

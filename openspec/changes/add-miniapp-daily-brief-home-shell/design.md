@@ -193,14 +193,14 @@ sequenceDiagram
 
 | canonical 首页可见 section / 控件 | 生产对应实现 | 审计状态 |
 |---|---|---|
-| 海面摄影背景、蓝色渐变与透明顶部区 | `pages/index` 的绝对定位 Taro `Image mode="aspectFill"`、渐变层与 hero composition | 已实现；图片独立输出，裁切待 375×812 人工对比 |
+| 海面摄影背景、蓝色渐变与透明顶部区 | `pages/index` 的绝对定位 Taro `Image mode="aspectFill"`、渐变层与 hero composition | 已实现；图片独立输出，微信人工视觉验收通过 |
 | 日期、更新环与“今日观潮”标题 | `DailyBriefHero` 日期、更新时间与进度环 | 已实现 |
 | 市场/情绪 KPI、趋势文案与问号提示 | hero KPI primitives 与 Taro toast 提示 | 已实现 |
 | 可折叠新闻摘要、摘要主题 chips | 受控 `expanded` 状态、摘要正文与主题 chips | 已实现 |
 | 事件数、传导链、关注数统计 | `eventCount`、`chainCount`、`watchingCount` view model | 已实现；业务值来自 fixture→mapper，不在 JSX 硬编码 |
-| 海浪分隔和折叠/展开控件 | CSS wave composition 与受控按钮 | 已实现；波形细节待人工视觉对比 |
+| 海浪分隔和折叠/展开控件 | CSS wave composition 与受控按钮 | 已实现；微信人工视觉验收通过 |
 | “观潮分析 · N 条主线”分隔标题 | conclusions section heading | 已实现 |
-| 上一条/下一条主线切换与当前序号 | 主线切换按钮、当前索引状态 | 已实现；使用小程序按钮等价转译，手势与位置待人工验收 |
+| 上一条/下一条主线切换与当前序号 | 主线切换按钮、当前索引状态 | 已实现；使用小程序按钮等价转译，微信人工交互验收通过 |
 | 主线编号、标题、结论摘要与置信度 | `MainlineCard` badge、headline、summary、confidence | 已实现 |
 | “关注”控件 | 主线 follow button，当前以 toast 表达 Mock 占位 | 已实现，不写入订阅状态 |
 | 关键事件 chips | `keyEvents` typed view model 与 chips；点击显示摘要 toast | 已实现 |
@@ -212,7 +212,7 @@ sequenceDiagram
 | 无底部菜单 | app pages 精确为 `pages/index/index` 且无 `tabBar` | 已实现并由配置单测与构建产物门禁锁定 |
 | prototype 状态栏、胶囊、头像和标注/debug shell | 使用微信原生容器；prototype shell 资产不进入生产 | 按已批准平台等价转译/排除，不是内容缺失 |
 
-该审计只证明结构覆盖，不替代像素验收。安全区、字体栅格化、图片裁切、波浪轮廓和主线切换控件位置，均须在微信开发者工具 375×812 截图对比后才能通过。
+结构审计不替代人工视觉判断。用户已在主对话使用微信开发者工具加载固定预览目录，并明确确认页面预览与视觉结果“可以算验收通过”。本 change 未收到、未创建且不声称存在仓库内截图文件；验收证据是用户在主对话中的人工确认。
 
 ## Risks / Trade-offs
 
@@ -263,3 +263,4 @@ sequenceDiagram
 - 自动截图尝试 H5 等价渲染时确认 workspace 未安装 `@tarojs/plugin-platform-h5`。本 change 不为视觉 QA 扩大目标平台或新增 H5 依赖；微信开发者工具 375×812 人工截图保留为 Apply 后 Review 待验收项。
 - Review 修复后海面图改为 Taro `Image` 背景层：微信构建独立输出 `dist/assets/home-header-sea.jpg` 且 SHA-256 与授权源一致，`dist/pages/index/index.wxss` 从约 260 KiB 降至 8,969 bytes；构建产物门禁要求其持续低于 64 KiB。
 - 仍存在的非阻塞构建警告为现有 Sass `@import` 弃用提示和 webpack 无异步 chunk 性能建议；不包含图片内联体积警告。
+- 用户在主对话从 `/Users/meierlink/Documents/WeChatProjects/tidewise-ai-preview` 完成微信开发者工具预览，核对单页、无底部菜单、首页交互与视觉结果后明确表示“可以算验收通过”。该确认关闭 tasks 6.2 与 6.3；没有对应的仓库内截图文件，也未伪造截图资产。
