@@ -183,7 +183,7 @@ func buildConvergenceAuditInsert(auditID, legacyID string, targetID any, manifes
 	if item.TargetEntityType != "" {
 		targetType = item.TargetEntityType
 	}
-	statement := `INSERT INTO entity_convergences (id, legacy_entity_id, target_entity_id, target_entity_type, manifest_version, action, legacy_taxonomy, reason, mutation_provenance) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,jsonb_build_object('manifest_checksum',$9,'mode',$10))`
+	statement := `INSERT INTO entity_convergences (id, legacy_entity_id, target_entity_id, target_entity_type, manifest_version, action, legacy_taxonomy, reason, mutation_provenance) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,` + convergenceAuditMutationExpression(9, 10) + `)`
 	return statement, []any{auditID, legacyID, targetID, targetType, manifest.ManifestVersion, item.Action, item.LegacyTaxonomy, item.Reason, manifest.ManifestChecksum, mode}
 }
 
@@ -445,8 +445,17 @@ ORDER BY e.id FOR UPDATE OF e`, legacyID)
 
 func insertReferenceMove(ctx context.Context, tx *sql.Tx, convergenceID, table, column, rowID, fromID string, toID any, operation string) error {
 	id := repoids.NormalizeUUID("entity_convergence_reference_move", convergenceID+"|"+table+"|"+column+"|"+rowID)
-	_, err := tx.ExecContext(ctx, `INSERT INTO entity_convergence_reference_moves (id,convergence_id,reference_table,reference_column,reference_row_id,from_entity_id,to_entity_id,mutation_provenance) VALUES ($1,$2,$3,$4,$5,$6,$7,jsonb_build_object('operation',$8))`, id, convergenceID, table, column, rowID, fromID, toID, operation)
+	statement := `INSERT INTO entity_convergence_reference_moves (id,convergence_id,reference_table,reference_column,reference_row_id,from_entity_id,to_entity_id,mutation_provenance) VALUES ($1,$2,$3,$4,$5,$6,$7,` + convergenceOperationMutationExpression(8) + `)`
+	_, err := tx.ExecContext(ctx, statement, id, convergenceID, table, column, rowID, fromID, toID, operation)
 	return err
+}
+
+func convergenceAuditMutationExpression(checksumParameter, modeParameter int) string {
+	return fmt.Sprintf("jsonb_build_object('manifest_checksum',$%d::text,'mode',$%d::text)", checksumParameter, modeParameter)
+}
+
+func convergenceOperationMutationExpression(operationParameter int) string {
+	return fmt.Sprintf("jsonb_build_object('operation',$%d::text)", operationParameter)
 }
 
 func applyRecordedCorrectionMoves(ctx context.Context, tx *sql.Tx, previousID, currentID string, targetType domain.EntityType, targetID any, targetKey string) (sectorMoveCounts, error) {

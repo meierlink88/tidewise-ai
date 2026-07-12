@@ -116,6 +116,11 @@ func TestPostgresConvergenceAuditSnapshotsTargetTypeAndReason(t *testing.T) {
 			t.Fatalf("audit SQL missing %q", fragment)
 		}
 	}
+	for _, fragment := range []string{"$9::text", "$10::text"} {
+		if !strings.Contains(statement, fragment) {
+			t.Fatalf("audit SQL missing cast %q", fragment)
+		}
+	}
 	if got := args[3]; got != domain.EntityTypeIndex {
 		t.Fatalf("target type arg = %#v", got)
 	}
