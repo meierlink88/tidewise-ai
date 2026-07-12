@@ -23,7 +23,7 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 - Validate：运行 OpenSpec CLI 和项目验证命令，并遵守 `superpowers:verification-before-completion`。
 - Sync：`openspec-sync-specs`，将 delta specs 同步为当前系统事实。
 - Archive：`openspec-archive-change`，完成后归档历史决策与实现记录。
-- Deliver：按照 `.agents/git-workflow.md` 完成 archive commit、push 和 PR/merge；只有 Deliver 完成后 change 才可视为关闭。
+- Deliver：按照 `.agents/git-workflow.md` 完成 archive commit、push、PR/merge 和已合并 change 的 branch/worktree cleanup；只有 Deliver 完成后 change 才可视为关闭。
 
 详细 Skill 组合和 artifact 归属见 `.agents/skill-routing.md`。
 
@@ -98,7 +98,7 @@ openspec/changes/<change-name>/
 - 归档 change 到 `openspec/changes/archive/`。
 - 运行 `openspec validate --all`。
 - 检查 `git status --short`，只暂存当前 change 的源码、测试、主规格和 archive 文件。
-- 提交 `spec: archive <change-name>` 检查点，并按 `.agents/git-workflow.md` 完成 push 和 PR/merge。
+- 提交 `spec: archive <change-name>` 检查点，并按 `.agents/git-workflow.md` 完成 push、PR/merge 和 branch/worktree cleanup。
 - 在 archive commit 存在且当前 change 不再有未提交文件前，不得声明 change 已关闭，也不得开始下一个 change。
 
 ## Starting The Next Change

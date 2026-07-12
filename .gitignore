@@ -5,6 +5,7 @@
 backend/.env.local
 infra/local/.env.local
 .data/
+.worktrees/
 
 node_modules/
 dist/
