@@ -14,11 +14,31 @@ import (
 )
 
 type PostgresRepository struct {
-	db *sql.DB
+	db   postgresExecutor
+	root *sql.DB
+}
+
+type postgresExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 func NewPostgresRepository(db *sql.DB) PostgresRepository {
-	return PostgresRepository{db: db}
+	return PostgresRepository{db: db, root: db}
+}
+
+func (r PostgresRepository) HasActiveLegacySectors(ctx context.Context) (bool, error) {
+	var exists bool
+	err := r.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1 FROM entity_nodes
+    WHERE entity_type = 'sector' AND status = 'active' AND entity_key LIKE 'sector:ths\_%' ESCAPE '\'
+)`).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check active legacy sectors: %w", err)
+	}
+	return exists, nil
 }
 
 func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (WriteResult, error) {

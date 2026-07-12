@@ -55,12 +55,12 @@
 
 - [x] 6.1 记录 local PostgreSQL 已应用 migration `000010`、仍有 60 个 active legacy sector、mapping/covers 均为 0，正式 entity seed 因预检会产生 112 active sector 而未执行
 - [x] 6.2 在 proposal/design/delta specs 中固定复核后的 60 项处置矩阵：10 replace、19 merge、11 retire_without_canonical、15 replace_with_existing_index、5 retire_without_target；旧 UUID 保留、类型安全引用迁移、显式 CLI、单事务和最终 52 active 边界；`candidate-review.md` 保持不变
-- [ ] 6.3 TDD RED：增加 convergence manifest loader/domain 测试，覆盖完整 60 项、正整数 manifest version、previous version、checksum/Review 元数据、action/target 约束、canonical/legacy key 唯一性、alias/source/reference policy、同版本 payload regression 和禁止推理字段
-- [ ] 6.4 TDD RED：增加 Memory/PG service/repository 测试，覆盖普通 seed fail-closed、首次显式 convergence、单事务 rollback、29 条 sector target、15 条 existing index target、16 条无 target、未知 FK、edge 冲突，以及新版本 target 纠错时 reference/mapping/alias provenance 验证
-- [ ] 6.5 TDD RED：增加 CLI 与 migration 静态测试，覆盖 `-apply-sector-convergence`、`-apply-sector-convergence-correction` 双重门禁，`entity_convergence_manifests`、独立 audit ID、`UNIQUE(legacy_entity_id, manifest_version)`、append-only mutation audit、历史 UPDATE/DELETE 防护和 invalid version regression
-- [ ] 6.6 实现 `sector_convergences.json`、domain/loader、append-only convergence migrations、`SectorReferenceRegistry`、Memory clone-on-write、PostgreSQL `sql.Tx`、mutation provenance、service report 和首次/纠错显式 CLI；不得修改 `candidate-review.md` 的批准快照
-- [ ] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 零写入、首次 convergence 为 52 active/60 inactive/60 current audit/89 mappings/52 covers/0 tracked，同版本重跑不新增 audit，新版本只 append 且当前结论唯一确定，非法版本与纠错漂移整体 rollback
-- [ ] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
+- [x] 6.3 TDD RED：增加 convergence manifest loader/domain 测试，覆盖完整 60 项、正整数 manifest version、previous version、checksum/Review 元数据、action/target 约束、canonical/legacy key 唯一性、alias/source/reference policy、同版本 payload regression 和禁止推理字段
+- [x] 6.4 TDD RED：增加 Memory/PG service/repository 测试，覆盖普通 seed fail-closed、首次显式 convergence、单事务 rollback、29 条 sector target、15 条 existing index target、16 条无 target、未知 FK、edge 冲突，以及新版本 target 纠错时 reference/mapping/alias provenance 验证
+- [x] 6.5 TDD RED：增加 CLI 与 migration 静态测试，覆盖 `-apply-sector-convergence`、`-apply-sector-convergence-correction` 双重门禁，`entity_convergence_manifests`、独立 audit ID、`UNIQUE(legacy_entity_id, manifest_version)`、append-only mutation audit、历史 UPDATE/DELETE 防护和 invalid version regression
+- [x] 6.6 实现 `sector_convergences.json`、domain/loader、append-only convergence migrations、`SectorReferenceRegistry`、Memory clone-on-write、PostgreSQL `sql.Tx`、mutation provenance、service report 和首次/纠错显式 CLI；不得修改 `candidate-review.md` 的批准快照
+- [x] 6.7 运行聚焦与 `go test ./... -count=1`，验证普通 seed 零写入、首次 convergence 为 52 active/60 inactive/60 current audit/89 mappings/52 covers/0 tracked，同版本重跑不新增 audit，新版本只 append 且当前结论唯一确定，非法版本与纠错漂移整体 rollback
+- [x] 6.8 运行 `openspec validate add-market-sector-foundation` 和完整 scoped diff/secret 检查，提交并推送 convergence 实现 checkpoint；未经主对话批准不得写 local PG
 - [ ] 6.9 经独立审批后在 local 先 apply 新 migration，再执行显式 convergence；记录前后实体、profile、mapping、edge、audit、引用和状态计数，失败时保留现场且不得手工修库
 - [ ] 6.10 local 重复执行显式 convergence 和普通 seed，确认幂等；在 PostgreSQL 验收 52 active canonical、60 inactive legacy、无悬空引用后暂停，等待 Neo4j graph projection 独立审批
 

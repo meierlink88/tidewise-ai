@@ -143,6 +143,10 @@ type recordingRepository struct {
 	failOnCall string
 }
 
+func (r *recordingRepository) HasActiveLegacySectors(context.Context) (bool, error) {
+	return false, nil
+}
+
 func (r *recordingRepository) UpsertEntity(_ context.Context, entity Entity) (WriteResult, error) {
 	return r.record("entity:"+entity.Key, entity.Key)
 }

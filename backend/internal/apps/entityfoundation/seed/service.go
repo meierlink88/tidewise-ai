@@ -35,6 +35,13 @@ func NewService(repository Repository) Service {
 
 func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOptions) (Report, error) {
 	report := newReport()
+	hasLegacy, err := s.repository.HasActiveLegacySectors(ctx)
+	if err != nil {
+		return report, fmt.Errorf("check active legacy sectors: %w", err)
+	}
+	if hasLegacy {
+		return report, fmt.Errorf("active legacy sector requires explicit sector convergence")
+	}
 	skippedEntities := map[string]struct{}{}
 
 	for _, entity := range manifest.Entities {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
@@ -27,6 +29,7 @@ type Repository interface {
 	UpsertProfile(context.Context, Profile) (WriteResult, error)
 	UpsertSectorSourceMapping(context.Context, SectorSourceMapping) (WriteResult, error)
 	UpsertRelationship(context.Context, Relationship) (WriteResult, error)
+	HasActiveLegacySectors(context.Context) (bool, error)
 }
 
 type MemoryRepository struct {
@@ -35,6 +38,9 @@ type MemoryRepository struct {
 	profiles             map[string]Profile
 	sectorSourceMappings map[string]SectorSourceMapping
 	relationships        map[string]Relationship
+	convergenceManifests map[int64]string
+	convergenceReviews   map[int64]string
+	convergenceAudits    map[string]SectorConvergence
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -43,7 +49,178 @@ func NewMemoryRepository() *MemoryRepository {
 		profiles:             map[string]Profile{},
 		sectorSourceMappings: map[string]SectorSourceMapping{},
 		relationships:        map[string]Relationship{},
+		convergenceManifests: map[int64]string{},
+		convergenceReviews:   map[int64]string{},
+		convergenceAudits:    map[string]SectorConvergence{},
 	}
+}
+
+func (r *MemoryRepository) HasActiveLegacySectors(_ context.Context) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for key, entity := range r.entities {
+		if strings.HasPrefix(key, "sector:ths_") && entity.Status != domain.StatusInactive {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r *MemoryRepository) ApplySectorConvergence(_ context.Context, seedManifest Manifest, manifest SectorConvergenceManifest, mode SectorConvergenceMode) (SectorConvergenceReport, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if existing, ok := r.convergenceManifests[manifest.ManifestVersion]; ok {
+		if existing != manifest.ManifestChecksum {
+			return SectorConvergenceReport{}, fmt.Errorf("same manifest version has different payload")
+		}
+		return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, AuditUnchanged: len(manifest.Convergences)}, nil
+	}
+	if mode == SectorConvergenceModeInitial && len(r.convergenceManifests) > 0 {
+		return SectorConvergenceReport{}, fmt.Errorf("initial convergence already applied")
+	}
+	current := int64(0)
+	for version := range r.convergenceManifests {
+		if version > current {
+			current = version
+		}
+	}
+	if mode == SectorConvergenceModeCorrection {
+		if manifest.PreviousManifestVersion == nil || *manifest.PreviousManifestVersion != current || manifest.ManifestVersion <= current {
+			return SectorConvergenceReport{}, fmt.Errorf("invalid correction manifest version")
+		}
+		if manifest.ReviewSourceURL+manifest.ReviewedAt.String() == r.convergenceReviews[current] {
+			return SectorConvergenceReport{}, fmt.Errorf("correction requires a new human Review")
+		}
+	}
+	entities := make(map[string]Entity, len(r.entities))
+	for key, value := range r.entities {
+		entities[key] = value
+	}
+	profiles := make(map[string]Profile, len(r.profiles))
+	for key, value := range r.profiles {
+		profiles[key] = value
+	}
+	mappings := make(map[string]SectorSourceMapping, len(r.sectorSourceMappings)+29)
+	for key, value := range r.sectorSourceMappings {
+		mappings[key] = value
+	}
+	relationships := make(map[string]Relationship, len(r.relationships))
+	for key, value := range r.relationships {
+		relationships[key] = value
+	}
+	for _, entity := range seedManifest.Entities {
+		if err := validateEntity(entity); err != nil {
+			return SectorConvergenceReport{}, err
+		}
+		entities[entity.Key] = entity
+		if len(entity.Profile) > 0 {
+			profiles[entity.Key] = Profile{EntityKey: entity.Key, EntityType: entity.EntityType, Data: entity.Profile}
+		}
+	}
+	for _, profile := range seedManifest.Profiles {
+		profiles[profile.EntityKey] = profile
+	}
+	for _, mapping := range seedManifest.SectorSourceMappings {
+		mapping = normalizeSectorSourceMapping(mapping)
+		if err := validateSectorSourceMapping(mapping); err != nil {
+			return SectorConvergenceReport{}, err
+		}
+		mappings[sectorSourceMappingIdentity(mapping)] = mapping
+	}
+	for _, relationship := range seedManifest.Relationships {
+		relationships[relationship.Key] = relationship
+	}
+	audits := make(map[string]SectorConvergence, len(r.convergenceAudits)+len(manifest.Convergences))
+	for key, value := range r.convergenceAudits {
+		audits[key] = value
+	}
+	for _, item := range manifest.Convergences {
+		legacy, ok := entities[item.LegacyEntityKey]
+		if !ok || legacy.EntityType != domain.EntityTypeSector {
+			return SectorConvergenceReport{}, fmt.Errorf("unknown legacy sector %q", item.LegacyEntityKey)
+		}
+		if item.TargetEntityKey != "" {
+			target, ok := entities[item.TargetEntityKey]
+			if !ok || target.EntityType != item.TargetEntityType {
+				return SectorConvergenceReport{}, fmt.Errorf("invalid convergence target %q", item.TargetEntityKey)
+			}
+		}
+		if mode == SectorConvergenceModeCorrection && legacy.Status != domain.StatusInactive {
+			return SectorConvergenceReport{}, fmt.Errorf("correction drift for legacy sector %q", item.LegacyEntityKey)
+		}
+		legacy.Status = domain.StatusInactive
+		entities[item.LegacyEntityKey] = legacy
+		if item.TargetEntityType == domain.EntityTypeSector {
+			target := entities[item.TargetEntityKey]
+			found := false
+			for _, alias := range target.Aliases {
+				if alias == item.LegacyName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				target.Aliases = append(target.Aliases, item.LegacyName)
+				entities[item.TargetEntityKey] = target
+			}
+			mapping := normalizeSectorSourceMapping(SectorSourceMapping{SectorEntityKey: item.TargetEntityKey, SourceSystem: "ths", SourceTaxonomyType: item.LegacyTaxonomy, SourceSectorName: item.LegacyName, SourceMarketScope: "cn_a_share", SourceURL: manifest.ReviewSourceURL, MappingStatus: "merged", ReviewNote: item.Reason})
+			mappings[sectorSourceMappingIdentity(mapping)] = mapping
+			for key, relationship := range relationships {
+				if relationship.From == item.LegacyEntityKey {
+					relationship.From = item.TargetEntityKey
+				}
+				if relationship.To == item.LegacyEntityKey {
+					relationship.To = item.TargetEntityKey
+				}
+				relationships[key] = relationship
+			}
+		} else {
+			for key, relationship := range relationships {
+				if relationship.From == item.LegacyEntityKey || relationship.To == item.LegacyEntityKey {
+					relationship.Status = domain.StatusInactive
+					relationships[key] = relationship
+				}
+			}
+		}
+		audits[item.LegacyEntityKey+"|"+fmt.Sprint(manifest.ManifestVersion)] = item
+	}
+	resolveMemoryRelationshipConflicts(relationships)
+	r.entities = entities
+	r.profiles = profiles
+	r.sectorSourceMappings = mappings
+	r.relationships = relationships
+	r.convergenceAudits = audits
+	r.convergenceManifests[manifest.ManifestVersion] = manifest.ManifestChecksum
+	r.convergenceReviews[manifest.ManifestVersion] = manifest.ReviewSourceURL + manifest.ReviewedAt.String()
+	return SectorConvergenceReport{ManifestVersion: manifest.ManifestVersion, RetiredLegacy: len(manifest.Convergences), AuditCreated: len(manifest.Convergences), MappingsChanged: 29}, nil
+}
+
+func resolveMemoryRelationshipConflicts(relationships map[string]Relationship) {
+	keys := make([]string, 0, len(relationships))
+	for key := range relationships {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	seen := map[string]struct{}{}
+	for _, key := range keys {
+		relationship := relationships[key]
+		if relationship.Status == domain.StatusInactive {
+			continue
+		}
+		identity := relationship.From + "|" + relationship.To + "|" + relationship.RelationType
+		if _, exists := seen[identity]; exists {
+			relationship.Status = domain.StatusInactive
+			relationships[key] = relationship
+			continue
+		}
+		seen[identity] = struct{}{}
+	}
+}
+
+func (r *MemoryRepository) ConvergenceAuditCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.convergenceAudits)
 }
 
 func (r *MemoryRepository) UpsertSectorSourceMapping(_ context.Context, mapping SectorSourceMapping) (WriteResult, error) {
