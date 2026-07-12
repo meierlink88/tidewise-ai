@@ -1,25 +1,25 @@
 ## 1. Apply 前基线与规则门禁
 
-- [ ] 1.1 重新计算 `miniprogram.html`、`colors_and_type.css`、`components.css` 的 SHA-256，与 design 基线逐项比较；任一漂移立即暂停并提交 Review。
-- [ ] 1.2 盘点首页引用的图片、字体、SVG 和辅助资产，记录生产必要性、授权、固定来源、目标路径与 SHA-256；只将授权明确的必要资产纳入 Apply。
-- [ ] 1.3 修改 `.agents/frontend-boundaries.md`，加入 miniapp page-level canonical source、旧 `ganchaojia-design` skill 仅作历史/基础参考、prototype 只读、截图视觉验收和后续独立 skill change 规则，同时保持 admin Minimal Dashboard 路由不变。
-- [ ] 1.4 确认 `frontend/miniapp/` 现有 index、components、models、data、services、request、styles 和测试/构建配置的复用点，记录本 change 文件所有权，不触碰其他 tab、active change、后端或 prototype。
+- [x] 1.1 重新计算 `miniprogram.html`、`colors_and_type.css`、`components.css` 的 SHA-256，与 design 基线逐项比较；任一漂移立即暂停并提交 Review。
+- [x] 1.2 盘点首页引用的图片、字体、SVG 和辅助资产，记录生产必要性、授权、固定来源、目标路径与 SHA-256；只将授权明确的必要资产纳入 Apply。
+- [x] 1.3 修改 `.agents/frontend-boundaries.md`，加入 miniapp page-level canonical source、旧 `ganchaojia-design` skill 仅作历史/基础参考、prototype 只读、截图视觉验收和后续独立 skill change 规则，同时保持 admin Minimal Dashboard 路由不变。
+- [x] 1.4 确认 `frontend/miniapp/` 现有 index、components、models、data、services、request、styles 和测试/构建配置的复用点，记录本 change 文件所有权，不触碰其他 tab、active change、后端或 prototype。
 
 ## 2. 候选契约与数据边界 TDD
 
-- [ ] 2.1 在 miniapp workspace 配置最小 TypeScript 单元测试入口；先添加会失败的测试，验证测试命令能发现并报告失败用例。
-- [ ] 2.2 先为 `DailyBriefV1`、`ReasoningConclusionV1`、`ImpactAssessmentV1`、`EvidenceItemV1` fixtures 编写类型/shape 测试，验证 mock schema version、允许的影响对象类型、不含个股推荐字段，且不存在 graph/path DTO，再实现候选 contracts。
-- [ ] 2.3 先为 `DailyBriefPort` 与 `MockDailyBriefAdapter` 编写 ready、empty、error 场景测试，再实现 dedicated fixtures、adapter 和 service composition root；页面不得 import fixtures。
-- [ ] 2.4 先为 contract-to-view-model mapper 编写市场/情绪、主题、主线、影响、证据缺失和不确定性测试，再实现首页 view model 映射。
-- [ ] 2.5 先为 `ResourceState` 状态转换与重试编写 idle/loading/ready/empty/error 测试，再实现首页资源状态 helper/hook。
-- [ ] 2.6 先为首页 section registry 编写顺序、可见条件和“registry 不含 mock 文案”测试，再实现 `brief-summary`、`themes`、`conclusions`、`impacts`、`evidence`、`safety-note` registry。
+- [x] 2.1 在 miniapp workspace 配置最小 TypeScript 单元测试入口；先添加会失败的测试，验证测试命令能发现并报告失败用例。
+- [x] 2.2 先为 `DailyBriefV1`、`ReasoningConclusionV1`、`ImpactAssessmentV1`、`EvidenceItemV1` fixtures 编写类型/shape 测试，验证 mock schema version、允许的影响对象类型、不含个股推荐字段，且不存在 graph/path DTO，再实现候选 contracts。
+- [x] 2.3 先为 `DailyBriefPort` 与 `MockDailyBriefAdapter` 编写 ready、empty、error 场景测试，再实现 dedicated fixtures、adapter 和 service composition root；页面不得 import fixtures。
+- [x] 2.4 先为 contract-to-view-model mapper 编写市场/情绪、主题、主线、影响、证据缺失和不确定性测试，再实现首页 view model 映射。
+- [x] 2.5 先为 `ResourceState` 状态转换与重试编写 idle/loading/ready/empty/error 测试，再实现首页资源状态 helper/hook。
+- [x] 2.6 先为首页 section registry 编写顺序、可见条件和“registry 不含 mock 文案”测试，再实现 `brief-summary`、`themes`、`conclusions`、`impacts`、`evidence`、`safety-note` registry。
 
 ## 3. 轻量视觉基础与共享组件
 
 - [ ] 3.1 在 `frontend/miniapp/src/styles` 增量映射首页实际使用的 canonical 色阶、字体、间距、圆角、阴影、状态和 motion tokens，不复制整套 design library，并用静态扫描确认不存在远程 Google Fonts 或 Web-only CSS。
 - [ ] 3.2 先为共享 resource-state、chip/card/button 和安全声明组件的 props/渲染 helper 编写测试，再在现有 components 边界实现最小 primitives。
 - [ ] 3.3 实现首页 brief hero、波浪分隔、摘要折叠、主线、影响和证据 page compositions，保持业务文案来自 view model，不使用 `document`、`window`、`innerHTML`、内联事件或直接 DOM mutation。
-- [ ] 3.4 如 `home-header-sea.jpg` 已确认必要且授权明确，将其复制到 `frontend/miniapp/src/assets` 并记录来源与 SHA-256；否则暂停该视觉项并返回 Review，不自行替换 canonical 背景。
+- [x] 3.4 如 `home-header-sea.jpg` 已确认必要且授权明确，将其复制到 `frontend/miniapp/src/assets` 并记录来源与 SHA-256；否则暂停该视觉项并返回 Review，不自行替换 canonical 背景。
 
 ## 4. 今日观潮首页实现
 

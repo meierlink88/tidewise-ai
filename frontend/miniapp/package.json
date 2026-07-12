@@ -7,6 +7,7 @@
     "dev:tt": "taro build --type tt --watch",
     "build:weapp": "taro build --type weapp",
     "build:tt": "taro build --type tt",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
@@ -36,6 +37,7 @@
     "eslint-config-taro": "^4.0.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.10"
   }
 }
