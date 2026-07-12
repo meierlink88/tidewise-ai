@@ -90,16 +90,24 @@
 - **THEN** 系统必须在单一事务内校验 60 项 manifest、写入 52 个 canonical sector、迁移已注册引用、停用 60 个 legacy sector、写入审计记录、source mappings 和 reviewed relationships；任一步失败必须整体回滚
 
 #### Scenario: 保留旧身份审计
-- **WHEN** replace、merge 或 benchmark-only retirement 完成
-- **THEN** 系统不得删除或复用旧 UUID，必须保留旧 entity key/profile 并将旧实体标记 inactive，同时在 `entity_convergences` 保存结构化处置结果
+- **WHEN** replace、merge、replace_with_existing_index 或无 target retirement 完成
+- **THEN** 系统不得删除或复用旧 UUID，必须保留旧 entity key/profile 并将旧实体标记 inactive，同时在 `entity_convergences` 的通用 `target_entity_id/type` 保存结构化处置结果
 
 #### Scenario: 迁移已知和未来引用
 - **WHEN** legacy sector 被现有或未来 entity edge/FK 引用
-- **THEN** replace/merge 必须按显式 reference registry 重定向引用；benchmark-only 或未注册引用必须阻断 convergence，不能依赖当前数据库没有关系的偶然状态
+- **THEN** sector target 必须按显式 reference registry 重定向引用；index target 只能重定向类型兼容引用并重新校验 relationship policy；无 target、sector 专属引用指向 index或未注册引用必须阻断 convergence，不能依赖当前数据库没有关系的偶然状态
 
 #### Scenario: 保留 legacy 来源
-- **WHEN** concept/industry legacy sector 收敛到 canonical target
-- **THEN** 系统必须把旧中文名追加为 canonical alias，并从旧 profile 生成指向 canonical 的 legacy source mapping；benchmark-only 不得伪造 sector mapping 或 benchmark 实体
+- **WHEN** concept/industry legacy sector 收敛到等价 canonical sector target
+- **THEN** 系统必须把旧中文名追加为 canonical alias，并从旧 profile 生成指向 canonical 的 legacy source mapping；无 target 或 index target 不得伪造 sector mapping 或 benchmark 实体
+
+#### Scenario: 拒绝仅凭事件相关进行合并
+- **WHEN** legacy sector 与候选 target 只存在事件、上下游或跨链相关，而名称和覆盖范围不等价
+- **THEN** manifest 必须使用无 target retirement，不得创建 source mapping 或重定向到该相关实体
+
+#### Scenario: 收敛到已有 index
+- **WHEN** 误建为 sector 的 legacy index 与 `indices.json` 已有 index 名称和范围等价
+- **THEN** convergence audit 必须指向 existing index entity，旧 sector 必须 inactive，且不得改变 index/benchmark 语义或创建 sector source mapping
 
 #### Scenario: convergence 幂等
 - **WHEN** 同一版本 convergence 或普通 seed 在成功后重复执行

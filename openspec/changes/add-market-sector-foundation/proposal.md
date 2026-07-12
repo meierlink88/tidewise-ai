@@ -15,6 +15,7 @@
 - 明确投研安全边界：板块基础数据只能表达客观分类、来源、市场范围和审阅关系，不表达具体股票推荐、买卖建议、涨跌预测、受益承压或传导强度。
 - 补充 canonical convergence：使用结构化 manifest 把本地既有 60 个 source-bound sector 收敛到 52 个 active canonical sector，保留旧 UUID 和审计记录、迁移引用并停用旧实体，避免普通 seed 形成 112 个 active sector。
 - 增加显式 convergence 执行模式、单事务和数据库前置门禁；普通 `entity-seed` 在检测到 active legacy sector 时必须拒绝写入 canonical seed，不得隐式停用主数据。
+- convergence target 必须类型安全：29 个旧 concept/industry 指向等价 canonical sector，15 个误建为 sector 的旧 index 指向已有正式 index，16 个无等价 target 的旧对象只退休；事件相关或产业链相关不得作为同义合并依据。
 
 ## Capabilities
 

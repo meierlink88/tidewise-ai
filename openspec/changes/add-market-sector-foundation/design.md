@@ -221,42 +221,44 @@ Neo4j 节点仍使用单一 `Entity` 标签和 `projection_namespace='tidewise'`
 
 local PostgreSQL 已应用 `000010_add_market_sector_foundation.sql`。当前数据库仍有 60 个 `sector:ths_*` 旧 sector，全部 active；正式 52 个 canonical sector 尚未 seed。现有 `Service.Apply` 只按 key upsert，直接运行会得到 112 个 active sector，因此 change 重新打开。
 
-推荐新增版本化 `backend/data/entity_foundation/sector_convergences.json`，不得从 `candidate-review.md` 运行时解析名单或把 60 项硬编码进 SQL。manifest 每项包含 `legacy_entity_key`、`legacy_name`、`legacy_taxonomy`、`action`、可空 `canonical_entity_key`、`uuid_policy`、`alias_policy`、`source_mapping_policy`、`reference_policy`、`review_source_url`、`reviewed_at` 和客观 `reason`。
+推荐新增版本化 `backend/data/entity_foundation/sector_convergences.json`，不得从 `candidate-review.md` 运行时解析名单或把 60 项硬编码进 SQL。manifest 每项包含 `legacy_entity_key`、`legacy_name`、`legacy_taxonomy`、`action`、可空 `target_entity_key`、允许的 `target_entity_type`、`uuid_policy`、`alias_policy`、`source_mapping_policy`、`reference_policy`、`review_source_url`、`reviewed_at` 和客观 `equivalence_reason`。
 
-新 canonical 实体继续使用 canonical key 派生的确定性 UUID。旧 UUID 不复用、不改主键、不删除；replace/merge 完成后旧实体改为 `inactive`，benchmark-only 旧 sector 也改为 `inactive`。数据库新增结构化 `entity_convergences` 审计表，保存 `legacy_entity_id`、可空 `canonical_entity_id`、action、manifest version、review source 和时间。这样多旧实体可以安全汇入一个 canonical，历史 key 仍可解析，但旧节点不再参与 active 查询或 Neo4j 投影。
+新 canonical 实体继续使用 canonical key 派生的确定性 UUID。旧 UUID 不复用、不改主键、不删除，所有处置完成后旧实体改为 `inactive`。数据库新增结构化 `entity_convergences` 审计表，保存 `legacy_entity_id`、可空 `target_entity_id`、`target_entity_type`、action、manifest version、review source 和时间。`target_entity_id` 可以指向 reviewed canonical sector 或已存在且名称/范围等价的 index；不得命名为 `canonical_sector_id` 或假设 target 永远是 sector。
 
-40 个 concept/industry 旧对象有 canonical target：旧中文名追加到 canonical aliases，并依据旧 `sector_profiles.sector_system/sector_code/sector_type` 创建指向 canonical 的 legacy source mapping；原旧 profile 继续附着在 inactive 旧实体上用于审计。20 个 benchmark-only 旧对象没有已批准 benchmark target，不得伪造 benchmark 或 sector mapping，只保留 inactive 旧实体、旧 profile 和 convergence 审计记录。正式 Review 候选 60 条 mapping 加上 40 条 legacy mapping，预期 `sector_source_mappings=100`。
+`entity_convergences` 第一版字段固定为：`legacy_entity_id UUID PRIMARY KEY REFERENCES entity_nodes(id)`、`target_entity_id UUID NULL REFERENCES entity_nodes(id)`、`target_entity_type TEXT NULL`、`action TEXT NOT NULL`、`manifest_version TEXT NOT NULL`、`review_source_url TEXT NOT NULL`、`reason TEXT NOT NULL`、`converged_at TIMESTAMPTZ NOT NULL`。action check 只允许 `replace`、`merge`、`retire_without_canonical`、`replace_with_existing_index`、`retire_without_target`。loader/service 必须联合校验：replace/merge 要求 target type=sector；replace_with_existing_index 要求 target type=index 且 target 已存在；两个 retire action 要求 target ID/type 均为空。数据库 check 负责 target nullability，实际 entity type 由锁内 repository 查询校验。
+
+重新审阅后，29 个 concept/industry 旧对象有等价或明确范围上卷的 canonical sector target：旧中文名追加到 canonical aliases，并依据旧 profile 创建 legacy source mapping。11 个仅事件相关、跨链相关、范围收窄或对象层级差异过大的旧对象使用 `retire_without_canonical`，不创建错误 mapping。20 个旧 index 中，15 个指向 `indices.json` 已有等价 index，5 个使用 `retire_without_target`；二者都不创建 sector source mapping、不改变 index/benchmark 语义。最终 mapping 公式为正式 Review 60 + legacy sector target 29 = `sector_source_mappings=89`。
 
 #### 旧 60 项处置矩阵
 
-公共规则：所有旧 UUID 均保留并转 inactive；replace/merge 行复制旧名称为 canonical alias、创建 legacy source mapping、重定向引用；benchmark-only 行不创建 target/mapping，保留旧 profile，并对非归档引用执行阻断。
+公共规则：所有旧 UUID 均保留并转 inactive。replace/merge 行复制旧名称为 canonical alias、创建 legacy sector mapping并重定向类型兼容引用；retire_without_canonical 不创建 mapping。replace_with_existing_index 只写 convergence audit；仅类型兼容引用可以重定向到 index，sector 专属引用必须阻断或停用。retire_without_target 保留旧 profile 并阻断非归档引用。
 
-| old entity_key | 名称 | 旧 taxonomy | canonical target | action | 身份与保留 | 引用策略 |
+| old entity_key | 名称 | 旧 taxonomy | target entity | action | 身份与保留 | 引用策略 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `sector:ths_concept_ai` | 人工智能 | concept | `sector:theme_artificial_intelligence` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_compute_power` | 算力 | concept | `sector:theme_computing_infrastructure` | replace | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_data_center` | 数据中心 | concept | `sector:theme_data_centers_cloud` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_semiconductor` | 半导体概念 | concept | `sector:theme_semiconductor_resilience` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_chip` | 芯片概念 | concept | `sector:theme_semiconductor_resilience` | merge | 新 UUID；alias + legacy mapping | redirect |
+| `sector:ths_concept_data_center` | 数据中心 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_concept_semiconductor` | 半导体概念 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_concept_chip` | 芯片概念 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
 | `sector:ths_concept_robot` | 机器人概念 | concept | `sector:theme_robotics_embodied_ai` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_low_altitude` | 低空经济 | concept | `sector:theme_low_altitude_economy` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_commercial_space` | 商业航天 | concept | `sector:theme_commercial_space_satellite` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_satellite_nav` | 卫星导航 | concept | `sector:theme_satellite_communications_navigation` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_defense` | 军工 | concept | `sector:industry_defense_aerospace` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_nev` | 新能源汽车 | concept | `sector:theme_intelligent_connected_nev` | replace | 新 UUID；alias + legacy mapping | redirect |
+| `sector:ths_concept_nev` | 新能源汽车 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
 | `sector:ths_concept_solid_state_battery` | 固态电池 | concept | `sector:theme_next_generation_batteries` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_energy_storage` | 储能 | concept | `sector:theme_advanced_energy_storage` | replace | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_photovoltaic` | 光伏概念 | concept | `sector:theme_wind_solar_equipment` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_wind_power` | 风电 | concept | `sector:theme_wind_solar_equipment` | merge | 新 UUID；alias + legacy mapping | redirect |
+| `sector:ths_concept_photovoltaic` | 光伏概念 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_concept_wind_power` | 风电 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
 | `sector:ths_concept_hydrogen` | 氢能源 | concept | `sector:theme_hydrogen_energy` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_concept_nuclear_power` | 核电 | concept | `sector:theme_nuclear_advanced_energy` | replace | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_digital_currency` | 数字货币 | concept | `sector:theme_digital_economy_data_elements` | replace | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_concept_cross_border_ecommerce` | 跨境电商 | concept | `sector:industry_consumer_retail` | merge | 新 UUID；alias + legacy mapping | redirect |
+| `sector:ths_concept_digital_currency` | 数字货币 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_concept_cross_border_ecommerce` | 跨境电商 | concept | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
 | `sector:ths_concept_soe_reform` | 国企改革 | concept | `sector:theme_soe_reform_technology` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_semiconductor_components` | 半导体及元件 | industry | `sector:industry_semiconductors_electronics` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_communication_equipment` | 通信设备 | industry | `sector:industry_software_communications` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_software` | 计算机应用 | industry | `sector:industry_software_communications` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_industry_media` | 传媒 | industry | `sector:industry_consumer_retail` | merge | 新 UUID；alias + legacy mapping | redirect |
+| `sector:ths_industry_media` | 传媒 | industry | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
 | `sector:ths_industry_securities` | 证券 | industry | `sector:industry_securities_insurance` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_bank` | 银行 | industry | `sector:industry_banking` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_insurance` | 保险及其他 | industry | `sector:industry_securities_insurance` | merge | 新 UUID；alias + legacy mapping | redirect |
@@ -265,43 +267,90 @@ local PostgreSQL 已应用 `000010_add_market_sector_foundation.sql`。当前数
 | `sector:ths_industry_power_equipment` | 电力设备 | industry | `sector:industry_power_equipment_batteries` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_pv_equipment` | 光伏设备 | industry | `sector:theme_wind_solar_equipment` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_battery` | 电池 | industry | `sector:industry_power_equipment_batteries` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_industry_medical_service` | 医疗服务 | industry | `sector:industry_pharma_biotech` | merge | 新 UUID；alias + legacy mapping | redirect |
+| `sector:ths_industry_medical_service` | 医疗服务 | industry | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
 | `sector:ths_industry_chemical_pharma` | 化学制药 | industry | `sector:industry_pharma_biotech` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_tcm` | 中药 | industry | `sector:industry_pharma_biotech` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_industrial_metal` | 工业金属 | industry | `sector:industry_nonferrous_new_materials` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_coal` | 煤炭开采加工 | industry | `sector:industry_coal` | replace | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_oil_processing` | 石油加工贸易 | industry | `sector:industry_oil_gas_refining` | merge | 新 UUID；alias + legacy mapping | redirect |
 | `sector:ths_industry_real_estate` | 房地产开发 | industry | `sector:industry_real_estate_property` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_industry_consumer_electronics` | 消费电子 | industry | `sector:industry_semiconductors_electronics` | merge | 新 UUID；alias + legacy mapping | redirect |
-| `sector:ths_index_sse50` | 上证50 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_csi300` | 沪深300 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_csi500` | 中证500 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_csi1000` | 中证1000 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_star50` | 科创50 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_chinext50` | 创业板50 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_szse100` | 深证100 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_bse50` | 北证50 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_csi_a500` | 中证A500 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_csi_dividend` | 中证红利 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_cctv50` | 央视50 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_csi_all` | 中证全指 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_wind_all_a` | 万得全A | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_cni2000` | 国证2000 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_hsi` | 恒生指数 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_hstech` | 恒生科技指数 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_ndx` | 纳斯达克100 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_sp500` | 标普500 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_sox` | 费城半导体指数 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
-| `sector:ths_index_msci_china_a50` | MSCI中国A50互联互通 | index | - | retire_as_benchmark_only | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_industry_consumer_electronics` | 消费电子 | industry | - | retire_without_canonical | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_index_sse50` | 上证50 | index | - | retire_without_target | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_index_csi300` | 沪深300 | index | `index:csi300` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_csi500` | 中证500 | index | `index:csi500` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_csi1000` | 中证1000 | index | `index:csi1000` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_star50` | 科创50 | index | `index:star50` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_chinext50` | 创业板50 | index | - | retire_without_target | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_index_szse100` | 深证100 | index | - | retire_without_target | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_index_bse50` | 北证50 | index | `index:bse50` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_csi_a500` | 中证A500 | index | `index:csi_a500` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_csi_dividend` | 中证红利 | index | `index:csi_dividend` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_cctv50` | 央视50 | index | - | retire_without_target | 旧 UUID/profile only | block non-archival refs |
+| `sector:ths_index_csi_all` | 中证全指 | index | `index:csi_all` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_wind_all_a` | 万得全A | index | `index:wind_all_a` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_cni2000` | 国证2000 | index | `index:cni2000` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_hsi` | 恒生指数 | index | `index:hsi` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_hstech` | 恒生科技指数 | index | `index:hstech` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_ndx` | 纳斯达克100 | index | `index:ndx` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_sp500` | 标普500 | index | `index:sp500` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_sox` | 费城半导体指数 | index | `index:sox` | replace_with_existing_index | existing index；audit only | type-safe redirect |
+| `sector:ths_index_msci_china_a50` | MSCI中国A50互联互通 | index | - | retire_without_target | 旧 UUID/profile only | block non-archival refs |
 
-矩阵统计：`replace=12`、`merge=28`、`retire_as_benchmark_only=20`，共 60。最终 PostgreSQL 预期 sector 总数 112，其中 active canonical 恰好 52、inactive legacy 60；`entity_convergences=60`、`sector_source_mappings=100`、`covers_sector=52`、`tracked_by_benchmark=0`。
+矩阵统计：`replace=10`、`merge=19`、`retire_without_canonical=11`、`replace_with_existing_index=15`、`retire_without_target=5`，共 60。等价 target 44 项，其中 sector target 29、existing index target 15；无 target 16。最终 PostgreSQL 预期 sector 总数 112，其中 active canonical 恰好 52、inactive legacy 60；`entity_convergences=60`、`sector_source_mappings=89`、`covers_sector=52`、`tracked_by_benchmark=0`。
+
+#### Concept/industry 40 项等价性复核
+
+判断只接受同义、正式改名或 canonical 定义明确包含旧分类范围；事件相关、上下游相关或共同传导不构成身份合并依据。
+
+| legacy | 结果 | 等价性/范围依据 |
+| --- | --- | --- |
+| 人工智能 | replace | 同名主题规范化 |
+| 算力 | replace | Review 已批准改名为算力基础设施，核心范围一致 |
+| 数据中心 | retire | 数据中心不等同“数据中心与云”，范围增加云服务 |
+| 半导体概念 | retire | 不等同自主可控主题或半导体行业骨架 |
+| 芯片概念 | retire | 不等同自主可控主题或半导体行业骨架 |
+| 机器人概念 | replace | canonical 明确以机器人为主体，具身智能为规范扩展名 |
+| 低空经济 | replace | 同名主题 |
+| 商业航天 | merge | canonical 明确覆盖商业航天及其卫星产业范围 |
+| 卫星导航 | merge | canonical 明确包含导航与通信终端范围 |
+| 军工 | merge | 旧军工分类整体纳入国防与航空航天行业口径 |
+| 新能源汽车 | retire | 智能网联新能源汽车是更窄子集，不能替代完整新能源汽车身份 |
+| 固态电池 | merge | canonical 名称与定义显式包含固态及下一代电池 |
+| 储能 | replace | 新型储能是旧储能主题的正式范围收敛 |
+| 光伏概念 | retire | 光伏概念覆盖材料、制造、发电等，不等同装备主题 |
+| 风电 | retire | 风电覆盖开发运营与装备，不等同装备主题 |
+| 氢能源 | replace | 同一氢能主题规范命名 |
+| 核电 | replace | canonical 显式包含核电并扩展先进核能命名 |
+| 数字货币 | retire | 数字货币只是数字经济子主题，candidate 的 replace 决策不构成身份等价 |
+| 跨境电商 | retire | 渠道、贸易与物流属性不等同消费零售行业 |
+| 国企改革 | replace | canonical 明确保留国企改革主体并增加央企科技范围 |
+| 半导体及元件 | merge | canonical 行业骨架显式覆盖半导体与电子元件 |
+| 通信设备 | merge | canonical 软件与通信行业骨架显式包含通信设备范围 |
+| 计算机应用 | merge | canonical 软件与通信行业骨架包含软件应用范围 |
+| 传媒 | retire | 内容、广告与媒体监管不等同消费零售 |
+| 证券 | merge | canonical 证券与保险行业骨架显式包含证券 |
+| 银行 | replace | 同名行业规范化 |
+| 保险及其他 | merge | canonical 证券与保险行业骨架显式包含保险 |
+| 汽车整车 | merge | canonical 汽车与零部件行业骨架显式包含整车 |
+| 汽车零部件 | merge | canonical 汽车与零部件行业骨架显式包含零部件 |
+| 电力设备 | merge | canonical 电力设备与电池行业骨架显式包含电力设备 |
+| 光伏设备 | merge | canonical 风电与光伏装备显式包含光伏设备；这是跨 source taxonomy 的身份范围上卷，不是事件/产业链相关映射 |
+| 电池 | merge | canonical 电力设备与电池行业骨架显式包含电池 |
+| 医疗服务 | retire | 医疗服务与药品/生物科技是不同供给环节，不能仅因医疗事件相关而合并 |
+| 化学制药 | merge | canonical 医药与生物科技行业骨架显式包含制药 |
+| 中药 | merge | canonical 医药与生物科技行业骨架按本 MVP 包含中药制药 |
+| 工业金属 | merge | canonical 有色金属与新材料行业骨架显式包含工业金属 |
+| 煤炭开采加工 | replace | 煤炭行业规范命名 |
+| 石油加工贸易 | merge | canonical 石油天然气与炼化显式包含炼化加工 |
+| 房地产开发 | merge | canonical 房地产与物业行业骨架显式包含开发 |
+| 消费电子 | retire | 终端制造不等同半导体与电子上游，只有跨链关系 |
 
 #### 事务、引用和 CLI 边界
 
 - `cmd/entity-seed` 新增显式 `-apply-sector-convergence`；不得复用 `-include-inactive` 表达迁移。普通模式检测到 manifest canonical key 尚不存在且存在 active legacy key 时必须在任何写入前失败。
-- `Service.ApplySectorConvergence` 在一个 PostgreSQL transaction 内完成：锁定 60 个 legacy 行与 52 个 canonical key、验证 manifest/数据库集合完全匹配、写入 canonical、迁移引用、创建 40 条 legacy mapping、停用旧实体、写入 convergence audit、再写正式 mapping 和关系。任一步失败必须整体 rollback。
+- `Service.ApplySectorConvergence` 在一个 PostgreSQL transaction 内完成：锁定 60 个 legacy 行、52 个 canonical key 和 15 个 existing index target，验证 manifest/数据库集合完全匹配、写入 canonical、迁移类型兼容引用、创建 29 条 legacy sector mapping、停用旧实体、写入 convergence audit、再写正式 mapping 和关系。任一步失败必须整体 rollback。
 - repository 使用显式 `SectorReferenceRegistry`。当前至少处理 `entity_edges.from_entity_id/to_entity_id`、`sector_profiles.parent_sector_entity_id` 和 `sector_source_mappings.sector_entity_id`；`sector_profiles.entity_id` 是旧实体审计所有权，不重定向。运行时从 `pg_constraint` 检测其他引用 `entity_nodes(id)` 且命中 legacy ID 的列，未注册列必须阻断事务。
-- replace/merge 的 edge 端点重定向到 canonical；若多条 edge 收敛为同一 tuple，确定性保留一条 active edge并把其他重复 edge 标记 inactive，不删除 provenance。benchmark-only 的 active edge 标记 inactive；任何非归档 FK 引用必须阻断，等待独立 benchmark 决策。
+- replace/merge 的 edge 端点重定向到 canonical sector；若多条 edge 收敛为同一 tuple，确定性保留一条 active edge并把其他重复 edge 标记 inactive，不删除 provenance。replace_with_existing_index 只能重定向通用引用或经 relationship policy 重新校验后仍合法的 edge；`sector_profiles.parent_sector_entity_id`、`sector_source_mappings.sector_entity_id` 等 sector 专属引用不得指向 index，必须阻断或把对应 active edge 停用。无 target retirement 的 active edge 标记 inactive，任何非归档 FK 引用必须阻断。
 - MemoryRepository 通过 clone-on-write 模拟同一原子语义，失败时原状态不变；PG repository 使用 `sql.Tx`。两者必须产生一致 report：preflight、created/updated/unchanged、redirected references、retired legacy、conflicts 和 blocked references。
 - 成功后普通 seed 重跑应幂等；显式 convergence 重跑也应报告 60 条 already-converged，不新增实体、mapping、edge 或审计行。
 
@@ -332,7 +381,8 @@ sequenceDiagram
 classDiagram
     class SectorConvergence {
       legacy_entity_key
-      canonical_entity_key
+      target_entity_key
+      target_entity_type
       action
       alias_policy
       source_mapping_policy
@@ -477,22 +527,23 @@ classDiagram
 - Neo4j 查询想直接看板块属性 -> 投影仍以 PG 为事实源；可投影必要 profile 属性，但不得把 Neo4j 变成独立维护入口。
 - legacy convergence 若部分成功会同时留下新旧 active 主数据 -> canonical 写入、引用迁移、旧实体停用、audit/mapping/relationship 必须位于同一事务，任何错误整体 rollback。
 - 未来新增 FK 可能绕过引用迁移 -> 维护显式 `SectorReferenceRegistry`，并在每次 convergence 前从 PostgreSQL catalog 检测命中 legacy ID 的未注册 FK，发现即阻断。
-- benchmark-only 对象没有当前 target -> 只退休旧 sector 并保留审计，不自动创造 benchmark；若已有非归档引用则阻断，等待独立 benchmark Review。
+- 旧 index sector 可能已有正式 index target -> audit 使用通用 `target_entity_id/type`；仅类型兼容引用可重定向，sector 专属引用 fail-closed，不自动创造 benchmark。
 
 ## Migration Plan
 
 当前 local 已应用 migration `000010`，正式 entity seed 尚未执行。后续分阶段执行：
 
-1. 主对话 Review Decision 7、60 项矩阵、100 mappings 预期和显式 CLI/事务边界。
+1. 主对话 Review Decision 7、60 项矩阵、89 mappings 预期、15 个 existing index target 和显式 CLI/事务边界。
 2. TDD 实现 convergence manifest、`entity_convergences` 前向 migration、Memory/PG 原子 repository、引用 registry 和 fail-closed CLI；只提交代码，不写 local PG。
-3. 独立审批后在 local apply 新 migration，再显式执行 convergence；验收 52 active、60 inactive、60 audit、100 mappings、52 covers 和引用闭合。
+3. 独立审批后在 local apply 新 migration，再显式执行 convergence；验收 52 active、60 inactive、60 audit、89 mappings、52 covers 和引用闭合。
 4. 重复执行 convergence 与普通 seed 验证幂等，停止等待 Neo4j graph projection 独立审批。
 
 回滚策略：convergence 数据写入必须依靠事务失败自动 rollback；migration 继续采用前向修正，不清空业务表、不删除旧实体。事务成功后的业务纠错必须通过新 manifest version 和审阅后的前向 convergence 修正。
 
 ## Open Questions
 
-- 主对话需确认 60 项矩阵中原候选存在多目标建议时的单一迁移目标，重点包括半导体概念/芯片概念、光伏设备、传媒、消费电子等收敛选择。
-- 主对话需确认 mapping 口径从正式 Review 60 条增加到 100 条：新增 40 条由 legacy concept/industry profile 生成的 canonical source mappings；20 个 benchmark-only 只进入 convergence audit。
-- 主对话需确认新 `entity_convergences` 表、旧 UUID 永久保留 inactive、显式 `-apply-sector-convergence`、未知 FK fail-closed 和 benchmark-only 非归档引用阻断策略。
+- 主对话需确认 29 个 sector target 的等价/范围上卷依据，尤其光伏设备；11 个无等价 canonical 的旧项保持无 target retirement。
+- 主对话需确认 mapping 口径为正式 Review 60 + legacy sector target 29 = 89；15 个 existing index target 和 16 个无 target 项只进入 convergence audit。
+- 主对话需确认新 `entity_convergences.target_entity_id/type`、旧 UUID 永久保留 inactive、显式 `-apply-sector-convergence`、未知 FK fail-closed 和 sector-to-index 类型安全引用策略。
+- 剩余 16 个无 target 项需逐项确认：数据中心、半导体概念、芯片概念、新能源汽车、光伏概念、风电、数字货币、跨境电商、传媒、医疗服务、消费电子，以及上证50、创业板50、深证100、央视50、MSCI中国A50互联互通。
 - 具体 benchmark 实体与 `tracked_by_benchmark` 关联仍由独立 Review 决定，本阶段不得因 convergence 自动创建。

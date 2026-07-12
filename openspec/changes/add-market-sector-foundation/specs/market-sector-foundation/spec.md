@@ -135,6 +135,6 @@
 - **WHEN** 已批准的 60 项 legacy convergence 和正式 sector seed 完成
 - **THEN** PostgreSQL 必须包含 52 个 active canonical sector 和 60 个 inactive legacy sector，不得出现 112 个 active sector
 
-#### Scenario: benchmark-only 旧对象退休
-- **WHEN** 20 个旧宽基或市场指数被标记为 `retire_as_benchmark_only`
-- **THEN** 它们必须退出 active sector 集合，且在没有独立 Review 前不得自动创建 benchmark 实体或 `tracked_by_benchmark` 关系
+#### Scenario: 旧指数对象退出 sector 集合
+- **WHEN** 20 个误建为 sector 的旧宽基或市场指数被 convergence 处理
+- **THEN** 它们必须退出 active sector 集合；15 个已有等价正式 index 的对象必须在 audit 中指向该 index，5 个无正式 target 的对象保持 target null，且不得自动创建 benchmark 或 `tracked_by_benchmark` 关系
