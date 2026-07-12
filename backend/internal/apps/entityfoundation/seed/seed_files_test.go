@@ -331,6 +331,41 @@ func TestSectorFixturesRejectReasoningAndInvestmentAdvice(t *testing.T) {
 	}
 }
 
+func TestReviewedSectorSeedURLsUseCandidateReviewCommitPermalink(t *testing.T) {
+	const permalink = "https://github.com/meierlink88/tidewise-ai/blob/03273effecb946ba21c953f6d12165d65b3dee88/openspec/changes/add-market-sector-foundation/candidate-review.md"
+	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
+
+	sectors, err := LoadFile(filepath.Join(root, "sectors.json"))
+	if err != nil {
+		t.Fatalf("LoadFile(sectors) error = %v", err)
+	}
+	for _, entity := range sectors.Entities {
+		if got := profileString(t, entity.Profile, "methodology_url"); got != permalink {
+			t.Fatalf("sector %q methodology_url = %q, want commit permalink", entity.Key, got)
+		}
+	}
+
+	combined, err := LoadFiles(filepath.Join(root, "sectors.json"), filepath.Join(root, "sector_source_mappings.json"))
+	if err != nil {
+		t.Fatalf("LoadFiles(source mappings) error = %v", err)
+	}
+	for _, mapping := range combined.SectorSourceMappings {
+		if mapping.SourceURL != permalink {
+			t.Fatalf("mapping %q source_url = %q, want commit permalink", mapping.SourceSectorName, mapping.SourceURL)
+		}
+	}
+
+	all, err := LoadFiles(entityFoundationSeedPaths()...)
+	if err != nil {
+		t.Fatalf("LoadFiles(all seeds) error = %v", err)
+	}
+	for _, relationship := range all.Relationships {
+		if relationship.RelationType == "covers_sector" && relationship.SourceURL != permalink {
+			t.Fatalf("relationship %q source_url = %q, want commit permalink", relationship.Key, relationship.SourceURL)
+		}
+	}
+}
+
 func TestChainNodeSeedFile(t *testing.T) {
 	manifest, err := LoadFile(filepath.Join("..", "..", "..", "..", "data", "entity_foundation", "chain_nodes.json"))
 	if err != nil {
