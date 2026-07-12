@@ -1,6 +1,6 @@
 ## Why
 
-现有 `frontend/miniapp/` 已具备 Taro + React + TypeScript 工程壳和 mock-first service 边界，但 index tab 仍是“指数”占位页，不能呈现观潮家的核心首页体验。现在需要先交付一个微信、抖音均可运行的“今日观潮”纯前端 Mock 首页，为页面视觉验收和后续正式 API integration 提供稳定基线。
+现有 `frontend/miniapp/` 已具备 Taro + React + TypeScript 工程壳和 mock-first service 边界，但 index tab 仍是“指数”占位页，不能呈现观潮家的核心首页体验。现在需要先交付一个微信小程序可运行的“今日观潮”纯前端 Mock 首页，为页面视觉验收和后续正式 API integration 提供稳定基线。
 
 ## What Changes
 
@@ -14,13 +14,13 @@
 - 逐项盘点原型图片、字体和内联 SVG；只有生产运行确实需要且授权明确的资产才可复制到 `frontend/miniapp/src/assets`，并记录来源与 SHA-256。
 - 将原型中的个股推荐、公司排序和买卖暗示替换为市场、板块、benchmark、商品、经济体或产业链实体，并持续标注“不构成投资建议”。
 - 在 Apply 更新 `.agents/frontend-boundaries.md`：旧 `ganchaojia-design` skill 保留为历史和基础 token 参考，但不再拥有生产小程序 page-level 最终视觉裁决权。
-- 补充微信/抖音构建、本地微信开发者工具导入/预览和截图视觉验收任务。
+- 补充微信构建、本地微信开发者工具防错导入/预览和截图视觉验收任务；本 change 暂不把抖音构建或预览作为验收目标。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `miniapp-daily-brief-home-shell`: 定义“今日观潮”Mock 首页、四态、首页交互、候选契约、可替换 adapter、canonical 视觉基线和双端运行验收。
+- `miniapp-daily-brief-home-shell`: 定义“今日观潮”Mock 首页、四态、首页交互、候选契约、可替换 adapter、canonical 视觉基线和微信运行验收。
 
 ### Modified Capabilities
 
@@ -34,4 +34,5 @@
 - 页面/状态范围：首页 ready 的展开/折叠、主线切换、“看图谱”占位反馈，以及 loading、empty、error。实现阶段通过固定截图基线与视觉对比验收，不以复制 HTML 达成一致。
 - 资产盘点：`assets/home-header-sea.jpg` SHA-256 `667dcd64bcfb7c3d40e4f5f5a6d0b9be1f88a90824e5e3db88527f08703b6fdc` 是首页 canonical 候选资产，复制前必须确认授权；`assets/nav-avatar.png` 属 prototype shell，排除；远程 Google Fonts 不直接带入小程序；内联 SVG 转译为 Taro 可用图标/样式。
 - 非目标：不实现推导图谱页或图谱数据结构，不修改其他 tab、Go 后端、数据库、Neo4j、Agent/RAG、真实 HTTP API、鉴权、订阅、支付、推送、`doc/` 或任何 prototype 源文件，不创建 repo-local miniapp design skill，不触碰 `add-ai-event-extraction-pipeline`。
+- 平台范围：本 change 仅验收微信小程序。既有 Taro 抖音依赖和 `build:tt` 脚本保留以避免无关破坏，但不要求本 change 构建、预览或声明抖音兼容性。
 - 依赖：不新增 UI 框架，不复制整套 design library；测试工具只允许 miniapp workspace 内的最小增量，并由 Apply Review 决定。

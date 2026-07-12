@@ -1,6 +1,6 @@
 ## Context
 
-`frontend/miniapp/` 已是支持微信和抖音目标的 Taro + React + TypeScript 工程，具备五个一级 tab、components、models、dedicated data、services、request、styles 和 utils。当前 `pages/index` 只从 `market-service` 读取指数锚点并显示简单网格；miniapp tokens 只有少量颜色、圆角和间距值，尚未覆盖观潮家首页的视觉语言；工程也未配置前端业务单元测试工具。
+`frontend/miniapp/` 已是具有微信和抖音构建能力的 Taro + React + TypeScript 工程，具备五个一级 tab、components、models、dedicated data、services、request、styles 和 utils。当前 change 仅以微信小程序作为运行与视觉验收目标；既有抖音依赖和脚本保留但不在本 change 验收。
 
 本 change 只交付首页“今日观潮”Mock shell。`/Users/meierlink/Documents/david/创业项目/观潮家/prototype2/miniprogram.html` 首页最终渲染是已批准的 page-level canonical visual/interaction source，优先级高于旧 `ganchaojia-design` skill。旧 skill 及关联 design library 仅解释历史 token 和基础组件来源，不能覆盖首页最终效果。
 
@@ -25,6 +25,7 @@
 - 不展示个股推荐、买卖信号、收益预测、个股排行或可执行投资建议。
 - 不复制或修改 prototype HTML/CSS/脚本、prototype shell、annotation/debug 资产或整套 `.design_library`，不修改 `doc/` 与 prototype 源文件。
 - 不在本 change 创建 repo-local miniapp design skill，不重构其他四个 tab。
+- 不要求抖音构建、开发者工具预览、模拟器 smoke 或视觉一致性；不为收缩范围删除既有抖音依赖和脚本。
 
 ## Visual Source Baseline
 
@@ -107,7 +108,7 @@ Apply 同步更新 `.agents/frontend-boundaries.md`：旧 `ganchaojia-design` sk
 
 ### Decision 9: 自动验证 + 微信开发者工具人工验收
 
-Apply 使用 TDD 为 contract mapper、resource reducer、section registry、mock adapter 和占位策略纯函数先写失败测试。最终自动验证包括 lint、typecheck、单元测试、`build:weapp`、`build:tt`，构建产物不提交。
+Apply 使用 TDD 为 contract mapper、resource reducer、section registry、mock adapter 和占位策略纯函数先写失败测试。最终自动验证包括 lint、typecheck、单元测试和 `build:weapp`，构建产物不提交。
 
 本地人工验收说明必须给出微信构建产物路径、微信开发者工具导入方式、测试 AppID/本地模式注意事项、确认启动即进入首页、切换 mock 四态、操作折叠/主线/占位入口和采集 375×812 截图的步骤。CLI 无法替代开发者工具渲染，因此人工预览结果作为 Apply evidence 单独记录。
 
@@ -180,7 +181,7 @@ sequenceDiagram
 | “看图谱” | canonical trigger + coming-soon feedback | 位置、样式、点击反馈、不导航 |
 | loading/empty/error | resource-state primitives | 背景、层级、无布局跳变 |
 
-允许差异仅限微信/抖音安全区、原生导航、字体渲染和平台组件行为；每项在 evidence 说明原因、影响和等价处理。未记录偏差视为未通过。
+允许差异仅限微信安全区、原生导航、字体渲染和平台组件行为；每项在 evidence 说明原因、影响和等价处理。未记录偏差视为未通过。
 
 ## Canonical Homepage Structural Mapping Audit
 
@@ -203,7 +204,7 @@ sequenceDiagram
 | 决策辅助/非投资建议声明 | safety-note section | 已实现 |
 | 首页悬浮“问潮”入口 | fixed FAB，切换至既有 AI tab | 已实现 |
 | 底部 tabBar 首页选中态 | `pages/index/index` 与 tabBar 第一项“首页”，selectedColor `#2563eb` | 已实现并由配置单测与构建产物门禁锁定 |
-| prototype 状态栏、胶囊、头像和标注/debug shell | 使用微信/抖音原生容器；prototype shell 资产不进入生产 | 按已批准平台等价转译/排除，不是内容缺失 |
+| prototype 状态栏、胶囊、头像和标注/debug shell | 使用微信原生容器；prototype shell 资产不进入生产 | 按已批准平台等价转译/排除，不是内容缺失 |
 
 该审计只证明结构覆盖，不替代像素验收。安全区、字体栅格化、图片裁切、波浪轮廓、主线切换控件位置和平台 tabBar 实际渲染，均须在微信开发者工具 375×812 截图对比后才能通过。
 
@@ -212,7 +213,7 @@ sequenceDiagram
 - [候选 V1 被误认为正式 API] → mock schemaVersion、模块命名和 spec 明确边界；后续 integration change 重新定义 API。
 - [“看图谱”入口误导用户] → 使用明确 coming-soon 轻提示且不导航、不请求；由 Review 确认策略。
 - [设计源漂移] → Apply 前重算 SHA-256，变化即暂停。
-- [Web 到双端小程序有视觉差异] → 固定 viewport 截图对比，只接受有记录的平台等价差异。
+- [Web 到微信小程序有视觉差异] → 固定 viewport 截图对比，只接受有记录的平台等价差异。
 - [海面图片被构建器内联导致页面样式超限] → 使用 Taro `Image` 背景层独立输出；构建门禁校验图片指纹、WXSS 小于 64 KiB 和首页入口配置。
 - [测试依赖扩大范围] → 优先纯 TypeScript；仅做 miniapp workspace 最小增量。
 
@@ -222,7 +223,7 @@ sequenceDiagram
 2. 更新 `.agents/frontend-boundaries.md` 的 miniapp 视觉路由。
 3. 在现有 styles/components 内建立轻量 design primitives；先写 contracts/adapter/mapper/state 测试，再实现数据边界。
 4. 增量替换 index 首页并实现四态、canonical 交互和“看图谱”占位反馈。
-5. 完成 lint、typecheck、单元测试、双端构建、微信开发者工具预览和 375×812 视觉对比。
+5. 完成 lint、typecheck、单元测试、微信构建、微信开发者工具预览和 375×812 视觉对比。
 6. 提交 Apply scoped diff 等待人工 Review；不存在数据库或服务端迁移。
 7. 回滚时恢复 frontend rule 与 index 文件，删除本 change 新增模块和已准入资产。
 
@@ -230,14 +231,29 @@ sequenceDiagram
 
 无。Proposal Review 已确认“看图谱”使用轻提示“推导图谱即将开放”，并明确授权 `home-header-sea.jpg` 用于生产小程序。
 
+## First Manual Acceptance Failure Retrospective
+
+首次人工截图不能用于判断本 branch 的视觉质量，因为微信开发者工具实际加载了主仓库旧构建产物，而不是当前 Desktop task worktree 的构建产物：
+
+| 证据 | 主仓库旧 `dist/app.json` | 当前 worktree `dist/app.json` |
+|---|---|---|
+| 绝对路径 | `/Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai/frontend/miniapp/dist/app.json` | `/Users/meierlink/.codex/worktrees/ed41/tidewise-ai/frontend/miniapp/dist/app.json` |
+| 检查时 mtime | `2026-07-05 19:18:38` | `2026-07-12 21:46:06` |
+| pages 第一项 | `pages/feed/index` | `pages/index/index` |
+| tab 顺序/文案 | 行情 / 指数 / AI 助手 / 板块 / 订阅 | 首页 / 行情 / AI 助手 / 板块 / 订阅 |
+| selectedColor | `#0f766e` | `#2563eb` |
+
+失败截图的 tab 文案、顺序和青色 selected state 与左列逐项一致，因此根因是导入路径或开发者工具缓存指向旧 main `dist`。这只能排除该截图作为新 UI 证据，不能证明当前实现已达到 canonical 视觉要求。后续必须先通过 worktree 路径与 tab/颜色指纹门禁，再对正确构建的 375×812 截图逐项复盘视觉差异。
+
+不提交 `dist`，也不通过修改生产 UI 添加验收标识。构建身份以当前 task 的绝对导入路径、生成的 `dist/app.json` 和 `npm run verify:weapp-output --workspace @tidewise/miniapp` 共同确认。
+
 ## Apply Evidence
 
 - 用户已明确授权 `/Users/meierlink/Documents/david/创业项目/观潮家/prototype2/assets/home-header-sea.jpg` 用于生产小程序；目标文件及 provenance 为 `frontend/miniapp/src/assets/home-header-sea.jpg` 与 `frontend/miniapp/src/assets/README.md`。
 - Apply 前重算结果与 proposal 完全一致：HTML `ad90bcc8...f69a`、token CSS `3605c972...a889`、component CSS `f0c32a31...57c1`、海面资产 `667dcd64...b6fdc`。
 - TDD red：首轮因缺少 `mock-daily-brief` module 失败；第二轮因缺少 `components/daily-brief/ui-meta` module 失败。对应生产边界实现后分别获得 11/11 与 13/13 green。
 - Taro 4.2 native doctor 在当前 macOS 环境读取 system configuration 时 panic；定位到 `@tarojs/plugin-doctor-darwin-*` 后使用官方 `--no-check` 跳过前置 doctor，实际 webpack 编译正常执行。
-- weapp/tt 共用 `dist`，并行构建会互相清理输出目录；构建与说明统一改为顺序执行。
+- 当前 change 收缩为仅微信验收；既有抖音依赖与脚本保留，但不再要求 `build:tt` 或抖音预览，微信验收前最后一次构建必须是 `build:weapp`。
 - 自动截图尝试 H5 等价渲染时确认 workspace 未安装 `@tarojs/plugin-platform-h5`。本 change 不为视觉 QA 扩大目标平台或新增 H5 依赖；微信开发者工具 375×812 人工截图保留为 Apply 后 Review 待验收项。
-- 当前环境没有抖音开发者工具或可调用的抖音模拟器会话；只确认 tt webpack 编译成功，抖音本地预览 task 保持未完成，不能用微信或 CLI 构建替代。
 - Review 修复后海面图改为 Taro `Image` 背景层：微信构建独立输出 `dist/assets/home-header-sea.jpg` 且 SHA-256 与授权源一致，`dist/pages/index/index.wxss` 从约 260 KiB 降至 8,969 bytes；构建产物门禁要求其持续低于 64 KiB。
 - 仍存在的非阻塞构建警告为现有 Sass `@import` 弃用提示和 webpack 无异步 chunk 性能建议；不包含图片内联体积警告。

@@ -25,25 +25,24 @@
 
 - [x] 4.1 将现有 `pages/index` 占位内容增量替换为 service 驱动的“今日观潮”template；将其设为默认页面和首个“首页”tab，并保持其他四个 tab 页面与源码不变。
 - [x] 4.2 实现 loading、empty、error、ready 四态和错误重试，确保 empty/error 不显示伪造结论、影响或证据。
-- [x] 4.3 实现 canonical 摘要展开/折叠和首版主线切换，使用 Taro/React 受控状态并覆盖微信、抖音共同交互路径。
+- [x] 4.3 实现 canonical 摘要展开/折叠和首版主线切换，使用 Taro/React 受控状态并覆盖微信小程序交互路径。
 - [x] 4.4 保留 canonical “看图谱”视觉入口；按 Review 批准策略实现“推导图谱即将开放”轻提示或等价禁用反馈，确认不导航、不请求、不渲染图谱。
 - [x] 4.5 清理 fixture 中的个股、公司买卖信号、收益目标和推荐排序，只展示市场、板块、benchmark、商品、经济体或产业链实体，并在首页保持“不构成投资建议”声明。
 - [x] 4.6 以自动测试锁定默认页面、首个 tab、首页文案、canonical 蓝色 selected state 与其他 tab 唯一性。
 
-## 5. 自动验证与双端构建
+## 5. 自动验证与微信构建
 
 - [x] 5.1 运行首页业务单元测试并确认 ready/empty/error、mapper、adapter、registry、占位策略与安全边界用例全部通过。
 - [x] 5.2 运行 miniapp lint 和 TypeScript typecheck，确认无错误且源码扫描不包含 DOM/browser-only API、远程字体、硬编码 secret 或图谱实现模块。
 - [x] 5.3 运行 `npm run build:weapp --workspace @tidewise/miniapp`，确认微信构建成功并记录产物路径；不提交构建产物。
-- [x] 5.4 运行 `npm run build:tt --workspace @tidewise/miniapp`，确认抖音构建成功；不提交构建产物。
 - [x] 5.5 将 canonical 海面图作为独立小程序 asset 输出，以构建产物检查验证图片 SHA-256、首页样式低于 64 KiB，且不再触发图片内联体积警告。
 
 ## 6. 微信开发者工具与视觉验收
 
 - [x] 6.1 在 repo 内补充本地微信开发者工具说明，包含微信构建命令、产物导入目录、测试 AppID/本地模式注意事项、默认打开首页 tab 和清理构建产物步骤。
+- [x] 6.1a 记录首次人工验收误导入主仓库旧 `dist` 的根因与 app.json 证据，并加入 worktree 绝对路径、tab/颜色指纹、清缓存和删除旧项目重导入门禁。
 - [ ] 6.2 在微信开发者工具导入构建产物，逐项预览 ready、loading、empty、error、摘要展开/折叠、主线切换和“看图谱”占位反馈，记录可复现结果。
 - [ ] 6.3 在 375×812 viewport 采集 canonical 与微信实现截图，完成首页关键视觉映射对比；逐项记录安全区、导航、字体或平台组件的等价差异，未解释偏差不得通过。
-- [ ] 6.4 使用抖音构建产物完成可用的本地预览或模拟器 smoke；若环境不支持，明确记录未验证项、原因和风险，不用微信结果替代抖音证据。
 
 ## 7. Apply 后人工 Review 门禁
 

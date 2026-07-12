@@ -4,7 +4,7 @@
 系统 SHALL 将现有 index page 作为小程序默认页面和首个“首页”tab 提供“今日观潮”，以日报摘要、市场与情绪状态、主题、主线结论、影响判断和证据摘要帮助用户理解当日全球政经事件及其市场传导；其他 tab 页面与源码保持不变。
 
 #### Scenario: 启动小程序
-- **WHEN** 用户启动微信或抖音小程序
+- **WHEN** 用户启动微信小程序
 - **THEN** 系统首先打开 `pages/index/index`，tabBar 首项文案为“首页”且选中态使用 canonical 蓝色
 
 #### Scenario: 查看今日简报
@@ -127,7 +127,7 @@
 - **THEN** 每种状态提供与 canonical token、页面层级和 viewport 一致的截图基线
 
 #### Scenario: 平台不可避免差异
-- **WHEN** 微信或抖音安全区、导航、字体渲染或组件行为造成差异
+- **WHEN** 微信安全区、导航、字体渲染或组件行为造成差异
 - **THEN** evidence 记录原因、影响和等价处理，未记录偏差不得通过
 
 ### Requirement: 轻量生产设计抽象与资产准入
@@ -149,17 +149,21 @@
 - **WHEN** 首页已稳定并通过视觉验收
 - **THEN** repo-local miniapp design skill 由后续独立 change 评估
 
-### Requirement: 微信与抖音构建及微信本地预览
-系统 SHALL 使今日观潮首页在微信和抖音小程序目标成功编译，并提供本地微信开发者工具导入、预览和截图验收说明。
+### Requirement: 微信构建及本地预览
+系统 SHALL 使今日观潮首页在微信小程序目标成功编译，并提供带产物身份核对门禁的本地微信开发者工具导入、预览和截图验收说明。本 change 不要求抖音构建或预览；既有抖音依赖和脚本可以保留。
 
 #### Scenario: 构建微信小程序
 - **WHEN** 开发者运行微信构建命令
 - **THEN** 今日观潮首页及共享模块成功编译
 
-#### Scenario: 构建抖音小程序
-- **WHEN** 开发者运行抖音构建命令
-- **THEN** 今日观潮首页及共享模块成功编译
-
 #### Scenario: 导入微信开发者工具
 - **WHEN** 开发者按 repo 说明导入微信构建产物
+- **THEN** 只能导入当前 Desktop task worktree 的 `frontend/miniapp/dist`，并在视觉验收前核对 tab 依次为“首页/行情/AI 助手/板块/订阅”且首页选中态为 canonical 蓝色
+
+#### Scenario: 产物身份不匹配
+- **WHEN** 开发者工具显示“行情/指数/AI 助手/板块/订阅”或首页选中态不是 canonical 蓝色
+- **THEN** 必须判定为导入路径或缓存错误，停止视觉验收，清缓存并删除旧项目后从当前 worktree 重新导入
+
+#### Scenario: 采集微信验收证据
+- **WHEN** 当前 worktree 产物身份核对通过
 - **THEN** 可以打开 index 首页、切换 mock 四态、预览 canonical 交互并采集 375×812 验收截图
