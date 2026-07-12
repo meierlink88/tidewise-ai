@@ -1,8 +1,13 @@
 package migrations_test
 
 import (
+	"context"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/pressly/goose/v3"
 )
 
 func TestSectorConvergenceMigrationDefinesAppendOnlyVersionedAudit(t *testing.T) {
@@ -34,5 +39,39 @@ func TestSectorConvergenceMigrationDefinesAppendOnlyVersionedAudit(t *testing.T)
 		if !strings.Contains(sql, fragment) {
 			t.Fatalf("convergence migration missing %q", fragment)
 		}
+	}
+}
+
+func TestSectorConvergenceMigrationExecutesPLpgSQLAsOneGooseStatement(t *testing.T) {
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatal(err)
+	}
+	migrations, err := goose.CollectMigrations(".", 10, 11)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(migrations) != 1 {
+		t.Fatalf("migrations = %d", len(migrations))
+	}
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	for _, table := range []string{"entity_convergence_manifests", "entity_convergences", "entity_convergence_reference_moves", "entity_convergence_alias_moves"} {
+		mock.ExpectExec(regexp.QuoteMeta("CREATE TABLE " + table)).WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+	mock.ExpectExec(`(?s)CREATE OR REPLACE FUNCTION prevent_entity_convergence_audit_mutation\(\).*RETURNS trigger LANGUAGE plpgsql AS \$\$.*BEGIN.*RAISE EXCEPTION 'convergence audit is append-only';.*END;.*\$\$;`).WillReturnResult(sqlmock.NewResult(0, 0))
+	for _, trigger := range []string{"entity_convergence_manifests_append_only", "entity_convergences_append_only", "entity_convergence_reference_moves_append_only", "entity_convergence_alias_moves_append_only"} {
+		mock.ExpectExec(regexp.QuoteMeta("CREATE TRIGGER " + trigger)).WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+	mock.ExpectExec(`INSERT INTO .*goose_db_version`).WithArgs(int64(11), true).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	if err := migrations[0].UpContext(context.Background(), db); err != nil {
+		t.Fatalf("UpContext() error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }

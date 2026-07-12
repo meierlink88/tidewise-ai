@@ -52,12 +52,14 @@ CREATE TABLE entity_convergence_alias_moves (
     UNIQUE (convergence_id, alias)
 );
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION prevent_entity_convergence_audit_mutation()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     RAISE EXCEPTION 'convergence audit is append-only';
 END;
 $$;
+-- +goose StatementEnd
 
 CREATE TRIGGER entity_convergence_manifests_append_only
 BEFORE UPDATE OR DELETE ON entity_convergence_manifests
