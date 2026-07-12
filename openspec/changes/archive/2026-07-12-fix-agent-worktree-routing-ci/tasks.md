@@ -21,6 +21,6 @@
 
 ## 4. Review 后生命周期
 
-- [ ] 4.1 仅在 Apply 后人工 Review 明确批准后，使用 `openspec-sync-specs` 将本 delta 增量同步到现有 `skill-driven-development-workflow` 主规格，不复制 capability
-- [ ] 4.2 Sync 后使用 `openspec-archive-change` 归档本 change，运行 `openspec validate --all` 并创建 `spec: archive fix-agent-worktree-routing-ci` checkpoint
+- [x] 4.1 仅在 Apply 后人工 Review 明确批准后，使用 `openspec-sync-specs` 将本 delta 增量同步到现有 `skill-driven-development-workflow` 主规格，不复制 capability
+- [x] 4.2 Sync 后使用 `openspec-archive-change` 归档本 change，运行 `openspec validate --all` 并创建 `spec: archive fix-agent-worktree-routing-ci` checkpoint
 - [ ] 4.3 Archive 完成后才使用 `superpowers:finishing-a-development-branch` 进入 Deliver，并按 Desktop-managed cleanup 顺序完成远端 branch、Desktop 任务/worktree 与本地 branch 清理
