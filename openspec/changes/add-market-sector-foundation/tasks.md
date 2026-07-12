@@ -34,13 +34,15 @@
 
 ## 4. Seed 数据与安全校验
 
-- [ ] 4.1 增加 seed fixture 测试，验证首批 reviewed sector 清单数量约 50-60、canonical key 来源无关、三类来源候选映射、主要传导簇覆盖、中文主名/英文 alias、来源快照和 Review 状态
-- [ ] 4.2 增加 forbidden reasoning 测试，验证 sector profile 和 sector relationship 中出现利好、利空、受益、承压、预测、投资建议等字段或文案时会被拒绝
-- [ ] 4.3 运行新增 seed 测试，确认在数据更新前失败
-- [ ] 4.4 按用户 Review 结果更新 `backend/data/entity_foundation/sectors.json` 和 `backend/data/entity_foundation/sector_source_mappings.json`，完成候选去重、分类收敛、canonical key、来源映射和多来源映射补充
-- [ ] 4.5 增加 `backend/data/entity_foundation/relationships/covers_sector.json`，仅写入已 Review 的 `market -> sector` 客观覆盖关系
-- [ ] 4.6 增加 `backend/data/entity_foundation/relationships/tracked_by_benchmark.json`，仅写入已 Review 的 `sector -> benchmark` 客观跟踪关系，并保持现有 `observes_benchmark` 只用于 `market -> benchmark`
-- [ ] 4.7 复跑 seed 测试，确认通过
+- [x] 4.1 增加 seed fixture 测试，验证 52 个 reviewed sector、canonical key 来源无关、三类各 20 个来源候选映射、主要传导簇代表覆盖、中文主名/英文 alias 和 Review 状态
+- [x] 4.2 增加 forbidden reasoning 测试，验证 sector profile 和 sector relationship 中出现受益、投资建议等字段或文案时会被拒绝
+- [x] 4.3 运行新增 seed 测试，确认旧 sector 数量、缺失 source mapping/关系文件和默认路径在数据更新前失败
+- [x] 4.4 按用户 Review 结果更新 `backend/data/entity_foundation/sectors.json` 和 `backend/data/entity_foundation/sector_source_mappings.json`，完成 60 候选到 52 canonical 的去重、分类收敛和八组多来源映射；未核验来源代码均使用无代码 Review identity
+- [x] 4.5 增加 `backend/data/entity_foundation/relationships/covers_sector.json`，仅写入 52 条已 Review 的 `market:a_share -> sector` 客观覆盖关系
+- [x] 4.6 增加空的 `backend/data/entity_foundation/relationships/tracked_by_benchmark.json` manifest；当前 benchmark seed 不包含已审阅产业指数实体，因此不创建悬空或臆造关系，并保持现有 `observes_benchmark` 只用于 `market -> benchmark`
+- [x] 4.7 复跑聚焦 seed 测试和完整 entityfoundation seed package tests，确认通过
+
+> **暂停门：** task 4 已完成并等待主对话验收。进入 task 5 全 change 验证、sync 或 archive 前必须再次获得批准。
 
 ## 5. 验证与交付边界
 

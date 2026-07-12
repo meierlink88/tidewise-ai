@@ -201,13 +201,132 @@ func TestSectorSeedFile(t *testing.T) {
 		t.Fatalf("LoadFile() error = %v", err)
 	}
 
-	if got, want := len(manifest.Entities), 60; got != want {
+	if got, want := len(manifest.Entities), 52; got != want {
 		t.Fatalf("entities = %d, want %d", got, want)
 	}
 
+	keys := make(map[string]struct{}, len(manifest.Entities))
 	for _, entity := range manifest.Entities {
 		if entity.EntityType != domain.EntityTypeSector {
 			t.Fatalf("entity %q type = %q, want %q", entity.Key, entity.EntityType, domain.EntityTypeSector)
+		}
+		if strings.Contains(entity.Key, "ths") || strings.Contains(entity.Key, "openspec") || !strings.HasPrefix(entity.Key, "sector:") {
+			t.Fatalf("entity key %q is not source independent", entity.Key)
+		}
+		if entity.Name == "" || entity.CanonicalName == "" || len(entity.Aliases) == 0 {
+			t.Fatalf("entity %q missing Chinese primary name or English alias", entity.Key)
+		}
+		classification := profileString(t, entity.Profile, "classification_code")
+		if classification != "industry_sector" && classification != "theme_sector" {
+			t.Fatalf("entity %q classification = %q", entity.Key, classification)
+		}
+		if profileString(t, entity.Profile, "review_status") != "approved" {
+			t.Fatalf("entity %q is not approved", entity.Key)
+		}
+		if _, exists := keys[entity.Key]; exists {
+			t.Fatalf("duplicate stable key %q", entity.Key)
+		}
+		keys[entity.Key] = struct{}{}
+	}
+	coverageRepresentatives := []string{
+		"sector:industry_banking",
+		"sector:industry_power_utilities",
+		"sector:industry_nonferrous_new_materials",
+		"sector:industry_construction_infrastructure",
+		"sector:industry_semiconductors_electronics",
+		"sector:industry_software_communications",
+		"sector:industry_automobiles_components",
+		"sector:industry_pharma_biotech",
+		"sector:industry_consumer_retail",
+		"sector:industry_transportation_logistics",
+		"sector:industry_defense_aerospace",
+		"sector:theme_soe_reform_technology",
+	}
+	for _, key := range coverageRepresentatives {
+		if _, exists := keys[key]; !exists {
+			t.Errorf("missing transmission-cluster representative %q", key)
+		}
+	}
+}
+
+func TestReviewedSectorSourceMappingsCloseSixtyCandidatesAndEightMerges(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
+	manifest, err := LoadFiles(
+		filepath.Join(root, "sectors.json"),
+		filepath.Join(root, "sector_source_mappings.json"),
+	)
+	if err != nil {
+		t.Fatalf("LoadFiles() error = %v", err)
+	}
+	if got, want := len(manifest.SectorSourceMappings), 60; got != want {
+		t.Fatalf("sector source mappings = %d, want %d", got, want)
+	}
+	taxonomyCounts := map[string]int{}
+	merged := map[string]string{}
+	for _, mapping := range manifest.SectorSourceMappings {
+		taxonomyCounts[mapping.SourceTaxonomyType]++
+		if mapping.SourceSystem != "openspec_review" || mapping.SourceSectorCode != "" || mapping.SourceMarketScope != "cn_a_share" {
+			t.Fatalf("mapping identity is not an honest code-free Review identity: %+v", mapping)
+		}
+		if mapping.MappingStatus == "merged" {
+			merged[mapping.SourceSectorName] = mapping.SectorEntityKey
+		}
+	}
+	for _, taxonomy := range []string{"industry", "concept", "index_sector"} {
+		if got, want := taxonomyCounts[taxonomy], 20; got != want {
+			t.Errorf("%s mappings = %d, want %d", taxonomy, got, want)
+		}
+	}
+	wantMerged := map[string]string{
+		"中证卫星产业":   "sector:theme_commercial_space_satellite",
+		"中证卫星导航产业": "sector:theme_satellite_communications_navigation",
+		"国证机器人产业":  "sector:theme_robotics_embodied_ai",
+		"国证风电光伏装备": "sector:theme_wind_solar_equipment",
+		"创业板人工智能":  "sector:theme_artificial_intelligence",
+		"上证信息安全":   "sector:theme_cyber_data_security",
+		"中证基建":     "sector:industry_construction_infrastructure",
+		"中证全指汽车":   "sector:industry_automobiles_components",
+	}
+	if len(merged) != len(wantMerged) {
+		t.Fatalf("merged mappings = %d, want %d: %v", len(merged), len(wantMerged), merged)
+	}
+	for name, key := range wantMerged {
+		if merged[name] != key {
+			t.Errorf("merged mapping %q = %q, want %q", name, merged[name], key)
+		}
+	}
+}
+
+func TestReviewedMarketSectorRelationshipsAreObjectiveAndClosed(t *testing.T) {
+	manifest, err := LoadFiles(entityFoundationSeedPaths()...)
+	if err != nil {
+		t.Fatalf("LoadFiles() error = %v", err)
+	}
+	counts := map[string]int{}
+	for _, relationship := range manifest.Relationships {
+		counts[relationship.RelationType]++
+		if relationship.RelationType == "covers_sector" && (!strings.HasPrefix(relationship.From, "market:") || !strings.HasPrefix(relationship.To, "sector:")) {
+			t.Fatalf("invalid covers_sector direction: %+v", relationship)
+		}
+		if relationship.RelationType == "tracked_by_benchmark" && (!strings.HasPrefix(relationship.From, "sector:") || !strings.HasPrefix(relationship.To, "benchmark:")) {
+			t.Fatalf("invalid tracked_by_benchmark direction: %+v", relationship)
+		}
+	}
+	if got, want := counts["covers_sector"], 52; got != want {
+		t.Errorf("covers_sector relationships = %d, want %d", got, want)
+	}
+	if got := counts["tracked_by_benchmark"]; got != 0 {
+		t.Errorf("tracked_by_benchmark relationships = %d, want 0 until benchmark entities are reviewed", got)
+	}
+}
+
+func TestSectorFixturesRejectReasoningAndInvestmentAdvice(t *testing.T) {
+	for _, content := range []string{
+		`{"entities":[{"key":"sector:theme_test","entity_type":"sector","layer_code":"sector","name":"测试主题","canonical_name":"测试主题","aliases":["Test Theme"],"profile":{"sector_system":"canonical","sector_type":"theme","classification_code":"theme_sector","review_status":"approved","investment_advice":"买入"}}]}`,
+		`{"entities":[{"key":"market:test","entity_type":"market","layer_code":"market","name":"测试市场","canonical_name":"测试市场","profile":{"market_type":"stock_market"}},{"key":"sector:theme_test","entity_type":"sector","layer_code":"sector","name":"测试主题","canonical_name":"测试主题","aliases":["Test Theme"],"profile":{"sector_system":"canonical","sector_type":"theme","classification_code":"theme_sector","review_status":"approved"}}],"relationships":[{"key":"relationship:test","from":"market:test","to":"sector:theme_test","relation_type":"covers_sector","source_name":"测试来源","source_url":"https://example.com/source","verified_at":"2026-07-12T00:00:00Z","evidence_note":"该主题受益并建议买入"}]}`,
+	} {
+		if _, err := Load([]byte(content)); err == nil {
+			t.Fatal("Load() error = nil, want forbidden reasoning rejection")
 		}
 	}
 }
@@ -347,7 +466,7 @@ func TestRelationshipSeedFile(t *testing.T) {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
 
-	if got, want := len(manifest.Relationships), 331; got != want {
+	if got, want := len(manifest.Relationships), 383; got != want {
 		t.Fatalf("relationships = %d, want %d reviewed relationships", got, want)
 	}
 
