@@ -45,5 +45,5 @@
 
 ## 7. Apply 后人工 Review 门禁
 
-- [ ] 7.1 运行 `openspec validate add-miniapp-daily-brief-home-shell`、`git diff --check`、scoped `git status` 和相关新鲜验证，确认未修改 prototype、后端、数据库、其他 tab 或 active change。
-- [ ] 7.2 提交 Apply scoped diff、自动验证、微信开发者工具记录、视觉对比、资产 provenance 和未验证风险，等待用户完成 Apply 后人工 Review；批准前不得 Sync、Archive 或 Deliver。
+- [x] 7.1 运行 `openspec validate add-miniapp-daily-brief-home-shell`、`git diff --check`、scoped `git status` 和相关新鲜验证，确认未修改 prototype、后端、数据库、其他 tab 或 active change。
+- [x] 7.2 提交 Apply scoped diff、自动验证、微信开发者工具记录、视觉对比、资产 provenance 和未验证风险，等待用户完成 Apply 后人工 Review；批准前不得 Sync、Archive 或 Deliver。

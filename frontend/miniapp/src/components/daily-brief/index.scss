@@ -24,7 +24,7 @@
 .brief-focus__divider { width: 2px; height: 24px; background: rgba(15, 23, 42, .1); }
 .brief-wave { position: relative; height: 54px; margin-top: -4px; overflow: visible; }
 .brief-wave__curve { position: absolute; inset: 20px -40px -30px; border-radius: 50% 50% 0 0; background: #fff; transform: rotate(-1deg); }
-.brief-wave__toggle { position: absolute; left: 50%; top: 10px; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; transform: translateX(-50%); border: 2px solid rgba(14, 165, 233, .35); border-radius: 50%; color: $color-brand; background: linear-gradient(180deg, #f0f9ff, #e0f2fe); font-size: 28px; line-height: 40px; box-shadow: 0 2px 12px rgba(14, 165, 233, .16); }
+.brief-wave__toggle { position: absolute; left: 50%; top: 10px; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; transform: translateX(-50%); border: 2px solid rgba(14, 165, 233, .35); border-radius: 50%; color: $color-home-brand; background: linear-gradient(180deg, #f0f9ff, #e0f2fe); font-size: 28px; line-height: 40px; box-shadow: 0 2px 12px rgba(14, 165, 233, .16); }
 .brief-wave__toggle::after, .pager-button::after, .mainline-card__graph::after { border: 0; }
 
 .mainline-card { margin: 0 32px; padding: 28px; border: 2px solid rgba(14, 165, 233, .12); border-radius: 28px; background: linear-gradient(155deg, #fff, #f8fbfd); box-shadow: 0 12px 36px rgba(15, 23, 42, .08); }
@@ -36,7 +36,7 @@
 .mainline-card__title { display: block; margin-top: 18px; font-size: 34px; font-weight: 700; line-height: 1.35; }
 .mainline-card__summary { display: block; margin-top: 12px; color: $color-text-secondary; font-size: 25px; line-height: 1.6; }
 .mainline-card__section-head { margin: 22px 0 12px; font-size: 24px; font-weight: 700; }
-.mainline-card__graph { min-width: 0; height: auto; margin: 0; padding: 0; color: $color-brand; background: transparent; font-size: 22px; line-height: 1.4; }
+.mainline-card__graph { min-width: 0; height: auto; margin: 0; padding: 0; color: $color-home-brand; background: transparent; font-size: 22px; line-height: 1.4; }
 .impact-list, .evidence-list { display: flex; flex-direction: column; gap: 12px; }
 .impact-card { padding: 18px 20px; border: 2px solid rgba(14, 165, 233, .12); border-radius: 20px; background: rgba(248, 251, 253, .92); }
 .impact-card__name { font-size: 25px; font-weight: 700; }
@@ -53,12 +53,12 @@
 .evidence-item__summary { display: block; margin-top: 6px; color: $color-text-secondary; font-size: 20px; line-height: 1.45; }
 .evidence-list__empty { color: $color-text-muted; font-size: 22px; }
 .mainline-card__pager { margin-top: 22px; color: $color-text-muted; font-size: 20px; }
-.pager-button { width: 52px; height: 52px; min-width: 52px; margin: 0; padding: 0; border-radius: 50%; color: $color-brand; background: $color-info-50; font-size: 38px; line-height: 48px; }
+.pager-button { width: 52px; height: 52px; min-width: 52px; margin: 0; padding: 0; border-radius: 50%; color: $color-home-brand; background: $color-info-50; font-size: 38px; line-height: 48px; }
 .pager-button[disabled] { opacity: .28; }
 
 .resource-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 760px; margin: 0 32px; padding: 48px; border-radius: 28px; background: rgba(255, 255, 255, .94); text-align: center; box-shadow: 0 12px 36px rgba(15, 23, 42, .08); }
-.resource-panel__spinner { width: 52px; height: 52px; margin-bottom: 24px; border: 6px solid $color-info-100; border-top-color: $color-brand; border-radius: 50%; }
+.resource-panel__spinner { width: 52px; height: 52px; margin-bottom: 24px; border: 6px solid $color-info-100; border-top-color: $color-home-brand; border-radius: 50%; }
 .resource-panel__title { font-size: 30px; font-weight: 700; }
 .resource-panel__description { margin-top: 14px; color: $color-text-muted; font-size: 22px; line-height: 1.5; }
-.resource-panel__action { margin-top: 28px; padding: 0 36px; border-radius: 12px; color: #fff; background: $color-brand; font-size: 24px; }
+.resource-panel__action { margin-top: 28px; padding: 0 36px; border-radius: 12px; color: #fff; background: $color-home-brand; font-size: 24px; }
 .daily-brief-safety { display: block; padding: 22px 32px 32px; color: $color-text-muted; font-size: 19px; line-height: 1.5; text-align: center; }
