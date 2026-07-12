@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- 将现有 `pages/index` 增量演进为首页“今日观潮”，覆盖日报摘要、市场/情绪结论、主题、主线分析、影响判断、证据摘要和决策辅助声明。
+- 将现有 `pages/index` 增量演进为默认首页“今日观潮”，把它调整为 pages 与 tabBar 第一项并将 tab 文案改为“首页”；其他 tab 页面与源码保持不变。
 - 为首页定义 loading、empty、error、ready 四态；错误态可重试，空态不伪造市场结论。
 - 建立版本化前端候选契约、service port、mock adapter、dedicated mock data、页面 view model/template 与 section registry；页面不直接读取 fixture，未来 HTTP adapter 可替换 mock adapter而无需重写页面。
 - 评估 mock-only 的 `DailyBriefV1`、`ReasoningConclusionV1`、`ImpactAssessmentV1`、`EvidenceItemV1` 及首页确有需要的引用结构，明确它们不是冻结的后端 API 契约。

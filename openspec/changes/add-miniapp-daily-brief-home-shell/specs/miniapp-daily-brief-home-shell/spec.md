@@ -1,7 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: 今日观潮首页
-系统 SHALL 在现有 index tab 提供“今日观潮”首页，以日报摘要、市场与情绪状态、主题、主线结论、影响判断和证据摘要帮助用户理解当日全球政经事件及其市场传导。
+系统 SHALL 将现有 index page 作为小程序默认页面和首个“首页”tab 提供“今日观潮”，以日报摘要、市场与情绪状态、主题、主线结论、影响判断和证据摘要帮助用户理解当日全球政经事件及其市场传导；其他 tab 页面与源码保持不变。
+
+#### Scenario: 启动小程序
+- **WHEN** 用户启动微信或抖音小程序
+- **THEN** 系统首先打开 `pages/index/index`，tabBar 首项文案为“首页”且选中态使用 canonical 蓝色
 
 #### Scenario: 查看今日简报
 - **WHEN** 用户打开 index tab 且今日简报可用

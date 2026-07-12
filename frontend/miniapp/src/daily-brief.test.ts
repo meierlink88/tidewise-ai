@@ -6,6 +6,7 @@ import { createInitialResourceState, resourceStateReducer } from './models/resou
 import { getVisibleHomeSections, homeSectionRegistry } from './templates/home-sections';
 import { getGraphComingSoonMessage } from './utils/coming-soon';
 import { getConfidenceLabel, getDirectionMeta, getResourceStateCopy } from './components/daily-brief/ui-meta';
+import { appPages, appTabBar } from './constants/app-navigation';
 
 describe('mock-only daily brief contract', () => {
   it('uses the mock schema and only approved impact entity types', () => {
@@ -20,6 +21,28 @@ describe('mock-only daily brief contract', () => {
 
     expect(serialized).not.toMatch(/ReasoningGraph|ReasoningPathStep|graphId|nodes|edges/);
     expect(serialized).not.toMatch(/个股|股票|买入|卖出|目标价|北方稀土|英伟达/);
+  });
+
+  it('contains the canonical home card support fields without a graph payload', () => {
+    expect(mockDailyBrief.eventCount).toBeGreaterThan(0);
+    expect(mockDailyBrief.chainCount).toBeGreaterThan(0);
+    expect(mockDailyBrief.conclusions[0].keyEvents.length).toBeGreaterThan(0);
+    expect(mockDailyBrief.conclusions[0].transmissionSteps.length).toBeGreaterThan(0);
+  });
+});
+
+describe('app home navigation', () => {
+  it('starts on 今日观潮 and uses the canonical blue selected state', () => {
+    expect(appPages[0]).toBe('pages/index/index');
+    expect(appTabBar.list[0]).toEqual({ pagePath: 'pages/index/index', text: '首页' });
+    expect(appTabBar.selectedColor).toBe('#2563eb');
+  });
+
+  it('keeps every existing tab exactly once', () => {
+    expect(appPages).toEqual([
+      'pages/index/index', 'pages/feed/index', 'pages/ai/index', 'pages/sectors/index', 'pages/subscribe/index'
+    ]);
+    expect(new Set(appTabBar.list.map((item) => item.pagePath)).size).toBe(5);
   });
 });
 

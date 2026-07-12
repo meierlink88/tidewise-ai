@@ -7,6 +7,7 @@
     "dev:tt": "taro build --type tt --watch",
     "build:weapp": "taro build --type weapp --no-check",
     "build:tt": "taro build --type tt --no-check",
+    "verify:weapp-output": "node scripts/verify-weapp-output.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\""

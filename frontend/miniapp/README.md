@@ -14,12 +14,12 @@ Taro 4.2 在当前 macOS 环境的 native doctor 会触发系统代理读取 pan
 
 - 项目目录：`/Users/meierlink/.codex/worktrees/ed41/tidewise-ai/frontend/miniapp/dist`
 - AppID：使用项目可用的测试 AppID；没有 AppID 时选择开发者工具允许的测试号/本地模式
-- 首页：进入底部 `指数` tab，对应 `pages/index/index`，页面标题为“今日观潮”
+- 首页：小程序启动后默认进入底部第一个 `首页` tab，对应 `pages/index/index`，页面标题为“今日观潮”
 - 目标截图 viewport：375×812
 
 ## 首页状态验收
 
-ready 是默认状态。可在微信开发者工具调试控制台设置 mock 场景，然后切换到其他 tab 再返回 `指数` tab。`loading` 会稳定保持 30 秒后进入 ready，便于截图：
+ready 是默认状态。可在微信开发者工具调试控制台设置 mock 场景，然后切换到其他 tab 再返回 `首页` tab。`loading` 会稳定保持 30 秒后进入 ready，便于截图：
 
 ```javascript
 wx.setStorageSync('dailyBriefMockScenario', 'ready')

@@ -11,6 +11,9 @@ export const mockDailyBrief: DailyBriefV1 = {
   market: { label: '严重分化', direction: 'divergent', hint: '资源链与美元链反向运行' },
   sentiment: { label: '偏谨慎', direction: 'neutral', hint: '等待通胀与贸易政策进一步确认' },
   themes: ['地缘政治', '贸易管制', '货币政策'],
+  eventCount: 8,
+  chainCount: 3,
+  watchingCount: 6,
   conclusions: [
     {
       id: 'rare-earth-supply',
@@ -27,7 +30,10 @@ export const mockDailyBrief: DailyBriefV1 = {
       evidence: [
         { id: 'evidence-commerce', source: '商务部', title: '出口许可审批政策更新', summary: '相关关键品种出口许可审核趋严，供给预期收紧。', publishedAt: '2026-07-11', observedAt: '2026-07-12', confidence: 'high' },
         { id: 'evidence-industry', source: '行业周报', title: '海外稀土现货报价续升', summary: '欧洲市场氧化镝报价周环比上涨，进口端补库意愿增强。', publishedAt: '2026-07-11', observedAt: '2026-07-12', confidence: 'medium' }
-      ]
+      ],
+      keyEvents: ['出口审批收紧', '海外现货续升', '进口端补库'],
+      transmissionTitle: '稀土定价链',
+      transmissionSteps: ['出口约束', '供给收紧', '定价上移']
     },
     {
       id: 'usd-pricing',
@@ -43,7 +49,10 @@ export const mockDailyBrief: DailyBriefV1 = {
       ],
       evidence: [
         { id: 'evidence-fed', source: '美联储', title: '官员重申通胀仍需观察', summary: '多位官员强调需要更多通胀回落证据。', publishedAt: '2026-07-11', observedAt: '2026-07-12', confidence: 'high' }
-      ]
+      ],
+      keyEvents: ['美元保持强势', '降息预期后移', '长端利率高位'],
+      transmissionTitle: '美元宏观链',
+      transmissionSteps: ['利率预期', '美元走强', '风险偏好承压']
     },
     {
       id: 'ai-infrastructure',
@@ -59,7 +68,10 @@ export const mockDailyBrief: DailyBriefV1 = {
       ],
       evidence: [
         { id: 'evidence-customs', source: '海关数据', title: '高速互联产品出口保持增长', summary: '相关产品出口额同比保持较高增速。', publishedAt: '2026-07-10', observedAt: '2026-07-12', confidence: 'medium' }
-      ]
+      ],
+      keyEvents: ['云端资本开支', '高速互联增长', '散热需求扩散'],
+      transmissionTitle: '算力基础设施链',
+      transmissionSteps: ['资本开支', '互联放量', '配套环节扩散']
     }
   ],
   disclaimer: 'AI 分析仅供市场理解与决策辅助，不构成投资建议'

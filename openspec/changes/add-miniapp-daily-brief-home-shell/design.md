@@ -10,7 +10,7 @@
 
 **Goals:**
 
-- 在现有 `pages/index` 交付“今日观潮”首页，保持五 tab 与微信/抖音双端构建。
+- 在现有 `pages/index` 交付“今日观潮”默认首页，调整为 pages 与 tabBar 第一项并使用“首页”文案和 canonical 蓝色选中态；保持其他四个 tab 页面与源码不变。
 - 覆盖日报摘要、市场/情绪结论、主题、主线、影响、证据、安全声明和 canonical 首页交互。
 - 覆盖 loading、empty、error、ready 四态并支持错误重试。
 - 以 mock-only 候选 contracts、service port、mock adapter、dedicated fixtures、view model/template 和 section registry 隔离页面与数据来源。
@@ -41,7 +41,7 @@ Apply 开始前必须重算三个指纹；任一变化都暂停实现并返回 R
 
 ### Decision 1: 只增量替换 index 首页
 
-保持 `pages/index/index` tab 路径和五 tab 结构，把“指数”占位内容替换为“今日观潮”。不注册任何图谱页面，不修改其他 tab。这样缩小 Apply 文件所有权，也保证本 change 可独立运行和验收。
+保持 `pages/index/index` 路径和五 tab 结构，把“指数”占位内容替换为“今日观潮”，并将其调整为默认 page 与首个“首页”tab。选中态映射 canonical 蓝色，其他 tab 的正常态、页面路径与源码保持不变。不注册任何图谱页面。
 
 ### Decision 2: “看图谱”保留视觉入口并使用轻提示占位
 
@@ -98,7 +98,7 @@ Apply 同步更新 `.agents/frontend-boundaries.md`：旧 `ganchaojia-design` sk
 
 | 原型资产 | SHA-256 / 来源 | 本 change 处理 |
 |---|---|---|
-| `assets/home-header-sea.jpg` | `667dcd64bcfb7c3d40e4f5f5a6d0b9be1f88a90824e5e3db88527f08703b6fdc` | canonical 首页候选；仅在生产确需且授权明确时复制并记录来源 |
+| `assets/home-header-sea.jpg` | `667dcd64bcfb7c3d40e4f5f5a6d0b9be1f88a90824e5e3db88527f08703b6fdc` | 已获用户授权；复制到生产 assets，并以绝对定位 Taro `Image` 输出为独立文件，禁止 CSS base64 内联 |
 | `assets/nav-avatar.png` | `47978d1216edc9cdb844b668b84fc332f3edf61506a17a0459f945e709c49327` | prototype shell/avatar，排除 |
 | Google Fonts `Inter` / `Noto Sans SC` | CSS 远程 `@import` | 不直接远程加载；优先系统字体，必要本地字体需单独确认授权 |
 | 内联箭头 SVG data URI | HTML 行内资源 | 转译为 Taro 图标或 CSS，不复制 data URI |
@@ -109,13 +109,13 @@ Apply 同步更新 `.agents/frontend-boundaries.md`：旧 `ganchaojia-design` sk
 
 Apply 使用 TDD 为 contract mapper、resource reducer、section registry、mock adapter 和占位策略纯函数先写失败测试。最终自动验证包括 lint、typecheck、单元测试、`build:weapp`、`build:tt`，构建产物不提交。
 
-本地人工验收说明必须给出微信构建产物路径、微信开发者工具导入方式、测试 AppID/本地模式注意事项、打开 index tab、切换 mock 四态、操作折叠/主线/占位入口和采集 375×812 截图的步骤。CLI 无法替代开发者工具渲染，因此人工预览结果作为 Apply evidence 单独记录。
+本地人工验收说明必须给出微信构建产物路径、微信开发者工具导入方式、测试 AppID/本地模式注意事项、确认启动即进入首页、切换 mock 四态、操作折叠/主线/占位入口和采集 375×812 截图的步骤。CLI 无法替代开发者工具渲染，因此人工预览结果作为 Apply evidence 单独记录。
 
 ## Component Diagram
 
 ```mermaid
 flowchart TD
-    App["现有 app.config.ts<br/>五个 tab"]
+    App["app.config.ts<br/>首页 first + 其余四 tab"]
     Home["pages/index<br/>今日观潮首页"]
     Registry["templates/home-sections<br/>section registry"]
     Mapper["templates/daily-brief<br/>contract -> view model"]
@@ -147,7 +147,7 @@ sequenceDiagram
     participant S as DailyBriefService
     participant A as MockDailyBriefAdapter
 
-    U->>H: 打开 index tab
+    U->>H: 启动小程序，默认打开首页
     H->>H: 显示 loading
     H->>S: getDailyBrief()
     S->>A: getDailyBrief()
@@ -182,13 +182,38 @@ sequenceDiagram
 
 允许差异仅限微信/抖音安全区、原生导航、字体渲染和平台组件行为；每项在 evidence 说明原因、影响和等价处理。未记录偏差视为未通过。
 
+## Canonical Homepage Structural Mapping Audit
+
+| canonical 首页可见 section / 控件 | 生产对应实现 | 审计状态 |
+|---|---|---|
+| 海面摄影背景、蓝色渐变与透明顶部区 | `pages/index` 的绝对定位 Taro `Image mode="aspectFill"`、渐变层与 hero composition | 已实现；图片独立输出，裁切待 375×812 人工对比 |
+| 日期、更新环与“今日观潮”标题 | `DailyBriefHero` 日期、更新时间与进度环 | 已实现 |
+| 市场/情绪 KPI、趋势文案与问号提示 | hero KPI primitives 与 Taro toast 提示 | 已实现 |
+| 可折叠新闻摘要、摘要主题 chips | 受控 `expanded` 状态、摘要正文与主题 chips | 已实现 |
+| 事件数、传导链、关注数统计 | `eventCount`、`chainCount`、`watchingCount` view model | 已实现；业务值来自 fixture→mapper，不在 JSX 硬编码 |
+| 海浪分隔和折叠/展开控件 | CSS wave composition 与受控按钮 | 已实现；波形细节待人工视觉对比 |
+| “观潮分析 · N 条主线”分隔标题 | conclusions section heading | 已实现 |
+| 上一条/下一条主线切换与当前序号 | 主线切换按钮、当前索引状态 | 已实现；使用小程序按钮等价转译，手势与位置待人工验收 |
+| 主线编号、标题、结论摘要与置信度 | `MainlineCard` badge、headline、summary、confidence | 已实现 |
+| “关注”控件 | 主线 follow button，当前以 toast 表达 Mock 占位 | 已实现，不写入订阅状态 |
+| 关键事件 chips | `keyEvents` typed view model 与 chips；点击显示摘要 toast | 已实现 |
+| 传导链摘要与“看图谱”入口 | `transmissionTitle`、步骤链和 canonical trigger | 已实现；点击仅 toast“推导图谱即将开放”，不导航/请求 |
+| 核心影响、方向、周期、强度与不确定性 | impact cards | 已实现；对象限定为市场/板块/benchmark/商品/经济体/产业链 |
+| 证据来源、标题、时间与可信度 | evidence cards | 已实现 |
+| 决策辅助/非投资建议声明 | safety-note section | 已实现 |
+| 首页悬浮“问潮”入口 | fixed FAB，切换至既有 AI tab | 已实现 |
+| 底部 tabBar 首页选中态 | `pages/index/index` 与 tabBar 第一项“首页”，selectedColor `#2563eb` | 已实现并由配置单测与构建产物门禁锁定 |
+| prototype 状态栏、胶囊、头像和标注/debug shell | 使用微信/抖音原生容器；prototype shell 资产不进入生产 | 按已批准平台等价转译/排除，不是内容缺失 |
+
+该审计只证明结构覆盖，不替代像素验收。安全区、字体栅格化、图片裁切、波浪轮廓、主线切换控件位置和平台 tabBar 实际渲染，均须在微信开发者工具 375×812 截图对比后才能通过。
+
 ## Risks / Trade-offs
 
 - [候选 V1 被误认为正式 API] → mock schemaVersion、模块命名和 spec 明确边界；后续 integration change 重新定义 API。
 - [“看图谱”入口误导用户] → 使用明确 coming-soon 轻提示且不导航、不请求；由 Review 确认策略。
 - [设计源漂移] → Apply 前重算 SHA-256，变化即暂停。
 - [Web 到双端小程序有视觉差异] → 固定 viewport 截图对比，只接受有记录的平台等价差异。
-- [海面图片或字体授权不明确] → 不复制并返回 Review，不自行替换后宣称一致。
+- [海面图片被构建器内联导致页面样式超限] → 使用 Taro `Image` 背景层独立输出；构建门禁校验图片指纹、WXSS 小于 64 KiB 和首页入口配置。
 - [测试依赖扩大范围] → 优先纯 TypeScript；仅做 miniapp workspace 最小增量。
 
 ## Migration Plan
@@ -214,4 +239,5 @@ sequenceDiagram
 - weapp/tt 共用 `dist`，并行构建会互相清理输出目录；构建与说明统一改为顺序执行。
 - 自动截图尝试 H5 等价渲染时确认 workspace 未安装 `@tarojs/plugin-platform-h5`。本 change 不为视觉 QA 扩大目标平台或新增 H5 依赖；微信开发者工具 375×812 人工截图保留为 Apply 后 Review 待验收项。
 - 当前环境没有抖音开发者工具或可调用的抖音模拟器会话；只确认 tt webpack 编译成功，抖音本地预览 task 保持未完成，不能用微信或 CLI 构建替代。
-- 已知非阻塞构建警告：现有 Sass `@import` 弃用提示；海面图内联使首页平台样式约 260 KiB；webpack 无异步 chunk 性能建议。它们不影响双端编译，但需在后续性能/样式现代化 change 中评估。
+- Review 修复后海面图改为 Taro `Image` 背景层：微信构建独立输出 `dist/assets/home-header-sea.jpg` 且 SHA-256 与授权源一致，`dist/pages/index/index.wxss` 从约 260 KiB 降至 8,969 bytes；构建产物门禁要求其持续低于 64 KiB。
+- 仍存在的非阻塞构建警告为现有 Sass `@import` 弃用提示和 webpack 无异步 chunk 性能建议；不包含图片内联体积警告。

@@ -10,6 +10,9 @@ export interface HomeConclusionView {
   impacts: ImpactAssessmentV1[];
   evidence: EvidenceItemV1[];
   graphAvailability: 'coming_soon' | 'unavailable';
+  keyEvents: string[];
+  transmissionTitle: string;
+  transmissionSteps: string[];
 }
 
 export interface DailyBriefHomeView {
@@ -20,6 +23,9 @@ export interface DailyBriefHomeView {
   market: { label: string; direction: Direction; hint: string };
   sentiment: { label: string; direction: Direction; hint: string };
   themes: string[];
+  eventCount: number;
+  chainCount: number;
+  watchingCount: number;
   conclusions: HomeConclusionView[];
   disclaimer: string;
 }

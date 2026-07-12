@@ -1,5 +1,5 @@
 import Taro, { useDidShow } from '@tarojs/taro';
-import { Text, View } from '@tarojs/components';
+import { Button, Image, Text, View } from '@tarojs/components';
 import { useCallback, useReducer, useState } from 'react';
 import { BriefHero, ConclusionCard, ResourceStatePanel, SafetyNote } from '../../components/daily-brief';
 import type { DailyBriefHomeView } from '../../models/daily-brief-view';
@@ -8,6 +8,7 @@ import { getDailyBriefService, setDailyBriefMockScenario } from '../../services/
 import { mapDailyBriefToHome } from '../../templates/daily-brief';
 import { getVisibleHomeSections } from '../../templates/home-sections';
 import { getGraphComingSoonMessage } from '../../utils/coming-soon';
+import homeHeaderSea from '../../assets/home-header-sea.jpg';
 import './index.scss';
 
 export default function IndexPage() {
@@ -34,7 +35,7 @@ export default function IndexPage() {
   });
 
   if (resource.status !== 'ready') {
-    return <View className='daily-brief-page daily-brief-page--state'><ResourceStatePanel state={resource} onRetry={() => void loadBrief()} /></View>;
+    return <View className='daily-brief-page daily-brief-page--state'><Image className='daily-brief-page__background' src={homeHeaderSea} mode='aspectFill' /><View className='daily-brief-page__gradient' /><ResourceStatePanel state={resource} onRetry={() => void loadBrief()} /></View>;
   }
 
   const brief = resource.data;
@@ -45,7 +46,9 @@ export default function IndexPage() {
   return (
     <View className='daily-brief-page'>
       <View className='daily-brief-page__sea'>
-        <BriefHero brief={brief} collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} showSummary={visibleSections.has('brief-summary')} showThemes={visibleSections.has('themes')} />
+        <Image className='daily-brief-page__background' src={homeHeaderSea} mode='aspectFill' />
+        <View className='daily-brief-page__gradient' />
+        <BriefHero brief={brief} collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} showSummary={visibleSections.has('brief-summary')} showThemes={visibleSections.has('themes')} onMarketHint={() => Taro.showToast({ title: brief.market.hint, icon: 'none' })} onSentimentHint={() => Taro.showToast({ title: brief.sentiment.hint, icon: 'none' })} />
       </View>
       <View className='daily-brief-page__content'>
         <View className='daily-brief-page__divider'><View /><Text>观潮分析 · {brief.conclusions.length} 条主线</Text><View /></View>
@@ -59,10 +62,13 @@ export default function IndexPage() {
             onGraph={() => Taro.showToast({ title: getGraphComingSoonMessage(), icon: 'none' })}
             showImpacts={visibleSections.has('impacts')}
             showEvidence={visibleSections.has('evidence')}
+            onTrack={() => Taro.showToast({ title: '主线跟踪即将开放', icon: 'none' })}
+            onKeyEvent={(event) => Taro.showToast({ title: `${event}详情即将开放`, icon: 'none' })}
           />
         ) : null}
         {visibleSections.has('safety-note') ? <SafetyNote text={brief.disclaimer} /> : null}
       </View>
+      <Button className='daily-brief-page__ask' onClick={() => Taro.switchTab({ url: '/pages/ai/index' })}>问潮</Button>
     </View>
   );
 }

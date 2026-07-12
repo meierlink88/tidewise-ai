@@ -13,6 +13,7 @@
 .brief-kpi__label { font-size: 22px; color: $color-text-muted; }
 .brief-kpi__value { font-size: 30px; font-weight: 700; }
 .brief-kpi__value--neutral { color: $tone-neutral; }
+.brief-kpi__hint { width: 22px; height: 22px; min-width: 22px; margin: -10px 0 0 -10px; padding: 0; border: 2px solid rgba(217, 119, 6, .28); border-radius: 50%; color: $tone-neutral; background: #fffbeb; font-size: 15px; font-weight: 700; line-height: 18px; }
 .brief-focus__extra { margin-top: 14px; }
 .brief-focus__summary { display: block; font-size: 26px; font-weight: 500; line-height: 1.55; color: $color-text-secondary; }
 .brief-focus__lead { margin-right: 12px; color: $color-info-700; font-size: 24px; font-weight: 600; }
@@ -25,7 +26,7 @@
 .brief-wave { position: relative; height: 54px; margin-top: -4px; overflow: visible; }
 .brief-wave__curve { position: absolute; inset: 20px -40px -30px; border-radius: 50% 50% 0 0; background: #fff; transform: rotate(-1deg); }
 .brief-wave__toggle { position: absolute; left: 50%; top: 10px; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; transform: translateX(-50%); border: 2px solid rgba(14, 165, 233, .35); border-radius: 50%; color: $color-home-brand; background: linear-gradient(180deg, #f0f9ff, #e0f2fe); font-size: 28px; line-height: 40px; box-shadow: 0 2px 12px rgba(14, 165, 233, .16); }
-.brief-wave__toggle::after, .pager-button::after, .mainline-card__graph::after { border: 0; }
+.brief-wave__toggle::after, .pager-button::after, .mainline-card__graph::after, .brief-kpi__hint::after, .mainline-card__track::after, .mainline-card__event-chip::after { border: 0; }
 
 .mainline-card { margin: 0 32px; padding: 28px; border: 2px solid rgba(14, 165, 233, .12); border-radius: 28px; background: linear-gradient(155deg, #fff, #f8fbfd); box-shadow: 0 12px 36px rgba(15, 23, 42, .08); }
 .mainline-card--up { border-top: 6px solid rgba(239, 68, 68, .62); }
@@ -33,8 +34,18 @@
 .mainline-card__top, .mainline-card__section-head, .impact-card__head, .evidence-item__meta, .mainline-card__pager { display: flex; align-items: center; justify-content: space-between; }
 .mainline-card__badge { padding: 6px 14px; border-radius: 8px; color: $color-info-700; background: $color-info-50; font-size: 20px; font-weight: 700; }
 .mainline-card__confidence { color: $color-text-muted; font-size: 20px; }
+.mainline-card__track { min-width: 0; height: auto; margin: 0; padding: 6px 14px; border: 2px solid rgba(14, 165, 233, .2); border-radius: 999px; color: $color-home-brand; background: $color-info-50; font-size: 19px; line-height: 1.4; }
 .mainline-card__title { display: block; margin-top: 18px; font-size: 34px; font-weight: 700; line-height: 1.35; }
 .mainline-card__summary { display: block; margin-top: 12px; color: $color-text-secondary; font-size: 25px; line-height: 1.6; }
+.mainline-card__key-events { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.mainline-card__event-chip { min-width: 0; height: auto; margin: 0; padding: 6px 14px; border: 2px solid rgba(14, 165, 233, .14); border-radius: 999px; color: $color-info-700; background: $color-info-50; font-size: 18px; line-height: 1.4; }
+.transmission-card { margin-top: 18px; padding: 16px 18px; border: 2px solid rgba(14, 165, 233, .14); border-radius: 20px; background: rgba(240, 249, 255, .64); }
+.transmission-card__head { display: flex; align-items: center; justify-content: space-between; color: $color-info-700; font-size: 22px; font-weight: 700; }
+.transmission-card__steps { display: flex; align-items: center; margin-top: 12px; }
+.transmission-card__step-wrap { display: flex; flex: 1; align-items: center; min-width: 0; }
+.transmission-card__step { flex: 1; padding: 8px 6px; border: 2px solid rgba(14, 165, 233, .12); border-radius: 12px; color: $color-text-secondary; background: #fff; font-size: 17px; font-weight: 600; text-align: center; }
+.transmission-card__arrow { padding: 0 6px; color: rgba(14, 165, 233, .52); font-size: 18px; }
+.mainline-card__subsection-title { display: block; margin: 22px 0 12px; font-size: 24px; font-weight: 700; }
 .mainline-card__section-head { margin: 22px 0 12px; font-size: 24px; font-weight: 700; }
 .mainline-card__graph { min-width: 0; height: auto; margin: 0; padding: 0; color: $color-home-brand; background: transparent; font-size: 22px; line-height: 1.4; }
 .impact-list, .evidence-list { display: flex; flex-direction: column; gap: 12px; }
@@ -53,6 +64,7 @@
 .evidence-item__summary { display: block; margin-top: 6px; color: $color-text-secondary; font-size: 20px; line-height: 1.45; }
 .evidence-list__empty { color: $color-text-muted; font-size: 22px; }
 .mainline-card__pager { margin-top: 22px; color: $color-text-muted; font-size: 20px; }
+.mainline-card > .mainline-card__confidence { display: block; margin-top: 18px; text-align: right; }
 .pager-button { width: 52px; height: 52px; min-width: 52px; margin: 0; padding: 0; border-radius: 50%; color: $color-home-brand; background: $color-info-50; font-size: 38px; line-height: 48px; }
 .pager-button[disabled] { opacity: .28; }
 

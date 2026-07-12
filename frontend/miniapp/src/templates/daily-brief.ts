@@ -12,11 +12,16 @@ export function mapDailyBriefToHome(brief: DailyBriefV1): DailyBriefHomeView {
     market: brief.market,
     sentiment: brief.sentiment,
     themes: [...brief.themes],
+    eventCount: brief.eventCount,
+    chainCount: brief.chainCount,
+    watchingCount: brief.watchingCount,
     conclusions: brief.conclusions.map((conclusion) => ({
       ...conclusion,
       confidenceLabel: confidenceLabels[conclusion.confidence],
       impacts: [...conclusion.impacts],
-      evidence: [...conclusion.evidence]
+      evidence: [...conclusion.evidence],
+      keyEvents: [...conclusion.keyEvents],
+      transmissionSteps: [...conclusion.transmissionSteps]
     })),
     disclaimer: brief.disclaimer
   };

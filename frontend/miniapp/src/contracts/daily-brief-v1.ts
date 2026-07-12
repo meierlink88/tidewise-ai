@@ -35,6 +35,9 @@ export interface ReasoningConclusionV1 {
   graphAvailability: 'coming_soon' | 'unavailable';
   impacts: ImpactAssessmentV1[];
   evidence: EvidenceItemV1[];
+  keyEvents: string[];
+  transmissionTitle: string;
+  transmissionSteps: string[];
 }
 
 export interface DailyBriefV1 {
@@ -48,6 +51,9 @@ export interface DailyBriefV1 {
   market: { label: string; direction: Direction; hint: string };
   sentiment: { label: string; direction: Direction; hint: string };
   themes: string[];
+  eventCount: number;
+  chainCount: number;
+  watchingCount: number;
   conclusions: ReasoningConclusionV1[];
   disclaimer: string;
 }
