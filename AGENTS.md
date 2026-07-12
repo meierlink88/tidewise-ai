@@ -1,218 +1,90 @@
 # AGENTS.md
 
-## Project Overview
+## Project
 
-观潮家是一个全球政经事件驱动的市场理解与决策辅助产品。系统目标是通过事件采集、知识图谱、RAG、Agent 推理、板块/资产传导分析、报告生成和订阅能力，帮助用户理解宏观事件、产业事件、市场指标、板块和企业之间的关系。
+观潮家是全球政经事件驱动的市场理解与决策辅助产品，覆盖事件采集、知识图谱、RAG、Agent 推理、板块/资产传导、报告和订阅。
 
-产品输出定位为决策辅助与市场理解，不应表达为直接投资建议。
+所有投研与 AI 输出必须定位为市场理解和决策辅助，不得表达为直接投资建议。
 
 ## Workspace Boundary
 
-当前 Codex Desktop 工作区应打开本目录：
-
-```text
-/Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai
-```
-
-本目录是源码工程根目录，也是 OpenSpec 根目录。所有工程代码、OpenSpec 变更、主规格、Codex OpenSpec skills、项目级 agent 规则都应以本目录为工作根。
-
-上级目录结构用途如下：
+Codex Desktop 应以本 `tidewise-ai/` 目录作为源码和 OpenSpec 根目录。
 
 ```text
 观潮家/
-├── tidewise-ai/ # 源码工程根目录，OpenSpec 根目录，Codex Desktop 工作区根目录
-├── doc/        # 项目文档空间，放商业计划、产品设计、架构文档、数据模型等
-└── prototype/  # 原型设计目录，放高保真原型和设计参考
+├── tidewise-ai/ # 源码、OpenSpec、工程配置和 agent 规则
+├── doc/         # 长期产品、架构、商业和数据模型文档
+└── prototype/   # 高保真原型和设计参考
 ```
 
-目录使用规则：
+- 工程代码、OpenSpec artifacts、自动化脚本和项目规则只进入 `tidewise-ai/`。
+- `doc/` 与 `prototype/` 默认只读；除非用户明确要求，不得修改。
+- `prototype/` 不是生产源码，不得直接复制其中的 HTML、DOM 操作或内联脚本。
 
-- `tidewise-ai`：只放工程源码、OpenSpec artifacts、工程配置、自动化脚本和 agent 规则。
-- `doc`：只放长期项目文档、商业资料、产品资料、架构资料和数据模型资料。
-- `prototype`：只放原型图、高保真设计和交互参考，不作为生产源码。
-- 不得把 `prototype` 中的 HTML、DOM 操作或内联脚本直接搬进生产代码。
-- 除非用户明确要求，不要修改 `doc` 和 `prototype`。
+## Rule Priority And Routing
 
-## OpenSpec Methodology
+冲突优先级：用户当前明确指令 > `AGENTS.md` 与 `.agents` > 已批准 OpenSpec artifacts > 已安装 Skills > Agent 临时判断。
 
-本项目严格按照 OpenSpec 方法论执行工程开发。正式工程变更必须先创建 OpenSpec change，再实现代码。
+新任务先读本文件，再按实际动作读取命中的规则；不得无差别读取全部规则、全部主规格或项目外文档。
 
-OpenSpec 细则见 `.agents/openspec-workflow.md`。处理任何 OpenSpec change 前必须读取该文件。
+| 任务 | 必须读取 |
+|---|---|
+| 正式研发、Skill 选择 | `.agents/skill-routing.md` |
+| OpenSpec 生命周期、artifact、审批、sync/archive | `.agents/openspec-workflow.md` |
+| branch、worktree、commit、push、PR、merge、cleanup | `.agents/git-workflow.md` |
+| Go 后端、API、采集、数据库、integration、部署 | `.agents/backend-boundaries.md` |
+| Go 实现、bugfix、重构、测试与验证 | `.agents/testing-tdd.md` |
+| 小程序、管理后台、设计系统、前端组件 | `.agents/frontend-boundaries.md` |
 
-## Agent Rule Index
+继续已有 change 时读取其 proposal、design、tasks、delta specs、受影响主规格、相关代码及命中的规则；只读解释或查询不机械创建 change。
 
-`AGENTS.md` 保留项目总纲、硬规则和规则路由。细分工程规则放在 `.agents/` 目录，agent 必须按任务类型读取对应文件。
+## OpenSpec Hard Gates
 
-当前细分规则：
-
-- 开始正式研发任务或选择 Skill 时，必须先读取 `.agents/skill-routing.md`。
-- 处理 OpenSpec change 生命周期、artifact、sync 或 archive 时，必须读取 `.agents/openspec-workflow.md`。
-- 处理 branch、worktree、commit、push 或 PR 时，必须读取 `.agents/git-workflow.md`。
-- 处理 Go 后端、API、采集器、数据库、integration 或部署边界时，必须读取 `.agents/backend-boundaries.md`。
-- 处理 Go 后端实现、bugfix、重构或验证时，必须读取 `.agents/testing-tdd.md`。
-- 处理前端、小程序、管理后台、设计系统、设计稿转实现或 UI 组件时，必须读取 `.agents/frontend-boundaries.md`。
-
-后续可以继续拆分：
-
-- `.agents/design-to-frontend.md`：设计系统 + HTML 设计稿 -> 前端实现流程。
-
-## Superpowers Integration
-
-OpenSpec、Superpowers 和 GitHub plugin 必须按 `.agents/skill-routing.md` 组合使用。OpenSpec 负责唯一正式生命周期和 artifacts；Superpowers 提供工程执行纪律；GitHub plugin 负责远端协作。项目规则和已批准 OpenSpec artifacts 覆盖 Skill 的默认路径与流程差异。
-
-## Iteration Rules
-
-新 change 必须基于主规格和现有代码增量设计，优先复用已有模块，不得创建平行结构。详细 Explore、Propose、Apply、Validate、Sync、Archive 规则见 `.agents/openspec-workflow.md`。
-
-复杂后端 change 的 `design.md` 必须包含 Mermaid sequence diagram 和 class/component diagram，具体规则见 `.agents/openspec-workflow.md`。
-
-## Git Branch, Worktree, and Commit Workflow
-
-OpenSpec change 是本项目的正式工作单元。Git branch 是 change 的交付边界，commit 是阶段性检查点，worktree 用于 change 隔离。Archive 只结束 OpenSpec 生命周期；archive commit 和分支交付完成后 change 才算关闭。开始新 change 必须切换到匹配的 `codex/<change-name>` branch；存在并行 change、未合并 PR 或 dirty worktree 时必须使用新 change 的独立 worktree。详细规则见 `.agents/git-workflow.md`。
-
-## Anti-Duplication Rules
-
-AI agent 必须在已有实现基础上增量迭代，不得另起一套。
-
-禁止行为：
-
-- 不得重复创建已有页面目录。
-- 不得重复创建已有 service、model、store、data 或 config 层。
-- 不得绕过已有 service 直接在页面中硬编码数据访问逻辑。
-- 不得在未检查现有代码前生成新的平行工程结构。
-- 不得因为新 change 而重建已有工程骨架。
-
-如果现有实现不符合新设计，应先更新 design 和 tasks，再执行迁移或重构。
-
-## Testing And TDD Workflow
-
-本项目后端研发默认采用 TDD 测试先行。涉及 Go 后端实现、bugfix、重构或验证时，必须读取 `.agents/testing-tdd.md`。
-
-## Engineering Architecture
-
-项目采用前后端分离架构。
-
-前端：
-
-- MVP 首端为跨平台小程序，首批目标至少包含微信小程序和抖音小程序。
-- 前端采用 Taro + React + TypeScript 技术栈。
-- 前端源码位于 `frontend/miniapp/`。
-- 前端通过各小程序平台分别发布。
-- 小程序端只负责展示、交互、轻状态和 API 调用。
-- 小程序端不得保存模型密钥、Agent 平台密钥、支付密钥、数据库连接或后端凭证。
-- Web 管理后台源码位于 `frontend/admin/`，采用 Vite + React + TypeScript，标准设计系统为 Minimal Dashboard。
-- 处理 `frontend/admin` 时，必须使用 repo-local skill `.codex/skills/minimal-dashboard-design/`，不得继续把 Ant Design 作为后台默认设计系统。
-
-后端：
-
-- 后端采用 Go 语言技术栈，优先使用 Go + Gin 构建高并发 API/BFF 服务。
-- 后端技术选型同时要求适合 AI 编程协作：语言和框架应具备强类型、清晰工程约定、直接编译反馈、易测试和低歧义代码风格。
-- 后端源码位于 `backend/`。
-- API/BFF、领域模块、Agent 平台集成、数据访问、订阅推送、支付回调等能力作为服务端应用独立部署。
-- MVP 阶段结构化主存储采用 PostgreSQL，缓存、限流、幂等和短期任务状态采用 Redis。
-- PostgreSQL 是实体、事件和关系事实源；Neo4j 保存可从 PostgreSQL 重建的关系图投影，用于路径查询和图谱推理。向量召回和 Prompt 编排仍优先由外部 Agent 平台承载。
-- 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。
-- 数据采集层属于后端 ingestion 边界，支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种路径。采集结果必须经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后再进入存储边界。
-- AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责 API 调用、回调接收、结构化结果校验、落库和展示。
-- MVP 阶段后端采用模块化单体，后续再按容量、部署和团队边界拆分为独立服务。
-
-部署：
-
-- frontend 和 backend 分离部署。
-- frontend 分别发布到微信、抖音等小程序平台。
-- backend API/BFF 和异步任务能力部署到服务端环境。
-
-## Frontend Direction
-
-MVP 阶段前端采用：
+OpenSpec 是正式工程 change 的唯一生命周期和 artifacts 来源：
 
 ```text
-Taro + React + TypeScript
+Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 ```
 
-选择 Taro 是因为项目需要同时支持微信和抖音小程序，并为后续 H5 或更多小程序平台保留空间。Taro 官方支持微信、抖音等多个小程序平台，且支持 React/Vue 等现代前端开发体验；本项目默认采用 React 技术路线。
+- 阶段不得跳过或调换；完整定义唯一位于 `.agents/openspec-workflow.md`。
+- Propose 后必须由用户人工 Review；未获明确批准不得进入 Apply。
+- Apply 完成后必须提交 scoped diff 和验证证据，再次等待人工 Review；批准前不得 Sync、Archive 或 Deliver。
+- 数据库 migration/apply、seed、业务写入、图谱关系写入、投影重建或清理必须先展示范围和顺序并取得明确批准。
+- 分层数据与图谱操作按 `Review -> Write -> Rebuild -> Query` 逐层审批；只读或上一层批准不得推定下一层写入授权。
+- Sync、Archive、Deliver 的完成条件及顺序不得削弱；Archive 不等于 change 已交付或关闭。
 
-跨平台小程序源码位于：
+## Git And Desktop Hard Gates
 
-```text
-frontend/miniapp/
-```
+- 新 change 默认按顺序推进；仅用户明确批准、无依赖且无共享文件或数据库写状态的独立并行 change 可同时启动，出现依赖或共享写状态必须暂停并重新排序。
+- Desktop 可用时，所有新 change 必须由 Desktop 新任务创建独立受管 worktree，并在其中从最新 `origin/main` 创建或切换 `codex/<change-name>`；不得手工执行 `git worktree add` 或混入其他 change。
+- 只有 Desktop 受管机制不可用且用户明确批准 fallback 时，才允许按 `.agents/git-workflow.md` 创建项目自有 worktree。
+- Desktop-managed worktree 只能由 Desktop 释放；agent 不得对托管目录执行 `rm` 或 `git worktree remove`。
+- PR merge 后必须按 worktree 所有权有序清理远端 branch、worktree/任务和本地 branch；Desktop 未释放时记录待清理状态，不得宣称 cleanup 或 Deliver 完成。
+- 两类 cleanup 的完整唯一顺序位于 `.agents/git-workflow.md`。
 
-如果某个既有 OpenSpec artifact 中仍出现 `apps/miniprogram/`、`miniprogram/` 或原生小程序结构，应在实现前调整为 `frontend/miniapp/` 和 Taro 工程结构。
+## Architecture Invariants
 
-管理后台源码位于：
+- 前端与后端分离；小程序为 `frontend/miniapp/`，采用 Taro + React + TypeScript，面向微信和抖音。
+- 管理后台为 `frontend/admin/`，采用 Vite + React + TypeScript；默认设计系统是 repo-local Minimal Dashboard，不新增 Ant Design 依赖。
+- 后端为 `backend/` 下单 Go module、模块化单体；`cmd/*` 是进程入口，`internal/apps/*` 是业务子系统。
+- PostgreSQL 是实体、事件和关系事实源；Neo4j 仅保存可从 PostgreSQL 重建的图投影。
+- Redis 只承担缓存、限流、幂等和短期任务状态；AI/RAG/Prompt 编排优先由外部 Agent 平台承载。
+- 正式 API 必须先定义 DTO、错误、分页、时间、ID、枚举和 Agent 回写契约。
+- local、uat、prod 使用统一强类型配置；敏感配置只能由环境变量或部署 secret 注入。
+- 后端功能、bugfix 和重构默认 TDD；具体测试标准不得从 `.agents/testing-tdd.md` 降级。
 
-```text
-frontend/admin/
-```
+## Engineering And Safety
 
-管理后台标准设计系统为 Minimal Dashboard。Codex repo-local skill 位于：
+- 基于主规格和现有代码增量迭代；先检查复用点，不得新建平行页面、service、model、store、data、config 或工程骨架。
+- 不得把一个 change 的修改、artifact、数据库状态或未提交文件混入另一个 change。
+- 小程序只负责展示、交互、轻状态和 API 调用，不得包含服务端执行、数据库访问或模型/支付密钥。
+- 前端使用 React/Taro 数据驱动方式；不得使用 `document`、`window`、`innerHTML`、内联 `onclick` 或直接 DOM mutation。
+- mock 数据放 dedicated data modules，API 调用经过 services/request 边界。
+- 不在源码添加注释，除非用户明确要求。
+- 不得提交、写入或打印 secret、token、数据库连接串、模型 API key、支付密钥或个人隐私信息。
+- 不 revert 其他用户或 agent 的无关改动，不使用破坏性 Git 命令，除非用户明确授权。
 
-```text
-.codex/skills/minimal-dashboard-design/
-```
+## Completion Discipline
 
-Minimal Dashboard 原始设计系统资料归档位于：
-
-```text
-../prototype/.design_library/minimal-dashboard/
-```
-
-后续新增或修改管理后台页面时，必须读取 `.agents/frontend-boundaries.md` 和 `.codex/skills/minimal-dashboard-design/SKILL.md`，并把设计系统内容转译为 React 组件和 CSS tokens，不得直接复制 preview HTML 或 DOM 脚本。
-
-## Backend Direction
-
-后端采用单 Go module、多可部署子系统结构。可部署进程放在 `backend/cmd/*`，业务子系统应用逻辑放在 `backend/internal/apps/*`，共享基础层放在 `backend/internal/domain`、`backend/internal/repositories`、`backend/internal/config`、`backend/internal/integrations` 和 `backend/internal/platform`。
-
-处理任何后端 change 前，必须读取 `.agents/backend-boundaries.md`，并按其中的子系统归属、integration 边界、connector 归属和依赖方向执行。
-
-不要在小程序 change 中实现真实后端能力。后端工程、API 契约、数据库、采集层、Agent 平台集成和部署拓扑应通过独立 OpenSpec change 设计和实现。
-
-后端必须标准化支持 local、uat、prod 三类环境配置。配置文件可以保存非敏感结构化配置，数据库密码、Agent 平台 API key、支付密钥、JWT secret 等敏感信息必须通过环境变量或部署平台 secret 注入，不得提交到 repo。业务代码只能依赖统一的 Go 强类型 config，不得散落读取环境变量或硬编码环境差异。
-
-## Code Style
-
-- 不要在源码中添加注释，除非用户明确要求。
-- 前端优先使用 TypeScript 类型表达数据结构和契约。
-- 后端优先使用 Go 类型表达服务端领域模型、请求响应结构和数据访问结构。
-- 前端页面逻辑应采用 Taro/React 数据驱动方式实现，使用组件 props、state/hooks、条件渲染和列表渲染表达交互状态。
-- 禁止在生产小程序代码中使用 `document`、`window`、`innerHTML`、内联 `onclick` 或浏览器 DOM 操作。
-- mock 数据应放在 dedicated data modules，不要散落在页面 markup 中。
-- API 调用必须经过 services/request 边界。
-
-## Security
-
-- 不得提交、写入或打印密钥、token、数据库连接串、模型 API key、支付密钥或个人隐私信息。
-- 小程序端不得包含服务端执行逻辑、RAG 编排、Agent 调度、Agent 平台密钥或数据库访问。
-- 投研和 AI 分析内容必须保持决策辅助定位，不得表达为直接投资建议。
-
-## Useful Context Files
-
-新会话或新任务开始时，应优先读取：
-
-```text
-AGENTS.md
-.agents/skill-routing.md
-.agents/openspec-workflow.md
-.agents/git-workflow.md
-.agents/backend-boundaries.md
-.agents/frontend-boundaries.md
-.agents/testing-tdd.md
-openspec/config.yaml
-../doc/architecture.md
-```
-
-如果处理已有 change，还应读取：
-
-```text
-openspec/changes/<change-name>/proposal.md
-openspec/changes/<change-name>/design.md
-openspec/changes/<change-name>/tasks.md
-openspec/changes/<change-name>/specs/**/*.md
-```
-
-如果处理已完成能力，还应读取：
-
-```text
-openspec/specs/**/*.md
-```
+- 声明完成、commit、push、PR、sync 或 archive 前必须运行新鲜验证并读取结果。
+- 验证受环境限制时必须报告未验证项和风险，不得用推测替代证据。

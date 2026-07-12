@@ -1,6 +1,6 @@
 # Skill Routing
 
-正式研发必须优先调用与当前任务匹配的已安装 Skill。OpenSpec 是唯一正式 change 生命周期和 artifacts 的所有者；Superpowers 提供执行纪律；GitHub plugin 负责远端协作操作。
+正式研发必须优先调用与任务匹配的已安装 Skill。OpenSpec 拥有唯一正式 change 生命周期和 artifacts；Superpowers 提供工程执行纪律；GitHub plugin 负责远端协作。
 
 ## Priority
 
@@ -14,11 +14,11 @@
 > Agent 临时判断
 ```
 
-Skill 不得覆盖项目的 artifact 路径、change 顺序、分支命名、安全边界和技术约束。
+Skill 不得覆盖项目 artifact 路径、生命周期顺序、分支命名、安全边界和技术约束。生命周期门禁见 `.agents/openspec-workflow.md`，Git 与 Desktop worktree 规则见 `.agents/git-workflow.md`。
 
-## OpenSpec Lifecycle
+## Lifecycle Skill Map
 
-| 阶段 | 必须使用的主 Skill 或机制 | 执行辅助 |
+| 阶段 | 主 Skill 或机制 | 执行辅助 |
 |---|---|---|
 | Explore | `openspec-explore` | `superpowers:brainstorming` |
 | Propose | `openspec-propose` | `superpowers:writing-plans` 的任务拆分方法 |
@@ -26,39 +26,34 @@ Skill 不得覆盖项目的 artifact 路径、change 顺序、分支命名、安
 | Apply | `openspec-apply-change` | TDD、debug、计划执行或 Subagent Skills |
 | Validate | OpenSpec CLI 和项目验证命令 | `superpowers:verification-before-completion` |
 | Sync | `openspec-sync-specs` | 完成前验证 |
-| Archive | `openspec-archive-change` | 完成前验证；不得把 archive 成功视为 change 已关闭 |
-| Deliver | `superpowers:finishing-a-development-branch` | scoped archive commit、GitHub plugin、push/PR/merge、branch/worktree cleanup |
+| Archive | `openspec-archive-change` | 完成前验证 |
+| Deliver | `superpowers:finishing-a-development-branch` | GitHub plugin 与 scoped Git 交付 |
 
-不得跳过人工 Review 直接从 Propose 进入 Apply。只有 tasks 全部完成、主规格已同步、change 已归档且 `openspec validate --all` 通过后，才能进入 Deliver、PR 或 merge。只有 archive commit 已存在且当前 change 没有未提交文件后，才能声明 change 已关闭或开始下一 change。
+完整阶段语义、顺序和完成条件只在 `.agents/openspec-workflow.md` 维护。
 
 ## Artifact Ownership
 
-- `superpowers:brainstorming` 的确认结论写入当前 change 的 `design.md`。
-- `superpowers:writing-plans` 的可执行计划写入当前 change 的 `tasks.md`。
-- 默认不得创建 `docs/superpowers/specs/` 或 `docs/superpowers/plans/`。
-- 用户明确要求额外计划文档时可以创建，但它不得成为正式状态来源，也不得替代 OpenSpec artifacts。
+- Brainstorming 的确认结论进入当前 change 的 `design.md`。
+- Writing Plans 的可执行计划进入当前 change 的 `tasks.md`。
+- 默认不得创建 `docs/superpowers/specs/` 或 `docs/superpowers/plans/`；用户明确要求的额外文档也不得替代 OpenSpec artifacts。
 
 ## Engineering Skills
 
-- 功能、bugfix、重构或行为变更：使用 `superpowers:test-driven-development`。
-- 缺陷、测试失败或异常行为：先使用 `superpowers:systematic-debugging`，基于证据定位原因。
-- 声明完成、commit、push、PR、sync 或 archive 前：使用 `superpowers:verification-before-completion`，读取新鲜验证结果。
-- 主要功能完成或准备合并：使用 `superpowers:requesting-code-review`；收到意见后使用 `superpowers:receiving-code-review` 验证再修改。
-- 已有书面实施计划且需要跨检查点执行：使用 `superpowers:executing-plans`。
-- 两个以上无共享写状态、无顺序依赖的任务：可使用 `superpowers:dispatching-parallel-agents`。
-- 任务边界、文件所有权和合并方式明确时：可使用 `superpowers:subagent-driven-development`。
-- 多 Agent 不得同时修改同一 OpenSpec artifact、tasks 文件、数据库状态或同一源码文件。
+- 功能、bugfix、重构或行为变更：`superpowers:test-driven-development`。
+- 缺陷、测试失败或异常：先使用 `superpowers:systematic-debugging`。
+- 声明完成、commit、push、PR、sync 或 archive 前：`superpowers:verification-before-completion`。
+- 主要功能完成或准备合并：`superpowers:requesting-code-review`；处理反馈：`superpowers:receiving-code-review`。
+- 已有书面计划且跨检查点执行：`superpowers:executing-plans`。
+- 两个以上无共享写状态且无顺序依赖的任务：`superpowers:dispatching-parallel-agents`。
+- 边界和所有权明确的独立任务：`superpowers:subagent-driven-development`。
+- 多 Agent 不得同时修改同一 OpenSpec artifact、tasks、数据库状态或源码文件。
 
 ## Git And GitHub Skills
 
-- 新 change 的最新 `origin/main` 基线、branch、worktree 和 commit 规则见 `.agents/git-workflow.md`。
-- 并行 change 或长任务隔离使用 `superpowers:using-git-worktrees`；在 Codex Desktop 中优先使用与独立任务绑定的原生 worktree。
-- branch 收尾使用 `superpowers:finishing-a-development-branch`，但必须位于 `openspec-archive-change` 之后。
-- commit、push 和创建 PR 优先使用 `github:yeet`。
-- 创建新 change 前必须执行 `.agents/git-workflow.md` 的 New Change Gate；branch 名称不匹配、工作区包含其他 change 修改或上一 change 未 delivered 时，必须先切换到新 change 的独立 branch/worktree。
-- CI 失败使用 `github:gh-fix-ci`。
-- PR review comments 使用 `github:gh-address-comments`，并结合 `superpowers:receiving-code-review`。
+- 新 change、branch、Desktop worktree、commit 和 cleanup 服从 `.agents/git-workflow.md`。
+- branch 收尾使用 `superpowers:finishing-a-development-branch`，但只能在 Archive 之后。
+- commit、push 和 PR 优先使用 `github:yeet`；CI 失败使用 `github:gh-fix-ci`；PR 评论使用 `github:gh-address-comments`。
 
 ## Lightweight Tasks
 
-纯解释、只读查询或单条命令不需要机械创建 OpenSpec change，也不要求调用所有 Skills。只在 Skill 的触发条件与任务匹配时调用。
+纯解释、只读查询或单条命令不需要机械创建 OpenSpec change；仅在 Skill 触发条件匹配时调用。
