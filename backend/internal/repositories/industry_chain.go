@@ -12,7 +12,7 @@ import (
 const listPhysicalConstraintsQuery = `
 SELECT id, industry_chain_entity_id, chain_node_entity_id, topology_edge_id,
        constraint_type, mechanism, physical_limit_note, mitigation_path,
-       source_name, source_url, verified_at, review_status, status
+	   source_name, source_url, verified_at, review_status, status, generated_by_ai
 FROM industry_chain_physical_constraints
 WHERE review_status = 'approved' AND status = 'active'
   AND (cardinality($1::uuid[]) = 0 OR industry_chain_entity_id = ANY($1::uuid[]))
@@ -56,7 +56,7 @@ func (r PostgresRepository) ListPhysicalConstraints(ctx context.Context, filter 
 	for rows.Next() {
 		var value domain.IndustryChainPhysicalConstraint
 		var nodeID, edgeID sql.NullString
-		if err := rows.Scan(&value.ID, &value.IndustryChainEntityID, &nodeID, &edgeID, &value.ConstraintType, &value.Mechanism, &value.PhysicalLimitNote, &value.MitigationPath, &value.SourceName, &value.SourceURL, &value.VerifiedAt, &value.ReviewStatus, &value.Status); err != nil {
+		if err := rows.Scan(&value.ID, &value.IndustryChainEntityID, &nodeID, &edgeID, &value.ConstraintType, &value.Mechanism, &value.PhysicalLimitNote, &value.MitigationPath, &value.SourceName, &value.SourceURL, &value.VerifiedAt, &value.ReviewStatus, &value.Status, &value.GeneratedByAI); err != nil {
 			return nil, err
 		}
 		if nodeID.Valid {

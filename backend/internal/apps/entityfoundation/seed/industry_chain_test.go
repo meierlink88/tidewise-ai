@@ -24,8 +24,9 @@ func TestValidateIndustryChainManifestRejectsInvalidCandidates(t *testing.T) {
 		"self topology": func(m *Manifest) {
 			m.IndustryChainTopologyEdges[0].ToChainNodeKey = m.IndustryChainTopologyEdges[0].FromChainNodeKey
 		},
-		"AI candidate approved":   func(m *Manifest) { m.IndustryChainPhysicalConstraints[0].ReviewStatus = domain.ReviewStatusApproved },
-		"non physical constraint": func(m *Manifest) { m.IndustryChainPhysicalConstraints[0].ConstraintType = "supplier_concentration" },
+		"AI candidate approved":                    func(m *Manifest) { m.IndustryChainPhysicalConstraints[0].ReviewStatus = domain.ReviewStatusApproved },
+		"non physical constraint":                  func(m *Manifest) { m.IndustryChainPhysicalConstraints[0].ConstraintType = "supplier_concentration" },
+		"active topology with inactive membership": func(m *Manifest) { m.IndustryChainMemberships[1].Status = domain.StatusInactive },
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -35,6 +36,27 @@ func TestValidateIndustryChainManifestRejectsInvalidCandidates(t *testing.T) {
 				t.Fatal("Validate() error = nil")
 			}
 		})
+	}
+}
+
+func TestValidateIndustryChainManifestAllowsHumanApprovedAIProvenance(t *testing.T) {
+	manifest := validIndustryChainManifest()
+	manifest.IndustryChainPhysicalConstraints[0].ReviewStatus = domain.ReviewStatusApproved
+	if err := Validate(manifest); err == nil {
+		t.Fatal("AI approved without human gate error = nil")
+	}
+	manifest.IndustryChainPhysicalConstraints[0].ApprovedByHuman = true
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("human-approved AI constraint error = %v", err)
+	}
+}
+
+func TestValidateIndustryChainManifestAllowsInactiveTopologyWithHistoricalMemberships(t *testing.T) {
+	manifest := validIndustryChainManifest()
+	manifest.IndustryChainTopologyEdges[0].Status = domain.StatusInactive
+	manifest.IndustryChainMemberships[1].Status = domain.StatusInactive
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("inactive historical topology error = %v", err)
 	}
 }
 

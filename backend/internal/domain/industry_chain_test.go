@@ -35,12 +35,6 @@ func TestIndustryChainDomainRejectsInvalidValues(t *testing.T) {
 			return v
 		}(),
 		"two subjects": func() IndustryChainPhysicalConstraint { v := valid; v.TopologyEdgeID = "edge"; return v }(),
-		"approved AI candidate": func() IndustryChainPhysicalConstraint {
-			v := valid
-			v.GeneratedByAI = true
-			v.ReviewStatus = ReviewStatusApproved
-			return v
-		}(),
 		"reasoning field": func() IndustryChainPhysicalConstraint {
 			v := valid
 			v.ReasoningFields = map[string]string{"severity": "high"}
@@ -53,6 +47,34 @@ func TestIndustryChainDomainRejectsInvalidValues(t *testing.T) {
 				t.Fatal("Validate() error = nil")
 			}
 		})
+	}
+}
+
+func TestValidateIndustryChainBatchAssociationsAndApprovalGate(t *testing.T) {
+	verifiedAt := time.Now()
+	memberships := []IndustryChainMembership{
+		{ID: "ma", IndustryChainEntityID: "chain", ChainNodeEntityID: "a", StageCode: IndustryChainStageUpstream, RoleCode: IndustryChainRoleComponent, SourceName: "review", SourceURL: "https://example.com", VerifiedAt: verifiedAt, Status: StatusActive},
+		{ID: "mb", IndustryChainEntityID: "chain", ChainNodeEntityID: "b", StageCode: IndustryChainStageDownstream, RoleCode: IndustryChainRoleProduct, SourceName: "review", SourceURL: "https://example.com", VerifiedAt: verifiedAt, Status: StatusActive},
+	}
+	edges := []IndustryChainTopologyEdge{{ID: "edge", IndustryChainEntityID: "chain", FromChainNodeEntityID: "a", ToChainNodeEntityID: "b", RelationType: IndustryChainRelationSuppliesTo, SourceName: "review", SourceURL: "https://example.com", VerifiedAt: verifiedAt, Status: StatusActive}}
+	constraint := IndustryChainPhysicalConstraint{ID: "constraint", IndustryChainEntityID: "chain", TopologyEdgeID: "edge", ConstraintType: PhysicalConstraintPowerCapacity, Mechanism: "power", SourceName: "review", SourceURL: "https://example.com", VerifiedAt: verifiedAt, ReviewStatus: ReviewStatusApproved, Status: StatusActive, GeneratedByAI: true}
+	if err := ValidateIndustryChainBatch(memberships, edges, []IndustryChainPhysicalConstraint{constraint}, IndustryChainApprovalGate{}); err == nil || !strings.Contains(err.Error(), "human approval") {
+		t.Fatalf("unapproved AI constraint error = %v", err)
+	}
+	gate := IndustryChainApprovalGate{HumanApprovedConstraintIDs: map[string]struct{}{"constraint": {}}}
+	if err := ValidateIndustryChainBatch(memberships, edges, []IndustryChainPhysicalConstraint{constraint}, gate); err != nil {
+		t.Fatalf("human-approved AI constraint error = %v", err)
+	}
+	invalidEdge := edges[0]
+	invalidEdge.ToChainNodeEntityID = "missing"
+	if err := ValidateIndustryChainBatch(memberships, []IndustryChainTopologyEdge{invalidEdge}, nil, IndustryChainApprovalGate{}); err == nil || !strings.Contains(err.Error(), "membership") {
+		t.Fatalf("non-member topology error = %v", err)
+	}
+	invalidConstraint := constraint
+	invalidConstraint.GeneratedByAI = false
+	invalidConstraint.IndustryChainEntityID = "other-chain"
+	if err := ValidateIndustryChainBatch(memberships, edges, []IndustryChainPhysicalConstraint{invalidConstraint}, IndustryChainApprovalGate{}); err == nil || !strings.Contains(err.Error(), "same chain") {
+		t.Fatalf("cross-chain constraint error = %v", err)
 	}
 }
 

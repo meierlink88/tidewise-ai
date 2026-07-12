@@ -29,6 +29,7 @@ func TestIndustryChainFoundationMigrationContract(t *testing.T) {
 		"power_capacity", "thermal_dissipation", "physical_expansion_cycle",
 		"create index industry_chain_memberships_chain_status_order_idx",
 		"create index industry_chain_physical_constraints_chain_idx",
+		"generated_by_ai boolean not null default false",
 	} {
 		if !strings.Contains(sql, fragment) {
 			t.Errorf("migration missing %q", fragment)

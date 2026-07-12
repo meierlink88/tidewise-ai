@@ -50,66 +50,32 @@ type IndustryChainPhysicalConstraintSeed struct {
 	ReviewStatus      domain.ReviewStatus           `json:"review_status"`
 	Status            domain.Status                 `json:"status"`
 	GeneratedByAI     bool                          `json:"generated_by_ai,omitempty"`
+	ApprovedByHuman   bool                          `json:"approved_by_human,omitempty"`
 }
 
 func validateIndustryChainManifest(manifest Manifest, entities map[string]Entity) error {
-	memberships := make(map[string]map[string]struct{})
-	seenMemberships := map[string]struct{}{}
+	memberships := make([]domain.IndustryChainMembership, 0, len(manifest.IndustryChainMemberships))
 	for _, item := range manifest.IndustryChainMemberships {
 		chain, chainOK := entities[item.IndustryChainKey]
 		node, nodeOK := entities[item.ChainNodeKey]
 		if !chainOK || chain.EntityType != domain.EntityTypeIndustryChain || !nodeOK || node.EntityType != domain.EntityTypeChainNode {
 			return fmt.Errorf("industry chain membership has invalid endpoint")
 		}
-		value := domain.IndustryChainMembership{ID: item.ID, IndustryChainEntityID: item.IndustryChainKey, ChainNodeEntityID: item.ChainNodeKey, StageCode: item.StageCode, RoleCode: item.RoleCode, StageOrder: item.StageOrder, IsCore: item.IsCore, SourceName: item.SourceName, SourceURL: item.SourceURL, VerifiedAt: item.VerifiedAt, Status: item.Status}
-		if err := value.Validate(); err != nil {
-			return err
-		}
-		key := item.IndustryChainKey + "|" + item.ChainNodeKey
-		if _, ok := seenMemberships[key]; ok {
-			return fmt.Errorf("duplicate industry chain membership %q", key)
-		}
-		seenMemberships[key] = struct{}{}
-		if memberships[item.IndustryChainKey] == nil {
-			memberships[item.IndustryChainKey] = map[string]struct{}{}
-		}
-		memberships[item.IndustryChainKey][item.ChainNodeKey] = struct{}{}
+		memberships = append(memberships, domain.IndustryChainMembership{ID: item.ID, IndustryChainEntityID: item.IndustryChainKey, ChainNodeEntityID: item.ChainNodeKey, StageCode: item.StageCode, RoleCode: item.RoleCode, StageOrder: item.StageOrder, IsCore: item.IsCore, SourceName: item.SourceName, SourceURL: item.SourceURL, VerifiedAt: item.VerifiedAt, Status: item.Status})
 	}
 	topology := make([]domain.IndustryChainTopologyEdge, 0, len(manifest.IndustryChainTopologyEdges))
-	topologyIDs := map[string]IndustryChainTopologySeed{}
 	for _, item := range manifest.IndustryChainTopologyEdges {
-		members := memberships[item.IndustryChainKey]
-		if _, ok := members[item.FromChainNodeKey]; !ok {
-			return fmt.Errorf("topology from endpoint is not an active membership")
-		}
-		if _, ok := members[item.ToChainNodeKey]; !ok {
-			return fmt.Errorf("topology to endpoint is not an active membership")
-		}
-		edge := domain.IndustryChainTopologyEdge{ID: item.ID, IndustryChainEntityID: item.IndustryChainKey, FromChainNodeEntityID: item.FromChainNodeKey, ToChainNodeEntityID: item.ToChainNodeKey, RelationType: item.RelationType, EvidenceNote: item.EvidenceNote, SourceName: item.SourceName, SourceURL: item.SourceURL, VerifiedAt: item.VerifiedAt, Status: item.Status}
-		topology = append(topology, edge)
-		topologyIDs[item.ID] = item
+		topology = append(topology, domain.IndustryChainTopologyEdge{ID: item.ID, IndustryChainEntityID: item.IndustryChainKey, FromChainNodeEntityID: item.FromChainNodeKey, ToChainNodeEntityID: item.ToChainNodeKey, RelationType: item.RelationType, EvidenceNote: item.EvidenceNote, SourceName: item.SourceName, SourceURL: item.SourceURL, VerifiedAt: item.VerifiedAt, Status: item.Status})
 	}
-	if err := domain.ValidateIndustryChainTopology(topology); err != nil {
-		return err
-	}
+	constraints := make([]domain.IndustryChainPhysicalConstraint, 0, len(manifest.IndustryChainPhysicalConstraints))
+	gate := domain.IndustryChainApprovalGate{HumanApprovedConstraintIDs: map[string]struct{}{}}
 	for _, item := range manifest.IndustryChainPhysicalConstraints {
-		if item.ChainNodeKey != "" {
-			if _, ok := memberships[item.IndustryChainKey][item.ChainNodeKey]; !ok {
-				return fmt.Errorf("physical constraint node is not a membership")
-			}
-		}
-		if item.TopologyEdgeID != "" {
-			edge, ok := topologyIDs[item.TopologyEdgeID]
-			if !ok || edge.IndustryChainKey != item.IndustryChainKey {
-				return fmt.Errorf("physical constraint topology edge is outside chain")
-			}
-		}
-		value := domain.IndustryChainPhysicalConstraint{ID: item.ID, IndustryChainEntityID: item.IndustryChainKey, ChainNodeEntityID: item.ChainNodeKey, TopologyEdgeID: item.TopologyEdgeID, ConstraintType: item.ConstraintType, Mechanism: item.Mechanism, PhysicalLimitNote: item.PhysicalLimitNote, MitigationPath: item.MitigationPath, SourceName: item.SourceName, SourceURL: item.SourceURL, VerifiedAt: item.VerifiedAt, ReviewStatus: item.ReviewStatus, Status: item.Status, GeneratedByAI: item.GeneratedByAI}
-		if err := value.Validate(); err != nil {
-			return err
+		constraints = append(constraints, domain.IndustryChainPhysicalConstraint{ID: item.ID, IndustryChainEntityID: item.IndustryChainKey, ChainNodeEntityID: item.ChainNodeKey, TopologyEdgeID: item.TopologyEdgeID, ConstraintType: item.ConstraintType, Mechanism: item.Mechanism, PhysicalLimitNote: item.PhysicalLimitNote, MitigationPath: item.MitigationPath, SourceName: item.SourceName, SourceURL: item.SourceURL, VerifiedAt: item.VerifiedAt, ReviewStatus: item.ReviewStatus, Status: item.Status, GeneratedByAI: item.GeneratedByAI})
+		if item.ApprovedByHuman {
+			gate.HumanApprovedConstraintIDs[item.ID] = struct{}{}
 		}
 	}
-	return nil
+	return domain.ValidateIndustryChainBatch(memberships, topology, constraints, gate)
 }
 
 func validateIndustryChainProfileFields(fields map[string]json.RawMessage) error {

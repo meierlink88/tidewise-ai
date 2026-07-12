@@ -189,9 +189,6 @@ func (c IndustryChainPhysicalConstraint) Validate() error {
 	if !validStatus(c.ReviewStatus, ReviewStatusCandidate, ReviewStatusReviewed, ReviewStatusApproved) {
 		return fmt.Errorf("unsupported review status %q", c.ReviewStatus)
 	}
-	if c.GeneratedByAI && c.ReviewStatus == ReviewStatusApproved {
-		return fmt.Errorf("AI candidate cannot be approved")
-	}
 	if len(c.ReasoningFields) > 0 {
 		return fmt.Errorf("reasoning fields are forbidden")
 	}
@@ -199,6 +196,68 @@ func (c IndustryChainPhysicalConstraint) Validate() error {
 		return fmt.Errorf("unsupported constraint status %q", c.Status)
 	}
 	return validateIndustryChainProvenance(c.SourceName, c.SourceURL, c.VerifiedAt)
+}
+
+type IndustryChainApprovalGate struct {
+	HumanApprovedConstraintIDs map[string]struct{}
+}
+
+func ValidateIndustryChainBatch(memberships []IndustryChainMembership, edges []IndustryChainTopologyEdge, constraints []IndustryChainPhysicalConstraint, gate IndustryChainApprovalGate) error {
+	membershipStatus := make(map[string]Status, len(memberships))
+	for _, membership := range memberships {
+		if err := membership.Validate(); err != nil {
+			return err
+		}
+		key := membership.IndustryChainEntityID + "|" + membership.ChainNodeEntityID
+		if _, exists := membershipStatus[key]; exists {
+			return fmt.Errorf("duplicate industry chain membership %q", key)
+		}
+		membershipStatus[key] = membership.Status
+	}
+	if err := ValidateIndustryChainTopology(edges); err != nil {
+		return err
+	}
+	topologyByID := make(map[string]IndustryChainTopologyEdge, len(edges))
+	for _, edge := range edges {
+		if _, exists := topologyByID[edge.ID]; exists {
+			return fmt.Errorf("duplicate topology ID %q", edge.ID)
+		}
+		for _, nodeID := range []string{edge.FromChainNodeEntityID, edge.ToChainNodeEntityID} {
+			status, exists := membershipStatus[edge.IndustryChainEntityID+"|"+nodeID]
+			if !exists {
+				return fmt.Errorf("topology endpoint must reference same chain membership")
+			}
+			if edge.Status == StatusActive && status != StatusActive {
+				return fmt.Errorf("active topology endpoint must reference active membership")
+			}
+		}
+		topologyByID[edge.ID] = edge
+	}
+	for _, constraint := range constraints {
+		if err := constraint.Validate(); err != nil {
+			return err
+		}
+		if constraint.GeneratedByAI && constraint.ReviewStatus == ReviewStatusApproved {
+			if _, approved := gate.HumanApprovedConstraintIDs[constraint.ID]; !approved {
+				return fmt.Errorf("AI-generated approved constraint requires explicit human approval")
+			}
+		}
+		if constraint.ChainNodeEntityID != "" {
+			status, exists := membershipStatus[constraint.IndustryChainEntityID+"|"+constraint.ChainNodeEntityID]
+			if !exists || status != StatusActive {
+				return fmt.Errorf("node constraint must reference same chain active membership")
+			}
+			continue
+		}
+		edge, exists := topologyByID[constraint.TopologyEdgeID]
+		if !exists || edge.IndustryChainEntityID != constraint.IndustryChainEntityID {
+			return fmt.Errorf("edge constraint must reference same chain topology")
+		}
+		if edge.Status != StatusActive {
+			return fmt.Errorf("edge constraint must reference active topology")
+		}
+	}
+	return nil
 }
 
 func ValidateIndustryChainTopology(edges []IndustryChainTopologyEdge) error {

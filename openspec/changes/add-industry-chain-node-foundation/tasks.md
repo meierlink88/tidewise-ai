@@ -8,15 +8,15 @@
 
 - [x] 2.1 先在 `backend/migrations/` 增加失败的静态测试，逐字段覆盖 `industry_chain_profiles`、`chain_node_profiles` 增量、`industry_chain_memberships`、`industry_chain_topology_edges`、`industry_chain_physical_constraints` 的 FK、枚举、唯一、自环、恰一主体、索引和非破坏性约束
 - [x] 2.2 运行 migration 目标测试确认 RED，再追加单一增量 migration 与安全回滚策略使测试 GREEN；不得执行 migration apply
-- [x] 2.3 先在 `backend/internal/domain/` 增加 table-driven tests，覆盖 industry chain profile、membership、topology、canonical edge 去重、physical constraint 的合法/非法类型、方向、状态和禁止推理字段
+- [x] 2.3 先在 `backend/internal/domain/` 增加 table-driven tests，覆盖 industry chain profile、membership、active/inactive topology 端点、canonical edge 去重、physical constraint 同链主体、人工批准 gate、合法/非法类型、方向、状态和禁止推理字段
 - [x] 2.4 实现最小领域类型与 validator 使目标包测试通过，并保持既有 `chain_node` 身份兼容
 
 ## 3. Loader、repository 与关系 policy（TDD）
 
-- [x] 3.1 先在 `backend/internal/apps/entityfoundation/seed/` 增加 loader/fixture 失败测试，覆盖 profile、membership、topology、physical constraint 的来源、重复、自环、非成员端点、AI candidate 非 approved 和禁止非物理/推理字段
+- [x] 3.1 先在 `backend/internal/apps/entityfoundation/seed/` 增加 loader/fixture 失败测试，覆盖 profile、membership、topology、physical constraint 的来源、重复、自环、inactive/非成员端点、AI candidate 未授权 approved、人工批准后保留 AI provenance 和禁止非物理/推理字段
 - [x] 3.2 扩展 manifest、loader、paths 和 validator 使测试通过，不加入未经 Review 的正式试点 seed
-- [x] 3.3 先增加 MemoryRepository 与 PostgresRepository 失败测试，覆盖 4 张新表和 profile 增量的原子幂等 upsert、report 统计、回滚等价性
-- [x] 3.4 实现 repository 接口、SQL、按 chain/node/topology edge 批量查询 physical constraints 与 report 聚合使测试通过
+- [x] 3.3 先增加 MemoryRepository 与 PostgresRepository 失败测试，覆盖 4 张新表和 profile 增量的原子幂等 upsert、不可变 identity、report 统计、关联校验与回滚等价性
+- [x] 3.4 实现 repository 接口、共享 batch validator、identity conflict guard、SQL、AI provenance 持久化、按 chain/node/topology edge 批量查询 physical constraints 与 report 聚合使测试通过
 - [x] 3.5 先增加 relationship policy 失败测试并实现 `scoped_to_economy`、`uses_commodity`、`produces_commodity`、`observed_by_benchmark`、`mapped_to_sector`；拒绝海外 market `COVERS_SECTOR` 中国板块
 
 ## 4. Neo4j active-only 静态投影（TDD）
