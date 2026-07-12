@@ -37,12 +37,13 @@
 - [x] 5.2 运行 miniapp lint 和 TypeScript typecheck，确认无错误且源码扫描不包含 DOM/browser-only API、远程字体、硬编码 secret 或图谱实现模块。
 - [x] 5.3 运行 `npm run build:weapp --workspace @tidewise/miniapp`，确认微信构建成功并记录产物路径；不提交构建产物。
 - [x] 5.5 将 canonical 海面图作为独立小程序 asset 输出，以构建产物检查验证图片 SHA-256、首页样式低于 64 KiB，且不再触发图片内联体积警告。
-- [x] 5.6 实现可重复的微信预览发布器，以临时目录测试旧文件清理、文件复制、provenance marker 与危险目标拒绝；根/miniapp `preview:weapp` 串联 build、verify、publish。
+- [x] 5.6 实现可重复的微信预览发布器，以临时目录测试默认 Documents 路径、旧文件清理、文件复制、provenance marker 与危险目标拒绝；根/miniapp `preview:weapp` 串联 build、verify、publish。
 
 ## 6. 微信开发者工具与视觉验收
 
 - [x] 6.1 在 repo 内补充本地微信开发者工具说明，包含 `preview:weapp`、固定发布目录、首次导入、刷新、测试 AppID/本地模式和 provenance 核对步骤。
 - [x] 6.1a 记录首次人工验收误导入主仓库旧 `dist` 的根因与 app.json 证据，并加入 worktree 绝对路径、tab/颜色指纹、清缓存和删除旧项目重导入门禁。
+- [x] 6.1b 将默认固定验收目录迁移到 `~/Documents/WeChatProjects/tidewise-ai-preview`，保留环境变量覆盖并明确旧目录不再更新但暂不删除。
 - [ ] 6.2 在微信开发者工具导入构建产物，逐项预览 ready、loading、empty、error、摘要展开/折叠、主线切换和“看图谱”占位反馈，记录可复现结果。
 - [ ] 6.3 在 375×812 viewport 采集 canonical 与微信实现截图，完成首页关键视觉映射对比；逐项记录安全区、导航、字体或平台组件的等价差异，未解释偏差不得通过。
 

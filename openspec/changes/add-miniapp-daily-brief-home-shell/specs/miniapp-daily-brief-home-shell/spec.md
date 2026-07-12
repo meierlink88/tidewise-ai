@@ -158,7 +158,7 @@
 
 #### Scenario: 导入微信开发者工具
 - **WHEN** 开发者按 repo 说明导入微信构建产物
-- **THEN** 首次只导入默认 `~/WeChatProjects/tidewise-ai-preview` 或环境变量覆盖目录，后续通过 `preview:weapp` 更新并在开发者工具编译/刷新
+- **THEN** 首次只导入默认 `~/Documents/WeChatProjects/tidewise-ai-preview` 或环境变量覆盖目录，后续通过 `preview:weapp` 更新并在开发者工具编译/刷新
 
 #### Scenario: 产物身份不匹配
 - **WHEN** 开发者工具显示任何底部菜单、`app.json` 注册非首页页面，或 provenance 与预期 branch/commit/build target 不符

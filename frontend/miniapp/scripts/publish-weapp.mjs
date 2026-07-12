@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url'
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const miniappRoot = resolve(scriptDir, '..')
 
+export function getDefaultPreviewDir(home = homedir()) {
+  return join(home, 'Documents/WeChatProjects/tidewise-ai-preview')
+}
+
 function assertSafeTarget(targetDir, sourceDir) {
   const target = resolve(targetDir)
   const source = resolve(sourceDir)
@@ -65,7 +69,7 @@ function gitValue(args) {
 
 async function main() {
   const sourceDir = resolve(miniappRoot, 'dist')
-  const targetDir = resolve(process.env.TIDEWISE_WEAPP_PREVIEW_DIR || join(homedir(), 'WeChatProjects/tidewise-ai-preview'))
+  const targetDir = resolve(process.env.TIDEWISE_WEAPP_PREVIEW_DIR || getDefaultPreviewDir())
   const result = await publishWeapp({
     sourceDir,
     targetDir,

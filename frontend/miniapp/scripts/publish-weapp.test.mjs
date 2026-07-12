@@ -3,7 +3,11 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { publishWeapp } from './publish-weapp.mjs'
+import { getDefaultPreviewDir, publishWeapp } from './publish-weapp.mjs'
+
+test('defaults preview publishing under the user Documents directory', () => {
+  assert.equal(getDefaultPreviewDir('/Users/example'), '/Users/example/Documents/WeChatProjects/tidewise-ai-preview')
+})
 
 test('replaces stale target contents and writes build provenance', async () => {
   const root = await mkdtemp(join(tmpdir(), 'tidewise-publish-'))

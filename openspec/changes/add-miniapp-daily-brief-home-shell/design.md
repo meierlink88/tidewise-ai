@@ -114,7 +114,7 @@ Apply 使用 TDD 为 contract mapper、resource reducer、section registry、moc
 
 ### Decision 10: 固定微信预览发布目录
 
-根与 miniapp workspace 提供 `preview:weapp`，固定执行 `build:weapp → verify:weapp-output → publish:weapp`。发布器默认使用 `os.homedir()/WeChatProjects/tidewise-ai-preview`，可通过 `TIDEWISE_WEAPP_PREVIEW_DIR` 覆盖，源码不硬编码个人绝对路径。
+根与 miniapp workspace 提供 `preview:weapp`，固定执行 `build:weapp → verify:weapp-output → publish:weapp`。发布器默认使用 `os.homedir()/Documents/WeChatProjects/tidewise-ai-preview`，可通过 `TIDEWISE_WEAPP_PREVIEW_DIR` 覆盖，源码不硬编码个人绝对路径。旧 `os.homedir()/WeChatProjects/tidewise-ai-preview` 不再作为默认或更新目标，但本 change 不删除它。
 
 发布使用目标同级 staging/backup 目录完成可重复替换：先完整复制并写 marker，再将旧目标换出、staging 原子 rename 为目标，最后只清理目标同级的本次 backup。危险目标（文件系统根、home 本身、source 本身）在任何删除前拒绝。`tidewise-build.json` 只记录 branch、commit、builtAt、`weapp` target 和 source `app.json` SHA-256，不含环境变量或 secret。`dist` 和固定预览目录均不提交 Git。
 

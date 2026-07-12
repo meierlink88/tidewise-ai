@@ -15,7 +15,7 @@
 - 将原型中的个股推荐、公司排序和买卖暗示替换为市场、板块、benchmark、商品、经济体或产业链实体，并持续标注“不构成投资建议”。
 - 在 Apply 更新 `.agents/frontend-boundaries.md`：旧 `ganchaojia-design` skill 保留为历史和基础 token 参考，但不再拥有生产小程序 page-level 最终视觉裁决权。
 - 补充微信构建、本地微信开发者工具防错导入/预览和截图视觉验收任务；本 change 暂不把抖音构建或预览作为验收目标。
-- 提供可跨 worktree 复用的 `preview:weapp` 发布流程，把已验证构建原子同步到默认 `~/WeChatProjects/tidewise-ai-preview`，并写入非敏感 build provenance；目标可由环境变量覆盖。
+- 提供可跨 worktree 复用的 `preview:weapp` 发布流程，把已验证构建原子同步到默认 `~/Documents/WeChatProjects/tidewise-ai-preview`，并写入非敏感 build provenance；目标可由环境变量覆盖。
 
 ## Capabilities
 
