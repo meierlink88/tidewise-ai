@@ -4,7 +4,7 @@ OpenSpec change 是本项目的正式工作单元。Git branch 是 change 的交
 
 ## Branch Rules
 
-除项目初始 baseline、紧急小修或用户明确要求直接在 `main` 操作外，正式 OpenSpec change 必须从 `main` 创建独立分支：
+除项目初始 baseline、紧急小修或用户明确要求直接在 `main` 操作外，正式 OpenSpec change 必须从最新 `origin/main` 创建独立分支：
 
 ```text
 codex/<change-name>
@@ -13,8 +13,8 @@ codex/<change-name>
 标准分支流程：
 
 ```text
-1. 确认 `main` 干净，并从 `main` 开始。
-2. 创建或切换到 `codex/<change-name>`。
+1. 执行 `git fetch origin`，更新远端引用。
+2. 基于最新 `origin/main` 创建 `codex/<change-name>`，不得仅依赖可能过期的本地 `main`。
 3. 执行 Explore/Propose，生成或更新 `openspec/changes/<change-name>/` artifacts。
 4. 运行 `openspec validate <change-name>`。
 5. 提交 propose 检查点，推荐 commit message：`spec: propose <change-name>`。
@@ -26,7 +26,7 @@ codex/<change-name>
 11. Archive change 到 `openspec/changes/archive/`。
 12. 运行 `openspec validate --all`。
 13. 提交 archive 检查点，推荐 commit message：`spec: archive <change-name>`。
-14. 通过 PR 或明确确认后合并回 `main`。
+14. 使用 `superpowers:finishing-a-development-branch` 和 GitHub plugin，通过 PR 或明确确认后合并回 `main`。
 ```
 
 ## Commit Rules
@@ -41,8 +41,16 @@ codex/<change-name>
 
 - 默认一个 change 使用当前 worktree 加一个独立 branch 即可。
 - 当多个 change 并行、某个 change 长期未完成但需要切换任务、或多个 Codex 线程同时工作时，才创建额外 worktree。
-- worktree 目录建议放在 `tidewise-ai` 同级目录，并带 `tidewise-ai-wt-<change-name>` 前缀。
+- 创建并行 worktree 时使用 `superpowers:using-git-worktrees`，并确保它基于最新 `origin/main`。
+- 在 Codex Desktop 中优先创建与独立任务绑定的原生 worktree；手工 worktree 只作为原生能力不可用时的替代方案。
 - 不要在两个 worktree 中同时修改同一个 OpenSpec change，避免 tasks 状态和 specs delta 冲突。
+
+## GitHub Rules
+
+- commit、push 和创建 PR 优先使用 `github:yeet`。
+- CI 失败使用 `github:gh-fix-ci`。
+- PR review comments 使用 `github:gh-address-comments`，并先按 `superpowers:receiving-code-review` 验证意见。
+- tasks、sync、archive 和 `openspec validate --all` 未完成前，不得进入 `superpowers:finishing-a-development-branch` 或创建完成态 PR。
 
 ## Main Rules
 

@@ -45,6 +45,7 @@ OpenSpec 细则见 `.agents/openspec-workflow.md`。处理任何 OpenSpec change
 
 当前细分规则：
 
+- 开始正式研发任务或选择 Skill 时，必须先读取 `.agents/skill-routing.md`。
 - 处理 OpenSpec change 生命周期、artifact、sync 或 archive 时，必须读取 `.agents/openspec-workflow.md`。
 - 处理 branch、worktree、commit、push 或 PR 时，必须读取 `.agents/git-workflow.md`。
 - 处理 Go 后端、API、采集器、数据库、integration 或部署边界时，必须读取 `.agents/backend-boundaries.md`。
@@ -57,25 +58,7 @@ OpenSpec 细则见 `.agents/openspec-workflow.md`。处理任何 OpenSpec change
 
 ## Superpowers Integration
 
-本项目可以使用 Superpowers plugin 作为工程执行辅助机制。OpenSpec 是 change 生命周期、系统事实和正式 artifacts 的来源，Superpowers 只用于补强具体执行方法。
-
-固定使用原则：
-
-- OpenSpec 负责 `Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive`。
-- Superpowers 负责需求澄清、TDD、系统化调试、完成前验证、代码审查、分支收尾等执行纪律。
-- GitHub plugin 负责 GitHub 侧的 PR、CI、review comments、push 和协作发布动作。
-- 如果 Superpowers 默认规则与 `AGENTS.md`、OpenSpec artifacts 或项目 Git 规则冲突，必须以 `AGENTS.md` 和 OpenSpec 为准。
-- Superpowers 不应默认产生独立于 OpenSpec 的长期 artifacts；正式 change artifacts 仍只以 `openspec/changes/<change-name>/` 和 `openspec/specs/` 为准。
-- 只有当任务特别复杂且用户明确同意时，才允许额外创建 `docs/superpowers/plans/` 下的计划文件。
-
-推荐节点映射：
-
-- Explore 阶段可以使用 `superpowers:brainstorming` 辅助澄清问题、范围和取舍。
-- Apply 阶段涉及后端功能、bugfix、重构或行为变更时，必须使用 `superpowers:test-driven-development` 辅助测试先行。
-- 遇到缺陷、测试失败或行为异常时，必须使用 `superpowers:systematic-debugging` 辅助排查，不得直接猜测式修改。
-- 在声明任务完成、提交、push、创建 PR 或进入 archive 前，必须使用 `superpowers:verification-before-completion` 辅助完成新鲜验证。
-- 完成主要功能、准备合并或用户要求 review 时，可以使用 `superpowers:requesting-code-review` 辅助审查。
-- 需要并行 change、长任务隔离或多个 Codex 线程协作时，可以使用 `superpowers:using-git-worktrees` 辅助判断是否创建额外 worktree，但 worktree 命名和 OpenSpec change 边界仍遵守本文件规则。
+OpenSpec、Superpowers 和 GitHub plugin 必须按 `.agents/skill-routing.md` 组合使用。OpenSpec 负责唯一正式生命周期和 artifacts；Superpowers 提供工程执行纪律；GitHub plugin 负责远端协作。项目规则和已批准 OpenSpec artifacts 覆盖 Skill 的默认路径与流程差异。
 
 ## Iteration Rules
 
@@ -127,7 +110,7 @@ AI agent 必须在已有实现基础上增量迭代，不得另起一套。
 - 后端源码位于 `backend/`。
 - API/BFF、领域模块、Agent 平台集成、数据访问、订阅推送、支付回调等能力作为服务端应用独立部署。
 - MVP 阶段结构化主存储采用 PostgreSQL，缓存、限流、幂等和短期任务状态采用 Redis。
-- MVP 阶段暂不直接引入独立图数据库或向量数据库；初始图谱关系优先通过 PostgreSQL 结构化关系表达，RAG、向量召回和 Prompt 编排优先由外部 Agent 平台承载。
+- PostgreSQL 是实体、事件和关系事实源；Neo4j 保存可从 PostgreSQL 重建的关系图投影，用于路径查询和图谱推理。向量召回和 Prompt 编排仍优先由外部 Agent 平台承载。
 - 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。
 - 数据采集层属于后端 ingestion 边界，支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种路径。采集结果必须经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后再进入存储边界。
 - AI 推理、RAG、Agent 工作流编排和 Prompt 编排主要由外部 Agent 平台承载，本工程只负责 API 调用、回调接收、结构化结果校验、落库和展示。
@@ -209,6 +192,7 @@ Minimal Dashboard 原始设计系统资料归档位于：
 
 ```text
 AGENTS.md
+.agents/skill-routing.md
 .agents/openspec-workflow.md
 .agents/git-workflow.md
 .agents/backend-boundaries.md
