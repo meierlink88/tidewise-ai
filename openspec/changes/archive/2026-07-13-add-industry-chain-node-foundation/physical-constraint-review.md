@@ -1,5 +1,7 @@
 # Layer 5 Physical Constraint 候选审查
 
+> **SUPERSEDED：** 本文基于已取消的 industry_chain 容器与 membership 主体边界，只保留历史证据与迁移谱系；未晋级候选全部取消，已写PG的4条事实由后续统一节点架构 change 通过 forward migration 处理。
+
 ## 1. 边界与实时状态
 
 - 审查对象仅为 `backend/data/entity_foundation/review/industry_chain_candidates_v1.json` 中15条review-only候选；本文不是正式seed、approval gate或写入授权。

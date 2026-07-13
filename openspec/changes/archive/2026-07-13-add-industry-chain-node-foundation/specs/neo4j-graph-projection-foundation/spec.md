@@ -1,3 +1,5 @@
+> **SUPERSEDED — DO NOT SYNC：** 用户已决定新架构当前不建立Neo4j图谱；本 delta spec 与已执行一次的旧模型projection仅作为迁移谱系保留。
+
 ## ADDED Requirements
 
 ### Requirement: 投影静态产业链图骨架

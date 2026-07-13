@@ -1,3 +1,7 @@
+> **状态：SUPERSEDED（2026-07-13）**
+>
+> 本 design 已被新的“统一产业链节点”方向整体替代，不再作为目标架构或后续实现依据。替代方向取消 sector 逻辑实体、`industry_chain` 容器和独立 membership，以粗细粒度统一 `chain_node` 加单一 typed edge 表达产业链结构，并暂不建立 Neo4j 图谱。当前 migration、代码、PG facts 和已完成一次的 Neo4j projection 仅作为后续 forward migration 的输入；本 change 不回滚、不清理、不继续扩展旧模型，也不把 delta specs 同步到主规格。
+
 ## Context
 
 当前 `entity_nodes` 已支持 33 个扁平 `chain_node`，`chain_node_profiles` 只有 `chain_position`；不存在独立产业链、链内 membership、稳定拓扑和物理约束。`entity_edges` 已承载带来源的客观跨实体关系，graph projection 只读取 active PostgreSQL 事实并重建 Neo4j。

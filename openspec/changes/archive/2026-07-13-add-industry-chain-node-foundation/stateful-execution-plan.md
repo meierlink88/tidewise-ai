@@ -1,11 +1,13 @@
 # 产业链 Stateful 执行计划
 
+> **SUPERSEDED CLOSEOUT（2026-07-13）：** 本计划中的 sector + `industry_chain`容器 + membership 模型已被统一粗细粒度`chain_node` + 单一typed edge替代，新方向当前不建立Neo4j。以下PG与Neo4j记录均为已发生事实和后续forward migration输入，不是目标架构；本change不再执行任何stateful命令，也不回滚或清理现有数据。
+
 ## 1. 当前边界
 
-- 本文记录分层有状态执行顺序与已验收证据；截至当前 checkpoint，Layer 1–6 已按独立授权完成 PostgreSQL Write/Query，Neo4j仍未授权、未访问。
+- 本文记录分层有状态执行顺序与已验收证据；截至当前 checkpoint，Layer 1–6 PostgreSQL Write/Query与最终Neo4j Rebuild/Query均已按独立授权完成。
 - 可执行 seed：`backend/data/entity_foundation/industry_chains_v1.json`，包含2条industry chain、21个新增chain node、5个既有node profile改进、27个membership、24条canonical topology、首批4条已批准physical constraint及6条已批准且已写PG验收的`mapped_to_sector`；economy、commodity、benchmark关系仍为空。
 - Review-only fixture：`backend/data/entity_foundation/review/industry_chain_candidates_v1.json`，剩余11条physical constraint candidate和6条`mapped_to_sector` candidate。它不在`DefaultSeedPaths`，不得传给repository。
-- 各层预计数量与执行结果均按 2026-07-13 local PostgreSQL 的实时preflight和写后显式READ ONLY查询校准；每个scope只运行一次，未做幂等重跑，也未访问或重建Neo4j。
+- 各层预计数量与执行结果均按 2026-07-13 local PostgreSQL 的实时preflight和写后显式READ ONLY查询校准；每个seed scope只运行一次且未做幂等重跑。取消指令到达前，标准Neo4j rebuild也已执行一次并完成Query，详见第16节。
 
 ## 2. 2026-07-13 只读 Preflight Evidence
 
@@ -46,8 +48,8 @@
 | 4. Canonical topology（已验收） | 2026-07-13 已单独授权；仅执行一次`-apply-scope industry-chain-topology`并完成只读Query | 实际created 24、updated 0、unchanged 0；未做幂等重跑 | `industry_chain_topology_edges` | 实际24/24 active，AI10/半导体14；ID/tuple唯一，无self、substitutes、反向depends重复或无效端点；membership仍27/27 active | 将本批 24 条 topology 置 inactive；不删除 membership；重新查询 active topology=0。该停用DML未授权、未执行 |
 | 5. Physical constraint（首批已验收） | 2026-07-13已单独授权；仅执行一次`-apply-scope industry-chain-physical-constraint`并完成只读Query | 实际created 4、updated 0、unchanged 0；review-only剩余11，未做幂等重跑 | 仅`industry_chain_physical_constraints`；不进入`entity_nodes`或Neo4j | 实际4/4 active approved、`generated_by_ai=true`、P2/P6正确、主体同链active；其他表计数不变 | 将获批4行置inactive；不改topology、不触发Neo4j rebuild。该停用DML未授权、未执行 |
 | 6. `mapped_to_sector`（首批已验收） | 2026-07-13已单独授权；仅执行一次`-apply-scope industry-chain-sector-mapping`并完成只读Query；其余6条仍review-only | 实际created6、updated0、unchanged0；未做幂等重跑 | 仅`entity_edges`的6条`mapped_to_sector`；未写其他关系，未创建海外market `covers_sector`中国sector | 实际6/6 active、ID/tuple唯一、provenance与方向正确；`entity_edges`383→389，其他关系类型及相关表计数不变 | 将本批6条edge通过reviewed forward seed置inactive；不改sector主数据；重新投影前查询active edge=0。该停用DML未授权、未执行 |
-| 7. Neo4j rebuild | 层 2–4 PostgreSQL 验收完成；若层 6 有获批关系则先完成其 PG 验收；用户单独批准 rebuild。Physical constraint 不构成前置写入 | 预计新增 Entity 23（2 chain + 21 new node）；新增关系 51（27 membership + 24 topology）；既有 5 node 为 upsert unchanged；若层 6 未批准则 sector mapping 0 | Neo4j `projection_namespace=tidewise` 下统一 `Entity` 与 membership/topology/已审阅 entity edges；排除 physical constraints 和 observations | 查询 2 chain、26 pilot node、27 membership、24 topology；验证 benchmark/sector 路径仅在已批准 edge 存在时成立；断言无 constraint 节点/边、无海外 market 覆盖中国 sector | 从 PostgreSQL active facts 重新 rebuild；若需撤销，先按对应 PG 层置 inactive并验收，再单独授权 rebuild；不得直接手工删局部图 |
-| 8. Query 验收 | 每次 Write 或 Rebuild 后另行授权只读验收；不得用上一层授权推定 | 只读，created/updated=0 | PostgreSQL report/query 与 Neo4j read query | 对照每层预计数量、stable key、状态、来源、ID 和路径；差异立即停止下一层 | 无写状态；记录差异并回到对应层 Review，不自动修复 |
+| 7. Neo4j rebuild（已验收） | 2026-07-13在全部PG层验收后单独授权；仅执行一次标准`graph-projector rebuild-entities`。Physical constraint不构成图source | 实际从陈旧基线551节点/383关系重建为574节点/440关系；report source/projected=`1014/1014`、skipped/failed=`0/0` | Neo4j `projection_namespace=tidewise` 下统一`Entity`与389 entity edges、27 memberships、24 topology；排除physical constraints和observations | 实际2 chain、26 pilot node、27 membership、24 topology、6 mapped_to_sector；AI 12/10、半导体15/14；constraint/dangling/duplicate/dual label均0 | 从PostgreSQL active facts再次标准rebuild即可恢复；任何下一次rebuild仍需独立授权，不得手工删局部图 |
+| 8. Query 验收（已完成） | 与本次Rebuild同层获得明确授权并在成功后只读执行 | 只读，created/updated=0 | PostgreSQL run audit/query与Neo4j read query | 已对账run ID、namespace、总量、stable key、关系类型、六条sector路径和排除项 | 无写状态；本次无需回滚或修复 |
 
 ## 5. 2026-07-13 Layer 2 实时只读 Preflight
 
@@ -203,3 +205,23 @@
 - 写后显式READ ONLY：`entity_edges=389`，`mapped_to_sector` total/active=`6/6`，unique IDs=6、unique `(from,to,relation_type)`=6；六条stable key、source/evidence/verified_at与正式seed逐项一致，均明确为Tidewise composite curation；12个端点均active，from仅为`industry_chain|chain_node`、to仅为`sector`。
 - 其他relation type计数与写前一致：`covers_sector=52`、`has_market=40`、`measures=10`、`member_of=223`、`observes_benchmark=10`、`references=5`、`tracks_index=43`。Membership/topology/constraint仍为`27/24/4`；`sector_source_mappings=89`、`entity_nodes=634`、`industry_chain_profiles=2`、`chain_node_profiles=54`，均与写前一致。
 - **Layer 6首批状态：Write与Query验收完成。** 本轮未访问或重建Neo4j；其余6条mapping、其他跨实体关系、Neo4j Rebuild/Query、Sync、Archive与PR均未授权、未执行。
+
+## 16. 2026-07-13 最终 Neo4j Rebuild 与 Query 验收
+
+- Git/worktree门禁：Desktop-managed worktree与branch正确，工作区clean，local/remote HEAD均为获批checkpoint`edc56950b4f9302cd7ef8d778e12068779aee702`。
+- PG显式READ ONLY preflight：version=14，active projection entity nodes=574；`entity_edges=389`且`mapped_to_sector=6`，active membership/topology/approved constraint=`27/24/4`。Graph source SQL只包含389条active reviewed entity edge、27条active membership和24条active topology，合计440且unique edge ID=440、missing endpoint=0；不读取`industry_chain_physical_constraints`。
+- Neo4j写前基线为`tidewise` namespace下551个`Entity`和383条关系，不含本change新增chain/node/membership/topology/mapping，属于可由标准全量rebuild清理的陈旧投影。
+- 唯一写命令为`go run ./cmd/graph-projector rebuild-entities`，使用项目local强类型配置和环境凭据，只执行一次；未运行PG seed/migration、未执行手工局部Cypher。标准projector仅按既有机制写入`graph_projection_runs`审计，不修改PG实体、关系或产业链事实。
+- Report：run=`362f4bbe-90be-5e54-baf6-20f9d0d1ae6d`，mode=`rebuild_entities`，status=`succeeded`，source_rows/projected=`1014/1014`，skipped/failed=`0/0`，namespace=`tidewise`。
+- Neo4j只读验收：统一`Entity`节点574、关系440；`industry_chain=2`、试点`chain_node=26`；`MEMBER_OF_CHAIN=27`（AI12/半导体15），topology=`SUPPLIES_TO 22 + DEPENDS_ON 2`（AI10/半导体14），`MAPPED_TO_SECTOR=6`。三条设备节点、data center及两条chain到批准sector的六条路径逐项存在。
+- 排除与一致性断言：constraint节点/关系=0、duplicate node/edge ID=0、dangling或错误namespace endpoint=0、非`Entity` namespace节点=0、`Entity:TidewiseEntity`双标签=0；未批准的其余6条mapping未进入PG source或Neo4j。
+- 写后PG只读对账仍为active entities/entity edges/mapped/membership/topology/constraint=`574/389/6/27/24/4`，事实数据未变化。
+- **最终图谱层状态：Rebuild与Query验收完成。** 本change停在Apply后人工Review前；不得重跑任何stateful层，也不得Sync、Archive、创建PR或Deliver。
+
+## 17. Superseded 终止决策
+
+- 2026-07-13用户决定停止旧模型：取消sector逻辑实体、取消`industry_chain`容器、取消独立membership，后续统一为粗细粒度`chain_node`与单一typed edge；新方向当前不建立Neo4j。
+- 当前PG中000014、2条旧`industry_chain`、26个试点node、27 memberships、24 topology、4 constraints及6条`mapped_to_sector`均保留原状，不在本change回滚、停用或清理。
+- 当前Neo4j中旧模型574个`Entity`与440条关系是取消指令到达前已完成的projection；不在本change重跑、修复或清理。
+- 已实现代码、migration、seed、review资料、PG facts和Neo4j run只作为下一change设计forward migration时的可追踪输入，不得被解释为继续有效的目标架构。
+- 本change已通过`openspec archive --skip-specs`以superseded方式归档，CLI确认`specsUpdated=false`；未完成旧目标全部取消，不创建后续change，不执行Sync、数据写入或图谱操作。

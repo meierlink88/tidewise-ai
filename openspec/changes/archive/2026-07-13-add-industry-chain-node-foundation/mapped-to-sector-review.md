@@ -1,5 +1,7 @@
 # Layer 6 `mapped_to_sector` 候选 Review
 
+> **SUPERSEDED：** 新架构取消 sector 逻辑实体；本文及其6条已写PG映射只作为 forward migration 输入，不再代表目标关系模型，其余候选全部取消。
+
 ## 1. 状态与口径
 
 - 审查日期：2026-07-13。

@@ -1,3 +1,5 @@
+> **SUPERSEDED — DO NOT SYNC：** 本 delta spec 依赖已取消的 sector、`industry_chain` 容器与独立 membership 模型，仅作为归档谱系保留。
+
 ## ADDED Requirements
 
 ### Requirement: 静态产业链 seed

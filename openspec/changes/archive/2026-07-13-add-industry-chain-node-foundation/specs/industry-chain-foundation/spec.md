@@ -1,3 +1,5 @@
+> **SUPERSEDED — DO NOT SYNC：** 独立 `industry_chain`、membership 和 sector映射模型已取消；后续采用粗细粒度统一 `chain_node` + 单一 typed edge。
+
 ## ADDED Requirements
 
 ### Requirement: 独立产业链主数据

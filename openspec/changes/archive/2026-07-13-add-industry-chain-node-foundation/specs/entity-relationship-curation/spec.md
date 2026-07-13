@@ -1,3 +1,5 @@
+> **SUPERSEDED — DO NOT SYNC：** 本 delta spec 的 `mapped_to_sector` 与 industry_chain 跨实体关系已被统一产业链节点架构替代，仅作为归档谱系保留。
+
 ## ADDED Requirements
 
 ### Requirement: MVP 产业链跨实体关系 policy

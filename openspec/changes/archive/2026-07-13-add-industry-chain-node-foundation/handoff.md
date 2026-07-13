@@ -1,5 +1,7 @@
 # `add-industry-chain-node-foundation` 续作 Handoff
 
+> **状态：SUPERSEDED / 已无同步归档。** 用户已取消sector逻辑实体、`industry_chain`容器和独立membership，后续改为粗细粒度统一`chain_node` + 单一typed edge，且当前不建立Neo4j。本change已通过`openspec archive --skip-specs`移动到`openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation`，`specsUpdated=false`；本文件只保存已发生状态与forward migration输入，不再安排旧模型续作。
+
 ## 1. Change 与执行环境识别
 
 | 项目 | 当前记录 |
@@ -13,6 +15,7 @@
 | 原始 Handoff 编写前 HEAD | `cc60dff3a81fd1e73d7e751f648df30169d976b9` (`cc60dff`) |
 | Layer 2 执行基线 | `5fc8a90c98c809259c2ddba6152dd721502cc83f` (`5fc8a90`)；执行前 local/remote 一致 |
 | Layer 6 执行基线 | `0391999806aab54c7136bd8a479b037c29fb1bcb` (`0391999`)；执行前 local/remote 一致 |
+| Neo4j Rebuild 执行基线 | `edc56950b4f9302cd7ef8d778e12068779aee702` (`edc5695`)；执行前 local/remote 一致 |
 
 本文件提交后必须以实际 `git rev-parse HEAD` 和远端 branch 为准；不得因为本文记录了 `cc60dff` 而跳过实时 Git 核对。该 worktree 由 Codex Desktop 管理，不得手工删除或创建替代 worktree。
 
@@ -43,7 +46,7 @@
 - Pre-Layer3备份：`/private/tmp/tidewise_local_pre_layer3_20260713T021205Z.dump`，983,891 bytes，SHA-256 `e33834390fadbcbc1273a3a1818ce835d12f61295e62efd23f21e0f8dd900b80`，242个TOC entries可读。
 - Layer 4已通过独立授权执行：写前备份后只运行一次`entity-seed -apply-scope industry-chain-topology`，report为created24/updated0/unchanged0。写后24/24 active，AI10/半导体14，ID/tuple唯一，无self/substitutes/reverse duplicate/无效端点；membership仍27/27 active，constraint与无关表不变。Pre-Layer4备份为`/private/tmp/tidewise_local_pre_layer4_20260713T024610Z.dump`，986,070 bytes，SHA-256 `abe475308950b05b6a275ca4388b0bd0d28b39c3d8c751350c49fef2f198fe95`，253个TOC entries可读。
 
-截至 2026-07-13，本 change **已完成Layer 2 master、Layer 3 membership、Layer 4 topology、首批4条physical constraint及首批6条`mapped_to_sector`写入与只读验收；没有其他跨实体关系写入，也没有访问或执行Neo4j rebuild**。
+截至 2026-07-13，本 change **已完成Layer 2 master、Layer 3 membership、Layer 4 topology、首批4条physical constraint及首批6条`mapped_to_sector`写入与只读验收；取消指令到达前还完成了一次标准Neo4j rebuild与Query**。这些结果现均为superseded迁移输入，不再代表目标架构。
 
 ## 4. 当前数据范围
 
@@ -67,6 +70,8 @@ Layer 6只读Review已完成：实时基线仍为2 chains、26 unique nodes、27
 
 Pre-mapping备份：`/private/tmp/tidewise_local_pre_mapping_20260713T050005Z.dump`，990,107 bytes，SHA-256 `26e62a90ff6fbafe6e3de44f5aba43947446e41daee3c62e2314c821dbea7bcb`；`pg_restore --list`成功读取253行清单。
 
+最终Neo4j层已获独立授权并仅执行一次标准`graph-projector rebuild-entities`。Run `362f4bbe-90be-5e54-baf6-20f9d0d1ae6d`为succeeded，source/projected=`1014/1014`、skipped/failed=`0/0`；投影从陈旧基线551节点/383关系重建为`tidewise` namespace下574个统一`Entity`和440条关系。2 chains、26 pilot nodes、27 membership（12/15）、24 topology（10/14）及6条approved mapping均通过只读Query；constraint、candidate mapping、dangling、duplicate和双标签投影均为0。PG事实计数保持`574/389/6/27/24/4`。
+
 ## 5. 后续严格执行顺序
 
 1. Layer 2 已完成，不得未经独立授权做幂等重跑。
@@ -74,8 +79,8 @@ Pre-mapping备份：`/private/tmp/tidewise_local_pre_mapping_20260713T050005Z.du
 3. Layer 4已完成，不得未经独立授权幂等重跑。
 4. 首批4条physical constraints已完成Write与Query验收，不得幂等重跑；其余11条继续留在review fixture并逐项补证/改写。
 5. 首批6条`mapped_to_sector`已完成PG Write与Query验收，不得未经独立授权幂等重跑；其余6条仍review-only。不得用海外 market `COVERS_SECTOR` 中国 sector。
-6. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
-7. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
+6. 最终Neo4j Rebuild与Query已验收，不得未经独立授权重跑；physical constraints不投影。
+7. 用户已批准superseded closeout：跳过spec sync归档并创建Review PR；不得继续旧模型、创建新change、自行merge或清理branch/worktree。
 
 每层都必须独立执行 `Review → Write → Query`；涉及图状态时才增加 `Rebuild → Query`。上一层授权、写入或只读验收不得推定下一层授权。
 
@@ -111,10 +116,10 @@ Layer 2 写入后的只读验收至少覆盖：
 - 不得幂等重跑Layer 2、Layer 3或Layer 4。
 - 不得幂等重跑首批4条physical constraint或首批6条sector mapping scope；不得写其余11条constraint或6条review-only sector mapping。
 - 不得创造 economy、commodity 或 benchmark 关系补齐空清单。
-- 不得写入未批准candidate或提前执行Neo4j rebuild。
+- 不得写入未批准candidate或重跑已验收的Neo4j rebuild。
 - 不得把 physical constraints 投影到 Neo4j。
-- 不得启动 observation 或 event reasoning 实现来扩大当前 change scope。
-- Apply 后第二次人工 Review 通过前，不得 Sync、Archive、创建 PR、merge 或 Deliver。
+- 不得启动 observation、event reasoning或新统一节点change来扩大当前任务。
+- 本次只允许`--skip-specs`归档、验证、scoped commit/push和ready-for-review PR；不得Sync、merge、数据清理或worktree/branch cleanup。
 
 ## 8. 关键文件索引
 
@@ -122,34 +127,33 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 
 | 用途 | 仓库相对路径 | 绝对路径 |
 |---|---|---|
-| 候选 Review | `openspec/changes/add-industry-chain-node-foundation/candidate-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/candidate-review.md` |
-| Physical constraint逐条证据审查 | `openspec/changes/add-industry-chain-node-foundation/physical-constraint-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/physical-constraint-review.md` |
-| `mapped_to_sector`逐条证据审查 | `openspec/changes/add-industry-chain-node-foundation/mapped-to-sector-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/mapped-to-sector-review.md` |
+| 候选 Review | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/candidate-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/candidate-review.md` |
+| Physical constraint逐条证据审查 | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/physical-constraint-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/physical-constraint-review.md` |
+| `mapped_to_sector`逐条证据审查 | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/mapped-to-sector-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/mapped-to-sector-review.md` |
 | 正式产业链 seed | `backend/data/entity_foundation/industry_chains_v1.json` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/data/entity_foundation/industry_chains_v1.json` |
 | Review-only fixture | `backend/data/entity_foundation/review/industry_chain_candidates_v1.json` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/data/entity_foundation/review/industry_chain_candidates_v1.json` |
-| Stateful 计划与证据 | `openspec/changes/add-industry-chain-node-foundation/stateful-execution-plan.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/stateful-execution-plan.md` |
-| Tasks | `openspec/changes/add-industry-chain-node-foundation/tasks.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/tasks.md` |
+| Stateful 计划与证据 | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/stateful-execution-plan.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/stateful-execution-plan.md` |
+| Tasks | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/tasks.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/tasks.md` |
 | Migration | `backend/migrations/000014_add_industry_chain_foundation.sql` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/migrations/000014_add_industry_chain_foundation.sql` |
-| Design | `openspec/changes/add-industry-chain-node-foundation/design.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/design.md` |
-| Proposal | `openspec/changes/add-industry-chain-node-foundation/proposal.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/proposal.md` |
-| Delta specs | `openspec/changes/add-industry-chain-node-foundation/specs/` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/specs/` |
-| 本 handoff | `openspec/changes/add-industry-chain-node-foundation/handoff.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/handoff.md` |
+| Design | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/design.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/design.md` |
+| Proposal | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/proposal.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/proposal.md` |
+| Delta specs | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/specs/` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/specs/` |
+| 本 handoff | `openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/handoff.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation/handoff.md` |
 
 继续前还必须读取 repo root `AGENTS.md`、`.agents/skill-routing.md`、`.agents/openspec-workflow.md`、`.agents/git-workflow.md`、`.agents/backend-boundaries.md`、`.agents/testing-tdd.md` 和 `openspec/config.yaml`，以及当前 change 全部 context files。
 
-## 9. 未解决与待 Review
+## 9. 已取消旧目标与后续输入
 
-- 其余11条physical constraints的证据缺口关闭和逐项人工批准，不得整体晋升；首批4条不得重跑。
-- 首批6条`mapped_to_sector`的PG Write/Query已验收；后续Neo4j Rebuild/Query仍需单独授权，其余6条继续补证或删除/改写。
-- 后续独立 `add-industry-chain-observation-foundation`：observation governance、typed observation、产业链 domain metrics 与采集契约。
-- 后续 event reasoning change：事件到 chain/node/sector 的证据化传导、动态观察验证、不确定性和证伪条件；不得在当前静态 foundation 中提前实现。
+- 其余11条physical constraints和6条sector mapping候选全部随旧模型取消，不再补证或晋级。
+- 已写PG事实与已完成Neo4j旧投影保持原状，只作为下一change的forward migration输入。
+- 后续架构必须重新设计统一chain_node粒度、单一typed edge、旧表/旧entity/旧edge的前向迁移与停用顺序；当前任务不创建该change。
 
 ## 10. 明日恢复提示词
 
 ```text
-继续 OpenSpec change add-industry-chain-node-foundation，使用当前 Codex Desktop-managed worktree 与 branch codex/add-industry-chain-node-foundation。先读取 AGENTS.md、.agents/skill-routing.md、.agents/openspec-workflow.md、.agents/git-workflow.md、.agents/backend-boundaries.md、.agents/testing-tdd.md、openspec/config.yaml、openspec-apply-change skill，以及当前 change 的 proposal/design/tasks/delta specs/candidate-review/stateful-execution-plan/handoff。
+复核已归档的superseded change add-industry-chain-node-foundation，使用当前 Codex Desktop-managed worktree 与 branch codex/add-industry-chain-node-foundation。先读取AGENTS及相关规则，并读取openspec/changes/archive/2026-07-13-add-industry-chain-node-foundation下的归档artifacts。
 
-不要信任handoff中可能陈旧的HEAD、migration version或数据计数。先实时核对Git与DB，再只读确认2 chains、26 nodes、27 active memberships、24 active topology、4 active approved constraints、6 active mapped_to_sector，以及实体、关系和端点不变量。不得执行dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE或Neo4j操作。
+不要信任handoff中可能陈旧的HEAD、migration version或数据计数。先实时核对Git、PG与Neo4j，再只读确认PG为574 active projection entities、389 entity edges、27 memberships、24 topology、4 approved constraints、6 mapped_to_sector，Neo4j为574个统一Entity和440条关系。不得执行dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE或Neo4j写操作。
 
-Layer 2、Layer 3、Layer 4、首批4条physical constraints和首批6条mapped_to_sector PG Write/Query已经完成且不得重跑。其余6条mapping和11条constraint仍review-only，economy/commodity/benchmark为空。下一步必须等待Neo4j Rebuild/Query的单独明确授权；不得推定Sync、Archive或PR授权。
+该change已被统一产业链节点架构替代。旧PG facts和旧Neo4j projection保持原状且不得重跑或清理；其余候选全部取消。确认active change已通过`openspec archive --skip-specs`移动到archive且主规格未同步后，只等待PR Review/merge，不得自行merge或创建新change。
 ```

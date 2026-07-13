@@ -29,7 +29,7 @@
 
 - [x] 5.1 用户已批准两条链、26 个去重节点与 membership；已新增 `industry_chains_v1.json` 并完成 seed/loader/report 测试，未执行数据库写入
 - [x] 5.2a 用户已批准 canonical topology 方向；已在版本化可执行 seed 中准备 24 条 topology 并完成 policy/report 测试，无 `substitutes_for`
-- [ ] 5.2b 仅在用户逐项批准后，才将 15 条 physical constraint candidate 或 12 条 `mapped_to_sector` candidate 从 review-only fixture 晋级为可执行 seed；economy/commodity/benchmark 保持空
+- [x] 5.2b 已按逐项批准仅将首批4条physical constraint和6条`mapped_to_sector`晋级、写入并验收；其余11条constraint和6条mapping继续隔离在review-only fixture，economy/commodity/benchmark保持空
 - [x] 5.3 已在 `stateful-execution-plan.md` 展示 migration、master seed、membership、topology、physical constraint、`mapped_to_sector`、Neo4j rebuild/query 的范围、顺序、预计统计、验证与回滚边界；所有 stateful 操作仍需逐层明确授权
 - [x] 5.4a 2026-07-13 在用户单独授权后，为 local PostgreSQL 创建并校验 pg_dump 备份，仅执行 `000014`，并以只读 Query 验收 version=14、4 张空新表、profile 增量列、约束/索引、33 个既有节点和 planned ID 零冲突
 - [x] 5.4b Layer 2 preflight 发现默认 seed 会夹带后续层后，按 RED→GREEN 增加显式 `industry-chain-master` scope、CLI 冲突校验和 operation/final-table 双口径 report；测试证明跳过 industry batch 与无关数据族，本步骤未执行 DML
@@ -45,9 +45,17 @@
 - [x] 5.6a 2026-07-13以显式READ ONLY确认Layer 5状态与`entity_edges=383`、`sector_source_mappings=89`基线后，对12条review-only `mapped_to_sector`逐项完成端点、分类、语义与证据审查；严格口径为直接闭合0、语义认可但provenance须校正6、需补证2、删除或改写4，全部仍为candidate且未修改fixture/seed/PG/Neo4j
 - [x] 5.6b 用户逐项批准首批6条后，以composite curation provenance加入正式relationship seed并将其余6条隔离在review fixture；按TDD实现显式`industry-chain-sector-mapping` scope、active持久化端点锁定、policy/不可变identity与整批原子rollback，预计created6且FinalTableImpact仅`entity_edges`；本步骤未执行DML或Neo4j
 - [x] 5.6c 2026-07-13在独立Write授权、备份和实时preflight后，仅执行一次`industry-chain-sector-mapping` scope；report与只读Query确认6/6 active、composite curation provenance及端点/identity有效，`entity_edges`383→389且其他数据族不变；未访问Neo4j
+- [x] 5.7 2026-07-13在独立授权和实时source preflight后，仅执行一次标准`graph-projector rebuild-entities`；report为source/projected 1014/1014、skipped/failed 0/0，只读Query确认574个统一Entity、440条关系、两链26节点、27 membership、24 topology、6 mapping，constraint/dangling/candidate投影均为0
 
 ## 6. 完整验证与 Apply 后 Review
 
-- [ ] 6.1 运行 migration、domain、entityfoundation、repository、graphprojection 目标包测试和 `go test ./...`
-- [ ] 6.2 运行 `openspec validate add-industry-chain-node-foundation`、`git diff --check` 和 scoped `git status --short`
-- [ ] 6.3 提交 scoped Apply diff、验证证据、实际数据库/Neo4j 状态与未执行项，等待用户第二次人工 Review；批准前不得 Sync、Archive 或 Deliver
+- [ ] 6.1 **因架构替代取消旧Apply完成门禁**：不再以测试通过宣称sector + industry_chain + membership为有效目标；superseded archive仍单独运行全量Go验证记录代码谱系
+- [ ] 6.2 **因架构替代取消旧Apply完成门禁**：不再执行active change Validate/Sync流程；改为archive后`openspec validate --all`与scoped审计
+- [ ] 6.3 **因架构替代取消**：不提交“旧目标完成”的Apply Review；改为superseded archive PR，明确旧spec不生效
+
+## 7. Superseded Closeout
+
+- [x] 7.1 2026-07-13用户决定取消sector逻辑实体、`industry_chain`容器和独立membership，后续统一为粗细粒度`chain_node` + 单一typed edge且当前不建立Neo4j
+- [x] 7.2 保留已发生事实：PG旧模型facts已写入，取消指令到达前Neo4j旧模型projection已rebuild一次；本change不回滚、不清理、不重跑任何stateful层
+- [x] 7.3 其余11条constraint和6条mapping候选随旧模型取消；已实现代码、migration、seed和数据状态只作为后续forward migration输入
+- [x] 7.4 已使用`openspec archive --skip-specs`归档，在incomplete/superseded warning下确认`specsUpdated=false`且未修改主规格；PR由本次scoped archive commit发布流程创建

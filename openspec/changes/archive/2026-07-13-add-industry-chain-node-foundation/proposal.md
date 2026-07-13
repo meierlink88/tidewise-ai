@@ -1,3 +1,7 @@
+> **状态：SUPERSEDED（2026-07-13）**
+>
+> 用户已决定由新的“统一产业链节点”架构整体替代本 proposal：取消 sector 逻辑实体、取消 `industry_chain` 容器、取消独立 membership，改为粗细粒度统一 `chain_node` 与单一 typed edge。本 change 只保留已实现代码、migration、seed 及实际 PG/Neo4j 状态的迁移谱系，不再代表目标架构；delta specs 不同步到主规格，后续只能由新 change 通过 forward migration 接管。
+
 ## Why
 
 现有实体基础库只有 33 个扁平 `chain_node`，缺少独立产业链身份、链内成员、稳定拓扑和经证据审阅的物理约束，无法为全球事件到中国市场板块的产业链传导提供可靠静态骨架。本 change 收缩为静态产业链基础；动态 observation 平台必须由后续独立 change 设计，避免本 change 同时拥有主数据、采集治理和时序写入。

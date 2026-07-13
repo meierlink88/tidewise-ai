@@ -1,5 +1,7 @@
 # 产业链候选冻结 Review
 
+> **SUPERSEDED：** 本文记录的是已被替代的 sector + industry_chain + membership 候选模型，只用于保留决策与迁移谱系，不得继续晋级、写入或作为新架构 seed 输入。后续新 change 将采用统一粗细粒度 `chain_node` + 单一 typed edge。
+
 ## 1. 状态与边界
 
 - 本文是 Apply 第 1 阶段候选清单，不是正式 seed、PostgreSQL 或 Neo4j 事实。

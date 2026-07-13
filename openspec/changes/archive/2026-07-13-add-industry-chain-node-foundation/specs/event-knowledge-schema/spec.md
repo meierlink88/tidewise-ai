@@ -1,3 +1,5 @@
+> **SUPERSEDED — DO NOT SYNC：** 本 delta spec 的4表 + profile扩展结构不再是目标 schema；已应用的000014与现有PG facts由后续 change 通过 forward migration 接管。
+
 ## ADDED Requirements
 
 ### Requirement: 静态产业链 PostgreSQL schema
