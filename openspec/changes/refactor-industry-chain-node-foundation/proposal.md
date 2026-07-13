@@ -12,7 +12,7 @@
 - 删除 `contains`、`supplies_to`、`substitutes_for`、`transmits_to`。事件传导方向、强度、时滞和结论由事件沿静态关系动态推理，不写入关系主数据；同一机制不得同时登记为 `input_to` 与 `depends_on`。
 - physical constraints 继续独立保存，并将旧 topology edge 引用经审批映射到 `chain_node_relations.id`；不设计观测数据。
 - 通过版本化、幂等的前向迁移处理既有 PostgreSQL facts；既有 Neo4j projection 仅作为待后续 change 处理的旧投影，不清库、不回滚历史，也不在本 change 重建。
-- 将 Apply 严格拆成 Phase A“统一节点模型与节点初始化”和 Phase B“节点关系建立”。每阶段均设置候选数据人工 Review、PostgreSQL Write 单独授权与写后 Query 验收，且 Phase A 完整验收前不得进入 Phase B。
+- 将 Apply 严格拆成 Phase A“统一节点模型与节点初始化”和 Phase B“节点关系建立”。schema、业务 data 与旧结构 cleanup 必须各自独立执行 `Review -> Write -> Query`，分别授权并完成写后验收；Phase A 完整验收前不得进入 Phase B。
 - `entity_key` 全局唯一约束仅在全库 preflight 证明安全后才允许实施，否则保持现状并记录阻断项。
 
 ## Capabilities

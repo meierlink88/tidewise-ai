@@ -107,21 +107,36 @@
 - **AND** 必须报告阻断项并停止该层验收
 
 ### Requirement: 分阶段有状态操作门禁
-系统 SHALL 先完整验收 Phase A 节点模型与初始化，再进入 Phase B 关系建立，并在每个 PostgreSQL Write 前取得独立人工授权。
+系统 SHALL 先完整验收 Phase A 节点模型与初始化，再进入 Phase B 关系建立；schema、业务 data 与旧结构 cleanup 必须各自执行独立的 `Review -> Write -> Query`，每个 PostgreSQL Write 前取得人工授权且每次 Write 后完成 Query 验收。
 
-#### Scenario: Phase A 节点候选 Review
-- **WHEN** schema/migration 实现与 chain_node 候选清单已准备完成
-- **THEN** 系统必须先提交实现 diff、候选映射、preflight、影响、备份和回滚边界供 Review
-- **AND** 未获授权不得 apply migration 或写入节点
+#### Scenario: Phase A schema 门禁
+- **WHEN** schema/migration 实现、preflight、影响、备份和回滚边界已准备完成
+- **THEN** 系统必须先提交 schema diff 供 Review 并单独取得 schema Write 授权
+- **AND** Write 后必须立即 Query schema、约束、版本、引用与幂等结果并等待验收
 
-#### Scenario: Phase A 写后验收
-- **WHEN** Phase A schema 或节点 Write 已分别获得授权并执行
-- **THEN** 系统必须执行对应 Query 验证 counts、约束、引用与幂等性
-- **AND** 完整验收前不得进入 Phase B
+#### Scenario: Phase A 节点 data 门禁
+- **WHEN** Phase A schema Query 已验收且 chain_node 候选清单已准备完成
+- **THEN** 系统必须提交候选映射与 data 影响供 Review 并单独取得 data Write 授权
+- **AND** Write 后必须立即 Query counts、profile 完整性、重复、孤儿、stable references 与幂等结果并等待验收
 
-#### Scenario: Phase B 关系 Review 与写入
-- **WHEN** 四类关系契约、候选边及 constraint 映射准备完成
-- **THEN** 系统必须先逐层 Review，再分别取得 Write 授权并执行写后 Query
+#### Scenario: Phase A 完整验收
+- **WHEN** Phase A schema 与节点 data 的 Query 尚未全部验收
+- **THEN** 系统不得进入 Phase B
+
+#### Scenario: Phase B relation schema 门禁
+- **WHEN** relation schema 实现、preflight、影响、备份和回滚边界准备完成
+- **THEN** 系统必须先 Review 并单独取得 schema Write 授权
+- **AND** Write 后必须立即 Query 表、约束、索引、FK、版本与幂等结果并等待验收
+
+#### Scenario: Phase B relation data 门禁
+- **WHEN** relation schema Query 已验收，且四类候选边及 constraint 映射准备完成
+- **THEN** 系统必须再次 Review 并单独取得 data Write 授权
+- **AND** Write 后必须立即 Query 方向、端点、唯一性、机制冲突、孤儿、constraint subject 与幂等结果并等待验收
+
+#### Scenario: 旧结构 cleanup 门禁
+- **WHEN** relation/constraint data Query 已验收且需要停用或移除旧生产结构
+- **THEN** 系统必须提交引用扫描、影响、备份和回滚边界供 Review，并单独取得 cleanup Write 授权
+- **AND** Write 后必须立即 Query 旧结构状态、引用完整性、孤儿、counts 与重复执行幂等结果并等待验收
 
 #### Scenario: 不重建 Neo4j
 - **WHEN** Phase A 或 Phase B PostgreSQL 验收完成

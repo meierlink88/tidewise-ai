@@ -181,19 +181,30 @@ sequenceDiagram
 
     Note over Reviewer,Neo4j: Proposal Review 通过后才可进入 Apply
     Apply->>PG: 只读全库 preflight：类型、key、引用、重复、旧表 counts
-    Apply->>Evidence: 输出 Phase A schema 影响、ID/key 映射、节点/theme 候选、备份与回滚边界
-    Reviewer-->>Apply: Review Phase A 候选与实现 diff
-    Apply->>PG: 经单独授权执行 Phase A schema Write
-    Apply->>PG: Query schema、约束、迁移映射与幂等结果
-    Reviewer-->>Apply: 经单独授权执行节点初始化 Write
+    Apply->>Evidence: 输出 Phase A schema diff、preflight、影响、备份与回滚边界
+    Reviewer-->>Apply: Review 并单独授权 Phase A schema Write
+    Apply->>PG: 执行 Phase A schema Write
+    Apply->>PG: 执行 schema Query：约束、版本、迁移映射、引用与幂等
+    Reviewer-->>Apply: 验收 Phase A schema Query
+    Apply->>Evidence: 输出节点候选、ID/key 映射与 data Write 影响
+    Reviewer-->>Apply: Review 并单独授权节点 data Write
     Apply->>PG: 写入批准的 chain_node；不写具体 theme 实例
-    Apply->>PG: Query 节点 counts、重复、孤儿与旧引用
+    Apply->>PG: 执行 data Query：counts、重复、孤儿、旧引用与幂等
     Reviewer-->>Apply: 验收 Phase A；未验收不得进入 Phase B
-    Apply->>Evidence: 输出四类关系契约与候选边、old-edge 映射、constraint 映射
-    Reviewer-->>Apply: Review Phase B 候选与实现 diff
-    Apply->>PG: 经单独授权执行关系 schema/data Write
-    Apply->>PG: 迁移批准关系与 physical constraint subject
-    Apply->>PG: Query 方向、端点、唯一、自环、机制冲突、孤儿与幂等结果
+    Apply->>Evidence: 输出 relation schema diff、preflight、影响、备份与回滚边界
+    Reviewer-->>Apply: Review 并单独授权 relation schema Write
+    Apply->>PG: 执行 relation schema Write
+    Apply->>PG: 执行 schema Query：表、约束、索引、FK、版本与幂等
+    Reviewer-->>Apply: 验收 relation schema Query
+    Apply->>Evidence: 输出四类候选边、old-edge/constraint 映射与 data 影响
+    Reviewer-->>Apply: Review 并单独授权 relation/constraint data Write
+    Apply->>PG: 写入批准关系并迁移 physical constraint subject
+    Apply->>PG: 执行 data Query：方向、端点、唯一、自环、机制冲突、孤儿与幂等
+    Reviewer-->>Apply: 验收 relation/constraint data Query
+    Apply->>Evidence: 输出旧结构停用/移除的引用扫描、影响、备份与回滚边界
+    Reviewer-->>Apply: Review 并单独授权旧结构 cleanup Write
+    Apply->>PG: 以版本化 forward migration 停用/移除批准的旧结构
+    Apply->>PG: 执行 cleanup Query：结构状态、引用完整性、孤儿、counts 与幂等
     Reviewer-->>Apply: 验收 Phase B
     Note over Neo4j: 全程不清理、不写入、不 rebuild；旧 projection 留待后续 change
 ```
@@ -203,17 +214,17 @@ sequenceDiagram
 1. 先以测试固定目标 DDL、Go 枚举/profile 校验、候选 manifest 与 dry-run 报告，再实现代码；不得 apply migration。
 2. 对全库做只读 preflight：旧类型与 profile counts、空/重复 `entity_key`、所有引用表、合并状态、profile 缺失、非产业 sector 标签、候选 ID/key 变换。
 3. 输出 schema/migration diff、legacy→target 实体映射、chain_node 候选与“拒绝/合并/停用”理由。theme 只输出空数据边界，不自行提出实例。
-4. 人工 Review 通过后，展示最新 preflight、影响范围、备份验证、事务边界和 forward-fix 回滚策略，分别取得 schema Write 与 Query 授权。
-5. schema 验收后再次单独取得节点 seed Write 与 Query 授权，写入批准节点并验证 counts、profile 完整性、stable references、重复、孤儿和幂等性。
+4. 单独提交 schema diff、最新 preflight、影响范围、备份验证、事务边界和 forward-fix 回滚策略供 Review；取得 schema Write 授权后执行 migration，立即 Query schema、约束、版本、引用与幂等结果并等待验收。
+5. schema Query 验收后，单独提交节点候选与 data 影响供 Review；取得节点 data Write 授权后写入批准节点，立即 Query counts、profile 完整性、stable references、重复、孤儿和幂等性并等待验收。
 6. Phase A 完整验收前，禁止生成最终关系写入 manifest、执行 Phase B migration 或关系 Write。
 
 ### Phase B：节点关系建立
 
 1. 先以测试固定 `chain_node_relations` DDL、四类领域校验、旧 edge 转换规则、constraint XOR 与 repository 幂等行为，不 apply migration。
 2. 输出四类关系契约、候选边、每条 evidence/provenance、旧 edge→新 relation 与旧 constraint→新 subject 映射；人工逐层 Review。
-3. Review 通过后展示最新 preflight、影响、备份和回滚边界，单独取得 relation schema Write 与 Query 授权，再单独取得候选边/constraint Write 与 Query 授权。
-4. Query 验证 relation tuple、方向、自环、端点类型、机制互斥、evidence、constraint subject、未迁移阻断项及重复执行无新增变更。
-5. 全部 PostgreSQL 验收后，才允许以版本化迁移停用/移除旧 sector、industry_chain、membership、topology 与 source-mapping 生产结构；该清理仍属于 PostgreSQL Write，必须再次展示影响并获批。Neo4j 不参与。
+3. 先单独提交 relation schema diff、最新 preflight、影响、备份和回滚边界供 Review；取得 schema Write 授权后执行 migration，立即 Query 表、约束、索引、FK、版本与幂等结果并等待验收。
+4. schema Query 验收后，再单独提交候选边、constraint subject 映射与 data 影响供 Review；取得 relation/constraint data Write 授权后写入，立即 Query relation tuple、方向、自环、端点类型、机制互斥、evidence、constraint subject、未迁移阻断项及幂等结果并等待验收。
+5. relation/constraint data Query 验收后，才可单独提交旧 sector、industry_chain、membership、topology 与 source-mapping 结构停用/移除的引用扫描、影响、备份和回滚边界供 Review；取得 cleanup Write 授权后只以版本化 forward migration 执行，并立即 Query 旧结构状态、引用完整性、孤儿、counts 与重复执行幂等结果。cleanup Query 验收前不得完成 Phase B；Neo4j 不参与。
 
 ### 幂等与回滚
 
