@@ -117,3 +117,15 @@
 8. 每层 Query 验收。
 
 任何一层只能按 `Review → Write → Rebuild → Query` 的适用顺序推进；上一层批准不推定下一层。若 preflight 实际数量或 identity 与本文预计不一致，必须停止并更新计划后重新 Review。
+
+## 8. 2026-07-13 Layer 3 Membership 只读 Preflight 与 Scope 修复
+
+- Git/worktree clean，刷新 origin 后 local/remote HEAD均为 `341a2f52d90ec190227af8b20e8e87a34376c5e5`；Desktop-managed worktree与branch正确。
+- 显式READ ONLY确认version=14，2个chain均active+approved，26个pilot node均active；membership/topology/physical constraint行数仍为0。
+- Versioned manifest含27个active memberships，ID唯一数27、`(industry_chain_key, chain_node_key)`唯一数27；AI链12、半导体链15，`advanced_packaging`有两条不同chain membership。数据库表为空，因此planned ID与unique tuple冲突均为0；全部chain/node endpoints已存在且active。
+- 调用链审计确认checkpoint `341a2f5` 仅有master scope；默认scope会把27 memberships与24 topology放入同一batch，因此不得用于Layer 3。
+- 已按TDD增加 `-apply-scope industry-chain-membership`：复用 `DefaultSeedPaths`、完整manifest validation、现有service/repository/report；scope后不含entity/profile/relationships/sector mappings，只调用一次 `UpsertIndustryChainBatch`，其中Memberships=27、TopologyEdges=0、PhysicalConstraints=0。
+- RED证据为缺少 `ApplyScopeIndustryChainMembership` 导致目标包编译失败；GREEN覆盖精确batch、无关repository调用为0、默认行为不回归、unknown/sector-convergence冲突拒绝。预计未来获批首次执行report为created=27、updated=0、unchanged=0，FinalTableImpact仅 `industry_chain_memberships created=27`。
+- **当前状态：Layer 3写入边界已无状态实现，但未运行entity-seed、未产生DML。** 必须先完成代码Review并重新实时只读preflight，再单独授权命令 `go run ./cmd/entity-seed -apply-scope industry-chain-membership`。
+
+未来写后验收：按chain断言active membership为12/15、总数27、共享`advanced_packaging`两条；所有端点active且identity与manifest一致；topology/constraint仍为0，entity/profile/relationships不变。停用方案为通过reviewed forward seed将本批27行置inactive并保留审计，不DELETE；该方案本轮未授权。

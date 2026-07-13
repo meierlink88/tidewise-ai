@@ -34,7 +34,8 @@
 - [x] 5.4a 2026-07-13 在用户单独授权后，为 local PostgreSQL 创建并校验 pg_dump 备份，仅执行 `000014`，并以只读 Query 验收 version=14、4 张空新表、profile 增量列、约束/索引、33 个既有节点和 planned ID 零冲突
 - [x] 5.4b Layer 2 preflight 发现默认 seed 会夹带后续层后，按 RED→GREEN 增加显式 `industry-chain-master` scope、CLI 冲突校验和 operation/final-table 双口径 report；测试证明跳过 industry batch 与无关数据族，本步骤未执行 DML
 - [x] 5.4c 2026-07-13 在独立授权、备份和写前只读门禁后，仅执行一次 `industry-chain-master` scope；report与只读Query确认2 chain、26 node及最终表级23/5、2/0、21/5，后续表和关系仍为0
-- [ ] 5.4d 从 Layer 3 membership 开始继续按层执行 `Review → Write → Rebuild → Query`；Layer 2 验收不得推定后续授权
+- [x] 5.4d Layer 3只读preflight确认2 chain/26 node active、27个membership ID与tuple无冲突；按RED→GREEN增加显式 `industry-chain-membership` scope，测试证明batch仅含27 memberships且其他数据族为空，本步骤未执行DML
+- [ ] 5.4e 在Layer 3单独Write授权后继续membership写入与Query验收，再进入Layer 4独立preflight；当前无写入授权
 
 ## 6. 完整验证与 Apply 后 Review
 

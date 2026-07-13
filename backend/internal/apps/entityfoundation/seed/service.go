@@ -11,8 +11,9 @@ import (
 type ApplyScope string
 
 const (
-	ApplyScopeAll                 ApplyScope = ""
-	ApplyScopeIndustryChainMaster ApplyScope = "industry-chain-master"
+	ApplyScopeAll                     ApplyScope = ""
+	ApplyScopeIndustryChainMaster     ApplyScope = "industry-chain-master"
+	ApplyScopeIndustryChainMembership ApplyScope = "industry-chain-membership"
 )
 
 type ApplyOptions struct {
@@ -170,6 +171,12 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 		report.Created += result.Created
 		report.Updated += result.Updated
 		report.Unchanged += result.Unchanged
+		report.OperationCounts.Created += result.Created
+		report.OperationCounts.Updated += result.Updated
+		report.OperationCounts.Unchanged += result.Unchanged
+		if scope == ApplyScopeIndustryChainMembership {
+			report.FinalTableImpact["industry_chain_memberships"] = WriteStats{Created: result.Created, Updated: result.Updated, Unchanged: result.Unchanged}
+		}
 	}
 
 	return report, nil
@@ -207,7 +214,7 @@ func newReport() Report {
 func ParseApplyScope(value string) (ApplyScope, error) {
 	scope := ApplyScope(strings.TrimSpace(value))
 	switch scope {
-	case ApplyScopeAll, ApplyScopeIndustryChainMaster:
+	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership:
 		return scope, nil
 	default:
 		return "", fmt.Errorf("unsupported apply scope %q", value)
@@ -217,6 +224,12 @@ func ParseApplyScope(value string) (ApplyScope, error) {
 func applyManifestScope(manifest Manifest, scope ApplyScope) (Manifest, error) {
 	if scope == ApplyScopeAll {
 		return manifest, nil
+	}
+	if scope == ApplyScopeIndustryChainMembership {
+		if len(manifest.IndustryChainMemberships) == 0 {
+			return Manifest{}, fmt.Errorf("industry-chain-membership scope requires reviewed memberships")
+		}
+		return Manifest{IndustryChainMemberships: append([]IndustryChainMembershipSeed(nil), manifest.IndustryChainMemberships...)}, nil
 	}
 	if scope != ApplyScopeIndustryChainMaster {
 		return Manifest{}, fmt.Errorf("unsupported apply scope %q", scope)

@@ -74,8 +74,42 @@ func TestDefaultScopeStillAppliesIndustryChainBatch(t *testing.T) {
 	}
 }
 
+func TestIndustryChainMembershipScopeWritesOnlyMembershipBatch(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
+	manifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	if err != nil {
+		t.Fatalf("LoadFiles() error = %v", err)
+	}
+	repo := &masterScopeRepository{}
+
+	report, err := NewService(repo).Apply(context.Background(), manifest, ApplyOptions{Scope: ApplyScopeIndustryChainMembership})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+
+	if len(repo.entities) != 0 || len(repo.profileKeys) != 0 || len(repo.relationships) != 0 || len(repo.sectorMappings) != 0 {
+		t.Fatalf("membership scope wrote unrelated families: entities=%d profiles=%d relationships=%d mappings=%d", len(repo.entities), len(repo.profileKeys), len(repo.relationships), len(repo.sectorMappings))
+	}
+	if !repo.industryBatchCalled {
+		t.Fatal("membership scope did not call UpsertIndustryChainBatch")
+	}
+	if len(repo.industryBatch.Memberships) != 27 || len(repo.industryBatch.TopologyEdges) != 0 || len(repo.industryBatch.PhysicalConstraints) != 0 {
+		t.Fatalf("industry batch = memberships:%d topology:%d constraints:%d", len(repo.industryBatch.Memberships), len(repo.industryBatch.TopologyEdges), len(repo.industryBatch.PhysicalConstraints))
+	}
+	if report.Scope != string(ApplyScopeIndustryChainMembership) || report.IndustryChainCounts["membership"] != 27 {
+		t.Fatalf("report scope/counts = %q %#v", report.Scope, report.IndustryChainCounts)
+	}
+	if report.Created != 27 || report.Updated != 0 || report.Unchanged != 0 || report.OperationCounts.Created != 27 {
+		t.Fatalf("operation report = %#v", report)
+	}
+	wantImpact := map[string]WriteStats{"industry_chain_memberships": {Created: 27}}
+	if !reflect.DeepEqual(report.FinalTableImpact, wantImpact) {
+		t.Fatalf("FinalTableImpact = %#v, want %#v", report.FinalTableImpact, wantImpact)
+	}
+}
+
 func TestParseApplyScopeRejectsUnknownValues(t *testing.T) {
-	for _, value := range []string{"", "industry-chain-master"} {
+	for _, value := range []string{"", "industry-chain-master", "industry-chain-membership"} {
 		if _, err := ParseApplyScope(value); err != nil {
 			t.Fatalf("ParseApplyScope(%q) error = %v", value, err)
 		}
@@ -92,6 +126,7 @@ type masterScopeRepository struct {
 	sectorMappings      []SectorSourceMapping
 	relationships       []Relationship
 	industryBatchCalled bool
+	industryBatch       IndustryChainBatch
 }
 
 func (r *masterScopeRepository) HasActiveLegacySectors(context.Context) (bool, error) {
@@ -120,6 +155,7 @@ func (r *masterScopeRepository) UpsertRelationship(_ context.Context, relationsh
 
 func (r *masterScopeRepository) UpsertIndustryChainBatch(_ context.Context, batch IndustryChainBatch) (IndustryChainWriteReport, error) {
 	r.industryBatchCalled = true
+	r.industryBatch = batch
 	return IndustryChainWriteReport{Created: len(batch.Memberships) + len(batch.TopologyEdges) + len(batch.PhysicalConstraints)}, nil
 }
 

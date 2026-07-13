@@ -16,6 +16,16 @@ func TestValidateCommandOptionsAcceptsExplicitMasterScope(t *testing.T) {
 	}
 }
 
+func TestValidateCommandOptionsAcceptsExplicitMembershipScope(t *testing.T) {
+	scope, err := validateCommandOptions(commandOptions{applyScope: "industry-chain-membership"})
+	if err != nil {
+		t.Fatalf("validateCommandOptions() error = %v", err)
+	}
+	if scope != entityseed.ApplyScopeIndustryChainMembership {
+		t.Fatalf("scope = %q", scope)
+	}
+}
+
 func TestValidateCommandOptionsRejectsUnknownAndConflictingScopes(t *testing.T) {
 	tests := []commandOptions{
 		{applyScope: "membership-only"},
