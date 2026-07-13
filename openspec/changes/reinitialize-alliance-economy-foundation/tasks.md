@@ -1,8 +1,8 @@
 ## 1. A：Schema / Data Contract Review
 
-- [ ] 1.1 提交联盟最小 profile contract Review：`entity_id`、`abbreviation`、`categories TEXT[]`、`leadership_summary`、`influence_scope_summary`，名称/aliases/status 复用 `entity_nodes`；确认 abbreviation→aliases、空简称和 category 原子值/allowlist 规则。
-- [ ] 1.2 提交 economy identity/ISO contract Review：`sovereign_state`、`territory_economy`、`supranational_aggregate`、`global_aggregate` 与 `country_code`、ISO 3166、currency、region 组合规则，明确 `economy:eu`、`economy:global` 不与主权国家混淆。
-- [ ] 1.3 确认不入库字段：子类、CSV 成员数、全球占比、约束力级别、影响力评级；确认不新增实体标签、不复用事件标签、Neo4j 保持单一 `Entity` label。
+- [x] 1.1 **已准备供 Review，尚未批准**：提交联盟最小 profile contract Review：`entity_id`、`abbreviation`、`categories TEXT[]`、`leadership_summary`、`influence_scope_summary`，名称/aliases/status 复用 `entity_nodes`；确认 abbreviation→aliases、空简称和 category 原子值/allowlist 规则。
+- [x] 1.2 **已准备供 Review，尚未批准**：提交 economy identity/ISO contract Review：`sovereign_state`、`territory_economy`、`supranational_aggregate`、`global_aggregate` 与 `country_code`、ISO 3166、currency、region 组合规则，明确 `economy:eu`、`economy:global` 不与主权国家混淆。
+- [x] 1.3 **已准备供 Review，尚未批准**：确认不入库字段：子类、CSV 成员数、全球占比、约束力级别、影响力评级；确认不新增实体标签、不复用事件标签、Neo4j 保持单一 `Entity` label。
 - [ ] 1.4 **Contract Review 门禁**：主对话明确批准 1.1—1.3 前，不得冻结联盟候选、生成 economy 范围、生成关系候选、修改源码/migration/seed 或执行任何 PostgreSQL/Neo4j Write。
 
 ## 2. B：Alliance Candidate Review
