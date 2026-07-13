@@ -218,7 +218,7 @@ Apply 必须按 RED → GREEN → REFACTOR：先写 migration 静态测试、dom
 
 Layer 2 preflight 发现默认 `entity-seed` 会在 master 后继续写 membership/topology。为保持逐层授权，现有 command/service 增加显式 `-apply-scope industry-chain-master`：继续通过 `DefaultSeedPaths` 加载并验证统一 manifest，再由 membership endpoints 推导本批2个 chain与26个 node，只把对应 entity/profile 交给现有 repository。该 scope 必须跳过 `UpsertIndustryChainBatch`、relationships、sector mappings、physical constraints 和其他实体数据族；未指定 scope 时保持既有全量行为。
 
-Report 同时保留逐次 repository operation counts，并新增按 table + stable key 去重的 final table impact。前者可包含同一复用 profile 的 inline 与 reviewed override 两次 update，后者才用于数据库最终行级对账。Layer 3 preflight 后增加 `industry-chain-membership` scope：只把27条 membership 交给 `UpsertIndustryChainBatch`，batch 的 topology/physical constraints 必须为空，且不写 entity/profile/relationships/mappings。Topology-only 继续沿用同一 scope 枚举扩展点，但必须在 Layer 4 Review 后另行实现和授权。
+Report 同时保留逐次 repository operation counts，并新增按 table + stable key 去重的 final table impact。前者可包含同一复用 profile 的 inline 与 reviewed override 两次 update，后者才用于数据库最终行级对账。Layer 3的`industry-chain-membership` scope只把27条membership交给batch。Layer 4的`industry-chain-topology` scope只把24条topology交给batch，Memberships与PhysicalConstraints为空，且不写entity/profile/relationships/mappings。
 
 ```mermaid
 sequenceDiagram
@@ -236,6 +236,8 @@ sequenceDiagram
 ```
 
 Membership scope 使用同一 CLI、loader、validator、service 与 repository，命令边界为 `-apply-scope industry-chain-membership`。完整 manifest 在 scope 前已经通过 loader validation；scope 后只裁剪数据族，不建立第二套 manifest 或 seed 文件。
+
+Topology scope同样复用完整manifest validation。由于topology batch不携带membership写入，repository必须在写事务内读取已持久化membership状态，确认每个端点属于同一chain且active topology只引用active membership，再写topology；不得为了校验而重复upsert membership。Memory repository使用其已持久化membership map执行同等校验。
 
 ## Risks / Trade-offs
 

@@ -14,6 +14,7 @@ const (
 	ApplyScopeAll                     ApplyScope = ""
 	ApplyScopeIndustryChainMaster     ApplyScope = "industry-chain-master"
 	ApplyScopeIndustryChainMembership ApplyScope = "industry-chain-membership"
+	ApplyScopeIndustryChainTopology   ApplyScope = "industry-chain-topology"
 )
 
 type ApplyOptions struct {
@@ -177,6 +178,9 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 		if scope == ApplyScopeIndustryChainMembership {
 			report.FinalTableImpact["industry_chain_memberships"] = WriteStats{Created: result.Created, Updated: result.Updated, Unchanged: result.Unchanged}
 		}
+		if scope == ApplyScopeIndustryChainTopology {
+			report.FinalTableImpact["industry_chain_topology_edges"] = WriteStats{Created: result.Created, Updated: result.Updated, Unchanged: result.Unchanged}
+		}
 	}
 
 	return report, nil
@@ -214,7 +218,7 @@ func newReport() Report {
 func ParseApplyScope(value string) (ApplyScope, error) {
 	scope := ApplyScope(strings.TrimSpace(value))
 	switch scope {
-	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership:
+	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership, ApplyScopeIndustryChainTopology:
 		return scope, nil
 	default:
 		return "", fmt.Errorf("unsupported apply scope %q", value)
@@ -230,6 +234,12 @@ func applyManifestScope(manifest Manifest, scope ApplyScope) (Manifest, error) {
 			return Manifest{}, fmt.Errorf("industry-chain-membership scope requires reviewed memberships")
 		}
 		return Manifest{IndustryChainMemberships: append([]IndustryChainMembershipSeed(nil), manifest.IndustryChainMemberships...)}, nil
+	}
+	if scope == ApplyScopeIndustryChainTopology {
+		if len(manifest.IndustryChainTopologyEdges) == 0 {
+			return Manifest{}, fmt.Errorf("industry-chain-topology scope requires reviewed topology")
+		}
+		return Manifest{IndustryChainTopologyEdges: append([]IndustryChainTopologySeed(nil), manifest.IndustryChainTopologyEdges...)}, nil
 	}
 	if scope != ApplyScopeIndustryChainMaster {
 		return Manifest{}, fmt.Errorf("unsupported apply scope %q", scope)

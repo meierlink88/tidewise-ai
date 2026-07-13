@@ -108,8 +108,42 @@ func TestIndustryChainMembershipScopeWritesOnlyMembershipBatch(t *testing.T) {
 	}
 }
 
+func TestIndustryChainTopologyScopeWritesOnlyTopologyBatch(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
+	manifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	if err != nil {
+		t.Fatalf("LoadFiles() error = %v", err)
+	}
+	repo := &masterScopeRepository{}
+
+	report, err := NewService(repo).Apply(context.Background(), manifest, ApplyOptions{Scope: ApplyScopeIndustryChainTopology})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+
+	if len(repo.entities) != 0 || len(repo.profileKeys) != 0 || len(repo.relationships) != 0 || len(repo.sectorMappings) != 0 {
+		t.Fatalf("topology scope wrote unrelated families: entities=%d profiles=%d relationships=%d mappings=%d", len(repo.entities), len(repo.profileKeys), len(repo.relationships), len(repo.sectorMappings))
+	}
+	if !repo.industryBatchCalled {
+		t.Fatal("topology scope did not call UpsertIndustryChainBatch")
+	}
+	if len(repo.industryBatch.Memberships) != 0 || len(repo.industryBatch.TopologyEdges) != 24 || len(repo.industryBatch.PhysicalConstraints) != 0 {
+		t.Fatalf("industry batch = memberships:%d topology:%d constraints:%d", len(repo.industryBatch.Memberships), len(repo.industryBatch.TopologyEdges), len(repo.industryBatch.PhysicalConstraints))
+	}
+	if report.Scope != string(ApplyScopeIndustryChainTopology) || report.IndustryChainCounts["topology"] != 24 {
+		t.Fatalf("report scope/counts = %q %#v", report.Scope, report.IndustryChainCounts)
+	}
+	if report.Created != 24 || report.Updated != 0 || report.Unchanged != 0 || report.OperationCounts.Created != 24 {
+		t.Fatalf("operation report = %#v", report)
+	}
+	wantImpact := map[string]WriteStats{"industry_chain_topology_edges": {Created: 24}}
+	if !reflect.DeepEqual(report.FinalTableImpact, wantImpact) {
+		t.Fatalf("FinalTableImpact = %#v, want %#v", report.FinalTableImpact, wantImpact)
+	}
+}
+
 func TestParseApplyScopeRejectsUnknownValues(t *testing.T) {
-	for _, value := range []string{"", "industry-chain-master", "industry-chain-membership"} {
+	for _, value := range []string{"", "industry-chain-master", "industry-chain-membership", "industry-chain-topology"} {
 		if _, err := ParseApplyScope(value); err != nil {
 			t.Fatalf("ParseApplyScope(%q) error = %v", value, err)
 		}

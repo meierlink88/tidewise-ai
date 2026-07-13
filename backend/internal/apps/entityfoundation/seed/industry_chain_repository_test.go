@@ -58,6 +58,49 @@ func TestMemoryRepositoryRejectsIndustryChainIdentityMutationAtomically(t *testi
 	}
 }
 
+func TestMemoryRepositoryTopologyOnlyUsesPersistedMemberships(t *testing.T) {
+	repo := NewMemoryRepository()
+	full := validIndustryChainBatch()
+	if _, err := repo.UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{Memberships: full.Memberships}); err != nil {
+		t.Fatalf("seed memberships: %v", err)
+	}
+	report, err := repo.UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{TopologyEdges: full.TopologyEdges})
+	if err != nil {
+		t.Fatalf("topology-only batch: %v", err)
+	}
+	if report.Created != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+	if _, err := NewMemoryRepository().UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{TopologyEdges: full.TopologyEdges}); err == nil || !strings.Contains(err.Error(), "membership") {
+		t.Fatalf("missing persisted membership error = %v", err)
+	}
+}
+
+func TestPostgresRepositoryTopologyOnlyChecksPersistedMemberships(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT status").WithArgs("chain", "node-a").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
+	mock.ExpectQuery("SELECT status").WithArgs("chain", "node-b").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
+	mock.ExpectQuery("INSERT INTO industry_chain_topology_edges").WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("created"))
+	mock.ExpectCommit()
+
+	full := validIndustryChainBatch()
+	report, err := NewPostgresRepository(db).UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{TopologyEdges: full.TopologyEdges})
+	if err != nil {
+		t.Fatalf("topology-only batch: %v", err)
+	}
+	if report.Created != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIndustryChainPostgresUpsertsExposeUnchangedAction(t *testing.T) {
 	for name, statement := range map[string]string{
 		"profile":    industryChainProfileUpsertSQL,

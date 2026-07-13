@@ -140,3 +140,16 @@
 - 写后显式READ ONLY：membership总数=27、active=27、unique IDs=27、unique `(chain,node)`=27；AI链12、半导体链15；`advanced_packaging`恰有2条membership且属于2条不同chain；inactive/invalid endpoints=0。
 - Topology=0、physical constraints=0；无关表仍为`634/2/54/383/89`，与写前完全一致。
 - **Layer 3状态：Write与Query验收完成。** Layer 4 topology、candidate、跨实体关系与Neo4j均未授权、未执行。
+
+## 10. 2026-07-13 Layer 4 Canonical Topology 只读 Preflight 与 Scope 修复
+
+- Git/worktree clean，刷新origin后local/remote HEAD均为`aebd50a207c6b1dfcb19059086c4d6e4680fb4fa`；branch与Desktop-managed worktree正确。
+- 显式READ ONLY确认version=14、2 chains active+approved、26 pilot nodes active、27 memberships active（AI12/半导体15）、topology=0、physical constraints=0。首次节点查询因只读SQL将`ion_implantation_equipment`误拼为`ion_implation_equipment`返回25；修正同一查询后为26，数据库无漂移。
+- 正式manifest的24条topology逐项审计：ID唯一24、`(chain,from,relation,to)`唯一24，AI10、半导体14；self edge=0、非法relation type=0、`substitutes_for`=0、非同链active membership端点=0、反向`depends_on` canonical重复=0。数据库topology表为空，planned ID/tuple冲突为0。
+- 调用链审计确认原checkpoint没有topology scope，默认scope会夹带membership；且repository共享batch validator要求membership与topology同批，直接裁剪topology会被拒绝。
+- 已按TDD增加`-apply-scope industry-chain-topology`：只调用`UpsertIndustryChainBatch`，Memberships=0、TopologyEdges=24、PhysicalConstraints=0，且entity/profile/relationships/sector mappings调用均为0。
+- Repository在topology-only路径中仍先验证edge与canonical规则，并在同一PostgreSQL事务内读取已持久化membership状态，逐一校验同链与active端点；Memory repository对已持久化membership map执行等价校验。缺少persisted membership时拒绝，不通过重复写membership绕过。
+- RED证据为缺少`ApplyScopeIndustryChainTopology`导致目标包编译失败；GREEN覆盖scope精确batch、Memory persisted membership成功/缺失拒绝、Postgres事务内端点查询、默认/master/membership不回归和unknown/conflict拒绝。
+- 未来获批单次写入预计created=24、updated=0、unchanged=0，FinalTableImpact仅`industry_chain_topology_edges created=24`。写后只读验收须确认总数/active=24、AI10/半导体14、ID/tuple唯一、端点仍为同链active membership、membership仍27、constraint仍0，其他数据族计数不变。
+- 停用方案：通过reviewed forward seed将本批24条topology置inactive并保留审计，不DELETE、不改membership；该DML本轮未授权。
+- **当前状态：Layer 4写入边界已无状态实现，但未运行entity-seed、未产生DML。** 必须先完成代码Review与实时只读preflight，再单独授权命令`go run ./cmd/entity-seed -apply-scope industry-chain-topology`。
