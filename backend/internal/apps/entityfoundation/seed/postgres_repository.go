@@ -29,15 +29,15 @@ func NewPostgresRepository(db *sql.DB) PostgresRepository {
 	return PostgresRepository{db: db, root: db}
 }
 
-func (r PostgresRepository) HasActiveLegacySectors(ctx context.Context) (bool, error) {
+func (r PostgresRepository) HasRetiredIndustryEntities(ctx context.Context) (bool, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `
 SELECT EXISTS (
     SELECT 1 FROM entity_nodes
-    WHERE entity_type = 'sector' AND status = 'active' AND entity_key LIKE 'sector:ths\_%' ESCAPE '\'
+    WHERE entity_type IN ('sector', 'industry_chain')
 )`).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("check active legacy sectors: %w", err)
+		return false, fmt.Errorf("check retired industry entities: %w", err)
 	}
 	return exists, nil
 }
@@ -539,13 +539,9 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"verified_at", text("verified_at")},
 		}, nil
 	case domain.EntityTypeChainNode:
-		fields := []profileField{{"chain_position", text("chain_position")}}
-		for _, name := range []string{"node_category", "definition", "unit_of_analysis", "granularity_note"} {
-			if _, ok := profile[name]; ok {
-				fields = append(fields, profileField{name, text(name)})
-			}
-		}
-		return fields, nil
+		return []profileField{{"definition", text("definition")}, {"boundary_note", nullableTextProfileValue(profile, "boundary_note")}}, nil
+	case domain.EntityTypeTheme:
+		return []profileField{{"definition", text("definition")}, {"boundary_note", text("boundary_note")}}, nil
 	case domain.EntityTypeCompany:
 		return []profileField{
 			{"registration_economy_entity_id", ref("registration_economy_entity_id")},
@@ -613,6 +609,8 @@ func profileTableName(entityType domain.EntityType) (string, error) {
 		return "industry_chain_profiles", nil
 	case domain.EntityTypeChainNode:
 		return "chain_node_profiles", nil
+	case domain.EntityTypeTheme:
+		return "theme_profiles", nil
 	case domain.EntityTypeCompany:
 		return "company_profiles", nil
 	case domain.EntityTypeSecurity:
@@ -634,6 +632,14 @@ func stringProfileValue(profile map[string]any, key string) string {
 	value, ok := profile[key]
 	if !ok || value == nil {
 		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
+}
+
+func nullableTextProfileValue(profile map[string]any, key string) any {
+	value, ok := profile[key]
+	if !ok || value == nil {
+		return nil
 	}
 	return strings.TrimSpace(fmt.Sprint(value))
 }

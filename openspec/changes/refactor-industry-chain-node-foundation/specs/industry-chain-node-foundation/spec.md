@@ -104,7 +104,7 @@
 - **AND** 不得从旧 constraint 或 topology edge 机械迁移
 
 ### Requirement: 分阶段有状态操作门禁
-系统 SHALL 先完整验收 Phase A cleanup 与全新节点初始化，再进入 Phase B 关系建立；cleanup 与 final seed 必须分别执行独立的 `Review -> Write -> Query`，两次 PostgreSQL Write 分别取得人工授权且每次 Write 后完成 Query 验收。
+系统 SHALL 先完整验收 Phase A cleanup 与后续另行批准的全新节点初始化，再进入 Phase B 关系建立；本次 structure implementation checkpoint 只实现 schema、cleanup/preflight 代码和生产入口切换。cleanup 与 future final seed 必须分别执行独立的 `Review -> Write -> Query`。
 
 #### Scenario: Phase A cleanup 门禁
 - **WHEN** 完整引用审计、可恢复备份、精确删除范围、影响和回滚边界已准备完成
@@ -112,8 +112,11 @@
 - **AND** Write 后必须立即 Query 旧类型、旧表、引用、孤儿、非目标保护与幂等结果并等待验收
 
 #### Scenario: Phase A final seed 门禁
-- **WHEN** cleanup Query 已验收且主对话已完成 34 项复核、同义归并、粒度/层级与最终节点字段 Review
-- **THEN** 系统必须提交 final seed 与影响供 Review 并单独取得 seed Write 授权
+- **WHEN** cleanup Query 已验收且主对话准备讨论新节点初始化
+- **THEN** 系统必须先单独 Review 最终数据范围、definition/boundary、aliases、UUID/key、去重与幂等契约
+- **AND** 不得把任何既有工作簿直接当作可执行 seed 输入
+- **AND** 契约批准前不得实现 final seed 或请求 seed Write
+- **AND** 契约批准后仍须提交 final seed 与影响并单独取得 seed Write 授权
 - **AND** Write 后必须立即 Query counts、profile 完整性、新 key/ID、重复、孤儿与幂等结果并等待验收
 
 #### Scenario: Phase A 完整验收
@@ -135,8 +138,8 @@
 - **THEN** 本 change 不得写入、清理或重建 Neo4j
 - **AND** 必须明确记录既有 Neo4j projection 已暂时陈旧并留给后续独立 change
 
-### Requirement: 旧事实受控清理后全新导入
-系统 SHALL 在可恢复备份和完整引用审计后，使用版本化、幂等 migration/受控命令清除旧 sector、industry_chain、chain_node、membership、topology、physical constraint 及相关关系/审计引用，再从最终批准清单全新导入 chain_node；不得回滚历史、手工清库或复用旧 ID/key。
+### Requirement: 旧事实受控清理与延后导入
+系统 SHALL 在可恢复备份和完整引用审计后，使用版本化、幂等 migration/受控命令清除旧 sector、industry_chain、chain_node、membership、topology、physical constraint 及相关关系/审计引用；全新 chain_node 导入必须等待后续数据范围和身份契约 Review，不得回滚历史、手工清库或复用旧 ID/key。
 
 #### Scenario: 精确清理旧身份与引用
 - **WHEN** cleanup Write 获得授权
@@ -145,7 +148,7 @@
 
 #### Scenario: 全新生成身份
 - **WHEN** 最终批准的 chain_node seed 进入写入
-- **THEN** 系统必须从最终 `chain_node:<english_slug>` 生成新的 deterministic UUID
+- **THEN** 系统必须遵循后续独立 Review 批准的 UUID/entity_key 契约
 - **AND** 不得复用或收敛旧 sector、industry_chain、chain_node 的 UUID/entity_key
 
 #### Scenario: 条件性 entity key 唯一约束

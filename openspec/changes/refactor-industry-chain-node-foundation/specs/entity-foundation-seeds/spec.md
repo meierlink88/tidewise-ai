@@ -3,6 +3,11 @@
 ### Requirement: 实体基础 seed 数据
 系统 SHALL 提供一阶段实体基础 seed 数据，用于初始化六层传导和事件知识图谱所需的基础实体、profile 和经过分批审阅的客观关系；实体主数据 seed 与关系 seed 必须解耦，空关系基线不得自动恢复历史样例关系，并将 benchmark 作为独立于 index、metric、commodity 和 instrument 的实体类型初始化。产业概念必须统一初始化为 chain_node，theme 只建立类型能力而不得在本 change 自行初始化实例。
 
+#### Scenario: 结构 checkpoint 不确定产业初始化数据
+- **WHEN** 本 change 提交 structure implementation review checkpoint
+- **THEN** 系统必须只包含目标 schema、cleanup/preflight 与旧生产入口切换
+- **AND** 不得加载候选工作簿、确定 chain_node UUID/key、实现 final seed 或写入具体 theme 实例
+
 #### Scenario: 初始化联盟组织
 - **WHEN** 实体 seed 执行
 - **THEN** 系统必须初始化 10 个核心联盟组织实体，至少覆盖 `OPEC+`、`OPEC`、`G7`、`G20`、`WTO`、`IMF`、`World Bank`、`OECD`、`EU` 和 `BRICS`

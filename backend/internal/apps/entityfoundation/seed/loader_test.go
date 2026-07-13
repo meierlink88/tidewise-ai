@@ -69,22 +69,13 @@ func TestLoadManifestValidatesEntitiesAndRelationships(t *testing.T) {
 	}
 }
 
-func TestDefaultSeedPathsIncludeReviewedMarketSectorFiles(t *testing.T) {
+func TestDefaultSeedPathsExcludeRetiredMarketSectorFiles(t *testing.T) {
 	paths := DefaultSeedPaths("seed-root")
-	required := map[string]struct{}{
-		filepath.Join("seed-root", "benchmarks.json"):                            {},
-		filepath.Join("seed-root", "sector_source_mappings.json"):                {},
-		filepath.Join("seed-root", "relationships", "observes_benchmark.json"):   {},
-		filepath.Join("seed-root", "relationships", "covers_sector.json"):        {},
-		filepath.Join("seed-root", "relationships", "tracked_by_benchmark.json"): {},
-		filepath.Join("seed-root", "relationships", "measures.json"):             {},
-		filepath.Join("seed-root", "relationships", "references.json"):           {},
-	}
-	for _, path := range paths {
-		delete(required, path)
-	}
-	if len(required) > 0 {
-		t.Fatalf("DefaultSeedPaths() missing reviewed market sector paths: %v", required)
+	joined := strings.Join(paths, "\n")
+	for _, forbidden := range []string{"sector_source_mappings.json", "covers_sector.json", "tracked_by_benchmark.json"} {
+		if strings.Contains(joined, forbidden) {
+			t.Fatalf("DefaultSeedPaths() includes retired path %q", forbidden)
+		}
 	}
 }
 

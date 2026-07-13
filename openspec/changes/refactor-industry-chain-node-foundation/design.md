@@ -2,7 +2,7 @@
 
 前序 change 已在 PostgreSQL 落地 `sector_profiles`、`sector_source_mappings`、`industry_chain_profiles`、扩展后的 `chain_node_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges` 与 `industry_chain_physical_constraints`，并已生成对应 Neo4j 投影。当前模型同时用 sector、industry_chain 与 chain_node 表达产业概念，membership 又承担容器归属，topology 再表达节点关系，导致同一事实存在多个入口。
 
-本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是作为 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration/受控命令清除；禁止历史回滚或手工清库。字段与关系语义已完成人工 Review，但 2026-07-13 的 Material Proposal Change 已覆盖“复用旧 UUID/key”的旧策略；具体 chain_node/theme 实例和关系边仍须重新分阶段 Review。
+本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段与关系语义已完成人工 Review，但具体 chain_node/theme 实例、UUID/key、seed 与关系边仍须重新分阶段 Review。本次 Apply checkpoint 只实现结构 schema、cleanup/preflight 代码和生产入口切换。
 
 ## Goals / Non-Goals
 
@@ -11,7 +11,7 @@
 - 用 `entity_nodes` + 最小 `chain_node_profiles` 统一粗细产业概念，不保存固定 L1/L2/L3、父节点、产业链容器、市场归属或观测值。
 - 新增最小 `theme` 主数据模型，明确其是 Tidewise 自有投研视角，并与产业分类、指数和证券集合隔离。
 - 用独立且唯一的 `chain_node_relations` 保存四类可判定静态关系，不复用 `entity_edges`。
-- 完整清除 PostgreSQL 中旧 sector、industry_chain、旧 chain_node、membership、topology、physical constraint 及相关关系/审计引用，再从最终批准清单全新导入 chain_node，不复用旧 ID/key。
+- 为完整清除 PostgreSQL 中旧 sector、industry_chain、旧 chain_node、membership、topology、physical constraint 及相关关系/审计引用提供受控 migration/preflight；本 checkpoint 不执行清理，也不设计或实现新节点初始化。
 - 将有状态操作拆成 Phase A 与 Phase B，每层坚持 `Review -> Write -> Query`，Write 前展示 preflight、影响、备份和回滚边界并取得单独授权。
 - 后端 Apply 使用 TDD：先写 migration 静态测试、领域 table-driven tests、repository fake/sqlmock 或可重复集成测试，再写生产实现，最后运行相关包测试与 `go test ./...`。
 
@@ -83,16 +83,16 @@ Go 类型只使用 `Theme` / `ThemeProfile`，数据库只使用 `entity_type='t
 
 不提供 `contains`、`supplies_to`、`substitutes_for`、`transmits_to`。替代关系通常依赖资格、成本、产能与时间，不适合作为 MVP 静态二元边；事件传导则由事件沿 `input_to` / `depends_on` 等路径动态推导。
 
-### 4. 来源参考不进入生产主数据
+### 4. 来源与初始化不进入结构 checkpoint
 
-不创建 `chain_node_source_mappings`，也不把 source/provider/code 放进 `chain_node_profiles`。同花顺、东方财富候选仅在候选清单、OpenSpec Review 证据或 seed 评审材料中记录其参考链接、筛选理由与快照时间；批准后的生产节点只保留自身定义和边界。旧 `sector_source_mappings` 先作为迁移候选输入读取，在 Review 证据生成并完成备份后，通过受控版本化迁移停用并移除，不做手工清空。
+不创建 `chain_node_source_mappings`，也不把 source/provider/code 放进 `chain_node_profiles`。本 checkpoint 不读取任何候选工作簿，不形成候选分类器或 seed 输入。旧 `sector_source_mappings` 只作为 cleanup 目标接受只读计数与引用审计，在备份和授权后由版本化 migration 删除，不转换为新节点映射。
 
-### 5. 旧身份清理与新身份生成
+### 5. 旧身份清理与未来新身份边界
 
 - cleanup 目标集合由执行时快照确定：`entity_type IN ('sector','industry_chain','chain_node')` 的旧 `entity_nodes` 全部删除；新节点不做 legacy→target 映射，也不复用其 UUID 或 `entity_key`。
 - 删除旧实体前必须先处理所有物理 FK 与逻辑引用，包括 profile、source mapping、membership、topology、physical constraint、`entity_edges` 两端、`event_entity_links.entity_id`、sector convergence manifest/audit/reference/alias moves，以及代码审计发现的其他引用。
 - alliance、economy/country、policy body、market、index、benchmark、company、security、instrument、metric、commodity、person 及不指向旧产业实体的关系不在删除范围；cleanup Query 必须以类型 counts 与反连接证明未误删。
-- 新 chain_node key/UUID 只依据最终批准 seed 生成。候选 Review 完成同义归并后为每个最终概念确定唯一 `chain_node:<english_slug>`；UUID 使用项目 deterministic seed 算法从新 key 生成，不接受旧 ID 覆盖。
+- 未来新 chain_node 不得接受旧 UUID/entity_key 覆盖；具体 key 格式、UUID 生成方式与幂等身份策略尚未批准，本 checkpoint 不实现任何身份生成函数。
 - `entity_key` 全局唯一仍是条件性 schema 选择；cleanup/new seed preflight 证明全库安全且单独获批前不添加约束。
 
 ### 6. 旧关系、约束与审计的清理
@@ -160,11 +160,11 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-领域层定义 `ChainNodeProfile`、`Theme` / `ThemeProfile`、`ChainNodeRelation` 及四个强类型 relation constants；repository 负责事务、FK/唯一冲突与幂等 upsert；seed service 负责候选 manifest 校验、dry-run、scoped write 和结果报告。禁止恢复平行的 industry-chain container service 或 source-mapping repository。
+领域层在本 checkpoint 只落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、source-mapping 或 convergence 写入口。final seed service、身份生成、dry-run 与 report 等待数据初始化设计 Review。
 
 ## Migration Plan
 
-### 受控清理与全新导入顺序
+### 结构实现、受控清理与延后的数据初始化
 
 ```mermaid
 sequenceDiagram
@@ -175,7 +175,8 @@ sequenceDiagram
     participant Evidence as Review 证据
     participant Neo4j as 既有 Neo4j projection
 
-    Note over Reviewer,Neo4j: Material Proposal 重新 Review 通过后才可恢复 Apply
+    Apply->>Evidence: 提交 schema/cleanup/preflight/入口切换代码与测试
+    Reviewer-->>Apply: structure implementation Review
     Apply->>PG: READ ONLY 全库引用审计与精确 counts
     Apply->>Backup: 生成备份并执行恢复可用性验证
     Apply->>Evidence: 输出删除集合、FK/逻辑引用顺序、事务、forward-fix、dry-run
@@ -184,26 +185,25 @@ sequenceDiagram
     Apply->>PG: cleanup Query：旧类型/表/引用/孤儿为零，非目标 counts 不变，重复执行幂等
     Reviewer-->>Apply: 验收 cleanup Query
     Note over PG,Neo4j: PG 已清理；Neo4j 仍保留旧投影并暂时陈旧
-    Apply->>Evidence: 提交最终节点清单、同义归并、粒度/层级 Review 与 seed dry-run
-    Reviewer-->>Apply: final seed Review 并单独授权 seed Write
-    Apply->>PG: 只写最终批准的新 chain_node 与最小 profiles
-    Apply->>PG: seed Query：counts、definition/boundary、key/ID、重复、孤儿、幂等
-    Reviewer-->>Apply: 验收 Phase A；未验收不得进入 Phase B
+    Note over Reviewer,Evidence: 数据初始化范围、UUID/key、seed 实现与 Write/Query 均延后独立 Review；当前不准备输入
+    Reviewer-->>Apply: 后续另行批准 final seed 设计与有状态门禁
+    Reviewer-->>Apply: cleanup 与 final seed 均验收后才验收 Phase A
     Apply->>Evidence: 输出基于新节点的 relation schema 与候选边
     Reviewer-->>Apply: 分别授权 relation schema Write 与 relation data Write
     Apply->>PG: 每次 Write 后立即执行对应 Query
     Note over Neo4j: 本 change 全程不清理、不写入、不 rebuild；后续独立 change 重建
 ```
 
-### Phase A：cleanup 后全新节点初始化
+### Phase A：结构基础、cleanup 与延后的节点初始化
 
 1. Material Proposal 重新 Review 前暂停 Apply；当前实现 diff 仅作为未验收审计对象。
 2. 测试先行覆盖 cleanup dry-run、目标集合快照、FK/逻辑引用发现、删除顺序、非目标保护、备份门禁、事务回滚、forward-fix 与重复执行幂等；只生成代码，不执行。
 3. 只读 preflight 必须列出旧三类实体及 profiles、source mappings、membership/topology/constraints、`entity_edges`、`event_entity_links`、convergence/audit 全表 counts 和任意其他引用。缺少任一引用类即阻断 cleanup Review。
 4. cleanup Review 展示可恢复备份证据、精确 ID 集合或可重算谓词、每表预计删除 counts、FK 顺序、锁与事务影响、非目标保护断言及提交后 forward-fix；单独获批后才执行 cleanup Write，并立即 Query。
+   普通 migration apply 不得隐式越过门禁：`000015` 在任何删除前要求当前 PostgreSQL session 显式设置 `tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified`；该标记只防误执行，不能替代备份证据和人工授权。
 5. cleanup Query 必须证明旧专属表已删除、旧 sector/industry_chain/chain_node rows 为 0、旧关系/事件链接/审计引用为 0、无孤儿，且 alliance/economy/country/market/benchmark/index 等非目标 counts 与校验和保持不变；重复执行只返回 already-clean/unchanged。
-6. 最新工作簿仅记录第一轮语义过滤：1191 个原始名称中 955 初步保留、202 明确排除、34 待复核。它不是 final seed；主对话完成 34 项复核、同义归并、definition/boundary、粒度及层级关系 Review 前不得生成可执行 seed。
-7. final seed Review 与 cleanup 完全独立。仅在 cleanup Query 验收后展示最终清单、全新 key/UUID、dry-run counts 和幂等报告，单独取得 seed Write 授权；Write 后立即 Query。不得创建具体 theme 实例。
+6. 本次 structure implementation checkpoint 不引用候选工作簿、不确定最终清单、不实现 UUID/key 或 seed；候选证据文件不作为结构验收输入。
+7. final seed Review 与 cleanup 完全独立。cleanup Query 验收后才允许另行提出数据范围、身份规则、实现与 `Review -> Write -> Query` 方案；不得创建具体 theme 实例。
 8. Phase A 完整验收前禁止进入 Phase B；PG cleanup 后 Neo4j 陈旧属于已知且明确记录的临时状态。
 
 ### Phase B：基于新节点建立关系
@@ -215,7 +215,7 @@ sequenceDiagram
 ### 幂等与回滚
 
 - cleanup migration/命令以执行前冻结的目标集合为输入，在单事务中按引用叶子到根删除；SQL 必须限定旧产业实体集合，禁止无谓词 DELETE/TRUNCATE。
-- cleanup 重复执行不得扩大删除范围，只报告 already-clean/unchanged；seed 使用最终新 key 的 deterministic UUID 和 scoped upsert，重复执行不得新增重复 rows。
+- cleanup 重复执行不得扩大删除范围，只报告 already-clean/unchanged；future seed 的幂等与身份规则等待后续数据初始化设计 Review。
 - Write 前必须验证可恢复备份；仅有 `archive_mode` 或文件存在不算恢复验证。事务内失败直接 rollback，提交后纠错只允许新的 forward-fix migration/命令。
 - 任一未知引用、预计/实际 counts 不符、非目标保护断言变化、备份不可恢复、候选未最终批准时立即停止。
 
@@ -223,14 +223,14 @@ sequenceDiagram
 
 - [cleanup 误删非目标事实] → 先冻结旧产业 ID 集合，所有删除通过 FK/显式 ID 集合限定，并用非目标 counts/校验和在事务提交前后断言。
 - [未知逻辑引用绕过 FK] → 代码与 information_schema 双向扫描，显式覆盖 `entity_edges`、event links、convergence/audit；发现未知引用即阻断。
-- [候选工作簿被误当 final seed] → artifacts 明确 955/34 仅为第一轮分类，未完成同义归并、definition/boundary 和粒度 Review 前不生成 seed。
+- [未批准数据规则混入结构实现] → 删除候选分类器、旧 ID 覆盖函数与工作簿计数；structure checkpoint 不生成或加载 final seed。
 - [旧 Neo4j projection 暂时落后于 PostgreSQL] → 明确记录为预期技术债；本 change 不写图，后续独立 change 设计 projection 迁移与 rebuild。
 - [移除旧表影响仍读取它们的代码] → Apply 中先用测试和引用扫描证明所有生产读写路径已切换，再申请最终结构清理 Write。
 - [关系 mechanism 文本可能规避互斥索引] → 数据库索引处理完全相同文本，领域规范化与人工 Review 处理语义同义问题。
 
 ## Open Questions
 
-- 34 个待复核项、955 个初步保留项的同义归并、最终 definition/boundary、粒度及层级关系尚未批准，必须由主对话完成后才能生成 final seed。
+- 最终候选范围、definition/boundary、aliases、UUID/key、去重与粒度规则尚未批准，必须在 cleanup Query 验收后单独设计和 Review。
 - convergence/audit 表若扫描发现仍服务非 sector 生产流程，是否暂留必须给出逐表理由并单独 Review；默认目标是删除。
 - 具体 theme 实例与 theme-node link/scope 契约明确留给后续 change，本 change 不作推定。
 - `entity_key` 全局唯一是否可实施，等待 Apply 时全库 preflight 结果；默认不实施。

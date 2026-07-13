@@ -143,7 +143,7 @@ type recordingRepository struct {
 	failOnCall string
 }
 
-func (r *recordingRepository) HasActiveLegacySectors(context.Context) (bool, error) {
+func (r *recordingRepository) HasRetiredIndustryEntities(context.Context) (bool, error) {
 	return false, nil
 }
 

@@ -393,7 +393,7 @@ func TestNormalSeedFailsClosedWithActiveLegacySectors(t *testing.T) {
 	}
 	service := NewService(repo)
 	_, err := service.Apply(context.Background(), Manifest{Entities: []Entity{{Key: "sector:theme_artificial_intelligence", EntityType: domain.EntityTypeSector, LayerCode: "sector", Name: "人工智能", CanonicalName: "人工智能", Aliases: []string{"Artificial Intelligence"}, Profile: []byte(`{"sector_system":"canonical","sector_type":"theme"}`)}}}, ApplyOptions{})
-	if err == nil || !strings.Contains(err.Error(), "active legacy sector") {
+	if err == nil || !strings.Contains(err.Error(), "migration input only") {
 		t.Fatalf("Apply() error = %v", err)
 	}
 	if repo.EntityCount() != 1 {
@@ -411,7 +411,7 @@ func TestReviewedConvergenceClosesCanonicalSeedCountsInMemory(t *testing.T) {
 		}
 	}
 	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
-	seedManifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	seedManifest, err := LoadFiles(legacyFixturePaths(root)...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -461,7 +461,7 @@ func TestMemoryOrdinarySeedPreservesCurrentConvergenceAliasesOnly(t *testing.T) 
 		}
 	}
 	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
-	seedManifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	seedManifest, err := LoadFiles(legacyFixturePaths(root)...)
 	if err != nil {
 		t.Fatal(err)
 	}

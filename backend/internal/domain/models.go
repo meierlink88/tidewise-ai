@@ -26,6 +26,7 @@ const (
 	EntityTypeSector        EntityType = "sector"
 	EntityTypeIndustryChain EntityType = "industry_chain"
 	EntityTypeChainNode     EntityType = "chain_node"
+	EntityTypeTheme         EntityType = "theme"
 	EntityTypeCompany       EntityType = "company"
 	EntityTypeSecurity      EntityType = "security"
 	EntityTypeInstrument    EntityType = "instrument"
@@ -331,8 +332,36 @@ func (m SectorSourceMapping) Validate() error {
 }
 
 type ChainNodeProfile struct {
-	EntityID      string
-	ChainPosition string
+	EntityID     string
+	Definition   string
+	BoundaryNote string
+}
+
+func (p ChainNodeProfile) Validate() error {
+	if strings.TrimSpace(p.EntityID) == "" || strings.TrimSpace(p.Definition) == "" {
+		return fmt.Errorf("chain node identity and definition are required")
+	}
+	if p.BoundaryNote != "" && strings.TrimSpace(p.BoundaryNote) == "" {
+		return fmt.Errorf("chain node boundary note must be nonblank when present")
+	}
+	return nil
+}
+
+type Theme struct {
+	EntityNode
+}
+
+type ThemeProfile struct {
+	EntityID     string
+	Definition   string
+	BoundaryNote string
+}
+
+func (p ThemeProfile) Validate() error {
+	if strings.TrimSpace(p.EntityID) == "" || strings.TrimSpace(p.Definition) == "" || strings.TrimSpace(p.BoundaryNote) == "" {
+		return fmt.Errorf("theme identity, definition, and boundary note are required")
+	}
+	return nil
 }
 
 type CompanyProfile struct {
@@ -766,6 +795,7 @@ func validEntityType(value EntityType) bool {
 		EntityTypeSector,
 		EntityTypeIndustryChain,
 		EntityTypeChainNode,
+		EntityTypeTheme,
 		EntityTypeCompany,
 		EntityTypeSecurity,
 		EntityTypeInstrument,

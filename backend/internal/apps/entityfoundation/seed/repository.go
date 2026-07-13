@@ -28,9 +28,8 @@ type WriteResult struct {
 type Repository interface {
 	UpsertEntity(context.Context, Entity) (WriteResult, error)
 	UpsertProfile(context.Context, Profile) (WriteResult, error)
-	UpsertSectorSourceMapping(context.Context, SectorSourceMapping) (WriteResult, error)
 	UpsertRelationship(context.Context, Relationship) (WriteResult, error)
-	HasActiveLegacySectors(context.Context) (bool, error)
+	HasRetiredIndustryEntities(context.Context) (bool, error)
 }
 
 type MemoryRepository struct {
@@ -68,11 +67,11 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func (r *MemoryRepository) HasActiveLegacySectors(_ context.Context) (bool, error) {
+func (r *MemoryRepository) HasRetiredIndustryEntities(_ context.Context) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for key, entity := range r.entities {
-		if strings.HasPrefix(key, "sector:ths_") && entity.Status != domain.StatusInactive {
+	for _, entity := range r.entities {
+		if entity.EntityType == domain.EntityTypeSector || entity.EntityType == domain.EntityTypeIndustryChain {
 			return true, nil
 		}
 	}
