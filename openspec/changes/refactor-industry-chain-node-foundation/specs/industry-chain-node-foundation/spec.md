@@ -90,37 +90,34 @@
 - **THEN** 推导结论必须保存到后续事件推理契约定义的结构
 - **AND** 不得写入 `chain_node_relations` 作为 `transmits_to`
 
-### Requirement: physical constraint subject 迁移
-系统 SHALL 继续独立保存 physical constraints，并使每条 constraint 恰好引用一个 chain_node 或一个 `chain_node_relations` row。
+### Requirement: 历史 physical constraint 清理
+系统 SHALL 在 cleanup 中删除全部历史 industry-chain physical constraints 及其旧 topology/node subject，不得迁移或复用旧 constraint ID；未来 constraint 只能基于新节点/关系重新 Review 后创建。
 
-#### Scenario: 迁移节点约束
-- **WHEN** 旧 constraint 引用语义保持的 chain_node
-- **THEN** 系统必须保留其 constraint ID、证据与节点 subject
+#### Scenario: 清理历史约束
+- **WHEN** cleanup Write 获得授权
+- **THEN** 系统必须先删除引用旧 topology 或旧 chain_node 的历史 constraints
+- **AND** cleanup Query 必须证明历史 constraint 与 subject 引用均为零
 
-#### Scenario: 迁移旧 topology edge 约束
-- **WHEN** 旧 constraint 引用 topology edge 且该 edge 已通过 Review 唯一映射到新 relation
-- **THEN** 系统必须把 subject 前向迁移为该 `chain_node_relations.id`
-
-#### Scenario: 阻断歧义约束
-- **WHEN** 旧 topology edge 被删除、拆分或无法唯一映射
-- **THEN** 系统不得猜测 constraint subject
-- **AND** 必须报告阻断项并停止该层验收
+#### Scenario: 提出新约束
+- **WHEN** 后续需要为新 chain_node 或 `chain_node_relations` 建立 physical constraint
+- **THEN** 必须作为全新候选保存新的 ID、证据和 subject
+- **AND** 不得从旧 constraint 或 topology edge 机械迁移
 
 ### Requirement: 分阶段有状态操作门禁
-系统 SHALL 先完整验收 Phase A 节点模型与初始化，再进入 Phase B 关系建立；schema、业务 data 与旧结构 cleanup 必须各自执行独立的 `Review -> Write -> Query`，每个 PostgreSQL Write 前取得人工授权且每次 Write 后完成 Query 验收。
+系统 SHALL 先完整验收 Phase A cleanup 与全新节点初始化，再进入 Phase B 关系建立；cleanup 与 final seed 必须分别执行独立的 `Review -> Write -> Query`，两次 PostgreSQL Write 分别取得人工授权且每次 Write 后完成 Query 验收。
 
-#### Scenario: Phase A schema 门禁
-- **WHEN** schema/migration 实现、preflight、影响、备份和回滚边界已准备完成
-- **THEN** 系统必须先提交 schema diff 供 Review 并单独取得 schema Write 授权
-- **AND** Write 后必须立即 Query schema、约束、版本、引用与幂等结果并等待验收
+#### Scenario: Phase A cleanup 门禁
+- **WHEN** 完整引用审计、可恢复备份、精确删除范围、影响和回滚边界已准备完成
+- **THEN** 系统必须先提交 cleanup diff/dry-run 供 Review 并单独取得 cleanup Write 授权
+- **AND** Write 后必须立即 Query 旧类型、旧表、引用、孤儿、非目标保护与幂等结果并等待验收
 
-#### Scenario: Phase A 节点 data 门禁
-- **WHEN** Phase A schema Query 已验收且 chain_node 候选清单已准备完成
-- **THEN** 系统必须提交候选映射与 data 影响供 Review 并单独取得 data Write 授权
-- **AND** Write 后必须立即 Query counts、profile 完整性、重复、孤儿、stable references 与幂等结果并等待验收
+#### Scenario: Phase A final seed 门禁
+- **WHEN** cleanup Query 已验收且主对话已完成 34 项复核、同义归并、粒度/层级与最终节点字段 Review
+- **THEN** 系统必须提交 final seed 与影响供 Review 并单独取得 seed Write 授权
+- **AND** Write 后必须立即 Query counts、profile 完整性、新 key/ID、重复、孤儿与幂等结果并等待验收
 
 #### Scenario: Phase A 完整验收
-- **WHEN** Phase A schema 与节点 data 的 Query 尚未全部验收
+- **WHEN** Phase A cleanup 与 final seed 的 Query 尚未全部验收
 - **THEN** 系统不得进入 Phase B
 
 #### Scenario: Phase B relation schema 门禁
@@ -129,35 +126,33 @@
 - **AND** Write 后必须立即 Query 表、约束、索引、FK、版本与幂等结果并等待验收
 
 #### Scenario: Phase B relation data 门禁
-- **WHEN** relation schema Query 已验收，且四类候选边及 constraint 映射准备完成
+- **WHEN** relation schema Query 已验收，且基于新节点的四类候选边及任何全新 constraint 候选准备完成
 - **THEN** 系统必须再次 Review 并单独取得 data Write 授权
 - **AND** Write 后必须立即 Query 方向、端点、唯一性、机制冲突、孤儿、constraint subject 与幂等结果并等待验收
 
-#### Scenario: 旧结构 cleanup 门禁
-- **WHEN** relation/constraint data Query 已验收且需要停用或移除旧生产结构
-- **THEN** 系统必须提交引用扫描、影响、备份和回滚边界供 Review，并单独取得 cleanup Write 授权
-- **AND** Write 后必须立即 Query 旧结构状态、引用完整性、孤儿、counts 与重复执行幂等结果并等待验收
-
 #### Scenario: 不重建 Neo4j
-- **WHEN** Phase A 或 Phase B PostgreSQL 验收完成
+- **WHEN** Phase A cleanup 使 PostgreSQL 不再包含旧产业事实
 - **THEN** 本 change 不得写入、清理或重建 Neo4j
+- **AND** 必须明确记录既有 Neo4j projection 已暂时陈旧并留给后续独立 change
 
-### Requirement: 旧事实前向迁移
-系统 SHALL 将既有 sector、industry_chain、membership、topology、physical constraint facts 与旧 Neo4j projection 视为迁移输入，使用版本化、幂等的 forward migration 处理，不得回滚历史或手工清库。
+### Requirement: 旧事实受控清理后全新导入
+系统 SHALL 在可恢复备份和完整引用审计后，使用版本化、幂等 migration/受控命令清除旧 sector、industry_chain、chain_node、membership、topology、physical constraint 及相关关系/审计引用，再从最终批准清单全新导入 chain_node；不得回滚历史、手工清库或复用旧 ID/key。
 
-#### Scenario: 保留稳定身份
-- **WHEN** 旧实体与目标 chain_node 语义一致
-- **THEN** 系统必须优先复用旧 UUID 并迁移已有引用
+#### Scenario: 精确清理旧身份与引用
+- **WHEN** cleanup Write 获得授权
+- **THEN** 系统必须按 FK/逻辑引用顺序删除旧 profile、source mapping、membership、topology、constraint、entity edge、event link、convergence/audit 和旧 entity rows
+- **AND** 不得删除 alliance、economy/country、market、benchmark/index 等非目标事实
 
-#### Scenario: 合并旧身份
-- **WHEN** 多个旧实体收敛到一个 chain_node
-- **THEN** 系统必须保存显式 legacy-to-target 审计并迁移已注册引用，不得静默删除旧 ID
+#### Scenario: 全新生成身份
+- **WHEN** 最终批准的 chain_node seed 进入写入
+- **THEN** 系统必须从最终 `chain_node:<english_slug>` 生成新的 deterministic UUID
+- **AND** 不得复用或收敛旧 sector、industry_chain、chain_node 的 UUID/entity_key
 
 #### Scenario: 条件性 entity key 唯一约束
 - **WHEN** 全库 preflight 尚未证明所有 `entity_key` 非空、无重复且写路径兼容
 - **THEN** 系统不得增加全局唯一约束
 - **AND** 只有 preflight 零冲突并单独获批后才可实施
 
-#### Scenario: 重复执行迁移
-- **WHEN** 已成功完成的 migration 或 seed 被再次执行
-- **THEN** 系统必须报告 unchanged 或 already-applied，不得新增重复实体、关系或审计记录
+#### Scenario: 重复执行 cleanup 或 seed
+- **WHEN** 已成功完成的 cleanup 或 final seed 被再次执行
+- **THEN** cleanup 必须报告 already-clean/unchanged 且不得扩大删除范围，seed 必须报告 unchanged 且不得新增重复实体

@@ -8,7 +8,7 @@
 - **THEN** 清单必须包含中文端点名称、entity key、方向、mechanism、condition、evidence、来源 URL 和核验时间
 
 #### Scenario: 未批准候选不得写入
-- **WHEN** 某条候选边或旧 edge 映射尚未获得明确人工确认
+- **WHEN** 某条基于新 chain_node 的候选边尚未获得明确人工确认
 - **THEN** 系统不得将其写入正式 seed、PostgreSQL 或 Neo4j
 
 ## MODIFIED Requirements
@@ -23,6 +23,11 @@
 #### Scenario: 从 PG 重建 Neo4j
 - **WHEN** 某一通用关系批次的 PG 验收通过并运行 `graph-projector rebuild-entities`
 - **THEN** Neo4j 必须包含全部可投影实体节点和当前 PG 中 active 的已审阅关系，且不得包含 PG 中不存在的历史关系
+
+#### Scenario: cleanup 后投影暂时陈旧
+- **WHEN** 本 change 已清理 PostgreSQL 旧产业事实但后续投影 change 尚未执行
+- **THEN** 系统必须将 Neo4j 标记为暂时陈旧
+- **AND** 本 change 不得尝试清理、写入或重建 Neo4j
 
 #### Scenario: 产业节点关系仅验收 PostgreSQL
 - **WHEN** 本 change 的 chain_node relation 批次通过 Review 并获得 Write 授权

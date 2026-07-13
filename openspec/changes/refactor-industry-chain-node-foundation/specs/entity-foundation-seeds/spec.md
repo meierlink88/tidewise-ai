@@ -60,8 +60,8 @@
 
 ### Requirement: 市场板块关系 seed 策略
 **Reason**: sector 关系不再进入 `entity_edges`，产业 topology 统一由四类 `chain_node_relations` 表达。
-**Migration**: 旧关系只作为 Phase B 候选证据，逐边 Review 后前向迁移。
+**Migration**: 旧关系随旧产业实体受控清理；Phase B 只基于全新节点与新证据重新提出关系候选。
 
 ### Requirement: 旧板块 canonical convergence
 **Reason**: 固定 canonical sector 集合与 sector convergence 不再是目标模型。
-**Migration**: 复用现有审计作为 legacy 输入，按 chain_node 候选映射执行 append-only 前向收敛，不修改历史审计。
+**Migration**: 在可恢复备份后受控删除仅服务旧 sector convergence 的 manifest/audit/reference/alias 数据与结构；若扫描发现非 sector 生产用途则停止并提交保留理由供 Review。
