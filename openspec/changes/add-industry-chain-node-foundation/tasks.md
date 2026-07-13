@@ -32,7 +32,8 @@
 - [ ] 5.2b 仅在用户逐项批准后，才将 15 条 physical constraint candidate 或 12 条 `mapped_to_sector` candidate 从 review-only fixture 晋级为可执行 seed；economy/commodity/benchmark 保持空
 - [x] 5.3 已在 `stateful-execution-plan.md` 展示 migration、master seed、membership、topology、physical constraint、`mapped_to_sector`、Neo4j rebuild/query 的范围、顺序、预计统计、验证与回滚边界；所有 stateful 操作仍需逐层明确授权
 - [x] 5.4a 2026-07-13 在用户单独授权后，为 local PostgreSQL 创建并校验 pg_dump 备份，仅执行 `000014`，并以只读 Query 验收 version=14、4 张空新表、profile 增量列、约束/索引、33 个既有节点和 planned ID 零冲突
-- [ ] 5.4b 从 Layer 2 chain/node master 开始继续按层执行 `Review → Write → Rebuild → Query`；上一层验收不得推定下一层授权
+- [x] 5.4b Layer 2 preflight 发现默认 seed 会夹带后续层后，按 RED→GREEN 增加显式 `industry-chain-master` scope、CLI 冲突校验和 operation/final-table 双口径 report；测试证明跳过 industry batch 与无关数据族，本步骤未执行 DML
+- [ ] 5.4c 从 Layer 2 chain/node master 开始继续按层执行 `Review → Write → Rebuild → Query`；上一层验收不得推定下一层授权
 
 ## 6. 完整验证与 Apply 后 Review
 

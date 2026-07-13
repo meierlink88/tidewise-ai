@@ -3,12 +3,27 @@ package seed
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
 
+type ApplyScope string
+
+const (
+	ApplyScopeAll                 ApplyScope = ""
+	ApplyScopeIndustryChainMaster ApplyScope = "industry-chain-master"
+)
+
 type ApplyOptions struct {
 	IncludeInactive bool
+	Scope           ApplyScope
+}
+
+type WriteStats struct {
+	Created   int `json:"created"`
+	Updated   int `json:"updated"`
+	Unchanged int `json:"unchanged"`
 }
 
 type Report struct {
@@ -24,6 +39,10 @@ type Report struct {
 	Unchanged           int
 	Failed              int
 	Skipped             int
+	Scope               string
+	OperationCounts     WriteStats
+	FinalTableImpact    map[string]WriteStats
+	finalTableActions   map[string]map[string]WriteAction
 }
 
 type Service struct {
@@ -36,6 +55,15 @@ func NewService(repository Repository) Service {
 
 func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOptions) (Report, error) {
 	report := newReport()
+	scope, err := ParseApplyScope(string(options.Scope))
+	if err != nil {
+		return report, err
+	}
+	report.Scope = string(scope)
+	manifest, err = applyManifestScope(manifest, scope)
+	if err != nil {
+		return report, err
+	}
 	hasLegacy, err := s.repository.HasActiveLegacySectors(ctx)
 	if err != nil {
 		return report, fmt.Errorf("check active legacy sectors: %w", err)
@@ -61,6 +89,7 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 			return report, fmt.Errorf("upsert entity %q: %w", entity.Key, err)
 		}
 		applyWriteResult(&report, result)
+		recordFinalTableAction(&report, "entity_nodes", entity.Key, result.Action)
 	}
 
 	for _, entity := range manifest.Entities {
@@ -99,6 +128,7 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 		}
 		report.SourceMappingCount++
 		applyWriteResult(&report, result)
+		recordFinalTableAction(&report, "sector_source_mappings", sectorSourceMappingIdentity(normalizeSectorSourceMapping(mapping)), result.Action)
 	}
 
 	for _, relationship := range manifest.Relationships {
@@ -117,6 +147,7 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 		}
 		report.EdgeCounts[relationship.RelationType]++
 		applyWriteResult(&report, result)
+		recordFinalTableAction(&report, "entity_edges", relationship.Key, result.Action)
 	}
 
 	if len(manifest.IndustryChainMemberships) > 0 || len(manifest.IndustryChainTopologyEdges) > 0 || len(manifest.IndustryChainPhysicalConstraints) > 0 {
@@ -157,6 +188,7 @@ func (s Service) applyProfile(ctx context.Context, profile Profile, report *Repo
 	}
 	report.ProfileCounts[table]++
 	applyWriteResult(report, result)
+	recordFinalTableAction(report, table, profile.EntityKey, result.Action)
 	return nil
 }
 
@@ -167,7 +199,53 @@ func newReport() Report {
 		ProfileCounts:       map[string]int{},
 		EdgeCounts:          map[string]int{},
 		IndustryChainCounts: map[string]int{},
+		FinalTableImpact:    map[string]WriteStats{},
+		finalTableActions:   map[string]map[string]WriteAction{},
 	}
+}
+
+func ParseApplyScope(value string) (ApplyScope, error) {
+	scope := ApplyScope(strings.TrimSpace(value))
+	switch scope {
+	case ApplyScopeAll, ApplyScopeIndustryChainMaster:
+		return scope, nil
+	default:
+		return "", fmt.Errorf("unsupported apply scope %q", value)
+	}
+}
+
+func applyManifestScope(manifest Manifest, scope ApplyScope) (Manifest, error) {
+	if scope == ApplyScopeAll {
+		return manifest, nil
+	}
+	if scope != ApplyScopeIndustryChainMaster {
+		return Manifest{}, fmt.Errorf("unsupported apply scope %q", scope)
+	}
+
+	keys := map[string]struct{}{}
+	for _, membership := range manifest.IndustryChainMemberships {
+		keys[membership.IndustryChainKey] = struct{}{}
+		keys[membership.ChainNodeKey] = struct{}{}
+	}
+	if len(keys) == 0 {
+		return Manifest{}, fmt.Errorf("industry-chain-master scope requires reviewed memberships to identify master entities")
+	}
+
+	scoped := Manifest{}
+	for _, entity := range manifest.Entities {
+		if _, ok := keys[entity.Key]; ok {
+			scoped.Entities = append(scoped.Entities, entity)
+		}
+	}
+	for _, profile := range manifest.Profiles {
+		if _, ok := keys[profile.EntityKey]; ok {
+			scoped.Profiles = append(scoped.Profiles, profile)
+		}
+	}
+	if err := Validate(scoped); err != nil {
+		return Manifest{}, fmt.Errorf("validate industry-chain-master scope: %w", err)
+	}
+	return scoped, nil
 }
 
 func manifestIndustryChainBatch(manifest Manifest) IndustryChainBatch {
@@ -207,9 +285,64 @@ func applyWriteResult(report *Report, result WriteResult) {
 	switch result.Action {
 	case WriteCreated:
 		report.Created++
+		report.OperationCounts.Created++
 	case WriteUpdated:
 		report.Updated++
+		report.OperationCounts.Updated++
 	case WriteUnchanged:
 		report.Unchanged++
+		report.OperationCounts.Unchanged++
+	}
+}
+
+func recordFinalTableAction(report *Report, table string, key string, action WriteAction) {
+	if report.finalTableActions[table] == nil {
+		report.finalTableActions[table] = map[string]WriteAction{}
+	}
+	previous, exists := report.finalTableActions[table][key]
+	if exists && writeActionRank(previous) >= writeActionRank(action) {
+		return
+	}
+	stats := report.FinalTableImpact[table]
+	if exists {
+		decrementWriteStats(&stats, previous)
+	}
+	incrementWriteStats(&stats, action)
+	report.FinalTableImpact[table] = stats
+	report.finalTableActions[table][key] = action
+}
+
+func writeActionRank(action WriteAction) int {
+	switch action {
+	case WriteCreated:
+		return 3
+	case WriteUpdated:
+		return 2
+	case WriteUnchanged:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func incrementWriteStats(stats *WriteStats, action WriteAction) {
+	switch action {
+	case WriteCreated:
+		stats.Created++
+	case WriteUpdated:
+		stats.Updated++
+	case WriteUnchanged:
+		stats.Unchanged++
+	}
+}
+
+func decrementWriteStats(stats *WriteStats, action WriteAction) {
+	switch action {
+	case WriteCreated:
+		stats.Created--
+	case WriteUpdated:
+		stats.Updated--
+	case WriteUnchanged:
+		stats.Unchanged--
 	}
 }

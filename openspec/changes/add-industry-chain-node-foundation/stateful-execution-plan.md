@@ -75,13 +75,15 @@
 - `backend/cmd/entity-seed/main.go` 只提供 `seed-dir`、inactive 和 sector convergence 参数，总是加载 `DefaultSeedPaths` 后调用 `Service.Apply`，没有 industry-chain 数据族选择边界。
 - `industry_chains_v1.json` 当前同时包含 23 entities、5 explicit profiles、27 memberships 和24 topology；physical constraints 与 relationships 为0，review fixture 不在 `DefaultSeedPaths`。
 - `Service.Apply` 写完所有 entity/profile 后，只要 manifest 含 membership/topology 就立即调用 `UpsertIndustryChainBatch`。因此运行现有标准 `entity-seed` 会在 Layer 2 master 后继续写 Layer 3 membership 与 Layer 4 topology，违反逐层授权。
-- **结论：当前不存在合规的 Layer 2 写命令边界，Layer 2 暂不可授权执行。** 本轮未运行 `entity-seed`，未产生任何 DML。
+- 2026-07-13 已按 TDD 增加合规的 `-apply-scope industry-chain-master` 边界：复用 `DefaultSeedPaths`、完整 manifest validation、现有 repository/report，只筛选本批2个 chain与26个 membership endpoint node 的 entity/profile，并跳过 `UpsertIndustryChainBatch`、relationships、sector mappings 和其他实体数据族。默认无 scope 行为保持兼容；未知 scope 或与 sector convergence 冲突的组合会被拒绝。
+- Scope 修复的自动化测试已验证精确选择28个实体、33次 profile operations、不调用 industry batch、不包含 review fixture，并区分 operation counts 与 final table impact。本轮只实现和验证代码，未运行 `entity-seed`，未产生任何 DML。
+- **当前结论：原执行路径阻断已由无状态代码关闭，但仍须先完成本 checkpoint 的代码 Review，并再次实时只读 preflight，才能申请 Layer 2 写入授权。**
 
-最小实现调整应复用现有 manifest、validator、repository 与 report，不创建平行 seed 机制：
+已完成的最小实现调整复用现有 manifest、validator、repository 与 report，没有创建平行 seed 机制：
 
-1. 为 entity-seed application/service 增加显式、默认关闭的 `industry-chain master-only` scope；从已验证 manifest 的 industry-chain membership endpoints 推导本批2个 chain与26个node key，只写这些 entity/profile，并明确跳过 membership、topology、physical constraints、relationships 和其他实体数据族。
-2. 命令必须要求显式 scope 参数；无 scope 时保持既有全量行为兼容。master-only 路径必须有 fake/Memory repository 测试，断言从未调用 `UpsertIndustryChainBatch`，并固定最终表级统计与 report 写操作统计。
-3. 在未来进入 Layer 3/4 前，再以同一数据族 scope 扩展 membership-only/topology-only 边界；不得把 master-only 临时开关解释为后续层授权。
+1. entity-seed application/service 已增加显式 `industry-chain-master` scope；从已验证 manifest 的 industry-chain membership endpoints 推导本批2个 chain与26个node key，只处理这些 entity/profile，并明确跳过 membership、topology、physical constraints、relationships 和其他实体数据族。
+2. 命令边界为 `go run ./cmd/entity-seed -apply-scope industry-chain-master`；它是未来获批后的唯一 Layer 2 写入口，本 checkpoint 严禁执行。无 scope 保持既有全量行为兼容；fake repository 测试断言从未调用 `UpsertIndustryChainBatch`。
+3. 在未来进入 Layer 3/4 前，再以同一 `ApplyScope` 最小枚举扩展 membership-only/topology-only；本轮未实现，master-only 不构成后续层授权。
 
 ### 5.4 Layer 2 获批写入后的只读验收 SQL 边界
 

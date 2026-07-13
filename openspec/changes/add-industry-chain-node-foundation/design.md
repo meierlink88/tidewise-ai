@@ -214,6 +214,27 @@ classDiagram
 
 Apply 必须按 RED → GREEN → REFACTOR：先写 migration 静态测试、domain validator tests、seed fixture/policy tests、Memory/Postgres repository tests、graph source/mapping/projector tests，再写生产实现。普通单元测试不得连接真实网络、生产 PostgreSQL 或真实 Neo4j。最终运行目标包测试、`go test ./...`、OpenSpec validate 和 `git diff --check`。
 
+### 7. Stateful seed 使用显式数据族 scope
+
+Layer 2 preflight 发现默认 `entity-seed` 会在 master 后继续写 membership/topology。为保持逐层授权，现有 command/service 增加显式 `-apply-scope industry-chain-master`：继续通过 `DefaultSeedPaths` 加载并验证统一 manifest，再由 membership endpoints 推导本批2个 chain与26个 node，只把对应 entity/profile 交给现有 repository。该 scope 必须跳过 `UpsertIndustryChainBatch`、relationships、sector mappings、physical constraints 和其他实体数据族；未指定 scope 时保持既有全量行为。
+
+Report 同时保留逐次 repository operation counts，并新增按 table + stable key 去重的 final table impact。前者可包含同一复用 profile 的 inline 与 reviewed override 两次 update，后者才用于数据库最终行级对账。当前只实现 master scope；membership-only/topology-only 沿用同一 scope 枚举扩展点，但必须在对应层 Review 后另行实现和授权。
+
+```mermaid
+sequenceDiagram
+    participant CLI as cmd/entity-seed
+    participant Loader as seed.LoadFiles(DefaultSeedPaths)
+    participant Service as seed.Service
+    participant Repo as seed.Repository
+
+    CLI->>Loader: Load and validate full manifest
+    CLI->>Service: Apply(scope=industry-chain-master)
+    Service->>Service: Derive 2 chain + 26 node keys from memberships
+    Service->>Repo: Upsert only selected Entity/Profile rows
+    Service--xRepo: Skip relationships, mappings and UpsertIndustryChainBatch
+    Service-->>CLI: OperationCounts + FinalTableImpact
+```
+
 ## Risks / Trade-offs
 
 - [移出 observation 后暂时不能判断当前瓶颈严重度] → 本 change 明确只交付静态骨架，后续 observation change 再提供动态验证。
