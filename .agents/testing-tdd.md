@@ -6,7 +6,7 @@
 
 - 严格执行 RED、GREEN、REFACTOR，并保留实际失败与通过证据。
 - 先编写 Go 单元测试、table-driven tests、fixture、fake 或 `httptest`，再编写生产实现。
-- 对应包测试通过后运行 `go test ./...`；重构不得删除或削弱已确认的行为测试。
+- 对应受影响包的完整 suite 和共享 architecture/contract tests 通过后，才可进入 Apply final；是否运行 repo-wide full validation 按本文件 Verification Before Completion 的触发条件决定。重构不得删除或削弱已确认的行为测试。
 
 ## Test Boundary Rules
 
@@ -21,7 +21,7 @@
 
 - 新增后端功能点没有对应测试时，不应标记 tasks 完成。
 - 每完成一个 tasks checkbox 前，必须确认对应测试或验证已覆盖该行为。
-- change 完成前必须运行 `go test ./...`。
+- change 完成前必须完成受影响交付边界的完整验证和共享 architecture/contract tests；满足 repo-wide 触发条件时才必须运行 `go test ./...`。
 - 如果受本地环境限制无法运行验证，最终说明必须明确阻塞原因和未验证风险。
 
 ## External Source Tests
@@ -36,3 +36,7 @@
 ## Verification Before Completion
 
 在声明完成、提交、push、创建 PR、sync 或 archive 前，必须使用 `superpowers:verification-before-completion` 运行新鲜验证并读取输出。不能依赖旧日志、记忆或“应该能过”的判断。
+
+Apply final 必须运行受影响交付边界的完整验证：受影响 app/module/package 的完整 suite 和共享 architecture/contract tests。只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation；本 change 若修改全项目规则或 architecture tests，必须运行 `go test ./...`。验证记录必须说明受影响边界、共享 tests 和 repo-wide 判定理由；不清楚时 fail-closed，扩大到 repo-wide full validation 或停止等待澄清。
+
+R2/R3 有状态操作的验证证据、recovery evidence、before/after assertions 和停止语义只以 `.agents/openspec-workflow.md` 为准；本文件不重复授权流程。
