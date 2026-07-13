@@ -3,7 +3,7 @@
 ## 状态与禁止事项
 
 - first-batch data contract checkpoint `cd4b072` 已由主对话验收通过，task 1.11 完成。
-- checkpoint `775afda` 的 task 1.12 Review 未通过；本 remediation checkpoint 只提交 migration target、domain/repository/validator、workbook parser 与 dry-run/report 代码及测试，task 1.12 在主对话复验前保持未完成。
+- checkpoint `775afda` 与首轮 remediation checkpoint `12820f9` 的 task 1.12 Review 均未通过；本次 remediation checkpoint 只修复 migration session lock/实际执行审计与 aliases 稳定排序，并保留此前 domain/repository/validator、workbook parser 与 dry-run/report 代码及测试，task 1.12 在主对话复验前保持未完成。
 - 未执行 migration、cleanup、seed，未连接或写入 PostgreSQL/Neo4j，未进入 task 1.13 或 Phase B。
 
 ## Schema diff
@@ -27,7 +27,9 @@ migration 不创建 `sector_source_mappings`、`chain_node_source_mappings`、JS
 
 ## Migration target 操作路径
 
-标准 `dbmigrate` 新增 `-target-version`，CLI 通过 `ServiceOptions.TargetVersion` 传到 `GooseExecutor.Apply`，有 target 时使用 `goose.UpToContext`，无 target 时保留原 `goose.UpContext` apply-all 行为。report 保留执行前 `pending`、列出实际 `applied`，并新增由两者差集计算的 `remaining`，不通过额外数据库查询猜测状态。target 必须是当前版本或严格向前且真实存在的 migration；非数字、低于当前版本、越过不存在版本都在 Write 前失败。
+标准 `dbmigrate` 提供 `-target-version`，CLI 通过 `ServiceOptions.TargetVersion` 传到 `GooseExecutor.Apply`，有 target 时使用 `goose.UpToContext`，无 target 时保留原 `goose.UpContext` apply-all 行为。AutoApply 在读取执行前状态之前先取得 PostgreSQL advisory lock；locker 从 `*sql.DB` 取得并持有同一个 pinned `*sql.Conn`，acquire、release 与异常清理都由该 session 完成。重复 Lock、未持锁 Unlock、unlock=false、query/context 错误与 connection Close/Discard 错误均显式返回，不能静默泄漏锁。
+
+Service 在持锁后读取 before `current/pending`，执行后再次读取 after `current/pending`。`GooseExecutor.Apply` 返回的 selected 只是执行计划，不作为审计事实；report 的 `pending` 来自 before snapshot，`remaining` 来自 after snapshot，`applied` 仅由 before 中已从 after pending 消失且版本不高于 after current 的 migration 推导。target 必须精确到达，target 以上 migration 必须保持 pending；无 target 必须确认 after pending 为空。任一状态矛盾或 unlock 失败都使命令失败。target 必须是当前版本或严格向前且真实存在的 migration；非数字、低于当前版本、越过不存在版本都在 Write 前失败。
 
 - cleanup Write 获得独立授权后：`TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 15`
 - 命令成功时 `applied` 只包含 `000015`，`remaining` 明确包含 `000016`；随后立即执行 cleanup Query 并等待验收。
@@ -52,7 +54,7 @@ repository 代码当前没有被默认 seed service 调用；在 task 1.15 schem
 
 parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 XLSX shared string 与 inline string，并执行：
 
-1. 解析 canonical、原始名称与宽边界标记；
+1. 解析 canonical、原始名称与宽边界标记；原始名称 trim 后去重并按确定性字符串顺序排序，canonical 仍从 aliases 排除；
 2. 将来源代码拆成逐行 mapping draft；
 3. 从 provider 专属名称列恢复 external_name；
 4. 只将单一“行业板块/概念板块/指数板块”规范化为 taxonomy；
@@ -95,7 +97,7 @@ parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 
 
 这是单节点字段形状示例，不代表首批实际 report；它同时展示未消歧 mapping 不进入可写列表，且 approved counts 校验继续阻断 `ready`。首批完整 report 必须校验 842 nodes、950 original names、79 wide-boundary nodes、1,156 mappings、811/345 provider counts 与 241 dual-source nodes；13 个代码逐项消歧、842 个 identity 与 definition/boundary 全部 Review 前不得推定为可执行 seed。
 
-node snapshot 同时按 entity ID、key、canonical 建索引并携带 entity_type、status、aliases、definition、boundary_note：发现既有记录时三索引必须齐全，三个 identity 与完整内容完全一致才是 unchanged；aliases/profile 漂移为 updated；非 chain_node、inactive/merged、索引缺失或互相矛盾为 conflict。mapping snapshot 同时按外部 tuple 与确定性 ID 建索引，发现既有记录时双索引必须齐全：全新为 created，同 entity 的 name/status 漂移为 updated，完整一致为 unchanged，换绑、ID 漂移、索引缺失或矛盾为 conflict。任一 conflict/blocker 都令 `ready=false`。
+node snapshot 同时按 entity ID、key、canonical 建索引并携带 entity_type、status、aliases、definition、boundary_note：发现既有记录时三索引必须齐全，三个 identity 与完整内容完全一致才是 unchanged；aliases 在进入 identity 与 checksum 前统一 trim、去重和稳定排序，因此同一 alias 集合仅输入顺序变化仍为 unchanged；aliases 集合或 profile 漂移为 updated；非 chain_node、inactive/merged、索引缺失或互相矛盾为 conflict。mapping snapshot 同时按外部 tuple 与确定性 ID 建索引，发现既有记录时双索引必须齐全：全新为 created，同 entity 的 name/status 漂移为 updated，完整一致为 unchanged，换绑、ID 漂移、索引缺失或矛盾为 conflict。任一 conflict/blocker 都令 `ready=false`。
 
 ## 验证覆盖
 
@@ -103,9 +105,9 @@ node snapshot 同时按 entity ID、key、canonical 建索引并携带 entity_ty
 - domain 必填与状态 table-driven validation；
 - memory repository create/unchanged/update/rebind conflict；
 - PostgreSQL transaction lock、target/type/status、首次空读/并发 winner 重读、tuple/ID conflict 与 action contract；
-- workbook aliases、逐行 mapping、external name 与组合 taxonomy 阻断；
+- workbook/draft aliases 的 trim、去重、确定性排序与仅顺序变化 unchanged；逐行 mapping、external name 与组合 taxonomy 阻断；
 - dry-run node type/status/profile drift、mapping tuple/ID snapshot、重复执行幂等、wide-boundary=79、稳定 identity、aliases、definition/boundary、snapshot 交叉冲突与 approved expectations；
-- migration target 15 只应用 `000015` 且保留 `000016` pending、无 target 兼容、非法/回退/跳跃拒绝，以及 CLI/Service/Executor 参数传递。
+- migration locker 的 pinned connection ownership、重复/非法 lifecycle、acquire/unlock 失败清理与 Close；AutoApply 锁内 before/after 重读、target 15 只实际应用 `000015` 且保留 `000016` pending、selected 预测不进入 report、target 未到达或状态矛盾阻断、unlock 错误可见、无 target 兼容、非法/回退/跳跃拒绝，以及 CLI/Service/Executor 参数传递。
 
 真实双连接并发集成测试代码使用专用 `TIDEWISE_EXTERNAL_IDENTIFIER_CONCURRENCY_TEST_DATABASE_URL`，会验证同 tuple 不同 entity 并发时恰好一个成功、一个 conflict、最终仅一行。该测试必须等待 `000016` schema Query 验收和单独数据库测试授权，本 remediation checkpoint 明确不设置该环境变量、不运行它、不连接数据库。
 

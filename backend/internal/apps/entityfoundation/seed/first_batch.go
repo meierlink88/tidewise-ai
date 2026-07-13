@@ -260,6 +260,7 @@ func normalizeOriginalNames(values []string) []string {
 		seen[value] = struct{}{}
 		result = append(result, value)
 	}
+	sort.Strings(result)
 	return result
 }
 

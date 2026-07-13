@@ -1,6 +1,7 @@
 package seed
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -107,6 +108,26 @@ func TestBuildFirstBatchDryRunReportsNodeDriftAndExactIdempotency(t *testing.T) 
 				t.Fatalf("ready = %v, want %v; report=%+v", report.Ready, test.wantReady, report)
 			}
 		})
+	}
+}
+
+func TestBuildFirstBatchDryRunTreatsAliasOrderAsStableIdentity(t *testing.T) {
+	draft := singleMappingDraft()
+	draft.Nodes[0].OriginalNames = []string{" 增材制造 ", "3D打印", "航空发动机", "增材制造"}
+	wanted := buildFirstBatchIdentity(draft.Nodes[0])
+
+	reordered := singleMappingDraft()
+	reordered.Nodes[0].OriginalNames = []string{"航空发动机", "增材制造", "3D打印"}
+	rebuilt := buildFirstBatchIdentity(reordered.Nodes[0])
+	if !reflect.DeepEqual(wanted.Aliases, rebuilt.Aliases) {
+		t.Fatalf("aliases differ by input order: %v != %v", wanted.Aliases, rebuilt.Aliases)
+	}
+
+	report := BuildFirstBatchDryRun(reordered, nodeSnapshot(wanted), FirstBatchExpectations{
+		Nodes: 1, OriginalNames: 3, Mappings: 1, EastmoneyMappings: 1,
+	})
+	if !report.Ready || report.Nodes[0].Action != string(WriteUnchanged) {
+		t.Fatalf("report = %+v", report)
 	}
 }
 

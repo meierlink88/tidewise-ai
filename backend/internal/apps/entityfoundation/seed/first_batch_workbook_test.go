@@ -7,8 +7,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
+
+func TestSplitWorkbookListSortsAndDeduplicatesAliases(t *testing.T) {
+	left := splitWorkbookList(" 增材制造；3D打印；增材制造；航空发动机 ")
+	right := splitWorkbookList("航空发动机；增材制造；3D打印")
+	if !reflect.DeepEqual(left, right) {
+		t.Fatalf("normalized aliases differ by workbook order: %v != %v", left, right)
+	}
+}
 
 func TestLoadFirstBatchWorkbookSplitsAliasesAndExternalIdentifiers(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "first-batch.xlsx")

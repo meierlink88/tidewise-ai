@@ -3,6 +3,8 @@ package dbmigration
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pressly/goose/v3"
 )
@@ -163,33 +166,130 @@ func (defaultGooseOperations) upTo(ctx context.Context, db *sql.DB, directory st
 }
 
 type PostgresAdvisoryLocker struct {
-	db  *sql.DB
-	key int64
+	mu      sync.Mutex
+	key     int64
+	connect func(context.Context) (advisoryConnection, error)
+	owned   advisoryConnection
 }
 
-func NewPostgresAdvisoryLocker(db *sql.DB, key string) PostgresAdvisoryLocker {
-	return PostgresAdvisoryLocker{
-		db:  db,
-		key: AdvisoryLockKey(key),
-	}
+type advisoryConnection interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) advisoryRow
+	Discard() error
+	Close() error
 }
 
-func (l PostgresAdvisoryLocker) Lock(ctx context.Context) error {
-	if _, err := l.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", l.key); err != nil {
-		return fmt.Errorf("acquire migration advisory lock: %w", err)
+type advisoryRow interface {
+	Scan(...any) error
+}
+
+type sqlAdvisoryConnection struct {
+	conn *sql.Conn
+}
+
+func NewPostgresAdvisoryLocker(db *sql.DB, key string) *PostgresAdvisoryLocker {
+	return newPostgresAdvisoryLockerWithConnector(key, func(ctx context.Context) (advisoryConnection, error) {
+		conn, err := db.Conn(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &sqlAdvisoryConnection{conn: conn}, nil
+	})
+}
+
+func newPostgresAdvisoryLockerWithConnector(key string, connect func(context.Context) (advisoryConnection, error)) *PostgresAdvisoryLocker {
+	return &PostgresAdvisoryLocker{key: AdvisoryLockKey(key), connect: connect}
+}
+
+func (l *PostgresAdvisoryLocker) Lock(ctx context.Context) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.owned != nil {
+		return fmt.Errorf("migration advisory lock is already held by this locker")
 	}
+	conn, err := l.connect(ctx)
+	if err != nil {
+		return fmt.Errorf("open migration advisory lock connection: %w", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SELECT pg_advisory_lock($1)", l.key); err != nil {
+		cleanupErr := discardAndCloseAdvisoryConnection(conn)
+		return errors.Join(fmt.Errorf("acquire migration advisory lock: %w", err), cleanupErr)
+	}
+	l.owned = conn
 	return nil
 }
 
-func (l PostgresAdvisoryLocker) Unlock(ctx context.Context) error {
+func (l *PostgresAdvisoryLocker) Unlock(ctx context.Context) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.owned == nil {
+		return fmt.Errorf("migration advisory lock is not held by this locker")
+	}
+	conn := l.owned
+	l.owned = nil
 	var unlocked bool
-	if err := l.db.QueryRowContext(ctx, "SELECT pg_advisory_unlock($1)", l.key).Scan(&unlocked); err != nil {
-		return fmt.Errorf("release migration advisory lock: %w", err)
+	if err := conn.QueryRowContext(ctx, "SELECT pg_advisory_unlock($1)", l.key).Scan(&unlocked); err != nil {
+		cleanupErr := discardAndCloseAdvisoryConnection(conn)
+		return errors.Join(fmt.Errorf("release migration advisory lock: %w", err), cleanupErr)
 	}
 	if !unlocked {
-		return fmt.Errorf("migration advisory lock was not held")
+		cleanupErr := discardAndCloseAdvisoryConnection(conn)
+		return errors.Join(fmt.Errorf("migration advisory lock was not held by its pinned connection"), cleanupErr)
+	}
+	if err := conn.Close(); err != nil {
+		return fmt.Errorf("close migration advisory lock connection: %w", err)
 	}
 	return nil
+}
+
+func (l *PostgresAdvisoryLocker) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.owned == nil {
+		return nil
+	}
+	conn := l.owned
+	l.owned = nil
+	return discardAndCloseAdvisoryConnection(conn)
+}
+
+func (c *sqlAdvisoryConnection) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return c.conn.ExecContext(ctx, query, args...)
+}
+
+func (c *sqlAdvisoryConnection) QueryRowContext(ctx context.Context, query string, args ...any) advisoryRow {
+	return c.conn.QueryRowContext(ctx, query, args...)
+}
+
+func (c *sqlAdvisoryConnection) Discard() error {
+	err := c.conn.Raw(func(any) error { return driver.ErrBadConn })
+	if errors.Is(err, driver.ErrBadConn) {
+		return nil
+	}
+	return err
+}
+
+func (c *sqlAdvisoryConnection) Close() error {
+	return c.conn.Close()
+}
+
+func discardAndCloseAdvisoryConnection(conn advisoryConnection) error {
+	discardErr := conn.Discard()
+	closeErr := conn.Close()
+	if discardErr == nil && closeErr == nil {
+		return nil
+	}
+	return errors.Join(
+		wrapAdvisoryCleanupError("discard migration advisory lock connection", discardErr),
+		wrapAdvisoryCleanupError("close migration advisory lock connection", closeErr),
+	)
+}
+
+func wrapAdvisoryCleanupError(message string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", message, err)
 }
 
 func AdvisoryLockKey(value string) int64 {

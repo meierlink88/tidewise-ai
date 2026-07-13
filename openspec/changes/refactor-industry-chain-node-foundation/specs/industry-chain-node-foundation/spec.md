@@ -117,6 +117,8 @@
 - **THEN** 标准 dbmigrate 路径必须支持显式 target version，并在 cleanup Write 只执行到 `000015`
 - **AND** 成功报告必须只列出实际 applied migration，`000016` 必须保持 pending 直到 schema Write 单独授权
 - **AND** 无 target 的既有 apply-all 行为不得变化，非法、回退或不存在的跳跃 target 必须在 Write 前拒绝
+- **AND** AutoApply 必须在同一个 pinned PostgreSQL connection 上 acquire/release session advisory lock，并在持锁后读取 before 状态、执行后读取 after 状态
+- **AND** applied/remaining 必须由 after current/pending 与 before pending 推导，不得把 Executor 的预选 migration 列表宣称为实际结果；target 未到达、状态矛盾或 unlock 失败必须使操作失败
 
 #### Scenario: Phase A data contract 与实现门禁
 - **WHEN** structure implementation checkpoint 已通过且第一批名称范围已批准

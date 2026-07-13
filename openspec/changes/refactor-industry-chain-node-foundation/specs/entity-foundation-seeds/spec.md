@@ -7,6 +7,7 @@
 - **WHEN** 第一批 chain_node data contract 进入 Review
 - **THEN** 系统必须只以已批准工作簿 Sheet「标准化保留」的 842 个互异标准化节点名作为 canonical 范围
 - **AND** 950 个原始名称必须按契约进入 name/canonical/aliases，108 个同义合并不得重新产生重复实体
+- **AND** aliases 必须 trim、去重并按确定性字符串顺序稳定排序；同一 alias 集合仅输入顺序变化不得改变 identity action 或 checksum
 - **AND** 「宽边界保留」只能视为已保留节点的审阅子集，不得当作排除清单
 - **AND** 工作簿不得直接作为可执行 seed，具体 UUID/entity_key、definition/boundary 与 dry-run/report 仍须 Review
 
