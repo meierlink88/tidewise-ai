@@ -9,20 +9,39 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/pressly/goose/v3"
 )
 
 type GooseExecutor struct {
-	db        *sql.DB
-	directory string
+	db         *sql.DB
+	directory  string
+	operations gooseOperations
 }
+
+type gooseOperations interface {
+	currentVersion(context.Context, *sql.DB) (int64, error)
+	pending(context.Context, *sql.DB, string, int64) ([]Migration, error)
+	up(context.Context, *sql.DB, string) error
+	upTo(context.Context, *sql.DB, string, int64) error
+}
+
+type defaultGooseOperations struct{}
 
 func NewGooseExecutor(db *sql.DB, directory string) GooseExecutor {
 	return GooseExecutor{
-		db:        db,
-		directory: ResolveDirectory(directory),
+		db:         db,
+		directory:  ResolveDirectory(directory),
+		operations: defaultGooseOperations{},
 	}
+}
+
+func (e GooseExecutor) goose() gooseOperations {
+	if e.operations == nil {
+		return defaultGooseOperations{}
+	}
+	return e.operations
 }
 
 func (e GooseExecutor) CurrentVersion(ctx context.Context) (string, error) {
@@ -30,7 +49,7 @@ func (e GooseExecutor) CurrentVersion(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	version, err := goose.EnsureDBVersionContext(ctx, e.db)
+	version, err := e.goose().currentVersion(ctx, e.db)
 	if err != nil {
 		return "", err
 	}
@@ -43,35 +62,104 @@ func (e GooseExecutor) Pending(ctx context.Context) ([]Migration, error) {
 		return nil, err
 	}
 
-	current, err := goose.EnsureDBVersionContext(ctx, e.db)
+	current, err := e.goose().currentVersion(ctx, e.db)
 	if err != nil {
 		return nil, err
 	}
 
-	pending, err := goose.CollectMigrations(e.directory, current, math.MaxInt64)
+	pending, err := e.goose().pending(ctx, e.db, e.directory, current)
+	if err != nil {
+		return nil, err
+	}
+	return pending, nil
+}
+
+func (e GooseExecutor) Apply(ctx context.Context, targetVersion string) ([]Migration, error) {
+	pending, err := e.Pending(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(targetVersion) == "" {
+		if len(pending) == 0 {
+			return nil, nil
+		}
+		if err := e.goose().up(ctx, e.db, e.directory); err != nil {
+			return nil, err
+		}
+		return pending, nil
+	}
+
+	currentText, err := e.CurrentVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	current, err := strconv.ParseInt(currentText, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parse current migration version %q: %w", currentText, err)
+	}
+	target, err := parseTargetVersion(targetVersion)
+	if err != nil {
+		return nil, err
+	}
+	if target < current {
+		return nil, fmt.Errorf("target version %d is behind current version %d; rollback is not supported", target, current)
+	}
+	if target == current {
+		return nil, nil
+	}
+
+	selected := make([]Migration, 0, len(pending))
+	targetExists := false
+	for _, migration := range pending {
+		version, err := strconv.ParseInt(migration.Version, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse pending migration version %q: %w", migration.Version, err)
+		}
+		if version <= target {
+			selected = append(selected, migration)
+		}
+		if version == target {
+			targetExists = true
+		}
+	}
+	if !targetExists {
+		return nil, fmt.Errorf("target version %d does not match an available migration", target)
+	}
+	if err := e.goose().upTo(ctx, e.db, e.directory, target); err != nil {
+		return nil, err
+	}
+	return selected, nil
+}
+
+func parseTargetVersion(value string) (int64, error) {
+	target, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil || target < 1 {
+		return 0, fmt.Errorf("invalid target version %q", value)
+	}
+	return target, nil
+}
+
+func (defaultGooseOperations) currentVersion(ctx context.Context, db *sql.DB) (int64, error) {
+	return goose.EnsureDBVersionContext(ctx, db)
+}
+
+func (defaultGooseOperations) pending(_ context.Context, _ *sql.DB, directory string, current int64) ([]Migration, error) {
+	pending, err := goose.CollectMigrations(directory, current, math.MaxInt64)
 	if err != nil {
 		if err == goose.ErrNoMigrationFiles {
 			return nil, nil
 		}
 		return nil, err
 	}
-
 	return convertGooseMigrations(pending), nil
 }
 
-func (e GooseExecutor) Apply(ctx context.Context) ([]Migration, error) {
-	pending, err := e.Pending(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(pending) == 0 {
-		return nil, nil
-	}
-	if err := goose.UpContext(ctx, e.db, e.directory); err != nil {
-		return nil, err
-	}
+func (defaultGooseOperations) up(ctx context.Context, db *sql.DB, directory string) error {
+	return goose.UpContext(ctx, db, directory)
+}
 
-	return pending, nil
+func (defaultGooseOperations) upTo(ctx context.Context, db *sql.DB, directory string, target int64) error {
+	return goose.UpToContext(ctx, db, directory, target)
 }
 
 type PostgresAdvisoryLocker struct {

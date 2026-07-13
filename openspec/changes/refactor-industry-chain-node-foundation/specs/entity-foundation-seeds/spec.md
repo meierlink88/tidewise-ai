@@ -20,7 +20,9 @@
 #### Scenario: 第一批全新身份与幂等
 - **WHEN** 系统为第一批节点生成身份与 dry-run
 - **THEN** 每个节点必须使用经 Review 的全新 UUID/entity_key，不得复用历史 sector/industry_chain/chain_node 身份
-- **AND** report 必须列出 create/unchanged/conflict、UUID/key/canonical 冲突、重复 aliases 与重复执行预期
+- **AND** report 必须列出 created/updated/unchanged/conflict、UUID/key/canonical 冲突、重复 aliases 与重复执行预期
+- **AND** 现存 node snapshot 必须包含 entity_type、status、aliases、definition、boundary_note，且发现既有记录时 ID/key/canonical 三索引必须齐全；只有所有字段完全一致才可 unchanged，aliases/profile 漂移必须 updated，非 chain_node、非 active、snapshot 索引缺失或交叉不一致必须 conflict
+- **AND** report 必须校验宽边界节点数恰为 79，且每个宽边界节点具有非空 boundary_note
 - **AND** 任一 identity 冲突必须阻断 Write
 
 #### Scenario: 初始化联盟组织

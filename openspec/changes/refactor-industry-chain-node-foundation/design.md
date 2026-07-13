@@ -2,7 +2,7 @@
 
 前序 change 已在 PostgreSQL 落地 `sector_profiles`、`sector_source_mappings`、`industry_chain_profiles`、扩展后的 `chain_node_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges` 与 `industry_chain_physical_constraints`，并已生成对应 Neo4j 投影。当前模型同时用 sector、industry_chain 与 chain_node 表达产业概念，membership 又承担容器归属，topology 再表达节点关系，导致同一事实存在多个入口。
 
-本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段、关系语义与第一批 842 个 chain_node 名称范围已完成人工 Review，但 UUID/key、definition/boundary 内容、可执行 seed 与关系边仍须分阶段 Review。结构实现 checkpoint `0f20171` 已通过人工复验，本 checkpoint 只提出第一批数据契约，不修改 migration/源码/seed，也不执行任何 PostgreSQL/Neo4j Write。
+本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段、关系语义与第一批 842 个 chain_node 名称范围已完成人工 Review，但 UUID/key、definition/boundary 内容、可执行 seed 与关系边仍须分阶段 Review。结构实现 checkpoint `0f20171` 与 first-batch data contract checkpoint `cd4b072` 已通过人工复验；Schema/TDD implementation checkpoint `775afda` 未通过，本轮只整改 task 1.12 的 migration target、dry-run snapshot/幂等和 repository 并发契约，不执行任何 PostgreSQL/Neo4j Write。
 
 ## Goals / Non-Goals
 
@@ -190,7 +190,7 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；`EntityExternalIdentifier`、repository、schema migration 和 seed binding 必须在本数据契约通过后按 TDD 另行实现。`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
+结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，但在本轮 remediation Review 通过前仍保持未完成。`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
 
 ## Migration Plan
 
@@ -215,13 +215,13 @@ sequenceDiagram
     Apply->>Backup: 生成备份并执行恢复可用性验证
     Apply->>Evidence: 输出删除集合、FK/逻辑引用顺序、事务、forward-fix、dry-run
     Reviewer-->>Apply: cleanup Review 并单独授权 cleanup Write
-    Apply->>PG: 版本化 cleanup Write：引用叶子到旧表/旧实体
+    Apply->>PG: target-version=15 版本化 cleanup Write：引用叶子到旧表/旧实体
     Apply->>PG: cleanup Query：旧类型/表/引用/孤儿为零，非目标 counts 不变，重复执行幂等
     Reviewer-->>Apply: 验收 cleanup Query
     Note over PG,Neo4j: PG 已清理；Neo4j 仍保留旧投影并暂时陈旧
     Apply->>Evidence: 提交 entity_external_identifiers schema diff、preflight、备份与回滚边界
     Reviewer-->>Apply: 单独授权 external identifier schema Write
-    Apply->>PG: schema Write
+    Apply->>PG: target-version=16 external identifier schema Write
     Apply->>PG: schema Query：表/列/FK/唯一约束/索引/版本/幂等
     Reviewer-->>Apply: 验收 schema Query
     Apply->>Evidence: 输出 842 节点、profile、全新 UUID/key、aliases 的 final seed dry-run/report
@@ -244,14 +244,14 @@ sequenceDiagram
 
 1. structure implementation checkpoint `0f20171` 的人工复验已通过；该结论只允许继续数据契约 Review，不授权 migration、cleanup、seed 或任一 PostgreSQL/Neo4j Write。
 2. first-batch data contract Review 固定 842 个 canonical 名称、950 个原始名称、1,156 条外部标识范围，并批准 aliases、definition/boundary、全新 UUID/entity_key、taxonomy 消歧、幂等与 dry-run/report 契约；当前 checkpoint 到此停止。
-3. 契约获批后测试先行实现 `entity_external_identifiers` schema/domain/repository、节点身份与 seed dry-run/report；提交代码、测试、schema diff 和 dry-run 格式供 implementation Review，不执行数据库。
+3. 契约获批后测试先行实现 `entity_external_identifiers` schema/domain/repository、节点身份与 seed dry-run/report；checkpoint `775afda` 因 migration 无 target 上限、snapshot 不完整和并发冲突误报风险未通过，本轮整改后重新提交代码、测试、schema diff 和 dry-run 格式供 implementation Review，不执行数据库。
 4. cleanup 必须先于新节点写入，避免新旧 `chain_node` 混入同一目标集合；只读 preflight 列出旧三类实体及 profiles、source mappings、membership/topology/constraints、`entity_edges`、`event_entity_links`、convergence/audit 全表 counts 和任意其他引用。缺少任一引用类即阻断 cleanup Review。
 5. cleanup Review 展示可恢复备份证据、精确 ID 集合或可重算谓词、每表预计删除 counts、FK 顺序、锁与事务影响、非目标保护断言及提交后 forward-fix；单独获批后才执行 cleanup Write，并立即 Query。
-   普通 migration apply 不得隐式越过门禁：`000015` 在任何删除前要求当前 PostgreSQL session 显式设置 `tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified`；`000016` 在任何 external identifier DDL 前另行要求 `tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified`，cleanup 授权不得隐式授权后续 schema Write。两个标记都只防误执行，不能替代备份证据和人工授权。
+   普通 migration apply 不得隐式越过门禁：标准 `dbmigrate` 提供 `-target-version` 并由 Service/Executor 传递给 `goose.UpToContext`。cleanup Write 的标准命令形状为 `TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 15`，成功报告的 `applied` 只含 `000015`，由执行前 pending 与实际 applied 差集计算的 `remaining` 明确包含 `000016`；cleanup Query 验收且 schema Write 单独授权后，命令形状才是 `TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 16`。真实 URL 只能由受控环境或 secret 注入，不进入命令证据或仓库。无 target 保持原有 apply-all 行为；非法 target、低于当前版本或不存在于可用 migration 序列的跳跃 target 在任何 Write 前拒绝。两个 session setting 只防误执行，不能替代备份证据和人工授权，也不得用故意触发 `000016` 失败来分层。
 6. cleanup Query 必须证明旧专属表已删除、旧 sector/industry_chain/chain_node rows 为 0、旧关系/事件链接/审计引用为 0、无孤儿，且 alliance/economy/country/market/benchmark/index 等非目标 counts 与校验和保持不变；重复执行只返回 already-clean/unchanged。
 7. cleanup Query 验收后，`entity_external_identifiers` schema 仍须单独执行 `Review -> Write -> Query`；schema Query 通过前不得写节点或 mapping data。
-8. final seed dry-run Review 必须列出 842 个全新 UUID/entity_key、canonical/name、aliases、definition、boundary、预计动作与冲突；获批后 node/profile seed Write 并立即 Query。不得创建具体 theme 实例。
-9. 1,156 条 mapping data 使用独立 Review 与 Write 授权；只有 node/profile Query 验收后才能绑定 entity_id。Write 后立即 Query eastmoney=811、ths=345、总数=1,156、241 个双来源节点、逐代码 taxonomy/name、唯一性、孤儿与重复执行幂等。
+8. final seed dry-run Review 必须列出 842 个全新 UUID/entity_key、canonical/name、aliases、definition、boundary、entity_type/status、预计动作与冲突，并校验 `wide_boundary_nodes=79`。node snapshot 同 key/ID/canonical 只有完整状态完全一致才是 unchanged；aliases/definition/boundary 漂移为 updated，非 chain_node、非 active 或三个索引交叉不一致为 conflict。获批后 node/profile seed Write 并立即 Query；不得创建具体 theme 实例。
+9. 1,156 条 mapping data 使用独立 Review 与 Write 授权；只有 node/profile Query 验收后才能绑定 entity_id。dry-run 必须接收按 external identity 与确定性 ID 建立的现存 snapshot，逐条输出 created/updated/unchanged/conflict；同 tuple 换绑、确定性 ID 漂移或两个索引不一致必须 conflict，同 entity 的 external_name/status 漂移才可 updated。Write 后立即 Query eastmoney=811、ths=345、总数=1,156、241 个双来源节点、逐代码 taxonomy/name、唯一性、孤儿与重复执行幂等。
 10. Phase A cleanup、外部标识 schema、node/profile seed 与 mapping data 的 Query 全部验收前禁止进入 Phase B；PG cleanup 后 Neo4j 陈旧属于已知且明确记录的临时状态。
 
 ### Phase B：基于新节点建立关系
@@ -263,7 +263,7 @@ sequenceDiagram
 ### 幂等与回滚
 
 - cleanup migration/命令以执行前冻结的目标集合为输入，在单事务中按引用叶子到根删除；SQL 必须限定旧产业实体集合，禁止无谓词 DELETE/TRUNCATE。
-- cleanup 重复执行不得扩大删除范围，只报告 already-clean/unchanged。final seed 以获批的新 `entity_key` 为内部幂等键，以 UUID/key/canonical 三者冲突矩阵阻断漂移；external identifier upsert 以 `(source_system, source_taxonomy_type, external_code)` 为冲突键，只允许更新同一 `entity_id` 的 `external_name`、`status` 与 `updated_at`，不得静默换绑实体。
+- cleanup 重复执行不得扩大删除范围，只报告 already-clean/unchanged。final seed 以获批的新 `entity_key` 为内部幂等键，以 UUID/key/canonical 三者及 entity_type/status/profile snapshot 冲突矩阵阻断漂移；external identifier dry-run 同时核对 tuple 与确定性 ID snapshot。repository 在同一事务内先取得基于完整 external identity 的 `pg_advisory_xact_lock`，锁定 active chain_node target，读取 tuple 后执行 `INSERT ... ON CONFLICT DO NOTHING`；若并发 winner 已插入则立即重读并将不同 entity/ID 判为 conflict，只有同 entity 才允许 unchanged 或更新 `external_name`、`status` 与 `updated_at`。真实双连接并发测试代码使用专用测试数据库环境变量并留待 schema Query 后单独授权运行，本轮只运行无数据库的 transaction/sqlmock 测试。
 - Write 前必须验证可恢复备份；仅有 `archive_mode` 或文件存在不算恢复验证。事务内失败直接 rollback，提交后纠错只允许新的 forward-fix migration/命令。
 - 任一未知引用、预计/实际 counts 不符、非目标保护断言变化、备份不可恢复、候选未最终批准时立即停止。
 

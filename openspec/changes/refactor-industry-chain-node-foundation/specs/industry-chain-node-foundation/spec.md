@@ -112,6 +112,12 @@
 - **THEN** 系统必须先提交 cleanup diff/dry-run 供 Review 并单独取得 cleanup Write 授权
 - **AND** Write 后必须立即 Query 旧类型、旧表、引用、孤儿、非目标保护与幂等结果并等待验收
 
+#### Scenario: Migration target 分层执行
+- **WHEN** cleanup 与 external identifier schema 同时处于 pending migration
+- **THEN** 标准 dbmigrate 路径必须支持显式 target version，并在 cleanup Write 只执行到 `000015`
+- **AND** 成功报告必须只列出实际 applied migration，`000016` 必须保持 pending 直到 schema Write 单独授权
+- **AND** 无 target 的既有 apply-all 行为不得变化，非法、回退或不存在的跳跃 target 必须在 Write 前拒绝
+
 #### Scenario: Phase A data contract 与实现门禁
 - **WHEN** structure implementation checkpoint 已通过且第一批名称范围已批准
 - **THEN** 系统必须先单独 Review aliases、definition/boundary、全新 UUID/key、外部标识 schema、taxonomy、去重、幂等与 dry-run/report 契约
@@ -122,6 +128,7 @@
 - **WHEN** cleanup Query 已验收且外部标识 schema implementation 已通过 Review
 - **THEN** 系统必须单独取得 schema Write 授权
 - **AND** Write 后必须立即 Query 表、列、FK、唯一约束、索引、版本与幂等结果并等待验收
+- **AND** schema Write 必须显式 target `000016`，不得通过让后续 migration 故意失败来切分状态
 
 #### Scenario: Phase A node/profile seed 门禁
 - **WHEN** external identifier schema Query 已验收

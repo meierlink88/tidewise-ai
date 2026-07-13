@@ -68,9 +68,21 @@ func TestPostgresExternalIdentifierUpsertEnforcesTargetAndIdentity(t *testing.T)
 	defer db.Close()
 
 	identifier := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).
+		WithArgs(identity).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM entity_nodes")).
+		WithArgs(identifier.EntityID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(identifier.EntityID))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, entity_id, external_name, status FROM entity_external_identifiers")).
+		WithArgs(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}))
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO entity_external_identifiers")).
 		WithArgs(identifier.ID, identifier.EntityID, identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode, identifier.ExternalName, identifier.Status).
-		WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("created"))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(identifier.ID))
+	mock.ExpectCommit()
 	result, err := NewPostgresRepository(db).UpsertExternalIdentifier(context.Background(), identifier)
 	if err != nil || result.Action != WriteCreated {
 		t.Fatalf("UpsertExternalIdentifier() = %+v, %v", result, err)
@@ -79,18 +91,82 @@ func TestPostgresExternalIdentifierUpsertEnforcesTargetAndIdentity(t *testing.T)
 		t.Fatal(err)
 	}
 
-	statement := strings.ToLower(buildExternalIdentifierUpsert())
+	statement := strings.ToLower(externalIdentifierTargetSQL() + externalIdentifierSelectSQL() + externalIdentifierInsertSQL())
 	for _, required := range []string{
 		"entity_type = 'chain_node'",
 		"status = 'active'",
-		"on conflict (source_system, source_taxonomy_type, external_code)",
-		"entity_external_identifiers.entity_id = excluded.entity_id",
-		"identity_conflict",
-		"invalid_target",
+		"for share",
+		"for update",
+		"on conflict (source_system, source_taxonomy_type, external_code) do nothing",
 	} {
 		if !strings.Contains(statement, required) {
-			t.Fatalf("external identifier upsert missing %q", required)
+			t.Fatalf("external identifier transaction SQL missing %q", required)
 		}
+	}
+
+}
+
+func TestPostgresExternalIdentifierUpsertRollsBackSerializedRebindConflict(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	identifier := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).
+		WithArgs(identity).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM entity_nodes")).
+		WithArgs(identifier.EntityID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(identifier.EntityID))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, entity_id, external_name, status FROM entity_external_identifiers")).
+		WithArgs(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}))
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO entity_external_identifiers")).
+		WithArgs(identifier.ID, identifier.EntityID, identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode, identifier.ExternalName, identifier.Status).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, entity_id, external_name, status FROM entity_external_identifiers")).
+		WithArgs(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}).AddRow(identifier.ID, entitySeedUUID("chain_node:other"), identifier.ExternalName, identifier.Status))
+	mock.ExpectRollback()
+
+	if _, err := NewPostgresRepository(db).UpsertExternalIdentifier(context.Background(), identifier); err == nil || !strings.Contains(err.Error(), "identity conflict") {
+		t.Fatalf("error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPostgresExternalIdentifierUpsertUpdatesSameEntityAfterLock(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	identifier := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).WithArgs(identity).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM entity_nodes")).WithArgs(identifier.EntityID).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(identifier.EntityID))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, entity_id, external_name, status FROM entity_external_identifiers")).
+		WithArgs(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}).AddRow(identifier.ID, identifier.EntityID, "旧名称", domain.StatusInactive))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE entity_external_identifiers")).
+		WithArgs(identifier.ExternalName, identifier.Status, identifier.ID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	result, err := NewPostgresRepository(db).UpsertExternalIdentifier(context.Background(), identifier)
+	if err != nil || result.Action != WriteUpdated {
+		t.Fatalf("result = %+v, error = %v", result, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 

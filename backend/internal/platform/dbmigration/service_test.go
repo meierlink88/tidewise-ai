@@ -3,6 +3,8 @@ package dbmigration
 import (
 	"context"
 	"errors"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -67,6 +69,32 @@ func TestServiceAutoApplyUsesLock(t *testing.T) {
 	}
 }
 
+func TestServiceForwardsTargetVersionAndReportsOnlyActuallyAppliedMigrations(t *testing.T) {
+	executor := &fakeExecutor{
+		version:           "14",
+		pending:           []Migration{{Version: "000015"}, {Version: "000016"}},
+		appliedMigrations: []Migration{{Version: "000015"}},
+	}
+	service := NewService(executor, &fakeServiceLocker{})
+
+	report, err := service.Check(context.Background(), ServiceOptions{AutoApply: true, TargetVersion: "15"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if executor.targetVersion != "15" {
+		t.Fatalf("target version = %q", executor.targetVersion)
+	}
+	if got, want := migrationVersions(report.Applied), []string{"000015"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("applied = %v, want %v", got, want)
+	}
+	if got, want := migrationVersions(report.Pending), []string{"000015", "000016"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pending = %v, want %v", got, want)
+	}
+	if got, want := migrationVersions(report.Remaining), []string{"000016"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("remaining = %v, want %v", got, want)
+	}
+}
+
 func TestServiceSkipsLockWhenNoPending(t *testing.T) {
 	executor := &fakeExecutor{version: "000001"}
 	locker := &fakeServiceLocker{}
@@ -82,6 +110,20 @@ func TestServiceSkipsLockWhenNoPending(t *testing.T) {
 	}
 	if locker.locked || locker.unlocked {
 		t.Fatal("no pending migrations must not lock")
+	}
+}
+
+func TestServiceDoesNotSkipTargetValidationWhenNoMigrationsArePending(t *testing.T) {
+	executor := &fakeExecutor{version: "16", applyErr: errors.New("target version 15 is behind current version 16")}
+	locker := &fakeServiceLocker{}
+	service := NewService(executor, locker)
+
+	_, err := service.Check(context.Background(), ServiceOptions{AutoApply: true, TargetVersion: "15"})
+	if err == nil || !strings.Contains(err.Error(), "behind current version") {
+		t.Fatalf("error = %v", err)
+	}
+	if !executor.applied || executor.targetVersion != "15" {
+		t.Fatalf("executor = %+v", executor)
 	}
 }
 
@@ -127,6 +169,7 @@ type fakeExecutor struct {
 	pendingErr        error
 	applyErr          error
 	applied           bool
+	targetVersion     string
 }
 
 func (e *fakeExecutor) CurrentVersion(context.Context) (string, error) {
@@ -137,8 +180,9 @@ func (e *fakeExecutor) Pending(context.Context) ([]Migration, error) {
 	return e.pending, e.pendingErr
 }
 
-func (e *fakeExecutor) Apply(context.Context) ([]Migration, error) {
+func (e *fakeExecutor) Apply(_ context.Context, targetVersion string) ([]Migration, error) {
 	e.applied = true
+	e.targetVersion = targetVersion
 	return e.appliedMigrations, e.applyErr
 }
 

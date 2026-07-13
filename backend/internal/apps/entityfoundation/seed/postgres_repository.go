@@ -152,10 +152,41 @@ func (r PostgresRepository) UpsertExternalIdentifier(ctx context.Context, identi
 	if err := validateFirstBatchExternalIdentifier(identifier); err != nil {
 		return WriteResult{}, err
 	}
-	var action string
-	if err := r.db.QueryRowContext(
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	tx, err := r.root.BeginTx(ctx, nil)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("begin external identifier transaction %q: %w", identity, err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if _, err := tx.ExecContext(ctx, externalIdentifierTransactionLockSQL(), identity); err != nil {
+		return WriteResult{}, fmt.Errorf("lock external identifier %q: %w", identity, err)
+	}
+	var targetID string
+	if err := tx.QueryRowContext(ctx, externalIdentifierTargetSQL(), identifier.EntityID).Scan(&targetID); err != nil {
+		if err == sql.ErrNoRows {
+			return WriteResult{}, fmt.Errorf("external identifier %q requires an active chain_node target", identity)
+		}
+		return WriteResult{}, fmt.Errorf("validate external identifier target %q: %w", identity, err)
+	}
+
+	existing, found, err := selectExternalIdentifierForUpdate(ctx, tx, identifier)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("read external identifier %q: %w", identity, err)
+	}
+	if found {
+		action, err := reconcileExternalIdentifier(ctx, tx, identifier, existing)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		return commitExternalIdentifier(tx, identity, action)
+	}
+
+	var insertedID string
+	err = tx.QueryRowContext(
 		ctx,
-		buildExternalIdentifierUpsert(),
+		externalIdentifierInsertSQL(),
 		identifier.ID,
 		identifier.EntityID,
 		identifier.SourceSystem,
@@ -163,57 +194,111 @@ func (r PostgresRepository) UpsertExternalIdentifier(ctx context.Context, identi
 		identifier.ExternalCode,
 		identifier.ExternalName,
 		identifier.Status,
-	).Scan(&action); err != nil {
-		return WriteResult{}, fmt.Errorf("upsert external identifier %q: %w", externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode), err)
+	).Scan(&insertedID)
+	if err == nil {
+		return commitExternalIdentifier(tx, identity, WriteCreated)
 	}
-	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
-	switch action {
-	case string(WriteCreated), string(WriteUpdated), string(WriteUnchanged):
-		return WriteResult{Key: identity, Action: WriteAction(action)}, nil
-	case "invalid_target":
-		return WriteResult{}, fmt.Errorf("external identifier %q requires an active chain_node target", identity)
-	case "identity_conflict":
-		return WriteResult{}, fmt.Errorf("external identifier %q identity conflict", identity)
-	default:
-		return WriteResult{}, fmt.Errorf("external identifier %q returned unsupported action %q", identity, action)
+	if err != sql.ErrNoRows {
+		return WriteResult{}, fmt.Errorf("insert external identifier %q: %w", identity, err)
 	}
+
+	existing, found, err = selectExternalIdentifierForUpdate(ctx, tx, identifier)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("re-read concurrent external identifier %q: %w", identity, err)
+	}
+	if !found {
+		return WriteResult{}, fmt.Errorf("external identifier %q conflict winner was not visible after insert", identity)
+	}
+	action, err := reconcileExternalIdentifier(ctx, tx, identifier, existing)
+	if err != nil {
+		return WriteResult{}, err
+	}
+	return commitExternalIdentifier(tx, identity, action)
 }
 
-func buildExternalIdentifierUpsert() string {
+func externalIdentifierTransactionLockSQL() string {
+	return "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"
+}
+
+func externalIdentifierTargetSQL() string {
 	return `
-WITH target AS (
-    SELECT id
-    FROM entity_nodes
-    WHERE id = $2::uuid
-      AND entity_type = 'chain_node'
-      AND status = 'active'
-), existing AS (
-    SELECT entity_id
-    FROM entity_external_identifiers
-    WHERE source_system = $3
-      AND source_taxonomy_type = $4
-      AND external_code = $5
-), upsert AS (
-    INSERT INTO entity_external_identifiers (
-        id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status
-    )
-    SELECT $1::uuid, target.id, $3, $4, $5, $6, $7
-    FROM target
-    WHERE NOT EXISTS (SELECT 1 FROM existing WHERE entity_id IS DISTINCT FROM target.id)
-    ON CONFLICT (source_system, source_taxonomy_type, external_code) DO UPDATE SET
-        external_name = EXCLUDED.external_name,
-        status = EXCLUDED.status,
-        updated_at = now()
-    WHERE entity_external_identifiers.entity_id = EXCLUDED.entity_id
-      AND (entity_external_identifiers.external_name IS DISTINCT FROM EXCLUDED.external_name
-        OR entity_external_identifiers.status IS DISTINCT FROM EXCLUDED.status)
-    RETURNING xmax = 0 AS inserted
-)
-SELECT CASE
-    WHEN NOT EXISTS (SELECT 1 FROM target) THEN 'invalid_target'
-    WHEN EXISTS (SELECT 1 FROM existing WHERE entity_id IS DISTINCT FROM $2::uuid) THEN 'identity_conflict'
-    ELSE COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
-END AS action`
+SELECT id FROM entity_nodes
+WHERE id = $1::uuid
+  AND entity_type = 'chain_node'
+  AND status = 'active'
+FOR SHARE`
+}
+
+func externalIdentifierSelectSQL() string {
+	return `
+SELECT id, entity_id, external_name, status FROM entity_external_identifiers
+WHERE source_system = $1
+  AND source_taxonomy_type = $2
+  AND external_code = $3
+FOR UPDATE`
+}
+
+func externalIdentifierInsertSQL() string {
+	return `
+INSERT INTO entity_external_identifiers (
+    id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status
+) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)
+ON CONFLICT (source_system, source_taxonomy_type, external_code) DO NOTHING
+RETURNING id`
+}
+
+type storedExternalIdentifier struct {
+	ID           string
+	EntityID     string
+	ExternalName string
+	Status       domain.Status
+}
+
+func selectExternalIdentifierForUpdate(ctx context.Context, tx *sql.Tx, identifier domain.EntityExternalIdentifier) (storedExternalIdentifier, bool, error) {
+	var existing storedExternalIdentifier
+	err := tx.QueryRowContext(
+		ctx,
+		externalIdentifierSelectSQL(),
+		identifier.SourceSystem,
+		identifier.SourceTaxonomyType,
+		identifier.ExternalCode,
+	).Scan(&existing.ID, &existing.EntityID, &existing.ExternalName, &existing.Status)
+	if err == sql.ErrNoRows {
+		return storedExternalIdentifier{}, false, nil
+	}
+	return existing, err == nil, err
+}
+
+func reconcileExternalIdentifier(ctx context.Context, tx *sql.Tx, wanted domain.EntityExternalIdentifier, existing storedExternalIdentifier) (WriteAction, error) {
+	identity := externalIdentifierIdentity(wanted.SourceSystem, wanted.SourceTaxonomyType, wanted.ExternalCode)
+	if existing.ID != wanted.ID || existing.EntityID != wanted.EntityID {
+		return "", fmt.Errorf("external identifier %q identity conflict", identity)
+	}
+	if existing.ExternalName == wanted.ExternalName && existing.Status == wanted.Status {
+		return WriteUnchanged, nil
+	}
+	result, err := tx.ExecContext(ctx, `
+UPDATE entity_external_identifiers
+SET external_name = $1, status = $2, updated_at = now()
+WHERE id = $3::uuid`, wanted.ExternalName, wanted.Status, wanted.ID)
+	if err != nil {
+		return "", fmt.Errorf("update external identifier %q: %w", identity, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return "", fmt.Errorf("read external identifier %q update count: %w", identity, err)
+	}
+	if rows != 1 {
+		return "", fmt.Errorf("external identifier %q update affected %d rows, want 1", identity, rows)
+	}
+	return WriteUpdated, nil
+}
+
+func commitExternalIdentifier(tx *sql.Tx, identity string, action WriteAction) (WriteResult, error) {
+	if err := tx.Commit(); err != nil {
+		return WriteResult{}, fmt.Errorf("commit external identifier %q: %w", identity, err)
+	}
+	return WriteResult{Key: identity, Action: action}, nil
 }
 
 func (r PostgresRepository) UpsertSectorSourceMapping(ctx context.Context, mapping SectorSourceMapping) (WriteResult, error) {

@@ -8,17 +8,19 @@ import (
 type Executor interface {
 	CurrentVersion(context.Context) (string, error)
 	Pending(context.Context) ([]Migration, error)
-	Apply(context.Context) ([]Migration, error)
+	Apply(context.Context, string) ([]Migration, error)
 }
 
 type ServiceOptions struct {
-	AutoApply bool
+	AutoApply     bool
+	TargetVersion string
 }
 
 type ServiceReport struct {
 	CurrentVersion string      `json:"current_version"`
 	Pending        []Migration `json:"pending"`
 	Applied        []Migration `json:"applied"`
+	Remaining      []Migration `json:"remaining"`
 }
 
 type Service struct {
@@ -44,8 +46,9 @@ func (s Service) Check(ctx context.Context, options ServiceOptions) (ServiceRepo
 	report := ServiceReport{
 		CurrentVersion: version,
 		Pending:        pending,
+		Remaining:      append([]Migration(nil), pending...),
 	}
-	if len(pending) == 0 || !options.AutoApply {
+	if !options.AutoApply || (len(pending) == 0 && options.TargetVersion == "") {
 		return report, nil
 	}
 
@@ -56,11 +59,26 @@ func (s Service) Check(ctx context.Context, options ServiceOptions) (ServiceRepo
 		_ = s.locker.Unlock(ctx)
 	}()
 
-	applied, err := s.executor.Apply(ctx)
+	applied, err := s.executor.Apply(ctx, options.TargetVersion)
 	if err != nil {
 		return ServiceReport{}, err
 	}
 	report.Applied = applied
+	report.Remaining = remainingMigrations(pending, applied)
 
 	return report, nil
+}
+
+func remainingMigrations(pending, applied []Migration) []Migration {
+	appliedVersions := make(map[string]struct{}, len(applied))
+	for _, migration := range applied {
+		appliedVersions[migration.Version] = struct{}{}
+	}
+	remaining := make([]Migration, 0, len(pending))
+	for _, migration := range pending {
+		if _, exists := appliedVersions[migration.Version]; !exists {
+			remaining = append(remaining, migration)
+		}
+	}
+	return remaining
 }

@@ -70,3 +70,13 @@
 - **WHEN** 相同外部 identity 再次导入同一 entity_id
 - **THEN** 系统只能将一致记录报告为 unchanged，或更新 external_name、status 与 updated_at
 - **AND** entity_id 变化、taxonomy 未决或 external code 冲突必须报告 conflict 并阻断 Write
+
+#### Scenario: Dry-run 核对现存外部标识
+- **WHEN** 系统生成 mapping dry-run
+- **THEN** 必须同时按 `(source_system, source_taxonomy_type, external_code)` 与确定性 ID 核对现存 snapshot；发现既有记录时两个索引必须齐全，并为每条已解析 mapping 输出 created、updated、unchanged 或 conflict
+- **AND** tuple 换绑 entity_id、确定性 ID 漂移或两个 snapshot 索引不一致必须 conflict；同 entity 的 external_name/status 漂移才可 updated；完整一致才可 unchanged
+
+#### Scenario: 并发换绑必然失败
+- **WHEN** 两个并发事务尝试将同一 external identity 绑定到不同 entity_id
+- **THEN** repository 必须在事务中串行化该 identity，并在冲突插入后重读最终 winner
+- **AND** 最多一个事务可以成功，另一个必须返回 identity conflict，不得报告 unchanged 或 updated

@@ -34,6 +34,7 @@ type FirstBatchDraft struct {
 type FirstBatchExpectations struct {
 	Nodes             int `json:"nodes"`
 	OriginalNames     int `json:"original_names"`
+	WideBoundaryNodes int `json:"wide_boundary_nodes"`
 	Mappings          int `json:"mappings"`
 	EastmoneyMappings int `json:"eastmoney_mappings"`
 	THSMappings       int `json:"ths_mappings"`
@@ -44,6 +45,7 @@ func ApprovedFirstBatchExpectations() FirstBatchExpectations {
 	return FirstBatchExpectations{
 		Nodes:             842,
 		OriginalNames:     950,
+		WideBoundaryNodes: 79,
 		Mappings:          1156,
 		EastmoneyMappings: 811,
 		THSMappings:       345,
@@ -52,19 +54,37 @@ func ApprovedFirstBatchExpectations() FirstBatchExpectations {
 }
 
 type FirstBatchIdentity struct {
-	EntityID      string   `json:"entity_id"`
-	EntityKey     string   `json:"entity_key"`
-	CanonicalName string   `json:"canonical_name"`
-	Aliases       []string `json:"aliases"`
-	Definition    string   `json:"definition"`
-	BoundaryNote  string   `json:"boundary_note,omitempty"`
-	Action        string   `json:"action"`
+	EntityID      string            `json:"entity_id"`
+	EntityKey     string            `json:"entity_key"`
+	EntityType    domain.EntityType `json:"entity_type"`
+	CanonicalName string            `json:"canonical_name"`
+	Aliases       []string          `json:"aliases"`
+	Definition    string            `json:"definition"`
+	BoundaryNote  string            `json:"boundary_note,omitempty"`
+	Status        domain.Status     `json:"status"`
+	Action        string            `json:"action"`
 }
 
 type FirstBatchIdentitySnapshot struct {
-	ByEntityID      map[string]FirstBatchIdentity
-	ByEntityKey     map[string]FirstBatchIdentity
-	ByCanonicalName map[string]FirstBatchIdentity
+	ByEntityID          map[string]FirstBatchIdentity
+	ByEntityKey         map[string]FirstBatchIdentity
+	ByCanonicalName     map[string]FirstBatchIdentity
+	ExternalIdentifiers FirstBatchExternalIdentifierSnapshot
+}
+
+type FirstBatchExternalIdentifier struct {
+	ID                 string        `json:"id"`
+	EntityID           string        `json:"entity_id"`
+	SourceSystem       string        `json:"source_system"`
+	SourceTaxonomyType string        `json:"source_taxonomy_type"`
+	ExternalCode       string        `json:"external_code"`
+	ExternalName       string        `json:"external_name"`
+	Status             domain.Status `json:"status"`
+}
+
+type FirstBatchExternalIdentifierSnapshot struct {
+	ByIdentity map[string]FirstBatchExternalIdentifier
+	ByID       map[string]FirstBatchExternalIdentifier
 }
 
 type FirstBatchMappingReport struct {
@@ -79,16 +99,17 @@ type FirstBatchMappingReport struct {
 }
 
 type FirstBatchDryRunReport struct {
-	Ready               bool                      `json:"ready"`
-	NodeCount           int                       `json:"node_count"`
-	OriginalNameCount   int                       `json:"original_name_count"`
-	MappingCount        int                       `json:"mapping_count"`
-	ProviderCounts      map[string]int            `json:"provider_counts"`
-	DualSourceNodeCount int                       `json:"dual_source_node_count"`
-	Nodes               []FirstBatchIdentity      `json:"nodes"`
-	Mappings            []FirstBatchMappingReport `json:"mappings"`
-	Blockers            []string                  `json:"blockers"`
-	Conflicts           []string                  `json:"conflicts"`
+	Ready                 bool                      `json:"ready"`
+	NodeCount             int                       `json:"node_count"`
+	OriginalNameCount     int                       `json:"original_name_count"`
+	WideBoundaryNodeCount int                       `json:"wide_boundary_node_count"`
+	MappingCount          int                       `json:"mapping_count"`
+	ProviderCounts        map[string]int            `json:"provider_counts"`
+	DualSourceNodeCount   int                       `json:"dual_source_node_count"`
+	Nodes                 []FirstBatchIdentity      `json:"nodes"`
+	Mappings              []FirstBatchMappingReport `json:"mappings"`
+	Blockers              []string                  `json:"blockers"`
+	Conflicts             []string                  `json:"conflicts"`
 }
 
 func BuildFirstBatchDryRun(draft FirstBatchDraft, snapshot FirstBatchIdentitySnapshot, expectations FirstBatchExpectations) FirstBatchDryRunReport {
@@ -136,6 +157,9 @@ func BuildFirstBatchDryRun(draft FirstBatchDraft, snapshot FirstBatchIdentitySna
 		if node.WideBoundary && strings.TrimSpace(identity.BoundaryNote) == "" {
 			report.Blockers = append(report.Blockers, fmt.Sprintf("node %q boundary_note is required for a wide boundary", identity.CanonicalName))
 		}
+		if node.WideBoundary {
+			report.WideBoundaryNodeCount++
+		}
 		if node.BoundaryNote != "" && strings.TrimSpace(node.BoundaryNote) == "" {
 			report.Blockers = append(report.Blockers, fmt.Sprintf("node %q boundary_note must be nonblank when present", identity.CanonicalName))
 		}
@@ -182,6 +206,7 @@ func BuildFirstBatchDryRun(draft FirstBatchDraft, snapshot FirstBatchIdentitySna
 		}
 		providersByCanonical[mapping.CanonicalName][mapping.SourceSystem] = struct{}{}
 		report.ProviderCounts[mapping.SourceSystem]++
+		action := firstBatchMappingAction(external, snapshot.ExternalIdentifiers, &report)
 		report.Mappings = append(report.Mappings, FirstBatchMappingReport{
 			ID:                 external.ID,
 			EntityID:           external.EntityID,
@@ -190,7 +215,7 @@ func BuildFirstBatchDryRun(draft FirstBatchDraft, snapshot FirstBatchIdentitySna
 			SourceTaxonomyType: external.SourceTaxonomyType,
 			ExternalCode:       external.ExternalCode,
 			ExternalName:       external.ExternalName,
-			Action:             string(WriteCreated),
+			Action:             action,
 		})
 	}
 	report.MappingCount = len(report.Mappings)
@@ -212,10 +237,12 @@ func buildFirstBatchIdentity(node FirstBatchNodeDraft) FirstBatchIdentity {
 	return FirstBatchIdentity{
 		EntityID:      entitySeedUUID(key),
 		EntityKey:     key,
+		EntityType:    domain.EntityTypeChainNode,
 		CanonicalName: canonical,
 		Aliases:       aliasesFromOriginalNames(canonical, node.OriginalNames),
 		Definition:    strings.TrimSpace(node.Definition),
 		BoundaryNote:  strings.TrimSpace(node.BoundaryNote),
+		Status:        domain.StatusActive,
 	}
 }
 
@@ -268,26 +295,123 @@ func validateFirstBatchDefinition(canonical string, originals []string, definiti
 }
 
 func firstBatchIdentityAction(identity FirstBatchIdentity, snapshot FirstBatchIdentitySnapshot, report *FirstBatchDryRunReport) string {
-	conflict := false
-	if existing, ok := snapshot.ByEntityKey[identity.EntityKey]; ok && (existing.EntityID != identity.EntityID || existing.CanonicalName != identity.CanonicalName) {
-		report.Conflicts = append(report.Conflicts, fmt.Sprintf("entity_key %q conflicts with existing identity", identity.EntityKey))
-		conflict = true
+	conflictsBefore := len(report.Conflicts)
+	existingStates := make([]FirstBatchIdentity, 0, 3)
+	for _, lookup := range []struct {
+		label    string
+		value    string
+		existing FirstBatchIdentity
+		found    bool
+	}{
+		{label: "entity_key", value: identity.EntityKey, existing: snapshot.ByEntityKey[identity.EntityKey], found: snapshotHasIdentity(snapshot.ByEntityKey, identity.EntityKey)},
+		{label: "entity_id", value: identity.EntityID, existing: snapshot.ByEntityID[identity.EntityID], found: snapshotHasIdentity(snapshot.ByEntityID, identity.EntityID)},
+		{label: "canonical_name", value: identity.CanonicalName, existing: snapshot.ByCanonicalName[identity.CanonicalName], found: snapshotHasIdentity(snapshot.ByCanonicalName, identity.CanonicalName)},
+	} {
+		if !lookup.found {
+			continue
+		}
+		existingStates = append(existingStates, lookup.existing)
+		if !sameFirstBatchIdentityKey(lookup.existing, identity) {
+			report.Conflicts = append(report.Conflicts, fmt.Sprintf("%s %q conflicts with existing identity", lookup.label, lookup.value))
+		}
 	}
-	if existing, ok := snapshot.ByEntityID[identity.EntityID]; ok && (existing.EntityKey != identity.EntityKey || existing.CanonicalName != identity.CanonicalName) {
-		report.Conflicts = append(report.Conflicts, fmt.Sprintf("entity_id %q conflicts with existing identity", identity.EntityID))
-		conflict = true
+	if len(existingStates) == 0 {
+		return string(WriteCreated)
 	}
-	if existing, ok := snapshot.ByCanonicalName[identity.CanonicalName]; ok && (existing.EntityID != identity.EntityID || existing.EntityKey != identity.EntityKey) {
-		report.Conflicts = append(report.Conflicts, fmt.Sprintf("canonical_name %q conflicts with existing identity", identity.CanonicalName))
-		conflict = true
+	if len(existingStates) != 3 {
+		report.Conflicts = append(report.Conflicts, fmt.Sprintf("snapshot indexes are incomplete for entity_key %q", identity.EntityKey))
 	}
-	if conflict {
+	for _, existing := range existingStates {
+		if !sameFirstBatchIdentityState(existingStates[0], existing) {
+			report.Conflicts = append(report.Conflicts, fmt.Sprintf("snapshot indexes disagree for entity_key %q", identity.EntityKey))
+			break
+		}
+	}
+	existing := existingStates[0]
+	if existing.EntityType != domain.EntityTypeChainNode {
+		report.Conflicts = append(report.Conflicts, fmt.Sprintf("entity_key %q has existing entity_type %q, want chain_node", identity.EntityKey, existing.EntityType))
+	}
+	if existing.Status != domain.StatusActive {
+		report.Conflicts = append(report.Conflicts, fmt.Sprintf("entity_key %q has existing status %q, want active", identity.EntityKey, existing.Status))
+	}
+	if len(report.Conflicts) > conflictsBefore {
 		return "conflict"
 	}
-	if existing, ok := snapshot.ByEntityKey[identity.EntityKey]; ok && existing.EntityID == identity.EntityID && existing.CanonicalName == identity.CanonicalName {
-		return string(WriteUnchanged)
+	if !sameFirstBatchIdentityMutable(existing, identity) {
+		return string(WriteUpdated)
 	}
-	return string(WriteCreated)
+	return string(WriteUnchanged)
+}
+
+func snapshotHasIdentity(values map[string]FirstBatchIdentity, key string) bool {
+	if values == nil {
+		return false
+	}
+	_, ok := values[key]
+	return ok
+}
+
+func sameFirstBatchIdentityKey(left, right FirstBatchIdentity) bool {
+	return left.EntityID == right.EntityID && left.EntityKey == right.EntityKey && left.CanonicalName == right.CanonicalName
+}
+
+func sameFirstBatchIdentityState(left, right FirstBatchIdentity) bool {
+	return sameFirstBatchIdentityKey(left, right) && left.EntityType == right.EntityType && left.Status == right.Status && sameFirstBatchIdentityMutable(left, right)
+}
+
+func sameFirstBatchIdentityMutable(left, right FirstBatchIdentity) bool {
+	if left.Definition != right.Definition || left.BoundaryNote != right.BoundaryNote || len(left.Aliases) != len(right.Aliases) {
+		return false
+	}
+	for index := range left.Aliases {
+		if left.Aliases[index] != right.Aliases[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func firstBatchMappingAction(identifier domain.EntityExternalIdentifier, snapshot FirstBatchExternalIdentifierSnapshot, report *FirstBatchDryRunReport) string {
+	conflictsBefore := len(report.Conflicts)
+	wanted := FirstBatchExternalIdentifier{
+		ID: identifier.ID, EntityID: identifier.EntityID, SourceSystem: identifier.SourceSystem,
+		SourceTaxonomyType: identifier.SourceTaxonomyType, ExternalCode: identifier.ExternalCode,
+		ExternalName: identifier.ExternalName, Status: identifier.Status,
+	}
+	identity := externalIdentifierIdentity(wanted.SourceSystem, wanted.SourceTaxonomyType, wanted.ExternalCode)
+	existingStates := make([]FirstBatchExternalIdentifier, 0, 2)
+	if existing, ok := snapshot.ByIdentity[identity]; ok {
+		existingStates = append(existingStates, existing)
+		if externalIdentifierIdentity(existing.SourceSystem, existing.SourceTaxonomyType, existing.ExternalCode) != identity || existing.ID != wanted.ID || existing.EntityID != wanted.EntityID {
+			report.Conflicts = append(report.Conflicts, fmt.Sprintf("external identity %q conflicts with existing binding or deterministic id", identity))
+		}
+	}
+	if existing, ok := snapshot.ByID[wanted.ID]; ok {
+		existingStates = append(existingStates, existing)
+		if externalIdentifierIdentity(existing.SourceSystem, existing.SourceTaxonomyType, existing.ExternalCode) != identity || existing.EntityID != wanted.EntityID {
+			report.Conflicts = append(report.Conflicts, fmt.Sprintf("external identifier id %q conflicts with existing identity or binding", wanted.ID))
+		}
+	}
+	if len(existingStates) == 0 {
+		return string(WriteCreated)
+	}
+	if len(existingStates) != 2 {
+		report.Conflicts = append(report.Conflicts, fmt.Sprintf("external identifier snapshot indexes are incomplete for %q", identity))
+	}
+	for _, existing := range existingStates {
+		if existing != existingStates[0] {
+			report.Conflicts = append(report.Conflicts, fmt.Sprintf("external identifier snapshot indexes disagree for %q", identity))
+			break
+		}
+	}
+	if len(report.Conflicts) > conflictsBefore {
+		return "conflict"
+	}
+	existing := existingStates[0]
+	if existing.ExternalName != wanted.ExternalName || existing.Status != wanted.Status {
+		return string(WriteUpdated)
+	}
+	return string(WriteUnchanged)
 }
 
 func normalizeFirstBatchMappingDraft(mapping FirstBatchMappingDraft) FirstBatchMappingDraft {
@@ -307,6 +431,7 @@ func validateFirstBatchCounts(report *FirstBatchDryRunReport, expectations First
 	}{
 		{"nodes", report.NodeCount, expectations.Nodes},
 		{"original_names", report.OriginalNameCount, expectations.OriginalNames},
+		{"wide_boundary_nodes", report.WideBoundaryNodeCount, expectations.WideBoundaryNodes},
 		{"mappings", report.MappingCount, expectations.Mappings},
 		{"eastmoney_mappings", report.ProviderCounts[ExternalSourceEastmoney], expectations.EastmoneyMappings},
 		{"ths_mappings", report.ProviderCounts[ExternalSourceTHS], expectations.THSMappings},

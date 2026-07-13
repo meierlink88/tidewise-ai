@@ -3,7 +3,7 @@
 ## 状态与禁止事项
 
 - first-batch data contract checkpoint `cd4b072` 已由主对话验收通过，task 1.11 完成。
-- 本 checkpoint 只提交 migration/domain/repository/validator、workbook parser 与 dry-run/report 代码及测试。
+- checkpoint `775afda` 的 task 1.12 Review 未通过；本 remediation checkpoint 只提交 migration target、domain/repository/validator、workbook parser 与 dry-run/report 代码及测试，task 1.12 在主对话复验前保持未完成。
 - 未执行 migration、cleanup、seed，未连接或写入 PostgreSQL/Neo4j，未进入 task 1.13 或 Phase B。
 
 ## Schema diff
@@ -25,13 +25,26 @@
 
 migration 不创建 `sector_source_mappings`、`chain_node_source_mappings`、JSONB、冗余四列唯一索引，也不插入任何数据。Down 明确阻断破坏性回滚，提交后只允许 reviewed forward-fix。
 
+## Migration target 操作路径
+
+标准 `dbmigrate` 新增 `-target-version`，CLI 通过 `ServiceOptions.TargetVersion` 传到 `GooseExecutor.Apply`，有 target 时使用 `goose.UpToContext`，无 target 时保留原 `goose.UpContext` apply-all 行为。report 保留执行前 `pending`、列出实际 `applied`，并新增由两者差集计算的 `remaining`，不通过额外数据库查询猜测状态。target 必须是当前版本或严格向前且真实存在的 migration；非数字、低于当前版本、越过不存在版本都在 Write 前失败。
+
+- cleanup Write 获得独立授权后：`TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 15`
+- 命令成功时 `applied` 只包含 `000015`，`remaining` 明确包含 `000016`；随后立即执行 cleanup Query 并等待验收。
+- cleanup Query 验收且 schema Write 另行获批后：`TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 16`
+
+真实连接 URL 只能由受控环境或 secret 注入，不写入仓库或日志。当前 pgx v5 配置不依赖 `PGOPTIONS`；session setting 通过 PostgreSQL URL 的 `options` 参数进入每个 migration connection。
+
+不得使用无 target 的 apply 后依赖 `000016` 授权异常来切分层级；session setting 与 target version 必须同时满足，但都不能代替 Review、备份和 Write 授权。本 checkpoint 没有运行上述命令。
+
 ## Domain / repository 契约
 
 - 通用 `domain.EntityExternalIdentifier` 只校验必填 identity 与 active/inactive 状态，不把 PostgreSQL schema 锁成来源 enum。
 - first-batch seed validator 额外限制 source 为 `eastmoney/ths`，taxonomy 为 `industry_sector/concept_sector/index_sector`。
 - identifier ID 由 `source_system|source_taxonomy_type|external_code` 确定性生成；entity ID 由全新 `chain_node:<stable_suffix>` key 使用现有确定性 helper 生成，不接受旧 UUID 覆盖。
 - memory/PostgreSQL repository 都要求目标是 active chain_node；相同 external identity 不得换绑 entity_id，只允许同实体 unchanged 或更新 external_name/status。
-- PostgreSQL upsert SQL 返回 `created/updated/unchanged/invalid_target/identity_conflict`，不会把冲突静默当作成功。
+- PostgreSQL repository 在单事务内先对完整 external identity 取得 `pg_advisory_xact_lock`，再以 `FOR SHARE` 锁定 active chain_node target、以 `FOR UPDATE` 读取已有 tuple。首次不存在时使用 `INSERT ... ON CONFLICT DO NOTHING RETURNING`；若并发 winner 抢先写入，当前事务立即重读并将不同 entity 或确定性 ID 判为 identity conflict，而不是 unchanged。
+- sqlmock transaction 测试覆盖 created、同 entity update，以及“首次查询为空、并发 winner 插入不同 entity、重读后 rollback/conflict”的竞态控制流，不再由 mock 直接预设 action。
 
 repository 代码当前没有被默认 seed service 调用；在 task 1.15 schema Query 与 task 1.17 node/profile Query 验收前，不存在可执行 mapping data 写入路径。
 
@@ -57,6 +70,7 @@ parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 
   "ready": false,
   "node_count": 1,
   "original_name_count": 1,
+  "wide_boundary_node_count": 1,
   "mapping_count": 0,
   "provider_counts": {"eastmoney": 0, "ths": 0},
   "dual_source_node_count": 0,
@@ -64,10 +78,12 @@ parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 
     {
       "entity_id": "deterministic-new-uuid",
       "entity_key": "chain_node:approved_stable_suffix",
+      "entity_type": "chain_node",
       "canonical_name": "已批准名称",
       "aliases": ["已批准原名"],
       "definition": "经 Review 的定义",
       "boundary_note": "必要时填写包含与排除边界",
+      "status": "active",
       "action": "created"
     }
   ],
@@ -77,17 +93,22 @@ parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 
 }
 ```
 
-这是单节点字段形状示例，不代表首批实际 report；它同时展示未消歧 mapping 不进入可写列表，且 approved counts 校验继续阻断 `ready`。首批完整 report 必须在 13 个代码逐项消歧、842 个 identity 与 definition/boundary 全部 Review 后重新生成，不得由当前解析证据推定为可执行 seed。
+这是单节点字段形状示例，不代表首批实际 report；它同时展示未消歧 mapping 不进入可写列表，且 approved counts 校验继续阻断 `ready`。首批完整 report 必须校验 842 nodes、950 original names、79 wide-boundary nodes、1,156 mappings、811/345 provider counts 与 241 dual-source nodes；13 个代码逐项消歧、842 个 identity 与 definition/boundary 全部 Review 前不得推定为可执行 seed。
+
+node snapshot 同时按 entity ID、key、canonical 建索引并携带 entity_type、status、aliases、definition、boundary_note：发现既有记录时三索引必须齐全，三个 identity 与完整内容完全一致才是 unchanged；aliases/profile 漂移为 updated；非 chain_node、inactive/merged、索引缺失或互相矛盾为 conflict。mapping snapshot 同时按外部 tuple 与确定性 ID 建索引，发现既有记录时双索引必须齐全：全新为 created，同 entity 的 name/status 漂移为 updated，完整一致为 unchanged，换绑、ID 漂移、索引缺失或矛盾为 conflict。任一 conflict/blocker 都令 `ready=false`。
 
 ## 验证覆盖
 
 - migration 字段、FK、唯一约束、普通索引、非空/status CHECK 与 forbidden structure 静态测试；
 - domain 必填与状态 table-driven validation；
 - memory repository create/unchanged/update/rebind conflict；
-- PostgreSQL SQL target/type/status、tuple conflict 与 action contract；
+- PostgreSQL transaction lock、target/type/status、首次空读/并发 winner 重读、tuple/ID conflict 与 action contract；
 - workbook aliases、逐行 mapping、external name 与组合 taxonomy 阻断；
-- dry-run count、稳定 identity、aliases、definition/boundary、snapshot 冲突与 approved expectations。
+- dry-run node type/status/profile drift、mapping tuple/ID snapshot、重复执行幂等、wide-boundary=79、稳定 identity、aliases、definition/boundary、snapshot 交叉冲突与 approved expectations；
+- migration target 15 只应用 `000015` 且保留 `000016` pending、无 target 兼容、非法/回退/跳跃拒绝，以及 CLI/Service/Executor 参数传递。
+
+真实双连接并发集成测试代码使用专用 `TIDEWISE_EXTERNAL_IDENTIFIER_CONCURRENCY_TEST_DATABASE_URL`，会验证同 tuple 不同 entity 并发时恰好一个成功、一个 conflict、最终仅一行。该测试必须等待 `000016` schema Query 验收和单独数据库测试授权，本 remediation checkpoint 明确不设置该环境变量、不运行它、不连接数据库。
 
 ## 后续门禁
 
-主对话验收本 checkpoint 后仍只允许进入 task 1.13 cleanup Review。cleanup Write、external identifier schema Write、node/profile seed Write、mapping data Write 都需要各自单独授权与写后 Query。
+task 1.12 在主对话验收本 remediation checkpoint 前保持未完成；通过后仍只允许进入 task 1.13 cleanup Review。cleanup Write、external identifier schema Write、node/profile seed Write、mapping data Write 都需要各自单独授权与写后 Query。
