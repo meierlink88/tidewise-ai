@@ -39,6 +39,7 @@
 | 预期工具版本 | `postgres`、`psql`、`pg_restore` 均为 PostgreSQL `16.14` |
 | container | `tidewise-restore-rehearsal-20260713t100759z` |
 | database | `tidewise_restore_rehearsal`；禁止使用 `tidewise_local` |
+| host / port / user / sslmode | `127.0.0.1` / `55432` / `postgres` / `disable` |
 | network | `tidewise-restore-rehearsal-20260713t100759z-net`，独立 internal bridge |
 | volume | `tidewise-restore-rehearsal-20260713t100759z-data`，新建 disposable volume |
 | host port | 仅 `127.0.0.1:55432 -> container:5432` |
@@ -53,6 +54,7 @@
 - 新 volume 名称必须执行前不存在；不得 mount、clone 或 inspect 当前 PostgreSQL data volume 内容。稳定 backup 以 read-only bind mount 暴露为 `/backup/source.dump`。
 - 执行时在 `/private/tmp/tidewise-restore-rehearsal-20260713t100759z-secret` 以 `0700` 建立临时 secret 目录，使用本机 CSPRNG 生成一次性密码文件和 `.pgpass`，文件权限 `0600`。真实密码不得出现在命令参数、环境回显、artifact、日志或 evidence 中。
 - PostgreSQL container 只接收 `POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password`；secret file 以 read-only bind mount 注入。Host preflight 只通过 `PGPASSFILE` 读取凭据，不在 URL 中保存密码。
+- Host preflight 的 DSN 必须仅在启动进程的内存中由固定组件 `host=127.0.0.1`、`port=55432`、`database=tidewise_restore_rehearsal`、`user=postgres`、`sslmode=disable` 组装；artifact、evidence、shell history 与日志均不得保存或打印组装结果。命令文档只能保留占位符，不得出现完整 PostgreSQL URL。
 - 禁止 `set -x`、`env` dump、完整 `docker inspect`、打印 `.pgpass` 或打印 secret file。日志只允许记录资源名、image digest、工具版本、数据库名、counts/assertions 和错误摘要。
 
 该隔离 database/volume 被明确声明为 `approved disposable recovery` 候选：不包含不可替代数据，确定性 recreate 路径是销毁后按本文件从同一 stable SHA-256 backup 重新创建；预计重建时间不超过 20 分钟。只有主对话明确批准本 package 后，这一 disposable 声明才成立。
@@ -124,20 +126,36 @@ docker exec --user postgres tidewise-restore-rehearsal-20260713t100759z \
 
 ### 4. 只读验证
 
-1. 首先通过 container 内 Unix socket 验证 `current_database()='tidewise_restore_rehearsal'`、PostgreSQL=16.14，且不存在 `tidewise_local` database；不满足立即停止。
-2. Host 只允许连接 `127.0.0.1:55432/tidewise_restore_rehearsal`，使用 `PGPASSFILE` 和不含密码的 `TIDEWISE_DATABASE_URL` 运行标准 `go run ./cmd/entity-seed -phase-a-preflight`。输出写入稳定 evidence 目录，不得打印连接配置。
-3. 标准入口必须继续使用 `REPEATABLE READ READ ONLY`；另用同等级只读事务查询 Goose version 与目标 identity 列表。
-4. 将恢复库目标 identity 规范排序并计算 SHA-256；保存 preflight JSON、target list、assertion summary、工具版本、image digest 和脱敏 container log。
+1. 在 Go preflight **之前**，必须从 host 使用独立 `psql` guard 和固定的离散连接参数验证连接目标；不得复用 Go 配置解析结果作为 guard。`\conninfo` 必须显示 client target 为 `host=127.0.0.1`、`port=55432`，SQL 必须验证 `current_database()='tidewise_restore_rehearsal'`、`inet_server_addr()` 非空、`inet_server_port()=5432`、PostgreSQL=16.14，且 `pg_database` 不存在 `tidewise_local`。任一不满足立即停止。
+2. Host 只允许连接上述固定隔离组件，使用 `PGPASSFILE` 与进程内临时组装、且不含密码的 `TIDEWISE_DATABASE_URL` 运行标准 `go run ./cmd/entity-seed -phase-a-preflight`。必须显式移除备用 `DATABASE_URL`，并在启动前断言 `TIDEWISE_DATABASE_URL` 非空。输出写入稳定 evidence 目录，不得打印连接配置。
+3. 显式 `TIDEWISE_DATABASE_URL` 解析、配置校验或连接失败时必须立即停止；禁止清空该变量、重试未带该变量的命令，或回退 `config.local.yaml`/默认 local 配置。
+4. 标准入口必须继续使用 `REPEATABLE READ READ ONLY`；另用同等级只读事务查询 Goose version 与目标 identity 列表。
+5. Go preflight **之后**必须再次运行与步骤 1 完全相同的独立 `psql` guard；前后 guard 均通过且 identity 输出一致才可继续。将恢复库目标 identity 规范排序并计算 SHA-256；保存 preflight JSON、target list、assertion summary、工具版本、image digest 和脱敏 container log。
+
+前后两次独立 guard 的命令形状相同，且只使用离散参数，不使用 DSN：
+
+```text
+PGPASSFILE=<temporary-pgpass> psql --no-psqlrc --set=ON_ERROR_STOP=1 \
+  --host=127.0.0.1 --port=55432 --username=postgres \
+  --dbname=tidewise_restore_rehearsal --tuples-only --no-align \
+  --command='\conninfo' \
+  --command="SELECT current_database(), inet_server_addr()::text, inet_server_port(), current_setting('server_version'), NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='tidewise_local');"
+```
+
+由于 host port 映射到 container 的 server port，`\conninfo` 负责验证 client target `127.0.0.1:55432`，SQL 负责验证实际 server address 非空与 server port `5432`；不得把二者混为同一端口断言。
 
 标准入口的连接形状只允许：
 
 ```text
+env -u DATABASE_URL \
 PGPASSFILE=<temporary-pgpass> \
-TIDEWISE_DATABASE_URL='postgres://postgres@127.0.0.1:55432/tidewise_restore_rehearsal?sslmode=disable' \
+TIDEWISE_DATABASE_URL='<runtime-only isolated restore DSN without password>' \
 APP_ENV=local go run ./cmd/entity-seed -phase-a-preflight
 ```
 
-该 URL 不含密码；真实凭据只来自权限 `0600` 的临时 `PGPASSFILE`。验证期间不得设置任何 migration/cleanup/seed authorization session setting。
+占位符必须在同一进程启动边界内替换为由上述固定离散组件组装的临时值；执行 wrapper 必须先以不回显值的方式断言替换结果非空，再启动子进程。组装值不得写入 artifact/evidence/log。真实凭据只来自权限 `0600` 的临时 `PGPASSFILE`。验证期间不得设置任何 migration/cleanup/seed authorization session setting。
+
+配置优先级已有代码与单元测试证据，无需修改生产代码：`backend/internal/config/config.go` 的 `Load()` 将 `TIDEWISE_DATABASE_URL` 作为 `DATABASE_URL` 之前的第一优先来源，`Config.PostgresURL()` 在 YAML 字段拼装前直接校验并返回非空 `Secrets.DatabaseURL`；`backend/internal/config/config_test.go` 的 `TestLoadReadsInjectedSecretNames` 验证显式变量被加载，`TestDatabaseConnectionStringUsesInjectedURLFirst` 验证显式 URL 优先于 YAML database 字段。R0 remediation 于 `2026-07-13` 新鲜运行 `go test -count=1 ./internal/config -run 'Test(LoadReadsInjectedSecretNames|DatabaseConnectionStringUsesInjectedURLFirst)$'`，结果为 PASS。该证据不放宽上述 fail-closed 要求：显式变量失败时仍不得回退 local YAML。
 
 Goose 与 identity 补充验证必须显式包在只读事务中，命令形状为：
 
