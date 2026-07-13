@@ -147,6 +147,75 @@ func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) 
 	return WriteResult{Key: profile.EntityKey, Action: action}, nil
 }
 
+func (r PostgresRepository) UpsertExternalIdentifier(ctx context.Context, identifier domain.EntityExternalIdentifier) (WriteResult, error) {
+	identifier = normalizeExternalIdentifier(identifier)
+	if err := validateFirstBatchExternalIdentifier(identifier); err != nil {
+		return WriteResult{}, err
+	}
+	var action string
+	if err := r.db.QueryRowContext(
+		ctx,
+		buildExternalIdentifierUpsert(),
+		identifier.ID,
+		identifier.EntityID,
+		identifier.SourceSystem,
+		identifier.SourceTaxonomyType,
+		identifier.ExternalCode,
+		identifier.ExternalName,
+		identifier.Status,
+	).Scan(&action); err != nil {
+		return WriteResult{}, fmt.Errorf("upsert external identifier %q: %w", externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode), err)
+	}
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	switch action {
+	case string(WriteCreated), string(WriteUpdated), string(WriteUnchanged):
+		return WriteResult{Key: identity, Action: WriteAction(action)}, nil
+	case "invalid_target":
+		return WriteResult{}, fmt.Errorf("external identifier %q requires an active chain_node target", identity)
+	case "identity_conflict":
+		return WriteResult{}, fmt.Errorf("external identifier %q identity conflict", identity)
+	default:
+		return WriteResult{}, fmt.Errorf("external identifier %q returned unsupported action %q", identity, action)
+	}
+}
+
+func buildExternalIdentifierUpsert() string {
+	return `
+WITH target AS (
+    SELECT id
+    FROM entity_nodes
+    WHERE id = $2::uuid
+      AND entity_type = 'chain_node'
+      AND status = 'active'
+), existing AS (
+    SELECT entity_id
+    FROM entity_external_identifiers
+    WHERE source_system = $3
+      AND source_taxonomy_type = $4
+      AND external_code = $5
+), upsert AS (
+    INSERT INTO entity_external_identifiers (
+        id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status
+    )
+    SELECT $1::uuid, target.id, $3, $4, $5, $6, $7
+    FROM target
+    WHERE NOT EXISTS (SELECT 1 FROM existing WHERE entity_id IS DISTINCT FROM target.id)
+    ON CONFLICT (source_system, source_taxonomy_type, external_code) DO UPDATE SET
+        external_name = EXCLUDED.external_name,
+        status = EXCLUDED.status,
+        updated_at = now()
+    WHERE entity_external_identifiers.entity_id = EXCLUDED.entity_id
+      AND (entity_external_identifiers.external_name IS DISTINCT FROM EXCLUDED.external_name
+        OR entity_external_identifiers.status IS DISTINCT FROM EXCLUDED.status)
+    RETURNING xmax = 0 AS inserted
+)
+SELECT CASE
+    WHEN NOT EXISTS (SELECT 1 FROM target) THEN 'invalid_target'
+    WHEN EXISTS (SELECT 1 FROM existing WHERE entity_id IS DISTINCT FROM $2::uuid) THEN 'identity_conflict'
+    ELSE COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
+END AS action`
+}
+
 func (r PostgresRepository) UpsertSectorSourceMapping(ctx context.Context, mapping SectorSourceMapping) (WriteResult, error) {
 	statement, args, err := buildSectorSourceMappingUpsert(mapping)
 	if err != nil {
