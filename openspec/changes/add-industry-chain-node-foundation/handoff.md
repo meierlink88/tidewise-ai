@@ -58,6 +58,8 @@
 | Commodity relationships | 0 | 不得虚构 |
 | Benchmark relationships | 0 | 不得虚构 |
 
+Layer 5候选证据审查已记录于`physical-constraint-review.md`：建议批准5条、需补权威证据8条、删除或改写2条。该分级仅供主对话逐项Review，15条fixture状态仍全部为candidate，PG仍为0行。
+
 ## 5. 后续严格执行顺序
 
 1. Layer 2 已完成，不得未经独立授权做幂等重跑。
@@ -114,6 +116,7 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 | 用途 | 仓库相对路径 | 绝对路径 |
 |---|---|---|
 | 候选 Review | `openspec/changes/add-industry-chain-node-foundation/candidate-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/candidate-review.md` |
+| Physical constraint逐条证据审查 | `openspec/changes/add-industry-chain-node-foundation/physical-constraint-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/physical-constraint-review.md` |
 | 正式产业链 seed | `backend/data/entity_foundation/industry_chains_v1.json` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/data/entity_foundation/industry_chains_v1.json` |
 | Review-only fixture | `backend/data/entity_foundation/review/industry_chain_candidates_v1.json` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/data/entity_foundation/review/industry_chain_candidates_v1.json` |
 | Stateful 计划与证据 | `openspec/changes/add-industry-chain-node-foundation/stateful-execution-plan.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/stateful-execution-plan.md` |

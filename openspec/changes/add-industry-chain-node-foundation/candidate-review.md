@@ -168,6 +168,8 @@
 
 全部状态：`candidate`。以下只是 AI 基于技术资料生成的建议，必须补齐权威技术证据并由用户逐项批准后才能进入正式 seed。
 
+2026-07-13 Layer 5逐条证据审查见[`physical-constraint-review.md`](physical-constraint-review.md)：5条建议批准、8条需补权威证据、2条建议删除或改写。该结论未改变任何candidate状态。
+
 | chain | subject | constraint_type | mechanism | physical_limit_note | mitigation_path | 来源 | 缺口 |
 |---|---|---|---|---|---|---|---|
 | AI 算力 | `data_center` | `power_capacity` | IT 与 cooling power density 提升增加设施供电需求 | 局部电网与站点可用功率限制部署规模 | 扩容站点供电、提高能效、调整选址 | S1 | 需具体地区/项目证据 |
