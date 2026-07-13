@@ -3,8 +3,9 @@
 ## 状态与禁止事项
 
 - first-batch data contract checkpoint `cd4b072` 已由主对话验收通过，task 1.11 完成。
-- checkpoint `775afda` 与首轮 remediation checkpoint `12820f9` 的 task 1.12 Review 均未通过；本次 remediation checkpoint 只修复 migration session lock/实际执行审计与 aliases 稳定排序，并保留此前 domain/repository/validator、workbook parser 与 dry-run/report 代码及测试，task 1.12 在主对话复验前保持未完成。
-- 未执行 migration、cleanup、seed，未连接或写入 PostgreSQL/Neo4j，未进入 task 1.13 或 Phase B。
+- checkpoint `775afda` 与首轮 remediation checkpoint `12820f9` 的 task 1.12 Review 均未通过；最终 remediation checkpoint 修复 migration session lock/实际执行审计与 aliases 稳定排序，并保留此前 domain/repository/validator、workbook parser 与 dry-run/report 代码及测试。
+- 主对话已批准最终 remediation checkpoint `a0547e6`，task 1.12 完成；该批准只允许进入 task 1.13 Cleanup Review，不构成任何 PostgreSQL/Neo4j Write 授权。
+- task 1.12 实现期间未执行 migration、cleanup、seed，未连接或写入 PostgreSQL/Neo4j，也未进入 Phase B。
 
 ## Schema diff
 
@@ -113,4 +114,4 @@ node snapshot 同时按 entity ID、key、canonical 建索引并携带 entity_ty
 
 ## 后续门禁
 
-task 1.12 在主对话验收本 remediation checkpoint 前保持未完成；通过后仍只允许进入 task 1.13 cleanup Review。cleanup Write、external identifier schema Write、node/profile seed Write、mapping data Write 都需要各自单独授权与写后 Query。
+task 1.12 已由主对话验收；当前只允许完成 task 1.13 Cleanup Review。cleanup Write、external identifier schema Write、node/profile seed Write、mapping data Write 都需要各自单独授权与写后 Query。

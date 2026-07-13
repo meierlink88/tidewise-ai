@@ -10,6 +10,9 @@ import (
 
 func TestPhaseAPreflightSQLIsReadOnlyAndCoversMigrationRisks(t *testing.T) {
 	sql := strings.ToLower(phaseAPreflightMetricsSQL + phaseAPreflightReferencesSQL + phaseAPreflightProtectedBaselineSQL)
+	if strings.Contains(sql, "), references(") {
+		t.Fatal("preflight SQL must not use PostgreSQL reserved keyword references as a CTE name")
+	}
 	for _, required := range []string{
 		"entity_nodes", "sector_profiles", "chain_node_profiles", "industry_chain_profiles",
 		"industry_chain_memberships", "industry_chain_topology_edges", "industry_chain_physical_constraints",

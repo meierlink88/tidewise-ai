@@ -80,7 +80,7 @@ const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
         ('entity_convergences'),
         ('entity_convergence_reference_moves'),
         ('entity_convergence_alias_moves')
-), references(reference_kind, object_name, definition) AS (
+), catalog_references(reference_kind, object_name, definition) AS (
     SELECT
         'foreign_key',
         source_namespace.nspname || '.' || constraint_name.conname,
@@ -131,7 +131,7 @@ const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
       AND definition ~* '(sector_profiles|sector_source_mappings|industry_chain|chain_node_profiles|entity_convergence)'
 )
 SELECT reference_kind, object_name, definition
-FROM references
+FROM catalog_references
 ORDER BY reference_kind, object_name`
 
 const phaseAPreflightProtectedBaselineSQL = `SELECT
