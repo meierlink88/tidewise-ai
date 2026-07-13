@@ -4,9 +4,9 @@
 
 - 命名操作：`phase-a-legacy-industry-cleanup`。
 - 风险等级：**R3**；migration 15 会不可逆删除 local PostgreSQL 中的旧产业实体、关系、约束与审计结构。
-- 当前状态：**仅 R0 authorization package 草案，未授权、未执行**。
-- 本文件只请求人工 Review；普通 Apply、task 1.13 验收、local 风险接受或本文件提交均不构成 Write 授权。
-- 若获授权，只允许在下述当前 local 开发环境执行一次 migration 15 Write，并立即完成同层 Query/assert。任何环境、范围、基线或命令变化都使授权失效。
+- 当前状态：**已获主对话 R3 条件式授权并完成一次 migration 15 Write 与同层 Query/assert；等待该执行 checkpoint 人工验收。**
+- 普通 Apply、task 1.13 验收、local 风险接受或本文件历史提交均不构成其他 Write 授权。本次授权不延伸至 migration 16、seed、mapping、relation 或 Neo4j。
+- 执行严格限定在下述 local 环境的一次 migration 15；任何环境、范围、基线或命令变化都使授权失效。
 
 ## 固定环境与执行范围
 
@@ -105,9 +105,13 @@ Query/assert 未经主对话验收前，不得请求或执行 migration 16，也
 - 提交后发现问题：只允许另行 Review 的 forward-fix migration/命令。若需要使用 stable backup 做整库恢复，必须新建独立恢复操作 package；本次未完成 rehearsal 不能被宣称为恢复验证。
 - 日志或 evidence 不得包含连接串、密码、secret、环境 dump 或个人隐私信息。
 
-## Authorization request
+## R3 execution record
 
-请求主对话 Review 本 R3 package。**当前不请求立即执行，且尚无 `phase-a-legacy-industry-cleanup` Write 授权。** 若主对话未来明确授权，必须逐项确认环境、migration 15 only、168/466 范围、local-only recovery risk acceptance、before/after assertions、停止条件与维护窗口；任何省略或范围变化均视为未授权。
+主对话已明确批准命名操作 `phase-a-legacy-industry-cleanup`。在 `2026-07-13T11:33Z` 维护窗口，执行前重新通过本文件冻结的环境、backup/archive、Goose、168/466、catalog/FK、完整性和 writer assertions；随后仅执行一次标准 `go run ./cmd/dbmigrate -apply -target-version 15`。
+
+数据库 report 与独立只读 Query/assert 共同确认：实际 applied 仅 `000015`，Goose=15、`000016` pending；`entity_nodes=466`、三类旧实体均为 0、`entity_edges=331`；12 类非目标的 count/checksum 完全不变；旧专属表/function/trigger 均不存在；`chain_node_profiles` 和 `theme_profiles` 均为批准的最小 schema 且 rows=0；orphan/duplicate/blank key 均为 0；未添加全局 `entity_key` 唯一约束。`entity_external_identifiers` 尚不存在，未执行 migration 16、seed、mapping、relation 或任何 Neo4j 操作。
+
+脱敏 pre/post evidence、archive 复核、命令 JSON 和断言摘要位于 `/Users/meierlink/.local/share/tidewise-ai/cleanup-evidence/20260713T113234Z/`。命令外层在 dbmigrate 返回后因 zsh 保留变量名未能记录其退出码；不将其伪称为零退出。保存的 dbmigrate JSON、Goose 写后查询和全部数据库断言均证明 migration 15 已成功提交。该事实不改变 restore rehearsal 已撤销、`backup_verified=false` 的历史状态，也不构成任何后续层 Write 授权。
 
 ## R0 checkpoint 验证
 

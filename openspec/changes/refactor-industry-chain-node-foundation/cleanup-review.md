@@ -2,12 +2,12 @@
 
 ## 状态与授权边界
 
-- task 1.12 checkpoint `a0547e6` 已由主对话明确批准；本文件只提交 task 1.13 的当前只读证据。
-- 本轮只连接本地开发 PostgreSQL，执行标准 Phase A `REPEATABLE READ READ ONLY` preflight、补充只读冻结查询和 custom-format 逻辑备份；未执行 migration、cleanup、seed、DDL/DML 或任何 Neo4j 查询/写入/rebuild。
-- 主对话已批准 workflow adoption checkpoint `0b21f74` 与本 task 1.13 Cleanup Readiness Review；随后又明确接受本文件记录的稳定 custom-format backup、archive integrity/hash、冻结基线与 forward-fix 作为**仅限当前 local 开发库**的 cleanup recovery evidence。该风险接受只允许准备独立 R3 authorization package，不构成 task 1.14 Cleanup Write 授权。
-- 当前 `backup_verified=false`：archive integrity/hash 已核验，但命名 R2 restore rehearsal 在创建目标 database 和执行 restore 前由主对话撤销，未完成实际恢复验证。固定 disposable container/volume/network/secret 已清理且无残留；R3 package 尚未获执行授权，当前不得设置 migration 的 cleanup session token。未来若 R3 package 明确获批，该既有 token 只作为机械激活门禁，不得被解释为实际 restore 或 `backup_verified=true`。
-- 本 package 按新工作流标记为 **R0 Cleanup Readiness Review package**：scope 是只读 preflight、backup archive 证据、冻结目标与影响分析；non-goals 是 restore rehearsal、migration、cleanup、seed、relation 和任何 PostgreSQL/Neo4j Write/rebuild。
-- 命名 R2 `phase-a-backup-restore-rehearsal` 已撤销、未完成且不再是本次 local cleanup 的硬门槛；`backup_verified` 仍保持 false。命名操作 `phase-a-legacy-industry-cleanup` 必须使用 [R3 独立 authorization package](phase-a-legacy-industry-cleanup-authorization.md) 另行 Review/授权；不得把 local 风险接受、task checkbox、历史 Apply 批准或本 package 验收解释为 R3 Write 授权。
+- task 1.12 checkpoint `a0547e6` 与 task 1.13 Cleanup Readiness Review 均已由主对话明确批准；本文件保留其只读 readiness 证据，并索引后续已经独立授权、执行完成的 task 1.14 R3 cleanup evidence。
+- R3 `phase-a-legacy-industry-cleanup` 已在当前 local 维护窗口按独立 authorization package 执行：先重新运行标准 Phase A `REPEATABLE READ READ ONLY` preflight、补充冻结查询与 archive 复核，再仅执行 migration 15，并立即完成同层只读 Query/assert。没有执行 migration 16、seed、mapping、relation 或任何 Neo4j 查询/写入/rebuild。
+- 主对话已批准 workflow adoption checkpoint `0b21f74` 与本 task 1.13 Cleanup Readiness Review；随后又明确接受本文件记录的稳定 custom-format backup、archive integrity/hash、冻结基线与 forward-fix 作为**仅限当前 local 开发库**的 cleanup recovery evidence。该风险接受只覆盖已完成的 R3 migration 15，不构成任何后续 Write 授权。
+- `backup_verified=false` 保持不变：archive integrity/hash 已核验，但命名 R2 restore rehearsal 在创建目标 database 和执行 restore 前由主对话撤销，未完成实际恢复验证。固定 disposable container/volume/network/secret 已清理且无残留；本次 cleanup 使用的 session token 只表示主对话已接受 local recovery evidence，不得被解释为实际 restore 或 `backup_verified=true`。
+- 本文件的 readiness 部分按新工作流标记为 **R0 Cleanup Readiness Review package**：scope 是只读 preflight、backup archive 证据、冻结目标与影响分析；其历史 non-goals 是 restore rehearsal、migration、cleanup、seed、relation 和任何 PostgreSQL/Neo4j Write/rebuild。后续 R3 execution record 的范围严格限定为已完成的 migration 15 与同层 Query/assert。
+- 命名 R2 `phase-a-backup-restore-rehearsal` 已撤销、未完成且不再是本次 local cleanup 的硬门槛；`backup_verified` 仍保持 false。命名操作 `phase-a-legacy-industry-cleanup` 已按 [R3 独立 authorization package](phase-a-legacy-industry-cleanup-authorization.md) 另行 Review、授权并执行；不得把 local 风险接受、task checkbox、历史 Apply 批准或本 package 验收解释为任何后续 Write 授权。
 
 ## 当前环境与只读快照
 
@@ -184,16 +184,16 @@ pg_restore --exit-on-error --no-owner --no-acl \
 
 目标表当前总 relation size 约 1.3 MiB；最大单表为 `entity_nodes` 320 kB、`entity_edges` 240 kB。数据量较小不等于无锁风险：DELETE 会取得相应表的 `ROW EXCLUSIVE` 与行锁，DROP/ALTER/CREATE 会取得 `ACCESS EXCLUSIVE`，可能阻塞实体读取/写入；整个 Goose migration 是单事务，必须在维护窗口、无 seed/ingestion/admin 写入时执行，并在执行前确认无长事务。任何 lock timeout、statement error、未知 FK 或 count mismatch 必须 rollback；不得临时禁用约束或手工补删。
 
-## 仅供后续授权的命令形状
+## 已执行 R3 命令形状（历史记录）
 
-当前不得执行：
+本次唯一获准且已执行的命令形状：
 
 ```text
 TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified>' \
   go run ./cmd/dbmigrate -apply -target-version 15
 ```
 
-该命令只有在以下条件全部满足后才可由主对话通过 [独立 R3 package](phase-a-legacy-industry-cleanup-authorization.md) 单独授权：local-only recovery evidence 风险接受仍有效；稳定 backup size/hash 与 archive integrity/full decode 证据可复核；立即重跑 preflight 且冻结 CSV/count/checksum/catalog 无漂移；确认维护窗口与备份文件可访问。成功报告只能包含 migration 15，migration 16 必须继续 pending。Cleanup Query 验收前不得请求或执行 migration 16。
+该命令已在以下条件全部满足后由主对话通过 [独立 R3 package](phase-a-legacy-industry-cleanup-authorization.md) 单独授权：local-only recovery evidence 风险接受仍有效；稳定 backup size/hash 与 archive integrity/full decode 证据可复核；立即重跑 preflight 且冻结 CSV/count/checksum/catalog 无漂移；确认维护窗口与备份文件可访问。成功报告只包含 migration 15，migration 16 继续 pending。Cleanup Query 人工验收前不得请求或执行 migration 16。
 
 ## 回滚、forward-fix 与写后 Query 边界
 
@@ -202,16 +202,24 @@ TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cle
 - 写后 Query 必须验证：Goose version=15、migration 16 pending；旧三类 entity rows=0；旧专属表/function/trigger 不存在；`chain_node_profiles` 最小列/约束正确且 rows=0；`theme_profiles` 空表存在；目标 event links/edges=0；entity_edges=331；所有 orphan/duplicate=0；12 类非目标 count/checksum 完全不变；重复执行被门禁或报告 already-clean，不扩大删除范围。
 - PostgreSQL cleanup 后既有 Neo4j projection 会暂时陈旧；本 change 不查询、清理、写入或 rebuild Neo4j。
 
-## 当前 Review blocker
+## R3 执行结果与当前 blocker
 
-1. 命名 R2 restore rehearsal 已由主对话撤销且未完成，`backup_verified=false`；固定 disposable 资源已清理且无残留。这些历史事实不再阻断本次 local cleanup，但也不得被改写为 restore verified。
-2. 当前唯一下一入口是人工 Review [命名 R3 `phase-a-legacy-industry-cleanup` package](phase-a-legacy-industry-cleanup-authorization.md)。该 R0 草案未获 Write 授权，task 1.14 仍未完成。
-3. 在 R3 package 获明确授权前，不得连接数据库执行 migration 15；该 local 风险接受不授权 migration 16、seed、cleanup 以外的数据写入或任何 Neo4j 操作。
+1. 命名 R2 restore rehearsal 已由主对话撤销且未完成，`backup_verified=false`；固定 disposable 资源已清理且无残留。这些历史事实保持不变，且不被改写为 restore verified。
+2. 主对话随后独立批准并已执行 [命名 R3 `phase-a-legacy-industry-cleanup` package](phase-a-legacy-industry-cleanup-authorization.md)。新鲜 evidence 位于 `/Users/meierlink/.local/share/tidewise-ai/cleanup-evidence/20260713T113234Z/`：preflight、archive、Goose、migration report 与写后 Query/assert 均通过；task 1.14 已完成、等待主对话验收。
+3. 当前唯一下一入口是主对话对 task 1.14 execution checkpoint 的人工验收。验收前不得执行 migration 16、seed、mapping、relation 或任何 Neo4j 操作；本次 local 风险接受不构成后续 R2/R3 Write 授权。
 
-## Checkpoint 验证
+## Readiness checkpoint 验证
 
 - `go test -count=1 ./internal/apps/entityfoundation/seed ./cmd/entity-seed`：通过。
 - `go test -count=1 ./...`：沙箱内首次仅因 `httptest` 无权绑定本机临时端口失败；不设置数据库测试 URL，在沙箱外以相同命令重跑通过。
 - `openspec validate refactor-industry-chain-node-foundation --strict`：通过。
 - `git diff --check`：通过。
 - scoped file review 与 secret pattern scan：范围仅为 Phase A preflight 修复、task/Review artifacts 和冻结 ID/key CSV；未发现 literal connection string、密码、token、private key 或 API key。命令形状中的连接信息均为尖括号占位符。
+
+## R3 execution evidence
+
+- 新鲜 evidence：`/Users/meierlink/.local/share/tidewise-ai/cleanup-evidence/20260713T113234Z/`；仅含脱敏 container/version、backup hash/archive、标准 preflight/Goose JSON、冻结 target diff、写后只读 assertions 与命令报告。
+- Write 前：backup size/hash、TOC=253、schema/data decode、Goose=14、15/16 pending、634=168+466、catalog=`foreign_key:49,function:1,trigger:4`、长事务/writer=0 均通过。
+- Write：只运行一次 target-version 15；report 的实际 applied 只有 `000015_refactor_industry_chain_node_phase_a.sql`。
+- Write 后：Goose=15、16 pending；466 非目标 count/checksum 不变；旧实体/表/function/trigger=0；`entity_edges=331`；profile schema、orphan/duplicate/blank-key 与无全局 entity_key 唯一约束均通过。
+- 该记录不声称 `backup_verified=true`，不包含或暴露连接串、密码或其他 secret；未执行 Neo4j 操作。
