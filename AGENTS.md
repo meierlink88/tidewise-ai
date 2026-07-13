@@ -53,6 +53,13 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 - 分层数据与图谱操作按 `Review -> Write -> Rebuild -> Query` 逐层审批；只读或上一层批准不得推定下一层写入授权。
 - Sync、Archive、Deliver 的完成条件及顺序不得削弱；Archive 不等于 change 已交付或关闭。
 
+## Risk-Tiered Development Summary
+
+- 正式 change 必须声明 R0—R3 风险：R0 文档/调研/只读审计，R1 无有状态写入的源码/测试，R2 migration、seed 或 local/UAT 数据变更，R3 生产、不可逆 cleanup、Neo4j rebuild 或敏感部署；具体操作可上调等级。
+- 普通 task checkbox 不自动成为人工 gate；详细的风险理由、阶段 Review package、候选审阅、条件式执行包、R2 recovery evidence、R3 独立授权和 active adoption 只在 `.agents/openspec-workflow.md` 维护。
+- R2/R3 的有状态操作必须显式授权且 fail-closed；旧批准、普通 Apply 批准或上一层结果不得推定下一层、环境或范围。R3 不得跨层批量执行。
+- Apply final 按受影响交付边界运行完整验证和共享 tests；共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation。
+
 ## Git And Desktop Hard Gates
 
 - 新 change 默认按顺序推进；仅用户明确批准、无依赖且无共享文件或数据库写状态的独立并行 change 可同时启动，出现依赖或共享写状态必须暂停并重新排序。
