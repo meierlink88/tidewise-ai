@@ -249,3 +249,7 @@
 ### 2026-07-13 Layer 6 严格 Review
 
 12 条候选的逐项端点、分类、证据与语义审查见 `mapped-to-sector-review.md`。严格口径为：直接证据闭合 0、语义认可但 provenance 必须校正 6、需补稳定分类证据 2、过宽应删除或改写 4。全部仍保留 review-only candidate 状态；本轮没有修改 fixture、正式 seed、PG 或 Neo4j。
+
+### 2026-07-13 Layer 6 首批批准后的无状态准备
+
+用户已逐项批准6条语义认可项进入正式seed准备。它们以固定commit下的Layer 6 Review、已审阅chain/node定义和canonical sector provenance组成Tidewise composite curation证据；三条设备映射额外登记S5，但不声称外部公告直接给出node mapping。其余6条仍在review-only fixture（2条需补证、4条删除或改写）。本checkpoint未执行PG Write或Neo4j rebuild。

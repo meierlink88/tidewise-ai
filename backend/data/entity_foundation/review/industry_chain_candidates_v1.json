@@ -15,17 +15,11 @@
     {"id":"constraint:semi:wafer_fabrication:physical_expansion_cycle","industry_chain_key":"industry_chain:semiconductor_manufacturing","chain_node_key":"chain_node:wafer_fabrication","constraint_type":"physical_expansion_cycle","mechanism":"fab建设、设备安装、调试与良率爬坡需要物理时间。","physical_limit_note":"仅包含建设、安装、调试和爬坡。","mitigation_path":"模块化建设与提前设备导入。","source_name":"SEMI; Applied Materials","source_url":"https://www.appliedmaterials.com/eu/en/semiconductor/products.html","verified_at":"2026-07-12T00:00:00Z","review_status":"candidate","status":"active","generated_by_ai":true}
   ],
   "mapped_to_sector": [
-    {"from":"industry_chain:ai_compute_infrastructure","to":"sector:theme_computing_infrastructure","relation_type":"mapped_to_sector","review_status":"candidate"},
     {"from":"industry_chain:ai_compute_infrastructure","to":"sector:theme_data_centers_cloud","relation_type":"mapped_to_sector","review_status":"candidate"},
-    {"from":"chain_node:data_center","to":"sector:theme_data_centers_cloud","relation_type":"mapped_to_sector","review_status":"candidate"},
     {"from":"chain_node:power_grid","to":"sector:industry_power_utilities","relation_type":"mapped_to_sector","review_status":"candidate"},
     {"from":"chain_node:rack_power_system","to":"sector:industry_power_equipment_batteries","relation_type":"mapped_to_sector","review_status":"candidate"},
     {"from":"chain_node:data_center_networking","to":"sector:industry_software_communications","relation_type":"mapped_to_sector","review_status":"candidate"},
-    {"from":"industry_chain:semiconductor_manufacturing","to":"sector:industry_semiconductors_electronics","relation_type":"mapped_to_sector","review_status":"candidate"},
     {"from":"industry_chain:semiconductor_manufacturing","to":"sector:theme_semiconductor_resilience","relation_type":"mapped_to_sector","review_status":"candidate"},
-    {"from":"chain_node:lithography_machine","to":"sector:industry_star_semiconductor_materials_equipment","relation_type":"mapped_to_sector","review_status":"candidate"},
-    {"from":"chain_node:deposition_equipment","to":"sector:industry_star_semiconductor_materials_equipment","relation_type":"mapped_to_sector","review_status":"candidate"},
-    {"from":"chain_node:etch_equipment","to":"sector:industry_star_semiconductor_materials_equipment","relation_type":"mapped_to_sector","review_status":"candidate"},
     {"from":"chain_node:eda","to":"sector:industry_star_chip_design","relation_type":"mapped_to_sector","review_status":"candidate"}
   ],
   "economy": [],

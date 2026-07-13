@@ -46,11 +46,22 @@ func TestValidateCommandOptionsAcceptsExplicitPhysicalConstraintScope(t *testing
 	}
 }
 
+func TestValidateCommandOptionsAcceptsExplicitIndustryChainSectorMappingScope(t *testing.T) {
+	scope, err := validateCommandOptions(commandOptions{applyScope: "industry-chain-sector-mapping"})
+	if err != nil {
+		t.Fatalf("validateCommandOptions() error = %v", err)
+	}
+	if scope != entityseed.ApplyScopeIndustryChainSectorMapping {
+		t.Fatalf("scope = %q", scope)
+	}
+}
+
 func TestValidateCommandOptionsRejectsUnknownAndConflictingScopes(t *testing.T) {
 	tests := []commandOptions{
 		{applyScope: "membership-only"},
 		{applyScope: "industry-chain-master", applySectorConvergence: true},
 		{applyScope: "industry-chain-master", applySectorConvergenceCorrection: true},
+		{applyScope: "industry-chain-sector-mapping", applySectorConvergence: true},
 		{applySectorConvergence: true, applySectorConvergenceCorrection: true},
 	}
 	for _, options := range tests {

@@ -501,7 +501,7 @@ func TestRelationshipSeedFile(t *testing.T) {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
 
-	if got, want := len(manifest.Relationships), 383; got != want {
+	if got, want := len(manifest.Relationships), 389; got != want {
 		t.Fatalf("relationships = %d, want %d reviewed relationships", got, want)
 	}
 

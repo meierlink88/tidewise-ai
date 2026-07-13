@@ -17,7 +17,7 @@ import (
 func main() {
 	seedDir := flag.String("seed-dir", entityseed.DefaultSeedDir, "entity foundation seed directory")
 	includeInactive := flag.Bool("include-inactive", false, "include inactive entities in seed writes")
-	applyScope := flag.String("apply-scope", "", "explicit apply scope; supported: industry-chain-master, industry-chain-membership, industry-chain-topology, industry-chain-physical-constraint")
+	applyScope := flag.String("apply-scope", "", "explicit apply scope; supported: industry-chain-master, industry-chain-membership, industry-chain-topology, industry-chain-physical-constraint, industry-chain-sector-mapping")
 	applySectorConvergence := flag.Bool("apply-sector-convergence", false, "apply the reviewed initial sector convergence")
 	applySectorConvergenceCorrection := flag.Bool("apply-sector-convergence-correction", false, "apply a reviewed forward sector convergence correction")
 	flag.Parse()

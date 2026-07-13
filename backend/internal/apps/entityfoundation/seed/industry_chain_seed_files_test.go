@@ -36,6 +36,32 @@ func TestIndustryChainExecutableSeedV1(t *testing.T) {
 	if len(manifest.IndustryChainPhysicalConstraints) != 4 {
 		t.Fatalf("executable physical constraints = %d, want 4", len(manifest.IndustryChainPhysicalConstraints))
 	}
+	approvedMappings := map[string]Relationship{}
+	for _, relationship := range manifest.Relationships {
+		if relationship.RelationType == "mapped_to_sector" {
+			approvedMappings[relationship.From+"->"+relationship.To] = relationship
+		}
+	}
+	wantMappings := []string{
+		"industry_chain:ai_compute_infrastructure->sector:theme_computing_infrastructure",
+		"chain_node:data_center->sector:theme_data_centers_cloud",
+		"industry_chain:semiconductor_manufacturing->sector:industry_semiconductors_electronics",
+		"chain_node:lithography_machine->sector:industry_star_semiconductor_materials_equipment",
+		"chain_node:deposition_equipment->sector:industry_star_semiconductor_materials_equipment",
+		"chain_node:etch_equipment->sector:industry_star_semiconductor_materials_equipment",
+	}
+	if len(approvedMappings) != len(wantMappings) {
+		t.Fatalf("approved mapped_to_sector = %d, want %d", len(approvedMappings), len(wantMappings))
+	}
+	for _, key := range wantMappings {
+		mapping, ok := approvedMappings[key]
+		if !ok {
+			t.Fatalf("missing approved mapped_to_sector %s", key)
+		}
+		if mapping.SourceName == "" || mapping.SourceURL == "" || mapping.VerifiedAt.IsZero() || !strings.Contains(mapping.EvidenceNote, "composite curation") {
+			t.Fatalf("mapping %s lacks composite provenance: %+v", key, mapping)
+		}
+	}
 	approved := map[string]IndustryChainPhysicalConstraintSeed{}
 	for _, constraint := range manifest.IndustryChainPhysicalConstraints {
 		approved[constraint.ID] = constraint
@@ -85,7 +111,7 @@ func TestIndustryChainExecutableSeedV1(t *testing.T) {
 
 func TestIndustryChainExecutableSeedFlowsThroughServiceReport(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
-	manifest, err := LoadFiles(filepath.Join(root, "chain_nodes.json"), filepath.Join(root, "industry_chains_v1.json"))
+	manifest, err := LoadFiles(DefaultSeedPaths(root)...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +150,7 @@ func TestIndustryChainCandidateFixtureIsReviewOnly(t *testing.T) {
 	if err := json.Unmarshal(data, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	if fixture.ManifestVersion != 1 || len(fixture.PhysicalConstraints) != 11 || len(fixture.MappedToSector) != 12 {
+	if fixture.ManifestVersion != 1 || len(fixture.PhysicalConstraints) != 11 || len(fixture.MappedToSector) != 6 {
 		t.Fatalf("review fixture counts = version %d, constraints %d, sector mappings %d", fixture.ManifestVersion, len(fixture.PhysicalConstraints), len(fixture.MappedToSector))
 	}
 	for _, constraint := range fixture.PhysicalConstraints {

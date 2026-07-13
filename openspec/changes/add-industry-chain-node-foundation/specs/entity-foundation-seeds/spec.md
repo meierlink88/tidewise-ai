@@ -30,6 +30,12 @@
 - **WHEN** 使用`industry-chain-physical-constraint` scope准备执行
 - **THEN** batch必须仅含4条physical constraint，不得携带profile、membership、topology、entity edge、sector mapping或其他数据族；repository必须从已持久化事实锁定并校验同链active subject
 
+#### Scenario: 首批sector mapping正式seed隔离
+- **WHEN** 用户逐项批准6条`mapped_to_sector`并完成composite provenance策展
+- **THEN** 正式seed必须精确包含这6条关系，review-only fixture只保留其余6条candidate
+- **AND** `industry-chain-sector-mapping` scope只能处理这6条relationship，不得写entity、profile、source mapping、membership、topology、constraint或其他relationship
+- **AND** report预计created6/updated0/unchanged0，FinalTableImpact只能包含`entity_edges`
+
 ### Requirement: 静态 seed report
 系统 SHALL 在未来执行后分别报告 industry chain、chain node profile、membership、topology、physical constraint 和跨实体关系的 created、updated、unchanged、failed 数量。
 

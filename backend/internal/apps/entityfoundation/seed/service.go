@@ -16,6 +16,7 @@ const (
 	ApplyScopeIndustryChainMembership         ApplyScope = "industry-chain-membership"
 	ApplyScopeIndustryChainTopology           ApplyScope = "industry-chain-topology"
 	ApplyScopeIndustryChainPhysicalConstraint ApplyScope = "industry-chain-physical-constraint"
+	ApplyScopeIndustryChainSectorMapping      ApplyScope = "industry-chain-sector-mapping"
 )
 
 type ApplyOptions struct {
@@ -134,23 +135,43 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 		recordFinalTableAction(&report, "sector_source_mappings", sectorSourceMappingIdentity(normalizeSectorSourceMapping(mapping)), result.Action)
 	}
 
-	for _, relationship := range manifest.Relationships {
-		if _, skipped := skippedEntities[relationship.From]; skipped {
-			report.Skipped++
-			continue
+	if scope == ApplyScopeIndustryChainSectorMapping {
+		repository, ok := s.repository.(interface {
+			UpsertRelationshipBatch(context.Context, []Relationship) ([]WriteResult, error)
+		})
+		if !ok {
+			return report, fmt.Errorf("repository does not support atomic relationship batch")
 		}
-		if _, skipped := skippedEntities[relationship.To]; skipped {
-			report.Skipped++
-			continue
-		}
-		result, err := s.repository.UpsertRelationship(ctx, relationship)
+		results, err := repository.UpsertRelationshipBatch(ctx, manifest.Relationships)
 		if err != nil {
 			report.Failed++
-			return report, fmt.Errorf("upsert relationship %q: %w", relationship.Key, err)
+			return report, fmt.Errorf("upsert industry chain sector mappings: %w", err)
 		}
-		report.EdgeCounts[relationship.RelationType]++
-		applyWriteResult(&report, result)
-		recordFinalTableAction(&report, "entity_edges", relationship.Key, result.Action)
+		for index, result := range results {
+			relationship := manifest.Relationships[index]
+			report.EdgeCounts[relationship.RelationType]++
+			applyWriteResult(&report, result)
+			recordFinalTableAction(&report, "entity_edges", relationship.Key, result.Action)
+		}
+	} else {
+		for _, relationship := range manifest.Relationships {
+			if _, skipped := skippedEntities[relationship.From]; skipped {
+				report.Skipped++
+				continue
+			}
+			if _, skipped := skippedEntities[relationship.To]; skipped {
+				report.Skipped++
+				continue
+			}
+			result, err := s.repository.UpsertRelationship(ctx, relationship)
+			if err != nil {
+				report.Failed++
+				return report, fmt.Errorf("upsert relationship %q: %w", relationship.Key, err)
+			}
+			report.EdgeCounts[relationship.RelationType]++
+			applyWriteResult(&report, result)
+			recordFinalTableAction(&report, "entity_edges", relationship.Key, result.Action)
+		}
 	}
 
 	if len(manifest.IndustryChainMemberships) > 0 || len(manifest.IndustryChainTopologyEdges) > 0 || len(manifest.IndustryChainPhysicalConstraints) > 0 {
@@ -222,7 +243,7 @@ func newReport() Report {
 func ParseApplyScope(value string) (ApplyScope, error) {
 	scope := ApplyScope(strings.TrimSpace(value))
 	switch scope {
-	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership, ApplyScopeIndustryChainTopology, ApplyScopeIndustryChainPhysicalConstraint:
+	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership, ApplyScopeIndustryChainTopology, ApplyScopeIndustryChainPhysicalConstraint, ApplyScopeIndustryChainSectorMapping:
 		return scope, nil
 	default:
 		return "", fmt.Errorf("unsupported apply scope %q", value)
@@ -250,6 +271,18 @@ func applyManifestScope(manifest Manifest, scope ApplyScope) (Manifest, error) {
 			return Manifest{}, fmt.Errorf("industry-chain-physical-constraint scope requires approved physical constraints")
 		}
 		return Manifest{IndustryChainPhysicalConstraints: append([]IndustryChainPhysicalConstraintSeed(nil), manifest.IndustryChainPhysicalConstraints...)}, nil
+	}
+	if scope == ApplyScopeIndustryChainSectorMapping {
+		var relationships []Relationship
+		for _, relationship := range manifest.Relationships {
+			if relationship.RelationType == "mapped_to_sector" {
+				relationships = append(relationships, relationship)
+			}
+		}
+		if len(relationships) != 6 {
+			return Manifest{}, fmt.Errorf("industry-chain-sector-mapping scope requires exactly 6 reviewed mappings")
+		}
+		return Manifest{Relationships: relationships}, nil
 	}
 	if scope != ApplyScopeIndustryChainMaster {
 		return Manifest{}, fmt.Errorf("unsupported apply scope %q", scope)

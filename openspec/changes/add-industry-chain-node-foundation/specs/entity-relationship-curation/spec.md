@@ -15,6 +15,16 @@
 - **WHEN** 产业链或节点映射到中国 canonical sector
 - **THEN** 必须使用 `mapped_to_sector` 并保存来源；该关系不表达身份、法定覆盖或影响方向
 
+#### Scenario: mapped_to_sector组合策展证据
+- **WHEN** 外部sector定义或指数公告没有直接声明chain/node mapping
+- **THEN** 系统必须将已审阅chain/node定义、canonical sector provenance和固定commit的人工mapping Review组合记录到现有relationship provenance
+- **AND** 不得把外部来源冒充为直接mapping声明，也不得为组合证据临时扩表
+
+#### Scenario: sector mapping原子写入门禁
+- **WHEN** 使用显式`industry-chain-sector-mapping` scope准备6条approved关系
+- **THEN** repository必须从PostgreSQL锁定并验证active持久化端点、方向和policy，且relationship ID的from/to/relation_type不可变
+- **AND** 任一缺失、inactive、错误方向或identity conflict必须回滚整批
+
 ### Requirement: 全球 benchmark 到中国板块的正确路径
 系统 SHALL 通过 chain/node 的 benchmark 与 sector 客观映射形成跨市场传导输入，不得伪造海外市场覆盖中国板块。
 

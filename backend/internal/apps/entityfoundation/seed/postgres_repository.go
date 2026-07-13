@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -265,9 +266,70 @@ func (r PostgresRepository) UpsertRelationship(ctx context.Context, relationship
 	return WriteResult{Key: relationship.Key, Action: action}, nil
 }
 
+func (r PostgresRepository) UpsertRelationshipBatch(ctx context.Context, relationships []Relationship) ([]WriteResult, error) {
+	if r.root == nil {
+		return nil, fmt.Errorf("atomic relationship batch requires database root")
+	}
+	tx, err := r.root.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	txRepo := PostgresRepository{db: tx, root: r.root}
+	entities, err := txRepo.lockActiveRelationshipEndpoints(ctx, relationships)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]WriteResult, 0, len(relationships))
+	for _, relationship := range relationships {
+		if err := validateRelationshipPolicy(relationship, entities); err != nil {
+			return nil, err
+		}
+		result, err := txRepo.UpsertRelationship(ctx, relationship)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (r PostgresRepository) lockActiveRelationshipEndpoints(ctx context.Context, relationships []Relationship) (map[string]Entity, error) {
+	keys := make(map[string]struct{}, len(relationships)*2)
+	for _, relationship := range relationships {
+		keys[relationship.From] = struct{}{}
+		keys[relationship.To] = struct{}{}
+	}
+	ordered := make([]string, 0, len(keys))
+	for key := range keys {
+		ordered = append(ordered, key)
+	}
+	sort.Strings(ordered)
+	entities := make(map[string]Entity, len(ordered))
+	for _, key := range ordered {
+		var entity Entity
+		if err := r.db.QueryRowContext(ctx, `SELECT entity_key, entity_type, status FROM entity_nodes WHERE entity_key=$1 FOR SHARE`, key).Scan(&entity.Key, &entity.EntityType, &entity.Status); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, fmt.Errorf("relationship endpoint %q is missing", key)
+			}
+			return nil, err
+		}
+		if entity.Status != domain.StatusActive {
+			return nil, fmt.Errorf("relationship endpoint %q is not active", key)
+		}
+		entities[key] = entity
+	}
+	return entities, nil
+}
+
 func buildRelationshipUpsert(relationship Relationship) (string, []any) {
 	statement := `
-WITH upsert AS (
+WITH existing AS (
+    SELECT from_entity_id,to_entity_id,relation_type FROM entity_edges WHERE id=$1 FOR UPDATE
+), upsert AS (
     INSERT INTO entity_edges (
         id, from_entity_id, to_entity_id, relation_type, evidence_note, status,
         source_name, source_url, verified_at
@@ -276,26 +338,26 @@ WITH upsert AS (
         $7, $8, $9
     )
     ON CONFLICT (id) DO UPDATE SET
-        from_entity_id = EXCLUDED.from_entity_id,
-        to_entity_id = EXCLUDED.to_entity_id,
-        relation_type = EXCLUDED.relation_type,
         evidence_note = EXCLUDED.evidence_note,
         status = EXCLUDED.status,
 		source_name = EXCLUDED.source_name,
 		source_url = EXCLUDED.source_url,
 		verified_at = EXCLUDED.verified_at,
         updated_at = now()
-    WHERE entity_edges.from_entity_id IS DISTINCT FROM EXCLUDED.from_entity_id
-       OR entity_edges.to_entity_id IS DISTINCT FROM EXCLUDED.to_entity_id
-       OR entity_edges.relation_type IS DISTINCT FROM EXCLUDED.relation_type
-       OR entity_edges.evidence_note IS DISTINCT FROM EXCLUDED.evidence_note
+    WHERE entity_edges.from_entity_id = EXCLUDED.from_entity_id
+      AND entity_edges.to_entity_id = EXCLUDED.to_entity_id
+      AND entity_edges.relation_type = EXCLUDED.relation_type
+      AND (entity_edges.evidence_note IS DISTINCT FROM EXCLUDED.evidence_note
        OR entity_edges.status IS DISTINCT FROM EXCLUDED.status
 	   OR entity_edges.source_name IS DISTINCT FROM EXCLUDED.source_name
 	   OR entity_edges.source_url IS DISTINCT FROM EXCLUDED.source_url
-	   OR entity_edges.verified_at IS DISTINCT FROM EXCLUDED.verified_at
+	   OR entity_edges.verified_at IS DISTINCT FROM EXCLUDED.verified_at)
     RETURNING xmax = 0 AS inserted
 )
-SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
+SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM existing WHERE from_entity_id IS DISTINCT FROM $2 OR to_entity_id IS DISTINCT FROM $3 OR relation_type IS DISTINCT FROM $4) THEN 'identity_conflict'
+    ELSE COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')
+END
 `
 	args := []any{
 		relationshipSeedUUID(relationship.Key),

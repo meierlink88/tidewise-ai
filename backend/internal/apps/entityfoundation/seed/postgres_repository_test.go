@@ -51,6 +51,16 @@ func TestRelationshipUpsertSQLPersistsProvenance(t *testing.T) {
 	}
 }
 
+func TestRelationshipUpsertSQLRejectsIdentityChanges(t *testing.T) {
+	statement, _ := buildRelationshipUpsert(Relationship{Key: "relationship:test", From: "chain_node:test", To: "sector:test", RelationType: "mapped_to_sector"})
+	normalized := strings.ToLower(statement)
+	for _, fragment := range []string{"identity_conflict", "from_entity_id is distinct from", "to_entity_id is distinct from", "relation_type is distinct from"} {
+		if !strings.Contains(normalized, fragment) {
+			t.Fatalf("relationship upsert missing immutable identity guard %q", fragment)
+		}
+	}
+}
+
 func TestPostgresEntityWriteNormalizesNilAliases(t *testing.T) {
 	entity := Entity{
 		Key:           "sector:test",

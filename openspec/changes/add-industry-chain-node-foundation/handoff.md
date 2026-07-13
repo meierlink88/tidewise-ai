@@ -53,7 +53,7 @@
 | Memberships | 27 | 已写入PG并验收27/27 active；AI 12 + 半导体15 |
 | Canonical topology | 24 | 已写入PG并验收24/24 active；AI 10 + 半导体14，无`substitutes_for`推测 |
 | Physical constraints | 4已写入 +11 review-only | 首批4条已写入PG并验收active+approved、AI provenance与P2/P6正确；其余9条需补证、2条删除或改写 |
-| `mapped_to_sector` | 12 | 全部为 review-only candidate，尚未逐项批准，不得写入 |
+| `mapped_to_sector` | 6正式seed待写 +6 review-only | 首批6条已逐项批准并完成无状态scope/provenance准备，但PG Write未授权；其余2条需补证、4条删除或改写 |
 | Economy relationships | 0 | 不得虚构 |
 | Commodity relationships | 0 | 不得虚构 |
 | Benchmark relationships | 0 | 不得虚构 |
@@ -62,13 +62,15 @@ Layer 5首批4条已在独立授权与备份后仅执行一次`industry-chain-ph
 
 Layer 6只读Review已完成：实时基线仍为2 chains、26 unique nodes、27 active memberships、24 active topology、4 active approved constraints，`entity_edges=383`、`sector_source_mappings=89`；12条`mapped_to_sector`候选的严格口径为直接证据闭合0、语义认可但provenance须校正6、需补证2、删除或改写4。全部仍在review-only fixture，本轮未晋级、未写PG/Neo4j；详见`mapped-to-sector-review.md`。
 
+用户随后批准首批6条进入无状态准备：正式seed采用固定Review commit的Tidewise composite curation provenance，review fixture剩6条；显式`industry-chain-sector-mapping` scope仅处理这6条，并以单事务active endpoint锁、policy和不可变identity保证原子性。预计未来首次PG Write为created6/updated0/unchanged0、FinalTableImpact仅`entity_edges`。截至本checkpoint仍未运行该scope、未写PG、未访问或重建Neo4j。
+
 ## 5. 后续严格执行顺序
 
 1. Layer 2 已完成，不得未经独立授权做幂等重跑。
 2. Layer 3已完成，不得未经独立授权幂等重跑。
 3. Layer 4已完成，不得未经独立授权幂等重跑。
 4. 首批4条physical constraints已完成Write与Query验收，不得幂等重跑；其余11条继续留在review fixture并逐项补证/改写。
-5. 12 条 `mapped_to_sector` 按来源、端点和“分析映射而非身份/法定覆盖/影响方向”逐项 Review；不得用海外 market `COVERS_SECTOR` 中国 sector。
+5. 首批6条`mapped_to_sector`无状态准备已完成，必须先单独授权PG Write/Query；其余6条仍review-only。不得用海外 market `COVERS_SECTOR` 中国 sector。
 6. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
 7. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
 
@@ -104,7 +106,7 @@ Layer 2 写入后的只读验收至少覆盖：
 ## 7. 禁止与未授权项
 
 - 不得幂等重跑Layer 2、Layer 3或Layer 4。
-- 不得幂等重跑首批4条physical constraint scope；不得将其余11条constraint或12条`mapped_to_sector` candidates写入正式seed/PG。
+- 不得幂等重跑首批4条physical constraint scope；不得写其余11条constraint或6条review-only sector mapping；首批6条正式mapping也未获PG Write授权。
 - 不得创造 economy、commodity 或 benchmark 关系补齐空清单。
 - 不得写入未批准candidate或提前执行Neo4j rebuild。
 - 不得把 physical constraints 投影到 Neo4j。
@@ -135,7 +137,7 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 ## 9. 未解决与待 Review
 
 - 其余11条physical constraints的证据缺口关闭和逐项人工批准，不得整体晋升；首批4条不得重跑。
-- 12 条 `mapped_to_sector` 的来源、端点和语义逐项批准。
+- 首批6条`mapped_to_sector`的PG Write/Query与后续Neo4j Rebuild/Query仍需分别授权；其余6条继续补证或删除/改写。
 - 后续独立 `add-industry-chain-observation-foundation`：observation governance、typed observation、产业链 domain metrics 与采集契约。
 - 后续 event reasoning change：事件到 chain/node/sector 的证据化传导、动态观察验证、不确定性和证伪条件；不得在当前静态 foundation 中提前实现。
 
@@ -146,5 +148,5 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 
 不要信任handoff中可能陈旧的HEAD、migration version或数据计数。先实时核对Git与DB，再只读确认2 chains、26 nodes、27 active memberships、24 active topology、constraint为0，以及topology IDs/tuples与端点不变量。不得执行dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE或Neo4j操作。
 
-Layer 2、Layer 3、Layer 4和首批4条physical constraints已经完成且不得重跑。其余11条constraint与12条mapped_to_sector仍是candidate，economy/commodity/benchmark为空。下一步由主对话决定继续哪个独立Review层；不得推定授权，不得提前Neo4j rebuild、Sync、Archive或PR。
+Layer 2、Layer 3、Layer 4和首批4条physical constraints已经完成且不得重跑。首批6条mapped_to_sector只完成无状态准备，PG仍为0；其余6条mapping和11条constraint仍review-only，economy/commodity/benchmark为空。下一步先实时preflight并等待首批mapping PG Write明确授权；不得推定Neo4j rebuild、Sync、Archive或PR授权。
 ```
