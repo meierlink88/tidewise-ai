@@ -7,9 +7,11 @@
 - 执行风险：**R2**，因为会在隔离 disposable PostgreSQL 16 container/volume 中创建数据库并恢复数据。
 - 允许范围：稳定保存既有 backup、拉取已固定 digest 的 PostgreSQL image、创建一次性 network/container/volume/database、执行一次 `pg_restore`、只读验证、保存脱敏 evidence、销毁一次性资源。
 - 明确排除：`tidewise_local`、现有 PostgreSQL container/volume/network、migration 15/16、cleanup、seed、任何现有 PostgreSQL/Neo4j 查询或写入、Neo4j rebuild、生产/UAT 环境。
-- 当前状态：**未授权、未执行**。本 package checkpoint 不创建目录、备份副本、容器、network、volume 或数据库，也不运行 `pg_restore`。
+- 当前状态：**授权已由主对话撤销，restore rehearsal 未执行、未完成**。撤销前只完成 source/stable backup hash 核验、固定 image/tool version 核验及 disposable infrastructure 启动；尚未创建 `tidewise_restore_rehearsal` database，未运行 `pg_restore`、Go preflight 或只读 assertions。固定 container、volume、network 与临时 secret 已按顺序清理且无残留；`backup_verified=false`。
 
 主对话未来若批准本 package，只授权上述命名 R2 操作。演练成功的唯一状态变化是将 cleanup recovery evidence 的 `backup_verified` 从 false 升级为 true；它不授权 task 1.14 的 R3 cleanup，也不授权 migration 15。
+
+本次停止证据保存在 `/Users/meierlink/.local/share/tidewise-ai/restore-rehearsal-evidence/20260713T100759Z`：`rehearsal-result.json` 记录撤销与未恢复状态，`cleanup-result.json` 记录固定资源清理顺序和零残留，`assertion-matrix.json` 明确 restore/guards/assertions 均为 `not_run`，`EVIDENCE_SHA256SUMS` 固定 evidence 校验和。稳定 backup 仍位于 `/Users/meierlink/.local/share/tidewise-ai/backups/postgresql/phase-a/20260713T100759Z/tidewise_phase_a_pre_cleanup.dump`，大小 `991015` bytes、SHA-256 仍为 `75c791a67d98d1b93ff73575a7e91d80eeb5c1262282c8d518e682ea2eee24d3`；这只证明 archive integrity/hash，不证明可恢复性。
 
 ## 固定输入与稳定保存
 
@@ -222,4 +224,4 @@ rmdir /private/tmp/tidewise-restore-rehearsal-20260713t100759z-secret
 
 ## Authorization request
 
-请求主对话未来明确授权或拒绝命名 R2 操作 `phase-a-backup-restore-rehearsal`。当前 R0 checkpoint 只请求审阅本 package 内容，不请求立即执行，也不包含任何 R3 授权。
+命名 R2 操作 `phase-a-backup-restore-rehearsal` 的既有授权已撤销，不再存在可继续使用的执行授权。若未来重试，必须先解决 host `psql` guard 能力并重新提交、审阅和明确授权完整 R2 package；不得从本次中断点恢复。本 R0 checkpoint 只请求审阅停止状态、稳定 backup hash 证据与固定资源清理结果，不包含 restore、R3 cleanup 或其他 Write 授权。

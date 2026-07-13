@@ -5,7 +5,7 @@
 - task 1.12 checkpoint `a0547e6` 已由主对话明确批准；本文件只提交 task 1.13 的当前只读证据。
 - 本轮只连接本地开发 PostgreSQL，执行标准 Phase A `REPEATABLE READ READ ONLY` preflight、补充只读冻结查询和 custom-format 逻辑备份；未执行 migration、cleanup、seed、DDL/DML 或任何 Neo4j 查询/写入/rebuild。
 - 主对话已批准 workflow adoption checkpoint `0b21f74` 与本 task 1.13 Cleanup Readiness Review；该批准只允许准备独立 restore rehearsal authorization package，不构成 task 1.14 Cleanup Write 授权。
-- 当前 `backup_verified=false`：archive 已完成全量解码校验，但本轮禁止创建隔离恢复库，尚未完成实际 restore rehearsal。不得设置 `tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified`。
+- 当前 `backup_verified=false`：archive integrity/hash 已核验，但命名 R2 restore rehearsal 在创建目标 database 和执行 restore 前由主对话撤销，未完成实际恢复验证。固定 disposable container/volume/network/secret 已清理且无残留；不得设置 `tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified`。
 - 本 package 按新工作流标记为 **R0 Cleanup Readiness Review package**：scope 是只读 preflight、backup archive 证据、冻结目标与影响分析；non-goals 是 restore rehearsal、migration、cleanup、seed、relation 和任何 PostgreSQL/Neo4j Write/rebuild。
 - 本 package 的验收只允许准备命名 R2 操作 `phase-a-backup-restore-rehearsal` 的 [独立授权对象](restore-rehearsal-authorization.md)；演练成功后才能将 `backup_verified` 升级为 true，并另行提交命名操作 `phase-a-legacy-industry-cleanup` 的 **R3 独立授权对象**。不得把 task checkbox、历史 Apply 批准或本 package 验收解释为 restore 或 R3 Write 授权。
 
@@ -46,7 +46,7 @@ APP_ENV=local DATABASE_PASSWORD='<container-injected>' go run ./cmd/entity-seed 
 | TOC | 253 行；`pg_restore --list` 成功 |
 | archive 解码 | `pg_restore --schema-only --file=/dev/null` 与 `--data-only --file=/dev/null` 均成功 |
 | 目标集合核对 | backup 与冻结 live snapshot 均为 168 行；规范排序后的共同 SHA-256 为 `03d058855573bb7fc8d0b38a602bb77dda414088c9246f6251d25a33f77dc220` |
-| backup_verified | **false**；尚未实际 restore 到隔离 PostgreSQL |
+| backup_verified | **false**；restore rehearsal 已撤销，未实际 restore 到隔离 PostgreSQL；仅 archive integrity/hash verified |
 
 备份命令形状：
 
@@ -196,11 +196,11 @@ TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cle
 - 写后 Query 必须验证：Goose version=15、migration 16 pending；旧三类 entity rows=0；旧专属表/function/trigger 不存在；`chain_node_profiles` 最小列/约束正确且 rows=0；`theme_profiles` 空表存在；目标 event links/edges=0；entity_edges=331；所有 orphan/duplicate=0；12 类非目标 count/checksum 完全不变；重复执行被门禁或报告 already-clean，不扩大删除范围。
 - PostgreSQL cleanup 后既有 Neo4j projection 会暂时陈旧；本 change 不查询、清理、写入或 rebuild Neo4j。
 
-## 本轮 Review blocker
+## 当前 Review blocker
 
-1. **实际 restore rehearsal 尚未授权/执行**，因此 `backup_verified=false`，task 1.14 的 R3 cleanup 不能开始。
-2. workflow adoption 与 1.13 的批准不授权 restore rehearsal；必须先单独验收并授权 [restore-rehearsal-authorization.md](restore-rehearsal-authorization.md)。
-3. 即使 restore rehearsal 成功，也只升级 `backup_verified=true`，不得推定 migration 15、cleanup、seed 或任何 PostgreSQL/Neo4j Write 授权。
+1. **命名 R2 restore rehearsal 已由主对话撤销且未完成**：目标 database、`pg_restore`、Go preflight 与 assertions 均未执行，因此 `backup_verified=false`，task 1.14 的 R3 cleanup 不能开始。
+2. 固定 disposable container/volume/network/secret 已清理且无残留；稳定 backup 仅完成 archive integrity/hash 核验。既有授权不得恢复使用，未来重试必须先解决 host `psql` guard 能力并重新验收、授权完整 [restore rehearsal package](restore-rehearsal-authorization.md)。
+3. 即使未来 restore rehearsal 成功，也只允许升级 `backup_verified=true`，不得推定 migration 15、cleanup、seed 或任何 PostgreSQL/Neo4j Write 授权。
 
 ## Checkpoint 验证
 
