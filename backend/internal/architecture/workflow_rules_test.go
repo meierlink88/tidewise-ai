@@ -83,6 +83,67 @@ func TestSkillDrivenWorkflowRules(t *testing.T) {
 	)
 }
 
+func TestRiskTieredWorkflowRules(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	agents := readWorkflowRuleFile(t, filepath.Join(root, "AGENTS.md"))
+	routing := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "skill-routing.md"))
+	gitWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "git-workflow.md"))
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+	testingRules := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "testing-tdd.md"))
+
+	assertWorkflowContains(t, agents, "R0—R3")
+	assertWorkflowContains(t, agents, "条件式执行包")
+	assertWorkflowContains(t, agents, ".agents/openspec-workflow.md")
+	assertWorkflowSectionContains(t, openspecWorkflow, "## 风险分级、阶段 Review package 与条件式执行包",
+		"R0：文档、调研、只读审计",
+		"普通 task checkbox 不自动成为人工 gate",
+		"阶段 Review package",
+		"受影响交付边界的完整验证",
+		"边界、理由或 suite 不清楚时 fail-closed",
+		"当前 tidewise 本地 curated PostgreSQL 不得自动视为 disposable",
+		"Write(layer N) -> Query/assert(layer N)",
+		"剩余授权自动失效",
+		"R3 不得跨层批量执行",
+		"active change 不自动重写",
+		"每个 R2 层必须逐一选择：",
+		"只读 preflight、可验证 recovery evidence 和 before/after state assertions",
+		"shared local、开发主数据、UAT 或任何不可替代数据必须提供可恢复备份",
+		"仅限用户逐层批准且明确声明 disposable",
+		"没有不可替代数据、具备确定性 recreate/reseed 路径",
+		"预计耗时和验证断言",
+		"未逐层声明 recovery evidence",
+		"必须独立明确授权及备份/恢复或等价灾难恢复证据",
+		"共享规则、跨模块契约、公共基础设施或 repo-wide 变更",
+		"用户必须一次明确授权包内每个命名操作的环境、顺序、范围、排除范围、recovery evidence、预期 counts、before/after assertions 和停止条件",
+	)
+	assertWorkflowSectionOrder(t, openspecWorkflow, "## 风险分级、阶段 Review package 与条件式执行包",
+		"Write(layer N) -> Query/assert(layer N)",
+		"当前层全部自动断言通过",
+	)
+	assertWorkflowSectionContains(t, routing, "## Engineering Skills",
+		"阶段 Review package",
+		"self-review/code review",
+	)
+	assertWorkflowSectionContains(t, gitWorkflow, "## Commit Checkpoints",
+		"阶段级 checkpoint",
+	)
+	assertWorkflowSectionContains(t, gitWorkflow, "## Active Change Adoption",
+		"git fetch origin",
+		"最新 `origin/main`",
+		"workflow-adoption tasks diff",
+		"不能追认历史操作",
+	)
+	assertWorkflowSectionContains(t, testingRules, "## Verification Before Completion",
+		"受影响交付边界的完整验证",
+		"repo-wide full validation",
+		"go test ./...",
+		"只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation",
+	)
+	assertWorkflowNotContains(t, testingRules, "对应包测试通过后运行 `go test ./...`")
+	assertWorkflowNotContains(t, testingRules, "change 完成前必须运行 `go test ./...`")
+	assertWorkflowNotContains(t, testingRules, "所有 change 必须运行 `go test ./...`")
+}
+
 func TestOpenSpecConfigUsesSupportedRulesAndCurrentArchitecture(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	config := readWorkflowRuleFile(t, filepath.Join(root, "openspec", "config.yaml"))
@@ -135,6 +196,13 @@ func assertWorkflowContains(t *testing.T, content string, want string) {
 	t.Helper()
 	if !strings.Contains(content, want) {
 		t.Fatalf("workflow rule content missing %q", want)
+	}
+}
+
+func assertWorkflowNotContains(t *testing.T, content, unwanted string) {
+	t.Helper()
+	if strings.Contains(content, unwanted) {
+		t.Fatalf("workflow rule content unexpectedly contains %q", unwanted)
 	}
 }
 
