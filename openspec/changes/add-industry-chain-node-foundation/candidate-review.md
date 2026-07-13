@@ -168,7 +168,7 @@
 
 全部状态：`candidate`。以下只是 AI 基于技术资料生成的建议，必须补齐权威技术证据并由用户逐项批准后才能进入正式 seed。
 
-2026-07-13 Layer 5逐条证据审查见[`physical-constraint-review.md`](physical-constraint-review.md)：5条建议批准、8条需补权威证据、2条建议删除或改写。该结论未改变任何candidate状态。
+2026-07-13 Layer 5严格证据审查见[`physical-constraint-review.md`](physical-constraint-review.md)：2条直接证据闭合、2条机制认可但晋级前必须校正provenance、9条需补权威证据、2条建议删除或改写。该结论未改变任何candidate状态。
 
 | chain | subject | constraint_type | mechanism | physical_limit_note | mitigation_path | 来源 | 缺口 |
 |---|---|---|---|---|---|---|---|

@@ -58,7 +58,7 @@
 | Commodity relationships | 0 | 不得虚构 |
 | Benchmark relationships | 0 | 不得虚构 |
 
-Layer 5候选证据审查已记录于`physical-constraint-review.md`：建议批准5条、需补权威证据8条、删除或改写2条。该分级仅供主对话逐项Review，15条fixture状态仍全部为candidate，PG仍为0行。
+Layer 5候选证据审查已收紧并记录于`physical-constraint-review.md`：直接证据闭合2条、机制认可但晋级前必须校正provenance 2条、需补权威证据9条、删除或改写2条。该分级仅供主对话逐项Review，15条fixture状态仍全部为candidate，PG仍为0行。
 
 ## 5. 后续严格执行顺序
 

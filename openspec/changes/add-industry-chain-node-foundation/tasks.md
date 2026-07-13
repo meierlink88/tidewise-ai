@@ -39,7 +39,7 @@
 - [x] 5.4f Layer 4只读preflight确认24条topology ID/tuple唯一、10/14、端点同链active、无self/substitute/反向重复且DB冲突0；按TDD实现`industry-chain-topology` scope与持久化membership校验，本步骤未执行DML
 - [x] 5.4g 按并发Review补充RED测试并以稳定端点顺序执行`SELECT ... FOR SHARE`，确保membership更新/停用不能穿越topology校验与写入窗口，缺失/inactive端点原子rollback；本步骤未执行DML
 - [x] 5.4h 2026-07-13在独立授权、备份和写前只读门禁后，仅执行一次`industry-chain-topology`；report与只读Query确认24/24 active、10/14、ID/tuple唯一、端点有效且其他数据族不变
-- [x] 5.5a 2026-07-13只读确认Layer 4状态后，对review-only fixture的15条physical constraint逐项完成subject/type/证据/Serenity映射审查；结论为建议批准5、需补证8、删除或改写2，全部仍为candidate且未修改seed或PG
+- [x] 5.5a 2026-07-13只读确认Layer 4状态后，对review-only fixture的15条physical constraint逐项完成subject/type/证据/Serenity映射审查；严格口径为直接证据闭合2、机制认可但provenance须校正2、需补证9、删除或改写2，全部仍为candidate且未修改seed或PG
 
 ## 6. 完整验证与 Apply 后 Review
 
