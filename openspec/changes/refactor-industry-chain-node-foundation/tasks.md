@@ -1,3 +1,7 @@
+## Workflow adoption
+
+本 change 已在 branch 内非破坏性合并 `origin/main@4b3df5c`，并只对尚未开始的未来操作采用 R0—R3 工作流。历史 checkbox、Review 结论和授权边界保持不变；本 adoption checkpoint 属于 R0 artifact Review，主对话验收前不改变 task 1.13 状态，也不授权任何有状态操作。详细映射见 [workflow-adoption-review.md](workflow-adoption-review.md)。
+
 ## 1. Phase A：结构基础与受控 cleanup
 
 - [x] 1.1 记录已完成人工字段 Review：`chain_node_profiles(entity_id, definition NOT NULL, boundary_note NULL)`，`theme_profiles(entity_id, definition NOT NULL, boundary_note NOT NULL)`；名称/aliases/状态复用 `entity_nodes`，不保留 position/category/unit/level/parent/market/source/observation，不建立专属 chain_node source mapping，不使用 `research_theme`。
@@ -12,24 +16,22 @@
 - [x] 1.10 只读核验已批准工作簿 Sheet「标准化保留」并提交数据契约审阅材料：842 个互异 canonical、950 个互异原始名称、108 个同义合并、79 个宽边界审阅节点；1,156 条外部代码为 eastmoney 811、ths 345，241 个节点两侧均有代码且无跨节点代码冲突。当前不生成可执行 seed。
 - [x] 1.11 **First-batch data contract Review 门禁**：主对话审阅 842 节点范围、aliases 规则、definition/boundary 生成与逐项 Review 策略、全新 UUID/entity_key、去重/幂等、dry-run/report，以及通用 `entity_external_identifiers` schema。6 条组合来源分类记录涉及 13 个代码，逐代码 taxonomy 未消歧前不得批准可执行 seed；不得确定具体 theme 实例。
 - [x] 1.12 **Schema/TDD implementation Review 门禁**：主对话已批准 checkpoint `a0547e6`；该批准只允许进入 1.13 Cleanup Review，不授权 migration、cleanup、seed 或任何 PostgreSQL/Neo4j Write。
-- [ ] 1.13 **Cleanup Review 门禁**：已提交当前本地开发库的标准 read-only preflight、custom-format backup、168 行冻结目标集合、逐表 counts、catalog/逻辑引用、锁/事务影响、非目标保护与 forward-fix 证据，等待主对话验收。实际 restore rehearsal 尚未获准，`backup_verified=false`，不得进入 1.14。cleanup 必须先于新节点写入，避免新旧 chain_node 混入删除集合。
-
-> 工作流过渡冻结：task 1.13 checkpoint push 后停止；等待项目级风险分级工作流 change Deliver，再基于最新 `origin/main` 单独提交本 change 的 workflow adoption tasks diff。当前不得预先采用未 Deliver 的工作流，也不得进入 1.14。
-- [ ] 1.14 **Cleanup Write -> Query 门禁**：仅在 1.13 明确获批后，以 cleanup 专属 session setting 执行 `dbmigrate -apply -target-version 15`，只允许实际 applied `000015` 且 `000016` 继续 pending；立即 Query 证明旧专属表不存在、旧 sector/industry_chain/chain_node 与相关关系/链接/审计为 0、无孤儿、非目标 counts/校验和不变、重复执行幂等，等待验收。
-- [ ] 1.15 **External identifier schema Review -> Write -> Query 门禁**：cleanup Query 验收后，展示 `entity_external_identifiers` schema diff、preflight、影响、备份和 forward-fix 并单独请求 schema Write；获批后以 schema 专属 session setting 执行 `dbmigrate -apply -target-version 16`，并立即 Query 表/列/FK/唯一约束/索引/版本/幂等，等待验收。
-- [ ] 1.16 **Final seed dry-run Review 门禁**：schema Query 验收后提交 842 个 node/profile 的全新 UUID/entity_key、canonical/name、aliases、逐条 definition/boundary、预计动作、冲突与幂等 report；单独请求 node/profile seed Write 授权，不包含 theme 实例或关系。
-- [ ] 1.17 **Node/profile seed Write -> Query 门禁**：仅在 1.16 明确获批后写入 842 个 chain_node 与 profile；立即 Query counts、profile 完整性、new key/ID、aliases、重复、孤儿与重复执行幂等，等待验收。
-- [ ] 1.18 **Mapping data Review -> Write -> Query 门禁**：node/profile Query 验收后提交 1,156 条逐行 mapping report，包含 entity、source_system、source_taxonomy_type、external_code、external_name 与冲突检查并单独请求 mapping Write；获批后写入并立即 Query eastmoney=811、ths=345、总数=1,156、241 个双来源节点、唯一性、绑定、孤儿与幂等，等待验收。
-- [ ] 1.19 **Phase A 验收门禁**：cleanup、external identifier schema、node/profile seed 与 mapping data 的 Query 均获验收后才可进入 Phase B。PG cleanup 后 Neo4j 将暂时陈旧，本 change 不清理、不写入、不 rebuild。
+- [ ] 1.13 **R0 Cleanup Readiness Review package**：已提交当前本地开发库的标准 read-only preflight、custom-format backup、168 行冻结目标集合、逐表 counts、catalog/逻辑引用、锁/事务影响、非目标保护与 forward-fix 证据，等待主对话验收。实际 restore rehearsal 尚未获准，`backup_verified=false`；通过后只允许补齐 recovery evidence 并提交 1.14 的 R3 独立授权对象，不直接授权 cleanup Write。cleanup 必须先于新节点写入，避免新旧 chain_node 混入删除集合。
+- [ ] 1.14 **R3 独立 Cleanup Authorization package -> Write -> Query/assert**：不可逆 cleanup 必须独立成包，不得放入 R2 条件式执行包。仅在 1.13 验收、实际 restore rehearsal 通过且主对话对命名操作 `phase-a-legacy-industry-cleanup` 的环境、范围、排除范围、backup/recovery、预计 counts、before/after assertions、停止条件与维护窗口逐项明确授权后，才能用 cleanup 专属 session setting 执行 `dbmigrate -apply -target-version 15`；实际 applied 只能是 `000015`，`000016` 保持 pending，并立即 Query/assert。该授权不包含 migration 16、seed、mapping 或 Neo4j。
+- [ ] 1.15 **R2 条件式执行包：external identifier schema -> Write -> Query/assert**：cleanup Query 验收后，先提交命名层 `phase-a-external-identifier-schema` 的 schema diff、local 环境身份、范围/排除范围、preflight、`backup` 或经逐层批准的 `approved disposable recovery`、预计 counts、before/after assertions 与停止条件；主对话明确授权该包后，才可用 schema 专属 session setting 执行 `dbmigrate -apply -target-version 16`，并立即 Query/assert 表、列、FK、唯一约束、索引、版本与幂等。该包不授权 node/profile 或 mapping data。
+- [ ] 1.16 **R0 Final seed candidate Review package**：schema Query 验收后提交 842 个 node/profile 的全新 UUID/entity_key、canonical/name、aliases、逐条 definition/boundary、输入指纹、总体 counts、确定性抽样、宽边界/冲突清单、预计动作与 fail-closed dry-run；通过后只允许组装 1.17 的 R2 条件式执行包，不直接授权 seed Write，不包含 theme 实例或关系。
+- [ ] 1.17 **R2 条件式执行包：node/profile seed -> Write -> Query/assert**：仅在 1.16 验收后提交命名层 `phase-a-chain-node-seed` 的 local 环境、842 行精确范围、排除范围、recovery evidence、before/after assertions 与停止条件；主对话明确授权该包后才写入，并立即 Query/assert counts、profile 完整性、new key/ID、aliases、重复、孤儿与重复执行幂等。该包不授权 external identifier mapping。
+- [ ] 1.18 **R0 Mapping candidate Review + R2 条件式执行包：mapping data -> Write -> Query/assert**：node/profile Query 验收后先提交 1,156 条逐行 mapping package，包含输入指纹、counts、确定性抽样、异常/冲突、entity、source system/taxonomy、code/name、预计动作和 fail-closed 条件；候选通过后，再单独提交命名层 `phase-a-external-identifier-mapping` 的 local 环境、精确范围/排除范围、recovery evidence、before/after assertions 与停止条件。只有该 R2 包获明确授权后才写入并立即 Query/assert eastmoney=811、ths=345、总数=1,156、241 个双来源节点、唯一性、绑定、孤儿与幂等。
+- [ ] 1.19 **R0 Phase A Acceptance Review package**：聚合 R3 cleanup 与三个 R2 命名层的实际 pre/post evidence、未验证项、阻断项和 scoped diff；全部 Query/assert 经主对话验收后才可进入 Phase B。PG cleanup 后 Neo4j 将暂时陈旧，本 change 不清理、不写入、不 rebuild；任何 Neo4j rebuild 都是本 change 外的独立 R3 授权对象。
 
 ## 2. Phase B：基于全新节点建立关系
 
 - [x] 2.1 记录已完成人工关系语义 Review：唯一表 `chain_node_relations`，不复用 `entity_edges`；MVP 仅含 `is_subcategory_of`、`is_component_of`、`input_to`、`depends_on`，删除 `contains`、`supplies_to`、`substitutes_for`、`transmits_to`，同一机制不得同时记为 `input_to` 与 `depends_on`，事件传导动态推导。
-- [ ] 2.2 仅在 Phase A 明确验收后开始；测试先行新增 relation migration/领域 table-driven tests，覆盖字段、四类枚举、方向、新 chain_node 端点 FK、自环、tuple 唯一、mechanism/condition/evidence/provenance、状态、时间与 input/depends 机制互斥。
+- [ ] 2.2 **R1 Phase B implementation Review package（开始）**：仅在 Phase A Acceptance Review 明确通过后开始；测试先行新增 relation migration/领域 table-driven tests，覆盖字段、四类枚举、方向、新 chain_node 端点 FK、自环、tuple 唯一、mechanism/condition/evidence/provenance、状态、时间与 input/depends 机制互斥。
 - [ ] 2.3 测试先行新增 repository/seed fixture、fake/sqlmock 或可重复集成测试，覆盖幂等 upsert、只接受 Phase A 新节点、禁止旧 topology/constraint ID 输入与写入 report。
 - [ ] 2.4 实现 `ChainNodeRelation` 强类型契约、`chain_node_relations` 版本化 migration、repository/validator/seed/report；如提出新 physical constraint，必须使用新 ID/subject 与独立候选 Review。只完成代码与测试，不 apply migration、不写 PostgreSQL。
-- [ ] 2.5 输出四类关系契约与候选边清单，逐条列出方向、mechanism、condition、evidence/provenance；不得加入旧 edge 映射、theme-node link、事件传导或替代关系。
-- [ ] 2.6 **Relation schema Review -> Write -> Query 门禁**：展示 schema diff、preflight、影响、备份与回滚边界并单独请求 schema Write；获批后执行并立即 Query 表、约束、索引、FK、版本与幂等，等待验收。
-- [ ] 2.7 **Relation data Review -> Write -> Query 门禁**：仅在 schema Query 验收后提交候选边/任何新 constraint 与 data 影响，单独请求 data Write；获批后写入并立即 Query 方向、端点、tuple、自环、机制冲突、evidence、孤儿与幂等，等待验收。
-- [ ] 2.8 运行相关 Go 包测试、migration 静态/集成测试、`go test ./...` 与 OpenSpec strict validation，检查 scoped diff 和 secret；明确证明未运行 Neo4j rebuild、未写 Neo4j、未加入观测/事件推理/股票推荐或联盟/国家/市场/benchmark/index 调整。
-- [ ] 2.9 **Apply Review 门禁**：提交 scoped diff、测试与每层 Review/Write/Query 证据，停止等待主对话人工 Review；批准前不得 Sync、Archive 或 Deliver。
+- [ ] 2.5 完成 R1 implementation package，并纳入 R0 候选数据证据：输出四类关系契约与候选边清单，记录输入指纹、总体 counts、确定性抽样、异常/冲突、预期动作与 fail-closed 条件，逐条列出高风险/异常边的方向、mechanism、condition、evidence/provenance；不得加入旧 edge 映射、theme-node link、事件传导或替代关系。
+- [ ] 2.6 **R2 条件式执行包：relation schema -> Write -> Query/assert**：提交命名层 `phase-b-relation-schema` 的 schema diff、local 环境、范围/排除范围、preflight、recovery evidence、预计 counts、before/after assertions 与停止条件；主对话明确授权该包后才执行并立即 Query/assert 表、约束、索引、FK、版本与幂等。该包不授权 relation/constraint data。
+- [ ] 2.7 **R2 条件式执行包：relation data -> Write -> Query/assert**：仅在 schema Query 验收后，提交命名层 `phase-b-relation-data` 的候选边/全新 constraint manifest、local 环境、范围/排除范围、recovery evidence、预计 counts、before/after assertions 与停止条件；主对话明确授权该包后才写入并立即 Query/assert 方向、端点、tuple、自环、机制冲突、evidence、孤儿、constraint subject 与幂等。
+- [ ] 2.8 运行 R1/Apply-final 验证：受影响 entity foundation、migration 与 relation packages 的完整 suite 及共享 architecture/contract tests、OpenSpec strict validation、scoped diff 和 secret 检查；仅当届时触发共享规则、跨模块契约、公共基础设施或边界不明条件才运行 repo-wide `go test ./...`，并记录选择理由。明确证明未运行 Neo4j rebuild、未写 Neo4j、未加入观测/事件推理/股票推荐或联盟/国家/市场/benchmark/index 调整。
+- [ ] 2.9 **Apply-final Review package**：提交 scope、non-goals、风险等级、scoped diff、完整测试与 R3/R2 各命名层的实际 pre/post evidence、未验证项、阻断项和下一步边界，停止等待主对话人工 Review；批准前不得 Sync、Archive 或 Deliver。

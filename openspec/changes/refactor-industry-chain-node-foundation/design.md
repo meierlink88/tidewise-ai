@@ -190,7 +190,27 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，但在本轮 remediation Review 通过前仍保持未完成。`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
+结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
+
+### 8. Active change 风险分级与执行包
+
+本 change 在 `origin/main@4b3df5c` Deliver 后采用项目级 R0—R3 工作流。adoption 只约束尚未开始的未来操作，不追认或改写 1.1—1.12 的历史状态与授权；task 1.13 仍是待主对话验收的 R0 Cleanup Readiness Review package。change 基线风险为 **R3**，原因是 migration 15 会执行不可逆 cleanup；实际 checkpoint/操作仍按各自最高适用等级执行。
+
+| 阶段 package / 命名操作 | 风险 | 授权语义 |
+|---|---|---|
+| workflow adoption、1.13 cleanup readiness、1.16 final seed candidate、1.19 Phase A acceptance | R0 | 只包含 artifacts、候选审阅或只读证据；Review 通过不授权 Write |
+| Phase B relation contract/implementation/tests/candidate package（2.2—2.5） | R1 | 只允许源码、migration 文件和测试修改，不 apply、不写数据库 |
+| `phase-a-legacy-industry-cleanup`（1.14） | R3 | 不可逆 cleanup，必须独立授权、独立 backup/restore evidence、Write 后立即 Query/assert；不得放入 R2 包 |
+| `phase-a-external-identifier-schema`（1.15） | R2 | 独立条件式执行包，只授权 migration 16 schema 层 |
+| `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
+| `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,156 mapping 层 |
+| `phase-b-relation-schema`（2.6） | R2 | 独立条件式执行包，只授权 relation schema 层 |
+| `phase-b-relation-data`（2.7） | R2 | 独立条件式执行包，只授权已审阅 relation/新 constraint data 层 |
+| Neo4j cleanup/write/rebuild | R3，且不在本 change | 必须由后续独立 change 和独立授权处理，任何现有批准均不覆盖 |
+
+每个 R2 条件式执行包必须在执行前明确命名操作、环境、顺序、精确范围、排除范围、recovery evidence、预计 counts、before/after assertions 与停止条件。当前 curated local PostgreSQL 不自动视为 disposable：默认提供可恢复 `backup`；只有用户对具体层明确声明 disposable、无不可替代数据且批准确定性 recreate/reseed 路径时，才能使用 `approved disposable recovery`。任何恢复证据失效、范围漂移、断言失败或停止条件触发都必须 fail-closed，未执行的授权自动失效。
+
+R3 cleanup 始终单独成包；其 Review 通过不授权 migration 16、seed、mapping、relation 或 Neo4j。Phase A 各 R2 层按 schema、node/profile、mapping 顺序逐层 `Write -> Query/assert`，Phase B 按 relation schema、relation data 顺序逐层执行。普通 task checkbox 只记录工作单元完成，不替代主对话对命名执行包的明确授权。
 
 ## Migration Plan
 

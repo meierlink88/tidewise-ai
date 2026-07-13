@@ -6,7 +6,8 @@
 - 本轮只连接本地开发 PostgreSQL，执行标准 Phase A `REPEATABLE READ READ ONLY` preflight、补充只读冻结查询和 custom-format 逻辑备份；未执行 migration、cleanup、seed、DDL/DML 或任何 Neo4j 查询/写入/rebuild。
 - task 1.13 在主对话验收前保持未完成；只读查询与备份授权不构成 task 1.14 Cleanup Write 授权。
 - 当前 `backup_verified=false`：archive 已完成全量解码校验，但本轮禁止创建隔离恢复库，尚未完成实际 restore rehearsal。不得设置 `tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified`。
-- 工作流过渡已冻结：本 checkpoint push 后停止；等待项目级风险分级工作流 change Deliver，再基于当时最新 `origin/main` 单独提交本 change 的 workflow adoption tasks diff。本轮不预写或推定该 diff。
+- 本 package 按新工作流标记为 **R0 Cleanup Readiness Review package**：scope 是只读 preflight、backup archive 证据、冻结目标与影响分析；non-goals 是 restore rehearsal、migration、cleanup、seed、relation 和任何 PostgreSQL/Neo4j Write/rebuild。
+- 本 package 的验收只允许补齐 recovery evidence 并提交命名操作 `phase-a-legacy-industry-cleanup` 的 **R3 独立授权对象**；不得把 task checkbox、历史 Apply 批准或本 package 验收解释为 R3 Write 授权。
 
 ## 当前环境与只读快照
 
@@ -199,7 +200,7 @@ TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cle
 
 1. **实际 restore rehearsal 尚未授权/执行**，因此 `backup_verified=false`，task 1.14 不能开始。
 2. 1.13 主对话尚未验收；即使本文件其他证据通过，也不能推定 Cleanup Write 授权。
-3. 项目级风险分级工作流 change 尚未 Deliver；其 workflow adoption tasks diff 冻结到 Deliver 后，并要求届时基于最新 `origin/main` 提交。
+3. workflow adoption checkpoint 仍待主对话验收；adoption 记录见 [workflow-adoption-review.md](workflow-adoption-review.md)。这不改变本 package 仍待验收的状态，也不解除上述 recovery blocker。
 
 ## Checkpoint 验证
 
