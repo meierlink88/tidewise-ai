@@ -203,19 +203,30 @@ type GraphProjectionRepository interface {
 	RecentGraphProjectionRuns(context.Context, int) ([]GraphProjectionRun, error)
 }
 
+type PhysicalConstraintFilter struct {
+	ChainIDs        []string
+	NodeIDs         []string
+	TopologyEdgeIDs []string
+}
+
+type IndustryChainRepository interface {
+	ListPhysicalConstraints(context.Context, PhysicalConstraintFilter) ([]domain.IndustryChainPhysicalConstraint, error)
+}
+
 type InMemoryRepository struct {
-	mu              sync.Mutex
-	sources         []domain.SourceCatalog
-	documents       map[string]domain.RawDocument
-	events          map[string]domain.Event
-	schedulerConfig domain.SchedulerConfig
-	ingestionRuns   map[string]domain.IngestionRun
-	runSources      map[string][]domain.IngestionRunSource
-	graphEntities   map[string]GraphEntityNode
-	graphEdges      map[string]GraphEntityEdge
-	graphRuns       map[string]GraphProjectionRun
-	graphRunItems   map[string][]GraphProjectionRunItem
-	observations    map[string]domain.BenchmarkObservation
+	mu                  sync.Mutex
+	sources             []domain.SourceCatalog
+	documents           map[string]domain.RawDocument
+	events              map[string]domain.Event
+	schedulerConfig     domain.SchedulerConfig
+	ingestionRuns       map[string]domain.IngestionRun
+	runSources          map[string][]domain.IngestionRunSource
+	graphEntities       map[string]GraphEntityNode
+	graphEdges          map[string]GraphEntityEdge
+	graphRuns           map[string]GraphProjectionRun
+	graphRunItems       map[string][]GraphProjectionRunItem
+	observations        map[string]domain.BenchmarkObservation
+	physicalConstraints map[string]domain.IndustryChainPhysicalConstraint
 }
 
 func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
@@ -225,17 +236,18 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 	}
 
 	return &InMemoryRepository{
-		sources:         copiedSources,
-		documents:       map[string]domain.RawDocument{},
-		events:          map[string]domain.Event{},
-		schedulerConfig: defaultSchedulerConfig(),
-		ingestionRuns:   map[string]domain.IngestionRun{},
-		runSources:      map[string][]domain.IngestionRunSource{},
-		graphEntities:   map[string]GraphEntityNode{},
-		graphEdges:      map[string]GraphEntityEdge{},
-		graphRuns:       map[string]GraphProjectionRun{},
-		graphRunItems:   map[string][]GraphProjectionRunItem{},
-		observations:    map[string]domain.BenchmarkObservation{},
+		sources:             copiedSources,
+		documents:           map[string]domain.RawDocument{},
+		events:              map[string]domain.Event{},
+		schedulerConfig:     defaultSchedulerConfig(),
+		ingestionRuns:       map[string]domain.IngestionRun{},
+		runSources:          map[string][]domain.IngestionRunSource{},
+		graphEntities:       map[string]GraphEntityNode{},
+		graphEdges:          map[string]GraphEntityEdge{},
+		graphRuns:           map[string]GraphProjectionRun{},
+		graphRunItems:       map[string][]GraphProjectionRunItem{},
+		observations:        map[string]domain.BenchmarkObservation{},
+		physicalConstraints: map[string]domain.IndustryChainPhysicalConstraint{},
 	}
 }
 

@@ -34,29 +34,37 @@ type Repository interface {
 }
 
 type MemoryRepository struct {
-	mu                           sync.Mutex
-	entities                     map[string]Entity
-	profiles                     map[string]Profile
-	sectorSourceMappings         map[string]SectorSourceMapping
-	relationships                map[string]Relationship
-	convergenceManifests         map[int64]string
-	convergenceReviews           map[int64]string
-	convergenceAudits            map[string]SectorConvergence
-	convergenceRelationshipMoves map[string][]string
-	convergenceOwnedAliases      map[string][]string
+	mu                               sync.Mutex
+	entities                         map[string]Entity
+	profiles                         map[string]Profile
+	sectorSourceMappings             map[string]SectorSourceMapping
+	relationships                    map[string]Relationship
+	convergenceManifests             map[int64]string
+	convergenceReviews               map[int64]string
+	convergenceAudits                map[string]SectorConvergence
+	convergenceRelationshipMoves     map[string][]string
+	convergenceOwnedAliases          map[string][]string
+	industryChainProfiles            map[string]domain.IndustryChainProfile
+	industryChainMemberships         map[string]domain.IndustryChainMembership
+	industryChainTopologyEdges       map[string]domain.IndustryChainTopologyEdge
+	industryChainPhysicalConstraints map[string]domain.IndustryChainPhysicalConstraint
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		entities:                     map[string]Entity{},
-		profiles:                     map[string]Profile{},
-		sectorSourceMappings:         map[string]SectorSourceMapping{},
-		relationships:                map[string]Relationship{},
-		convergenceManifests:         map[int64]string{},
-		convergenceReviews:           map[int64]string{},
-		convergenceAudits:            map[string]SectorConvergence{},
-		convergenceRelationshipMoves: map[string][]string{},
-		convergenceOwnedAliases:      map[string][]string{},
+		entities:                         map[string]Entity{},
+		profiles:                         map[string]Profile{},
+		sectorSourceMappings:             map[string]SectorSourceMapping{},
+		relationships:                    map[string]Relationship{},
+		convergenceManifests:             map[int64]string{},
+		convergenceReviews:               map[int64]string{},
+		convergenceAudits:                map[string]SectorConvergence{},
+		convergenceRelationshipMoves:     map[string][]string{},
+		convergenceOwnedAliases:          map[string][]string{},
+		industryChainProfiles:            map[string]domain.IndustryChainProfile{},
+		industryChainMemberships:         map[string]domain.IndustryChainMembership{},
+		industryChainTopologyEdges:       map[string]domain.IndustryChainTopologyEdge{},
+		industryChainPhysicalConstraints: map[string]domain.IndustryChainPhysicalConstraint{},
 	}
 }
 
@@ -504,6 +512,43 @@ func (r *MemoryRepository) UpsertRelationship(_ context.Context, relationship Re
 	}
 	r.relationships[relationship.Key] = relationship
 	return WriteResult{Key: relationship.Key, Action: WriteUpdated}, nil
+}
+
+func (r *MemoryRepository) UpsertRelationshipBatch(_ context.Context, relationships []Relationship) ([]WriteResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	next := make(map[string]Relationship, len(r.relationships)+len(relationships))
+	for key, relationship := range r.relationships {
+		next[key] = relationship
+	}
+	results := make([]WriteResult, 0, len(relationships))
+	for _, relationship := range relationships {
+		if relationship.Status == "" {
+			relationship.Status = domain.StatusActive
+		}
+		from, fromOK := r.entities[relationship.From]
+		to, toOK := r.entities[relationship.To]
+		if !fromOK || !toOK || from.Status != domain.StatusActive || to.Status != domain.StatusActive {
+			return nil, fmt.Errorf("relationship %q requires active persisted endpoints", relationship.Key)
+		}
+		if err := validateRelationshipPolicy(relationship, map[string]Entity{relationship.From: from, relationship.To: to}); err != nil {
+			return nil, err
+		}
+		existing, ok := next[relationship.Key]
+		if ok && (existing.From != relationship.From || existing.To != relationship.To || existing.RelationType != relationship.RelationType) {
+			return nil, fmt.Errorf("relationship %q identity conflict", relationship.Key)
+		}
+		action := WriteCreated
+		if ok && reflect.DeepEqual(existing, relationship) {
+			action = WriteUnchanged
+		} else if ok {
+			action = WriteUpdated
+		}
+		next[relationship.Key] = relationship
+		results = append(results, WriteResult{Key: relationship.Key, Action: action})
+	}
+	r.relationships = next
+	return results, nil
 }
 
 func (r *MemoryRepository) EntityCount() int {

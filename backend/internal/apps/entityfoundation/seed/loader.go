@@ -13,10 +13,13 @@ import (
 )
 
 type Manifest struct {
-	Entities             []Entity              `json:"entities"`
-	Profiles             []Profile             `json:"profiles,omitempty"`
-	SectorSourceMappings []SectorSourceMapping `json:"sector_source_mappings,omitempty"`
-	Relationships        []Relationship        `json:"relationships,omitempty"`
+	Entities                         []Entity                              `json:"entities"`
+	Profiles                         []Profile                             `json:"profiles,omitempty"`
+	SectorSourceMappings             []SectorSourceMapping                 `json:"sector_source_mappings,omitempty"`
+	Relationships                    []Relationship                        `json:"relationships,omitempty"`
+	IndustryChainMemberships         []IndustryChainMembershipSeed         `json:"industry_chain_memberships,omitempty"`
+	IndustryChainTopologyEdges       []IndustryChainTopologySeed           `json:"industry_chain_topology_edges,omitempty"`
+	IndustryChainPhysicalConstraints []IndustryChainPhysicalConstraintSeed `json:"industry_chain_physical_constraints,omitempty"`
 }
 
 type Entity struct {
@@ -89,6 +92,9 @@ func LoadFiles(paths ...string) (Manifest, error) {
 		merged.Profiles = append(merged.Profiles, manifest.Profiles...)
 		merged.SectorSourceMappings = append(merged.SectorSourceMappings, manifest.SectorSourceMappings...)
 		merged.Relationships = append(merged.Relationships, manifest.Relationships...)
+		merged.IndustryChainMemberships = append(merged.IndustryChainMemberships, manifest.IndustryChainMemberships...)
+		merged.IndustryChainTopologyEdges = append(merged.IndustryChainTopologyEdges, manifest.IndustryChainTopologyEdges...)
+		merged.IndustryChainPhysicalConstraints = append(merged.IndustryChainPhysicalConstraints, manifest.IndustryChainPhysicalConstraints...)
 	}
 	if err := Validate(merged); err != nil {
 		return Manifest{}, err
@@ -217,6 +223,9 @@ func Validate(manifest Manifest) error {
 		relationshipKeys[relationship.Key] = struct{}{}
 		relationshipTuples[tuple] = struct{}{}
 	}
+	if err := validateIndustryChainManifest(manifest, entityKeys); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -312,6 +321,11 @@ func validateProfileData(entityType domain.EntityType, data json.RawMessage) err
 	}
 	if entityType == domain.EntityTypeSector {
 		if err := validateSectorProfileFields(fields); err != nil {
+			return err
+		}
+	}
+	if entityType == domain.EntityTypeIndustryChain {
+		if err := validateIndustryChainProfileFields(fields); err != nil {
 			return err
 		}
 	}
@@ -452,6 +466,8 @@ func requiredProfileFields(entityType domain.EntityType) []string {
 		return []string{"benchmark_type", "provider", "currency_code", "unit", "frequency", "source_url"}
 	case domain.EntityTypeSector:
 		return []string{"sector_system", "sector_type"}
+	case domain.EntityTypeIndustryChain:
+		return []string{"chain_code", "definition", "scope_type", "review_status", "source_name", "source_url", "verified_at"}
 	case domain.EntityTypeChainNode:
 		return []string{"chain_position"}
 	case domain.EntityTypeSecurity:

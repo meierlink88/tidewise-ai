@@ -17,11 +17,17 @@ import (
 func main() {
 	seedDir := flag.String("seed-dir", entityseed.DefaultSeedDir, "entity foundation seed directory")
 	includeInactive := flag.Bool("include-inactive", false, "include inactive entities in seed writes")
+	applyScope := flag.String("apply-scope", "", "explicit apply scope; supported: industry-chain-master, industry-chain-membership, industry-chain-topology, industry-chain-physical-constraint, industry-chain-sector-mapping")
 	applySectorConvergence := flag.Bool("apply-sector-convergence", false, "apply the reviewed initial sector convergence")
 	applySectorConvergenceCorrection := flag.Bool("apply-sector-convergence-correction", false, "apply a reviewed forward sector convergence correction")
 	flag.Parse()
-	if *applySectorConvergence && *applySectorConvergenceCorrection {
-		log.Fatal("apply-sector-convergence and apply-sector-convergence-correction cannot be used together")
+	scope, err := validateCommandOptions(commandOptions{
+		applyScope:                       *applyScope,
+		applySectorConvergence:           *applySectorConvergence,
+		applySectorConvergenceCorrection: *applySectorConvergenceCorrection,
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	cfg, err := config.Load()
@@ -65,7 +71,7 @@ func main() {
 		fmt.Fprintln(os.Stdout, string(content))
 		return
 	}
-	report, err := service.Apply(ctx, manifest, entityseed.ApplyOptions{IncludeInactive: *includeInactive})
+	report, err := service.Apply(ctx, manifest, entityseed.ApplyOptions{IncludeInactive: *includeInactive, Scope: scope})
 	if err != nil {
 		log.Fatalf("apply entity seed: %v", err)
 	}
@@ -75,4 +81,24 @@ func main() {
 		log.Fatalf("encode entity seed report: %v", err)
 	}
 	fmt.Fprintln(os.Stdout, string(content))
+}
+
+type commandOptions struct {
+	applyScope                       string
+	applySectorConvergence           bool
+	applySectorConvergenceCorrection bool
+}
+
+func validateCommandOptions(options commandOptions) (entityseed.ApplyScope, error) {
+	scope, err := entityseed.ParseApplyScope(options.applyScope)
+	if err != nil {
+		return "", err
+	}
+	if options.applySectorConvergence && options.applySectorConvergenceCorrection {
+		return "", fmt.Errorf("apply-sector-convergence and apply-sector-convergence-correction cannot be used together")
+	}
+	if scope != entityseed.ApplyScopeAll && (options.applySectorConvergence || options.applySectorConvergenceCorrection) {
+		return "", fmt.Errorf("apply-scope %q cannot be combined with sector convergence", scope)
+	}
+	return scope, nil
 }

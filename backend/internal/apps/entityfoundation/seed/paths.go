@@ -18,6 +18,7 @@ func DefaultSeedPaths(seedDir string) []string {
 		"sectors.json",
 		"sector_source_mappings.json",
 		"chain_nodes.json",
+		"industry_chains_v1.json",
 		"metrics.json",
 		"commodities.json",
 		"companies.json",
