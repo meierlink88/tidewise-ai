@@ -35,7 +35,8 @@
 - [x] 5.4b Layer 2 preflight 发现默认 seed 会夹带后续层后，按 RED→GREEN 增加显式 `industry-chain-master` scope、CLI 冲突校验和 operation/final-table 双口径 report；测试证明跳过 industry batch 与无关数据族，本步骤未执行 DML
 - [x] 5.4c 2026-07-13 在独立授权、备份和写前只读门禁后，仅执行一次 `industry-chain-master` scope；report与只读Query确认2 chain、26 node及最终表级23/5、2/0、21/5，后续表和关系仍为0
 - [x] 5.4d Layer 3只读preflight确认2 chain/26 node active、27个membership ID与tuple无冲突；按RED→GREEN增加显式 `industry-chain-membership` scope，测试证明batch仅含27 memberships且其他数据族为空，本步骤未执行DML
-- [ ] 5.4e 在Layer 3单独Write授权后继续membership写入与Query验收，再进入Layer 4独立preflight；当前无写入授权
+- [x] 5.4e 2026-07-13在独立授权、备份和写前只读门禁后，仅执行一次`industry-chain-membership`；report与只读Query确认27/27 active、12/15、ID/tuple唯一、共享节点两链，其他表不变
+- [ ] 5.4f 进入Layer 4 topology独立preflight与必要scope实现；Layer 3验收不得推定topology Write授权
 
 ## 6. 完整验证与 Apply 后 Review
 

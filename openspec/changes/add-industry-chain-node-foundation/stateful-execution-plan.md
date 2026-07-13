@@ -42,7 +42,7 @@
 |---|---|---|---|---|---|
 | 1. Migration（已验收） | 2026-07-13 已单独授权并完成备份、Write、只读 Query 验收 | 实际：migration applied 1；新表 created 4；`chain_node_profiles` 列 added 4；业务行 created/updated 0 | `industry_chain_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges`、`industry_chain_physical_constraints`、`chain_node_profiles` | 实际 version=14；4 表、字段、32 个 constraints、12 个 indexes、`generated_by_ai` 均通过；既有 33 个 chain node 与5个复用UUID/status不变 | 本项目 Down 为 reviewed no-op；如需撤销须停止后续写入并通过新的 reviewed forward migration 处理，不手工 DROP |
 | 2. Chain / node master（已验收） | 2026-07-13 已单独授权；仅执行 `-apply-scope industry-chain-master` 一次并完成只读 Query 验收 | 实际最终表级：`entity_nodes` created 23、updated 5；`industry_chain_profiles` created 2；`chain_node_profiles` created 21、updated 5。operation report 为 created 46、updated 15、unchanged 0 | `entity_nodes`、`industry_chain_profiles`、`chain_node_profiles` | 实际2 chain active+approved；26 pilot node active且 aliases/profile完整；5个复用UUID/status/中文名不变；membership/topology/constraint与试点跨实体关系均为0 | 在不删除既有 5 个 node 的前提下，将本批新增 23 个实体置 inactive；5 个 aliases/profile 改进需用 reviewed forward seed 恢复旧值；不物理删除 |
-| 3. Membership | 层 2 验收；用户批准两链 12/15 membership | created 27；重复执行 unchanged 27 | `industry_chain_memberships` | 按 chain 查询 active membership，断言 AI=12、semiconductor=15、共享 `advanced_packaging` 两条 membership、stage order 唯一稳定 | 将本批 27 条 membership 置 inactive；保留审计行；后续 rebuild 前重新查询 active 数量 |
+| 3. Membership（已验收） | 2026-07-13 已单独授权；仅执行一次 `-apply-scope industry-chain-membership` 并完成只读Query | 实际created 27、updated 0、unchanged 0；未做幂等重跑 | `industry_chain_memberships` | 实际27/27 active且ID/tuple唯一；AI=12、semiconductor=15；`advanced_packaging`两链各一条；端点全active；topology/constraint为0 | 将本批27条membership置inactive；保留审计行；后续rebuild前重新查询active数量。该停用DML未授权、未执行 |
 | 4. Canonical topology | 层 3 验收；用户批准 10 条 AI + 14 条 semiconductor topology 及 evidence note 中的缺口 | created 24；重复执行 unchanged 24 | `industry_chain_topology_edges` | 按 chain/relation type 查询；断言无 self edge、端点均为同链 active membership、无 `substitutes_for`、无反向 `depends_on` 重复 | 将本批 24 条 topology 置 inactive；不删除 membership；重新查询 active topology=0 |
 | 5. Physical constraint | 15 条 candidate 逐项补齐权威技术证据并取得人工 Review；每条写入前单独确认 approval gate；当前未授权 | 当前可执行 0；Review-only candidate 15；未来数量以逐项批准结果为准 | 仅 `industry_chain_physical_constraints`；不进入 `entity_nodes` 或 Neo4j | 按 chain/node/topology edge 查询；断言 `review_status=approved`、`generated_by_ai=true`、主体同链 active、constraint type 属于 13 类 | 将获批写入行置 inactive；不改 topology；不触发 Neo4j rebuild。未批准 candidate 始终留在 Review fixture |
 | 6. `mapped_to_sector` | 12 条 candidate 逐项确认分析映射、来源和端点；当前未授权。economy/commodity/benchmark 清单保持空 | 当前可执行 0；Review-only candidate 12；未来数量以逐项批准结果为准 | 经批准后仅 `entity_edges` 的 `mapped_to_sector`；不得创建海外 market `covers_sector` 中国 sector | 查询 relation type、from/to stable key、source；断言无 economy/commodity/benchmark 新关系、无海外 market `COVERS_SECTOR` | 将本批获批 entity edge 置 inactive；不改 sector 主数据；重新投影前查询 active edge=0 |
@@ -129,3 +129,14 @@
 - **当前状态：Layer 3写入边界已无状态实现，但未运行entity-seed、未产生DML。** 必须先完成代码Review并重新实时只读preflight，再单独授权命令 `go run ./cmd/entity-seed -apply-scope industry-chain-membership`。
 
 未来写后验收：按chain断言active membership为12/15、总数27、共享`advanced_packaging`两条；所有端点active且identity与manifest一致；topology/constraint仍为0，entity/profile/relationships不变。停用方案为通过reviewed forward seed将本批27行置inactive并保留审计，不DELETE；该方案本轮未授权。
+
+## 9. 2026-07-13 Layer 3 Membership Write 与 Query 验收
+
+- 写前Git门禁：刷新origin后，Desktop-managed worktree与branch正确，工作区clean，local/remote HEAD均为已验收membership scope checkpoint `7f599297af6e62938cace27685edb7c0eaee1032`。
+- 写前显式READ ONLY：version=14，2 chains active+approved，26 pilot nodes active；membership/topology/constraint均为0；planned endpoints无inactive，ID/tuple冲突为0。无关表基线为`entity_nodes=634`、`industry_chain_profiles=2`、`chain_node_profiles=54`、`entity_edges=383`、`sector_source_mappings=89`。
+- Pre-Layer3备份：`/private/tmp/tidewise_local_pre_layer3_20260713T021205Z.dump`，custom format，983,891 bytes，SHA-256 `e33834390fadbcbc1273a3a1818ce835d12f61295e62efd23f21e0f8dd900b80`；`pg_restore --list`成功读取242个TOC entries。
+- 唯一写命令为`go run ./cmd/entity-seed -apply-scope industry-chain-membership`，只执行一次；未运行默认scope、其他seed或幂等重跑。
+- Report：TotalEntities=0，scope=`industry-chain-membership`，IndustryChainCounts=`membership 27 / topology 0 / physical_constraint 0`，operation与FinalTableImpact均为created27、updated0、unchanged0，Failed=0；entity/profile/edge/mapping counts为空或0。
+- 写后显式READ ONLY：membership总数=27、active=27、unique IDs=27、unique `(chain,node)`=27；AI链12、半导体链15；`advanced_packaging`恰有2条membership且属于2条不同chain；inactive/invalid endpoints=0。
+- Topology=0、physical constraints=0；无关表仍为`634/2/54/383/89`，与写前完全一致。
+- **Layer 3状态：Write与Query验收完成。** Layer 4 topology、candidate、跨实体关系与Neo4j均未授权、未执行。
