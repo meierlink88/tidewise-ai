@@ -13,6 +13,8 @@
 
 本次停止证据保存在 `/Users/meierlink/.local/share/tidewise-ai/restore-rehearsal-evidence/20260713T100759Z`：`rehearsal-result.json` 记录撤销与未恢复状态，`cleanup-result.json` 记录固定资源清理顺序和零残留，`assertion-matrix.json` 明确 restore/guards/assertions 均为 `not_run`，`EVIDENCE_SHA256SUMS` 固定 evidence 校验和。稳定 backup 仍位于 `/Users/meierlink/.local/share/tidewise-ai/backups/postgresql/phase-a/20260713T100759Z/tidewise_phase_a_pre_cleanup.dump`，大小 `991015` bytes、SHA-256 仍为 `75c791a67d98d1b93ff73575a7e91d80eeb5c1262282c8d518e682ea2eee24d3`；这只证明 archive integrity/hash，不证明可恢复性。
 
+主对话随后明确作出 local-only 风险接受：本次 `tidewise_local` migration 15 cleanup 可以使用稳定 custom-format backup、archive integrity/full decode、冻结目标/非目标基线与 forward-fix 作为 recovery evidence，完整 restore rehearsal 不再是 task 1.14 的硬门槛。该决定不改变本文件的历史状态，不把 `backup_verified` 改为 true，也不适用于 UAT/prod、共享环境或不可替代数据。
+
 ## 固定输入与稳定保存
 
 | 项目 | 固定值 |
@@ -220,8 +222,8 @@ rmdir /private/tmp/tidewise-restore-rehearsal-20260713t100759z-secret
 
 只有 restore exit=0、全部 assertions 通过、证据完整且一次性资源销毁完成，rehearsal 才可报告成功。成功后提交一个只包含 evidence 引用与状态更新的 R0 checkpoint，将 `backup_verified` 记录为 true，并停止等待主对话 Review。
 
-该成功不完成 task 1.14，不授权 `phase-a-legacy-industry-cleanup`、migration 15、cleanup、migration 16、seed、PostgreSQL/Neo4j Write 或 rebuild。R3 cleanup 仍必须使用刷新后的 preflight/backup evidence 另行提交独立授权 package。
+该成功不完成 task 1.14，不授权 `phase-a-legacy-industry-cleanup`、migration 15、cleanup、migration 16、seed、PostgreSQL/Neo4j Write 或 rebuild。当前 local R3 cleanup 已改用主对话明确接受的 recovery evidence 边界，仍必须使用刷新后的 preflight/backup evidence另行提交独立授权 package；UAT/prod 或不可替代数据不得复用该 local 例外。
 
 ## Authorization request
 
-命名 R2 操作 `phase-a-backup-restore-rehearsal` 的既有授权已撤销，不再存在可继续使用的执行授权。若未来重试，必须先解决 host `psql` guard 能力并重新提交、审阅和明确授权完整 R2 package；不得从本次中断点恢复。本 R0 checkpoint 只请求审阅停止状态、稳定 backup hash 证据与固定资源清理结果，不包含 restore、R3 cleanup 或其他 Write 授权。
+命名 R2 操作 `phase-a-backup-restore-rehearsal` 的既有授权已撤销，不再存在可继续使用的执行授权。它不再是本次 local cleanup 的前置步骤；若未来出于其他目的重试，仍必须先解决 host `psql` guard 能力并重新提交、审阅和明确授权完整 R2 package，不得从本次中断点恢复。本文件不包含 restore、R3 cleanup 或其他 Write 授权。
