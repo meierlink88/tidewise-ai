@@ -194,11 +194,12 @@ classDiagram
 
 ### 8. Active change 风险分级与执行包
 
-本 change 在 `origin/main@4b3df5c` Deliver 后采用项目级 R0—R3 工作流。adoption 只约束尚未开始的未来操作，不追认或改写 1.1—1.12 的历史状态与授权；task 1.13 仍是待主对话验收的 R0 Cleanup Readiness Review package。change 基线风险为 **R3**，原因是 migration 15 会执行不可逆 cleanup；实际 checkpoint/操作仍按各自最高适用等级执行。
+本 change 在 `origin/main@4b3df5c` Deliver 后采用项目级 R0—R3 工作流，主对话已批准 adoption checkpoint `0b21f74`。adoption 只约束尚未开始的未来操作，不追认或改写 1.1—1.12 的历史状态与授权；task 1.13 R0 Cleanup Readiness Review package 亦已批准，但只允许准备 restore rehearsal authorization package。change 基线风险为 **R3**，原因是 migration 15 会执行不可逆 cleanup；实际 checkpoint/操作仍按各自最高适用等级执行。
 
 | 阶段 package / 命名操作 | 风险 | 授权语义 |
 |---|---|---|
-| workflow adoption、1.13 cleanup readiness、1.16 final seed candidate、1.19 Phase A acceptance | R0 | 只包含 artifacts、候选审阅或只读证据；Review 通过不授权 Write |
+| workflow adoption、1.13 cleanup readiness、restore rehearsal authorization artifact、1.16 final seed candidate、1.19 Phase A acceptance | R0 | 只包含 artifacts、候选审阅或只读证据；Review 通过不授权 Write |
+| `phase-a-backup-restore-rehearsal` | R2 | 只在隔离 disposable PostgreSQL 16 环境恢复并只读验证 backup；成功仅升级 `backup_verified`，不授权 cleanup |
 | Phase B relation contract/implementation/tests/candidate package（2.2—2.5） | R1 | 只允许源码、migration 文件和测试修改，不 apply、不写数据库 |
 | `phase-a-legacy-industry-cleanup`（1.14） | R3 | 不可逆 cleanup，必须独立授权、独立 backup/restore evidence、Write 后立即 Query/assert；不得放入 R2 包 |
 | `phase-a-external-identifier-schema`（1.15） | R2 | 独立条件式执行包，只授权 migration 16 schema 层 |
@@ -210,7 +211,7 @@ classDiagram
 
 每个 R2 条件式执行包必须在执行前明确命名操作、环境、顺序、精确范围、排除范围、recovery evidence、预计 counts、before/after assertions 与停止条件。当前 curated local PostgreSQL 不自动视为 disposable：默认提供可恢复 `backup`；只有用户对具体层明确声明 disposable、无不可替代数据且批准确定性 recreate/reseed 路径时，才能使用 `approved disposable recovery`。任何恢复证据失效、范围漂移、断言失败或停止条件触发都必须 fail-closed，未执行的授权自动失效。
 
-R3 cleanup 始终单独成包；其 Review 通过不授权 migration 16、seed、mapping、relation 或 Neo4j。Phase A 各 R2 层按 schema、node/profile、mapping 顺序逐层 `Write -> Query/assert`，Phase B 按 relation schema、relation data 顺序逐层执行。普通 task checkbox 只记录工作单元完成，不替代主对话对命名执行包的明确授权。
+Restore rehearsal 使用独立 R2 条件式执行包，环境被显式声明为 disposable，确定性 recreate 路径是重新创建空 PostgreSQL 16 container/volume 并从同一 SHA-256 backup 恢复；它不得连接 `tidewise_local`，成功也只证明 backup 可恢复。R3 cleanup 始终另行单独成包；其 Review 通过不授权 migration 16、seed、mapping、relation 或 Neo4j。Phase A 各后续 R2 层按 schema、node/profile、mapping 顺序逐层 `Write -> Query/assert`，Phase B 按 relation schema、relation data 顺序逐层执行。普通 task checkbox 只记录工作单元完成，不替代主对话对命名执行包的明确授权。
 
 ## Migration Plan
 
@@ -221,6 +222,7 @@ sequenceDiagram
     actor Reviewer as 人工 Reviewer
     participant Apply as Apply 实现/迁移工具
     participant Backup as 可恢复备份
+    participant Restore as 隔离 PostgreSQL 16
     participant PG as PostgreSQL
     participant Evidence as Review 证据
     participant Neo4j as 既有 Neo4j projection
@@ -232,9 +234,16 @@ sequenceDiagram
     Apply->>Evidence: TDD 实现外部标识 schema/repository 与 final seed dry-run/report，只提交代码
     Reviewer-->>Apply: schema/TDD implementation Review
     Apply->>PG: READ ONLY 全库引用审计与精确 counts
-    Apply->>Backup: 生成备份并执行恢复可用性验证
+    Apply->>Backup: 生成 backup archive 与 checksum
     Apply->>Evidence: 输出删除集合、FK/逻辑引用顺序、事务、forward-fix、dry-run
-    Reviewer-->>Apply: cleanup Review 并单独授权 cleanup Write
+    Reviewer-->>Apply: 批准 R0 Cleanup Readiness，不含 restore/cleanup 授权
+    Apply->>Evidence: 提交 phase-a-backup-restore-rehearsal R2 独立授权包
+    Reviewer-->>Apply: 单独授权隔离 restore rehearsal
+    Apply->>Restore: 从固定 SHA-256 backup restore
+    Restore->>Evidence: READ ONLY counts/checksums/catalog/orphan assertions
+    Reviewer-->>Apply: 验收 recovery evidence，backup_verified=true
+    Apply->>Evidence: 提交 phase-a-legacy-industry-cleanup R3 独立授权包
+    Reviewer-->>Apply: 单独授权 cleanup Write
     Apply->>PG: target-version=15 版本化 cleanup Write：引用叶子到旧表/旧实体
     Apply->>PG: cleanup Query：旧类型/表/引用/孤儿为零，非目标 counts 不变，重复执行幂等
     Reviewer-->>Apply: 验收 cleanup Query
@@ -264,9 +273,9 @@ sequenceDiagram
 
 1. structure implementation checkpoint `0f20171` 的人工复验已通过；该结论只允许继续数据契约 Review，不授权 migration、cleanup、seed 或任一 PostgreSQL/Neo4j Write。
 2. first-batch data contract Review 固定 842 个 canonical 名称、950 个原始名称、1,156 条外部标识范围，并批准 aliases、definition/boundary、全新 UUID/entity_key、taxonomy 消歧、幂等与 dry-run/report 契约；当前 checkpoint 到此停止。
-3. 契约获批后测试先行实现 `entity_external_identifiers` schema/domain/repository、节点身份与 seed dry-run/report；checkpoint `775afda` 因 migration 无 target 上限、snapshot 不完整和并发冲突误报风险未通过，本轮整改后重新提交代码、测试、schema diff 和 dry-run 格式供 implementation Review，不执行数据库。
-4. cleanup 必须先于新节点写入，避免新旧 `chain_node` 混入同一目标集合；只读 preflight 列出旧三类实体及 profiles、source mappings、membership/topology/constraints、`entity_edges`、`event_entity_links`、convergence/audit 全表 counts 和任意其他引用。缺少任一引用类即阻断 cleanup Review。
-5. cleanup Review 展示可恢复备份证据、精确 ID 集合或可重算谓词、每表预计删除 counts、FK 顺序、锁与事务影响、非目标保护断言及提交后 forward-fix；单独获批后才执行 cleanup Write，并立即 Query。
+3. 契约获批后测试先行实现 `entity_external_identifiers` schema/domain/repository、节点身份与 seed dry-run/report；task 1.12 最终 remediation checkpoint `a0547e6` 已通过，不执行数据库。
+4. cleanup 必须先于新节点写入，避免新旧 `chain_node` 混入同一目标集合；只读 preflight 列出旧三类实体及 profiles、source mappings、membership/topology/constraints、`entity_edges`、`event_entity_links`、convergence/audit 全表 counts 和任意其他引用。主对话已批准 task 1.13 Cleanup Readiness Review，但该批准不含 restore 或 cleanup Write。
+5. 先单独 Review 并授权 `phase-a-backup-restore-rehearsal` R2 包，只在隔离 disposable PostgreSQL 16 环境验证 backup；成功只升级 `backup_verified=true`。之后仍须提交 `phase-a-legacy-industry-cleanup` R3 独立授权包，展示刷新后的精确 ID 集合、每表预计删除 counts、FK 顺序、锁与事务影响、非目标保护断言及 forward-fix；R3 明确获批后才执行 cleanup Write，并立即 Query/assert。
    普通 migration apply 不得隐式越过门禁：标准 `dbmigrate` 提供 `-target-version` 并由 Service/Executor 传递给 `goose.UpToContext`。AutoApply 先在一个 pinned PostgreSQL connection 上取得 session advisory lock，再读取 before current/pending；执行后仍在持锁状态读取 after current/pending，最后由同一 connection release。Executor 的 selected 列表只表示计划，report 的 `applied` 必须由 before/after pending 差值并受 after current 上界验证，`remaining` 必须直接取 after pending；target 未精确到达、target 以上 migration 异常消失、unlock=false 或 release/Close 失败均使操作失败。cleanup Write 的标准命令形状为 `TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 15`，成功报告的 `applied` 只含 `000015` 且 `remaining` 明确包含 `000016`；cleanup Query 验收且 schema Write 单独授权后，命令形状才是 `TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 16`。真实 URL 只能由受控环境或 secret 注入，不进入命令证据或仓库。无 target 保持原有 apply-all 行为；非法 target、低于当前版本或不存在于可用 migration 序列的跳跃 target 在任何 Write 前拒绝。两个 session setting 只防误执行，不能替代备份证据和人工授权，也不得用故意触发 `000016` 失败来分层。
 6. cleanup Query 必须证明旧专属表已删除、旧 sector/industry_chain/chain_node rows 为 0、旧关系/事件链接/审计引用为 0、无孤儿，且 alliance/economy/country/market/benchmark/index 等非目标 counts 与校验和保持不变；重复执行只返回 already-clean/unchanged。
 7. cleanup Query 验收后，`entity_external_identifiers` schema 仍须单独执行 `Review -> Write -> Query`；schema Query 通过前不得写节点或 mapping data。
