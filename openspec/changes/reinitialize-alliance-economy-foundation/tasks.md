@@ -7,8 +7,8 @@
 
 ## 2. B：Alliance Candidate Review
 
-- [ ] 2.1 将 CSV 第 1—68 条整理为只读联盟候选清单，逐项展示 `approve/reject/merge/defer`、目标 entity key/UUID 复用建议、canonical name、aliases、abbreviation、categories、leadership/influence summaries、正式来源和现有 10 个联盟差异；对每个现有 active alliance 提出 `keep/merge/inactivate` disposition，不得生成可执行 seed。
-- [ ] 2.2 将 CSV 第 69—85 条战略矿产和农产品从 `alliance_org` 排除，只记录为未来 `chain_node`、`commodity` 或 observation 候选，不自行创建实体、关系或后续 change。
+- [x] 2.1 **已准备供 Review，尚未批准**：已在 `alliance-candidate-review.md` 将 CSV 第 1—68 条整理为 provisional 只读联盟候选草案，逐项留空 final decision，并展示 recommendation、目标 identity、名称、aliases、abbreviation、22-code categories、非空摘要、正式来源、现有 10 个联盟 exact diff 与 disposition 建议；未生成可执行 seed。
+- [x] 2.2 **已准备供 Review，尚未批准**：已将 CSV 第 69—85 条战略矿产和农产品从 `alliance_org` 排除，只记录未来 `chain_node`、`commodity` 或 observation 候选方向，未创建实体、关系或后续 change。
 - [ ] 2.3 **Alliance Candidate Review 门禁**：主对话逐项确认最终 active alliance manifest，并审阅 reject/defer/unlisted/merge source 的 inactivate 或 merge 提议；manifest 未穷尽现有 active alliance、任一 stale/merge 未确认前，不得读取并冻结成员全集、形成 economy/关系候选或清理现有数据。
 
 ## 3. C：Economy Candidate Review
