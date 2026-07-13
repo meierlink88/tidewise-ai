@@ -2,7 +2,7 @@
 
 前序 change 已在 PostgreSQL 落地 `sector_profiles`、`sector_source_mappings`、`industry_chain_profiles`、扩展后的 `chain_node_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges` 与 `industry_chain_physical_constraints`，并已生成对应 Neo4j 投影。当前模型同时用 sector、industry_chain 与 chain_node 表达产业概念，membership 又承担容器归属，topology 再表达节点关系，导致同一事实存在多个入口。
 
-本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段与关系语义已完成人工 Review，但具体 chain_node/theme 实例、UUID/key、seed 与关系边仍须重新分阶段 Review。本次 Apply checkpoint 只实现结构 schema、cleanup/preflight 代码和生产入口切换。
+本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段、关系语义与第一批 842 个 chain_node 名称范围已完成人工 Review，但 UUID/key、definition/boundary 内容、可执行 seed 与关系边仍须分阶段 Review。结构实现 checkpoint `0f20171` 已通过人工复验，本 checkpoint 只提出第一批数据契约，不修改 migration/源码/seed，也不执行任何 PostgreSQL/Neo4j Write。
 
 ## Goals / Non-Goals
 
@@ -10,8 +10,9 @@
 
 - 用 `entity_nodes` + 最小 `chain_node_profiles` 统一粗细产业概念，不保存固定 L1/L2/L3、父节点、产业链容器、市场归属或观测值。
 - 新增最小 `theme` 主数据模型，明确其是 Tidewise 自有投研视角，并与产业分类、指数和证券集合隔离。
+- 用通用 `entity_external_identifiers` 规范保存实体与外部系统标识；首批仅覆盖已审阅 chain_node 的东方财富/同花顺代码。
 - 用独立且唯一的 `chain_node_relations` 保存四类可判定静态关系，不复用 `entity_edges`。
-- 为完整清除 PostgreSQL 中旧 sector、industry_chain、旧 chain_node、membership、topology、physical constraint 及相关关系/审计引用提供受控 migration/preflight；本 checkpoint 不执行清理，也不设计或实现新节点初始化。
+- 为完整清除 PostgreSQL 中旧 sector、industry_chain、旧 chain_node、membership、topology、physical constraint 及相关关系/审计引用提供受控 migration/preflight；本 checkpoint 不执行清理，只设计而不实现新节点初始化。
 - 将有状态操作拆成 Phase A 与 Phase B，每层坚持 `Review -> Write -> Query`，Write 前展示 preflight、影响、备份和回滚边界并取得单独授权。
 - 后端 Apply 使用 TDD：先写 migration 静态测试、领域 table-driven tests、repository fake/sqlmock 或可重复集成测试，再写生产实现，最后运行相关包测试与 `go test ./...`。
 
@@ -21,7 +22,7 @@
 - 不设计观测数据、事件提取、事件推理、传导强度/方向/时滞、股票推荐或证券成分。
 - 不调整 alliance、economy/country、market、benchmark/index。
 - 不确定具体 theme 实例，不实现 theme-node link/scope 表或写入。
-- 不建立 chain_node 来源映射表；同花顺、东方财富只作为候选 Review 参考。
+- 不恢复旧 `sector_source_mappings`，不建立 `chain_node_source_mappings`，不把外部代码或分类字段写入节点 profile；通用外部标识不是 sector 语义映射。
 - 不修改 `prototype/` 或项目外 `doc/`。
 
 ## Decisions
@@ -83,9 +84,28 @@ Go 类型只使用 `Theme` / `ThemeProfile`，数据库只使用 `entity_type='t
 
 不提供 `contains`、`supplies_to`、`substitutes_for`、`transmits_to`。替代关系通常依赖资格、成本、产能与时间，不适合作为 MVP 静态二元边；事件传导则由事件沿 `input_to` / `depends_on` 等路径动态推导。
 
-### 4. 来源与初始化不进入结构 checkpoint
+### 4. 第一批节点范围与通用外部标识
 
-不创建 `chain_node_source_mappings`，也不把 source/provider/code 放进 `chain_node_profiles`。本 checkpoint 不读取任何候选工作簿，不形成候选分类器或 seed 输入。旧 `sector_source_mappings` 只作为 cleanup 目标接受只读计数与引用审计，在备份和授权后由版本化 migration 删除，不转换为新节点映射。
+第一批名称范围只取已审阅工作簿 Sheet「标准化保留」：842 个互异「标准化节点名」作为 `canonical_name`，950 个互异原始名称进入名称/aliases 契约，形成 108 个同义合并。`entity_nodes.name` 与 `canonical_name` 均使用标准化节点名；每个与 canonical 不同的原始名称去除首尾空白后进入 `aliases`，去重但不丢失审阅过的别名。canonical 本身由 `name/canonical_name` 保存，不在 aliases 中重复。Sheet「宽边界保留」只是 79 个已保留节点的审阅子集，不是排除清单。工作簿仍不是可直接执行的 seed：所有新 UUID/entity_key、definition、必要 boundary 和 dry-run/report 必须另行生成并通过 Review。
+
+不创建 `chain_node_source_mappings`，也不把 source/provider/code 放进 `chain_node_profiles`。新增通用 `entity_external_identifiers`，其含义仅是“一个外部系统标识指向一个内部实体”，不表达外部 sector 与内部 chain_node 的语义等价、层级或成员关系。旧 `sector_source_mappings` 仍是 cleanup 目标，只接受只读计数与引用审计；不得转换或迁移到新表。首批新表数据只来源于已批准名称范围，经 Review 后逐行建立 1,156 条映射：eastmoney 811 条、ths 345 条，241 个节点同时具有两侧代码。
+
+| 字段 | PostgreSQL 类型 | Null / 默认 | 约束与业务含义 |
+|---|---|---|---|
+| `id` | `UUID` | `NOT NULL` | PK；属于全新外部标识身份，不复用旧 mapping ID |
+| `entity_id` | `UUID` | `NOT NULL` | FK `entity_nodes(id) ON DELETE CASCADE`；首批还须由 repository 验证 entity_type=`chain_node` |
+| `source_system` | `TEXT` | `NOT NULL` | `btrim(source_system) <> ''`；首批规范值仅 `eastmoney` / `ths`，不使用 PostgreSQL enum |
+| `source_taxonomy_type` | `TEXT` | `NOT NULL` | `btrim(source_taxonomy_type) <> ''`；首批规范值 `industry_sector` / `concept_sector` / `index_sector`，通用表不以数据库 enum 锁死未来来源 |
+| `external_code` | `TEXT` | `NOT NULL` | `btrim(external_code) <> ''`；保留平台原始代码文本，不转数值 |
+| `external_name` | `TEXT` | `NOT NULL` | `btrim(external_name) <> ''`；保留该代码在来源平台的原始名称，不等同于 canonical name |
+| `status` | `VARCHAR(32)` | `NOT NULL DEFAULT 'active'` | CHECK `active` / `inactive` |
+| `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL DEFAULT now()` | 创建与更新审计时间 |
+
+数据库必须建立 `UNIQUE(source_system, source_taxonomy_type, external_code)`，从而保证一个外部分类标识最多指向一个内部实体；另建 `(entity_id, source_system, source_taxonomy_type)` 普通查询索引。建议稿中的第二个 `UNIQUE(entity_id, source_system, source_taxonomy_type, external_code)` 被第一个唯一约束逻辑蕴含，重复建立只会产生冗余索引，因此不采纳。若主对话要求保留双唯一约束，须在 schema Review 明确接受额外写放大成本。
+
+工作簿转换必须先从 Sheet「标准化保留」冻结 842 个 canonical 范围，再从「原名保留明细」按外部代码恢复 `external_name` 与逐代码 taxonomy，最后绑定经批准的新 `entity_id`。不得把 `东方财富:BK...；同花顺:...` 拼接字符串写入任一生产列。只读复核发现 1,156 条代码无跨节点冲突，但 6 条原名记录的 `来源分类` 是组合值，共涉及 13 个代码；聚合值不能直接判定每个代码的 taxonomy，必须回到来源侧明细逐代码消歧并通过 Review，未消歧时 dry-run 必须阻断。
+
+definition 由“上位类别/对象 + 可判定差异或功能”构成，必须说明节点是什么；不得为空、不得只复制 canonical/alias，也不得使用“与 X 相关的产业链节点”等循环模板。生成流程先按 842 个名称和审阅证据形成 draft，再逐项人工 Review；名称合并、同名歧义、粗细范围重叠及 79 个宽边界节点优先填写非空 `boundary_note`，明确包含与排除，其他边界清晰节点可为 NULL。证据、draft 状态与 reviewer 结论保留在 Review/seed report，不新增 JSONB 或证据字段到 profile。
 
 ### 5. 旧身份清理与未来新身份边界
 
@@ -126,6 +146,15 @@ classDiagram
       text definition
       text boundary_note
     }
+    class EntityExternalIdentifier {
+      UUID id
+      UUID entity_id
+      text source_system
+      text source_taxonomy_type
+      text external_code
+      text external_name
+      varchar status
+    }
     class ChainNodeRelation {
       UUID id
       UUID from_chain_node_entity_id
@@ -152,6 +181,7 @@ classDiagram
 
     EntityNode "1" *-- "0..1" ChainNodeProfile
     EntityNode "1" *-- "0..1" ThemeProfile
+    EntityNode "1" *-- "0..*" EntityExternalIdentifier
     ChainNodeProfile "1" <-- "0..*" ChainNodeRelation : from
     ChainNodeProfile "1" <-- "0..*" ChainNodeRelation : to
     ChainNodeProfile "1" <-- "0..*" ChainNodePhysicalConstraint : node subject
@@ -160,11 +190,11 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-领域层在本 checkpoint 只落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、source-mapping 或 convergence 写入口。final seed service、身份生成、dry-run 与 report 等待数据初始化设计 Review。
+结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；`EntityExternalIdentifier`、repository、schema migration 和 seed binding 必须在本数据契约通过后按 TDD 另行实现。`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
 
 ## Migration Plan
 
-### 结构实现、受控清理与延后的数据初始化
+### 结构实现、受控清理与第一批数据初始化
 
 ```mermaid
 sequenceDiagram
@@ -175,8 +205,12 @@ sequenceDiagram
     participant Evidence as Review 证据
     participant Neo4j as 既有 Neo4j projection
 
-    Apply->>Evidence: 提交 schema/cleanup/preflight/入口切换代码与测试
-    Reviewer-->>Apply: structure implementation Review
+    Apply->>Evidence: 提交 structure implementation checkpoint 0f20171
+    Reviewer-->>Apply: structure implementation Review 已通过，不含 Write 授权
+    Apply->>Evidence: 提交 842 节点、1,156 外部标识、definition/boundary 数据契约
+    Reviewer-->>Apply: first-batch data contract Review
+    Apply->>Evidence: TDD 实现外部标识 schema/repository 与 final seed dry-run/report，只提交代码
+    Reviewer-->>Apply: schema/TDD implementation Review
     Apply->>PG: READ ONLY 全库引用审计与精确 counts
     Apply->>Backup: 生成备份并执行恢复可用性验证
     Apply->>Evidence: 输出删除集合、FK/逻辑引用顺序、事务、forward-fix、dry-run
@@ -185,26 +219,40 @@ sequenceDiagram
     Apply->>PG: cleanup Query：旧类型/表/引用/孤儿为零，非目标 counts 不变，重复执行幂等
     Reviewer-->>Apply: 验收 cleanup Query
     Note over PG,Neo4j: PG 已清理；Neo4j 仍保留旧投影并暂时陈旧
-    Note over Reviewer,Evidence: 数据初始化范围、UUID/key、seed 实现与 Write/Query 均延后独立 Review；当前不准备输入
-    Reviewer-->>Apply: 后续另行批准 final seed 设计与有状态门禁
-    Reviewer-->>Apply: cleanup 与 final seed 均验收后才验收 Phase A
+    Apply->>Evidence: 提交 entity_external_identifiers schema diff、preflight、备份与回滚边界
+    Reviewer-->>Apply: 单独授权 external identifier schema Write
+    Apply->>PG: schema Write
+    Apply->>PG: schema Query：表/列/FK/唯一约束/索引/版本/幂等
+    Reviewer-->>Apply: 验收 schema Query
+    Apply->>Evidence: 输出 842 节点、profile、全新 UUID/key、aliases 的 final seed dry-run/report
+    Reviewer-->>Apply: 单独授权 node/profile seed Write
+    Apply->>PG: node/profile seed Write
+    Apply->>PG: node/profile seed Query：842、profile、identity、重复、孤儿、幂等
+    Reviewer-->>Apply: 验收 node/profile seed Query
+    Apply->>Evidence: 输出 1,156 条逐行 external identifier mapping report
+    Reviewer-->>Apply: 单独授权 mapping data Write
+    Apply->>PG: mapping data Write
+    Apply->>PG: mapping data Query：811/345、taxonomy、唯一性、绑定、幂等
+    Reviewer-->>Apply: cleanup/schema/seed/mapping 均验收后验收 Phase A
     Apply->>Evidence: 输出基于新节点的 relation schema 与候选边
     Reviewer-->>Apply: 分别授权 relation schema Write 与 relation data Write
     Apply->>PG: 每次 Write 后立即执行对应 Query
     Note over Neo4j: 本 change 全程不清理、不写入、不 rebuild；后续独立 change 重建
 ```
 
-### Phase A：结构基础、cleanup 与延后的节点初始化
+### Phase A：结构基础、cleanup 与第一批节点初始化
 
-1. Material Proposal 重新 Review 前暂停 Apply；当前实现 diff 仅作为未验收审计对象。
-2. 测试先行覆盖 cleanup dry-run、目标集合快照、FK/逻辑引用发现、删除顺序、非目标保护、备份门禁、事务回滚、forward-fix 与重复执行幂等；只生成代码，不执行。
-3. 只读 preflight 必须列出旧三类实体及 profiles、source mappings、membership/topology/constraints、`entity_edges`、`event_entity_links`、convergence/audit 全表 counts 和任意其他引用。缺少任一引用类即阻断 cleanup Review。
-4. cleanup Review 展示可恢复备份证据、精确 ID 集合或可重算谓词、每表预计删除 counts、FK 顺序、锁与事务影响、非目标保护断言及提交后 forward-fix；单独获批后才执行 cleanup Write，并立即 Query。
+1. structure implementation checkpoint `0f20171` 的人工复验已通过；该结论只允许继续数据契约 Review，不授权 migration、cleanup、seed 或任一 PostgreSQL/Neo4j Write。
+2. first-batch data contract Review 固定 842 个 canonical 名称、950 个原始名称、1,156 条外部标识范围，并批准 aliases、definition/boundary、全新 UUID/entity_key、taxonomy 消歧、幂等与 dry-run/report 契约；当前 checkpoint 到此停止。
+3. 契约获批后测试先行实现 `entity_external_identifiers` schema/domain/repository、节点身份与 seed dry-run/report；提交代码、测试、schema diff 和 dry-run 格式供 implementation Review，不执行数据库。
+4. cleanup 必须先于新节点写入，避免新旧 `chain_node` 混入同一目标集合；只读 preflight 列出旧三类实体及 profiles、source mappings、membership/topology/constraints、`entity_edges`、`event_entity_links`、convergence/audit 全表 counts 和任意其他引用。缺少任一引用类即阻断 cleanup Review。
+5. cleanup Review 展示可恢复备份证据、精确 ID 集合或可重算谓词、每表预计删除 counts、FK 顺序、锁与事务影响、非目标保护断言及提交后 forward-fix；单独获批后才执行 cleanup Write，并立即 Query。
    普通 migration apply 不得隐式越过门禁：`000015` 在任何删除前要求当前 PostgreSQL session 显式设置 `tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified`；该标记只防误执行，不能替代备份证据和人工授权。
-5. cleanup Query 必须证明旧专属表已删除、旧 sector/industry_chain/chain_node rows 为 0、旧关系/事件链接/审计引用为 0、无孤儿，且 alliance/economy/country/market/benchmark/index 等非目标 counts 与校验和保持不变；重复执行只返回 already-clean/unchanged。
-6. 本次 structure implementation checkpoint 不引用候选工作簿、不确定最终清单、不实现 UUID/key 或 seed；候选证据文件不作为结构验收输入。
-7. final seed Review 与 cleanup 完全独立。cleanup Query 验收后才允许另行提出数据范围、身份规则、实现与 `Review -> Write -> Query` 方案；不得创建具体 theme 实例。
-8. Phase A 完整验收前禁止进入 Phase B；PG cleanup 后 Neo4j 陈旧属于已知且明确记录的临时状态。
+6. cleanup Query 必须证明旧专属表已删除、旧 sector/industry_chain/chain_node rows 为 0、旧关系/事件链接/审计引用为 0、无孤儿，且 alliance/economy/country/market/benchmark/index 等非目标 counts 与校验和保持不变；重复执行只返回 already-clean/unchanged。
+7. cleanup Query 验收后，`entity_external_identifiers` schema 仍须单独执行 `Review -> Write -> Query`；schema Query 通过前不得写节点或 mapping data。
+8. final seed dry-run Review 必须列出 842 个全新 UUID/entity_key、canonical/name、aliases、definition、boundary、预计动作与冲突；获批后 node/profile seed Write 并立即 Query。不得创建具体 theme 实例。
+9. 1,156 条 mapping data 使用独立 Review 与 Write 授权；只有 node/profile Query 验收后才能绑定 entity_id。Write 后立即 Query eastmoney=811、ths=345、总数=1,156、241 个双来源节点、逐代码 taxonomy/name、唯一性、孤儿与重复执行幂等。
+10. Phase A cleanup、外部标识 schema、node/profile seed 与 mapping data 的 Query 全部验收前禁止进入 Phase B；PG cleanup 后 Neo4j 陈旧属于已知且明确记录的临时状态。
 
 ### Phase B：基于新节点建立关系
 
@@ -215,7 +263,7 @@ sequenceDiagram
 ### 幂等与回滚
 
 - cleanup migration/命令以执行前冻结的目标集合为输入，在单事务中按引用叶子到根删除；SQL 必须限定旧产业实体集合，禁止无谓词 DELETE/TRUNCATE。
-- cleanup 重复执行不得扩大删除范围，只报告 already-clean/unchanged；future seed 的幂等与身份规则等待后续数据初始化设计 Review。
+- cleanup 重复执行不得扩大删除范围，只报告 already-clean/unchanged。final seed 以获批的新 `entity_key` 为内部幂等键，以 UUID/key/canonical 三者冲突矩阵阻断漂移；external identifier upsert 以 `(source_system, source_taxonomy_type, external_code)` 为冲突键，只允许更新同一 `entity_id` 的 `external_name`、`status` 与 `updated_at`，不得静默换绑实体。
 - Write 前必须验证可恢复备份；仅有 `archive_mode` 或文件存在不算恢复验证。事务内失败直接 rollback，提交后纠错只允许新的 forward-fix migration/命令。
 - 任一未知引用、预计/实际 counts 不符、非目标保护断言变化、备份不可恢复、候选未最终批准时立即停止。
 
@@ -223,14 +271,17 @@ sequenceDiagram
 
 - [cleanup 误删非目标事实] → 先冻结旧产业 ID 集合，所有删除通过 FK/显式 ID 集合限定，并用非目标 counts/校验和在事务提交前后断言。
 - [未知逻辑引用绕过 FK] → 代码与 information_schema 双向扫描，显式覆盖 `entity_edges`、event links、convergence/audit；发现未知引用即阻断。
-- [未批准数据规则混入结构实现] → 删除候选分类器、旧 ID 覆盖函数与工作簿计数；structure checkpoint 不生成或加载 final seed。
+- [未批准数据规则混入结构实现] → 本 checkpoint 只记录范围和契约；不生成可执行 seed、不修改 migration/源码，UUID/key、definition/boundary 与逐代码 taxonomy 仍须 Review。
+- [聚合来源分类误写为逐代码 taxonomy] → 从来源侧明细逐代码恢复；当前组合分类涉及 6 条原名记录、13 个代码，任一未消歧即阻断 dry-run。
+- [通用标识表退化为 sector mapping] → 表只保存外部 identity，不保存市场归属、成员关系、层级或语义等价；旧 sector mapping 不迁移，首批 scope 仅 chain_node。
 - [旧 Neo4j projection 暂时落后于 PostgreSQL] → 明确记录为预期技术债；本 change 不写图，后续独立 change 设计 projection 迁移与 rebuild。
 - [移除旧表影响仍读取它们的代码] → Apply 中先用测试和引用扫描证明所有生产读写路径已切换，再申请最终结构清理 Write。
 - [关系 mechanism 文本可能规避互斥索引] → 数据库索引处理完全相同文本，领域规范化与人工 Review 处理语义同义问题。
 
 ## Open Questions
 
-- 最终候选范围、definition/boundary、aliases、UUID/key、去重与粒度规则尚未批准，必须在 cleanup Query 验收后单独设计和 Review。
+- 第一批 842 个 canonical 名称与 950 个原始名称范围已批准；UUID/key、842 条 definition、必要 boundary、alias 归一化结果和逐代码 taxonomy 仍须在 final seed dry-run Review 中批准。
+- `entity_external_identifiers` 是否采用“单一外部 identity 唯一约束 + entity 查询索引”的推荐方案，等待本 data contract Review；不推荐重复的第二唯一约束。
 - convergence/audit 表若扫描发现仍服务非 sector 生产流程，是否暂留必须给出逐表理由并单独 Review；默认目标是删除。
 - 具体 theme 实例与 theme-node link/scope 契约明确留给后续 change，本 change 不作推定。
 - `entity_key` 全局唯一是否可实施，等待 Apply 时全库 preflight 结果；默认不实施。

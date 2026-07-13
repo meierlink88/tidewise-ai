@@ -3,10 +3,25 @@
 ### Requirement: 实体基础 seed 数据
 系统 SHALL 提供一阶段实体基础 seed 数据，用于初始化六层传导和事件知识图谱所需的基础实体、profile 和经过分批审阅的客观关系；实体主数据 seed 与关系 seed 必须解耦，空关系基线不得自动恢复历史样例关系，并将 benchmark 作为独立于 index、metric、commodity 和 instrument 的实体类型初始化。产业概念必须统一初始化为 chain_node，theme 只建立类型能力而不得在本 change 自行初始化实例。
 
-#### Scenario: 结构 checkpoint 不确定产业初始化数据
-- **WHEN** 本 change 提交 structure implementation review checkpoint
-- **THEN** 系统必须只包含目标 schema、cleanup/preflight 与旧生产入口切换
-- **AND** 不得加载候选工作簿、确定 chain_node UUID/key、实现 final seed 或写入具体 theme 实例
+#### Scenario: 第一批 chain node 名称范围
+- **WHEN** 第一批 chain_node data contract 进入 Review
+- **THEN** 系统必须只以已批准工作簿 Sheet「标准化保留」的 842 个互异标准化节点名作为 canonical 范围
+- **AND** 950 个原始名称必须按契约进入 name/canonical/aliases，108 个同义合并不得重新产生重复实体
+- **AND** 「宽边界保留」只能视为已保留节点的审阅子集，不得当作排除清单
+- **AND** 工作簿不得直接作为可执行 seed，具体 UUID/entity_key、definition/boundary 与 dry-run/report 仍须 Review
+
+#### Scenario: 第一批 definition 与 boundary 审阅
+- **WHEN** 系统为 842 个 chain_node 准备 final seed dry-run
+- **THEN** 每个节点必须包含说明“节点是什么”的非空 definition
+- **AND** definition 不得是 canonical/alias 原样复制或“与该名称相关”等循环模板
+- **AND** 对同名消歧、合并范围、粗细重叠或宽边界节点必须提供明确包含/排除范围的 boundary_note
+- **AND** 边界清晰节点的 boundary_note 可以为 NULL
+
+#### Scenario: 第一批全新身份与幂等
+- **WHEN** 系统为第一批节点生成身份与 dry-run
+- **THEN** 每个节点必须使用经 Review 的全新 UUID/entity_key，不得复用历史 sector/industry_chain/chain_node 身份
+- **AND** report 必须列出 create/unchanged/conflict、UUID/key/canonical 冲突、重复 aliases 与重复执行预期
+- **AND** 任一 identity 冲突必须阻断 Write
 
 #### Scenario: 初始化联盟组织
 - **WHEN** 实体 seed 执行
@@ -61,7 +76,7 @@
 
 ### Requirement: 市场板块 profile 校验
 **Reason**: `sector_profiles` 与 `sector_source_mappings` 被统一节点模型取代。
-**Migration**: 使用最小 `chain_node_profiles` 校验 definition/boundary；不建立生产来源映射。
+**Migration**: 使用最小 `chain_node_profiles` 校验 definition/boundary；旧 sector mapping 受控删除且不迁移，获批外部代码只进入通用 `entity_external_identifiers`。
 
 ### Requirement: 市场板块关系 seed 策略
 **Reason**: sector 关系不再进入 `entity_edges`，产业 topology 统一由四类 `chain_node_relations` 表达。

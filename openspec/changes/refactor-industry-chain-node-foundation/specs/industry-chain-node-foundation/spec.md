@@ -30,12 +30,13 @@
 - **THEN** validator 必须拒绝把这些字段保存到 `chain_node_profiles`
 
 ### Requirement: 产业候选来源边界
-系统 SHALL 只把同花顺、东方财富外部分类作为 chain_node 初始化候选参考，不得建立生产 source mapping 表或把外部分类字段写入节点 profile。
+系统 SHALL 只把同花顺、东方财富外部分类作为 chain_node 初始化候选和外部 identity 参考，不得恢复 sector mapping、建立 `chain_node_source_mappings` 或把外部分类字段写入节点 profile；经 Review 的外部代码只能进入通用 `entity_external_identifiers`。
 
 #### Scenario: 整理外部候选
 - **WHEN** 系统从同花顺或东方财富分类整理 chain_node 候选
 - **THEN** 来源链接、快照时间和筛选理由必须留在候选 Review、OpenSpec 或 seed 评审材料
 - **AND** 不得创建 `chain_node_source_mappings`
+- **AND** 外部标识必须逐行保存，不得把 provider/code 拼接字符串写入 profile 或 identifier 字段
 
 #### Scenario: 过滤非产业标签
 - **WHEN** 外部候选表达涨停、融资融券、高股息或其他交易状态、机制、风格标签
@@ -104,23 +105,36 @@
 - **AND** 不得从旧 constraint 或 topology edge 机械迁移
 
 ### Requirement: 分阶段有状态操作门禁
-系统 SHALL 先完整验收 Phase A cleanup 与后续另行批准的全新节点初始化，再进入 Phase B 关系建立；本次 structure implementation checkpoint 只实现 schema、cleanup/preflight 代码和生产入口切换。cleanup 与 future final seed 必须分别执行独立的 `Review -> Write -> Query`。
+系统 SHALL 先完整验收 Phase A cleanup、通用外部标识 schema、全新节点/profile 初始化与外部标识 mapping data，再进入 Phase B 关系建立。structure implementation checkpoint 的通过不构成任何数据库 Write 授权；cleanup、external identifier schema、node/profile seed 与 mapping data 必须分别执行独立的 `Review -> Write -> Query`。
 
 #### Scenario: Phase A cleanup 门禁
 - **WHEN** 完整引用审计、可恢复备份、精确删除范围、影响和回滚边界已准备完成
 - **THEN** 系统必须先提交 cleanup diff/dry-run 供 Review 并单独取得 cleanup Write 授权
 - **AND** Write 后必须立即 Query 旧类型、旧表、引用、孤儿、非目标保护与幂等结果并等待验收
 
-#### Scenario: Phase A final seed 门禁
-- **WHEN** cleanup Query 已验收且主对话准备讨论新节点初始化
-- **THEN** 系统必须先单独 Review 最终数据范围、definition/boundary、aliases、UUID/key、去重与幂等契约
-- **AND** 不得把任何既有工作簿直接当作可执行 seed 输入
-- **AND** 契约批准前不得实现 final seed 或请求 seed Write
-- **AND** 契约批准后仍须提交 final seed 与影响并单独取得 seed Write 授权
+#### Scenario: Phase A data contract 与实现门禁
+- **WHEN** structure implementation checkpoint 已通过且第一批名称范围已批准
+- **THEN** 系统必须先单独 Review aliases、definition/boundary、全新 UUID/key、外部标识 schema、taxonomy、去重、幂等与 dry-run/report 契约
+- **AND** 契约批准前不得实现 final seed、外部标识 schema 或请求任何 Write
+- **AND** 契约批准后必须先提交 TDD implementation diff、测试、schema diff 与 dry-run 格式供 Review
+
+#### Scenario: Phase A external identifier schema 门禁
+- **WHEN** cleanup Query 已验收且外部标识 schema implementation 已通过 Review
+- **THEN** 系统必须单独取得 schema Write 授权
+- **AND** Write 后必须立即 Query 表、列、FK、唯一约束、索引、版本与幂等结果并等待验收
+
+#### Scenario: Phase A node/profile seed 门禁
+- **WHEN** external identifier schema Query 已验收
+- **THEN** 系统必须提交 842 个 node/profile 的 final seed dry-run、definition/boundary、aliases、全新 key/ID 与影响并单独取得 seed Write 授权
 - **AND** Write 后必须立即 Query counts、profile 完整性、新 key/ID、重复、孤儿与幂等结果并等待验收
 
+#### Scenario: Phase A mapping data 门禁
+- **WHEN** node/profile seed Query 已验收
+- **THEN** 系统必须提交 1,156 条逐行 external identifier mapping report 并单独取得 mapping Write 授权
+- **AND** Write 后必须立即 Query provider counts、taxonomy、external name/code、唯一性、entity 绑定、孤儿与幂等结果并等待验收
+
 #### Scenario: Phase A 完整验收
-- **WHEN** Phase A cleanup 与 final seed 的 Query 尚未全部验收
+- **WHEN** Phase A cleanup、external identifier schema、node/profile seed 与 mapping data 的 Query 尚未全部验收
 - **THEN** 系统不得进入 Phase B
 
 #### Scenario: Phase B relation schema 门禁
