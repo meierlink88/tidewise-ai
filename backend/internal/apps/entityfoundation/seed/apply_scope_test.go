@@ -142,8 +142,39 @@ func TestIndustryChainTopologyScopeWritesOnlyTopologyBatch(t *testing.T) {
 	}
 }
 
+func TestIndustryChainPhysicalConstraintScopeWritesOnlyApprovedConstraintBatch(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
+	manifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	if err != nil {
+		t.Fatalf("LoadFiles() error = %v", err)
+	}
+	repo := &masterScopeRepository{}
+	report, err := NewService(repo).Apply(context.Background(), manifest, ApplyOptions{Scope: ApplyScopeIndustryChainPhysicalConstraint})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if len(repo.entities) != 0 || len(repo.profileKeys) != 0 || len(repo.relationships) != 0 || len(repo.sectorMappings) != 0 {
+		t.Fatal("constraint scope wrote unrelated families")
+	}
+	batch := repo.industryBatch
+	if len(batch.Profiles) != 0 || len(batch.Memberships) != 0 || len(batch.TopologyEdges) != 0 || len(batch.PhysicalConstraints) != 4 {
+		t.Fatalf("industry batch = profiles:%d memberships:%d topology:%d constraints:%d", len(batch.Profiles), len(batch.Memberships), len(batch.TopologyEdges), len(batch.PhysicalConstraints))
+	}
+	for _, constraint := range batch.PhysicalConstraints {
+		if !constraint.GeneratedByAI || constraint.ReviewStatus != domain.ReviewStatusApproved {
+			t.Fatalf("constraint provenance/review = %+v", constraint)
+		}
+		if _, ok := batch.ApprovalGate.HumanApprovedConstraintIDs[constraint.ID]; !ok {
+			t.Fatalf("constraint %s missing explicit approval gate", constraint.ID)
+		}
+	}
+	if report.Created != 4 || report.FinalTableImpact["industry_chain_physical_constraints"].Created != 4 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
 func TestParseApplyScopeRejectsUnknownValues(t *testing.T) {
-	for _, value := range []string{"", "industry-chain-master", "industry-chain-membership", "industry-chain-topology"} {
+	for _, value := range []string{"", "industry-chain-master", "industry-chain-membership", "industry-chain-topology", "industry-chain-physical-constraint"} {
 		if _, err := ParseApplyScope(value); err != nil {
 			t.Fatalf("ParseApplyScope(%q) error = %v", value, err)
 		}

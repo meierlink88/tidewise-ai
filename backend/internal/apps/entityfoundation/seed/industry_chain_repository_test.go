@@ -145,6 +145,143 @@ func TestTopologyMembershipStatusQueryUsesUpdateConflictingSharedLock(t *testing
 	}
 }
 
+func TestMemoryRepositoryConstraintOnlyUsesPersistedSubjectsAndApprovalGate(t *testing.T) {
+	repo := NewMemoryRepository()
+	full := validIndustryChainBatch()
+	if _, err := repo.UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{Memberships: full.Memberships, TopologyEdges: full.TopologyEdges}); err != nil {
+		t.Fatalf("seed subjects: %v", err)
+	}
+	constraint := full.PhysicalConstraints[0]
+	constraint.GeneratedByAI = true
+	batch := IndustryChainBatch{PhysicalConstraints: []domain.IndustryChainPhysicalConstraint{constraint}, ApprovalGate: domain.IndustryChainApprovalGate{HumanApprovedConstraintIDs: map[string]struct{}{"constraint": {}}}}
+	if _, err := repo.UpsertIndustryChainBatch(context.Background(), batch); err != nil {
+		t.Fatalf("constraint-only batch: %v", err)
+	}
+	if _, err := NewMemoryRepository().UpsertIndustryChainBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "membership") {
+		t.Fatalf("missing persisted subject error = %v", err)
+	}
+	batch.ApprovalGate = domain.IndustryChainApprovalGate{}
+	if _, err := repo.UpsertIndustryChainBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "human approval") {
+		t.Fatalf("missing approval gate error = %v", err)
+	}
+}
+
+func TestPostgresRepositoryConstraintOnlyLocksPersistedNodeSubject(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT status.*FOR SHARE").WithArgs("chain", "node-a").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
+	mock.ExpectQuery("INSERT INTO industry_chain_physical_constraints").WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("created"))
+	mock.ExpectCommit()
+	full := validIndustryChainBatch()
+	constraint := full.PhysicalConstraints[0]
+	constraint.GeneratedByAI = true
+	batch := IndustryChainBatch{PhysicalConstraints: []domain.IndustryChainPhysicalConstraint{constraint}, ApprovalGate: domain.IndustryChainApprovalGate{HumanApprovedConstraintIDs: map[string]struct{}{"constraint": {}}}}
+	if _, err := NewPostgresRepository(db).UpsertIndustryChainBatch(context.Background(), batch); err != nil {
+		t.Fatalf("constraint-only batch: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPostgresRepositoryConstraintOnlyLocksSubjectsInStableOrder(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT status.*FOR SHARE").WithArgs("chain", "node-a").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
+	mock.ExpectQuery("SELECT status.*FOR SHARE").WithArgs("chain", "node-b").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
+	mock.ExpectQuery("INSERT INTO industry_chain_physical_constraints").WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("created"))
+	mock.ExpectQuery("INSERT INTO industry_chain_physical_constraints").WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("created"))
+	mock.ExpectCommit()
+	full := validIndustryChainBatch()
+	first := full.PhysicalConstraints[0]
+	first.ID, first.ChainNodeEntityID = "constraint-b", "node-b"
+	second := full.PhysicalConstraints[0]
+	second.ID = "constraint-a"
+	batch := IndustryChainBatch{PhysicalConstraints: []domain.IndustryChainPhysicalConstraint{first, second}}
+	if _, err := NewPostgresRepository(db).UpsertIndustryChainBatch(context.Background(), batch); err != nil {
+		t.Fatalf("constraint-only batch: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPostgresRepositoryConstraintOnlyLocksPersistedTopologySubject(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT industry_chain_entity_id, status.*FOR SHARE").WithArgs("edge").WillReturnRows(sqlmock.NewRows([]string{"industry_chain_entity_id", "status"}).AddRow("chain", "active"))
+	mock.ExpectQuery("INSERT INTO industry_chain_physical_constraints").WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("created"))
+	mock.ExpectCommit()
+	full := validIndustryChainBatch()
+	constraint := full.PhysicalConstraints[0]
+	constraint.ChainNodeEntityID, constraint.TopologyEdgeID = "", "edge"
+	if _, err := NewPostgresRepository(db).UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{PhysicalConstraints: []domain.IndustryChainPhysicalConstraint{constraint}}); err != nil {
+		t.Fatalf("constraint-only batch: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPostgresRepositoryConstraintOnlyRollsBackIdentityConflict(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT status.*FOR SHARE").WithArgs("chain", "node-a").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
+	mock.ExpectQuery("INSERT INTO industry_chain_physical_constraints").WillReturnRows(sqlmock.NewRows([]string{"action"}).AddRow("identity_conflict"))
+	mock.ExpectRollback()
+	full := validIndustryChainBatch()
+	if _, err := NewPostgresRepository(db).UpsertIndustryChainBatch(context.Background(), IndustryChainBatch{PhysicalConstraints: full.PhysicalConstraints}); err == nil || !strings.Contains(err.Error(), "identity") {
+		t.Fatalf("identity conflict error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPostgresRepositoryConstraintOnlyRollsBackMissingOrInactiveSubject(t *testing.T) {
+	for name, rows := range map[string]*sqlmock.Rows{"missing": nil, "inactive": sqlmock.NewRows([]string{"status"}).AddRow("inactive")} {
+		t.Run(name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			mock.ExpectBegin()
+			query := mock.ExpectQuery("SELECT status.*FOR SHARE").WithArgs("chain", "node-a")
+			if rows == nil {
+				query.WillReturnError(sql.ErrNoRows)
+			} else {
+				query.WillReturnRows(rows)
+			}
+			mock.ExpectRollback()
+			full := validIndustryChainBatch()
+			batch := IndustryChainBatch{PhysicalConstraints: full.PhysicalConstraints}
+			if _, err := NewPostgresRepository(db).UpsertIndustryChainBatch(context.Background(), batch); err == nil || !strings.Contains(err.Error(), "membership") {
+				t.Fatalf("constraint-only error = %v", err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestIndustryChainPostgresUpsertsExposeUnchangedAction(t *testing.T) {
 	for name, statement := range map[string]string{
 		"profile":    industryChainProfileUpsertSQL,

@@ -233,15 +233,10 @@ func ValidateIndustryChainBatch(memberships []IndustryChainMembership, edges []I
 		}
 		topologyByID[edge.ID] = edge
 	}
+	if err := ValidateIndustryChainPhysicalConstraints(constraints, gate); err != nil {
+		return err
+	}
 	for _, constraint := range constraints {
-		if err := constraint.Validate(); err != nil {
-			return err
-		}
-		if constraint.GeneratedByAI && constraint.ReviewStatus == ReviewStatusApproved {
-			if _, approved := gate.HumanApprovedConstraintIDs[constraint.ID]; !approved {
-				return fmt.Errorf("AI-generated approved constraint requires explicit human approval")
-			}
-		}
 		if constraint.ChainNodeEntityID != "" {
 			status, exists := membershipStatus[constraint.IndustryChainEntityID+"|"+constraint.ChainNodeEntityID]
 			if !exists || status != StatusActive {
@@ -255,6 +250,20 @@ func ValidateIndustryChainBatch(memberships []IndustryChainMembership, edges []I
 		}
 		if edge.Status != StatusActive {
 			return fmt.Errorf("edge constraint must reference active topology")
+		}
+	}
+	return nil
+}
+
+func ValidateIndustryChainPhysicalConstraints(constraints []IndustryChainPhysicalConstraint, gate IndustryChainApprovalGate) error {
+	for _, constraint := range constraints {
+		if err := constraint.Validate(); err != nil {
+			return err
+		}
+		if constraint.GeneratedByAI && constraint.ReviewStatus == ReviewStatusApproved {
+			if _, approved := gate.HumanApprovedConstraintIDs[constraint.ID]; !approved {
+				return fmt.Errorf("AI-generated approved constraint requires explicit human approval")
+			}
 		}
 	}
 	return nil

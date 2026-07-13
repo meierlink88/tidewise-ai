@@ -26,8 +26,13 @@ type IndustryChainWriteReport struct {
 
 func (r *MemoryRepository) UpsertIndustryChainBatch(_ context.Context, batch IndustryChainBatch) (IndustryChainWriteReport, error) {
 	topologyOnly := isTopologyOnlyBatch(batch)
+	constraintOnly := isConstraintOnlyBatch(batch)
 	if topologyOnly {
 		if err := domain.ValidateIndustryChainTopology(batch.TopologyEdges); err != nil {
+			return IndustryChainWriteReport{}, err
+		}
+	} else if constraintOnly {
+		if err := domain.ValidateIndustryChainPhysicalConstraints(batch.PhysicalConstraints, batch.ApprovalGate); err != nil {
 			return IndustryChainWriteReport{}, err
 		}
 	} else {
@@ -39,6 +44,11 @@ func (r *MemoryRepository) UpsertIndustryChainBatch(_ context.Context, batch Ind
 	defer r.mu.Unlock()
 	if topologyOnly {
 		if err := validateTopologyAgainstPersistedMemberships(batch.TopologyEdges, r.industryChainMemberships); err != nil {
+			return IndustryChainWriteReport{}, err
+		}
+	}
+	if constraintOnly {
+		if err := validateConstraintsAgainstPersistedSubjects(batch.PhysicalConstraints, r.industryChainMemberships, r.industryChainTopologyEdges); err != nil {
 			return IndustryChainWriteReport{}, err
 		}
 	}
@@ -84,8 +94,13 @@ func (r *MemoryRepository) IndustryChainRowCount() int {
 
 func (r PostgresRepository) UpsertIndustryChainBatch(ctx context.Context, batch IndustryChainBatch) (IndustryChainWriteReport, error) {
 	topologyOnly := isTopologyOnlyBatch(batch)
+	constraintOnly := isConstraintOnlyBatch(batch)
 	if topologyOnly {
 		if err := domain.ValidateIndustryChainTopology(batch.TopologyEdges); err != nil {
+			return IndustryChainWriteReport{}, err
+		}
+	} else if constraintOnly {
+		if err := domain.ValidateIndustryChainPhysicalConstraints(batch.PhysicalConstraints, batch.ApprovalGate); err != nil {
 			return IndustryChainWriteReport{}, err
 		}
 	} else {
@@ -107,6 +122,11 @@ func (r PostgresRepository) UpsertIndustryChainBatch(ctx context.Context, batch 
 	}
 	if topologyOnly {
 		if err := validatePostgresTopologyMemberships(ctx, tx, batch.TopologyEdges); err != nil {
+			return rollback(err)
+		}
+	}
+	if constraintOnly {
+		if err := validatePostgresConstraintSubjects(ctx, tx, batch.PhysicalConstraints); err != nil {
 			return rollback(err)
 		}
 	}
@@ -155,6 +175,7 @@ IS DISTINCT FROM (EXCLUDED.chain_code, EXCLUDED.definition, EXCLUDED.boundary_no
 RETURNING xmax = 0 AS inserted)
 SELECT CASE WHEN (SELECT conflict FROM identity_guard) THEN 'identity_conflict' ELSE COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged') END`
 const industryChainMembershipStatusSQL = `SELECT status FROM industry_chain_memberships WHERE industry_chain_entity_id=$1 AND chain_node_entity_id=$2 LIMIT 1 FOR SHARE`
+const industryChainTopologyStatusSQL = `SELECT industry_chain_entity_id, status FROM industry_chain_topology_edges WHERE id=$1 LIMIT 1 FOR SHARE`
 const industryChainMembershipUpsertSQL = `WITH identity_guard AS (
 SELECT EXISTS (SELECT 1 FROM industry_chain_memberships WHERE id = $1 AND (industry_chain_entity_id, chain_node_entity_id) IS DISTINCT FROM ($2::uuid, $3::uuid)) AS conflict
 ), upsert AS (
@@ -208,6 +229,77 @@ func validateIndustryChainBatch(batch IndustryChainBatch) error {
 
 func isTopologyOnlyBatch(batch IndustryChainBatch) bool {
 	return len(batch.Profiles) == 0 && len(batch.Memberships) == 0 && len(batch.TopologyEdges) > 0 && len(batch.PhysicalConstraints) == 0
+}
+
+func isConstraintOnlyBatch(batch IndustryChainBatch) bool {
+	return len(batch.Profiles) == 0 && len(batch.Memberships) == 0 && len(batch.TopologyEdges) == 0 && len(batch.PhysicalConstraints) > 0
+}
+
+func validateConstraintsAgainstPersistedSubjects(constraints []domain.IndustryChainPhysicalConstraint, memberships map[string]domain.IndustryChainMembership, topology map[string]domain.IndustryChainTopologyEdge) error {
+	for _, constraint := range constraints {
+		if constraint.ChainNodeEntityID != "" {
+			found := false
+			for _, membership := range memberships {
+				if membership.IndustryChainEntityID == constraint.IndustryChainEntityID && membership.ChainNodeEntityID == constraint.ChainNodeEntityID && membership.Status == domain.StatusActive {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("node constraint must reference persisted same chain active membership")
+			}
+			continue
+		}
+		edge, ok := topology[constraint.TopologyEdgeID]
+		if !ok || edge.IndustryChainEntityID != constraint.IndustryChainEntityID || edge.Status != domain.StatusActive {
+			return fmt.Errorf("edge constraint must reference persisted same chain active topology")
+		}
+	}
+	return nil
+}
+
+func validatePostgresConstraintSubjects(ctx context.Context, tx *sql.Tx, constraints []domain.IndustryChainPhysicalConstraint) error {
+	byKey := map[string]domain.IndustryChainPhysicalConstraint{}
+	for _, constraint := range constraints {
+		key := "topology|" + constraint.IndustryChainEntityID + "|" + constraint.TopologyEdgeID
+		if constraint.ChainNodeEntityID != "" {
+			key = "membership|" + constraint.IndustryChainEntityID + "|" + constraint.ChainNodeEntityID
+		}
+		byKey[key] = constraint
+	}
+	keys := make([]string, 0, len(byKey))
+	for key := range byKey {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		constraint := byKey[key]
+		if constraint.ChainNodeEntityID != "" {
+			var status domain.Status
+			if err := tx.QueryRowContext(ctx, industryChainMembershipStatusSQL, constraint.IndustryChainEntityID, constraint.ChainNodeEntityID).Scan(&status); err != nil {
+				if err == sql.ErrNoRows {
+					return fmt.Errorf("node constraint must reference persisted same chain active membership")
+				}
+				return fmt.Errorf("query constraint membership: %w", err)
+			}
+			if status != domain.StatusActive {
+				return fmt.Errorf("node constraint must reference persisted same chain active membership")
+			}
+			continue
+		}
+		var chainID string
+		var status domain.Status
+		if err := tx.QueryRowContext(ctx, industryChainTopologyStatusSQL, constraint.TopologyEdgeID).Scan(&chainID, &status); err != nil {
+			if err == sql.ErrNoRows {
+				return fmt.Errorf("edge constraint must reference persisted same chain active topology")
+			}
+			return fmt.Errorf("query constraint topology: %w", err)
+		}
+		if chainID != constraint.IndustryChainEntityID || status != domain.StatusActive {
+			return fmt.Errorf("edge constraint must reference persisted same chain active topology")
+		}
+	}
+	return nil
 }
 
 func validateTopologyAgainstPersistedMemberships(edges []domain.IndustryChainTopologyEdge, memberships map[string]domain.IndustryChainMembership) error {

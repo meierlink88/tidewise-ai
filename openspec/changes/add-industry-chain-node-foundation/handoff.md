@@ -52,20 +52,20 @@
 | Unique chain nodes | 26 | 21新增 +5复用；已写入/更新 PG并完成只读验收 |
 | Memberships | 27 | 已写入PG并验收27/27 active；AI 12 + 半导体15 |
 | Canonical topology | 24 | 已写入PG并验收24/24 active；AI 10 + 半导体14，无`substitutes_for`推测 |
-| Physical constraints | 15 | 全部为 review-only candidate，`generated_by_ai=true`，不得整体晋升或写入 |
+| Physical constraints | 4正式准备 +11 review-only | 首批4条已逐项批准并在正式seed准备，P2/P6 provenance已校正；PG仍为0。其余9条需补证、2条删除或改写 |
 | `mapped_to_sector` | 12 | 全部为 review-only candidate，尚未逐项批准，不得写入 |
 | Economy relationships | 0 | 不得虚构 |
 | Commodity relationships | 0 | 不得虚构 |
 | Benchmark relationships | 0 | 不得虚构 |
 
-Layer 5候选证据审查已收紧并记录于`physical-constraint-review.md`：直接证据闭合2条、机制认可但晋级前必须校正provenance 2条、需补权威证据9条、删除或改写2条。该分级仅供主对话逐项Review，15条fixture状态仍全部为candidate，PG仍为0行。
+Layer 5候选证据审查及首批批准已记录于`physical-constraint-review.md`：4条完成正式seed无状态准备，review fixture剩余11条，PG仍为0行。显式`industry-chain-physical-constraint` scope与持久化subject锁定校验已实现；未来Write仍需单独授权与备份。
 
 ## 5. 后续严格执行顺序
 
 1. Layer 2 已完成，不得未经独立授权做幂等重跑。
 2. Layer 3已完成，不得未经独立授权幂等重跑。
 3. Layer 4已完成，不得未经独立授权幂等重跑。
-4. 15 条 physical constraints 按证据强弱逐项 Review；只有权威技术证据闭合且获得显式人工 approval gate 的条目才可进入 approved seed/write，未批准条目继续留在 review fixture。
+4. 首批4条physical constraints已完成approved seed无状态准备；必须先代码Review与实时preflight，再取得独立Write授权和备份，才可运行一次constraint scope。其余11条继续留在review fixture。
 5. 12 条 `mapped_to_sector` 按来源、端点和“分析映射而非身份/法定覆盖/影响方向”逐项 Review；不得用海外 market `COVERS_SECTOR` 中国 sector。
 6. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
 7. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
@@ -102,7 +102,7 @@ Layer 2 写入后的只读验收至少覆盖：
 ## 7. 禁止与未授权项
 
 - 不得幂等重跑Layer 2、Layer 3或Layer 4。
-- 不得将 15 条 physical constraint candidates 或 12 条 `mapped_to_sector` candidates 写入正式 seed/PG，也不得修改其审批状态。
+- 不得运行尚未获Write授权的4条physical constraint scope；不得将其余11条constraint或12条`mapped_to_sector` candidates写入正式seed/PG。
 - 不得创造 economy、commodity 或 benchmark 关系补齐空清单。
 - 不得写入未批准candidate或提前执行Neo4j rebuild。
 - 不得把 physical constraints 投影到 Neo4j。
@@ -131,7 +131,7 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 
 ## 9. 未解决与待 Review
 
-- 15 条 physical constraints 的权威证据强弱分级、证据缺口关闭和逐项人工批准；不得整体晋升。
+- 首批4条physical constraints写入前代码/数据Review与独立授权；其余11条的证据缺口关闭和逐项人工批准，不得整体晋升。
 - 12 条 `mapped_to_sector` 的来源、端点和语义逐项批准。
 - 后续独立 `add-industry-chain-observation-foundation`：observation governance、typed observation、产业链 domain metrics 与采集契约。
 - 后续 event reasoning change：事件到 chain/node/sector 的证据化传导、动态观察验证、不确定性和证伪条件；不得在当前静态 foundation 中提前实现。
@@ -143,5 +143,5 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 
 不要信任handoff中可能陈旧的HEAD、migration version或数据计数。先实时核对Git与DB，再只读确认2 chains、26 nodes、27 active memberships、24 active topology、constraint为0，以及topology IDs/tuples与端点不变量。不得执行dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE或Neo4j操作。
 
-Layer 2、Layer 3和Layer 4已经完成且不得重跑。15条physical constraints与12条mapped_to_sector仍是candidate；economy/commodity/benchmark为空。下一步须由主对话决定逐项Review哪个candidate数据族，或另行授权Neo4j rebuild；不得推定任何授权，不得提前Sync、Archive或PR。
+Layer 2、Layer 3和Layer 4已经完成且不得重跑。首批4条physical constraints已进入正式seed无状态准备，但PG仍为0且不得运行新scope；其余11条constraint与12条mapped_to_sector仍是candidate，economy/commodity/benchmark为空。下一步先验收constraint代码与seed范围，再单独决定Write preflight/授权；不得推定授权，不得提前Neo4j rebuild、Sync、Archive或PR。
 ```

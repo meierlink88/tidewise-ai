@@ -36,6 +36,16 @@ func TestValidateCommandOptionsAcceptsExplicitTopologyScope(t *testing.T) {
 	}
 }
 
+func TestValidateCommandOptionsAcceptsExplicitPhysicalConstraintScope(t *testing.T) {
+	scope, err := validateCommandOptions(commandOptions{applyScope: "industry-chain-physical-constraint"})
+	if err != nil {
+		t.Fatalf("validateCommandOptions() error = %v", err)
+	}
+	if scope != entityseed.ApplyScopeIndustryChainPhysicalConstraint {
+		t.Fatalf("scope = %q", scope)
+	}
+}
+
 func TestValidateCommandOptionsRejectsUnknownAndConflictingScopes(t *testing.T) {
 	tests := []commandOptions{
 		{applyScope: "membership-only"},

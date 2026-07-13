@@ -22,6 +22,14 @@
 - **WHEN** seed 包含市场结构、供应商集中、认证、监管、融资、替代难度或当前投研结论
 - **THEN** validator 必须返回明确错误
 
+#### Scenario: 分层写入首批人工批准约束
+- **WHEN** 用户逐项批准4条AI生成的physical constraint并为每条提供显式人工approval gate
+- **THEN** 正式seed必须只包含这4条approved记录、保留`generated_by_ai=true`并使用已审阅direct provenance；其余11条仍只能留在review-only fixture
+
+#### Scenario: physical constraint scope隔离
+- **WHEN** 使用`industry-chain-physical-constraint` scope准备执行
+- **THEN** batch必须仅含4条physical constraint，不得携带profile、membership、topology、entity edge、sector mapping或其他数据族；repository必须从已持久化事实锁定并校验同链active subject
+
 ### Requirement: 静态 seed report
 系统 SHALL 在未来执行后分别报告 industry chain、chain node profile、membership、topology、physical constraint 和跨实体关系的 created、updated、unchanged、failed 数量。
 

@@ -11,10 +11,11 @@ import (
 type ApplyScope string
 
 const (
-	ApplyScopeAll                     ApplyScope = ""
-	ApplyScopeIndustryChainMaster     ApplyScope = "industry-chain-master"
-	ApplyScopeIndustryChainMembership ApplyScope = "industry-chain-membership"
-	ApplyScopeIndustryChainTopology   ApplyScope = "industry-chain-topology"
+	ApplyScopeAll                             ApplyScope = ""
+	ApplyScopeIndustryChainMaster             ApplyScope = "industry-chain-master"
+	ApplyScopeIndustryChainMembership         ApplyScope = "industry-chain-membership"
+	ApplyScopeIndustryChainTopology           ApplyScope = "industry-chain-topology"
+	ApplyScopeIndustryChainPhysicalConstraint ApplyScope = "industry-chain-physical-constraint"
 )
 
 type ApplyOptions struct {
@@ -181,6 +182,9 @@ func (s Service) Apply(ctx context.Context, manifest Manifest, options ApplyOpti
 		if scope == ApplyScopeIndustryChainTopology {
 			report.FinalTableImpact["industry_chain_topology_edges"] = WriteStats{Created: result.Created, Updated: result.Updated, Unchanged: result.Unchanged}
 		}
+		if scope == ApplyScopeIndustryChainPhysicalConstraint {
+			report.FinalTableImpact["industry_chain_physical_constraints"] = WriteStats{Created: result.Created, Updated: result.Updated, Unchanged: result.Unchanged}
+		}
 	}
 
 	return report, nil
@@ -218,7 +222,7 @@ func newReport() Report {
 func ParseApplyScope(value string) (ApplyScope, error) {
 	scope := ApplyScope(strings.TrimSpace(value))
 	switch scope {
-	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership, ApplyScopeIndustryChainTopology:
+	case ApplyScopeAll, ApplyScopeIndustryChainMaster, ApplyScopeIndustryChainMembership, ApplyScopeIndustryChainTopology, ApplyScopeIndustryChainPhysicalConstraint:
 		return scope, nil
 	default:
 		return "", fmt.Errorf("unsupported apply scope %q", value)
@@ -240,6 +244,12 @@ func applyManifestScope(manifest Manifest, scope ApplyScope) (Manifest, error) {
 			return Manifest{}, fmt.Errorf("industry-chain-topology scope requires reviewed topology")
 		}
 		return Manifest{IndustryChainTopologyEdges: append([]IndustryChainTopologySeed(nil), manifest.IndustryChainTopologyEdges...)}, nil
+	}
+	if scope == ApplyScopeIndustryChainPhysicalConstraint {
+		if len(manifest.IndustryChainPhysicalConstraints) == 0 {
+			return Manifest{}, fmt.Errorf("industry-chain-physical-constraint scope requires approved physical constraints")
+		}
+		return Manifest{IndustryChainPhysicalConstraints: append([]IndustryChainPhysicalConstraintSeed(nil), manifest.IndustryChainPhysicalConstraints...)}, nil
 	}
 	if scope != ApplyScopeIndustryChainMaster {
 		return Manifest{}, fmt.Errorf("unsupported apply scope %q", scope)

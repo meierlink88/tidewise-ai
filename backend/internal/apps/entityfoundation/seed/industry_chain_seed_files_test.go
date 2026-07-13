@@ -33,8 +33,21 @@ func TestIndustryChainExecutableSeedV1(t *testing.T) {
 	if len(manifest.IndustryChainMemberships) != 27 || len(manifest.IndustryChainTopologyEdges) != 24 {
 		t.Fatalf("memberships/topology = %d/%d", len(manifest.IndustryChainMemberships), len(manifest.IndustryChainTopologyEdges))
 	}
-	if len(manifest.IndustryChainPhysicalConstraints) != 0 {
-		t.Fatalf("executable physical constraints = %d, want 0", len(manifest.IndustryChainPhysicalConstraints))
+	if len(manifest.IndustryChainPhysicalConstraints) != 4 {
+		t.Fatalf("executable physical constraints = %d, want 4", len(manifest.IndustryChainPhysicalConstraints))
+	}
+	approved := map[string]IndustryChainPhysicalConstraintSeed{}
+	for _, constraint := range manifest.IndustryChainPhysicalConstraints {
+		approved[constraint.ID] = constraint
+		if constraint.ReviewStatus != domain.ReviewStatusApproved || !constraint.GeneratedByAI || !constraint.ApprovedByHuman {
+			t.Fatalf("approved constraint gate/provenance = %+v", constraint)
+		}
+	}
+	if approved["constraint:ai:data_center:infrastructure_access"].SourceURL != "https://www.iea.org/reports/energy-and-ai/executive-summary" {
+		t.Fatal("infrastructure access did not use direct P2 provenance")
+	}
+	if approved["constraint:semi:advanced_packaging:reliability"].SourceURL != "https://3dfabric.tsmc.com/schinese/dedicatedFoundry/technology/del/cowos_publications_ECTC2013.htm" {
+		t.Fatal("packaging reliability did not use direct P6 provenance")
 	}
 	pilotKeys := map[string]struct{}{}
 	for _, membership := range manifest.IndustryChainMemberships {
@@ -81,11 +94,11 @@ func TestIndustryChainExecutableSeedFlowsThroughServiceReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
-	if report.IndustryChainCounts["membership"] != 27 || report.IndustryChainCounts["topology"] != 24 {
+	if report.IndustryChainCounts["membership"] != 27 || report.IndustryChainCounts["topology"] != 24 || report.IndustryChainCounts["physical_constraint"] != 4 {
 		t.Fatalf("industry chain report = %+v", report.IndustryChainCounts)
 	}
-	if got := repo.IndustryChainRowCount(); got != 51 {
-		t.Fatalf("industry chain repository rows = %d, want 51", got)
+	if got := repo.IndustryChainRowCount(); got != 55 {
+		t.Fatalf("industry chain repository rows = %d, want 55", got)
 	}
 }
 
@@ -111,7 +124,7 @@ func TestIndustryChainCandidateFixtureIsReviewOnly(t *testing.T) {
 	if err := json.Unmarshal(data, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	if fixture.ManifestVersion != 1 || len(fixture.PhysicalConstraints) != 15 || len(fixture.MappedToSector) != 12 {
+	if fixture.ManifestVersion != 1 || len(fixture.PhysicalConstraints) != 11 || len(fixture.MappedToSector) != 12 {
 		t.Fatalf("review fixture counts = version %d, constraints %d, sector mappings %d", fixture.ManifestVersion, len(fixture.PhysicalConstraints), len(fixture.MappedToSector))
 	}
 	for _, constraint := range fixture.PhysicalConstraints {

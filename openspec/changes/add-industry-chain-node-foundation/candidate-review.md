@@ -7,7 +7,7 @@
 - “复用”表示 `backend/data/entity_foundation/chain_nodes.json` 已有 stable key；本轮未查询 PostgreSQL，PG 实际存在与状态必须在后续获准的只读检查中确认。
 - “改进”表示复用 stable key，但建议补齐 definition、node_category、unit_of_analysis、granularity_note；不改变节点身份。
 - “新增”仅是候选；缺少足够权威来源时明确标记，不为满足数量虚构来源。
-- 所有 physical constraint 均为 `candidate`，不得声称 reviewed/approved。
+- 本文原始15条physical constraint清单均以candidate生成；2026-07-13用户已逐项批准其中4条进入正式seed无状态准备，其余11条仍为candidate，数据库仍为0行。
 - 第二批机器人、新能源汽车/储能、创新药/生物制造不进入本文 seed 候选。
 
 ## 2. 来源登记
@@ -166,9 +166,9 @@
 
 ## 6. Physical Constraint Review 清单
 
-全部状态：`candidate`。以下只是 AI 基于技术资料生成的建议，必须补齐权威技术证据并由用户逐项批准后才能进入正式 seed。
+以下表格记录最初15条candidate审查输入；当前状态以紧随其后的Layer 5更新和`physical-constraint-review.md`为准，不得把历史candidate表当作当前可执行清单。
 
-2026-07-13 Layer 5严格证据审查见[`physical-constraint-review.md`](physical-constraint-review.md)：2条直接证据闭合、2条机制认可但晋级前必须校正provenance、9条需补权威证据、2条建议删除或改写。该结论未改变任何candidate状态。
+2026-07-13 Layer 5严格证据审查见[`physical-constraint-review.md`](physical-constraint-review.md)：用户随后逐项批准2条直接证据闭合项及2条完成provenance校正项进入正式seed无状态准备；其余9条需补权威证据、2条建议删除或改写，继续只存在review fixture。尚未执行constraint DML。
 
 | chain | subject | constraint_type | mechanism | physical_limit_note | mitigation_path | 来源 | 缺口 |
 |---|---|---|---|---|---|---|---|
@@ -240,7 +240,7 @@
 1. 两条 industry chain + 26 个去重 node profile。
 2. 两条链 membership。
 3. Canonical topology。
-4. Physical constraints（全部当前为 candidate）。
+4. Physical constraints（首批4条已完成正式seed无状态准备，其余11条仍为candidate；Write未授权）。
 5. `mapped_to_sector`；economy、commodity、benchmark 当前为空清单。
 6. 每层 PostgreSQL 验收后，只有用户单独批准才执行 Neo4j rebuild；physical constraints 永不进入当前 Neo4j projection。
 

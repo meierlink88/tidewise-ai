@@ -3,8 +3,8 @@
 ## 1. 当前边界
 
 - 本文只定义后续有状态执行顺序，本 checkpoint 不执行任何命令写入 PostgreSQL 或 Neo4j。
-- 可执行 seed：`backend/data/entity_foundation/industry_chains_v1.json`，包含 2 条 industry chain、21 个新增 chain node、5 个既有 node profile 改进、27 个 membership、24 条 canonical topology；不含 physical constraint、`mapped_to_sector`、economy、commodity 或 benchmark 关系。
-- Review-only fixture：`backend/data/entity_foundation/review/industry_chain_candidates_v1.json`，包含 15 条 physical constraint candidate 和 12 条 `mapped_to_sector` candidate。它不在 `DefaultSeedPaths`，不得传给 repository。
+- 可执行 seed：`backend/data/entity_foundation/industry_chains_v1.json`，包含2条industry chain、21个新增chain node、5个既有node profile改进、27个membership、24条canonical topology及首批4条已批准physical constraint；不含`mapped_to_sector`、economy、commodity或benchmark关系。
+- Review-only fixture：`backend/data/entity_foundation/review/industry_chain_candidates_v1.json`，剩余11条physical constraint candidate和12条`mapped_to_sector` candidate。它不在`DefaultSeedPaths`，不得传给repository。
 - 以下预计数量已按 2026-07-13 local PostgreSQL 只读 preflight 校准；本轮未运行 migration apply、seed、DML 或 Neo4j rebuild。
 
 ## 2. 2026-07-13 只读 Preflight Evidence
@@ -44,7 +44,7 @@
 | 2. Chain / node master（已验收） | 2026-07-13 已单独授权；仅执行 `-apply-scope industry-chain-master` 一次并完成只读 Query 验收 | 实际最终表级：`entity_nodes` created 23、updated 5；`industry_chain_profiles` created 2；`chain_node_profiles` created 21、updated 5。operation report 为 created 46、updated 15、unchanged 0 | `entity_nodes`、`industry_chain_profiles`、`chain_node_profiles` | 实际2 chain active+approved；26 pilot node active且 aliases/profile完整；5个复用UUID/status/中文名不变；membership/topology/constraint与试点跨实体关系均为0 | 在不删除既有 5 个 node 的前提下，将本批新增 23 个实体置 inactive；5 个 aliases/profile 改进需用 reviewed forward seed 恢复旧值；不物理删除 |
 | 3. Membership（已验收） | 2026-07-13 已单独授权；仅执行一次 `-apply-scope industry-chain-membership` 并完成只读Query | 实际created 27、updated 0、unchanged 0；未做幂等重跑 | `industry_chain_memberships` | 实际27/27 active且ID/tuple唯一；AI=12、semiconductor=15；`advanced_packaging`两链各一条；端点全active；topology/constraint为0 | 将本批27条membership置inactive；保留审计行；后续rebuild前重新查询active数量。该停用DML未授权、未执行 |
 | 4. Canonical topology（已验收） | 2026-07-13 已单独授权；仅执行一次`-apply-scope industry-chain-topology`并完成只读Query | 实际created 24、updated 0、unchanged 0；未做幂等重跑 | `industry_chain_topology_edges` | 实际24/24 active，AI10/半导体14；ID/tuple唯一，无self、substitutes、反向depends重复或无效端点；membership仍27/27 active | 将本批 24 条 topology 置 inactive；不删除 membership；重新查询 active topology=0。该停用DML未授权、未执行 |
-| 5. Physical constraint | 15 条 candidate 逐项补齐权威技术证据并取得人工 Review；每条写入前单独确认 approval gate；当前未授权 | 当前可执行 0；Review-only candidate 15；未来数量以逐项批准结果为准 | 仅 `industry_chain_physical_constraints`；不进入 `entity_nodes` 或 Neo4j | 按 chain/node/topology edge 查询；断言 `review_status=approved`、`generated_by_ai=true`、主体同链 active、constraint type 属于 13 类 | 将获批写入行置 inactive；不改 topology；不触发 Neo4j rebuild。未批准 candidate 始终留在 Review fixture |
+| 5. Physical constraint（首批无状态准备完成） | 用户已逐项批准4条及P2/P6 provenance校正；实际Write仍须独立授权、备份与实时preflight | 预计首次执行created 4、updated 0、unchanged 0；review-only剩余11 | 仅 `industry_chain_physical_constraints`；不进入 `entity_nodes` 或 Neo4j | 按chain/node查询4/4 active approved、`generated_by_ai=true`、direct provenance、主体同链active；其他表计数不变 | 将获批4行置inactive；不改topology、不触发Neo4j rebuild。该停用DML未授权、未执行 |
 | 6. `mapped_to_sector` | 12 条 candidate 逐项确认分析映射、来源和端点；当前未授权。economy/commodity/benchmark 清单保持空 | 当前可执行 0；Review-only candidate 12；未来数量以逐项批准结果为准 | 经批准后仅 `entity_edges` 的 `mapped_to_sector`；不得创建海外 market `covers_sector` 中国 sector | 查询 relation type、from/to stable key、source；断言无 economy/commodity/benchmark 新关系、无海外 market `COVERS_SECTOR` | 将本批获批 entity edge 置 inactive；不改 sector 主数据；重新投影前查询 active edge=0 |
 | 7. Neo4j rebuild | 层 2–4 PostgreSQL 验收完成；若层 6 有获批关系则先完成其 PG 验收；用户单独批准 rebuild。Physical constraint 不构成前置写入 | 预计新增 Entity 23（2 chain + 21 new node）；新增关系 51（27 membership + 24 topology）；既有 5 node 为 upsert unchanged；若层 6 未批准则 sector mapping 0 | Neo4j `projection_namespace=tidewise` 下统一 `Entity` 与 membership/topology/已审阅 entity edges；排除 physical constraints 和 observations | 查询 2 chain、26 pilot node、27 membership、24 topology；验证 benchmark/sector 路径仅在已批准 edge 存在时成立；断言无 constraint 节点/边、无海外 market 覆盖中国 sector | 从 PostgreSQL active facts 重新 rebuild；若需撤销，先按对应 PG 层置 inactive并验收，再单独授权 rebuild；不得直接手工删局部图 |
 | 8. Query 验收 | 每次 Write 或 Rebuild 后另行授权只读验收；不得用上一层授权推定 | 只读，created/updated=0 | PostgreSQL report/query 与 Neo4j read query | 对照每层预计数量、stable key、状态、来源、ID 和路径；差异立即停止下一层 | 无写状态；记录差异并回到对应层 Review，不自动修复 |
@@ -73,7 +73,7 @@
 ### 5.3 当前执行路径阻断
 
 - `backend/cmd/entity-seed/main.go` 只提供 `seed-dir`、inactive 和 sector convergence 参数，总是加载 `DefaultSeedPaths` 后调用 `Service.Apply`，没有 industry-chain 数据族选择边界。
-- `industry_chains_v1.json` 当前同时包含 23 entities、5 explicit profiles、27 memberships 和24 topology；physical constraints 与 relationships 为0，review fixture 不在 `DefaultSeedPaths`。
+- Layer 2审计时`industry_chains_v1.json`包含23 entities、5 explicit profiles、27 memberships和24 topology，physical constraints当时为0；现已在独立批准后加入首批4条constraint，review fixture始终不在`DefaultSeedPaths`。
 - `Service.Apply` 写完所有 entity/profile 后，只要 manifest 含 membership/topology 就立即调用 `UpsertIndustryChainBatch`。因此运行现有标准 `entity-seed` 会在 Layer 2 master 后继续写 Layer 3 membership 与 Layer 4 topology，违反逐层授权。
 - 2026-07-13 已按 TDD 增加合规的 `-apply-scope industry-chain-master` 边界：复用 `DefaultSeedPaths`、完整 manifest validation、现有 repository/report，只筛选本批2个 chain与26个 membership endpoint node 的 entity/profile，并跳过 `UpsertIndustryChainBatch`、relationships、sector mappings 和其他实体数据族。默认无 scope 行为保持兼容；未知 scope 或与 sector convergence 冲突的组合会被拒绝。
 - Scope 修复的自动化测试已验证精确选择28个实体、33次 profile operations、不调用 industry batch、不包含 review fixture，并区分 operation counts 与 final table impact。本轮只实现和验证代码，未运行 `entity-seed`，未产生任何 DML。
@@ -111,7 +111,7 @@
 2. 写入 chain / node master。（2026-07-13 已授权、执行并通过只读 Query 验收）
 3. 写入 membership。
 4. 写入 canonical topology。
-5. 逐项批准并写入 physical constraint；当前 15 条全部未授权。
+5. 首批4条physical constraint已批准进入无状态seed准备，但实际Write仍未授权；其余11条继续Review。
 6. 逐项批准并写入 `mapped_to_sector`；当前 12 条全部未授权。
 7. Neo4j rebuild。
 8. 每层 Query 验收。
@@ -164,3 +164,12 @@
 - 写后显式READ ONLY：topology总数/active=`24/24`，ID与`(chain,from,relation,to)`唯一数均为24；AI链10、半导体链14；self edge、无效/跨链/inactive membership端点、`substitutes_for`和反向`depends_on` canonical重复均为0。
 - Membership仍为27/27 active，physical constraints仍为0；无关表仍为`634/2/54/383/89`，与写前完全一致。
 - **Layer 4状态：Write与Query验收完成。** Physical constraint、`mapped_to_sector`、economy/commodity/benchmark、Neo4j rebuild及后续阶段均未授权、未执行。
+
+## 12. 2026-07-13 Layer 5 Physical Constraint 首批无状态晋级准备
+
+- 实时Git门禁：Desktop-managed worktree与branch正确，工作区clean，local/remote HEAD均为`c35a3a7e65c3f20d0ecdc6c6068f7953d55e0ef4`。显式READ ONLY确认2 chains active+approved、26 pilot nodes、27 active memberships、24 active topology、physical constraints=0。
+- 用户逐项批准4条进入正式seed准备：data center `power_capacity`、AI advanced packaging `packaging_density`、data center `infrastructure_access`、semiconductor advanced packaging `reliability`。全部保持`generated_by_ai=true`、`review_status=approved`、`approved_by_human=true`；后者只转换为执行上下文approval gate，不作为事实字段持久化。
+- `infrastructure_access`已校正为IEA Executive Summary P2；`reliability`已校正为TSMC/ECTC具体可靠性论文P6，并将两条`verified_at`更新为2026-07-13复核时间。其余11条仍只存在review-only fixture：需补证9、删除或改写2。
+- 已按TDD增加`industry-chain-physical-constraint` scope：batch仅含PhysicalConstraints=4，Profiles/Memberships/TopologyEdges=0，entity/profile/relationship/sector mapping调用均为0；report预计created4且FinalTableImpact仅`industry_chain_physical_constraints`。
+- Repository对constraint-only batch先校验显式approval gate，再在PostgreSQL事务内按稳定subject key顺序以`FOR SHARE`锁定已持久化同链active membership或topology edge；锁与subject更新/停用冲突。缺失/inactive subject或identity conflict在任何constraint写入失败时原子rollback；Memory repository执行等价持久化subject校验。
+- **当前状态：仅完成无状态晋级准备，未运行`entity-seed`、未产生DML。** 未来Write前必须重新只读确认constraints=0及4条subject/ID无冲突，创建备份，取得用户单独授权后才可执行一次`go run ./cmd/entity-seed -apply-scope industry-chain-physical-constraint`；不得幂等重跑。Physical constraints不投影Neo4j。

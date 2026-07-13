@@ -56,6 +56,10 @@
 - **WHEN** AI candidate 已取得权威技术证据、人工 Review 将 `review_status` 批准为 approved，且 seed/write 执行上下文携带显式人工 approval gate
 - **THEN** 系统必须允许 approved 写入并保持 `generated_by_ai=true`；`ApprovedByHuman` / `IndustryChainApprovalGate` 不得持久化为物理约束事实字段，也不得替代 `review_status`
 
+#### Scenario: constraint-only写入校验持久化subject
+- **WHEN** approved physical constraint不携带同批membership或topology执行分层写入
+- **THEN** repository必须在同一事务内以稳定顺序锁定已持久化node membership或topology edge，确认同链active后才写入，并在subject缺失、inactive或identity冲突时原子rollback
+
 #### Scenario: 物理约束不进入 Neo4j
 - **WHEN** future reasoning 完成 Neo4j chain/node 路径查询
 - **THEN** 系统必须通过 repository 按 chain/node/topology edge 从 PostgreSQL 补充读取 physical constraints，不得依赖当前图投影返回 constraint
