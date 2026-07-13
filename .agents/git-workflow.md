@@ -59,9 +59,15 @@ git worktree list
 ## Commit Checkpoints
 
 - Propose artifacts 完整且 `openspec validate <change-name>` 通过后：`spec: propose <change-name>`。
-- Apply 中每组独立可验证任务可以提交阶段性 checkpoint；tasks 必须同步更新。
+- Apply 中每个内聚、可独立验证的阶段 Review package 可以提交阶段级 checkpoint；tasks 必须同步更新，不得把每个微型 task 自动升级为 commit、push 或人工 Review。
 - Sync/Archive 完成且 `openspec validate --all` 通过后：`spec: archive <change-name>`。
 - commit 前运行新鲜验证、`git diff --check` 和 `git status --short`，只暂存当前 change 文件；不得加入依赖目录、构建产物、缓存、secret 或无关文件。
+
+## Active Change Adoption
+
+本规则 Deliver 后，active change 仍必须在各自独立 branch/worktree 中采用新流程。采用前必须执行 `git fetch origin`、更新到最新 `origin/main`、检查共享规则和 tasks 冲突，并只提交 scoped workflow-adoption tasks diff。该 diff 仅能合并未来 gate，不能追认历史操作、取消已开始写操作的验收或扩大既有授权；每个 active change 都必须经用户一次人工 Review 后才采用。
+
+adoption 不改变 Desktop-managed worktree、branch 隔离、commit、push、PR、merge 或 cleanup 的既有规则；若更新产生共享文件冲突或执行顺序依赖，必须暂停并重新排序。
 
 ## Push, PR And Merge Gate
 
