@@ -15,6 +15,15 @@
 
 UUID 边界：对既有 `keep` 或 `merge target` 只建议复用当前 key 对应的稳定 UUID，但本轮不连接 PostgreSQL，因此不抄录或声称真实 UUID 值；对 `create` 候选的 UUID 保持未分配，只有逐项批准并进入未来 dry-run 后才可按既有 deterministic identity 契约提出。任何 recommendation 都不得提前占用 UUID。
 
+## 0.1 R0 Candidate Review package 元数据
+
+- 输入指纹：CSV SHA-256 `584f990ddf3a0784d7586c0b0dc40aef7558620f8d8a0c27cb91a8b075002614`；现有联盟基线 `f942d76:backend/data/entity_foundation/alliance_orgs.json` SHA-256 `a797ed7b03a3f3acfc3e8fb885b3b19c16af8c4dc2f781efcb9d8ae2089ee37f`；本文件 adoption 前业务内容 SHA-256 `9536c4889a3f5fbb4676b8da7c5b1ba67d88fa7ffb1cad71825e7056b7cb83e8`。
+- 生成边界：CSV 1—68 形成 provisional 候选，69—85 排除；现有 10 条全部进入 disposition Review；来源仅用于 identity、名称、职责和持续存在性，不读取成员全集。
+- Counts：68 条候选，其中 recommend approve 62、defer 4、merge 1、reject 1；10 条现有 active alliance 全覆盖；17 条排除；67 条带正式来源链接，Chip 4 为 1 个正式来源 blocker。
+- 确定性 QA sample：CSV 行 1、10、20、30、40、50、60、68，并追加全部非 approve、宽 identity 边界、来源 blocker、alias/abbreviation 冲突项。**抽样不替代逐项 Review**；2.3 仍须确认全部 68 条候选与 10 条现有 disposition。
+- 冲突/异常全集：World Bank stable target merge；现有但 CSV 未列的 G7/G20/OECD；BRI、PGII、Chip 4、EU-US TTC defer；Silk Road Fund reject；ISO alias 冲突；无正式 abbreviation 项；Chip 4 来源 blocker；协议机制、倡议网络和联合国下属机构的宽 identity 边界。
+- Expected action classification：`create/keep/merge/defer/reject/inactivate` 仅供审阅，不是 Write 指令。任一 final decision 留空，或 source、identity、alias、summary、category、existing disposition 冲突未解决，均 fail-closed 并阻断 2.3。
+
 ## 1. CSV 第 1—68 条组织/机制候选
 
 | No. | recommendation | final decision | identity / 中文名 / English name | aliases；abbreviation | categories | 非空摘要草案 | 正式来源 | 与现有 10 条 exact diff / 建议 disposition |
