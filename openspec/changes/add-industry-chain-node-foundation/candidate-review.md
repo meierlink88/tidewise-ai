@@ -240,7 +240,7 @@
 1. 两条 industry chain + 26 个去重 node profile。
 2. 两条链 membership。
 3. Canonical topology。
-4. Physical constraints（首批4条已完成正式seed无状态准备，其余11条仍为candidate；Write未授权）。
+4. Physical constraints（首批4条已完成Write与Query验收，其余11条仍为candidate）。
 5. `mapped_to_sector`；economy、commodity、benchmark 当前为空清单。
 6. 每层 PostgreSQL 验收后，只有用户单独批准才执行 Neo4j rebuild；physical constraints 永不进入当前 Neo4j projection。
 

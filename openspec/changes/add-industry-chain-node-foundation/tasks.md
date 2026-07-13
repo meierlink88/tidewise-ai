@@ -41,7 +41,7 @@
 - [x] 5.4h 2026-07-13在独立授权、备份和写前只读门禁后，仅执行一次`industry-chain-topology`；report与只读Query确认24/24 active、10/14、ID/tuple唯一、端点有效且其他数据族不变
 - [x] 5.5a 2026-07-13只读确认Layer 4状态后，对review-only fixture的15条physical constraint逐项完成subject/type/证据/Serenity映射审查；严格口径为直接证据闭合2、机制认可但provenance须校正2、需补证9、删除或改写2，全部仍为candidate且未修改seed或PG
 - [x] 5.5b 用户逐项批准首批4条后，按TDD将其加入正式seed并校正P2/P6 provenance，实现显式`industry-chain-physical-constraint` scope、approval gate、持久化subject锁定校验及report；其余11条留在review fixture，本步骤未执行DML
-- [ ] 5.5c 在首批4条constraint单独Write授权、备份和实时preflight后，仅执行一次constraint scope并只读验收；当前未授权
+- [x] 5.5c 2026-07-13在独立Write授权、备份和实时preflight后，仅执行一次constraint scope；report与只读Query确认4/4 active approved、AI provenance/P2/P6/subject有效且其他数据族不变
 
 ## 6. 完整验证与 Apply 后 Review
 

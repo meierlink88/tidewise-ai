@@ -81,4 +81,4 @@
 
 主对话须逐项决定批准、补证或改写。只有逐项批准、来源闭合且未来写入上下文携带显式人工approval gate的条目，才可另行修改正式seed并申请PG写入授权；该授权不得从本文推定。
 
-2026-07-13后续Review结果：用户已批准`power_capacity`、`packaging_density`、完成P2校正的`infrastructure_access`、完成P6校正的`reliability`共4条进入正式seed无状态准备；其余11条仍为review-only。该批准不包含数据库写入授权。
+2026-07-13后续结果：用户批准`power_capacity`、`packaging_density`、完成P2校正的`infrastructure_access`、完成P6校正的`reliability`共4条；随后在独立Write授权与备份后仅执行一次constraint scope并通过只读验收。其余11条仍为review-only。
