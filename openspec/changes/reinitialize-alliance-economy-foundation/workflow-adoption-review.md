@@ -44,18 +44,27 @@
 
 - CSV 输入：`表格_20260713.csv`；SHA-256 `584f990ddf3a0784d7586c0b0dc40aef7558620f8d8a0c27cb91a8b075002614`。
 - 现有联盟基线：`f942d76:backend/data/entity_foundation/alliance_orgs.json`；SHA-256 `a797ed7b03a3f3acfc3e8fb885b3b19c16af8c4dc2f781efcb9d8ae2089ee37f`。
-- adoption 前候选 artifact：`alliance-candidate-review.md`；SHA-256 `9536c4889a3f5fbb4676b8da7c5b1ba67d88fa7ffb1cad71825e7056b7cb83e8`。该值只锁定 adoption 前的业务候选内容；本轮新增流程元数据后文件哈希会变化。
+- adoption 前候选 artifact：`alliance-candidate-review.md`；SHA-256 `9536c4889a3f5fbb4676b8da7c5b1ba67d88fa7ffb1cad71825e7056b7cb83e8`。该值只锁定 adoption 前的业务候选内容。来源新鲜度整改输入为 checkpoint `ac21094` 中的同文件，SHA-256 `c13663d90c2f195d1ec4ebad8579cceaccd8991194795ddaeac09d1248e86210`；本轮输出哈希将在整改 commit 后变化。
 - 确定性生成边界：CSV 1—68 进入联盟候选；69—85 只记录排除；现有 10 条必须全部进入 disposition Review；正式来源只核验 identity、名称、职责和持续存在性，不读取成员集合。
 
 ### 4.2 Counts、抽样与异常全集
 
 - CSV 联盟候选 68 条：recommend approve 62、defer 4、merge 1、reject 1；所有 final decision 均为空。
 - 现有 active alliance 10 条已全部覆盖；CSV 69—85 共 17 条已排除。
-- 正式来源链接 67 条；Chip 4 有 1 个正式来源 blocker。
+- 67 条候选具备正式来源；Chip 4 有 1 个正式来源 blocker。
 - 确定性 QA sample 为 CSV 行 1、10、20、30、40、50、60、68，并追加**全部**非 approve、宽 identity 边界、来源 blocker、alias/abbreviation 冲突项。抽样只用于检查草案一致性，绝不替代 68 条候选和 10 条现有数据的逐项人工决策。
-- 必审冲突/异常全集：World Bank stable target merge；CSV 未列但现有的 G7/G20/OECD；BRI、PGII、Chip 4、EU-US TTC defer；Silk Road Fund reject；ISO alias 冲突；无正式 abbreviation 项；Chip 4 来源 blocker；协议机制、倡议网络与联合国下属机构的宽 identity 边界。
+- 必审冲突/异常全集：World Bank stable target merge；CSV 未列但现有的 G7/G20/OECD，其中 G7 轮值来源必须在执行时刷新；BRI、PGII、Chip 4、EU-US TTC defer，其中 TTC 官方页面已 archived、最后部长级会议为 2024，当前不得进入 active manifest；Silk Road Fund reject；ISO alias 冲突；无正式 abbreviation 项；Chip 4 official-source blocker；协议机制、倡议网络与联合国下属机构的宽 identity 边界。中国—中亚机制已由 2025 外交部概况和第六次外长会材料证明秘书处全面运行；IOMed 已由官方 2025 签署、生效、运营与总部/秘书处材料消除旧状态疑问。
 
-### 4.3 Action classification 与 fail-closed
+### 4.3 来源新鲜度整改（R0）
+
+| 对象 | 旧问题 | 本轮正式来源证据 | Review 结论不变 |
+|---|---|---|---|
+| G7 | 仍指向 2024 Italy 主席国 | 法国总统府 2026 G7 / Évian 官方站记录法国轮值主席国及 2026-06-15—17 峰会；执行时仍须随轮值刷新 | `approve` / existing `keep` |
+| 中国—中亚机制 | 仅有 2023 峰会材料 | 中国外交部 2025 机制概况与第六次外长会公报记录秘书处 2024 成立、2025 全面运行 | `approve` / `create` |
+| IOMed | 仍写“需核验生效与 active” | IOMed 官方历史/结构记录 2025 签署、生效、首届理事会授权运营和秘书处职责，总部页记录香港总部 | `approve` / `create` |
+| EU-US TTC | 未给出 2026 active 判定 | 欧委会页面明确 archived / no longer updated，最后部长级会议为 2024-04 | `defer`，不得进入当前 active manifest |
+
+### 4.4 Action classification 与 fail-closed
 
 - `create/keep/merge/defer/reject/inactivate` 都只是预期动作分类，不是 Write 指令。
 - 任一 final decision 留空，或任一 source、identity、alias、summary、category、existing disposition 冲突未解决，task 2.3 均不得通过。
