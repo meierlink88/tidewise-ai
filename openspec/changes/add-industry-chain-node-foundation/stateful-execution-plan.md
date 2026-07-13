@@ -41,7 +41,7 @@
 | 层 | 前置条件与独立授权 | 预计 created / updated / unchanged | 影响范围 | 验证查询 | 回滚或停用方案 |
 |---|---|---|---|---|---|
 | 1. Migration（已验收） | 2026-07-13 已单独授权并完成备份、Write、只读 Query 验收 | 实际：migration applied 1；新表 created 4；`chain_node_profiles` 列 added 4；业务行 created/updated 0 | `industry_chain_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges`、`industry_chain_physical_constraints`、`chain_node_profiles` | 实际 version=14；4 表、字段、32 个 constraints、12 个 indexes、`generated_by_ai` 均通过；既有 33 个 chain node 与5个复用UUID/status不变 | 本项目 Down 为 reviewed no-op；如需撤销须停止后续写入并通过新的 reviewed forward migration 处理，不手工 DROP |
-| 2. Chain / node master | 层 1 验收；用户批准 2 条 chain、21 个新增 node、5 个复用实体 alias 与 profile 改进 | 最终表级差异：`entity_nodes` created 23、updated 5、既有其余 28 unchanged；`industry_chain_profiles` created 2；`chain_node_profiles` created 21、updated 5；幂等重跑本批 51 个目标行应 unchanged | `entity_nodes`、`industry_chain_profiles`、`chain_node_profiles` | 按 stable key 查询 2 chain + 26 pilot node；核对 5 个复用 UUID 不变、英文 aliases、definition、category、unit、granularity、review status；运行 seed report | 在不删除既有 5 个 node 的前提下，将本批新增 23 个实体置 inactive；5 个 aliases/profile 改进需用 reviewed forward seed 恢复旧值；不物理删除 |
+| 2. Chain / node master（已验收） | 2026-07-13 已单独授权；仅执行 `-apply-scope industry-chain-master` 一次并完成只读 Query 验收 | 实际最终表级：`entity_nodes` created 23、updated 5；`industry_chain_profiles` created 2；`chain_node_profiles` created 21、updated 5。operation report 为 created 46、updated 15、unchanged 0 | `entity_nodes`、`industry_chain_profiles`、`chain_node_profiles` | 实际2 chain active+approved；26 pilot node active且 aliases/profile完整；5个复用UUID/status/中文名不变；membership/topology/constraint与试点跨实体关系均为0 | 在不删除既有 5 个 node 的前提下，将本批新增 23 个实体置 inactive；5 个 aliases/profile 改进需用 reviewed forward seed 恢复旧值；不物理删除 |
 | 3. Membership | 层 2 验收；用户批准两链 12/15 membership | created 27；重复执行 unchanged 27 | `industry_chain_memberships` | 按 chain 查询 active membership，断言 AI=12、semiconductor=15、共享 `advanced_packaging` 两条 membership、stage order 唯一稳定 | 将本批 27 条 membership 置 inactive；保留审计行；后续 rebuild 前重新查询 active 数量 |
 | 4. Canonical topology | 层 3 验收；用户批准 10 条 AI + 14 条 semiconductor topology 及 evidence note 中的缺口 | created 24；重复执行 unchanged 24 | `industry_chain_topology_edges` | 按 chain/relation type 查询；断言无 self edge、端点均为同链 active membership、无 `substitutes_for`、无反向 `depends_on` 重复 | 将本批 24 条 topology 置 inactive；不删除 membership；重新查询 active topology=0 |
 | 5. Physical constraint | 15 条 candidate 逐项补齐权威技术证据并取得人工 Review；每条写入前单独确认 approval gate；当前未授权 | 当前可执行 0；Review-only candidate 15；未来数量以逐项批准结果为准 | 仅 `industry_chain_physical_constraints`；不进入 `entity_nodes` 或 Neo4j | 按 chain/node/topology edge 查询；断言 `review_status=approved`、`generated_by_ai=true`、主体同链 active、constraint type 属于 13 类 | 将获批写入行置 inactive；不改 topology；不触发 Neo4j rebuild。未批准 candidate 始终留在 Review fixture |
@@ -94,10 +94,21 @@
 
 停用方案保持不变：不删除既有5个节点；通过 reviewed forward seed 将本批新增23个实体置 inactive，并用 reviewed forward seed 恢复5个复用实体原 aliases/profile。不得手工 DELETE 或依赖 migration Down。
 
-## 6. 必须逐层取得的用户授权
+## 6. 2026-07-13 Layer 2 Write 与 Query 验收
+
+- 写前 Git 门禁：刷新 origin 后，Desktop-managed worktree、branch、local/remote HEAD 均匹配获批 checkpoint `5fc8a90c98c809259c2ddba6152dd721502cc83f`，工作区 clean。
+- 写前数据库门禁：显式 READ ONLY 确认 version=14、4 张产业链表行数 `0/0/0/0`、chain node 33/33 active、5个复用UUID/status/中文名不变、23个 planned master stable key冲突为0。
+- Pre-Layer2 备份：`/private/tmp/tidewise_local_pre_layer2_20260713T015540Z.dump`，custom format，979,104 bytes，SHA-256 `2a547922d53a10b9d1bbf610e3aa3d14fd3b274f81b72270695e28ddf4467268`；`pg_restore --list` 成功读取242个 TOC entries。
+- 唯一写命令为 `go run ./cmd/entity-seed -apply-scope industry-chain-master`，只执行一次；未运行无 scope entity-seed、其他 seed 或幂等重跑。
+- Report：scope=`industry-chain-master`，TotalEntities=28（2 chain +26 node），operation counts=`created 46 / updated 15 / unchanged 0 / failed 0`；FinalTableImpact=`entity_nodes 23/5/0`、`industry_chain_profiles 2/0/0`、`chain_node_profiles 21/5/0`；IndustryChainCounts 与 EdgeCounts 均为空。
+- 写后显式 READ ONLY 验收：`entity_nodes=634`，结合 report 的23 created 对应写前基线611；chain node=54/54 active；2 chain 均 active+approved；26/26 pilot node 存在、含英文 aliases 且4个 profile 增量字段完整；5个复用UUID/stable key/status/中文名保持不变。
+- `industry_chain_profiles=2`，`industry_chain_memberships=0`、`industry_chain_topology_edges=0`、`industry_chain_physical_constraints=0`；试点新 chain/node 上 `mapped_to_sector/scoped_to_economy/uses_commodity/produces_commodity/observed_by_benchmark` edge 为0；planned 27 membership与24 topology冲突命中均为0。
+- **Layer 2 状态：Write 与 Query 验收完成。** Layer 3 membership、Layer 4 topology、candidate 与 Neo4j 均未授权、未执行。
+
+## 7. 必须逐层取得的用户授权
 
 1. 执行 migration。（2026-07-13 已授权、执行并通过只读 Query 验收）
-2. 写入 chain / node master。
+2. 写入 chain / node master。（2026-07-13 已授权、执行并通过只读 Query 验收）
 3. 写入 membership。
 4. 写入 canonical topology。
 5. 逐项批准并写入 physical constraint；当前 15 条全部未授权。

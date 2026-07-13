@@ -10,8 +10,8 @@
 | Repo root | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai` |
 | Execution thread | `019f5684-b83f-7371-bd35-d315ae5bb87f` |
 | Project manager / source thread | `019f5477-445d-75d3-acf2-61a4fdd5b1d4` |
-| Handoff 编写前 HEAD | `cc60dff3a81fd1e73d7e751f648df30169d976b9` (`cc60dff`) |
-| 编写前远端状态 | `origin/codex/add-industry-chain-node-foundation` 与 `cc60dff` 一致 |
+| 原始 Handoff 编写前 HEAD | `cc60dff3a81fd1e73d7e751f648df30169d976b9` (`cc60dff`) |
+| Layer 2 执行基线 | `5fc8a90c98c809259c2ddba6152dd721502cc83f` (`5fc8a90`)；执行前 local/remote 一致 |
 
 本文件提交后必须以实际 `git rev-parse HEAD` 和远端 branch 为准；不得因为本文记录了 `cc60dff` 而跳过实时 Git 核对。该 worktree 由 Codex Desktop 管理，不得手工删除或创建替代 worktree。
 
@@ -33,18 +33,19 @@
 - Layer 1 migration 已完成：`000014_add_industry_chain_foundation.sql` 将 local `tidewise_local` 从 version 13 升至 14。
 - Migration 前备份：`/private/tmp/tidewise_local_pre_000014_20260712T165928Z.dump`，959,309 bytes，SHA-256 `8c4a25c7c001aae6cbb35e6f4e7915454b4db1df3635ebeb9cc6931218709371`；`pg_restore --list` 成功读取 212 个 TOC entries。该文件位于本机临时目录，不应视为长期或生产备份。
 - Layer 1 只读验收：4 张新表存在；`chain_node_profiles` 4 个新增列和 `generated_by_ai` 存在；32 个 PK/UNIQUE/FK/CHECK constraints 与 12 个 indexes 已核对。
-- 4 张新表业务行均为 0。既有 `chain_node` 仍为 33/33 active；5 个复用节点 UUID/status 未变化。
-- 新表为空，planned 27 个 membership ID 与 24 个 topology ID 冲突命中均为 0。
-- OpenSpec 当前 tasks 状态为 19/24；`5.4a` Layer 1 已完成，`5.4b` Layer 2+ 仍未完成。
+- Layer 2 已通过独立授权执行：只运行一次 `entity-seed -apply-scope industry-chain-master`，没有运行无 scope seed或幂等重跑。Report operation为46 created/15 updated，最终表级为 `entity_nodes 23 created +5 updated`、`industry_chain_profiles 2 created`、`chain_node_profiles 21 created +5 updated`。
+- Layer 2 写后：`entity_nodes=634`、chain node=54/54 active、2 chain active+approved、26 pilot node aliases/profile完整；5个复用节点 UUID/status/中文名未变化。
+- Membership、topology、physical constraint仍全部为0；planned 27 membership ID与24 topology ID冲突命中为0；试点跨实体关系为0。
+- Pre-Layer2备份位于 `/private/tmp/tidewise_local_pre_layer2_20260713T015540Z.dump`，979,104 bytes，SHA-256 `2a547922d53a10b9d1bbf610e3aa3d14fd3b274f81b72270695e28ddf4467268`，242个TOC entries可读。
 
-截至 2026-07-13，本 change **没有任何 Layer 2 或后续数据写入，也没有执行 Neo4j rebuild**。
+截至 2026-07-13，本 change **已完成 Layer 2 master 写入与只读验收；没有 Layer 3 或后续数据写入，也没有执行 Neo4j rebuild**。
 
 ## 4. 当前数据范围
 
 | 数据族 | 当前范围 | 状态 |
 |---|---:|---|
-| Industry chains | 2 | AI 算力基础设施、半导体制造；正式 seed 已准备，尚未写入 PG |
-| Unique chain nodes | 26 | 21 新增 + 5 复用；正式 seed/profile 已准备，尚未写入 PG |
+| Industry chains | 2 | AI 算力基础设施、半导体制造；已写入 PG并验收 active+approved |
+| Unique chain nodes | 26 | 21新增 +5复用；已写入/更新 PG并完成只读验收 |
 | Memberships | 27 | AI 12 + 半导体 15；已批准并准备，尚未写入 PG |
 | Canonical topology | 24 | AI 10 + 半导体 14；无 `substitutes_for` 推测，尚未写入 PG |
 | Physical constraints | 15 | 全部为 review-only candidate，`generated_by_ai=true`，不得整体晋升或写入 |
@@ -53,23 +54,22 @@
 | Commodity relationships | 0 | 不得虚构 |
 | Benchmark relationships | 0 | 不得虚构 |
 
-## 5. 明日严格执行顺序
+## 5. 后续严格执行顺序
 
-1. 对 Layer 2 chain/node master 做新的只读 preflight，核对实时 Git、migration version、4 张新表行数、33 个既有节点、5 个复用身份、23 个 planned 新实体 stable key/UUID 冲突以及 seed scope。
-2. 向用户报告 preflight、精确预计影响、验证查询和停用边界，取得 **Layer 2 单独明确授权**。
-3. 只写 chain/node master，然后立即只读验收；不得在同一授权中顺带写 membership。
-4. Layer 2 验收通过后，对 Layer 3 membership 再做 preflight、Review、单独授权、Write、Query。
-5. Layer 3 验收通过后，对 Layer 4 canonical topology 再做 preflight、Review、单独授权、Write、Query。
-6. 15 条 physical constraints 按证据强弱逐项 Review；只有权威技术证据闭合且获得显式人工 approval gate 的条目才可进入 approved seed/write，未批准条目继续留在 review fixture。
-7. 12 条 `mapped_to_sector` 按来源、端点和“分析映射而非身份/法定覆盖/影响方向”逐项 Review；不得用海外 market `COVERS_SECTOR` 中国 sector。
-8. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
-9. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
+1. Layer 2 已完成，不得未经独立授权做幂等重跑。
+2. 对 Layer 3 membership 做新的只读 preflight，核对实时 Git/DB、2 chains、26 nodes、planned 27 IDs、端点与现有 command/service 是否能只写 membership。
+3. 向用户报告 Layer 3 preflight、精确预计影响、验证查询和停用边界，取得 **Layer 3 单独明确授权** 后才可 Write 与 Query。
+4. Layer 3 验收通过后，对 Layer 4 canonical topology 再做 preflight、Review、单独授权、Write、Query。
+5. 15 条 physical constraints 按证据强弱逐项 Review；只有权威技术证据闭合且获得显式人工 approval gate 的条目才可进入 approved seed/write，未批准条目继续留在 review fixture。
+6. 12 条 `mapped_to_sector` 按来源、端点和“分析映射而非身份/法定覆盖/影响方向”逐项 Review；不得用海外 market `COVERS_SECTOR` 中国 sector。
+7. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
+8. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
 
 每层都必须独立执行 `Review → Write → Query`；涉及图状态时才增加 `Rebuild → Query`。上一层授权、写入或只读验收不得推定下一层授权。
 
-## 6. 明日第一步：Layer 2 预计影响与验收
+## 6. 已完成的 Layer 2 影响与验收
 
-基于 2026-07-13 的只读 preflight，Layer 2 最终表级预计影响为：
+2026-07-13 Layer 2 最终表级实际影响为：
 
 | 表 | Created | Updated | Unchanged / 保持不变 |
 |---|---:|---:|---|
@@ -96,7 +96,7 @@ Layer 2 写入后的只读验收至少覆盖：
 
 ## 7. 禁止与未授权项
 
-- 不得看到本 handoff 后直接开始 Layer 2 写入；必须先做只读 preflight、报告实时结果并取得用户明确授权。
+- 不得幂等重跑 Layer 2；不得直接开始 Layer 3 写入，必须先做 Layer 3 只读 preflight、报告实时结果并取得用户明确授权。
 - 不得将 15 条 physical constraint candidates 或 12 条 `mapped_to_sector` candidates 写入正式 seed/PG，也不得修改其审批状态。
 - 不得创造 economy、commodity 或 benchmark 关系补齐空清单。
 - 不得提前执行 membership、topology 或 Neo4j rebuild。
@@ -135,7 +135,7 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 ```text
 继续 OpenSpec change add-industry-chain-node-foundation，使用当前 Codex Desktop-managed worktree 与 branch codex/add-industry-chain-node-foundation。先读取 AGENTS.md、.agents/skill-routing.md、.agents/openspec-workflow.md、.agents/git-workflow.md、.agents/backend-boundaries.md、.agents/testing-tdd.md、openspec/config.yaml、openspec-apply-change skill，以及当前 change 的 proposal/design/tasks/delta specs/candidate-review/stateful-execution-plan/handoff。
 
-不要信任 handoff 中可能陈旧的 HEAD、migration version 或数据计数。先实时核对 git branch/HEAD/origin 同步与 scoped status，再仅以只读方式核对 local PostgreSQL：migration version、4 张产业链表、现有行数、33 个 chain_node、5 个复用 UUID/status、23 个 planned 新实体 stable key/UUID 冲突。不得执行 dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE 或 Neo4j 操作。
+不要信任 handoff 中可能陈旧的 HEAD、migration version 或数据计数。先实时核对 git branch/HEAD/origin 同步与 scoped status，再仅以只读方式核对 local PostgreSQL：migration version、2个chain、26个pilot node、4张产业链表行数、5个复用UUID/status，以及planned 27个membership ID与端点。不得执行 dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE 或 Neo4j 操作。
 
-把 Layer 2 chain/node master 的实时 preflight、精确 created/updated/unchanged、影响表、验收查询和停用方案报告给用户，等待 Layer 2 单独明确授权后才可写入。不得在 Layer 2 授权中顺带写 membership/topology；15 条 physical constraints 与12条 mapped_to_sector 仍是 candidate；economy/commodity/benchmark 为空；不得提前 Neo4j rebuild、Sync、Archive 或 PR。每层独立执行 Review → Write → Query，涉及图时再单独 Rebuild → Query。
+Layer 2已经完成且不得擅自重跑。把 Layer 3 membership 的实时 preflight、精确 created/updated/unchanged、执行scope、验收查询和停用方案报告给用户，等待 Layer 3 单独明确授权后才可写入；不得顺带写topology。15条physical constraints与12条mapped_to_sector仍是candidate；economy/commodity/benchmark为空；不得提前Neo4j rebuild、Sync、Archive或PR。每层独立执行Review → Write → Query，涉及图时再单独Rebuild → Query。
 ```
