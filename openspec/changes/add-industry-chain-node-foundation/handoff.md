@@ -40,7 +40,7 @@
 - Layer 3只读preflight确认27个membership ID/tuple唯一且数据库冲突为0，AI=12、半导体=15、advanced_packaging共享两条。已按TDD实现 `industry-chain-membership` scope并验证只生成27 memberships batch；尚未执行DML。
 - Layer 3已通过独立授权执行：只运行一次`entity-seed -apply-scope industry-chain-membership`，report为created27/updated0/unchanged0。写后27/27 active且ID/tuple唯一，AI=12、半导体=15、advanced_packaging属于两链；topology/constraint仍0，无关表计数不变。
 - Pre-Layer3备份：`/private/tmp/tidewise_local_pre_layer3_20260713T021205Z.dump`，983,891 bytes，SHA-256 `e33834390fadbcbc1273a3a1818ce835d12f61295e62efd23f21e0f8dd900b80`，242个TOC entries可读。
-- Layer 4只读preflight确认24条topology ID/tuple唯一，AI10/半导体14，无self/substitutes/reverse duplicate，全部端点为同链active membership且数据库冲突0。已按TDD实现`industry-chain-topology` scope与repository持久化membership校验；尚未执行DML。
+- Layer 4只读preflight确认24条topology ID/tuple唯一，AI10/半导体14，无self/substitutes/reverse duplicate，全部端点为同链active membership且数据库冲突0。已按TDD实现`industry-chain-topology` scope；PostgreSQL repository在同一事务内按稳定`(chain,node)`顺序用`SELECT ... FOR SHARE`锁定端点membership，锁持续至commit并与membership更新/停用冲突，缺失或inactive端点在topology upsert前rollback。尚未执行DML。
 
 截至 2026-07-13，本 change **已完成Layer 2 master与Layer 3 membership写入及只读验收；没有Layer 4或后续数据写入，也没有执行Neo4j rebuild**。
 

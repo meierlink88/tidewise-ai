@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -153,7 +154,7 @@ WHERE (industry_chain_profiles.chain_code, industry_chain_profiles.definition, i
 IS DISTINCT FROM (EXCLUDED.chain_code, EXCLUDED.definition, EXCLUDED.boundary_note, EXCLUDED.scope_type, EXCLUDED.primary_economy_entity_id, EXCLUDED.version, EXCLUDED.review_status, EXCLUDED.source_name, EXCLUDED.source_url, EXCLUDED.verified_at)
 RETURNING xmax = 0 AS inserted)
 SELECT CASE WHEN (SELECT conflict FROM identity_guard) THEN 'identity_conflict' ELSE COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged') END`
-const industryChainMembershipStatusSQL = `SELECT status FROM industry_chain_memberships WHERE industry_chain_entity_id=$1 AND chain_node_entity_id=$2 LIMIT 1`
+const industryChainMembershipStatusSQL = `SELECT status FROM industry_chain_memberships WHERE industry_chain_entity_id=$1 AND chain_node_entity_id=$2 LIMIT 1 FOR SHARE`
 const industryChainMembershipUpsertSQL = `WITH identity_guard AS (
 SELECT EXISTS (SELECT 1 FROM industry_chain_memberships WHERE id = $1 AND (industry_chain_entity_id, chain_node_entity_id) IS DISTINCT FROM ($2::uuid, $3::uuid)) AS conflict
 ), upsert AS (
@@ -229,24 +230,38 @@ func validateTopologyAgainstPersistedMemberships(edges []domain.IndustryChainTop
 }
 
 func validatePostgresTopologyMemberships(ctx context.Context, tx *sql.Tx, edges []domain.IndustryChainTopologyEdge) error {
-	seen := map[string]struct{}{}
+	type endpoint struct {
+		chainID       string
+		nodeID        string
+		requireActive bool
+	}
+	byKey := map[string]endpoint{}
 	for _, edge := range edges {
 		for _, nodeID := range []string{edge.FromChainNodeEntityID, edge.ToChainNodeEntityID} {
 			key := edge.IndustryChainEntityID + "|" + nodeID
-			if _, ok := seen[key]; ok {
-				continue
+			value := byKey[key]
+			value.chainID = edge.IndustryChainEntityID
+			value.nodeID = nodeID
+			value.requireActive = value.requireActive || edge.Status == domain.StatusActive
+			byKey[key] = value
+		}
+	}
+	keys := make([]string, 0, len(byKey))
+	for key := range byKey {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := byKey[key]
+		var status domain.Status
+		if err := tx.QueryRowContext(ctx, industryChainMembershipStatusSQL, value.chainID, value.nodeID).Scan(&status); err != nil {
+			if err == sql.ErrNoRows {
+				return fmt.Errorf("topology endpoint must reference persisted same chain membership")
 			}
-			var status domain.Status
-			if err := tx.QueryRowContext(ctx, industryChainMembershipStatusSQL, edge.IndustryChainEntityID, nodeID).Scan(&status); err != nil {
-				if err == sql.ErrNoRows {
-					return fmt.Errorf("topology endpoint must reference persisted same chain membership")
-				}
-				return fmt.Errorf("query topology membership: %w", err)
-			}
-			if edge.Status == domain.StatusActive && status != domain.StatusActive {
-				return fmt.Errorf("active topology endpoint must reference persisted active membership")
-			}
-			seen[key] = struct{}{}
+			return fmt.Errorf("query topology membership: %w", err)
+		}
+		if value.requireActive && status != domain.StatusActive {
+			return fmt.Errorf("active topology endpoint must reference persisted active membership")
 		}
 	}
 	return nil

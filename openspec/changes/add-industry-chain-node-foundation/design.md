@@ -237,7 +237,7 @@ sequenceDiagram
 
 Membership scope 使用同一 CLI、loader、validator、service 与 repository，命令边界为 `-apply-scope industry-chain-membership`。完整 manifest 在 scope 前已经通过 loader validation；scope 后只裁剪数据族，不建立第二套 manifest 或 seed 文件。
 
-Topology scope同样复用完整manifest validation。由于topology batch不携带membership写入，repository必须在写事务内读取已持久化membership状态，确认每个端点属于同一chain且active topology只引用active membership，再写topology；不得为了校验而重复upsert membership。Memory repository使用其已持久化membership map执行同等校验。
+Topology scope同样复用完整manifest validation。由于topology batch不携带membership写入，PostgreSQL repository必须在写事务内按稳定的`(industry_chain_entity_id, chain_node_entity_id)`顺序去重查询端点，并用`SELECT ... FOR SHARE`锁定membership行直到事务提交；共享锁允许并发只读校验，但会与membership的`UPDATE`、`DELETE`及`ON CONFLICT DO UPDATE`冲突，防止校验后、topology写入前端点被停用。确认每个端点属于同一chain且active topology只引用active membership后才写topology；缺失或inactive端点在任何topology upsert前原子rollback。不得为了校验而重复upsert membership，也不使用不必要的`FOR UPDATE`强锁。Memory repository使用其已持久化membership map执行同等校验。
 
 ## Risks / Trade-offs
 
