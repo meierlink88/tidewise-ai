@@ -1,0 +1,43 @@
+## ADDED Requirements
+
+### Requirement: 联盟关系类型、方向与候选层
+系统 SHALL 对 `member_of`、`led_by`、`part_of` 使用明确方向、端点类型、证据与独立 Review，并以 `member_of` 作为不被其他两层阻塞的 MVP 核心关系。
+
+#### Scenario: 建立正式成员关系
+- **WHEN** economy 是联盟官方来源列明的 active 正式成员
+- **THEN** 系统必须使用 `economy -> alliance_org` 的 `member_of`，在候选 Review 中展示 formal active 身份与冲突报告，并在正式 edge 保存官方来源名称、URL 和核验时间
+
+#### Scenario: 排除非正式或非 active 成员身份
+- **WHEN** 候选身份是 observer、partner、applicant、suspended 或 former
+- **THEN** 系统不得将其写为 active `member_of`；如需结构化表达，必须先通过关系契约 Review，不能自行新增 relation type
+
+#### Scenario: 建立有证据的主导关系
+- **WHEN** 联盟存在可解析且有证据的明确核心主导 economy 或 alliance organization
+- **THEN** 系统可以在独立候选层提出 `alliance_org -> economy/alliance_org` 的 `led_by`；“多边”“轮值”或无法解析的文本不得生成虚假实体或关系
+
+#### Scenario: 建立正式隶属关系
+- **WHEN** 某已批准下属机构或机制与上级联盟组织存在可审计的正式隶属关系
+- **THEN** 系统可以在独立候选层提出 `alliance_org -> alliance_org` 的 `part_of`，不得用合作、主题相关或共同成员替代隶属
+
+#### Scenario: 独立层不阻塞核心 MVP
+- **WHEN** `led_by` 或 `part_of` 候选尚未完成 Review
+- **THEN** 已完成联盟、economy 与 `member_of` 契约和数据门禁的核心 MVP 可以继续排队，但不得顺带写入未审阅关系
+
+### Requirement: Member Of 候选与写入闭环
+系统 SHALL 在联盟和 economy 清单确认后生成 `member_of` 候选，并在 PostgreSQL 写入前后验证端点、成员身份、来源、集合差异和计数。
+
+#### Scenario: 生成成员关系候选
+- **WHEN** 联盟清单、官方成员全集和 economy 候选均已确认
+- **THEN** 候选清单必须逐条包含方向、两端 entity key、formal active 身份、官方来源、核验时间、现有 edge 差异与冲突，不得依赖 CSV 成员数字段
+
+#### Scenario: Economy Query 未验收时阻止关系写入
+- **WHEN** economy Write 后 Query 尚未获得人工验收
+- **THEN** 系统不得请求或执行 `member_of` Write
+
+#### Scenario: 写入后核对正式成员集合
+- **WHEN** `member_of` Write 完成
+- **THEN** Query 必须证明所有端点存在且 active、无重复/悬空/错误方向，并按联盟将 active edge 集合和数量与同一官方正式成员来源逐项核对
+
+#### Scenario: 分层审阅后续关系
+- **WHEN** 核心 `member_of` Query 已验收且需要推进 `led_by` 或 `part_of`
+- **THEN** 两类关系必须各自执行 candidate Review → Write → Query，前一类授权不得推定后一类授权
