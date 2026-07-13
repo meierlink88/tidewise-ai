@@ -34,7 +34,7 @@
 - **THEN** 普通阶段 Review 不得隐含写入授权，Agent 必须另行提交满足对应风险等级的明确授权对象
 
 ### Requirement: 验证深度必须随风险与生命周期递增
-系统 MUST 在 R0 artifact checkpoint 运行 OpenSpec validate、scoped diff 和 secret 检查；在 R1 checkpoint 增加 targeted tests；只在 Apply final 强制全量项目验证。R2 与 R3 MUST 额外提供执行前后状态断言，且任何失败或未验证项必须明确报告。
+系统 MUST 在 R0 artifact checkpoint 运行 OpenSpec validate、scoped diff 和 secret 检查；在 R1 checkpoint 增加 targeted tests。Apply final MUST 完整运行受影响 app/module/package 的 suite 与共享 architecture/contract tests；只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才 MUST 运行 repo-wide full validation。验证选择 MUST 记录受影响交付边界、共享 tests 与 repo-wide 判定理由；边界、理由或 suite 不清楚时 MUST fail-closed，不得自行降级。R2 与 R3 MUST 额外提供执行前后状态断言，且任何失败或未验证项必须明确报告。
 
 #### Scenario: R1 阶段 checkpoint
 - **WHEN** Agent 准备提交无有状态写入的阶段 checkpoint
@@ -42,7 +42,15 @@
 
 #### Scenario: Apply final 验证
 - **WHEN** change 完成 Apply 并准备请求 Apply 后人工 Review
-- **THEN** Agent 必须运行全量项目验证、OpenSpec strict validation、diff/scope/secret 检查，并汇总所有 R2/R3 pre/post evidence
+- **THEN** Agent 必须运行受影响交付边界的完整 suite、共享 architecture/contract tests、OpenSpec strict validation、diff/scope/secret 检查，并汇总所有 R2/R3 pre/post evidence
+
+#### Scenario: 共享规则 change 的 Apply final
+- **WHEN** change 修改共享规则、跨模块契约、公共基础设施或其他 repo-wide 行为
+- **THEN** Agent 必须运行 repo-wide full validation；本 workflow change 修改全项目规则与 architecture tests 时必须运行 `go test ./...` 和相关 OpenSpec/规则检查
+
+#### Scenario: 验证边界无法明确
+- **WHEN** Agent 无法明确受影响交付边界、完整 suite 或是否触发 repo-wide 条件
+- **THEN** Agent 必须 fail-closed，扩大到 repo-wide full validation 或停止等待澄清，不得自行省略测试
 
 #### Scenario: R2 操作断言失败
 - **WHEN** R2 命名操作的 post-state、counts、保护或幂等断言任一失败
@@ -74,27 +82,35 @@
 - **WHEN** 已批准规格明确要求某个 final manifest 由用户逐项确认
 - **THEN** 抽样策略不得取消该人工决策，只能用于其余规模化正常候选的证据组织
 
-### Requirement: R2 条件式执行包必须逐层显式授权
-系统 SHALL 允许用户在一次明确授权中预授权多个 R2 命名层，但执行包 MUST 逐层列出每个命名操作、环境、顺序、范围、排除范围、备份、预期 counts、before/after assertions 和停止条件。普通 Apply 批准、旧批准或上一层批准 MUST NOT 被解释为该执行包授权。
+### Requirement: R2 条件式执行包必须逐层显式授权并声明 recovery evidence
+系统 SHALL 允许用户在一次明确授权中预授权多个 R2 命名层，但执行包 MUST 逐层列出每个命名操作、环境、顺序、范围、排除范围、recovery evidence、预期 counts、before/after assertions 和停止条件。每层 recovery evidence MUST 明确选择可恢复备份，或经批准的 disposable recovery。disposable recovery 只适用于明确声明为 disposable、没有不可替代数据且具有确定性 recreate/reseed 路径的 local/test，并必须记录环境身份、声明、命令、预计耗时和验证断言；shared local、开发主数据、UAT 或任何不可替代数据 MUST 提供可恢复备份。当前 tidewise 本地 curated PostgreSQL MUST NOT 自动视为 disposable。普通 Apply 批准、旧批准或上一层批准 MUST NOT 被解释为该执行包授权。
 
 #### Scenario: 用户一次授权多个 R2 命名层
-- **WHEN** 执行包逐名列出 Layer A 和 Layer B 的全部授权字段且用户明确批准整个包
+- **WHEN** 执行包逐名列出 Layer A 和 Layer B 的全部授权字段、每层 recovery evidence 且用户明确批准整个包
 - **THEN** Agent 可以严格执行 `Write Layer A -> Query/assert Layer A -> Write Layer B -> Query/assert Layer B`
+
+#### Scenario: disposable local test 层使用重建证据
+- **WHEN** 某 local/test 层被用户逐层批准为 disposable，且环境没有不可替代数据并提供确定性 recreate/reseed 命令、预计耗时和验证断言
+- **THEN** Agent 可以以 approved disposable recovery 作为该层 recovery evidence，而不是物理备份
+
+#### Scenario: shared 或不可替代数据层
+- **WHEN** R2 层涉及 shared local、开发主数据、UAT 或任何不可替代数据
+- **THEN** Agent 必须在该层执行前提供可恢复备份，不得使用 disposable recovery
 
 #### Scenario: 上一层断言通过
 - **WHEN** Layer A 的全部自动断言通过且 Layer B 已在同一执行包中被逐名明确授权
 - **THEN** Agent 可以进入 Layer B，因为 Layer B 已被显式授权，而不是从 Layer A 的批准推定
 
-#### Scenario: 任一断言失败或范围漂移
-- **WHEN** 某层断言失败、实际范围漂移、出现冲突或触发停止条件
+#### Scenario: 任一断言、范围或 recovery evidence 失败
+- **WHEN** 某层断言失败、实际范围漂移、recovery evidence 不成立、出现冲突或触发停止条件
 - **THEN** Agent 必须立即停止，所有未执行层的剩余授权自动失效，重新执行必须取得新授权
 
 #### Scenario: 执行包使用概括性后续范围
 - **WHEN** 执行包只写“其余层”“后续数据”或其他未逐名范围
 - **THEN** 这些未命名操作不在授权范围内，Agent 不得执行
 
-### Requirement: R3 操作必须保持独立授权
-系统 MUST 默认禁止 R3 跨层批量执行。生产、不可逆清理、Neo4j rebuild 和敏感部署 MUST 分别获得独立明确授权；被定义为 R3 的 cleanup MUST 单独成包。
+### Requirement: R3 操作必须保持独立授权和恢复证据
+系统 MUST 默认禁止 R3 跨层批量执行。生产、不可逆清理、Neo4j rebuild 和敏感部署 MUST 分别获得独立明确授权；被定义为 R3 的 cleanup MUST 单独成包。R3 MUST 提供备份/恢复或等价灾难恢复证据，且不得使用 disposable recovery 例外。
 
 #### Scenario: PostgreSQL R2 层完成后准备 Neo4j rebuild
 - **WHEN** PostgreSQL 各命名层已经通过 Query 验收

@@ -35,9 +35,9 @@
 | 等级 | 定义 | 典型范围 | 最低人工边界 |
 |---|---|---|---|
 | R0 | 文档、调研、只读审计 | OpenSpec artifacts、规则说明、只读查询、diff 审阅 | Proposal/Apply 生命周期 Review；额外 gate 仅在有明确风险理由时设置 |
-| R1 | 源码/测试变更但无有状态写入 | API、前后端实现、测试、migration/seed 代码但不 apply | 阶段 Review package、targeted tests、Apply final 全量验证 |
-| R2 | 可恢复的 migration、seed、本地/UAT 数据变更 | PostgreSQL schema/data 写入、UAT 可恢复变更 | 明确授权、备份、pre/post assertions、命名层 `Write -> Query` |
-| R3 | 生产、高破坏性或特殊投影操作 | 生产变更、不可逆清理、Neo4j rebuild、敏感部署 | 独立授权；默认不得跨层批量；cleanup 若为 R3 必须单独 |
+| R1 | 源码/测试变更但无有状态写入 | API、前后端实现、测试、migration/seed 代码但不 apply | 阶段 Review package、targeted tests、受影响交付边界的完整验证 |
+| R2 | 可恢复的 migration、seed、本地/UAT 数据变更 | PostgreSQL schema/data 写入、UAT 可恢复变更 | 明确授权、可验证 recovery evidence、pre/post assertions、命名层 `Write -> Query` |
+| R3 | 生产、高破坏性或特殊投影操作 | 生产变更、不可逆清理、Neo4j rebuild、敏感部署 | 独立授权、备份/恢复或等价灾难恢复证据；默认不得跨层批量；cleanup 若为 R3 必须单独 |
 
 选择该方案而不是“按文件类型固定等级”，因为同一 migration 文件的静态审阅是 R1，而实际 apply 可能是 R2 或 R3。风险属于操作及环境，不只属于 artifact。
 
@@ -69,11 +69,11 @@
 
 | Checkpoint | R0 | R1 | R2 | R3 |
 |---|---|---|---|---|
-| Artifact/阶段 checkpoint | OpenSpec validate、scoped diff、secret 检查 | R0 + targeted tests | R1 + 只读 preflight、备份证据、before state/counts | R2 + 环境/权限/恢复路径/停止条件专项检查 |
+| Artifact/阶段 checkpoint | OpenSpec validate、scoped diff、secret 检查 | R0 + targeted tests | R1 + 只读 preflight、可验证 recovery evidence、before state/counts | R2 + 环境/权限/备份恢复或灾难恢复路径/停止条件专项检查 |
 | 命名操作执行后 | 不适用 | 不适用 | post state/counts、幂等/保护断言；全部通过才进入下一预授权层 | 独立 post assertions；不得默认进入下一层 |
-| Apply final | OpenSpec strict、diff/scope/secret、适用的规则测试 | R0 + 全量项目验证 | R1 + 全部 R2 pre/post 证据汇总 | R2 + 全部 R3 独立授权与恢复证据汇总 |
+| Apply final | OpenSpec strict、diff/scope/secret、受影响交付边界的完整验证 | R0 + 共享 architecture/contract tests | R1 + 全部 R2 pre/post 证据汇总 | R2 + 全部 R3 独立授权与恢复证据汇总 |
 
-全量验证只在 Apply final 强制；阶段 checkpoint 运行与变更范围匹配的 targeted tests。任何环境限制、未验证项或失败必须进入 package，不能用旧日志替代。
+阶段 checkpoint 运行与变更范围匹配的 targeted tests。Apply final 必须完整运行受影响 app/module/package 的 suite，并运行共享 architecture/contract tests；只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才强制 repo-wide full validation。选择记录必须写明受影响交付边界、共享测试与是否触发 repo-wide 的理由；边界、理由或 suite 不清楚时 fail-closed，不得自行降级，应扩大到 repo-wide 或停止等待澄清。本 workflow change 修改全项目规则与 architecture tests，故 Apply final 仍必须运行 `go test ./...`、相关 OpenSpec 与规则检查。任何环境限制、未验证项或失败必须进入 package，不能用旧日志替代。
 
 ### 5. 候选数据按风险聚焦审阅
 
@@ -88,12 +88,17 @@
 - 环境与目标连接类别；
 - 严格执行顺序与层名；
 - 数据/对象范围及排除范围；
-- 可恢复备份与恢复/forward-fix 边界；
+- recovery evidence 类型：可恢复备份，或经批准的 disposable recovery；以及对应恢复/forward-fix 边界；
 - 每层 expected counts 或允许区间；
 - before/after assertions；
 - 失败、漂移、超时、冲突和人工中止条件。
 
-R2 包可以列出多个命名层。每层都必须在授权文本中逐一出现，而非使用“其余层”“后续数据”等概括语。运行时严格执行 `Write(layer N) -> Query/assert(layer N)`；只有全部自动断言通过，才可进入包内已经显式命名的下一层。任一断言失败、实际范围漂移或停止条件触发时立即停止，未执行层的剩余授权自动失效，重新执行必须获得新授权。
+R2 包可以列出多个命名层。每层都必须在授权文本中逐一出现，而非使用“其余层”“后续数据”等概括语。每层还必须逐一选择 recovery evidence：
+
+- `backup`：shared local、开发主数据、UAT 或任何不可替代数据必须提供可恢复备份；
+- `approved disposable recovery`：仅限明确声明为 disposable、没有不可替代数据、已有确定性 recreate/reseed 路径的 local/test；必须提供环境身份、disposable 声明、重建/重灌命令、预计耗时与完成后的验证断言。
+
+当前 tidewise 本地 curated PostgreSQL 不得自动视为 disposable。若包内未逐层声明并证明上述条件，或重建/验证无法完成，必须 fail-closed：不得执行或继续该层。运行时严格执行 `Write(layer N) -> Query/assert(layer N)`；只有全部自动断言通过，才可进入包内已经显式命名的下一层。任一断言失败、实际范围漂移、recovery evidence 不成立或停止条件触发时立即停止，未执行层的剩余授权自动失效，重新执行必须获得新授权。
 
 这与“上一层批准不得推定下一层”兼容：下一层不是从上一层推定，而是在同一执行包中被用户逐层、逐名明确授权；上一层 Query 只是已授权下一层的执行条件。未被命名的层永远不在授权范围内。
 
@@ -105,7 +110,7 @@ sequenceDiagram
     participant A as Task Agent
     participant T as 目标环境
 
-    A->>U: 提交条件式执行包（逐层命名、范围、备份、counts、断言、停止条件）
+    A->>U: 提交条件式执行包（逐层命名、范围、backup 或 approved disposable recovery、counts、断言、停止条件）
     U-->>A: 一次明确授权包内 Layer A、Layer B
     A->>T: Write Layer A
     A->>T: Query + 自动断言 Layer A
@@ -192,14 +197,16 @@ Apply 预计只修改：
 - [自审成为形式化 checkbox] → Review package 必须附实际 diff、验证结果与阻断整改证据；不得只写“已自审”。
 - [active adoption 改变进行中授权] → adoption 仅合并未来 gate，进行中的写操作继续原验收，既有授权不扩张。
 - [规则在多个文件重复膨胀] → 以 `.agents/openspec-workflow.md` 为详细唯一事实源，其他文件只保留专责内容和引用，并以重复/冲突扫描验证。
-- [阶段验证减少导致缺陷延后] → R1 仍要求 targeted tests，R2/R3 仍要求 pre/post assertions，Apply final 保留全量验证。
+- [disposable 例外被滥用以绕过恢复能力] → 仅接受逐层批准的环境身份、disposable 声明、确定性重建/重灌命令、耗时与验证断言；shared local、开发主数据、UAT、不可替代数据及 R3 不适用例外。
+- [交付边界验证被任意缩小] → Apply final 必须记录受影响边界、完整 suite、共享 tests 与 repo-wide 判定理由；不清楚时 fail-closed，扩大到 repo-wide 或停止等待澄清。
+- [阶段验证减少导致缺陷延后] → R1 仍要求 targeted tests，R2/R3 仍要求 pre/post assertions，Apply final 保留受影响交付边界的完整验证，并在共享规则/跨模块契约/公共基础设施/repo-wide change 时运行 repo-wide full validation。
 
 ## Migration Plan
 
 1. 在 Apply 中先更新工作流架构测试，使关键新语义产生预期失败。
 2. 按文件所有权更新 `.agents` 详细规则，再精简根 `AGENTS.md` 摘要；不触碰业务代码与状态资源。
 3. 运行 targeted 架构测试、OpenSpec strict validation、规则链接/重复/冲突、diff/scope/secret 检查，形成 R0/R1 阶段 Review package。
-4. Apply final 运行全量项目验证并提交 scoped diff，等待 Apply 后人工 Review。
+4. Apply final 按受影响交付边界运行完整 suite 与共享 architecture/contract tests；本 workflow change 作为共享规则 change 运行 `go test ./...`、相关 OpenSpec 与规则检查，再提交 scoped diff，等待 Apply 后人工 Review。
 5. Review 通过后依次 Sync、Archive、Deliver；在 Deliver 前不迁移 active changes。
 6. Deliver 后各 active change 独立更新 `origin/main`，提交 scoped adoption tasks diff 并等待一次人工 Review。
 
