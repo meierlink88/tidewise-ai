@@ -49,7 +49,50 @@
 | 7. Neo4j rebuild | 层 2–4 PostgreSQL 验收完成；若层 6 有获批关系则先完成其 PG 验收；用户单独批准 rebuild。Physical constraint 不构成前置写入 | 预计新增 Entity 23（2 chain + 21 new node）；新增关系 51（27 membership + 24 topology）；既有 5 node 为 upsert unchanged；若层 6 未批准则 sector mapping 0 | Neo4j `projection_namespace=tidewise` 下统一 `Entity` 与 membership/topology/已审阅 entity edges；排除 physical constraints 和 observations | 查询 2 chain、26 pilot node、27 membership、24 topology；验证 benchmark/sector 路径仅在已批准 edge 存在时成立；断言无 constraint 节点/边、无海外 market 覆盖中国 sector | 从 PostgreSQL active facts 重新 rebuild；若需撤销，先按对应 PG 层置 inactive并验收，再单独授权 rebuild；不得直接手工删局部图 |
 | 8. Query 验收 | 每次 Write 或 Rebuild 后另行授权只读验收；不得用上一层授权推定 | 只读，created/updated=0 | PostgreSQL report/query 与 Neo4j read query | 对照每层预计数量、stable key、状态、来源、ID 和路径；差异立即停止下一层 | 无写状态；记录差异并回到对应层 Review，不自动修复 |
 
-## 5. 必须逐层取得的用户授权
+## 5. 2026-07-13 Layer 2 实时只读 Preflight
+
+### 5.1 Git 与数据库现状
+
+- 刷新 origin 后，Desktop-managed worktree 仍为 `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`，branch 为 `codex/add-industry-chain-node-foundation`；local HEAD 与 remote HEAD 均为 `f85d18734633a10238b971fdde5b28bcec31879c`，工作区 clean，无 handoff 后漂移。
+- 所有数据库审计均在显式 `BEGIN TRANSACTION READ ONLY` 中执行。实时 migration version=14，4 张产业链表存在且行数仍分别为 `0/0/0/0`。
+- `chain_node` 仍为 33/33 active。5 个复用 stable key 的 UUID、status、中文名称与 Layer 1 前一致；aliases 仍为空，新增 profile 字段 `node_category/definition/unit_of_analysis/granularity_note` 仍为空，因此这 5 个实体与 profile 确实需要 Layer 2 update。
+- 2 个 planned `industry_chain` 和 21 个 planned 新 `chain_node` stable key 均未命中 `entity_nodes`；数据库仍没有任何 `industry_chain` 实体。
+
+### 5.2 实时预计影响
+
+最终表级差异仍为：
+
+| 表 | created | updated | unchanged |
+|---|---:|---:|---:|
+| `entity_nodes` | 23 | 5 | 非试点既有 28 个 chain node 保持不变 |
+| `industry_chain_profiles` | 2 | 0 | 0 |
+| `chain_node_profiles` | 21 | 5 | 非试点既有 profile 保持不变 |
+
+若实现严格的 master-only service scope，并沿用当前 manifest 中“实体内 profile 后再应用5个显式 profile改进”的顺序，预计 seed report 写操作为 `created=46`、`updated=15`、`unchanged=0`：23 次 entity create + 23 次 profile create；5 次复用 entity alias update + 5 次既有 inline profile update + 5 次显式 profile update。该 report 是写操作次数，不等于最终表级差异；实现后必须用测试固定两种统计口径。
+
+### 5.3 当前执行路径阻断
+
+- `backend/cmd/entity-seed/main.go` 只提供 `seed-dir`、inactive 和 sector convergence 参数，总是加载 `DefaultSeedPaths` 后调用 `Service.Apply`，没有 industry-chain 数据族选择边界。
+- `industry_chains_v1.json` 当前同时包含 23 entities、5 explicit profiles、27 memberships 和24 topology；physical constraints 与 relationships 为0，review fixture 不在 `DefaultSeedPaths`。
+- `Service.Apply` 写完所有 entity/profile 后，只要 manifest 含 membership/topology 就立即调用 `UpsertIndustryChainBatch`。因此运行现有标准 `entity-seed` 会在 Layer 2 master 后继续写 Layer 3 membership 与 Layer 4 topology，违反逐层授权。
+- **结论：当前不存在合规的 Layer 2 写命令边界，Layer 2 暂不可授权执行。** 本轮未运行 `entity-seed`，未产生任何 DML。
+
+最小实现调整应复用现有 manifest、validator、repository 与 report，不创建平行 seed 机制：
+
+1. 为 entity-seed application/service 增加显式、默认关闭的 `industry-chain master-only` scope；从已验证 manifest 的 industry-chain membership endpoints 推导本批2个 chain与26个node key，只写这些 entity/profile，并明确跳过 membership、topology、physical constraints、relationships 和其他实体数据族。
+2. 命令必须要求显式 scope 参数；无 scope 时保持既有全量行为兼容。master-only 路径必须有 fake/Memory repository 测试，断言从未调用 `UpsertIndustryChainBatch`，并固定最终表级统计与 report 写操作统计。
+3. 在未来进入 Layer 3/4 前，再以同一数据族 scope 扩展 membership-only/topology-only 边界；不得把 master-only 临时开关解释为后续层授权。
+
+### 5.4 Layer 2 获批写入后的只读验收 SQL 边界
+
+- 查询2个 chain stable key，断言 `entity_type=industry_chain`、active、profile approved；查询26个试点 node，断言21 created、5 UUID/stable key/status/中文名不变且英文 aliases/profile更新。
+- 分表对账 `entity_nodes`、`industry_chain_profiles`、`chain_node_profiles` 的最终 created/updated；同时核对 seed report 的 operation counts，不混淆两种口径。
+- 断言 `industry_chain_memberships`、`industry_chain_topology_edges`、`industry_chain_physical_constraints` 仍为0，并按本批 key 核对没有新增 `mapped_to_sector`、economy、commodity 或 benchmark edge。
+- 幂等重跑预期本批目标 unchanged，但第二次执行仍是独立 DML，必须再次取得明确授权后才能验证。
+
+停用方案保持不变：不删除既有5个节点；通过 reviewed forward seed 将本批新增23个实体置 inactive，并用 reviewed forward seed 恢复5个复用实体原 aliases/profile。不得手工 DELETE 或依赖 migration Down。
+
+## 6. 必须逐层取得的用户授权
 
 1. 执行 migration。（2026-07-13 已授权、执行并通过只读 Query 验收）
 2. 写入 chain / node master。
