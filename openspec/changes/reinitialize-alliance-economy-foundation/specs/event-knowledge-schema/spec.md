@@ -5,7 +5,7 @@
 
 #### Scenario: 保存联盟组织
 - **WHEN** 系统初始化或保存已批准的联盟组织实体
-- **THEN** 必须在 `entity_nodes` 中保存 `entity_type=alliance_org`、`layer_code=alliance`、名称、规范名称、aliases 和状态，并在 `alliance_org_profiles` 中只保存 abbreviation、受控多值 categories、leadership summary 与 influence scope summary
+- **THEN** 必须在 `entity_nodes` 中保存 `entity_type=alliance_org`、`layer_code=alliance`、名称、规范名称、NFKC + casefold 去重的 aliases 和状态，并在 `alliance_org_profiles` 中只保存最长 32 字符且不全局唯一的 abbreviation、1—8 个批准原子 categories，以及无 default、`btrim` 后非空的 leadership summary 与 influence scope summary
 
 #### Scenario: 区分联盟组织和政策机构
 - **WHEN** 实体表示跨多个经济体的国际组织、联盟、论坛或规则协调机制
@@ -22,4 +22,8 @@
 
 #### Scenario: 校验 economy profile
 - **WHEN** 系统写入或更新 economy profile
-- **THEN** 必须校验 identity kind 与 country code/ISO、currency 和 region 的组合，拒绝把 `GLOBAL` 或 `EU` 聚合 code 声明为普通主权国家 ISO identity
+- **THEN** 必须校验 identity kind 与 country code/ISO、currency 和兼容 region 的组合，限制 `MULTI` 为批准场景，拒绝把 `GLOBAL` 或 `EU` 聚合 code 声明为普通主权国家 ISO identity，并保证同一 code 只有一个 approved active economy
+
+#### Scenario: 约束稳定 Entity Key
+- **WHEN** 系统执行 entity identity preflight
+- **THEN** 必须先报告并收敛空值或重复 `entity_key`，再建立全局唯一约束；merged source 必须保留自身不同 stable key，不得复用 target key

@@ -5,11 +5,19 @@
 
 #### Scenario: 保存联盟简称与 aliases
 - **WHEN** 已批准联盟具有非空正式简称
-- **THEN** 系统必须把简称保存到 profile 的 `abbreviation` 并同时加入实体 aliases；无正式简称时使用空值语义，不得把 `—` 保存为简称或 alias
+- **THEN** 系统必须把 `btrim` 后最长 32 字符的简称保存到 profile 的 `abbreviation` 并同时加入实体 aliases；简称不全局唯一，等价冲突进入 Review；无正式简称时使用空值语义，不得把 `—` 保存为简称或 alias
+
+#### Scenario: 规范化联盟 aliases
+- **WHEN** 系统验证联盟名称与 aliases
+- **THEN** alias 必须 `btrim` 后非空、单项最长 128 字符、每实体最多 64 项，并按 NFKC + Unicode casefold 等价值去重；跨实体冲突不得自动合并 identity
 
 #### Scenario: 保存受控多值分类
 - **WHEN** 联盟候选同时属于政治、军事或经济等多个领域
-- **THEN** 系统必须保存去重后的受控 category code 数组，不得保存“政治 / 军事”拼接字符串或 CSV 子类
+- **THEN** 系统必须保存无 default、1—8 项、规范化去重并按 code 字典序持久化的受控 category code 数组，只允许 `political`、`governance`、`security`、`military`、`intelligence`、`economic`、`trade`、`finance`、`development`、`energy`、`mineral`、`agriculture`、`technology`、`religion`、`health`、`culture`、`education`、`environment`、`nuclear`、`legal`、`dispute_resolution`、`humanitarian` 这 22 个原子 code，不得保存 `cross_domain`、`commodity`、“政治 / 军事”拼接字符串或 CSV 子类，也不得自动补宽类
+
+#### Scenario: 拒绝空摘要进入最终 Active 集合
+- **WHEN** 联盟候选准备进入 approved active alliance manifest
+- **THEN** `leadership_summary` 与 `influence_scope_summary` 必须 `NOT NULL`、无 default、`btrim` 后非空且分别不超过 500/1000 字符；候选草案缺失值必须标为 blocker，不得用永久 `DEFAULT ''` 掩盖
 
 #### Scenario: 排除分析性字段
 - **WHEN** 候选材料包含成员数、全球占比、约束力级别或影响力评级
@@ -29,6 +37,14 @@
 #### Scenario: 区分全球聚合与国家
 - **WHEN** 系统审计 `economy:global`
 - **THEN** 必须将其标识为 global aggregate，不宣称其具有国家 ISO identity，也不得为其创建 `member_of`
+
+#### Scenario: 校验 Economy code 与 stable key 唯一性
+- **WHEN** 系统准备 economy identity migration 或 manifest
+- **THEN** `country_code` 不得建立无条件全表唯一约束，但 validator、manifest 与 Query 必须保证同一 code 只有一个 approved active economy；`entity_key` 必须在 preflight 清理空值/重复后全局唯一，merged source 保留自身不同 stable key
+
+#### Scenario: 限制 MULTI 与兼容 Region
+- **WHEN** economy profile 使用 `MULTI` 或现有 region code
+- **THEN** `MULTI` 只允许 global、经批准的 supranational aggregate 或逐项批准的主权/地区多法定货币例外，未审阅必须 fail-closed；现有 10 个 region code 仅作为首轮兼容 allowlist，歧义留到 C 层逐项报告
 
 ### Requirement: 联盟确认到成员关系的依赖闭环
 系统 SHALL 按“联盟确认 → 官方成员全集 → economy 差异审计与补齐 → 成员关系”的顺序准备数据，任一前置 Review 未通过时必须阻止下游候选冻结或写入。

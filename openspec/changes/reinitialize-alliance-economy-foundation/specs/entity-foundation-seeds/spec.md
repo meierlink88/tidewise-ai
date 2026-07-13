@@ -5,7 +5,11 @@
 
 #### Scenario: 审阅联盟候选清单
 - **WHEN** 系统准备联盟 seed
-- **THEN** 必须先提交 schema/data contract 和逐项候选清单，展示 `approve/reject/merge/defer`、entity key、canonical name、aliases、profile、来源、现有数据差异与冲突，并为每个现有 active alliance 提供明确 disposition；未确认项不得进入正式 seed 或 convergence
+- **THEN** 必须先提交已批准 schema/data contract 和 provisional 逐项候选清单，展示推荐 `approve/reject/merge/defer`、空白最终 decision、entity key、canonical name、aliases、22-code profile、非空摘要草案或 blocker、来源、现有数据差异与冲突，并为每个现有 active alliance 提供推荐 disposition；未确认项不得进入正式 seed 或 convergence
+
+#### Scenario: 执行已批准 Schema 校验
+- **WHEN** 后续 loader/validator 验证联盟或 economy 候选
+- **THEN** 必须执行 abbreviation/aliases 长度与 NFKC + casefold 去重、1—8 个 22-code categories、非空摘要、四类 economy identity、受控 `MULTI`、active country code 唯一、全局 stable `entity_key` 唯一及兼容 region 规则
 
 #### Scenario: 联盟确认后审计 Economy 差异
 - **WHEN** 已批准联盟的官方 formal active 成员全集形成

@@ -1,9 +1,9 @@
 ## 1. A：Schema / Data Contract Review
 
-- [x] 1.1 **已准备供 Review，尚未批准**：提交联盟最小 profile contract Review：`entity_id`、`abbreviation`、`categories TEXT[]`、`leadership_summary`、`influence_scope_summary`，名称/aliases/status 复用 `entity_nodes`；确认 abbreviation→aliases、空简称和 category 原子值/allowlist 规则。
-- [x] 1.2 **已准备供 Review，尚未批准**：提交 economy identity/ISO contract Review：`sovereign_state`、`territory_economy`、`supranational_aggregate`、`global_aggregate` 与 `country_code`、ISO 3166、currency、region 组合规则，明确 `economy:eu`、`economy:global` 不与主权国家混淆。
-- [x] 1.3 **已准备供 Review，尚未批准**：确认不入库字段：子类、CSV 成员数、全球占比、约束力级别、影响力评级；确认不新增实体标签、不复用事件标签、Neo4j 保持单一 `Entity` label。
-- [ ] 1.4 **Contract Review 门禁**：主对话明确批准 1.1—1.3 前，不得冻结联盟候选、生成 economy 范围、生成关系候选、修改源码/migration/seed 或执行任何 PostgreSQL/Neo4j Write。
+- [x] 1.1 **已批准**：联盟最小 profile contract 为 `entity_id`、`abbreviation`、`categories TEXT[]`、`leadership_summary`、`influence_scope_summary`；名称/aliases/status 复用 `entity_nodes`，简称、长度、原子 22-code allowlist 与非空 summary 规则以 `contract-review.md` 为准。
+- [x] 1.2 **已批准**：economy identity/ISO contract 区分 `sovereign_state`、`territory_economy`、`supranational_aggregate`、`global_aggregate`，并固定 `country_code`、ISO 3166、currency、region、EU/GLOBAL、active code 唯一与 stable `entity_key` 规则。
+- [x] 1.3 **已批准**：不入库子类、CSV 成员数、全球占比、约束力级别、影响力评级；不新增实体标签、不复用事件标签，Neo4j 保持单一 `Entity` label。
+- [x] 1.4 **Contract Review 门禁已通过**：主对话已批准 1.1—1.3；该批准只允许进入 B 的只读 provisional candidate draft，不构成 C、Apply 或任何 PostgreSQL/Neo4j 授权。
 
 ## 2. B：Alliance Candidate Review
 
