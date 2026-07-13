@@ -35,14 +35,14 @@
 - Layer 1 只读验收：4 张新表存在；`chain_node_profiles` 4 个新增列和 `generated_by_ai` 存在；32 个 PK/UNIQUE/FK/CHECK constraints 与 12 个 indexes 已核对。
 - Layer 2 已通过独立授权执行：只运行一次 `entity-seed -apply-scope industry-chain-master`，没有运行无 scope seed或幂等重跑。Report operation为46 created/15 updated，最终表级为 `entity_nodes 23 created +5 updated`、`industry_chain_profiles 2 created`、`chain_node_profiles 21 created +5 updated`。
 - Layer 2 写后：`entity_nodes=634`、chain node=54/54 active、2 chain active+approved、26 pilot node aliases/profile完整；5个复用节点 UUID/status/中文名未变化。
-- Membership、topology、physical constraint仍全部为0；planned 27 membership ID与24 topology ID冲突命中为0；试点跨实体关系为0。
+- Layer 2写后当时membership、topology、physical constraint均为0，planned 27 membership ID与24 topology ID冲突命中为0；该历史基线随后分别用于Layer 3/4门禁。
 - Pre-Layer2备份位于 `/private/tmp/tidewise_local_pre_layer2_20260713T015540Z.dump`，979,104 bytes，SHA-256 `2a547922d53a10b9d1bbf610e3aa3d14fd3b274f81b72270695e28ddf4467268`，242个TOC entries可读。
 - Layer 3只读preflight确认27个membership ID/tuple唯一且数据库冲突为0，AI=12、半导体=15、advanced_packaging共享两条。已按TDD实现 `industry-chain-membership` scope并验证只生成27 memberships batch；尚未执行DML。
 - Layer 3已通过独立授权执行：只运行一次`entity-seed -apply-scope industry-chain-membership`，report为created27/updated0/unchanged0。写后27/27 active且ID/tuple唯一，AI=12、半导体=15、advanced_packaging属于两链；topology/constraint仍0，无关表计数不变。
 - Pre-Layer3备份：`/private/tmp/tidewise_local_pre_layer3_20260713T021205Z.dump`，983,891 bytes，SHA-256 `e33834390fadbcbc1273a3a1818ce835d12f61295e62efd23f21e0f8dd900b80`，242个TOC entries可读。
-- Layer 4只读preflight确认24条topology ID/tuple唯一，AI10/半导体14，无self/substitutes/reverse duplicate，全部端点为同链active membership且数据库冲突0。已按TDD实现`industry-chain-topology` scope；PostgreSQL repository在同一事务内按稳定`(chain,node)`顺序用`SELECT ... FOR SHARE`锁定端点membership，锁持续至commit并与membership更新/停用冲突，缺失或inactive端点在topology upsert前rollback。尚未执行DML。
+- Layer 4已通过独立授权执行：写前备份后只运行一次`entity-seed -apply-scope industry-chain-topology`，report为created24/updated0/unchanged0。写后24/24 active，AI10/半导体14，ID/tuple唯一，无self/substitutes/reverse duplicate/无效端点；membership仍27/27 active，constraint与无关表不变。Pre-Layer4备份为`/private/tmp/tidewise_local_pre_layer4_20260713T024610Z.dump`，986,070 bytes，SHA-256 `abe475308950b05b6a275ca4388b0bd0d28b39c3d8c751350c49fef2f198fe95`，253个TOC entries可读。
 
-截至 2026-07-13，本 change **已完成Layer 2 master与Layer 3 membership写入及只读验收；没有Layer 4或后续数据写入，也没有执行Neo4j rebuild**。
+截至 2026-07-13，本 change **已完成Layer 2 master、Layer 3 membership、Layer 4 topology写入及只读验收；没有physical constraint、跨实体关系或后续数据写入，也没有执行Neo4j rebuild**。
 
 ## 4. 当前数据范围
 
@@ -51,7 +51,7 @@
 | Industry chains | 2 | AI 算力基础设施、半导体制造；已写入 PG并验收 active+approved |
 | Unique chain nodes | 26 | 21新增 +5复用；已写入/更新 PG并完成只读验收 |
 | Memberships | 27 | 已写入PG并验收27/27 active；AI 12 + 半导体15 |
-| Canonical topology | 24 | AI 10 + 半导体 14；无 `substitutes_for` 推测，尚未写入 PG |
+| Canonical topology | 24 | 已写入PG并验收24/24 active；AI 10 + 半导体14，无`substitutes_for`推测 |
 | Physical constraints | 15 | 全部为 review-only candidate，`generated_by_ai=true`，不得整体晋升或写入 |
 | `mapped_to_sector` | 12 | 全部为 review-only candidate，尚未逐项批准，不得写入 |
 | Economy relationships | 0 | 不得虚构 |
@@ -62,12 +62,11 @@
 
 1. Layer 2 已完成，不得未经独立授权做幂等重跑。
 2. Layer 3已完成，不得未经独立授权幂等重跑。
-3. Layer 4 preflight与topology-only scope实现已完成；先完成代码Review并再次实时只读核对Git/DB。
-4. 只有Layer 4单独Write授权后，才可运行一次`-apply-scope industry-chain-topology`并立即只读Query，不得幂等重跑。
-5. 15 条 physical constraints 按证据强弱逐项 Review；只有权威技术证据闭合且获得显式人工 approval gate 的条目才可进入 approved seed/write，未批准条目继续留在 review fixture。
-6. 12 条 `mapped_to_sector` 按来源、端点和“分析映射而非身份/法定覆盖/影响方向”逐项 Review；不得用海外 market `COVERS_SECTOR` 中国 sector。
-7. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
-8. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
+3. Layer 4已完成，不得未经独立授权幂等重跑。
+4. 15 条 physical constraints 按证据强弱逐项 Review；只有权威技术证据闭合且获得显式人工 approval gate 的条目才可进入 approved seed/write，未批准条目继续留在 review fixture。
+5. 12 条 `mapped_to_sector` 按来源、端点和“分析映射而非身份/法定覆盖/影响方向”逐项 Review；不得用海外 market `COVERS_SECTOR` 中国 sector。
+6. PostgreSQL 各层事实全部验收后，才可另行申请 Neo4j rebuild 授权；physical constraints 不投影。
+7. Rebuild 后再单独进行只读 Query 验收，验证 2 chains、26 nodes、27 memberships、24 topology 和已批准跨实体路径。
 
 每层都必须独立执行 `Review → Write → Query`；涉及图状态时才增加 `Rebuild → Query`。上一层授权、写入或只读验收不得推定下一层授权。
 
@@ -100,10 +99,10 @@ Layer 2 写入后的只读验收至少覆盖：
 
 ## 7. 禁止与未授权项
 
-- 不得幂等重跑Layer 2或Layer 3；不得直接开始Layer 4写入，必须先做Layer 4只读preflight、报告实时结果并取得用户明确授权。
+- 不得幂等重跑Layer 2、Layer 3或Layer 4。
 - 不得将 15 条 physical constraint candidates 或 12 条 `mapped_to_sector` candidates 写入正式 seed/PG，也不得修改其审批状态。
 - 不得创造 economy、commodity 或 benchmark 关系补齐空清单。
-- 不得提前执行 membership、topology 或 Neo4j rebuild。
+- 不得写入未批准candidate或提前执行Neo4j rebuild。
 - 不得把 physical constraints 投影到 Neo4j。
 - 不得启动 observation 或 event reasoning 实现来扩大当前 change scope。
 - Apply 后第二次人工 Review 通过前，不得 Sync、Archive、创建 PR、merge 或 Deliver。
@@ -139,7 +138,7 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 ```text
 继续 OpenSpec change add-industry-chain-node-foundation，使用当前 Codex Desktop-managed worktree 与 branch codex/add-industry-chain-node-foundation。先读取 AGENTS.md、.agents/skill-routing.md、.agents/openspec-workflow.md、.agents/git-workflow.md、.agents/backend-boundaries.md、.agents/testing-tdd.md、openspec/config.yaml、openspec-apply-change skill，以及当前 change 的 proposal/design/tasks/delta specs/candidate-review/stateful-execution-plan/handoff。
 
-不要信任handoff中可能陈旧的HEAD、migration version或数据计数。先实时核对Git与DB，再只读确认2 chains、26 nodes、27 active memberships、topology/constraint为0，以及planned24 topology IDs/tuples与端点。不得执行dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE或Neo4j操作。
+不要信任handoff中可能陈旧的HEAD、migration version或数据计数。先实时核对Git与DB，再只读确认2 chains、26 nodes、27 active memberships、24 active topology、constraint为0，以及topology IDs/tuples与端点不变量。不得执行dbmigrate apply、entity-seed、INSERT/UPDATE/DELETE或Neo4j操作。
 
-Layer 2和Layer 3已经完成且不得重跑。`industry-chain-topology` scope已实现但未执行；报告最新preflight与预计created24/updated0/unchanged0，等待Layer 4单独Write授权后才可运行一次。15条physical constraints与12条mapped_to_sector仍是candidate；economy/commodity/benchmark为空；不得提前Neo4j rebuild、Sync、Archive或PR。
+Layer 2、Layer 3和Layer 4已经完成且不得重跑。15条physical constraints与12条mapped_to_sector仍是candidate；economy/commodity/benchmark为空。下一步须由主对话决定逐项Review哪个candidate数据族，或另行授权Neo4j rebuild；不得推定任何授权，不得提前Sync、Archive或PR。
 ```

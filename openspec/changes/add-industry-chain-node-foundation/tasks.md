@@ -38,7 +38,7 @@
 - [x] 5.4e 2026-07-13在独立授权、备份和写前只读门禁后，仅执行一次`industry-chain-membership`；report与只读Query确认27/27 active、12/15、ID/tuple唯一、共享节点两链，其他表不变
 - [x] 5.4f Layer 4只读preflight确认24条topology ID/tuple唯一、10/14、端点同链active、无self/substitute/反向重复且DB冲突0；按TDD实现`industry-chain-topology` scope与持久化membership校验，本步骤未执行DML
 - [x] 5.4g 按并发Review补充RED测试并以稳定端点顺序执行`SELECT ... FOR SHARE`，确保membership更新/停用不能穿越topology校验与写入窗口，缺失/inactive端点原子rollback；本步骤未执行DML
-- [ ] 5.4h 在Layer 4单独Write授权后执行一次topology scope与Query验收；当前无写入授权，不得进入candidate或Neo4j
+- [x] 5.4h 2026-07-13在独立授权、备份和写前只读门禁后，仅执行一次`industry-chain-topology`；report与只读Query确认24/24 active、10/14、ID/tuple唯一、端点有效且其他数据族不变
 
 ## 6. 完整验证与 Apply 后 Review
 
