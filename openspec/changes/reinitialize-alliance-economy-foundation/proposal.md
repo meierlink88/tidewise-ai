@@ -9,9 +9,13 @@
 - 以 CSV 第 1—68 条作为联盟候选参考，但不生成可执行 seed；第 69—85 条战略矿产与农产品不属于 `alliance_org`，排除出本 change，仅记录为未来 `chain_node`、`commodity` 或 observation 候选，不自行创建后续 change。
 - 明确不入库：子类、CSV 成员数、全球占比、约束力级别、影响力评级。正式成员数未来仅由 active `member_of` 计算；占比属于 observation；约束力和影响力属于后续分析评价。
 - 建立不可跳过的依赖链：联盟 schema/data contract Review → 联盟候选逐项 Review → 从官方来源形成已批准联盟的正式成员全集 → 与现有 economy 做差异审计 → economy 候选 Review → `member_of` 候选 Review。联盟清单未确认不得冻结 economy 范围，economy 清单未确认不得生成关系候选。
+- 将版本化、穷尽式 approved manifest 定义为重新初始化后的权威 active 状态：alliance manifest 必须覆盖最终 active alliance 集合及每个现有 active alliance 的 `keep/merge/inactivate` 处置；`member_of` manifest 必须覆盖最终 formal-active tuple 集合及每条现有 active edge 的保留或 stale 原因。`reject`、`defer`、未获批准、合并来源实体及过期关系都必须先进入候选 diff 与 Write Review，未经批准不得清理。
+- alliance merge 必须保留获批 target 的稳定 identity，将 source 标记 inactive 并防止两个 active 重复实体；不得删除旧 identity。现有 active `member_of` 若不在最新 formal-active 官方集合中，必须区分 `former`、`withdrawn`、`suspended`、`source_conflict` 或联盟 identity convergence 影响，在单独 Review 后转 inactive；禁止只新增新边而保留过期 active 边。
+- economy 不以当前联盟成员全集为保留边界。未成为批准联盟成员的合法 economy 必须保持原 identity 与 active 状态；只有逐项确认的 identity 冲突、重复或明确错误项才可 merge/inactivate，并必须展示其关系影响与预计 counts。
 - `member_of` 固定为 `economy -> alliance_org`，仅表达 active 正式成员；候选逐条展示成员身份与冲突报告，正式 edge 保存官方来源和核验时间。观察员、伙伴国、申请国、暂停成员和退出成员不得混入。CSV“成员数”仅供 Review 对照，不是事实源。
 - `led_by` 固定为 `alliance_org -> economy/alliance_org`，只为可解析且有证据的核心主导方建边；“多边”“轮值”等保留在 `leadership_summary`，不得伪造实体。`part_of` 固定为下属 `alliance_org -> alliance_org` 上级组织。两者作为独立候选层，不阻塞 alliance/economy/`member_of` MVP。
 - 后续有状态执行固定为 alliance Write → Query → economy Write → Query → `member_of` Review → Write → Query；上一层 Query 未经人工验收不得进入下一层。PostgreSQL 全部验收后，如需 Neo4j，必须单独 Review → Rebuild → Query。
+- 所有收敛只允许使用版本化 forward migration/convergence、幂等事务和可审计 report；禁止 `TRUNCATE`、删除全量实体/关系或其他破坏性重置。最终 Query 必须证明 active alliance keys 和 active `member_of` tuples 分别与 approved manifests 集合相等，并证明未误停用无关合法 economy。
 - 不新增实体标签机制、不复用事件标签；PostgreSQL 继续作为事实源，Neo4j 保持单一 `Entity` label 与 `projection_namespace=tidewise`。
 - 本 change 当前只进入 proposal Review。由于与 `refactor-industry-chain-node-foundation` 共享 entityfoundation seed/repository/migration 测试和 PostgreSQL 状态，源码实现、migration、seed、PostgreSQL/Neo4j 写入必须等待该 change 完成 Deliver，并重新基于最新 `origin/main` 评估后排队。
 

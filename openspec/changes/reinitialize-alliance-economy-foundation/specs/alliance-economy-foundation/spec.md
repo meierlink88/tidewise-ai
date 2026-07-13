@@ -60,6 +60,44 @@
 - **WHEN** 系统读取 CSV 第 69—85 条战略矿产和农产品
 - **THEN** 必须排除出 `alliance_org` change，仅记录为未来 `chain_node`、`commodity` 或 observation 候选，不得自行创建实体、关系或后续 change
 
+### Requirement: Alliance 权威 Manifest 收敛
+系统 SHALL 使用版本化且穷尽的 approved alliance manifest 定义重新初始化后的最终 active alliance 集合，并通过 forward convergence 处理现有 identity，不得把 upsert 或新增数量视为完成。
+
+#### Scenario: 穷尽处置现有 Active Alliance
+- **WHEN** 系统准备 alliance Write Review
+- **THEN** manifest 必须列出最终 active keys，并为每个现有 active `alliance_org` 给出 `keep`、`merge` 或 `inactivate`；任何未列出项必须阻断 Write，不得静默清理
+
+#### Scenario: 处理 Reject 或 Defer
+- **WHEN** 现有 alliance 候选最终为 reject、defer 或未进入批准 active set
+- **THEN** 系统必须把它列为待 Review 的 inactivate diff，展示原因、identity、profile、关系影响和预计 counts；未经批准必须保持原状态并阻断完整收敛
+
+#### Scenario: 合并重复 Alliance Identity
+- **WHEN** 两个现有实体被批准 merge 为同一 alliance
+- **THEN** 系统必须保留批准 target 的稳定 key/UUID，保留 source identity 但将其 forward inactivate，并逐项审阅 aliases、profile 和关系影响；最终不得存在两个 active 重复实体
+
+#### Scenario: 验证最终 Active 集合
+- **WHEN** alliance convergence Write 完成
+- **THEN** Query 必须证明 PostgreSQL active alliance keys 与 approved manifest active keys 集合相等，并证明没有未经批准的 delete、merge 或 inactivate
+
+#### Scenario: 禁止破坏性重置
+- **WHEN** 系统实现或执行 alliance convergence
+- **THEN** 只能使用版本化 forward migration/convergence 和幂等事务，不得使用 `TRUNCATE`、无谓词 DELETE、清空重灌或历史 rollback
+
+### Requirement: Economy 保留优先与异常收敛
+系统 SHALL 保留不属于当前批准联盟成员全集的合法 economy；只有 approved economy exception manifest 中逐项确认的 identity 冲突、重复或明确错误项可以 merge/inactivate。
+
+#### Scenario: 保留非成员 Economy
+- **WHEN** 某合法 economy 不在当前批准联盟的 formal-active 成员全集中
+- **THEN** 系统必须保持其稳定 key、UUID、profile 和 active 状态，不得因非成员身份删除、停用或合并
+
+#### Scenario: 审阅 Economy 异常处置
+- **WHEN** economy identity 审计发现重复、冲突或明确错误
+- **THEN** 候选 diff 必须展示原因、旧/新 identity、关系影响和预计 counts，并在独立 Review 批准后才可 forward merge/inactivate
+
+#### Scenario: 验证未误伤合法 Economy
+- **WHEN** economy convergence Query 执行
+- **THEN** 除 approved exception manifest 列出的实体外，所有受保护合法 economy 的 key、UUID 和 status 必须与 Write 前快照逐项一致
+
 ### Requirement: 自动化验证边界
 系统 SHALL 通过自动化测试验证 alliance profile、economy identity、候选依赖链和排除边界，普通测试不得访问真实外部网络或真实数据库。
 

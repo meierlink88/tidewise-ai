@@ -5,7 +5,7 @@
 
 #### Scenario: 审阅联盟候选清单
 - **WHEN** 系统准备联盟 seed
-- **THEN** 必须先提交 schema/data contract 和逐项候选清单，展示 `approve/reject/merge/defer`、entity key、canonical name、aliases、profile、来源、现有数据差异与冲突，未确认项不得进入正式 seed
+- **THEN** 必须先提交 schema/data contract 和逐项候选清单，展示 `approve/reject/merge/defer`、entity key、canonical name、aliases、profile、来源、现有数据差异与冲突，并为每个现有 active alliance 提供明确 disposition；未确认项不得进入正式 seed 或 convergence
 
 #### Scenario: 联盟确认后审计 Economy 差异
 - **WHEN** 已批准联盟的官方 formal active 成员全集形成
@@ -17,7 +17,19 @@
 
 #### Scenario: 分层幂等写入与查询
 - **WHEN** 后续 Apply 获得有状态授权
-- **THEN** 必须按 alliance Write/Query 再 economy Write/Query 的顺序幂等执行，上一层 Query 未验收不得进入下一层，并输出 created、updated、unchanged、failed 和 identity 冲突统计
+- **THEN** 必须按 alliance Write/Query 再 economy Write/Query 的顺序执行版本化 forward convergence，上一层 Query 未验收不得进入下一层，并输出 created、updated、inactivated、merged、unchanged、failed、identity 冲突和非目标保护统计
+
+#### Scenario: 生成 Alliance Exact Diff
+- **WHEN** approved alliance manifest 与现有 PostgreSQL 比较
+- **THEN** dry-run 必须输出最终 active set、每个 keep/create/merge/inactivate、原因、旧/新 identity、profile/alias/关系影响、预计 counts 和 manifest checksum；现有 active 未被穷尽覆盖时必须失败
+
+#### Scenario: 生成 Economy Exception Diff
+- **WHEN** approved economy candidates 与现有 economy 比较
+- **THEN** dry-run 必须只把逐项批准的 identity 冲突、重复或明确错误列为 merge/inactivate，并把其他合法 economy 纳入保护快照，不得以联盟成员全集作为删除或停用范围
+
+#### Scenario: 拒绝破坏性 Seed 重置
+- **WHEN** seed 或 convergence 实现准备收敛现有数据
+- **THEN** 系统必须拒绝 `TRUNCATE`、无谓词 DELETE、清空后重灌、未审阅 stale 清理或历史 migration rollback
 
 #### Scenario: 不从 CSV 自动生成 seed
 - **WHEN** 联盟研究 CSV 包含组织候选、成员数、评级或第 69—85 条资源商品

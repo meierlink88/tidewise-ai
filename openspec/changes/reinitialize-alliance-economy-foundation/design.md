@@ -89,7 +89,33 @@ sequenceDiagram
 
 联盟候选 Review 必须逐项标注 `approve/reject/merge/defer`、目标 entity key、canonical name、aliases、profile、来源与冲突。CSV 只用于候选对照；成员全集必须来自各联盟可审计的正式来源。
 
-### 5. 三类关系分层，`member_of` 先闭环
+### 5. Approved manifests 是现有状态收敛的唯一权威输入
+
+重新初始化不是“在现有数据上继续 upsert”。未来 Apply 必须生成两个版本化、带 checksum 和 Review 元数据的穷尽式 manifest，并在 Write 前对真实 PostgreSQL 做 exact diff：
+
+- **Alliance manifest**：列出最终允许 active 的 alliance entity keys；对每个执行时现有 active `alliance_org` 必须给出 `keep`、`merge` 或 `inactivate`。候选 `approve` 通常映射为 keep/create，`merge` 必须指定稳定 active target，`reject` 与 `defer` 不进入最终 active set并形成待 Review 的 inactivate proposal；任何未列出现有 active entity 都使 manifest 不完整并阻断 Write，不能被静默当作 stale。
+- **Member manifest**：列出最终允许 active 的 `(economy_key, member_of, alliance_key)` formal-active tuples；对每条执行时现有 active `member_of` 必须给出 keep 或 inactivate disposition。缺席 tuple 必须标记 `former`、`withdrawn`、`suspended`、`source_conflict` 或 `alliance_identity_convergence`，附正式来源、核验时间和关系影响；未决 source conflict 阻断 Write，不能自动猜测。
+- **Economy exception manifest**：只列出逐项获批的 `merge` 或 `inactivate` 异常。economy 不因未出现在当前联盟成员全集而 stale；未列入 exception manifest 的合法 economy 必须原样保留 entity key、UUID 和 status。
+
+每个 stale/inactivate/merge diff 必须展示 reason、旧/新 identity、aliases/profile 影响、受影响 `member_of`/其他关系、预计 created/updated/inactivated/unchanged counts 和非目标保护断言。未经单独 Write Review，不得应用任何处置。
+
+Alliance merge 采用 forward convergence：保留获批 target 的稳定 identity，source UUID/key 保留但变为 inactive；aliases 是否并入 target、profile 如何收敛及每条关系如何 rebind/inactivate 都必须由 manifest 逐项决定。系统必须在事务提交前证明不存在两个 active identity 指向同一批准联盟。不得删除 source entity、复用 source UUID 或按名称自动合并。
+
+Member convergence 不改变 `relation_type` 表达历史状态；获批 stale edge 保留原 edge identity 与 provenance，并转为 inactive。新 formal-active edge 幂等 upsert，旧 active edge 必须按 manifest 收敛，禁止仅追加。economy identity merge 造成的关系影响先在 economy Query 中作为明确 pending diff 输出，再由随后的 `member_of` 最终 Review 决定 target tuple；在 member convergence Query 验收前 PostgreSQL 不得视为完成态。
+
+实现只允许版本化 forward migration/convergence command 与单事务幂等写入，禁止 `TRUNCATE`、无谓词 DELETE、清空关系后重灌或历史 migration rollback。执行时数据库基线与 manifest preflight checksum 不一致必须停止并重新 Review。
+
+最终集合断言固定为：
+
+```text
+active alliance entity keys == approved alliance manifest active keys
+active member_of tuples == approved formal-active member manifest tuples
+unrelated legal economy keys/UUID/status after == protected pre-write snapshot
+```
+
+允许变化的 economy 只能来自 approved economy exception manifest；Query 必须逐项证明其处置及关系影响与 Review 一致。
+
+### 6. 三类关系分层，`member_of` 先闭环
 
 | 关系 | 方向 | 端点 | 准入 |
 |---|---|---|---|
@@ -101,7 +127,7 @@ sequenceDiagram
 
 每条 `member_of` 的两端必须存在且 active。写入后按批准联盟分组计算 active edge 数，并与同一官方来源的正式成员清单逐项集合比对；CSV“成员数”只显示为非权威对照。`led_by` 与 `part_of` 分别维护候选和 Review，不阻塞核心三层。
 
-### 6. PostgreSQL 与 Neo4j 有状态执行顺序
+### 7. PostgreSQL 与 Neo4j 有状态执行顺序
 
 ```mermaid
 sequenceDiagram
@@ -112,20 +138,20 @@ sequenceDiagram
 
     Note over Apply: 先等待 refactor-industry-chain-node-foundation 完成 Deliver
     Apply->>Apply: fetch/rebase 最新 origin/main，重做 overlap/preflight
-    Apply->>Reviewer: alliance schema + seed diff、dry-run、备份/回滚边界
+    Apply->>Reviewer: alliance schema + 穷尽 manifest/diff、备份/回滚边界
     Reviewer-->>Apply: alliance Write 授权
     Apply->>PG: alliance Write
-    Apply->>PG: alliance Query
+    Apply->>PG: alliance Query：active set == approved manifest
     Reviewer-->>Apply: alliance Query 验收
-    Apply->>Reviewer: economy diff、seed dry-run、identity/ISO 冲突
+    Apply->>Reviewer: economy exception manifest、保护快照、identity/ISO 冲突
     Reviewer-->>Apply: economy Write 授权
     Apply->>PG: economy Write
-    Apply->>PG: economy Query
+    Apply->>PG: economy Query：仅获批异常变化，无关合法 economy 不变
     Reviewer-->>Apply: economy Query 验收
-    Apply->>Reviewer: 刷新 member_of 候选并请求最终 Write Review
+    Apply->>Reviewer: 刷新穷尽 member manifest、stale reasons 并请求最终 Write Review
     Reviewer-->>Apply: member_of Write 授权
     Apply->>PG: member_of Write
-    Apply->>PG: member_of Query + 官方成员集合核对
+    Apply->>PG: member_of Query：active tuples == approved manifest + 官方集合核对
     Reviewer-->>Apply: PostgreSQL 全部验收
     Apply->>Reviewer: Neo4j Rebuild 范围与预期 counts
     Reviewer-->>Apply: Neo4j Rebuild 授权
@@ -135,13 +161,13 @@ sequenceDiagram
 
 上一层 Query 未验收不得进入下一层。`led_by`、`part_of` 未来各自重复 `Review -> Write -> Query`；Neo4j 只在全部目标 PostgreSQL 关系验收后单独 Review，不允许直接写图。
 
-### 7. 实现边界与 TDD
+### 8. 实现边界与 TDD
 
 未来 Apply 复用 entityfoundation loader/service/repository 和 graphprojection mapper/writer。测试顺序为：
 
 1. migration 静态测试先覆盖 profile 字段、`identity_kind`、约束、索引和非破坏性 forward migration；
-2. loader/validator table-driven tests 先覆盖 categories 原子值、简称 aliases、economy identity/ISO、CSV 排除项和三类关系端点；
-3. repository fake/sqlmock 或明确标记的 PostgreSQL integration tests 先覆盖 dry-run、稳定 identity 复用、幂等 upsert、冲突与分层 report；
+2. loader/validator table-driven tests 先覆盖 categories 原子值、简称 aliases、economy identity/ISO、CSV 排除项、manifest 穷尽性、disposition enum 和三类关系端点；
+3. repository fake/sqlmock 或明确标记的 PostgreSQL integration tests 先覆盖 exact diff、稳定 identity 复用、forward convergence、幂等 upsert/inactivate、merge 冲突、非目标 economy 保护与分层 report；
 4. graph mapper/writer fake tests 先覆盖 `MEMBER_OF`、`LED_BY`、`PART_OF` 与单一 `Entity` label；
 5. 再实现生产代码，运行相关包测试和 `go test ./...`。普通测试不得访问真实网络、真实 PostgreSQL 或 Neo4j；官方来源采集和真实数据库/图谱验证是显式、人工授权的 review/smoke 边界。
 
@@ -152,6 +178,9 @@ sequenceDiagram
 - [聚合 economy 被当成国家成员] → `identity_kind` 与 code 规则 fail-closed，禁止 `global_aggregate` 建 `member_of`，EU 聚合不替代成员国。
 - [成员身份混淆] → MVP 只允许 formal active；其他状态留在冲突报告，关系类型扩展必须另行 Review。
 - [profile 旧列移除影响现有查询] → Apply 前全仓引用审计，增量 forward migration，旧列移除与兼容窗口在 alliance Write Review 单独展示。
+- [只新增导致 stale alliance/关系继续 active] → 两个穷尽 manifest 覆盖当前全部 active rows；Write 后用集合相等而不是 counts 近似验收。
+- [merge 产生两个 active 重复 identity] → manifest 指定唯一 target，source 只做 forward inactivate，事务内唯一性断言失败则整体回滚。
+- [联盟成员范围误伤 economy 基础库] → economy 使用独立 exception manifest 和 pre-write 保护快照，未列入异常的合法 economy key/UUID/status 必须逐项不变。
 - [联盟成员随时间变化] → 每条 edge 保留来源与核验时间，成员集合按执行时官方来源核对；历史成员建模不在本 change。
 - [`led_by` 产生主观或虚假实体] → 仅解析明确有证据的实体；多边、轮值、共同协调保留文本。
 - [Neo4j 与 PostgreSQL 短暂不一致] → PG 全部 Query 验收前不 rebuild；获批 rebuild 后以 PG active facts 和计数查询闭环。
@@ -161,11 +190,11 @@ sequenceDiagram
 1. 当前只提交 proposal artifacts 并停在人工 Review，不执行 Apply。
 2. 依次完成人工 Review：联盟 schema/data contract、联盟候选、官方成员范围、economy 差异候选、关系 contract/candidates。
 3. 等待 `refactor-industry-chain-node-foundation` 完成 Deliver；从最新 `origin/main` 重新建立 Apply 基线并复核本设计。
-4. TDD 实现 migration、validator、repository、seed dry-run/report 和 graph mapping，但先只提交 scoped diff 供 Apply Review。
+4. TDD 实现 versioned manifest/diff、forward migration/convergence、validator、repository、seed dry-run/report 和 graph mapping，但先只提交 scoped diff 供 Apply Review。
 5. 获得每层独立授权后严格执行 alliance Write/Query、economy Write/Query、`member_of` Review/Write/Query；`led_by`、`part_of` 独立排队。
 6. PostgreSQL 全部验收后，如范围包含 Neo4j，再执行单独 Review/Rebuild/Query。
 
-Write 前必须提供可恢复备份证据、预计影响、事务边界和 forward-fix 策略。任一候选未确认、source 不可审计、identity 冲突、预计/实际 counts 不一致或 Query 失败时立即停止；不得使用手工修表、直接图写入或未审阅替代路径。
+Write 前必须提供可恢复备份证据、approved manifest/version/checksum、完整 exact diff、预计影响、事务边界和 forward-fix 策略。任一候选未确认、manifest 不穷尽、source 不可审计、identity 冲突、预计/实际集合不一致、无关 economy 保护断言变化或 Query 失败时立即停止；不得使用 truncate、无谓词 delete、手工修表、直接图写入或未审阅替代路径。
 
 ## Open Questions
 
