@@ -60,6 +60,8 @@
 
 Layer 5首批4条已在独立授权与备份后仅执行一次`industry-chain-physical-constraint` scope：report created4/updated0/unchanged0，写后4/4 active approved且AI provenance、P2/P6和subject有效；review fixture剩余11条。
 
+Layer 6只读Review已完成：实时基线仍为2 chains、26 unique nodes、27 active memberships、24 active topology、4 active approved constraints，`entity_edges=383`、`sector_source_mappings=89`；12条`mapped_to_sector`候选的严格口径为直接证据闭合0、语义认可但provenance须校正6、需补证2、删除或改写4。全部仍在review-only fixture，本轮未晋级、未写PG/Neo4j；详见`mapped-to-sector-review.md`。
+
 ## 5. 后续严格执行顺序
 
 1. Layer 2 已完成，不得未经独立授权做幂等重跑。
@@ -117,6 +119,7 @@ Repo root：`/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai`
 |---|---|---|
 | 候选 Review | `openspec/changes/add-industry-chain-node-foundation/candidate-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/candidate-review.md` |
 | Physical constraint逐条证据审查 | `openspec/changes/add-industry-chain-node-foundation/physical-constraint-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/physical-constraint-review.md` |
+| `mapped_to_sector`逐条证据审查 | `openspec/changes/add-industry-chain-node-foundation/mapped-to-sector-review.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/mapped-to-sector-review.md` |
 | 正式产业链 seed | `backend/data/entity_foundation/industry_chains_v1.json` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/data/entity_foundation/industry_chains_v1.json` |
 | Review-only fixture | `backend/data/entity_foundation/review/industry_chain_candidates_v1.json` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/backend/data/entity_foundation/review/industry_chain_candidates_v1.json` |
 | Stateful 计划与证据 | `openspec/changes/add-industry-chain-node-foundation/stateful-execution-plan.md` | `/Users/meierlink/.codex/worktrees/cb4e/tidewise-ai/openspec/changes/add-industry-chain-node-foundation/stateful-execution-plan.md` |

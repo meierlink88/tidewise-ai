@@ -245,3 +245,7 @@
 6. 每层 PostgreSQL 验收后，只有用户单独批准才执行 Neo4j rebuild；physical constraints 永不进入当前 Neo4j projection。
 
 本 checkpoint 到此暂停，等待用户逐项 Review；不产生正式 seed 或任何有状态写入。
+
+### 2026-07-13 Layer 6 严格 Review
+
+12 条候选的逐项端点、分类、证据与语义审查见 `mapped-to-sector-review.md`。严格口径为：直接证据闭合 0、语义认可但 provenance 必须校正 6、需补稳定分类证据 2、过宽应删除或改写 4。全部仍保留 review-only candidate 状态；本轮没有修改 fixture、正式 seed、PG 或 Neo4j。
