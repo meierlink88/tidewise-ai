@@ -44,6 +44,7 @@
 - [x] 5.5c 2026-07-13在独立Write授权、备份和实时preflight后，仅执行一次constraint scope；report与只读Query确认4/4 active approved、AI provenance/P2/P6/subject有效且其他数据族不变
 - [x] 5.6a 2026-07-13以显式READ ONLY确认Layer 5状态与`entity_edges=383`、`sector_source_mappings=89`基线后，对12条review-only `mapped_to_sector`逐项完成端点、分类、语义与证据审查；严格口径为直接闭合0、语义认可但provenance须校正6、需补证2、删除或改写4，全部仍为candidate且未修改fixture/seed/PG/Neo4j
 - [x] 5.6b 用户逐项批准首批6条后，以composite curation provenance加入正式relationship seed并将其余6条隔离在review fixture；按TDD实现显式`industry-chain-sector-mapping` scope、active持久化端点锁定、policy/不可变identity与整批原子rollback，预计created6且FinalTableImpact仅`entity_edges`；本步骤未执行DML或Neo4j
+- [x] 5.6c 2026-07-13在独立Write授权、备份和实时preflight后，仅执行一次`industry-chain-sector-mapping` scope；report与只读Query确认6/6 active、composite curation provenance及端点/identity有效，`entity_edges`383→389且其他数据族不变；未访问Neo4j
 
 ## 6. 完整验证与 Apply 后 Review
 

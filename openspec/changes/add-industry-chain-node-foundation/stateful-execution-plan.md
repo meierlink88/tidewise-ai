@@ -2,10 +2,10 @@
 
 ## 1. 当前边界
 
-- 本文只定义后续有状态执行顺序，本 checkpoint 不执行任何命令写入 PostgreSQL 或 Neo4j。
-- 可执行 seed：`backend/data/entity_foundation/industry_chains_v1.json`，包含2条industry chain、21个新增chain node、5个既有node profile改进、27个membership、24条canonical topology、首批4条已批准physical constraint及6条已批准但尚未写PG的`mapped_to_sector`；economy、commodity、benchmark关系仍为空。
+- 本文记录分层有状态执行顺序与已验收证据；截至当前 checkpoint，Layer 1–6 已按独立授权完成 PostgreSQL Write/Query，Neo4j仍未授权、未访问。
+- 可执行 seed：`backend/data/entity_foundation/industry_chains_v1.json`，包含2条industry chain、21个新增chain node、5个既有node profile改进、27个membership、24条canonical topology、首批4条已批准physical constraint及6条已批准且已写PG验收的`mapped_to_sector`；economy、commodity、benchmark关系仍为空。
 - Review-only fixture：`backend/data/entity_foundation/review/industry_chain_candidates_v1.json`，剩余11条physical constraint candidate和6条`mapped_to_sector` candidate。它不在`DefaultSeedPaths`，不得传给repository。
-- 以下预计数量已按 2026-07-13 local PostgreSQL 只读 preflight 校准；本轮未运行 migration apply、seed、DML 或 Neo4j rebuild。
+- 各层预计数量与执行结果均按 2026-07-13 local PostgreSQL 的实时preflight和写后显式READ ONLY查询校准；每个scope只运行一次，未做幂等重跑，也未访问或重建Neo4j。
 
 ## 2. 2026-07-13 只读 Preflight Evidence
 
@@ -45,7 +45,7 @@
 | 3. Membership（已验收） | 2026-07-13 已单独授权；仅执行一次 `-apply-scope industry-chain-membership` 并完成只读Query | 实际created 27、updated 0、unchanged 0；未做幂等重跑 | `industry_chain_memberships` | 实际27/27 active且ID/tuple唯一；AI=12、semiconductor=15；`advanced_packaging`两链各一条；端点全active；topology/constraint为0 | 将本批27条membership置inactive；保留审计行；后续rebuild前重新查询active数量。该停用DML未授权、未执行 |
 | 4. Canonical topology（已验收） | 2026-07-13 已单独授权；仅执行一次`-apply-scope industry-chain-topology`并完成只读Query | 实际created 24、updated 0、unchanged 0；未做幂等重跑 | `industry_chain_topology_edges` | 实际24/24 active，AI10/半导体14；ID/tuple唯一，无self、substitutes、反向depends重复或无效端点；membership仍27/27 active | 将本批 24 条 topology 置 inactive；不删除 membership；重新查询 active topology=0。该停用DML未授权、未执行 |
 | 5. Physical constraint（首批已验收） | 2026-07-13已单独授权；仅执行一次`-apply-scope industry-chain-physical-constraint`并完成只读Query | 实际created 4、updated 0、unchanged 0；review-only剩余11，未做幂等重跑 | 仅`industry_chain_physical_constraints`；不进入`entity_nodes`或Neo4j | 实际4/4 active approved、`generated_by_ai=true`、P2/P6正确、主体同链active；其他表计数不变 | 将获批4行置inactive；不改topology、不触发Neo4j rebuild。该停用DML未授权、未执行 |
-| 6. `mapped_to_sector`（无状态准备完成，Write未授权） | 6条已逐项批准并以composite curation provenance进入正式seed；只允许未来单次`-apply-scope industry-chain-sector-mapping`，其余6条仍review-only | 未来首次Write预计created6、updated0、unchanged0；当前PG仍为0 | 仅`entity_edges`的6条`mapped_to_sector`；不得写其他关系或创建海外market `covers_sector`中国sector | 写前重验端点active与ID/tuple冲突0；写后查询精确6条、provenance、方向和其他表不变 | 将本批6条edge通过reviewed forward seed置inactive；不改sector主数据；重新投影前查询active edge=0；该DML未授权 |
+| 6. `mapped_to_sector`（首批已验收） | 2026-07-13已单独授权；仅执行一次`-apply-scope industry-chain-sector-mapping`并完成只读Query；其余6条仍review-only | 实际created6、updated0、unchanged0；未做幂等重跑 | 仅`entity_edges`的6条`mapped_to_sector`；未写其他关系，未创建海外market `covers_sector`中国sector | 实际6/6 active、ID/tuple唯一、provenance与方向正确；`entity_edges`383→389，其他关系类型及相关表计数不变 | 将本批6条edge通过reviewed forward seed置inactive；不改sector主数据；重新投影前查询active edge=0。该停用DML未授权、未执行 |
 | 7. Neo4j rebuild | 层 2–4 PostgreSQL 验收完成；若层 6 有获批关系则先完成其 PG 验收；用户单独批准 rebuild。Physical constraint 不构成前置写入 | 预计新增 Entity 23（2 chain + 21 new node）；新增关系 51（27 membership + 24 topology）；既有 5 node 为 upsert unchanged；若层 6 未批准则 sector mapping 0 | Neo4j `projection_namespace=tidewise` 下统一 `Entity` 与 membership/topology/已审阅 entity edges；排除 physical constraints 和 observations | 查询 2 chain、26 pilot node、27 membership、24 topology；验证 benchmark/sector 路径仅在已批准 edge 存在时成立；断言无 constraint 节点/边、无海外 market 覆盖中国 sector | 从 PostgreSQL active facts 重新 rebuild；若需撤销，先按对应 PG 层置 inactive并验收，再单独授权 rebuild；不得直接手工删局部图 |
 | 8. Query 验收 | 每次 Write 或 Rebuild 后另行授权只读验收；不得用上一层授权推定 | 只读，created/updated=0 | PostgreSQL report/query 与 Neo4j read query | 对照每层预计数量、stable key、状态、来源、ID 和路径；差异立即停止下一层 | 无写状态；记录差异并回到对应层 Review，不自动修复 |
 
@@ -111,8 +111,8 @@
 2. 写入 chain / node master。（2026-07-13 已授权、执行并通过只读 Query 验收）
 3. 写入 membership。
 4. 写入 canonical topology。
-5. 首批4条physical constraint已批准进入无状态seed准备，但实际Write仍未授权；其余11条继续Review。
-6. 首批6条`mapped_to_sector`已批准无状态准备但PG Write未授权；其余6条仍review-only。
+5. 首批4条physical constraint已完成PG Write与只读Query验收，不得未经独立授权幂等重跑；其余11条继续Review。
+6. 首批6条`mapped_to_sector`已完成PG Write与只读Query验收，不得未经独立授权幂等重跑；其余6条仍review-only。
 7. Neo4j rebuild。
 8. 每层 Query 验收。
 
@@ -192,3 +192,14 @@
 - 正式relationship以固定commit的Layer 6 Review为`source_url`，`source_name/evidence_note`明确登记Tidewise composite curation；chain/node与sector来源是组合证据，S5仅支持三条设备映射的目标板块定义，不冒充外部直接mapping声明。
 - 已按TDD增加显式`industry-chain-sector-mapping` scope：只处理6条`mapped_to_sector`，所有无关repository调用为0；Postgres单事务按stable key排序`FOR SHARE`锁定active持久化端点，校验policy并复用relationship upsert，不可变identity冲突或任一失败整批rollback。Memory repository提供等价原子行为。
 - 未来获批首次执行预计report为created6/updated0/unchanged0，FinalTableImpact仅`entity_edges`。本checkpoint未运行该scope、无DML、未访问Neo4j。未来必须先独立授权PG Write/Query；通过后再单独授权Neo4j Rebuild/Query。
+
+## 15. 2026-07-13 Layer 6 `mapped_to_sector` Write 与 Query 验收
+
+- 写前Git门禁：Desktop-managed worktree与branch正确，工作区clean，local/remote HEAD均为获批checkpoint`0391999806aab54c7136bd8a479b037c29fb1bcb`。
+- 写前显式READ ONLY：version=14，2 chains active+approved、26 pilot nodes active、27 active memberships、24 active topology、4 active approved constraints；`entity_edges=383`、`mapped_to_sector=0`。正式manifest精确6条、review fixture剩6条；12个端点均active且方向为`industry_chain|chain_node → sector`，planned ID/tuple冲突均为0。
+- Pre-mapping备份：`/private/tmp/tidewise_local_pre_mapping_20260713T050005Z.dump`，custom format，990,107 bytes，SHA-256 `26e62a90ff6fbafe6e3de44f5aba43947446e41daee3c62e2314c821dbea7bcb`；`pg_restore --list`成功读取253行清单。
+- 唯一写命令为`go run ./cmd/entity-seed -apply-scope industry-chain-sector-mapping`，只执行一次；未运行默认scope、其他scope、其他seed或幂等重跑。
+- Report：TotalEntities=0，scope=`industry-chain-sector-mapping`，EdgeCounts仅`mapped_to_sector=6`；operation counts=`created6 / updated0 / unchanged0 / failed0 / skipped0`，FinalTableImpact仅`entity_edges created6 / updated0 / unchanged0`。
+- 写后显式READ ONLY：`entity_edges=389`，`mapped_to_sector` total/active=`6/6`，unique IDs=6、unique `(from,to,relation_type)`=6；六条stable key、source/evidence/verified_at与正式seed逐项一致，均明确为Tidewise composite curation；12个端点均active，from仅为`industry_chain|chain_node`、to仅为`sector`。
+- 其他relation type计数与写前一致：`covers_sector=52`、`has_market=40`、`measures=10`、`member_of=223`、`observes_benchmark=10`、`references=5`、`tracks_index=43`。Membership/topology/constraint仍为`27/24/4`；`sector_source_mappings=89`、`entity_nodes=634`、`industry_chain_profiles=2`、`chain_node_profiles=54`，均与写前一致。
+- **Layer 6首批状态：Write与Query验收完成。** 本轮未访问或重建Neo4j；其余6条mapping、其他跨实体关系、Neo4j Rebuild/Query、Sync、Archive与PR均未授权、未执行。
