@@ -108,6 +108,27 @@ func TestApplyFrozenFirstBatchExternalIdentifiersRejectsExistingRowsBeforePlanni
 	}
 }
 
+func TestDryRunExternalIdentifierBatchUsesUnlockedTargetSnapshot(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	item := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	mock.ExpectBegin()
+	mock.ExpectQuery(externalIdentifierTargetSnapshotSQL()).WithArgs(item.EntityID).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(item.EntityID))
+	mock.ExpectQuery(externalIdentifierSnapshotSQL()).WithArgs(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode).WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}))
+	mock.ExpectQuery(externalIdentifierSnapshotByIDSQL()).WithArgs(item.ID).WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "source_system", "source_taxonomy_type", "external_code", "external_name", "status"}))
+	mock.ExpectRollback()
+	report, err := NewPostgresRepository(db).DryRunExternalIdentifierBatch(context.Background(), []ExternalIdentifierMapping{mappingFromIdentifier(item)})
+	if err != nil || report.Created != 1 || report.Updated != 0 || report.Unchanged != 0 {
+		t.Fatalf("DryRunExternalIdentifierBatch() = %+v, %v", report, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLoadExternalIdentifierMappingFileDecodesSnakeCaseAndRejectsDuplicateTriple(t *testing.T) {
 	item := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
 	path := filepath.Join(t.TempDir(), "mappings.json")

@@ -240,8 +240,15 @@ func planExternalIdentifierMappings(ctx context.Context, tx *sql.Tx, mappings []
 			}
 		}
 		var id string
-		if err := tx.QueryRowContext(ctx, externalIdentifierTargetSQL(), item.EntityID).Scan(&id); err != nil {
-			return nil, fmt.Errorf("external identifier %q requires an active chain_node target", identity)
+		targetSQL := externalIdentifierTargetSQL()
+		if readOnly {
+			targetSQL = externalIdentifierTargetSnapshotSQL()
+		}
+		if err := tx.QueryRowContext(ctx, targetSQL, item.EntityID).Scan(&id); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, fmt.Errorf("external identifier %q requires an active chain_node target", identity)
+			}
+			return nil, fmt.Errorf("query active chain_node target for external identifier %q: %w", identity, err)
 		}
 		var existing storedExternalIdentifier
 		selectSQL := externalIdentifierSelectSQL()
@@ -265,7 +272,7 @@ func planExternalIdentifierMappings(ctx context.Context, tx *sql.Tx, mappings []
 		}
 		byIDSQL := externalIdentifierSelectByIDSQL()
 		if readOnly {
-			byIDSQL = "SELECT id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status FROM entity_external_identifiers WHERE id = $1::uuid"
+			byIDSQL = externalIdentifierSnapshotByIDSQL()
 		}
 		if err = tx.QueryRowContext(ctx, byIDSQL, item.ID).Scan(&existing.ID, &existing.EntityID, new(string), new(string), new(string), &existing.ExternalName, &existing.Status); err == nil {
 			return nil, fmt.Errorf("external identifier %q deterministic id conflict", identity)

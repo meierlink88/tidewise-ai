@@ -200,6 +200,14 @@ WHERE id = $1::uuid
 FOR SHARE`
 }
 
+func externalIdentifierTargetSnapshotSQL() string {
+	return `
+SELECT id FROM entity_nodes
+WHERE id = $1::uuid
+  AND entity_type = 'chain_node'
+  AND status = 'active'`
+}
+
 func externalIdentifierSelectSQL() string {
 	return `
 SELECT id, entity_id, external_name, status FROM entity_external_identifiers
@@ -222,6 +230,12 @@ func externalIdentifierSelectByIDSQL() string {
 SELECT id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status FROM entity_external_identifiers
 WHERE id = $1::uuid
 FOR UPDATE`
+}
+
+func externalIdentifierSnapshotByIDSQL() string {
+	return `
+SELECT id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status FROM entity_external_identifiers
+WHERE id = $1::uuid`
 }
 
 func externalIdentifierInsertSQL() string {
