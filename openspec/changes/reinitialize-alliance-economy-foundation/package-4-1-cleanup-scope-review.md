@@ -1,6 +1,6 @@
 # Package 4.1 R0 Scoped Local Cleanup Review
 
-> 状态：**方案 1 已于 2026-07-14 确认；R1 scope amendment 与 statement-visibility remediation 已完成**。本页仍不是 migration、cleanup、seed 或 rebuild 授权。
+> 状态：**方案 1 已于 2026-07-14 确认；4.1 R3 scoped cleanup 已执行并 Query 验收**。4.2 migration/rebuild 仍须单独 Review 与授权。
 
 ## 已确认范围
 
