@@ -4,12 +4,12 @@
 
 ## Package 1：联盟范围与 Spec Review（R0，人工）
 
-- [x] 1.1 **历史准备已完成**：workflow adoption、A：Schema / Data Contract Review、B provisional alliance candidate draft、CSV 69—85 排除和来源新鲜度整改均已有 checkpoint；已批准字段、identity 契约、68 条 recommendation 与全部空白 final decision 保持不变。
-- [ ] 1.2 **最终联盟 Manifest Review**：主对话逐项确认 68 条候选和 10 个现有 active alliance 的最终 `approve/reject/merge/defer` 与 `keep/create/merge/inactivate` 处置，解决来源、identity、alias、summary、category、stale/merge 和关系影响冲突，形成穷尽且带版本/checksum 的 approved alliance manifest。
+- [x] 1.1 **历史准备已完成**：workflow adoption、旧 A contract、旧 68 条 provisional draft、来源整改和 task packaging checkpoint 均保留为历史证据；本次 amendment 明确其候选范围、recommendation、网页核验和 categories 契约已被新 Excel 真值源 supersede，不追认当前业务结论。
+- [ ] 1.2 **最终联盟 Manifest Review**：主对话逐项确认 `联盟组织列表1.0.xlsx` 的 45 条候选、四字段源值、两个 U+200C normalization、拟用 stable key 与 `create/keep` exact diff，并穷尽确认现有 10 条 active alliance 的 `keep/merge/inactivate` disposition，形成带版本/checksum 的 approved alliance manifest。
 
 Acceptance criteria：
 
-- `alliance-candidate-review.md` 的输入指纹、counts、确定性抽样、异常/宽边界和 fail-closed 条件完整；抽样不替代逐项 final manifest。
+- `alliance-candidate-review.md` 的 Excel 指纹、sheet/range、45/5 counts、四字段完整性、重复断言、normalization、existing exact diff 和 fail-closed 条件完整；不使用网页来源或旧 68 条 recommendation。
 - 任一 final decision 留空、现有 active alliance 未穷尽或 merge/inactivate 未确认时，Package 1 不得完成。
 - Package 1 完成只允许启动 Package 2 的 R0 候选工作；不授权源码、migration、seed、PostgreSQL 或 Neo4j。
 

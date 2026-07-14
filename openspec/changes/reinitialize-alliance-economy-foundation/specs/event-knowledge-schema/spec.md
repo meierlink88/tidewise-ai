@@ -5,15 +5,15 @@
 
 #### Scenario: 保存联盟组织
 - **WHEN** 系统初始化或保存已批准的联盟组织实体
-- **THEN** 必须在 `entity_nodes` 中保存 `entity_type=alliance_org`、`layer_code=alliance`、名称、规范名称、NFKC + casefold 去重的 aliases 和状态，并在 `alliance_org_profiles` 中只保存最长 32 字符且不全局唯一的 abbreviation、1—8 个批准原子 categories，以及无 default、`btrim` 后非空的 leadership summary 与 influence scope summary
+- **THEN** 必须在 `entity_nodes` 中保存 `entity_type=alliance_org`、`layer_code=alliance`、名称、规范名称、由缩写派生并按 NFKC + casefold 去重的 aliases 和状态，并在 `alliance_org_profiles` 中只保存最长 32 字符且不全局唯一的 abbreviation，以及无 default、`btrim` 后非空的 leadership summary 与 influence scope summary
 
 #### Scenario: 区分联盟组织和政策机构
 - **WHEN** 实体表示跨多个经济体的国际组织、联盟、论坛或规则协调机制
 - **THEN** 系统必须使用联盟组织实体表达，而不是把该实体保存为单一经济体下的政策机构
 
-#### Scenario: 不使用实体标签扩展联盟分类
-- **WHEN** 联盟同时属于多个业务领域
-- **THEN** 系统必须使用 profile 的受控 categories，不得新增实体标签机制或复用事件标签，Neo4j 仍使用单一 `Entity` label
+#### Scenario: 不从大类或子类生成实体标签
+- **WHEN** 联盟 Excel 包含大类或子类
+- **THEN** 系统不得把这些列写入 profile、创建实体标签或复用事件标签；Neo4j 仍使用单一 `Entity` label
 
 ## ADDED Requirements
 

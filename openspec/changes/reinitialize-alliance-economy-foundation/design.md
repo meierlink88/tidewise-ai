@@ -2,7 +2,7 @@
 
 当前 `origin/main` 包含 10 个 `alliance_org`、50 个 economy 与 223 条 active `member_of`。`alliance_org_profiles` 仍是 `org_code/org_type/primary_domain/scope_region/official_url`，`economy_profiles` 只有 `country_code/currency_code/region`；现有关系 validator 只允许 `economy -> alliance_org` 的 `member_of`，graph mapper 尚无 `led_by` 与 `part_of` 映射。Neo4j 已采用单一 `Entity` label，PostgreSQL 是事实源。
 
-参考 CSV 有 85 条编号记录：第 1—68 条是组织/机制候选，第 69—85 条是战略矿产与农产品，不是联盟组织。CSV 的成员数、全球占比、约束力和影响力是快照或分析性字段，不能替代官方成员来源或进入基础主数据。
+当前唯一候选真值源是 `联盟组织列表1.0.xlsx` SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102` 的首个 sheet `联盟组织`、范围 `A1:K51`。其中 45 条数据行进入候选 Review，5 条分组标题行不是实体。旧 `表格_20260713.csv` 的 68 条候选、推荐结论和网页核验结果整体 superseded，只保留为 Git 历史，不能继续参与当前 manifest。
 
 本 change 与 active 的 `refactor-industry-chain-node-foundation` 在 `backend/internal/apps/entityfoundation/seed/`、repository、migration 测试与 PostgreSQL 写状态上重叠。两者只允许并行设计；本 change 的 Apply 必须等待产业链 change 完成 Deliver，再从最新 `origin/main` 重新审计 migration 序号、数据结构、测试和写入顺序。
 
@@ -20,8 +20,7 @@
 **Non-Goals:**
 
 - 不实现产业链、市场、benchmark/index、事件抽取或推理、观测数据、实体标签机制、股票推荐。
-- 不把 CSV 第 69—85 条建成联盟；只记录其未来可能属于 `chain_node`、`commodity` 或 observation，不创建后续 change。
-- 不保存子类、成员数、全球占比、约束力级别或影响力评级。
+- 不保存工作簿大类、子类、成员数、全球占比、约束力级别、影响力评级或其他 sheet 内容。
 - 不把观察员、伙伴国、申请国、暂停成员或退出成员自动扩展为新 relation type。
 - 不实现或执行 Neo4j graph mapping、Review、Rebuild 或 Query；图投影由后续独立 change 处理。
 - 不修改 `prototype/` 或项目外 `doc/`；当前不修改源码、migration、seed 或数据库。
@@ -35,8 +34,8 @@
 考虑过的替代方案：
 
 - 新建联盟专属 node/edge 表：可局部强类型，但会复制通用 identity、provenance、幂等写入和图投影，拒绝。
-- 使用 JSONB 或实体标签承载联盟属性：迁移快，但无法稳定约束 categories、ISO 与关系端点，并与“不新增实体标签机制”冲突，拒绝。
-- 将 CSV 直接转换为 seed：速度快，但会把评级、快照和混合类别误当事实，也跳过联盟/economy/关系三次 Review，拒绝。
+- 使用 JSONB 或实体标签承载联盟属性：迁移快，但会复制 profile 语义并与“不新增实体标签机制”冲突，拒绝。
+- 将 Excel 直接转换为 seed：速度快，但会跳过联盟 exact disposition、economy 与关系 Review，拒绝。
 
 ### 2. 联盟 profile 只保留已批准最小字段
 
@@ -44,11 +43,10 @@
 |---|---|
 | `entity_id` | `UUID` PK/FK，指向 `entity_type=alliance_org` 的 `entity_nodes` |
 | `abbreviation` | `TEXT NOT NULL DEFAULT ''`，`btrim` 后最长 32 字符；无正式简称用空串，不保存 `—`；非空时必须同时存在于 aliases；不做全局唯一，冲突进入 Review |
-| `categories` | `TEXT[] NOT NULL`、无 default、1—8 项；仅允许首版 22 个受控原子 code，规范化去重后按 code 字典序持久化，不允许 `/` 拼接值或自动补宽类 |
 | `leadership_summary` | `TEXT NOT NULL`、无 default，`btrim` 后非空且最长 500 字符；只写可审计的治理/主导方式摘要，“多边”“轮值”保留为文本 |
 | `influence_scope_summary` | `TEXT NOT NULL`、无 default，`btrim` 后非空且最长 1000 字符；描述客观影响范围，不保存评级或投资判断 |
 
-首版 category allowlist 已批准为 22 项：`political`、`governance`、`security`、`military`、`intelligence`、`economic`、`trade`、`finance`、`development`、`energy`、`mineral`、`agriculture`、`technology`、`religion`、`health`、`culture`、`education`、`environment`、`nuclear`、`legal`、`dispute_resolution`、`humanitarian`。删除 `cross_domain` 和 `commodity`，拆分 `culture_education`、`legal_dispute_resolution`、`food_humanitarian`；跨商品组织直接使用实际满足定义的多个原子 code。CSV 的“政治 / 军事”等也必须拆分；“子类”不映射为 category。aliases 单项 `btrim` 后最长 128 字符、每实体最多 64 项，按 NFKC + Unicode casefold 等价值去重；跨实体简称冲突进入 Review，不自动合并。
+工作簿四个业务输入字段按一对一规则映射：名称同时进入 `name/canonical_name`，缩写进入 `abbreviation`，核心主导方进入 `leadership_summary`，核心影响范围说明进入 `influence_scope_summary`。aliases 只按既有识别惯例从非空缩写派生，不是额外业务输入；既有合法 aliases 可在 identity convergence 中保留。候选只对 `UJR`、`CCAS` 的源缩写删除末尾 U+200C，其他源文本不做语义纠正。工作簿“大类”“子类”不生成 profile 字段、标签或关系。
 
 现有 `org_code/org_type/primary_domain/scope_region/official_url` 不属于目标 profile。未来 migration 必须以增量 forward migration 和 reviewed seed 完成转换，不清空 `entity_nodes`，不复用 profile 字段保存新语义；旧列何时移除需在 R2A `master-data` Review 展示兼容性与 forward-fix 边界。
 
@@ -75,7 +73,7 @@ sequenceDiagram
     participant Economy as Economy 差异审计
     participant Relation as 关系候选审阅
 
-    Alliance->>Reviewer: schema/data contract 与第 1—68 条逐项候选
+    Alliance->>Reviewer: 四字段 contract、45 条 Excel 候选与现有 exact disposition
     Reviewer-->>Alliance: 确认批准联盟清单
     Note over Source: 联盟未确认前不得冻结 economy 范围
     Source->>Source: 为每个批准联盟读取可审计正式成员来源
@@ -87,7 +85,7 @@ sequenceDiagram
     Reviewer-->>Relation: 一次确认业务语义，不代表 Write 授权
 ```
 
-联盟候选 Review 必须逐项标注 `approve/reject/merge/defer`、目标 entity key、canonical name、aliases、profile、来源与冲突。CSV 只用于候选对照；成员全集必须来自各联盟可审计的正式来源。
+联盟候选 Review 必须逐项展示源 sheet row、四个源字段、规范化结果、目标 entity key、`create/keep` exact diff 和空白 final decision，并穷尽处置现有 10 条 active alliance。该 Excel 是候选输入而不是可执行 seed；成员全集仍必须在 Package 2 另取各批准联盟的可审计正式来源。
 
 ### 5. Approved manifests 是现有状态收敛的唯一权威输入
 
@@ -125,7 +123,7 @@ unrelated legal economy keys/UUID/status after == protected pre-write snapshot
 
 `member_of` 候选必须区分 formal member、observer、partner、applicant、suspended、former。只有 formal active 进入 MVP；其他身份只留在 Review 报告。若未来需要表达，先人工批准关系/状态契约，不得自行扩展 `relation_type`。
 
-每条 `member_of` 的两端必须存在且 active。写入后按批准联盟分组计算 active edge 数，并与同一官方来源的正式成员清单逐项集合比对；CSV“成员数”只显示为非权威对照。`led_by` 与 `part_of` 只有证据充分且在 Package 2 同一 Review 获批才可进入 R2B，否则明确排除出本次 MVP，不产生额外 gate。
+每条 `member_of` 的两端必须存在且 active。写入后按批准联盟分组计算 active edge 数，并与同一官方来源的正式成员清单逐项集合比对；Excel“成员数”不进入本 change 输入。`leadership_summary` 源文本不能自动生成 `led_by`；`led_by` 与 `part_of` 只有另有充分证据且在 Package 2 同一 Review 获批才可进入 R2B，否则明确排除出本次 MVP。
 
 ### 7. 两个 Local PostgreSQL R2
 
@@ -157,7 +155,7 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 未来 Apply 复用 entityfoundation loader/service/repository，在一个 R1 package 内完成：
 
 1. migration 静态测试先覆盖 profile 字段、`identity_kind`、约束、索引和非破坏性 forward migration；
-2. loader/validator table-driven tests 先覆盖 categories 原子值、简称 aliases、economy identity/ISO、CSV 排除项、manifest 穷尽性、disposition enum 和三类关系端点；
+2. loader/validator table-driven tests 先覆盖四字段映射、U+200C 规范化、简称 aliases、economy identity/ISO、Excel 非目标列排除、manifest 穷尽性、disposition enum 和三类关系端点；
 3. repository fake/sqlmock 或明确标记的 PostgreSQL integration tests 先覆盖 exact diff、稳定 identity 复用、forward convergence、幂等 upsert/inactivate、merge 冲突、非目标 economy 保护与分层 report；
 4. mapping-only seed、dry-run/report 与关系 policy tests 覆盖 approved manifests、`member_of` 及同包获批可选关系，不实现图映射；
 5. 再实现生产代码，运行 targeted tests、受影响交付边界完整 suite 与共享 architecture/contract tests。repo-wide full test 不作为默认要求，只在项目规则触发或边界不清时运行。普通测试不得访问真实网络、真实 PostgreSQL 或 Neo4j。
@@ -165,7 +163,8 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 ## Risks / Trade-offs
 
 - [产业链 change 改写共享文件或 migration 基线] → Apply 前硬性等待其 Deliver，重新 fetch/rebase 并输出 overlap audit；不移植本 proposal 时点的代码假设。
-- [CSV 候选被误当正式事实] → 只保留 Review 引用和逐项决策，不复制为 seed；正式成员必须另取官方来源。
+- [Excel 候选被误当正式事实] → 只保留 Review 映射和逐项决策，不复制为 seed；正式成员必须另取官方来源。
+- [旧 68 条与新 45 条并存] → 旧 CSV 范围、推荐结论和网页核验全部标记 superseded；当前 manifest 只接受新 Excel 指纹。
 - [聚合 economy 被当成国家成员] → `identity_kind` 与 code 规则 fail-closed，禁止 `global_aggregate` 建 `member_of`，EU 聚合不替代成员国。
 - [成员身份混淆] → MVP 只允许 formal active；其他状态留在冲突报告，关系类型扩展必须另行 Review。
 - [profile 旧列移除影响现有查询] → Apply 前全仓引用审计，增量 forward migration，旧列移除与兼容窗口在 R2A master-data Review 展示。
@@ -188,8 +187,7 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 
 ## Open Questions
 
-- 68 条组织候选的逐项 `approve/reject/merge/defer` 结果尚待主对话 Review，当前不得推定最终联盟数量。
-- category allowlist 与 schema/data contract 已完成 A 阶段批准；每个联盟候选的具体多值映射仍须在 B 阶段逐项 Review。
+- 45 条 Excel 候选及现有 10 条 active alliance 的 exact disposition 尚待主对话 Review，当前不得推定最终 active 集合。
 - 现有 50 个 economy 对批准联盟正式成员的覆盖差异，必须等联盟清单确认和官方成员全集形成后才能冻结。
 - observer/partner/applicant/suspended/former 是否需要未来结构化表达，只有关系契约 Review 可以决定；MVP 不扩展。
 - `led_by`、`part_of` 的具体候选若无法在 Package 2 同一 Review 中获批，将排除出本次 MVP，不阻塞核心流程。

@@ -13,7 +13,7 @@
 
 #### Scenario: 建立有证据的主导关系
 - **WHEN** 联盟存在可解析且有证据的明确核心主导 economy 或 alliance organization
-- **THEN** 系统可以在独立候选层提出 `alliance_org -> economy/alliance_org` 的 `led_by`；“多边”“轮值”或无法解析的文本不得生成虚假实体或关系
+- **THEN** 系统可以在独立候选层提出 `alliance_org -> economy/alliance_org` 的 `led_by`；Excel 的“核心主导方”只保存为 `leadership_summary`，不能单独充当关系证据，“多边”“轮值”或无法解析的文本不得生成虚假实体或关系
 
 #### Scenario: 建立正式隶属关系
 - **WHEN** 某已批准下属机构或机制与上级联盟组织存在可审计的正式隶属关系
@@ -28,7 +28,7 @@
 
 #### Scenario: 生成成员关系候选
 - **WHEN** 联盟 manifest 已确认，且 Package 2 已依次形成官方成员全集并完成 economy diff/exception/protection 审计
-- **THEN** 候选清单必须逐条包含方向、两端 entity key、formal active 身份、官方来源、核验时间、现有 edge 差异与冲突，并穷尽覆盖每条现有 active `member_of`；不得依赖 CSV 成员数字段
+- **THEN** 候选清单必须逐条包含方向、两端 entity key、formal active 身份、官方来源、核验时间、现有 edge 差异与冲突，并穷尽覆盖每条现有 active `member_of`；不得依赖 Excel 成员数字段
 
 #### Scenario: 分类过期 Active Member Of
 - **WHEN** 现有 active `member_of` 不在最新 approved formal-active tuple set 中

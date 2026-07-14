@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: 联盟最小身份与 profile
-系统 SHALL 使用 `entity_nodes` 保存联盟组织的 name、canonical name、aliases 和 status，并仅在 `alliance_org_profiles` 保存 abbreviation、受控多值 categories、leadership summary 与 influence scope summary。
+系统 SHALL 使用 `entity_nodes` 保存联盟组织的 name、canonical name、派生 aliases 和 status，并仅在 `alliance_org_profiles` 保存 abbreviation、leadership summary 与 influence scope summary。
 
 #### Scenario: 保存联盟简称与 aliases
 - **WHEN** 已批准联盟具有非空正式简称
@@ -11,16 +11,16 @@
 - **WHEN** 系统验证联盟名称与 aliases
 - **THEN** alias 必须 `btrim` 后非空、单项最长 128 字符、每实体最多 64 项，并按 NFKC + Unicode casefold 等价值去重；跨实体冲突不得自动合并 identity
 
-#### Scenario: 保存受控多值分类
-- **WHEN** 联盟候选同时属于政治、军事或经济等多个领域
-- **THEN** 系统必须保存无 default、1—8 项、规范化去重并按 code 字典序持久化的受控 category code 数组，只允许 `political`、`governance`、`security`、`military`、`intelligence`、`economic`、`trade`、`finance`、`development`、`energy`、`mineral`、`agriculture`、`technology`、`religion`、`health`、`culture`、`education`、`environment`、`nuclear`、`legal`、`dispute_resolution`、`humanitarian` 这 22 个原子 code，不得保存 `cross_domain`、`commodity`、“政治 / 军事”拼接字符串或 CSV 子类，也不得自动补宽类
+#### Scenario: 映射四个联盟业务字段
+- **WHEN** 系统读取已批准 Excel 候选
+- **THEN** 必须把名称映射到 `name/canonical_name`、缩写映射到 `abbreviation`、核心主导方映射到 `leadership_summary`、核心影响范围说明映射到 `influence_scope_summary`；不得把大类、子类或其他列映射为 profile 字段
 
 #### Scenario: 拒绝空摘要进入最终 Active 集合
 - **WHEN** 联盟候选准备进入 approved active alliance manifest
 - **THEN** `leadership_summary` 与 `influence_scope_summary` 必须 `NOT NULL`、无 default、`btrim` 后非空且分别不超过 500/1000 字符；候选草案缺失值必须标为 blocker，不得用永久 `DEFAULT ''` 掩盖
 
 #### Scenario: 排除分析性字段
-- **WHEN** 候选材料包含成员数、全球占比、约束力级别或影响力评级
+- **WHEN** 候选材料包含大类、子类、成员数、全球占比、约束力级别、影响力评级或其他 sheet
 - **THEN** 系统不得把这些字段写入联盟 entity 或 profile，成员数必须由 active `member_of` 关系计算，其他字段留给后续 observation 或分析能力
 
 ### Requirement: Economy identity 与 ISO 边界
@@ -63,18 +63,18 @@
 
 #### Scenario: 验证成员数据完整性
 - **WHEN** `member_of` PostgreSQL 写入完成
-- **THEN** 每条关系的两端必须存在且 active，每个批准联盟的 active 正式成员集合和计算数量必须与同一官方来源逐项核对，CSV 成员数只能作为非权威 Review 对照
+- **THEN** 每条关系的两端必须存在且 active，每个批准联盟的 active 正式成员集合和计算数量必须与同一官方来源逐项核对，Excel 成员数不得作为当前候选或事实输入
 
 ### Requirement: 候选参考范围隔离
-系统 SHALL 将联盟研究 CSV 作为候选 Review 输入，而不是可执行 seed 或权威成员来源，并隔离不属于联盟组织的资源与商品条目。
+系统 SHALL 只把指定 Excel 的首个 sheet 和范围作为候选 Review 输入，而不是可执行 seed 或权威成员来源，并使旧 CSV 候选范围 fail-closed 失效。
 
 #### Scenario: 审阅组织候选
-- **WHEN** 系统使用 CSV 第 1—68 条准备联盟候选清单
-- **THEN** 每条候选必须获得 `approve`、`reject`、`merge` 或 `defer` 结论，并展示 identity、名称、aliases、profile、来源与冲突，不得自动进入 seed
+- **WHEN** 系统读取 SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102` 的 `联盟组织!A1:K51`
+- **THEN** 必须只把 45 条数据行映射为候选，排除 5 条分组标题，逐项展示四字段源值、规范化、identity、exact diff 与空白 final decision，不得自动进入 seed
 
-#### Scenario: 排除第 69—85 条
-- **WHEN** 系统读取 CSV 第 69—85 条战略矿产和农产品
-- **THEN** 必须排除出 `alliance_org` change，仅记录为未来 `chain_node`、`commodity` 或 observation 候选，不得自行创建实体、关系或后续 change
+#### Scenario: 旧候选输入已失效
+- **WHEN** 系统发现旧 `表格_20260713.csv`、68 条 provisional recommendation 或网页核验结果
+- **THEN** 必须只把它们视为历史记录，不得与当前 45 条候选合并、补充或参与 manifest
 
 ### Requirement: Alliance 权威 Manifest 收敛
 系统 SHALL 使用版本化且穷尽的 approved alliance manifest 定义重新初始化后的最终 active alliance 集合，并通过 forward convergence 处理现有 identity，不得把 upsert 或新增数量视为完成。

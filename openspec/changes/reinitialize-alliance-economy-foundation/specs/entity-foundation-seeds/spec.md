@@ -5,11 +5,11 @@
 
 #### Scenario: 审阅联盟候选清单
 - **WHEN** 系统准备联盟 seed
-- **THEN** 必须先提交已批准 schema/data contract 和 provisional 逐项候选清单，展示推荐 `approve/reject/merge/defer`、空白最终 decision、entity key、canonical name、aliases、22-code profile、非空摘要草案或 blocker、来源、现有数据差异与冲突，并为每个现有 active alliance 提供推荐 disposition；未确认项不得进入正式 seed 或 convergence
+- **THEN** 必须先提交四字段 data contract 和 45 条 Excel 逐项候选清单，展示源 sheet row、四字段源值、仅 U+200C 的 normalization、entity key、派生 abbreviation alias、空白最终 decision、现有 exact diff，并穷尽列出每个现有 active alliance disposition；未确认项不得进入正式 seed 或 convergence
 
 #### Scenario: 执行已批准 Schema 校验
 - **WHEN** 后续 loader/validator 验证联盟或 economy 候选
-- **THEN** 必须执行 abbreviation/aliases 长度与 NFKC + casefold 去重、1—8 个 22-code categories、非空摘要、四类 economy identity、受控 `MULTI`、active country code 唯一、全局 stable `entity_key` 唯一及兼容 region 规则
+- **THEN** 必须执行 name/canonical 非空、abbreviation/aliases 长度与 NFKC + casefold 去重、非空 leadership/influence summary、四类 economy identity、受控 `MULTI`、active country code 唯一、全局 stable `entity_key` 唯一及兼容 region 规则；不得要求或写入 categories
 
 #### Scenario: 联盟确认后审计 Economy 差异
 - **WHEN** 已批准联盟的官方 formal active 成员全集形成
@@ -35,9 +35,9 @@
 - **WHEN** seed 或 convergence 实现准备收敛现有数据
 - **THEN** 系统必须拒绝 `TRUNCATE`、无谓词 DELETE、清空后重灌、未审阅 stale 清理或历史 migration rollback
 
-#### Scenario: 不从 CSV 自动生成 seed
-- **WHEN** 联盟研究 CSV 包含组织候选、成员数、评级或第 69—85 条资源商品
-- **THEN** loader、转换工具或 seed 流程不得将其直接写入正式 JSON、PostgreSQL 或 Neo4j
+#### Scenario: 不从 Excel 自动生成 seed
+- **WHEN** 联盟 Excel 包含 45 条候选、大类、子类、成员数、评级或其他非目标列/sheet
+- **THEN** loader、转换工具或 seed 流程不得将工作簿直接写入正式 JSON、PostgreSQL 或 Neo4j；只有人工批准的四字段 manifest 才能成为未来 mapping-only seed 输入
 
 ### Requirement: 联盟与 Economy seed 自动化验证
 系统 SHALL 对联盟/economy migration、loader、validator、repository、dry-run 和 report 提供自动化验证。

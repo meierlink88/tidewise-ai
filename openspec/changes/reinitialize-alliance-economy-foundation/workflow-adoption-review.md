@@ -4,9 +4,9 @@
 
 本 change 已在 `origin/main@4b3df5ccb8ea837470f9bcaa8b2799d0762a742b` 上采用风险分级流程，并通过 merge commit `27e6e20` 保留既有 A/B checkpoints。workflow adoption 的结构与边界已获主对话认可，不再保留独立行政门禁；它只作为 Package 1 的历史证据，不追认或扩大业务授权。
 
-- 当前唯一业务出口是 Package 1 的最终联盟 manifest Review：68 条候选与 10 个现有 active alliance 必须逐项确认。
+- 当前唯一业务出口是 Package 1 的最终联盟 manifest Review：45 条 Excel 候选与 10 个现有 active alliance disposition 必须逐项确认。
 - Package 1 未通过前不得启动正式成员来源、冻结 economy 范围或生成关系候选。
-- 本轮 task packaging remediation 属于 R0，只修改 OpenSpec 流程表达；不改变 contract、candidate recommendation/final decision、源码或数据库。
+- 当前 data-scope amendment 属于 R0，只修改 OpenSpec contract、candidate scope 与 source fingerprint；不修改源码或数据库。
 
 ## 2. 五 Package 风险与人工确认
 
@@ -33,30 +33,23 @@
 
 ### 4.1 输入、生成规则与指纹
 
-- CSV 输入：`表格_20260713.csv`；SHA-256 `584f990ddf3a0784d7586c0b0dc40aef7558620f8d8a0c27cb91a8b075002614`。
-- 现有联盟基线：`f942d76:backend/data/entity_foundation/alliance_orgs.json`；SHA-256 `a797ed7b03a3f3acfc3e8fb885b3b19c16af8c4dc2f781efcb9d8ae2089ee37f`。
-- adoption 前候选 artifact：SHA-256 `9536c4889a3f5fbb4676b8da7c5b1ba67d88fa7ffb1cad71825e7056b7cb83e8`；来源整改输入 checkpoint `ac21094`：SHA-256 `c13663d90c2f195d1ec4ebad8579cceaccd8991194795ddaeac09d1248e86210`；来源整改输出 checkpoint `276e131`：SHA-256 `a956fa1d20307181df2a80c9a609e3a4f408c6ea7870f9ddb15940c068f6fc80`。
-- CSV 1—68 进入联盟候选，69—85 只记录排除；现有 10 条全部进入 disposition Review；正式来源只核验 identity、名称、职责和持续存在性，不读取成员集合。
+- 当前输入：`联盟组织列表1.0.xlsx`；SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102`。
+- 唯一读取范围：首个 sheet `联盟组织` 的 `A1:K51`；不读取其他 sheet。
+- 现有联盟基线：`backend/data/entity_foundation/alliance_orgs.json`；SHA-256 `a797ed7b03a3f3acfc3e8fb885b3b19c16af8c4dc2f781efcb9d8ae2089ee37f`。
+- 旧 CSV、68 条 recommendation 与网页核验仅保留为历史，不参与当前生成、抽样、异常或 manifest。
+- 生成规则只映射名称、缩写、核心主导方和核心影响范围说明；分组标题、大类、子类、成员数、占比、评级及其他 sheet 均排除。
 
 ### 4.2 Counts、抽样与异常全集
 
-- 68 条候选：recommend approve 62、defer 4、merge 1、reject 1；所有 final decision 为空。
-- 现有 active alliance 10 条全部覆盖；CSV 69—85 共 17 条已排除；67 条候选具备正式来源，Chip 4 是唯一正式来源 blocker。
-- 确定性 QA sample 为 CSV 行 1、10、20、30、40、50、60、68，并追加全部非 approve、宽 identity、来源 blocker、alias/abbreviation 冲突项。抽样不替代全部候选与现有 disposition 的逐项人工决策。
-- 必审异常：World Bank stable target merge；CSV 未列的 G7/G20/OECD；BRI、PGII、Chip 4、EU-US TTC defer；Silk Road Fund reject；ISO alias 冲突；无正式 abbreviation；Chip 4 source blocker；协议机制、倡议网络和联合国下属机构宽 identity。G7 轮值来源执行时刷新；中国—中亚机制与 IOMed 状态已由正式来源更新；TTC 官方页 archived 且最后部长级会议为 2024。
+- 45 条数据行、5 条分组标题；四个目标字段均 45/45 非空；名称重复 0，规范化缩写重复 0。
+- 唯一 normalization：sheet row 45 `UJR<U+200C>` → `UJR`、sheet row 50 `CCAS<U+200C>` → `CCAS`；不做其他语义纠正。
+- 与现有 10 条文件基线比较：9 个 `keep` identity、36 个 `create` 候选；现有 `alliance_org:oecd` 不在新 45 条中，作为 proposed `inactivate` 单独等待用户 disposition。
+- 确定性 QA sample 为 sheet rows 3、17、26、32、40、51，并追加 rows 45、50、全部 keep 映射和 `alliance_org:oecd`。抽样不替代 45 条候选与 10 条现有 disposition 的逐项决策。
+- “核心主导方”只映射为 `leadership_summary`，不得自动生成 `led_by`；疑似业务语义问题只形成单行 Review note，不由 agent 改写。
 
-### 4.3 来源新鲜度整改（R0）
+### 4.3 Fail-closed
 
-| 对象 | 正式来源结论 | Review 结论不变 |
-|---|---|---|
-| G7 | 法国 2026 主席国与 Évian Summit；执行时仍随轮值刷新 | `approve` / existing `keep` |
-| 中国—中亚机制 | 秘书处 2024 成立、2025 全面运行 | `approve` / `create` |
-| IOMed | 2025 签署、生效、理事会授权运营并具备总部/秘书处 | `approve` / `create` |
-| EU-US TTC | 官方页面 archived / no longer updated，最后部长级会议为 2024-04 | `defer`，不进当前 active manifest |
-
-### 4.4 Fail-closed
-
-- 任一 final decision 留空，或 source、identity、alias、summary、category、existing disposition 冲突未解决，Package 1 均不得完成。
+- 任一 final decision 留空，或输入指纹、sheet/range、counts、四字段完整性、重复、normalization、identity/exact diff、existing disposition 冲突未解决，Package 1 均不得完成。
 - 现有 active alliance 未穷尽，或 merge/inactivate 的 source/target、关系影响、预计 counts 未确认，Package 1 均不得完成。
 - Package 1 通过只允许进入 Package 2 的 R0 候选工作，不授权 R1/R2 或任何 Neo4j 操作。
 
@@ -69,6 +62,6 @@
 
 任一未授权范围、checksum/counts/断言漂移或 Query 失败立即停止，未执行授权失效。两个 R2 均不包含 Neo4j、生产写入或不可逆 cleanup。
 
-## 6. 本轮人工门禁
+## 6. 当前人工门禁
 
-请主对话只审阅本 task-design packaging：5-package 边界、7 个顶层 checkbox、历史状态映射、两个 R2 和 Neo4j 移出是否正确。通过不代表 Package 1 最终联盟 manifest 已批准；业务入口仍是 `alliance-candidate-review.md` 与 Package 1.2。
+五 package、7 个顶层 checkbox、两个 local R2 和 Neo4j 移出保持不变。当前只等待 `alliance-candidate-review.md` 的 45 条 Excel 候选与现有 10 条 disposition Review；通过前 Package 2 及以后保持未开始。
