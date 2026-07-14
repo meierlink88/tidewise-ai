@@ -9,6 +9,16 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
 
+type PhysicalConstraintFilter struct {
+	ChainIDs        []string
+	NodeIDs         []string
+	TopologyEdgeIDs []string
+}
+
+type IndustryChainRepository interface {
+	ListPhysicalConstraints(context.Context, PhysicalConstraintFilter) ([]domain.IndustryChainPhysicalConstraint, error)
+}
+
 const listPhysicalConstraintsQuery = `
 SELECT id, industry_chain_entity_id, chain_node_entity_id, topology_edge_id,
        constraint_type, mechanism, physical_limit_note, mitigation_path,
@@ -73,12 +83,14 @@ func (r PostgresRepository) ListPhysicalConstraints(ctx context.Context, filter 
 func matchesID(values []string, target string) bool {
 	return len(values) == 0 || containsID(values, target)
 }
+
 func matchesSubject(filter PhysicalConstraintFilter, value domain.IndustryChainPhysicalConstraint) bool {
 	if len(filter.NodeIDs) == 0 && len(filter.TopologyEdgeIDs) == 0 {
 		return true
 	}
 	return (value.ChainNodeEntityID != "" && containsID(filter.NodeIDs, value.ChainNodeEntityID)) || (value.TopologyEdgeID != "" && containsID(filter.TopologyEdgeIDs, value.TopologyEdgeID))
 }
+
 func containsID(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {
