@@ -63,19 +63,18 @@ Go 类型只使用 `Theme` / `ThemeProfile`，数据库只使用 `entity_type='t
 | 字段 | PostgreSQL 类型 | Null / 默认 | 约束与含义 |
 |---|---|---|---|
 | `id` | `UUID` | `NOT NULL` | PK；基于最终新关系 key/tuple 生成，不复用旧 topology edge ID |
-| `from_chain_node_entity_id` | `UUID` | `NOT NULL` | FK `chain_node_profiles(entity_id)`；有向起点 |
-| `to_chain_node_entity_id` | `UUID` | `NOT NULL` | FK `chain_node_profiles(entity_id)`；有向终点 |
+| `from_chain_node_entity_id` | `UUID` | `NOT NULL` | FK `chain_node_profiles(entity_id) ON DELETE RESTRICT`；有向起点，repository 另验 active chain_node |
+| `to_chain_node_entity_id` | `UUID` | `NOT NULL` | FK `chain_node_profiles(entity_id) ON DELETE RESTRICT`；有向终点，repository 另验 active chain_node |
 | `relation_type` | `VARCHAR(32)` | `NOT NULL` | CHECK 仅四类 MVP 枚举 |
 | `mechanism` | `TEXT` | `NOT NULL` | `btrim(mechanism) <> ''`；说明关系成立的客观机制 |
 | `condition_note` | `TEXT` | `NULL`，无默认值 | 非 NULL 时非空；适用条件或边界 |
 | `evidence_note` | `TEXT` | `NOT NULL` | 非空；支持该关系的证据摘要 |
-| `source_name` | `TEXT` | `NOT NULL` | 非空；证据来源名称 |
-| `source_url` | `TEXT` | `NOT NULL` | 非空；证据定位地址 |
+| `provenance` | `TEXT` | `NOT NULL` | 非空；证据来源、定位与生成/审阅规则；不得仅写无定位的来源名称 |
 | `verified_at` | `TIMESTAMPTZ` | `NOT NULL` | 人工核验时间 |
 | `status` | `VARCHAR(32)` | `NOT NULL DEFAULT 'active'` | CHECK `active` / `inactive` |
 | `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL DEFAULT now()` | 审计时间 |
 
-数据库约束包括：禁止自环；唯一 `(from_chain_node_entity_id, relation_type, to_chain_node_entity_id)`；两个 endpoint 必须因 FK 而具有 chain_node profile；方向不得在 repository 中自动对调。针对 `input_to` 与 `depends_on`，额外使用 `(from, to, lower(btrim(mechanism)))` 的条件唯一索引，并在领域校验中拒绝同一机制的双重登记；语义同一性无法仅靠字符串判断时由候选 Review 裁决。
+数据库约束包括：禁止自环；唯一 `(from_chain_node_entity_id, relation_type, to_chain_node_entity_id)`；两个 endpoint 必须因 FK 而具有 chain_node profile，并由 repository 验证当前为 active chain_node；方向不得在 repository 中自动对调。针对 `input_to` 与 `depends_on`，额外使用 `(from, to, lower(btrim(mechanism)))` 的条件唯一索引，并在领域校验中拒绝同一机制的双重登记；语义同一性无法仅靠字符串判断时由候选 Review 裁决。
 
 四类语义固定为：
 
@@ -165,8 +164,7 @@ classDiagram
       text mechanism
       text condition_note nullable
       text evidence_note
-      text source_name
-      text source_url
+      text provenance
       timestamptz verified_at
       varchar status
     }
@@ -174,7 +172,13 @@ classDiagram
       UUID id
       UUID chain_node_entity_id nullable
       UUID chain_node_relation_id nullable
-      text mechanism
+      varchar constraint_type
+      text description
+      text condition_note nullable
+      text evidence_note
+      text provenance
+      timestamptz verified_at
+      varchar status
     }
     class EntityEdge {
       UUID id
@@ -192,7 +196,7 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。`ChainNodeRelation` 及四个强类型 relation constants 留到 Phase B。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
+结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。Phase B R1 已实现 `ChainNodeRelation`、四个强类型 relation constants、repository snapshot dry-run/report 与 relation-only CLI；migration 17 仍只是未 apply 的源码。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
 
 ### 8. Active change 风险分级与执行包
 

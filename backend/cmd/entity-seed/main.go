@@ -26,7 +26,12 @@ func main() {
 	mappingDryRun := flag.Bool("external-identifier-mapping-dry-run", false, "validate external identifier mapping manifest without writes")
 	mappingPreflight := flag.Bool("external-identifier-mapping-preflight", false, "run read-only preflight for the reviewed external identifier mapping manifest")
 	mappingApprovedFirstBatch := flag.Bool("external-identifier-mapping-approved-first-batch", false, "allow only the frozen first-batch external identifier mapping write")
+	relationManifest := flag.String("chain-node-relation-manifest", "", "reviewed chain node relation manifest")
+	relationDryRun := flag.Bool("chain-node-relation-dry-run", false, "run DB snapshot dry-run for chain node relations")
 	flag.Parse()
+	if err := validateRelationCommandOptions(relationCommandOptions{manifest: *relationManifest, dryRun: *relationDryRun, seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope, phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApproved: *mappingApprovedFirstBatch}); err != nil {
+		log.Fatal(err)
+	}
 	scope, mappingMode, err := validateCommandOptions(commandOptions{
 		seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope,
 		phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApprovedFirstBatch: *mappingApprovedFirstBatch,
@@ -48,6 +53,18 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
+	if strings.TrimSpace(*relationManifest) != "" {
+		manifest, err := entityseed.LoadChainNodeRelationManifest(*relationManifest)
+		if err != nil {
+			log.Fatalf("load chain node relation manifest: %v", err)
+		}
+		report, err := entityseed.NewPostgresRepository(db).DryRunChainNodeRelationBatch(ctx, manifest.Relations)
+		if err != nil {
+			log.Fatalf("dry-run chain node relations: %v", err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(report)
+		return
+	}
 	if mappingMode {
 		manifest, err := entityseed.LoadExternalIdentifierMappingFile(*mappingManifest)
 		if err != nil {
@@ -166,6 +183,28 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 type commandOptions struct {
 	seedDir, manifestFile, applyScope, mappingManifest                                           string
 	includeInactive, phaseAPreflight, mappingDryRun, mappingPreflight, mappingApprovedFirstBatch bool
+}
+
+type relationCommandOptions struct {
+	manifest, seedDir, manifestFile, applyScope, mappingManifest                               string
+	dryRun, includeInactive, phaseAPreflight, mappingDryRun, mappingPreflight, mappingApproved bool
+}
+
+func validateRelationCommandOptions(o relationCommandOptions) error {
+	hasManifest := strings.TrimSpace(o.manifest) != ""
+	if o.dryRun && !hasManifest {
+		return fmt.Errorf("relation dry-run requires -chain-node-relation-manifest")
+	}
+	if !hasManifest {
+		return nil
+	}
+	if !o.dryRun {
+		return fmt.Errorf("R1 relation-only mode requires -chain-node-relation-dry-run")
+	}
+	if o.seedDir != entityseed.DefaultSeedDir || strings.TrimSpace(o.manifestFile) != "" || o.includeInactive || strings.TrimSpace(o.applyScope) != "" || o.phaseAPreflight || strings.TrimSpace(o.mappingManifest) != "" || o.mappingDryRun || o.mappingPreflight || o.mappingApproved {
+		return fmt.Errorf("relation-only mode cannot combine entity or external identifier seed options")
+	}
+	return nil
 }
 
 func validateCommandOptions(options commandOptions) (entityseed.ApplyScope, bool, error) {

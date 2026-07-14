@@ -43,6 +43,17 @@ func TestValidateCommandOptionsFailsClosedForMappingMode(t *testing.T) {
 	}
 }
 
+func TestValidateRelationCommandOptionsRequiresIsolatedDryRun(t *testing.T) {
+	for _, options := range []relationCommandOptions{{dryRun: true}, {manifest: "relations.json"}, {manifest: "relations.json", dryRun: true, seedDir: "other"}, {manifest: "relations.json", dryRun: true, mappingManifest: "mapping.json"}} {
+		if err := validateRelationCommandOptions(options); err == nil {
+			t.Fatalf("validateRelationCommandOptions(%+v) error=nil", options)
+		}
+	}
+	if err := validateRelationCommandOptions(relationCommandOptions{manifest: "relations.json", dryRun: true, seedDir: entityseed.DefaultSeedDir}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestManifestPreflightProofUsesExplicitFileAndCountsChainNodeProfiles(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "chain-nodes.json")
 	content := []byte(`{"entities":[{"key":"chain_node:test","entity_type":"chain_node","layer_code":"chain_node","name":"测试节点","canonical_name":"测试节点","status":"active","profile":{"definition":"用于验证显式节点 seed 文件的稳定产业节点。"}}]}`)
