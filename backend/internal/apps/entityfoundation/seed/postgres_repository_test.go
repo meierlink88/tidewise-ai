@@ -115,12 +115,15 @@ func TestEntityUpsertSQLPersistsBusinessKey(t *testing.T) {
 	}
 }
 
-func TestEntityUpsertSQLScopesAliasOwnershipToCurrentConvergence(t *testing.T) {
+func TestEntityUpsertSQLDoesNotDependOnRetiredConvergenceTables(t *testing.T) {
 	statement := strings.ToLower(buildEntityUpsert())
-	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "max(manifest_version)", "am.to_entity_id = $1", "coalesce($7::text[]", "order by am.moved_at,am.id", "sa.aliases || oa.aliases"} {
-		if !strings.Contains(statement, fragment) {
-			t.Fatalf("entity upsert missing %q", fragment)
+	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "entity_convergence_manifests", "owned_aliases", "seed_aliases"} {
+		if strings.Contains(statement, fragment) {
+			t.Fatalf("entity upsert must not reference retired convergence structure %q", fragment)
 		}
+	}
+	if !strings.Contains(statement, "$7::text[] as aliases") {
+		t.Fatalf("entity upsert must persist normalized aliases directly: %s", statement)
 	}
 }
 

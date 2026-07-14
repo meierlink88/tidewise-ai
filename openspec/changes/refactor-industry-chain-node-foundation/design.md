@@ -31,6 +31,8 @@
 
 `entity_nodes` 继续是所有实体身份与名称的唯一事实源。chain_node 和 theme 均复用其 `id`、`entity_key`、`entity_type`、`layer_code`、`name`、`canonical_name`、`aliases`、`status`、`created_at`、`updated_at`；profile 不重复中文名、英文名或 aliases。
 
+在 `000015` 清理旧 convergence audit 表后，普通 node/profile seed 的 aliases 只能来自已审核 manifest 的稳定排序、去重结果；通用 upsert 不得查询、拼接或恢复任何 legacy convergence alias move。若出现新的 alias 漂移，必须在 dry-run/report 中作为更新或冲突进入独立 Review，而不是从已删除的旧表推导。
+
 目标 profile 如下：
 
 | 表.字段 | PostgreSQL 类型 | Null / 默认 | 约束 | 业务含义 |

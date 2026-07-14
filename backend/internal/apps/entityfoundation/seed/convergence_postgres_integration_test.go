@@ -3,10 +3,8 @@ package seed
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -38,7 +36,7 @@ func TestPostgresPolymorphicJSONParametersUseExplicitTypes(t *testing.T) {
 	}
 }
 
-func TestPostgresCurrentConvergenceAliasOwnershipIsRecoverable(t *testing.T) {
+func TestPostgresChainNodeUpsertSQLPlansWithoutRetiredConvergenceTables(t *testing.T) {
 	databaseURL := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("TIDEWISE_TEST_DATABASE_URL is not set")
@@ -48,44 +46,8 @@ func TestPostgresCurrentConvergenceAliasOwnershipIsRecoverable(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	rows, err := db.QueryContext(context.Background(), currentConvergenceOwnedAliasesQuery())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	count := 0
-	missing := 0
-	for rows.Next() {
-		var entityID, alias string
-		var present bool
-		if err := rows.Scan(&entityID, &alias, &present); err != nil {
-			t.Fatal(err)
-		}
-		count++
-		if !present {
-			missing++
-		}
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	if count != 29 || missing != 29 {
-		t.Fatalf("owned aliases count=%d missing=%d", count, missing)
-	}
-}
-
-func TestPostgresEntityUpsertAliasOwnershipSQLPlansWithoutWriting(t *testing.T) {
-	databaseURL := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("TIDEWISE_TEST_DATABASE_URL is not set")
-	}
-	db, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	key := "sector:theme_artificial_intelligence"
-	rows, err := db.QueryContext(context.Background(), "EXPLAIN "+buildEntityUpsert(), entitySeedUUID(key), key, "sector", "sector", "人工智能", "人工智能", []string{"Artificial Intelligence"}, "active")
+	key := "chain_node:artificial_intelligence"
+	rows, err := db.QueryContext(context.Background(), "EXPLAIN "+buildEntityUpsert(), entitySeedUUID(key), key, "chain_node", "chain_node", "人工智能产业", "人工智能产业", []string{"人工智能"}, "active")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,39 +65,5 @@ func TestPostgresEntityUpsertAliasOwnershipSQLPlansWithoutWriting(t *testing.T) 
 	}
 	if lines == 0 {
 		t.Fatal("EXPLAIN returned no plan")
-	}
-}
-
-func TestPostgresAliasMergePreservesSeedAndProvenanceOrder(t *testing.T) {
-	databaseURL := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("TIDEWISE_TEST_DATABASE_URL is not set")
-	}
-	db, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	var raw []byte
-	var aliases []string
-	if err := db.QueryRowContext(context.Background(), currentConvergenceAliasMergeQuery(), entitySeedUUID("person:elon_musk"), []string{"埃隆·马斯克", "Elon Musk"}).Scan(&raw); err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(raw, &aliases); err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{"埃隆·马斯克", "Elon Musk"}; !reflect.DeepEqual(aliases, want) {
-		t.Fatalf("non-owned aliases=%v want=%v", aliases, want)
-	}
-	key := "sector:industry_automobiles_components"
-	seedAliases := []string{"Automobiles and Components"}
-	if err := db.QueryRowContext(context.Background(), currentConvergenceAliasMergeQuery(), entitySeedUUID(key), seedAliases).Scan(&raw); err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(raw, &aliases); err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{"Automobiles and Components", "汽车零部件", "汽车整车"}; !reflect.DeepEqual(aliases, want) {
-		t.Fatalf("owned aliases=%v want=%v", aliases, want)
 	}
 }
