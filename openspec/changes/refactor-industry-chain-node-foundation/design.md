@@ -200,7 +200,7 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。Phase B R1 已实现 `ChainNodeRelation`、四个强类型 relation constants、repository snapshot dry-run/report 与 relation-only CLI；migration 17 仍只是未 apply 的源码。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
+结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。Phase B R1 已实现 `ChainNodeRelation`、四个强类型 relation constants、repository snapshot dry-run/report 与 relation-only CLI；migration 17 已按命名 R2 授权应用至 local，并完成两张空表的立即 Query/assert，当前等待独立验收。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
 
 ### 8. Active change 风险分级与执行包
 
