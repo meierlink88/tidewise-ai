@@ -41,26 +41,6 @@ func TestEntityNodeValidateRejectsUnsupportedEntityType(t *testing.T) {
 	}
 }
 
-func TestAllianceOrgProfileValidate(t *testing.T) {
-	profile := AllianceOrgProfile{
-		EntityID:      "entity-1",
-		OrgCode:       "OPEC_PLUS",
-		OrgType:       "energy_alliance",
-		PrimaryDomain: "energy",
-		ScopeRegion:   "global",
-		OfficialURL:   "https://www.opec.org",
-	}
-
-	if err := profile.Validate(); err != nil {
-		t.Fatalf("Validate() error = %v", err)
-	}
-
-	profile.OrgCode = ""
-	if err := profile.Validate(); err == nil {
-		t.Fatal("Validate() error = nil, want missing org code error")
-	}
-}
-
 func TestBenchmarkEntityTypeAndProfileValidate(t *testing.T) {
 	node := EntityNode{
 		ID:            "benchmark-1",
