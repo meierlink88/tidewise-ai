@@ -1,17 +1,12 @@
-package migrations
+package dbmigration
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestAllianceEconomyFoundationSchemaIsMinimalAndCleanupGated(t *testing.T) {
-	data, err := os.ReadFile("000018_reinitialize_alliance_economy_foundation.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	sql := strings.ToLower(string(data))
+	sql := strings.ToLower(readMigration(t, "000018_reinitialize_alliance_economy_foundation.sql"))
 	for _, required := range []string{
 		"current_setting('tidewise.alliance_economy_schema_write_authorized', true)",
 		"reviewed_local_cleanup_verified",

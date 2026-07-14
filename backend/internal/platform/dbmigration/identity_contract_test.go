@@ -1,17 +1,12 @@
-package migrations
+package dbmigration
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestEntityExternalIdentifiersSchema(t *testing.T) {
-	data, err := os.ReadFile("000016_add_entity_external_identifiers.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	sql := strings.ToLower(string(data))
+	sql := strings.ToLower(readMigration(t, "000016_add_entity_external_identifiers.sql"))
 	for _, required := range []string{
 		"current_setting('tidewise.external_identifier_schema_write_authorized', true)",
 		"external identifier schema write is not authorized",

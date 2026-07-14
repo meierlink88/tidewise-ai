@@ -35,6 +35,24 @@ func TestMigrationFilesAreVersionedAndGooseCompatible(t *testing.T) {
 	}
 }
 
+func TestMigrationDirectoryContainsOnlySQLAndREADME(t *testing.T) {
+	dir := filepath.Join("..", "..", "..", "migrations")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read migration directory: %v", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			t.Fatalf("migration directory contains subdirectory %q", entry.Name())
+		}
+		if entry.Name() == "README.md" || strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		t.Fatalf("migration directory contains non-SQL file %q", entry.Name())
+	}
+}
+
 func TestInitialEventKnowledgeMigrationDefinesCoreTables(t *testing.T) {
 	content := combinedMigrations(t)
 
@@ -310,6 +328,9 @@ func combinedMigrations(t *testing.T) string {
 
 func readMigration(t *testing.T, path string) string {
 	t.Helper()
+	if filepath.Base(path) == path {
+		path = filepath.Join(migrationDirectory(), path)
+	}
 
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -317,4 +338,8 @@ func readMigration(t *testing.T, path string) string {
 	}
 
 	return string(content)
+}
+
+func migrationDirectory() string {
+	return filepath.Join("..", "..", "..", "migrations")
 }

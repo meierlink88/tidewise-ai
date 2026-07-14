@@ -1,7 +1,6 @@
-package migrations_test
+package dbmigration
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -86,14 +85,4 @@ func TestBenchmarkMetricMigrationUsesReviewedDeterministicReplacement(t *testing
 	if strings.Contains(normalized, "metric:gold_price") {
 		t.Fatal("metric migration must leave gold_price creation to reviewed entity seed")
 	}
-}
-
-func readMigration(t *testing.T, name string) string {
-	t.Helper()
-
-	content, err := os.ReadFile(name)
-	if err != nil {
-		t.Fatalf("read migration %s: %v", name, err)
-	}
-	return string(content)
 }
