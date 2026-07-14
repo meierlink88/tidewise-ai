@@ -39,6 +39,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var relationInput entityseed.ChainNodeRelationManifest
+	if strings.TrimSpace(*relationManifest) != "" {
+		relationInput, err = loadRelationDryRunManifest(*relationManifest)
+		if err != nil {
+			log.Fatalf("load chain node relation manifest: %v", err)
+		}
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
@@ -54,11 +61,7 @@ func main() {
 	}
 	defer db.Close()
 	if strings.TrimSpace(*relationManifest) != "" {
-		manifest, err := entityseed.LoadChainNodeRelationManifest(*relationManifest)
-		if err != nil {
-			log.Fatalf("load chain node relation manifest: %v", err)
-		}
-		report, err := entityseed.NewPostgresRepository(db).DryRunChainNodeRelationBatch(ctx, manifest.Relations)
+		report, err := entityseed.NewPostgresRepository(db).DryRunChainNodeRelationManifest(ctx, relationInput)
 		if err != nil {
 			log.Fatalf("dry-run chain node relations: %v", err)
 		}
@@ -178,6 +181,17 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 		return entityseed.LoadFile(manifestFile)
 	}
 	return entityseed.LoadFiles(entityseed.DefaultSeedPaths(seedDir)...)
+}
+
+func loadRelationDryRunManifest(path string) (entityseed.ChainNodeRelationManifest, error) {
+	manifest, err := entityseed.LoadChainNodeRelationManifest(path)
+	if err != nil {
+		return manifest, err
+	}
+	if err := entityseed.ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
+		return manifest, err
+	}
+	return manifest, nil
 }
 
 type commandOptions struct {

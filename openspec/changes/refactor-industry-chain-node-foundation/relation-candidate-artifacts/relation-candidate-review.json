@@ -1,29 +1,30 @@
 {
   "artifact_type": "phase_b_relation_candidate_review",
-  "rule_version": "phase-b-semantic-v1",
+  "rule_version": "phase-b-semantic-v2-second-review",
+  "ready_for_write": false,
   "input": {
     "path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
     "sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
     "node_count": 842
   },
   "counts": {
-    "reviewable_semantic": 96,
-    "blocked_needs_evidence": 53,
+    "approved_semantic": 96,
+    "blocked_needs_evidence": 51,
     "physical_constraint_blocked": 4,
-    "rejected": 5,
-    "reviewable_by_relation_type": {
+    "rejected": 7,
+    "approved_by_relation_type": {
       "is_component_of": 1,
       "is_subcategory_of": 95
     },
     "blocked_by_relation_type": {
       "depends_on": 1,
-      "input_to": 5,
+      "input_to": 3,
       "is_subcategory_of": 47
     }
   },
-  "reviewable_semantic": [
+  "approved_semantic": [
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_component_of",
       "from": {
         "name": "汽车零部件",
@@ -41,17 +42,22 @@
       "mechanism": "汽车零部件是汽车可识别的物理/系统组成",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "explicit-component-name"
+        "rule": "explicit-component-name",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:explicit-component-name",
+      "provenance": "phase-b-semantic-v2-second-review:explicit-component-name",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "AI芯片",
@@ -69,17 +75,22 @@
       "mechanism": "AI芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "BC电池",
@@ -97,17 +108,22 @@
       "mechanism": "BC电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "HJT电池",
@@ -125,17 +141,22 @@
       "mechanism": "HJT电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "MCU芯片",
@@ -153,17 +174,22 @@
       "mechanism": "MCU芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "TOPCon电池",
@@ -181,17 +207,22 @@
       "mechanism": "TOPCon电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "一般零售",
@@ -209,17 +240,22 @@
       "mechanism": "一般零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "个护小家电",
@@ -237,17 +273,22 @@
       "mechanism": "个护小家电 的全部稳定语义实例属于 小家电 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "云游戏",
@@ -265,17 +306,22 @@
       "mechanism": "云游戏 的全部稳定语义实例属于 游戏 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "互联网保险",
@@ -293,17 +339,22 @@
       "mechanism": "互联网保险 的全部稳定语义实例属于 保险 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "互联网电商",
@@ -321,17 +372,22 @@
       "mechanism": "互联网电商 的全部稳定语义实例属于 电商 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "人形机器人",
@@ -349,17 +405,22 @@
       "mechanism": "人形机器人 的全部稳定语义实例属于 机器人 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "仓储物流",
@@ -377,17 +438,22 @@
       "mechanism": "仓储物流 的全部稳定语义实例属于 物流 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "免税零售",
@@ -405,17 +471,22 @@
       "mechanism": "免税零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他专业工程",
@@ -433,17 +504,22 @@
       "mechanism": "其他专业工程 的全部稳定语义实例属于 专业工程 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他专业服务",
@@ -461,17 +537,22 @@
       "mechanism": "其他专业服务 的全部稳定语义实例属于 专业服务 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他专用设备",
@@ -489,17 +570,22 @@
       "mechanism": "其他专用设备 的全部稳定语义实例属于 专用设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他农产品加工",
@@ -517,17 +603,22 @@
       "mechanism": "其他农产品加工 的全部稳定语义实例属于 农产品加工 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他化学制品",
@@ -545,17 +636,22 @@
       "mechanism": "其他化学制品 的全部稳定语义实例属于 化学制品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他化学原料",
@@ -573,17 +669,22 @@
       "mechanism": "其他化学原料 的全部稳定语义实例属于 化学原料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他化学纤维",
@@ -601,17 +702,22 @@
       "mechanism": "其他化学纤维 的全部稳定语义实例属于 化学纤维 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他医疗服务",
@@ -629,17 +735,22 @@
       "mechanism": "其他医疗服务 的全部稳定语义实例属于 医疗服务 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他家居用品",
@@ -657,17 +768,22 @@
       "mechanism": "其他家居用品 的全部稳定语义实例属于 家居用品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他数字媒体",
@@ -685,17 +801,22 @@
       "mechanism": "其他数字媒体 的全部稳定语义实例属于 数字媒体 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他橡胶制品",
@@ -713,17 +834,22 @@
       "mechanism": "其他橡胶制品 的全部稳定语义实例属于 橡胶制品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他生物制品",
@@ -741,17 +867,22 @@
       "mechanism": "其他生物制品 的全部稳定语义实例属于 生物制品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他种植业",
@@ -769,17 +900,22 @@
       "mechanism": "其他种植业 的全部稳定语义实例属于 种植业 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他自动化设备",
@@ -797,17 +933,22 @@
       "mechanism": "其他自动化设备 的全部稳定语义实例属于 自动化设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他计算机设备",
@@ -825,17 +966,22 @@
       "mechanism": "其他计算机设备 的全部稳定语义实例属于 计算机设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他通信设备",
@@ -853,17 +999,22 @@
       "mechanism": "其他通信设备 的全部稳定语义实例属于 通信设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他通用设备",
@@ -881,17 +1032,22 @@
       "mechanism": "其他通用设备 的全部稳定语义实例属于 通用设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他金属新材料",
@@ -909,17 +1065,22 @@
       "mechanism": "其他金属新材料 的全部稳定语义实例属于 金属新材料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他饰品",
@@ -937,17 +1098,22 @@
       "mechanism": "其他饰品 的全部稳定语义实例属于 饰品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "其他黑色家电",
@@ -965,17 +1131,22 @@
       "mechanism": "其他黑色家电 的全部稳定语义实例属于 黑色家电 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "农村电商",
@@ -993,17 +1164,22 @@
       "mechanism": "农村电商 的全部稳定语义实例属于 电商 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "冷链物流",
@@ -1021,17 +1197,22 @@
       "mechanism": "冷链物流 的全部稳定语义实例属于 物流 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "刀片电池",
@@ -1049,17 +1230,22 @@
       "mechanism": "刀片电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "创新医疗服务",
@@ -1077,17 +1263,22 @@
       "mechanism": "创新医疗服务 的全部稳定语义实例属于 医疗服务 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "动物疫苗",
@@ -1105,17 +1296,22 @@
       "mechanism": "动物疫苗 的全部稳定语义实例属于 疫苗 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "包装装潢印刷",
@@ -1133,17 +1329,22 @@
       "mechanism": "包装装潢印刷 的全部稳定语义实例属于 印刷 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "医药电商",
@@ -1161,17 +1362,22 @@
       "mechanism": "医药电商 的全部稳定语义实例属于 电商 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "厨房小家电",
@@ -1189,17 +1395,22 @@
       "mechanism": "厨房小家电 的全部稳定语义实例属于 小家电 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "可降解塑料",
@@ -1217,17 +1428,22 @@
       "mechanism": "可降解塑料 的全部稳定语义实例属于 塑料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "品牌化妆品",
@@ -1245,17 +1461,22 @@
       "mechanism": "品牌化妆品 的全部稳定语义实例属于 化妆品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "商贸零售",
@@ -1273,17 +1494,22 @@
       "mechanism": "商贸零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "固态电池",
@@ -1301,17 +1527,22 @@
       "mechanism": "固态电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "国产航母",
@@ -1329,17 +1560,22 @@
       "mechanism": "国产航母 的全部稳定语义实例属于 航母 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "国产芯片",
@@ -1357,17 +1593,22 @@
       "mechanism": "国产芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "国有大型银行",
@@ -1385,17 +1626,22 @@
       "mechanism": "国有大型银行 的全部稳定语义实例属于 银行 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "在线教育",
@@ -1413,17 +1659,22 @@
       "mechanism": "在线教育 的全部稳定语义实例属于 教育 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "培训教育",
@@ -1441,17 +1692,22 @@
       "mechanism": "培训教育 的全部稳定语义实例属于 教育 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "多业态零售",
@@ -1469,17 +1725,22 @@
       "mechanism": "多业态零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "大众出版",
@@ -1497,17 +1758,22 @@
       "mechanism": "大众出版 的全部稳定语义实例属于 出版 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "存储芯片",
@@ -1525,17 +1791,22 @@
       "mechanism": "存储芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "学历教育",
@@ -1553,17 +1824,22 @@
       "mechanism": "学历教育 的全部稳定语义实例属于 教育 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "手机游戏",
@@ -1581,17 +1857,22 @@
       "mechanism": "手机游戏 的全部稳定语义实例属于 游戏 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "改性塑料",
@@ -1609,17 +1890,22 @@
       "mechanism": "改性塑料 的全部稳定语义实例属于 塑料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "教育出版",
@@ -1637,17 +1923,22 @@
       "mechanism": "教育出版 的全部稳定语义实例属于 出版 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "新零售",
@@ -1665,17 +1956,22 @@
       "mechanism": "新零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "旅游零售",
@@ -1693,17 +1989,22 @@
       "mechanism": "旅游零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "无人零售",
@@ -1721,17 +2022,22 @@
       "mechanism": "无人零售 的全部稳定语义实例属于 零售 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "时空大数据",
@@ -1749,17 +2055,22 @@
       "mechanism": "时空大数据 的全部稳定语义实例属于 大数据 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "智能物流",
@@ -1777,17 +2088,22 @@
       "mechanism": "智能物流 的全部稳定语义实例属于 物流 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "智能电网",
@@ -1805,17 +2121,22 @@
       "mechanism": "智能电网 的全部稳定语义实例属于 电网 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "民营医院",
@@ -1833,17 +2154,22 @@
       "mechanism": "民营医院 的全部稳定语义实例属于 医院 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "水产饲料",
@@ -1861,17 +2187,22 @@
       "mechanism": "水产饲料 的全部稳定语义实例属于 饲料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "汽车芯片",
@@ -1889,17 +2220,22 @@
       "mechanism": "汽车芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "清洁小家电",
@@ -1917,17 +2253,22 @@
       "mechanism": "清洁小家电 的全部稳定语义实例属于 小家电 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "熔盐储能",
@@ -1945,17 +2286,22 @@
       "mechanism": "熔盐储能 的全部稳定语义实例属于 储能 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "燃料电池",
@@ -1973,17 +2319,22 @@
       "mechanism": "燃料电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "生物疫苗",
@@ -2001,17 +2352,22 @@
       "mechanism": "生物疫苗 的全部稳定语义实例属于 疫苗 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "电力物联网",
@@ -2029,17 +2385,22 @@
       "mechanism": "电力物联网 的全部稳定语义实例属于 物联网 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "电工仪器仪表",
@@ -2057,17 +2418,22 @@
       "mechanism": "电工仪器仪表 的全部稳定语义实例属于 仪器仪表 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "电网自动化设备",
@@ -2085,17 +2451,22 @@
       "mechanism": "电网自动化设备 的全部稳定语义实例属于 自动化设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "畜禽饲料",
@@ -2113,17 +2484,22 @@
       "mechanism": "畜禽饲料 的全部稳定语义实例属于 饲料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "短剧游戏",
@@ -2141,17 +2517,22 @@
       "mechanism": "短剧游戏 的全部稳定语义实例属于 游戏 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "第三代半导体",
@@ -2169,17 +2550,22 @@
       "mechanism": "第三代半导体 的全部稳定语义实例属于 半导体 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "第四代半导体",
@@ -2197,17 +2583,22 @@
       "mechanism": "第四代半导体 的全部稳定语义实例属于 半导体 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "算力租赁",
@@ -2225,17 +2616,22 @@
       "mechanism": "算力租赁 的全部稳定语义实例属于 租赁 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "纺织化学制品",
@@ -2253,17 +2649,22 @@
       "mechanism": "纺织化学制品 的全部稳定语义实例属于 化学制品 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "细胞免疫治疗",
@@ -2281,17 +2682,22 @@
       "mechanism": "细胞免疫治疗 的全部稳定语义实例属于 免疫治疗 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "综合乘用车",
@@ -2309,17 +2715,22 @@
       "mechanism": "综合乘用车 的全部稳定语义实例属于 乘用车 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "综合电商",
@@ -2337,17 +2748,22 @@
       "mechanism": "综合电商 的全部稳定语义实例属于 电商 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "网络游戏",
@@ -2365,17 +2781,22 @@
       "mechanism": "网络游戏 的全部稳定语义实例属于 游戏 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "职业教育",
@@ -2393,17 +2814,22 @@
       "mechanism": "职业教育 的全部稳定语义实例属于 教育 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "股份制银行",
@@ -2421,17 +2847,22 @@
       "mechanism": "股份制银行 的全部稳定语义实例属于 银行 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "虚拟机器人",
@@ -2449,17 +2880,22 @@
       "mechanism": "虚拟机器人 的全部稳定语义实例属于 机器人 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "跨境物流",
@@ -2477,17 +2913,22 @@
       "mechanism": "跨境物流 的全部稳定语义实例属于 物流 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "跨境电商",
@@ -2505,17 +2946,22 @@
       "mechanism": "跨境电商 的全部稳定语义实例属于 电商 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "钒电池",
@@ -2533,17 +2979,22 @@
       "mechanism": "钒电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "钙钛矿电池",
@@ -2561,17 +3012,22 @@
       "mechanism": "钙钛矿电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "钠离子电池",
@@ -2589,17 +3045,22 @@
       "mechanism": "钠离子电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "锂电专用设备",
@@ -2617,17 +3078,22 @@
       "mechanism": "锂电专用设备 的全部稳定语义实例属于 专用设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "锂电池",
@@ -2645,17 +3111,22 @@
       "mechanism": "锂电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "降解塑料",
@@ -2673,17 +3144,22 @@
       "mechanism": "降解塑料 的全部稳定语义实例属于 塑料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "麒麟电池",
@@ -2701,14 +3177,19 @@
       "mechanism": "麒麟电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     }
   ],
   "blocked_needs_evidence": [
@@ -2731,7 +3212,7 @@
       "mechanism": "半导体产出在关键设备缺失或受限时受约束",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要设备不可替代性、产线配置或资格认证证据",
-      "provenance": "phase-b-semantic-v1:serenity-hard-evidence-lead",
+      "provenance": "phase-b-semantic-v2-second-review:serenity-hard-evidence-lead",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2754,7 +3235,7 @@
       "mechanism": "光伏主材可能被组件制造直接消耗",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要BOM、工艺路线或技术标准",
-      "provenance": "phase-b-semantic-v1:serenity-hard-evidence-lead",
+      "provenance": "phase-b-semantic-v2-second-review:serenity-hard-evidence-lead",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2777,53 +3258,7 @@
       "mechanism": "半导体材料作为制造过程可识别输入",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要工艺文件或行业标准证明材料与过程边界",
-      "provenance": "phase-b-semantic-v1:serenity-hard-evidence-lead",
-      "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
-      "uncertainty": "不得进入可写 manifest"
-    },
-    {
-      "disposition": "blocked_needs_evidence",
-      "relation_type": "input_to",
-      "from": {
-        "name": "稀土产业",
-        "entity_key": "chain_node:v1_27ce70eef148a208a96f83c266cf784623b6f9b7",
-        "definition": "围绕稀土开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一稀土商品实体、价格、期货合约或证券标的。",
-        "boundary_note": null
-      },
-      "to": {
-        "name": "稀土永磁",
-        "entity_key": "chain_node:v1_9571c890fe5582822afb16d1571a0a6d1ee38d0a",
-        "definition": "以稀土永磁为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
-        "boundary_note": null
-      },
-      "direction": "稀土产业 -> 稀土永磁",
-      "mechanism": "稀土原料可能被永磁材料生产直接消耗",
-      "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
-      "missing_evidence": "需要材料配方、工艺或行业标准",
-      "provenance": "phase-b-semantic-v1:serenity-hard-evidence-lead",
-      "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
-      "uncertainty": "不得进入可写 manifest"
-    },
-    {
-      "disposition": "blocked_needs_evidence",
-      "relation_type": "input_to",
-      "from": {
-        "name": "铜产业",
-        "entity_key": "chain_node:v1_c559b89036733a774b3077adba925b5484cb0633",
-        "definition": "围绕铜开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铜商品实体、价格、期货合约或证券标的。",
-        "boundary_note": null
-      },
-      "to": {
-        "name": "铜缆高速连接",
-        "entity_key": "chain_node:v1_405642df4ca054e4c7bd6069a914a0bb40291380",
-        "definition": "以铜缆高速连接为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
-        "boundary_note": null
-      },
-      "direction": "铜产业 -> 铜缆高速连接",
-      "mechanism": "铜材可能被高速铜缆直接消耗",
-      "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
-      "missing_evidence": "需要产品BOM或材料规格",
-      "provenance": "phase-b-semantic-v1:serenity-hard-evidence-lead",
+      "provenance": "phase-b-semantic-v2-second-review:serenity-hard-evidence-lead",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2846,7 +3281,7 @@
       "mechanism": "锂作为可识别材料投入锂电池生产",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要工艺/BOM/技术标准证明直接消耗",
-      "provenance": "phase-b-semantic-v1:serenity-hard-evidence-lead",
+      "provenance": "phase-b-semantic-v2-second-review:serenity-hard-evidence-lead",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2869,7 +3304,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2892,7 +3327,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2915,7 +3350,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2938,7 +3373,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2961,7 +3396,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -2984,7 +3419,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3007,7 +3442,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3030,7 +3465,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3053,7 +3488,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3076,7 +3511,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3099,7 +3534,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3122,7 +3557,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3145,7 +3580,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3168,7 +3603,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3191,7 +3626,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3214,7 +3649,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3237,7 +3672,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3260,7 +3695,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3283,7 +3718,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3306,7 +3741,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3329,7 +3764,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3352,7 +3787,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3375,7 +3810,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3398,7 +3833,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3421,7 +3856,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3444,7 +3879,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3467,7 +3902,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3490,7 +3925,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3513,7 +3948,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3536,7 +3971,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3559,7 +3994,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3582,7 +4017,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3605,7 +4040,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3628,7 +4063,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3651,7 +4086,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3674,7 +4109,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3697,7 +4132,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3720,7 +4155,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3743,7 +4178,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3766,7 +4201,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3789,7 +4224,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3812,7 +4247,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3835,7 +4270,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3858,7 +4293,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3881,7 +4316,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3904,7 +4339,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     },
@@ -3927,7 +4362,7 @@
       "mechanism": "名称后缀提示可能的分类范围从属",
       "current_evidence": "仅有节点名称、definition 与 boundary，不能证明真实投入或功能约束",
       "missing_evidence": "需要权威分类定义或技术标准证明全部实例从属",
-      "provenance": "phase-b-semantic-v1:suffix-needs-boundary-proof",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-needs-boundary-proof",
       "counterexample": "可能只是相邻概念、可替代路径或共同受第三因素影响",
       "uncertainty": "不得进入可写 manifest"
     }
@@ -3945,7 +4380,7 @@
       "description": "制造良率可能构成可量化硬工艺约束",
       "why_physical": "直接限制可生产数量、良率、合格率或扩产速度，而非价格、政策、情绪或行情",
       "current_evidence": "节点语义仅支持研究方向，不足以确认约束事实",
-      "missing_evidence": "需要工艺节点良率、设备/材料敏感性与产能损失来源",
+      "missing_evidence": "subject 过宽；先收窄到具体工艺节点或关系，再补工艺节点良率、设备/材料敏感性与产能损失来源",
       "recommendation": "补足强技术/产能/资源证据后由第二遍 Reviewer 决定 approve/reject"
     },
     {
@@ -3990,7 +4425,7 @@
       "description": "关键材料纯度可能约束产品性能与良率",
       "why_physical": "直接限制可生产数量、良率、合格率或扩产速度，而非价格、政策、情绪或行情",
       "current_evidence": "节点语义仅支持研究方向，不足以确认约束事实",
-      "missing_evidence": "需要材料规格、失效机理与资格认证来源",
+      "missing_evidence": "subject 过宽；先收窄到具体材料节点或关系，再补材料规格、失效机理与资格认证来源",
       "recommendation": "补足强技术/产能/资源证据后由第二遍 Reviewer 决定 approve/reject"
     }
   ],
@@ -4034,6 +4469,46 @@
         "is_subcategory_of"
       ],
       "reason": "compound/union name cannot prove all instances belong to parent"
+    },
+    {
+      "disposition": "rejected",
+      "relation_type": "input_to",
+      "from": {
+        "name": "稀土产业",
+        "entity_key": "chain_node:v1_27ce70eef148a208a96f83c266cf784623b6f9b7",
+        "definition": "围绕稀土开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一稀土商品实体、价格、期货合约或证券标的。",
+        "boundary_note": null
+      },
+      "to": {
+        "name": "稀土永磁",
+        "entity_key": "chain_node:v1_9571c890fe5582822afb16d1571a0a6d1ee38d0a",
+        "definition": "以稀土永磁为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "boundary_note": null
+      },
+      "direction": "稀土产业 -> 稀土永磁",
+      "reason": "from endpoint 是产业范围，不是可被直接消耗的具体材料输出；未来应改用具体稀土材料节点重新提议",
+      "review_record": "main Serenity independent second pass",
+      "future_action": "replace endpoint and submit a new evidence-backed candidate"
+    },
+    {
+      "disposition": "rejected",
+      "relation_type": "input_to",
+      "from": {
+        "name": "铜产业",
+        "entity_key": "chain_node:v1_c559b89036733a774b3077adba925b5484cb0633",
+        "definition": "围绕铜开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铜商品实体、价格、期货合约或证券标的。",
+        "boundary_note": null
+      },
+      "to": {
+        "name": "铜缆高速连接",
+        "entity_key": "chain_node:v1_405642df4ca054e4c7bd6069a914a0bb40291380",
+        "definition": "以铜缆高速连接为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "boundary_note": null
+      },
+      "direction": "铜产业 -> 铜缆高速连接",
+      "reason": "from endpoint 是产业范围，不是可被直接消耗的具体铜材料输出；未来应改用具体材料节点重新提议",
+      "review_record": "main Serenity independent second pass",
+      "future_action": "replace endpoint and submit a new evidence-backed candidate"
     }
   ],
   "rejected_rules": [
@@ -4074,7 +4549,7 @@
   },
   "deterministic_qa_sample": [
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_component_of",
       "from": {
         "name": "汽车零部件",
@@ -4092,17 +4567,22 @@
       "mechanism": "汽车零部件是汽车可识别的物理/系统组成",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "explicit-component-name"
+        "rule": "explicit-component-name",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:explicit-component-name",
+      "provenance": "phase-b-semantic-v2-second-review:explicit-component-name",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "AI芯片",
@@ -4120,17 +4600,22 @@
       "mechanism": "AI芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "BC电池",
@@ -4148,17 +4633,22 @@
       "mechanism": "BC电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "HJT电池",
@@ -4176,17 +4666,22 @@
       "mechanism": "HJT电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "MCU芯片",
@@ -4204,17 +4699,22 @@
       "mechanism": "MCU芯片 的全部稳定语义实例属于 芯片 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "钠离子电池",
@@ -4232,17 +4732,22 @@
       "mechanism": "钠离子电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "锂电专用设备",
@@ -4260,17 +4765,22 @@
       "mechanism": "锂电专用设备 的全部稳定语义实例属于 专用设备 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "锂电池",
@@ -4288,17 +4798,22 @@
       "mechanism": "锂电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "降解塑料",
@@ -4316,17 +4831,22 @@
       "mechanism": "降解塑料 的全部稳定语义实例属于 塑料 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     },
     {
-      "disposition": "reviewable_semantic",
+      "disposition": "ai_approved_candidate_draft",
       "relation_type": "is_subcategory_of",
       "from": {
         "name": "麒麟电池",
@@ -4344,14 +4864,19 @@
       "mechanism": "麒麟电池 的全部稳定语义实例属于 电池 的范围",
       "condition_note": "仅限已批准 definition/boundary 所表达的稳定语义范围",
       "derivation_evidence": {
-        "source": "approved 842-node manifest",
+        "source": "approved internal source artifact",
+        "artifact_path": "final-seed-candidate-artifacts/node-profile-seed-manifest.json",
         "input_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
-        "rule": "suffix-subtype-allowlist"
+        "rule": "suffix-subtype-allowlist",
+        "review_record": [
+          "ffb243e Sol Medium first pass",
+          "main Serenity independent second pass"
+        ]
       },
-      "provenance": "phase-b-semantic-v1:suffix-subtype-allowlist",
+      "provenance": "phase-b-semantic-v2-second-review:suffix-subtype-allowlist",
       "confidence": "high",
       "counterexample": "若子项名称只是市场标签、并列复合词或边界未覆盖全部实例，则关系不成立",
-      "uncertainty": "尚未经过第二遍独立 Serenity Reviewer"
+      "uncertainty": "双遍 AI Review 已通过；证据契约 amendment 尚待用户确认，当前不是可执行 manifest"
     }
   ]
 }

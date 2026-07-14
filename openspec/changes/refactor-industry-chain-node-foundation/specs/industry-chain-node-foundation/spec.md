@@ -104,6 +104,11 @@
 - **THEN** 必须作为全新候选保存新的 ID、证据和 subject
 - **AND** 不得从旧 constraint 或 topology edge 机械迁移
 
+#### Scenario: 约束 subject 与证据强度
+- **WHEN** physical constraint 的 subject 是过宽节点，或仅有节点名称/definition 支持
+- **THEN** 候选必须保持 blocked，并先收窄到具体节点或关系 subject
+- **AND** 不得把价格、政策、情绪、市场表现或无 source URL 的弱推断升级为物理约束
+
 ### Requirement: 分阶段有状态操作门禁
 系统 SHALL 先完整验收 Phase A cleanup、通用外部标识 schema、全新节点/profile 初始化与外部标识 mapping data，再进入 Phase B 关系建立。structure implementation checkpoint 的通过不构成任何数据库 Write 授权；cleanup、external identifier schema、node/profile seed 与 mapping data 必须分别执行独立的 `Review -> Write -> Query`。
 
@@ -153,7 +158,8 @@
 
 #### Scenario: Phase B relation data 门禁
 - **WHEN** relation schema Query 已验收，且基于新节点的四类候选边及任何全新 constraint 候选准备完成
-- **THEN** 系统必须再次 Review 并单独取得 data Write 授权
+- **THEN** 系统必须先在同一 task package 内完成 relation-only atomic write runner、manifest/snapshot validator、提交前 assertions 与 dry-run/report 的 R1 技术验收
+- **AND** 只有可写 manifest 精确冻结后，才可形成 data R2 package 并单独取得 Write 授权
 - **AND** Write 后必须立即 Query 方向、端点、唯一性、机制冲突、孤儿、constraint subject 与幂等结果并等待验收
 
 #### Scenario: 不重建 Neo4j

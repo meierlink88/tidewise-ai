@@ -37,6 +37,33 @@ func TestLoadChainNodeRelationManifestDecodesSnakeCaseContract(t *testing.T) {
 	}
 }
 
+func TestLoadChainNodeRelationManifestRejectsTrailingJSONValue(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "relations.json")
+	content := `{"relations":[]} {"relations":[]}`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadChainNodeRelationManifest(path); err == nil || !strings.Contains(err.Error(), "single JSON document") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestPostgresRelationDryRunRejectsPhysicalConstraintsBeforeDatabaseAccess(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	manifest := ChainNodeRelationManifest{PhysicalConstraints: []domain.ChainNodePhysicalConstraint{{ID: "constraint"}}}
+	_, err = NewPostgresRepository(db).DryRunChainNodeRelationManifest(context.Background(), manifest)
+	if err == nil || !strings.Contains(err.Error(), "physical_constraints") {
+		t.Fatalf("error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestChainNodeRelationDryRunReportsCreateUnchangedUpdateAndConflict(t *testing.T) {
 	now := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
 	base := domain.ChainNodeRelation{ID: "r1", FromChainNodeEntityID: "a", ToChainNodeEntityID: "b", RelationType: domain.ChainNodeRelationSubcategoryOf, Mechanism: "定义范围从属", EvidenceNote: "定义与边界直接支持", Provenance: "approved-node-manifest", VerifiedAt: now, Status: domain.StatusActive}

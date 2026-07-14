@@ -35,6 +35,12 @@ CREATE TABLE chain_node_physical_constraints (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK ((chain_node_entity_id IS NOT NULL)::int + (chain_node_relation_id IS NOT NULL)::int = 1)
 );
+CREATE INDEX chain_node_physical_constraints_node_subject_idx
+    ON chain_node_physical_constraints (chain_node_entity_id)
+    WHERE chain_node_entity_id IS NOT NULL;
+CREATE INDEX chain_node_physical_constraints_relation_subject_idx
+    ON chain_node_physical_constraints (chain_node_relation_id)
+    WHERE chain_node_relation_id IS NOT NULL;
 
 -- +goose Down
 DROP TABLE chain_node_physical_constraints;

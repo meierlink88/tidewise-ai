@@ -54,6 +54,17 @@ func TestValidateRelationCommandOptionsRequiresIsolatedDryRun(t *testing.T) {
 	}
 }
 
+func TestLoadRelationDryRunManifestRejectsPhysicalConstraints(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "relations.json")
+	content := []byte(`{"relations":[],"physical_constraints":[{"id":"constraint","chain_node_entity_id":"node","constraint_type":"process_yield","description":"具体工艺良率限制合格产出","evidence_note":"强证据","provenance":"review","status":"active","verified_at":"2026-07-14T00:00:00Z"}]}`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadRelationDryRunManifest(path); err == nil {
+		t.Fatal("loadRelationDryRunManifest() error = nil")
+	}
+}
+
 func TestManifestPreflightProofUsesExplicitFileAndCountsChainNodeProfiles(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "chain-nodes.json")
 	content := []byte(`{"entities":[{"key":"chain_node:test","entity_type":"chain_node","layer_code":"chain_node","name":"测试节点","canonical_name":"测试节点","status":"active","profile":{"definition":"用于验证显式节点 seed 文件的稳定产业节点。"}}]}`)

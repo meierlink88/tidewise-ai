@@ -5,10 +5,25 @@
 
 #### Scenario: Review 产业节点候选边
 - **WHEN** 系统准备 `is_subcategory_of`、`is_component_of`、`input_to` 或 `depends_on` 候选边
-- **THEN** 清单必须包含中文端点名称、entity key、方向、mechanism、condition、evidence、来源 URL 和核验时间
+- **THEN** 清单必须包含中文端点名称、entity key、方向、mechanism、condition、evidence/provenance、反例、不确定性和 Review disposition
+
+#### Scenario: 分类和组成关系使用内部派生证据
+- **WHEN** `is_subcategory_of` 或 `is_component_of` 只表达已批准节点 definition/boundary 可直接判定的稳定集合从属或物理/系统组成
+- **THEN** evidence 可以使用 approved internal source artifact path、SHA-256、确定性 derivation rule 与两遍独立 AI Review 记录，不强制伪造外部来源 URL
+- **AND** 最终可写 manifest 仍必须保存 `verified_at`，且不得将该证据扩张解释为投入、依赖、供给瓶颈或事件传导
+
+#### Scenario: 因果和物理约束保持强外部证据
+- **WHEN** 候选是 `input_to`、`depends_on` 或 physical constraint
+- **THEN** 必须提供可定位的强外部证据、source URL、verified_at、成立条件和反例
+- **AND** 只有名称、definition/boundary、词面邻近或内部派生规则时必须保持 blocked 或 rejected
+
+#### Scenario: 委托双遍 AI Review
+- **WHEN** 用户明确委托 AI 处理专业关系逐项判断
+- **THEN** 第一遍生成与自检、第二遍独立 Reviewer 的 approve/reject/blocked 结论必须完整留痕
+- **AND** 双遍 AI Review 不替代 schema/data R2 的人工授权
 
 #### Scenario: 未批准候选不得写入
-- **WHEN** 某条基于新 chain_node 的候选边尚未获得明确人工确认
+- **WHEN** 某条基于新 chain_node 的候选边尚未取得已批准 evidence contract 下的完整 Review disposition，或可写 manifest/R2 package 尚未冻结
 - **THEN** 系统不得将其写入正式 seed、PostgreSQL 或 Neo4j
 
 ## MODIFIED Requirements

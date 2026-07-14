@@ -85,6 +85,10 @@ Go 类型只使用 `Theme` / `ThemeProfile`，数据库只使用 `entity_type='t
 
 不提供 `contains`、`supplies_to`、`substitutes_for`、`transmits_to`。替代关系通常依赖资格、成本、产能与时间，不适合作为 MVP 静态二元边；事件传导则由事件沿 `input_to` / `depends_on` 等路径动态推导。
 
+证据契约按语义强度分层：`is_subcategory_of` / `is_component_of` 若只表达 approved node definition/boundary 可直接判定的集合从属或组成，允许使用内部 artifact path + SHA-256、确定性 derivation rule 与两遍独立 AI Review 记录作为充分 provenance，最终可写 manifest 仍须填写 `verified_at`；这类证据不得外推为投入、依赖、供给瓶颈或事件传导。`input_to` / `depends_on` / physical constraint 仍要求强外部证据、source URL、verified_at、成立条件与反例，只有内部语义证据时保持 blocked/rejected。
+
+`chain_node_physical_constraints` 为两个 nullable subject FK 分别建立 partial 查询索引。constraint semantic identity 仍是本 amendment 的待决项，本轮不增加未经确认的 UNIQUE：推荐后续以 subject kind + subject ID + constraint type + 规范化 condition 作为 Review identity，并在确认 condition 是否属于身份后，再决定使用两个 subject-specific partial unique expression indexes；确认前只依赖 PK、exact-one-subject 与 R1 runner conflict report，不能据此写入数据。
+
 ### 4. 第一批节点范围与通用外部标识
 
 第一批名称范围只取已审阅工作簿 Sheet「标准化保留」：842 个互异「标准化节点名」作为 `canonical_name`，950 个互异原始名称进入名称/aliases 契约，形成 108 个同义合并。`entity_nodes.name` 与 `canonical_name` 均使用标准化节点名；每个与 canonical 不同的原始名称去除首尾空白、去重并按确定性字符串顺序稳定排序后进入 `aliases`，不丢失审阅过的别名，也不因工作簿或 draft 输入顺序变化造成 checksum/action 漂移。canonical 本身由 `name/canonical_name` 保存，不在 aliases 中重复。Sheet「宽边界保留」只是 79 个已保留节点的审阅子集，不是排除清单。工作簿仍不是可直接执行的 seed：所有新 UUID/entity_key、definition、必要 boundary 和 dry-run/report 必须另行生成并通过 Review。
@@ -212,7 +216,7 @@ classDiagram
 | `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
 | `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,169 mapping 层 |
 | `phase-b-relation-schema`（2.6） | R2 | 独立条件式执行包，只授权 relation schema 层 |
-| `phase-b-relation-data`（2.7） | R2 | 独立条件式执行包，只授权已审阅 relation/新 constraint data 层 |
+| `phase-b-relation-data`（2.7） | R1 -> R2 | schema Query 后先自动完成 relation-only atomic runner/validator/precommit assertions 的 R1 技术验收；再冻结 manifest 并提交独立 R2，只授权已审阅 relation/新 constraint data 层 |
 | Neo4j cleanup/write/rebuild | R3，且不在本 change | 必须由后续独立 change 和独立授权处理，任何现有批准均不覆盖 |
 
 每个 R2 条件式执行包必须在执行前明确命名操作、环境、顺序、精确范围、排除范围、recovery evidence、预计 counts、before/after assertions 与停止条件。当前 curated local PostgreSQL 不自动视为 disposable：默认提供可恢复 `backup`；只有用户对具体层明确声明 disposable、无不可替代数据且批准确定性 recreate/reseed 路径时，才能使用 `approved disposable recovery`。任何恢复证据失效、范围漂移、断言失败或停止条件触发都必须 fail-closed，未执行的授权自动失效。
@@ -289,8 +293,9 @@ sequenceDiagram
 ### Phase B：基于新节点建立关系
 
 1. 不读取或转换旧 membership/topology/constraint ID；关系与任何新 physical constraint 均从新节点和新证据重新提出。
-2. 四类关系契约、候选边及 evidence/provenance 独立 Review；relation schema 与 relation data 仍分别执行 `Review -> Write -> Query`。
-3. 本 change 不执行 Neo4j rebuild；最终 PostgreSQL 关系通过后仍由后续独立 change 负责投影。
+2. 四类关系契约、候选边及 evidence/provenance 独立 Review；96 条分类/组成候选已通过双遍 AI Review，但其分层 evidence contract 仍待用户确认。relation schema 与 relation data 仍分别执行 `Review -> Write -> Query`。
+3. schema Query 验收后，task 2.7 先完成不写数据库的 relation-only batch runner、单事务原子性、manifest/snapshot conflict、提交前 assertions 与 dry-run/report R1；技术验收与可写 manifest 冻结后才可请求 data R2。
+4. 本 change 不执行 Neo4j rebuild；最终 PostgreSQL 关系通过后仍由后续独立 change 负责投影。
 
 ### 幂等与回滚
 
@@ -311,6 +316,9 @@ sequenceDiagram
 - [关系 mechanism 文本可能规避互斥索引] → 数据库索引处理完全相同文本，领域规范化与人工 Review 处理语义同义问题。
 
 ## Open Questions
+
+- **等待用户确认的唯一业务 amendment**：是否批准 `is_subcategory_of` / `is_component_of` 使用 internal artifact path+SHA、derivation rule 与双遍 AI Review 作为充分证据，同时继续要求 `input_to` / `depends_on` / physical constraint 提供强外部 source URL/verified_at/条件/反例。确认前不得准备 schema R2。
+- physical constraint semantic identity 推荐使用 subject kind + subject ID + constraint type + normalized condition，并在 condition 身份语义确认后评估两个 partial unique expression indexes；该问题延后到出现可写 constraint 候选前处理，不是当前 evidence amendment 的第二个确认项，本轮不实施该 unique。
 
 - 第一批 842 个 canonical 名称与 950 个原始名称范围、身份/aliases/definition/boundary/dry-run 契约已批准；842 个具体 UUID/key、definition、必要 boundary、alias 归一化结果和逐代码 taxonomy 仍须在 final seed dry-run Review 中批准。
 - `entity_external_identifiers` 已批准采用单一 `(source_system, source_taxonomy_type, external_code)` 唯一约束与 `(entity_id, source_system, source_taxonomy_type)` 普通索引，不建立冗余四列唯一索引。

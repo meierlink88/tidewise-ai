@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 
@@ -40,6 +41,13 @@ func LoadChainNodeRelationManifest(path string) (ChainNodeRelationManifest, erro
 	var manifest ChainNodeRelationManifest
 	if err := decoder.Decode(&manifest); err != nil {
 		return manifest, fmt.Errorf("decode chain node relation manifest: %w", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return manifest, fmt.Errorf("chain node relation manifest must contain a single JSON document")
+		}
+		return manifest, fmt.Errorf("chain node relation manifest must contain a single JSON document: %w", err)
 	}
 	if err := domain.ValidateChainNodeRelationBatch(manifest.Relations); err != nil {
 		return manifest, err
@@ -107,6 +115,20 @@ func (r PostgresRepository) DryRunChainNodeRelationBatch(ctx context.Context, re
 		return ChainNodeRelationReport{}, err
 	}
 	return report, nil
+}
+
+func (r PostgresRepository) DryRunChainNodeRelationManifest(ctx context.Context, manifest ChainNodeRelationManifest) (ChainNodeRelationReport, error) {
+	if err := ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
+		return ChainNodeRelationReport{}, err
+	}
+	return r.DryRunChainNodeRelationBatch(ctx, manifest.Relations)
+}
+
+func ValidateChainNodeRelationDryRunManifest(manifest ChainNodeRelationManifest) error {
+	if len(manifest.PhysicalConstraints) != 0 {
+		return fmt.Errorf("relation dry-run rejects physical_constraints until its repository and dry-run contract are implemented")
+	}
+	return nil
 }
 
 type chainNodeRelationMemoryRepository struct {
