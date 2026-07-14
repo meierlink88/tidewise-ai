@@ -7,7 +7,7 @@
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
 | 1 | 基础投影兼容修复；local Neo4j cleanup 与 rebuild 分层授权 | R3 | yes | R3_OPERATION | 仅允许现有 projector 兼容当前 PG 模型，以及两个独立 local Neo4j R3 层 |
-| 2 | 842 节点关系完善范围/候选 Review；local PostgreSQL R2 Write；local Neo4j R3 sync | R3 | yes | SPEC_SEMANTICS | 保持 842 全量业务目标；先确定可关闭批次方案，再按批准数据先 PG 后 Neo4j |
+| 2 | 842 节点全量关系分析/候选 Review；local PostgreSQL R2 Write；local Neo4j R3 sync | R3 | yes | SPEC_SEMANTICS | 在本 change 内完成 842/842 四类关系审核状态；分批仅用于研究与 Review，全部冻结后先 PG 后 Neo4j |
 | 3 | Apply-final Review 与 Git completion | R1 | yes | APPLY_FINAL | 汇总 scoped diff 与验证；获批后才允许 Sync、Archive、PR merge 与 Desktop cleanup |
 
 ## Complexity Budget
@@ -28,8 +28,8 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | local-neo4j-foundation-cleanup | 1 | local | 1 | 仅清空 local Neo4j 的 Tidewise namespace 节点与关系，保留 database、约束、索引和配置 | PG 业务数据、UAT、prod、shared、其他 namespace | approved-disposable-recovery | new:foundation-pg-projection-baseline | counts=review-gated;hash=review-gated;schema=review-gated | PG projection baseline identity、scope、count、hash、schema 已冻结；环境确认为批准的 disposable local Neo4j | Tidewise namespace 节点与关系为零；database、约束、索引、配置和 PG 业务数据不变 | workflow schema blocker 未解决、环境不符、PG baseline 漂移、越过 namespace 或断言失败立即停止 |
 | local-neo4j-foundation-rebuild | 1 | local | 2 | 从已验收 PG baseline 重建 active alliance_org、economy、chain_node 及符合端点边界的 entity_edges 与 chain_node_relations | market/index/benchmark、事件、观测、推理、未批准数据、UAT、prod、shared | approved-disposable-recovery | reuse:foundation-pg-projection-baseline | counts=review-gated;hash=review-gated;schema=review-gated | 复验 PG baseline identity、scope、count、hash、schema 未漂移；cleanup Query 与 projector targeted tests 通过 | 分实体类型节点与分关系类型 counts 与 PG 一致；missing、duplicate、orphan、legacy 均为零 | workflow schema blocker 未解决、PG baseline 漂移、projector failed/skipped 或完整性断言失败立即停止 |
-| all-chain-node-relations-postgres-write | 2 | local | 1 | 仅写入当次已冻结、经 Review 批准的细分节点与四类关系数据批次 | physical constraints、未审核候选、范围外节点/关系、UAT、prod、shared | backup | new:all-chain-node-relations-pg-backup | counts=review-gated;hash=review-gated;schema=review-gated | 批次 manifest、端点、identity、scope、count、hash、schema 与范围外保护基线已批准并冻结；backup 可恢复 | 批准数据写入结果、端点、tuple、orphan、范围外保护与幂等 Query 全部通过 | 基线漂移、identity 冲突、部分写入、范围外变化或断言失败立即停止 |
-| all-chain-node-relations-neo4j-sync | 2 | local | 2 | 仅从已验收 PG accepted baseline 同步当次批准的 chain_node 与四类关系 | physical constraints、反写 PG、查询 API、派生关系、UAT、prod、shared | approved-disposable-recovery | new:all-chain-node-relations-pg-accepted-baseline | counts=review-gated;hash=review-gated;schema=review-gated | PG 写后 Query 已验收；accepted baseline 已冻结；取得单独 Neo4j R3 授权 | Neo4j 与 PG accepted baseline counts/type 一致；missing、duplicate、orphan、legacy 为零 | workflow schema blocker 未解决、PG baseline 漂移、未单独授权、同步或 Query 失败立即停止 |
+| all-chain-node-relations-postgres-write | 2 | local | 1 | 仅写入 842/842 全量审核完成并经 Review 冻结的细分节点与四类关系 final manifest | physical constraints、未审核候选、范围外节点/关系、UAT、prod、shared | backup | new:all-chain-node-relations-pg-backup | counts=review-gated;hash=review-gated;schema=review-gated | 842/842 覆盖账本与 final manifest 已批准；端点、identity、scope、count、hash、schema 与范围外保护基线已冻结；backup 可恢复 | 全量批准数据写入结果、端点、tuple、orphan、范围外保护与幂等 Query 全部通过 | 覆盖不足 842/842、基线漂移、identity 冲突、部分写入、范围外变化或断言失败立即停止 |
+| all-chain-node-relations-neo4j-sync | 2 | local | 2 | 仅从已验收 PG accepted baseline 同步 842 全量审核批准的 chain_node 与四类关系 | physical constraints、反写 PG、查询 API、派生关系、UAT、prod、shared | approved-disposable-recovery | new:all-chain-node-relations-pg-accepted-baseline | counts=review-gated;hash=review-gated;schema=review-gated | PG 写后 Query 已验收；accepted baseline 已冻结；取得单独 Neo4j R3 授权 | Neo4j 与 PG accepted baseline counts/type 一致；missing、duplicate、orphan、legacy 为零 | workflow schema blocker 未解决、PG baseline 漂移、未单独授权、同步或 Query 失败立即停止 |
 
 ### 当前 Workflow Schema Blocker
 
@@ -39,11 +39,11 @@
 
 | Gate | Package | Risk | Decision | Allows | Does Not Allow |
 |---|---|---|---|---|---|
-| G1 | 2 | R0 | 确认 842 全量目标的可关闭批次方案 | 冻结批次边界并开始候选分析 | final 候选或任何写入 |
+| G1 | 2 | R0 | 已确认本 change 完成 842/842 全量四类关系审核状态 | workflow blocker 解除后在本 change 内分批研究与 Review | 将剩余节点拆到后续 change、final 候选或任何写入 |
 | G2 | 1 | R3 | `local-neo4j-foundation-cleanup` 授权 | 仅清空批准的 local Tidewise namespace | rebuild、PG 业务写、其他环境 |
 | G3 | 1 | R3 | `local-neo4j-foundation-rebuild` 授权 | 仅从冻结 PG baseline 重建 local projection | PG 业务写、其他环境 |
-| G4 | 2 | R0 | 审核并冻结当次 final 节点/关系候选 | 准备对应 PG preflight | PG/Neo4j Write |
-| G5 | 2 | R2 | `all-chain-node-relations-postgres-write` 授权 | 仅写批准批次并 Query | Neo4j sync、未审核数据 |
+| G4 | 2 | R0 | 审核并冻结 842/842 全量 final 节点/关系候选 | 准备全量 PG preflight | PG/Neo4j Write |
+| G5 | 2 | R2 | `all-chain-node-relations-postgres-write` 授权 | 仅写全量批准数据并 Query | Neo4j sync、未审核数据 |
 | G6 | 2 | R3 | `all-chain-node-relations-neo4j-sync` 授权 | 仅从 PG accepted baseline 同步并 Query | PG 反写、其他环境 |
 | G7 | 3 | R1 | Apply-final Review | 通过后允许 Sync、Archive | PR merge、cleanup |
 | G8 | 3 | R0 | Git completion | PR merge 与 Desktop-owned cleanup | 扩大 change scope |
@@ -55,7 +55,7 @@
 - 最小修复 `backend/internal/apps/graphprojection/mapping.go`：补齐 `is_subcategory_of`、`is_component_of`、`input_to` 映射并保留已有 `depends_on`，正确标识关系来源；只增加对应 repository/mapping/projector targeted tests。
 - 只投影 active `alliance_org`、`economy`、`chain_node`；`entity_edges` 仅在两端都属于该集合时投影，绝不因关系扩张到 market/index/benchmark 或生成孤儿边。
 - 复用已有 `graph-projector project-entities/rebuild-entities`、namespace 删除和 Neo4j upsert。cleanup 使用已存在的 namespace 删除语义并单独验收，rebuild 再单独授权；Neo4j 不备份。
-- 数据工作保持 842 个现有节点四类关系完善的业务目标，但开放式 842 研究不能假装成一次可穷尽写入。Proposal Review 必须在“单 change 长期开启至 842/842”与“当前 change 建立闭环并交付首个冻结批次、后续复用数据-only changes 直至 842/842”之间确认可关闭方案；本 Proposal 不擅自缩小业务目标。
+- 本 change 必须完成当前 842 个基线节点的四类关系全量分析与关联。每个节点都要形成已审核状态：已批准关系、不适用或证据不足及理由；分批只用于研究、double-check 和 Review，不构成 change 关闭边界，也不得把剩余节点拆到后续 data-only changes。
 - AI 研究、主对话 double-check、候选证据整理均是一次性数据分析，不是系统能力。
 - 关系 repository 已有通用只读 dry-run、事务批量写、端点/tuple/幂等校验；但 `cmd/entity-seed` 把关系入口锁死在历史 96 条 manifest/hash。若批准新的关系批次，Package 2 需要一个经 Review 的最小 R1 CLI 解锁，直接调用现有通用 batch 方法，不建设新平台。
 - 通用 entity manifest 可写 chain_node/profile，但当前不是“新节点+关系同一原子事务”。若批准批次包含新增节点，必须先带候选与事务缺口证据回到 Review，再决定最小事务适配；不得预授权框架或自行写入。
@@ -69,7 +69,7 @@
 ### Modified Capabilities
 
 - `neo4j-graph-projection-foundation`: 让已有 projector 兼容当前实体模型，并明确 local 分层清空/重建与分类 Query。
-- `industry-chain-node-foundation`: 保持 842 全量四类关系业务目标，增加必须由 Review 决定的可关闭批次边界。
+- `industry-chain-node-foundation`: 在本 change 内完成 842/842 四类关系审核状态；批次仅作为研究和 Review 手段。
 - `entity-relationship-curation`: 维持候选 Review、PG-first 与 Neo4j 独立授权；不把 AI 分析提升为产品能力。
 
 ## Impact
