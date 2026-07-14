@@ -4,8 +4,8 @@
 
 本文记录主对话对 tasks 1.1—1.4 的已批准契约；它仍不是 Apply、migration、seed 或数据库写入授权。基线为 2026-07-13 已 fetch 的 `origin/main@f942d7615afd952840cdc478bbe7b4ecc990616d`，仅审计现有 schema、entityfoundation loader/repository、seed JSON 与 graph projection 实现。
 
-- A 层 Contract Review 已通过；只授权继续准备 B 层 provisional candidate draft。
-- 本文不冻结联盟候选、economy 范围或关系候选，不开始 tasks 2.x。
+- A 层 Contract Review 已通过；其历史完成状态已归入 Package 1.1，只授权继续审阅 Package 1 的 provisional alliance candidate draft。
+- 本文不冻结联盟候选、economy 范围或关系候选，不开始 Package 2。
 - 本文不修改源码、migration、seed、PostgreSQL 或 Neo4j。
 - 下文以“建议”标出的约束，只有主对话逐项批准后才成为实现输入。
 
@@ -85,7 +85,7 @@
 - `identity_kind`：`TEXT NOT NULL`、无 default、仅允许上述四值；不允许用空值推断类型。
 - `country_code`：写入前 trim + ASCII uppercase；`NOT NULL`，但不建立无条件全表 `UNIQUE`，因为 inactive/merged source identity 需要保留。validator、manifest 与 Query 必须保证同一 code 只有一个 approved active economy。`EU` 与 `GLOBAL` 是内部保留 code，不得宣传为主权国家 ISO 代码。
 - `currency_code`：写入前 trim + ASCII uppercase；主权国家/地区经济体通常是已审计 ISO 4217 alpha-3。`MULTI` 只允许 global、经批准的 supranational aggregate，或主权/地区 economy 的逐项批准多法定货币例外；未审阅 fail-closed，且不得作为缺失占位符。
-- `region`：写入前 trim + ASCII lowercase。现有 `africa`、`asia`、`central_asia`、`europe`、`europe_asia`、`global`、`middle_east`、`north_america`、`oceania`、`south_america` 仅作为首轮兼容 allowlist；C 层逐项审计并报告歧义，A 层不另建区域体系。
+- `region`：写入前 trim + ASCII lowercase。现有 `africa`、`asia`、`central_asia`、`europe`、`europe_asia`、`global`、`middle_east`、`north_america`、`oceania`、`south_america` 仅作为首轮兼容 allowlist；Package 2 逐项审计并报告歧义，已批准 A contract 不另建区域体系。
 - `entity_key`：稳定内部 identity，不因中文名、英文名、currency 或 region 变化而改变。国家/地区 key 必须与 alpha-2 code 一致；聚合 identity 只能来自显式保留表。preflight 清理空值/重复后建立全局唯一约束；merged source 保留自身不同 stable key。
 - aliases：至少包含可审计英文正式名或通行英文名；遵循 1.2 的 trim、NFKC + casefold 去重规则。ISO code 与 currency code 不自动进入 aliases，除非它本身是广泛使用且经候选 Review 的名称。
 
@@ -105,7 +105,7 @@
 - CSV 成员数只可在后续 Review 中作非权威对照；正式成员数必须由 approved active `member_of` 关系计算并与官方集合核对。
 - 全球占比属于后续 observation；约束力与影响力属于后续分析评价，不伪装为基础实体属性。
 - 不新增实体标签机制，不复用事件标签，也不把 categories 投影为 Neo4j labels。
-- Neo4j 继续只有单一 `Entity` node label；PostgreSQL 仍是事实源。任何 Neo4j Rebuild 仍受 PG 全部 Query 验收后的独立门禁约束。
+- Neo4j 继续只有单一 `Entity` node label；PostgreSQL 仍是事实源。本 change 不执行 Neo4j Review/Rebuild/Query，未来由独立 graph projection change 基于已验收 PostgreSQL facts 重新 Propose/Review。
 
 ## 4. 与 `origin/main` 的 exact diff（只读设计差异）
 
@@ -113,7 +113,7 @@
 
 | 边界 | `origin/main` 当前状态 | 本契约已批准目标 | exact diff / 风险 |
 |---|---|---|---|
-| `alliance_org_profiles` | `entity_id`、`org_code VARCHAR(64) NOT NULL UNIQUE`、`org_type VARCHAR(64) NOT NULL`、`primary_domain VARCHAR(64) DEFAULT ''`、`scope_region VARCHAR(64) DEFAULT ''`、`official_url TEXT DEFAULT ''`；另有 `org_type`、`primary_domain` 索引 | 最小五字段 | 保留 `entity_id`；新增 `abbreviation`、`categories`、`leadership_summary`、`influence_scope_summary`；旧五个业务列及两个索引未来如何兼容/移除必须在 alliance Write Review 展示 |
+| `alliance_org_profiles` | `entity_id`、`org_code VARCHAR(64) NOT NULL UNIQUE`、`org_type VARCHAR(64) NOT NULL`、`primary_domain VARCHAR(64) DEFAULT ''`、`scope_region VARCHAR(64) DEFAULT ''`、`official_url TEXT DEFAULT ''`；另有 `org_type`、`primary_domain` 索引 | 最小五字段 | 保留 `entity_id`；新增 `abbreviation`、`categories`、`leadership_summary`、`influence_scope_summary`；旧五个业务列及两个索引未来如何兼容/移除必须在 R2A master-data Review 展示 |
 | alliance loader | 必填 `org_code`、`org_type`，只检查非空字符串 | 改为新字段及 allowlist/alias 组合校验 | 当前 validator 不识别数组、不做长度、trim、NFKC/casefold、类别边界或 node type 组合校验 |
 | alliance repository | 固定写旧五列 | 固定写新四个业务字段 | 直接改列会使旧 seed/测试/调用方失败；必须先全仓引用审计和 forward migration 测试 |
 | `economy_profiles` | `entity_id`、`country_code VARCHAR(16) NOT NULL`、`currency_code VARCHAR(16) NOT NULL`、`region TEXT DEFAULT ''`；无 code 唯一/check 约束 | 增 `identity_kind` 并加组合校验 | 需先审计现有值和重复；不能用 default 回填 identity kind 掩盖分类错误 |
@@ -122,7 +122,7 @@
 | aliases | `TEXT[] NOT NULL DEFAULT '{}'`；repository 仅过滤空字符串并按**完全相等**去重 | trim + NFKC/casefold 去重、简称组合约束 | 大小写、全半角、首尾空格重复和跨实体简称冲突目前不会被阻止；规范化必须先 dry-run exact diff |
 | entity/profile FK | profile FK 只保证 node 存在 | profile 还须匹配正确 `entity_type` | PostgreSQL FK 不能表达 type 条件；未来需在 validator/repository preflight 或经审阅的 DB 约束方案中 fail-closed |
 | seed 基线 | 10 个 alliance、50 个 economy；EU/GLOBAL 已存在但无 `identity_kind` | 逐项 Review 后 forward convergence | 不得从当前值自动推断所有 identity kind；本轮不生成 seed |
-| Neo4j | writer 使用单一 `Entity` label，投影通用 node 属性 | 保持不变 | categories/identity_kind 是否需要普通属性投影须在未来 Neo4j Review 决定，但不得变成 label |
+| Neo4j | writer 使用单一 `Entity` label，投影通用 node 属性 | 本 change 不修改 | categories/identity_kind 是否需要普通属性投影须由未来独立 graph projection change 决定，但不得变成 label |
 
 ### 4.2 未来 migration 风险与门禁
 
@@ -130,7 +130,7 @@
 2. **数据回填风险**：`org_type`/`primary_domain` 不能机械映射为 categories；`org_code` 也不能无 Review 直接复制为 abbreviation。所有转换都来自批准候选 manifest。
 3. **唯一性风险**：`org_code` 当前全局唯一，而建议 abbreviation 不全局唯一；`entity_key` 当前反而不唯一。改变约束前必须输出冲突清单、目标 identity 与预计 counts。
 4. **数组约束风险**：PostgreSQL check 可验证非空和元素形态，但完整 allowlist、规范排序与 aliases 等价规则需要 validator/repository 测试共同保证；不得只依赖应用层未覆盖的隐式约定。
-5. **economy 分类风险**：给现有 50 条统一 default identity kind 会把 EU/GLOBAL/地区 economy 混成主权国家。必须逐项生成只读差异并经过 C 层单独 Review。
+5. **economy 分类风险**：给现有 50 条统一 default identity kind 会把 EU/GLOBAL/地区 economy 混成主权国家。必须在 Package 2 内逐项生成只读差异，并与关系候选一起接受包末业务 Review。
 6. **identity 收敛风险**：任何 duplicate/merge/inactivate 都必须进入未来 exception manifest 与 Write Review；本文不授权清理。
 7. **共享实现风险**：本 change 的源码、migration、seed 和数据库写仍须等待 `refactor-industry-chain-node-foundation` Deliver 后，从最新 `origin/main` 重做 overlap audit。
 
@@ -141,15 +141,15 @@
 3. 两个 summary 的候选草案可以显示缺失并标为 blocker；最终 approved active alliance 必须 `NOT NULL`、无 default、`btrim` 非空，长度上限分别为 500/1000。未来 migration 可有受控兼容窗口，但不得永久 `DEFAULT ''`。
 4. 批准 economy 四类 identity、EU/GLOBAL 边界和 `MULTI` fail-closed 例外规则。
 5. `country_code` 不建立无条件全表唯一约束；同 code 只有一个 approved active economy。`entity_key` 在 preflight 清理后建立全局唯一约束，merged source 保留不同 stable key。
-6. 现有 10 个 region code 仅作为首轮兼容 allowlist；C 层逐项报告歧义，不在 A 层另建区域体系。
+6. 现有 10 个 region code 仅作为首轮兼容 allowlist；Package 2 逐项报告歧义，不在 A 层另建区域体系。
 7. 批准明确不入库字段、无实体标签机制、Neo4j 单一 `Entity` label，以及 exact diff/migration preflight 边界。
 
 ## 6. 后续 Review 边界
 
 - A 批准不代表任何具体联盟候选、categories 映射、summary 文本或 disposition 已获批准。
-- B 只能提交 provisional candidate draft；最终 decision 必须由主对话逐项填写。
-- B 未通过 task 2.3 前不得启动 C、读取或冻结成员全集、生成 seed 或连接 PostgreSQL/Neo4j。
+- Package 1 的 alliance candidate 仍是 provisional draft；最终 decision 必须由主对话逐项填写。
+- Package 1.2 未通过前不得启动 Package 2、读取或冻结成员全集、生成 seed 或连接 PostgreSQL/Neo4j。
 
 ## 7. 本 checkpoint 的验收结论
 
-tasks 1.1—1.4 已由主对话批准。当前只允许准备 tasks 2.1—2.2 的 provisional review draft，并停在 2.3 等待逐项 Review。
+历史 A contract 与 workflow adoption 已由主对话批准并映射为 Package 1.1。当前停在 Package 1.2，等待 68 条候选与 10 个现有 active disposition 的逐项 Review。

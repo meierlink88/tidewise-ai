@@ -1,88 +1,74 @@
-# Active Change Workflow Adoption Review
+# Active Change Workflow Adoption 与 Task Design Efficiency Review
 
-## 1. Adoption 范围与当前停点
+## 1. Adoption 历史与当前停点
 
-本文件把 `origin/main@4b3df5ccb8ea837470f9bcaa8b2799d0762a742b` 交付的风险分级开发流程应用到本 change 的**未来门禁**。最新主分支已通过无冲突 merge commit `27e6e20` 安全吸收；既有 A：Schema / Data Contract Review 和 B：Alliance Candidate Review checkpoints 保持原样。
+本 change 已在 `origin/main@4b3df5ccb8ea837470f9bcaa8b2799d0762a742b` 上采用风险分级流程，并通过 merge commit `27e6e20` 保留既有 A/B checkpoints。workflow adoption 的结构与边界已获主对话认可，不再保留独立行政门禁；它只作为 Package 1 的历史证据，不追认或扩大业务授权。
 
-- adoption 本身属于 R0：只修改 OpenSpec tasks/review 元数据，不修改业务候选结论、源码、migration、seed 或数据库。
-- 不追溯改写历史授权、历史证据或既有 checkbox；普通 checkbox 仍不等于人工授权。
-- 当前业务停点仍为 task 2.3。B provisional 候选未获逐项确认前，不得进入 C，不得读取或冻结成员全集。
-- 本轮 adoption Review 通过，只代表后续阶段按本文风险包执行；不代表 2.3 通过，也不授权 R1 Apply、R2 PostgreSQL 写入或 R3 Neo4j rebuild。
+- 当前唯一业务出口是 Package 1 的最终联盟 manifest Review：68 条候选与 10 个现有 active alliance 必须逐项确认。
+- Package 1 未通过前不得启动正式成员来源、冻结 economy 范围或生成关系候选。
+- 本轮 task packaging remediation 属于 R0，只修改 OpenSpec 流程表达；不改变 contract、candidate recommendation/final decision、源码或数据库。
 
-## 2. 剩余阶段风险映射
+## 2. 五 Package 风险与人工确认
 
-| 阶段 / task | 风险 | Review package 与边界 |
+| Package | 风险 | 人工确认与边界 |
 |---|---|---|
-| 已完成 A、当前 B | R0 | 历史状态不追认或重写；B 继续使用逐项候选数据 Review package。 |
-| C：economy 候选 | R0 | 仅在 2.3 通过后读取批准联盟的正式成员来源并形成 economy candidate package；不生成 seed、不写库。 |
-| D：relationship 候选 | R0 | 仅在 3.5 通过后形成 `member_of`，以及独立的 `led_by` / `part_of` candidate packages；不写库。 |
-| E：依赖与 overlap audit | R0 | 只读检查最新基线、共享文件、migration 序号、测试和 PostgreSQL 状态；发现冲突即回到 artifacts Review。 |
-| 6.1—6.6：源码、测试、dry-run | R1 | 条件为新的 Apply 人工授权；只允许无有状态写入的源码和测试，不 apply migration/seed。 |
-| 7.1、7.3、7.5、7.8 | R0 | 分层准备 Write Review、preflight、Query evidence 和验收包，本身不构成 Write。 |
-| 7.2 | R2 | 命名执行层 `alliance-schema-and-data`；必须显式授权环境、操作、范围、恢复证据与断言。 |
-| 7.4 | R2 | 命名执行层 `economy-data`；必须在 alliance Query 验收后才可执行。 |
-| 7.6 | R2 | 命名执行层 `member-of`；必须在 economy Query 验收后才可执行。 |
-| 7.7 | R2 | `led-by` 与 `part-of` 若推进，各自是独立命名执行层，不被 `member-of` 授权覆盖。 |
-| 8.1 | R0 | 准备 Neo4j 独立 Review package，不连接或重建图。 |
-| 8.2 | R3 | Neo4j rebuild 为独立显式授权，禁止并入 R2 条件包或跨层批量执行。 |
-| 生产、不可逆 cleanup | R3 | 无论未来落在哪个 task，均须独立授权与恢复/灾备证据；当前未授权。 |
+| 1 联盟范围与 Spec Review | R0 | 保留一个最终联盟 manifest 人工 Review；历史 adoption、A contract 与 B draft 不再各设 gate。 |
+| 2 Economy 与关系候选 Review | R0 | 联盟批准后连续生成 economy/member package，最终一次审阅业务语义；`led_by`/`part_of` 未决则排除，不阻塞。 |
+| 3 R1 实现与自动技术验收 | R1 | 无独立人工 gate；满足产业链依赖后自动 overlap audit + TDD + scoped verification，禁止有状态写。 |
+| 4A local `master-data` | R2 | 一次人工授权统一 schema + alliance + economy，执行单一 Review → Write → Query。 |
+| 4B local `relationships` | R2 | R2A Query 通过后独立人工授权 relationship Write → Query；只含已批准关系。 |
+| 5 Apply-final 与 Deliver | R0/R1 收口 | 一个 Apply-final 人工 Review；通过后才允许 Sync、Archive、PR、merge、cleanup。 |
 
-## 3. 阶段 Review package 顺序
+生产写入、不可逆 cleanup 或其他未命名环境仍属于独立 R3，不在本 change 的 local R2 授权内。Neo4j rebuild 已移出本 change，未来必须由独立 graph projection change 重新 Propose/Review。
 
-1. **B / R0 alliance candidate package（当前）**：逐项确认 68 条 CSV 候选与 10 个现有 active alliance 的最终处置，产出穷尽 approved manifest。
-2. **C / R0 economy candidate package**：只在 2.3 通过后，按批准联盟读取正式成员来源、形成成员全集、差异审计和 exception/protection manifest。
-3. **D / R0 relationship candidate package**：只在 3.5 通过后形成 `member_of`；`led_by`、`part_of` 各自独立 Review。
-4. **R1 Apply Review package**：A—D 与 overlap audit 完成后，展示允许修改的源码/测试范围、targeted tests、受影响交付边界 full suite 和不含有状态写入的证据。
-5. **R2 条件式执行包**：只在 R1 Apply diff 获人工验收后，按第 5 节逐层请求授权并执行 PostgreSQL Write → Query。
-6. **R3 Neo4j package**：只在 PostgreSQL 全部验收后独立 Review → Rebuild → Query；不继承任何 R2 授权。
+## 3. Task Design Efficiency
 
-依赖链保持为：**联盟确认 → 补齐经济体 → 建立成员关系**。上一阶段 Review/Query 未验收，不得进入下一阶段。
+- checkbox 只对应可交付 package 或必须独立授权的 R2 层，不对应资料读取、单个测试文件、技术实现步骤或重复 Query。
+- 同一风险边界内的生成、diff、测试、dry-run、preflight、self-review 和验证组成一个 package；失败时 package fail-closed，不制造新的行政 gate。
+- 候选数据仍按规则/抽样/总体断言审阅，高风险、宽边界、冲突、异常 disposition 与 final manifest 保持逐项人工确认。
+- R1 以自动技术验收结束，不新增中间人工 Apply gate；真正有状态操作仍由 R2A/R2B 分别授权。
+- Apply-final 是 Sync/Archive/Deliver 前唯一实现验收出口。repo-wide full test 不作为默认 checklist，只在共享规则、跨模块契约、公共基础设施或边界不清等项目规则触发时运行。
 
-## 4. B：R0 Candidate Review package
+## 4. Package 1 Candidate Review 证据
 
 ### 4.1 输入、生成规则与指纹
 
 - CSV 输入：`表格_20260713.csv`；SHA-256 `584f990ddf3a0784d7586c0b0dc40aef7558620f8d8a0c27cb91a8b075002614`。
 - 现有联盟基线：`f942d76:backend/data/entity_foundation/alliance_orgs.json`；SHA-256 `a797ed7b03a3f3acfc3e8fb885b3b19c16af8c4dc2f781efcb9d8ae2089ee37f`。
-- adoption 前候选 artifact：`alliance-candidate-review.md`；SHA-256 `9536c4889a3f5fbb4676b8da7c5b1ba67d88fa7ffb1cad71825e7056b7cb83e8`。该值只锁定 adoption 前的业务候选内容。来源新鲜度整改输入为 checkpoint `ac21094` 中的同文件，SHA-256 `c13663d90c2f195d1ec4ebad8579cceaccd8991194795ddaeac09d1248e86210`；本轮输出哈希将在整改 commit 后变化。
-- 确定性生成边界：CSV 1—68 进入联盟候选；69—85 只记录排除；现有 10 条必须全部进入 disposition Review；正式来源只核验 identity、名称、职责和持续存在性，不读取成员集合。
+- adoption 前候选 artifact：SHA-256 `9536c4889a3f5fbb4676b8da7c5b1ba67d88fa7ffb1cad71825e7056b7cb83e8`；来源整改输入 checkpoint `ac21094`：SHA-256 `c13663d90c2f195d1ec4ebad8579cceaccd8991194795ddaeac09d1248e86210`；来源整改输出 checkpoint `276e131`：SHA-256 `a956fa1d20307181df2a80c9a609e3a4f408c6ea7870f9ddb15940c068f6fc80`。
+- CSV 1—68 进入联盟候选，69—85 只记录排除；现有 10 条全部进入 disposition Review；正式来源只核验 identity、名称、职责和持续存在性，不读取成员集合。
 
 ### 4.2 Counts、抽样与异常全集
 
-- CSV 联盟候选 68 条：recommend approve 62、defer 4、merge 1、reject 1；所有 final decision 均为空。
-- 现有 active alliance 10 条已全部覆盖；CSV 69—85 共 17 条已排除。
-- 67 条候选具备正式来源；Chip 4 有 1 个正式来源 blocker。
-- 确定性 QA sample 为 CSV 行 1、10、20、30、40、50、60、68，并追加**全部**非 approve、宽 identity 边界、来源 blocker、alias/abbreviation 冲突项。抽样只用于检查草案一致性，绝不替代 68 条候选和 10 条现有数据的逐项人工决策。
-- 必审冲突/异常全集：World Bank stable target merge；CSV 未列但现有的 G7/G20/OECD，其中 G7 轮值来源必须在执行时刷新；BRI、PGII、Chip 4、EU-US TTC defer，其中 TTC 官方页面已 archived、最后部长级会议为 2024，当前不得进入 active manifest；Silk Road Fund reject；ISO alias 冲突；无正式 abbreviation 项；Chip 4 official-source blocker；协议机制、倡议网络与联合国下属机构的宽 identity 边界。中国—中亚机制已由 2025 外交部概况和第六次外长会材料证明秘书处全面运行；IOMed 已由官方 2025 签署、生效、运营与总部/秘书处材料消除旧状态疑问。
+- 68 条候选：recommend approve 62、defer 4、merge 1、reject 1；所有 final decision 为空。
+- 现有 active alliance 10 条全部覆盖；CSV 69—85 共 17 条已排除；67 条候选具备正式来源，Chip 4 是唯一正式来源 blocker。
+- 确定性 QA sample 为 CSV 行 1、10、20、30、40、50、60、68，并追加全部非 approve、宽 identity、来源 blocker、alias/abbreviation 冲突项。抽样不替代全部候选与现有 disposition 的逐项人工决策。
+- 必审异常：World Bank stable target merge；CSV 未列的 G7/G20/OECD；BRI、PGII、Chip 4、EU-US TTC defer；Silk Road Fund reject；ISO alias 冲突；无正式 abbreviation；Chip 4 source blocker；协议机制、倡议网络和联合国下属机构宽 identity。G7 轮值来源执行时刷新；中国—中亚机制与 IOMed 状态已由正式来源更新；TTC 官方页 archived 且最后部长级会议为 2024。
 
 ### 4.3 来源新鲜度整改（R0）
 
-| 对象 | 旧问题 | 本轮正式来源证据 | Review 结论不变 |
-|---|---|---|---|
-| G7 | 仍指向 2024 Italy 主席国 | 法国总统府 2026 G7 / Évian 官方站记录法国轮值主席国及 2026-06-15—17 峰会；执行时仍须随轮值刷新 | `approve` / existing `keep` |
-| 中国—中亚机制 | 仅有 2023 峰会材料 | 中国外交部 2025 机制概况与第六次外长会公报记录秘书处 2024 成立、2025 全面运行 | `approve` / `create` |
-| IOMed | 仍写“需核验生效与 active” | IOMed 官方历史/结构记录 2025 签署、生效、首届理事会授权运营和秘书处职责，总部页记录香港总部 | `approve` / `create` |
-| EU-US TTC | 未给出 2026 active 判定 | 欧委会页面明确 archived / no longer updated，最后部长级会议为 2024-04 | `defer`，不得进入当前 active manifest |
+| 对象 | 正式来源结论 | Review 结论不变 |
+|---|---|---|
+| G7 | 法国 2026 主席国与 Évian Summit；执行时仍随轮值刷新 | `approve` / existing `keep` |
+| 中国—中亚机制 | 秘书处 2024 成立、2025 全面运行 | `approve` / `create` |
+| IOMed | 2025 签署、生效、理事会授权运营并具备总部/秘书处 | `approve` / `create` |
+| EU-US TTC | 官方页面 archived / no longer updated，最后部长级会议为 2024-04 | `defer`，不进当前 active manifest |
 
-### 4.4 Action classification 与 fail-closed
+### 4.4 Fail-closed
 
-- `create/keep/merge/defer/reject/inactivate` 都只是预期动作分类，不是 Write 指令。
-- 任一 final decision 留空，或任一 source、identity、alias、summary、category、existing disposition 冲突未解决，task 2.3 均不得通过。
-- 现有 active alliance 未穷尽，或 merge/inactivate 的 source/target、关系影响和预计 counts 未逐项确认，task 2.3 均不得通过。
-- 通过 2.3 只允许进入 C 的 R0 economy candidate package，不授权 seed、migration、PostgreSQL 或 Neo4j 操作。
+- 任一 final decision 留空，或 source、identity、alias、summary、category、existing disposition 冲突未解决，Package 1 均不得完成。
+- 现有 active alliance 未穷尽，或 merge/inactivate 的 source/target、关系影响、预计 counts 未确认，Package 1 均不得完成。
+- Package 1 通过只允许进入 Package 2 的 R0 候选工作，不授权 R1/R2 或任何 Neo4j 操作。
 
-## 5. 未来 R2 条件式执行包模板
+## 5. 两个 Local R2 执行包模板
 
-每个命名 R2 层在执行前必须提交：目标环境、精确命令/入口、范围与排除项、approved manifest 版本与 checksum、恢复选择及证据、预计 counts、Write 前断言、Write 后 Query 断言、停止条件。包含策展数据的 local PostgreSQL 不自动视为可丢弃环境；除非用户逐项批准其满足 disposable local/test 条件，否则必须提供可恢复备份证据。
+每个 R2 必须独立记录目标 local 环境、精确入口、范围/排除项、approved manifest/version/checksum、recovery evidence、预计 counts、before/after assertions 和停止条件。curated local PostgreSQL 默认需要可恢复 backup；只有用户逐层明确批准的 disposable recovery 才可替代。
 
-未来可在**一次明确批准且逐层命名**的条件包内列出以下顺序，但不得省略任何层的 Write → Query：
+1. **R2A `master-data`**：必要 schema + alliance + economy 在一个授权和单事务边界内 forward converge；Query 同时验证 alliance active set、economy exceptions 与非目标保护快照。
+2. **R2B `relationships`**：只在 R2A Query 验收后授权；写 approved `member_of`，以及 Package 2 同一 Review 明确批准的可选关系；Query 验证 active tuples、端点、方向、provenance、官方集合与幂等。
 
-1. `alliance-schema-and-data` Write → Query；
-2. alliance Query 验收后，`economy-data` Write → Query；
-3. economy Query 验收后，`member-of` Write → Query。
-
-`led-by` 与 `part-of` 如推进，必须各自命名、各自 Review/Write/Query。任一层失败、checksum 漂移、counts/断言不符或发生未批准范围变化，会立即使剩余未执行授权失效。Neo4j rebuild、生产写入和不可逆 cleanup 不得进入该 R2 包，必须走独立 R3 Review。
+任一未授权范围、checksum/counts/断言漂移或 Query 失败立即停止，未执行授权失效。两个 R2 均不包含 Neo4j、生产写入或不可逆 cleanup。
 
 ## 6. 本轮人工门禁
 
-请主对话只审阅本 workflow adoption diff：风险映射是否正确、Review package 是否完整、未来 R2/R3 是否保持 fail-closed。通过后仅确认未来阶段采用新流程；B 的业务入口仍是 `alliance-candidate-review.md` 与 task 2.3 的逐项 Review。
+请主对话只审阅本 task-design packaging：5-package 边界、7 个顶层 checkbox、历史状态映射、两个 R2 和 Neo4j 移出是否正确。通过不代表 Package 1 最终联盟 manifest 已批准；业务入口仍是 `alliance-candidate-review.md` 与 Package 1.2。

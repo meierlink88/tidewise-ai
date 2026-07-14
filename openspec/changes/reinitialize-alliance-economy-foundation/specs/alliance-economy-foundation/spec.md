@@ -44,10 +44,10 @@
 
 #### Scenario: 限制 MULTI 与兼容 Region
 - **WHEN** economy profile 使用 `MULTI` 或现有 region code
-- **THEN** `MULTI` 只允许 global、经批准的 supranational aggregate 或逐项批准的主权/地区多法定货币例外，未审阅必须 fail-closed；现有 10 个 region code 仅作为首轮兼容 allowlist，歧义留到 C 层逐项报告
+- **THEN** `MULTI` 只允许 global、经批准的 supranational aggregate 或逐项批准的主权/地区多法定货币例外，未审阅必须 fail-closed；现有 10 个 region code 仅作为首轮兼容 allowlist，歧义由 Package 2 逐项报告
 
 ### Requirement: 联盟确认到成员关系的依赖闭环
-系统 SHALL 按“联盟确认 → 官方成员全集 → economy 差异审计与补齐 → 成员关系”的顺序准备数据，任一前置 Review 未通过时必须阻止下游候选冻结或写入。
+系统 SHALL 按“联盟确认 → 官方成员全集 → economy 差异审计与补齐 → 成员关系”的顺序准备数据；联盟 manifest Review 是进入后续候选包的前置人工门禁，后续步骤在同一 R0 候选包内连续执行并于包末统一 Review。
 
 #### Scenario: 联盟未确认时阻止 economy 冻结
 - **WHEN** 联盟候选清单尚未逐项获得主对话确认
@@ -57,9 +57,9 @@
 - **WHEN** 联盟清单已经确认
 - **THEN** 系统必须为每个批准联盟读取可审计的正式成员来源，区分 active 正式成员与 observer、partner、applicant、suspended、former，并只用 formal active 形成 MVP economy 全集
 
-#### Scenario: Economy 未确认时阻止关系候选
-- **WHEN** economy 差异清单尚未单独获得主对话确认
-- **THEN** 系统不得生成可执行 seed、写数据库或冻结 `member_of` 候选
+#### Scenario: 在候选包内顺序生成关系候选
+- **WHEN** Package 2 已完成 economy 差异、exception/protection 审计及自动完整性断言
+- **THEN** 系统可以继续生成穷尽的 `member_of` 候选而无需增加中间人工门禁，但 economy 与关系候选必须作为一个完整 R0 package 提交最终业务 Review；未通过不得生成可执行 seed 或写数据库
 
 #### Scenario: 验证成员数据完整性
 - **WHEN** `member_of` PostgreSQL 写入完成
@@ -80,7 +80,7 @@
 系统 SHALL 使用版本化且穷尽的 approved alliance manifest 定义重新初始化后的最终 active alliance 集合，并通过 forward convergence 处理现有 identity，不得把 upsert 或新增数量视为完成。
 
 #### Scenario: 穷尽处置现有 Active Alliance
-- **WHEN** 系统准备 alliance Write Review
+- **WHEN** 系统准备 R2A master-data Review
 - **THEN** manifest 必须列出最终 active keys，并为每个现有 active `alliance_org` 给出 `keep`、`merge` 或 `inactivate`；任何未列出项必须阻断 Write，不得静默清理
 
 #### Scenario: 处理 Reject 或 Defer
@@ -108,7 +108,7 @@
 
 #### Scenario: 审阅 Economy 异常处置
 - **WHEN** economy identity 审计发现重复、冲突或明确错误
-- **THEN** 候选 diff 必须展示原因、旧/新 identity、关系影响和预计 counts，并在独立 Review 批准后才可 forward merge/inactivate
+- **THEN** 候选 diff 必须展示原因、旧/新 identity、关系影响和预计 counts，并在 Package 2 业务 Review 与 R2A 精确执行包授权后才可 forward merge/inactivate
 
 #### Scenario: 验证未误伤合法 Economy
 - **WHEN** economy convergence Query 执行
@@ -118,5 +118,5 @@
 系统 SHALL 通过自动化测试验证 alliance profile、economy identity、候选依赖链和排除边界，普通测试不得访问真实外部网络或真实数据库。
 
 #### Scenario: 运行普通后端测试
-- **WHEN** 开发者运行相关 Go tests 与 `go test ./...`
+- **WHEN** 开发者运行相关 Go tests、受影响交付边界完整 suite 与共享 architecture/contract tests
 - **THEN** 测试必须使用 fixture、fake、table-driven tests、sqlmock 或明确隔离的 integration boundary 覆盖 profile、ISO、identity、candidate gating、dry-run、幂等与冲突行为

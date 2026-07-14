@@ -2,14 +2,14 @@
 
 ## 0. 状态、方法与硬门禁
 
-本文是 tasks 2.1—2.2 的**只读临时候选草案**。联盟主数据尚未完全准备，所有 `recommendation`、identity、categories、摘要与 disposition 都只是供主对话逐项 Review 的建议；`final decision` 一律留空，不构成 approved alliance manifest、seed、Write 或清理授权。
+本文是 Package 1 联盟范围与 Spec Review 的**只读临时候选草案**。联盟主数据尚未完全准备，所有 `recommendation`、identity、categories、摘要与 disposition 都只是供主对话逐项 Review 的建议；`final decision` 一律留空，不构成 approved alliance manifest、seed、Write 或清理授权。
 
 - CSV 来源：`表格_20260713.csv`，只读审阅第 1—85 条；未复制为可执行 seed。
 - 现有数据来源：`origin/main@f942d7615afd952840cdc478bbe7b4ecc990616d` 的 `backend/data/entity_foundation/alliance_orgs.json`，只读文件审计，不连接 PostgreSQL。
 - 正式来源只核验组织/机制 identity、名称、职责与持续存在性，核验日为 2026-07-13；**未读取、汇总或冻结任何成员国全集**。
 - 本文不生成 economy 范围、`member_of`/`led_by`/`part_of` 候选，不修改源码、migration、seed，也不连接或写 PostgreSQL/Neo4j。
 - `recommendation` 仅允许 `approve/reject/merge/defer`；`final decision` 必须由主对话填写。任一 summary 缺失都会是 blocker；本草案已提供非空建议文本，但仍须逐项核验。
-- task 2.3 保持未通过。只有 68 条 CSV 候选和 10 个现有 active alliance disposition 全部逐项确认后，才可形成 approved manifest；在此之前禁止进入 C。
+- Package 1.2 保持未通过。只有 68 条 CSV 候选和 10 个现有 active alliance disposition 全部逐项确认后，才可形成 approved manifest；在此之前禁止进入 Package 2。
 
 字段缩写：`L` = `leadership_summary` 草案，`I` = `influence_scope_summary` 草案；`create/keep/merge/inactivate` 只是未来 disposition 建议，不是执行动作。所有 categories 均来自已批准 22-code allowlist，并已按 code 字典序排列。
 
@@ -147,7 +147,7 @@ recommended existing dispositions = 10 keep targets, 0 inactivate, 0 merge sourc
 
 ## 4. 主对话逐项 Review 清单
 
-主对话需要对每一行明确填写 final decision，并在通过 task 2.3 前处理以下 blocker：
+主对话需要对每一行明确填写 final decision，并在通过 Package 1.2 前处理以下 blocker：
 
 1. 逐项确认 68 条的 `approve/reject/merge/defer`；任何空白 decision 都阻止 approved manifest。
 2. 逐项确认拟用 stable key、中文/英文规范名、aliases、abbreviation、categories 和两个摘要。
@@ -160,4 +160,4 @@ recommended existing dispositions = 10 keep targets, 0 inactivate, 0 merge sourc
 
 ## 5. 停止点
 
-tasks 2.1—2.2 已准备供 Review，task 2.3 未通过。本文没有成员国全集、economy 差异、成员关系或可执行 seed；在主对话逐项确认前不得启动 C。
+历史 B provisional draft 已准备供 Review，Package 1.2 尚未通过。本文没有成员国全集、economy 差异、成员关系或可执行 seed；在主对话逐项确认前不得启动 Package 2。

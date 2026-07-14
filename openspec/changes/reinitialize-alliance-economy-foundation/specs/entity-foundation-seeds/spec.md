@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
-### Requirement: 联盟与 Economy 分层 seed 准入
-系统 SHALL 在正式 seed 前分别审阅联盟与 economy 候选，并复用一致的现有稳定 identity；候选材料、Review 清单和 dry-run 不等于写入授权。
+### Requirement: 联盟与 Economy 候选及 Master Data 准入
+系统 SHALL 在正式 seed 前按 package 审阅联盟与 economy 候选，并复用一致的现有稳定 identity；候选材料、Review 清单和 dry-run 不等于写入授权。
 
 #### Scenario: 审阅联盟候选清单
 - **WHEN** 系统准备联盟 seed
@@ -15,13 +15,13 @@
 - **WHEN** 已批准联盟的官方 formal active 成员全集形成
 - **THEN** 系统必须与现有 economy 实体做集合与 identity 差异审计，复用一致的 entity key/UUID，并为缺失成员形成包含中文名、英文名/aliases、identity kind、ISO 3166 code、currency、region 和来源的候选清单
 
-#### Scenario: Economy 候选独立 Review
+#### Scenario: Economy 与关系候选统一 Review
 - **WHEN** economy 差异审计发现缺失或 identity 冲突
-- **THEN** 必须提交独立候选 Review，未获确认不得生成可执行 seed、写 PostgreSQL 或生成最终关系候选
+- **THEN** 必须先在 Package 2 内完成 economy diff/exception/protection，再连续生成穷尽的 `member_of` manifest，并将两者作为一个完整候选包提交业务 Review；未获确认不得生成可执行 seed 或写 PostgreSQL
 
-#### Scenario: 分层幂等写入与查询
+#### Scenario: 统一 Master Data 幂等写入与查询
 - **WHEN** 后续 Apply 获得有状态授权
-- **THEN** 必须按 alliance Write/Query 再 economy Write/Query 的顺序执行版本化 forward convergence，上一层 Query 未验收不得进入下一层，并输出 created、updated、inactivated、merged、unchanged、failed、identity 冲突和非目标保护统计
+- **THEN** R2A 必须把必要 schema、alliance 与 economy forward convergence 组成一个精确、单事务的 master-data 执行包，按 `Review → Write → Query` 输出 created、updated、inactivated、merged、unchanged、failed、identity 冲突和非目标保护统计；R2A Query 未验收不得进入独立 R2B relationship 执行包
 
 #### Scenario: 生成 Alliance Exact Diff
 - **WHEN** approved alliance manifest 与现有 PostgreSQL 比较
@@ -44,4 +44,4 @@
 
 #### Scenario: 运行验证
 - **WHEN** 开发者验证本 change 实现
-- **THEN** 相关包测试、migration 静态或可重复 integration tests、`go test ./...` 与 OpenSpec strict validation 必须通过，并证明未写入未审阅候选
+- **THEN** 相关包测试、migration 静态或可重复 integration tests、受影响交付边界完整 suite、共享 architecture/contract tests 与 OpenSpec strict validation 必须通过，并证明未写入未审阅候选；repo-wide full test 仅在项目规则触发时运行

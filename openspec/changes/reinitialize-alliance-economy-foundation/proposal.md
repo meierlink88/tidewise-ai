@@ -1,40 +1,36 @@
 ## Why
 
-现有联盟基础仅覆盖 10 个组织、50 个 economy 和 223 条 `member_of`，联盟 profile 仍使用 `org_code/org_type/primary_domain/scope_region/official_url`，无法表达已批准的多值分类、简称识别、主导方摘要与影响范围，也没有把联盟确认、经济体补齐和成员关系建立串成可审计闭环。与此同时，联盟研究 CSV 混有组织、战略资源、成员数快照和分析评级，必须先建立严格的 identity、字段与逐层 Review 契约，避免候选材料直接变成 seed 或关系事实。
+现有联盟基础仅覆盖 10 个组织、50 个 economy 和 223 条 `member_of`，联盟 profile 仍使用 `org_code/org_type/primary_domain/scope_region/official_url`，无法表达已批准的多值分类、简称识别、主导方式摘要与影响范围，也没有把联盟确认、经济体补齐和成员关系建立串成可审计闭环。联盟研究 CSV 同时混有组织、战略资源、成员数快照和分析评级，必须以严格 identity、字段、manifest 与候选 Review 契约隔离候选材料和可执行事实。
 
 ## What Changes
 
-- **BREAKING**：将 `alliance_org_profiles` 收敛为 `entity_id`、`abbreviation`、`categories TEXT[]`、`leadership_summary`、`influence_scope_summary`；联盟名称、规范名称、aliases 和状态继续只保存在 `entity_nodes`。非空简称同时进入 aliases，分类使用受控多值，禁止保存“政治 / 军事”拼接字符串。
-- 复核现有 50 个 economy，建立 `country_code`、identity kind、ISO 3166、currency 和 region 的身份边界；主权国家、地区经济体、`economy:eu` 超国家聚合与 `economy:global` 全球聚合不得混淆，已有合格 identity 必须复用。
-- 以 CSV 第 1—68 条作为联盟候选参考，但不生成可执行 seed；第 69—85 条战略矿产与农产品不属于 `alliance_org`，排除出本 change，仅记录为未来 `chain_node`、`commodity` 或 observation 候选，不自行创建后续 change。
-- 明确不入库：子类、CSV 成员数、全球占比、约束力级别、影响力评级。正式成员数未来仅由 active `member_of` 计算；占比属于 observation；约束力和影响力属于后续分析评价。
-- 建立不可跳过的依赖链：联盟 schema/data contract Review → 联盟候选逐项 Review → 从官方来源形成已批准联盟的正式成员全集 → 与现有 economy 做差异审计 → economy 候选 Review → `member_of` 候选 Review。联盟清单未确认不得冻结 economy 范围，economy 清单未确认不得生成关系候选。
-- 将版本化、穷尽式 approved manifest 定义为重新初始化后的权威 active 状态：alliance manifest 必须覆盖最终 active alliance 集合及每个现有 active alliance 的 `keep/merge/inactivate` 处置；`member_of` manifest 必须覆盖最终 formal-active tuple 集合及每条现有 active edge 的保留或 stale 原因。`reject`、`defer`、未获批准、合并来源实体及过期关系都必须先进入候选 diff 与 Write Review，未经批准不得清理。
-- alliance merge 必须保留获批 target 的稳定 identity，将 source 标记 inactive 并防止两个 active 重复实体；不得删除旧 identity。现有 active `member_of` 若不在最新 formal-active 官方集合中，必须区分 `former`、`withdrawn`、`suspended`、`source_conflict` 或联盟 identity convergence 影响，在单独 Review 后转 inactive；禁止只新增新边而保留过期 active 边。
-- economy 不以当前联盟成员全集为保留边界。未成为批准联盟成员的合法 economy 必须保持原 identity 与 active 状态；只有逐项确认的 identity 冲突、重复或明确错误项才可 merge/inactivate，并必须展示其关系影响与预计 counts。
-- `member_of` 固定为 `economy -> alliance_org`，仅表达 active 正式成员；候选逐条展示成员身份与冲突报告，正式 edge 保存官方来源和核验时间。观察员、伙伴国、申请国、暂停成员和退出成员不得混入。CSV“成员数”仅供 Review 对照，不是事实源。
-- `led_by` 固定为 `alliance_org -> economy/alliance_org`，只为可解析且有证据的核心主导方建边；“多边”“轮值”等保留在 `leadership_summary`，不得伪造实体。`part_of` 固定为下属 `alliance_org -> alliance_org` 上级组织。两者作为独立候选层，不阻塞 alliance/economy/`member_of` MVP。
-- 后续有状态执行固定为 alliance Write → Query → economy Write → Query → `member_of` Review → Write → Query；上一层 Query 未经人工验收不得进入下一层。PostgreSQL 全部验收后，如需 Neo4j，必须单独 Review → Rebuild → Query。
-- 所有收敛只允许使用版本化 forward migration/convergence、幂等事务和可审计 report；禁止 `TRUNCATE`、删除全量实体/关系或其他破坏性重置。最终 Query 必须证明 active alliance keys 和 active `member_of` tuples 分别与 approved manifests 集合相等，并证明未误停用无关合法 economy。
-- 不新增实体标签机制、不复用事件标签；PostgreSQL 继续作为事实源，Neo4j 保持单一 `Entity` label 与 `projection_namespace=tidewise`。
-- 本 change 当前只进入 proposal Review。由于与 `refactor-industry-chain-node-foundation` 共享 entityfoundation seed/repository/migration 测试和 PostgreSQL 状态，源码实现、migration、seed、PostgreSQL/Neo4j 写入必须等待该 change 完成 Deliver，并重新基于最新 `origin/main` 评估后排队。
+- **BREAKING**：将 `alliance_org_profiles` 收敛为 `entity_id`、`abbreviation`、`categories TEXT[]`、`leadership_summary`、`influence_scope_summary`；名称、规范名称、aliases 和状态继续只保存在 `entity_nodes`。非空简称同时进入 aliases，分类使用已批准 22-code 原子多值。
+- 复核现有 50 个 economy，建立 `country_code`、四类 identity kind、ISO 3166、currency、region、`economy:eu` 和 `economy:global` 的明确边界；一致项复用稳定 identity。
+- CSV 1—68 只作为联盟候选 Review 输入；69—85 战略矿产与农产品排除出 `alliance_org`，只记录未来 `chain_node`、`commodity` 或 observation 候选，不创建后续 change。子类、CSV 成员数、全球占比、约束力级别、影响力评级均不入库。
+- 使用版本化、穷尽、带 checksum 的 approved manifests 定义最终 active 状态：alliance manifest 覆盖所有最终 active keys 及现有 active 的 `keep/merge/inactivate`；economy exception manifest 只覆盖逐项批准的冲突/重复/错误；member manifest 覆盖所有 formal-active tuples 及现有 active edge 的 keep/stale disposition。
+- alliance merge 保留 approved target 的稳定 identity，source 只做 forward inactivate，禁止两个 active 重复实体；stale `member_of` 保留 edge identity/provenance 并按 `former/withdrawn/suspended/source_conflict/alliance_identity_convergence` 审阅后转 inactive。合法 economy 不因不属于当前联盟成员全集而停用。
+- `member_of` 固定 `economy -> alliance_org` 且只表达 active 正式成员；observer、partner、applicant、suspended、former 不得混入。正式成员数仅由 active edges 计算并与同一官方来源集合核对。
+- `led_by` 与 `part_of` 作为 Package 2 的非阻塞可选附录：只有证据充分且在同一候选 Review 获批才进入本次 MVP；否则明确排除，不产生额外 gate。
+- 把约 40 个细粒度 tasks 重构为 5 个内聚 package：联盟范围与 Spec Review、economy/关系候选 Review、R1 实现与自动技术验收、两个 local PostgreSQL R2、Apply-final 与 Deliver。人工确认仅保留候选业务语义、R2A、R2B 和 Apply-final。
+- local R2A `master-data` 在一个 Review → Write → Query 包中统一执行必要 schema、alliance、economy forward convergence；R2B `relationships` 独立写 approved `member_of` 及同一候选 Review 已批准的可选关系。所有写入必须具备 exact manifest、recovery evidence、before/after assertions、单事务边界和 fail-closed 停止条件。
+- 所有收敛只允许 versioned forward migration/convergence 与幂等事务，禁止 `TRUNCATE`、无谓词 DELETE、清空重灌、历史 rollback 或手工修表。Query 必须证明 active sets 与 manifests 相等且无关合法 economy 未被误改。
+- PostgreSQL 是本 change 的唯一事实源和完成边界。Neo4j Review/Rebuild/Query 全部移出，未来由独立 graph projection change 读取已验收 PostgreSQL facts，不阻塞本 change。
+- 与 `refactor-industry-chain-node-foundation` 共享的 entityfoundation seed/repository、migration tests 和 PostgreSQL 状态在该 change 完成 Deliver 且结果进入 `origin/main` 前保持冻结；R0 候选设计可继续，Package 3 只能在更新到最新主分支并完成 overlap audit 后开始。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `alliance-economy-foundation`: 定义联盟最小 profile、经济体 identity/ISO 边界、候选来源与“联盟确认 → 补齐经济体 → 建立成员关系”的完整性门禁。
+- `alliance-economy-foundation`: 定义联盟最小 profile、economy identity/ISO 边界、候选来源和“联盟确认 → 补齐经济体 → 建立成员关系”的完整性门禁。
 
 ### Modified Capabilities
 
-- `event-knowledge-schema`: 将联盟 profile 收敛到已批准字段，并补充 economy 聚合身份与 ISO 边界。
-- `entity-foundation-seeds`: 将联盟和 economy 候选转换为正式 seed 前的逐层 Review、复用、差异审计与幂等校验要求。
-- `entity-relationship-curation`: 增加 `member_of` 正式成员边界，以及独立的 `led_by`、`part_of` 关系契约和候选 Review 顺序。
-- `neo4j-graph-projection-foundation`: 在 PostgreSQL 全部验收后，按独立授权投影已审阅联盟关系，并继续使用单一 `Entity` label。
+- `event-knowledge-schema`: 收敛联盟 profile 并补充 economy 聚合身份与 ISO 边界。
+- `entity-foundation-seeds`: 定义联盟/economy 候选 Review、稳定 identity 复用、exact diff、统一 master-data R2 与幂等验证。
+- `entity-relationship-curation`: 定义 formal-active `member_of`，以及可选 `led_by`、`part_of` 的方向、证据、候选准入和 relationship R2。
 
 ## Impact
 
-- 未来 Apply 预计影响 `backend/migrations/`、`backend/data/entity_foundation/`、`backend/internal/apps/entityfoundation/seed/`、`backend/internal/repositories/`、`backend/internal/apps/graphprojection/` 及对应 Go/migration 测试；当前 checkpoint 只新增 `openspec/changes/reinitialize-alliance-economy-foundation/` artifacts。
-- CSV 仅作为只读候选材料，不复制到可执行 seed；其 68 条组织候选仍须逐项人工 Review，成员来源须另取可审计正式来源。
-- 不修改 `prototype/` 或项目外 `doc/`，不涉及产业链实现、市场、benchmark/index、事件抽取/推理、观测数据实现、实体标签机制或股票推荐。
-- 不执行 migration、seed、PostgreSQL/Neo4j 写入、投影重建或清理，不创建完成态 PR。
+- 未来 Apply 预计影响 `backend/migrations/`、`backend/data/entity_foundation/`、`backend/internal/apps/entityfoundation/seed/`、`backend/internal/repositories/` 及对应 Go/migration tests；本 R0 checkpoint 只修改当前 change artifacts。
+- 不修改 `prototype/`、项目外 `doc/` 或 graphprojection 源码；不涉及产业链实现、市场、benchmark/index、事件抽取/推理、observation 实现、实体标签机制、Neo4j rebuild 或股票推荐。
+- 当前不执行 migration、seed、PostgreSQL/Neo4j 写入、投影重建、清理、完成态 PR 或 merge。
