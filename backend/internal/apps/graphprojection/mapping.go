@@ -42,6 +42,9 @@ var knownRelationTypes = map[string]string{
 	"self":                  "RELATED_TO",
 	"member_of_chain":       "MEMBER_OF_CHAIN",
 	"supplies_to":           "SUPPLIES_TO",
+	"is_subcategory_of":     "IS_SUBCATEGORY_OF",
+	"is_component_of":       "IS_COMPONENT_OF",
+	"input_to":              "INPUT_TO",
 	"depends_on":            "DEPENDS_ON",
 	"substitutes_for":       "SUBSTITUTES_FOR",
 	"scoped_to_economy":     "SCOPED_TO_ECONOMY",
@@ -150,6 +153,11 @@ func MapEntityRelationship(edge repositories.GraphEntityEdge, nodes map[string]G
 		return nil, report
 	}
 
+	source := edge.Source
+	if source == "" {
+		source = "postgres_entity_edges"
+	}
+
 	report.Status = RelationshipMapStatusProjected
 	return &GraphRelationship{
 		EdgeID:               edge.ID,
@@ -157,7 +165,7 @@ func MapEntityRelationship(edge repositories.GraphEntityEdge, nodes map[string]G
 		ToEntityID:           edge.ToEntityID,
 		RelationshipType:     mappedType,
 		OriginalRelationType: edge.RelationType,
-		Source:               "postgres_entity_edges",
+		Source:               source,
 		Confidence:           1,
 		Status:               string(edge.Status),
 		Namespace:            namespace,

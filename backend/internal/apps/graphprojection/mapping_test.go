@@ -114,6 +114,9 @@ func TestMapRelationTypeUsesSafeKnownTypes(t *testing.T) {
 		"references":            "REFERENCES",
 		"member_of_chain":       "MEMBER_OF_CHAIN",
 		"supplies_to":           "SUPPLIES_TO",
+		"is_subcategory_of":     "IS_SUBCATEGORY_OF",
+		"is_component_of":       "IS_COMPONENT_OF",
+		"input_to":              "INPUT_TO",
 		"depends_on":            "DEPENDS_ON",
 		"substitutes_for":       "SUBSTITUTES_FOR",
 		"scoped_to_economy":     "SCOPED_TO_ECONOMY",
@@ -131,6 +134,32 @@ func TestMapRelationTypeUsesSafeKnownTypes(t *testing.T) {
 			}
 			if got != want {
 				t.Fatalf("MapRelationType() = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestMapChainNodeRelationshipsPreservesDirectionAndSource(t *testing.T) {
+	nodes := map[string]GraphNode{
+		"from": {EntityID: "from"},
+		"to":   {EntityID: "to"},
+	}
+	for _, relationType := range []string{"is_subcategory_of", "is_component_of", "input_to", "depends_on"} {
+		t.Run(relationType, func(t *testing.T) {
+			edge := repositories.GraphEntityEdge{
+				ID: "edge-" + relationType, FromEntityID: "from", ToEntityID: "to",
+				RelationType: relationType, Source: "postgres_chain_node_relations", Status: domain.StatusActive,
+			}
+
+			relationship, report := MapEntityRelationship(edge, nodes, "tidewise")
+			if report.Status != RelationshipMapStatusProjected || relationship == nil {
+				t.Fatalf("mapping report = %+v, relationship = %+v", report, relationship)
+			}
+			if relationship.FromEntityID != "from" || relationship.ToEntityID != "to" {
+				t.Fatalf("relationship direction = %s -> %s", relationship.FromEntityID, relationship.ToEntityID)
+			}
+			if relationship.Source != "postgres_chain_node_relations" {
+				t.Fatalf("relationship source = %q", relationship.Source)
 			}
 		})
 	}

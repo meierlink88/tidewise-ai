@@ -193,9 +193,14 @@ func graphEntityNodeIDs(items []GraphEntityNode) []string {
 
 func TestPostgresGraphProjectionQueriesRequireActiveRowsAndEndpoints(t *testing.T) {
 	nodes := strings.ToLower(graphEntityNodesQuery)
-	for _, fragment := range []string{"left join sector_profiles", "left join industry_chain_profiles", "classification_code", "where node.status = 'active'", "chain.review_status = 'approved'"} {
+	for _, fragment := range []string{"from entity_nodes node", "where node.status = 'active'", "node.entity_type in ('alliance_org', 'economy', 'chain_node')"} {
 		if !strings.Contains(nodes, fragment) {
 			t.Fatalf("node projection query missing %q: %s", fragment, graphEntityNodesQuery)
+		}
+	}
+	for _, forbidden := range []string{"sector_profiles", "industry_chain_profiles", "classification_code"} {
+		if strings.Contains(nodes, forbidden) {
+			t.Fatalf("node projection query contains retired source %q", forbidden)
 		}
 	}
 
@@ -206,18 +211,26 @@ func TestPostgresGraphProjectionQueriesRequireActiveRowsAndEndpoints(t *testing.
 		"edge.status = 'active'",
 		"from_node.status = 'active'",
 		"to_node.status = 'active'",
-		"industry_chain_memberships",
-		"member_of_chain",
-		"industry_chain_topology_edges",
-		"supplies_to",
+		"from_node.entity_type in ('alliance_org', 'economy', 'chain_node')",
+		"to_node.entity_type in ('alliance_org', 'economy', 'chain_node')",
+		"from chain_node_relations relation",
+		"relation.status = 'active'",
+		"'postgres_entity_edges'",
+		"'postgres_chain_node_relations'",
 	} {
 		if !strings.Contains(edges, fragment) {
 			t.Fatalf("edge projection query missing %q: %s", fragment, graphEntityEdgesQuery)
 		}
 	}
-	for _, forbidden := range []string{"industry_chain_physical_constraints", "observation_records", "industry_chain_node_observations"} {
+	for _, forbidden := range []string{"sector_profiles", "industry_chain_profiles", "industry_chain_memberships", "industry_chain_topology_edges", "industry_chain_physical_constraints", "observation_records", "industry_chain_node_observations"} {
 		if strings.Contains(edges, forbidden) {
 			t.Fatalf("edge projection query contains forbidden source %q", forbidden)
 		}
+	}
+}
+
+func TestGraphEntityEdgeCarriesProjectionSource(t *testing.T) {
+	if _, ok := reflect.TypeOf(GraphEntityEdge{}).FieldByName("Source"); !ok {
+		t.Fatal("GraphEntityEdge is missing projection Source")
 	}
 }
