@@ -84,8 +84,10 @@ Proposal 的 `## Gate Map` 必须是 `## Why` 后第一个二级 heading，tasks
 
 - `Layer` 是唯一 kebab-case；`Package` 只能引用 Gate Map 的 R2/R3 package；`Environment` 只能是 `local`、`shared-local`、`uat`、`prod`；`Order` 在每个 package 内从 1 连续且唯一。
 - `Scope`、`Before Assertions`、`After Assertions`、`Stop Conditions` 必须非空；没有排除项时 `Exclusions` 写 `none`。
-- `Recovery Evidence` 只能是 `backup` 或 `approved-disposable-recovery`；后者只允许 local R2。`Recovery Baseline` 只能是 `new:<kebab-id>` 或 `reuse:<kebab-id>`。
+- `Recovery Evidence` 只能是 `backup` 或 `approved-disposable-recovery`。后者保留 local R2 的既有支持，并仅为 local R3 增加一个窄例外：Gate 必须为 `Risk=R3`、`Human=yes`，Scope 必须包含大小写不敏感且有 ASCII token 边界的 `Neo4j`，并包含同样有边界的 `cleanup`、`rebuild`、`sync` 之一，Before Assertions 必须包含有边界的 `PG` 或 `PostgreSQL` 以及 `baseline`。Layer 名称不得代替 Scope 证明业务范围；这些机器锚点只允许表达 recovery，不构成 R3 执行授权。`Recovery Baseline` 只能是 `new:<kebab-id>` 或 `reuse:<kebab-id>`。
 - `reuse` 必须引用同 package、同 Environment 中更早 order 的 `new` baseline，并在 Before Assertions 复验 identity、scope、count、hash、schema；`Expected Counts/Hash/Schema` 固定为 `counts=<value>;hash=<value>;schema=<value>`，不适用项写 `na`。
+
+local R3 的上述窄例外只适用于可由冻结、已验收 PostgreSQL 唯一事实源完整重建的 Neo4j projection cleanup、rebuild 或 sync。每个命名 layer 仍须在运行前取得独立明确授权，并严格逐层执行；任何 drift、失败、超时、冲突、断言失败或人工中止立即停止，未执行 layer 的授权失效。`shared-local`、UAT、prod/shared、生产、非 Neo4j R3、非限定 operation、缺少 PG/PostgreSQL baseline 或无法完整重建的状态必须继续使用 `backup` 或等价正式灾备。本规则不定义或引入 UAT Neo4j recovery、backup、deployment、adoption 或验收能力。
 
 已批准 Spec 且范围精确匹配的 local-only R2 可以在一个独立授权 package 内逐名列出多个 layer。每层严格执行 `preflight -> Write -> Query/assert`；当前层断言全部通过后才自动进入包内已明确命名的下一层，任何漂移、失败、超时、冲突或人工中止立即停止并使未执行层授权失效。同一环境、同一维护窗口且 identity、scope、count/hash/schema 未变化时，后续层可以复验并复用 recovery baseline；不一致时必须停止并重新建立 recovery evidence。该简化不适用于 shared-local、UAT、prod、Neo4j 或 R3。
 

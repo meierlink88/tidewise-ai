@@ -143,6 +143,96 @@ func TestTaskDesignStatefulMutationsFailClosed(t *testing.T) {
 	}
 }
 
+func TestTaskDesignLocalNeo4jR3DisposableRecovery(t *testing.T) {
+	proposalPath, proposal := readTaskDesignFixture(t, "compliant-local-neo4j-r3", "proposal.md")
+	tasksPath, tasks := readTaskDesignFixture(t, "compliant-local-neo4j-r3", "tasks.md")
+	result := lintTaskDesignArtifacts(proposalPath, proposal, tasksPath, tasks)
+	if len(result.Errors) != 0 {
+		t.Fatalf("adoption-ready local Neo4j R3 rows errors = %v", result.Errors)
+	}
+
+	caseInsensitive := func(s string) string {
+		s = strings.Replace(s, "local-neo4j-foundation-cleanup", "local-neo4j-foundation-maintenance", 1)
+		s = strings.Replace(s, "Neo4j cleanup：仅清空 local Tidewise namespace", "nEo4J CLEANUP：仅清空 local Tidewise namespace", 1)
+		return strings.Replace(s, "PG projection baseline", "pOsTgReSqL projection BaSeLiNe", 1)
+	}
+	result = lintTaskDesignArtifacts("proposal.md", caseInsensitive(proposal), "tasks.md", caseInsensitive(tasks))
+	if len(result.Errors) != 0 {
+		t.Fatalf("case-insensitive anchors errors = %v", result.Errors)
+	}
+}
+
+func TestTaskDesignLocalNeo4jR3DisposableRecoveryFailsClosed(t *testing.T) {
+	_, baseProposal := readTaskDesignFixture(t, "compliant-local-neo4j-r3", "proposal.md")
+	_, baseTasks := readTaskDesignFixture(t, "compliant-local-neo4j-r3", "tasks.md")
+	tests := []struct {
+		name   string
+		mutate func(string) string
+		code   string
+	}{
+		{"shared local", replaceFirst("| 1 | local | 1 |", "| 1 | shared-local | 1 |"), "stateful-recovery"},
+		{"uat", replaceFirst("| 1 | local | 1 |", "| 1 | uat | 1 |"), "stateful-recovery"},
+		{"prod", replaceFirst("| 1 | local | 1 |", "| 1 | prod | 1 |"), "stateful-recovery"},
+		{"human no", replaceFirst("| 1 | Local Neo4j cleanup and rebuild | R3 | yes | R3_OPERATION |", "| 1 | Local Neo4j cleanup and rebuild | R3 | no | NONE |"), "stateful-recovery"},
+		{"non Neo4j", chainedMutation(
+			replaceFirst("local-neo4j-foundation-cleanup", "local-graph-foundation-cleanup"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "graph cleanup：仅清空 local Tidewise namespace"),
+		), "stateful-recovery"},
+		{"layer cannot override non Neo4j scope", replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "PostgreSQL cleanup：仅清空 local Tidewise namespace"), "stateful-recovery"},
+		{"layer cannot override disallowed scope operation", replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "Neo4j archive：仅清空 local Tidewise namespace"), "stateful-recovery"},
+		{"cleanup suffix", chainedMutation(
+			replaceFirst("local-neo4j-foundation-cleanup", "local-neo4j-foundation-maintenance"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "Neo4j cleanupSuffix：仅清空 local Tidewise namespace"),
+		), "stateful-recovery"},
+		{"resync", chainedMutation(
+			replaceFirst("local-neo4j-foundation-cleanup", "local-neo4j-foundation-maintenance"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "Neo4j resync：仅清空 local Tidewise namespace"),
+		), "stateful-recovery"},
+		{"neo4j backup suffix", chainedMutation(
+			replaceFirst("local-neo4j-foundation-cleanup", "local-graph-foundation-cleanup"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "neo4jBackup cleanup：仅清空 local Tidewise namespace"),
+		), "stateful-recovery"},
+		{"missing baseline", replaceFirst("PG projection baseline identity", "PG projection snapshot identity"), "stateful-recovery"},
+		{"non PG baseline", replaceFirst("PG projection baseline identity", "Redis projection baseline identity"), "stateful-recovery"},
+		{"cross layer baseline", replaceFirst("| local-neo4j-foundation-rebuild | 1 | local | 2 |", "| local-neo4j-foundation-rebuild | 2 | local | 2 |"), "stateful-baseline"},
+		{"incomplete after assertions", replaceFirst("| Tidewise namespace 节点与关系为零；database、约束、索引、配置和 PG 业务数据不变 |", "|  |"), "stateful-field"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proposal, tasks := tt.mutate(baseProposal), tt.mutate(baseTasks)
+			result := lintTaskDesignArtifacts("proposal.md", proposal, "tasks.md", tasks)
+			assertTaskDesignDiagnostic(t, result.Errors, tt.code)
+		})
+	}
+}
+
+func TestTaskDesignLocalR2DisposableRecoveryRegression(t *testing.T) {
+	proposalPath, proposal := readTaskDesignFixture(t, "compliant-stateful", "proposal.md")
+	tasksPath, tasks := readTaskDesignFixture(t, "compliant-stateful", "tasks.md")
+	mutate := func(s string) string {
+		return strings.Replace(s, "| schema-layer | 2 | local | 1 | schema v1 | none | backup |", "| schema-layer | 2 | local | 1 | schema v1 | none | approved-disposable-recovery |", 1)
+	}
+	result := lintTaskDesignArtifacts(proposalPath, mutate(proposal), tasksPath, mutate(tasks))
+	if len(result.Errors) != 0 {
+		t.Fatalf("local R2 disposable recovery errors = %v", result.Errors)
+	}
+}
+
+func replaceFirst(old, replacement string) func(string) string {
+	return func(s string) string {
+		return strings.Replace(s, old, replacement, 1)
+	}
+}
+
+func chainedMutation(mutations ...func(string) string) func(string) string {
+	return func(s string) string {
+		for _, mutate := range mutations {
+			s = mutate(s)
+		}
+		return s
+	}
+}
+
 func TestTaskDesignArtifactMismatchAndHeadingBoundaries(t *testing.T) {
 	_, proposal := readTaskDesignFixture(t, "compliant-stateful", "proposal.md")
 	_, tasks := readTaskDesignFixture(t, "compliant-stateful", "tasks.md")
