@@ -66,7 +66,7 @@
 - container/database/PG 身份固定；Goose=15 且只有 migration 16 pending；无长事务、无其他 writer、无锁冲突。
 - `entity_nodes=466`，12 类非目标 counts/checksums 与 task 1.14 写后 evidence 完全一致；`chain_node_profiles` / `theme_profiles` schema 与 rows 不变。
 - `to_regclass('entity_external_identifiers') IS NULL`；不存在已有 table、index、constraint 或 function 同名冲突。
-- catalog 仅预计新增 1 table、1 entity FK、1 主键、1 三列唯一约束、4 个文本/状态 checks、1 三列普通 index；未知引用或触发器差异均阻断。
+- catalog 仅预计新增 1 table、1 entity FK、1 主键、1 三列唯一约束、5 个 CHECK（4 个文本非空白 + 1 个 status 枚举）、1 三列普通 index；未知引用或触发器差异均阻断。
 - `entity_external_identifiers` 预计写前 rows=0；本层不读取或转换任何工作簿，不产生 842 node、1,156 mapping 或 theme rows。
 
 预计影响只有一次 transactional DDL：创建上述表、约束与普通索引。不存在 data delete/update/insert；不会触及 `entity_nodes`、profiles、`entity_edges`、event links 或旧结构。
@@ -87,7 +87,7 @@ TIDEWISE_DATABASE_URL='<runtime-only reviewed local schema DSN with dedicated se
 Write 原子结束后无论成功或失败，都必须先停止并执行只读 Query；只有全部通过才可提交该层验收：
 
 1. Goose=current `16`，实际 applied 只有 `000016`，无更高 migration；migration 16 的 session token 未写入数据。
-2. `entity_external_identifiers` 存在且仅包含批准列、PK、entity FK `ON DELETE CASCADE`、三列唯一约束、四个非空/状态 checks 与三列普通索引；不存在四列冗余唯一索引、JSONB、trigger/function/view。
+2. `entity_external_identifiers` 存在且仅包含批准列、PK、entity FK `ON DELETE CASCADE`、三列唯一约束、5 个 CHECK（`source_system`、`source_taxonomy_type`、`external_code`、`external_name` 非空白，以及 `status` 枚举）与三列普通索引；不存在四列冗余唯一索引、JSONB、trigger/function/view。
 3. `entity_external_identifiers` rows=`0`；没有 node/profile、mapping、theme、relation 或其他 data rows 被写入。
 4. `entity_nodes=466`、12 类非目标 counts/checksums、`entity_edges=331`、event links、profile rows/schema、orphans/duplicates/blank key 与 task 1.14 post evidence 完全一致。
 5. schema-only 重复 Query 报告 already-present/unchanged；不得再次执行 migration，也不得扩大为 apply-all。
