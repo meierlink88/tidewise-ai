@@ -3,6 +3,10 @@
 ### Requirement: 联盟关系类型、方向与候选层
 系统 SHALL 对 `member_of`、`led_by`、`part_of` 使用明确方向、端点类型与证据，并在同一候选 package Review 中以 `member_of` 作为不被其他两层阻塞的 MVP 核心关系。
 
+#### Scenario: 先分类 Membership Model
+- **WHEN** Package 2 审计一个已批准 alliance
+- **THEN** 必须先将其分类为 `formal_member_set`、`rotating_or_term_bound` 或 `participant/signatory/framework/no_formal_membership`；只有可由官方来源穷尽且端点契约可准确表达的 formal active set 才能生成 `member_of`，其余必须 not-applicable 或 blocked，不得生成部分集合冒充完整 manifest
+
 #### Scenario: 建立正式成员关系
 - **WHEN** economy 是联盟官方来源列明的 active 正式成员
 - **THEN** 系统必须使用 `economy -> alliance_org` 的 `member_of`，在候选 Review 中展示 formal active 身份与冲突报告，并在正式 edge 保存官方来源名称、URL 和核验时间

@@ -85,7 +85,9 @@ sequenceDiagram
     Reviewer-->>Relation: 一次确认业务语义，不代表 Write 授权
 ```
 
-联盟候选 Review 必须逐项展示源 sheet row、四个源字段、规范化结果、目标 entity key、`create/keep` exact diff 和空白 final decision，并穷尽处置现有 10 条 active alliance。该 Excel 是候选输入而不是可执行 seed；成员全集仍必须在 Package 2 另取各批准联盟的可审计正式来源。
+联盟候选 Review 已逐项展示源 sheet row、四个源字段、规范化结果、目标 entity key 与 `create/keep` exact diff，并于 2026-07-14 获得 45/45 approve、9 keep + 36 create、现有 9 keep + OECD forward inactivate 的人工批准。该 Excel 不是可执行 seed；Package 2 只从各联盟正式来源形成成员候选。
+
+Package 2 先把 45 个联盟分类为 `formal_member_set`、`rotating_or_term_bound` 或 `participant/signatory/framework/no_formal_membership`。只有 formal set 且官方批量来源、active 身份与 economy endpoint identity 均可穷尽时才生成 `member_of`；任期制缺少有效期契约、聚合组织端点不兼容、成员状态冲突或 ISO identity 例外均标为 blocked，禁止生成部分集合冒充完整 manifest。
 
 ### 5. Approved manifests 是现有状态收敛的唯一权威输入
 
@@ -177,8 +179,8 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 
 ## Migration Plan
 
-1. Package 1 完成联盟范围与逐项 manifest 人工 Review。
-2. Package 2 在包内连续完成正式成员、economy diff/exception/protection 与穷尽 relationship manifests，最终一次人工 Review；未决可选关系直接排除。
+1. Package 1 已完成联盟范围与逐项 manifest 人工 Review，并冻结 v1 checksum。
+2. Package 2 已连续准备 membership model/source register、resolved formal-active economy diff、关系候选和现有 223 条 edge disposition，当前停在唯一人工 Review；blocked source conflict 未解决前不能形成最终 approved member manifest，未决可选关系直接排除。
 3. 等待 `refactor-industry-chain-node-foundation` 完成 Deliver 且结果进入 `origin/main`；更新基线、自动 overlap audit 后执行 Package 3 TDD 实现与自动技术验收，禁止 Write。
 4. 分别明确授权并执行 R2A `master-data` Review/Write/Query 与 R2B `relationships` Review/Write/Query。
 5. 汇总证据完成 Apply-final 人工 Review，之后才依次 Sync、Archive、PR/merge 和 cleanup。
@@ -187,7 +189,7 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 
 ## Open Questions
 
-- 45 条 Excel 候选及现有 10 条 active alliance 的 exact disposition 尚待主对话 Review，当前不得推定最终 active 集合。
-- 现有 50 个 economy 对批准联盟正式成员的覆盖差异，必须等联盟清单确认和官方成员全集形成后才能冻结。
+- Package 1 已批准，不再是 open question；任何改动必须新版本、新 checksum 并重新 Review。
+- Package 2 R0 v1 当前有 13 个 formal set 与 1 个 term-bound set blocked，另有 160 条现有 active edge 处于 source-conflict；主对话必须决定补源、identity/有效期契约或排除策略后，才能冻结最终 economy/member manifests。
 - observer/partner/applicant/suspended/former 是否需要未来结构化表达，只有关系契约 Review 可以决定；MVP 不扩展。
 - `led_by`、`part_of` 的具体候选若无法在 Package 2 同一 Review 中获批，将排除出本次 MVP，不阻塞核心流程。

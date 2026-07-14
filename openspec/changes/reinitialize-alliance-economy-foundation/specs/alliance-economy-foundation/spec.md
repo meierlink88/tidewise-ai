@@ -70,7 +70,7 @@
 
 #### Scenario: 审阅组织候选
 - **WHEN** 系统读取 SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102` 的 `联盟组织!A1:K51`
-- **THEN** 必须只把 45 条数据行映射为候选，排除 5 条分组标题，逐项展示四字段源值、规范化、identity、exact diff 与空白 final decision，不得自动进入 seed
+- **THEN** 必须只把 45 条数据行映射为候选，排除 5 条分组标题，逐项展示四字段源值、规范化、identity、exact diff 与人工 final decision；已批准结果必须以版本/checksum 冻结且不得自动进入 seed
 
 #### Scenario: 旧候选输入已失效
 - **WHEN** 系统发现旧 `表格_20260713.csv`、68 条 provisional recommendation 或网页核验结果

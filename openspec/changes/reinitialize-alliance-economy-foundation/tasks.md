@@ -1,11 +1,11 @@
 # Task Design Efficiency：五个交付 Package
 
-本 change 以 package 作为唯一 task 完成单元，不再把资料准备、技术微步骤或同一风险边界内的验证拆成独立 checkbox。普通 checkbox 只记录 package 状态；真正人工确认仅保留候选业务语义、两个 local R2 授权和 Apply-final Review。当前仍停在 Package 1 的最终联盟 manifest Review。
+本 change 以 package 作为唯一 task 完成单元，不再把资料准备、技术微步骤或同一风险边界内的验证拆成独立 checkbox。普通 checkbox 只记录 package 状态；真正人工确认仅保留候选业务语义、两个 local R2 授权和 Apply-final Review。Package 1 已批准，当前停在 Package 2 的候选业务 Review。
 
 ## Package 1：联盟范围与 Spec Review（R0，人工）
 
 - [x] 1.1 **历史准备已完成**：workflow adoption、旧 A contract、旧 68 条 provisional draft、来源整改和 task packaging checkpoint 均保留为历史证据；本次 amendment 明确其候选范围、recommendation、网页核验和 categories 契约已被新 Excel 真值源 supersede，不追认当前业务结论。
-- [ ] 1.2 **最终联盟 Manifest Review**：主对话逐项确认 `联盟组织列表1.0.xlsx` 的 45 条候选、四字段源值、两个 U+200C normalization、拟用 stable key 与 `create/keep` exact diff，并穷尽确认现有 10 条 active alliance 的 `keep/merge/inactivate` disposition，形成带版本/checksum 的 approved alliance manifest。
+- [x] 1.2 **最终联盟 Manifest Review**：主对话已于 2026-07-14 批准 `联盟组织列表1.0.xlsx` 全部 45 条候选、四字段、两个 U+200C normalization、9 keep + 36 create，以及现有 10 条的 9 keep + OECD forward inactivate；`approved-alliance-manifest.md` v1 canonical checksum 为 `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`。
 
 Acceptance criteria：
 
@@ -15,7 +15,7 @@ Acceptance criteria：
 
 ## Package 2：Economy 与关系候选 Review（R0，人工）
 
-- [ ] 2.1 **候选 Package Review**：Package 1 通过后，包内连续完成正式成员来源审计、formal-active 成员全集、现有 economy identity/ISO diff、缺失 economy 候选、economy exception/protection manifest，以及穷尽 `member_of` manifest；全部准备完成后由主对话一次审阅业务语义与最终候选。
+- [ ] 2.1 **候选 Package Review**：`package-2-candidate-review.md` R0 v1 已连续准备 45 个 membership model/source register、79 条 economy target、133 条 resolved formal-active `member_of` 候选，以及现有 223 条 active edge 的穷尽 disposition；当前等待主对话一次审阅业务语义、32 条 proposed inactivate 与 160 条 blocked source-conflict。
 
 Acceptance criteria：
 
@@ -24,6 +24,7 @@ Acceptance criteria：
 - `member_of` 固定 `economy -> alliance_org`，只含 formal active，逐条带端点、来源、核验时间、现有 edge disposition、stale reason 与完整性断言，并穷尽现有 active `member_of`。
 - `led_by`、`part_of` 是非阻塞可选附录：证据充分时随本 package 一次 Review；未决或未批准时明确排除出本次 MVP 和后续 R2B，不产生额外 gate。
 - Review 通过只冻结 approved economy/relationship manifests；不生成可执行写入授权。
+- Package 2 当前 checksums：economy `95613a931adf3d7231cbb1d311e5051f3695d9da40c60bbeeccb39d006118cb3`；member candidate `c3d652571fa93307088633cbfe06dce18b1257d8ac2b3ee2ae88c5a27e69fcf7`；existing disposition `6be2a8659257f321613feaf1ff5bfec81f4f2ce899af4263ba587698796f73c9`。任一漂移须重新 Review。
 
 ## Package 3：R1 实现与自动技术验收（无有状态写入）
 

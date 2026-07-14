@@ -4,9 +4,9 @@
 
 本 change 已在 `origin/main@4b3df5ccb8ea837470f9bcaa8b2799d0762a742b` 上采用风险分级流程，并通过 merge commit `27e6e20` 保留既有 A/B checkpoints。workflow adoption 的结构与边界已获主对话认可，不再保留独立行政门禁；它只作为 Package 1 的历史证据，不追认或扩大业务授权。
 
-- 当前唯一业务出口是 Package 1 的最终联盟 manifest Review：45 条 Excel 候选与 10 个现有 active alliance disposition 必须逐项确认。
-- Package 1 未通过前不得启动正式成员来源、冻结 economy 范围或生成关系候选。
-- 当前 data-scope amendment 属于 R0，只修改 OpenSpec contract、candidate scope 与 source fingerprint；不修改源码或数据库。
+- Package 1 已于 2026-07-14 通过：45 条全部 approve、9 keep + 36 create、现有 9 keep + OECD forward inactivate；canonical checksum `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`。
+- 当前唯一业务出口是 Package 2.1：审阅 membership model、79 条 economy target、133 条 resolved formal-active tuples、32 条 proposed inactivate 与 160 条 blocked source-conflict。
+- 当前 checkpoint 仍属于 R0，只修改 OpenSpec Review artifacts；不修改源码或数据库。
 
 ## 2. 五 Package 风险与人工确认
 
@@ -43,15 +43,14 @@
 
 - 45 条数据行、5 条分组标题；四个目标字段均 45/45 非空；名称重复 0，规范化缩写重复 0。
 - 唯一 normalization：sheet row 45 `UJR<U+200C>` → `UJR`、sheet row 50 `CCAS<U+200C>` → `CCAS`；不做其他语义纠正。
-- 与现有 10 条文件基线比较：9 个 `keep` identity、36 个 `create` 候选；现有 `alliance_org:oecd` 不在新 45 条中，作为 proposed `inactivate` 单独等待用户 disposition。
+- 与现有 10 条文件基线比较：9 个 `keep` identity、36 个 `create` 已批准；现有 `alliance_org:oecd` 已批准未来 forward inactivate，但 R2A 授权前保持现状。
 - 确定性 QA sample 为 sheet rows 3、17、26、32、40、51，并追加 rows 45、50、全部 keep 映射和 `alliance_org:oecd`。抽样不替代 45 条候选与 10 条现有 disposition 的逐项决策。
 - “核心主导方”只映射为 `leadership_summary`，不得自动生成 `led_by`；疑似业务语义问题只形成单行 Review note，不由 agent 改写。
 
 ### 4.3 Fail-closed
 
-- 任一 final decision 留空，或输入指纹、sheet/range、counts、四字段完整性、重复、normalization、identity/exact diff、existing disposition 冲突未解决，Package 1 均不得完成。
-- 现有 active alliance 未穷尽，或 merge/inactivate 的 source/target、关系影响、预计 counts 未确认，Package 1 均不得完成。
-- Package 1 通过只允许进入 Package 2 的 R0 候选工作，不授权 R1/R2 或任何 Neo4j 操作。
+- Package 1 决策已穷尽并冻结在 `approved-alliance-manifest.md`；输入或 checksum 漂移时必须重新 Review。
+- Package 1 批准只允许 Package 2 的 R0 候选工作，不授权 R1/R2 或任何 Neo4j 操作。
 
 ## 5. 两个 Local R2 执行包模板
 
@@ -64,4 +63,4 @@
 
 ## 6. 当前人工门禁
 
-五 package、7 个顶层 checkbox、两个 local R2 和 Neo4j 移出保持不变。当前只等待 `alliance-candidate-review.md` 的 45 条 Excel 候选与现有 10 条 disposition Review；通过前 Package 2 及以后保持未开始。
+五 package、7 个顶层 checkbox、两个 local R2 和 Neo4j 移出保持不变。当前只等待 `package-2-candidate-review.md` R0 v1 的唯一业务 Review；Package 3 及以后保持未开始。
