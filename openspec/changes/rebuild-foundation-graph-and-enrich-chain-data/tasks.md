@@ -49,9 +49,9 @@
 
 ## 2. 842 节点产业链关系完善 Package
 
-- [ ] 2.1 冻结 842 个 active chain_node 的 identity/count/hash 与 842×4 覆盖账本；每个节点/关系类型最终只能是已批准关系、不适用或证据不足，并保留理由。
-- [ ] 2.2 将 842 个既有节点分成可审阅研究批次，只分析节点之间的四类关系；不向下穿透、不研究或创建细分节点，不修改节点主数据。AI 生成与主对话 double-check 只作为本次数据分析方法，批次完成不得视为 Package 或 change 完成。
-- [ ] 2.3 逐批展示关系候选、来源、证据、反例、置信度、方向、异常及不适用/证据不足理由；只有 842/842 全部审核状态完成、无待研究或未处置项时，才等待用户冻结全量 relation final manifest。
+- [x] 2.1 冻结 842 个 active chain_node 的 identity/count/hash 与 842×4 覆盖账本；每个节点/关系类型最终只能是已批准关系、不适用或证据不足，并保留理由。
+- [x] 2.2 将 842 个既有节点分成可审阅研究批次，只分析节点之间的四类关系；不向下穿透、不研究或创建细分节点，不修改节点主数据。AI 生成与主对话 double-check 只作为本次数据分析方法，批次完成不得视为 Package 或 change 完成。
+- [x] 2.3 逐批展示关系候选、来源、证据、反例、置信度、方向、异常及不适用/证据不足理由；只有 842/842 全部审核状态完成、无待研究或未处置项时，才等待用户冻结全量 relation final manifest。全量候选、覆盖账本、双遍审查与验证证据见 [842 个 chain_node 四类关系 R0 候选 Review 包](reviews/chain-node-relations-r0/README.md)；当前仅为 `ready_for_human_freeze_review`，未授权 task 2.4 或任何写入。
 - [ ] 2.4 用 targeted tests 最小解除 `cmd/entity-seed` 对历史 96 条关系 manifest 的绑定，直接复用现有通用 transaction batch；不得新增节点写入、migration、repository/service、runner 或通用导入框架。
 - [ ] 2.5 等待 `all-chain-node-relations-postgres-write` R2 授权；获批后只向 chain_node_relations 写入 842 全量 final manifest，并立即 Query 覆盖率、端点、类型、tuple、orphan、节点主数据保护和幂等。
 - [ ] 2.6 PG 验收后，等待 `all-chain-node-relations-neo4j-sync` R3 授权；获批后只读 PG accepted baseline 同步，并验收 counts/type、missing/duplicate/orphan/legacy=0 及 typed 多跳规则。
