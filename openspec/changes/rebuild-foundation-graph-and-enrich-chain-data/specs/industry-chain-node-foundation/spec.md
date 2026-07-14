@@ -1,21 +1,27 @@
 ## ADDED Requirements
 
-### Requirement: 业务 Review 定义有限产业链数据批次
-系统 SHALL 只在用户批准一个有限、可关闭的首批产业链范围后，才从已有 chain_node 向下探索细分节点；不得把本 change 扩张为 842 节点全量治理或通用数据平台。
+### Requirement: 全量完善当前 842 个 chain_node 的四类关系
+系统 SHALL 以前置 change Deliver 后重新冻结的当前 842 个 active chain_node 为完成范围，全量审计 `is_subcategory_of`、`is_component_of`、`input_to`、`depends_on`，必要时从已有节点向下研究细分 chain_node。
 
-#### Scenario: 范围先于候选
-- **WHEN** Package 2 准备首批产业链数据完善
-- **THEN** 必须先展示选择理由、起始方向、包含/排除边界和停止条件供用户 Review
-- **AND** 范围未批准前不得生成或写入节点/关系候选
+#### Scenario: 冻结 842 节点基线
+- **WHEN** 前置 change 已完整 Deliver 且 Package 2 准备开始全量审计
+- **THEN** 必须冻结 active chain_node 的 identity、count 与 hash
+- **AND** 若最终 count 不是 842 或 identity 集合发生漂移，必须回到 Review，不得自行改写范围
 
-#### Scenario: 范围无法关闭
-- **WHEN** 细分探索需要超出已批准边界、引入新关系类型或遍历全部节点
-- **THEN** 当前批次必须停止扩张，并把超界内容留给后续数据批次
+#### Scenario: 全量覆盖完成
+- **WHEN** Package 2 申请冻结 final 审计结果
+- **THEN** 842/842 节点的四类关系都必须有已审核状态：有批准关系、不适用或证据不足
+- **AND** 不得存在待研究、未处置候选、未解决异常或冲突
 
-### Requirement: 有限批次只使用四类静态关系
-系统 SHALL 只为已批准范围内 chain_node 提出 `is_subcategory_of`、`is_component_of`、`input_to`、`depends_on`，并保持有向端点、证据和来源可审阅。
+#### Scenario: 完整性不强制伪造关系
+- **WHEN** 某个节点在某类关系上没有语义上应存在的关系或缺少强证据
+- **THEN** 必须记录不适用或证据不足及理由
+- **AND** 不得为使节点拥有四类边而创建虚假关系
 
-#### Scenario: 四类关系进入 final 候选
-- **WHEN** 某条静态关系候选进入用户 Review
-- **THEN** 必须展示有向端点、relation type、证据/来源、反例与置信度
-- **AND** physical constraints 或其他关系类型不得进入本批次
+### Requirement: 全量研究可分批审阅但不降低完成边界
+系统 SHALL 允许将 842 节点的候选研究与 Review 按节点群分批进行，但不得将任一局部批次视为 change 完成。
+
+#### Scenario: 分批候选进入 Review
+- **WHEN** 某个审阅批次的节点/关系候选完成
+- **THEN** 必须展示有向端点、relation type、证据/来源、反例、置信度与不适用/证据不足结论
+- **AND** physical constraints 或其他关系类型不得进入本 change
