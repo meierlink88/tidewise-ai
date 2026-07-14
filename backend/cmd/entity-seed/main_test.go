@@ -17,9 +17,29 @@ func TestValidateCommandOptionsRejectsRetiredApplyScopes(t *testing.T) {
 		"industry-chain-physical-constraint",
 		"industry-chain-sector-mapping",
 	} {
-		if _, err := validateCommandOptions(commandOptions{applyScope: retired}); err == nil {
+		if _, _, err := validateCommandOptions(commandOptions{applyScope: retired}); err == nil {
 			t.Fatalf("validateCommandOptions(%q) error = nil", retired)
 		}
+	}
+}
+
+func TestValidateCommandOptionsFailsClosedForMappingMode(t *testing.T) {
+	tests := []commandOptions{
+		{mappingDryRun: true},
+		{mappingPreflight: true},
+		{mappingApprovedFirstBatch: true},
+		{mappingManifest: "reviewed.json", mappingDryRun: true, mappingPreflight: true},
+		{mappingManifest: "reviewed.json", seedDir: "non-default"},
+		{mappingManifest: "reviewed.json", manifestFile: "entities.json"},
+	}
+	for _, options := range tests {
+		if _, _, err := validateCommandOptions(options); err == nil {
+			t.Fatalf("validateCommandOptions(%+v) error = nil", options)
+		}
+	}
+	_, mode, err := validateCommandOptions(commandOptions{mappingManifest: "reviewed.json", seedDir: entityseed.DefaultSeedDir})
+	if err != nil || !mode {
+		t.Fatalf("mapping mode = %t, %v", mode, err)
 	}
 }
 

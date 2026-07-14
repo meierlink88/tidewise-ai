@@ -2,12 +2,15 @@ package seed
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
 
 func TestApplyExternalIdentifierBatchRollsBackBeforeWritesWhenTargetIsInvalid(t *testing.T) {
@@ -23,6 +26,82 @@ func TestApplyExternalIdentifierBatchRollsBackBeforeWritesWhenTargetIsInvalid(t 
 	mock.ExpectRollback()
 	if _, err := NewPostgresRepository(db).ApplyExternalIdentifierBatch(context.Background(), []ExternalIdentifierMapping{mappingFromIdentifier(item)}); err == nil {
 		t.Fatal("ApplyExternalIdentifierBatch() error = nil")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyExternalIdentifierBatchRollsBackAllWritesWhenSecondInsertFails(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	first := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	second := firstBatchExternalIdentifier("chain_node:additive_manufacturing", "ths", "concept_sector", "301001", "增材制造")
+	mock.ExpectBegin()
+	for _, item := range []domain.EntityExternalIdentifier{first, second} {
+		identity := externalIdentifierIdentity(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode)
+		mock.ExpectExec(regexp.QuoteMeta(externalIdentifierTransactionLockSQL())).WithArgs(identity).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM entity_nodes")).WithArgs(item.EntityID).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(item.EntityID))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT id, entity_id, external_name, status FROM entity_external_identifiers")).WithArgs(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode).WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}))
+		mock.ExpectQuery(regexp.QuoteMeta("WHERE id = $1::uuid")).WithArgs(item.ID).WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}))
+	}
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO entity_external_identifiers")).WithArgs(first.ID, first.EntityID, first.SourceSystem, first.SourceTaxonomyType, first.ExternalCode, first.ExternalName, first.Status).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(first.ID))
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO entity_external_identifiers")).WithArgs(second.ID, second.EntityID, second.SourceSystem, second.SourceTaxonomyType, second.ExternalCode, second.ExternalName, second.Status).WillReturnError(errors.New("insert failed"))
+	mock.ExpectRollback()
+	if _, err := NewPostgresRepository(db).ApplyExternalIdentifierBatch(context.Background(), []ExternalIdentifierMapping{mappingFromIdentifier(first), mappingFromIdentifier(second)}); err == nil || !strings.Contains(err.Error(), "insert") {
+		t.Fatalf("ApplyExternalIdentifierBatch() error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyExternalIdentifierBatchDoesNotInsertWhenSecondTargetFailsPlanning(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	first := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	second := firstBatchExternalIdentifier("chain_node:additive_manufacturing", "ths", "concept_sector", "301001", "增材制造")
+	mock.ExpectBegin()
+	for _, item := range []domain.EntityExternalIdentifier{first, second} {
+		identity := externalIdentifierIdentity(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode)
+		mock.ExpectExec(regexp.QuoteMeta(externalIdentifierTransactionLockSQL())).WithArgs(identity).WillReturnResult(sqlmock.NewResult(0, 1))
+		rows := sqlmock.NewRows([]string{"id"})
+		if item.ID == first.ID {
+			rows.AddRow(item.EntityID)
+		}
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM entity_nodes")).WithArgs(item.EntityID).WillReturnRows(rows)
+		if item.ID == first.ID {
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT id, entity_id, external_name, status FROM entity_external_identifiers")).WithArgs(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode).WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "external_name", "status"}))
+			mock.ExpectQuery(regexp.QuoteMeta("WHERE id = $1::uuid")).WithArgs(item.ID).WillReturnRows(sqlmock.NewRows([]string{"id", "entity_id", "source_system", "source_taxonomy_type", "external_code", "external_name", "status"}))
+		}
+	}
+	mock.ExpectRollback()
+	if _, err := NewPostgresRepository(db).ApplyExternalIdentifierBatch(context.Background(), []ExternalIdentifierMapping{mappingFromIdentifier(first), mappingFromIdentifier(second)}); err == nil {
+		t.Fatal("ApplyExternalIdentifierBatch() error = nil")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyFrozenFirstBatchExternalIdentifiersRejectsExistingRowsBeforePlanning(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	item := firstBatchExternalIdentifier("chain_node:3d_printing", "eastmoney", "concept_sector", "BK0619", "3D打印")
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM entity_external_identifiers")).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectRollback()
+	if _, err := NewPostgresRepository(db).ApplyFrozenFirstBatchExternalIdentifiers(context.Background(), []ExternalIdentifierMapping{mappingFromIdentifier(item)}); err == nil || !strings.Contains(err.Error(), "zero existing") {
+		t.Fatalf("ApplyFrozenFirstBatchExternalIdentifiers() error = %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

@@ -25,23 +25,15 @@ func main() {
 	mappingManifest := flag.String("external-identifier-mapping-manifest", "", "reviewed external identifier mapping manifest")
 	mappingDryRun := flag.Bool("external-identifier-mapping-dry-run", false, "validate external identifier mapping manifest without writes")
 	mappingPreflight := flag.Bool("external-identifier-mapping-preflight", false, "run read-only preflight for the reviewed external identifier mapping manifest")
+	mappingApprovedFirstBatch := flag.Bool("external-identifier-mapping-approved-first-batch", false, "allow only the frozen first-batch external identifier mapping write")
 	flag.Parse()
-	scope, err := validateCommandOptions(commandOptions{applyScope: *applyScope})
+	scope, mappingMode, err := validateCommandOptions(commandOptions{
+		seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope,
+		phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApprovedFirstBatch: *mappingApprovedFirstBatch,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if strings.TrimSpace(*mappingManifest) != "" && *mappingDryRun {
-		if *phaseAPreflight || strings.TrimSpace(*manifestFile) != "" || *includeInactive || strings.TrimSpace(*applyScope) != "" {
-			log.Fatal("mapping-only mode cannot combine entity seed options")
-		}
-		report, err := entityseed.DryRunExternalIdentifierMappings(*mappingManifest)
-		if err != nil {
-			log.Fatalf("dry-run external identifier mappings: %v", err)
-		}
-		_ = json.NewEncoder(os.Stdout).Encode(report)
-		return
-	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
@@ -56,10 +48,7 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
-	if strings.TrimSpace(*mappingManifest) != "" {
-		if *phaseAPreflight || strings.TrimSpace(*manifestFile) != "" || *includeInactive || strings.TrimSpace(*applyScope) != "" {
-			log.Fatal("mapping-only mode cannot combine entity seed options")
-		}
+	if mappingMode {
 		manifest, err := entityseed.LoadExternalIdentifierMappingFile(*mappingManifest)
 		if err != nil {
 			log.Fatalf("load external identifier mappings: %v", err)
@@ -72,7 +61,21 @@ func main() {
 			_ = json.NewEncoder(os.Stdout).Encode(report)
 			return
 		}
-		report, err := entityseed.NewPostgresRepository(db).ApplyExternalIdentifierBatch(ctx, manifest.Mappings)
+		if *mappingDryRun {
+			report, err := entityseed.NewPostgresRepository(db).DryRunExternalIdentifierBatch(ctx, manifest.Mappings)
+			if err != nil {
+				log.Fatalf("dry-run external identifier mappings: %v", err)
+			}
+			_ = json.NewEncoder(os.Stdout).Encode(report)
+			return
+		}
+		if !*mappingApprovedFirstBatch {
+			log.Fatal("mapping write requires -external-identifier-mapping-approved-first-batch")
+		}
+		if err := entityseed.ValidateFrozenFirstBatchExternalIdentifierManifest(*mappingManifest, manifest.Mappings); err != nil {
+			log.Fatalf("validate frozen first-batch mapping manifest: %v", err)
+		}
+		report, err := entityseed.NewPostgresRepository(db).ApplyFrozenFirstBatchExternalIdentifiers(ctx, manifest.Mappings)
 		if err != nil {
 			log.Fatalf("apply external identifier mappings: %v", err)
 		}
@@ -161,13 +164,32 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 }
 
 type commandOptions struct {
-	applyScope string
+	seedDir, manifestFile, applyScope, mappingManifest                                           string
+	includeInactive, phaseAPreflight, mappingDryRun, mappingPreflight, mappingApprovedFirstBatch bool
 }
 
-func validateCommandOptions(options commandOptions) (entityseed.ApplyScope, error) {
+func validateCommandOptions(options commandOptions) (entityseed.ApplyScope, bool, error) {
 	scope, err := entityseed.ParseApplyScope(options.applyScope)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return scope, nil
+	mappingManifest := strings.TrimSpace(options.mappingManifest)
+	if options.mappingDryRun || options.mappingPreflight {
+		if mappingManifest == "" {
+			return "", false, fmt.Errorf("mapping dry-run/preflight requires -external-identifier-mapping-manifest")
+		}
+	}
+	if options.mappingApprovedFirstBatch && mappingManifest == "" {
+		return "", false, fmt.Errorf("first-batch mapping write approval requires -external-identifier-mapping-manifest")
+	}
+	if mappingManifest == "" {
+		return scope, false, nil
+	}
+	if options.mappingDryRun && options.mappingPreflight {
+		return "", false, fmt.Errorf("mapping dry-run and preflight are mutually exclusive")
+	}
+	if options.seedDir != entityseed.DefaultSeedDir || strings.TrimSpace(options.manifestFile) != "" || options.includeInactive || strings.TrimSpace(options.applyScope) != "" || options.phaseAPreflight {
+		return "", false, fmt.Errorf("mapping-only mode cannot combine entity seed options")
+	}
+	return scope, true, nil
 }

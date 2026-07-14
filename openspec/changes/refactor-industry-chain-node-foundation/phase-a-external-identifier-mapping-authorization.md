@@ -58,8 +58,8 @@
 ## 未来唯一 Write 路径、事务和冲突语义
 
 1. 先刷新本包全部 read-only preflight，并验证 candidate manifest 的 1,169/818/351/241/13 与 SHA-256 完全一致。
-2. 唯一入口是 `entity-seed -external-identifier-mapping-manifest <frozen-manifest>`；它拒绝普通 entity/profile/relationship 选项，并提供 `-external-identifier-mapping-dry-run` 与 `-external-identifier-mapping-preflight`。不得使用手工 SQL 或临时脚本。
-3. runner 以一个 PostgreSQL root transaction 覆盖整层：先全量校验冻结 manifest、active `chain_node` target、三元 identity、确定性 ID 和 snapshot/conflict，再写入全部 1,169 行；不得循环调用逐行独立 transaction 的 `UpsertExternalIdentifier`。任一异常 rollback，0 writes。
+2. 唯一入口是 `entity-seed -external-identifier-mapping-manifest <frozen-manifest>`；它拒绝普通 entity/profile/relationship 参数（包括非默认 `seed-dir`）。`-external-identifier-mapping-dry-run` 与 `-external-identifier-mapping-preflight` 均要求 manifest 且彼此互斥；前者必须读取 DB snapshot 并报告 created/updated/unchanged/conflict，后者只读核验 target/snapshot。实际 Write 另须显式 `-external-identifier-mapping-approved-first-batch`，不得使用手工 SQL 或临时脚本。
+3. Write 入口先校验冻结 SHA-256 与首批 1,169/818/351/241/13 合同，并在 transaction 内断言 `entity_external_identifiers=0`；runner 以一个 PostgreSQL root transaction 覆盖整层：先全量校验 active `chain_node` target、三元 identity、确定性 ID 和 snapshot/conflict，再写入全部 1,169 行，提交前逐 ID 核验 entity/taxonomy/code/name/status 与 report。不得循环调用逐行独立 transaction 的 `UpsertExternalIdentifier`。任一异常 rollback，0 writes。
 4. 同一 ID/三元 identity 换绑 entity、确定性 ID 漂移或 snapshot 两索引不一致必须 conflict 并 rollback；仅同 entity 的 `external_name`/status 漂移可 update；完全一致才是 unchanged。
 5. 本命名层的业务 Write 范围只能是 1,169 行 `entity_external_identifiers`。任何 entity_nodes、profile、edge、event、theme、relation、constraint、migration 或 Neo4j 写入都必须 fail-closed。
 

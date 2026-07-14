@@ -209,9 +209,17 @@ WHERE source_system = $1
 FOR UPDATE`
 }
 
-func externalIdentifierSelectByIDSQL() string {
+func externalIdentifierSnapshotSQL() string {
 	return `
 SELECT id, entity_id, external_name, status FROM entity_external_identifiers
+WHERE source_system = $1
+  AND source_taxonomy_type = $2
+  AND external_code = $3`
+}
+
+func externalIdentifierSelectByIDSQL() string {
+	return `
+SELECT id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status FROM entity_external_identifiers
 WHERE id = $1::uuid
 FOR UPDATE`
 }
