@@ -105,3 +105,67 @@ func TestDryRunChainNodeRelationBatchUsesReadOnlySnapshotAndDoesNotWrite(t *test
 		t.Fatal(err)
 	}
 }
+
+func TestDryRunChainNodeRelationBatchTreatsSameVerifiedInstantAsUnchanged(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	relation := batchRelation("00000000-0000-5000-8000-000000000001", "00000000-0000-5000-8000-000000000011", "00000000-0000-5000-8000-000000000012")
+	databaseRelation := relation
+	databaseRelation.VerifiedAt = relation.VerifiedAt.In(time.FixedZone("database-session", 8*60*60))
+	mock.ExpectBegin()
+	mock.ExpectQuery(chainNodeRelationActiveEndpointsSQL(false)).WithArgs(relation.FromChainNodeEntityID, relation.ToChainNodeEntityID).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+	mock.ExpectQuery(chainNodeRelationByIDSQL(false)).WithArgs(relation.ID).WillReturnRows(sqlmock.NewRows(chainNodeRelationColumns).AddRow(relationArgs(databaseRelation)...))
+	mock.ExpectCommit()
+	report, err := NewPostgresRepository(db).DryRunChainNodeRelationBatch(context.Background(), []domain.ChainNodeRelation{relation})
+	if err != nil || report.Created != 0 || report.Updated != 0 || report.Unchanged != 1 {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyChainNodeRelationBatchAcceptsSameVerifiedInstantAtPrecommit(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	relation := batchRelation("00000000-0000-5000-8000-000000000001", "00000000-0000-5000-8000-000000000011", "00000000-0000-5000-8000-000000000012")
+	databaseRelation := relation
+	databaseRelation.VerifiedAt = relation.VerifiedAt.In(time.FixedZone("database-session", 8*60*60))
+	mock.ExpectBegin()
+	expectRelationPlanCreated(mock, relation)
+	mock.ExpectQuery(chainNodeRelationInsertSQL()).WithArgs(relationArgs(relation)...).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(relation.ID))
+	mock.ExpectQuery(chainNodeRelationByIDSQL(true)).WithArgs(relation.ID).WillReturnRows(sqlmock.NewRows(chainNodeRelationColumns).AddRow(relationArgs(databaseRelation)...))
+	mock.ExpectCommit()
+	report, err := NewPostgresRepository(db).ApplyChainNodeRelationBatch(context.Background(), []domain.ChainNodeRelation{relation})
+	if err != nil || report.Created != 1 || report.Updated != 0 || report.Unchanged != 0 {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEqualChainNodeRelationKeepsScalarFieldsExact(t *testing.T) {
+	relation := batchRelation("00000000-0000-5000-8000-000000000001", "00000000-0000-5000-8000-000000000011", "00000000-0000-5000-8000-000000000012")
+	sameInstant := relation
+	sameInstant.VerifiedAt = relation.VerifiedAt.In(time.FixedZone("database-session", 8*60*60))
+	if !equalChainNodeRelation(relation, sameInstant) {
+		t.Fatal("same verified instant must compare equal")
+	}
+	drifted := sameInstant
+	drifted.EvidenceNote += " changed"
+	if equalChainNodeRelation(relation, drifted) {
+		t.Fatal("scalar drift must not compare equal")
+	}
+	zeroVerifiedAt := relation
+	zeroVerifiedAt.VerifiedAt = time.Time{}
+	if equalChainNodeRelation(relation, zeroVerifiedAt) {
+		t.Fatal("zero and non-zero verified_at must not compare equal")
+	}
+}

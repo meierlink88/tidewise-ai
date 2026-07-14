@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"reflect"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
@@ -63,6 +62,23 @@ func scanChainNodeRelation(row *sql.Row) (domain.ChainNodeRelation, error) {
 	return relation, err
 }
 
+func equalChainNodeRelation(left, right domain.ChainNodeRelation) bool {
+	verifiedAtEqual := left.VerifiedAt.IsZero() == right.VerifiedAt.IsZero()
+	if verifiedAtEqual && !left.VerifiedAt.IsZero() {
+		verifiedAtEqual = left.VerifiedAt.Equal(right.VerifiedAt)
+	}
+	return left.ID == right.ID &&
+		left.FromChainNodeEntityID == right.FromChainNodeEntityID &&
+		left.ToChainNodeEntityID == right.ToChainNodeEntityID &&
+		left.RelationType == right.RelationType &&
+		left.Mechanism == right.Mechanism &&
+		left.ConditionNote == right.ConditionNote &&
+		left.EvidenceNote == right.EvidenceNote &&
+		left.Provenance == right.Provenance &&
+		left.Status == right.Status &&
+		verifiedAtEqual
+}
+
 func planChainNodeRelations(ctx context.Context, tx *sql.Tx, relations []domain.ChainNodeRelation, readOnly bool) ([]plannedChainNodeRelation, error) {
 	if err := domain.ValidateChainNodeRelationBatch(relations); err != nil {
 		return nil, err
@@ -88,7 +104,7 @@ func planChainNodeRelations(ctx context.Context, tx *sql.Tx, relations []domain.
 				return nil, fmt.Errorf("chain node relation %q identity conflict", relation.ID)
 			}
 			action := WriteUpdated
-			if reflect.DeepEqual(existing, relation) {
+			if equalChainNodeRelation(existing, relation) {
 				action = WriteUnchanged
 			}
 			planned = append(planned, plannedChainNodeRelation{item: relation, action: action})
@@ -254,7 +270,7 @@ func verifyChainNodeRelationBatchPostWrite(ctx context.Context, tx *sql.Tx, plan
 		if err != nil {
 			return fmt.Errorf("verify chain node relation %q: %w", plan.item.ID, err)
 		}
-		if !reflect.DeepEqual(got, plan.item) {
+		if !equalChainNodeRelation(got, plan.item) {
 			return fmt.Errorf("verify chain node relation %q did not match manifest", plan.item.ID)
 		}
 	}
