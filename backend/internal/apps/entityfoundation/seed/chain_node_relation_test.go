@@ -113,9 +113,7 @@ func TestPostgresChainNodeRelationDryRunUsesRepeatableReadOnlySnapshot(t *testin
 	defer db.Close()
 	relation := domain.ChainNodeRelation{ID: "r", FromChainNodeEntityID: "a", ToChainNodeEntityID: "b", RelationType: domain.ChainNodeRelationSubcategoryOf, Mechanism: "定义范围从属", EvidenceNote: "定义证据", Provenance: "review", VerifiedAt: time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC), Status: domain.StatusActive}
 	mock.ExpectBegin()
-	for _, endpoint := range []string{"a", "b"} {
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS (SELECT 1 FROM entity_nodes WHERE id=$1::uuid AND entity_type='chain_node' AND status='active')")).WithArgs(endpoint).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	}
+	mock.ExpectQuery(regexp.QuoteMeta(chainNodeRelationActiveEndpointsSQL(false))).WithArgs("a", "b").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 	mock.ExpectQuery("FROM chain_node_relations WHERE id").WithArgs("r").WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery("FROM chain_node_relations WHERE from_chain_node_entity_id").WithArgs("a", "b", domain.ChainNodeRelationSubcategoryOf).WillReturnError(sql.ErrNoRows)
 	mock.ExpectCommit()

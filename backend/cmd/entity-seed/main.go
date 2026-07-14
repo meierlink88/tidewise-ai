@@ -28,8 +28,9 @@ func main() {
 	mappingApprovedFirstBatch := flag.Bool("external-identifier-mapping-approved-first-batch", false, "allow only the frozen first-batch external identifier mapping write")
 	relationManifest := flag.String("chain-node-relation-manifest", "", "reviewed chain node relation manifest")
 	relationDryRun := flag.Bool("chain-node-relation-dry-run", false, "run DB snapshot dry-run for chain node relations")
+	relationApprovedWrite := flag.Bool("chain-node-relation-approved-data-write", false, "allow only the frozen first-batch chain node relation data write")
 	flag.Parse()
-	if err := validateRelationCommandOptions(relationCommandOptions{manifest: *relationManifest, dryRun: *relationDryRun, seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope, phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApproved: *mappingApprovedFirstBatch}); err != nil {
+	if err := validateRelationCommandOptions(relationCommandOptions{manifest: *relationManifest, dryRun: *relationDryRun, approvedWrite: *relationApprovedWrite, seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope, phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApproved: *mappingApprovedFirstBatch}); err != nil {
 		log.Fatal(err)
 	}
 	scope, mappingMode, err := validateCommandOptions(commandOptions{
@@ -44,6 +45,9 @@ func main() {
 		relationInput, err = loadRelationDryRunManifest(*relationManifest)
 		if err != nil {
 			log.Fatalf("load chain node relation manifest: %v", err)
+		}
+		if err := entityseed.ValidateFrozenFirstBatchChainNodeRelationManifest(*relationManifest, relationInput); err != nil {
+			log.Fatalf("validate frozen chain node relation manifest: %v", err)
 		}
 	}
 	cfg, err := config.Load()
@@ -61,9 +65,15 @@ func main() {
 	}
 	defer db.Close()
 	if strings.TrimSpace(*relationManifest) != "" {
-		report, err := entityseed.NewPostgresRepository(db).DryRunChainNodeRelationManifest(ctx, relationInput)
+		repository := entityseed.NewPostgresRepository(db)
+		var report entityseed.ChainNodeRelationReport
+		if *relationDryRun {
+			report, err = repository.DryRunFrozenFirstBatchChainNodeRelations(ctx, relationInput.Relations)
+		} else {
+			report, err = repository.ApplyFrozenFirstBatchChainNodeRelations(ctx, relationInput.Relations)
+		}
 		if err != nil {
-			log.Fatalf("dry-run chain node relations: %v", err)
+			log.Fatalf("process frozen chain node relations: %v", err)
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(report)
 		return
@@ -200,20 +210,20 @@ type commandOptions struct {
 }
 
 type relationCommandOptions struct {
-	manifest, seedDir, manifestFile, applyScope, mappingManifest                               string
-	dryRun, includeInactive, phaseAPreflight, mappingDryRun, mappingPreflight, mappingApproved bool
+	manifest, seedDir, manifestFile, applyScope, mappingManifest                                              string
+	dryRun, approvedWrite, includeInactive, phaseAPreflight, mappingDryRun, mappingPreflight, mappingApproved bool
 }
 
 func validateRelationCommandOptions(o relationCommandOptions) error {
 	hasManifest := strings.TrimSpace(o.manifest) != ""
-	if o.dryRun && !hasManifest {
-		return fmt.Errorf("relation dry-run requires -chain-node-relation-manifest")
+	if (o.dryRun || o.approvedWrite) && !hasManifest {
+		return fmt.Errorf("relation dry-run/write requires -chain-node-relation-manifest")
 	}
 	if !hasManifest {
 		return nil
 	}
-	if !o.dryRun {
-		return fmt.Errorf("R1 relation-only mode requires -chain-node-relation-dry-run")
+	if o.dryRun == o.approvedWrite {
+		return fmt.Errorf("relation-only mode requires exactly one of dry-run or approved data write")
 	}
 	if o.seedDir != entityseed.DefaultSeedDir || strings.TrimSpace(o.manifestFile) != "" || o.includeInactive || strings.TrimSpace(o.applyScope) != "" || o.phaseAPreflight || strings.TrimSpace(o.mappingManifest) != "" || o.mappingDryRun || o.mappingPreflight || o.mappingApproved {
 		return fmt.Errorf("relation-only mode cannot combine entity or external identifier seed options")

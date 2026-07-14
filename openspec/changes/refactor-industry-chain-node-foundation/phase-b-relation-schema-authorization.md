@@ -4,7 +4,7 @@
 
 - 命名操作：`phase-b-relation-schema`。
 - 风险等级：**R2**；未来只允许在当前 local development PostgreSQL 执行 migration 17 的 schema Write。
-- 当前状态：**主对话已明确授权并完成一次 migration 17 Write 与立即 Query/assert；当前等待独立写后验收。**实际脱敏结果见 [execution evidence](phase-b-relation-schema-execution-evidence.md)。
+- 当前状态：**主对话已明确授权并完成一次 migration 17 Write 与立即 Query/assert，checkpoint `a903e1e` 已独立验收通过。**实际脱敏结果见 [execution evidence](phase-b-relation-schema-execution-evidence.md)。
 - 前置事实：主对话已批准 checkpoint `f8b3406` 的分层 evidence contract；该批准只允许准备本包，不授权 schema/data Write。
 - 本包只覆盖 relation schema 层；不授权 relation/physical-constraint data、task 2.7 runner、node/profile/mapping 变更、migration 18、Neo4j、UAT/prod/shared、Sync、Archive 或 Deliver。
 
@@ -120,4 +120,4 @@ schema Query 经主对话独立验收前，不得实现或执行 task 2.7 data r
 
 主对话明确批准命名操作 `phase-b-relation-schema` 后，maintenance window 先刷新环境、Goose=16/17-only pending、migration SHA、目标对象不存在、842/842/1,169/331、818/351/241/13、12 类保护 checksum、完整性与 activity 门禁；随后创建并验证新的 PostgreSQL 16.14 custom archive。所有断言通过后，唯一标准 target-version=17 Write 实际 applied 仅 `000017`。
 
-立即只读 Query/assert 确认 Goose=17、两张目标表 schema/constraint/index 精确一致且 rows 均为 0；Phase A 数据、12 类 checksum、mapping aggregates 与完整性断言全部不变，额外 trigger/function/view/rule/JSONB 均为 0。未执行第二次 Write、relation/constraint data、migration 18 或 Neo4j 操作；task 2.7 仍等待本层独立验收。
+立即只读 Query/assert 确认 Goose=17、两张目标表 schema/constraint/index 精确一致且 rows 均为 0；Phase A 数据、12 类 checksum、mapping aggregates 与完整性断言全部不变，额外 trigger/function/view/rule/JSONB 均为 0。未执行第二次 Write、relation/constraint data、migration 18 或 Neo4j 操作；本层随后由主对话独立验收，未把 schema 结果推定为 relation data 授权。

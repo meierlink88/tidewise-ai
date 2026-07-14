@@ -98,25 +98,6 @@ func DryRunChainNodeRelations(ctx context.Context, repo chainNodeRelationSnapsho
 	return report, nil
 }
 
-func (r PostgresRepository) DryRunChainNodeRelationBatch(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
-	if r.root == nil {
-		return ChainNodeRelationReport{}, fmt.Errorf("postgres root database is required")
-	}
-	tx, err := r.root.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
-	if err != nil {
-		return ChainNodeRelationReport{}, err
-	}
-	report, err := DryRunChainNodeRelations(ctx, PostgresRepository{db: tx}, relations)
-	if err != nil {
-		_ = tx.Rollback()
-		return ChainNodeRelationReport{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return ChainNodeRelationReport{}, err
-	}
-	return report, nil
-}
-
 func (r PostgresRepository) DryRunChainNodeRelationManifest(ctx context.Context, manifest ChainNodeRelationManifest) (ChainNodeRelationReport, error) {
 	if err := ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
 		return ChainNodeRelationReport{}, err

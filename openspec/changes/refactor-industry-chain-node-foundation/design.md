@@ -200,7 +200,7 @@ classDiagram
     ThemeProfile .. ChainNodeRelation : 不参与 topology
 ```
 
-结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。Phase B R1 已实现 `ChainNodeRelation`、四个强类型 relation constants、repository snapshot dry-run/report 与 relation-only CLI；migration 17 已按命名 R2 授权应用至 local，并完成两张空表的立即 Query/assert，当前等待独立验收。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
+结构 checkpoint 已落地 `ChainNodeProfile`、`Theme` / `ThemeProfile` 与旧生产输入拒绝边界；task 1.12 按 TDD 实现 `EntityExternalIdentifier`、repository、schema migration、workbook parser 与只读 dry-run/report，并已由主对话批准 checkpoint `a0547e6`。Phase B R1 已实现 `ChainNodeRelation`、四个强类型 relation constants、repository snapshot dry-run/report 与 relation-only CLI；migration 17 已按命名 R2 授权应用至 local，两张空表的立即 Query/assert 已由主对话独立验收 checkpoint `a903e1e`。默认 service/CLI 不再暴露 industry-chain container、membership/topology、旧 source-mapping 或 convergence 写入口。
 
 ### 8. Active change 风险分级与执行包
 
@@ -215,8 +215,8 @@ classDiagram
 | `phase-a-external-identifier-schema`（1.15） | R2，已验收 `ce2136d` | 独立条件式执行包只执行 migration 16 schema 层；仅允许进入 1.16 R0 candidate Review，不推定后续层授权 |
 | `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
 | `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,169 mapping 层 |
-| `phase-b-relation-schema`（2.6） | R0 package -> R2 | [独立条件式执行包](phase-b-relation-schema-authorization.md)已准备；当前只完成 package Review，明确授权后才可执行 relation schema 层 |
-| `phase-b-relation-data`（2.7） | R1 -> R2 | schema Query 后先自动完成 relation-only atomic runner/validator/precommit assertions 的 R1 技术验收；再冻结 manifest 并提交独立 R2，只授权已审阅 relation/新 constraint data 层 |
+| `phase-b-relation-schema`（2.6） | R0 package -> R2 | [独立条件式执行包](phase-b-relation-schema-authorization.md)已执行，migration 17 Write/Query 已由主对话独立验收 checkpoint `a903e1e`；不推定 data 授权 |
+| `phase-b-relation-data`（2.7） | R1 -> R2 | schema Query 已验收；已完成 relation-only atomic runner/validator/precommit assertions、冻结 96 条 manifest 与真实只读 dry-run，并提交[独立 R2 package](phase-b-relation-data-authorization.md)。当前只等待独立验收与明确 Write 授权，constraint write-ready=0 |
 | Neo4j cleanup/write/rebuild | R3，且不在本 change | 必须由后续独立 change 和独立授权处理，任何现有批准均不覆盖 |
 
 每个 R2 条件式执行包必须在执行前明确命名操作、环境、顺序、精确范围、排除范围、recovery evidence、预计 counts、before/after assertions 与停止条件。当前 curated local PostgreSQL 不自动视为 disposable：默认提供可恢复 `backup`；只有用户对具体层明确声明 disposable、无不可替代数据且批准确定性 recreate/reseed 路径时，才能使用 `approved disposable recovery`。任何恢复证据失效、范围漂移、断言失败或停止条件触发都必须 fail-closed，未执行的授权自动失效。
@@ -293,8 +293,8 @@ sequenceDiagram
 ### Phase B：基于新节点建立关系
 
 1. 不读取或转换旧 membership/topology/constraint ID；关系与任何新 physical constraint 均从新节点和新证据重新提出。
-2. 四类关系契约、候选边及 evidence/provenance 独立 Review；96 条分类/组成候选已通过双遍 AI Review，其分层 evidence contract 已由主对话确认。relation schema 与 relation data 仍分别执行 `Review -> Write -> Query`，当前只准备 schema R2 package，未授权 migration 17。
-3. schema Query 验收后，task 2.7 先完成不写数据库的 relation-only batch runner、单事务原子性、manifest/snapshot conflict、提交前 assertions 与 dry-run/report R1；技术验收与可写 manifest 冻结后才可请求 data R2。
+2. 四类关系契约、候选边及 evidence/provenance 独立 Review；96 条分类/组成候选已通过双遍 AI Review，其分层 evidence contract 已确认。relation schema 已独立写入并验收；relation data 仍单独执行 `Review -> Write -> Query`。
+3. task 2.7a 已完成不写数据库的 relation-only batch runner、单事务原子性、manifest/snapshot conflict、提交前 assertions、冻结 manifest 与真实只读 dry-run，并准备 data R2 package；本 checkpoint 不授权 relation data Write。
 4. 本 change 不执行 Neo4j rebuild；最终 PostgreSQL 关系通过后仍由后续独立 change 负责投影。
 
 ### 幂等与回滚

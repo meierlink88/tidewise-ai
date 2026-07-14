@@ -43,13 +43,16 @@ func TestValidateCommandOptionsFailsClosedForMappingMode(t *testing.T) {
 	}
 }
 
-func TestValidateRelationCommandOptionsRequiresIsolatedDryRun(t *testing.T) {
-	for _, options := range []relationCommandOptions{{dryRun: true}, {manifest: "relations.json"}, {manifest: "relations.json", dryRun: true, seedDir: "other"}, {manifest: "relations.json", dryRun: true, mappingManifest: "mapping.json"}} {
+func TestValidateRelationCommandOptionsRequiresExactlyOneIsolatedMode(t *testing.T) {
+	for _, options := range []relationCommandOptions{{dryRun: true}, {approvedWrite: true}, {manifest: "relations.json"}, {manifest: "relations.json", dryRun: true, approvedWrite: true}, {manifest: "relations.json", dryRun: true, seedDir: "other"}, {manifest: "relations.json", approvedWrite: true, mappingManifest: "mapping.json"}} {
 		if err := validateRelationCommandOptions(options); err == nil {
 			t.Fatalf("validateRelationCommandOptions(%+v) error=nil", options)
 		}
 	}
 	if err := validateRelationCommandOptions(relationCommandOptions{manifest: "relations.json", dryRun: true, seedDir: entityseed.DefaultSeedDir}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRelationCommandOptions(relationCommandOptions{manifest: "relations.json", approvedWrite: true, seedDir: entityseed.DefaultSeedDir}); err != nil {
 		t.Fatal(err)
 	}
 }

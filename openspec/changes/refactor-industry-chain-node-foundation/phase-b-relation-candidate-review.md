@@ -6,7 +6,7 @@
 - 生成器：[generate_relation_candidates.py](relation-candidate-artifacts/generate_relation_candidates.py)，规则版本=`phase-b-semantic-v2-second-review`。
 - 全量候选：[relation-candidate-review.json](relation-candidate-artifacts/relation-candidate-review.json)，SHA-256=`00bda835f16bd4df84eaa6f83d63c53146ca7edb09049def84146932e672340f`。
 - 算法只枚举名称自身后缀并查询 approved node 索引，复杂度为 `O(sum(name_length))`，不构造 842×842 全排列。
-- `ready_for_write=false`：AI disposition 完成不等于证据契约批准、可写 manifest 冻结或 R2 授权。
+- 原始 candidate Review 保持 `ready_for_write=false`；它不被覆盖。经 evidence contract 批准与 R1 runner 技术实现后，另行冻结了数据库可执行 manifest，但仍不构成 R2 Write 授权。
 
 | disposition | 数量 | 第二遍 Review 结论 |
 | --- | ---: | --- |
@@ -19,7 +19,7 @@
 
 两遍 AI Review 已批准其业务 disposition：95 条 `A -> B is_subcategory_of` 仅表示 A 全部稳定语义实例属于 B；`汽车零部件 -> 汽车 is_component_of` 仅表示可识别物理/系统组成。这 96 条不得解释为投入、依赖、供应关系、瓶颈或动态事件传导。
 
-每条草案保存 from/to 名称与 entity key、definition/boundary、方向、mechanism、condition、内部 artifact path+SHA、derivation rule、两遍 Review 记录、反例与不确定性。分层 evidence contract 已由主对话确认；当前仍不补造 source URL、不填写最终 `verified_at`，也不输出数据库可执行 manifest，因为 task 2.7 的 R1 runner、最终 manifest 冻结与 data R2 尚未开始。
+每条草案保存 from/to 名称与 entity key、definition/boundary、方向、mechanism、condition、内部 artifact path+SHA、derivation rule、两遍 Review 记录、反例与不确定性。分层 evidence contract 已由主对话确认。task 2.7a 由这些已批准 disposition 生成独立 [relation-write-manifest.json](relation-candidate-artifacts/relation-write-manifest.json)，SHA-256=`7651e0b591df1e03838df00ebc9acd6101ebcc76da18a6a314ff478c9f42990e`；补齐 deterministic UUID、最终 `verified_at` 与双遍 Review provenance，只包含 96 条，未引入 URL、blocked/rejected/constraint。真实 local 只读 dry-run 为 96/0/0；data Write 仍未授权。
 
 ## 51 条 blocked 与 7 条 rejected
 
@@ -45,5 +45,5 @@
 - relation-only CLI 在配置与数据库初始化前对任何非空 `physical_constraints` 明确 fail-closed；constraint repository/dry-run 尚未实现前不得静默忽略。
 - JSON loader 只接受单个文档并验证 EOF，拒绝尾随第二个 JSON 值。
 - migration 017 为两个 nullable constraint subject FK 增加 partial 查询索引，但未增加未经确认的 semantic unique。
-- [证据契约 amendment](phase-b-evidence-contract-amendment-review.md) 已由主对话确认；当前只允许准备 task 2.6 的 schema R2 Review package。
-- 本 candidate checkpoint 未 apply migration 17，未连接或写入 PostgreSQL/Neo4j；后续只准备了独立 schema R2 Review package，data R2 仍未开始。
+- [证据契约 amendment](phase-b-evidence-contract-amendment-review.md) 已由主对话确认；schema R2 已独立执行验收，当前只准备 task 2.7a 的 relation data R2 Review package，仍未授权 data Write。
+- migration 17 schema 层已在独立 R2 中执行并验收；task 2.7a 只实现 runner、冻结 manifest、运行真实 local 只读 dry-run并准备独立 [data R2 package](phase-b-relation-data-authorization.md)，未写 PostgreSQL/Neo4j。

@@ -70,4 +70,4 @@ backup 路径位于 Desktop worktree 生命周期之外，文件权限为 `0600`
 
 ## 停止点
 
-Task 2.6b 的 schema Write 与 Query/assert 已执行完成，等待主对话独立验收。本结果不授权 task 2.7、96 条 relation data、physical constraint data、migration 18 或任何其他环境/系统操作。
+Task 2.6b 的 schema Write 与 Query/assert 已执行完成，并由主对话独立验收 checkpoint `a903e1e`。本结果未授权 96 条 relation data、physical constraint data、migration 18 或任何其他环境/系统操作；后续 task 2.7a 仅在新授权下实现 R1 runner、冻结 manifest、运行只读 dry-run并准备独立 data R2 package。
