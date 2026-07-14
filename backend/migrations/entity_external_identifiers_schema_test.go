@@ -23,6 +23,8 @@ func TestEntityExternalIdentifiersSchema(t *testing.T) {
 		"external_code text not null",
 		"external_name text not null",
 		"status varchar(32) not null default 'active'",
+		"created_at timestamptz not null default now()",
+		"updated_at timestamptz not null default now()",
 		"unique (source_system, source_taxonomy_type, external_code)",
 		"create index idx_entity_external_identifiers_entity_source",
 		"on entity_external_identifiers (entity_id, source_system, source_taxonomy_type)",
@@ -31,6 +33,7 @@ func TestEntityExternalIdentifiersSchema(t *testing.T) {
 		"check (btrim(external_code) <> '')",
 		"check (btrim(external_name) <> '')",
 		"check (status in ('active', 'inactive'))",
+		"migration 000016 is irreversible after external identifiers exist",
 	} {
 		if !strings.Contains(sql, required) {
 			t.Fatalf("external identifier migration missing %q", required)
@@ -42,6 +45,9 @@ func TestEntityExternalIdentifiersSchema(t *testing.T) {
 		"jsonb",
 		"unique (entity_id, source_system, source_taxonomy_type, external_code)",
 		"insert into entity_external_identifiers",
+		"create trigger",
+		"create function",
+		"create view",
 	} {
 		if strings.Contains(sql, forbidden) {
 			t.Fatalf("external identifier migration contains forbidden %q", forbidden)

@@ -5,15 +5,15 @@
 - source workflow change：`optimize-risk-tiered-development-workflow`，已 Deliver；`origin/main` merge commit 为 `4b3df5c`。
 - current change：`refactor-industry-chain-node-foundation`，Desktop-managed worktree 与 `codex/refactor-industry-chain-node-foundation` branch 保持不变。
 - 已执行 `git fetch origin`，确认 `origin/main@4b3df5c`，并通过 merge commit `2256c00` 非破坏性吸收最新主分支；未重写、删除或覆盖本 change checkpoint。
-- 本 adoption diff 只修改当前 change 的未来流程标注；1.1—1.12 的 checkbox、Review 结果与授权保持不变。主对话已批准 checkpoint `0b21f74`，并随后批准 task 1.13 Cleanup Readiness Review；两项批准均不授权 restore、migration、cleanup、seed 或任何 PostgreSQL/Neo4j Write。
+- 本 adoption diff 只修改当前 change 的未来流程标注；1.1—1.12 的 checkbox、Review 结果与授权保持不变。主对话已批准 checkpoint `0b21f74`、task 1.13 Cleanup Readiness Review，并已验收 task 1.14 cleanup execution checkpoint `f2bc90a`；后续 schema/seed/mapping/relation 层仍须独立授权。
 
 ## Package scope
 
 - 风险等级：**R0**，因为只修改 OpenSpec artifacts 并执行 scoped validation。
 - scope：声明 change R3 基线、映射剩余 tasks 到 R0/R1/R2/R3、定义阶段 Review package、R2 命名条件式执行包和 R3 cleanup 独立授权。
-- non-goals：不进入 1.14，不运行 restore rehearsal、migration、cleanup、seed，不连接或写入 PostgreSQL/Neo4j，不 rebuild，不修改源码、migration 或主规格。
+- non-goals：不运行 restore rehearsal，不重复 migration 15，不运行 migration 16、seed、cleanup、mapping、relation，不连接或写入 Neo4j，不 rebuild，不修改主规格。
 - 未验证项：所有未来执行包的环境快照、recovery evidence、预计 counts 与 before/after assertions 必须在各包提交时刷新；本 adoption 不复用旧证据作为未来授权。
-- 当前阻断：`backup_verified=false`；独立 restore rehearsal authorization package 尚未验收/授权，R3 cleanup 授权对象尚未成立。
+- 当前阻断：`backup_verified=false` 保持历史事实；当前下一入口是独立 `phase-a-external-identifier-schema` R2 package，尚未授权或执行。
 
 ## 剩余阶段映射
 
@@ -22,7 +22,7 @@
 | workflow adoption | R0 | 本文件、tasks/design diff、OpenSpec validate、scope/secret/diff 检查 | adoption Review 后按新语义准备未来 package | 任何 DB/Neo4j 操作；改变历史状态 |
 | 1.13 | R0，已批准 | Cleanup Readiness Review package | 准备独立 restore rehearsal authorization package | restore、cleanup Write、migration 16、seed、mapping、Neo4j |
 | restore rehearsal | R0 artifact / R2 execution | `phase-a-backup-restore-rehearsal` 独立条件式执行包 | 获独立授权后只在隔离 disposable PG16 恢复并验证 backup；成功升级 `backup_verified` | migration 15、cleanup、seed、现有 PG/Neo4j Write |
-| 1.14 | R3 | `phase-a-legacy-industry-cleanup` 独立授权包 | 仅在明确授权后执行 migration 15，并立即 Query/assert | 任何 R2 层或 Neo4j；跨层批量执行 |
+| 1.14 | R3，已验收 `f2bc90a` | `phase-a-legacy-industry-cleanup` 独立授权包 | 已完成 migration 15 与立即 Query/assert | migration 16、seed、mapping、relation、Neo4j |
 | 1.15 | R2 | `phase-a-external-identifier-schema` 条件式执行包 | migration 16 schema Write 后立即 Query/assert | node/profile 与 mapping data |
 | 1.16 | R0 | Final seed candidate Review package | 组装 node/profile R2 执行包 | seed Write |
 | 1.17 | R2 | `phase-a-chain-node-seed` 条件式执行包 | 842 node/profile Write 后立即 Query/assert | mapping data、theme、relation |
@@ -45,4 +45,4 @@
 
 ## Review request
 
-主对话已验收本 active-change workflow adoption 与 task 1.13。当前下一授权入口仅为 [restore-rehearsal-authorization.md](restore-rehearsal-authorization.md)；既有批准不授权 task 1.14 或任何有状态操作。
+主对话已验收本 active-change workflow adoption、task 1.13 与 task 1.14。当前下一授权入口仅为 [phase-a-external-identifier-schema-authorization.md](phase-a-external-identifier-schema-authorization.md)；既有批准不授权 migration 16 或任何后续有状态操作。

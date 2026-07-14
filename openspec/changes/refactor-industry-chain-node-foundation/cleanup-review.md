@@ -206,7 +206,7 @@ TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cle
 
 1. 命名 R2 restore rehearsal 已由主对话撤销且未完成，`backup_verified=false`；固定 disposable 资源已清理且无残留。这些历史事实保持不变，且不被改写为 restore verified。
 2. 主对话随后独立批准并已执行 [命名 R3 `phase-a-legacy-industry-cleanup` package](phase-a-legacy-industry-cleanup-authorization.md)。新鲜 evidence 位于 `/Users/meierlink/.local/share/tidewise-ai/cleanup-evidence/20260713T113234Z/`：preflight、archive、Goose、migration report 与写后 Query/assert 均通过；task 1.14 已完成、等待主对话验收。
-3. 当前唯一下一入口是主对话对 task 1.14 execution checkpoint 的人工验收。验收前不得执行 migration 16、seed、mapping、relation 或任何 Neo4j 操作；本次 local 风险接受不构成后续 R2/R3 Write 授权。
+3. task 1.14 execution checkpoint `f2bc90a` 已由主对话验收。当前唯一下一入口是 [task 1.15 external identifier schema R2 package](phase-a-external-identifier-schema-authorization.md) 的人工 Review；验收并明确授权前不得执行 migration 16、seed、mapping、relation 或任何 Neo4j 操作，本次 local 风险接受不构成后续 R2/R3 Write 授权。
 
 ## Readiness checkpoint 验证
 
