@@ -364,12 +364,23 @@ func allianceEconomyDependencyFingerprintsSQL() string {
 	return `WITH target AS (SELECT id FROM entity_nodes WHERE entity_type IN ('alliance_org','economy'))
 SELECT fingerprint FROM (
   SELECT 'node|'||id||'|'||entity_key||'|'||entity_type||'|'||layer_code||'|'||name||'|'||canonical_name||'|'||aliases::text||'|'||status AS fingerprint FROM entity_nodes WHERE id IN (SELECT id FROM target)
-  UNION ALL SELECT 'alliance_profile|'||p.entity_id||'|'||p.org_code||'|'||p.org_type||'|'||p.primary_domain||'|'||p.scope_region||'|'||p.official_url FROM alliance_org_profiles p
+  UNION ALL SELECT CASE WHEN profile ? 'org_code' THEN 'alliance_profile|'||p.entity_id||'|'||(profile->>'org_code')||'|'||(profile->>'org_type')||'|'||(profile->>'primary_domain')||'|'||(profile->>'scope_region')||'|'||(profile->>'official_url') ELSE 'alliance_profile|'||p.entity_id||'|'||(profile->>'abbreviation')||'|'||(profile->>'leadership_summary')||'|'||(profile->>'influence_scope_summary') END FROM alliance_org_profiles p CROSS JOIN LATERAL (SELECT to_jsonb(p) AS profile) fields
   UNION ALL SELECT 'economy_profile|'||p.entity_id||'|'||p.country_code||'|'||p.currency_code||'|'||p.region FROM economy_profiles p
   UNION ALL SELECT 'edge|'||e.id||'|'||f.entity_key||'|'||e.relation_type||'|'||t.entity_key||'|'||e.status||'|'||e.source_name||'|'||e.source_url||'|'||COALESCE(e.verified_at::text,'')
     FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
     WHERE e.from_entity_id IN (SELECT id FROM target) OR e.to_entity_id IN (SELECT id FROM target)
 ) dependencies ORDER BY fingerprint`
+}
+
+func allianceEconomyProfileFingerprint(entityID string, profileJSON []byte) (string, error) {
+	var profile map[string]string
+	if err := json.Unmarshal(profileJSON, &profile); err != nil {
+		return "", fmt.Errorf("decode alliance profile fingerprint: %w", err)
+	}
+	if _, legacy := profile["org_code"]; legacy {
+		return strings.Join([]string{"alliance_profile", entityID, profile["org_code"], profile["org_type"], profile["primary_domain"], profile["scope_region"], profile["official_url"]}, "|"), nil
+	}
+	return strings.Join([]string{"alliance_profile", entityID, profile["abbreviation"], profile["leadership_summary"], profile["influence_scope_summary"]}, "|"), nil
 }
 
 func allianceEconomyForeignKeysSQL() string {
