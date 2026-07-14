@@ -15,7 +15,8 @@
 
 #### Scenario: 投影 chain_node_relations
 - **WHEN** projector 读取 active `chain_node_relations`
-- **THEN** 系统必须投影两端均存在且 active 的已批准关系
+- **THEN** 系统必须投影两端均存在且 active 的 `is_subcategory_of`、`is_component_of`、`input_to`、`depends_on`
+- **AND** 关系类型与方向必须保持 PostgreSQL 原始事实
 
 ### Requirement: local disposable Neo4j 分层重建
 系统 SHALL 把 local Tidewise Neo4j 作为可由已验收 PostgreSQL projection baseline 重建的 disposable projection，并将 cleanup 与 rebuild 作为两个独立 R3 授权层；不得要求或宣称 Neo4j backup/rollback。
