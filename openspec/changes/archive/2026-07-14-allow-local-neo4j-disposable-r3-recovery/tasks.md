@@ -29,4 +29,4 @@
 ## 3. Apply-final、Sync、Archive、Deliver Package
 
 - [x] 3.1 汇总 scoped diff、允许/禁止矩阵、TDD RED/GREEN、repo-wide backend 验证、未验证项与 adoption 证据，提交 Apply-final Review checkpoint 后停止等待人工 Review；不得把该 Review 解释为任何 Neo4j R3 layer 授权。
-- [ ] 3.2 仅在 Apply-final Review 通过后依序 Sync、Archive、运行 `openspec validate --all` 并完成 archive checkpoint；再按 Git 门禁 Deliver。规则进入最新 `origin/main` 前，受阻 change 不得 adoption 或继续 Apply。
+- [x] 3.2 Apply-final Review 已通过，明确允许按顺序进入 Sync、Archive 与 Git Deliver；该批准不授权任何 Neo4j R3 layer 或受阻 change adoption。
