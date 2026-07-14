@@ -19,7 +19,7 @@
 
 两遍 AI Review 已批准其业务 disposition：95 条 `A -> B is_subcategory_of` 仅表示 A 全部稳定语义实例属于 B；`汽车零部件 -> 汽车 is_component_of` 仅表示可识别物理/系统组成。这 96 条不得解释为投入、依赖、供应关系、瓶颈或动态事件传导。
 
-每条草案保存 from/to 名称与 entity key、definition/boundary、方向、mechanism、condition、内部 artifact path+SHA、derivation rule、两遍 Review 记录、反例与不确定性。由于分层 evidence contract 尚待用户确认，当前不补造 source URL、不填写最终 `verified_at`，也不输出数据库可执行 manifest。
+每条草案保存 from/to 名称与 entity key、definition/boundary、方向、mechanism、condition、内部 artifact path+SHA、derivation rule、两遍 Review 记录、反例与不确定性。分层 evidence contract 已由主对话确认；当前仍不补造 source URL、不填写最终 `verified_at`，也不输出数据库可执行 manifest，因为 task 2.7 的 R1 runner、最终 manifest 冻结与 data R2 尚未开始。
 
 ## 51 条 blocked 与 7 条 rejected
 
@@ -45,5 +45,5 @@
 - relation-only CLI 在配置与数据库初始化前对任何非空 `physical_constraints` 明确 fail-closed；constraint repository/dry-run 尚未实现前不得静默忽略。
 - JSON loader 只接受单个文档并验证 EOF，拒绝尾随第二个 JSON 值。
 - migration 017 为两个 nullable constraint subject FK 增加 partial 查询索引，但未增加未经确认的 semantic unique。
-- [证据契约 amendment](phase-b-evidence-contract-amendment-review.md) 是进入 task 2.6 前唯一需要用户确认的业务事项。
-- 本 checkpoint 未 apply migration 17，未连接或写入 PostgreSQL/Neo4j，未准备 schema/data R2。
+- [证据契约 amendment](phase-b-evidence-contract-amendment-review.md) 已由主对话确认；当前只允许准备 task 2.6 的 schema R2 Review package。
+- 本 candidate checkpoint 未 apply migration 17，未连接或写入 PostgreSQL/Neo4j；后续只准备了独立 schema R2 Review package，data R2 仍未开始。

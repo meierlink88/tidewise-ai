@@ -215,7 +215,7 @@ classDiagram
 | `phase-a-external-identifier-schema`（1.15） | R2，已验收 `ce2136d` | 独立条件式执行包只执行 migration 16 schema 层；仅允许进入 1.16 R0 candidate Review，不推定后续层授权 |
 | `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
 | `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,169 mapping 层 |
-| `phase-b-relation-schema`（2.6） | R2 | 独立条件式执行包，只授权 relation schema 层 |
+| `phase-b-relation-schema`（2.6） | R0 package -> R2 | [独立条件式执行包](phase-b-relation-schema-authorization.md)已准备；当前只完成 package Review，明确授权后才可执行 relation schema 层 |
 | `phase-b-relation-data`（2.7） | R1 -> R2 | schema Query 后先自动完成 relation-only atomic runner/validator/precommit assertions 的 R1 技术验收；再冻结 manifest 并提交独立 R2，只授权已审阅 relation/新 constraint data 层 |
 | Neo4j cleanup/write/rebuild | R3，且不在本 change | 必须由后续独立 change 和独立授权处理，任何现有批准均不覆盖 |
 
@@ -293,7 +293,7 @@ sequenceDiagram
 ### Phase B：基于新节点建立关系
 
 1. 不读取或转换旧 membership/topology/constraint ID；关系与任何新 physical constraint 均从新节点和新证据重新提出。
-2. 四类关系契约、候选边及 evidence/provenance 独立 Review；96 条分类/组成候选已通过双遍 AI Review，但其分层 evidence contract 仍待用户确认。relation schema 与 relation data 仍分别执行 `Review -> Write -> Query`。
+2. 四类关系契约、候选边及 evidence/provenance 独立 Review；96 条分类/组成候选已通过双遍 AI Review，其分层 evidence contract 已由主对话确认。relation schema 与 relation data 仍分别执行 `Review -> Write -> Query`，当前只准备 schema R2 package，未授权 migration 17。
 3. schema Query 验收后，task 2.7 先完成不写数据库的 relation-only batch runner、单事务原子性、manifest/snapshot conflict、提交前 assertions 与 dry-run/report R1；技术验收与可写 manifest 冻结后才可请求 data R2。
 4. 本 change 不执行 Neo4j rebuild；最终 PostgreSQL 关系通过后仍由后续独立 change 负责投影。
 
@@ -317,7 +317,7 @@ sequenceDiagram
 
 ## Open Questions
 
-- **等待用户确认的唯一业务 amendment**：是否批准 `is_subcategory_of` / `is_component_of` 使用 internal artifact path+SHA、derivation rule 与双遍 AI Review 作为充分证据，同时继续要求 `input_to` / `depends_on` / physical constraint 提供强外部 source URL/verified_at/条件/反例。确认前不得准备 schema R2。
+- **已确认的 evidence amendment**：`is_subcategory_of` / `is_component_of` 可使用 internal artifact path+SHA、derivation rule 与双遍 AI Review 作为充分证据；`input_to` / `depends_on` / physical constraint 仍须强外部 source URL/verified_at/条件/反例。该确认不授权 migration 17 或 data Write。
 - physical constraint semantic identity 推荐使用 subject kind + subject ID + constraint type + normalized condition，并在 condition 身份语义确认后评估两个 partial unique expression indexes；该问题延后到出现可写 constraint 候选前处理，不是当前 evidence amendment 的第二个确认项，本轮不实施该 unique。
 
 - 第一批 842 个 canonical 名称与 950 个原始名称范围、身份/aliases/definition/boundary/dry-run 契约已批准；842 个具体 UUID/key、definition、必要 boundary、alias 归一化结果和逐代码 taxonomy 仍须在 final seed dry-run Review 中批准。
