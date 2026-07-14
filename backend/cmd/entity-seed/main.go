@@ -28,7 +28,7 @@ func main() {
 	mappingApprovedFirstBatch := flag.Bool("external-identifier-mapping-approved-first-batch", false, "allow only the frozen first-batch external identifier mapping write")
 	relationManifest := flag.String("chain-node-relation-manifest", "", "reviewed chain node relation manifest")
 	relationDryRun := flag.Bool("chain-node-relation-dry-run", false, "run DB snapshot dry-run for chain node relations")
-	relationApprovedWrite := flag.Bool("chain-node-relation-approved-data-write", false, "allow only the frozen first-batch chain node relation data write")
+	relationApprovedWrite := flag.Bool("chain-node-relation-approved-data-write", false, "allow only the frozen chain node relation manifest data write")
 	allianceEconomyManifest := flag.String("alliance-economy-approved-manifest", "", "frozen approved alliance/economy manifest for this change")
 	allianceEconomyDependencyAudit := flag.Bool("alliance-economy-dependency-audit", false, "read-only local dependency audit for this change")
 	allianceEconomyCleanupApprovedLocal := flag.Bool("alliance-economy-cleanup-approved-local", false, "execute separately approved local cleanup for this change")
@@ -54,9 +54,6 @@ func main() {
 		relationInput, err = loadRelationDryRunManifest(*relationManifest)
 		if err != nil {
 			log.Fatalf("load chain node relation manifest: %v", err)
-		}
-		if err := entityseed.ValidateFrozenFirstBatchChainNodeRelationManifest(*relationManifest, relationInput); err != nil {
-			log.Fatalf("validate frozen chain node relation manifest: %v", err)
 		}
 	}
 	var allianceEconomyInput entityseed.AllianceEconomyManifest
@@ -106,9 +103,9 @@ func main() {
 		repository := entityseed.NewPostgresRepository(db)
 		var report entityseed.ChainNodeRelationReport
 		if *relationDryRun {
-			report, err = repository.DryRunFrozenFirstBatchChainNodeRelations(ctx, relationInput.Relations)
+			report, err = repository.DryRunFrozenChainNodeRelations(ctx, relationInput.Relations)
 		} else {
-			report, err = repository.ApplyFrozenFirstBatchChainNodeRelations(ctx, relationInput.Relations)
+			report, err = repository.ApplyFrozenChainNodeRelations(ctx, relationInput.Relations)
 		}
 		if err != nil {
 			log.Fatalf("process frozen chain node relations: %v", err)
@@ -232,7 +229,7 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 }
 
 func loadRelationDryRunManifest(path string) (entityseed.ChainNodeRelationManifest, error) {
-	manifest, err := entityseed.LoadChainNodeRelationManifest(path)
+	manifest, err := entityseed.LoadFrozenChainNodeRelationManifest(path)
 	if err != nil {
 		return manifest, err
 	}

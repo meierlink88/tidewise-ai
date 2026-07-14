@@ -145,7 +145,7 @@ func (r PostgresRepository) DryRunChainNodeRelationBatch(ctx context.Context, re
 	return r.dryRunChainNodeRelationBatch(ctx, relations, false)
 }
 
-func (r PostgresRepository) DryRunFrozenFirstBatchChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
+func (r PostgresRepository) DryRunFrozenChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
 	return r.dryRunChainNodeRelationBatch(ctx, relations, true)
 }
 
@@ -163,8 +163,8 @@ func (r PostgresRepository) dryRunChainNodeRelationBatch(ctx context.Context, re
 		if err != nil {
 			return ChainNodeRelationReport{}, err
 		}
-		if baseline.ExistingRelations != 0 && baseline.ExistingRelations != 96 {
-			return ChainNodeRelationReport{}, fmt.Errorf("frozen relation dry-run requires zero or 96 existing relations, got %d", baseline.ExistingRelations)
+		if baseline.ExistingRelations != 96 {
+			return ChainNodeRelationReport{}, fmt.Errorf("frozen relation dry-run requires 96 existing relations, got %d", baseline.ExistingRelations)
 		}
 		if _, err := assertChainNodeRelationDataBaseline(ctx, tx, baseline.ExistingRelations); err != nil {
 			return ChainNodeRelationReport{}, err
@@ -184,7 +184,7 @@ func (r PostgresRepository) ApplyChainNodeRelationBatch(ctx context.Context, rel
 	return r.applyChainNodeRelationBatch(ctx, relations, false)
 }
 
-func (r PostgresRepository) ApplyFrozenFirstBatchChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
+func (r PostgresRepository) ApplyFrozenChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
 	return r.applyChainNodeRelationBatch(ctx, relations, true)
 }
 
@@ -248,14 +248,14 @@ const frozenChainNodeRelationAggregateSQL = `SELECT count(*),
  LEFT JOIN chain_node_profiles tp ON tp.entity_id=r.to_chain_node_entity_id`
 
 func verifyFrozenChainNodeRelationPostWrite(ctx context.Context, tx *sql.Tx) error {
-	if _, err := assertChainNodeRelationDataBaseline(ctx, tx, 96); err != nil {
+	if _, err := assertChainNodeRelationDataBaseline(ctx, tx, 100); err != nil {
 		return err
 	}
 	var total, subcategory, component, input, depends, incomplete, selfLoops, duplicates, orphans int
 	if err := tx.QueryRowContext(ctx, frozenChainNodeRelationAggregateSQL).Scan(&total, &subcategory, &component, &input, &depends, &incomplete, &selfLoops, &duplicates, &orphans); err != nil {
 		return err
 	}
-	if total != 96 || subcategory != 95 || component != 1 || input != 0 || depends != 0 || incomplete != 0 || selfLoops != 0 || duplicates != 0 || orphans != 0 {
+	if total != 100 || subcategory != 95 || component != 1 || input != 3 || depends != 1 || incomplete != 0 || selfLoops != 0 || duplicates != 0 || orphans != 0 {
 		return fmt.Errorf("frozen relation post-write aggregate mismatch: total=%d types=%d/%d/%d/%d incomplete=%d self=%d duplicate=%d orphan=%d", total, subcategory, component, input, depends, incomplete, selfLoops, duplicates, orphans)
 	}
 	return nil

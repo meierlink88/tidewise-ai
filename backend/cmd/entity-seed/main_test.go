@@ -69,6 +69,17 @@ func TestLoadRelationDryRunManifestRejectsPhysicalConstraints(t *testing.T) {
 	}
 }
 
+func TestLoadRelationDryRunManifestReadsFrozenFinalHundredRelations(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "openspec", "changes", "rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-r0", "approved-candidate-manifest.json")
+	manifest, err := loadRelationDryRunManifest(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(manifest.Relations); got != 100 {
+		t.Fatalf("relations = %d, want 100", got)
+	}
+}
+
 func TestManifestPreflightProofUsesExplicitFileAndCountsChainNodeProfiles(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "chain-nodes.json")
 	content := []byte(`{"entities":[{"key":"chain_node:test","entity_type":"chain_node","layer_code":"chain_node","name":"测试节点","canonical_name":"测试节点","status":"active","profile":{"definition":"用于验证显式节点 seed 文件的稳定产业节点。"}}]}`)
