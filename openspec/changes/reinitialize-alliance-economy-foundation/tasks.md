@@ -70,7 +70,7 @@ Acceptance criteria：
 
 ## 5. Apply-final Review 与 Deliver Package
 
-- [ ] 5.1 **Apply-final → Sync → Archive → Deliver**：汇总 R1、R3 cleanup 和 R2 rebuild 的 scoped evidence，运行受影响交付边界测试、共享 tests、OpenSpec strict、diff/scope/secret 和需求覆盖 self-review；主对话完成 Apply-final 人工 Review 后，依次 Sync、Archive、`openspec validate --all`、archive commit、PR/merge 和按 worktree 所有权 cleanup。
+- [ ] 5.1 **Apply-final → Sync → Archive → Deliver**：Apply-final Review package 已准备，脱敏证据见 `package-5-apply-final-review.md`；仍等待主对话人工 Review。通过后才可依次 Sync、Archive、`openspec validate --all`、archive commit、PR/merge 和按 worktree 所有权 cleanup；本 checkpoint 不授权任何后续生命周期操作。
 
 Acceptance criteria：
 
