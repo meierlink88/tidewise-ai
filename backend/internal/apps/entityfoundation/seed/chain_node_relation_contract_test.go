@@ -9,7 +9,7 @@ import (
 )
 
 func TestFrozenFirstBatchChainNodeRelationManifestMatchesApprovedArtifact(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "..", "openspec", "changes", "refactor-industry-chain-node-foundation", "relation-candidate-artifacts", "relation-write-manifest.json")
+	path := filepath.Join("..", "..", "..", "..", "..", "openspec", "changes", "archive", "2026-07-14-refactor-industry-chain-node-foundation", "relation-candidate-artifacts", "relation-write-manifest.json")
 	manifest, err := LoadChainNodeRelationManifest(path)
 	if err != nil {
 		t.Fatal(err)
