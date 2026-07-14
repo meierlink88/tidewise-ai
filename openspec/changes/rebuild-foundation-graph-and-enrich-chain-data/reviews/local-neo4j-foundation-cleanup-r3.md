@@ -4,9 +4,10 @@
 
 - Layer：`local-neo4j-foundation-cleanup`
 - 风险：R3
-- 状态：**等待用户明确授权，尚未执行**
+- 状态：**已获独立授权，单次执行并验收通过**
 - 准备日期：2026-07-14
-- 对应 task：1.3；本授权包只完成只读 baseline 与执行计划准备，task 1.3 仍未完成。
+- 执行时间：2026-07-14T14:49:40Z（2026-07-14T22:49:40+0800）
+- 对应 task：1.3；已完成 cleanup 与 Query 验收。
 
 本包申请的唯一授权是：Neo4j cleanup 仅清空批准的 local `projection_namespace=tidewise` 节点与关系。它不授权 `rebuild-entities`、`project-entities`、PostgreSQL 写入、Neo4j rebuild/sync、Package 2、UAT、prod 或 shared 操作。
 
@@ -341,7 +342,7 @@ CYPHER
 
 ## 唯一 cleanup 命令
 
-**以下命令当前不得执行。只有用户明确授权 `local-neo4j-foundation-cleanup` 后，且全部 preflight 通过时，才允许执行一次。**
+**以下命令已在本 layer 的独立授权下单次执行。当前授权已消耗，不得再次执行；重试或再次 cleanup 必须重新 Review 与授权。**
 
 ```sh
 docker exec tidewise-local-neo4j sh -lc '
@@ -398,6 +399,42 @@ ORDER BY name;
 - 重新执行完整 PG read-only baseline，所有 count/hash/schema/integrity 逐项不变。
 - 未产生 Neo4j backup/rollback，未执行 rebuild/project/sync，未创建 graph projection run。
 
+## 脱敏 execution evidence
+
+### 授权与 preflight
+
+- 用户授权仅命名 `local-neo4j-foundation-cleanup`；明确不授权 rebuild、sync、PostgreSQL 写入或 Package 2。
+- 执行前 Git HEAD 与远端均为 `05f9520c4bc983bd4ec82bf848a77f984512abb6`，worktree clean。
+- PostgreSQL/Neo4j container name、image digest、running/healthy 状态及两个非敏感配置 hash 与 frozen baseline 一致。
+- PostgreSQL preflight 的 Goose、schema hash、981 nodes、133 entity_edges、96 chain_node_relations、各 type hash 与全部 integrity 结果逐项一致。
+- Neo4j preflight 为 Tidewise 574 nodes / 440 relationships；各 entity/relationship type counts 一致；other namespace、cross namespace、invalid endpoint、duplicate、legacy 均为 0；constraints=0，两个 lookup indexes 均 ONLINE 且 metadata 一致。
+
+### 唯一写操作
+
+- 只执行一次本文记录的 namespace-scoped `MATCH (entity:Entity {projection_namespace: 'tidewise'}) DETACH DELETE entity`。
+- 命令退出码为 0；未输出凭证或敏感配置。
+- 未调用 `graph-projector`、`rebuild-entities` 或 `project-entities`，未创建 Neo4j backup/rollback。
+
+### 写后 Query/assert
+
+| Assertion | Result |
+|---|---|
+| Tidewise nodes | 0 |
+| Tidewise relationships | 0 |
+| other namespace nodes / relationships | 0 / 0 |
+| cross-namespace relationships | 0 |
+| global Neo4j nodes / relationships | 0 / 0 |
+| database | `neo4j / standard / read-write / online` |
+| constraints | 0 |
+| node lookup index | `index_343aff4e / LOOKUP / NODE / ONLINE / 100.0` |
+| relationship lookup index | `index_f7700477 / LOOKUP / RELATIONSHIP / ONLINE / 100.0` |
+
+PostgreSQL 写后只读复验仍为 Goose 18、applied rows 19；columns hash `d46931e02d32458cd96840499a554793`、constraints hash `0d38e4ff10b291e5c557f6f49899ba49`；三类节点、entity_edges、chain_node_relations 的 count/hash 及 endpoint/orphan/duplicate 全部与 frozen baseline 一致。`graph_projection_runs` 仍为 16 行，最新 `started_at=2026-07-13 05:44:57.341717+00`，证明本次 cleanup 未创建 projection run。
+
+### 下一授权边界
+
+task 1.3 到此完成。Neo4j 当前保持已验收空投影；本 checkpoint 不准备或执行 rebuild。task 1.4 必须先形成独立 `local-neo4j-foundation-rebuild` R3 Review 包并取得新的明确授权。
+
 ## Stop Conditions
 
 任一条件成立即 fail-closed；cleanup 不得执行，若已执行则停止在空投影验收状态并回到主对话：
@@ -410,8 +447,8 @@ ORDER BY name;
 - cleanup 命令非零退出、超时、连接中断或结果不确定；不得重试，重新执行必须再次授权。
 - 任一 postcondition 失败；不得在本包中用 rebuild 修复。
 
-## 用户授权请求
+## 本次授权记录
 
-请仅在接受上述 environment、scope、预期删除量、`approved-disposable-recovery`、无 Neo4j backup/rollback、preflight/postconditions 与停止条件时，明确授权：
+本次执行采用并严格遵守以下授权文本；该授权已随单次 cleanup 执行而消耗：
 
 > 授权执行 `local-neo4j-foundation-cleanup`，仅清空 local Neo4j 的 Tidewise namespace，并按本授权包 Query 验收；不授权 rebuild、sync、PostgreSQL 写入或 Package 2。
