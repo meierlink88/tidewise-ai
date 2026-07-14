@@ -28,7 +28,7 @@
 ## 2. Apply-final、Sync 与 Archive Package
 
 - [x] 2.1 运行唯一一次 Apply-final `go test ./...`，再运行 OpenSpec strict、task-design lint、`git diff --check`、scope/secret scan；复读新鲜结果并完成需求覆盖自审，提交并 push scoped Apply-final Review package 后停止等待人工 Review。
-- [ ] 2.2 仅在 Apply-final Review 明确通过后 Sync delta specs、Archive change、运行 `openspec validate --all` 和 archive scoped diff/secret 检查，并提交 archive checkpoint；不得创建或 merge PR。
+- [x] 2.2 仅在 Apply-final Review 明确通过后 Sync delta specs、Archive change、运行 `openspec validate --all` 和 archive scoped diff/secret 检查，并提交 archive checkpoint；不得创建或 merge PR。
 
 ## 3. Git Completion Package
 
