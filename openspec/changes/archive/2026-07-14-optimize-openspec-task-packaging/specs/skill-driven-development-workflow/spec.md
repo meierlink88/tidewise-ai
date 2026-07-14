@@ -143,7 +143,7 @@ lint MUST 校验固定 Markdown schema、Gate Map/package 对应、Complexity Bu
 - **WHEN** R2 命名操作的 post-state、counts、保护或幂等断言任一失败
 - **THEN** Agent 必须立即停止，不得继续后续层，也不得用旧验证证据替代失败结果
 
-### Requirement: 候选数据必须采用全量机器校验和异常聚焦审阅
+### Requirement: 候选数据必须采用规则、抽样和异常聚焦审阅
 系统 SHALL 要求规模化候选数据 package 提供生成规则与输入指纹、总体 counts、全量机器校验、异常/冲突清单、宽边界清单、低置信度清单、用户明确指定项和 fail-closed 条件。正常项不得被机械要求全部逐条审阅；异常、冲突、宽边界、低置信度及用户明确指定的清单 MUST 逐项人工审阅。
 
 #### Scenario: 大量正常候选通过全量校验

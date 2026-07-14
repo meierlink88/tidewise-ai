@@ -30,5 +30,5 @@
 
 ## 3. Apply-final Review Package
 
-- [ ] 3.1 运行一次受影响边界完整验证：backend `go test ./...`、共享 architecture/contract tests、`openspec validate optimize-openspec-task-packaging --strict`、规则链接/重复检查、`git diff --check`、scope/secret 检查；复读新鲜结果并确认 stateful layers 为 0、无 R2/R3 状态变化。
-- [ ] 3.2 提交 scoped diff、完整验证、self-review 和第 2 个 package checkpoint 证据，等待主对话 Apply-final 人工 Review；通过前不得 Sync、Archive、Deliver、创建完成态 PR，或修改任何 active change artifacts/tasks。
+- [x] 3.1 运行一次受影响边界完整验证：backend `go test ./...`、共享 architecture/contract tests、`openspec validate optimize-openspec-task-packaging --strict`、规则链接/重复检查、`git diff --check`、scope/secret 检查；复读新鲜结果并确认 stateful layers 为 0、无 R2/R3 状态变化。
+- [x] 3.2 提交 scoped diff、完整验证、self-review 和第 2 个 package checkpoint 证据，等待主对话 Apply-final 人工 Review；通过前不得 Sync、Archive、Deliver、创建完成态 PR，或修改任何 active change artifacts/tasks。
