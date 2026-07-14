@@ -46,17 +46,74 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 
 change 在 Proposal 声明基线风险；阶段或命名操作可以上调，混合 change 按当前操作的最高风险执行。普通 task checkbox 不自动成为人工 gate。任何人工 Review、Authorization 或 Acceptance gate 必须记录风险等级、风险理由、所需证据、通过后允许的下一步和明确不授权的操作。
 
+### Task Design Efficiency 与机器 schema
+
+新 change 的 `tasks.md` 一级编号只表达内聚交付 package，普通实现、测试、修复、dry-run、validate、diff/secret check、commit 和 push 只能作为 package 内子项。人工 gate 仅允许 Spec/业务语义、R3、Neo4j、UAT/prod/shared、部署/secret/权限、scope/count/hash/schema 漂移或失败恢复、Apply-final、PR merge/cleanup；不得用普通 checkbox 或通用“等待确认”制造人工停顿。
+
+Proposal 的 `## Gate Map` 必须是 `## Why` 后第一个二级 heading，tasks 的 `## Gate Map` 必须是第一个二级 heading。两份 artifact 的表必须逐行一致，固定列为：
+
+```markdown
+| Package | Gate | Risk | Human | Reason Code | Allowed Scope |
+|---|---|---|---|---|---|
+```
+
+- `Package` 是无前导零正整数，按行顺序与 tasks 的 `## <Package>. <name> Package` 一一对应；linter 只通过 Package ID 关联，不从 Gate 或 scope 文案猜测。
+- `Gate` 与 `Allowed Scope` 是单行非空文本；`Risk` 只能是 `R0`、`R1`、`R2`、`R3`；混合 package 使用最高风险。
+- `Human` 只能是小写 `yes` 或 `no`。`no` 的 Reason Code 必须为 `NONE`；`yes` 只能使用 `SPEC_SEMANTICS`、`R3_OPERATION`、`NEO4J`、`SHARED_ENV`、`DEPLOYMENT_SECURITY`、`DRIFT_RECOVERY`、`APPLY_FINAL`、`GIT_COMPLETION`。
+
+`## Complexity Budget` 必须紧跟 Gate Map，Proposal 与 tasks 内容逐行一致，固定为：
+
+```markdown
+| Key | Value |
+|---|---|
+| human_gates | <integer> |
+| stateful_layers | <integer> |
+| checkpoints | <integer> |
+| full_test_runs | <integer> |
+| continuous_automation_scope | packages:<selector> |
+```
+
+五个 key 必须按该顺序各出现一次。前四个值是允许 `0` 的无符号十进制整数；`human_gates` 必须等于 `Human=yes` 行数。selector 使用升序、无重复的 package ID 或闭区间且只能引用 `Human=no` package，例如 `packages:2-4,6`；空范围写 `packages:none`。常见 R0/R1 change 通常只有 Proposal Review 与 Apply-final 两个人工 gate、一个 Apply package 和 Apply-final 一次完整验证；超出建议阈值只 warning，不以任意数量覆盖真实风险边界。
+
+当 `stateful_layers=0` 时可以省略 `## Stateful Layer Map`；若保留，只能有固定表头而无数据行。当值大于零时，Proposal 与 tasks 必须在 Complexity Budget 后、首个编号 package 前提供逐行一致的固定表：
+
+```markdown
+| Layer | Package | Environment | Order | Scope | Exclusions | Recovery Evidence | Recovery Baseline | Expected Counts/Hash/Schema | Before Assertions | After Assertions | Stop Conditions |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+```
+
+- `Layer` 是唯一 kebab-case；`Package` 只能引用 Gate Map 的 R2/R3 package；`Environment` 只能是 `local`、`shared-local`、`uat`、`prod`；`Order` 在每个 package 内从 1 连续且唯一。
+- `Scope`、`Before Assertions`、`After Assertions`、`Stop Conditions` 必须非空；没有排除项时 `Exclusions` 写 `none`。
+- `Recovery Evidence` 只能是 `backup` 或 `approved-disposable-recovery`；后者只允许 local R2。`Recovery Baseline` 只能是 `new:<kebab-id>` 或 `reuse:<kebab-id>`。
+- `reuse` 必须引用同 package、同 Environment 中更早 order 的 `new` baseline，并在 Before Assertions 复验 identity、scope、count、hash、schema；`Expected Counts/Hash/Schema` 固定为 `counts=<value>;hash=<value>;schema=<value>`，不适用项写 `na`。
+
+已批准 Spec 且范围精确匹配的 local-only R2 可以在一个独立授权 package 内逐名列出多个 layer。每层严格执行 `preflight -> Write -> Query/assert`；当前层断言全部通过后才自动进入包内已明确命名的下一层，任何漂移、失败、超时、冲突或人工中止立即停止并使未执行层授权失效。同一环境、同一维护窗口且 identity、scope、count/hash/schema 未变化时，后续层可以复验并复用 recovery baseline；不一致时必须停止并重新建立 recovery evidence。该简化不适用于 shared-local、UAT、prod、Neo4j 或 R3。
+
+### Task-design lint 与 legacy baseline
+
+task-design lint 复用 `backend/internal/architecture/` 的 Go 标准库测试模式，不引入新依赖、wrapper 或平行 CI job。确定性违规 fail，包括固定 heading/table schema、枚举、package 映射、预算整数/selector、stateful count/字段/order/recovery、Proposal/tasks 不一致、baseline 格式和 explicit scope；一级 package 数过多、相邻微型 Review/checkpoint 或测试/dry-run/commit/push 疑似被提升为 package 等启发式判断只 warning。
+
+- active mode：`OPENSPEC_TASK_LINT_CHANGE` 未设置时枚举 `openspec/changes/<change>/` 的直接 active 目录；archive 目录始终先排除，再处理 legacy baseline。现有 backend `go test ./...` 自动运行该模式。
+- explicit mode：设置 `OPENSPEC_TASK_LINT_CHANGE=<change-name>` 后只校验该单段 kebab-case active change，即使它仍在 baseline；archive、路径分隔符或未知 change 必须 fail，不回退到 active mode。
+- 从 `backend/` 运行的精确命令是 `OPENSPEC_TASK_LINT_CHANGE=<change-name> go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint$' -count=1`。
+
+legacy baseline 固定为 repo-local `.agents/openspec-task-lint-baseline.tsv`，UTF-8 header 精确为 `change_name<TAB>reason`。每行只登记本规则 Deliver 时仍 active 的 kebab-case change name 和不含 TAB/CR/LF 的非空单行 reason。该文件语义归本 workflow 所有，只能由 scoped workflow/adoption change 维护，linter 不自动改写。
+
+- active mode 仅在 baseline 名称仍对应 active change 时跳过，并输出 reason 与 adoption 后移除提示；显式 adoption 后必须删除对应行。
+- 重复、已归档、未知或 adoption 后残留条目至少 warning，且不产生新的跳过能力；header、空字段、非法 name 或多余列 fail。
+- archive 在 baseline 前排除且历史不扫描、不改写。explicit mode 始终绕过 baseline skip，使 legacy change 可以被单独整改和验收。
+
 ### 阶段 Review package 与验证选择
 
 同一风险边界内的 contract、实现、测试、dry-run、只读 preflight、diff、候选异常清单和验证结果可以组成一个阶段 Review package。package 必须记录 scope、non-goals、风险等级、证据、未验证项、阻断项和下一步授权边界。阶段级 checkpoint 对应一个内聚 package；不得把每个微型 task 自动升级为 commit、push 或人工 Review。
 
-阶段 checkpoint 运行与范围匹配的 targeted tests。Apply final 必须运行受影响交付边界的完整验证：受影响 app/module/package 的完整 suite 与共享 architecture/contract tests。只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation。验证记录必须写明受影响边界、共享 tests 和 repo-wide 判定理由；边界、理由或 suite 不清楚时 fail-closed，必须扩大到 repo-wide full validation 或停止等待澄清。任何失败、环境限制或未验证项必须进入 package，不能用旧日志替代。
+开发中按当前失败或实现运行 targeted tests；package checkpoint 运行一次与整个 package 匹配的验证；Apply final 运行一次受影响交付边界完整验证，包括受影响 app/module/package 的完整 suite 与共享 architecture/contract tests。只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation。验证记录必须写明受影响边界、共享 tests 和 repo-wide 判定理由；边界、理由或 suite 不清楚时 fail-closed，必须扩大到 repo-wide full validation 或停止等待澄清。失败与修复留在同一 package，不新增人工 gate；任何失败、环境限制或未验证项必须进入 package，不能用旧日志替代。
 
 task agent 在通知主对话验收前必须完成 self-review/code review，复读测试结果并检查 diff、scope、secret 和需求覆盖；发现阻断问题必须先整改并刷新证据。该内部审查不替代 Proposal 后或 Apply 后人工 Review。
 
 ### 候选数据审阅
 
-候选数据 package 必须包含生成规则与输入指纹、总体 counts、确定性抽样、异常/冲突清单、宽边界清单、预期动作分类和 fail-closed 条件。正常项使用规则、抽样和总体断言审阅；高风险、宽边界、身份/来源/映射冲突、异常 disposition 与用户明确要求的清单必须逐项审阅。已批准规格要求逐项确认的 final manifest 不得被抽样策略降级。
+候选数据 package 必须包含生成规则与输入指纹、总体 counts、全量机器校验、异常/冲突清单、宽边界清单、低置信度清单、用户明确指定项、预期动作分类和 fail-closed 条件。普通正常项通过全量机器校验与总体断言后无需机械逐条人工确认；异常、冲突、宽边界、低置信度和用户明确指定项必须逐项审阅。已批准规格要求逐项确认的 final manifest 不得被该策略降级。
 
 ### R2 条件式执行包
 
@@ -69,13 +126,13 @@ task agent 在通知主对话验收前必须完成 self-review/code review，复
 
 当前 tidewise 本地 curated PostgreSQL 不得自动视为 disposable。未逐层声明 recovery evidence、证据不成立、重建/验证失败、范围漂移、断言失败或触发停止条件时必须 fail-closed：不得执行或继续该层，未执行层的剩余授权自动失效，重新执行必须取得新授权。
 
-执行顺序严格为 `Write(layer N) -> Query/assert(layer N)`；只有本包内已逐名明确授权的下一层，且当前层全部自动断言通过，才可继续。下一层因执行包中被显式命名而获授权，不是从上一层结果推定。R3 操作不得放入 R2 条件式执行包。
+执行顺序严格为 `preflight -> Write(layer N) -> Query/assert(layer N)`；只有本包内已逐名明确授权的下一层，且当前层全部自动断言通过，才可继续。下一层因执行包中被显式命名而获授权，不是从上一层结果推定。R3 操作不得放入 R2 条件式执行包。
 
 ### Active change adoption
 
-本规则 Deliver 后创建的新 change 默认使用新规则。active change 不自动重写、不追认历史操作、不取消已开始写操作的验收、不扩大既有授权。
+本规则 Deliver 后创建的新 change 默认使用新规则。Deliver 时仍 active 的 legacy change 必须登记在 `.agents/openspec-task-lint-baseline.tsv`。active change 不自动重写、不追认历史操作、不取消已开始写操作的验收、不扩大既有授权。
 
-每个 active change 采用新规则前，必须在其 branch 执行 `git fetch origin` 并更新到最新 `origin/main`，检查共享规则和 tasks 冲突，提交仅包含未来 gate 的 scoped workflow-adoption tasks diff，并经用户一次人工 Review。adoption 只能合并尚未开始的未来 gate；未命名的新环境、新层、新范围或 Neo4j rebuild 仍需独立授权。
+每个 active change 采用新规则前，必须在其 branch 执行 `git fetch origin` 并更新到最新 `origin/main`，检查共享规则和 tasks 冲突，提交仅包含未来 gate 的 scoped workflow-adoption tasks diff，并经用户一次人工 Review；adoption diff 必须删除对应 baseline 行，使后续 active lint 生效。adoption 只能合并尚未开始的未来 gate；未命名的新环境、新层、新范围或 Neo4j rebuild 仍需独立授权。
 
 ## Starting Or Continuing A Change
 

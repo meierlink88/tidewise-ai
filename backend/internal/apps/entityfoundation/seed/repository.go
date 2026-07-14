@@ -28,15 +28,16 @@ type WriteResult struct {
 type Repository interface {
 	UpsertEntity(context.Context, Entity) (WriteResult, error)
 	UpsertProfile(context.Context, Profile) (WriteResult, error)
-	UpsertSectorSourceMapping(context.Context, SectorSourceMapping) (WriteResult, error)
+	UpsertExternalIdentifier(context.Context, domain.EntityExternalIdentifier) (WriteResult, error)
 	UpsertRelationship(context.Context, Relationship) (WriteResult, error)
-	HasActiveLegacySectors(context.Context) (bool, error)
+	HasRetiredIndustryEntities(context.Context) (bool, error)
 }
 
 type MemoryRepository struct {
 	mu                               sync.Mutex
 	entities                         map[string]Entity
 	profiles                         map[string]Profile
+	externalIdentifiers              map[string]domain.EntityExternalIdentifier
 	sectorSourceMappings             map[string]SectorSourceMapping
 	relationships                    map[string]Relationship
 	convergenceManifests             map[int64]string
@@ -54,6 +55,7 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		entities:                         map[string]Entity{},
 		profiles:                         map[string]Profile{},
+		externalIdentifiers:              map[string]domain.EntityExternalIdentifier{},
 		sectorSourceMappings:             map[string]SectorSourceMapping{},
 		relationships:                    map[string]Relationship{},
 		convergenceManifests:             map[int64]string{},
@@ -68,11 +70,46 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func (r *MemoryRepository) HasActiveLegacySectors(_ context.Context) (bool, error) {
+func (r *MemoryRepository) UpsertExternalIdentifier(_ context.Context, identifier domain.EntityExternalIdentifier) (WriteResult, error) {
+	identifier = normalizeExternalIdentifier(identifier)
+	if err := validateFirstBatchExternalIdentifier(identifier); err != nil {
+		return WriteResult{}, err
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	targetFound := false
 	for key, entity := range r.entities {
-		if strings.HasPrefix(key, "sector:ths_") && entity.Status != domain.StatusInactive {
+		if entitySeedUUID(key) == identifier.EntityID && entity.EntityType == domain.EntityTypeChainNode && entity.Status == domain.StatusActive {
+			targetFound = true
+			break
+		}
+	}
+	if !targetFound {
+		return WriteResult{}, fmt.Errorf("external identifier requires an active chain_node target")
+	}
+
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	existing, exists := r.externalIdentifiers[identity]
+	if exists && existing.EntityID != identifier.EntityID {
+		return WriteResult{}, fmt.Errorf("external identifier %q identity conflict", identity)
+	}
+	if !exists {
+		r.externalIdentifiers[identity] = identifier
+		return WriteResult{Key: identity, Action: WriteCreated}, nil
+	}
+	if reflect.DeepEqual(existing, identifier) {
+		return WriteResult{Key: identity, Action: WriteUnchanged}, nil
+	}
+	r.externalIdentifiers[identity] = identifier
+	return WriteResult{Key: identity, Action: WriteUpdated}, nil
+}
+
+func (r *MemoryRepository) HasRetiredIndustryEntities(_ context.Context) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, entity := range r.entities {
+		if entity.EntityType == domain.EntityTypeSector || entity.EntityType == domain.EntityTypeIndustryChain {
 			return true, nil
 		}
 	}

@@ -144,6 +144,30 @@ func TestRiskTieredWorkflowRules(t *testing.T) {
 	assertWorkflowNotContains(t, testingRules, "所有 change 必须运行 `go test ./...`")
 }
 
+func TestTaskDesignWorkflowContract(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	agents := readWorkflowRuleFile(t, filepath.Join(root, "AGENTS.md"))
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+
+	assertWorkflowContains(t, agents, "Gate Map")
+	assertWorkflowSectionContains(t, openspecWorkflow, "### Task Design Efficiency 与机器 schema",
+		"| Package | Gate | Risk | Human | Reason Code | Allowed Scope |",
+		"SPEC_SEMANTICS",
+		"continuous_automation_scope",
+		"packages:none",
+		"| Layer | Package | Environment | Order | Scope | Exclusions | Recovery Evidence | Recovery Baseline | Expected Counts/Hash/Schema | Before Assertions | After Assertions | Stop Conditions |",
+		"preflight -> Write -> Query/assert",
+	)
+	assertWorkflowSectionContains(t, openspecWorkflow, "### Task-design lint 与 legacy baseline",
+		".agents/openspec-task-lint-baseline.tsv",
+		"change_name<TAB>reason",
+		"OPENSPEC_TASK_LINT_CHANGE=<change-name>",
+		"go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint$' -count=1",
+		"archive 目录始终先排除",
+		"explicit mode",
+	)
+}
+
 func TestOpenSpecConfigUsesSupportedRulesAndCurrentArchitecture(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	config := readWorkflowRuleFile(t, filepath.Join(root, "openspec", "config.yaml"))

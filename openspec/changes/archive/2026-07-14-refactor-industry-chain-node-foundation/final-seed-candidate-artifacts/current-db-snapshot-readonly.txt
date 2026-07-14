@@ -1,0 +1,26 @@
+BEGIN
+ current_database | inet_server_addr | inet_server_port |                                                       version
+------------------+------------------+------------------+----------------------------------------------------------------------------------------------------------------------
+ tidewise_local   |                  |                  | PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+
+        assertion        | count
+-------------------------+-------
+ candidate_identity_hits |     0
+(1 row)
+
+ candidate_id | candidate_key | candidate_canonical_name | existing_id | existing_key | existing_type | existing_status | existing_canonical_name | matched_on
+--------------+---------------+--------------------------+-------------+--------------+---------------+-----------------+-------------------------+------------
+(0 rows)
+
+      assertion       | count
+----------------------+-------
+ existing_chain_nodes |     0
+(1 row)
+
+              assertion              | count
+-------------------------------------+-------
+ active_writers_or_long_transactions |     0
+(1 row)
+
+ROLLBACK

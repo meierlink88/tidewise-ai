@@ -1,0 +1,1699 @@
+{
+  "count": 79,
+  "nodes": [
+    {
+      "entity_id": "4f45d588-2c49-5b5a-b3c2-e66d5bc58575",
+      "entity_key": "chain_node:v1_c94ab57a8976d59252e25c340b2db506032d9cb7",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "3D打印",
+      "canonical_name": "3D打印",
+      "renamed_from": null,
+      "original_names": [
+        "3D打印"
+      ],
+      "aliases": [],
+      "definition": "以3D打印为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与3D打印直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "cbfbd1cf-94a7-58d7-b17d-f5ef0da84dd6",
+      "entity_key": "chain_node:v1_ff13c9e7f8618ddae38a679e53311efe7523605c",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "LED",
+      "canonical_name": "LED",
+      "renamed_from": null,
+      "original_names": [
+        "LED",
+        "LED概念"
+      ],
+      "aliases": [
+        "LED概念"
+      ],
+      "definition": "以LED为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与LED直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "4dd08ae7-5c32-538f-b22b-8a97682f2996",
+      "entity_key": "chain_node:v1_4b43c97e35f83570f1036d51bdbb9e0ecadd23a1",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "OLED",
+      "canonical_name": "OLED",
+      "renamed_from": null,
+      "original_names": [
+        "OLED"
+      ],
+      "aliases": [],
+      "definition": "以OLED为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与OLED直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "d35e4f9e-5b2d-5637-8389-2995e5139431",
+      "entity_key": "chain_node:v1_5633f6063d2e9d52b28248cca0c68b819f557bfa",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "专用设备",
+      "canonical_name": "专用设备",
+      "renamed_from": null,
+      "original_names": [
+        "专用设备"
+      ],
+      "aliases": [],
+      "definition": "围绕专用设备开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与专用设备直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 67,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b53cf20e-91e8-56f2-90d9-7a85c0489454",
+      "entity_key": "chain_node:v1_be21f404058c12fb8f833ad2ff684859d70d943d",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "丙烯酸",
+      "canonical_name": "丙烯酸",
+      "renamed_from": null,
+      "original_names": [
+        "丙烯酸"
+      ],
+      "aliases": [],
+      "definition": "以丙烯酸为核心交付或使用对象的稳定产品类别，按产品形态、核心功能和直接应用范围界定。",
+      "boundary_note": "包含与丙烯酸直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/技术/服务",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "421cd5d7-0ee6-5c62-9dda-d6540d783b3e",
+      "entity_key": "chain_node:v1_fcc857bd0c50b235db393e1bba63f233ced29aa1",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "乘用车",
+      "canonical_name": "乘用车",
+      "renamed_from": null,
+      "original_names": [
+        "乘用车"
+      ],
+      "aliases": [],
+      "definition": "围绕乘用车形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与乘用车直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 9,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "6ebbe450-b601-55c0-b347-021be51cd55c",
+      "entity_key": "chain_node:v1_9dff9ecef18c975961fd36b6790dc4af2c78f701",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "交通运输",
+      "canonical_name": "交通运输",
+      "renamed_from": null,
+      "original_names": [
+        "交通运输"
+      ],
+      "aliases": [],
+      "definition": "围绕交通运输形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与交通运输直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 20,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "40c1d72d-01cc-532e-87cd-4d945f983715",
+      "entity_key": "chain_node:v1_a1fbb04888bbef06b2cf6a927ebdf4db7369a001",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "人力资源服务",
+      "canonical_name": "人力资源服务",
+      "renamed_from": null,
+      "original_names": [
+        "人力资源服务"
+      ],
+      "aliases": [],
+      "definition": "围绕人力资源服务开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与人力资源服务直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "642b5c41-d77b-50b0-b67d-95f4d034be85",
+      "entity_key": "chain_node:v1_63fe855a004013542d5101fa8b8cdf3bd050f38d",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "人工智能",
+      "canonical_name": "人工智能",
+      "renamed_from": null,
+      "original_names": [
+        "人工智能"
+      ],
+      "aliases": [],
+      "definition": "以人工智能为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与人工智能直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "04db689d-ed1a-53e2-a069-795b918d8867",
+      "entity_key": "chain_node:v1_a72f295e23007323614739341311c717bf8ac1ab",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "仪器仪表",
+      "canonical_name": "仪器仪表",
+      "renamed_from": null,
+      "original_names": [
+        "仪器仪表"
+      ],
+      "aliases": [],
+      "definition": "以仪器仪表为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与仪器仪表直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 24,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "6ebfc35f-eb36-5576-80cf-f91c0fc973e4",
+      "entity_key": "chain_node:v1_7578081ac7ad1d4194437d52eba043faf0e35ca2",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "会展服务",
+      "canonical_name": "会展服务",
+      "renamed_from": null,
+      "original_names": [
+        "会展服务"
+      ],
+      "aliases": [],
+      "definition": "围绕会展服务形成的可持续服务活动，按服务对象、交付内容和持续供给能力界定，而非单次市场热点。",
+      "boundary_note": "包含与会展服务直接对应的直接服务活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定服务",
+      "retention_reason": "",
+      "standard_mapping_count": 9,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "8138bd0f-9118-5269-9d41-58fdde51263c",
+      "entity_key": "chain_node:v1_23362670e4904f57af1c60863b2f399a1ced1da1",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "传感器",
+      "canonical_name": "传感器",
+      "renamed_from": null,
+      "original_names": [
+        "传感器"
+      ],
+      "aliases": [],
+      "definition": "以传感器为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与传感器直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 20,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "381b2653-0949-57de-ad12-e72427c1b89f",
+      "entity_key": "chain_node:v1_ecc5ca7e8b2db9c1124a520a1ccdf8b6778072e2",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "保健品",
+      "canonical_name": "保健品",
+      "renamed_from": null,
+      "original_names": [
+        "保健品"
+      ],
+      "aliases": [],
+      "definition": "围绕保健品形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与保健品直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "53ab873d-aea0-5123-9437-e3626b050b83",
+      "entity_key": "chain_node:v1_1362eafeca00b0b3ee9f1cfa989f9843a7fd8d48",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "其他塑料制品",
+      "canonical_name": "其他塑料制品",
+      "renamed_from": null,
+      "original_names": [
+        "其他塑料制品"
+      ],
+      "aliases": [],
+      "definition": "以其他塑料制品为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与其他塑料制品直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b32fd5f5-935d-5450-a789-49937c20a26a",
+      "entity_key": "chain_node:v1_a2dcb85eab14272d368d7c310587e301f9e635fc",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "其他电子",
+      "canonical_name": "其他电子",
+      "renamed_from": null,
+      "original_names": [
+        "其他电子",
+        "其他电子Ⅱ",
+        "其他电子Ⅲ"
+      ],
+      "aliases": [
+        "其他电子Ⅱ",
+        "其他电子Ⅲ"
+      ],
+      "definition": "围绕其他电子形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与其他电子直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 29,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "4348411f-56fd-560c-b800-887a338b9d08",
+      "entity_key": "chain_node:v1_128a7df0e59e5cdaf2625e407d558200e06fbdcc",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "其他纺织",
+      "canonical_name": "其他纺织",
+      "renamed_from": null,
+      "original_names": [
+        "其他纺织"
+      ],
+      "aliases": [],
+      "definition": "围绕其他纺织形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与其他纺织直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 14,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "172455cd-4d8d-5218-a328-8463458018ba",
+      "entity_key": "chain_node:v1_03c05de1ec3199921013ee375be06ac351c54cd2",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "农业种植",
+      "canonical_name": "农业种植",
+      "renamed_from": null,
+      "original_names": [
+        "农业种植"
+      ],
+      "aliases": [],
+      "definition": "围绕农业种植形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与农业种植直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "1532b5c8-5c47-516c-ae27-dc45f4718da0",
+      "entity_key": "chain_node:v1_47b94b01cc29d6e8933a096e54f8a5ef3737b49f",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "农林牧渔",
+      "canonical_name": "农林牧渔",
+      "renamed_from": null,
+      "original_names": [
+        "农林牧渔"
+      ],
+      "aliases": [],
+      "definition": "围绕农林牧渔形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与农林牧渔直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 20,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b6821db3-7d62-5580-ba50-e2429e5fe8d8",
+      "entity_key": "chain_node:v1_c3a375f2f2392d8c7fc1d55b6d775861f31ed25e",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "制冷空调设备",
+      "canonical_name": "制冷空调设备",
+      "renamed_from": null,
+      "original_names": [
+        "制冷空调设备"
+      ],
+      "aliases": [],
+      "definition": "围绕制冷空调设备开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与制冷空调设备直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "96da1aee-6756-5ef6-880d-26b93d0c21b1",
+      "entity_key": "chain_node:v1_59c26a953feb6a40c109ae21c50e4043d4516b53",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "化妆品",
+      "canonical_name": "化妆品",
+      "renamed_from": null,
+      "original_names": [
+        "化妆品",
+        "化妆品概念"
+      ],
+      "aliases": [
+        "化妆品概念"
+      ],
+      "definition": "围绕化妆品开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与化妆品直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 12,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "f903ec03-8fd0-5bfc-b034-df16f075da54",
+      "entity_key": "chain_node:v1_d72394064d4f02f29f37f3bc178747c8010ffc6f",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "化学制剂",
+      "canonical_name": "化学制剂",
+      "renamed_from": null,
+      "original_names": [
+        "化学制剂"
+      ],
+      "aliases": [],
+      "definition": "以化学制剂为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与化学制剂直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b801349a-aa62-52e4-a7a4-e9b74465ae77",
+      "entity_key": "chain_node:v1_3fba61a0a5aa4d1d61612486138ceee623feebff",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "化学原料",
+      "canonical_name": "化学原料",
+      "renamed_from": null,
+      "original_names": [
+        "化学原料"
+      ],
+      "aliases": [],
+      "definition": "以化学原料为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与化学原料直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "ce514d4b-4dac-521e-a6f2-bf7f0627539a",
+      "entity_key": "chain_node:v1_62597fb8494b8f9862cfd941a0b20c5833fe84b3",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "化学纤维",
+      "canonical_name": "化学纤维",
+      "renamed_from": null,
+      "original_names": [
+        "化学纤维"
+      ],
+      "aliases": [],
+      "definition": "以化学纤维为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与化学纤维直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 22,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "639f5525-c035-50be-be3f-283dcbf510f3",
+      "entity_key": "chain_node:v1_fd901060cf92eb4a4a7b999369422434ce86f9d5",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "医疗器械",
+      "canonical_name": "医疗器械",
+      "renamed_from": null,
+      "original_names": [
+        "医疗器械",
+        "医疗器械概念"
+      ],
+      "aliases": [
+        "医疗器械概念"
+      ],
+      "definition": "以医疗器械为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与医疗器械直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "4021d935-2896-5333-873c-18cb8ac783ef",
+      "entity_key": "chain_node:v1_a1a0ce113a7e2deadfd8ff2400113ffe87f70fb4",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "半导体",
+      "canonical_name": "半导体",
+      "renamed_from": null,
+      "original_names": [
+        "半导体",
+        "半导体概念"
+      ],
+      "aliases": [
+        "半导体概念"
+      ],
+      "definition": "以半导体为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与半导体直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 28,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "301f7d13-c3e4-5204-b105-aa663f3d2dab",
+      "entity_key": "chain_node:v1_6bad825d79c44f6b108f2215f8ca03ab934af3fb",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "卫星导航",
+      "canonical_name": "卫星导航",
+      "renamed_from": null,
+      "original_names": [
+        "卫星导航"
+      ],
+      "aliases": [],
+      "definition": "以卫星导航为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与卫星导航直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "64aa09ec-0eac-5835-a3b0-7767702546cf",
+      "entity_key": "chain_node:v1_b1b8ca3a4cbe773d8d843336c9b4bbc88d127e82",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "厨房电器",
+      "canonical_name": "厨房电器",
+      "renamed_from": null,
+      "original_names": [
+        "厨房电器"
+      ],
+      "aliases": [],
+      "definition": "围绕厨房电器形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与厨房电器直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "c103dfc6-d46a-598c-8a89-f1accefe1a23",
+      "entity_key": "chain_node:v1_9f8d394ef97ec7154c9543e9e25d03c8607815a0",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "发电机",
+      "canonical_name": "发电机",
+      "renamed_from": null,
+      "original_names": [
+        "发电机概念"
+      ],
+      "aliases": [
+        "发电机概念"
+      ],
+      "definition": "以发电机为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与发电机直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 17,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "9792e2ac-cadd-599d-9b29-3ec2dba87c4f",
+      "entity_key": "chain_node:v1_b41a50cae519527b1c4f6025ab5065e079cad6e3",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "塑料制品",
+      "canonical_name": "塑料制品",
+      "renamed_from": null,
+      "original_names": [
+        "塑料制品"
+      ],
+      "aliases": [],
+      "definition": "以塑料制品为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与塑料制品直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 16,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "e093c142-107e-5e76-8780-c1945b32ce4f",
+      "entity_key": "chain_node:v1_de064aec70efbe8ade4502dbbf4fcb7374a21412",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "大数据",
+      "canonical_name": "大数据",
+      "renamed_from": null,
+      "original_names": [
+        "大数据"
+      ],
+      "aliases": [],
+      "definition": "以大数据为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与大数据直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/服务",
+      "retention_reason": "",
+      "standard_mapping_count": 10,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "2cc08180-fa1c-5176-96bb-ee236c3f2dfe",
+      "entity_key": "chain_node:v1_9912b87c0a4313b04bc239127231d77f115a43da",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "天然气产业",
+      "canonical_name": "天然气产业",
+      "renamed_from": "天然气",
+      "original_names": [
+        "天然气"
+      ],
+      "aliases": [],
+      "definition": "围绕天然气开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一天然气商品实体、价格、期货合约或证券标的。",
+      "boundary_note": "包含与天然气产业直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 32,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "07938e2d-f741-554f-bc4f-2b22d8d85959",
+      "entity_key": "chain_node:v1_da0e4157f8ecf8f6c5fc8690f418e27176cf7797",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "娱乐用品",
+      "canonical_name": "娱乐用品",
+      "renamed_from": null,
+      "original_names": [
+        "娱乐用品"
+      ],
+      "aliases": [],
+      "definition": "围绕娱乐用品开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与娱乐用品直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 10,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "e3ecea81-c87c-5711-be8f-0da5ec37a0e5",
+      "entity_key": "chain_node:v1_f59b375828ddeb4c9564ca7fca52b3465e5d7086",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "家用电器",
+      "canonical_name": "家用电器",
+      "renamed_from": null,
+      "original_names": [
+        "家用电器"
+      ],
+      "aliases": [],
+      "definition": "围绕家用电器形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与家用电器直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 23,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "7d4060ee-7d66-5bea-82bf-300253b37df9",
+      "entity_key": "chain_node:v1_b0b9b76beef43a771982bc4e8a043178fd9c3fc3",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "工程机械",
+      "canonical_name": "工程机械",
+      "renamed_from": null,
+      "original_names": [
+        "工程机械",
+        "工程机械概念"
+      ],
+      "aliases": [
+        "工程机械概念"
+      ],
+      "definition": "以工程机械为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与工程机械直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "28ed069f-129d-551a-bc27-738c0c2c05a5",
+      "entity_key": "chain_node:v1_2adb84616a7b51ed492e4473ae4b95e8a51546d5",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "建筑材料",
+      "canonical_name": "建筑材料",
+      "renamed_from": null,
+      "original_names": [
+        "建筑材料"
+      ],
+      "aliases": [],
+      "definition": "围绕建筑材料开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与建筑材料直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 15,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "9598d0ec-2867-5a37-ad70-b851d895e469",
+      "entity_key": "chain_node:v1_9302d27906ade0e4a2dd8885b7d8dc98520cbc7b",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "建筑装饰",
+      "canonical_name": "建筑装饰",
+      "renamed_from": null,
+      "original_names": [
+        "建筑装饰"
+      ],
+      "aliases": [],
+      "definition": "围绕建筑装饰形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与建筑装饰直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "745664a8-63ba-51f8-9af1-786dc1a35c69",
+      "entity_key": "chain_node:v1_75a5e1bc515ecf6c39e1dbb314c12e5735803ed0",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "房地产",
+      "canonical_name": "房地产",
+      "renamed_from": null,
+      "original_names": [
+        "房地产"
+      ],
+      "aliases": [],
+      "definition": "围绕房地产形成的可持续服务活动，按服务对象、交付内容和持续供给能力界定，而非单次市场热点。",
+      "boundary_note": "包含与房地产直接对应的直接服务活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定服务",
+      "retention_reason": "",
+      "standard_mapping_count": 25,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "d1118a70-1a07-578e-a679-2bdc99796a35",
+      "entity_key": "chain_node:v1_5cea93616d9ed3735c98d50d42653868ddaba85e",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "摩托车",
+      "canonical_name": "摩托车",
+      "renamed_from": null,
+      "original_names": [
+        "摩托车"
+      ],
+      "aliases": [],
+      "definition": "围绕摩托车形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与摩托车直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 27,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "166bf8d7-ae27-533e-bb26-6cd40800d3a2",
+      "entity_key": "chain_node:v1_ce6dd3a07769be62fd8057212fb56cb49d36db3a",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "文化用品",
+      "canonical_name": "文化用品",
+      "renamed_from": null,
+      "original_names": [
+        "文化用品"
+      ],
+      "aliases": [],
+      "definition": "围绕文化用品形成的可持续服务活动，按服务对象、交付内容和持续供给能力界定，而非单次市场热点。",
+      "boundary_note": "包含与文化用品直接对应的直接服务活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定服务",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "a55b0244-d892-55a9-972a-60ba895d492b",
+      "entity_key": "chain_node:v1_917d4932d8a57fb569344c715fa112b50282ade5",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "新材料",
+      "canonical_name": "新材料",
+      "renamed_from": null,
+      "original_names": [
+        "新材料"
+      ],
+      "aliases": [],
+      "definition": "以新材料为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与新材料直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 9,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "69698c07-720f-559d-953a-adfb7f5d17cd",
+      "entity_key": "chain_node:v1_7e329a4f305d89d26eeeb689de02f44ee886880d",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "新能源产业",
+      "canonical_name": "新能源产业",
+      "renamed_from": null,
+      "original_names": [
+        "新能源"
+      ],
+      "aliases": [
+        "新能源"
+      ],
+      "definition": "围绕新能源产业形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与新能源产业直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 32,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "dfd89324-e7ad-5c2b-b735-8ee89a207667",
+      "entity_key": "chain_node:v1_fbec807f7c9960df5db0ffe88c5134fab1f3a44a",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "有色金属",
+      "canonical_name": "有色金属",
+      "renamed_from": null,
+      "original_names": [
+        "有色金属"
+      ],
+      "aliases": [],
+      "definition": "以有色金属为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与有色金属直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 17,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "4bb04f69-dcdc-56a1-b974-4bff9cd734f1",
+      "entity_key": "chain_node:v1_df3f9d38d7eb521827ab61e14220d3f22b5536ff",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "机器人",
+      "canonical_name": "机器人",
+      "renamed_from": null,
+      "original_names": [
+        "机器人",
+        "机器人概念"
+      ],
+      "aliases": [
+        "机器人概念"
+      ],
+      "definition": "以机器人为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与机器人直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 13,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "415cc4f6-9048-530b-8a29-78c8636ade11",
+      "entity_key": "chain_node:v1_1f41fc882560592eaf7928e0fe98f8678b6308fa",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "机械设备",
+      "canonical_name": "机械设备",
+      "renamed_from": null,
+      "original_names": [
+        "机械设备"
+      ],
+      "aliases": [],
+      "definition": "以机械设备为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与机械设备直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 22,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "f4118f6d-6b0a-59ad-b54c-4510fa3ec05b",
+      "entity_key": "chain_node:v1_4d80d6a8e437e4c0221ef5e0a050abb279f13dd4",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "检测服务",
+      "canonical_name": "检测服务",
+      "renamed_from": null,
+      "original_names": [
+        "检测服务"
+      ],
+      "aliases": [],
+      "definition": "围绕检测服务开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与检测服务直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "09f21f04-be38-52b4-8a3d-3dbd3c9e6f1d",
+      "entity_key": "chain_node:v1_115f1a11c2ca4c96e1805b8cd1a3f2fbe49fb16a",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "橡胶制品",
+      "canonical_name": "橡胶制品",
+      "renamed_from": null,
+      "original_names": [
+        "橡胶制品"
+      ],
+      "aliases": [],
+      "definition": "围绕橡胶制品开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与橡胶制品直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 13,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "73e0e988-9db2-522c-affe-e9cd905f22e7",
+      "entity_key": "chain_node:v1_2e9b9f65558f3742d8f6c3b8658449a7a56d1d60",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "水产养殖",
+      "canonical_name": "水产养殖",
+      "renamed_from": null,
+      "original_names": [
+        "水产养殖"
+      ],
+      "aliases": [],
+      "definition": "围绕水产养殖形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与水产养殖直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "dfe7e3eb-702a-5f3a-891d-0758aae66f43",
+      "entity_key": "chain_node:v1_63ec85e7a31cb7428b024f80dd3efe14a589d942",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "水力发电",
+      "canonical_name": "水力发电",
+      "renamed_from": null,
+      "original_names": [
+        "水力发电"
+      ],
+      "aliases": [],
+      "definition": "围绕水力发电开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与水力发电直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "c8261338-b4c0-5ecf-80f2-9db72c992e92",
+      "entity_key": "chain_node:v1_4ae142357d6faf3de28b512b2c49fbca71d80470",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "水泥制品",
+      "canonical_name": "水泥制品",
+      "renamed_from": null,
+      "original_names": [
+        "水泥制品"
+      ],
+      "aliases": [],
+      "definition": "围绕水泥制品开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与水泥制品直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "9fd26e9a-764c-5f40-8867-15cb81334010",
+      "entity_key": "chain_node:v1_cc04b6c1ff78facd5c9c9bae22dfee6ad739b357",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "汽车整车",
+      "canonical_name": "汽车整车",
+      "renamed_from": null,
+      "original_names": [
+        "汽车整车"
+      ],
+      "aliases": [],
+      "definition": "围绕汽车整车形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与汽车整车直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "fd06eccf-5ac5-51e0-9272-c5deb2b8fbbb",
+      "entity_key": "chain_node:v1_064c54721be6bf5f3de5a055da80cd70d45c378f",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "燃料电池",
+      "canonical_name": "燃料电池",
+      "renamed_from": null,
+      "original_names": [
+        "燃料电池",
+        "燃料电池概念"
+      ],
+      "aliases": [
+        "燃料电池概念"
+      ],
+      "definition": "以燃料电池为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与燃料电池直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 9,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "d3b3dcdd-03f9-5cff-b749-aa20d7dad430",
+      "entity_key": "chain_node:v1_3efe0ba51e7bec52c175d55e16e99d104ca3a945",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "物业管理",
+      "canonical_name": "物业管理",
+      "renamed_from": null,
+      "original_names": [
+        "物业管理"
+      ],
+      "aliases": [],
+      "definition": "围绕物业管理开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与物业管理直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "5c9c7987-f7a7-54de-9434-6e23f8c49654",
+      "entity_key": "chain_node:v1_44a38206ffeacd4ad035c8d060d6bb8280777241",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "物联网",
+      "canonical_name": "物联网",
+      "renamed_from": null,
+      "original_names": [
+        "物联网"
+      ],
+      "aliases": [],
+      "definition": "以物联网为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与物联网直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 19,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "23064c58-9425-5819-aca9-5b52ecfa46e8",
+      "entity_key": "chain_node:v1_ef0e6075fa3ae1ebb8918c57bb808b5ff3e1dd8b",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "玻璃制造",
+      "canonical_name": "玻璃制造",
+      "renamed_from": null,
+      "original_names": [
+        "玻璃制造"
+      ],
+      "aliases": [],
+      "definition": "以玻璃制造为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与玻璃制造直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 10,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "4ebf3f3d-11c9-520b-9d57-218348976874",
+      "entity_key": "chain_node:v1_0523ddf8bb24b8aa02969ac5ecb1569b05e89368",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "电子竞技",
+      "canonical_name": "电子竞技",
+      "renamed_from": null,
+      "original_names": [
+        "电子竞技"
+      ],
+      "aliases": [],
+      "definition": "以电子竞技为核心交付或使用对象的稳定产品类别，按产品形态、核心功能和直接应用范围界定。",
+      "boundary_note": "包含与电子竞技直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/技术/服务",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b02bc1d9-e794-5115-9ddf-fc64db10d320",
+      "entity_key": "chain_node:v1_b62194b10451015213811c4770aec2a7d846d790",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "知识产权",
+      "canonical_name": "知识产权",
+      "renamed_from": null,
+      "original_names": [
+        "知识产权"
+      ],
+      "aliases": [],
+      "definition": "围绕知识产权开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与知识产权直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 10,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "e6c62945-83b8-5e19-b210-a1cc98b4d70b",
+      "entity_key": "chain_node:v1_829c9ed2e9629f01b25613588f362b3c7639e5ef",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "碳化硅",
+      "canonical_name": "碳化硅",
+      "renamed_from": null,
+      "original_names": [
+        "碳化硅"
+      ],
+      "aliases": [],
+      "definition": "以碳化硅为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与碳化硅直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b1e6ea9e-61cf-5c57-8360-46af0caa13f1",
+      "entity_key": "chain_node:v1_35a3b3cd712367674a251d164945073e33984e39",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "维生素",
+      "canonical_name": "维生素",
+      "renamed_from": null,
+      "original_names": [
+        "维生素"
+      ],
+      "aliases": [],
+      "definition": "以维生素为核心交付或使用对象的稳定产品类别，按产品形态、核心功能和直接应用范围界定。",
+      "boundary_note": "包含与维生素直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/技术/服务",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "19f84b72-a77f-5d6a-83f0-bd632203a606",
+      "entity_key": "chain_node:v1_0c7975b3a853b76adaaf629074ee46338161bb5a",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "耐火材料",
+      "canonical_name": "耐火材料",
+      "renamed_from": null,
+      "original_names": [
+        "耐火材料"
+      ],
+      "aliases": [],
+      "definition": "以耐火材料为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与耐火材料直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 7,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "e3714e6a-bfb6-53da-a123-b0278031d0a2",
+      "entity_key": "chain_node:v1_70641256e3d9431faacdfa493d5db64a6401d802",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "聚氨酯",
+      "canonical_name": "聚氨酯",
+      "renamed_from": null,
+      "original_names": [
+        "聚氨酯"
+      ],
+      "aliases": [],
+      "definition": "围绕聚氨酯形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与聚氨酯直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "63c95557-38be-5dbe-a09a-95c53e5848ce",
+      "entity_key": "chain_node:v1_709dfcbd8e595e6335541a58777d2ed39e6a4973",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "肉制品",
+      "canonical_name": "肉制品",
+      "renamed_from": null,
+      "original_names": [
+        "肉制品"
+      ],
+      "aliases": [],
+      "definition": "围绕肉制品形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与肉制品直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "bf21214a-4f8f-5155-b51e-1a8ef1a3375e",
+      "entity_key": "chain_node:v1_ce8ce09c94edcb227ba159e2bf9252540159be6e",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "膜材料",
+      "canonical_name": "膜材料",
+      "renamed_from": null,
+      "original_names": [
+        "膜材料"
+      ],
+      "aliases": [],
+      "definition": "以膜材料为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与膜材料直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "afc64c30-6bb2-50e3-8f4a-83a37797691d",
+      "entity_key": "chain_node:v1_f166c310dfe6f00d9b7fb3a1eb4b33594df98fc4",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "航空运输",
+      "canonical_name": "航空运输",
+      "renamed_from": null,
+      "original_names": [
+        "航空运输"
+      ],
+      "aliases": [],
+      "definition": "围绕航空运输形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与航空运输直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 12,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "d8d6131b-2e8a-594d-b5bc-92bbd8cbf728",
+      "entity_key": "chain_node:v1_8c6007573e72266d74258d9b6533c95b2a687977",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "船舶制造",
+      "canonical_name": "船舶制造",
+      "renamed_from": null,
+      "original_names": [
+        "船舶制造"
+      ],
+      "aliases": [],
+      "definition": "以船舶制造为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与船舶制造直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "c1c86d2a-5c2e-55f5-9f17-e0e84ffa1c01",
+      "entity_key": "chain_node:v1_2273cdb3afacc1ccb6a52b99113947777184f536",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "计算机",
+      "canonical_name": "计算机",
+      "renamed_from": null,
+      "original_names": [
+        "计算机"
+      ],
+      "aliases": [],
+      "definition": "围绕计算机开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与计算机直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 55,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "1240aa79-74a6-5d5a-bda5-899dab8f35f1",
+      "entity_key": "chain_node:v1_18273b18c9274031ffd7d107b939d90b65b5d5fb",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "调味品",
+      "canonical_name": "调味品",
+      "renamed_from": null,
+      "original_names": [
+        "调味品概念"
+      ],
+      "aliases": [
+        "调味品概念"
+      ],
+      "definition": "围绕调味品形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与调味品直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 13,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "d3e73de8-f03f-5b02-a38c-a803e885b8d8",
+      "entity_key": "chain_node:v1_d7e3157418a4ac16243f99477a4c000823a5d27c",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "贵金属",
+      "canonical_name": "贵金属",
+      "renamed_from": null,
+      "original_names": [
+        "贵金属"
+      ],
+      "aliases": [],
+      "definition": "以贵金属为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与贵金属直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 19,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "b4af2026-8509-58c2-9e30-a9760863ed5c",
+      "entity_key": "chain_node:v1_e550ec31de0088ca7c1a5aeb5dc0020b01c60d36",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "资产管理",
+      "canonical_name": "资产管理",
+      "renamed_from": null,
+      "original_names": [
+        "资产管理"
+      ],
+      "aliases": [],
+      "definition": "围绕资产管理形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与资产管理直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "bd3898d6-d9bd-50f2-8325-854228bcaf44",
+      "entity_key": "chain_node:v1_c5b51d71e7a68809b4b193c4bd55777eb77198b5",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "软件开发",
+      "canonical_name": "软件开发",
+      "renamed_from": null,
+      "original_names": [
+        "软件开发"
+      ],
+      "aliases": [],
+      "definition": "围绕软件开发开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与软件开发直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 12,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "cc77d80e-c7a1-5985-9944-29d6fbea5f9d",
+      "entity_key": "chain_node:v1_5df231ced1311392bcfa5f2f0ceb98a319bf24e0",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "通信服务",
+      "canonical_name": "通信服务",
+      "renamed_from": null,
+      "original_names": [
+        "通信服务"
+      ],
+      "aliases": [],
+      "definition": "以通信服务为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与通信服务直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/服务",
+      "retention_reason": "",
+      "standard_mapping_count": 6,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "f81acfd4-1339-52ba-807b-133c5aea1899",
+      "entity_key": "chain_node:v1_50b301bad4035b7cc67bba005bef5a423ff57c7c",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "通信设备",
+      "canonical_name": "通信设备",
+      "renamed_from": null,
+      "original_names": [
+        "通信设备"
+      ],
+      "aliases": [],
+      "definition": "以通信设备为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与通信设备直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 17,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "5176c114-bcc3-5151-aa5e-0ed5d5fddcdf",
+      "entity_key": "chain_node:v1_e0e7e69d29755de5e1c1ae46a475aa4362fdcae3",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "通用设备",
+      "canonical_name": "通用设备",
+      "renamed_from": null,
+      "original_names": [
+        "通用设备"
+      ],
+      "aliases": [],
+      "definition": "以通用设备为直接交付对象的设备、部件或基础设施类别，按其在生产、运行、检测或保障环节的核心功能界定。",
+      "boundary_note": "包含与通用设备直接对应的直接设备、部件或基础设施对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/设备",
+      "retention_reason": "",
+      "standard_mapping_count": 14,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "9603619c-5318-5a48-a641-0fe8c4d79464",
+      "entity_key": "chain_node:v1_0eaece100616f35ce52675ce668981001b0f3b74",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "金属制品",
+      "canonical_name": "金属制品",
+      "renamed_from": null,
+      "original_names": [
+        "金属制品"
+      ],
+      "aliases": [],
+      "definition": "以金属制品为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "boundary_note": "包含与金属制品直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 23,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "c7ba8bf4-f65b-5f4b-9d3a-2ae55f0ef374",
+      "entity_key": "chain_node:v1_6d8bbcaa57c2671450d1b1846440be8aeeda4087",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "铁路运输",
+      "canonical_name": "铁路运输",
+      "renamed_from": null,
+      "original_names": [
+        "铁路运输"
+      ],
+      "aliases": [],
+      "definition": "围绕铁路运输形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与铁路运输直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业",
+      "retention_reason": "",
+      "standard_mapping_count": 13,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "8287822e-b44a-5bd8-bc9b-5ac41214568f",
+      "entity_key": "chain_node:v1_9d79079ac540d7b0eea64aa1c706efd451c73fd1",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "风力发电",
+      "canonical_name": "风力发电",
+      "renamed_from": null,
+      "original_names": [
+        "风力发电",
+        "风电"
+      ],
+      "aliases": [
+        "风电"
+      ],
+      "definition": "围绕风力发电开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与风力发电直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动；稳定产品/材料",
+      "retention_reason": "",
+      "standard_mapping_count": 12,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "88c89946-11bd-58e0-8ad0-3ad87e5c3d72",
+      "entity_key": "chain_node:v1_51d06d10997ac974d7f9a418a26b0fe4df93a8ce",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "食品加工",
+      "canonical_name": "食品加工",
+      "renamed_from": null,
+      "original_names": [
+        "食品加工"
+      ],
+      "aliases": [],
+      "definition": "以食品加工为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与食品加工直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 11,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "9ad315f7-02cd-5879-9f90-a8981b4525ac",
+      "entity_key": "chain_node:v1_765d72d1e47a7c5c3e308cb5acf4f55c24607e31",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "食品饮料",
+      "canonical_name": "食品饮料",
+      "renamed_from": null,
+      "original_names": [
+        "食品饮料"
+      ],
+      "aliases": [],
+      "definition": "围绕食品饮料形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "boundary_note": "包含与食品饮料直接对应的直接产品对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定产业/产品",
+      "retention_reason": "",
+      "standard_mapping_count": 8,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "ca2a025e-b96c-53b2-9be9-3b5fe7eac610",
+      "entity_key": "chain_node:v1_1e0412869737bbaafef566bcdfe688453ea78548",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "食用菌",
+      "canonical_name": "食用菌",
+      "renamed_from": null,
+      "original_names": [
+        "食用菌"
+      ],
+      "aliases": [],
+      "definition": "围绕食用菌开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "boundary_note": "包含与食用菌直接对应的直接产业活动与供给对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "标准活动",
+      "retention_reason": "",
+      "standard_mapping_count": 9,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    },
+    {
+      "entity_id": "411a0da8-9210-5cb6-bf02-b192ffe79597",
+      "entity_key": "chain_node:v1_4514f28c162b0a4d6ec4d55346abb40e1bcd7655",
+      "entity_type": "chain_node",
+      "status": "active",
+      "name": "饮料制造",
+      "canonical_name": "饮料制造",
+      "renamed_from": null,
+      "original_names": [
+        "饮料制造"
+      ],
+      "aliases": [],
+      "definition": "以饮料制造为核心的可重复技术、工艺或能力活动，按其直接实现的制造、处理、连接、控制或交付功能界定。",
+      "boundary_note": "包含与饮料制造直接对应的直接技术、工艺或能力活动；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "wide_boundary": true,
+      "retention_type": "稳定技术/工艺",
+      "retention_reason": "",
+      "standard_mapping_count": 10,
+      "definition_generation_rule": "retention-type-and-scope-v1",
+      "review_state": "pending_human_review"
+    }
+  ]
+}

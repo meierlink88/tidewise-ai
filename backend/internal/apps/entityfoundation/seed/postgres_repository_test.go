@@ -1,12 +1,34 @@
 package seed
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
+
+func TestHasRetiredIndustryEntitiesChecksAllSectorAndIndustryChainRows(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("entity_type IN \\('sector', 'industry_chain'\\)").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	found, err := NewPostgresRepository(db).HasRetiredIndustryEntities(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found {
+		t.Fatal("retired industry entities were not detected")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestEntitySeedUUIDsAreStable(t *testing.T) {
 	first := entitySeedUUID("economy:cn")
@@ -93,12 +115,15 @@ func TestEntityUpsertSQLPersistsBusinessKey(t *testing.T) {
 	}
 }
 
-func TestEntityUpsertSQLScopesAliasOwnershipToCurrentConvergence(t *testing.T) {
+func TestEntityUpsertSQLDoesNotDependOnRetiredConvergenceTables(t *testing.T) {
 	statement := strings.ToLower(buildEntityUpsert())
-	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "max(manifest_version)", "am.to_entity_id = $1", "coalesce($7::text[]", "order by am.moved_at,am.id", "sa.aliases || oa.aliases"} {
-		if !strings.Contains(statement, fragment) {
-			t.Fatalf("entity upsert missing %q", fragment)
+	for _, fragment := range []string{"entity_convergence_alias_moves", "entity_convergences", "entity_convergence_manifests", "owned_aliases", "seed_aliases"} {
+		if strings.Contains(statement, fragment) {
+			t.Fatalf("entity upsert must not reference retired convergence structure %q", fragment)
 		}
+	}
+	if !strings.Contains(statement, "$7::text[] as aliases") {
+		t.Fatalf("entity upsert must persist normalized aliases directly: %s", statement)
 	}
 }
 
@@ -139,7 +164,7 @@ func TestIndustryChainAndChainNodeProfileUpsertFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"node_category", "definition", "unit_of_analysis", "granularity_note"} {
+	for _, fragment := range []string{"chain_node_profiles", "definition", "boundary_note"} {
 		if !strings.Contains(nodeSQL, fragment) {
 			t.Fatalf("chain node profile SQL missing %q", fragment)
 		}

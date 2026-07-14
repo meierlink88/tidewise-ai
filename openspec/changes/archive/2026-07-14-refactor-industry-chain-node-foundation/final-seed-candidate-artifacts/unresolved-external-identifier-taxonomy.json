@@ -1,0 +1,122 @@
+{
+  "count": 13,
+  "identifiers": [
+    {
+      "canonical_name": "家用电器",
+      "source_system": "eastmoney",
+      "external_code": "BK0456",
+      "external_name": "家用电器",
+      "source_category": "行业板块、概念板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "白酒",
+      "source_system": "eastmoney",
+      "external_code": "BK0896",
+      "external_name": "白酒",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "汽车整车",
+      "source_system": "eastmoney",
+      "external_code": "BK1029",
+      "external_name": "汽车整车",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "跨境电商",
+      "source_system": "eastmoney",
+      "external_code": "BK1115",
+      "external_name": "跨境电商",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "燃料电池",
+      "source_system": "eastmoney",
+      "external_code": "BK1305",
+      "external_name": "燃料电池",
+      "source_category": "行业板块、概念板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "物业管理",
+      "source_system": "eastmoney",
+      "external_code": "BK1343",
+      "external_name": "物业管理",
+      "source_category": "行业板块、概念板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "跨境电商",
+      "source_system": "eastmoney",
+      "external_code": "BK1547",
+      "external_name": "跨境电商",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "燃料电池",
+      "source_system": "ths",
+      "external_code": "300316",
+      "external_name": "燃料电池",
+      "source_category": "行业板块、概念板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "家用电器",
+      "source_system": "ths",
+      "external_code": "300814",
+      "external_name": "家用电器",
+      "source_category": "行业板块、概念板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "跨境电商",
+      "source_system": "ths",
+      "external_code": "301564",
+      "external_name": "跨境电商",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "物业管理",
+      "source_system": "ths",
+      "external_code": "308717",
+      "external_name": "物业管理",
+      "source_category": "行业板块、概念板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "汽车整车",
+      "source_system": "ths",
+      "external_code": "881125",
+      "external_name": "汽车整车",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    },
+    {
+      "canonical_name": "白酒",
+      "source_system": "ths",
+      "external_code": "881273",
+      "external_name": "白酒",
+      "source_category": "概念板块、行业板块",
+      "source_taxonomy_type": null,
+      "taxonomy_resolved": false
+    }
+  ]
+}

@@ -57,6 +57,7 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 
 - 正式 change 必须声明 R0—R3 风险：R0 文档/调研/只读审计，R1 无有状态写入的源码/测试，R2 migration、seed 或 local/UAT 数据变更，R3 生产、不可逆 cleanup、Neo4j rebuild 或敏感部署；具体操作可上调等级。
 - 普通 task checkbox 不自动成为人工 gate；详细的风险理由、阶段 Review package、候选审阅、条件式执行包、R2 recovery evidence、R3 独立授权和 active adoption 只在 `.agents/openspec-workflow.md` 维护。
+- 新 change 的一级 task 必须表达内聚 package，并使用固定 Gate Map、Complexity Budget 与 task-design lint；机器 schema、legacy baseline 和 explicit lint 接口只在 `.agents/openspec-workflow.md` 维护。
 - R2/R3 的有状态操作必须显式授权且 fail-closed；旧批准、普通 Apply 批准或上一层结果不得推定下一层、环境或范围。R3 不得跨层批量执行。
 - Apply final 按受影响交付边界运行完整验证和共享 tests；共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation。
 

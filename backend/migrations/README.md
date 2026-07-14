@@ -29,6 +29,8 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./cmd/dbmigrate -apply
 - `000004_add_source_catalog_source_config.sql`：为 `source_catalogs` 补充 `source_config` JSONB 扩展配置字段。
 - `000005_add_ingestion_scheduler.sql`：创建采集调度器配置、执行批次和 source 级执行记录表。
 - `000006_add_graph_projection_runs.sql`：补充 `entity_nodes.entity_key`，创建 Neo4j 图谱投影 run 和明细记录表。
+- `000015_refactor_industry_chain_node_phase_a.sql`：以人工授权门禁执行旧产业结构受控 cleanup，并收敛最小 chain_node/theme profile。
+- `000016_add_entity_external_identifiers.sql`：新增通用实体外部标识表、外部 identity 唯一约束与实体侧查询索引；不包含任何 mapping 数据。
 
 实体基础库 seed 使用 repo 内版本化 JSON 文件：
 

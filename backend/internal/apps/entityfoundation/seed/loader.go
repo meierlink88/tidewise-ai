@@ -469,7 +469,9 @@ func requiredProfileFields(entityType domain.EntityType) []string {
 	case domain.EntityTypeIndustryChain:
 		return []string{"chain_code", "definition", "scope_type", "review_status", "source_name", "source_url", "verified_at"}
 	case domain.EntityTypeChainNode:
-		return []string{"chain_position"}
+		return nil
+	case domain.EntityTypeTheme:
+		return []string{"definition", "boundary_note"}
 	case domain.EntityTypeSecurity:
 		return []string{"ticker", "exchange", "security_type"}
 	case domain.EntityTypeInstrument:

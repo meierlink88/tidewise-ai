@@ -132,11 +132,12 @@ func TestMigrationsDoNotUseDataDestructiveResetStatements(t *testing.T) {
 	}
 
 	for _, file := range migrationFiles(t) {
-		if filepath.Base(file) == "000009_migrate_benchmark_metrics.sql" {
+		name := filepath.Base(file)
+		if name == "000009_migrate_benchmark_metrics.sql" || name == "000015_refactor_industry_chain_node_phase_a.sql" {
 			continue
 		}
 		if strings.Contains(strings.ToLower(readMigration(t, file)), "delete from") {
-			t.Fatalf("migration %q must not delete data", filepath.Base(file))
+			t.Fatalf("migration %q must not delete data", name)
 		}
 	}
 }

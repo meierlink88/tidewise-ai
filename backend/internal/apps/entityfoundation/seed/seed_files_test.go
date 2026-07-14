@@ -559,7 +559,7 @@ func TestRelationshipSeedFile(t *testing.T) {
 }
 
 func entityFoundationSeedPaths() []string {
-	return DefaultSeedPaths(filepath.Join("..", "..", "..", "..", "data", "entity_foundation"))
+	return legacyFixturePaths(filepath.Join("..", "..", "..", "..", "data", "entity_foundation"))
 }
 
 func profileString(t *testing.T, raw json.RawMessage, key string) string {

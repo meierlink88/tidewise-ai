@@ -8,6 +8,10 @@ import (
 )
 
 func CheckPostgres(ctx context.Context, cfg config.Config, autoApply bool) (ServiceReport, error) {
+	return CheckPostgresWithOptions(ctx, cfg, ServiceOptions{AutoApply: autoApply})
+}
+
+func CheckPostgresWithOptions(ctx context.Context, cfg config.Config, options ServiceOptions) (ServiceReport, error) {
 	db, err := database.Open(ctx, cfg)
 	if err != nil {
 		return ServiceReport{}, err
@@ -18,5 +22,5 @@ func CheckPostgres(ctx context.Context, cfg config.Config, autoApply bool) (Serv
 	locker := NewPostgresAdvisoryLocker(db, cfg.Migration.LockKey)
 	service := NewService(executor, locker)
 
-	return service.Check(ctx, ServiceOptions{AutoApply: autoApply})
+	return service.Check(ctx, options)
 }

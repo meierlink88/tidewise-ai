@@ -143,7 +143,7 @@ type recordingRepository struct {
 	failOnCall string
 }
 
-func (r *recordingRepository) HasActiveLegacySectors(context.Context) (bool, error) {
+func (r *recordingRepository) HasRetiredIndustryEntities(context.Context) (bool, error) {
 	return false, nil
 }
 
@@ -153,6 +153,10 @@ func (r *recordingRepository) UpsertEntity(_ context.Context, entity Entity) (Wr
 
 func (r *recordingRepository) UpsertProfile(_ context.Context, profile Profile) (WriteResult, error) {
 	return r.record("profile:"+profile.EntityKey, profile.EntityKey)
+}
+
+func (r *recordingRepository) UpsertExternalIdentifier(_ context.Context, identifier domain.EntityExternalIdentifier) (WriteResult, error) {
+	return r.record("external_identifier:"+externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode), identifier.ID)
 }
 
 func (r *recordingRepository) UpsertSectorSourceMapping(_ context.Context, mapping SectorSourceMapping) (WriteResult, error) {
