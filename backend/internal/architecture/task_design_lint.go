@@ -372,8 +372,8 @@ func lintTaskDesignLayers(path string, rows [][]string, expected int, gates []ta
 		if row[6] != "backup" && row[6] != "approved-disposable-recovery" {
 			result.Errors = append(result.Errors, taskDesignError("stateful-recovery", path, "Stateful Layer Map", "Recovery Evidence", "expected backup or approved-disposable-recovery"))
 		}
-		if row[6] == "approved-disposable-recovery" && (row[2] != "local" || (gateOK && gate.Values[2] != "R2")) {
-			result.Errors = append(result.Errors, taskDesignError("stateful-recovery", path, "Stateful Layer Map", "Recovery Evidence", "disposable recovery is only valid for local R2"))
+		if row[6] == "approved-disposable-recovery" && !taskDesignDisposableRecoveryAllowed(row, gate, gateOK) {
+			result.Errors = append(result.Errors, taskDesignError("stateful-recovery", path, "Stateful Layer Map", "Recovery Evidence", "expected local R2 or human-gated local R3 Neo4j cleanup/rebuild/sync with PG baseline"))
 		}
 		parts := strings.Split(row[7], ":")
 		if len(parts) != 2 || (parts[0] != "new" && parts[0] != "reuse") || !taskDesignNamePattern.MatchString(parts[len(parts)-1]) {
@@ -405,6 +405,53 @@ func lintTaskDesignLayers(path string, rows [][]string, expected int, gates []ta
 			result.Errors = append(result.Errors, taskDesignError("stateful-expected", path, "Stateful Layer Map", "Expected Counts/Hash/Schema", "expected counts=<value>;hash=<value>;schema=<value>"))
 		}
 	}
+}
+
+func taskDesignDisposableRecoveryAllowed(row []string, gate taskDesignGate, gateOK bool) bool {
+	if !gateOK || row[2] != "local" {
+		return false
+	}
+	if gate.Values[2] == "R2" {
+		return true
+	}
+	anchorText := row[0] + " " + row[4]
+	if gate.Values[2] != "R3" || gate.Values[3] != "yes" || !taskDesignContainsToken(anchorText, "neo4j") {
+		return false
+	}
+	hasOperation := false
+	for _, operation := range []string{"cleanup", "rebuild", "sync"} {
+		if taskDesignContainsToken(anchorText, operation) {
+			hasOperation = true
+			break
+		}
+	}
+	before := row[9]
+	hasPostgreSQLBaseline := (taskDesignContainsToken(before, "pg") || taskDesignContainsToken(before, "postgresql")) && taskDesignContainsToken(before, "baseline")
+	return hasOperation && hasPostgreSQLBaseline
+}
+
+func taskDesignContainsToken(value, token string) bool {
+	value = strings.ToLower(value)
+	token = strings.ToLower(token)
+	for offset := 0; offset <= len(value)-len(token); {
+		index := strings.Index(value[offset:], token)
+		if index < 0 {
+			return false
+		}
+		index += offset
+		beforeBoundary := index == 0 || !taskDesignASCIIWordByte(value[index-1])
+		after := index + len(token)
+		afterBoundary := after == len(value) || !taskDesignASCIIWordByte(value[after])
+		if beforeBoundary && afterBoundary {
+			return true
+		}
+		offset = index + 1
+	}
+	return false
+}
+
+func taskDesignASCIIWordByte(value byte) bool {
+	return value >= 'a' && value <= 'z' || value >= '0' && value <= '9' || value == '_'
 }
 
 func compareTaskDesignArtifacts(proposal, tasks taskDesignArtifact, result *taskDesignLintResult) {

@@ -36,13 +36,13 @@ OR
   Environment == local
   AND Gate.Risk == R3
   AND Gate.Human == yes
-  AND Scope 明确包含 Neo4j
-  AND Scope 明确包含 cleanup、rebuild、sync 之一
+  AND Layer 或 Scope 明确包含 Neo4j
+  AND Layer 或 Scope 明确包含 cleanup、rebuild、sync 之一
   AND Before Assertions 明确引用 PG 或 PostgreSQL baseline
 )
 ```
 
-匹配对大小写不敏感；`Neo4j` 与 `cleanup`、`rebuild`、`sync` 之一共同编码“Neo4j projection operation”，不额外要求现有 Scope 补写字面量 `projection`。`PG`/`PostgreSQL` 与 `baseline` 是事实源机器锚点。三个 operation token 是封闭集合，不接受泛化的 migrate、delete、write、restore 或任意 R3 文案。现有通用校验继续要求 layer/package 映射、local 环境、唯一 layer、连续 order、Recovery Baseline、Expected Counts/Hash/Schema、Before/After Assertions、Stop Conditions 及 Proposal/tasks 一致。
+匹配对大小写不敏感；Layer 或 Scope 中有 ASCII token 边界的 `Neo4j` 与 `cleanup`、`rebuild`、`sync` 之一共同编码“Neo4j projection operation”，不额外要求现有 Scope 补写字面量 `projection`。Before Assertions 中有边界的 `PG`/`PostgreSQL` 与 `baseline` 是事实源机器锚点。三个 operation token 是封闭集合，不接受 cleanupSuffix、resync、neo4jBackup、泛化的 migrate/delete/write/restore 或任意 R3 文案。现有通用校验继续要求 layer/package 映射、local 环境、唯一 layer、连续 order、Recovery Baseline、Expected Counts/Hash/Schema、Before/After Assertions、Stop Conditions 及 Proposal/tasks 一致。
 
 这些静态谓词只判断 artifact 是否有资格表达 recovery，不代表操作已获授权。`.agents/openspec-workflow.md` 继续要求 PostgreSQL 是冻结、已验收、可完整重建该投影的唯一事实源，并要求用户在运行前对每个命名 R3 layer 单独明确授权；同一 package 中存在多个 layer 也不得合并授权。任何 drift、失败、超时、断言失败或人工中止立即停止，未执行 layer 不继承授权。
 
