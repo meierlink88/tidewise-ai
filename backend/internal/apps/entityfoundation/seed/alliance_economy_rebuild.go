@@ -24,51 +24,56 @@ type AllianceEconomyForeignKey struct {
 	ColumnName      string `json:"column_name"`
 	ReferencedTable string `json:"referenced_table"`
 	DeleteRule      string `json:"delete_rule"`
-	RowCount        int    `json:"row_count"`
 }
 
 type AllianceEconomyDependencyReport struct {
-	Counts           []AllianceEconomyDependencyCount `json:"counts"`
-	ForeignKeys      []AllianceEconomyForeignKey      `json:"foreign_keys"`
-	Fingerprints     []string                         `json:"fingerprints"`
-	CrossDomainEdges []AllianceEconomyDependencyCount `json:"cross_domain_edges"`
-	Blocked          bool                             `json:"blocked"`
-	Checksum         string                           `json:"checksum"`
+	Counts            []AllianceEconomyDependencyCount `json:"counts"`
+	ForeignKeys       []AllianceEconomyForeignKey      `json:"foreign_keys"`
+	Fingerprints      []string                         `json:"fingerprints"`
+	CrossDomainEdges  []AllianceEconomyDependencyCount `json:"cross_domain_edges"`
+	Blocked           bool                             `json:"blocked"`
+	Checksum          string                           `json:"checksum"`
+	ProtectedChecksum string                           `json:"protected_checksum"`
 }
 
 type AllianceEconomyCleanupResult struct {
-	DeletedEdges            int `json:"deleted_edges"`
-	DeletedAllianceProfiles int `json:"deleted_alliance_profiles"`
-	DeletedEconomyProfiles  int `json:"deleted_economy_profiles"`
-	DeletedEntities         int `json:"deleted_entities"`
-	RemainingEntities       int `json:"remaining_entities"`
-	RemainingProfiles       int `json:"remaining_profiles"`
-	RemainingEdges          int `json:"remaining_edges"`
+	DeletedMemberOf           int `json:"deleted_member_of"`
+	DeletedAllianceProfiles   int `json:"deleted_alliance_profiles"`
+	DeletedAlliances          int `json:"deleted_alliances"`
+	RemainingAlliances        int `json:"remaining_alliances"`
+	RemainingAllianceProfiles int `json:"remaining_alliance_profiles"`
+	RemainingMemberOf         int `json:"remaining_member_of"`
+	RemainingEconomies        int `json:"remaining_economies"`
+	RemainingEconomyProfiles  int `json:"remaining_economy_profiles"`
 }
 
 type AllianceEconomyRebuildResult struct {
-	ManifestChecksum string `json:"manifest_checksum"`
-	Alliances        int    `json:"alliances"`
-	AllianceProfiles int    `json:"alliance_profiles"`
-	Economies        int    `json:"economies"`
-	EconomyProfiles  int    `json:"economy_profiles"`
-	MemberOf         int    `json:"member_of"`
-	Orphans          int    `json:"orphans"`
-	DuplicateTuples  int    `json:"duplicate_tuples"`
-	Mismatches       int    `json:"mismatches"`
+	ManifestChecksum         string `json:"manifest_checksum"`
+	Alliances                int    `json:"alliances"`
+	AllianceProfiles         int    `json:"alliance_profiles"`
+	Economies                int    `json:"economies"`
+	EconomyProfiles          int    `json:"economy_profiles"`
+	MemberOf                 int    `json:"member_of"`
+	NonTargetEconomies       int    `json:"non_target_economies"`
+	NonTargetEconomyProfiles int    `json:"non_target_economy_profiles"`
+	Orphans                  int    `json:"orphans"`
+	DuplicateTuples          int    `json:"duplicate_tuples"`
+	Mismatches               int    `json:"mismatches"`
 }
 
 type allianceEconomyRebuildPreflight struct {
-	SchemaReady             bool
-	IDConflicts             int
-	KeyConflicts            int
-	UnexpectedTargetNodes   int
-	UnexpectedIncidentEdges int
-	Alliances               int
-	AllianceProfiles        int
-	Economies               int
-	EconomyProfiles         int
-	MemberOf                int
+	SchemaReady              bool
+	IDConflicts              int
+	KeyConflicts             int
+	UnexpectedAllianceNodes  int
+	UnexpectedAllianceEdges  int
+	Alliances                int
+	AllianceProfiles         int
+	Economies                int
+	EconomyProfiles          int
+	NonTargetEconomies       int
+	NonTargetEconomyProfiles int
+	MemberOf                 int
 }
 
 func (r PostgresRepository) AuditAllianceEconomyRebuildDependencies(ctx context.Context) (AllianceEconomyDependencyReport, error) {
@@ -128,30 +133,21 @@ func auditAllianceEconomyRebuildDependencies(ctx context.Context, executor postg
 	if err := fkRows.Close(); err != nil {
 		return AllianceEconomyDependencyReport{}, err
 	}
-	for index := range foreignKeys {
-		item := &foreignKeys[index]
-		if item.TableName == "entity_edges" || item.TableName == "alliance_org_profiles" || item.TableName == "economy_profiles" {
-			continue
-		}
-		statement := fmt.Sprintf(`SELECT count(*) FROM %s r JOIN entity_nodes n ON n.id=r.%s WHERE n.entity_type IN ('alliance_org','economy')`, quoteIdentifier(item.TableName), quoteIdentifier(item.ColumnName))
-		if err := executor.QueryRowContext(ctx, statement).Scan(&item.RowCount); err != nil {
-			return AllianceEconomyDependencyReport{}, fmt.Errorf("count %s.%s references: %w", item.TableName, item.ColumnName, err)
-		}
+	protected, err := allianceEconomyCleanupProtectionFingerprints(ctx, executor)
+	if err != nil {
+		return AllianceEconomyDependencyReport{}, err
 	}
-	return buildAllianceEconomyDependencyReport(counts, foreignKeys, fingerprints)
+	return buildAllianceEconomyDependencyReport(counts, foreignKeys, fingerprints, protected)
 }
 
-func buildAllianceEconomyDependencyReport(counts []AllianceEconomyDependencyCount, foreignKeys []AllianceEconomyForeignKey, fingerprints []string) (AllianceEconomyDependencyReport, error) {
+func buildAllianceEconomyDependencyReport(counts []AllianceEconomyDependencyCount, foreignKeys []AllianceEconomyForeignKey, fingerprints, protected []string) (AllianceEconomyDependencyReport, error) {
 	report := AllianceEconomyDependencyReport{Counts: counts, ForeignKeys: foreignKeys, Fingerprints: fingerprints}
 	for _, item := range counts {
 		if item.Scope == "entity_edges" && (item.RelationType != "member_of" || item.FromType != "economy" || item.ToType != "alliance_org") && item.RowCount > 0 {
 			report.CrossDomainEdges = append(report.CrossDomainEdges, item)
-			report.Blocked = true
-		}
-	}
-	for _, item := range foreignKeys {
-		if item.RowCount > 0 && item.TableName != "entity_edges" && item.TableName != "alliance_org_profiles" && item.TableName != "economy_profiles" {
-			report.Blocked = true
+			if item.FromType == "alliance_org" || item.ToType == "alliance_org" {
+				report.Blocked = true
+			}
 		}
 	}
 	sort.Slice(report.Counts, func(i, j int) bool {
@@ -162,6 +158,7 @@ func buildAllianceEconomyDependencyReport(counts []AllianceEconomyDependencyCoun
 		return report.ForeignKeys[i].TableName+"\x00"+report.ForeignKeys[i].ColumnName < report.ForeignKeys[j].TableName+"\x00"+report.ForeignKeys[j].ColumnName
 	})
 	sort.Strings(report.Fingerprints)
+	sort.Strings(protected)
 	payload, err := json.Marshal(struct {
 		Counts       []AllianceEconomyDependencyCount `json:"counts"`
 		ForeignKeys  []AllianceEconomyForeignKey      `json:"foreign_keys"`
@@ -172,6 +169,7 @@ func buildAllianceEconomyDependencyReport(counts []AllianceEconomyDependencyCoun
 	}
 	sum := sha256.Sum256(payload)
 	report.Checksum = hex.EncodeToString(sum[:])
+	report.ProtectedChecksum = allianceEconomyFingerprintChecksum(protected)
 	return report, nil
 }
 
@@ -195,11 +193,18 @@ func (r PostgresRepository) CleanupAllianceEconomyLocal(ctx context.Context, rev
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy dependency snapshot differs from reviewed checksum")
 	}
 	var result AllianceEconomyCleanupResult
-	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupSQL()).Scan(&result.DeletedEdges, &result.DeletedAllianceProfiles, &result.DeletedEconomyProfiles, &result.DeletedEntities, &result.RemainingEntities, &result.RemainingProfiles, &result.RemainingEdges); err != nil {
+	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupSQL()).Scan(&result.DeletedMemberOf, &result.DeletedAllianceProfiles, &result.DeletedAlliances, &result.RemainingAlliances, &result.RemainingAllianceProfiles, &result.RemainingMemberOf, &result.RemainingEconomies, &result.RemainingEconomyProfiles); err != nil {
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("cleanup alliance economy scope: %w", err)
 	}
-	if result.RemainingEntities != 0 || result.RemainingProfiles != 0 || result.RemainingEdges != 0 {
+	if result.RemainingAlliances != 0 || result.RemainingAllianceProfiles != 0 || result.RemainingMemberOf != 0 || result.RemainingEconomies != 50 || result.RemainingEconomyProfiles != 50 {
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy cleanup zero assertion failed")
+	}
+	postReport, err := auditAllianceEconomyRebuildDependencies(ctx, tx)
+	if err != nil {
+		return AllianceEconomyCleanupResult{}, err
+	}
+	if postReport.Blocked || postReport.ProtectedChecksum != report.ProtectedChecksum {
+		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy cleanup changed protected cross-domain facts")
 	}
 	if err := tx.Commit(); err != nil {
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("commit alliance economy cleanup: %w", err)
@@ -228,28 +233,33 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 	}
 	var preflight allianceEconomyRebuildPreflight
 	if err := tx.QueryRowContext(ctx, allianceEconomyRebuildPreflightSQL(), alliances, economies, memberOf).Scan(
-		&preflight.SchemaReady, &preflight.IDConflicts, &preflight.KeyConflicts, &preflight.UnexpectedTargetNodes, &preflight.UnexpectedIncidentEdges,
-		&preflight.Alliances, &preflight.AllianceProfiles, &preflight.Economies, &preflight.EconomyProfiles, &preflight.MemberOf,
+		&preflight.SchemaReady, &preflight.IDConflicts, &preflight.KeyConflicts, &preflight.UnexpectedAllianceNodes, &preflight.UnexpectedAllianceEdges,
+		&preflight.Alliances, &preflight.AllianceProfiles, &preflight.Economies, &preflight.EconomyProfiles, &preflight.NonTargetEconomies, &preflight.NonTargetEconomyProfiles, &preflight.MemberOf,
 	); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("preflight approved alliance economy rebuild: %w", err)
 	}
 	if !preflight.SchemaReady {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("migration 000018 must be applied in the separately authorized local rebuild package")
 	}
-	if preflight.IDConflicts != 0 || preflight.KeyConflicts != 0 || preflight.UnexpectedTargetNodes != 0 || preflight.UnexpectedIncidentEdges != 0 {
+	if preflight.IDConflicts != 0 || preflight.KeyConflicts != 0 || preflight.UnexpectedAllianceNodes != 0 || preflight.UnexpectedAllianceEdges != 0 {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild identity or scope collision: %+v", preflight)
 	}
-	zero := preflight.Alliances == 0 && preflight.AllianceProfiles == 0 && preflight.Economies == 0 && preflight.EconomyProfiles == 0 && preflight.MemberOf == 0
-	exact := preflight.Alliances == 45 && preflight.AllianceProfiles == 45 && preflight.Economies == 79 && preflight.EconomyProfiles == 79 && preflight.MemberOf == 133
-	if !zero && !exact {
-		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild requires cleanup-zero or an exact idempotent target: %+v", preflight)
+	cleanupReady := preflight.Alliances == 0 && preflight.AllianceProfiles == 0 && preflight.Economies == 35 && preflight.EconomyProfiles == 35 && preflight.NonTargetEconomies == 15 && preflight.NonTargetEconomyProfiles == 15 && preflight.MemberOf == 0
+	exact := preflight.Alliances == 45 && preflight.AllianceProfiles == 45 && preflight.Economies == 79 && preflight.EconomyProfiles == 79 && preflight.NonTargetEconomies == 15 && preflight.NonTargetEconomyProfiles == 15 && preflight.MemberOf == 133
+	if !cleanupReady && !exact {
+		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild requires scoped cleanup or an exact idempotent target: %+v", preflight)
 	}
+	protected, err := allianceEconomyRebuildProtectionFingerprints(ctx, tx, economies)
+	if err != nil {
+		return AllianceEconomyRebuildResult{}, err
+	}
+	protectedChecksum := allianceEconomyFingerprintChecksum(protected)
 	if exact {
 		var existing AllianceEconomyRebuildResult
-		if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&existing.Alliances, &existing.AllianceProfiles, &existing.Economies, &existing.EconomyProfiles, &existing.MemberOf, &existing.Orphans, &existing.DuplicateTuples, &existing.Mismatches); err != nil {
+		if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&existing.Alliances, &existing.AllianceProfiles, &existing.Economies, &existing.EconomyProfiles, &existing.MemberOf, &existing.NonTargetEconomies, &existing.NonTargetEconomyProfiles, &existing.Orphans, &existing.DuplicateTuples, &existing.Mismatches); err != nil {
 			return AllianceEconomyRebuildResult{}, fmt.Errorf("verify idempotent alliance economy target: %w", err)
 		}
-		if existing != (AllianceEconomyRebuildResult{Alliances: 45, AllianceProfiles: 45, Economies: 79, EconomyProfiles: 79, MemberOf: 133}) {
+		if existing != (AllianceEconomyRebuildResult{Alliances: 45, AllianceProfiles: 45, Economies: 79, EconomyProfiles: 79, MemberOf: 133, NonTargetEconomies: 15, NonTargetEconomyProfiles: 15}) {
 			return AllianceEconomyRebuildResult{}, fmt.Errorf("existing alliance/economy target is not an exact idempotent match: %+v", existing)
 		}
 	}
@@ -263,11 +273,18 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 	if _, err := tx.ExecContext(ctx, allianceEconomyMemberRebuildSQL(), memberOf); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("rebuild approved member_of relationships: %w", err)
 	}
-	if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&result.Alliances, &result.AllianceProfiles, &result.Economies, &result.EconomyProfiles, &result.MemberOf, &result.Orphans, &result.DuplicateTuples, &result.Mismatches); err != nil {
+	if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&result.Alliances, &result.AllianceProfiles, &result.Economies, &result.EconomyProfiles, &result.MemberOf, &result.NonTargetEconomies, &result.NonTargetEconomyProfiles, &result.Orphans, &result.DuplicateTuples, &result.Mismatches); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("query rebuilt alliance economy manifest: %w", err)
 	}
-	if result != (AllianceEconomyRebuildResult{Alliances: 45, AllianceProfiles: 45, Economies: 79, EconomyProfiles: 79, MemberOf: 133}) {
+	if result != (AllianceEconomyRebuildResult{Alliances: 45, AllianceProfiles: 45, Economies: 79, EconomyProfiles: 79, MemberOf: 133, NonTargetEconomies: 15, NonTargetEconomyProfiles: 15}) {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild exact assertion failed: %+v", result)
+	}
+	postProtected, err := allianceEconomyRebuildProtectionFingerprints(ctx, tx, economies)
+	if err != nil {
+		return AllianceEconomyRebuildResult{}, err
+	}
+	if allianceEconomyFingerprintChecksum(postProtected) != protectedChecksum {
+		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild changed protected cross-domain facts")
 	}
 	result.ManifestChecksum = approvedAllianceEconomyManifestSHA256
 	if err := tx.Commit(); err != nil {
@@ -362,17 +379,87 @@ WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_schema=current_schema() AND 
 ORDER BY tc.table_name,kcu.column_name`
 }
 
+func allianceEconomyCleanupProtectionFingerprints(ctx context.Context, executor postgresExecutor) ([]string, error) {
+	return allianceEconomyFingerprintRows(ctx, executor, allianceEconomyCleanupProtectionSQL())
+}
+
+func allianceEconomyRebuildProtectionFingerprints(ctx context.Context, executor postgresExecutor, economies []byte) ([]string, error) {
+	return allianceEconomyFingerprintRows(ctx, executor, allianceEconomyRebuildProtectionSQL(), economies)
+}
+
+func allianceEconomyFingerprintRows(ctx context.Context, executor postgresExecutor, statement string, args ...any) ([]string, error) {
+	rows, err := executor.QueryContext(ctx, statement, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query alliance/economy protected fingerprints: %w", err)
+	}
+	defer rows.Close()
+	var fingerprints []string
+	for rows.Next() {
+		var fingerprint string
+		if err := rows.Scan(&fingerprint); err != nil {
+			return nil, fmt.Errorf("scan alliance/economy protected fingerprint: %w", err)
+		}
+		fingerprints = append(fingerprints, fingerprint)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return fingerprints, nil
+}
+
+func allianceEconomyFingerprintChecksum(fingerprints []string) string {
+	ordered := append([]string(nil), fingerprints...)
+	sort.Strings(ordered)
+	sum := sha256.Sum256([]byte(strings.Join(ordered, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+func allianceEconomyCleanupProtectionSQL() string {
+	return `SELECT fingerprint FROM (
+  SELECT 'economy_node|'||to_jsonb(n)::text AS fingerprint FROM entity_nodes n WHERE n.entity_type='economy'
+  UNION ALL SELECT 'economy_profile|'||to_jsonb(p)::text FROM economy_profiles p
+  UNION ALL SELECT 'economy_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
+    WHERE (f.entity_type='economy' OR t.entity_type='economy') AND NOT (e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org')
+  UNION ALL SELECT 'market_profile|'||to_jsonb(p)::text FROM market_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'company_profile|'||to_jsonb(p)::text FROM company_profiles p JOIN entity_nodes n ON n.id=p.registration_economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'person_profile|'||to_jsonb(p)::text FROM person_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'index_profile|'||to_jsonb(i)::text FROM index_profiles i JOIN market_profiles m ON m.entity_id=i.market_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'market_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN market_profiles m ON m.entity_id=e.from_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy' AND e.relation_type IN ('tracks_index','observes_benchmark')
+  UNION ALL SELECT 'benchmark_profile|'||to_jsonb(p)::text FROM benchmark_profiles p
+) protected ORDER BY fingerprint`
+}
+
+func allianceEconomyRebuildProtectionSQL() string {
+	return `WITH economy_input AS (SELECT * FROM jsonb_to_recordset($1::jsonb) AS x("ID" uuid,"EntityKey" text))
+SELECT fingerprint FROM (
+  SELECT 'non_target_economy_node|'||to_jsonb(n)::text AS fingerprint FROM entity_nodes n WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)
+  UNION ALL SELECT 'non_target_economy_profile|'||to_jsonb(p)::text FROM economy_profiles p JOIN entity_nodes n ON n.id=p.entity_id WHERE NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)
+  UNION ALL SELECT 'economy_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
+    WHERE (f.entity_type='economy' OR t.entity_type='economy') AND NOT (e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org')
+  UNION ALL SELECT 'market_profile|'||to_jsonb(p)::text FROM market_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'company_profile|'||to_jsonb(p)::text FROM company_profiles p JOIN entity_nodes n ON n.id=p.registration_economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'person_profile|'||to_jsonb(p)::text FROM person_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'index_profile|'||to_jsonb(i)::text FROM index_profiles i JOIN market_profiles m ON m.entity_id=i.market_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'market_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN market_profiles m ON m.entity_id=e.from_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy' AND e.relation_type IN ('tracks_index','observes_benchmark')
+  UNION ALL SELECT 'benchmark_profile|'||to_jsonb(p)::text FROM benchmark_profiles p
+) protected ORDER BY fingerprint`
+}
+
 func allianceEconomyCleanupSQL() string {
-	return `WITH target AS (SELECT id FROM entity_nodes WHERE entity_type IN ('alliance_org','economy')),
-deleted_edges AS (DELETE FROM entity_edges WHERE from_entity_id IN (SELECT id FROM target) OR to_entity_id IN (SELECT id FROM target) RETURNING 1),
-deleted_alliance_profiles AS (DELETE FROM alliance_org_profiles RETURNING 1),
-deleted_economy_profiles AS (DELETE FROM economy_profiles RETURNING 1),
-deleted_entities AS (DELETE FROM entity_nodes WHERE id IN (SELECT id FROM target) RETURNING 1)
-SELECT (SELECT count(*) FROM deleted_edges), (SELECT count(*) FROM deleted_alliance_profiles),
-       (SELECT count(*) FROM deleted_economy_profiles), (SELECT count(*) FROM deleted_entities),
-       (SELECT count(*) FROM entity_nodes WHERE entity_type IN ('alliance_org','economy')),
-       (SELECT count(*) FROM alliance_org_profiles)+(SELECT count(*) FROM economy_profiles),
-       (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id WHERE f.entity_type IN ('alliance_org','economy') OR t.entity_type IN ('alliance_org','economy'))`
+	return `WITH deleted_member_of AS (
+    DELETE FROM entity_edges e USING entity_nodes f, entity_nodes t
+    WHERE e.from_entity_id=f.id AND e.to_entity_id=t.id
+      AND e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org'
+    RETURNING 1
+), deleted_alliance_profiles AS (DELETE FROM alliance_org_profiles RETURNING 1),
+deleted_alliances AS (DELETE FROM entity_nodes WHERE entity_type='alliance_org' RETURNING 1)
+SELECT (SELECT count(*) FROM deleted_member_of), (SELECT count(*) FROM deleted_alliance_profiles),
+       (SELECT count(*) FROM deleted_alliances),
+       (SELECT count(*) FROM entity_nodes WHERE entity_type='alliance_org'),
+       (SELECT count(*) FROM alliance_org_profiles),
+       (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id WHERE e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org'),
+       (SELECT count(*) FROM entity_nodes WHERE entity_type='economy'),
+       (SELECT count(*) FROM economy_profiles)`
 }
 
 func allianceEconomyEntityRebuildSQL() string {
@@ -435,12 +522,15 @@ SELECT
   EXISTS (SELECT 1 FROM goose_db_version WHERE version_id=18 AND is_applied) AS schema_ready,
   (SELECT count(*) FROM entity_input i JOIN entity_nodes n ON n.id=i."ID" WHERE n.entity_key IS DISTINCT FROM i."EntityKey" OR n.entity_type IS DISTINCT FROM i.entity_type) AS id_conflicts,
   (SELECT count(*) FROM entity_input i JOIN entity_nodes n ON n.entity_key=i."EntityKey" WHERE n.id IS DISTINCT FROM i."ID") AS key_conflicts,
-  (SELECT count(*) FROM entity_nodes n WHERE n.entity_type IN ('alliance_org','economy') AND NOT EXISTS (SELECT 1 FROM entity_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key AND i.entity_type=n.entity_type)) AS unexpected_target_nodes,
-  (SELECT count(*) FROM entity_edges e WHERE (e.from_entity_id IN (SELECT "ID" FROM entity_input) OR e.to_entity_id IN (SELECT "ID" FROM entity_input)) AND NOT EXISTS (SELECT 1 FROM edge_input i WHERE i."ID"=e.id AND i."FromID"=e.from_entity_id AND i."ToID"=e.to_entity_id AND e.relation_type='member_of')) AS unexpected_incident_edges,
+  (SELECT count(*) FROM entity_nodes n WHERE n.entity_type='alliance_org' AND NOT EXISTS (SELECT 1 FROM alliance_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)) AS unexpected_alliance_nodes,
+  (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
+    WHERE (f.entity_type='alliance_org' OR t.entity_type='alliance_org') AND NOT EXISTS (SELECT 1 FROM edge_input i WHERE i."ID"=e.id AND i."FromID"=e.from_entity_id AND i."ToID"=e.to_entity_id AND e.relation_type='member_of')) AS unexpected_alliance_edges,
   (SELECT count(*) FROM entity_nodes WHERE entity_type='alliance_org') AS alliances,
   (SELECT count(*) FROM alliance_org_profiles) AS alliance_profiles,
-  (SELECT count(*) FROM entity_nodes WHERE entity_type='economy') AS economies,
-  (SELECT count(*) FROM economy_profiles) AS economy_profiles,
+  (SELECT count(*) FROM entity_nodes n JOIN economy_input i ON i."ID"=n.id AND i."EntityKey"=n.entity_key WHERE n.entity_type='economy') AS economies,
+  (SELECT count(*) FROM economy_profiles p JOIN economy_input i ON i."ID"=p.entity_id) AS economy_profiles,
+  (SELECT count(*) FROM entity_nodes n WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)) AS non_target_economies,
+  (SELECT count(*) FROM economy_profiles p JOIN entity_nodes n ON n.id=p.entity_id WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)) AS non_target_economy_profiles,
   (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id WHERE e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org') AS member_of`
 }
 
@@ -455,12 +545,14 @@ func allianceEconomyExactQuerySQL() string {
     SELECT
       (SELECT count(*) FROM entity_nodes WHERE entity_type='alliance_org' AND status='active') AS alliances,
       (SELECT count(*) FROM alliance_org_profiles) AS alliance_profiles,
-      (SELECT count(*) FROM entity_nodes WHERE entity_type='economy' AND status='active') AS economies,
-      (SELECT count(*) FROM economy_profiles) AS economy_profiles,
+      (SELECT count(*) FROM entity_nodes n JOIN economy_input i ON i."ID"=n.id AND i."EntityKey"=n.entity_key WHERE n.entity_type='economy' AND n.status='active') AS economies,
+      (SELECT count(*) FROM economy_profiles p JOIN economy_input i ON i."ID"=p.entity_id) AS economy_profiles,
+      (SELECT count(*) FROM entity_nodes n WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)) AS non_target_economies,
+      (SELECT count(*) FROM economy_profiles p JOIN entity_nodes n ON n.id=p.entity_id WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)) AS non_target_economy_profiles,
       (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id WHERE e.relation_type='member_of' AND e.status='active' AND f.entity_type='economy' AND t.entity_type='alliance_org') AS member_of,
       (SELECT count(*) FROM entity_edges e LEFT JOIN entity_nodes f ON f.id=e.from_entity_id LEFT JOIN entity_nodes t ON t.id=e.to_entity_id WHERE f.id IS NULL OR t.id IS NULL) AS orphans,
       (SELECT count(*) FROM (SELECT from_entity_id,to_entity_id,relation_type FROM entity_edges WHERE relation_type='member_of' AND status='active' GROUP BY 1,2,3 HAVING count(*)>1) d) AS duplicate_tuples,
-      (SELECT count(*) FROM entity_nodes n WHERE n.entity_type IN ('alliance_org','economy') AND NOT EXISTS (SELECT 1 FROM alliance_input a WHERE a."ID"=n.id) AND NOT EXISTS (SELECT 1 FROM economy_input e WHERE e."ID"=n.id))
+      (SELECT count(*) FROM entity_nodes n WHERE n.entity_type='alliance_org' AND NOT EXISTS (SELECT 1 FROM alliance_input a WHERE a."ID"=n.id AND a."EntityKey"=n.entity_key))
       + (SELECT count(*) FROM alliance_input i
          LEFT JOIN entity_nodes n ON n.id=i."ID"
          LEFT JOIN alliance_org_profiles p ON p.entity_id=i."ID"
@@ -481,10 +573,8 @@ func allianceEconomyExactQuerySQL() string {
             OR e.source_name IS DISTINCT FROM i."SourceName" OR e.source_url IS DISTINCT FROM i."SourceURL"
             OR e.verified_at::date IS DISTINCT FROM i."VerifiedAt"::date) AS mismatches
 )
-SELECT alliances,alliance_profiles,economies,economy_profiles,member_of,orphans,duplicate_tuples,mismatches FROM actual`
+SELECT alliances,alliance_profiles,economies,economy_profiles,member_of,non_target_economies,non_target_economy_profiles,orphans,duplicate_tuples,mismatches FROM actual`
 }
-
-func quoteIdentifier(value string) string { return `"` + strings.ReplaceAll(value, `"`, `""`) + `"` }
 
 func assertAllianceEconomyLocalDatabase(ctx context.Context, executor postgresExecutor) error {
 	var databaseName string

@@ -43,7 +43,7 @@
 
 #### Scenario: 验证重建后精确集合
 - **WHEN** latest manifest rebuild 完成
-- **THEN** Query 必须证明 alliance=45、economy=79、formal-active `member_of`=133，全部端点存在且 active、方向正确、无孤儿或重复，并且同一 artifact 复跑不产生额外变化
+- **THEN** Query 必须证明 alliance=45、79 target economy/profile 与 formal-active `member_of`=133，15 个 non-target economy/profile 保留，全部端点存在且 active、方向正确、无孤儿或重复，并且同一 artifact 复跑不产生额外变化
 
 ### Requirement: Local Scoped Cleanup 前置审计
 系统 SHALL 在任何破坏性 cleanup 授权前，以只读方式穷尽审计目标表、FK、关系类型/count 和跨域业务事实。
@@ -52,9 +52,9 @@
 - **WHEN** R1 准备 Package 4 Review package
 - **THEN** 必须列出 `entity_nodes`、alliance/economy profiles、`entity_edges`、external identifiers 和所有引用 economy/alliance UUID 的 profile/FK，并分别报告 `member_of`、`has_market` 及其他关系的方向和 count
 
-#### Scenario: 跨域处置未决时阻止 Cleanup
+#### Scenario: 已确认的跨域事实保护
 - **WHEN** economy 与 market、index、benchmark、industry chain、company、person 或其他实体存在不在 45/79/133 中恢复的跨域事实
-- **THEN** 必须把每类事实提交为“删除并丢弃”或“保留/重建”候选；未经主对话决定不得执行 R3 cleanup
+- **THEN** 必须保留全部现有 economy/profile 与这些事实，并以 count/hash 验证不变；任何其他 alliance incident edge、未知 FK 或审计漂移必须阻止 R3 cleanup
 
 #### Scenario: 限定 Local 豁免
 - **WHEN** 主对话审阅 cleanup 包

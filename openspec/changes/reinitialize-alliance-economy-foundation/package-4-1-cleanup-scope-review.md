@@ -1,24 +1,19 @@
 # Package 4.1 R0 Scoped Local Cleanup Review
 
-> 状态：**待用户确认数据范围**。本页只记录 2026-07-14 17:27 CST 的 local PostgreSQL 强制只读快照和建议范围；不是 migration、cleanup、seed 或 rebuild 授权。
+> 状态：**方案 1 已于 2026-07-14 确认；R1 scope amendment 已准备**。本页仍不是 migration、cleanup、seed 或 rebuild 授权。
 
-## 结论与唯一待决点
+## 已确认范围
 
-主对话推荐的 keep set 已由最新 approved manifest 复算：当前 50 个 active economy 中，35 个在 79 target 内，15 个不在 target 内；两集合无交集。建议保留后者及其 profile/跨域事实，只清理全部 alliance、全部 `economy -> alliance_org member_of`，以及 35 个现有 target economy/profile 后由 manifest 重建。
+用户已确认方案 1：保留全部现有 50 个 economy node/profile 和所有未授权 market/index/benchmark/company/person/`has_market` 等跨域事实。当前 50 个 active economy 中，35 个在 79 target 内，15 个不在 target 内；两集合无交集。
 
-但该建议目前**不可执行**：35 个 target economy 自身也被 market/company/person/market edges 引用。物理删除它们会违反 FK，或改变未授权事实；现有 `CleanupAllianceEconomyLocal` 又会删除全部 economy，范围更宽。因此用户必须确认以下二选一的语义后，才可进入后续 R1 implementation amendment / 4.1 R3：
-
-1. **保留所有未授权跨域事实（建议）**：15 个 non-target economy 永不清理；35 个 target economy 保留 stable identity，未来以 in-place manifest convergence 替代其物理删除，仅清理其可安全重建的 profile / `member_of` 范围。
-2. **允许逐类处置 target 跨域事实**：在独立 R3 Review 中逐表列明删除、重建或重新绑定的 exact tuple/count/hash；在此之前不得删除 target economy。
-
-本页不选择第 2 项，也不修改现有 cleanup 实现。
+因此 4.1 只可清理全部 `alliance_org` / `alliance_org_profiles` 与 223 条 `economy -> alliance_org member_of`；不得删除或修改任何 economy node/profile，或非 `member_of` edge。若 fresh audit 发现其他 alliance incident edge，必须列明并 fail-closed。35 个现有 target economy 在 4.2 原位 upsert approved 字段，缺失 44 个才创建；15 个 non-target economy 不进入 manifest convergence。
 
 ## 精确集合与预期状态
 
 | 集合 | 精确内容 / count | R3 建议动作 |
 |---|---:|---|
 | keep economy | `ar, au, bd, ch, cl, eu, global, hk, il, kr, ma, mx, nz, tw, ua`（15） | 保留 node/profile 与所有跨域事实 |
-| existing ∩ target economy | 35 | 若确认“保留跨域事实”，保留 node identity；profile 仅在另行确认后重建 |
+| existing ∩ target economy | 35 | 保留 stable identity；4.2 原位 upsert approved 字段 |
 | target 缺失 economy | 44 | 不在 cleanup；仅在 4.2 rebuild 创建 |
 | all existing alliance_org | 10 | cleanup |
 | alliance_org_profiles | 10 | cleanup；满足 migration 000018 的空表前提 |
@@ -26,11 +21,11 @@
 
 冻结输入不变：45 alliance / 79 economy / 133 formal-active `member_of`；manifest SHA-256 为 `118573006c341830f3c977a994d12a537fe2d1ac8174a818d8007fe98e87a55d`。
 
-若用户选择“物理删除 35 个 target economy”，预期 zero/remaining 是 alliance=0、alliance profile=0、member_of=0、target economy/profile=0、keep economy/profile=15/15；该断言因下列 target 跨域事实而当前 fail-closed。若用户选择保留跨域事实，target node zero 不再是正确断言，需先完成最小 R1 scope amendment。
+4.1 zero/remaining 断言固定为 alliance=0、alliance profile=0、`member_of`=0、economy=50、economy profile=50；所有下表跨域 count/hash 不变。4.2 exact Query 只校验 79 target economy / profile 与 133 `member_of`，并另外断言 15 non-target economy / profile 保留；不得错误要求全库 economy 仅为 79。
 
 ## Fresh before counts 与稳定指纹
 
-所有 hash 均为按稳定主键排序的 canonical `jsonb` 行集合 MD5，仅用于执行前后漂移检测；完整 dependency audit SHA-256 为 `711e990d8ec4bcb224aa43a4b1f6b821c912fd93dd3a26f9c2e42c902945c259`。Goose 已应用版本为 17；migration 000018 未 apply。
+所有 hash 均为按稳定主键排序的 canonical `jsonb` 行集合 MD5，仅用于执行前后漂移检测。`0e07be9` Review 的原始 dependency audit SHA-256 为 `711e990d8ec4bcb224aa43a4b1f6b821c912fd93dd3a26f9c2e42c902945c259`。本 R1 checkpoint 以只读事务刷新后，新的完整 dependency SHA-256 为 `c312731a72705ccf293ee3a24a58ed0aa07fe099375e12345402695600de0b9b`，跨域保护 SHA-256 为 `32dc4eaf1132a6a18d5850b0cfd19ab0536931652557b384c0a6edaf67992cdf`；count 与本表一致。Goose 已应用版本为 17；migration 000018 未 apply。
 
 | 表 / relation type | cleanup target count / hash | keep 或 preserve count / hash |
 |---|---|---|
@@ -54,6 +49,6 @@
 
 推荐的授权顺序是：fresh read-only preflight（环境、manifest hash、上表 count/hash、完整 FK）→ **4.1 R3 scoped cleanup** → scoped Query → migration 000018（只在 alliance profile 已清空后）→ **4.2 R2 rebuild** → exact Query。4.1 与 4.2 继续是独立授权；无 backup、rollback 或恢复演练的豁免仅适用于 `tidewise_local` 探索环境。
 
-4.1 的 after Query 必须分别比较上表所有 `keep` / `preserve` 行的 count 和 canonical hash，并验证：非 `member_of` 的 `has_market`、`tracks_index`、`observes_benchmark` 以及 market/index/benchmark/company/person profile 行均未变化；同时验证获批 cleanup scope 为零。任何 hash 漂移、发现新 FK、环境非 local 或用户未确认上述语义冲突，都立即停止。
+4.1 的 after Query 必须分别比较上表所有 economy 与跨域事实的 count 和 canonical hash，并验证：非 `member_of` 的 `has_market`、`tracks_index`、`observes_benchmark` 以及 market/index/benchmark/company/person profile 行均未变化；同时验证获批 cleanup scope 为零。任何 hash 漂移、发现新 FK、其他 alliance incident edge 或环境非 local，都立即停止。
 
-**不授权：**现有全量 cleanup 函数、migration apply、任何 PostgreSQL/Neo4j 写入、R2 rebuild、通用 framework 或旧 223 disposition/preserve 机制。
+**不授权：**migration apply、任何 PostgreSQL/Neo4j 写入、R2 rebuild、通用 framework 或旧 223 disposition/preserve 机制。

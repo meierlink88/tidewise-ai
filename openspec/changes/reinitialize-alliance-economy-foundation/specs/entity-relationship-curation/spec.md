@@ -39,7 +39,7 @@
 
 #### Scenario: 保护未授权跨域事实
 - **WHEN** 4.1 R3 cleanup 获得授权
-- **THEN** 只能改变 Review package 明确批准的 relation scope；未授权跨域 tuple 的 pre/post identity、端点、type 与 status 必须不变
+- **THEN** 只能删除 economy → alliance_org `member_of`；全部非 `member_of` economy 跨域 tuple 的 pre/post identity、端点、type 与 status 必须不变，任何其他 alliance incident edge 必须 fail-closed
 
 ### Requirement: Cleanup 与 Relationship Rebuild 独立授权
 系统 SHALL 在 4.1 R3 中先完成 approved relation scope cleanup/zero Query，再在 4.2 R2 中重建 133 条关系；两者不得合并推定授权。

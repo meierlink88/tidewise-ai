@@ -10,8 +10,8 @@
 |---|---|---|---|---|---|
 | 1 | Alliance manifest semantics Review | R0 | yes | SPEC_SEMANTICS | 仅确认 45 条联盟与四字段；不授权 economy、关系、源码或数据库 |
 | 2 | Economy and relationship semantics Review | R0 | yes | SPEC_SEMANTICS | 仅确认 79 economy 与 133 member_of；不授权源码或数据库 |
-| 3 | R1 implementation checkpoint | R1 | no | NONE | 完成 change-specific 源码、测试、只读审计与 scoped checkpoint；不授权任何写入 |
-| 4 | Local cleanup and rebuild execution | R3 | yes | R3_OPERATION | 4.1 R3 cleanup 与 4.2 R2 rebuild 必须各自明确授权；当前跨域处置未决，禁止执行 |
+| 3 | R1 implementation package | R1 | no | NONE | 完成 change-specific 源码、测试与只读审计；不授权任何写入 |
+| 4 | Local cleanup and rebuild execution | R3 | yes | R3_OPERATION | 4.1 R3 cleanup 与 4.2 R2 rebuild 必须各自明确授权；全部现有 economy 与未授权跨域事实已确认为 scope exclusion |
 | 5 | Apply-final Review | R1 | yes | APPLY_FINAL | Review 通过后才允许 Sync、Archive、Deliver；不新增任何数据库或 Neo4j 授权 |
 
 ## Complexity Budget
@@ -33,9 +33,9 @@
 - 冻结 approved data artifact：45 alliance、79 economy、133 条 `economy -> alliance_org` formal-active `member_of`。旧 223 条 disposition/preserve 策略不再是执行契约。
 - 实现只包含必要 alliance schema/domain/repository 最小适配，以及一个仅服务本 change 的 importer；优先复用现有 entity-seed/repository，单事务或明确 fail-closed 两阶段、幂等、可重放。
 - local 探索环境允许对联盟、经济体及其关系做精确 scoped cleanup 后按最新 manifest 重建。该破坏性豁免不适用于 UAT、prod 或 shared，也不构成当前写入授权。
-- R1 必须先完成只读 dependency audit，枚举表、FK、关系类型/count 和跨域事实。仓库 fixture 已知除 `member_of` 外还有 40 条 `economy -> market` 的 `has_market`；其删除丢弃或保留/重建必须由主对话逐项决定，未决时阻断 cleanup。
+- R1 必须先完成只读 dependency audit，枚举表、FK、关系类型/count 和跨域事实。仓库 fixture 已知除 `member_of` 外还有 40 条 `economy -> market` 的 `has_market`；已确认全部现有 economy 及未授权跨域事实保留，若出现其他 alliance incident edge 或审计漂移则阻断 cleanup。
 - Package 4 分为两个独立人工授权包：4.1 R3 scoped local cleanup；4.2 R2 latest manifest rebuild。无 backup、rollback 或恢复演练要求，但每包仍须展示环境、范围、count/hash、顺序、断言和停止条件。
-- cleanup 后必须验证目标范围为零；rebuild 后必须精确验证 45/79/133、端点完整、无孤儿、无重复、方向正确和幂等复跑。
+- cleanup 后必须验证 alliance/profile/member_of=0、economy/profile=50 与跨域保护 hash 不变；rebuild 后必须精确验证 45/79/133、15 个 non-target economy/profile 保留、端点完整、无孤儿、无重复、方向正确和幂等复跑。
 - PostgreSQL 是唯一事实源和完成边界；Neo4j 不在本 change。
 
 ## Capabilities

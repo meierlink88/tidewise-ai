@@ -24,7 +24,7 @@
 
 #### Scenario: 报告跨域事实
 - **WHEN** 发现不由 45/79/133 重建的 economy/alliance 跨域关系或引用
-- **THEN** preflight 必须逐类列为“删除并丢弃”或“保留/重建”候选，未获人工决定即 fail-closed，不得由 importer 静默级联删除
+- **THEN** preflight 必须报告其 count/hash；已确认的 economy 与跨域事实必须保留，其他 alliance incident edge 或审计漂移即 fail-closed，不得由 importer 静默级联删除
 
 #### Scenario: 防止错误环境
 - **WHEN** 环境不能被明确证明为获批 local 探索数据库
@@ -35,11 +35,15 @@
 
 #### Scenario: 精确清理并断言 Zero
 - **WHEN** 4.1 R3 获得明确授权且 preflight 未漂移
-- **THEN** importer 必须只按已批准表、谓词、relation types 和跨域处置清理 local scope，并在提交/进入下一包前证明批准的 alliance/economy/member scope 为零
+- **THEN** importer 必须只删除 `alliance_org`、`alliance_org_profiles` 与 economy → alliance_org `member_of`，并在提交/进入下一包前证明 alliance/profile/member scope 为零、economy/profile 仍为 50，且保护 hash 不变
+
+#### Scenario: 原位重建目标 Economy
+- **WHEN** 4.2 rebuild 获得独立授权
+- **THEN** 35 个现有 target economy 必须保留 stable ID/entity_key 后原位 upsert，44 个缺失 target 才创建，15 个 non-target economy/profile 不得被 manifest convergence 删除、停用或改写
 
 #### Scenario: 精确重建并查询
 - **WHEN** 4.1 zero Query 已验收且 4.2 R2 获得独立授权
-- **THEN** importer 必须以单事务或明确 fail-closed 边界重建 45/79/133，并输出 exact counts、端点、方向、孤儿、重复、checksum 和失败统计
+- **THEN** importer 必须以单事务或明确 fail-closed 边界重建 45/79/133，并输出 exact counts、端点、方向、孤儿、重复与 checksum
 
 #### Scenario: 幂等复跑
 - **WHEN** 对已经符合 frozen manifest 的 local 数据再次运行 4.2
@@ -50,7 +54,7 @@
 - **THEN** importer 必须停止且不得把旧批准解释为扩大 scope 的权限
 
 ### Requirement: 联盟与 Economy Rebuild 自动化验证
-系统 SHALL 对最小 migration、manifest validator、repository/importer、dependency classification、原子性、zero/post assertions 与幂等提供 targeted tests。
+系统 SHALL 对最小 migration、manifest validator、repository/importer、精确 scope、原子性、zero/post assertions 与幂等提供 targeted tests。
 
 #### Scenario: 运行验证
 - **WHEN** 开发者验证本 change 实现

@@ -6,8 +6,8 @@
 |---|---|---|---|---|---|
 | 1 | Alliance manifest semantics Review | R0 | yes | SPEC_SEMANTICS | 仅确认 45 条联盟与四字段；不授权 economy、关系、源码或数据库 |
 | 2 | Economy and relationship semantics Review | R0 | yes | SPEC_SEMANTICS | 仅确认 79 economy 与 133 member_of；不授权源码或数据库 |
-| 3 | R1 implementation checkpoint | R1 | no | NONE | 完成 change-specific 源码、测试、只读审计与 scoped checkpoint；不授权任何写入 |
-| 4 | Local cleanup and rebuild execution | R3 | yes | R3_OPERATION | 4.1 R3 cleanup 与 4.2 R2 rebuild 必须各自明确授权；当前跨域处置未决，禁止执行 |
+| 3 | R1 implementation package | R1 | no | NONE | 完成 change-specific 源码、测试与只读审计；不授权任何写入 |
+| 4 | Local cleanup and rebuild execution | R3 | yes | R3_OPERATION | 4.1 R3 cleanup 与 4.2 R2 rebuild 必须各自明确授权；全部现有 economy 与未授权跨域事实已确认为 scope exclusion |
 | 5 | Apply-final Review | R1 | yes | APPLY_FINAL | Review 通过后才允许 Sync、Archive、Deliver；不新增任何数据库或 Neo4j 授权 |
 
 ## Complexity Budget
@@ -57,12 +57,13 @@ Acceptance criteria：
 
 ## 4. Local PostgreSQL Cleanup 与 Rebuild Package
 
-- [ ] 4.1 **R3 scoped local cleanup Review → Write → Query**：只针对明确识别的 local 探索环境，在主对话单独批准精确表/关系类型/count/hash、跨域事实处置、SQL 顺序与停止条件后，清理联盟/economy及获批关系 scope，并立即 Query 证明 scoped zero。用户明确豁免 backup、rollback 和恢复演练；该豁免不得推广到 UAT/prod/shared。
+- [ ] 4.1 **R3 scoped local cleanup Review → Write → Query**：只针对明确识别的 local 探索环境，在主对话单独批准 fresh count/hash、SQL 顺序与停止条件后，仅清理全部 alliance/profile 与 `economy -> alliance_org member_of`；立即 Query 证明 alliance/profile/member_of=0、economy/profile=50，且所有跨域保护 hash 不变。用户明确豁免 backup、rollback 和恢复演练；该豁免不得推广到 UAT/prod/shared。
 - [ ] 4.2 **R2 latest manifest rebuild Review → Write → Query**：只在 4.1 Query 验收后由主对话另行授权，以冻结 artifact 重建 45 alliance、79 economy、133 formal-active `member_of`，并立即 Query 证明集合精确相等、端点 active、无孤儿/重复、方向正确和幂等复跑。
 
 Acceptance criteria：
 
 - 4.1 与 4.2 是两个 fail-closed 独立授权包；普通 Apply、旧批准、R1 或上一包成功均不能推定下一包 Write 授权。
+- 50 个 existing economy/profile 与所有非 `member_of` 跨域事实是简单 scope exclusion；35 existing target 只在 4.2 原位 upsert，44 missing target 才创建，15 non-target 永不进入 manifest convergence。
 - 环境不是 local、真实 count/hash 与 Review package 漂移、FK/跨域处置未决、cleanup zero assertion 或 rebuild post-query 失败时立即停止。
 - 旧 223 disposition、preserve 断言、recovery evidence、backup/restore rehearsal 和 forward convergence 要求均已废止；不得实现它们的替代通用系统。
 - Neo4j、UAT、prod、shared 及未授权跨域事实不在任何执行包中。
