@@ -206,7 +206,7 @@ TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cle
 
 1. 命名 R2 restore rehearsal 已由主对话撤销且未完成，`backup_verified=false`；固定 disposable 资源已清理且无残留。这些历史事实保持不变，且不被改写为 restore verified。
 2. 主对话随后独立批准并已执行 [命名 R3 `phase-a-legacy-industry-cleanup` package](phase-a-legacy-industry-cleanup-authorization.md)。新鲜 evidence 位于 `/Users/meierlink/.local/share/tidewise-ai/cleanup-evidence/20260713T113234Z/`：preflight、archive、Goose、migration report 与写后 Query/assert 均通过；task 1.14 已完成、等待主对话验收。
-3. task 1.14 execution checkpoint `f2bc90a` 已由主对话验收；task 1.15b 的 [external identifier schema R2 execution](phase-a-external-identifier-schema-authorization.md) 已完成 Write 与 Query/assert，等待主对话验收。验收前不得进入 1.16、seed、mapping、relation 或任何 Neo4j 操作，本次 local 风险接受不构成后续 R2/R3 Write 授权。
+3. task 1.14 execution checkpoint `f2bc90a` 与 task 1.15b 的 [external identifier schema R2 execution](phase-a-external-identifier-schema-authorization.md) 写后验收 checkpoint `ce2136d` 均已由主对话通过。当前仅允许 [task 1.16 R0 candidate Review](final-seed-candidate-review.md)；其只读 snapshot 已发现 16 个 commodity canonical conflict，故不得进入 1.17、seed、mapping、relation 或任何 Neo4j 操作，本次 local 风险接受不构成后续 R2/R3 Write 授权。
 
 ## Readiness checkpoint 验证
 

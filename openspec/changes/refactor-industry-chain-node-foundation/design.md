@@ -202,7 +202,7 @@ classDiagram
 | `phase-a-backup-restore-rehearsal` | R2 | 已撤销且未完成，`backup_verified=false`；不再是本次 local cleanup 硬门槛，未来重试仍需独立授权 |
 | Phase B relation contract/implementation/tests/candidate package（2.2—2.5） | R1 | 只允许源码、migration 文件和测试修改，不 apply、不写数据库 |
 | `phase-a-legacy-industry-cleanup`（1.14） | R3，已验收 `f2bc90a` | local 不可逆 cleanup 已完成 Write 后 Query/assert；不得据此推定任何 R2 包授权 |
-| `phase-a-external-identifier-schema`（1.15） | R2，Write/Query 已完成待验收 | 独立条件式执行包只执行 migration 16 schema 层；不推定后续层授权 |
+| `phase-a-external-identifier-schema`（1.15） | R2，已验收 `ce2136d` | 独立条件式执行包只执行 migration 16 schema 层；仅允许进入 1.16 R0 candidate Review，不推定后续层授权 |
 | `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
 | `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,156 mapping 层 |
 | `phase-b-relation-schema`（2.6） | R2 | 独立条件式执行包，只授权 relation schema 层 |

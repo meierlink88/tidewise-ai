@@ -4,7 +4,7 @@
 
 - 命名操作：`phase-a-external-identifier-schema`。
 - 风险等级：**R2**；只允许在当前 local development PostgreSQL 执行 migration 16 的 schema Write。
-- 当前状态：**已获主对话 R2 条件式授权并完成一次 migration 16 Write 与同层 Query/assert；等待 execution checkpoint 人工验收。**
+- 当前状态：**已获主对话 R2 条件式授权并完成一次 migration 16 Write 与同层 Query/assert；写后验收 checkpoint `ce2136d` 已通过。**
 - task 1.14 `phase-a-legacy-industry-cleanup` 已由主对话以 checkpoint `f2bc90a` 验收；本包的授权范围只覆盖 migration 16 schema 层。
 - 本包不授权 node/profile seed、external identifier mapping data、relation/constraint、migration 17、Neo4j、UAT/prod 或任何其他 PostgreSQL Write。
 
