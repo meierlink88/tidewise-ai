@@ -70,7 +70,7 @@ Acceptance criteria：
 
 ## 5. Apply-final Review 与 Deliver Package
 
-- [ ] 5.1 **Apply-final → Sync → Archive → Deliver**：Apply-final Review package 已准备，脱敏证据见 `package-5-apply-final-review.md`；仍等待主对话人工 Review。通过后才可依次 Sync、Archive、`openspec validate --all`、archive commit、PR/merge 和按 worktree 所有权 cleanup；本 checkpoint 不授权任何后续生命周期操作。
+- [x] 5.1 **Apply-final → Sync → Archive → Deliver**：主对话已批准 Apply-final，四份 delta specs 已同步到对应主规格；`package-5-apply-final-review.md` 保留审阅证据。Archive、archive commit、PR/merge 和按 worktree 所有权 cleanup 由已批准的后续生命周期顺序独立执行；本条完成不推定 merge 或 cleanup 授权。
 
 Acceptance criteria：
 
