@@ -1,19 +1,20 @@
-# Package 2：Economy + Relationship Candidate Review（R0 v1，待人工 Review）
+# Package 2：Economy + Relationship Candidate Review（R0 v2，已人工批准）
 
 ## 0. 状态与边界
 
-本 package 以 `approved-alliance-manifest.md` v1（canonical checksum `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`）为唯一联盟输入。它是只读候选 Review，不是 approved economy/member manifest，不生成 seed，不修改源码/migration，不连接 PostgreSQL/Neo4j。
+本 package 以 `approved-alliance-manifest.md` v1（canonical checksum `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`）为唯一联盟输入。主对话于 2026-07-14 明确批准快速 MVP 方案；本文件是获批 R0 候选契约，不是 seed 或 Write 授权，不修改源码/migration，不连接 PostgreSQL/Neo4j。
 
 - 审计基线：`economies.json` 50 条，SHA-256 `c4fed107d5309d5f32606583bd2b4db84fa1b537b1b7b8c59be84150acb94696`；`member_of.json` 223 条 active，SHA-256 `14b935e12df0ac8ca49b16cdf194c4c4d70862b6dcca20437a474ff55f5da9c5`。
 - 45 个联盟 model：10 resolved formal sets、13 blocked formal sets、1 rotating/term-bound blocked、21 participant/signatory/framework/no-formal-membership。
 - 只有 10 个 resolved formal sets 生成候选：133 条 formal-active tuples；31 条复用现有 edge，102 条 create。
 - economy 并集：79；现有 reuse 35，create 44；现有 50 中有 15 条不在本次并集，全部进入保护快照，不得停用。
-- 223 条现有 active edge 穷尽 disposition：keep 31、proposed inactivate 32、blocked/source-conflict 160；blocked 行在 Review 解决前禁止 R2B Write。
+- 223 条现有 active edge 穷尽 disposition：31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 proposed_inactivate；`31 + 160 + 10 + 22 = 223`，其中 31 keep 已包含在 133 条批准候选中。
 - `led_by`/`part_of` 附录为空并明确排除：Excel leadership 文本不能自动造边，本轮没有满足“无需主观推断 + 完整正式证据”的候选。
+- 21 个 participant/signatory/framework/no-formal-membership 不生成 `member_of`；未来 `participates_in`、`signatory_to` 等语义必须进入独立 relation-semantics change，本 change 不扩展 relation policy/schema。
 
 ## 1. 45 个 Alliance Membership Model 与 Source Register
 
-`resolved` 表示官方来源可在本核验时点形成完整 formal-active economy set；`blocked` 表示精确缺口仍需主对话决策或更新契约。`not_applicable` 不生成 member_of。
+`resolved` 表示官方来源可在本核验时点形成完整 formal-active economy set；`blocked` 表示保留未来 resolution gap，但不阻断本次 10 个 resolved formal sets 的 MVP。`not_applicable` 不生成 member_of。
 
 | Alliance | Membership model | 状态 | 准入/缺口 | 官方来源 | verified_at |
 |---|---|---|---|---|---|
@@ -66,89 +67,89 @@
 ## 2. Economy Target Manifest Candidate
 
 - canonical checksum：`95613a931adf3d7231cbb1d311e5051f3695d9da40c60bbeeccb39d006118cb3`。
-- 每行 identity code 共用 [ISO 3166 Online Browsing Platform](https://www.iso.org/obp/ui/#search)；currency code 共用 [ISO 4217 维护机构 SIX](https://www.six-group.com/en/products-services/financial-information/data-standards.html)。成员准入来源见第 1 节和对应第 3 节 bulk official source。中文名与 aliases 是候选显示值，不替代本 Package 人工 Review。
+- 每行 identity code 共用 [ISO 3166 Online Browsing Platform](https://www.iso.org/obp/ui/#search)；currency code 共用 [ISO 4217 维护机构 SIX](https://www.six-group.com/en/products-services/financial-information/data-standards.html)。成员准入来源见第 1 节和对应第 3 节 bulk official source。中文名与 aliases 已随本 Package 人工 Review 获批；未来 R2A 仍须对真实基线执行 exact diff。
 - identity kind 全部为 `sovereign_state`；`economy:eu`、`economy:global` 不在国家并集中，也不替代任何国家。
-- 兼容 region 的待决歧义：`AM`、`CY` 暂列 `europe_asia`，`TT` 暂列 `north_america`；Review 可逐项修订，不自动另建 region taxonomy。
+- 兼容 region 的已知歧义：本版批准 `AM`、`CY` 使用 `europe_asia`，`TT` 使用 `north_america`；任何修订须形成新版本并重新 Review，不自动另建 region taxonomy。
 
 | entity key | 规范中文名 | 英文名 / aliases | identity_kind | ISO | currency | region | exact diff | Review note |
 |---|---|---|---|---|---|---|---|---|
 | `economy:ae` | 阿联酋 | United Arab Emirates；`AE` | sovereign_state | `AE` | `AED` | `middle_east` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:al` | 阿尔巴尼亚 | Albania；`AL` | sovereign_state | `AL` | `ALL` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:am` | 亚美尼亚 | Armenia；`AM` | sovereign_state | `AM` | `AMD` | `europe_asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:at` | 奥地利 | Austria；`AT` | sovereign_state | `AT` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:be` | 比利时 | Belgium；`BE` | sovereign_state | `BE` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:bg` | 保加利亚 | Bulgaria；`BG` | sovereign_state | `BG` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:bh` | 巴林 | Bahrain；`BH` | sovereign_state | `BH` | `BHD` | `middle_east` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:bn` | 文莱 | Brunei；`BN` | sovereign_state | `BN` | `BND` | `asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:bo` | 玻利维亚 | Bolivia；`BO` | sovereign_state | `BO` | `BOB` | `south_america` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:al` | 阿尔巴尼亚 | Albania；`AL` | sovereign_state | `AL` | `ALL` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:am` | 亚美尼亚 | Armenia；`AM` | sovereign_state | `AM` | `AMD` | `europe_asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:at` | 奥地利 | Austria；`AT` | sovereign_state | `AT` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:be` | 比利时 | Belgium；`BE` | sovereign_state | `BE` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:bg` | 保加利亚 | Bulgaria；`BG` | sovereign_state | `BG` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:bh` | 巴林 | Bahrain；`BH` | sovereign_state | `BH` | `BHD` | `middle_east` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:bn` | 文莱 | Brunei；`BN` | sovereign_state | `BN` | `BND` | `asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:bo` | 玻利维亚 | Bolivia；`BO` | sovereign_state | `BO` | `BOB` | `south_america` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:br` | 巴西 | Brazil；`BR` | sovereign_state | `BR` | `BRL` | `south_america` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:by` | 白俄罗斯 | Belarus；`BY` | sovereign_state | `BY` | `BYN` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:by` | 白俄罗斯 | Belarus；`BY` | sovereign_state | `BY` | `BYN` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:ca` | 加拿大 | Canada；`CA` | sovereign_state | `CA` | `CAD` | `north_america` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:cg` | 刚果共和国 | Congo - Brazzaville；`CG` | sovereign_state | `CG` | `XAF` | `africa` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:cg` | 刚果共和国 | Congo - Brazzaville；`CG` | sovereign_state | `CG` | `XAF` | `africa` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:cn` | 中国 | China；`CN` | sovereign_state | `CN` | `CNY` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:cy` | 塞浦路斯 | Cyprus；`CY` | sovereign_state | `CY` | `EUR` | `europe_asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:cy` | 塞浦路斯 | Cyprus；`CY` | sovereign_state | `CY` | `EUR` | `europe_asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:cz` | 捷克 | Czechia；`CZ` | sovereign_state | `CZ` | `CZK` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:de` | 德国 | Germany；`DE` | sovereign_state | `DE` | `EUR` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:dk` | 丹麦 | Denmark；`DK` | sovereign_state | `DK` | `DKK` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:dz` | 阿尔及利亚 | Algeria；`DZ` | sovereign_state | `DZ` | `DZD` | `africa` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:ee` | 爱沙尼亚 | Estonia；`EE` | sovereign_state | `EE` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:dz` | 阿尔及利亚 | Algeria；`DZ` | sovereign_state | `DZ` | `DZD` | `africa` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:ee` | 爱沙尼亚 | Estonia；`EE` | sovereign_state | `EE` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:eg` | 埃及 | Egypt；`EG` | sovereign_state | `EG` | `EGP` | `africa` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:es` | 西班牙 | Spain；`ES` | sovereign_state | `ES` | `EUR` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:et` | 埃塞俄比亚 | Ethiopia；`ET` | sovereign_state | `ET` | `ETB` | `africa` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:fi` | 芬兰 | Finland；`FI` | sovereign_state | `FI` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:et` | 埃塞俄比亚 | Ethiopia；`ET` | sovereign_state | `ET` | `ETB` | `africa` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:fi` | 芬兰 | Finland；`FI` | sovereign_state | `FI` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:fr` | 法国 | France；`FR` | sovereign_state | `FR` | `EUR` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:ga` | 加蓬 | Gabon；`GA` | sovereign_state | `GA` | `XAF` | `africa` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:ga` | 加蓬 | Gabon；`GA` | sovereign_state | `GA` | `XAF` | `africa` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:gb` | 英国 | United Kingdom；`GB` | sovereign_state | `GB` | `GBP` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:gq` | 赤道几内亚 | Equatorial Guinea；`GQ` | sovereign_state | `GQ` | `XAF` | `africa` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:gr` | 希腊 | Greece；`GR` | sovereign_state | `GR` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:hr` | 克罗地亚 | Croatia；`HR` | sovereign_state | `HR` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:hu` | 匈牙利 | Hungary；`HU` | sovereign_state | `HU` | `HUF` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:gq` | 赤道几内亚 | Equatorial Guinea；`GQ` | sovereign_state | `GQ` | `XAF` | `africa` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:gr` | 希腊 | Greece；`GR` | sovereign_state | `GR` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:hr` | 克罗地亚 | Croatia；`HR` | sovereign_state | `HR` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:hu` | 匈牙利 | Hungary；`HU` | sovereign_state | `HU` | `HUF` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:id` | 印度尼西亚 | Indonesia；`ID` | sovereign_state | `ID` | `IDR` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:ie` | 爱尔兰 | Ireland；`IE` | sovereign_state | `IE` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:ie` | 爱尔兰 | Ireland；`IE` | sovereign_state | `IE` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:in` | 印度 | India；`IN` | sovereign_state | `IN` | `INR` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:iq` | 伊拉克 | Iraq；`IQ` | sovereign_state | `IQ` | `IQD` | `middle_east` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:iq` | 伊拉克 | Iraq；`IQ` | sovereign_state | `IQ` | `IQD` | `middle_east` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:ir` | 伊朗 | Iran；`IR` | sovereign_state | `IR` | `IRR` | `middle_east` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:is` | 冰岛 | Iceland；`IS` | sovereign_state | `IS` | `ISK` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:is` | 冰岛 | Iceland；`IS` | sovereign_state | `IS` | `ISK` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:it` | 意大利 | Italy；`IT` | sovereign_state | `IT` | `EUR` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:jp` | 日本 | Japan；`JP` | sovereign_state | `JP` | `JPY` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:kg` | 吉尔吉斯斯坦 | Kyrgyzstan；`KG` | sovereign_state | `KG` | `KGS` | `central_asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:kh` | 柬埔寨 | Cambodia；`KH` | sovereign_state | `KH` | `KHR` | `asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:kg` | 吉尔吉斯斯坦 | Kyrgyzstan；`KG` | sovereign_state | `KG` | `KGS` | `central_asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:kh` | 柬埔寨 | Cambodia；`KH` | sovereign_state | `KH` | `KHR` | `asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:kw` | 科威特 | Kuwait；`KW` | sovereign_state | `KW` | `KWD` | `middle_east` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:kz` | 哈萨克斯坦 | Kazakhstan；`KZ` | sovereign_state | `KZ` | `KZT` | `central_asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:la` | 老挝 | Laos；`LA` | sovereign_state | `LA` | `LAK` | `asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:lt` | 立陶宛 | Lithuania；`LT` | sovereign_state | `LT` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:lu` | 卢森堡 | Luxembourg；`LU` | sovereign_state | `LU` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:lv` | 拉脱维亚 | Latvia；`LV` | sovereign_state | `LV` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:ly` | 利比亚 | Libya；`LY` | sovereign_state | `LY` | `LYD` | `africa` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:me` | 黑山 | Montenegro；`ME` | sovereign_state | `ME` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:mk` | 北马其顿 | North Macedonia；`MK` | sovereign_state | `MK` | `MKD` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:mm` | 缅甸 | Myanmar (Burma)；`MM` | sovereign_state | `MM` | `MMK` | `asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:mt` | 马耳他 | Malta；`MT` | sovereign_state | `MT` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:la` | 老挝 | Laos；`LA` | sovereign_state | `LA` | `LAK` | `asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:lt` | 立陶宛 | Lithuania；`LT` | sovereign_state | `LT` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:lu` | 卢森堡 | Luxembourg；`LU` | sovereign_state | `LU` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:lv` | 拉脱维亚 | Latvia；`LV` | sovereign_state | `LV` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:ly` | 利比亚 | Libya；`LY` | sovereign_state | `LY` | `LYD` | `africa` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:me` | 黑山 | Montenegro；`ME` | sovereign_state | `ME` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:mk` | 北马其顿 | North Macedonia；`MK` | sovereign_state | `MK` | `MKD` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:mm` | 缅甸 | Myanmar (Burma)；`MM` | sovereign_state | `MM` | `MMK` | `asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:mt` | 马耳他 | Malta；`MT` | sovereign_state | `MT` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:my` | 马来西亚 | Malaysia；`MY` | sovereign_state | `MY` | `MYR` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:ng` | 尼日利亚 | Nigeria；`NG` | sovereign_state | `NG` | `NGN` | `africa` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:nl` | 荷兰 | Netherlands；`NL` | sovereign_state | `NL` | `EUR` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:no` | 挪威 | Norway；`NO` | sovereign_state | `NO` | `NOK` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:om` | 阿曼 | Oman；`OM` | sovereign_state | `OM` | `OMR` | `middle_east` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:om` | 阿曼 | Oman；`OM` | sovereign_state | `OM` | `OMR` | `middle_east` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:ph` | 菲律宾 | Philippines；`PH` | sovereign_state | `PH` | `PHP` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:pk` | 巴基斯坦 | Pakistan；`PK` | sovereign_state | `PK` | `PKR` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:pl` | 波兰 | Poland；`PL` | sovereign_state | `PL` | `PLN` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:pt` | 葡萄牙 | Portugal；`PT` | sovereign_state | `PT` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:pt` | 葡萄牙 | Portugal；`PT` | sovereign_state | `PT` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:qa` | 卡塔尔 | Qatar；`QA` | sovereign_state | `QA` | `QAR` | `middle_east` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:ro` | 罗马尼亚 | Romania；`RO` | sovereign_state | `RO` | `RON` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:ro` | 罗马尼亚 | Romania；`RO` | sovereign_state | `RO` | `RON` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:ru` | 俄罗斯 | Russia；`RU` | sovereign_state | `RU` | `RUB` | `europe_asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:sa` | 沙特阿拉伯 | Saudi Arabia；`SA` | sovereign_state | `SA` | `SAR` | `middle_east` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:se` | 瑞典 | Sweden；`SE` | sovereign_state | `SE` | `SEK` | `europe` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:sg` | 新加坡 | Singapore；`SG` | sovereign_state | `SG` | `SGD` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:si` | 斯洛文尼亚 | Slovenia；`SI` | sovereign_state | `SI` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:sk` | 斯洛伐克 | Slovakia；`SK` | sovereign_state | `SK` | `EUR` | `europe` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:si` | 斯洛文尼亚 | Slovenia；`SI` | sovereign_state | `SI` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:sk` | 斯洛伐克 | Slovakia；`SK` | sovereign_state | `SK` | `EUR` | `europe` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:th` | 泰国 | Thailand；`TH` | sovereign_state | `TH` | `THB` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:tj` | 塔吉克斯坦 | Tajikistan；`TJ` | sovereign_state | `TJ` | `TJS` | `central_asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:tl` | 东帝汶 | Timor-Leste；`TL` | sovereign_state | `TL` | `USD` | `asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:tj` | 塔吉克斯坦 | Tajikistan；`TJ` | sovereign_state | `TJ` | `TJS` | `central_asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:tl` | 东帝汶 | Timor-Leste；`TL` | sovereign_state | `TL` | `USD` | `asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:tr` | 土耳其 | Türkiye；`TR` | sovereign_state | `TR` | `TRY` | `europe_asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:tt` | 特立尼达和多巴哥 | Trinidad & Tobago；`TT` | sovereign_state | `TT` | `TTD` | `north_america` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:tt` | 特立尼达和多巴哥 | Trinidad & Tobago；`TT` | sovereign_state | `TT` | `TTD` | `north_america` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:us` | 美国 | United States；`US` | sovereign_state | `US` | `USD` | `north_america` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
-| `economy:uz` | 乌兹别克斯坦 | Uzbekistan；`UZ` | sovereign_state | `UZ` | `UZS` | `central_asia` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
-| `economy:ve` | 委内瑞拉 | Venezuela；`VE` | sovereign_state | `VE` | `VES` | `south_america` | create | 拟新增；中文名/英文 alias/ISO/currency/region 均待本 Package 人工确认 |
+| `economy:uz` | 乌兹别克斯坦 | Uzbekistan；`UZ` | sovereign_state | `UZ` | `UZS` | `central_asia` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
+| `economy:ve` | 委内瑞拉 | Venezuela；`VE` | sovereign_state | `VE` | `VES` | `south_america` | create | 已批准拟新增；字段值按本 R0 manifest 冻结，未来 R2A 仅做真实基线 exact diff |
 | `economy:vn` | 越南 | Vietnam；`VN` | sovereign_state | `VN` | `VND` | `asia` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 | `economy:za` | 南非 | South Africa；`ZA` | sovereign_state | `ZA` | `ZAR` | `africa` | reuse | 复用现有稳定 identity/profile；aliases 在未来 R2A exact diff 再核对 |
 
@@ -300,23 +301,32 @@
 | `relationship:sa_member_of_brics` | `economy:sa` → `alliance_org:brics` | formal_active | BRICS Brazil About | `2026-07-14` | keep |
 | `relationship:za_member_of_brics` | `economy:za` → `alliance_org:brics` | formal_active | BRICS Brazil About | `2026-07-14` | keep |
 
-## 4. 现有 223 条 Active Member Of Disposition
+## 4. 现有 223 条 Active Member Of Disposition（已批准）
 
-- canonical checksum：`6be2a8659257f321613feaf1ff5bfec81f4f2ce899af4263ba587698796f73c9`。
-- `inactivate` 是 Package 2 候选，不是 Write 授权；必须在本 Package Review 批准后进入未来 R2B exact diff。
-- `blocked` 不是 keep：它表示尚不能对当前 active edge 作权威收敛。任一 blocked 未解决时，最终 active member_of 集合相等断言不能成立，R2B 必须停止。
+- canonical checksum：`c6b381cb4f2917cc595de786849586494ff912b836dd1c0a02dafef4780aa02a`。
+- `preserve_unresolved`：160 条，按目标联盟为 G20 20、WTO 48、IMF 46、World Bank Group 46；不属于本批 approved target tuple，未来 R2B 必须证明 tuple identity/status/provenance 原样不变，并保留各自 source/identity resolution gap。
+- `preserve_pending_retype`：10 条，其中 OPEC+ 9、`economy:eu -> alliance_org:g7` 1；在独立 relation-semantics change 提供 participation/retype 替代前保持原样。
+- `proposed_inactivate`：仅 OECD 22 条；原因是 Package 1 已批准 OECD alliance future forward inactivate。它们仍须未来 R2B 独立 Write 授权，不得在本 R0 checkpoint 修改。
+- R2B exact assertion 只覆盖本批 10 个 resolved target alliances：从该 scope 的 active tuples 中排除获批 `preserve_pending_retype` 保护 tuple 后，集合必须等于 133 条 approved candidates；不得要求全库 active `member_of` 等于 133。
+
+| disposition | target group | count | 本 change 处置 |
+|---|---|---:|---|
+| keep | resolved targets | 31 | 已包含在 133 approved candidates |
+| preserve_unresolved | G20 / WTO / IMF / World Bank Group | 20 / 48 / 46 / 46 = 160 | 原样保护；未来独立 resolution gap |
+| preserve_pending_retype | OPEC+ / EU → G7 | 9 / 1 = 10 | 原样保护；等待独立 relation-semantics change |
+| proposed_inactivate | OECD only | 22 | 未来 R2B Review → Write → Query |
 
 | existing edge | direction | candidate disposition | reason |
 |---|---|---|---|
-| `relationship:ir_member_of_opec_plus` | `economy:ir` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:kw_member_of_opec_plus` | `economy:kw` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:ng_member_of_opec_plus` | `economy:ng` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:sa_member_of_opec_plus` | `economy:sa` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:ae_member_of_opec_plus` | `economy:ae` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:kz_member_of_opec_plus` | `economy:kz` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:my_member_of_opec_plus` | `economy:my` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:mx_member_of_opec_plus` | `economy:mx` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
-| `relationship:ru_member_of_opec_plus` | `economy:ru` → `alliance_org:opec_plus` | inactivate | source_conflict：OPEC+ 是合作参与机制，不是正式成员组织 |
+| `relationship:ir_member_of_opec_plus` | `economy:ir` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:kw_member_of_opec_plus` | `economy:kw` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:ng_member_of_opec_plus` | `economy:ng` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:sa_member_of_opec_plus` | `economy:sa` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:ae_member_of_opec_plus` | `economy:ae` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:kz_member_of_opec_plus` | `economy:kz` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:my_member_of_opec_plus` | `economy:my` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:mx_member_of_opec_plus` | `economy:mx` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:ru_member_of_opec_plus` | `economy:ru` → `alliance_org:opec_plus` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
 | `relationship:ir_member_of_opec` | `economy:ir` → `alliance_org:opec` | keep | formal_active |
 | `relationship:kw_member_of_opec` | `economy:kw` → `alliance_org:opec` | keep | formal_active |
 | `relationship:ng_member_of_opec` | `economy:ng` → `alliance_org:opec` | keep | formal_active |
@@ -329,189 +339,189 @@
 | `relationship:jp_member_of_g7` | `economy:jp` → `alliance_org:g7` | keep | formal_active |
 | `relationship:gb_member_of_g7` | `economy:gb` → `alliance_org:g7` | keep | formal_active |
 | `relationship:us_member_of_g7` | `economy:us` → `alliance_org:g7` | keep | formal_active |
-| `relationship:eu_member_of_g7` | `economy:eu` → `alliance_org:g7` | inactivate | source_conflict：EU fully involved，但官方来源未列为七个 member state 之一 |
-| `relationship:ar_member_of_g20` | `economy:ar` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:au_member_of_g20` | `economy:au` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:br_member_of_g20` | `economy:br` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ca_member_of_g20` | `economy:ca` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cn_member_of_g20` | `economy:cn` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:fr_member_of_g20` | `economy:fr` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:de_member_of_g20` | `economy:de` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:in_member_of_g20` | `economy:in` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:id_member_of_g20` | `economy:id` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:it_member_of_g20` | `economy:it` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:jp_member_of_g20` | `economy:jp` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:mx_member_of_g20` | `economy:mx` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ru_member_of_g20` | `economy:ru` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sa_member_of_g20` | `economy:sa` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:za_member_of_g20` | `economy:za` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kr_member_of_g20` | `economy:kr` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:tr_member_of_g20` | `economy:tr` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:gb_member_of_g20` | `economy:gb` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:us_member_of_g20` | `economy:us` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:eu_member_of_g20` | `economy:eu` → `alliance_org:g20` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cn_member_of_wto` | `economy:cn` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:us_member_of_wto` | `economy:us` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:eu_member_of_wto` | `economy:eu` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:hk_member_of_wto` | `economy:hk` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:tw_member_of_wto` | `economy:tw` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:jp_member_of_wto` | `economy:jp` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kr_member_of_wto` | `economy:kr` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sg_member_of_wto` | `economy:sg` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:in_member_of_wto` | `economy:in` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:id_member_of_wto` | `economy:id` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:vn_member_of_wto` | `economy:vn` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:th_member_of_wto` | `economy:th` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:my_member_of_wto` | `economy:my` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ph_member_of_wto` | `economy:ph` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:au_member_of_wto` | `economy:au` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:nz_member_of_wto` | `economy:nz` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:gb_member_of_wto` | `economy:gb` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:de_member_of_wto` | `economy:de` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:fr_member_of_wto` | `economy:fr` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:it_member_of_wto` | `economy:it` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:es_member_of_wto` | `economy:es` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:nl_member_of_wto` | `economy:nl` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ch_member_of_wto` | `economy:ch` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:se_member_of_wto` | `economy:se` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:no_member_of_wto` | `economy:no` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:dk_member_of_wto` | `economy:dk` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:pl_member_of_wto` | `economy:pl` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:tr_member_of_wto` | `economy:tr` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ru_member_of_wto` | `economy:ru` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ca_member_of_wto` | `economy:ca` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:mx_member_of_wto` | `economy:mx` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:br_member_of_wto` | `economy:br` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ar_member_of_wto` | `economy:ar` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cl_member_of_wto` | `economy:cl` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sa_member_of_wto` | `economy:sa` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ae_member_of_wto` | `economy:ae` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:qa_member_of_wto` | `economy:qa` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kw_member_of_wto` | `economy:kw` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:il_member_of_wto` | `economy:il` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:za_member_of_wto` | `economy:za` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:eg_member_of_wto` | `economy:eg` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ng_member_of_wto` | `economy:ng` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ma_member_of_wto` | `economy:ma` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kz_member_of_wto` | `economy:kz` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:pk_member_of_wto` | `economy:pk` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:bd_member_of_wto` | `economy:bd` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ua_member_of_wto` | `economy:ua` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cz_member_of_wto` | `economy:cz` → `alliance_org:wto` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cn_member_of_imf` | `economy:cn` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:us_member_of_imf` | `economy:us` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:jp_member_of_imf` | `economy:jp` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kr_member_of_imf` | `economy:kr` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sg_member_of_imf` | `economy:sg` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:in_member_of_imf` | `economy:in` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:id_member_of_imf` | `economy:id` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:vn_member_of_imf` | `economy:vn` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:th_member_of_imf` | `economy:th` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:my_member_of_imf` | `economy:my` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ph_member_of_imf` | `economy:ph` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:au_member_of_imf` | `economy:au` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:nz_member_of_imf` | `economy:nz` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:gb_member_of_imf` | `economy:gb` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:de_member_of_imf` | `economy:de` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:fr_member_of_imf` | `economy:fr` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:it_member_of_imf` | `economy:it` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:es_member_of_imf` | `economy:es` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:nl_member_of_imf` | `economy:nl` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ch_member_of_imf` | `economy:ch` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:se_member_of_imf` | `economy:se` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:no_member_of_imf` | `economy:no` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:dk_member_of_imf` | `economy:dk` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:pl_member_of_imf` | `economy:pl` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:tr_member_of_imf` | `economy:tr` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ru_member_of_imf` | `economy:ru` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ca_member_of_imf` | `economy:ca` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:mx_member_of_imf` | `economy:mx` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:br_member_of_imf` | `economy:br` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ar_member_of_imf` | `economy:ar` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cl_member_of_imf` | `economy:cl` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sa_member_of_imf` | `economy:sa` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ae_member_of_imf` | `economy:ae` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:qa_member_of_imf` | `economy:qa` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kw_member_of_imf` | `economy:kw` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ir_member_of_imf` | `economy:ir` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:il_member_of_imf` | `economy:il` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:za_member_of_imf` | `economy:za` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:eg_member_of_imf` | `economy:eg` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ng_member_of_imf` | `economy:ng` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ma_member_of_imf` | `economy:ma` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kz_member_of_imf` | `economy:kz` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:pk_member_of_imf` | `economy:pk` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:bd_member_of_imf` | `economy:bd` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ua_member_of_imf` | `economy:ua` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cz_member_of_imf` | `economy:cz` → `alliance_org:imf` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cn_member_of_world_bank` | `economy:cn` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:us_member_of_world_bank` | `economy:us` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:jp_member_of_world_bank` | `economy:jp` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kr_member_of_world_bank` | `economy:kr` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sg_member_of_world_bank` | `economy:sg` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:in_member_of_world_bank` | `economy:in` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:id_member_of_world_bank` | `economy:id` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:vn_member_of_world_bank` | `economy:vn` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:th_member_of_world_bank` | `economy:th` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:my_member_of_world_bank` | `economy:my` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ph_member_of_world_bank` | `economy:ph` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:au_member_of_world_bank` | `economy:au` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:nz_member_of_world_bank` | `economy:nz` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:gb_member_of_world_bank` | `economy:gb` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:de_member_of_world_bank` | `economy:de` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:fr_member_of_world_bank` | `economy:fr` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:it_member_of_world_bank` | `economy:it` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:es_member_of_world_bank` | `economy:es` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:nl_member_of_world_bank` | `economy:nl` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ch_member_of_world_bank` | `economy:ch` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:se_member_of_world_bank` | `economy:se` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:no_member_of_world_bank` | `economy:no` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:dk_member_of_world_bank` | `economy:dk` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:pl_member_of_world_bank` | `economy:pl` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:tr_member_of_world_bank` | `economy:tr` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ru_member_of_world_bank` | `economy:ru` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ca_member_of_world_bank` | `economy:ca` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:mx_member_of_world_bank` | `economy:mx` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:br_member_of_world_bank` | `economy:br` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ar_member_of_world_bank` | `economy:ar` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cl_member_of_world_bank` | `economy:cl` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:sa_member_of_world_bank` | `economy:sa` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ae_member_of_world_bank` | `economy:ae` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:qa_member_of_world_bank` | `economy:qa` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kw_member_of_world_bank` | `economy:kw` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ir_member_of_world_bank` | `economy:ir` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:il_member_of_world_bank` | `economy:il` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:za_member_of_world_bank` | `economy:za` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:eg_member_of_world_bank` | `economy:eg` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ng_member_of_world_bank` | `economy:ng` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ma_member_of_world_bank` | `economy:ma` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:kz_member_of_world_bank` | `economy:kz` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:pk_member_of_world_bank` | `economy:pk` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:bd_member_of_world_bank` | `economy:bd` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:ua_member_of_world_bank` | `economy:ua` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:cz_member_of_world_bank` | `economy:cz` → `alliance_org:world_bank` | blocked | source_conflict：目标联盟官方 formal-active 全集尚未冻结，不得猜测 keep/inactivate |
-| `relationship:au_member_of_oecd` | `economy:au` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:nz_member_of_oecd` | `economy:nz` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:jp_member_of_oecd` | `economy:jp` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:kr_member_of_oecd` | `economy:kr` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:gb_member_of_oecd` | `economy:gb` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:de_member_of_oecd` | `economy:de` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:fr_member_of_oecd` | `economy:fr` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:it_member_of_oecd` | `economy:it` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:es_member_of_oecd` | `economy:es` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:nl_member_of_oecd` | `economy:nl` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:ch_member_of_oecd` | `economy:ch` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:se_member_of_oecd` | `economy:se` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:no_member_of_oecd` | `economy:no` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:dk_member_of_oecd` | `economy:dk` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:pl_member_of_oecd` | `economy:pl` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:tr_member_of_oecd` | `economy:tr` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:ca_member_of_oecd` | `economy:ca` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:mx_member_of_oecd` | `economy:mx` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:cl_member_of_oecd` | `economy:cl` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:il_member_of_oecd` | `economy:il` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:cz_member_of_oecd` | `economy:cz` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
-| `relationship:us_member_of_oecd` | `economy:us` → `alliance_org:oecd` | inactivate | alliance_identity_convergence |
+| `relationship:eu_member_of_g7` | `economy:eu` → `alliance_org:g7` | preserve_pending_retype | 缺少已批准 participation/retype 语义；本批保持 tuple 原样 |
+| `relationship:ar_member_of_g20` | `economy:ar` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:au_member_of_g20` | `economy:au` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:br_member_of_g20` | `economy:br` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ca_member_of_g20` | `economy:ca` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cn_member_of_g20` | `economy:cn` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:fr_member_of_g20` | `economy:fr` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:de_member_of_g20` | `economy:de` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:in_member_of_g20` | `economy:in` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:id_member_of_g20` | `economy:id` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:it_member_of_g20` | `economy:it` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:jp_member_of_g20` | `economy:jp` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:mx_member_of_g20` | `economy:mx` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ru_member_of_g20` | `economy:ru` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sa_member_of_g20` | `economy:sa` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:za_member_of_g20` | `economy:za` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kr_member_of_g20` | `economy:kr` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:tr_member_of_g20` | `economy:tr` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:gb_member_of_g20` | `economy:gb` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:us_member_of_g20` | `economy:us` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:eu_member_of_g20` | `economy:eu` → `alliance_org:g20` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cn_member_of_wto` | `economy:cn` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:us_member_of_wto` | `economy:us` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:eu_member_of_wto` | `economy:eu` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:hk_member_of_wto` | `economy:hk` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:tw_member_of_wto` | `economy:tw` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:jp_member_of_wto` | `economy:jp` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kr_member_of_wto` | `economy:kr` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sg_member_of_wto` | `economy:sg` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:in_member_of_wto` | `economy:in` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:id_member_of_wto` | `economy:id` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:vn_member_of_wto` | `economy:vn` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:th_member_of_wto` | `economy:th` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:my_member_of_wto` | `economy:my` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ph_member_of_wto` | `economy:ph` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:au_member_of_wto` | `economy:au` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:nz_member_of_wto` | `economy:nz` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:gb_member_of_wto` | `economy:gb` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:de_member_of_wto` | `economy:de` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:fr_member_of_wto` | `economy:fr` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:it_member_of_wto` | `economy:it` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:es_member_of_wto` | `economy:es` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:nl_member_of_wto` | `economy:nl` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ch_member_of_wto` | `economy:ch` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:se_member_of_wto` | `economy:se` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:no_member_of_wto` | `economy:no` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:dk_member_of_wto` | `economy:dk` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:pl_member_of_wto` | `economy:pl` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:tr_member_of_wto` | `economy:tr` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ru_member_of_wto` | `economy:ru` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ca_member_of_wto` | `economy:ca` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:mx_member_of_wto` | `economy:mx` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:br_member_of_wto` | `economy:br` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ar_member_of_wto` | `economy:ar` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cl_member_of_wto` | `economy:cl` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sa_member_of_wto` | `economy:sa` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ae_member_of_wto` | `economy:ae` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:qa_member_of_wto` | `economy:qa` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kw_member_of_wto` | `economy:kw` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:il_member_of_wto` | `economy:il` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:za_member_of_wto` | `economy:za` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:eg_member_of_wto` | `economy:eg` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ng_member_of_wto` | `economy:ng` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ma_member_of_wto` | `economy:ma` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kz_member_of_wto` | `economy:kz` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:pk_member_of_wto` | `economy:pk` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:bd_member_of_wto` | `economy:bd` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ua_member_of_wto` | `economy:ua` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cz_member_of_wto` | `economy:cz` → `alliance_org:wto` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cn_member_of_imf` | `economy:cn` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:us_member_of_imf` | `economy:us` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:jp_member_of_imf` | `economy:jp` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kr_member_of_imf` | `economy:kr` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sg_member_of_imf` | `economy:sg` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:in_member_of_imf` | `economy:in` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:id_member_of_imf` | `economy:id` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:vn_member_of_imf` | `economy:vn` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:th_member_of_imf` | `economy:th` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:my_member_of_imf` | `economy:my` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ph_member_of_imf` | `economy:ph` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:au_member_of_imf` | `economy:au` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:nz_member_of_imf` | `economy:nz` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:gb_member_of_imf` | `economy:gb` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:de_member_of_imf` | `economy:de` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:fr_member_of_imf` | `economy:fr` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:it_member_of_imf` | `economy:it` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:es_member_of_imf` | `economy:es` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:nl_member_of_imf` | `economy:nl` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ch_member_of_imf` | `economy:ch` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:se_member_of_imf` | `economy:se` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:no_member_of_imf` | `economy:no` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:dk_member_of_imf` | `economy:dk` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:pl_member_of_imf` | `economy:pl` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:tr_member_of_imf` | `economy:tr` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ru_member_of_imf` | `economy:ru` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ca_member_of_imf` | `economy:ca` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:mx_member_of_imf` | `economy:mx` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:br_member_of_imf` | `economy:br` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ar_member_of_imf` | `economy:ar` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cl_member_of_imf` | `economy:cl` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sa_member_of_imf` | `economy:sa` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ae_member_of_imf` | `economy:ae` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:qa_member_of_imf` | `economy:qa` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kw_member_of_imf` | `economy:kw` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ir_member_of_imf` | `economy:ir` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:il_member_of_imf` | `economy:il` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:za_member_of_imf` | `economy:za` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:eg_member_of_imf` | `economy:eg` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ng_member_of_imf` | `economy:ng` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ma_member_of_imf` | `economy:ma` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kz_member_of_imf` | `economy:kz` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:pk_member_of_imf` | `economy:pk` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:bd_member_of_imf` | `economy:bd` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ua_member_of_imf` | `economy:ua` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cz_member_of_imf` | `economy:cz` → `alliance_org:imf` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cn_member_of_world_bank` | `economy:cn` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:us_member_of_world_bank` | `economy:us` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:jp_member_of_world_bank` | `economy:jp` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kr_member_of_world_bank` | `economy:kr` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sg_member_of_world_bank` | `economy:sg` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:in_member_of_world_bank` | `economy:in` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:id_member_of_world_bank` | `economy:id` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:vn_member_of_world_bank` | `economy:vn` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:th_member_of_world_bank` | `economy:th` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:my_member_of_world_bank` | `economy:my` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ph_member_of_world_bank` | `economy:ph` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:au_member_of_world_bank` | `economy:au` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:nz_member_of_world_bank` | `economy:nz` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:gb_member_of_world_bank` | `economy:gb` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:de_member_of_world_bank` | `economy:de` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:fr_member_of_world_bank` | `economy:fr` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:it_member_of_world_bank` | `economy:it` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:es_member_of_world_bank` | `economy:es` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:nl_member_of_world_bank` | `economy:nl` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ch_member_of_world_bank` | `economy:ch` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:se_member_of_world_bank` | `economy:se` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:no_member_of_world_bank` | `economy:no` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:dk_member_of_world_bank` | `economy:dk` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:pl_member_of_world_bank` | `economy:pl` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:tr_member_of_world_bank` | `economy:tr` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ru_member_of_world_bank` | `economy:ru` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ca_member_of_world_bank` | `economy:ca` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:mx_member_of_world_bank` | `economy:mx` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:br_member_of_world_bank` | `economy:br` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ar_member_of_world_bank` | `economy:ar` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cl_member_of_world_bank` | `economy:cl` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:sa_member_of_world_bank` | `economy:sa` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ae_member_of_world_bank` | `economy:ae` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:qa_member_of_world_bank` | `economy:qa` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kw_member_of_world_bank` | `economy:kw` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ir_member_of_world_bank` | `economy:ir` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:il_member_of_world_bank` | `economy:il` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:za_member_of_world_bank` | `economy:za` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:eg_member_of_world_bank` | `economy:eg` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ng_member_of_world_bank` | `economy:ng` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ma_member_of_world_bank` | `economy:ma` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:kz_member_of_world_bank` | `economy:kz` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:pk_member_of_world_bank` | `economy:pk` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:bd_member_of_world_bank` | `economy:bd` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:ua_member_of_world_bank` | `economy:ua` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:cz_member_of_world_bank` | `economy:cz` → `alliance_org:world_bank` | preserve_unresolved | 不属于本批 resolved target scope；保持 tuple 原样并保留未来 resolution gap |
+| `relationship:au_member_of_oecd` | `economy:au` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:nz_member_of_oecd` | `economy:nz` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:jp_member_of_oecd` | `economy:jp` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:kr_member_of_oecd` | `economy:kr` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:gb_member_of_oecd` | `economy:gb` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:de_member_of_oecd` | `economy:de` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:fr_member_of_oecd` | `economy:fr` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:it_member_of_oecd` | `economy:it` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:es_member_of_oecd` | `economy:es` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:nl_member_of_oecd` | `economy:nl` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:ch_member_of_oecd` | `economy:ch` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:se_member_of_oecd` | `economy:se` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:no_member_of_oecd` | `economy:no` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:dk_member_of_oecd` | `economy:dk` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:pl_member_of_oecd` | `economy:pl` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:tr_member_of_oecd` | `economy:tr` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:ca_member_of_oecd` | `economy:ca` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:mx_member_of_oecd` | `economy:mx` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:cl_member_of_oecd` | `economy:cl` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:il_member_of_oecd` | `economy:il` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:cz_member_of_oecd` | `economy:cz` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
+| `relationship:us_member_of_oecd` | `economy:us` → `alliance_org:oecd` | proposed_inactivate | alliance_identity_convergence：OECD alliance 已批准 future forward inactivate |
 | `relationship:cz_member_of_eu` | `economy:cz` → `alliance_org:eu` | keep | formal_active |
 | `relationship:dk_member_of_eu` | `economy:dk` → `alliance_org:eu` | keep | formal_active |
 | `relationship:de_member_of_eu` | `economy:de` → `alliance_org:eu` | keep | formal_active |
@@ -541,8 +551,8 @@ economy target rows = 79 (35 reuse + 44 create)
 economy target checksum = 95613a931adf3d7231cbb1d311e5051f3695d9da40c60bbeeccb39d006118cb3
 formal-active member_of candidates = 133 (31 keep + 102 create)
 member_of candidate checksum = c3d652571fa93307088633cbfe06dce18b1257d8ac2b3ee2ae88c5a27e69fcf7
-existing active member_of dispositions = 223 (31 keep + 32 inactivate + 160 blocked)
-existing disposition checksum = 6be2a8659257f321613feaf1ff5bfec81f4f2ce899af4263ba587698796f73c9
+existing active member_of dispositions = 223 (31 keep + 160 preserve_unresolved + 10 preserve_pending_retype + 22 proposed_inactivate)
+existing disposition checksum = c6b381cb4f2917cc595de786849586494ff912b836dd1c0a02dafef4780aa02a
 duplicate candidate tuples = 0
 orphan candidate endpoints = 0 after candidate economy creates
 wrong direction/type = 0
@@ -550,4 +560,4 @@ observer/partner/applicant/suspended/former admitted = 0
 optional led_by/part_of candidates = 0 (excluded)
 ```
 
-唯一人工出口是 Package 2.1 Review：逐项批准/修订 membership model、79 条 economy、133 条 formal-active tuple、32 条 proposed inactivate，并决定 160 条 blocked source-conflict 的处理方向。未通过前不得进入 Package 3，不得把本文件转换为 seed 或数据库输入。
+Package 2.1 已获人工批准：approved resolved candidates = 133；preserve_unresolved = 160；preserve_pending_retype = 10；proposed_inactivate = 22（OECD only）。当前停止并等待 `refactor-industry-chain-node-foundation` Deliver；不得进入 Package 3，不得把本文件转换为 seed 或数据库输入。

@@ -113,4 +113,4 @@ final dispositions completed = 10
 
 ## 4. 当前停止点
 
-Package 1 已完成并只读冻结；Package 2 候选见 `package-2-candidate-review.md`，当前停在 Package 2.1 唯一人工业务 Review，不得进入 Package 3。
+Package 1 已完成并只读冻结；Package 2 候选见 `package-2-candidate-review.md`，其快速 MVP 范围已获人工批准。当前停止等待产业链 change Deliver，不得进入 Package 3。

@@ -5,7 +5,7 @@
 
 #### Scenario: 审阅联盟候选清单
 - **WHEN** 系统准备联盟 seed
-- **THEN** 必须先提交四字段 data contract 和 45 条 Excel 逐项候选清单，展示源 sheet row、四字段源值、仅 U+200C 的 normalization、entity key、派生 abbreviation alias、空白最终 decision、现有 exact diff，并穷尽列出每个现有 active alliance disposition；未确认项不得进入正式 seed 或 convergence
+- **THEN** 必须先提交四字段 data contract 和 45 条 Excel 逐项候选清单，展示源 sheet row、四字段源值、仅 U+200C 的 normalization、entity key、派生 abbreviation alias、人工最终 decision、现有 exact diff，并穷尽列出每个现有 active alliance disposition；未确认项不得进入正式 seed 或 convergence
 
 #### Scenario: 执行已批准 Schema 校验
 - **WHEN** 后续 loader/validator 验证联盟或 economy 候选
@@ -17,7 +17,7 @@
 
 #### Scenario: Economy 与关系候选统一 Review
 - **WHEN** economy 差异审计发现缺失或 identity 冲突
-- **THEN** 必须先在 Package 2 内完成 economy diff/exception/protection，再连续生成穷尽的 `member_of` manifest，并将两者作为一个完整候选包提交业务 Review；未获确认不得生成可执行 seed 或写 PostgreSQL
+- **THEN** 必须先在 Package 2 内完成 economy diff/exception/protection，再连续生成 resolved scope 的 `member_of` manifest 和现有关系 preserve/proposed-inactivate disposition，并将两者作为一个完整候选包提交业务 Review；未获确认不得生成可执行 seed 或写 PostgreSQL
 
 #### Scenario: 统一 Master Data 幂等写入与查询
 - **WHEN** 后续 Apply 获得有状态授权

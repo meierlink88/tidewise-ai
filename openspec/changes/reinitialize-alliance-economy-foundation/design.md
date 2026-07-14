@@ -94,14 +94,14 @@ Package 2 先把 45 个联盟分类为 `formal_member_set`、`rotating_or_term_b
 重新初始化不是“在现有数据上继续 upsert”。未来 Apply 必须生成两个版本化、带 checksum 和 Review 元数据的穷尽式 manifest，并在 Write 前对真实 PostgreSQL 做 exact diff：
 
 - **Alliance manifest**：列出最终允许 active 的 alliance entity keys；对每个执行时现有 active `alliance_org` 必须给出 `keep`、`merge` 或 `inactivate`。候选 `approve` 通常映射为 keep/create，`merge` 必须指定稳定 active target，`reject` 与 `defer` 不进入最终 active set并形成待 Review 的 inactivate proposal；任何未列出现有 active entity 都使 manifest 不完整并阻断 Write，不能被静默当作 stale。
-- **Member manifest**：列出最终允许 active 的 `(economy_key, member_of, alliance_key)` formal-active tuples；对每条执行时现有 active `member_of` 必须给出 keep 或 inactivate disposition。缺席 tuple 必须标记 `former`、`withdrawn`、`suspended`、`source_conflict` 或 `alliance_identity_convergence`，附正式来源、核验时间和关系影响；未决 source conflict 阻断 Write，不能自动猜测。
+- **Member manifest**：列出 10 个 resolved target alliance scope 内批准的 133 个 `(economy_key, member_of, alliance_key)` formal-active tuples；对每条执行时现有 active `member_of` 给出 keep、preserve_unresolved、preserve_pending_retype 或 proposed_inactivate disposition。只有 scoped candidate 与 OECD proposed inactivate 可进入本 change 的未来 R2B mutation set；preserve tuples 是保护集，不因未解析语义阻断局部 MVP。
 - **Economy exception manifest**：只列出逐项获批的 `merge` 或 `inactivate` 异常。economy 不因未出现在当前联盟成员全集而 stale；未列入 exception manifest 的合法 economy 必须原样保留 entity key、UUID 和 status。
 
 每个 stale/inactivate/merge diff 必须展示 reason、旧/新 identity、aliases/profile 影响、受影响 `member_of`/其他关系、预计 created/updated/inactivated/unchanged counts 和非目标保护断言。未经对应 R2A 或 R2B package 的明确授权，不得应用任何处置；不再为 schema、alliance、economy 的同层技术步骤重复设置 gate。
 
 Alliance merge 采用 forward convergence：保留获批 target 的稳定 identity，source UUID/key 保留但变为 inactive；aliases 是否并入 target、profile 如何收敛及每条关系如何 rebind/inactivate 都必须由 manifest 逐项决定。系统必须在事务提交前证明不存在两个 active identity 指向同一批准联盟。不得删除 source entity、复用 source UUID 或按名称自动合并。
 
-Member convergence 不改变 `relation_type` 表达历史状态；获批 stale edge 保留原 edge identity 与 provenance，并转为 inactive。新 formal-active edge 幂等 upsert，旧 active edge 必须按 manifest 收敛，禁止仅追加。economy identity merge 的关系影响必须在 Package 2 manifest 和 R2A Query 中显式输出，并在 R2B 授权前以真实 target identity 刷新 exact diff；在 R2B Query 验收前 PostgreSQL 不得视为完成态。
+Member convergence 不改变 `relation_type` 表达历史状态；22 条 OECD proposed inactivate 获未来 R2B 授权后保留原 edge identity/provenance 并转 inactive，133 条 resolved candidates 幂等 keep/create。160 preserve_unresolved 与 10 preserve_pending_retype 不修改、不停用；R2B Query 必须证明其 tuple identity/status/provenance 与 pre-write 快照一致。economy identity merge 的关系影响必须在 Package 2 manifest 和 R2A Query 中显式输出，并在 R2B 授权前以真实 target identity 刷新 exact diff。
 
 实现只允许版本化 forward migration/convergence command 与单事务幂等写入，禁止 `TRUNCATE`、无谓词 DELETE、清空关系后重灌或历史 migration rollback。执行时数据库基线与 manifest preflight checksum 不一致必须停止并重新 Review。
 
@@ -109,7 +109,11 @@ Member convergence 不改变 `relation_type` 表达历史状态；获批 stale e
 
 ```text
 active alliance entity keys == approved alliance manifest active keys
-active member_of tuples == approved formal-active member manifest tuples
+active member_of tuples where target in resolved_target_alliances
+  minus approved preserve_pending_retype tuples
+  == 133 approved formal-active candidate tuples
+preserve_unresolved tuples after == preserve_unresolved pre-write snapshot
+preserve_pending_retype tuples after == preserve_pending_retype pre-write snapshot
 unrelated legal economy keys/UUID/status after == protected pre-write snapshot
 ```
 
@@ -124,6 +128,8 @@ unrelated legal economy keys/UUID/status after == protected pre-write snapshot
 | `part_of` | subordinate → parent | `alliance_org -> alliance_org` | 仅正式下属机构或机制，不能用主题相关或合作关系替代 |
 
 `member_of` 候选必须区分 formal member、observer、partner、applicant、suspended、former。只有 formal active 进入 MVP；其他身份只留在 Review 报告。若未来需要表达，先人工批准关系/状态契约，不得自行扩展 `relation_type`。
+
+21 个 `participant/signatory/framework/no_formal_membership` 不生成 `member_of`。未来如需 `participates_in`、`signatory_to` 或其他替代关系，必须新建独立 relation-semantics change 重新 Review relation policy、端点、来源和 migration；不得在本 change 的 R1/R2B 顺带扩展。
 
 每条 `member_of` 的两端必须存在且 active。写入后按批准联盟分组计算 active edge 数，并与同一官方来源的正式成员清单逐项集合比对；Excel“成员数”不进入本 change 输入。`leadership_summary` 源文本不能自动生成 `led_by`；`led_by` 与 `part_of` 只有另有充分证据且在 Package 2 同一 Review 获批才可进入 R2B，否则明确排除出本次 MVP。
 
@@ -150,7 +156,7 @@ sequenceDiagram
     Reviewer-->>Apply: R2B Query 验收
 ```
 
-R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Query`。R2A Query 未验收不得进入 R2B；任一失败使未执行授权失效。Neo4j 不在本 change 中执行，未来独立 graph projection change 只能读取本 change 已验收的 PostgreSQL facts。
+R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Query`。R2A Query 未验收不得进入 R2B；R2B 只对 resolved target scope 与 OECD approved disposition 有 mutation authority，且必须保护 170 条 preserve tuples。任一失败使未执行授权失效。Neo4j 不在本 change 中执行，未来独立 graph projection change 只能读取本 change 已验收的 PostgreSQL facts。
 
 ### 8. 实现边界与 TDD
 
@@ -170,7 +176,7 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 - [聚合 economy 被当成国家成员] → `identity_kind` 与 code 规则 fail-closed，禁止 `global_aggregate` 建 `member_of`，EU 聚合不替代成员国。
 - [成员身份混淆] → MVP 只允许 formal active；其他状态留在冲突报告，关系类型扩展必须另行 Review。
 - [profile 旧列移除影响现有查询] → Apply 前全仓引用审计，增量 forward migration，旧列移除与兼容窗口在 R2A master-data Review 展示。
-- [只新增导致 stale alliance/关系继续 active] → 两个穷尽 manifest 覆盖当前全部 active rows；Write 后用集合相等而不是 counts 近似验收。
+- [局部 MVP 被误执行成全库关系重置] → 223 条现有 edge 全部分类；resolved target scope 做精确集合收敛，OECD 22 条单独 proposed inactivate，170 条 preserve 以 pre/post 快照证明原样不变。
 - [merge 产生两个 active 重复 identity] → manifest 指定唯一 target，source 只做 forward inactivate，事务内唯一性断言失败则整体回滚。
 - [联盟成员范围误伤 economy 基础库] → economy 使用独立 exception manifest 和 pre-write 保护快照，未列入异常的合法 economy key/UUID/status 必须逐项不变。
 - [联盟成员随时间变化] → 每条 edge 保留来源与核验时间，成员集合按执行时官方来源核对；历史成员建模不在本 change。
@@ -180,7 +186,7 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 ## Migration Plan
 
 1. Package 1 已完成联盟范围与逐项 manifest 人工 Review，并冻结 v1 checksum。
-2. Package 2 已连续准备 membership model/source register、resolved formal-active economy diff、关系候选和现有 223 条 edge disposition，当前停在唯一人工 Review；blocked source conflict 未解决前不能形成最终 approved member manifest，未决可选关系直接排除。
+2. Package 2 已获人工批准：79 个 economy、133 条 resolved candidates，以及现有 223 条 edge 的 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 OECD proposed_inactivate；未决可选关系直接排除。
 3. 等待 `refactor-industry-chain-node-foundation` 完成 Deliver 且结果进入 `origin/main`；更新基线、自动 overlap audit 后执行 Package 3 TDD 实现与自动技术验收，禁止 Write。
 4. 分别明确授权并执行 R2A `master-data` Review/Write/Query 与 R2B `relationships` Review/Write/Query。
 5. 汇总证据完成 Apply-final 人工 Review，之后才依次 Sync、Archive、PR/merge 和 cleanup。
@@ -190,6 +196,6 @@ R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Que
 ## Open Questions
 
 - Package 1 已批准，不再是 open question；任何改动必须新版本、新 checksum 并重新 Review。
-- Package 2 R0 v1 当前有 13 个 formal set 与 1 个 term-bound set blocked，另有 160 条现有 active edge 处于 source-conflict；主对话必须决定补源、identity/有效期契约或排除策略后，才能冻结最终 economy/member manifests。
+- 13 个 formal set 与 1 个 term-bound set 的 resolution gap，以及 21 个非正式机制的替代关系语义，不阻断本次 approved resolved MVP；它们不进入本 change mutation scope，后续必须独立 Review。
 - observer/partner/applicant/suspended/former 是否需要未来结构化表达，只有关系契约 Review 可以决定；MVP 不扩展。
 - `led_by`、`part_of` 的具体候选若无法在 Package 2 同一 Review 中获批，将排除出本次 MVP，不阻塞核心流程。

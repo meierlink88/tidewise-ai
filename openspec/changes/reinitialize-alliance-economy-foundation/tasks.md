@@ -1,6 +1,6 @@
 # Task Design Efficiency：五个交付 Package
 
-本 change 以 package 作为唯一 task 完成单元，不再把资料准备、技术微步骤或同一风险边界内的验证拆成独立 checkbox。普通 checkbox 只记录 package 状态；真正人工确认仅保留候选业务语义、两个 local R2 授权和 Apply-final Review。Package 1 已批准，当前停在 Package 2 的候选业务 Review。
+本 change 以 package 作为唯一 task 完成单元，不再把资料准备、技术微步骤或同一风险边界内的验证拆成独立 checkbox。普通 checkbox 只记录 package 状态；真正人工确认仅保留候选业务语义、两个 local R2 授权和 Apply-final Review。Package 1、2 已批准，当前停止等待产业链 change Deliver，Package 3 尚未开始。
 
 ## Package 1：联盟范围与 Spec Review（R0，人工）
 
@@ -15,16 +15,16 @@ Acceptance criteria：
 
 ## Package 2：Economy 与关系候选 Review（R0，人工）
 
-- [ ] 2.1 **候选 Package Review**：`package-2-candidate-review.md` R0 v1 已连续准备 45 个 membership model/source register、79 条 economy target、133 条 resolved formal-active `member_of` 候选，以及现有 223 条 active edge 的穷尽 disposition；当前等待主对话一次审阅业务语义、32 条 proposed inactivate 与 160 条 blocked source-conflict。
+- [x] 2.1 **候选 Package Review**：主对话已于 2026-07-14 批准 `package-2-candidate-review.md` R0 v2：10 个 resolved formal sets、79 条 economy target、133 条 formal-active `member_of`（31 keep + 102 create）；现有 223 条 disposition 为 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 OECD proposed_inactivate。
 
 Acceptance criteria：
 
 - 包内按“批准联盟 → 正式成员来源 → economy diff/补齐 → `member_of`”顺序连续执行，不为资料生成、diff 或技术检查逐项停顿；任一前置断言失败则整个 package fail-closed。
 - economy 候选包含规范中英文名/aliases、四类 identity、ISO 或不适用、currency、兼容 region、稳定/拟新增 key 与来源；exception 只含逐项确认的冲突、重复或错误，其他合法 economy 进入保护快照。
-- `member_of` 固定 `economy -> alliance_org`，只含 formal active，逐条带端点、来源、核验时间、现有 edge disposition、stale reason 与完整性断言，并穷尽现有 active `member_of`。
+- `member_of` 固定 `economy -> alliance_org`，批准候选只含 resolved formal active，逐条带端点、来源、核验时间与 exact diff；现有 223 条均有 keep/preserve/proposed-inactivate disposition。
 - `led_by`、`part_of` 是非阻塞可选附录：证据充分时随本 package 一次 Review；未决或未批准时明确排除出本次 MVP 和后续 R2B，不产生额外 gate。
-- Review 通过只冻结 approved economy/relationship manifests；不生成可执行写入授权。
-- Package 2 当前 checksums：economy `95613a931adf3d7231cbb1d311e5051f3695d9da40c60bbeeccb39d006118cb3`；member candidate `c3d652571fa93307088633cbfe06dce18b1257d8ac2b3ee2ae88c5a27e69fcf7`；existing disposition `6be2a8659257f321613feaf1ff5bfec81f4f2ce899af4263ba587698796f73c9`。任一漂移须重新 Review。
+- Review 通过只冻结 approved economy/relationship manifests；不生成可执行写入授权。21 个非正式 membership model 的 `participates_in`/`signatory_to` 等语义移至后续独立 relation-semantics change。
+- Package 2 checksums：economy `95613a931adf3d7231cbb1d311e5051f3695d9da40c60bbeeccb39d006118cb3`；member candidate `c3d652571fa93307088633cbfe06dce18b1257d8ac2b3ee2ae88c5a27e69fcf7`；existing disposition `c6b381cb4f2917cc595de786849586494ff912b836dd1c0a02dafef4780aa02a`。任一漂移须重新 Review。
 
 ## Package 3：R1 实现与自动技术验收（无有状态写入）
 
@@ -40,13 +40,13 @@ Acceptance criteria：
 ## Package 4：两个 Local PostgreSQL R2（分别人工授权）
 
 - [ ] 4.1 **R2A `master-data` Review → Write → Query**：主对话一次明确授权目标 local 环境中的必要 schema、alliance 与 economy forward convergence；以 approved manifests/version/checksum、完整 exact diff、范围/排除项、recovery evidence、预计 counts、before/after assertions 和停止条件为执行包，在单事务边界内写入并立即 Query 验收。
-- [ ] 4.2 **R2B `relationships` Review → Write → Query**：仅在 R2A Query 验收后，由主对话独立授权 approved `member_of` forward convergence；只有 Package 2 同一 Review 已批准的 `led_by`/`part_of` 才可被明确列入，否则排除。写入后立即 Query active tuple 集合、端点、方向、重复/悬空、stale provenance、官方成员集合与幂等。
+- [ ] 4.2 **R2B `relationships` Review → Write → Query**：仅在 R2A Query 验收后，由主对话独立授权 approved `member_of` forward convergence；只对 10 个 resolved target alliance scope 收敛 133 条候选并处置 22 条 OECD proposed_inactivate，同时保护 160 preserve_unresolved 与 10 preserve_pending_retype 原样不变。`led_by`/`part_of` 排除。
 
 Acceptance criteria：
 
 - 两个 R2 各自只有一个人工授权点和一条 `Review → Write → Query` 链；R2A 不再为 schema、alliance、economy重复设门禁，R2B 不被 R2A 或普通 Apply 推定授权。
 - curated local PostgreSQL 默认要求可恢复 backup；只有用户逐层明确批准 disposable recovery 时才可替代。未授权范围、checksum/counts/断言漂移或 Query 失败立即停止并使未执行授权失效。
-- R2A Query 必须证明 active alliance keys 等于 approved manifest、economy exceptions 精确生效且无关合法 economy key/UUID/status 未变化；R2B Query 必须证明 active relationship tuples 等于 approved manifest。
+- R2A Query 必须证明 active alliance keys 等于 approved manifest、economy exceptions 精确生效且无关合法 economy key/UUID/status 未变化；R2B Query 必须证明 resolved target scope 扣除显式保护 tuple 后等于 133 approved candidates、OECD 22 条按授权收敛，并证明 170 条 preserve tuples 的 identity/status/provenance 原样不变。不得把全库 active `member_of` 与 133 做集合相等。
 - 禁止 `TRUNCATE`、无谓词 DELETE、清空重灌、历史 rollback、手工修表或其他未审阅写路径。
 
 ## Package 5：Apply-final Review 与 Deliver

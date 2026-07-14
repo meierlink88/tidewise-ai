@@ -10,9 +10,10 @@
 - 45 条候选四个目标字段均非空，名称和规范化缩写均无重复。`UJR` 与 `CCAS` 的源缩写末尾各有一个 U+200C；候选规范化只删除该不可见字符，不做其他名称、缩写、主导方或影响说明的语义纠正。
 - `leadership_summary` 直接保存“核心主导方”源文本。本阶段不得从该文本自动生成 `led_by`；如未来需要关系化，仍须在 Package 2 具备独立证据并随关系候选 Review。
 - Package 1 已于 2026-07-14 获人工批准：45 条全部 approve，9 keep + 36 create，现有 10 条为 9 keep + OECD future forward inactivate；批准输入冻结为 `approved-alliance-manifest.md` v1 checksum `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`。旧 68 条 provisional Review 明确 superseded，不允许两套候选并存。
-- 版本化、穷尽且带 checksum 的 approved manifests 仍定义最终 active 状态：alliance manifest 覆盖最终 active keys 和现有 active 的 `keep/merge/inactivate`；economy exception manifest 只覆盖逐项批准的冲突/重复/错误；member manifest 覆盖 formal-active tuples 及现有 active edge 的 disposition。
+- 版本化且带 checksum 的 approved manifests 定义本 change 授权范围：alliance manifest 覆盖最终 active keys 和现有 active 的 `keep/merge/inactivate`；economy exception manifest 只覆盖逐项批准的冲突/重复/错误；member manifest 对 10 个 resolved target alliance scope 精确收敛，并穷尽分类现有 active edge 为 keep、preserve 或 proposed inactivate。
 - alliance merge 继续保留 approved target 稳定 identity，source 只做 forward inactivate；合法 economy 不因不属于当前联盟成员全集而停用；stale `member_of` 保留 edge identity/provenance 后再按批准原因转 inactive。
-- `member_of` 仍固定 `economy -> alliance_org` 且只表达 formal active。Package 2 已基于批准联盟输入形成 R0 候选：先分类 membership model，只有可由批量官方来源穷尽的 10 个 formal sets 生成 133 条候选；其余按 term-bound、not-applicable 或 source/identity blocked 显式停住，不以常识补全。
+- `member_of` 仍固定 `economy -> alliance_org` 且只表达 formal active。Package 2 已批准 10 个 resolved formal sets、79 个 economy 与 133 条候选；旧 223 条分为 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 OECD proposed_inactivate。preserve tuples 不属于本批 target tuple，保持原样且不阻断局部 MVP。
+- 21 个 participant/signatory/framework/no-formal-membership 不生成 `member_of`；`participates_in`、`signatory_to` 等替代语义移至后续独立 relation-semantics change，本 change 不扩展 policy/schema。
 - 所有收敛只允许 versioned forward migration/convergence 与幂等事务，禁止 `TRUNCATE`、无谓词 DELETE、清空重灌、历史 rollback 或手工修表。
 - PostgreSQL 是本 change 的唯一事实源和完成边界；Neo4j 仍不在本 change。与 `refactor-industry-chain-node-foundation` 共享的源码、migration tests 和 PostgreSQL 状态在其 Deliver 且进入最新 `origin/main` 前保持冻结。
 

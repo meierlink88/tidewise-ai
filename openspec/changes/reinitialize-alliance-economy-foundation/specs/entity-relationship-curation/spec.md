@@ -28,19 +28,19 @@
 - **THEN** 必须将其排除出本次 MVP，alliance、economy 与 `member_of` 核心可以继续排队，且不得顺带写入未审阅关系
 
 ### Requirement: Member Of 候选与写入闭环
-系统 SHALL 在联盟 manifest 确认后，于 Package 2 内依次完成 economy 审计并生成版本化、穷尽的 formal-active `member_of` manifest，在 package 末统一 Review，并在 PostgreSQL 写入前后验证端点、成员身份、来源、stale disposition 与集合相等；禁止仅新增而保留过期 active edge。
+系统 SHALL 在联盟 manifest 确认后，于 Package 2 内依次完成 economy 审计并生成版本化的 resolved-scope formal-active `member_of` manifest，在 package 末统一 Review，并穷尽分类现有 active `member_of` 为 `keep`、受保护保留或 `proposed_inactivate`。PostgreSQL 写入前后 MUST 验证端点、成员身份、来源、resolved scope 集合相等与受保护 tuple 快照不变；禁止在 resolved scope 内仅新增而保留未经处置的过期 active edge。
 
 #### Scenario: 生成成员关系候选
 - **WHEN** 联盟 manifest 已确认，且 Package 2 已依次形成官方成员全集并完成 economy diff/exception/protection 审计
 - **THEN** 候选清单必须逐条包含方向、两端 entity key、formal active 身份、官方来源、核验时间、现有 edge 差异与冲突，并穷尽覆盖每条现有 active `member_of`；不得依赖 Excel 成员数字段
 
 #### Scenario: 分类过期 Active Member Of
-- **WHEN** 现有 active `member_of` 不在最新 approved formal-active tuple set 中
-- **THEN** manifest 必须将其分类为 `former`、`withdrawn`、`suspended`、`source_conflict` 或 `alliance_identity_convergence`，展示旧/新 identity、provenance、关系影响和预计 counts，并在 Package 2 业务 Review 与 R2B 精确执行包授权后才可转 inactive
+- **WHEN** 现有 active `member_of` 不在本批 resolved formal-active tuple set 中
+- **THEN** manifest 必须将其分类为 `preserve_unresolved`、`preserve_pending_retype` 或 `proposed_inactivate`，展示 resolution gap、provenance、关系影响和预计 counts；只有获批 proposed inactivate 可在 R2B 独立授权后转 inactive，preserve tuple 必须保持原样
 
 #### Scenario: 阻止未决来源冲突
-- **WHEN** 正式成员来源互相冲突且 Review 尚未决定 disposition
-- **THEN** 系统必须阻止 member convergence Write，不得自动保留、停用或创建 relation type
+- **WHEN** resolved target scope 内正式成员来源互相冲突且 Review 尚未决定 disposition
+- **THEN** 系统必须阻止该 resolved scope 的 member convergence Write；scope 外已批准 `preserve_unresolved` 不阻断本批，但不得自动停用、重解释或创建 relation type
 
 #### Scenario: Master Data Query 未验收时阻止关系写入
 - **WHEN** R2A master-data Write 后 Query 尚未获得人工验收
@@ -48,7 +48,15 @@
 
 #### Scenario: 写入后核对正式成员集合
 - **WHEN** `member_of` Write 完成
-- **THEN** Query 必须证明所有端点存在且 active、无重复/悬空/错误方向，PostgreSQL active `member_of` tuple set 与 approved manifest 集合相等，并按联盟将 active edge 集合和数量与同一官方正式成员来源逐项核对
+- **THEN** Query 必须证明所有候选端点存在且 active、无重复/悬空/错误方向，resolved target alliance scope 扣除显式 `preserve_pending_retype` 后与 133 条 approved candidates 集合相等，并按联盟与同一官方正式成员来源逐项核对；不得要求全库 active `member_of` 等于该局部 manifest
+
+#### Scenario: 保护未解析与待重分类关系
+- **WHEN** R2B 执行本批 resolved candidates 或 OECD proposed inactivate
+- **THEN** Query 必须证明 160 条 `preserve_unresolved` 与 10 条 `preserve_pending_retype` 的 edge identity、端点、relation type、status 和 provenance 与 pre-write 快照一致；任一变化必须失败并回滚
+
+#### Scenario: 非正式机制关系语义后置
+- **WHEN** alliance 被分类为 `participant/signatory/framework/no_formal_membership`
+- **THEN** 本 change 不得为其生成 `member_of` 或扩展 `participates_in`、`signatory_to` 等 policy/schema；替代语义必须进入后续独立 relation-semantics change
 
 #### Scenario: 保留 Inactive Edge 审计
 - **WHEN** stale `member_of` 获批转 inactive

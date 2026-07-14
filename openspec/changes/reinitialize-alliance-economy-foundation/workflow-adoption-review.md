@@ -5,7 +5,7 @@
 本 change 已在 `origin/main@4b3df5ccb8ea837470f9bcaa8b2799d0762a742b` 上采用风险分级流程，并通过 merge commit `27e6e20` 保留既有 A/B checkpoints。workflow adoption 的结构与边界已获主对话认可，不再保留独立行政门禁；它只作为 Package 1 的历史证据，不追认或扩大业务授权。
 
 - Package 1 已于 2026-07-14 通过：45 条全部 approve、9 keep + 36 create、现有 9 keep + OECD forward inactivate；canonical checksum `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`。
-- 当前唯一业务出口是 Package 2.1：审阅 membership model、79 条 economy target、133 条 resolved formal-active tuples、32 条 proposed inactivate 与 160 条 blocked source-conflict。
+- Package 2.1 已获主对话批准：79 条 economy、133 条 resolved formal-active tuples，以及现有 223 条的 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 OECD proposed_inactivate。
 - 当前 checkpoint 仍属于 R0，只修改 OpenSpec Review artifacts；不修改源码或数据库。
 
 ## 2. 五 Package 风险与人工确认
@@ -63,4 +63,4 @@
 
 ## 6. 当前人工门禁
 
-五 package、7 个顶层 checkbox、两个 local R2 和 Neo4j 移出保持不变。当前只等待 `package-2-candidate-review.md` R0 v1 的唯一业务 Review；Package 3 及以后保持未开始。
+五 package、7 个顶层 checkbox、两个 local R2 和 Neo4j 移出保持不变。Package 2 已批准；当前等待 `refactor-industry-chain-node-foundation` Deliver，Package 3 及以后保持未开始。

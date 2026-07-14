@@ -63,7 +63,7 @@
 
 #### Scenario: 验证成员数据完整性
 - **WHEN** `member_of` PostgreSQL 写入完成
-- **THEN** 每条关系的两端必须存在且 active，每个批准联盟的 active 正式成员集合和计算数量必须与同一官方来源逐项核对，Excel 成员数不得作为当前候选或事实输入
+- **THEN** 本批 133 条 approved candidate 的两端必须存在且 active，每个 resolved target alliance 的正式成员集合和计算数量必须与同一官方来源逐项核对，同时证明 170 条 approved preserve tuples 原样不变；Excel 成员数不得作为当前候选或事实输入
 
 ### Requirement: 候选参考范围隔离
 系统 SHALL 只把指定 Excel 的首个 sheet 和范围作为候选 Review 输入，而不是可执行 seed 或权威成员来源，并使旧 CSV 候选范围 fail-closed 失效。
