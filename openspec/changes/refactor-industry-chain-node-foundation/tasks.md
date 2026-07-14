@@ -28,7 +28,7 @@
 - [x] 1.18b.1 **R0 R2 authorization Review package**：主对话已验收 1.18a.2 后，提交 [phase-a-external-identifier-mapping package](phase-a-external-identifier-mapping-authorization.md)，冻结 1,169/818/351/241/13 manifest 与 recovery/preflight/Query 断言。当前发现 mapping-only runner 尚未实现，package 明确为不可执行 Review 对象，不授权 Write。
 - [x] 1.18b.2 **R1 mapping-only runner implementation Review**：主对话复验 checkpoint `fc0ac48` 后，mapping flags 集中 fail-closed、单事务全量 plan/写入/提交前断言、DB snapshot dry-run 与冻结 first-batch 合同均已通过；仅允许进入已命名 mapping R2。
 - [x] 1.18b.3 **R2 mapping data Write -> Query/assert**：主对话以安全本地凭据注入执行并独立验收唯一 `phase-a-external-identifier-mapping` Write。冻结 SHA-256、1,169/818/351/241/13、Goose=16、842 node/profile、331 edge、三元/ID/target/orphan 与写后 dry-run 均通过；见 [execution evidence](phase-a-external-identifier-mapping-execution-evidence.md)。不构成 1.19、Phase B 或 Neo4j 授权。
-- [ ] 1.19 **R0 Phase A Acceptance Review package**：聚合 R3 cleanup 与三个 R2 命名层的实际 pre/post evidence、未验证项、阻断项和 scoped diff；全部 Query/assert 经主对话验收后才可进入 Phase B。PG cleanup 后 Neo4j 将暂时陈旧，本 change 不清理、不写入、不 rebuild；任何 Neo4j rebuild 都是本 change 外的独立 R3 授权对象。
+- [x] 1.19 **R0 Phase A Acceptance Review package**：已聚合 R3 cleanup 与三个 R2 命名层的实际 pre/post evidence、未验证项和 scoped diff；见 [Phase A Acceptance Review](phase-a-acceptance-review.md)。PG cleanup 后 Neo4j 将暂时陈旧，本 change 不清理、不写入、不 rebuild；任何 Neo4j rebuild 都是本 change 外的独立 R3 授权对象。**等待主对话验收，本条完成不授权 Phase B。**
 
 ## 2. Phase B：基于全新节点建立关系
 
