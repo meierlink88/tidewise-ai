@@ -202,7 +202,7 @@ classDiagram
 | `phase-a-backup-restore-rehearsal` | R2 | 已撤销且未完成，`backup_verified=false`；不再是本次 local cleanup 硬门槛，未来重试仍需独立授权 |
 | Phase B relation contract/implementation/tests/candidate package（2.2—2.5） | R1 | 只允许源码、migration 文件和测试修改，不 apply、不写数据库 |
 | `phase-a-legacy-industry-cleanup`（1.14） | R3，已验收 `f2bc90a` | local 不可逆 cleanup 已完成 Write 后 Query/assert；不得据此推定任何 R2 包授权 |
-| `phase-a-external-identifier-schema`（1.15） | R2，package 已准备 | 独立条件式执行包，只授权 migration 16 schema 层；Review 前不得 Write |
+| `phase-a-external-identifier-schema`（1.15） | R2，Write/Query 已完成待验收 | 独立条件式执行包只执行 migration 16 schema 层；不推定后续层授权 |
 | `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
 | `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,156 mapping 层 |
 | `phase-b-relation-schema`（2.6） | R2 | 独立条件式执行包，只授权 relation schema 层 |
@@ -246,10 +246,10 @@ sequenceDiagram
     Reviewer-->>Apply: 验收 cleanup Query（checkpoint f2bc90a）
     Note over PG,Neo4j: PG 已清理；Neo4j 仍保留旧投影并暂时陈旧
     Apply->>Evidence: 提交 phase-a-external-identifier-schema R2 package、schema diff、fresh backup 与回滚边界
-    Reviewer-->>Apply: 待主对话单独授权 external identifier schema Write
+    Reviewer-->>Apply: 单独授权 external identifier schema Write
     Apply->>PG: target-version=16 external identifier schema Write
     Apply->>PG: schema Query：表/列/FK/唯一约束/索引/版本/幂等
-    Reviewer-->>Apply: 验收 schema Query
+    Reviewer-->>Apply: 待验收 schema Query
     Apply->>Evidence: 输出 842 节点、profile、全新 UUID/key、aliases 的 final seed dry-run/report
     Reviewer-->>Apply: 单独授权 node/profile seed Write
     Apply->>PG: node/profile seed Write

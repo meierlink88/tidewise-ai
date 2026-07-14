@@ -4,8 +4,8 @@
 
 - 命名操作：`phase-a-external-identifier-schema`。
 - 风险等级：**R2**；只允许在当前 local development PostgreSQL 执行 migration 16 的 schema Write。
-- 当前状态：**R2 条件式 authorization package 已准备，尚未授权、尚未执行**。
-- task 1.14 `phase-a-legacy-industry-cleanup` 已由主对话以 checkpoint `f2bc90a` 验收；该验收不等于本包的 Write 授权。
+- 当前状态：**已获主对话 R2 条件式授权并完成一次 migration 16 Write 与同层 Query/assert；等待 execution checkpoint 人工验收。**
+- task 1.14 `phase-a-legacy-industry-cleanup` 已由主对话以 checkpoint `f2bc90a` 验收；本包的授权范围只覆盖 migration 16 schema 层。
 - 本包不授权 node/profile seed、external identifier mapping data、relation/constraint、migration 17、Neo4j、UAT/prod 或任何其他 PostgreSQL Write。
 
 ## 固定环境与当前只读状态
@@ -103,12 +103,16 @@ Write 原子结束后无论成功或失败，都必须先停止并执行只读 Q
 - 不得执行 1,156 external identifier mapping、theme 数据、relation/constraint 或 Neo4j 操作。
 - 不得把本包 Review/Write/Query 授权推定为下一层授权；每一层必须有独立命名 R2 package。
 
-## Authorization request
+## R2 execution record
 
-当前只提交本 R2 package 供主对话 Review，**不请求立即执行**。主对话需逐项确认 local 环境、migration 16 only、recovery evidence、schema diff、预计零 data rows、before/after assertions、停止条件与排除范围；确认前不得运行 migration 16。
+主对话已明确批准命名操作 `phase-a-external-identifier-schema`。在 `2026-07-14T02:10Z` maintenance window，先通过本包要求的 local identity、Goose=15/16 pending、466/331、12 类 protected checksum、profile/orphan/duplicate、同名对象不存在、零 writer/长事务/等待锁，以及 stable backup/archive assertions；随后仅执行一次标准 `go run ./cmd/dbmigrate -apply -target-version 16`。
 
-## R0/R1 package verification
+数据库 report 与独立只读 Query/assert 确认：实际 applied 只有 `000016`，Goose=16、无 pending migration；`entity_external_identifiers` rows=0，列、defaults、PK、entity FK `ON DELETE CASCADE`、三列 unique、5 个 CHECK 和 entity-side 普通 index 均与本包一致；JSONB、trigger、function、view、冗余四列 unique 均为 0。`entity_nodes=466`、12 类 count/checksum、`entity_edges=331`、event links、profile schema/rows、orphan/duplicate/blank key 均保持不变。未执行 node/profile、mapping、theme、relation、migration 17 或 Neo4j 操作。
+
+脱敏 pre/post evidence、archive 复核、命令 JSON、guard 与断言摘要位于 `/Users/meierlink/.local/share/tidewise-ai/external-identifier-schema-evidence/20260714T020919Z/`。即时 guard 有两次 SQL 形状错误，写后查询有一次 SQL 形状错误；均在 migration Write 前或只读事务 rollback 后停止；修正后的 guard/Query 通过，未产生额外数据库 Write。该执行不把 `backup_verified` 改为 true，也不构成任何下一层 Write 授权。
+
+## R0/R1 package verification（历史）
 
 - migration 16 SQL 已审计：与本包列、FK、唯一约束、索引、session 门禁和 no-data 范围一致；未发现需要生产代码修复的偏差。
 - 现有 `backend/migrations/entity_external_identifiers_schema_test.go` 覆盖 session gate、主要列、级联 FK、三列唯一约束、普通索引、非空 checks、status checks、禁止 JSONB/source mapping/四列唯一/insert；本轮补充的测试仅加强 defaults/timestamps/不可逆 Down 契约。
-- 本 checkpoint 不连接 PostgreSQL 执行 migration 16，不写 seed/mapping/relation，不连接或写入 Neo4j。
+- R0/R1 review checkpoint 未执行 migration 16、seed/mapping/relation 或 Neo4j；上述 R2 execution record 是经后续独立授权后的事实。

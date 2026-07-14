@@ -23,7 +23,7 @@
 | 1.13 | R0，已批准 | Cleanup Readiness Review package | 准备独立 restore rehearsal authorization package | restore、cleanup Write、migration 16、seed、mapping、Neo4j |
 | restore rehearsal | R0 artifact / R2 execution | `phase-a-backup-restore-rehearsal` 独立条件式执行包 | 获独立授权后只在隔离 disposable PG16 恢复并验证 backup；成功升级 `backup_verified` | migration 15、cleanup、seed、现有 PG/Neo4j Write |
 | 1.14 | R3，已验收 `f2bc90a` | `phase-a-legacy-industry-cleanup` 独立授权包 | 已完成 migration 15 与立即 Query/assert | migration 16、seed、mapping、relation、Neo4j |
-| 1.15 | R2 | `phase-a-external-identifier-schema` 条件式执行包 | migration 16 schema Write 后立即 Query/assert | node/profile 与 mapping data |
+| 1.15 | R2，Write/Query 已完成待验收 | `phase-a-external-identifier-schema` 条件式执行包 | 已完成 migration 16 schema Write 与立即 Query/assert | 1.16、node/profile、mapping、relation、Neo4j |
 | 1.16 | R0 | Final seed candidate Review package | 组装 node/profile R2 执行包 | seed Write |
 | 1.17 | R2 | `phase-a-chain-node-seed` 条件式执行包 | 842 node/profile Write 后立即 Query/assert | mapping data、theme、relation |
 | 1.18 | R0→R2 | Mapping candidate Review；随后 `phase-a-external-identifier-mapping` 条件式执行包 | 1,156 mapping Write 后立即 Query/assert | 未审阅 mapping、其他实体 mapping |
