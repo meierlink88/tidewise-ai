@@ -18,6 +18,6 @@
 
 纯 JSON table-driven 测试覆盖两个 schema 形态；真实 Goose 18 local 只读 audit 已成功，报告 alliance/profile/member_of=0/0/0、economy/profile=50/50、`has_market`=40、foreign key inventory=26、无其他 alliance incident edge，protected checksum 仍为 `32dc4eaf1132a6a18d5850b0cfd19ab0536931652557b384c0a6edaf67992cdf`。
 
-## 停止边界
+## 后续状态
 
-Package 4.2 rebuild 尚未执行，`tasks.md` 的 4.2 checkbox 保持未完成。此次 R1 checkpoint 不授权任何 PG 写入、Neo4j、其他 migration、Sync、Archive、Deliver 或 PR。
+本文件记录的 R1 audit 兼容修复已在后续单独授权的 Package 4.2 中使用。最新 R1 幂等修复与 Package 4.2 执行/零写复跑证据见 `package-4-2-execution-evidence.md`；两者不改变本文件中 Goose 17/18 profile fingerprint 的兼容语义。

@@ -59,6 +59,9 @@ type AllianceEconomyRebuildResult struct {
 	Orphans                  int    `json:"orphans"`
 	DuplicateTuples          int    `json:"duplicate_tuples"`
 	Mismatches               int    `json:"mismatches"`
+	EntityWrites             int    `json:"entity_writes"`
+	ProfileWrites            int    `json:"profile_writes"`
+	MemberWrites             int    `json:"member_writes"`
 }
 
 type allianceEconomyRebuildPreflight struct {
@@ -267,19 +270,22 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 		}
 	}
 	var result AllianceEconomyRebuildResult
-	if _, err := tx.ExecContext(ctx, allianceEconomyEntityRebuildSQL(), alliances, economies); err != nil {
+	if err := tx.QueryRowContext(ctx, allianceEconomyEntityRebuildSQL(), alliances, economies).Scan(&result.EntityWrites); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("rebuild approved alliance and economy entities: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, allianceEconomyProfileRebuildSQL(), alliances, economies); err != nil {
+	if err := tx.QueryRowContext(ctx, allianceEconomyProfileRebuildSQL(), alliances, economies).Scan(&result.ProfileWrites); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("rebuild approved alliance and economy profiles: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, allianceEconomyMemberRebuildSQL(), memberOf); err != nil {
+	if err := tx.QueryRowContext(ctx, allianceEconomyMemberRebuildSQL(), memberOf).Scan(&result.MemberWrites); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("rebuild approved member_of relationships: %w", err)
+	}
+	if exact && (result.EntityWrites != 0 || result.ProfileWrites != 0 || result.MemberWrites != 0) {
+		return AllianceEconomyRebuildResult{}, fmt.Errorf("exact idempotent alliance/economy target unexpectedly wrote rows: entities=%d profiles=%d member_of=%d", result.EntityWrites, result.ProfileWrites, result.MemberWrites)
 	}
 	if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&result.Alliances, &result.AllianceProfiles, &result.Economies, &result.EconomyProfiles, &result.MemberOf, &result.NonTargetEconomies, &result.NonTargetEconomyProfiles, &result.Orphans, &result.DuplicateTuples, &result.Mismatches); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("query rebuilt alliance economy manifest: %w", err)
 	}
-	if result != (AllianceEconomyRebuildResult{Alliances: 45, AllianceProfiles: 45, Economies: 79, EconomyProfiles: 79, MemberOf: 133, NonTargetEconomies: 15, NonTargetEconomyProfiles: 15}) {
+	if result.Alliances != 45 || result.AllianceProfiles != 45 || result.Economies != 79 || result.EconomyProfiles != 79 || result.MemberOf != 133 || result.NonTargetEconomies != 15 || result.NonTargetEconomyProfiles != 15 || result.Orphans != 0 || result.DuplicateTuples != 0 || result.Mismatches != 0 {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild exact assertion failed: %+v", result)
 	}
 	postProtected, err := allianceEconomyRebuildProtectionFingerprints(ctx, tx, economies)
@@ -430,32 +436,32 @@ func allianceEconomyFingerprintChecksum(fingerprints []string) string {
 
 func allianceEconomyCleanupProtectionSQL() string {
 	return `SELECT fingerprint FROM (
-  SELECT 'economy_node|'||to_jsonb(n)::text AS fingerprint FROM entity_nodes n WHERE n.entity_type='economy'
-  UNION ALL SELECT 'economy_profile|'||to_jsonb(p)::text FROM economy_profiles p
-  UNION ALL SELECT 'economy_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
+  SELECT 'economy_node|'||(to_jsonb(n) - 'created_at' - 'updated_at')::text AS fingerprint FROM entity_nodes n WHERE n.entity_type='economy'
+  UNION ALL SELECT 'economy_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM economy_profiles p
+  UNION ALL SELECT 'economy_edge|'||(to_jsonb(e) - 'created_at' - 'updated_at')::text FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
     WHERE (f.entity_type='economy' OR t.entity_type='economy') AND NOT (e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org')
-  UNION ALL SELECT 'market_profile|'||to_jsonb(p)::text FROM market_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'company_profile|'||to_jsonb(p)::text FROM company_profiles p JOIN entity_nodes n ON n.id=p.registration_economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'person_profile|'||to_jsonb(p)::text FROM person_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'index_profile|'||to_jsonb(i)::text FROM index_profiles i JOIN market_profiles m ON m.entity_id=i.market_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'market_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN market_profiles m ON m.entity_id=e.from_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy' AND e.relation_type IN ('tracks_index','observes_benchmark')
-  UNION ALL SELECT 'benchmark_profile|'||to_jsonb(p)::text FROM benchmark_profiles p
+  UNION ALL SELECT 'market_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM market_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'company_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM company_profiles p JOIN entity_nodes n ON n.id=p.registration_economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'person_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM person_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'index_profile|'||(to_jsonb(i) - 'created_at' - 'updated_at')::text FROM index_profiles i JOIN market_profiles m ON m.entity_id=i.market_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'market_edge|'||(to_jsonb(e) - 'created_at' - 'updated_at')::text FROM entity_edges e JOIN market_profiles m ON m.entity_id=e.from_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy' AND e.relation_type IN ('tracks_index','observes_benchmark')
+  UNION ALL SELECT 'benchmark_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM benchmark_profiles p
 ) protected ORDER BY fingerprint`
 }
 
 func allianceEconomyRebuildProtectionSQL() string {
 	return `WITH economy_input AS (SELECT * FROM jsonb_to_recordset($1::jsonb) AS x("ID" uuid,"EntityKey" text))
 SELECT fingerprint FROM (
-  SELECT 'non_target_economy_node|'||to_jsonb(n)::text AS fingerprint FROM entity_nodes n WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)
-  UNION ALL SELECT 'non_target_economy_profile|'||to_jsonb(p)::text FROM economy_profiles p JOIN entity_nodes n ON n.id=p.entity_id WHERE NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)
-  UNION ALL SELECT 'economy_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
+  SELECT 'non_target_economy_node|'||(to_jsonb(n) - 'created_at' - 'updated_at')::text AS fingerprint FROM entity_nodes n WHERE n.entity_type='economy' AND NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)
+  UNION ALL SELECT 'non_target_economy_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM economy_profiles p JOIN entity_nodes n ON n.id=p.entity_id WHERE NOT EXISTS (SELECT 1 FROM economy_input i WHERE i."ID"=n.id AND i."EntityKey"=n.entity_key)
+  UNION ALL SELECT 'economy_edge|'||(to_jsonb(e) - 'created_at' - 'updated_at')::text FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id
     WHERE (f.entity_type='economy' OR t.entity_type='economy') AND NOT (e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org')
-  UNION ALL SELECT 'market_profile|'||to_jsonb(p)::text FROM market_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'company_profile|'||to_jsonb(p)::text FROM company_profiles p JOIN entity_nodes n ON n.id=p.registration_economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'person_profile|'||to_jsonb(p)::text FROM person_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'index_profile|'||to_jsonb(i)::text FROM index_profiles i JOIN market_profiles m ON m.entity_id=i.market_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy'
-  UNION ALL SELECT 'market_edge|'||to_jsonb(e)::text FROM entity_edges e JOIN market_profiles m ON m.entity_id=e.from_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy' AND e.relation_type IN ('tracks_index','observes_benchmark')
-  UNION ALL SELECT 'benchmark_profile|'||to_jsonb(p)::text FROM benchmark_profiles p
+  UNION ALL SELECT 'market_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM market_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'company_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM company_profiles p JOIN entity_nodes n ON n.id=p.registration_economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'person_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM person_profiles p JOIN entity_nodes n ON n.id=p.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'index_profile|'||(to_jsonb(i) - 'created_at' - 'updated_at')::text FROM index_profiles i JOIN market_profiles m ON m.entity_id=i.market_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy'
+  UNION ALL SELECT 'market_edge|'||(to_jsonb(e) - 'created_at' - 'updated_at')::text FROM entity_edges e JOIN market_profiles m ON m.entity_id=e.from_entity_id JOIN entity_nodes n ON n.id=m.economy_entity_id WHERE n.entity_type='economy' AND e.relation_type IN ('tracks_index','observes_benchmark')
+  UNION ALL SELECT 'benchmark_profile|'||(to_jsonb(p) - 'created_at' - 'updated_at')::text FROM benchmark_profiles p
 ) protected ORDER BY fingerprint`
 }
 
@@ -488,11 +494,13 @@ func allianceEconomyEntityRebuildSQL() string {
 ), upsert_alliances AS (
     INSERT INTO entity_nodes(id,entity_key,entity_type,layer_code,name,canonical_name,aliases,status)
     SELECT "ID","EntityKey",'alliance_org','alliance',"Name","Name","Aliases",'active' FROM alliance_input
-    ON CONFLICT(id) DO UPDATE SET entity_key=EXCLUDED.entity_key,entity_type=EXCLUDED.entity_type,layer_code=EXCLUDED.layer_code,name=EXCLUDED.name,canonical_name=EXCLUDED.canonical_name,aliases=EXCLUDED.aliases,status='active',updated_at=now() RETURNING 1
+    ON CONFLICT(id) DO UPDATE SET entity_key=EXCLUDED.entity_key,entity_type=EXCLUDED.entity_type,layer_code=EXCLUDED.layer_code,name=EXCLUDED.name,canonical_name=EXCLUDED.canonical_name,aliases=EXCLUDED.aliases,status=EXCLUDED.status,updated_at=now()
+    WHERE (entity_nodes.entity_key,entity_nodes.entity_type,entity_nodes.layer_code,entity_nodes.name,entity_nodes.canonical_name,entity_nodes.aliases,entity_nodes.status) IS DISTINCT FROM (EXCLUDED.entity_key,EXCLUDED.entity_type,EXCLUDED.layer_code,EXCLUDED.name,EXCLUDED.canonical_name,EXCLUDED.aliases,EXCLUDED.status) RETURNING 1
 ), upsert_economies AS (
     INSERT INTO entity_nodes(id,entity_key,entity_type,layer_code,name,canonical_name,aliases,status)
     SELECT "ID","EntityKey",'economy','economy',"Name","Name","Aliases",'active' FROM economy_input
-    ON CONFLICT(id) DO UPDATE SET entity_key=EXCLUDED.entity_key,entity_type=EXCLUDED.entity_type,layer_code=EXCLUDED.layer_code,name=EXCLUDED.name,canonical_name=EXCLUDED.canonical_name,aliases=EXCLUDED.aliases,status='active',updated_at=now() RETURNING 1
+    ON CONFLICT(id) DO UPDATE SET entity_key=EXCLUDED.entity_key,entity_type=EXCLUDED.entity_type,layer_code=EXCLUDED.layer_code,name=EXCLUDED.name,canonical_name=EXCLUDED.canonical_name,aliases=EXCLUDED.aliases,status=EXCLUDED.status,updated_at=now()
+    WHERE (entity_nodes.entity_key,entity_nodes.entity_type,entity_nodes.layer_code,entity_nodes.name,entity_nodes.canonical_name,entity_nodes.aliases,entity_nodes.status) IS DISTINCT FROM (EXCLUDED.entity_key,EXCLUDED.entity_type,EXCLUDED.layer_code,EXCLUDED.name,EXCLUDED.canonical_name,EXCLUDED.aliases,EXCLUDED.status) RETURNING 1
 )
 SELECT (SELECT count(*) FROM upsert_alliances)+(SELECT count(*) FROM upsert_economies)`
 }
@@ -505,11 +513,13 @@ func allianceEconomyProfileRebuildSQL() string {
 ), upsert_alliance_profiles AS (
     INSERT INTO alliance_org_profiles(entity_id,abbreviation,leadership_summary,influence_scope_summary)
     SELECT "ID","Abbreviation","LeadershipSummary","InfluenceScopeSummary" FROM alliance_input
-    ON CONFLICT(entity_id) DO UPDATE SET abbreviation=EXCLUDED.abbreviation,leadership_summary=EXCLUDED.leadership_summary,influence_scope_summary=EXCLUDED.influence_scope_summary RETURNING 1
+    ON CONFLICT(entity_id) DO UPDATE SET abbreviation=EXCLUDED.abbreviation,leadership_summary=EXCLUDED.leadership_summary,influence_scope_summary=EXCLUDED.influence_scope_summary
+    WHERE (alliance_org_profiles.abbreviation,alliance_org_profiles.leadership_summary,alliance_org_profiles.influence_scope_summary) IS DISTINCT FROM (EXCLUDED.abbreviation,EXCLUDED.leadership_summary,EXCLUDED.influence_scope_summary) RETURNING 1
 ), upsert_economy_profiles AS (
     INSERT INTO economy_profiles(entity_id,country_code,currency_code,region)
     SELECT "ID","CountryCode","CurrencyCode","Region" FROM economy_input
-    ON CONFLICT(entity_id) DO UPDATE SET country_code=EXCLUDED.country_code,currency_code=EXCLUDED.currency_code,region=EXCLUDED.region RETURNING 1
+    ON CONFLICT(entity_id) DO UPDATE SET country_code=EXCLUDED.country_code,currency_code=EXCLUDED.currency_code,region=EXCLUDED.region
+    WHERE (economy_profiles.country_code,economy_profiles.currency_code,economy_profiles.region) IS DISTINCT FROM (EXCLUDED.country_code,EXCLUDED.currency_code,EXCLUDED.region) RETURNING 1
 )
 SELECT (SELECT count(*) FROM upsert_alliance_profiles)+(SELECT count(*) FROM upsert_economy_profiles)`
 }
@@ -520,7 +530,8 @@ func allianceEconomyMemberRebuildSQL() string {
 ), upsert_edges AS (
     INSERT INTO entity_edges(id,from_entity_id,to_entity_id,relation_type,evidence_note,status,source_name,source_url,verified_at)
     SELECT "ID","FromID","ToID",'member_of','formal_active','active',"SourceName","SourceURL","VerifiedAt"::timestamptz FROM edge_input
-    ON CONFLICT(id) DO UPDATE SET from_entity_id=EXCLUDED.from_entity_id,to_entity_id=EXCLUDED.to_entity_id,relation_type='member_of',evidence_note='formal_active',status='active',source_name=EXCLUDED.source_name,source_url=EXCLUDED.source_url,verified_at=EXCLUDED.verified_at,updated_at=now() RETURNING 1
+    ON CONFLICT(id) DO UPDATE SET from_entity_id=EXCLUDED.from_entity_id,to_entity_id=EXCLUDED.to_entity_id,relation_type=EXCLUDED.relation_type,evidence_note=EXCLUDED.evidence_note,status=EXCLUDED.status,source_name=EXCLUDED.source_name,source_url=EXCLUDED.source_url,verified_at=EXCLUDED.verified_at,updated_at=now()
+    WHERE (entity_edges.from_entity_id,entity_edges.to_entity_id,entity_edges.relation_type,entity_edges.evidence_note,entity_edges.status,entity_edges.source_name,entity_edges.source_url,entity_edges.verified_at) IS DISTINCT FROM (EXCLUDED.from_entity_id,EXCLUDED.to_entity_id,EXCLUDED.relation_type,EXCLUDED.evidence_note,EXCLUDED.status,EXCLUDED.source_name,EXCLUDED.source_url,EXCLUDED.verified_at) RETURNING 1
 )
 SELECT count(*) FROM upsert_edges`
 }

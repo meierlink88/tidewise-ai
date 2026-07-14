@@ -58,7 +58,7 @@ Acceptance criteria：
 ## 4. Local PostgreSQL Cleanup 与 Rebuild Package
 
 - [x] 4.1 **R3 scoped local cleanup Review → Write → Query**：2026-07-14 第二次、唯一获授权的 CLI 执行已完成。fresh preflight 匹配 `tidewise_local`、Goose=17、10/10/50/50/223/40、dependency checksum `c312731a72705ccf293ee3a24a58ed0aa07fe099375e12345402695600de0b9b`、protected checksum `32dc4eaf1132a6a18d5850b0cfd19ab0536931652557b384c0a6edaf67992cdf` 与 frozen manifest。删除精确为 223 `member_of`、10 profile、10 alliance；post Query 为 alliance/profile/member_of=0/0/0、economy/profile=50/50、`has_market`=40、protected checksum 不变、Goose=17。脱敏证据见 `package-4-1-execution-evidence.md`；不授权 migration、4.2 或任何下一层。
-- [ ] 4.2 **R2 latest manifest rebuild Review → Write → Query**：只在 4.1 Query 验收后由主对话另行授权，以冻结 artifact 重建 45 alliance、79 economy、133 formal-active `member_of`，并立即 Query 证明集合精确相等、端点 active、无孤儿/重复、方向正确和幂等复跑。
+- [x] 4.2 **R2 latest manifest rebuild Review → Write → Query**：主对话已单独授权并完成冻结 manifest 的 45 alliance/profile、79 target economy/profile 与 133 formal-active `member_of` 重建；随后已获授权的同 artifact 幂等验证返回 `entity/profile/member_writes=0/0/0`。Query 确认 15 non-target economy/profile 与跨域事实保持，集合精确、端点 active、无孤儿/重复/方向 mismatch。脱敏证据见 `package-4-2-execution-evidence.md`。
 
 Acceptance criteria：
 

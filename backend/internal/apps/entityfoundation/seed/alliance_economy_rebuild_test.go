@@ -111,12 +111,19 @@ func TestRebuildApprovedAllianceEconomyLocalIsAtomicExactAndIdempotent(t *testin
 				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 				WillReturnRows(sqlmock.NewRows([]string{"alliances", "alliance_profiles", "economies", "economy_profiles", "member_of", "non_target_economies", "non_target_economy_profiles", "orphans", "duplicate_tuples", "mismatches"}).AddRow(45, 45, 79, 79, 133, 15, 15, 0, 0, 0))
 		}
-		mock.ExpectExec(regexp.QuoteMeta(allianceEconomyEntityRebuildSQL())).
-			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 124))
-		mock.ExpectExec(regexp.QuoteMeta(allianceEconomyProfileRebuildSQL())).
-			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 124))
-		mock.ExpectExec(regexp.QuoteMeta(allianceEconomyMemberRebuildSQL())).
-			WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 133))
+		entityWrites, profileWrites, memberWrites := 124, 124, 133
+		if run == 1 {
+			entityWrites, profileWrites, memberWrites = 0, 0, 0
+		}
+		mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyEntityRebuildSQL())).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"writes"}).AddRow(entityWrites))
+		mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyProfileRebuildSQL())).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"writes"}).AddRow(profileWrites))
+		mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyMemberRebuildSQL())).
+			WithArgs(sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"writes"}).AddRow(memberWrites))
 		mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyExactQuerySQL())).
 			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnRows(sqlmock.NewRows([]string{"alliances", "alliance_profiles", "economies", "economy_profiles", "member_of", "non_target_economies", "non_target_economy_profiles", "orphans", "duplicate_tuples", "mismatches"}).AddRow(45, 45, 79, 79, 133, 15, 15, 0, 0, 0))
@@ -126,7 +133,7 @@ func TestRebuildApprovedAllianceEconomyLocalIsAtomicExactAndIdempotent(t *testin
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.ManifestChecksum != approvedAllianceEconomyManifestSHA256 || result.Alliances != 45 || result.AllianceProfiles != 45 || result.Economies != 79 || result.EconomyProfiles != 79 || result.MemberOf != 133 || result.NonTargetEconomies != 15 || result.NonTargetEconomyProfiles != 15 || result.Orphans != 0 || result.DuplicateTuples != 0 || result.Mismatches != 0 {
+		if result.ManifestChecksum != approvedAllianceEconomyManifestSHA256 || result.Alliances != 45 || result.AllianceProfiles != 45 || result.Economies != 79 || result.EconomyProfiles != 79 || result.MemberOf != 133 || result.NonTargetEconomies != 15 || result.NonTargetEconomyProfiles != 15 || result.Orphans != 0 || result.DuplicateTuples != 0 || result.Mismatches != 0 || result.EntityWrites != entityWrites || result.ProfileWrites != profileWrites || result.MemberWrites != memberWrites {
 			t.Fatalf("run %d result = %+v", run+1, result)
 		}
 	}
@@ -150,12 +157,12 @@ func TestRebuildApprovedAllianceEconomyLocalStopsOnProtectedFactDrift(t *testing
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"schema_ready", "id_conflicts", "key_conflicts", "unexpected_alliance_nodes", "unexpected_alliance_edges", "alliances", "alliance_profiles", "economies", "economy_profiles", "non_target_economies", "non_target_economy_profiles", "member_of"}).AddRow(true, 0, 0, 0, 0, 0, 0, 35, 35, 15, 15, 0))
 	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyRebuildProtectionSQL())).WithArgs(sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"fingerprint"}).AddRow("protected-before"))
-	mock.ExpectExec(regexp.QuoteMeta(allianceEconomyEntityRebuildSQL())).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 124))
-	mock.ExpectExec(regexp.QuoteMeta(allianceEconomyProfileRebuildSQL())).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 124))
-	mock.ExpectExec(regexp.QuoteMeta(allianceEconomyMemberRebuildSQL())).
-		WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 133))
+	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyEntityRebuildSQL())).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"writes"}).AddRow(124))
+	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyProfileRebuildSQL())).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"writes"}).AddRow(124))
+	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyMemberRebuildSQL())).
+		WithArgs(sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"writes"}).AddRow(133))
 	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyExactQuerySQL())).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"alliances", "alliance_profiles", "economies", "economy_profiles", "member_of", "non_target_economies", "non_target_economy_profiles", "orphans", "duplicate_tuples", "mismatches"}).AddRow(45, 45, 79, 79, 133, 15, 15, 0, 0, 0))

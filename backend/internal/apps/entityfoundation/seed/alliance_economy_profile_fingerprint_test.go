@@ -1,6 +1,9 @@
 package seed
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAllianceEconomyProfileFingerprintSupportsOldAndNewSchemas(t *testing.T) {
 	tests := []struct {
@@ -29,5 +32,25 @@ func TestAllianceEconomyProfileFingerprintSupportsOldAndNewSchemas(t *testing.T)
 				t.Fatalf("fingerprint = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestAllianceEconomyRebuildSQLUpdatesOnlyDistinctBusinessFields(t *testing.T) {
+	for name, statement := range map[string]string{
+		"entities":  allianceEconomyEntityRebuildSQL(),
+		"profiles":  allianceEconomyProfileRebuildSQL(),
+		"member_of": allianceEconomyMemberRebuildSQL(),
+	} {
+		if !strings.Contains(statement, "IS DISTINCT FROM") {
+			t.Fatalf("%s rebuild SQL lacks distinct business-field guard", name)
+		}
+	}
+	for name, statement := range map[string]string{
+		"cleanup": allianceEconomyCleanupProtectionSQL(),
+		"rebuild": allianceEconomyRebuildProtectionSQL(),
+	} {
+		if !strings.Contains(statement, "- 'created_at' - 'updated_at'") {
+			t.Fatalf("%s protection SQL retains volatile timestamps", name)
+		}
 	}
 }
