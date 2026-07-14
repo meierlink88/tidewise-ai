@@ -50,7 +50,7 @@
 随即只读 Query/assert 结果：
 
 - Goose=16；`entity_nodes=1,308`、active `chain_node=842`、`chain_node_profiles=842`、`entity_edges=331`、external identifier=0、theme/theme profile=0。
-- 842 个 manifest UUID/entity_key/canonical 与数据库实际记录逐一精确匹配；UUID、entity_key、canonical 无重复，profile 无 orphan，definition/boundary 均非空。
+- 主对话对 local PostgreSQL 的 fresh 只读读回确认：842 个 manifest UUID/entity_key/canonical 与数据库实际记录逐一精确匹配；UUID、entity_key、canonical 无重复，profile 无 orphan，842 条 `definition` 均非空。79 条 wide-boundary 节点的 `boundary_note` 均非空；其余 763 条按已批准的可空契约为 `NULL`/空值，未发生数据漂移。
 - 16 个 commodity 同名冲突节点均使用批准的产业语义 canonical：动力煤产业、大豆产业、天然气产业、橡胶产业、焦炭产业、焦煤产业、玉米产业、白银产业、稀土产业、纯碱产业、钴产业、铁矿石产业、铜产业、铝产业、镍产业、黄金产业。
 - 12 类非目标实体 count/checksum 与写前基线逐项相同；旧实体类型、retired schema、legacy catalog reference、blank/duplicate key 与所有已列 orphan 断言均为零。
 
@@ -63,4 +63,4 @@
 - `openspec validate refactor-industry-chain-node-foundation --strict`：通过。
 - `git diff --check`：通过。
 
-下一步仅等待 task 1.17 写后验收；mapping 层仍受 13 个未消歧 taxonomy code 阻断，且本次未写入任何 mapping。
+主对话已在本证据更正后完成 task 1.17 技术验收。下一步仅允许 task 1.18 的 R0 mapping candidate Review；mapping 层仍受 13 个未消歧 taxonomy code 阻断，且本次未写入任何 mapping。
