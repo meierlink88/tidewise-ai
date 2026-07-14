@@ -26,8 +26,8 @@
 - [x] 1.18a.1 **已废止的网页 taxonomy 研究记录**：checkpoint `1c63479` 的网页核查、单一 taxonomy 推荐、排除建议与 1,153 行重算均只保留为历史记录，不得覆盖工作簿事实或作为后续候选输入。
 - [x] 1.18a.2 **R0/R1 final mapping candidate remediation**：在不改变 migration 16、字段、domain 或 repository 的前提下，TDD 修正生成器；13 个用户核验的组合分类 code 各展开 `industry_sector` 与 `concept_sector` 两条三元 identity，重生 [最终 mapping candidate manifest](phase-a-external-identifier-mapping-candidate-review.md) 为 1,169 rows（eastmoney=818、ths=351、双来源=241），三元/确定性 ID 唯一、节点绑定完整、orphan=0、重复生成稳定。`ready_for_write=true` 仅表示候选语义完备，不构成 R2 Write 授权。
 - [x] 1.18b.1 **R0 R2 authorization Review package**：主对话已验收 1.18a.2 后，提交 [phase-a-external-identifier-mapping package](phase-a-external-identifier-mapping-authorization.md)，冻结 1,169/818/351/241/13 manifest 与 recovery/preflight/Query 断言。当前发现 mapping-only runner 尚未实现，package 明确为不可执行 Review 对象，不授权 Write。
-- [ ] 1.18b.2 **R1 mapping-only runner implementation Review**：checkpoint `8e6ff4f` 初验未通过，正在按同一 R1 范围整改：mapping flags 集中 fail-closed、单事务全量 plan/写入/提交前断言、DB snapshot dry-run 与冻结 first-batch 合同。未来 R2 写前必须创建新鲜 Goose16+842 node/profile+0 mapping custom backup 并验证 size/hash/TOC/schema/data decode；主对话复验通过前不得进入 1.18b.3。
-- [ ] 1.18b.3 **R2 mapping data Write -> Query/assert**：仅在 1.18b.2 主对话验收、R2 package 更新并获明确授权后，才写入并立即 Query/assert eastmoney=818、ths=351、总数=1,169、241 个双来源节点、13 个双 taxonomy code、三元唯一性、绑定、孤儿与幂等。
+- [x] 1.18b.2 **R1 mapping-only runner implementation Review**：主对话复验 checkpoint `fc0ac48` 后，mapping flags 集中 fail-closed、单事务全量 plan/写入/提交前断言、DB snapshot dry-run 与冻结 first-batch 合同均已通过；仅允许进入已命名 mapping R2。
+- [x] 1.18b.3 **R2 mapping data Write -> Query/assert**：主对话以安全本地凭据注入执行并独立验收唯一 `phase-a-external-identifier-mapping` Write。冻结 SHA-256、1,169/818/351/241/13、Goose=16、842 node/profile、331 edge、三元/ID/target/orphan 与写后 dry-run 均通过；见 [execution evidence](phase-a-external-identifier-mapping-execution-evidence.md)。不构成 1.19、Phase B 或 Neo4j 授权。
 - [ ] 1.19 **R0 Phase A Acceptance Review package**：聚合 R3 cleanup 与三个 R2 命名层的实际 pre/post evidence、未验证项、阻断项和 scoped diff；全部 Query/assert 经主对话验收后才可进入 Phase B。PG cleanup 后 Neo4j 将暂时陈旧，本 change 不清理、不写入、不 rebuild；任何 Neo4j rebuild 都是本 change 外的独立 R3 授权对象。
 
 ## 2. Phase B：基于全新节点建立关系

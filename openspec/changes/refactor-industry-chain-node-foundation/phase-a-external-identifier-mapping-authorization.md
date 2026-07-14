@@ -1,5 +1,7 @@
 # Phase A external identifier mapping R2 authorization Review package
 
+> 已执行并经主对话独立验收；脱敏 preflight、Write、Query/assert 与幂等 dry-run 结果见 [execution evidence](phase-a-external-identifier-mapping-execution-evidence.md)。本文件保留为授权历史，不授权任何后续层。
+
 ## 状态、风险与边界
 
 - 命名操作：`phase-a-external-identifier-mapping`。
