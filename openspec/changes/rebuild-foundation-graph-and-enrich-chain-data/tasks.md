@@ -45,7 +45,7 @@
 - [x] 1.1 Apply 前从最新 `origin/main` 复验 schema、active 三类节点、`entity_edges`、`chain_node_relations` 与重叠文件；若相对本 Proposal 审计结论漂移则回到 Review。
 - [x] 1.2 先写 targeted tests，再仅修改现有 repository query 与 relation mapper：节点限 active alliance_org/economy/chain_node，entity_edges 两端过滤，读取 chain_node_relations，补齐四类 typed mapping；projector/writer/CLI 默认复用。
 - [x] 1.3 冻结 PG projection baseline，准备并等待 `local-neo4j-foundation-cleanup` R3 授权；获批后仅清 local Tidewise namespace，不做 Neo4j backup/rollback，并立即 Query 为零。授权与脱敏 execution evidence 见 [local Neo4j 基础投影 cleanup R3 授权包](reviews/local-neo4j-foundation-cleanup-r3.md)；Tidewise nodes/relationships 已验收为 0/0，task 1.4 rebuild 仍未授权。
-- [ ] 1.4 cleanup 验收后等待 `local-neo4j-foundation-rebuild` R3 授权；获批后从 PG baseline 重建并分别验收 alliance_org/economy/chain_node counts、各 relation type/count 及 missing/duplicate/orphan/legacy=0。
+- [ ] 1.4 cleanup 验收后等待 `local-neo4j-foundation-rebuild` R3 授权；获批后从 PG baseline 重建并分别验收 alliance_org/economy/chain_node counts、各 relation type/count 及 missing/duplicate/orphan/legacy=0。独立 Review/授权包见 [local Neo4j 基础投影 rebuild R3 授权包](reviews/local-neo4j-foundation-rebuild-r3.md)；当前仅完成准备，尚未授权或执行。
 
 ## 2. 842 节点产业链关系完善 Package
 
