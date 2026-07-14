@@ -41,7 +41,7 @@ PASS
 
 ## Self-review / Code Review
 
-- 对 `origin/main...HEAD` 的 34 个文件执行范围审查：修改仅位于 entity-seed、entity foundation seed、冻结 data、domain/migration contract、migration 000018 和本 change OpenSpec artifacts。
+- 对 `origin/main...HEAD` 的 35 个文件执行范围审查：修改仅位于 entity-seed、entity foundation seed、冻结 data、domain/migration contract、migration 000018 和本 change OpenSpec artifacts。
 - 复核没有新增通用 runner/service/policy/report framework、无未批准 relation type、无 Neo4j 代码或配置、无未授权跨域写入入口。
 - 未发现阻断问题；本 package 唯一待决事项是主对话的 Apply-final 人工 Review。
 
