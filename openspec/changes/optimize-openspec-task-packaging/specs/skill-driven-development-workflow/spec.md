@@ -1,15 +1,46 @@
 ## ADDED Requirements
 
 ### Requirement: Proposal 必须声明任务包装契约
-系统 MUST 要求正式 change 的 Proposal 与 tasks 开头提供 Gate Map，并声明预计人工 gate、stateful layers、checkpoint、完整测试次数和可连续自动执行范围的复杂度预算。Gate Map MUST 列出 gate、风险类型、是否人工、合法原因和通过后允许范围；一级 task MUST 表达内聚交付 package，而不是单个操作步骤。
+系统 MUST 要求正式 change 的 Proposal 与 tasks 开头提供可机器读取且内容一致的 Gate Map 与 Complexity Budget。Proposal 的 `## Gate Map` MUST 是 `## Why` 后第一个二级 heading，tasks 的 `## Gate Map` MUST 是第一个二级 heading；其固定列 MUST 依次为 `Package`、`Gate`、`Risk`、`Human`、`Reason Code`、`Allowed Scope`。`Package` MUST 是与 `## <Package>. <name> Package` 一级 heading 一一对应的不带前导零正整数；`Risk` MUST 精确为 `R0`、`R1`、`R2` 或 `R3`；`Human` MUST 是小写 `yes` 或 `no`；`Human=yes` 的 Reason Code MUST 精确为 `SPEC_SEMANTICS`、`R3_OPERATION`、`NEO4J`、`SHARED_ENV`、`DEPLOYMENT_SECURITY`、`DRIFT_RECOVERY`、`APPLY_FINAL` 或 `GIT_COMPLETION`，`Human=no` MUST 使用 `NONE`。linter MUST 通过 Package ID 关联 Gate Map 与一级 package，不得从自然语言猜测。
+
+Complexity Budget MUST 紧跟 Gate Map，固定为 `Key`、`Value` 两列并依次包含 `human_gates`、`stateful_layers`、`checkpoints`、`full_test_runs`、`continuous_automation_scope`。前四个值 MUST 是允许零值的无符号十进制整数；连续执行范围 MUST 使用 `packages:<selector>`，selector 只能引用存在且 `Human=no` 的升序无重复 package ID/闭区间，空范围为 `packages:none`。Proposal 与 tasks 的两张机器表 MUST 经空白规范化后逐行相同。
 
 #### Scenario: 创建新的 R0 或 R1 change
 - **WHEN** Agent 为无有状态写入的正式 change 编写 Proposal 与 tasks
-- **THEN** artifacts 必须在开头提供 Gate Map 与复杂度预算，并把实现、测试、修复、验证和 Git 操作组织为同一风险边界内的 package 子项
+- **THEN** artifacts 必须按固定 heading、表头、枚举、整数和 selector schema 提供一致的 Gate Map 与 Complexity Budget，并把实现、测试、修复、验证和 Git 操作组织为对应 package 子项
+
+#### Scenario: Gate Map 与一级 package 对应
+- **WHEN** tasks 包含编号为 1、2、3 的三个一级 package
+- **THEN** Gate Map 必须按相同顺序各包含唯一 Package 1、2、3，且 linter 必须对缺失、重复、多余或顺序不一致 fail
+
+#### Scenario: Complexity Budget 可机器解析
+- **WHEN** Agent 声明零个 stateful layer、两个人工 gate 和 package 2 连续自动执行
+- **THEN** 固定值必须分别为 `stateful_layers=0`、`human_gates=2`、`continuous_automation_scope=packages:2`，不得混入单位或说明文字
 
 #### Scenario: 复杂度预算超过常见阈值
 - **WHEN** Proposal 声明的人工 gate、checkpoint 或完整测试次数高于同风险 change 的建议阈值但字段完整且风险理由合法
 - **THEN** lint 必须输出 warning 供 self-review，不得仅因启发式数量阻断 proposal
+
+### Requirement: Stateful Layer Map 必须完整映射有状态层
+系统 MUST 在 `stateful_layers>0` 时要求 Proposal 与 tasks 在 Complexity Budget 后、首个编号 package 前提供内容一致的 `## Stateful Layer Map`。固定列 MUST 依次为 `Layer`、`Package`、`Environment`、`Order`、`Scope`、`Exclusions`、`Recovery Evidence`、`Recovery Baseline`、`Expected Counts/Hash/Schema`、`Before Assertions`、`After Assertions`、`Stop Conditions`。`Layer` MUST 是唯一 kebab-case；`Package` MUST 引用 Risk 为 R2/R3 的 Gate Map package；`Environment` MUST 是 `local`、`shared-local`、`uat` 或 `prod`；`Order` MUST 在 package 内从 1 连续且唯一；空 exclusions MUST 写 `none`。Recovery Evidence MUST 是 `backup` 或 `approved-disposable-recovery`，Recovery Baseline MUST 是 `new:<kebab-id>` 或引用同环境更早 order 的 `reuse:<kebab-id>`；expected state MUST 同时提供 `counts=<value>;hash=<value>;schema=<value>`，不适用值写 `na`。其余范围与断言字段 MUST 单行非空。
+
+当 `stateful_layers=0` 时系统 MUST 允许省略 Stateful Layer Map；若仍提供该表，则 MUST 使用固定表头且不得包含数据行。linter MUST 校验数据行数等于预算值，并只通过 Package ID 关联 layer 与 package。
+
+#### Scenario: 无有状态层省略 Stateful Layer Map
+- **WHEN** Complexity Budget 声明 `stateful_layers=0`
+- **THEN** Proposal 与 tasks 可以省略 `## Stateful Layer Map`，且 lint 不得要求空占位表
+
+#### Scenario: 多层条件式执行包完整映射
+- **WHEN** 一个 R2 package 包含两个已命名 local layer
+- **THEN** Stateful Layer Map 必须有两行、引用同一 Package、使用连续 Order 1 和 2，并完整提供环境、范围、排除、recovery、expected state、前后断言和停止条件
+
+#### Scenario: Stateful layer 无法对应 package
+- **WHEN** layer 引用不存在的 Package，或引用 Risk 为 R0/R1 的 package
+- **THEN** task-design lint 必须 fail，不得根据 layer 名称或 scope 文案猜测归属
+
+#### Scenario: 复用 recovery baseline
+- **WHEN** 某行使用 `reuse:<baseline-id>`
+- **THEN** 同一 Environment 的更早 Order 必须已有 `new:<baseline-id>`，before assertions 必须复验 identity、scope、count/hash/schema；否则 lint 必须 fail
 
 ### Requirement: 人工 gate 必须使用限定风险原因
 系统 MUST 只允许以下人工 gate 原因：Spec/业务语义、R3、Neo4j、UAT/prod/shared、部署/secret/权限、scope/count/hash/schema 漂移或失败恢复、Apply-final、PR merge/cleanup。普通源码实现、测试/修复、dry-run、validate、diff/secret check、commit/push MUST NOT 单独成为人工 gate。
@@ -23,11 +54,15 @@
 - **THEN** task-design lint 必须失败并指出该 gate 的非法原因
 
 ### Requirement: Task-design lint 必须可靠且保持轻量
-系统 SHALL 复用仓库现有脚本、测试与 CI 模式实现无新依赖的 task-design lint。lint MUST 校验 Gate Map、复杂度预算、人工 gate 合法原因和 stateful package 必填字段；可静态可靠判断的违规 MUST fail，启发式复杂度 MUST 只 warning。lint MUST 只检查 active changes 或显式传入的 change，MUST NOT 扫描或改写 archive 历史，并 MUST 通过合规与违规 fixture 验证。
+系统 SHALL 复用 `backend/internal/architecture/` 的 Go 标准库测试模式实现无新依赖的 task-design lint。active mode MUST 在 `OPENSPEC_TASK_LINT_CHANGE` 未设置时扫描 active changes；explicit mode MUST 在该变量设置为单段 kebab-case change name 时只检查指定 active change并忽略 baseline 跳过。Proposal/package checkpoint 的精确 explicit 命令 MUST 是从 `backend/` 运行 `OPENSPEC_TASK_LINT_CHANGE=<change-name> go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint$' -count=1`；现有 CI 的 `go test ./...` MUST 自动运行 active mode。
+
+legacy baseline MUST 使用 repo-local `.agents/openspec-task-lint-baseline.tsv`，固定 UTF-8 TSV header 为 `change_name<TAB>reason`，只列规则 Deliver 时仍 active 的 kebab-case change name 与非空且不含 TAB/CR/LF 的单行 reason。其语义 MUST 归 `.agents/openspec-workflow.md` 所有，并只能由 scoped OpenSpec workflow/adoption change 维护；linter MUST NOT 自动改写。archive MUST 在 baseline 前自动排除；每个仍有效的 active skip MUST 输出包含 reason 与 adoption 移除提示的 warning；已归档、未知、重复或 adoption 后未移除的条目 MUST 至少 warning 且不得产生新的静默跳过能力；非法 header、空字段、非法 name 或多余列 MUST fail。
+
+lint MUST 校验固定 Markdown schema、Gate Map/package 对应、Complexity Budget、Stateful Layer Map、合法人工 gate 与两份 artifacts 一致性；可静态可靠判断的违规 MUST fail，启发式复杂度 MUST 只 warning。fixture MUST 覆盖合规 zero-stateful、合规 multi-layer、schema/mapping 违规、baseline stale/duplicate/unknown/archived、explicit mode 与 warning。
 
 #### Scenario: tasks 缺少确定性必填结构
-- **WHEN** active 或显式传入 change 的 tasks 缺 Gate Map、复杂度预算、合法人工 gate 原因，或 stateful package 缺环境、范围、断言、停止条件
-- **THEN** lint 必须失败并返回可定位的结构化错误
+- **WHEN** active 或显式传入 change 的 artifacts 缺固定 Gate Map/Complexity Budget schema、合法人工 gate 原因、package 对应，或 stateful package 缺固定 layer 字段
+- **THEN** lint 必须失败并返回包含 artifact、section 与字段的可定位错误
 
 #### Scenario: tasks 疑似过度拆分
 - **WHEN** lint 发现重复微型 Review/checkpoint 或把测试、dry-run、commit/push 疑似提升为一级 package，但无法仅靠结构可靠判定违规
@@ -35,7 +70,15 @@
 
 #### Scenario: lint 运行作用域
 - **WHEN** CI 运行 active mode 或开发者明确传入一个 change
-- **THEN** lint 必须只检查对应 active change，排除 archive，并保持规则 Deliver 前 active change 的既有 artifacts 不被自动 adoption
+- **THEN** active mode 必须排除 archive 并仅跳过 baseline 中仍 active 的 change，explicit mode 必须只校验指定 change且不得因 baseline 跳过
+
+#### Scenario: baseline 包含过期或重复条目
+- **WHEN** baseline 的 change 已归档、目录未知、重复，或已 adoption 但条目未移除
+- **THEN** lint 必须输出 warning 并停止对无效条目提供跳过能力，不能无限静默忽略
+
+#### Scenario: explicit mode 指向 archive 或未知 change
+- **WHEN** `OPENSPEC_TASK_LINT_CHANGE` 包含 archive、路径分隔符或不存在的 change name
+- **THEN** lint 必须 fail，不得扩大扫描范围或回退到 active mode
 
 #### Scenario: lint 接入现有 CI
 - **WHEN** 仓库现有 backend CI 运行 `go test ./...`
@@ -155,15 +198,15 @@
 - **THEN** 这些未命名操作不在授权范围内，Agent 不得执行
 
 ### Requirement: 新规则必须通过显式 adoption 应用于 active change
-系统 MUST 让本规则 Deliver 后创建的新 change 默认使用新流程；active change MUST 保持历史 artifacts、任务包装和授权不变，并被 task-design lint 的 legacy baseline 排除，直到其 branch 更新最新 `origin/main`、提交 scoped workflow-adoption tasks diff 并通过一次用户人工 Review。adoption 只能合并未来 gate，不能追认历史操作、取消已开始写操作的验收或扩大既有授权。
+系统 MUST 让本规则 Deliver 后创建的新 change 默认使用新流程；active change MUST 保持历史 artifacts、任务包装和授权不变，并在 `.agents/openspec-task-lint-baseline.tsv` 中以 change name 和 reason 显式登记，直到其 branch 更新最新 `origin/main`、提交 scoped workflow-adoption tasks diff并通过一次用户人工 Review。adoption diff MUST 移除对应 baseline 行，使后续 active lint 生效。adoption 只能合并未来 gate，不能追认历史操作、取消已开始写操作的验收或扩大既有授权。
 
 #### Scenario: Active change 尚未 adoption
 - **WHEN** 本规则已经 Deliver 但某 active change 尚未提交并通过 adoption Review
-- **THEN** 该 active change 必须继续按原 tasks 与授权边界执行，task-design lint 不得自动要求其改写
+- **THEN** 该 active change 必须继续按原 tasks 与授权边界执行，并只能通过 baseline 中可见的有效行被 active lint 跳过；explicit lint 仍可用于审阅
 
 #### Scenario: Adoption 合并未来 R2 gates
 - **WHEN** active change 的未开始 schema、seed 和 mapping 层被 scoped tasks diff 逐名组织为 R2 条件包并通过用户 Review
-- **THEN** 这些未来层可以使用新条件式执行包，但已开始的写操作仍按原验收完成
+- **THEN** 这些未来层可以使用新条件式执行包，adoption diff 必须移除 baseline 行，但已开始的写操作仍按原验收完成
 
 #### Scenario: Adoption 试图扩大旧授权
 - **WHEN** adoption diff 把既有批准扩展到新环境、新层、新范围或 Neo4j rebuild

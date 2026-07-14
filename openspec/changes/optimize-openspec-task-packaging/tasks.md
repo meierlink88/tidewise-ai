@@ -1,18 +1,20 @@
 ## Gate Map
 
-| Gate | Risk | Human | Reason | Allowed Scope |
-|---|---|---|---|---|
-| Proposal Review | R0 proposal / R1 change | yes | `SPEC_SEMANTICS`：确认任务包装、lint 与共享规则设计 | 仅进入第 2 个 R0/R1 Apply package；不授权 R2/R3、数据库、Neo4j、部署、Sync、Archive 或 Deliver |
-| R0/R1 Apply package | R1 | no | 同一无状态风险边界内连续执行 | 完成测试先行、规则/lint、targeted 验证、修复和一个 scoped checkpoint |
-| Apply-final Review | R1 | yes | `APPLY_FINAL`：共享规则准备同步 | 审阅通过后才允许 Sync、Archive、Deliver；不授权任何有状态操作 |
+| Package | Gate | Risk | Human | Reason Code | Allowed Scope |
+|---|---|---|---|---|---|
+| 1 | Proposal Review | R1 | yes | SPEC_SEMANTICS | 仅允许进入 package 2；不授权 R2/R3、数据库、Neo4j、部署、Sync、Archive 或 Deliver |
+| 2 | R0/R1 Apply package | R1 | no | NONE | 完成测试先行、规则/lint、targeted 验证、修复和一个 scoped checkpoint |
+| 3 | Apply-final Review | R1 | yes | APPLY_FINAL | 审阅通过后才允许 Sync、Archive、Deliver；不授权任何有状态操作 |
 
 ## Complexity Budget
 
-- 人工 gate：2。
-- Stateful layers：0。
-- Checkpoint：2（当前 Proposal checkpoint、一个 R0/R1 Apply package checkpoint）。
-- 完整测试：1 次（Apply-final 的受影响边界完整验证）。
-- 连续自动执行范围：Proposal Review 通过后，第 2 个 package 内的测试、实现、lint、targeted 验证、修复、diff/secret check、commit/push 连续执行，直到 Apply-final Review。
+| Key | Value |
+|---|---|
+| human_gates | 2 |
+| stateful_layers | 0 |
+| checkpoints | 2 |
+| full_test_runs | 1 |
+| continuous_automation_scope | packages:2 |
 
 ## 1. Proposal Review Package
 
@@ -20,10 +22,10 @@
 
 ## 2. R0/R1 Apply Package
 
-- [ ] 2.1 测试先行：在 `backend/internal/architecture/testdata/task_design/` 增加合规和违规 tasks fixture，并先用失败测试覆盖缺 Gate Map/复杂度预算、非法人工 gate、stateful 字段缺失、archive 排除、explicit scope，以及微型 Review/checkpoint/commit/push 只 warning 的边界。
+- [ ] 2.1 测试先行：在 `backend/internal/architecture/testdata/task_design/` 增加合规 zero-stateful、合规 multi-layer stateful 与违规 fixture；先用失败测试覆盖 Gate Map 固定列/枚举/package 映射、Complexity Budget 固定键/整数/selector、Stateful Layer Map 缺失/字段/order/package 映射、baseline valid-skip/stale/duplicate/unknown/archived warning、explicit mode 绕过 baseline，以及微型 Review/checkpoint/commit/push 只 warning 的边界。
 - [ ] 2.2 在 `.agents/openspec-workflow.md` 落实一级 package、Gate Map、复杂度预算、合法人工 gate、package 验证、候选全量机器校验与例外人工审阅、local-only R2 多层执行和 recovery baseline 复验；仅在必要时对根 `AGENTS.md` 保留短摘要，不复制详细流程。
-- [ ] 2.3 复用 `backend/internal/architecture/` 的 Go 标准库测试模式实现 task-design lint：确定性违规 fail、启发式复杂度 warning，仅检查 active 或显式 change，排除 archive 并保护 legacy active baseline；通过现有 backend `go test ./...` 最小接入 CI，仅在现有入口不足时增加薄 wrapper，不新增依赖或平行 job。
-- [ ] 2.4 完成 targeted `go test ./internal/architecture -run TaskDesign -count=1`、当前 change 显式 lint、OpenSpec strict validation、规则链接/重复检查、`git diff --check`、scope/secret 检查和 self-review；失败与修复留在本 package 内，确认未修改 active change、业务源码、数据库或部署状态。
+- [ ] 2.3 复用 `backend/internal/architecture/` 的 Go 标准库测试模式实现 task-design lint：active mode 在 `OPENSPEC_TASK_LINT_CHANGE` 未设置时扫描 active changes 并读取 `.agents/openspec-task-lint-baseline.tsv`；explicit mode 设置该变量后只校验指定 change 且不跳过 baseline。两种模式都排除 archive；通过现有 backend `go test ./...` 自动接入 CI，不新增依赖、wrapper 或平行 job。
+- [ ] 2.4 完成 targeted `go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint' -count=1`，并从 `backend/` 运行 `OPENSPEC_TASK_LINT_CHANGE=optimize-openspec-task-packaging go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint$' -count=1` 作为当前 change 的精确 Proposal/package checkpoint 命令；同时运行 OpenSpec strict validation、规则链接/重复检查、`git diff --check`、scope/secret 检查和 self-review，失败与修复留在本 package 内。
 - [ ] 2.5 汇总一个 R1 package evidence，记录受影响边界、fixture、fail/warning 结果、legacy active baseline、未验证项和阻断项；创建并推送一个 scoped Apply package checkpoint，不为 2.1—2.4 分别制造 Review、commit 或 push。
 
 ## 3. Apply-final Review Package
