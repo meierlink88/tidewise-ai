@@ -4,11 +4,12 @@
 
 - Layer：`local-neo4j-foundation-rebuild`
 - 风险：R3
-- 状态：**仅完成 Review 包，尚未授权、尚未执行**
+- 状态：**已获独立授权，单次执行并验收通过**
 - 准备日期：2026-07-14
-- 对应 task：1.4；checkbox 保持未完成。
+- 执行时间：2026-07-15T00:38:50+0800（PG audit `started_at=2026-07-14T16:38:50.513807Z`）
+- 对应 task：1.4；已完成 rebuild 与 Query 验收。
 
-本包申请的唯一授权是：在已验收为空的 local `projection_namespace=tidewise` 中，使用现有 `graph-projector project-entities` 从本文冻结的 PostgreSQL projection baseline 投影 981 个节点与 229 条关系，并立即 Query 验收。
+本包获得的唯一授权是：在已验收为空的 local `projection_namespace=tidewise` 中，使用现有 `graph-projector project-entities` 从本文冻结的 PostgreSQL projection baseline 投影 981 个节点与 229 条关系，并立即 Query 验收。
 
 本包不授权再次 cleanup、`rebuild-entities`、重复执行、自动重试、Package 2、PostgreSQL 业务数据写入、Neo4j sync、UAT、prod 或 shared 操作。
 
@@ -127,7 +128,7 @@ PG 与 Neo4j 的精确只读查询复用 [cleanup R3 授权包](local-neo4j-foun
 
 ## 唯一执行入口
 
-**以下命令尚未获授权、未执行。只有用户明确授权本命名 layer 后才允许单次运行。**
+**以下命令已在本 layer 的独立授权下单次执行。当前授权已消耗，不得再次执行；重试或第二次 project 必须重新 Review 与授权。**
 
 ```sh
 cd backend
@@ -225,8 +226,63 @@ Neo4j writer 使用 `MERGE`，targeted tests 已覆盖幂等 upsert 契约；本
 
 触发后立即停止并报告。不得自动 cleanup、retry、再次 project、改源码、手工补图或进入 Package 2。
 
-## 待授权文本
+## 脱敏 execution evidence
 
-本 Review 包通过后仍需用户明确给出等义授权：
+### 授权与 fresh preflight
+
+- 用户授权只命名 `local-neo4j-foundation-rebuild`，接受现有 projector 新增一条 PG projection audit metadata；明确不授权 cleanup、retry、sync、PG 业务写或 Package 2。
+- 执行前 Git HEAD 与远端均为 `6db12638228dbdab5ce2315a9ff249e421f6ec84`，worktree clean，branch 为 `codex/rebuild-foundation-graph-and-enrich-chain-data`。
+- PostgreSQL/Neo4j container name、image digest、running/healthy 状态及两个非敏感配置 hash 与 frozen baseline 一致；repo migration latest 为 18。
+- PG fresh read-only preflight 为 Goose 18 / 19 applied rows；schema hash、981 nodes、133 entity_edges、96 chain_node_relations、229 关系 direction hash 与全部 integrity 结果逐项一致；`graph_projection_runs=16`、`run_items=2`。
+- Neo4j fresh read-only preflight 为 global/Tidewise `0/0`，other namespace `0/0`；database online/read-write，constraints=0，两个 lookup indexes ONLINE 且 metadata 一致。
+- targeted repository、graphprojection、graph-projector tests 全部通过后才执行投影。
+
+### 唯一写操作
+
+- 只从 `backend/` 单次执行 `APP_ENV=local go run ./cmd/graph-projector project-entities`；凭证从 local runtime 注入且未输出。
+- CLI 退出码为 0，输出：`run=d65e5f38-7de9-5ab2-b222-7d968d2b6ad6 status=succeeded source_rows=1210 projected=1210 skipped=0 failed=0`。
+- 未调用 `rebuild-entities`，未执行 `DeleteNamespace`、cleanup、retry、第二次 project、sync 或 Package 2。
+
+### 写后 Neo4j Query/assert
+
+| Assertion | Result |
+|---|---|
+| global / Tidewise nodes | `981 / 981` |
+| node types | `alliance_org=45; economy=94; chain_node=842` |
+| global / Tidewise relationships | `229 / 229` |
+| relationship types | `MEMBER_OF=133; IS_SUBCATEGORY_OF=95; IS_COMPONENT_OF=1; INPUT_TO=0; DEPENDS_ON=0` |
+| other namespace nodes / relationships | `0 / 0` |
+| duplicate entity / edge groups | `0 / 0` |
+| invalid endpoint | 0 |
+| unsupported entity / relationship | `0 / 0` |
+| legacy `TidewiseEntity` | 0 |
+| missing/non-active node / relationship | `0 / 0` |
+| database | `neo4j / standard / read-write / online` |
+| constraints | 0 |
+| lookup indexes | `index_343aff4e NODE ONLINE 100.0; index_f7700477 RELATIONSHIP ONLINE 100.0` |
+
+PG 与 Neo4j 分别导出 229 条 `edge_id|from_id|to_id|original_relation_type|source` 脱敏 identity/direction 行，逐行完全一致；两侧 MD5 均为 `f9884df7f3b67ec50c8c74cd0f312bed`。首次辅助 hash 命令曾因把记录分隔符编码为字面量 `\\n` 得到非规范值；只读逐行诊断确认这是校验命令格式问题，不是数据差异，期间未执行任何写入或重试。
+
+### 写后 PostgreSQL Query/assert
+
+- 业务事实仍为 Goose 18 / 19 applied rows；columns hash `d46931e02d32458cd96840499a554793`、constraints hash `0d38e4ff10b291e5c557f6f49899ba49`。
+- 三类节点、entity_edges、chain_node_relations 的 count/hash 及 duplicate/orphan/endpoint integrity 全部与 frozen baseline 一致。
+- `graph_projection_runs` 精确从 16 增至 17；最新 run 为 `d65e5f38-7de9-5ab2-b222-7d968d2b6ad6 / entity_graph / project_entities / succeeded / source=1210 / projected=1210 / skipped=0 / failed=0 / namespace=tidewise`。
+- `graph_projection_run_items` 仍为 2，没有新增 skipped/failed item。
+
+### 下一授权边界
+
+task 1.4 到此完成。当前 checkpoint 不准备或执行 Package 2；必须停止，由项目经理主对话独立验收后再逐层派发下一步。
+
+### Checkpoint 验证
+
+- `openspec validate rebuild-foundation-graph-and-enrich-chain-data --strict`：通过。
+- explicit task-design lint：通过。
+- `go test ./internal/repositories ./internal/apps/graphprojection ./cmd/graph-projector -count=1`：通过。
+- `git diff --check`、scope、whitespace、secret 检查：通过；diff 仅本 Review artifact 与当前 `tasks.md`。
+
+## 本次授权记录
+
+本次执行采用并严格遵守以下授权文本；该授权已随单次投影执行而消耗：
 
 > 授权执行 `local-neo4j-foundation-rebuild`，仅在 local Neo4j 空 Tidewise namespace 中使用现有 `graph-projector project-entities` 从本文冻结 PG baseline 单次投影并 Query；接受现有 projector 写一条 PG projection audit metadata；不授权 cleanup、retry、sync、PG 业务写入或 Package 2。
