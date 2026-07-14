@@ -1,155 +1,134 @@
 ## Context
 
-`origin/main@b882c0a` 已包含 `refactor-industry-chain-node-foundation` 的归档结果：PostgreSQL 当前模型以 `entity_nodes`、最小 `chain_node_profiles`、`chain_node_relations` 和 `chain_node_physical_constraints` 表达产业节点、四类静态关系和物理约束；已验收基线为 842 个节点、95 条 `is_subcategory_of`、1 条 `is_component_of`，`input_to`、`depends_on` 和 constraint 均为 0。现状只能形成分类骨架，不能生成完整产业全景或下游穿透。当前 graph projector 却仍在 `graphEntityNodesQuery` / `graphEntityEdgesQuery` 中读取已删除的 `sector_profiles`、`industry_chain_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges`，关系映射仍包含已废止类型，并未读取新的 `chain_node_relations`。
+当前主分支已具备 842 个 chain_node、95 条 `is_subcategory_of` 与 1 条 `is_component_of`；`input_to`、`depends_on` 为 0。现有 graph projector 仍依赖已删除的旧产业表和旧关系类型，尚未读取 `chain_node_relations`。`reinitialize-alliance-economy-foundation` 仍未 Deliver，因此本 Proposal 不把其当前分支、候选或数据库状态视为最终基线。
 
-`reinitialize-alliance-economy-foundation` 尚未进入 `origin/main` 的归档历史。用户只批准本 change 先并行完成 Proposal；它的本地候选、分支快照或当前数据库状态都不是本 change 的最终基线。Apply 的第一项硬依赖是等待该 change 完整完成 Apply-final、Sync、Archive、Deliver、PR merge 与 cleanup，再从最新 `origin/main` 重做 baseline/overlap audit；若 alliance/economy schema、类型或数据范围变化，以最终 Deliver 结果为准。
-
-本 change 的最高风险为 R3，但不同操作必须按实际风险独立授权。PostgreSQL 是唯一事实源；Neo4j 只保存可由 PostgreSQL 确定性重建的查询投影。用户明确接受产品 1.0 探索期的 local Neo4j 为 disposable projection，不要求 Neo4j backup/rollback；恢复证据来自冻结并验收的 PostgreSQL 投影输入，而不是 Neo4j 副本。该例外不得推广到 UAT、prod、shared 或其他 namespace。
+本 change 只解决两个闭环：先修复当前实体模型的 PG→Neo4j 投影，再用一个审核通过的有限产业链数据批次验证 PG-first 流程。它不是通用产业数据治理平台。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- 在前置依赖 Deliver 后，确认 PostgreSQL 最终 baseline 与 projector gap，只做恢复最新模型投影闭环所需的最小 R1 适配。
-- 通过逐层 R3 授权清理 local Tidewise Neo4j 投影，并从 PostgreSQL 全量重建 active alliance、economy、chain_node 及已批准关系，完成可重复 Query 验收。
-- 用人工 Spec gate 确定有限、代表性、可关闭的首批产业链范围，并对细分节点、四类静态关系和强证据 physical constraints 形成可审阅候选。
-- 先通过独立 R2 授权把批准候选写入 PostgreSQL 并 Query，再通过单独 R3 授权同步 Neo4j 并 Query；禁止跨层推定授权。
-- 后端按 TDD 完成 projector 与候选写入边界，保留 fake writer、sqlmock/fixture、静态 migration 校验和显式真实环境 smoke 分层。
+- 在前置 change 完整 Deliver 后审计最终基线，只做现有 graph projector 所需的最小 R1 适配。
+- 以两个独立 R3 层清理和重建 disposable local Neo4j，并按实体类型、关系类型和完整性断言验收。
+- 用唯一推荐的 AI 服务器算力基础设施批次验证 change-specific manifest → PG Write/Query → Neo4j sync/Query。
+- 保持 PG R2 与 Neo4j R3 独立授权，PG 始终是唯一事实源。
 
 **Non-Goals:**
 
-- 不在 Proposal 阶段修改源码、数据库或 Neo4j，也不把未 Deliver change 的状态当最终基线。
-- 不遍历、补全或逐项 Review 全部 842 节点，不建立无限期产业数据治理任务。
-- 不把 Neo4j 作为事实源，不从 Neo4j 反写 PostgreSQL，不手工维护图事实。
-- 不做事件提取/推理、动态传导、观测数据、价格或市场表现、股票推荐、前端、UAT/prod/shared。
-- 不修改 `prototype/` 或项目外 `doc/`，不创建完成态 PR。
+- physical constraints。
+- 通用导入/候选/审核平台、policy engine、runner 或 dry-run/report framework。
+- 查询 API、图服务、推理引擎或派生关系。
+- 842 节点全量治理、UAT/prod/shared、前端、事件提取/推理、观测数据、股票推荐。
+- Proposal 阶段的源码、PostgreSQL 或 Neo4j 访问/写入。
 
 ## Decisions
 
-### 1. 一个 change、三个顶层 package
+### 1. 三个顶层 package，七个真实人工 gate
 
-采用用户确认的单 change 方案：Package 1 恢复基础投影闭环，Package 2 完成有限首批数据闭环，Package 3 承担 Apply-final、Sync、Archive、Deliver。这样可以用同一组 PostgreSQL/Neo4j 一致性断言闭合交付，同时顶层 package 不超过三个。
+Package 1 交付基础投影闭环，Package 2 交付一个纯数据批次，Package 3 交付 Apply-final、Sync、Archive、Deliver。顶层 package 不按每个授权拆碎；Human Decision Register 单独记录 Proposal 业务 Review、四个 stateful layer、Apply-final 和 Git completion 共七个决策点。
 
-备选一是拆成“projector 修复”和“首批数据完善”两个 change，优点是单次 diff 更小，但会把 local 图谱可用性与首批数据端到端验收拆开，并增加两套生命周期与共享代码重叠。备选二是直接清空并维护 Neo4j，速度快但违反 PostgreSQL 唯一事实源与可重建投影约束。两者均不采用。
+已批准 scope 内的普通 R1 测试、实现、dry read、修复、commit 与 push连续推进。checkbox 记录交付进度，不自动制造人工停顿。
 
-### 2. Apply 前置依赖与 baseline/overlap audit fail-closed
+### 2. Package 1 只适配当前 projector 契约
 
-Package 1 开始前必须证明：
+前置 dependency Deliver 后，baseline/overlap audit 只读确认最终 schema、active entity counts、`entity_edges`、`chain_node_relations` 与 projector query。若发现超出已知旧表/新关系 source 的硬差异，先回到 Review。
 
-- `reinitialize-alliance-economy-foundation` 的 archive commit 已进入最新 `origin/main`，远端 branch 与 Desktop worktree 已完成 cleanup；
-- 当前 branch 已更新到该最新基线，工作区 clean，未混入另一个 change artifacts 或源码；
-- 对 PostgreSQL schema、active entity 类型/count/hash、`entity_edges`、`chain_node_relations`、physical constraints、graph projection run schema 和 projector 查询进行只读 audit；
-- 对最终 alliance/economy 输出与本 Proposal 假设做 overlap audit，任何 schema、关系类型、文件所有权或数据范围差异先回到 artifacts Review。
+最小适配边界：
 
-不满足任一项不得开始 R1 实现，更不得请求 PostgreSQL/Neo4j Write。
+- node source：active `entity_nodes`；
+- generic relation source：active `entity_edges`；
+- industry relation source：active `chain_node_relations`；
+- mapper：固定映射四类产业关系并移除旧 `member_of_chain`、`supplies_to`、`substitutes_for` 等依赖；
+- projector/CLI：复用现有 rebuild、run report 和 namespace 删除能力。
 
-### 3. projector 使用两个 PostgreSQL 关系源并统一写图
+targeted tests 仅覆盖 repository query、mapper、projector 和 CLI 的上述必要契约，不扩大为通用 graph framework。
 
-通用客观关系继续来自 active `entity_edges`；产业静态关系来自 active `chain_node_relations`。repository 将两者转成显式来源类型，projector 统一映射为 Neo4j relationship，但保留 source table、stable relation ID、original relation type、evidence/provenance、verified_at、status 和 namespace。`is_subcategory_of`、`is_component_of`、`input_to`、`depends_on` 分别映射为安全固定类型；旧 `member_of_chain`、`supplies_to`、`substitutes_for` 不再作为产业投影来源。
+### 3. local Neo4j 使用 PG baseline 恢复，不做 Neo4j backup
 
-节点 source 只读取 active `entity_nodes` 与当前仍存在且确需投影的 profile；不得 join 已删除旧表。Apply 时先根据最终 alliance/economy Deliver 结果确定是否需要额外 profile 属性，默认不为 chain_node 建平行节点或复制 PostgreSQL 之外的属性。
+`local-neo4j-foundation-cleanup` 与 `local-neo4j-foundation-rebuild` 是两个独立 R3 授权层。Recovery Evidence 明确为用户批准的 disposable recovery；Recovery Baseline 是已冻结并验收的 PG projection baseline，不得在表中写成 Neo4j backup。
 
-```mermaid
-flowchart LR
-    PGN["PostgreSQL entity_nodes / profiles"] --> Repo["GraphProjectionRepository"]
-    PGE["PostgreSQL entity_edges"] --> Repo
-    PGC["PostgreSQL chain_node_relations"] --> Repo
-    Repo --> Mapper["graphprojection mapper / projector"]
-    Mapper --> Writer["GraphWriter"]
-    Writer --> N4J["Neo4j Entity + typed relationships"]
-    PGN -. "唯一事实源" .-> Verify["count/hash/schema assertions"]
-    PGE -.-> Verify
-    PGC -.-> Verify
-    N4J -. "Query readback" .-> Verify
-```
+cleanup 只清 Tidewise namespace。rebuild 只从 PG 投影 active `alliance_org`、`economy`、`chain_node` 与已批准关系。验收报告必须分别给出三类节点 counts、各 relation type/count，并断言 missing endpoint、duplicate identity/edge、orphan 和 legacy type 均为 0。失败时保持空/partial/stale，重新授权后从 PG 重建，不回填旧图。
 
-physical constraint 是否进入 Neo4j 不是默认推定。人工 Spec gate 必须先确认查询价值和最小表达：若纳入，优先把已批准 constraint 作为 subject node/relation 的属性或明确的 projection-only 结构，并可完全从 `chain_node_physical_constraints` 重建；不得创造 PG 不存在的事实。若未确认，constraint 只写 PG 并从本 change 的图同步范围排除。
+### 4. 唯一推荐首批：AI 服务器算力基础设施
 
-### 4. local Neo4j cleanup 与 rebuild 分层授权
+entry node 是“AI服务器”。该批次用于在有限硬件链中同时验证分类/组成关系与投入/依赖关系，且能够形成至少一条可审阅的多跳下游路径。
 
-`rebuild-entities` 的现有 namespace 删除能力可复用，但 Apply 必须证明删除范围只覆盖 local `projection_namespace=tidewise`。根据 R3 不跨层批量执行规则，cleanup 与 rebuild 分为两个命名层：
+**包含：**
 
-1. `local-neo4j-foundation-cleanup`：独立 R3 授权，只把 Tidewise 投影清到零并 Query；
-2. `local-neo4j-foundation-rebuild`：复验冻结 PG baseline 后取得下一层独立 R3 授权，全量投影并 Query。
+- AI 加速芯片与加速卡；
+- HBM；
+- 高速互连、数据中心交换与光模块；
+- 服务器电源与液冷系统；
+- AI服务器；
+- AI算力集群这一直接部署节点。
 
-不创建 Neo4j backup/rollback。cleanup 之后若 rebuild 失败，保持 Neo4j 空或不完整并标记 failed/stale，修复后仍须基于同一或重新批准的 PostgreSQL baseline 取得新授权重建，不得回填旧图。
+**边界：**
 
-### 5. 首批范围是人工 Spec gate，不在 Proposal 定稿
+- 最多两跳直接上游硬件和一跳直接部署节点；
+- 建议上限 18 个 chain_node、28 条静态关系；
+- 只允许 `is_subcategory_of`、`is_component_of`、`input_to`、`depends_on`；
+- 排除完整半导体制造设备/材料链、矿产与商品、通用云/IDC 运营、模型/软件/应用、公司/证券和 physical constraints。
 
-候选范围必须同时满足：事件研究价值高、上下游边界可在有限节点内表达、能覆盖四类关系中的至少三类、存在权威来源支持投入/依赖或物理约束、可在一个 Apply 周期关闭。建议对比以下候选：
+该范围是本轮 Proposal Review 唯一待确认业务项。未获用户确认不得进入候选生成；发现边界需外扩或超过上限时停止并另开后续数据批次。
 
-| 候选 | 代表性 | 主要风险 |
-|---|---|---|
-| AI 算力基础设施 | 可覆盖芯片/服务器/数据中心组成，以及电力、散热、先进制造设备约束 | 边界容易扩张到全部半导体与云服务 |
-| 动力电池 | 可覆盖矿产、材料、电芯、系统组成与直接投入 | 商品、材料和电池技术同义/粒度冲突较多 |
-| 光伏制造 | 可覆盖材料投入、设备依赖、产能/纯度/扩产周期约束 | 与既有粗节点重叠并可能产生过多工艺节点 |
+### 5. 双遍 AI Review 是分析方法，不是产品能力
 
-推荐从前两项中选择一项或两项，并在 Review 中冻结 entry nodes、包含/排除定义、节点上限、关系上限、constraint 上限、来源时效和停止条件。未冻结前不得生成 final manifest；无论选择结果如何，都不得把其余 842 节点纳入本 change。
+第一遍根据批准边界生成节点/关系候选、来源、证据、反例、置信度与 disposition；第二遍独立复核 identity、关系方向、端点、证据和范围。输出只形成 change-specific manifest 与 Review 清单，不新增 service、schema、policy engine 或审核框架。
 
-### 6. 双遍候选研究与证据合同
+Package 2 复用现有 schema、entity-seed/repository 和 graph-projector。Apply 先做只读 capability audit；如果现有入口无法满足 manifest 原子写入或必要验收，必须提交硬缺口证据回到 Review，不在 tasks 中预授权 migration、新 repository/service 或 runner framework。
 
-第一遍 AI researcher 只能产生候选，记录输入指纹、来源、source URL、retrieved/verified time、节点 identity/definition/boundary、关系方向与 mechanism/condition、constraint subject/type/description、支持证据、反例和置信度。第二遍独立 reviewer 必须逐项给出 approve/reject/blocked/merge disposition，并输出冲突、宽边界、低置信度和缺证据清单。
-
-`is_subcategory_of` / `is_component_of` 可以沿用主规格允许的 approved internal artifact + SHA + derivation rule + 双遍 Review；`input_to` / `depends_on` / physical constraint 必须使用强外部证据、成立条件和反例。价格、政策倾向、情绪、市场表现和投资判断不得进入 physical constraint。
-
-候选 Review 不是 Write 授权。只有用户批准的 final manifest 才能进入 R2 package；未批准项不进入 seed、PostgreSQL 或 Neo4j。
-
-### 7. PG-first 状态流与独立授权
+### 6. 最小 PG-first 数据流程
 
 ```mermaid
 sequenceDiagram
     actor Reviewer as 人工 Reviewer
-    participant Research as AI Research + 双遍 Review
+    participant Analysis as 双遍数据分析
+    participant ExistingSeed as 现有 entity-seed/repository
     participant PG as PostgreSQL
-    participant Projector as graph-projector
+    participant Projector as 现有 graph-projector
     participant Neo4j as local Neo4j
 
-    Reviewer->>Research: 批准有限首批 Spec scope
-    Research-->>Reviewer: 候选、证据、反例、置信度、异常清单
-    Reviewer->>PG: 独立授权 R2 first-batch PostgreSQL Write
-    PG-->>Reviewer: Query/assert 与 accepted baseline
-    Reviewer->>Projector: 单独授权 R3 first-batch Neo4j sync
-    Projector->>PG: 读取 accepted facts
-    Projector->>Neo4j: 同步投影
-    Neo4j-->>Reviewer: Query 与 PG/Neo4j 一致性报告
+    Reviewer->>Analysis: 确认 AI 服务器算力基础设施边界
+    Analysis-->>Reviewer: change-specific manifest
+    Reviewer->>ExistingSeed: 独立授权 R2 PG Write
+    ExistingSeed->>PG: 原子写入批准节点与关系
+    PG-->>Reviewer: 写后 Query 与幂等复验
+    Reviewer->>Projector: 单独授权 R3 Neo4j sync
+    Projector->>PG: 读取 accepted baseline
+    Projector->>Neo4j: 同步批准节点与关系
+    Neo4j-->>Reviewer: counts/type/完整性与 typed Cypher 验收
 ```
 
-R2 PostgreSQL Write 和 R3 Neo4j sync 是两个独立授权对象。PG Query 未验收、manifest/hash 漂移或任何未批准候选出现时，不得进入 Neo4j。Neo4j 同步只读 PG，不暴露反向 repository 或写回路径。
+数据 artifact 仅为本 change manifest。最小 preflight 校验 manifest hash/scope、identity、端点、tuple 与范围外保护。PG Write 必须原子化；写后 Query 与重复执行证明幂等。任何漂移、冲突或范围外变化都停止。
 
-### 8. typed 关系多跳下游查询
+### 7. 多跳只做验收 Cypher
 
-Neo4j 原始关系始终保持 PostgreSQL 方向：`A input_to B` 表示 A 的输出投入 B，下游从 A 到 B 顺向遍历；`A depends_on B` 表示 A 依赖 B，下游影响从 B 到 A，需要反向遍历。`is_subcategory_of` 与 `is_component_of` 只能用于分类/组成导航，不得计入上下游路径。
+Neo4j 保存 PG 原始 typed 关系方向。验收 Cypher 把 `input_to` 按顺向、`depends_on` 按反向组合；`is_subcategory_of` 和 `is_component_of` 只做分类/组成，不计入上下游路径。输出 depth、node path、relation path 和 evidence，用于证明首批端到端数据可查询。
 
-下游查询使用明确的查询规则组合 `input_to` outgoing 与 `depends_on` incoming，返回 depth、node path、relation path 与 evidence。该能力不新增派生 relationship、API、展示模型或数据表，也不改变 PostgreSQL 原始边方向。
+本 change 不实现查询 API、service、推理 engine、APOC framework 或派生 relationship。
 
-### 9. TDD 与验证边界
+### 8. 测试与验证
 
-Package 1 先写失败测试，再最小实现：repository query contract 覆盖不引用删除表、只读取 active nodes/edges/chain relations；mapper table-driven tests 覆盖四类新关系和旧类型排除；projector 使用 fake writer 验证 cleanup/rebuild 顺序、run counts、failed/skipped fail-closed；CLI tests 覆盖显式模式与非敏感报告。真实 PostgreSQL/Neo4j 仅通过明确标记的 integration/smoke 边界执行，普通测试不需要真实凭据。
-
-Package 2 对 candidate schema、manifest loader、identity/tuple conflict、证据合同、事务原子性、dry-run/report 和 write-after-query 先写 fixture/sqlmock/静态 migration 测试，再实现最小生产路径。Apply final 运行受影响 backend module 完整 `go test -count=1 ./...` 与共享 architecture/contract tests；若最终修改共享规则或公共基础设施，扩大为 repo-wide full validation。每个有状态层另运行 fresh preflight、post-write Query 和一致性断言。
+Package 1 targeted tests 只覆盖当前 query、mapper、projector、CLI。Package 2 tests 只覆盖 change-specific manifest scope/identity、端点、现有事务写入、幂等、范围外保护和 typed Cypher 规则。Apply-final 对实际受影响 backend 边界运行一次完整验证；不因 Proposal 预设 migration 或新框架测试矩阵。
 
 ## Risks / Trade-offs
 
-- [未 Deliver 的 alliance/economy change 改变最终输入] → Apply 前硬阻断并从最新 `origin/main` 重做 baseline/overlap audit，必要时先修订 artifacts 再 Review。
-- [旧 projector 查询在新 schema 上运行失败] → 先用静态 query tests 和可重复 repository tests 固化不得引用删除表，再做最小适配。
-- [local Neo4j cleanup 后重建失败] → 接受 disposable projection 风险，保持 failed/stale，不回滚旧图；只从冻结 PG baseline 重新授权重建。
-- [首批范围膨胀] → 人工冻结 entry nodes、包含/排除、数量上限和停止条件；禁止全量遍历 842 节点。
-- [AI 候选把弱推断当事实] → 双遍 Review、强外部证据合同、反例和置信度；未满足项 blocked/rejected。
-- [PG 与 Neo4j 授权混淆] → 两个命名执行层、两套 before/after assertions；任一旧批准不得推定后续层。
-- [physical constraint 图表达过早固化] → 先由 Spec gate 决定查询价值；默认保留在 PG，不自动进入 Neo4j。
+- [前置 change 改变最终基线] → Apply 前从最新 `origin/main` 重做 audit，差异回到 Review。
+- [首批范围扩张] → 固定 entry node、hop 边界和数量上限，超出即停止。
+- [现有写入入口有硬缺口] → 只读 audit 给出证据后回到 Review，不预授权新增结构。
+- [Neo4j cleanup 后 rebuild 失败] → 接受 disposable local projection，保持 stale 并从 PG 重新授权重建。
+- [双遍分析被误建成平台] → 只产生 change-specific manifest，不创建复用框架。
 
 ## Migration Plan
 
-1. 等待 `reinitialize-alliance-economy-foundation` 完整 Deliver 和 cleanup；更新到最新 `origin/main`，执行 read-only baseline/overlap audit，差异先回到 Review。
-2. Package 1 按 TDD 完成 projector 最小 R1 适配、targeted tests、只读 dry-run 与 Review evidence。
-3. 逐层请求并执行 `local-neo4j-foundation-cleanup` 与 `local-neo4j-foundation-rebuild` 的独立 R3 授权；每层完成 Query/assert 后才进入下一层。
-4. 人工确认首批 Spec scope；生成并双遍 Review 候选，冻结 final manifest/hash/counts。
-5. 单独请求 R2 `first-batch-postgres-write`，执行 preflight、单事务 Write、Query/assert；失败 rollback，提交后修正只能走新的 forward-fix 与授权。
-6. PG accepted baseline 验收后，单独请求 R3 `first-batch-neo4j-sync`，只读 PG 并同步/Query；不允许 Neo4j 反写。
-7. 运行 Apply-final 完整验证并等待人工 Review；通过后按顺序 Sync、Archive、Deliver。
+1. 用户确认或修订唯一推荐首批业务边界。
+2. 等待前置 change 完整 Deliver；从最新 `origin/main` 重做 baseline/overlap audit。
+3. 在批准 scope 内连续完成 Package 1 R1 tests/适配/dry read；分别请求 cleanup 与 rebuild R3 授权并逐层 Query。
+4. 生成并 Review change-specific manifest；只读确认现有能力足够，若有硬缺口返回 Review。
+5. 单独请求 R2 PG Write，执行最小 preflight、原子写入、Query 与幂等。
+6. PG 验收后单独请求 R3 Neo4j sync，执行 counts/type/完整性及 typed Cypher 验收。
+7. 运行 Apply-final 验证并等待人工 Review；通过后按顺序 Sync、Archive、Deliver。
 
 ## Open Questions
 
-- 首批选择 AI 算力基础设施、动力电池、光伏制造中的哪一项或两项？对应 entry nodes、包含/排除范围和节点/关系/constraint 上限须在 Apply 前人工定稿。
-- physical constraints 是否需要在 Neo4j 提供查询表达？若需要，采用 subject 属性还是 projection-only 结构，必须在首批 Spec gate 中确认；默认不投影。
-- `reinitialize-alliance-economy-foundation` 最终是否新增或调整 projector 需要读取的 alliance/economy profile/关系类型？以其 Deliver 后 audit 为准。
+- 用户是否确认“AI 服务器算力基础设施”作为唯一首批方向，并接受“AI服务器”entry node、两跳上游/一跳部署、最多 18 节点/28 关系及排除范围？

@@ -1,22 +1,17 @@
 ## ADDED Requirements
 
-### Requirement: 有限首批 chain node 增量候选与写入
-系统 SHALL 只对人工 Spec gate 批准的有限首批范围提出 chain_node 增量候选，并复用既有 identity/profile/seed 边界完成冲突检查、dry-run、Review 和幂等写入；不得把首批扩张为 842 节点全量重建或治理。
+### Requirement: change-specific manifest 复用现有 seed 能力
+系统 SHALL 使用仅属于本 change 的有限 manifest，并复用现有 entity-seed/repository 写入批准的 chain_node 与静态关系；不得建立通用导入、runner、dry-run/report 或 policy framework。
 
-#### Scenario: 与现有 842 节点基线对齐
-- **WHEN** 首批研究提出节点候选
-- **THEN** 系统必须先按 entity key、canonical name、aliases、definition 和 boundary 与现有基线判定 reuse、merge、update、create 或 conflict
-- **AND** 不得因名称相近创建重复节点或恢复 sector/industry_chain 容器
+#### Scenario: manifest 与既有 identity 对齐
+- **WHEN** 首批候选 manifest 进入 Review
+- **THEN** 系统必须用现有 entity identity、canonical name、aliases 和 profile 判定 reuse/update/create/conflict，并保护范围外 842 节点
 
-#### Scenario: 输出可审阅 dry-run
-- **WHEN** 首批 final node manifest 进入 PostgreSQL Write Review
-- **THEN** report 必须列出范围指纹、manifest hash、created/updated/unchanged/conflict、stable identity、profile diff、重复 alias、宽边界、orphan 和重复执行预期
-- **AND** 任一 conflict 必须阻断 Write
+#### Scenario: 最小 preflight
+- **WHEN** 准备执行批准 manifest
+- **THEN** preflight 必须校验 manifest hash/scope、identity、关系端点、tuple、目标环境与范围外保护基线
+- **AND** 任一 conflict 或漂移必须阻断 Write
 
-#### Scenario: 仅写入批准首批
-- **WHEN** `first-batch-postgres-write` 获得明确 R2 授权
-- **THEN** seed runner 必须只写入 final manifest 中人工批准的节点和 profile，并保持范围外 842 节点 identity、profile 与 checksum 不变
-
-#### Scenario: 自动化验证增量 seed
-- **WHEN** 开发者运行 entity foundation 测试
-- **THEN** fixture、loader、validator、repository fake/sqlmock、事务原子性、dry-run/report 和幂等测试必须覆盖 reuse/merge/update/create/conflict 与范围外保护
+#### Scenario: 原子写入与幂等
+- **WHEN** PostgreSQL R2 Write 获得明确授权
+- **THEN** 系统必须通过现有事务边界原子写入批准 manifest，并用写后 Query 与重复执行证明无部分写入、orphan、范围外变化或非幂等结果
