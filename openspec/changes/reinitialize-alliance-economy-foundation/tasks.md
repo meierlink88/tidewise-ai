@@ -57,7 +57,7 @@ Acceptance criteria：
 
 ## 4. Local PostgreSQL Cleanup 与 Rebuild Package
 
-- [ ] 4.1 **R3 scoped local cleanup Review → Write → Query**：只针对明确识别的 local 探索环境，在主对话单独批准 fresh count/hash、SQL 顺序与停止条件后，仅清理全部 alliance/profile 与 `economy -> alliance_org member_of`；立即 Query 证明 alliance/profile/member_of=0、economy/profile=50，且所有跨域保护 hash 不变。用户明确豁免 backup、rollback 和恢复演练；该豁免不得推广到 UAT/prod/shared。
+- [ ] 4.1 **R3 scoped local cleanup Review → Write → Query**：只针对明确识别的 local 探索环境，在主对话单独批准 fresh count/hash、SQL 顺序与停止条件后，仅清理全部 alliance/profile 与 `economy -> alliance_org member_of`；立即 Query 证明 alliance/profile/member_of=0、economy/profile=50，且所有跨域保护 hash 不变。用户明确豁免 backup、rollback 和恢复演练；该豁免不得推广到 UAT/prod/shared。2026-07-14 的首次授权执行因 PostgreSQL 单 statement snapshot 触发 zero assertion 而 rollback；本 R1 remediation 已改为删除 statement 后的独立 remaining Query，并以真实 PostgreSQL 临时表/rollback integration 覆盖。**4.1 仍未完成，必须重新获取 R3 Write 授权。**
 - [ ] 4.2 **R2 latest manifest rebuild Review → Write → Query**：只在 4.1 Query 验收后由主对话另行授权，以冻结 artifact 重建 45 alliance、79 economy、133 formal-active `member_of`，并立即 Query 证明集合精确相等、端点 active、无孤儿/重复、方向正确和幂等复跑。
 
 Acceptance criteria：

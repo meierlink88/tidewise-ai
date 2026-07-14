@@ -193,11 +193,14 @@ func (r PostgresRepository) CleanupAllianceEconomyLocal(ctx context.Context, rev
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy dependency snapshot differs from reviewed checksum")
 	}
 	var result AllianceEconomyCleanupResult
-	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupSQL()).Scan(&result.DeletedMemberOf, &result.DeletedAllianceProfiles, &result.DeletedAlliances, &result.RemainingAlliances, &result.RemainingAllianceProfiles, &result.RemainingMemberOf, &result.RemainingEconomies, &result.RemainingEconomyProfiles); err != nil {
+	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupSQL()).Scan(&result.DeletedMemberOf, &result.DeletedAllianceProfiles, &result.DeletedAlliances); err != nil {
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("cleanup alliance economy scope: %w", err)
 	}
+	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupRemainingSQL()).Scan(&result.RemainingAlliances, &result.RemainingAllianceProfiles, &result.RemainingMemberOf, &result.RemainingEconomies, &result.RemainingEconomyProfiles); err != nil {
+		return AllianceEconomyCleanupResult{}, fmt.Errorf("query alliance economy cleanup remaining scope: %w", err)
+	}
 	if result.RemainingAlliances != 0 || result.RemainingAllianceProfiles != 0 || result.RemainingMemberOf != 0 || result.RemainingEconomies != 50 || result.RemainingEconomyProfiles != 50 {
-		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy cleanup zero assertion failed")
+		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy cleanup zero assertion failed: alliance=%d alliance_profile=%d member_of=%d economy=%d economy_profile=%d", result.RemainingAlliances, result.RemainingAllianceProfiles, result.RemainingMemberOf, result.RemainingEconomies, result.RemainingEconomyProfiles)
 	}
 	postReport, err := auditAllianceEconomyRebuildDependencies(ctx, tx)
 	if err != nil {
@@ -454,12 +457,16 @@ func allianceEconomyCleanupSQL() string {
 ), deleted_alliance_profiles AS (DELETE FROM alliance_org_profiles RETURNING 1),
 deleted_alliances AS (DELETE FROM entity_nodes WHERE entity_type='alliance_org' RETURNING 1)
 SELECT (SELECT count(*) FROM deleted_member_of), (SELECT count(*) FROM deleted_alliance_profiles),
-       (SELECT count(*) FROM deleted_alliances),
-       (SELECT count(*) FROM entity_nodes WHERE entity_type='alliance_org'),
-       (SELECT count(*) FROM alliance_org_profiles),
-       (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id WHERE e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org'),
-       (SELECT count(*) FROM entity_nodes WHERE entity_type='economy'),
-       (SELECT count(*) FROM economy_profiles)`
+       (SELECT count(*) FROM deleted_alliances)`
+}
+
+func allianceEconomyCleanupRemainingSQL() string {
+	return `SELECT
+  (SELECT count(*) FROM entity_nodes WHERE entity_type='alliance_org'),
+  (SELECT count(*) FROM alliance_org_profiles),
+  (SELECT count(*) FROM entity_edges e JOIN entity_nodes f ON f.id=e.from_entity_id JOIN entity_nodes t ON t.id=e.to_entity_id WHERE e.relation_type='member_of' AND f.entity_type='economy' AND t.entity_type='alliance_org'),
+  (SELECT count(*) FROM entity_nodes WHERE entity_type='economy'),
+  (SELECT count(*) FROM economy_profiles)`
 }
 
 func allianceEconomyEntityRebuildSQL() string {

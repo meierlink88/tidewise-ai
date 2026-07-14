@@ -1,6 +1,6 @@
 # Package 4.1 R0 Scoped Local Cleanup Review
 
-> 状态：**方案 1 已于 2026-07-14 确认；R1 scope amendment 已准备**。本页仍不是 migration、cleanup、seed 或 rebuild 授权。
+> 状态：**方案 1 已于 2026-07-14 确认；R1 scope amendment 与 statement-visibility remediation 已完成**。本页仍不是 migration、cleanup、seed 或 rebuild 授权。
 
 ## 已确认范围
 
@@ -52,3 +52,11 @@
 4.1 的 after Query 必须分别比较上表所有 economy 与跨域事实的 count 和 canonical hash，并验证：非 `member_of` 的 `has_market`、`tracks_index`、`observes_benchmark` 以及 market/index/benchmark/company/person profile 行均未变化；同时验证获批 cleanup scope 为零。任何 hash 漂移、发现新 FK、其他 alliance incident edge 或环境非 local，都立即停止。
 
 **不授权：**migration apply、任何 PostgreSQL/Neo4j 写入、R2 rebuild、通用 framework 或旧 223 disposition/preserve 机制。
+
+## 2026-07-14 首次 4.1 执行失败与 R1 Remediation Evidence
+
+首次已授权 CLI 在 fresh preflight 精确匹配 environment、Goose=17、manifest hash、10/10/50/50/223/40、dependency checksum `c312731a72705ccf293ee3a24a58ed0aa07fe099375e12345402695600de0b9b` 与 protected checksum `32dc4eaf1132a6a18d5850b0cfd19ab0536931652557b384c0a6edaf67992cdf` 后失败。失败 SQL 把 data-modifying CTE 的删除与基础表 remaining count 放进同一 statement；PostgreSQL statement snapshot 使 remaining 仍读取删除前的 10/10/223，zero assertion 触发，事务 rollback，未提交任何业务数据变更。
+
+R1 remediation 仅把实现改为：第一条 delete statement 只返回 deleted count；同一 serializable transaction 的下一条只读 remaining Query 再断言 alliance/profile/member_of=0 与 economy/profile=50。失败信息现在携带五个实际 remaining count。真实 PostgreSQL integration 以 `TIDEWISE_TEST_DATABASE_URL` 的临时表验证旧单 statement 观察到 1/1/1 旧快照、下一 statement 观察到 0/0/0 且 economy/profile=50/50；测试事务总是 rollback，不接触 `tidewise_local` 业务表。
+
+此 remediation 不构成 cleanup 重试授权。4.1 checkbox 保持未完成；migration 000018、4.2 rebuild、Neo4j、手工 SQL、自动重试和 forward-fix 均未执行。

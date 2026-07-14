@@ -62,8 +62,10 @@ func TestCleanupAllianceEconomyLocalPreservesEconomiesAndProtectedFacts(t *testi
 	report := dependencyReportForTest(t, []AllianceEconomyDependencyCount{{Scope: "entity_nodes", FromType: "alliance_org", RowCount: 10}, {Scope: "entity_edges", RelationType: "member_of", FromType: "economy", ToType: "alliance_org", RowCount: 223}}, nil)
 
 	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyCleanupSQL())).WillReturnRows(
-		sqlmock.NewRows([]string{"deleted_member_of", "deleted_alliance_profiles", "deleted_alliances", "remaining_alliances", "remaining_alliance_profiles", "remaining_member_of", "remaining_economies", "remaining_economy_profiles"}).
-			AddRow(223, 10, 10, 0, 0, 0, 50, 50),
+		sqlmock.NewRows([]string{"deleted_member_of", "deleted_alliance_profiles", "deleted_alliances"}).AddRow(223, 10, 10),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyCleanupRemainingSQL())).WillReturnRows(
+		sqlmock.NewRows([]string{"remaining_alliances", "remaining_alliance_profiles", "remaining_member_of", "remaining_economies", "remaining_economy_profiles"}).AddRow(0, 0, 0, 50, 50),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT current_database()`)).WillReturnRows(sqlmock.NewRows([]string{"current_database"}).AddRow("tidewise_local"))
 	mock.ExpectQuery(regexp.QuoteMeta(allianceEconomyDependencyCountsSQL())).WillReturnRows(sqlmock.NewRows([]string{"scope", "relation_type", "from_type", "to_type", "row_count"}).AddRow("entity_nodes", "", "economy", "", 50))
