@@ -32,6 +32,155 @@ func TestTaskDesignLintFixtures(t *testing.T) {
 	}
 }
 
+func TestTaskDesignGateBudgetMutationsFailClosed(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(proposal, tasks string) (string, string)
+		code   string
+	}{
+		{"risk enum", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| 1 | Proposal Review | R1 |", "| 1 | Proposal Review | R9 |", 1), tasks
+		}, "gate-risk"},
+		{"human enum", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| 1 | Proposal Review | R1 | yes |", "| 1 | Proposal Review | R1 | YES |", 1), tasks
+		}, "gate-human"},
+		{"reason enum", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| 1 | Proposal Review | R1 | yes | SPEC_SEMANTICS |", "| 1 | Proposal Review | R1 | yes | IMPLEMENTATION |", 1), tasks
+		}, "gate-reason"},
+		{"duplicate package", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| 2 | Apply Package |", "| 1 | Apply Package |", 1), tasks
+		}, "gate-package"},
+		{"gate package mapping", func(p, tasks string) (string, string) {
+			return p, strings.Replace(tasks, "## 2. Apply Package", "## 4. Apply Package", 1)
+		}, "package-mapping"},
+		{"budget key order", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| human_gates | 2 |", "| checkpoints | 2 |", 1), tasks
+		}, "budget-keys"},
+		{"budget unsigned integer", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| checkpoints | 2 |", "| checkpoints | -1 |", 1), tasks
+		}, "budget-integer"},
+		{"human gate count", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| human_gates | 2 |", "| human_gates | 1 |", 1), tasks
+		}, "budget-human-gates"},
+		{"selector missing package", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "packages:2", "packages:4", 1), tasks
+		}, "budget-selector"},
+		{"selector human package", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "packages:2", "packages:1", 1), tasks
+		}, "budget-selector"},
+		{"selector duplicate", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "packages:2", "packages:2,2", 1), tasks
+		}, "budget-selector"},
+		{"selector out of order", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "packages:2", "packages:2-1", 1), tasks
+		}, "budget-selector"},
+		{"selector leading zero", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "packages:2", "packages:02", 1), tasks
+		}, "budget-selector"},
+		{"gate row missing", func(p, tasks string) (string, string) {
+			return strings.Replace(p, "| 3 | Apply-final Review |", "", 1), tasks
+		}, "gate-mismatch"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, proposal := readTaskDesignFixture(t, "compliant-zero", "proposal.md")
+			_, tasks := readTaskDesignFixture(t, "compliant-zero", "tasks.md")
+			proposal, tasks = tt.mutate(proposal, tasks)
+			result := lintTaskDesignArtifacts("proposal.md", proposal, "tasks.md", tasks)
+			assertTaskDesignDiagnostic(t, result.Errors, tt.code)
+		})
+	}
+}
+
+func TestTaskDesignStatefulMutationsFailClosed(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(string) string
+		code   string
+	}{
+		{"header", func(s string) string { return strings.Replace(s, "| Layer | Package |", "| Wrong | Package |", 1) }, "stateful-header"},
+		{"row count", func(s string) string { return strings.Replace(s, "| seed-layer | 2 |", "", 1) }, "stateful-count"},
+		{"package risk", func(s string) string { return strings.Replace(s, "| schema-layer | 2 |", "| schema-layer | 1 |", 1) }, "stateful-package"},
+		{"environment", func(s string) string {
+			return strings.Replace(s, "| schema-layer | 2 | local |", "| schema-layer | 2 | remote |", 1)
+		}, "stateful-environment"},
+		{"order", func(s string) string {
+			return strings.Replace(s, "| seed-layer | 2 | local | 2 |", "| seed-layer | 2 | local | 3 |", 1)
+		}, "stateful-order"},
+		{"required field", func(s string) string {
+			return strings.Replace(s, "| schema-layer | 2 | local | 1 | schema v1 |", "| schema-layer | 2 | local | 1 |  |", 1)
+		}, "stateful-field"},
+		{"exclusions required", func(s string) string {
+			return strings.Replace(s, "| schema-layer | 2 | local | 1 | schema v1 | none |", "| schema-layer | 2 | local | 1 | schema v1 |  |", 1)
+		}, "stateful-field"},
+		{"before assertions required", func(s string) string { return strings.Replace(s, "| identity scope count hash schema |", "|  |", 1) }, "stateful-field"},
+		{"after assertions required", func(s string) string { return strings.Replace(s, "| schema=v1 |", "|  |", 1) }, "stateful-field"},
+		{"stop conditions required", func(s string) string { return strings.Replace(s, "| drift or failure |", "|  |", 1) }, "stateful-field"},
+		{"layer duplicate", func(s string) string { return strings.Replace(s, "| seed-layer |", "| schema-layer |", 1) }, "stateful-layer"},
+		{"disposable environment", func(s string) string {
+			s = strings.Replace(s, "| schema-layer | 2 | local | 1 |", "| schema-layer | 2 | shared-local | 1 |", 1)
+			return strings.Replace(s, "| schema-layer | 2 | shared-local | 1 | schema v1 | none | backup |", "| schema-layer | 2 | shared-local | 1 | schema v1 | none | approved-disposable-recovery |", 1)
+		}, "stateful-recovery"},
+		{"reuse baseline", func(s string) string { return strings.Replace(s, "reuse:local-window", "reuse:missing-window", 1) }, "stateful-baseline"},
+		{"baseline malformed", func(s string) string { return strings.Replace(s, "new:local-window", "bad-baseline", 1) }, "stateful-baseline"},
+		{"baseline duplicate new", func(s string) string { return strings.Replace(s, "reuse:local-window", "new:local-window", 1) }, "stateful-baseline"},
+		{"baseline forward reuse", func(s string) string { return strings.Replace(s, "new:local-window", "reuse:local-window", 1) }, "stateful-baseline"},
+		{"baseline different environment", func(s string) string {
+			return strings.Replace(s, "| seed-layer | 2 | local |", "| seed-layer | 2 | shared-local |", 1)
+		}, "stateful-baseline"},
+		{"expected state", func(s string) string {
+			return strings.Replace(s, "counts=1;hash=abc;schema=v1", "counts=1;hash=abc", 1)
+		}, "stateful-expected"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, proposal := readTaskDesignFixture(t, "compliant-stateful", "proposal.md")
+			_, tasks := readTaskDesignFixture(t, "compliant-stateful", "tasks.md")
+			proposal, tasks = tt.mutate(proposal), tt.mutate(tasks)
+			result := lintTaskDesignArtifacts("proposal.md", proposal, "tasks.md", tasks)
+			assertTaskDesignDiagnostic(t, result.Errors, tt.code)
+		})
+	}
+}
+
+func TestTaskDesignArtifactMismatchAndHeadingBoundaries(t *testing.T) {
+	_, proposal := readTaskDesignFixture(t, "compliant-stateful", "proposal.md")
+	_, tasks := readTaskDesignFixture(t, "compliant-stateful", "tasks.md")
+	for _, tt := range []struct {
+		name   string
+		mutate func(string) string
+		code   string
+	}{
+		{"gate mismatch", func(s string) string {
+			return strings.Replace(s, "| 1 | Proposal Review |", "| 1 | Changed Review |", 1)
+		}, "gate-mismatch"},
+		{"budget mismatch", func(s string) string { return strings.Replace(s, "| checkpoints | 2 |", "| checkpoints | 3 |", 1) }, "budget-mismatch"},
+		{"stateful mismatch", func(s string) string { return strings.Replace(s, "schema v1", "schema v2", 1) }, "stateful-mismatch"},
+		{"proposal heading order", func(s string) string { return strings.Replace(s, "## Why", "## Context", 1) }, "gate-heading"},
+		{"tasks heading order", func(s string) string { return "## Context\n\n" + s }, "gate-heading"},
+		{"budget heading order", func(s string) string { return strings.Replace(s, "## Complexity Budget", "## Other", 1) }, "budget-heading"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			mutatedProposal, mutatedTasks := proposal, tasks
+			if strings.Contains(tt.name, "tasks") {
+				mutatedTasks = tt.mutate(tasks)
+			} else {
+				mutatedProposal = tt.mutate(proposal)
+			}
+			result := lintTaskDesignArtifacts("proposal.md", mutatedProposal, "tasks.md", mutatedTasks)
+			assertTaskDesignDiagnostic(t, result.Errors, tt.code)
+		})
+	}
+
+	zeroProposalPath, zeroProposal := readTaskDesignFixture(t, "compliant-zero", "proposal.md")
+	zeroTasksPath, zeroTasks := readTaskDesignFixture(t, "compliant-zero", "tasks.md")
+	emptyLayerTable := "\n## Stateful Layer Map\n\n| Layer | Package | Environment | Order | Scope | Exclusions | Recovery Evidence | Recovery Baseline | Expected Counts/Hash/Schema | Before Assertions | After Assertions | Stop Conditions |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n"
+	result := lintTaskDesignArtifacts(zeroProposalPath, zeroProposal+emptyLayerTable, zeroTasksPath, zeroTasks+emptyLayerTable)
+	if len(result.Errors) != 0 {
+		t.Fatalf("stateful_layers=0 empty map errors = %v", result.Errors)
+	}
+}
+
 func TestTaskDesignBaselineWarnings(t *testing.T) {
 	root := t.TempDir()
 	writeTaskDesignTestFile(t, root, ".agents/openspec-task-lint-baseline.tsv", "change_name\treason\nlegacy-active\tactive before delivery\nlegacy-active\tduplicate row\nlegacy-archived\tarchived later\nlegacy-unknown\tmissing branch\n")

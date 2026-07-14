@@ -190,7 +190,7 @@ func parseTaskDesignArtifact(path, content string, proposal bool, result *taskDe
 	if statefulCount > 0 && layerIndex < 0 {
 		result.Errors = append(result.Errors, taskDesignError("stateful-map-missing", path, "Stateful Layer Map", "heading", "stateful_layers is greater than zero"))
 	} else if layerIndex >= 0 {
-		if layerIndex != budgetIndex+1 {
+		if statefulCount > 0 && layerIndex != budgetIndex+1 {
 			result.Errors = append(result.Errors, taskDesignError("stateful-heading", path, "Stateful Layer Map", "heading", "Stateful Layer Map must immediately follow Complexity Budget"))
 		}
 		table, ok := parseTaskDesignTable(artifact.Sections[layerIndex].Content)
@@ -297,7 +297,7 @@ func lintTaskDesignSelector(path, scope string, gates map[int]taskDesignGate, re
 		if len(bounds) == 2 {
 			end, err = strconv.Atoi(bounds[1])
 		}
-		if err != nil || start < 1 || end < start {
+		if err != nil || start < 1 || end < start || strconv.Itoa(start) != bounds[0] || (len(bounds) == 2 && strconv.Itoa(end) != bounds[1]) {
 			result.Errors = append(result.Errors, taskDesignError("budget-selector", path, "Complexity Budget", "continuous_automation_scope", "selector IDs and ranges must be positive and ascending"))
 			return
 		}
