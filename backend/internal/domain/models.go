@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type Status string
@@ -71,23 +72,36 @@ func (e EntityNode) Validate() error {
 }
 
 type AllianceOrgProfile struct {
-	EntityID      string
-	OrgCode       string
-	OrgType       string
-	PrimaryDomain string
-	ScopeRegion   string
-	OfficialURL   string
+	EntityID              string
+	Abbreviation          string
+	LeadershipSummary     string
+	InfluenceScopeSummary string
 }
 
 func (p AllianceOrgProfile) Validate() error {
-	if p.EntityID == "" {
+	if strings.TrimSpace(p.EntityID) == "" {
 		return fmt.Errorf("entity id is required")
 	}
-	if p.OrgCode == "" {
-		return fmt.Errorf("org code is required")
+	abbreviation := strings.TrimSpace(p.Abbreviation)
+	if utf8.RuneCountInString(abbreviation) > 32 {
+		return fmt.Errorf("abbreviation exceeds 32 characters")
 	}
-	if p.OrgType == "" {
-		return fmt.Errorf("org type is required")
+	if abbreviation == "—" {
+		return fmt.Errorf("abbreviation placeholder is not allowed")
+	}
+	leadership := strings.TrimSpace(p.LeadershipSummary)
+	if leadership == "" {
+		return fmt.Errorf("leadership summary is required")
+	}
+	if utf8.RuneCountInString(leadership) > 500 {
+		return fmt.Errorf("leadership summary exceeds 500 characters")
+	}
+	influence := strings.TrimSpace(p.InfluenceScopeSummary)
+	if influence == "" {
+		return fmt.Errorf("influence scope summary is required")
+	}
+	if utf8.RuneCountInString(influence) > 1000 {
+		return fmt.Errorf("influence scope summary exceeds 1000 characters")
 	}
 	return nil
 }

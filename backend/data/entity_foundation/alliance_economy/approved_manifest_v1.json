@@ -1,0 +1,3182 @@
+{
+  "version": 1,
+  "checksums": {
+    "alliances": "4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a",
+    "alliance_details": "07a3362347088e264f4ff977acbb3e6d6010f40d6ceb05c3f390a6fa7d9d4043",
+    "economies": "66c1e13af00ca1c898132fec113812e971aa52adbf2da17400e331a4c5ae3db1",
+    "economy_details": "71086becf32081414f99c6fb9a4a139df80a793c610aa89a5e0b1f797c8e2f52",
+    "member_of": "c3d652571fa93307088633cbfe06dce18b1257d8ac2b3ee2ae88c5a27e69fcf7",
+    "member_of_details": "12e8f23e4219a0aa26484b516e14a624197cf64366c9a09e066b7ff7f4fce910"
+  },
+  "alliances": [
+    {
+      "sheet_row": 3,
+      "entity_key": "alliance_org:g20",
+      "name": "二十国集团",
+      "aliases": [
+        "G20"
+      ],
+      "profile": {
+        "abbreviation": "G20",
+        "leadership_summary": "轮值主席国制（美 / 中 / 德 / 日等大国轮流）",
+        "influence_scope_summary": "全球宏观经济政策协调首要平台，金融危机 / 疫情等重大危机应对核心机制"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 4,
+      "entity_key": "alliance_org:g7",
+      "name": "七国集团",
+      "aliases": [
+        "G7"
+      ],
+      "profile": {
+        "abbreviation": "G7",
+        "leadership_summary": "美国、德国、日本（轮值主导）",
+        "influence_scope_summary": "西方发达国家最高协调机制，货币政策 / 地缘政治 / 科技制裁统一发声平台"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 5,
+      "entity_key": "alliance_org:unsc",
+      "name": "联合国安全理事会",
+      "aliases": [
+        "UNSC"
+      ],
+      "profile": {
+        "abbreviation": "UNSC",
+        "leadership_summary": "五常主导",
+        "influence_scope_summary": "唯一有权授权军事行动，决定战争与和平"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 6,
+      "entity_key": "alliance_org:nato",
+      "name": "北大西洋公约组织",
+      "aliases": [
+        "NATO"
+      ],
+      "profile": {
+        "abbreviation": "NATO",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "全球最强大军事同盟，主导欧洲安全秩序"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 7,
+      "entity_key": "alliance_org:sco",
+      "name": "上海合作组织",
+      "aliases": [
+        "SCO"
+      ],
+      "profile": {
+        "abbreviation": "SCO",
+        "leadership_summary": "中俄共同主导",
+        "influence_scope_summary": "欧亚大陆最大综合性区域组织，影响全球 30% 人口"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 8,
+      "entity_key": "alliance_org:five_eyes",
+      "name": "五眼联盟",
+      "aliases": [
+        "Five Eyes"
+      ],
+      "profile": {
+        "abbreviation": "Five Eyes",
+        "leadership_summary": "美英主导",
+        "influence_scope_summary": "全球最紧密情报体系，深度影响全球安全与科技博弈"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 9,
+      "entity_key": "alliance_org:eu",
+      "name": "欧洲联盟",
+      "aliases": [
+        "EU"
+      ],
+      "profile": {
+        "abbreviation": "EU",
+        "leadership_summary": "欧盟",
+        "influence_scope_summary": "全球第二大经济体，规则制定能力仅次于美国"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 10,
+      "entity_key": "alliance_org:asean",
+      "name": "东南亚国家联盟",
+      "aliases": [
+        "ASEAN"
+      ],
+      "profile": {
+        "abbreviation": "ASEAN",
+        "leadership_summary": "东盟",
+        "influence_scope_summary": "亚太秩序关键一极，RCEP 与东亚合作中心轮轴"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 11,
+      "entity_key": "alliance_org:au",
+      "name": "非洲联盟",
+      "aliases": [
+        "AU"
+      ],
+      "profile": {
+        "abbreviation": "AU",
+        "leadership_summary": "非盟",
+        "influence_scope_summary": "非洲最高政治机构，G20 正式成员"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 12,
+      "entity_key": "alliance_org:las",
+      "name": "阿拉伯国家联盟",
+      "aliases": [
+        "LAS"
+      ],
+      "profile": {
+        "abbreviation": "LAS",
+        "leadership_summary": "阿盟",
+        "influence_scope_summary": "阿拉伯世界政治核心，影响中东地缘与能源"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 13,
+      "entity_key": "alliance_org:gcc",
+      "name": "海湾合作委员会",
+      "aliases": [
+        "GCC"
+      ],
+      "profile": {
+        "abbreviation": "GCC",
+        "leadership_summary": "海合会",
+        "influence_scope_summary": "全球石油定价权核心，影响全球能源格局"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 14,
+      "entity_key": "alliance_org:oic",
+      "name": "伊斯兰合作组织",
+      "aliases": [
+        "OIC"
+      ],
+      "profile": {
+        "abbreviation": "OIC",
+        "leadership_summary": "沙特等主导",
+        "influence_scope_summary": "伊斯兰世界最大政府间组织，覆盖 18 亿穆斯林"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 15,
+      "entity_key": "alliance_org:oas",
+      "name": "美洲国家组织",
+      "aliases": [
+        "OAS"
+      ],
+      "profile": {
+        "abbreviation": "OAS",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "西半球最大政治组织，美国后院治理工具"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 17,
+      "entity_key": "alliance_org:wto",
+      "name": "世界贸易组织",
+      "aliases": [
+        "WTO"
+      ],
+      "profile": {
+        "abbreviation": "WTO",
+        "leadership_summary": "多边",
+        "influence_scope_summary": "全球贸易规则制定与争端解决，覆盖 98% 国际贸易"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 18,
+      "entity_key": "alliance_org:rcep",
+      "name": "区域全面经济伙伴关系协定",
+      "aliases": [
+        "RCEP"
+      ],
+      "profile": {
+        "abbreviation": "RCEP",
+        "leadership_summary": "东盟主导 / 中国核心参与",
+        "influence_scope_summary": "全球最大自贸区，重塑亚太供应链格局"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 19,
+      "entity_key": "alliance_org:cptpp",
+      "name": "全面与进步跨太平洋伙伴关系协定",
+      "aliases": [
+        "CPTPP"
+      ],
+      "profile": {
+        "abbreviation": "CPTPP",
+        "leadership_summary": "日本主导",
+        "influence_scope_summary": "全球最高标准经贸规则，数字经济规则标杆"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 20,
+      "entity_key": "alliance_org:usmca",
+      "name": "美墨加协定",
+      "aliases": [
+        "USMCA"
+      ],
+      "profile": {
+        "abbreviation": "USMCA",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "北美供应链核心框架，含对华 \"毒丸条款\""
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 21,
+      "entity_key": "alliance_org:cafta",
+      "name": "中国 - 东盟自由贸易区",
+      "aliases": [
+        "CAFTA"
+      ],
+      "profile": {
+        "abbreviation": "CAFTA",
+        "leadership_summary": "中 - 东盟共同主导",
+        "influence_scope_summary": "发展中国家间最大自贸区，RCEP 基础框架"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 22,
+      "entity_key": "alliance_org:eaeu",
+      "name": "欧亚经济联盟",
+      "aliases": [
+        "EAEU"
+      ],
+      "profile": {
+        "abbreviation": "EAEU",
+        "leadership_summary": "俄罗斯主导",
+        "influence_scope_summary": "后苏联空间经济一体化核心"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 23,
+      "entity_key": "alliance_org:mercosur",
+      "name": "南方共同市场",
+      "aliases": [
+        "MERCOSUR"
+      ],
+      "profile": {
+        "abbreviation": "MERCOSUR",
+        "leadership_summary": "巴西阿根廷主导",
+        "influence_scope_summary": "拉美最大经济一体化组织"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 24,
+      "entity_key": "alliance_org:afcfta",
+      "name": "非洲大陆自由贸易区",
+      "aliases": [
+        "AfCFTA"
+      ],
+      "profile": {
+        "abbreviation": "AfCFTA",
+        "leadership_summary": "非盟主导",
+        "influence_scope_summary": "全球成员最多自贸区，非洲工业化关键"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 26,
+      "entity_key": "alliance_org:opec",
+      "name": "石油输出国组织",
+      "aliases": [
+        "OPEC"
+      ],
+      "profile": {
+        "abbreviation": "OPEC",
+        "leadership_summary": "沙特主导",
+        "influence_scope_summary": "全球石油定价权核心，直接决定国际油价走势"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 27,
+      "entity_key": "alliance_org:opec_plus",
+      "name": "OPEC+（欧佩克 +）",
+      "aliases": [
+        "OPEC+"
+      ],
+      "profile": {
+        "abbreviation": "OPEC+",
+        "leadership_summary": "沙特 + 俄罗斯联合主导",
+        "influence_scope_summary": "掌控全球半数石油供应，减产决议影响全球经济"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 28,
+      "entity_key": "alliance_org:iea",
+      "name": "国际能源署",
+      "aliases": [
+        "IEA"
+      ],
+      "profile": {
+        "abbreviation": "IEA",
+        "leadership_summary": "美欧主导",
+        "influence_scope_summary": "发达国家能源安全核心，战略储备调控油价"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 29,
+      "entity_key": "alliance_org:gecf",
+      "name": "天然气出口国论坛",
+      "aliases": [
+        "GECF"
+      ],
+      "profile": {
+        "abbreviation": "GECF",
+        "leadership_summary": "俄罗斯 + 伊朗主导",
+        "influence_scope_summary": "全球天然气储量七成掌控，气价博弈核心"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 30,
+      "entity_key": "alliance_org:msp",
+      "name": "矿产安全伙伴关系",
+      "aliases": [
+        "MSP"
+      ],
+      "profile": {
+        "abbreviation": "MSP",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "西方关键矿产供应链联盟，制衡中国资源优势"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 32,
+      "entity_key": "alliance_org:imf",
+      "name": "国际货币基金组织",
+      "aliases": [
+        "IMF"
+      ],
+      "profile": {
+        "abbreviation": "IMF",
+        "leadership_summary": "美欧主导",
+        "influence_scope_summary": "全球金融安全网核心，SDR 发行，危机救助决定国家命运"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 33,
+      "entity_key": "alliance_org:world_bank",
+      "name": "世界银行集团",
+      "aliases": [
+        "WBG"
+      ],
+      "profile": {
+        "abbreviation": "WBG",
+        "leadership_summary": "美欧主导",
+        "influence_scope_summary": "全球最大多边开发机构，影响发展中国家政策方向"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 34,
+      "entity_key": "alliance_org:aiib",
+      "name": "亚洲基础设施投资银行",
+      "aliases": [
+        "AIIB"
+      ],
+      "profile": {
+        "abbreviation": "AIIB",
+        "leadership_summary": "中国主导发起",
+        "influence_scope_summary": "新兴多边金融机构代表，重塑亚洲基建融资格局"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 35,
+      "entity_key": "alliance_org:ndb",
+      "name": "新开发银行（金砖银行）",
+      "aliases": [
+        "NDB"
+      ],
+      "profile": {
+        "abbreviation": "NDB",
+        "leadership_summary": "金砖共同主导",
+        "influence_scope_summary": "金砖国家金融合作核心，推动去美元化"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 36,
+      "entity_key": "alliance_org:cmim",
+      "name": "清迈倡议多边化",
+      "aliases": [
+        "CMIM"
+      ],
+      "profile": {
+        "abbreviation": "CMIM",
+        "leadership_summary": "东盟 + 中日韩",
+        "influence_scope_summary": "亚洲区域金融防火墙，2400 亿美元互换规模"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 37,
+      "entity_key": "alliance_org:who",
+      "name": "世界卫生组织",
+      "aliases": [
+        "WHO"
+      ],
+      "profile": {
+        "abbreviation": "WHO",
+        "leadership_summary": "联合国专门机构",
+        "influence_scope_summary": "全球公共卫生最高权威，疫情应对直接影响全球经济"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 38,
+      "entity_key": "alliance_org:iaea",
+      "name": "国际原子能机构",
+      "aliases": [
+        "IAEA"
+      ],
+      "profile": {
+        "abbreviation": "IAEA",
+        "leadership_summary": "多边（美欧影响大）",
+        "influence_scope_summary": "核不扩散核查权，决定伊朗、朝鲜等核问题走向"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 40,
+      "entity_key": "alliance_org:bri",
+      "name": "一带一路倡议",
+      "aliases": [
+        "BRI"
+      ],
+      "profile": {
+        "abbreviation": "BRI",
+        "leadership_summary": "中国首倡主导",
+        "influence_scope_summary": "中国全球经济外交旗舰，重塑全球基建与贸易格局"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 41,
+      "entity_key": "alliance_org:ipef",
+      "name": "印太经济框架",
+      "aliases": [
+        "IPEF"
+      ],
+      "profile": {
+        "abbreviation": "IPEF",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "美国印太经济战略核心，重塑供应链与数字规则"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 42,
+      "entity_key": "alliance_org:quad",
+      "name": "四方安全对话",
+      "aliases": [
+        "QUAD"
+      ],
+      "profile": {
+        "abbreviation": "QUAD",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "印太战略制衡核心，中美博弈关键小多边平台"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 43,
+      "entity_key": "alliance_org:brics",
+      "name": "金砖国家合作机制",
+      "aliases": [
+        "BRICS"
+      ],
+      "profile": {
+        "abbreviation": "BRICS",
+        "leadership_summary": "中俄巴印南共同主导",
+        "influence_scope_summary": "全球南方核心平台，推动多极化与去美元化"
+      },
+      "action": "keep",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 44,
+      "entity_key": "alliance_org:pgii",
+      "name": "全球基础设施和投资伙伴关系",
+      "aliases": [
+        "PGII"
+      ],
+      "profile": {
+        "abbreviation": "PGII",
+        "leadership_summary": "美国 / G7 主导",
+        "influence_scope_summary": "G7 对标一带一路的基建方案，6000 亿美元规模"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 45,
+      "entity_key": "alliance_org:ujr",
+      "name": "美日韩三边合作机制",
+      "aliases": [
+        "UJR"
+      ],
+      "profile": {
+        "abbreviation": "UJR",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "东北亚安全架构升级，对华围堵前沿"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 46,
+      "entity_key": "alliance_org:chip_4",
+      "name": "芯片四方联盟",
+      "aliases": [
+        "Chip 4"
+      ],
+      "profile": {
+        "abbreviation": "Chip 4",
+        "leadership_summary": "美国主导",
+        "influence_scope_summary": "半导体供应链对华脱钩核心机制"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 47,
+      "entity_key": "alliance_org:focac",
+      "name": "中非合作论坛",
+      "aliases": [
+        "FOCAC"
+      ],
+      "profile": {
+        "abbreviation": "FOCAC",
+        "leadership_summary": "中国主导",
+        "influence_scope_summary": "中非关系核心平台，深度影响非洲发展方向"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 48,
+      "entity_key": "alliance_org:cascf",
+      "name": "中阿合作论坛",
+      "aliases": [
+        "CASCF"
+      ],
+      "profile": {
+        "abbreviation": "CASCF",
+        "leadership_summary": "中国主导",
+        "influence_scope_summary": "中阿能源与一带一路合作核心平台"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 49,
+      "entity_key": "alliance_org:celac",
+      "name": "中拉论坛",
+      "aliases": [
+        "CELAC"
+      ],
+      "profile": {
+        "abbreviation": "CELAC",
+        "leadership_summary": "中国主导",
+        "influence_scope_summary": "中拉整体合作框架"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 50,
+      "entity_key": "alliance_org:ccas",
+      "name": "中国-中亚峰会",
+      "aliases": [
+        "CCAS"
+      ],
+      "profile": {
+        "abbreviation": "CCAS",
+        "leadership_summary": "中国主导",
+        "influence_scope_summary": "中亚战略升级，能源与安全走廊核心"
+      },
+      "action": "create",
+      "decision": "approve"
+    },
+    {
+      "sheet_row": 51,
+      "entity_key": "alliance_org:ttc",
+      "name": "美欧贸易与技术委员会",
+      "aliases": [
+        "TTC"
+      ],
+      "profile": {
+        "abbreviation": "TTC",
+        "leadership_summary": "美欧共同主导",
+        "influence_scope_summary": "西方科技联盟核心，出口管制与技术标准协调"
+      },
+      "action": "create",
+      "decision": "approve"
+    }
+  ],
+  "economies": [
+    {
+      "entity_key": "economy:ae",
+      "name": "阿联酋",
+      "english_name": "United Arab Emirates",
+      "aliases": [
+        "United Arab Emirates",
+        "AE"
+      ],
+      "country_code": "AE",
+      "currency_code": "AED",
+      "region": "middle_east",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:al",
+      "name": "阿尔巴尼亚",
+      "english_name": "Albania",
+      "aliases": [
+        "Albania",
+        "AL"
+      ],
+      "country_code": "AL",
+      "currency_code": "ALL",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:am",
+      "name": "亚美尼亚",
+      "english_name": "Armenia",
+      "aliases": [
+        "Armenia",
+        "AM"
+      ],
+      "country_code": "AM",
+      "currency_code": "AMD",
+      "region": "europe_asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:at",
+      "name": "奥地利",
+      "english_name": "Austria",
+      "aliases": [
+        "Austria",
+        "AT"
+      ],
+      "country_code": "AT",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:be",
+      "name": "比利时",
+      "english_name": "Belgium",
+      "aliases": [
+        "Belgium",
+        "BE"
+      ],
+      "country_code": "BE",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:bg",
+      "name": "保加利亚",
+      "english_name": "Bulgaria",
+      "aliases": [
+        "Bulgaria",
+        "BG"
+      ],
+      "country_code": "BG",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:bh",
+      "name": "巴林",
+      "english_name": "Bahrain",
+      "aliases": [
+        "Bahrain",
+        "BH"
+      ],
+      "country_code": "BH",
+      "currency_code": "BHD",
+      "region": "middle_east",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:bn",
+      "name": "文莱",
+      "english_name": "Brunei",
+      "aliases": [
+        "Brunei",
+        "BN"
+      ],
+      "country_code": "BN",
+      "currency_code": "BND",
+      "region": "asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:bo",
+      "name": "玻利维亚",
+      "english_name": "Bolivia",
+      "aliases": [
+        "Bolivia",
+        "BO"
+      ],
+      "country_code": "BO",
+      "currency_code": "BOB",
+      "region": "south_america",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:br",
+      "name": "巴西",
+      "english_name": "Brazil",
+      "aliases": [
+        "Brazil",
+        "BR"
+      ],
+      "country_code": "BR",
+      "currency_code": "BRL",
+      "region": "south_america",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:by",
+      "name": "白俄罗斯",
+      "english_name": "Belarus",
+      "aliases": [
+        "Belarus",
+        "BY"
+      ],
+      "country_code": "BY",
+      "currency_code": "BYN",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ca",
+      "name": "加拿大",
+      "english_name": "Canada",
+      "aliases": [
+        "Canada",
+        "CA"
+      ],
+      "country_code": "CA",
+      "currency_code": "CAD",
+      "region": "north_america",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:cg",
+      "name": "刚果共和国",
+      "english_name": "Congo - Brazzaville",
+      "aliases": [
+        "Congo - Brazzaville",
+        "CG"
+      ],
+      "country_code": "CG",
+      "currency_code": "XAF",
+      "region": "africa",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:cn",
+      "name": "中国",
+      "english_name": "China",
+      "aliases": [
+        "China",
+        "CN"
+      ],
+      "country_code": "CN",
+      "currency_code": "CNY",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:cy",
+      "name": "塞浦路斯",
+      "english_name": "Cyprus",
+      "aliases": [
+        "Cyprus",
+        "CY"
+      ],
+      "country_code": "CY",
+      "currency_code": "EUR",
+      "region": "europe_asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:cz",
+      "name": "捷克",
+      "english_name": "Czechia",
+      "aliases": [
+        "Czechia",
+        "CZ"
+      ],
+      "country_code": "CZ",
+      "currency_code": "CZK",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:de",
+      "name": "德国",
+      "english_name": "Germany",
+      "aliases": [
+        "Germany",
+        "DE"
+      ],
+      "country_code": "DE",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:dk",
+      "name": "丹麦",
+      "english_name": "Denmark",
+      "aliases": [
+        "Denmark",
+        "DK"
+      ],
+      "country_code": "DK",
+      "currency_code": "DKK",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:dz",
+      "name": "阿尔及利亚",
+      "english_name": "Algeria",
+      "aliases": [
+        "Algeria",
+        "DZ"
+      ],
+      "country_code": "DZ",
+      "currency_code": "DZD",
+      "region": "africa",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ee",
+      "name": "爱沙尼亚",
+      "english_name": "Estonia",
+      "aliases": [
+        "Estonia",
+        "EE"
+      ],
+      "country_code": "EE",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:eg",
+      "name": "埃及",
+      "english_name": "Egypt",
+      "aliases": [
+        "Egypt",
+        "EG"
+      ],
+      "country_code": "EG",
+      "currency_code": "EGP",
+      "region": "africa",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:es",
+      "name": "西班牙",
+      "english_name": "Spain",
+      "aliases": [
+        "Spain",
+        "ES"
+      ],
+      "country_code": "ES",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:et",
+      "name": "埃塞俄比亚",
+      "english_name": "Ethiopia",
+      "aliases": [
+        "Ethiopia",
+        "ET"
+      ],
+      "country_code": "ET",
+      "currency_code": "ETB",
+      "region": "africa",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:fi",
+      "name": "芬兰",
+      "english_name": "Finland",
+      "aliases": [
+        "Finland",
+        "FI"
+      ],
+      "country_code": "FI",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:fr",
+      "name": "法国",
+      "english_name": "France",
+      "aliases": [
+        "France",
+        "FR"
+      ],
+      "country_code": "FR",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:ga",
+      "name": "加蓬",
+      "english_name": "Gabon",
+      "aliases": [
+        "Gabon",
+        "GA"
+      ],
+      "country_code": "GA",
+      "currency_code": "XAF",
+      "region": "africa",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:gb",
+      "name": "英国",
+      "english_name": "United Kingdom",
+      "aliases": [
+        "United Kingdom",
+        "GB"
+      ],
+      "country_code": "GB",
+      "currency_code": "GBP",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:gq",
+      "name": "赤道几内亚",
+      "english_name": "Equatorial Guinea",
+      "aliases": [
+        "Equatorial Guinea",
+        "GQ"
+      ],
+      "country_code": "GQ",
+      "currency_code": "XAF",
+      "region": "africa",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:gr",
+      "name": "希腊",
+      "english_name": "Greece",
+      "aliases": [
+        "Greece",
+        "GR"
+      ],
+      "country_code": "GR",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:hr",
+      "name": "克罗地亚",
+      "english_name": "Croatia",
+      "aliases": [
+        "Croatia",
+        "HR"
+      ],
+      "country_code": "HR",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:hu",
+      "name": "匈牙利",
+      "english_name": "Hungary",
+      "aliases": [
+        "Hungary",
+        "HU"
+      ],
+      "country_code": "HU",
+      "currency_code": "HUF",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:id",
+      "name": "印度尼西亚",
+      "english_name": "Indonesia",
+      "aliases": [
+        "Indonesia",
+        "ID"
+      ],
+      "country_code": "ID",
+      "currency_code": "IDR",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:ie",
+      "name": "爱尔兰",
+      "english_name": "Ireland",
+      "aliases": [
+        "Ireland",
+        "IE"
+      ],
+      "country_code": "IE",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:in",
+      "name": "印度",
+      "english_name": "India",
+      "aliases": [
+        "India",
+        "IN"
+      ],
+      "country_code": "IN",
+      "currency_code": "INR",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:iq",
+      "name": "伊拉克",
+      "english_name": "Iraq",
+      "aliases": [
+        "Iraq",
+        "IQ"
+      ],
+      "country_code": "IQ",
+      "currency_code": "IQD",
+      "region": "middle_east",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ir",
+      "name": "伊朗",
+      "english_name": "Iran",
+      "aliases": [
+        "Iran",
+        "IR"
+      ],
+      "country_code": "IR",
+      "currency_code": "IRR",
+      "region": "middle_east",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:is",
+      "name": "冰岛",
+      "english_name": "Iceland",
+      "aliases": [
+        "Iceland",
+        "IS"
+      ],
+      "country_code": "IS",
+      "currency_code": "ISK",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:it",
+      "name": "意大利",
+      "english_name": "Italy",
+      "aliases": [
+        "Italy",
+        "IT"
+      ],
+      "country_code": "IT",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:jp",
+      "name": "日本",
+      "english_name": "Japan",
+      "aliases": [
+        "Japan",
+        "JP"
+      ],
+      "country_code": "JP",
+      "currency_code": "JPY",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:kg",
+      "name": "吉尔吉斯斯坦",
+      "english_name": "Kyrgyzstan",
+      "aliases": [
+        "Kyrgyzstan",
+        "KG"
+      ],
+      "country_code": "KG",
+      "currency_code": "KGS",
+      "region": "central_asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:kh",
+      "name": "柬埔寨",
+      "english_name": "Cambodia",
+      "aliases": [
+        "Cambodia",
+        "KH"
+      ],
+      "country_code": "KH",
+      "currency_code": "KHR",
+      "region": "asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:kw",
+      "name": "科威特",
+      "english_name": "Kuwait",
+      "aliases": [
+        "Kuwait",
+        "KW"
+      ],
+      "country_code": "KW",
+      "currency_code": "KWD",
+      "region": "middle_east",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:kz",
+      "name": "哈萨克斯坦",
+      "english_name": "Kazakhstan",
+      "aliases": [
+        "Kazakhstan",
+        "KZ"
+      ],
+      "country_code": "KZ",
+      "currency_code": "KZT",
+      "region": "central_asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:la",
+      "name": "老挝",
+      "english_name": "Laos",
+      "aliases": [
+        "Laos",
+        "LA"
+      ],
+      "country_code": "LA",
+      "currency_code": "LAK",
+      "region": "asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:lt",
+      "name": "立陶宛",
+      "english_name": "Lithuania",
+      "aliases": [
+        "Lithuania",
+        "LT"
+      ],
+      "country_code": "LT",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:lu",
+      "name": "卢森堡",
+      "english_name": "Luxembourg",
+      "aliases": [
+        "Luxembourg",
+        "LU"
+      ],
+      "country_code": "LU",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:lv",
+      "name": "拉脱维亚",
+      "english_name": "Latvia",
+      "aliases": [
+        "Latvia",
+        "LV"
+      ],
+      "country_code": "LV",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ly",
+      "name": "利比亚",
+      "english_name": "Libya",
+      "aliases": [
+        "Libya",
+        "LY"
+      ],
+      "country_code": "LY",
+      "currency_code": "LYD",
+      "region": "africa",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:me",
+      "name": "黑山",
+      "english_name": "Montenegro",
+      "aliases": [
+        "Montenegro",
+        "ME"
+      ],
+      "country_code": "ME",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:mk",
+      "name": "北马其顿",
+      "english_name": "North Macedonia",
+      "aliases": [
+        "North Macedonia",
+        "MK"
+      ],
+      "country_code": "MK",
+      "currency_code": "MKD",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:mm",
+      "name": "缅甸",
+      "english_name": "Myanmar (Burma)",
+      "aliases": [
+        "Myanmar (Burma)",
+        "MM"
+      ],
+      "country_code": "MM",
+      "currency_code": "MMK",
+      "region": "asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:mt",
+      "name": "马耳他",
+      "english_name": "Malta",
+      "aliases": [
+        "Malta",
+        "MT"
+      ],
+      "country_code": "MT",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:my",
+      "name": "马来西亚",
+      "english_name": "Malaysia",
+      "aliases": [
+        "Malaysia",
+        "MY"
+      ],
+      "country_code": "MY",
+      "currency_code": "MYR",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:ng",
+      "name": "尼日利亚",
+      "english_name": "Nigeria",
+      "aliases": [
+        "Nigeria",
+        "NG"
+      ],
+      "country_code": "NG",
+      "currency_code": "NGN",
+      "region": "africa",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:nl",
+      "name": "荷兰",
+      "english_name": "Netherlands",
+      "aliases": [
+        "Netherlands",
+        "NL"
+      ],
+      "country_code": "NL",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:no",
+      "name": "挪威",
+      "english_name": "Norway",
+      "aliases": [
+        "Norway",
+        "NO"
+      ],
+      "country_code": "NO",
+      "currency_code": "NOK",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:om",
+      "name": "阿曼",
+      "english_name": "Oman",
+      "aliases": [
+        "Oman",
+        "OM"
+      ],
+      "country_code": "OM",
+      "currency_code": "OMR",
+      "region": "middle_east",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ph",
+      "name": "菲律宾",
+      "english_name": "Philippines",
+      "aliases": [
+        "Philippines",
+        "PH"
+      ],
+      "country_code": "PH",
+      "currency_code": "PHP",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:pk",
+      "name": "巴基斯坦",
+      "english_name": "Pakistan",
+      "aliases": [
+        "Pakistan",
+        "PK"
+      ],
+      "country_code": "PK",
+      "currency_code": "PKR",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:pl",
+      "name": "波兰",
+      "english_name": "Poland",
+      "aliases": [
+        "Poland",
+        "PL"
+      ],
+      "country_code": "PL",
+      "currency_code": "PLN",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:pt",
+      "name": "葡萄牙",
+      "english_name": "Portugal",
+      "aliases": [
+        "Portugal",
+        "PT"
+      ],
+      "country_code": "PT",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:qa",
+      "name": "卡塔尔",
+      "english_name": "Qatar",
+      "aliases": [
+        "Qatar",
+        "QA"
+      ],
+      "country_code": "QA",
+      "currency_code": "QAR",
+      "region": "middle_east",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:ro",
+      "name": "罗马尼亚",
+      "english_name": "Romania",
+      "aliases": [
+        "Romania",
+        "RO"
+      ],
+      "country_code": "RO",
+      "currency_code": "RON",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ru",
+      "name": "俄罗斯",
+      "english_name": "Russia",
+      "aliases": [
+        "Russia",
+        "RU"
+      ],
+      "country_code": "RU",
+      "currency_code": "RUB",
+      "region": "europe_asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:sa",
+      "name": "沙特阿拉伯",
+      "english_name": "Saudi Arabia",
+      "aliases": [
+        "Saudi Arabia",
+        "SA"
+      ],
+      "country_code": "SA",
+      "currency_code": "SAR",
+      "region": "middle_east",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:se",
+      "name": "瑞典",
+      "english_name": "Sweden",
+      "aliases": [
+        "Sweden",
+        "SE"
+      ],
+      "country_code": "SE",
+      "currency_code": "SEK",
+      "region": "europe",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:sg",
+      "name": "新加坡",
+      "english_name": "Singapore",
+      "aliases": [
+        "Singapore",
+        "SG"
+      ],
+      "country_code": "SG",
+      "currency_code": "SGD",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:si",
+      "name": "斯洛文尼亚",
+      "english_name": "Slovenia",
+      "aliases": [
+        "Slovenia",
+        "SI"
+      ],
+      "country_code": "SI",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:sk",
+      "name": "斯洛伐克",
+      "english_name": "Slovakia",
+      "aliases": [
+        "Slovakia",
+        "SK"
+      ],
+      "country_code": "SK",
+      "currency_code": "EUR",
+      "region": "europe",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:th",
+      "name": "泰国",
+      "english_name": "Thailand",
+      "aliases": [
+        "Thailand",
+        "TH"
+      ],
+      "country_code": "TH",
+      "currency_code": "THB",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:tj",
+      "name": "塔吉克斯坦",
+      "english_name": "Tajikistan",
+      "aliases": [
+        "Tajikistan",
+        "TJ"
+      ],
+      "country_code": "TJ",
+      "currency_code": "TJS",
+      "region": "central_asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:tl",
+      "name": "东帝汶",
+      "english_name": "Timor-Leste",
+      "aliases": [
+        "Timor-Leste",
+        "TL"
+      ],
+      "country_code": "TL",
+      "currency_code": "USD",
+      "region": "asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:tr",
+      "name": "土耳其",
+      "english_name": "Türkiye",
+      "aliases": [
+        "Türkiye",
+        "TR"
+      ],
+      "country_code": "TR",
+      "currency_code": "TRY",
+      "region": "europe_asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:tt",
+      "name": "特立尼达和多巴哥",
+      "english_name": "Trinidad & Tobago",
+      "aliases": [
+        "Trinidad & Tobago",
+        "TT"
+      ],
+      "country_code": "TT",
+      "currency_code": "TTD",
+      "region": "north_america",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:us",
+      "name": "美国",
+      "english_name": "United States",
+      "aliases": [
+        "United States",
+        "US"
+      ],
+      "country_code": "US",
+      "currency_code": "USD",
+      "region": "north_america",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:uz",
+      "name": "乌兹别克斯坦",
+      "english_name": "Uzbekistan",
+      "aliases": [
+        "Uzbekistan",
+        "UZ"
+      ],
+      "country_code": "UZ",
+      "currency_code": "UZS",
+      "region": "central_asia",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:ve",
+      "name": "委内瑞拉",
+      "english_name": "Venezuela",
+      "aliases": [
+        "Venezuela",
+        "VE"
+      ],
+      "country_code": "VE",
+      "currency_code": "VES",
+      "region": "south_america",
+      "action": "create"
+    },
+    {
+      "entity_key": "economy:vn",
+      "name": "越南",
+      "english_name": "Vietnam",
+      "aliases": [
+        "Vietnam",
+        "VN"
+      ],
+      "country_code": "VN",
+      "currency_code": "VND",
+      "region": "asia",
+      "action": "reuse"
+    },
+    {
+      "entity_key": "economy:za",
+      "name": "南非",
+      "english_name": "South Africa",
+      "aliases": [
+        "South Africa",
+        "ZA"
+      ],
+      "country_code": "ZA",
+      "currency_code": "ZAR",
+      "region": "africa",
+      "action": "reuse"
+    }
+  ],
+  "member_of": [
+    {
+      "edge_key": "relationship:ca_member_of_g7",
+      "from_key": "economy:ca",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:de_member_of_g7",
+      "from_key": "economy:de",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:fr_member_of_g7",
+      "from_key": "economy:fr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:gb_member_of_g7",
+      "from_key": "economy:gb",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:it_member_of_g7",
+      "from_key": "economy:it",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:jp_member_of_g7",
+      "from_key": "economy:jp",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:us_member_of_g7",
+      "from_key": "economy:us",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:g7",
+      "membership_status": "formal_active",
+      "source_name": "G7 法国 2026 主席国官网",
+      "source_url": "https://www.elysee.fr/en/G7evian/2025/12/13/what-is-the-g7-1",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:al_member_of_nato",
+      "from_key": "economy:al",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:be_member_of_nato",
+      "from_key": "economy:be",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:bg_member_of_nato",
+      "from_key": "economy:bg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ca_member_of_nato",
+      "from_key": "economy:ca",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:cz_member_of_nato",
+      "from_key": "economy:cz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:de_member_of_nato",
+      "from_key": "economy:de",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:dk_member_of_nato",
+      "from_key": "economy:dk",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ee_member_of_nato",
+      "from_key": "economy:ee",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:es_member_of_nato",
+      "from_key": "economy:es",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:fi_member_of_nato",
+      "from_key": "economy:fi",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:fr_member_of_nato",
+      "from_key": "economy:fr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:gb_member_of_nato",
+      "from_key": "economy:gb",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:gr_member_of_nato",
+      "from_key": "economy:gr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:hr_member_of_nato",
+      "from_key": "economy:hr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:hu_member_of_nato",
+      "from_key": "economy:hu",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:is_member_of_nato",
+      "from_key": "economy:is",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:it_member_of_nato",
+      "from_key": "economy:it",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:lt_member_of_nato",
+      "from_key": "economy:lt",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:lu_member_of_nato",
+      "from_key": "economy:lu",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:lv_member_of_nato",
+      "from_key": "economy:lv",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:me_member_of_nato",
+      "from_key": "economy:me",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:mk_member_of_nato",
+      "from_key": "economy:mk",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:nl_member_of_nato",
+      "from_key": "economy:nl",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:no_member_of_nato",
+      "from_key": "economy:no",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:pl_member_of_nato",
+      "from_key": "economy:pl",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:pt_member_of_nato",
+      "from_key": "economy:pt",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ro_member_of_nato",
+      "from_key": "economy:ro",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:se_member_of_nato",
+      "from_key": "economy:se",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:si_member_of_nato",
+      "from_key": "economy:si",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:sk_member_of_nato",
+      "from_key": "economy:sk",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:tr_member_of_nato",
+      "from_key": "economy:tr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:us_member_of_nato",
+      "from_key": "economy:us",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:nato",
+      "membership_status": "formal_active",
+      "source_name": "NATO Member Countries",
+      "source_url": "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:by_member_of_sco",
+      "from_key": "economy:by",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:cn_member_of_sco",
+      "from_key": "economy:cn",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:in_member_of_sco",
+      "from_key": "economy:in",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ir_member_of_sco",
+      "from_key": "economy:ir",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:kg_member_of_sco",
+      "from_key": "economy:kg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:kz_member_of_sco",
+      "from_key": "economy:kz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:pk_member_of_sco",
+      "from_key": "economy:pk",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ru_member_of_sco",
+      "from_key": "economy:ru",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:tj_member_of_sco",
+      "from_key": "economy:tj",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:uz_member_of_sco",
+      "from_key": "economy:uz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:sco",
+      "membership_status": "formal_active",
+      "source_name": "SCO About",
+      "source_url": "https://eng.sectsco.org/20170109/192193.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:at_member_of_eu",
+      "from_key": "economy:at",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:be_member_of_eu",
+      "from_key": "economy:be",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:bg_member_of_eu",
+      "from_key": "economy:bg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:cy_member_of_eu",
+      "from_key": "economy:cy",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:cz_member_of_eu",
+      "from_key": "economy:cz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:de_member_of_eu",
+      "from_key": "economy:de",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:dk_member_of_eu",
+      "from_key": "economy:dk",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:ee_member_of_eu",
+      "from_key": "economy:ee",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:es_member_of_eu",
+      "from_key": "economy:es",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:fi_member_of_eu",
+      "from_key": "economy:fi",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:fr_member_of_eu",
+      "from_key": "economy:fr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:gr_member_of_eu",
+      "from_key": "economy:gr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:hr_member_of_eu",
+      "from_key": "economy:hr",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:hu_member_of_eu",
+      "from_key": "economy:hu",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ie_member_of_eu",
+      "from_key": "economy:ie",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:it_member_of_eu",
+      "from_key": "economy:it",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:lt_member_of_eu",
+      "from_key": "economy:lt",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:lu_member_of_eu",
+      "from_key": "economy:lu",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:lv_member_of_eu",
+      "from_key": "economy:lv",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:mt_member_of_eu",
+      "from_key": "economy:mt",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:nl_member_of_eu",
+      "from_key": "economy:nl",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:pl_member_of_eu",
+      "from_key": "economy:pl",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:pt_member_of_eu",
+      "from_key": "economy:pt",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ro_member_of_eu",
+      "from_key": "economy:ro",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:se_member_of_eu",
+      "from_key": "economy:se",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:si_member_of_eu",
+      "from_key": "economy:si",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:sk_member_of_eu",
+      "from_key": "economy:sk",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eu",
+      "membership_status": "formal_active",
+      "source_name": "European Union countries",
+      "source_url": "https://european-union.europa.eu/easy-read_en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:bn_member_of_asean",
+      "from_key": "economy:bn",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:id_member_of_asean",
+      "from_key": "economy:id",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:kh_member_of_asean",
+      "from_key": "economy:kh",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:la_member_of_asean",
+      "from_key": "economy:la",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:mm_member_of_asean",
+      "from_key": "economy:mm",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:my_member_of_asean",
+      "from_key": "economy:my",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ph_member_of_asean",
+      "from_key": "economy:ph",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:sg_member_of_asean",
+      "from_key": "economy:sg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:th_member_of_asean",
+      "from_key": "economy:th",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:tl_member_of_asean",
+      "from_key": "economy:tl",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:vn_member_of_asean",
+      "from_key": "economy:vn",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:asean",
+      "membership_status": "formal_active",
+      "source_name": "ASEAN 2026 Member State evidence",
+      "source_url": "https://asean.org/wp-content/uploads/2026/01/FINAL-Press-Statement-by-the-Chair-of-the-ASEAN-Foreign-Ministers-Retreat.pdf",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ae_member_of_gcc",
+      "from_key": "economy:ae",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gcc",
+      "membership_status": "formal_active",
+      "source_name": "GCC Charter/About",
+      "source_url": "https://www.gcc-sg.org/en/AboutUs/Pages/default.aspx",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:bh_member_of_gcc",
+      "from_key": "economy:bh",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gcc",
+      "membership_status": "formal_active",
+      "source_name": "GCC Charter/About",
+      "source_url": "https://www.gcc-sg.org/en/AboutUs/Pages/default.aspx",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:kw_member_of_gcc",
+      "from_key": "economy:kw",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gcc",
+      "membership_status": "formal_active",
+      "source_name": "GCC Charter/About",
+      "source_url": "https://www.gcc-sg.org/en/AboutUs/Pages/default.aspx",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:om_member_of_gcc",
+      "from_key": "economy:om",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gcc",
+      "membership_status": "formal_active",
+      "source_name": "GCC Charter/About",
+      "source_url": "https://www.gcc-sg.org/en/AboutUs/Pages/default.aspx",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:qa_member_of_gcc",
+      "from_key": "economy:qa",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gcc",
+      "membership_status": "formal_active",
+      "source_name": "GCC Charter/About",
+      "source_url": "https://www.gcc-sg.org/en/AboutUs/Pages/default.aspx",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:sa_member_of_gcc",
+      "from_key": "economy:sa",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gcc",
+      "membership_status": "formal_active",
+      "source_name": "GCC Charter/About",
+      "source_url": "https://www.gcc-sg.org/en/AboutUs/Pages/default.aspx",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:am_member_of_eaeu",
+      "from_key": "economy:am",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eaeu",
+      "membership_status": "formal_active",
+      "source_name": "Eurasian Economic Union",
+      "source_url": "https://www.eaeunion.org/?about-info=&lang=en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:by_member_of_eaeu",
+      "from_key": "economy:by",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eaeu",
+      "membership_status": "formal_active",
+      "source_name": "Eurasian Economic Union",
+      "source_url": "https://www.eaeunion.org/?about-info=&lang=en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:kg_member_of_eaeu",
+      "from_key": "economy:kg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eaeu",
+      "membership_status": "formal_active",
+      "source_name": "Eurasian Economic Union",
+      "source_url": "https://www.eaeunion.org/?about-info=&lang=en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:kz_member_of_eaeu",
+      "from_key": "economy:kz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eaeu",
+      "membership_status": "formal_active",
+      "source_name": "Eurasian Economic Union",
+      "source_url": "https://www.eaeunion.org/?about-info=&lang=en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ru_member_of_eaeu",
+      "from_key": "economy:ru",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:eaeu",
+      "membership_status": "formal_active",
+      "source_name": "Eurasian Economic Union",
+      "source_url": "https://www.eaeunion.org/?about-info=&lang=en",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ae_member_of_opec",
+      "from_key": "economy:ae",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:cg_member_of_opec",
+      "from_key": "economy:cg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:dz_member_of_opec",
+      "from_key": "economy:dz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ga_member_of_opec",
+      "from_key": "economy:ga",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:gq_member_of_opec",
+      "from_key": "economy:gq",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:iq_member_of_opec",
+      "from_key": "economy:iq",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ir_member_of_opec",
+      "from_key": "economy:ir",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:kw_member_of_opec",
+      "from_key": "economy:kw",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:ly_member_of_opec",
+      "from_key": "economy:ly",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ng_member_of_opec",
+      "from_key": "economy:ng",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:sa_member_of_opec",
+      "from_key": "economy:sa",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:ve_member_of_opec",
+      "from_key": "economy:ve",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:opec",
+      "membership_status": "formal_active",
+      "source_name": "OPEC Member Countries",
+      "source_url": "https://www.opec.org/member-countries.html",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ae_member_of_gecf",
+      "from_key": "economy:ae",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:bo_member_of_gecf",
+      "from_key": "economy:bo",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:dz_member_of_gecf",
+      "from_key": "economy:dz",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:eg_member_of_gecf",
+      "from_key": "economy:eg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:gq_member_of_gecf",
+      "from_key": "economy:gq",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ir_member_of_gecf",
+      "from_key": "economy:ir",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ly_member_of_gecf",
+      "from_key": "economy:ly",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ng_member_of_gecf",
+      "from_key": "economy:ng",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:qa_member_of_gecf",
+      "from_key": "economy:qa",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ru_member_of_gecf",
+      "from_key": "economy:ru",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:tt_member_of_gecf",
+      "from_key": "economy:tt",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ve_member_of_gecf",
+      "from_key": "economy:ve",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:gecf",
+      "membership_status": "formal_active",
+      "source_name": "GECF Overview",
+      "source_url": "https://www.gecf.org/About-Us/Overview",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:ae_member_of_brics",
+      "from_key": "economy:ae",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:br_member_of_brics",
+      "from_key": "economy:br",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:cn_member_of_brics",
+      "from_key": "economy:cn",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:eg_member_of_brics",
+      "from_key": "economy:eg",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:et_member_of_brics",
+      "from_key": "economy:et",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "create"
+    },
+    {
+      "edge_key": "relationship:id_member_of_brics",
+      "from_key": "economy:id",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:in_member_of_brics",
+      "from_key": "economy:in",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:ir_member_of_brics",
+      "from_key": "economy:ir",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:ru_member_of_brics",
+      "from_key": "economy:ru",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:sa_member_of_brics",
+      "from_key": "economy:sa",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    },
+    {
+      "edge_key": "relationship:za_member_of_brics",
+      "from_key": "economy:za",
+      "relation_type": "member_of",
+      "to_key": "alliance_org:brics",
+      "membership_status": "formal_active",
+      "source_name": "BRICS Brazil About",
+      "source_url": "https://brics.br/en/about-the-brics",
+      "verified_at": "2026-07-14",
+      "action": "keep"
+    }
+  ]
+}

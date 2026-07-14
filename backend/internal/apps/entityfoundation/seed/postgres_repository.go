@@ -606,11 +606,9 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 	switch entityType {
 	case domain.EntityTypeAllianceOrg:
 		return []profileField{
-			{"org_code", text("org_code")},
-			{"org_type", text("org_type")},
-			{"primary_domain", text("primary_domain")},
-			{"scope_region", text("scope_region")},
-			{"official_url", text("official_url")},
+			{"abbreviation", text("abbreviation")},
+			{"leadership_summary", text("leadership_summary")},
+			{"influence_scope_summary", text("influence_scope_summary")},
 		}, nil
 	case domain.EntityTypeEconomy:
 		return []profileField{

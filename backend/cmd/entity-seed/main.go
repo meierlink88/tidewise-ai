@@ -29,7 +29,16 @@ func main() {
 	relationManifest := flag.String("chain-node-relation-manifest", "", "reviewed chain node relation manifest")
 	relationDryRun := flag.Bool("chain-node-relation-dry-run", false, "run DB snapshot dry-run for chain node relations")
 	relationApprovedWrite := flag.Bool("chain-node-relation-approved-data-write", false, "allow only the frozen first-batch chain node relation data write")
+	allianceEconomyManifest := flag.String("alliance-economy-approved-manifest", "", "frozen approved alliance/economy manifest for this change")
+	allianceEconomyDependencyAudit := flag.Bool("alliance-economy-dependency-audit", false, "read-only local dependency audit for this change")
+	allianceEconomyCleanupApprovedLocal := flag.Bool("alliance-economy-cleanup-approved-local", false, "execute separately approved local cleanup for this change")
+	allianceEconomyDependencyChecksum := flag.String("alliance-economy-dependency-checksum", "", "reviewed dependency audit checksum required by local cleanup")
+	allianceEconomyRebuildApprovedLocal := flag.Bool("alliance-economy-rebuild-approved-local", false, "execute separately approved local rebuild for this change")
 	flag.Parse()
+	allianceEconomyOptions := allianceEconomyCommandOptions{manifest: *allianceEconomyManifest, dependencyAudit: *allianceEconomyDependencyAudit, cleanupApprovedLocal: *allianceEconomyCleanupApprovedLocal, dependencyChecksum: *allianceEconomyDependencyChecksum, rebuildApprovedLocal: *allianceEconomyRebuildApprovedLocal, seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope, phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApproved: *mappingApprovedFirstBatch, relationManifest: *relationManifest, relationDryRun: *relationDryRun, relationApproved: *relationApprovedWrite}
+	if err := validateAllianceEconomyCommandOptions(allianceEconomyOptions); err != nil {
+		log.Fatal(err)
+	}
 	if err := validateRelationCommandOptions(relationCommandOptions{manifest: *relationManifest, dryRun: *relationDryRun, approvedWrite: *relationApprovedWrite, seedDir: *seedDir, manifestFile: *manifestFile, includeInactive: *includeInactive, applyScope: *applyScope, phaseAPreflight: *phaseAPreflight, mappingManifest: *mappingManifest, mappingDryRun: *mappingDryRun, mappingPreflight: *mappingPreflight, mappingApproved: *mappingApprovedFirstBatch}); err != nil {
 		log.Fatal(err)
 	}
@@ -50,9 +59,21 @@ func main() {
 			log.Fatalf("validate frozen chain node relation manifest: %v", err)
 		}
 	}
+	var allianceEconomyInput entityseed.AllianceEconomyManifest
+	if strings.TrimSpace(*allianceEconomyManifest) != "" {
+		allianceEconomyInput, err = entityseed.LoadApprovedAllianceEconomyManifest(*allianceEconomyManifest)
+		if err != nil {
+			log.Fatalf("load approved alliance economy manifest: %v", err)
+		}
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
+	}
+	if strings.TrimSpace(*allianceEconomyManifest) != "" {
+		if err := validateAllianceEconomyLocalTarget(cfg); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	timeout := time.Duration(cfg.Database.ConnectTimeoutSeconds) * time.Second
@@ -64,6 +85,23 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
+	if strings.TrimSpace(*allianceEconomyManifest) != "" {
+		repository := entityseed.NewPostgresRepository(db)
+		var result any
+		switch {
+		case *allianceEconomyDependencyAudit:
+			result, err = repository.AuditAllianceEconomyRebuildDependencies(ctx)
+		case *allianceEconomyCleanupApprovedLocal:
+			result, err = repository.CleanupAllianceEconomyLocal(ctx, *allianceEconomyDependencyChecksum)
+		case *allianceEconomyRebuildApprovedLocal:
+			result, err = repository.RebuildApprovedAllianceEconomyLocal(ctx, allianceEconomyInput)
+		}
+		if err != nil {
+			log.Fatalf("process approved alliance economy batch: %v", err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(result)
+		return
+	}
 	if strings.TrimSpace(*relationManifest) != "" {
 		repository := entityseed.NewPostgresRepository(db)
 		var report entityseed.ChainNodeRelationReport
@@ -212,6 +250,45 @@ type commandOptions struct {
 type relationCommandOptions struct {
 	manifest, seedDir, manifestFile, applyScope, mappingManifest                                              string
 	dryRun, approvedWrite, includeInactive, phaseAPreflight, mappingDryRun, mappingPreflight, mappingApproved bool
+}
+
+type allianceEconomyCommandOptions struct {
+	manifest, dependencyChecksum, seedDir, manifestFile, applyScope, mappingManifest, relationManifest string
+	dependencyAudit, cleanupApprovedLocal, rebuildApprovedLocal, includeInactive, phaseAPreflight      bool
+	mappingDryRun, mappingPreflight, mappingApproved, relationDryRun, relationApproved                 bool
+}
+
+func validateAllianceEconomyCommandOptions(o allianceEconomyCommandOptions) error {
+	hasManifest := strings.TrimSpace(o.manifest) != ""
+	modes := 0
+	for _, enabled := range []bool{o.dependencyAudit, o.cleanupApprovedLocal, o.rebuildApprovedLocal} {
+		if enabled {
+			modes++
+		}
+	}
+	if !hasManifest && modes == 0 {
+		return nil
+	}
+	if !hasManifest || modes != 1 {
+		return fmt.Errorf("alliance/economy change mode requires its frozen manifest and exactly one operation")
+	}
+	if o.cleanupApprovedLocal && strings.TrimSpace(o.dependencyChecksum) == "" {
+		return fmt.Errorf("alliance/economy local cleanup requires the reviewed dependency checksum")
+	}
+	if !o.cleanupApprovedLocal && strings.TrimSpace(o.dependencyChecksum) != "" {
+		return fmt.Errorf("alliance/economy dependency checksum is cleanup-only")
+	}
+	if o.seedDir != entityseed.DefaultSeedDir || strings.TrimSpace(o.manifestFile) != "" || o.includeInactive || strings.TrimSpace(o.applyScope) != "" || o.phaseAPreflight || strings.TrimSpace(o.mappingManifest) != "" || o.mappingDryRun || o.mappingPreflight || o.mappingApproved || strings.TrimSpace(o.relationManifest) != "" || o.relationDryRun || o.relationApproved {
+		return fmt.Errorf("alliance/economy change mode cannot combine other seed modes")
+	}
+	return nil
+}
+
+func validateAllianceEconomyLocalTarget(cfg config.Config) error {
+	if cfg.App.Env != config.EnvLocal || cfg.Database.Name != "tidewise_local" {
+		return fmt.Errorf("alliance/economy cleanup and rebuild are restricted to APP_ENV=local and database tidewise_local")
+	}
+	return nil
 }
 
 func validateRelationCommandOptions(o relationCommandOptions) error {
