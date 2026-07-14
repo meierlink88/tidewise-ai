@@ -1,0 +1,3 @@
+BEGIN
+candidate_id,candidate_key,candidate_canonical_name,existing_id,existing_key,existing_type,existing_status,existing_canonical_name
+ROLLBACK

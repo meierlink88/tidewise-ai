@@ -29,15 +29,15 @@ func NewPostgresRepository(db *sql.DB) PostgresRepository {
 	return PostgresRepository{db: db, root: db}
 }
 
-func (r PostgresRepository) HasActiveLegacySectors(ctx context.Context) (bool, error) {
+func (r PostgresRepository) HasRetiredIndustryEntities(ctx context.Context) (bool, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `
 SELECT EXISTS (
     SELECT 1 FROM entity_nodes
-    WHERE entity_type = 'sector' AND status = 'active' AND entity_key LIKE 'sector:ths\_%' ESCAPE '\'
+    WHERE entity_type IN ('sector', 'industry_chain')
 )`).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("check active legacy sectors: %w", err)
+		return false, fmt.Errorf("check retired industry entities: %w", err)
 	}
 	return exists, nil
 }
@@ -69,12 +69,11 @@ func (r PostgresRepository) UpsertEntity(ctx context.Context, entity Entity) (Wr
 }
 
 func buildEntityUpsert() string {
-	return `WITH ` + entityAliasOwnershipCTEs(1, 7) + `, incoming AS (
+	return `WITH incoming AS (
     SELECT $1::uuid AS id, $2::text AS entity_key, $3::text AS entity_type,
            $4::text AS layer_code, $5::text AS name, $6::text AS canonical_name,
-           sa.aliases || oa.aliases AS aliases,
+           $7::text[] AS aliases,
            $8::text AS status
-    FROM seed_aliases sa CROSS JOIN owned_aliases oa
 ), upsert AS (
     INSERT INTO entity_nodes (
         id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
@@ -100,34 +99,6 @@ func buildEntityUpsert() string {
 SELECT COALESCE((SELECT CASE WHEN inserted THEN 'created' ELSE 'updated' END FROM upsert), 'unchanged')`
 }
 
-func entityAliasOwnershipCTEs(entityParameter, aliasesParameter int) string {
-	return fmt.Sprintf(`seed_aliases AS (
-    SELECT COALESCE(array_agg(alias ORDER BY first_ordinality), '{}'::text[]) AS aliases
-    FROM (
-        SELECT alias,MIN(ordinality) AS first_ordinality
-        FROM unnest(COALESCE($%d::text[], '{}'::text[])) WITH ORDINALITY AS seed(alias,ordinality)
-        WHERE alias <> ''
-        GROUP BY alias
-    ) deduplicated_seed
-), ranked_owned_aliases AS (
-    SELECT am.alias,am.moved_at,am.id,
-           row_number() OVER (PARTITION BY am.alias ORDER BY am.moved_at,am.id) AS alias_rank
-    FROM entity_convergence_alias_moves am
-    JOIN entity_convergences c ON c.id = am.convergence_id
-    CROSS JOIN seed_aliases sa
-    WHERE am.to_entity_id = $%d
-      AND c.manifest_version = (SELECT MAX(manifest_version) FROM entity_convergence_manifests)
-      AND NOT (am.alias = ANY(sa.aliases))
-), owned_aliases AS (
-    SELECT COALESCE(array_agg(alias ORDER BY moved_at,id), '{}'::text[]) AS aliases
-    FROM ranked_owned_aliases WHERE alias_rank=1
-)`, aliasesParameter, entityParameter)
-}
-
-func currentConvergenceAliasMergeQuery() string {
-	return `WITH ` + entityAliasOwnershipCTEs(1, 2) + ` SELECT to_json(sa.aliases || oa.aliases) FROM seed_aliases sa CROSS JOIN owned_aliases oa`
-}
-
 func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) (WriteResult, error) {
 	if profile.EntityKey == "" {
 		return WriteResult{}, fmt.Errorf("profile entity key is required")
@@ -145,6 +116,189 @@ func (r PostgresRepository) UpsertProfile(ctx context.Context, profile Profile) 
 		return WriteResult{}, fmt.Errorf("upsert profile %q: %w", profile.EntityKey, err)
 	}
 	return WriteResult{Key: profile.EntityKey, Action: action}, nil
+}
+
+func (r PostgresRepository) UpsertExternalIdentifier(ctx context.Context, identifier domain.EntityExternalIdentifier) (WriteResult, error) {
+	identifier = normalizeExternalIdentifier(identifier)
+	if err := validateFirstBatchExternalIdentifier(identifier); err != nil {
+		return WriteResult{}, err
+	}
+	identity := externalIdentifierIdentity(identifier.SourceSystem, identifier.SourceTaxonomyType, identifier.ExternalCode)
+	tx, err := r.root.BeginTx(ctx, nil)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("begin external identifier transaction %q: %w", identity, err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if _, err := tx.ExecContext(ctx, externalIdentifierTransactionLockSQL(), identity); err != nil {
+		return WriteResult{}, fmt.Errorf("lock external identifier %q: %w", identity, err)
+	}
+	var targetID string
+	if err := tx.QueryRowContext(ctx, externalIdentifierTargetSQL(), identifier.EntityID).Scan(&targetID); err != nil {
+		if err == sql.ErrNoRows {
+			return WriteResult{}, fmt.Errorf("external identifier %q requires an active chain_node target", identity)
+		}
+		return WriteResult{}, fmt.Errorf("validate external identifier target %q: %w", identity, err)
+	}
+
+	existing, found, err := selectExternalIdentifierForUpdate(ctx, tx, identifier)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("read external identifier %q: %w", identity, err)
+	}
+	if found {
+		action, err := reconcileExternalIdentifier(ctx, tx, identifier, existing)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		return commitExternalIdentifier(tx, identity, action)
+	}
+
+	var insertedID string
+	err = tx.QueryRowContext(
+		ctx,
+		externalIdentifierInsertSQL(),
+		identifier.ID,
+		identifier.EntityID,
+		identifier.SourceSystem,
+		identifier.SourceTaxonomyType,
+		identifier.ExternalCode,
+		identifier.ExternalName,
+		identifier.Status,
+	).Scan(&insertedID)
+	if err == nil {
+		return commitExternalIdentifier(tx, identity, WriteCreated)
+	}
+	if err != sql.ErrNoRows {
+		return WriteResult{}, fmt.Errorf("insert external identifier %q: %w", identity, err)
+	}
+
+	existing, found, err = selectExternalIdentifierForUpdate(ctx, tx, identifier)
+	if err != nil {
+		return WriteResult{}, fmt.Errorf("re-read concurrent external identifier %q: %w", identity, err)
+	}
+	if !found {
+		return WriteResult{}, fmt.Errorf("external identifier %q conflict winner was not visible after insert", identity)
+	}
+	action, err := reconcileExternalIdentifier(ctx, tx, identifier, existing)
+	if err != nil {
+		return WriteResult{}, err
+	}
+	return commitExternalIdentifier(tx, identity, action)
+}
+
+func externalIdentifierTransactionLockSQL() string {
+	return "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"
+}
+
+func externalIdentifierTargetSQL() string {
+	return `
+SELECT id FROM entity_nodes
+WHERE id = $1::uuid
+  AND entity_type = 'chain_node'
+  AND status = 'active'
+FOR SHARE`
+}
+
+func externalIdentifierTargetSnapshotSQL() string {
+	return `
+SELECT id FROM entity_nodes
+WHERE id = $1::uuid
+  AND entity_type = 'chain_node'
+  AND status = 'active'`
+}
+
+func externalIdentifierSelectSQL() string {
+	return `
+SELECT id, entity_id, external_name, status FROM entity_external_identifiers
+WHERE source_system = $1
+  AND source_taxonomy_type = $2
+  AND external_code = $3
+FOR UPDATE`
+}
+
+func externalIdentifierSnapshotSQL() string {
+	return `
+SELECT id, entity_id, external_name, status FROM entity_external_identifiers
+WHERE source_system = $1
+  AND source_taxonomy_type = $2
+  AND external_code = $3`
+}
+
+func externalIdentifierSelectByIDSQL() string {
+	return `
+SELECT id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status FROM entity_external_identifiers
+WHERE id = $1::uuid
+FOR UPDATE`
+}
+
+func externalIdentifierSnapshotByIDSQL() string {
+	return `
+SELECT id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status FROM entity_external_identifiers
+WHERE id = $1::uuid`
+}
+
+func externalIdentifierInsertSQL() string {
+	return `
+INSERT INTO entity_external_identifiers (
+    id, entity_id, source_system, source_taxonomy_type, external_code, external_name, status
+) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)
+ON CONFLICT (source_system, source_taxonomy_type, external_code) DO NOTHING
+RETURNING id`
+}
+
+type storedExternalIdentifier struct {
+	ID           string
+	EntityID     string
+	ExternalName string
+	Status       domain.Status
+}
+
+func selectExternalIdentifierForUpdate(ctx context.Context, tx *sql.Tx, identifier domain.EntityExternalIdentifier) (storedExternalIdentifier, bool, error) {
+	var existing storedExternalIdentifier
+	err := tx.QueryRowContext(
+		ctx,
+		externalIdentifierSelectSQL(),
+		identifier.SourceSystem,
+		identifier.SourceTaxonomyType,
+		identifier.ExternalCode,
+	).Scan(&existing.ID, &existing.EntityID, &existing.ExternalName, &existing.Status)
+	if err == sql.ErrNoRows {
+		return storedExternalIdentifier{}, false, nil
+	}
+	return existing, err == nil, err
+}
+
+func reconcileExternalIdentifier(ctx context.Context, tx *sql.Tx, wanted domain.EntityExternalIdentifier, existing storedExternalIdentifier) (WriteAction, error) {
+	identity := externalIdentifierIdentity(wanted.SourceSystem, wanted.SourceTaxonomyType, wanted.ExternalCode)
+	if existing.ID != wanted.ID || existing.EntityID != wanted.EntityID {
+		return "", fmt.Errorf("external identifier %q identity conflict", identity)
+	}
+	if existing.ExternalName == wanted.ExternalName && existing.Status == wanted.Status {
+		return WriteUnchanged, nil
+	}
+	result, err := tx.ExecContext(ctx, `
+UPDATE entity_external_identifiers
+SET external_name = $1, status = $2, updated_at = now()
+WHERE id = $3::uuid`, wanted.ExternalName, wanted.Status, wanted.ID)
+	if err != nil {
+		return "", fmt.Errorf("update external identifier %q: %w", identity, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return "", fmt.Errorf("read external identifier %q update count: %w", identity, err)
+	}
+	if rows != 1 {
+		return "", fmt.Errorf("external identifier %q update affected %d rows, want 1", identity, rows)
+	}
+	return WriteUpdated, nil
+}
+
+func commitExternalIdentifier(tx *sql.Tx, identity string, action WriteAction) (WriteResult, error) {
+	if err := tx.Commit(); err != nil {
+		return WriteResult{}, fmt.Errorf("commit external identifier %q: %w", identity, err)
+	}
+	return WriteResult{Key: identity, Action: action}, nil
 }
 
 func (r PostgresRepository) UpsertSectorSourceMapping(ctx context.Context, mapping SectorSourceMapping) (WriteResult, error) {
@@ -539,13 +693,9 @@ func profileFields(entityType domain.EntityType, data []byte) ([]profileField, e
 			{"verified_at", text("verified_at")},
 		}, nil
 	case domain.EntityTypeChainNode:
-		fields := []profileField{{"chain_position", text("chain_position")}}
-		for _, name := range []string{"node_category", "definition", "unit_of_analysis", "granularity_note"} {
-			if _, ok := profile[name]; ok {
-				fields = append(fields, profileField{name, text(name)})
-			}
-		}
-		return fields, nil
+		return []profileField{{"definition", text("definition")}, {"boundary_note", nullableTextProfileValue(profile, "boundary_note")}}, nil
+	case domain.EntityTypeTheme:
+		return []profileField{{"definition", text("definition")}, {"boundary_note", text("boundary_note")}}, nil
 	case domain.EntityTypeCompany:
 		return []profileField{
 			{"registration_economy_entity_id", ref("registration_economy_entity_id")},
@@ -613,6 +763,8 @@ func profileTableName(entityType domain.EntityType) (string, error) {
 		return "industry_chain_profiles", nil
 	case domain.EntityTypeChainNode:
 		return "chain_node_profiles", nil
+	case domain.EntityTypeTheme:
+		return "theme_profiles", nil
 	case domain.EntityTypeCompany:
 		return "company_profiles", nil
 	case domain.EntityTypeSecurity:
@@ -634,6 +786,14 @@ func stringProfileValue(profile map[string]any, key string) string {
 	value, ok := profile[key]
 	if !ok || value == nil {
 		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
+}
+
+func nullableTextProfileValue(profile map[string]any, key string) any {
+	value, ok := profile[key]
+	if !ok || value == nil {
+		return nil
 	}
 	return strings.TrimSpace(fmt.Sprint(value))
 }

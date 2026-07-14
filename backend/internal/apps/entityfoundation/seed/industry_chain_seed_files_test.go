@@ -14,7 +14,7 @@ import (
 
 func TestIndustryChainExecutableSeedV1(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
-	manifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	manifest, err := LoadFiles(legacyFixturePaths(root)...)
 	if err != nil {
 		t.Fatalf("LoadFiles() error = %v", err)
 	}
@@ -109,22 +109,14 @@ func TestIndustryChainExecutableSeedV1(t *testing.T) {
 	}
 }
 
-func TestIndustryChainExecutableSeedFlowsThroughServiceReport(t *testing.T) {
+func TestIndustryChainLegacySeedCannotFlowThroughProductionService(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..", "data", "entity_foundation")
-	manifest, err := LoadFiles(DefaultSeedPaths(root)...)
+	manifest, err := LoadFiles(legacyFixturePaths(root)...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	repo := NewMemoryRepository()
-	report, err := NewService(repo).Apply(context.Background(), manifest, ApplyOptions{})
-	if err != nil {
+	if _, err := NewService(NewMemoryRepository()).Apply(context.Background(), manifest, ApplyOptions{}); err == nil || !strings.Contains(err.Error(), "migration input only") {
 		t.Fatalf("Apply() error = %v", err)
-	}
-	if report.IndustryChainCounts["membership"] != 27 || report.IndustryChainCounts["topology"] != 24 || report.IndustryChainCounts["physical_constraint"] != 4 {
-		t.Fatalf("industry chain report = %+v", report.IndustryChainCounts)
-	}
-	if got := repo.IndustryChainRowCount(); got != 55 {
-		t.Fatalf("industry chain repository rows = %d, want 55", got)
 	}
 }
 

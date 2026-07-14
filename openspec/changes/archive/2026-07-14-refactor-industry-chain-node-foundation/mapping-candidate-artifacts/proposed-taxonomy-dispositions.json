@@ -1,0 +1,159 @@
+{
+  "approval_state": "proposed_not_approved",
+  "artifact_type": "phase_a_external_identifier_taxonomy_proposed_disposition",
+  "artifact_version": 1,
+  "dispositions": [
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "家用电器",
+      "confidence": "high",
+      "external_code": "BK0456",
+      "external_name": "家用电器",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "industry_sector",
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "白酒",
+      "confidence": "high",
+      "external_code": "BK0896",
+      "external_name": "白酒",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "industry_sector",
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "汽车整车",
+      "confidence": "high",
+      "external_code": "BK1029",
+      "external_name": "汽车整车",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "industry_sector",
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "跨境电商",
+      "confidence": "medium",
+      "external_code": "BK1115",
+      "external_name": "跨境电商",
+      "recommended_disposition": "exclude_from_first_batch",
+      "recommended_taxonomy": null,
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "燃料电池",
+      "confidence": "medium",
+      "external_code": "BK1305",
+      "external_name": "燃料电池",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "concept_sector",
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "物业管理",
+      "confidence": "low",
+      "external_code": "BK1343",
+      "external_name": "物业管理",
+      "recommended_disposition": "exclude_from_first_batch",
+      "recommended_taxonomy": null,
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "跨境电商",
+      "confidence": "medium",
+      "external_code": "BK1547",
+      "external_name": "跨境电商",
+      "recommended_disposition": "exclude_from_first_batch",
+      "recommended_taxonomy": null,
+      "source_system": "eastmoney"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "燃料电池",
+      "confidence": "medium",
+      "external_code": "300316",
+      "external_name": "燃料电池",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "concept_sector",
+      "source_system": "ths"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "家用电器",
+      "confidence": "medium",
+      "external_code": "300814",
+      "external_name": "家用电器",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "concept_sector",
+      "source_system": "ths"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "跨境电商",
+      "confidence": "medium",
+      "external_code": "301564",
+      "external_name": "跨境电商",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "concept_sector",
+      "source_system": "ths"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "物业管理",
+      "confidence": "medium",
+      "external_code": "308717",
+      "external_name": "物业管理",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "concept_sector",
+      "source_system": "ths"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "汽车整车",
+      "confidence": "high",
+      "external_code": "881125",
+      "external_name": "汽车整车",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "industry_sector",
+      "source_system": "ths"
+    },
+    {
+      "approval_state": "proposed_not_approved",
+      "canonical_name": "白酒",
+      "confidence": "high",
+      "external_code": "881273",
+      "external_name": "白酒",
+      "recommended_disposition": "map",
+      "recommended_taxonomy": "industry_sector",
+      "source_system": "ths"
+    }
+  ],
+  "generation_rule_version": "taxonomy-resolution-review-v1",
+  "input_candidates_sha256": "40ac15e39ddba8e4e5cc6935d4f125e073995479ea8575193712c71d06cabc3a",
+  "proposed_counts": {
+    "dual_source_nodes": 239,
+    "eastmoney": 808,
+    "excluded_resolutions": 3,
+    "mapped_resolutions": 10,
+    "mappings": 1153,
+    "ths": 345
+  },
+  "ready_for_write": false,
+  "validation": {
+    "blockers": [
+      "all 13 proposed dispositions require human approval before regenerating the candidate package",
+      "no mapping R2 package is authorized"
+    ],
+    "duplicate_deterministic_id_groups": 0,
+    "duplicate_external_identity_groups": 0,
+    "entity_source_taxonomy_multi_code_groups": 43,
+    "expected_orphans": 0,
+    "proposed_mapping_sha256": "040e81568f90836706a14deeed75eacb819fe037c3c8a586ac9390d66e19908e"
+  }
+}
