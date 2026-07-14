@@ -209,6 +209,13 @@ WHERE source_system = $1
 FOR UPDATE`
 }
 
+func externalIdentifierSelectByIDSQL() string {
+	return `
+SELECT id, entity_id, external_name, status FROM entity_external_identifiers
+WHERE id = $1::uuid
+FOR UPDATE`
+}
+
 func externalIdentifierInsertSQL() string {
 	return `
 INSERT INTO entity_external_identifiers (

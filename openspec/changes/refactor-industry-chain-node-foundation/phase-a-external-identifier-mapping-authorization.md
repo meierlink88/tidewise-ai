@@ -47,27 +47,27 @@
 
 | 证据 | 当前值 |
 | --- | --- |
-| stable custom archive | `/Users/meierlink/.local/share/tidewise-ai/backups/postgresql/phase-a/20260714T015901Z/tidewise_phase_a_post_cleanup_pre_schema16.dump` |
+| 历史 custom archive（仅作 schema-16 前历史证据） | `/Users/meierlink/.local/share/tidewise-ai/backups/postgresql/phase-a/20260714T015901Z/tidewise_phase_a_post_cleanup_pre_schema16.dump` |
 | size / SHA-256 | `904,964` bytes / `02b12193985b0fc88df8c04b3a8efe5c3312e2184513be6036676243f616a0e4` |
 | 当前复核 | 文件存在、size/hash 匹配 |
 | archive integrity 历史证据 | custom archive TOC=182、`pg_restore --list`、schema-only 与 data-only 全量解码已在 schema-16 package 证据完成 |
 | restore status | 未执行 restore rehearsal；`backup_verified=false` |
 
-本机当前无 `pg_restore` binary，因此本 R0 只能新鲜复核 size/hash；实际 R2 maintenance window 必须使用获批准工具重新验证 TOC 与 schema/data decode。无法重新验证、备份不可访问或 hash/size/环境不一致均为停止条件；提交后纠错只能使用新 Review 的 forward-fix，禁止 Down、手工 SQL 或清库。
+该 archive 早于 migration 16 与 842 条节点/profile，**不是 mapping 层恢复基线**。实际 R2 maintenance window 必须先创建新的 custom-format backup（Goose=16、842 chain_node、842 profile、0 mapping），并在写入前验证其 size/SHA-256、TOC、schema-only 与 data-only 全量解码；新路径/hash 只能写入未来执行证据。备份创建或任一校验失败即 0 writes。提交后纠错只能使用新 Review 的 forward-fix，禁止 Down、手工 SQL 或清库。
 
 ## 未来唯一 Write 路径、事务和冲突语义
 
 1. 先刷新本包全部 read-only preflight，并验证 candidate manifest 的 1,169/818/351/241/13 与 SHA-256 完全一致。
-2. 只接受一个经 R1 Review 的 mapping runner：逐行读取冻结 manifest，验证 active `chain_node` target、三元 identity、确定性 ID、`external_name`/status 和完整 snapshot；不得调用通用 entity/profile/relationship seed。
-3. 每条 `UpsertExternalIdentifier` 在独立 PostgreSQL transaction 中对三元 identity 取得 `pg_advisory_xact_lock`，锁定 active target，先读取、再 `INSERT ... ON CONFLICT DO NOTHING`，并在并发 winner 后重读。
+2. 唯一入口是 `entity-seed -external-identifier-mapping-manifest <frozen-manifest>`；它拒绝普通 entity/profile/relationship 选项，并提供 `-external-identifier-mapping-dry-run` 与 `-external-identifier-mapping-preflight`。不得使用手工 SQL 或临时脚本。
+3. runner 以一个 PostgreSQL root transaction 覆盖整层：先全量校验冻结 manifest、active `chain_node` target、三元 identity、确定性 ID 和 snapshot/conflict，再写入全部 1,169 行；不得循环调用逐行独立 transaction 的 `UpsertExternalIdentifier`。任一异常 rollback，0 writes。
 4. 同一 ID/三元 identity 换绑 entity、确定性 ID 漂移或 snapshot 两索引不一致必须 conflict 并 rollback；仅同 entity 的 `external_name`/status 漂移可 update；完全一致才是 unchanged。
 5. 本命名层的业务 Write 范围只能是 1,169 行 `entity_external_identifiers`。任何 entity_nodes、profile、edge、event、theme、relation、constraint、migration 或 Neo4j 写入都必须 fail-closed。
 
-## R1 execution blocker
+## R1 runner implementation Review
 
 当前 repository 已实现并测试 `UpsertExternalIdentifier` 的三元 unique、advisory lock、target 验证、冲突重读和 idempotent update；但 `backend/cmd/entity-seed` 的 manifest/service 目前只执行 entity/profile/relationship，未读取本 mapping manifest，也未调用该 repository 方法。
 
-因此此包**尚无可审计的唯一 mapping runner**，不能进入 R2 Write。下一步必须是独立、无数据库 Write 的 R1 implementation Review：定义只读 manifest loader、mapping-only runner、full dry-run/snapshot report 和测试，并在主对话验收后更新本包的精确命令形状。不得以手工 SQL、临时脚本、通用 entity seed 或第二执行路径绕过该阻断。
+R1 remediation 已新增 mapping-only manifest loader、`entity-seed -external-identifier-mapping-manifest <reviewed manifest>` 与 `-external-identifier-mapping-dry-run`。batch repository 在单一 root transaction 中先锁定、验证全部 mapping/target/冲突，再进入写入循环；任一验证失败 rollback，不得调用逐行独立 transaction 的 `UpsertExternalIdentifier`。命令拒绝与普通 entity/profile/relationship seed 选项组合。R2 前仍须主对话独立验收该实现，并在同一维护窗口创建新的 Goose16+842 node/profile+0 mapping custom-format backup，验证 size/hash/TOC/schema/data decode；旧 pre-schema16 archive 不能作为 mapping 层直接恢复基线。
 
 ## Write 后立即 Query/assert（仅供未来单独授权）
 

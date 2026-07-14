@@ -22,10 +22,24 @@ func main() {
 	includeInactive := flag.Bool("include-inactive", false, "include inactive entities in seed writes")
 	applyScope := flag.String("apply-scope", "", "reserved; legacy industry-chain apply scopes are disabled")
 	phaseAPreflight := flag.Bool("phase-a-preflight", false, "run the read-only industry model Phase A preflight and exit")
+	mappingManifest := flag.String("external-identifier-mapping-manifest", "", "reviewed external identifier mapping manifest")
+	mappingDryRun := flag.Bool("external-identifier-mapping-dry-run", false, "validate external identifier mapping manifest without writes")
+	mappingPreflight := flag.Bool("external-identifier-mapping-preflight", false, "run read-only preflight for the reviewed external identifier mapping manifest")
 	flag.Parse()
 	scope, err := validateCommandOptions(commandOptions{applyScope: *applyScope})
 	if err != nil {
 		log.Fatal(err)
+	}
+	if strings.TrimSpace(*mappingManifest) != "" && *mappingDryRun {
+		if *phaseAPreflight || strings.TrimSpace(*manifestFile) != "" || *includeInactive || strings.TrimSpace(*applyScope) != "" {
+			log.Fatal("mapping-only mode cannot combine entity seed options")
+		}
+		report, err := entityseed.DryRunExternalIdentifierMappings(*mappingManifest)
+		if err != nil {
+			log.Fatalf("dry-run external identifier mappings: %v", err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(report)
+		return
 	}
 
 	cfg, err := config.Load()
@@ -42,6 +56,29 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
+	if strings.TrimSpace(*mappingManifest) != "" {
+		if *phaseAPreflight || strings.TrimSpace(*manifestFile) != "" || *includeInactive || strings.TrimSpace(*applyScope) != "" {
+			log.Fatal("mapping-only mode cannot combine entity seed options")
+		}
+		manifest, err := entityseed.LoadExternalIdentifierMappingFile(*mappingManifest)
+		if err != nil {
+			log.Fatalf("load external identifier mappings: %v", err)
+		}
+		if *mappingPreflight {
+			report, err := entityseed.NewPostgresRepository(db).PreflightExternalIdentifierMappings(ctx, manifest.Mappings)
+			if err != nil {
+				log.Fatalf("preflight external identifier mappings: %v", err)
+			}
+			_ = json.NewEncoder(os.Stdout).Encode(report)
+			return
+		}
+		report, err := entityseed.NewPostgresRepository(db).ApplyExternalIdentifierBatch(ctx, manifest.Mappings)
+		if err != nil {
+			log.Fatalf("apply external identifier mappings: %v", err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(report)
+		return
+	}
 	if *phaseAPreflight {
 		if strings.TrimSpace(*manifestFile) == "" {
 			log.Fatal("phase A preflight requires an explicit reviewed manifest file")
