@@ -1,11 +1,10 @@
 {
   "actions": {
-    "conflict": 16,
-    "created": 826
+    "created": 842
   },
   "artifact_type": "chain_node_final_seed_candidate_dry_run",
   "report": {
-    "ready": false,
+    "ready": true,
     "node_count": 842,
     "original_name_count": 950,
     "wide_boundary_node_count": 79,
@@ -2060,14 +2059,16 @@
         "action": "created"
       },
       {
-        "entity_id": "0a36189d-91ce-5ed5-a10e-dfcb5db0975a",
-        "entity_key": "chain_node:v1_bdd80bf3eded32cdd81b42c540513b4af619dc2e",
+        "entity_id": "1d9e4d7b-180a-5200-8e4f-090d7b91b8aa",
+        "entity_key": "chain_node:v1_10097067439698c95c5d392ccd8172a0e417d043",
         "entity_type": "chain_node",
-        "canonical_name": "动力煤",
-        "aliases": [],
-        "definition": "以动力煤为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "动力煤产业",
+        "aliases": [
+          "动力煤"
+        ],
+        "definition": "围绕动力煤开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一动力煤商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "fd5578cf-efe3-56ef-a4a2-00ebcabe6480",
@@ -3189,14 +3190,16 @@
         "action": "created"
       },
       {
-        "entity_id": "eeb421ef-d579-5fab-b91a-7fb322df40f1",
-        "entity_key": "chain_node:v1_140a69f2e500a194e04d322ba379e7472e58035e",
+        "entity_id": "2d9ca7d9-cd15-5a49-b139-6fb492ac6795",
+        "entity_key": "chain_node:v1_6a8889db7f537ab957c613c7bffa6ca6f76a2339",
         "entity_type": "chain_node",
-        "canonical_name": "大豆",
-        "aliases": [],
-        "definition": "以大豆为核心交付或使用对象的稳定产品类别，按产品形态、核心功能和直接应用范围界定。",
+        "canonical_name": "大豆产业",
+        "aliases": [
+          "大豆"
+        ],
+        "definition": "围绕大豆开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一大豆商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "a3d542b4-2610-56a9-bbde-ed95b83bf966",
@@ -3209,15 +3212,17 @@
         "action": "created"
       },
       {
-        "entity_id": "a3529ec6-ff45-5f73-b8b4-dae013bbc0b0",
-        "entity_key": "chain_node:v1_f0de50c16ce85e5d435b2ddc961210936a7fa44e",
+        "entity_id": "2cc08180-fa1c-5176-96bb-ee236c3f2dfe",
+        "entity_key": "chain_node:v1_9912b87c0a4313b04bc239127231d77f115a43da",
         "entity_type": "chain_node",
-        "canonical_name": "天然气",
-        "aliases": [],
-        "definition": "以天然气为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
-        "boundary_note": "包含与天然气直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+        "canonical_name": "天然气产业",
+        "aliases": [
+          "天然气"
+        ],
+        "definition": "围绕天然气开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一天然气商品实体、价格、期货合约或证券标的。",
+        "boundary_note": "包含与天然气产业直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "aa7a5eb0-5fa9-5ca8-9cc3-3afb43757e78",
@@ -4651,14 +4656,16 @@
         "action": "created"
       },
       {
-        "entity_id": "4a995285-cc3f-5ee4-8122-bc89fccf854a",
-        "entity_key": "chain_node:v1_10b2358d0bcf17878315b21dad1e8bdc10102a12",
+        "entity_id": "ff23f75b-f387-5217-87df-6b3d668d7c25",
+        "entity_key": "chain_node:v1_58bcaa7d6b63066665d5a691df465f978162bb5c",
         "entity_type": "chain_node",
-        "canonical_name": "橡胶",
-        "aliases": [],
-        "definition": "以橡胶为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "橡胶产业",
+        "aliases": [
+          "橡胶"
+        ],
+        "definition": "围绕橡胶开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一橡胶商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "09f21f04-be38-52b4-8a3d-3dbd3c9e6f1d",
@@ -5437,27 +5444,29 @@
         "action": "created"
       },
       {
-        "entity_id": "fb7a7b59-680c-53cc-a1af-59741e8f9dc9",
-        "entity_key": "chain_node:v1_5a49d8fee5fd14d482d76f1c438b2327053304fa",
+        "entity_id": "7c7ba2e8-4494-5484-919f-994212f472fd",
+        "entity_key": "chain_node:v1_77771dcf8f020e9ee4fce6d9443ab89e656b89fe",
         "entity_type": "chain_node",
-        "canonical_name": "焦炭",
+        "canonical_name": "焦炭产业",
         "aliases": [
           "焦炭Ⅱ",
           "焦炭Ⅲ"
         ],
-        "definition": "围绕焦炭形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+        "definition": "围绕焦炭开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一焦炭商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
-        "entity_id": "89bab150-bdf2-53df-8829-526d7b107ed3",
-        "entity_key": "chain_node:v1_2fa97e65ba911f1f5dffdb5ce283cec572e608e5",
+        "entity_id": "5aa5737f-76db-576d-a93d-5c451c71d6cb",
+        "entity_key": "chain_node:v1_de0238c8ed51d631fe674208bd0ebaea32662f07",
         "entity_type": "chain_node",
-        "canonical_name": "焦煤",
-        "aliases": [],
-        "definition": "以焦煤为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "焦煤产业",
+        "aliases": [
+          "焦煤"
+        ],
+        "definition": "围绕焦煤开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一焦煤商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "3eae6003-d060-5280-ba2b-4d9c01256d91",
@@ -5659,14 +5668,16 @@
         "action": "created"
       },
       {
-        "entity_id": "19435ac9-bcff-564e-b4ee-bd428c2a4106",
-        "entity_key": "chain_node:v1_8531dc2f3fb0510d992ab5a4be4898cda5322d17",
+        "entity_id": "d6cfa7d3-6432-573e-b949-e65ca4c0993e",
+        "entity_key": "chain_node:v1_c5c6ed509e11670a9130f4071fcd3c51a0abc245",
         "entity_type": "chain_node",
-        "canonical_name": "玉米",
-        "aliases": [],
-        "definition": "围绕玉米开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+        "canonical_name": "玉米产业",
+        "aliases": [
+          "玉米"
+        ],
+        "definition": "围绕玉米开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一玉米商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "c889b198-49f3-5228-85ee-b4b9c583745c",
@@ -6195,14 +6206,16 @@
         "action": "created"
       },
       {
-        "entity_id": "e2a2dd3d-ac38-5c9b-804b-e472d200acee",
-        "entity_key": "chain_node:v1_bc916383f67f9c89fab4652ffeaed7f770cd0017",
+        "entity_id": "0a733b0b-0704-51f4-89f7-b43c136d857d",
+        "entity_key": "chain_node:v1_c486c6cb27a1cd1388067893af4afe855429b47f",
         "entity_type": "chain_node",
-        "canonical_name": "白银",
-        "aliases": [],
-        "definition": "围绕白银开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+        "canonical_name": "白银产业",
+        "aliases": [
+          "白银"
+        ],
+        "definition": "围绕白银开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一白银商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "7938e48c-0730-5fea-b7ff-e17ed96c8d9d",
@@ -6501,14 +6514,16 @@
         "action": "created"
       },
       {
-        "entity_id": "1a30d368-7186-5563-8f49-dfba67dab891",
-        "entity_key": "chain_node:v1_aea082bb45e5047a8a25bb911921b439b1116567",
+        "entity_id": "cff6722a-15f4-51a0-ae87-ffcb940c4e75",
+        "entity_key": "chain_node:v1_27ce70eef148a208a96f83c266cf784623b6f9b7",
         "entity_type": "chain_node",
-        "canonical_name": "稀土",
-        "aliases": [],
-        "definition": "以稀土为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "稀土产业",
+        "aliases": [
+          "稀土"
+        ],
+        "definition": "围绕稀土开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一稀土商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "9d9243c0-ec40-58ab-a0e8-67697d620dad",
@@ -6687,14 +6702,16 @@
         "action": "created"
       },
       {
-        "entity_id": "5822544b-f94d-5926-95ee-c0c4c121a00e",
-        "entity_key": "chain_node:v1_3ca7fb7c89488e0c1dfd78c6f32864b278282ff3",
+        "entity_id": "d9969d95-6586-5f9b-8242-05edb49c9c20",
+        "entity_key": "chain_node:v1_49d723ebd525cf1031794e821a8d504cb9ec0aac",
         "entity_type": "chain_node",
-        "canonical_name": "纯碱",
-        "aliases": [],
-        "definition": "围绕纯碱开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+        "canonical_name": "纯碱产业",
+        "aliases": [
+          "纯碱"
+        ],
+        "definition": "围绕纯碱开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一纯碱商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "93505d48-8710-5062-a870-a1f69c459ac5",
@@ -8212,14 +8229,16 @@
         "action": "created"
       },
       {
-        "entity_id": "01871179-d464-519f-b9e2-352ded4373f8",
-        "entity_key": "chain_node:v1_2dfd381b43b916144bf3dcd5ea5afa9e1038fd25",
+        "entity_id": "7c3807c6-387d-5139-86f8-d618c6ddf20f",
+        "entity_key": "chain_node:v1_10282eaa77d7e1b32f035f4fa53c34cb6c2e2ee5",
         "entity_type": "chain_node",
-        "canonical_name": "钴",
-        "aliases": [],
-        "definition": "以钴为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "钴产业",
+        "aliases": [
+          "钴"
+        ],
+        "definition": "围绕钴开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一钴商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "457ddc0c-5f45-54b7-9c1a-a0ac034a3719",
@@ -8242,14 +8261,16 @@
         "action": "created"
       },
       {
-        "entity_id": "d0e3827b-4669-59ab-a39d-58a15d5a3dd0",
-        "entity_key": "chain_node:v1_eedb7d02906d910c9a48c1e74948f2558f50d65f",
+        "entity_id": "e5b87f5d-3085-5e47-b2cf-33b41e242cd9",
+        "entity_key": "chain_node:v1_7e1dad978378a1e8cdc24ce1f1cd7f040989dd33",
         "entity_type": "chain_node",
-        "canonical_name": "铁矿石",
-        "aliases": [],
-        "definition": "以铁矿石为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "铁矿石产业",
+        "aliases": [
+          "铁矿石"
+        ],
+        "definition": "围绕铁矿石开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铁矿石商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "8e82bb02-d8c5-553f-92f0-b8977ec42808",
@@ -8293,14 +8314,16 @@
         "action": "created"
       },
       {
-        "entity_id": "e5a7d7d3-9aa8-5e71-9667-164e9a933eb2",
-        "entity_key": "chain_node:v1_56ae29a6eb0d2be8f12acce58dc3940e75064e31",
+        "entity_id": "4b71936c-3f3c-528c-a628-ded2f222999a",
+        "entity_key": "chain_node:v1_c559b89036733a774b3077adba925b5484cb0633",
         "entity_type": "chain_node",
-        "canonical_name": "铜",
-        "aliases": [],
-        "definition": "以铜为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "铜产业",
+        "aliases": [
+          "铜"
+        ],
+        "definition": "围绕铜开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铜商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "6dddff8e-8b16-55c7-908f-260a87af8a94",
@@ -8313,14 +8336,16 @@
         "action": "created"
       },
       {
-        "entity_id": "fc352379-f746-5d88-a73c-9924da440381",
-        "entity_key": "chain_node:v1_64aaae58023adb5b7b026c1a27422f7dab7b4c16",
+        "entity_id": "57ce364c-8a1c-55c7-ab02-5ef70bddeb1d",
+        "entity_key": "chain_node:v1_b9d4f25a0373ecf910aad2cc2d07ceb0bf31e458",
         "entity_type": "chain_node",
-        "canonical_name": "铝",
-        "aliases": [],
-        "definition": "以铝为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "铝产业",
+        "aliases": [
+          "铝"
+        ],
+        "definition": "围绕铝开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铝商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "130f3770-e5f9-535d-ae57-2834a274471a",
@@ -8389,14 +8414,16 @@
         "action": "created"
       },
       {
-        "entity_id": "78b8d927-331d-58d9-b834-f6a64c806510",
-        "entity_key": "chain_node:v1_6d7a40bbe0db5a0257eb0844ffdd957d337d47dd",
+        "entity_id": "74087f1e-fee3-5237-b288-0dc101a371c7",
+        "entity_key": "chain_node:v1_17d3c4298bbf9a1e8d44864e1203a38c6ebbfbbd",
         "entity_type": "chain_node",
-        "canonical_name": "镍",
-        "aliases": [],
-        "definition": "以镍为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+        "canonical_name": "镍产业",
+        "aliases": [
+          "镍"
+        ],
+        "definition": "围绕镍开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一镍商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "bb2a7408-8c57-52e6-bf1c-6e8ce6dc5193",
@@ -8870,16 +8897,17 @@
         "action": "created"
       },
       {
-        "entity_id": "0d13c0e9-8734-5b8a-a5f5-10e878a58e07",
-        "entity_key": "chain_node:v1_3713947f42291cdab8d767672ee855b403712a9d",
+        "entity_id": "e5ef1ef4-a99f-5e04-9f9c-fe0ca3ae3773",
+        "entity_key": "chain_node:v1_12ed9497cc6a0dc6ce2487b738fb6a5c801a2a82",
         "entity_type": "chain_node",
-        "canonical_name": "黄金",
+        "canonical_name": "黄金产业",
         "aliases": [
+          "黄金",
           "黄金概念"
         ],
-        "definition": "围绕黄金形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+        "definition": "围绕黄金开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一黄金商品实体、价格、期货合约或证券标的。",
         "status": "active",
-        "action": "conflict"
+        "action": "created"
       },
       {
         "entity_id": "d8a67153-692f-53e7-8fe1-238f9f8da9a4",
@@ -8894,56 +8922,7 @@
     ],
     "mappings": null,
     "blockers": null,
-    "conflicts": [
-      "canonical_name \"动力煤\" conflicts with existing identity",
-      "canonical_name \"大豆\" conflicts with existing identity",
-      "canonical_name \"天然气\" conflicts with existing identity",
-      "canonical_name \"橡胶\" conflicts with existing identity",
-      "canonical_name \"焦炭\" conflicts with existing identity",
-      "canonical_name \"焦煤\" conflicts with existing identity",
-      "canonical_name \"玉米\" conflicts with existing identity",
-      "canonical_name \"白银\" conflicts with existing identity",
-      "canonical_name \"稀土\" conflicts with existing identity",
-      "canonical_name \"纯碱\" conflicts with existing identity",
-      "canonical_name \"钴\" conflicts with existing identity",
-      "canonical_name \"铁矿石\" conflicts with existing identity",
-      "canonical_name \"铜\" conflicts with existing identity",
-      "canonical_name \"铝\" conflicts with existing identity",
-      "canonical_name \"镍\" conflicts with existing identity",
-      "canonical_name \"黄金\" conflicts with existing identity",
-      "entity_key \"chain_node:v1_10b2358d0bcf17878315b21dad1e8bdc10102a12\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_140a69f2e500a194e04d322ba379e7472e58035e\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_2dfd381b43b916144bf3dcd5ea5afa9e1038fd25\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_2fa97e65ba911f1f5dffdb5ce283cec572e608e5\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_3713947f42291cdab8d767672ee855b403712a9d\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_3ca7fb7c89488e0c1dfd78c6f32864b278282ff3\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_56ae29a6eb0d2be8f12acce58dc3940e75064e31\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_5a49d8fee5fd14d482d76f1c438b2327053304fa\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_64aaae58023adb5b7b026c1a27422f7dab7b4c16\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_6d7a40bbe0db5a0257eb0844ffdd957d337d47dd\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_8531dc2f3fb0510d992ab5a4be4898cda5322d17\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_aea082bb45e5047a8a25bb911921b439b1116567\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_bc916383f67f9c89fab4652ffeaed7f770cd0017\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_bdd80bf3eded32cdd81b42c540513b4af619dc2e\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_eedb7d02906d910c9a48c1e74948f2558f50d65f\" has existing entity_type \"commodity\", want chain_node",
-      "entity_key \"chain_node:v1_f0de50c16ce85e5d435b2ddc961210936a7fa44e\" has existing entity_type \"commodity\", want chain_node",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_10b2358d0bcf17878315b21dad1e8bdc10102a12\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_140a69f2e500a194e04d322ba379e7472e58035e\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_2dfd381b43b916144bf3dcd5ea5afa9e1038fd25\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_2fa97e65ba911f1f5dffdb5ce283cec572e608e5\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_3713947f42291cdab8d767672ee855b403712a9d\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_3ca7fb7c89488e0c1dfd78c6f32864b278282ff3\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_56ae29a6eb0d2be8f12acce58dc3940e75064e31\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_5a49d8fee5fd14d482d76f1c438b2327053304fa\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_64aaae58023adb5b7b026c1a27422f7dab7b4c16\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_6d7a40bbe0db5a0257eb0844ffdd957d337d47dd\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_8531dc2f3fb0510d992ab5a4be4898cda5322d17\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_aea082bb45e5047a8a25bb911921b439b1116567\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_bc916383f67f9c89fab4652ffeaed7f770cd0017\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_bdd80bf3eded32cdd81b42c540513b4af619dc2e\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_eedb7d02906d910c9a48c1e74948f2558f50d65f\"",
-      "snapshot indexes are incomplete for entity_key \"chain_node:v1_f0de50c16ce85e5d435b2ddc961210936a7fa44e\""
-    ]
+    "conflicts": null
   },
   "snapshot_source": "current local PostgreSQL REPEATABLE READ READ ONLY identity query"
 }

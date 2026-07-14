@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	entityseed "github.com/meierlink88/tidewise-ai/backend/internal/apps/entityfoundation/seed"
@@ -16,6 +17,7 @@ import (
 
 func main() {
 	seedDir := flag.String("seed-dir", entityseed.DefaultSeedDir, "entity foundation seed directory")
+	manifestFile := flag.String("manifest-file", "", "explicit reviewed entity foundation manifest file")
 	includeInactive := flag.Bool("include-inactive", false, "include inactive entities in seed writes")
 	applyScope := flag.String("apply-scope", "", "reserved; legacy industry-chain apply scopes are disabled")
 	phaseAPreflight := flag.Bool("phase-a-preflight", false, "run the read-only industry model Phase A preflight and exit")
@@ -52,7 +54,7 @@ func main() {
 		return
 	}
 
-	manifest, err := entityseed.LoadFiles(entityseed.DefaultSeedPaths(*seedDir)...)
+	manifest, err := loadManifest(*seedDir, *manifestFile)
 	if err != nil {
 		log.Fatalf("load entity seed files: %v", err)
 	}
@@ -68,6 +70,13 @@ func main() {
 		log.Fatalf("encode entity seed report: %v", err)
 	}
 	fmt.Fprintln(os.Stdout, string(content))
+}
+
+func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
+	if strings.TrimSpace(manifestFile) != "" {
+		return entityseed.LoadFile(manifestFile)
+	}
+	return entityseed.LoadFiles(entityseed.DefaultSeedPaths(seedDir)...)
 }
 
 type commandOptions struct {

@@ -16,6 +16,7 @@
       "status": "active",
       "name": "3D打印",
       "canonical_name": "3D打印",
+      "renamed_from": null,
       "original_names": [
         "3D打印"
       ],
@@ -36,6 +37,7 @@
       "status": "active",
       "name": "3D摄像头",
       "canonical_name": "3D摄像头",
+      "renamed_from": null,
       "original_names": [
         "3D摄像头"
       ],
@@ -56,6 +58,7 @@
       "status": "active",
       "name": "3D玻璃",
       "canonical_name": "3D玻璃",
+      "renamed_from": null,
       "original_names": [
         "3D玻璃"
       ],
@@ -76,6 +79,7 @@
       "status": "active",
       "name": "5G",
       "canonical_name": "5G",
+      "renamed_from": null,
       "original_names": [
         "5G",
         "5G概念"
@@ -99,6 +103,7 @@
       "status": "active",
       "name": "6G",
       "canonical_name": "6G",
+      "renamed_from": null,
       "original_names": [
         "6G概念"
       ],
@@ -121,6 +126,7 @@
       "status": "active",
       "name": "AI PC",
       "canonical_name": "AI PC",
+      "renamed_from": null,
       "original_names": [
         "AI PC"
       ],
@@ -141,6 +147,7 @@
       "status": "active",
       "name": "AIGC",
       "canonical_name": "AIGC",
+      "renamed_from": null,
       "original_names": [
         "AIGC概念"
       ],
@@ -163,6 +170,7 @@
       "status": "active",
       "name": "AI制药（医疗）",
       "canonical_name": "AI制药（医疗）",
+      "renamed_from": null,
       "original_names": [
         "AI制药（医疗）"
       ],
@@ -183,6 +191,7 @@
       "status": "active",
       "name": "AI手机",
       "canonical_name": "AI手机",
+      "renamed_from": null,
       "original_names": [
         "AI手机"
       ],
@@ -203,6 +212,7 @@
       "status": "active",
       "name": "AI智能体",
       "canonical_name": "AI智能体",
+      "renamed_from": null,
       "original_names": [
         "AI智能体"
       ],
@@ -223,6 +233,7 @@
       "status": "active",
       "name": "AI眼镜",
       "canonical_name": "AI眼镜",
+      "renamed_from": null,
       "original_names": [
         "AI眼镜"
       ],
@@ -243,6 +254,7 @@
       "status": "active",
       "name": "AI芯片",
       "canonical_name": "AI芯片",
+      "renamed_from": null,
       "original_names": [
         "AI芯片"
       ],
@@ -263,6 +275,7 @@
       "status": "active",
       "name": "AI视频",
       "canonical_name": "AI视频",
+      "renamed_from": null,
       "original_names": [
         "AI视频"
       ],
@@ -283,6 +296,7 @@
       "status": "active",
       "name": "AI语料",
       "canonical_name": "AI语料",
+      "renamed_from": null,
       "original_names": [
         "AI语料"
       ],
@@ -303,6 +317,7 @@
       "status": "active",
       "name": "BC电池",
       "canonical_name": "BC电池",
+      "renamed_from": null,
       "original_names": [
         "BC电池"
       ],
@@ -323,6 +338,7 @@
       "status": "active",
       "name": "C2M服务",
       "canonical_name": "C2M服务",
+      "renamed_from": null,
       "original_names": [
         "C2M概念"
       ],
@@ -345,6 +361,7 @@
       "status": "active",
       "name": "CAR-T细胞疗法",
       "canonical_name": "CAR-T细胞疗法",
+      "renamed_from": null,
       "original_names": [
         "CAR-T细胞疗法"
       ],
@@ -365,6 +382,7 @@
       "status": "active",
       "name": "CPO",
       "canonical_name": "CPO",
+      "renamed_from": null,
       "original_names": [
         "CPO概念"
       ],
@@ -387,6 +405,7 @@
       "status": "active",
       "name": "CRO",
       "canonical_name": "CRO",
+      "renamed_from": null,
       "original_names": [
         "CRO"
       ],
@@ -407,6 +426,7 @@
       "status": "active",
       "name": "EDA",
       "canonical_name": "EDA",
+      "renamed_from": null,
       "original_names": [
         "EDA概念"
       ],
@@ -429,6 +449,7 @@
       "status": "active",
       "name": "EDR",
       "canonical_name": "EDR",
+      "renamed_from": null,
       "original_names": [
         "EDR概念"
       ],
@@ -451,6 +472,7 @@
       "status": "active",
       "name": "ERP",
       "canonical_name": "ERP",
+      "renamed_from": null,
       "original_names": [
         "ERP概念"
       ],
@@ -473,6 +495,7 @@
       "status": "active",
       "name": "ETC",
       "canonical_name": "ETC",
+      "renamed_from": null,
       "original_names": [
         "ETC"
       ],
@@ -493,6 +516,7 @@
       "status": "active",
       "name": "F5G",
       "canonical_name": "F5G",
+      "renamed_from": null,
       "original_names": [
         "F5G概念"
       ],
@@ -515,6 +539,7 @@
       "status": "active",
       "name": "HJT电池",
       "canonical_name": "HJT电池",
+      "renamed_from": null,
       "original_names": [
         "HJT电池"
       ],
@@ -535,6 +560,7 @@
       "status": "active",
       "name": "IGBT",
       "canonical_name": "IGBT",
+      "renamed_from": null,
       "original_names": [
         "IGBT概念"
       ],
@@ -557,6 +583,7 @@
       "status": "active",
       "name": "IPv6",
       "canonical_name": "IPv6",
+      "renamed_from": null,
       "original_names": [
         "IPv6"
       ],
@@ -577,6 +604,7 @@
       "status": "active",
       "name": "IT服务",
       "canonical_name": "IT服务",
+      "renamed_from": null,
       "original_names": [
         "IT服务",
         "IT服务Ⅱ",
@@ -602,6 +630,7 @@
       "status": "active",
       "name": "LED",
       "canonical_name": "LED",
+      "renamed_from": null,
       "original_names": [
         "LED",
         "LED概念"
@@ -625,6 +654,7 @@
       "status": "active",
       "name": "MCU芯片",
       "canonical_name": "MCU芯片",
+      "renamed_from": null,
       "original_names": [
         "MCU芯片"
       ],
@@ -645,6 +675,7 @@
       "status": "active",
       "name": "MLCC",
       "canonical_name": "MLCC",
+      "renamed_from": null,
       "original_names": [
         "MLCC"
       ],
@@ -665,6 +696,7 @@
       "status": "active",
       "name": "MLOps",
       "canonical_name": "MLOps",
+      "renamed_from": null,
       "original_names": [
         "MLOps概念"
       ],
@@ -687,6 +719,7 @@
       "status": "active",
       "name": "MicroLED",
       "canonical_name": "MicroLED",
+      "renamed_from": null,
       "original_names": [
         "MicroLED"
       ],
@@ -707,6 +740,7 @@
       "status": "active",
       "name": "MiniLED",
       "canonical_name": "MiniLED",
+      "renamed_from": null,
       "original_names": [
         "MiniLED"
       ],
@@ -727,6 +761,7 @@
       "status": "active",
       "name": "NFT",
       "canonical_name": "NFT",
+      "renamed_from": null,
       "original_names": [
         "NFT概念"
       ],
@@ -749,6 +784,7 @@
       "status": "active",
       "name": "OLED",
       "canonical_name": "OLED",
+      "renamed_from": null,
       "original_names": [
         "OLED"
       ],
@@ -769,6 +805,7 @@
       "status": "active",
       "name": "PEEK材料",
       "canonical_name": "PEEK材料",
+      "renamed_from": null,
       "original_names": [
         "PEEK材料",
         "PEEK材料概念"
@@ -792,6 +829,7 @@
       "status": "active",
       "name": "PET铜箔",
       "canonical_name": "PET铜箔",
+      "renamed_from": null,
       "original_names": [
         "PET铜箔"
       ],
@@ -812,6 +850,7 @@
       "status": "active",
       "name": "PLC",
       "canonical_name": "PLC",
+      "renamed_from": null,
       "original_names": [
         "PLC概念"
       ],
@@ -834,6 +873,7 @@
       "status": "active",
       "name": "POE胶膜",
       "canonical_name": "POE胶膜",
+      "renamed_from": null,
       "original_names": [
         "POE胶膜"
       ],
@@ -854,6 +894,7 @@
       "status": "active",
       "name": "PVDF",
       "canonical_name": "PVDF",
+      "renamed_from": null,
       "original_names": [
         "PVDF概念"
       ],
@@ -876,6 +917,7 @@
       "status": "active",
       "name": "TOPCon电池",
       "canonical_name": "TOPCon电池",
+      "renamed_from": null,
       "original_names": [
         "TOPCon电池"
       ],
@@ -896,6 +938,7 @@
       "status": "active",
       "name": "UWB",
       "canonical_name": "UWB",
+      "renamed_from": null,
       "original_names": [
         "UWB概念"
       ],
@@ -918,6 +961,7 @@
       "status": "active",
       "name": "VPN",
       "canonical_name": "VPN",
+      "renamed_from": null,
       "original_names": [
         "VPN"
       ],
@@ -938,6 +982,7 @@
       "status": "active",
       "name": "Web3.0",
       "canonical_name": "Web3.0",
+      "renamed_from": null,
       "original_names": [
         "Web3.0"
       ],
@@ -958,6 +1003,7 @@
       "status": "active",
       "name": "WiFi",
       "canonical_name": "WiFi",
+      "renamed_from": null,
       "original_names": [
         "WiFi"
       ],
@@ -978,6 +1024,7 @@
       "status": "active",
       "name": "WiFi 6",
       "canonical_name": "WiFi 6",
+      "renamed_from": null,
       "original_names": [
         "WiFi 6"
       ],
@@ -998,6 +1045,7 @@
       "status": "active",
       "name": "一体化压铸",
       "canonical_name": "一体化压铸",
+      "renamed_from": null,
       "original_names": [
         "一体化压铸"
       ],
@@ -1018,6 +1066,7 @@
       "status": "active",
       "name": "一般零售",
       "canonical_name": "一般零售",
+      "renamed_from": null,
       "original_names": [
         "一般零售"
       ],
@@ -1038,6 +1087,7 @@
       "status": "active",
       "name": "专业工程",
       "canonical_name": "专业工程",
+      "renamed_from": null,
       "original_names": [
         "专业工程"
       ],
@@ -1058,6 +1108,7 @@
       "status": "active",
       "name": "专业服务",
       "canonical_name": "专业服务",
+      "renamed_from": null,
       "original_names": [
         "专业服务"
       ],
@@ -1078,6 +1129,7 @@
       "status": "active",
       "name": "专业连锁",
       "canonical_name": "专业连锁",
+      "renamed_from": null,
       "original_names": [
         "专业连锁Ⅱ",
         "专业连锁Ⅲ"
@@ -1102,6 +1154,7 @@
       "status": "active",
       "name": "专用设备",
       "canonical_name": "专用设备",
+      "renamed_from": null,
       "original_names": [
         "专用设备"
       ],
@@ -1122,6 +1175,7 @@
       "status": "active",
       "name": "丙烯酸",
       "canonical_name": "丙烯酸",
+      "renamed_from": null,
       "original_names": [
         "丙烯酸"
       ],
@@ -1142,6 +1196,7 @@
       "status": "active",
       "name": "两轮车",
       "canonical_name": "两轮车",
+      "renamed_from": null,
       "original_names": [
         "两轮车"
       ],
@@ -1162,6 +1217,7 @@
       "status": "active",
       "name": "个护小家电",
       "canonical_name": "个护小家电",
+      "renamed_from": null,
       "original_names": [
         "个护小家电"
       ],
@@ -1182,6 +1238,7 @@
       "status": "active",
       "name": "个护用品",
       "canonical_name": "个护用品",
+      "renamed_from": null,
       "original_names": [
         "个护用品"
       ],
@@ -1202,6 +1259,7 @@
       "status": "active",
       "name": "中药",
       "canonical_name": "中药",
+      "renamed_from": null,
       "original_names": [
         "中药",
         "中药Ⅱ",
@@ -1229,6 +1287,7 @@
       "status": "active",
       "name": "乘用车",
       "canonical_name": "乘用车",
+      "renamed_from": null,
       "original_names": [
         "乘用车"
       ],
@@ -1249,6 +1308,7 @@
       "status": "active",
       "name": "乳业",
       "canonical_name": "乳业",
+      "renamed_from": null,
       "original_names": [
         "乳业"
       ],
@@ -1269,6 +1329,7 @@
       "status": "active",
       "name": "乳品",
       "canonical_name": "乳品",
+      "renamed_from": null,
       "original_names": [
         "乳品"
       ],
@@ -1289,6 +1350,7 @@
       "status": "active",
       "name": "云办公",
       "canonical_name": "云办公",
+      "renamed_from": null,
       "original_names": [
         "云办公"
       ],
@@ -1309,6 +1371,7 @@
       "status": "active",
       "name": "云游戏",
       "canonical_name": "云游戏",
+      "renamed_from": null,
       "original_names": [
         "云游戏"
       ],
@@ -1329,6 +1392,7 @@
       "status": "active",
       "name": "云计算",
       "canonical_name": "云计算",
+      "renamed_from": null,
       "original_names": [
         "云计算"
       ],
@@ -1349,6 +1413,7 @@
       "status": "active",
       "name": "互联医疗",
       "canonical_name": "互联医疗",
+      "renamed_from": null,
       "original_names": [
         "互联医疗"
       ],
@@ -1369,6 +1434,7 @@
       "status": "active",
       "name": "互联网保险",
       "canonical_name": "互联网保险",
+      "renamed_from": null,
       "original_names": [
         "互联网保险"
       ],
@@ -1389,6 +1455,7 @@
       "status": "active",
       "name": "互联网服务",
       "canonical_name": "互联网服务",
+      "renamed_from": null,
       "original_names": [
         "互联网服务"
       ],
@@ -1409,6 +1476,7 @@
       "status": "active",
       "name": "互联网电商",
       "canonical_name": "互联网电商",
+      "renamed_from": null,
       "original_names": [
         "互联网电商"
       ],
@@ -1429,6 +1497,7 @@
       "status": "active",
       "name": "互联网金融",
       "canonical_name": "互联网金融",
+      "renamed_from": null,
       "original_names": [
         "互联网金融"
       ],
@@ -1449,6 +1518,7 @@
       "status": "active",
       "name": "交运设备",
       "canonical_name": "交运设备",
+      "renamed_from": null,
       "original_names": [
         "交运设备"
       ],
@@ -1469,6 +1539,7 @@
       "status": "active",
       "name": "交通运输",
       "canonical_name": "交通运输",
+      "renamed_from": null,
       "original_names": [
         "交通运输"
       ],
@@ -1489,6 +1560,7 @@
       "status": "active",
       "name": "产业地产",
       "canonical_name": "产业地产",
+      "renamed_from": null,
       "original_names": [
         "产业地产"
       ],
@@ -1509,6 +1581,7 @@
       "status": "active",
       "name": "人力资源服务",
       "canonical_name": "人力资源服务",
+      "renamed_from": null,
       "original_names": [
         "人力资源服务"
       ],
@@ -1529,6 +1602,7 @@
       "status": "active",
       "name": "人工景区",
       "canonical_name": "人工景区",
+      "renamed_from": null,
       "original_names": [
         "人工景区"
       ],
@@ -1549,6 +1623,7 @@
       "status": "active",
       "name": "人工智能",
       "canonical_name": "人工智能",
+      "renamed_from": null,
       "original_names": [
         "人工智能"
       ],
@@ -1569,6 +1644,7 @@
       "status": "active",
       "name": "人工智能应用",
       "canonical_name": "人工智能应用",
+      "renamed_from": null,
       "original_names": [
         "AI应用"
       ],
@@ -1591,6 +1667,7 @@
       "status": "active",
       "name": "人形机器人",
       "canonical_name": "人形机器人",
+      "renamed_from": null,
       "original_names": [
         "人形机器人"
       ],
@@ -1611,6 +1688,7 @@
       "status": "active",
       "name": "人脑工程",
       "canonical_name": "人脑工程",
+      "renamed_from": null,
       "original_names": [
         "人脑工程"
       ],
@@ -1631,6 +1709,7 @@
       "status": "active",
       "name": "人脸识别",
       "canonical_name": "人脸识别",
+      "renamed_from": null,
       "original_names": [
         "人脸识别"
       ],
@@ -1651,6 +1730,7 @@
       "status": "active",
       "name": "人造肉",
       "canonical_name": "人造肉",
+      "renamed_from": null,
       "original_names": [
         "人造肉"
       ],
@@ -1671,6 +1751,7 @@
       "status": "active",
       "name": "仓储物流",
       "canonical_name": "仓储物流",
+      "renamed_from": null,
       "original_names": [
         "仓储物流"
       ],
@@ -1691,6 +1772,7 @@
       "status": "active",
       "name": "代糖",
       "canonical_name": "代糖",
+      "renamed_from": null,
       "original_names": [
         "代糖概念"
       ],
@@ -1713,6 +1795,7 @@
       "status": "active",
       "name": "仪器仪表",
       "canonical_name": "仪器仪表",
+      "renamed_from": null,
       "original_names": [
         "仪器仪表"
       ],
@@ -1733,6 +1816,7 @@
       "status": "active",
       "name": "仿制药一致性评价",
       "canonical_name": "仿制药一致性评价",
+      "renamed_from": null,
       "original_names": [
         "仿制药一致性评价"
       ],
@@ -1753,6 +1837,7 @@
       "status": "active",
       "name": "休闲食品",
       "canonical_name": "休闲食品",
+      "renamed_from": null,
       "original_names": [
         "休闲食品"
       ],
@@ -1773,6 +1858,7 @@
       "status": "active",
       "name": "会展服务",
       "canonical_name": "会展服务",
+      "renamed_from": null,
       "original_names": [
         "会展服务"
       ],
@@ -1793,6 +1879,7 @@
       "status": "active",
       "name": "传媒",
       "canonical_name": "传媒",
+      "renamed_from": null,
       "original_names": [
         "传媒"
       ],
@@ -1813,6 +1900,7 @@
       "status": "active",
       "name": "传感器",
       "canonical_name": "传感器",
+      "renamed_from": null,
       "original_names": [
         "传感器"
       ],
@@ -1833,6 +1921,7 @@
       "status": "active",
       "name": "低碳冶金",
       "canonical_name": "低碳冶金",
+      "renamed_from": null,
       "original_names": [
         "低碳冶金"
       ],
@@ -1853,6 +1942,7 @@
       "status": "active",
       "name": "低空产业",
       "canonical_name": "低空产业",
+      "renamed_from": null,
       "original_names": [
         "低空经济"
       ],
@@ -1875,6 +1965,7 @@
       "status": "active",
       "name": "住宅开发",
       "canonical_name": "住宅开发",
+      "renamed_from": null,
       "original_names": [
         "住宅开发"
       ],
@@ -1895,6 +1986,7 @@
       "status": "active",
       "name": "体外诊断",
       "canonical_name": "体外诊断",
+      "renamed_from": null,
       "original_names": [
         "体外诊断",
         "体外诊断概念"
@@ -1918,6 +2010,7 @@
       "status": "active",
       "name": "体育",
       "canonical_name": "体育",
+      "renamed_from": null,
       "original_names": [
         "体育Ⅱ",
         "体育Ⅲ"
@@ -1942,6 +2035,7 @@
       "status": "active",
       "name": "体育产业",
       "canonical_name": "体育产业",
+      "renamed_from": null,
       "original_names": [
         "体育产业"
       ],
@@ -1962,6 +2056,7 @@
       "status": "active",
       "name": "保健品",
       "canonical_name": "保健品",
+      "renamed_from": null,
       "original_names": [
         "保健品"
       ],
@@ -1982,6 +2077,7 @@
       "status": "active",
       "name": "保险",
       "canonical_name": "保险",
+      "renamed_from": null,
       "original_names": [
         "保险",
         "保险Ⅱ",
@@ -2007,6 +2103,7 @@
       "status": "active",
       "name": "信息技术应用创新",
       "canonical_name": "信息技术应用创新",
+      "renamed_from": null,
       "original_names": [
         "信创"
       ],
@@ -2029,6 +2126,7 @@
       "status": "active",
       "name": "信托",
       "canonical_name": "信托",
+      "renamed_from": null,
       "original_names": [
         "信托",
         "信托概念"
@@ -2052,6 +2150,7 @@
       "status": "active",
       "name": "储能",
       "canonical_name": "储能",
+      "renamed_from": null,
       "original_names": [
         "储能",
         "储能概念"
@@ -2075,6 +2174,7 @@
       "status": "active",
       "name": "元件",
       "canonical_name": "元件",
+      "renamed_from": null,
       "original_names": [
         "元件"
       ],
@@ -2095,6 +2195,7 @@
       "status": "active",
       "name": "元宇宙",
       "canonical_name": "元宇宙",
+      "renamed_from": null,
       "original_names": [
         "元宇宙",
         "元宇宙概念"
@@ -2118,6 +2219,7 @@
       "status": "active",
       "name": "充电桩",
       "canonical_name": "充电桩",
+      "renamed_from": null,
       "original_names": [
         "充电桩"
       ],
@@ -2138,6 +2240,7 @@
       "status": "active",
       "name": "先进封装",
       "canonical_name": "先进封装",
+      "renamed_from": null,
       "original_names": [
         "先进封装"
       ],
@@ -2158,6 +2261,7 @@
       "status": "active",
       "name": "光伏",
       "canonical_name": "光伏",
+      "renamed_from": null,
       "original_names": [
         "光伏概念"
       ],
@@ -2180,6 +2284,7 @@
       "status": "active",
       "name": "光伏主材",
       "canonical_name": "光伏主材",
+      "renamed_from": null,
       "original_names": [
         "光伏主材"
       ],
@@ -2200,6 +2305,7 @@
       "status": "active",
       "name": "光伏加工设备",
       "canonical_name": "光伏加工设备",
+      "renamed_from": null,
       "original_names": [
         "光伏加工设备"
       ],
@@ -2220,6 +2326,7 @@
       "status": "active",
       "name": "光伏发电",
       "canonical_name": "光伏发电",
+      "renamed_from": null,
       "original_names": [
         "光伏发电"
       ],
@@ -2240,6 +2347,7 @@
       "status": "active",
       "name": "光伏电池组件",
       "canonical_name": "光伏电池组件",
+      "renamed_from": null,
       "original_names": [
         "光伏电池组件"
       ],
@@ -2260,6 +2368,7 @@
       "status": "active",
       "name": "光伏设备",
       "canonical_name": "光伏设备",
+      "renamed_from": null,
       "original_names": [
         "光伏设备"
       ],
@@ -2280,6 +2389,7 @@
       "status": "active",
       "name": "光伏辅材",
       "canonical_name": "光伏辅材",
+      "renamed_from": null,
       "original_names": [
         "光伏辅材"
       ],
@@ -2300,6 +2410,7 @@
       "status": "active",
       "name": "光刻机",
       "canonical_name": "光刻机",
+      "renamed_from": null,
       "original_names": [
         "光刻机"
       ],
@@ -2320,6 +2431,7 @@
       "status": "active",
       "name": "光刻胶",
       "canonical_name": "光刻胶",
+      "renamed_from": null,
       "original_names": [
         "光刻机(胶)",
         "光刻胶"
@@ -2343,6 +2455,7 @@
       "status": "active",
       "name": "光学元件",
       "canonical_name": "光学元件",
+      "renamed_from": null,
       "original_names": [
         "光学元件"
       ],
@@ -2363,6 +2476,7 @@
       "status": "active",
       "name": "光学光电子",
       "canonical_name": "光学光电子",
+      "renamed_from": null,
       "original_names": [
         "光学光电子"
       ],
@@ -2383,6 +2497,7 @@
       "status": "active",
       "name": "光热发电",
       "canonical_name": "光热发电",
+      "renamed_from": null,
       "original_names": [
         "光热发电"
       ],
@@ -2403,6 +2518,7 @@
       "status": "active",
       "name": "光纤",
       "canonical_name": "光纤",
+      "renamed_from": null,
       "original_names": [
         "光纤概念"
       ],
@@ -2425,6 +2541,7 @@
       "status": "active",
       "name": "光通信模块",
       "canonical_name": "光通信模块",
+      "renamed_from": null,
       "original_names": [
         "光通信模块"
       ],
@@ -2445,6 +2562,7 @@
       "status": "active",
       "name": "免疫治疗",
       "canonical_name": "免疫治疗",
+      "renamed_from": null,
       "original_names": [
         "免疫治疗"
       ],
@@ -2465,6 +2583,7 @@
       "status": "active",
       "name": "免税店",
       "canonical_name": "免税店",
+      "renamed_from": null,
       "original_names": [
         "免税店"
       ],
@@ -2485,6 +2604,7 @@
       "status": "active",
       "name": "免税零售",
       "canonical_name": "免税零售",
+      "renamed_from": null,
       "original_names": [
         "免税概念"
       ],
@@ -2507,6 +2627,7 @@
       "status": "active",
       "name": "全息技术",
       "canonical_name": "全息技术",
+      "renamed_from": null,
       "original_names": [
         "全息技术"
       ],
@@ -2527,6 +2648,7 @@
       "status": "active",
       "name": "公交",
       "canonical_name": "公交",
+      "renamed_from": null,
       "original_names": [
         "公交"
       ],
@@ -2547,6 +2669,7 @@
       "status": "active",
       "name": "公用事业",
       "canonical_name": "公用事业",
+      "renamed_from": null,
       "original_names": [
         "公用事业"
       ],
@@ -2567,6 +2690,7 @@
       "status": "active",
       "name": "公路货运",
       "canonical_name": "公路货运",
+      "renamed_from": null,
       "original_names": [
         "公路货运"
       ],
@@ -2587,6 +2711,7 @@
       "status": "active",
       "name": "公路铁路运输",
       "canonical_name": "公路铁路运输",
+      "renamed_from": null,
       "original_names": [
         "公路铁路运输"
       ],
@@ -2607,6 +2732,7 @@
       "status": "active",
       "name": "共享单车",
       "canonical_name": "共享单车",
+      "renamed_from": null,
       "original_names": [
         "共享单车"
       ],
@@ -2627,6 +2753,7 @@
       "status": "active",
       "name": "共享服务",
       "canonical_name": "共享服务",
+      "renamed_from": null,
       "original_names": [
         "共享经济"
       ],
@@ -2649,6 +2776,7 @@
       "status": "active",
       "name": "共封装光学(CPO)",
       "canonical_name": "共封装光学(CPO)",
+      "renamed_from": null,
       "original_names": [
         "共封装光学(CPO)"
       ],
@@ -2669,6 +2797,7 @@
       "status": "active",
       "name": "其他专业工程",
       "canonical_name": "其他专业工程",
+      "renamed_from": null,
       "original_names": [
         "其他专业工程"
       ],
@@ -2689,6 +2818,7 @@
       "status": "active",
       "name": "其他专业服务",
       "canonical_name": "其他专业服务",
+      "renamed_from": null,
       "original_names": [
         "其他专业服务"
       ],
@@ -2709,6 +2839,7 @@
       "status": "active",
       "name": "其他专用设备",
       "canonical_name": "其他专用设备",
+      "renamed_from": null,
       "original_names": [
         "其他专用设备"
       ],
@@ -2729,6 +2860,7 @@
       "status": "active",
       "name": "其他养殖",
       "canonical_name": "其他养殖",
+      "renamed_from": null,
       "original_names": [
         "其他养殖"
       ],
@@ -2749,6 +2881,7 @@
       "status": "active",
       "name": "其他农产品加工",
       "canonical_name": "其他农产品加工",
+      "renamed_from": null,
       "original_names": [
         "其他农产品加工"
       ],
@@ -2769,6 +2902,7 @@
       "status": "active",
       "name": "其他化学制品",
       "canonical_name": "其他化学制品",
+      "renamed_from": null,
       "original_names": [
         "其他化学制品"
       ],
@@ -2789,6 +2923,7 @@
       "status": "active",
       "name": "其他化学原料",
       "canonical_name": "其他化学原料",
+      "renamed_from": null,
       "original_names": [
         "其他化学原料"
       ],
@@ -2809,6 +2944,7 @@
       "status": "active",
       "name": "其他化学纤维",
       "canonical_name": "其他化学纤维",
+      "renamed_from": null,
       "original_names": [
         "其他化学纤维"
       ],
@@ -2829,6 +2965,7 @@
       "status": "active",
       "name": "其他医疗服务",
       "canonical_name": "其他医疗服务",
+      "renamed_from": null,
       "original_names": [
         "其他医疗服务"
       ],
@@ -2849,6 +2986,7 @@
       "status": "active",
       "name": "其他塑料制品",
       "canonical_name": "其他塑料制品",
+      "renamed_from": null,
       "original_names": [
         "其他塑料制品"
       ],
@@ -2869,6 +3007,7 @@
       "status": "active",
       "name": "其他家居用品",
       "canonical_name": "其他家居用品",
+      "renamed_from": null,
       "original_names": [
         "其他家居用品"
       ],
@@ -2889,6 +3028,7 @@
       "status": "active",
       "name": "其他家电",
       "canonical_name": "其他家电",
+      "renamed_from": null,
       "original_names": [
         "其他家电Ⅱ",
         "其他家电Ⅲ"
@@ -2913,6 +3053,7 @@
       "status": "active",
       "name": "其他小金属",
       "canonical_name": "其他小金属",
+      "renamed_from": null,
       "original_names": [
         "其他小金属"
       ],
@@ -2933,6 +3074,7 @@
       "status": "active",
       "name": "其他建材",
       "canonical_name": "其他建材",
+      "renamed_from": null,
       "original_names": [
         "其他建材Ⅲ"
       ],
@@ -2955,6 +3097,7 @@
       "status": "active",
       "name": "其他数字媒体",
       "canonical_name": "其他数字媒体",
+      "renamed_from": null,
       "original_names": [
         "其他数字媒体"
       ],
@@ -2975,6 +3118,7 @@
       "status": "active",
       "name": "其他橡胶制品",
       "canonical_name": "其他橡胶制品",
+      "renamed_from": null,
       "original_names": [
         "其他橡胶制品"
       ],
@@ -2995,6 +3139,7 @@
       "status": "active",
       "name": "其他生物制品",
       "canonical_name": "其他生物制品",
+      "renamed_from": null,
       "original_names": [
         "其他生物制品"
       ],
@@ -3015,6 +3160,7 @@
       "status": "active",
       "name": "其他电子",
       "canonical_name": "其他电子",
+      "renamed_from": null,
       "original_names": [
         "其他电子",
         "其他电子Ⅱ",
@@ -3040,6 +3186,7 @@
       "status": "active",
       "name": "其他电源设备",
       "canonical_name": "其他电源设备",
+      "renamed_from": null,
       "original_names": [
         "其他电源设备",
         "其他电源设备Ⅱ",
@@ -3065,6 +3212,7 @@
       "status": "active",
       "name": "其他石化",
       "canonical_name": "其他石化",
+      "renamed_from": null,
       "original_names": [
         "其他石化"
       ],
@@ -3085,6 +3233,7 @@
       "status": "active",
       "name": "其他社会服务",
       "canonical_name": "其他社会服务",
+      "renamed_from": null,
       "original_names": [
         "其他社会服务"
       ],
@@ -3105,6 +3254,7 @@
       "status": "active",
       "name": "其他种植业",
       "canonical_name": "其他种植业",
+      "renamed_from": null,
       "original_names": [
         "其他种植业"
       ],
@@ -3125,6 +3275,7 @@
       "status": "active",
       "name": "其他纺织",
       "canonical_name": "其他纺织",
+      "renamed_from": null,
       "original_names": [
         "其他纺织"
       ],
@@ -3145,6 +3296,7 @@
       "status": "active",
       "name": "其他能源发电",
       "canonical_name": "其他能源发电",
+      "renamed_from": null,
       "original_names": [
         "其他能源发电"
       ],
@@ -3165,6 +3317,7 @@
       "status": "active",
       "name": "其他自动化设备",
       "canonical_name": "其他自动化设备",
+      "renamed_from": null,
       "original_names": [
         "其他自动化设备"
       ],
@@ -3185,6 +3338,7 @@
       "status": "active",
       "name": "其他计算机设备",
       "canonical_name": "其他计算机设备",
+      "renamed_from": null,
       "original_names": [
         "其他计算机设备"
       ],
@@ -3205,6 +3359,7 @@
       "status": "active",
       "name": "其他运输设备",
       "canonical_name": "其他运输设备",
+      "renamed_from": null,
       "original_names": [
         "其他运输设备"
       ],
@@ -3225,6 +3380,7 @@
       "status": "active",
       "name": "其他通信设备",
       "canonical_name": "其他通信设备",
+      "renamed_from": null,
       "original_names": [
         "其他通信设备"
       ],
@@ -3245,6 +3401,7 @@
       "status": "active",
       "name": "其他通用设备",
       "canonical_name": "其他通用设备",
+      "renamed_from": null,
       "original_names": [
         "其他通用设备"
       ],
@@ -3265,6 +3422,7 @@
       "status": "active",
       "name": "其他酒类",
       "canonical_name": "其他酒类",
+      "renamed_from": null,
       "original_names": [
         "其他酒类"
       ],
@@ -3285,6 +3443,7 @@
       "status": "active",
       "name": "其他金属新材料",
       "canonical_name": "其他金属新材料",
+      "renamed_from": null,
       "original_names": [
         "其他金属新材料"
       ],
@@ -3305,6 +3464,7 @@
       "status": "active",
       "name": "其他饰品",
       "canonical_name": "其他饰品",
+      "renamed_from": null,
       "original_names": [
         "其他饰品"
       ],
@@ -3325,6 +3485,7 @@
       "status": "active",
       "name": "其他黑色家电",
       "canonical_name": "其他黑色家电",
+      "renamed_from": null,
       "original_names": [
         "其他黑色家电"
       ],
@@ -3345,6 +3506,7 @@
       "status": "active",
       "name": "养殖业",
       "canonical_name": "养殖业",
+      "renamed_from": null,
       "original_names": [
         "养殖业"
       ],
@@ -3365,6 +3527,7 @@
       "status": "active",
       "name": "养鸡",
       "canonical_name": "养鸡",
+      "renamed_from": null,
       "original_names": [
         "养鸡"
       ],
@@ -3385,6 +3548,7 @@
       "status": "active",
       "name": "内贸流通",
       "canonical_name": "内贸流通",
+      "renamed_from": null,
       "original_names": [
         "内贸流通"
       ],
@@ -3405,6 +3569,7 @@
       "status": "active",
       "name": "军工",
       "canonical_name": "军工",
+      "renamed_from": null,
       "original_names": [
         "军工"
       ],
@@ -3425,6 +3590,7 @@
       "status": "active",
       "name": "军工信息化",
       "canonical_name": "军工信息化",
+      "renamed_from": null,
       "original_names": [
         "军工信息化"
       ],
@@ -3445,6 +3611,7 @@
       "status": "active",
       "name": "军工电子",
       "canonical_name": "军工电子",
+      "renamed_from": null,
       "original_names": [
         "军工电子",
         "军工电子Ⅱ",
@@ -3470,6 +3637,7 @@
       "status": "active",
       "name": "军工装备",
       "canonical_name": "军工装备",
+      "renamed_from": null,
       "original_names": [
         "军工装备"
       ],
@@ -3490,6 +3658,7 @@
       "status": "active",
       "name": "农业机械",
       "canonical_name": "农业机械",
+      "renamed_from": null,
       "original_names": [
         "农机",
         "农用机械"
@@ -3514,6 +3683,7 @@
       "status": "active",
       "name": "农业种植",
       "canonical_name": "农业种植",
+      "renamed_from": null,
       "original_names": [
         "农业种植"
       ],
@@ -3534,6 +3704,7 @@
       "status": "active",
       "name": "农业综合",
       "canonical_name": "农业综合",
+      "renamed_from": null,
       "original_names": [
         "农业综合Ⅱ",
         "农业综合Ⅲ"
@@ -3558,6 +3729,7 @@
       "status": "active",
       "name": "农产品加工",
       "canonical_name": "农产品加工",
+      "renamed_from": null,
       "original_names": [
         "农产品加工"
       ],
@@ -3578,6 +3750,7 @@
       "status": "active",
       "name": "农化制品",
       "canonical_name": "农化制品",
+      "renamed_from": null,
       "original_names": [
         "农化制品"
       ],
@@ -3598,6 +3771,7 @@
       "status": "active",
       "name": "农商行",
       "canonical_name": "农商行",
+      "renamed_from": null,
       "original_names": [
         "农商行Ⅲ"
       ],
@@ -3620,6 +3794,7 @@
       "status": "active",
       "name": "农村电商",
       "canonical_name": "农村电商",
+      "renamed_from": null,
       "original_names": [
         "农村电商"
       ],
@@ -3640,6 +3815,7 @@
       "status": "active",
       "name": "农林牧渔",
       "canonical_name": "农林牧渔",
+      "renamed_from": null,
       "original_names": [
         "农林牧渔"
       ],
@@ -3660,6 +3836,7 @@
       "status": "active",
       "name": "农药",
       "canonical_name": "农药",
+      "renamed_from": null,
       "original_names": [
         "农药"
       ],
@@ -3680,6 +3857,7 @@
       "status": "active",
       "name": "农药兽药",
       "canonical_name": "农药兽药",
+      "renamed_from": null,
       "original_names": [
         "农药兽药"
       ],
@@ -3700,6 +3878,7 @@
       "status": "active",
       "name": "冰洗",
       "canonical_name": "冰洗",
+      "renamed_from": null,
       "original_names": [
         "冰洗"
       ],
@@ -3720,6 +3899,7 @@
       "status": "active",
       "name": "冰雪产业",
       "canonical_name": "冰雪产业",
+      "renamed_from": null,
       "original_names": [
         "冰雪产业",
         "冰雪经济"
@@ -3743,6 +3923,7 @@
       "status": "active",
       "name": "冶钢原料",
       "canonical_name": "冶钢原料",
+      "renamed_from": null,
       "original_names": [
         "冶钢原料"
       ],
@@ -3763,6 +3944,7 @@
       "status": "active",
       "name": "冶钢辅料",
       "canonical_name": "冶钢辅料",
+      "renamed_from": null,
       "original_names": [
         "冶钢辅料"
       ],
@@ -3783,6 +3965,7 @@
       "status": "active",
       "name": "冷链物流",
       "canonical_name": "冷链物流",
+      "renamed_from": null,
       "original_names": [
         "冷链物流"
       ],
@@ -3803,6 +3986,7 @@
       "status": "active",
       "name": "净水",
       "canonical_name": "净水",
+      "renamed_from": null,
       "original_names": [
         "净水概念"
       ],
@@ -3825,6 +4009,7 @@
       "status": "active",
       "name": "减肥药",
       "canonical_name": "减肥药",
+      "renamed_from": null,
       "original_names": [
         "减肥药"
       ],
@@ -3845,6 +4030,7 @@
       "status": "active",
       "name": "减速器",
       "canonical_name": "减速器",
+      "renamed_from": null,
       "original_names": [
         "减速器"
       ],
@@ -3865,6 +4051,7 @@
       "status": "active",
       "name": "出版",
       "canonical_name": "出版",
+      "renamed_from": null,
       "original_names": [
         "出版"
       ],
@@ -3885,6 +4072,7 @@
       "status": "active",
       "name": "刀片电池",
       "canonical_name": "刀片电池",
+      "renamed_from": null,
       "original_names": [
         "刀片电池"
       ],
@@ -3905,6 +4093,7 @@
       "status": "active",
       "name": "创新医疗服务",
       "canonical_name": "创新医疗服务",
+      "renamed_from": null,
       "original_names": [
         "创新医疗服务"
       ],
@@ -3925,6 +4114,7 @@
       "status": "active",
       "name": "创新药",
       "canonical_name": "创新药",
+      "renamed_from": null,
       "original_names": [
         "创新药"
       ],
@@ -3945,6 +4135,7 @@
       "status": "active",
       "name": "制冷空调设备",
       "canonical_name": "制冷空调设备",
+      "renamed_from": null,
       "original_names": [
         "制冷空调设备"
       ],
@@ -3965,6 +4156,7 @@
       "status": "active",
       "name": "券商",
       "canonical_name": "券商",
+      "renamed_from": null,
       "original_names": [
         "券商概念"
       ],
@@ -3981,17 +4173,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "0a36189d-91ce-5ed5-a10e-dfcb5db0975a",
-      "entity_key": "chain_node:v1_bdd80bf3eded32cdd81b42c540513b4af619dc2e",
+      "entity_id": "1d9e4d7b-180a-5200-8e4f-090d7b91b8aa",
+      "entity_key": "chain_node:v1_10097067439698c95c5d392ccd8172a0e417d043",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "动力煤",
-      "canonical_name": "动力煤",
+      "name": "动力煤产业",
+      "canonical_name": "动力煤产业",
+      "renamed_from": "动力煤",
       "original_names": [
         "动力煤"
       ],
       "aliases": [],
-      "definition": "以动力煤为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕动力煤开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一动力煤商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -4007,6 +4200,7 @@
       "status": "active",
       "name": "动力电池回收",
       "canonical_name": "动力电池回收",
+      "renamed_from": null,
       "original_names": [
         "动力电池回收"
       ],
@@ -4027,6 +4221,7 @@
       "status": "active",
       "name": "动物保健",
       "canonical_name": "动物保健",
+      "renamed_from": null,
       "original_names": [
         "动物保健Ⅱ",
         "动物保健Ⅲ"
@@ -4051,6 +4246,7 @@
       "status": "active",
       "name": "动物疫苗",
       "canonical_name": "动物疫苗",
+      "renamed_from": null,
       "original_names": [
         "动物疫苗"
       ],
@@ -4071,6 +4267,7 @@
       "status": "active",
       "name": "包装材料",
       "canonical_name": "包装材料",
+      "renamed_from": null,
       "original_names": [
         "包装材料"
       ],
@@ -4091,6 +4288,7 @@
       "status": "active",
       "name": "包装装潢印刷",
       "canonical_name": "包装装潢印刷",
+      "renamed_from": null,
       "original_names": [
         "包装印刷"
       ],
@@ -4113,6 +4311,7 @@
       "status": "active",
       "name": "化妆品",
       "canonical_name": "化妆品",
+      "renamed_from": null,
       "original_names": [
         "化妆品",
         "化妆品概念"
@@ -4136,6 +4335,7 @@
       "status": "active",
       "name": "化妆品制造及其他",
       "canonical_name": "化妆品制造及其他",
+      "renamed_from": null,
       "original_names": [
         "化妆品制造及其他"
       ],
@@ -4156,6 +4356,7 @@
       "status": "active",
       "name": "化学制剂",
       "canonical_name": "化学制剂",
+      "renamed_from": null,
       "original_names": [
         "化学制剂"
       ],
@@ -4176,6 +4377,7 @@
       "status": "active",
       "name": "化学制品",
       "canonical_name": "化学制品",
+      "renamed_from": null,
       "original_names": [
         "化学制品"
       ],
@@ -4196,6 +4398,7 @@
       "status": "active",
       "name": "化学制药",
       "canonical_name": "化学制药",
+      "renamed_from": null,
       "original_names": [
         "化学制药"
       ],
@@ -4216,6 +4419,7 @@
       "status": "active",
       "name": "化学原料",
       "canonical_name": "化学原料",
+      "renamed_from": null,
       "original_names": [
         "化学原料"
       ],
@@ -4236,6 +4440,7 @@
       "status": "active",
       "name": "化学工程",
       "canonical_name": "化学工程",
+      "renamed_from": null,
       "original_names": [
         "化学工程"
       ],
@@ -4256,6 +4461,7 @@
       "status": "active",
       "name": "化学纤维",
       "canonical_name": "化学纤维",
+      "renamed_from": null,
       "original_names": [
         "化学纤维"
       ],
@@ -4276,6 +4482,7 @@
       "status": "active",
       "name": "化学药品原料药",
       "canonical_name": "化学药品原料药",
+      "renamed_from": null,
       "original_names": [
         "原料药"
       ],
@@ -4298,6 +4505,7 @@
       "status": "active",
       "name": "化工原料",
       "canonical_name": "化工原料",
+      "renamed_from": null,
       "original_names": [
         "化工原料"
       ],
@@ -4318,6 +4526,7 @@
       "status": "active",
       "name": "化肥",
       "canonical_name": "化肥",
+      "renamed_from": null,
       "original_names": [
         "化肥"
       ],
@@ -4338,6 +4547,7 @@
       "status": "active",
       "name": "北斗导航",
       "canonical_name": "北斗导航",
+      "renamed_from": null,
       "original_names": [
         "北斗导航"
       ],
@@ -4358,6 +4568,7 @@
       "status": "active",
       "name": "区块链",
       "canonical_name": "区块链",
+      "renamed_from": null,
       "original_names": [
         "区块链"
       ],
@@ -4378,6 +4589,7 @@
       "status": "active",
       "name": "医废处理",
       "canonical_name": "医废处理",
+      "renamed_from": null,
       "original_names": [
         "医废处理"
       ],
@@ -4398,6 +4610,7 @@
       "status": "active",
       "name": "医疗SPD服务",
       "canonical_name": "医疗SPD服务",
+      "renamed_from": null,
       "original_names": [
         "SPD概念"
       ],
@@ -4420,6 +4633,7 @@
       "status": "active",
       "name": "医疗器械",
       "canonical_name": "医疗器械",
+      "renamed_from": null,
       "original_names": [
         "医疗器械",
         "医疗器械概念"
@@ -4443,6 +4657,7 @@
       "status": "active",
       "name": "医疗服务",
       "canonical_name": "医疗服务",
+      "renamed_from": null,
       "original_names": [
         "医疗服务"
       ],
@@ -4463,6 +4678,7 @@
       "status": "active",
       "name": "医疗研发外包",
       "canonical_name": "医疗研发外包",
+      "renamed_from": null,
       "original_names": [
         "医疗研发外包"
       ],
@@ -4483,6 +4699,7 @@
       "status": "active",
       "name": "医疗美容",
       "canonical_name": "医疗美容",
+      "renamed_from": null,
       "original_names": [
         "医疗美容"
       ],
@@ -4503,6 +4720,7 @@
       "status": "active",
       "name": "医疗耗材",
       "canonical_name": "医疗耗材",
+      "renamed_from": null,
       "original_names": [
         "医疗耗材"
       ],
@@ -4523,6 +4741,7 @@
       "status": "active",
       "name": "医疗设备",
       "canonical_name": "医疗设备",
+      "renamed_from": null,
       "original_names": [
         "医疗设备"
       ],
@@ -4543,6 +4762,7 @@
       "status": "active",
       "name": "医美",
       "canonical_name": "医美",
+      "renamed_from": null,
       "original_names": [
         "医美概念"
       ],
@@ -4565,6 +4785,7 @@
       "status": "active",
       "name": "医美服务",
       "canonical_name": "医美服务",
+      "renamed_from": null,
       "original_names": [
         "医美服务"
       ],
@@ -4585,6 +4806,7 @@
       "status": "active",
       "name": "医美耗材",
       "canonical_name": "医美耗材",
+      "renamed_from": null,
       "original_names": [
         "医美耗材"
       ],
@@ -4605,6 +4827,7 @@
       "status": "active",
       "name": "医药商业",
       "canonical_name": "医药商业",
+      "renamed_from": null,
       "original_names": [
         "医药商业"
       ],
@@ -4625,6 +4848,7 @@
       "status": "active",
       "name": "医药流通",
       "canonical_name": "医药流通",
+      "renamed_from": null,
       "original_names": [
         "医药流通"
       ],
@@ -4645,6 +4869,7 @@
       "status": "active",
       "name": "医药生物",
       "canonical_name": "医药生物",
+      "renamed_from": null,
       "original_names": [
         "医药生物"
       ],
@@ -4665,6 +4890,7 @@
       "status": "active",
       "name": "医药电商",
       "canonical_name": "医药电商",
+      "renamed_from": null,
       "original_names": [
         "医药电商"
       ],
@@ -4685,6 +4911,7 @@
       "status": "active",
       "name": "医院",
       "canonical_name": "医院",
+      "renamed_from": null,
       "original_names": [
         "医院"
       ],
@@ -4705,6 +4932,7 @@
       "status": "active",
       "name": "半导体",
       "canonical_name": "半导体",
+      "renamed_from": null,
       "original_names": [
         "半导体",
         "半导体概念"
@@ -4728,6 +4956,7 @@
       "status": "active",
       "name": "半导体分立器件",
       "canonical_name": "半导体分立器件",
+      "renamed_from": null,
       "original_names": [
         "分立器件"
       ],
@@ -4750,6 +4979,7 @@
       "status": "active",
       "name": "半导体材料",
       "canonical_name": "半导体材料",
+      "renamed_from": null,
       "original_names": [
         "半导体材料"
       ],
@@ -4770,6 +5000,7 @@
       "status": "active",
       "name": "半导体设备",
       "canonical_name": "半导体设备",
+      "renamed_from": null,
       "original_names": [
         "半导体设备"
       ],
@@ -4790,6 +5021,7 @@
       "status": "active",
       "name": "单抗",
       "canonical_name": "单抗",
+      "renamed_from": null,
       "original_names": [
         "单抗概念"
       ],
@@ -4812,6 +5044,7 @@
       "status": "active",
       "name": "卫星互联网",
       "canonical_name": "卫星互联网",
+      "renamed_from": null,
       "original_names": [
         "卫星互联网"
       ],
@@ -4832,6 +5065,7 @@
       "status": "active",
       "name": "卫星导航",
       "canonical_name": "卫星导航",
+      "renamed_from": null,
       "original_names": [
         "卫星导航"
       ],
@@ -4852,6 +5086,7 @@
       "status": "active",
       "name": "卫浴制品",
       "canonical_name": "卫浴制品",
+      "renamed_from": null,
       "original_names": [
         "卫浴制品"
       ],
@@ -4872,6 +5107,7 @@
       "status": "active",
       "name": "卫浴电器",
       "canonical_name": "卫浴电器",
+      "renamed_from": null,
       "original_names": [
         "卫浴电器"
       ],
@@ -4892,6 +5128,7 @@
       "status": "active",
       "name": "印制电路板",
       "canonical_name": "印制电路板",
+      "renamed_from": null,
       "original_names": [
         "PCB",
         "PCB概念",
@@ -4917,6 +5154,7 @@
       "status": "active",
       "name": "印刷",
       "canonical_name": "印刷",
+      "renamed_from": null,
       "original_names": [
         "印刷"
       ],
@@ -4937,6 +5175,7 @@
       "status": "active",
       "name": "印刷包装机械",
       "canonical_name": "印刷包装机械",
+      "renamed_from": null,
       "original_names": [
         "印刷包装机械"
       ],
@@ -4957,6 +5196,7 @@
       "status": "active",
       "name": "印染",
       "canonical_name": "印染",
+      "renamed_from": null,
       "original_names": [
         "印染"
       ],
@@ -4977,6 +5217,7 @@
       "status": "active",
       "name": "原材料供应链服务",
       "canonical_name": "原材料供应链服务",
+      "renamed_from": null,
       "original_names": [
         "原材料供应链服务"
       ],
@@ -4997,6 +5238,7 @@
       "status": "active",
       "name": "厨卫电器",
       "canonical_name": "厨卫电器",
+      "renamed_from": null,
       "original_names": [
         "厨卫电器"
       ],
@@ -5017,6 +5259,7 @@
       "status": "active",
       "name": "厨房小家电",
       "canonical_name": "厨房小家电",
+      "renamed_from": null,
       "original_names": [
         "厨房小家电"
       ],
@@ -5037,6 +5280,7 @@
       "status": "active",
       "name": "厨房电器",
       "canonical_name": "厨房电器",
+      "renamed_from": null,
       "original_names": [
         "厨房电器"
       ],
@@ -5057,6 +5301,7 @@
       "status": "active",
       "name": "发电机",
       "canonical_name": "发电机",
+      "renamed_from": null,
       "original_names": [
         "发电机概念"
       ],
@@ -5079,6 +5324,7 @@
       "status": "active",
       "name": "可控核聚变",
       "canonical_name": "可控核聚变",
+      "renamed_from": null,
       "original_names": [
         "可控核聚变"
       ],
@@ -5099,6 +5345,7 @@
       "status": "active",
       "name": "可燃冰",
       "canonical_name": "可燃冰",
+      "renamed_from": null,
       "original_names": [
         "可燃冰"
       ],
@@ -5119,6 +5366,7 @@
       "status": "active",
       "name": "可降解塑料",
       "canonical_name": "可降解塑料",
+      "renamed_from": null,
       "original_names": [
         "可降解塑料"
       ],
@@ -5139,6 +5387,7 @@
       "status": "active",
       "name": "合成树脂",
       "canonical_name": "合成树脂",
+      "renamed_from": null,
       "original_names": [
         "合成树脂"
       ],
@@ -5159,6 +5408,7 @@
       "status": "active",
       "name": "合成生物",
       "canonical_name": "合成生物",
+      "renamed_from": null,
       "original_names": [
         "合成生物"
       ],
@@ -5179,6 +5429,7 @@
       "status": "active",
       "name": "同步磁阻电机",
       "canonical_name": "同步磁阻电机",
+      "renamed_from": null,
       "original_names": [
         "同步磁阻电机"
       ],
@@ -5199,6 +5450,7 @@
       "status": "active",
       "name": "品牌化妆品",
       "canonical_name": "品牌化妆品",
+      "renamed_from": null,
       "original_names": [
         "品牌化妆品"
       ],
@@ -5219,6 +5471,7 @@
       "status": "active",
       "name": "品牌消费电子",
       "canonical_name": "品牌消费电子",
+      "renamed_from": null,
       "original_names": [
         "品牌消费电子"
       ],
@@ -5239,6 +5492,7 @@
       "status": "active",
       "name": "商业地产",
       "canonical_name": "商业地产",
+      "renamed_from": null,
       "original_names": [
         "商业地产"
       ],
@@ -5259,6 +5513,7 @@
       "status": "active",
       "name": "商业物业经营",
       "canonical_name": "商业物业经营",
+      "renamed_from": null,
       "original_names": [
         "商业物业经营"
       ],
@@ -5279,6 +5534,7 @@
       "status": "active",
       "name": "商业航天",
       "canonical_name": "商业航天",
+      "renamed_from": null,
       "original_names": [
         "商业航天"
       ],
@@ -5299,6 +5555,7 @@
       "status": "active",
       "name": "商用车",
       "canonical_name": "商用车",
+      "renamed_from": null,
       "original_names": [
         "商用车"
       ],
@@ -5319,6 +5576,7 @@
       "status": "active",
       "name": "商用载客车",
       "canonical_name": "商用载客车",
+      "renamed_from": null,
       "original_names": [
         "商用载客车"
       ],
@@ -5339,6 +5597,7 @@
       "status": "active",
       "name": "商用载货车",
       "canonical_name": "商用载货车",
+      "renamed_from": null,
       "original_names": [
         "商用载货车"
       ],
@@ -5359,6 +5618,7 @@
       "status": "active",
       "name": "商贸零售",
       "canonical_name": "商贸零售",
+      "renamed_from": null,
       "original_names": [
         "商贸零售"
       ],
@@ -5379,6 +5639,7 @@
       "status": "active",
       "name": "啤酒",
       "canonical_name": "啤酒",
+      "renamed_from": null,
       "original_names": [
         "啤酒",
         "啤酒概念"
@@ -5402,6 +5663,7 @@
       "status": "active",
       "name": "噪声防治",
       "canonical_name": "噪声防治",
+      "renamed_from": null,
       "original_names": [
         "噪声防治"
       ],
@@ -5422,6 +5684,7 @@
       "status": "active",
       "name": "园林工程",
       "canonical_name": "园林工程",
+      "renamed_from": null,
       "original_names": [
         "园林工程"
       ],
@@ -5442,6 +5705,7 @@
       "status": "active",
       "name": "固体废物治理",
       "canonical_name": "固体废物治理",
+      "renamed_from": null,
       "original_names": [
         "固废处理",
         "固废治理"
@@ -5466,6 +5730,7 @@
       "status": "active",
       "name": "固态电池",
       "canonical_name": "固态电池",
+      "renamed_from": null,
       "original_names": [
         "固态电池"
       ],
@@ -5486,6 +5751,7 @@
       "status": "active",
       "name": "国产操作系统",
       "canonical_name": "国产操作系统",
+      "renamed_from": null,
       "original_names": [
         "国产操作系统"
       ],
@@ -5506,6 +5772,7 @@
       "status": "active",
       "name": "国产航母",
       "canonical_name": "国产航母",
+      "renamed_from": null,
       "original_names": [
         "国产航母"
       ],
@@ -5526,6 +5793,7 @@
       "status": "active",
       "name": "国产芯片",
       "canonical_name": "国产芯片",
+      "renamed_from": null,
       "original_names": [
         "国产芯片"
       ],
@@ -5546,6 +5814,7 @@
       "status": "active",
       "name": "国产软件",
       "canonical_name": "国产软件",
+      "renamed_from": null,
       "original_names": [
         "国产软件"
       ],
@@ -5566,6 +5835,7 @@
       "status": "active",
       "name": "国有大型银行",
       "canonical_name": "国有大型银行",
+      "renamed_from": null,
       "original_names": [
         "国有大型银行Ⅲ"
       ],
@@ -5588,6 +5858,7 @@
       "status": "active",
       "name": "国防军工",
       "canonical_name": "国防军工",
+      "renamed_from": null,
       "original_names": [
         "国防军工"
       ],
@@ -5608,6 +5879,7 @@
       "status": "active",
       "name": "国际工程",
       "canonical_name": "国际工程",
+      "renamed_from": null,
       "original_names": [
         "国际工程"
       ],
@@ -5628,6 +5900,7 @@
       "status": "active",
       "name": "图片媒体",
       "canonical_name": "图片媒体",
+      "renamed_from": null,
       "original_names": [
         "图片媒体"
       ],
@@ -5648,6 +5921,7 @@
       "status": "active",
       "name": "土壤修复",
       "canonical_name": "土壤修复",
+      "renamed_from": null,
       "original_names": [
         "土壤修复"
       ],
@@ -5668,6 +5942,7 @@
       "status": "active",
       "name": "在线教育",
       "canonical_name": "在线教育",
+      "renamed_from": null,
       "original_names": [
         "在线教育"
       ],
@@ -5688,6 +5963,7 @@
       "status": "active",
       "name": "地下管网",
       "canonical_name": "地下管网",
+      "renamed_from": null,
       "original_names": [
         "地下管网"
       ],
@@ -5708,6 +5984,7 @@
       "status": "active",
       "name": "地热能",
       "canonical_name": "地热能",
+      "renamed_from": null,
       "original_names": [
         "地热能"
       ],
@@ -5728,6 +6005,7 @@
       "status": "active",
       "name": "地面兵装",
       "canonical_name": "地面兵装",
+      "renamed_from": null,
       "original_names": [
         "地面兵装Ⅱ",
         "地面兵装Ⅲ"
@@ -5752,6 +6030,7 @@
       "status": "active",
       "name": "垂直应用软件",
       "canonical_name": "垂直应用软件",
+      "renamed_from": null,
       "original_names": [
         "垂直应用软件"
       ],
@@ -5772,6 +6051,7 @@
       "status": "active",
       "name": "垃圾分类",
       "canonical_name": "垃圾分类",
+      "renamed_from": null,
       "original_names": [
         "垃圾分类"
       ],
@@ -5792,6 +6072,7 @@
       "status": "active",
       "name": "城商行",
       "canonical_name": "城商行",
+      "renamed_from": null,
       "original_names": [
         "城商行Ⅲ"
       ],
@@ -5814,6 +6095,7 @@
       "status": "active",
       "name": "培育钻石",
       "canonical_name": "培育钻石",
+      "renamed_from": null,
       "original_names": [
         "培育钻石"
       ],
@@ -5834,6 +6116,7 @@
       "status": "active",
       "name": "培训教育",
       "canonical_name": "培训教育",
+      "renamed_from": null,
       "original_names": [
         "培训教育"
       ],
@@ -5854,6 +6137,7 @@
       "status": "active",
       "name": "基因测序",
       "canonical_name": "基因测序",
+      "renamed_from": null,
       "original_names": [
         "基因测序"
       ],
@@ -5874,6 +6158,7 @@
       "status": "active",
       "name": "基建市政工程",
       "canonical_name": "基建市政工程",
+      "renamed_from": null,
       "original_names": [
         "基建市政工程"
       ],
@@ -5894,6 +6179,7 @@
       "status": "active",
       "name": "基础化工",
       "canonical_name": "基础化工",
+      "renamed_from": null,
       "original_names": [
         "基础化工"
       ],
@@ -5914,6 +6200,7 @@
       "status": "active",
       "name": "基础建设",
       "canonical_name": "基础建设",
+      "renamed_from": null,
       "original_names": [
         "基础建设"
       ],
@@ -5934,6 +6221,7 @@
       "status": "active",
       "name": "塑料",
       "canonical_name": "塑料",
+      "renamed_from": null,
       "original_names": [
         "塑料"
       ],
@@ -5954,6 +6242,7 @@
       "status": "active",
       "name": "塑料制品",
       "canonical_name": "塑料制品",
+      "renamed_from": null,
       "original_names": [
         "塑料制品"
       ],
@@ -5974,6 +6263,7 @@
       "status": "active",
       "name": "塑料包装",
       "canonical_name": "塑料包装",
+      "renamed_from": null,
       "original_names": [
         "塑料包装"
       ],
@@ -5994,6 +6284,7 @@
       "status": "active",
       "name": "增强现实",
       "canonical_name": "增强现实",
+      "renamed_from": null,
       "original_names": [
         "增强现实"
       ],
@@ -6014,6 +6305,7 @@
       "status": "active",
       "name": "复合肥",
       "canonical_name": "复合肥",
+      "renamed_from": null,
       "original_names": [
         "复合肥"
       ],
@@ -6034,6 +6326,7 @@
       "status": "active",
       "name": "复合集流体",
       "canonical_name": "复合集流体",
+      "renamed_from": null,
       "original_names": [
         "复合集流体"
       ],
@@ -6054,6 +6347,7 @@
       "status": "active",
       "name": "多业态零售",
       "canonical_name": "多业态零售",
+      "renamed_from": null,
       "original_names": [
         "多业态零售"
       ],
@@ -6074,6 +6368,7 @@
       "status": "active",
       "name": "多元金融",
       "canonical_name": "多元金融",
+      "renamed_from": null,
       "original_names": [
         "多元金融"
       ],
@@ -6094,6 +6389,7 @@
       "status": "active",
       "name": "多模态AI",
       "canonical_name": "多模态AI",
+      "renamed_from": null,
       "original_names": [
         "多模态AI"
       ],
@@ -6114,6 +6410,7 @@
       "status": "active",
       "name": "大众出版",
       "canonical_name": "大众出版",
+      "renamed_from": null,
       "original_names": [
         "大众出版"
       ],
@@ -6134,6 +6431,7 @@
       "status": "active",
       "name": "大宗用纸",
       "canonical_name": "大宗用纸",
+      "renamed_from": null,
       "original_names": [
         "大宗用纸"
       ],
@@ -6154,6 +6452,7 @@
       "status": "active",
       "name": "大数据",
       "canonical_name": "大数据",
+      "renamed_from": null,
       "original_names": [
         "大数据"
       ],
@@ -6174,6 +6473,7 @@
       "status": "active",
       "name": "大气治理",
       "canonical_name": "大气治理",
+      "renamed_from": null,
       "original_names": [
         "大气治理"
       ],
@@ -6188,17 +6488,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "eeb421ef-d579-5fab-b91a-7fb322df40f1",
-      "entity_key": "chain_node:v1_140a69f2e500a194e04d322ba379e7472e58035e",
+      "entity_id": "2d9ca7d9-cd15-5a49-b139-6fb492ac6795",
+      "entity_key": "chain_node:v1_6a8889db7f537ab957c613c7bffa6ca6f76a2339",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "大豆",
-      "canonical_name": "大豆",
+      "name": "大豆产业",
+      "canonical_name": "大豆产业",
+      "renamed_from": "大豆",
       "original_names": [
         "大豆"
       ],
       "aliases": [],
-      "definition": "以大豆为核心交付或使用对象的稳定产品类别，按产品形态、核心功能和直接应用范围界定。",
+      "definition": "围绕大豆开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一大豆商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/技术/服务",
@@ -6214,6 +6515,7 @@
       "status": "active",
       "name": "大飞机",
       "canonical_name": "大飞机",
+      "renamed_from": null,
       "original_names": [
         "大飞机"
       ],
@@ -6228,18 +6530,19 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "a3529ec6-ff45-5f73-b8b4-dae013bbc0b0",
-      "entity_key": "chain_node:v1_f0de50c16ce85e5d435b2ddc961210936a7fa44e",
+      "entity_id": "2cc08180-fa1c-5176-96bb-ee236c3f2dfe",
+      "entity_key": "chain_node:v1_9912b87c0a4313b04bc239127231d77f115a43da",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "天然气",
-      "canonical_name": "天然气",
+      "name": "天然气产业",
+      "canonical_name": "天然气产业",
+      "renamed_from": "天然气",
       "original_names": [
         "天然气"
       ],
       "aliases": [],
-      "definition": "以天然气为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
-      "boundary_note": "包含与天然气直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
+      "definition": "围绕天然气开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一天然气商品实体、价格、期货合约或证券标的。",
+      "boundary_note": "包含与天然气产业直接对应的直接材料或资源对象；不包含仅因交易状态、市场热度、政策口号或证券成分形成的标签，也不自动纳入全部相邻行业、替代对象或下游应用。",
       "wide_boundary": true,
       "retention_type": "稳定产品/材料",
       "retention_reason": "",
@@ -6254,6 +6557,7 @@
       "status": "active",
       "name": "太赫兹",
       "canonical_name": "太赫兹",
+      "renamed_from": null,
       "original_names": [
         "太赫兹"
       ],
@@ -6274,6 +6578,7 @@
       "status": "active",
       "name": "娱乐用品",
       "canonical_name": "娱乐用品",
+      "renamed_from": null,
       "original_names": [
         "娱乐用品"
       ],
@@ -6294,6 +6599,7 @@
       "status": "active",
       "name": "婴童",
       "canonical_name": "婴童",
+      "renamed_from": null,
       "original_names": [
         "婴童概念"
       ],
@@ -6316,6 +6622,7 @@
       "status": "active",
       "name": "存储芯片",
       "canonical_name": "存储芯片",
+      "renamed_from": null,
       "original_names": [
         "存储芯片"
       ],
@@ -6336,6 +6643,7 @@
       "status": "active",
       "name": "学历教育",
       "canonical_name": "学历教育",
+      "renamed_from": null,
       "original_names": [
         "学历教育"
       ],
@@ -6356,6 +6664,7 @@
       "status": "active",
       "name": "安防",
       "canonical_name": "安防",
+      "renamed_from": null,
       "original_names": [
         "安防",
         "安防概念"
@@ -6379,6 +6688,7 @@
       "status": "active",
       "name": "安防设备",
       "canonical_name": "安防设备",
+      "renamed_from": null,
       "original_names": [
         "安防设备"
       ],
@@ -6399,6 +6709,7 @@
       "status": "active",
       "name": "定制家居",
       "canonical_name": "定制家居",
+      "renamed_from": null,
       "original_names": [
         "定制家居"
       ],
@@ -6419,6 +6730,7 @@
       "status": "active",
       "name": "宠物产业",
       "canonical_name": "宠物产业",
+      "renamed_from": null,
       "original_names": [
         "宠物经济"
       ],
@@ -6441,6 +6753,7 @@
       "status": "active",
       "name": "宠物食品",
       "canonical_name": "宠物食品",
+      "renamed_from": null,
       "original_names": [
         "宠物食品"
       ],
@@ -6461,6 +6774,7 @@
       "status": "active",
       "name": "家居用品",
       "canonical_name": "家居用品",
+      "renamed_from": null,
       "original_names": [
         "家居用品"
       ],
@@ -6481,6 +6795,7 @@
       "status": "active",
       "name": "家庭医生",
       "canonical_name": "家庭医生",
+      "renamed_from": null,
       "original_names": [
         "家庭医生"
       ],
@@ -6501,6 +6816,7 @@
       "status": "active",
       "name": "家用电器",
       "canonical_name": "家用电器",
+      "renamed_from": null,
       "original_names": [
         "家用电器"
       ],
@@ -6521,6 +6837,7 @@
       "status": "active",
       "name": "家电零部件",
       "canonical_name": "家电零部件",
+      "renamed_from": null,
       "original_names": [
         "家电零部件Ⅱ",
         "家电零部件Ⅲ"
@@ -6545,6 +6862,7 @@
       "status": "active",
       "name": "家纺",
       "canonical_name": "家纺",
+      "renamed_from": null,
       "original_names": [
         "家纺"
       ],
@@ -6565,6 +6883,7 @@
       "status": "active",
       "name": "小家电",
       "canonical_name": "小家电",
+      "renamed_from": null,
       "original_names": [
         "小家电"
       ],
@@ -6585,6 +6904,7 @@
       "status": "active",
       "name": "小金属",
       "canonical_name": "小金属",
+      "renamed_from": null,
       "original_names": [
         "小金属",
         "小金属概念"
@@ -6608,6 +6928,7 @@
       "status": "active",
       "name": "尾气治理",
       "canonical_name": "尾气治理",
+      "renamed_from": null,
       "original_names": [
         "尾气治理"
       ],
@@ -6628,6 +6949,7 @@
       "status": "active",
       "name": "屏下摄像",
       "canonical_name": "屏下摄像",
+      "renamed_from": null,
       "original_names": [
         "屏下摄像"
       ],
@@ -6648,6 +6970,7 @@
       "status": "active",
       "name": "工业互联",
       "canonical_name": "工业互联",
+      "renamed_from": null,
       "original_names": [
         "工业互联"
       ],
@@ -6668,6 +6991,7 @@
       "status": "active",
       "name": "工业互联网",
       "canonical_name": "工业互联网",
+      "renamed_from": null,
       "original_names": [
         "工业互联网"
       ],
@@ -6688,6 +7012,7 @@
       "status": "active",
       "name": "工业大麻",
       "canonical_name": "工业大麻",
+      "renamed_from": null,
       "original_names": [
         "工业大麻"
       ],
@@ -6708,6 +7033,7 @@
       "status": "active",
       "name": "工业母机",
       "canonical_name": "工业母机",
+      "renamed_from": null,
       "original_names": [
         "工业母机"
       ],
@@ -6728,6 +7054,7 @@
       "status": "active",
       "name": "工业气体",
       "canonical_name": "工业气体",
+      "renamed_from": null,
       "original_names": [
         "工业气体"
       ],
@@ -6748,6 +7075,7 @@
       "status": "active",
       "name": "工业金属",
       "canonical_name": "工业金属",
+      "renamed_from": null,
       "original_names": [
         "工业金属"
       ],
@@ -6768,6 +7096,7 @@
       "status": "active",
       "name": "工控设备",
       "canonical_name": "工控设备",
+      "renamed_from": null,
       "original_names": [
         "工控设备"
       ],
@@ -6788,6 +7117,7 @@
       "status": "active",
       "name": "工程咨询服务",
       "canonical_name": "工程咨询服务",
+      "renamed_from": null,
       "original_names": [
         "工程咨询服务Ⅱ",
         "工程咨询服务Ⅲ"
@@ -6812,6 +7142,7 @@
       "status": "active",
       "name": "工程建设",
       "canonical_name": "工程建设",
+      "renamed_from": null,
       "original_names": [
         "工程建设"
       ],
@@ -6832,6 +7163,7 @@
       "status": "active",
       "name": "工程机械",
       "canonical_name": "工程机械",
+      "renamed_from": null,
       "original_names": [
         "工程机械",
         "工程机械概念"
@@ -6855,6 +7187,7 @@
       "status": "active",
       "name": "工程机械器件",
       "canonical_name": "工程机械器件",
+      "renamed_from": null,
       "original_names": [
         "工程机械器件"
       ],
@@ -6875,6 +7208,7 @@
       "status": "active",
       "name": "工程机械整机",
       "canonical_name": "工程机械整机",
+      "renamed_from": null,
       "original_names": [
         "工程机械整机"
       ],
@@ -6895,6 +7229,7 @@
       "status": "active",
       "name": "广告媒体",
       "canonical_name": "广告媒体",
+      "renamed_from": null,
       "original_names": [
         "广告媒体"
       ],
@@ -6915,6 +7250,7 @@
       "status": "active",
       "name": "广告营销",
       "canonical_name": "广告营销",
+      "renamed_from": null,
       "original_names": [
         "广告营销"
       ],
@@ -6935,6 +7271,7 @@
       "status": "active",
       "name": "底盘与发动机系统",
       "canonical_name": "底盘与发动机系统",
+      "renamed_from": null,
       "original_names": [
         "底盘与发动机系统"
       ],
@@ -6955,6 +7292,7 @@
       "status": "active",
       "name": "建筑材料",
       "canonical_name": "建筑材料",
+      "renamed_from": null,
       "original_names": [
         "建筑材料"
       ],
@@ -6975,6 +7313,7 @@
       "status": "active",
       "name": "建筑节能",
       "canonical_name": "建筑节能",
+      "renamed_from": null,
       "original_names": [
         "建筑节能"
       ],
@@ -6995,6 +7334,7 @@
       "status": "active",
       "name": "建筑装饰",
       "canonical_name": "建筑装饰",
+      "renamed_from": null,
       "original_names": [
         "建筑装饰"
       ],
@@ -7015,6 +7355,7 @@
       "status": "active",
       "name": "彩票",
       "canonical_name": "彩票",
+      "renamed_from": null,
       "original_names": [
         "彩票概念"
       ],
@@ -7037,6 +7378,7 @@
       "status": "active",
       "name": "影视",
       "canonical_name": "影视",
+      "renamed_from": null,
       "original_names": [
         "影视概念"
       ],
@@ -7059,6 +7401,7 @@
       "status": "active",
       "name": "影视动漫制作",
       "canonical_name": "影视动漫制作",
+      "renamed_from": null,
       "original_names": [
         "影视动漫制作"
       ],
@@ -7079,6 +7422,7 @@
       "status": "active",
       "name": "影视院线",
       "canonical_name": "影视院线",
+      "renamed_from": null,
       "original_names": [
         "影视院线"
       ],
@@ -7099,6 +7443,7 @@
       "status": "active",
       "name": "快递",
       "canonical_name": "快递",
+      "renamed_from": null,
       "original_names": [
         "快递",
         "快递概念"
@@ -7122,6 +7467,7 @@
       "status": "active",
       "name": "成品家居",
       "canonical_name": "成品家居",
+      "renamed_from": null,
       "original_names": [
         "成品家居"
       ],
@@ -7142,6 +7488,7 @@
       "status": "active",
       "name": "户外露营",
       "canonical_name": "户外露营",
+      "renamed_from": null,
       "original_names": [
         "户外露营"
       ],
@@ -7162,6 +7509,7 @@
       "status": "active",
       "name": "房产租赁经纪",
       "canonical_name": "房产租赁经纪",
+      "renamed_from": null,
       "original_names": [
         "房产租赁经纪"
       ],
@@ -7182,6 +7530,7 @@
       "status": "active",
       "name": "房地产",
       "canonical_name": "房地产",
+      "renamed_from": null,
       "original_names": [
         "房地产"
       ],
@@ -7202,6 +7551,7 @@
       "status": "active",
       "name": "房地产开发",
       "canonical_name": "房地产开发",
+      "renamed_from": null,
       "original_names": [
         "房地产开发"
       ],
@@ -7222,6 +7572,7 @@
       "status": "active",
       "name": "房地产服务",
       "canonical_name": "房地产服务",
+      "renamed_from": null,
       "original_names": [
         "房地产服务"
       ],
@@ -7242,6 +7593,7 @@
       "status": "active",
       "name": "房地产综合服务",
       "canonical_name": "房地产综合服务",
+      "renamed_from": null,
       "original_names": [
         "房地产综合服务"
       ],
@@ -7262,6 +7614,7 @@
       "status": "active",
       "name": "房屋建设",
       "canonical_name": "房屋建设",
+      "renamed_from": null,
       "original_names": [
         "房屋建设Ⅱ",
         "房屋建设Ⅲ"
@@ -7286,6 +7639,7 @@
       "status": "active",
       "name": "房屋检测",
       "canonical_name": "房屋检测",
+      "renamed_from": null,
       "original_names": [
         "房屋检测"
       ],
@@ -7306,6 +7660,7 @@
       "status": "active",
       "name": "手机游戏",
       "canonical_name": "手机游戏",
+      "renamed_from": null,
       "original_names": [
         "手机游戏"
       ],
@@ -7326,6 +7681,7 @@
       "status": "active",
       "name": "托育服务",
       "canonical_name": "托育服务",
+      "renamed_from": null,
       "original_names": [
         "托育服务"
       ],
@@ -7346,6 +7702,7 @@
       "status": "active",
       "name": "抗菌面料",
       "canonical_name": "抗菌面料",
+      "renamed_from": null,
       "original_names": [
         "抗菌面料"
       ],
@@ -7366,6 +7723,7 @@
       "status": "active",
       "name": "抽水蓄能",
       "canonical_name": "抽水蓄能",
+      "renamed_from": null,
       "original_names": [
         "抽水蓄能"
       ],
@@ -7386,6 +7744,7 @@
       "status": "active",
       "name": "换电",
       "canonical_name": "换电",
+      "renamed_from": null,
       "original_names": [
         "换电概念"
       ],
@@ -7408,6 +7767,7 @@
       "status": "active",
       "name": "摩托车",
       "canonical_name": "摩托车",
+      "renamed_from": null,
       "original_names": [
         "摩托车"
       ],
@@ -7428,6 +7788,7 @@
       "status": "active",
       "name": "摩托车及其他",
       "canonical_name": "摩托车及其他",
+      "renamed_from": null,
       "original_names": [
         "摩托车及其他"
       ],
@@ -7448,6 +7809,7 @@
       "status": "active",
       "name": "改性塑料",
       "canonical_name": "改性塑料",
+      "renamed_from": null,
       "original_names": [
         "改性塑料"
       ],
@@ -7468,6 +7830,7 @@
       "status": "active",
       "name": "教育",
       "canonical_name": "教育",
+      "renamed_from": null,
       "original_names": [
         "教育"
       ],
@@ -7488,6 +7851,7 @@
       "status": "active",
       "name": "教育出版",
       "canonical_name": "教育出版",
+      "renamed_from": null,
       "original_names": [
         "教育出版"
       ],
@@ -7508,6 +7872,7 @@
       "status": "active",
       "name": "教育运营及其他",
       "canonical_name": "教育运营及其他",
+      "renamed_from": null,
       "original_names": [
         "教育运营及其他"
       ],
@@ -7528,6 +7893,7 @@
       "status": "active",
       "name": "数字产业",
       "canonical_name": "数字产业",
+      "renamed_from": null,
       "original_names": [
         "数字经济"
       ],
@@ -7550,6 +7916,7 @@
       "status": "active",
       "name": "数字媒体",
       "canonical_name": "数字媒体",
+      "renamed_from": null,
       "original_names": [
         "数字媒体"
       ],
@@ -7570,6 +7937,7 @@
       "status": "active",
       "name": "数字孪生",
       "canonical_name": "数字孪生",
+      "renamed_from": null,
       "original_names": [
         "数字孪生"
       ],
@@ -7590,6 +7958,7 @@
       "status": "active",
       "name": "数字水印",
       "canonical_name": "数字水印",
+      "renamed_from": null,
       "original_names": [
         "数字水印"
       ],
@@ -7610,6 +7979,7 @@
       "status": "active",
       "name": "数字芯片设计",
       "canonical_name": "数字芯片设计",
+      "renamed_from": null,
       "original_names": [
         "数字芯片设计"
       ],
@@ -7630,6 +8000,7 @@
       "status": "active",
       "name": "数字货币",
       "canonical_name": "数字货币",
+      "renamed_from": null,
       "original_names": [
         "数字货币"
       ],
@@ -7650,6 +8021,7 @@
       "status": "active",
       "name": "数字阅读",
       "canonical_name": "数字阅读",
+      "renamed_from": null,
       "original_names": [
         "数字阅读"
       ],
@@ -7670,6 +8042,7 @@
       "status": "active",
       "name": "数据中心",
       "canonical_name": "数据中心",
+      "renamed_from": null,
       "original_names": [
         "数据中心"
       ],
@@ -7690,6 +8063,7 @@
       "status": "active",
       "name": "数据中心(AIDC)",
       "canonical_name": "数据中心(AIDC)",
+      "renamed_from": null,
       "original_names": [
         "数据中心(AIDC)"
       ],
@@ -7710,6 +8084,7 @@
       "status": "active",
       "name": "数据安全",
       "canonical_name": "数据安全",
+      "renamed_from": null,
       "original_names": [
         "数据安全"
       ],
@@ -7730,6 +8105,7 @@
       "status": "active",
       "name": "数据确权服务",
       "canonical_name": "数据确权服务",
+      "renamed_from": null,
       "original_names": [
         "数据确权"
       ],
@@ -7752,6 +8128,7 @@
       "status": "active",
       "name": "数据要素",
       "canonical_name": "数据要素",
+      "renamed_from": null,
       "original_names": [
         "数据要素"
       ],
@@ -7772,6 +8149,7 @@
       "status": "active",
       "name": "文化传媒",
       "canonical_name": "文化传媒",
+      "renamed_from": null,
       "original_names": [
         "文化传媒",
         "文化传媒概念"
@@ -7795,6 +8173,7 @@
       "status": "active",
       "name": "文化用品",
       "canonical_name": "文化用品",
+      "renamed_from": null,
       "original_names": [
         "文化用品"
       ],
@@ -7815,6 +8194,7 @@
       "status": "active",
       "name": "文娱用品",
       "canonical_name": "文娱用品",
+      "renamed_from": null,
       "original_names": [
         "文娱用品"
       ],
@@ -7835,6 +8215,7 @@
       "status": "active",
       "name": "文字媒体",
       "canonical_name": "文字媒体",
+      "renamed_from": null,
       "original_names": [
         "文字媒体"
       ],
@@ -7855,6 +8236,7 @@
       "status": "active",
       "name": "新型烟草(电子烟)",
       "canonical_name": "新型烟草(电子烟)",
+      "renamed_from": null,
       "original_names": [
         "新型烟草(电子烟)"
       ],
@@ -7875,6 +8257,7 @@
       "status": "active",
       "name": "新材料",
       "canonical_name": "新材料",
+      "renamed_from": null,
       "original_names": [
         "新材料"
       ],
@@ -7895,6 +8278,7 @@
       "status": "active",
       "name": "新能源产业",
       "canonical_name": "新能源产业",
+      "renamed_from": null,
       "original_names": [
         "新能源"
       ],
@@ -7917,6 +8301,7 @@
       "status": "active",
       "name": "新能源车",
       "canonical_name": "新能源车",
+      "renamed_from": null,
       "original_names": [
         "新能源车"
       ],
@@ -7937,6 +8322,7 @@
       "status": "active",
       "name": "新能源车整车",
       "canonical_name": "新能源车整车",
+      "renamed_from": null,
       "original_names": [
         "新能源汽车",
         "电动乘用车"
@@ -7961,6 +8347,7 @@
       "status": "active",
       "name": "新零售",
       "canonical_name": "新零售",
+      "renamed_from": null,
       "original_names": [
         "新零售"
       ],
@@ -7981,6 +8368,7 @@
       "status": "active",
       "name": "旅游",
       "canonical_name": "旅游",
+      "renamed_from": null,
       "original_names": [
         "旅游概念"
       ],
@@ -8003,6 +8391,7 @@
       "status": "active",
       "name": "旅游及景区",
       "canonical_name": "旅游及景区",
+      "renamed_from": null,
       "original_names": [
         "旅游及景区"
       ],
@@ -8023,6 +8412,7 @@
       "status": "active",
       "name": "旅游及酒店",
       "canonical_name": "旅游及酒店",
+      "renamed_from": null,
       "original_names": [
         "旅游及酒店"
       ],
@@ -8043,6 +8433,7 @@
       "status": "active",
       "name": "旅游综合",
       "canonical_name": "旅游综合",
+      "renamed_from": null,
       "original_names": [
         "旅游综合"
       ],
@@ -8063,6 +8454,7 @@
       "status": "active",
       "name": "旅游酒店",
       "canonical_name": "旅游酒店",
+      "renamed_from": null,
       "original_names": [
         "旅游酒店"
       ],
@@ -8083,6 +8475,7 @@
       "status": "active",
       "name": "旅游零售",
       "canonical_name": "旅游零售",
+      "renamed_from": null,
       "original_names": [
         "旅游零售Ⅱ",
         "旅游零售Ⅲ"
@@ -8107,6 +8500,7 @@
       "status": "active",
       "name": "无人机",
       "canonical_name": "无人机",
+      "renamed_from": null,
       "original_names": [
         "无人机"
       ],
@@ -8127,6 +8521,7 @@
       "status": "active",
       "name": "无人零售",
       "canonical_name": "无人零售",
+      "renamed_from": null,
       "original_names": [
         "无人零售"
       ],
@@ -8147,6 +8542,7 @@
       "status": "active",
       "name": "无人驾驶",
       "canonical_name": "无人驾驶",
+      "renamed_from": null,
       "original_names": [
         "无人驾驶"
       ],
@@ -8167,6 +8563,7 @@
       "status": "active",
       "name": "无机盐",
       "canonical_name": "无机盐",
+      "renamed_from": null,
       "original_names": [
         "无机盐"
       ],
@@ -8187,6 +8584,7 @@
       "status": "active",
       "name": "无线充电",
       "canonical_name": "无线充电",
+      "renamed_from": null,
       "original_names": [
         "无线充电"
       ],
@@ -8207,6 +8605,7 @@
       "status": "active",
       "name": "无线耳机",
       "canonical_name": "无线耳机",
+      "renamed_from": null,
       "original_names": [
         "无线耳机"
       ],
@@ -8227,6 +8626,7 @@
       "status": "active",
       "name": "时空大数据",
       "canonical_name": "时空大数据",
+      "renamed_from": null,
       "original_names": [
         "时空大数据"
       ],
@@ -8247,6 +8647,7 @@
       "status": "active",
       "name": "星闪",
       "canonical_name": "星闪",
+      "renamed_from": null,
       "original_names": [
         "星闪概念"
       ],
@@ -8269,6 +8670,7 @@
       "status": "active",
       "name": "显示技术",
       "canonical_name": "显示技术",
+      "renamed_from": null,
       "original_names": [
         "显示技术"
       ],
@@ -8289,6 +8691,7 @@
       "status": "active",
       "name": "普钢",
       "canonical_name": "普钢",
+      "renamed_from": null,
       "original_names": [
         "普钢"
       ],
@@ -8309,6 +8712,7 @@
       "status": "active",
       "name": "智慧城市",
       "canonical_name": "智慧城市",
+      "renamed_from": null,
       "original_names": [
         "智慧城市"
       ],
@@ -8329,6 +8733,7 @@
       "status": "active",
       "name": "智慧政务",
       "canonical_name": "智慧政务",
+      "renamed_from": null,
       "original_names": [
         "智慧政务"
       ],
@@ -8349,6 +8754,7 @@
       "status": "active",
       "name": "智慧灯杆",
       "canonical_name": "智慧灯杆",
+      "renamed_from": null,
       "original_names": [
         "智慧灯杆"
       ],
@@ -8369,6 +8775,7 @@
       "status": "active",
       "name": "智能医疗",
       "canonical_name": "智能医疗",
+      "renamed_from": null,
       "original_names": [
         "智能医疗"
       ],
@@ -8389,6 +8796,7 @@
       "status": "active",
       "name": "智能家居",
       "canonical_name": "智能家居",
+      "renamed_from": null,
       "original_names": [
         "智能家居"
       ],
@@ -8409,6 +8817,7 @@
       "status": "active",
       "name": "智能座舱",
       "canonical_name": "智能座舱",
+      "renamed_from": null,
       "original_names": [
         "智能座舱"
       ],
@@ -8429,6 +8838,7 @@
       "status": "active",
       "name": "智能物流",
       "canonical_name": "智能物流",
+      "renamed_from": null,
       "original_names": [
         "智能物流"
       ],
@@ -8449,6 +8859,7 @@
       "status": "active",
       "name": "智能电网",
       "canonical_name": "智能电网",
+      "renamed_from": null,
       "original_names": [
         "智能电网"
       ],
@@ -8469,6 +8880,7 @@
       "status": "active",
       "name": "智能电视",
       "canonical_name": "智能电视",
+      "renamed_from": null,
       "original_names": [
         "智能电视"
       ],
@@ -8489,6 +8901,7 @@
       "status": "active",
       "name": "智能穿戴",
       "canonical_name": "智能穿戴",
+      "renamed_from": null,
       "original_names": [
         "智能穿戴"
       ],
@@ -8509,6 +8922,7 @@
       "status": "active",
       "name": "智能音箱",
       "canonical_name": "智能音箱",
+      "renamed_from": null,
       "original_names": [
         "智能音箱"
       ],
@@ -8529,6 +8943,7 @@
       "status": "active",
       "name": "有机硅",
       "canonical_name": "有机硅",
+      "renamed_from": null,
       "original_names": [
         "有机硅",
         "有机硅概念"
@@ -8552,6 +8967,7 @@
       "status": "active",
       "name": "有色金属",
       "canonical_name": "有色金属",
+      "renamed_from": null,
       "original_names": [
         "有色金属"
       ],
@@ -8572,6 +8988,7 @@
       "status": "active",
       "name": "服装家纺",
       "canonical_name": "服装家纺",
+      "renamed_from": null,
       "original_names": [
         "服装家纺"
       ],
@@ -8592,6 +9009,7 @@
       "status": "active",
       "name": "期货",
       "canonical_name": "期货",
+      "renamed_from": null,
       "original_names": [
         "期货",
         "期货概念"
@@ -8615,6 +9033,7 @@
       "status": "active",
       "name": "机器人",
       "canonical_name": "机器人",
+      "renamed_from": null,
       "original_names": [
         "机器人",
         "机器人概念"
@@ -8638,6 +9057,7 @@
       "status": "active",
       "name": "机器人执行器",
       "canonical_name": "机器人执行器",
+      "renamed_from": null,
       "original_names": [
         "机器人执行器"
       ],
@@ -8658,6 +9078,7 @@
       "status": "active",
       "name": "机器视觉",
       "canonical_name": "机器视觉",
+      "renamed_from": null,
       "original_names": [
         "机器视觉"
       ],
@@ -8678,6 +9099,7 @@
       "status": "active",
       "name": "机场",
       "canonical_name": "机场",
+      "renamed_from": null,
       "original_names": [
         "机场"
       ],
@@ -8698,6 +9120,7 @@
       "status": "active",
       "name": "机场航运",
       "canonical_name": "机场航运",
+      "renamed_from": null,
       "original_names": [
         "机场航运"
       ],
@@ -8718,6 +9141,7 @@
       "status": "active",
       "name": "机床工具",
       "canonical_name": "机床工具",
+      "renamed_from": null,
       "original_names": [
         "机床工具"
       ],
@@ -8738,6 +9162,7 @@
       "status": "active",
       "name": "机械设备",
       "canonical_name": "机械设备",
+      "renamed_from": null,
       "original_names": [
         "机械设备"
       ],
@@ -8758,6 +9183,7 @@
       "status": "active",
       "name": "板材",
       "canonical_name": "板材",
+      "renamed_from": null,
       "original_names": [
         "板材"
       ],
@@ -8778,6 +9204,7 @@
       "status": "active",
       "name": "林业",
       "canonical_name": "林业",
+      "renamed_from": null,
       "original_names": [
         "林业Ⅱ",
         "林业Ⅲ"
@@ -8802,6 +9229,7 @@
       "status": "active",
       "name": "果蔬加工",
       "canonical_name": "果蔬加工",
+      "renamed_from": null,
       "original_names": [
         "果蔬加工"
       ],
@@ -8822,6 +9250,7 @@
       "status": "active",
       "name": "染料",
       "canonical_name": "染料",
+      "renamed_from": null,
       "original_names": [
         "染料"
       ],
@@ -8842,6 +9271,7 @@
       "status": "active",
       "name": "柔性屏(折叠屏)",
       "canonical_name": "柔性屏(折叠屏)",
+      "renamed_from": null,
       "original_names": [
         "柔性屏(折叠屏)"
       ],
@@ -8862,6 +9292,7 @@
       "status": "active",
       "name": "柔性直流输电",
       "canonical_name": "柔性直流输电",
+      "renamed_from": null,
       "original_names": [
         "柔性直流输电"
       ],
@@ -8882,6 +9313,7 @@
       "status": "active",
       "name": "核污染防治",
       "canonical_name": "核污染防治",
+      "renamed_from": null,
       "original_names": [
         "核污染防治"
       ],
@@ -8902,6 +9334,7 @@
       "status": "active",
       "name": "核电",
       "canonical_name": "核电",
+      "renamed_from": null,
       "original_names": [
         "核力发电",
         "核电",
@@ -8927,6 +9360,7 @@
       "status": "active",
       "name": "检测服务",
       "canonical_name": "检测服务",
+      "renamed_from": null,
       "original_names": [
         "检测服务"
       ],
@@ -8947,6 +9381,7 @@
       "status": "active",
       "name": "棉纺",
       "canonical_name": "棉纺",
+      "renamed_from": null,
       "original_names": [
         "棉纺"
       ],
@@ -8967,6 +9402,7 @@
       "status": "active",
       "name": "植物照明",
       "canonical_name": "植物照明",
+      "renamed_from": null,
       "original_names": [
         "植物照明"
       ],
@@ -8987,6 +9423,7 @@
       "status": "active",
       "name": "楼宇设备",
       "canonical_name": "楼宇设备",
+      "renamed_from": null,
       "original_names": [
         "楼宇设备"
       ],
@@ -9007,6 +9444,7 @@
       "status": "active",
       "name": "模拟芯片设计",
       "canonical_name": "模拟芯片设计",
+      "renamed_from": null,
       "original_names": [
         "模拟芯片设计"
       ],
@@ -9027,6 +9465,7 @@
       "status": "active",
       "name": "横向通用软件",
       "canonical_name": "横向通用软件",
+      "renamed_from": null,
       "original_names": [
         "横向通用软件"
       ],
@@ -9041,17 +9480,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "4a995285-cc3f-5ee4-8122-bc89fccf854a",
-      "entity_key": "chain_node:v1_10b2358d0bcf17878315b21dad1e8bdc10102a12",
+      "entity_id": "ff23f75b-f387-5217-87df-6b3d668d7c25",
+      "entity_key": "chain_node:v1_58bcaa7d6b63066665d5a691df465f978162bb5c",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "橡胶",
-      "canonical_name": "橡胶",
+      "name": "橡胶产业",
+      "canonical_name": "橡胶产业",
+      "renamed_from": "橡胶",
       "original_names": [
         "橡胶"
       ],
       "aliases": [],
-      "definition": "以橡胶为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕橡胶开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一橡胶商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -9067,6 +9507,7 @@
       "status": "active",
       "name": "橡胶制品",
       "canonical_name": "橡胶制品",
+      "renamed_from": null,
       "original_names": [
         "橡胶制品"
       ],
@@ -9087,6 +9528,7 @@
       "status": "active",
       "name": "橡胶助剂",
       "canonical_name": "橡胶助剂",
+      "renamed_from": null,
       "original_names": [
         "橡胶助剂"
       ],
@@ -9107,6 +9549,7 @@
       "status": "active",
       "name": "毛发医疗",
       "canonical_name": "毛发医疗",
+      "renamed_from": null,
       "original_names": [
         "毛发医疗"
       ],
@@ -9127,6 +9570,7 @@
       "status": "active",
       "name": "毫米波",
       "canonical_name": "毫米波",
+      "renamed_from": null,
       "original_names": [
         "毫米波概念"
       ],
@@ -9149,6 +9593,7 @@
       "status": "active",
       "name": "毫米波雷达",
       "canonical_name": "毫米波雷达",
+      "renamed_from": null,
       "original_names": [
         "毫米波雷达"
       ],
@@ -9169,6 +9614,7 @@
       "status": "active",
       "name": "民爆",
       "canonical_name": "民爆",
+      "renamed_from": null,
       "original_names": [
         "民爆概念"
       ],
@@ -9191,6 +9637,7 @@
       "status": "active",
       "name": "民爆制品",
       "canonical_name": "民爆制品",
+      "renamed_from": null,
       "original_names": [
         "民爆制品"
       ],
@@ -9211,6 +9658,7 @@
       "status": "active",
       "name": "民营医院",
       "canonical_name": "民营医院",
+      "renamed_from": null,
       "original_names": [
         "民营医院"
       ],
@@ -9231,6 +9679,7 @@
       "status": "active",
       "name": "氟化工",
       "canonical_name": "氟化工",
+      "renamed_from": null,
       "original_names": [
         "氟化工",
         "氟化工概念"
@@ -9254,6 +9703,7 @@
       "status": "active",
       "name": "氢能源",
       "canonical_name": "氢能源",
+      "renamed_from": null,
       "original_names": [
         "氢能源"
       ],
@@ -9274,6 +9724,7 @@
       "status": "active",
       "name": "氦气",
       "canonical_name": "氦气",
+      "renamed_from": null,
       "original_names": [
         "氦气概念"
       ],
@@ -9296,6 +9747,7 @@
       "status": "active",
       "name": "氨纶纤维",
       "canonical_name": "氨纶纤维",
+      "renamed_from": null,
       "original_names": [
         "氨纶"
       ],
@@ -9318,6 +9770,7 @@
       "status": "active",
       "name": "氮化镓",
       "canonical_name": "氮化镓",
+      "renamed_from": null,
       "original_names": [
         "氮化镓"
       ],
@@ -9338,6 +9791,7 @@
       "status": "active",
       "name": "氮肥",
       "canonical_name": "氮肥",
+      "renamed_from": null,
       "original_names": [
         "氮肥"
       ],
@@ -9358,6 +9812,7 @@
       "status": "active",
       "name": "氯碱",
       "canonical_name": "氯碱",
+      "renamed_from": null,
       "original_names": [
         "氯碱"
       ],
@@ -9378,6 +9833,7 @@
       "status": "active",
       "name": "水产",
       "canonical_name": "水产",
+      "renamed_from": null,
       "original_names": [
         "水产概念"
       ],
@@ -9400,6 +9856,7 @@
       "status": "active",
       "name": "水产养殖",
       "canonical_name": "水产养殖",
+      "renamed_from": null,
       "original_names": [
         "水产养殖"
       ],
@@ -9420,6 +9877,7 @@
       "status": "active",
       "name": "水产饲料",
       "canonical_name": "水产饲料",
+      "renamed_from": null,
       "original_names": [
         "水产饲料"
       ],
@@ -9440,6 +9898,7 @@
       "status": "active",
       "name": "水利",
       "canonical_name": "水利",
+      "renamed_from": null,
       "original_names": [
         "水利"
       ],
@@ -9460,6 +9919,7 @@
       "status": "active",
       "name": "水利建设",
       "canonical_name": "水利建设",
+      "renamed_from": null,
       "original_names": [
         "水利建设"
       ],
@@ -9480,6 +9940,7 @@
       "status": "active",
       "name": "水力发电",
       "canonical_name": "水力发电",
+      "renamed_from": null,
       "original_names": [
         "水力发电"
       ],
@@ -9500,6 +9961,7 @@
       "status": "active",
       "name": "水务及水治理",
       "canonical_name": "水务及水治理",
+      "renamed_from": null,
       "original_names": [
         "水务及水治理"
       ],
@@ -9520,6 +9982,7 @@
       "status": "active",
       "name": "水泥制品",
       "canonical_name": "水泥制品",
+      "renamed_from": null,
       "original_names": [
         "水泥制品"
       ],
@@ -9540,6 +10003,7 @@
       "status": "active",
       "name": "水泥制造",
       "canonical_name": "水泥制造",
+      "renamed_from": null,
       "original_names": [
         "水泥",
         "水泥制造",
@@ -9565,6 +10029,7 @@
       "status": "active",
       "name": "污水处理",
       "canonical_name": "污水处理",
+      "renamed_from": null,
       "original_names": [
         "污水处理"
       ],
@@ -9585,6 +10050,7 @@
       "status": "active",
       "name": "汽车",
       "canonical_name": "汽车",
+      "renamed_from": null,
       "original_names": [
         "汽车"
       ],
@@ -9605,6 +10071,7 @@
       "status": "active",
       "name": "汽车一体化压铸",
       "canonical_name": "汽车一体化压铸",
+      "renamed_from": null,
       "original_names": [
         "汽车一体化压铸"
       ],
@@ -9625,6 +10092,7 @@
       "status": "active",
       "name": "汽车拆解",
       "canonical_name": "汽车拆解",
+      "renamed_from": null,
       "original_names": [
         "汽车拆解",
         "汽车拆解概念"
@@ -9648,6 +10116,7 @@
       "status": "active",
       "name": "汽车整车",
       "canonical_name": "汽车整车",
+      "renamed_from": null,
       "original_names": [
         "汽车整车"
       ],
@@ -9668,6 +10137,7 @@
       "status": "active",
       "name": "汽车服务",
       "canonical_name": "汽车服务",
+      "renamed_from": null,
       "original_names": [
         "汽车服务"
       ],
@@ -9688,6 +10158,7 @@
       "status": "active",
       "name": "汽车服务及其他",
       "canonical_name": "汽车服务及其他",
+      "renamed_from": null,
       "original_names": [
         "汽车服务及其他"
       ],
@@ -9708,6 +10179,7 @@
       "status": "active",
       "name": "汽车热管理",
       "canonical_name": "汽车热管理",
+      "renamed_from": null,
       "original_names": [
         "汽车热管理"
       ],
@@ -9728,6 +10200,7 @@
       "status": "active",
       "name": "汽车电子",
       "canonical_name": "汽车电子",
+      "renamed_from": null,
       "original_names": [
         "汽车电子"
       ],
@@ -9748,6 +10221,7 @@
       "status": "active",
       "name": "汽车电子电气系统",
       "canonical_name": "汽车电子电气系统",
+      "renamed_from": null,
       "original_names": [
         "汽车电子电气系统"
       ],
@@ -9768,6 +10242,7 @@
       "status": "active",
       "name": "汽车经销商",
       "canonical_name": "汽车经销商",
+      "renamed_from": null,
       "original_names": [
         "汽车经销商"
       ],
@@ -9788,6 +10263,7 @@
       "status": "active",
       "name": "汽车综合服务",
       "canonical_name": "汽车综合服务",
+      "renamed_from": null,
       "original_names": [
         "汽车综合服务"
       ],
@@ -9808,6 +10284,7 @@
       "status": "active",
       "name": "汽车芯片",
       "canonical_name": "汽车芯片",
+      "renamed_from": null,
       "original_names": [
         "汽车芯片"
       ],
@@ -9828,6 +10305,7 @@
       "status": "active",
       "name": "汽车零部件",
       "canonical_name": "汽车零部件",
+      "renamed_from": null,
       "original_names": [
         "其他汽车零部件",
         "汽车零部件"
@@ -9851,6 +10329,7 @@
       "status": "active",
       "name": "油品石化贸易",
       "canonical_name": "油品石化贸易",
+      "renamed_from": null,
       "original_names": [
         "油品石化贸易"
       ],
@@ -9871,6 +10350,7 @@
       "status": "active",
       "name": "油服工程",
       "canonical_name": "油服工程",
+      "renamed_from": null,
       "original_names": [
         "油服工程"
       ],
@@ -9891,6 +10371,7 @@
       "status": "active",
       "name": "油气及炼化工程",
       "canonical_name": "油气及炼化工程",
+      "renamed_from": null,
       "original_names": [
         "油气及炼化工程"
       ],
@@ -9911,6 +10392,7 @@
       "status": "active",
       "name": "油气开采",
       "canonical_name": "油气开采",
+      "renamed_from": null,
       "original_names": [
         "油气开采Ⅱ",
         "油气开采Ⅲ"
@@ -9935,6 +10417,7 @@
       "status": "active",
       "name": "油气开采及服务",
       "canonical_name": "油气开采及服务",
+      "renamed_from": null,
       "original_names": [
         "油气开采及服务"
       ],
@@ -9955,6 +10438,7 @@
       "status": "active",
       "name": "油气设服",
       "canonical_name": "油气设服",
+      "renamed_from": null,
       "original_names": [
         "油气设服"
       ],
@@ -9975,6 +10459,7 @@
       "status": "active",
       "name": "油气资源",
       "canonical_name": "油气资源",
+      "renamed_from": null,
       "original_names": [
         "油气资源"
       ],
@@ -9995,6 +10480,7 @@
       "status": "active",
       "name": "油田服务",
       "canonical_name": "油田服务",
+      "renamed_from": null,
       "original_names": [
         "油田服务"
       ],
@@ -10015,6 +10501,7 @@
       "status": "active",
       "name": "洗护用品",
       "canonical_name": "洗护用品",
+      "renamed_from": null,
       "original_names": [
         "洗护用品"
       ],
@@ -10035,6 +10522,7 @@
       "status": "active",
       "name": "海工装备",
       "canonical_name": "海工装备",
+      "renamed_from": null,
       "original_names": [
         "海工装备"
       ],
@@ -10055,6 +10543,7 @@
       "status": "active",
       "name": "海洋产业",
       "canonical_name": "海洋产业",
+      "renamed_from": null,
       "original_names": [
         "海洋经济"
       ],
@@ -10077,6 +10566,7 @@
       "status": "active",
       "name": "海洋捕捞",
       "canonical_name": "海洋捕捞",
+      "renamed_from": null,
       "original_names": [
         "海洋捕捞"
       ],
@@ -10097,6 +10587,7 @@
       "status": "active",
       "name": "涂料",
       "canonical_name": "涂料",
+      "renamed_from": null,
       "original_names": [
         "涂料"
       ],
@@ -10117,6 +10608,7 @@
       "status": "active",
       "name": "涂料油墨",
       "canonical_name": "涂料油墨",
+      "renamed_from": null,
       "original_names": [
         "涂料油墨"
       ],
@@ -10137,6 +10629,7 @@
       "status": "active",
       "name": "消毒剂",
       "canonical_name": "消毒剂",
+      "renamed_from": null,
       "original_names": [
         "消毒剂"
       ],
@@ -10157,6 +10650,7 @@
       "status": "active",
       "name": "消费电子",
       "canonical_name": "消费电子",
+      "renamed_from": null,
       "original_names": [
         "消费电子",
         "消费电子概念"
@@ -10180,6 +10674,7 @@
       "status": "active",
       "name": "消费电子零部件及组装",
       "canonical_name": "消费电子零部件及组装",
+      "renamed_from": null,
       "original_names": [
         "消费电子零部件及组装"
       ],
@@ -10200,6 +10695,7 @@
       "status": "active",
       "name": "涤纶",
       "canonical_name": "涤纶",
+      "renamed_from": null,
       "original_names": [
         "涤纶"
       ],
@@ -10220,6 +10716,7 @@
       "status": "active",
       "name": "液冷",
       "canonical_name": "液冷",
+      "renamed_from": null,
       "original_names": [
         "液冷概念"
       ],
@@ -10242,6 +10739,7 @@
       "status": "active",
       "name": "液冷服务器",
       "canonical_name": "液冷服务器",
+      "renamed_from": null,
       "original_names": [
         "液冷服务器"
       ],
@@ -10262,6 +10760,7 @@
       "status": "active",
       "name": "混合现实",
       "canonical_name": "混合现实",
+      "renamed_from": null,
       "original_names": [
         "混合现实"
       ],
@@ -10282,6 +10781,7 @@
       "status": "active",
       "name": "清洁小家电",
       "canonical_name": "清洁小家电",
+      "renamed_from": null,
       "original_names": [
         "清洁小家电"
       ],
@@ -10302,6 +10802,7 @@
       "status": "active",
       "name": "渔业",
       "canonical_name": "渔业",
+      "renamed_from": null,
       "original_names": [
         "渔业"
       ],
@@ -10322,6 +10823,7 @@
       "status": "active",
       "name": "港口",
       "canonical_name": "港口",
+      "renamed_from": null,
       "original_names": [
         "港口"
       ],
@@ -10342,6 +10844,7 @@
       "status": "active",
       "name": "港口航运",
       "canonical_name": "港口航运",
+      "renamed_from": null,
       "original_names": [
         "港口航运"
       ],
@@ -10362,6 +10865,7 @@
       "status": "active",
       "name": "游戏",
       "canonical_name": "游戏",
+      "renamed_from": null,
       "original_names": [
         "游戏",
         "游戏Ⅱ",
@@ -10387,6 +10891,7 @@
       "status": "active",
       "name": "激光设备",
       "canonical_name": "激光设备",
+      "renamed_from": null,
       "original_names": [
         "激光设备"
       ],
@@ -10407,6 +10912,7 @@
       "status": "active",
       "name": "激光雷达",
       "canonical_name": "激光雷达",
+      "renamed_from": null,
       "original_names": [
         "激光雷达"
       ],
@@ -10427,6 +10933,7 @@
       "status": "active",
       "name": "火力发电",
       "canonical_name": "火力发电",
+      "renamed_from": null,
       "original_names": [
         "火力发电"
       ],
@@ -10447,6 +10954,7 @@
       "status": "active",
       "name": "火电设备",
       "canonical_name": "火电设备",
+      "renamed_from": null,
       "original_names": [
         "火电设备"
       ],
@@ -10467,6 +10975,7 @@
       "status": "active",
       "name": "炭黑",
       "canonical_name": "炭黑",
+      "renamed_from": null,
       "original_names": [
         "炭黑"
       ],
@@ -10487,6 +10996,7 @@
       "status": "active",
       "name": "炼化及贸易",
       "canonical_name": "炼化及贸易",
+      "renamed_from": null,
       "original_names": [
         "炼化及贸易"
       ],
@@ -10507,6 +11017,7 @@
       "status": "active",
       "name": "炼油化工",
       "canonical_name": "炼油化工",
+      "renamed_from": null,
       "original_names": [
         "炼油化工"
       ],
@@ -10527,6 +11038,7 @@
       "status": "active",
       "name": "烘焙食品",
       "canonical_name": "烘焙食品",
+      "renamed_from": null,
       "original_names": [
         "烘焙食品"
       ],
@@ -10547,6 +11059,7 @@
       "status": "active",
       "name": "烟草",
       "canonical_name": "烟草",
+      "renamed_from": null,
       "original_names": [
         "烟草"
       ],
@@ -10567,6 +11080,7 @@
       "status": "active",
       "name": "热力服务",
       "canonical_name": "热力服务",
+      "renamed_from": null,
       "original_names": [
         "热力服务"
       ],
@@ -10581,12 +11095,13 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "fb7a7b59-680c-53cc-a1af-59741e8f9dc9",
-      "entity_key": "chain_node:v1_5a49d8fee5fd14d482d76f1c438b2327053304fa",
+      "entity_id": "7c7ba2e8-4494-5484-919f-994212f472fd",
+      "entity_key": "chain_node:v1_77771dcf8f020e9ee4fce6d9443ab89e656b89fe",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "焦炭",
-      "canonical_name": "焦炭",
+      "name": "焦炭产业",
+      "canonical_name": "焦炭产业",
+      "renamed_from": "焦炭",
       "original_names": [
         "焦炭Ⅱ",
         "焦炭Ⅲ"
@@ -10595,7 +11110,7 @@
         "焦炭Ⅱ",
         "焦炭Ⅲ"
       ],
-      "definition": "围绕焦炭形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "definition": "围绕焦炭开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一焦炭商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产业",
@@ -10605,17 +11120,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "89bab150-bdf2-53df-8829-526d7b107ed3",
-      "entity_key": "chain_node:v1_2fa97e65ba911f1f5dffdb5ce283cec572e608e5",
+      "entity_id": "5aa5737f-76db-576d-a93d-5c451c71d6cb",
+      "entity_key": "chain_node:v1_de0238c8ed51d631fe674208bd0ebaea32662f07",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "焦煤",
-      "canonical_name": "焦煤",
+      "name": "焦煤产业",
+      "canonical_name": "焦煤产业",
+      "renamed_from": "焦煤",
       "original_names": [
         "焦煤"
       ],
       "aliases": [],
-      "definition": "以焦煤为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕焦煤开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一焦煤商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -10631,6 +11147,7 @@
       "status": "active",
       "name": "煤化工",
       "canonical_name": "煤化工",
+      "renamed_from": null,
       "original_names": [
         "煤化工",
         "煤化工概念"
@@ -10654,6 +11171,7 @@
       "status": "active",
       "name": "煤炭",
       "canonical_name": "煤炭",
+      "renamed_from": null,
       "original_names": [
         "煤炭",
         "煤炭概念"
@@ -10677,6 +11195,7 @@
       "status": "active",
       "name": "煤炭开采",
       "canonical_name": "煤炭开采",
+      "renamed_from": null,
       "original_names": [
         "煤炭开采"
       ],
@@ -10697,6 +11216,7 @@
       "status": "active",
       "name": "煤炭开采加工",
       "canonical_name": "煤炭开采加工",
+      "renamed_from": null,
       "original_names": [
         "煤炭开采加工"
       ],
@@ -10717,6 +11237,7 @@
       "status": "active",
       "name": "照明设备",
       "canonical_name": "照明设备",
+      "renamed_from": null,
       "original_names": [
         "照明设备Ⅱ",
         "照明设备Ⅲ"
@@ -10741,6 +11262,7 @@
       "status": "active",
       "name": "熔盐储能",
       "canonical_name": "熔盐储能",
+      "renamed_from": null,
       "original_names": [
         "熔盐储能"
       ],
@@ -10761,6 +11283,7 @@
       "status": "active",
       "name": "熟食",
       "canonical_name": "熟食",
+      "renamed_from": null,
       "original_names": [
         "熟食"
       ],
@@ -10781,6 +11304,7 @@
       "status": "active",
       "name": "燃料电池",
       "canonical_name": "燃料电池",
+      "renamed_from": null,
       "original_names": [
         "燃料电池",
         "燃料电池概念"
@@ -10804,6 +11328,7 @@
       "status": "active",
       "name": "燃气",
       "canonical_name": "燃气",
+      "renamed_from": null,
       "original_names": [
         "燃气",
         "燃气Ⅱ",
@@ -10829,6 +11354,7 @@
       "status": "active",
       "name": "牙科医疗",
       "canonical_name": "牙科医疗",
+      "renamed_from": null,
       "original_names": [
         "牙科医疗"
       ],
@@ -10849,6 +11375,7 @@
       "status": "active",
       "name": "物业管理",
       "canonical_name": "物业管理",
+      "renamed_from": null,
       "original_names": [
         "物业管理"
       ],
@@ -10869,6 +11396,7 @@
       "status": "active",
       "name": "物流",
       "canonical_name": "物流",
+      "renamed_from": null,
       "original_names": [
         "物流"
       ],
@@ -10889,6 +11417,7 @@
       "status": "active",
       "name": "物联网",
       "canonical_name": "物联网",
+      "renamed_from": null,
       "original_names": [
         "物联网"
       ],
@@ -10909,6 +11438,7 @@
       "status": "active",
       "name": "特种纸",
       "canonical_name": "特种纸",
+      "renamed_from": null,
       "original_names": [
         "特种纸"
       ],
@@ -10929,6 +11459,7 @@
       "status": "active",
       "name": "特色药",
       "canonical_name": "特色药",
+      "renamed_from": null,
       "original_names": [
         "特色药"
       ],
@@ -10949,6 +11480,7 @@
       "status": "active",
       "name": "特钢",
       "canonical_name": "特钢",
+      "renamed_from": null,
       "original_names": [
         "特钢Ⅱ",
         "特钢Ⅲ",
@@ -10975,6 +11507,7 @@
       "status": "active",
       "name": "特高压",
       "canonical_name": "特高压",
+      "renamed_from": null,
       "original_names": [
         "特高压"
       ],
@@ -10995,6 +11528,7 @@
       "status": "active",
       "name": "独家药品",
       "canonical_name": "独家药品",
+      "renamed_from": null,
       "original_names": [
         "独家药品"
       ],
@@ -11009,17 +11543,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "19435ac9-bcff-564e-b4ee-bd428c2a4106",
-      "entity_key": "chain_node:v1_8531dc2f3fb0510d992ab5a4be4898cda5322d17",
+      "entity_id": "d6cfa7d3-6432-573e-b949-e65ca4c0993e",
+      "entity_key": "chain_node:v1_c5c6ed509e11670a9130f4071fcd3c51a0abc245",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "玉米",
-      "canonical_name": "玉米",
+      "name": "玉米产业",
+      "canonical_name": "玉米产业",
+      "renamed_from": "玉米",
       "original_names": [
         "玉米"
       ],
       "aliases": [],
-      "definition": "围绕玉米开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "definition": "围绕玉米开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一玉米商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "标准活动",
@@ -11035,6 +11570,7 @@
       "status": "active",
       "name": "环保",
       "canonical_name": "环保",
+      "renamed_from": null,
       "original_names": [
         "环保"
       ],
@@ -11055,6 +11591,7 @@
       "status": "active",
       "name": "环保设备",
       "canonical_name": "环保设备",
+      "renamed_from": null,
       "original_names": [
         "环保设备",
         "环保设备Ⅱ",
@@ -11080,6 +11617,7 @@
       "status": "active",
       "name": "环境治理",
       "canonical_name": "环境治理",
+      "renamed_from": null,
       "original_names": [
         "环境治理"
       ],
@@ -11100,6 +11638,7 @@
       "status": "active",
       "name": "环氧丙烷",
       "canonical_name": "环氧丙烷",
+      "renamed_from": null,
       "original_names": [
         "环氧丙烷"
       ],
@@ -11120,6 +11659,7 @@
       "status": "active",
       "name": "玻璃制造",
       "canonical_name": "玻璃制造",
+      "renamed_from": null,
       "original_names": [
         "玻璃制造"
       ],
@@ -11140,6 +11680,7 @@
       "status": "active",
       "name": "玻璃基板",
       "canonical_name": "玻璃基板",
+      "renamed_from": null,
       "original_names": [
         "玻璃基板"
       ],
@@ -11160,6 +11701,7 @@
       "status": "active",
       "name": "玻璃玻纤",
       "canonical_name": "玻璃玻纤",
+      "renamed_from": null,
       "original_names": [
         "玻璃玻纤"
       ],
@@ -11180,6 +11722,7 @@
       "status": "active",
       "name": "玻璃纤维制造",
       "canonical_name": "玻璃纤维制造",
+      "renamed_from": null,
       "original_names": [
         "玻纤制造"
       ],
@@ -11202,6 +11745,7 @@
       "status": "active",
       "name": "瓷砖地板",
       "canonical_name": "瓷砖地板",
+      "renamed_from": null,
       "original_names": [
         "瓷砖地板"
       ],
@@ -11222,6 +11766,7 @@
       "status": "active",
       "name": "生态农业",
       "canonical_name": "生态农业",
+      "renamed_from": null,
       "original_names": [
         "生态农业"
       ],
@@ -11242,6 +11787,7 @@
       "status": "active",
       "name": "生活用纸",
       "canonical_name": "生活用纸",
+      "renamed_from": null,
       "original_names": [
         "生活用纸"
       ],
@@ -11262,6 +11808,7 @@
       "status": "active",
       "name": "生物制品",
       "canonical_name": "生物制品",
+      "renamed_from": null,
       "original_names": [
         "生物制品"
       ],
@@ -11282,6 +11829,7 @@
       "status": "active",
       "name": "生物疫苗",
       "canonical_name": "生物疫苗",
+      "renamed_from": null,
       "original_names": [
         "生物疫苗"
       ],
@@ -11302,6 +11850,7 @@
       "status": "active",
       "name": "生物识别",
       "canonical_name": "生物识别",
+      "renamed_from": null,
       "original_names": [
         "生物识别"
       ],
@@ -11322,6 +11871,7 @@
       "status": "active",
       "name": "生物质能发电",
       "canonical_name": "生物质能发电",
+      "renamed_from": null,
       "original_names": [
         "生物质能发电"
       ],
@@ -11342,6 +11892,7 @@
       "status": "active",
       "name": "生猪养殖",
       "canonical_name": "生猪养殖",
+      "renamed_from": null,
       "original_names": [
         "猪肉",
         "猪肉概念",
@@ -11367,6 +11918,7 @@
       "status": "active",
       "name": "电信运营商",
       "canonical_name": "电信运营商",
+      "renamed_from": null,
       "original_names": [
         "电信运营商"
       ],
@@ -11387,6 +11939,7 @@
       "status": "active",
       "name": "电力",
       "canonical_name": "电力",
+      "renamed_from": null,
       "original_names": [
         "电力"
       ],
@@ -11407,6 +11960,7 @@
       "status": "active",
       "name": "电力物联网",
       "canonical_name": "电力物联网",
+      "renamed_from": null,
       "original_names": [
         "电力物联网"
       ],
@@ -11427,6 +11981,7 @@
       "status": "active",
       "name": "电力生产",
       "canonical_name": "电力生产",
+      "renamed_from": null,
       "original_names": [
         "绿色电力"
       ],
@@ -11449,6 +12004,7 @@
       "status": "active",
       "name": "电力设备",
       "canonical_name": "电力设备",
+      "renamed_from": null,
       "original_names": [
         "电力设备"
       ],
@@ -11469,6 +12025,7 @@
       "status": "active",
       "name": "电商",
       "canonical_name": "电商",
+      "renamed_from": null,
       "original_names": [
         "电商概念"
       ],
@@ -11491,6 +12048,7 @@
       "status": "active",
       "name": "电商服务",
       "canonical_name": "电商服务",
+      "renamed_from": null,
       "original_names": [
         "电商服务"
       ],
@@ -11511,6 +12069,7 @@
       "status": "active",
       "name": "电子",
       "canonical_name": "电子",
+      "renamed_from": null,
       "original_names": [
         "电子"
       ],
@@ -11531,6 +12090,7 @@
       "status": "active",
       "name": "电子化学品",
       "canonical_name": "电子化学品",
+      "renamed_from": null,
       "original_names": [
         "电子化学品",
         "电子化学品Ⅱ",
@@ -11556,6 +12116,7 @@
       "status": "active",
       "name": "电子后视镜",
       "canonical_name": "电子后视镜",
+      "renamed_from": null,
       "original_names": [
         "电子后视镜"
       ],
@@ -11576,6 +12137,7 @@
       "status": "active",
       "name": "电子烟",
       "canonical_name": "电子烟",
+      "renamed_from": null,
       "original_names": [
         "电子烟"
       ],
@@ -11596,6 +12158,7 @@
       "status": "active",
       "name": "电子竞技",
       "canonical_name": "电子竞技",
+      "renamed_from": null,
       "original_names": [
         "电子竞技"
       ],
@@ -11616,6 +12179,7 @@
       "status": "active",
       "name": "电子纸",
       "canonical_name": "电子纸",
+      "renamed_from": null,
       "original_names": [
         "电子纸",
         "电子纸概念"
@@ -11639,6 +12203,7 @@
       "status": "active",
       "name": "电子身份证",
       "canonical_name": "电子身份证",
+      "renamed_from": null,
       "original_names": [
         "电子身份证"
       ],
@@ -11659,6 +12224,7 @@
       "status": "active",
       "name": "电子车牌",
       "canonical_name": "电子车牌",
+      "renamed_from": null,
       "original_names": [
         "电子车牌"
       ],
@@ -11679,6 +12245,7 @@
       "status": "active",
       "name": "电工仪器仪表",
       "canonical_name": "电工仪器仪表",
+      "renamed_from": null,
       "original_names": [
         "电工仪器仪表"
       ],
@@ -11699,6 +12266,7 @@
       "status": "active",
       "name": "电机",
       "canonical_name": "电机",
+      "renamed_from": null,
       "original_names": [
         "电机",
         "电机Ⅱ",
@@ -11724,6 +12292,7 @@
       "status": "active",
       "name": "电池",
       "canonical_name": "电池",
+      "renamed_from": null,
       "original_names": [
         "电池"
       ],
@@ -11744,6 +12313,7 @@
       "status": "active",
       "name": "电池化学品",
       "canonical_name": "电池化学品",
+      "renamed_from": null,
       "original_names": [
         "电池化学品"
       ],
@@ -11764,6 +12334,7 @@
       "status": "active",
       "name": "电池技术",
       "canonical_name": "电池技术",
+      "renamed_from": null,
       "original_names": [
         "电池技术"
       ],
@@ -11784,6 +12355,7 @@
       "status": "active",
       "name": "电网",
       "canonical_name": "电网",
+      "renamed_from": null,
       "original_names": [
         "电网概念"
       ],
@@ -11806,6 +12378,7 @@
       "status": "active",
       "name": "电网自动化设备",
       "canonical_name": "电网自动化设备",
+      "renamed_from": null,
       "original_names": [
         "电网自动化设备"
       ],
@@ -11826,6 +12399,7 @@
       "status": "active",
       "name": "电网设备",
       "canonical_name": "电网设备",
+      "renamed_from": null,
       "original_names": [
         "电网设备"
       ],
@@ -11846,6 +12420,7 @@
       "status": "active",
       "name": "电能综合服务",
       "canonical_name": "电能综合服务",
+      "renamed_from": null,
       "original_names": [
         "电能综合服务"
       ],
@@ -11866,6 +12441,7 @@
       "status": "active",
       "name": "电视广播",
       "canonical_name": "电视广播",
+      "renamed_from": null,
       "original_names": [
         "电视广播Ⅱ",
         "电视广播Ⅲ"
@@ -11890,6 +12466,7 @@
       "status": "active",
       "name": "电视机制造",
       "canonical_name": "电视机制造",
+      "renamed_from": null,
       "original_names": [
         "彩电"
       ],
@@ -11912,6 +12489,7 @@
       "status": "active",
       "name": "电阻电容电感元件",
       "canonical_name": "电阻电容电感元件",
+      "renamed_from": null,
       "original_names": [
         "被动元件",
         "被动元件概念"
@@ -11936,6 +12514,7 @@
       "status": "active",
       "name": "畜禽饲料",
       "canonical_name": "畜禽饲料",
+      "renamed_from": null,
       "original_names": [
         "畜禽饲料"
       ],
@@ -11956,6 +12535,7 @@
       "status": "active",
       "name": "疫苗",
       "canonical_name": "疫苗",
+      "renamed_from": null,
       "original_names": [
         "疫苗"
       ],
@@ -11976,6 +12556,7 @@
       "status": "active",
       "name": "病原体防治",
       "canonical_name": "病原体防治",
+      "renamed_from": null,
       "original_names": [
         "病原体防治"
       ],
@@ -11996,6 +12577,7 @@
       "status": "active",
       "name": "病毒防治",
       "canonical_name": "病毒防治",
+      "renamed_from": null,
       "original_names": [
         "病毒防治"
       ],
@@ -12016,6 +12598,7 @@
       "status": "active",
       "name": "白色家电",
       "canonical_name": "白色家电",
+      "renamed_from": null,
       "original_names": [
         "白色家电"
       ],
@@ -12036,6 +12619,7 @@
       "status": "active",
       "name": "白酒",
       "canonical_name": "白酒",
+      "renamed_from": null,
       "original_names": [
         "白酒",
         "白酒Ⅱ",
@@ -12057,17 +12641,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "e2a2dd3d-ac38-5c9b-804b-e472d200acee",
-      "entity_key": "chain_node:v1_bc916383f67f9c89fab4652ffeaed7f770cd0017",
+      "entity_id": "0a733b0b-0704-51f4-89f7-b43c136d857d",
+      "entity_key": "chain_node:v1_c486c6cb27a1cd1388067893af4afe855429b47f",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "白银",
-      "canonical_name": "白银",
+      "name": "白银产业",
+      "canonical_name": "白银产业",
+      "renamed_from": "白银",
       "original_names": [
         "白银"
       ],
       "aliases": [],
-      "definition": "围绕白银开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "definition": "围绕白银开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一白银商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "标准活动",
@@ -12083,6 +12668,7 @@
       "status": "active",
       "name": "百货",
       "canonical_name": "百货",
+      "renamed_from": null,
       "original_names": [
         "百货"
       ],
@@ -12103,6 +12689,7 @@
       "status": "active",
       "name": "盐湖提锂",
       "canonical_name": "盐湖提锂",
+      "renamed_from": null,
       "original_names": [
         "盐湖提锂"
       ],
@@ -12123,6 +12710,7 @@
       "status": "active",
       "name": "盲盒",
       "canonical_name": "盲盒",
+      "renamed_from": null,
       "original_names": [
         "盲盒经济"
       ],
@@ -12145,6 +12733,7 @@
       "status": "active",
       "name": "眼科医疗",
       "canonical_name": "眼科医疗",
+      "renamed_from": null,
       "original_names": [
         "眼科医疗"
       ],
@@ -12165,6 +12754,7 @@
       "status": "active",
       "name": "知识产权",
       "canonical_name": "知识产权",
+      "renamed_from": null,
       "original_names": [
         "知识产权"
       ],
@@ -12185,6 +12775,7 @@
       "status": "active",
       "name": "短剧互动游戏",
       "canonical_name": "短剧互动游戏",
+      "renamed_from": null,
       "original_names": [
         "短剧互动游戏"
       ],
@@ -12205,6 +12796,7 @@
       "status": "active",
       "name": "短剧游戏",
       "canonical_name": "短剧游戏",
+      "renamed_from": null,
       "original_names": [
         "短剧游戏"
       ],
@@ -12225,6 +12817,7 @@
       "status": "active",
       "name": "石墨烯",
       "canonical_name": "石墨烯",
+      "renamed_from": null,
       "original_names": [
         "石墨烯"
       ],
@@ -12245,6 +12838,7 @@
       "status": "active",
       "name": "石墨电极",
       "canonical_name": "石墨电极",
+      "renamed_from": null,
       "original_names": [
         "石墨电极"
       ],
@@ -12265,6 +12859,7 @@
       "status": "active",
       "name": "石油加工贸易",
       "canonical_name": "石油加工贸易",
+      "renamed_from": null,
       "original_names": [
         "石油加工贸易"
       ],
@@ -12285,6 +12880,7 @@
       "status": "active",
       "name": "石油石化",
       "canonical_name": "石油石化",
+      "renamed_from": null,
       "original_names": [
         "石油石化"
       ],
@@ -12305,6 +12901,7 @@
       "status": "active",
       "name": "硅料硅片",
       "canonical_name": "硅料硅片",
+      "renamed_from": null,
       "original_names": [
         "硅料硅片"
       ],
@@ -12325,6 +12922,7 @@
       "status": "active",
       "name": "硅能源",
       "canonical_name": "硅能源",
+      "renamed_from": null,
       "original_names": [
         "硅能源"
       ],
@@ -12345,6 +12943,7 @@
       "status": "active",
       "name": "碳交易",
       "canonical_name": "碳交易",
+      "renamed_from": null,
       "original_names": [
         "碳交易"
       ],
@@ -12365,6 +12964,7 @@
       "status": "active",
       "name": "碳化硅",
       "canonical_name": "碳化硅",
+      "renamed_from": null,
       "original_names": [
         "碳化硅"
       ],
@@ -12385,6 +12985,7 @@
       "status": "active",
       "name": "碳基材料",
       "canonical_name": "碳基材料",
+      "renamed_from": null,
       "original_names": [
         "碳基材料"
       ],
@@ -12405,6 +13006,7 @@
       "status": "active",
       "name": "碳纤维",
       "canonical_name": "碳纤维",
+      "renamed_from": null,
       "original_names": [
         "碳纤维"
       ],
@@ -12425,6 +13027,7 @@
       "status": "active",
       "name": "磁性材料",
       "canonical_name": "磁性材料",
+      "renamed_from": null,
       "original_names": [
         "磁性材料"
       ],
@@ -12445,6 +13048,7 @@
       "status": "active",
       "name": "磁悬浮",
       "canonical_name": "磁悬浮",
+      "renamed_from": null,
       "original_names": [
         "磁悬浮概念"
       ],
@@ -12467,6 +13071,7 @@
       "status": "active",
       "name": "磨具磨料",
       "canonical_name": "磨具磨料",
+      "renamed_from": null,
       "original_names": [
         "磨具磨料"
       ],
@@ -12487,6 +13092,7 @@
       "status": "active",
       "name": "磷化工",
       "canonical_name": "磷化工",
+      "renamed_from": null,
       "original_names": [
         "磷化工"
       ],
@@ -12507,6 +13113,7 @@
       "status": "active",
       "name": "磷肥及磷化工",
       "canonical_name": "磷肥及磷化工",
+      "renamed_from": null,
       "original_names": [
         "磷肥及磷化工"
       ],
@@ -12527,6 +13134,7 @@
       "status": "active",
       "name": "社会服务",
       "canonical_name": "社会服务",
+      "renamed_from": null,
       "original_names": [
         "社会服务"
       ],
@@ -12547,6 +13155,7 @@
       "status": "active",
       "name": "社区团购",
       "canonical_name": "社区团购",
+      "renamed_from": null,
       "original_names": [
         "社区团购"
       ],
@@ -12567,6 +13176,7 @@
       "status": "active",
       "name": "种子",
       "canonical_name": "种子",
+      "renamed_from": null,
       "original_names": [
         "种子"
       ],
@@ -12587,6 +13197,7 @@
       "status": "active",
       "name": "种植业",
       "canonical_name": "种植业",
+      "renamed_from": null,
       "original_names": [
         "种植业"
       ],
@@ -12607,6 +13218,7 @@
       "status": "active",
       "name": "种植业与林业",
       "canonical_name": "种植业与林业",
+      "renamed_from": null,
       "original_names": [
         "种植业与林业"
       ],
@@ -12627,6 +13239,7 @@
       "status": "active",
       "name": "租赁",
       "canonical_name": "租赁",
+      "renamed_from": null,
       "original_names": [
         "租赁"
       ],
@@ -12647,6 +13260,7 @@
       "status": "active",
       "name": "移动支付",
       "canonical_name": "移动支付",
+      "renamed_from": null,
       "original_names": [
         "移动支付"
       ],
@@ -12661,17 +13275,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "1a30d368-7186-5563-8f49-dfba67dab891",
-      "entity_key": "chain_node:v1_aea082bb45e5047a8a25bb911921b439b1116567",
+      "entity_id": "cff6722a-15f4-51a0-ae87-ffcb940c4e75",
+      "entity_key": "chain_node:v1_27ce70eef148a208a96f83c266cf784623b6f9b7",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "稀土",
-      "canonical_name": "稀土",
+      "name": "稀土产业",
+      "canonical_name": "稀土产业",
+      "renamed_from": "稀土",
       "original_names": [
         "稀土"
       ],
       "aliases": [],
-      "definition": "以稀土为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕稀土开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一稀土商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -12687,6 +13302,7 @@
       "status": "active",
       "name": "稀土永磁",
       "canonical_name": "稀土永磁",
+      "renamed_from": null,
       "original_names": [
         "稀土永磁"
       ],
@@ -12707,6 +13323,7 @@
       "status": "active",
       "name": "空气能热泵",
       "canonical_name": "空气能热泵",
+      "renamed_from": null,
       "original_names": [
         "空气能热泵"
       ],
@@ -12727,6 +13344,7 @@
       "status": "active",
       "name": "空调",
       "canonical_name": "空调",
+      "renamed_from": null,
       "original_names": [
         "空调"
       ],
@@ -12747,6 +13365,7 @@
       "status": "active",
       "name": "空间站",
       "canonical_name": "空间站",
+      "renamed_from": null,
       "original_names": [
         "空间站概念"
       ],
@@ -12769,6 +13388,7 @@
       "status": "active",
       "name": "空间计算",
       "canonical_name": "空间计算",
+      "renamed_from": null,
       "original_names": [
         "空间计算"
       ],
@@ -12789,6 +13409,7 @@
       "status": "active",
       "name": "端到端供应链服务",
       "canonical_name": "端到端供应链服务",
+      "renamed_from": null,
       "original_names": [
         "端到端供应链服务"
       ],
@@ -12809,6 +13430,7 @@
       "status": "active",
       "name": "第三代半导体",
       "canonical_name": "第三代半导体",
+      "renamed_from": null,
       "original_names": [
         "第三代半导体"
       ],
@@ -12829,6 +13451,7 @@
       "status": "active",
       "name": "第四代半导体",
       "canonical_name": "第四代半导体",
+      "renamed_from": null,
       "original_names": [
         "第四代半导体"
       ],
@@ -12849,6 +13472,7 @@
       "status": "active",
       "name": "算力",
       "canonical_name": "算力",
+      "renamed_from": null,
       "original_names": [
         "算力概念"
       ],
@@ -12871,6 +13495,7 @@
       "status": "active",
       "name": "算力租赁",
       "canonical_name": "算力租赁",
+      "renamed_from": null,
       "original_names": [
         "算力租赁"
       ],
@@ -12891,6 +13516,7 @@
       "status": "active",
       "name": "管材",
       "canonical_name": "管材",
+      "renamed_from": null,
       "original_names": [
         "管材"
       ],
@@ -12911,6 +13537,7 @@
       "status": "active",
       "name": "粘胶",
       "canonical_name": "粘胶",
+      "renamed_from": null,
       "original_names": [
         "粘胶"
       ],
@@ -12931,6 +13558,7 @@
       "status": "active",
       "name": "粮油加工",
       "canonical_name": "粮油加工",
+      "renamed_from": null,
       "original_names": [
         "粮油加工"
       ],
@@ -12951,6 +13579,7 @@
       "status": "active",
       "name": "粮食",
       "canonical_name": "粮食",
+      "renamed_from": null,
       "original_names": [
         "粮食概念"
       ],
@@ -12973,6 +13602,7 @@
       "status": "active",
       "name": "粮食种植",
       "canonical_name": "粮食种植",
+      "renamed_from": null,
       "original_names": [
         "粮食种植"
       ],
@@ -12993,6 +13623,7 @@
       "status": "active",
       "name": "精准医疗",
       "canonical_name": "精准医疗",
+      "renamed_from": null,
       "original_names": [
         "精准医疗"
       ],
@@ -13013,6 +13644,7 @@
       "status": "active",
       "name": "精准诊断",
       "canonical_name": "精准诊断",
+      "renamed_from": null,
       "original_names": [
         "精准诊断"
       ],
@@ -13027,17 +13659,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "5822544b-f94d-5926-95ee-c0c4c121a00e",
-      "entity_key": "chain_node:v1_3ca7fb7c89488e0c1dfd78c6f32864b278282ff3",
+      "entity_id": "d9969d95-6586-5f9b-8242-05edb49c9c20",
+      "entity_key": "chain_node:v1_49d723ebd525cf1031794e821a8d504cb9ec0aac",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "纯碱",
-      "canonical_name": "纯碱",
+      "name": "纯碱产业",
+      "canonical_name": "纯碱产业",
+      "renamed_from": "纯碱",
       "original_names": [
         "纯碱"
       ],
       "aliases": [],
-      "definition": "围绕纯碱开展的可重复生产、加工、建设或专业服务活动，其范围以对应标准活动及直接产出为准。",
+      "definition": "围绕纯碱开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一纯碱商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "标准活动",
@@ -13053,6 +13686,7 @@
       "status": "active",
       "name": "纳米银",
       "canonical_name": "纳米银",
+      "renamed_from": null,
       "original_names": [
         "纳米银"
       ],
@@ -13073,6 +13707,7 @@
       "status": "active",
       "name": "纸包装",
       "canonical_name": "纸包装",
+      "renamed_from": null,
       "original_names": [
         "纸包装"
       ],
@@ -13093,6 +13728,7 @@
       "status": "active",
       "name": "纺织制造",
       "canonical_name": "纺织制造",
+      "renamed_from": null,
       "original_names": [
         "纺织制造"
       ],
@@ -13113,6 +13749,7 @@
       "status": "active",
       "name": "纺织化学制品",
       "canonical_name": "纺织化学制品",
+      "renamed_from": null,
       "original_names": [
         "纺织化学制品"
       ],
@@ -13133,6 +13770,7 @@
       "status": "active",
       "name": "纺织服装设备",
       "canonical_name": "纺织服装设备",
+      "renamed_from": null,
       "original_names": [
         "纺织服装设备"
       ],
@@ -13153,6 +13791,7 @@
       "status": "active",
       "name": "纺织服饰",
       "canonical_name": "纺织服饰",
+      "renamed_from": null,
       "original_names": [
         "纺织服饰"
       ],
@@ -13173,6 +13812,7 @@
       "status": "active",
       "name": "纺织鞋类制造",
       "canonical_name": "纺织鞋类制造",
+      "renamed_from": null,
       "original_names": [
         "纺织鞋类制造"
       ],
@@ -13193,6 +13833,7 @@
       "status": "active",
       "name": "线下药店",
       "canonical_name": "线下药店",
+      "renamed_from": null,
       "original_names": [
         "线下药店"
       ],
@@ -13213,6 +13854,7 @@
       "status": "active",
       "name": "线缆部件及其他",
       "canonical_name": "线缆部件及其他",
+      "renamed_from": null,
       "original_names": [
         "线缆部件及其他"
       ],
@@ -13233,6 +13875,7 @@
       "status": "active",
       "name": "细胞免疫治疗",
       "canonical_name": "细胞免疫治疗",
+      "renamed_from": null,
       "original_names": [
         "细胞免疫治疗"
       ],
@@ -13253,6 +13896,7 @@
       "status": "active",
       "name": "维生素",
       "canonical_name": "维生素",
+      "renamed_from": null,
       "original_names": [
         "维生素"
       ],
@@ -13273,6 +13917,7 @@
       "status": "active",
       "name": "综合",
       "canonical_name": "综合",
+      "renamed_from": null,
       "original_names": [
         "综合",
         "综合Ⅱ",
@@ -13298,6 +13943,7 @@
       "status": "active",
       "name": "综合乘用车",
       "canonical_name": "综合乘用车",
+      "renamed_from": null,
       "original_names": [
         "综合乘用车"
       ],
@@ -13318,6 +13964,7 @@
       "status": "active",
       "name": "综合包装",
       "canonical_name": "综合包装",
+      "renamed_from": null,
       "original_names": [
         "综合包装"
       ],
@@ -13338,6 +13985,7 @@
       "status": "active",
       "name": "综合环境治理",
       "canonical_name": "综合环境治理",
+      "renamed_from": null,
       "original_names": [
         "综合环境治理"
       ],
@@ -13358,6 +14006,7 @@
       "status": "active",
       "name": "综合电力设备商",
       "canonical_name": "综合电力设备商",
+      "renamed_from": null,
       "original_names": [
         "综合电力设备商"
       ],
@@ -13378,6 +14027,7 @@
       "status": "active",
       "name": "综合电商",
       "canonical_name": "综合电商",
+      "renamed_from": null,
       "original_names": [
         "综合电商"
       ],
@@ -13398,6 +14048,7 @@
       "status": "active",
       "name": "网约车",
       "canonical_name": "网约车",
+      "renamed_from": null,
       "original_names": [
         "网约车"
       ],
@@ -13418,6 +14069,7 @@
       "status": "active",
       "name": "网络安全",
       "canonical_name": "网络安全",
+      "renamed_from": null,
       "original_names": [
         "网络安全"
       ],
@@ -13438,6 +14090,7 @@
       "status": "active",
       "name": "网络游戏",
       "canonical_name": "网络游戏",
+      "renamed_from": null,
       "original_names": [
         "网络游戏"
       ],
@@ -13458,6 +14111,7 @@
       "status": "active",
       "name": "美容护理",
       "canonical_name": "美容护理",
+      "renamed_from": null,
       "original_names": [
         "美容护理"
       ],
@@ -13478,6 +14132,7 @@
       "status": "active",
       "name": "耐火材料",
       "canonical_name": "耐火材料",
+      "renamed_from": null,
       "original_names": [
         "耐火材料"
       ],
@@ -13498,6 +14153,7 @@
       "status": "active",
       "name": "职业教育",
       "canonical_name": "职业教育",
+      "renamed_from": null,
       "original_names": [
         "职业教育"
       ],
@@ -13518,6 +14174,7 @@
       "status": "active",
       "name": "聚氨酯",
       "canonical_name": "聚氨酯",
+      "renamed_from": null,
       "original_names": [
         "聚氨酯"
       ],
@@ -13538,6 +14195,7 @@
       "status": "active",
       "name": "肉制品",
       "canonical_name": "肉制品",
+      "renamed_from": null,
       "original_names": [
         "肉制品"
       ],
@@ -13558,6 +14216,7 @@
       "status": "active",
       "name": "肉鸡养殖",
       "canonical_name": "肉鸡养殖",
+      "renamed_from": null,
       "original_names": [
         "肉鸡养殖"
       ],
@@ -13578,6 +14237,7 @@
       "status": "active",
       "name": "肝素",
       "canonical_name": "肝素",
+      "renamed_from": null,
       "original_names": [
         "肝素概念"
       ],
@@ -13600,6 +14260,7 @@
       "status": "active",
       "name": "股份制银行",
       "canonical_name": "股份制银行",
+      "renamed_from": null,
       "original_names": [
         "股份制银行Ⅲ"
       ],
@@ -13622,6 +14283,7 @@
       "status": "active",
       "name": "胎压监测",
       "canonical_name": "胎压监测",
+      "renamed_from": null,
       "original_names": [
         "胎压监测"
       ],
@@ -13642,6 +14304,7 @@
       "status": "active",
       "name": "胶黏剂及胶带",
       "canonical_name": "胶黏剂及胶带",
+      "renamed_from": null,
       "original_names": [
         "胶黏剂及胶带"
       ],
@@ -13662,6 +14325,7 @@
       "status": "active",
       "name": "能源及重型设备",
       "canonical_name": "能源及重型设备",
+      "renamed_from": null,
       "original_names": [
         "能源及重型设备"
       ],
@@ -13682,6 +14346,7 @@
       "status": "active",
       "name": "能源金属",
       "canonical_name": "能源金属",
+      "renamed_from": null,
       "original_names": [
         "能源金属"
       ],
@@ -13702,6 +14367,7 @@
       "status": "active",
       "name": "脑机接口",
       "canonical_name": "脑机接口",
+      "renamed_from": null,
       "original_names": [
         "脑机接口"
       ],
@@ -13722,6 +14388,7 @@
       "status": "active",
       "name": "膜材料",
       "canonical_name": "膜材料",
+      "renamed_from": null,
       "original_names": [
         "膜材料"
       ],
@@ -13742,6 +14409,7 @@
       "status": "active",
       "name": "自动化设备",
       "canonical_name": "自动化设备",
+      "renamed_from": null,
       "original_names": [
         "自动化设备"
       ],
@@ -13762,6 +14430,7 @@
       "status": "active",
       "name": "自然景区",
       "canonical_name": "自然景区",
+      "renamed_from": null,
       "original_names": [
         "自然景区"
       ],
@@ -13782,6 +14451,7 @@
       "status": "active",
       "name": "航天航空",
       "canonical_name": "航天航空",
+      "renamed_from": null,
       "original_names": [
         "航天航空"
       ],
@@ -13802,6 +14472,7 @@
       "status": "active",
       "name": "航天装备",
       "canonical_name": "航天装备",
+      "renamed_from": null,
       "original_names": [
         "航天装备Ⅱ",
         "航天装备Ⅲ"
@@ -13826,6 +14497,7 @@
       "status": "active",
       "name": "航母",
       "canonical_name": "航母",
+      "renamed_from": null,
       "original_names": [
         "航母概念"
       ],
@@ -13848,6 +14520,7 @@
       "status": "active",
       "name": "航海装备",
       "canonical_name": "航海装备",
+      "renamed_from": null,
       "original_names": [
         "航海装备Ⅱ",
         "航海装备Ⅲ"
@@ -13872,6 +14545,7 @@
       "status": "active",
       "name": "航空发动机",
       "canonical_name": "航空发动机",
+      "renamed_from": null,
       "original_names": [
         "航空发动机"
       ],
@@ -13892,6 +14566,7 @@
       "status": "active",
       "name": "航空机场",
       "canonical_name": "航空机场",
+      "renamed_from": null,
       "original_names": [
         "航空机场"
       ],
@@ -13912,6 +14587,7 @@
       "status": "active",
       "name": "航空装备",
       "canonical_name": "航空装备",
+      "renamed_from": null,
       "original_names": [
         "航空装备Ⅱ",
         "航空装备Ⅲ"
@@ -13936,6 +14612,7 @@
       "status": "active",
       "name": "航空运输",
       "canonical_name": "航空运输",
+      "renamed_from": null,
       "original_names": [
         "航空运输"
       ],
@@ -13956,6 +14633,7 @@
       "status": "active",
       "name": "航运",
       "canonical_name": "航运",
+      "renamed_from": null,
       "original_names": [
         "航运",
         "航运概念"
@@ -13979,6 +14657,7 @@
       "status": "active",
       "name": "航运港口",
       "canonical_name": "航运港口",
+      "renamed_from": null,
       "original_names": [
         "航运港口"
       ],
@@ -13999,6 +14678,7 @@
       "status": "active",
       "name": "船舶制造",
       "canonical_name": "船舶制造",
+      "renamed_from": null,
       "original_names": [
         "船舶制造"
       ],
@@ -14019,6 +14699,7 @@
       "status": "active",
       "name": "节能环保",
       "canonical_name": "节能环保",
+      "renamed_from": null,
       "original_names": [
         "节能环保"
       ],
@@ -14039,6 +14720,7 @@
       "status": "active",
       "name": "芬太尼",
       "canonical_name": "芬太尼",
+      "renamed_from": null,
       "original_names": [
         "芬太尼"
       ],
@@ -14059,6 +14741,7 @@
       "status": "active",
       "name": "芯片",
       "canonical_name": "芯片",
+      "renamed_from": null,
       "original_names": [
         "芯片概念"
       ],
@@ -14081,6 +14764,7 @@
       "status": "active",
       "name": "草甘膦",
       "canonical_name": "草甘膦",
+      "renamed_from": null,
       "original_names": [
         "草甘膦"
       ],
@@ -14101,6 +14785,7 @@
       "status": "active",
       "name": "营销代理",
       "canonical_name": "营销代理",
+      "renamed_from": null,
       "original_names": [
         "营销代理"
       ],
@@ -14121,6 +14806,7 @@
       "status": "active",
       "name": "蓄电池及其他电池",
       "canonical_name": "蓄电池及其他电池",
+      "renamed_from": null,
       "original_names": [
         "蓄电池及其他电池"
       ],
@@ -14141,6 +14827,7 @@
       "status": "active",
       "name": "蓝宝石",
       "canonical_name": "蓝宝石",
+      "renamed_from": null,
       "original_names": [
         "蓝宝石"
       ],
@@ -14161,6 +14848,7 @@
       "status": "active",
       "name": "虚拟数字人",
       "canonical_name": "虚拟数字人",
+      "renamed_from": null,
       "original_names": [
         "虚拟数字人"
       ],
@@ -14181,6 +14869,7 @@
       "status": "active",
       "name": "虚拟机器人",
       "canonical_name": "虚拟机器人",
+      "renamed_from": null,
       "original_names": [
         "虚拟机器人"
       ],
@@ -14201,6 +14890,7 @@
       "status": "active",
       "name": "虚拟现实",
       "canonical_name": "虚拟现实",
+      "renamed_from": null,
       "original_names": [
         "虚拟现实"
       ],
@@ -14221,6 +14911,7 @@
       "status": "active",
       "name": "虚拟电厂",
       "canonical_name": "虚拟电厂",
+      "renamed_from": null,
       "original_names": [
         "虚拟电厂"
       ],
@@ -14241,6 +14932,7 @@
       "status": "active",
       "name": "血氧仪",
       "canonical_name": "血氧仪",
+      "renamed_from": null,
       "original_names": [
         "血氧仪"
       ],
@@ -14261,6 +14953,7 @@
       "status": "active",
       "name": "血液制品",
       "canonical_name": "血液制品",
+      "renamed_from": null,
       "original_names": [
         "血液制品"
       ],
@@ -14281,6 +14974,7 @@
       "status": "active",
       "name": "装修建材",
       "canonical_name": "装修建材",
+      "renamed_from": null,
       "original_names": [
         "装修建材"
       ],
@@ -14301,6 +14995,7 @@
       "status": "active",
       "name": "装修装饰",
       "canonical_name": "装修装饰",
+      "renamed_from": null,
       "original_names": [
         "装修装饰Ⅱ",
         "装修装饰Ⅲ"
@@ -14325,6 +15020,7 @@
       "status": "active",
       "name": "装配建筑",
       "canonical_name": "装配建筑",
+      "renamed_from": null,
       "original_names": [
         "装配建筑"
       ],
@@ -14345,6 +15041,7 @@
       "status": "active",
       "name": "装配式建筑",
       "canonical_name": "装配式建筑",
+      "renamed_from": null,
       "original_names": [
         "装配式建筑"
       ],
@@ -14365,6 +15062,7 @@
       "status": "active",
       "name": "裸眼3D",
       "canonical_name": "裸眼3D",
+      "renamed_from": null,
       "original_names": [
         "裸眼3D"
       ],
@@ -14385,6 +15083,7 @@
       "status": "active",
       "name": "视频媒体",
       "canonical_name": "视频媒体",
+      "renamed_from": null,
       "original_names": [
         "视频媒体"
       ],
@@ -14405,6 +15104,7 @@
       "status": "active",
       "name": "计算机",
       "canonical_name": "计算机",
+      "renamed_from": null,
       "original_names": [
         "计算机"
       ],
@@ -14425,6 +15125,7 @@
       "status": "active",
       "name": "计算机设备",
       "canonical_name": "计算机设备",
+      "renamed_from": null,
       "original_names": [
         "计算机设备"
       ],
@@ -14445,6 +15146,7 @@
       "status": "active",
       "name": "证券",
       "canonical_name": "证券",
+      "renamed_from": null,
       "original_names": [
         "证券",
         "证券Ⅱ",
@@ -14470,6 +15172,7 @@
       "status": "active",
       "name": "诊断服务",
       "canonical_name": "诊断服务",
+      "renamed_from": null,
       "original_names": [
         "诊断服务"
       ],
@@ -14490,6 +15193,7 @@
       "status": "active",
       "name": "语音技术",
       "canonical_name": "语音技术",
+      "renamed_from": null,
       "original_names": [
         "语音技术"
       ],
@@ -14510,6 +15214,7 @@
       "status": "active",
       "name": "调味品",
       "canonical_name": "调味品",
+      "renamed_from": null,
       "original_names": [
         "调味品概念"
       ],
@@ -14532,6 +15237,7 @@
       "status": "active",
       "name": "调味品和发酵制品",
       "canonical_name": "调味品和发酵制品",
+      "renamed_from": null,
       "original_names": [
         "调味发酵品Ⅱ",
         "调味发酵品Ⅲ"
@@ -14556,6 +15262,7 @@
       "status": "active",
       "name": "谷子消费品",
       "canonical_name": "谷子消费品",
+      "renamed_from": null,
       "original_names": [
         "谷子经济"
       ],
@@ -14578,6 +15285,7 @@
       "status": "active",
       "name": "财税数字化",
       "canonical_name": "财税数字化",
+      "renamed_from": null,
       "original_names": [
         "财税数字化"
       ],
@@ -14598,6 +15306,7 @@
       "status": "active",
       "name": "贵金属",
       "canonical_name": "贵金属",
+      "renamed_from": null,
       "original_names": [
         "贵金属"
       ],
@@ -14618,6 +15327,7 @@
       "status": "active",
       "name": "贸易",
       "canonical_name": "贸易",
+      "renamed_from": null,
       "original_names": [
         "贸易",
         "贸易Ⅱ",
@@ -14643,6 +15353,7 @@
       "status": "active",
       "name": "资产管理",
       "canonical_name": "资产管理",
+      "renamed_from": null,
       "original_names": [
         "资产管理"
       ],
@@ -14663,6 +15374,7 @@
       "status": "active",
       "name": "资源开采",
       "canonical_name": "资源开采",
+      "renamed_from": null,
       "original_names": [
         "资源开采概念"
       ],
@@ -14685,6 +15397,7 @@
       "status": "active",
       "name": "赛马",
       "canonical_name": "赛马",
+      "renamed_from": null,
       "original_names": [
         "赛马概念"
       ],
@@ -14707,6 +15420,7 @@
       "status": "active",
       "name": "超导",
       "canonical_name": "超导",
+      "renamed_from": null,
       "original_names": [
         "超导概念"
       ],
@@ -14729,6 +15443,7 @@
       "status": "active",
       "name": "超市",
       "canonical_name": "超市",
+      "renamed_from": null,
       "original_names": [
         "超市"
       ],
@@ -14749,6 +15464,7 @@
       "status": "active",
       "name": "超清视频",
       "canonical_name": "超清视频",
+      "renamed_from": null,
       "original_names": [
         "超清视频"
       ],
@@ -14769,6 +15485,7 @@
       "status": "active",
       "name": "超级电容",
       "canonical_name": "超级电容",
+      "renamed_from": null,
       "original_names": [
         "超级电容"
       ],
@@ -14789,6 +15506,7 @@
       "status": "active",
       "name": "超超临界发电",
       "canonical_name": "超超临界发电",
+      "renamed_from": null,
       "original_names": [
         "超超临界发电"
       ],
@@ -14809,6 +15527,7 @@
       "status": "active",
       "name": "足球",
       "canonical_name": "足球",
+      "renamed_from": null,
       "original_names": [
         "足球概念"
       ],
@@ -14831,6 +15550,7 @@
       "status": "active",
       "name": "跨境支付",
       "canonical_name": "跨境支付",
+      "renamed_from": null,
       "original_names": [
         "跨境支付"
       ],
@@ -14851,6 +15571,7 @@
       "status": "active",
       "name": "跨境物流",
       "canonical_name": "跨境物流",
+      "renamed_from": null,
       "original_names": [
         "跨境物流"
       ],
@@ -14871,6 +15592,7 @@
       "status": "active",
       "name": "跨境电商",
       "canonical_name": "跨境电商",
+      "renamed_from": null,
       "original_names": [
         "跨境电商"
       ],
@@ -14891,6 +15613,7 @@
       "status": "active",
       "name": "车路云",
       "canonical_name": "车路云",
+      "renamed_from": null,
       "original_names": [
         "车联网(车路云)"
       ],
@@ -14913,6 +15636,7 @@
       "status": "active",
       "name": "车路协同",
       "canonical_name": "车路协同",
+      "renamed_from": null,
       "original_names": [
         "车联网(车路协同)"
       ],
@@ -14935,6 +15659,7 @@
       "status": "active",
       "name": "车身附件及饰件",
       "canonical_name": "车身附件及饰件",
+      "renamed_from": null,
       "original_names": [
         "车身附件及饰件"
       ],
@@ -14955,6 +15680,7 @@
       "status": "active",
       "name": "轨交设备",
       "canonical_name": "轨交设备",
+      "renamed_from": null,
       "original_names": [
         "轨交设备",
         "轨交设备Ⅱ",
@@ -14980,6 +15706,7 @@
       "status": "active",
       "name": "转基因",
       "canonical_name": "转基因",
+      "renamed_from": null,
       "original_names": [
         "转基因"
       ],
@@ -15000,6 +15727,7 @@
       "status": "active",
       "name": "轮毂电机",
       "canonical_name": "轮毂电机",
+      "renamed_from": null,
       "original_names": [
         "轮毂电机"
       ],
@@ -15020,6 +15748,7 @@
       "status": "active",
       "name": "轮胎轮毂",
       "canonical_name": "轮胎轮毂",
+      "renamed_from": null,
       "original_names": [
         "轮胎轮毂"
       ],
@@ -15040,6 +15769,7 @@
       "status": "active",
       "name": "软件开发",
       "canonical_name": "软件开发",
+      "renamed_from": null,
       "original_names": [
         "软件开发"
       ],
@@ -15060,6 +15790,7 @@
       "status": "active",
       "name": "软饮料",
       "canonical_name": "软饮料",
+      "renamed_from": null,
       "original_names": [
         "软饮料"
       ],
@@ -15080,6 +15811,7 @@
       "status": "active",
       "name": "轻工制造",
       "canonical_name": "轻工制造",
+      "renamed_from": null,
       "original_names": [
         "轻工制造"
       ],
@@ -15100,6 +15832,7 @@
       "status": "active",
       "name": "辅助生殖",
       "canonical_name": "辅助生殖",
+      "renamed_from": null,
       "original_names": [
         "辅助生殖"
       ],
@@ -15120,6 +15853,7 @@
       "status": "active",
       "name": "辅料",
       "canonical_name": "辅料",
+      "renamed_from": null,
       "original_names": [
         "辅料"
       ],
@@ -15140,6 +15874,7 @@
       "status": "active",
       "name": "输变电设备",
       "canonical_name": "输变电设备",
+      "renamed_from": null,
       "original_names": [
         "输变电设备"
       ],
@@ -15160,6 +15895,7 @@
       "status": "active",
       "name": "边缘计算",
       "canonical_name": "边缘计算",
+      "renamed_from": null,
       "original_names": [
         "边缘计算"
       ],
@@ -15180,6 +15916,7 @@
       "status": "active",
       "name": "运动服装",
       "canonical_name": "运动服装",
+      "renamed_from": null,
       "original_names": [
         "运动服装"
       ],
@@ -15200,6 +15937,7 @@
       "status": "active",
       "name": "退税商店",
       "canonical_name": "退税商店",
+      "renamed_from": null,
       "original_names": [
         "退税商店"
       ],
@@ -15220,6 +15958,7 @@
       "status": "active",
       "name": "逆变器",
       "canonical_name": "逆变器",
+      "renamed_from": null,
       "original_names": [
         "逆变器"
       ],
@@ -15240,6 +15979,7 @@
       "status": "active",
       "name": "通信",
       "canonical_name": "通信",
+      "renamed_from": null,
       "original_names": [
         "通信"
       ],
@@ -15260,6 +16000,7 @@
       "status": "active",
       "name": "通信工程及服务",
       "canonical_name": "通信工程及服务",
+      "renamed_from": null,
       "original_names": [
         "通信工程及服务"
       ],
@@ -15280,6 +16021,7 @@
       "status": "active",
       "name": "通信应用增值服务",
       "canonical_name": "通信应用增值服务",
+      "renamed_from": null,
       "original_names": [
         "通信应用增值服务"
       ],
@@ -15300,6 +16042,7 @@
       "status": "active",
       "name": "通信技术",
       "canonical_name": "通信技术",
+      "renamed_from": null,
       "original_names": [
         "通信技术"
       ],
@@ -15320,6 +16063,7 @@
       "status": "active",
       "name": "通信服务",
       "canonical_name": "通信服务",
+      "renamed_from": null,
       "original_names": [
         "通信服务"
       ],
@@ -15340,6 +16084,7 @@
       "status": "active",
       "name": "通信线缆及配套",
       "canonical_name": "通信线缆及配套",
+      "renamed_from": null,
       "original_names": [
         "通信线缆及配套"
       ],
@@ -15360,6 +16105,7 @@
       "status": "active",
       "name": "通信终端及配件",
       "canonical_name": "通信终端及配件",
+      "renamed_from": null,
       "original_names": [
         "通信终端及配件"
       ],
@@ -15380,6 +16126,7 @@
       "status": "active",
       "name": "通信网络设备及器件",
       "canonical_name": "通信网络设备及器件",
+      "renamed_from": null,
       "original_names": [
         "通信网络设备及器件"
       ],
@@ -15400,6 +16147,7 @@
       "status": "active",
       "name": "通信设备",
       "canonical_name": "通信设备",
+      "renamed_from": null,
       "original_names": [
         "通信设备"
       ],
@@ -15420,6 +16168,7 @@
       "status": "active",
       "name": "通用航空",
       "canonical_name": "通用航空",
+      "renamed_from": null,
       "original_names": [
         "通用航空"
       ],
@@ -15440,6 +16189,7 @@
       "status": "active",
       "name": "通用设备",
       "canonical_name": "通用设备",
+      "renamed_from": null,
       "original_names": [
         "通用设备"
       ],
@@ -15460,6 +16210,7 @@
       "status": "active",
       "name": "造纸",
       "canonical_name": "造纸",
+      "renamed_from": null,
       "original_names": [
         "造纸"
       ],
@@ -15480,6 +16231,7 @@
       "status": "active",
       "name": "造纸印刷",
       "canonical_name": "造纸印刷",
+      "renamed_from": null,
       "original_names": [
         "造纸印刷"
       ],
@@ -15500,6 +16252,7 @@
       "status": "active",
       "name": "配电设备",
       "canonical_name": "配电设备",
+      "renamed_from": null,
       "original_names": [
         "配电设备"
       ],
@@ -15520,6 +16273,7 @@
       "status": "active",
       "name": "酒店",
       "canonical_name": "酒店",
+      "renamed_from": null,
       "original_names": [
         "酒店"
       ],
@@ -15540,6 +16294,7 @@
       "status": "active",
       "name": "酒店餐饮",
       "canonical_name": "酒店餐饮",
+      "renamed_from": null,
       "original_names": [
         "酒店餐饮"
       ],
@@ -15560,6 +16315,7 @@
       "status": "active",
       "name": "酿酒",
       "canonical_name": "酿酒",
+      "renamed_from": null,
       "original_names": [
         "酿酒概念"
       ],
@@ -15582,6 +16338,7 @@
       "status": "active",
       "name": "重组蛋白",
       "canonical_name": "重组蛋白",
+      "renamed_from": null,
       "original_names": [
         "重组蛋白"
       ],
@@ -15602,6 +16359,7 @@
       "status": "active",
       "name": "量子科技",
       "canonical_name": "量子科技",
+      "renamed_from": null,
       "original_names": [
         "量子科技"
       ],
@@ -15622,6 +16380,7 @@
       "status": "active",
       "name": "金属制品",
       "canonical_name": "金属制品",
+      "renamed_from": null,
       "original_names": [
         "金属制品"
       ],
@@ -15642,6 +16401,7 @@
       "status": "active",
       "name": "金属包装",
       "canonical_name": "金属包装",
+      "renamed_from": null,
       "original_names": [
         "金属包装"
       ],
@@ -15662,6 +16422,7 @@
       "status": "active",
       "name": "金属回收",
       "canonical_name": "金属回收",
+      "renamed_from": null,
       "original_names": [
         "金属回收"
       ],
@@ -15682,6 +16443,7 @@
       "status": "active",
       "name": "金属新材料",
       "canonical_name": "金属新材料",
+      "renamed_from": null,
       "original_names": [
         "金属新材料"
       ],
@@ -15702,6 +16464,7 @@
       "status": "active",
       "name": "金属结构",
       "canonical_name": "金属结构",
+      "renamed_from": null,
       "original_names": [
         "钢结构"
       ],
@@ -15724,6 +16487,7 @@
       "status": "active",
       "name": "金属钴",
       "canonical_name": "金属钴",
+      "renamed_from": null,
       "original_names": [
         "金属钴"
       ],
@@ -15744,6 +16508,7 @@
       "status": "active",
       "name": "金属铅",
       "canonical_name": "金属铅",
+      "renamed_from": null,
       "original_names": [
         "金属铅"
       ],
@@ -15764,6 +16529,7 @@
       "status": "active",
       "name": "金属铜",
       "canonical_name": "金属铜",
+      "renamed_from": null,
       "original_names": [
         "金属铜"
       ],
@@ -15784,6 +16550,7 @@
       "status": "active",
       "name": "金属锌",
       "canonical_name": "金属锌",
+      "renamed_from": null,
       "original_names": [
         "金属锌"
       ],
@@ -15804,6 +16571,7 @@
       "status": "active",
       "name": "金属镍",
       "canonical_name": "金属镍",
+      "renamed_from": null,
       "original_names": [
         "金属镍"
       ],
@@ -15824,6 +16592,7 @@
       "status": "active",
       "name": "金融信息服务",
       "canonical_name": "金融信息服务",
+      "renamed_from": null,
       "original_names": [
         "金融信息服务"
       ],
@@ -15844,6 +16613,7 @@
       "status": "active",
       "name": "钒电池",
       "canonical_name": "钒电池",
+      "renamed_from": null,
       "original_names": [
         "钒电池"
       ],
@@ -15864,6 +16634,7 @@
       "status": "active",
       "name": "钙钛矿电池",
       "canonical_name": "钙钛矿电池",
+      "renamed_from": null,
       "original_names": [
         "钙钛矿电池"
       ],
@@ -15884,6 +16655,7 @@
       "status": "active",
       "name": "钛白粉",
       "canonical_name": "钛白粉",
+      "renamed_from": null,
       "original_names": [
         "钛白粉",
         "钛白粉概念"
@@ -15907,6 +16679,7 @@
       "status": "active",
       "name": "钟表珠宝",
       "canonical_name": "钟表珠宝",
+      "renamed_from": null,
       "original_names": [
         "钟表珠宝"
       ],
@@ -15927,6 +16700,7 @@
       "status": "active",
       "name": "钠离子电池",
       "canonical_name": "钠离子电池",
+      "renamed_from": null,
       "original_names": [
         "钠离子电池"
       ],
@@ -15947,6 +16721,7 @@
       "status": "active",
       "name": "钢铁",
       "canonical_name": "钢铁",
+      "renamed_from": null,
       "original_names": [
         "钢铁"
       ],
@@ -15967,6 +16742,7 @@
       "status": "active",
       "name": "钢铁管材",
       "canonical_name": "钢铁管材",
+      "renamed_from": null,
       "original_names": [
         "钢铁管材"
       ],
@@ -15987,6 +16763,7 @@
       "status": "active",
       "name": "钨",
       "canonical_name": "钨",
+      "renamed_from": null,
       "original_names": [
         "钨"
       ],
@@ -16001,17 +16778,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "01871179-d464-519f-b9e2-352ded4373f8",
-      "entity_key": "chain_node:v1_2dfd381b43b916144bf3dcd5ea5afa9e1038fd25",
+      "entity_id": "7c3807c6-387d-5139-86f8-d618c6ddf20f",
+      "entity_key": "chain_node:v1_10282eaa77d7e1b32f035f4fa53c34cb6c2e2ee5",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "钴",
-      "canonical_name": "钴",
+      "name": "钴产业",
+      "canonical_name": "钴产业",
+      "renamed_from": "钴",
       "original_names": [
         "钴"
       ],
       "aliases": [],
-      "definition": "以钴为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕钴开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一钴商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -16027,6 +16805,7 @@
       "status": "active",
       "name": "钼",
       "canonical_name": "钼",
+      "renamed_from": null,
       "original_names": [
         "钼"
       ],
@@ -16047,6 +16826,7 @@
       "status": "active",
       "name": "钾肥",
       "canonical_name": "钾肥",
+      "renamed_from": null,
       "original_names": [
         "钾肥"
       ],
@@ -16061,17 +16841,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "d0e3827b-4669-59ab-a39d-58a15d5a3dd0",
-      "entity_key": "chain_node:v1_eedb7d02906d910c9a48c1e74948f2558f50d65f",
+      "entity_id": "e5b87f5d-3085-5e47-b2cf-33b41e242cd9",
+      "entity_key": "chain_node:v1_7e1dad978378a1e8cdc24ce1f1cd7f040989dd33",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "铁矿石",
-      "canonical_name": "铁矿石",
+      "name": "铁矿石产业",
+      "canonical_name": "铁矿石产业",
+      "renamed_from": "铁矿石",
       "original_names": [
         "铁矿石"
       ],
       "aliases": [],
-      "definition": "以铁矿石为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕铁矿石开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铁矿石商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -16087,6 +16868,7 @@
       "status": "active",
       "name": "铁路公路",
       "canonical_name": "铁路公路",
+      "renamed_from": null,
       "original_names": [
         "铁路公路"
       ],
@@ -16107,6 +16889,7 @@
       "status": "active",
       "name": "铁路基建",
       "canonical_name": "铁路基建",
+      "renamed_from": null,
       "original_names": [
         "铁路基建"
       ],
@@ -16127,6 +16910,7 @@
       "status": "active",
       "name": "铁路运输",
       "canonical_name": "铁路运输",
+      "renamed_from": null,
       "original_names": [
         "铁路运输"
       ],
@@ -16147,6 +16931,7 @@
       "status": "active",
       "name": "铅锌",
       "canonical_name": "铅锌",
+      "renamed_from": null,
       "original_names": [
         "铅锌"
       ],
@@ -16161,17 +16946,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "e5a7d7d3-9aa8-5e71-9667-164e9a933eb2",
-      "entity_key": "chain_node:v1_56ae29a6eb0d2be8f12acce58dc3940e75064e31",
+      "entity_id": "4b71936c-3f3c-528c-a628-ded2f222999a",
+      "entity_key": "chain_node:v1_c559b89036733a774b3077adba925b5484cb0633",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "铜",
-      "canonical_name": "铜",
+      "name": "铜产业",
+      "canonical_name": "铜产业",
+      "renamed_from": "铜",
       "original_names": [
         "铜"
       ],
       "aliases": [],
-      "definition": "以铜为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕铜开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铜商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -16187,6 +16973,7 @@
       "status": "active",
       "name": "铜缆高速连接",
       "canonical_name": "铜缆高速连接",
+      "renamed_from": null,
       "original_names": [
         "铜缆高速连接"
       ],
@@ -16201,17 +16988,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "fc352379-f746-5d88-a73c-9924da440381",
-      "entity_key": "chain_node:v1_64aaae58023adb5b7b026c1a27422f7dab7b4c16",
+      "entity_id": "57ce364c-8a1c-55c7-ab02-5ef70bddeb1d",
+      "entity_key": "chain_node:v1_b9d4f25a0373ecf910aad2cc2d07ceb0bf31e458",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "铝",
-      "canonical_name": "铝",
+      "name": "铝产业",
+      "canonical_name": "铝产业",
+      "renamed_from": "铝",
       "original_names": [
         "铝"
       ],
       "aliases": [],
-      "definition": "以铝为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕铝开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一铝商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -16227,6 +17015,7 @@
       "status": "active",
       "name": "银行",
       "canonical_name": "银行",
+      "renamed_from": null,
       "original_names": [
         "银行",
         "银行Ⅱ"
@@ -16250,6 +17039,7 @@
       "status": "active",
       "name": "锂",
       "canonical_name": "锂",
+      "renamed_from": null,
       "original_names": [
         "锂"
       ],
@@ -16270,6 +17060,7 @@
       "status": "active",
       "name": "锂电专用设备",
       "canonical_name": "锂电专用设备",
+      "renamed_from": null,
       "original_names": [
         "锂电专用设备"
       ],
@@ -16290,6 +17081,7 @@
       "status": "active",
       "name": "锂电池",
       "canonical_name": "锂电池",
+      "renamed_from": null,
       "original_names": [
         "锂电池",
         "锂电池概念"
@@ -16313,6 +17105,7 @@
       "status": "active",
       "name": "锂矿",
       "canonical_name": "锂矿",
+      "renamed_from": null,
       "original_names": [
         "锂矿概念"
       ],
@@ -16335,6 +17128,7 @@
       "status": "active",
       "name": "锦纶",
       "canonical_name": "锦纶",
+      "renamed_from": null,
       "original_names": [
         "锦纶"
       ],
@@ -16349,17 +17143,18 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "78b8d927-331d-58d9-b834-f6a64c806510",
-      "entity_key": "chain_node:v1_6d7a40bbe0db5a0257eb0844ffdd957d337d47dd",
+      "entity_id": "74087f1e-fee3-5237-b288-0dc101a371c7",
+      "entity_key": "chain_node:v1_17d3c4298bbf9a1e8d44864e1203a38c6ebbfbbd",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "镍",
-      "canonical_name": "镍",
+      "name": "镍产业",
+      "canonical_name": "镍产业",
+      "renamed_from": "镍",
       "original_names": [
         "镍"
       ],
       "aliases": [],
-      "definition": "以镍为直接对象的材料或资源类别，按其物质属性、供给形态和直接用途界定，不以相关设备或服务替代。",
+      "definition": "围绕镍开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一镍商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产品/材料",
@@ -16375,6 +17170,7 @@
       "status": "active",
       "name": "长寿药",
       "canonical_name": "长寿药",
+      "renamed_from": null,
       "original_names": [
         "长寿药"
       ],
@@ -16395,6 +17191,7 @@
       "status": "active",
       "name": "长材",
       "canonical_name": "长材",
+      "renamed_from": null,
       "original_names": [
         "长材"
       ],
@@ -16415,6 +17212,7 @@
       "status": "active",
       "name": "门户网站",
       "canonical_name": "门户网站",
+      "renamed_from": null,
       "original_names": [
         "门户网站"
       ],
@@ -16435,6 +17233,7 @@
       "status": "active",
       "name": "防水材料",
       "canonical_name": "防水材料",
+      "renamed_from": null,
       "original_names": [
         "防水材料"
       ],
@@ -16455,6 +17254,7 @@
       "status": "active",
       "name": "降解塑料",
       "canonical_name": "降解塑料",
+      "renamed_from": null,
       "original_names": [
         "降解塑料"
       ],
@@ -16475,6 +17275,7 @@
       "status": "active",
       "name": "院线",
       "canonical_name": "院线",
+      "renamed_from": null,
       "original_names": [
         "院线"
       ],
@@ -16495,6 +17296,7 @@
       "status": "active",
       "name": "集成电路制造",
       "canonical_name": "集成电路制造",
+      "renamed_from": null,
       "original_names": [
         "集成电路制造"
       ],
@@ -16515,6 +17317,7 @@
       "status": "active",
       "name": "集成电路封测",
       "canonical_name": "集成电路封测",
+      "renamed_from": null,
       "original_names": [
         "集成电路封测"
       ],
@@ -16535,6 +17338,7 @@
       "status": "active",
       "name": "零售",
       "canonical_name": "零售",
+      "renamed_from": null,
       "original_names": [
         "零售",
         "零售概念"
@@ -16558,6 +17362,7 @@
       "status": "active",
       "name": "零食",
       "canonical_name": "零食",
+      "renamed_from": null,
       "original_names": [
         "零食"
       ],
@@ -16578,6 +17383,7 @@
       "status": "active",
       "name": "露营产业",
       "canonical_name": "露营产业",
+      "renamed_from": null,
       "original_names": [
         "露营经济"
       ],
@@ -16600,6 +17406,7 @@
       "status": "active",
       "name": "青蒿素",
       "canonical_name": "青蒿素",
+      "renamed_from": null,
       "original_names": [
         "青蒿素"
       ],
@@ -16620,6 +17427,7 @@
       "status": "active",
       "name": "非白酒",
       "canonical_name": "非白酒",
+      "renamed_from": null,
       "original_names": [
         "非白酒"
       ],
@@ -16640,6 +17448,7 @@
       "status": "active",
       "name": "非运动服装",
       "canonical_name": "非运动服装",
+      "renamed_from": null,
       "original_names": [
         "非运动服装"
       ],
@@ -16660,6 +17469,7 @@
       "status": "active",
       "name": "非金属材料",
       "canonical_name": "非金属材料",
+      "renamed_from": null,
       "original_names": [
         "非金属材料",
         "非金属材料Ⅱ",
@@ -16685,6 +17495,7 @@
       "status": "active",
       "name": "非银金融",
       "canonical_name": "非银金融",
+      "renamed_from": null,
       "original_names": [
         "非银金融"
       ],
@@ -16705,6 +17516,7 @@
       "status": "active",
       "name": "面板",
       "canonical_name": "面板",
+      "renamed_from": null,
       "original_names": [
         "面板"
       ],
@@ -16725,6 +17537,7 @@
       "status": "active",
       "name": "鞋帽及其他",
       "canonical_name": "鞋帽及其他",
+      "renamed_from": null,
       "original_names": [
         "鞋帽及其他"
       ],
@@ -16745,6 +17558,7 @@
       "status": "active",
       "name": "页岩气",
       "canonical_name": "页岩气",
+      "renamed_from": null,
       "original_names": [
         "页岩气"
       ],
@@ -16765,6 +17579,7 @@
       "status": "active",
       "name": "预制菜",
       "canonical_name": "预制菜",
+      "renamed_from": null,
       "original_names": [
         "预制菜",
         "预制菜概念"
@@ -16788,6 +17603,7 @@
       "status": "active",
       "name": "预加工食品",
       "canonical_name": "预加工食品",
+      "renamed_from": null,
       "original_names": [
         "预加工食品"
       ],
@@ -16808,6 +17624,7 @@
       "status": "active",
       "name": "风力发电",
       "canonical_name": "风力发电",
+      "renamed_from": null,
       "original_names": [
         "风力发电",
         "风电"
@@ -16831,6 +17648,7 @@
       "status": "active",
       "name": "风电零部件",
       "canonical_name": "风电零部件",
+      "renamed_from": null,
       "original_names": [
         "风电零部件"
       ],
@@ -16851,6 +17669,7 @@
       "status": "active",
       "name": "风能",
       "canonical_name": "风能",
+      "renamed_from": null,
       "original_names": [
         "风能"
       ],
@@ -16871,6 +17690,7 @@
       "status": "active",
       "name": "风能原动设备",
       "canonical_name": "风能原动设备",
+      "renamed_from": null,
       "original_names": [
         "风电整机",
         "风电设备"
@@ -16895,6 +17715,7 @@
       "status": "active",
       "name": "飞行汽车(eVTOL)",
       "canonical_name": "飞行汽车(eVTOL)",
+      "renamed_from": null,
       "original_names": [
         "飞行汽车(eVTOL)"
       ],
@@ -16915,6 +17736,7 @@
       "status": "active",
       "name": "食品加工",
       "canonical_name": "食品加工",
+      "renamed_from": null,
       "original_names": [
         "食品加工"
       ],
@@ -16935,6 +17757,7 @@
       "status": "active",
       "name": "食品加工制造",
       "canonical_name": "食品加工制造",
+      "renamed_from": null,
       "original_names": [
         "食品加工制造"
       ],
@@ -16955,6 +17778,7 @@
       "status": "active",
       "name": "食品及饲料添加剂",
       "canonical_name": "食品及饲料添加剂",
+      "renamed_from": null,
       "original_names": [
         "食品及饲料添加剂"
       ],
@@ -16975,6 +17799,7 @@
       "status": "active",
       "name": "食品安全",
       "canonical_name": "食品安全",
+      "renamed_from": null,
       "original_names": [
         "食品安全"
       ],
@@ -16995,6 +17820,7 @@
       "status": "active",
       "name": "食品饮料",
       "canonical_name": "食品饮料",
+      "renamed_from": null,
       "original_names": [
         "食品饮料"
       ],
@@ -17015,6 +17841,7 @@
       "status": "active",
       "name": "食用菌",
       "canonical_name": "食用菌",
+      "renamed_from": null,
       "original_names": [
         "食用菌"
       ],
@@ -17035,6 +17862,7 @@
       "status": "active",
       "name": "餐饮",
       "canonical_name": "餐饮",
+      "renamed_from": null,
       "original_names": [
         "餐饮"
       ],
@@ -17055,6 +17883,7 @@
       "status": "active",
       "name": "饮料乳品",
       "canonical_name": "饮料乳品",
+      "renamed_from": null,
       "original_names": [
         "饮料乳品"
       ],
@@ -17075,6 +17904,7 @@
       "status": "active",
       "name": "饮料制造",
       "canonical_name": "饮料制造",
+      "renamed_from": null,
       "original_names": [
         "饮料制造"
       ],
@@ -17095,6 +17925,7 @@
       "status": "active",
       "name": "饰品",
       "canonical_name": "饰品",
+      "renamed_from": null,
       "original_names": [
         "饰品"
       ],
@@ -17115,6 +17946,7 @@
       "status": "active",
       "name": "饲料",
       "canonical_name": "饲料",
+      "renamed_from": null,
       "original_names": [
         "饲料"
       ],
@@ -17135,6 +17967,7 @@
       "status": "active",
       "name": "高压快充",
       "canonical_name": "高压快充",
+      "renamed_from": null,
       "original_names": [
         "高压快充"
       ],
@@ -17155,6 +17988,7 @@
       "status": "active",
       "name": "高压氧舱",
       "canonical_name": "高压氧舱",
+      "renamed_from": null,
       "original_names": [
         "高压氧舱"
       ],
@@ -17175,6 +18009,7 @@
       "status": "active",
       "name": "高带宽内存",
       "canonical_name": "高带宽内存",
+      "renamed_from": null,
       "original_names": [
         "高带宽内存"
       ],
@@ -17195,6 +18030,7 @@
       "status": "active",
       "name": "高端装备",
       "canonical_name": "高端装备",
+      "renamed_from": null,
       "original_names": [
         "高端装备"
       ],
@@ -17215,6 +18051,7 @@
       "status": "active",
       "name": "高速公路",
       "canonical_name": "高速公路",
+      "renamed_from": null,
       "original_names": [
         "高速公路"
       ],
@@ -17235,6 +18072,7 @@
       "status": "active",
       "name": "高铁",
       "canonical_name": "高铁",
+      "renamed_from": null,
       "original_names": [
         "高铁"
       ],
@@ -17255,6 +18093,7 @@
       "status": "active",
       "name": "鸡肉",
       "canonical_name": "鸡肉",
+      "renamed_from": null,
       "original_names": [
         "鸡肉概念"
       ],
@@ -17277,6 +18116,7 @@
       "status": "active",
       "name": "麒麟电池",
       "canonical_name": "麒麟电池",
+      "renamed_from": null,
       "original_names": [
         "麒麟电池"
       ],
@@ -17291,12 +18131,13 @@
       "review_state": "pending_human_review"
     },
     {
-      "entity_id": "0d13c0e9-8734-5b8a-a5f5-10e878a58e07",
-      "entity_key": "chain_node:v1_3713947f42291cdab8d767672ee855b403712a9d",
+      "entity_id": "e5ef1ef4-a99f-5e04-9f9c-fe0ca3ae3773",
+      "entity_key": "chain_node:v1_12ed9497cc6a0dc6ce2487b738fb6a5c801a2a82",
       "entity_type": "chain_node",
       "status": "active",
-      "name": "黄金",
-      "canonical_name": "黄金",
+      "name": "黄金产业",
+      "canonical_name": "黄金产业",
+      "renamed_from": "黄金",
       "original_names": [
         "黄金",
         "黄金概念"
@@ -17304,7 +18145,7 @@
       "aliases": [
         "黄金概念"
       ],
-      "definition": "围绕黄金形成的持续供给、生产、流通或专业服务活动集合，按可识别对象和稳定业务范围界定。",
+      "definition": "围绕黄金开展采选、生产加工、流通贸易及直接配套服务的产业活动集合；不等同于单一黄金商品实体、价格、期货合约或证券标的。",
       "boundary_note": null,
       "wide_boundary": false,
       "retention_type": "稳定产业/产品",
@@ -17320,6 +18161,7 @@
       "status": "active",
       "name": "黑色家电",
       "canonical_name": "黑色家电",
+      "renamed_from": null,
       "original_names": [
         "黑色家电"
       ],
@@ -17334,7 +18176,7 @@
       "review_state": "pending_human_review"
     }
   ],
-  "output_sha256": "0aacdb28417ce667ee735536bf8b7c11010a1fcedd36d2d361f3d1f984450e5c",
+  "output_sha256": "14b9f1e1b4c5cb1925f33e6788eb755e89a24bdb8c590abfadad47956d1d6e3f",
   "counts": {
     "canonical_nodes": 842,
     "original_names": 950,
