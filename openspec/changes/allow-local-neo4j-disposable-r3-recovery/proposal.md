@@ -26,7 +26,7 @@
 - 明确 before/after assertions、stop conditions、命名 layer 的独立 R3 授权、逐层执行、失败停止与禁止跨层批量仍是强制门禁；该例外只改变 recovery evidence 的可表达性，不授权任何操作。
 - 对 `shared-local`、UAT、prod、shared/生产、非 Neo4j R3、非 projection 操作或不能从 PostgreSQL 完整重建的状态继续 fail-closed，必须使用 `backup` 或等价正式灾备。
 - 以 Go table-driven tests/fixtures 锁定允许与禁止矩阵，不新增依赖、列、通用 policy framework 或平行 CI job。
-- 规则 Deliver 后，受阻 change 在其独立 branch/worktree 中更新到最新 `origin/main`，复验 scoped workflow adoption 与 explicit lint；本 change 不直接修改其 artifacts，也不追认或执行任何 R3 layer。
+- 规则 Deliver 后，受阻 change 在其独立 branch/worktree 中更新到最新 `origin/main`，在自己的 Proposal/tasks 中把三个 Scope 补成明确的 `Neo4j cleanup`、`Neo4j rebuild`、`Neo4j sync` 机器锚点并经 Review 后复验 explicit lint；本 change 不直接修改其 artifacts，也不追认或执行任何 R3 layer。
 
 ## Capabilities
 

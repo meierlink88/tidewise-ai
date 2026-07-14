@@ -148,12 +148,12 @@ func TestTaskDesignLocalNeo4jR3DisposableRecovery(t *testing.T) {
 	tasksPath, tasks := readTaskDesignFixture(t, "compliant-local-neo4j-r3", "tasks.md")
 	result := lintTaskDesignArtifacts(proposalPath, proposal, tasksPath, tasks)
 	if len(result.Errors) != 0 {
-		t.Fatalf("real local Neo4j R3 rows errors = %v", result.Errors)
+		t.Fatalf("adoption-ready local Neo4j R3 rows errors = %v", result.Errors)
 	}
 
 	caseInsensitive := func(s string) string {
 		s = strings.Replace(s, "local-neo4j-foundation-cleanup", "local-neo4j-foundation-maintenance", 1)
-		s = strings.Replace(s, "仅清空 local Neo4j", "CLEANUP local nEo4J", 1)
+		s = strings.Replace(s, "Neo4j cleanup：仅清空 local Tidewise namespace", "nEo4J CLEANUP：仅清空 local Tidewise namespace", 1)
 		return strings.Replace(s, "PG projection baseline", "pOsTgReSqL projection BaSeLiNe", 1)
 	}
 	result = lintTaskDesignArtifacts("proposal.md", caseInsensitive(proposal), "tasks.md", caseInsensitive(tasks))
@@ -176,19 +176,21 @@ func TestTaskDesignLocalNeo4jR3DisposableRecoveryFailsClosed(t *testing.T) {
 		{"human no", replaceFirst("| 1 | Local Neo4j cleanup and rebuild | R3 | yes | R3_OPERATION |", "| 1 | Local Neo4j cleanup and rebuild | R3 | no | NONE |"), "stateful-recovery"},
 		{"non Neo4j", chainedMutation(
 			replaceFirst("local-neo4j-foundation-cleanup", "local-graph-foundation-cleanup"),
-			replaceFirst("仅清空 local Neo4j", "仅清空 local graph store"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "graph cleanup：仅清空 local Tidewise namespace"),
 		), "stateful-recovery"},
+		{"layer cannot override non Neo4j scope", replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "PostgreSQL cleanup：仅清空 local Tidewise namespace"), "stateful-recovery"},
+		{"layer cannot override disallowed scope operation", replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "Neo4j archive：仅清空 local Tidewise namespace"), "stateful-recovery"},
 		{"cleanup suffix", chainedMutation(
 			replaceFirst("local-neo4j-foundation-cleanup", "local-neo4j-foundation-maintenance"),
-			replaceFirst("仅清空 local Neo4j", "cleanupSuffix local Neo4j"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "Neo4j cleanupSuffix：仅清空 local Tidewise namespace"),
 		), "stateful-recovery"},
 		{"resync", chainedMutation(
 			replaceFirst("local-neo4j-foundation-cleanup", "local-neo4j-foundation-maintenance"),
-			replaceFirst("仅清空 local Neo4j", "resync local Neo4j"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "Neo4j resync：仅清空 local Tidewise namespace"),
 		), "stateful-recovery"},
 		{"neo4j backup suffix", chainedMutation(
 			replaceFirst("local-neo4j-foundation-cleanup", "local-graph-foundation-cleanup"),
-			replaceFirst("仅清空 local Neo4j", "cleanup local neo4jBackup"),
+			replaceFirst("Neo4j cleanup：仅清空 local Tidewise namespace", "neo4jBackup cleanup：仅清空 local Tidewise namespace"),
 		), "stateful-recovery"},
 		{"missing baseline", replaceFirst("PG projection baseline identity", "PG projection snapshot identity"), "stateful-recovery"},
 		{"non PG baseline", replaceFirst("PG projection baseline identity", "Redis projection baseline identity"), "stateful-recovery"},

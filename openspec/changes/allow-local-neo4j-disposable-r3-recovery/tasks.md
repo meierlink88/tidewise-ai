@@ -22,7 +22,7 @@
 
 ## 2. Workflow、Lint 与 Tests 连续实现 Package
 
-- [x] 2.1 先在 `backend/internal/architecture/task_design_lint_test.go` 与必要 fixture 增加 table-driven RED cases：保留 local R2；允许 local Neo4j R3 projection cleanup/rebuild/sync；拒绝 shared-local、UAT、prod、非 Neo4j、非允许 operation、缺 PG/PostgreSQL baseline 与 Human=no，并以受阻 change 三个现有 row 锁定六条同根因的回归。
+- [x] 2.1 先在 `backend/internal/architecture/task_design_lint_test.go` 与必要 fixture 增加 table-driven RED cases：保留 local R2；允许 Scope 显式锚定的 local Neo4j R3 projection cleanup/rebuild/sync；拒绝 shared-local、UAT、prod、Layer 合法但 Scope 非 Neo4j/非允许 operation、缺 PG/PostgreSQL baseline 与 Human=no，并以受阻 change adoption-ready Scope 锁定回归。
 - [x] 2.2 运行 targeted test 读取 RED 结果后，最小修改 `backend/internal/architecture/task_design_lint.go` 的 recovery 判定，并同步更新 `.agents/openspec-workflow.md`；不新增 schema 列、依赖、通用 framework、CI 或业务源码。
 - [x] 2.3 运行 targeted GREEN、architecture suite、backend `go test ./...`、OpenSpec strict、当前 change explicit task-design lint、diff/scope/secret 检查并完成 self-review；任何失败留在本 package 修复并刷新证据，不新增人工 gate。
 

@@ -414,13 +414,13 @@ func taskDesignDisposableRecoveryAllowed(row []string, gate taskDesignGate, gate
 	if gate.Values[2] == "R2" {
 		return true
 	}
-	anchorText := row[0] + " " + row[4]
-	if gate.Values[2] != "R3" || gate.Values[3] != "yes" || !taskDesignContainsToken(anchorText, "neo4j") {
+	scope := row[4]
+	if gate.Values[2] != "R3" || gate.Values[3] != "yes" || !taskDesignContainsToken(scope, "neo4j") {
 		return false
 	}
 	hasOperation := false
 	for _, operation := range []string{"cleanup", "rebuild", "sync"} {
-		if taskDesignContainsToken(anchorText, operation) {
+		if taskDesignContainsToken(scope, operation) {
 			hasOperation = true
 			break
 		}
