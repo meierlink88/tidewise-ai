@@ -1,5 +1,7 @@
 # Task 1.18a：source-side taxonomy resolution Review（R0）
 
+> **历史记录，非决策依据。** 主对话随后确认用户核验工作簿是唯一事实源，并停止本包网页/来源侧核查路径。checkpoint `1c63479` 中的所有网页结论、单一 taxonomy 推荐、排除建议与 1,153 行重算均不得用于后续候选、spec 或 mapping。13 个组合来源分类 code 按既有模型分别展开 `industry_sector` 与 `concept_sector` 两条 mapping；当前有效候选见 `phase-a-external-identifier-mapping-candidate-review.md`。
+
 ## 边界与方法
 
 - 本包逐 code 处理上一包的 13 个 `taxonomy_resolved=false` 候选；不按 canonical 名称批量推定，不修改原始 1,156 条 candidate，也不写 PostgreSQL/Neo4j。

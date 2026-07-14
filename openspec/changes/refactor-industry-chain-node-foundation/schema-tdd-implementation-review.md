@@ -59,10 +59,10 @@ parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 
 2. 将来源代码拆成逐行 mapping draft；
 3. 从 provider 专属名称列恢复 external_name；
 4. 只将单一“行业板块/概念板块/指数板块”规范化为 taxonomy；
-5. 组合分类保持 `taxonomy_resolved=false`，不根据代码前缀猜测；
+5. 历史上组合分类曾保持 `taxonomy_resolved=false`；该临时阻断已被用户核验事实取代，13 个 code 必须在候选生成阶段稳定展开为 `industry_sector` 与 `concept_sector` 两条三元 identity，不根据代码前缀或网页猜测；
 6. 拒绝未知 canonical、缺失外部名称和跨行 code 冲突。
 
-使用临时只读测试实际读取已批准工作簿，得到：842 nodes、950 original names、79 wide-boundary nodes、1,156 mappings、eastmoney 811、ths 345、241 dual-source nodes、13 unresolved mappings。临时测试中的外部绝对路径未提交仓库。
+使用临时只读测试实际读取已批准工作簿，得到：842 nodes、950 original names、79 wide-boundary nodes、1,156 个来源代码、eastmoney 811、ths 345、241 dual-source nodes；其后用户确认其中 13 个组合分类 code 各展开为两条 mapping，当前有效候选为 1,169 rows（818/351），无 unresolved taxonomy。临时测试中的外部绝对路径未提交仓库。
 
 ## Dry-run/report 格式
 
@@ -96,7 +96,7 @@ parser 只读取 Sheet「标准化保留」与「原名保留明细」，支持 
 }
 ```
 
-这是单节点字段形状示例，不代表首批实际 report；它同时展示未消歧 mapping 不进入可写列表，且 approved counts 校验继续阻断 `ready`。首批完整 report 必须校验 842 nodes、950 original names、79 wide-boundary nodes、1,156 mappings、811/345 provider counts 与 241 dual-source nodes；13 个代码逐项消歧、842 个 identity 与 definition/boundary 全部 Review 前不得推定为可执行 seed。
+这是单节点字段形状示例，不代表首批实际 report；其中未消歧 mapping 阻断仅是历史示例。首批当前完整 report 必须校验 842 nodes、950 original names、79 wide-boundary nodes、1,156 个来源代码展开为 1,169 mappings、818/351 provider counts 与 241 dual-source nodes；13 个组合分类 code 均为双展开，842 个 identity 与 definition/boundary 已按独立门禁 Review，mapping Write 仍须另行 R2 授权。
 
 node snapshot 同时按 entity ID、key、canonical 建索引并携带 entity_type、status、aliases、definition、boundary_note：发现既有记录时三索引必须齐全，三个 identity 与完整内容完全一致才是 unchanged；aliases 在进入 identity 与 checksum 前统一 trim、去重和稳定排序，因此同一 alias 集合仅输入顺序变化仍为 unchanged；aliases 集合或 profile 漂移为 updated；非 chain_node、inactive/merged、索引缺失或互相矛盾为 conflict。mapping snapshot 同时按外部 tuple 与确定性 ID 建索引，发现既有记录时双索引必须齐全：全新为 created，同 entity 的 name/status 漂移为 updated，完整一致为 unchanged，换绑、ID 漂移、索引缺失或矛盾为 conflict。任一 conflict/blocker 都令 `ready=false`。
 

@@ -12,6 +12,7 @@ from xml.etree import ElementTree as ET
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main", "rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
 SOURCE = {"东方财富": "eastmoney", "同花顺": "ths"}
 TAXONOMY = {"行业板块": "industry_sector", "概念板块": "concept_sector", "指数板块": "index_sector"}
+TAXONOMY_ORDER = {"industry_sector": 0, "concept_sector": 1, "index_sector": 2}
 COMMODITY_RENAMES = {
     "动力煤产业", "大豆产业", "天然气产业", "橡胶产业", "焦炭产业", "焦煤产业", "玉米产业", "白银产业",
     "稀土产业", "纯碱产业", "钴产业", "铁矿石产业", "铜产业", "铝产业", "镍产业", "黄金产业",
@@ -82,7 +83,7 @@ def split_list(value):
 
 def candidate_taxonomies(raw):
     parts = [part.strip() for part in re.split(r"[、,，]", raw) if part.strip()]
-    return [TAXONOMY[part] for part in parts if part in TAXONOMY]
+    return sorted({TAXONOMY[part] for part in parts if part in TAXONOMY}, key=TAXONOMY_ORDER.__getitem__)
 
 
 def normalize_uuid(namespace, value):
@@ -130,60 +131,67 @@ def main():
             raise ValueError(f"unknown workbook canonical {workbook_canonical}")
         node = workbook_names[workbook_canonical]
         canonical = node["canonical_name"]
-        source_taxonomy = TAXONOMY.get(row["来源分类"])
         taxonomy_options = candidate_taxonomies(row["来源分类"])
+        if not taxonomy_options:
+            raise ValueError(f"unsupported source category {row['来源分类']}")
         for source_code in split_list(row["来源代码"]):
             source_name, external_code = [part.strip() for part in source_code.split(":", 1)]
             source_system = SOURCE[source_name]
             external_name = row["东方财富名称"] if source_system == "eastmoney" else row["同花顺名称"]
             if not external_name:
                 raise ValueError(f"empty external_name {source_code}")
-            resolved = source_taxonomy is not None
-            identity = f"{source_system}|{source_taxonomy}|{external_code}" if resolved else None
-            candidates.append({
-                "id": normalize_uuid("entity_external_identifier", identity) if identity else None,
-                "entity_id": node["entity_id"],
-                "entity_key": node["entity_key"],
-                "canonical_name": canonical,
-                "workbook_canonical_name": workbook_canonical,
-                "wide_boundary": node["wide_boundary"],
-                "source_system": source_system,
-                "source_taxonomy_type": source_taxonomy,
-                "candidate_taxonomy_types": [] if resolved else taxonomy_options,
-                "external_code": external_code,
-                "external_name": external_name,
-                "source_category": row["来源分类"],
-                "taxonomy_resolved": resolved,
-                "expected_action": "created" if resolved else "blocked_taxonomy_review",
-                "status": "active",
-            })
+            for source_taxonomy in taxonomy_options:
+                identity = f"{source_system}|{source_taxonomy}|{external_code}"
+                candidates.append({
+                    "id": normalize_uuid("entity_external_identifier", identity),
+                    "entity_id": node["entity_id"],
+                    "entity_key": node["entity_key"],
+                    "canonical_name": canonical,
+                    "workbook_canonical_name": workbook_canonical,
+                    "wide_boundary": node["wide_boundary"],
+                    "source_system": source_system,
+                    "source_taxonomy_type": source_taxonomy,
+                    "external_code": external_code,
+                    "external_name": external_name,
+                    "source_category": row["来源分类"],
+                    "expected_action": "created",
+                    "status": "active",
+                })
 
-    candidates.sort(key=lambda item: (item["source_system"], item["external_code"], item["canonical_name"]))
+    candidates.sort(key=lambda item: (item["source_system"], item["external_code"], TAXONOMY_ORDER[item["source_taxonomy_type"]], item["canonical_name"]))
     provider_counts = Counter(item["source_system"] for item in candidates)
     by_node = defaultdict(set)
     resolved_identity = set()
     raw_identity = set()
     duplicate_resolved = []
-    duplicate_raw = []
+    multi_taxonomy = defaultdict(list)
     for item in candidates:
         by_node[item["canonical_name"]].add(item["source_system"])
         raw_key = (item["source_system"], item["external_code"])
-        if raw_key in raw_identity:
-            duplicate_raw.append("|".join(raw_key))
         raw_identity.add(raw_key)
-        if item["taxonomy_resolved"]:
-            key = (item["source_system"], item["source_taxonomy_type"], item["external_code"])
-            if key in resolved_identity:
-                duplicate_resolved.append("|".join(key))
-            resolved_identity.add(key)
-    blocked = [item for item in candidates if not item["taxonomy_resolved"]]
+        multi_taxonomy[raw_key].append(item)
+        key = (item["source_system"], item["source_taxonomy_type"], item["external_code"])
+        if key in resolved_identity:
+            duplicate_resolved.append("|".join(key))
+        resolved_identity.add(key)
+    multi_taxonomy_codes = [
+        {
+            "source_system": source_system,
+            "external_code": external_code,
+            "canonical_name": entries[0]["canonical_name"],
+            "source_category": entries[0]["source_category"],
+            "taxonomy_types": [item["source_taxonomy_type"] for item in entries],
+        }
+        for (source_system, external_code), entries in sorted(multi_taxonomy.items())
+        if len(entries) > 1
+    ]
     wide = sorted({item["canonical_name"] for item in candidates if item["wide_boundary"]})
     commodity = [item for item in candidates if item["canonical_name"] in COMMODITY_RENAMES]
     dual_source = sum(1 for providers in by_node.values() if providers == {"eastmoney", "ths"})
     report = {
         "artifact_type": "phase_a_external_identifier_mapping_candidate_review",
-        "artifact_version": 1,
-        "generation_rule_version": "first-batch-mapping-review-v1",
+        "artifact_version": 2,
+        "generation_rule_version": "first-batch-mapping-review-v2-user-verified-taxonomy-expansion",
         "input": {
             "workbook_sha256": hashlib.sha256(workbook_path.read_bytes()).hexdigest(),
             "workbook_sheet": "原名保留明细",
@@ -192,25 +200,25 @@ def main():
         },
         "counts": {
             "candidates": len(candidates), "eastmoney": provider_counts["eastmoney"], "ths": provider_counts["ths"],
-            "dual_source_nodes": dual_source, "ready_for_taxonomy_review": len(candidates) - len(blocked), "blocked_taxonomy": len(blocked),
+            "dual_source_nodes": dual_source, "single_taxonomy_source_codes": len(raw_identity) - len(multi_taxonomy_codes), "multi_taxonomy_source_codes": len(multi_taxonomy_codes),
             "wide_boundary_nodes_with_mapping": len(wide), "commodity_rename_mapping_rows": len(commodity),
         },
         "validation": {
             "all_candidates_bind_to_seeded_chain_node_manifest": all(item["canonical_name"] in nodes for item in candidates),
-            "raw_source_code_duplicates": sorted(duplicate_raw),
-            "resolved_external_identity_duplicates": sorted(duplicate_resolved),
+            "external_identity_duplicates": sorted(duplicate_resolved),
+            "deterministic_id_duplicates": sorted([identifier for identifier, count in Counter(item["id"] for item in candidates).items() if count > 1]),
             "orphan_expected": 0,
             "current_db_external_identifier_rows": 0,
-            "expected_actions": {"created": len(candidates) - len(blocked), "blocked_taxonomy_review": len(blocked)},
-            "ready_for_write": False,
-            "blockers": ["13 mappings require source-side taxonomy disambiguation before any mapping R2 package or Write"],
+            "expected_actions": {"created": len(candidates)},
+            "ready_for_write": True,
+            "blockers": [],
         },
         "review_lists": {
             "wide_boundary_nodes": wide,
             "low_confidence": [],
             "low_confidence_rule": "输入工作簿和已批准 manifest 未提供置信度字段；本包不从名称、来源或 taxonomy 推断低置信度。",
             "user_specified_commodity_rename_mapping_rows": commodity,
-            "taxonomy_blockers": blocked,
+            "multi_taxonomy_source_codes": multi_taxonomy_codes,
         },
     }
     candidate_path = output_dir / "external-identifier-mapping-candidates.json"

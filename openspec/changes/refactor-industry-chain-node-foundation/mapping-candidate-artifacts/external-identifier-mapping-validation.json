@@ -1,17 +1,17 @@
 {
   "artifact_type": "phase_a_external_identifier_mapping_candidate_review",
-  "artifact_version": 1,
+  "artifact_version": 2,
   "counts": {
-    "blocked_taxonomy": 13,
-    "candidates": 1156,
+    "candidates": 1169,
     "commodity_rename_mapping_rows": 20,
     "dual_source_nodes": 241,
-    "eastmoney": 811,
-    "ready_for_taxonomy_review": 1143,
-    "ths": 345,
+    "eastmoney": 818,
+    "multi_taxonomy_source_codes": 13,
+    "single_taxonomy_source_codes": 1143,
+    "ths": 351,
     "wide_boundary_nodes_with_mapping": 79
   },
-  "generation_rule_version": "first-batch-mapping-review-v1",
+  "generation_rule_version": "first-batch-mapping-review-v2-user-verified-taxonomy-expansion",
   "input": {
     "manifest_path": "openspec/changes/refactor-industry-chain-node-foundation/final-seed-candidate-artifacts/final-seed-candidate-manifest.json",
     "manifest_sha256": "2bf669d24b2dd09929665f32a7c89727212dba634d93ebd78dc2845114fe7b13",
@@ -21,271 +21,140 @@
   "review_lists": {
     "low_confidence": [],
     "low_confidence_rule": "输入工作簿和已批准 manifest 未提供置信度字段；本包不从名称、来源或 taxonomy 推断低置信度。",
-    "taxonomy_blockers": [
+    "multi_taxonomy_source_codes": [
       {
-        "candidate_taxonomy_types": [
-          "industry_sector",
-          "concept_sector"
-        ],
         "canonical_name": "家用电器",
-        "entity_id": "e3ecea81-c87c-5711-be8f-0da5ec37a0e5",
-        "entity_key": "chain_node:v1_f59b375828ddeb4c9564ca7fca52b3465e5d7086",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK0456",
-        "external_name": "家用电器",
-        "id": null,
         "source_category": "行业板块、概念板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "家用电器"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       },
       {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
         "canonical_name": "白酒",
-        "entity_id": "09b6c25f-0c9d-5aaf-813a-8bc91203f851",
-        "entity_key": "chain_node:v1_055cd0e6985e5b5dbc841017d3fc736bb4570686",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK0896",
-        "external_name": "白酒",
-        "id": null,
         "source_category": "概念板块、行业板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": false,
-        "workbook_canonical_name": "白酒"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       },
       {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
         "canonical_name": "汽车整车",
-        "entity_id": "9fd26e9a-764c-5f40-8867-15cb81334010",
-        "entity_key": "chain_node:v1_cc04b6c1ff78facd5c9c9bae22dfee6ad739b357",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK1029",
-        "external_name": "汽车整车",
-        "id": null,
         "source_category": "概念板块、行业板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "汽车整车"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       },
       {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
         "canonical_name": "跨境电商",
-        "entity_id": "4e096a0e-e0e9-56e3-8074-858cbb6d7401",
-        "entity_key": "chain_node:v1_fb172be33c10f44ecddebd6eb992853d60f4d6d6",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK1115",
-        "external_name": "跨境电商",
-        "id": null,
         "source_category": "概念板块、行业板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": false,
-        "workbook_canonical_name": "跨境电商"
-      },
-      {
-        "candidate_taxonomy_types": [
+        "taxonomy_types": [
           "industry_sector",
           "concept_sector"
-        ],
+        ]
+      },
+      {
         "canonical_name": "燃料电池",
-        "entity_id": "fd06eccf-5ac5-51e0-9272-c5deb2b8fbbb",
-        "entity_key": "chain_node:v1_064c54721be6bf5f3de5a055da80cd70d45c378f",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK1305",
-        "external_name": "燃料电池",
-        "id": null,
         "source_category": "行业板块、概念板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "燃料电池"
-      },
-      {
-        "candidate_taxonomy_types": [
+        "taxonomy_types": [
           "industry_sector",
           "concept_sector"
-        ],
+        ]
+      },
+      {
         "canonical_name": "物业管理",
-        "entity_id": "d3b3dcdd-03f9-5cff-b749-aa20d7dad430",
-        "entity_key": "chain_node:v1_3efe0ba51e7bec52c175d55e16e99d104ca3a945",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK1343",
-        "external_name": "物业管理",
-        "id": null,
         "source_category": "行业板块、概念板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "物业管理"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       },
       {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
         "canonical_name": "跨境电商",
-        "entity_id": "4e096a0e-e0e9-56e3-8074-858cbb6d7401",
-        "entity_key": "chain_node:v1_fb172be33c10f44ecddebd6eb992853d60f4d6d6",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "BK1547",
-        "external_name": "跨境电商",
-        "id": null,
         "source_category": "概念板块、行业板块",
         "source_system": "eastmoney",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": false,
-        "workbook_canonical_name": "跨境电商"
-      },
-      {
-        "candidate_taxonomy_types": [
+        "taxonomy_types": [
           "industry_sector",
           "concept_sector"
-        ],
+        ]
+      },
+      {
         "canonical_name": "燃料电池",
-        "entity_id": "fd06eccf-5ac5-51e0-9272-c5deb2b8fbbb",
-        "entity_key": "chain_node:v1_064c54721be6bf5f3de5a055da80cd70d45c378f",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "300316",
-        "external_name": "燃料电池",
-        "id": null,
         "source_category": "行业板块、概念板块",
         "source_system": "ths",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "燃料电池"
-      },
-      {
-        "candidate_taxonomy_types": [
+        "taxonomy_types": [
           "industry_sector",
           "concept_sector"
-        ],
+        ]
+      },
+      {
         "canonical_name": "家用电器",
-        "entity_id": "e3ecea81-c87c-5711-be8f-0da5ec37a0e5",
-        "entity_key": "chain_node:v1_f59b375828ddeb4c9564ca7fca52b3465e5d7086",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "300814",
-        "external_name": "家用电器",
-        "id": null,
         "source_category": "行业板块、概念板块",
         "source_system": "ths",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "家用电器"
-      },
-      {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
-        "canonical_name": "跨境电商",
-        "entity_id": "4e096a0e-e0e9-56e3-8074-858cbb6d7401",
-        "entity_key": "chain_node:v1_fb172be33c10f44ecddebd6eb992853d60f4d6d6",
-        "expected_action": "blocked_taxonomy_review",
-        "external_code": "301564",
-        "external_name": "跨境电商",
-        "id": null,
-        "source_category": "概念板块、行业板块",
-        "source_system": "ths",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": false,
-        "workbook_canonical_name": "跨境电商"
-      },
-      {
-        "candidate_taxonomy_types": [
+        "taxonomy_types": [
           "industry_sector",
           "concept_sector"
-        ],
+        ]
+      },
+      {
+        "canonical_name": "跨境电商",
+        "external_code": "301564",
+        "source_category": "概念板块、行业板块",
+        "source_system": "ths",
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
+      },
+      {
         "canonical_name": "物业管理",
-        "entity_id": "d3b3dcdd-03f9-5cff-b749-aa20d7dad430",
-        "entity_key": "chain_node:v1_3efe0ba51e7bec52c175d55e16e99d104ca3a945",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "308717",
-        "external_name": "物业管理",
-        "id": null,
         "source_category": "行业板块、概念板块",
         "source_system": "ths",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "物业管理"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       },
       {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
         "canonical_name": "汽车整车",
-        "entity_id": "9fd26e9a-764c-5f40-8867-15cb81334010",
-        "entity_key": "chain_node:v1_cc04b6c1ff78facd5c9c9bae22dfee6ad739b357",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "881125",
-        "external_name": "汽车整车",
-        "id": null,
         "source_category": "概念板块、行业板块",
         "source_system": "ths",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": true,
-        "workbook_canonical_name": "汽车整车"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       },
       {
-        "candidate_taxonomy_types": [
-          "concept_sector",
-          "industry_sector"
-        ],
         "canonical_name": "白酒",
-        "entity_id": "09b6c25f-0c9d-5aaf-813a-8bc91203f851",
-        "entity_key": "chain_node:v1_055cd0e6985e5b5dbc841017d3fc736bb4570686",
-        "expected_action": "blocked_taxonomy_review",
         "external_code": "881273",
-        "external_name": "白酒",
-        "id": null,
         "source_category": "概念板块、行业板块",
         "source_system": "ths",
-        "source_taxonomy_type": null,
-        "status": "active",
-        "taxonomy_resolved": false,
-        "wide_boundary": false,
-        "workbook_canonical_name": "白酒"
+        "taxonomy_types": [
+          "industry_sector",
+          "concept_sector"
+        ]
       }
     ],
     "user_specified_commodity_rename_mapping_rows": [
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "黄金产业",
         "entity_id": "e5ef1ef4-a99f-5e04-9f9c-fe0ca3ae3773",
         "entity_key": "chain_node:v1_12ed9497cc6a0dc6ce2487b738fb6a5c801a2a82",
@@ -297,12 +166,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "concept_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "黄金"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "天然气产业",
         "entity_id": "2cc08180-fa1c-5176-96bb-ee236c3f2dfe",
         "entity_key": "chain_node:v1_9912b87c0a4313b04bc239127231d77f115a43da",
@@ -314,12 +181,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "concept_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": true,
         "workbook_canonical_name": "天然气"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "橡胶产业",
         "entity_id": "ff23f75b-f387-5217-87df-6b3d668d7c25",
         "entity_key": "chain_node:v1_58bcaa7d6b63066665d5a691df465f978162bb5c",
@@ -331,12 +196,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "橡胶"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "焦炭产业",
         "entity_id": "7c7ba2e8-4494-5484-919f-994212f472fd",
         "entity_key": "chain_node:v1_77771dcf8f020e9ee4fce6d9443ab89e656b89fe",
@@ -348,12 +211,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "焦炭"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "铁矿石产业",
         "entity_id": "e5b87f5d-3085-5e47-b2cf-33b41e242cd9",
         "entity_key": "chain_node:v1_7e1dad978378a1e8cdc24ce1f1cd7f040989dd33",
@@ -365,12 +226,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "铁矿石"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "纯碱产业",
         "entity_id": "d9969d95-6586-5f9b-8242-05edb49c9c20",
         "entity_key": "chain_node:v1_49d723ebd525cf1031794e821a8d504cb9ec0aac",
@@ -382,12 +241,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "纯碱"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "焦炭产业",
         "entity_id": "7c7ba2e8-4494-5484-919f-994212f472fd",
         "entity_key": "chain_node:v1_77771dcf8f020e9ee4fce6d9443ab89e656b89fe",
@@ -399,12 +256,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "焦炭"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "动力煤产业",
         "entity_id": "1d9e4d7b-180a-5200-8e4f-090d7b91b8aa",
         "entity_key": "chain_node:v1_10097067439698c95c5d392ccd8172a0e417d043",
@@ -416,12 +271,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "动力煤"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "焦煤产业",
         "entity_id": "5aa5737f-76db-576d-a93d-5c451c71d6cb",
         "entity_key": "chain_node:v1_de0238c8ed51d631fe674208bd0ebaea32662f07",
@@ -433,12 +286,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "焦煤"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "铝产业",
         "entity_id": "57ce364c-8a1c-55c7-ab02-5ef70bddeb1d",
         "entity_key": "chain_node:v1_b9d4f25a0373ecf910aad2cc2d07ceb0bf31e458",
@@ -450,12 +301,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "铝"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "铜产业",
         "entity_id": "4b71936c-3f3c-528c-a628-ded2f222999a",
         "entity_key": "chain_node:v1_c559b89036733a774b3077adba925b5484cb0633",
@@ -467,12 +316,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "铜"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "白银产业",
         "entity_id": "0a733b0b-0704-51f4-89f7-b43c136d857d",
         "entity_key": "chain_node:v1_c486c6cb27a1cd1388067893af4afe855429b47f",
@@ -484,12 +331,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "白银"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "黄金产业",
         "entity_id": "e5ef1ef4-a99f-5e04-9f9c-fe0ca3ae3773",
         "entity_key": "chain_node:v1_12ed9497cc6a0dc6ce2487b738fb6a5c801a2a82",
@@ -501,12 +346,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "黄金"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "钴产业",
         "entity_id": "7c3807c6-387d-5139-86f8-d618c6ddf20f",
         "entity_key": "chain_node:v1_10282eaa77d7e1b32f035f4fa53c34cb6c2e2ee5",
@@ -518,12 +361,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "钴"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "镍产业",
         "entity_id": "74087f1e-fee3-5237-b288-0dc101a371c7",
         "entity_key": "chain_node:v1_17d3c4298bbf9a1e8d44864e1203a38c6ebbfbbd",
@@ -535,12 +376,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "镍"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "稀土产业",
         "entity_id": "cff6722a-15f4-51a0-ae87-ffcb940c4e75",
         "entity_key": "chain_node:v1_27ce70eef148a208a96f83c266cf784623b6f9b7",
@@ -552,12 +391,10 @@
         "source_system": "eastmoney",
         "source_taxonomy_type": "industry_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "稀土"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "黄金产业",
         "entity_id": "e5ef1ef4-a99f-5e04-9f9c-fe0ca3ae3773",
         "entity_key": "chain_node:v1_12ed9497cc6a0dc6ce2487b738fb6a5c801a2a82",
@@ -569,12 +406,10 @@
         "source_system": "ths",
         "source_taxonomy_type": "concept_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "黄金"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "天然气产业",
         "entity_id": "2cc08180-fa1c-5176-96bb-ee236c3f2dfe",
         "entity_key": "chain_node:v1_9912b87c0a4313b04bc239127231d77f115a43da",
@@ -586,12 +421,10 @@
         "source_system": "ths",
         "source_taxonomy_type": "concept_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": true,
         "workbook_canonical_name": "天然气"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "大豆产业",
         "entity_id": "2d9ca7d9-cd15-5a49-b139-6fb492ac6795",
         "entity_key": "chain_node:v1_6a8889db7f537ab957c613c7bffa6ca6f76a2339",
@@ -603,12 +436,10 @@
         "source_system": "ths",
         "source_taxonomy_type": "concept_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "大豆"
       },
       {
-        "candidate_taxonomy_types": [],
         "canonical_name": "玉米产业",
         "entity_id": "d6cfa7d3-6432-573e-b949-e65ca4c0993e",
         "entity_key": "chain_node:v1_c5c6ed509e11670a9130f4071fcd3c51a0abc245",
@@ -620,7 +451,6 @@
         "source_system": "ths",
         "source_taxonomy_type": "concept_sector",
         "status": "active",
-        "taxonomy_resolved": true,
         "wide_boundary": false,
         "workbook_canonical_name": "玉米"
       }
@@ -709,17 +539,14 @@
   },
   "validation": {
     "all_candidates_bind_to_seeded_chain_node_manifest": true,
-    "blockers": [
-      "13 mappings require source-side taxonomy disambiguation before any mapping R2 package or Write"
-    ],
+    "blockers": [],
     "current_db_external_identifier_rows": 0,
+    "deterministic_id_duplicates": [],
     "expected_actions": {
-      "blocked_taxonomy_review": 13,
-      "created": 1143
+      "created": 1169
     },
+    "external_identity_duplicates": [],
     "orphan_expected": 0,
-    "raw_source_code_duplicates": [],
-    "ready_for_write": false,
-    "resolved_external_identity_duplicates": []
+    "ready_for_write": true
   }
 }

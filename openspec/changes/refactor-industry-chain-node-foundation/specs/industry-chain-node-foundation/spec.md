@@ -139,7 +139,7 @@
 
 #### Scenario: Phase A mapping data 门禁
 - **WHEN** node/profile seed Query 已验收
-- **THEN** 系统必须提交 1,156 条逐行 external identifier mapping report 并单独取得 mapping Write 授权
+- **THEN** 系统必须提交 1,169 条逐行 external identifier mapping report 并单独取得 mapping Write 授权
 - **AND** Write 后必须立即 Query provider counts、taxonomy、external name/code、唯一性、entity 绑定、孤儿与幂等结果并等待验收
 
 #### Scenario: Phase A 完整验收

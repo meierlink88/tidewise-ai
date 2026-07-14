@@ -12,7 +12,7 @@
 - 删除 `contains`、`supplies_to`、`substitutes_for`、`transmits_to`。事件传导方向、强度、时滞和结论由事件沿静态关系动态推理，不写入关系主数据；同一机制不得同时登记为 `input_to` 与 `depends_on`。
 - 历史 physical constraints 与旧 topology subject 一并进入清理范围，不迁移旧 ID 或旧语义；未来若需要节点/关系约束，只能基于新节点和新关系重新 Review 后创建。不设计观测数据。
 - 先生成可恢复备份和完整引用审计，再通过版本化、幂等 migration/受控命令清除旧 PostgreSQL facts 与专属表；禁止手工清库、历史回滚或把旧 UUID/entity_key 收敛到新节点。
-- 第一批初始化范围固定为审阅工作簿 Sheet「标准化保留」的 842 个 canonical chain_node：950 个原始名称进入名称/aliases 契约，108 个同义项被合并；1,156 条外部标识拆成逐行记录，其中 eastmoney 811 条、ths 345 条。工作簿不是可直接执行的 seed，具体新 UUID/entity_key、842 条 definition、必要 boundary 与来源 taxonomy 消歧仍须审阅。
+- 第一批初始化范围固定为审阅工作簿 Sheet「标准化保留」的 842 个 canonical chain_node：950 个原始名称进入名称/aliases 契约，108 个同义项被合并；用户核验的 1,156 个来源代码按既有三元 external identity 展开为 1,169 条 mapping（eastmoney 818、ths 351，241 个节点同时两来源）。其中 1,143 个代码单 taxonomy，13 个组合来源分类各展开 `industry_sector` 与 `concept_sector` 两条，不进行网页核查、二选一或排除。
 - cleanup、外部标识 schema 与最终 seed/mapping data 必须分别执行独立的 `Review -> Write -> Query` 并分别授权。当前 data contract review 不执行 migration/cleanup/seed；Phase A 全部验收前不得进入 Phase B。
 - `entity_key` 全局唯一约束仅在全库 preflight 证明安全后才允许实施，否则保持现状并记录阻断项。
 
