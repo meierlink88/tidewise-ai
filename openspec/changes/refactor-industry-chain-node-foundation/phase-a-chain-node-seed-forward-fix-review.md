@@ -16,5 +16,5 @@
 
 - RED：新回归测试先因 SQL 含 `entity_convergence_alias_moves` 失败。
 - GREEN：最小修复后，定向 `go test -count=1 ./internal/apps/entityfoundation/seed -run 'Test(EntityUpsertSQL|PostgresChainNodeUpsertSQL)'` 通过；完整验证与 checkpoint 前须重新运行 scoped suite、全量 Go 测试、OpenSpec strict、diff/scope/secret 检查。
-- 本包是 R1 代码/测试与文档审阅，不重新执行、也不追认失败的 R2 Write。未获新的明确 R2 许可前，不得连接数据库执行 node/profile seed、不得 mapping、relation、migration、Neo4j、UAT/prod 或手工 SQL。
-- 新 R2 包必须重新核对 approved manifest SHA-256、候选指纹、Goose=16、466 非目标保护基线、零 chain_node/profile、无 writer/long transaction/lock conflict、stable backup evidence，随后仅允许一次标准 `entity-seed -manifest-file` Write，并立即执行完整 Query/assert；任一漂移继续 fail-closed。
+- 本包是 R1 代码/测试与文档审阅，不重新执行、也不追认失败的 R2 Write。主对话后来已对本 R1 验证通过后的单次 R2 重试另行授权；该授权与实际结果均记录在 [seed execution evidence](phase-a-chain-node-seed-execution-evidence.md)，不改变此处首次失败的事实。
+- 重新授权的 R2 已重新核对 approved manifest SHA-256、候选指纹、Goose=16、466 非目标保护基线、零 chain_node/profile、无 writer/long transaction/lock conflict、stable backup evidence，并只执行一次标准 `entity-seed -manifest-file` Write 后立即完成完整 Query/assert；未写 mapping、relation、migration、Neo4j、UAT/prod 或手工 SQL。

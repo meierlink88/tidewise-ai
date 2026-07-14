@@ -18,6 +18,9 @@ type PhaseAProtectedEntityBaseline struct {
 }
 
 type PhaseAPreflightReport struct {
+	DatabaseName              string                                   `json:"database_name"`
+	ServerVersion             string                                   `json:"server_version"`
+	GooseVersion              int64                                    `json:"goose_version"`
 	Metrics                   map[string]int64                         `json:"metrics"`
 	References                []PhaseAPreflightReference               `json:"references"`
 	ProtectedEntityBaseline   map[string]PhaseAProtectedEntityBaseline `json:"protected_entity_baseline"`
@@ -26,60 +29,38 @@ type PhaseAPreflightReport struct {
 	BackupStatus              string                                   `json:"backup_status"`
 }
 
-const phaseAPreflightMetricsSQL = `WITH retired_entities AS (
-    SELECT id FROM entity_nodes WHERE entity_type IN ('sector', 'industry_chain', 'chain_node')
-), metrics(metric, value) AS (
+const phaseAPreflightMetricsSQL = `WITH metrics(metric, value) AS (
     SELECT 'entity_type.' || entity_type, count(*)::bigint FROM entity_nodes GROUP BY entity_type
+    UNION ALL SELECT 'entity_nodes.total', count(*)::bigint FROM entity_nodes
     UNION ALL SELECT 'status.merged', count(*)::bigint FROM entity_nodes WHERE status = 'merged'
     UNION ALL SELECT 'entity_key.blank', count(*)::bigint FROM entity_nodes WHERE entity_key IS NULL OR btrim(entity_key) = ''
     UNION ALL SELECT 'entity_key.duplicate_groups', count(*)::bigint FROM (SELECT entity_key FROM entity_nodes GROUP BY entity_key HAVING count(*) > 1) duplicate_keys
-    UNION ALL SELECT 'profile.sector', count(*)::bigint FROM sector_profiles
     UNION ALL SELECT 'profile.chain_node', count(*)::bigint FROM chain_node_profiles
-    UNION ALL SELECT 'profile.industry_chain', count(*)::bigint FROM industry_chain_profiles
-    UNION ALL SELECT 'legacy.sector_source_mapping', count(*)::bigint FROM sector_source_mappings
-    UNION ALL SELECT 'legacy.membership', count(*)::bigint FROM industry_chain_memberships
-    UNION ALL SELECT 'legacy.topology', count(*)::bigint FROM industry_chain_topology_edges
-    UNION ALL SELECT 'legacy.physical_constraint', count(*)::bigint FROM industry_chain_physical_constraints
-    UNION ALL SELECT 'legacy.convergence_manifest', count(*)::bigint FROM entity_convergence_manifests
-    UNION ALL SELECT 'legacy.convergence', count(*)::bigint FROM entity_convergences
-    UNION ALL SELECT 'legacy.convergence_reference_move', count(*)::bigint FROM entity_convergence_reference_moves
-    UNION ALL SELECT 'legacy.convergence_alias_move', count(*)::bigint FROM entity_convergence_alias_moves
-    UNION ALL SELECT 'reference.entity_edge', count(*)::bigint FROM entity_edges WHERE from_entity_id IN (SELECT id FROM retired_entities) OR to_entity_id IN (SELECT id FROM retired_entities)
-    UNION ALL SELECT 'reference.event_entity_link', count(*)::bigint FROM event_entity_links WHERE entity_id IN (SELECT id FROM retired_entities)
-    UNION ALL SELECT 'membership.duplicate_groups', count(*)::bigint FROM (SELECT industry_chain_entity_id, chain_node_entity_id FROM industry_chain_memberships GROUP BY 1, 2 HAVING count(*) > 1) duplicate_memberships
-    UNION ALL SELECT 'topology.duplicate_groups', count(*)::bigint FROM (SELECT industry_chain_entity_id, from_chain_node_entity_id, relation_type, to_chain_node_entity_id FROM industry_chain_topology_edges GROUP BY 1, 2, 3, 4 HAVING count(*) > 1) duplicate_topology
+    UNION ALL SELECT 'profile.theme', count(*)::bigint FROM theme_profiles
+    UNION ALL SELECT 'external_identifier.total', count(*)::bigint FROM entity_external_identifiers
+    UNION ALL SELECT 'entity_edge.total', count(*)::bigint FROM entity_edges
+    UNION ALL SELECT 'event_entity_link.total', count(*)::bigint FROM event_entity_links
     UNION ALL SELECT 'chain_node.definition_blank', count(*)::bigint FROM chain_node_profiles WHERE definition IS NULL OR btrim(definition) = ''
-    UNION ALL SELECT 'orphan.sector_profile', count(*)::bigint FROM sector_profiles p LEFT JOIN entity_nodes n ON n.id = p.entity_id WHERE n.id IS NULL
     UNION ALL SELECT 'orphan.chain_node_profile', count(*)::bigint FROM chain_node_profiles p LEFT JOIN entity_nodes n ON n.id = p.entity_id WHERE n.id IS NULL
-    UNION ALL SELECT 'orphan.industry_chain_profile', count(*)::bigint FROM industry_chain_profiles p LEFT JOIN entity_nodes n ON n.id = p.entity_id WHERE n.id IS NULL
-    UNION ALL SELECT 'orphan.membership_chain', count(*)::bigint FROM industry_chain_memberships m LEFT JOIN industry_chain_profiles p ON p.entity_id = m.industry_chain_entity_id WHERE p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.membership_node', count(*)::bigint FROM industry_chain_memberships m LEFT JOIN chain_node_profiles p ON p.entity_id = m.chain_node_entity_id WHERE p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.topology_chain', count(*)::bigint FROM industry_chain_topology_edges e LEFT JOIN industry_chain_profiles p ON p.entity_id = e.industry_chain_entity_id WHERE p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.topology_from', count(*)::bigint FROM industry_chain_topology_edges e LEFT JOIN chain_node_profiles p ON p.entity_id = e.from_chain_node_entity_id WHERE p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.topology_to', count(*)::bigint FROM industry_chain_topology_edges e LEFT JOIN chain_node_profiles p ON p.entity_id = e.to_chain_node_entity_id WHERE p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.constraint_chain', count(*)::bigint FROM industry_chain_physical_constraints c LEFT JOIN industry_chain_profiles p ON p.entity_id = c.industry_chain_entity_id WHERE p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.constraint_node', count(*)::bigint FROM industry_chain_physical_constraints c LEFT JOIN chain_node_profiles p ON p.entity_id = c.chain_node_entity_id WHERE c.chain_node_entity_id IS NOT NULL AND p.entity_id IS NULL
-    UNION ALL SELECT 'orphan.constraint_edge', count(*)::bigint FROM industry_chain_physical_constraints c LEFT JOIN industry_chain_topology_edges e ON e.id = c.topology_edge_id WHERE c.topology_edge_id IS NOT NULL AND e.id IS NULL
+    UNION ALL SELECT 'orphan.theme_profile', count(*)::bigint FROM theme_profiles p LEFT JOIN entity_nodes n ON n.id = p.entity_id WHERE n.id IS NULL
+    UNION ALL SELECT 'orphan.external_identifier', count(*)::bigint FROM entity_external_identifiers i LEFT JOIN entity_nodes n ON n.id = i.entity_id WHERE n.id IS NULL
     UNION ALL SELECT 'orphan.event_entity_link', count(*)::bigint FROM event_entity_links l LEFT JOIN entity_nodes n ON n.id = l.entity_id WHERE n.id IS NULL
     UNION ALL SELECT 'orphan.entity_edge_from', count(*)::bigint FROM entity_edges e LEFT JOIN entity_nodes n ON n.id = e.from_entity_id WHERE n.id IS NULL
     UNION ALL SELECT 'orphan.entity_edge_to', count(*)::bigint FROM entity_edges e LEFT JOIN entity_nodes n ON n.id = e.to_entity_id WHERE n.id IS NULL
+    UNION ALL SELECT 'schema.retired_relation_exists', count(*)::bigint FROM unnest(ARRAY['sector_profiles','sector_source_mappings','industry_chain_profiles','industry_chain_memberships','industry_chain_topology_edges','industry_chain_physical_constraints','entity_convergence_manifests','entity_convergences','entity_convergence_reference_moves','entity_convergence_alias_moves']) relation_name WHERE to_regclass('public.' || relation_name) IS NOT NULL
+    UNION ALL SELECT 'catalog.legacy_function_reference', count(*)::bigint FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.prokind IN ('f','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND pg_get_functiondef(p.oid) ~* '(sector_profiles|sector_source_mappings|industry_chain|entity_convergence)'
+    UNION ALL SELECT 'catalog.legacy_trigger_reference', count(*)::bigint FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid WHERE NOT t.tgisinternal AND pg_get_triggerdef(t.oid) ~* '(sector_profiles|sector_source_mappings|industry_chain|entity_convergence)'
+    UNION ALL SELECT 'catalog.legacy_view_reference', count(*)::bigint FROM pg_views WHERE schemaname NOT IN ('pg_catalog','information_schema') AND definition ~* '(sector_profiles|sector_source_mappings|industry_chain|entity_convergence)'
+    UNION ALL SELECT 'catalog.legacy_rule_reference', count(*)::bigint FROM pg_rules WHERE schemaname NOT IN ('pg_catalog','information_schema') AND definition ~* '(sector_profiles|sector_source_mappings|industry_chain|entity_convergence)'
 )
 SELECT metric, value FROM metrics ORDER BY metric`
 
 const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
     VALUES
         ('entity_nodes'),
-        ('sector_profiles'),
-        ('sector_source_mappings'),
         ('chain_node_profiles'),
-        ('industry_chain_profiles'),
-        ('industry_chain_memberships'),
-        ('industry_chain_topology_edges'),
-        ('industry_chain_physical_constraints'),
-        ('entity_convergence_manifests'),
-        ('entity_convergences'),
-        ('entity_convergence_reference_moves'),
-        ('entity_convergence_alias_moves')
+        ('theme_profiles'),
+        ('entity_external_identifiers')
 ), catalog_references(reference_kind, object_name, definition) AS (
     SELECT
         'foreign_key',
@@ -101,8 +82,7 @@ const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
     JOIN pg_class trigger_table ON trigger_table.oid = trigger_name.tgrelid
     JOIN pg_namespace table_namespace ON table_namespace.oid = trigger_table.relnamespace
     WHERE NOT trigger_name.tgisinternal
-      AND (trigger_table.relname IN (SELECT name FROM target_tables)
-        OR pg_get_triggerdef(trigger_name.oid) ~* '(sector|industry_chain|chain_node|entity_convergence)')
+      AND trigger_table.relname IN (SELECT name FROM target_tables)
     UNION ALL
     SELECT
         CASE WHEN procedure_name.prokind = 'p' THEN 'procedure' ELSE 'function' END,
@@ -112,7 +92,7 @@ const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
     JOIN pg_namespace procedure_namespace ON procedure_namespace.oid = procedure_name.pronamespace
     WHERE procedure_name.prokind IN ('f', 'p')
       AND procedure_namespace.nspname NOT IN ('pg_catalog', 'information_schema')
-      AND pg_get_functiondef(procedure_name.oid) ~* '(sector_profiles|sector_source_mappings|industry_chain|chain_node_profiles|entity_convergence)'
+      AND pg_get_functiondef(procedure_name.oid) ~* '(chain_node_profiles|theme_profiles|entity_external_identifiers)'
     UNION ALL
     SELECT
         'view',
@@ -120,7 +100,7 @@ const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
         definition
     FROM pg_views
     WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-      AND definition ~* '(sector_profiles|sector_source_mappings|industry_chain|chain_node_profiles|entity_convergence)'
+      AND definition ~* '(chain_node_profiles|theme_profiles|entity_external_identifiers)'
     UNION ALL
     SELECT
         'rule',
@@ -128,7 +108,7 @@ const phaseAPreflightReferencesSQL = `WITH target_tables(name) AS (
         definition
     FROM pg_rules
     WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-      AND definition ~* '(sector_profiles|sector_source_mappings|industry_chain|chain_node_profiles|entity_convergence)'
+      AND definition ~* '(chain_node_profiles|theme_profiles|entity_external_identifiers)'
 )
 SELECT reference_kind, object_name, definition
 FROM catalog_references
@@ -159,6 +139,12 @@ func (r PostgresRepository) RunPhaseAPreflight(ctx context.Context) (PhaseAPrefl
 	report := PhaseAPreflightReport{
 		Metrics:                 map[string]int64{},
 		ProtectedEntityBaseline: map[string]PhaseAProtectedEntityBaseline{},
+	}
+	if err := tx.QueryRowContext(ctx, "SELECT current_database(), version()").Scan(&report.DatabaseName, &report.ServerVersion); err != nil {
+		return PhaseAPreflightReport{}, fmt.Errorf("query current database identity: %w", err)
+	}
+	if err := tx.QueryRowContext(ctx, "SELECT version_id FROM goose_db_version ORDER BY id DESC LIMIT 1").Scan(&report.GooseVersion); err != nil {
+		return PhaseAPreflightReport{}, fmt.Errorf("query current goose version: %w", err)
 	}
 	rows, err := tx.QueryContext(ctx, phaseAPreflightMetricsSQL)
 	if err != nil {

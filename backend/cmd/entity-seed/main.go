@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -42,11 +43,25 @@ func main() {
 	}
 	defer db.Close()
 	if *phaseAPreflight {
+		if strings.TrimSpace(*manifestFile) == "" {
+			log.Fatal("phase A preflight requires an explicit reviewed manifest file")
+		}
+		manifest, err := loadManifest(*seedDir, *manifestFile)
+		if err != nil {
+			log.Fatalf("load reviewed entity seed manifest: %v", err)
+		}
+		proof, err := manifestPreflightProof(*manifestFile, manifest)
+		if err != nil {
+			log.Fatalf("build reviewed manifest preflight proof: %v", err)
+		}
 		report, err := entityseed.NewPostgresRepository(db).RunPhaseAPreflight(ctx)
 		if err != nil {
 			log.Fatalf("run phase A preflight: %v", err)
 		}
-		content, err := json.MarshalIndent(report, "", "  ")
+		content, err := json.MarshalIndent(struct {
+			Preflight entityseed.PhaseAPreflightReport `json:"preflight"`
+			Manifest  manifestPreflight                `json:"manifest"`
+		}{Preflight: report, Manifest: proof}, "", "  ")
 		if err != nil {
 			log.Fatalf("encode phase A preflight report: %v", err)
 		}
@@ -70,6 +85,35 @@ func main() {
 		log.Fatalf("encode entity seed report: %v", err)
 	}
 	fmt.Fprintln(os.Stdout, string(content))
+}
+
+type manifestPreflight struct {
+	SHA256         string `json:"sha256"`
+	EntityCount    int    `json:"entity_count"`
+	ChainNodeCount int    `json:"chain_node_count"`
+	ProfileCount   int    `json:"profile_count"`
+}
+
+func manifestPreflightProof(path string, manifest entityseed.Manifest) (manifestPreflight, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return manifestPreflight{}, err
+	}
+	proof := manifestPreflight{SHA256: fmt.Sprintf("%x", sha256.Sum256(content)), EntityCount: len(manifest.Entities)}
+	for _, entity := range manifest.Entities {
+		if entity.EntityType == "chain_node" {
+			proof.ChainNodeCount++
+		}
+		if len(entity.Profile) > 0 {
+			proof.ProfileCount++
+		}
+	}
+	for _, profile := range manifest.Profiles {
+		if profile.EntityType == "chain_node" {
+			proof.ProfileCount++
+		}
+	}
+	return proof, nil
 }
 
 func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
