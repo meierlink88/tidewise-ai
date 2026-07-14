@@ -1,8 +1,8 @@
 ## Context
 
-当前 `backend/internal/repositories` 只有一个 Go package，但主要实现集中在 `repository.go`（950 行）和 `postgres_repository.go`（1251 行）。前者同时承载业务接口、DTO、`InMemoryRepository` state/constructor、八类业务方法和通用工具；后者同时承载 `PostgresRepository`、全部业务 SQL、Scan 和 normalize。`backend/migrations` 还包含 9 个 `*_test.go`，而现有 `backend/internal/platform/dbmigration` 已经承担 migration source、runner、Goose executor 和多数 migration contract tests。
+当前 `backend/internal/repositories` 只有一个 Go package，但主要实现集中在 `repository.go`（950 行）和 `postgres_repository.go`（1251 行）。前者同时承载业务接口、DTO、`InMemoryRepository` state/constructor、八类业务方法和通用工具；后者同时承载 `PostgresRepository`、全部业务 SQL、Scan 和 normalize。最新 `origin/main` 的 `backend/migrations` 包含 000001–000018 SQL 和 10 个 `*_test.go`，而现有 `backend/internal/platform/dbmigration` 已经承担 migration source、runner、Goose executor 和多数 migration contract tests。
 
-本 change 只改变源码组织，不改变调用关系或运行时对象。Proposal 可以基于当前 `origin/main` 完成映射；Apply 必须等待 `rebuild-foundation-graph-and-enrich-chain-data` 完整 Deliver、PR merge 与 cleanup，并在最新 `origin/main` 重做 graph/legacy overlap audit。
+本 change 只改变源码组织，不改变调用关系或运行时对象。更新到最新 `origin/main` 后的 fresh overlap audit 已确认：本 change 与 `rebuild-foundation-graph-and-enrich-chain-data` 仅分别修改各自 OpenSpec artifacts，当前无共享源码、测试文件或数据库写状态，因此可以并行执行独立 R1 Apply。
 
 ```mermaid
 flowchart LR
@@ -55,12 +55,12 @@ flowchart LR
 | `postgres_repository.go` | `postgres.go` | 移动 `PostgresRepository`、`db *sql.DB`、constructor、共享 row scanner 与极少量跨业务 SQL 参数 helpers；原文件最终删除 |
 | `postgres_repository.go` | 上述八个业务文件 | 按方法职责移动全部参数化 SQL、Scan、normalize 和错误包装 |
 | `uuid.go` | `identity.go` | 移动稳定 UUID/原始文档 ID 能力；Apply 先审计名称与调用点，默认保留函数签名，只有证据证明命名误导且可一次性更新全部调用/测试时才最小重命名 |
-| `industry_chain.go` | `graph_projection.go` 或无 | 条件项：Apply 前 fresh overlap audit 后，仅把最终 graph source 仍需要的 query/type 移入 `graph_projection.go`；无调用且只依赖已废止 schema/type 的代码与测试删除 |
+| `industry_chain.go` | `industry_chain.go` | fresh audit 证明删除会改变当前导出接口和既有测试；本 change 保留其类型、SQL、memory/PG 方法与行为，未来 graph source 变更归 graph change |
 | `repository_test.go` | `source_catalog_test.go`、`raw_document_test.go`、`benchmark_observation_test.go`、`admin_query_test.go`、`scheduler_test.go`、`ingestion_run_test.go`、`graph_projection_test.go` | 按被测业务机械拆分，fixture/helper 跟随唯一消费者；跨业务共享 helper 保持最小 |
 | `postgres_repository_integration_test.go` | `source_catalog_postgres_test.go`、`raw_document_postgres_test.go`、`scheduler_postgres_test.go`、`ingestion_run_postgres_test.go`、`graph_projection_postgres_test.go`、`benchmark_observation_postgres_test.go` | 按现有测试函数职责拆分，继续使用 `TIDEWISE_TEST_DATABASE_URL` opt-in 边界 |
-| `graph_projection_source_test.go` | `graph_projection_test.go` | 合并当前 source SQL 静态契约；按前置 change 最终 query 更新条件项 |
+| `graph_projection_source_test.go` | `graph_projection_test.go` | 合并当前 source SQL 静态契约，保持当前 query 行为不变 |
 | `uuid_test.go` | `identity_test.go` | 随 identity 文件移动，保持稳定 ID 行为测试 |
-| `industry_chain_test.go` | `graph_projection_test.go` 或无 | 与 `industry_chain.go` 使用同一 Apply 前条件判断 |
+| `industry_chain_test.go` | `industry_chain_test.go` | 保留当前行为测试，不在机械整理中删除或改写 legacy contract |
 
 ### 3. 保留、移动、删除边界
 
@@ -69,13 +69,13 @@ flowchart LR
 | 保留 | 业务小接口；`PostgresRepository`；`InMemoryRepository`；原生参数化 SQL；现有 error wrapping；现有 opt-in PostgreSQL integration 边界；migration 安全契约 |
 | 移动 | 业务 DTO/filters/results、具体 adapter 方法、业务专属 Scan/normalize/helper、对应 unit/integration tests |
 | 无条件删除 | 空 `doc.go`；机械拆分后为空的 `repository.go`、`postgres_repository.go`、`uuid.go`；`backend/migrations` 下迁移完成的 Go test 文件 |
-| 条件删除 | fresh overlap audit 证明无调用且只服务已废止 sector/industry-chain/graph runtime 的实现、type、helper 和测试；只断言已被后续 migration 废止最终 schema 的测试 |
+| 条件删除 | 只断言已被后续 migration 废止最终 schema、且不再保护完整迁移链安全的测试；本次审计未删除 repository 导出接口或既有行为测试 |
 
 ### 4. legacy graph/sector/industry-chain 处置
 
-当前前置 graph 分支尚只有 Proposal artifacts，因此本 Proposal 不把其未来实现假设为已合并事实。Apply 开始条件固定为：前置 change 已完整 Deliver、PR merge、远端 branch 与 Desktop worktree cleanup 完成；当前 worktree 从最新 `origin/main` 更新后，对 `backend/internal/repositories`、graph projector、domain types、migration tests 和主规格执行 fresh overlap audit。
+当前 graph 分支仍只有自身 Proposal artifacts；双方 diff 不共享 `backend/internal/repositories`、`backend/internal/platform/dbmigration`、`backend/migrations` 或数据库写状态。本 change 拥有上述 repository 与 migration-test 整理文件，可独立推进，不等待 graph change Deliver。
 
-审计输出必须把每个 legacy symbol 分类为 `retain-and-move`、`already-removed` 或 `remove-as-orphan`，并提供调用点/最终 schema/spec 证据。发现前置实现新增 repository 方法或改变 graph source contract 时，先更新本 change artifacts 并回到 Review，不得边 Apply 边自行扩展架构。
+审计输出仍须把每个 legacy symbol 分类为 `retain-and-move`、`already-removed` 或 `remove-as-orphan`，并提供调用点、当前 schema 和主规格证据。若并行期间 graph change 开始修改同一源码或改变 graph source contract，立即停止并重新排序，不得自行合并范围。
 
 ### 5. migration test 统一到现有 dbmigration package
 
@@ -87,6 +87,7 @@ flowchart LR
 | `chain_node_relations_schema_test.go` | `internal/platform/dbmigration/industry_chain_contract_test.go` | 保留并移动 000017 当前关系/约束契约 |
 | `entity_external_identifiers_schema_test.go` | `internal/platform/dbmigration/identity_contract_test.go` | 保留并移动 000016 授权、schema 与禁止项契约 |
 | `refactor_industry_chain_node_phase_a_schema_test.go` | `internal/platform/dbmigration/industry_chain_contract_test.go` | 保留并移动 000015 授权、受限删除、最终 profile 与不可逆边界 |
+| `alliance_economy_foundation_schema_test.go` | `internal/platform/dbmigration/alliance_economy_contract_test.go` | 保留并移动 000018 授权、最小 schema、禁止数据写和不可逆边界 |
 | `industry_chain_schema_test.go` | `internal/platform/dbmigration/industry_chain_contract_test.go` 或删除 | 条件项：仅保留完整 migration chain 仍需要的 000014 执行/过渡安全；删除只要求已被 000015 废止表作为最终结构存在的断言 |
 | `sector_schema_test.go` | `internal/platform/dbmigration/legacy_migration_contract_test.go` 或删除 | 条件项：保留仍有价值的 000010 顺序/非破坏性迁移契约；删除只保护已由 000015 移除的 sector 最终 schema 断言 |
 | `convergence_schema_test.go` | `internal/platform/dbmigration/legacy_migration_contract_test.go` | 保留 Goose PL/pgSQL statement boundary；删除只保护已由 000015 移除的 convergence 最终 schema 断言 |
@@ -118,7 +119,7 @@ Apply 的第一步先运行并保存当前基线：`go test ./internal/repositor
 
 ## Risks / Trade-offs
 
-- [前置 graph change 改写同一文件] → Apply 硬阻断并在最新 `origin/main` 做 fresh overlap audit；条件项不在 Proposal 提前定案。
+- [并行 graph change 后续出现真实文件重叠] → 当前 audit 证明无重叠；执行中再次出现共享源码或测试文件时立即停止并重新排序。
 - [机械移动遗漏方法或 helper] → 先锁定基线，按业务逐组移动，每组运行 targeted tests，Apply-final 跑完整 backend suite。
 - [删除历史 migration 测试削弱安全性] → 使用逐文件处置矩阵，仅删除已废止最终 schema 断言，并先确认完整链和剩余契约覆盖。
 - [文件过细导致导航成本上升] → 文件只按八个已存在职责拆分，不创建新 package 或 adapter 类型。
@@ -126,8 +127,8 @@ Apply 的第一步先运行并保存当前基线：`go test ./internal/repositor
 
 ## Migration Plan
 
-本 change 没有数据库 migration 或运行时部署迁移。代码回滚为 revert scoped R1 commit；任何测试失败都在同一 package 内修复。Apply 前依赖或 overlap gate 不满足时保持 artifacts 不变并停止。
+本 change 没有数据库 migration 或运行时部署迁移。代码回滚为 revert scoped R1 commit；任何测试失败都在同一 package 内修复。执行中若 overlap gate 发生变化则停止。
 
 ## Open Questions
 
-没有需要 Proposal 阶段新增人工选择的问题。`industry_chain.go` 与历史 migration 测试的条件项由 Apply 前 fresh overlap audit 依据最终 `origin/main` 证据归类；结果超出上述矩阵时必须回到人工 Review。
+没有需要新增人工选择的问题。fresh audit 已决定保留 `industry_chain.go` 及其测试；历史 migration tests 全部仍保护版本化完整链或迁移安全，因此迁入统一边界而不删除。

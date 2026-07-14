@@ -6,7 +6,7 @@
 
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
-| 1 | Proposal Review 通过且前置 graph change 完整 Deliver 后连续执行 R1 整理 | R1 | no | NONE | 仅机械拆分 `backend/internal/repositories`、迁移有效测试并删除已确认无效测试；不得改变行为或执行有状态操作 |
+| 1 | Proposal Review 已通过且 fresh overlap audit 无共享文件后连续执行 R1 整理 | R1 | no | NONE | 仅机械拆分 `backend/internal/repositories`、迁移有效测试并删除已确认无效测试；不得改变行为或执行有状态操作 |
 | 2 | Apply-final Review | R1 | yes | APPLY_FINAL | 汇总 scoped diff、测试与验证证据；通过后仅允许 Sync、Archive |
 | 3 | Git completion | R0 | yes | GIT_COMPLETION | Archive checkpoint 后才允许 PR merge 与 Desktop-owned cleanup；不得扩大实现范围 |
 
@@ -26,7 +26,7 @@
 - 将 `postgres.go` 限定为 `db *sql.DB`、constructor 和极少量跨业务数据库基础能力，将 `memory.go` 限定为 state、mutex 和 constructor；不创建一组业务专用 PostgreSQL 具体类型。
 - 删除空 `doc.go`，审计 `NormalizeUUID` 的命名和归属；仅在行为、调用点与稳定 ID 契约保持不变时进行最小归位或重命名。
 - 将 `backend/migrations` 收敛为 SQL 与 `README.md`，把仍有效的静态 contract、Goose 执行和可选 PostgreSQL integration tests 迁入现有 `backend/internal/platform/dbmigration` 测试边界；删除只保护已废止最终 schema 的测试，不削弱迁移安全契约。
-- Apply 硬依赖 `rebuild-foundation-graph-and-enrich-chain-data` 完整 Deliver、PR merge 与 branch/worktree cleanup；Apply 前必须从最新 `origin/main` 重做 overlap audit，再决定 graph/legacy sector/industry-chain 条件项的最终移动或删除清单。
+- 本 change 与 `rebuild-foundation-graph-and-enrich-chain-data` 无前置依赖；fresh overlap audit 已确认双方仅有各自 OpenSpec artifacts、无共享文件和数据库写状态，本 change 可独立执行 R1 Apply。若并行期间出现真实文件重叠则立即停止并重新排序。
 - 实施时先用现有测试锁定行为，再连续完成机械移动、必要修复和验证；普通文件移动、测试、修复、commit/push 不设置逐文件人工 gate。
 - 本 change 仅修改 `tidewise-ai` 的 OpenSpec artifacts，Apply 获批后才可修改后端源码和测试；不修改只读的 `prototype/` 或 `doc/`。
 
