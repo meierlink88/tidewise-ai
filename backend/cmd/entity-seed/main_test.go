@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	entityseed "github.com/meierlink88/tidewise-ai/backend/internal/apps/entityfoundation/seed"
+	"github.com/meierlink88/tidewise-ai/backend/internal/config"
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 )
 
@@ -95,5 +96,48 @@ func TestLoadManifestUsesExplicitManifestFileWithoutDefaultSeedPaths(t *testing.
 	}
 	if len(manifest.Entities) != 1 || manifest.Entities[0].Key != "chain_node:test" {
 		t.Fatalf("manifest = %+v", manifest)
+	}
+}
+
+func TestValidateAllianceEconomyCommandOptionsRequiresOneIsolatedMode(t *testing.T) {
+	valid := []allianceEconomyCommandOptions{
+		{manifest: "approved.json", dependencyAudit: true, seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", cleanupApprovedLocal: true, dependencyChecksum: "sha256", seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", rebuildApprovedLocal: true, seedDir: entityseed.DefaultSeedDir},
+	}
+	for _, options := range valid {
+		if err := validateAllianceEconomyCommandOptions(options); err != nil {
+			t.Fatalf("validateAllianceEconomyCommandOptions(%+v) error = %v", options, err)
+		}
+	}
+
+	invalid := []allianceEconomyCommandOptions{
+		{dependencyAudit: true, seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", dependencyAudit: true, rebuildApprovedLocal: true, seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", cleanupApprovedLocal: true, seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", rebuildApprovedLocal: true, manifestFile: "other.json", seedDir: entityseed.DefaultSeedDir},
+		{manifest: "approved.json", rebuildApprovedLocal: true, relationManifest: "relations.json", seedDir: entityseed.DefaultSeedDir},
+	}
+	for _, options := range invalid {
+		if err := validateAllianceEconomyCommandOptions(options); err == nil {
+			t.Fatalf("validateAllianceEconomyCommandOptions(%+v) error = nil", options)
+		}
+	}
+}
+
+func TestValidateAllianceEconomyLocalTarget(t *testing.T) {
+	valid := config.Config{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Name: "tidewise_local"}}
+	if err := validateAllianceEconomyLocalTarget(valid); err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []config.Config{
+		{App: config.AppConfig{Env: config.EnvUAT}, Database: config.DatabaseConfig{Name: "tidewise_local"}},
+		{App: config.AppConfig{Env: config.EnvProd}, Database: config.DatabaseConfig{Name: "tidewise_prod"}},
+		{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Name: "shared_local"}},
+	} {
+		if err := validateAllianceEconomyLocalTarget(invalid); err == nil {
+			t.Fatalf("validateAllianceEconomyLocalTarget(%+v) error = nil", invalid)
+		}
 	}
 }

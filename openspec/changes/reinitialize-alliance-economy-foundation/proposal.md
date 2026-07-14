@@ -1,36 +1,57 @@
 ## Why
 
-现有联盟基础包含 10 个 `alliance_org`、50 个 economy 和 223 条 active `member_of`，联盟 profile 仍使用 `org_code/org_type/primary_domain/scope_region/official_url`。用户现已提供新的联盟候选真值源 `联盟组织列表1.0.xlsx`，明确当前联盟业务输入只包含名称、缩写、核心主导方和核心影响范围说明。旧 `表格_20260713.csv` 的 68 条候选、推荐结论与网页核验结果已被整体取代，只能作为 Git 历史记录，不能继续参与当前 manifest。
+现有仓库 fixture 基线包含 10 个 `alliance_org`、50 个 economy、223 条 active `member_of`，联盟 profile 仍使用 `org_code/org_type/primary_domain/scope_region/official_url`。用户已经批准新的业务基线：45 个 alliance、79 个 economy 和 133 条 formal-active `member_of`。本 change 只服务 local PostgreSQL 探索环境的一次性、可审阅、可重放重建，不建设通用数据导入产品。
+
+联盟候选唯一真值源仍为 `联盟组织列表1.0.xlsx` SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102` 的首个 sheet `联盟组织`、范围 `A1:K51`。旧 `表格_20260713.csv` 的 68 条候选及其网页核验已经 superseded，只保留为 Git 历史。
+
+## Gate Map
+
+| Package | Gate | Risk | Human | Reason Code | Allowed Scope |
+|---|---|---|---|---|---|
+| 1 | Alliance manifest semantics Review | R0 | yes | SPEC_SEMANTICS | 仅确认 45 条联盟与四字段；不授权 economy、关系、源码或数据库 |
+| 2 | Economy and relationship semantics Review | R0 | yes | SPEC_SEMANTICS | 仅确认 79 economy 与 133 member_of；不授权源码或数据库 |
+| 3 | R1 implementation checkpoint | R1 | no | NONE | 完成 change-specific 源码、测试、只读审计与 scoped checkpoint；不授权任何写入 |
+| 4 | Local cleanup and rebuild execution | R3 | yes | R3_OPERATION | 4.1 R3 cleanup 与 4.2 R2 rebuild 必须各自明确授权；当前跨域处置未决，禁止执行 |
+| 5 | Apply-final Review | R1 | yes | APPLY_FINAL | Review 通过后才允许 Sync、Archive、Deliver；不新增任何数据库或 Neo4j 授权 |
+
+## Complexity Budget
+
+| Key | Value |
+|---|---|
+| human_gates | 4 |
+| stateful_layers | 0 |
+| checkpoints | 5 |
+| full_test_runs | 2 |
+| continuous_automation_scope | packages:3 |
+
 
 ## What Changes
 
-- **BREAKING**：将 `alliance_org_profiles` 最小目标收敛为 `entity_id`、`abbreviation`、`leadership_summary`、`influence_scope_summary`。名称与规范名称进入 `entity_nodes.name/canonical_name`；非空缩写保存在 profile，并按既有识别惯例派生为 alias，但 aliases 不是新的业务输入字段。
-- `categories TEXT[]` 与 22-code allowlist 全部移出本 change。工作簿中的“大类”“子类”以及成员数、全球占比、约束力级别、影响力评级和其他 sheet 均不入库、不参与候选或 manifest。
-- 当前候选唯一输入为 `联盟组织列表1.0.xlsx` SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102` 的首个 sheet `联盟组织`、范围 `A1:K51`：45 条数据行进入逐项 Review，5 条分组标题行不是实体。
-- 45 条候选四个目标字段均非空，名称和规范化缩写均无重复。`UJR` 与 `CCAS` 的源缩写末尾各有一个 U+200C；候选规范化只删除该不可见字符，不做其他名称、缩写、主导方或影响说明的语义纠正。
-- `leadership_summary` 直接保存“核心主导方”源文本。本阶段不得从该文本自动生成 `led_by`；如未来需要关系化，仍须在 Package 2 具备独立证据并随关系候选 Review。
-- Package 1 已于 2026-07-14 获人工批准：45 条全部 approve，9 keep + 36 create，现有 10 条为 9 keep + OECD future forward inactivate；批准输入冻结为 `approved-alliance-manifest.md` v1 checksum `4e5be67e7c87871de0958862b62c453e08d8fbb5b6ce138904d053a58864ef5a`。旧 68 条 provisional Review 明确 superseded，不允许两套候选并存。
-- 版本化且带 checksum 的 approved manifests 定义本 change 授权范围：alliance manifest 覆盖最终 active keys 和现有 active 的 `keep/merge/inactivate`；economy exception manifest 只覆盖逐项批准的冲突/重复/错误；member manifest 对 10 个 resolved target alliance scope 精确收敛，并穷尽分类现有 active edge 为 keep、preserve 或 proposed inactivate。
-- alliance merge 继续保留 approved target 稳定 identity，source 只做 forward inactivate；合法 economy 不因不属于当前联盟成员全集而停用；stale `member_of` 保留 edge identity/provenance 后再按批准原因转 inactive。
-- `member_of` 仍固定 `economy -> alliance_org` 且只表达 formal active。Package 2 已批准 10 个 resolved formal sets、79 个 economy 与 133 条候选；旧 223 条分为 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 OECD proposed_inactivate。preserve tuples 不属于本批 target tuple，保持原样且不阻断局部 MVP。
-- 21 个 participant/signatory/framework/no-formal-membership 不生成 `member_of`；`participates_in`、`signatory_to` 等替代语义移至后续独立 relation-semantics change，本 change 不扩展 policy/schema。
-- 所有收敛只允许 versioned forward migration/convergence 与幂等事务，禁止 `TRUNCATE`、无谓词 DELETE、清空重灌、历史 rollback 或手工修表。
-- PostgreSQL 是本 change 的唯一事实源和完成边界；Neo4j 仍不在本 change。与 `refactor-industry-chain-node-foundation` 共享的源码、migration tests 和 PostgreSQL 状态在其 Deliver 且进入最新 `origin/main` 前保持冻结。
+- **BREAKING**：将 `alliance_org_profiles` 最小目标收敛为 `entity_id`、`abbreviation`、`leadership_summary`、`influence_scope_summary`。名称与规范名称只进入 `entity_nodes.name/canonical_name`；非空缩写按既有识别惯例派生为 alias。
+- 不保存 `categories`、大类、子类、成员数、全球占比、约束力级别、影响力评级或其他 sheet；不新增实体标签机制。
+- 保持 `economy_profiles` 现有 `country_code/currency_code/region` 三字段，不新增 `identity_kind`、区域/货币规则或全局 `entity_key` 唯一约束。79 条 approved economy 以冻结 artifact 的既有 identity 表达；EU/global 等聚合不得替代国家成员事实。
+- 冻结 approved data artifact：45 alliance、79 economy、133 条 `economy -> alliance_org` formal-active `member_of`。旧 223 条 disposition/preserve 策略不再是执行契约。
+- 实现只包含必要 alliance schema/domain/repository 最小适配，以及一个仅服务本 change 的 importer；优先复用现有 entity-seed/repository，单事务或明确 fail-closed 两阶段、幂等、可重放。
+- local 探索环境允许对联盟、经济体及其关系做精确 scoped cleanup 后按最新 manifest 重建。该破坏性豁免不适用于 UAT、prod 或 shared，也不构成当前写入授权。
+- R1 必须先完成只读 dependency audit，枚举表、FK、关系类型/count 和跨域事实。仓库 fixture 已知除 `member_of` 外还有 40 条 `economy -> market` 的 `has_market`；其删除丢弃或保留/重建必须由主对话逐项决定，未决时阻断 cleanup。
+- Package 4 分为两个独立人工授权包：4.1 R3 scoped local cleanup；4.2 R2 latest manifest rebuild。无 backup、rollback 或恢复演练要求，但每包仍须展示环境、范围、count/hash、顺序、断言和停止条件。
+- cleanup 后必须验证目标范围为零；rebuild 后必须精确验证 45/79/133、端点完整、无孤儿、无重复、方向正确和幂等复跑。
+- PostgreSQL 是唯一事实源和完成边界；Neo4j 不在本 change。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `alliance-economy-foundation`: 定义联盟四业务字段映射、economy identity/ISO 边界、Excel 候选来源和“联盟确认 → 补齐经济体 → 建立成员关系”的完整性门禁。
+- `alliance-economy-foundation`: 定义联盟四业务字段、approved 45/79/133 manifest，以及 local scoped cleanup/rebuild 的强门禁和完整性断言。
 
 ### Modified Capabilities
 
-- `event-knowledge-schema`: 收敛联盟 entity/profile 字段并补充 economy 聚合身份与 ISO 边界。
-- `entity-foundation-seeds`: 定义 Excel 候选 Review、稳定 identity 复用、exact diff、统一 master-data R2 与幂等验证。
-- `entity-relationship-curation`: 定义 formal-active `member_of`，并禁止从“核心主导方”文本自动产生 `led_by`。
+- `event-knowledge-schema`: 收敛联盟 entity/profile 字段，不改变 economy profile schema。
+- `entity-foundation-seeds`: 定义 change-specific importer、scoped cleanup/rebuild、幂等与 exact Query。
+- `entity-relationship-curation`: 定义 formal-active `member_of` 重建边界，并禁止从“核心主导方”文本自动生成 `led_by`。
 
 ## Impact
 
-- 未来 Apply 预计影响 `backend/migrations/`、`backend/data/entity_foundation/`、`backend/internal/apps/entityfoundation/seed/`、`backend/internal/repositories/` 及对应 Go/migration tests；本 R0 checkpoint 只修改当前 change artifacts。
-- 不修改源工作簿、旧 CSV、`prototype/`、项目外 `doc/` 或 graphprojection 源码；不做网页研究。
-- 当前不执行 migration、seed、PostgreSQL/Neo4j 写入、投影重建、清理、完成态 PR 或 merge。
+- R1 预计只影响 `backend/migrations/`、`backend/data/entity_foundation/`、`backend/internal/apps/entityfoundation/seed/`、`backend/internal/repositories/`、最小 CLI 入口及对应测试；不得引入通用 manifest framework、service 层、relationship policy engine、复杂 dry-run/report 或任意实体 mapping framework。
+- R1 只生成源码、测试、冻结 artifact 和只读 Review package；不得 apply migration、执行 seed、写 PostgreSQL、连接/写 Neo4j、创建 backup 或自动进入 Package 4。
+- 不修改源工作簿、`prototype/`、项目外 `doc/`、UAT、prod 或 shared 环境。

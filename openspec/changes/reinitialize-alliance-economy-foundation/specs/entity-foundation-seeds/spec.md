@@ -1,47 +1,57 @@
 ## ADDED Requirements
 
-### Requirement: 联盟与 Economy 候选及 Master Data 准入
-系统 SHALL 在正式 seed 前按 package 审阅联盟与 economy 候选，并复用一致的现有稳定 identity；候选材料、Review 清单和 dry-run 不等于写入授权。
+### Requirement: Change-Specific Alliance Economy Importer
+系统 SHALL 为本 change 提供一个只接受 frozen approved artifact 的最小 importer，优先复用现有 entity-seed/repository，并拒绝演变为通用数据导入框架。
 
-#### Scenario: 审阅联盟候选清单
-- **WHEN** 系统准备联盟 seed
-- **THEN** 必须先提交四字段 data contract 和 45 条 Excel 逐项候选清单，展示源 sheet row、四字段源值、仅 U+200C 的 normalization、entity key、派生 abbreviation alias、人工最终 decision、现有 exact diff，并穷尽列出每个现有 active alliance disposition；未确认项不得进入正式 seed 或 convergence
+#### Scenario: 加载 Frozen Artifact
+- **WHEN** importer 启动 preflight 或获授权的 rebuild
+- **THEN** 必须验证固定版本、checksum、45 alliance、79 economy、133 `member_of`、四个联盟字段、端点和方向；不接受 Excel、旧 CSV、旧 223 disposition 或任意外部 manifest 作为执行输入
 
-#### Scenario: 执行已批准 Schema 校验
-- **WHEN** 后续 loader/validator 验证联盟或 economy 候选
-- **THEN** 必须执行 name/canonical 非空、abbreviation/aliases 长度与 NFKC + casefold 去重、非空 leadership/influence summary、四类 economy identity、受控 `MULTI`、active country code 唯一、全局 stable `entity_key` 唯一及兼容 region 规则；不得要求或写入 categories
+#### Scenario: 限制实现范围
+- **WHEN** 开发者实现 importer
+- **THEN** 只能增加本批所需的 loader/validator、最小 repository 适配和固定入口，不得增加通用 service、policy engine、任意实体 mapping framework、计划语言或复杂 dry-run/report 子系统
 
-#### Scenario: 联盟确认后审计 Economy 差异
-- **WHEN** 已批准联盟的官方 formal active 成员全集形成
-- **THEN** 系统必须与现有 economy 实体做集合与 identity 差异审计，复用一致的 entity key/UUID，并为缺失成员形成包含中文名、英文名/aliases、identity kind、ISO 3166 code、currency、region 和来源的候选清单
+#### Scenario: 保持 Economy 现有结构
+- **WHEN** importer 映射 approved economy
+- **THEN** 必须写入现有 `country_code/currency_code/region` profile，不得要求 `identity_kind`、新区域/货币规则或全局 `entity_key` 唯一索引
 
-#### Scenario: Economy 与关系候选统一 Review
-- **WHEN** economy 差异审计发现缺失或 identity 冲突
-- **THEN** 必须先在 Package 2 内完成 economy diff/exception/protection，再连续生成 resolved scope 的 `member_of` manifest 和现有关系 preserve/proposed-inactivate disposition，并将两者作为一个完整候选包提交业务 Review；未获确认不得生成可执行 seed 或写 PostgreSQL
+### Requirement: Read-Only Dependency Preflight
+系统 SHALL 在 R3 cleanup Review 前输出可审计的只读 dependency package，且不得在 R1 执行 migration、seed 或 database write。
 
-#### Scenario: 统一 Master Data 幂等写入与查询
-- **WHEN** 后续 Apply 获得有状态授权
-- **THEN** R2A 必须把必要 schema、alliance 与 economy forward convergence 组成一个精确、单事务的 master-data 执行包，按 `Review → Write → Query` 输出 created、updated、inactivated、merged、unchanged、failed、identity 冲突和非目标保护统计；R2A Query 未验收不得进入独立 R2B relationship 执行包
+#### Scenario: 报告目标与引用
+- **WHEN** preflight 审计 local PostgreSQL
+- **THEN** 必须按表、FK、relation type、方向和 endpoint type 报告目标 counts/hash，并覆盖 alliance/economy profiles、entity edges、external identifiers 以及 market/sector/industry-chain/company/person 等对 economy 的引用
 
-#### Scenario: 生成 Alliance Exact Diff
-- **WHEN** approved alliance manifest 与现有 PostgreSQL 比较
-- **THEN** dry-run 必须输出最终 active set、每个 keep/create/merge/inactivate、原因、旧/新 identity、profile/alias/关系影响、预计 counts 和 manifest checksum；现有 active 未被穷尽覆盖时必须失败
+#### Scenario: 报告跨域事实
+- **WHEN** 发现不由 45/79/133 重建的 economy/alliance 跨域关系或引用
+- **THEN** preflight 必须逐类列为“删除并丢弃”或“保留/重建”候选，未获人工决定即 fail-closed，不得由 importer 静默级联删除
 
-#### Scenario: 生成 Economy Exception Diff
-- **WHEN** approved economy candidates 与现有 economy 比较
-- **THEN** dry-run 必须只把逐项批准的 identity 冲突、重复或明确错误列为 merge/inactivate，并把其他合法 economy 纳入保护快照，不得以联盟成员全集作为删除或停用范围
+#### Scenario: 防止错误环境
+- **WHEN** 环境不能被明确证明为获批 local 探索数据库
+- **THEN** cleanup/rebuild 入口必须拒绝执行，不得把 local 豁免推广到 UAT、prod 或 shared
 
-#### Scenario: 拒绝破坏性 Seed 重置
-- **WHEN** seed 或 convergence 实现准备收敛现有数据
-- **THEN** 系统必须拒绝 `TRUNCATE`、无谓词 DELETE、清空后重灌、未审阅 stale 清理或历史 migration rollback
+### Requirement: Scoped Cleanup 与 Latest Rebuild
+系统 SHALL 把 cleanup 与 rebuild 实现为两个独立、可审阅、fail-closed 的执行包；前者为 R3，后者为 R2。
 
-#### Scenario: 不从 Excel 自动生成 seed
-- **WHEN** 联盟 Excel 包含 45 条候选、大类、子类、成员数、评级或其他非目标列/sheet
-- **THEN** loader、转换工具或 seed 流程不得将工作簿直接写入正式 JSON、PostgreSQL 或 Neo4j；只有人工批准的四字段 manifest 才能成为未来 mapping-only seed 输入
+#### Scenario: 精确清理并断言 Zero
+- **WHEN** 4.1 R3 获得明确授权且 preflight 未漂移
+- **THEN** importer 必须只按已批准表、谓词、relation types 和跨域处置清理 local scope，并在提交/进入下一包前证明批准的 alliance/economy/member scope 为零
 
-### Requirement: 联盟与 Economy seed 自动化验证
-系统 SHALL 对联盟/economy migration、loader、validator、repository、dry-run 和 report 提供自动化验证。
+#### Scenario: 精确重建并查询
+- **WHEN** 4.1 zero Query 已验收且 4.2 R2 获得独立授权
+- **THEN** importer 必须以单事务或明确 fail-closed 边界重建 45/79/133，并输出 exact counts、端点、方向、孤儿、重复、checksum 和失败统计
+
+#### Scenario: 幂等复跑
+- **WHEN** 对已经符合 frozen manifest 的 local 数据再次运行 4.2
+- **THEN** 不得创建重复 entity/profile/edge 或改变集合，Query 必须报告 45/79/133 仍精确成立
+
+#### Scenario: 漂移时停止
+- **WHEN** 环境、manifest checksum、preflight count/hash、FK/关系类型、跨域决策或 Query assertion 与授权包不一致
+- **THEN** importer 必须停止且不得把旧批准解释为扩大 scope 的权限
+
+### Requirement: 联盟与 Economy Rebuild 自动化验证
+系统 SHALL 对最小 migration、manifest validator、repository/importer、dependency classification、原子性、zero/post assertions 与幂等提供 targeted tests。
 
 #### Scenario: 运行验证
 - **WHEN** 开发者验证本 change 实现
-- **THEN** 相关包测试、migration 静态或可重复 integration tests、受影响交付边界完整 suite、共享 architecture/contract tests 与 OpenSpec strict validation 必须通过，并证明未写入未审阅候选；repo-wide full test 仅在项目规则触发时运行
+- **THEN** 相关包测试、migration 静态或隔离 integration tests、受影响 backend suite、共享 architecture/contract tests 与 OpenSpec strict 必须通过；普通测试不得访问真实外部网络或写真实 PostgreSQL/Neo4j

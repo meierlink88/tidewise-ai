@@ -1,67 +1,57 @@
 ## ADDED Requirements
 
-### Requirement: 联盟关系类型、方向与候选层
-系统 SHALL 对 `member_of`、`led_by`、`part_of` 使用明确方向、端点类型与证据，并在同一候选 package Review 中以 `member_of` 作为不被其他两层阻塞的 MVP 核心关系。
-
-#### Scenario: 先分类 Membership Model
-- **WHEN** Package 2 审计一个已批准 alliance
-- **THEN** 必须先将其分类为 `formal_member_set`、`rotating_or_term_bound` 或 `participant/signatory/framework/no_formal_membership`；只有可由官方来源穷尽且端点契约可准确表达的 formal active set 才能生成 `member_of`，其余必须 not-applicable 或 blocked，不得生成部分集合冒充完整 manifest
+### Requirement: Formal-Active Member Of 重建范围
+系统 SHALL 只把 approved formal-active economy membership 重建为 `economy -> alliance_org member_of`，并把其他关系语义排除出本 change。
 
 #### Scenario: 建立正式成员关系
-- **WHEN** economy 是联盟官方来源列明的 active 正式成员
-- **THEN** 系统必须使用 `economy -> alliance_org` 的 `member_of`，在候选 Review 中展示 formal active 身份与冲突报告，并在正式 edge 保存官方来源名称、URL 和核验时间
+- **WHEN** frozen artifact 中的 economy 是官方来源列明的 active 正式成员
+- **THEN** importer 必须使用 economy → alliance_org 的 `member_of`，并保留 approved source、核验时间和 endpoint stable keys
 
-#### Scenario: 排除非正式或非 active 成员身份
-- **WHEN** 候选身份是 observer、partner、applicant、suspended 或 former
-- **THEN** 系统不得将其写为 active `member_of`；如需结构化表达，必须先通过关系契约 Review，不能自行新增 relation type
+#### Scenario: 排除非正式身份
+- **WHEN** 候选身份是 observer、partner、applicant、suspended、former、participant、signatory 或 framework participant
+- **THEN** 系统不得将其写为 active `member_of`，也不得在本 change 新增 relation type
 
-#### Scenario: 建立有证据的主导关系
-- **WHEN** 联盟存在可解析且有证据的明确核心主导 economy 或 alliance organization
-- **THEN** 系统可以在独立候选层提出 `alliance_org -> economy/alliance_org` 的 `led_by`；Excel 的“核心主导方”只保存为 `leadership_summary`，不能单独充当关系证据，“多边”“轮值”或无法解析的文本不得生成虚假实体或关系
+#### Scenario: 排除可选关系
+- **WHEN** alliance profile 包含核心主导方文本或候选材料提及下属机制
+- **THEN** 不得自动生成 `led_by` 或 `part_of`；`participates_in`、`signatory_to` 也不在本 change
 
-#### Scenario: 建立正式隶属关系
-- **WHEN** 某已批准下属机构或机制与上级联盟组织存在可审计的正式隶属关系
-- **THEN** 系统可以在独立候选层提出 `alliance_org -> alliance_org` 的 `part_of`，不得用合作、主题相关或共同成员替代隶属
+### Requirement: 废止旧 Member Of Disposition 策略
+系统 SHALL 在 local 探索重建中以 latest approved 133 tuples 作为最终基线，不维护旧 223 条边的 keep/preserve/proposed-inactivate 执行策略。
 
-#### Scenario: 可选附录不阻塞核心 MVP
-- **WHEN** `led_by` 或 `part_of` 在 Package 2 截止时证据不足、存在未决冲突或未获同一次业务 Review 批准
-- **THEN** 必须将其排除出本次 MVP，alliance、economy 与 `member_of` 核心可以继续排队，且不得顺带写入未审阅关系
+#### Scenario: 读取旧 Disposition
+- **WHEN** Review 历史包含 31 keep、160 preserve_unresolved、10 preserve_pending_retype 或 22 proposed_inactivate
+- **THEN** importer 必须忽略其执行语义，不实现 preserve policy、forward inactivate 或全库 convergence engine
 
-### Requirement: Member Of 候选与写入闭环
-系统 SHALL 在联盟 manifest 确认后，于 Package 2 内依次完成 economy 审计并生成版本化的 resolved-scope formal-active `member_of` manifest，在 package 末统一 Review，并穷尽分类现有 active `member_of` 为 `keep`、受保护保留或 `proposed_inactivate`。PostgreSQL 写入前后 MUST 验证端点、成员身份、来源、resolved scope 集合相等与受保护 tuple 快照不变；禁止在 resolved scope 内仅新增而保留未经处置的过期 active edge。
+#### Scenario: 重建后核对集合
+- **WHEN** 4.2 relationship rebuild 完成
+- **THEN** active formal `member_of` 目标集合必须精确等于 approved 133 tuples，且每条边方向正确、两端存在且 active、无孤儿或重复
 
-#### Scenario: 生成成员关系候选
-- **WHEN** 联盟 manifest 已确认，且 Package 2 已依次形成官方成员全集并完成 economy diff/exception/protection 审计
-- **THEN** 候选清单必须逐条包含方向、两端 entity key、formal active 身份、官方来源、核验时间、现有 edge 差异与冲突，并穷尽覆盖每条现有 active `member_of`；不得依赖 Excel 成员数字段
+### Requirement: Cleanup 前关系依赖审计
+系统 SHALL 在 R3 cleanup 授权前只读枚举 alliance/economy 端点涉及的全部 relation types 和 counts，区分本批 `member_of` 与跨域事实。
 
-#### Scenario: 分类过期 Active Member Of
-- **WHEN** 现有 active `member_of` 不在本批 resolved formal-active tuple set 中
-- **THEN** manifest 必须将其分类为 `preserve_unresolved`、`preserve_pending_retype` 或 `proposed_inactivate`，展示 resolution gap、provenance、关系影响和预计 counts；只有获批 proposed inactivate 可在 R2B 独立授权后转 inactive，preserve tuple 必须保持原样
+#### Scenario: 区分 Member Of 与 Has Market
+- **WHEN** dependency audit 检查仓库 fixture 或真实 local `entity_edges`
+- **THEN** 必须分别报告 economy → alliance_org `member_of` 与 economy → market `has_market`；fixture 已知基线为 223 与 40，真实 local counts 必须在执行前刷新
 
-#### Scenario: 阻止未决来源冲突
-- **WHEN** resolved target scope 内正式成员来源互相冲突且 Review 尚未决定 disposition
-- **THEN** 系统必须阻止该 resolved scope 的 member convergence Write；scope 外已批准 `preserve_unresolved` 不阻断本批，但不得自动停用、重解释或创建 relation type
+#### Scenario: 审阅其他跨域关系
+- **WHEN** 发现 economy/alliance 与 market、index、benchmark、industry chain、company、person 或其他实体的关系
+- **THEN** 必须列出 relation type、方向、端点、count/hash，并提交“删除并丢弃”或“保留/重建”决定；未决时阻止 cleanup
 
-#### Scenario: Master Data Query 未验收时阻止关系写入
-- **WHEN** R2A master-data Write 后 Query 尚未获得人工验收
-- **THEN** 系统不得请求或执行 `member_of` Write
+#### Scenario: 保护未授权跨域事实
+- **WHEN** 4.1 R3 cleanup 获得授权
+- **THEN** 只能改变 Review package 明确批准的 relation scope；未授权跨域 tuple 的 pre/post identity、端点、type 与 status 必须不变
 
-#### Scenario: 写入后核对正式成员集合
-- **WHEN** `member_of` Write 完成
-- **THEN** Query 必须证明所有候选端点存在且 active、无重复/悬空/错误方向，resolved target alliance scope 扣除显式 `preserve_pending_retype` 后与 133 条 approved candidates 集合相等，并按联盟与同一官方正式成员来源逐项核对；不得要求全库 active `member_of` 等于该局部 manifest
+### Requirement: Cleanup 与 Relationship Rebuild 独立授权
+系统 SHALL 在 4.1 R3 中先完成 approved relation scope cleanup/zero Query，再在 4.2 R2 中重建 133 条关系；两者不得合并推定授权。
 
-#### Scenario: 保护未解析与待重分类关系
-- **WHEN** R2B 执行本批 resolved candidates 或 OECD proposed inactivate
-- **THEN** Query 必须证明 160 条 `preserve_unresolved` 与 10 条 `preserve_pending_retype` 的 edge identity、端点、relation type、status 和 provenance 与 pre-write 快照一致；任一变化必须失败并回滚
+#### Scenario: Cleanup Zero Gate
+- **WHEN** 4.1 完成
+- **THEN** Query 必须证明获批旧 alliance/economy membership scope 为零，并证明未授权跨域事实未变化；失败时不得进入 rebuild
 
-#### Scenario: 非正式机制关系语义后置
-- **WHEN** alliance 被分类为 `participant/signatory/framework/no_formal_membership`
-- **THEN** 本 change 不得为其生成 `member_of` 或扩展 `participates_in`、`signatory_to` 等 policy/schema；替代语义必须进入后续独立 relation-semantics change
+#### Scenario: Rebuild Exact Gate
+- **WHEN** 4.2 获得独立授权并执行
+- **THEN** Query 必须证明 133 条 approved tuples 集合相等、来源字段有效、端点 active、无孤儿/重复、方向正确且幂等复跑不改变集合
 
-#### Scenario: 保留 Inactive Edge 审计
-- **WHEN** stale `member_of` 获批转 inactive
-- **THEN** 系统必须保留原 edge identity 与 provenance，使用 forward convergence 更新状态，不得删除 edge、清空关系表或把历史身份改造成未经批准的新 relation type
-
-#### Scenario: 在同一 R2B 包中执行已批准可选关系
-- **WHEN** `led_by` 或 `part_of` 已具备完整证据且在 Package 2 同一次业务 Review 中获批
-- **THEN** R2B 可以将其与 approved `member_of` 一并列入精确 manifest、影响范围和 Query 断言；否则必须排除，不得增加阻塞核心 MVP 的额外人工门禁
+#### Scenario: 禁止 Neo4j 写入
+- **WHEN** PostgreSQL cleanup 或 rebuild 执行
+- **THEN** 不得连接、写入或重建 Neo4j；图投影由后续独立 change 处理

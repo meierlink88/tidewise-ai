@@ -1,201 +1,146 @@
 ## Context
 
-当前 `origin/main` 包含 10 个 `alliance_org`、50 个 economy 与 223 条 active `member_of`。`alliance_org_profiles` 仍是 `org_code/org_type/primary_domain/scope_region/official_url`，`economy_profiles` 只有 `country_code/currency_code/region`；现有关系 validator 只允许 `economy -> alliance_org` 的 `member_of`，graph mapper 尚无 `led_by` 与 `part_of` 映射。Neo4j 已采用单一 `Entity` label，PostgreSQL 是事实源。
+最新 `origin/main` 的仓库 fixture 基线为 10 个 `alliance_org`、50 个 economy、223 条 active `member_of`，另有 40 条 `economy -> market` 的 active `has_market`。`alliance_org_profiles` 仍是 `org_code/org_type/primary_domain/scope_region/official_url`；`economy_profiles` 已能以 `country_code/currency_code/region` 表达本批批准的 79 条数据。Package 1、2 已冻结 45 个 alliance、79 个 economy 和 133 条 formal-active `member_of`。
 
-当前唯一候选真值源是 `联盟组织列表1.0.xlsx` SHA-256 `ac0d953c0cd93596fe6bf8a70541bbe658620e75d38a9b3178980071b2cdc102` 的首个 sheet `联盟组织`、范围 `A1:K51`。其中 45 条数据行进入候选 Review，5 条分组标题行不是实体。旧 `表格_20260713.csv` 的 68 条候选、推荐结论和网页核验结果整体 superseded，只保留为 Git 历史，不能继续参与当前 manifest。
-
-本 change 与 active 的 `refactor-industry-chain-node-foundation` 在 `backend/internal/apps/entityfoundation/seed/`、repository、migration 测试与 PostgreSQL 写状态上重叠。两者只允许并行设计；本 change 的 Apply 必须等待产业链 change 完成 Deliver，再从最新 `origin/main` 重新审计 migration 序号、数据结构、测试和写入顺序。
+本 change 现在明确收缩为 local PostgreSQL 探索环境的一次性业务数据重建。它不是通用导入产品，不为未来任意 manifest、entity type 或 relation type 建框架。R1 只准备 change-specific importer、最小 migration/repository 适配、测试和只读执行包；所有写入仍由 Package 4 单独授权。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- 保持 `entity_nodes` 为联盟和 economy identity、名称、aliases、状态的唯一事实源，建立最小联盟 profile。
-- 明确 economy 的主权国家、地区经济体、超国家聚合和全球聚合边界，并复用合格的稳定 identity。
-- 建立“联盟确认 → 官方成员全集 → 补齐 economy → 建立成员关系”的不可跳过依赖链。
-- 只将 active 正式成员建模为 `member_of`，并以官方来源和关系计算闭环验证成员数。
-- 将 `led_by`、`part_of` 作为 Package 2 的非阻塞可选附录，保留其价值但不阻塞核心 MVP。
-- 未来 Apply 全程 TDD，以两个 local PostgreSQL R2 完成事实源收敛并减少重复人工门禁。
+- 联盟名称只保存在 `entity_nodes`；`alliance_org_profiles` 只保留 abbreviation、leadership summary、influence scope summary。
+- 冻结并校验 approved 45/79/133 data artifact。
+- 复用现有 entity-seed/repository，提供一个 change-specific、fail-closed、幂等、可重放 importer。
+- 先只读审计目标数据的 FK 和跨域关系，再以独立授权的 R3 cleanup 与 R2 rebuild 完成 local 探索基线。
+- cleanup 后验证 scoped zero；rebuild 后验证 45/79/133、端点、方向、孤儿、重复和幂等。
 
 **Non-Goals:**
 
-- 不实现产业链、市场、benchmark/index、事件抽取或推理、观测数据、实体标签机制、股票推荐。
-- 不保存工作簿大类、子类、成员数、全球占比、约束力级别、影响力评级或其他 sheet 内容。
-- 不把观察员、伙伴国、申请国、暂停成员或退出成员自动扩展为新 relation type。
-- 不实现或执行 Neo4j graph mapping、Review、Rebuild 或 Query；图投影由后续独立 change 处理。
-- 不修改 `prototype/` 或项目外 `doc/`；当前不修改源码、migration、seed 或数据库。
+- 不建设通用 manifest framework、通用 service、relationship policy engine、mapping-only framework 或复杂 dry-run/report 子系统。
+- 不新增 `economy_profiles.identity_kind`、区域/货币 schema 规则、全局 `entity_nodes.entity_key` 唯一索引或平行 profile 表。
+- 不实现 `led_by`、`part_of`、`participates_in`、`signatory_to`、API、graph policy 或 Neo4j。
+- 不处理产业链、市场、benchmark/index、事件推理、观测数据、实体标签或股票推荐。
+- 不把 local 清理豁免推广到 UAT、prod 或 shared。
 
 ## Decisions
 
-### 1. 复用通用实体与关系基础，而不是建立联盟平行模型
+### 1. 最小 schema 演进
 
-推荐方案是继续使用 `entity_nodes`、`economy_profiles`、`alliance_org_profiles` 和 `entity_edges`，只增量调整 profile、identity validation 与关系 allowlist；graph projector 不在本 change 修改范围。
+`entity_nodes` 继续承载 identity、name、canonical name、aliases 和 status，不增加全局 identity 约束。`economy_profiles` 保持现有三字段结构：
 
-考虑过的替代方案：
+```text
+entity_id, country_code, currency_code, region
+```
 
-- 新建联盟专属 node/edge 表：可局部强类型，但会复制通用 identity、provenance、幂等写入和图投影，拒绝。
-- 使用 JSONB 或实体标签承载联盟属性：迁移快，但会复制 profile 语义并与“不新增实体标签机制”冲突，拒绝。
-- 将 Excel 直接转换为 seed：速度快，但会跳过联盟 exact disposition、economy 与关系 Review，拒绝。
-
-### 2. 联盟 profile 只保留已批准最小字段
+本 change 的 migration 只把现有 `alliance_org_profiles` 原地演进为：
 
 | 字段 | 目标契约 |
 |---|---|
 | `entity_id` | `UUID` PK/FK，指向 `entity_type=alliance_org` 的 `entity_nodes` |
-| `abbreviation` | `TEXT NOT NULL DEFAULT ''`，`btrim` 后最长 32 字符；无正式简称用空串，不保存 `—`；非空时必须同时存在于 aliases；不做全局唯一，冲突进入 Review |
-| `leadership_summary` | `TEXT NOT NULL`、无 default，`btrim` 后非空且最长 500 字符；只写可审计的治理/主导方式摘要，“多边”“轮值”保留为文本 |
-| `influence_scope_summary` | `TEXT NOT NULL`、无 default，`btrim` 后非空且最长 1000 字符；描述客观影响范围，不保存评级或投资判断 |
+| `abbreviation` | `TEXT NOT NULL DEFAULT ''`，`btrim` 后最长 32；非空值进入 aliases；不全局唯一 |
+| `leadership_summary` | `TEXT NOT NULL`、无 default，`btrim` 后非空，最长 500 |
+| `influence_scope_summary` | `TEXT NOT NULL`、无 default，`btrim` 后非空，最长 1000 |
 
-工作簿四个业务输入字段按一对一规则映射：名称同时进入 `name/canonical_name`，缩写进入 `abbreviation`，核心主导方进入 `leadership_summary`，核心影响范围说明进入 `influence_scope_summary`。aliases 只按既有识别惯例从非空缩写派生，不是额外业务输入；既有合法 aliases 可在 identity convergence 中保留。候选只对 `UJR`、`CCAS` 的源缩写删除末尾 U+200C，其他源文本不做语义纠正。工作簿“大类”“子类”不生成 profile 字段、标签或关系。
+不得创建平行 v18 profile 表，也不得在 profile 重复保存 name 或恢复 categories。migration 只处理这三个业务字段及旧列的最小兼容/移除；执行顺序和现有行处理必须进入 Package 4 执行包。
 
-现有 `org_code/org_type/primary_domain/scope_region/official_url` 不属于目标 profile。未来 migration 必须以增量 forward migration 和 reviewed seed 完成转换，不清空 `entity_nodes`，不复用 profile 字段保存新语义；旧列何时移除需在 R2A `master-data` Review 展示兼容性与 forward-fix 边界。
+### 2. Economy 采用 approved artifact，不扩 schema
 
-### 3. economy identity 与 ISO 契约显式区分聚合身份
+79 条 economy 继续使用现有 `entity_nodes` identity 与 `economy_profiles.country_code/currency_code/region`。主权国家、地区经济体、EU/global 聚合的业务边界由冻结 manifest 与 validator 检查，不转化为新数据库列。EU/global 不得替代国家端点，`economy:global` 不生成 `member_of`。如果 R1 证明某条 approved economy 无法用现有三字段表达，必须携最小证据回到 R0 Review，不能自行扩表。
 
-`entity_nodes.entity_key` 继续是内部稳定 identity；`economy_profiles.country_code` 是受控代码，不被笼统声明为全部都是 ISO 国家代码。目标 profile 增加 `identity_kind`：
+幂等依赖 manifest 中冻结的 stable key、现有 repository 查询和事务内 preflight；不以全局 `entity_key` 唯一索引扩大本批影响面。如果现有机制无法安全实现，先停止并回到 Review。
 
-| `identity_kind` | `country_code` 规则 | 示例边界 |
-|---|---|---|
-| `sovereign_state` | 必须是 ISO 3166-1 alpha-2 | 普通主权国家 |
-| `territory_economy` | 必须是适用的 ISO 3166-1 alpha-2 | 中国香港、中国台湾等独立统计经济体，中文命名服从主规格 |
-| `supranational_aggregate` | 使用明确保留的内部 code，不宣称为主权国家 ISO | `economy:eu` / `EU` |
-| `global_aggregate` | 使用明确保留的内部 code | `economy:global` / `GLOBAL` |
+### 3. Approved artifact 是重建唯一输入
 
-`currency_code` 与 `region` 继续是 economy profile 必要字段。`MULTI` 只允许 `global_aggregate`、经批准的 `supranational_aggregate`，或主权/地区 economy 的逐项批准多法定货币例外；其他情况 fail-closed。`country_code` 不建立无条件全表唯一约束，改由 validator、manifest 和 Query 保证同一 code 只有一个 approved active economy；`entity_key` 在 preflight 清理空值/重复后建立全局唯一约束，merged source 保留自身不同 stable key。现有 `africa`、`asia`、`central_asia`、`europe`、`europe_asia`、`global`、`middle_east`、`north_america`、`oceania`、`south_america` 仅作为首轮兼容 allowlist，Package 2 逐项报告歧义，不在已批准 A contract 中另建区域体系。候选清单必须同时展示规范中文名、英文名/aliases、identity kind、ISO 3166 代码或“不适用”、currency、region、官方来源、现有 entity key/UUID 或拟新增 identity。`economy:eu` 不替代欧盟成员国，`economy:global` 不参与 `member_of`。
-
-### 4. 候选生成必须服从单向依赖链
-
-```mermaid
-sequenceDiagram
-    actor Reviewer as 主对话 Reviewer
-    participant Alliance as 联盟候选审阅
-    participant Source as 正式成员来源
-    participant Economy as Economy 差异审计
-    participant Relation as 关系候选审阅
-
-    Alliance->>Reviewer: 四字段 contract、45 条 Excel 候选与现有 exact disposition
-    Reviewer-->>Alliance: 确认批准联盟清单
-    Note over Source: 联盟未确认前不得冻结 economy 范围
-    Source->>Source: 为每个批准联盟读取可审计正式成员来源
-    Source->>Economy: 形成 active 正式成员 economy 全集
-    Economy->>Economy: 与现有 50 个 economy 做 identity/ISO 差异审计
-    Economy->>Relation: economy 候选、exception/protection manifest
-    Relation->>Relation: 生成穷尽 member_of manifest
-    Relation->>Reviewer: Package 2 完整候选与可选关系附录
-    Reviewer-->>Relation: 一次确认业务语义，不代表 Write 授权
-```
-
-联盟候选 Review 已逐项展示源 sheet row、四个源字段、规范化结果、目标 entity key 与 `create/keep` exact diff，并于 2026-07-14 获得 45/45 approve、9 keep + 36 create、现有 9 keep + OECD forward inactivate 的人工批准。该 Excel 不是可执行 seed；Package 2 只从各联盟正式来源形成成员候选。
-
-Package 2 先把 45 个联盟分类为 `formal_member_set`、`rotating_or_term_bound` 或 `participant/signatory/framework/no_formal_membership`。只有 formal set 且官方批量来源、active 身份与 economy endpoint identity 均可穷尽时才生成 `member_of`；任期制缺少有效期契约、聚合组织端点不兼容、成员状态冲突或 ISO identity 例外均标为 blocked，禁止生成部分集合冒充完整 manifest。
-
-### 5. Approved manifests 是现有状态收敛的唯一权威输入
-
-重新初始化不是“在现有数据上继续 upsert”。未来 Apply 必须生成两个版本化、带 checksum 和 Review 元数据的穷尽式 manifest，并在 Write 前对真实 PostgreSQL 做 exact diff：
-
-- **Alliance manifest**：列出最终允许 active 的 alliance entity keys；对每个执行时现有 active `alliance_org` 必须给出 `keep`、`merge` 或 `inactivate`。候选 `approve` 通常映射为 keep/create，`merge` 必须指定稳定 active target，`reject` 与 `defer` 不进入最终 active set并形成待 Review 的 inactivate proposal；任何未列出现有 active entity 都使 manifest 不完整并阻断 Write，不能被静默当作 stale。
-- **Member manifest**：列出 10 个 resolved target alliance scope 内批准的 133 个 `(economy_key, member_of, alliance_key)` formal-active tuples；对每条执行时现有 active `member_of` 给出 keep、preserve_unresolved、preserve_pending_retype 或 proposed_inactivate disposition。只有 scoped candidate 与 OECD proposed inactivate 可进入本 change 的未来 R2B mutation set；preserve tuples 是保护集，不因未解析语义阻断局部 MVP。
-- **Economy exception manifest**：只列出逐项获批的 `merge` 或 `inactivate` 异常。economy 不因未出现在当前联盟成员全集而 stale；未列入 exception manifest 的合法 economy 必须原样保留 entity key、UUID 和 status。
-
-每个 stale/inactivate/merge diff 必须展示 reason、旧/新 identity、aliases/profile 影响、受影响 `member_of`/其他关系、预计 created/updated/inactivated/unchanged counts 和非目标保护断言。未经对应 R2A 或 R2B package 的明确授权，不得应用任何处置；不再为 schema、alliance、economy 的同层技术步骤重复设置 gate。
-
-Alliance merge 采用 forward convergence：保留获批 target 的稳定 identity，source UUID/key 保留但变为 inactive；aliases 是否并入 target、profile 如何收敛及每条关系如何 rebind/inactivate 都必须由 manifest 逐项决定。系统必须在事务提交前证明不存在两个 active identity 指向同一批准联盟。不得删除 source entity、复用 source UUID 或按名称自动合并。
-
-Member convergence 不改变 `relation_type` 表达历史状态；22 条 OECD proposed inactivate 获未来 R2B 授权后保留原 edge identity/provenance 并转 inactive，133 条 resolved candidates 幂等 keep/create。160 preserve_unresolved 与 10 preserve_pending_retype 不修改、不停用；R2B Query 必须证明其 tuple identity/status/provenance 与 pre-write 快照一致。economy identity merge 的关系影响必须在 Package 2 manifest 和 R2A Query 中显式输出，并在 R2B 授权前以真实 target identity 刷新 exact diff。
-
-实现只允许版本化 forward migration/convergence command 与单事务幂等写入，禁止 `TRUNCATE`、无谓词 DELETE、清空关系后重灌或历史 migration rollback。执行时数据库基线与 manifest preflight checksum 不一致必须停止并重新 Review。
-
-最终集合断言固定为：
+当前执行目标固定为：
 
 ```text
-active alliance entity keys == approved alliance manifest active keys
-active member_of tuples where target in resolved_target_alliances
-  minus approved preserve_pending_retype tuples
-  == 133 approved formal-active candidate tuples
-preserve_unresolved tuples after == preserve_unresolved pre-write snapshot
-preserve_pending_retype tuples after == preserve_pending_retype pre-write snapshot
-unrelated legal economy keys/UUID/status after == protected pre-write snapshot
+alliance = 45
+economy = 79
+formal-active member_of = 133
 ```
 
-允许变化的 economy 只能来自 approved economy exception manifest；Query 必须逐项证明其处置及关系影响与 Review 一致。
+旧 223 条 `member_of` 的 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 proposed_inactivate 只保留为历史审阅证据，不再驱动写入。change-specific importer 不读取旧 disposition，不实现 preserve/convergence policy，也不自动接收 Excel 或任意外部 manifest。
 
-### 6. 三类关系分层，`member_of` 先闭环
+### 4. R1 只读 dependency audit 是破坏性 cleanup 前置条件
 
-| 关系 | 方向 | 端点 | 准入 |
-|---|---|---|---|
-| `member_of` | member → organization | `economy -> alliance_org` | 仅 active 正式成员；官方来源、核验时间、状态边界和冲突报告齐全 |
-| `led_by` | organization → leader | `alliance_org -> economy/alliance_org` | 仅明确、可解析且有证据的核心主导方；多边/轮值不建边 |
-| `part_of` | subordinate → parent | `alliance_org -> alliance_org` | 仅正式下属机构或机制，不能用主题相关或合作关系替代 |
+R1 Review package 必须对真实 local 环境刷新：
 
-`member_of` 候选必须区分 formal member、observer、partner、applicant、suspended、former。只有 formal active 进入 MVP；其他身份只留在 Review 报告。若未来需要表达，先人工批准关系/状态契约，不得自行扩展 `relation_type`。
+- `entity_nodes` 中 alliance/economy 目标行及状态；
+- `alliance_org_profiles`、`economy_profiles`；
+- `entity_edges` 的全部 relation type、方向、端点类型和 counts；
+- 所有引用目标 entity UUID 的 FK 与无 FK 的逻辑引用；
+- frozen artifact 的 count/checksum、重复、端点和方向。
 
-21 个 `participant/signatory/framework/no_formal_membership` 不生成 `member_of`。未来如需 `participates_in`、`signatory_to` 或其他替代关系，必须新建独立 relation-semantics change 重新 Review relation policy、端点、来源和 migration；不得在本 change 的 R1/R2B 顺带扩展。
+仓库当前静态依赖至少包括：
 
-每条 `member_of` 的两端必须存在且 active。写入后按批准联盟分组计算 active edge 数，并与同一官方来源的正式成员清单逐项集合比对；Excel“成员数”不进入本 change 输入。`leadership_summary` 源文本不能自动生成 `led_by`；`led_by` 与 `part_of` 只有另有充分证据且在 Package 2 同一 Review 获批才可进入 R2B，否则明确排除出本次 MVP。
+- profile：`alliance_org_profiles.entity_id`、`economy_profiles.entity_id`；
+- 关系：`entity_edges.from_entity_id/to_entity_id`，包括 223 条 fixture `member_of` 与 40 条 fixture `has_market`；
+- 跨域 profile：`market_profiles.economy_entity_id`、`sector_profiles.primary_economy_entity_id`、`industry_chain_profiles.primary_economy_entity_id`、`company_profiles.registration_economy_entity_id`、`person_profiles.economy_entity_id`；
+- 通用引用：`entity_external_identifiers.entity_id ON DELETE CASCADE`，以及其他以 `entity_nodes` 为 FK 的 profile、convergence/audit 表。
 
-### 7. 两个 Local PostgreSQL R2
+真实 local counts 尚未读取，必须在未来只读 preflight 刷新。尤其对 economy 与 market/index/benchmark/industry chain/company/person 等跨域事实，主对话必须明确选择“删除并丢弃”或“保留/重建”；未决即阻断 R3 cleanup，importer 不自行判断。
+
+### 5. Change-specific importer
+
+实现优先复用现有 entity-seed loader/repository/transaction 模式，只暴露本 change 所需的固定入口：
+
+1. 加载并严格验证仓库内冻结 artifact 的版本、checksum 和 45/79/133 counts；
+2. 只读 preflight 生成目标表、关系类型/count、FK/跨域引用和预计影响摘要；
+3. 在明确 R3 授权后执行 exact scoped cleanup，并做 zero assertions；
+4. 在明确 R2 授权后重建 45/79/133，并执行 exact Query；
+5. 同一 manifest 复跑无额外变化。
+
+它不接受任意路径/任意实体 schema，不生成通用计划语言，不提供通用 policy/service/report 抽象。若 cleanup 与 rebuild 无法在一个事务中安全完成，则采用两个 fail-closed 授权包；4.1 成功不自动授权 4.2。
+
+### 6. 两个有状态执行包
 
 ```mermaid
 sequenceDiagram
     actor Reviewer as 主对话 Reviewer
-    participant Apply as Apply/TDD 实现
-    participant PG as PostgreSQL
+    participant R1 as R1 只读审计/实现
+    participant PG as local PostgreSQL
 
-    Note over Apply: 先等待 refactor-industry-chain-node-foundation 完成 Deliver
-    Apply->>Apply: fetch/rebase 最新 origin/main，重做 overlap/preflight
-    Apply->>Apply: TDD 实现 + 自动 R1 技术验收，不 Write
-    Apply->>Reviewer: R2A master-data：schema + alliance + economy exact diff/recovery/assertions
-    Reviewer-->>Apply: 独立授权 R2A
-    Apply->>PG: 单事务 master-data Write
-    Apply->>PG: Query alliance set、economy exceptions、保护快照
-    Reviewer-->>Apply: R2A Query 验收
-    Apply->>Reviewer: R2B relationships：刷新 exact manifest/stale reasons/assertions
-    Reviewer-->>Apply: 独立授权 R2B
-    Apply->>PG: approved relationships Write
-    Apply->>PG: Query active tuples、端点、provenance、官方集合
-    Reviewer-->>Apply: R2B Query 验收
+    R1->>Reviewer: 表/FK/关系 count/hash、跨域处置候选、SQL 顺序和停止条件
+    Reviewer-->>PG: 独立授权 4.1 R3 scoped cleanup
+    PG->>PG: 精确清理批准范围并 Query scoped zero
+    Reviewer-->>PG: 独立授权 4.2 R2 latest manifest rebuild
+    PG->>PG: 重建 45/79/133 并 Query exact/idempotent
 ```
 
-R2A 与 R2B 各自只有一个人工授权点和一条 `Review → Write → Query`。R2A Query 未验收不得进入 R2B；R2B 只对 resolved target scope 与 OECD approved disposition 有 mutation authority，且必须保护 170 条 preserve tuples。任一失败使未执行授权失效。Neo4j 不在本 change 中执行，未来独立 graph projection change 只能读取本 change 已验收的 PostgreSQL facts。
+- **4.1 R3 scoped local cleanup**：仅 local 探索环境；无 backup、rollback 或恢复演练。执行前必须冻结真实 count/hash、跨域事实处置和精确谓词；执行后 alliance/economy/member_of 的批准 cleanup scope 必须为零，且未授权跨域事实不得变化。
+- **4.2 R2 latest manifest rebuild**：只写冻结 artifact 的 45/79/133。执行后集合相等、全部端点存在且 active、`member_of` 方向为 economy → alliance、无孤儿/重复；第二次执行结果 unchanged。
 
-### 8. 实现边界与 TDD
+两个包都必须独立人工授权。R1、普通 Apply、4.1 成功或旧授权均不能推定下一包授权。任一 count/hash/环境/依赖漂移、跨域处置未决、zero assertion 或 post-query 失败都必须停止。
 
-未来 Apply 复用 entityfoundation loader/service/repository，在一个 R1 package 内完成：
+### 7. TDD 与验证
 
-1. migration 静态测试先覆盖 profile 字段、`identity_kind`、约束、索引和非破坏性 forward migration；
-2. loader/validator table-driven tests 先覆盖四字段映射、U+200C 规范化、简称 aliases、economy identity/ISO、Excel 非目标列排除、manifest 穷尽性、disposition enum 和三类关系端点；
-3. repository fake/sqlmock 或明确标记的 PostgreSQL integration tests 先覆盖 exact diff、稳定 identity 复用、forward convergence、幂等 upsert/inactivate、merge 冲突、非目标 economy 保护与分层 report；
-4. mapping-only seed、dry-run/report 与关系 policy tests 覆盖 approved manifests、`member_of` 及同包获批可选关系，不实现图映射；
-5. 再实现生产代码，运行 targeted tests、受影响交付边界完整 suite 与共享 architecture/contract tests。repo-wide full test 不作为默认要求，只在项目规则触发或边界不清时运行。普通测试不得访问真实网络、真实 PostgreSQL 或 Neo4j。
+R1 只实现最小范围：
+
+1. migration tests 覆盖 alliance 三字段原地演进，证明未增加 economy identity_kind、entity_key 唯一索引或平行 profile 表；
+2. manifest tests 覆盖 45/79/133、checksum、字段映射、U+200C normalization、端点和非目标字段排除；
+3. importer/repository tests 覆盖精确 scope、原子性或明确两阶段、fail-closed、zero/post assertions 与幂等；
+4. dependency audit tests 覆盖 member_of 与跨域 relation/FK 分类，禁止未决跨域事实被静默删除；
+5. 运行 targeted tests、受影响 backend suite、共享 contract/migration tests、OpenSpec strict、diff/scope/secret。普通测试不得访问真实网络或写真实数据库。
 
 ## Risks / Trade-offs
 
-- [产业链 change 改写共享文件或 migration 基线] → Apply 前硬性等待其 Deliver，重新 fetch/rebase 并输出 overlap audit；不移植本 proposal 时点的代码假设。
-- [Excel 候选被误当正式事实] → 只保留 Review 映射和逐项决策，不复制为 seed；正式成员必须另取官方来源。
-- [旧 68 条与新 45 条并存] → 旧 CSV 范围、推荐结论和网页核验全部标记 superseded；当前 manifest 只接受新 Excel 指纹。
-- [聚合 economy 被当成国家成员] → `identity_kind` 与 code 规则 fail-closed，禁止 `global_aggregate` 建 `member_of`，EU 聚合不替代成员国。
-- [成员身份混淆] → MVP 只允许 formal active；其他状态留在冲突报告，关系类型扩展必须另行 Review。
-- [profile 旧列移除影响现有查询] → Apply 前全仓引用审计，增量 forward migration，旧列移除与兼容窗口在 R2A master-data Review 展示。
-- [局部 MVP 被误执行成全库关系重置] → 223 条现有 edge 全部分类；resolved target scope 做精确集合收敛，OECD 22 条单独 proposed inactivate，170 条 preserve 以 pre/post 快照证明原样不变。
-- [merge 产生两个 active 重复 identity] → manifest 指定唯一 target，source 只做 forward inactivate，事务内唯一性断言失败则整体回滚。
-- [联盟成员范围误伤 economy 基础库] → economy 使用独立 exception manifest 和 pre-write 保护快照，未列入异常的合法 economy key/UUID/status 必须逐项不变。
-- [联盟成员随时间变化] → 每条 edge 保留来源与核验时间，成员集合按执行时官方来源核对；历史成员建模不在本 change。
-- [`led_by` 产生主观或虚假实体] → 仅解析明确有证据且 Package 2 已批准的实体；多边、轮值、共同协调保留文本，未决即排除。
-- [图投影扩大本 change 风险和门禁] → Neo4j 全部移出；后续独立 change 以 PostgreSQL approved facts 为输入重新 Review。
+- **破坏性 local cleanup**：按实际风险提升为 R3，必须独立授权；环境不是 local 或 scope 漂移则拒绝执行。
+- **跨域事实丢失**：40 条 fixture `has_market` 和真实 local 其他关系必须在 Review package 中逐类决策；未决阻断 cleanup。
+- **没有 backup/rollback**：这是用户对本次 local 探索数据的明确豁免；通过 exact scope、zero/post Query 和幂等降低误操作风险，不推广为项目默认。
+- **一次性 importer 可复用性有限**：刻意接受；它只需可审阅并可在后续环境以同一 approved artifact 重放，不承担通用产品职责。
+- **旧 disposition 不再保留**：接受 local 探索基线被替换，最终 truth 只以 latest approved manifest 为准。
+- **图投影滞后**：Neo4j 留给后续独立 change，以已验收 PostgreSQL facts 重建，不阻塞本 change。
 
 ## Migration Plan
 
-1. Package 1 已完成联盟范围与逐项 manifest 人工 Review，并冻结 v1 checksum。
-2. Package 2 已获人工批准：79 个 economy、133 条 resolved candidates，以及现有 223 条 edge 的 31 keep、160 preserve_unresolved、10 preserve_pending_retype、22 OECD proposed_inactivate；未决可选关系直接排除。
-3. 等待 `refactor-industry-chain-node-foundation` 完成 Deliver 且结果进入 `origin/main`；更新基线、自动 overlap audit 后执行 Package 3 TDD 实现与自动技术验收，禁止 Write。
-4. 分别明确授权并执行 R2A `master-data` Review/Write/Query 与 R2B `relationships` Review/Write/Query。
-5. 汇总证据完成 Apply-final 人工 Review，之后才依次 Sync、Archive、PR/merge 和 cleanup。
-
-每个 R2 Write 前必须提供可恢复备份证据、approved manifest/version/checksum、完整 exact diff、预计影响、事务边界和 forward-fix 策略。任一候选未确认、manifest 不穷尽、source 不可审计、identity 冲突、预计/实际集合不一致、无关 economy 保护断言变化或 Query 失败时立即停止；不得使用 truncate、无谓词 delete、手工修表、直接图写入或未审阅替代路径。
+1. Package 1、2 的业务候选批准保持：45 alliance、79 economy、133 formal-active `member_of`；旧 223 disposition 执行语义废止。
+2. Package 3 完成 scoped R1 migration/domain/repository/importer、targeted tests 和只读 dependency Review package，不写数据库。
+3. 主对话先审阅真实 local 表/FK/关系 counts、跨域事实处置、cleanup SQL/hash/停止条件，再独立授权 4.1 R3 cleanup。
+4. 4.1 Query 验收 scoped zero 后，主对话独立授权 4.2 R2 rebuild；Query 验收 45/79/133、完整性和幂等。
+5. 完成 Apply-final 人工 Review 后才可 Sync、Archive、PR/merge 和 cleanup。
 
 ## Open Questions
 
-- Package 1 已批准，不再是 open question；任何改动必须新版本、新 checksum 并重新 Review。
-- 13 个 formal set 与 1 个 term-bound set 的 resolution gap，以及 21 个非正式机制的替代关系语义，不阻断本次 approved resolved MVP；它们不进入本 change mutation scope，后续必须独立 Review。
-- observer/partner/applicant/suspended/former 是否需要未来结构化表达，只有关系契约 Review 可以决定；MVP 不扩展。
-- `led_by`、`part_of` 的具体候选若无法在 Package 2 同一 Review 中获批，将排除出本次 MVP，不阻塞核心流程。
+- 真实 local PostgreSQL 的表、FK、relation type/count 必须在未来只读 preflight 刷新。
+- 40 条 fixture `has_market` 及真实 local 的 market/index/benchmark/industry chain/company/person 等跨域事实，应“删除并丢弃”还是“保留/重建”尚未批准；这是 4.1 R3 的阻断决策。
+- 如果现有 economy 三字段或 stable-key repository 机制被 R1 证明无法表达/安全幂等，必须提交最小证据回到 R0 Review，不得自行扩 schema。
