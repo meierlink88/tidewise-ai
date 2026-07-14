@@ -78,4 +78,4 @@
 
 ## 停止点
 
-Task 2.7b 的 local relation data Write 与 Query/assert 已完成，等待主对话独立验收。本结果不授权 task 2.8/2.9、physical constraints、blocked/rejected relations、migration 18、Neo4j 或任何其他环境与生命周期操作。
+Task 2.7b 的 local relation data Write 与 Query/assert 已完成，并由主对话独立验收 checkpoint `e2becc2`。本结果只允许进入 task 2.8/2.9 的普通 Apply-final 验证与 Review package，不授权 physical constraints、blocked/rejected relations、migration 18、Neo4j、其他环境或生命周期操作。

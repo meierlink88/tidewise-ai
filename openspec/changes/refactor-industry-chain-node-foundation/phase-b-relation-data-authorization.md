@@ -4,7 +4,7 @@
 
 - 命名操作：`phase-b-relation-data`。
 - 风险等级：**R2，local-only**。
-- 当前状态：R1 atomic runner、冻结 manifest 与本条件式执行包已获授权；失败恢复后唯一重试已完成，见 [R1/R2 execution evidence](phase-b-relation-data-execution-evidence.md)，等待主对话独立验收。
+- 当前状态：R1 atomic runner、冻结 manifest 与本条件式执行包已获授权并执行；失败恢复后唯一重试完成，主对话已独立验收 checkpoint `e2becc2`，见 [R1/R2 execution evidence](phase-b-relation-data-execution-evidence.md)。
 - 本包只覆盖 96 条已批准静态分类/组成关系。`input_to=0`、`depends_on=0`、physical constraint=0；51 条 blocked、7 条 rejected、4 条 blocked constraint 均排除。
 - 不包含 schema/migration、node/profile、external identifier、`entity_edges`、theme、事件/观测、Neo4j、UAT/prod/shared、Sync/Archive/Deliver。
 

@@ -2,7 +2,7 @@
 
 前序 change 已在 PostgreSQL 落地 `sector_profiles`、`sector_source_mappings`、`industry_chain_profiles`、扩展后的 `chain_node_profiles`、`industry_chain_memberships`、`industry_chain_topology_edges` 与 `industry_chain_physical_constraints`，并已生成对应 Neo4j 投影。当前模型同时用 sector、industry_chain 与 chain_node 表达产业概念，membership 又承担容器归属，topology 再表达节点关系，导致同一事实存在多个入口。
 
-本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不再作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段、关系语义与第一批 842 个 chain_node 名称范围已完成人工 Review，但 UUID/key、definition/boundary 内容、可执行 seed 与关系边仍须分阶段 Review。结构实现 checkpoint `0f20171` 与 first-batch data contract checkpoint `cd4b072` 已通过人工复验；Schema/TDD implementation checkpoint `775afda` 及其首轮 remediation checkpoint `12820f9` 未通过，本轮只整改 task 1.12 的 migration pinned-session lock/实际执行审计与 aliases 稳定排序，不执行任何 PostgreSQL/Neo4j Write。
+本 change 是该已交付 change 的 sequential successor。PostgreSQL 是事实源；旧产业 rows 不作为目标节点的迁移输入，而是 cleanup 范围与引用审计对象。必须先取得可恢复备份、列全 FK/逻辑引用并生成精确删除计划，再以版本化 migration 清除；禁止历史回滚或手工清库。字段、关系语义、第一批842个 chain_node、1,169条 external identifiers与96条静态分类/组成关系均已按分层 Review/Write/Query 完成；各 checkpoint 的历史失败、修复和授权边界保留在 tasks 与执行证据中。本 change 全程不执行 Neo4j Write/rebuild。
 
 ## Goals / Non-Goals
 
@@ -204,7 +204,7 @@ classDiagram
 
 ### 8. Active change 风险分级与执行包
 
-本 change 在 `origin/main@4b3df5c` Deliver 后采用项目级 R0—R3 工作流，主对话已批准 adoption checkpoint `0b21f74`。adoption 只约束尚未开始的未来操作，不追认或改写 1.1—1.12 的历史状态与授权；task 1.13 R0 Cleanup Readiness Review package 亦已批准。后续 restore rehearsal 被撤销且未完成，主对话另行明确接受仅限当前 local 开发库的 recovery evidence 边界；该风险接受只允许准备 R3 authorization package，不授权 cleanup Write。change 基线风险为 **R3**，原因是 migration 15 会执行不可逆 cleanup；实际 checkpoint/操作仍按各自最高适用等级执行。
+本 change 在 `origin/main@4b3df5c` Deliver 后采用项目级 R0—R3 工作流，主对话已批准 adoption checkpoint `0b21f74`。adoption 只约束当时尚未开始的未来操作，不追认或改写 1.1—1.12 的历史状态与授权；task 1.13 R0 Cleanup Readiness Review package 亦已批准。后续 restore rehearsal 被撤销且未完成，主对话另行明确接受仅限当前 local 开发库的 recovery evidence 边界；该风险接受当时只允许准备 R3 authorization package，随后 `phase-a-legacy-industry-cleanup` 另获独立授权并以 checkpoint `f2bc90a` 验收。change 基线风险为 **R3**，原因是 migration 15 执行不可逆 cleanup；实际 checkpoint/操作仍按各自最高适用等级执行。
 
 | 阶段 package / 命名操作 | 风险 | 授权语义 |
 |---|---|---|
@@ -213,10 +213,10 @@ classDiagram
 | Phase B relation contract/implementation/tests/candidate package（2.2—2.5） | R1 | 只允许源码、migration 文件和测试修改，不 apply、不写数据库 |
 | `phase-a-legacy-industry-cleanup`（1.14） | R3，已验收 `f2bc90a` | local 不可逆 cleanup 已完成 Write 后 Query/assert；不得据此推定任何 R2 包授权 |
 | `phase-a-external-identifier-schema`（1.15） | R2，已验收 `ce2136d` | 独立条件式执行包只执行 migration 16 schema 层；仅允许进入 1.16 R0 candidate Review，不推定后续层授权 |
-| `phase-a-chain-node-seed`（1.17） | R2 | 独立条件式执行包，只授权 842 node/profile 层 |
-| `phase-a-external-identifier-mapping`（1.18） | R2 | 独立条件式执行包，只授权 1,169 mapping 层 |
+| `phase-a-chain-node-seed`（1.17） | R2，已验收 `e058a42` | 独立条件式执行包只写入842 node/profile；identity/profile/非目标保护 Query通过 |
+| `phase-a-external-identifier-mapping`（1.18） | R2，已验收 `b94b189` | 独立条件式执行包单事务写入1,169 mappings；counts/绑定/幂等 Query通过 |
 | `phase-b-relation-schema`（2.6） | R0 package -> R2 | [独立条件式执行包](phase-b-relation-schema-authorization.md)已执行，migration 17 Write/Query 已由主对话独立验收 checkpoint `a903e1e`；不推定 data 授权 |
-| `phase-b-relation-data`（2.7） | R1 -> R2 | schema Query 已验收；已完成 relation-only atomic runner/validator/precommit assertions、冻结 96 条 manifest 与真实只读 dry-run，并提交[独立 R2 package](phase-b-relation-data-authorization.md)。当前只等待独立验收与明确 Write 授权，constraint write-ready=0 |
+| `phase-b-relation-data`（2.7） | R1 -> R2，已验收 `e2becc2` | schema Query 验收后完成 atomic runner、冻结96条 manifest并获独立授权；唯一重试单事务写入96条静态分类/组成关系，Query/assert与幂等 dry-run通过，constraint write-ready/actual=0 |
 | Neo4j cleanup/write/rebuild | R3，且不在本 change | 必须由后续独立 change 和独立授权处理，任何现有批准均不覆盖 |
 
 每个 R2 条件式执行包必须在执行前明确命名操作、环境、顺序、精确范围、排除范围、recovery evidence、预计 counts、before/after assertions 与停止条件。当前 curated local PostgreSQL 不自动视为 disposable：默认提供可恢复 `backup`；只有用户对具体层明确声明 disposable、无不可替代数据且批准确定性 recreate/reseed 路径时，才能使用 `approved disposable recovery`。任何恢复证据失效、范围漂移、断言失败或停止条件触发都必须 fail-closed，未执行的授权自动失效。
@@ -285,16 +285,16 @@ sequenceDiagram
 5. `phase-a-backup-restore-rehearsal` 的授权已撤销且未完成，`backup_verified=false`；主对话已明确接受本次 local cleanup 使用稳定 backup size/hash、archive integrity/full decode、冻结目标/非目标基线与 forward-fix 作为 recovery evidence，因此 rehearsal 不再是 task 1.14 硬门槛。R3 package 已获批并以 checkpoint `f2bc90a` 完成 cleanup Write 与 Query/assert；UAT/prod、共享环境或不可替代数据仍须更强恢复验证。
    普通 migration apply 不得隐式越过门禁：标准 `dbmigrate` 提供 `-target-version` 并由 Service/Executor 传递给 `goose.UpToContext`。AutoApply 先在一个 pinned PostgreSQL connection 上取得 session advisory lock，再读取 before current/pending；执行后仍在持锁状态读取 after current/pending，最后由同一 connection release。Executor 的 selected 列表只表示计划，report 的 `applied` 必须由 before/after pending 差值并受 after current 上界验证，`remaining` 必须直接取 after pending；target 未精确到达、target 以上 migration 异常消失、unlock=false 或 release/Close 失败均使操作失败。cleanup Write 的标准命令形状为 `TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 15`，成功报告的 `applied` 只含 `000015` 且 `remaining` 明确包含 `000016`；cleanup Query 验收且 schema Write 单独授权后，命令形状才是 `TIDEWISE_DATABASE_URL='<reviewed URL including options=-c%20tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified>' go run ./cmd/dbmigrate -apply -target-version 16`。真实 URL 只能由受控环境或 secret 注入，不进入命令证据或仓库。无 target 保持原有 apply-all 行为；非法 target、低于当前版本或不存在于可用 migration 序列的跳跃 target 在任何 Write 前拒绝。两个 session setting 只防误执行，不能替代备份证据和人工授权，也不得用故意触发 `000016` 失败来分层。
 6. cleanup Query 必须证明旧专属表已删除、旧 sector/industry_chain/chain_node rows 为 0、旧关系/事件链接/审计引用为 0、无孤儿，且 alliance/economy/country/market/benchmark/index 等非目标 counts 与校验和保持不变；重复执行只返回 already-clean/unchanged。
-7. cleanup Query 已由 checkpoint `f2bc90a` 验收；`entity_external_identifiers` schema 仍须按独立 [R2 package](phase-a-external-identifier-schema-authorization.md) 执行 `Review -> Write -> Query`。schema Query 通过前不得写节点或 mapping data。
-8. final seed dry-run Review 必须列出 842 个全新 UUID/entity_key、canonical/name、aliases、definition、boundary、entity_type/status、预计动作与冲突，并校验 `wide_boundary_nodes=79`。node snapshot 同 key/ID/canonical 只有完整状态完全一致才是 unchanged；aliases/definition/boundary 漂移为 updated，非 chain_node、非 active 或三个索引交叉不一致为 conflict。获批后 node/profile seed Write 并立即 Query；不得创建具体 theme 实例。
-9. 1,169 条 mapping data 使用独立 Review 与 Write 授权；只有 node/profile Query 验收后才能绑定 entity_id。dry-run 必须接收按三元 external identity 与确定性 ID 建立的现存 snapshot，逐条输出 created/updated/unchanged/conflict；同三元 tuple 换绑、确定性 ID 漂移或两个索引不一致必须 conflict，同 entity 的 external_name/status 漂移才可 updated。Write 后立即 Query eastmoney=818、ths=351、总数=1,169、241 个双来源节点、13 个双 taxonomy code、逐代码 taxonomy/name、唯一性、孤儿与重复执行幂等。
-10. Phase A cleanup、外部标识 schema、node/profile seed 与 mapping data 的 Query 全部验收前禁止进入 Phase B；PG cleanup 后 Neo4j 陈旧属于已知且明确记录的临时状态。
+7. cleanup Query 已由 checkpoint `f2bc90a` 验收；`entity_external_identifiers` schema 随后按独立 [R2 package](phase-a-external-identifier-schema-authorization.md) 完成 `Review -> Write -> Query` 并以 `ce2136d` 验收。
+8. final seed dry-run Review 列出842个全新 UUID/entity_key、canonical/name、aliases、definition、boundary、entity_type/status、预计动作与冲突，并校验 `wide_boundary_nodes=79`；获批 node/profile seed Write 与立即 Query 已以 `e058a42` 验收，未创建 theme 实例。
+9. 1,169条 mapping data 使用独立 Review 与 Write 授权；node/profile Query验收后才绑定 entity_id。单事务 Write 后 Query确认 eastmoney=818、ths=351、总数1,169、241个双来源节点、13个双taxonomy code、唯一性、孤儿与 dry-run=`0/0/1169`，以 `b94b189` 验收。
+10. Phase A cleanup、外部标识 schema、node/profile seed 与 mapping data 的 Query 全部验收后才进入 Phase B；Phase A Acceptance checkpoint 为 `7b90c30`。PG cleanup 后 Neo4j 陈旧属于已知且明确记录的临时状态。
 
 ### Phase B：基于新节点建立关系
 
 1. 不读取或转换旧 membership/topology/constraint ID；关系与任何新 physical constraint 均从新节点和新证据重新提出。
-2. 四类关系契约、候选边及 evidence/provenance 独立 Review；96 条分类/组成候选已通过双遍 AI Review，其分层 evidence contract 已确认。relation schema 已独立写入并验收；relation data 仍单独执行 `Review -> Write -> Query`。
-3. task 2.7a 已完成不写数据库的 relation-only batch runner、单事务原子性、manifest/snapshot conflict、提交前 assertions、冻结 manifest 与真实只读 dry-run，并准备 data R2 package；本 checkpoint 不授权 relation data Write。
+2. 四类关系契约、候选边及 evidence/provenance 已独立 Review；96 条分类/组成候选通过双遍 AI Review及分层 evidence contract。relation schema 与 relation data 已分别执行独立 `Review -> Write -> Query` 并由主对话验收。
+3. task 2.7a 完成 relation-only batch runner、单事务原子性、manifest/snapshot conflict、提交前 assertions、冻结 manifest 与真实只读 dry-run；task 2.7b 经独立 R2 授权写入96条并以 Query/assert和 dry-run=`0/0/96` 验收。未写 blocked/rejected/constraint 或 Neo4j。
 4. 本 change 不执行 Neo4j rebuild；最终 PostgreSQL 关系通过后仍由后续独立 change 负责投影。
 
 ### 幂等与回滚
@@ -320,7 +320,7 @@ sequenceDiagram
 - **已确认的 evidence amendment**：`is_subcategory_of` / `is_component_of` 可使用 internal artifact path+SHA、derivation rule 与双遍 AI Review 作为充分证据；`input_to` / `depends_on` / physical constraint 仍须强外部 source URL/verified_at/条件/反例。该确认不授权 migration 17 或 data Write。
 - physical constraint semantic identity 推荐使用 subject kind + subject ID + constraint type + normalized condition，并在 condition 身份语义确认后评估两个 partial unique expression indexes；该问题延后到出现可写 constraint 候选前处理，不是当前 evidence amendment 的第二个确认项，本轮不实施该 unique。
 
-- 第一批 842 个 canonical 名称与 950 个原始名称范围、身份/aliases/definition/boundary/dry-run 契约已批准；842 个具体 UUID/key、definition、必要 boundary、alias 归一化结果和逐代码 taxonomy 仍须在 final seed dry-run Review 中批准。
+- 第一批842个 canonical、950个原始名称、具体 UUID/key、definition、79个必要 boundary、alias归一化结果与逐代码 taxonomy 已完成 final seed/mapping Review，并按独立 R2 层写入验收。
 - `entity_external_identifiers` 已批准采用单一 `(source_system, source_taxonomy_type, external_code)` 唯一约束与 `(entity_id, source_system, source_taxonomy_type)` 普通索引，不建立冗余四列唯一索引。
 - convergence/audit 表若扫描发现仍服务非 sector 生产流程，是否暂留必须给出逐表理由并单独 Review；默认目标是删除。
 - 具体 theme 实例与 theme-node link/scope 契约明确留给后续 change，本 change 不作推定。
