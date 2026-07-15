@@ -59,7 +59,7 @@ git worktree list
 ## Commit Checkpoints
 
 - Propose artifacts 完整且 `openspec validate <change-name>` 通过后：`spec: propose <change-name>`。
-- Apply 中每个内聚、可独立验证的阶段 Review package 可以提交阶段级 checkpoint；tasks 必须同步更新，不得把每个微型 task 自动升级为 commit、push 或人工 Review。
+- Apply 中每个内聚、可独立验证的阶段 Review package 可以提交阶段级 checkpoint（scoped commit）作为连续执行证据；普通 local R0/R1 coding 的 Proposal Review 与 Apply-final Review 是仅有需要停顿并重新验收的 checkpoint，tasks 必须同步更新，不得把每个微型 task 自动升级为 commit、push 或人工 Review。
 - Sync/Archive 完成且 `openspec validate --all` 通过后：`spec: archive <change-name>`。
 - commit 前运行新鲜验证、`git diff --check` 和 `git status --short`，只暂存当前 change 文件；不得加入依赖目录、构建产物、缓存、secret 或无关文件。
 

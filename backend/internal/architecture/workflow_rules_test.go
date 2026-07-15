@@ -113,7 +113,7 @@ func TestRiskTieredWorkflowRules(t *testing.T) {
 		"预计耗时和验证断言",
 		"未逐层声明 recovery evidence",
 		"必须独立明确授权及备份/恢复或等价灾难恢复证据",
-		"共享规则、跨模块契约、公共基础设施或 repo-wide 变更",
+		"共享运行时代码、跨模块运行时契约、公共运行时基础设施",
 		"用户必须一次明确授权包内每个命名操作的环境、顺序、范围、排除范围、recovery evidence、预期 counts、before/after assertions 和停止条件",
 	)
 	assertWorkflowSectionOrder(t, openspecWorkflow, "## 风险分级、阶段 Review package 与条件式执行包",
@@ -137,7 +137,8 @@ func TestRiskTieredWorkflowRules(t *testing.T) {
 		"受影响交付边界的完整验证",
 		"repo-wide full validation",
 		"go test ./...",
-		"只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation",
+		"任意 change 必须先按真实受影响交付边界选择验证",
+		"共享运行时代码、跨模块运行时契约、公共运行时基础设施",
 	)
 	assertWorkflowNotContains(t, testingRules, "对应包测试通过后运行 `go test ./...`")
 	assertWorkflowNotContains(t, testingRules, "change 完成前必须运行 `go test ./...`")
@@ -166,6 +167,66 @@ func TestTaskDesignWorkflowContract(t *testing.T) {
 		"archive 目录始终先排除",
 		"explicit mode",
 	)
+}
+
+func TestStreamlinedSoloWorkflowContract(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+
+	for _, want := range []string{
+		"快速模式仅适用于 local",
+		"Proposal Review 与 Apply-final Review",
+		"唯一需要停顿并重新验收的 checkpoint",
+		"连续执行证据",
+		"阶段、commit、已通过验证、输入状态指纹、下一步和真实 blocker",
+		"Archive/PR",
+		"一次完整 preflight -> 单次 Write -> 一次 verify",
+		"continuous_automation_scope=packages:none",
+		"active OpenSpec path",
+		"稳定 backend `data/` 或 `resource/` 路径",
+	} {
+		assertWorkflowContains(t, openspecWorkflow, want)
+	}
+}
+
+func TestValidationScopeSelectionContract(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+	testingRules := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "testing-tdd.md"))
+
+	for _, contract := range []struct {
+		name    string
+		content string
+		wants   []string
+	}{
+		{
+			name:    "workflow",
+			content: openspecWorkflow,
+			wants: []string{
+				"任意 change 必须先按真实受影响交付边界选择验证",
+				"OpenSpec artifacts、workflow 文本、agent rules、architecture test/lint 自身的变更",
+				"局部 coding",
+				"数据-only change",
+				"共享运行时代码、跨模块运行时契约、公共运行时基础设施",
+				"UAT/prod/shared/stateful 安全门禁不由测试范围优化削弱",
+			},
+		},
+		{
+			name:    "testing",
+			content: testingRules,
+			wants: []string{
+				"任意 change 必须先按真实受影响交付边界选择验证",
+				"数据-only change",
+				"前端同理按受影响 workspace",
+			},
+		},
+	} {
+		t.Run(contract.name, func(t *testing.T) {
+			for _, want := range contract.wants {
+				assertWorkflowContains(t, contract.content, want)
+			}
+		})
+	}
 }
 
 func TestOpenSpecConfigUsesSupportedRulesAndCurrentArchitecture(t *testing.T) {

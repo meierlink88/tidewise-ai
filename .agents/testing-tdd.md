@@ -37,6 +37,6 @@
 
 在声明完成、提交、push、创建 PR、sync 或 archive 前，必须使用 `superpowers:verification-before-completion` 运行新鲜验证并读取输出。不能依赖旧日志、记忆或“应该能过”的判断。
 
-Apply final 必须运行受影响交付边界的完整验证：受影响 app/module/package 的完整 suite 和共享 architecture/contract tests。只有共享规则、跨模块契约、公共基础设施或 repo-wide 变更才运行 repo-wide full validation；本 change 若修改全项目规则或 architecture tests，必须运行 `go test ./...`。验证记录必须说明受影响边界、共享 tests 和 repo-wide 判定理由；不清楚时 fail-closed，扩大到 repo-wide full validation 或停止等待澄清。
+Apply final 必须运行受影响交付边界的完整验证：受影响 app/module/package 的完整 suite 和共享 architecture/contract tests。任意 change 必须先按真实受影响交付边界选择验证：OpenSpec artifacts、workflow 文本、agent rules、architecture test/lint 自身的变更只运行对应 OpenSpec/architecture/规则 targeted validation；局部 coding 运行 targeted tests 与受影响 package/module 完整 suite；数据-only change 运行 manifest/dry-run/preflight/post-write assertions，没有代码影响时不机械运行业务 unit tests；只有修改共享运行时代码、跨模块运行时契约、公共运行时基础设施，或影响边界无法可靠确定时才运行 repo-wide full validation，Go module 对应 `go test ./...`，前端同理按受影响 workspace。UAT/prod/shared/stateful 安全门禁不由测试范围优化削弱。验证记录必须说明受影响边界、共享 tests 和 repo-wide 判定理由；不清楚时 fail-closed，扩大到 repo-wide full validation 或停止等待澄清。
 
 R2/R3 有状态操作的验证证据、recovery evidence、before/after assertions 和停止语义只以 `.agents/openspec-workflow.md` 为准；本文件不重复授权流程。
