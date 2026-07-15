@@ -19,6 +19,11 @@ import (
 const frozenChainNodeRelationManifestRelativePath = "openspec/changes/rebuild-foundation-graph-and-enrich-chain-data/reviews/chain-node-relations-r0/approved-candidate-manifest.json"
 const frozenChainNodeRelationManifestFileSHA256 = "0dcbd81ead437de26815dc2264c83fad4a93187e70ba855954771891e9449268"
 const frozenChainNodeRelationManifestSHA256 = "b578e957df6e6249f745f2661f11a2d03c73434dab85fe8e2fb35f33bf14f2d9"
+const frozenChainNodeRelationContentSHA256 = "e5adb1feb2abcda5bbeacd6e01baf68113417aba14c1dbf732b2dfa4528be67a"
+const frozenAdditiveChainNodeRelationManifestRelativePath = "openspec/changes/rebuild-foundation-graph-and-enrich-chain-data/reviews/chain-node-relations-usable-map-r0/additive-final-candidate-manifest.json"
+const frozenAdditiveChainNodeRelationManifestFileSHA256 = "9578cd18e3b629b1e8df11d517c94ad25597bb47826511217812e1e7794c2ed8"
+const frozenAdditiveChainNodeRelationManifestSHA256 = "5a533399a77c430e9067bac5ff509362c8168965a198801d665c40723cee4487"
+const frozenCombinedChainNodeRelationTupleSHA256 = "22809290b844104c140368a303d4e09336c9855f291b7ee624233150ca79b944"
 const frozenChainNodeBaselineFileSHA256 = "a5475719cd874360116ba7e226d048c4ae9bc06006e1b4c23515198616120edb"
 const frozenChainNodeIdentityMD5 = "d6b53dce56fb5ca72ec77eef816f0a4b"
 const frozenChainNodeProfileMD5 = "2876324fb6bffa41967812702c6bc038"
@@ -53,6 +58,36 @@ type frozenChainNodeRelationSource struct {
 	Supports     string  `json:"supports"`
 	ArtifactPath string  `json:"artifact_path"`
 	SHA256       string  `json:"sha256"`
+}
+
+type frozenAdditiveChainNodeRelationManifest struct {
+	ArtifactType                   string                               `json:"artifact_type"`
+	ArtifactVersion                int                                  `json:"artifact_version"`
+	ReviewState                    string                               `json:"review_state"`
+	ReadyForWrite                  bool                                 `json:"ready_for_write"`
+	WriteAuthorized                bool                                 `json:"write_authorized"`
+	BaselineNodeCount              int                                  `json:"baseline_node_count"`
+	SupersedesR0Checkpoint         string                               `json:"supersedes_r0_checkpoint"`
+	ExistingBaselineReference      frozenAcceptedRelationReference      `json:"existing_baseline_reference"`
+	ReviewedOriginalCandidateCount int                                  `json:"reviewed_original_candidate_count"`
+	ExistingRelationCount          int                                  `json:"existing_relation_count"`
+	ExistingByRelationType         map[domain.ChainNodeRelationType]int `json:"existing_by_relation_type"`
+	NewRelationCount               int                                  `json:"new_relation_count"`
+	NewByRelationType              map[domain.ChainNodeRelationType]int `json:"new_by_relation_type"`
+	NewByEvidenceTier              map[string]int                       `json:"new_by_evidence_tier"`
+	TotalRelationCount             int                                  `json:"total_relation_count"`
+	TotalByRelationType            map[domain.ChainNodeRelationType]int `json:"total_by_relation_type"`
+	NewRelationsSHA256             string                               `json:"new_relations_sha256"`
+	TotalTupleSHA256               string                               `json:"total_tuple_sha256"`
+	NewRelations                   []json.RawMessage                    `json:"new_relations"`
+}
+
+type frozenAcceptedRelationReference struct {
+	Path                 string `json:"path"`
+	FileSHA256           string `json:"file_sha256"`
+	ContentSHA256        string `json:"content_sha256"`
+	ManifestSHA256       string `json:"manifest_sha256"`
+	PreservedContentDiff int    `json:"preserved_content_diff"`
 }
 
 type frozenChainNodeBaseline struct {
@@ -126,6 +161,139 @@ func LoadFrozenChainNodeRelationManifest(path string) (ChainNodeRelationManifest
 		return ChainNodeRelationManifest{}, err
 	}
 	return manifest, nil
+}
+
+func LoadFrozenAdditiveChainNodeRelationManifest(path string) (ChainNodeRelationManifest, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	if err := validateFrozenAdditiveChainNodeRelationFileIdentity(path, content); err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	var frozen frozenAdditiveChainNodeRelationManifest
+	if err := decodeFrozenChainNodeJSON(content, &frozen); err != nil {
+		return ChainNodeRelationManifest{}, fmt.Errorf("decode frozen additive chain node relation manifest: %w", err)
+	}
+	acceptedPath, err := frozenChainNodeRelationArtifactPath("approved-candidate-manifest.json")
+	if err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	accepted, err := LoadFrozenChainNodeRelationManifest(acceptedPath)
+	if err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	additive := ChainNodeRelationManifest{Relations: make([]domain.ChainNodeRelation, 0, len(frozen.NewRelations))}
+	for _, raw := range frozen.NewRelations {
+		var relation domain.ChainNodeRelation
+		if err := json.Unmarshal(raw, &relation); err != nil {
+			return ChainNodeRelationManifest{}, fmt.Errorf("decode frozen additive chain node relation: %w", err)
+		}
+		additive.Relations = append(additive.Relations, relation)
+	}
+	combined := ChainNodeRelationManifest{Relations: make([]domain.ChainNodeRelation, 0, len(accepted.Relations)+len(additive.Relations))}
+	combined.Relations = append(combined.Relations, accepted.Relations...)
+	combined.Relations = append(combined.Relations, additive.Relations...)
+	if err := validateFrozenAdditiveChainNodeRelationMetadata(frozen, accepted, additive, combined); err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	endpoints, err := loadFrozenChainNodeEndpointBaseline()
+	if err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	if err := validateFrozenChainNodeRelationEndpoints(combined.Relations, endpoints); err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	if err := validateFrozenChainNodeRelationIDs(combined.Relations); err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	if err := domain.ValidateChainNodeRelationBatch(combined.Relations); err != nil {
+		return ChainNodeRelationManifest{}, err
+	}
+	return combined, nil
+}
+
+func validateFrozenAdditiveChainNodeRelationFileIdentity(path string, content []byte) error {
+	expected, err := frozenAdditiveChainNodeRelationArtifactPath()
+	if err != nil {
+		return err
+	}
+	actual, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	if filepath.Clean(actual) != filepath.Clean(expected) {
+		return fmt.Errorf("additive chain node relation manifest path does not match frozen artifact")
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(content)) != frozenAdditiveChainNodeRelationManifestFileSHA256 {
+		return fmt.Errorf("additive chain node relation manifest file checksum does not match frozen artifact")
+	}
+	return nil
+}
+
+func validateFrozenAdditiveChainNodeRelationMetadata(frozen frozenAdditiveChainNodeRelationManifest, accepted, additive, combined ChainNodeRelationManifest) error {
+	wantAccepted := map[domain.ChainNodeRelationType]int{
+		domain.ChainNodeRelationSubcategoryOf: 95,
+		domain.ChainNodeRelationComponentOf:   1,
+		domain.ChainNodeRelationInputTo:       3,
+		domain.ChainNodeRelationDependsOn:     1,
+	}
+	wantAdditive := map[domain.ChainNodeRelationType]int{
+		domain.ChainNodeRelationSubcategoryOf: 13,
+		domain.ChainNodeRelationComponentOf:   2,
+		domain.ChainNodeRelationInputTo:       90,
+		domain.ChainNodeRelationDependsOn:     7,
+	}
+	wantCombined := map[domain.ChainNodeRelationType]int{
+		domain.ChainNodeRelationSubcategoryOf: 108,
+		domain.ChainNodeRelationComponentOf:   3,
+		domain.ChainNodeRelationInputTo:       93,
+		domain.ChainNodeRelationDependsOn:     8,
+	}
+	if frozen.ArtifactType != "chain_node_usable_map_additive_manifest" || frozen.ArtifactVersion != 2 || frozen.ReviewState != "ready_for_independent_r0_review" || frozen.ReadyForWrite || frozen.WriteAuthorized || frozen.BaselineNodeCount != 842 || frozen.SupersedesR0Checkpoint != "4b7b80cb639f9991cdb23c3a50007563b1aba4a3" || frozen.ReviewedOriginalCandidateCount != 156 {
+		return fmt.Errorf("additive relation manifest review metadata drifted")
+	}
+	reference := frozen.ExistingBaselineReference
+	if reference.Path != frozenChainNodeRelationManifestRelativePath || reference.FileSHA256 != frozenChainNodeRelationManifestFileSHA256 || reference.ContentSHA256 != frozenChainNodeRelationContentSHA256 || reference.ManifestSHA256 != frozenChainNodeRelationManifestSHA256 || reference.PreservedContentDiff != 0 {
+		return fmt.Errorf("additive relation accepted baseline reference drifted")
+	}
+	if frozen.ExistingRelationCount != 100 || len(accepted.Relations) != 100 || !equalFrozenChainNodeRelationCounts(frozen.ExistingByRelationType, wantAccepted) {
+		return fmt.Errorf("additive relation accepted baseline requires 100=95/1/3/1")
+	}
+	if frozen.NewRelationCount != 112 || len(frozen.NewRelations) != 112 || len(additive.Relations) != 112 || !equalFrozenChainNodeRelationCounts(frozen.NewByRelationType, wantAdditive) || !equalFrozenEvidenceTierCounts(frozen.NewByEvidenceTier) {
+		return fmt.Errorf("additive relation manifest requires 112=13/2/90/7 and tier 16/96")
+	}
+	if frozen.TotalRelationCount != 212 || len(combined.Relations) != 212 || !equalFrozenChainNodeRelationCounts(frozen.TotalByRelationType, wantCombined) || frozen.NewRelationsSHA256 != frozenAdditiveChainNodeRelationManifestSHA256 || frozen.TotalTupleSHA256 != frozenCombinedChainNodeRelationTupleSHA256 {
+		return fmt.Errorf("combined relation manifest requires 212=108/3/93/8 and frozen hashes")
+	}
+	return nil
+}
+
+func equalFrozenChainNodeRelationCounts(got, want map[domain.ChainNodeRelationType]int) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for relationType, count := range want {
+		if got[relationType] != count {
+			return false
+		}
+	}
+	return true
+}
+
+func equalFrozenEvidenceTierCounts(got map[string]int) bool {
+	return len(got) == 2 && got["tier_1"] == 16 && got["tier_2"] == 96
+}
+
+func validateFrozenChainNodeRelationIDs(relations []domain.ChainNodeRelation) error {
+	seen := make(map[string]struct{}, len(relations))
+	for _, relation := range relations {
+		if _, duplicate := seen[relation.ID]; duplicate {
+			return fmt.Errorf("duplicate chain node relation id %q", relation.ID)
+		}
+		seen[relation.ID] = struct{}{}
+	}
+	return nil
 }
 
 func validateFrozenChainNodeRelationFileIdentity(path string, content []byte) error {
@@ -243,6 +411,15 @@ func frozenChainNodeRelationArtifactPath(name string) (string, error) {
 	return filepath.Join(repositoryRoot, filepath.Dir(frozenChainNodeRelationManifestRelativePath), name), nil
 }
 
+func frozenAdditiveChainNodeRelationArtifactPath() (string, error) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("resolve frozen additive chain node relation artifact path")
+	}
+	repositoryRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", "..", ".."))
+	return filepath.Join(repositoryRoot, frozenAdditiveChainNodeRelationManifestRelativePath), nil
+}
+
 func decodeFrozenChainNodeJSON(content []byte, target any) error {
 	decoder := json.NewDecoder(strings.NewReader(string(content)))
 	decoder.DisallowUnknownFields()
@@ -312,7 +489,14 @@ func assertChainNodeRelationDataBaseline(ctx context.Context, db postgresExecuto
 }
 
 func preflightChainNodeRelationData(ctx context.Context, db postgresExecutor) (ChainNodeRelationDataPreflightReport, error) {
-	return assertChainNodeRelationDataBaseline(ctx, db, 96)
+	report, err := assertChainNodeRelationDataBaseline(ctx, db, 100)
+	if err != nil {
+		return report, err
+	}
+	if err := validateFrozenChainNodeRelationDryRunBaseline(report); err != nil {
+		return report, err
+	}
+	return report, nil
 }
 
 func (r PostgresRepository) PreflightFrozenChainNodeRelationData(ctx context.Context) (ChainNodeRelationDataPreflightReport, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -19,6 +20,53 @@ func TestFrozenChainNodeRelationManifestMatchesApprovedHundredRelationArtifact(t
 	}
 	if got := len(manifest.Relations); got != 100 {
 		t.Fatalf("relations = %d, want 100", got)
+	}
+}
+
+func TestFrozenAdditiveChainNodeRelationManifestCombinesAcceptedBaselineExactly(t *testing.T) {
+	accepted, err := LoadFrozenChainNodeRelationManifest(frozenChainNodeRelationManifestPath(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	combined, err := LoadFrozenAdditiveChainNodeRelationManifest(frozenAdditiveChainNodeRelationManifestPath(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(combined.Relations) != 212 {
+		t.Fatalf("relations = %d, want 212", len(combined.Relations))
+	}
+	if !reflect.DeepEqual(combined.Relations[:100], accepted.Relations) {
+		t.Fatal("accepted 100 relation baseline changed in additive manifest")
+	}
+	counts := map[domain.ChainNodeRelationType]int{}
+	for _, relation := range combined.Relations {
+		counts[relation.RelationType]++
+	}
+	if counts[domain.ChainNodeRelationSubcategoryOf] != 108 || counts[domain.ChainNodeRelationComponentOf] != 3 || counts[domain.ChainNodeRelationInputTo] != 93 || counts[domain.ChainNodeRelationDependsOn] != 8 {
+		t.Fatalf("relation type counts = %+v, want 108/3/93/8", counts)
+	}
+}
+
+func TestFrozenAdditiveChainNodeRelationManifestRejectsPathAndContentDrift(t *testing.T) {
+	path := frozenAdditiveChainNodeRelationManifestPath(t)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateFrozenAdditiveChainNodeRelationFileIdentity(path, content); err != nil {
+		t.Fatal(err)
+	}
+	drifted := append([]byte(nil), content...)
+	drifted[len(drifted)-2] ^= 1
+	if err := validateFrozenAdditiveChainNodeRelationFileIdentity(path, drifted); err == nil || !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("content drift error = %v", err)
+	}
+	copyPath := filepath.Join(t.TempDir(), "additive-final-candidate-manifest.json")
+	if err := os.WriteFile(copyPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateFrozenAdditiveChainNodeRelationFileIdentity(copyPath, content); err == nil || !strings.Contains(err.Error(), "path") {
+		t.Fatalf("path drift error = %v", err)
 	}
 }
 
@@ -104,10 +152,10 @@ func TestPreflightFrozenChainNodeRelationDataRequiresExactGoose18SchemaAndBaseli
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 96, 95, 1, 0, 0, 0))
+	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 100, 95, 1, 3, 1, 0))
 	mock.ExpectQuery(relationDataSchemaSQL).WillReturnRows(sqlmock.NewRows([]string{"relation_columns", "constraint_columns", "relation_checks", "relation_fks", "relation_pks", "relation_uniques", "constraint_checks", "constraint_fks", "constraint_pks", "relation_indexes", "constraint_indexes", "triggers"}).AddRow(relationColumnSignature, physicalConstraintColumnSignature, 7, 2, 1, 1, 7, 2, 1, 4, 3, 0))
 	report, err := NewPostgresRepository(db).PreflightFrozenChainNodeRelationData(context.Background())
-	if err != nil || !report.SchemaValid || report.GooseVersion != 18 || report.ExistingRelations != 96 {
+	if err != nil || !report.SchemaValid || report.GooseVersion != 18 || report.ExistingRelations != 100 {
 		t.Fatalf("report=%+v err=%v", report, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -121,7 +169,7 @@ func TestPreflightFrozenChainNodeRelationDataRejectsSchemaDrift(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 96, 95, 1, 0, 0, 0))
+	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 100, 95, 1, 3, 1, 0))
 	mock.ExpectQuery(relationDataSchemaSQL).WillReturnRows(sqlmock.NewRows([]string{"relation_columns", "constraint_columns", "relation_checks", "relation_fks", "relation_pks", "relation_uniques", "constraint_checks", "constraint_fks", "constraint_pks", "relation_indexes", "constraint_indexes", "triggers"}).AddRow(relationColumnSignature, physicalConstraintColumnSignature, 6, 2, 1, 1, 7, 2, 1, 4, 3, 0))
 	if _, err := NewPostgresRepository(db).PreflightFrozenChainNodeRelationData(context.Background()); err == nil {
 		t.Fatal("schema drift error = nil")
@@ -142,9 +190,9 @@ func TestVerifyFrozenChainNodeRelationPostWriteChecksProtectedBaselineAndExactAg
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 100, 95, 1, 3, 1, 0))
+	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 212, 108, 3, 93, 8, 0))
 	mock.ExpectQuery(relationDataSchemaSQL).WillReturnRows(sqlmock.NewRows([]string{"relation_columns", "constraint_columns", "relation_checks", "relation_fks", "relation_pks", "relation_uniques", "constraint_checks", "constraint_fks", "constraint_pks", "relation_indexes", "constraint_indexes", "triggers"}).AddRow(relationColumnSignature, physicalConstraintColumnSignature, 7, 2, 1, 1, 7, 2, 1, 4, 3, 0))
-	mock.ExpectQuery(frozenChainNodeRelationAggregateSQL).WillReturnRows(sqlmock.NewRows([]string{"total", "subcategory", "component", "input", "depends", "incomplete", "self", "duplicate", "orphan"}).AddRow(100, 95, 1, 3, 1, 0, 0, 0, 0))
+	mock.ExpectQuery(frozenChainNodeRelationAggregateSQL).WillReturnRows(sqlmock.NewRows([]string{"total", "subcategory", "component", "input", "depends", "incomplete", "self", "duplicate", "orphan"}).AddRow(212, 108, 3, 93, 8, 0, 0, 0, 0))
 	if err := verifyFrozenChainNodeRelationPostWrite(context.Background(), tx); err != nil {
 		t.Fatal(err)
 	}
@@ -160,4 +208,9 @@ func TestVerifyFrozenChainNodeRelationPostWriteChecksProtectedBaselineAndExactAg
 func frozenChainNodeRelationManifestPath(t *testing.T) string {
 	t.Helper()
 	return filepath.Join("..", "..", "..", "..", "..", "openspec", "changes", "rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-r0", "approved-candidate-manifest.json")
+}
+
+func frozenAdditiveChainNodeRelationManifestPath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join("..", "..", "..", "..", "..", "openspec", "changes", "rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-usable-map-r0", "additive-final-candidate-manifest.json")
 }

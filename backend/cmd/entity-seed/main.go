@@ -229,7 +229,7 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 }
 
 func loadRelationDryRunManifest(path string) (entityseed.ChainNodeRelationManifest, error) {
-	manifest, err := entityseed.LoadFrozenChainNodeRelationManifest(path)
+	manifest, err := entityseed.LoadFrozenAdditiveChainNodeRelationManifest(path)
 	if err != nil {
 		return manifest, err
 	}
