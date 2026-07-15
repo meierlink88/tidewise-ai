@@ -4,7 +4,7 @@
 
 ## Runner
 
-UAT 部署 job 必须运行在办公室私有网络内的 GitHub Actions self-hosted runner 上，并配置 labels：
+UAT 部署 job 必须运行在受控 Linux AMD64 UAT Docker host 上的 GitHub Actions self-hosted runner，并配置 labels：
 
 ```text
 self-hosted
@@ -14,16 +14,32 @@ uat
 
 默认假设 runner 与 UAT Docker host 同机运行。如果 runner 与 Docker host 分离，需要让 runner 能访问目标 Docker 环境，并相应调整部署命令。
 
-当前 UAT Docker host 为 Linux ARM64，发布 workflow 会构建并推送 `linux/arm64` 镜像。
+当前 UAT Docker host 为 Ubuntu Linux AMD64，发布 workflow 会构建并推送 `linux/amd64` 镜像。主机必须已安装 Docker Engine、Docker Compose v2 和 PostgreSQL 16；runner 运行账号必须加入 `docker` group。
+
+在 GitHub 仓库的 **Settings > Actions > Runners** 中创建 Linux x64 runner 后，以 `tidewise` 账号执行页面生成的下载与 `config.sh` 命令，并额外指定固定 labels：
+
+```bash
+./config.sh --url https://github.com/<owner>/<repo> --token <one-time-token> \
+  --name tidewise-uat-linux-amd64 --labels tidewise,uat --unattended
+```
+
+然后由 root 安装并启动 runner 服务：
+
+```bash
+/home/tidewise/actions-runner/svc.sh install tidewise
+/home/tidewise/actions-runner/svc.sh start
+```
+
+Runner 注册 token 是一次性的，不得写入 `.env`、shell 历史、仓库或日志。
 
 ## 准备 UAT 环境
 
 在 UAT 机器上准备未提交的环境文件。正式 runner 使用固定的、非 checkout 工作目录中的路径：
 
 ```bash
-mkdir -p /Users/mac/tidewise-uat/infra
-cp infra/uat/.env.example /Users/mac/tidewise-uat/infra/.env
-chmod 600 /Users/mac/tidewise-uat/infra/.env
+install -d -m 0750 -o tidewise -g tidewise /opt/tidewise-uat/infra
+install -m 0600 -o tidewise -g tidewise \
+  infra/uat/.env.example /opt/tidewise-uat/infra/.env
 ```
 
 至少填写：
@@ -35,11 +51,7 @@ ADMIN_API_TOKEN
 
 部署 workflow 会将该文件以受限权限复制到当次 runner checkout 的 `infra/uat/.env`。镜像地址由 workflow 写入独立的临时 override 文件，无需在持久环境文件中维护。
 
-如果 GHCR 镜像是私有镜像，先在 UAT runner 机器登录 GHCR：
-
-```bash
-echo <read-only-ghcr-token> | docker login ghcr.io -u <github-user> --password-stdin
-```
+部署 workflow 使用 job 级 `GITHUB_TOKEN` 登录 GHCR；不要在主机上持久保存 GHCR token。
 
 ## 手动部署
 

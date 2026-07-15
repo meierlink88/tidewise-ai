@@ -14,7 +14,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  UAT_ENV_FILE: /Users/mac/tidewise-uat/infra/.env
+  UAT_ENV_FILE: /opt/tidewise-uat/infra/.env
 
 jobs:
   build-and-push:
@@ -61,7 +61,7 @@ jobs:
         with:
           context: backend
           file: backend/Dockerfile
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.images.outputs.backend_image }}
 
@@ -70,7 +70,7 @@ jobs:
         with:
           context: frontend/admin
           file: frontend/admin/Dockerfile
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.images.outputs.admin_image }}
 
