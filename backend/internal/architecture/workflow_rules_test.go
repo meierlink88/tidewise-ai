@@ -168,6 +168,26 @@ func TestTaskDesignWorkflowContract(t *testing.T) {
 	)
 }
 
+func TestStreamlinedSoloWorkflowContract(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+
+	for _, want := range []string{
+		"快速模式仅适用于 local",
+		"Proposal Review 与 Apply-final Review",
+		"唯一需要停顿并重新验收的 checkpoint",
+		"连续执行证据",
+		"阶段、commit、已通过验证、输入状态指纹、下一步和真实 blocker",
+		"Archive/PR",
+		"一次完整 preflight -> 单次 Write -> 一次 verify",
+		"continuous_automation_scope=packages:none",
+		"active OpenSpec path",
+		"稳定 backend `data/` 或 `resource/` 路径",
+	} {
+		assertWorkflowContains(t, openspecWorkflow, want)
+	}
+}
+
 func TestOpenSpecConfigUsesSupportedRulesAndCurrentArchitecture(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	config := readWorkflowRuleFile(t, filepath.Join(root, "openspec", "config.yaml"))
