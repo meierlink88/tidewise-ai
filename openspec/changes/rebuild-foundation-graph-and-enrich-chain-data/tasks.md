@@ -60,7 +60,7 @@
 - 旧 `all-chain-node-relations-neo4j-sync` 4-edge R3 Review 包已 superseded 且不可执行；其 3 INPUT_TO + 1 DEPENDS_ON 将与后续 additive accepted baseline 一并同步。
 - [x] 2.6 按严格 usable-map 语义对 842 个节点完成 additive 候选发现与两遍实质检查；逐行保护既有 100 条，重审被拒 checkpoint 的 156 条候选，只有类型、方向、具体机制/path、条件、反例和来源蕴含完全一致的 112 条进入整改 manifest，44 条保持 blocked。每条获批 `input_to` 都记录实际产出及消费/转化/嵌入/明确服务机制；不以数量或连通率补边。本 checkpoint 不授权任何写入，见 [842-node usable-map additive R0 整改 Review 包](reviews/chain-node-relations-usable-map-r0/README.md)。
 - [x] 2.7 R0 additive manifest 独立 Review 冻结后，以 targeted RED/GREEN tests 最小更新现有固定 contract：入口精确绑定 additive path 与完整文件 SHA `9578cd18e3b629b1e8df11d517c94ad25597bb47826511217812e1e7794c2ed8`，内部逐行拼接并保护既有 100 条，冻结新增 semantic SHA `5a533399a77c430e9067bac5ff509362c8168965a198801d665c40723cee4487`、112/13/2/90/7 与最终 212/108/3/93/8。live read-only dry-run 为 112 created、0 updated、100 unchanged；dry-run 后只读 Query 仍为 100/95/1/3/1，未执行 PG/Neo4j Write，未新增框架。
-- [ ] 2.8 等待 `usable-map-additive-relations-postgres-write` R2 授权；获批后仅 additive 写入新关系，逐行保护既有 100 条并立即 Query 类型、端点、tuple、orphan、范围外保护与幂等。
+- [ ] 2.8 等待 `usable-map-additive-relations-postgres-write` R2 授权；获批后仅 additive 写入新关系，逐行保护既有 100 条并立即 Query 类型、端点、tuple、orphan、范围外保护与幂等。当前只完成 [独立 R2 Review 包](reviews/usable-map-additive-relations-postgres-write-r2.md) 的冻结与提交，未创建 backup、未执行 Write 或 Neo4j 操作。
 - [ ] 2.9 PG additive accepted baseline 验收后，重新准备并等待 `usable-map-final-relations-neo4j-sync` R3 授权；只按新包冻结的最终 Scope/入口同步并验收，禁止调用旧 4-edge 包。
 
 ## 3. Apply-final、Sync、Archive、Deliver Package
