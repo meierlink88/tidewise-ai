@@ -65,6 +65,6 @@
 
 ## 3. Apply-final、Sync、Archive、Deliver Package
 
-- [ ] 3.1 运行实际受影响 backend 边界的一次完整验证、OpenSpec 校验、diff/scope/secret 检查，提交 scoped Apply-final Review package 后停止等待人工 Review。
+- [x] 3.1 已运行实际受影响 backend 边界完整 suite、OpenSpec strict、task-design lint、diff/scope/secret 与最终 PG/Neo4j 只读复验；scoped diff、最终数据/图谱证据、review 状态和剩余门禁见 [Apply-final Review 包](reviews/apply-final-review.md)。本 checkpoint 停止等待人工 Review，未执行 Sync、Archive、Deliver、PR、merge 或 cleanup。
 - [ ] 3.2 仅在 Apply-final Review 通过后 Sync、Archive、运行 `openspec validate --all` 并提交 archive checkpoint。
 - [ ] 3.3 仅在 Git completion 授权后按规则完成 push、PR merge 与 Desktop-owned cleanup；全部条件满足前不得声明 Deliver。
