@@ -17,10 +17,11 @@ import (
 )
 
 const frozenChainNodeRelationManifestRelativePath = "openspec/changes/rebuild-foundation-graph-and-enrich-chain-data/reviews/chain-node-relations-r0/approved-candidate-manifest.json"
+const frozenChainNodeRelationArchiveRelativePath = "openspec/changes/archive/2026-07-15-rebuild-foundation-graph-and-enrich-chain-data/reviews/chain-node-relations-r0/approved-candidate-manifest.json"
 const frozenChainNodeRelationManifestFileSHA256 = "0dcbd81ead437de26815dc2264c83fad4a93187e70ba855954771891e9449268"
 const frozenChainNodeRelationManifestSHA256 = "b578e957df6e6249f745f2661f11a2d03c73434dab85fe8e2fb35f33bf14f2d9"
 const frozenChainNodeRelationContentSHA256 = "e5adb1feb2abcda5bbeacd6e01baf68113417aba14c1dbf732b2dfa4528be67a"
-const frozenAdditiveChainNodeRelationManifestRelativePath = "openspec/changes/rebuild-foundation-graph-and-enrich-chain-data/reviews/chain-node-relations-usable-map-r0/additive-final-candidate-manifest.json"
+const frozenAdditiveChainNodeRelationManifestRelativePath = "openspec/changes/archive/2026-07-15-rebuild-foundation-graph-and-enrich-chain-data/reviews/chain-node-relations-usable-map-r0/additive-final-candidate-manifest.json"
 const frozenAdditiveChainNodeRelationManifestFileSHA256 = "9578cd18e3b629b1e8df11d517c94ad25597bb47826511217812e1e7794c2ed8"
 const frozenAdditiveChainNodeRelationManifestSHA256 = "5a533399a77c430e9067bac5ff509362c8168965a198801d665c40723cee4487"
 const frozenCombinedChainNodeRelationTupleSHA256 = "22809290b844104c140368a303d4e09336c9855f291b7ee624233150ca79b944"
@@ -408,7 +409,7 @@ func frozenChainNodeRelationArtifactPath(name string) (string, error) {
 		return "", fmt.Errorf("resolve frozen chain node relation artifact path")
 	}
 	repositoryRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", "..", ".."))
-	return filepath.Join(repositoryRoot, filepath.Dir(frozenChainNodeRelationManifestRelativePath), name), nil
+	return filepath.Join(repositoryRoot, filepath.Dir(frozenChainNodeRelationArchiveRelativePath), name), nil
 }
 
 func frozenAdditiveChainNodeRelationArtifactPath() (string, error) {

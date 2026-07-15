@@ -70,7 +70,7 @@ func TestLoadRelationDryRunManifestRejectsNonFrozenPath(t *testing.T) {
 }
 
 func TestLoadRelationDryRunManifestReadsFrozenAdditiveRelations(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "openspec", "changes", "rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-usable-map-r0", "additive-final-candidate-manifest.json")
+	path := filepath.Join("..", "..", "..", "openspec", "changes", "archive", "2026-07-15-rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-usable-map-r0", "additive-final-candidate-manifest.json")
 	manifest, err := loadRelationDryRunManifest(path)
 	if err != nil {
 		t.Fatal(err)
