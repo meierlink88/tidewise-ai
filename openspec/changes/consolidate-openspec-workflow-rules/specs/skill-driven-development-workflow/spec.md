@@ -1,3 +1,21 @@
+## Gate Map
+
+| Package | Gate | Risk | Human | Reason Code | Allowed Scope |
+|---|---|---|---|---|---|
+| 1 | Proposal Review：确认规则职责、长期语义和覆盖矩阵 | R1 | yes | SPEC_SEMANTICS | 仅审阅本 change OpenSpec artifacts；该 gate 已由用户明确批准继续，不追认 Apply |
+| 2 | R1 Apply package：规则去重、职责归位、主 spec 重写、覆盖矩阵和必要 architecture contract 调整连续完成 | R1 | no | NONE | 仅规则文件、主 workflow spec、architecture workflow contract 和 change evidence；不涉及业务代码、数据库、图谱、部署、doc 或 prototype |
+| 3 | Apply-final Review：完成范围匹配验证、scoped diff/证据和 Apply commit/push 后停在人工 Review | R1 | yes | APPLY_FINAL | 仅审阅 Apply 交付边界与新鲜证据；不得 Sync、Archive、Deliver、PR、merge 或 cleanup |
+
+## Complexity Budget
+
+| Key | Value |
+|---|---|
+| human_gates | 2 |
+| stateful_layers | 0 |
+| checkpoints | 2 |
+| full_test_runs | 0 |
+| continuous_automation_scope | packages:2 |
+
 ## MODIFIED Requirements
 
 ### Requirement: Agent 规则必须采用分层单一事实来源

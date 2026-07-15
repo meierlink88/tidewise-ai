@@ -2,30 +2,37 @@
 
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
-| 1 | Proposal Review：确认规则职责、长期语义和覆盖矩阵 | R1 | yes | SPEC_SEMANTICS | 仅审阅本 change OpenSpec artifacts；不得 Apply、Sync、Archive、Deliver 或修改业务代码 |
-| 2 | Proposal 自检与 checkpoint：运行范围匹配检查并提交可供 Review 的 Proposal | R1 | no | NONE | 仅 OpenSpec artifacts、规则文本和验证证据；允许 scoped commit/push，不创建完成态 PR |
+| 1 | Proposal Review：确认规则职责、长期语义和覆盖矩阵 | R1 | yes | SPEC_SEMANTICS | 仅审阅本 change OpenSpec artifacts；该 gate 已由用户明确批准继续，不追认 Apply |
+| 2 | R1 Apply package：规则去重、职责归位、主 spec 重写、覆盖矩阵和必要 architecture contract 调整连续完成 | R1 | no | NONE | 仅规则文件、主 workflow spec、architecture workflow contract 和 change evidence；不涉及业务代码、数据库、图谱、部署、doc 或 prototype |
+| 3 | Apply-final Review：完成范围匹配验证、scoped diff/证据和 Apply commit/push 后停在人工 Review | R1 | yes | APPLY_FINAL | 仅审阅 Apply 交付边界与新鲜证据；不得 Sync、Archive、Deliver、PR、merge 或 cleanup |
 
 ## Complexity Budget
 
 | Key | Value |
 |---|---|
-| human_gates | 1 |
+| human_gates | 2 |
 | stateful_layers | 0 |
-| checkpoints | 1 |
+| checkpoints | 2 |
 | full_test_runs | 0 |
 | continuous_automation_scope | packages:2 |
 
-## 1. 规则职责与长期行为 Package
+## 1. Proposal Review Package
 
-- [ ] 1.1 盘点 `AGENTS.md`、`openspec/config.yaml`、`.agents/skill-routing.md`、`.agents/openspec-workflow.md`、`.agents/git-workflow.md`、`.agents/testing-tdd.md` 与主 workflow spec 的重复、冲突和唯一职责边界。
-- [ ] 1.2 将最高级硬门与路由、稳定项目背景与 artifact 写作约束、OpenSpec/Git/测试详述分别收敛到约定文件；删除重复的完整操作流程，但保留必要摘要、链接和不可绕过门禁。
-- [ ] 1.3 重写主 workflow spec 的受影响 requirements/scenarios，移除本 change、历史行数/压缩率、一次性迁移和旧验收指标，保留长期可验证行为与 OpenSpec delta 完整性。
-- [ ] 1.4 建立语义覆盖矩阵，逐项映射 OpenSpec 顺序与人工 Review、Desktop-managed 入口、sequential/parallel 分流、两类 cleanup、风险分级、有状态写、TDD/CI/验证、事实源和安全边界；缺项立即停止。
+- [x] 1.1 已完成 Proposal artifacts、Gate Map/Complexity Budget、范围和非目标审阅；用户已明确批准继续进入 R1 Apply。
+- [x] 1.2 已完成 Proposal strict、精确 task-design lint、workflow targeted checks、`git diff --check`、scope/secret/link 检查和 Proposal checkpoint commit/push；证据属于 Proposal Review，不作为 Apply 待办。
 
-## 2. 范围验证与 Proposal Checkpoint Package
+## 2. 规则收敛 Apply Package
 
-- [ ] 2.1 运行 `openspec validate consolidate-openspec-workflow-rules --strict`，确认 artifacts、delta spec、Gate Map、Complexity Budget 和链接结构有效。
-- [ ] 2.2 运行 `OPENSPEC_TASK_LINT_CHANGE=consolidate-openspec-workflow-rules go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint$' -count=1`，仅验证本 change 的 package/gate/schema 约束。
-- [ ] 2.3 运行必要的 workflow architecture targeted checks、`git diff --check`、scope 检查、secret 检查、仓库内链接检查和重复/冲突扫描；记录受影响边界、未验证项与不运行 `go test ./...` 的理由。
-- [ ] 2.4 完成 Proposal 自审：复读验证输出，核对需求覆盖、OpenSpec artifacts、scope、secret、链接和非目标；发现阻断项先修复并刷新证据。
-- [ ] 2.5 仅暂存当前 change 的 OpenSpec artifacts，创建 `spec: propose consolidate-openspec-workflow-rules` scoped commit，并 push `codex/consolidate-openspec-workflow-rules` 供 Proposal Review；不得创建完成态 PR。
+- [ ] 2.1 建立并保存语义覆盖矩阵，将 OpenSpec 顺序与人工 Review、Desktop-managed 入口、sequential/parallel 分流、两类 cleanup、风险分级、有状态写、TDD/CI/验证、事实源和安全边界逐项映射到唯一详述来源与自动化锚点。
+- [ ] 2.2 收敛 `AGENTS.md`：只保留最高级硬门、规则路由、不可绕过的风险/安全摘要和来源指引；删除生命周期、Git、测试的重复详述。
+- [ ] 2.3 收敛 `openspec/config.yaml`：只保留稳定项目背景、语言约束和 artifact 写作约束；删除 workflow、Git、测试和一次性迁移规则。
+- [ ] 2.4 收敛 `.agents/skill-routing.md`、`.agents/openspec-workflow.md`、`.agents/git-workflow.md`、`.agents/testing-tdd.md`：分别保留 Skill 路由、OpenSpec 生命周期/审批、Git/交付、TDD/验证的唯一完整详述，删除跨文件重复并保留必要入口摘要。
+- [ ] 2.5 重写主 workflow spec 的受影响 requirements/scenarios，移除本 change、历史行数/压缩率、一次性迁移和旧验收指标，保留长期可验证行为与 delta spec 完整性。
+- [ ] 2.6 根据现有 architecture workflow contract 的真实断言更新必要的规则语义锚点；不得删除或削弱 Desktop、fallback、sequential/parallel、cleanup、风险、package、验证和事实源检查。
+
+## 3. Apply-final Review Package
+
+- [ ] 3.1 运行 `openspec validate consolidate-openspec-workflow-rules --strict` 和精确 task-design lint。
+- [ ] 3.2 运行受影响 workflow architecture targeted checks、`git diff --check`、scope/secret/link 检查、重复/冲突扫描和覆盖矩阵自审；不运行 `go test ./...`，并记录受影响边界与未验证项。
+- [ ] 3.3 完成独立 reviewer 自审：逐项核对覆盖矩阵、唯一职责来源、门禁无降级、scope 和 fresh checks；阻断项必须在本 package 内修复并刷新证据。
+- [ ] 3.4 仅暂存本 change 的规则/spec/architecture contract 文件，创建 `spec: apply consolidate-openspec-workflow-rules` scoped Apply commit 并 push；随后停在 Apply-final Review，不执行 Sync、Archive、Deliver、PR、merge 或 cleanup。

@@ -6,16 +6,17 @@
 
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
-| 1 | Proposal Review：确认规则职责、长期语义和覆盖矩阵 | R1 | yes | SPEC_SEMANTICS | 仅审阅本 change OpenSpec artifacts；不得 Apply、Sync、Archive、Deliver 或修改业务代码 |
-| 2 | Proposal 自检与 checkpoint：运行范围匹配检查并提交可供 Review 的 Proposal | R1 | no | NONE | 仅 OpenSpec artifacts、规则文本和验证证据；允许 scoped commit/push，不创建完成态 PR |
+| 1 | Proposal Review：确认规则职责、长期语义和覆盖矩阵 | R1 | yes | SPEC_SEMANTICS | 仅审阅本 change OpenSpec artifacts；该 gate 已由用户明确批准继续，不追认 Apply |
+| 2 | R1 Apply package：规则去重、职责归位、主 spec 重写、覆盖矩阵和必要 architecture contract 调整连续完成 | R1 | no | NONE | 仅规则文件、主 workflow spec、architecture workflow contract 和 change evidence；不涉及业务代码、数据库、图谱、部署、doc 或 prototype |
+| 3 | Apply-final Review：完成范围匹配验证、scoped diff/证据和 Apply commit/push 后停在人工 Review | R1 | yes | APPLY_FINAL | 仅审阅 Apply 交付边界与新鲜证据；不得 Sync、Archive、Deliver、PR、merge 或 cleanup |
 
 ## Complexity Budget
 
 | Key | Value |
 |---|---|
-| human_gates | 1 |
+| human_gates | 2 |
 | stateful_layers | 0 |
-| checkpoints | 1 |
+| checkpoints | 2 |
 | full_test_runs | 0 |
 | continuous_automation_scope | packages:2 |
 
@@ -27,7 +28,8 @@
 - 将主 workflow spec 收敛为长期可验证行为，移除本 change、历史行数/压缩率、一次性迁移和旧验收指标。
 - 统一 gate、package、checkpoint、commit 的定义和引用关系，并维护硬门语义覆盖矩阵。
 - 保留 OpenSpec、Superpowers、TDD、CI、风险分级、local/UAT/prod/shared、有状态写安全、PostgreSQL/Neo4j 事实源和 Desktop cleanup 语义。
-- Proposal 阶段只执行 OpenSpec strict、task-design lint、必要的 architecture/workflow targeted checks、`git diff --check`、scope/secret/link 检查；不运行 `go test ./...`。
+- 已完成的 Proposal 自检证据归属于 Package 1，不作为 Apply 待办；Apply package 批准后连续完成规则实施与必要 contract 调整。
+- Apply-final 只执行受影响边界的 targeted verification、scoped diff/证据和安全检查；不运行 `go test ./...`。
 
 ## Capabilities
 
