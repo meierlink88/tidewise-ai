@@ -10,8 +10,14 @@
 
 #### Scenario: 全量 final 结果冻结
 - **WHEN** 842/842 节点均已参加候选发现和两遍独立检查
-- **THEN** 系统必须证明既有 100 条逐行保留，且无未处置候选、孤儿端点、重复 tuple、同机制重复或未解决冲突，才能冻结 additive final 关系数据
+- **THEN** 系统必须证明既有 100 条逐行保留，且两遍分别记录理由、类型、方向、机制、路径、条件、具体反例、来源蕴含与 disposition
+- **AND** 任一遍不一致的候选必须阻断；无未处置候选、孤儿端点、重复 tuple、同机制重复或未解决冲突时才能冻结 additive final 关系数据
 - **AND** 无关系事实的节点允许保持无边，不得为覆盖率强制登记关系
+
+#### Scenario: 来源实际蕴含关系
+- **WHEN** 某条候选声明为 Tier 1
+- **THEN** 来源必须实际支持该 relation type、方向和具体机制，并记录逐边 source-to-edge entailment
+- **AND** 产业链相关性、来源组名称或对制造依赖设备的描述不得被改写为来源未支持的 `input_to`
 
 #### Scenario: PostgreSQL 先写并验收
 - **WHEN** additive final 数据获得独立 local PostgreSQL R2 授权

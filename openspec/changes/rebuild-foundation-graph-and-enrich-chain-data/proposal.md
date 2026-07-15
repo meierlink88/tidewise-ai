@@ -56,8 +56,8 @@
 - 复用已有 `graph-projector project-entities/rebuild-entities`、namespace 删除和 Neo4j upsert。cleanup 使用已存在的 namespace 删除语义并单独验收，rebuild 再单独授权；Neo4j 不备份。
 - 本 change 只在当前 842 个既有 chain_node 之间完善四类关系。覆盖表示每个节点都参加候选发现与双遍检查；无直接或间接事实时允许无边，不再要求每个 node×relation_type 强制形成三态记录。
 - 不向下穿透、不研究或创建更细化 chain_node；不新增或修改 entity_nodes、chain_node_profiles、external identifiers 或节点 identity。现有节点无法表达的候选必须记录为不适用/证据不足，不得通过新建节点解决。
-- 现有 100 条关系作为 Tier 1 accepted baseline 逐行保留；新增候选只排除重复 tuple，同一端点可继续产生其他机制或类型的边。`input_to` 允许跨越当前未建模中间节点，但必须有可解释的产业链进入机制。
-- 新增证据分 Tier 1 usable-map 与 Tier 2 AI knowledge；Tier 2 必须由两遍独立审查对类型、方向、机制、条件和反例完全一致，并复用现有 evidence/provenance 字段，不改 schema。AI 研究与 double-check 是一次性数据分析，不是系统能力。
+- 现有 100 条关系作为 Tier 1 accepted baseline 逐行保留；新增候选只排除重复 tuple，同一端点可继续产生其他机制或类型的边。`input_to` 只接受 A 的实际产出被消耗、转化、嵌入，或作为明确服务输出沿可解释路径进入 B；间接边必须列出中间路径。设备、工具、软件能力或基础设施仅因使 B 能生产/运行不得登记为 `input_to`，也不得机械改成 `depends_on`。
+- 新增证据分 Tier 1 usable-map 与 Tier 2 AI knowledge。Tier 1 来源必须逐边蕴含 relation type、方向与具体机制；产业相关性不等于来源支持。两遍独立审查分别保存理由、类型、方向、机制、路径、条件、具体反例和 disposition，任一不一致即阻断。AI 研究与 double-check 是一次性数据分析，不是系统能力。
 - `reviews/all-chain-node-relations-neo4j-sync-r3.md` 的 4-edge sync 意图已 superseded，明确不可执行；未来只基于 additive PG 写后最终 accepted baseline 重新准备独立 R3 包。
 - 关系 repository 已有通用只读 dry-run、事务批量写、端点/tuple/幂等校验；但 `cmd/entity-seed` 把关系入口锁死在历史 96 条 manifest/hash。若批准新的关系批次，Package 2 需要一个经 Review 的最小 R1 CLI 解锁，直接调用现有通用 batch 方法，不建设新平台。
 
