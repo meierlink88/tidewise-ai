@@ -66,7 +66,7 @@
 
 ### Requirement: 验证深度必须随风险与生命周期递增
 
-系统 MUST 以 package 为单位组织验证：开发中运行与当前工作匹配的 targeted tests；连续 Apply package 在其风险边界内运行一次范围匹配验证；Apply final 运行一次受影响 app/module/package 的完整 suite 与共享 architecture/contract tests。共享规则、跨模块契约、公共基础设施或 repo-wide 变更 MUST 运行 repo-wide full validation。验证选择 MUST 记录受影响交付边界、共享 tests 与 repo-wide 判定理由；边界、理由或 suite 不清楚时 MUST fail-closed。输入 commit、manifest、schema、baseline 和 environment 指纹未变化且证据未失败时，Archive/PR 可以复用对应验证证据；变化或失败时 MUST 只重验受影响层，并在不确定时扩大验证。R2/R3 MUST 额外提供执行前后状态断言。
+系统 MUST 以 package 为单位组织验证：开发中运行与当前工作匹配的 targeted tests；连续 Apply package 在其风险边界内运行一次范围匹配验证；Apply final 运行一次受影响 app/module/package 的完整 suite 与共享 architecture/contract tests。任意 change MUST 先按真实受影响交付边界选择验证：OpenSpec artifacts、workflow 文本、agent rules、architecture test/lint 自身的变更 MUST 运行对应 OpenSpec/architecture/规则 targeted validation；局部 coding MUST 运行 targeted tests 与受影响 package/module 完整 suite；数据-only change MUST 运行 manifest/dry-run/preflight/post-write assertions，且没有代码影响时不得机械运行业务 unit tests；只有修改共享运行时代码、跨模块运行时契约、公共运行时基础设施，或无法可靠判定影响边界时，才 MUST 运行 repo-wide full validation，Go module 对应 `go test ./...`，前端同理按受影响 workspace。UAT/prod/shared/stateful 安全门禁 MUST NOT 由测试范围优化削弱。验证选择 MUST 记录受影响交付边界、共享 tests 与 repo-wide 判定理由；边界、理由或 suite 不清楚时 MUST fail-closed。输入 commit、manifest、schema、baseline 和 environment 指纹未变化且证据未失败时，Archive/PR 可以复用对应验证证据；变化或失败时 MUST 只重验受影响层，并在不确定时扩大验证。R2/R3 MUST 额外提供执行前后状态断言。
 
 #### Scenario: 开发中运行 targeted tests
 
@@ -78,9 +78,24 @@
 - **WHEN** change 完成 Apply 并准备请求 Apply 后人工 Review
 - **THEN** Agent 必须运行一次受影响交付边界完整 suite、共享 architecture/contract tests、OpenSpec strict validation、diff/scope/secret 检查，并汇总所有 R2/R3 pre/post evidence
 
-#### Scenario: 共享 workflow change
+#### Scenario: workflow/architecture rule change
 
-- **WHEN** change 修改共享规则、architecture tests 或其他 repo-wide 行为
+- **WHEN** change 仅修改 OpenSpec artifacts、workflow 文本、agent rules 或 architecture test/lint，且不修改共享运行时代码、跨模块运行时契约或公共运行时基础设施
+- **THEN** Apply final 必须运行受影响的 architecture/workflow 测试、精确 task-design lint、OpenSpec strict、diff/scope/secret/链接检查，不得机械运行 `go test ./...`
+
+#### Scenario: local coding change
+
+- **WHEN** change 仅影响一个可确定的业务 package/module
+- **THEN** Apply final 必须运行 targeted tests 与该 package/module 完整 suite，不得因 change 的正式身份自动扩大为 repo-wide full validation
+
+#### Scenario: data-only change
+
+- **WHEN** change 只修改数据 manifest 或执行数据流程且不影响代码
+- **THEN** Apply final 必须运行 manifest/dry-run/preflight/post-write assertions，不得机械运行业务 unit tests
+
+#### Scenario: runtime repo-wide trigger
+
+- **WHEN** change 修改共享 Go 运行时代码、跨模块运行时契约、公共运行时基础设施，或无法判定影响边界
 - **THEN** Apply final 必须运行 `go test ./...` 和相关 OpenSpec/规则检查
 
 #### Scenario: 指纹未变化

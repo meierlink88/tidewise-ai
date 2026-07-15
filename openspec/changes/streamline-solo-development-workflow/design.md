@@ -60,7 +60,7 @@ flowchart LR
 
 优先扩展现有 `backend/internal/architecture` 标准库测试，增加稳定资源路径约束或指纹字段的确定性检查仅在真实需求无法由规则文本和现有 lint 表达时进行；默认不新增独立 path test。lint 继续只校验静态 contract，不能执行 preflight、数据库写入、网络请求或凭证检查。
 
-涉及 Go 测试的 Apply 采用 RED -> GREEN -> REFACTOR：先添加 fixture/table-driven architecture test，再调整规则或生产 lint；测试只使用临时文件、fake/fixture，不访问真实网络、凭证或生产数据库。由于修改共享 workflow 与 architecture tests，Apply-final 必须运行 `go test ./...`。
+涉及 Go 测试的 Apply 采用 RED -> GREEN -> REFACTOR：先添加 fixture/table-driven architecture test，再调整规则或生产 lint；测试只使用临时文件、fake/fixture，不访问真实网络、凭证或生产数据库。全局测试选择策略先判断真实影响：OpenSpec/workflow/agent/architecture rule 类变更运行对应 targeted validation；局部 coding 运行受影响 package/module suite；数据-only 运行 manifest/dry-run/preflight/post-write assertions；只有共享运行时代码、跨模块运行时契约、公共运行时基础设施或影响边界不清时才运行 `go test ./...`。UAT/prod/shared/stateful 安全门禁不由该策略削弱。
 
 ## Risks / Trade-offs
 
@@ -75,7 +75,7 @@ flowchart LR
 
 1. Apply 前冻结本 change 的规则、主规格、现有 lint、merged manifest 消费者和输入指纹；本轮 Proposal 不执行任何运行资源迁移。
 2. 在一个 R1 Apply package 内先用测试锁定 package/gate、验证复用、环境分级、checkpoint 和稳定路径 contract，再实现最小规则与 lint 调整；按实际清单迁移稳定运行资源，并保留 OpenSpec snapshot/hash/evidence。
-3. Apply-final 运行共享 architecture tests、`go test ./...`、OpenSpec strict、diff/secret 和资源路径/hash 检查；失败或未验证项阻断 Apply-final Review。
+3. Apply-final 按全局测试选择策略运行当前 change 的 architecture/workflow targeted tests、精确 task-design lint、OpenSpec strict、diff/scope/secret/链接和资源路径/hash 检查；当前不满足 runtime repo-wide 触发条件，历史 `go test ./...` 只保留为附加证据。失败或未验证项阻断 Apply-final Review。
 4. 若路径迁移验证失败，停止后续步骤，恢复迁移前 commit/引用并重新运行受影响的只读检查；不执行数据库、图谱、UAT/prod 或部署回滚。
 5. 通过 Apply-final 人工 Review 后，才允许按既有顺序 Sync、Archive、`openspec validate --all` 和 Deliver。现有 active changes 不自动 adoption。
 
