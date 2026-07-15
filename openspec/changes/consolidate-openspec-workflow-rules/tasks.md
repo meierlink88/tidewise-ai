@@ -23,12 +23,12 @@
 
 ## 2. 规则收敛 Apply Package
 
-- [ ] 2.1 建立并保存语义覆盖矩阵，将 OpenSpec 顺序与人工 Review、Desktop-managed 入口、sequential/parallel 分流、两类 cleanup、风险分级、有状态写、TDD/CI/验证、事实源和安全边界逐项映射到唯一详述来源与自动化锚点。
-- [ ] 2.2 收敛 `AGENTS.md`：只保留最高级硬门、规则路由、不可绕过的风险/安全摘要和来源指引；删除生命周期、Git、测试的重复详述。
-- [ ] 2.3 收敛 `openspec/config.yaml`：只保留稳定项目背景、语言约束和 artifact 写作约束；删除 workflow、Git、测试和一次性迁移规则。
-- [ ] 2.4 收敛 `.agents/skill-routing.md`、`.agents/openspec-workflow.md`、`.agents/git-workflow.md`、`.agents/testing-tdd.md`：分别保留 Skill 路由、OpenSpec 生命周期/审批、Git/交付、TDD/验证的唯一完整详述，删除跨文件重复并保留必要入口摘要。
-- [ ] 2.5 重写主 workflow spec 的受影响 requirements/scenarios，移除本 change、历史行数/压缩率、一次性迁移和旧验收指标，保留长期可验证行为与 delta spec 完整性。
-- [ ] 2.6 根据现有 architecture workflow contract 的真实断言更新必要的规则语义锚点；不得删除或削弱 Desktop、fallback、sequential/parallel、cleanup、风险、package、验证和事实源检查。
+- [x] 2.1 建立并保存语义覆盖矩阵，将 OpenSpec 顺序与人工 Review、Desktop-managed 入口、sequential/parallel 分流、两类 cleanup、风险分级、有状态写、TDD/CI/验证、事实源和安全边界逐项映射到唯一详述来源与自动化锚点。
+- [x] 2.2 收敛 `AGENTS.md`：只保留最高级硬门、规则路由、不可绕过的风险/安全摘要和来源指引；删除生命周期、Git、测试的重复详述。
+- [x] 2.3 收敛 `openspec/config.yaml`：只保留稳定项目背景、语言约束和 artifact 写作约束；删除 workflow、Git、测试和一次性迁移规则。
+- [x] 2.4 收敛 `.agents/skill-routing.md`、`.agents/openspec-workflow.md`、`.agents/git-workflow.md`、`.agents/testing-tdd.md`：分别保留 Skill 路由、OpenSpec 生命周期/审批、Git/交付、TDD/验证的唯一完整详述，删除跨文件重复并保留必要入口摘要。
+- [x] 2.5 重写主 workflow spec 的受影响 requirements/scenarios，移除本 change、历史行数/压缩率、一次性迁移和旧验收指标，保留长期可验证行为与 delta spec 完整性。
+- [x] 2.6 根据现有 architecture workflow contract 的真实断言更新必要的规则语义锚点；不得删除或削弱 Desktop、fallback、sequential/parallel、cleanup、风险、package、验证和事实源检查。
 
 ## 3. Apply-final Review Package
 

@@ -29,7 +29,7 @@ func TestSkillDrivenWorkflowRules(t *testing.T) {
 		"github:yeet",
 		"docs/superpowers/specs/",
 		"docs/superpowers/plans/",
-		"OpenSpec 拥有唯一正式 change 生命周期和 artifacts",
+		"OpenSpec 拥有唯一正式 artifacts",
 	} {
 		assertWorkflowContains(t, routing, want)
 	}
@@ -167,6 +167,42 @@ func TestTaskDesignWorkflowContract(t *testing.T) {
 		"archive 目录始终先排除",
 		"explicit mode",
 	)
+}
+
+func TestWorkflowRuleOwnershipContract(t *testing.T) {
+
+	root := filepath.Join("..", "..", "..")
+	agents := readWorkflowRuleFile(t, filepath.Join(root, "AGENTS.md"))
+	config := readWorkflowRuleFile(t, filepath.Join(root, "openspec", "config.yaml"))
+	routing := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "skill-routing.md"))
+	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+	gitWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "git-workflow.md"))
+	testingRules := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "testing-tdd.md"))
+
+	for _, want := range []string{"唯一详述来源", ".agents/openspec-workflow.md", ".agents/git-workflow.md", ".agents/testing-tdd.md"} {
+		assertWorkflowContains(t, agents, want)
+	}
+	for _, want := range []string{"本文件只维护 Skill 路由"} {
+		assertWorkflowContains(t, routing, want)
+	}
+	for _, want := range []string{"稳定项目背景", "artifact 写作约束"} {
+		assertWorkflowContains(t, config, want)
+	}
+	for _, unwanted := range []string{"Proposal Review", "Apply-final", "git fetch origin", "go test ./internal/architecture"} {
+		assertWorkflowNotContains(t, config, unwanted)
+	}
+	for _, unwanted := range []string{"## OpenSpec Workflow", "## Commit Checkpoints", "## Verification Before Completion"} {
+		assertWorkflowNotContains(t, routing, unwanted)
+	}
+	for _, want := range []string{"## Lifecycle", "## 风险分级、阶段 Review package 与条件式执行包"} {
+		assertWorkflowContains(t, openspecWorkflow, want)
+	}
+	for _, want := range []string{"## Commit Checkpoints", "## Desktop-Managed Cleanup"} {
+		assertWorkflowContains(t, gitWorkflow, want)
+	}
+	for _, want := range []string{"## Verification Before Completion", "## Backend TDD Gate"} {
+		assertWorkflowContains(t, testingRules, want)
+	}
 }
 
 func TestStreamlinedSoloWorkflowContract(t *testing.T) {
