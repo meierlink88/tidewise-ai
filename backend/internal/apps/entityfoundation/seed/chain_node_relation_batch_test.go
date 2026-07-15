@@ -128,6 +128,135 @@ func TestDryRunChainNodeRelationBatchTreatsSameVerifiedInstantAsUnchanged(t *tes
 	}
 }
 
+func TestValidateFrozenChainNodeRelationDryRunBaselineAcceptsOnlyFrozenStates(t *testing.T) {
+	tests := []struct {
+		name    string
+		report  ChainNodeRelationDataPreflightReport
+		wantErr bool
+	}{
+		{
+			name: "before write",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    100,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+				InputRelations:       3,
+				DependsRelations:     1,
+			},
+		},
+		{
+			name: "after write",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    212,
+				SubcategoryRelations: 108,
+				ComponentRelations:   3,
+				InputRelations:       93,
+				DependsRelations:     8,
+			},
+		},
+		{
+			name: "retired historical baseline",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    96,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "before write type drift",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    100,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+				InputRelations:       4,
+				DependsRelations:     0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "after write type drift",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    212,
+				SubcategoryRelations: 108,
+				ComponentRelations:   3,
+				InputRelations:       94,
+				DependsRelations:     7,
+			},
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateFrozenChainNodeRelationDryRunBaseline(test.report)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("error=%v wantErr=%v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateFrozenChainNodeRelationPlanProtectsAcceptedHundredAndFinalCounts(t *testing.T) {
+	typeCounts := map[domain.ChainNodeRelationType]int{
+		domain.ChainNodeRelationSubcategoryOf: 108,
+		domain.ChainNodeRelationComponentOf:   3,
+		domain.ChainNodeRelationInputTo:       93,
+		domain.ChainNodeRelationDependsOn:     8,
+	}
+	before := ChainNodeRelationDataPreflightReport{ExistingRelations: 100, SubcategoryRelations: 95, ComponentRelations: 1, InputRelations: 3, DependsRelations: 1}
+	post := ChainNodeRelationDataPreflightReport{ExistingRelations: 212, SubcategoryRelations: 108, ComponentRelations: 3, InputRelations: 93, DependsRelations: 8}
+	if err := validateFrozenChainNodeRelationPlan(before, ChainNodeRelationReport{Created: 112, Updated: 0, Unchanged: 100, ByRelationType: typeCounts}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateFrozenChainNodeRelationPlan(post, ChainNodeRelationReport{Created: 0, Updated: 0, Unchanged: 212, ByRelationType: typeCounts}); err != nil {
+		t.Fatal(err)
+	}
+	tests := []ChainNodeRelationReport{
+		{Created: 111, Updated: 0, Unchanged: 101, ByRelationType: typeCounts},
+		{Created: 112, Updated: 1, Unchanged: 99, ByRelationType: typeCounts},
+		{Created: 112, Updated: 0, Unchanged: 100, ByRelationType: map[domain.ChainNodeRelationType]int{domain.ChainNodeRelationSubcategoryOf: 107, domain.ChainNodeRelationComponentOf: 3, domain.ChainNodeRelationInputTo: 94, domain.ChainNodeRelationDependsOn: 8}},
+	}
+	for _, report := range tests {
+		if err := validateFrozenChainNodeRelationPlan(before, report); err == nil {
+			t.Fatalf("plan drift accepted: %+v", report)
+		}
+	}
+}
+
+func TestValidateFrozenChainNodeRelationActionsRejectsBalancedAcceptedBaselineDrift(t *testing.T) {
+	before := ChainNodeRelationDataPreflightReport{ExistingRelations: 100, SubcategoryRelations: 95, ComponentRelations: 1, InputRelations: 3, DependsRelations: 1}
+	planned := frozenChainNodeRelationPlans(WriteUnchanged, WriteCreated)
+	if err := validateFrozenChainNodeRelationActions(before, planned); err != nil {
+		t.Fatal(err)
+	}
+	planned[0].action = WriteCreated
+	planned[100].action = WriteUnchanged
+	if report := relationReport(planned); report.Created != 112 || report.Updated != 0 || report.Unchanged != 100 {
+		t.Fatalf("balanced drift changed aggregate report: %+v", report)
+	}
+	if err := validateFrozenChainNodeRelationActions(before, planned); err == nil {
+		t.Fatal("accepted baseline drift passed because aggregate counts balanced")
+	}
+}
+
+func frozenChainNodeRelationPlans(acceptedAction, additiveAction WriteAction) []plannedChainNodeRelation {
+	planned := make([]plannedChainNodeRelation, 0, 212)
+	appendPlans := func(count int, relationType domain.ChainNodeRelationType, action WriteAction) {
+		for range count {
+			planned = append(planned, plannedChainNodeRelation{item: domain.ChainNodeRelation{RelationType: relationType}, action: action})
+		}
+	}
+	appendPlans(95, domain.ChainNodeRelationSubcategoryOf, acceptedAction)
+	appendPlans(1, domain.ChainNodeRelationComponentOf, acceptedAction)
+	appendPlans(3, domain.ChainNodeRelationInputTo, acceptedAction)
+	appendPlans(1, domain.ChainNodeRelationDependsOn, acceptedAction)
+	appendPlans(13, domain.ChainNodeRelationSubcategoryOf, additiveAction)
+	appendPlans(2, domain.ChainNodeRelationComponentOf, additiveAction)
+	appendPlans(90, domain.ChainNodeRelationInputTo, additiveAction)
+	appendPlans(7, domain.ChainNodeRelationDependsOn, additiveAction)
+	return planned
+}
+
 func TestApplyChainNodeRelationBatchAcceptsSameVerifiedInstantAtPrecommit(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {

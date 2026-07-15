@@ -1,0 +1,73 @@
+{
+  "artifact_type": "chain_node_relation_r0_validation_report",
+  "artifact_version": "1.0.0",
+  "generated_at": "2026-07-15T00:00:00Z",
+  "baseline": {
+    "pg_goose": 18,
+    "pg_applied_rows": 19,
+    "active_chain_node_count": 842,
+    "pg_identity_md5": "d6b53dce56fb5ca72ec77eef816f0a4b",
+    "pg_profile_md5": "2876324fb6bffa41967812702c6bc038",
+    "approved_node_artifact_path": "openspec/changes/archive/2026-07-14-refactor-industry-chain-node-foundation/final-seed-candidate-artifacts/final-seed-candidate-manifest.json",
+    "approved_node_artifact_sha256": "2bf669d24b2dd09929665f32a7c89727212dba634d93ebd78dc2845114fe7b13",
+    "approved_node_profile_artifact_path": "openspec/changes/archive/2026-07-14-refactor-industry-chain-node-foundation/final-seed-candidate-artifacts/node-profile-seed-manifest.json",
+    "approved_node_profile_artifact_sha256": "9141571579ce2eee4b7524f686c6244572be6dd1bce2a1ee0494bcafd6aef05e",
+    "artifact_pg_identity_row_diff": 0,
+    "artifact_pg_profile_hash_match": true
+  },
+  "coverage": {
+    "node_count": 842,
+    "relation_type_count": 4,
+    "assessment_count": 3368,
+    "expected_assessment_count": 3368,
+    "pending_or_unreviewed": 0,
+    "duplicate_node_type_entries": 0,
+    "status_counts": {
+      "approved_relation": 153,
+      "not_applicable": 1467,
+      "insufficient_evidence": 1748
+    },
+    "batch_count": 9,
+    "batches_completed": 9,
+    "coverage_sha256": "826a839a2eb976de10acff01f03db91d14e6094ba6e7879eb0f3e1353e64457f"
+  },
+  "candidates": {
+    "approved_relation_count": 100,
+    "by_relation_type": {
+      "is_subcategory_of": 95,
+      "is_component_of": 1,
+      "input_to": 3,
+      "depends_on": 1
+    },
+    "invalid_source_endpoints": 0,
+    "invalid_target_endpoints": 0,
+    "self_loops": 0,
+    "tuple_duplicates": 0,
+    "id_duplicates": 0,
+    "subcategory_cycles": 0,
+    "component_cycles": 0,
+    "same_direction_cross_type_pairs": 0,
+    "legacy_relation_types": 0,
+    "approved_manifest_sha256": "b578e957df6e6249f745f2661f11a2d03c73434dab85fe8e2fb35f33bf14f2d9"
+  },
+  "restrictions": {
+    "new_nodes": 0,
+    "changed_node_identity": 0,
+    "physical_constraints": 0,
+    "dynamic_event_relations": 0,
+    "market_correlation_relations": 0,
+    "source_code_changes": 0,
+    "pg_writes": 0,
+    "neo4j_writes": 0
+  },
+  "final_condition": {
+    "coverage_842_of_842": true,
+    "pending_zero": true,
+    "endpoints_bound_to_842": true,
+    "tuple_unique": true,
+    "direction_explicit": true,
+    "conflicts_resolved": true,
+    "ready_for_human_freeze_review": true,
+    "ready_for_write": false
+  }
+}

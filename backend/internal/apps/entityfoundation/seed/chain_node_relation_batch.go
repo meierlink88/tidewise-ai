@@ -145,8 +145,63 @@ func (r PostgresRepository) DryRunChainNodeRelationBatch(ctx context.Context, re
 	return r.dryRunChainNodeRelationBatch(ctx, relations, false)
 }
 
-func (r PostgresRepository) DryRunFrozenFirstBatchChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
+func (r PostgresRepository) DryRunFrozenChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
 	return r.dryRunChainNodeRelationBatch(ctx, relations, true)
+}
+
+func validateFrozenChainNodeRelationDryRunBaseline(report ChainNodeRelationDataPreflightReport) error {
+	beforeWrite := report.ExistingRelations == 100 && report.SubcategoryRelations == 95 && report.ComponentRelations == 1 && report.InputRelations == 3 && report.DependsRelations == 1
+	afterWrite := report.ExistingRelations == 212 && report.SubcategoryRelations == 108 && report.ComponentRelations == 3 && report.InputRelations == 93 && report.DependsRelations == 8
+	if !beforeWrite && !afterWrite {
+		return fmt.Errorf("frozen relation dry-run requires 100=95/1/3/1 or 212=108/3/93/8 relations, got %d=%d/%d/%d/%d", report.ExistingRelations, report.SubcategoryRelations, report.ComponentRelations, report.InputRelations, report.DependsRelations)
+	}
+	return nil
+}
+
+func validateFrozenChainNodeRelationPlan(baseline ChainNodeRelationDataPreflightReport, report ChainNodeRelationReport) error {
+	if err := validateFrozenChainNodeRelationDryRunBaseline(baseline); err != nil {
+		return err
+	}
+	wantTypes := map[domain.ChainNodeRelationType]int{
+		domain.ChainNodeRelationSubcategoryOf: 108,
+		domain.ChainNodeRelationComponentOf:   3,
+		domain.ChainNodeRelationInputTo:       93,
+		domain.ChainNodeRelationDependsOn:     8,
+	}
+	if len(report.ByRelationType) != len(wantTypes) {
+		return fmt.Errorf("frozen relation plan type set drifted: %+v", report.ByRelationType)
+	}
+	for relationType, count := range wantTypes {
+		if report.ByRelationType[relationType] != count {
+			return fmt.Errorf("frozen relation plan requires types 108/3/93/8, got %+v", report.ByRelationType)
+		}
+	}
+	if baseline.ExistingRelations == 100 && (report.Created != 112 || report.Updated != 0 || report.Unchanged != 100) {
+		return fmt.Errorf("frozen relation pre-write plan requires 112 created, 0 updated and 100 unchanged, got %+v", report)
+	}
+	if baseline.ExistingRelations == 212 && (report.Created != 0 || report.Updated != 0 || report.Unchanged != 212) {
+		return fmt.Errorf("frozen relation post-write plan requires 0 created, 0 updated and 212 unchanged, got %+v", report)
+	}
+	if report.Created+report.Updated+report.Unchanged != 212 {
+		return fmt.Errorf("frozen relation plan requires 212 total rows, got %+v", report)
+	}
+	return nil
+}
+
+func validateFrozenChainNodeRelationActions(baseline ChainNodeRelationDataPreflightReport, planned []plannedChainNodeRelation) error {
+	if len(planned) != 212 {
+		return fmt.Errorf("frozen relation plan requires 212 ordered rows, got %d", len(planned))
+	}
+	for index, plan := range planned {
+		want := WriteUnchanged
+		if index >= 100 && baseline.ExistingRelations == 100 {
+			want = WriteCreated
+		}
+		if plan.action != want {
+			return fmt.Errorf("frozen relation plan row %d requires %s, got %s", index, want, plan.action)
+		}
+	}
+	return nil
 }
 
 func (r PostgresRepository) dryRunChainNodeRelationBatch(ctx context.Context, relations []domain.ChainNodeRelation, requireFrozenBaseline bool) (ChainNodeRelationReport, error) {
@@ -158,13 +213,14 @@ func (r PostgresRepository) dryRunChainNodeRelationBatch(ctx context.Context, re
 		return ChainNodeRelationReport{}, err
 	}
 	defer tx.Rollback()
+	var baseline ChainNodeRelationDataPreflightReport
 	if requireFrozenBaseline {
-		baseline, err := readChainNodeRelationDataBaseline(ctx, tx)
+		baseline, err = readChainNodeRelationDataBaseline(ctx, tx)
 		if err != nil {
 			return ChainNodeRelationReport{}, err
 		}
-		if baseline.ExistingRelations != 0 && baseline.ExistingRelations != 96 {
-			return ChainNodeRelationReport{}, fmt.Errorf("frozen relation dry-run requires zero or 96 existing relations, got %d", baseline.ExistingRelations)
+		if err := validateFrozenChainNodeRelationDryRunBaseline(baseline); err != nil {
+			return ChainNodeRelationReport{}, err
 		}
 		if _, err := assertChainNodeRelationDataBaseline(ctx, tx, baseline.ExistingRelations); err != nil {
 			return ChainNodeRelationReport{}, err
@@ -174,17 +230,26 @@ func (r PostgresRepository) dryRunChainNodeRelationBatch(ctx context.Context, re
 	if err != nil {
 		return ChainNodeRelationReport{}, err
 	}
+	report := relationReport(planned)
+	if requireFrozenBaseline {
+		if err := validateFrozenChainNodeRelationActions(baseline, planned); err != nil {
+			return ChainNodeRelationReport{}, err
+		}
+		if err := validateFrozenChainNodeRelationPlan(baseline, report); err != nil {
+			return ChainNodeRelationReport{}, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return ChainNodeRelationReport{}, err
 	}
-	return relationReport(planned), nil
+	return report, nil
 }
 
 func (r PostgresRepository) ApplyChainNodeRelationBatch(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
 	return r.applyChainNodeRelationBatch(ctx, relations, false)
 }
 
-func (r PostgresRepository) ApplyFrozenFirstBatchChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
+func (r PostgresRepository) ApplyFrozenChainNodeRelations(ctx context.Context, relations []domain.ChainNodeRelation) (ChainNodeRelationReport, error) {
 	return r.applyChainNodeRelationBatch(ctx, relations, true)
 }
 
@@ -197,8 +262,10 @@ func (r PostgresRepository) applyChainNodeRelationBatch(ctx context.Context, rel
 		return ChainNodeRelationReport{}, err
 	}
 	defer tx.Rollback()
+	var baseline ChainNodeRelationDataPreflightReport
 	if requireFrozenBaseline {
-		if _, err := preflightChainNodeRelationData(ctx, tx); err != nil {
+		baseline, err = preflightChainNodeRelationData(ctx, tx)
+		if err != nil {
 			return ChainNodeRelationReport{}, err
 		}
 	}
@@ -207,6 +274,14 @@ func (r PostgresRepository) applyChainNodeRelationBatch(ctx context.Context, rel
 		return ChainNodeRelationReport{}, err
 	}
 	report := relationReport(planned)
+	if requireFrozenBaseline {
+		if err := validateFrozenChainNodeRelationActions(baseline, planned); err != nil {
+			return ChainNodeRelationReport{}, err
+		}
+		if err := validateFrozenChainNodeRelationPlan(baseline, report); err != nil {
+			return ChainNodeRelationReport{}, err
+		}
+	}
 	for _, plan := range planned {
 		switch plan.action {
 		case WriteCreated:
@@ -248,14 +323,14 @@ const frozenChainNodeRelationAggregateSQL = `SELECT count(*),
  LEFT JOIN chain_node_profiles tp ON tp.entity_id=r.to_chain_node_entity_id`
 
 func verifyFrozenChainNodeRelationPostWrite(ctx context.Context, tx *sql.Tx) error {
-	if _, err := assertChainNodeRelationDataBaseline(ctx, tx, 96); err != nil {
+	if _, err := assertChainNodeRelationDataBaseline(ctx, tx, 212); err != nil {
 		return err
 	}
 	var total, subcategory, component, input, depends, incomplete, selfLoops, duplicates, orphans int
 	if err := tx.QueryRowContext(ctx, frozenChainNodeRelationAggregateSQL).Scan(&total, &subcategory, &component, &input, &depends, &incomplete, &selfLoops, &duplicates, &orphans); err != nil {
 		return err
 	}
-	if total != 96 || subcategory != 95 || component != 1 || input != 0 || depends != 0 || incomplete != 0 || selfLoops != 0 || duplicates != 0 || orphans != 0 {
+	if total != 212 || subcategory != 108 || component != 3 || input != 93 || depends != 8 || incomplete != 0 || selfLoops != 0 || duplicates != 0 || orphans != 0 {
 		return fmt.Errorf("frozen relation post-write aggregate mismatch: total=%d types=%d/%d/%d/%d incomplete=%d self=%d duplicate=%d orphan=%d", total, subcategory, component, input, depends, incomplete, selfLoops, duplicates, orphans)
 	}
 	return nil

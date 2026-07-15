@@ -58,14 +58,25 @@ func TestValidateRelationCommandOptionsRequiresExactlyOneIsolatedMode(t *testing
 	}
 }
 
-func TestLoadRelationDryRunManifestRejectsPhysicalConstraints(t *testing.T) {
+func TestLoadRelationDryRunManifestRejectsNonFrozenPath(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "relations.json")
-	content := []byte(`{"relations":[],"physical_constraints":[{"id":"constraint","chain_node_entity_id":"node","constraint_type":"process_yield","description":"具体工艺良率限制合格产出","evidence_note":"强证据","provenance":"review","status":"active","verified_at":"2026-07-14T00:00:00Z"}]}`)
+	content := []byte(`{"relations":[]}`)
 	if err := os.WriteFile(path, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := loadRelationDryRunManifest(path); err == nil {
 		t.Fatal("loadRelationDryRunManifest() error = nil")
+	}
+}
+
+func TestLoadRelationDryRunManifestReadsFrozenAdditiveRelations(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "openspec", "changes", "archive", "2026-07-15-rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-usable-map-r0", "additive-final-candidate-manifest.json")
+	manifest, err := loadRelationDryRunManifest(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(manifest.Relations); got != 212 {
+		t.Fatalf("relations = %d, want 212", got)
 	}
 }
 

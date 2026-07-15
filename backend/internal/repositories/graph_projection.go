@@ -67,6 +67,7 @@ type GraphEntityEdge struct {
 	ToEntityID   string
 	RelationType string
 	EvidenceNote string
+	Source       string
 	Status       domain.Status
 	UpdatedAt    time.Time
 }
@@ -254,47 +255,41 @@ SELECT node.id,
        COALESCE(NULLIF(node.entity_key, ''), node.entity_type || ':' || node.id::text) AS entity_key,
        node.entity_type, node.layer_code, node.name, node.canonical_name,
        COALESCE(array_to_json(node.aliases)::text, '[]') AS aliases,
-       node.status, node.updated_at, sector.classification_code
+       node.status, node.updated_at
 FROM entity_nodes node
-LEFT JOIN sector_profiles sector ON sector.entity_id = node.id
-LEFT JOIN industry_chain_profiles chain ON chain.entity_id = node.id
 WHERE node.status = 'active'
-  AND (node.entity_type <> 'industry_chain' OR chain.review_status = 'approved')
+  AND node.entity_type IN ('alliance_org', 'economy', 'chain_node')
 ORDER BY node.id
 `
 
 const graphEntityEdgesQuery = `
 SELECT source.id, source.from_entity_id, source.to_entity_id, source.relation_type,
-       source.evidence_note, source.status, source.updated_at
+       source.evidence_note, source.source, source.status, source.updated_at
 FROM (
     SELECT edge.id, edge.from_entity_id, edge.to_entity_id, edge.relation_type,
-           edge.evidence_note, edge.status, edge.updated_at
+           edge.evidence_note, 'postgres_entity_edges' AS source, edge.status, edge.updated_at
     FROM entity_edges edge
     JOIN entity_nodes from_node ON from_node.id = edge.from_entity_id
     JOIN entity_nodes to_node ON to_node.id = edge.to_entity_id
     WHERE edge.status = 'active'
       AND from_node.status = 'active'
       AND to_node.status = 'active'
+      AND from_node.entity_type IN ('alliance_org', 'economy', 'chain_node')
+      AND to_node.entity_type IN ('alliance_org', 'economy', 'chain_node')
       AND edge.source_name <> '' AND edge.source_url <> '' AND edge.verified_at IS NOT NULL
     UNION ALL
-    SELECT membership.id, membership.chain_node_entity_id, membership.industry_chain_entity_id,
-           'member_of_chain', '', membership.status, membership.updated_at
-    FROM industry_chain_memberships membership
-    JOIN entity_nodes from_node ON from_node.id = membership.chain_node_entity_id
-    JOIN entity_nodes to_node ON to_node.id = membership.industry_chain_entity_id
-    JOIN industry_chain_profiles chain ON chain.entity_id = membership.industry_chain_entity_id
-    WHERE membership.status = 'active' AND from_node.status = 'active' AND to_node.status = 'active'
-      AND chain.review_status = 'approved'
-    UNION ALL
-    SELECT topology.id, topology.from_chain_node_entity_id, topology.to_chain_node_entity_id,
-           topology.relation_type, topology.evidence_note, topology.status, topology.updated_at
-    FROM industry_chain_topology_edges topology
-    JOIN industry_chain_profiles chain ON chain.entity_id = topology.industry_chain_entity_id
-    JOIN entity_nodes from_node ON from_node.id = topology.from_chain_node_entity_id
-    JOIN entity_nodes to_node ON to_node.id = topology.to_chain_node_entity_id
-	WHERE topology.status = 'active' AND chain.review_status = 'approved'
-	  AND topology.relation_type IN ('supplies_to', 'depends_on', 'substitutes_for')
-	  AND from_node.status = 'active' AND to_node.status = 'active'
+    SELECT relation.id, relation.from_chain_node_entity_id, relation.to_chain_node_entity_id,
+           relation.relation_type, relation.evidence_note, 'postgres_chain_node_relations' AS source,
+           relation.status, relation.updated_at
+    FROM chain_node_relations relation
+    JOIN entity_nodes from_node ON from_node.id = relation.from_chain_node_entity_id
+    JOIN entity_nodes to_node ON to_node.id = relation.to_chain_node_entity_id
+    WHERE relation.status = 'active'
+      AND from_node.status = 'active'
+      AND to_node.status = 'active'
+      AND from_node.entity_type = 'chain_node'
+      AND to_node.entity_type = 'chain_node'
+      AND relation.relation_type IN ('is_subcategory_of', 'is_component_of', 'input_to', 'depends_on')
 ) source
 ORDER BY source.id
 `
@@ -310,7 +305,6 @@ func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEn
 	for rows.Next() {
 		var node GraphEntityNode
 		var aliasesJSON string
-		var classificationCode sql.NullString
 		if err := rows.Scan(
 			&node.ID,
 			&node.EntityKey,
@@ -321,15 +315,11 @@ func (r PostgresRepository) ListGraphEntityNodes(ctx context.Context) ([]GraphEn
 			&aliasesJSON,
 			&node.Status,
 			&node.UpdatedAt,
-			&classificationCode,
 		); err != nil {
 			return nil, fmt.Errorf("scan graph entity node: %w", err)
 		}
 		if err := json.Unmarshal([]byte(aliasesJSON), &node.Aliases); err != nil {
 			return nil, fmt.Errorf("decode graph entity aliases: %w", err)
-		}
-		if classificationCode.Valid {
-			node.ClassificationCode = domain.SectorClassification(classificationCode.String)
 		}
 		nodes = append(nodes, normalizeGraphEntityNode(node))
 	}
@@ -355,6 +345,7 @@ func (r PostgresRepository) ListGraphEntityEdges(ctx context.Context) ([]GraphEn
 			&edge.ToEntityID,
 			&edge.RelationType,
 			&edge.EvidenceNote,
+			&edge.Source,
 			&edge.Status,
 			&edge.UpdatedAt,
 		); err != nil {
