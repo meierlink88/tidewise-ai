@@ -149,6 +149,15 @@ func (r PostgresRepository) DryRunFrozenChainNodeRelations(ctx context.Context, 
 	return r.dryRunChainNodeRelationBatch(ctx, relations, true)
 }
 
+func validateFrozenChainNodeRelationDryRunBaseline(report ChainNodeRelationDataPreflightReport) error {
+	beforeWrite := report.ExistingRelations == 96 && report.SubcategoryRelations == 95 && report.ComponentRelations == 1 && report.InputRelations == 0 && report.DependsRelations == 0
+	afterWrite := report.ExistingRelations == 100 && report.SubcategoryRelations == 95 && report.ComponentRelations == 1 && report.InputRelations == 3 && report.DependsRelations == 1
+	if !beforeWrite && !afterWrite {
+		return fmt.Errorf("frozen relation dry-run requires 96=95/1/0/0 or 100=95/1/3/1 relations, got %d=%d/%d/%d/%d", report.ExistingRelations, report.SubcategoryRelations, report.ComponentRelations, report.InputRelations, report.DependsRelations)
+	}
+	return nil
+}
+
 func (r PostgresRepository) dryRunChainNodeRelationBatch(ctx context.Context, relations []domain.ChainNodeRelation, requireFrozenBaseline bool) (ChainNodeRelationReport, error) {
 	if r.root == nil {
 		return ChainNodeRelationReport{}, fmt.Errorf("postgres root database is required")
@@ -163,8 +172,8 @@ func (r PostgresRepository) dryRunChainNodeRelationBatch(ctx context.Context, re
 		if err != nil {
 			return ChainNodeRelationReport{}, err
 		}
-		if baseline.ExistingRelations != 96 {
-			return ChainNodeRelationReport{}, fmt.Errorf("frozen relation dry-run requires 96 existing relations, got %d", baseline.ExistingRelations)
+		if err := validateFrozenChainNodeRelationDryRunBaseline(baseline); err != nil {
+			return ChainNodeRelationReport{}, err
 		}
 		if _, err := assertChainNodeRelationDataBaseline(ctx, tx, baseline.ExistingRelations); err != nil {
 			return ChainNodeRelationReport{}, err

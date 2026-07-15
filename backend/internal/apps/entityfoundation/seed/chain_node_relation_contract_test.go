@@ -104,7 +104,7 @@ func TestPreflightFrozenChainNodeRelationDataRequiresExactGoose18SchemaAndBaseli
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 96, 0))
+	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 96, 95, 1, 0, 0, 0))
 	mock.ExpectQuery(relationDataSchemaSQL).WillReturnRows(sqlmock.NewRows([]string{"relation_columns", "constraint_columns", "relation_checks", "relation_fks", "relation_pks", "relation_uniques", "constraint_checks", "constraint_fks", "constraint_pks", "relation_indexes", "constraint_indexes", "triggers"}).AddRow(relationColumnSignature, physicalConstraintColumnSignature, 7, 2, 1, 1, 7, 2, 1, 4, 3, 0))
 	report, err := NewPostgresRepository(db).PreflightFrozenChainNodeRelationData(context.Background())
 	if err != nil || !report.SchemaValid || report.GooseVersion != 18 || report.ExistingRelations != 96 {
@@ -121,7 +121,7 @@ func TestPreflightFrozenChainNodeRelationDataRejectsSchemaDrift(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 96, 0))
+	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 96, 95, 1, 0, 0, 0))
 	mock.ExpectQuery(relationDataSchemaSQL).WillReturnRows(sqlmock.NewRows([]string{"relation_columns", "constraint_columns", "relation_checks", "relation_fks", "relation_pks", "relation_uniques", "constraint_checks", "constraint_fks", "constraint_pks", "relation_indexes", "constraint_indexes", "triggers"}).AddRow(relationColumnSignature, physicalConstraintColumnSignature, 6, 2, 1, 1, 7, 2, 1, 4, 3, 0))
 	if _, err := NewPostgresRepository(db).PreflightFrozenChainNodeRelationData(context.Background()); err == nil {
 		t.Fatal("schema drift error = nil")
@@ -142,7 +142,7 @@ func TestVerifyFrozenChainNodeRelationPostWriteChecksProtectedBaselineAndExactAg
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 100, 0))
+	mock.ExpectQuery(relationDataBaselineSQL).WillReturnRows(sqlmock.NewRows([]string{"database", "version", "goose", "nodes", "profiles", "external", "edges", "relations", "subcategory", "component", "input", "depends", "constraints"}).AddRow("tidewise_local", "16.14", 18, 842, 842, 1169, 241, 100, 95, 1, 3, 1, 0))
 	mock.ExpectQuery(relationDataSchemaSQL).WillReturnRows(sqlmock.NewRows([]string{"relation_columns", "constraint_columns", "relation_checks", "relation_fks", "relation_pks", "relation_uniques", "constraint_checks", "constraint_fks", "constraint_pks", "relation_indexes", "constraint_indexes", "triggers"}).AddRow(relationColumnSignature, physicalConstraintColumnSignature, 7, 2, 1, 1, 7, 2, 1, 4, 3, 0))
 	mock.ExpectQuery(frozenChainNodeRelationAggregateSQL).WillReturnRows(sqlmock.NewRows([]string{"total", "subcategory", "component", "input", "depends", "incomplete", "self", "duplicate", "orphan"}).AddRow(100, 95, 1, 3, 1, 0, 0, 0, 0))
 	if err := verifyFrozenChainNodeRelationPostWrite(context.Background(), tx); err != nil {

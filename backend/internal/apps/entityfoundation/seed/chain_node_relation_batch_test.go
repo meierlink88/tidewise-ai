@@ -128,6 +128,71 @@ func TestDryRunChainNodeRelationBatchTreatsSameVerifiedInstantAsUnchanged(t *tes
 	}
 }
 
+func TestValidateFrozenChainNodeRelationDryRunBaselineAcceptsOnlyFrozenStates(t *testing.T) {
+	tests := []struct {
+		name    string
+		report  ChainNodeRelationDataPreflightReport
+		wantErr bool
+	}{
+		{
+			name: "before write",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    96,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+			},
+		},
+		{
+			name: "after write",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    100,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+				InputRelations:       3,
+				DependsRelations:     1,
+			},
+		},
+		{
+			name: "unexpected total",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    99,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+				InputRelations:       3,
+			},
+			wantErr: true,
+		},
+		{
+			name: "before write type drift",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    96,
+				SubcategoryRelations: 94,
+				ComponentRelations:   1,
+				InputRelations:       1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "after write type drift",
+			report: ChainNodeRelationDataPreflightReport{
+				ExistingRelations:    100,
+				SubcategoryRelations: 95,
+				ComponentRelations:   1,
+				InputRelations:       4,
+			},
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateFrozenChainNodeRelationDryRunBaseline(test.report)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("error=%v wantErr=%v", err, test.wantErr)
+			}
+		})
+	}
+}
+
 func TestApplyChainNodeRelationBatchAcceptsSameVerifiedInstantAtPrecommit(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {

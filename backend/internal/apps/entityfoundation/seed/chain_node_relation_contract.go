@@ -83,16 +83,20 @@ type frozenChainNodeIdentity struct {
 }
 
 type ChainNodeRelationDataPreflightReport struct {
-	DatabaseName        string `json:"database_name"`
-	ServerVersion       string `json:"server_version"`
-	GooseVersion        int    `json:"goose_version"`
-	ActiveChainNodes    int    `json:"active_chain_nodes"`
-	ChainNodeProfiles   int    `json:"chain_node_profiles"`
-	ExternalIdentifiers int    `json:"external_identifiers"`
-	EntityEdges         int    `json:"entity_edges"`
-	ExistingRelations   int    `json:"existing_relations"`
-	ExistingConstraints int    `json:"existing_constraints"`
-	SchemaValid         bool   `json:"schema_valid"`
+	DatabaseName         string `json:"database_name"`
+	ServerVersion        string `json:"server_version"`
+	GooseVersion         int    `json:"goose_version"`
+	ActiveChainNodes     int    `json:"active_chain_nodes"`
+	ChainNodeProfiles    int    `json:"chain_node_profiles"`
+	ExternalIdentifiers  int    `json:"external_identifiers"`
+	EntityEdges          int    `json:"entity_edges"`
+	ExistingRelations    int    `json:"existing_relations"`
+	SubcategoryRelations int    `json:"subcategory_relations"`
+	ComponentRelations   int    `json:"component_relations"`
+	InputRelations       int    `json:"input_relations"`
+	DependsRelations     int    `json:"depends_relations"`
+	ExistingConstraints  int    `json:"existing_constraints"`
+	SchemaValid          bool   `json:"schema_valid"`
 }
 
 func LoadFrozenChainNodeRelationManifest(path string) (ChainNodeRelationManifest, error) {
@@ -259,6 +263,10 @@ const relationDataBaselineSQL = `SELECT current_database(), current_setting('ser
  (SELECT count(*) FROM entity_external_identifiers),
  (SELECT count(*) FROM entity_edges),
  (SELECT count(*) FROM chain_node_relations),
+ (SELECT count(*) FROM chain_node_relations WHERE relation_type='is_subcategory_of'),
+ (SELECT count(*) FROM chain_node_relations WHERE relation_type='is_component_of'),
+ (SELECT count(*) FROM chain_node_relations WHERE relation_type='input_to'),
+ (SELECT count(*) FROM chain_node_relations WHERE relation_type='depends_on'),
  (SELECT count(*) FROM chain_node_physical_constraints)`
 
 const relationDataSchemaSQL = `SELECT
@@ -280,7 +288,7 @@ const physicalConstraintColumnSignature = "id:uuid:NO:,chain_node_entity_id:uuid
 
 func readChainNodeRelationDataBaseline(ctx context.Context, db postgresExecutor) (ChainNodeRelationDataPreflightReport, error) {
 	var report ChainNodeRelationDataPreflightReport
-	if err := db.QueryRowContext(ctx, relationDataBaselineSQL).Scan(&report.DatabaseName, &report.ServerVersion, &report.GooseVersion, &report.ActiveChainNodes, &report.ChainNodeProfiles, &report.ExternalIdentifiers, &report.EntityEdges, &report.ExistingRelations, &report.ExistingConstraints); err != nil {
+	if err := db.QueryRowContext(ctx, relationDataBaselineSQL).Scan(&report.DatabaseName, &report.ServerVersion, &report.GooseVersion, &report.ActiveChainNodes, &report.ChainNodeProfiles, &report.ExternalIdentifiers, &report.EntityEdges, &report.ExistingRelations, &report.SubcategoryRelations, &report.ComponentRelations, &report.InputRelations, &report.DependsRelations, &report.ExistingConstraints); err != nil {
 		return report, err
 	}
 	var relationColumns, constraintColumns string
