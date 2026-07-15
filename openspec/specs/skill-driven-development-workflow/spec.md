@@ -169,7 +169,7 @@
 
 ### Requirement: 长期工作流行为必须可验证
 
-系统 MUST 通过 OpenSpec strict、规则/architecture targeted checks、精确 task-design lint、scope/secret/link 检查和语义覆盖矩阵验证规则分层与硬门完整性。主 workflow spec 不得把某个 change 的历史行数、字符数、字节数、压缩率、一次性迁移步骤或旧验收指标作为长期行为要求。
+系统 MUST 通过 OpenSpec strict、规则/architecture targeted checks、精确 task-design lint、scope/secret/link 检查和语义覆盖矩阵验证规则分层与硬门完整性。主 workflow spec 只保留稳定 requirement/scenario，不固化特定 change 的过程约束与历史验收内容。
 
 #### Scenario: Proposal checkpoint 验证范围匹配
 
