@@ -1,12 +1,12 @@
 ## 1. 发布配置
 
-- [ ] 1.1 将 `.github/workflows/deploy-uat.yml` 的 backend 与 admin portal 镜像构建平台调整为 `linux/amd64`，并将 `UAT_ENV_FILE` 指向 `/opt/tidewise-uat/infra/.env`。
-- [ ] 1.2 更新 `infra/uat/README.md`，说明 Linux AMD64 主机、`tidewise` 运行账号、持久 `.env` 路径和 self-hosted runner 准备步骤。
-- [ ] 1.3 运行 workflow 文本断言、`docker compose ... config` 与 `git diff --check`，确认 AMD64 平台、环境文件路径和 Compose 模板可解析。
+- [x] 1.1 将 `.github/workflows/deploy-uat.yml` 的 backend 与 admin portal 镜像构建平台调整为 `linux/amd64`，并将 `UAT_ENV_FILE` 指向 `/opt/tidewise-uat/infra/.env`。
+- [x] 1.2 更新 `infra/uat/README.md`，说明 Linux AMD64 主机、`tidewise` 运行账号、持久 `.env` 路径和 self-hosted runner 准备步骤。
+- [x] 1.3 运行 workflow 文本断言、`docker compose ... config` 与 `git diff --check`，确认 AMD64 平台、环境文件路径和 Compose 模板可解析。
 
 ## 2. 新 UAT 主机接入
 
-- [ ] 2.1 复核 Ubuntu AMD64 主机的 Docker、Compose、PostgreSQL 16、`tidewise` Docker 权限和 PostgreSQL 本机监听状态。
+- [x] 2.1 复核 Ubuntu AMD64 主机的 Docker、Compose、PostgreSQL 16、`tidewise` Docker 权限和 PostgreSQL 本机监听状态。
 - [ ] 2.2 从 `infra/uat/.env.example` 创建 `/opt/tidewise-uat/infra/.env`，在主机本地填入真实运行时 secret 并设置受限权限。
 - [ ] 2.3 以 `tidewise` 账号安装并注册 GitHub self-hosted runner，配置 `self-hosted`、`tidewise`、`uat` labels，并将 runner 设为 systemd 服务。
 - [ ] 2.4 验证 runner 可访问 GitHub、GHCR 和本机 Docker，且不在 runner 配置或日志中保存真实业务 secret。
