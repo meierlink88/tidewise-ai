@@ -2,57 +2,22 @@ schema: spec-driven
 
 context: |
   项目名称：观潮家。
-  产品领域：面向全球宏观与市场事件智能的跨平台小程序，首批目标包含微信和抖音小程序，聚焦事件跟踪、因果推理、板块/资产传导分析、订阅和 AI 辅助市场理解。产品提供决策辅助，不得把内容表达为直接投资建议。
+  产品领域：面向全球宏观与市场事件智能的跨平台小程序，覆盖事件跟踪、因果推理、板块/资产传导分析、订阅和 AI 辅助市场理解；产品提供决策辅助，不得表达为直接投资建议。
 
-  仓库布局：
-  - /Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai 是源码工程根目录和 OpenSpec 根目录。所有实现代码、小程序配置、OpenSpec changes、specs 和 Codex OpenSpec skills 都放在这里。
-  - /Users/meierlink/Documents/david/创业项目/观潮家/prototype 是原型/设计目录，包含高保真原型资产，只作为参考材料，不作为生产源码。
-  - /Users/meierlink/Documents/david/创业项目/观潮家/doc 是项目文档空间，放商业计划、产品设计、架构说明、数据模型和其他规划文档。除非某个 change 明确要求更新文档，否则只作为参考材料。
+  稳定项目背景与仓库边界：`tidewise-ai/` 是源码工程和 OpenSpec 根目录；`prototype/` 是只读原型参考；`doc/` 是只读长期文档空间。除非 change 明确要求，不修改 prototype 或 doc。
 
-  当前工程状态：
-  - tidewise-ai 已使用 spec-driven schema 配置 OpenSpec 1.5.0。
-  - Codex Desktop 集成使用 .codex/skills/openspec-*/SKILL.md 下的 OpenSpec skills。
-  - tidewise-ai 已包含 Taro + React + TypeScript 跨平台小程序工程壳，源码位于 `frontend/miniapp/`，当前支持微信和抖音小程序构建目标。
-  - tidewise-ai 后端采用单 Go module、多可部署进程结构，源码位于 `backend/`；业务子系统位于 `internal/apps`，共享基础层位于 `internal/domain`、`internal/repositories`、`internal/config` 和 `internal/platform`。
-  - 当前已具备数据采集、调度、管理 API、实体基础数据和 PostgreSQL 到 Neo4j 图投影等能力；后续正式模块必须基于 `openspec/specs/` 主规格和现有代码增量设计。
+  当前架构：前端采用 Taro + React + TypeScript，后端采用 Go + Gin 单 module、多可部署进程结构；`cmd/*` 是入口，`internal/apps/*` 是业务子系统，`internal/domain`、`internal/repositories`、`internal/config` 和 `internal/platform` 是共享层。PostgreSQL 是实体、事件和关系事实源，Neo4j 是可从 PostgreSQL 重建的图投影，Redis 只承担缓存、限流、幂等和短期任务状态。
 
-  目标平台和实现预期：
-  - 除非后续已批准的 OpenSpec change 另有决定，否则前端按 Taro + React + TypeScript 跨平台小程序建设。
-  - 前端源码位于 `frontend/miniapp/`，面向微信和抖音小程序输出。
-  - 后端按 Go + Gin API/BFF 技术栈建设，源码位于 `backend/`。
-  - 后端技术选型同时要求适合 AI 编程协作：语言和框架应具备强类型、清晰工程约定、直接编译反馈、易测试和低歧义代码风格。
-  - 后端必须标准化支持 local、uat、prod 三类环境配置。非敏感配置结构可以入库，敏感信息必须通过环境变量或部署平台 secret 注入，不得提交到 repo。
-  - 后端业务代码只能依赖统一的 Go 强类型 config，不得散落读取环境变量或硬编码环境差异。
-  - 结构化主存储采用 PostgreSQL，缓存、限流、幂等和短期任务状态采用 Redis；数据库结构通过版本化增量 migration 管理，本地基础设施位于 `infra/local/`。
-  - PostgreSQL 是实体、事件和关系事实源；Neo4j 保存可从 PostgreSQL 重建的图投影，用于路径查询和图谱推理。向量召回和 Prompt 编排仍优先由外部 Agent 平台承载。
-  - 正式业务 API 开发前必须先定义 API 契约边界，覆盖请求响应 DTO、错误结构、分页、时间、ID、枚举和 Agent 回写 payload。当前 `frontend/miniapp/src/models` 是前端展示模型，不等同于正式 API 契约。
-  - 后端采用单 Go module、多可部署子系统结构：`cmd/*` 是进程入口，`internal/apps/*` 是业务子系统，`internal/domain` 是领域模型，`internal/repositories` 是数据访问，`internal/config` 是强类型配置，`internal/platform` 是共享技术基础层。
-  - 所有涉及 Go 后端实现的正式 change 默认采用 TDD 测试先行：先设计并实现 Go 单元测试、table-driven tests、fixture、fake 或 `httptest` 用例，再编写生产代码，最后通过对应包测试和 `go test ./...` 才能视为验证完成。
-  - 后端单元测试不得依赖真实外部网络、真实 API key、真实 cookie、真实 token 或生产数据库。外部来源、Agent API、RSS/RSSHub、Eastmoney、webhook 和数据库边界必须通过 fixture、fake、`httptest`、接口 fake、SQL/migration 静态验证或明确标记的可重复集成测试验证。
-  - 数据采集层属于后端 `internal/apps/ingestion` 边界，支持 connector、外部 Agent API 和 AI web research 采集。原始数据经过来源追踪、去重、清洗、标准化、质量标记和结构化校验后进入 PostgreSQL，再由下游流程生成事件、关系和 Neo4j 图投影。
-  - AI 能力可以接入外部 Agent 平台或模型 API；本工程负责 provider adapter、调用编排、结构化校验、回调、落库和展示，敏感凭证必须通过环境变量或部署 secret 注入。
-  - 除非用户明确要求，prototype 视觉资产和产品文档必须留在源码实现之外。
-  - 将 prototype 中的 DOM/HTML 行为转换为 Taro/React 数据驱动渲染方式，避免浏览器 DOM 操作和平台专属实现直接进入业务层。
-  - 生产小程序代码中不得使用 document、window、innerHTML、直接 DOM mutation 或内联 onclick 等浏览器专属 API。
-  - 实现页面时，应将 mock/领域数据从 UI 代码中抽离到专门 data 或 service 模块。
-  - 除非用户明确要求，不要在源码中添加注释。
-  - 遵守安全最佳实践，不得硬编码或打印 secrets、tokens 或私有凭证。
-  - OpenSpec 生成内容默认必须使用中文。只有 OpenSpec 规范要求的框架性文案、固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。
+  配置与安全：local、uat、prod 使用统一强类型配置；敏感配置只能由环境变量或部署 secret 注入，不得提交或打印 secrets、tokens、连接串、模型 key 或个人隐私。
+
+  OpenSpec artifact 写作约束：内容默认使用中文；固定标题、关键字、命令、文件名、路径、代码标识和协议字段可以保留英文。
 
 rules:
   proposal:
-    - "明确说明本 change 涉及哪些仓库区域：tidewise-ai 源码、prototype 参考或 doc 更新。"
-    - "当 change 可能外溢到 prototype 或文档工作时，必须写清楚非目标。"
+    - "说明 change 的仓库区域、影响范围和 prototype/doc 非目标。"
   design:
-    - "涉及 UI 实现时，必须描述小程序页面、组件和数据边界。"
-    - "如果涉及从 prototype-only 行为迁移到生产小程序行为，必须明确说明迁移方式。"
-    - "涉及 Go 后端实现时，必须描述测试先行策略、关键测试边界、fixture/fake 使用方式和 `go test ./...` 验证要求。"
+    - "说明目标、非目标、关键决策、风险和验证边界。"
   specs:
-    - "编写用户可观察的 requirements 和 scenarios，不要把 specs 写成实现 checklist。"
-    - "当影响分析、推荐或 AI 响应时，必须包含投资建议安全边界。"
-    - "涉及后端能力时，必须包含可自动化测试或验证通过的完成标准。"
+    - "使用用户可观察的 requirements 和 WHEN/THEN scenarios，不写实现 checklist。"
   tasks:
-    - "将实现拆成可验证任务，并与小程序文件或模块对齐。"
-    - "包含适合 Taro 跨平台小程序和 Go 后端开发的验证任务。"
-    - "涉及 Go 后端实现时，tasks 必须把测试任务放在对应生产实现任务之前。"
-    - "新增后端功能点必须先完成 Go 单元测试、fixture、fake 或集成测试边界，再标记实现任务完成。"
+    - "使用可验证的内聚 package、Gate Map 和 Complexity Budget；普通测试、修复、commit 和 push 不单独制造人工 gate。"
