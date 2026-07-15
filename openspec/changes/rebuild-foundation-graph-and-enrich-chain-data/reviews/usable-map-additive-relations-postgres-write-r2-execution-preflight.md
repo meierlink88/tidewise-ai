@@ -77,10 +77,10 @@ backup 前与 backup 后各执行一次 relation-only read-only dry-run；两次
 | SHA-256 | `098f07196f06a07a6f827748233080bfb28cbd4a97d145685f29a11dfd41611b` |
 | Permissions | `-rw-------` |
 | pg_dump / pg_restore | PostgreSQL `16.14 (Debian 16.14-1.pgdg13+1)` / 同版本 |
-| TOC | `185` entries，非空 |
+| Archive TOC / selected objects | archive header `TOC Entries: 189`；`pg_restore --list` 实际列出 `185` 个 selected object entries，二者均非空 |
 | Full decode | `pg_restore --file=/dev/null` exit `0` |
 
-binary archive 先以 host `.partial` 接收，TOC 与完整 decode 均通过后才原子改名为最终 `.dump`。最终只存在上述一个命名 backup，`.partial` 不存在；未 retry。首次、backup 后复验和全部只读复验结束后的 bytes/SHA-256 三次逐字一致。
+binary archive 先以 host `.partial` 接收，archive header TOC、selected object list 与完整 decode 均通过后才原子改名为最终 `.dump`。最终只存在上述一个命名 backup，`.partial` 不存在；未 retry。首次、backup 后复验和全部只读复验结束后的 bytes/SHA-256 三次逐字一致。
 
 该 backup 仅为 `Recovery Evidence=backup`，不授权 restore。若后续授权执行 Write 前 HEAD、environment、PG baseline、artifact、counts/hash/schema、dry-run 或 backup bytes/SHA 任一漂移，必须停止并回到 Review；不得 retry、restore、forward-fix 或进入 Neo4j。
 
