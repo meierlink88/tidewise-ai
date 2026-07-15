@@ -1,0 +1,16 @@
+{
+  "artifact_type": "chain_node_usable_map_rules",
+  "artifact_version": 1,
+  "allowed_relation_types": [
+    "is_subcategory_of",
+    "is_component_of",
+    "input_to",
+    "depends_on"
+  ],
+  "input_to": "A 的产出沿可解释产业链进入 B 的生产、产品、交付或运行过程；允许跨越当前缺失或未建模中间节点；方向 A->B。",
+  "tier_1": "机制和方向清楚、双遍 AI 一致，且至少一个可信外部来源支持链路；来源可按同一产业链组复用。",
+  "tier_2": "稳定产业知识；无外部来源时两遍独立审查必须对类型、方向、机制、条件和反例完全一致且无合理争议。",
+  "reject": "任一遍不一致、机制不清、边界过宽或存在合理反例均阻断；禁止名称邻近、市场相关、共同事件或宽泛行业相邻补边。",
+  "coverage": "每个基线节点参加候选发现及双遍检查；无事实允许无边，不强制 node×relation_type 三态。",
+  "rules_sha256": "74a2964d7cb480f4f30a1aeef95809b29439e8fc71e2e12f2d842222ed2fcaba"
+}

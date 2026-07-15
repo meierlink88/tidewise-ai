@@ -1,0 +1,15 @@
+{
+  "artifact_type": "chain_node_usable_map_analysis_input",
+  "artifact_version": 1,
+  "baseline_node_count": 842,
+  "baseline_identity_md5": "d6b53dce56fb5ca72ec77eef816f0a4b",
+  "baseline_profile_md5": "2876324fb6bffa41967812702c6bc038",
+  "baseline_file_sha256": "a5475719cd874360116ba7e226d048c4ae9bc06006e1b4c23515198616120edb",
+  "accepted_baseline_count": 100,
+  "accepted_baseline_file_sha256": "0dcbd81ead437de26815dc2264c83fad4a93187e70ba855954771891e9449268",
+  "accepted_baseline_content_sha256": "e5adb1feb2abcda5bbeacd6e01baf68113417aba14c1dbf732b2dfa4528be67a",
+  "accepted_baseline_manifest_sha256": "b578e957df6e6249f745f2661f11a2d03c73434dab85fe8e2fb35f33bf14f2d9",
+  "rules_sha256": "74a2964d7cb480f4f30a1aeef95809b29439e8fc71e2e12f2d842222ed2fcaba",
+  "analysis_scope": "当前 842 个 chain_node 之间除既有 100 tuple 外的其他可能四类关系；不新增或细化节点。",
+  "generated_at": "2026-07-15T00:00:00Z"
+}

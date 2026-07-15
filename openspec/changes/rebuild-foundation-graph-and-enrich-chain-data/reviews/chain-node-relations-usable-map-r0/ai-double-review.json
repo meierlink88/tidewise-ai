@@ -1,0 +1,2207 @@
+{
+  "artifact_type": "chain_node_usable_map_double_review",
+  "artifact_version": 1,
+  "first_pass": {
+    "method": "逐节点候选发现；按四类语义、方向、机制和宽边界禁令筛选",
+    "completed_nodes": 842,
+    "approved_new": 156,
+    "blocked": 23
+  },
+  "second_pass": {
+    "method": "Serenity 机制/方向/替代路线/反例独立复核；physical constraints 不入库",
+    "completed_nodes": 842,
+    "approved_new": 156,
+    "blocked": 23
+  },
+  "agreement": {
+    "approved_both": 156,
+    "blocked_or_rejected": 23,
+    "unresolved": 0
+  },
+  "reviews": [
+    {
+      "id": "4804b057-9c38-55e9-bb0b-1640b031a594",
+      "tuple": [
+        "互联网服务",
+        "depends_on",
+        "通信"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "50e14f41-3c7d-594c-8ddf-146e8a2009e3",
+      "tuple": [
+        "光伏发电",
+        "depends_on",
+        "电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "80e47630-9fa9-58ee-82f1-e917d01aa1e8",
+      "tuple": [
+        "数据中心",
+        "depends_on",
+        "电力"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "12744515-e9ba-5639-b830-03bc41ab82b2",
+      "tuple": [
+        "智能电网",
+        "depends_on",
+        "通信"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "df1312b9-9d80-5b99-8acf-2ec1de119f13",
+      "tuple": [
+        "算力",
+        "depends_on",
+        "数据中心"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "5389d471-93c2-508f-82bb-8e381c31f147",
+      "tuple": [
+        "风力发电",
+        "depends_on",
+        "电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "4d9066fd-39c8-5615-8f91-45befc2568c9",
+      "tuple": [
+        "CPO",
+        "input_to",
+        "数据中心(AIDC)"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ad283964-3998-5582-a2c6-da40924680fe",
+      "tuple": [
+        "EDA",
+        "input_to",
+        "数字芯片设计"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "f48b4db1-716c-53d6-a063-68b4a082fed3",
+      "tuple": [
+        "EDA",
+        "input_to",
+        "模拟芯片设计"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "e31cea5b-7a11-5b7b-93a1-5fdcdc9625be",
+      "tuple": [
+        "POE胶膜",
+        "input_to",
+        "光伏电池组件"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "242d9f1e-8cd2-59b0-8cad-f097289fee99",
+      "tuple": [
+        "传感器",
+        "input_to",
+        "机器视觉"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "65b0cb75-b7cc-5eba-a2ad-be13e1b4c536",
+      "tuple": [
+        "储能",
+        "input_to",
+        "电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "1942f89f-8605-5d56-973d-e50849e9b71b",
+      "tuple": [
+        "充电桩",
+        "input_to",
+        "新能源车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b9e5efcb-d0d3-5e0f-a20f-a57fc37fe1eb",
+      "tuple": [
+        "先进封装",
+        "input_to",
+        "AI芯片"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "914fbb1b-f136-54af-879c-78b84cad56c2",
+      "tuple": [
+        "光伏加工设备",
+        "input_to",
+        "光伏电池组件"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "7575f240-9baf-59fd-b90d-8a09eff80308",
+      "tuple": [
+        "光伏电池组件",
+        "input_to",
+        "光伏发电"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "765c9f3b-a849-5f7f-9292-7814645a151c",
+      "tuple": [
+        "光伏辅材",
+        "input_to",
+        "光伏电池组件"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "eb052c4c-1694-53aa-bc0d-af3114302c50",
+      "tuple": [
+        "光刻机",
+        "input_to",
+        "集成电路制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "3563cb86-c028-521e-be98-d4899f8ecd87",
+      "tuple": [
+        "光刻胶",
+        "input_to",
+        "集成电路制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d50318e4-97bc-5ee1-a77d-f98648e02242",
+      "tuple": [
+        "光通信模块",
+        "input_to",
+        "数据中心"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "6618c7a3-173c-50a0-a0af-542cd247638b",
+      "tuple": [
+        "农业机械",
+        "input_to",
+        "农业种植"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "fc61ef6e-9037-57f2-911f-f35c3759ce1f",
+      "tuple": [
+        "农药",
+        "input_to",
+        "农业种植"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "e07fd91c-9f55-5c1d-a937-82aab3b3a04f",
+      "tuple": [
+        "冶钢原料",
+        "input_to",
+        "钢铁"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "cb5bb4cb-e588-5ca3-9620-dcb9f816d6fd",
+      "tuple": [
+        "冶钢辅料",
+        "input_to",
+        "钢铁"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "a818ece0-48e4-55dd-aead-20ae670fb7b1",
+      "tuple": [
+        "制冷空调设备",
+        "input_to",
+        "数据中心"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "954084d1-e284-56a4-a4ac-4f095ba9cb8a",
+      "tuple": [
+        "包装材料",
+        "input_to",
+        "化妆品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "2e8e896f-5ff5-5064-ba22-a12c884ecde5",
+      "tuple": [
+        "包装材料",
+        "input_to",
+        "化学制药"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "62e909bb-939c-56c4-a57f-86def780e25a",
+      "tuple": [
+        "包装材料",
+        "input_to",
+        "食品饮料"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "16d1d560-30c1-5c05-9b61-1af6d173ef01",
+      "tuple": [
+        "化工原料",
+        "input_to",
+        "化学制品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "43db2f40-39ea-59b8-ab9f-cd4868f3a49c",
+      "tuple": [
+        "化肥",
+        "input_to",
+        "农业种植"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "821eac81-b214-55da-ace0-8e0a97c609cb",
+      "tuple": [
+        "半导体",
+        "input_to",
+        "消费电子"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "cf82e394-e92e-5e60-bdcc-31cb16a0fea8",
+      "tuple": [
+        "半导体材料",
+        "input_to",
+        "集成电路制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "84e0a8e5-4e71-59ff-83a6-4fc35c5ed345",
+      "tuple": [
+        "半导体设备",
+        "input_to",
+        "集成电路制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "064347bf-cc74-513e-9952-e3599ed79cd2",
+      "tuple": [
+        "印制电路板",
+        "input_to",
+        "消费电子零部件及组装"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "2189dd2f-321c-5eca-bd42-1274fc5b4143",
+      "tuple": [
+        "发电机",
+        "input_to",
+        "风力发电"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "dfa5ba3b-e5e7-5dec-9cf9-550539a5b36f",
+      "tuple": [
+        "合成树脂",
+        "input_to",
+        "塑料制品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "30a92a3a-b615-5cda-a205-7eb87cf58eac",
+      "tuple": [
+        "大宗用纸",
+        "input_to",
+        "纸包装"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "a0635e28-baee-5d6f-8fcf-843d8c6f7b69",
+      "tuple": [
+        "工程机械",
+        "input_to",
+        "基础建设"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "07ec0180-fa6c-5358-988e-81fd272fbe95",
+      "tuple": [
+        "建筑材料",
+        "input_to",
+        "基础建设"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "2b9e0ca8-450e-515c-8328-2a1f4dba5ce4",
+      "tuple": [
+        "建筑材料",
+        "input_to",
+        "房屋建设"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "24598aa8-25b2-54ec-8f97-b8b45dcfe005",
+      "tuple": [
+        "数据中心",
+        "input_to",
+        "云计算"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "51c7fee9-a161-5c1d-87c8-59d9a39deed9",
+      "tuple": [
+        "数据中心",
+        "input_to",
+        "算力租赁"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "2414cb97-e0ee-5b87-8529-93ebcb5165bb",
+      "tuple": [
+        "机器视觉",
+        "input_to",
+        "机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "26d2f32c-9b17-518e-a049-1875b72f5143",
+      "tuple": [
+        "果蔬加工",
+        "input_to",
+        "食品加工"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "bcbd87ad-7fb7-53a1-bc75-3e75bc9ad1fa",
+      "tuple": [
+        "橡胶助剂",
+        "input_to",
+        "橡胶制品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "37421b95-7395-50d1-a793-0dbe334c77f4",
+      "tuple": [
+        "毫米波雷达",
+        "input_to",
+        "无人驾驶"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ead88e3a-5e78-5900-a40c-c318af1376d4",
+      "tuple": [
+        "水产养殖",
+        "input_to",
+        "水产"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "bf23a08c-87b3-55fc-97a8-d1f79b6f9d4a",
+      "tuple": [
+        "水产饲料",
+        "input_to",
+        "水产养殖"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "4910ab90-5b07-5333-8888-744898caf2b2",
+      "tuple": [
+        "水泥制造",
+        "input_to",
+        "房屋建设"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b574446f-1ff0-576b-9fd4-a18db0ca0017",
+      "tuple": [
+        "汽车电子",
+        "input_to",
+        "智能座舱"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "a33bdf39-5a52-530c-b18d-7de7fac98ce7",
+      "tuple": [
+        "汽车零部件",
+        "input_to",
+        "汽车整车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ba244e6c-a695-56c7-951a-3d6610de8223",
+      "tuple": [
+        "油气开采",
+        "input_to",
+        "炼油化工"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b26acec8-b028-591c-b7cc-c97a8c6d1c7b",
+      "tuple": [
+        "油气资源",
+        "input_to",
+        "油气开采"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "24ff7a02-358c-5171-9531-ada4825e95d2",
+      "tuple": [
+        "液冷",
+        "input_to",
+        "液冷服务器"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "31458067-cf1e-5b33-89f9-bd621245b98a",
+      "tuple": [
+        "液冷服务器",
+        "input_to",
+        "数据中心(AIDC)"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "df394bbb-4b9f-5cd3-9389-25a0da3d0028",
+      "tuple": [
+        "激光雷达",
+        "input_to",
+        "无人驾驶"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ec4114f3-459a-5690-bf15-07f9b68fb444",
+      "tuple": [
+        "炭黑",
+        "input_to",
+        "轮胎轮毂"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d86b096f-6694-5cbd-b472-57472e9b7137",
+      "tuple": [
+        "炼油化工",
+        "input_to",
+        "化工原料"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "219862bf-bac1-5b9c-8f67-1c84c132f80b",
+      "tuple": [
+        "焦炭产业",
+        "input_to",
+        "钢铁"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ee8ad20e-2a4b-571a-b578-b9eb89bfc204",
+      "tuple": [
+        "焦煤产业",
+        "input_to",
+        "焦炭产业"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b97d39d3-1db0-5a97-82cd-3b36b2966269",
+      "tuple": [
+        "煤化工",
+        "input_to",
+        "化工原料"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "16e64e39-0f9e-55b9-b0db-36ccdf21e71f",
+      "tuple": [
+        "煤炭",
+        "input_to",
+        "煤化工"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "66f4e8bb-3f9b-526f-b83e-343ba3e6d0b8",
+      "tuple": [
+        "玻璃制造",
+        "input_to",
+        "房屋建设"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "0ae7ed7b-a036-5b22-b60e-fea523b279d7",
+      "tuple": [
+        "生猪养殖",
+        "input_to",
+        "肉制品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "34d26757-2c88-5feb-8268-0c071fee4def",
+      "tuple": [
+        "电子化学品",
+        "input_to",
+        "集成电路制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b6f1facb-da90-51b6-b0e7-8f52b4daed6a",
+      "tuple": [
+        "电机",
+        "input_to",
+        "新能源车整车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "1e091513-cd91-56d8-b8f0-6916d4d0068c",
+      "tuple": [
+        "电池",
+        "input_to",
+        "新能源车整车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "a59bcb39-d5b6-5f65-94b5-d1c623eca049",
+      "tuple": [
+        "电池化学品",
+        "input_to",
+        "锂电池"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "bcb5baf9-df7f-58c5-b630-e9fef01f0f1c",
+      "tuple": [
+        "电网自动化设备",
+        "input_to",
+        "智能电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "17d1aa57-66b7-5d5d-8aad-899bdf5c3e24",
+      "tuple": [
+        "电网设备",
+        "input_to",
+        "电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "78067c5a-43da-51dc-a952-553357b20fa6",
+      "tuple": [
+        "畜禽饲料",
+        "input_to",
+        "生猪养殖"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "5c77ba79-7abd-5555-9eb7-b2be74cb22e1",
+      "tuple": [
+        "畜禽饲料",
+        "input_to",
+        "肉鸡养殖"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d87b5363-1678-5e40-a587-9b7653a33934",
+      "tuple": [
+        "硅料硅片",
+        "input_to",
+        "光伏电池组件"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "22928803-1ea6-5b7e-b514-213f62e1b228",
+      "tuple": [
+        "碳纤维",
+        "input_to",
+        "风电零部件"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "5453625d-ceb7-517b-ab56-3fbdd1d39740",
+      "tuple": [
+        "种子",
+        "input_to",
+        "农业种植"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "72ff58cc-678e-586a-a9e5-7ab38775333f",
+      "tuple": [
+        "稀土永磁",
+        "input_to",
+        "发电机"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "5f5c889f-ee8e-50a5-b725-feb842529fdd",
+      "tuple": [
+        "算力",
+        "input_to",
+        "人工智能"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "a38c829a-8de4-58f5-8e65-bf9b8c03a5ac",
+      "tuple": [
+        "粮油加工",
+        "input_to",
+        "食品加工"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c32b5e53-d6a0-5466-a4e6-9495c3198462",
+      "tuple": [
+        "粮食",
+        "input_to",
+        "粮油加工"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d933957a-915b-59b6-84a6-fbc22ff4fd81",
+      "tuple": [
+        "粮食",
+        "input_to",
+        "饲料"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "54c02448-badd-534d-88f9-8f6fa1b380e3",
+      "tuple": [
+        "粮食种植",
+        "input_to",
+        "粮食"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ecb38f31-60c2-5847-a4b2-f9f5d29ff2ae",
+      "tuple": [
+        "纸包装",
+        "input_to",
+        "食品饮料"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "85a995c9-6531-51c1-b755-b3372185d4d7",
+      "tuple": [
+        "耐火材料",
+        "input_to",
+        "钢铁"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b5197391-be39-5ef2-8689-dcf9e6f8e9d4",
+      "tuple": [
+        "肉鸡养殖",
+        "input_to",
+        "鸡肉"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "8bb9494a-16c5-502b-b274-6d087ca6895e",
+      "tuple": [
+        "胶黏剂及胶带",
+        "input_to",
+        "包装材料"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "33c244ce-c5df-5208-ae28-d7ddba2fbe81",
+      "tuple": [
+        "芯片",
+        "input_to",
+        "汽车电子"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d687bd28-cb4a-53ad-aa09-e27b3e41214a",
+      "tuple": [
+        "芯片",
+        "input_to",
+        "计算机设备"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "2167a71d-afe7-5b69-9de2-ef6bfeceeab6",
+      "tuple": [
+        "芯片",
+        "input_to",
+        "通信设备"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "483a89d2-aad2-53fb-8b9a-a571b60692c8",
+      "tuple": [
+        "输变电设备",
+        "input_to",
+        "电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "f1d72c05-353c-5bf6-a7b9-6317eb6e09c0",
+      "tuple": [
+        "逆变器",
+        "input_to",
+        "光伏发电"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c157c86a-e9db-5753-afa2-b28c3db8e67d",
+      "tuple": [
+        "造纸",
+        "input_to",
+        "印刷"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "1e312785-e5f9-5da9-b93a-cdfe9dd6a980",
+      "tuple": [
+        "配电设备",
+        "input_to",
+        "电网"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ce6d4aef-069e-513b-98a1-4c2cb502ce72",
+      "tuple": [
+        "金属钴",
+        "input_to",
+        "电池化学品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ad73faa1-f04a-553a-ad04-4bc8a4678f8e",
+      "tuple": [
+        "金属铅",
+        "input_to",
+        "蓄电池及其他电池"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "48b9cff8-e1c2-5c31-88de-6de17078bafe",
+      "tuple": [
+        "金属铜",
+        "input_to",
+        "通信线缆及配套"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "08b85995-b27d-54e0-9a68-2d55ade4dc97",
+      "tuple": [
+        "金属镍",
+        "input_to",
+        "电池化学品"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "789a57d0-fa5d-5102-b165-765939270655",
+      "tuple": [
+        "钢铁",
+        "input_to",
+        "工程机械"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "331a1db9-4dab-59c0-859a-fafde26a1e30",
+      "tuple": [
+        "钢铁",
+        "input_to",
+        "房屋建设"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "5fcf0b28-931a-5fbb-966f-a9b4ef4c083b",
+      "tuple": [
+        "钢铁",
+        "input_to",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "834de8a8-71a5-56a7-ab6c-3b10e03cdd84",
+      "tuple": [
+        "钢铁",
+        "input_to",
+        "船舶制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "841061ee-ec88-54df-8b30-af6bc0c26fb4",
+      "tuple": [
+        "钢铁",
+        "input_to",
+        "金属结构"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "7b2c187d-8768-5b5f-861c-c968522ca41f",
+      "tuple": [
+        "铁矿石产业",
+        "input_to",
+        "钢铁"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b351f509-4233-5a93-aacd-f6af8feb88e2",
+      "tuple": [
+        "铜产业",
+        "input_to",
+        "通信线缆及配套"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "8aa585bd-f177-583e-8d82-2baa20a887ed",
+      "tuple": [
+        "铜缆高速连接",
+        "input_to",
+        "数据中心(AIDC)"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b59d77bc-ff69-537c-a1f5-83e15c8aaeae",
+      "tuple": [
+        "铝产业",
+        "input_to",
+        "汽车一体化压铸"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "80c4dd9a-1db6-5264-af36-835dc2068d5b",
+      "tuple": [
+        "锂电专用设备",
+        "input_to",
+        "锂电池"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b3843d32-0c5f-55a3-a93e-acff005656ec",
+      "tuple": [
+        "锂电池",
+        "input_to",
+        "储能"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "fa831e8a-3ba3-594d-b273-4f33f83a18de",
+      "tuple": [
+        "锂电池",
+        "input_to",
+        "新能源车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "45f2b106-7db2-53da-8f8d-cfa174aaecfa",
+      "tuple": [
+        "锂电池",
+        "input_to",
+        "消费电子"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "8bc871aa-eb0f-509b-ad97-afb5641f8669",
+      "tuple": [
+        "锂矿",
+        "input_to",
+        "锂"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "627f80c6-eec1-5c40-a52d-77c99df7c8ec",
+      "tuple": [
+        "集成电路制造",
+        "input_to",
+        "集成电路封测"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "fa98c58d-9d34-5169-bfe8-b00c8a01d748",
+      "tuple": [
+        "集成电路封测",
+        "input_to",
+        "芯片"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "8bc567b3-ee17-53a2-920d-f250f7577e94",
+      "tuple": [
+        "风电零部件",
+        "input_to",
+        "风力发电"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "e450f054-aae5-542c-b5eb-122b5a082eb1",
+      "tuple": [
+        "风能原动设备",
+        "input_to",
+        "风力发电"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "f168d693-12a1-5176-9076-4639a40f8430",
+      "tuple": [
+        "食品及饲料添加剂",
+        "input_to",
+        "食品加工制造"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "84ca06b1-f539-5f6c-8ea1-c10c252b5b23",
+      "tuple": [
+        "饲料",
+        "input_to",
+        "养殖业"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c8e990ee-2221-5149-815f-aad8095c3421",
+      "tuple": [
+        "高带宽内存",
+        "input_to",
+        "AI芯片"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "18ead03c-b8e1-58b5-ba40-8df154f86c19",
+      "tuple": [
+        "传感器",
+        "is_component_of",
+        "人形机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "bc8efad0-fef2-5c66-b510-a13eb1d77035",
+      "tuple": [
+        "传感器",
+        "is_component_of",
+        "机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "62876e50-aa7e-5d75-a2c7-a5a7014ee469",
+      "tuple": [
+        "光学元件",
+        "is_component_of",
+        "AI眼镜"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "85ac4369-89be-501c-a625-2cddaa709ac0",
+      "tuple": [
+        "光通信模块",
+        "is_component_of",
+        "通信设备"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "303f8092-7755-5c8f-aeda-557f2687c69c",
+      "tuple": [
+        "减速器",
+        "is_component_of",
+        "人形机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "49e00ccb-3b71-5a85-bb8b-65979d767ae5",
+      "tuple": [
+        "减速器",
+        "is_component_of",
+        "机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "a0960cec-88dd-5b92-97df-b1e19f8c5933",
+      "tuple": [
+        "印制电路板",
+        "is_component_of",
+        "通信设备"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "902a713f-e435-5b27-9789-2b0221aa7e2a",
+      "tuple": [
+        "底盘与发动机系统",
+        "is_component_of",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "ba61202b-2ef2-568c-a61a-244bc48c16c3",
+      "tuple": [
+        "机器人执行器",
+        "is_component_of",
+        "人形机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "31684fd2-73ed-5faf-b0e3-dd14339a4e29",
+      "tuple": [
+        "汽车热管理",
+        "is_component_of",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "0af5e95a-3a7e-546f-9da4-b1ae5ebd15fb",
+      "tuple": [
+        "汽车电子电气系统",
+        "is_component_of",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c8a27e1b-bdf9-55d0-8cb2-4f10410a8329",
+      "tuple": [
+        "汽车芯片",
+        "is_component_of",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "8951b90e-3b00-5d44-bb07-3085e07e6a16",
+      "tuple": [
+        "电机",
+        "is_component_of",
+        "人形机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "1778d1da-c197-5015-ab4b-23153f938fe7",
+      "tuple": [
+        "电机",
+        "is_component_of",
+        "机器人"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "24d70097-1911-5283-adde-2a9d7c0f1d66",
+      "tuple": [
+        "车身附件及饰件",
+        "is_component_of",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "3db3c4d3-6d82-5f5b-9b07-d1904886b764",
+      "tuple": [
+        "轮胎轮毂",
+        "is_component_of",
+        "汽车"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "bf740e59-78f6-5603-97c3-58f7b7dcde49",
+      "tuple": [
+        "通信线缆及配套",
+        "is_component_of",
+        "通信设备"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c851409a-9906-53be-813c-2151ca369d8a",
+      "tuple": [
+        "LED",
+        "is_subcategory_of",
+        "显示技术"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "8af05431-5b80-5204-ac67-8b47b2e74abe",
+      "tuple": [
+        "MicroLED",
+        "is_subcategory_of",
+        "LED"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "0f28277c-1714-5659-bf88-a716b86fd57a",
+      "tuple": [
+        "MiniLED",
+        "is_subcategory_of",
+        "LED"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b942912d-3b40-51eb-9c99-ad7282624666",
+      "tuple": [
+        "OLED",
+        "is_subcategory_of",
+        "显示技术"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "77ccf05f-ae82-5825-8baa-c554781a595d",
+      "tuple": [
+        "住宅开发",
+        "is_subcategory_of",
+        "房地产开发"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c1d8ea1e-56db-5c7e-8d49-c9f1d967bd95",
+      "tuple": [
+        "光伏发电",
+        "is_subcategory_of",
+        "电力生产"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "2dd1660b-2917-5a17-8dc4-e5e3573fa97e",
+      "tuple": [
+        "农商行",
+        "is_subcategory_of",
+        "银行"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "e0ee1472-b28c-56fb-92dd-58e03dcbfa6d",
+      "tuple": [
+        "券商",
+        "is_subcategory_of",
+        "证券"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "08481748-39c6-5954-bb3c-7869c8a3e78d",
+      "tuple": [
+        "半导体分立器件",
+        "is_subcategory_of",
+        "半导体"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "aa3c2409-1093-5eff-9b1f-0eef7aca5328",
+      "tuple": [
+        "品牌消费电子",
+        "is_subcategory_of",
+        "消费电子"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "372e8844-ca67-5e57-9a26-b9d856df8783",
+      "tuple": [
+        "城商行",
+        "is_subcategory_of",
+        "银行"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "fb6b48e6-fac6-5388-a12c-9587778b1ecb",
+      "tuple": [
+        "数据中心(AIDC)",
+        "is_subcategory_of",
+        "数据中心"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d1568e13-d12d-5659-82ba-f791ef22d9c2",
+      "tuple": [
+        "氮化镓",
+        "is_subcategory_of",
+        "第三代半导体"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "c62320fc-d538-5a9c-aa7e-0b5570b2fa42",
+      "tuple": [
+        "水产养殖",
+        "is_subcategory_of",
+        "养殖业"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "d7bb2a24-cdd2-57c5-9df8-59d1fc77a0de",
+      "tuple": [
+        "水力发电",
+        "is_subcategory_of",
+        "电力生产"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "da5d7f43-0446-57de-9384-b07d1f5b9142",
+      "tuple": [
+        "海洋捕捞",
+        "is_subcategory_of",
+        "渔业"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "9688edfc-e00f-5ac7-b477-e7662aaadc0a",
+      "tuple": [
+        "液冷服务器",
+        "is_subcategory_of",
+        "计算机设备"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "73521aa4-f6d5-5cd9-b046-f79792939391",
+      "tuple": [
+        "火力发电",
+        "is_subcategory_of",
+        "电力生产"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "366b0948-d5ff-5e8b-89fa-30637cd4c804",
+      "tuple": [
+        "生猪养殖",
+        "is_subcategory_of",
+        "养殖业"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "f661def7-4d01-5e55-a022-8723d6f46ad3",
+      "tuple": [
+        "碳化硅",
+        "is_subcategory_of",
+        "第三代半导体"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "08388848-e104-5468-b67e-7e3c599799d8",
+      "tuple": [
+        "肉鸡养殖",
+        "is_subcategory_of",
+        "养殖业"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    },
+    {
+      "id": "b9f34f3e-451c-5c42-a753-1d39cb4821d4",
+      "tuple": [
+        "风力发电",
+        "is_subcategory_of",
+        "电力生产"
+      ],
+      "first_pass": "approved",
+      "second_pass": "approved",
+      "mechanism_check": "pass",
+      "direction_check": "pass",
+      "condition_check": "pass",
+      "counterexample_check": "pass"
+    }
+  ]
+}

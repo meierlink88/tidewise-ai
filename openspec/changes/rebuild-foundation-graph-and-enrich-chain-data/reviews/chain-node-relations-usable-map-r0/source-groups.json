@@ -1,0 +1,34 @@
+{
+  "artifact_type": "chain_node_relation_source_groups",
+  "artifact_version": 1,
+  "groups": {
+    "solar-pv-iea": {
+      "title": "IEA Solar PV Global Supply Chains",
+      "url": "https://www.iea.org/reports/solar-pv-global-supply-chains",
+      "published_at": "2022-07-07",
+      "accessed_at": "2026-07-15",
+      "supports": "覆盖多晶硅、硅锭、硅片、电池片和组件等光伏制造链环节。"
+    },
+    "semiconductor-nist": {
+      "title": "NIST Vision for Success: Semiconductor Materials and Manufacturing Equipment",
+      "url": "https://www.nist.gov/chips/vision-success-facilities-semiconductor-materials-and-manufacturing-equipment",
+      "published_at": "2023-06-22",
+      "accessed_at": "2026-07-15",
+      "supports": "说明芯片制造依赖复杂材料、制造设备及其专业供应链。"
+    },
+    "lithium-battery-doe": {
+      "title": "U.S. DOE National Blueprint for Lithium Batteries 2021-2030",
+      "url": "https://www.energy.gov/sites/default/files/2021-06/FCAB%20National%20Blueprint%20Lithium%20Batteries%200621_0.pdf",
+      "published_at": "2021-06-01",
+      "accessed_at": "2026-07-15",
+      "supports": "列出锂、钴、镍等原料、材料加工、电芯/电池包制造以及电动车和储能等下游。"
+    },
+    "wind-doe": {
+      "title": "U.S. DOE Wind Manufacturing and Supply Chain",
+      "url": "https://www.energy.gov/cmei/systems/wind-manufacturing-and-supply-chain",
+      "published_at": null,
+      "accessed_at": "2026-07-15",
+      "supports": "说明风机叶片、塔筒、发电机、传动系统和整机装配构成风电制造供应链。"
+    }
+  }
+}

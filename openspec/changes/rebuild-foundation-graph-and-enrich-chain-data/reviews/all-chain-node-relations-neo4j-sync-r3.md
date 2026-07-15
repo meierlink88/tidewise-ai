@@ -1,10 +1,12 @@
-# 全量 chain_node_relations Neo4j Sync R3 Review 包
+# 全量 chain_node_relations Neo4j Sync R3 Review 包（已 superseded）
+
+> **Superseded / 禁止执行：** 2026-07-15 用户批准继续开展 842-node usable-map additive 分析，既有 100 条不再是 Package 2 最终集合。本包仅针对其中尚未投影的 4 条边，已失效且不得作为任何 R3 授权或执行依据。未来只能在 additive PostgreSQL accepted baseline 验收后重新准备 `usable-map-final-relations-neo4j-sync` 独立 R3 包。
 
 ## 状态与结论
 
 - 命名层：`all-chain-node-relations-neo4j-sync`。
 - 风险：R3，local Neo4j projection write。
-- 当前状态：`prepared_with_scope_blocker`，**不可执行、尚不申请写入授权**。
+- 当前状态：`superseded_non_executable`，**不可执行、不可申请写入授权**。
 - 本 checkpoint 只完成代码审计、PG/Neo4j 只读基线冻结与条件式执行设计；未修改源码，未写 PostgreSQL/Neo4j，task 2.6 保持未完成。
 - 已确认的业务 Scope 只允许把 PG accepted baseline 中新增的 3 条 `INPUT_TO` 与 1 条 `DEPENDS_ON` 同步到既有 chain_node 端点，不允许清空、重建节点或重复投影其他关系。
 - 现有 `graph-projector project-entities` 没有 relation-only/filter mode，会重新 `MERGE/SET` 全部 981 个节点与全部 233 条关系，并向 PostgreSQL 写一条 projection run 审计记录。因此该入口超出当前批准 Scope，不得执行。
