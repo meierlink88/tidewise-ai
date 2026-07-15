@@ -32,7 +32,7 @@
 
 ## 3. Apply-final Review Package
 
-- [ ] 3.1 运行 `openspec validate consolidate-openspec-workflow-rules --strict` 和精确 task-design lint。
-- [ ] 3.2 运行受影响 workflow architecture targeted checks、`git diff --check`、scope/secret/link 检查、重复/冲突扫描和覆盖矩阵自审；不运行 `go test ./...`，并记录受影响边界与未验证项。
-- [ ] 3.3 完成独立 reviewer 自审：逐项核对覆盖矩阵、唯一职责来源、门禁无降级、scope 和 fresh checks；阻断项必须在本 package 内修复并刷新证据。
-- [ ] 3.4 仅暂存本 change 的规则/spec/architecture contract 文件，创建 `spec: apply consolidate-openspec-workflow-rules` scoped Apply commit 并 push；随后停在 Apply-final Review，不执行 Sync、Archive、Deliver、PR、merge 或 cleanup。
+- [x] 3.1 已运行 `openspec validate consolidate-openspec-workflow-rules --strict`（通过）和 `OPENSPEC_TASK_LINT_CHANGE=consolidate-openspec-workflow-rules go test ./internal/architecture -run '^TestOpenSpecTaskDesignLint$' -count=1`（通过）。
+- [x] 3.2 已运行 `go test ./internal/architecture -count=1`（通过）、`git diff --check`、scope/secret/link、重复/冲突扫描和覆盖矩阵自审；受影响边界为 workflow 文本、agent rules、OpenSpec artifacts 与 architecture contract，未运行 `go test ./...`，因为无共享运行时、跨模块契约或公共运行时基础设施变更。
+- [x] 3.3 独立 reviewer 已核对覆盖矩阵、唯一职责来源、门禁无降级、scope 和 fresh checks；Apply commit `c14ce99` 的 7 个文件均在允许范围内，工作区干净，无阻断项。
+- [x] 3.4 已创建并 push scoped Apply commit `c14ce992754118a29140849068adf2717b512462`（`spec: apply consolidate-openspec-workflow-rules`）；当前停在 Apply-final Review，未执行 Sync、Archive、Deliver、PR、merge 或 cleanup。
