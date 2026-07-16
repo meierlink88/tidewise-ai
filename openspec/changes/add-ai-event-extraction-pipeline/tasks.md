@@ -31,10 +31,10 @@
 
 ## 2. Additive migration and contract verification Package
 
-- [ ] 2.1 （R2 migration gate）在 fresh preflight/backup 中读取当前 schema/version、受影响表行数、约束/索引与 backup identity；407/0 仅作为 2026-07-16 audit snapshot，不作为未来相等断言，漂移时重新评估兼容性。
-- [ ] 2.2 编写并评审 `000019` 增量 migration contract tests：`fact_payload`、已批准的 evidence/Tag 候选字段、默认/NULL 语义、仅必要索引、重复执行和非破坏性 SQL；未通过 Review 的字段不得落地。
-- [ ] 2.3 在获明确授权后执行 local-only migration，并验证版本、schema、既有行数/约束及 fail-closed/forward-fix 回滚证据；不得执行 seed、业务回填、实体关联、Neo4j 或生产写入。
-- [ ] 2.4 运行受影响 backend package suite、architecture/contract tests、OpenSpec strict validate、scoped diff 和 secret scan，记录失败即停止。
+- [x] 2.1 （R2 migration gate）在 fresh preflight/backup 中读取当前 schema/version、受影响表行数、约束/索引与 backup identity；407/0 仅作为 2026-07-16 audit snapshot，不作为未来相等断言，漂移时重新评估兼容性。Fresh before 与 recovery evidence 见 [R2 execution evidence](reviews/event-db-migration-r2-execution.md)。
+- [x] 2.2 编写并评审 `000019` 增量 migration contract tests：`fact_payload`、已批准的 evidence/Tag 候选字段、默认/NULL 语义、仅必要索引、重复执行和非破坏性 SQL；未通过 Review 的字段不得落地。
+- [x] 2.3 在获明确授权后执行 local-only migration，并验证版本、schema、既有行数/约束及 fail-closed/forward-fix 回滚证据；不得执行 seed、业务回填、实体关联、Neo4j 或生产写入。单次 Apply 与 after assertions 见 [R2 execution evidence](reviews/event-db-migration-r2-execution.md)。
+- [x] 2.4 运行受影响 backend package suite、architecture/contract tests、OpenSpec strict validate、scoped diff 和 secret scan，记录失败即停止。统一 migration 目录属于共享运行时契约，本轮已使用 Complexity Budget 中唯一一次 backend `go test ./...` 并通过；其他验证亦全部通过。
 
 ## 3. Apply-final Review Package
 
