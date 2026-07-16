@@ -7,7 +7,7 @@
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
 | 1 | Proposal Review approval before Apply; Apply-final review before Sync | R1 | yes | SPEC_SEMANTICS | Review and approve OpenSpec artifacts, then implementation/test changes limited to this change; no database or graph writes |
-| 2 | Separate local PostgreSQL preflight/backup authorization before migration and seed | R2 | yes | DRIFT_RECOVERY | Only local PostgreSQL migration 000020, deterministic Tag seed and import dry-run/verify package; no UAT/prod/shared, Neo4j, or business import without explicit scope |
+| 2 | Separate local PostgreSQL preflight/backup authorization before migration and seed | R2 | yes | DRIFT_RECOVERY | Only local PostgreSQL 000020 migration/seed, synthetic repository fixture write/cleanup assertions, and import dry-run/verify; no UAT/prod/shared, Neo4j, or business import |
 
 ## Complexity Budget
 
@@ -23,7 +23,7 @@
 
 | Layer | Package | Environment | Order | Scope | Exclusions | Recovery Evidence | Recovery Baseline | Expected Counts/Hash/Schema | Before Assertions | After Assertions | Stop Conditions |
 |---|---:|---|---:|---|---|---|---|---|---|---|---|
-| local-event-import-schema-and-tag-seed | 2 | local | 1 | PostgreSQL migration 000020, fixed source master seed, deterministic Tag definition seed, schema/count/fixture-hash verification, and explicitly authorized import dry-run only | UAT/prod/shared, Neo4j, event_entity_links, Agent writes, migration/seed before authorization | backup | new:event-import-local-pg-preflight | counts=active_tags:22,source_master:1;hash=Tag seed fixture hash;schema=000020+receipt+tag columns/constraints/indexes | PostgreSQL identity, migration version, table/column/constraint/index inventory, raw/event/tag/receipt counts and fixed source master baseline recorded | 000020 applied, fixed source master active, 22 active Tags matching fixture, receipt constraints/indexes verified, no unexpected existing-row loss, dry-run has zero writes | Any drift, failed assertion, count/hash mismatch, conflict, timeout, or unauthorized scope stops all remaining layers and invalidates the package |
+| local-event-import-schema-and-tag-seed | 2 | local | 1 | PostgreSQL 000020 migration, fixed source/Tag seed, schema/count/hash verification, synthetic repository fixture write/cleanup assertions, and authorized import dry-run only | UAT/prod/shared, Neo4j, event_entity_links, Agent writes, real business import, migration/seed/fixture write before authorization | backup | new:event-import-local-pg-preflight | counts=frozen_tags:22,source_master:formula,receipt_pre_dry_run:0;hash=Tag seed fixture hash;schema=000020+receipt+tag columns/constraints/indexes | PostgreSQL identity/version/pending set, inventory, source/Tag drift, and structured before counts recorded | Formula counts, fixed source, 22 frozen active Tags, schema, synthetic fixture cleanup, and dry-run zero writes verified | Any drift, failed assertion, count/hash mismatch, conflict, timeout, cleanup failure, or unauthorized scope stops all remaining layers and invalidates the package |
 
 ## What Changes
 
