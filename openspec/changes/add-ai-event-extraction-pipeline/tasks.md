@@ -24,10 +24,10 @@
 
 ## 1. Event DB contract and mapping Package
 
-- [ ] 1.1 在 `domain.Event` 与证据/Tag domain 类型中先补 contract tests：`fact_payload` JSON object 校验、空 payload 兼容、禁止建议/预测字段、候选审计字段的空值与范围语义。
-- [ ] 1.2 在 repository contract/fake tests 中定义 Event payload 读写、扫描映射、既有列表查询兼容，以及 evidence/Tag 候选字段不静默丢失；不得触碰 `event_entity_links`。
-- [ ] 1.3 明确 Tidewise DB Tag authority、YAML policy-only 约束与 extraction candidate → deterministic executor → repository 的边界测试；不调用模型、外网或真实数据库，不实现实体匹配/实体候选。
-- [ ] 1.4 根据 Proposal Review 逐项决策更新 design/specs/tasks，并形成 future `000019` migration 的精确字段清单、兼容说明和待审批项。
+- [x] 1.1 在 `domain.Event` 与证据/Tag domain 类型中先补 contract tests：`fact_payload` JSON object 校验、空 payload 兼容、禁止建议/预测字段、候选审计字段的空值与范围语义。
+- [x] 1.2 在 repository contract/fake tests 中定义 Event payload 读写、扫描映射、既有列表查询兼容，以及 evidence/Tag 候选字段不静默丢失；不得触碰 `event_entity_links`。
+- [x] 1.3 明确 Tidewise DB Tag authority、YAML policy-only 约束与 extraction candidate → deterministic executor → repository 的边界测试；不调用模型、外网或真实数据库，不实现实体匹配/实体候选。
+- [x] 1.4 根据 Proposal Review 逐项决策更新 design/specs/tasks，并形成 future `000019` migration 的精确字段清单、兼容说明和待审批项。
 
 ## 2. Additive migration and contract verification Package
 

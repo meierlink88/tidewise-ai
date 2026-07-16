@@ -47,6 +47,7 @@ func TestInMemoryRepositoryListsEventsWithFilters(t *testing.T) {
 		EventStatus: domain.EventStatusConfirmed,
 		FactStatus:  domain.FactStatusVerified,
 		DedupeKey:   "fed-rate-hold",
+		FactPayload: domain.FactPayload{},
 	}); err != nil {
 		t.Fatalf("SeedEvent(event-1) error = %v", err)
 	}
@@ -59,6 +60,7 @@ func TestInMemoryRepositoryListsEventsWithFilters(t *testing.T) {
 		EventStatus: domain.EventStatusCandidate,
 		FactStatus:  domain.FactStatusUnverified,
 		DedupeKey:   "ecb-policy",
+		FactPayload: domain.FactPayload{},
 	}); err != nil {
 		t.Fatalf("SeedEvent(event-2) error = %v", err)
 	}

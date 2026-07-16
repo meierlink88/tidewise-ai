@@ -12,7 +12,7 @@
 - **THEN** domain/repository contract 必须拒绝该 payload，不得写入事件事实
 
 ### Requirement: Event 证据镜像与最小归因
-系统 SHALL 通过既有 `event_sources` 将 Event 与 `raw_documents` 关联，并在 Review 批准后支持最小证据归因字段；`raw_documents` 仍是证据镜像，不能被 Event 事实替代。
+系统 SHALL 通过既有 `event_sources` 将 Event 与 `raw_documents` 关联，并支持已批准的最小证据归因字段；`raw_documents` 仍是证据镜像，不能被 Event 事实替代。
 
 #### Scenario: 保存可追溯 evidence
 - **WHEN** Event package 由一个或多个 raw document 支持
@@ -27,7 +27,7 @@
 - **THEN** repository 必须先检查重复并跳过无意义写入；只有在 preflight 证明既有数据与并发语义安全时，才可增加 `(event_id, raw_document_id, evidence_hash)` 唯一约束，否则必须 defer
 
 ### Requirement: 受控 Tag 分类和归因
-系统 SHALL 以 Tidewise DB 的 `event_tag_defs` 作为 Tag 主数据唯一权威，保留 `event_tag_maps` 的既有唯一约束，并在 Review 批准后支持 Tag 置信度和分配理由；YAML 只能作为策略输入。
+系统 SHALL 以 Tidewise DB 的 `event_tag_defs` 作为 Tag 主数据唯一权威，保留 `event_tag_maps` 的既有唯一约束，并支持已批准的 Tag 置信度和分配理由；YAML 只能作为策略输入。
 
 #### Scenario: 映射受控 Tag
 - **WHEN** Event candidate 携带 Tag candidate

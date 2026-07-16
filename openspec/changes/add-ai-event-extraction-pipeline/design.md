@@ -29,20 +29,20 @@
 
 `events.fact_payload JSONB NOT NULL DEFAULT '{}'::jsonb` 是当前唯一预设的新增 `events` 字段。它承载 Event-specific 原子事实键值，必须保持可审计、可 JSON 解码，并拒绝投资建议/预测类字段。MVP 不增加 schema version 字段；payload 的键策略由后续 extraction contract 另行定义。`summary`、时间、状态、`dedupe_key` 等既有列继续作为查询和兼容基础。
 
-### 2. 关系表只接受最小审计增量，逐项 Review
+### 2. 已批准的最小证据与 Tag 审计增量
 
-以下是实现前必须逐项确认的候选映射，不是本 Proposal 的默认批准：
+以下字段已通过 Proposal Review，Package 1 仅实现 domain/repository contract；Package 2 才能在 R2 gate 下迁移：
 
 | Table | Candidate columns | Purpose | Required decision |
 |---|---|---|---|
-| `event_sources` | `evidence_relation VARCHAR(32) NULL`, `supports_fields TEXT[] NOT NULL DEFAULT '{}'` | 说明证据与 Event 的关系及支持的字段集合 | 推荐 enum `supports/contradicts/context`；legacy NULL 表示 unknown；新 supports/contradicts 写入要求非空 |
-| `event_tag_maps` | `confidence NUMERIC(5,4) NULL CHECK (confidence >= 0 AND confidence <= 1)`, `assignment_reason TEXT NOT NULL DEFAULT ''` | 保存 Tag 置信度与确定性分配理由 | 推荐 confidence 0..1；新 AI/规则分配由 domain 要求 assignment_reason 非空；既有记录保持兼容 |
+| `event_sources` | `evidence_relation VARCHAR(32) NULL`, `supports_fields TEXT[] NOT NULL DEFAULT '{}'` | 说明证据与 Event 的关系及支持的字段集合 | `supports/contradicts/context`；legacy NULL=unknown；新 supports/contradicts 写入要求非空 |
+| `event_tag_maps` | `confidence NUMERIC(5,4) NULL CHECK (confidence >= 0 AND confidence <= 1)`, `assignment_reason TEXT NOT NULL DEFAULT ''` | 保存 Tag 置信度与确定性分配理由 | confidence 0..1；新 AI/规则分配由 domain 要求 assignment_reason 非空；既有记录保持兼容 |
 
 保留现有表和唯一约束：`event_sources` 仍连接 Event/raw document，`event_tag_maps` 仍连接 Event/DB Tag；`event_entity_links` 保持现有 schema 原样，不引入 `event_relations`。
 
-### 3. 兼容、索引与回滚
+### 3. Package 2 migration input、兼容、索引与回滚
 
-未来 migration 必须编号 `000019`，使用 `ADD COLUMN IF NOT EXISTS` 或等价可重复增量语义；新增列优先 nullable 或带无损默认值，不重写既有事实。推荐评估 `event_sources` 幂等唯一约束 `(event_id, raw_document_id, evidence_hash)`：先以 repository 查询/唯一性 contract test 证明重复证据跳过；若既有数据或并发语义无法安全新增，则明确 defer，不强行改约束。无 `fact_payload` GIN 或低选择性索引；只有已确认查询契约才可新增索引。回滚优先采用 forward compatibility（停止写新列、旧代码继续读既有列）；若必须 down migration，必须 fail-closed 或 forward-fix，先处理新增值并证明无数据丢失，不得清空业务表。
+未来 `000019` migration 的精确列清单为 `events.fact_payload JSONB NOT NULL DEFAULT '{}'::jsonb`、`event_sources.evidence_relation VARCHAR(32) NULL`、`event_sources.supports_fields TEXT[] NOT NULL DEFAULT '{}'`、`event_tag_maps.confidence NUMERIC(5,4) NULL CHECK (confidence >= 0 AND confidence <= 1)` 和 `event_tag_maps.assignment_reason TEXT NOT NULL DEFAULT ''`。migration 必须使用 `ADD COLUMN IF NOT EXISTS` 或等价可重复增量语义，不重写既有事实。`event_sources` 幂等唯一约束 `(event_id, raw_document_id, evidence_hash)` 只作为 Package 2 preflight 条件：先以 repository 幂等检查证明重复证据跳过；若既有数据或并发语义无法安全新增，明确 defer，不强行改约束。无 `fact_payload` GIN 或低选择性索引；只有已确认查询契约才可新增索引。回滚优先采用 forward compatibility（停止写新列、旧代码继续读既有列）；若必须 down migration，必须 fail-closed 或 forward-fix，先处理新增值并证明无数据丢失，不得清空业务表。
 
 ### 4. Domain/repository 映射
 
@@ -65,10 +65,7 @@
 
 ## Open Questions
 
-- 是否批准推荐的 `event_sources.evidence_relation VARCHAR(32) NULL`（`supports/contradicts/context`，legacy NULL=unknown）和 `supports_fields TEXT[] NOT NULL DEFAULT '{}'`（新 supports/contradicts 必须非空）。
-- 是否批准推荐的 `event_tag_maps.confidence NUMERIC(5,4) NULL CHECK 0..1` 与 `assignment_reason TEXT NOT NULL DEFAULT ''`（新 AI/规则分配必须非空）。
 - 是否批准 `(event_id, raw_document_id, evidence_hash)` 幂等唯一约束；若 preflight/既有数据/并发语义不能安全增加则 defer。
-- `fact_payload` 是否仅接受 JSON object、是否允许空 object，以及后续允许键集合由哪个 extraction contract change 定义。
 - `event_type_code`/`action_code` 是否使用受控 Tag 或 `fact_payload`（当前 defer）；`lifecycle_status` 与现有 `event_status` 重叠（当前 defer）；`reference_period_start/end` 先放 `fact_payload`（当前 defer）；`last_seen_at` 可由 `event_sources` 聚合（当前 defer）；`event_time_precision` 是唯一具有独立事实语义且无法从 timestamp 恢复的候选，须由用户 Review 决定。
 - 是否需要为新增字段建立索引；默认 YAGNI，除非有具体查询契约和选择性证据。
 

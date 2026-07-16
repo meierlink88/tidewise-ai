@@ -29,7 +29,7 @@
 ## What Changes
 
 - 收敛本 change 到 Event DB 契约：保留 `events`、`event_sources`、`event_tag_maps`，为 `events` 规划 `fact_payload JSONB` 的增量 schema 变更；现有 `event_entity_links` 保持原样，不触碰。
-- 为证据和 Tag 评估最小审计增量：`event_sources` 的 `evidence_relation`、`supports_fields`；`event_tag_maps` 的 `confidence`、`assignment_reason`。这些字段须在 Review 中逐项决定，不能视为预批准。
+- 按 Review 决议固化最小审计增量：`event_sources` 的 `evidence_relation`、`supports_fields`；`event_tag_maps` 的 `confidence`、`assignment_reason`。这些字段的 migration 仍仅限未来 R2 Package 2。
 - 使 Tidewise DB 成为 Tag 主数据唯一权威；YAML 只作为策略/映射输入，不作为运行时 Tag 主数据来源。
 - 补齐未来实现所需的 domain 类型、验证规则、repository 接口/扫描映射及 migration contract tests；普通测试使用 fake，不访问模型、外网或真实数据库。
 - 明确跨文档确定性召回与模型裁决、extraction candidate JSON、唯一 Event package、执行器事务/证据/幂等等属于后续 change 的输入契约，不在本 change 实现。
@@ -46,7 +46,7 @@
 
 ## Impact
 
-- 规划影响 `backend/migrations`、`backend/internal/domain`、`backend/internal/repositories` 及对应 migration/domain/repository contract tests；本轮只修改 OpenSpec artifacts。
+- 影响 `backend/migrations`、`backend/internal/domain`、`backend/internal/repositories` 及对应 migration/domain/repository contract tests；本轮已完成 Package 1 的 domain/in-memory repository contract 与 tests，未创建或执行 migration。
 - 只读审计基线：2026-07-16 local `tidewise_local` 快照为 `raw_documents=407`，`events`、`event_sources`、`event_tag_defs`、`event_tag_maps`、`event_entity_links` 均为 0；相关 Event/证据/Tag 表的初始 schema 来自 migration `000001`，最新 migration 为 `000018`。现有 `events`、`event_sources`、`event_tag_maps` 与 `domain.Event`/Admin `ListEvents` 的字段映射按该快照保留。
 - 兼容既有 `events`、`event_sources`、`event_tag_maps` 数据；`event_entity_links` 保持原样并留给未来独立 change。未来 migration 必须为编号 `000019` 的增量、可回滚/兼容降级且禁止清空数据。
 - 明确不影响 `backend/internal/apps/ingestion`、采集 connector、AI/LLM client、worker/job/run、实体 seed、实体匹配/候选/写入、Neo4j、frontend、`prototype/` 和 `doc/`；不创建 API、采集 Agent、Event Agent、影响推理或行情预测。
