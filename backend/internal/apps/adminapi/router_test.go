@@ -240,6 +240,7 @@ func TestEventsAPIListsFilteredEvents(t *testing.T) {
 			EventStatus: domain.EventStatusConfirmed,
 			FactStatus:  domain.FactStatusVerified,
 			DedupeKey:   "fed-rate-hold",
+			FactPayload: domain.FactPayload{"policy_rate": map[string]any{"value": 3.5}},
 		},
 		{
 			ID:          "event-2",
@@ -250,6 +251,7 @@ func TestEventsAPIListsFilteredEvents(t *testing.T) {
 			EventStatus: domain.EventStatusCandidate,
 			FactStatus:  domain.FactStatusUnverified,
 			DedupeKey:   "ecb-policy-signal",
+			FactPayload: domain.FactPayload{},
 		},
 	} {
 		if err := repo.SeedEvent(context.Background(), event); err != nil {
@@ -262,6 +264,9 @@ func TestEventsAPIListsFilteredEvents(t *testing.T) {
 	response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret")
 	if response.Code != http.StatusOK {
 		t.Fatalf("status code = %d, want 200, body=%s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "fact_payload") {
+		t.Fatalf("response body unexpectedly exposes fact_payload: %s", response.Body.String())
 	}
 	var payload struct {
 		Items []struct {

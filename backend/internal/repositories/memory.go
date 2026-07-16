@@ -11,6 +11,9 @@ type InMemoryRepository struct {
 	sources             []domain.SourceCatalog
 	documents           map[string]domain.RawDocument
 	events              map[string]domain.Event
+	eventSources        map[string]domain.EventSource
+	eventTagDefs        map[string]domain.EventTagDef
+	eventTagMaps        map[string]domain.EventTagMap
 	schedulerConfig     domain.SchedulerConfig
 	ingestionRuns       map[string]domain.IngestionRun
 	runSources          map[string][]domain.IngestionRunSource
@@ -32,6 +35,9 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 		sources:             copiedSources,
 		documents:           map[string]domain.RawDocument{},
 		events:              map[string]domain.Event{},
+		eventSources:        map[string]domain.EventSource{},
+		eventTagDefs:        map[string]domain.EventTagDef{},
+		eventTagMaps:        map[string]domain.EventTagMap{},
 		schedulerConfig:     defaultSchedulerConfig(),
 		ingestionRuns:       map[string]domain.IngestionRun{},
 		runSources:          map[string][]domain.IngestionRunSource{},

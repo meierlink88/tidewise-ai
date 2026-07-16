@@ -170,6 +170,7 @@ func cloneEvent(event domain.Event) domain.Event {
 		value := *event.KnowableAt
 		event.KnowableAt = &value
 	}
+	event.FactPayload = cloneFactPayload(event.FactPayload)
 	return event
 }
 

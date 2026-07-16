@@ -142,6 +142,7 @@ func TestEventValidate(t *testing.T) {
 		EventStatus: EventStatusCandidate,
 		FactStatus:  FactStatusUnverified,
 		DedupeKey:   "event:demo",
+		FactPayload: FactPayload{},
 	}
 
 	if err := event.Validate(); err != nil {
@@ -151,6 +152,97 @@ func TestEventValidate(t *testing.T) {
 	event.FactStatus = "certain"
 	if err := event.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want invalid fact status error")
+	}
+}
+
+func TestEventFactPayloadContract(t *testing.T) {
+	validPayloads := []FactPayload{
+		{},
+		{"policy_rate": map[string]any{"value": 3.5}},
+	}
+	for _, payload := range validPayloads {
+		event := Event{
+			ID:          "event-1",
+			Title:       "示例事件",
+			FirstSeenAt: time.Now(),
+			EventStatus: EventStatusCandidate,
+			FactStatus:  FactStatusUnverified,
+			DedupeKey:   "event:demo",
+			FactPayload: payload,
+		}
+		if err := event.Validate(); err != nil {
+			t.Fatalf("Validate() error = %v", err)
+		}
+	}
+
+	for name, payload := range map[string]any{
+		"nil":                 nil,
+		"typed-nil":           FactPayload(nil),
+		"non-object":          []string{"not", "an", "object"},
+		"non-encodable-value": map[string]any{"invalid": func() {}},
+		"prediction":          map[string]any{"price_prediction": "上涨"},
+		"score":               map[string]any{"event_score": 80},
+		"investment-advice":   map[string]any{"investment_advice": "buy"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := ValidateFactPayload(payload); err == nil {
+				t.Fatalf("ValidateFactPayload(%#v) error = nil, want rejection", payload)
+			}
+		})
+	}
+}
+
+func TestEventSourceValidateEvidenceAttribution(t *testing.T) {
+	legacy := EventSource{ID: "source-1", EventID: "event-1", RawDocumentID: "raw-1", EvidenceHash: "hash-1"}
+	if err := legacy.Validate(); err != nil {
+		t.Fatalf("legacy Validate() error = %v", err)
+	}
+
+	supports := legacy
+	supports.EvidenceRelation = EvidenceRelationSupports
+	supports.SupportsFields = []string{"policy_rate"}
+	if err := supports.Validate(); err != nil {
+		t.Fatalf("supports Validate() error = %v", err)
+	}
+
+	for name, source := range map[string]EventSource{
+		"supports-without-fields":    {EvidenceRelation: EvidenceRelationSupports},
+		"contradicts-without-fields": {EvidenceRelation: EvidenceRelationContradicts},
+		"unsupported-relation":       {EvidenceRelation: EvidenceRelation("irrelevant")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := source.Validate(); err == nil {
+				t.Fatalf("Validate() error = nil, want rejection")
+			}
+		})
+	}
+}
+
+func TestEventTagMapValidateAttribution(t *testing.T) {
+	legacy := EventTagMap{ID: "map-1", EventID: "event-1", TagID: "tag-1"}
+	if err := legacy.Validate(); err != nil {
+		t.Fatalf("legacy Validate() error = %v", err)
+	}
+
+	confidence := 0.85
+	aiAssignment := legacy
+	aiAssignment.AssignSource = TagAssignSourceAI
+	aiAssignment.Confidence = &confidence
+	aiAssignment.AssignmentReason = "模型抽取的政策主题"
+	if err := aiAssignment.Validate(); err != nil {
+		t.Fatalf("AI assignment Validate() error = %v", err)
+	}
+
+	missingReason := aiAssignment
+	missingReason.AssignmentReason = ""
+	if err := missingReason.Validate(); err == nil {
+		t.Fatal("AI assignment without reason Validate() error = nil, want rejection")
+	}
+
+	overLimit := 1.0001
+	aiAssignment.Confidence = &overLimit
+	if err := aiAssignment.Validate(); err == nil {
+		t.Fatal("out-of-range confidence Validate() error = nil, want rejection")
 	}
 }
 
