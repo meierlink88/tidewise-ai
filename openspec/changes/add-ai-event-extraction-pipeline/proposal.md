@@ -47,7 +47,7 @@
 ## Impact
 
 - 规划影响 `backend/migrations`、`backend/internal/domain`、`backend/internal/repositories` 及对应 migration/domain/repository contract tests；本轮只修改 OpenSpec artifacts。
-- 只读审计基线：local `tidewise_local` 当前 `raw_documents=407`，`events`、`event_sources`、`event_tag_defs`、`event_tag_maps`、`event_entity_links` 均为 0；四表 schema 来自 migration `000001`，最新 migration 为 `000018`。现有 `events`、`event_sources`、`event_tag_maps` 与 `domain.Event`/Admin `ListEvents` 的字段映射按该基线保留。
+- 只读审计基线：2026-07-16 local `tidewise_local` 快照为 `raw_documents=407`，`events`、`event_sources`、`event_tag_defs`、`event_tag_maps`、`event_entity_links` 均为 0；相关 Event/证据/Tag 表的初始 schema 来自 migration `000001`，最新 migration 为 `000018`。现有 `events`、`event_sources`、`event_tag_maps` 与 `domain.Event`/Admin `ListEvents` 的字段映射按该快照保留。
 - 兼容既有 `events`、`event_sources`、`event_tag_maps` 数据；`event_entity_links` 保持原样并留给未来独立 change。未来 migration 必须为编号 `000019` 的增量、可回滚/兼容降级且禁止清空数据。
 - 明确不影响 `backend/internal/apps/ingestion`、采集 connector、AI/LLM client、worker/job/run、实体 seed、实体匹配/候选/写入、Neo4j、frontend、`prototype/` 和 `doc/`；不创建 API、采集 Agent、Event Agent、影响推理或行情预测。
 - 未来 Apply 的 migration 是 R2 操作，必须有明确 migration gate、只读 preflight、recovery evidence、before/after assertions 和停止条件；本 Proposal checkpoint 本身为 R0。
