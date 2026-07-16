@@ -502,6 +502,7 @@ type RawDocument struct {
 	SourceExternalID string
 	Title            string
 	ContentText      string
+	ContentLevel     string
 	RawObjectURI     string
 	RawMIMEType      string
 	Language         string

@@ -23,11 +23,11 @@
 
 ## 1. Event import and Tag seed implementation Package
 
-- [ ] 1.1 保留真实 reviewed-outbox 顶层 `idempotency_key/raw_documents/event/event_sources/event_tags/review`、单 Event 和 Agent 原字段（`factual_summary/decision/document_id/tag_code`），定义 current-v0 → required-v1 最小差异、Event UUID 派生、canonical payload hash、Review 状态/时间/evidence/Tag validation，并建立一致的 v0/v1 fixture。
-- [ ] 1.2 先写 domain/application tests，再实现 `EventImportService`、状态映射、source resolve、receipt same-hash replay/different-hash conflict 和全量 rollback contract。
-- [ ] 1.3 为 repository 增加最小 `DBTX`/transaction runner 与 package repository；复用 RawDocument 能力但不重写既有仓储，补充 Postgres SQL/constraint contract tests。
-- [ ] 1.4 增加 `000020` migration SQL：固定 UUID literal 插入/校验 source master（`source_config.manifest_identity`）和 22-tag `INSERT ... ON CONFLICT` seed，以及精确 `is_active/display_order/updated_at`；覆盖 receipt schema/index/constraint、Tag UUID drift preflight、保留既有数据和 forward recovery/down 说明的静态测试。
-- [ ] 1.5 增加本地 `event-import` CLI；覆盖单文件/目录、dry-run、strict JSON、exit code、stderr/stdout secret redaction、DB hex/CLI `sha256:` hash 表示，以及 22 条 Tag 主数据的 active/identity/数量校验 tests。
+- [x] 1.1 保留真实 reviewed-outbox 顶层 `idempotency_key/raw_documents/event/event_sources/event_tags/review`、单 Event 和 Agent 原字段（`factual_summary/decision/document_id/tag_code`），定义 current-v0 → required-v1 最小差异、Event UUID 派生、canonical payload hash、Review 状态/时间/evidence/Tag validation，并建立一致的 v0/v1 fixture。
+- [x] 1.2 先写 domain/application tests，再实现 `EventImportService`、状态映射、source resolve、receipt same-hash replay/different-hash conflict 和全量 rollback contract。
+- [x] 1.3 为 repository 增加最小 `DBTX`/transaction runner 与 package repository；复用 RawDocument 能力但不重写既有仓储，补充 Postgres SQL/constraint contract tests。
+- [x] 1.4 增加 `000020` migration SQL：固定 UUID literal 插入/校验 source master（`source_config.manifest_identity`）和 22-tag `INSERT ... ON CONFLICT` seed，以及精确 `is_active/display_order/updated_at`；覆盖 receipt schema/index/constraint、Tag UUID drift preflight、保留既有数据和 forward recovery/down 说明的静态测试。
+- [x] 1.5 增加本地 `event-import` CLI；覆盖单文件/目录、dry-run、strict JSON、exit code、stderr/stdout secret redaction、DB hex/CLI `sha256:` hash 表示，以及 22 条 Tag 主数据的 active/identity/数量校验 tests。
 - [ ] 1.6 按 Proposal Review 批准后的 scoped implementation package 完成 targeted suite、architecture/contract tests、`git diff --check` 和 scope/secret 检查；Apply-final 前评估并执行受影响边界完整验证，因共享 domain/repository、migration、CLI 变更运行 `go test ./...`。
 
 ## 2. Local PostgreSQL authorization and verification Package
