@@ -123,15 +123,15 @@ func (r PostgresRepository) UpsertRawDocument(ctx context.Context, doc domain.Ra
 	_, err = r.db.ExecContext(ctx, `
 INSERT INTO raw_documents (
     id, source_id, ingest_channel, source_type, source_name, source_url,
-    source_external_id, title, content_text, raw_object_uri, raw_mime_type,
+    source_external_id, title, content_text, content_level, raw_object_uri, raw_mime_type,
     language, published_at, collected_at, content_hash, ingest_status
 ) VALUES (
     $1, $2, $3, $4, $5, $6,
-    $7, $8, $9, $10, $11,
-    $12, $13, $14, $15, $16
+    $7, $8, $9, $10, $11, $12,
+    $13, $14, $15, $16, $17
 )
 `, doc.ID, doc.SourceID, doc.IngestChannel, doc.SourceType, doc.SourceName, doc.SourceURL,
-		nullString(doc.SourceExternalID), doc.Title, doc.ContentText, doc.RawObjectURI, doc.RawMIMEType,
+		nullString(doc.SourceExternalID), doc.Title, doc.ContentText, doc.ContentLevel, doc.RawObjectURI, doc.RawMIMEType,
 		doc.Language, nullTime(doc.PublishedAt), doc.CollectedAt, doc.ContentHash, doc.IngestStatus)
 	if err != nil {
 		return RawDocumentWriteResult{}, fmt.Errorf("insert raw document: %w", err)
@@ -190,7 +190,7 @@ WHERE source_id = $1
 func (r PostgresRepository) findDuplicate(ctx context.Context, doc domain.RawDocument) (domain.RawDocument, bool, error) {
 	row := r.db.QueryRowContext(ctx, `
 SELECT id, source_id, ingest_channel, source_type, source_name, source_url,
-       source_external_id, title, content_text, raw_object_uri, raw_mime_type,
+       source_external_id, title, content_text, content_level, raw_object_uri, raw_mime_type,
        language, published_at, collected_at, content_hash, ingest_status
 FROM raw_documents
 WHERE source_id = $1
@@ -226,6 +226,7 @@ func scanRawDocument(scanner rawDocumentScanner) (domain.RawDocument, error) {
 		&sourceExternalID,
 		&doc.Title,
 		&doc.ContentText,
+		&doc.ContentLevel,
 		&doc.RawObjectURI,
 		&doc.RawMIMEType,
 		&doc.Language,

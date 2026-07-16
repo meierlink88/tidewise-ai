@@ -1,0 +1,59 @@
+{
+  "idempotency_key": "agent-package-20260716-0001",
+  "package_id": "agent-package-20260716-0001",
+  "raw_documents": [
+    {
+      "document_id": "sha256:document-0001",
+      "source_name": "Example source",
+      "source_url": "https://example.com/events/0001",
+      "title": "Example event source",
+      "content_text": "A reviewed factual source excerpt.",
+      "content_level": "summary",
+      "published_at": "2026-07-15T01:36:49Z",
+      "collected_at": "2026-07-16T07:03:49Z",
+      "content_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  ],
+  "event": {
+    "dedupe_key": "event:v1:example-0001",
+    "title": "Example event",
+    "factual_summary": "A reviewed factual event summary.",
+    "occurred_at": "2026-07-15T00:00:00Z",
+    "fact_status": "verified",
+    "event_status": "confirmed",
+    "fact_payload": {"subject": "example", "value": 1}
+  },
+  "event_sources": [
+    {
+      "document_id": "sha256:document-0001",
+      "evidence_excerpt": "A reviewed factual source excerpt.",
+      "source_url": "https://example.com/events/0001",
+      "evidence_relation": "supports",
+      "supports_fields": ["title", "factual_summary"],
+      "source_level": "secondary",
+      "content_level": "summary",
+      "evidence_hash": "sha256:evidence-0001"
+    }
+  ],
+  "event_tags": [
+    {
+      "tag_id": "b0fe1994-0db2-526c-a57f-97fa73c1b595",
+      "tag_kind": "news_category",
+      "tag_code": "geopolitics",
+      "confidence": 0.98,
+      "review_status": "approved",
+      "assignment_reason": "Material geopolitical fact.",
+      "assign_source": "ai"
+    }
+  ],
+  "review": {
+    "review_id": "review-0001",
+    "package_id": "agent-package-20260716-0001",
+    "decision": "auto_approved",
+    "event_status": "confirmed",
+    "fact_status": "verified",
+    "evidence_grade": "single_source",
+    "reasons": ["contract and evidence checks passed"],
+    "component_versions": {"review_policy": "v2"}
+  }
+}
