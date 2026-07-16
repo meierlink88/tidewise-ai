@@ -88,21 +88,9 @@
 - **WHEN** package transaction 成功
 - **THEN** receipt 与所有业务结果同事务提交，并可返回 raw/event/source/tag result IDs
 
-### Requirement: Read-only tag catalog
+### Requirement: Event import CLI contract
 
-系统 SHALL 提供只读 Tag Catalog CLI，输出严格 JSON 的 `catalog_revision`、`catalog_hash`、`generated_at`、`tags`；catalog hash MUST 对相同排序后的 active 主数据稳定且排除 generated_at。
-
-#### Scenario: 导出 22 个 active tags
-- **WHEN** catalog 查询得到 10 个 news_category 与 12 个 index_category active tags
-- **THEN** CLI 输出 22 条按 kind/display_order/code 排序的 tags 和稳定 canonical hash
-
-#### Scenario: catalog 查询不写入
-- **WHEN** 执行 catalog CLI
-- **THEN** 只读数据库查询并输出 JSON，不执行 seed、migration 或业务写入
-
-### Requirement: Safe CLI contract
-
-系统 SHALL 支持单文件、outbox 目录、`--dry-run` 和机器 JSON；exit code MUST 区分成功、输入校验、幂等冲突、数据库事务失败和 CLI/I/O 失败，且 stdout/stderr 不得打印凭据或连接串。
+系统 SHALL 支持单文件、outbox 目录、`--dry-run` 和机器 JSON；事件 CLI 必须使用已确定的 22 条 Tag 主数据进行 active、identity 和数量校验；exit code MUST 区分成功、输入校验、幂等冲突、数据库事务失败和 CLI/I/O 失败，且 stdout/stderr 不得打印凭据或连接串。
 
 #### Scenario: dry-run
 - **WHEN** 使用 `event-import --file <path> --dry-run --json`
@@ -111,3 +99,15 @@
 #### Scenario: 失败机器输出
 - **WHEN** 输入、冲突、数据库或 I/O 失败
 - **THEN** CLI 输出固定 error JSON、对应非零 exit code，并隐藏 secrets
+
+### Requirement: Deterministic Event Tag seed
+
+系统 SHALL 将确定的 `news_category` 10 条和 `index_category` 12 条 Tag 主数据以稳定 UUID、英文 code、中文 name 幂等 seed 到 `event_tag_defs`；`news_category` assignment 必须为 1..2 条，`index_category` assignment 必须为 0..3 条。
+
+#### Scenario: seed two Tag dimensions
+- **WHEN** migration/seed package 在 PostgreSQL 执行且不存在冲突的既有主数据
+- **THEN** 数据库存在 22 条 active Tag，两个 `tag_kind` 的 code/name/UUID 与 fixture 一致
+
+#### Scenario: repeat seed
+- **WHEN** 相同 seed 被重复执行
+- **THEN** 既有 Tag 不重复，声明字段保持一致，未声明既有 Tag 不被删除
