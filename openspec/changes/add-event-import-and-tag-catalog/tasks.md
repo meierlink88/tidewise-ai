@@ -33,5 +33,5 @@
 ## 2. Local PostgreSQL authorization and verification Package
 
 - [x] 2.1 已在授权 R2 轮次创建 backup `tidewise_local_event_import_20260716T122217Z_pre-000020.dump`、dbmigrate JSON pending-set、identity/count/hash/schema preflight，并记录 `new:event-import-local-pg-preflight`；后续 failure recovery 仅按 `r2-failure-recovery-package.md` 的独立授权执行。
-- [ ] 2.2 仅在 preflight 通过后执行一次 migration `000020` 与 22-tag idempotent seed；按 `preflight -> Write -> Query/assert` 顺序，任何漂移或断言失败立即停止。
-- [ ] 2.3 在受控 R2 PostgreSQL 环境执行 synthetic repository fixture write/cleanup assertions：UUID[] scan/write、advisory-lock replay/conflict、transaction rollback、VerifyReceiptResults missing/cross-event、schema compatibility；再运行 `r2-postflight.sql` 和 dry-run 零写入复验。保存 recovery/after assertions，不执行 UAT/prod/shared/Neo4j 或真实业务 import。
+- [x] 2.2 在 preflight 通过后仅执行一次 migration `000020` 与 22-tag idempotent seed；postflight 通过，receipt schema、固定 source、22 Tag 与 count formula 证据记录于 `r2-execution-evidence.md`。
+- [x] 2.3 在受控 R2 PostgreSQL 环境完成 synthetic repository fixture write/cleanup assertions、UUID[] replay/conflict、rollback、VerifyReceiptResults、schema compatibility，以及 recovery 后 dry-run 五表零写复验；evidence 记录于 `r2-execution-evidence.md`，未执行 UAT/prod/shared/Neo4j 或真实业务 import。
