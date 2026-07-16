@@ -144,9 +144,6 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			if err := tx.VerifyReceiptResults(ctx, *existing); err != nil {
 				return fmt.Errorf("verify replay receipt results: %w", err)
 			}
-			if existing.PayloadHash != plan.PayloadHash {
-				return ErrIdempotencyConflict
-			}
 			result = resultFromReceipt(*existing)
 			return nil
 		}
@@ -305,11 +302,11 @@ func ensureUniqueNonEmpty(ids []string, label string) error {
 }
 
 func validateReceiptReplay(receipt Receipt, pkg domainimport.Package, plan Plan) error {
-	if receipt.ID != plan.ReceiptID || receipt.IdempotencyKey != pkg.IdempotencyKey || receipt.PackageID != pkg.PackageID || receipt.ReviewID != pkg.Review.ReviewID || receipt.ReviewDecision != pkg.Review.Decision || receipt.EventID != plan.EventID {
-		return fmt.Errorf("replay receipt identity does not match deterministic plan")
-	}
 	if receipt.PayloadHash != plan.PayloadHash {
 		return ErrIdempotencyConflict
+	}
+	if receipt.ID != plan.ReceiptID || receipt.IdempotencyKey != pkg.IdempotencyKey || receipt.PackageID != pkg.PackageID || receipt.ReviewID != pkg.Review.ReviewID || receipt.ReviewDecision != pkg.Review.Decision || receipt.EventID != plan.EventID {
+		return fmt.Errorf("replay receipt identity does not match deterministic plan")
 	}
 	if err := ensureUniqueNonEmpty(receipt.RawDocumentIDs, "replay raw document"); err != nil {
 		return err

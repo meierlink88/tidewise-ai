@@ -56,6 +56,13 @@ func TestServiceReplaysSameKeyAndRejectsDifferentHash(t *testing.T) {
 	if _, err := service.Import(context.Background(), pkg); !errors.Is(err, ErrIdempotencyConflict) {
 		t.Fatalf("conflict error = %v, want ErrIdempotencyConflict", err)
 	}
+
+	pkg = validPackage()
+	pkg.PackageID = "pkg-2"
+	pkg.Review.PackageID = pkg.PackageID
+	if _, err := service.Import(context.Background(), pkg); !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("identity-changing conflict error = %v, want ErrIdempotencyConflict", err)
+	}
 }
 
 func TestServiceReplayValidatesReceiptResultIDs(t *testing.T) {
