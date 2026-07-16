@@ -35,18 +35,18 @@
 
 | Table | Candidate columns | Purpose | Required decision |
 |---|---|---|---|
-| `event_sources` | `evidence_relation`, `supports_fields` | 说明证据与 Event 的关系及支持的字段集合 | 是否允许空值/枚举或 JSON，哈希与唯一性如何兼容 |
-| `event_tag_maps` | `confidence`, `assignment_reason` | 保存 Tag 置信度与确定性分配理由 | 数值范围、空值兼容、Tag 状态和 DB authority |
+| `event_sources` | `evidence_relation VARCHAR(32) NULL`, `supports_fields TEXT[] NOT NULL DEFAULT '{}'` | 说明证据与 Event 的关系及支持的字段集合 | 推荐 enum `supports/contradicts/context`；legacy NULL 表示 unknown；新 supports/contradicts 写入要求非空 |
+| `event_tag_maps` | `confidence NUMERIC(5,4) NULL CHECK (confidence >= 0 AND confidence <= 1)`, `assignment_reason TEXT NOT NULL DEFAULT ''` | 保存 Tag 置信度与确定性分配理由 | 推荐 confidence 0..1；新 AI/规则分配由 domain 要求 assignment_reason 非空；既有记录保持兼容 |
 
 保留现有表和唯一约束：`event_sources` 仍连接 Event/raw document，`event_tag_maps` 仍连接 Event/DB Tag；`event_entity_links` 保持现有 schema 原样，不引入 `event_relations`。
 
 ### 3. 兼容、索引与回滚
 
-未来 migration 必须使用 `ADD COLUMN IF NOT EXISTS` 或等价可重复增量语义；新增列优先 nullable 或带无损默认值，不重写既有事实。只为实际查询/唯一性证明必要的字段建立索引，避免为 JSONB 或低选择性字段过早建索引。回滚优先采用 forward compatibility（停止写新列、旧代码继续读既有列）；若必须 down migration，必须证明无数据丢失且先处理新增值，不得清空业务表。
+未来 migration 必须编号 `000019`，使用 `ADD COLUMN IF NOT EXISTS` 或等价可重复增量语义；新增列优先 nullable 或带无损默认值，不重写既有事实。推荐评估 `event_sources` 幂等唯一约束 `(event_id, raw_document_id, evidence_hash)`：先以 repository 查询/唯一性 contract test 证明重复证据跳过；若既有数据或并发语义无法安全新增，则明确 defer，不强行改约束。无 `fact_payload` GIN 或低选择性索引；只有已确认查询契约才可新增索引。回滚优先采用 forward compatibility（停止写新列、旧代码继续读既有列）；若必须 down migration，必须 fail-closed 或 forward-fix，先处理新增值并证明无数据丢失，不得清空业务表。
 
 ### 4. Domain/repository 映射
 
-`domain.Event` 增加 `FactPayload` 的明确类型边界（推荐 `map[string]any` 或等价不可变 JSON value），验证空 payload 合法、非对象/不可编码 payload 拒绝，并复制/序列化时避免共享可变引用。PostgreSQL repository 的 insert/update/scan contract 必须覆盖 payload；现有 admin list DTO 可保持兼容，除非 Review 明确要求查询返回 payload。关系候选字段在对应 domain 类型与 repository contract 中逐项映射，禁止静默丢弃。
+`domain.Event` 增加 `FactPayload` 的明确类型边界（推荐 `map[string]any` 或等价不可变 JSON value），验证空 payload 合法、非对象/不可编码 payload 拒绝，并复制/序列化时避免共享可变引用。PostgreSQL repository 的 insert/update/scan contract 必须覆盖 payload；现有 Admin Event list DTO 暂不暴露 payload。`event_sources` 与 `event_tag_maps` 的 Review 批准字段必须在对应 domain 类型与 repository contract 中逐项映射，禁止静默丢弃。
 
 ### 5. 写入边界与安全
 
@@ -65,12 +65,13 @@
 
 ## Open Questions
 
-- `event_sources.evidence_relation` 是否采用受控短文本枚举，`supports_fields` 是否采用 `TEXT[]`/JSONB，及其空值和验证规则。
-- 三组关系候选字段的置信度精度/范围、assignment/match 取值集合与外键可空性。
+- 是否批准推荐的 `event_sources.evidence_relation VARCHAR(32) NULL`（`supports/contradicts/context`，legacy NULL=unknown）和 `supports_fields TEXT[] NOT NULL DEFAULT '{}'`（新 supports/contradicts 必须非空）。
+- 是否批准推荐的 `event_tag_maps.confidence NUMERIC(5,4) NULL CHECK 0..1` 与 `assignment_reason TEXT NOT NULL DEFAULT ''`（新 AI/规则分配必须非空）。
+- 是否批准 `(event_id, raw_document_id, evidence_hash)` 幂等唯一约束；若 preflight/既有数据/并发语义不能安全增加则 defer。
 - `fact_payload` 是否仅接受 JSON object、是否允许空 object，以及后续允许键集合由哪个 extraction contract change 定义。
 - `event_type_code`/`action_code` 是否使用受控 Tag 或 `fact_payload`（当前 defer）；`lifecycle_status` 与现有 `event_status` 重叠（当前 defer）；`reference_period_start/end` 先放 `fact_payload`（当前 defer）；`last_seen_at` 可由 `event_sources` 聚合（当前 defer）；`event_time_precision` 是唯一具有独立事实语义且无法从 timestamp 恢复的候选，须由用户 Review 决定。
 - 是否需要为新增字段建立索引；默认 YAGNI，除非有具体查询契约和选择性证据。
 
 ## Read-only Audit Baseline
 
-本轮仅记录主对话提供的只读审计结果，不执行数据库查询或写入：local `tidewise_local` 当前 `raw_documents=407`；`events`、`event_sources`、`event_tag_defs`、`event_tag_maps`、`event_entity_links` 均为 0。四表 schema 来自 `000001_init_event_knowledge_schema.sql`，最新 migration 为 `000018`；现有 `events` 仅有 `title/summary/event_time/first_seen_at/knowable_at/event_status/fact_status/dedupe_key/primary_source_id`，`event_sources` 有 `source_level/evidence_excerpt/evidence_hash`，`event_tag_maps` 有 `assign_source/review_status`。现有 `domain.Event` 和 Admin `ListEvents` 映射这些字段，尚无 Event 写 repository。
+本轮仅记录主对话提供的只读审计结果，不执行数据库查询或写入：2026-07-16 local `tidewise_local` 快照为 `raw_documents=407`；`events`、`event_sources`、`event_tag_defs`、`event_tag_maps`、`event_entity_links` 均为 0。该快照会随采集运行变化，不能作为未来 migration 的固定相等断言。四表 schema 来自 `000001_init_event_knowledge_schema.sql`，最新 migration 为 `000018`；现有 `events` 仅有 `title/summary/event_time/first_seen_at/knowable_at/event_status/fact_status/dedupe_key/primary_source_id`，`event_sources` 有 `source_level/evidence_excerpt/evidence_hash`，`event_tag_maps` 有 `assign_source/review_status`。现有 `domain.Event` 和 Admin `ListEvents` 映射这些字段，尚无 Event 写 repository。未来 preflight 必须读取 fresh before counts，migration 后断言受影响表行数与各自 before 一致；若 schema/hash 漂移则重新评估兼容性并停止，不机械以 snapshot 失败。

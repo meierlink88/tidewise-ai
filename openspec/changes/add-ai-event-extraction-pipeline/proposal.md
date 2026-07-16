@@ -7,17 +7,24 @@
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
 | 1 | Proposal Review 后可准备 domain/repository contract 设计与测试；不得执行 migration 或状态写入 | R1 | no | NONE | 仅 `backend/internal/domain`、`backend/internal/repositories` 的 Event 映射契约、fake/contract tests 和本 change artifacts；不调用模型/外网 |
-| 2 | Apply 前必须单独批准并完成 migration preflight；Apply-final 前核验兼容性与 recovery evidence | R2 | yes | DRIFT_RECOVERY | 仅未来增量 PostgreSQL migration、migration/domain/repository contract tests；保留既有数据；不得写 Neo4j、采集、worker 或生产环境 |
+| 2 | 独立批准后执行 fresh preflight/backup → authorized additive migration → read-only schema/count assertions；漂移或失败立即停止 | R2 | yes | DRIFT_RECOVERY | 仅 local PostgreSQL `000019` 增量 migration、migration/domain/repository contract tests；不得执行 seed、回填、Neo4j、采集、worker 或生产写入 |
+| 3 | Apply-final Review：核验 package 1/2 scoped diff、测试、migration assertions 和未验证项；通过后才可请求后续生命周期授权 | R2 | yes | APPLY_FINAL | 仅本 change 的 Apply-final 验证与 Review 记录；不得 Sync、Archive、push/PR 或执行未批准的其他状态操作 |
 
 ## Complexity Budget
 
 | Key | Value |
 |---|---|
-| human_gates | 1 |
-| stateful_layers | 0 |
-| checkpoints | 2 |
+| human_gates | 2 |
+| stateful_layers | 1 |
+| checkpoints | 3 |
 | full_test_runs | 1 |
 | continuous_automation_scope | packages:1 |
+
+## Stateful Layer Map
+
+| Layer | Package | Environment | Order | Scope | Exclusions | Recovery Evidence | Recovery Baseline | Expected Counts/Hash/Schema | Before Assertions | After Assertions | Stop Conditions |
+|---|---:|---|---:|---|---|---|---|---|---|---|---|
+| event-db-migration | 2 | local | 1 | PostgreSQL `tidewise_local` only; migration `000019` for reviewed Event/evidence/Tag columns | seed, backfill, cleanup, entity links, Neo4j, worker, production/shared environments | backup | new:event-db-migration-local | counts=fresh-before;hash=fresh-before;schema=000001-000018 | Fresh PostgreSQL schema/version, table counts, constraints/indexes and backup identity are captured; 407/0 audit values are not reused as live assertions | `000019` is applied once; reviewed schema exists; every affected table row count equals fresh-before; migration version and non-destructive assertions pass | Any schema/hash/count drift, backup failure, migration failure, timeout, assertion failure or manual stop immediately invalidates remaining scope |
 
 ## What Changes
 

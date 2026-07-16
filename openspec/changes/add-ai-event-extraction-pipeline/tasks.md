@@ -3,17 +3,24 @@
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
 |---|---|---|---|---|---|
 | 1 | Proposal Review 后可准备 domain/repository contract 设计与测试；不得执行 migration 或状态写入 | R1 | no | NONE | 仅 `backend/internal/domain`、`backend/internal/repositories` 的 Event 映射契约、fake/contract tests 和本 change artifacts；不调用模型/外网 |
-| 2 | Apply 前必须单独批准并完成 migration preflight；Apply-final 前核验兼容性与 recovery evidence | R2 | yes | DRIFT_RECOVERY | 仅未来增量 PostgreSQL migration、migration/domain/repository contract tests；保留既有数据；不得写 Neo4j、采集、worker 或生产环境 |
+| 2 | 独立批准后执行 fresh preflight/backup → authorized additive migration → read-only schema/count assertions；漂移或失败立即停止 | R2 | yes | DRIFT_RECOVERY | 仅 local PostgreSQL `000019` 增量 migration、migration/domain/repository contract tests；不得执行 seed、回填、Neo4j、采集、worker 或生产写入 |
+| 3 | Apply-final Review：核验 package 1/2 scoped diff、测试、migration assertions 和未验证项；通过后才可请求后续生命周期授权 | R2 | yes | APPLY_FINAL | 仅本 change 的 Apply-final 验证与 Review 记录；不得 Sync、Archive、push/PR 或执行未批准的其他状态操作 |
 
 ## Complexity Budget
 
 | Key | Value |
 |---|---|
-| human_gates | 1 |
-| stateful_layers | 0 |
-| checkpoints | 2 |
+| human_gates | 2 |
+| stateful_layers | 1 |
+| checkpoints | 3 |
 | full_test_runs | 1 |
 | continuous_automation_scope | packages:1 |
+
+## Stateful Layer Map
+
+| Layer | Package | Environment | Order | Scope | Exclusions | Recovery Evidence | Recovery Baseline | Expected Counts/Hash/Schema | Before Assertions | After Assertions | Stop Conditions |
+|---|---:|---|---:|---|---|---|---|---|---|---|---|
+| event-db-migration | 2 | local | 1 | PostgreSQL `tidewise_local` only; migration `000019` for reviewed Event/evidence/Tag columns | seed, backfill, cleanup, entity links, Neo4j, worker, production/shared environments | backup | new:event-db-migration-local | counts=fresh-before;hash=fresh-before;schema=000001-000018 | Fresh PostgreSQL schema/version, table counts, constraints/indexes and backup identity are captured; 407/0 audit values are not reused as live assertions | `000019` is applied once; reviewed schema exists; every affected table row count equals fresh-before; migration version and non-destructive assertions pass | Any schema/hash/count drift, backup failure, migration failure, timeout, assertion failure or manual stop immediately invalidates remaining scope |
 
 ## 1. Event DB contract and mapping Package
 
@@ -24,7 +31,12 @@
 
 ## 2. Additive migration and contract verification Package
 
-- [ ] 2.1 （R2 migration gate）提交 migration preflight、范围/顺序/recovery/before-after assertions/停止条件，确认既有 `raw_documents=407` 且 `events`、`event_sources`、`event_tag_defs`、`event_tag_maps`、`event_entity_links` 均为 0 的基线未漂移；只读确认后保留既有数据。
+- [ ] 2.1 （R2 migration gate）在 fresh preflight/backup 中读取当前 schema/version、受影响表行数、约束/索引与 backup identity；407/0 仅作为 2026-07-16 audit snapshot，不作为未来相等断言，漂移时重新评估兼容性。
 - [ ] 2.2 编写并评审 `000019` 增量 migration contract tests：`fact_payload`、已批准的 evidence/Tag 候选字段、默认/NULL 语义、仅必要索引、重复执行和非破坏性 SQL；未通过 Review 的字段不得落地。
 - [ ] 2.3 在获明确授权后执行 local-only migration，并验证版本、schema、既有行数/约束及 fail-closed/forward-fix 回滚证据；不得执行 seed、业务回填、实体关联、Neo4j 或生产写入。
 - [ ] 2.4 运行受影响 backend package suite、architecture/contract tests、OpenSpec strict validate、scoped diff 和 secret scan，记录失败即停止。
+
+## 3. Apply-final Review Package
+
+- [ ] 3.1 汇总 package 1/2 的 scoped diff、fresh preflight/backup、`000019` migration 结果、read-only schema/count assertions、测试输出和未验证项。
+- [ ] 3.2 通过 Apply-final Review 前不得 Sync、Archive、push/PR 或执行其他有状态操作。

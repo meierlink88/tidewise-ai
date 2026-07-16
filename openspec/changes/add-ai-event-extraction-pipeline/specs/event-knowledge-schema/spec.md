@@ -1,42 +1,56 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: 事件知识 PostgreSQL schema
-系统 SHALL 在 PostgreSQL 中保存 MVP 阶段的采集源、原始文档、事件事实、事件证据、事件 Tag 定义和事件 Tag 关联，并将这些结构作为后续事件抽取、审核和 API 查询的事实基础；事件事实 SHALL 增加 `fact_payload JSONB` 以承载可验证的原子事实载荷，且不得承载预测或投资建议。现有 `event_entity_links` 保持原样，不属于本 change。
+### Requirement: Event 原子事实载荷
+系统 SHALL 在既有 `events` 事实表上增加 `fact_payload JSONB NOT NULL DEFAULT '{}'`，用于保存可独立验证的原子 Event 事实；该载荷不得表达预测、评分或直接投资建议。
 
-#### Scenario: 保存原子事件事实载荷
-- **WHEN** 确定性执行器写入通过证据校验的 Event package
-- **THEN** `events` 必须保留既有标题、摘要、时间、状态和 `dedupe_key` 字段，并允许以 `fact_payload` 保存 JSON object 形式的原子事实；空 object 对既有记录合法，缺失字段不得破坏旧记录读取
+#### Scenario: 保存 JSON object 事实载荷
+- **WHEN** 确定性执行器写入通过 evidence 校验的 Event package
+- **THEN** `fact_payload` 必须接受 JSON object（包括空 object），并与既有 title、summary、时间、状态和 `dedupe_key` 字段共同保存
 
-#### Scenario: 拒绝推理或投资建议载荷
-- **WHEN** candidate payload 包含买入卖出、涨跌预测、利好利空、传导强度、事件评分或直接投资建议
-- **THEN** 系统不得把这些内容写入 `fact_payload` 或事件关系事实，并记录拒绝原因
+#### Scenario: 拒绝非 object 或越界载荷
+- **WHEN** candidate payload 不是 JSON object，或包含买入卖出、涨跌预测、利好利空、传导强度、事件评分或直接投资建议
+- **THEN** domain/repository contract 必须拒绝该 payload，不得写入事件事实
 
-#### Scenario: 增量增加事件 schema
-- **WHEN** 编号为 `000019` 的未来 migration 在已有 raw document、事件、证据或 Tag 数据的 PostgreSQL 上执行
-- **THEN** migration 必须只增量增加已 Review 批准的列、约束或必要索引，不得清空、删除或重建既有业务数据
+### Requirement: Event 证据镜像与最小归因
+系统 SHALL 通过既有 `event_sources` 将 Event 与 `raw_documents` 关联，并在 Review 批准后支持最小证据归因字段；`raw_documents` 仍是证据镜像，不能被 Event 事实替代。
 
-### Requirement: 原始文档和事件事实分离
-系统 SHALL 将外部采集得到的原始材料保存为 `RAW_DOCUMENT`，并通过 `EVENT_SOURCE` 将原始文档作为事件事实证据；本 change 不建立或修改实体关联。
+#### Scenario: 保存可追溯 evidence
+- **WHEN** Event package 由一个或多个 raw document 支持
+- **THEN** 系统必须保留现有 `source_level`、`evidence_excerpt`、`evidence_hash`，并可在批准后写入 `evidence_relation VARCHAR(32) NULL` 与 `supports_fields TEXT[] NOT NULL DEFAULT '{}'`
 
-#### Scenario: 关联可追溯证据
-- **WHEN** Event package 由一篇或多篇 raw document 支持
-- **THEN** 系统必须通过 `event_sources` 关联事件和 raw document，并保留证据摘录、证据哈希及经 Review 批准的证据关系/支持字段（如适用）
+#### Scenario: 解释 evidence 字段
+- **WHEN** 新执行器写入 `evidence_relation`
+- **THEN** `supports`、`contradicts`、`context` 必须使用受控值，legacy NULL 必须解释为 unknown；新 `supports`/`contradicts` 写入必须有非空 `supports_fields`
 
-#### Scenario: 保持实体关联范围外
-- **WHEN** raw document 或 Event candidate 包含实体名称
-- **THEN** 本 change 不得执行实体匹配、生成实体候选、写入实体关联或修改 `event_entity_links`；相关能力必须由未来独立 change 定义
+#### Scenario: 评估 evidence 幂等
+- **WHEN** 同一 Event/raw document/evidence hash 被重复提交
+- **THEN** repository 必须先检查重复并跳过无意义写入；只有在 preflight 证明既有数据与并发语义安全时，才可增加 `(event_id, raw_document_id, evidence_hash)` 唯一约束，否则必须 defer
 
-### Requirement: 受控 Tag 分类和审计
-系统 SHALL 保留 `event_tag_maps`，并在 Review 批准后保存最小 Tag 归因信息；Tidewise DB 是 Tag 主数据唯一权威，YAML 只能作为策略输入。
+### Requirement: 受控 Tag 分类和归因
+系统 SHALL 以 Tidewise DB 的 `event_tag_defs` 作为 Tag 主数据唯一权威，保留 `event_tag_maps` 的既有唯一约束，并在 Review 批准后支持 Tag 置信度和分配理由；YAML 只能作为策略输入。
 
-#### Scenario: 使用数据库 Tag 主数据
-- **WHEN** Event package 携带 Tag candidate
-- **THEN** 系统必须按 Tidewise DB 中的 `event_tag_defs` 进行映射；未注册 Tag 不得作为正式 Tag 事实写入，YAML 不得创建或替代 Tag 主数据
+#### Scenario: 映射受控 Tag
+- **WHEN** Event candidate 携带 Tag candidate
+- **THEN** 系统必须按 DB 中已注册的 `event_tag_defs` 映射；YAML 不得创建或替代 Tag 主数据
 
-#### Scenario: 审计 Tag 分配
-- **WHEN** Tag 通过确定性校验写入
-- **THEN** 系统应在经 Review 批准的最小字段中保存 Tag 的 confidence/assignment reason；旧数据和既有唯一约束必须保持可读兼容
+#### Scenario: 保存 Tag 归因
+- **WHEN** AI 或规则分配通过确定性校验
+- **THEN** 可写入 `confidence NUMERIC(5,4) NULL CHECK (confidence >= 0 AND confidence <= 1)` 与 `assignment_reason TEXT NOT NULL DEFAULT ''`；新 AI/规则分配的 `assignment_reason` 必须非空，既有记录保持可读兼容
 
-#### Scenario: 延后非必要事件字段
+### Requirement: 事件字段扩展审慎门槛
+系统 SHALL 对除 `fact_payload` 外的 `events` 新字段逐项评估，不得将未 Review 字段预批准。
+
+#### Scenario: 延后非必要字段
 - **WHEN** Review 讨论 `event_type_code`、`action_code`、`lifecycle_status`、`reference_period_start/end`、`last_seen_at` 或 `event_time_precision`
-- **THEN** 除非形成独立字段语义、约束、兼容和回滚决策，否则前五项必须 defer；`event_time_precision` 只能作为待用户 Review 的候选，不得在本 Proposal 中预批准
+- **THEN** `event_type_code`/`action_code` 优先 defer 至受控 Tag 或 payload；`lifecycle_status` 因与 `event_status` 重叠 defer；`reference_period_start/end` 先放 payload；`last_seen_at` 可由 event_sources 聚合而 defer；`event_time_precision` 仅作为待用户 Review 的独立事实语义候选
+
+### Requirement: 非破坏性增量 migration
+系统 SHALL 通过编号 `000019` 的增量 migration 增加经 Review 批准的字段/约束，并保留既有数据；migration 及其 contract tests 必须在未来 Apply 的 R2 gate 下执行。
+
+#### Scenario: 保留 fresh before 状态
+- **WHEN** local PostgreSQL preflight 在 migration 前读取当前 schema/version、受影响表行数、约束/索引和 backup identity
+- **THEN** migration 后必须以各表 fresh before counts 作为相等断言；2026-07-16 的 407/0 audit snapshot 只能作为历史审计信息，不得作为固定 live assertion
+
+#### Scenario: 失败安全
+- **WHEN** schema/hash/count 漂移、backup 失败、migration 失败、超时或 after assertion 失败
+- **THEN** 系统必须立即停止剩余 scope，并采用 backup recovery 或 fail-closed/forward-fix 兼容策略，不得清空、回填或删除业务数据
