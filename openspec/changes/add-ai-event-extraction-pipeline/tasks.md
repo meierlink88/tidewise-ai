@@ -38,5 +38,5 @@
 
 ## 3. Apply-final Review Package
 
-- [ ] 3.1 汇总 package 1/2 的 scoped diff、fresh preflight/backup、`000019` migration 结果、read-only schema/count assertions、测试输出和未验证项。
-- [ ] 3.2 通过 Apply-final Review 前不得 Sync、Archive、push/PR 或执行其他有状态操作。
+- [x] 3.1 汇总 package 1/2 的 scoped diff、fresh preflight/backup、`000019` migration 结果、read-only schema/count assertions、测试输出和未验证项。汇总见 [Apply-final Review](reviews/apply-final-review.md)。
+- [x] 3.2 通过 Apply-final Review 前不得 Sync、Archive、push/PR 或执行其他有状态操作。Apply-final 已通过；本 checkpoint 未执行 Sync、Archive、push 或 PR。
