@@ -43,12 +43,12 @@ func TestEventImportPostgresIntegration(t *testing.T) {
 	runKey := fmt.Sprintf("event-import-integration-%d", time.Now().UTC().UnixNano())
 	repo := repositories.NewPostgresRepository(db)
 	service := app.NewService(repo)
-	var results []app.Result
-	t.Cleanup(func() { cleanupEventImportFixtures(t, ctx, db, results) })
+	var cleanupResults []app.Result
+	t.Cleanup(func() { cleanupEventImportFixtures(t, ctx, db, cleanupResults) })
 
 	firstPackage := reviewedPackage(runKey + "-one")
+	cleanupResults = append(cleanupResults, cleanupResultFromPlan(t, service, firstPackage))
 	first := importConcurrentlyAndAssertSingleResult(t, ctx, db, service, firstPackage)
-	results = append(results, first)
 
 	changed := firstPackage
 	changed.Event.Title = "different payload"
@@ -57,13 +57,44 @@ func TestEventImportPostgresIntegration(t *testing.T) {
 	}
 
 	secondPackage := reviewedPackage(runKey + "-two")
+	cleanupResults = append(cleanupResults, cleanupResultFromPlan(t, service, secondPackage))
 	third, err := service.Import(ctx, secondPackage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	results = append(results, third)
 	assertReceiptVerificationFailures(t, ctx, repo, first, third)
 	assertRollbackRemovesSyntheticRawDocument(t, ctx, db, repo, runKey)
+}
+
+func TestCleanupResultFromPlanUsesDeterministicPlanIDs(t *testing.T) {
+	plan := app.Plan{
+		PackageID: "package", ReceiptID: "receipt", EventID: "event", PayloadHash: "hash",
+		RawDocumentIDs: []string{"raw"}, EventSourceIDs: []string{"source"}, EventTagMapIDs: []string{"tag"},
+	}
+	got := cleanupResultFromPlanValue(plan)
+	want := app.Result{
+		PackageID: "package", ReceiptID: "receipt", EventID: "event", PayloadHash: "hash",
+		RawDocumentIDs: []string{"raw"}, EventSourceIDs: []string{"source"}, EventTagMapIDs: []string{"tag"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cleanup scope = %#v, want deterministic plan IDs %#v", got, want)
+	}
+}
+
+func cleanupResultFromPlan(t *testing.T, service *app.Service, pkg domainimport.Package) app.Result {
+	t.Helper()
+	plan, err := service.Plan(pkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cleanupResultFromPlanValue(plan)
+}
+
+func cleanupResultFromPlanValue(plan app.Plan) app.Result {
+	return app.Result{
+		PackageID: plan.PackageID, ReceiptID: plan.ReceiptID, EventID: plan.EventID, PayloadHash: plan.PayloadHash,
+		RawDocumentIDs: plan.RawDocumentIDs, EventSourceIDs: plan.EventSourceIDs, EventTagMapIDs: plan.EventTagMapIDs,
+	}
 }
 
 func importConcurrentlyAndAssertSingleResult(t *testing.T, ctx context.Context, db *sql.DB, service *app.Service, input domainimport.Package) app.Result {

@@ -62,13 +62,16 @@ func (t *postgresEventImportTx) LockReceipt(ctx context.Context, key string) (*E
 		return nil, fmt.Errorf("lock event import idempotency key: %w", err)
 	}
 	var receipt EventImportReceipt
+	var rawDocumentIDsJSON []byte
+	var eventSourceIDsJSON []byte
+	var eventTagMapIDsJSON []byte
 	var metadata []byte
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, idempotency_key, package_id, review_id, review_decision, payload_hash,
-       event_id, raw_document_ids, event_source_ids, event_tag_map_ids, review_metadata, imported_at
+       event_id, array_to_json(raw_document_ids), array_to_json(event_source_ids), array_to_json(event_tag_map_ids), review_metadata, imported_at
 FROM event_import_receipts WHERE idempotency_key = $1 FOR UPDATE`, key).Scan(
 		&receipt.ID, &receipt.IdempotencyKey, &receipt.PackageID, &receipt.ReviewID, &receipt.ReviewDecision, &receipt.PayloadHash,
-		&receipt.EventID, &receipt.RawDocumentIDs, &receipt.EventSourceIDs, &receipt.EventTagMapIDs, &metadata, &receipt.ImportedAt,
+		&receipt.EventID, &rawDocumentIDsJSON, &eventSourceIDsJSON, &eventTagMapIDsJSON, &metadata, &receipt.ImportedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -79,7 +82,32 @@ FROM event_import_receipts WHERE idempotency_key = $1 FOR UPDATE`, key).Scan(
 	if err := json.Unmarshal(metadata, &receipt.ReviewMetadata); err != nil {
 		return nil, fmt.Errorf("decode event import review metadata: %w", err)
 	}
+	if receipt.RawDocumentIDs, err = decodeReceiptUUIDJSONArray("raw_document_ids", rawDocumentIDsJSON); err != nil {
+		return nil, err
+	}
+	if receipt.EventSourceIDs, err = decodeReceiptUUIDJSONArray("event_source_ids", eventSourceIDsJSON); err != nil {
+		return nil, err
+	}
+	if receipt.EventTagMapIDs, err = decodeReceiptUUIDJSONArray("event_tag_map_ids", eventTagMapIDsJSON); err != nil {
+		return nil, err
+	}
 	return &receipt, nil
+}
+
+func decodeReceiptUUIDJSONArray(field string, data []byte) ([]string, error) {
+	var ids []string
+	if err := json.Unmarshal(data, &ids); err != nil {
+		return nil, fmt.Errorf("decode receipt %s: %w", field, err)
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("decode receipt %s: array must not be empty", field)
+	}
+	for _, id := range ids {
+		if id == "" {
+			return nil, fmt.Errorf("decode receipt %s: array contains empty ID", field)
+		}
+	}
+	return ids, nil
 }
 
 func (t *postgresEventImportTx) Source(ctx context.Context, id string) (domain.SourceCatalog, error) {
