@@ -233,6 +233,9 @@ func (p Package) Validate() (Mapping, error) {
 			return Mapping{}, fmt.Errorf("duplicate event tag %q", tag.TagCode)
 		}
 		seenTags[key] = struct{}{}
+		if _, err := LookupFrozenTag(tag.TagKind, tag.TagID, tag.TagCode); err != nil {
+			return Mapping{}, fmt.Errorf("event_tags[%d]: %w", index, err)
+		}
 		switch tag.TagKind {
 		case "news_category":
 			newsCount++

@@ -3,6 +3,8 @@ package dbmigration
 import (
 	"strings"
 	"testing"
+
+	domainimport "github.com/meierlink88/tidewise-ai/backend/internal/domain/eventimport"
 )
 
 func TestEventImportMigrationFreezesSourceReceiptAndTagSeed(t *testing.T) {
@@ -23,12 +25,12 @@ func TestEventImportMigrationFreezesSourceReceiptAndTagSeed(t *testing.T) {
 			t.Fatalf("migration missing %q", required)
 		}
 	}
-	for _, code := range []string{
-		"geopolitics", "macroeconomy", "monetary_policy", "fiscal_trade", "usd_fx", "commodities", "market_indices", "executive_commentary", "capital_markets", "technology_industry",
-		"macro_economic_index", "inflation_price_index", "interest_credit_index", "fx_index", "equity_broad_index", "industry_theme_index", "commodity_index", "market_sentiment_index", "stock_trading_data", "futures_contract", "fund_etf_index", "options_derivatives",
-	} {
-		if !strings.Contains(sql, "'"+code+"'") {
-			t.Fatalf("migration missing frozen tag code %q", code)
+	if len(domainimport.FrozenTags) != 22 {
+		t.Fatalf("frozen tag fixture count = %d, want 22", len(domainimport.FrozenTags))
+	}
+	for _, tag := range domainimport.FrozenTags {
+		if !strings.Contains(sql, "'"+tag.ID+"'") || !strings.Contains(sql, "'"+tag.Code+"'") || !strings.Contains(sql, "'"+strings.ToLower(tag.Name)+"'") {
+			t.Fatalf("migration does not match frozen tag fixture %s/%s", tag.Kind, tag.Code)
 		}
 	}
 	if strings.Contains(sql, "drop table") || strings.Contains(sql, "truncate") {

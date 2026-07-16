@@ -89,6 +89,29 @@ func TestValidateRejectsReviewAndEvidenceMismatch(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownAndMismatchedFrozenTagIdentity(t *testing.T) {
+	for name, replacement := range map[string]string{
+		"unknown code": `"tag_code":"not-a-frozen-code"`,
+		"wrong uuid":   `"tag_id":"00000000-0000-0000-0000-000000000000"`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			value := validPackageJSON()
+			if name == "unknown code" {
+				value = strings.Replace(value, `"tag_code":"geopolitics"`, replacement, 1)
+			} else {
+				value = strings.Replace(value, `"tag_id":"b0fe1994-0db2-526c-a57f-97fa73c1b595"`, replacement, 1)
+			}
+			pkg, err := DecodeStrict(strings.NewReader(value))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := pkg.Validate(); err == nil || !strings.Contains(err.Error(), "unknown event tag identity") {
+				t.Fatalf("Validate() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestCanonicalHashUsesExactJSONSemantics(t *testing.T) {
 	left, err := CanonicalHash([]byte(`{"b":1.00,"a":[1000,0.0010]}`))
 	if err != nil {

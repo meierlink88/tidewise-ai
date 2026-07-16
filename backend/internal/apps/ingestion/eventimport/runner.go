@@ -15,21 +15,37 @@ import (
 	domainimport "github.com/meierlink88/tidewise-ai/backend/internal/domain/eventimport"
 )
 
-type InputReport struct {
-	Files         int      `json:"files"`
-	Packages      int      `json:"packages"`
-	PackageIDs    []string `json:"package_ids"`
-	PayloadHashes []string `json:"payload_hashes"`
-	DryRun        bool     `json:"dry_run"`
+func LoadPackages(path string) ([]domainimport.Package, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("stat input: %w", err)
+	}
+	if info.IsDir() {
+		return LoadPackagesFromInput("", path)
+	}
+	return LoadPackagesFromInput(path, "")
 }
 
-func LoadPackages(path string) ([]domainimport.Package, error) {
+func LoadPackagesFromInput(file, dir string) ([]domainimport.Package, error) {
+	if file == "" && dir == "" {
+		return nil, errors.New("exactly one of file or dir is required")
+	}
+	if file != "" && dir != "" {
+		return nil, errors.New("file and dir are mutually exclusive")
+	}
+	path := file
+	if dir != "" {
+		path = dir
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat input: %w", err)
 	}
 	paths := []string{path}
 	if info.IsDir() {
+		if file != "" {
+			return nil, fmt.Errorf("file input %q is a directory", file)
+		}
 		paths = paths[:0]
 		err = filepath.WalkDir(path, func(candidate string, entry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -44,6 +60,8 @@ func LoadPackages(path string) ([]domainimport.Package, error) {
 			return nil, fmt.Errorf("walk input directory: %w", err)
 		}
 		sort.Strings(paths)
+	} else if dir != "" {
+		return nil, fmt.Errorf("dir input %q is not a directory", dir)
 	}
 	if len(paths) == 0 {
 		return nil, errors.New("input directory contains no .json files")
@@ -67,24 +85,20 @@ func LoadPackages(path string) ([]domainimport.Package, error) {
 	return packages, nil
 }
 
-func DryRun(ctx context.Context, packages []domainimport.Package) (InputReport, error) {
+func DryRun(ctx context.Context, packages []domainimport.Package) ([]Plan, error) {
 	if err := ctx.Err(); err != nil {
-		return InputReport{}, err
+		return nil, err
 	}
-	ids := make([]string, 0, len(packages))
-	hashes := make([]string, 0, len(packages))
+	plans := make([]Plan, 0, len(packages))
+	service := NewService(nil)
 	for _, pkg := range packages {
-		if _, err := pkg.Validate(); err != nil {
-			return InputReport{}, err
-		}
-		ids = append(ids, pkg.PackageID)
-		hash, err := pkg.CanonicalHash()
+		plan, err := service.Plan(pkg)
 		if err != nil {
-			return InputReport{}, err
+			return nil, err
 		}
-		hashes = append(hashes, hash)
+		plans = append(plans, plan)
 	}
-	return InputReport{Files: len(packages), Packages: len(packages), PackageIDs: ids, PayloadHashes: hashes, DryRun: true}, nil
+	return plans, nil
 }
 
 func EncodeReport(v any) ([]byte, error) {

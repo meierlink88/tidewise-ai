@@ -130,7 +130,7 @@ event-import --file ./reviewed-outbox.json --dry-run --json
 event-import --dir ./reviewed-outbox --json
 ```
 
-成功 JSON：`{"ok":true,"mode":"dry-run|import","package_id":"...","payload_hash":"sha256:<64 lowercase hex>","result":{"event_ids":[],"raw_document_ids":[],"receipt_id":"..."},"errors":[]}`；失败 JSON：`{"ok":false,"error":{"code":"...","message":"...","details":[]}}`。DB `payload_hash` 存 64 位小写 hex，不含 `sha256:`；CLI 展示可加 `sha256:` 前缀。stdout 只输出机器 JSON，stderr 仅允许非敏感诊断；不得输出 DSN、token、cookie、API key 或完整凭据。exit code：0 success、2 input/contract validation、3 conflict/idempotency、4 database/transaction failure、5 CLI/config/I/O。
+成功 JSON 冻结为稳定对象：`{"ok":true,"mode":"dry-run|import","result":{"package_count":1,"packages":[{"package_id":"...","payload_hash":"sha256:<64 lowercase hex>","receipt_id":"...","event_id":"...","raw_document_ids":[],"event_source_ids":[],"event_tag_map_ids":[],"counts":{"raw_documents":1,"events":1,"event_sources":1,"event_tags":1,"receipts":1}}]},"errors":[]}`；目录仍使用同一对象形状，仅 `package_count` 与 `packages` 长度变化。失败 JSON：`{"ok":false,"error":{"code":"...","message":"...","details":[]}}`。DB `payload_hash` 存 64 位小写 hex，不含 `sha256:`；CLI 展示可加 `sha256:` 前缀。stdout 只输出机器 JSON，stderr 仅允许非敏感诊断；不得输出 DSN、token、cookie、API key 或完整凭据。exit code：0 success、2 input/contract validation、3 conflict/idempotency、4 database/transaction failure、5 CLI/config/I/O。
 
 payload hash canonicalization 冻结为：对象 key 按 Unicode code point 升序递归排序；数组保持输入顺序；字符串使用 UTF-8；JSON 输出不含无意义空白；数字以 `UseNumber`/等价 exact decimal 语义解析，不经过 binary float，不接受 NaN/Infinity，并用保持原始数值语义的最短十进制表示；同一输入不得因 key 顺序、空白或语言 runtime 改变 hash。
 

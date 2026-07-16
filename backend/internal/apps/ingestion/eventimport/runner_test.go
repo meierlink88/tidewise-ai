@@ -40,7 +40,7 @@ func TestDryRunDoesNotRequireStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.DryRun || report.Packages != 1 {
+	if len(report) != 1 || report[0].Counts.Events != 1 || report[0].EventID == "" {
 		t.Fatalf("unexpected report: %+v", report)
 	}
 }

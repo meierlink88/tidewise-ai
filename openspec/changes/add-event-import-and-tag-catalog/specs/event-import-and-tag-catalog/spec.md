@@ -116,6 +116,9 @@
 - **WHEN** 使用 `event-import --file <path> --dry-run --json`
 - **THEN** CLI 返回将要写入的 IDs/counts/hash JSON，不执行 PostgreSQL write
 
+- **WHEN** 使用 `event-import --dir <path> --json`
+- **THEN** CLI 使用与单文件相同的成功对象形状，以 `result.package_count` 和 `result.packages[]` 表示多个 package；每个 package 返回 deterministic receipt/event/raw/source/tag-map IDs、counts 和 `sha256:` payload hash
+
 #### Scenario: 失败机器输出
 - **WHEN** 输入、冲突、数据库或 I/O 失败
 - **THEN** CLI 输出固定 error JSON、对应非零 exit code，并隐藏 secrets

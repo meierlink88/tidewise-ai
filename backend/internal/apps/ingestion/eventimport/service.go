@@ -21,12 +21,32 @@ type Transaction = repositories.EventImportTransaction
 type Receipt = repositories.EventImportReceipt
 
 type Result struct {
+	PackageID      string   `json:"package_id"`
 	ReceiptID      string   `json:"receipt_id"`
 	EventID        string   `json:"event_id"`
 	RawDocumentIDs []string `json:"raw_document_ids"`
 	EventSourceIDs []string `json:"event_source_ids"`
 	EventTagMapIDs []string `json:"event_tag_map_ids"`
 	PayloadHash    string   `json:"payload_hash"`
+}
+
+type Plan struct {
+	PackageID      string   `json:"package_id"`
+	PayloadHash    string   `json:"payload_hash"`
+	ReceiptID      string   `json:"receipt_id"`
+	EventID        string   `json:"event_id"`
+	RawDocumentIDs []string `json:"raw_document_ids"`
+	EventSourceIDs []string `json:"event_source_ids"`
+	EventTagMapIDs []string `json:"event_tag_map_ids"`
+	Counts         Counts   `json:"counts"`
+}
+
+type Counts struct {
+	RawDocuments int `json:"raw_documents"`
+	Events       int `json:"events"`
+	EventSources int `json:"event_sources"`
+	EventTags    int `json:"event_tags"`
+	Receipts     int `json:"receipts"`
 }
 
 type Service struct {
@@ -38,6 +58,68 @@ func NewService(store Store) *Service {
 	return &Service{store: store, now: func() time.Time { return time.Now().UTC() }}
 }
 
+func (s *Service) Plan(pkg domainimport.Package) (Plan, error) {
+	if _, err := pkg.Validate(); err != nil {
+		return Plan{}, err
+	}
+	hash, err := packageHash(pkg)
+	if err != nil {
+		return Plan{}, err
+	}
+	eventID := repositories.NormalizeUUID("event", pkg.Event.DedupeKey)
+	rawIDs := make([]string, 0, len(pkg.RawDocuments))
+	for _, input := range pkg.RawDocuments {
+		rawIDs = append(rawIDs, repositories.RawDocumentUUID(FixedSourceID, input.DocumentID, input.DocumentID, input.ContentHash))
+	}
+	sourceIDs := make([]string, 0, len(pkg.EventSources))
+	for _, input := range pkg.EventSources {
+		rawIndex := -1
+		for index, document := range pkg.RawDocuments {
+			if document.DocumentID == input.DocumentID {
+				rawIndex = index
+				break
+			}
+		}
+		if rawIndex < 0 {
+			return Plan{}, fmt.Errorf("event source document %q is not planned", input.DocumentID)
+		}
+		sourceIDs = append(sourceIDs, repositories.NormalizeUUID("event_source", eventID, rawIDs[rawIndex], input.EvidenceHash))
+	}
+	tagIDs := make([]string, 0, len(pkg.EventTags))
+	for _, input := range pkg.EventTags {
+		tagIDs = append(tagIDs, repositories.NormalizeUUID("event_tag_map", eventID, input.TagID))
+	}
+	plan := Plan{
+		PackageID: pkg.PackageID, PayloadHash: hash,
+		ReceiptID: repositories.NormalizeUUID("event_import_receipt", pkg.IdempotencyKey), EventID: eventID,
+		RawDocumentIDs: rawIDs, EventSourceIDs: sourceIDs, EventTagMapIDs: tagIDs,
+		Counts: Counts{RawDocuments: len(rawIDs), Events: 1, EventSources: len(sourceIDs), EventTags: len(tagIDs), Receipts: 1},
+	}
+	if err := validatePlan(plan); err != nil {
+		return Plan{}, err
+	}
+	return plan, nil
+}
+
+func validatePlan(plan Plan) error {
+	if plan.EventID == "" || plan.ReceiptID == "" {
+		return errors.New("planned event and receipt IDs are required")
+	}
+	for name, ids := range map[string][]string{"raw_documents": plan.RawDocumentIDs, "event_sources": plan.EventSourceIDs, "event_tag_maps": plan.EventTagMapIDs} {
+		seen := make(map[string]struct{}, len(ids))
+		for _, id := range ids {
+			if id == "" {
+				return fmt.Errorf("planned %s contains empty ID", name)
+			}
+			if _, ok := seen[id]; ok {
+				return fmt.Errorf("planned %s contains duplicate ID %q", name, id)
+			}
+			seen[id] = struct{}{}
+		}
+	}
+	return nil
+}
+
 func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result, error) {
 	if s == nil || s.store == nil {
 		return Result{}, errors.New("event import store is required")
@@ -45,7 +127,7 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 	if _, err := pkg.Validate(); err != nil {
 		return Result{}, err
 	}
-	payloadHash, err := packageHash(pkg)
+	plan, err := s.Plan(pkg)
 	if err != nil {
 		return Result{}, err
 	}
@@ -56,7 +138,7 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			return fmt.Errorf("lock import receipt: %w", err)
 		}
 		if existing != nil {
-			if existing.PayloadHash != payloadHash {
+			if existing.PayloadHash != plan.PayloadHash {
 				return ErrIdempotencyConflict
 			}
 			result = resultFromReceipt(*existing)
@@ -73,7 +155,7 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 
 		rawIDs := make([]string, 0, len(pkg.RawDocuments))
 		rawByToken := make(map[string]string, len(pkg.RawDocuments))
-		for _, input := range pkg.RawDocuments {
+		for index, input := range pkg.RawDocuments {
 			doc := domain.RawDocument{
 				ID:               repositories.RawDocumentUUID(FixedSourceID, input.DocumentID, input.DocumentID, input.ContentHash),
 				SourceID:         FixedSourceID,
@@ -94,7 +176,13 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			if err != nil {
 				return fmt.Errorf("upsert raw document %q: %w", input.DocumentID, err)
 			}
+			if id != plan.RawDocumentIDs[index] {
+				return fmt.Errorf("raw document %q resolved to unexpected ID %q", input.DocumentID, id)
+			}
 			rawIDs = append(rawIDs, id)
+			if err := ensureUniqueNonEmpty(rawIDs, "raw document"); err != nil {
+				return err
+			}
 			rawByToken[input.DocumentID] = id
 		}
 
@@ -120,7 +208,7 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 		}
 
 		sourceIDs := make([]string, 0, len(pkg.EventSources))
-		for _, input := range pkg.EventSources {
+		for index, input := range pkg.EventSources {
 			rawID := rawByToken[input.DocumentID]
 			evidenceRelation := input.EvidenceRelation
 			if evidenceRelation == "" {
@@ -135,11 +223,17 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			if err != nil {
 				return fmt.Errorf("upsert event source: %w", err)
 			}
+			if storedSourceID != plan.EventSourceIDs[index] {
+				return fmt.Errorf("event source resolved to unexpected ID %q", storedSourceID)
+			}
 			sourceIDs = append(sourceIDs, storedSourceID)
+			if err := ensureUniqueNonEmpty(sourceIDs, "event source"); err != nil {
+				return err
+			}
 		}
 
 		tagIDs := make([]string, 0, len(pkg.EventTags))
-		for _, input := range pkg.EventTags {
+		for index, input := range pkg.EventTags {
 			definition, err := tx.Tag(ctx, input.TagID, input.TagKind, input.TagCode)
 			if err != nil {
 				return fmt.Errorf("resolve event tag %q: %w", input.TagCode, err)
@@ -159,10 +253,19 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			if err != nil {
 				return fmt.Errorf("upsert event tag %q: %w", input.TagCode, err)
 			}
+			if storedTagID != plan.EventTagMapIDs[index] {
+				return fmt.Errorf("event tag map resolved to unexpected ID %q", storedTagID)
+			}
 			tagIDs = append(tagIDs, storedTagID)
+			if err := ensureUniqueNonEmpty(tagIDs, "event tag map"); err != nil {
+				return err
+			}
 		}
 
-		receipt := Receipt{ID: repositories.NormalizeUUID("event_import_receipt", pkg.IdempotencyKey), IdempotencyKey: pkg.IdempotencyKey, PackageID: pkg.PackageID, ReviewID: pkg.Review.ReviewID, ReviewDecision: pkg.Review.Decision, PayloadHash: payloadHash, EventID: storedEventID, RawDocumentIDs: rawIDs, EventSourceIDs: sourceIDs, EventTagMapIDs: tagIDs, ReviewMetadata: map[string]any{"evidence_grade": pkg.Review.EvidenceGrade, "reasons": pkg.Review.Reasons, "component_versions": pkg.Review.ComponentVersions}, ImportedAt: s.now()}
+		if storedEventID == "" {
+			return errors.New("repository returned empty event ID")
+		}
+		receipt := Receipt{ID: plan.ReceiptID, IdempotencyKey: pkg.IdempotencyKey, PackageID: pkg.PackageID, ReviewID: pkg.Review.ReviewID, ReviewDecision: pkg.Review.Decision, PayloadHash: plan.PayloadHash, EventID: storedEventID, RawDocumentIDs: rawIDs, EventSourceIDs: sourceIDs, EventTagMapIDs: tagIDs, ReviewMetadata: map[string]any{"evidence_grade": pkg.Review.EvidenceGrade, "reasons": pkg.Review.Reasons, "component_versions": pkg.Review.ComponentVersions}, ImportedAt: s.now()}
 		if err := tx.InsertReceipt(ctx, receipt); err != nil {
 			return fmt.Errorf("insert event import receipt: %w", err)
 		}
@@ -175,6 +278,20 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 	return result, nil
 }
 
+func ensureUniqueNonEmpty(ids []string, label string) error {
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if id == "" {
+			return fmt.Errorf("repository returned empty %s ID", label)
+		}
+		if _, exists := seen[id]; exists {
+			return fmt.Errorf("repository returned duplicate %s ID %q", label, id)
+		}
+		seen[id] = struct{}{}
+	}
+	return nil
+}
+
 func packageHash(pkg domainimport.Package) (string, error) {
 	hash, err := pkg.CanonicalHash()
 	if err != nil {
@@ -184,5 +301,5 @@ func packageHash(pkg domainimport.Package) (string, error) {
 }
 
 func resultFromReceipt(receipt Receipt) Result {
-	return Result{ReceiptID: receipt.ID, EventID: receipt.EventID, RawDocumentIDs: append([]string(nil), receipt.RawDocumentIDs...), EventSourceIDs: append([]string(nil), receipt.EventSourceIDs...), EventTagMapIDs: append([]string(nil), receipt.EventTagMapIDs...), PayloadHash: receipt.PayloadHash}
+	return Result{PackageID: receipt.PackageID, ReceiptID: receipt.ID, EventID: receipt.EventID, RawDocumentIDs: append([]string(nil), receipt.RawDocumentIDs...), EventSourceIDs: append([]string(nil), receipt.EventSourceIDs...), EventTagMapIDs: append([]string(nil), receipt.EventTagMapIDs...), PayloadHash: receipt.PayloadHash}
 }

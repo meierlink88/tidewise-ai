@@ -24,14 +24,14 @@
 ## 1. Event import and Tag seed implementation Package
 
 - [x] 1.1 保留真实 reviewed-outbox 顶层 `idempotency_key/raw_documents/event/event_sources/event_tags/review`、单 Event 和 Agent 原字段（`factual_summary/decision/document_id/tag_code`），定义 current-v0 → required-v1 最小差异、Event UUID 派生、canonical payload hash、Review 状态/时间/evidence/Tag validation，并建立一致的 v0/v1 fixture。
-- [x] 1.2 先写 domain/application tests，再实现 `EventImportService`、状态映射、source resolve、receipt same-hash replay/different-hash conflict 和全量 rollback contract。
+- [x] 1.2 先写 domain/application tests，再实现 `EventImportService`、共享 deterministic Plan、状态映射、source resolve、receipt same-hash replay/different-hash conflict、结果 ID 非空/唯一校验和全量 rollback contract。
 - [x] 1.3 为 repository 增加最小 `DBTX`/transaction runner 与 package repository；复用 RawDocument 能力但不重写既有仓储，补充 Postgres SQL/constraint contract tests。
 - [x] 1.4 增加 `000020` migration SQL：固定 UUID literal 插入/校验 source master（`source_config.manifest_identity`）和 22-tag `INSERT ... ON CONFLICT` seed，以及精确 `is_active/display_order/updated_at`；覆盖 receipt schema/index/constraint、Tag UUID drift preflight、保留既有数据和 forward recovery/down 说明的静态测试。
-- [x] 1.5 增加本地 `event-import` CLI；覆盖单文件/目录、dry-run、strict JSON、exit code、stderr/stdout secret redaction、DB hex/CLI `sha256:` hash 表示，以及 22 条 Tag 主数据的 active/identity/数量校验 tests。
+- [x] 1.5 增加本地 `event-import` CLI；冻结 `--file/--dir` 互斥输入、覆盖 dry-run、stable result object、deterministic IDs/counts/hash、strict JSON、exit code、stderr/stdout secret redaction、DB hex/CLI `sha256:` hash 表示，以及 22 条 Tag 主数据的 active/identity/数量校验 tests。
 - [x] 1.6 按 Proposal Review 批准后的 scoped implementation package 完成 targeted suite、architecture/contract tests、`git diff --check` 和 scope/secret 检查；Apply-final 前评估并执行受影响边界完整验证，因共享 domain/repository、migration、CLI 变更运行 `go test ./...`。
 
 ## 2. Local PostgreSQL authorization and verification Package
 
 - [ ] 2.1 在独立 R2 授权前仅准备命令和清单；获得授权后执行 backup、identity/count/hash/schema preflight，记录 `new:event-import-local-pg-preflight` recovery baseline。
 - [ ] 2.2 仅在 preflight 通过后执行一次 migration `000020` 与 22-tag idempotent seed；按 `preflight -> Write -> Query/assert` 顺序，任何漂移或断言失败立即停止。
-- [ ] 2.3 验证 receipt constraints/indexes/lock semantics、active tag count=22、Tag seed fixture hash、固定 source master、既有 raw/event/tag/event_entity_links 行数保留和 dry-run 零写入；保存 recovery/after assertions，不执行 UAT/prod/shared/Neo4j 或真实业务 import。
+- [ ] 2.3 在受控 R2 PostgreSQL 环境执行真实 repository contract/integration assertions：UUID[] scan/write、advisory-lock replay/conflict、transaction rollback、schema compatibility；同时验证 receipt constraints/indexes、active tag count=22、Tag seed fixture hash、固定 source master、既有 raw/event/tag/event_entity_links 行数保留和 dry-run 零写入。保存 recovery/after assertions，不执行 UAT/prod/shared/Neo4j 或真实业务 import。

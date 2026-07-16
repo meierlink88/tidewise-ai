@@ -85,6 +85,33 @@ func TestServiceRollsBackWhenTagIdentityIsUnknown(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsInactiveDatabaseTagAndRollsBack(t *testing.T) {
+	store := newFakeStore()
+	store.tx.tagActive = false
+	if _, err := NewService(store).Import(context.Background(), validPackage()); err == nil {
+		t.Fatal("Import() error = nil, want inactive tag rejection")
+	}
+	if store.tx.commitCount != 0 || store.tx.rollbackCount != 1 {
+		t.Fatalf("commit/rollback = %d/%d", store.tx.commitCount, store.tx.rollbackCount)
+	}
+}
+
+func TestServiceRejectsDuplicateRepositoryResultIDsAndRollsBack(t *testing.T) {
+	store := newFakeStore()
+	store.tx.rawResult = "duplicate-raw-id"
+	pkg := validPackage()
+	second := pkg.RawDocuments[0]
+	second.DocumentID = "sha256:doc-2"
+	second.ContentHash = "fedcba9876543210"
+	pkg.RawDocuments = append(pkg.RawDocuments, second)
+	if _, err := NewService(store).Import(context.Background(), pkg); err == nil {
+		t.Fatal("Import() error = nil, want duplicate result rejection")
+	}
+	if store.tx.commitCount != 0 || store.tx.rollbackCount != 1 {
+		t.Fatalf("commit/rollback = %d/%d", store.tx.commitCount, store.tx.rollbackCount)
+	}
+}
+
 func validPackage() domainimport.Package {
 	collected := time.Date(2026, 7, 16, 7, 3, 49, 0, time.UTC)
 	published := time.Date(2026, 7, 15, 1, 36, 49, 0, time.UTC)
@@ -96,7 +123,7 @@ func validPackage() domainimport.Package {
 		}},
 		Event:        domainimport.EventInput{DedupeKey: "event:v1:example", Title: "Event", FactualSummary: "A verifiable fact", FactStatus: "verified", EventStatus: "confirmed", FactPayload: map[string]any{"amount": 1}},
 		EventSources: []domainimport.EventSourceInput{{DocumentID: "sha256:doc-1", EvidenceExcerpt: "Evidence", SourceURL: "https://example.com/a", EvidenceRelation: "supports", SupportsFields: []string{"title", "factual_summary"}, SourceLevel: "secondary", ContentLevel: "summary", EvidenceHash: "sha256:evidence-1"}},
-		EventTags:    []domainimport.EventTagInput{{TagID: "tag-1", TagKind: "news_category", TagCode: "geopolitics", Confidence: "0.98", ReviewStatus: "approved", AssignmentReason: "material fact", AssignSource: "ai"}},
+		EventTags:    []domainimport.EventTagInput{{TagID: "b0fe1994-0db2-526c-a57f-97fa73c1b595", TagKind: "news_category", TagCode: "geopolitics", Confidence: "0.98", ReviewStatus: "approved", AssignmentReason: "material fact", AssignSource: "ai"}},
 		Review:       domainimport.ReviewInput{ReviewID: "review-1", PackageID: "pkg-1", Decision: "auto_approved", EventStatus: "confirmed", FactStatus: "verified", EvidenceGrade: "single_source", Reasons: []string{"accepted"}, ComponentVersions: map[string]string{"review_policy": "v2"}},
 	}
 }
@@ -104,7 +131,7 @@ func validPackage() domainimport.Package {
 type fakeStore struct{ tx *fakeTx }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{tx: &fakeTx{source: domain.SourceCatalog{ID: FixedSourceID, Status: domain.SourceCatalogStatusActive, IngestChannel: "agent_reviewed_outbox", SourceType: "event_agent_reviewed_outbox"}, tag: domain.EventTagDef{ID: "tag-1", TagKind: "news_category", Code: "geopolitics", Name: "地缘政治"}}}
+	return &fakeStore{tx: &fakeTx{source: domain.SourceCatalog{ID: FixedSourceID, Status: domain.SourceCatalogStatusActive, IngestChannel: "agent_reviewed_outbox", SourceType: "event_agent_reviewed_outbox"}, tag: domain.EventTagDef{ID: "b0fe1994-0db2-526c-a57f-97fa73c1b595", TagKind: "news_category", Code: "geopolitics", Name: "地缘政治"}, tagActive: true}}
 }
 
 func (s *fakeStore) InTransaction(_ context.Context, fn func(Transaction) error) error {
@@ -119,6 +146,8 @@ func (s *fakeStore) InTransaction(_ context.Context, fn func(Transaction) error)
 type fakeTx struct {
 	source        domain.SourceCatalog
 	tag           domain.EventTagDef
+	tagActive     bool
+	rawResult     string
 	event         domain.Event
 	receipt       *Receipt
 	commitCount   int
@@ -139,23 +168,29 @@ func (f *fakeTx) Source(_ context.Context, id string) (domain.SourceCatalog, err
 	return f.source, nil
 }
 func (f *fakeTx) UpsertRawDocument(_ context.Context, doc domain.RawDocument) (string, error) {
+	if f.rawResult != "" {
+		return f.rawResult, nil
+	}
 	return doc.ID, nil
 }
 func (f *fakeTx) UpsertEvent(_ context.Context, event domain.Event) (string, error) {
 	f.event = event
 	return event.ID, nil
 }
-func (f *fakeTx) AddEventSource(_ context.Context, _ domain.EventSource) (string, error) {
-	return "source-1", nil
+func (f *fakeTx) AddEventSource(_ context.Context, source domain.EventSource) (string, error) {
+	return source.ID, nil
 }
 func (f *fakeTx) Tag(_ context.Context, id, kind, code string) (domain.EventTagDef, error) {
+	if !f.tagActive {
+		return domain.EventTagDef{}, errors.New("tag inactive")
+	}
 	if f.tag.ID != id || f.tag.TagKind != kind || f.tag.Code != code {
 		return domain.EventTagDef{}, errors.New("tag mismatch")
 	}
 	return f.tag, nil
 }
-func (f *fakeTx) AssignEventTag(_ context.Context, _ domain.EventTagMap) (string, error) {
-	return "tag-map-1", nil
+func (f *fakeTx) AssignEventTag(_ context.Context, tagMap domain.EventTagMap) (string, error) {
+	return tagMap.ID, nil
 }
 func (f *fakeTx) InsertReceipt(_ context.Context, receipt Receipt) error {
 	f.receipt = &receipt
