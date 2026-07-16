@@ -45,9 +45,9 @@ hash256() { command -v sha256sum >/dev/null && sha256sum "$1" | awk '{print $1}'
 test "$(hash256 migrations/000020_add_event_import_receipts_and_tag_seed.sql)" = "c14bf5952d133fd88ffc2881105fb599b366f6c5a2ad0b3fcea8bdce7fa4fc51"
 test "$(hash256 internal/domain/eventimport/tag_catalog.go)" = "ee9959b1df8bacb37782a5dd6af4fbf0b1fef8f11653f5e096a82770a6370906"
 test "$(hash256 testdata/event-import/reviewed-outbox-v1.json)" = "acd100ed7778812981490a31015b33384c83c0f4d5457465df273f9e5764905d"
-test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-preflight.sql)" = "6b20202d4f76f386d4bb8c474314be6152da4815eb85fab58f02149de5308b79"
+test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-preflight.sql)" = "0f4e60a4992a96cb077f7ec51c0778c9ca3f6c7dbf1080bd7e2ca29a62d71b01"
 test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-baseline.sql)" = "717b609e44fb355c0956ad6b7fc2f58c172a3cc20033c9b04fbeddef844afafc"
-test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-postflight.sql)" = "e810f471d06395fac842b48a937f1be2e286b511046cc169541ac5257484c271"
+test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-postflight.sql)" = "dc2ec9f764ad6883525040e5f0f3556ca3e3132a817fbc6d1e920ecd2efcce3e"
 ```
 
 The fixture is frozen at 22 tuples (10 `news_category`, 12 `index_category`).

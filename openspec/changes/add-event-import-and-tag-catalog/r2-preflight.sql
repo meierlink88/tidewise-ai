@@ -17,7 +17,7 @@ BEGIN
   IF current_user <> 'tidewise' THEN
     RAISE EXCEPTION 'R2 requires database user tidewise, got %', current_user;
   END IF;
-  IF inet_server_addr()::text NOT IN ('127.0.0.1', '::1') THEN
+  IF host(inet_server_addr()) NOT IN ('127.0.0.1', '::1') THEN
     RAISE EXCEPTION 'R2 requires loopback PostgreSQL address, got %', inet_server_addr();
   END IF;
   SELECT max(version_id) FILTER (WHERE is_applied) INTO current_version FROM goose_db_version;

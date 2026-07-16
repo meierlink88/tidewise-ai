@@ -20,7 +20,7 @@ DECLARE
   tag_defs_after bigint;
 BEGIN
   IF current_database() <> 'tidewise_local' OR current_user <> 'tidewise'
-     OR inet_server_addr()::text NOT IN ('127.0.0.1', '::1') THEN
+     OR host(inet_server_addr()) NOT IN ('127.0.0.1', '::1') THEN
     RAISE EXCEPTION 'R2 postflight database identity is not local tidewise_local/tidewise loopback';
   END IF;
   SELECT max(version_id) FILTER (WHERE is_applied) INTO current_version FROM goose_db_version;
