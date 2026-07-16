@@ -29,7 +29,6 @@ func TestEventImportPostgresIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
 	ctx := context.Background()
 	var databaseName string
 	if err := db.QueryRowContext(ctx, `SELECT current_database()`).Scan(&databaseName); err != nil {
@@ -44,7 +43,7 @@ func TestEventImportPostgresIntegration(t *testing.T) {
 	repo := repositories.NewPostgresRepository(db)
 	service := app.NewService(repo)
 	var cleanupResults []app.Result
-	t.Cleanup(func() { cleanupEventImportFixtures(t, ctx, db, cleanupResults) })
+	registerIntegrationCleanups(t, func() { cleanupEventImportFixtures(t, ctx, db, cleanupResults) }, func() { _ = db.Close() })
 
 	firstPackage := reviewedPackage(runKey + "-one")
 	cleanupResults = append(cleanupResults, cleanupResultFromPlan(t, service, firstPackage))
@@ -78,6 +77,33 @@ func TestCleanupResultFromPlanUsesDeterministicPlanIDs(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("cleanup scope = %#v, want deterministic plan IDs %#v", got, want)
+	}
+}
+
+func TestRegisterIntegrationCleanupsRunsFixtureCleanupBeforeDatabaseClose(t *testing.T) {
+	registrar := &cleanupRegistrarFake{}
+	var calls []string
+	registerIntegrationCleanups(registrar, func() { calls = append(calls, "fixture") }, func() { calls = append(calls, "close") })
+	registrar.Run()
+	if !reflect.DeepEqual(calls, []string{"fixture", "close"}) {
+		t.Fatalf("cleanup order = %#v, want fixture before close", calls)
+	}
+}
+
+type cleanupRegistrar interface{ Cleanup(func()) }
+
+func registerIntegrationCleanups(registrar cleanupRegistrar, fixtureCleanup func(), closeDatabase func()) {
+	registrar.Cleanup(closeDatabase)
+	registrar.Cleanup(fixtureCleanup)
+}
+
+type cleanupRegistrarFake struct{ cleanups []func() }
+
+func (f *cleanupRegistrarFake) Cleanup(fn func()) { f.cleanups = append(f.cleanups, fn) }
+
+func (f *cleanupRegistrarFake) Run() {
+	for index := len(f.cleanups) - 1; index >= 0; index-- {
+		f.cleanups[index]()
 	}
 }
 
