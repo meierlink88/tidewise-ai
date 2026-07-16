@@ -83,7 +83,7 @@ go run ./cmd/dbmigrate >"$status_json"
 jq -e '.current_version == "19" and (.pending | length == 1) and (.pending[0].Version == "000020")' "$status_json" >/dev/null
 psql "$R2_DSN" -X -v ON_ERROR_STOP=1 -f ../openspec/changes/add-event-import-and-tag-catalog/r2-preflight.sql > .data/r2-backups/event_import_preflight.txt
 baseline_json=".data/r2-backups/event_import_baseline.json"
-psql "$R2_DSN" -X -tA -v ON_ERROR_STOP=1 -f ../openspec/changes/add-event-import-and-tag-catalog/r2-baseline.sql >"$baseline_json"
+psql "$R2_DSN" -X -qAt -v ON_ERROR_STOP=1 -f ../openspec/changes/add-event-import-and-tag-catalog/r2-baseline.sql >"$baseline_json"
 jq -e '.receipt_table_present_before == false and (.fixed_source_present_before == 0 or .fixed_source_present_before == 1) and (.matching_frozen_tuple_count_before >= 0 and .matching_frozen_tuple_count_before <= 22)' "$baseline_json" >/dev/null
 ```
 
