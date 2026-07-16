@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -45,18 +47,8 @@ func TestEventImportPostgresIntegration(t *testing.T) {
 	t.Cleanup(func() { cleanupEventImportFixtures(t, ctx, db, results) })
 
 	firstPackage := reviewedPackage(runKey + "-one")
-	first, err := service.Import(ctx, firstPackage)
-	if err != nil {
-		t.Fatal(err)
-	}
+	first := importConcurrentlyAndAssertSingleResult(t, ctx, db, service, firstPackage)
 	results = append(results, first)
-	second, err := service.Import(ctx, firstPackage)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(second, first) {
-		t.Fatalf("same-hash replay = %#v, want %#v", second, first)
-	}
 
 	changed := firstPackage
 	changed.Event.Title = "different payload"
@@ -72,6 +64,81 @@ func TestEventImportPostgresIntegration(t *testing.T) {
 	results = append(results, third)
 	assertReceiptVerificationFailures(t, ctx, repo, first, third)
 	assertRollbackRemovesSyntheticRawDocument(t, ctx, db, repo, runKey)
+}
+
+func importConcurrentlyAndAssertSingleResult(t *testing.T, ctx context.Context, db *sql.DB, service *app.Service, input domainimport.Package) app.Result {
+	t.Helper()
+	ready := make(chan struct{}, 2)
+	start := make(chan struct{})
+	results := make(chan app.Result, 2)
+	errs := make(chan error, 2)
+	var workers sync.WaitGroup
+	for range 2 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			ready <- struct{}{}
+			<-start
+			result, err := service.Import(ctx, input)
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- result
+		}()
+	}
+	<-ready
+	<-ready
+	close(start)
+	workers.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	var imported []app.Result
+	for result := range results {
+		imported = append(imported, result)
+	}
+	if len(imported) != 2 {
+		t.Fatalf("concurrent imports = %d successful results, want 2", len(imported))
+	}
+	if !reflect.DeepEqual(imported[1], imported[0]) {
+		t.Fatalf("concurrent same-hash replay = %#v, want %#v", imported[1], imported[0])
+	}
+	assertSinglePersistedResultSet(t, ctx, db, imported[0])
+	return imported[0]
+}
+
+func assertSinglePersistedResultSet(t *testing.T, ctx context.Context, db *sql.DB, result app.Result) {
+	t.Helper()
+	for _, check := range []struct {
+		name  string
+		query string
+		arg   any
+	}{
+		{"receipt", `SELECT count(*) FROM event_import_receipts WHERE id = $1`, result.ReceiptID},
+		{"event", `SELECT count(*) FROM events WHERE id = $1`, result.EventID},
+		{"raw document", `SELECT count(*) FROM raw_documents WHERE id = ANY($1::uuid[])`, result.RawDocumentIDs},
+		{"event source", `SELECT count(*) FROM event_sources WHERE id = ANY($1::uuid[])`, result.EventSourceIDs},
+		{"event tag map", `SELECT count(*) FROM event_tag_maps WHERE id = ANY($1::uuid[])`, result.EventTagMapIDs},
+	} {
+		var count int
+		if err := db.QueryRowContext(ctx, check.query, check.arg).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		want := 1
+		if check.name == "raw document" {
+			want = len(result.RawDocumentIDs)
+		} else if check.name == "event source" {
+			want = len(result.EventSourceIDs)
+		} else if check.name == "event tag map" {
+			want = len(result.EventTagMapIDs)
+		}
+		if count != want {
+			t.Fatalf("concurrent replay %s count = %d, want %d", check.name, count, want)
+		}
+	}
 }
 
 func reviewedPackage(key string) domainimport.Package {
@@ -163,10 +230,25 @@ func assertRollbackRemovesSyntheticRawDocument(t *testing.T, ctx context.Context
 
 func assertEventImportSchema(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	for _, column := range []string{"raw_document_ids", "event_source_ids", "event_tag_map_ids"} {
-		var count int
-		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM information_schema.columns WHERE table_name = 'event_import_receipts' AND column_name = $1`, column).Scan(&count); err != nil || count != 1 {
-			t.Fatalf("receipt column %q count=%d err=%v", column, count, err)
+	for _, column := range []struct{ name, typeName string }{
+		{"id", "uuid"}, {"idempotency_key", "text"}, {"package_id", "text"}, {"review_id", "text"},
+		{"review_decision", "character varying(32)"}, {"payload_hash", "character(64)"}, {"event_id", "uuid"},
+		{"raw_document_ids", "uuid[]"}, {"event_source_ids", "uuid[]"}, {"event_tag_map_ids", "uuid[]"},
+		{"review_metadata", "jsonb"}, {"imported_at", "timestamp with time zone"},
+	} {
+		var actualType string
+		var notNull bool
+		err := db.QueryRowContext(ctx, `SELECT format_type(a.atttypid, a.atttypmod), a.attnotnull FROM pg_attribute a WHERE a.attrelid = 'event_import_receipts'::regclass AND a.attname = $1 AND a.attnum > 0 AND NOT a.attisdropped`, column.name).Scan(&actualType, &notNull)
+		if err != nil || actualType != column.typeName || !notNull {
+			t.Fatalf("receipt column %q type/not-null = %q/%t err=%v, want %q/true", column.name, actualType, notNull, err, column.typeName)
+		}
+	}
+	for _, column := range []struct{ name, defaultFragment string }{
+		{"review_metadata", "'{}'::jsonb"}, {"imported_at", "now()"},
+	} {
+		var defaultExpr sql.NullString
+		if err := db.QueryRowContext(ctx, `SELECT pg_get_expr(d.adbin, d.adrelid) FROM pg_attrdef d JOIN pg_attribute a ON a.attrelid=d.adrelid AND a.attnum=d.adnum WHERE d.adrelid='event_import_receipts'::regclass AND a.attname=$1`, column.name).Scan(&defaultExpr); err != nil || !defaultExpr.Valid || !strings.Contains(defaultExpr.String, column.defaultFragment) {
+			t.Fatalf("receipt column %q default = %q err=%v, want fragment %q", column.name, defaultExpr.String, err, column.defaultFragment)
 		}
 	}
 	for _, name := range []string{"idx_event_import_receipts_event_id", "idx_event_import_receipts_package_id", "idx_event_import_receipts_imported_at"} {
@@ -181,9 +263,13 @@ func assertEventImportSchema(t *testing.T, ctx context.Context, db *sql.DB) {
 			t.Fatalf("receipt constraint %q count=%d err=%v", name, count, err)
 		}
 	}
-	var foreignKeys int
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pg_constraint WHERE conrelid = 'event_import_receipts'::regclass AND contype = 'f'`).Scan(&foreignKeys); err != nil || foreignKeys != 1 {
-		t.Fatalf("receipt foreign key count=%d err=%v", foreignKeys, err)
+	for _, constraint := range []struct{ name, typeCode string }{
+		{"event_import_receipts_pkey", "p"}, {"event_import_receipts_idempotency_key_key", "u"}, {"event_import_receipts_event_id_fkey", "f"},
+	} {
+		var count int
+		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pg_constraint WHERE conrelid='event_import_receipts'::regclass AND conname=$1 AND contype=$2`, constraint.name, constraint.typeCode).Scan(&count); err != nil || count != 1 {
+			t.Fatalf("receipt constraint %q/%q count=%d err=%v", constraint.name, constraint.typeCode, count, err)
+		}
 	}
 }
 

@@ -1,4 +1,6 @@
 -- Fail-closed postflight. Invoke with psql -v variables extracted from r2-baseline.json.
+-- Required next step: TestEventImportPostgresIntegration asserts complete receipt
+-- schema compatibility before it writes any synthetic fixture row.
 \set ON_ERROR_STOP on
 BEGIN TRANSACTION READ ONLY;
 SET LOCAL r2.source_before TO :'source_before';

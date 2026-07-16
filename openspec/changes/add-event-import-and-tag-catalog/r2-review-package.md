@@ -47,7 +47,7 @@ test "$(hash256 internal/domain/eventimport/tag_catalog.go)" = "ee9959b1df8bacb3
 test "$(hash256 testdata/event-import/reviewed-outbox-v1.json)" = "acd100ed7778812981490a31015b33384c83c0f4d5457465df273f9e5764905d"
 test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-preflight.sql)" = "6b20202d4f76f386d4bb8c474314be6152da4815eb85fab58f02149de5308b79"
 test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-baseline.sql)" = "717b609e44fb355c0956ad6b7fc2f58c172a3cc20033c9b04fbeddef844afafc"
-test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-postflight.sql)" = "faa38fbb85e3c0c1e261b98c70ebdcb3147bb4eb73f1d81dbb1d18929b749e77"
+test "$(hash256 ../openspec/changes/add-event-import-and-tag-catalog/r2-postflight.sql)" = "e810f471d06395fac842b48a937f1be2e286b511046cc169541ac5257484c271"
 ```
 
 The fixture is frozen at 22 tuples (10 `news_category`, 12 `index_category`).
@@ -132,13 +132,18 @@ active-tag total to be 22.
 go test ./internal/repositories -run '^TestEventImportPostgresIntegration$' -count=1
 ```
 
-The narrow test requires the same `TIDEWISE_TEST_DATABASE_URL` route, asserts
-`tidewise_local`, writes only a timestamp-keyed synthetic fixture after 000020,
+The narrow test requires the same `TIDEWISE_TEST_DATABASE_URL` route, runs
+immediately after `r2-postflight.sql`, asserts `tidewise_local` and complete
+receipt schema compatibility before its first fixture write, then writes only a
+timestamp-keyed synthetic fixture after 000020,
 then deferred-cleans receipts → tag maps → sources → events → raw documents and
 asserts zero residual rows. It never modifies fixed source/22 Tag masters or
-uses a real outbox. Coverage: UUID[] receipt scan/write, same-hash replay,
-different-hash conflict, rollback, `VerifyReceiptResults` missing/cross-event,
-and schema constraints/indexes. Cleanup failure fails the test.
+uses a real outbox. Coverage: UUID[] receipt scan/write; barrier-synchronized
+concurrent same-hash replay through the advisory lock (two identical results
+and one persisted result set); different-hash conflict; rollback;
+`VerifyReceiptResults` missing/cross-event; and full receipt column
+type/not-null/default, PK/FK/idempotency-unique/check/index compatibility.
+Cleanup failure fails the test.
 
 ### 6. CLI dry-run and zero-write recheck
 
