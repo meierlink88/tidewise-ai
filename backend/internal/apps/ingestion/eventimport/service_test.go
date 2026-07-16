@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,6 +58,22 @@ func TestServiceReplaysSameKeyAndRejectsDifferentHash(t *testing.T) {
 	}
 }
 
+func TestServiceReplayValidatesReceiptResultIDs(t *testing.T) {
+	store := newFakeStore()
+	service := NewService(store)
+	pkg := validPackage()
+	if _, err := service.Import(context.Background(), pkg); err != nil {
+		t.Fatal(err)
+	}
+	store.tx.receipt.RawDocumentIDs = []string{"00000000-0000-0000-0000-000000000000"}
+	if _, err := service.Import(context.Background(), pkg); err == nil || !strings.Contains(err.Error(), "deterministic plan") {
+		t.Fatalf("replay error = %v, want deterministic plan mismatch", err)
+	}
+	if store.tx.verifyCalls != 0 {
+		t.Fatalf("verify calls = %d, want 0 for invalid receipt", store.tx.verifyCalls)
+	}
+}
+
 func TestServiceAcceptsManualReviewWithoutSecondApproval(t *testing.T) {
 	store := newFakeStore()
 	service := NewService(store)
@@ -98,14 +115,18 @@ func TestServiceRejectsInactiveDatabaseTagAndRollsBack(t *testing.T) {
 
 func TestServiceRejectsDuplicateRepositoryResultIDsAndRollsBack(t *testing.T) {
 	store := newFakeStore()
-	store.tx.rawResult = "duplicate-raw-id"
 	pkg := validPackage()
 	second := pkg.RawDocuments[0]
 	second.DocumentID = "sha256:doc-2"
 	second.ContentHash = "fedcba9876543210"
 	pkg.RawDocuments = append(pkg.RawDocuments, second)
-	if _, err := NewService(store).Import(context.Background(), pkg); err == nil {
-		t.Fatal("Import() error = nil, want duplicate result rejection")
+	plan, err := NewService(store).Plan(pkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.tx.rawResults = []string{plan.RawDocumentIDs[0], plan.RawDocumentIDs[0]}
+	if _, err := NewService(store).Import(context.Background(), pkg); err == nil || !strings.Contains(err.Error(), "duplicate raw document") {
+		t.Fatalf("Import() error = %v, want duplicate raw document rejection", err)
 	}
 	if store.tx.commitCount != 0 || store.tx.rollbackCount != 1 {
 		t.Fatalf("commit/rollback = %d/%d", store.tx.commitCount, store.tx.rollbackCount)
@@ -148,6 +169,9 @@ type fakeTx struct {
 	tag           domain.EventTagDef
 	tagActive     bool
 	rawResult     string
+	rawResults    []string
+	rawCalls      int
+	verifyCalls   int
 	event         domain.Event
 	receipt       *Receipt
 	commitCount   int
@@ -168,10 +192,19 @@ func (f *fakeTx) Source(_ context.Context, id string) (domain.SourceCatalog, err
 	return f.source, nil
 }
 func (f *fakeTx) UpsertRawDocument(_ context.Context, doc domain.RawDocument) (string, error) {
+	if f.rawCalls < len(f.rawResults) {
+		result := f.rawResults[f.rawCalls]
+		f.rawCalls++
+		return result, nil
+	}
 	if f.rawResult != "" {
 		return f.rawResult, nil
 	}
 	return doc.ID, nil
+}
+func (f *fakeTx) VerifyReceiptResults(_ context.Context, _ Receipt) error {
+	f.verifyCalls++
+	return nil
 }
 func (f *fakeTx) UpsertEvent(_ context.Context, event domain.Event) (string, error) {
 	f.event = event

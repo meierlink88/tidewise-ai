@@ -15,6 +15,11 @@ import (
 	domainimport "github.com/meierlink88/tidewise-ai/backend/internal/domain/eventimport"
 )
 
+var (
+	ErrInputValidation = errors.New("event import input validation failed")
+	ErrInputIO         = errors.New("event import input I/O failed")
+)
+
 func LoadPackages(path string) ([]domainimport.Package, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -28,10 +33,10 @@ func LoadPackages(path string) ([]domainimport.Package, error) {
 
 func LoadPackagesFromInput(file, dir string) ([]domainimport.Package, error) {
 	if file == "" && dir == "" {
-		return nil, errors.New("exactly one of file or dir is required")
+		return nil, fmt.Errorf("%w: exactly one of file or dir is required", ErrInputValidation)
 	}
 	if file != "" && dir != "" {
-		return nil, errors.New("file and dir are mutually exclusive")
+		return nil, fmt.Errorf("%w: file and dir are mutually exclusive", ErrInputValidation)
 	}
 	path := file
 	if dir != "" {
@@ -39,12 +44,12 @@ func LoadPackagesFromInput(file, dir string) ([]domainimport.Package, error) {
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("stat input: %w", err)
+		return nil, fmt.Errorf("%w: stat input: %v", ErrInputIO, err)
 	}
 	paths := []string{path}
 	if info.IsDir() {
 		if file != "" {
-			return nil, fmt.Errorf("file input %q is a directory", file)
+			return nil, fmt.Errorf("%w: file input %q is a directory", ErrInputValidation, file)
 		}
 		paths = paths[:0]
 		err = filepath.WalkDir(path, func(candidate string, entry fs.DirEntry, walkErr error) error {
@@ -57,28 +62,28 @@ func LoadPackagesFromInput(file, dir string) ([]domainimport.Package, error) {
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("walk input directory: %w", err)
+			return nil, fmt.Errorf("%w: walk input directory: %v", ErrInputIO, err)
 		}
 		sort.Strings(paths)
 	} else if dir != "" {
-		return nil, fmt.Errorf("dir input %q is not a directory", dir)
+		return nil, fmt.Errorf("%w: dir input %q is not a directory", ErrInputValidation, dir)
 	}
 	if len(paths) == 0 {
-		return nil, errors.New("input directory contains no .json files")
+		return nil, fmt.Errorf("%w: input directory contains no .json files", ErrInputValidation)
 	}
 
 	packages := make([]domainimport.Package, 0, len(paths))
 	for _, filename := range paths {
 		content, readErr := os.ReadFile(filename)
 		if readErr != nil {
-			return nil, fmt.Errorf("read %s: %w", filename, readErr)
+			return nil, fmt.Errorf("%w: read %s: %v", ErrInputIO, filename, readErr)
 		}
 		pkg, decodeErr := domainimport.DecodeStrict(bytes.NewReader(content))
 		if decodeErr != nil {
-			return nil, fmt.Errorf("decode %s: %w", filename, decodeErr)
+			return nil, fmt.Errorf("%w: decode %s: %v", ErrInputValidation, filename, decodeErr)
 		}
 		if _, validateErr := pkg.Validate(); validateErr != nil {
-			return nil, fmt.Errorf("validate %s: %w", filename, validateErr)
+			return nil, fmt.Errorf("%w: validate %s: %v", ErrInputValidation, filename, validateErr)
 		}
 		packages = append(packages, pkg)
 	}

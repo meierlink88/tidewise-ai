@@ -119,9 +119,12 @@
 - **WHEN** 使用 `event-import --dir <path> --json`
 - **THEN** CLI 使用与单文件相同的成功对象形状，以 `result.package_count` 和 `result.packages[]` 表示多个 package；每个 package 返回 deterministic receipt/event/raw/source/tag-map IDs、counts 和 `sha256:` payload hash
 
+- **WHEN** `--import-timeout-seconds` 未提供或为 `0`、为正整数、或为负数
+- **THEN** 未提供/`0` 不设置 import deadline，正整数只设置独立 import context deadline，负数按输入校验失败返回 exit 2 和包含 `exit_code` 的机器失败 JSON
+
 #### Scenario: 失败机器输出
 - **WHEN** 输入、冲突、数据库或 I/O 失败
-- **THEN** CLI 输出固定 error JSON、对应非零 exit code，并隐藏 secrets
+- **THEN** CLI stdout 输出固定 `{"ok":false,"error":{"code":"...","message":"...","details":[]},"exit_code":<process-exit-code>` JSON、对应非零 exit code，并隐藏 secrets
 
 ### Requirement: Deterministic Event Tag seed
 

@@ -13,6 +13,7 @@ type EventImportStore interface {
 
 type EventImportTransaction interface {
 	LockReceipt(context.Context, string) (*EventImportReceipt, error)
+	VerifyReceiptResults(context.Context, EventImportReceipt) error
 	Source(context.Context, string) (domain.SourceCatalog, error)
 	UpsertRawDocument(context.Context, domain.RawDocument) (string, error)
 	UpsertEvent(context.Context, domain.Event) (string, error)

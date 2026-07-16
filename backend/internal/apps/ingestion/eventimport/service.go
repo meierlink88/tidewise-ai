@@ -138,6 +138,12 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			return fmt.Errorf("lock import receipt: %w", err)
 		}
 		if existing != nil {
+			if err := validateReceiptReplay(*existing, pkg, plan); err != nil {
+				return err
+			}
+			if err := tx.VerifyReceiptResults(ctx, *existing); err != nil {
+				return fmt.Errorf("verify replay receipt results: %w", err)
+			}
 			if existing.PayloadHash != plan.PayloadHash {
 				return ErrIdempotencyConflict
 			}
@@ -176,12 +182,12 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 			if err != nil {
 				return fmt.Errorf("upsert raw document %q: %w", input.DocumentID, err)
 			}
-			if id != plan.RawDocumentIDs[index] {
-				return fmt.Errorf("raw document %q resolved to unexpected ID %q", input.DocumentID, id)
-			}
 			rawIDs = append(rawIDs, id)
 			if err := ensureUniqueNonEmpty(rawIDs, "raw document"); err != nil {
 				return err
+			}
+			if id != plan.RawDocumentIDs[index] {
+				return fmt.Errorf("raw document %q resolved to unexpected ID %q", input.DocumentID, id)
 			}
 			rawByToken[input.DocumentID] = id
 		}
@@ -205,6 +211,9 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 		storedEventID, err := tx.UpsertEvent(ctx, event)
 		if err != nil {
 			return fmt.Errorf("upsert event: %w", err)
+		}
+		if storedEventID != plan.EventID {
+			return fmt.Errorf("event resolved to unexpected ID %q", storedEventID)
 		}
 
 		sourceIDs := make([]string, 0, len(pkg.EventSources))
@@ -279,6 +288,9 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 }
 
 func ensureUniqueNonEmpty(ids []string, label string) error {
+	if len(ids) == 0 {
+		return fmt.Errorf("repository returned no %s IDs", label)
+	}
 	seen := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
 		if id == "" {
@@ -290,6 +302,40 @@ func ensureUniqueNonEmpty(ids []string, label string) error {
 		seen[id] = struct{}{}
 	}
 	return nil
+}
+
+func validateReceiptReplay(receipt Receipt, pkg domainimport.Package, plan Plan) error {
+	if receipt.ID != plan.ReceiptID || receipt.IdempotencyKey != pkg.IdempotencyKey || receipt.PackageID != pkg.PackageID || receipt.ReviewID != pkg.Review.ReviewID || receipt.ReviewDecision != pkg.Review.Decision || receipt.EventID != plan.EventID {
+		return fmt.Errorf("replay receipt identity does not match deterministic plan")
+	}
+	if receipt.PayloadHash != plan.PayloadHash {
+		return ErrIdempotencyConflict
+	}
+	if err := ensureUniqueNonEmpty(receipt.RawDocumentIDs, "replay raw document"); err != nil {
+		return err
+	}
+	if err := ensureUniqueNonEmpty(receipt.EventSourceIDs, "replay event source"); err != nil {
+		return err
+	}
+	if err := ensureUniqueNonEmpty(receipt.EventTagMapIDs, "replay event tag map"); err != nil {
+		return err
+	}
+	if !sameStrings(receipt.RawDocumentIDs, plan.RawDocumentIDs) || !sameStrings(receipt.EventSourceIDs, plan.EventSourceIDs) || !sameStrings(receipt.EventTagMapIDs, plan.EventTagMapIDs) {
+		return fmt.Errorf("replay receipt result IDs do not match deterministic plan")
+	}
+	return nil
+}
+
+func sameStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func packageHash(pkg domainimport.Package) (string, error) {

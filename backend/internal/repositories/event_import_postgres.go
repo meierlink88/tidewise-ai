@@ -28,6 +28,35 @@ func (r PostgresRepository) InTransaction(ctx context.Context, fn func(EventImpo
 
 type postgresEventImportTx struct{ tx *sql.Tx }
 
+func (t *postgresEventImportTx) VerifyReceiptResults(ctx context.Context, receipt EventImportReceipt) error {
+	var count int
+	if err := t.tx.QueryRowContext(ctx, `SELECT count(*) FROM events WHERE id = $1`, receipt.EventID).Scan(&count); err != nil {
+		return fmt.Errorf("verify receipt event: %w", err)
+	}
+	if count != 1 {
+		return fmt.Errorf("receipt event %q does not exist", receipt.EventID)
+	}
+	if err := t.tx.QueryRowContext(ctx, `SELECT count(*) FROM raw_documents WHERE id = ANY($1::uuid[])`, receipt.RawDocumentIDs).Scan(&count); err != nil {
+		return fmt.Errorf("verify receipt raw documents: %w", err)
+	}
+	if count != len(receipt.RawDocumentIDs) {
+		return fmt.Errorf("receipt raw document IDs are not all present")
+	}
+	if err := t.tx.QueryRowContext(ctx, `SELECT count(*) FROM event_sources WHERE id = ANY($1::uuid[]) AND event_id = $2`, receipt.EventSourceIDs, receipt.EventID).Scan(&count); err != nil {
+		return fmt.Errorf("verify receipt event sources: %w", err)
+	}
+	if count != len(receipt.EventSourceIDs) {
+		return fmt.Errorf("receipt event source IDs are not all present for event %q", receipt.EventID)
+	}
+	if err := t.tx.QueryRowContext(ctx, `SELECT count(*) FROM event_tag_maps WHERE id = ANY($1::uuid[]) AND event_id = $2`, receipt.EventTagMapIDs, receipt.EventID).Scan(&count); err != nil {
+		return fmt.Errorf("verify receipt event tag maps: %w", err)
+	}
+	if count != len(receipt.EventTagMapIDs) {
+		return fmt.Errorf("receipt event tag map IDs are not all present for event %q", receipt.EventID)
+	}
+	return nil
+}
+
 func (t *postgresEventImportTx) LockReceipt(ctx context.Context, key string) (*EventImportReceipt, error) {
 	if _, err := t.tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, key); err != nil {
 		return nil, fmt.Errorf("lock event import idempotency key: %w", err)

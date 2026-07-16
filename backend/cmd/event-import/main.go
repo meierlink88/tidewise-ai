@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	app "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/eventimport"
@@ -39,27 +39,36 @@ func run(args []string, stdout, stderr io.Writer) int {
 	machine := flags.Bool("json", true, "emit one machine-readable JSON result")
 	importTimeoutSeconds := flags.Int("import-timeout-seconds", 0, "optional timeout for the import phase; 0 means no deadline")
 	if err := flags.Parse(args); err != nil {
-		return exitUsage
+		return emitFailure(stdout, true, exitUsage, err)
 	}
 	if *input != "" {
 		if *file != "" || *dir != "" {
-			_, _ = fmt.Fprintln(stderr, "--input cannot be combined with --file or --dir")
-			return exitUsage
+			return emitFailure(stdout, true, exitUsage, fmt.Errorf("--input cannot be combined with --file or --dir"))
 		}
-		*file = *input
+		info, statErr := os.Stat(*input)
+		if statErr != nil {
+			return emitFailure(stdout, true, inputErrorCode(statErr), statErr)
+		}
+		if info.IsDir() {
+			*dir = *input
+		} else {
+			*file = *input
+		}
 	}
 	if (*file == "" && *dir == "") || (*file != "" && *dir != "") {
-		_, _ = fmt.Fprintln(stderr, "exactly one of --file or --dir is required")
-		return exitUsage
+		return emitFailure(stdout, true, exitUsage, fmt.Errorf("exactly one of --file or --dir is required"))
+	}
+	if *importTimeoutSeconds < 0 {
+		return emitFailure(stdout, true, exitRejected, fmt.Errorf("import-timeout-seconds must be zero or positive"))
 	}
 	packages, err := app.LoadPackagesFromInput(*file, *dir)
 	if err != nil {
-		return emitFailure(stdout, *machine, inputErrorCode(err), err)
+		return emitFailure(stdout, true, inputErrorCode(err), err)
 	}
 	if *dryRun {
 		plans, err := app.DryRun(context.Background(), packages)
 		if err != nil {
-			return emitFailure(stdout, *machine, exitRejected, err)
+			return emitFailure(stdout, true, exitRejected, err)
 		}
 		return emit(stdout, *machine, successOutput("dry-run", plans, nil))
 	}
@@ -139,8 +148,7 @@ func hashDisplay(hash string) string {
 }
 
 func inputErrorCode(err error) int {
-	message := err.Error()
-	if strings.Contains(message, "decode ") || strings.Contains(message, "validate ") || strings.Contains(message, "mutually exclusive") {
+	if errors.Is(err, app.ErrInputValidation) {
 		return exitRejected
 	}
 	return exitCLI
