@@ -26,7 +26,11 @@
 
 #### Scenario: agent-run 导入原始材料
 - **WHEN** 外部`agent-run`完成来源访问和标准化但尚未形成reviewed event
-- **THEN** 它必须通过bounded raw-document import提交，Data Service验证来源归因、幂等、scope与batch contract且不得重新执行connector
+- **THEN** 它必须通过bounded raw-document import提交，Data Service验证来源归因、caller-scoped幂等、canonical batch hash与scope，并在raw documents+immutable receipt单transaction内持久化且不得重新执行connector
+
+#### Scenario: agent-run 查询未知导入结果
+- **WHEN** 外部`agent-run`因timeout不知道raw import是否commit
+- **THEN** 它必须经同一Data API namespace和自身service identity按idempotency key查询status；completed返回stored original result，missing返回unknown，外部系统不得查询数据库或要求Tidewise创建job/run状态
 
 #### Scenario: Tidewise 不运行采集器
 - **WHEN** 任一Tidewise service或command启动

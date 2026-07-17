@@ -42,19 +42,51 @@
 - **THEN** 必须在外部repo复制或适配并以source catalog、credential、rate-limit和Data import contract验收，不得直接import Tidewise Go `internal` package
 
 ### Requirement: 原始文档幂等写入
-Data Service SHALL 通过版本化、认证、bounded batch且幂等的 raw-document import API，根据来源、外部源 ID、稳定 UUID 和内容哈希写入原始文档；Miniapp、Admin、Agent/`agent-run` MUST NOT 直接调用 repository 或 SQL。
+Data Service SHALL通过版本化、认证、bounded batch且幂等的raw-document import API，根据来源、外部源ID、稳定UUID和内容哈希写入原始文档；系统SHALL以认证principal派生的1..200 character caller identity、1..200 character idempotency key及Data Service按`raw-document-import-v1` normalization计算的canonical 64-char lowercase SHA-256识别batch，并以既有`NormalizeUUID("raw_document_import_receipt",caller,key)`算法生成receipt ID，在`raw_document_import_receipts`保存不可变审计/result；Miniapp、Admin、Agent/`agent-run`MUST NOT直接调用repository或SQL。
 
 #### Scenario: 导入新文档
-- **WHEN** 已授权service identity提交通过validation且数据库中不存在的原始文档candidate
-- **THEN** Data Service必须在自身transaction边界创建记录并返回带request id的结构化receipt/result
+- **WHEN** 已授权service identity提交通过whole-batch validation且不存在completed receipt的原始文档batch
+- **THEN** Data Service必须在一个PostgreSQL transaction内写入或复用全部raw documents并插入独立immutable receipt，然后一次commit并返回带request id envelope的结构化result
 
 #### Scenario: 重复导入
-- **WHEN** 同一来源以相同idempotency key/payload或相同外部ID/content hash重试
-- **THEN** Data Service必须返回已有结果或复用记录，不得创建无意义重复事实；相同key不同payload必须409且不修改原结果
+- **WHEN** 同一认证caller使用相同idempotency key重试且server canonical payload hash与既有receipt相同
+- **THEN** Data Service必须精确返回receipt保存的首次business result，不得因当前source eligibility或raw row状态变化重新拒绝/合成不同结果或创建重复事实；每次transport request id可以不同
+
+#### Scenario: 同 key 的 payload 发生变化
+- **WHEN** 同一认证caller使用已有idempotency key提交的canonical payload hash与receipt不同
+- **THEN** Data Service必须返回machine-readable 409且不插入、更新、删除或truncate raw document/receipt；不同caller的同名key必须位于独立identity scope
+
+#### Scenario: 查询未知网络结果
+- **WHEN** caller未收到import响应并按自身identity与idempotency key查询status
+- **THEN** 可见receipt必须返回`completed`及stored original result，缺失receipt必须返回`unknown`/尚未commit且不得创建placeholder、job、run或内存状态
+
+#### Scenario: 并发使用相同 key
+- **WHEN** 两个transaction并发提交同一caller与idempotency key
+- **THEN** caller-scoped unique constraint和`pg_advisory_xact_lock(hashtextextended(raw-receipt caller/key lock text,0))`必须产生一个winner；loser必须重读completed receipt并按same-hash replay或different-hash 409处理，不得部分commit
+
+#### Scenario: 跨 key 的 raw identity 并发
+- **WHEN** 不同caller/key的batch并发包含相同source external ID或content hash
+- **THEN** Data Service必须按sorted raw-identity lock texts串行化并使用conflict-safe insert/winner re-read；external-ID与hash命中两个不同rows时必须返回409并整批零mutation，不得无序选择一个row
+
+#### Scenario: 不同 candidate 折叠到同一 raw row
+- **WHEN** 所有candidate identity resolution完成后resolved raw ID数量小于candidate数量或存在重复ID
+- **THEN** Data Service必须返回`RAW_DOCUMENT_BATCH_COLLISION` 409并整批rollback，不得把duplicate IDs或少于candidate数的membership写入receipt
 
 #### Scenario: 非法批次
 - **WHEN** batch超限、payload无有效来源/归因、字段无效或调用方scope不匹配
-- **THEN** Data Service必须在业务写入前拒绝整批请求并返回结构化错误
+- **THEN** Data Service必须在任何raw document或receipt DML前拒绝整批请求并返回结构化错误，不得提供逐item部分成功
+
+#### Scenario: receipt miss 后才验证可变来源状态
+- **WHEN** auth/scope/bounds/canonical hash通过且caller/key没有completed receipt
+- **THEN** Data Service必须在DML前验证全部item、current source eligibility/attribution及batch duplicate identities；receipt hit必须先按stored snapshot replay，不能让后续source状态变化破坏原结果重放
+
+#### Scenario: receipt 保存 exact batch result
+- **WHEN** 首次raw batch commit
+- **THEN** receipt必须保存一维无NULL且按canonical candidate order的非空/无重复raw IDs，以及逐字段匹配columns的`receipt_id`、`payload_hash`、`raw_document_ids`、`items[{raw_document_id,disposition}]`和`imported_at`；disposition只能为`created`或`reused`
+
+#### Scenario: raw receipt 与 event receipt 分离
+- **WHEN** raw-document import成功或重放
+- **THEN** 它只能使用`raw_document_import_receipts`和raw document repository，不得写入或复用`event_import_receipts`、event、source/tag mapping或review状态
 
 ### Requirement: 凭证和限流安全
 Tidewise Data Service SHALL 只保存外部provider的非敏感配置和`credential_ref`，不得持有或执行采集provider凭证/限流runtime；Data import caller使用独立service identity，未来 `agent-run` 的provider secret与rate limiting由其自身边界管理。
@@ -115,7 +147,7 @@ Tidewise Data Service SHALL 只保存外部provider的非敏感配置和`credent
 
 #### Scenario: agent-run导入raw documents
 - **WHEN** 已授权`agent-run`提交有界raw-document batch
-- **THEN** Data Service必须验证identity、scope、idempotency、来源归因和payload并返回receipt，不得把连接数据库作为客户端前提
+- **THEN** Data Service必须验证identity、scope、caller-scoped idempotency、canonical payload hash、来源归因和whole batch，并返回可status查询/原result重放的durable receipt，不得把连接数据库作为客户端前提
 
 #### Scenario: Agent导入reviewed event
 - **WHEN** Agent Server提交reviewed-outbox package
@@ -133,4 +165,4 @@ Tidewise Data Service SHALL 只保存外部provider的非敏感配置和`credent
 
 ### Requirement: 多来源并发采集
 **Reason**: worker concurrency、单源失败隔离、provider限流与scheduler filter兼容都是采集runtime语义，Tidewise不再执行。
-**Migration**: 删除`IngestionJob`、runtime limiter/filter/report与对应tests；未来由`agent-run`实现并通过Data import receipt验收，Tidewise保留adapter合同而非runner。
+**Migration**: 先以forward-only `000022_add_raw_document_import_receipts.sql`和local schema/integration验收durable raw receipt，再删除`IngestionJob`、runtime limiter/filter/report与对应tests；未来由`agent-run`实现并通过Data import receipt验收，Tidewise保留adapter合同而非runner。

@@ -61,7 +61,15 @@ Data Service SHALL 拥有 API DTO、版本、分页、错误、时间、ID、枚
 
 #### Scenario: 重试写操作
 - **WHEN** client 因网络故障无法确认写操作结果
-- **THEN** 只有携带幂等 identity 的操作可以有限重试，并能通过 receipt/status 区分成功、冲突和未知结果
+- **THEN** 只有携带幂等identity的操作可以有限重试；raw import必须通过认证caller+key的durable receipt/status把已存在row解释为completed original result、缺失row解释为unknown/尚未commit，并把same caller+key changed hash解释为409 conflict
+
+#### Scenario: raw import caller identity
+- **WHEN** Data Service接收raw-document import或status lookup
+- **THEN** caller identity必须来自认证principal而非request body，idempotency key uniqueness和查询都必须限定在该caller scope且不得泄露其他caller的receipt/result
+
+#### Scenario: raw import replay envelope
+- **WHEN** Data Service重放已完成raw import
+- **THEN** stable business result必须逐字段来自immutable stored `result_payload`；仅每次请求的request id/trace transport envelope可以重新生成
 
 #### Scenario: 变更已消费 contract
 - **WHEN** Data Service 需要删除字段、改变字段语义或引入 breaking change

@@ -63,4 +63,4 @@ Data Service SHALL 暂时拥有source catalog、connectors、parsers和仍有调
 
 ### Requirement: 采集器可运行子系统
 **Reason**: 新架构把采集scheduling与实际execution交给外部`agent-run`；把scheduler改名或迁入Data Service仍会保留错误ownership。
-**Migration**: 先建立Data raw-document/reviewed-event受控import，随后删除Tidewise scheduler/source-ingest/ingest-smoke/runtime/health和其装配；保留source seed、connectors/parsers、import、表与历史migration。
+**Migration**: 先建立Data raw-document/reviewed-event受控import并通过独立raw receipt forward migration/local schema integration，随后删除Tidewise scheduler/source-ingest/ingest-smoke/runtime/health和其装配；保留source seed、connectors/parsers、import、所有既有表与21个byte-for-byte历史migration。

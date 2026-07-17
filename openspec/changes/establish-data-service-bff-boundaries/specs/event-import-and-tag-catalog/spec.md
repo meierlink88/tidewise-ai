@@ -31,15 +31,19 @@ Data Service SHALL 提供版本化、服务身份认证、幂等且可审计的 
 - **THEN** 后续 change 才能删除直接 maintenance adapter，并必须保留明确迁移说明和 contract tests
 
 ### Requirement: reviewed event 与 raw document 导入分离
-Data Service SHALL 将reviewed-outbox event import与通用raw-document batch import定义为两个独立受控contract；raw import MUST NOT绕过event review状态、tag/source validation、canonical payload hash或event receipt transaction。
+Data Service SHALL将reviewed-outbox event import与通用raw-document batch import定义为两个独立受控contract和两个独立receipt schemas；raw import MUST NOT绕过event review状态、tag/source validation、canonical payload hash或event receipt transaction，reviewed event import也MUST NOT以`raw_document_import_receipts`替代`event_import_receipts`。
 
 #### Scenario: Agent只提交原始材料
 - **WHEN** `agent-run`尚未形成reviewed event package而只提交来源材料
-- **THEN** 它必须调用raw-document import，Data Service只能写入/复用raw document，不得自动创建event、tag或research结论
+- **THEN** 它必须调用raw-document import，Data Service只能在一个transaction写入/复用raw documents及独立immutable raw receipt，不得自动创建event、source/tag mapping、review状态或research结论
 
 #### Scenario: Agent提交reviewed event
 - **WHEN** Agent Server提交contract完整且review状态有效的event package
-- **THEN** 它必须调用reviewed event import，并继续在单transaction中处理raw document、event、sources、tags与receipt
+- **THEN** 它必须调用reviewed event import，并继续在单transaction中处理raw document、event、sources、tags与`event_import_receipts` receipt，不得写raw receipt placeholder
+
+#### Scenario: 两类 receipt key 空间
+- **WHEN** raw import和reviewed-event import碰巧使用相同文本idempotency key
+- **THEN** 两者必须在独立table/repository/API contract中各自判断，不得共享generic uniqueness、result payload或review语义
 
 #### Scenario: 删除旧采集runtime
 - **WHEN** Tidewise scheduler/source-ingest/ingest-smoke/runtime被删除

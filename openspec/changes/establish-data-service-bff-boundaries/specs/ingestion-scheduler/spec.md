@@ -2,7 +2,7 @@
 
 ### Requirement: 全局采集调度器
 **Reason**: 采集 scheduling 与实际 execution 将由 Tidewise 仓库外的 `agent-run` 负责；Tidewise 不再维护 loop、single-run 或 dry-run scheduler，也不新建替代实现。
-**Migration**: 先交付 Data Service 的 raw-document 与 reviewed-event 受控 import contract，再删除 `cmd/ingestion-scheduler`、scheduler/runtime application 与启动装配；外部系统只能经 Data API 交互。
+**Migration**: 先交付Data Service的raw-document与reviewed-event受控import contract，创建并在独立local R2层验证durable raw receipt schema/transaction/status，再删除`cmd/ingestion-scheduler`、scheduler/runtime application与启动装配；外部系统只能经Data API交互。
 
 ### Requirement: Interval 调度模式
 **Reason**: interval 计算属于外部 `agent-run` 的调度策略，不再是 Tidewise 服务能力。
