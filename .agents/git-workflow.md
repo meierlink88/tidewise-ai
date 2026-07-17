@@ -49,6 +49,17 @@ change，然后恢复该工作空间；不得创建重复 change，也不得覆�
 
 ## Pull Request 交付
 
+### GitHub CLI 认证判定
+
+- 优先复用系统 Keychain 中已有的 `gh` 登录，不得为每个 Pull Request 重复登录。
+- 受限沙箱内执行 `gh auth status` 失败，不足以判定 token 失效；Leader 或执行 Agent
+  必须先在具备 GitHub 网络和系统 Keychain 访问权限的环境中复核同一只读命令。
+- 只有上述复核仍明确报告凭据失效时，才允许请求用户重新执行 `gh auth login`；不得
+  自动 logout、覆盖或反复刷新现有凭据。
+- GitHub App/connector 返回 404 或无仓库权限，只代表该 connector 不可用，不得据此
+  推断 `gh` 登录失效；应在复核 `gh` 状态后按既定 fallback 创建 Pull Request。
+- 认证检查、日志、提交和 Pull Request 正文不得输出或保存真实 token。
+
 获得 Leader Acceptance、完成 Sync、Archive 和最终验证后，执行 Agent：
 
 1. 提交当前 change 的全部必要文件。
