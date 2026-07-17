@@ -15,6 +15,11 @@ Pull Request merge。若修改范围扩展到普通代码、配置、文档或�
 匹配项，Leader使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree；
 执行 Agent在该 worktree 中将创建隔离工作空间视为正常实施步骤，无需额外询问：
 
+用户提出需要新 OpenSpec change 的修改请求即授权创建该任务。“独立执行任务”不包括
+`multi_agent` 或内部 sub-agent。Leader 调用 `create_thread` 时必须指定 worktree 环境、
+`model: gpt-5.6-sol` 和 `thinking: medium`；只有取得 `threadId` 或 `clientThreadId` 及
+`hostId` 后才算委派成功。任一条件不可用时停止并报告，不得改用其他任务类型。
+
 1. 运行 `git fetch origin main` 获取最新基线。
 2. 使用分支 `codex/<change-name>`，基线必须是最新 `origin/main`。
 3. 优先使用 Codex Desktop 管理的 worktree。

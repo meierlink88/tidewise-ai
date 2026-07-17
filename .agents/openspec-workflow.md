@@ -28,8 +28,14 @@ Cleanup；执行 Agent负责 Propose、Apply、Validate、Sync、Archive 和 Del
 ## 2. Delegate
 
 - 开发 Leader使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree。
+- 用户提出需要新 OpenSpec change 的修改请求即视为授权创建该独立任务，无需另行确认。
+- 独立执行任务必须是用户可见的 Codex 任务；不得使用 `multi_agent` 或内部 sub-agent
+  承载、替代 Propose、Apply、Validate、Sync、Archive 或 Deliver。
 - 默认使用产品口径“gpt 6 sol medium”对应的当前可执行参数 `model: gpt-5.6-sol` 和
   `thinking: medium`；目标 host 不支持时停止并报告，不得静默降级。
+- `create_thread` 请求必须指定 worktree 环境和默认模型组合；只有返回 `threadId` 或
+  `clientThreadId` 以及 `hostId` 后，Leader 才能报告 Delegate 完成。工具、任务标识、
+  worktree 或默认模型组合不可用时必须停止，不得降级为其他任务类型或环境。
 - 执行 Agent确认独立 `codex/<change-name>` 分支、worktree 与 active change 匹配后，才
   写入 proposal 或实现文件。
 - Leader不得在主任务中接管具体 change 实施；阻塞时应补充委派、重新委派或报告阻塞。

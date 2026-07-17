@@ -23,6 +23,15 @@ skills、脚本、依赖、生成物和工程结构。即使最终判断不需�
 worktree，负责 Eino audit、OpenSpec、TDD、实现、验证、Sync、Archive、提交、推送
 和 Pull Request。
 
+本规范中的“独立执行任务”和“执行 Agent”专指通过 Codex `create_thread` 创建、在
+侧边栏可见并拥有 Desktop-managed worktree 的独立 Codex 任务，不包括 `multi_agent`
+或任何内部 sub-agent。用户提出需要新 OpenSpec change 的仓库修改请求时，该 change 请求即视为授权
+Leader 创建对应独立 Codex 任务，无需再次询问是否创建任务；Leader 不得使用内部
+sub-agent 承载或替代 Propose、Apply、Validate、Sync、Archive、Deliver。
+委派只有在 `create_thread` 返回 `threadId` 或 `clientThreadId`、`hostId`，且请求明确
+指定 worktree 环境、`model: gpt-5.6-sol`、`thinking: medium` 后才算完成。任一条件不可用
+时 Leader 必须停止并报告，不得静默改用其他任务类型、模型或执行环境。
+
 开始工作前必须根据任务读取下列规则：
 
 | 范围 | 必读文件 |

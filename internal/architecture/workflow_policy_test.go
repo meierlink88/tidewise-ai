@@ -34,6 +34,8 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"gpt-5.6-sol",
 				"medium",
 				"Leader 直接创建 Pull Request",
+				"内部 sub-agent",
+				"change 请求即视为授权",
 			},
 		},
 		{
@@ -49,6 +51,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"中文",
 				"工作流规则修改",
 				"无需委派",
+				"禁止使用内部 sub-agent",
 			},
 		},
 		{
@@ -62,6 +65,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"工作流规则例外",
 				"gpt-5.6-sol",
 				"medium",
+				"不得使用 `multi_agent`",
 			},
 		},
 		{
@@ -78,6 +82,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"失败",
 				"Pull Request",
 				"Leader 直接交付工作流规则修改",
+				"`threadId` 或 `clientThreadId`",
 			},
 		},
 		{
@@ -119,6 +124,9 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"gpt-5.6-sol",
 				"medium",
 				"用户控制 Pull Request merge",
+				"内部 sub-agent",
+				"change 请求即视为授权",
+				"threadId` 或 `clientThreadId",
 			},
 		},
 	}

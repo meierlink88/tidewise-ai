@@ -12,6 +12,11 @@ change 由 Leader 使用 Codex `create_thread` 委派给独立执行 Agent；执
 完成技能路由要求的审计、OpenSpec、TDD、实现、验证和交付，且不得自行批准 Leader
 Review 或 Leader Acceptance。
 
+“执行 Agent”仅指 `create_thread` 创建的用户可见独立 Codex 任务；禁止使用内部 sub-agent
+或 `multi_agent` 承载、替代正式 change 的任何生命周期阶段。用户提出需要新 OpenSpec
+change 的修改请求即构成创建该独立任务的授权。`create_thread`、Desktop-managed
+worktree、默认模型组合或返回的任务标识任一不可用时，Leader 必须停止并报告。
+
 工作流规则修改是唯一例外：当变更仅涉及工程协作规则、正式工作流规格及其策略测试时，
 由 Leader 在当前对话直接实施，无需委派、无需 OpenSpec change。Leader 仍须完成
 Eino audit、策略测试的 RED/GREEN/REFACTOR、全量验证，并通过独立分支和 Pull Request

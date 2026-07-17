@@ -51,11 +51,27 @@
 - **THEN** 执行 Agent在自己的任务和 worktree 中继续完成后续实施或交付阶段
 
 ### Requirement: 独立的 change 工作空间
-每个新 OpenSpec change SHALL 由开发 Leader 使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree；委派默认 SHALL 使用产品口径“gpt 6 sol medium”对应的当前可执行参数 `model: gpt-5.6-sol` 和 `thinking: medium`。执行任务 SHALL 在写入 change 产物或实现文件前，使用基于最新 `origin/main` 的独立 `codex/<change-name>` feature branch；目标 host 不支持默认模型组合时 Leader SHALL 停止并报告，不得静默降级。
+每个新 OpenSpec change SHALL 由开发 Leader 使用 Codex `create_thread` 创建用户可见的独立执行任务和 Desktop-managed worktree；“独立执行任务”和“执行 Agent”MUST NOT 包括 `multi_agent` 或任何内部 sub-agent。用户提出需要新 OpenSpec change 的修改请求时，该 change 请求即视为授权 Leader 创建对应独立任务，无需再次确认。委派默认 SHALL 使用产品口径“gpt 6 sol medium”对应的当前可执行参数 `model: gpt-5.6-sol` 和 `thinking: medium`，且只有 `create_thread` 返回 `threadId` 或 `clientThreadId` 以及 `hostId` 后 Delegate 才算完成。执行任务 SHALL 在写入 change 产物或实现文件前，使用基于最新 `origin/main` 的独立 `codex/<change-name>` feature branch；任务工具、worktree、任务标识或默认模型组合不可用时 Leader SHALL 停止并报告，不得静默降级为内部 sub-agent、其他模型或其他执行环境。
 
 #### Scenario: 开始新的 change
 - **WHEN** 当前不存在与请求范围匹配的活跃 change、执行任务和 worktree
 - **THEN** Leader 使用 `gpt-5.6-sol` 和 `medium` 调用 `create_thread` 创建并委派独立 Codex 任务及 Desktop-managed worktree，执行 Agent获取 `origin/main`、创建命名分支，并在写入文件前验证任务、worktree 和分支
+
+#### Scenario: change 请求授权创建独立任务
+- **WHEN** 用户提出一项需要新 OpenSpec change 的仓库修改请求
+- **THEN** Leader 将该请求视为创建对应独立 Codex 任务的明确授权，无需再次询问是否创建任务
+
+#### Scenario: 禁止内部 Agent 替代执行任务
+- **WHEN** Leader 准备委派 Propose、Apply、Validate、Sync、Archive 或 Deliver 阶段
+- **THEN** Leader MUST 使用 `create_thread` 创建用户可见且具有 Desktop-managed worktree 的独立任务，MUST NOT 使用 `multi_agent` 或内部 sub-agent 承载或替代执行 Agent
+
+#### Scenario: 委派成功证据完整
+- **WHEN** `create_thread` 已按 worktree 环境、`gpt-5.6-sol` 和 `medium` 发起委派
+- **THEN** Leader 仅在收到 `threadId` 或 `clientThreadId` 以及 `hostId` 后报告 Delegate 完成
+
+#### Scenario: 独立任务条件不可用
+- **WHEN** `create_thread`、Desktop-managed worktree、任务标识或默认模型组合任一不可用
+- **THEN** Leader 停止委派并报告具体条件，不得改用内部 sub-agent、其他模型或其他执行环境
 
 #### Scenario: Desktop worktree 初始为 detached HEAD
 - **WHEN** 新执行任务的 Desktop-managed worktree 没有当前分支
