@@ -2,18 +2,19 @@
 
 ## 新 change 自动初始化
 
-Agent 接到新的仓库改动任务后，先检查 active changes 和现有 worktrees。若不存在
-匹配项，应将创建隔离工作空间视为正常实施步骤，无需额外询问：
+开发 Leader接到新的仓库改动任务后，先检查 active changes 和现有 worktrees。若不存在
+匹配项，Leader使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree；
+执行 Agent在该 worktree 中将创建隔离工作空间视为正常实施步骤，无需额外询问：
 
 1. 运行 `git fetch origin main` 获取最新基线。
 2. 使用分支 `codex/<change-name>`，基线必须是最新 `origin/main`。
 3. 优先使用 Codex Desktop 管理的 worktree。
-4. Desktop worktree 不可用时，使用：
+4. Desktop-managed worktree 不可用时，使用：
    `git worktree add ../tidewise-ai-agentrun-worktrees/<change-name> -b codex/<change-name> origin/main`。
 5. 运行 `git branch --show-current`、`git worktree list` 和 `git status --short` 验证环境。
 
-如果同名 branch 或 worktree 已存在，先确认其对应同一个 active change，然后恢复该
-工作空间；不得创建重复 change，也不得覆盖用户已有修改。
+如果同名 branch 或 worktree 已存在，Leader和执行 Agent先确认其对应同一个 active
+change，然后恢复该工作空间；不得创建重复 change，也不得覆盖用户已有修改。
 
 ## 分支约束
 
@@ -33,13 +34,29 @@ Agent 接到新的仓库改动任务后，先检查 active changes 和现有 wor
 
 ## Pull Request 交付
 
-完成 Sync、Archive 和最终验证后：
+获得 Leader Acceptance、完成 Sync、Archive 和最终验证后，执行 Agent：
 
 1. 提交当前 change 的全部必要文件。
 2. 推送 `codex/<change-name>`。
 3. 创建 GitHub Pull Request，base 为 `main`。
 4. PR 正文列出 change 名称、主要改动、TDD/测试证据、OpenSpec 验证和风险。
-5. 报告 PR 地址；合并和删除分支由用户决定。
+5. 报告 PR 地址并向 Leader交付 cleanup handoff；合并始终由用户决定。
 
 可以为协作提前创建 Draft Pull Request，但只有完成前评审、Sync、Archive 和最终
 验证全部通过，才能将其视为正式交付。
+
+## PR merged 后的 Cleanup
+
+用户确认 PR merged 后，开发 Leader从主项目执行 Cleanup；该状态由主 Codex 任务跟踪，
+不回写已归档 change 的 tasks。Leader必须按下列顺序操作：
+
+1. 获取最新 `origin/main`，识别 change branch、必要 commits 和 Desktop-managed worktree 路径。
+2. 检查 change worktree clean；任何 tracked 或 untracked 变更都必须停止 Cleanup 并报告。
+3. 验证必要 commits 已进入 `origin/main`；验证失败必须停止并报告。
+4. 删除已验证的 change worktree。
+5. 删除本地 `codex/<change-name>` 分支。
+6. 若远端分支仍存在，删除远端同名分支。
+7. 运行 `git worktree prune`，并报告最终 worktree/branch 状态。
+
+每一步仅在前一步成功后进行。任何 Cleanup 失败必须报告失败命令、错误、已完成步骤和
+剩余资源，不得静默完成。

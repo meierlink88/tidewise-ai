@@ -14,7 +14,13 @@ skills、脚本、依赖、生成物和工程结构。即使最终判断不需�
 
 所有仓库改动都必须通过命名的 OpenSpec change 执行，完整生命周期为：
 
-`Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver`
+`Explore -> Delegate -> Propose -> Leader Review -> Apply -> Validate -> Leader Acceptance -> Sync -> Archive -> Deliver -> Merge -> Cleanup`
+
+开发 Leader 位于主 Codex 任务，只负责 Explore、使用 `create_thread` 创建和委派
+独立执行任务、评审、批准、监控、Leader Acceptance 及合并后清理；不得实施具体
+代码、测试、配置、文档或 change 产物。执行 Agent 位于独立 Desktop-managed
+worktree，负责 Eino audit、OpenSpec、TDD、实现、验证、Sync、Archive、提交、推送
+和 Pull Request。
 
 开始工作前必须根据任务读取下列规则：
 
@@ -26,9 +32,10 @@ skills、脚本、依赖、生成物和工程结构。即使最终判断不需�
 | TDD 与验证证据 | `.agents/testing-tdd.md` |
 | 三个任务 Agent 的工程边界 | `.agents/architecture-boundaries.md` |
 
-提案材料必须获得用户明确批准后才能进入 Apply；实现和验证完成后，必须再次
-获得用户明确批准，才能执行 Sync、Archive 和最终 Pull Request 交付。Agent
-不得自行批准这两个门禁。
+提案材料必须获得开发 Leader 明确完成 Leader Review 后才能进入 Apply；实现和验证
+完成后，必须再次获得开发 Leader 明确完成 Leader Acceptance，才能执行 Sync、Archive
+和最终 Pull Request 交付。执行 Agent不得自行批准这两个门禁。用户控制 PR merge；
+PR merged 后由 Leader 在主任务中执行并报告 Cleanup，不回写已归档 change 的 tasks。
 
 ## 通用约束
 
