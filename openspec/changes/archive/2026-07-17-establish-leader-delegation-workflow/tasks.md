@@ -31,5 +31,5 @@
 
 - [x] 6.1 获得 Leader Acceptance 后，执行 Agent使用 `$openspec-sync-specs` 将 delta spec 同步到 `openspec/specs/engineering-change-workflow/spec.md`，核验未丢失既有 requirements/scenarios。
 - [x] 6.2 执行 Agent使用 `$openspec-archive-change` 归档 change，并重新运行策略测试、`go test ./...`、最终 OpenSpec validation 和 `git diff --check`。
-- [ ] 6.3 执行 Agent仅暂存当前 change 文件，检查 staged diff、密钥和禁止路径后，提交并推送 `codex/establish-leader-delegation-workflow`，创建 base 为 `main` 的 Pull Request，报告地址、验证证据和已知风险；不得 merge PR。
-- [ ] 6.4 PR 创建后，执行 Agent向 Leader提交 cleanup handoff：PR URL/number、change branch、Desktop worktree path、必要 commits，以及用户 merge 后从主项目执行的 merged 确认、worktree clean、`origin/main` 可达性、删除 worktree、本地/可选远端分支与 prune 的命令/顺序。此 handoff 完成后，本 change 的 OpenSpec checkbox 可全部完成；用户 Merge 与 Leader Cleanup 由主 Codex 任务作为归档后的 operational state 跟踪，不回写已归档 tasks。
+- [x] 6.3 执行 Agent仅暂存当前 change 文件，检查 staged diff、密钥和禁止路径后，提交并推送 `codex/establish-leader-delegation-workflow`，创建 base 为 `main` 的 Pull Request，报告地址、验证证据和已知风险；不得 merge PR。
+- [x] 6.4 PR 创建后，执行 Agent向 Leader提交 cleanup handoff：PR URL/number、change branch、Desktop worktree path、必要 commits，以及用户 merge 后从主项目执行的 merged 确认、worktree clean、`origin/main` 可达性、删除 worktree、本地/可选远端分支与 prune 的命令/顺序。此 handoff 完成后，本 change 的 OpenSpec checkbox 可全部完成；用户 Merge 与 Leader Cleanup 由主 Codex 任务作为归档后的 operational state 跟踪，不回写已归档 tasks。
