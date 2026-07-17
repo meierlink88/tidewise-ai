@@ -32,6 +32,8 @@ CREATE TABLE research_theme_chain_nodes (
     chain_node_entity_id UUID NOT NULL REFERENCES chain_node_profiles(entity_id),
     relation_role TEXT NOT NULL,
     impact_summary TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (theme_id, chain_node_entity_id),
     CONSTRAINT chk_research_theme_chain_role CHECK (relation_role IN ('driver', 'beneficiary', 'constraint', 'exposure')),
     CONSTRAINT chk_research_theme_chain_summary_nonblank CHECK (btrim(impact_summary) <> '')
@@ -42,6 +44,8 @@ CREATE TABLE research_theme_indices (
     index_entity_id UUID NOT NULL REFERENCES index_profiles(entity_id),
     impact_direction TEXT NOT NULL,
     impact_summary TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (theme_id, index_entity_id),
     CONSTRAINT chk_research_theme_index_direction CHECK (impact_direction IN ('positive', 'negative', 'mixed', 'neutral')),
     CONSTRAINT chk_research_theme_index_summary_nonblank CHECK (btrim(impact_summary) <> '')
@@ -52,6 +56,8 @@ CREATE TABLE research_theme_events (
     event_id UUID NOT NULL REFERENCES events(id),
     evidence_role TEXT NOT NULL,
     supported_claim TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (theme_id, event_id),
     CONSTRAINT chk_research_theme_event_role CHECK (evidence_role IN ('driver', 'supporting', 'contradicting', 'context')),
     CONSTRAINT chk_research_theme_event_claim_nonblank CHECK (btrim(supported_claim) <> '')
@@ -83,6 +89,8 @@ CREATE TABLE research_anchor_chain_nodes (
     chain_node_entity_id UUID NOT NULL REFERENCES chain_node_profiles(entity_id),
     relation_role TEXT NOT NULL,
     relation_summary TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (anchor_id, chain_node_entity_id),
     CONSTRAINT chk_research_anchor_chain_role CHECK (relation_role IN ('driver', 'beneficiary', 'constraint', 'exposure')),
     CONSTRAINT chk_research_anchor_chain_summary_nonblank CHECK (btrim(relation_summary) <> '')
@@ -93,6 +101,8 @@ CREATE TABLE research_anchor_indices (
     index_entity_id UUID NOT NULL REFERENCES index_profiles(entity_id),
     impact_direction TEXT NOT NULL,
     impact_summary TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (anchor_id, index_entity_id),
     CONSTRAINT chk_research_anchor_index_direction CHECK (impact_direction IN ('positive', 'negative', 'mixed', 'neutral')),
     CONSTRAINT chk_research_anchor_index_summary_nonblank CHECK (btrim(impact_summary) <> '')
@@ -103,6 +113,8 @@ CREATE TABLE research_anchor_events (
     event_id UUID NOT NULL REFERENCES events(id),
     evidence_role TEXT NOT NULL,
     supported_claim TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (anchor_id, event_id),
     CONSTRAINT chk_research_anchor_event_role CHECK (evidence_role IN ('driver', 'supporting', 'contradicting', 'context')),
     CONSTRAINT chk_research_anchor_event_claim_nonblank CHECK (btrim(supported_claim) <> '')

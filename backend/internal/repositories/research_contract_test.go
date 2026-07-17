@@ -38,6 +38,40 @@ func TestResearchMigrationContract(t *testing.T) {
 	}
 }
 
+func TestResearchMigrationAllTablesHaveAuditColumns(t *testing.T) {
+	content, err := os.ReadFile("../../migrations/000021_add_research_theme_anchor_foundation.sql")
+	if err != nil {
+		t.Fatalf("read research migration: %v", err)
+	}
+	sql := strings.ToLower(string(content))
+
+	for _, table := range []string{
+		"research_themes", "research_theme_chain_nodes", "research_theme_indices", "research_theme_events",
+		"research_anchors", "research_anchor_chain_nodes", "research_anchor_indices", "research_anchor_events",
+	} {
+		t.Run(table, func(t *testing.T) {
+			start := strings.Index(sql, "create table "+table+" (")
+			if start < 0 {
+				t.Fatalf("migration missing table %q", table)
+			}
+			definition := sql[start:]
+			if end := strings.Index(definition, "\n);"); end >= 0 {
+				definition = definition[:end]
+			} else {
+				t.Fatalf("migration table %q has no closing definition", table)
+			}
+			for _, column := range []string{
+				"created_at timestamptz not null default now()",
+				"updated_at timestamptz not null default now()",
+			} {
+				if !strings.Contains(definition, column) {
+					t.Fatalf("migration table %q missing audit column %q", table, column)
+				}
+			}
+		})
+	}
+}
+
 func TestResearchReadQueriesArePostgresOnlyAndBatchAggregated(t *testing.T) {
 	for name, query := range map[string]string{
 		"theme list":    listResearchThemesQuery,
@@ -81,6 +115,25 @@ func TestResearchCountQueriesDeduplicateMainRowsAndEvents(t *testing.T) {
 			}
 			if strings.Contains(query, "select count(*)") {
 				t.Fatalf("count query must not count joined rows: %s", query)
+			}
+		})
+	}
+}
+
+func TestResearchChainNodeQueriesUseRelationEntityID(t *testing.T) {
+	for name, query := range map[string]string{
+		"theme list":    listResearchThemesQuery,
+		"theme detail":  getResearchThemeQuery,
+		"anchor list":   listResearchAnchorsQuery,
+		"anchor detail": getResearchAnchorQuery,
+	} {
+		t.Run(name, func(t *testing.T) {
+			query = strings.ToLower(query)
+			if !strings.Contains(query, "jsonb_build_object('id', n.chain_node_entity_id") {
+				t.Fatal("chain-node JSON id must use n.chain_node_entity_id")
+			}
+			if strings.Contains(query, "n.entity_id") {
+				t.Fatal("chain-node query references nonexistent n.entity_id")
 			}
 		})
 	}

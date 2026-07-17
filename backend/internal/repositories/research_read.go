@@ -142,7 +142,7 @@ WITH visible AS MATERIALIZED (
 SELECT p.id, p.name, p.one_line_conclusion, p.impact_level, p.transmission_path,
        p.trading_direction, p.transmission_stage, p.next_checkpoint,
        p.index_impact_summary, p.published_at,
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.impact_summary) ORDER BY e.name, n.entity_id)
+       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.impact_summary) ORDER BY e.name, n.chain_node_entity_id)
                  FROM research_theme_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.theme_id = p.id), '[]'::jsonb),
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
                  FROM research_theme_indices i JOIN entity_nodes e ON e.id = i.index_entity_id WHERE i.theme_id = p.id), '[]'::jsonb),
@@ -161,7 +161,7 @@ const getResearchThemeQuery = `
 SELECT t.id, t.name, t.one_line_conclusion, t.impact_level, t.transmission_path,
        t.trading_direction, t.transmission_stage, t.next_checkpoint,
        t.index_impact_summary, t.published_at,
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.impact_summary) ORDER BY e.name, n.entity_id)
+       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.impact_summary) ORDER BY e.name, n.chain_node_entity_id)
                  FROM research_theme_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.theme_id = t.id), '[]'::jsonb),
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
                  FROM research_theme_indices i JOIN entity_nodes e ON e.id = i.index_entity_id WHERE i.theme_id = t.id), '[]'::jsonb),
@@ -186,7 +186,7 @@ WITH visible AS MATERIALIZED (
 )
 SELECT p.id, p.anchor_type, p.name, p.one_line_conclusion, p.importance,
        p.transmission_path, p.trading_direction, p.published_at,
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.relation_summary) ORDER BY e.name, n.entity_id)
+       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.relation_summary) ORDER BY e.name, n.chain_node_entity_id)
                  FROM research_anchor_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.anchor_id = p.id), '[]'::jsonb),
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
                  FROM research_anchor_indices i JOIN entity_nodes e ON e.id = i.index_entity_id WHERE i.anchor_id = p.id), '[]'::jsonb),
@@ -203,7 +203,7 @@ WHERE a.published_at IS NOT NULL AND a.published_at >= $1 AND a.published_at <= 
 const getResearchAnchorQuery = `
 SELECT a.id, a.anchor_type, a.name, a.one_line_conclusion, a.importance,
        a.transmission_path, a.trading_direction, a.published_at,
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.relation_summary) ORDER BY e.name, n.entity_id)
+       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.relation_summary) ORDER BY e.name, n.chain_node_entity_id)
                  FROM research_anchor_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.anchor_id = a.id), '[]'::jsonb),
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
                  FROM research_anchor_indices i JOIN entity_nodes e ON e.id = i.index_entity_id WHERE i.anchor_id = a.id), '[]'::jsonb),
