@@ -86,6 +86,9 @@ func TestBackendForbiddenDependencies(t *testing.T) {
 			assertNoStdlibImport(t, pkg, "net/http")
 		case containsPath(pkg.ImportPath, "/internal/platform"):
 			assertNoImport(t, pkg, "/internal/apps/")
+			assertNoImport(t, pkg, "/internal/domain")
+			assertNoImport(t, pkg, "/internal/repositories")
+			assertNoImport(t, pkg, "/internal/http")
 		}
 	}
 }

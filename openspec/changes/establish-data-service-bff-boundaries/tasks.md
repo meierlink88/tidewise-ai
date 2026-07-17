@@ -32,15 +32,15 @@
 
 ## 1. Proposal Review Package
 
-- [ ] 1.1 审阅并批准 proposal/design/specs/tasks 的 Data/Miniapp/Admin ownership、目标目录、HTTP contract、non-goals、采集停止窗口和 `agent-run` 交接边界；只允许进入 Packages 2-8，不授权数据库、Neo4j、部署、Sync、Archive 或 Deliver。
-- [ ] 1.2 确认四项冻结决策：Data API namespace 为 `/internal/data/v1`；client 为小型受控手写 typed client + OpenAPI drift test；scheduler API 为认证后一个实际部署窗口的 `410 Gone` tombstone；raw-document batch 为有界 whole-batch validation + atomic write。
+- [x] 1.1 审阅并批准 proposal/design/specs/tasks 的 Data/Miniapp/Admin ownership、目标目录、HTTP contract、non-goals、采集停止窗口和 `agent-run` 交接边界；只允许进入 Packages 2-8，不授权数据库、Neo4j、部署、Sync、Archive 或 Deliver。
+- [x] 1.2 确认四项冻结决策：Data API namespace 为 `/internal/data/v1`；client 为小型受控手写 typed client + OpenAPI drift test；scheduler API 为认证后一个实际部署窗口的 `410 Gone` tombstone；raw-document batch 为有界 whole-batch validation + atomic write。
 
 ## 2. Inventory And Architecture Package
 
-- [ ] 2.1 冻结删除前 manifest：精确 production files/symbols、caller/import/reference、三张历史 scheduler tables/21 migrations、保留 repositories/connectors/import、114 Go test files/541 Go tests、frontend 8 test files/44 cases（Admin 7/26、Miniapp 1/18）与 13 个 testdata files。
-- [ ] 2.2 先写 RED architecture/reference tests：Miniapp/Admin 不得 import Data DB/repository/domain/migration 或 connector/parser；旧 scheduler/runtime/health/commands/config/caller 不得在退役后出现；platform 不得拥有业务 DTO/repository/client。
-- [ ] 2.3 对 `backend/testdata`、package fixtures、`backend/data/source_catalogs`、prompts 做引用审计；区分 testdata 与版本化业务 asset，当前无零引用 fixture 可安全删除的假设必须由命令输出证明。
-- [ ] 2.4 记录 package baseline、输入 commit `origin/main=3f0f779d2c332a74f31fd398adb47adb306a60c3` 与 scope/secret checks；manifest 漂移先停下更新 design，不扩大删除范围。
+- [x] 2.1 冻结删除前 manifest：精确 production files/symbols、caller/import/reference、三张历史 scheduler tables/21 migrations、保留 repositories/connectors/import、114 Go test files/541 Go tests、frontend 8 test files/44 cases（Admin 7/26、Miniapp 1/18）与 13 个 testdata files。
+- [x] 2.2 先写 RED architecture/reference tests：Miniapp/Admin 不得 import Data DB/repository/domain/migration 或 connector/parser；旧 scheduler/runtime/health/commands/config/caller 不得在退役后出现；platform 不得拥有业务 DTO/repository/client。
+- [x] 2.3 对 `backend/testdata`、package fixtures、`backend/data/source_catalogs`、prompts 做引用审计；区分 testdata 与版本化业务 asset，当前无零引用 fixture 可安全删除的假设必须由命令输出证明。
+- [x] 2.4 记录 package baseline、输入 commit `origin/main=3f0f779d2c332a74f31fd398adb47adb306a60c3` 与 scope/secret checks；manifest 漂移先停下更新 design，不扩大删除范围。
 
 ## 3. Service Skeleton Package
 
