@@ -21,4 +21,4 @@
 
 - [x] 4.1 在执行 1—3 组任务前，提交 proposal、design、spec、风险和 TDD 计划，等待用户明确完成提案评审。
 - [x] 4.2 在同步和归档前，提交实现差异及验证证据，等待用户明确完成实施评审。
-- [ ] 4.3 同步 capability specs、归档已批准的 change、重新执行最终验证、有选择地提交文件、推送 `codex/adopt-openspec-tdd-workflow`，并创建 GitHub Pull Request。
+- [x] 4.3 同步 capability specs、归档已批准的 change、重新执行最终验证、有选择地提交文件、推送 `codex/adopt-openspec-tdd-workflow`，并创建 GitHub Pull Request。
