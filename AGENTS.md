@@ -35,8 +35,15 @@ Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver
 - 数据库 migration/apply、seed、业务写入、图谱关系写入、投影重建或清理必须按层展示范围、顺序、recovery、断言和停止条件，并取得明确授权。
 - 正式 change 声明 R0—R3 风险；普通 task checkbox 不自动成为人工 gate；Gate Map、Complexity Budget、package、条件式执行包和 task-design lint 服从 `.agents/openspec-workflow.md`。
 
+### Workflow-Only Exception
+
+仅修改工程工作流、Agent 规则、Skill 路由、Git/OpenSpec/TDD 规则或这些规则专用的 lint/architecture tests 时，由当前 Leader 主对话直接实施：不委派独立 Desktop 任务，不创建 OpenSpec change 或 lifecycle artifacts。Leader 必须从最新 `origin/main` 创建 scoped `codex/<name>` branch，运行命中规则的 targeted validation 后直接 commit、push 和提交 PR。
+
+若 diff 触及产品或业务规格、生产代码、API、数据库 migration/seed、业务数据、部署或运行环境，本例外立即失效，必须恢复标准 OpenSpec 生命周期与 Desktop-managed worktree。详细边界分别见 `.agents/skill-routing.md`、`.agents/openspec-workflow.md` 和 `.agents/git-workflow.md`。
+
 ## Git And Desktop Hard Gates
 
+- Workflow-only exception 使用 Leader-owned scoped branch，不创建独立 Desktop task/worktree；其交付和 cleanup 唯一服从 `.agents/git-workflow.md`。
 - 新 change 必须在 Desktop-managed worktree 中从最新 `origin/main` 创建或切换 `codex/<change-name>`；不得手工创建等价 worktree。
 - 仅在 Desktop 机制不可用且用户明确批准 fallback 时，才允许 project-owned worktree。
 - Desktop-managed worktree 只能由 Desktop 释放；agent 不得手工删除托管 worktree。

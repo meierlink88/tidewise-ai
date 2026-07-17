@@ -2,6 +2,12 @@
 
 OpenSpec 是正式工程 change 的唯一生命周期和 artifacts 来源。正式变更必须先创建 change，再实现代码；Skill 映射见 `.agents/skill-routing.md`，Git 交付见 `.agents/git-workflow.md`。
 
+## Workflow-Only Exception
+
+工程工作流本身的修改不进入本生命周期。仅当 diff 限于 `AGENTS.md`、`.agents/**`、workflow/Skill 路由规则及其专用 lint 或 architecture tests 时，当前 Leader 主对话可以直接实现、验证并提交 PR，不创建 OpenSpec change、proposal、design、delta spec、tasks、sync 或 archive artifacts，也不委派独立 Desktop 任务。
+
+本例外不覆盖产品或业务规格、生产代码、API、数据库 migration/seed、业务数据、部署或运行环境。出现任一此类文件或语义时，必须停止 workflow-only 路径并从 Explore/Propose 重新进入完整 OpenSpec 生命周期。workflow-only change 的 scoped branch、验证、PR 和 cleanup 服从 `.agents/git-workflow.md`。
+
 ## Language And Artifact Rules
 
 - OpenSpec 内容默认使用中文；仅固定标题、关键字、命令、路径、代码标识和协议字段保留英文。
