@@ -75,6 +75,19 @@ Data Service SHALL 拥有 API DTO、版本、分页、错误、时间、ID、枚
 - **WHEN** Data Service 需要删除字段、改变字段语义或引入 breaking change
 - **THEN** change 必须提供新版本或 additive compatibility window，并等待独立 Review
 
+### Requirement: Research aggregate transport 服从已发布领域语义
+Data Service SHALL 让Research aggregate transport与已发布Research Theme/Anchor foundation、`000021`及Data domain保持同一语义：`impact_level`为`high|focus|watch`，`transmission_stage`为`upstream|midstream|downstream|infrastructure|service`，`anchor_type`为`policy|supply|demand|technology|cost|geopolitics|market_structure`，`importance`为`primary|secondary|contextual`，index `impact_direction`为`positive|negative|mixed|neutral`，`evidence_role`为`driver|supporting|contradicting|context`；`trading_direction` MUST 为trim后非空的自然语言string且不得收窄为enum。
+
+#### Scenario: 区分 Theme 与 Anchor chain-node DTO
+- **WHEN** Data API序列化Theme或Anchor的chain node关系
+- **THEN** Theme chain node必须使用`impact_summary`，Anchor chain node必须使用`relation_summary`，并使用两个明确schema/DTO保留各自字段
+- **AND** client或BFF不得丢字段、共用错误JSON tag或做隐式值域映射
+
+#### Scenario: 保持已发布 Miniapp Research API
+- **WHEN** Miniapp BFF改为通过DataServiceClient读取Research aggregate
+- **THEN** `/api/v1/miniapp/research/*`的既有JSON、opaque cursor、排序、窗口/分页和400/404/500错误语义必须保持不变
+- **AND** transport contract纠偏不得修改数据库schema、migration或数据
+
 ### Requirement: 页面级聚合与性能边界
 Data Service SHALL 提供当前 Miniapp/Admin 页面和管理操作需要的聚合 API，避免 BFF 为单次页面渲染执行 N+1 或不受控 chatty calls。
 

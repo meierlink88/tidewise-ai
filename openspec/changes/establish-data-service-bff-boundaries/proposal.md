@@ -55,6 +55,10 @@
 - 三个 Admin scheduler endpoints 固定为认证后的 machine-readable `410 Gone` tombstone并保留一个实际部署窗口；本 change 不采用直接 404。
 - raw-document import 固定为有界 whole-batch validation + atomic write；任一 item 非法时整批在业务写入前拒绝，不提供逐 item 部分成功。
 
+### Proposed Package 6 Research Contract Correction
+
+Package 4 的 Research Data OpenAPI/typed client 值域与已发布主规格 `openspec/specs/research-theme-anchor-foundation/spec.md`、`000021_add_research_theme_anchor_foundation.sql`、domain/repository 的一致语义发生漂移，本 amendment checkpoint 拟在恢复 Package 6 Apply 前将权威合同纠正为：`impact_level=high|focus|watch`、`transmission_stage=upstream|midstream|downstream|infrastructure|service`、`anchor_type=policy|supply|demand|technology|cost|geopolitics|market_structure`、`importance=primary|secondary|contextual`、index `impact_direction=positive|negative|mixed|neutral`、`evidence_role=driver|supporting|contradicting|context`；`trading_direction`保持trim后非空的自然语言string而非enum。Theme chain node与Anchor chain node必须使用两个明确DTO/schema，前者输出`impact_summary`、后者输出`relation_summary`，不得丢字段或做隐式语义映射。批准后Package 6只同步修正Data OpenAPI、Miniapp handwritten dataclient DTO/contract drift tests、Data handler非空golden及Miniapp BFF public golden/call-count tests，并保持现有`/api/v1/miniapp/research/*` JSON、cursor、排序与400/404/500错误语义；本checkpoint及后续纠偏均不变更数据库schema、migration或数据。
+
 ### Approved Raw Receipt Amendment
 
 用户于2026-07-17明确批准新增forward-only `backend/migrations/000022_add_raw_document_import_receipts.sql`，并授权在本amendment获批且Package 5 order 1 evidence无漂移通过后自动执行一次local apply。当前21个历史migration文件的冻结聚合SHA-256为`2ed0dd004ab3b0bad633af5f0107a9ddffa28b83422b643f821c2cd47fb02dfc`（对按路径排序的21行`shasum -a 256` manifest再次执行SHA-256）；Package 4只能新增第22个文件并记录其独立exact hash，禁止改动前21个文件。

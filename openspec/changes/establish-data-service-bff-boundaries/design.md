@@ -139,6 +139,12 @@ Data Service 拥有 OpenAPI、版本 namespace 与 transport DTO。Miniapp/Admin
 
 当前规模使用手写 typed client + OpenAPI schema drift test，不引入生成器；未来若已有稳定生成 toolchain，必须另开 contract/tooling change。gRPC/框架化 RPC 当前增加 toolchain/运维成本，不采用。
 
+### Decision: Package 6 Research contract 以已发布 foundation 语义为权威
+
+`openspec/specs/research-theme-anchor-foundation/spec.md`、`backend/migrations/000021_add_research_theme_anchor_foundation.sql`与Data-owned domain/repository对Research语义一致，因此Package 4新建的Data OpenAPI/typed client是待纠正层，不得反向改写领域语义：`impact_level`固定为`high|focus|watch`，`transmission_stage`固定为`upstream|midstream|downstream|infrastructure|service`，`anchor_type`固定为`policy|supply|demand|technology|cost|geopolitics|market_structure`，`importance`固定为`primary|secondary|contextual`，index `impact_direction`固定为`positive|negative|mixed|neutral`且无`uncertain`，`evidence_role`固定为`driver|supporting|contradicting|context`；`trading_direction`是trim后非空的自然语言string，不设enum。Data transport必须拆分`ResearchThemeChainNode`与`ResearchAnchorChainNode`两个DTO/schema：两者都保留id/name/relation_role，但Theme只使用`impact_summary`，Anchor只使用`relation_summary`，禁止共用字段造成丢失或做`focus→medium`等隐式映射。
+
+恢复Apply后，Package 6先同步修正`backend/services/data/api/openapi.yaml`、`backend/services/miniapp/dataclient/port.go`、`backend/services/miniapp/dataclient/contract_drift_test.go`及HTTP client tests，并用`backend/services/data/internalapi/handler_test.go`的非空Data handler golden与`backend/internal/apps/miniappapi/{research_service_test.go,research_router_test.go}`的public BFF golden/fake-client call-count测试锁定端到端字段和值域。现有public Miniapp JSON字段、opaque cursor、`high > focus > watch`与`primary > secondary > contextual`排序、窗口/分页及400/404/500错误语义保持不变；这只是transport contract纠偏与BFF解耦，不修改`000021`、任何其他migration、PostgreSQL schema或数据。
+
 ### Decision: 删除 runtime 前先建立两类 Agent import contract
 
 reviewed event import 与 raw-document import 是不同合同，不能互相冒充：
