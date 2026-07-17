@@ -35,11 +35,6 @@ migration:
   directory: migrations
   auto_apply: true
   lock_key: tidewise_schema_migration
-ingestion:
-  default_timeout_seconds: 10
-  batch_size: 100
-  scheduler_tick_seconds: 30
-  scheduler_timezone: Asia/Shanghai
 object_store:
   provider: local
   local_path: /var/lib/tidewise/raw-objects

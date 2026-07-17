@@ -55,7 +55,7 @@ backend/data/prompts/ingestion/ai_web_research/
 ```bash
 go test ./internal/apps/ingestion/connectors
 go test ./internal/apps/ingestion/parsers
-go test ./internal/apps/ingestion/runtime
+go test ./internal/apps/ingestion/core ./internal/apps/ingestion/sourcecatalog
 ```
 
 这些测试验证：
@@ -65,23 +65,12 @@ go test ./internal/apps/ingestion/runtime
 - LLM 查询计划输出和校验。
 - Go 程序化映射搜索结果为结构化 `items`。
 - `llm_research_items` parser 校验。
-- 复用现有 `IngestionJob` 和 `RawDocumentWriter` 幂等写入路径。
+- connector/parser DTO 与 source-aware 映射合同。
 
-## 真实 gated smoke
+## 运行与导入边界
 
-真实 API 验证必须显式指定 source ID 和所需环境变量，避免普通开发或 CI 误触发真实网络和付费 API。
+Tidewise 不再提供 `ingestion-scheduler`、`source-ingest` 或 `ingest-smoke` 命令，也不在 Data Service 中新建替代 worker。采集调度和实际运行由独立 agent-run 项目负责。
 
-示例：
+本仓库短期保留 connector、parser、registry、`EnvCredentialResolver`、sourcecatalog、prompt 与相关测试，供合同演进和未来显式交接使用；这些包不构成可独立运行的 Tidewise 采集 command。不得在本 change 中把它们迁往外部仓库。
 
-```bash
-APP_ENV=local DATABASE_PASSWORD=tidewise-local-dev-password \
-TAVILY_API_KEY=... BOCHA_API_KEY=... QWEN_API_KEY=... \
-go run ./cmd/source-ingest \
-  -provider llm_web_research \
-  -channel ai_web_research \
-  -source-type news \
-  -concurrency 1 \
-  -require-env TAVILY_API_KEY,BOCHA_API_KEY,QWEN_API_KEY
-```
-
-运行前应确认目标 source 已 seed 到本地数据库，且需要验证的 AI source 状态为 `active`。PostgreSQL 中的 `source_catalogs.id` 是规范化 UUID；如需只跑单个 source，应先查询真实 UUID 再使用 `-source-id`。真实验证结果以 `source-ingest` 输出的 JSON report 和 `raw_documents` 入库结果为准。
+agent-run 应读取 Data Service 的受控 source metadata，并通过 `/internal/data/v1/raw-document-imports` 或 `/internal/data/v1/reviewed-event-imports` 提交结果。Data Service 负责 whole-batch validation、原子写入、caller-scoped idempotency 和 receipt/status；agent-run 不得直接写 Data DB。历史 scheduler/run tables 与 migrations 保留用于历史兼容，不表示 Tidewise 仍拥有 runtime。

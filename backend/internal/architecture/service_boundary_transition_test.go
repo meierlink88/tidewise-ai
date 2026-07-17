@@ -1,10 +1,9 @@
 package architecture
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
 	"strings"
 	"testing"
 )
@@ -29,17 +28,20 @@ func TestTransitionalBFFDataDependencyAllowlist(t *testing.T) {
 	}
 }
 
-func TestLegacyIngestionPreRetirementImportAllowlist(t *testing.T) {
+func TestRetiredIngestionRuntimeIsAbsent(t *testing.T) {
 	packages := append(listInternalPackages(t), listCommandPackages(t)...)
-	assertImportersEqual(t, packages, "/internal/apps/ingestion/runtime", []string{
-		"cmd/ingest-smoke",
-		"cmd/ingestion-scheduler",
-		"cmd/source-ingest",
-		"internal/apps/ingestion/scheduler",
-	})
-	assertImportersEqual(t, packages, "/internal/apps/ingestion/scheduler", []string{
-		"cmd/ingestion-scheduler",
-	})
+	for _, suffix := range []string{
+		"/cmd/ingest-smoke",
+		"/cmd/ingestion-scheduler",
+		"/cmd/source-ingest",
+		"/internal/apps/ingestion/health",
+		"/internal/apps/ingestion/runtime",
+		"/internal/apps/ingestion/scheduler",
+	} {
+		if hasPackageSuffix(packages, suffix) {
+			t.Fatalf("retired ingestion package %q must be absent after Package 8", suffix)
+		}
+	}
 
 	backendRoot := filepath.Join("..", "..")
 	for _, path := range []string{
@@ -50,19 +52,19 @@ func TestLegacyIngestionPreRetirementImportAllowlist(t *testing.T) {
 		"internal/apps/ingestion/runtime",
 		"internal/apps/ingestion/health",
 	} {
-		if _, err := os.Stat(filepath.Join(backendRoot, path)); err != nil {
-			t.Fatalf("pre-retirement path %q changed before Package 8 manifest verification: %v", path, err)
+		if _, err := os.Stat(filepath.Join(backendRoot, path)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("retired ingestion path %q must be absent after Package 8: %v", path, err)
 		}
 	}
 
-	assertFileContainsAll(t, filepath.Join(backendRoot, "internal", "config", "config.go"), []string{
+	assertFileContainsNone(t, filepath.Join(backendRoot, "internal", "config", "config.go"), []string{
 		"type IngestionConfig struct",
 		"yaml:\"ingestion\"",
 		"SchedulerTickSeconds",
 		"SchedulerTimezone",
 	})
 	for _, environment := range []string{"local", "uat", "prod"} {
-		assertFileContainsAll(t, filepath.Join(backendRoot, "config", "config."+environment+".yaml"), []string{
+		assertFileContainsNone(t, filepath.Join(backendRoot, "config", "config."+environment+".yaml"), []string{
 			"ingestion:",
 			"scheduler_tick_seconds:",
 			"scheduler_timezone:",
@@ -81,24 +83,6 @@ func packageWithSuffix(t *testing.T, packages []packageInfo, suffix string) pack
 	return packageInfo{}
 }
 
-func assertImportersEqual(t *testing.T, packages []packageInfo, importedSuffix string, expected []string) {
-	t.Helper()
-	var actual []string
-	for _, pkg := range packages {
-		for _, imported := range pkg.Imports {
-			if strings.HasSuffix(imported, importedSuffix) {
-				actual = append(actual, localPackageName(pkg.ImportPath))
-				break
-			}
-		}
-	}
-	sort.Strings(actual)
-	sort.Strings(expected)
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("pre-retirement importers of %s changed: got %v, want %v", importedSuffix, actual, expected)
-	}
-}
-
 func localPackageName(importPath string) string {
 	const marker = "/backend/"
 	if index := strings.Index(importPath, marker); index >= 0 {
@@ -107,15 +91,15 @@ func localPackageName(importPath string) string {
 	return importPath
 }
 
-func assertFileContainsAll(t *testing.T, path string, needles []string) {
+func assertFileContainsNone(t *testing.T, path string, needles []string) {
 	t.Helper()
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	for _, needle := range needles {
-		if !strings.Contains(string(contents), needle) {
-			t.Fatalf("%s must contain %q until Package 8 replaces the pre-retirement manifest with absence checks", path, needle)
+		if strings.Contains(string(contents), needle) {
+			t.Fatalf("%s must not contain retired ingestion configuration %q after Package 8", path, needle)
 		}
 	}
 }

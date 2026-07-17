@@ -27,7 +27,6 @@ type Config struct {
 	Redis         RedisConfig         `yaml:"redis"`
 	Neo4j         Neo4jConfig         `yaml:"neo4j"`
 	Migration     MigrationConfig     `yaml:"migration"`
-	Ingestion     IngestionConfig     `yaml:"ingestion"`
 	ObjectStore   ObjectStoreConfig   `yaml:"object_store"`
 	RateLimit     RateLimitConfig     `yaml:"rate_limit"`
 	Security      SecurityConfig      `yaml:"security"`
@@ -85,13 +84,6 @@ type MigrationConfig struct {
 	Directory string `yaml:"directory"`
 	AutoApply bool   `yaml:"auto_apply"`
 	LockKey   string `yaml:"lock_key"`
-}
-
-type IngestionConfig struct {
-	DefaultTimeoutSeconds int    `yaml:"default_timeout_seconds"`
-	BatchSize             int    `yaml:"batch_size"`
-	SchedulerTickSeconds  int    `yaml:"scheduler_tick_seconds"`
-	SchedulerTimezone     string `yaml:"scheduler_timezone"`
 }
 
 type ObjectStoreConfig struct {
@@ -273,18 +265,6 @@ func (c Config) Validate() error {
 	}
 	if c.Migration.LockKey == "" {
 		return fmt.Errorf("migration.lock_key is required")
-	}
-	if c.Ingestion.DefaultTimeoutSeconds <= 0 {
-		return fmt.Errorf("ingestion.default_timeout_seconds must be positive")
-	}
-	if c.Ingestion.BatchSize <= 0 {
-		return fmt.Errorf("ingestion.batch_size must be positive")
-	}
-	if c.Ingestion.SchedulerTickSeconds <= 0 {
-		return fmt.Errorf("ingestion.scheduler_tick_seconds must be positive")
-	}
-	if c.Ingestion.SchedulerTimezone == "" {
-		return fmt.Errorf("ingestion.scheduler_timezone is required")
 	}
 	if c.ObjectStore.Provider == "" {
 		return fmt.Errorf("object_store.provider is required")

@@ -88,13 +88,13 @@
 
 ## 8. Scheduler/Runtime Retirement And Test Cleanup Package
 
-- [ ] 8.1 删除前冻结并复核keep/remove/replace caller/reference manifest、Package 4两类import contract coverage与Package 5 raw receipt schema/integration evidence；仍有production caller、替代contract未通过、历史21 migration hash/table data漂移或保留能力覆盖下降即停止。
-- [ ] 8.2 删除`backend/cmd/{ingestion-scheduler,source-ingest,ingest-smoke}/**`、`backend/internal/apps/ingestion/{scheduler,runtime}/**`与`backend/internal/apps/ingestion/health/doc.go`。不得迁移到Data Service或新建替代scheduler/worker。
-- [ ] 8.3 删除runtime-only scheduler tick/timezone/config、scheduler/run domain symbols、`repositories/scheduler.go`、`ingestion_run.go`与memory scheduler/run state；保留所有历史tables/rows及21个历史migrations，禁止drop/truncate/rewrite。
-- [ ] 8.4 只在symbol/caller证明无保留消费者后移除core的`SourceRegistry`、`RateLimiter`、`LocalRawObjectStore`、`RawDocumentWriter`；保留Connector/Parser/Registry/EnvCredentialResolver、connectors/parsers/sourcecatalog/prompt contracts与tests。
-- [ ] 8.5 精确清理测试：删除对应旧production的23 direct backend tests、domain 5、core 4；Admin 4改为410/无写入retirement tests；frontend scheduler-only 10删除，3个mixed cases改写；不得删有效domain/repository/connector/API/migration/idempotency/transaction/security/raw receipt tests。
-- [ ] 8.6 更新`infra/local/README.md`、ingestion README、`.agents/backend-boundaries.md`和command/architecture/config tests，移除不可运行命令/旧owner；CI/Docker/UAT中无scheduler service时不凭名称删除。
-- [ ] 8.7 运行connectors/parsers/sourcecatalog/eventimport/raw-doc/raw-receipt/migration targeted suites、受影响service suites、reference scan、testdata loader scan；重新输出before/after manifest，testdata删除预期为0且无悬空引用。
+- [x] 8.1 删除前冻结并复核keep/remove/replace caller/reference manifest、Package 4两类import contract coverage与Package 5 raw receipt schema/integration evidence；仍有production caller、替代contract未通过、历史21 migration hash/table data漂移或保留能力覆盖下降即停止。
+- [x] 8.2 删除`backend/cmd/{ingestion-scheduler,source-ingest,ingest-smoke}/**`、`backend/internal/apps/ingestion/{scheduler,runtime}/**`与`backend/internal/apps/ingestion/health/doc.go`。不得迁移到Data Service或新建替代scheduler/worker。
+- [x] 8.3 删除runtime-only scheduler tick/timezone/config、scheduler/run domain symbols、`repositories/scheduler.go`、`ingestion_run.go`与memory scheduler/run state；保留所有历史tables/rows及21个历史migrations，禁止drop/truncate/rewrite。
+- [x] 8.4 只在symbol/caller证明无保留消费者后移除core的`SourceRegistry`、`RateLimiter`、`LocalRawObjectStore`、`RawDocumentWriter`；保留Connector/Parser/Registry/EnvCredentialResolver、connectors/parsers/sourcecatalog/prompt contracts与tests。
+- [x] 8.5 精确清理测试：删除对应旧production的23 direct backend tests、domain 5、core 4；Admin 4改为410/无写入retirement tests；frontend scheduler-only 10删除，3个mixed cases改写；不得删有效domain/repository/connector/API/migration/idempotency/transaction/security/raw receipt tests。
+- [x] 8.6 更新`infra/local/README.md`、ingestion README、`.agents/backend-boundaries.md`和command/architecture/config tests，移除不可运行命令/旧owner；CI/Docker/UAT中无scheduler service时不凭名称删除。
+- [x] 8.7 运行connectors/parsers/sourcecatalog/eventimport/raw-doc/raw-receipt/migration targeted suites、受影响service suites、reference scan、testdata loader scan；重新输出before/after manifest，testdata删除预期为0且无悬空引用。
 
 ## 9. Assets, Local, CI, And Docs Package
 
