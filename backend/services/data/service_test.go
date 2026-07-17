@@ -13,6 +13,24 @@ func TestHealthAndReadiness(t *testing.T) {
 	assertServiceHealth(t, NewHandler(testConfig()), ServiceName)
 }
 
+func TestServerComposesDataAPIWithHealth(t *testing.T) {
+	api := http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/internal/data/v1/example" {
+			http.NotFound(response, request)
+			return
+		}
+		response.WriteHeader(http.StatusNoContent)
+	})
+	server := NewServer(testConfig(), api)
+	assertServiceHealth(t, server.Handler, ServiceName)
+
+	response := httptest.NewRecorder()
+	server.Handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/internal/data/v1/example", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("data API status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
+
 func assertServiceHealth(t *testing.T, handler http.Handler, service string) {
 	t.Helper()
 	for _, test := range []struct {

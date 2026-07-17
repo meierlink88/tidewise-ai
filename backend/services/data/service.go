@@ -16,7 +16,16 @@ func NewHandler(cfg config.Config) http.Handler {
 	return servicehttp.NewHealthHandler(ServiceName, cfg.App.Env)
 }
 
-// NewServer owns Data Service process settings without connecting to storage.
-func NewServer(cfg config.Config, compatibilityHandler http.Handler) *http.Server {
-	return servicehttp.NewServer(cfg, ServiceName, compatibilityHandler)
+// NewServer owns Data Service process settings and composes its API with the
+// service-owned liveness/readiness facade.
+func NewServer(cfg config.Config, apiHandler http.Handler) *http.Server {
+	if apiHandler == nil {
+		return servicehttp.NewServer(cfg, ServiceName, nil)
+	}
+	health := NewHandler(cfg)
+	mux := http.NewServeMux()
+	mux.Handle("/healthz", health)
+	mux.Handle("/readyz", health)
+	mux.Handle("/", apiHandler)
+	return servicehttp.NewServer(cfg, ServiceName, mux)
 }
