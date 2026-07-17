@@ -2,8 +2,6 @@ package miniappapi
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,8 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 )
 
 const (
@@ -27,7 +24,8 @@ const (
 
 var (
 	ErrInvalidResearchRequest = errors.New("invalid research request")
-	ErrResearchRepository     = errors.New("research repository failure")
+	ErrResearchNotFound       = errors.New("research result not found")
+	ErrResearchDataService    = errors.New("research data service failure")
 )
 
 var researchUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
@@ -135,15 +133,11 @@ type ResearchEventDTO struct {
 }
 
 type ResearchService struct {
-	repository repositories.ResearchReadRepository
-	now        func() time.Time
+	client dataclient.DataServiceClient
 }
 
-func NewResearchService(repository repositories.ResearchReadRepository, now func() time.Time) *ResearchService {
-	if now == nil {
-		now = time.Now
-	}
-	return &ResearchService{repository: repository, now: now}
+func NewResearchService(client dataclient.DataServiceClient) *ResearchService {
+	return &ResearchService{client: client}
 }
 
 func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRequest) (ResearchThemeListResponse, error) {
@@ -151,27 +145,21 @@ func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRe
 	if err != nil {
 		return ResearchThemeListResponse{}, err
 	}
-	asOf, start, cursor, err := s.prepareCursor("themes", windowHours, request.Cursor)
-	if err != nil {
-		return ResearchThemeListResponse{}, err
+	if s == nil || s.client == nil {
+		return ResearchThemeListResponse{}, ErrResearchDataService
 	}
-	page, err := s.repository.ListResearchThemes(ctx, repositories.ResearchThemeListFilter{WindowStart: start, AsOf: asOf, Limit: limit, CursorRank: cursor.Rank, CursorPublishedAt: cursor.PublishedAtPtr(), CursorID: cursor.ID})
+	page, err := s.client.ListResearchThemes(ctx, dataclient.ResearchListQuery{WindowHours: windowHours, Limit: limit, Cursor: request.Cursor})
 	if err != nil {
-		return ResearchThemeListResponse{}, mapResearchRepositoryError(err)
+		return ResearchThemeListResponse{}, mapDataServiceError(err)
 	}
-	response := ResearchThemeListResponse{WindowStart: formatTime(page.WindowStart), WindowEnd: formatTime(page.WindowEnd), AsOf: formatTime(page.AsOf), ThemeCount: page.ThemeCount, EventCount: page.EventCount, Items: make([]ResearchThemeItem, 0, len(page.Items))}
+	items := make([]ResearchThemeItem, 0, len(page.Items))
 	for _, item := range page.Items {
-		response.Items = append(response.Items, themeItemDTO(item))
+		items = append(items, themeItemDTO(item))
 	}
-	if page.HasMore && len(page.Items) > 0 {
-		last := page.Items[len(page.Items)-1]
-		next, err := encodeResearchCursor(researchCursor{Version: 1, Kind: "themes", WindowHours: windowHours, AsOf: asOf, Rank: impactRank(last.ImpactLevel), PublishedAt: last.PublishedAt, ID: last.ID})
-		if err != nil {
-			return ResearchThemeListResponse{}, fmt.Errorf("encode research cursor: %w", err)
-		}
-		response.NextCursor = &next
-	}
-	return response, nil
+	return ResearchThemeListResponse{
+		WindowStart: formatTime(page.WindowStart), WindowEnd: formatTime(page.WindowEnd), AsOf: formatTime(page.AsOf),
+		ThemeCount: page.ThemeCount, EventCount: page.EventCount, Items: items, NextCursor: page.NextCursor,
+	}, nil
 }
 
 func (s *ResearchService) GetTheme(ctx context.Context, id string, request ResearchDetailRequest) (ResearchThemeDetailResponse, error) {
@@ -179,16 +167,18 @@ func (s *ResearchService) GetTheme(ctx context.Context, id string, request Resea
 	if err != nil {
 		return ResearchThemeDetailResponse{}, err
 	}
-	if !researchUUIDPattern.MatchString(strings.TrimSpace(id)) {
+	id = strings.TrimSpace(id)
+	if !researchUUIDPattern.MatchString(id) {
 		return ResearchThemeDetailResponse{}, fmt.Errorf("%w: theme id must be a UUID", ErrInvalidResearchRequest)
 	}
-	asOf := s.now().UTC()
-	item, err := s.repository.GetResearchTheme(ctx, id, repositories.ResearchDetailFilter{WindowStart: asOf.Add(-time.Duration(windowHours) * time.Hour), AsOf: asOf})
-	if err != nil {
-		return ResearchThemeDetailResponse{}, mapResearchRepositoryError(err)
+	if s == nil || s.client == nil {
+		return ResearchThemeDetailResponse{}, ErrResearchDataService
 	}
-	result := ResearchThemeDetailResponse{ResearchThemeItem: themeItemDTO(item.ResearchThemeSummary), Events: eventDTOs(item.Events)}
-	return result, nil
+	detail, err := s.client.GetResearchTheme(ctx, id, dataclient.ResearchDetailQuery{WindowHours: windowHours})
+	if err != nil {
+		return ResearchThemeDetailResponse{}, mapDataServiceError(err)
+	}
+	return ResearchThemeDetailResponse{ResearchThemeItem: themeItemDTO(detail.Theme), Events: eventDTOs(detail.Events)}, nil
 }
 
 func (s *ResearchService) ListAnchors(ctx context.Context, request ResearchListRequest) (ResearchAnchorListResponse, error) {
@@ -196,27 +186,21 @@ func (s *ResearchService) ListAnchors(ctx context.Context, request ResearchListR
 	if err != nil {
 		return ResearchAnchorListResponse{}, err
 	}
-	asOf, start, cursor, err := s.prepareCursor("anchors", windowHours, request.Cursor)
-	if err != nil {
-		return ResearchAnchorListResponse{}, err
+	if s == nil || s.client == nil {
+		return ResearchAnchorListResponse{}, ErrResearchDataService
 	}
-	page, err := s.repository.ListResearchAnchors(ctx, repositories.ResearchAnchorListFilter{WindowStart: start, AsOf: asOf, Limit: limit, CursorRank: cursor.Rank, CursorPublishedAt: cursor.PublishedAtPtr(), CursorID: cursor.ID})
+	page, err := s.client.ListResearchAnchors(ctx, dataclient.ResearchListQuery{WindowHours: windowHours, Limit: limit, Cursor: request.Cursor})
 	if err != nil {
-		return ResearchAnchorListResponse{}, mapResearchRepositoryError(err)
+		return ResearchAnchorListResponse{}, mapDataServiceError(err)
 	}
-	response := ResearchAnchorListResponse{WindowStart: formatTime(page.WindowStart), WindowEnd: formatTime(page.WindowEnd), AsOf: formatTime(page.AsOf), AnchorCount: page.AnchorCount, EventCount: page.EventCount, Items: make([]ResearchAnchorItem, 0, len(page.Items))}
+	items := make([]ResearchAnchorItem, 0, len(page.Items))
 	for _, item := range page.Items {
-		response.Items = append(response.Items, anchorItemDTO(item))
+		items = append(items, anchorItemDTO(item))
 	}
-	if page.HasMore && len(page.Items) > 0 {
-		last := page.Items[len(page.Items)-1]
-		next, err := encodeResearchCursor(researchCursor{Version: 1, Kind: "anchors", WindowHours: windowHours, AsOf: asOf, Rank: importanceRank(last.Importance), PublishedAt: last.PublishedAt, ID: last.ID})
-		if err != nil {
-			return ResearchAnchorListResponse{}, fmt.Errorf("encode research cursor: %w", err)
-		}
-		response.NextCursor = &next
-	}
-	return response, nil
+	return ResearchAnchorListResponse{
+		WindowStart: formatTime(page.WindowStart), WindowEnd: formatTime(page.WindowEnd), AsOf: formatTime(page.AsOf),
+		AnchorCount: page.AnchorCount, EventCount: page.EventCount, Items: items, NextCursor: page.NextCursor,
+	}, nil
 }
 
 func (s *ResearchService) GetAnchor(ctx context.Context, id string, request ResearchDetailRequest) (ResearchAnchorDetailResponse, error) {
@@ -224,15 +208,18 @@ func (s *ResearchService) GetAnchor(ctx context.Context, id string, request Rese
 	if err != nil {
 		return ResearchAnchorDetailResponse{}, err
 	}
-	if !researchUUIDPattern.MatchString(strings.TrimSpace(id)) {
+	id = strings.TrimSpace(id)
+	if !researchUUIDPattern.MatchString(id) {
 		return ResearchAnchorDetailResponse{}, fmt.Errorf("%w: anchor id must be a UUID", ErrInvalidResearchRequest)
 	}
-	asOf := s.now().UTC()
-	item, err := s.repository.GetResearchAnchor(ctx, id, repositories.ResearchDetailFilter{WindowStart: asOf.Add(-time.Duration(windowHours) * time.Hour), AsOf: asOf})
-	if err != nil {
-		return ResearchAnchorDetailResponse{}, mapResearchRepositoryError(err)
+	if s == nil || s.client == nil {
+		return ResearchAnchorDetailResponse{}, ErrResearchDataService
 	}
-	return ResearchAnchorDetailResponse{ResearchAnchorItem: anchorItemDTO(item.ResearchAnchorSummary), Events: eventDTOs(item.Events)}, nil
+	detail, err := s.client.GetResearchAnchor(ctx, id, dataclient.ResearchDetailQuery{WindowHours: windowHours})
+	if err != nil {
+		return ResearchAnchorDetailResponse{}, mapDataServiceError(err)
+	}
+	return ResearchAnchorDetailResponse{ResearchAnchorItem: anchorItemDTO(detail.Anchor), Events: eventDTOs(detail.Events)}, nil
 }
 
 func normalizeResearchListRequest(request ResearchListRequest) (int, int, error) {
@@ -264,84 +251,50 @@ func normalizeResearchDetailRequest(request ResearchDetailRequest) (int, error) 
 	return windowHours, nil
 }
 
-type researchCursor struct {
-	Version     int       `json:"v"`
-	Kind        string    `json:"kind"`
-	WindowHours int       `json:"window_hours"`
-	AsOf        time.Time `json:"as_of"`
-	Rank        int       `json:"rank"`
-	PublishedAt time.Time `json:"published_at"`
-	ID          string    `json:"id"`
+func themeItemDTO(item dataclient.ResearchTheme) ResearchThemeItem {
+	return ResearchThemeItem{
+		ID: item.ID, Name: item.Name, OneLineConclusion: item.OneLineConclusion, ImpactLevel: string(item.ImpactLevel),
+		TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection, TransmissionStage: string(item.TransmissionStage),
+		NextCheckpoint: item.NextCheckpoint, IndexImpactSummary: item.IndexImpactSummary, PublishedAt: formatTime(item.PublishedAt),
+		AffectedChainNodes: themeChainNodeDTOs(item.AffectedChainNodes), RelatedIndices: indexDTOs(item.RelatedIndices),
+		SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount, HasMoreDetail: item.HasMoreDetail,
+	}
 }
 
-func (c researchCursor) PublishedAtPtr() *time.Time {
-	value := c.PublishedAt
-	if c.ID == "" {
-		return nil
+func anchorItemDTO(item dataclient.ResearchAnchor) ResearchAnchorItem {
+	return ResearchAnchorItem{
+		ID: item.ID, AnchorType: string(item.AnchorType), Name: item.Name, OneLineConclusion: item.OneLineConclusion,
+		Importance: string(item.Importance), TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection,
+		PublishedAt: formatTime(item.PublishedAt), RelatedChainNodes: anchorChainNodeDTOs(item.RelatedChainNodes),
+		RelatedIndices: indexDTOs(item.RelatedIndices), RelatedEventCount: item.RelatedEventCount,
 	}
-	return &value
 }
 
-func (s *ResearchService) prepareCursor(kind string, windowHours int, encoded string) (time.Time, time.Time, researchCursor, error) {
-	if strings.TrimSpace(encoded) == "" {
-		asOf := s.now().UTC()
-		return asOf, asOf.Add(-time.Duration(windowHours) * time.Hour), researchCursor{}, nil
-	}
-	cursor, err := decodeResearchCursor(encoded)
-	if err != nil || cursor.Kind != kind || cursor.WindowHours != windowHours || cursor.Version != 1 || cursor.ID == "" {
-		return time.Time{}, time.Time{}, researchCursor{}, fmt.Errorf("%w: invalid cursor", ErrInvalidResearchRequest)
-	}
-	return cursor.AsOf.UTC(), cursor.AsOf.UTC().Add(-time.Duration(windowHours) * time.Hour), cursor, nil
-}
-
-func encodeResearchCursor(cursor researchCursor) (string, error) {
-	payload, err := json.Marshal(cursor)
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(payload), nil
-}
-func decodeResearchCursor(value string) (researchCursor, error) {
-	payload, err := base64.RawURLEncoding.DecodeString(value)
-	if err != nil {
-		return researchCursor{}, err
-	}
-	var cursor researchCursor
-	if err := json.Unmarshal(payload, &cursor); err != nil {
-		return researchCursor{}, err
-	}
-	return cursor, nil
-}
-
-func themeItemDTO(item repositories.ResearchThemeSummary) ResearchThemeItem {
-	return ResearchThemeItem{ID: item.ID, Name: item.Name, OneLineConclusion: item.OneLineConclusion, ImpactLevel: string(item.ImpactLevel), TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection, TransmissionStage: string(item.TransmissionStage), NextCheckpoint: item.NextCheckpoint, IndexImpactSummary: item.IndexImpactSummary, PublishedAt: formatTime(item.PublishedAt), AffectedChainNodes: chainNodeDTOs(item.ChainNodes), RelatedIndices: indexDTOs(item.Indices), SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount, HasMoreDetail: true}
-}
-func anchorItemDTO(item repositories.ResearchAnchorSummary) ResearchAnchorItem {
-	return ResearchAnchorItem{ID: item.ID, AnchorType: string(item.AnchorType), Name: item.Name, OneLineConclusion: item.OneLineConclusion, Importance: string(item.Importance), TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection, PublishedAt: formatTime(item.PublishedAt), RelatedChainNodes: anchorChainNodeDTOs(item.ChainNodes), RelatedIndices: indexDTOs(item.Indices), RelatedEventCount: item.RelatedEventCount}
-}
-func chainNodeDTOs(values []repositories.ResearchChainNode) []ResearchChainNodeDTO {
+func themeChainNodeDTOs(values []dataclient.ResearchThemeChainNode) []ResearchChainNodeDTO {
 	result := make([]ResearchChainNodeDTO, 0, len(values))
 	for _, value := range values {
-		result = append(result, ResearchChainNodeDTO{ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, Summary: value.Summary})
-	}
-	return result
-}
-func indexDTOs(values []repositories.ResearchIndex) []ResearchIndexDTO {
-	result := make([]ResearchIndexDTO, 0, len(values))
-	for _, value := range values {
-		result = append(result, ResearchIndexDTO{ID: value.ID, Name: value.Name, ImpactDirection: value.ImpactDirection, Summary: value.Summary})
+		result = append(result, ResearchChainNodeDTO{ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, Summary: value.ImpactSummary})
 	}
 	return result
 }
 
-func anchorChainNodeDTOs(values []repositories.ResearchChainNode) []ResearchAnchorChainNodeDTO {
+func anchorChainNodeDTOs(values []dataclient.ResearchAnchorChainNode) []ResearchAnchorChainNodeDTO {
 	result := make([]ResearchAnchorChainNodeDTO, 0, len(values))
 	for _, value := range values {
-		result = append(result, ResearchAnchorChainNodeDTO{ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, RelationSummary: value.Summary})
+		result = append(result, ResearchAnchorChainNodeDTO{ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, RelationSummary: value.RelationSummary})
 	}
 	return result
 }
-func eventDTOs(values []repositories.ResearchEvent) []ResearchEventDTO {
+
+func indexDTOs(values []dataclient.ResearchIndex) []ResearchIndexDTO {
+	result := make([]ResearchIndexDTO, 0, len(values))
+	for _, value := range values {
+		result = append(result, ResearchIndexDTO{ID: value.ID, Name: value.Name, ImpactDirection: string(value.ImpactDirection), Summary: value.ImpactSummary})
+	}
+	return result
+}
+
+func eventDTOs(values []dataclient.ResearchEvent) []ResearchEventDTO {
 	result := make([]ResearchEventDTO, 0, len(values))
 	for _, value := range values {
 		var eventTime *string
@@ -349,36 +302,27 @@ func eventDTOs(values []repositories.ResearchEvent) []ResearchEventDTO {
 			formatted := formatTime(*value.EventTime)
 			eventTime = &formatted
 		}
-		result = append(result, ResearchEventDTO{EventID: value.EventID, Title: value.Title, Summary: value.Summary, EventTime: eventTime, EvidenceRole: value.EvidenceRole, SupportedClaim: value.SupportedClaim})
+		result = append(result, ResearchEventDTO{
+			EventID: value.EventID, Title: value.Title, Summary: value.Summary, EventTime: eventTime,
+			EvidenceRole: string(value.EvidenceRole), SupportedClaim: value.SupportedClaim,
+		})
 	}
 	return result
 }
+
 func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339) }
-func impactRank(value domain.ImpactLevel) int {
-	switch value {
-	case domain.ImpactLevelHigh:
-		return 3
-	case domain.ImpactLevelFocus:
-		return 2
-	default:
-		return 1
+
+func mapDataServiceError(err error) error {
+	var clientErr *dataclient.Error
+	if errors.As(err, &clientErr) {
+		switch clientErr.StatusCode {
+		case http.StatusBadRequest:
+			return ErrInvalidResearchRequest
+		case http.StatusNotFound:
+			return ErrResearchNotFound
+		}
 	}
-}
-func importanceRank(value domain.ResearchImportance) int {
-	switch value {
-	case domain.ResearchImportancePrimary:
-		return 3
-	case domain.ResearchImportanceSecondary:
-		return 2
-	default:
-		return 1
-	}
-}
-func mapResearchRepositoryError(err error) error {
-	if errors.Is(err, repositories.ErrResearchNotFound) {
-		return repositories.ErrResearchNotFound
-	}
-	return fmt.Errorf("%w: %v", ErrResearchRepository, err)
+	return ErrResearchDataService
 }
 
 func RegisterResearchRoutes(group *gin.RouterGroup, service *ResearchService) {
@@ -390,28 +334,37 @@ func RegisterResearchRoutes(group *gin.RouterGroup, service *ResearchService) {
 }
 
 func handleListThemes(ctx *gin.Context, service *ResearchService) {
-	response, err := service.ListThemes(ctx.Request.Context(), parseResearchListRequest(ctx))
+	response, err := service.ListThemes(dataRequestContext(ctx), parseResearchListRequest(ctx))
 	writeResearchResponse(ctx, response, err)
 }
+
 func handleGetTheme(ctx *gin.Context, service *ResearchService) {
-	response, err := service.GetTheme(ctx.Request.Context(), ctx.Param("theme_id"), parseResearchDetailRequest(ctx))
+	response, err := service.GetTheme(dataRequestContext(ctx), ctx.Param("theme_id"), parseResearchDetailRequest(ctx))
 	writeResearchResponse(ctx, response, err)
 }
+
 func handleListAnchors(ctx *gin.Context, service *ResearchService) {
-	response, err := service.ListAnchors(ctx.Request.Context(), parseResearchListRequest(ctx))
+	response, err := service.ListAnchors(dataRequestContext(ctx), parseResearchListRequest(ctx))
 	writeResearchResponse(ctx, response, err)
 }
+
 func handleGetAnchor(ctx *gin.Context, service *ResearchService) {
-	response, err := service.GetAnchor(ctx.Request.Context(), ctx.Param("anchor_id"), parseResearchDetailRequest(ctx))
+	response, err := service.GetAnchor(dataRequestContext(ctx), ctx.Param("anchor_id"), parseResearchDetailRequest(ctx))
 	writeResearchResponse(ctx, response, err)
+}
+
+func dataRequestContext(ctx *gin.Context) context.Context {
+	return dataclient.WithRequestID(ctx.Request.Context(), ctx.GetHeader(dataclient.RequestIDHeader))
 }
 
 func parseResearchListRequest(ctx *gin.Context) ResearchListRequest {
 	return ResearchListRequest{WindowHours: parseIntQuery(ctx, "window_hours"), Limit: parseIntQuery(ctx, "limit"), Cursor: ctx.Query("cursor")}
 }
+
 func parseResearchDetailRequest(ctx *gin.Context) ResearchDetailRequest {
 	return ResearchDetailRequest{WindowHours: parseIntQuery(ctx, "window_hours")}
 }
+
 func parseIntQuery(ctx *gin.Context, key string) int {
 	value := strings.TrimSpace(ctx.Query(key))
 	if value == "" {
@@ -423,16 +376,20 @@ func parseIntQuery(ctx *gin.Context, key string) int {
 	}
 	return parsed
 }
+
 func writeResearchResponse(ctx *gin.Context, response any, err error) {
 	if err == nil {
 		ctx.JSON(http.StatusOK, response)
 		return
 	}
 	status := http.StatusInternalServerError
+	message := ErrResearchDataService.Error()
 	if errors.Is(err, ErrInvalidResearchRequest) {
 		status = http.StatusBadRequest
-	} else if errors.Is(err, repositories.ErrResearchNotFound) {
+		message = err.Error()
+	} else if errors.Is(err, ErrResearchNotFound) {
 		status = http.StatusNotFound
+		message = ErrResearchNotFound.Error()
 	}
-	ctx.AbortWithStatusJSON(status, gin.H{"error": err.Error()})
+	ctx.AbortWithStatusJSON(status, gin.H{"error": message})
 }

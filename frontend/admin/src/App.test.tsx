@@ -3,17 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { loadEvents, loadRawDocuments, loadSourceCatalogs } from './api/dataIngestion';
-import { loadSchedulerConfig, loadSchedulerRuns } from './api/scheduler';
-
-vi.mock('./api/scheduler', async () => {
-  const actual = await vi.importActual<typeof import('./api/scheduler')>('./api/scheduler');
-  return {
-    ...actual,
-    loadSchedulerConfig: vi.fn(),
-    loadSchedulerRuns: vi.fn(),
-    saveSchedulerConfig: vi.fn()
-  };
-});
 
 vi.mock('./api/dataIngestion', async () => {
   const actual = await vi.importActual<typeof import('./api/dataIngestion')>('./api/dataIngestion');
@@ -41,18 +30,6 @@ describe('App admin login', () => {
       }
     };
     vi.stubGlobal('localStorage', localStorageMock);
-    vi.mocked(loadSchedulerConfig).mockResolvedValue({
-      enabled: false,
-      mode: 'interval',
-      interval_minutes: 60,
-      fixed_times: [],
-      concurrency: 1,
-      batch_size: 10,
-      timeout_seconds: 180,
-      source_filter: {},
-      timezone: 'Asia/Shanghai'
-    });
-    vi.mocked(loadSchedulerRuns).mockResolvedValue([]);
     vi.mocked(loadRawDocuments).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.mocked(loadSourceCatalogs).mockResolvedValue({ items: [] });
@@ -78,6 +55,8 @@ describe('App admin login', () => {
     expect(within(screen.getByRole('main')).queryByRole('heading', { name: '数据采集中心' })).not.toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByText('Data Ingestion')).not.toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByText('查看采集原始数据、事件结果、搜索通道和调度器运行记录。')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.queryByRole('tab', { name: '调度器' })).not.toBeInTheDocument();
     expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');
 

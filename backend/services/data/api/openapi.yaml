@@ -1,0 +1,1678 @@
+openapi: 3.0.3
+info:
+  title: Tidewise Data Service API
+  version: 1.0.0
+  description: >-
+    Data Service 内部 HTTP REST + JSON 合同。消费方拥有小型手写 typed client，
+    并以本文件的 operationId、schema drift anchor 和静态合同测试防止漂移。
+x-contract-id: tidewise-data-v1
+x-handwritten-client-policy: consumer-owned-small-typed-clients
+servers:
+  - url: /
+    description: 由运行环境注入 Data Service origin；合同只冻结路径。
+security:
+  - ServiceBearer: []
+tags:
+  - name: Research
+  - name: Admin aggregates
+  - name: Agent source metadata
+  - name: Raw document import
+  - name: Reviewed event import
+
+paths:
+  /internal/data/v1/research/themes:
+    get:
+      tags: [Research]
+      operationId: listResearchThemes
+      x-client-drift-anchor: data.v1.listResearchThemes
+      x-required-service-scope: data.research.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Miniapp Research theme 页面聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/WindowHours'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Theme 页面聚合
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchThemeListEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/research/themes/{theme_id}:
+    parameters:
+      - $ref: '#/components/parameters/ThemeID'
+    get:
+      tags: [Research]
+      operationId: getResearchTheme
+      x-client-drift-anchor: data.v1.getResearchTheme
+      x-required-service-scope: data.research.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取一个 Research theme 及其证据聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/WindowHours'
+      responses:
+        '200':
+          description: Theme 详情聚合
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchThemeDetailEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/research/anchors:
+    get:
+      tags: [Research]
+      operationId: listResearchAnchors
+      x-client-drift-anchor: data.v1.listResearchAnchors
+      x-required-service-scope: data.research.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Miniapp Research anchor 页面聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/WindowHours'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Anchor 页面聚合
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchAnchorListEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/research/anchors/{anchor_id}:
+    parameters:
+      - $ref: '#/components/parameters/AnchorID'
+    get:
+      tags: [Research]
+      operationId: getResearchAnchor
+      x-client-drift-anchor: data.v1.getResearchAnchor
+      x-required-service-scope: data.research.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取一个 Research anchor 及其证据聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/WindowHours'
+      responses:
+        '200':
+          description: Anchor 详情聚合
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchAnchorDetailEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/admin/raw-documents:
+    get:
+      tags: [Admin aggregates]
+      operationId: listAdminRawDocuments
+      x-client-drift-anchor: data.v1.listAdminRawDocuments
+      x-required-service-scope: data.admin.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Admin 原始文档分页聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: title
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: source_id
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: ingest_status
+          in: query
+          schema:
+            $ref: '#/components/schemas/IngestStatus'
+      responses:
+        '200':
+          description: 原始文档分页
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRawDocumentPageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/admin/events:
+    get:
+      tags: [Admin aggregates]
+      operationId: listAdminEvents
+      x-client-drift-anchor: data.v1.listAdminEvents
+      x-required-service-scope: data.admin.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Admin 全球事件分页聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: title
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: event_status
+          in: query
+          schema:
+            $ref: '#/components/schemas/EventStatus'
+        - name: fact_status
+          in: query
+          schema:
+            $ref: '#/components/schemas/FactStatus'
+        - name: event_time_from
+          in: query
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: event_time_to
+          in: query
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: first_seen_from
+          in: query
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: first_seen_to
+          in: query
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+      responses:
+        '200':
+          description: 全球事件分页
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEventPageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/admin/source-catalogs:
+    get:
+      tags: [Admin aggregates]
+      operationId: listAdminSourceCatalogs
+      x-client-drift-anchor: data.v1.listAdminSourceCatalogs
+      x-required-service-scope: data.admin.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Admin 搜索通道聚合
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/SourceStatus'
+      responses:
+        '200':
+          description: 搜索通道集合
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSourceCatalogCollectionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/agent-run/source-metadata:
+    get:
+      tags: [Agent source metadata]
+      operationId: listAgentSourceMetadata
+      x-client-drift-anchor: data.v1.listAgentSourceMetadata
+      x-required-service-scope: data.source-metadata.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 agent-run 可见的脱敏来源元数据
+      description: >-
+        只返回批准的来源标识、adapter key、状态、限流提示、allowlisted 非敏感配置和
+        credential_ref 名称；不返回 provider secret、token、cookie 或凭证值。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/SourceStatus'
+      responses:
+        '200':
+          description: caller scope 内可见的脱敏来源元数据
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSourceMetadataCollectionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/raw-document-imports:
+    post:
+      tags: [Raw document import]
+      operationId: importRawDocuments
+      x-client-drift-anchor: data.v1.importRawDocuments
+      x-required-service-scope: data.raw-documents.import
+      x-retry-policy: idempotent-with-key
+      x-timeout-budget-ms: 15000
+      x-canonicalization: raw-document-import-v1
+      x-atomicity: whole-batch-single-postgresql-transaction
+      x-receipt-schema: raw_document_import_receipts
+      summary: 原子导入一个有界原始文档 batch
+      description: >-
+        caller_identity 只从认证 service principal 派生。服务端在任何业务 DML 前完成
+        whole-batch validation，并在一个 PostgreSQL transaction 内提交全部 raw documents
+        与独立 immutable receipt；不提供逐 item 部分成功。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              maxLength: 1048576
+              x-max-body-bytes: 1048576
+              allOf:
+                - $ref: '#/components/schemas/RawDocumentBatchImportRequest'
+      responses:
+        '200':
+          description: 相同 caller/key/hash 的首次结果精确重放
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawDocumentImportEnvelope'
+        '201':
+          description: 全 batch 与 immutable receipt 已原子提交
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawDocumentImportEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/raw-document-imports/{idempotency_key}:
+    parameters:
+      - name: idempotency_key
+        in: path
+        required: true
+        description: 认证 caller scope 内的 raw import 幂等键。
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+    get:
+      tags: [Raw document import]
+      operationId: getRawDocumentImportStatus
+      x-client-drift-anchor: data.v1.getRawDocumentImportStatus
+      x-required-service-scope: data.raw-documents.import
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 caller-scoped raw import 的 unknown outcome
+      description: >-
+        可见 immutable receipt 表示 completed 并返回首次 stored result；缺行表示 unknown/
+        尚未 commit。查询不得创建 placeholder、job、run 或内存状态。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: completed 或 unknown 状态
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawDocumentImportStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/data/v1/reviewed-event-imports:
+    post:
+      tags: [Reviewed event import]
+      operationId: importReviewedEvent
+      x-client-drift-anchor: data.v1.importReviewedEvent
+      x-required-service-scope: data.reviewed-events.import
+      x-retry-policy: idempotent-with-key
+      x-timeout-budget-ms: 15000
+      x-canonicalization: reviewed-outbox-v1
+      x-receipt-schema: event_import_receipts
+      x-transaction-membership: raw-document,event,event-source,event-tag,event-import-receipt
+      summary: 导入一个已审阅 event package
+      description: >-
+        保留既有 reviewed-outbox validation、canonical payload hash、review 状态、
+        event_import_receipts 幂等和单 transaction 语义；不读写 raw_document_import_receipts。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewedEventImportRequest'
+      responses:
+        '200':
+          description: 相同 key/hash 的既有 event receipt/result
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewedEventImportEnvelope'
+        '201':
+          description: Event package 已原子提交
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewedEventImportEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ServiceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque service identity token
+      description: >-
+        环境 secret 注入的 service identity。服务端从认证 principal 派生 caller identity
+        与 scope；request body 不得声明或覆盖 caller identity。
+
+  parameters:
+    RequestID:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: 可选 caller request id；缺失时服务端生成。不得作为业务幂等 identity。
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    WindowHours:
+      name: window_hours
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 168
+        default: 24
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 2048
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    SourceStatus:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/SourceStatus'
+    ThemeID:
+      name: theme_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    AnchorID:
+      name: anchor_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+
+  headers:
+    RequestID:
+      description: 本次 transport attempt 的 request id；重放时可以与首次请求不同。
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+  responses:
+    BadRequest:
+      description: 请求 DTO、query 或边界不合法
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: service bearer identity 缺失或无效
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: 已认证 principal 不具有 operation 所需 scope
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: caller scope 内不存在目标资源
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: 幂等 key 与 payload hash 冲突或 raw identity 冲突；零 mutation
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    PayloadTooLarge:
+      description: JSON request body 超过 1048576 bytes
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    UnprocessableEntity:
+      description: 已解析 DTO 未通过 whole-batch 业务 validation；零 mutation
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    InternalError:
+      description: Data Service 内部错误
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      description: RFC 4122 UUID string。
+    UTCTimestamp:
+      type: string
+      format: date-time
+      description: UTC RFC3339 timestamp；response 必须使用 UTC offset Z。
+    PayloadHash:
+      type: string
+      minLength: 64
+      maxLength: 64
+      pattern: '^[0-9a-f]{64}$'
+      description: 服务端生成的 lowercase SHA-256 hex。
+    SourceStatus:
+      type: string
+      enum: [active, inactive, disabled]
+    IngestStatus:
+      type: string
+      enum: [collected, duplicate, failed, pending_extract]
+    EventStatus:
+      type: string
+      enum: [candidate, confirmed, rejected]
+    FactStatus:
+      type: string
+      enum: [unverified, verified, disputed]
+    RawDocumentDisposition:
+      type: string
+      enum: [created, reused]
+    EvidenceRelation:
+      type: string
+      enum: [supports, contradicts, context]
+    TagKind:
+      type: string
+      enum: [news_category, index_category]
+    TagReviewStatus:
+      type: string
+      enum: [approved, pending, rejected]
+    TagAssignSource:
+      type: string
+      enum: [ai, rule]
+    ReviewDecision:
+      type: string
+      enum: [auto_approved, pending_evidence, manual_review, rejected]
+
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 稳定 machine-readable error code。
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        details:
+          type: object
+          additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ErrorEnvelope
+      required: [error, request_id]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    ResearchThemeChainNode:
+      type: object
+      additionalProperties: false
+      required: [id, name, relation_role, impact_summary]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        relation_role:
+          type: string
+        impact_summary:
+          type: string
+    ResearchAnchorChainNode:
+      type: object
+      additionalProperties: false
+      required: [id, name, relation_role, relation_summary]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        relation_role:
+          type: string
+        relation_summary:
+          type: string
+    ResearchIndex:
+      type: object
+      additionalProperties: false
+      required: [id, name, impact_direction, impact_summary]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        impact_direction:
+          type: string
+          enum: [positive, negative, mixed, neutral]
+        impact_summary:
+          type: string
+    ResearchEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, title, summary, evidence_role, supported_claim]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        event_time:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        evidence_role:
+          type: string
+          enum: [driver, supporting, contradicting, context]
+        supported_claim:
+          type: string
+    ResearchThemeSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - one_line_conclusion
+        - impact_level
+        - transmission_path
+        - trading_direction
+        - transmission_stage
+        - next_checkpoint
+        - published_at
+        - affected_chain_nodes
+        - related_indices
+        - supporting_event_count
+        - contradicting_event_count
+        - has_more_detail
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        one_line_conclusion:
+          type: string
+          description: 市场理解与决策辅助，不构成直接投资建议。
+        impact_level:
+          type: string
+          enum: [high, focus, watch]
+        transmission_path:
+          type: string
+        trading_direction:
+          type: string
+          minLength: 1
+        transmission_stage:
+          type: string
+          enum: [upstream, midstream, downstream, infrastructure, service]
+        next_checkpoint:
+          type: string
+        index_impact_summary:
+          type: string
+        published_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        affected_chain_nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchThemeChainNode'
+        related_indices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchIndex'
+        supporting_event_count:
+          type: integer
+          minimum: 0
+        contradicting_event_count:
+          type: integer
+          minimum: 0
+        has_more_detail:
+          type: boolean
+    ResearchThemeCollection:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchThemeCollection
+      required: [window_start, window_end, as_of, theme_count, event_count, items, next_cursor]
+      properties:
+        window_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        window_end:
+          $ref: '#/components/schemas/UTCTimestamp'
+        as_of:
+          $ref: '#/components/schemas/UTCTimestamp'
+        theme_count:
+          type: integer
+          minimum: 0
+        event_count:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchThemeSummary'
+        next_cursor:
+          type: string
+          nullable: true
+    ResearchThemeDetail:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchThemeDetail
+      required: [theme, events]
+      properties:
+        theme:
+          $ref: '#/components/schemas/ResearchThemeSummary'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchEvent'
+    ResearchThemeListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchThemeCollection'
+    ResearchThemeDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchThemeDetail'
+
+    ResearchAnchorSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - anchor_type
+        - name
+        - one_line_conclusion
+        - importance
+        - transmission_path
+        - trading_direction
+        - published_at
+        - related_chain_nodes
+        - related_indices
+        - related_event_count
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        anchor_type:
+          type: string
+          enum: [policy, supply, demand, technology, cost, geopolitics, market_structure]
+        name:
+          type: string
+        one_line_conclusion:
+          type: string
+          description: 市场理解与决策辅助，不构成直接投资建议。
+        importance:
+          type: string
+          enum: [primary, secondary, contextual]
+        transmission_path:
+          type: string
+        trading_direction:
+          type: string
+          minLength: 1
+        published_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        related_chain_nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnchorChainNode'
+        related_indices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchIndex'
+        related_event_count:
+          type: integer
+          minimum: 0
+    ResearchAnchorCollection:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchAnchorCollection
+      required: [window_start, window_end, as_of, anchor_count, event_count, items, next_cursor]
+      properties:
+        window_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        window_end:
+          $ref: '#/components/schemas/UTCTimestamp'
+        as_of:
+          $ref: '#/components/schemas/UTCTimestamp'
+        anchor_count:
+          type: integer
+          minimum: 0
+        event_count:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnchorSummary'
+        next_cursor:
+          type: string
+          nullable: true
+    ResearchAnchorDetail:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchAnchorDetail
+      required: [anchor, events]
+      properties:
+        anchor:
+          $ref: '#/components/schemas/ResearchAnchorSummary'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchEvent'
+    ResearchAnchorListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchAnchorCollection'
+    ResearchAnchorDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchAnchorDetail'
+
+    AdminRawDocument:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source_id
+        - ingest_channel
+        - source_type
+        - source_name
+        - source_url
+        - title
+        - content_text
+        - content_level
+        - raw_object_uri
+        - raw_mime_type
+        - language
+        - collected_at
+        - ingest_status
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        source_id:
+          $ref: '#/components/schemas/UUID'
+        ingest_channel:
+          type: string
+        source_type:
+          type: string
+        source_name:
+          type: string
+        source_url:
+          type: string
+          format: uri
+        source_external_id:
+          type: string
+        title:
+          type: string
+        content_text:
+          type: string
+        content_level:
+          type: string
+        raw_object_uri:
+          type: string
+        raw_mime_type:
+          type: string
+        language:
+          type: string
+        published_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        collected_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        ingest_status:
+          $ref: '#/components/schemas/IngestStatus'
+    AdminRawDocumentPage:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.AdminRawDocumentPage
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminRawDocument'
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+    AdminRawDocumentPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/AdminRawDocumentPage'
+
+    AdminEvent:
+      type: object
+      additionalProperties: false
+      required: [id, title, summary, first_seen_at, event_status, fact_status, dedupe_key]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        event_time:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        first_seen_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        knowable_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        event_status:
+          $ref: '#/components/schemas/EventStatus'
+        fact_status:
+          $ref: '#/components/schemas/FactStatus'
+        dedupe_key:
+          type: string
+        primary_source_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+    AdminEventPage:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.AdminEventPage
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminEvent'
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+    AdminEventPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/AdminEventPage'
+
+    AdminSourceCatalog:
+      type: object
+      additionalProperties: false
+      required: [id, ingest_channel, provider_key, connector_key, parser_key, source_type, source_name, source_url, source_level, topic_hint, usage_policy, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        ingest_channel:
+          type: string
+        provider_key:
+          type: string
+        connector_key:
+          type: string
+        parser_key:
+          type: string
+        source_type:
+          type: string
+        source_name:
+          type: string
+        source_url:
+          type: string
+          format: uri
+        source_level:
+          type: string
+        topic_hint:
+          type: string
+        usage_policy:
+          type: string
+        status:
+          $ref: '#/components/schemas/SourceStatus'
+    AdminSourceCatalogCollection:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.AdminSourceCatalogCollection
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSourceCatalog'
+    AdminSourceCatalogCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/AdminSourceCatalogCollection'
+
+    ApprovedSourceConfig:
+      type: object
+      additionalProperties: false
+      description: agent-run scope 允许读取的非敏感、字段级 allowlisted 配置。
+      properties:
+        collection_mode:
+          type: string
+        route_template:
+          type: string
+        prompt_ref:
+          type: string
+        prompt_version:
+          type: string
+        language:
+          type: string
+        result_limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+    RateLimitHint:
+      type: object
+      additionalProperties: false
+      required: [requests, window_seconds]
+      properties:
+        requests:
+          type: integer
+          minimum: 1
+        window_seconds:
+          type: integer
+          minimum: 1
+    AgentSourceMetadata:
+      type: object
+      additionalProperties: false
+      required: [id, ingest_channel, provider_key, connector_key, parser_key, source_type, source_name, source_url, auth_type, credential_ref, approved_config, rate_limit_hint, usage_policy, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        ingest_channel:
+          type: string
+        provider_key:
+          type: string
+        connector_key:
+          type: string
+        parser_key:
+          type: string
+        source_type:
+          type: string
+        source_name:
+          type: string
+        source_url:
+          type: string
+          format: uri
+        auth_type:
+          type: string
+          enum: [none, api_key, bearer, cookie, oauth2, database]
+          description: 描述 provider 鉴权类别，不包含任何凭证值。
+        credential_ref:
+          type: string
+          nullable: true
+          description: 凭证引用名称；永不返回凭证值。
+        approved_config:
+          $ref: '#/components/schemas/ApprovedSourceConfig'
+        rate_limit_hint:
+          $ref: '#/components/schemas/RateLimitHint'
+        usage_policy:
+          type: string
+        status:
+          $ref: '#/components/schemas/SourceStatus'
+    AgentSourceMetadataCollection:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.AgentSourceMetadataCollection
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentSourceMetadata'
+        next_cursor:
+          type: string
+          nullable: true
+    AgentSourceMetadataCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/AgentSourceMetadataCollection'
+
+    RawDocumentImportCandidate:
+      type: object
+      additionalProperties: false
+      required:
+        - source_id
+        - ingest_channel
+        - source_type
+        - source_name
+        - source_url
+        - title
+        - content_text
+        - raw_object_uri
+        - raw_mime_type
+        - language
+        - collected_at
+        - content_hash
+      properties:
+        source_id:
+          $ref: '#/components/schemas/UUID'
+        ingest_channel:
+          type: string
+          minLength: 1
+          maxLength: 100
+        source_type:
+          type: string
+          minLength: 1
+          maxLength: 100
+        source_name:
+          type: string
+          minLength: 1
+          maxLength: 300
+        source_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        source_external_id:
+          type: string
+          maxLength: 500
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        content_text:
+          type: string
+          minLength: 1
+          maxLength: 524288
+        content_level:
+          type: string
+          maxLength: 50
+        raw_object_uri:
+          type: string
+          maxLength: 2048
+        raw_mime_type:
+          type: string
+          maxLength: 255
+        language:
+          type: string
+          minLength: 2
+          maxLength: 35
+        published_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        collected_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        content_hash:
+          $ref: '#/components/schemas/PayloadHash'
+    RawDocumentBatchImportRequest:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.RawDocumentBatchImportRequest
+      required: [idempotency_key, items]
+      properties:
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 200
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RawDocumentImportCandidate'
+    RawDocumentImportItem:
+      type: object
+      additionalProperties: false
+      required: [raw_document_id, disposition]
+      properties:
+        raw_document_id:
+          $ref: '#/components/schemas/UUID'
+        disposition:
+          $ref: '#/components/schemas/RawDocumentDisposition'
+    RawDocumentImportResult:
+      type: object
+      additionalProperties: false
+      required: [receipt_id, payload_hash, raw_document_ids, items, imported_at]
+      properties:
+        receipt_id:
+          $ref: '#/components/schemas/UUID'
+        payload_hash:
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: '^[0-9a-f]{64}$'
+        raw_document_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/UUID'
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/RawDocumentImportItem'
+        imported_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+    RawDocumentImportEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+        result:
+          $ref: '#/components/schemas/RawDocumentImportResult'
+    RawDocumentImportStatusResponse:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.RawDocumentImportStatusResponse
+      required: [request_id, status, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [completed, unknown]
+        result:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawDocumentImportResult'
+          description: completed 时为 immutable stored result；unknown 时为 null。
+
+    ReviewedEventRawDocument:
+      type: object
+      additionalProperties: false
+      required: [document_id, source_name, source_url, title, content_text, content_level, collected_at, content_hash]
+      properties:
+        document_id:
+          type: string
+          minLength: 1
+        source_name:
+          type: string
+          minLength: 1
+        source_url:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+        content_text:
+          type: string
+        content_level:
+          type: string
+          minLength: 1
+        published_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        collected_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        content_hash:
+          $ref: '#/components/schemas/PayloadHash'
+    ReviewedEvent:
+      type: object
+      additionalProperties: false
+      required: [dedupe_key, title, factual_summary, fact_status, event_status, fact_payload]
+      properties:
+        dedupe_key:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        factual_summary:
+          type: string
+          minLength: 1
+        occurred_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        fact_status:
+          $ref: '#/components/schemas/FactStatus'
+        event_status:
+          $ref: '#/components/schemas/EventStatus'
+        fact_payload:
+          type: object
+          additionalProperties: true
+    ReviewedEventSource:
+      type: object
+      additionalProperties: false
+      required: [document_id, evidence_excerpt, source_url, evidence_relation, supports_fields, source_level, content_level, evidence_hash]
+      properties:
+        document_id:
+          type: string
+          minLength: 1
+        evidence_excerpt:
+          type: string
+          minLength: 1
+        source_url:
+          type: string
+          format: uri
+        evidence_relation:
+          $ref: '#/components/schemas/EvidenceRelation'
+        supports_fields:
+          type: array
+          items:
+            type: string
+        source_level:
+          type: string
+          minLength: 1
+        content_level:
+          type: string
+          minLength: 1
+        evidence_hash:
+          $ref: '#/components/schemas/PayloadHash'
+    ReviewedEventTag:
+      type: object
+      additionalProperties: false
+      required: [tag_id, tag_kind, tag_code, confidence, review_status, assignment_reason, assign_source]
+      properties:
+        tag_id:
+          $ref: '#/components/schemas/UUID'
+        tag_kind:
+          $ref: '#/components/schemas/TagKind'
+        tag_code:
+          type: string
+          minLength: 1
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        review_status:
+          $ref: '#/components/schemas/TagReviewStatus'
+        assignment_reason:
+          type: string
+          minLength: 1
+        assign_source:
+          $ref: '#/components/schemas/TagAssignSource'
+    ReviewedEventReview:
+      type: object
+      additionalProperties: false
+      required: [review_id, package_id, decision, event_status, fact_status, evidence_grade, reasons, component_versions]
+      properties:
+        review_id:
+          type: string
+          minLength: 1
+        package_id:
+          type: string
+          minLength: 1
+        decision:
+          $ref: '#/components/schemas/ReviewDecision'
+        event_status:
+          $ref: '#/components/schemas/EventStatus'
+        fact_status:
+          $ref: '#/components/schemas/FactStatus'
+        evidence_grade:
+          type: string
+          minLength: 1
+        reasons:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        component_versions:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            type: string
+    ReviewedEventImportRequest:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ReviewedEventImportRequest
+      required: [idempotency_key, package_id, raw_documents, event, event_sources, event_tags, review]
+      properties:
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 200
+        package_id:
+          type: string
+          minLength: 1
+        raw_documents:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ReviewedEventRawDocument'
+        event:
+          $ref: '#/components/schemas/ReviewedEvent'
+        event_sources:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReviewedEventSource'
+        event_tags:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/ReviewedEventTag'
+        review:
+          $ref: '#/components/schemas/ReviewedEventReview'
+    ReviewedEventImportCounts:
+      type: object
+      additionalProperties: false
+      required: [raw_documents, events, event_sources, event_tags, receipts]
+      properties:
+        raw_documents:
+          type: integer
+          minimum: 1
+        events:
+          type: integer
+          enum: [1]
+        event_sources:
+          type: integer
+          minimum: 1
+        event_tags:
+          type: integer
+          minimum: 1
+        receipts:
+          type: integer
+          enum: [1]
+    ReviewedEventImportResult:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ReviewedEventImportResult
+      required: [package_id, receipt_id, event_id, raw_document_ids, event_source_ids, event_tag_map_ids, payload_hash, counts]
+      properties:
+        package_id:
+          type: string
+        receipt_id:
+          $ref: '#/components/schemas/UUID'
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        raw_document_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/UUID'
+        event_source_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/UUID'
+        event_tag_map_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/UUID'
+        payload_hash:
+          $ref: '#/components/schemas/PayloadHash'
+        counts:
+          $ref: '#/components/schemas/ReviewedEventImportCounts'
+    ReviewedEventImportEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+        result:
+          $ref: '#/components/schemas/ReviewedEventImportResult'

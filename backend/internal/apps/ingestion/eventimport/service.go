@@ -28,6 +28,7 @@ type Result struct {
 	EventSourceIDs []string `json:"event_source_ids"`
 	EventTagMapIDs []string `json:"event_tag_map_ids"`
 	PayloadHash    string   `json:"payload_hash"`
+	Replayed       bool     `json:"-"`
 }
 
 type Plan struct {
@@ -145,6 +146,7 @@ func (s *Service) Import(ctx context.Context, pkg domainimport.Package) (Result,
 				return fmt.Errorf("verify replay receipt results: %w", err)
 			}
 			result = resultFromReceipt(*existing)
+			result.Replayed = true
 			return nil
 		}
 

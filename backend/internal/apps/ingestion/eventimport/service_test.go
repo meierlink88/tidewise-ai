@@ -48,6 +48,10 @@ func TestServiceReplaysSameKeyAndRejectsDifferentHash(t *testing.T) {
 	if err != nil {
 		t.Fatalf("replay Import() error = %v", err)
 	}
+	if !second.Replayed {
+		t.Fatal("replay result is not marked as a transport replay")
+	}
+	second.Replayed = false
 	if !reflect.DeepEqual(second, first) {
 		t.Fatalf("replay result = %#v, want %#v", second, first)
 	}

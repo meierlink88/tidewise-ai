@@ -1,12 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import * as dataIngestionAPI from '../api/dataIngestion';
-import * as schedulerAPI from '../api/scheduler';
 import DataIngestionCenter from './DataIngestionCenter';
 
 describe('DataIngestionCenter', () => {
-  it('renders four tabs and loads raw documents by default', async () => {
+  it('renders exactly the source, raw, and event tabs and loads raw documents by default', async () => {
     vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({
       items: [
         {
@@ -24,16 +23,14 @@ describe('DataIngestionCenter', () => {
     });
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.spyOn(dataIngestionAPI, 'loadSourceCatalogs').mockResolvedValue({ items: [] });
-    vi.spyOn(schedulerAPI, 'loadSchedulerConfig').mockResolvedValue(defaultSchedulerConfig());
-    vi.spyOn(schedulerAPI, 'loadSchedulerRuns').mockResolvedValue([]);
-    vi.spyOn(schedulerAPI, 'saveSchedulerConfig').mockResolvedValue(defaultSchedulerConfig());
 
     render(<DataIngestionCenter token="secret-token" />);
 
     expect(await screen.findByRole('tab', { name: '原始数据' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '全球事件' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '搜索通道' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: '调度器' })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.queryByRole('tab', { name: '调度器' })).not.toBeInTheDocument();
     expect(await screen.findByText('央行公布金融数据')).toBeInTheDocument();
     expect(dataIngestionAPI.loadRawDocuments).toHaveBeenCalledWith('secret-token', { page: 1, title: '' });
   });
@@ -47,9 +44,6 @@ describe('DataIngestionCenter', () => {
     vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.spyOn(dataIngestionAPI, 'loadSourceCatalogs').mockResolvedValue({ items: [] });
-    vi.spyOn(schedulerAPI, 'loadSchedulerConfig').mockResolvedValue(defaultSchedulerConfig());
-    vi.spyOn(schedulerAPI, 'loadSchedulerRuns').mockResolvedValue([]);
-    vi.spyOn(schedulerAPI, 'saveSchedulerConfig').mockResolvedValue(defaultSchedulerConfig());
 
     render(<DataIngestionCenter token="secret-token" />);
 
@@ -81,7 +75,7 @@ describe('DataIngestionCenter', () => {
     }));
   });
 
-  it('lists source catalogs without exposing parser and shows scheduler runs', async () => {
+  it('lists source catalogs without exposing parser or retired scheduler controls', async () => {
     const user = userEvent.setup();
     vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
@@ -98,23 +92,6 @@ describe('DataIngestionCenter', () => {
         }
       ]
     });
-    vi.spyOn(schedulerAPI, 'loadSchedulerConfig').mockResolvedValue(defaultSchedulerConfig());
-    vi.spyOn(schedulerAPI, 'loadSchedulerRuns').mockResolvedValue([
-      {
-        id: 'run-1',
-        trigger_type: 'interval',
-        status: 'succeeded',
-        started_at: '2026-07-09T10:00:00Z',
-        finished_at: '2026-07-09T10:00:30Z',
-        total_sources: 2,
-        succeeded_sources: 2,
-        failed_sources: 0,
-        skipped_sources: 0,
-        error_summary: ''
-      }
-    ]);
-    vi.spyOn(schedulerAPI, 'saveSchedulerConfig').mockResolvedValue(defaultSchedulerConfig());
-
     render(<DataIngestionCenter token="secret-token" />);
 
     await screen.findByRole('tab', { name: '原始数据' });
@@ -122,24 +99,7 @@ describe('DataIngestionCenter', () => {
     expect(await screen.findByText('AI 全球政经搜索')).toBeInTheDocument();
     expect(screen.getByText('https://example.com')).toBeInTheDocument();
     expect(screen.queryByText('parser')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('tab', { name: '调度器' }));
-    const schedulerPanel = await screen.findByLabelText('调度器执行记录');
-    expect(within(schedulerPanel).getByText('run-1')).toBeInTheDocument();
-    expect(schedulerAPI.loadSchedulerRuns).toHaveBeenCalledWith('secret-token', 50);
+    expect(screen.queryByRole('tab', { name: '调度器' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('调度器执行记录')).not.toBeInTheDocument();
   });
 });
-
-function defaultSchedulerConfig(): schedulerAPI.SchedulerConfig {
-  return {
-    enabled: false,
-    mode: 'interval',
-    interval_minutes: 60,
-    fixed_times: [],
-    concurrency: 1,
-    batch_size: 10,
-    timeout_seconds: 180,
-    source_filter: {},
-    timezone: 'Asia/Shanghai'
-  };
-}

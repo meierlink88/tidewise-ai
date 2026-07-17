@@ -24,8 +24,26 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
-      - name: Test
+      - name: Data API and typed-client drift contracts
+        run: go test ./services/data/api ./services/miniapp/dataclient ./services/adminportal/dataclient
+
+      - name: Architecture and reference contracts
+        run: go test ./internal/architecture
+
+      - name: Test backend
         run: go test ./...
+
+      - name: Build service binaries
+        run: |
+          go build -o /tmp/data-service ./services/data/cmd
+          go build -o /tmp/miniapp-service ./services/miniapp/cmd
+          go build -o /tmp/adminportal-service ./services/adminportal/cmd
+
+      - name: Build service images
+        run: |
+          docker build -f services/data/Dockerfile -t tidewise-data:ci .
+          docker build -f services/miniapp/Dockerfile -t tidewise-miniapp:ci .
+          docker build -f services/adminportal/Dockerfile -t tidewise-adminportal:ci .
 
   admin:
     name: Admin portal

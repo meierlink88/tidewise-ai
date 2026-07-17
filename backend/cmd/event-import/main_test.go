@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRunRequiresInput(t *testing.T) {
@@ -91,6 +94,81 @@ func TestRunSupportsFrozenFileAndDirFlagsWithStableResultObject(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"package_count":1`) {
 		t.Fatalf("directory compatibility output = %s", stdout.String())
+	}
+}
+
+func TestRunNonDryRunImportsThroughScopedDataServiceHTTP(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "event-import", "reviewed-outbox-v1.json")
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodPost || request.URL.Path != "/internal/data/v1/reviewed-event-imports" {
+			t.Fatalf("request = %s %s", request.Method, request.URL)
+		}
+		if request.Header.Get("Authorization") != "Bearer reviewed-event-token" || request.Header.Get("X-Request-ID") == "" {
+			t.Fatalf("missing scoped identity/request id: %#v", request.Header)
+		}
+		return jsonResponse(http.StatusCreated, `{"request_id":"data-request","result":{"package_id":"agent-package-20260716-0001","payload_hash":"abc","receipt_id":"11111111-1111-5111-8111-111111111111","event_id":"22222222-2222-5222-8222-222222222222","raw_document_ids":["33333333-3333-5333-8333-333333333333"],"event_source_ids":["44444444-4444-5444-8444-444444444444"],"event_tag_map_ids":["55555555-5555-5555-8555-555555555555"]}}`), nil
+	})}
+	t.Setenv("DATA_SERVICE_BASE_URL", "http://data.test")
+	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "reviewed-event-token")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWithHTTPClient([]string{"--file", fixturePath}, &stdout, &stderr, client); got != exitOK {
+		t.Fatalf("non-dry-run exit = %d, output=%s stderr=%s", got, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"mode":"import"`) || !strings.Contains(stdout.String(), `"receipt_id":"11111111-1111-5111-8111-111111111111"`) {
+		t.Fatalf("non-dry-run output = %s", stdout.String())
+	}
+}
+
+func TestRunNonDryRunPreservesConflictExitCode(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "event-import", "reviewed-outbox-v1.json")
+	client := &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusConflict, `{"request_id":"data-request","error":{"code":"EVENT_IMPORT_IDEMPOTENCY_CONFLICT","message":"conflict","details":{}}}`), nil
+	})}
+	t.Setenv("DATA_SERVICE_BASE_URL", "http://data.test")
+	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "reviewed-event-token")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWithHTTPClient([]string{"--file", fixturePath}, &stdout, &stderr, client); got != exitConflict {
+		t.Fatalf("conflict exit = %d, output=%s", got, stdout.String())
+	}
+	assertFailureJSON(t, stdout.Bytes(), "idempotency_conflict")
+}
+
+func TestRunNonDryRunUsesBoundedDefaultTimeout(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "event-import", "reviewed-outbox-v1.json")
+	sawDeadline := false
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		deadline, ok := request.Context().Deadline()
+		if !ok {
+			t.Error("default Data Service request context has no deadline")
+		} else if remaining := time.Until(deadline); remaining <= 0 || remaining > 16*time.Second {
+			t.Errorf("default timeout remaining = %v", remaining)
+		}
+		sawDeadline = ok
+		return jsonResponse(http.StatusCreated, `{"request_id":"data-request","result":{"package_id":"agent-package-20260716-0001","payload_hash":"abc","receipt_id":"11111111-1111-5111-8111-111111111111","event_id":"22222222-2222-5222-8222-222222222222","raw_document_ids":["33333333-3333-5333-8333-333333333333"],"event_source_ids":["44444444-4444-5444-8444-444444444444"],"event_tag_map_ids":["55555555-5555-5555-8555-555555555555"]}}`), nil
+	})}
+	t.Setenv("DATA_SERVICE_BASE_URL", "http://data.test")
+	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "reviewed-event-token")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWithHTTPClient([]string{"--file", fixturePath}, &stdout, &stderr, client); got != exitOK {
+		t.Fatalf("bounded-default exit = %d, output=%s", got, stdout.String())
+	}
+	if !sawDeadline {
+		t.Fatal("default timeout was not propagated to the HTTP request")
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
+func jsonResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 }
 

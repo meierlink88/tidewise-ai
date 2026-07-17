@@ -12,9 +12,11 @@ import (
 )
 
 type RawDocumentListFilter struct {
-	Title    string
-	Page     int
-	PageSize int
+	Title        string
+	SourceID     string
+	IngestStatus domain.IngestStatus
+	Page         int
+	PageSize     int
 }
 
 type RawDocumentPage struct {
@@ -74,6 +76,12 @@ func (r *InMemoryRepository) ListRawDocuments(_ context.Context, filter RawDocum
 	items := make([]domain.RawDocument, 0, len(r.documents))
 	for _, doc := range r.documents {
 		if title != "" && !strings.Contains(strings.ToLower(doc.Title), title) {
+			continue
+		}
+		if filter.SourceID != "" && doc.SourceID != filter.SourceID {
+			continue
+		}
+		if filter.IngestStatus != "" && doc.IngestStatus != filter.IngestStatus {
 			continue
 		}
 		items = append(items, cloneRawDocument(doc))
@@ -203,19 +211,23 @@ func (r PostgresRepository) ListRawDocuments(ctx context.Context, filter RawDocu
 SELECT COUNT(*)
 FROM raw_documents
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
-`, filter.Title).Scan(&total); err != nil {
+  AND ($2 = '' OR source_id = $2::uuid)
+  AND ($3 = '' OR ingest_status = $3)
+`, filter.Title, filter.SourceID, string(filter.IngestStatus)).Scan(&total); err != nil {
 		return RawDocumentPage{}, fmt.Errorf("count raw documents: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
 SELECT id, source_id, ingest_channel, source_type, source_name, source_url,
-       source_external_id, title, content_text, raw_object_uri, raw_mime_type,
+       source_external_id, title, content_text, content_level, raw_object_uri, raw_mime_type,
        language, published_at, collected_at, content_hash, ingest_status
 FROM raw_documents
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
+  AND ($2 = '' OR source_id = $2::uuid)
+  AND ($3 = '' OR ingest_status = $3)
 ORDER BY collected_at DESC, id
-LIMIT $2 OFFSET $3
-`, filter.Title, pageSize, (page-1)*pageSize)
+LIMIT $4 OFFSET $5
+`, filter.Title, filter.SourceID, string(filter.IngestStatus), pageSize, (page-1)*pageSize)
 	if err != nil {
 		return RawDocumentPage{}, fmt.Errorf("query raw documents: %w", err)
 	}

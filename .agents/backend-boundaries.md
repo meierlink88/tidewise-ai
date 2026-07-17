@@ -10,9 +10,7 @@
 backend/
 ├── cmd/
 │   ├── miniapp-api/          # 面向小程序的 API/BFF 进程
-│   ├── admin-api/            # 未来管理后台 API 进程
-│   ├── ingestion-scheduler/  # 采集调度器进程
-│   ├── source-ingest/        # 手动采集命令
+│   ├── admin-api/            # 管理后台 API/BFF 进程
 │   ├── source-seed/          # 数据源初始化命令
 │   ├── entity-seed/          # 实体初始化命令
 │   └── dbmigrate/            # 数据库迁移命令
@@ -57,33 +55,30 @@ backend/cmd/admin-api/
 backend/internal/apps/adminapi/
 ```
 
-管理后台可以通过 application/repository 查询采集源、运行记录和用户数据，但不得直接执行具体采集 connector。
+管理后台通过 consumer-owned Data Service client 查询采集源、原始数据和事件，不得直接访问 Data DB、repository 或执行 connector。已退役 scheduler 路由只提供限时 `410 Gone` tombstone。
 
 ### Ingestion
 
-数据采集子系统放在：
+Tidewise Data Service 保留的采集合同与 adapter 代码放在：
 
 ```text
-backend/cmd/ingestion-scheduler/
-backend/cmd/source-ingest/
 backend/cmd/source-seed/
 backend/internal/apps/ingestion/
+backend/services/data/
 ```
 
 推荐子包：
 
 ```text
 backend/internal/apps/ingestion/
-├── core/           # 采集核心接口、注册表、凭证、限流和 raw document 写入
-├── scheduler/      # 调度循环、到期来源选择、失败退避、run report
-├── runtime/        # 单次采集执行编排
+├── core/           # connector/parser DTO、注册表和环境凭证解析
 ├── sourcecatalog/  # source seed、校验、统计
 ├── connectors/     # RSS、Eastmoney、RSSHub、web_fetch、local_file 等采集连接器
 ├── parsers/        # rss_item、eastmoney_json、html_text 等解析器
-└── health/         # 来源健康状态和失败策略
+└── eventimport/    # reviewed-event 受控导入合同
 ```
 
-采集子系统可以独立部署为 `ingestion-scheduler` 进程。MVP 阶段默认只运行一个调度器实例；如果需要多实例，必须先通过独立 change 设计分布式锁、数据库 leasing、Redis 锁或任务队列。
+Tidewise 不拥有采集 scheduler、runtime、source-ingest 或 ingest-smoke。调度和实际运行由独立 agent-run 项目负责；agent-run 通过 `/internal/data/v1` 的受认证 source metadata、raw-document import/status 与 reviewed-event import 合同交接，不得直接写 Data DB。connectors/parsers 暂留 Tidewise Data Service 代码所有权边界内，但当前无 Tidewise 独立执行 command；未来迁移到 agent-run 必须另立 change。
 
 ### Entity Foundation
 
@@ -132,7 +127,7 @@ cmd/*
 
 internal/apps/ingestion
   -> internal/apps/ingestion/core
-  -> domain / repositories / config / platform
+  -> domain / repositories
   -> internal/apps/ingestion/connectors
   -> internal/apps/ingestion/parsers
 

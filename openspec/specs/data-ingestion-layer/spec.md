@@ -5,83 +5,92 @@
 ## Requirements
 
 ### Requirement: 采集源目录驱动采集
-系统 SHALL 通过采集源目录管理外部信息源，并使用 `ingest_channel`、`provider_key`、`connector_key`、`parser_key`、授权策略、限流策略和状态字段驱动采集流程。
+系统 SHALL 由 Data Service 拥有并维护采集源目录及其 `ingest_channel`、`provider_key`、`connector_key`、`parser_key`、授权策略、限流策略和状态字段；Tidewise SHALL NOT 使用该目录启动采集任务，外部 `agent-run` 对批准目录信息的读取必须通过本change定义的scoped `/internal/data/v1` Data API contract。
 
-#### Scenario: 选择采集源
-- **WHEN** 采集任务启动
-- **THEN** 系统必须从采集源目录读取 active 状态的来源，并根据通道、提供方、连接器和解析器选择执行路径
+#### Scenario: 查询采集源元数据
+- **WHEN** Admin BFF 或已授权外部执行系统需要来源名称、通道、provider、adapter key、非敏感配置与状态
+- **THEN** 它必须通过 Data Service 拥有的版本化 API 查询，不得直连 `source_catalogs`；外部scope只能获得批准的非敏感字段和`credential_ref`名称，不得获得secret
 
 #### Scenario: 管理采集源元数据
 - **WHEN** 新增 RSS、HTTP API、RSSHub 路由、网页或本地文件来源
-- **THEN** 系统必须记录来源名称、来源类型、来源 URL、主题提示、默认来源等级、授权方式、凭证引用、限流策略和使用授权
+- **THEN** Data Service必须继续记录来源名称、类型、URL、主题提示、默认等级、授权方式、凭证引用、限流策略和使用授权，且不得自动执行该来源
 
 ### Requirement: 连接器和解析器注册
-系统 SHALL 将外部数据源连接器和内容解析器解耦，并将只服务采集链路的 connector/parser 归属到 `internal/apps/ingestion` 子系统，使不同 provider 的获取逻辑和返回内容标准化逻辑可以通过 `internal/apps/ingestion/core` 独立注册、测试和替换。
+系统 SHALL 在 Data Service 边界保留 `internal/apps/ingestion/connectors`、`parsers` 与 `core` 中仍有调用方的 connector/parser contract、注册表和凭证引用解析，使 adapter 可以独立单测和供未来迁移参考；Tidewise SHALL NOT 提供调用这些 adapter 的 production scheduler/runtime/standalone command。
 
-#### Scenario: 执行连接器
-- **WHEN** 采集源指定 `connector_key`
-- **THEN** 系统必须通过采集子系统 `core` 注册边界找到对应连接器，并返回原始响应、原始内容类型和采集元数据
+#### Scenario: 验证连接器
+- **WHEN** connector unit/contract test按 `connector_key` 调用受保留实现
+- **THEN** adapter必须继续返回可校验的原始响应、内容类型与采集元数据，不需要真实数据库或Tidewise runtime
 
-#### Scenario: 执行解析器
-- **WHEN** 连接器返回 RSS、JSON、HTML、PDF、CSV 或本地文件内容
-- **THEN** 系统必须通过采集子系统 `core` 注册边界把内容转换为统一原始文档候选对象
+#### Scenario: 验证解析器
+- **WHEN** parser unit/contract test接收 RSS、JSON、HTML、PDF、CSV或本地文件fixture
+- **THEN** parser必须继续转换为统一原始文档候选对象并保持既有安全/归因规则
 
-#### Scenario: 未注册实现
-- **WHEN** 采集源引用未注册的连接器或解析器
-- **THEN** 系统必须把该采集源标记为失败状态或跳过，并记录明确错误，而不是静默写入不完整原始文档
+#### Scenario: 生产运行限制
+- **WHEN** Tidewise binary、BFF或Data API组装生产依赖
+- **THEN** 它不得启动connector/parser执行链、source worker、provider limiter或scheduler；实际执行属于外部 `agent-run`
 
 ### Requirement: 第一批采集通道
-系统 SHALL 支持第一批采集通道：标准 RSS/Atom、Eastmoney HTTP、RSSHub、网页抓取和本地文件回灌，并为 Tushare 与 AKShare SDK 通道保留独立边界。
+系统 SHALL 保留标准 RSS/Atom、Eastmoney HTTP、RSSHub、网页抓取、本地文件和 AI Web Research 的受测 adapter代码与非敏感配置资产，但这些代码 SHALL NOT 被解释为 Tidewise 内可运行的 production采集通道；Tushare/AKShare及未来provider execution均属于外部执行边界。
 
-#### Scenario: 标准 RSS 采集
-- **WHEN** 采集源使用 `rss_feed` 连接器和 `rss_item` 解析器
-- **THEN** 系统必须解析 RSS 或 Atom 条目，并标准化标题、链接、摘要、发布时间、来源和正文候选内容
+#### Scenario: 保留 adapter contract
+- **WHEN** 开发者运行第一批connector/parser targeted tests
+- **THEN** RSS、Eastmoney、RSSHub、web fetch、local file与AI adapter必须继续满足各自解析、timeout、错误、安全和归因contract
 
-#### Scenario: Eastmoney HTTP 采集
-- **WHEN** 采集源使用 `http_eastmoney` 连接器
-- **THEN** 系统必须通过统一限流、浏览器 User-Agent、超时和错误处理访问 Eastmoney 公共接口，并将返回 JSON 标准化为原始文档候选对象
+#### Scenario: 禁止内部执行入口
+- **WHEN** 开发者检查Tidewise commands与service wiring
+- **THEN** 不得存在`ingestion-scheduler`、`source-ingest`、`ingest-smoke`或等价替代runner来执行这些adapters
 
-#### Scenario: RSSHub 采集
-- **WHEN** 采集源使用 `rsshub_feed` 连接器
-- **THEN** 系统必须支持 `RSSHUB_BASE_URL`、`route_template`、`code_style`、超时和安全 XML 解析，并把条目标准化为原始文档候选对象
-
-#### Scenario: 网页抓取
-- **WHEN** 采集源使用 `web_fetch` 连接器
-- **THEN** 系统必须保存原始 HTML、PDF 或网页快照，并提取可读正文用于 `content_text`
-
-#### Scenario: 本地文件回灌
-- **WHEN** 采集源使用 `local_file` 连接器
-- **THEN** 系统必须读取本地 CSV、JSON 或文本文件，并按配置解析为原始文档候选对象
-
-#### Scenario: SDK 通道边界
-- **WHEN** 采集源使用 `sdk_tushare` 或 `sdk_akshare`
-- **THEN** 本阶段系统必须识别该通道和配置，但不得要求 Go 主服务直接加载 Python SDK；真实 SDK 执行必须留给后续 worker、sidecar 或内部 HTTP wrapper
+#### Scenario: 未来外部迁移
+- **WHEN** 后续change把某一adapter迁往`agent-run`
+- **THEN** 必须在外部repo复制或适配并以source catalog、credential、rate-limit和Data import contract验收，不得直接import Tidewise Go `internal` package
 
 ### Requirement: 原始文档幂等写入
-系统 SHALL 根据采集源、外部源 ID 和内容哈希对原始文档进行幂等写入，避免重复采集造成重复事实基础。
+Data Service SHALL通过版本化、认证、bounded batch且幂等的raw-document import API，根据来源、外部源ID、稳定UUID和内容哈希写入原始文档；系统SHALL以认证principal派生的1..200 character caller identity、1..200 character idempotency key及Data Service按`raw-document-import-v1` normalization计算的canonical 64-char lowercase SHA-256识别batch，并以既有`NormalizeUUID("raw_document_import_receipt",caller,key)`算法生成receipt ID，在`raw_document_import_receipts`保存不可变审计/result；Miniapp、Admin、Agent/`agent-run`MUST NOT直接调用repository或SQL。
 
-#### Scenario: 写入新文档
-- **WHEN** 标准化后的原始文档候选对象在数据库中不存在
-- **THEN** 系统必须创建新的原始文档记录，并保存采集状态、内容哈希和原始对象 URI
+#### Scenario: 导入新文档
+- **WHEN** 已授权service identity提交通过whole-batch validation且不存在completed receipt的原始文档batch
+- **THEN** Data Service必须在一个PostgreSQL transaction内写入或复用全部raw documents并插入独立immutable receipt，然后一次commit并返回带request id envelope的结构化result
 
-#### Scenario: 重复采集
-- **WHEN** 同一采集源返回相同外部源 ID 或相同内容哈希
-- **THEN** 系统必须复用或更新已有原始文档记录，而不是创建无意义重复记录
+#### Scenario: 重复导入
+- **WHEN** 同一认证caller使用相同idempotency key重试且server canonical payload hash与既有receipt相同
+- **THEN** Data Service必须精确返回receipt保存的首次business result，不得因当前source eligibility或raw row状态变化重新拒绝/合成不同结果或创建重复事实；每次transport request id可以不同
 
-### Requirement: 真实采集 smoke 入库
-系统 SHALL 提供显式运行的真实采集 smoke，使无需凭证的公开来源可以经过 connector、parser、writer 和 repository 写入本地 PostgreSQL 原始文档边界。
+#### Scenario: 同 key 的 payload 发生变化
+- **WHEN** 同一认证caller使用已有idempotency key提交的canonical payload hash与receipt不同
+- **THEN** Data Service必须返回machine-readable 409且不插入、更新、删除或truncate raw document/receipt；不同caller的同名key必须位于独立identity scope
 
-#### Scenario: 写入真实采集文档
-- **WHEN** 开发者在已完成 migration 的 local PostgreSQL 上运行采集 smoke
-- **THEN** 系统必须从公开来源采集少量真实文档，并在 `raw_documents` 中保存标题、来源、外部 ID 或内容哈希、发布时间、采集时间和入库状态
+#### Scenario: 查询未知网络结果
+- **WHEN** caller未收到import响应并按自身identity与idempotency key查询status
+- **THEN** 可见receipt必须返回`completed`及stored original result，缺失receipt必须返回`unknown`/尚未commit且不得创建placeholder、job、run或内存状态
 
-#### Scenario: 输出 smoke 结果
-- **WHEN** 采集 smoke 运行完成
-- **THEN** 命令必须输出结构化结果，包含成功、失败、重复和当前原始文档数量，便于人工 review
+#### Scenario: 并发使用相同 key
+- **WHEN** 两个transaction并发提交同一caller与idempotency key
+- **THEN** caller-scoped unique constraint和`pg_advisory_xact_lock(hashtextextended(raw-receipt caller/key lock text,0))`必须产生一个winner；取得advisory transaction lock后必须以plain `SELECT`读取receipt且不得使用`FOR UPDATE`、`FOR SHARE`或其他row-locking clause；loser必须重读completed receipt并按same-hash replay或different-hash 409处理，不得部分commit
 
-#### Scenario: 外部来源失败
-- **WHEN** smoke 来源超时、不可达、限流或返回无法解析内容
-- **THEN** 系统必须返回明确失败原因，不得写入伪造文档或把失败标记为成功
+#### Scenario: 跨 key 的 raw identity 并发
+- **WHEN** 不同caller/key的batch并发包含相同source external ID或content hash
+- **THEN** Data Service必须按sorted raw-identity lock texts串行化并使用conflict-safe insert/winner re-read；external-ID与hash命中两个不同rows时必须返回409并整批零mutation，不得无序选择一个row
+
+#### Scenario: 不同 candidate 折叠到同一 raw row
+- **WHEN** 所有candidate identity resolution完成后resolved raw ID数量小于candidate数量或存在重复ID
+- **THEN** Data Service必须返回`RAW_DOCUMENT_BATCH_COLLISION` 409并整批rollback，不得把duplicate IDs或少于candidate数的membership写入receipt
+
+#### Scenario: 非法批次
+- **WHEN** batch超限、payload无有效来源/归因、字段无效或调用方scope不匹配
+- **THEN** Data Service必须在任何raw document或receipt DML前拒绝整批请求并返回结构化错误，不得提供逐item部分成功
+
+#### Scenario: receipt miss 后才验证可变来源状态
+- **WHEN** auth/scope/bounds/canonical hash通过且caller/key没有completed receipt
+- **THEN** Data Service必须在DML前验证全部item、current source eligibility/attribution及batch duplicate identities；receipt hit必须先按stored snapshot replay，不能让后续source状态变化破坏原结果重放
+
+#### Scenario: receipt 保存 exact batch result
+- **WHEN** 首次raw batch commit
+- **THEN** receipt必须保存一维无NULL且按canonical candidate order的非空/无重复raw IDs，以及逐字段匹配columns的`receipt_id`、`payload_hash`、`raw_document_ids`、`items[{raw_document_id,disposition}]`和`imported_at`；disposition只能为`created`或`reused`
+
+#### Scenario: raw receipt 与 event receipt 分离
+- **WHEN** raw-document import成功或重放
+- **THEN** 它只能使用`raw_document_import_receipts`和raw document repository，不得写入或复用`event_import_receipts`、event、source/tag mapping或review状态
 
 ### Requirement: 真实 repository 幂等写入
 系统 SHALL 通过 PostgreSQL repository 对原始文档执行幂等写入，避免重复 smoke 或重复采集造成重复事实基础。
@@ -106,30 +115,45 @@
 - **THEN** repository 或 ingestion helper 必须把它稳定映射为合法 UUID 后再写入 PostgreSQL
 
 ### Requirement: 凭证和限流安全
-系统 SHALL 将真实凭证从代码、配置文件和数据库中隔离，并通过统一限流边界控制外部 provider 的访问频率。
+Tidewise Data Service SHALL 只保存外部provider的非敏感配置和`credential_ref`，不得持有或执行采集provider凭证/限流runtime；Data import caller使用独立service identity，未来 `agent-run` 的provider secret与rate limiting由其自身边界管理。
 
-#### Scenario: 解析凭证引用
-- **WHEN** 采集源需要 API key、bearer token、cookie、自建 RSSHub base URL 或其他授权信息
-- **THEN** 系统必须通过 `credential_ref` 从环境变量或部署平台 secret 解析凭证，不得把真实值保存到 PostgreSQL 或提交到 repo
+#### Scenario: 查看来源配置
+- **WHEN** Admin或外部执行系统查询source catalog
+- **THEN** Data Service只能返回批准的非敏感配置和凭证引用名，不得返回真实API key、token、cookie或secret
 
-#### Scenario: provider 限流
-- **WHEN** 多个采集源访问同一 provider
-- **THEN** 系统必须根据 `provider_key` 和 `rate_limit_policy` 执行统一限流，而不是由各连接器散落 sleep
+#### Scenario: 调用Data import
+- **WHEN** `agent-run`向Data Service导入材料
+- **THEN** 请求必须使用Data import scope的service identity，且Data Service不得因此调用任何外部provider
 
 ### Requirement: 采集层职责边界
-系统 SHALL 只负责获取原始材料、保存原始对象、清洗正文、记录来源、去重和写入原始文档，不得在本阶段生成投资判断或推理结论；采集层实现必须位于 backend 的 `internal/apps/ingestion` 子系统内。
+系统 SHALL 将采集scheduling、外部来源访问、connector execution、provider retry/rate-limit与模型查询计划运行归外部 `agent-run`；Tidewise Data Service只拥有source catalog、暂存adapter代码、raw/event import validation、去重、归因和持久化，不得输出投资建议。
 
-#### Scenario: 处理采集材料
-- **WHEN** 采集层成功获取外部内容
-- **THEN** 系统必须输出可复核的原始文档和采集状态，而不是直接输出利好利空、评分、传导强度或投资建议
+#### Scenario: 外部系统提交采集材料
+- **WHEN** `agent-run`完成外部获取与标准化并提交raw-document batch
+- **THEN** Data Service必须验证可复核来源/归因、幂等与安全contract后持久化，不得重新执行connector
 
-#### Scenario: 失败处理
-- **WHEN** 外部来源超时、限流、解析失败或返回空内容
-- **THEN** 系统必须记录失败状态和错误原因，并允许后续重试，而不是伪造成功文档
+#### Scenario: Tidewise应用依赖采集数据
+- **WHEN** Miniapp或Admin需要raw document/event数据
+- **THEN** BFF必须调用Data API，不得调用外部`agent-run`、connector或repository
 
-#### Scenario: 保持子系统边界
-- **WHEN** 后续 change 新增采集 runtime、scheduler、connector、parser、source catalog 或来源健康能力
-- **THEN** 该能力必须进入 `internal/apps/ingestion` 子系统，而不是进入小程序 API、管理后台 API 或全局 integrations 杂项包
+#### Scenario: 后续新增采集执行能力
+- **WHEN** 后续需求需要scheduler、worker、connector runtime或来源健康执行
+- **THEN** 默认归`agent-run` repo；如确需回到Tidewise，必须新建OpenSpec change并明确推翻本边界，不得顺手添加到BFF或platform
+
+### Requirement: 外部采集受控交接
+系统 SHALL 让仓库外的 `agent-run`/Agent Server承担采集schedule与execution，并 SHALL 让其只经Data Service受控API读取批准的source metadata和导入raw document/reviewed event；外部系统MUST NOT访问Tidewise PostgreSQL、Neo4j或BFF内部接口。
+
+#### Scenario: agent-run导入raw documents
+- **WHEN** 已授权`agent-run`提交有界raw-document batch
+- **THEN** Data Service必须验证identity、scope、caller-scoped idempotency、canonical payload hash、来源归因和whole batch，并返回可status查询/原result重放的durable receipt，不得把连接数据库作为客户端前提
+
+#### Scenario: Agent导入reviewed event
+- **WHEN** Agent Server提交reviewed-outbox package
+- **THEN** Data Service必须使用独立event import transaction/receipt contract；raw import不得被当作绕过review状态的event入口
+
+#### Scenario: 外部项目尚未交付
+- **WHEN** Tidewise runtime已退役而`agent-run`采集尚未上线
+- **THEN** 系统必须保持Data读取/import能力与历史数据完整，并明确处于采集停止窗口，不得静默恢复旧command或新建替代scheduler
 
 ### Requirement: 版本化采集源清单
 系统 SHALL 使用 repo 内版本化采集源清单维护可接入来源，并通过统一 seed 流程把内容类、HTTP 行情类、板块类和本地回灌类来源写入采集源目录。
@@ -163,74 +187,43 @@
 
 #### Scenario: 保存扩展配置
 - **WHEN** 采集源包含 RSSHub route 参数、网页解析策略、分类标签、分页参数、股票/指数/板块代码列表、市场范围、数据频率、字段映射或 fallback 策略
-- **THEN** 系统必须把这些非敏感结构化参数保存到 `source_config`，并在读取 active source 时还原给采集执行路径
+- **THEN** 系统必须把这些非敏感结构化参数保存到 `source_config`，并通过scoped Data metadata API、adapter contract test或未来外部`agent-run`执行适配读取；不得因此在Tidewise恢复采集执行路径
 
 #### Scenario: 禁止保存敏感信息
 - **WHEN** 采集源需要 API key、cookie、bearer token 或私有 RSSHub 访问凭证
 - **THEN** `source_config` 不得保存真实敏感值，必须只保存 `credential_ref` 或非敏感配置
 
 ### Requirement: 分阶段 connector 接入
-系统 SHALL 允许不同类型来源按阶段接入 connector，并用明确状态表达已可运行、待凭证或暂不可用；只服务采集链路的 connector 必须归属到采集子系统。
+系统 SHALL 用明确状态和versioned source metadata表达adapter已实现、待凭证或暂不可用，并保留只服务采集链路的connector/parser源代码与tests；adapter可测试不等于Tidewise提供production execution。
 
-#### Scenario: 内容来源可运行
+#### Scenario: adapter代码可验证
 - **WHEN** 来源使用 `rss_feed`、`rsshub_feed`、`web_fetch` 或 `local_file` 连接器且不需要私有凭证
-- **THEN** 系统必须能够通过采集子系统 connector 和 parser 把内容标准化为原始文档候选对象
+- **THEN** 相应unit/contract tests必须验证fetch/parse/config/security行为，且不得要求Tidewise scheduler/runtime或真实DB
 
-#### Scenario: HTTP 行情和板块来源
-- **WHEN** 来源使用 Eastmoney、Sina、Tencent、Yahoo、Stooq 或类似 HTTP provider
-- **THEN** 系统必须通过采集子系统 provider 专属 connector/parser 或通用 HTTP connector/parser 表达采集路径，并保留限流、字段映射和数据频率配置
-
-### Requirement: 多来源并发采集
-系统 SHALL 支持对多个 active source 进行可配置并发采集，并保持单源失败隔离、provider 限流、可测试的汇总报告和全局调度器触发兼容性。
-
-#### Scenario: 并发执行多个来源
-- **WHEN** 采集任务读取到多个 active source 且并发数大于 1
-- **THEN** 系统必须并发执行来源采集，并输出包含总来源数、成功数、失败数和错误明细的 report
-
-#### Scenario: 单源失败隔离
-- **WHEN** 某个来源连接、解析或写入失败
-- **THEN** 系统必须把该来源计入失败并记录错误，同时继续处理其他来源
-
-#### Scenario: 保持 provider 限流
-- **WHEN** 多个并发 worker 访问同一 `provider_key`
-- **THEN** 系统必须继续通过统一 rate limiter 执行 provider 级限流，不得因为并发执行绕过限流边界
-
-#### Scenario: 保持串行兼容
-- **WHEN** 采集任务并发数设置为 1
-- **THEN** 系统必须保持与现有串行执行等价的处理语义和 report 结构
-
-#### Scenario: 接受调度器过滤条件
-- **WHEN** 全局调度器按配置触发采集并传入 provider、channel 或 source type 过滤条件
-- **THEN** 采集任务必须只处理匹配过滤条件的 active source，并返回成功、失败、错误和写入统计，供调度器持久化运行结果
+#### Scenario: production source状态
+- **WHEN** source catalog记录某adapter为active、inactive或disabled
+- **THEN** 该状态只表示source metadata，不得使Tidewise自动或手动启动采集
 
 ### Requirement: AI Web Research 采集通道
-系统 SHALL 将 AI Web Research 纳入第一批可扩展采集通道，使采集系统可以通过统一 source catalog、connector、parser、runtime 和 scheduler 边界触发单一 AI connector 内的多个 Web Search tool、可选网页抓取和程序化原始文档标准化。
+系统 SHALL 保留`llm_web_research` connector、planner、Web Search adapter、parser、prompt引用和程序化标准化代码作为Data-owned受测adapter资产；Tidewise SHALL NOT 通过runtime或scheduler执行它，未来execution归外部`agent-run`。
 
-#### Scenario: source catalog 驱动 AI 采集
-- **WHEN** 采集源使用 `ingest_channel=llm_web_research`、`connector_key=llm_web_research` 和 `parser_key=llm_research_items`
-- **THEN** 系统必须通过采集子系统注册表找到对应 connector/parser，并按该 source 的 `source_config` 和 `credential_ref` 执行采集
+#### Scenario: 验证AI adapter
+- **WHEN** unit/contract test使用fake search/LLM client和source config调用AI adapter
+- **THEN** adapter必须继续校验查询计划、执行多个Web Search tool、隔离provider错误并程序化映射结构化items
 
-#### Scenario: 统一调度触发
-- **WHEN** 后续 scheduler 读取多个 active source 并包含 AI Web Research source
-- **THEN** AI Web Research source 必须与其他 connector 一样进入统一调度、限流、失败隔离、汇总 report 和幂等写入流程
+#### Scenario: 禁止Tidewise统一调度
+- **WHEN** AI source在source catalog中为active
+- **THEN** Tidewise不得因此调用模型、Web Search、connector或parser；外部执行产物只能经Data raw-document/event import contract进入
 
-#### Scenario: 多 Web Search tool 触发
-- **WHEN** source catalog 中的 AI Web Research source 配置 `web_search_plan`
-- **THEN** 系统必须在同一个 `llm_web_research` connector 内按 source 自身配置选择一个或多个 Web Search adapter，不得为每个搜索 API 创建独立 AI connector
-
-#### Scenario: 固定查询计划触发
-- **WHEN** source catalog 中的 AI Web Research source 配置 `search_plan_mode=static_query_plan`
-- **THEN** 系统必须按 `source_config.search_queries` 中的查询条件执行搜索，并把搜索结果程序化映射为 parser 可校验的结构化 items
-
-#### Scenario: 模型查询计划触发
-- **WHEN** source catalog 中的 AI Web Research source 配置 `search_plan_mode=llm_query_plan`
-- **THEN** 系统必须先通过 repo prompt 和 LLM planner 生成查询计划，校验通过后再按统一 Web Search tool 链路执行搜索，并把搜索结果程序化映射为 parser 可校验的结构化 items
+#### Scenario: 未来迁往agent-run
+- **WHEN** 后继change在`agent-run`实现AI Web Research执行
+- **THEN** 必须迁移/适配prompt、credential、tool、normalization contract并保留来源归因，Tidewise本change不跨repo移动代码
 
 ### Requirement: AI 采集源配置校验
 系统 SHALL 对 AI Web Research source 的 `source_config` 执行 connector 专属校验，确保采集运行参数完整、非敏感且可审计。
 
 #### Scenario: 校验必填参数
-- **WHEN** seed 或运行时加载 AI Web Research source
+- **WHEN** seed、adapter contract test或未来外部执行适配加载 AI Web Research source
 - **THEN** 系统必须校验 `collection_mode`、`search_plan_mode`、`search_queries`、`web_search_plan`、tool provider、tool credential ref、tool options、source_preferences、trusted_domains、`max_results` 和 `output_schema` 的类型与取值；LLM provider、API base URL、模型名、`prompt_ref`、`prompt_version`、`prompt_variables`、planner 凭证引用和查询数量上限只在启用 LLM 查询计划或兼容 normalizer 模式时作为必填项校验
 
 #### Scenario: 保护提示词和模型参数
@@ -239,7 +232,7 @@
 
 #### Scenario: 搜索工具失败隔离
 - **WHEN** 任一 Web Search provider 返回鉴权失败、参数错误、限流、超时或空结果
-- **THEN** 系统必须记录 source 级失败或跳过原因，并保证同一批次中的其他 source 可以继续执行
+- **THEN** adapter contract必须隔离并返回source级失败/跳过原因，未来外部执行系统负责保证同批其他source继续；Tidewise不得因此组装production batch runtime
 
 ### Requirement: AI 搜索结果原始文档标准化
 系统 SHALL 将 AI Web Research 返回的结构化 items 标准化为与其他 connector 一致的原始文档候选对象。

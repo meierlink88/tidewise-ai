@@ -10,17 +10,12 @@ import (
 	"testing"
 )
 
-func TestIngestionCommandsUseSubsystemBoundary(t *testing.T) {
+func TestRetainedCommandsUseSubsystemBoundaries(t *testing.T) {
 	packages := listCommandPackages(t)
 	for _, pkg := range packages {
 		switch {
-		case strings.HasSuffix(pkg.ImportPath, "/cmd/source-ingest"):
-			assertNoImport(t, pkg, "/internal/jobs")
-			assertNoImport(t, pkg, "/internal/integrations")
 		case strings.HasSuffix(pkg.ImportPath, "/cmd/source-seed"):
 			assertNoImport(t, pkg, "/internal/sourcecatalog")
-		case strings.HasSuffix(pkg.ImportPath, "/cmd/ingest-smoke"):
-			assertNoImport(t, pkg, "/internal/jobs")
 		case strings.HasSuffix(pkg.ImportPath, "/cmd/entity-seed"):
 			assertNoImport(t, pkg, "/internal/entityseed")
 			assertNoImport(t, pkg, "/internal/apps/ingestion")

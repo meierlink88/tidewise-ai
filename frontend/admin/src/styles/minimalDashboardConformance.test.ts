@@ -43,14 +43,14 @@ describe('Minimal Dashboard conformance', () => {
     expect(stylesheet).toContain('.ui-status::before');
   });
 
-  it('uses full-width content surfaces and lays out scheduler settings and records as 30/70 columns', () => {
+  it('uses full-width content surfaces without retired scheduler-specific styling', () => {
     const stylesheet = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8');
 
     expect(stylesheet).toContain('max-width: none;');
-    expect(stylesheet).toContain('grid-template-columns: minmax(0, 0.3fr) minmax(0, 0.7fr);');
-    expect(stylesheet).toContain('.scheduler-form-card .scheduler-form-grid');
-    expect(stylesheet).toContain('.scheduler-form-card .fixed-time-grid');
-    expect(stylesheet).toContain('.scheduler-grid {\n    grid-template-columns: 1fr;');
+    expect(stylesheet).not.toContain('.scheduler-settings');
+    expect(stylesheet).not.toContain('.scheduler-form-grid');
+    expect(stylesheet).not.toContain('.scheduler-grid');
+    expect(stylesheet).not.toContain('.scheduler-form-card');
     expect(stylesheet).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);');
   });
 

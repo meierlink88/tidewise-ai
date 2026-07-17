@@ -1,6 +1,6 @@
 ## Purpose
 
-定义观潮家 Web 管理后台的当前系统事实，覆盖独立前端工程、Minimal Dashboard 设计系统、自有 UI 基础层、Admin Token 登录、数据采集中心、调度器配置与执行记录，以及 Admin Token 保护的管理 API 边界。
+定义观潮家 Web 管理后台的当前系统事实，覆盖独立前端工程、Minimal Dashboard 设计系统、自有 UI 基础层、Admin Token 登录、Data Service 数据采集中心查询，以及 Admin Token 保护的管理 API 边界。
 
 ## Requirements
 
@@ -81,14 +81,14 @@
 - **THEN** 系统必须清除本地保存的 Admin Token，并返回登录页
 
 ### Requirement: Admin Token 前端接入
-系统 SHALL 允许管理后台通过 Admin Token 调用后端管理 API，并避免把 token 写入 repo 或前端源码。
+系统 SHALL 允许管理后台通过Admin Token调用Admin Portal BFF的数据采集中心管理API，并避免把token写入repo或前端源码；已退役scheduler endpoints的410响应也必须经过相同认证边界。
 
 #### Scenario: 输入 Admin Token
 - **WHEN** 管理员首次访问管理后台或 token 失效
 - **THEN** 页面必须允许管理员输入 Admin Token
 
 #### Scenario: 请求携带 token
-- **WHEN** 管理后台调用调度器或数据采集中心管理 API
+- **WHEN** 管理后台调用原始数据、全球事件或搜索通道API
 - **THEN** 前端必须在请求头中携带 `Authorization: Bearer <token>`
 
 #### Scenario: 不提交真实 token
@@ -96,12 +96,16 @@
 - **THEN** 不得出现真实 Admin Token、模型 API key、搜索 API key 或数据库密码
 
 ### Requirement: 数据采集中心菜单
-系统 SHALL 在管理后台提供 `数据采集中心` 一级菜单，用于承载采集链路的只读查询展示和调度器配置能力。
+系统 SHALL 在管理后台保留`数据采集中心`一级菜单，用于展示Data Service拥有的原始数据、全球事件和搜索通道；系统MUST NOT继续提供Tidewise scheduler配置或执行记录页面。
 
 #### Scenario: 登录后访问数据采集中心
 - **WHEN** 管理员已通过 Admin Token 登录
 - **THEN** sidebar 必须展示 `数据采集中心` 菜单
-- **AND** 内容区必须展示 `原始数据`、`全球事件`、`搜索通道`、`调度器` 四个 tab
+- **AND** 内容区必须只展示`原始数据`、`全球事件`、`搜索通道`三个tab
+
+#### Scenario: 不显示调度控制面
+- **WHEN** 管理员访问数据采集中心
+- **THEN** 页面不得展示scheduler配置、fixed times、interval、运行记录或手动采集入口
 
 #### Scenario: 不把管理后台改成单一采集工作台
 - **WHEN** 后续管理后台新增其他运营菜单
@@ -176,50 +180,28 @@
 - **THEN** 页面必须一次性展示当前筛选结果
 - **AND** 页面不得展示分页控件
 
-### Requirement: 调度器配置与执行记录
-系统 SHALL 在 `数据采集中心` 的 `调度器` tab 保留调度器配置能力，并展示最近 50 条调度执行记录。
-
-#### Scenario: 左右结构展示调度器
-- **WHEN** 管理员打开 `调度器` tab
-- **THEN** 页面左侧必须展示调度器配置表单
-- **AND** 页面右侧必须展示最近调度执行记录列表
-
-#### Scenario: 保存调度器配置
-- **WHEN** 管理员修改调度器配置并保存
-- **THEN** 页面必须继续通过 Admin Token 调用后端保存配置
-- **AND** 刷新页面后必须展示已保存配置
-
-#### Scenario: 展示最近 50 条执行记录
-- **WHEN** 管理员查看调度器执行记录
-- **THEN** 页面必须展示最近 50 条调度 run
-- **AND** 记录必须按开始时间倒序排列
-- **AND** 列表不得分页
-
-#### Scenario: 执行记录统计表示轮次结果
-- **WHEN** 页面展示调度器执行记录
-- **THEN** 成功、失败、跳过和总数必须表示该轮调度内 source 执行结果
-- **AND** 不得把最近运行摘要误表达为累计执行轮次数
-
-#### Scenario: 执行记录为空
-- **WHEN** 当前还没有调度执行记录
-- **THEN** 页面必须展示空状态，而不是展示错误页面
-
 ### Requirement: 数据采集中心 Admin API
-系统 SHALL 提供 Admin Token 保护的只读管理 API，供 `数据采集中心` 查询原始数据、全球事件、搜索通道和调度执行记录。
+Admin Portal BFF SHALL 提供Admin Token保护的raw document、event和source catalog查询API并通过Data Service API获取数据；系统 SHALL 以有界`410 Gone` tombstone退役旧scheduler config/run endpoints，不得读取或更新scheduler表。
 
 #### Scenario: 查询接口需要 Admin Token
-- **WHEN** 管理后台调用数据采集中心查询 API
-- **THEN** 请求必须携带 `Authorization: Bearer <token>`
-- **AND** token 缺失或无效时后端必须拒绝访问
+- **WHEN** 管理后台调用数据采集中心查询API或旧scheduler endpoint
+- **THEN** 请求必须携带`Authorization: Bearer <token>`，token缺失或无效时后端必须拒绝访问
 
 #### Scenario: 分页接口返回统一分页结构
 - **WHEN** 管理后台查询原始数据或全球事件分页接口
-- **THEN** 后端必须返回 `items`、`total`、`page` 和 `page_size`
-- **AND** `page_size` 默认和管理后台展示口径必须为 50
+- **THEN** 后端必须返回`items`、`total`、`page`和`page_size`，且`page_size`默认和页面展示口径为50
 
 #### Scenario: 查询接口不触发采集
-- **WHEN** 管理后台调用原始数据、全球事件、搜索通道或调度记录查询接口
-- **THEN** 后端不得启动采集器、调度器、connector、AI 模型调用或外部搜索 API
+- **WHEN** 管理后台调用原始数据、全球事件或搜索通道查询接口
+- **THEN** 后端不得启动采集器、scheduler、connector、AI模型或外部搜索API
+
+#### Scenario: 调用已退役scheduler endpoint
+- **WHEN** 通过有效Admin Token调用`GET/PUT /admin/scheduler/config`或`GET /admin/scheduler/runs`
+- **THEN** BFF必须在不访问Data repository/API或执行写入的情况下返回带machine code和request id的`410 Gone`
+
+#### Scenario: 结束410兼容窗口
+- **WHEN** 至少一个真实部署窗口已完成且consumer/log审计证明无调用
+- **THEN** 后继change可以删除tombstone route；直接404或提前删除必须先更新artifacts并获Review
 
 ### Requirement: 管理后台 UAT 静态打包
 系统 SHALL 为 `frontend/admin` 提供 UAT 可部署静态 Web 产物，使管理后台可以作为独立 admin portal 服务发布。

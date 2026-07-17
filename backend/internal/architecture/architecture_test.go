@@ -24,12 +24,9 @@ func TestBackendSubsystemPackagesExist(t *testing.T) {
 		"internal/apps/entityfoundation/seed",
 		"internal/apps/ingestion",
 		"internal/apps/ingestion/core",
-		"internal/apps/ingestion/scheduler",
-		"internal/apps/ingestion/runtime",
 		"internal/apps/ingestion/sourcecatalog",
 		"internal/apps/ingestion/connectors",
 		"internal/apps/ingestion/parsers",
-		"internal/apps/ingestion/health",
 		"internal/apps/graphprojection",
 		"internal/platform",
 		"internal/platform/database",
@@ -86,6 +83,9 @@ func TestBackendForbiddenDependencies(t *testing.T) {
 			assertNoStdlibImport(t, pkg, "net/http")
 		case containsPath(pkg.ImportPath, "/internal/platform"):
 			assertNoImport(t, pkg, "/internal/apps/")
+			assertNoImport(t, pkg, "/internal/domain")
+			assertNoImport(t, pkg, "/internal/repositories")
+			assertNoImport(t, pkg, "/internal/http")
 		}
 	}
 }

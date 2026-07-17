@@ -69,7 +69,7 @@ func (t *postgresEventImportTx) LockReceipt(ctx context.Context, key string) (*E
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, idempotency_key, package_id, review_id, review_decision, payload_hash,
        event_id, array_to_json(raw_document_ids), array_to_json(event_source_ids), array_to_json(event_tag_map_ids), review_metadata, imported_at
-FROM event_import_receipts WHERE idempotency_key = $1 FOR UPDATE`, key).Scan(
+FROM event_import_receipts WHERE idempotency_key = $1`, key).Scan(
 		&receipt.ID, &receipt.IdempotencyKey, &receipt.PackageID, &receipt.ReviewID, &receipt.ReviewDecision, &receipt.PayloadHash,
 		&receipt.EventID, &rawDocumentIDsJSON, &eventSourceIDsJSON, &eventTagMapIDsJSON, &metadata, &receipt.ImportedAt,
 	)

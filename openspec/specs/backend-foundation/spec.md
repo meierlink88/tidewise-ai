@@ -53,22 +53,26 @@
 - **THEN** 代码必须通过统一 config 读取注入后的值，而不是在业务模块中直接读取环境变量或硬编码
 
 ### Requirement: 后端扩展边界
-系统 SHALL 为多个可运行后端子系统、共享基础层、外部平台集成、数据访问和异步/采集任务预留清晰目录边界，避免未来能力直接堆叠在入口、handler 或全局杂项包中。
+系统 SHALL 为 Data Service、Miniapp BFF、Admin BFF、Data-owned import/projection/maintenance command、共享技术基础层和外部平台集成预留清晰目录边界，避免未来能力直接堆叠在入口、handler 或全局杂项包中；采集scheduler与connector execution归外部`agent-run`。
 
 #### Scenario: 添加可运行子系统
-- **WHEN** 后续 change 添加小程序 API、管理后台 API、采集调度器或运维命令
-- **THEN** 进程入口必须放在 `backend/cmd/*`，业务逻辑必须放在 `backend/internal/apps/<subsystem>`，不得在 `cmd/*` 中承载复杂业务流程
+- **WHEN** 后续 change 添加小程序 API、管理后台 API、Data API、event import、graph projection或Data-owned运维命令
+- **THEN** 进程入口必须位于对应service-owned command边界，业务逻辑必须下沉到对应service application，不得在command中承载复杂流程
+
+#### Scenario: 添加采集执行能力
+- **WHEN** 后续 change 需要scheduler、source worker、connector execution、provider retry/rate-limit或真实ingest smoke
+- **THEN** 该能力默认属于外部`agent-run`，Tidewise不得在`backend/cmd/*`、BFF、Data Service或platform恢复采集runtime
 
 #### Scenario: 添加共享基础能力
-- **WHEN** 多个后端子系统需要共享领域模型、数据库访问、配置、数据库连接、平台运行能力或跨子系统外部平台集成
-- **THEN** 该能力必须放入 `domain`、`repositories`、`config`、`platform` 或 `integrations` 等共享基础层，并避免反向依赖具体业务子系统
+- **WHEN** 多个后端服务需要共享config、logging、observability、request id或HTTP bootstrap
+- **THEN** 只有无业务语义的技术能力可以进入platform；Data domain、repository、DTO与业务client必须留在owner/consumer边界并避免反向依赖
 
 #### Scenario: 添加外部能力
 - **WHEN** 后续 change 添加 Agent 平台、数据库、缓存、队列、图谱或 RAG 数据处理
 - **THEN** 该能力必须放入对应后端边界，并保持前端无法直接访问凭证或内部实现
 
 ### Requirement: 后端正式模块分层
-系统 SHALL 在 Go 后端正式模块开发中区分进程入口、业务子系统应用逻辑、协议适配、领域模型、数据访问、外部平台集成、采集子系统和契约边界。
+系统 SHALL 在 Go 后端正式模块开发中区分service-owned command、Data/Miniapp/Admin application、协议适配、Data领域与repository、外部平台集成、受控import和契约边界；采集执行不属于Tidewise runtime。
 
 #### Scenario: 添加业务 handler
 - **WHEN** 后续 change 添加业务 HTTP handler
@@ -76,33 +80,37 @@
 
 #### Scenario: 添加业务编排
 - **WHEN** 后续 change 添加跨 repository、integration 或 job 的业务流程
-- **THEN** 该流程必须放入对应 `internal/apps/<subsystem>` 应用服务边界，并保持领域规则和基础设施细节可测试
+- **THEN** 该流程必须放入对应service application边界，并保持领域规则和基础设施细节可测试；BFF不得直接编排Data repository
 
 #### Scenario: 添加采集流程
 - **WHEN** 后续 change 添加自研爬虫采集、外部 Agent API 采集结果接入、清洗、标准化或去重流程
-- **THEN** 该流程必须放入 `internal/apps/ingestion` 子系统边界，并通过采集 runtime、connector、parser、repository 和共享 integration 协作完成
+- **THEN** 来源访问、schedule和connector execution必须位于外部`agent-run`；Tidewise只可在Data-owned边界保留source metadata、受测adapter contract及raw/reviewed-event import validation与persistence，不得组装采集runtime
 
 ### Requirement: 真实 PostgreSQL 连接边界
-系统 SHALL 在 Go 后端提供真实 PostgreSQL 连接边界，使迁移、repository 和本地 smoke 命令可以通过统一 config 和 secret 注入访问数据库。
+系统 SHALL 让 Data Service及显式Data migration/maintenance command通过统一config和secret注入访问PostgreSQL；Miniapp/Admin BFF与Agent不得持有Data DB credential或建立连接。
 
 #### Scenario: 构建本地数据库连接
-- **WHEN** 开发者以 `APP_ENV=local` 加载后端配置并提供数据库密码或连接串
-- **THEN** 后端必须能够构建 PostgreSQL 连接并完成 ping 验证，且不得从业务模块散落读取环境变量
+- **WHEN** 开发者以 `APP_ENV=local` 启动Data Service或显式Data migration command并通过进程环境注入数据库凭据
+- **THEN** Data-owned bootstrap必须能够构建 PostgreSQL 连接并完成就绪校验，且不得从业务模块散落读取环境变量
+
+#### Scenario: BFF 不连接 Data DB
+- **WHEN** Miniapp或Admin BFF启动
+- **THEN** 配置不得要求PostgreSQL凭据或migration/repository wiring，Data读取必须通过`DataServiceClient`
 
 #### Scenario: 避免提交数据库 secret
 - **WHEN** 开发者查看 repo 内配置文件、本地基础设施模板或示例环境文件
 - **THEN** 文件中不得包含真实数据库密码、生产连接串、token 或私有凭证
 
 ### Requirement: 后端启动迁移检查
-系统 SHALL 在 Go API/BFF 启动阶段检查 PostgreSQL migration 状态，并按环境配置决定是否自动应用 pending migration。
+Data Service SHALL 在启动阶段以只读、fail-closed方式检查既有PostgreSQL migration ledger；启动路径不得创建ledger或自动应用migration，Miniapp/Admin BFF不得执行Data migration检查。
 
-#### Scenario: 自动应用 pending migration
-- **WHEN** `migration.auto_apply=true` 且数据库存在 pending migration
-- **THEN** 后端启动流程必须通过受保护的迁移执行器应用 pending migration，再继续启动服务
+#### Scenario: 只读检查 migration readiness
+- **WHEN** Data Service启动并检查数据库版本
+- **THEN** 必须使用server-enforced read-only ledger查询；ledger缺失、pending或版本异常时返回不可就绪，且不得调用会自动创建ledger的检查路径
 
 #### Scenario: 拒绝未知 schema 启动
-- **WHEN** `migration.auto_apply=false` 且数据库存在 pending migration
-- **THEN** 后端必须拒绝以未知 schema 继续提供服务，或明确返回不可就绪状态
+- **WHEN** Data Service发现pending migration或未知schema
+- **THEN** 必须拒绝提供ready状态；只有另行授权的显式migration command可以应用DDL
 
 ### Requirement: 数据库迁移命令入口
 系统 SHALL 提供独立数据库迁移命令，使开发者和部署流程可以不启动 API 服务也能检查或应用 migration。
@@ -116,11 +124,11 @@
 - **THEN** 命令必须报告已应用版本和 pending migration，而不是修改数据库结构
 
 ### Requirement: 后端数据访问边界
-系统 SHALL 通过 repository 边界访问 PostgreSQL，并通过明确的缓存或短期状态边界访问 Redis。
+Data Service SHALL 通过repository边界访问PostgreSQL；Miniapp/Admin SHALL 通过consumer-owned `DataServiceClient`访问Data API，并通过明确的缓存或短期状态边界访问各自获准状态。
 
 #### Scenario: 访问结构化数据
 - **WHEN** 后端业务模块需要读取或写入用户、事件、市场、板块、订阅、报告、Agent 结果或任务记录
-- **THEN** 业务代码必须通过 repository 边界访问 PostgreSQL，而不是在 handler 中直接执行 SQL
+- **THEN** Data-owned业务代码必须通过repository访问PostgreSQL，BFF必须调用Data API；任何handler都不得直接执行SQL
 
 #### Scenario: 访问缓存或幂等状态
 - **WHEN** 后端业务模块需要缓存、限流、幂等或短期任务状态
@@ -149,19 +157,19 @@
 - **THEN** 该 change 必须验证实现没有偏离已定义契约
 
 ### Requirement: 采集层代码边界
-系统 SHALL 在 Go 后端中提供 `internal/apps/ingestion` 子系统边界，用于承载采集核心接口、采集编排、source catalog、connector、parser、来源健康、清洗、标准化、去重和写入流程，并通过 `core`、共享 `repositories`、`domain`、`config` 和必要的共享 `integrations` 协作。
+系统 SHALL 在 Data-owned边界保留source catalog、connector/parser、`core`中仍有调用方的adapter contract、凭证引用解析和raw/reviewed-event import能力；Tidewise SHALL NOT保留采集编排、来源健康、scheduler、source worker或等价production execution wiring。
 
 #### Scenario: 新增采集模块
-- **WHEN** 后续 change 添加或扩展采集层代码
-- **THEN** 采集编排必须位于后端 `internal/apps/ingestion` 边界，而不是放入 HTTP handler、main 入口或前端服务中
+- **WHEN** 后续 change 添加或扩展source metadata、adapter contract或Data import能力
+- **THEN** 代码必须归Data-owned边界并保持可独立测试，不得把connector execution放入HTTP handler、command、BFF或platform
 
 #### Scenario: 新增采集核心抽象
 - **WHEN** 后续 change 添加采集 connector/parser 接口、注册表、凭证解析、限流策略、原始响应、原始文档候选对象或 raw document 写入抽象
-- **THEN** 该能力必须位于 `internal/apps/ingestion/core`，不得重新创建顶层 `internal/ingestion`
+- **THEN** 只有仍被保留adapter/import contract使用的抽象可以位于`internal/apps/ingestion/core`；runtime-only limiter/writer/orchestration不得恢复，也不得重新创建顶层`internal/ingestion`
 
 #### Scenario: 协作外部连接器
-- **WHEN** 采集流程需要访问 RSS、HTTP API、RSSHub、网页、本地文件或未来 SDK worker
-- **THEN** 访问外部数据源的实现必须通过 `internal/apps/ingestion/connectors` 或等价采集 connector 边界，而不是散落在 repository、handler 或全局 integrations 中
+- **WHEN** 外部`agent-run`需要执行RSS、HTTP API、RSSHub、网页、本地文件或SDK adapter
+- **THEN** 它必须在外部repo复制/适配并通过Data API提交结果，不得直接import Tidewise Go `internal` connector或访问Data DB
 
 ### Requirement: 数据库迁移实现边界
 系统 SHALL 在后端或基础设施区域提供数据库迁移来源，使 PostgreSQL schema 可以在 local、uat、prod 环境一致创建、审阅和增量更新。
@@ -171,8 +179,8 @@
 - **THEN** 必须在 repo 内提供迁移文件或迁移 runner 可识别的来源，并说明执行方式
 
 #### Scenario: 启动检查迁移版本
-- **WHEN** Go 后端启动并连接 PostgreSQL
-- **THEN** 后端必须能够检查数据库已执行 migration 版本和 repo 内 pending migration，并按环境配置决定是否自动执行
+- **WHEN** Data Service启动并连接PostgreSQL
+- **THEN** 它必须只读检查既有ledger和pending migration且不得自动执行；Miniapp/Admin不得连接Data DB，显式apply只能由单独授权的migration command执行
 
 #### Scenario: 避免并发迁移
 - **WHEN** 多个后端实例同时启动并发现 pending migration
@@ -183,18 +191,18 @@
 - **THEN** 必须能够通过自动化测试或可重复命令确认迁移文件可解析且结构符合预期
 
 ### Requirement: 采集配置扩展
-系统 SHALL 扩展后端强类型配置，使采集层可以读取非敏感的 provider、限流、对象存储和本地运行配置。
+系统 SHALL 通过source catalog和Data metadata contract保存采集adapter的非敏感provider、限流策略、对象引用和配置；Tidewise service config不得重新加入scheduler/runtime执行参数。
 
 #### Scenario: 加载采集配置
-- **WHEN** Go 后端启动并加载 local、uat 或 prod 配置
-- **THEN** config 对象必须包含采集层运行所需的非敏感配置，并在启动阶段校验必填字段
+- **WHEN** Data Service或adapter contract test读取source metadata
+- **THEN** 必须获得经scope过滤的非敏感配置和`credential_ref`名称，不得因此启动connector或provider limiter
 
 #### Scenario: 注入采集凭证
-- **WHEN** 采集连接器需要真实 API key、token、cookie、数据库密码或云服务密钥
-- **THEN** 这些值必须通过环境变量或部署平台 secret 注入，不得写入环境配置文件
+- **WHEN** production connector execution需要真实 API key、token、cookie或云服务密钥
+- **THEN** 凭据必须由外部`agent-run`自身secret边界管理；Tidewise只保存引用名，不得把provider secret写入service config或Data DB
 
 ### Requirement: 采集层测试边界
-系统 SHALL 为采集层 registry、parser、writer、credential resolver 和 rate limiter 提供可自动化验证的单元测试或集成测试边界。
+系统 SHALL 为保留的connector/parser/registry、credential resolver、source metadata与raw/reviewed-event import contract提供可自动化验证的测试边界；删除runtime-only测试不得降低这些合同覆盖。
 
 #### Scenario: 验证标准化
 - **WHEN** 测试 RSS、Eastmoney JSON、RSSHub XML、网页内容或本地文件输入

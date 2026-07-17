@@ -19,17 +19,15 @@ import Pagination from '../components/ui/Pagination';
 import Select from '../components/ui/Select';
 import StatusBadge from '../components/ui/StatusBadge';
 import Tabs, { TabPanel } from '../components/ui/Tabs';
-import SchedulerSettings from './SchedulerSettings';
 
-type ActiveTab = 'raw' | 'events' | 'sources' | 'scheduler';
+type ActiveTab = 'raw' | 'events' | 'sources';
 
 const pageSize = 50;
 
 const tabItems: { id: ActiveTab; label: string }[] = [
   { id: 'raw', label: '原始数据' },
   { id: 'events', label: '全球事件' },
-  { id: 'sources', label: '搜索通道' },
-  { id: 'scheduler', label: '调度器' }
+  { id: 'sources', label: '搜索通道' }
 ];
 
 export default function DataIngestionCenter({ token }: { token: string }) {
@@ -263,11 +261,6 @@ export default function DataIngestionCenter({ token }: { token: string }) {
           </TabPanel>
         ) : null}
 
-        {activeTab === 'scheduler' ? (
-          <TabPanel label="调度器">
-            <SchedulerSettings token={token} />
-          </TabPanel>
-        ) : null}
       </div>
     </section>
   );

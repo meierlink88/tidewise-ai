@@ -27,7 +27,6 @@ type Config struct {
 	Redis         RedisConfig         `yaml:"redis"`
 	Neo4j         Neo4jConfig         `yaml:"neo4j"`
 	Migration     MigrationConfig     `yaml:"migration"`
-	Ingestion     IngestionConfig     `yaml:"ingestion"`
 	ObjectStore   ObjectStoreConfig   `yaml:"object_store"`
 	RateLimit     RateLimitConfig     `yaml:"rate_limit"`
 	Security      SecurityConfig      `yaml:"security"`
@@ -87,13 +86,6 @@ type MigrationConfig struct {
 	LockKey   string `yaml:"lock_key"`
 }
 
-type IngestionConfig struct {
-	DefaultTimeoutSeconds int    `yaml:"default_timeout_seconds"`
-	BatchSize             int    `yaml:"batch_size"`
-	SchedulerTickSeconds  int    `yaml:"scheduler_tick_seconds"`
-	SchedulerTimezone     string `yaml:"scheduler_timezone"`
-}
-
 type ObjectStoreConfig struct {
 	Provider  string `yaml:"provider"`
 	LocalPath string `yaml:"local_path"`
@@ -108,13 +100,16 @@ type SecurityConfig struct {
 }
 
 type SecretConfig struct {
-	AgentPlatformAPIKey string
-	DatabaseURL         string
-	DatabasePassword    string
-	JWTSecret           string
-	PaymentSecret       string
-	CloudSecret         string
-	AdminAPIToken       string
+	AgentPlatformAPIKey     string
+	DatabaseURL             string
+	DatabasePassword        string
+	JWTSecret               string
+	PaymentSecret           string
+	CloudSecret             string
+	AdminAPIToken           string
+	DataServiceAgentToken   string
+	DataServiceMiniappToken string
+	DataServiceAdminToken   string
 }
 
 func Load() (Config, error) {
@@ -138,13 +133,16 @@ func Load() (Config, error) {
 
 	cfg.App.Env = env
 	cfg.Secrets = SecretConfig{
-		AgentPlatformAPIKey: os.Getenv("AGENT_PLATFORM_API_KEY"),
-		DatabaseURL:         firstEnv("TIDEWISE_DATABASE_URL", "DATABASE_URL"),
-		DatabasePassword:    os.Getenv("DATABASE_PASSWORD"),
-		JWTSecret:           os.Getenv("JWT_SECRET"),
-		PaymentSecret:       os.Getenv("PAYMENT_SECRET"),
-		CloudSecret:         os.Getenv("CLOUD_SECRET"),
-		AdminAPIToken:       os.Getenv("ADMIN_API_TOKEN"),
+		AgentPlatformAPIKey:     os.Getenv("AGENT_PLATFORM_API_KEY"),
+		DatabaseURL:             firstEnv("TIDEWISE_DATABASE_URL", "DATABASE_URL"),
+		DatabasePassword:        os.Getenv("DATABASE_PASSWORD"),
+		JWTSecret:               os.Getenv("JWT_SECRET"),
+		PaymentSecret:           os.Getenv("PAYMENT_SECRET"),
+		CloudSecret:             os.Getenv("CLOUD_SECRET"),
+		AdminAPIToken:           os.Getenv("ADMIN_API_TOKEN"),
+		DataServiceAgentToken:   os.Getenv("DATA_SERVICE_AGENT_TOKEN"),
+		DataServiceMiniappToken: os.Getenv("DATA_SERVICE_MINIAPP_TOKEN"),
+		DataServiceAdminToken:   os.Getenv("DATA_SERVICE_ADMIN_TOKEN"),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -267,18 +265,6 @@ func (c Config) Validate() error {
 	}
 	if c.Migration.LockKey == "" {
 		return fmt.Errorf("migration.lock_key is required")
-	}
-	if c.Ingestion.DefaultTimeoutSeconds <= 0 {
-		return fmt.Errorf("ingestion.default_timeout_seconds must be positive")
-	}
-	if c.Ingestion.BatchSize <= 0 {
-		return fmt.Errorf("ingestion.batch_size must be positive")
-	}
-	if c.Ingestion.SchedulerTickSeconds <= 0 {
-		return fmt.Errorf("ingestion.scheduler_tick_seconds must be positive")
-	}
-	if c.Ingestion.SchedulerTimezone == "" {
-		return fmt.Errorf("ingestion.scheduler_timezone is required")
 	}
 	if c.ObjectStore.Provider == "" {
 		return fmt.Errorf("object_store.provider is required")

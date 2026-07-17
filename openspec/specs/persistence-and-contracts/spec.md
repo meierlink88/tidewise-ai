@@ -4,6 +4,108 @@
 
 ## Requirements
 
+### Requirement: Data PostgreSQL 独占 ownership
+现有 PostgreSQL 数据库及其 Entity、Chain Node、Raw Document、Event、Event Tag、Research Theme、Research Anchor、Index 和投影运行记录 SHALL 整体归 Data Service 独占；Miniapp、Admin 与 Agent MUST NOT 持有 Data DB 凭据或直接执行 SQL。
+
+#### Scenario: BFF 访问持久化数据
+- **WHEN** Miniapp/Admin 需要查询或修改 Data Domain 状态
+- **THEN** 它必须调用 Data Service API，且其运行配置不得包含 Data PostgreSQL credential
+
+#### Scenario: 保持现有表归属
+- **WHEN** 服务边界迁移开始
+- **THEN** Research Theme/Anchor 与其他现有 Data tables 必须继续归 Data Service，不得为了目录分层机械搬表、拆 schema 或重写 migration
+
+#### Scenario: 保留历史 scheduler tables
+- **WHEN** Tidewise scheduler/runtime与其repositories被删除
+- **THEN** `ingestion_scheduler_configs`、`ingestion_runs`、`ingestion_run_sources`及migration `000005_add_ingestion_scheduler.sql`必须原样保留，且不得drop、truncate、重写历史SQL或删除既有rows
+
+#### Scenario: 停止 scheduler 数据访问
+- **WHEN** runtime退役完成
+- **THEN** production应用不得继续创建、更新或通过Admin API读取scheduler config/run；未来历史审计需求必须另开只读Data API change
+
+### Requirement: Raw document import receipt 持久化合同
+Data Service SHALL以forward-only `backend/migrations/000022_add_raw_document_import_receipts.sql`新增独立append-only `raw_document_import_receipts`表；现有21个migration文件MUST保持byte-for-byte不变，其按路径排序SHA-256 manifest的聚合hash MUST保持`2ed0dd004ab3b0bad633af5f0107a9ddffa28b83422b643f821c2cd47fb02dfc`。raw receipt MUST NOT与`event_import_receipts`、events、sources、tags或review状态复用table或generic polymorphic schema。
+
+#### Scenario: 创建 raw receipt schema artifact
+- **WHEN** Package 4实现raw-document import persistence contract
+- **THEN** repo migration文件数必须从21变为22且只能新增`000022_add_raw_document_import_receipts.sql`；必须记录新文件exact hash，Goose Up必须保持default single transaction且不得含`NO TRANSACTION`、`IF NOT EXISTS`或`OR REPLACE`，Down必须以`RAISE EXCEPTION`失败并禁止destructive/successful no-op，Package 4禁止执行SQL或修改前21个文件
+
+#### Scenario: 验证最小表合同
+- **WHEN** 检查`raw_document_import_receipts`
+- **THEN** 表必须精确包含`id UUID`、`caller_identity TEXT`、`idempotency_key TEXT`、`payload_hash CHAR(64)`、`raw_document_ids UUID[]`、`result_payload JSONB`和`imported_at TIMESTAMPTZ`七个NOT NULL列，其中`imported_at`默认`now()`
+
+#### Scenario: 验证 receipt constraints
+- **WHEN** 检查raw receipt schema对象
+- **THEN** 必须存在primary key、`UNIQUE(caller_identity,idempotency_key)`、trim后非空且最多200字符caller/key、64位lowercase hex hash、一维/无NULL/至少一个raw document ID、required/cross-field-consistent JSON result checks、imported-time index、固定`prevent_raw_document_import_receipt_mutation()`及拒绝`UPDATE/DELETE/TRUNCATE`的statement trigger
+
+#### Scenario: 原子提交 raw documents 与 receipt
+- **WHEN** 一个valid raw batch首次导入
+- **THEN** 所有raw document写入/复用和immutable receipt insert必须位于一个PostgreSQL transaction并一起commit或rollback；whole-batch validation必须拒绝重复raw identity/ID，receipt raw IDs按canonical candidate order保存且stored result的receipt ID/hash/raw IDs/items/imported time必须与columns一致并足以精确重放首次structured business result
+
+#### Scenario: receipt 查询语义
+- **WHEN** 已认证caller按自身identity与idempotency key读取receipt status
+- **THEN** 已存在row必须表示completed immutable result并返回stored snapshot，缺少row必须表示unknown/尚未commit；status不得按当前source/raw状态合成不同结果
+
+#### Scenario: receipt retry conflict
+- **WHEN** 已认证caller向import endpoint以既有idempotency key提交不同`raw-document-import-v1`canonical hash
+- **THEN** Data Service必须返回409且不得插入、更新、删除或truncate任何raw document/receipt
+
+#### Scenario: raw identity overlap race
+- **WHEN** 不同caller或不同idempotency key的并发batch包含重叠source external ID/content hash
+- **THEN** Data Service必须以sorted raw-identity transaction locks和conflict-safe insert/winner re-read串行化；external-ID与hash命中不同existing rows时必须409整批回滚，禁止无序选择任一row
+
+#### Scenario: resolved membership 唯一
+- **WHEN** 全部candidate完成raw identity resolution且尚未构造receipt
+- **THEN** resolved ID数量必须等于candidate数量且全部唯一；不同candidate折叠到同一row必须返回`RAW_DOCUMENT_BATCH_COLLISION` 409并整批回滚
+
+#### Scenario: event receipt 语义不变
+- **WHEN** reviewed-event import执行或重放
+- **THEN** 它必须继续使用既有`event_import_receipts`及event/source/tag/review transaction contract，不得读写`raw_document_import_receipts`来替代event receipt
+
+### Requirement: Raw receipt local schema apply gate
+系统SHALL把`000022`的local schema应用作为独立Package 5 R2两层操作，并MUST与Package 10 roles/credentials层分离；用户于2026-07-17批准在amendment获批且preflight evidence精确通过后自动执行一次该local migration。
+
+#### Scenario: Package 5 order 1 preflight
+- **WHEN** 准备应用`000022`
+- **THEN** 必须以server-enforced`BEGIN READ ONLY`直接查询identity和既有Goose ledger，ledger缺失即停且不得运行可能EnsureDBVersion写入的check mode；确认applied=21、仅`000022`pending、显式排除new file后的21-file聚合hash、新文件exact hash/transactional Up/failing Down、全部固定对象名缺失、DDL/ledger privilege、business schema/data counts及完整可读backup archive+hash+documented recovery；不得声称restore-tested，任一漂移必须停止
+
+#### Scenario: Package 5 order 2 apply and verify
+- **WHEN** order 1全部证据通过且amendment已获批准
+- **THEN** 系统必须以target-version 000022只执行一次apply，再只读断言migration=22、固定columns/constraints/index/function/trigger及初始receipt rows=0；除Goose ledger一条记录和列明new objects外pre-existing business schema/data必须不变，并运行全部synthetic DML rollback的atomicity/constraint/advisory-lock integration tests
+
+#### Scenario: Package 5 不伪造真实 commit race
+- **WHEN** rollback-only local integration验证两个connection的advisory lock
+- **THEN** 两个transaction都必须rollback且最终receipt rows=0；winner commit后loser replay必须由Package 4 state-machine/SQL winner-re-read tests覆盖，不得在curated local持久化不可清理fixture或把rollback case报告为真实commit-race
+
+#### Scenario: Package 5 fail closed
+- **WHEN** apply、assertion或integration test失败、超时、出现partial state或任何identity/count/hash/schema漂移
+- **THEN** 必须立即停止并保留backup/现场证据，不得restore、retry、forward-fix、seed、持久化业务数据、触碰Neo4j/UAT/prod/shared/deployment或执行role/credential变更
+
+### Requirement: Data 数据库角色边界
+系统 SHALL 定义 `data_service_rw`、`data_service_migrate`、`data_service_ro` 三类最小 PostgreSQL role，并 MUST 将真实 role/grant/credential 切换作为独立 R2 授权操作，与 R1 代码/服务边界调整分离。
+
+#### Scenario: 完成代码边界调整
+- **WHEN** Data/BFF 代码和 HTTP contract 已通过测试
+- **THEN** 不得据此推定已授权创建role、变更grant、写secret或切换database credential；唯一migration授权是Package 5精确的local `000022`，且不得推定Package 10权限授权
+
+#### Scenario: 请求 local role 切换
+- **WHEN** 操作者准备切换 local Data PostgreSQL roles
+- **THEN** 必须先确认database identity、grants/owner manifest、backup/recovery、before/after assertions、回切方式与停止条件，再取得独立明确授权；Package 10必须把raw receipt table/function owner转给`data_service_migrate`、收敛PUBLIC/function privilege且只向runtime授予必要SELECT/INSERT；两类receipt lookup必须由幂等key advisory transaction lock保护并使用plain `SELECT`，不得以row-locking clause迫使runtime获得`UPDATE` privilege
+
+### Requirement: 未来领域数据库隔离
+未来 Identity、Membership、Billing、Subscription 等独立领域服务 SHALL 使用独立数据库 ownership；跨领域引用 SHALL 保存 UUID 并通过 API contract 校验，MUST NOT 建立跨数据库 foreign key。
+
+#### Scenario: 新增未来领域服务
+- **WHEN** 后续 change 引入 Identity 或 Billing 数据
+- **THEN** change 必须定义独立数据库与 API ownership，不得把其表默认加入 Data PostgreSQL
+
+### Requirement: 跨服务事务边界
+每个 Data command SHALL 在 Data Service 自身 PostgreSQL transaction 内保证原子性；BFF MUST NOT 持有跨服务数据库 transaction，系统 MUST NOT 在本 change 引入分布式事务。
+
+#### Scenario: BFF 发起复合写操作
+- **WHEN** 一个页面操作需要修改多条 Data records
+- **THEN** BFF 必须调用一个有幂等 identity 的 Data aggregate command，由 Data Service 在单一 transaction 内完成或回滚
+
 ### Requirement: MVP 持久化基础设施
 系统 SHALL 使用 PostgreSQL 作为 MVP 阶段结构化主存储，并使用 Redis 承载缓存、限流、幂等和短期任务状态。
 
@@ -27,15 +129,15 @@
 - **THEN** 该能力必须优先经由外部 Agent 平台或明确的服务端集成边界承载，而不是在前端或业务 handler 中直接实现
 
 ### Requirement: 数据采集输入边界
-系统 SHALL 将热点事件和外部信号采集定义为后端 ingestion 能力，并支持自研爬虫脚本采集和外部 Agent API 采集结果接入两种输入路径。
+系统 SHALL 将热点事件和外部信号的受控接入定义为 Data Service ingestion/import 能力；来源访问、调度和采集执行由外部 `agent-run`/Agent Server承担，Tidewise只接受经认证的raw-document或reviewed-event API输入。
 
-#### Scenario: 自研爬虫采集数据
-- **WHEN** 后续 change 通过自研爬虫脚本采集新闻、公告、政策、市场异动、行业事件或热度信号
-- **THEN** 采集结果必须进入后端 ingestion 清洗和标准化边界，而不是由前端或业务 handler 直接使用
+#### Scenario: 外部执行系统提交原始材料
+- **WHEN** 外部执行系统采集新闻、公告、政策、市场异动、行业事件或热度信号
+- **THEN** 结果必须通过 Data Service raw-document import完成身份、来源、幂等和whole-batch校验，不得由前端、BFF或业务handler直接使用
 
 #### Scenario: 接入 Agent 采集结果
 - **WHEN** 后续 change 通过外部 Agent API 获取已经采集或初步分析后的事件数据
-- **THEN** 后端必须通过 integration 边界接入该结果，并交由 ingestion 进行结构化校验、清洗、标准化和入库
+- **THEN** Agent必须按材料成熟度调用raw-document或reviewed-event Data API，且不得直连Data DB
 
 ### Requirement: 采集数据标准化和存储分流
 系统 SHALL 对采集后的原始数据执行来源追踪、去重、清洗、标准化和质量标记，并按数据形态进入关系型、向量或图谱存储边界。
@@ -71,7 +173,7 @@
 - **THEN** 展示内容必须保持决策辅助定位，不得表达为直接投资建议
 
 ### Requirement: 异步任务边界
-系统 SHALL 将事件采集、Agent 分析、报告生成、图谱更新、通知投递和支付/订阅后处理等长时间流程表达为服务端 job 边界。
+系统 SHALL 将 Agent 分析、报告生成、图谱更新、通知投递和支付/订阅后处理等长时间流程表达为服务端 job 边界；事件采集的schedule/execution job归外部`agent-run`，不得在Tidewise恢复采集runtime。
 
 #### Scenario: 识别长时间任务
 - **WHEN** 某个能力无法在一次普通 HTTP 请求中稳定完成
@@ -82,36 +184,25 @@
 - **THEN** 小程序必须通过 API 契约查询任务状态，而不是直接读取内部队列、数据库或 Agent 平台状态
 
 ### Requirement: 采集原始数据持久化
-系统 SHALL 将采集层接收到的原始外部材料标准化并保存到 PostgreSQL 的采集源目录和原始文档边界中。
+系统 SHALL 将 Data Service受控import接收到的原始外部材料校验、标准化并保存到 PostgreSQL 的采集源目录和原始文档边界中。
 
 #### Scenario: 保存采集源目录
 - **WHEN** 系统注册外部来源
 - **THEN** 必须保存来源通道、provider、connector、parser、来源类型、来源 URL、主题提示、授权策略、限流策略、凭证引用和状态
 
 #### Scenario: 保存原始文档
-- **WHEN** 采集连接器返回可解析内容
+- **WHEN** 已认证调用方提交通过whole-batch validation的原始文档候选
 - **THEN** 必须保存对应原始文档，并保留来源、发布时间、采集时间、内容哈希、原始对象 URI、内容类型和入库状态
 
 #### Scenario: 通过 migration 创建持久化结构
 - **WHEN** 采集源目录、原始文档或事件证据相关结构需要创建或调整
 - **THEN** 必须通过 repo 内版本化 SQL migration 创建或增量修改，不得只在代码模型中表达数据库结构
 
-### Requirement: 本地持久化 smoke 链路
-系统 SHALL 提供本地可重复运行的持久化 smoke 链路，覆盖数据库连接、migration、采集源 seed、真实采集、原始文档入库和幂等复跑验证。
-
-#### Scenario: 完成本地持久化闭环
-- **WHEN** 开发者按本地说明配置 PostgreSQL 并运行迁移和采集 smoke
-- **THEN** 系统必须能在 local 数据库中看到采集源记录、原始文档记录和迁移版本记录
-
-#### Scenario: 复跑 smoke
-- **WHEN** 开发者在已有 smoke 数据的 local 数据库上再次运行采集 smoke
-- **THEN** 系统必须保持幂等，不得因为同一来源同一文档重复创建多条事实基础记录
-
 ### Requirement: 本地基础设施配置边界
 系统 SHALL 将本地 PostgreSQL 运行所需的非敏感配置和示例模板保存在 repo 内，并将真实 secret 留给环境变量或未提交文件。
 
 #### Scenario: 查看本地配置模板
-- **WHEN** 开发者查看本地数据库或 smoke 运行模板
+- **WHEN** 开发者查看本地Data Service数据库或import client运行模板
 - **THEN** 模板必须说明需要的变量名和用途，但不得包含真实密码、真实 token 或生产连接串
 
 #### Scenario: 切换 local、uat、prod
@@ -130,11 +221,11 @@
 - **THEN** 系统必须保存可查询的入库状态，而不是只依赖进程日志
 
 ### Requirement: Agent 和采集结果边界
-系统 SHALL 保持自研采集、外部 Agent 采集结果和后续 Agent 推理结果的边界清晰，避免原始响应绕过 ingestion 直接成为系统事实。
+系统 SHALL 保持外部采集执行、Data Service受控import和后续 Agent 推理结果的边界清晰，避免原始响应绕过校验直接成为系统事实。
 
 #### Scenario: 接收外部 Agent 采集结果
 - **WHEN** 外部 Agent API 返回已经采集或初步整理的事件材料
-- **THEN** 后端必须通过 integration 边界接收，并交由 ingestion 标准化、校验和写入原始文档或后续结构化表
+- **THEN** Agent必须根据材料成熟度调用Data raw-document或reviewed-event API，由Data Service校验并写入对应事实边界
 
 #### Scenario: 展示分析结果
 - **WHEN** 后续前端或 API 展示基于采集数据生成的分析内容
@@ -172,7 +263,7 @@
 
 #### Scenario: 读取扩展配置
 - **WHEN** repository 查询 active source 或 seed 后读取来源记录
-- **THEN** 系统必须返回 `source_config` 中的非敏感结构化参数，供后续 connector、parser 或 job 使用
+- **THEN** 系统必须返回 `source_config` 中的非敏感结构化参数，供受控source-metadata API、adapter contract tests或未来外部执行适配使用
 
 ### Requirement: 版本化来源初始化
 系统 SHALL 通过 repo 内版本化来源清单初始化和更新统一采集源目录，而不是依赖手工数据库操作或散落脚本。
@@ -233,63 +324,6 @@
 #### Scenario: 排除敏感元数据
 - **WHEN** 保存 AI Web Research 原始返回或请求元数据
 - **THEN** 系统不得保存真实 API key、Authorization header、cookie、私有 token 或其他敏感凭证
-
-### Requirement: 全局调度配置持久化
-系统 SHALL 通过 PostgreSQL 持久化全局采集调度配置，使调度器和管理后台可以共享启停状态、触发模式、并发参数和来源过滤条件。
-
-#### Scenario: 创建调度配置结构
-- **WHEN** 数据库迁移执行到本 change 的版本
-- **THEN** PostgreSQL 必须提供全局调度配置结构，保存启用状态、调度模式、interval 分钟数、固定时间列表、并发数、batch size、超时时间、source filter、配置版本和更新时间
-
-#### Scenario: 默认安全配置
-- **WHEN** 新环境首次执行 migration
-- **THEN** 系统必须提供默认关闭或等价安全配置，不得迁移后立即自动访问大量外部来源
-
-#### Scenario: 非破坏性迁移
-- **WHEN** 迁移在已有 `source_catalogs` 和 `raw_documents` 数据的数据库上执行
-- **THEN** 迁移不得删除、清空或重写已有来源和原始文档数据
-
-#### Scenario: 不保存敏感信息
-- **WHEN** 调度配置记录运行参数
-- **THEN** 系统不得把 API key、Admin Token、cookie、bearer token、私有 URL 密钥或数据库连接串写入调度配置表
-
-### Requirement: 采集运行记录持久化
-系统 SHALL 通过 PostgreSQL 持久化调度 run 和 source 级执行结果，支持后续审计、排障、后台展示和本地验证。
-
-#### Scenario: 保存 run 摘要
-- **WHEN** 调度器开始和结束一轮采集
-- **THEN** 系统必须保存 run ID、触发方式、状态、开始时间、结束时间、总来源数、成功数、失败数、跳过数、调度参数摘要和错误摘要
-
-#### Scenario: 保存 source 执行结果
-- **WHEN** 某个来源在 run 中完成、失败或跳过
-- **THEN** 系统必须保存 source ID、run ID、状态、写入数量、重复数量、错误信息、开始时间、结束时间和耗时
-
-#### Scenario: 查询最近运行结果
-- **WHEN** 管理后台或开发者需要验证调度器是否正常工作
-- **THEN** 系统必须能够通过 repository、admin API 或 SQL 查询最近 run 和来源执行结果，而不是只依赖进程日志
-
-### Requirement: 调度器管理 API 契约
-系统 SHALL 为管理后台提供调度器配置和运行记录 API，并通过 Admin Token 保护管理接口。
-
-#### Scenario: 查询调度配置
-- **WHEN** 管理后台请求当前调度器配置
-- **THEN** 后端必须返回启用状态、调度模式、interval、固定时间列表、并发数、batch size、超时时间和最近运行摘要
-
-#### Scenario: 保存调度配置
-- **WHEN** 管理后台提交调度器配置
-- **THEN** 后端必须校验字段格式、调度模式、固定时间、interval、并发数、batch size 后再保存
-
-#### Scenario: 查询最近运行记录
-- **WHEN** 管理后台请求最近调度 run
-- **THEN** 后端必须返回最近 run 的开始时间、结束时间、触发方式、状态、总数、成功数、失败数、跳过数和错误摘要
-
-#### Scenario: Admin Token 鉴权
-- **WHEN** 请求访问调度器管理 API
-- **THEN** 后端必须校验 `Authorization: Bearer <token>`，并使用环境变量 `ADMIN_API_TOKEN` 中的 token 完成鉴权
-
-#### Scenario: 拒绝未授权请求
-- **WHEN** 请求缺少 token、token 错误或服务端未配置 Admin Token
-- **THEN** 后端必须拒绝访问，不得返回调度配置或运行记录
 
 ### Requirement: Neo4j 图谱投影持久化边界
 系统 SHALL 在引入 Neo4j 时保持 PostgreSQL 作为结构化事实主存储，并将 Neo4j 中的数据限定为从 PostgreSQL 派生的可重建图谱投影。

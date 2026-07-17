@@ -14,9 +14,6 @@ type InMemoryRepository struct {
 	eventSources        map[string]domain.EventSource
 	eventTagDefs        map[string]domain.EventTagDef
 	eventTagMaps        map[string]domain.EventTagMap
-	schedulerConfig     domain.SchedulerConfig
-	ingestionRuns       map[string]domain.IngestionRun
-	runSources          map[string][]domain.IngestionRunSource
 	graphEntities       map[string]GraphEntityNode
 	graphEdges          map[string]GraphEntityEdge
 	graphRuns           map[string]GraphProjectionRun
@@ -38,9 +35,6 @@ func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
 		eventSources:        map[string]domain.EventSource{},
 		eventTagDefs:        map[string]domain.EventTagDef{},
 		eventTagMaps:        map[string]domain.EventTagMap{},
-		schedulerConfig:     defaultSchedulerConfig(),
-		ingestionRuns:       map[string]domain.IngestionRun{},
-		runSources:          map[string][]domain.IngestionRunSource{},
 		graphEntities:       map[string]GraphEntityNode{},
 		graphEdges:          map[string]GraphEntityEdge{},
 		graphRuns:           map[string]GraphProjectionRun{},

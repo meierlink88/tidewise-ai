@@ -78,6 +78,9 @@ func TestLoadReadsInjectedSecretNames(t *testing.T) {
 	t.Setenv("PAYMENT_SECRET", "test-payment-secret")
 	t.Setenv("CLOUD_SECRET", "test-cloud-secret")
 	t.Setenv("ADMIN_API_TOKEN", "test-admin-token")
+	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "test-data-agent-token")
+	t.Setenv("DATA_SERVICE_MINIAPP_TOKEN", "test-data-miniapp-token")
+	t.Setenv("DATA_SERVICE_ADMIN_TOKEN", "test-data-admin-token")
 
 	cfg, err := Load()
 	if err != nil {
@@ -90,7 +93,10 @@ func TestLoadReadsInjectedSecretNames(t *testing.T) {
 		cfg.Secrets.JWTSecret == "" ||
 		cfg.Secrets.PaymentSecret == "" ||
 		cfg.Secrets.CloudSecret == "" ||
-		cfg.Secrets.AdminAPIToken == "" {
+		cfg.Secrets.AdminAPIToken == "" ||
+		cfg.Secrets.DataServiceAgentToken == "" ||
+		cfg.Secrets.DataServiceMiniappToken == "" ||
+		cfg.Secrets.DataServiceAdminToken == "" {
 		t.Fatal("expected injected secret placeholders to be loaded")
 	}
 }
@@ -109,15 +115,6 @@ func TestLoadReadsOperationalConfig(t *testing.T) {
 	}
 	if !cfg.Migration.AutoApply {
 		t.Fatal("local migration auto apply should be enabled")
-	}
-	if cfg.Ingestion.DefaultTimeoutSeconds <= 0 {
-		t.Fatal("cfg.Ingestion.DefaultTimeoutSeconds must be positive")
-	}
-	if cfg.Ingestion.SchedulerTickSeconds <= 0 {
-		t.Fatal("cfg.Ingestion.SchedulerTickSeconds must be positive")
-	}
-	if cfg.Ingestion.SchedulerTimezone != "Asia/Shanghai" {
-		t.Fatalf("cfg.Ingestion.SchedulerTimezone = %q, want Asia/Shanghai", cfg.Ingestion.SchedulerTimezone)
 	}
 	if cfg.ObjectStore.LocalPath == "" {
 		t.Fatal("cfg.ObjectStore.LocalPath is empty")
@@ -269,13 +266,16 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 			Env:  EnvLocal,
 		},
 		Secrets: SecretConfig{
-			AgentPlatformAPIKey: "agent-secret",
-			DatabaseURL:         "postgres://user:database-secret@localhost/db",
-			DatabasePassword:    "database-secret",
-			JWTSecret:           "jwt-secret",
-			PaymentSecret:       "payment-secret",
-			CloudSecret:         "cloud-secret",
-			AdminAPIToken:       "admin-token",
+			AgentPlatformAPIKey:     "agent-secret",
+			DatabaseURL:             "postgres://user:database-secret@localhost/db",
+			DatabasePassword:        "database-secret",
+			JWTSecret:               "jwt-secret",
+			PaymentSecret:           "payment-secret",
+			CloudSecret:             "cloud-secret",
+			AdminAPIToken:           "admin-token",
+			DataServiceAgentToken:   "data-agent-token",
+			DataServiceMiniappToken: "data-miniapp-token",
+			DataServiceAdminToken:   "data-admin-token",
 		},
 	}
 
@@ -293,6 +293,9 @@ func TestSecretsAreNotSerializedToYAML(t *testing.T) {
 		"payment-secret",
 		"cloud-secret",
 		"admin-token",
+		"data-agent-token",
+		"data-miniapp-token",
+		"data-admin-token",
 	} {
 		if strings.Contains(serialized, secret) {
 			t.Fatalf("serialized config leaked secret %q", secret)
@@ -385,11 +388,6 @@ __NEO4J__migration:
   directory: migrations
   auto_apply: true
   lock_key: tidewise_schema_migration
-ingestion:
-  default_timeout_seconds: 10
-  batch_size: 50
-  scheduler_tick_seconds: 30
-  scheduler_timezone: Asia/Shanghai
 object_store:
   provider: local
   local_path: .data/raw-objects
