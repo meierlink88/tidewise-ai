@@ -18,12 +18,14 @@ import (
 const defaultCollectorPromptFile = "agents/collector/prompts/query_planner_v1.md"
 
 type collectorOptions struct {
-	promptFile     string
-	dataRoot       string
-	envFile        string
-	candidateLimit int
-	timeWindow     int
-	maxParallel    int
+	promptFile       string
+	dataRoot         string
+	envFile          string
+	candidateLimit   int
+	tavilyTopic      string
+	tavilyMaxResults int
+	timeWindow       int
+	maxParallel      int
 }
 
 func parseCollectorOptions(arguments []string) (collectorOptions, error) {
@@ -34,12 +36,28 @@ func parseCollectorOptions(arguments []string) (collectorOptions, error) {
 	flags.StringVar(&options.dataRoot, "data-root", "data", "output root")
 	flags.StringVar(&options.envFile, "env-file", ".env", "path to an optional dotenv configuration file")
 	flags.IntVar(&options.candidateLimit, "candidate-limit", 10, "maximum results per connector")
+	flags.StringVar(&options.tavilyTopic, "tavily-topic", "general", "Tavily search topic (general, news, or finance)")
+	flags.IntVar(&options.tavilyMaxResults, "tavily-max-results", 5, "maximum Tavily results (1-20)")
 	flags.IntVar(&options.timeWindow, "time-window-hours", 48, "collection time window")
 	flags.IntVar(&options.maxParallel, "max-parallel", 3, "maximum concurrent connectors")
 	if err := flags.Parse(arguments); err != nil {
 		return collectorOptions{}, err
 	}
+	if options.tavilyMaxResults < 1 || options.tavilyMaxResults > 20 {
+		return collectorOptions{}, fmt.Errorf("tavily-max-results must be between 1 and 20")
+	}
+	if options.tavilyTopic != "general" && options.tavilyTopic != "news" && options.tavilyTopic != "finance" {
+		return collectorOptions{}, fmt.Errorf("tavily-topic must be general, news, or finance")
+	}
 	return options, nil
+}
+
+func buildSearchConnectors(options collectorOptions) []collector.Connector {
+	return []collector.Connector{
+		connectors.ParallelSearch{APIKey: os.Getenv("PARALLEL_API_KEY")},
+		connectors.Tavily{APIKey: os.Getenv("TAVILY_API_KEY"), Topic: options.tavilyTopic, MaxResults: options.tavilyMaxResults},
+		connectors.Bocha{APIKey: os.Getenv("BOCHA_API_KEY")},
+	}
 }
 
 func prepareCollector(
@@ -82,11 +100,7 @@ func main() {
 		fail(err)
 	}
 
-	connectorSet := []collector.Connector{
-		connectors.ParallelSearch{APIKey: os.Getenv("PARALLEL_API_KEY")},
-		connectors.Tavily{APIKey: os.Getenv("TAVILY_API_KEY")},
-		connectors.Bocha{APIKey: os.Getenv("BOCHA_API_KEY")},
-	}
+	connectorSet := buildSearchConnectors(options)
 
 	workflow, err := collector.NewWorkflow(context.Background(), planner, connectorSet, options.maxParallel, materialize.File{Root: options.dataRoot, NearDuplicateRadius: 3})
 	if err != nil {

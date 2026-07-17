@@ -11,6 +11,7 @@ import (
 
 	"github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/connectors"
 )
 
 func TestCollectorPromptFlagsContainOnlyTechnicalInputs(t *testing.T) {
@@ -24,19 +25,21 @@ func TestCollectorPromptFlagsContainOnlyTechnicalInputs(t *testing.T) {
 	if defaultCollectorPromptFile != "agents/collector/prompts/query_planner_v1.md" {
 		t.Fatalf("default prompt path changed to %q", defaultCollectorPromptFile)
 	}
-	if options.dataRoot != "data" || options.envFile != ".env" || options.candidateLimit != 10 || options.timeWindow != 48 || options.maxParallel != 3 {
+	if options.dataRoot != "data" || options.envFile != ".env" || options.candidateLimit != 10 || options.tavilyTopic != "general" || options.tavilyMaxResults != 5 || options.timeWindow != 48 || options.maxParallel != 3 {
 		t.Fatalf("unexpected technical defaults: %+v", options)
 	}
 
 	want := collectorOptions{
 		promptFile: "runtime/intent.md", dataRoot: "runtime-data", envFile: "runtime.env",
-		candidateLimit: 6, timeWindow: 24, maxParallel: 2,
+		candidateLimit: 6, tavilyTopic: "finance", tavilyMaxResults: 8, timeWindow: 24, maxParallel: 2,
 	}
 	got, err := parseCollectorOptions([]string{
 		"-prompt-file", want.promptFile,
 		"-data-root", want.dataRoot,
 		"-env-file", want.envFile,
 		"-candidate-limit", "6",
+		"-tavily-topic", "finance",
+		"-tavily-max-results", "8",
 		"-time-window-hours", "24",
 		"-max-parallel", "2",
 	})
@@ -47,6 +50,60 @@ func TestCollectorPromptFlagsContainOnlyTechnicalInputs(t *testing.T) {
 		if _, err = parseCollectorOptions([]string{removed, "legacy business input"}); err == nil {
 			t.Fatalf("removed flag %s was accepted", removed)
 		}
+	}
+}
+
+func TestTavilyTopicOptionAcceptsSupportedValuesAndRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"general", "news", "finance"} {
+		options, err := parseCollectorOptions([]string{"-tavily-topic", value})
+		if err != nil {
+			t.Fatalf("value %s: %v", value, err)
+		}
+		if options.tavilyTopic != value {
+			t.Fatalf("value %s parsed as %q", value, options.tavilyTopic)
+		}
+	}
+	for _, value := range []string{"", "sports", "GENERAL"} {
+		if _, err := parseCollectorOptions([]string{"-tavily-topic", value}); err == nil {
+			t.Fatalf("invalid value %q was accepted", value)
+		}
+	}
+}
+
+func TestTavilyMaxResultsOptionAcceptsRangeAndRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"1", "20"} {
+		options, err := parseCollectorOptions([]string{"-tavily-max-results", value})
+		if err != nil {
+			t.Fatalf("value %s: %v", value, err)
+		}
+		if options.tavilyMaxResults != map[string]int{"1": 1, "20": 20}[value] {
+			t.Fatalf("value %s parsed as %d", value, options.tavilyMaxResults)
+		}
+	}
+	for _, value := range []string{"0", "21"} {
+		if _, err := parseCollectorOptions([]string{"-tavily-max-results", value}); err == nil {
+			t.Fatalf("invalid value %s was accepted", value)
+		}
+	}
+}
+
+func TestTavilyTechnicalOptionsOnlyConfigureTavily(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "parallel-test")
+	t.Setenv("TAVILY_API_KEY", "tavily-test")
+	t.Setenv("BOCHA_API_KEY", "bocha-test")
+	connectorSet := buildSearchConnectors(collectorOptions{tavilyTopic: "finance", tavilyMaxResults: 8})
+	if len(connectorSet) != 3 {
+		t.Fatalf("connector count = %d", len(connectorSet))
+	}
+	if _, ok := connectorSet[0].(connectors.ParallelSearch); !ok {
+		t.Fatalf("connector 0 = %T", connectorSet[0])
+	}
+	tavily, ok := connectorSet[1].(connectors.Tavily)
+	if !ok || tavily.Topic != "finance" || tavily.MaxResults != 8 {
+		t.Fatalf("connector 1 = %#v", connectorSet[1])
+	}
+	if _, ok = connectorSet[2].(connectors.Bocha); !ok {
+		t.Fatalf("connector 2 = %T", connectorSet[2])
 	}
 }
 

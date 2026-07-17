@@ -62,9 +62,11 @@ func (c ParallelSearch) Collect(ctx context.Context, request collector.Request) 
 }
 
 type Tavily struct {
-	APIKey   string
-	Endpoint string
-	Client   HTTPClient
+	APIKey     string
+	Endpoint   string
+	Client     HTTPClient
+	Topic      string
+	MaxResults int
 }
 
 func (c Tavily) Name() string { return "tavily" }
@@ -72,6 +74,12 @@ func (c Tavily) Name() string { return "tavily" }
 func (c Tavily) Collect(ctx context.Context, request collector.Request) ([]collector.Candidate, error) {
 	if strings.TrimSpace(c.APIKey) == "" {
 		return nil, fmt.Errorf("TAVILY_API_KEY is missing")
+	}
+	if !validTavilyTopic(c.Topic) {
+		return nil, fmt.Errorf("Tavily Topic must be general, news, or finance")
+	}
+	if c.MaxResults < 1 || c.MaxResults > 20 {
+		return nil, fmt.Errorf("Tavily MaxResults must be between 1 and 20")
 	}
 	endpoint := c.Endpoint
 	if endpoint == "" {
@@ -83,39 +91,43 @@ func (c Tavily) Collect(ctx context.Context, request collector.Request) ([]colle
 	}
 	query := strings.Join(request.SearchQueries, " ")
 	start := request.CollectedAt.Add(-time.Duration(request.TimeWindowHours) * time.Hour).Format("2006-01-02")
+	maxResults := min(request.CandidateLimit, c.MaxResults)
 	var response struct {
 		Results []struct {
-			Title         string  `json:"title"`
-			URL           string  `json:"url"`
-			Content       string  `json:"content"`
-			RawContent    string  `json:"raw_content"`
-			PublishedDate string  `json:"published_date"`
-			Score         float64 `json:"score"`
+			Title         string `json:"title"`
+			URL           string `json:"url"`
+			Content       string `json:"content"`
+			PublishedDate string `json:"published_date"`
 		} `json:"results"`
 	}
 	body := map[string]any{
-		"query": query, "search_depth": "advanced", "auto_parameters": true,
-		"chunks_per_source": 3, "max_results": request.CandidateLimit,
-		"include_answer": false, "include_raw_content": "markdown",
-		"start_date": start, "end_date": request.CollectedAt.Format("2006-01-02"),
+		"query": query, "topic": c.Topic, "search_depth": "advanced",
+		"chunks_per_source": 3, "max_results": maxResults,
+		"include_answer": false,
+		"start_date":     start, "end_date": request.CollectedAt.Format("2006-01-02"),
 	}
 	if err := postJSON(ctx, client, endpoint, map[string]string{"Authorization": "Bearer " + c.APIKey}, body, &response); err != nil {
 		return nil, err
 	}
 	results := make([]collector.Candidate, 0, len(response.Results))
 	for _, item := range response.Results {
-		content := strings.TrimSpace(item.RawContent)
-		level := collector.LevelFullText
-		if content == "" {
-			content = strings.TrimSpace(item.Content)
-			level = levelFor(content, collector.LevelSnippet)
-		}
+		content := strings.TrimSpace(item.Content)
 		results = appendCandidate(results, collector.Candidate{
 			Title: item.Title, URL: item.URL, PublishedAtHint: item.PublishedDate,
-			SourceName: host(item.URL), Content: content, ContentLevel: level, SourceType: "news",
+			SourceName: host(item.URL), Content: content,
+			ContentLevel: levelFor(content, collector.LevelSnippet), SourceType: "news",
 		})
 	}
 	return results, nil
+}
+
+func validTavilyTopic(topic string) bool {
+	switch topic {
+	case "general", "news", "finance":
+		return true
+	default:
+		return false
+	}
 }
 
 type Bocha struct {
