@@ -34,6 +34,11 @@
 - **WHEN** 用户提出需要设计和实现的正式工程变更
 - **THEN** Agent 必须建立 OpenSpec change，读取命中的项目规则，并按生命周期进入下一阶段；没有可选辅助 plugin 也不得改变该入口
 
+#### Scenario: 可选 plugin 不可用
+
+- **WHEN** 可选辅助 plugin 不可用
+- **THEN** OpenSpec、项目原生 TDD/debug/verification 规则、Codex Desktop worktree 机制和 GitHub/`gh` 交付路径仍可完成对应工程动作
+
 #### Scenario: 纯解释性问答
 
 - **WHEN** 用户只要求解释概念且不要求修改工程行为
@@ -47,6 +52,11 @@
 
 - **WHEN** 任意辅助讨论或计划方法形成设计与执行计划
 - **THEN** 结果必须进入当前 change 的 `design.md` 或 `tasks.md`
+
+#### Scenario: plugin 被卸载
+
+- **WHEN** 可选辅助 plugin 被卸载
+- **THEN** OpenSpec artifacts、当前主规格和项目规则仍是唯一可审阅事实来源，且不存在平行设计、计划或执行来源要求
 
 ### Requirement: OpenSpec 生命周期必须映射到明确 Skills
 
@@ -88,7 +98,7 @@
 
 ### Requirement: Git 隔离和收尾必须服从 change 边界
 
-系统 MUST 为正式 change 使用独立 `codex/<change-name>` branch；Codex Desktop 可用时必须通过 Desktop 新任务创建受管 worktree 并从最新 `origin/main` 开始。Sequential successor 必须等待前序 Deliver 与 cleanup；独立 parallel change 必须有明确批准且不共享文件、tasks 或写状态。
+系统 MUST 为正式 change 使用独立 `codex/<change-name>` branch；Codex Desktop 可用时必须通过 Desktop 新任务创建受管 worktree 并从最新 `origin/main` 开始。Desktop 不可用时，仅在用户明确批准后按项目原生 fallback 规则使用 project-owned worktree。Sequential successor 必须等待前序 Deliver 与 cleanup；独立 parallel change 必须有明确批准且不共享文件、tasks 或写状态。Deliver 必须保留 branch、PR、merge 和 cleanup 的完整顺序，不得依赖可选 plugin。
 
 #### Scenario: 启动新 change
 
@@ -98,7 +108,7 @@
 #### Scenario: Desktop 不可用
 
 - **WHEN** Desktop 受管机制不可用且用户明确批准 fallback
-- **THEN** Agent 才可以按 `.agents/git-workflow.md` 使用 project-owned worktree
+- **THEN** Agent 才可以按 `.agents/git-workflow.md` 的项目原生规则使用 project-owned worktree；没有可选辅助 plugin 不得放宽授权条件
 
 #### Scenario: cleanup
 
@@ -211,12 +221,22 @@
 
 ### Requirement: 工作流架构测试必须验证当前规则语义
 
-系统 SHALL 通过自动化检查验证生命周期顺序、人工 Review、Desktop-managed 默认入口、approved fallback 双条件、sequential/parallel 分流、两类 cleanup、package/gate schema 和验证范围，不得依赖已被当前规则替代的历史短语。
+系统 SHALL 通过自动化检查验证生命周期顺序、人工 Review、Desktop-managed 默认入口、approved fallback 双条件、sequential/parallel 分流、两类 cleanup、package/gate schema、验证范围和可选 plugin 依赖解除，不得依赖已被当前规则替代的历史短语。
 
 #### Scenario: 规则契约被削弱
 
 - **WHEN** 规则删除 Desktop 强制受管、fallback 双条件、cleanup 顺序、Gate Map 或验证边界
 - **THEN** 对应 architecture contract 或 task-design lint 必须失败
+
+#### Scenario: 可选 plugin 强制引用残留
+
+- **WHEN** active 项目规则、主 workflow spec 或 workflow architecture assertions 仍包含 plugin 强制路由、平行 plugin 文档来源或必须安装可选 plugin 的约束
+- **THEN** workflow architecture assertion 必须失败并阻止 Apply-final Review
+
+#### Scenario: 正向硬门保持
+
+- **WHEN** active 项目规则移除可选 plugin 强制路由
+- **THEN** 检查仍必须确认 OpenSpec 顺序、两个人工 Review、TDD、debug diagnosis、fresh verification、Desktop worktree、branch/cleanup、风险/事实源/安全边界均存在
 
 ### Requirement: 运行时资源必须独立于 active OpenSpec 路径
 
