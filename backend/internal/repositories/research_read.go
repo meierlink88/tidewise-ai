@@ -152,7 +152,7 @@ FROM page p
 ORDER BY p.impact_rank DESC, p.published_at DESC, p.id ASC`
 
 const countResearchThemesQuery = `
-SELECT COUNT(*), COUNT(DISTINCT e.event_id)
+SELECT COUNT(DISTINCT t.id), COUNT(DISTINCT e.event_id)
 FROM research_themes t
 LEFT JOIN research_theme_events e ON e.theme_id = t.id
 WHERE t.published_at IS NOT NULL AND t.published_at >= $1 AND t.published_at <= $2`
@@ -195,7 +195,7 @@ FROM page p
 ORDER BY p.importance_rank DESC, p.published_at DESC, p.id ASC`
 
 const countResearchAnchorsQuery = `
-SELECT COUNT(*), COUNT(DISTINCT e.event_id)
+SELECT COUNT(DISTINCT a.id), COUNT(DISTINCT e.event_id)
 FROM research_anchors a
 LEFT JOIN research_anchor_events e ON e.anchor_id = a.id
 WHERE a.published_at IS NOT NULL AND a.published_at >= $1 AND a.published_at <= $2`

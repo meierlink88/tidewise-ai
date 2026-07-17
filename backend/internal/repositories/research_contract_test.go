@@ -60,3 +60,28 @@ func TestResearchReadQueriesArePostgresOnlyAndBatchAggregated(t *testing.T) {
 		})
 	}
 }
+
+func TestResearchCountQueriesDeduplicateMainRowsAndEvents(t *testing.T) {
+	tests := []struct {
+		name              string
+		query             string
+		distinctMainCount string
+	}{
+		{name: "themes", query: countResearchThemesQuery, distinctMainCount: "count(distinct t.id)"},
+		{name: "anchors", query: countResearchAnchorsQuery, distinctMainCount: "count(distinct a.id)"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			query := strings.Join(strings.Fields(strings.ToLower(test.query)), " ")
+			for _, required := range []string{test.distinctMainCount, "count(distinct e.event_id)", "left join"} {
+				if !strings.Contains(query, required) {
+					t.Fatalf("count query missing %q: %s", required, query)
+				}
+			}
+			if strings.Contains(query, "select count(*)") {
+				t.Fatalf("count query must not count joined rows: %s", query)
+			}
+		})
+	}
+}
