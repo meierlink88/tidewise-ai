@@ -34,54 +34,57 @@ type ResearchDetailQuery struct {
 type ImpactLevel string
 
 const (
-	ImpactLevelHigh   ImpactLevel = "high"
-	ImpactLevelMedium ImpactLevel = "medium"
-	ImpactLevelLow    ImpactLevel = "low"
-)
-
-type TradingDirection string
-
-const (
-	TradingDirectionPositive  TradingDirection = "positive"
-	TradingDirectionNegative  TradingDirection = "negative"
-	TradingDirectionMixed     TradingDirection = "mixed"
-	TradingDirectionNeutral   TradingDirection = "neutral"
-	TradingDirectionUncertain TradingDirection = "uncertain"
+	ImpactLevelHigh  ImpactLevel = "high"
+	ImpactLevelFocus ImpactLevel = "focus"
+	ImpactLevelWatch ImpactLevel = "watch"
 )
 
 type TransmissionStage string
 
 const (
-	TransmissionStageEmerging   TransmissionStage = "emerging"
-	TransmissionStageDeveloping TransmissionStage = "developing"
-	TransmissionStageMature     TransmissionStage = "mature"
-	TransmissionStageFading     TransmissionStage = "fading"
+	TransmissionStageUpstream       TransmissionStage = "upstream"
+	TransmissionStageMidstream      TransmissionStage = "midstream"
+	TransmissionStageDownstream     TransmissionStage = "downstream"
+	TransmissionStageInfrastructure TransmissionStage = "infrastructure"
+	TransmissionStageService        TransmissionStage = "service"
 )
 
 type AnchorType string
 
 const (
-	AnchorTypeEntity        AnchorType = "entity"
-	AnchorTypeMarket        AnchorType = "market"
-	AnchorTypeIndex         AnchorType = "index"
-	AnchorTypePolicy        AnchorType = "policy"
-	AnchorTypeIndustryChain AnchorType = "industry_chain"
+	AnchorTypePolicy          AnchorType = "policy"
+	AnchorTypeSupply          AnchorType = "supply"
+	AnchorTypeDemand          AnchorType = "demand"
+	AnchorTypeTechnology      AnchorType = "technology"
+	AnchorTypeCost            AnchorType = "cost"
+	AnchorTypeGeopolitics     AnchorType = "geopolitics"
+	AnchorTypeMarketStructure AnchorType = "market_structure"
 )
 
 type Importance string
 
 const (
-	ImportanceHigh   Importance = "high"
-	ImportanceMedium Importance = "medium"
-	ImportanceLow    Importance = "low"
+	ImportancePrimary    Importance = "primary"
+	ImportanceSecondary  Importance = "secondary"
+	ImportanceContextual Importance = "contextual"
 )
 
 type EvidenceRole string
 
 const (
-	EvidenceRoleSupports    EvidenceRole = "supports"
-	EvidenceRoleContradicts EvidenceRole = "contradicts"
-	EvidenceRoleContext     EvidenceRole = "context"
+	EvidenceRoleDriver        EvidenceRole = "driver"
+	EvidenceRoleSupporting    EvidenceRole = "supporting"
+	EvidenceRoleContradicting EvidenceRole = "contradicting"
+	EvidenceRoleContext       EvidenceRole = "context"
+)
+
+type ImpactDirection string
+
+const (
+	ImpactDirectionPositive ImpactDirection = "positive"
+	ImpactDirectionNegative ImpactDirection = "negative"
+	ImpactDirectionMixed    ImpactDirection = "mixed"
+	ImpactDirectionNeutral  ImpactDirection = "neutral"
 )
 
 type ResearchThemePage struct {
@@ -95,21 +98,21 @@ type ResearchThemePage struct {
 }
 
 type ResearchTheme struct {
-	ID                      string              `json:"id"`
-	Name                    string              `json:"name"`
-	OneLineConclusion       string              `json:"one_line_conclusion"`
-	ImpactLevel             ImpactLevel         `json:"impact_level"`
-	TransmissionPath        string              `json:"transmission_path"`
-	TradingDirection        TradingDirection    `json:"trading_direction"`
-	TransmissionStage       TransmissionStage   `json:"transmission_stage"`
-	NextCheckpoint          string              `json:"next_checkpoint"`
-	IndexImpactSummary      string              `json:"index_impact_summary,omitempty"`
-	PublishedAt             time.Time           `json:"published_at"`
-	AffectedChainNodes      []ResearchChainNode `json:"affected_chain_nodes"`
-	RelatedIndices          []ResearchIndex     `json:"related_indices"`
-	SupportingEventCount    int                 `json:"supporting_event_count"`
-	ContradictingEventCount int                 `json:"contradicting_event_count"`
-	HasMoreDetail           bool                `json:"has_more_detail"`
+	ID                      string                   `json:"id"`
+	Name                    string                   `json:"name"`
+	OneLineConclusion       string                   `json:"one_line_conclusion"`
+	ImpactLevel             ImpactLevel              `json:"impact_level"`
+	TransmissionPath        string                   `json:"transmission_path"`
+	TradingDirection        string                   `json:"trading_direction"`
+	TransmissionStage       TransmissionStage        `json:"transmission_stage"`
+	NextCheckpoint          string                   `json:"next_checkpoint"`
+	IndexImpactSummary      string                   `json:"index_impact_summary,omitempty"`
+	PublishedAt             time.Time                `json:"published_at"`
+	AffectedChainNodes      []ResearchThemeChainNode `json:"affected_chain_nodes"`
+	RelatedIndices          []ResearchIndex          `json:"related_indices"`
+	SupportingEventCount    int                      `json:"supporting_event_count"`
+	ContradictingEventCount int                      `json:"contradicting_event_count"`
+	HasMoreDetail           bool                     `json:"has_more_detail"`
 }
 
 type ResearchThemeDetail struct {
@@ -128,17 +131,17 @@ type ResearchAnchorPage struct {
 }
 
 type ResearchAnchor struct {
-	ID                string              `json:"id"`
-	AnchorType        AnchorType          `json:"anchor_type"`
-	Name              string              `json:"name"`
-	OneLineConclusion string              `json:"one_line_conclusion"`
-	Importance        Importance          `json:"importance"`
-	TransmissionPath  string              `json:"transmission_path"`
-	TradingDirection  TradingDirection    `json:"trading_direction"`
-	PublishedAt       time.Time           `json:"published_at"`
-	RelatedChainNodes []ResearchChainNode `json:"related_chain_nodes"`
-	RelatedIndices    []ResearchIndex     `json:"related_indices"`
-	RelatedEventCount int                 `json:"related_event_count"`
+	ID                string                    `json:"id"`
+	AnchorType        AnchorType                `json:"anchor_type"`
+	Name              string                    `json:"name"`
+	OneLineConclusion string                    `json:"one_line_conclusion"`
+	Importance        Importance                `json:"importance"`
+	TransmissionPath  string                    `json:"transmission_path"`
+	TradingDirection  string                    `json:"trading_direction"`
+	PublishedAt       time.Time                 `json:"published_at"`
+	RelatedChainNodes []ResearchAnchorChainNode `json:"related_chain_nodes"`
+	RelatedIndices    []ResearchIndex           `json:"related_indices"`
+	RelatedEventCount int                       `json:"related_event_count"`
 }
 
 type ResearchAnchorDetail struct {
@@ -146,18 +149,25 @@ type ResearchAnchorDetail struct {
 	Events []ResearchEvent `json:"events"`
 }
 
-type ResearchChainNode struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	RelationRole string `json:"relation_role"`
-	Summary      string `json:"impact_summary"`
+type ResearchThemeChainNode struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	RelationRole  string `json:"relation_role"`
+	ImpactSummary string `json:"impact_summary"`
+}
+
+type ResearchAnchorChainNode struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	RelationRole    string `json:"relation_role"`
+	RelationSummary string `json:"relation_summary"`
 }
 
 type ResearchIndex struct {
-	ID              string           `json:"id"`
-	Name            string           `json:"name"`
-	ImpactDirection TradingDirection `json:"impact_direction"`
-	Summary         string           `json:"impact_summary"`
+	ID              string          `json:"id"`
+	Name            string          `json:"name"`
+	ImpactDirection ImpactDirection `json:"impact_direction"`
+	ImpactSummary   string          `json:"impact_summary"`
 }
 
 type ResearchEvent struct {

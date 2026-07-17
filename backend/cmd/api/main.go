@@ -1,47 +1,27 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/apps/miniappapi"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	httpserver "github.com/meierlink88/tidewise-ai/backend/internal/http"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 	miniappservice "github.com/meierlink88/tidewise-ai/backend/services/miniapp"
+	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 )
 
 func main() {
-	cfg, err := config.Load()
+	runtime, err := miniappservice.LoadRuntimeConfig()
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		log.Fatalf("load Miniapp config: %v", err)
 	}
-
-	migrationCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Database.ConnectTimeoutSeconds)*time.Second)
-	defer cancel()
-
-	migrationReport, err := dbmigration.CheckPostgres(migrationCtx, cfg, cfg.Migration.AutoApply)
+	client, err := dataclient.NewHTTPClient(dataclient.HTTPConfig{
+		BaseURL: runtime.DataService.BaseURL, ServiceToken: runtime.DataService.IdentityToken, Timeout: runtime.DataService.Timeout,
+	})
 	if err != nil {
-		log.Fatalf("check migrations: %v", err)
+		log.Fatalf("configure Data Service client: %v", err)
 	}
-	if !cfg.Migration.AutoApply && len(migrationReport.Pending) > 0 {
-		log.Fatalf("pending migrations exist and migration.auto_apply is false")
-	}
-	db, err := database.Open(context.Background(), cfg)
-	if err != nil {
-		log.Fatalf("open database: %v", err)
-	}
-	defer db.Close()
-	researchService := miniappapi.NewResearchService(repositories.NewPostgresRepository(db), time.Now)
-
-	server := miniappservice.NewServer(cfg, httpserver.NewRouter(cfg, researchService))
-
-	log.Printf("starting %s on %s in %s", cfg.App.Name, cfg.Server.Address(), cfg.App.Env)
-
+	cfg := runtime.ServiceConfig()
+	server := miniappservice.NewServer(cfg, miniappservice.NewHandler(cfg, client))
+	log.Printf("starting %s on %s in %s", miniappservice.ServiceName, server.Addr, cfg.App.Env)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server failed: %v", err)
 	}

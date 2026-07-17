@@ -8,7 +8,6 @@ import (
 	"time"
 
 	eventapp "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/eventimport"
-	"github.com/meierlink88/tidewise-ai/backend/internal/apps/miniappapi"
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
@@ -17,6 +16,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/services/data/internalapi"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/rawimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/rawimport/postgresstore"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/research"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 		Authenticator:  authenticator,
 		RawImports:     rawimport.NewService(postgresstore.New(db), time.Now),
 		ReviewedEvents: eventapp.NewService(repository),
-		Research:       miniappapi.NewResearchService(repository, time.Now),
+		Research:       research.NewService(repository, time.Now),
 		Admin:          repository,
 		SourceMetadata: repository,
 	})

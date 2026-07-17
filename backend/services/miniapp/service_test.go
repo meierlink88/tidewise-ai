@@ -1,12 +1,14 @@
 package miniapp
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 )
 
 func TestHealthAndReadiness(t *testing.T) {
@@ -22,6 +24,22 @@ func TestNewServerPreservesCompatibilityHandler(t *testing.T) {
 	server.Handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/research/home", nil))
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("compatibility status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
+
+func TestNewHandlerComposesResearchBFFWithOneDataServiceCall(t *testing.T) {
+	calls := 0
+	client := &dataclient.Fake{ListResearchThemesFunc: func(context.Context, dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
+		calls++
+		return dataclient.ResearchThemePage{Items: []dataclient.ResearchTheme{}}, nil
+	}}
+	handler := NewHandler(testConfig(), client)
+	assertServiceHealth(t, handler, ServiceName)
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/miniapp/research/themes", nil))
+	if response.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("status/calls = %d/%d, body=%s", response.Code, calls, response.Body.String())
 	}
 }
 

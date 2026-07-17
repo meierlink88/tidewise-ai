@@ -43,19 +43,24 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 		"ResearchAnchorCollection": reflect.TypeOf(ResearchAnchorPage{}),
 		"ResearchAnchorSummary":    reflect.TypeOf(ResearchAnchor{}),
 		"ResearchAnchorDetail":     reflect.TypeOf(ResearchAnchorDetail{}),
-		"ResearchChainNode":        reflect.TypeOf(ResearchChainNode{}),
+		"ResearchThemeChainNode":   reflect.TypeOf(ResearchThemeChainNode{}),
+		"ResearchAnchorChainNode":  reflect.TypeOf(ResearchAnchorChainNode{}),
 		"ResearchIndex":            reflect.TypeOf(ResearchIndex{}),
 		"ResearchEvent":            reflect.TypeOf(ResearchEvent{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
 
-	assertSchemaEnum(t, document, "ResearchThemeSummary", "impact_level", []string{"high", "low", "medium"})
-	assertSchemaEnum(t, document, "ResearchThemeSummary", "trading_direction", []string{"mixed", "negative", "neutral", "positive", "uncertain"})
-	assertSchemaEnum(t, document, "ResearchThemeSummary", "transmission_stage", []string{"developing", "emerging", "fading", "mature"})
-	assertSchemaEnum(t, document, "ResearchAnchorSummary", "anchor_type", []string{"entity", "index", "industry_chain", "market", "policy"})
-	assertSchemaEnum(t, document, "ResearchAnchorSummary", "importance", []string{"high", "low", "medium"})
-	assertSchemaEnum(t, document, "ResearchEvent", "evidence_role", []string{"context", "contradicts", "supports"})
+	assertSchemaEnum(t, document, "ResearchThemeSummary", "impact_level", []string{"focus", "high", "watch"})
+	assertSchemaHasNoEnum(t, document, "ResearchThemeSummary", "trading_direction")
+	assertSchemaEnum(t, document, "ResearchThemeSummary", "transmission_stage", []string{"downstream", "infrastructure", "midstream", "service", "upstream"})
+	assertSchemaEnum(t, document, "ResearchAnchorSummary", "anchor_type", []string{"cost", "demand", "geopolitics", "market_structure", "policy", "supply", "technology"})
+	assertSchemaEnum(t, document, "ResearchAnchorSummary", "importance", []string{"contextual", "primary", "secondary"})
+	assertSchemaHasNoEnum(t, document, "ResearchAnchorSummary", "trading_direction")
+	assertSchemaEnum(t, document, "ResearchIndex", "impact_direction", []string{"mixed", "negative", "neutral", "positive"})
+	assertSchemaEnum(t, document, "ResearchEvent", "evidence_role", []string{"context", "contradicting", "driver", "supporting"})
+	assertArrayItemSchema(t, document, "ResearchThemeSummary", "affected_chain_nodes", "ResearchThemeChainNode")
+	assertArrayItemSchema(t, document, "ResearchAnchorSummary", "related_chain_nodes", "ResearchAnchorChainNode")
 }
 
 func loadOpenAPI(t *testing.T) map[string]any {
@@ -151,6 +156,29 @@ func assertSchemaEnum(t *testing.T, document map[string]any, schemaName string, 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("%s.%s enum = %v, want %v", schemaName, propertyName, got, want)
 	}
+}
+
+func assertSchemaHasNoEnum(t *testing.T, document map[string]any, schemaName string, propertyName string) {
+	t.Helper()
+	components := openAPIObject(t, document["components"], "components")
+	schemas := openAPIObject(t, components["schemas"], "schemas")
+	schema := openAPIObject(t, schemas[schemaName], "schema "+schemaName)
+	properties := openAPIObject(t, schema["properties"], "properties for "+schemaName)
+	property := openAPIObject(t, properties[propertyName], "property "+propertyName)
+	if _, ok := property["enum"]; ok {
+		t.Fatalf("%s.%s must remain a natural-language string without enum", schemaName, propertyName)
+	}
+}
+
+func assertArrayItemSchema(t *testing.T, document map[string]any, schemaName string, propertyName string, itemSchema string) {
+	t.Helper()
+	components := openAPIObject(t, document["components"], "components")
+	schemas := openAPIObject(t, components["schemas"], "schemas")
+	schema := openAPIObject(t, schemas[schemaName], "schema "+schemaName)
+	properties := openAPIObject(t, schema["properties"], "properties for "+schemaName)
+	property := openAPIObject(t, properties[propertyName], "property "+propertyName)
+	items := openAPIObject(t, property["items"], "items for "+schemaName+"."+propertyName)
+	assertOpenAPIString(t, items, "$ref", "#/components/schemas/"+itemSchema)
 }
 
 func openAPIObject(t *testing.T, value any, label string) map[string]any {

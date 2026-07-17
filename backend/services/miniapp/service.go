@@ -4,15 +4,22 @@ package miniapp
 import (
 	"net/http"
 
+	"github.com/meierlink88/tidewise-ai/backend/internal/apps/miniappapi"
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
+	httpserver "github.com/meierlink88/tidewise-ai/backend/internal/http"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/servicehttp"
+	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 )
 
 const ServiceName = "miniapp"
 
-// NewHandler returns the Package 3 health-only facade. BFF routes move behind
-// the DataServiceClient in Package 6.
-func NewHandler(cfg config.Config) http.Handler {
+// NewHandler preserves the health-only facade when no client is supplied and
+// otherwise composes the Miniapp API exclusively through DataServiceClient.
+func NewHandler(cfg config.Config, clients ...dataclient.DataServiceClient) http.Handler {
+	cfg.App.Name = ServiceName
+	if len(clients) > 0 && clients[0] != nil {
+		return httpserver.NewRouter(cfg, miniappapi.NewResearchService(clients[0]))
+	}
 	return servicehttp.NewHealthHandler(ServiceName, cfg.App.Env)
 }
 

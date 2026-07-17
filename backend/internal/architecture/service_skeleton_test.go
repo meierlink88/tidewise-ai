@@ -30,9 +30,13 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 
 func TestServiceOwnedBFFPackagesDoNotImportDataImplementation(t *testing.T) {
 	packages := listServicePackages(t)
-	for _, owner := range []string{"services/miniapp", "services/adminportal"} {
-		pkg := packageWithSuffix(t, packages, "/"+owner)
+	for _, pkg := range packages {
+		owner := localPackageName(pkg.ImportPath)
+		if !strings.HasPrefix(owner, "services/miniapp") && owner != "services/adminportal" {
+			continue
+		}
 		for _, forbidden := range []string{
+			"/services/data",
 			"/internal/domain",
 			"/internal/repositories",
 			"/internal/platform/database",

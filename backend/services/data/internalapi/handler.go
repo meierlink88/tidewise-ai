@@ -15,11 +15,11 @@ import (
 	"unicode/utf8"
 
 	eventapp "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/eventimport"
-	"github.com/meierlink88/tidewise-ai/backend/internal/apps/miniappapi"
 	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
 	domainimport "github.com/meierlink88/tidewise-ai/backend/internal/domain/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/rawimport"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/research"
 )
 
 const (
@@ -98,10 +98,10 @@ type ReviewedEventService interface {
 }
 
 type ResearchService interface {
-	ListThemes(context.Context, miniappapi.ResearchListRequest) (miniappapi.ResearchThemeListResponse, error)
-	GetTheme(context.Context, string, miniappapi.ResearchDetailRequest) (miniappapi.ResearchThemeDetailResponse, error)
-	ListAnchors(context.Context, miniappapi.ResearchListRequest) (miniappapi.ResearchAnchorListResponse, error)
-	GetAnchor(context.Context, string, miniappapi.ResearchDetailRequest) (miniappapi.ResearchAnchorDetailResponse, error)
+	ListThemes(context.Context, research.ResearchListRequest) (research.ResearchThemePage, error)
+	GetTheme(context.Context, string, research.ResearchDetailRequest) (research.ResearchThemeDetail, error)
+	ListAnchors(context.Context, research.ResearchListRequest) (research.ResearchAnchorPage, error)
+	GetAnchor(context.Context, string, research.ResearchDetailRequest) (research.ResearchAnchorDetail, error)
 }
 
 type AdminStore interface {
@@ -251,12 +251,12 @@ func (d Dependencies) listResearchThemes(response http.ResponseWriter, request *
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 		return
 	}
-	result, err := d.Research.ListThemes(request.Context(), miniappapi.ResearchListRequest{WindowHours: window, Limit: limit, Cursor: request.URL.Query().Get("cursor")})
+	result, err := d.Research.ListThemes(request.Context(), research.ResearchListRequest{WindowHours: window, Limit: limit, Cursor: request.URL.Query().Get("cursor")})
 	writeResearchResult(response, requestID, result, err)
 }
 
 func (d Dependencies) getResearchTheme(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), miniappapi.DefaultResearchWindowHours, miniappapi.MinResearchWindowHours, miniappapi.MaxResearchWindowHours, "window_hours")
+	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
 	if !ok {
 		return
 	}
@@ -264,12 +264,12 @@ func (d Dependencies) getResearchTheme(response http.ResponseWriter, request *ht
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 		return
 	}
-	result, err := d.Research.GetTheme(request.Context(), request.PathValue("theme_id"), miniappapi.ResearchDetailRequest{WindowHours: window})
+	result, err := d.Research.GetTheme(request.Context(), request.PathValue("theme_id"), research.ResearchDetailRequest{WindowHours: window})
 	if err != nil {
 		writeResearchError(response, requestID, err)
 		return
 	}
-	writeEnvelope(response, http.StatusOK, requestID, map[string]any{"theme": result.ResearchThemeItem, "events": result.Events})
+	writeEnvelope(response, http.StatusOK, requestID, result)
 }
 
 func (d Dependencies) listResearchAnchors(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
@@ -281,12 +281,12 @@ func (d Dependencies) listResearchAnchors(response http.ResponseWriter, request 
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 		return
 	}
-	result, err := d.Research.ListAnchors(request.Context(), miniappapi.ResearchListRequest{WindowHours: window, Limit: limit, Cursor: request.URL.Query().Get("cursor")})
+	result, err := d.Research.ListAnchors(request.Context(), research.ResearchListRequest{WindowHours: window, Limit: limit, Cursor: request.URL.Query().Get("cursor")})
 	writeResearchResult(response, requestID, result, err)
 }
 
 func (d Dependencies) getResearchAnchor(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), miniappapi.DefaultResearchWindowHours, miniappapi.MinResearchWindowHours, miniappapi.MaxResearchWindowHours, "window_hours")
+	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
 	if !ok {
 		return
 	}
@@ -294,12 +294,12 @@ func (d Dependencies) getResearchAnchor(response http.ResponseWriter, request *h
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 		return
 	}
-	result, err := d.Research.GetAnchor(request.Context(), request.PathValue("anchor_id"), miniappapi.ResearchDetailRequest{WindowHours: window})
+	result, err := d.Research.GetAnchor(request.Context(), request.PathValue("anchor_id"), research.ResearchDetailRequest{WindowHours: window})
 	if err != nil {
 		writeResearchError(response, requestID, err)
 		return
 	}
-	writeEnvelope(response, http.StatusOK, requestID, map[string]any{"anchor": result.ResearchAnchorItem, "events": result.Events})
+	writeEnvelope(response, http.StatusOK, requestID, result)
 }
 
 func (d Dependencies) listAdminRawDocuments(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
@@ -480,11 +480,11 @@ func writeRawImportError(response http.ResponseWriter, requestID string, err err
 }
 
 func researchListQuery(response http.ResponseWriter, request *http.Request, requestID string) (int, int, bool) {
-	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), miniappapi.DefaultResearchWindowHours, miniappapi.MinResearchWindowHours, miniappapi.MaxResearchWindowHours, "window_hours")
+	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
 	if !ok {
 		return 0, 0, false
 	}
-	limit, ok := optionalInt(response, requestID, request.URL.Query().Get("limit"), miniappapi.DefaultResearchLimit, 1, miniappapi.MaxResearchLimit, "limit")
+	limit, ok := optionalInt(response, requestID, request.URL.Query().Get("limit"), research.DefaultResearchLimit, 1, research.MaxResearchLimit, "limit")
 	return window, limit, ok
 }
 
@@ -535,9 +535,9 @@ func writeResearchResult(response http.ResponseWriter, requestID string, result 
 
 func writeResearchError(response http.ResponseWriter, requestID string, err error) {
 	switch {
-	case errors.Is(err, miniappapi.ErrInvalidResearchRequest):
+	case errors.Is(err, research.ErrInvalidRequest):
 		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
-	case errors.Is(err, repositories.ErrResearchNotFound):
+	case errors.Is(err, research.ErrNotFound):
 		writeError(response, requestID, http.StatusNotFound, "NOT_FOUND", "research aggregate was not found")
 	default:
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "research aggregate failed")

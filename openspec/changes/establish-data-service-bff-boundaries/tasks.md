@@ -75,10 +75,10 @@
 
 ## 6. Miniapp BFF Decoupling Package
 
-- [ ] 6.0 在恢复Package 6 Apply前取得本Research contract amendment的明确Review批准；未批准即停止，不得修改production Go/OpenAPI/client、数据库、Neo4j、部署或继续6.1-6.3。
-- [ ] 6.1 先修正`backend/services/data/api/openapi.yaml`、Miniapp `dataclient/port.go`与contract drift/HTTP tests、Data handler非空golden，再以现有`/api/v1/miniapp/research/*` public golden + fake Data client固定权威值域、Theme `impact_summary`/Anchor `relation_summary`两个DTO、现有JSON/cursor/排序/错误语义和每请求一个aggregate call；禁止隐式枚举映射或字段丢失。
-- [ ] 6.2 移除Miniapp command/config/image的PostgreSQL migration check、repository wiring、Data DB credential；保留BFF自身identity/timeout/health。
-- [ ] 6.3 运行Data OpenAPI/client drift与handler golden、Miniapp backend/frontend affected suites、architecture import tests和timeout/call-count assertions；不恢复repository import作为rollback，且不执行数据库/schema/migration/data操作。
+- [x] 6.0 在恢复Package 6 Apply前取得本Research contract amendment的明确Review批准；未批准即停止，不得修改production Go/OpenAPI/client、数据库、Neo4j、部署或继续6.1-6.3。
+- [x] 6.1 先修正`backend/services/data/api/openapi.yaml`、Miniapp `dataclient/port.go`与contract drift/HTTP tests、Data handler非空golden，再以现有`/api/v1/miniapp/research/*` public golden + fake Data client固定权威值域、Theme `impact_summary`/Anchor `relation_summary`两个DTO、现有JSON/cursor/排序/错误语义和每请求一个aggregate call；禁止隐式枚举映射或字段丢失。
+- [x] 6.2 移除Miniapp command/config/image的PostgreSQL migration check、repository wiring、Data DB credential；保留BFF自身identity/timeout/health。
+- [x] 6.3 运行Data OpenAPI/client drift与handler golden、Miniapp backend/frontend affected suites、architecture import tests和timeout/call-count assertions；不恢复repository import作为rollback，且不执行数据库/schema/migration/data操作。
 
 ## 7. Admin Retirement And Decoupling Package
 

@@ -728,7 +728,7 @@ components:
           minLength: 1
           maxLength: 128
 
-    ResearchChainNode:
+    ResearchThemeChainNode:
       type: object
       additionalProperties: false
       required: [id, name, relation_role, impact_summary]
@@ -741,6 +741,19 @@ components:
           type: string
         impact_summary:
           type: string
+    ResearchAnchorChainNode:
+      type: object
+      additionalProperties: false
+      required: [id, name, relation_role, relation_summary]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        relation_role:
+          type: string
+        relation_summary:
+          type: string
     ResearchIndex:
       type: object
       additionalProperties: false
@@ -752,7 +765,7 @@ components:
           type: string
         impact_direction:
           type: string
-          enum: [positive, negative, mixed, neutral, uncertain]
+          enum: [positive, negative, mixed, neutral]
         impact_summary:
           type: string
     ResearchEvent:
@@ -772,7 +785,7 @@ components:
           nullable: true
         evidence_role:
           type: string
-          enum: [supports, contradicts, context]
+          enum: [driver, supporting, contradicting, context]
         supported_claim:
           type: string
     ResearchThemeSummary:
@@ -803,15 +816,15 @@ components:
           description: 市场理解与决策辅助，不构成直接投资建议。
         impact_level:
           type: string
-          enum: [high, medium, low]
+          enum: [high, focus, watch]
         transmission_path:
           type: string
         trading_direction:
           type: string
-          enum: [positive, negative, mixed, neutral, uncertain]
+          minLength: 1
         transmission_stage:
           type: string
-          enum: [emerging, developing, mature, fading]
+          enum: [upstream, midstream, downstream, infrastructure, service]
         next_checkpoint:
           type: string
         index_impact_summary:
@@ -821,7 +834,7 @@ components:
         affected_chain_nodes:
           type: array
           items:
-            $ref: '#/components/schemas/ResearchChainNode'
+            $ref: '#/components/schemas/ResearchThemeChainNode'
         related_indices:
           type: array
           items:
@@ -910,7 +923,7 @@ components:
           $ref: '#/components/schemas/UUID'
         anchor_type:
           type: string
-          enum: [entity, market, index, policy, industry_chain]
+          enum: [policy, supply, demand, technology, cost, geopolitics, market_structure]
         name:
           type: string
         one_line_conclusion:
@@ -918,18 +931,18 @@ components:
           description: 市场理解与决策辅助，不构成直接投资建议。
         importance:
           type: string
-          enum: [high, medium, low]
+          enum: [primary, secondary, contextual]
         transmission_path:
           type: string
         trading_direction:
           type: string
-          enum: [positive, negative, mixed, neutral, uncertain]
+          minLength: 1
         published_at:
           $ref: '#/components/schemas/UTCTimestamp'
         related_chain_nodes:
           type: array
           items:
-            $ref: '#/components/schemas/ResearchChainNode'
+            $ref: '#/components/schemas/ResearchAnchorChainNode'
         related_indices:
           type: array
           items:
