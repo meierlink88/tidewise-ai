@@ -73,7 +73,7 @@ adoption 不改变 Desktop-managed worktree、branch 隔离、commit、push、PR
 
 - Propose checkpoint 可以 push 供 Review；不得把它表达为完成态 PR。
 - tasks、Apply 后人工 Review、Sync、Archive、`openspec validate --all` 和 archive commit 未完成前，不得创建完成态 PR 或 merge。
-- Deliver 使用 `superpowers:finishing-a-development-branch`，commit/push/PR 优先使用 GitHub plugin。
+- Deliver 按本文件完成 branch、PR、merge 和 cleanup 全顺序；commit/push/PR 优先使用 GitHub plugin，缺少 plugin 时使用 `gh` fallback。
 - CI 失败使用 `github:gh-fix-ci`；PR review comments 使用 `github:gh-address-comments` 并先验证意见。
 - merge 前确认主规格、归档和代码一致；merge 后先验证 `origin/main` 包含最终 archive commit，再开始 cleanup。
 

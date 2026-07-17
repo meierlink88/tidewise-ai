@@ -2,7 +2,7 @@
 
 ## Purpose
 
-定义观潮家正式研发 change 如何使用 OpenSpec、Superpowers、TDD、Git 隔离、风险 gate、验证和交付规则完成可审阅的工程生命周期。
+定义观潮家正式研发 change 如何使用 OpenSpec、项目原生 TDD、Git 隔离、风险 gate、验证和交付规则完成可审阅的工程生命周期。
 
 ## Requirements
 
@@ -25,14 +25,14 @@
 - **WHEN** Agent 将 canonical prototype 转译为 Taro/React
 - **THEN** prototype 保持只读，生产源码只提炼必要 tokens/primitives/compositions 和经授权资产，不复制 HTML、DOM、内联脚本或整套设计库
 
-### Requirement: 正式研发必须由已安装 Skill 驱动
+### Requirement: 正式研发必须由 OpenSpec 和项目原生规则驱动
 
-系统 SHALL 在任务与已安装 Skill 的触发条件匹配时优先调用该 Skill，并通过 OpenSpec Explore/Propose/Apply/Sync/Archive 路由正式 change。
+系统 SHALL 在任务与已安装 Skill 的触发条件匹配时优先调用可用 Skill，但正式 change 必须通过 OpenSpec Explore/Propose/Apply/Sync/Archive 路由；TDD、系统化调试、完成前验证、Git 隔离和交付清理不得要求安装外部 plugin。
 
 #### Scenario: 开始正式 change
 
 - **WHEN** 用户提出需要设计和实现的正式工程变更
-- **THEN** Agent 必须建立 OpenSpec change，读取命中的规则，并按生命周期进入下一阶段
+- **THEN** Agent 必须建立 OpenSpec change，读取命中的项目规则，并按生命周期进入下一阶段；没有可选辅助 plugin 也不得改变该入口
 
 #### Scenario: 纯解释性问答
 
@@ -41,11 +41,11 @@
 
 ### Requirement: OpenSpec 必须拥有唯一正式 artifacts
 
-系统 MUST 将 proposal、design、delta specs、tasks、当前主规格和归档历史保存在 OpenSpec 目录中，不得创建平行的 Superpowers 设计或计划事实来源。
+系统 MUST 将 proposal、design、delta specs、tasks、当前主规格和归档历史保存在 OpenSpec 目录中，不得创建平行设计、计划或执行事实来源。
 
 #### Scenario: 设计与计划完成
 
-- **WHEN** brainstorming 或 writing-plans 形成设计与执行计划
+- **WHEN** 任意辅助讨论或计划方法形成设计与执行计划
 - **THEN** 结果必须进入当前 change 的 `design.md` 或 `tasks.md`
 
 ### Requirement: OpenSpec 生命周期必须映射到明确 Skills
