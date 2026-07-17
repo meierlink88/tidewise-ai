@@ -1,20 +1,31 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  工程：tidewise-ai-agentrun
+  技术栈：Go、CloudWeGo Eino、OpenSpec 1.5.x
+  目标：独立运行 AI 采集器、AI 事件提取器和 AI 投研报告分析师。
+  工程约束：任何仓库写入先执行 eino-reference-first 三仓审计；每个 change 使用
+  codex/<change-name> 分支和独立 worktree；行为变更执行 RED -> GREEN -> REFACTOR；
+  完成两次人工评审后同步规格、归档并通过 Pull Request 交付。
+  安全约束：.reference/cloudwego、.env、密钥和 data 运行产物不得提交。
+  语言约束：中文优先。OpenSpec 固定结构标记、规范关键字、命令、路径、代码标识符
+  和 capability 标识保持原始形式，其余 change 产物使用中文。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - 使用中文说明 Why、What Changes、Capabilities 和 Impact，固定结构标题保持 OpenSpec 规范形式。
+    - 明确范围、非目标、受影响 Agent、兼容性和主要风险。
+    - capability 名称使用稳定的 kebab-case，并与 specs 目录一致。
+  design:
+    - 使用中文记录上下文、目标、非目标、关键决策、替代方案、风险和迁移或回滚方式。
+    - 涉及 Eino 时，记录 eino-ext、eino-examples、eino 三仓的参考结论和复用选择。
+    - 新增数据库、队列、模型或外部服务时，说明必要性、成本、失败模式和替代方案。
+  specs:
+    - 正文和场景使用中文；Requirement、Scenario、WHEN/THEN、SHALL/MUST 等规范标记保持原文。
+    - 每个 Requirement 至少包含一个可验证的 Scenario。
+    - 要求描述可观察行为，不把具体实现步骤写成需求。
+  tasks:
+    - 使用中文并保持 OpenSpec checkbox 和编号结构。
+    - 行为变更必须拆分 RED、GREEN、REFACTOR，并写明聚焦测试与全量验证命令。
+    - 包含提案评审和完成前评审两个不可由 Agent 自行批准的门禁。
+    - 最终任务包含规格同步、归档、密钥检查、提交、推送和 Pull Request 交付。
