@@ -29,14 +29,15 @@ func TestDeepSeekQueryPlannerBuildsPromptAndReturnsIndependentRequest(t *testing
 	var captured []*schema.Message
 	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(_ context.Context, messages []*schema.Message) (*schema.Message, error) {
 		captured = messages
-		return schema.AssistantMessage(`{"queries":["same"," model query "]}`, nil), nil
-	}}, "system-query-planner-v1")
+		return schema.AssistantMessage(`{"queries":["same"," model query ","same"]}`, nil), nil
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	originalQueries := []string{" original query ", "same", "same"}
+	originalQueries := []string{"legacy query"}
+	const objective = "prompt-owned intent\nwith exact whitespace\n"
 	input := &Request{
-		RunID: "run-1", Objective: "研究全球政策", SearchQueries: originalQueries,
+		RunID: "run-1", Objective: objective, SearchQueries: originalQueries,
 		CandidateLimit: 7, TimeWindowHours: 48,
 		CollectedAt: time.Date(2026, 7, 18, 1, 2, 3, 0, time.FixedZone("CST", 8*60*60)),
 	}
@@ -48,10 +49,10 @@ func TestDeepSeekQueryPlannerBuildsPromptAndReturnsIndependentRequest(t *testing
 	if output == input {
 		t.Fatal("planner returned the caller's Request pointer")
 	}
-	if !reflect.DeepEqual(input.SearchQueries, []string{" original query ", "same", "same"}) {
+	if !reflect.DeepEqual(input.SearchQueries, []string{"legacy query"}) {
 		t.Fatalf("planner mutated input queries: %#v", input.SearchQueries)
 	}
-	wantQueries := []string{"original query", "same", "model query"}
+	wantQueries := []string{"same", "model query"}
 	if !reflect.DeepEqual(output.SearchQueries, wantQueries) {
 		t.Fatalf("queries = %#v, want %#v", output.SearchQueries, wantQueries)
 	}
@@ -59,15 +60,20 @@ func TestDeepSeekQueryPlannerBuildsPromptAndReturnsIndependentRequest(t *testing
 		t.Fatalf("non-query fields changed: input=%+v output=%+v", input, output)
 	}
 	output.SearchQueries[0] = "changed"
-	if input.SearchQueries[0] != " original query " || originalQueries[0] != " original query " {
+	if input.SearchQueries[0] != "legacy query" || originalQueries[0] != "legacy query" {
 		t.Fatal("output SearchQueries aliases caller input")
 	}
-	if len(captured) != 2 || captured[0].Role != schema.System || captured[0].Content != "system-query-planner-v1" || captured[1].Role != schema.User {
+	if len(captured) != 2 || captured[0].Role != schema.System || captured[0].Content != objective || captured[1].Role != schema.User {
 		t.Fatalf("unexpected messages: %#v", captured)
 	}
-	for _, value := range []string{"研究全球政策", "48", "2026-07-17T17:02:03Z", "original query", "same"} {
+	for _, value := range []string{"48", "2026-07-17T17:02:03Z"} {
 		if !strings.Contains(captured[1].Content, value) {
 			t.Fatalf("user prompt missing %q: %s", value, captured[1].Content)
+		}
+	}
+	for _, forbidden := range []string{objective, "legacy query", "objective", "search_queries"} {
+		if strings.Contains(captured[1].Content, forbidden) {
+			t.Fatalf("technical user message contains %q: %s", forbidden, captured[1].Content)
 		}
 	}
 }
@@ -77,6 +83,7 @@ func TestDeepSeekQueryPlannerStrictJSONValidation(t *testing.T) {
 		"empty response":     "",
 		"malformed":          `{"queries":[}`,
 		"unknown field":      `{"queries":["q"],"facts":"not allowed"}`,
+		"model objective":    `{"objective":"rewritten","queries":["q"]}`,
 		"wrong type":         `{"queries":"q"}`,
 		"empty queries":      `{"queries":[]}`,
 		"empty query":        `{"queries":["  "]}`,
@@ -88,11 +95,11 @@ func TestDeepSeekQueryPlannerStrictJSONValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
 				return schema.AssistantMessage(content, nil), nil
-			}}, "system-prompt-secret")
+			}})
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = planner.Plan(context.Background(), &Request{SearchQueries: []string{"original"}})
+			_, err = planner.Plan(context.Background(), &Request{Objective: "system-prompt-secret"})
 			if err == nil {
 				t.Fatal("expected schema error")
 			}
@@ -103,23 +110,34 @@ func TestDeepSeekQueryPlannerStrictJSONValidation(t *testing.T) {
 	}
 }
 
-func TestDeepSeekQueryPlannerPreservesPriorityAndLimitsQueries(t *testing.T) {
-	originals := make([]string, 13)
-	for index := range originals {
-		originals[index] = fmt.Sprintf("original-%02d", index)
-	}
+func TestDeepSeekQueryPlannerRejectsEmptyObjectiveBeforeModelCall(t *testing.T) {
+	modelCalls := 0
 	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
-		return schema.AssistantMessage(`{"queries":["model-a","model-b"]}`, nil), nil
-	}}, "prompt")
+		modelCalls++
+		return schema.AssistantMessage(`{"queries":["q"]}`, nil), nil
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := planner.Plan(context.Background(), &Request{SearchQueries: originals})
+	_, err = planner.Plan(context.Background(), &Request{Objective: " \n\t"})
+	if !errors.Is(err, ErrQueryPlanningSchema) || modelCalls != 0 {
+		t.Fatalf("error=%v modelCalls=%d", err, modelCalls)
+	}
+}
+
+func TestDeepSeekQueryPlannerUsesOnlyModelQueriesAndLimitsQueries(t *testing.T) {
+	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+		return schema.AssistantMessage(`{"queries":["model-a"," model-a ","model-b"]}`, nil), nil
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(output.SearchQueries) != 12 || output.SearchQueries[0] != "original-00" || output.SearchQueries[11] != "original-11" {
-		t.Fatalf("unexpected original limit: %#v", output.SearchQueries)
+	output, err := planner.Plan(context.Background(), &Request{Objective: "intent", SearchQueries: []string{"legacy-query"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(output.SearchQueries, []string{"model-a", "model-b"}) {
+		t.Fatalf("planner retained a legacy query or failed stable deduplication: %#v", output.SearchQueries)
 	}
 
 	planner, err = NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
@@ -128,15 +146,15 @@ func TestDeepSeekQueryPlannerPreservesPriorityAndLimitsQueries(t *testing.T) {
 			queries[index] = fmt.Sprintf("model-%02d", index)
 		}
 		return schema.AssistantMessage(`{"queries":["`+strings.Join(queries, `","`)+`"]}`, nil), nil
-	}}, "prompt")
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err = planner.Plan(context.Background(), &Request{SearchQueries: []string{"original"}})
+	output, err = planner.Plan(context.Background(), &Request{Objective: "intent"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(output.SearchQueries) != 12 || output.SearchQueries[0] != "original" || output.SearchQueries[11] != "model-10" {
+	if len(output.SearchQueries) != 12 || output.SearchQueries[0] != "model-00" || output.SearchQueries[11] != "model-11" {
 		t.Fatalf("unexpected model limit: %#v", output.SearchQueries)
 	}
 }
@@ -147,11 +165,11 @@ func TestDeepSeekQueryPlannerSanitizesModelFailureAndPreservesCancellation(t *te
 	const prompt = "complete secret prompt"
 	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
 		return nil, fmt.Errorf("provider failed key=%s prompt=%s response=%s", apiKey, prompt, rawResponse)
-	}}, prompt)
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = planner.Plan(context.Background(), &Request{SearchQueries: []string{"q"}})
+	_, err = planner.Plan(context.Background(), &Request{Objective: prompt})
 	if err == nil {
 		t.Fatal("expected model error")
 	}
@@ -165,11 +183,11 @@ func TestDeepSeekQueryPlannerSanitizesModelFailureAndPreservesCancellation(t *te
 	cancel()
 	planner, err = NewDeepSeekQueryPlanner(fakeChatModel{generate: func(ctx context.Context, _ []*schema.Message) (*schema.Message, error) {
 		return nil, ctx.Err()
-	}}, "prompt")
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = planner.Plan(ctx, &Request{SearchQueries: []string{"q"}})
+	_, err = planner.Plan(ctx, &Request{Objective: "prompt"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}

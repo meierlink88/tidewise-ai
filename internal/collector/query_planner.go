@@ -29,41 +29,36 @@ type QueryPlanner interface {
 }
 
 type DeepSeekQueryPlanner struct {
-	chatModel    model.BaseChatModel
-	systemPrompt string
+	chatModel model.BaseChatModel
 }
 
-func NewDeepSeekQueryPlanner(chatModel model.BaseChatModel, systemPrompt string) (*DeepSeekQueryPlanner, error) {
+func NewDeepSeekQueryPlanner(chatModel model.BaseChatModel) (*DeepSeekQueryPlanner, error) {
 	if chatModel == nil {
 		return nil, fmt.Errorf("chat model is required")
 	}
-	if strings.TrimSpace(systemPrompt) == "" {
-		return nil, fmt.Errorf("query planner prompt is required")
-	}
-	return &DeepSeekQueryPlanner{chatModel: chatModel, systemPrompt: systemPrompt}, nil
+	return &DeepSeekQueryPlanner{chatModel: chatModel}, nil
 }
 
 func (p *DeepSeekQueryPlanner) Plan(ctx context.Context, input *Request) (*Request, error) {
 	if input == nil {
 		return nil, fmt.Errorf("collector request is required")
 	}
+	if strings.TrimSpace(input.Objective) == "" {
+		return nil, ErrQueryPlanningSchema
+	}
 	userMessage, err := json.Marshal(struct {
-		Objective       string   `json:"objective"`
-		CollectedAt     string   `json:"collected_at_utc"`
-		TimeWindowHours int      `json:"time_window_hours"`
-		SearchQueries   []string `json:"search_queries"`
+		CollectedAt     string `json:"collected_at_utc"`
+		TimeWindowHours int    `json:"time_window_hours"`
 	}{
-		Objective:       input.Objective,
 		CollectedAt:     input.CollectedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		TimeWindowHours: input.TimeWindowHours,
-		SearchQueries:   append([]string(nil), input.SearchQueries...),
 	})
 	if err != nil {
 		return nil, ErrQueryPlanningSchema
 	}
 
 	response, err := p.chatModel.Generate(ctx, []*schema.Message{
-		schema.SystemMessage(p.systemPrompt),
+		schema.SystemMessage(input.Objective),
 		schema.UserMessage(string(userMessage)),
 	})
 	if err != nil {
@@ -79,7 +74,7 @@ func (p *DeepSeekQueryPlanner) Plan(ctx context.Context, input *Request) (*Reque
 	if err != nil {
 		return nil, ErrQueryPlanningSchema
 	}
-	queries, err := mergePlannedQueries(input.SearchQueries, modelQueries)
+	queries, err := normalizePlannedQueries(modelQueries)
 	if err != nil {
 		return nil, ErrQueryPlanningSchema
 	}
@@ -108,48 +103,25 @@ func decodePlannedQueries(content string) ([]string, error) {
 	if len(payload.Queries) == 0 {
 		return nil, ErrQueryPlanningSchema
 	}
-	for _, query := range payload.Queries {
+	return payload.Queries, nil
+}
+
+func normalizePlannedQueries(planned []string) ([]string, error) {
+	result := make([]string, 0, maxPlannedQueries)
+	seen := make(map[string]struct{}, maxPlannedQueries)
+	for _, query := range planned {
 		cleaned := strings.TrimSpace(query)
 		if cleaned == "" || utf8.RuneCountInString(cleaned) > maxQueryRunes {
 			return nil, ErrQueryPlanningSchema
 		}
-	}
-	return payload.Queries, nil
-}
-
-func mergePlannedQueries(original, planned []string) ([]string, error) {
-	result := make([]string, 0, maxPlannedQueries)
-	seen := make(map[string]struct{}, maxPlannedQueries)
-	appendUnique := func(queries []string, rejectEmpty bool) error {
-		for _, query := range queries {
-			cleaned := strings.TrimSpace(query)
-			if cleaned == "" {
-				if rejectEmpty {
-					return ErrQueryPlanningSchema
-				}
-				continue
-			}
-			if utf8.RuneCountInString(cleaned) > maxQueryRunes {
-				return ErrQueryPlanningSchema
-			}
-			if _, exists := seen[cleaned]; exists {
-				continue
-			}
-			if len(result) == maxPlannedQueries {
-				return nil
-			}
-			seen[cleaned] = struct{}{}
-			result = append(result, cleaned)
+		if _, exists := seen[cleaned]; exists {
+			continue
 		}
-		return nil
-	}
-	if err := appendUnique(original, false); err != nil {
-		return nil, err
-	}
-	if len(result) < maxPlannedQueries {
-		if err := appendUnique(planned, true); err != nil {
-			return nil, err
+		if len(result) == maxPlannedQueries {
+			break
 		}
+		seen[cleaned] = struct{}{}
+		result = append(result, cleaned)
 	}
 	if len(result) == 0 {
 		return nil, ErrQueryPlanningSchema

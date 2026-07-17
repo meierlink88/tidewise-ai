@@ -5,53 +5,90 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"strings"
 	"time"
 
-	collectorprompts "github.com/guanchaojia/tidewise-ai-agentrun/agents/collector/prompts"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector"
 	projectconfig "github.com/guanchaojia/tidewise-ai-agentrun/internal/config"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/connectors"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/materialize"
 )
 
-func main() {
-	var objective, queryList, dataRoot, envFile string
-	var candidateLimit, timeWindow, maxParallel int
-	flag.StringVar(&objective, "objective", "采集最近全球政经、政策、产业、企业和资本市场重要信息，优先服务中国资本市场研究", "search objective")
-	flag.StringVar(&queryList, "queries", "全球政经政策产业新闻,中国资本市场重要新闻", "comma-separated search queries")
-	flag.StringVar(&dataRoot, "data-root", "data", "output root")
-	flag.StringVar(&envFile, "env-file", ".env", "path to an optional dotenv configuration file")
-	flag.IntVar(&candidateLimit, "candidate-limit", 10, "maximum results per connector")
-	flag.IntVar(&timeWindow, "time-window-hours", 48, "collection time window")
-	flag.IntVar(&maxParallel, "max-parallel", 3, "maximum concurrent connectors")
-	flag.Parse()
-	if err := projectconfig.LoadEnvFile(envFile); err != nil {
-		fail(fmt.Errorf("load configuration: %w", err))
+const defaultCollectorPromptFile = "agents/collector/prompts/query_planner_v1.md"
+
+type collectorOptions struct {
+	promptFile     string
+	dataRoot       string
+	envFile        string
+	candidateLimit int
+	timeWindow     int
+	maxParallel    int
+}
+
+func parseCollectorOptions(arguments []string) (collectorOptions, error) {
+	var options collectorOptions
+	flags := flag.NewFlagSet("collector", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	flags.StringVar(&options.promptFile, "prompt-file", defaultCollectorPromptFile, "path to the collector intent prompt")
+	flags.StringVar(&options.dataRoot, "data-root", "data", "output root")
+	flags.StringVar(&options.envFile, "env-file", ".env", "path to an optional dotenv configuration file")
+	flags.IntVar(&options.candidateLimit, "candidate-limit", 10, "maximum results per connector")
+	flags.IntVar(&options.timeWindow, "time-window-hours", 48, "collection time window")
+	flags.IntVar(&options.maxParallel, "max-parallel", 3, "maximum concurrent connectors")
+	if err := flags.Parse(arguments); err != nil {
+		return collectorOptions{}, err
+	}
+	return options, nil
+}
+
+func prepareCollector(
+	ctx context.Context,
+	options collectorOptions,
+	now time.Time,
+	factory deepSeekModelFactory,
+) (*collector.Request, collector.QueryPlanner, error) {
+	objective, err := collector.LoadCollectorPrompt(options.promptFile)
+	if err != nil {
+		return nil, nil, err
 	}
 	deepSeekConfig, err := projectconfig.LoadDeepSeekConfig()
 	if err != nil {
-		fail(fmt.Errorf("load DeepSeek configuration: %w", err))
+		return nil, nil, fmt.Errorf("load DeepSeek configuration: %w", err)
 	}
-	planner, err := buildDeepSeekPlanner(context.Background(), deepSeekConfig, collectorprompts.QueryPlannerV1(), newDeepSeekChatModel)
+	planner, err := buildDeepSeekPlanner(ctx, deepSeekConfig, factory)
+	if err != nil {
+		return nil, nil, err
+	}
+	collectedAt := now.UTC()
+	request := &collector.Request{
+		RunID: collectedAt.Format("20060102T150405Z"), Objective: objective,
+		CandidateLimit: options.candidateLimit, TimeWindowHours: options.timeWindow,
+		CollectedAt: collectedAt,
+	}
+	return request, planner, nil
+}
+
+func main() {
+	options, err := parseCollectorOptions(os.Args[1:])
+	if err != nil {
+		fail(err)
+	}
+	if err = projectconfig.LoadEnvFile(options.envFile); err != nil {
+		fail(fmt.Errorf("load configuration: %w", err))
+	}
+	request, planner, err := prepareCollector(context.Background(), options, time.Now(), newDeepSeekChatModel)
 	if err != nil {
 		fail(err)
 	}
 
-	now := time.Now().UTC()
-	request := &collector.Request{
-		RunID: now.Format("20060102T150405Z"), Objective: objective,
-		SearchQueries: splitQueries(queryList), CandidateLimit: candidateLimit,
-		TimeWindowHours: timeWindow, CollectedAt: now,
-	}
 	connectorSet := []collector.Connector{
 		connectors.ParallelSearch{APIKey: os.Getenv("PARALLEL_API_KEY")},
 		connectors.Tavily{APIKey: os.Getenv("TAVILY_API_KEY")},
 		connectors.Bocha{APIKey: os.Getenv("BOCHA_API_KEY")},
 	}
 
-	workflow, err := collector.NewWorkflow(context.Background(), planner, connectorSet, maxParallel, materialize.File{Root: dataRoot, NearDuplicateRadius: 3})
+	workflow, err := collector.NewWorkflow(context.Background(), planner, connectorSet, options.maxParallel, materialize.File{Root: options.dataRoot, NearDuplicateRadius: 3})
 	if err != nil {
 		fail(err)
 	}
@@ -61,16 +98,6 @@ func main() {
 	}
 	encoded, _ := json.MarshalIndent(result, "", "  ")
 	fmt.Println(string(encoded))
-}
-
-func splitQueries(value string) []string {
-	var result []string
-	for _, item := range strings.Split(value, ",") {
-		if cleaned := strings.TrimSpace(item); cleaned != "" {
-			result = append(result, cleaned)
-		}
-	}
-	return result
 }
 
 func fail(err error) {

@@ -112,7 +112,7 @@ func TestWorkflowCapsConcurrencyAndPreservesConnectorFailure(t *testing.T) {
 	}
 }
 
-func TestWorkflowRunsPlannerBeforeConnectorsAndSharesPlannedRequest(t *testing.T) {
+func TestWorkflowPlanningRunsBeforeConnectorsAndSharesPlannedRequest(t *testing.T) {
 	var connectorCalls int32
 	var requests []Request
 	var mu sync.Mutex
@@ -121,6 +121,9 @@ func TestWorkflowRunsPlannerBeforeConnectorsAndSharesPlannedRequest(t *testing.T
 		atomic.AddInt32(&plannerCalls, 1)
 		if atomic.LoadInt32(&connectorCalls) != 0 {
 			t.Fatal("connector ran before planner completed")
+		}
+		if request.Objective != "runtime prompt intent" || len(request.SearchQueries) != 0 {
+			t.Fatalf("planner input = %+v", request)
 		}
 		planned := *request
 		planned.SearchQueries = []string{"planned-one", "planned-two"}
@@ -135,7 +138,7 @@ func TestWorkflowRunsPlannerBeforeConnectorsAndSharesPlannedRequest(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	input := &Request{RunID: "run-planned", SearchQueries: []string{"original"}}
+	input := &Request{RunID: "run-planned", Objective: "runtime prompt intent"}
 	if _, err := workflow.Invoke(context.Background(), input); err != nil {
 		t.Fatal(err)
 	}
@@ -143,21 +146,24 @@ func TestWorkflowRunsPlannerBeforeConnectorsAndSharesPlannedRequest(t *testing.T
 		t.Fatalf("calls planner=%d connectors=%d materializer=%d", plannerCalls, connectorCalls, materializer.calls)
 	}
 	for _, request := range requests {
+		if request.Objective != input.Objective {
+			t.Fatalf("connector objective = %q, want %q", request.Objective, input.Objective)
+		}
 		if !reflect.DeepEqual(request.SearchQueries, []string{"planned-one", "planned-two"}) {
 			t.Fatalf("connector got %#v", request.SearchQueries)
 		}
 	}
-	if !reflect.DeepEqual(input.SearchQueries, []string{"original"}) {
+	if input.SearchQueries != nil {
 		t.Fatalf("workflow mutated input: %#v", input.SearchQueries)
 	}
 }
 
-func TestWorkflowPlannerFailureStopsConnectorsAndMaterializer(t *testing.T) {
+func TestWorkflowPlanningFailureStopsConnectorsAndMaterializer(t *testing.T) {
 	tests := map[string]func(*testing.T) (context.Context, QueryPlanner){
 		"API failure": func(t *testing.T) (context.Context, QueryPlanner) {
 			planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
 				return nil, errors.New("provider unavailable")
-			}}, "prompt")
+			}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -166,7 +172,7 @@ func TestWorkflowPlannerFailureStopsConnectorsAndMaterializer(t *testing.T) {
 		"schema failure": func(t *testing.T) (context.Context, QueryPlanner) {
 			planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
 				return schema.AssistantMessage(`{"queries":["q"]} trailing`, nil), nil
-			}}, "prompt")
+			}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -177,7 +183,7 @@ func TestWorkflowPlannerFailureStopsConnectorsAndMaterializer(t *testing.T) {
 			cancel()
 			planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(ctx context.Context, _ []*schema.Message) (*schema.Message, error) {
 				return nil, ctx.Err()
-			}}, "prompt")
+			}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -197,7 +203,7 @@ func TestWorkflowPlannerFailureStopsConnectorsAndMaterializer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err = workflow.Invoke(ctx, &Request{SearchQueries: []string{"original"}}); err == nil {
+			if _, err = workflow.Invoke(ctx, &Request{Objective: "prompt intent"}); err == nil {
 				t.Fatal("expected planner failure")
 			}
 			if connectorCalls != 0 || materializer.calls != 0 {
@@ -213,7 +219,8 @@ func TestWorkflowContentOriginAndFactsComeOnlyFromConnector(t *testing.T) {
 	var mu sync.Mutex
 	want := Candidate{
 		Title: "connector title", URL: "https://example.com/fact", PublishedAtHint: "2026-07-18",
-		SourceName: "connector source", SourceType: "news", Content: "connector evidence", ContentLevel: LevelSnippet,
+		SourceName: "connector source", SourceExternalID: "connector-id", SourceType: "news",
+		Content: "connector evidence", ContentLevel: LevelSnippet,
 	}
 	planner := plannerFunc(func(_ context.Context, request *Request) (*Request, error) {
 		planned := *request
@@ -231,7 +238,7 @@ func TestWorkflowContentOriginAndFactsComeOnlyFromConnector(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := materializer.runs["facts"].Results[0]
-	if got.Title != want.Title || got.URL != want.URL || got.PublishedAtHint != want.PublishedAtHint || got.SourceName != want.SourceName || got.SourceType != want.SourceType || got.Content != want.Content {
+	if got.Title != want.Title || got.URL != want.URL || got.PublishedAtHint != want.PublishedAtHint || got.SourceName != want.SourceName || got.SourceExternalID != want.SourceExternalID || got.SourceType != want.SourceType || got.Content != want.Content || got.ContentLevel != want.ContentLevel {
 		t.Fatalf("connector facts changed: %+v", got)
 	}
 	if got.ContentOrigin != ContentOrigin || strings.Contains(got.Content, "model claimed fact") {

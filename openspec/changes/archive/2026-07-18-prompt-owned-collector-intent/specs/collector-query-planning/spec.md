@@ -1,10 +1,4 @@
-# Collector Query Planning Specification
-
-## Purpose
-
-定义 AI 采集器如何从运行时 prompt 取得唯一业务采集意图，在搜索 connector 前使用 DeepSeek 规划结构化查询，同时保证启动配置安全、失败可观察、查询数量受控，并维持 connector-only 的事实与证据边界。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: 运行时 prompt 文件拥有采集意图
 collector SHALL 将一个运行时 prompt 文件作为“采集什么内容”的唯一自然语言来源，`cmd/collector` 和其他 Go 代码 MUST NOT 硬编码政经、政策、产业、企业、资本市场或其他业务采集主题，也 MUST NOT 提供带业务内容的 `objective`/`queries` flags 或默认值。collector SHALL 提供纯技术参数 `prompt-file`，其默认值为 `agents/collector/prompts/query_planner_v1.md`；绝对路径 SHALL 直接使用，相对路径 SHALL 相对 collector 进程启动时的 current working directory 解析，且 MUST NOT 隐式搜索其他目录或回退到编译期嵌入内容。
@@ -50,6 +44,23 @@ collector SHALL 保留时间窗口、candidate limit、connector 并发度、dat
 - **WHEN** 调用方覆盖时间窗口、candidate limit、并发度、data root、env file 或 prompt file path
 - **THEN** collector 使用对应技术值，并仍只从 prompt 文件取得业务采集意图
 
+### Requirement: prompt 驱动查询的去重和限制
+查询规划器 SHALL 仅使用模型根据 `Request.Objective` 返回的 `queries`，对每项执行 `TrimSpace`，按精确字符串稳定去重，并按模型返回顺序保留最多 12 条。单条查询 MUST 不超过 256 rune；空数组、空查询、无任何可用查询或超长查询 SHALL 使规划失败。planner MUST NOT 把 prompt 原文直接作为 `SearchQueries`，也 MUST NOT 合并 CLI、代码默认值或其他静态查询来源。
+
+#### Scenario: 模型查询包含重复项
+- **WHEN** 模型返回顺序为重复查询、空白包围的唯一查询和其他唯一查询
+- **THEN** planner 去除首尾空白，保留每个精确字符串的首次出现并维持模型顺序
+
+#### Scenario: 模型查询超过总数上限
+- **WHEN** 规范化和去重后的模型查询超过 12 条
+- **THEN** planner 仅保留最前 12 条并确定性丢弃尾部查询
+
+#### Scenario: 没有合法模型查询
+- **WHEN** 模型返回空数组、空查询、超长查询或最终无任何可用查询
+- **THEN** workflow 返回安全的查询规划错误，任何 connector 不执行且不产生新的采集产物
+
+## MODIFIED Requirements
+
 ### Requirement: DeepSeek 查询规划位于 connector 前
 AI 采集器 SHALL 在任何搜索 connector 执行前，使用 DeepSeek 查询规划器根据运行时 prompt 所形成的 `Objective`、`TimeWindowHours` 和 `CollectedAt` 生成 `SearchQueries`，并 SHALL 将同一份规划后 `Request` 发送给所有已配置 connector。
 
@@ -72,68 +83,16 @@ AI 采集器 SHALL 在任何搜索 connector 执行前，使用 DeepSeek 查询�
 - **WHEN** DeepSeek 返回合法的 `queries`
 - **THEN** planner 输出的 `Objective` 与输入 prompt 全文完全相同，且没有从模型响应读取或生成新的 Objective
 
-### Requirement: 结构化模型输出严格校验
-查询规划器 SHALL 要求模型返回唯一顶层结构 `{"queries":[...]}`，并 SHALL 拒绝空响应、非 JSON、未知顶层字段、缺失或非数组 `queries`、非字符串元素、空查询、无任何可用查询以及超过 256 rune 的单条查询。错误 MUST NOT 包含 API key、完整 prompt 或完整模型原始响应。
-
-#### Scenario: 合法 JSON 输出
-- **WHEN** 模型返回仅含非空字符串数组 `queries` 的 JSON object，且每条查询不超过 256 rune
-- **THEN** planner 接受输出并进入规范化、去重和限制
-
-#### Scenario: 非法模型输出
-- **WHEN** 模型返回空响应、非法 JSON、未知字段、错误字段类型、空查询或超长查询
-- **THEN** workflow 返回安全的查询规划错误，任何 connector 不执行，且不产生新的采集产物
-
-### Requirement: prompt 驱动查询的去重和限制
-查询规划器 SHALL 仅使用模型根据 `Request.Objective` 返回的 `queries`，对每项执行 `TrimSpace`，按精确字符串稳定去重，并按模型返回顺序保留最多 12 条。单条查询 MUST 不超过 256 rune；空数组、空查询、无任何可用查询或超长查询 SHALL 使规划失败。planner MUST NOT 把 prompt 原文直接作为 `SearchQueries`，也 MUST NOT 合并 CLI、代码默认值或其他静态查询来源。
-
-#### Scenario: 模型查询包含重复项
-- **WHEN** 模型返回顺序为重复查询、空白包围的唯一查询和其他唯一查询
-- **THEN** planner 去除首尾空白，保留每个精确字符串的首次出现并维持模型顺序
-
-#### Scenario: 模型查询超过总数上限
-- **WHEN** 规范化和去重后的模型查询超过 12 条
-- **THEN** planner 仅保留最前 12 条并确定性丢弃尾部查询
-
-#### Scenario: 没有合法模型查询
-- **WHEN** 模型返回空数组、空查询、超长查询或最终无任何可用查询
-- **THEN** workflow 返回安全的查询规划错误，任何 connector 不执行且不产生新的采集产物
-
-### Requirement: DeepSeek 配置和安全默认值
-collector SHALL 从环境或本地 dotenv 读取 DeepSeek 配置。`DEEPSEEK_API_KEY` SHALL 为必需且非空；`DEEPSEEK_MODEL` 为空时 SHALL 默认为 `deepseek-chat`；`DEEPSEEK_BASE_URL` SHALL 可选；`DEEPSEEK_TIMEOUT` 为空时 SHALL 默认为 `30s`，非空时 MUST 为大于 0 的 Go duration。任何密钥 MUST NOT 写入日志、错误、prompt、模型响应存储或采集产物。
-
-#### Scenario: 使用最小有效配置启动
-- **WHEN** 部署环境仅提供非空 `DEEPSEEK_API_KEY`
-- **THEN** collector 使用 `deepseek-chat`、provider 默认 base URL 和 `30s` timeout 初始化 DeepSeek provider
-
-#### Scenario: 缺失密钥或非法超时
-- **WHEN** `DEEPSEEK_API_KEY` 为空，或 `DEEPSEEK_TIMEOUT` 无法解析或不大于 0
-- **THEN** collector 在模型和 connector 调用前启动失败，并返回不包含配置值的安全错误
-
-### Requirement: 模型故障采用 fail-closed 语义
-模型 API 错误、context deadline、空响应、结构校验失败或无可用查询 SHALL 使本次采集失败。collector MUST NOT 静默回退到静态或未规划查询，MUST NOT 执行 connector，并 MUST NOT 为失败运行创建新的采集产物。
-
-#### Scenario: DeepSeek API 调用失败
-- **WHEN** DeepSeek provider 返回网络、鉴权、限流、服务端或 deadline 错误
-- **THEN** collector 返回带查询规划阶段类别的安全错误，且 connector 调用次数为零
-
-### Requirement: connector-only 事实与证据边界
-DeepSeek 输出 SHALL 仅用于 `Request.SearchQueries`。模型 MUST NOT 创建或修改 `Candidate.Title`、`Candidate.URL`、`Candidate.PublishedAtHint`、`Candidate.Content`、来源字段、证据内容或 `ContentOrigin`；所有物化候选内容 SHALL 继续来自 connector response 并标记为 `connector_response`。
-
-#### Scenario: 成功采集并物化结果
-- **WHEN** planner 成功且 connector 返回候选结果
-- **THEN** 物化结果的标题、URL、发布时间提示、正文和来源字段等于 connector response 对应字段，且 `ContentOrigin` 为 `connector_response`
-
-#### Scenario: 模型响应包含事实性文本
-- **WHEN** 模型在结构化查询之外尝试提供事实资料或证据文本
-- **THEN** planner 将该响应判定为不符合输出合约，任何事实文本 MUST NOT 进入 `Candidate` 或采集产物
-
-#### Scenario: 查询字符串包含事实性措辞
-- **WHEN** 合法 `queries` 数组中的字符串包含事实性措辞
-- **THEN** collector 仅将该字符串作为搜索查询发送给 connector，MUST NOT 将其直接写入 `Candidate` 或采集产物
-
 ### Requirement: 自动化测试不得访问真实 DeepSeek
 查询规划、运行时 prompt 加载、启动装配、workflow 和配置的自动化测试 SHALL 使用临时文件、fake planner、fake connector 或 fake chat model，且 MUST NOT 要求真实 `DEEPSEEK_API_KEY`、消耗模型额度或依赖公网可用性。
 
 #### Scenario: 运行聚焦测试和全量测试
 - **WHEN** 开发者运行 prompt 加载、查询规划相关测试或 `go test ./...`
 - **THEN** 测试通过临时 prompt 文件和可注入 fake 覆盖成功与失败场景，不向真实 DeepSeek 或搜索 connector endpoint 发出请求
+
+## REMOVED Requirements
+
+### Requirement: 原始查询优先合并、去重和限制
+**Reason**: `-queries` 及其业务默认值被移除，采集意图只能来自运行时 prompt；继续保留“用户原始查询优先”会形成第二个业务内容来源并与新语义冲突。
+
+**Migration**: 将原先通过 `-queries` 提供的业务查询意图写入 `prompt-file` 的自然语言内容，由 DeepSeek 统一规划 `SearchQueries`；最终查询仍执行稳定去重、256 rune 单条上限和 12 条总上限。

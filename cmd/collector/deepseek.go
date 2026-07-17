@@ -19,7 +19,6 @@ func newDeepSeekChatModel(ctx context.Context, config *deepseek.ChatModelConfig)
 func buildDeepSeekPlanner(
 	ctx context.Context,
 	config projectconfig.DeepSeekConfig,
-	systemPrompt string,
 	factory deepSeekModelFactory,
 ) (collector.QueryPlanner, error) {
 	if factory == nil {
@@ -35,7 +34,7 @@ func buildDeepSeekPlanner(
 	if err != nil {
 		return nil, errors.New("initialize DeepSeek provider failed")
 	}
-	planner, err := collector.NewDeepSeekQueryPlanner(chatModel, systemPrompt)
+	planner, err := collector.NewDeepSeekQueryPlanner(chatModel)
 	if err != nil {
 		return nil, errors.New("initialize DeepSeek query planner failed")
 	}

@@ -36,7 +36,7 @@ func TestBuildDeepSeekPlannerMapsConfigThroughInjectedFactory(t *testing.T) {
 		captured = &copyConfig
 		return stubChatModel{}, nil
 	}
-	planner, err := buildDeepSeekPlanner(context.Background(), input, "prompt-v1", factory)
+	planner, err := buildDeepSeekPlanner(context.Background(), input, factory)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestBuildDeepSeekPlannerSanitizesFactoryError(t *testing.T) {
 	factory := func(context.Context, *deepseek.ChatModelConfig) (model.BaseChatModel, error) {
 		return nil, fmt.Errorf("factory failed key=%s prompt=%s response=%s", apiKey, prompt, rawResponse)
 	}
-	_, err := buildDeepSeekPlanner(context.Background(), config.DeepSeekConfig{APIKey: apiKey, Model: "deepseek-chat", Timeout: time.Second}, prompt, factory)
+	_, err := buildDeepSeekPlanner(context.Background(), config.DeepSeekConfig{APIKey: apiKey, Model: "deepseek-chat", Timeout: time.Second}, factory)
 	if err == nil {
 		t.Fatal("expected factory error")
 	}
