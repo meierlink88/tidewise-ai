@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	collectorprompts "github.com/guanchaojia/tidewise-ai-agentrun/agents/collector/prompts"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector"
 	projectconfig "github.com/guanchaojia/tidewise-ai-agentrun/internal/config"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/connectors"
@@ -29,6 +30,14 @@ func main() {
 	if err := projectconfig.LoadEnvFile(envFile); err != nil {
 		fail(fmt.Errorf("load configuration: %w", err))
 	}
+	deepSeekConfig, err := projectconfig.LoadDeepSeekConfig()
+	if err != nil {
+		fail(fmt.Errorf("load DeepSeek configuration: %w", err))
+	}
+	planner, err := buildDeepSeekPlanner(context.Background(), deepSeekConfig, collectorprompts.QueryPlannerV1(), newDeepSeekChatModel)
+	if err != nil {
+		fail(err)
+	}
 
 	now := time.Now().UTC()
 	request := &collector.Request{
@@ -42,7 +51,7 @@ func main() {
 		connectors.Bocha{APIKey: os.Getenv("BOCHA_API_KEY")},
 	}
 
-	workflow, err := collector.NewWorkflow(context.Background(), connectorSet, maxParallel, materialize.File{Root: dataRoot, NearDuplicateRadius: 3})
+	workflow, err := collector.NewWorkflow(context.Background(), planner, connectorSet, maxParallel, materialize.File{Root: dataRoot, NearDuplicateRadius: 3})
 	if err != nil {
 		fail(err)
 	}

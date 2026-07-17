@@ -10,12 +10,18 @@ import (
 
 var nodeNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+const queryPlannerNode = "plan_queries"
+
 func NewWorkflow(
 	ctx context.Context,
+	planner QueryPlanner,
 	connectors []Connector,
 	maxParallel int,
 	materializer Materializer,
 ) (compose.Runnable[*Request, *Result], error) {
+	if planner == nil {
+		return nil, fmt.Errorf("query planner is required")
+	}
 	if len(connectors) == 0 {
 		return nil, fmt.Errorf("at least one connector is required")
 	}
@@ -27,12 +33,20 @@ func NewWorkflow(
 	}
 
 	workflow := compose.NewWorkflow[*Request, *Result]()
+	workflow.AddLambdaNode(queryPlannerNode, compose.InvokableLambda(
+		func(ctx context.Context, request *Request) (*Request, error) {
+			return planner.Plan(ctx, request)
+		},
+	)).AddInput(compose.START)
 	semaphore := make(chan struct{}, maxParallel)
 	names := make(map[string]struct{}, len(connectors))
 
 	for _, item := range connectors {
 		connector := item
 		name := connector.Name()
+		if name == queryPlannerNode || name == "materialize" {
+			return nil, fmt.Errorf("reserved connector name %q", name)
+		}
 		if !nodeNamePattern.MatchString(name) {
 			return nil, fmt.Errorf("invalid connector name %q", name)
 		}
@@ -61,7 +75,7 @@ func NewWorkflow(
 				}
 				return run, nil
 			},
-		)).AddInput(compose.START)
+		)).AddInput(queryPlannerNode)
 	}
 
 	aggregate := workflow.AddLambdaNode("materialize", compose.InvokableLambda(
