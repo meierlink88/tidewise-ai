@@ -12,6 +12,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	miniappservice "github.com/meierlink88/tidewise-ai/backend/services/miniapp"
 )
 
 func main() {
@@ -37,12 +38,7 @@ func main() {
 	defer db.Close()
 	researchService := miniappapi.NewResearchService(repositories.NewPostgresRepository(db), time.Now)
 
-	server := &http.Server{
-		Addr:         cfg.Server.Address(),
-		Handler:      httpserver.NewRouter(cfg, researchService),
-		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
-		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
-	}
+	server := miniappservice.NewServer(cfg, httpserver.NewRouter(cfg, researchService))
 
 	log.Printf("starting %s on %s in %s", cfg.App.Name, cfg.Server.Address(), cfg.App.Env)
 

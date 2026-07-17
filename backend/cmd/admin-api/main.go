@@ -11,6 +11,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
 	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/adminportal"
 )
 
 func main() {
@@ -47,10 +48,5 @@ func main() {
 }
 
 func newAdminServer(cfg config.Config, handler http.Handler) *http.Server {
-	return &http.Server{
-		Addr:         cfg.Server.Address(),
-		Handler:      handler,
-		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
-		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
-	}
+	return adminportal.NewServer(cfg, handler)
 }

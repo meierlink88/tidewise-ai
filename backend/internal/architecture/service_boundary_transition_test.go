@@ -36,7 +36,7 @@ func TestTransitionalBFFDataDependencyAllowlist(t *testing.T) {
 		sort.Strings(actual)
 		sort.Strings(wanted)
 		if !reflect.DeepEqual(actual, wanted) {
-			t.Fatalf("transitional Data dependency manifest for %s changed: got %v, want %v; do not add callers, and remove this allowlist as Packages 5-6 decouple the BFF", owner, actual, wanted)
+			t.Fatalf("transitional Data dependency manifest for %s changed: got %v, want %v; do not add callers, and remove this allowlist as Packages 6-7 decouple the BFF", owner, actual, wanted)
 		}
 
 		for _, forbidden := range []string{
@@ -73,7 +73,7 @@ func TestLegacyIngestionPreRetirementImportAllowlist(t *testing.T) {
 		"internal/apps/ingestion/health",
 	} {
 		if _, err := os.Stat(filepath.Join(backendRoot, path)); err != nil {
-			t.Fatalf("pre-retirement path %q changed before Package 7 manifest verification: %v", path, err)
+			t.Fatalf("pre-retirement path %q changed before Package 8 manifest verification: %v", path, err)
 		}
 	}
 
@@ -137,7 +137,7 @@ func assertFileContainsAll(t *testing.T, path string, needles []string) {
 	}
 	for _, needle := range needles {
 		if !strings.Contains(string(contents), needle) {
-			t.Fatalf("%s must contain %q until Package 7 replaces the pre-retirement manifest with absence checks", path, needle)
+			t.Fatalf("%s must contain %q until Package 8 replaces the pre-retirement manifest with absence checks", path, needle)
 		}
 	}
 }

@@ -38,7 +38,7 @@
 - [x] 1.1 已审阅并批准初始 proposal/design/specs/tasks 的 Data/Miniapp/Admin ownership、目标目录、HTTP contract、non-goals、采集停止窗口和`agent-run`交接边界；该批准未授权数据库、Neo4j、部署、Sync、Archive或Deliver。
 - [x] 1.2 确认四项冻结决策：Data API namespace 为 `/internal/data/v1`；client 为小型受控手写 typed client + OpenAPI drift test；scheduler API 为认证后一个实际部署窗口的 `410 Gone` tombstone；raw-document batch 为有界 whole-batch validation + atomic write。
 - [x] 1.3 记录用户于2026-07-17明确批准新增forward-only `backend/migrations/000022_add_raw_document_import_receipts.sql`，并授权在amendment获批且Package 5 order 1 evidence全部精确通过后自动对local PostgreSQL执行一次该migration；该授权不含本轮SQL、其他migration、seed、业务写入、Neo4j、环境、部署或Package 10权限层。
-- [ ] 1.4 审阅本amendment checkpoint，确认11-package Gate Map、raw receipt不可变表/事务/status合同、历史21 migration hash、Package 5两层fail-closed计划与Package 10独立性；批准前不得恢复Apply或创建`000022`文件。
+- [x] 1.4 审阅本amendment checkpoint，确认11-package Gate Map、raw receipt不可变表/事务/status合同、历史21 migration hash、Package 5两层fail-closed计划与Package 10独立性；批准前不得恢复Apply或创建`000022`文件。
 
 ## 2. Inventory And Architecture Package
 
@@ -49,9 +49,9 @@
 
 ## 3. Service Skeleton Package
 
-- [ ] 3.1 建立 Data、Miniapp、Admin service-owned entry/facade/health，入口只负责 config、依赖组装和启动；保持单 `backend/go.mod`，旧 `cmd/api`/`cmd/admin-api` 只作薄 compatibility wiring。
-- [ ] 3.2 让 Data Service 拥有 Data domain/repository/migration/projection；BFF 仅拥有 channel DTO/权限/编排；不为目录美观 bulk move 全部 domain/repositories/data。
-- [ ] 3.3 运行三个 binary build、architecture targeted suites、`git diff --check` 与 reference/scope checks；失败时回退 facade wiring，不触碰数据。
+- [x] 3.1 建立 Data、Miniapp、Admin service-owned entry/facade/health，入口只负责 config、依赖组装和启动；保持单 `backend/go.mod`，旧 `cmd/api`/`cmd/admin-api` 只作薄 compatibility wiring。
+- [x] 3.2 让 Data Service 拥有 Data domain/repository/migration/projection；BFF 仅拥有 channel DTO/权限/编排；不为目录美观 bulk move 全部 domain/repositories/data。
+- [x] 3.3 运行三个 binary build、architecture targeted suites、`git diff --check` 与 reference/scope checks；失败时回退 facade wiring，不触碰数据。
 
 ## 4. Data API/Import Code And Migration Artifact Package
 
