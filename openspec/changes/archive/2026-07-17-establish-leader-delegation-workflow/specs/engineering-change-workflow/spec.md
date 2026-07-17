@@ -1,17 +1,4 @@
-# Engineering Change Workflow Specification
-
-## Purpose
-
-定义 `tidewise-ai-agentrun` 的正式工程变更如何通过 Eino 三仓审计、OpenSpec、中文优先、TDD、Codex 任务委派、Git worktree、Leader 审批、Pull Request 和合并后 Cleanup 完成可追溯交付。
-
-## Requirements
-
-### Requirement: Eino-first 与 OpenSpec 技能路由
-每次仓库写入 SHALL 先完成与任务相关的 `eino-reference-first` 审计，并 SHALL 在探索、提案、实施、规格同步和归档阶段使用对应的仓库内置 OpenSpec skill。
-
-#### Scenario: Agent 收到工程变更请求
-- **WHEN** Agent 被要求修改源代码、测试、配置、文档、提示词、skill、脚本、依赖、生成物或工程结构
-- **THEN** Agent 在编辑前完成 Eino 三仓审计，并将请求路由到一个命名的 OpenSpec change
+## ADDED Requirements
 
 ### Requirement: 委派式工程变更生命周期
 每个正式 change SHALL 按 `Explore -> Delegate -> Propose -> Leader Review -> Apply -> Validate -> Leader Acceptance -> Sync -> Archive -> Deliver -> Merge -> Cleanup` 顺序推进，且 SHALL 不跳过、倒置或由自动化结果替代任何人工门禁。`Merge` 和 `Cleanup` SHALL 作为 PR 交付后的 Leader operational state 跟踪，不得阻塞已归档 change 的 OpenSpec checkbox 完成或要求回写已归档 tasks。
@@ -39,6 +26,27 @@
 - **WHEN** 执行 Agent收到明确的 Proposal Review 或 Apply-final Review 批准
 - **THEN** 执行 Agent在自己的任务和 worktree 中继续完成后续实施或交付阶段
 
+### Requirement: 合并后的安全资源清理
+Leader SHALL 仅在确认 Pull Request merged 后从主项目清理 change 资源，并 SHALL 依次验证 change worktree clean、change 提交已进入 `origin/main`，再删除 worktree、本地 change 分支、远端 change 分支（若存在），最后执行 worktree prune；任何失败 SHALL 被报告且不得静默视为完成。
+
+#### Scenario: 安全清理已合并 change
+- **WHEN** PR 已确认 merged、change worktree clean 且必要提交可从 `origin/main` 到达
+- **THEN** Leader 按 worktree、本地分支、可选远端分支、prune 的顺序清理，并报告最终资源状态
+
+#### Scenario: worktree 含有未提交内容
+- **WHEN** 合并后检查发现 change worktree 存在 tracked 或 untracked 变更
+- **THEN** Leader 停止删除操作并报告工作区状态，不删除 worktree 或分支
+
+#### Scenario: change 提交尚未进入主线
+- **WHEN** 无法证明 change 的必要提交已经进入 `origin/main`
+- **THEN** Leader 停止清理并报告验证失败，不删除 worktree 或分支
+
+#### Scenario: 清理步骤失败
+- **WHEN** 删除 worktree、删除本地或远端分支、或 prune 任一步骤失败
+- **THEN** Leader 报告失败命令、错误、已完成步骤和剩余资源，不宣称 Cleanup 完成
+
+## MODIFIED Requirements
+
 ### Requirement: 独立的 change 工作空间
 每个新 OpenSpec change SHALL 由开发 Leader 使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree；执行任务 SHALL 在写入 change 产物或实现文件前，使用基于最新 `origin/main` 的独立 `codex/<change-name>` feature branch。
 
@@ -54,13 +62,6 @@
 - **WHEN** 已有活跃 change 具备匹配的执行任务、分支和 worktree
 - **THEN** Leader和执行 Agent继续使用已有隔离资源，不创建重复 change 或覆盖已有修改
 
-### Requirement: change 产物中文优先
-所有 change 产物 SHALL 优先使用中文描述；仅 OpenSpec 固定结构标记、规范关键字、命令、路径、代码标识符、capability 标识及其他不可翻译技术内容保留原始形式。
-
-#### Scenario: 生成 OpenSpec change 产物
-- **WHEN** Agent 编写 proposal、design、specs 或 tasks
-- **THEN** 固定结构标记和必要技术标识保持规范形式，其余标题与正文使用中文
-
 ### Requirement: 经过评审的提案包
 proposal、必要的 design、capability specs 和具备 TDD 结构的 tasks SHALL 在实施开始前全部完成并通过 strict validation，且 SHALL 由开发 Leader 明确完成 Proposal Review；执行 Agent MUST NOT 自行批准该门禁。
 
@@ -71,13 +72,6 @@ proposal、必要的 design、capability specs 和具备 TDD 结构的 tasks SHA
 #### Scenario: 执行 Agent 未获得 Leader 批准
 - **WHEN** Leader尚未明确表达 Proposal Review 通过
 - **THEN** 执行 Agent不得进入 Apply，且不得以自身判断或验证通过替代批准
-
-### Requirement: 测试驱动实施
-所有行为变更 SHALL 遵循 RED、GREEN 和 REFACTOR；change 的 tasks 文件 SHALL 记录相关失败测试、最小实现和验证命令。
-
-#### Scenario: 实现一项行为需求
-- **WHEN** 开始执行实现任务
-- **THEN** 相关自动化测试先因预期原因失败，在最小实现后通过，并在重构后通过受影响测试集
 
 ### Requirement: 完成前评审与验证
 已实现的 change SHALL 通过工程测试、策略检查和严格 OpenSpec 验证，并 SHALL 在同步规格和归档前由开发 Leader明确完成 Apply-final Review 和 Leader Acceptance；执行 Agent MUST NOT 自行批准该门禁。
@@ -104,29 +98,3 @@ proposal、必要的 design、capability specs 和具备 TDD 结构的 tasks SHA
 #### Scenario: 执行 Agent交付 cleanup handoff
 - **WHEN** 执行 Agent已创建 Pull Request
 - **THEN** 执行 Agent向 Leader提供 PR URL/number、change branch、worktree path、必要 commits，以及 merged 确认、worktree clean、`origin/main` 可达性、删除 worktree/分支和 prune 的清理顺序，使归档前的 OpenSpec tasks 不依赖用户后续 merge
-
-### Requirement: 合并后的安全资源清理
-Leader SHALL 仅在确认 Pull Request merged 后从主项目清理 change 资源，并 SHALL 依次验证 change worktree clean、change 提交已进入 `origin/main`，再删除 worktree、本地 change 分支、远端 change 分支（若存在），最后执行 worktree prune；任何失败 SHALL 被报告且不得静默视为完成。
-
-#### Scenario: 安全清理已合并 change
-- **WHEN** PR 已确认 merged、change worktree clean 且必要提交可从 `origin/main` 到达
-- **THEN** Leader 按 worktree、本地分支、可选远端分支、prune 的顺序清理，并报告最终资源状态
-
-#### Scenario: worktree 含有未提交内容
-- **WHEN** 合并后检查发现 change worktree 存在 tracked 或 untracked 变更
-- **THEN** Leader 停止删除操作并报告工作区状态，不删除 worktree 或分支
-
-#### Scenario: change 提交尚未进入主线
-- **WHEN** 无法证明 change 的必要提交已经进入 `origin/main`
-- **THEN** Leader 停止清理并报告验证失败，不删除 worktree 或分支
-
-#### Scenario: 清理步骤失败
-- **WHEN** 删除 worktree、删除本地或远端分支、或 prune 任一步骤失败
-- **THEN** Leader 报告失败命令、错误、已完成步骤和剩余资源，不宣称 Cleanup 完成
-
-### Requirement: 本地材料不得发布
-工作流 SHALL 将密钥、运行产物、操作系统文件和 `.reference/cloudwego/` 排除在提交及 Pull Request 之外。
-
-#### Scenario: Agent 准备提交
-- **WHEN** Agent 为基线提交或 change 提交暂存文件
-- **THEN** Agent 验证忽略项，并扫描暂存差异中可能存在的凭据内容后再提交

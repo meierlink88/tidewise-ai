@@ -5,6 +5,13 @@
 任何仓库写入任务都先调用 `$eino-reference-first`，完成三仓核验并记录引用的
 上游实现或明确说明没有可复用实现。该步骤完成前不得写入 proposal 或实现文件。
 
+## 委派职责
+
+开发 Leader 只负责探索、任务委派、评审、批准、监控、验收和合并后清理。每个新
+change 由 Leader 使用 Codex `create_thread` 委派给独立执行 Agent；执行 Agent负责
+完成技能路由要求的审计、OpenSpec、TDD、实现、验证和交付，且不得自行批准 Leader
+Review 或 Leader Acceptance。
+
 ## OpenSpec 路由
 
 | 任务意图 | 必须使用的 skill | 结果 |
