@@ -49,10 +49,11 @@ PR merged 后由 Leader 在主任务中执行并报告 Cleanup，不回写已归
 
 ## 工作流规则例外
 
-仅修改工程协作工作流规则、对应正式工作流规格及其策略测试时，由开发 Leader 在当前
-主 Codex 对话直接完成，无需委派独立执行 Agent、无需创建 OpenSpec change，也不经过
-Leader Review 或 Leader Acceptance。该例外不得用于业务代码、运行时配置、普通产品
-文档、提示词、skills、依赖或工程结构变更；范围一旦超出工作流规则及其策略保护文件，
+仅修改工程协作工作流规则、对应正式工作流规格、策略测试，以及直接支撑该流程的
+`.agents/skills/` 项目级工程协作 skill 或脚本时，由开发 Leader 在当前主 Codex 对话
+直接完成，无需委派独立执行 Agent、无需创建 OpenSpec change，也不经过 Leader Review
+或 Leader Acceptance。该例外不得用于业务代码、运行时配置、普通产品文档、提示词、
+运行时 Agent skill、依赖或工程结构变更；范围一旦超出工作流规则及其策略保护文件，
 必须恢复上述完整委派式 OpenSpec 生命周期。
 
 Leader 直接修改工作流规则时仍须先完成 `$eino-reference-first`，从最新 `origin/main`

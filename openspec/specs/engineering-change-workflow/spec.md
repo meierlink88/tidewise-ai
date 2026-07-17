@@ -14,15 +14,19 @@
 - **THEN** Agent 在编辑前完成 Eino 三仓审计，并将非工作流规则例外的请求路由到一个命名的 OpenSpec change
 
 ### Requirement: 工作流规则例外
-仅修改工程协作工作流规则、对应正式工作流规格及策略测试时，开发 Leader SHALL 在当前主 Codex 对话直接完成，无需创建 OpenSpec change、无需委派独立执行 Agent，也无需经过 Leader Review 或 Leader Acceptance。Leader SHALL 从最新 `origin/main` 创建独立 `codex/<workflow-rule-name>` 分支，保留 RED、GREEN、REFACTOR 证据，完成验证后提交、推送并直接创建 Pull Request；用户控制 Pull Request merge。该例外 MUST NOT 扩展到业务代码、运行时配置、普通产品文档、提示词、skills、依赖或工程结构。
+仅修改工程协作工作流规则、对应正式工作流规格、策略测试，以及直接支撑该流程的 `.agents/skills/` 项目级工程协作 skill 或脚本时，开发 Leader SHALL 在当前主 Codex 对话直接完成，无需创建 OpenSpec change、无需委派独立执行 Agent，也无需经过 Leader Review 或 Leader Acceptance。Leader SHALL 从最新 `origin/main` 创建独立 `codex/<workflow-rule-name>` 分支，保留 RED、GREEN、REFACTOR 证据，完成验证后提交、推送并直接创建 Pull Request；用户控制 Pull Request merge。该例外 MUST NOT 扩展到业务代码、运行时配置、普通产品文档、提示词、运行时 Agent skill、依赖或工程结构。
 
 #### Scenario: Leader 修改工作流规则
-- **WHEN** 请求只修改工程协作规则、正式工作流规格及其策略测试
+- **WHEN** 请求只修改工程协作规则、正式工作流规格、策略测试或直接支撑该流程的 `.agents/skills/` 项目级工程协作 skill 或脚本
 - **THEN** Leader 在当前对话完成 Eino audit、策略测试、验证和 Pull Request 交付，不创建 OpenSpec change 或独立执行任务
 
 #### Scenario: 工作流规则修改超出例外范围
-- **WHEN** 预期差异包含业务代码、运行时配置、普通产品文档、提示词、skills、依赖或工程结构
+- **WHEN** 预期差异包含业务代码、运行时配置、普通产品文档、提示词、运行时 Agent skill、依赖或工程结构
 - **THEN** Leader 停止直接流程，并将请求恢复到完整委派式 OpenSpec 生命周期
+
+#### Scenario: linked worktree 复用共享 Eino references
+- **WHEN** `eino-reference-first` checker 从 linked worktree 启动且当前 worktree 没有本地 `.reference/cloudwego/`
+- **THEN** checker 按显式 reference root、共享 Git 配置、Git common directory 和当前 checkout 的顺序定位只读 clones，并报告每个仓库的绝对路径，不要求创建 per-worktree symlink
 
 ### Requirement: 委派式工程变更生命周期
 每个正式 change SHALL 按 `Explore -> Delegate -> Propose -> Leader Review -> Apply -> Validate -> Leader Acceptance -> Sync -> Archive -> Deliver -> Merge -> Cleanup` 顺序推进，且 SHALL 不跳过、倒置或由自动化结果替代任何人工门禁。`Merge` 和 `Cleanup` SHALL 作为 PR 交付后的 Leader operational state 跟踪，不得阻塞已归档 change 的 OpenSpec checkbox 完成或要求回写已归档 tasks。

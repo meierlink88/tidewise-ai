@@ -17,10 +17,11 @@ Review 或 Leader Acceptance。
 change 的修改请求即构成创建该独立任务的授权。`create_thread`、Desktop-managed
 worktree、默认模型组合或返回的任务标识任一不可用时，Leader 必须停止并报告。
 
-工作流规则修改是唯一例外：当变更仅涉及工程协作规则、正式工作流规格及其策略测试时，
-由 Leader 在当前对话直接实施，无需委派、无需 OpenSpec change。Leader 仍须完成
-Eino audit、策略测试的 RED/GREEN/REFACTOR、全量验证，并通过独立分支和 Pull Request
-交付。若范围包含任何非工作流规则内容，立即恢复普通 change 的技能路由。
+工作流规则修改是唯一例外：当变更仅涉及工程协作规则、正式工作流规格、策略测试，
+以及直接支撑该流程的 `.agents/skills/` 项目级工程协作 skill 或脚本时，由 Leader 在
+当前对话直接实施，无需委派、无需 OpenSpec change。Leader 仍须完成 Eino audit、
+策略测试的 RED/GREEN/REFACTOR、全量验证，并通过独立分支和 Pull Request 交付。
+运行时 Agent skill 或任何非工作流规则内容不属于例外，必须恢复普通 change 的技能路由。
 
 ## OpenSpec 路由
 

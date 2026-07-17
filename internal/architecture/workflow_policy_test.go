@@ -36,6 +36,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"Leader 直接创建 Pull Request",
 				"内部 sub-agent",
 				"change 请求即视为授权",
+				"项目级工程协作 skill",
 			},
 		},
 		{
@@ -52,6 +53,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"工作流规则修改",
 				"无需委派",
 				"禁止使用内部 sub-agent",
+				"项目级工程协作 skill",
 			},
 		},
 		{
@@ -66,6 +68,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"gpt-5.6-sol",
 				"medium",
 				"不得使用 `multi_agent`",
+				"项目级工程协作 skill",
 			},
 		},
 		{
@@ -83,6 +86,17 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"Pull Request",
 				"Leader 直接交付工作流规则修改",
 				"`threadId` 或 `clientThreadId`",
+				"项目级工程协作 skill",
+			},
+		},
+		{
+			path: ".agents/skills/eino-reference-first/SKILL.md",
+			terms: []string{
+				"--reference-root",
+				"tidewise.referenceRoot",
+				"common directory",
+				"reported absolute `path`",
+				"without creating per-worktree symlinks",
 			},
 		},
 		{
@@ -113,6 +127,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"工作流规则例外",
 				"gpt-5.6-sol",
 				"medium",
+				"项目级工程协作 skill",
 			},
 		},
 		{
@@ -127,6 +142,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"内部 sub-agent",
 				"change 请求即视为授权",
 				"threadId` 或 `clientThreadId",
+				"项目级工程协作 skill",
 			},
 		},
 	}

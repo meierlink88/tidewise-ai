@@ -3,9 +3,10 @@
 ## 适用范围与工作流规则例外
 
 本流程适用于除工程工作流规则修改之外的所有仓库变更。仅修改协作规则、正式工作流
-规格及其策略测试时，由 Leader 在当前主对话直接实施，无需创建 OpenSpec change，
-也无需委派执行 Agent；仍须完成 Eino audit、RED/GREEN/REFACTOR、全量验证、独立分支
-和 Pull Request。范围超出该边界时，本文件后续完整生命周期立即适用。
+规格、策略测试，以及直接支撑该流程的 `.agents/skills/` 项目级工程协作 skill 或脚本时，
+由 Leader 在当前主对话直接实施，无需创建 OpenSpec change，也无需委派执行 Agent；
+仍须完成 Eino audit、RED/GREEN/REFACTOR、全量验证、独立分支和 Pull Request。运行时
+Agent skill 或范围超出该边界时，本文件后续完整生命周期立即适用。
 
 ## 生命周期
 

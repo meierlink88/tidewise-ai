@@ -21,14 +21,27 @@ python3 .agents/skills/eino-reference-first/scripts/check_references.py --root .
 ```
 
 Stop and report the missing reference if any clone is unavailable. Record the
-reported commit IDs for the final audit note. Never modify or update a clone as
-part of an implementation task unless the user explicitly asks to refresh it.
+reported absolute `path` and commit ID for each repository. The checker resolves
+the reference root in this order: explicit `--reference-root`, shared Git config
+`tidewise.referenceRoot`, the main checkout inferred from Git's common directory,
+then the current checkout. A linked worktree must reuse the main checkout's
+read-only clones without creating per-worktree symlinks. Never modify or update a
+clone as part of an implementation task unless the user explicitly asks to
+refresh it.
+
+For an uncommon repository layout where Git common-directory inference is not
+available, configure one absolute shared path once from any worktree:
+
+```bash
+git config tidewise.referenceRoot /absolute/path/to/.reference/cloudwego
+```
 
 ### 2. Search `eino-ext` first
 
 Translate the task into concrete capability keywords, package names, and Go
-interfaces. Use `rg` and `rg --files` under `.reference/cloudwego/eino-ext` to
-find an existing component before designing custom infrastructure.
+interfaces. Use `rg` and `rg --files` under the `eino-ext` absolute path reported
+by the checker to find an existing component before designing custom
+infrastructure. Do not assume the clone is inside the current worktree.
 
 Read the complete task-relevant component directory: its README, exported API,
 configuration, constructors, tests, and dependency declarations when they
@@ -36,7 +49,8 @@ affect behavior. Prefer an `eino-ext` component when it meets the requirement.
 
 ### 3. Find the official pattern in `eino-examples`
 
-Search `.reference/cloudwego/eino-examples` for the nearest working example.
+Search the checker-reported absolute `eino-examples` path for the nearest
+working example.
 Read the complete relevant example flow, including initialization, composition,
 callbacks, streaming, state, error handling, and configuration files that the
 example uses. Treat examples as implementation guidance, not as production code
@@ -44,8 +58,8 @@ to copy without adapting boundaries, errors, configuration, and observability.
 
 ### 4. Confirm semantics in `eino`
 
-Search `.reference/cloudwego/eino` for every core interface and runtime behavior
-the proposal depends on. Read the public API, implementation, comments, and
+Search the checker-reported absolute `eino` path for every core interface and
+runtime behavior the proposal depends on. Read the public API, implementation, comments, and
 focused tests needed to understand graph/chain compilation, component contracts,
 callbacks, streaming, state, interrupts, checkpointing, or concurrency.
 

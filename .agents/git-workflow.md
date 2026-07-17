@@ -2,12 +2,13 @@
 
 ## Leader 直接交付工作流规则修改
 
-当且仅当变更范围限于工程协作规则、正式工作流规格及其策略测试时，Leader 无需创建
-独立执行任务或 OpenSpec change，直接在当前主任务中从最新 `origin/main` 创建
+当且仅当变更范围限于工程协作规则、正式工作流规格、策略测试，以及直接支撑该流程的
+`.agents/skills/` 项目级工程协作 skill 或脚本时，Leader 无需创建独立执行任务或
+OpenSpec change，直接在当前主任务中从最新 `origin/main` 创建
 `codex/<workflow-rule-name>` 分支。完成策略测试 RED/GREEN/REFACTOR、全量验证、差异和
 凭据检查后，由 Leader 提交、推送并创建 base 为 `main` 的 Pull Request。用户仍控制
-Pull Request merge。若修改范围扩展到普通代码、配置、文档或其他工程产物，则停止直接
-流程，改用下述新 change 自动初始化流程。
+Pull Request merge。若修改范围扩展到业务代码、运行时配置、普通产品文档、提示词、
+运行时 Agent skill、依赖或工程结构，则停止直接流程，改用下述新 change 自动初始化流程。
 
 ## 新 change 自动初始化
 

@@ -4,9 +4,11 @@ context: |
   工程：tidewise-ai-agentrun
   技术栈：Go、CloudWeGo Eino、OpenSpec 1.5.x
   目标：独立运行 AI 采集器、AI 事件提取器和 AI 投研报告分析师。
-  工程约束：任何仓库写入先执行 eino-reference-first 三仓审计；工作流规则例外由
-  Leader 当前对话直接实施、无需委派或创建 OpenSpec change，并使用独立分支和 PR
-  交付；其余变更由开发 Leader 使用
+  工程约束：任何仓库写入先执行 eino-reference-first 三仓审计；工作流规则例外覆盖
+  工作流规则、正式规格、策略测试及直接支撑流程的项目级工程协作 skill 或脚本（位于
+  .agents/skills），由 Leader 当前对话直接实施、无需委派或创建 OpenSpec change，并
+  使用独立分支和 PR 交付；运行时
+  Agent skill 和其余变更由开发 Leader 使用
   create_thread 委派独立执行 Agent和 Desktop-managed worktree；每个 change 使用
   codex/<change-name> 分支；行为变更执行 RED -> GREEN -> REFACTOR；生命周期为
   Explore -> Delegate -> Propose -> Leader Review -> Apply -> Validate -> Leader Acceptance ->
