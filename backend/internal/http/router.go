@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/meierlink88/tidewise-ai/backend/internal/apps/miniappapi"
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
 )
 
@@ -20,7 +21,7 @@ type ReadyResponse struct {
 	Checks      map[string]string  `json:"checks"`
 }
 
-func NewRouter(cfg config.Config) *gin.Engine {
+func NewRouter(cfg config.Config, researchServices ...*miniappapi.ResearchService) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
@@ -29,12 +30,22 @@ func NewRouter(cfg config.Config) *gin.Engine {
 	router.GET("/healthz", healthHandler(cfg))
 	router.GET("/readyz", readyHandler(cfg))
 
-	registerV1Routes(router.Group("/api/v1"))
+	registerV1Routes(router.Group("/api/v1"), firstResearchService(researchServices))
 
 	return router
 }
 
-func registerV1Routes(_ *gin.RouterGroup) {
+func registerV1Routes(group *gin.RouterGroup, researchService *miniappapi.ResearchService) {
+	if researchService != nil {
+		miniappapi.RegisterResearchRoutes(group, researchService)
+	}
+}
+
+func firstResearchService(services []*miniappapi.ResearchService) *miniappapi.ResearchService {
+	if len(services) == 0 {
+		return nil
+	}
+	return services[0]
 }
 
 func healthHandler(cfg config.Config) gin.HandlerFunc {
