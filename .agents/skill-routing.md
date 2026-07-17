@@ -2,6 +2,12 @@
 
 正式研发优先调用与任务匹配的已安装 Skill。OpenSpec 拥有唯一正式 artifacts；本文件只维护 Skill 路由，不重复生命周期、Git 或测试详述。可选 Skill 不得成为项目执行依赖。
 
+## Workflow-Only Routing Exception
+
+仅修改 `AGENTS.md`、`.agents/**`、项目 workflow/Skill 路由规则，以及这些规则专用的 lint 或 architecture tests 时，由当前 Leader 主对话直接实施，不创建独立 Desktop 任务，也不调用 OpenSpec propose/apply/sync/archive Skills。Leader 只运行命中规则的 targeted validation、规则或 architecture tests、链接检查、`git diff --check`、scope 与 secret 检查，然后按 `.agents/git-workflow.md` 直接提交 PR。
+
+若改动同时触及产品或业务规格、生产代码、API、数据库 migration/seed、业务数据、部署或运行环境，则不得拆分或伪装为 workflow-only change，必须恢复标准 Skill 路由和 OpenSpec 生命周期。
+
 ## Priority
 
 规则冲突时按以下顺序处理：
@@ -15,6 +21,12 @@
 ```
 
 Skill 不得覆盖项目 artifact 路径、生命周期顺序、分支命名、安全边界和技术约束；操作规则分别见 `.agents/openspec-workflow.md`、`.agents/git-workflow.md` 和 `.agents/testing-tdd.md`。
+
+## Delegated Task Defaults
+
+Leader 主对话通过 Codex Desktop 委派创建新任务时，默认选择 `GPT-5.6 SOL` 模型，并将推理强度设为 `medium`。用户当前明确指定其他模型或推理强度时，以用户指令为准；工具暂不支持该组合时，Leader 必须在创建前说明实际可用的最接近配置，不得静默降级。
+
+该默认值只约束 Leader 新创建的委派任务，不修改现有任务的模型配置，也不适用于 workflow-only change 的 Leader 直接实施路径。
 
 ## Lifecycle Skill Map
 
