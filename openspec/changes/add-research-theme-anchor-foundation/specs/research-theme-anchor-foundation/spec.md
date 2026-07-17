@@ -15,7 +15,7 @@
 
 ### Requirement: 研究主题字段与边界
 
-系统 SHALL 提供 `research_themes`，包含 `id UUID` 主键、非空 `analysis_batch_id`、`name`、`one_line_conclusion`、`impact_level`、`transmission_path`、自然语言 `trading_direction`、`transmission_stage`、`next_checkpoint`、`index_impact_summary`、可空 `window_start`/`window_end`、可空 `published_at` 以及平台审计字段。所有必填文本去除首尾空白后必须非空，且 `window_end` 非空时不得早于 `window_start`；只允许两者同时为空或同时存在。
+系统 SHALL 提供 `research_themes`，包含 `id UUID` 主键、非空 `analysis_batch_id`、`name`、`one_line_conclusion`、`impact_level`、`transmission_path`、自然语言 `trading_direction`、`transmission_stage`、`next_checkpoint`、`index_impact_summary`、可空 `window_start`/`window_end`、可空 `published_at` 以及平台审计字段。所有必填文本去除首尾空白后必须非空，且窗口两端必须同时为空或同时存在并满足 `window_end >= window_start`。
 
 #### Scenario: 校验主题结果
 - **WHEN** 保存主题且必填文本为空白，或只提供一个窗口端点，或结束时间早于开始时间
@@ -54,7 +54,7 @@
 
 ### Requirement: 受控值与证据语义
 
-系统 SHALL 通过 PostgreSQL `CHECK` 或等价 domain 校验限制以下精确候选集合：`impact_level` 为 `low|medium|high|critical`；`transmission_stage` 为 `upstream|midstream|downstream|infrastructure|service`；`relation_role` 为 `driver|beneficiary|constraint|exposure`；`importance` 为 `primary|secondary|contextual`；`evidence_role` 为 `supports|contradicts|context`；`impact_direction` 为 `positive|negative|mixed|neutral`；`anchor_type` 为 `policy|supply|demand|technology|cost|geopolitics|market_structure`。`trading_direction` MUST 仅作非空自然语言文本校验。
+系统 SHALL 通过 PostgreSQL `CHECK` 或等价 domain 校验限制以下精确候选集合：`impact_level` 为 `high|focus|watch`；`transmission_stage` 为 `upstream|midstream|downstream|infrastructure|service`；`relation_role` 为 `driver|beneficiary|constraint|exposure`；`importance` 为 `primary|secondary|contextual`；`evidence_role` 为 `driver|supporting|contradicting|context`；`impact_direction` 为 `positive|negative|mixed|neutral`；`anchor_type` 为 `policy|supply|demand|technology|cost|geopolitics|market_structure`。`trading_direction` MUST 仅作非空自然语言文本校验。
 
 #### Scenario: 拒绝未登记受控值
 - **WHEN** 任一受控字段收到候选集合以外的值
@@ -65,29 +65,78 @@
 - **THEN** 系统必须将其作为市场理解和决策辅助文本/描述
 - **AND** 不得把 schema 表达为直接投资建议或股票推荐
 
-### Requirement: 删除、唯一性与查询边界
+### Requirement: Miniapp 主题列表 API
 
-系统 SHALL 为每个关联表使用所属主记录 ID 与目标 ID 的复合主键或等价唯一约束，不得包含 `display_order`。删除主题或锚点时必须级联删除其关联表记录；删除关系不得级联删除 `events`、`chain_node_profiles` 或 `index_profiles`。主表和关系表 MUST 提供按批次、发布时间和目标主数据查询所需的最小索引。
+系统 SHALL 提供 `GET /api/v1/miniapp/research/themes`。接口必须支持 `window_hours`（默认 24，合法范围 1..168）、`limit`（默认 20，合法范围 1..50）和 opaque `cursor`。接口只返回 `published_at IS NOT NULL` 且位于 `[window_start, as_of]` 的主题，并返回 `window_start`、`window_end`、`as_of`、`theme_count`、这些主题关联的去重 `event_count`、`items` 和 `next_cursor`。
+
+#### Scenario: 返回首页主题卡片
+- **WHEN** 客户端请求合法主题列表
+- **THEN** 每个 item 至少必须包含 id、name、one_line_conclusion、impact_level、transmission_path、trading_direction、transmission_stage、next_checkpoint、published_at、affected_chain_nodes、related_indices、supporting_event_count、contradicting_event_count 和 has_more_detail
+- **AND** `affected_chain_nodes` 必须返回节点 id、名称、relation_role、impact_summary
+- **AND** `related_indices` 无映射时必须返回空数组
+
+#### Scenario: 稳定排序和分页
+- **WHEN** 客户端使用首次请求或返回的 cursor 获取主题列表
+- **THEN** 系统必须按 `impact_level high > focus > watch`、同级 `published_at DESC`、最后 `id ASC` 排序，并以固定 `as_of` 的 keyset cursor 分页
+- **AND** 不得依赖 `display_order`，不得重复或漏掉跨页记录
+
+#### Scenario: 主题批次摘要和去重计数
+- **WHEN** 查询窗口内主题关联同一 Event 多次或存在 driver/supporting/contradicting 关系
+- **THEN** `event_count`、`supporting_event_count` 和 `contradicting_event_count` 必须按 `event_id` 去重，其中 supporting count 合并 `driver` 与 `supporting`，contradicting 独立计数
+
+### Requirement: Miniapp 主题详情 API
+
+系统 SHALL 提供 `GET /api/v1/miniapp/research/themes/{theme_id}`，支持同样的 `window_hours` 默认值和边界。接口必须返回窗口内已发布主题的完整字段、全部关联节点、全部指数和 Event 摘要；Event 摘要只包含 `event_id`、`title`、`summary`、`event_time`、`evidence_role`、`supported_claim`，不得包含 `raw_documents.content_text`。
+
+#### Scenario: 查看主题影响路径
+- **WHEN** 客户端请求窗口内存在的已发布 theme UUID
+- **THEN** 系统必须返回主题自身、全部节点、全部指数和 Event 摘要，所有无关联集合使用 `[]`
+
+#### Scenario: 隐藏未发布或过期主题
+- **WHEN** 客户端请求不存在、未发布或不在窗口内的 theme UUID
+- **THEN** 系统必须返回 not found，不得泄露其字段或关联内容
+
+### Requirement: Miniapp 锚点列表与详情 API
+
+系统 SHALL 提供 `GET /api/v1/miniapp/research/anchors` 和 `GET /api/v1/miniapp/research/anchors/{anchor_id}`，参数、发布窗口、cursor、空集合和错误语义与主题 API 一致。锚点列表 item 必须包含 id、anchor_type、name、one_line_conclusion、importance、transmission_path、trading_direction、published_at、related_chain_nodes、related_indices 和 related_event_count；详情必须返回锚点自身、上下游节点、指数和 Event 摘要。
+
+#### Scenario: 查看锚点层
+- **WHEN** 客户端请求合法锚点列表或窗口内已发布锚点详情
+- **THEN** 系统必须按 importance 业务优先级、published_at DESC、id ASC 稳定排序并返回关联集合
+- **AND** 不得增加或依赖 display_order
+
+#### Scenario: 平行读取边界
+- **WHEN** 客户端同时读取主题和锚点
+- **THEN** 两类 API 必须各自查询对应主表和关系表
+- **AND** 禁止 theme-anchor join 或通过关联表建立隐式关系
+
+### Requirement: Miniapp 查询分层与 HTTP 契约
+
+系统 SHALL 在 `backend/internal/apps/miniappapi` 提供 query application service、repository interface/implementation、DTO 和 handler 分层；handler 不得访问数据库，列表不得产生 N+1 查询，PostgreSQL 是唯一 API 事实源，不得查询 Neo4j。API 必须使用 RFC3339 UTC 时间；非法参数/UUID/cursor 返回 HTTP 400 和 `{"error":"..."}`，not found 返回 HTTP 404，repository failure 返回 HTTP 500。
+
+#### Scenario: 校验参数和游标
+- **WHEN** 客户端发送超出范围的 window_hours/limit、非法 UUID 或资源类型/窗口不匹配的 cursor
+- **THEN** handler 必须返回 HTTP 400，且不得访问数据库
+
+#### Scenario: 处理空数据和数据库错误
+- **WHEN** 查询没有节点、指数或 Event，或 repository 返回失败
+- **THEN** 空集合必须返回 `[]` 和 0；repository failure 必须返回 HTTP 500，不得将 null 或 raw SQL 错误结构暴露给客户端
+
+#### Scenario: 读取路由边界
+- **WHEN** Miniapp 请求四个 research endpoint
+- **THEN** 路由必须挂在 `/api/v1/miniapp/research`，通过 service/repository 依赖注入执行
+- **AND** 本 change 不提供写 API、Agent 导入 API、scheduler、前端页面或 Neo4j 查询
+
+### Requirement: 删除、唯一性、迁移与事实源边界
+
+系统 SHALL 为每个关联表使用所属主记录 ID 与目标 ID 的复合主键或等价唯一约束，不得包含 `display_order`。删除主题或锚点时必须级联删除其关联表记录；删除关系不得级联删除 `events`、`chain_node_profiles` 或 `index_profiles`。8 张表必须通过 `backend/migrations` 的 forward-only migration 创建；本 change 不要求 Neo4j 结构或投影变化，不执行 seed 或业务数据写入。
 
 #### Scenario: 删除研究结果
 - **WHEN** 删除一个主题或锚点
 - **THEN** 对应的三类关系记录必须级联删除
 - **AND** 被引用的事件、产业链节点和指数主数据必须保留
 
-#### Scenario: 防止重复关系和排序字段
-- **WHEN** 同一研究结果尝试重复关联同一事件、指数或产业链节点
-- **THEN** 数据库必须通过复合主键或唯一约束拒绝重复关系
-- **AND** 8 张表均不得出现 display_order
-
-### Requirement: PostgreSQL 事实源与迁移边界
-
-系统 SHALL 将 8 张表作为 PostgreSQL 事实源，通过 `backend/migrations` 的 forward-only migration 创建；本 change 不要求 Neo4j 结构或投影变化，不执行 seed，不写入业务数据。任何 schema 回滚 MUST 采用新的审阅 forward-fix 或经批准的恢复方案，不得 destructive drop。
-
 #### Scenario: 执行获批 migration
 - **WHEN** 通过 Apply 和独立 local R2 授权执行 migration
 - **THEN** PostgreSQL 必须创建 8 张表、约束、外键和索引
 - **AND** 既有 events、chain_node_profiles、index_profiles 的主数据计数保持不变
-
-#### Scenario: 排除图谱与业务功能
-- **WHEN** 本 change 完成 Proposal 或后续 Apply
-- **THEN** 不得修改 Neo4j、Event 提取 Agent、研究报告 Agent、scheduler、API、小程序页面或查询接口
