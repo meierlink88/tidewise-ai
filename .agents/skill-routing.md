@@ -22,6 +22,12 @@
 
 Skill 不得覆盖项目 artifact 路径、生命周期顺序、分支命名、安全边界和技术约束；操作规则分别见 `.agents/openspec-workflow.md`、`.agents/git-workflow.md` 和 `.agents/testing-tdd.md`。
 
+## Delegated Task Defaults
+
+Leader 主对话通过 Codex Desktop 委派创建新任务时，默认选择 `GPT-5.6 SOL` 模型，并将推理强度设为 `medium`。用户当前明确指定其他模型或推理强度时，以用户指令为准；工具暂不支持该组合时，Leader 必须在创建前说明实际可用的最接近配置，不得静默降级。
+
+该默认值只约束 Leader 新创建的委派任务，不修改现有任务的模型配置，也不适用于 workflow-only change 的 Leader 直接实施路径。
+
 ## Lifecycle Skill Map
 
 | 阶段 | 主 Skill 或机制 | 执行辅助 |
