@@ -4,13 +4,17 @@ context: |
   工程：tidewise-ai-agentrun
   技术栈：Go、CloudWeGo Eino、OpenSpec 1.5.x
   目标：独立运行 AI 采集器、AI 事件提取器和 AI 投研报告分析师。
-  工程约束：任何仓库写入先执行 eino-reference-first 三仓审计；开发 Leader 使用
+  工程约束：任何仓库写入先执行 eino-reference-first 三仓审计；工作流规则例外由
+  Leader 当前对话直接实施、无需委派或创建 OpenSpec change，并使用独立分支和 PR
+  交付；其余变更由开发 Leader 使用
   create_thread 委派独立执行 Agent和 Desktop-managed worktree；每个 change 使用
   codex/<change-name> 分支；行为变更执行 RED -> GREEN -> REFACTOR；生命周期为
   Explore -> Delegate -> Propose -> Leader Review -> Apply -> Validate -> Leader Acceptance ->
   Sync -> Archive -> Deliver -> Merge -> Cleanup。执行 Agent不得自行批准 Leader Review
   或 Leader Acceptance；用户控制 PR merge，执行 Agent在交付时提供 cleanup handoff，
   Merge/Cleanup 由主任务作为归档后的 operational state 跟踪。
+  普通 change 委派默认使用 gpt-5.6-sol 模型和 medium 推理强度；目标 host 不支持时
+  停止并报告，不得静默降级。
   安全约束：.reference/cloudwego、.env、密钥和 data 运行产物不得提交。
   语言约束：中文优先。OpenSpec 固定结构标记、规范关键字、命令、路径、代码标识符
   和 capability 标识保持原始形式，其余 change 产物使用中文。

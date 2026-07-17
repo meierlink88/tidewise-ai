@@ -1,5 +1,14 @@
 # Git 分支、worktree 与 Pull Request
 
+## Leader 直接交付工作流规则修改
+
+当且仅当变更范围限于工程协作规则、正式工作流规格及其策略测试时，Leader 无需创建
+独立执行任务或 OpenSpec change，直接在当前主任务中从最新 `origin/main` 创建
+`codex/<workflow-rule-name>` 分支。完成策略测试 RED/GREEN/REFACTOR、全量验证、差异和
+凭据检查后，由 Leader 提交、推送并创建 base 为 `main` 的 Pull Request。用户仍控制
+Pull Request merge。若修改范围扩展到普通代码、配置、文档或其他工程产物，则停止直接
+流程，改用下述新 change 自动初始化流程。
+
 ## 新 change 自动初始化
 
 开发 Leader接到新的仓库改动任务后，先检查 active changes 和现有 worktrees。若不存在

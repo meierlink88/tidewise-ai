@@ -29,6 +29,11 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				".agents/git-workflow.md",
 				".agents/testing-tdd.md",
 				".agents/architecture-boundaries.md",
+				"工作流规则例外",
+				"无需创建 OpenSpec change",
+				"gpt-5.6-sol",
+				"medium",
+				"Leader 直接创建 Pull Request",
 			},
 		},
 		{
@@ -42,6 +47,8 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"开发 Leader",
 				"执行 Agent",
 				"中文",
+				"工作流规则修改",
+				"无需委派",
 			},
 		},
 		{
@@ -52,6 +59,9 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"Leader Acceptance",
 				"执行 Agent不得自行批准",
 				"中文优先",
+				"工作流规则例外",
+				"gpt-5.6-sol",
+				"medium",
 			},
 		},
 		{
@@ -67,6 +77,7 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"git worktree prune",
 				"失败",
 				"Pull Request",
+				"Leader 直接交付工作流规则修改",
 			},
 		},
 		{
@@ -94,6 +105,20 @@ func TestEngineeringWorkflowPolicy(t *testing.T) {
 				"design:",
 				"specs:",
 				"tasks:",
+				"工作流规则例外",
+				"gpt-5.6-sol",
+				"medium",
+			},
+		},
+		{
+			path: "openspec/specs/engineering-change-workflow/spec.md",
+			terms: []string{
+				"Requirement: 工作流规则例外",
+				"无需创建 OpenSpec change",
+				"无需委派独立执行 Agent",
+				"gpt-5.6-sol",
+				"medium",
+				"用户控制 Pull Request merge",
 			},
 		},
 	}
