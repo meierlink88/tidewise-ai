@@ -4,7 +4,7 @@
 
 Leader independently accepted the blocker diagnosis and authorized a separate minimal R1 compatibility checkpoint from `f9081e9d1d286923960bc23a3c081b9a2b2d429b`. That checkpoint removes only the redundant `FOR UPDATE` suffix from raw-document and reviewed-event receipt lookups, while retaining the preceding idempotency-key `pg_advisory_xact_lock` and all replay/conflict/transaction behavior. Exact sqlmock tests require advisory-lock-first ordering followed by an anchored plain `SELECT`, so `FOR UPDATE`, `FOR SHARE` and any other trailing row-locking clause fail the contract.
 
-The original verdict below remains the historical Package 10.1 review result at `f9081e9`; it is not retroactively rewritten. Package 10.1 remains unchecked until this R1 checkpoint is independently accepted and the read-only Review evidence is refreshed. No role/grant/credential or database operation is authorized by the compatibility correction.
+The original verdict below remains the historical Package 10.1 review result at `f9081e9`; it is not retroactively rewritten. Leader accepted the R1 correction at `18e615deef5a026f0f37f419d83266b0b9bc0676`, and `package-10-role-credential-review-refresh.md` records the subsequent all-PASS read-only refresh that completes task 10.1. No role/grant/credential or database write operation is authorized by either checkpoint; Package 10.2/10.3 still require later exact authorization.
 
 ## Review Verdict And Stop Boundary
 
