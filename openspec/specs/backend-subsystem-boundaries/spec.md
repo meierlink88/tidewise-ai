@@ -1,27 +1,31 @@
 ## Purpose
 
-定义 Go 后端多子系统目录边界、共享基础层、实体基础库、采集器运行边界和依赖方向约束，作为后续后端 change 判断代码归属的当前系统事实。
+定义 Go 后端三服务、多子系统、共享基础层、实体基础库、Data-owned adapter 与外部采集执行边界和依赖方向约束，作为后续后端 change 判断代码归属的当前系统事实。
 
 ## Requirements
 
 ### Requirement: 后端多子系统边界
-系统 SHALL 在单一 Go module 内支持多个可独立运行的后端子系统，并通过 `cmd/*` 和 `internal/apps/*` 表达进程入口与业务子系统边界。
+系统 SHALL 在单一Go module内支持Data Service、Miniapp Service/BFF、Admin Portal Service/BFF以及Data-owned import/projection/maintenance commands等可独立运行的后端子系统；Tidewise MUST NOT继续提供采集scheduler/runtime/source-ingest/ingest-smoke子系统。
 
 #### Scenario: 表达可运行进程
-- **WHEN** 后端新增小程序 API、管理后台 API、采集调度器或运维命令
-- **THEN** 进程入口必须位于 `backend/cmd/*`，并且入口只负责配置加载、依赖组装和启动流程
+- **WHEN** 后端新增或迁移Data API、小程序BFF、管理后台BFF、event import、projection或maintenance command
+- **THEN** 进程入口必须位于对应service-owned command边界，并且入口只负责配置加载、依赖组装和启动流程
+
+#### Scenario: 禁止采集执行进程复活
+- **WHEN** 后端新增或修改command、worker或application package
+- **THEN** 不得重新引入Tidewise ingestion schedule、connector execution、source worker、手动source-ingest或真实ingest smoke；该执行ownership属于外部`agent-run`
 
 #### Scenario: 表达业务子系统
-- **WHEN** 后端新增或修改业务子系统应用逻辑
-- **THEN** 业务逻辑必须位于 `backend/internal/apps/<subsystem>`，不得直接堆叠在 `cmd/*`
+- **WHEN** 后端新增或修改Data、Miniapp或Admin应用逻辑
+- **THEN** 业务逻辑必须位于对应service ownership内，不得堆叠在command或无owner共享层
 
-#### Scenario: 共享基础层
-- **WHEN** 多个子系统需要共享领域模型、repository、config、数据库连接、平台运行能力或跨子系统外部平台集成
-- **THEN** 共享能力必须位于 `backend/internal/domain`、`backend/internal/repositories`、`backend/internal/config`、`backend/internal/platform` 或 `backend/internal/integrations`
+#### Scenario: 限制共享基础层
+- **WHEN** 多个服务需要共享config、logging、observability或HTTP bootstrap
+- **THEN** platform只能包含无业务技术能力，Data domain/repository/DTO、connector contract和业务client方法必须归对应owner/consumer
 
 #### Scenario: 区分数据库连接和业务数据访问
-- **WHEN** 后端需要创建 PostgreSQL 连接、配置连接池或检查数据库连通性
-- **THEN** 数据库连接基础设施必须位于 `backend/internal/platform/database`，业务 repository 必须继续位于 `backend/internal/repositories`
+- **WHEN** Data Service需要创建PostgreSQL连接、配置连接池或检查连通性
+- **THEN** database bootstrap可以由platform提供，但repository、migration ownership和数据库凭据必须由Data Service独占
 
 ### Requirement: 实体基础库子系统边界
 系统 SHALL 将实体基础库初始化定义为 backend 内的独立业务子系统能力，不得归入数据采集子系统。
@@ -34,39 +38,39 @@
 - **WHEN** 采集子系统需要把原始数据关联到实体基础库
 - **THEN** 采集子系统可以读取或引用实体结果，但不得拥有实体 seed 逻辑或把实体初始化代码放入 `internal/apps/ingestion`
 
-### Requirement: 采集器可运行子系统
-系统 SHALL 将采集器定义为 backend 内独立可运行子系统，允许独立进程或容器 entrypoint 部署，但不得在 MVP 阶段拆成独立 Go module、repo 或数据库。
-
-#### Scenario: 独立运行采集器
-- **WHEN** 部署或本地开发需要启动采集器
-- **THEN** 系统必须能够通过 `backend/cmd/ingestion-scheduler` 或采集相关命令运行采集子系统，而不要求启动小程序 API 进程
-
-#### Scenario: 共享 backend 基础设施
-- **WHEN** 采集器读取配置、访问 PostgreSQL、使用领域模型或执行 migration
-- **THEN** 采集器必须复用 backend 内统一 config、domain、repository、platform 和 migration 来源
-
-#### Scenario: 禁止提前拆分模块
-- **WHEN** 普通功能 change 修改采集器
-- **THEN** 不得顺手创建独立 `go.mod`、独立 repo、独立数据库 migration 根或独立版本发布边界
-
 ### Requirement: 后端依赖方向约束
-系统 SHALL 通过文档和自动化检查约束后端子系统依赖方向，防止共享层反向依赖业务子系统或 API 子系统绕过采集边界。
+系统 SHALL 通过automated architecture tests约束服务依赖方向：Miniapp/Admin只能依赖各自BFF application与本地Data client port/adapter，Data Service拥有Data domain/application/repository，platform不得包含或反向依赖业务能力；tests还必须阻止已删除采集runtime路径或反向caller复活。
 
-#### Scenario: integrations 不依赖 apps
+#### Scenario: BFF 不依赖 Data 内部包
 - **WHEN** 运行架构边界测试
-- **THEN** `backend/internal/integrations` 不得 import `backend/internal/apps/*`
+- **THEN** Miniapp/Admin对Data Service domain/application/repository、数据库或migration内部包的import必须失败
 
-#### Scenario: API 子系统不直接调用采集 connector
+#### Scenario: BFF 不直接调用采集 connector
 - **WHEN** 运行架构边界测试
-- **THEN** `miniappapi` 和 `adminapi` 不得直接 import `internal/apps/ingestion/connectors`
+- **THEN** Miniapp/Admin不得直接import Data-owned ingestion connector/parser
 
-#### Scenario: cmd 不承载业务逻辑
-- **WHEN** 新增或修改 `backend/cmd/*`
-- **THEN** 入口代码必须只负责解析配置、组装依赖和启动进程，复杂业务流程必须下沉到对应 `internal/apps/<subsystem>`
+#### Scenario: 旧runtime路径不存在
+- **WHEN** 运行架构与reference tests
+- **THEN** 旧scheduler/runtime/health packages、三个退役commands、ingestion runtime config和任何production caller必须不存在
 
-#### Scenario: 平台能力不依赖业务子系统
+#### Scenario: command 不承载业务逻辑
+- **WHEN** 新增或修改任一service command
+- **THEN** 入口代码必须只负责解析配置、组装依赖和启动进程，复杂流程必须下沉到对应service application
+
+#### Scenario: platform 不拥有业务能力
 - **WHEN** 运行架构边界测试
-- **THEN** `backend/internal/platform` 不得 import `backend/internal/apps/*`
+- **THEN** platform对任一service application/domain/repository的import以及Event/Research/Entity DTO、connector或业务client方法必须失败
+
+### Requirement: Data-owned adapter 与外部采集执行边界
+Data Service SHALL 暂时拥有source catalog、connectors、parsers和仍有调用方的adapter core contract，但Tidewise SHALL NOT组装或运行这些adapter；外部`agent-run`拥有schedule与execution并只通过scoped Data API读取批准metadata、提交产物。
+
+#### Scenario: 测试保留adapter
+- **WHEN** connector/parser/sourcecatalog测试运行
+- **THEN** adapter和source metadata contract必须继续通过，不得因runtime删除而删除有效测试
+
+#### Scenario: 在外部repo使用adapter
+- **WHEN** 后续change需要让`agent-run`执行现有adapter逻辑
+- **THEN** 必须在外部repo复制或适配并定义版本/credential/rate-limit/import验收，不得直接import Tidewise Go `internal`代码
 
 ### Requirement: 图谱投影子系统边界
 系统 SHALL 在 backend 内提供独立图谱投影子系统，用于把 PostgreSQL 事实数据投影到 Neo4j，并与采集、实体 seed、管理后台 API 和小程序 API 保持边界隔离。
@@ -91,7 +95,7 @@
 系统 SHALL 在 `backend/internal/repositories` 单一 package 中保留调用方所需的业务小接口，并以共享 `PostgresRepository` 和共享 `InMemoryRepository` 实现这些接口；源码文件 SHALL 按业务职责组织，不得为机械拆分引入 ORM、codegen、repository framework、新 package 或一组业务专用具体 adapter。
 
 #### Scenario: 定位业务 repository 能力
-- **WHEN** 开发者需要查看 source catalog、raw document、benchmark observation、admin query、scheduler、ingestion run、graph projection 或 identity 的 repository 契约与实现
+- **WHEN** 开发者需要查看 source catalog、raw document、event/import receipt、benchmark observation、admin query、research read、graph projection 或 identity 的 repository 契约与实现
 - **THEN** 对应业务文件必须集中该职责的接口/DTO、参数转换、具体 adapter 方法、Scan/结果映射和专属 helper
 - **AND** `PostgresRepository` 与 `InMemoryRepository` 的 constructor 和共享 state 必须保持唯一
 

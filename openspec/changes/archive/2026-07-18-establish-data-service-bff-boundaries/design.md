@@ -329,6 +329,10 @@ Package 5不执行seed、真实import、业务数据持久化、真实commit-rac
 
 Complexity Budget中的五个checkpoint固定为：Package 1 amendment Proposal Review、Package 4 import/migration-artifact contract evidence、Package 5条件式local schema apply evidence、Package 10独立role/credential R2 authorization、Package 11 Apply-final Review。
 
+### Decision: Sync 阶段的 backend-foundation 一致性纠偏
+
+Apply-final 通过后的 delta→main 审计发现 `backend-foundation` 仍允许 Tidewise 未来新增采集调度器，并保留旧的共享 command、BFF datastore/readiness 与采集 runtime 表述。用户于 2026-07-18 批准把该 namespace 作为本 change 的最小 delta 纳入 Sync：合法入口仅包括 service-owned Data/Miniapp/Admin command 与 Data-owned import/projection/maintenance；Data Service独占 datastore 和只读 migration readiness；scheduler/connector execution属于外部 `agent-run`，Tidewise不得恢复采集 runtime。同期只纠正 `backend-subsystem-boundaries` 的旧目录和退役 repository 清单，以及 `data-ingestion-layer` 的“采集执行路径”措辞；不改变实现、API、schema、数据、Gate Map、Complexity Budget或49/49任务状态。
+
 ## Risks / Trade-offs
 
 - [Tidewise runtime删除后采集暂时停止] → Proposal Review显式接受停止窗口；Data import contract先完成；外部 `agent-run`交接另开change，不能保留未授权手动后门。

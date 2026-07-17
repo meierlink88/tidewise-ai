@@ -63,6 +63,29 @@
 - **WHEN** Agent 平台调用需要 API key、工作流参数、回调地址或结构化结果回写
 - **THEN** 这些凭证、回调处理和结构化校验必须保留在 Go 后端，不得出现在前端源码中
 
+### Requirement: 外部 Agent 到 Data Service 边界
+系统 SHALL 将 `agent-run`/Agent Server视为独立外部系统：外部系统拥有采集schedule、connector execution、模型/Prompt/RAG编排，且只通过Data Service受控source-metadata/read与raw-document/reviewed-event导入API交互；它不得直接访问Tidewise PostgreSQL、Neo4j、BFF内部接口或Go `internal` packages。
+
+#### Scenario: Agent 导入 reviewed-outbox
+- **WHEN** Agent Server 提交已审阅的结构化事件 package
+- **THEN** Data Service 必须验证 service identity、幂等键、payload、review 状态并在自身事务边界持久化
+
+#### Scenario: agent-run 导入原始材料
+- **WHEN** 外部`agent-run`完成来源访问和标准化但尚未形成reviewed event
+- **THEN** 它必须通过bounded raw-document import提交，Data Service验证来源归因、caller-scoped幂等、canonical batch hash与scope，并在raw documents+immutable receipt单transaction内持久化且不得重新执行connector
+
+#### Scenario: agent-run 查询未知导入结果
+- **WHEN** 外部`agent-run`因timeout不知道raw import是否commit
+- **THEN** 它必须经同一Data API namespace和自身service identity按idempotency key查询status；completed返回stored original result，missing返回unknown，外部系统不得查询数据库或要求Tidewise创建job/run状态
+
+#### Scenario: Tidewise 不运行采集器
+- **WHEN** 任一Tidewise service或command启动
+- **THEN** 不得启动scheduler、source worker、connector/parser execution、provider retry/rate-limit或真实ingest smoke
+
+#### Scenario: Agent 尝试数据库连接
+- **WHEN** Agent、Miniapp 或 Admin 配置请求 Data DB 凭据
+- **THEN** 配置与 architecture/security checks 必须拒绝该 ownership 越界
+
 ### Requirement: 契约和共享类型边界
 系统 SHALL 在用真实 Go 后端集成替换 mock-first 客户端服务前，定义跨语言 API 契约。
 
@@ -142,37 +165,41 @@
 - **THEN** 该 change 必须说明兼容性影响、迁移方式和版本处理
 
 ### Requirement: 模块化单体演进边界
-系统 SHALL 在 MVP 阶段采用 Go 后端模块化单体，将 HTTP、应用服务、领域模型、数据访问、外部集成和异步任务分层组织，并在容量或团队边界明确后再拆分独立服务。
+系统 SHALL 在当前阶段采用 monorepo、单 Go module 下的服务化单体：Data Service、Miniapp Service/BFF 与 Admin Portal Service/BFF 通过稳定 HTTP contract 分离运行时和数据 ownership，并在版本、团队、依赖或容量边界明确后再拆分 module/repo。
 
 #### Scenario: 新增服务端模块
-- **WHEN** 后续 change 新增事件、报告、订阅、Agent 分析或支付回调等服务端模块
-- **THEN** 该模块必须映射到 HTTP、应用服务、领域、repository、integration 或 job 边界，而不是把业务逻辑直接堆叠在入口或 handler 中
+- **WHEN** 后续 change 新增事件、报告、订阅、Agent 分析或支付回调等服务端能力
+- **THEN** 该模块必须先明确属于 Data Domain、Miniapp channel、Admin channel、外部 Agent 或未来独立领域，不得放入无 owner 的共享业务层
 
-#### Scenario: 拆分独立服务
-- **WHEN** 后续 change 拟将某个能力从模块化单体拆分为独立服务
-- **THEN** 该 change 必须说明部署、契约、数据所有权和回滚影响
+#### Scenario: BFF 访问 Data 能力
+- **WHEN** Miniapp/Admin 需要 Data Domain 查询或写入
+- **THEN** 生产运行时必须通过版本化 HTTP REST + JSON contract 调用 Data Service，Service 内部才能使用 Go interface/方法调用
+
+#### Scenario: 拆分独立 module 或 repo
+- **WHEN** 后续 change 拟将某个服务拆成独立 Go module 或 repo
+- **THEN** 该 change 必须证明独立版本/发布、团队、依赖、资源或构建冲突条件，并说明 contract、数据 ownership、CI/CD 和回滚影响
 
 ### Requirement: 数据采集层架构边界
-系统 SHALL 将数据采集层定义为服务端输入层，由 ingestion 编排清洗标准化流程，由 integrations 适配自研爬虫和外部 Agent API，由 jobs 调度采集任务，由 repositories 保存标准化结果。
+系统 SHALL 将数据采集层拆分为外部执行与Data受控接入：`agent-run`/Agent Server拥有schedule、来源访问、connector execution和provider/model runtime；Data Service拥有source metadata、raw/reviewed-event import validation、去重、归因和持久化。
 
 #### Scenario: 规划采集能力
 - **WHEN** 后续 change 规划热点事件、政策事件、市场异动、公告、产业动态或热度信号采集
-- **THEN** 该 change 必须说明自研爬虫、外部 Agent API、清洗标准化、入库和后续分析触发之间的边界
+- **THEN** 该 change 必须说明外部执行系统、Data source metadata、受控import、持久化和后续分析触发之间的边界，不得在Tidewise恢复scheduler/runtime
 
 #### Scenario: 使用采集数据
 - **WHEN** 后续 change 需要把采集结果用于事件流、Agent 分析、报告生成、订阅推送或图谱关系
-- **THEN** 该 change 必须使用经过清洗标准化和来源追踪的数据，而不是直接使用原始爬虫结果或外部 Agent 原始响应
+- **THEN** 该 change 必须使用经Data API校验、标准化和来源追踪的数据，而不是直接使用原始爬虫结果或外部 Agent 原始响应
 
-### Requirement: 本地数据库和采集 smoke 架构边界
-系统 SHALL 将真实数据库建表和真实采集 smoke 归入后端与基础设施边界，不得让前端、小程序或 prototype 参与数据库访问和采集执行。
+### Requirement: 本地数据库与采集执行架构边界
+系统 SHALL 将真实数据库建表归入Data Service migration与基础设施边界，并将采集执行归外部`agent-run`；前端、BFF和prototype不得参与数据库访问或采集执行。
 
 #### Scenario: 运行真实建表
 - **WHEN** 开发者需要创建或更新 PostgreSQL schema
 - **THEN** 必须通过后端 migration 命令、API 启动检查或部署流程执行，而不是通过前端、小程序或手工散落 SQL 执行
 
-#### Scenario: 运行真实采集
-- **WHEN** 开发者需要验证公开来源采集和入库链路
-- **THEN** 必须通过后端 ingestion job 和 repository 边界运行，并保持采集数据只作为原始事实材料
+#### Scenario: 验证外部采集入库
+- **WHEN** 后续change需要验证公开来源采集和入库链路
+- **THEN** 必须由外部执行系统获取材料并通过Data raw-document/reviewed-event API导入，不得恢复Tidewise `source-ingest`、`ingest-smoke`或scheduler
 
 #### Scenario: 保持分析安全边界
 - **WHEN** smoke 数据后续被用于事件抽取、Agent 分析或展示
@@ -183,26 +210,26 @@
 
 #### Scenario: 使用 Vibe-Research 参考
 - **WHEN** 后续 change 实现 RSS 或 Atom 采集
-- **THEN** 可以参考 Vibe-Research 的配置型 RSS 源、并发抓取、时间过滤和缓存思路，但必须落到本工程 Go 后端采集层和 `RAW_DOCUMENT` 模型
+- **THEN** 可以参考 Vibe-Research 的配置型 RSS 源、并发抓取、时间过滤和缓存思路，但Tidewise只保留受测adapter/metadata与`RAW_DOCUMENT` import模型，生产执行必须落到外部`agent-run`
 
 #### Scenario: 使用 Vibe-Trading 参考
 - **WHEN** 后续 change 实现连接器注册、fallback、限流、RSSHub、Eastmoney、Tushare 或 AKShare 边界
-- **THEN** 可以参考 Vibe-Trading 的 loader registry、按 host 限流、RSSHub route 和 SDK 可用性判断，但不得把行情 K 线 loader 直接等同于事件原文采集
+- **THEN** 可以参考 Vibe-Trading 的 loader registry、按 host 限流、RSSHub route 和 SDK 可用性判断，但不得把行情 K 线 loader 直接等同于事件原文采集，也不得在Tidewise恢复执行runtime
 
 #### Scenario: 使用 Stock 参考
 - **WHEN** 后续 change 实现 Eastmoney、RSS、网页抓取或本地文件回灌
-- **THEN** 可以参考 Stock 的脚本入口、字段映射和文件输出经验，但不得把示例新闻、模拟数据或历史输出文件作为生产采集结果
+- **THEN** 可以参考 Stock 的字段映射和文件输出经验，但不得把其脚本入口、示例新闻、模拟数据或历史输出文件直接作为Tidewise生产采集实现或结果
 
 ### Requirement: SDK 通道运行时边界
-系统 SHALL 将 Tushare 和 AKShare 视为 SDK 型外部通道，Go 主服务只保留配置、接口、凭证引用和任务边界，真实 SDK 执行由后续独立 worker、sidecar 或内部 HTTP wrapper 承载。
+系统 SHALL 将 Tushare 和 AKShare 视为 SDK 型外部通道，Tidewise Data Service只保留source metadata与受控import contract，真实 SDK 执行归外部`agent-run`或其明确拥有的adapter边界。
 
 #### Scenario: 定义 SDK 采集源
 - **WHEN** 采集源目录中出现 `sdk_tushare` 或 `sdk_akshare`
-- **THEN** 系统必须能够表达 provider、connector、parser、授权、凭证引用和状态，但不得要求 Go 主服务直接加载 Python SDK
+- **THEN** 系统必须能够表达 provider、connector、parser、授权、凭证引用和状态，但不得要求 Tidewise Go 服务加载或执行 Python SDK
 
-#### Scenario: 后续接入 SDK worker
+#### Scenario: 后续接入外部 SDK adapter
 - **WHEN** 后续 change 需要真实执行 Tushare 或 AKShare 采集
-- **THEN** 必须定义 worker 或 wrapper 的部署、契约、错误处理、限流和凭证注入方式
+- **THEN** 必须在外部执行边界定义adapter的部署、契约、错误处理、限流和凭证注入，并只通过Data API提交结果
 
 ### Requirement: 图谱和向量延后边界
 系统 SHALL 在本阶段只通过 PostgreSQL 保存初始实体、事件、证据和关系数据，并保留未来图数据库或向量数据库投影边界。

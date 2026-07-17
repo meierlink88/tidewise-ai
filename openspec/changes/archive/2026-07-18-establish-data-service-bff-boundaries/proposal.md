@@ -4,6 +4,8 @@
 
 本 Proposal amendment 仍停在 Proposal Review：先固定删除/保留清单、Agent 交接合同、兼容性、Gate Map、raw receipt schema、测试/testdata 证据与恢复策略；本次 amendment 不恢复 Apply、不修改 `agent-run`、不创建 migration 文件，也不执行数据库或部署写入。用户已于 2026-07-17 明确批准新增 `raw_document_import_receipts` migration，并授权在 amendment 获批且 Package 5 order 1 preflight evidence 精确通过后自动对 local PostgreSQL执行一次该 migration；该条件式授权不扩展到其他 SQL、环境或状态层。
 
+用户于 2026-07-18 在 Apply-final Review 通过后明确批准将 `backend-foundation` 纳入本 change 的最小 Sync 一致性修正：只把旧有 Tidewise 采集调度器/执行入口语义收敛为 Data-owned API、import/projection/maintenance command 与外部 `agent-run` scheduler/connector execution 边界，并同步修正已声明 capability 中三处旧目录、退役 repository 及“采集执行路径”残留。该授权不新增实现工作，不修改生产代码、数据库、环境或 49/49 task 结果。
+
 ## Gate Map
 
 | Package | Gate | Risk | Human | Reason Code | Allowed Scope |
@@ -73,6 +75,7 @@ Package 4 的 Research Data OpenAPI/typed client 值域与已发布主规格 `op
 
 ### Modified Capabilities
 
+- `backend-foundation`: 收敛合法 service/Data command、Data-only datastore/readiness 与外部 `agent-run` execution 边界，禁止在 Tidewise 恢复采集 scheduler/runtime。
 - `backend-subsystem-boundaries`: 将共享模块化单体收窄为三服务 ownership，禁止 Tidewise 采集 runner 与 BFF→Data 内部依赖。
 - `technical-architecture`: 固定外部 `agent-run`/Agent Server 只经 Data API 读取批准 metadata并导入 raw/reviewed-event。
 - `persistence-and-contracts`: 固定 Data PostgreSQL 独占、21个历史migration保留、独立raw receipt forward migration/local apply与另行R2权限切换。

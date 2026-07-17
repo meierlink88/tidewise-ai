@@ -114,3 +114,5 @@
 - [x] 11.2 提交最终before/after manifest：repo migration 21→22且前21聚合hash不变、Package 4冻结的`000022`exact SHA-256与applied文件一致、local applied 21→22且`000022`一次、Package 5初始/测试后receipt rows=0；114/541 Go与frontend 8/44基线按`after=before-removed+replacement/new`逐文件解释，13 testdata预计零删除/零悬空。
 - [x] 11.3 运行一次`go test ./...`、受影响前端完整test/build、三个binary/image builds、architecture/contract/reference checks、OpenAPI drift、local compose config、`openspec validate establish-data-service-bff-boundaries --strict`、显式task-design lint、artifact status、`git diff --check`、whitespace/scope/secret checks，并保留新鲜输出。
 - [x] 11.4 提交scoped diff、删除/保留/替换理由、migration/schema/rollback evidence、兼容/性能/认证/事务/race/停止窗口风险和未验证项；等待Apply-final明确批准，批准前不得Sync/Archive/Deliver。
+
+> 2026-07-18 Sync授权记录：Apply-final通过后，用户批准把`backend-foundation`纳入本change的最小delta/main一致性纠偏，并同步修正`backend-subsystem-boundaries`旧目录/退役repository与`data-ingestion-layer`“采集执行路径”残留；该生命周期修正不新增实现task，任务总数保持49/49。
