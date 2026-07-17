@@ -71,7 +71,7 @@
 - [x] 5.2 只有amendment已获批准且5.1 evidence全部精确通过时，依据2026-07-17已记录的用户条件式授权自动进入order 2 `local-raw-receipt-schema-apply`，从`backend/`仅执行一次`go run ./cmd/dbmigrate -apply -target-version 000022`；不得使用无target apply、再次执行、扩大pending集合、seed、持久化业务数据、触碰Neo4j/UAT/prod/shared/deploy/roles/credentials。
 - [x] 5.3 apply后只读断言migration count=22、前21 hash不变、`000022`已应用一次、七列类型/default、named PK/unique/checks/index/function/statement trigger与API contract完全一致、初始receipt rows=0；除Goose ledger新增`000022`及列明新对象外，pre-existing business schema/data counts/hash不变。
 - [x] 5.4 在已应用schema上运行可全部rollback的raw receipt PostgreSQL integration：atomic failure rollback、valid insert/read/cross-field result、constraint rejection、savepoint内UPDATE/DELETE/TRUNCATE拒绝、两connection advisory-lock阻塞/释放与sorted overlapping raw-identity guard；两connection都rollback且结束rows=0。winner commit→loser replay由Package 4 state-machine/SQL winner-re-read tests覆盖，不得在curated local伪称真实commit-race或为其持久化fixture。
-- [ ] 5.5 记录两层命令、输入指纹、backup hash、before/after query输出和targeted tests；apply/断言/测试任一失败或出现partial state时立即停止并报告，不得restore、retry、forward-fix、切换credential或继续后续package。
+- [x] 5.5 记录两层命令、输入指纹、backup hash、before/after query输出和targeted tests；apply/断言/测试任一失败或出现partial state时立即停止并报告，不得restore、retry、forward-fix、切换credential或继续后续package。
 
 ## 6. Miniapp BFF Decoupling Package
 
