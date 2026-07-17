@@ -86,7 +86,7 @@ Data Service SHALL以forward-only `backend/migrations/000022_add_raw_document_im
 
 #### Scenario: 请求 local role 切换
 - **WHEN** 操作者准备切换 local Data PostgreSQL roles
-- **THEN** 必须先确认database identity、grants/owner manifest、backup/recovery、before/after assertions、回切方式与停止条件，再取得独立明确授权；Package 10必须把raw receipt table/function owner转给`data_service_migrate`、收敛PUBLIC/function privilege且只向runtime授予必要SELECT/INSERT
+- **THEN** 必须先确认database identity、grants/owner manifest、backup/recovery、before/after assertions、回切方式与停止条件，再取得独立明确授权；Package 10必须把raw receipt table/function owner转给`data_service_migrate`、收敛PUBLIC/function privilege且只向runtime授予必要SELECT/INSERT；两类receipt lookup必须由幂等key advisory transaction lock保护并使用plain `SELECT`，不得以row-locking clause迫使runtime获得`UPDATE` privilege
 
 ### Requirement: 未来领域数据库隔离
 未来 Identity、Membership、Billing、Subscription 等独立领域服务 SHALL 使用独立数据库 ownership；跨领域引用 SHALL 保存 UUID 并通过 API contract 校验，MUST NOT 建立跨数据库 foreign key。

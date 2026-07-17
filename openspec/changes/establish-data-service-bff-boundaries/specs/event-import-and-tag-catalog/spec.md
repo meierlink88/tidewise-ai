@@ -15,6 +15,10 @@ Data Service SHALL 提供版本化、服务身份认证、幂等且可审计的 
 - **WHEN** Agent 未收到首次导入响应并使用相同 idempotency key 与 payload hash 重试
 - **THEN** Data Service 必须返回原 receipt/result；相同 key 不同 hash 必须返回 conflict 且不修改原结果
 
+#### Scenario: reviewed-event receipt 并发读取
+- **WHEN** reviewed-event transaction按idempotency key检查existing receipt
+- **THEN** 它必须先取得该key的`pg_advisory_xact_lock`，再以plain `SELECT`读取receipt且不得追加`FOR UPDATE`、`FOR SHARE`或其他row-locking clause；same-hash replay、different-hash conflict及transaction rollback语义必须保持不变
+
 ### Requirement: Event import CLI 兼容迁移
 现有 `event-import` CLI SHALL 在迁移期保持 input、dry-run、machine JSON、exit code 与 reviewed-outbox 字段兼容；生产 Agent path 稳定后，非 dry-run CLI SHALL 作为 Data Service API 的受控 client 或明确限定的 Data Service maintenance adapter，不得长期保留绕过 service ownership 的独立数据库入口。
 

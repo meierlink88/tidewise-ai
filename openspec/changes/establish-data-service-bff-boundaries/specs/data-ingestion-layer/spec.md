@@ -62,7 +62,7 @@ Data Service SHALL通过版本化、认证、bounded batch且幂等的raw-docume
 
 #### Scenario: 并发使用相同 key
 - **WHEN** 两个transaction并发提交同一caller与idempotency key
-- **THEN** caller-scoped unique constraint和`pg_advisory_xact_lock(hashtextextended(raw-receipt caller/key lock text,0))`必须产生一个winner；loser必须重读completed receipt并按same-hash replay或different-hash 409处理，不得部分commit
+- **THEN** caller-scoped unique constraint和`pg_advisory_xact_lock(hashtextextended(raw-receipt caller/key lock text,0))`必须产生一个winner；取得advisory transaction lock后必须以plain `SELECT`读取receipt且不得使用`FOR UPDATE`、`FOR SHARE`或其他row-locking clause；loser必须重读completed receipt并按same-hash replay或different-hash 409处理，不得部分commit
 
 #### Scenario: 跨 key 的 raw identity 并发
 - **WHEN** 不同caller/key的batch并发包含相同source external ID或content hash

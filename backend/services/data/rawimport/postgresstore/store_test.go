@@ -19,6 +19,45 @@ const (
 
 var rawID = repositories.RawDocumentUUID(sourceID, "", "story-1", strings.Repeat("a", 64))
 
+func TestLockReceiptUsesAdvisoryTransactionLockBeforePlainSelect(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeTx := &transaction{tx: tx}
+
+	lockText := "raw-receipt:v1|9|agent-run|batch-1"
+	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).
+		WithArgs(lockText).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	plainSelect := "^" + regexp.QuoteMeta(strings.TrimSpace(receiptSelectSQL)) + "$"
+	mock.ExpectQuery(plainSelect).
+		WithArgs("agent-run", "batch-1").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "caller_identity", "idempotency_key", "payload_hash", "raw_document_ids", "result_payload", "imported_at"}))
+
+	receipt, err := storeTx.LockReceipt(context.Background(), lockText, "agent-run", "batch-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt != nil {
+		t.Fatalf("receipt = %#v, want nil", receipt)
+	}
+	mock.ExpectRollback()
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("LockReceipt must issue advisory lock then plain SELECT without FOR UPDATE/FOR SHARE: %v", err)
+	}
+}
+
 func TestRawImportUsesOneTransactionAndConflictSafeWinnerRead(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

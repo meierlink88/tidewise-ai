@@ -61,7 +61,7 @@ func (t *transaction) LockReceipt(ctx context.Context, lockText, caller, key str
 	if _, err := t.tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockText); err != nil {
 		return nil, fmt.Errorf("lock raw import receipt: %w", err)
 	}
-	receipt, err := scanReceipt(t.tx.QueryRowContext(ctx, receiptSelectSQL+` FOR UPDATE`, caller, key))
+	receipt, err := scanReceipt(t.tx.QueryRowContext(ctx, receiptSelectSQL, caller, key))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
