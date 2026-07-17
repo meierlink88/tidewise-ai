@@ -13,6 +13,8 @@ func TestSkillDrivenWorkflowRules(t *testing.T) {
 	routing := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "skill-routing.md"))
 	gitWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "git-workflow.md"))
 	openspecWorkflow := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "openspec-workflow.md"))
+	testingRules := readWorkflowRuleFile(t, filepath.Join(root, ".agents", "testing-tdd.md"))
+	workflowSpec := readWorkflowRuleFile(t, filepath.Join(root, "openspec", "specs", "skill-driven-development-workflow", "spec.md"))
 
 	assertWorkflowContains(t, agents, ".agents/skill-routing.md")
 	for _, want := range []string{
@@ -21,26 +23,36 @@ func TestSkillDrivenWorkflowRules(t *testing.T) {
 		"openspec-apply-change",
 		"openspec-sync-specs",
 		"openspec-archive-change",
-		"superpowers:brainstorming",
-		"superpowers:test-driven-development",
-		"superpowers:systematic-debugging",
-		"superpowers:verification-before-completion",
-		"superpowers:finishing-a-development-branch",
-		"github:yeet",
-		"docs/superpowers/specs/",
-		"docs/superpowers/plans/",
+		"OpenSpec 拥有唯一正式 artifacts",
+		"项目原生 TDD",
+		"项目原生 fresh verification",
+		"GitHub plugin 优先，`gh` fallback",
 		"OpenSpec 拥有唯一正式 artifacts",
 	} {
 		assertWorkflowContains(t, routing, want)
 	}
+	for _, rules := range []struct {
+		name    string
+		content string
+	}{
+		{name: "routing", content: routing},
+		{name: "testing", content: testingRules},
+		{name: "git", content: gitWorkflow},
+		{name: "workflow spec", content: workflowSpec},
+	} {
+		t.Run(rules.name+" has no plugin execution dependency", func(t *testing.T) {
+			assertWorkflowNotContains(t, rules.content, "superpowers"+":")
+			assertWorkflowNotContains(t, rules.content, "docs/"+"superpowers")
+		})
+	}
 
 	assertWorkflowSectionContains(t, routing, "## Worktree Skill Routing",
 		"Codex Desktop 可用时，由 Desktop 新任务机制创建受管 worktree",
-		"只有 Codex Desktop 受管机制不可用且用户明确批准 fallback 时，才使用 `superpowers:using-git-worktrees` 创建 project-owned worktree",
+		"只有 Codex Desktop 受管机制不可用且用户明确批准 fallback 时，才按 `.agents/git-workflow.md` 的项目原生规则创建 project-owned worktree",
 		".agents/git-workflow.md",
 	)
 
-	assertWorkflowOrder(t, routing, "openspec-archive-change", "superpowers:finishing-a-development-branch")
+	assertWorkflowOrder(t, routing, "openspec-archive-change", "GitHub plugin 优先")
 	assertWorkflowOrder(t, openspecWorkflow,
 		"Explore -> Propose -> Review -> Apply -> Validate -> Sync -> Archive -> Deliver",
 		"**Explore**",

@@ -1,6 +1,6 @@
 # Testing And TDD
 
-本项目后端研发默认采用 TDD 测试先行。涉及功能、bugfix、重构或行为变更时必须使用 `superpowers:test-driven-development`；遇到失败或异常时必须使用 `superpowers:systematic-debugging`。本文件只补充 Go 和项目边界。
+本项目后端研发默认采用 TDD 测试先行。本文件直接规定测试先行、失败诊断、验证证据和 Go 边界；不要求安装任何外部 Skill。
 
 ## Backend TDD Gate
 
@@ -35,7 +35,7 @@
 
 ## Verification Before Completion
 
-在声明完成、提交、push、创建 PR、sync 或 archive 前，必须使用 `superpowers:verification-before-completion` 运行新鲜验证并读取输出。不能依赖旧日志、记忆或“应该能过”的判断。
+在声明完成、提交、push、创建 PR、sync 或 archive 前，必须按本节规则运行新鲜验证并读取输出。不能依赖旧日志、记忆或“应该能过”的判断。
 
 Apply final 必须运行受影响交付边界的完整验证：受影响 app/module/package 的完整 suite 和共享 architecture/contract tests。任意 change 必须先按真实受影响交付边界选择验证：OpenSpec artifacts、workflow 文本、agent rules、architecture test/lint 自身的变更只运行对应 OpenSpec/architecture/规则 targeted validation；局部 coding 运行 targeted tests 与受影响 package/module 完整 suite；数据-only change 运行 manifest/dry-run/preflight/post-write assertions，没有代码影响时不机械运行业务 unit tests；只有修改共享运行时代码、跨模块运行时契约、公共运行时基础设施，或影响边界无法可靠确定时才运行 repo-wide full validation，Go module 对应 `go test ./...`，前端同理按受影响 workspace。UAT/prod/shared/stateful 安全门禁不由测试范围优化削弱。验证记录必须说明受影响边界、共享 tests 和 repo-wide 判定理由；不清楚时 fail-closed，扩大到 repo-wide full validation 或停止等待澄清。
 
