@@ -35,7 +35,10 @@
 - [x] 2.2 编写单个 forward-only `backend/migrations` migration，按 design 创建 8 张表、审计字段、明确 FK、索引和 Proposal Review 已确认的受控集合；不插入主数据。
 - [x] 2.3 在 `internal/domain`/`internal/repositories` 中实现研究读取 read model、`ResearchReadRepository` interface 和 PostgreSQL 查询，使用批量聚合/CTE 避免列表 N+1，Event 计数按 event_id 去重，index 缺失返回空集合。
 - [x] 2.4 为 repository 写 fake/SQL mock 或可重复集成边界测试，覆盖空数据、指数为空、去重计数、稳定排序、分页 keyset、未发布过滤、详情 not found 和不读取 raw document content。
-- [ ] 2.5 在获批的 local R2 layer 内执行 preflight → migration → schema assertions，确认既有 events、chain_node_profiles、index_profiles 计数不变；不得执行 UAT/prod/Neo4j/seed/业务写入。
+- [x] 2.5 在获批的 local R2 layer 内执行 preflight → migration → schema assertions，确认既有 events、chain_node_profiles、index_profiles 计数不变；不得执行 UAT/prod/Neo4j/seed/业务写入。
+  - Evidence（2026-07-17，local `tidewise_local`）：写前 version=20、pending=`000021`、8 张目标表不存在、主数据 counts=`203/842/43`，checkpoint=`a5a29ae`，migration SHA-256=`fc54a8dbf0daae6c196d3aac34a67afcb514c4a706663ff57da88732ee9e8510`。
+  - Recovery baseline：custom-format backup `/Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai/.data/backups/tidewise_local_before_000021_a5a29ae.dump`，size=`1350153`，SHA-256=`f0b591a99355fc9398ea7591529f6e4e5d1c86deca3565d500f8eeaa5299a266`，`pg_restore --list` 通过。
+  - Apply/after assertions：单次 target-version 21 apply 成功；独立只读验收确认 version=21、target tables=8、target rows=0、audit columns=16、PK=8、FK=12、owner CASCADE=6、master NO ACTION=6、explicit indexes=10、主数据 counts=`203/842/43`、`display_order=0`、forbidden tables=0；runner 的 `remaining=null` 是空集合 JSON 表示差异，不是数据库 drift。
 
 ## 3. Miniapp Read API And Final Verification Package
 
