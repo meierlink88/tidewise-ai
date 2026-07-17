@@ -1,0 +1,120 @@
+name: tidewise-local
+
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-tidewise}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}"
+      POSTGRES_DB: "${POSTGRES_DB:-tidewise_local}"
+    volumes:
+      - tidewise_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tidewise} -d ${POSTGRES_DB:-tidewise_local}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [tidewise-local]
+
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      NEO4J_AUTH: "${NEO4J_USERNAME:?set NEO4J_USERNAME in infra/local/.env.local}/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in infra/local/.env.local}"
+      NEO4J_server_memory_heap_initial__size: "${NEO4J_HEAP_INITIAL_SIZE:-512m}"
+      NEO4J_server_memory_heap_max__size: "${NEO4J_HEAP_MAX_SIZE:-1G}"
+    volumes:
+      - tidewise_neo4j_data:/data
+      - tidewise_neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [tidewise-local]
+
+  data:
+    build:
+      context: ../../backend
+      dockerfile: services/data/Dockerfile
+    image: tidewise-data:local
+    ports:
+      - "${DATA_SERVICE_PORT:-8082}:8080"
+    environment:
+      APP_ENV: local
+      TIDEWISE_CONFIG_DIR: /app/config
+      TIDEWISE_DATABASE_URL: "postgres://${POSTGRES_USER:-tidewise}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}@postgres:5432/${POSTGRES_DB:-tidewise_local}?sslmode=disable"
+      NEO4J_USERNAME: "${NEO4J_USERNAME:?set NEO4J_USERNAME in infra/local/.env.local}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:?set NEO4J_PASSWORD in infra/local/.env.local}"
+      DATA_SERVICE_AGENT_TOKEN: "${DATA_SERVICE_AGENT_TOKEN:?set DATA_SERVICE_AGENT_TOKEN in infra/local/.env.local}"
+      DATA_SERVICE_MINIAPP_TOKEN: "${DATA_SERVICE_MINIAPP_TOKEN:?set DATA_SERVICE_MINIAPP_TOKEN in infra/local/.env.local}"
+      DATA_SERVICE_ADMIN_TOKEN: "${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [tidewise-local]
+
+  miniapp:
+    build:
+      context: ../../backend
+      dockerfile: services/miniapp/Dockerfile
+    image: tidewise-miniapp:local
+    ports:
+      - "${MINIAPP_SERVICE_PORT:-8081}:8080"
+    environment:
+      APP_ENV: local
+      TIDEWISE_CONFIG_DIR: /app/config
+      DATA_SERVICE_BASE_URL: http://data:8080
+      DATA_SERVICE_MINIAPP_TOKEN: "${DATA_SERVICE_MINIAPP_TOKEN:?set DATA_SERVICE_MINIAPP_TOKEN in infra/local/.env.local}"
+    depends_on:
+      data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [tidewise-local]
+
+  adminportal:
+    build:
+      context: ../../backend
+      dockerfile: services/adminportal/Dockerfile
+    image: tidewise-adminportal:local
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8080}:8080"
+    environment:
+      APP_ENV: local
+      TIDEWISE_CONFIG_DIR: /app/config
+      ADMIN_API_TOKEN: "${ADMIN_API_TOKEN:?set ADMIN_API_TOKEN in infra/local/.env.local}"
+      DATA_SERVICE_BASE_URL: http://data:8080
+      DATA_SERVICE_ADMIN_TOKEN: "${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}"
+    depends_on:
+      data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [tidewise-local]
+
+networks:
+  tidewise-local:
+    name: tidewise-local
+
+volumes:
+  tidewise_postgres_data:
+  tidewise_neo4j_data:
+  tidewise_neo4j_logs:

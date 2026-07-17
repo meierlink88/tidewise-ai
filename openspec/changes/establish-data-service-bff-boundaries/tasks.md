@@ -98,9 +98,9 @@
 
 ## 9. Assets, Local, CI, And Docs Package
 
-- [ ] 9.1 为Data/Miniapp/Admin建service-owned Dockerfile/CMD/health/readiness/start assets；旧`backend/Dockerfile`只有在local/CI consumers切换后才移除。
-- [ ] 9.2 更新`infra/local`只编排三服务、DB、Neo4j、network/observability；验证Miniapp/Admin无Data DB credential，运行compose config/dry checks，不启动真实采集或数据库写入。
-- [ ] 9.3 更新CI测试/build三服务、OpenAPI/client drift、architecture/reference contracts；明确`.github/workflows/deploy-uat.yml`、`infra/uat/**`、prod/shared为excluded。
+- [x] 9.1 为Data/Miniapp/Admin建service-owned Dockerfile/CMD/health/readiness/start assets；旧`backend/Dockerfile`只有在local/CI consumers切换后才移除。
+- [x] 9.2 更新`infra/local`只编排三服务、DB、Neo4j、network/observability；验证Miniapp/Admin无Data DB credential，运行compose config/dry checks，不启动真实采集或数据库写入。
+- [x] 9.3 更新CI测试/build三服务、OpenAPI/client drift、architecture/reference contracts；明确`.github/workflows/deploy-uat.yml`、`infra/uat/**`、prod/shared为excluded。
 
 ## 10. Local Data DB Roles And Credential Package
 

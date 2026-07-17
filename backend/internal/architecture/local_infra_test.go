@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-func TestLocalNeo4jInfraDoesNotContainSecrets(t *testing.T) {
+func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
-	composePath := filepath.Join(root, "infra", "local", "docker-compose.neo4j.yaml")
+	composePath := filepath.Join(root, "infra", "local", "docker-compose.yaml")
 	readmePath := filepath.Join(root, "infra", "local", "README.md")
 
 	compose, err := os.ReadFile(composePath)
 	if err != nil {
-		t.Fatalf("read neo4j compose: %v", err)
+		t.Fatalf("read local compose: %v", err)
 	}
 	readme, err := os.ReadFile(readmePath)
 	if err != nil {
@@ -25,6 +25,10 @@ func TestLocalNeo4jInfraDoesNotContainSecrets(t *testing.T) {
 	readmeText := string(readme)
 
 	for _, want := range []string{
+		"data:",
+		"miniapp:",
+		"adminportal:",
+		"postgres:",
 		"neo4j:",
 		"NEO4J_AUTH",
 		"${NEO4J_USERNAME",

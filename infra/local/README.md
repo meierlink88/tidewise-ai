@@ -1,19 +1,29 @@
-# Local PostgreSQL And Neo4j
+# Local Three-Service Stack
 
-本目录提供 local PostgreSQL 和 Neo4j 的本地运行说明。这里的模板只用于开发环境，不得复用为 uat 或 prod secret 来源。采集调度与运行由独立 agent-run 项目负责，不在本仓库提供本地 scheduler、source-ingest 或 ingest-smoke 命令。
+本目录只编排 Data、Miniapp、Admin Portal 三个服务，以及 PostgreSQL、Neo4j、共享 network/volumes。这里的模板只用于开发环境，不得复用为 uat 或 prod secret 来源。采集调度与运行由独立 agent-run 项目负责，不在本仓库提供本地 scheduler、source-ingest 或 ingest-smoke 命令。
 
-## 本地 PostgreSQL
+## 静态检查与服务入口
 
-如果使用 Docker Compose：
+先创建不提交的本地环境文件：
 
 ```bash
 cp infra/local/.env.example infra/local/.env.local
 ```
 
-修改 `infra/local/.env.local` 中的本地 password 后启动：
+修改全部 `replace-with-local-*` 占位值后，可在不创建或启动任何容器的情况下检查最终编排：
 
 ```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.postgres.yaml up -d
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml config
+```
+
+统一编排使用三个 service-owned Dockerfile；默认端口为 Admin `8080`、Miniapp `8081`、Data `8082`、PostgreSQL `5432`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin只获得各自Data Service identity token，不携带Data PostgreSQL或Neo4j凭据。
+
+## 本地 PostgreSQL
+
+需要启动local stack时使用统一编排文件：
+
+```bash
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d
 ```
 
 如果使用本机已有 PostgreSQL，只要保证 local 配置能连接到：
@@ -30,18 +40,6 @@ user: tidewise
 ## 本地 Neo4j
 
 Neo4j 是从 PostgreSQL 事实源投影出来的图谱查询库。local 环境默认在 `backend/config/config.local.yaml` 中启用 Neo4j，但真实用户名和密码只通过环境变量注入。
-
-如果使用 Docker Compose：
-
-```bash
-cp infra/local/.env.example infra/local/.env.local
-```
-
-修改 `infra/local/.env.local` 中的 `NEO4J_USERNAME` 和 `NEO4J_PASSWORD` 后启动：
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.neo4j.yaml up -d
-```
 
 Neo4j Browser 默认访问：
 
@@ -128,13 +126,9 @@ SELECT origin_system, COUNT(*) FROM source_catalogs GROUP BY origin_system ORDER
 
 历史 scheduler/run 表及 migrations 为审计兼容保留，不代表仍可从 Tidewise 启动 scheduler，也不得通过本说明直接修改这些历史表。
 
-## 运行 Admin API 和管理后台
+## 运行 Admin 前端
 
-Admin API 使用 `ADMIN_API_TOKEN` 鉴权。真实 token 只通过环境变量注入，不写入 repo：
-
-```bash
-APP_ENV=local ADMIN_API_TOKEN=<local-admin-token> DATA_SERVICE_BASE_URL=http://127.0.0.1:8082 DATA_SERVICE_ADMIN_TOKEN=<local-data-token> go run ./cmd/admin-api
-```
+Admin Portal BFF由统一compose在`8080`提供，并使用`ADMIN_API_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo。
 
 管理后台位于：
 
