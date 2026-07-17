@@ -106,7 +106,7 @@
 
 - [x] 10.1 在任何权限写操作前重新提交database identity、role/grant manifest、schema owner、22-migration及业务counts/hash/schema、可恢复backup、旧credential回切、逐层命令和stop conditions，并确认raw/reviewed-event receipt均为advisory xact lock后的plain `SELECT`且无row-locking clause；该R2与Package 5 migration层完全分离，未获权限层明确批准不得继续。
 - [x] 10.2 仅在Package 10授权后创建/收敛`data_service_rw`、`data_service_migrate`、`data_service_ro`，把raw receipt table/function owner转给`data_service_migrate`并收敛PUBLIC/function privilege；runtime仅必要SELECT/INSERT且不可UPDATE/DELETE/TRUNCATE，随后只读断言owner/grant manifest。任何drift/failure立即停止，不得执行migration、drop scheduler tables或改历史SQL。执行后数据库合同断言及Leader独立只读复核均通过；临时runtime credential在后续无状态路径错误退出时被清除，credential recovery/cutover仍归10.3且未执行。
-- [ ] 10.3 仅在上一层通过且授权仍有效时切换Data Service local credential，验证BFF/Agent无DB credential、最小权限与回切；不得执行migration/seed/import/projection/业务写入或重跑Package 5。
+- [x] 10.3 仅在上一层通过且授权仍有效时切换Data Service local credential，验证BFF/Agent无DB credential、最小权限与回切；不得执行migration/seed/import/projection/业务写入或重跑Package 5。一次process-only runtime password recovery transaction、post-contract/实际密码登录最小权限断言及单一临时Data Service health/readiness/read-only endpoint验证全部通过；进程已停止、listener消失且secret已清除。
 
 ## 11. Apply-final Review Package
 
