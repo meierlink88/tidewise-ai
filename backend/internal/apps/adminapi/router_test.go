@@ -4,385 +4,277 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/internal/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/dataclient"
 )
 
 func TestHealthAndReadyEndpointsDoNotRequireAdminToken(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	router := NewRouter(repo, "secret")
+	router := NewRouter(testConfig(), nil, "secret")
 
-	for _, item := range []struct {
-		path      string
-		wantField string
-		wantValue string
+	for _, test := range []struct {
+		path       string
+		wantStatus string
 	}{
-		{path: "/healthz", wantField: "status", wantValue: "ok"},
-		{path: "/readyz", wantField: "status", wantValue: "ready"},
+		{path: "/healthz", wantStatus: "ok"},
+		{path: "/readyz", wantStatus: "ready"},
 	} {
-		t.Run(item.path, func(t *testing.T) {
+		t.Run(test.path, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, item.path, nil)
-			router.ServeHTTP(response, request)
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
 
 			if response.Code != http.StatusOK {
 				t.Fatalf("status code = %d, want %d", response.Code, http.StatusOK)
 			}
-
-			var body map[string]string
-			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
-				t.Fatalf("decode response: %v", err)
+			var body struct {
+				Status      string             `json:"status"`
+				Service     string             `json:"service"`
+				Environment config.Environment `json:"environment"`
+				Checks      map[string]string  `json:"checks"`
 			}
-			if body[item.wantField] != item.wantValue {
-				t.Fatalf("%s = %q, want %q", item.wantField, body[item.wantField], item.wantValue)
+			decodeJSON(t, response, &body)
+			if body.Status != test.wantStatus || body.Service != "adminportal" || body.Environment != config.EnvLocal {
+				t.Fatalf("response = %#v", body)
+			}
+			if test.path == "/readyz" && body.Checks["config"] != "ok" {
+				t.Fatalf("ready checks = %v", body.Checks)
 			}
 		})
 	}
 }
 
-func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredToken(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-
-	for _, item := range []struct {
+func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredTokenWithoutDataCalls(t *testing.T) {
+	for _, test := range []struct {
 		name         string
 		token        string
 		header       string
 		wantHTTPCode int
 	}{
-		{name: "missing", token: "secret", header: "", wantHTTPCode: http.StatusUnauthorized},
+		{name: "missing", token: "secret", wantHTTPCode: http.StatusUnauthorized},
 		{name: "wrong", token: "secret", header: "Bearer wrong", wantHTTPCode: http.StatusUnauthorized},
-		{name: "unconfigured", token: "", header: "Bearer secret", wantHTTPCode: http.StatusServiceUnavailable},
+		{name: "unconfigured", header: "Bearer secret", wantHTTPCode: http.StatusServiceUnavailable},
 	} {
-		t.Run(item.name, func(t *testing.T) {
-			router := NewRouter(repo, item.token)
-			response := httptest.NewRecorder()
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			router := NewRouter(testConfig(), countingClient(&calls), test.token)
 			request := httptest.NewRequest(http.MethodGet, "/admin/scheduler/config", nil)
-			if item.header != "" {
-				request.Header.Set("Authorization", item.header)
+			if test.header != "" {
+				request.Header.Set("Authorization", test.header)
 			}
+			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
-			if response.Code != item.wantHTTPCode {
-				t.Fatalf("status code = %d, want %d", response.Code, item.wantHTTPCode)
+			if response.Code != test.wantHTTPCode || calls != 0 {
+				t.Fatalf("status/calls = %d/%d, want %d/0", response.Code, calls, test.wantHTTPCode)
 			}
 		})
 	}
 }
 
-func TestSchedulerConfigAPI(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	router := NewRouter(repo, "secret")
-	body := schedulerConfigRequest{
-		Enabled:         true,
-		Mode:            string(domain.SchedulerModeFixedTimes),
-		IntervalMinutes: 0,
-		FixedTimes:      []string{"09:00", "12:00", "15:00", "18:00", "21:00"},
-		Concurrency:     2,
-		BatchSize:       20,
-		TimeoutSeconds:  180,
-		SourceFilter: schedulerSourceFilterRequest{
-			ProviderKey:   "llm_web_research",
-			IngestChannel: "ai_web_research",
-			SourceType:    "news",
-		},
-		Timezone: "Asia/Shanghai",
-	}
-
-	response := performJSONRequest(t, router, http.MethodPut, "/admin/scheduler/config", body, "secret")
-	if response.Code != http.StatusOK {
-		t.Fatalf("PUT status code = %d, want 200, body=%s", response.Code, response.Body.String())
-	}
-
-	response = performJSONRequest(t, router, http.MethodGet, "/admin/scheduler/config", nil, "secret")
-	if response.Code != http.StatusOK {
-		t.Fatalf("GET status code = %d, want 200", response.Code)
-	}
-	var config schedulerConfigResponse
-	if err := json.Unmarshal(response.Body.Bytes(), &config); err != nil {
-		t.Fatalf("decode config response: %v", err)
-	}
-	if !config.Enabled || config.Mode != string(domain.SchedulerModeFixedTimes) {
-		t.Fatalf("config response = %+v", config)
-	}
-	if config.SourceFilter.ProviderKey != "llm_web_research" {
-		t.Fatalf("ProviderKey = %q", config.SourceFilter.ProviderKey)
-	}
-}
-
-func TestSchedulerConfigAPIRejectsInvalidPayload(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	router := NewRouter(repo, "secret")
-	body := schedulerConfigRequest{
-		Enabled:        true,
-		Mode:           string(domain.SchedulerModeFixedTimes),
-		FixedTimes:     []string{"09:00", "09:00"},
-		Concurrency:    1,
-		BatchSize:      10,
-		TimeoutSeconds: 180,
-		Timezone:       "Asia/Shanghai",
-	}
-
-	response := performJSONRequest(t, router, http.MethodPut, "/admin/scheduler/config", body, "secret")
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("status code = %d, want 400", response.Code)
-	}
-}
-
-func TestSchedulerRunsAPI(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	started := testTime()
-	if _, err := repo.CreateIngestionRun(context.Background(), domain.IngestionRun{
-		ID:          "run-1",
-		TriggerType: domain.SchedulerTriggerManualOnce,
-		Status:      domain.SchedulerRunStatusRunning,
-		StartedAt:   started,
-	}); err != nil {
-		t.Fatalf("CreateIngestionRun() error = %v", err)
-	}
-	run := domain.IngestionRun{
-		ID:               "run-1",
-		TriggerType:      domain.SchedulerTriggerManualOnce,
-		Status:           domain.SchedulerRunStatusSucceeded,
-		StartedAt:        started,
-		TotalSources:     1,
-		SucceededSources: 1,
-	}
-	if err := repo.CompleteIngestionRun(context.Background(), run); err != nil {
-		t.Fatalf("CompleteIngestionRun() error = %v", err)
-	}
-	router := NewRouter(repo, "secret")
-
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/scheduler/runs?limit=5", nil, "secret")
-	if response.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want 200", response.Code)
-	}
-	var runs []schedulerRunResponse
-	if err := json.Unmarshal(response.Body.Bytes(), &runs); err != nil {
-		t.Fatalf("decode runs response: %v", err)
-	}
-	if len(runs) != 1 || runs[0].Status != string(domain.SchedulerRunStatusSucceeded) {
-		t.Fatalf("runs response = %+v", runs)
-	}
-}
-
-func TestRawDocumentsAPIListsPagedDocumentsWithTitleSearch(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	collectedAt := testTime()
-	for _, doc := range []domain.RawDocument{
-		testRawDocument("raw-1", "央行公布金融数据", collectedAt.Add(2*time.Minute)),
-		testRawDocument("raw-2", "美联储维持利率不变", collectedAt.Add(time.Minute)),
-		testRawDocument("raw-3", "央行开展逆回购操作", collectedAt),
+func TestRetiredSchedulerEndpointsReturnAuthenticatedMachineReadableGoneWithoutDataCalls(t *testing.T) {
+	calls := 0
+	router := NewRouter(testConfig(), countingClient(&calls), "secret")
+	for index, test := range []struct {
+		method string
+		path   string
+		body   any
+	}{
+		{method: http.MethodGet, path: "/admin/scheduler/config"},
+		{method: http.MethodPut, path: "/admin/scheduler/config", body: map[string]any{"invalid": true}},
+		{method: http.MethodGet, path: "/admin/scheduler/runs?limit=invalid"},
 	} {
-		if _, err := repo.UpsertRawDocument(context.Background(), doc); err != nil {
-			t.Fatalf("UpsertRawDocument(%s) error = %v", doc.ID, err)
+		requestID := ""
+		if index == 0 {
+			requestID = "edge-request-123"
+		}
+		response := performJSONRequest(t, router, test.method, test.path, test.body, "secret", requestID)
+		if response.Code != http.StatusGone {
+			t.Fatalf("%s %s status = %d, want 410, body=%s", test.method, test.path, response.Code, response.Body.String())
+		}
+		var body struct {
+			RequestID string `json:"request_id"`
+			Error     struct {
+				Code    string         `json:"code"`
+				Message string         `json:"message"`
+				Details map[string]any `json:"details"`
+			} `json:"error"`
+		}
+		decodeJSON(t, response, &body)
+		if body.RequestID == "" || body.RequestID != response.Header().Get(dataclient.RequestIDHeader) {
+			t.Fatalf("request id body/header = %q/%q", body.RequestID, response.Header().Get(dataclient.RequestIDHeader))
+		}
+		if requestID != "" && body.RequestID != requestID {
+			t.Fatalf("request id = %q, want %q", body.RequestID, requestID)
+		}
+		if body.Error.Code != "ADMIN_SCHEDULER_RETIRED" || body.Error.Message == "" || body.Error.Details == nil {
+			t.Fatalf("retirement error = %#v", body.Error)
 		}
 	}
-	router := NewRouter(repo, "secret")
+	if calls != 0 {
+		t.Fatalf("Data Service calls = %d, want 0", calls)
+	}
+}
 
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents?title=央行&page=1", nil, "secret")
+func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
+	collectedAt := testTime()
+	publishedAt := collectedAt.Add(-time.Hour)
+	calls := 0
+	var gotQuery dataclient.RawDocumentListQuery
+	var gotRequestID string
+	client := &dataclient.Fake{ListRawDocumentsFunc: func(ctx context.Context, query dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
+		calls++
+		gotQuery = query
+		gotRequestID = dataclient.RequestIDFromContext(ctx)
+		return dataclient.RawDocumentPage{
+			Items: []dataclient.RawDocument{{
+				ID: "raw-1", SourceID: "source-1", IngestChannel: "rss_feed", SourceType: "news",
+				SourceName: "示例来源", SourceURL: "https://example.com/rss.xml", Title: "央行公布金融数据",
+				ContentText: "正文", ContentLevel: "full", PublishedAt: &publishedAt, CollectedAt: collectedAt,
+				IngestStatus: dataclient.IngestStatusCollected,
+			}},
+			Total: 1, Page: 2, PageSize: 25,
+		}, nil
+	}}
+	router := NewRouter(testConfig(), client, "secret")
+
+	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents?title=央行&page=2&page_size=25", nil, "secret", "admin-request-raw")
 	if response.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want 200, body=%s", response.Code, response.Body.String())
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
-	var payload struct {
-		Items []struct {
-			ID          string `json:"id"`
-			Title       string `json:"title"`
-			CollectedAt string `json:"collected_at"`
-		} `json:"items"`
-		Total    int `json:"total"`
-		Page     int `json:"page"`
-		PageSize int `json:"page_size"`
+	if calls != 1 || gotQuery.Title != "央行" || gotQuery.Page != 2 || gotQuery.PageSize != 25 || gotRequestID != "admin-request-raw" {
+		t.Fatalf("calls/query/request id = %d/%#v/%q", calls, gotQuery, gotRequestID)
 	}
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("decode raw documents response: %v", err)
+	if strings.Contains(response.Body.String(), "content_level") {
+		t.Fatalf("public response exposes Data-only content_level: %s", response.Body.String())
 	}
-	if payload.Total != 2 || payload.Page != 1 || payload.PageSize != 50 {
-		t.Fatalf("pagination = total %d page %d page_size %d, want 2/1/50", payload.Total, payload.Page, payload.PageSize)
-	}
-	if got := documentTitles(payload.Items); !strings.Contains(strings.Join(got, ","), "央行公布金融数据") || !strings.Contains(strings.Join(got, ","), "央行开展逆回购操作") {
-		t.Fatalf("raw document titles = %v, want only matching titles", got)
-	}
-	if payload.Items[0].Title != "央行公布金融数据" {
-		t.Fatalf("first title = %q, want newest matching document first", payload.Items[0].Title)
+	var body rawDocumentListResponse
+	decodeJSON(t, response, &body)
+	if body.Total != 1 || body.Page != 2 || body.PageSize != 25 || len(body.Items) != 1 || body.Items[0].Title != "央行公布金融数据" || body.Items[0].PublishedAt != publishedAt.Format(time.RFC3339) {
+		t.Fatalf("response = %#v", body)
 	}
 }
 
-func TestRawDocumentsAPIRequiresAdminToken(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	router := NewRouter(repo, "secret")
-
-	request := httptest.NewRequest(http.MethodGet, "/admin/raw-documents", nil)
-	response := httptest.NewRecorder()
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("status code = %d, want 401", response.Code)
+func TestInvalidRawPaginationReturns400WithoutDataCall(t *testing.T) {
+	calls := 0
+	router := NewRouter(testConfig(), countingClient(&calls), "secret")
+	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents?page=0", nil, "secret", "")
+	if response.Code != http.StatusBadRequest || calls != 0 {
+		t.Fatalf("status/calls = %d/%d, want 400/0", response.Code, calls)
 	}
 }
 
-func TestEventsAPIListsFilteredEvents(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
+func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T) {
 	eventTime := testTime()
 	firstSeenAt := eventTime.Add(30 * time.Minute)
-	for _, event := range []domain.Event{
-		{
-			ID:          "event-1",
-			Title:       "美联储维持利率不变",
-			Summary:     "FOMC 会议维持联邦基金利率目标区间不变。",
-			EventTime:   &eventTime,
-			FirstSeenAt: firstSeenAt,
-			EventStatus: domain.EventStatusConfirmed,
-			FactStatus:  domain.FactStatusVerified,
-			DedupeKey:   "fed-rate-hold",
-			FactPayload: domain.FactPayload{"policy_rate": map[string]any{"value": 3.5}},
-		},
-		{
-			ID:          "event-2",
-			Title:       "欧洲央行释放政策信号",
-			Summary:     "欧洲央行官员发表讲话。",
-			EventTime:   ptrTime(eventTime.Add(-48 * time.Hour)),
-			FirstSeenAt: firstSeenAt.Add(-47 * time.Hour),
-			EventStatus: domain.EventStatusCandidate,
-			FactStatus:  domain.FactStatusUnverified,
-			DedupeKey:   "ecb-policy-signal",
-			FactPayload: domain.FactPayload{},
-		},
-	} {
-		if err := repo.SeedEvent(context.Background(), event); err != nil {
-			t.Fatalf("SeedEvent(%s) error = %v", event.ID, err)
+	knowableAt := firstSeenAt.Add(time.Minute)
+	primarySourceID := "source-1"
+	calls := 0
+	var gotQuery dataclient.EventListQuery
+	client := &dataclient.Fake{ListEventsFunc: func(ctx context.Context, query dataclient.EventListQuery) (dataclient.EventPage, error) {
+		calls++
+		gotQuery = query
+		if dataclient.RequestIDFromContext(ctx) != "admin-request-event" {
+			t.Fatalf("request id = %q", dataclient.RequestIDFromContext(ctx))
 		}
-	}
-	router := NewRouter(repo, "secret")
-
+		return dataclient.EventPage{Items: []dataclient.Event{{
+			ID: "event-1", Title: "美联储维持利率不变", Summary: "摘要", EventTime: &eventTime,
+			FirstSeenAt: firstSeenAt, KnowableAt: &knowableAt, EventStatus: dataclient.EventStatusConfirmed,
+			FactStatus: dataclient.FactStatusVerified, DedupeKey: "fed-rate-hold", PrimarySourceID: &primarySourceID,
+		}}, Total: 1, Page: 1, PageSize: 50}, nil
+	}}
+	router := NewRouter(testConfig(), client, "secret")
 	path := "/admin/events?title=美联储&event_status=confirmed&fact_status=verified&event_time_from=2026-07-09T00:00:00Z&event_time_to=2026-07-10T00:00:00Z&first_seen_from=2026-07-09T00:00:00Z&first_seen_to=2026-07-10T00:00:00Z"
-	response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret")
+	response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "admin-request-event")
 	if response.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want 200, body=%s", response.Code, response.Body.String())
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if calls != 1 || gotQuery.Title != "美联储" || gotQuery.EventStatus != dataclient.EventStatusConfirmed || gotQuery.FactStatus != dataclient.FactStatusVerified || gotQuery.EventTimeFrom == nil || gotQuery.EventTimeTo == nil || gotQuery.FirstSeenFrom == nil || gotQuery.FirstSeenTo == nil || gotQuery.Page != 1 || gotQuery.PageSize != 50 {
+		t.Fatalf("calls/query = %d/%#v", calls, gotQuery)
 	}
 	if strings.Contains(response.Body.String(), "fact_payload") {
-		t.Fatalf("response body unexpectedly exposes fact_payload: %s", response.Body.String())
+		t.Fatalf("public response exposes fact_payload: %s", response.Body.String())
 	}
-	var payload struct {
-		Items []struct {
-			ID          string `json:"id"`
-			Title       string `json:"title"`
-			EventStatus string `json:"event_status"`
-			FactStatus  string `json:"fact_status"`
-		} `json:"items"`
-		Total    int `json:"total"`
-		Page     int `json:"page"`
-		PageSize int `json:"page_size"`
-	}
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("decode events response: %v", err)
-	}
-	if payload.Total != 1 || payload.Page != 1 || payload.PageSize != 50 {
-		t.Fatalf("pagination = total %d page %d page_size %d, want 1/1/50", payload.Total, payload.Page, payload.PageSize)
-	}
-	if len(payload.Items) != 1 || payload.Items[0].ID != "event-1" {
-		t.Fatalf("event items = %+v, want only event-1", payload.Items)
+	var body eventListResponse
+	decodeJSON(t, response, &body)
+	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].ID != "event-1" || body.Items[0].PrimarySourceID != primarySourceID || body.Items[0].KnowableAt != knowableAt.Format(time.RFC3339) {
+		t.Fatalf("response = %#v", body)
 	}
 }
 
-func TestSourceCatalogsAPIListsStatusWithoutParser(t *testing.T) {
-	repo := repositories.NewInMemoryRepository([]domain.SourceCatalog{
-		{
-			ID:            "source-1",
-			IngestChannel: "ai_web_research",
-			ProviderKey:   "llm_web_research",
-			ConnectorKey:  "ai_web_research",
-			ParserKey:     "internal-parser",
-			SourceType:    "news",
-			SourceName:    "AI 全球政经搜索",
-			SourceURL:     "https://example.com/ai",
-			Status:        domain.SourceCatalogStatusActive,
-		},
-		{
-			ID:            "source-2",
-			IngestChannel: "rss_feed",
-			ProviderKey:   "rss",
-			ConnectorKey:  "rss",
-			ParserKey:     "rss_item",
-			SourceType:    "news",
-			SourceName:    "暂停 RSS",
-			SourceURL:     "https://example.com/rss.xml",
-			Status:        domain.SourceCatalogStatusInactive,
-		},
-	})
-	router := NewRouter(repo, "secret")
+func TestSourceCatalogsAPIUsesOneDataCallWithoutExposingParser(t *testing.T) {
+	calls := 0
+	var gotQuery dataclient.SourceCatalogListQuery
+	client := &dataclient.Fake{ListSourceCatalogsFunc: func(ctx context.Context, query dataclient.SourceCatalogListQuery) (dataclient.SourceCatalogCollection, error) {
+		calls++
+		gotQuery = query
+		if dataclient.RequestIDFromContext(ctx) != "admin-request-source" {
+			t.Fatalf("request id = %q", dataclient.RequestIDFromContext(ctx))
+		}
+		return dataclient.SourceCatalogCollection{Items: []dataclient.SourceCatalog{{
+			ID: "source-2", IngestChannel: "rss_feed", ProviderKey: "rss", ConnectorKey: "rss",
+			ParserKey: "rss_item", SourceType: "news", SourceName: "暂停 RSS", SourceURL: "https://example.com/rss.xml",
+			Status: dataclient.SourceStatusInactive,
+		}}}, nil
+	}}
+	router := NewRouter(testConfig(), client, "secret")
 
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/source-catalogs?status=inactive", nil, "secret")
+	response := performJSONRequest(t, router, http.MethodGet, "/admin/source-catalogs?status=inactive", nil, "secret", "admin-request-source")
 	if response.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want 200, body=%s", response.Code, response.Body.String())
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
-	body := response.Body.String()
-	if strings.Contains(body, "parser_key") || strings.Contains(body, "rss_item") {
-		t.Fatalf("source catalog response must not expose parser fields, body=%s", body)
+	if calls != 1 || gotQuery.Status != dataclient.SourceStatusInactive {
+		t.Fatalf("calls/query = %d/%#v", calls, gotQuery)
 	}
-	var payload struct {
-		Items []struct {
-			ID            string `json:"id"`
-			ProviderKey   string `json:"provider_key"`
-			IngestChannel string `json:"ingest_channel"`
-			SourceType    string `json:"source_type"`
-			SourceName    string `json:"source_name"`
-			SourceURL     string `json:"source_url"`
-			Status        string `json:"status"`
-		} `json:"items"`
+	if strings.Contains(response.Body.String(), "parser_key") || strings.Contains(response.Body.String(), "rss_item") {
+		t.Fatalf("public response exposes parser fields: %s", response.Body.String())
 	}
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("decode source catalogs response: %v", err)
-	}
-	if len(payload.Items) != 1 || payload.Items[0].ID != "source-2" {
-		t.Fatalf("source items = %+v, want only inactive source-2", payload.Items)
+	var body sourceCatalogListResponse
+	decodeJSON(t, response, &body)
+	if len(body.Items) != 1 || body.Items[0].ID != "source-2" || body.Items[0].Status != "inactive" {
+		t.Fatalf("response = %#v", body)
 	}
 }
 
-func TestSchedulerRunsAPILimitsToRecent50AndReturnsSourceCounts(t *testing.T) {
-	repo := repositories.NewInMemoryRepository(nil)
-	base := testTime()
-	for index := 0; index < 55; index++ {
-		started := base.Add(time.Duration(index) * time.Minute)
-		finished := started.Add(30 * time.Second)
-		run := domain.IngestionRun{
-			ID:               "run-" + strconv.Itoa(index),
-			TriggerType:      domain.SchedulerTriggerInterval,
-			Status:           domain.SchedulerRunStatusSucceeded,
-			StartedAt:        started,
-			FinishedAt:       &finished,
-			TotalSources:     3,
-			SucceededSources: 2,
-			FailedSources:    1,
-			SkippedSources:   0,
-		}
-		if _, err := repo.CreateIngestionRun(context.Background(), run); err != nil {
-			t.Fatalf("CreateIngestionRun(%s) error = %v", run.ID, err)
-		}
+func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
+	client := &dataclient.Fake{ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
+		return dataclient.RawDocumentPage{}, errors.New("postgres connection secret-internal-detail")
+	}}
+	router := NewRouter(testConfig(), client, "secret")
+	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents", nil, "secret", "")
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
 	}
-	router := NewRouter(repo, "secret")
+	if strings.Contains(response.Body.String(), "postgres") || strings.Contains(response.Body.String(), "secret-internal-detail") {
+		t.Fatalf("internal error leaked: %s", response.Body.String())
+	}
+}
 
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/scheduler/runs?limit=50", nil, "secret")
-	if response.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want 200", response.Code)
+func countingClient(calls *int) *dataclient.Fake {
+	return &dataclient.Fake{
+		ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
+			*calls++
+			return dataclient.RawDocumentPage{}, nil
+		},
+		ListEventsFunc: func(context.Context, dataclient.EventListQuery) (dataclient.EventPage, error) {
+			*calls++
+			return dataclient.EventPage{}, nil
+		},
+		ListSourceCatalogsFunc: func(context.Context, dataclient.SourceCatalogListQuery) (dataclient.SourceCatalogCollection, error) {
+			*calls++
+			return dataclient.SourceCatalogCollection{}, nil
+		},
 	}
-	var runs []schedulerRunResponse
-	if err := json.Unmarshal(response.Body.Bytes(), &runs); err != nil {
-		t.Fatalf("decode runs response: %v", err)
-	}
-	if len(runs) != 50 {
-		t.Fatalf("runs length = %d, want 50", len(runs))
-	}
-	if runs[0].ID != "run-54" || runs[49].ID != "run-5" {
-		t.Fatalf("run order = first %q last %q, want run-54/run-5", runs[0].ID, runs[49].ID)
-	}
-	if runs[0].TotalSources != 3 || runs[0].SucceededSources != 2 || runs[0].FailedSources != 1 || runs[0].SkippedSources != 0 {
-		t.Fatalf("run source counts = %+v, want 3/2/1/0", runs[0])
+}
+
+func testConfig() config.Config {
+	return config.Config{
+		App:    config.AppConfig{Name: "adminportal", Env: config.EnvLocal},
+		Server: config.ServerConfig{Host: "127.0.0.1", Port: 18083, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
 	}
 }
 
@@ -390,41 +282,8 @@ func testTime() time.Time {
 	return time.Date(2026, 7, 9, 10, 0, 0, 0, time.UTC)
 }
 
-func ptrTime(value time.Time) *time.Time {
-	return &value
-}
-
-func testRawDocument(id string, title string, collectedAt time.Time) domain.RawDocument {
-	return domain.RawDocument{
-		ID:            id,
-		SourceID:      "source-1",
-		IngestChannel: "rss_feed",
-		SourceType:    "news",
-		SourceName:    "示例来源",
-		SourceURL:     "https://example.com/rss.xml",
-		Title:         title,
-		ContentText:   title + "正文",
-		ContentHash:   id + "-hash",
-		CollectedAt:   collectedAt,
-		IngestStatus:  domain.IngestStatusCollected,
-	}
-}
-
-func documentTitles(items []struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	CollectedAt string `json:"collected_at"`
-}) []string {
-	titles := make([]string, 0, len(items))
-	for _, item := range items {
-		titles = append(titles, item.Title)
-	}
-	return titles
-}
-
-func performJSONRequest(t *testing.T, handler http.Handler, method string, path string, body any, token string) *httptest.ResponseRecorder {
+func performJSONRequest(t *testing.T, handler http.Handler, method string, path string, body any, token string, requestID string) *httptest.ResponseRecorder {
 	t.Helper()
-
 	var content bytes.Buffer
 	if body != nil {
 		if err := json.NewEncoder(&content).Encode(body); err != nil {
@@ -434,7 +293,17 @@ func performJSONRequest(t *testing.T, handler http.Handler, method string, path 
 	request := httptest.NewRequest(method, path, &content)
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("Content-Type", "application/json")
+	if requestID != "" {
+		request.Header.Set(dataclient.RequestIDHeader, requestID)
+	}
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
+}
+
+func decodeJSON(t *testing.T, response *httptest.ResponseRecorder, target any) {
+	t.Helper()
+	if err := json.Unmarshal(response.Body.Bytes(), target); err != nil {
+		t.Fatalf("decode response: %v; body=%s", err, response.Body.String())
+	}
 }

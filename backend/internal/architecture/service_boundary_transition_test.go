@@ -11,50 +11,17 @@ import (
 
 func TestTransitionalBFFDataDependencyAllowlist(t *testing.T) {
 	packages := append(listInternalPackages(t), listCommandPackages(t)...)
-	expected := map[string][]string{
-		"internal/apps/adminapi": {"internal/domain", "internal/repositories"},
-		"cmd/admin-api":          {"internal/platform/database", "internal/platform/dbmigration", "internal/repositories"},
-	}
-
-	for owner, wanted := range expected {
-		pkg := packageWithSuffix(t, packages, "/"+owner)
-		var actual []string
-		for _, imported := range pkg.Imports {
-			for _, boundary := range []string{
-				"/internal/domain",
-				"/internal/repositories",
-				"/internal/platform/database",
-				"/internal/platform/dbmigration",
-			} {
-				if strings.HasSuffix(imported, boundary) {
-					actual = append(actual, strings.TrimPrefix(boundary, "/"))
-				}
-			}
-		}
-		sort.Strings(actual)
-		sort.Strings(wanted)
-		if !reflect.DeepEqual(actual, wanted) {
-			t.Fatalf("transitional Data dependency manifest for %s changed: got %v, want %v; do not add callers, and remove this allowlist as Package 7 decouples Admin", owner, actual, wanted)
-		}
-
-		for _, forbidden := range []string{
-			"/internal/apps/ingestion/connectors",
-			"/internal/apps/ingestion/parsers",
-			"/internal/apps/ingestion/runtime",
-			"/internal/apps/ingestion/scheduler",
-			"/internal/platform/graphdb",
-		} {
-			assertNoImport(t, pkg, forbidden)
-		}
-	}
-
-	for _, owner := range []string{"internal/apps/miniappapi", "cmd/api"} {
+	for _, owner := range []string{"internal/apps/miniappapi", "cmd/api", "internal/apps/adminapi", "cmd/admin-api"} {
 		pkg := packageWithSuffix(t, packages, "/"+owner)
 		for _, forbidden := range []string{
 			"/internal/domain",
 			"/internal/repositories",
 			"/internal/platform/database",
 			"/internal/platform/dbmigration",
+			"/internal/apps/ingestion/connectors",
+			"/internal/apps/ingestion/parsers",
+			"/internal/apps/ingestion/runtime",
+			"/internal/apps/ingestion/scheduler",
 			"/internal/platform/graphdb",
 		} {
 			assertNoImport(t, pkg, forbidden)

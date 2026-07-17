@@ -1,16 +1,36 @@
 package adminportal
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/dataclient"
 )
 
 func TestHealthAndReadiness(t *testing.T) {
-	assertServiceHealth(t, NewHandler(testConfig()), ServiceName)
+	assertServiceHealth(t, NewHandler(testConfig(), nil, ""), ServiceName)
+}
+
+func TestNewHandlerComposesAdminBFFWithOneDataServiceCall(t *testing.T) {
+	calls := 0
+	client := &dataclient.Fake{ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
+		calls++
+		return dataclient.RawDocumentPage{Items: []dataclient.RawDocument{}, Page: 1, PageSize: 50}, nil
+	}}
+	handler := NewHandler(testConfig(), client, "admin-token")
+	assertServiceHealth(t, handler, ServiceName)
+
+	request := httptest.NewRequest(http.MethodGet, "/admin/raw-documents", nil)
+	request.Header.Set("Authorization", "Bearer admin-token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("status/calls = %d/%d, body=%s", response.Code, calls, response.Body.String())
+	}
 }
 
 func TestNewServerPreservesCompatibilityHandler(t *testing.T) {

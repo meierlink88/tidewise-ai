@@ -82,9 +82,9 @@
 
 ## 7. Admin Retirement And Decoupling Package
 
-- [ ] 7.1 先将`GET/PUT /admin/scheduler/config`、`GET /admin/scheduler/runs`固定为认证后无DB读写的machine-readable`410 Gone` contract，并保留一个实际部署窗口；保留raw/event/source/auth/pagination行为。
-- [ ] 7.2 删除Admin scheduler DTO/handlers/repository contract的业务行为；前端移除`api/scheduler.ts`、`SchedulerSettings.tsx`、scheduler tab/styles，混合tests改为三tab/source/raw/event assertions；无关React transitive`scheduler` packages保留。
-- [ ] 7.3 让Admin通过DataServiceClient查询/编排，移除Data DB credential与migration wiring；运行Admin backend完整suite、frontend test/build、410/调用次数/timeout tests。
+- [x] 7.1 先将`GET/PUT /admin/scheduler/config`、`GET /admin/scheduler/runs`固定为认证后无DB读写的machine-readable`410 Gone` contract，并保留一个实际部署窗口；保留raw/event/source/auth/pagination行为。
+- [x] 7.2 删除Admin scheduler DTO/handlers/repository contract的业务行为；前端移除`api/scheduler.ts`、`SchedulerSettings.tsx`、scheduler tab/styles，混合tests改为三tab/source/raw/event assertions；无关React transitive`scheduler` packages保留。
+- [x] 7.3 让Admin通过DataServiceClient查询/编排，移除Data DB credential与migration wiring；运行Admin backend完整suite、frontend test/build、410/调用次数/timeout tests。
 
 ## 8. Scheduler/Runtime Retirement And Test Cleanup Package
 
