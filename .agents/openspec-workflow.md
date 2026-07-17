@@ -1,5 +1,12 @@
 # OpenSpec 工程流程
 
+## 适用范围与工作流规则例外
+
+本流程适用于除工程工作流规则修改之外的所有仓库变更。仅修改协作规则、正式工作流
+规格及其策略测试时，由 Leader 在当前主对话直接实施，无需创建 OpenSpec change，
+也无需委派执行 Agent；仍须完成 Eino audit、RED/GREEN/REFACTOR、全量验证、独立分支
+和 Pull Request。范围超出该边界时，本文件后续完整生命周期立即适用。
+
 ## 生命周期
 
 每个正式变更都遵循：
@@ -21,6 +28,8 @@ Cleanup；执行 Agent负责 Propose、Apply、Validate、Sync、Archive 和 Del
 ## 2. Delegate
 
 - 开发 Leader使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree。
+- 默认使用产品口径“gpt 6 sol medium”对应的当前可执行参数 `model: gpt-5.6-sol` 和
+  `thinking: medium`；目标 host 不支持时停止并报告，不得静默降级。
 - 执行 Agent确认独立 `codex/<change-name>` 分支、worktree 与 active change 匹配后，才
   写入 proposal 或实现文件。
 - Leader不得在主任务中接管具体 change 实施；阻塞时应补充委派、重新委派或报告阻塞。

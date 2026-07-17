@@ -25,6 +25,10 @@
 不改变运行时行为的规则变更也应优先使用可执行策略测试。测试先证明缺失规则会失败，
 再补齐最小文档或配置使其通过，避免仅靠人工阅读维护关键约束。
 
+工作流规则例外由 Leader 在当前对话直接执行时，也必须保留策略测试的 RED、GREEN、
+REFACTOR 证据；无需创建 OpenSpec change，但必须运行聚焦策略测试、`go test ./...`、
+正式规格验证和 `git diff --check` 后才能提交 Pull Request。
+
 ## Go 工程验证基线
 
 - 聚焦测试：`go test ./internal/<area> -run '<test-name>' -count=1`

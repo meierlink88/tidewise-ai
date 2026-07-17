@@ -12,6 +12,11 @@ change 由 Leader 使用 Codex `create_thread` 委派给独立执行 Agent；执
 完成技能路由要求的审计、OpenSpec、TDD、实现、验证和交付，且不得自行批准 Leader
 Review 或 Leader Acceptance。
 
+工作流规则修改是唯一例外：当变更仅涉及工程协作规则、正式工作流规格及其策略测试时，
+由 Leader 在当前对话直接实施，无需委派、无需 OpenSpec change。Leader 仍须完成
+Eino audit、策略测试的 RED/GREEN/REFACTOR、全量验证，并通过独立分支和 Pull Request
+交付。若范围包含任何非工作流规则内容，立即恢复普通 change 的技能路由。
+
 ## OpenSpec 路由
 
 | 任务意图 | 必须使用的 skill | 结果 |
@@ -22,8 +27,8 @@ Review 或 Leader Acceptance。
 | 用户已批准完成评审，需要同步正式规格 | `$openspec-sync-specs` | 更新 `openspec/specs/` |
 | 规格已同步且准备结束 change | `$openspec-archive-change` | 归档 change 并最终验证 |
 
-不得因为改动较小而跳过 OpenSpec。纯只读问答或状态检查不产生仓库写入时，不需要
-新建 change。
+除上述工作流规则修改外，不得因为改动较小而跳过 OpenSpec。纯只读问答或状态检查
+不产生仓库写入时，不需要新建 change。
 
 ## 语言规则
 

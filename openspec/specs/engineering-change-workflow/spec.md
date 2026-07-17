@@ -2,16 +2,27 @@
 
 ## Purpose
 
-定义 `tidewise-ai-agentrun` 的正式工程变更如何通过 Eino 三仓审计、OpenSpec、中文优先、TDD、Codex 任务委派、Git worktree、Leader 审批、Pull Request 和合并后 Cleanup 完成可追溯交付。
+定义 `tidewise-ai-agentrun` 的正式工程变更如何通过 Eino 三仓审计、OpenSpec、中文优先、TDD、Codex 任务委派、Git worktree、Leader 审批、Pull Request 和合并后 Cleanup 完成可追溯交付，并定义工作流规则修改的受限直接交付例外。
 
 ## Requirements
 
 ### Requirement: Eino-first 与 OpenSpec 技能路由
-每次仓库写入 SHALL 先完成与任务相关的 `eino-reference-first` 审计，并 SHALL 在探索、提案、实施、规格同步和归档阶段使用对应的仓库内置 OpenSpec skill。
+每次仓库写入 SHALL 先完成与任务相关的 `eino-reference-first` 审计。除工作流规则例外外，Agent SHALL 在探索、提案、实施、规格同步和归档阶段使用对应的仓库内置 OpenSpec skill。
 
 #### Scenario: Agent 收到工程变更请求
 - **WHEN** Agent 被要求修改源代码、测试、配置、文档、提示词、skill、脚本、依赖、生成物或工程结构
-- **THEN** Agent 在编辑前完成 Eino 三仓审计，并将请求路由到一个命名的 OpenSpec change
+- **THEN** Agent 在编辑前完成 Eino 三仓审计，并将非工作流规则例外的请求路由到一个命名的 OpenSpec change
+
+### Requirement: 工作流规则例外
+仅修改工程协作工作流规则、对应正式工作流规格及策略测试时，开发 Leader SHALL 在当前主 Codex 对话直接完成，无需创建 OpenSpec change、无需委派独立执行 Agent，也无需经过 Leader Review 或 Leader Acceptance。Leader SHALL 从最新 `origin/main` 创建独立 `codex/<workflow-rule-name>` 分支，保留 RED、GREEN、REFACTOR 证据，完成验证后提交、推送并直接创建 Pull Request；用户控制 Pull Request merge。该例外 MUST NOT 扩展到业务代码、运行时配置、普通产品文档、提示词、skills、依赖或工程结构。
+
+#### Scenario: Leader 修改工作流规则
+- **WHEN** 请求只修改工程协作规则、正式工作流规格及其策略测试
+- **THEN** Leader 在当前对话完成 Eino audit、策略测试、验证和 Pull Request 交付，不创建 OpenSpec change 或独立执行任务
+
+#### Scenario: 工作流规则修改超出例外范围
+- **WHEN** 预期差异包含业务代码、运行时配置、普通产品文档、提示词、skills、依赖或工程结构
+- **THEN** Leader 停止直接流程，并将请求恢复到完整委派式 OpenSpec 生命周期
 
 ### Requirement: 委派式工程变更生命周期
 每个正式 change SHALL 按 `Explore -> Delegate -> Propose -> Leader Review -> Apply -> Validate -> Leader Acceptance -> Sync -> Archive -> Deliver -> Merge -> Cleanup` 顺序推进，且 SHALL 不跳过、倒置或由自动化结果替代任何人工门禁。`Merge` 和 `Cleanup` SHALL 作为 PR 交付后的 Leader operational state 跟踪，不得阻塞已归档 change 的 OpenSpec checkbox 完成或要求回写已归档 tasks。
@@ -29,7 +40,7 @@
 - **THEN** 本 change 的 OpenSpec tasks 保持可完成，Leader 在主 Codex 任务中跟踪用户 Merge 与后续 Cleanup，不回写已归档 tasks
 
 ### Requirement: Leader 与执行 Agent 职责分离
-开发 Leader SHALL 仅负责 Explore、创建和委派新 Codex 任务、评审、批准、监控、验收及合并后清理，不得执行具体代码、测试、配置、文档或 change 产物实施；执行 Agent SHALL 独立完成 Eino audit、OpenSpec、TDD、实现、验证、Sync、Archive、提交、推送和 Pull Request。
+除工作流规则例外外，开发 Leader SHALL 仅负责 Explore、创建和委派新 Codex 任务、评审、批准、监控、验收及合并后清理，不得执行具体代码、测试、配置、文档或 change 产物实施；执行 Agent SHALL 独立完成 Eino audit、OpenSpec、TDD、实现、验证、Sync、Archive、提交、推送和 Pull Request。
 
 #### Scenario: Leader 启动新 change
 - **WHEN** Leader 在主 Codex 任务中确认需要正式仓库变更
@@ -40,11 +51,11 @@
 - **THEN** 执行 Agent在自己的任务和 worktree 中继续完成后续实施或交付阶段
 
 ### Requirement: 独立的 change 工作空间
-每个新 OpenSpec change SHALL 由开发 Leader 使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree；执行任务 SHALL 在写入 change 产物或实现文件前，使用基于最新 `origin/main` 的独立 `codex/<change-name>` feature branch。
+每个新 OpenSpec change SHALL 由开发 Leader 使用 Codex `create_thread` 创建独立执行任务和 Desktop-managed worktree；委派默认 SHALL 使用产品口径“gpt 6 sol medium”对应的当前可执行参数 `model: gpt-5.6-sol` 和 `thinking: medium`。执行任务 SHALL 在写入 change 产物或实现文件前，使用基于最新 `origin/main` 的独立 `codex/<change-name>` feature branch；目标 host 不支持默认模型组合时 Leader SHALL 停止并报告，不得静默降级。
 
 #### Scenario: 开始新的 change
 - **WHEN** 当前不存在与请求范围匹配的活跃 change、执行任务和 worktree
-- **THEN** Leader 使用 `create_thread` 创建并委派独立 Codex 任务及 Desktop-managed worktree，执行 Agent获取 `origin/main`、创建命名分支，并在写入文件前验证任务、worktree 和分支
+- **THEN** Leader 使用 `gpt-5.6-sol` 和 `medium` 调用 `create_thread` 创建并委派独立 Codex 任务及 Desktop-managed worktree，执行 Agent获取 `origin/main`、创建命名分支，并在写入文件前验证任务、worktree 和分支
 
 #### Scenario: Desktop worktree 初始为 detached HEAD
 - **WHEN** 新执行任务的 Desktop-managed worktree 没有当前分支
