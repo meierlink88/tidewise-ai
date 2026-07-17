@@ -1,54 +1,66 @@
 ## MODIFIED Requirements
 
 ### Requirement: 后端多子系统边界
-系统 SHALL 在单一 Go module 内支持 Data Service、Miniapp Service/BFF、Admin Portal Service/BFF 及 Data-owned jobs 等多个可独立运行的后端子系统，并通过 service-owned command 与 application/internal package 表达进程入口和 ownership 边界。
+系统 SHALL 在单一Go module内支持Data Service、Miniapp Service/BFF、Admin Portal Service/BFF以及Data-owned import/projection/maintenance commands等可独立运行的后端子系统；Tidewise MUST NOT继续提供采集scheduler/runtime/source-ingest/ingest-smoke子系统。
 
 #### Scenario: 表达可运行进程
-- **WHEN** 后端新增或迁移 Data API、小程序 BFF、管理后台 BFF、采集调度器或运维命令
-- **THEN** 进程入口必须位于对应 service-owned command 边界，并且入口只负责配置加载、依赖组装和启动流程
+- **WHEN** 后端新增或迁移Data API、小程序BFF、管理后台BFF、event import、projection或maintenance command
+- **THEN** 进程入口必须位于对应service-owned command边界，并且入口只负责配置加载、依赖组装和启动流程
+
+#### Scenario: 禁止采集执行进程复活
+- **WHEN** 后端新增或修改command、worker或application package
+- **THEN** 不得重新引入Tidewise ingestion schedule、connector execution、source worker、手动source-ingest或真实ingest smoke；该执行ownership属于外部`agent-run`
 
 #### Scenario: 表达业务子系统
-- **WHEN** 后端新增或修改 Data、Miniapp 或 Admin 应用逻辑
-- **THEN** 业务逻辑必须位于对应 service ownership 内，不得直接堆叠在 command 入口或无 owner 的共享层
+- **WHEN** 后端新增或修改Data、Miniapp或Admin应用逻辑
+- **THEN** 业务逻辑必须位于对应service ownership内，不得堆叠在command或无owner共享层
 
 #### Scenario: 限制共享基础层
-- **WHEN** 多个服务需要共享 config、logging、observability 或 HTTP bootstrap
-- **THEN** 共享 platform 只能包含无业务技术能力，Data domain/repository/DTO 和业务 client 方法必须归对应 owner 或 consumer service
+- **WHEN** 多个服务需要共享config、logging、observability或HTTP bootstrap
+- **THEN** platform只能包含无业务技术能力，Data domain/repository/DTO、connector contract和业务client方法必须归对应owner/consumer
 
 #### Scenario: 区分数据库连接和业务数据访问
-- **WHEN** Data Service 需要创建 PostgreSQL 连接、配置连接池或检查数据库连通性
-- **THEN** database bootstrap 可以由 platform 提供，但业务 repository、migration ownership 与数据库凭据必须由 Data Service 独占
-
-### Requirement: 采集器可运行子系统
-系统 SHALL 将 ingestion、event import、source catalog 与 scheduler 定义为 Data Service 拥有的独立可运行 job/command，允许独立进程或容器 entrypoint 部署，但不得在本 change 拆成独立 Go module、repo 或数据库。
-
-#### Scenario: 独立运行采集器
-- **WHEN** 部署或本地开发需要启动 ingestion scheduler 或采集命令
-- **THEN** 系统必须能够通过 Data Service-owned command 运行采集子系统，而不要求启动 Miniapp 或 Admin BFF
-
-#### Scenario: 使用 Data 基础设施
-- **WHEN** 采集器读取配置、访问 PostgreSQL、使用 Data Domain 或执行受控写入
-- **THEN** 采集器必须复用 Data Service 内部 application/repository contract，不得通过 BFF 或 platform 业务包访问
-
-#### Scenario: 禁止提前拆分模块
-- **WHEN** 普通功能 change 修改采集器
-- **THEN** 不得顺手创建独立 `go.mod`、独立 repo、独立数据库 migration 根或独立版本发布边界
+- **WHEN** Data Service需要创建PostgreSQL连接、配置连接池或检查连通性
+- **THEN** database bootstrap可以由platform提供，但repository、migration ownership和数据库凭据必须由Data Service独占
 
 ### Requirement: 后端依赖方向约束
-系统 SHALL 通过自动化 architecture tests 约束服务依赖方向：Miniapp/Admin 只能依赖各自 BFF application 与本地 Data client port/adapter，Data Service 拥有 Data domain/application/repository，platform 不得包含或反向依赖业务能力。
+系统 SHALL 通过automated architecture tests约束服务依赖方向：Miniapp/Admin只能依赖各自BFF application与本地Data client port/adapter，Data Service拥有Data domain/application/repository，platform不得包含或反向依赖业务能力；tests还必须阻止已删除采集runtime路径或反向caller复活。
 
 #### Scenario: BFF 不依赖 Data 内部包
 - **WHEN** 运行架构边界测试
-- **THEN** Miniapp/Admin 对 Data Service domain/application/repository、数据库或 migration 内部包的 import 必须失败
+- **THEN** Miniapp/Admin对Data Service domain/application/repository、数据库或migration内部包的import必须失败
 
 #### Scenario: BFF 不直接调用采集 connector
 - **WHEN** 运行架构边界测试
-- **THEN** Miniapp/Admin 不得直接 import Data-owned ingestion connector/parser
+- **THEN** Miniapp/Admin不得直接import Data-owned ingestion connector/parser
+
+#### Scenario: 旧runtime路径不存在
+- **WHEN** 运行架构与reference tests
+- **THEN** 旧scheduler/runtime/health packages、三个退役commands、ingestion runtime config和任何production caller必须不存在
 
 #### Scenario: command 不承载业务逻辑
-- **WHEN** 新增或修改任一 service command
-- **THEN** 入口代码必须只负责解析配置、组装依赖和启动进程，复杂业务流程必须下沉到对应 service application
+- **WHEN** 新增或修改任一service command
+- **THEN** 入口代码必须只负责解析配置、组装依赖和启动进程，复杂流程必须下沉到对应service application
 
 #### Scenario: platform 不拥有业务能力
 - **WHEN** 运行架构边界测试
-- **THEN** platform 对任一 service application/domain/repository 的 import以及 Event/Research/Entity DTO 或业务 client 方法必须失败
+- **THEN** platform对任一service application/domain/repository的import以及Event/Research/Entity DTO、connector或业务client方法必须失败
+
+## ADDED Requirements
+
+### Requirement: Data-owned adapter 与外部采集执行边界
+Data Service SHALL 暂时拥有source catalog、connectors、parsers和仍有调用方的adapter core contract，但Tidewise SHALL NOT组装或运行这些adapter；外部`agent-run`拥有schedule与execution并只通过scoped Data API读取批准metadata、提交产物。
+
+#### Scenario: 测试保留adapter
+- **WHEN** connector/parser/sourcecatalog测试运行
+- **THEN** adapter和source metadata contract必须继续通过，不得因runtime删除而删除有效测试
+
+#### Scenario: 在外部repo使用adapter
+- **WHEN** 后续change需要让`agent-run`执行现有adapter逻辑
+- **THEN** 必须在外部repo复制或适配并定义版本/credential/rate-limit/import验收，不得直接import Tidewise Go `internal`代码
+
+## REMOVED Requirements
+
+### Requirement: 采集器可运行子系统
+**Reason**: 新架构把采集scheduling与实际execution交给外部`agent-run`；把scheduler改名或迁入Data Service仍会保留错误ownership。
+**Migration**: 先建立Data raw-document/reviewed-event受控import，随后删除Tidewise scheduler/source-ingest/ingest-smoke/runtime/health和其装配；保留source seed、connectors/parsers、import、表与历史migration。

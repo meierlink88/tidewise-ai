@@ -18,11 +18,19 @@
 ## ADDED Requirements
 
 ### Requirement: 外部 Agent 到 Data Service 边界
-系统 SHALL 将 Agent Server 视为独立外部系统，并 SHALL 让 Agent 只通过 Data Service 受控导入/回写 API 交互，不得直接访问 Tidewise PostgreSQL、Neo4j 或 BFF 内部接口。
+系统 SHALL 将 `agent-run`/Agent Server视为独立外部系统：外部系统拥有采集schedule、connector execution、模型/Prompt/RAG编排，且只通过Data Service受控source-metadata/read与raw-document/reviewed-event导入API交互；它不得直接访问Tidewise PostgreSQL、Neo4j、BFF内部接口或Go `internal` packages。
 
 #### Scenario: Agent 导入 reviewed-outbox
 - **WHEN** Agent Server 提交已审阅的结构化事件 package
 - **THEN** Data Service 必须验证 service identity、幂等键、payload、review 状态并在自身事务边界持久化
+
+#### Scenario: agent-run 导入原始材料
+- **WHEN** 外部`agent-run`完成来源访问和标准化但尚未形成reviewed event
+- **THEN** 它必须通过bounded raw-document import提交，Data Service验证来源归因、幂等、scope与batch contract且不得重新执行connector
+
+#### Scenario: Tidewise 不运行采集器
+- **WHEN** 任一Tidewise service或command启动
+- **THEN** 不得启动scheduler、source worker、connector/parser execution、provider retry/rate-limit或真实ingest smoke
 
 #### Scenario: Agent 尝试数据库连接
 - **WHEN** Agent、Miniapp 或 Admin 配置请求 Data DB 凭据

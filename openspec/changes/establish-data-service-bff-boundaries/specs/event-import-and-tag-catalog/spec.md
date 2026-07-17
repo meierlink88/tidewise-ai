@@ -29,3 +29,18 @@ Data Service SHALL 提供版本化、服务身份认证、幂等且可审计的 
 #### Scenario: 结束 compatibility window
 - **WHEN** Agent HTTP import 已通过 local 与目标环境验收且旧入口无消费者
 - **THEN** 后续 change 才能删除直接 maintenance adapter，并必须保留明确迁移说明和 contract tests
+
+### Requirement: reviewed event 与 raw document 导入分离
+Data Service SHALL 将reviewed-outbox event import与通用raw-document batch import定义为两个独立受控contract；raw import MUST NOT绕过event review状态、tag/source validation、canonical payload hash或event receipt transaction。
+
+#### Scenario: Agent只提交原始材料
+- **WHEN** `agent-run`尚未形成reviewed event package而只提交来源材料
+- **THEN** 它必须调用raw-document import，Data Service只能写入/复用raw document，不得自动创建event、tag或research结论
+
+#### Scenario: Agent提交reviewed event
+- **WHEN** Agent Server提交contract完整且review状态有效的event package
+- **THEN** 它必须调用reviewed event import，并继续在单transaction中处理raw document、event、sources、tags与receipt
+
+#### Scenario: 删除旧采集runtime
+- **WHEN** Tidewise scheduler/source-ingest/ingest-smoke/runtime被删除
+- **THEN** event import API、CLI dry-run/compatibility contract、repository、fixture、幂等和transaction tests必须继续有效

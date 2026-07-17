@@ -1,18 +1,23 @@
 ## Context
 
-当前仓库是 monorepo，后端只有一个 `backend/go.mod`，但已经存在多个独立进程和前端入口。调查基线为最新 `origin/main` commit `3f0f779`：
+本次 Explore 以 2026-07-17 最新 `origin/main` `3f0f779d2c332a74f31fd398adb47adb306a60c3` 为基线。仓库是 monorepo，后端只有一个 `backend/go.mod`；active changes 为本 change 与 `migrate-uat-to-linux-amd64`，后者拥有 `.github/workflows/deploy-uat.yml`、`infra/uat/**` 等 UAT 交付范围，本 change 避让这些文件与真实环境。
 
-- `backend/cmd/api` 启动小程序 HTTP server，直接执行 migration check、打开 PostgreSQL、构造 `repositories.NewPostgresRepository` 并注入 `miniappapi.ResearchService`。
-- `backend/cmd/admin-api` 启动管理 HTTP server，同样直接执行 migration check、打开 PostgreSQL 并把 repository 注入 `adminapi.NewRouter`。
-- `backend/internal/apps/miniappapi` 同时拥有页面 DTO/handler、cursor 语义和对 `repositories.ResearchReadRepository` 的直接调用；`backend/internal/apps/adminapi` 同时拥有管理 DTO/handler 和 source/scheduler/raw/event repository contract。
-- 当前只有两个 HTTP server。`backend/cmd/event-import` 是 Agent reviewed-outbox 的本地 CLI，直接构造 event import repository 并写 PostgreSQL；目标架构中的第三个 HTTP 入口应是新的 Data Service，而不是把 CLI 误算为服务入口。
-- `backend/internal/domain`、`backend/internal/repositories`、`backend/migrations` 共同覆盖 Entity、Chain Node、Source/Raw Document、Event/Event Tag、Research Theme/Anchor、Index/Benchmark、Scheduler、Graph Projection 等 Data Domain 能力。
-- ingestion scheduler/source ingest/source seed/entity seed/event import/graph projector/dbmigrate 都直接使用 Data PostgreSQL 或其投影，应归 Data Service 的后台 command/job 边界；其中 connector/parser 执行仍属于 Data Domain 的输入适配，不迁往 BFF。
-- `frontend/miniapp` 目前大多通过 mock-first services，只有 Research HTTP 契约已在后端出现；`frontend/admin` 通过 `/admin/*` 调用 admin API，Vite/nginx 代理到单一 backend upstream。
-- `backend/Dockerfile` 当前只构建 `admin-api` 与 `dbmigrate`，`infra/uat/docker-compose.yaml` 也只有一个 `backend` 容器；`.github/workflows/ci.yml` 对整个 Go module 运行 `go test ./...`。active `migrate-uat-to-linux-amd64` 正在拥有 UAT workflow/infra 文件，本 change 不与其并行修改。
-- 现有 21 个 migration 共同建立 Data PostgreSQL 事实模型。本 change 不搬表、不拆 schema、不重写历史 migration；Neo4j 继续是从 PostgreSQL 可重建的 Data Service 投影。
+当前代码事实：
 
-目标运行时拓扑：
+- `backend/cmd/api` 启动小程序 HTTP server，执行 migration check、打开 PostgreSQL、构造 `repositories.NewPostgresRepository` 并注入 `miniappapi.ResearchService`。
+- `backend/cmd/admin-api` 启动管理 HTTP server，同样直接打开 PostgreSQL 并把 repository 注入 `adminapi.NewRouter`；router 同时拥有 raw/event/source 查询与 scheduler config/run API。
+- 当前只有两个 HTTP server；`backend/cmd/event-import` 是 Agent reviewed-outbox 的本地 CLI，不是第三个 HTTP 服务。目标第三入口是新的 Data Service。
+- `backend/internal/domain`、`backend/internal/repositories` 与 21 个历史 migrations 共同承载 Entity、Chain Node、Source/Raw Document、Event/Event Tag、Research Theme/Anchor、Index/Benchmark、Scheduler、Graph Projection 等 Data Domain 能力。
+- `backend/cmd/ingestion-scheduler` 读取全局调度配置、循环或单轮触发 `internal/apps/ingestion/scheduler`，后者调用 `runtime.IngestionJob` 并写 scheduler run/source run 与 raw documents。
+- `backend/cmd/source-ingest` 绕过 scheduler 但仍直连 Data DB并执行同一采集 runtime；`backend/cmd/ingest-smoke` 联网拉取公开 RSS并写本地 Data DB。它们都是“实际执行”，不能作为 Tidewise 手动后门保留。
+- `backend/cmd/source-seed` 只加载版本化 source catalog 并幂等 seed，不运行 connector/parser；`event-import`、graph projector、entity seed、dbmigrate 也有各自独立 Data maintenance/import 语义。
+- `internal/apps/ingestion/connectors`、`parsers` 与 `core` 既有受测 source adapter contract；其中 `core.SourceRegistry`、`RateLimiter`、`LocalRawObjectStore`、`RawDocumentWriter` 只有将被删除的 runtime/command 或自身旧测试使用，`Registry`、connector/parser contract 与 `EnvCredentialResolver` 仍被 connectors 使用。
+- Admin frontend 有 `api/scheduler.ts`、`SchedulerSettings.tsx`、数据采集中心 scheduler tab、专属 CSS 与测试。仅删 backend command 会留下失效控制面。
+- `backend/internal/config` 与三套 repo config templates 含仅被旧采集命令使用的 `IngestionConfig`；真实 scheduler 说明位于 `infra/local/README.md` 和 ingestion README。
+- `.github/workflows/ci.yml` 只运行 `go test ./...` 与 Admin test/build；当前 Dockerfile、local/UAT compose、deploy workflow 没有 scheduler image/service/healthcheck，不能凭名称制造不存在的 infra 删除。
+- 删除前静态测试基线为 114 个 Go `_test.go` 文件、541 个 `func Test`；frontend合计8个test files、44个`it/test` cases，其中Admin 7/26、Miniapp 1/18。仓库只有13个落盘testdata files：reviewed-outbox fixture 1个、task-design lint fixtures 12个，均有有效引用；scheduler/runtime测试使用inline/httptest/temp data，没有专属testdata。
+
+目标运行时拓扑明确取消 Tidewise 内的采集 scheduler/runtime：
 
 ```mermaid
 sequenceDiagram
@@ -22,37 +27,40 @@ sequenceDiagram
     participant AdminBFF as Admin Portal Service/BFF
     participant Data as Data Service
     participant PG as Data PostgreSQL
-    participant Graph as Neo4j/Vector Projection
-    participant Agent as External Agent Server
+    participant Projection as Neo4j/Vector Projection
+    participant AgentRun as External agent-run / Agent Server
 
     MiniFE->>MiniBFF: stable page API
-    MiniBFF->>Data: HTTP REST + JSON (DataServiceClient)
-    Data->>PG: transaction/query
+    MiniBFF->>Data: HTTP REST + JSON via DataServiceClient
+    Data->>PG: bounded query/transaction
     Data-->>MiniBFF: aggregate DTO / typed error
-    MiniBFF-->>MiniFE: compatible page DTO
     AdminFE->>AdminBFF: stable admin API
-    AdminBFF->>Data: HTTP REST + JSON (DataServiceClient)
-    Data-->>AdminBFF: management aggregate/result
-    Agent->>Data: authenticated idempotent import API
-    Data->>PG: controlled transaction
-    Data->>Graph: asynchronous/rebuildable projection boundary
+    AdminBFF->>Data: HTTP REST + JSON via DataServiceClient
+    AgentRun->>Data: scoped approved source-metadata read
+    AgentRun->>Data: authenticated idempotent raw-document batch import
+    AgentRun->>Data: authenticated reviewed-event import
+    Data->>PG: controlled transaction + receipt
+    Data->>Projection: rebuildable projection boundary
+    Note over AgentRun,Data: scheduling and connector execution live outside Tidewise
 ```
 
-代码依赖边界：
+目标代码依赖：
 
 ```mermaid
 flowchart LR
     MiniCmd[services/miniapp cmd] --> MiniApp[Miniapp BFF application]
     AdminCmd[services/adminportal cmd] --> AdminApp[Admin BFF application]
-    MiniApp --> MiniPort[DataServiceClient port]
-    AdminApp --> AdminPort[DataServiceClient port]
-    MiniPort --> DataHTTP[generated or controlled HTTP client]
+    MiniApp --> MiniPort[Miniapp DataServiceClient port]
+    AdminApp --> AdminPort[Admin DataServiceClient port]
+    MiniPort --> DataHTTP[controlled HTTP client]
     AdminPort --> DataHTTP
-    DataCmd[services/data cmd] --> DataAPI[Data HTTP adapters]
+    AgentRun[external agent-run] --> DataAPI[Data OpenAPI source/import endpoints]
+    DataCmd[services/data cmd] --> DataAPI
     DataAPI --> DataApp[Data application/domain]
     DataApp --> Repo[Data repositories]
     Repo --> PG[(PostgreSQL)]
-    DataApp --> Projection[Neo4j/vector projection adapters]
+    DataApp --> Graph[Neo4j/vector adapters]
+    Connectors[retained connector/parser source adapters] -. no production runner .-> DataApp
     Platform[platform: config/logging/observability/httpclient] --> DataHTTP
     Platform --> DataCmd
 ```
@@ -61,29 +69,31 @@ flowchart LR
 
 **Goals:**
 
-- 在当前 monorepo、单 Go module 中建立 Data、Miniapp BFF、Admin Portal BFF 三个可独立启动/部署的服务边界。
-- 让 Data Service 独占 Data Domain、PostgreSQL repository/migration 与 Neo4j/向量投影能力；BFF 只拥有 channel DTO、用户/权限上下文、页面聚合和领域服务编排。
-- 以 HTTP REST + JSON + OpenAPI 建立唯一生产跨服务 contract，并用本地 `DataServiceClient` interface 隔离 HTTP transport 与单元测试 fake。
-- 通过 architecture tests 禁止 BFF import Data Service 的 domain/application/repository 内部包，也禁止 BFF 或 Agent 持有 Data DB 凭据。
-- 保持现有 miniapp/admin 外部 API 行为、分页和错误语义兼容，采用可回滚的逐包迁移，而不是目录大搬迁。
-- 把 service-owned Dockerfile/health/startup assets 与根 `infra` 的跨服务环境编排区分开；本 change 只完成 repo/local 边界。
-- 把数据库代码边界调整与实际 role/grant/credential 切换拆开，真实切换仅在独立 R2 授权后执行。
+- 在当前 monorepo、单 Go module 中建立 Data、Miniapp BFF、Admin Portal BFF 三个可独立启动的服务边界。
+- 让 Data Service 独占 Data Domain、PostgreSQL repository/migration 与 Neo4j/向量投影；BFF 只拥有 channel DTO、用户/权限上下文、页面聚合和领域服务编排。
+- 以 HTTP REST + JSON + OpenAPI 建立唯一生产跨服务 contract，并用本地 `DataServiceClient` interface 隔离 HTTP transport 与 unit-test fake。
+- 在 Tidewise 不再运行 scheduler、source-ingest、ingest-smoke 或采集 runtime；同步退役 scheduler Admin API/UI、配置、repository/domain 与直接部署/文档引用。
+- 在删除 runtime 前先提供 Data Service 脱敏 source-metadata read与受控 raw-document/reviewed-event import，让外部 `agent-run`/Agent Server 永远不需要 Data DB 凭据。
+- 保留历史表/migrations/data、source seed、connectors/parsers、raw/event import repositories 与所有仍覆盖受支持合同的测试。
+- 用 architecture tests 禁止 BFF 直接依赖 Data DB/repository、禁止旧目录和反向依赖复活，并以精确引用审计清理测试/testdata。
+- 把 service-owned build/health/start assets 与根 infra 环境编排分开；数据库代码边界与实际 role/grant/credential 切换分为 R1/R2。
 
 **Non-Goals:**
 
+- 不修改 `agent-run` 或 Agent Server repo，不在 Tidewise 新建替代 scheduler、worker、queue 或定时任务。
+- 不保证本 change 交付后 Tidewise 内仍能实际执行 connectors；从旧 runtime 删除到外部 `agent-run` 交付之间允许存在明确记录的采集停止窗口。
+- 不把 connectors 擅自复制、发布或迁移到外部 repo，不为外部 repo建立共享 Go module。
 - 不拆 Git repo，不创建多个 `go.mod`，不发布 `tidewise-go-platform`。
-- 不新增 Identity、Membership、Billing、Subscription 服务或数据库；未来领域服务跨库只保存 UUID，不建立跨数据库 FK。
-- 不引入 gRPC、Kitex、Kratos、服务注册中心、Service Mesh、Kafka、共享事件总线或分布式事务。
-- 不改变现有页面/管理 API 业务语义，不创建平行 Event/Research/Entity 模型。
-- 不移动现有表、拆 PostgreSQL schema、修改或重写历史 migration。
-- 不修改 Agent Server repo；只定义本 repo 的 Data Service 受控导入 contract 与兼容迁移路径。
-- 不修改 `prototype/`、`doc/`，不触碰 UAT/prod/shared 或执行任何数据库、Neo4j、部署写操作。
+- 不新增 Identity、Membership、Billing、Subscription 服务或数据库；不引入 gRPC、Kitex、Kratos、服务注册中心、Service Mesh、Kafka 或分布式事务。
+- 不 drop/truncate scheduler 表，不搬表、拆 schema、重写历史 migration、删除已有数据或执行 migration/seed/import/projection。
+- 不创建平行 Event/Research/Entity 模型，不改变保留页面/管理 API 语义；唯一明确 breaking surface 是 scheduler 能力退役及其批准的兼容路径。
+- 不修改 `prototype/`、`doc/`、`.github/workflows/deploy-uat.yml`、`infra/uat/**`，不运行或改变真实 UAT/prod/shared。
 
 ## Decisions
 
-### Decision: 保持单 module 的服务化单体，而非立即 multi-module/repo split
+### Decision: 保持单 module 的服务化单体，采用 ownership-first 渐进迁移
 
-目标目录以服务 ownership 为第一原则，但迁移允许先建立窄边界再移动文件：
+目标结构：
 
 ```text
 frontend/
@@ -94,149 +104,237 @@ backend/
 ├── services/
 │   ├── data/          # cmd, api, application/domain/repository adapters, deploy assets
 │   ├── miniapp/       # cmd, BFF application, page DTO, DataServiceClient port
-│   └── adminportal/   # cmd, BFF application, permission context, DataServiceClient port
+│   └── adminportal/   # cmd, BFF application, auth/permission, DataServiceClient port
 ├── platform/          # config/logging/observability/httpclient 等无业务技术能力
-├── migrations/       # Data Service 统一历史与增量 SQL，先保留原位
-└── data/              # Data Service 版本化 seed/input assets，先保留原位
+├── migrations/       # Data Service 历史 SQL，先原位保留
+└── data/              # Data Service seed/input assets，先原位保留
 infra/
-├── local/             # 跨服务 compose/network/database/observability orchestration
+├── local/             # cross-service orchestration
 ├── uat/               # 本 change 不修改
-└── prod/              # 若未来存在，本 change 不修改
+└── prod/              # 本 change 不修改
 ```
 
-由于 Go `internal` 可见性只由父目录约束，直接移动到三个 service 目录仍不足以禁止误 import；必须结合明确 package ownership 与 `go list` architecture tests。为降低 churn，Package 2 可先创建 service-owned facade/ports 并保留旧路径薄适配，只有真实 owner 明确且测试已覆盖后才逐步移动实现。禁止为了目标树一次性迁移所有 `domain`、`repositories`、migrations 或 data assets。
+Go `internal` 可见性不足以阻止同一 module 内误 import，所以目录移动必须与 `go list` import-graph architecture tests 配合。Package 2 先冻结 owner 和禁止依赖，Package 3 建 facade/entry；只有当前消费者已改走 contract 且测试覆盖后才移动触达的实现。禁止为了目录外观 bulk move 全部 domain、repositories、migrations 或 data。
 
-只有出现独立版本/发布生命周期、独立团队、显著不同依赖/资源模型、稳定远程 contract 或单 module 构建测试冲突之一，才另开 OpenSpec change 评估 multi-module；本 change 不以目录美观作为拆分理由。
-
-备选方案是立即创建三个 Go module 或三个 repo。它会迫使 contract/version/dependency 发布、CI cache、local replace、migration ownership与回滚同时变化，风险大于当前收益，不采用。
+只有出现独立版本/发布、团队、依赖/资源模型、稳定远程 contract 或单 module 构建冲突之一，才另开 multi-module/repo change。立即三 module 会把 contract 发布、CI cache、local replace、migration ownership 与 rollback 同时改变，不采用。
 
 ### Decision: Data Service 拥有 Data Domain；BFF 只拥有 channel/application glue
 
-Data Service ownership 包括：Entity/External Identifier/Edge、Industry Chain Node/Relation、Source Catalog、Raw Document、Event/Event Source/Event Tag、Research Theme/Anchor、Index/Benchmark、ingestion/scheduler state、event import receipt、graph projection run，以及 PostgreSQL/Neo4j/未来向量投影 adapter。
+Data ownership 包括 Entity/External Identifier/Edge、Industry Chain Node/Relation、Source Catalog、Raw Document、Event/Event Source/Event Tag、Research Theme/Anchor、Index/Benchmark、event import receipt、historical scheduler tables、graph projection run，以及 PostgreSQL/Neo4j/未来向量 adapter。
 
-Miniapp BFF ownership 包括：`/api/v1/miniapp/*` 外部契约、页面 DTO、cursor/用户上下文、页面聚合与 Data client orchestration。Admin BFF ownership 包括：`/admin/*` 外部契约、admin authentication/authorization、管理 DTO、操作编排。两个 BFF 平行，不互调。
+Miniapp BFF 拥有 `/api/v1/miniapp/*`、页面 DTO、cursor/用户上下文和 Data client orchestration。Admin BFF 拥有 `/admin/*`、admin auth/authorization、管理 DTO和操作编排。两者平行，不互调。
 
-`platform` 只允许无业务技术能力：config loader、logging、request id/trace、metrics、HTTP server/client bootstrap、transport-neutral retry policy、database driver/bootstrap。Event/Research/Entity DTO、repository interface、Data client 的业务方法与领域规则不得进入 platform。
-
-备选方案是继续共享 `domain/repositories` 并仅拆 binary。它不形成数据所有权或故障边界，architecture tests 也无法阻止跨服务耦合，不采用。
+`platform` 只允许 config loader、logging、trace/metrics、HTTP server/client bootstrap和无业务 retry policy。Event/Research/Entity DTO、repository interface、Data client 业务方法、connector contract和领域规则不得进入 platform。
 
 ### Decision: 生产跨服务只用 HTTP REST + JSON + OpenAPI
 
-Data Service 拥有 OpenAPI 文档、版本 namespace 和 transport DTO。Miniapp/Admin 各自拥有本地 `DataServiceClient` port；生产 adapter 使用受控生成或手写且 contract-tested 的 HTTP client，单元测试使用 fake。生成代码若采用，输出必须归消费方 adapter 且由 CI 检查 drift，不能把生成 DTO 放入 platform。
+Data Service 拥有 OpenAPI、版本 namespace 与 transport DTO。Miniapp/Admin 各自拥有本地 `DataServiceClient` port；本 change 的 production adapter 固定使用小型受控手写 typed client并以 OpenAPI drift test校验，unit test 使用 fake。最小 contract：
 
-最小 contract 规则：
+- 内部前缀固定为 `/internal/data/v1`；外部 BFF 路径不变。
+- ID 是 UUID string，时间是 UTC RFC3339，枚举是显式字符串；分页使用稳定 cursor + `limit`，错误含 machine code、message、details、request id。
+- server/client 都有 timeout budget；只有安全 GET 或带幂等键的 command可有限 retry，不跨服务持有 database transaction。
+- service identity/授权由环境 secret 注入且日志脱敏；请求传播或生成 request id/trace id。
+- Data 提供页面/管理 aggregate，contract tests固定有界调用次数，禁止 N+1/chatty loop。
+- breaking contract 走新版本或 additive compatibility window；字段删除/改义另行 Review。
 
-- Data API 使用独立版本前缀（建议 `/data/v1` 或 `/internal/data/v1`，最终路径在 Package 3 contract test 固定），对外 BFF 路径保持不变。
-- ID 使用 UUID string，时间使用 UTC RFC3339，枚举为显式字符串；分页采用稳定 cursor + `limit`，错误统一包含 machine code、message、details、request id。
-- server 与 client 都配置 timeout budget；只对安全 GET 或具备幂等键的操作做有限重试，不跨服务维持数据库 transaction。
-- service identity 与授权采用环境注入的服务凭据/可轮换 secret，日志不得输出；每个请求传播或生成 request id/trace id。
-- Data Service 提供页面/管理场景所需聚合 API，禁止 BFF 为一页循环逐条请求造成 N+1/chatty calls。
-- breaking contract 必须新版本或先 additive rollout；字段删除/改义必须经过独立 Review 和双读/兼容窗口。
+当前规模使用手写 typed client + OpenAPI schema drift test，不引入生成器；未来若已有稳定生成 toolchain，必须另开 contract/tooling change。gRPC/框架化 RPC 当前增加 toolchain/运维成本，不采用。
 
-备选 gRPC 或框架化 RPC 当前会增加 IDL/toolchain/运维负担，且前后端现有 HTTP/Gin 资产可复用，不采用。
+### Decision: 删除 runtime 前先建立两类 Agent import contract
 
-### Decision: 三个 HTTP binary 渐进形成并保留兼容入口
+reviewed event import 与 raw-document import 是不同合同，不能互相冒充：
 
-目标 binary 是 Data Service、Miniapp BFF、Admin Portal BFF。迁移期 `cmd/api` 可保留为 `miniapp` compatibility entrypoint，`cmd/admin-api` 可保留为 `adminportal` compatibility entrypoint；先让它们通过新 app/port 组装，再在构建、README、local orchestration 全部切换后删除旧 alias。Data Service 新 binary 先承接 Data API，随后收敛 repository、migration readiness 和 health。
+| Contract | Input/transaction | Preserved behavior | Caller boundary |
+|---|---|---|---|
+| raw-document batch import | bounded candidates；whole-batch validation；整批 atomic write 或整批 reject；归因、UUID/content hash 幂等 | 复用 `raw_documents` repository 的 external ID/content hash/UUID 稳定性；结构化 receipt/result | 外部 `agent-run` 使用 scoped service identity；不调用 connector、不直连 DB |
+| reviewed-event import | 既有 reviewed-outbox package；raw document + event + sources + tags + receipt 单 transaction | canonical payload hash、同 key 同 hash返回原 receipt、不同 hash 409、dry-run/machine JSON contract | Agent Server 生产走 Data HTTP；CLI 是有界 compatibility/maintenance adapter |
 
-现有外部 `/api/v1/miniapp/research/*` 和 `/admin/*` 不变。Data API 是内部 contract，不复用 BFF 路径。rollback 可把 BFF 的 `DataServiceClient` adapter 切回进程内 compatibility adapter（仅迁移窗口、同一已测试 interface），而不是恢复 BFF 直接 import repository。
+raw import API 不接受 repository model，也不将 connector内部 `RawDocumentCandidate` 直接作为公共 DTO。batch size/payload limit、整批拒绝非法 item、认证、idempotency、request id与 timeout必须由 OpenAPI和 tests 固定。未通过这两个 contract，不得进入 runtime 删除。
+
+同一Package 4还提供`/internal/data/v1`下的scoped source-metadata read contract：只返回批准的来源标识、adapter key、状态、限流提示、非敏感配置与`credential_ref`名称，不返回secret；Admin与`agent-run`使用不同identity/scope。它复用Data-owned source catalog，但不是connector runner。
+
+### Decision: 三个 HTTP binary 渐进形成，compatibility entry 保持薄层
+
+目标 binary 是 Data Service、Miniapp BFF、Admin Portal BFF。迁移期 `cmd/api` 可作为 Miniapp alias，`cmd/admin-api` 可作为 Admin alias；它们先改为只组装对应 BFF/Data HTTP client，构建/README/local consumers切换后才删除 alias。Data 新 binary拥有 Data API、repository wiring、migration readiness和 health。
+
+现有 `/api/v1/miniapp/research/*` 与保留的 `/admin` raw/event/source APIs不变。rollback 只能让同一 `DataServiceClient` 切回已测进程内 adapter，不能恢复 BFF repository import。
 
 ### Decision: 精确现有代码迁移映射
 
 | Current path/capability | Target owner | Minimal migration |
 |---|---|---|
-| `backend/cmd/api` | Miniapp Service/BFF | 先改为只加载 BFF config、注入 HTTP `DataServiceClient`、启动兼容路由；稳定后迁至 `backend/services/miniapp/cmd`，旧入口短期 alias |
-| `backend/cmd/admin-api` | Admin Portal Service/BFF | 去除 migration/database/repository 组装，注入 Data HTTP client；稳定后迁至 `backend/services/adminportal/cmd` |
-| 新第三 HTTP entry | Data Service | 新建 Data HTTP binary，拥有 migration readiness、Data API、service auth、request id/trace 与 repository 组装 |
-| `backend/internal/apps/miniappapi` | Miniapp BFF | 保留外部 DTO/handler/cursor/page composition；把 repository interface/model 调用替换为本地 Data client port/DTO，不 import Data 内部包 |
-| `backend/internal/apps/adminapi` | Admin BFF | 保留 admin auth、管理 DTO/handler、permission/application orchestration；scheduler/raw/event 操作改走 Data client |
-| `backend/internal/domain` | Data Service | 先标记为 Data-owned 并禁止 BFF import；按触达范围渐进迁到 Data service internal，不复制模型 |
-| `backend/internal/repositories` | Data Service | 先增加 import 禁令并由 Data binary 独占组装；随后按 package 迁入 Data internal，避免 bulk move |
-| `backend/migrations` | Data Service | 原位冻结 ownership；不拆目录、不改历史 migration，Data Service/migrator 独占执行 |
-| `backend/cmd/ingestion-scheduler`, `source-ingest`, `ingest-smoke`, `source-seed` 与 `internal/apps/ingestion` | Data Service data jobs | 保持命令行为，先建立 Data owner/architecture rule，再按必要性移动；connector/parser 不迁 BFF 或 platform |
-| `backend/cmd/event-import`, `internal/apps/ingestion/eventimport`, `internal/domain/eventimport` | Data Service + Agent import adapter | Data Service 拥有 import application/transaction/API；CLI 先改为 contract adapter/兼容工具，生产 Agent 只调用受控 HTTP API |
-| `backend/cmd/graph-projector`, `internal/apps/graphprojection`, `platform/graphdb` | Data Service projection job | 保持 PostgreSQL 事实源与 Neo4j 可重建语义；不在本 change 执行 rebuild |
-| `backend/cmd/entity-seed`, `internal/apps/entityfoundation/seed`, `cmd/dbmigrate` | Data Service maintenance | 保持独立运维命令与显式授权；BFF 镜像/凭据不得包含直接执行权限 |
-| `frontend/miniapp` | Miniapp channel | 页面继续只调用 Miniapp BFF；mock-first 替换另按页面 contract，不直连 Data Service |
-| `frontend/admin` | Admin channel | 继续调用 `/admin/*`；nginx/Vite upstream 指向 Admin BFF，不直连 Data Service |
-| `backend/internal/platform/*` 与 `internal/config` | `backend/platform` | 只迁稳定无业务 bootstrap；禁止 Data DTO/repository/业务 client 方法进入 platform |
-| `backend/Dockerfile` | 过渡构建资产 | 分阶段变为各服务自己的 Dockerfile/health/start config；旧 Dockerfile 在 local/CI 切换后移除 |
-| `infra/local` | cross-service orchestration | 编排 Data、Miniapp、Admin 与 PostgreSQL/Neo4j 网络；不包含服务业务启动实现 |
-| `infra/uat`, `.github/workflows/deploy-uat.yml` | 暂不修改 | 等 active UAT change Deliver 后，从最新 main 另行适配三服务镜像与 rollout |
-| 未来 Agent-specific collection/reasoning | External Agent Server | Agent workflow、模型调用、Prompt/RAG 编排留外部；Data Service 只拥有受控 import/validation/persistence，connector 是否迁 Agent 需独立 change |
+| `backend/cmd/api` | Miniapp Service/BFF | 去 migration/DB/repository wiring，注入 Data HTTP client；稳定后迁 `backend/services/miniapp/cmd`，旧入口短期 alias |
+| `backend/cmd/admin-api` | Admin Portal Service/BFF | 去 DB/repository wiring，注入 Data HTTP client；scheduler endpoints变 410 tombstone；稳定后迁 `backend/services/adminportal/cmd` |
+| 新第三 HTTP entry | Data Service | 新建 Data binary，拥有 Data API、service auth、request id/trace、repository wiring、migration readiness |
+| `backend/internal/apps/miniappapi` | Miniapp BFF | 保留页面 DTO/handler/cursor；repository/model 调用换本地 Data client port/DTO |
+| `backend/internal/apps/adminapi` | Admin BFF | 保留 auth、raw/event/source DTO/handler；改走 Data client；删除 scheduler业务 handler/DTO，仅留有界 410 transport tombstone |
+| `backend/internal/domain` | Data Service | 标记 Data-owned并禁止 BFF import；不复制模型；删除无 consumer 的 scheduler/run 类型，保留其余 domain |
+| `backend/internal/repositories` | Data Service | Data binary独占；删除 scheduler/run adapters但保留历史表；其余按触达渐迁，禁止 bulk move |
+| `backend/migrations` | Data Service | 21 个文件全部原位保留，Data migrator独占；不改历史 SQL、不执行 migration |
+| `backend/cmd/source-seed`、`internal/apps/ingestion/sourcecatalog` | Data Service maintenance | 保留版本化 source catalog load/validate/idempotent seed；真实 seed仍需单独 stateful授权 |
+| `backend/cmd/event-import`、`internal/apps/ingestion/eventimport`、`internal/domain/eventimport` | Data Service import | 保留 CLI dry-run/machine JSON；生产 Agent 迁 Data HTTP，transaction/receipt/idempotency不变 |
+| `backend/cmd/graph-projector`、`internal/apps/graphprojection`、graph adapter | Data Service projection | 保持 PostgreSQL事实源和 Neo4j可重建；不执行 cleanup/rebuild/project |
+| `backend/cmd/entity-seed`、`cmd/dbmigrate`及对应 apps | Data Service maintenance | 保持独立显式命令；BFF不得携带执行凭据 |
+| `frontend/miniapp` | Miniapp channel | 只调用 Miniapp BFF，不直连 Data；当前页面行为保持 |
+| `frontend/admin` | Admin channel | 继续调用 Admin BFF；保留 raw/event/source，移除 scheduler UI/client |
+| `backend/internal/platform/*`、`internal/config` | `backend/platform` / service config | 只抽无业务 bootstrap；删除旧 ingestion runtime config，Data API timeout另设最小服务配置 |
+| `backend/Dockerfile` | transition asset | 逐服务建立 Dockerfile/health/start；local/CI切换后才移除旧 asset |
+| `infra/local` | cross-service orchestration | 编排三服务与 Data stores；删除旧手动/调度运行说明，不承载业务启动实现 |
+| `infra/uat`、deploy workflow | excluded | active UAT change完成后另行规划三服务 rollout，本 change不修改/运行 |
+| future collection/reasoning | external `agent-run` / Agent Server | 外部系统拥有 schedule、execution、模型/Prompt/RAG；只经 scoped source-metadata read与Data import APIs交互，不获 Tidewise DB credential |
+
+### Decision: scheduler/runtime 精确退役清单
+
+| Path/symbol | Apply action | Reason / replacement |
+|---|---|---|
+| `backend/cmd/ingestion-scheduler/{main.go,main_test.go}` | delete directory | Tidewise不再提供 loop/once/dry-run scheduler；未来由外部 `agent-run` 调度 |
+| `backend/cmd/source-ingest/{main.go,main_test.go}` | delete directory | 该命令仍实际运行 connector并直写 DB，不能作为手动后门；外部执行后走 Data import API |
+| `backend/cmd/ingest-smoke/main.go` | delete directory | 联网采集并写 DB属于被退役 runtime；保留 connector unit/contract tests替代验证 |
+| `backend/internal/apps/ingestion/scheduler/{doc.go,planner.go,service.go,*_test.go}` | delete package | 全部只服务调度决策、run report和 runtime orchestration |
+| `backend/internal/apps/ingestion/runtime/{doc.go,ingestion_job.go,ingestion_smoke.go,*_test.go}` | delete package | source selection、connector→parser→writer、并发/失败隔离实际执行迁出 Tidewise |
+| `backend/internal/apps/ingestion/health/doc.go` | delete package | 只有无实现/无 caller 的 scheduler placeholder |
+| `backend/internal/repositories/scheduler.go`、`ingestion_run.go` | delete adapters | 只服务旧 scheduler/Admin scheduler API；表与历史 data 保留 |
+| `backend/internal/repositories/memory.go` scheduler/run fields | remove fields/init | 无保留 consumer；其他 in-memory repository能力保留 |
+| `domain.SchedulerConfig/Mode/Trigger/Run/RunSource`及 validate helpers | remove symbols | 无保留 application/API consumer；不删除其他 domain types |
+| `core.SourceRegistry/RateLimiter/LocalRawObjectStore/RawDocumentWriter` | remove after final ref check | 只有旧 runtime/commands使用；raw import改由 Data application/repository，不复活 connector runner |
+| `config.IngestionConfig`、validation、`config.{local,uat,prod}.yaml` ingestion block | remove dead schema keys | 只服务三个被删命令；Data API timeout使用自己的最小配置，repo templates更新不等于环境写入 |
+| Admin scheduler DTO/handlers/repository interface | remove business behavior | 先以 410 tombstone保护 caller；raw/event/source handler保留并改 Data client |
+| `frontend/admin/src/api/scheduler.ts`、`SchedulerSettings.tsx`、scheduler tab/styles | delete/update | 无 scheduler control plane；数据采集中心保留三类只读页面 |
+| `infra/local/README.md`、ingestion README、`.agents/backend-boundaries.md`旧说明 | update | 删除不可运行命令/目录说明，写清 connector暂存与 agent-run边界 |
+| architecture/cmd/config/mixed tests | replace precisely | 新依赖/退役 contract取代旧装配测试，不整文件粗删 |
+
+`frontend/admin/package-lock.json` 中名为 `scheduler` 的 React transitive package与本系统调度器无关，必须保留。CI、Dockerfile、local/UAT compose当前没有 scheduler service，不做凭名称批量删除。
+
+### Decision: 保留 tables、repositories、connectors 与 import 能力
+
+| Category | Exact keep scope | Post-change status |
+|---|---|---|
+| historical scheduler state | migration `000005_add_ingestion_scheduler.sql`；`ingestion_scheduler_configs`、`ingestion_runs`、`ingestion_run_sources`、indexes与既有 rows | Data-owned historical data；本 change后无支持写入/控制 API；不 drop/truncate/rewrite |
+| core Data tables | `source_catalogs`、`raw_documents`、`events`、`event_sources`、event tag/catalog/maps、`event_import_receipts`及其全部历史 migrations | Data Service事实源，持续受支持 |
+| repositories | `raw_document.go`、`source_catalog.go`、`event_import.go`/`event_import_postgres.go`、`event.go`、`admin_query.go`、`research_read.go`及 Entity/Chain/Benchmark/Graph 等 Data repositories | Data Service内部；BFF只能经 API |
+| connector/parser adapters | `backend/internal/apps/ingestion/connectors/**`、`backend/internal/apps/ingestion/parsers/**`；core Connector/Parser/Registry/EnvCredentialResolver和仍有 caller的 DTO/contracts | Data-owned受测代码，短期没有 Tidewise production runner/standalone command |
+| versioned assets | `backend/data/source_catalogs/**`、`backend/data/prompts/ingestion/**` | 不是 testdata；source seed和connector contract继续使用 |
+| source catalog maintenance | `cmd/source-seed`、`internal/apps/ingestion/sourcecatalog/**` | 保留；真实 seed仍需授权 |
+| raw import | raw repository + 新 Data HTTP batch import application/contract | 外部 `agent-run`的原始材料受控入口 |
+| reviewed event import | `cmd/event-import`、eventimport app/domain/repositories、reviewed-outbox fixture | Data HTTP为生产入口，CLI为兼容/维护；幂等/transaction/receipt保留 |
+| projections/maintenance | graph projector、entity seed、dbmigrate等非采集执行命令 | Data-owned并保留；本 change不执行 |
+
+connectors位于 Go `internal`，外部 repo不能直接 import。本 change只提供脱敏、scoped source-metadata read和Data import contracts；未来迁往 `agent-run` 必须由后继跨 repo change复制/适配并定义provider credential/rate-limit/execution验收。本 change既不迁文件，也不发布共享 module。
+
+### Decision: Admin scheduler API 采用 410 tombstone 兼容
+
+直接删除三条 endpoint会把明确存在的 consumer行为变成不透明 404。本 change固定把 `GET/PUT /admin/scheduler/config`、`GET /admin/scheduler/runs` 变为认证后、无 DB读写、machine-readable `410 Gone`，error code明确能力已迁出 Tidewise并带 request id；前端立即移除 scheduler tab/client。410保留一个实际部署兼容窗口，只有日志/consumer审计为零并经后继交付 change确认后才删 route。
+
+本 change不采用直接404或提前删除 route。410 tombstone不是 scheduler capability或替代 runtime，不访问 scheduler表、不触发 connector；任何不同策略都必须另行修改 artifacts并重新 Proposal Review。
+
+### Decision: unit tests 与 testdata 按 production counterpart 分类
+
+删除原则是“对应 production removal/replacement”，不是缩短测试时间。删除前数量与预期分类：
+
+| Class | Files/cases | Planned action and production reason |
+|---|---|---|
+| Remove: command/package tests | `cmd/ingestion-scheduler/main_test.go` 3、`cmd/source-ingest/main_test.go` 3、scheduler tests 6、runtime tests 7、`repositories/scheduler_test.go` 2、`ingestion_run_test.go` 1、`ingestion_run_postgres_test.go` 1 | 共10个 Go files/23 tests；production command/package/repository全部删除 |
+| Remove from mixed domain test | `internal/domain/models_test.go` scheduler/run 5 tests | 对应删除的 Scheduler/Run domain symbols；同文件其余 Entity/Raw/Event等测试保留 |
+| Remove from mixed core test | `internal/apps/ingestion/core/core_test.go` SourceRegistry/RateLimiter/LocalRawObjectStore/RawDocumentWriter 4 tests | 仅在对应 runtime-only helpers删除后移除；Registry/EnvCredentialResolver tests保留 |
+| Replace: Admin backend | `internal/apps/adminapi/router_test.go` scheduler 4 tests | 旧 config/run成功行为改为至少认证、410、无 repository write/request-id retirement contract；raw/event/source/auth tests保留 |
+| Replace: architecture/config | `internal/architecture/architecture_test.go`、`cmd_imports_test.go`、`repository_organization_test.go`；`internal/config/config_test.go` | 旧tests目前要求scheduler/runtime/health packages、source-ingest/ingest-smoke commands、scheduler repository和ingestion config存在；改为三服务依赖、旧路径禁存、BFF无DB/repository、dead config移除断言，保留同文件其他架构/配置覆盖 |
+| Remove: frontend scheduler-only | `api/scheduler.test.ts` 4、`SchedulerSettings.test.tsx` 6 | 对应删除 client/page，共2 files/10 cases |
+| Replace: frontend mixed | `DataIngestionCenter.test.tsx` 2 mixed cases、`minimalDashboardConformance.test.ts` 1 scheduler layout case | 改为三 tabs、保留 source/raw/event和页面布局；不删除完整文件 |
+| Keep with setup edit | `App.test.tsx` 2 login/logout tests、DataIngestionCenter raw/event filter case | 只移除 scheduler mocks；保留 Admin登录/查询业务覆盖 |
+| Keep: protected backend | connector/parser/sourcecatalog/eventimport/raw-document/domain/repository/API/idempotency/transaction/security suites；`internal/platform/dbmigration/migrations_test.go`含`000005`历史断言 | 覆盖仍受支持行为和完整migration history；不得因目录迁移或耗时删除 |
+| Keep: testdata | `backend/testdata/event-import/reviewed-outbox-v1.json`；`internal/architecture/testdata/task_design/**` 12 files | 前者由 event-import test读取，后者由 task-design fixture loader读取；当前 testdata删除计划=0 |
+
+旧 backend scheduler/runtime行为共36个 `func Test`（23 direct + 5 domain + 4 core + 4 Admin old behavior）被删除或替换；frontend scheduler-only直接删除10个 cases，3个混合 cases改写。因为会新增 Data API/import/BFF/410/architecture tests，最终总数不能简单写成 baseline减法；Apply-final必须提供逐文件 manifest与 `after = before - removed + replacement/new` 计数，并解释每个 delta。覆盖下降、零引用判断失败或悬空 fixture均 fail-closed。
 
 ### Decision: Database ownership 与实际权限切换分离
 
-代码完成边界后，PostgreSQL 仍整体归 Data Service；Research Theme/Anchor 继续属于 Data Domain。现有 migration/table/schema 均不机械移动。目标 roles：
+PostgreSQL整体归 Data Service；Research Theme/Anchor和历史 scheduler表均属于 Data Domain。目标 roles：
 
-- `data_service_migrate`: migration/DDL owner，仅 migration job 使用。
-- `data_service_rw`: Data Service runtime 的最小 DML 权限。
-- `data_service_ro`: 只读审计/受控诊断，非 BFF 默认凭据。
+- `data_service_migrate`: migration/DDL owner，仅 migration job使用。
+- `data_service_rw`: Data Service runtime最小 DML。
+- `data_service_ro`: 只读审计/受控诊断，非 BFF默认凭据。
 
-Miniapp/Admin/Agent 不持有 Data DB URL/password。Package 7 才允许 local role/grant 与 credential cutover，且必须重新展示数据库 identity、现有 grants、backup/recovery、manifest hash、before/after assertions、rollback credential 和停止条件。Proposal Review 或 R1 Apply 不授权任何 SQL、role、grant、secret 或连接切换。UAT/prod 需要后续独立 R2/R3 change。
+Miniapp/Admin/Agent/`agent-run` 不持有 Data DB URL/password。只有 Package 9独立 R2授权可变更 local roles/grants/credentials，且必须复验数据库 identity、所有表、grants manifest、backup/recovery、counts/hash/schema、旧凭据回切和停止条件。Proposal或R1 Apply不授权任何 SQL、secret或连接切换。UAT/prod需后续独立 change。
 
-未来 Identity/Billing 等领域若拆出，使用独立数据库，跨领域仅保存 UUID 与 API contract，不建立跨数据库 FK。跨服务业务一致性优先使用单一 Data transaction、幂等 command 和状态机；本 change 不引入分布式 transaction。
+未来 Identity/Billing等领域采用独立数据库，跨领域仅保存 UUID并通过 API校验，不建立跨数据库 FK。Data aggregate command在一个 PostgreSQL transaction内完成；BFF不持有跨服务 transaction。
 
-### Decision: service-owned deploy assets 与 environment orchestration 分层
+### Decision: service assets 与 environment orchestration 分层
 
-每个服务自己的 Dockerfile、binary CMD、health/readiness contract 和启动配置跟随 `backend/services/<service>`。根 `infra/<env>` 只负责跨服务 compose/network/database/observability 与环境拓扑。未来拆 repo 时 service assets 随服务迁移；只有跨系统编排才可能进入独立 `tidewise-infra`。
+每个服务自己的 Dockerfile、binary CMD、health/readiness和启动配置跟随 `backend/services/<service>`；根 `infra/<env>`只负责跨服务 compose/network/database/observability。未来拆 repo时service assets随服务迁移，跨系统编排才考虑独立 infra repo。
 
-本 change 只允许 repo build 与 `infra/local` dry config/test，不触碰真实环境。因为 UAT active change 目前拥有 `.github/workflows/deploy-uat.yml` 与 `infra/uat/**`，Package 6 必须排除这些文件；其 Deliver 后才可重基并规划 UAT 三镜像 rollout。
+本 change只运行 repo build与 `infra/local` dry config；不触碰 active UAT deploy/infra文件或真实环境。`backend/config/config.uat.yaml`、`config.prod.yaml` 是跟随强类型 schema版本化的模板，本 change只移除已经不存在的 ingestion死键，不连接环境、不写 secret、不部署。
 
-### Decision: TDD 与按包验证
+### Decision: TDD、按包验证与恢复
 
-- Package 2 先写 architecture/import tests（RED），再建立 service boundary/facade（GREEN）；验证 `go test ./internal/architecture ...` 与受影响 package。
-- Package 3 先写 OpenAPI/handler/client contract tests、timeout/error/idempotency tests，再实现 Data API/client。
-- Package 4 先以 fake `DataServiceClient` 固定 BFF 外部行为，再移除 repository imports；运行 miniapp/admin backend suites 与前端 contract tests。
-- Package 5 对每个命令先保留 CLI output/exit code/transaction contract tests，再调整 owner；不得运行真实数据库或 Neo4j。
-- Package 6 运行 Docker build/config、health contract、CI path assertions 与 local compose config，不运行 UAT/prod。
-- Package 7 的数据库 preflight/write/assert 只在独立授权后执行，测试与 dry-run 不构成写入授权。
-- Apply final 因为修改共享运行时 contract/目录/构建基础设施，运行一次 `go test ./...`、受影响前端 suites/build、architecture/contract tests、local compose config、OpenSpec strict validate、diff/scope/secret checks。开发中只跑 targeted tests，避免每个纯目录步骤重复全量测试。
+| Package | TDD/verification boundary | Recovery / stop |
+|---|---|---|
+| 2 boundary inventory | 先冻结manifest/count/reference，再写依赖测试；legacy精确allowlist防新增越界 | inventory漂移先更新design；只回退test/manifest |
+| 3 binaries | entry/health/import graph RED→facade/wiring GREEN；三个build+targeted suites | 回退facade/alias，不改外部行为/数据 |
+| 4 Data/import API | OpenAPI/handler/client/auth/idempotency/transaction tests先行 | contract未通过禁止删runtime；回退未发布HTTP wiring |
+| 5 Miniapp | golden page API+fake client先行；Miniapp完整suite | 切回同interface进程内adapter，不恢复repo import |
+| 6 Admin | 保留API contract和410 retirement先行；backend+frontend完整suite | 回退本package code/UI，不启动scheduler |
+| 7 runtime retirement | 每组生产删除先以caller/reference/替代contract证明；保留能力targeted suites | code scoped revert；不做SQL恢复，不自动重启旧scheduler |
+| 8 assets/CI/docs | build/health/compose/reference assertions | scoped revert；不触碰真实部署 |
+| 9 DB roles | 独立授权后逐层 preflight→write→query/assert | backup+旧credential回切；任一drift立即停 |
+| 10 final | 一次受影响交付边界完整验证和before/after清单 | 未通过不进入Sync/Archive/Deliver |
+
+开发中只跑命中 package的 targeted suites。因为本 change最终删除共享runtime、改变跨服务合同/入口/构建边界，Apply-final运行一次 `go test ./...`、Admin完整 test/build、受影响 Miniapp验证、三个 binary/image build、OpenAPI drift、architecture/reference、local compose config和OpenSpec checks；不得为纯目录步骤反复跑无关全量测试。
+
+Complexity Budget中的四个checkpoint固定为：Package 1 Proposal Review、Package 4 import contract通过后的pre-retirement evidence、Package 9独立R2 authorization、Package 10 Apply-final Review。
 
 ## Risks / Trade-offs
 
-- [新增网络 hop 增加延迟并扩大故障面] → Data API 提供页面/管理聚合端点，设置 timeout budget、连接复用、有限重试与指标；用性能基线/调用次数 contract 防止 N+1。
-- [BFF 与 Data DTO 漂移] → Data Service 独占 OpenAPI，受控生成或 contract-tested client，CI 检查 schema/client drift；transport DTO 不复用 repository model。
-- [迁移期双路径导致行为分叉] → 所有 compatibility adapter 实现同一 `DataServiceClient` contract，设置删除条件，不复制业务模型或 SQL。
-- [跨服务认证不足导致内部 API 暴露] → service identity、最小 scope、secret 注入和日志脱敏；Agent import 使用独立 identity、幂等键与审计 receipt。
-- [事务边界被错误跨服务扩展] → Data Service 聚合 command 在单一 PostgreSQL transaction 内完成；BFF 不持有 transaction，不引入分布式事务。
-- [网络错误破坏管理写操作幂等] → Data write API 要求 idempotency key/command identity，明确 409/4xx/5xx 与 retryability；未知结果先查询 receipt/status。
-- [三服务 CI/CD 和镜像数量增加] → service-owned Dockerfile 与 path-aware CI 渐进引入；UAT rollout 延后到 active change 完成，避免并行修改。
-- [database role 切换锁死 migration/runtime] → R2 package 使用可恢复 backup、grants manifest、旧凭据回切和逐层断言；任一漂移 fail-closed。
-- [platform 演化成业务 shared kernel] → architecture tests 禁止 Data DTO/repository/业务 client 方法进入 platform；只有稳定、重复明显后才另评估共享库。
-- [单 Go module 的 `internal` 边界不够强] → 用 `go list` import graph architecture tests 强制禁止依赖；只有长期真实冲突才评估 multi-module。
-- [现有主规格仍描述共享 domain/repository 模块化单体] → 本 change 以 delta specs 完整更新 service ownership 与兼容迁移要求，Apply 时 artifacts 与实现一起校验。
+- [Tidewise runtime删除后采集暂时停止] → Proposal Review显式接受停止窗口；Data import contract先完成；外部 `agent-run`交接另开change，不能保留未授权手动后门。
+- [reviewed event import不能替代raw document import] → Package 4分别定义两个DTO/事务/receipt合同，runtime删除以两者contract通过为硬停止条件。
+- [Admin scheduler API是breaking surface] → 固定先返回认证后的410 tombstone并移除前端；保留一个实际部署窗口，日志/consumer为零后由后继change删route。
+- [误删历史scheduler数据] → 所有migration/表/row明确keep；architecture/migration tests验证000005历史；任何drop/truncate/migration diff立即停止。
+- [按名称误删connector或React scheduler依赖] → 使用symbol/caller manifest而非路径关键词；connectors/parsers与package-lock transitive dependency列为keep。
+- [删测试掩盖回归] → 每个删除项绑定production counterpart；before/after/delta、replacement tests、protected suites和最终全量回归，无法解释的下降fail-closed。
+- [testdata悬空或误删业务asset] → fixture loader引用审计；当前删除0；`backend/data`不当testdata处理。
+- [新增BFF→Data网络hop增加延迟/故障面] → aggregate endpoints、timeout budget、连接复用、有限retry、调用次数/性能baseline和typed errors。
+- [BFF/Data DTO漂移] → Data独占OpenAPI，受控client与schema drift CI；transport DTO不复用repository model。
+- [跨服务认证不足] → scoped service identity、secret注入/轮换、日志脱敏、request id/trace；Agent import独立scope。
+- [网络错误破坏写操作幂等] → idempotency key+payload hash、receipt/status、409与retryability；未知结果先查询receipt。
+- [事务被错误跨服务扩展] → Data aggregate单transaction；BFF/Agent不持有DB transaction，不引入分布式事务。
+- [三服务CI/CD与镜像增加] → service-owned assets与path-aware CI渐进引入；真实UAT rollout避让active change并后续规划。
+- [database role切换锁死runtime] → Package 9独立R2、backup、manifest、旧credential回切和逐层断言；历史scheduler表也纳入不变断言。
+- [platform演化成业务shared kernel] → architecture tests禁止DTO/repository/业务client/connector进入platform。
+- [单Go module边界不够强] → go list import graph持续执法；只有真实长期冲突才评估multi-module。
 
 ## Migration Plan
 
-1. Proposal Review：确认 Data ownership、Data API namespace/identity、目标目录、兼容窗口、R2 排除范围；只授权后续 R1 Apply，不授权数据库或部署写入。
-2. Package 2：先增加 architecture tests，建立三个 service owner、binary/facade 与禁止 import；旧路径保留薄兼容入口，rollback 为撤回 facade wiring，不改变数据。
-3. Package 3：定义最小 OpenAPI 和 Data HTTP server/client；先覆盖 Research/Admin aggregate 与 Agent import contract，不一次性暴露全部 repository CRUD。rollback 为停止 Data HTTP entry 并保留 compatibility adapter。
-4. Package 4：逐 BFF 替换 repository 依赖，先 Miniapp research，再 Admin query/scheduler；每一步以外部 API golden/contract test证明行为不变。rollback 切回已测试的进程内 client adapter，不允许重新引入 repository import。
-5. Package 5：将 ingestion/event-import/graph/seed/migration 命令标记并逐步收敛到 Data owner；CLI contract 保持，Agent production path 改为 Data HTTP API。无真实导入、seed、migration 或 projection write。
-6. Package 6：创建 service-owned build/health assets与 local orchestration；CI 先 build/test 三服务。排除 UAT files，等待 `migrate-uat-to-linux-amd64` Deliver 后另行 rollout。
-7. Package 7（独立 R2 authorization）：执行 local role/grant manifest 与 credential cutover；逐层 `preflight -> write -> query/assert`，失败立即停止并回切。UAT/prod 不在本 change 授权范围。
-8. Apply-final Review：提供 scoped diff、兼容/性能/安全证据、完整验证和未验证项；批准前不得 Sync/Archive/Deliver。
+1. Package 1 Proposal Review：确认服务/data ownership、精确retirement/keep/test清单、四项冻结决策、采集停止窗口、Data import和R2排除；只批准后续R1 Apply。
+2. Package 2 冻结before manifest/count/testdata引用并增加依赖边界；legacy paths使用临时精确allowlist，防止新调用。
+3. Package 3 建立三个HTTP entry/facade和health；旧两个command只作薄alias，无bulk move。
+4. Package 4 建Data OpenAPI/手写client、Research/Admin aggregates、scoped source-metadata read及raw-document/reviewed-event import；所有auth/idempotency/transaction/network tests通过后才允许retirement。
+5. Package 5 独立迁Miniapp到DataServiceClient，保持页面API。
+6. Package 6 独立迁Admin保留查询，旧scheduler endpoints变410 tombstone，前端移除scheduler。
+7. Package 7 删除Tidewise scheduler/source-ingest/ingest-smoke/runtime/health及只服务它们的config/domain/repositories/tests；保留表、connectors与import。
+8. Package 8 建service-owned assets/local orchestration/CI并清理文档引用；重建after inventory和testdata审计，排除真实环境。
+9. Package 9 仅经独立R2授权执行local DB roles/credentials；若决定不在本change授权，必须在进入Package 10前通过artifact amendment与人工Review把Package 9拆成后继R2 change，不能带未完成task宣称本change完成。
+10. Package 10 Apply-final：验证完整affected boundary、审阅diff与风险；批准前不得Sync/Archive/Deliver。
 
-## Open Questions
+## Frozen Proposal Review Decisions
 
-- Data 内部 API namespace 采用 `/internal/data/v1` 还是 `/data/v1`？建议 `/internal/data/v1`，并由网络与 service identity 双重限制；Proposal Review 时固定。
-- client 采用 OpenAPI 生成还是小型受控手写？建议先评估现有 toolchain；若生成器会引入重依赖或不稳定 diff，先用手写 typed client + schema contract test，后续另行切换。
-- `cmd/api`/`cmd/admin-api` compatibility alias 保留一个 release window 还是直到 UAT 三服务 rollout？建议保留到 local 与后续 UAT 都完成新 binary 验收。
-- Package 3 首批 Data aggregate 是否只覆盖现有 Research 与 Admin APIs，还是同时建立通用 Entity/Event read？建议只覆盖现有消费者与 Agent import，避免无消费者的 CRUD surface。
-- Package 7 是否属于本 change 的最终 Apply，还是拆为后继 change？建议保留为本 change 内独立授权 package以保证目标完整，但若 local backup/credential owner 尚未就绪，应将其拆为后继 R2 change，且不阻塞 R1 service boundary code 的独立 Review。
+- Data API namespace固定为`/internal/data/v1`，由网络边界和service identity共同限制。
+- 本change固定使用小型受控手写typed client + OpenAPI schema drift test，不引入生成器。
+- 三个Admin scheduler endpoints固定为认证后的`410 Gone` tombstone并保留一个实际部署窗口；本change不采用直接404。
+- raw-document import固定为有界whole-batch validation + atomic write；任一item非法时整批在业务写入前拒绝，不提供逐item部分成功。
+
+另外两项属于已确认scope而非未决选择：外部`agent-run`未交付时允许明确的采集停止窗口，Tidewise不得保留双路径；Package 9保留在本change内但仍是独立R2 human gate，若要拆出必须先做artifact amendment并重新Review。
 
 ## Effort Estimate
 
 | Package | Estimate | Primary evidence |
 |---|---:|---|
-| 1. Proposal Review | 0.5 day | artifacts、strict validate、decision log |
-| 2. Boundary/binaries | 2-3 days | architecture tests、three buildable entries |
-| 3. Data API/OpenAPI/client | 4-6 days | contract、HTTP server/client、auth/trace/idempotency tests |
-| 4. BFF decoupling | 4-6 days | compatible miniapp/admin suites、no forbidden imports |
-| 5. Data jobs ownership | 3-5 days | command contract suites、Agent import transition |
-| 6. Build assets/local orchestration | 2-4 days | three images、health、local compose、CI |
-| 7. Local DB role cutover | 1-2 days plus authorization | backup、grants manifest、before/after assertions |
-| 8. Apply-final Review | 0.5-1 day | full affected-boundary verification and review package |
+| 1. Proposal Review | 0.5-1 day | artifacts、strict validate、决策记录 |
+| 2. Boundary inventory/architecture | 2-3 days | manifest/counts、import/testdata contracts |
+| 3. Three binaries/ownership | 2-3 days | three buildable entries、health、aliases |
+| 4. Data API/OpenAPI/import | 5-8 days | aggregates、scoped source-metadata read、two import contracts、auth/idempotency/network tests |
+| 5. Miniapp decoupling | 2-4 days | compatible page suites、no forbidden imports |
+| 6. Admin decoupling/scheduler surface | 2-4 days | 410 contracts、frontend retirement、Admin complete suites |
+| 7. Runtime retirement/test cleanup | 3-5 days | exact deletion/ref audit、protected targeted suites |
+| 8. Assets/local/CI/docs | 2-4 days | images/health/compose/CI、after inventory |
+| 9. Local DB role cutover | 1-2 days plus authorization | backup、grants manifest、assertions |
+| 10. Apply-final Review | 0.5-1 day | full affected-boundary evidence、review package |
 
-总计约 17-27 engineer-days；若首批 Data API surface 严格限制为当前 Research/Admin/Agent consumers，预计靠近下限。UAT/prod rollout、multi-module/repo split 与未来领域服务不计入。
+总计约 22-35 engineer-days；较原17-27天显著增加，主要来自双import contract、Admin scheduler兼容退役、精确runtime/test cleanup与引用审计。外部 `agent-run`实现、真实UAT/prod rollout、multi-module/repo split不计入。

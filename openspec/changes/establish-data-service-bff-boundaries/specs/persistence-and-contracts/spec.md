@@ -11,6 +11,14 @@
 - **WHEN** 服务边界迁移开始
 - **THEN** Research Theme/Anchor 与其他现有 Data tables 必须继续归 Data Service，不得为了目录分层机械搬表、拆 schema 或重写 migration
 
+#### Scenario: 保留历史 scheduler tables
+- **WHEN** Tidewise scheduler/runtime与其repositories被删除
+- **THEN** `ingestion_scheduler_configs`、`ingestion_runs`、`ingestion_run_sources`及migration `000005_add_ingestion_scheduler.sql`必须原样保留，且不得drop、truncate、重写历史SQL或删除既有rows
+
+#### Scenario: 停止 scheduler 数据访问
+- **WHEN** runtime退役完成
+- **THEN** production应用不得继续创建、更新或通过Admin API读取scheduler config/run；未来历史审计需求必须另开只读Data API change
+
 ### Requirement: Data 数据库角色边界
 系统 SHALL 定义 `data_service_rw`、`data_service_migrate`、`data_service_ro` 三类最小 PostgreSQL role，并 MUST 将真实 role/grant/credential 切换作为独立 R2 授权操作，与 R1 代码/服务边界调整分离。
 
