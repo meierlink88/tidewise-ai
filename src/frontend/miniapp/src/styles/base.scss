@@ -1,25 +1,30 @@
+@use './tokens' as *;
+
 page {
   min-height: 100%;
-  background: $color-page;
+  background: $color-ivory-200;
   color: $color-text-primary;
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
-.page-shell {
-  min-height: 100vh;
-  padding: $spacing-page;
+view,
+text,
+button,
+input,
+scroll-view {
   box-sizing: border-box;
 }
 
-.page-title {
-  margin-bottom: 16px;
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 1.25;
+button::after {
+  border: 0;
 }
 
-.page-subtitle {
-  color: $color-text-secondary;
-  font-size: 28px;
-  line-height: 1.55;
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
 }

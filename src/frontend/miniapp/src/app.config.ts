@@ -1,11 +1,11 @@
-import { appPages } from './constants/app-navigation';
-
 export default defineAppConfig({
-  pages: [...appPages],
+  pages: ['pages/index/index'],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#0f172a',
-    navigationBarTitleText: '观潮家',
-    navigationBarTextStyle: 'white'
+    navigationBarBackgroundColor: '#071735',
+    navigationBarTitleText: '观潮',
+    navigationBarTextStyle: 'white',
+    navigationStyle: 'custom',
+    backgroundColor: '#f4f0e8'
   }
 });
