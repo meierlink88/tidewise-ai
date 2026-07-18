@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/internalapi"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/transport/internalapi"
 )
 
 func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {

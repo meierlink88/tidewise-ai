@@ -7,12 +7,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/apps/graphprojection"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/graphdb"
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/database"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/dbmigration"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/graphdb"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/graphprojection"
 )
 
 type executor interface {

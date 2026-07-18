@@ -6,18 +6,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
 )
 
 type healthResponse struct {
-	Status      string             `json:"status"`
-	Service     string             `json:"service"`
-	Environment config.Environment `json:"environment"`
-	Checks      map[string]string  `json:"checks,omitempty"`
+	Status      string                    `json:"status"`
+	Service     string                    `json:"service"`
+	Environment runtimeconfig.Environment `json:"environment"`
+	Checks      map[string]string         `json:"checks,omitempty"`
 }
 
 // NewHealthHandler returns the service skeleton's liveness and readiness facade.
-func NewHealthHandler(service string, environment config.Environment) http.Handler {
+func NewHealthHandler(service string, environment runtimeconfig.Environment) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(response http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodGet {
@@ -45,18 +45,17 @@ func NewHealthHandler(service string, environment config.Environment) http.Handl
 	return mux
 }
 
-// NewServer applies common process settings while preserving an injected
-// compatibility handler byte-for-byte during the service-boundary transition.
-func NewServer(cfg config.Config, service string, compatibilityHandler http.Handler) *http.Server {
-	handler := compatibilityHandler
+// NewServer applies common process settings to a service-owned handler.
+func NewServer(cfg runtimeconfig.ServerConfig, service string, environment runtimeconfig.Environment, configuredHandler http.Handler) *http.Server {
+	handler := configuredHandler
 	if handler == nil {
-		handler = NewHealthHandler(service, cfg.App.Env)
+		handler = NewHealthHandler(service, environment)
 	}
 	return &http.Server{
-		Addr:         cfg.Server.Address(),
+		Addr:         cfg.Address(),
 		Handler:      handler,
-		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
-		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
+		ReadTimeout:  time.Duration(cfg.ReadTimeoutSeconds) * time.Second,
+		WriteTimeout: time.Duration(cfg.WriteTimeoutSeconds) * time.Second,
 	}
 }
 

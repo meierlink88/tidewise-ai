@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mockDailyBrief } from './data/daily-brief/mock-daily-brief';
+import { mockDailyBrief } from './mocks/daily-brief/mock-daily-brief';
 import { MockDailyBriefAdapter } from './services/daily-brief/mock-adapter';
 import { mapDailyBriefToHome } from './templates/daily-brief';
 import { createInitialResourceState, resourceStateReducer } from './models/resource-state';

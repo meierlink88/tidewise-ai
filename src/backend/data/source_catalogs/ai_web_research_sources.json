@@ -60,7 +60,7 @@
         "api_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "api_protocol": "openai_compatible",
         "model": "qwen3.7-plus",
-        "prompt_ref": "ingestion/ai_web_research/search-plan.v2.md",
+        "prompt_ref": "agent-run://prompts/ai-web-research/search-plan/v2",
         "prompt_version": "v2",
         "prompt_variables": {
           "language": "zh-CN",
@@ -159,7 +159,7 @@
         "api_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "api_protocol": "openai_compatible",
         "model": "qwen3.7-plus",
-        "prompt_ref": "ingestion/ai_web_research/search-plan.v2.md",
+        "prompt_ref": "agent-run://prompts/ai-web-research/search-plan/v2",
         "prompt_version": "v2",
         "prompt_variables": {
           "language": "zh-CN",

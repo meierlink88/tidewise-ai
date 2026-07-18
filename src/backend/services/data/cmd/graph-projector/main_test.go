@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories"
 )
 
 func TestRunCheckCommand(t *testing.T) {

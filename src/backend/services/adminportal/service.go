@@ -4,21 +4,21 @@ package adminportal
 import (
 	"net/http"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/apps/adminapi"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/servicehttp"
+	adminconfig "github.com/meierlink88/tidewise-ai/backend/services/adminportal/config"
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/dataclient"
+	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/transport"
+	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/usecase"
 )
 
-const ServiceName = "adminportal"
+const ServiceName = adminconfig.ServiceName
 
 // NewHandler composes the Admin BFF exclusively through its DataServiceClient.
-func NewHandler(cfg config.Config, client dataclient.DataServiceClient, adminToken string) http.Handler {
+func NewHandler(cfg adminconfig.RuntimeConfig, client dataclient.DataServiceClient, adminToken string) http.Handler {
 	cfg.App.Name = ServiceName
-	return adminapi.NewRouter(cfg, client, adminToken)
+	return transport.NewRouter(cfg.App, usecase.NewService(client), adminToken)
 }
 
-// NewServer preserves an injected legacy handler during the compatibility window.
-func NewServer(cfg config.Config, compatibilityHandler http.Handler) *http.Server {
-	return servicehttp.NewServer(cfg, ServiceName, compatibilityHandler)
+func NewServer(cfg adminconfig.RuntimeConfig, handler http.Handler) *http.Server {
+	return servicehttp.NewServer(cfg.Server, ServiceName, cfg.App.Env, handler)
 }

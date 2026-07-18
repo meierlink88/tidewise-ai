@@ -8,9 +8,6 @@ server:
   write_timeout_seconds: 15
 log:
   level: debug
-agent_platform:
-  base_url: http://host.docker.internal:9000
-  callback_path: /api/v1/agent/callbacks
 database:
   host: postgres
   port: 5432
@@ -21,8 +18,6 @@ database:
   max_idle_conns: 5
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 5
-redis:
-  address: redis:6379
 neo4j:
   enabled: true
   uri: bolt://neo4j:7687
@@ -35,10 +30,3 @@ migration:
   directory: migrations
   auto_apply: false
   lock_key: tidewise_schema_migration
-object_store:
-  provider: local
-  local_path: /app/.data/raw-objects
-rate_limit:
-  default_requests_per_minute: 60
-security:
-  jwt_issuer: tidewise-local

@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
+	miniappconfig "github.com/meierlink88/tidewise-ai/backend/services/miniapp/config"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 )
 
@@ -58,15 +59,15 @@ func assertServiceHealth(t *testing.T, handler http.Handler, service string) {
 			t.Fatalf("%s status = %d, want %d", test.path, response.Code, http.StatusOK)
 		}
 		var body struct {
-			Status      string             `json:"status"`
-			Service     string             `json:"service"`
-			Environment config.Environment `json:"environment"`
-			Checks      map[string]string  `json:"checks"`
+			Status      string                    `json:"status"`
+			Service     string                    `json:"service"`
+			Environment runtimeconfig.Environment `json:"environment"`
+			Checks      map[string]string         `json:"checks"`
 		}
 		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 			t.Fatalf("decode %s: %v", test.path, err)
 		}
-		if body.Status != test.wantStatus || body.Service != service || body.Environment != config.EnvLocal {
+		if body.Status != test.wantStatus || body.Service != service || body.Environment != runtimeconfig.EnvLocal {
 			t.Fatalf("%s response = %+v", test.path, body)
 		}
 		if test.path == "/readyz" && body.Checks["config"] != "ok" {
@@ -75,10 +76,10 @@ func assertServiceHealth(t *testing.T, handler http.Handler, service string) {
 	}
 }
 
-func testConfig() config.Config {
-	return config.Config{
-		App: config.AppConfig{Env: config.EnvLocal},
-		Server: config.ServerConfig{
+func testConfig() miniappconfig.RuntimeConfig {
+	return miniappconfig.RuntimeConfig{
+		App: runtimeconfig.AppConfig{Env: runtimeconfig.EnvLocal},
+		Server: runtimeconfig.ServerConfig{
 			Host:                "127.0.0.1",
 			Port:                18082,
 			ReadTimeoutSeconds:  5,

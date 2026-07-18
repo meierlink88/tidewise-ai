@@ -1,4 +1,4 @@
-import { mockDailyBrief } from '../../data/daily-brief/mock-daily-brief';
+import { mockDailyBrief } from '../../mocks/daily-brief/mock-daily-brief';
 import type { DailyBriefPort } from './port';
 
 export type MockDailyBriefScenario = 'ready' | 'empty' | 'error' | 'loading';

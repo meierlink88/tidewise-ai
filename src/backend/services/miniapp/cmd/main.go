@@ -5,11 +5,12 @@ import (
 	"net/http"
 
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp"
+	miniappconfig "github.com/meierlink88/tidewise-ai/backend/services/miniapp/config"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 )
 
 func main() {
-	runtime, err := miniapp.LoadRuntimeConfig()
+	runtime, err := miniappconfig.LoadRuntimeConfig()
 	if err != nil {
 		log.Fatalf("load Miniapp config: %v", err)
 	}
@@ -19,9 +20,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("configure Data Service client: %v", err)
 	}
-	cfg := runtime.ServiceConfig()
-	server := miniapp.NewServer(cfg, miniapp.NewHandler(cfg, client))
-	log.Printf("starting %s on %s in %s", miniapp.ServiceName, server.Addr, cfg.App.Env)
+	server := miniapp.NewServer(runtime, miniapp.NewHandler(runtime, client))
+	log.Printf("starting %s on %s in %s", miniapp.ServiceName, server.Addr, runtime.App.Env)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server failed: %v", err)
 	}

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	entityseed "github.com/meierlink88/tidewise-ai/backend/internal/apps/entityfoundation/seed"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/domain"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/domain"
+	entityseed "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/entityseed"
 )
 
 func TestValidateCommandOptionsRejectsRetiredApplyScopes(t *testing.T) {

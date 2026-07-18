@@ -8,7 +8,7 @@ import (
 )
 
 func TestRepositoryFilesFollowBusinessResponsibilities(t *testing.T) {
-	root := filepath.Join("..", "repositories")
+	root := filepath.Join("..", "..", "services", "data", "repositories")
 	for _, name := range []string{
 		"admin_query.go",
 		"benchmark_observation.go",
@@ -16,7 +16,7 @@ func TestRepositoryFilesFollowBusinessResponsibilities(t *testing.T) {
 		"identity.go",
 		"memory.go",
 		"postgres.go",
-		"raw_document.go",
+		"research_read.go",
 		"source_catalog.go",
 	} {
 		if _, err := os.Stat(filepath.Join(root, name)); err != nil {
@@ -24,7 +24,7 @@ func TestRepositoryFilesFollowBusinessResponsibilities(t *testing.T) {
 		}
 	}
 
-	for _, name := range []string{"doc.go", "ingestion_run.go", "postgres_repository.go", "repository.go", "scheduler.go", "uuid.go"} {
+	for _, name := range []string{"doc.go", "ingestion_run.go", "postgres_repository.go", "raw_document.go", "repository.go", "scheduler.go", "uuid.go"} {
 		_, err := os.Stat(filepath.Join(root, name))
 		if err == nil {
 			t.Fatalf("legacy repository file %q still exists", name)

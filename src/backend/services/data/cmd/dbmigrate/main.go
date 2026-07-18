@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/dbmigration"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
 )
 
 func main() {

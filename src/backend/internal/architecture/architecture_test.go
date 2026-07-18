@@ -15,77 +15,21 @@ type packageInfo struct {
 	Imports    []string
 }
 
-func TestBackendSubsystemPackagesExist(t *testing.T) {
-	packages := listInternalPackages(t)
-	expected := []string{
-		"internal/apps/miniappapi",
-		"internal/apps/adminapi",
-		"internal/apps/entityfoundation",
-		"internal/apps/entityfoundation/seed",
-		"internal/apps/ingestion",
-		"internal/apps/ingestion/core",
-		"internal/apps/ingestion/sourcecatalog",
-		"internal/apps/ingestion/connectors",
-		"internal/apps/ingestion/parsers",
-		"internal/apps/graphprojection",
-		"internal/platform",
-		"internal/platform/database",
-		"internal/platform/dbmigration",
-		"internal/platform/graphdb",
-	}
-
-	for _, suffix := range expected {
-		if !hasPackageSuffix(packages, suffix) {
-			t.Fatalf("expected backend package %q to exist", suffix)
+func TestInternalTreeContainsOnlyBusinessFreePlatformCode(t *testing.T) {
+	for _, pkg := range listInternalPackages(t) {
+		owner := localPackageName(pkg.ImportPath)
+		if owner == "internal/architecture" || strings.HasPrefix(owner, "internal/platform/") || owner == "internal/platform" {
+			continue
 		}
+		t.Errorf("business package %q must be owned by one of the deployable services", owner)
 	}
 }
 
-func TestLegacyIngestionCompatibilityPackagesAreRemoved(t *testing.T) {
-	packages := listInternalPackages(t)
-	legacy := []string{
-		"internal/jobs",
-		"internal/sourcecatalog",
-		"internal/integrations",
-		"internal/ingestion",
-		"internal/entityseed",
-		"internal/migrations",
-		"internal/database",
-	}
-
-	for _, suffix := range legacy {
-		if hasPackageSuffix(packages, suffix) {
-			t.Fatalf("legacy backend package %q must be removed after ingestion subsystem migration", suffix)
-		}
-	}
-}
-
-func TestBackendForbiddenDependencies(t *testing.T) {
-	packages := listInternalPackages(t)
-
-	for _, pkg := range packages {
-		switch {
-		case containsPath(pkg.ImportPath, "/internal/integrations"):
-			assertNoImport(t, pkg, "/internal/apps/")
-		case containsPath(pkg.ImportPath, "/internal/apps/miniappapi"),
-			containsPath(pkg.ImportPath, "/internal/apps/adminapi"):
-			assertNoImport(t, pkg, "/internal/apps/ingestion/connectors")
-			assertNoImport(t, pkg, "/internal/platform/graphdb")
-		case containsPath(pkg.ImportPath, "/internal/apps/ingestion"):
-			assertNoImport(t, pkg, "/internal/platform/graphdb")
-		case containsPath(pkg.ImportPath, "/internal/apps/ingestion/connectors"):
-			assertNoImport(t, pkg, "/internal/repositories")
-			assertNoImport(t, pkg, "/internal/platform/database")
-		case containsPath(pkg.ImportPath, "/internal/apps/ingestion/parsers"):
-			assertNoImport(t, pkg, "/internal/repositories")
-			assertNoImport(t, pkg, "/internal/platform/database")
-			assertNoStdlibImport(t, pkg, "os")
-			assertNoStdlibImport(t, pkg, "net/http")
-		case containsPath(pkg.ImportPath, "/internal/platform"):
-			assertNoImport(t, pkg, "/internal/apps/")
-			assertNoImport(t, pkg, "/internal/domain")
-			assertNoImport(t, pkg, "/internal/repositories")
-			assertNoImport(t, pkg, "/internal/http")
+func TestSharedPlatformDoesNotDependOnServices(t *testing.T) {
+	for _, pkg := range listInternalPackages(t) {
+		owner := localPackageName(pkg.ImportPath)
+		if owner == "internal/platform" || strings.HasPrefix(owner, "internal/platform/") {
+			assertNoImport(t, pkg, "/services/")
 		}
 	}
 }
@@ -138,16 +82,14 @@ func assertNoImport(t *testing.T, pkg packageInfo, forbidden string) {
 	}
 }
 
-func assertNoStdlibImport(t *testing.T, pkg packageInfo, forbidden string) {
-	t.Helper()
-
-	for _, imported := range pkg.Imports {
-		if imported == forbidden {
-			t.Fatalf("%s must not import %s", pkg.ImportPath, imported)
-		}
-	}
-}
-
 func containsPath(importPath string, fragment string) bool {
 	return strings.Contains(importPath, fragment)
+}
+
+func localPackageName(importPath string) string {
+	const marker = "/backend/"
+	if index := strings.Index(importPath, marker); index >= 0 {
+		return importPath[index+len(marker):]
+	}
+	return importPath
 }

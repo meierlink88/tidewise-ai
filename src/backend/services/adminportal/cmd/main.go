@@ -5,11 +5,12 @@ import (
 	"net/http"
 
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal"
+	adminconfig "github.com/meierlink88/tidewise-ai/backend/services/adminportal/config"
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/dataclient"
 )
 
 func main() {
-	runtime, err := adminportal.LoadRuntimeConfig()
+	runtime, err := adminconfig.LoadRuntimeConfig()
 	if err != nil {
 		log.Fatalf("load Admin config: %v", err)
 	}
@@ -19,9 +20,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("configure Data Service client: %v", err)
 	}
-	cfg := runtime.ServiceConfig()
-	server := adminportal.NewServer(cfg, adminportal.NewHandler(cfg, client, runtime.AdminToken))
-	log.Printf("starting %s on %s in %s", adminportal.ServiceName, server.Addr, cfg.App.Env)
+	server := adminportal.NewServer(runtime, adminportal.NewHandler(runtime, client, runtime.AdminToken))
+	log.Printf("starting %s on %s in %s", adminportal.ServiceName, server.Addr, runtime.App.Env)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server failed: %v", err)
 	}

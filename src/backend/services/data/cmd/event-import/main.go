@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	app "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/eventimport"
-	domainimport "github.com/meierlink88/tidewise-ai/backend/internal/domain/eventimport"
+	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventimport"
+	app "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 )
 
 const (

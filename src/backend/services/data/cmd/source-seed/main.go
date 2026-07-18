@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	ingestionsourcecatalog "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/sourcecatalog"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/database"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories"
+	ingestionsourcecatalog "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/sourcecatalog"
 )
 
 func main() {
