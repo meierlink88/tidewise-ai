@@ -264,12 +264,11 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 	nextCursor := "opaque-next"
 	themeImpacts := []domain.ImpactLevel{
 		domain.ImpactLevelHigh, domain.ImpactLevelFocus, domain.ImpactLevelWatch,
-		domain.ImpactLevelHigh, domain.ImpactLevelFocus,
+		domain.ImpactLevelHigh,
 	}
 	themeStages := []domain.TransmissionStage{
-		domain.TransmissionStageUpstream, domain.TransmissionStageMidstream,
-		domain.TransmissionStageDownstream, domain.TransmissionStageInfrastructure,
-		domain.TransmissionStageService,
+		domain.TransmissionStageIdentification, domain.TransmissionStageValidation,
+		domain.TransmissionStageDiffusion, domain.TransmissionStageDampening,
 	}
 	themes := make([]research.ResearchTheme, 0, len(themeStages))
 	for index, stage := range themeStages {
@@ -277,7 +276,7 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 			ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
 			ImpactLevel: themeImpacts[index], TransmissionPath: "供给到价格", TradingDirection: "关注供需验证后的方向变化",
 			TransmissionStage: stage, NextCheckpoint: "下次数据", IndexImpactSummary: "指数摘要", PublishedAt: now,
-			AffectedChainNodes: []research.ResearchThemeChainNode{}, RelatedIndices: []research.ResearchIndex{}, HasMoreDetail: true,
+			AffectedChainNodes: []research.ResearchThemeChainNode{}, RelatedIndices: []research.ResearchIndex{},
 		})
 	}
 	themes[0].AffectedChainNodes = []research.ResearchThemeChainNode{{
@@ -348,7 +347,7 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 		t.Fatal(err)
 	}
 	assertStringSet(t, "impact_level", themeImpactStrings(themeEnvelope.Result.Items), []string{"high", "focus", "watch"})
-	assertStringSet(t, "transmission_stage", themeStageStrings(themeEnvelope.Result.Items), []string{"upstream", "midstream", "downstream", "infrastructure", "service"})
+	assertStringSet(t, "transmission_stage", themeStageStrings(themeEnvelope.Result.Items), []string{"identification", "validation", "diffusion", "dampening"})
 	assertStringSet(t, "impact_direction", indexDirectionStrings(themeEnvelope.Result.Items[0].RelatedIndices), []string{"positive", "negative", "mixed", "neutral"})
 	if themeEnvelope.Result.Items[0].TradingDirection == "" || themeEnvelope.Result.NextCursor == nil || *themeEnvelope.Result.NextCursor != nextCursor {
 		t.Fatalf("theme natural-language/cursor contract drifted: %#v", themeEnvelope.Result.Items[0])

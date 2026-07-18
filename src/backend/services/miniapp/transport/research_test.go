@@ -27,8 +27,8 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 			Items: []dataclient.ResearchTheme{{
 				ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
 				ImpactLevel: dataclient.ImpactLevelHigh, TransmissionPath: "政策到产业链", TradingDirection: "风险偏好可能回升",
-				TransmissionStage: dataclient.TransmissionStageUpstream, NextCheckpoint: "下周数据", PublishedAt: now,
-				AffectedChainNodes: []dataclient.ResearchThemeChainNode{}, RelatedIndices: []dataclient.ResearchIndex{}, HasMoreDetail: true,
+				TransmissionStage: dataclient.TransmissionStageIdentification, NextCheckpoint: "下周数据", PublishedAt: now,
+				AffectedChainNodes: []dataclient.ResearchThemeChainNode{}, RelatedIndices: []dataclient.ResearchIndex{},
 			}},
 		}, nil
 	}}
@@ -50,7 +50,7 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 		t.Fatalf("items = %#v", body["items"])
 	}
 	item := items[0].(map[string]any)
-	if item["impact_level"] != "high" || item["trading_direction"] != "风险偏好可能回升" || item["transmission_stage"] != "upstream" {
+	if item["impact_level"] != "high" || item["trading_direction"] != "风险偏好可能回升" || item["transmission_stage"] != "identification" {
 		t.Fatalf("item = %#v", item)
 	}
 	if item["affected_chain_nodes"] == nil || item["related_indices"] == nil || calls != 1 {

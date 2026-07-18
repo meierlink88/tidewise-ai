@@ -72,6 +72,9 @@ jobs:
         run: npm run lint
 
       - name: Build Miniapp
+        env:
+          TARO_APP_RESEARCH_SOURCE: api
+          TARO_APP_MINIAPP_API_BASE_URL: https://miniapp.example.invalid
         run: npm run build:weapp
 
       - name: Build Admin portal

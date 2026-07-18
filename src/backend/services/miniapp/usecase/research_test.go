@@ -49,11 +49,11 @@ func TestResearchServiceListsThemesWithOneAggregateCallAndPreservesCursorAndDTO(
 			Items: []dataclient.ResearchTheme{{
 				ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
 				ImpactLevel: dataclient.ImpactLevelFocus, TransmissionPath: "政策到产业链",
-				TradingDirection: "流动性改善后风险偏好可能回升", TransmissionStage: dataclient.TransmissionStageInfrastructure,
+				TradingDirection: "流动性改善后风险偏好可能回升", TransmissionStage: dataclient.TransmissionStageDiffusion,
 				NextCheckpoint: "下周数据", PublishedAt: now,
 				AffectedChainNodes:   []dataclient.ResearchThemeChainNode{{ID: "node-1", Name: "算力", RelationRole: "driver", ImpactSummary: "资本开支上升"}},
 				RelatedIndices:       []dataclient.ResearchIndex{{ID: "index-1", Name: "指数", ImpactDirection: dataclient.ImpactDirectionNeutral, ImpactSummary: "等待验证"}},
-				SupportingEventCount: 2, ContradictingEventCount: 1, HasMoreDetail: true,
+				SupportingEventCount: 2, ContradictingEventCount: 1,
 			}},
 		}, nil
 	}}

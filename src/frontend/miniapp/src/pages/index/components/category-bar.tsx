@@ -17,7 +17,7 @@ export function CategoryBar({ categories, activeCategory, trackingCount, onCateg
           {categories.map((category) => (
             <Button
               key={category}
-              className={`category-chip${activeCategory === category ? ' category-chip--active' : ''}`}
+              className={`tidewise-button category-chip${activeCategory === category ? ' category-chip--active' : ''}`}
               hoverClass='none'
               onClick={() => onCategoryChange(category)}
             >
@@ -27,11 +27,11 @@ export function CategoryBar({ categories, activeCategory, trackingCount, onCateg
         </View>
       </ScrollView>
       <Button
-        className='tracking-button'
+        className='tidewise-button tracking-button'
         hoverClass='none'
         onClick={() => void Taro.showToast({ title: '跟踪列表即将开放', icon: 'none', duration: 1600 })}
       >
-        <Image className='tracking-button__icon' src={clockIcon} mode='aspectFit' />
+        <Image className='tracking-button__icon' src={clockIcon} mode='scaleToFill' />
         <Text>跟踪中 {trackingCount}</Text>
       </Button>
     </View>

@@ -13,7 +13,7 @@ func TestResearchThemeValidate(t *testing.T) {
 		ID: "theme-1", AnalysisBatchID: "batch-1", Name: "算力基建",
 		OneLineConclusion: "需求持续，瓶颈向互联传导。", ImpactLevel: ImpactLevelHigh,
 		TransmissionPath: "需求 -> 互联", TradingDirection: "关注供给约束",
-		TransmissionStage: TransmissionStageMidstream, NextCheckpoint: "看订单",
+		TransmissionStage: TransmissionStageIdentification, NextCheckpoint: "看订单",
 		IndexImpactSummary: "指数影响偏正面", WindowStart: &start, WindowEnd: &end,
 	}
 	if err := base.Validate(); err != nil {
@@ -33,6 +33,36 @@ func TestResearchThemeValidate(t *testing.T) {
 				t.Fatal("Validate() error = nil, want validation error")
 			}
 		})
+	}
+}
+
+func TestResearchThemeValidateAcceptsConclusionTransmissionStagesOnly(t *testing.T) {
+	base := ResearchTheme{
+		ID: "theme-1", AnalysisBatchID: "batch-1", Name: "算力基建",
+		OneLineConclusion: "需求持续，瓶颈向互联传导。", ImpactLevel: ImpactLevelHigh,
+		TransmissionPath: "需求 -> 互联", TradingDirection: "关注供给约束",
+		NextCheckpoint: "尚未显现", IndexImpactSummary: "指数影响偏正面",
+	}
+
+	for _, stage := range []TransmissionStage{
+		TransmissionStageIdentification,
+		TransmissionStageValidation,
+		TransmissionStageDiffusion,
+		TransmissionStageDampening,
+	} {
+		value := base
+		value.TransmissionStage = stage
+		if err := value.Validate(); err != nil {
+			t.Fatalf("Validate() stage %q error = %v", stage, err)
+		}
+	}
+
+	for _, legacyStage := range []TransmissionStage{"upstream", "midstream", "downstream", "infrastructure", "service"} {
+		value := base
+		value.TransmissionStage = legacyStage
+		if err := value.Validate(); err == nil {
+			t.Fatalf("Validate() legacy stage %q error = nil", legacyStage)
+		}
 	}
 }
 

@@ -55,6 +55,7 @@
 
 .home-nav__title {
   position: absolute;
+  top: 50%;
   right: 0;
   left: 0;
   z-index: 1;
@@ -63,6 +64,7 @@
   font-weight: 700;
   line-height: 1;
   text-align: center;
+  transform: translateY(-50%);
 }
 
 .home-search-row {
@@ -164,10 +166,19 @@
 }
 
 .category-bar__scroll {
+  width: 0;
   min-width: 0;
   height: 64rpx;
   flex: 1;
+  overflow: hidden;
+  scrollbar-width: none;
   white-space: nowrap;
+}
+
+.category-bar__scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .category-bar__items {
@@ -205,6 +216,7 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  margin-left: 10rpx;
   padding: 0 22rpx;
   border: 2rpx solid #d8e1ef;
   border-radius: 32rpx;
@@ -379,6 +391,7 @@
 }
 
 .theme-card__industries {
+  align-items: flex-start;
   margin: 20rpx 0 16rpx;
 }
 
@@ -404,15 +417,19 @@
 .theme-card__node-list {
   min-width: 0;
   flex: 1;
-  overflow: hidden;
+  flex-wrap: wrap;
+  overflow: visible;
 }
 
 .theme-card__node {
   display: inline-flex;
   height: 48rpx;
   min-width: 0;
+  max-width: 100%;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  margin-bottom: 8rpx;
   margin-right: 9rpx;
   padding: 0 15rpx;
   overflow: hidden;
@@ -457,8 +474,10 @@
 .theme-card__footer {
   position: relative;
   min-height: 62rpx;
+  flex-wrap: wrap;
   margin-top: 18rpx;
   padding-top: 18rpx;
+  row-gap: 12rpx;
   border-top: 2rpx solid #dce3ed;
 }
 
@@ -471,6 +490,7 @@
 
 .theme-card__phase {
   min-width: 0;
+  flex: 0 0 auto;
   margin-left: 18rpx;
   color: #67778f;
   font-size: 21rpx;

@@ -38,6 +38,29 @@ func TestResearchMigrationContract(t *testing.T) {
 	}
 }
 
+func TestResearchTransmissionStageCorrectionMigrationContract(t *testing.T) {
+	content, err := os.ReadFile("../../../migrations/000023_correct_research_theme_transmission_stages.sql")
+	if err != nil {
+		t.Fatalf("read transmission-stage correction migration: %v", err)
+	}
+	sql := strings.ToLower(string(content))
+
+	for _, fragment := range []string{
+		"drop constraint chk_research_themes_stage",
+		"transmission_stage in ('identification', 'validation', 'diffusion', 'dampening')",
+		"raise exception",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("migration missing contract %q", fragment)
+		}
+	}
+	for _, forbidden := range []string{"update research_themes", "upstream', 'midstream", "delete from research_themes"} {
+		if strings.Contains(sql, forbidden) {
+			t.Fatalf("migration must not infer or discard legacy stage data: found %q", forbidden)
+		}
+	}
+}
+
 func TestResearchMigrationAllTablesHaveAuditColumns(t *testing.T) {
 	content, err := os.ReadFile("../../../migrations/000021_add_research_theme_anchor_foundation.sql")
 	if err != nil {

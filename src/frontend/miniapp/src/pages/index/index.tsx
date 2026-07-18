@@ -3,14 +3,14 @@ import { Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useState } from 'react';
 import type { HomeResearchThemeFeed } from '../../features/research-themes/contract';
 import { filterHomeResearchThemes, getHomeThemeCategories } from '../../features/research-themes/feed';
-import { createMockResearchThemeFeedPort } from '../../mocks/research-themes/mock-port';
+import { createResearchThemeFeedPort } from '../../features/research-themes/port';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
 import { CategoryBar } from './components/category-bar';
 import { HomeHeader } from './components/home-header';
 import { ResearchThemeCard } from './components/research-theme-card';
 import './index.scss';
 
-const feedPort = createMockResearchThemeFeedPort();
+const feedPort = createResearchThemeFeedPort();
 
 export default function IndexPage() {
   const [feed, setFeed] = useState<HomeResearchThemeFeed | null>(null);

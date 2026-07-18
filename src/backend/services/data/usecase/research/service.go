@@ -66,7 +66,6 @@ type ResearchTheme struct {
 	RelatedIndices          []ResearchIndex          `json:"related_indices"`
 	SupportingEventCount    int                      `json:"supporting_event_count"`
 	ContradictingEventCount int                      `json:"contradicting_event_count"`
-	HasMoreDetail           bool                     `json:"has_more_detail"`
 }
 
 type ResearchThemeDetail struct {
@@ -345,7 +344,6 @@ func themeDTO(item repositories.ResearchThemeSummary) ResearchTheme {
 		IndexImpactSummary: item.IndexImpactSummary, PublishedAt: item.PublishedAt.UTC(),
 		AffectedChainNodes: themeChainNodeDTOs(item.ChainNodes), RelatedIndices: indexDTOs(item.Indices),
 		SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount,
-		HasMoreDetail: true,
 	}
 }
 

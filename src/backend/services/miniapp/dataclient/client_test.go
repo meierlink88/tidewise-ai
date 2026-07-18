@@ -23,7 +23,7 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 			t.Fatalf("path = %q, want %q", request.URL.Path, ResearchThemesPath)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","name":"theme","impact_level":"focus","trading_direction":"流动性改善后风险偏好可能回升","transmission_stage":"infrastructure","affected_chain_nodes":[{"id":"22222222-2222-5222-8222-222222222222","name":"算力基础设施","relation_role":"driver","impact_summary":"资本开支上升"}],"related_indices":[{"id":"33333333-3333-5333-8333-333333333333","name":"示例指数","impact_direction":"neutral","impact_summary":"等待验证"}]}],"next_cursor":null}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","name":"theme","impact_level":"focus","trading_direction":"流动性改善后风险偏好可能回升","transmission_stage":"diffusion","affected_chain_nodes":[{"id":"22222222-2222-5222-8222-222222222222","name":"算力基础设施","relation_role":"driver","impact_summary":"资本开支上升"}],"related_indices":[{"id":"33333333-3333-5333-8333-333333333333","name":"示例指数","impact_direction":"neutral","impact_summary":"等待验证"}]}],"next_cursor":null}}`))
 	}))
 	defer server.Close()
 
@@ -40,7 +40,7 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 			t.Fatalf("query = %q, want %q", gotQuery, fragment)
 		}
 	}
-	if len(page.Items) != 1 || page.Items[0].Name != "theme" || page.Items[0].ImpactLevel != ImpactLevelFocus || page.Items[0].TransmissionStage != TransmissionStageInfrastructure || page.Items[0].TradingDirection != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
+	if len(page.Items) != 1 || page.Items[0].Name != "theme" || page.Items[0].ImpactLevel != ImpactLevelFocus || page.Items[0].TransmissionStage != TransmissionStageDiffusion || page.Items[0].TradingDirection != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
 		t.Fatalf("page = %#v", page)
 	}
 	if len(page.Items[0].AffectedChainNodes) != 1 || page.Items[0].AffectedChainNodes[0].ImpactSummary != "资本开支上升" || page.Items[0].RelatedIndices[0].ImpactDirection != ImpactDirectionNeutral {

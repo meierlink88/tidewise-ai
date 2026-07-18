@@ -1,0 +1,98 @@
+{
+  "analysis_batch_id": "20260718T-v6-72h-validation-home-dev",
+  "themes": [
+    {
+      "id": "5da5aa01-572b-5f4f-8e83-04ccdf4d0ab1",
+      "name": "AI算力扩产与半导体",
+      "one_line_conclusion": "晶圆扩产增强但卡点与价格背离",
+      "impact_level": "high",
+      "transmission_path": "AI芯片采购与晶圆供需缺口 → 晶圆资本开支上调 → 设备、材料、封装和基板需求潜力 → 订单、收入、折旧与现金流",
+      "trading_direction": "重点跟踪设备订单、交期、利用率、HBM/先进封装产能与关键材料价格，当前卡点尚未证明",
+      "transmission_stage": "diffusion",
+      "next_checkpoint": "卡点尚未证明",
+      "index_impact_summary": "费城半导体指数、港股半导体和台积电夜盘下跌，芯片ETF资金净流入，市场混合偏背离",
+      "chain_nodes": [
+        {"name": "集成电路制造", "relation_role": "driver", "impact_summary": "晶圆资本开支与供需缺口是本主题的主要驱动"},
+        {"name": "半导体设备", "relation_role": "beneficiary", "impact_summary": "扩产可能传导至设备订单，但交期与卡点仍待验证"},
+        {"name": "AI芯片", "relation_role": "driver", "impact_summary": "采购增长与项目延期共同影响交付节奏"},
+        {"name": "半导体材料", "relation_role": "beneficiary", "impact_summary": "扩产可能增加材料需求，价格与供应约束尚未确认"},
+        {"name": "先进封装", "relation_role": "constraint", "impact_summary": "HBM与先进封装产能是下一步重点验证对象"}
+      ],
+      "events": [
+        {"id": "3421cea7-dc9e-5e7f-92db-bccc5bd4d468", "evidence_role": "driver", "supported_claim": "晶圆资本开支和供需缺口变化支持扩产主线"},
+        {"id": "d815045d-c0f2-54eb-b7bb-ecc9ab9fd38c", "evidence_role": "supporting", "supported_claim": "事件支持半导体扩产信号"},
+        {"id": "5cb8fa62-6376-5919-8545-5cb9a491c07b", "evidence_role": "supporting", "supported_claim": "事件支持半导体扩产信号"},
+        {"id": "1db67020-e804-5686-8f12-263e493f378e", "evidence_role": "supporting", "supported_claim": "事件支持AI芯片需求变化"},
+        {"id": "2b4db4e8-53af-5007-9829-074886a639e8", "evidence_role": "supporting", "supported_claim": "事件支持AI芯片需求变化"},
+        {"id": "4e47c6e4-f581-59f2-98c0-9a6f617738ab", "evidence_role": "supporting", "supported_claim": "事件支持AI芯片需求变化"},
+        {"id": "6ddcd9a7-ef98-5655-b13f-3d8e769fab25", "evidence_role": "supporting", "supported_claim": "事件支持晶圆扩产信号"},
+        {"id": "92b0861a-51f2-5ce3-91e9-5faa06b39f0b", "evidence_role": "supporting", "supported_claim": "事件支持晶圆扩产信号"},
+        {"id": "1671d06f-4569-5633-8c7a-79bc93e53897", "evidence_role": "supporting", "supported_claim": "事件支持晶圆扩产信号"},
+        {"id": "5f4dfe40-4708-5165-a092-223559ff1338", "evidence_role": "supporting", "supported_claim": "事件支持材料与封装需求潜力"},
+        {"id": "b22e3277-3611-5d45-9b15-971acd8c0820", "evidence_role": "supporting", "supported_claim": "事件支持设备订单验证线索"},
+        {"id": "0a393acf-0508-50f3-95d1-bcdcd32a8c96", "evidence_role": "supporting", "supported_claim": "事件支持设备订单验证线索"},
+        {"id": "37d23325-8c89-5061-acee-8d9d5fc8c8e2", "evidence_role": "supporting", "supported_claim": "事件支持设备订单验证线索"},
+        {"id": "036836cc-f5fc-5e29-a36f-fb74c733aa62", "evidence_role": "contradicting", "supported_claim": "价格走弱构成扩产主线的反向信号"},
+        {"id": "c976aae6-dbcf-55ab-a725-3893d776d141", "evidence_role": "contradicting", "supported_claim": "价格走弱构成扩产主线的反向信号"},
+        {"id": "bb0d7b46-6c8c-51cf-a2df-9697c16b0448", "evidence_role": "contradicting", "supported_claim": "项目延期构成交付节奏的反向信号"}
+      ]
+    },
+    {
+      "id": "ad65a12a-dd91-53a7-8f26-84f0e05a581a",
+      "name": "中东冲突与能源风险",
+      "one_line_conclusion": "冲突升级但油金尚未确认溢价",
+      "impact_level": "high",
+      "transmission_path": "军事行动与基础设施威胁 → 供应中断和航线风险概率 → 油价、运价和风险溢价 → 上游收入、下游成本与营运资金",
+      "trading_direction": "等待设施损毁、停运或货流下降并验证油价转强",
+      "transmission_stage": "validation",
+      "next_checkpoint": "溢价尚未确认",
+      "index_impact_summary": "WTI、上期所原油与沪金下跌，与冲突风险背离",
+      "chain_nodes": [
+        {"name": "军工装备", "relation_role": "driver", "impact_summary": "军事行动与防务活动是风险概率变化的驱动"},
+        {"name": "港口", "relation_role": "exposure", "impact_summary": "设施损毁和停运仍需运营方确认"},
+        {"name": "油气资源", "relation_role": "exposure", "impact_summary": "供应中断概率尚未转化为已实现的价格溢价"},
+        {"name": "航运", "relation_role": "exposure", "impact_summary": "航线与运价风险需要货流数据验证"}
+      ],
+      "events": [
+        {"id": "b7dffc35-d475-5e34-a447-c896e67b3ed5", "evidence_role": "driver", "supported_claim": "军事行动升级提高能源与航运风险概率"},
+        {"id": "0bd5c4e2-5049-51e4-be2f-be6bb65221e3", "evidence_role": "supporting", "supported_claim": "事件支持冲突风险升级"},
+        {"id": "bedd34fd-d367-547a-90a9-b12445695537", "evidence_role": "supporting", "supported_claim": "事件支持冲突风险升级"},
+        {"id": "68a9669e-1ada-5487-9a31-f3c48450c3f9", "evidence_role": "supporting", "supported_claim": "事件支持基础设施风险"},
+        {"id": "7fc12bef-655b-5d19-a714-81ada2f7a6a2", "evidence_role": "supporting", "supported_claim": "事件支持航线风险"},
+        {"id": "401b004b-dd2e-50a3-99d7-74750f7095a3", "evidence_role": "supporting", "supported_claim": "事件支持冲突风险升级"},
+        {"id": "df7491cd-9be6-5c2f-b95d-173d69a38833", "evidence_role": "supporting", "supported_claim": "事件支持冲突风险升级"},
+        {"id": "f0ca3465-b991-59a9-a6e1-7487fb14b1f7", "evidence_role": "supporting", "supported_claim": "事件支持冲突风险升级"},
+        {"id": "1b51dd1e-331c-52aa-80e5-3c1e607a9077", "evidence_role": "context", "supported_claim": "对话与停火呼吁提供相反情景"},
+        {"id": "709bc526-0c42-5e3c-b274-ba339a851cf3", "evidence_role": "contradicting", "supported_claim": "原油价格下跌未确认风险溢价"},
+        {"id": "4109cb96-aefe-5eab-b191-552df0c6b03e", "evidence_role": "contradicting", "supported_claim": "市场价格下跌未确认风险溢价"},
+        {"id": "9fe75805-231d-5cda-8dd7-9c6c71654758", "evidence_role": "contradicting", "supported_claim": "黄金价格表现未确认风险溢价"}
+      ]
+    },
+    {
+      "id": "ca20217f-a542-5f54-9bc8-1d3d1d93d4d2",
+      "name": "AI应用商业化与治理",
+      "one_line_conclusion": "应用扩张获局部确认但宽基背离",
+      "impact_level": "focus",
+      "transmission_path": "用户与企业工具扩张 → 使用频率、付费率与推理成本 → 软件收入、毛利和现金流 → 合规成本和竞争格局",
+      "trading_direction": "重点验证付费、留存、续费与单位推理经济性，卡点尚未证明",
+      "transmission_stage": "validation",
+      "next_checkpoint": "付费转化尚未显现",
+      "index_impact_summary": "AI应用软件股上涨，但恒生科技和纳斯达克下跌，市场混合",
+      "chain_nodes": [
+        {"name": "人工智能应用", "relation_role": "driver", "impact_summary": "用户与工具扩张提供商业化验证入口"},
+        {"name": "人工智能", "relation_role": "driver", "impact_summary": "模型与工具能力推动应用扩张"},
+        {"name": "算力", "relation_role": "constraint", "impact_summary": "单位推理成本影响软件毛利与现金流"},
+        {"name": "垂直应用软件", "relation_role": "beneficiary", "impact_summary": "付费、留存和续费决定收入兑现"}
+      ],
+      "events": [
+        {"id": "236c3905-3126-5466-b043-d9112cde7954", "evidence_role": "driver", "supported_claim": "用户和工具扩张支持AI应用商业化主线"},
+        {"id": "300c9cc8-4123-50a6-925a-e13cc14330de", "evidence_role": "supporting", "supported_claim": "事件支持AI应用扩张"},
+        {"id": "6543b683-a454-533a-b6d1-2d451d723b01", "evidence_role": "supporting", "supported_claim": "事件支持AI应用扩张"},
+        {"id": "67ea9a86-42f4-5dde-a406-36a4577d9f0d", "evidence_role": "supporting", "supported_claim": "事件支持企业工具扩张"},
+        {"id": "80ca87e5-d5b0-5506-9cca-e4bb06da0e5f", "evidence_role": "context", "supported_claim": "治理规则影响接口开放与合规成本"},
+        {"id": "19473717-79ce-5cb0-a1b4-76b8a697c033", "evidence_role": "contradicting", "supported_claim": "科技宽基下跌构成市场反向信号"},
+        {"id": "388b8b95-2f0b-59f7-86fc-406c28818c87", "evidence_role": "contradicting", "supported_claim": "科技宽基下跌构成市场反向信号"}
+      ]
+    }
+  ]
+}

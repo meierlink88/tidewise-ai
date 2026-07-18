@@ -17,11 +17,10 @@ const (
 type TransmissionStage string
 
 const (
-	TransmissionStageUpstream       TransmissionStage = "upstream"
-	TransmissionStageMidstream      TransmissionStage = "midstream"
-	TransmissionStageDownstream     TransmissionStage = "downstream"
-	TransmissionStageInfrastructure TransmissionStage = "infrastructure"
-	TransmissionStageService        TransmissionStage = "service"
+	TransmissionStageIdentification TransmissionStage = "identification"
+	TransmissionStageValidation     TransmissionStage = "validation"
+	TransmissionStageDiffusion      TransmissionStage = "diffusion"
+	TransmissionStageDampening      TransmissionStage = "dampening"
 )
 
 type ResearchRelationRole string
@@ -114,7 +113,7 @@ func (r ResearchTheme) Validate() error {
 	if !validResearchValue(r.ImpactLevel, ImpactLevelHigh, ImpactLevelFocus, ImpactLevelWatch) {
 		return fmt.Errorf("unsupported impact level %q", r.ImpactLevel)
 	}
-	if !validResearchValue(r.TransmissionStage, TransmissionStageUpstream, TransmissionStageMidstream, TransmissionStageDownstream, TransmissionStageInfrastructure, TransmissionStageService) {
+	if !validResearchValue(r.TransmissionStage, TransmissionStageIdentification, TransmissionStageValidation, TransmissionStageDiffusion, TransmissionStageDampening) {
 		return fmt.Errorf("unsupported transmission stage %q", r.TransmissionStage)
 	}
 	if (r.WindowStart == nil) != (r.WindowEnd == nil) {

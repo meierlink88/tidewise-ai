@@ -24,6 +24,21 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 外部 agent-run 读取受控 Source Catalog 元数据，通过 Data REST API 写入 Raw Document 和 Event。agent-run 不直接访问 Data 数据库，Tidewise 仓库不保留没有运行入口的采集实现。
 
+## Language
+
+**研究主题（Research Theme）**:
+对一组 Event 及其产业链影响形成的可发布研究判断，包含一句话结论、传导路径和结论演进阶段。
+
+**传导阶段（Transmission Stage）**:
+研究主题结论沿证据与影响路径发展的当前进度，例如“扩散”或“验证”；它不表示节点在产业链中的位置。
+_Avoid_: 上游阶段、中游阶段、下游阶段
+
+**下一检查点（Next Checkpoint）**:
+研究主题当前尚待显现或验证的检查点提示，以自然语言保存，例如“尚未显现”；不是固定枚举。
+
+**交易研究指向（Trading Direction）**:
+基于当前结论给出的下一步研究优先级、验证对象与风险边界，以自然语言保存，不是做多/做空枚举。
+
 ## Source Ownership
 
 Data 业务代码必须收敛到 `src/backend/services/data/`：

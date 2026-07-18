@@ -805,7 +805,6 @@ components:
         - related_indices
         - supporting_event_count
         - contradicting_event_count
-        - has_more_detail
       properties:
         id:
           $ref: '#/components/schemas/UUID'
@@ -824,7 +823,7 @@ components:
           minLength: 1
         transmission_stage:
           type: string
-          enum: [upstream, midstream, downstream, infrastructure, service]
+          enum: [identification, validation, diffusion, dampening]
         next_checkpoint:
           type: string
         index_impact_summary:
@@ -845,8 +844,6 @@ components:
         contradicting_event_count:
           type: integer
           minimum: 0
-        has_more_detail:
-          type: boolean
     ResearchThemeCollection:
       type: object
       additionalProperties: false
