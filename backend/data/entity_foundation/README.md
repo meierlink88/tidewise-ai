@@ -36,6 +36,6 @@ APP_ENV=local DATABASE_PASSWORD="$DATABASE_PASSWORD" go run ./cmd/graph-projecto
 
 ## 后续 Ingestion 边界
 
-真实行情采集应通过独立 OpenSpec change 实现 connector、历史回填、换月规则、质量状态、容量、分区与 retention。采集链路只能把经过来源追踪、去重和结构校验的数据写入 `benchmark_observations`，不得在采集器中隐式创建 benchmark、metric、index 或关系。
+真实行情采集应以独立、可审阅的开发任务实现 connector、历史回填、换月规则、质量状态、容量、分区与 retention。采集链路只能把经过来源追踪、去重和结构校验的数据写入 `benchmark_observations`，不得在采集器中隐式创建 benchmark、metric、index 或关系。
 
 同一 benchmark、观测时间和来源使用唯一键幂等更新；不同权威来源可以共存。Neo4j 重建与 ingestion 解耦，新增 observation 不触发 observation 节点或关系写入。

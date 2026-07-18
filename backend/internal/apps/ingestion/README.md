@@ -46,7 +46,7 @@ backend/data/source_catalogs/ai_web_research_sources.json
 backend/data/prompts/ingestion/ai_web_research/
 ```
 
-`source_config` 只保存 `prompt_ref`、`prompt_version` 和少量变量。修改提示词时应通过 OpenSpec review，并保持文件名版本和 `prompt_version` 一致。
+`source_config` 只保存 `prompt_ref`、`prompt_version` 和少量变量。修改提示词时必须经过代码审阅，并保持文件名版本和 `prompt_version` 一致。
 
 ## 本地 fake 验证
 

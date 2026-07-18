@@ -207,10 +207,10 @@ func TestVerifyFrozenChainNodeRelationPostWriteChecksProtectedBaselineAndExactAg
 
 func frozenChainNodeRelationManifestPath(t *testing.T) string {
 	t.Helper()
-	return filepath.Join("..", "..", "..", "..", "..", "openspec", "changes", "archive", "2026-07-15-rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-r0", "approved-candidate-manifest.json")
+	return filepath.Join("..", "..", "..", "..", "..", "backend", "data", "entity_foundation", "relationships", "reviewed_chain_node_relations", "approved-candidate-manifest.json")
 }
 
 func frozenAdditiveChainNodeRelationManifestPath(t *testing.T) string {
 	t.Helper()
-	return filepath.Join("..", "..", "..", "..", "..", "openspec", "changes", "archive", "2026-07-15-rebuild-foundation-graph-and-enrich-chain-data", "reviews", "chain-node-relations-usable-map-r0", "additive-final-candidate-manifest.json")
+	return filepath.Join("..", "..", "..", "..", "..", "backend", "data", "entity_foundation", "relationships", "reviewed_chain_node_relations", "additive-final-candidate-manifest.json")
 }
