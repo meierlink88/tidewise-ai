@@ -1,6 +1,0 @@
-interface:
-  display_name: "Eino Reference First"
-  short_description: "Audit all local Eino references before any change"
-  default_prompt: "Use $eino-reference-first to audit all three local Eino references before proposing or making this change."
-policy:
-  allow_implicit_invocation: true

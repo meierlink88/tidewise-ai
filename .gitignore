@@ -9,3 +9,10 @@
 # Local operating-system and browser automation artifacts.
 .DS_Store
 /midscene_run/
+
+# Local-only agent instructions and Codex configuration.
+/.agent/
+/.agents/
+/.codex/
+/AGENT.md
+/AGENTS.md
