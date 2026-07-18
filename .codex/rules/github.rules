@@ -1,0 +1,39 @@
+# GitHub CLI reads credentials from the macOS Keychain, which is unavailable
+# inside the workspace sandbox. Read-only commands may run outside the sandbox;
+# commands that change GitHub state still require approval.
+
+prefix_rule(
+    pattern = ["gh", "auth", "status"],
+    decision = "allow",
+    justification = "Read GitHub authentication status with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "api", "user"],
+    decision = "allow",
+    justification = "Verify the active GitHub identity with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["list", "view", "checks", "diff", "status"]],
+    decision = "allow",
+    justification = "Read pull request state with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["list", "view"]],
+    decision = "allow",
+    justification = "Read issue state with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["create", "merge", "close", "reopen", "ready", "review"]],
+    decision = "prompt",
+    justification = "Pull request mutations require approval and macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["create", "close", "reopen", "edit", "comment"]],
+    decision = "prompt",
+    justification = "Issue mutations require approval and macOS Keychain access",
+)
