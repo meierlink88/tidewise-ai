@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	entityseed "github.com/meierlink88/tidewise-ai/backend/internal/apps/entityfoundation/seed"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/database"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
+	entityseed "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/entityseed"
 )
 
 func main() {

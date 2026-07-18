@@ -28,26 +28,80 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	}
 }
 
-func TestServiceOwnedBFFPackagesDoNotImportDataImplementation(t *testing.T) {
+func TestMiniappApplicationBackendOwnsUseCaseAndTransport(t *testing.T) {
+	packages := listServicePackages(t)
+	for _, suffix := range []string{
+		"services/miniapp/usecase",
+		"services/miniapp/transport",
+		"services/miniapp/config",
+	} {
+		if !hasPackageSuffix(packages, suffix) {
+			t.Errorf("Miniapp Application Backend Service package %q is missing", suffix)
+		}
+	}
+}
+
+func TestAdminPortalApplicationBackendOwnsUseCaseAndTransport(t *testing.T) {
+	packages := listServicePackages(t)
+	for _, suffix := range []string{
+		"services/adminportal/usecase",
+		"services/adminportal/transport",
+		"services/adminportal/config",
+	} {
+		if !hasPackageSuffix(packages, suffix) {
+			t.Errorf("Admin Portal Application Backend Service package %q is missing", suffix)
+		}
+	}
+}
+
+func TestDataDomainServiceOwnsBusinessAndAdapters(t *testing.T) {
+	packages := listServicePackages(t)
+	for _, suffix := range []string{
+		"services/data/usecase/adminquery",
+		"services/data/usecase/eventimport",
+		"services/data/usecase/rawimport",
+		"services/data/usecase/research",
+		"services/data/usecase/sourcecatalog",
+		"services/data/usecase/sourcemetadata",
+		"services/data/domain",
+		"services/data/repositories",
+		"services/data/adapters/database",
+		"services/data/adapters/dbmigration",
+		"services/data/adapters/graphdb",
+		"services/data/transport/internalapi",
+		"services/data/config",
+	} {
+		if !hasPackageSuffix(packages, suffix) {
+			t.Errorf("Data Domain Service package %q is missing", suffix)
+		}
+	}
+}
+
+func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, pkg := range packages {
 		owner := localPackageName(pkg.ImportPath)
-		if !strings.HasPrefix(owner, "services/miniapp") && !strings.HasPrefix(owner, "services/adminportal") {
+		ownerService := deployableService(owner)
+		if ownerService == "" {
 			continue
 		}
-		for _, forbidden := range []string{
-			"/services/data",
-			"/internal/domain",
-			"/internal/repositories",
-			"/internal/platform/database",
-			"/internal/platform/dbmigration",
-			"/internal/platform/graphdb",
-			"/internal/apps/ingestion/connectors",
-			"/internal/apps/ingestion/parsers",
-		} {
-			assertNoImport(t, pkg, forbidden)
+		for _, imported := range pkg.Imports {
+			importedService := deployableService(localPackageName(imported))
+			if importedService != "" && importedService != ownerService {
+				t.Fatalf("%s must not import implementation from %s", pkg.ImportPath, imported)
+			}
 		}
 	}
+}
+
+func deployableService(packageName string) string {
+	for _, service := range []string{"data", "miniapp", "adminportal"} {
+		prefix := "services/" + service
+		if packageName == prefix || strings.HasPrefix(packageName, prefix+"/") {
+			return service
+		}
+	}
+	return ""
 }
 
 func TestRootCompatibilityCommandsAreRemoved(t *testing.T) {

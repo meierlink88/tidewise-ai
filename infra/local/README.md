@@ -39,7 +39,7 @@ user: tidewise
 
 ## 本地 Neo4j
 
-Neo4j 是从 PostgreSQL 事实源投影出来的图谱查询库。local 环境默认在 `src/backend/config/config.local.yaml` 中启用 Neo4j，但真实用户名和密码只通过环境变量注入。
+Neo4j 是从 PostgreSQL 事实源投影出来的图谱查询库。local 环境默认在 `src/backend/services/data/config/config.local.yaml` 中启用 Neo4j，但真实用户名和密码只通过环境变量注入。
 
 Neo4j Browser 默认访问：
 
@@ -61,7 +61,7 @@ DATABASE_PASSWORD=<local-postgres-password> \
 NEO4J_USERNAME=<local-neo4j-user> \
 NEO4J_PASSWORD=<local-neo4j-password> \
 TIDEWISE_ENABLE_NEO4J_SMOKE=true \
-go test ./services/data/cmd/graph-projector ./internal/platform/graphdb ./internal/apps/graphprojection
+go test ./services/data/cmd/graph-projector ./services/data/adapters/graphdb ./services/data/usecase/graphprojection
 ```
 
 手动检查连接和投影：
@@ -122,7 +122,7 @@ SELECT origin_system, COUNT(*) FROM source_catalogs GROUP BY origin_system ORDER
 
 ## 采集运行边界
 
-本仓库保留 source metadata、connector/parser/sourcecatalog/prompt 代码与 Data Service 的 raw-document/reviewed-event 受控导入合同，但不再拥有采集调度或执行编排。独立 agent-run 项目负责调度、调用 connector/parser，并通过 `/internal/data/v1` 的受认证接口导入结果；不得绕过 Data Service 直接写 Data DB。
+本仓库只保留 source metadata、source catalog 主数据和 Data Service 的 raw-document/reviewed-event 受控导入合同。connector、parser、prompt 与采集编排归属独立 agent-run 项目；agent-run 通过 `/internal/data/v1` 的受认证接口导入结果，不得绕过 Data Service 直接写 Data DB。
 
 历史 scheduler/run 表及 migrations 为审计兼容保留，不代表仍可从 Tidewise 启动 scheduler，也不得通过本说明直接修改这些历史表。
 
@@ -154,7 +154,7 @@ npm run dev -- --port 5174
 http://127.0.0.1:5174/
 ```
 
-页面右上角输入 `ADMIN_API_TOKEN` 后，可以查询采集源、原始数据和事件。已退役的 scheduler 路由在一个发布窗口内返回认证后的 machine-readable `410 Gone`。
+页面右上角输入 `ADMIN_API_TOKEN` 后，可以查询采集源、原始数据和事件。已退役的 scheduler 路由已经删除。
 
 ## 常见失败
 

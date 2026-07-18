@@ -7,16 +7,18 @@ import (
 	"net/http"
 	"time"
 
-	eventapp "github.com/meierlink88/tidewise-ai/backend/internal/apps/ingestion/eventimport"
-	"github.com/meierlink88/tidewise-ai/backend/internal/config"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/database"
-	"github.com/meierlink88/tidewise-ai/backend/internal/platform/dbmigration"
-	"github.com/meierlink88/tidewise-ai/backend/internal/repositories"
 	"github.com/meierlink88/tidewise-ai/backend/services/data"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/internalapi"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/rawimport"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/rawimport/postgresstore"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/research"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/database"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/dbmigration"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories/rawimport/postgresstore"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/transport/internalapi"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/adminquery"
+	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/research"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/sourcemetadata"
 )
 
 func main() {
@@ -49,8 +51,8 @@ func main() {
 		RawImports:     rawimport.NewService(postgresstore.New(db), time.Now),
 		ReviewedEvents: eventapp.NewService(repository),
 		Research:       research.NewService(repository, time.Now),
-		Admin:          repository,
-		SourceMetadata: repository,
+		Admin:          adminquery.NewService(repository),
+		SourceMetadata: sourcemetadata.NewService(repository),
 	})
 
 	server := data.NewServer(cfg, api)
