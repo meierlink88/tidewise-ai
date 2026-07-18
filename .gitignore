@@ -7,13 +7,6 @@ infra/local/.env.local
 .data/
 .worktrees/
 
-# Local-only agent instructions and Codex configuration.
-/.agent/
-/.agents/
-/.codex/
-/AGENT.md
-/AGENTS.md
-
 node_modules/
 dist/
 frontend/miniapp/dist/
