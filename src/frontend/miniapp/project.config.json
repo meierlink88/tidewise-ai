@@ -1,5 +1,5 @@
 {
-  "miniprogramRoot": "./dist",
+  "miniprogramRoot": "./dist/weapp",
   "projectname": "tidewise-ai-miniapp",
   "description": "观潮家 Miniapp 本地预览",
   "appid": "touristappid",

@@ -24,7 +24,7 @@ npm --workspace @tidewise/miniapp run verify:weapp-output
 npm --workspace @tidewise/miniapp run build:tt
 ```
 
-微信构建使用 Taro 官方 `--no-check` 跳过本机 native doctor；TypeScript、ESLint、Vitest 和 webpack 编译仍独立执行。
+微信构建使用 Taro 官方 `--no-check` 跳过本机 native doctor；TypeScript、ESLint、Vitest 和 webpack 编译仍独立执行。微信、抖音构建产物分别位于 `dist/weapp` 和 `dist/tt`，互不覆盖。
 
 ## 微信预览
 
@@ -32,9 +32,9 @@ npm --workspace @tidewise/miniapp run build:tt
 npm --workspace @tidewise/miniapp run preview:weapp
 ```
 
-默认发布到 `/Users/meierlink/Documents/WeChatProjects/tidewise-ai-preview`。微信开发者工具首次导入该目录后，后续重新运行命令并点击编译即可刷新。目标视觉基线为 375×812。
+微信开发者工具直接导入仓库内的 `src/frontend/miniapp/dist/weapp`。后续运行 `dev:weapp` 会持续编译到该目录，开发者工具可直接刷新。目标视觉基线为 375×812。
 
-预览目录自带 `project.config.json` 和微信测试 AppID，可直接作为“小程序”导入，无需手工创建项目配置。如果开发者工具曾将该路径记录为“其他项目”，先删除旧项目记录，再重新导入同一目录。
+构建目录自带 `project.config.json` 和微信测试 AppID，无需手工创建项目配置。
 
 ## 首页验收
 
@@ -45,4 +45,4 @@ npm --workspace @tidewise/miniapp run preview:weapp
 - 首页使用系统状态栏和平台胶囊，不绘制假胶囊。
 - `home-header-sea.jpg` 属于旧版资产，当前首页不再构建或使用。
 
-`dist` 与固定预览目录均为本地产物，不提交 Git。
+`dist` 为本地构建产物，不提交 Git。
