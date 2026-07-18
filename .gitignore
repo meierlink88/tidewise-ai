@@ -2,15 +2,15 @@
 .trae-local/
 .env.local
 .env.*.local
-backend/.env.local
+src/backend/.env.local
 infra/local/.env.local
 .data/
 .worktrees/
 
 node_modules/
 dist/
-frontend/miniapp/dist/
-frontend/miniapp/.swc/
+src/frontend/miniapp/dist/
+src/frontend/miniapp/.swc/
 *.tsbuildinfo
 
 npm-debug.log*

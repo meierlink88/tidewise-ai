@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: src/backend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,8 +21,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
+          go-version-file: src/backend/go.mod
+          cache-dependency-path: src/backend/go.sum
 
       - name: Data API and typed-client drift contracts
         run: go test ./services/data/api ./services/miniapp/dataclient ./services/adminportal/dataclient
@@ -45,12 +45,9 @@ jobs:
           docker build -f services/miniapp/Dockerfile -t tidewise-miniapp:ci .
           docker build -f services/adminportal/Dockerfile -t tidewise-adminportal:ci .
 
-  admin:
-    name: Admin portal
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend/admin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,13 +57,25 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend/admin/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Test
-        run: npm test
+        run: npm run test
 
-      - name: Build
-        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint Miniapp
+        run: npm run lint
+
+      - name: Build Miniapp
+        run: npm run build:weapp
+
+      - name: Build Admin portal
+        run: npm run build:admin
+
+      - name: Build Admin portal image
+        run: docker build -f src/frontend/admin/Dockerfile -t tidewise-admin:ci .

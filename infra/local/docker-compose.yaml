@@ -39,7 +39,7 @@ services:
 
   data:
     build:
-      context: ../../backend
+      context: ../../src/backend
       dockerfile: services/data/Dockerfile
     image: tidewise-data:local
     ports:
@@ -67,7 +67,7 @@ services:
 
   miniapp:
     build:
-      context: ../../backend
+      context: ../../src/backend
       dockerfile: services/miniapp/Dockerfile
     image: tidewise-miniapp:local
     ports:
@@ -89,7 +89,7 @@ services:
 
   adminportal:
     build:
-      context: ../../backend
+      context: ../../src/backend
       dockerfile: services/adminportal/Dockerfile
     image: tidewise-adminportal:local
     ports:
