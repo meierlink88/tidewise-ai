@@ -1,6 +1,8 @@
 import { defineConfig } from '@tarojs/cli';
 import path from 'node:path';
 
+const buildTarget = process.env.TARO_ENV ?? 'weapp';
+
 const config = defineConfig({
   projectName: 'tidewise-miniapp',
   date: '2026-07-05',
@@ -11,7 +13,7 @@ const config = defineConfig({
     828: 1.81
   },
   sourceRoot: 'src',
-  outputRoot: 'dist',
+  outputRoot: `dist/${buildTarget}`,
   alias: {
     '@': path.resolve(__dirname, '..', 'src')
   },
