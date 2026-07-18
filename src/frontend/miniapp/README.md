@@ -34,6 +34,8 @@ npm --workspace @tidewise/miniapp run preview:weapp
 
 默认发布到 `/Users/meierlink/Documents/WeChatProjects/tidewise-ai-preview`。微信开发者工具首次导入该目录后，后续重新运行命令并点击编译即可刷新。目标视觉基线为 375×812。
 
+预览目录自带 `project.config.json` 和微信测试 AppID，可直接作为“小程序”导入，无需手工创建项目配置。如果开发者工具曾将该路径记录为“其他项目”，先删除旧项目记录，再重新导入同一目录。
+
 ## 首页验收
 
 - 默认展示 3 条“今日推理主线”和 13 条关联政经事件。

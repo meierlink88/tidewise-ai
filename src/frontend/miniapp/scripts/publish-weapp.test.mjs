@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import test from 'node:test'
 import { getDefaultPreviewDir, publishWeapp } from './publish-weapp.mjs'
+
+test('ships a WeChat project descriptor for direct Developer Tools imports', async () => {
+  const projectConfig = JSON.parse(await readFile(resolve(import.meta.dirname, '..', 'project.config.json'), 'utf8'))
+
+  assert.equal(projectConfig.miniprogramRoot, './dist')
+  assert.equal(projectConfig.compileType, 'miniprogram')
+  assert.equal(projectConfig.appid, 'touristappid')
+})
 
 test('defaults preview publishing under the user Documents directory', () => {
   assert.equal(getDefaultPreviewDir('/Users/example'), '/Users/example/Documents/WeChatProjects/tidewise-ai-preview')
