@@ -57,7 +57,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
           {theme.affectedChainNodes.map((node) => (
             <Button
               key={node.id}
-              className='theme-card__node'
+              className='tidewise-button theme-card__node'
               hoverClass='none'
               onClick={(event) => handleNestedTap(event, `${node.name}详情即将开放`)}
             >
@@ -74,7 +74,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
 
       <View className='theme-card__footer'>
         <Button
-          className='theme-card__event-button'
+          className='tidewise-button theme-card__event-button'
           hoverClass='none'
           onClick={(event) => handleNestedTap(event, '事件清单即将开放')}
         >
@@ -86,12 +86,12 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
           <Text>{researchTransmissionStageLabel(theme.transmissionStage)}</Text>
         </View>
         <Button
-          className='theme-card__detail-button'
+          className='tidewise-button theme-card__detail-button'
           hoverClass='none'
           onClick={(event) => handleNestedTap(event, '影响路径即将开放')}
         >
           <Text>查看影响路径</Text>
-          <Image className='theme-card__detail-icon' src={arrowRightIcon} mode='aspectFit' />
+          <Image className='theme-card__detail-icon' src={arrowRightIcon} mode='scaleToFill' />
         </Button>
       </View>
     </View>

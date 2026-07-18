@@ -11,15 +11,20 @@ view,
 text,
 button,
 input,
-scroll-view {
+scroll-view,
+.tidewise-button {
   box-sizing: border-box;
 }
 
-button::after {
+button::after,
+.tidewise-button::after {
   border: 0;
 }
 
-button {
+button,
+.tidewise-button {
+  width: auto;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   border: 0;

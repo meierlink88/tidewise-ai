@@ -7,9 +7,11 @@
     "src/frontend/admin"
   ],
   "scripts": {
+    "dev:h5": "npm --workspace @tidewise/miniapp run dev:h5",
     "dev:weapp": "npm --workspace @tidewise/miniapp run dev:weapp",
     "dev:tt": "npm --workspace @tidewise/miniapp run dev:tt",
     "dev:admin": "npm --workspace @tidewise/admin run dev",
+    "build:h5": "npm --workspace @tidewise/miniapp run build:h5",
     "build:weapp": "npm --workspace @tidewise/miniapp run build:weapp",
     "preview:weapp": "npm --workspace @tidewise/miniapp run preview:weapp",
     "build:tt": "npm --workspace @tidewise/miniapp run build:tt",

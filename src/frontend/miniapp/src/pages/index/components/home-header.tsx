@@ -25,7 +25,7 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
         style={{ height: `${chrome.navigationBarHeight}px`, paddingRight: `${chrome.rightReservedWidth}px` }}
       >
         <Button
-          className='home-nav__avatar-button'
+          className='tidewise-button home-nav__avatar-button'
           hoverClass='none'
           onClick={() => showUnavailable('个人中心即将开放')}
         >
@@ -36,7 +36,7 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
 
       <View className='home-search-row'>
         <View className='home-search'>
-          <Image className='home-search__icon' src={searchIcon} mode='aspectFit' />
+          <Image className='home-search__icon' src={searchIcon} mode='scaleToFill' />
           <Input
             className='home-search__input'
             type='text'
@@ -47,19 +47,19 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
             onInput={(event) => onQueryChange(event.detail.value)}
           />
           <Button
-            className='home-search__send'
+            className='tidewise-button home-search__send'
             hoverClass='none'
             onClick={() => showUnavailable('问潮对话即将开放')}
           >
-            <Image className='home-search__send-icon' src={sendIcon} mode='aspectFit' />
+            <Image className='home-search__send-icon' src={sendIcon} mode='scaleToFill' />
           </Button>
         </View>
         <Button
-          className='home-history-button'
+          className='tidewise-button home-history-button'
           hoverClass='none'
           onClick={() => showUnavailable('历史记录即将开放')}
         >
-          <Image className='home-history-button__icon' src={historyIcon} mode='aspectFit' />
+          <Image className='home-history-button__icon' src={historyIcon} mode='scaleToFill' />
         </Button>
       </View>
     </View>

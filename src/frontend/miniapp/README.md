@@ -22,6 +22,16 @@ TARO_APP_MINIAPP_API_BASE_URL=http://127.0.0.1:8081 \
 npm --workspace @tidewise/miniapp run dev:weapp
 ```
 
+浏览器快速预览真实 API 数据时运行 H5 开发服务：
+
+```bash
+TARO_APP_RESEARCH_SOURCE=api \
+TARO_APP_MINIAPP_API_BASE_URL=http://localhost:10086 \
+npm run dev:h5
+```
+
+然后打开 `http://localhost:10086/`。H5 开发服务会把同源 `/api` 请求代理到本地 Miniapp Backend `http://127.0.0.1:8081`，浏览器不会直接访问 Data Service，也不需要额外处理 CORS。可通过 `TARO_APP_H5_API_PROXY_TARGET` 覆盖代理目标。
+
 `TARO_APP_RESEARCH_SOURCE` 仅允许 `mock` 或 `api`。API 模式调用 Miniapp Backend 的 `/api/v1/miniapp/research/themes`，请求失败会展示错误状态，不会静默回退 Mock。前端不保存 Data Service token，也不直接调用 Data Service。
 
 ## 验证
@@ -33,6 +43,7 @@ npm --workspace @tidewise/miniapp run lint
 TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run build:weapp
 npm --workspace @tidewise/miniapp run verify:weapp-output
 TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run build:tt
+TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run build:h5
 ```
 
 微信构建使用 Taro 官方 `--no-check` 跳过本机 native doctor；TypeScript、ESLint、Vitest 和 webpack 编译仍独立执行。微信、抖音构建产物分别位于 `dist/weapp` 和 `dist/tt`，互不覆盖。
@@ -59,3 +70,5 @@ TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run preview:weap
 真实 API 模式下，分类标签和“跟踪中 17”仍是 Frontend-owned 临时展示数据；主题内容、关联产业、事件计数和更新时间来自 Miniapp Backend。
 
 `dist` 为本地构建产物，不提交 Git。
+
+H5 适合快速验收布局、交互和真实 API 数据；微信登录、支付、胶囊、授权及其他平台专属能力仍需在微信开发者工具或真机中验收。
