@@ -46,7 +46,7 @@ func TestServiceKeepsStableThemeCursorAndAuthoritativeFields(t *testing.T) {
 		Items: []repositories.ResearchThemeSummary{{
 			ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
 			ImpactLevel: domain.ImpactLevelFocus, TransmissionPath: "供给传导", TradingDirection: "关注成本回落后的利润修复",
-			TransmissionStage: domain.TransmissionStageInfrastructure, NextCheckpoint: "下次数据", IndexImpactSummary: "宽基震荡",
+			TransmissionStage: domain.TransmissionStageDiffusion, NextCheckpoint: "下次数据", IndexImpactSummary: "宽基震荡",
 			PublishedAt:          now,
 			ChainNodes:           []repositories.ResearchChainNode{{ID: "22222222-2222-4222-8222-222222222222", Name: "节点", RelationRole: "driver", Summary: "主题影响"}},
 			Indices:              []repositories.ResearchIndex{{ID: "33333333-3333-4333-8333-333333333333", Name: "指数", ImpactDirection: "mixed", Summary: "指数影响"}},
@@ -62,7 +62,7 @@ func TestServiceKeepsStableThemeCursorAndAuthoritativeFields(t *testing.T) {
 	if page.NextCursor == nil {
 		t.Fatal("next cursor is nil")
 	}
-	if page.Items[0].ImpactLevel != domain.ImpactLevelFocus || page.Items[0].TransmissionStage != domain.TransmissionStageInfrastructure {
+	if page.Items[0].ImpactLevel != domain.ImpactLevelFocus || page.Items[0].TransmissionStage != domain.TransmissionStageDiffusion {
 		t.Fatalf("authoritative theme enums drifted: %#v", page.Items[0])
 	}
 	if page.Items[0].TradingDirection != "关注成本回落后的利润修复" {

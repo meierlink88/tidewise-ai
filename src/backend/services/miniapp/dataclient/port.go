@@ -42,11 +42,10 @@ const (
 type TransmissionStage string
 
 const (
-	TransmissionStageUpstream       TransmissionStage = "upstream"
-	TransmissionStageMidstream      TransmissionStage = "midstream"
-	TransmissionStageDownstream     TransmissionStage = "downstream"
-	TransmissionStageInfrastructure TransmissionStage = "infrastructure"
-	TransmissionStageService        TransmissionStage = "service"
+	TransmissionStageIdentification TransmissionStage = "identification"
+	TransmissionStageValidation     TransmissionStage = "validation"
+	TransmissionStageDiffusion      TransmissionStage = "diffusion"
+	TransmissionStageDampening      TransmissionStage = "dampening"
 )
 
 type AnchorType string
@@ -112,7 +111,6 @@ type ResearchTheme struct {
 	RelatedIndices          []ResearchIndex          `json:"related_indices"`
 	SupportingEventCount    int                      `json:"supporting_event_count"`
 	ContradictingEventCount int                      `json:"contradicting_event_count"`
-	HasMoreDetail           bool                     `json:"has_more_detail"`
 }
 
 type ResearchThemeDetail struct {

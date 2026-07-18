@@ -1,5 +1,5 @@
 export type ResearchImpactLevel = 'high' | 'focus' | 'watch';
-export type ResearchTransmissionStage = 'upstream' | 'midstream' | 'downstream' | 'infrastructure' | 'service';
+export type ResearchTransmissionStage = 'identification' | 'validation' | 'diffusion' | 'dampening';
 
 export interface HomeResearchChainNode {
   id: string;
@@ -23,7 +23,6 @@ export interface HomeResearchThemeItem {
   transmissionPath: string;
   tradingDirection: string;
   transmissionStage: ResearchTransmissionStage;
-  transmissionPhaseLabel: string;
   nextCheckpoint: string;
   indexImpactSummary: string;
   publishedAt: string;
@@ -33,7 +32,6 @@ export interface HomeResearchThemeItem {
   relatedIndices: HomeResearchIndex[];
   supportingEventCount: number;
   contradictingEventCount: number;
-  hasMoreDetail: boolean;
 }
 
 export interface HomeResearchThemeFeed {

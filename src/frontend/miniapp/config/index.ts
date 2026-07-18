@@ -2,6 +2,12 @@ import { defineConfig } from '@tarojs/cli';
 import path from 'node:path';
 
 const buildTarget = process.env.TARO_ENV ?? 'weapp';
+const researchSource = process.env.TARO_APP_RESEARCH_SOURCE;
+const miniappApiBaseUrl = process.env.TARO_APP_MINIAPP_API_BASE_URL ?? '';
+
+if (researchSource !== 'mock' && researchSource !== 'api') {
+  throw new Error('TARO_APP_RESEARCH_SOURCE must explicitly be mock or api');
+}
 
 const config = defineConfig({
   projectName: 'tidewise-miniapp',
@@ -16,6 +22,10 @@ const config = defineConfig({
   outputRoot: `dist/${buildTarget}`,
   alias: {
     '@': path.resolve(__dirname, '..', 'src')
+  },
+  env: {
+    TARO_APP_RESEARCH_SOURCE: JSON.stringify(researchSource),
+    TARO_APP_MINIAPP_API_BASE_URL: JSON.stringify(miniappApiBaseUrl)
   },
   plugins: ['@tarojs/plugin-platform-weapp', '@tarojs/plugin-platform-tt'],
   framework: 'react',

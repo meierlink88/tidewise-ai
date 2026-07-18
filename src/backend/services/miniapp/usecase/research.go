@@ -63,7 +63,6 @@ type ResearchThemeItem struct {
 	RelatedIndices          []ResearchIndexDTO     `json:"related_indices"`
 	SupportingEventCount    int                    `json:"supporting_event_count"`
 	ContradictingEventCount int                    `json:"contradicting_event_count"`
-	HasMoreDetail           bool                   `json:"has_more_detail"`
 }
 
 type ResearchThemeDetailResponse struct {
@@ -255,7 +254,7 @@ func themeItemDTO(item dataclient.ResearchTheme) ResearchThemeItem {
 		TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection, TransmissionStage: string(item.TransmissionStage),
 		NextCheckpoint: item.NextCheckpoint, IndexImpactSummary: item.IndexImpactSummary, PublishedAt: formatTime(item.PublishedAt),
 		AffectedChainNodes: themeChainNodeDTOs(item.AffectedChainNodes), RelatedIndices: indexDTOs(item.RelatedIndices),
-		SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount, HasMoreDetail: item.HasMoreDetail,
+		SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount,
 	}
 }
 

@@ -9,7 +9,7 @@ describe('research theme homepage feed', () => {
     expect(feed.themeCount).toBe(3);
     expect(feed.eventCount).toBe(13);
     expect(feed.trackingCount).toBe(17);
-    expect(feed.items.map((item) => item.transmissionPhaseLabel)).toEqual(['扩散', '验证', '验证']);
+    expect(feed.items.map((item) => item.transmissionStage)).toEqual(['diffusion', 'validation', 'validation']);
     expect(feed.items.every((item) => typeof item.indexImpactSummary === 'string')).toBe(true);
   });
 
@@ -22,7 +22,8 @@ describe('research theme homepage feed', () => {
       oneLineConclusion: '算力资本开支推升，AI供应链涨价周期开启',
       impactLevel: 'high',
       transmissionPath: '北美云厂商资本开支维持高位 → 订单与交期同步扩张',
-      nextCheckpoint: '结构材料尚未充分显现，下一步看结构材料是否进入验证阶段',
+      nextCheckpoint: '尚未显现',
+      tradingDirection: '关注高速互联与结构材料的订单和交期变化',
       supportingEventCount: 7,
       updateLabel: '1小时前更新',
       affectedChainNodes: [

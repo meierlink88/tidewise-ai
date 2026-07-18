@@ -214,7 +214,7 @@ FROM research_anchors a
 WHERE a.id = $1 AND a.published_at IS NOT NULL AND a.published_at >= $2 AND a.published_at <= $3`
 
 func (r PostgresRepository) ListResearchThemes(ctx context.Context, filter ResearchThemeListFilter) (ResearchThemePage, error) {
-	rows, err := r.db.QueryContext(ctx, listResearchThemesQuery, filter.WindowStart, filter.AsOf, filter.CursorRank, nullableTime(filter.CursorPublishedAt), filter.CursorID, filter.Limit+1)
+	rows, err := r.db.QueryContext(ctx, listResearchThemesQuery, filter.WindowStart, filter.AsOf, filter.CursorRank, nullableTime(filter.CursorPublishedAt), nullableString(filter.CursorID), filter.Limit+1)
 	if err != nil {
 		return ResearchThemePage{}, fmt.Errorf("list research themes: %w", err)
 	}
@@ -254,7 +254,7 @@ func (r PostgresRepository) GetResearchTheme(ctx context.Context, id string, fil
 }
 
 func (r PostgresRepository) ListResearchAnchors(ctx context.Context, filter ResearchAnchorListFilter) (ResearchAnchorPage, error) {
-	rows, err := r.db.QueryContext(ctx, listResearchAnchorsQuery, filter.WindowStart, filter.AsOf, filter.CursorRank, nullableTime(filter.CursorPublishedAt), filter.CursorID, filter.Limit+1)
+	rows, err := r.db.QueryContext(ctx, listResearchAnchorsQuery, filter.WindowStart, filter.AsOf, filter.CursorRank, nullableTime(filter.CursorPublishedAt), nullableString(filter.CursorID), filter.Limit+1)
 	if err != nil {
 		return ResearchAnchorPage{}, fmt.Errorf("list research anchors: %w", err)
 	}
@@ -385,4 +385,11 @@ func nullableTime(value *time.Time) any {
 		return nil
 	}
 	return *value
+}
+
+func nullableString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }

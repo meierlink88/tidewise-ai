@@ -2,6 +2,7 @@ import Taro from '@tarojs/taro';
 import { Button, Image, Text, View } from '@tarojs/components';
 import type { BaseEventOrig } from '@tarojs/components/types/common';
 import type { HomeResearchThemeItem, ResearchImpactLevel } from '../../../features/research-themes/contract';
+import { researchTransmissionStageLabel } from '../../../features/research-themes/presentation';
 import arrowRightIcon from '../../../assets/icons/arrow-right.svg';
 
 const impactLabels: Record<ResearchImpactLevel, string> = {
@@ -67,8 +68,8 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       </View>
 
       <View className='theme-card__checkpoint'>
-        <Text className='theme-card__checkpoint-label'>尚未显现</Text>
-        <Text className='theme-card__checkpoint-text'>{theme.nextCheckpoint}</Text>
+        <Text className='theme-card__checkpoint-label'>{theme.nextCheckpoint}</Text>
+        <Text className='theme-card__checkpoint-text'>{theme.tradingDirection}</Text>
       </View>
 
       <View className='theme-card__footer'>
@@ -82,7 +83,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
         <View className='theme-card__phase'>
           <Text>传导阶段</Text>
           <Text className='theme-card__phase-dot'>·</Text>
-          <Text>{theme.transmissionPhaseLabel}</Text>
+          <Text>{researchTransmissionStageLabel(theme.transmissionStage)}</Text>
         </View>
         <Button
           className='theme-card__detail-button'

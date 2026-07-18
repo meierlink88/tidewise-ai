@@ -53,7 +53,7 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 
 	assertSchemaEnum(t, document, "ResearchThemeSummary", "impact_level", []string{"focus", "high", "watch"})
 	assertSchemaHasNoEnum(t, document, "ResearchThemeSummary", "trading_direction")
-	assertSchemaEnum(t, document, "ResearchThemeSummary", "transmission_stage", []string{"downstream", "infrastructure", "midstream", "service", "upstream"})
+	assertSchemaEnum(t, document, "ResearchThemeSummary", "transmission_stage", []string{"dampening", "diffusion", "identification", "validation"})
 	assertSchemaEnum(t, document, "ResearchAnchorSummary", "anchor_type", []string{"cost", "demand", "geopolitics", "market_structure", "policy", "supply", "technology"})
 	assertSchemaEnum(t, document, "ResearchAnchorSummary", "importance", []string{"contextual", "primary", "secondary"})
 	assertSchemaHasNoEnum(t, document, "ResearchAnchorSummary", "trading_direction")

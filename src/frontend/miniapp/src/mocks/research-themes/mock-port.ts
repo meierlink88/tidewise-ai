@@ -16,9 +16,8 @@ const feed: HomeResearchThemeFeed = {
       impactLevel: 'high',
       transmissionPath: '北美云厂商资本开支维持高位 → 订单与交期同步扩张',
       tradingDirection: '关注高速互联与结构材料的订单和交期变化',
-      transmissionStage: 'infrastructure',
-      transmissionPhaseLabel: '扩散',
-      nextCheckpoint: '结构材料尚未充分显现，下一步看结构材料是否进入验证阶段',
+      transmissionStage: 'diffusion',
+      nextCheckpoint: '尚未显现',
       indexImpactSummary: '算力产业链订单、交期与价格信号同步走强',
       publishedAt: '2026-07-07T08:00:00+08:00',
       updateLabel: '1小时前更新',
@@ -46,7 +45,6 @@ const feed: HomeResearchThemeFeed = {
       relatedIndices: [],
       supportingEventCount: 7,
       contradictingEventCount: 0,
-      hasMoreDetail: true
     },
     {
       id: '22222222-2222-4222-8222-222222222222',
@@ -55,9 +53,8 @@ const feed: HomeResearchThemeFeed = {
       impactLevel: 'high',
       transmissionPath: '重稀土出口审批暂停 → 审批收紧且开工率低位',
       tradingDirection: '关注供给收紧形成的定价权变化',
-      transmissionStage: 'upstream',
-      transmissionPhaseLabel: '验证',
-      nextCheckpoint: '下游替代尚未充分显现，下一步看下游替代与库存策略变化',
+      transmissionStage: 'validation',
+      nextCheckpoint: '尚未显现',
       indexImpactSummary: '稀土价格中枢上移，下游成本压力增加',
       publishedAt: '2026-07-06T22:00:00+08:00',
       updateLabel: '昨日 22:00更新',
@@ -85,7 +82,6 @@ const feed: HomeResearchThemeFeed = {
       relatedIndices: [],
       supportingEventCount: 4,
       contradictingEventCount: 0,
-      hasMoreDetail: true
     },
     {
       id: '33333333-3333-4333-8333-333333333333',
@@ -94,9 +90,8 @@ const feed: HomeResearchThemeFeed = {
       impactLevel: 'focus',
       transmissionPath: '美元指数站上 101 → 实际利率高位且美元走强',
       tradingDirection: '关注美元高位下的大宗定价与资产分化',
-      transmissionStage: 'service',
-      transmissionPhaseLabel: '验证',
-      nextCheckpoint: '资产分化尚未充分显现，下一步看区域需求能否对冲美元压力',
+      transmissionStage: 'validation',
+      nextCheckpoint: '尚未显现',
       indexImpactSummary: '美元与实际利率高位压制大宗及无息资产估值',
       publishedAt: '2026-07-06T21:00:00+08:00',
       updateLabel: '昨日 21:00更新',
@@ -124,7 +119,6 @@ const feed: HomeResearchThemeFeed = {
       relatedIndices: [],
       supportingEventCount: 2,
       contradictingEventCount: 0,
-      hasMoreDetail: true
     }
   ]
 };
