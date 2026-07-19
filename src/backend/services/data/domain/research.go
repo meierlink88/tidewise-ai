@@ -71,19 +71,19 @@ const (
 )
 
 type ResearchTheme struct {
-	ID                 string
-	AnalysisBatchID    string
-	Name               string
-	OneLineConclusion  string
-	ImpactLevel        ImpactLevel
-	TransmissionPath   string
-	TradingDirection   string
-	TransmissionStage  TransmissionStage
-	NextCheckpoint     string
-	IndexImpactSummary string
-	WindowStart        *time.Time
-	WindowEnd          *time.Time
-	PublishedAt        *time.Time
+	ID                        string
+	AnalysisBatchID           string
+	Name                      string
+	OneLineConclusion         string
+	ImpactLevel               ImpactLevel
+	TransmissionPath          string
+	TradingDirection          string
+	TransmissionStage         TransmissionStage
+	NextCheckpoint            string
+	MarketConfirmationSummary string
+	WindowStart               *time.Time
+	WindowEnd                 *time.Time
+	PublishedAt               *time.Time
 }
 
 type ResearchAnchor struct {
@@ -104,7 +104,7 @@ func (r ResearchTheme) Validate() error {
 	}
 	for field, value := range map[string]string{
 		"name": r.Name, "one_line_conclusion": r.OneLineConclusion, "transmission_path": r.TransmissionPath,
-		"trading_direction": r.TradingDirection, "next_checkpoint": r.NextCheckpoint, "index_impact_summary": r.IndexImpactSummary,
+		"trading_direction": r.TradingDirection, "next_checkpoint": r.NextCheckpoint, "market_confirmation_summary": r.MarketConfirmationSummary,
 	} {
 		if strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", field)

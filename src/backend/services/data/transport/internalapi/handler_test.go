@@ -15,10 +15,12 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/backend/services/data/domain"
 	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventimport"
+	researchdomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/adminquery"
 	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/research"
+	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/sourcemetadata"
 )
 
@@ -201,6 +203,106 @@ func TestReviewedEventKnownValidationFailsSafelyBeforeServiceCall(t *testing.T) 
 	}
 }
 
+func TestResearchThemeImportUsesDedicatedPublisherIdentityAndFrozenResult(t *testing.T) {
+	now := time.Date(2026, 7, 19, 9, 30, 0, 0, time.UTC)
+	importer := &fakeResearchThemeImporter{result: researchimportapp.Result{
+		ReceiptID: "11111111-1111-4111-8111-111111111111", AnalysisBatchID: "batch-1",
+		PayloadHash: strings.Repeat("a", 64), ThemeIDsByKey: map[string]string{"theme:a": "22222222-2222-4222-8222-222222222222"},
+		Counts:      researchimportapp.Counts{Themes: 1, ChainNodeAssociations: 1, EventAssociations: 1, Receipts: 1},
+		PublishedAt: now, ImportedAt: now,
+	}}
+	handler := testHandler(t, Dependencies{ResearchThemeImports: importer})
+	body := `{"analysis_batch_id":"batch-1","window_start":"2026-07-15T00:00:00Z","window_end":"2026-07-18T00:00:00Z","themes":[{"theme_key":"theme:a","name":"主题","one_line_conclusion":"结论","impact_level":"high","transmission_path":"事件 → 影响","trading_direction":"研究方向","transmission_stage":"validation","next_checkpoint":"跟踪指标","market_confirmation_summary":"当前没有可归属的正式市场观测","chain_nodes":[{"chain_node_id":"33333333-3333-4333-8333-333333333333","relation_role":"driver","impact_summary":"驱动"}],"events":[{"event_id":"44444444-4444-4444-8444-444444444444","evidence_role":"driver","supported_claim":"支持结论"}]}]}`
+
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated || importer.calls != 1 || importer.publisher != "research-theme-publisher" {
+		t.Fatalf("response=%d calls=%d publisher=%q body=%s", response.Code, importer.calls, importer.publisher, response.Body.String())
+	}
+	for _, expected := range []string{
+		`"theme_ids_by_key":{"theme:a":"22222222-2222-4222-8222-222222222222"}`,
+		`"chain_node_associations":1`, `"event_associations":1`,
+		`"published_at":"2026-07-19T09:30:00Z"`, `"imported_at":"2026-07-19T09:30:00Z"`, `"replayed":false`,
+	} {
+		if !strings.Contains(response.Body.String(), expected) {
+			t.Fatalf("response missing %s: %s", expected, response.Body.String())
+		}
+	}
+
+	importer.result.Replayed = true
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"replayed":true`) {
+		t.Fatalf("replay response=%d body=%s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-agent")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || importer.calls != 2 {
+		t.Fatalf("wrong-scope response=%d calls=%d body=%s", response.Code, importer.calls, response.Body.String())
+	}
+}
+
+func TestResearchThemeImportReturnsActionableValidationAndConflictErrors(t *testing.T) {
+	importer := &fakeResearchThemeImporter{err: &researchimportapp.ReferenceError{
+		ThemeKey: "theme:a", Path: "themes[0].events[0].event_id", Reference: "44444444-4444-4444-8444-444444444444",
+	}}
+	handler := testHandler(t, Dependencies{ResearchThemeImports: importer})
+	body := `{"analysis_batch_id":"batch-1","window_start":"2026-07-15T00:00:00Z","window_end":"2026-07-18T00:00:00Z","themes":[{"theme_key":"theme:a","name":"主题","one_line_conclusion":"结论","impact_level":"high","transmission_path":"事件 → 影响","trading_direction":"研究方向","transmission_stage":"validation","next_checkpoint":"跟踪指标","market_confirmation_summary":"未观察到市场证据","chain_nodes":[{"chain_node_id":"33333333-3333-4333-8333-333333333333","relation_role":"driver","impact_summary":"驱动"}],"events":[{"event_id":"44444444-4444-4444-8444-444444444444","evidence_role":"driver","supported_claim":"支持结论"}]}]}`
+
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), `"theme_key":"theme:a"`) || !strings.Contains(response.Body.String(), `"path":"themes[0].events[0].event_id"`) {
+		t.Fatalf("validation response=%d body=%s", response.Code, response.Body.String())
+	}
+
+	importer.err = &researchdomainimport.ValidationError{ThemeKey: "theme:a", Path: "themes[0].transmission_stage", Reference: "unknown"}
+	response = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "RESEARCH_THEME_IMPORT_REJECTED") || !strings.Contains(response.Body.String(), `"path":"themes[0].transmission_stage"`) {
+		t.Fatalf("contract validation response=%d body=%s", response.Code, response.Body.String())
+	}
+
+	importer.err = researchimportapp.ErrPayloadConflict
+	response = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "RESEARCH_THEME_PAYLOAD_CONFLICT") {
+		t.Fatalf("conflict response=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestResearchThemeImportReturnsActionableStrictDecodeError(t *testing.T) {
+	importer := &fakeResearchThemeImporter{}
+	handler := testHandler(t, Dependencies{ResearchThemeImports: importer})
+	body := `{"analysis_batch_id":"batch-1","window_start":"2026-07-15T00:00:00Z","window_end":"2026-07-18T00:00:00Z","themes":[{"Theme_Key":"shadow","theme_key":"theme:a","name":"主题","one_line_conclusion":"结论","impact_level":"high","transmission_path":"事件 → 影响","trading_direction":"研究方向","transmission_stage":"validation","next_checkpoint":"跟踪指标","market_confirmation_summary":"未观察到市场证据","chain_nodes":[{"chain_node_id":"33333333-3333-4333-8333-333333333333","relation_role":"driver","impact_summary":"驱动"}],"events":[{"event_id":"44444444-4444-4444-8444-444444444444","evidence_role":"driver","supported_claim":"支持结论"}]}]}`
+
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest || importer.calls != 0 {
+		t.Fatalf("response=%d calls=%d body=%s", response.Code, importer.calls, response.Body.String())
+	}
+	for _, expected := range []string{`"code":"INVALID_REQUEST"`, `"theme_key":"theme:a"`, `"path":"themes[0].Theme_Key"`} {
+		if !strings.Contains(response.Body.String(), expected) {
+			t.Fatalf("response missing %s: %s", expected, response.Body.String())
+		}
+	}
+}
+
 func TestResearchAdminAndAgentMetadataAreSingleAggregateCallsAndMetadataIsRedacted(t *testing.T) {
 	research := &fakeResearchService{
 		themes: research.ResearchThemePage{WindowStart: time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC), WindowEnd: time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC), AsOf: time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC), Items: []research.ResearchTheme{}},
@@ -275,7 +377,7 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 		themes = append(themes, research.ResearchTheme{
 			ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
 			ImpactLevel: themeImpacts[index], TransmissionPath: "供给到价格", TradingDirection: "关注供需验证后的方向变化",
-			TransmissionStage: stage, NextCheckpoint: "下次数据", IndexImpactSummary: "指数摘要", PublishedAt: now,
+			TransmissionStage: stage, NextCheckpoint: "下次数据", MarketConfirmationSummary: "市场验证摘要", PublishedAt: now,
 			AffectedChainNodes: []research.ResearchThemeChainNode{}, RelatedIndices: []research.ResearchIndex{},
 		})
 	}
@@ -504,6 +606,7 @@ func testHandler(t *testing.T, dependencies Dependencies) http.Handler {
 	t.Helper()
 	authenticator, err := NewAuthenticator([]Credential{
 		{Secret: "cred-agent", Principal: Principal{Identity: "agent-run", Scopes: []string{ScopeRawImport, ScopeReviewedEventImport, ScopeSourceMetadataRead}}},
+		{Secret: "cred-research-publisher", Principal: Principal{Identity: "research-theme-publisher", Scopes: []string{ScopeResearchImport}}},
 		{Secret: "cred-miniapp", Principal: Principal{Identity: "miniapp-service", Scopes: []string{ScopeResearchRead}}},
 		{Secret: "cred-admin", Principal: Principal{Identity: "adminportal-service", Scopes: []string{ScopeAdminRead}}},
 	})
@@ -554,6 +657,21 @@ type fakeReviewedImporter struct {
 	pkg    domainimport.Package
 	err    error
 	calls  int
+}
+
+type fakeResearchThemeImporter struct {
+	result    researchimportapp.Result
+	batch     researchdomainimport.Batch
+	publisher string
+	err       error
+	calls     int
+}
+
+func (f *fakeResearchThemeImporter) Import(_ context.Context, publisher string, batch researchdomainimport.Batch) (researchimportapp.Result, error) {
+	f.calls++
+	f.publisher = publisher
+	f.batch = batch
+	return f.result, f.err
 }
 
 func (f *fakeReviewedImporter) Import(_ context.Context, pkg domainimport.Package) (eventapp.Result, error) {

@@ -17,6 +17,10 @@ func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {
 	}
 
 	cfg.Secrets.DataServiceAdminToken = "admin-token"
+	if _, err := buildAuthenticator(cfg); err == nil {
+		t.Fatal("buildAuthenticator accepted a missing Research publisher credential")
+	}
+	cfg.Secrets.DataServiceResearchPublisherToken = "research-publisher-token"
 	authenticator, err := buildAuthenticator(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -28,6 +32,7 @@ func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {
 	})
 	assertPrincipal(t, authenticator, "miniapp-token", "miniapp-bff", []string{internalapi.ScopeResearchRead})
 	assertPrincipal(t, authenticator, "admin-token", "admin-portal-bff", []string{internalapi.ScopeAdminRead})
+	assertPrincipal(t, authenticator, "research-publisher-token", "research-theme-publisher", []string{internalapi.ScopeResearchImport})
 }
 
 func assertPrincipal(t *testing.T, authenticator *internalapi.Authenticator, token string, identity string, scopes []string) {

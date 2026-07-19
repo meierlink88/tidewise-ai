@@ -22,7 +22,7 @@ describe('research theme BFF adapter', () => {
             trading_direction: '重点验证订单、交期和关键材料价格',
             transmission_stage: 'diffusion',
             next_checkpoint: '卡点尚未证明',
-            index_impact_summary: '市场混合偏背离',
+            market_confirmation_summary: '市场混合偏背离',
             published_at: '2026-07-18T09:00:00Z',
             affected_chain_nodes: [
               {

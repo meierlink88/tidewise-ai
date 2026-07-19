@@ -66,11 +66,12 @@ type MigrationConfig struct {
 }
 
 type SecretConfig struct {
-	DatabaseURL             string
-	DatabasePassword        string
-	DataServiceAgentToken   string
-	DataServiceMiniappToken string
-	DataServiceAdminToken   string
+	DatabaseURL                       string
+	DatabasePassword                  string
+	DataServiceAgentToken             string
+	DataServiceResearchPublisherToken string
+	DataServiceMiniappToken           string
+	DataServiceAdminToken             string
 }
 
 func Load() (Config, error) {
@@ -95,11 +96,12 @@ func Load() (Config, error) {
 	cfg.App.Name = ServiceName
 	cfg.App.Env = env
 	cfg.Secrets = SecretConfig{
-		DatabaseURL:             firstEnv("TIDEWISE_DATABASE_URL", "DATABASE_URL"),
-		DatabasePassword:        os.Getenv("DATABASE_PASSWORD"),
-		DataServiceAgentToken:   os.Getenv("DATA_SERVICE_AGENT_TOKEN"),
-		DataServiceMiniappToken: os.Getenv("DATA_SERVICE_MINIAPP_TOKEN"),
-		DataServiceAdminToken:   os.Getenv("DATA_SERVICE_ADMIN_TOKEN"),
+		DatabaseURL:                       firstEnv("TIDEWISE_DATABASE_URL", "DATABASE_URL"),
+		DatabasePassword:                  os.Getenv("DATABASE_PASSWORD"),
+		DataServiceAgentToken:             os.Getenv("DATA_SERVICE_AGENT_TOKEN"),
+		DataServiceResearchPublisherToken: os.Getenv("DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN"),
+		DataServiceMiniappToken:           os.Getenv("DATA_SERVICE_MINIAPP_TOKEN"),
+		DataServiceAdminToken:             os.Getenv("DATA_SERVICE_ADMIN_TOKEN"),
 	}
 
 	if err := cfg.Validate(); err != nil {

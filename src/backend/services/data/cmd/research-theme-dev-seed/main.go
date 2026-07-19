@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -13,12 +14,18 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/backend/services/data/adapters/database"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories/researchseed/postgresstore"
-	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchseed"
+	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchthemeimport"
+	"github.com/meierlink88/tidewise-ai/backend/services/data/repositories"
+	appimport "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
+)
+
+const (
+	defaultManifestPath       = "data/research_themes/local_homepage.json"
+	localSeedPublisherSubject = "local-research-theme-dev-seed"
 )
 
 func main() {
-	manifestPath := flag.String("manifest-file", researchseed.DefaultManifestPath, "local research theme manifest")
+	manifestPath := flag.String("manifest-file", defaultManifestPath, "local research theme V1 import batch")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -28,7 +35,7 @@ func main() {
 	if err := validateLocalTarget(cfg); err != nil {
 		log.Fatal(err)
 	}
-	manifest, err := researchseed.LoadFile(*manifestPath)
+	batch, err := loadBatch(*manifestPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,13 +48,31 @@ func main() {
 	}
 	defer db.Close()
 
-	report, err := researchseed.NewService(postgresstore.New(db)).Apply(ctx, manifest, time.Now())
+	repository := repositories.NewPostgresRepository(db)
+	report, err := appimport.NewService(repository).Import(ctx, localSeedPublisherSubject, batch)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
 		log.Fatalf("encode report: %v", err)
 	}
+}
+
+func loadBatch(path string) (domainimport.Batch, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return domainimport.Batch{}, fmt.Errorf("open research theme import batch: %w", err)
+	}
+	defer file.Close()
+
+	batch, err := domainimport.DecodeStrict(io.LimitReader(file, 4<<20))
+	if err != nil {
+		return domainimport.Batch{}, err
+	}
+	if _, err := batch.Validate(); err != nil {
+		return domainimport.Batch{}, fmt.Errorf("validate research theme import batch: %w", err)
+	}
+	return batch, nil
 }
 
 func validateLocalTarget(cfg config.Config) error {

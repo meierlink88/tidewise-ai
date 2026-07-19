@@ -37,20 +37,20 @@ type ResearchEvent struct {
 }
 
 type ResearchThemeSummary struct {
-	ID                      string
-	Name                    string
-	OneLineConclusion       string
-	ImpactLevel             domain.ImpactLevel
-	TransmissionPath        string
-	TradingDirection        string
-	TransmissionStage       domain.TransmissionStage
-	NextCheckpoint          string
-	IndexImpactSummary      string
-	PublishedAt             time.Time
-	ChainNodes              []ResearchChainNode
-	Indices                 []ResearchIndex
-	SupportingEventCount    int
-	ContradictingEventCount int
+	ID                        string
+	Name                      string
+	OneLineConclusion         string
+	ImpactLevel               domain.ImpactLevel
+	TransmissionPath          string
+	TradingDirection          string
+	TransmissionStage         domain.TransmissionStage
+	NextCheckpoint            string
+	MarketConfirmationSummary string
+	PublishedAt               time.Time
+	ChainNodes                []ResearchChainNode
+	Indices                   []ResearchIndex
+	SupportingEventCount      int
+	ContradictingEventCount   int
 }
 
 type ResearchThemeDetail struct {
@@ -128,11 +128,17 @@ type ResearchReadRepository interface {
 }
 
 const listResearchThemesQuery = `
-WITH visible AS MATERIALIZED (
+WITH latest_batch AS MATERIALIZED (
+    SELECT id
+    FROM research_theme_import_receipts
+    WHERE published_at >= $1 AND published_at <= $2
+    ORDER BY published_at DESC, id DESC
+    LIMIT 1
+), visible AS MATERIALIZED (
     SELECT t.*,
            CASE t.impact_level WHEN 'high' THEN 3 WHEN 'focus' THEN 2 ELSE 1 END AS impact_rank
     FROM research_themes t
-    WHERE t.published_at IS NOT NULL AND t.published_at >= $1 AND t.published_at <= $2
+    JOIN latest_batch b ON b.id = t.import_receipt_id
 ), page AS (
     SELECT * FROM visible
     WHERE ($3 = 0 OR impact_rank < $3 OR (impact_rank = $3 AND (published_at < $4 OR (published_at = $4 AND id > $5))))
@@ -141,7 +147,7 @@ WITH visible AS MATERIALIZED (
 )
 SELECT p.id, p.name, p.one_line_conclusion, p.impact_level, p.transmission_path,
        p.trading_direction, p.transmission_stage, p.next_checkpoint,
-       p.index_impact_summary, p.published_at,
+	       p.market_confirmation_summary, p.published_at,
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.impact_summary) ORDER BY e.name, n.chain_node_entity_id)
                  FROM research_theme_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.theme_id = p.id), '[]'::jsonb),
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
@@ -152,15 +158,23 @@ FROM page p
 ORDER BY p.impact_rank DESC, p.published_at DESC, p.id ASC`
 
 const countResearchThemesQuery = `
+WITH latest_batch AS MATERIALIZED (
+    SELECT id
+    FROM research_theme_import_receipts
+    WHERE published_at >= $1 AND published_at <= $2
+    ORDER BY published_at DESC, id DESC
+    LIMIT 1
+)
 SELECT COUNT(DISTINCT t.id), COUNT(DISTINCT e.event_id)
 FROM research_themes t
+JOIN latest_batch b ON b.id = t.import_receipt_id
 LEFT JOIN research_theme_events e ON e.theme_id = t.id
-WHERE t.published_at IS NOT NULL AND t.published_at >= $1 AND t.published_at <= $2`
+`
 
 const getResearchThemeQuery = `
 SELECT t.id, t.name, t.one_line_conclusion, t.impact_level, t.transmission_path,
        t.trading_direction, t.transmission_stage, t.next_checkpoint,
-       t.index_impact_summary, t.published_at,
+	       t.market_confirmation_summary, t.published_at,
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.impact_summary) ORDER BY e.name, n.chain_node_entity_id)
                  FROM research_theme_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.theme_id = t.id), '[]'::jsonb),
        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
@@ -298,7 +312,7 @@ type researchRow interface{ Scan(...any) error }
 func scanResearchThemeSummary(row researchRow) (ResearchThemeSummary, error) {
 	var item ResearchThemeSummary
 	var nodes, indices []byte
-	if err := row.Scan(&item.ID, &item.Name, &item.OneLineConclusion, &item.ImpactLevel, &item.TransmissionPath, &item.TradingDirection, &item.TransmissionStage, &item.NextCheckpoint, &item.IndexImpactSummary, &item.PublishedAt, &nodes, &indices, &item.SupportingEventCount, &item.ContradictingEventCount); err != nil {
+	if err := row.Scan(&item.ID, &item.Name, &item.OneLineConclusion, &item.ImpactLevel, &item.TransmissionPath, &item.TradingDirection, &item.TransmissionStage, &item.NextCheckpoint, &item.MarketConfirmationSummary, &item.PublishedAt, &nodes, &indices, &item.SupportingEventCount, &item.ContradictingEventCount); err != nil {
 		return ResearchThemeSummary{}, err
 	}
 	if err := json.Unmarshal(nodes, &item.ChainNodes); err != nil {
@@ -319,7 +333,7 @@ func scanResearchThemeSummary(row researchRow) (ResearchThemeSummary, error) {
 func scanResearchThemeDetail(row researchRow) (ResearchThemeDetail, error) {
 	var item ResearchThemeDetail
 	var nodes, indices, events []byte
-	if err := row.Scan(&item.ID, &item.Name, &item.OneLineConclusion, &item.ImpactLevel, &item.TransmissionPath, &item.TradingDirection, &item.TransmissionStage, &item.NextCheckpoint, &item.IndexImpactSummary, &item.PublishedAt, &nodes, &indices, &events, &item.SupportingEventCount, &item.ContradictingEventCount); err != nil {
+	if err := row.Scan(&item.ID, &item.Name, &item.OneLineConclusion, &item.ImpactLevel, &item.TransmissionPath, &item.TradingDirection, &item.TransmissionStage, &item.NextCheckpoint, &item.MarketConfirmationSummary, &item.PublishedAt, &nodes, &indices, &events, &item.SupportingEventCount, &item.ContradictingEventCount); err != nil {
 		return ResearchThemeDetail{}, err
 	}
 	if err := decodeResearchCollections(nodes, indices, events, &item.ChainNodes, &item.Indices, &item.Events); err != nil {

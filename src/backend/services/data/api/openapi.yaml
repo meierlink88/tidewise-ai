@@ -18,6 +18,7 @@ tags:
   - name: Agent source metadata
   - name: Raw document import
   - name: Reviewed event import
+  - name: Research Theme import
 
 paths:
   /internal/data/v1/research/themes:
@@ -487,6 +488,68 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /internal/data/v1/research-theme-imports:
+    post:
+      tags: [Research Theme import]
+      operationId: importResearchThemes
+      x-client-drift-anchor: data.v1.importResearchThemes
+      x-required-service-scope: data.research.import
+      x-retry-policy: idempotent-with-analysis-batch-id
+      x-timeout-budget-ms: 15000
+      x-canonicalization: rfc8785-sha256
+      x-atomicity: whole-batch-single-postgresql-transaction
+      x-receipt-schema: research_theme_import_receipts
+      x-transaction-membership: research-theme-import-receipt,research-theme,research-theme-chain-node,research-theme-event
+      summary: 原子发布一个不可变 Research Theme 批次快照
+      description: >-
+        analysis_batch_id 是唯一批次及幂等身份。发布者身份只从 Bearer service principal
+        派生；同一主体、批次和 payload 重放首次结果，内容或主体冲突返回 409。
+        themes、chain_nodes 和 events 必须按合同键升序提交，任一引用无效时整批回滚。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              maxLength: 1048576
+              x-max-body-bytes: 1048576
+              allOf:
+                - $ref: '#/components/schemas/ResearchThemeImportRequest'
+      responses:
+        '200':
+          description: 相同发布主体、analysis_batch_id 与 payload 的首次结果重放
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchThemeImportEnvelope'
+        '201':
+          description: Theme 批次和 immutable receipt 已原子提交
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchThemeImportEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   securitySchemes:
     ServiceBearer:
@@ -657,6 +720,11 @@ components:
       type: string
       format: uuid
       description: RFC 4122 UUID string。
+    LowercaseUUID:
+      type: string
+      format: uuid
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: V1 publication contract 使用的标准小写 RFC 4122 UUID string。
     UTCTimestamp:
       type: string
       format: date-time
@@ -727,6 +795,174 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+
+    ResearchThemeImportRequest:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchThemeImportRequest
+      required: [analysis_batch_id, window_start, window_end, themes]
+      properties:
+        analysis_batch_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 分析侧 run_id；同时是不可变批次身份与唯一幂等身份。
+        window_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        window_end:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          description: 必须严格晚于 window_start。
+        themes:
+          type: array
+          minItems: 1
+          description: 必须按 theme_key ASCII 升序且批次内唯一。
+          items:
+            $ref: '#/components/schemas/ResearchThemeImportItem'
+
+    ResearchThemeImportItem:
+      type: object
+      additionalProperties: false
+      required:
+        - theme_key
+        - name
+        - one_line_conclusion
+        - impact_level
+        - transmission_path
+        - trading_direction
+        - transmission_stage
+        - next_checkpoint
+        - market_confirmation_summary
+        - chain_nodes
+        - events
+      properties:
+        theme_key:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[a-z0-9][a-z0-9._:-]{0,127}$'
+          description: 仅在 analysis_batch_id 内稳定；不承担跨批次主题身份。
+        name:
+          type: string
+          minLength: 1
+        one_line_conclusion:
+          type: string
+          minLength: 1
+        impact_level:
+          type: string
+          enum: [high, focus, watch]
+        transmission_path:
+          type: string
+          minLength: 1
+        trading_direction:
+          type: string
+          minLength: 1
+        transmission_stage:
+          type: string
+          enum: [identification, validation, diffusion, dampening]
+        next_checkpoint:
+          type: string
+          minLength: 1
+        market_confirmation_summary:
+          type: string
+          minLength: 1
+        chain_nodes:
+          type: array
+          minItems: 1
+          description: 必须按小写 chain_node_id 升序且 ID 唯一。
+          items:
+            $ref: '#/components/schemas/ResearchThemeImportChainNode'
+        events:
+          type: array
+          minItems: 1
+          description: 必须按小写 event_id 升序且 ID 唯一；至少包含一个 driver。
+          items:
+            $ref: '#/components/schemas/ResearchThemeImportEvent'
+
+    ResearchThemeImportChainNode:
+      type: object
+      additionalProperties: false
+      required: [chain_node_id, relation_role, impact_summary]
+      properties:
+        chain_node_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        relation_role:
+          type: string
+          enum: [driver, beneficiary, constraint, exposure]
+        impact_summary:
+          type: string
+          minLength: 1
+
+    ResearchThemeImportEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, evidence_role, supported_claim]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        evidence_role:
+          type: string
+          enum: [driver, supporting, contradicting, context]
+        supported_claim:
+          type: string
+          minLength: 1
+
+    ResearchThemeImportCounts:
+      type: object
+      additionalProperties: false
+      required: [themes, chain_node_associations, event_associations, receipts]
+      properties:
+        themes:
+          type: integer
+          minimum: 1
+        chain_node_associations:
+          type: integer
+          minimum: 1
+        event_associations:
+          type: integer
+          minimum: 1
+        receipts:
+          type: integer
+          minimum: 1
+          maximum: 1
+
+    ResearchThemeImportResult:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchThemeImportResult
+      required: [receipt_id, analysis_batch_id, payload_hash, theme_ids_by_key, counts, published_at, imported_at, replayed]
+      properties:
+        receipt_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        analysis_batch_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        payload_hash:
+          $ref: '#/components/schemas/PayloadHash'
+        theme_ids_by_key:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            $ref: '#/components/schemas/LowercaseUUID'
+        counts:
+          $ref: '#/components/schemas/ResearchThemeImportCounts'
+        published_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        imported_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        replayed:
+          type: boolean
+
+    ResearchThemeImportEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchThemeImportResult'
 
     ResearchThemeChainNode:
       type: object
@@ -800,6 +1036,7 @@ components:
         - trading_direction
         - transmission_stage
         - next_checkpoint
+        - market_confirmation_summary
         - published_at
         - affected_chain_nodes
         - related_indices
@@ -826,7 +1063,7 @@ components:
           enum: [identification, validation, diffusion, dampening]
         next_checkpoint:
           type: string
-        index_impact_summary:
+        market_confirmation_summary:
           type: string
         published_at:
           $ref: '#/components/schemas/UTCTimestamp'

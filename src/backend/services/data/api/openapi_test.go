@@ -33,6 +33,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/raw-document-imports":                   {method: "post", operationID: "importRawDocuments", scope: "data.raw-documents.import"},
 		namespace + "/raw-document-imports/{idempotency_key}": {method: "get", operationID: "getRawDocumentImportStatus", scope: "data.raw-documents.import"},
 		namespace + "/reviewed-event-imports":                 {method: "post", operationID: "importReviewedEvent", scope: "data.reviewed-events.import"},
+		namespace + "/research-theme-imports":                 {method: "post", operationID: "importResearchThemes", scope: "data.research.import"},
 	}
 
 	if len(paths) != len(want) {
@@ -54,6 +55,61 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/research-theme-imports"], "research Theme import path")["post"], "research Theme import operation")
+	assertString(t, operation, "x-canonicalization", "rfc8785-sha256")
+	assertString(t, operation, "x-atomicity", "whole-batch-single-postgresql-transaction")
+	assertString(t, operation, "x-receipt-schema", "research_theme_import_receipts")
+	assertString(t, operation, "x-retry-policy", "idempotent-with-analysis-batch-id")
+
+	request := schema(t, document, "ResearchThemeImportRequest")
+	assertRequired(t, request, "analysis_batch_id", "window_start", "window_end", "themes")
+	properties := object(t, request["properties"], "ResearchThemeImportRequest properties")
+	for _, forbidden := range []string{"idempotency_key", "publisher_subject", "published_at", "confidence", "market_confirmation"} {
+		if _, exists := properties[forbidden]; exists {
+			t.Fatalf("ResearchThemeImportRequest must not expose %q", forbidden)
+		}
+	}
+	themes := object(t, properties["themes"], "themes")
+	assertInt(t, themes, "minItems", 1)
+
+	theme := schema(t, document, "ResearchThemeImportItem")
+	assertRequired(t, theme,
+		"theme_key", "name", "one_line_conclusion", "impact_level", "transmission_path",
+		"trading_direction", "transmission_stage", "next_checkpoint", "market_confirmation_summary",
+		"chain_nodes", "events",
+	)
+	themeProperties := object(t, theme["properties"], "ResearchThemeImportItem properties")
+	for _, forbidden := range []string{"id", "event_ids", "chain_node_ids", "indices", "index_entity_ids", "confidence", "causal_chain", "research_direction", "confirmation_conditions"} {
+		if _, exists := themeProperties[forbidden]; exists {
+			t.Fatalf("ResearchThemeImportItem must not expose %q", forbidden)
+		}
+	}
+	assertString(t, object(t, themeProperties["theme_key"], "theme_key"), "pattern", "^[a-z0-9][a-z0-9._:-]{0,127}$")
+	assertStringSet(t, object(t, themeProperties["impact_level"], "impact_level")["enum"], "high", "focus", "watch")
+	assertStringSet(t, object(t, themeProperties["transmission_stage"], "transmission_stage")["enum"], "identification", "validation", "diffusion", "dampening")
+
+	chainNode := schema(t, document, "ResearchThemeImportChainNode")
+	assertRequired(t, chainNode, "chain_node_id", "relation_role", "impact_summary")
+	lowercaseUUID := schema(t, document, "LowercaseUUID")
+	assertString(t, lowercaseUUID, "pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+	assertString(t, object(t, object(t, chainNode["properties"], "chain node properties")["chain_node_id"], "chain_node_id"), "$ref", "#/components/schemas/LowercaseUUID")
+	assertStringSet(t, object(t, object(t, chainNode["properties"], "chain node properties")["relation_role"], "relation_role")["enum"], "driver", "beneficiary", "constraint", "exposure")
+	event := schema(t, document, "ResearchThemeImportEvent")
+	assertRequired(t, event, "event_id", "evidence_role", "supported_claim")
+	assertString(t, object(t, object(t, event["properties"], "event properties")["event_id"], "event_id"), "$ref", "#/components/schemas/LowercaseUUID")
+	assertStringSet(t, object(t, object(t, event["properties"], "event properties")["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
+
+	result := schema(t, document, "ResearchThemeImportResult")
+	assertRequired(t, result, "receipt_id", "analysis_batch_id", "payload_hash", "theme_ids_by_key", "counts", "published_at", "imported_at", "replayed")
+	resultProperties := object(t, result["properties"], "ResearchThemeImportResult properties")
+	if value := object(t, resultProperties["theme_ids_by_key"], "theme_ids_by_key")["additionalProperties"]; value == nil {
+		t.Fatal("theme_ids_by_key must define UUID map values")
 	}
 }
 
