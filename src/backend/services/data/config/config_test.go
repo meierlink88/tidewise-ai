@@ -15,6 +15,7 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	t.Setenv("APP_ENV", "local")
 	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://data:secret@localhost:5432/tidewise_local?sslmode=disable")
 	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "agent-token")
+	t.Setenv("DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN", "research-publisher-token")
 	t.Setenv("DATA_SERVICE_MINIAPP_TOKEN", "miniapp-token")
 	t.Setenv("DATA_SERVICE_ADMIN_TOKEN", "admin-token")
 	t.Setenv("AGENT_PLATFORM_API_KEY", "must-not-be-loaded")
@@ -30,7 +31,7 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	if cfg.Database.Name != "tidewise_local" || cfg.Migration.Directory != "migrations" || !cfg.Neo4j.Enabled {
 		t.Fatalf("Data configuration = %#v/%#v/%#v", cfg.Database, cfg.Migration, cfg.Neo4j)
 	}
-	if cfg.Secrets.DatabaseURL == "" || cfg.Secrets.DataServiceAgentToken == "" || cfg.Secrets.DataServiceMiniappToken == "" || cfg.Secrets.DataServiceAdminToken == "" {
+	if cfg.Secrets.DatabaseURL == "" || cfg.Secrets.DataServiceAgentToken == "" || cfg.Secrets.DataServiceResearchPublisherToken == "" || cfg.Secrets.DataServiceMiniappToken == "" || cfg.Secrets.DataServiceAdminToken == "" {
 		t.Fatalf("Data secrets were not loaded: %#v", cfg.Secrets)
 	}
 }
@@ -73,17 +74,18 @@ func TestLoadRejectsInvalidEnabledNeo4jConfiguration(t *testing.T) {
 
 func TestSecretsAreNotSerialized(t *testing.T) {
 	cfg := Config{Secrets: SecretConfig{
-		DatabaseURL:             "postgres://data:secret@localhost/db",
-		DatabasePassword:        "database-secret",
-		DataServiceAgentToken:   "agent-token",
-		DataServiceMiniappToken: "miniapp-token",
-		DataServiceAdminToken:   "admin-token",
+		DatabaseURL:                       "postgres://data:secret@localhost/db",
+		DatabasePassword:                  "database-secret",
+		DataServiceAgentToken:             "agent-token",
+		DataServiceResearchPublisherToken: "research-publisher-token",
+		DataServiceMiniappToken:           "miniapp-token",
+		DataServiceAdminToken:             "admin-token",
 	}}
 	content, err := yaml.Marshal(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"database-secret", "agent-token", "miniapp-token", "admin-token"} {
+	for _, secret := range []string{"database-secret", "agent-token", "research-publisher-token", "miniapp-token", "admin-token"} {
 		if strings.Contains(string(content), secret) {
 			t.Fatalf("serialized configuration leaked %q", secret)
 		}

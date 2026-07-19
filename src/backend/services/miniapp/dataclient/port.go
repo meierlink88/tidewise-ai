@@ -97,20 +97,20 @@ type ResearchThemePage struct {
 }
 
 type ResearchTheme struct {
-	ID                      string                   `json:"id"`
-	Name                    string                   `json:"name"`
-	OneLineConclusion       string                   `json:"one_line_conclusion"`
-	ImpactLevel             ImpactLevel              `json:"impact_level"`
-	TransmissionPath        string                   `json:"transmission_path"`
-	TradingDirection        string                   `json:"trading_direction"`
-	TransmissionStage       TransmissionStage        `json:"transmission_stage"`
-	NextCheckpoint          string                   `json:"next_checkpoint"`
-	IndexImpactSummary      string                   `json:"index_impact_summary,omitempty"`
-	PublishedAt             time.Time                `json:"published_at"`
-	AffectedChainNodes      []ResearchThemeChainNode `json:"affected_chain_nodes"`
-	RelatedIndices          []ResearchIndex          `json:"related_indices"`
-	SupportingEventCount    int                      `json:"supporting_event_count"`
-	ContradictingEventCount int                      `json:"contradicting_event_count"`
+	ID                        string                   `json:"id"`
+	Name                      string                   `json:"name"`
+	OneLineConclusion         string                   `json:"one_line_conclusion"`
+	ImpactLevel               ImpactLevel              `json:"impact_level"`
+	TransmissionPath          string                   `json:"transmission_path"`
+	TradingDirection          string                   `json:"trading_direction"`
+	TransmissionStage         TransmissionStage        `json:"transmission_stage"`
+	NextCheckpoint            string                   `json:"next_checkpoint"`
+	MarketConfirmationSummary string                   `json:"market_confirmation_summary"`
+	PublishedAt               time.Time                `json:"published_at"`
+	AffectedChainNodes        []ResearchThemeChainNode `json:"affected_chain_nodes"`
+	RelatedIndices            []ResearchIndex          `json:"related_indices"`
+	SupportingEventCount      int                      `json:"supporting_event_count"`
+	ContradictingEventCount   int                      `json:"contradicting_event_count"`
 }
 
 type ResearchThemeDetail struct {

@@ -1,11 +1,25 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/meierlink88/tidewise-ai/backend/services/data/config"
 )
+
+func TestLoadBatchUsesFrozenImportContract(t *testing.T) {
+	batch, err := loadBatch(filepath.Join("..", "..", "..", "..", "data", "research_themes", "local_homepage.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if batch.AnalysisBatchID != "20260718T-v6-72h-validation-home-dev" || len(batch.Themes) != 3 {
+		t.Fatalf("batch = %#v", batch)
+	}
+	if batch.Themes[0].ThemeKey != "ai-application-commercialization" {
+		t.Fatalf("first theme key = %q", batch.Themes[0].ThemeKey)
+	}
+}
 
 func TestValidateLocalTarget(t *testing.T) {
 	valid := []config.Config{

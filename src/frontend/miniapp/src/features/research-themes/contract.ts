@@ -24,7 +24,7 @@ export interface HomeResearchThemeItem {
   tradingDirection: string;
   transmissionStage: ResearchTransmissionStage;
   nextCheckpoint: string;
-  indexImpactSummary: string;
+  marketConfirmationSummary: string;
   publishedAt: string;
   updateLabel: string;
   categories: string[];

@@ -14,7 +14,7 @@ func TestResearchThemeValidate(t *testing.T) {
 		OneLineConclusion: "需求持续，瓶颈向互联传导。", ImpactLevel: ImpactLevelHigh,
 		TransmissionPath: "需求 -> 互联", TradingDirection: "关注供给约束",
 		TransmissionStage: TransmissionStageIdentification, NextCheckpoint: "看订单",
-		IndexImpactSummary: "指数影响偏正面", WindowStart: &start, WindowEnd: &end,
+		MarketConfirmationSummary: "市场验证偏正面", WindowStart: &start, WindowEnd: &end,
 	}
 	if err := base.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
@@ -41,7 +41,7 @@ func TestResearchThemeValidateAcceptsConclusionTransmissionStagesOnly(t *testing
 		ID: "theme-1", AnalysisBatchID: "batch-1", Name: "算力基建",
 		OneLineConclusion: "需求持续，瓶颈向互联传导。", ImpactLevel: ImpactLevelHigh,
 		TransmissionPath: "需求 -> 互联", TradingDirection: "关注供给约束",
-		NextCheckpoint: "尚未显现", IndexImpactSummary: "指数影响偏正面",
+		NextCheckpoint: "尚未显现", MarketConfirmationSummary: "市场验证偏正面",
 	}
 
 	for _, stage := range []TransmissionStage{

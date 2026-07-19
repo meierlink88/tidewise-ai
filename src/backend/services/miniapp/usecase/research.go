@@ -49,20 +49,20 @@ type ResearchThemeListResponse struct {
 }
 
 type ResearchThemeItem struct {
-	ID                      string                 `json:"id"`
-	Name                    string                 `json:"name"`
-	OneLineConclusion       string                 `json:"one_line_conclusion"`
-	ImpactLevel             string                 `json:"impact_level"`
-	TransmissionPath        string                 `json:"transmission_path"`
-	TradingDirection        string                 `json:"trading_direction"`
-	TransmissionStage       string                 `json:"transmission_stage"`
-	NextCheckpoint          string                 `json:"next_checkpoint"`
-	IndexImpactSummary      string                 `json:"index_impact_summary,omitempty"`
-	PublishedAt             string                 `json:"published_at"`
-	AffectedChainNodes      []ResearchChainNodeDTO `json:"affected_chain_nodes"`
-	RelatedIndices          []ResearchIndexDTO     `json:"related_indices"`
-	SupportingEventCount    int                    `json:"supporting_event_count"`
-	ContradictingEventCount int                    `json:"contradicting_event_count"`
+	ID                        string                 `json:"id"`
+	Name                      string                 `json:"name"`
+	OneLineConclusion         string                 `json:"one_line_conclusion"`
+	ImpactLevel               string                 `json:"impact_level"`
+	TransmissionPath          string                 `json:"transmission_path"`
+	TradingDirection          string                 `json:"trading_direction"`
+	TransmissionStage         string                 `json:"transmission_stage"`
+	NextCheckpoint            string                 `json:"next_checkpoint"`
+	MarketConfirmationSummary string                 `json:"market_confirmation_summary"`
+	PublishedAt               string                 `json:"published_at"`
+	AffectedChainNodes        []ResearchChainNodeDTO `json:"affected_chain_nodes"`
+	RelatedIndices            []ResearchIndexDTO     `json:"related_indices"`
+	SupportingEventCount      int                    `json:"supporting_event_count"`
+	ContradictingEventCount   int                    `json:"contradicting_event_count"`
 }
 
 type ResearchThemeDetailResponse struct {
@@ -252,7 +252,7 @@ func themeItemDTO(item dataclient.ResearchTheme) ResearchThemeItem {
 	return ResearchThemeItem{
 		ID: item.ID, Name: item.Name, OneLineConclusion: item.OneLineConclusion, ImpactLevel: string(item.ImpactLevel),
 		TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection, TransmissionStage: string(item.TransmissionStage),
-		NextCheckpoint: item.NextCheckpoint, IndexImpactSummary: item.IndexImpactSummary, PublishedAt: formatTime(item.PublishedAt),
+		NextCheckpoint: item.NextCheckpoint, MarketConfirmationSummary: item.MarketConfirmationSummary, PublishedAt: formatTime(item.PublishedAt),
 		AffectedChainNodes: themeChainNodeDTOs(item.AffectedChainNodes), RelatedIndices: indexDTOs(item.RelatedIndices),
 		SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount,
 	}

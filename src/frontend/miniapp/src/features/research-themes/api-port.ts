@@ -48,7 +48,7 @@ interface APIResearchTheme {
   trading_direction: string;
   transmission_stage: ResearchTransmissionStage;
   next_checkpoint: string;
-  index_impact_summary: string;
+  market_confirmation_summary: string;
   published_at: string;
   affected_chain_nodes: APIResearchChainNode[];
   related_indices: APIResearchIndex[];
@@ -137,7 +137,7 @@ function mapTheme(theme: APIResearchTheme, asOf: string): HomeResearchThemeItem 
     tradingDirection: theme.trading_direction,
     transmissionStage: theme.transmission_stage,
     nextCheckpoint: theme.next_checkpoint,
-    indexImpactSummary: theme.index_impact_summary,
+    marketConfirmationSummary: theme.market_confirmation_summary,
     publishedAt: theme.published_at,
     updateLabel: formatResearchUpdateLabel(theme.published_at, asOf),
     categories: categoriesForTheme(theme.name),

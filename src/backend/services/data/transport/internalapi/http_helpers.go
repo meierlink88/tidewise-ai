@@ -109,7 +109,11 @@ func writeEnvelope(response http.ResponseWriter, status int, requestID string, r
 }
 
 func writeError(response http.ResponseWriter, requestID string, status int, code, message string) {
-	writeJSON(response, status, map[string]any{"request_id": requestID, "error": map[string]any{"code": code, "message": message, "details": map[string]any{}}})
+	writeErrorWithDetails(response, requestID, status, code, message, map[string]any{})
+}
+
+func writeErrorWithDetails(response http.ResponseWriter, requestID string, status int, code, message string, details map[string]any) {
+	writeJSON(response, status, map[string]any{"request_id": requestID, "error": map[string]any{"code": code, "message": message, "details": details}})
 }
 
 func writeJSON(response http.ResponseWriter, status int, payload any) {

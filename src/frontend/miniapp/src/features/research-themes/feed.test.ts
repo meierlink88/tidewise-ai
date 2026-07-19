@@ -10,7 +10,7 @@ describe('research theme homepage feed', () => {
     expect(feed.eventCount).toBe(13);
     expect(feed.trackingCount).toBe(17);
     expect(feed.items.map((item) => item.transmissionStage)).toEqual(['diffusion', 'validation', 'validation']);
-    expect(feed.items.every((item) => typeof item.indexImpactSummary === 'string')).toBe(true);
+    expect(feed.items.every((item) => typeof item.marketConfirmationSummary === 'string')).toBe(true);
   });
 
   it('maps the primary research theme into the approved card content', async () => {

@@ -7,8 +7,10 @@ import (
 	"unicode/utf8"
 
 	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventimport"
+	researchdomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchthemeimport"
 	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
+	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 )
 
 func (d Dependencies) importRawDocuments(response http.ResponseWriter, request *http.Request, principal Principal, requestID string) {
@@ -91,5 +93,60 @@ func reviewedResult(result eventapp.Result) map[string]any {
 		"raw_document_ids": result.RawDocumentIDs, "event_source_ids": result.EventSourceIDs,
 		"event_tag_map_ids": result.EventTagMapIDs, "payload_hash": result.PayloadHash,
 		"counts": map[string]int{"raw_documents": len(result.RawDocumentIDs), "events": 1, "event_sources": len(result.EventSourceIDs), "event_tags": len(result.EventTagMapIDs), "receipts": 1},
+	}
+}
+
+func (d Dependencies) importResearchThemes(response http.ResponseWriter, request *http.Request, principal Principal, requestID string) {
+	if d.ResearchThemeImports == nil {
+		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Theme import service is unavailable")
+		return
+	}
+	request.Body = http.MaxBytesReader(response, request.Body, MaxRequestBodyBytes)
+	batch, err := researchdomainimport.DecodeStrict(request.Body)
+	if err != nil {
+		var decodeError *researchdomainimport.DecodeError
+		if errors.As(err, &decodeError) {
+			writeErrorWithDetails(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Theme V1 contract", map[string]any{
+				"theme_key": decodeError.ThemeKey, "path": decodeError.Path,
+			})
+			return
+		}
+		writeDecodeError(response, requestID, err)
+		return
+	}
+	result, err := d.ResearchThemeImports.Import(request.Context(), principal.Identity, batch)
+	if err != nil {
+		writeResearchThemeImportError(response, requestID, err)
+		return
+	}
+	status := http.StatusCreated
+	if result.Replayed {
+		status = http.StatusOK
+	}
+	writeEnvelope(response, status, requestID, result)
+}
+
+func writeResearchThemeImportError(response http.ResponseWriter, requestID string, err error) {
+	var validation *researchdomainimport.ValidationError
+	if errors.As(err, &validation) {
+		writeErrorWithDetails(response, requestID, http.StatusBadRequest, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme batch failed validation", map[string]any{
+			"theme_key": validation.ThemeKey, "path": validation.Path, "reference": validation.Reference,
+		})
+		return
+	}
+	var reference *researchimportapp.ReferenceError
+	if errors.As(err, &reference) {
+		writeErrorWithDetails(response, requestID, http.StatusUnprocessableEntity, "RESEARCH_THEME_REFERENCE_NOT_FOUND", "research Theme batch references missing master data", map[string]any{
+			"theme_key": reference.ThemeKey, "path": reference.Path, "reference": reference.Reference,
+		})
+		return
+	}
+	switch {
+	case errors.Is(err, researchimportapp.ErrPayloadConflict):
+		writeError(response, requestID, http.StatusConflict, "RESEARCH_THEME_PAYLOAD_CONFLICT", "analysis_batch_id conflicts with the published payload")
+	case errors.Is(err, researchimportapp.ErrPublisherConflict):
+		writeError(response, requestID, http.StatusConflict, "RESEARCH_THEME_PUBLISHER_CONFLICT", "analysis_batch_id belongs to another publisher subject")
+	default:
+		writeError(response, requestID, http.StatusInternalServerError, "RESEARCH_THEME_IMPORT_FAILED", "research Theme import failed")
 	}
 }

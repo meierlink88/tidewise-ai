@@ -18,6 +18,7 @@ import (
 	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/research"
+	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/sourcemetadata"
 )
 
@@ -47,12 +48,13 @@ func main() {
 	}
 	repository := repositories.NewPostgresRepository(db)
 	api := internalapi.NewHandler(internalapi.Dependencies{
-		Authenticator:  authenticator,
-		RawImports:     rawimport.NewService(postgresstore.New(db), time.Now),
-		ReviewedEvents: eventapp.NewService(repository),
-		Research:       research.NewService(repository, time.Now),
-		Admin:          adminquery.NewService(repository),
-		SourceMetadata: sourcemetadata.NewService(repository),
+		Authenticator:        authenticator,
+		RawImports:           rawimport.NewService(postgresstore.New(db), time.Now),
+		ReviewedEvents:       eventapp.NewService(repository),
+		ResearchThemeImports: researchimportapp.NewService(repository),
+		Research:             research.NewService(repository, time.Now),
+		Admin:                adminquery.NewService(repository),
+		SourceMetadata:       sourcemetadata.NewService(repository),
 	})
 
 	server := data.NewServer(cfg, api)
@@ -71,6 +73,13 @@ func buildAuthenticator(cfg config.Config) (*internalapi.Authenticator, error) {
 				internalapi.ScopeReviewedEventImport,
 				internalapi.ScopeSourceMetadataRead,
 			}},
+		},
+		{
+			Secret: cfg.Secrets.DataServiceResearchPublisherToken,
+			Principal: internalapi.Principal{
+				Identity: "research-theme-publisher",
+				Scopes:   []string{internalapi.ScopeResearchImport},
+			},
 		},
 		{
 			Secret:    cfg.Secrets.DataServiceMiniappToken,

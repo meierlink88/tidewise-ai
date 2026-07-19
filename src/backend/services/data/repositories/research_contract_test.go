@@ -61,6 +61,48 @@ func TestResearchTransmissionStageCorrectionMigrationContract(t *testing.T) {
 	}
 }
 
+func TestResearchThemeImportMigrationContract(t *testing.T) {
+	content, err := os.ReadFile("../../../migrations/000024_add_research_theme_imports.sql")
+	if err != nil {
+		t.Fatalf("read research Theme import migration: %v", err)
+	}
+	sql := strings.ToLower(string(content))
+
+	for _, fragment := range []string{
+		"rename column index_impact_summary to market_confirmation_summary",
+		"create table research_theme_import_receipts",
+		"analysis_batch_id text not null unique",
+		"publisher_subject text not null",
+		"payload_hash char(64) not null",
+		"theme_ids_by_key jsonb not null",
+		"write_counts jsonb not null",
+		"add column theme_key text",
+		"set theme_key = 'legacy:' || lower(id::text)",
+		"alter column theme_key set not null",
+		"add column import_receipt_id uuid",
+		"references research_theme_import_receipts(id)",
+		"unique (analysis_batch_id, theme_key)",
+		"jsonb_array_length(jsonb_path_query_array(theme_ids_by_key, '$.keyvalue()'))",
+		"window_end > window_start",
+		"research theme import receipts are immutable",
+		"raise exception",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("migration missing contract %q", fragment)
+		}
+	}
+	for _, forbidden := range []string{
+		"insert into research_theme_import_receipts select",
+		"delete from research_themes",
+		"drop table research_themes",
+		"jsonb_object_length",
+	} {
+		if strings.Contains(sql, forbidden) {
+			t.Fatalf("migration must preserve legacy Theme rows: found %q", forbidden)
+		}
+	}
+}
+
 func TestResearchMigrationAllTablesHaveAuditColumns(t *testing.T) {
 	content, err := os.ReadFile("../../../migrations/000021_add_research_theme_anchor_foundation.sql")
 	if err != nil {
@@ -138,6 +180,26 @@ func TestResearchCountQueriesDeduplicateMainRowsAndEvents(t *testing.T) {
 			}
 			if strings.Contains(query, "select count(*)") {
 				t.Fatalf("count query must not count joined rows: %s", query)
+			}
+		})
+	}
+}
+
+func TestResearchThemeListSelectsOneLatestSuccessfulReceiptBatch(t *testing.T) {
+	for name, query := range map[string]string{"list": listResearchThemesQuery, "count": countResearchThemesQuery} {
+		t.Run(name, func(t *testing.T) {
+			normalized := strings.Join(strings.Fields(strings.ToLower(query)), " ")
+			for _, required := range []string{
+				"from research_theme_import_receipts",
+				"published_at >= $1",
+				"published_at <= $2",
+				"order by published_at desc, id desc",
+				"limit 1",
+				"t.import_receipt_id",
+			} {
+				if !strings.Contains(normalized, required) {
+					t.Fatalf("%s query does not isolate the latest successful batch: missing %q in %s", name, required, normalized)
+				}
 			}
 		})
 	}

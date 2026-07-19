@@ -120,6 +120,18 @@ SELECT status, COUNT(*) FROM source_catalogs GROUP BY status ORDER BY status;
 SELECT origin_system, COUNT(*) FROM source_catalogs GROUP BY origin_system ORDER BY origin_system;
 ```
 
+## 初始化本地 Research Theme
+
+应用 migration 后，可将版本化的首页开发批次通过正式 Research Theme Import Service 写入本地库：
+
+```bash
+APP_ENV=local \
+TIDEWISE_DATABASE_URL='postgres://tidewise:<local-password>@localhost:5432/tidewise_local?sslmode=disable' \
+go run ./services/data/cmd/research-theme-dev-seed
+```
+
+该命令只允许连接 `tidewise_local`，默认读取 `src/backend/data/research_themes/local_homepage.json`。文件使用生产 V1 导入合同；命令不会直接 upsert Theme 或清空关联表。首次执行创建不可变 receipt，重复执行返回原结果并标记 `replayed: true`。
+
 ## 采集运行边界
 
 本仓库只保留 source metadata、source catalog 主数据和 Data Service 的 raw-document/reviewed-event 受控导入合同。connector、parser、prompt 与采集编排归属独立 agent-run 项目；agent-run 通过 `/internal/data/v1` 的受认证接口导入结果，不得绕过 Data Service 直接写 Data DB。
