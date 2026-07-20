@@ -3,7 +3,7 @@ app:
   env: local
 server:
   host: 0.0.0.0
-  port: 8080
+  port: 9011
   read_timeout_seconds: 5
   write_timeout_seconds: 15
 log:

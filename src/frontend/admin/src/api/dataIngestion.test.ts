@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  adminAPIURL,
   loadEvents,
   loadRawDocuments,
   loadSourceCatalogs
 } from './dataIngestion';
 
 describe('data ingestion api client', () => {
+  it('uses the runtime Admin API base URL without rebuilding the frontend', () => {
+    window.__TIDEWISE_RUNTIME_CONFIG__ = { adminApiBaseUrl: 'http://uat.example.test:9013/' };
+    expect(adminAPIURL('/admin/events')).toBe('http://uat.example.test:9013/admin/events');
+    window.__TIDEWISE_RUNTIME_CONFIG__ = undefined;
+  });
+
   it('loads raw documents with title search and default page size', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

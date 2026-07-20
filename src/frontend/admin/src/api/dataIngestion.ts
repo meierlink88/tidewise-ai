@@ -72,6 +72,14 @@ export interface SourceCatalogQuery {
 
 const defaultPageSize = 50;
 
+declare global {
+  interface Window {
+    __TIDEWISE_RUNTIME_CONFIG__?: {
+      adminApiBaseUrl?: string;
+    };
+  }
+}
+
 export async function loadRawDocuments(token: string, query: RawDocumentQuery): Promise<PagedResponse<RawDocumentItem>> {
   const params = new URLSearchParams();
   params.set('page', String(query.page));
@@ -79,7 +87,7 @@ export async function loadRawDocuments(token: string, query: RawDocumentQuery): 
   if (query.title.trim()) {
     params.set('title', query.title.trim());
   }
-  const response = await fetch(`/admin/raw-documents?${params.toString()}`, {
+  const response = await fetch(adminAPIURL(`/admin/raw-documents?${params.toString()}`), {
     headers: authHeaders(token)
   });
   return readJSON(response);
@@ -96,7 +104,7 @@ export async function loadEvents(token: string, query: EventQuery): Promise<Page
   appendParam(params, 'event_time_to', query.event_time_to);
   appendParam(params, 'first_seen_from', query.first_seen_from);
   appendParam(params, 'first_seen_to', query.first_seen_to);
-  const response = await fetch(`/admin/events?${params.toString()}`, {
+  const response = await fetch(adminAPIURL(`/admin/events?${params.toString()}`), {
     headers: authHeaders(token)
   });
   return readJSON(response);
@@ -106,10 +114,15 @@ export async function loadSourceCatalogs(token: string, query: SourceCatalogQuer
   const params = new URLSearchParams();
   appendParam(params, 'status', query.status);
   const suffix = params.toString();
-  const response = await fetch(`/admin/source-catalogs${suffix ? `?${suffix}` : ''}`, {
+  const response = await fetch(adminAPIURL(`/admin/source-catalogs${suffix ? `?${suffix}` : ''}`), {
     headers: authHeaders(token)
   });
   return readJSON(response);
+}
+
+export function adminAPIURL(path: string): string {
+  const baseURL = window.__TIDEWISE_RUNTIME_CONFIG__?.adminApiBaseUrl?.trim().replace(/\/$/, '') ?? '';
+  return `${baseURL}${path}`;
 }
 
 function appendParam(params: URLSearchParams, key: string, value?: string) {

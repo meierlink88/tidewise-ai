@@ -13,11 +13,12 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 	assets := []struct {
 		service    string
 		binary     string
+		port       string
 		mustCopyDB bool
 	}{
-		{service: "data", binary: "data-service", mustCopyDB: true},
-		{service: "miniapp", binary: "miniapp-service"},
-		{service: "adminportal", binary: "adminportal-service"},
+		{service: "data", binary: "data-service", port: "9011", mustCopyDB: true},
+		{service: "miniapp", binary: "miniapp-service", port: "9012"},
+		{service: "adminportal", binary: "adminportal-service", port: "9013"},
 	}
 
 	for _, asset := range assets {
@@ -50,7 +51,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 			t.Fatalf("read %s start config: %v", asset.service, err)
 		}
 		configText := string(configContents)
-		for _, required := range []string{"host: 0.0.0.0", "port: 8080"} {
+		for _, required := range []string{"host: 0.0.0.0", "port: " + asset.port} {
 			if !strings.Contains(configText, required) {
 				t.Fatalf("%s start config missing %q", asset.service, required)
 			}

@@ -1,0 +1,25 @@
+# version<TAB>risk<TAB>reason
+000001	normal	initial schema on a new database
+000002	normal	additive organization profile table
+000003	normal	additive snapshot columns
+000004	normal	additive source configuration
+000005	normal	additive historical scheduler schema
+000006	normal	additive graph projection ledger
+000007	normal	additive edge provenance
+000008	normal	additive benchmark foundation
+000009	high	benchmark metric data rewrite
+000010	normal	additive market sector foundation
+000011	normal	additive sector convergence
+000012	high	convergence alias data repair
+000013	high	convergence alias order normalization
+000014	normal	additive industry chain foundation
+000015	high	industry chain node refactor and data rewrite
+000016	high	external identifier constraint migration
+000017	normal	additive chain node relations
+000018	high	alliance and economy foundation reinitialization
+000019	high	event fact contract constraint migration
+000020	high	event import receipt and tag seed migration
+000021	normal	additive research theme and anchor foundation
+000022	normal	additive raw document import receipts
+000023	high	transmission stage constraint correction
+000024	high	research theme receipt backfill and constraints

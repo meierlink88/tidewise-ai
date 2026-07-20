@@ -3,128 +3,274 @@ name: Deploy UAT
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: Optional image tag. Defaults to the triggering commit SHA.
+      commit_sha:
+        description: Optional full commit SHA from main. Defaults to the latest main commit.
         required: false
         type: string
+      confirm_high_risk_backup:
+        description: Confirm an RDS recovery point when pending migrations are classified high risk.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
+  actions: read
   contents: read
-  packages: write
 
-env:
-  REGISTRY: ghcr.io
-  UAT_ENV_FILE: /opt/tidewise-uat/infra/.env
+concurrency:
+  group: uat-deploy
+  cancel-in-progress: false
 
 jobs:
-  build-and-push:
-    name: Build and publish images
+  resolve-release:
+    name: Validate release commit
     runs-on: ubuntu-latest
     outputs:
-      backend_image: ${{ steps.images.outputs.backend_image }}
-      admin_image: ${{ steps.images.outputs.admin_image }}
-      image_tag: ${{ steps.images.outputs.image_tag }}
+      commit_sha: ${{ steps.release.outputs.commit_sha }}
     steps:
-      - name: Checkout
+      - name: Checkout main history
         uses: actions/checkout@v4
-
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          fetch-depth: 0
 
-      - name: Resolve image names
-        id: images
+      - name: Resolve and validate commit
+        id: release
+        env:
+          REQUESTED_SHA: ${{ inputs.commit_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          repo="$(basename "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-          tag="${{ inputs.image_tag }}"
-          if [ -z "$tag" ]; then
-            tag="${GITHUB_SHA}"
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "Deploy UAT must be dispatched from the main workflow ref" >&2
+            exit 1
           fi
-          echo "image_tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "backend_image=${REGISTRY}/${owner}/${repo}-backend:${tag}" >> "$GITHUB_OUTPUT"
-          echo "admin_image=${REGISTRY}/${owner}/${repo}-admin:${tag}" >> "$GITHUB_OUTPUT"
+          git fetch --no-tags origin main
+          target="${REQUESTED_SHA:-}"
+          if [ -z "$target" ]; then
+            target="$(git rev-parse origin/main)"
+          fi
+          if ! [[ "$target" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "commit_sha must be a full 40-character Git commit SHA" >&2
+            exit 1
+          fi
+          git cat-file -e "${target}^{commit}"
+          if ! git merge-base --is-ancestor "$target" origin/main; then
+            echo "Release commit is not part of main: $target" >&2
+            exit 1
+          fi
+          echo "commit_sha=$(git rev-parse "$target")" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push backend image
+      - name: Require successful CI for the commit
+        uses: actions/github-script@v7
+        env:
+          TARGET_SHA: ${{ steps.release.outputs.commit_sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const response = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: 'ci.yml',
+              head_sha: process.env.TARGET_SHA,
+              status: 'completed',
+              per_page: 100,
+            });
+            const succeeded = response.data.workflow_runs.some(
+              (run) => run.head_sha === process.env.TARGET_SHA && run.conclusion === 'success',
+            );
+            if (!succeeded) {
+              core.setFailed(`No successful CI run exists for ${process.env.TARGET_SHA}`);
+            }
+
+  build-and-push:
+    name: Build and publish SWR images
+    runs-on: ubuntu-latest
+    needs: resolve-release
+    environment: uat
+    outputs:
+      data_image: ${{ steps.images.outputs.data_image }}
+      miniapp_image: ${{ steps.images.outputs.miniapp_image }}
+      adminportal_image: ${{ steps.images.outputs.adminportal_image }}
+      admin_image: ${{ steps.images.outputs.admin_image }}
+    env:
+      SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
+      SWR_NAMESPACE: ${{ vars.SWR_NAMESPACE }}
+      SWR_DATA_REPOSITORY: ${{ vars.SWR_DATA_REPOSITORY }}
+      SWR_MINIAPP_REPOSITORY: ${{ vars.SWR_MINIAPP_REPOSITORY }}
+      SWR_ADMINPORTAL_REPOSITORY: ${{ vars.SWR_ADMINPORTAL_REPOSITORY }}
+      SWR_ADMIN_REPOSITORY: ${{ vars.SWR_ADMIN_REPOSITORY }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-release.outputs.commit_sha }}
+
+      - name: Resolve immutable image names
+        id: images
+        env:
+          COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${SWR_REGISTRY:?Set the SWR_REGISTRY uat Environment variable}"
+          : "${SWR_NAMESPACE:?Set the SWR_NAMESPACE uat Environment variable}"
+          : "${SWR_DATA_REPOSITORY:?Set the SWR_DATA_REPOSITORY uat Environment variable}"
+          : "${SWR_MINIAPP_REPOSITORY:?Set the SWR_MINIAPP_REPOSITORY uat Environment variable}"
+          : "${SWR_ADMINPORTAL_REPOSITORY:?Set the SWR_ADMINPORTAL_REPOSITORY uat Environment variable}"
+          : "${SWR_ADMIN_REPOSITORY:?Set the SWR_ADMIN_REPOSITORY uat Environment variable}"
+          prefix="${SWR_REGISTRY}/${SWR_NAMESPACE}"
+          echo "data_image=${prefix}/${SWR_DATA_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "miniapp_image=${prefix}/${SWR_MINIAPP_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "adminportal_image=${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "admin_image=${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to SWR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.SWR_REGISTRY }}
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Build and push Data Service
         uses: docker/build-push-action@v6
         with:
-          context: backend
-          file: backend/Dockerfile
+          context: src/backend
+          file: src/backend/services/data/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.images.outputs.backend_image }}
+          tags: ${{ steps.images.outputs.data_image }}
 
-      - name: Build and push admin portal image
+      - name: Build and push Miniapp Backend Service
         uses: docker/build-push-action@v6
         with:
-          context: frontend/admin
-          file: frontend/admin/Dockerfile
+          context: src/backend
+          file: src/backend/services/miniapp/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.images.outputs.miniapp_image }}
+
+      - name: Build and push Admin Portal Backend Service
+        uses: docker/build-push-action@v6
+        with:
+          context: src/backend
+          file: src/backend/services/adminportal/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.images.outputs.adminportal_image }}
+
+      - name: Build and push Admin Portal Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/frontend/admin/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.images.outputs.admin_image }}
 
   deploy:
-    name: Deploy to UAT
-    runs-on: [self-hosted, tidewise, uat]
-    needs: build-and-push
-    permissions:
-      contents: read
-      packages: read
+    name: Deploy to UAT ECS
+    runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
+    needs: [resolve-release, build-and-push]
     environment: uat
+    env:
+      DEPLOY_ROOT: /opt/tidewise/uat
+      SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
+      UAT_RUNNER_NAME: ${{ vars.UAT_RUNNER_NAME }}
+      UAT_PUBLIC_BASE_URL: ${{ vars.UAT_PUBLIC_BASE_URL }}
+      COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+      DATA_IMAGE: ${{ needs.build-and-push.outputs.data_image }}
+      MINIAPP_IMAGE: ${{ needs.build-and-push.outputs.miniapp_image }}
+      ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
+      ADMIN_IMAGE: ${{ needs.build-and-push.outputs.admin_image }}
+      UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+      DATA_SERVICE_AGENT_TOKEN: ${{ secrets.DATA_SERVICE_AGENT_TOKEN }}
+      DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: ${{ secrets.DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN }}
+      DATA_SERVICE_MINIAPP_TOKEN: ${{ secrets.DATA_SERVICE_MINIAPP_TOKEN }}
+      DATA_SERVICE_ADMIN_TOKEN: ${{ secrets.DATA_SERVICE_ADMIN_TOKEN }}
+      ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+      HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
     steps:
-      - name: Checkout
+      - name: Checkout release commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
-      - name: Load UAT runtime environment
+      - name: Preflight ECS runtime and network
         shell: bash
-        run: |
-          set -euo pipefail
-          if [ ! -f "$UAT_ENV_FILE" ]; then
-            echo "UAT environment file is missing: $UAT_ENV_FILE" >&2
-            exit 1
-          fi
-          install -m 600 "$UAT_ENV_FILE" infra/uat/.env
+        run: infra/uat/preflight.sh
 
-      - name: Login to GHCR
+      - name: Login to SWR with pull credentials
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.SWR_REGISTRY }}
+          username: ${{ secrets.SWR_PULL_USERNAME }}
+          password: ${{ secrets.SWR_PULL_PASSWORD }}
 
-      - name: Write deployment image overrides
+      - name: Prepare deployment environment
+        id: runtime
         shell: bash
         run: |
           set -euo pipefail
-          {
-            echo "BACKEND_IMAGE=${{ needs.build-and-push.outputs.backend_image }}"
-            echo "ADMIN_IMAGE=${{ needs.build-and-push.outputs.admin_image }}"
-          } > infra/uat/.env.images
+          runtime_env="${RUNNER_TEMP}/tidewise-uat-${GITHUB_RUN_ID}.env"
+          images_env="${RUNNER_TEMP}/tidewise-uat-${GITHUB_RUN_ID}.images.env"
+          umask 077
+          printf '%s\n' \
+            "ADMIN_API_BASE_URL=${UAT_PUBLIC_BASE_URL}:9013" \
+            "ADMIN_ALLOWED_ORIGIN=${UAT_PUBLIC_BASE_URL}:9014" \
+            "TIDEWISE_DATABASE_URL=${UAT_DATABASE_URL}" \
+            "DATA_SERVICE_AGENT_TOKEN=${DATA_SERVICE_AGENT_TOKEN}" \
+            "DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN=${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN}" \
+            "DATA_SERVICE_MINIAPP_TOKEN=${DATA_SERVICE_MINIAPP_TOKEN}" \
+            "DATA_SERVICE_ADMIN_TOKEN=${DATA_SERVICE_ADMIN_TOKEN}" \
+            "ADMIN_API_TOKEN=${ADMIN_API_TOKEN}" > "$runtime_env"
+          printf '%s\n' \
+            "DATA_IMAGE=${DATA_IMAGE}" \
+            "MINIAPP_IMAGE=${MINIAPP_IMAGE}" \
+            "ADMINPORTAL_IMAGE=${ADMINPORTAL_IMAGE}" \
+            "ADMIN_IMAGE=${ADMIN_IMAGE}" > "$images_env"
+          echo "runtime_env=$runtime_env" >> "$GITHUB_OUTPUT"
+          echo "images_env=$images_env" >> "$GITHUB_OUTPUT"
+          docker compose --env-file "$runtime_env" --env-file "$images_env" -f infra/uat/docker-compose.yaml config --quiet
 
-      - name: Pull UAT images
-        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml pull
-
-      - name: Run database migrations
-        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml run --rm backend dbmigrate -apply
-
-      - name: Start UAT services
-        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml up -d --wait --wait-timeout 90
-
-      - name: Check backend health
+      - name: Pull immutable release images
+        shell: bash
         run: |
-          docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml exec -T backend wget -qO- http://127.0.0.1:8080/healthz
-          docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml exec -T backend wget -qO- http://127.0.0.1:8080/readyz
+          docker compose --env-file "${{ steps.runtime.outputs.runtime_env }}" --env-file "${{ steps.runtime.outputs.images_env }}" -f infra/uat/docker-compose.yaml pull
+          echo "PASS swr-login-and-image-pull"
 
-      - name: Check admin portal health
-        run: docker compose --env-file infra/uat/.env --env-file infra/uat/.env.images -f infra/uat/docker-compose.yaml exec -T admin wget -qO- http://127.0.0.1:8080/healthz
+      - name: Migrate and deploy the complete release unit
+        shell: bash
+        env:
+          RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
+          CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
+        run: infra/uat/deploy.sh
+
+      - name: Show diagnostics on failure
+        id: diagnostics
+        if: failure() && steps.runtime.outcome == 'success'
+        shell: bash
+        env:
+          RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
+          CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
+        run: |
+          diagnostics_file="${RUNNER_TEMP}/uat-diagnostics-${GITHUB_RUN_ID}.log"
+          infra/uat/collect-diagnostics.sh > "$diagnostics_file"
+          echo "diagnostics_file=$diagnostics_file" >> "$GITHUB_OUTPUT"
+
+      - name: Upload sanitized failure diagnostics
+        if: failure() && steps.diagnostics.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-diagnostics-${{ github.run_id }}
+          path: ${{ steps.diagnostics.outputs.diagnostics_file }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary secret files
+        if: always() && steps.runtime.outcome == 'success'
+        shell: bash
+        run: rm -f "${{ steps.runtime.outputs.runtime_env }}" "${{ steps.runtime.outputs.images_env }}" "${{ steps.diagnostics.outputs.diagnostics_file }}"

@@ -43,7 +43,7 @@ services:
       dockerfile: services/data/Dockerfile
     image: tidewise-data:local
     ports:
-      - "${DATA_SERVICE_PORT:-8082}:8080"
+      - "${DATA_SERVICE_PORT:-9011}:9011"
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/config
@@ -60,7 +60,7 @@ services:
       neo4j:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9011/healthz >/dev/null && wget -qO- http://127.0.0.1:9011/readyz >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -72,17 +72,17 @@ services:
       dockerfile: services/miniapp/Dockerfile
     image: tidewise-miniapp:local
     ports:
-      - "${MINIAPP_SERVICE_PORT:-8081}:8080"
+      - "${MINIAPP_SERVICE_PORT:-9012}:9012"
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/config
-      DATA_SERVICE_BASE_URL: http://data:8080
+      DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_MINIAPP_TOKEN: "${DATA_SERVICE_MINIAPP_TOKEN:?set DATA_SERVICE_MINIAPP_TOKEN in infra/local/.env.local}"
     depends_on:
       data:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9012/healthz >/dev/null && wget -qO- http://127.0.0.1:9012/readyz >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -94,18 +94,19 @@ services:
       dockerfile: services/adminportal/Dockerfile
     image: tidewise-adminportal:local
     ports:
-      - "${ADMIN_SERVICE_PORT:-8080}:8080"
+      - "${ADMIN_SERVICE_PORT:-9013}:9013"
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/config
       ADMIN_API_TOKEN: "${ADMIN_API_TOKEN:?set ADMIN_API_TOKEN in infra/local/.env.local}"
-      DATA_SERVICE_BASE_URL: http://data:8080
+      ADMIN_ALLOWED_ORIGIN: "${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:5174}"
+      DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_ADMIN_TOKEN: "${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}"
     depends_on:
       data:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9013/healthz >/dev/null && wget -qO- http://127.0.0.1:9013/readyz >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12

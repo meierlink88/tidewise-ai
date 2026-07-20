@@ -1,6 +1,6 @@
 app:
   name: miniapp
-  env: local
+  env: uat
 server:
   host: 0.0.0.0
   port: 9012

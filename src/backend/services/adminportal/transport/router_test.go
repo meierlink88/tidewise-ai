@@ -233,6 +233,27 @@ func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 	}
 }
 
+func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *testing.T) {
+	router := NewRouter(testConfig(), usecase.NewService(countingClient(new(int))), "secret", "http://uat.example.test:9014")
+
+	preflight := httptest.NewRequest(http.MethodOptions, "/admin/source-catalogs", nil)
+	preflight.Header.Set("Origin", "http://uat.example.test:9014")
+	preflight.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	allowed := httptest.NewRecorder()
+	router.ServeHTTP(allowed, preflight)
+	if allowed.Code != http.StatusNoContent || allowed.Header().Get("Access-Control-Allow-Origin") != "http://uat.example.test:9014" {
+		t.Fatalf("allowed preflight = status %d, origin %q", allowed.Code, allowed.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	deniedRequest := httptest.NewRequest(http.MethodGet, "/admin/source-catalogs", nil)
+	deniedRequest.Header.Set("Origin", "http://attacker.example.test")
+	denied := httptest.NewRecorder()
+	router.ServeHTTP(denied, deniedRequest)
+	if denied.Code != http.StatusForbidden || denied.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("denied origin = status %d, allow-origin %q", denied.Code, denied.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
 func countingClient(calls *int) *dataclient.Fake {
 	return &dataclient.Fake{
 		ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {

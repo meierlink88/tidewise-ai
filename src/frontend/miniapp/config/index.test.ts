@@ -58,7 +58,7 @@ describe('platform output directories', () => {
       'h5',
       'api',
       'http://localhost:10086',
-      'http://127.0.0.1:8081'
+      'http://127.0.0.1:9012'
     )
 
     expect(config.plugins).toContain('@tarojs/plugin-platform-h5')
@@ -70,7 +70,7 @@ describe('platform output directories', () => {
       port: 10086,
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:8081',
+          target: 'http://127.0.0.1:9012',
           changeOrigin: true
         }
       }
