@@ -21,8 +21,6 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	}{
 		{ResearchThemesPath, "listResearchThemes", "ResearchThemeListEnvelope", []string{"Cursor", "Limit", "RequestID", "WindowHours"}},
 		{ResearchThemesPath + "/{theme_id}", "getResearchTheme", "ResearchThemeDetailEnvelope", []string{"RequestID", "WindowHours"}},
-		{ResearchAnchorsPath, "listResearchAnchors", "ResearchAnchorListEnvelope", []string{"Cursor", "Limit", "RequestID", "WindowHours"}},
-		{ResearchAnchorsPath + "/{anchor_id}", "getResearchAnchor", "ResearchAnchorDetailEnvelope", []string{"RequestID", "WindowHours"}},
 	} {
 		operation := openAPIOperation(t, document, contract.path)
 		assertOpenAPIString(t, operation, "operationId", contract.operationID)
@@ -37,16 +35,12 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"ResearchThemeCollection":  reflect.TypeOf(ResearchThemePage{}),
-		"ResearchThemeSummary":     reflect.TypeOf(ResearchTheme{}),
-		"ResearchThemeDetail":      reflect.TypeOf(ResearchThemeDetail{}),
-		"ResearchAnchorCollection": reflect.TypeOf(ResearchAnchorPage{}),
-		"ResearchAnchorSummary":    reflect.TypeOf(ResearchAnchor{}),
-		"ResearchAnchorDetail":     reflect.TypeOf(ResearchAnchorDetail{}),
-		"ResearchThemeChainNode":   reflect.TypeOf(ResearchThemeChainNode{}),
-		"ResearchAnchorChainNode":  reflect.TypeOf(ResearchAnchorChainNode{}),
-		"ResearchIndex":            reflect.TypeOf(ResearchIndex{}),
-		"ResearchEvent":            reflect.TypeOf(ResearchEvent{}),
+		"ResearchThemeCollection": reflect.TypeOf(ResearchThemePage{}),
+		"ResearchThemeSummary":    reflect.TypeOf(ResearchTheme{}),
+		"ResearchThemeDetail":     reflect.TypeOf(ResearchThemeDetail{}),
+		"ResearchThemeChainNode":  reflect.TypeOf(ResearchThemeChainNode{}),
+		"ResearchIndex":           reflect.TypeOf(ResearchIndex{}),
+		"ResearchEvent":           reflect.TypeOf(ResearchEvent{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
@@ -54,13 +48,9 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	assertSchemaEnum(t, document, "ResearchThemeSummary", "impact_level", []string{"focus", "high", "watch"})
 	assertSchemaHasNoEnum(t, document, "ResearchThemeSummary", "trading_direction")
 	assertSchemaEnum(t, document, "ResearchThemeSummary", "transmission_stage", []string{"dampening", "diffusion", "identification", "validation"})
-	assertSchemaEnum(t, document, "ResearchAnchorSummary", "anchor_type", []string{"cost", "demand", "geopolitics", "market_structure", "policy", "supply", "technology"})
-	assertSchemaEnum(t, document, "ResearchAnchorSummary", "importance", []string{"contextual", "primary", "secondary"})
-	assertSchemaHasNoEnum(t, document, "ResearchAnchorSummary", "trading_direction")
 	assertSchemaEnum(t, document, "ResearchIndex", "impact_direction", []string{"mixed", "negative", "neutral", "positive"})
 	assertSchemaEnum(t, document, "ResearchEvent", "evidence_role", []string{"context", "contradicting", "driver", "supporting"})
 	assertArrayItemSchema(t, document, "ResearchThemeSummary", "affected_chain_nodes", "ResearchThemeChainNode")
-	assertArrayItemSchema(t, document, "ResearchAnchorSummary", "related_chain_nodes", "ResearchAnchorChainNode")
 }
 
 func loadOpenAPI(t *testing.T) map[string]any {

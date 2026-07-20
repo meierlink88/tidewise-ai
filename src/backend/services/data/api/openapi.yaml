@@ -90,63 +90,64 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research/anchors:
+  /internal/data/v1/research/themes/{theme_id}/reasoning-trees:
+    parameters:
+      - $ref: '#/components/parameters/ThemeID'
     get:
       tags: [Research]
-      operationId: listResearchAnchors
-      x-client-drift-anchor: data.v1.listResearchAnchors
+      operationId: listResearchThemeReasoningTrees
+      x-client-drift-anchor: data.v1.listResearchThemeReasoningTrees
       x-required-service-scope: data.research.read
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
-      summary: 获取 Miniapp Research anchor 页面聚合
+      summary: 获取一个 Theme 的全部推理树 Tab 摘要
       parameters:
         - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/WindowHours'
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
-          description: Anchor 页面聚合
+          description: Theme 摘要和完整推理树 Tab 集合
           headers:
             X-Request-ID:
               $ref: '#/components/headers/RequestID'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResearchAnchorListEnvelope'
+                $ref: '#/components/schemas/ResearchReasoningTreeListEnvelope'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research/anchors/{anchor_id}:
+  /internal/data/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}:
     parameters:
+      - $ref: '#/components/parameters/ThemeID'
       - $ref: '#/components/parameters/AnchorID'
     get:
       tags: [Research]
-      operationId: getResearchAnchor
-      x-client-drift-anchor: data.v1.getResearchAnchor
+      operationId: getResearchThemeReasoningTree
+      x-client-drift-anchor: data.v1.getResearchThemeReasoningTree
       x-required-service-scope: data.research.read
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
-      summary: 获取一个 Research anchor 及其证据聚合
+      summary: 获取一个 Theme 下的一棵完整推理树
       parameters:
         - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/WindowHours'
       responses:
         '200':
-          description: Anchor 详情聚合
+          description: 单棵推理树完整快照
           headers:
             X-Request-ID:
               $ref: '#/components/headers/RequestID'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResearchAnchorDetailEnvelope'
+                $ref: '#/components/schemas/ResearchReasoningTreeDetailEnvelope'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1188,19 +1189,6 @@ components:
           type: string
         impact_summary:
           type: string
-    ResearchAnchorChainNode:
-      type: object
-      additionalProperties: false
-      required: [id, name, relation_role, relation_summary]
-      properties:
-        id:
-          $ref: '#/components/schemas/UUID'
-        name:
-          type: string
-        relation_role:
-          type: string
-        relation_summary:
-          type: string
     ResearchIndex:
       type: object
       additionalProperties: false
@@ -1348,91 +1336,143 @@ components:
         result:
           $ref: '#/components/schemas/ResearchThemeDetail'
 
-    ResearchAnchorSummary:
+    ResearchReasoningTreeChainNode:
       type: object
       additionalProperties: false
-      required:
-        - id
-        - anchor_type
-        - name
-        - one_line_conclusion
-        - importance
-        - transmission_path
-        - trading_direction
-        - published_at
-        - related_chain_nodes
-        - related_indices
-        - related_event_count
+      required: [id, name]
       properties:
         id:
           $ref: '#/components/schemas/UUID'
-        anchor_type:
-          type: string
-          enum: [policy, supply, demand, technology, cost, geopolitics, market_structure]
         name:
           type: string
+    ResearchReasoningTreeSummary:
+      type: object
+      additionalProperties: false
+      required: [anchor_id, center_chain_node]
+      properties:
+        anchor_id:
+          $ref: '#/components/schemas/UUID'
+        center_chain_node:
+          $ref: '#/components/schemas/ResearchReasoningTreeChainNode'
+    ResearchReasoningTreeList:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchReasoningTreeList
+      required: [theme, reasoning_trees]
+      properties:
+        theme:
+          $ref: '#/components/schemas/ResearchThemeSummary'
+        reasoning_trees:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ResearchReasoningTreeSummary'
+    ResearchReasoningTreeEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, title, summary, evidence_role, evidence_summary]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        event_time:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        evidence_role:
+          type: string
+          enum: [driver, supporting, contradicting, context]
+        evidence_summary:
+          type: string
+          minLength: 1
+    ResearchReasoningTreePathNode:
+      type: object
+      additionalProperties: false
+      required:
+        - chain_node_id
+        - name
+        - change_direction
+        - change_summary
+        - impact_summary
+        - incoming_transmission_mechanism
+      properties:
+        chain_node_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        change_direction:
+          type: string
+          enum: [increase, decrease, mixed, unchanged, uncertain]
+        change_summary:
+          type: string
+          minLength: 1
+        impact_summary:
+          type: string
+          minLength: 1
+        incoming_transmission_mechanism:
+          type: string
+          nullable: true
+    ResearchReasoningTree:
+      type: object
+      additionalProperties: false
+      required:
+        - anchor_id
+        - center_chain_node
+        - one_line_conclusion
+        - fact_summary
+        - net_direction_summary
+        - trading_direction
+        - next_checkpoint
+        - event_count
+        - events
+        - path_nodes
+      properties:
+        anchor_id:
+          $ref: '#/components/schemas/UUID'
+        center_chain_node:
+          $ref: '#/components/schemas/ResearchReasoningTreeChainNode'
         one_line_conclusion:
           type: string
-          description: 市场理解与决策辅助，不构成直接投资建议。
-        importance:
+          minLength: 1
+        fact_summary:
           type: string
-          enum: [primary, secondary, contextual]
-        transmission_path:
+          minLength: 1
+        net_direction_summary:
           type: string
+          minLength: 1
         trading_direction:
           type: string
           minLength: 1
-        published_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        related_chain_nodes:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResearchAnchorChainNode'
-        related_indices:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResearchIndex'
-        related_event_count:
-          type: integer
-          minimum: 0
-    ResearchAnchorCollection:
-      type: object
-      additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.ResearchAnchorCollection
-      required: [window_start, window_end, as_of, anchor_count, event_count, items, next_cursor]
-      properties:
-        window_start:
-          $ref: '#/components/schemas/UTCTimestamp'
-        window_end:
-          $ref: '#/components/schemas/UTCTimestamp'
-        as_of:
-          $ref: '#/components/schemas/UTCTimestamp'
-        anchor_count:
-          type: integer
-          minimum: 0
+        next_checkpoint:
+          type: string
+          minLength: 1
         event_count:
           type: integer
-          minimum: 0
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResearchAnchorSummary'
-        next_cursor:
-          type: string
-          nullable: true
-    ResearchAnchorDetail:
-      type: object
-      additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.ResearchAnchorDetail
-      required: [anchor, events]
-      properties:
-        anchor:
-          $ref: '#/components/schemas/ResearchAnchorSummary'
+          minimum: 1
         events:
           type: array
+          minItems: 1
           items:
-            $ref: '#/components/schemas/ResearchEvent'
-    ResearchAnchorListEnvelope:
+            $ref: '#/components/schemas/ResearchReasoningTreeEvent'
+        path_nodes:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/ResearchReasoningTreePathNode'
+    ResearchReasoningTreeDetail:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchReasoningTreeDetail
+      required: [theme_id, reasoning_tree]
+      properties:
+        theme_id:
+          $ref: '#/components/schemas/UUID'
+        reasoning_tree:
+          $ref: '#/components/schemas/ResearchReasoningTree'
+    ResearchReasoningTreeListEnvelope:
       type: object
       additionalProperties: false
       required: [request_id, result]
@@ -1440,8 +1480,8 @@ components:
         request_id:
           type: string
         result:
-          $ref: '#/components/schemas/ResearchAnchorCollection'
-    ResearchAnchorDetailEnvelope:
+          $ref: '#/components/schemas/ResearchReasoningTreeList'
+    ResearchReasoningTreeDetailEnvelope:
       type: object
       additionalProperties: false
       required: [request_id, result]
@@ -1449,7 +1489,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: '#/components/schemas/ResearchAnchorDetail'
+          $ref: '#/components/schemas/ResearchReasoningTreeDetail'
 
     AdminRawDocument:
       type: object

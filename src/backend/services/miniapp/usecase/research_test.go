@@ -73,30 +73,6 @@ func TestResearchServiceListsThemesWithOneAggregateCallAndPreservesCursorAndDTO(
 	}
 }
 
-func TestResearchServiceMapsAnchorRelationSummaryWithoutImplicitFieldLoss(t *testing.T) {
-	calls := 0
-	client := &dataclient.Fake{GetResearchAnchorFunc: func(_ context.Context, id string, query dataclient.ResearchDetailQuery) (dataclient.ResearchAnchorDetail, error) {
-		calls++
-		if id != "11111111-1111-4111-8111-111111111111" || query.WindowHours != 24 {
-			t.Fatalf("id/query = %q/%#v", id, query)
-		}
-		return dataclient.ResearchAnchorDetail{Anchor: dataclient.ResearchAnchor{
-			ID: id, AnchorType: dataclient.AnchorTypeMarketStructure, Importance: dataclient.ImportanceContextual,
-			TradingDirection:  "等待供需关系进一步确认",
-			RelatedChainNodes: []dataclient.ResearchAnchorChainNode{{ID: "node-1", Name: "需求端", RelationRole: "constraint", RelationSummary: "需求仍待确认"}},
-			RelatedIndices:    []dataclient.ResearchIndex{},
-		}, Events: []dataclient.ResearchEvent{}}, nil
-	}}
-
-	result, err := NewResearchService(client).GetAnchor(context.Background(), "11111111-1111-4111-8111-111111111111", ResearchDetailRequest{WindowHours: 24})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if calls != 1 || result.RelatedChainNodes[0].RelationSummary != "需求仍待确认" || result.TradingDirection != "等待供需关系进一步确认" {
-		t.Fatalf("calls/result = %d/%#v", calls, result)
-	}
-}
-
 func TestResearchServiceMapsDataErrorsToStablePublicErrors(t *testing.T) {
 	for _, test := range []struct {
 		name string

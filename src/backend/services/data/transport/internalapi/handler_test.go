@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -503,26 +504,6 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 		{ID: "66666666-6666-4666-8666-666666666666", Name: "中性", ImpactDirection: domain.ResearchImpactNeutral, ImpactSummary: "中性摘要"},
 	}
 
-	anchorTypes := []domain.AnchorType{
-		domain.AnchorTypePolicy, domain.AnchorTypeSupply, domain.AnchorTypeDemand,
-		domain.AnchorTypeTechnology, domain.AnchorTypeCost, domain.AnchorTypeGeopolitics,
-		domain.AnchorTypeMarketStructure,
-	}
-	importance := []domain.ResearchImportance{
-		domain.ResearchImportancePrimary, domain.ResearchImportanceSecondary, domain.ResearchImportanceContextual,
-	}
-	anchors := make([]research.ResearchAnchor, 0, len(anchorTypes))
-	for index, anchorType := range anchorTypes {
-		anchors = append(anchors, research.ResearchAnchor{
-			ID: "77777777-7777-4777-8777-777777777777", AnchorType: anchorType, Name: "锚点", OneLineConclusion: "锚点结论",
-			Importance: importance[index%len(importance)], TransmissionPath: "政策到预期", TradingDirection: "观察政策兑现后的市场反馈",
-			PublishedAt: now, RelatedChainNodes: []research.ResearchAnchorChainNode{}, RelatedIndices: []research.ResearchIndex{},
-		})
-	}
-	anchors[0].RelatedChainNodes = []research.ResearchAnchorChainNode{{
-		ID: "88888888-8888-4888-8888-888888888888", Name: "锚点节点", RelationRole: "constraint", RelationSummary: "锚点关系摘要",
-	}}
-
 	events := []research.ResearchEvent{
 		{EventID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", Title: "驱动", Summary: "摘要", EventTime: &now, EvidenceRole: domain.ResearchEvidenceDriver, SupportedClaim: "主张"},
 		{EventID: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", Title: "支持", Summary: "摘要", EvidenceRole: domain.ResearchEvidenceSupporting, SupportedClaim: "主张"},
@@ -535,11 +516,6 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 			ThemeCount: len(themes), EventCount: len(events), Items: themes, NextCursor: &nextCursor,
 		},
 		theme: research.ResearchThemeDetail{Theme: themes[0], Events: events},
-		anchors: research.ResearchAnchorPage{
-			WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, AsOf: now,
-			AnchorCount: len(anchors), EventCount: len(events), Items: anchors, NextCursor: &nextCursor,
-		},
-		anchor: research.ResearchAnchorDetail{Anchor: anchors[0], Events: events},
 	}
 	handler := testHandler(t, Dependencies{Research: fake})
 
@@ -589,36 +565,6 @@ func TestResearchHandlerNonEmptyGoldenPreservesAuthoritativeContract(t *testing.
 	}
 	assertStringSet(t, "evidence_role", eventRoleStrings(themeDetailEnvelope.Result.Events), []string{"driver", "supporting", "contradicting", "context"})
 
-	request = httptest.NewRequest(http.MethodGet, Namespace+"/research/anchors?window_hours=24&limit=20", nil)
-	request.Header.Set("Authorization", "Bearer cred-miniapp")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	var anchorEnvelope struct {
-		Result research.ResearchAnchorPage `json:"result"`
-	}
-	if response.Code != http.StatusOK || fake.anchorCalls != 1 {
-		t.Fatalf("anchor list response=%d calls=%d body=%s", response.Code, fake.anchorCalls, response.Body.String())
-	}
-	if err := json.Unmarshal(response.Body.Bytes(), &anchorEnvelope); err != nil {
-		t.Fatal(err)
-	}
-	assertStringSet(t, "anchor_type", anchorTypeStrings(anchorEnvelope.Result.Items), []string{"policy", "supply", "demand", "technology", "cost", "geopolitics", "market_structure"})
-	assertStringSet(t, "importance", anchorImportanceStrings(anchorEnvelope.Result.Items), []string{"primary", "secondary", "contextual"})
-	anchorNodeJSON, err := json.Marshal(anchorEnvelope.Result.Items[0].RelatedChainNodes[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(anchorNodeJSON), `"relation_summary":"锚点关系摘要"`) || strings.Contains(string(anchorNodeJSON), "impact_summary") {
-		t.Fatalf("anchor node JSON = %s", anchorNodeJSON)
-	}
-
-	request = httptest.NewRequest(http.MethodGet, Namespace+"/research/anchors/77777777-7777-4777-8777-777777777777?window_hours=24", nil)
-	request.Header.Set("Authorization", "Bearer cred-miniapp")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || fake.anchorDetailCalls != 1 || !strings.Contains(response.Body.String(), `"relation_summary":"锚点关系摘要"`) {
-		t.Fatalf("anchor detail response=%d calls=%d body=%s", response.Code, fake.anchorDetailCalls, response.Body.String())
-	}
 }
 
 func TestResearchHandlerMapsKnownErrorsWithoutLeakingRepositoryFailures(t *testing.T) {
@@ -647,6 +593,191 @@ func TestResearchHandlerMapsKnownErrorsWithoutLeakingRepositoryFailures(t *testi
 				t.Fatalf("response leaked internal error: %s", response.Body.String())
 			}
 		})
+	}
+}
+
+func TestResearchReasoningTreeHandlersExposeThemeSubresourcesAndRemoveLegacyDataRoutes(t *testing.T) {
+	themeID := "11111111-1111-4111-8111-111111111111"
+	anchorID := "22222222-2222-4222-8222-222222222222"
+	fake := &fakeResearchService{
+		reasoningTrees: research.ResearchReasoningTreeList{
+			Theme: research.ResearchTheme{ID: themeID, RelatedIndices: []research.ResearchIndex{}, AffectedChainNodes: []research.ResearchThemeChainNode{}},
+			ReasoningTrees: []research.ResearchReasoningTreeSummary{{
+				AnchorID:        anchorID,
+				CenterChainNode: research.ResearchReasoningTreeChainNode{ID: "33333333-3333-4333-8333-333333333333", Name: "光模块"},
+			}},
+		},
+		reasoningTree: research.ResearchReasoningTreeDetail{
+			ThemeID: themeID,
+			ReasoningTree: research.ResearchReasoningTree{
+				AnchorID:        anchorID,
+				CenterChainNode: research.ResearchReasoningTreeChainNode{ID: "33333333-3333-4333-8333-333333333333", Name: "光模块"},
+				EventCount:      1,
+				Events:          []research.ResearchReasoningTreeEvent{{EventID: "44444444-4444-4444-8444-444444444444", EvidenceRole: "driver", EvidenceSummary: "直接驱动"}},
+				PathNodes:       []research.ResearchReasoningTreePathNode{},
+			},
+		},
+	}
+	handler := testHandler(t, Dependencies{Research: fake})
+
+	request := httptest.NewRequest(http.MethodGet, Namespace+"/research/themes/"+themeID+"/reasoning-trees", nil)
+	request.Header.Set("Authorization", "Bearer cred-miniapp")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || fake.reasoningTreeListCalls != 1 || !strings.Contains(response.Body.String(), `"center_chain_node":{"id":"33333333-3333-4333-8333-333333333333","name":"光模块"}`) {
+		t.Fatalf("list response=%d calls=%d body=%s", response.Code, fake.reasoningTreeListCalls, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, Namespace+"/research/themes/"+themeID+"/reasoning-trees/"+anchorID, nil)
+	request.Header.Set("Authorization", "Bearer cred-miniapp")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || fake.reasoningTreeDetailCalls != 1 || !strings.Contains(response.Body.String(), `"evidence_summary":"直接驱动"`) {
+		t.Fatalf("detail response=%d calls=%d body=%s", response.Code, fake.reasoningTreeDetailCalls, response.Body.String())
+	}
+
+	for _, path := range []string{Namespace + "/research/anchors", Namespace + "/research/anchors/" + anchorID} {
+		request = httptest.NewRequest(http.MethodGet, path, nil)
+		request.Header.Set("Authorization", "Bearer cred-miniapp")
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("legacy path %s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+}
+
+func TestResearchReasoningTreeHandlerMapsFrozenErrors(t *testing.T) {
+	themeID := "11111111-1111-4111-8111-111111111111"
+	for _, test := range []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{name: "theme missing", err: research.ErrThemeNotFound, wantStatus: http.StatusNotFound, wantCode: "RESEARCH_THEME_NOT_FOUND"},
+		{name: "trees missing", err: research.ErrReasoningTreesNotFound, wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREES_NOT_FOUND"},
+		{name: "tree missing", err: research.ErrReasoningTreeNotFound, wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREE_NOT_FOUND"},
+		{name: "invariant", err: research.ErrReasoningTreeInvariantViolation, wantStatus: http.StatusInternalServerError, wantCode: "RESEARCH_REASONING_TREE_INVARIANT_VIOLATION"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			handler := testHandler(t, Dependencies{Research: &fakeResearchService{err: test.err}})
+			request := httptest.NewRequest(http.MethodGet, Namespace+"/research/themes/"+themeID+"/reasoning-trees", nil)
+			request.Header.Set("Authorization", "Bearer cred-miniapp")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != test.wantStatus || !strings.Contains(response.Body.String(), `"code":"`+test.wantCode+`"`) {
+				t.Fatalf("response=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestResearchReasoningTreeHandlersMatchSharedSuccessFixtures(t *testing.T) {
+	themeID := "11111111-1111-4111-8111-111111111111"
+	fixtureDirectory := filepath.Join("..", "..", "..", "..", "..", "testdata", "reasoning-tree-v1")
+
+	var listEnvelope struct {
+		RequestID string                             `json:"request_id"`
+		Result    research.ResearchReasoningTreeList `json:"result"`
+	}
+	loadJSONFixture(t, filepath.Join(fixtureDirectory, "01-reasoning-tree-list-result.json"), &listEnvelope)
+	listHandler := testHandlerWithRequestID(t, Dependencies{Research: &fakeResearchService{reasoningTrees: listEnvelope.Result}}, listEnvelope.RequestID)
+	assertHandlerJSONMatchesFixture(t, listHandler, Namespace+"/research/themes/"+themeID+"/reasoning-trees", filepath.Join(fixtureDirectory, "01-reasoning-tree-list-result.json"))
+
+	for _, fixture := range []struct {
+		name     string
+		anchorID string
+		file     string
+	}{
+		{name: "with contradiction", anchorID: "534d83be-774b-51d9-ad00-cdee4ba91799", file: "02-reasoning-tree-with-contradiction-result.json"},
+		{name: "without contradiction and unquantified", anchorID: "5c18fc57-6bd8-5612-9a24-01a4e928b761", file: "03-reasoning-tree-without-contradiction-unquantified-result.json"},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			var detailEnvelope struct {
+				RequestID string                               `json:"request_id"`
+				Result    research.ResearchReasoningTreeDetail `json:"result"`
+			}
+			fixturePath := filepath.Join(fixtureDirectory, fixture.file)
+			loadJSONFixture(t, fixturePath, &detailEnvelope)
+			detailHandler := testHandlerWithRequestID(t, Dependencies{Research: &fakeResearchService{reasoningTree: detailEnvelope.Result}}, detailEnvelope.RequestID)
+			assertHandlerJSONMatchesFixture(t, detailHandler, Namespace+"/research/themes/"+themeID+"/reasoning-trees/"+fixture.anchorID, fixturePath)
+		})
+	}
+}
+
+func TestResearchReasoningTreeHandlerMatchesSharedMissingTreesFixture(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "..", "..", "..", "testdata", "reasoning-tree-v1", "04-theme-without-reasoning-trees-error.json")
+	var fixture struct {
+		Request struct {
+			Method string `json:"method"`
+			Path   string `json:"path"`
+		} `json:"request"`
+		Response struct {
+			Status int             `json:"status"`
+			Body   json.RawMessage `json:"body"`
+		} `json:"response"`
+	}
+	loadJSONFixture(t, fixturePath, &fixture)
+	var expectedBody struct {
+		RequestID string `json:"request_id"`
+	}
+	if err := json.Unmarshal(fixture.Response.Body, &expectedBody); err != nil {
+		t.Fatal(err)
+	}
+	handler := testHandlerWithRequestID(t, Dependencies{Research: &fakeResearchService{err: research.ErrReasoningTreesNotFound}}, expectedBody.RequestID)
+	request := httptest.NewRequest(fixture.Request.Method, fixture.Request.Path, nil)
+	request.Header.Set("Authorization", "Bearer cred-miniapp")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != fixture.Response.Status {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var got, want any
+	if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(fixture.Response.Body, &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("response drifted\ngot:  %s\nwant: %s", response.Body.String(), fixture.Response.Body)
+	}
+}
+
+func loadJSONFixture(t *testing.T, path string, target any) {
+	t.Helper()
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, target); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertHandlerJSONMatchesFixture(t *testing.T, handler http.Handler, path, fixturePath string) {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodGet, path, nil)
+	request.Header.Set("Authorization", "Bearer cred-miniapp")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
+	}
+	var got, want any
+	if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("GET %s response drifted\ngot:  %s\nwant: %s", path, response.Body.String(), payload)
 	}
 }
 
@@ -698,23 +829,11 @@ func eventRoleStrings(items []research.ResearchEvent) []string {
 	return values
 }
 
-func anchorTypeStrings(items []research.ResearchAnchor) []string {
-	values := make([]string, 0, len(items))
-	for _, item := range items {
-		values = append(values, string(item.AnchorType))
-	}
-	return values
-}
-
-func anchorImportanceStrings(items []research.ResearchAnchor) []string {
-	values := make([]string, 0, len(items))
-	for _, item := range items {
-		values = append(values, string(item.Importance))
-	}
-	return values
-}
-
 func testHandler(t *testing.T, dependencies Dependencies) http.Handler {
+	return testHandlerWithRequestID(t, dependencies, "generated-request")
+}
+
+func testHandlerWithRequestID(t *testing.T, dependencies Dependencies, requestID string) http.Handler {
 	t.Helper()
 	authenticator, err := NewAuthenticator([]Credential{
 		{Secret: "cred-agent", Principal: Principal{Identity: "agent-run", Scopes: []string{ScopeRawImport, ScopeReviewedEventImport, ScopeSourceMetadataRead}}},
@@ -726,7 +845,7 @@ func testHandler(t *testing.T, dependencies Dependencies) http.Handler {
 		t.Fatal(err)
 	}
 	dependencies.Authenticator = authenticator
-	dependencies.NewRequestID = func() string { return "generated-request" }
+	dependencies.NewRequestID = func() string { return requestID }
 	return NewHandler(dependencies)
 }
 
@@ -808,16 +927,16 @@ func (f *fakeReviewedImporter) Import(_ context.Context, pkg domainimport.Packag
 }
 
 type fakeResearchService struct {
-	themes            research.ResearchThemePage
-	theme             research.ResearchThemeDetail
-	anchors           research.ResearchAnchorPage
-	anchor            research.ResearchAnchorDetail
-	err               error
-	themeCalls        int
-	themeDetailCalls  int
-	anchorCalls       int
-	anchorDetailCalls int
-	lastThemeRequest  research.ResearchListRequest
+	themes                   research.ResearchThemePage
+	theme                    research.ResearchThemeDetail
+	reasoningTrees           research.ResearchReasoningTreeList
+	reasoningTree            research.ResearchReasoningTreeDetail
+	err                      error
+	themeCalls               int
+	themeDetailCalls         int
+	reasoningTreeListCalls   int
+	reasoningTreeDetailCalls int
+	lastThemeRequest         research.ResearchListRequest
 }
 
 func (f *fakeResearchService) ListThemes(_ context.Context, request research.ResearchListRequest) (research.ResearchThemePage, error) {
@@ -829,13 +948,13 @@ func (f *fakeResearchService) GetTheme(context.Context, string, research.Researc
 	f.themeDetailCalls++
 	return f.theme, f.err
 }
-func (f *fakeResearchService) ListAnchors(context.Context, research.ResearchListRequest) (research.ResearchAnchorPage, error) {
-	f.anchorCalls++
-	return f.anchors, f.err
+func (f *fakeResearchService) ListReasoningTrees(context.Context, string) (research.ResearchReasoningTreeList, error) {
+	f.reasoningTreeListCalls++
+	return f.reasoningTrees, f.err
 }
-func (f *fakeResearchService) GetAnchor(context.Context, string, research.ResearchDetailRequest) (research.ResearchAnchorDetail, error) {
-	f.anchorDetailCalls++
-	return f.anchor, f.err
+func (f *fakeResearchService) GetReasoningTree(context.Context, string, string) (research.ResearchReasoningTreeDetail, error) {
+	f.reasoningTreeDetailCalls++
+	return f.reasoningTree, f.err
 }
 
 type fakeAdminStore struct {

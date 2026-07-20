@@ -70,47 +70,11 @@ type ResearchThemeDetailResponse struct {
 	Events []ResearchEventDTO `json:"events"`
 }
 
-type ResearchAnchorListResponse struct {
-	WindowStart string               `json:"window_start"`
-	WindowEnd   string               `json:"window_end"`
-	AsOf        string               `json:"as_of"`
-	AnchorCount int                  `json:"anchor_count"`
-	EventCount  int                  `json:"event_count"`
-	Items       []ResearchAnchorItem `json:"items"`
-	NextCursor  *string              `json:"next_cursor"`
-}
-
-type ResearchAnchorItem struct {
-	ID                string                       `json:"id"`
-	AnchorType        string                       `json:"anchor_type"`
-	Name              string                       `json:"name"`
-	OneLineConclusion string                       `json:"one_line_conclusion"`
-	Importance        string                       `json:"importance"`
-	TransmissionPath  string                       `json:"transmission_path"`
-	TradingDirection  string                       `json:"trading_direction"`
-	PublishedAt       string                       `json:"published_at"`
-	RelatedChainNodes []ResearchAnchorChainNodeDTO `json:"related_chain_nodes"`
-	RelatedIndices    []ResearchIndexDTO           `json:"related_indices"`
-	RelatedEventCount int                          `json:"related_event_count"`
-}
-
-type ResearchAnchorDetailResponse struct {
-	ResearchAnchorItem
-	Events []ResearchEventDTO `json:"events"`
-}
-
 type ResearchChainNodeDTO struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
 	RelationRole string `json:"relation_role"`
 	Summary      string `json:"impact_summary"`
-}
-
-type ResearchAnchorChainNodeDTO struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	RelationRole    string `json:"relation_role"`
-	RelationSummary string `json:"relation_summary"`
 }
 
 type ResearchIndexDTO struct {
@@ -178,47 +142,6 @@ func (s *ResearchService) GetTheme(ctx context.Context, id string, request Resea
 	return ResearchThemeDetailResponse{ResearchThemeItem: themeItemDTO(detail.Theme), Events: eventDTOs(detail.Events)}, nil
 }
 
-func (s *ResearchService) ListAnchors(ctx context.Context, request ResearchListRequest) (ResearchAnchorListResponse, error) {
-	windowHours, limit, err := normalizeResearchListRequest(request)
-	if err != nil {
-		return ResearchAnchorListResponse{}, err
-	}
-	if s == nil || s.client == nil {
-		return ResearchAnchorListResponse{}, ErrResearchDataService
-	}
-	page, err := s.client.ListResearchAnchors(ctx, dataclient.ResearchListQuery{WindowHours: windowHours, Limit: limit, Cursor: request.Cursor})
-	if err != nil {
-		return ResearchAnchorListResponse{}, mapDataServiceError(err)
-	}
-	items := make([]ResearchAnchorItem, 0, len(page.Items))
-	for _, item := range page.Items {
-		items = append(items, anchorItemDTO(item))
-	}
-	return ResearchAnchorListResponse{
-		WindowStart: formatTime(page.WindowStart), WindowEnd: formatTime(page.WindowEnd), AsOf: formatTime(page.AsOf),
-		AnchorCount: page.AnchorCount, EventCount: page.EventCount, Items: items, NextCursor: page.NextCursor,
-	}, nil
-}
-
-func (s *ResearchService) GetAnchor(ctx context.Context, id string, request ResearchDetailRequest) (ResearchAnchorDetailResponse, error) {
-	windowHours, err := normalizeResearchDetailRequest(request)
-	if err != nil {
-		return ResearchAnchorDetailResponse{}, err
-	}
-	id = strings.TrimSpace(id)
-	if !researchUUIDPattern.MatchString(id) {
-		return ResearchAnchorDetailResponse{}, fmt.Errorf("%w: anchor id must be a UUID", ErrInvalidResearchRequest)
-	}
-	if s == nil || s.client == nil {
-		return ResearchAnchorDetailResponse{}, ErrResearchDataService
-	}
-	detail, err := s.client.GetResearchAnchor(ctx, id, dataclient.ResearchDetailQuery{WindowHours: windowHours})
-	if err != nil {
-		return ResearchAnchorDetailResponse{}, mapDataServiceError(err)
-	}
-	return ResearchAnchorDetailResponse{ResearchAnchorItem: anchorItemDTO(detail.Anchor), Events: eventDTOs(detail.Events)}, nil
-}
-
 func normalizeResearchListRequest(request ResearchListRequest) (int, int, error) {
 	windowHours := request.WindowHours
 	if windowHours == 0 {
@@ -258,27 +181,10 @@ func themeItemDTO(item dataclient.ResearchTheme) ResearchThemeItem {
 	}
 }
 
-func anchorItemDTO(item dataclient.ResearchAnchor) ResearchAnchorItem {
-	return ResearchAnchorItem{
-		ID: item.ID, AnchorType: string(item.AnchorType), Name: item.Name, OneLineConclusion: item.OneLineConclusion,
-		Importance: string(item.Importance), TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection,
-		PublishedAt: formatTime(item.PublishedAt), RelatedChainNodes: anchorChainNodeDTOs(item.RelatedChainNodes),
-		RelatedIndices: indexDTOs(item.RelatedIndices), RelatedEventCount: item.RelatedEventCount,
-	}
-}
-
 func themeChainNodeDTOs(values []dataclient.ResearchThemeChainNode) []ResearchChainNodeDTO {
 	result := make([]ResearchChainNodeDTO, 0, len(values))
 	for _, value := range values {
 		result = append(result, ResearchChainNodeDTO{ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, Summary: value.ImpactSummary})
-	}
-	return result
-}
-
-func anchorChainNodeDTOs(values []dataclient.ResearchAnchorChainNode) []ResearchAnchorChainNodeDTO {
-	result := make([]ResearchAnchorChainNodeDTO, 0, len(values))
-	for _, value := range values {
-		result = append(result, ResearchAnchorChainNodeDTO{ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, RelationSummary: value.RelationSummary})
 	}
 	return result
 }

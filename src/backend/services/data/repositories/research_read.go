@@ -58,35 +58,7 @@ type ResearchThemeDetail struct {
 	Events []ResearchEvent
 }
 
-type ResearchAnchorSummary struct {
-	ID                string
-	AnchorType        domain.AnchorType
-	Name              string
-	OneLineConclusion string
-	Importance        domain.ResearchImportance
-	TransmissionPath  string
-	TradingDirection  string
-	PublishedAt       time.Time
-	ChainNodes        []ResearchChainNode
-	Indices           []ResearchIndex
-	RelatedEventCount int
-}
-
-type ResearchAnchorDetail struct {
-	ResearchAnchorSummary
-	Events []ResearchEvent
-}
-
 type ResearchThemeListFilter struct {
-	WindowStart       time.Time
-	AsOf              time.Time
-	Limit             int
-	CursorRank        int
-	CursorPublishedAt *time.Time
-	CursorID          string
-}
-
-type ResearchAnchorListFilter struct {
 	WindowStart       time.Time
 	AsOf              time.Time
 	Limit             int
@@ -110,21 +82,11 @@ type ResearchThemePage struct {
 	HasMore     bool
 }
 
-type ResearchAnchorPage struct {
-	AsOf        time.Time
-	WindowStart time.Time
-	WindowEnd   time.Time
-	AnchorCount int
-	EventCount  int
-	Items       []ResearchAnchorSummary
-	HasMore     bool
-}
-
 type ResearchReadRepository interface {
 	ListResearchThemes(context.Context, ResearchThemeListFilter) (ResearchThemePage, error)
 	GetResearchTheme(context.Context, string, ResearchDetailFilter) (ResearchThemeDetail, error)
-	ListResearchAnchors(context.Context, ResearchAnchorListFilter) (ResearchAnchorPage, error)
-	GetResearchAnchor(context.Context, string, ResearchDetailFilter) (ResearchAnchorDetail, error)
+	ListResearchThemeReasoningTrees(context.Context, string) (ResearchReasoningTreeList, error)
+	GetResearchThemeReasoningTree(context.Context, string, string) (ResearchReasoningTreeDetail, error)
 }
 
 const listResearchThemesQuery = `
@@ -186,47 +148,6 @@ SELECT t.id, t.name, t.one_line_conclusion, t.impact_level, t.transmission_path,
 FROM research_themes t
 WHERE t.id = $1 AND t.published_at IS NOT NULL AND t.published_at >= $2 AND t.published_at <= $3`
 
-const listResearchAnchorsQuery = `
-WITH visible AS MATERIALIZED (
-    SELECT a.*,
-           CASE a.importance WHEN 'primary' THEN 3 WHEN 'secondary' THEN 2 ELSE 1 END AS importance_rank
-    FROM research_anchors a
-    WHERE a.published_at IS NOT NULL AND a.published_at >= $1 AND a.published_at <= $2
-), page AS (
-    SELECT * FROM visible
-    WHERE ($3 = 0 OR importance_rank < $3 OR (importance_rank = $3 AND (published_at < $4 OR (published_at = $4 AND id > $5))))
-    ORDER BY importance_rank DESC, published_at DESC, id ASC
-    LIMIT $6
-)
-SELECT p.id, p.anchor_type, p.name, p.one_line_conclusion, p.importance,
-       p.transmission_path, p.trading_direction, p.published_at,
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.relation_summary) ORDER BY e.name, n.chain_node_entity_id)
-                 FROM research_anchor_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.anchor_id = p.id), '[]'::jsonb),
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
-                 FROM research_anchor_indices i JOIN entity_nodes e ON e.id = i.index_entity_id WHERE i.anchor_id = p.id), '[]'::jsonb),
-       (SELECT COUNT(DISTINCT event_id) FROM research_anchor_events WHERE anchor_id = p.id)
-FROM page p
-ORDER BY p.importance_rank DESC, p.published_at DESC, p.id ASC`
-
-const countResearchAnchorsQuery = `
-SELECT COUNT(DISTINCT a.id), COUNT(DISTINCT e.event_id)
-FROM research_anchors a
-LEFT JOIN research_anchor_events e ON e.anchor_id = a.id
-WHERE a.published_at IS NOT NULL AND a.published_at >= $1 AND a.published_at <= $2`
-
-const getResearchAnchorQuery = `
-SELECT a.id, a.anchor_type, a.name, a.one_line_conclusion, a.importance,
-       a.transmission_path, a.trading_direction, a.published_at,
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.chain_node_entity_id, 'name', e.name, 'relation_role', n.relation_role, 'impact_summary', n.relation_summary) ORDER BY e.name, n.chain_node_entity_id)
-                 FROM research_anchor_chain_nodes n JOIN entity_nodes e ON e.id = n.chain_node_entity_id WHERE n.anchor_id = a.id), '[]'::jsonb),
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.index_entity_id, 'name', e.name, 'impact_direction', i.impact_direction, 'impact_summary', i.impact_summary) ORDER BY e.name, i.index_entity_id)
-                 FROM research_anchor_indices i JOIN entity_nodes e ON e.id = i.index_entity_id WHERE i.anchor_id = a.id), '[]'::jsonb),
-       COALESCE((SELECT jsonb_agg(jsonb_build_object('event_id', e.id, 'title', e.title, 'summary', e.summary, 'event_time', e.event_time, 'evidence_role', r.evidence_role, 'supported_claim', r.supported_claim) ORDER BY e.event_time DESC NULLS LAST, e.id)
-                 FROM research_anchor_events r JOIN events e ON e.id = r.event_id WHERE r.anchor_id = a.id), '[]'::jsonb),
-       (SELECT COUNT(DISTINCT event_id) FROM research_anchor_events WHERE anchor_id = a.id)
-FROM research_anchors a
-WHERE a.id = $1 AND a.published_at IS NOT NULL AND a.published_at >= $2 AND a.published_at <= $3`
-
 func (r PostgresRepository) ListResearchThemes(ctx context.Context, filter ResearchThemeListFilter) (ResearchThemePage, error) {
 	rows, err := r.db.QueryContext(ctx, listResearchThemesQuery, filter.WindowStart, filter.AsOf, filter.CursorRank, nullableTime(filter.CursorPublishedAt), nullableString(filter.CursorID), filter.Limit+1)
 	if err != nil {
@@ -267,46 +188,6 @@ func (r PostgresRepository) GetResearchTheme(ctx context.Context, id string, fil
 	return item, nil
 }
 
-func (r PostgresRepository) ListResearchAnchors(ctx context.Context, filter ResearchAnchorListFilter) (ResearchAnchorPage, error) {
-	rows, err := r.db.QueryContext(ctx, listResearchAnchorsQuery, filter.WindowStart, filter.AsOf, filter.CursorRank, nullableTime(filter.CursorPublishedAt), nullableString(filter.CursorID), filter.Limit+1)
-	if err != nil {
-		return ResearchAnchorPage{}, fmt.Errorf("list research anchors: %w", err)
-	}
-	defer rows.Close()
-	items := make([]ResearchAnchorSummary, 0, filter.Limit+1)
-	for rows.Next() {
-		item, err := scanResearchAnchorSummary(rows)
-		if err != nil {
-			return ResearchAnchorPage{}, err
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return ResearchAnchorPage{}, fmt.Errorf("iterate research anchors: %w", err)
-	}
-	var anchorCount, eventCount int
-	if err := r.db.QueryRowContext(ctx, countResearchAnchorsQuery, filter.WindowStart, filter.AsOf).Scan(&anchorCount, &eventCount); err != nil {
-		return ResearchAnchorPage{}, fmt.Errorf("count research anchors: %w", err)
-	}
-	hasMore := len(items) > filter.Limit
-	if hasMore {
-		items = items[:filter.Limit]
-	}
-	return ResearchAnchorPage{AsOf: filter.AsOf, WindowStart: filter.WindowStart, WindowEnd: filter.AsOf, AnchorCount: anchorCount, EventCount: eventCount, Items: items, HasMore: hasMore}, nil
-}
-
-func (r PostgresRepository) GetResearchAnchor(ctx context.Context, id string, filter ResearchDetailFilter) (ResearchAnchorDetail, error) {
-	row := r.db.QueryRowContext(ctx, getResearchAnchorQuery, id, filter.WindowStart, filter.AsOf)
-	item, err := scanResearchAnchorDetail(row)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ResearchAnchorDetail{}, ErrResearchNotFound
-	}
-	if err != nil {
-		return ResearchAnchorDetail{}, fmt.Errorf("get research anchor: %w", err)
-	}
-	return item, nil
-}
-
 type researchRow interface{ Scan(...any) error }
 
 func scanResearchThemeSummary(row researchRow) (ResearchThemeSummary, error) {
@@ -338,30 +219,6 @@ func scanResearchThemeDetail(row researchRow) (ResearchThemeDetail, error) {
 	}
 	if err := decodeResearchCollections(nodes, indices, events, &item.ChainNodes, &item.Indices, &item.Events); err != nil {
 		return ResearchThemeDetail{}, err
-	}
-	return item, nil
-}
-
-func scanResearchAnchorSummary(row researchRow) (ResearchAnchorSummary, error) {
-	var item ResearchAnchorSummary
-	var nodes, indices []byte
-	if err := row.Scan(&item.ID, &item.AnchorType, &item.Name, &item.OneLineConclusion, &item.Importance, &item.TransmissionPath, &item.TradingDirection, &item.PublishedAt, &nodes, &indices, &item.RelatedEventCount); err != nil {
-		return ResearchAnchorSummary{}, err
-	}
-	if err := decodeResearchCollections(nodes, indices, nil, &item.ChainNodes, &item.Indices, nil); err != nil {
-		return ResearchAnchorSummary{}, err
-	}
-	return item, nil
-}
-
-func scanResearchAnchorDetail(row researchRow) (ResearchAnchorDetail, error) {
-	var item ResearchAnchorDetail
-	var nodes, indices, events []byte
-	if err := row.Scan(&item.ID, &item.AnchorType, &item.Name, &item.OneLineConclusion, &item.Importance, &item.TransmissionPath, &item.TradingDirection, &item.PublishedAt, &nodes, &indices, &events, &item.RelatedEventCount); err != nil {
-		return ResearchAnchorDetail{}, err
-	}
-	if err := decodeResearchCollections(nodes, indices, events, &item.ChainNodes, &item.Indices, &item.Events); err != nil {
-		return ResearchAnchorDetail{}, err
 	}
 	return item, nil
 }

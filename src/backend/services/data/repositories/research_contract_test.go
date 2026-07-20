@@ -139,10 +139,8 @@ func TestResearchMigrationAllTablesHaveAuditColumns(t *testing.T) {
 
 func TestResearchReadQueriesArePostgresOnlyAndBatchAggregated(t *testing.T) {
 	for name, query := range map[string]string{
-		"theme list":    listResearchThemesQuery,
-		"theme detail":  getResearchThemeQuery,
-		"anchor list":   listResearchAnchorsQuery,
-		"anchor detail": getResearchAnchorQuery,
+		"theme list":   listResearchThemesQuery,
+		"theme detail": getResearchThemeQuery,
 	} {
 		t.Run(name, func(t *testing.T) {
 			value := strings.ToLower(query)
@@ -165,10 +163,7 @@ func TestResearchCountQueriesDeduplicateMainRowsAndEvents(t *testing.T) {
 		name              string
 		query             string
 		distinctMainCount string
-	}{
-		{name: "themes", query: countResearchThemesQuery, distinctMainCount: "count(distinct t.id)"},
-		{name: "anchors", query: countResearchAnchorsQuery, distinctMainCount: "count(distinct a.id)"},
-	}
+	}{{name: "themes", query: countResearchThemesQuery, distinctMainCount: "count(distinct t.id)"}}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -207,10 +202,8 @@ func TestResearchThemeListSelectsOneLatestSuccessfulReceiptBatch(t *testing.T) {
 
 func TestResearchChainNodeQueriesUseRelationEntityID(t *testing.T) {
 	for name, query := range map[string]string{
-		"theme list":    listResearchThemesQuery,
-		"theme detail":  getResearchThemeQuery,
-		"anchor list":   listResearchAnchorsQuery,
-		"anchor detail": getResearchAnchorQuery,
+		"theme list":   listResearchThemesQuery,
+		"theme detail": getResearchThemeQuery,
 	} {
 		t.Run(name, func(t *testing.T) {
 			query = strings.ToLower(query)

@@ -87,18 +87,6 @@ func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query Rese
 	return unwrapEnvelope(envelope, err)
 }
 
-func (c *HTTPClient) ListResearchAnchors(ctx context.Context, query ResearchListQuery) (ResearchAnchorPage, error) {
-	var envelope responseEnvelope[ResearchAnchorPage]
-	err := c.doJSON(ctx, http.MethodGet, researchListPath(ResearchAnchorsPath, query), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
-}
-
-func (c *HTTPClient) GetResearchAnchor(ctx context.Context, id string, query ResearchDetailQuery) (ResearchAnchorDetail, error) {
-	var envelope responseEnvelope[ResearchAnchorDetail]
-	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchAnchorsPath, id, query), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
-}
-
 type responseEnvelope[T any] struct {
 	RequestID string `json:"request_id"`
 	Result    *T     `json:"result"`

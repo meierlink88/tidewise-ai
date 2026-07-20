@@ -37,31 +37,35 @@ func (d Dependencies) getResearchTheme(response http.ResponseWriter, request *ht
 	writeEnvelope(response, http.StatusOK, requestID, result)
 }
 
-func (d Dependencies) listResearchAnchors(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	window, limit, ok := researchListQuery(response, request, requestID)
-	if !ok {
+func (d Dependencies) listResearchThemeReasoningTrees(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
+	if request.URL.RawQuery != "" {
+		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "reasoning tree list does not accept query parameters")
 		return
 	}
 	if d.Research == nil {
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 		return
 	}
-	result, err := d.Research.ListAnchors(request.Context(), research.ResearchListRequest{WindowHours: window, Limit: limit, Cursor: request.URL.Query().Get("cursor")})
-	writeResearchResult(response, requestID, result, err)
+	result, err := d.Research.ListReasoningTrees(request.Context(), request.PathValue("theme_id"))
+	if err != nil {
+		writeReasoningTreeError(response, requestID, err)
+		return
+	}
+	writeEnvelope(response, http.StatusOK, requestID, result)
 }
 
-func (d Dependencies) getResearchAnchor(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	window, ok := optionalInt(response, requestID, request.URL.Query().Get("window_hours"), research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
-	if !ok {
+func (d Dependencies) getResearchThemeReasoningTree(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
+	if request.URL.RawQuery != "" {
+		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "reasoning tree detail does not accept query parameters")
 		return
 	}
 	if d.Research == nil {
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 		return
 	}
-	result, err := d.Research.GetAnchor(request.Context(), request.PathValue("anchor_id"), research.ResearchDetailRequest{WindowHours: window})
+	result, err := d.Research.GetReasoningTree(request.Context(), request.PathValue("theme_id"), request.PathValue("anchor_id"))
 	if err != nil {
-		writeResearchError(response, requestID, err)
+		writeReasoningTreeError(response, requestID, err)
 		return
 	}
 	writeEnvelope(response, http.StatusOK, requestID, result)
@@ -92,5 +96,22 @@ func writeResearchError(response http.ResponseWriter, requestID string, err erro
 		writeError(response, requestID, http.StatusNotFound, "NOT_FOUND", "research aggregate was not found")
 	default:
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "research aggregate failed")
+	}
+}
+
+func writeReasoningTreeError(response http.ResponseWriter, requestID string, err error) {
+	switch {
+	case errors.Is(err, research.ErrInvalidRequest):
+		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+	case errors.Is(err, research.ErrThemeNotFound):
+		writeError(response, requestID, http.StatusNotFound, "RESEARCH_THEME_NOT_FOUND", "research Theme was not found")
+	case errors.Is(err, research.ErrReasoningTreesNotFound):
+		writeError(response, requestID, http.StatusNotFound, "RESEARCH_REASONING_TREES_NOT_FOUND", "research Theme has no published reasoning trees")
+	case errors.Is(err, research.ErrReasoningTreeNotFound):
+		writeError(response, requestID, http.StatusNotFound, "RESEARCH_REASONING_TREE_NOT_FOUND", "research reasoning tree was not found for the Theme")
+	case errors.Is(err, research.ErrReasoningTreeInvariantViolation):
+		writeError(response, requestID, http.StatusInternalServerError, "RESEARCH_REASONING_TREE_INVARIANT_VIOLATION", "published research reasoning tree data is incomplete")
+	default:
+		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "research reasoning tree failed")
 	}
 }
