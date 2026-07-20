@@ -123,11 +123,13 @@ _Avoid_: 将 Anchor 嵌入 Theme Import V1、按单棵 Anchor 分批发布、增
 
 **Research Anchor Import 错误定位（Research Anchor Import Error Location）**:
 遵循 Theme Import V1 错误分层的可操作失败信息。结构与合同错误使用 `400`，缺失或越界引用使用 `422`，payload 或发布主体冲突使用 `409`。可定位错误统一携带 `center_chain_node_id`、`path` 和 `reference`，使发布器能直接定位具体 Anchor 和字段。
-_Avoid_: 只返回黑盒失败文本、将不存在与越界引用混为内部错误、在失败响应中返回部分写入结果
+一个请求同时存在多个错误时，只按请求的确定性遍历顺序返回第一个错误，不聚合错误列表；发布器修正后使用完整请求重新提交，整批原子失败规则不变。
+_Avoid_: 只返回黑盒失败文本、将不存在与越界引用混为内部错误、在失败响应中返回部分写入结果、返回顺序不稳定的错误集合
 
 **Research Anchor 未知结果恢复（Research Anchor Unknown-outcome Recovery）**:
 同步 Anchor Import POST 在客户端未收到响应时的唯一恢复方式：使用原 `theme_id` 和完全相同的 payload 重试 POST。已成功则返回首次 Receipt，未成功则执行新事务，内容改变则冲突。
-_Avoid_: 增加状态查询端点、将小批量发布改为异步 job、为失败请求持久化 unknown 占位、响应丢失后修改 payload 重试
+正式 Theme 的 Anchor 可以在更新分析批次已经发布后延迟补发；只要父 Theme 及其发布回执仍存在且主体一致，补发没有人为截止时间。晚到的 Anchor 不改变父 Theme 的发布时间，也不把旧 Theme 提升为最新批次。
+_Avoid_: 增加状态查询端点、将小批量发布改为异步 job、为失败请求持久化 unknown 占位、响应丢失后修改 payload 重试、因 Theme 不是最新批次而拒绝补树
 
 **Research Anchor 身份（Research Anchor Identity）**:
 一棵 Research Anchor 在单个 Theme 内的身份由 `theme_id` 与 `center_chain_node_id` 共同决定，不另设 `anchor_key`。调用方不提交 Anchor UUID；Data 使用冻结命名空间 `f219ded4-fc65-5948-9e28-c1cdb6a8288e`，对标准小写 `theme_id + NUL + center_chain_node_id` 生成确定性 UUIDv5 `anchor_id`。
@@ -139,7 +141,8 @@ _Avoid_: 使用 Theme Import 的 canonical UUID 顺序当作产品顺序、由 B
 
 **Research Anchor 发布主体（Research Anchor Publisher Subject）**:
 已成功发布 Research Theme 的同一稳定内部服务身份，也是该 Theme 的 Anchor 集合唯一允许的发布和重放主体。Data 从认证上下文解析主体并与 Theme Publication Receipt 比对；请求不得声明发布者，token 轮换不改变稳定主体归属。
-_Avoid_: 其他服务接管 Theme 的 Anchor 发布、在请求体声明发布者、使用 token 字符串作为长期主体身份
+没有 Theme Publication Receipt 的历史 Theme 不具备可核验发布主体，不能接收 Research Anchor 发布，也不存在本地环境或历史数据绕过。
+_Avoid_: 其他服务接管 Theme 的 Anchor 发布、在请求体声明发布者、使用 token 字符串作为长期主体身份、为无发布回执的历史 Theme 补发 Anchor
 
 **Anchor 一句话结论（Anchor One-line Conclusion）**:
 围绕 Research Anchor 中心 Chain Node 得出的必填、非空研究结论，属于当次 Anchor 快照。它与 Theme 的总体一句话结论层级不同，由 AI 分析师生成，Data 只校验完整性并原样保存。
