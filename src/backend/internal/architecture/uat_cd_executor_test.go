@@ -54,6 +54,25 @@ func TestUATDeployExecutorBlocksUnconfirmedHighRiskMigration(t *testing.T) {
 	}
 }
 
+func TestUATDeployExecutorBlocksReleaseIncompatibleMigrationEvenWithBackup(t *testing.T) {
+	report := `{"current_version":"24","pending":[{"Version":"25","Name":"rebuild research anchors"}],"applied":[],"remaining":[]}`
+	result := runDeployFixture(t, deployFixtureOptions{
+		migrationReport: report,
+		migrationRisk:   "blocked",
+		backupConfirmed: true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL migration-release-gate") {
+		t.Fatalf("release-blocked fixture was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	logContent, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logContent), " up ") {
+		t.Fatalf("release gate started services: %s", logContent)
+	}
+}
+
 func TestUATDiagnosticsRedactsCredentials(t *testing.T) {
 	repoRoot := filepath.Join("..", "..", "..", "..")
 	temp := t.TempDir()
@@ -95,6 +114,8 @@ type deployFixtureOptions struct {
 	currentRelease  bool
 	failFirstUp     bool
 	migrationReport string
+	migrationRisk   string
+	backupConfirmed bool
 }
 
 type deployFixtureResult struct {
@@ -126,7 +147,11 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture-admin-secret\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
 	writeFixture(t, compose, "name: tidewise-uat\nservices: {}\n")
-	writeFixture(t, manifest, "000024\thigh\tfixture high risk\n")
+	migrationRisk := options.migrationRisk
+	if migrationRisk == "" {
+		migrationRisk = "high"
+	}
+	writeFixture(t, manifest, "000025\t"+migrationRisk+"\tfixture migration risk\n000024\thigh\tfixture high risk\n")
 
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_API_TOKEN=previous-admin-secret\n")
@@ -169,7 +194,7 @@ exit 0
 		"UAT_DATABASE_URL=postgres://fixture:fixture-db-secret@rds.example.test:5432/tidewise_uat?sslmode=require",
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
-		"HIGH_RISK_BACKUP_CONFIRMED=false",
+		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
 		"RUNNER_TEMP="+temp,
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),

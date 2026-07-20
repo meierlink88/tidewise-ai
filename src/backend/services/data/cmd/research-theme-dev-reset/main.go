@@ -21,18 +21,26 @@ const (
 	localDatabaseName = "tidewise_local"
 	resetLockKey      = "tidewise:research-theme-dev-reset:v1"
 
-	currentDatabaseSQL     = `SELECT current_database()`
-	acquireResetLockSQL    = `SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))`
-	receiptTriggerStateSQL = `SELECT tgenabled::text
+	currentDatabaseSQL          = `SELECT current_database()`
+	acquireResetLockSQL         = `SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))`
+	themeReceiptTriggerStateSQL = `SELECT tgenabled::text
 FROM pg_trigger
 WHERE tgrelid = 'research_theme_import_receipts'::regclass
   AND tgname = 'trg_research_theme_import_receipts_immutable'`
-	themeCountsSQL = `SELECT
+	anchorReceiptTriggerStateSQL = `SELECT tgenabled::text
+FROM pg_trigger
+WHERE tgrelid = 'research_anchor_import_receipts'::regclass
+  AND tgname = 'trg_research_anchor_import_receipts_immutable'`
+	publicationCountsSQL = `SELECT
     (SELECT COUNT(*) FROM research_themes),
     (SELECT COUNT(*) FROM research_theme_chain_nodes),
     (SELECT COUNT(*) FROM research_theme_indices),
     (SELECT COUNT(*) FROM research_theme_events),
-    (SELECT COUNT(*) FROM research_theme_import_receipts)`
+    (SELECT COUNT(*) FROM research_theme_import_receipts),
+    (SELECT COUNT(*) FROM research_anchor_import_receipts),
+    (SELECT COUNT(*) FROM research_anchors),
+    (SELECT COUNT(*) FROM research_anchor_chain_nodes),
+    (SELECT COUNT(*) FROM research_anchor_events)`
 	protectedCountsSQL = `SELECT
     (SELECT COUNT(*) FROM events),
     (SELECT COUNT(*) FROM entity_nodes),
@@ -40,16 +48,18 @@ WHERE tgrelid = 'research_theme_import_receipts'::regclass
     (SELECT COUNT(*) FROM index_profiles),
     (SELECT COUNT(*) FROM event_tag_defs),
     (SELECT COUNT(*) FROM event_tag_maps),
-    (SELECT COUNT(*) FROM raw_documents),
-    (SELECT COUNT(*) FROM research_anchors),
-    (SELECT COUNT(*) FROM research_anchor_chain_nodes),
-    (SELECT COUNT(*) FROM research_anchor_indices),
-    (SELECT COUNT(*) FROM research_anchor_events)`
-	disableReceiptTriggerSQL = `ALTER TABLE research_theme_import_receipts
+	(SELECT COUNT(*) FROM raw_documents)`
+	disableThemeReceiptTriggerSQL = `ALTER TABLE research_theme_import_receipts
 DISABLE TRIGGER trg_research_theme_import_receipts_immutable`
-	deleteThemesSQL         = `DELETE FROM research_themes`
-	deleteReceiptsSQL       = `DELETE FROM research_theme_import_receipts`
-	enableReceiptTriggerSQL = `ALTER TABLE research_theme_import_receipts
+	disableAnchorReceiptTriggerSQL = `ALTER TABLE research_anchor_import_receipts
+DISABLE TRIGGER trg_research_anchor_import_receipts_immutable`
+	deleteAnchorsSQL              = `DELETE FROM research_anchors`
+	deleteAnchorReceiptsSQL       = `DELETE FROM research_anchor_import_receipts`
+	deleteThemesSQL               = `DELETE FROM research_themes`
+	deleteThemeReceiptsSQL        = `DELETE FROM research_theme_import_receipts`
+	enableAnchorReceiptTriggerSQL = `ALTER TABLE research_anchor_import_receipts
+ENABLE TRIGGER trg_research_anchor_import_receipts_immutable`
+	enableThemeReceiptTriggerSQL = `ALTER TABLE research_theme_import_receipts
 ENABLE TRIGGER trg_research_theme_import_receipts_immutable`
 )
 
@@ -58,45 +68,45 @@ type resetOptions struct {
 	ConfirmDatabase string
 }
 
-type themeCounts struct {
-	ResearchThemes              int64 `json:"research_themes"`
-	ResearchThemeChainNodes     int64 `json:"research_theme_chain_nodes"`
-	ResearchThemeIndices        int64 `json:"research_theme_indices"`
-	ResearchThemeEvents         int64 `json:"research_theme_events"`
-	ResearchThemeImportReceipts int64 `json:"research_theme_import_receipts"`
+type publicationCounts struct {
+	ResearchThemes               int64 `json:"research_themes"`
+	ResearchThemeChainNodes      int64 `json:"research_theme_chain_nodes"`
+	ResearchThemeIndices         int64 `json:"research_theme_indices"`
+	ResearchThemeEvents          int64 `json:"research_theme_events"`
+	ResearchThemeImportReceipts  int64 `json:"research_theme_import_receipts"`
+	ResearchAnchorImportReceipts int64 `json:"research_anchor_import_receipts"`
+	ResearchAnchors              int64 `json:"research_anchors"`
+	ResearchAnchorChainNodes     int64 `json:"research_anchor_chain_nodes"`
+	ResearchAnchorEvents         int64 `json:"research_anchor_events"`
 }
 
-func (c themeCounts) isZero() bool {
-	return c == (themeCounts{})
+func (c publicationCounts) isZero() bool {
+	return c == (publicationCounts{})
 }
 
 type protectedCounts struct {
-	Events                   int64 `json:"events"`
-	EntityNodes              int64 `json:"entity_nodes"`
-	ChainNodeProfiles        int64 `json:"chain_node_profiles"`
-	IndexProfiles            int64 `json:"index_profiles"`
-	EventTagDefs             int64 `json:"event_tag_defs"`
-	EventTagMaps             int64 `json:"event_tag_maps"`
-	RawDocuments             int64 `json:"raw_documents"`
-	ResearchAnchors          int64 `json:"research_anchors"`
-	ResearchAnchorChainNodes int64 `json:"research_anchor_chain_nodes"`
-	ResearchAnchorIndices    int64 `json:"research_anchor_indices"`
-	ResearchAnchorEvents     int64 `json:"research_anchor_events"`
+	Events            int64 `json:"events"`
+	EntityNodes       int64 `json:"entity_nodes"`
+	ChainNodeProfiles int64 `json:"chain_node_profiles"`
+	IndexProfiles     int64 `json:"index_profiles"`
+	EventTagDefs      int64 `json:"event_tag_defs"`
+	EventTagMaps      int64 `json:"event_tag_maps"`
+	RawDocuments      int64 `json:"raw_documents"`
 }
 
 type resetReport struct {
-	Database        string          `json:"database"`
-	Mode            string          `json:"mode"`
-	Executed        bool            `json:"executed"`
-	Before          themeCounts     `json:"before"`
-	After           themeCounts     `json:"after"`
-	ProtectedBefore protectedCounts `json:"protected_before"`
-	ProtectedAfter  protectedCounts `json:"protected_after"`
-	TriggerRestored bool            `json:"trigger_restored"`
+	Database        string            `json:"database"`
+	Mode            string            `json:"mode"`
+	Executed        bool              `json:"executed"`
+	Before          publicationCounts `json:"before"`
+	After           publicationCounts `json:"after"`
+	ProtectedBefore protectedCounts   `json:"protected_before"`
+	ProtectedAfter  protectedCounts   `json:"protected_after"`
+	TriggerRestored bool              `json:"trigger_restored"`
 }
 
 func main() {
-	execute := flag.Bool("execute", false, "delete all local Research Theme data")
+	execute := flag.Bool("execute", false, "delete all local Research Theme and Research Anchor publication data")
 	confirmDatabase := flag.String("confirm-database", "", "must equal tidewise_local when --execute is used")
 	flag.Parse()
 
@@ -142,23 +152,23 @@ func validateExecutionGate(options resetOptions) error {
 
 func validateResetTarget(cfg config.Config) error {
 	if cfg.App.Env != config.EnvLocal {
-		return fmt.Errorf("research theme development reset is local-only, got %q", cfg.App.Env)
+		return fmt.Errorf("research publication development reset is local-only, got %q", cfg.App.Env)
 	}
 
 	host, databaseName := cfg.Database.Host, cfg.Database.Name
 	if cfg.Secrets.DatabaseURL != "" {
 		parsed, err := url.ParseRequestURI(cfg.Secrets.DatabaseURL)
 		if err != nil || parsed.Hostname() == "" {
-			return fmt.Errorf("research theme development reset requires a valid PostgreSQL URL")
+			return fmt.Errorf("research publication development reset requires a valid PostgreSQL URL")
 		}
 		host = parsed.Hostname()
 		databaseName = strings.TrimPrefix(parsed.EscapedPath(), "/")
 	}
 	if !isLoopbackHost(host) {
-		return fmt.Errorf("research theme development reset requires a loopback PostgreSQL host")
+		return fmt.Errorf("research publication development reset requires a loopback PostgreSQL host")
 	}
 	if databaseName != localDatabaseName {
-		return fmt.Errorf("research theme development reset requires database tidewise_local")
+		return fmt.Errorf("research publication development reset requires database tidewise_local")
 	}
 	return nil
 }
@@ -179,7 +189,7 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return resetReport{}, fmt.Errorf("begin research theme reset transaction: %w", err)
+		return resetReport{}, fmt.Errorf("begin research publication reset transaction: %w", err)
 	}
 	committed := false
 	defer func() {
@@ -198,11 +208,11 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 	if err := acquireResetLock(ctx, tx); err != nil {
 		return resetReport{}, err
 	}
-	if err := requireReceiptTriggerEnabled(ctx, tx); err != nil {
+	if err := requireReceiptTriggersEnabled(ctx, tx); err != nil {
 		return resetReport{}, err
 	}
 
-	before, err := readThemeCounts(ctx, tx)
+	before, err := readPublicationCounts(ctx, tx)
 	if err != nil {
 		return resetReport{}, err
 	}
@@ -221,28 +231,40 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 	}
 
 	if options.Execute {
-		if err := execResetSQL(ctx, tx, disableReceiptTriggerSQL, "disable immutable receipt trigger"); err != nil {
+		if err := execResetSQL(ctx, tx, disableThemeReceiptTriggerSQL, "disable immutable research theme receipt trigger"); err != nil {
+			return resetReport{}, err
+		}
+		if err := execResetSQL(ctx, tx, disableAnchorReceiptTriggerSQL, "disable immutable research anchor receipt trigger"); err != nil {
+			return resetReport{}, err
+		}
+		if err := execResetSQL(ctx, tx, deleteAnchorsSQL, "delete research anchors"); err != nil {
+			return resetReport{}, err
+		}
+		if err := execResetSQL(ctx, tx, deleteAnchorReceiptsSQL, "delete research anchor import receipts"); err != nil {
 			return resetReport{}, err
 		}
 		if err := execResetSQL(ctx, tx, deleteThemesSQL, "delete research themes"); err != nil {
 			return resetReport{}, err
 		}
-		if err := execResetSQL(ctx, tx, deleteReceiptsSQL, "delete research theme import receipts"); err != nil {
+		if err := execResetSQL(ctx, tx, deleteThemeReceiptsSQL, "delete research theme import receipts"); err != nil {
 			return resetReport{}, err
 		}
-		if err := execResetSQL(ctx, tx, enableReceiptTriggerSQL, "restore immutable receipt trigger"); err != nil {
+		if err := execResetSQL(ctx, tx, enableAnchorReceiptTriggerSQL, "restore immutable research anchor receipt trigger"); err != nil {
 			return resetReport{}, err
 		}
-		if err := requireReceiptTriggerEnabled(ctx, tx); err != nil {
-			return resetReport{}, fmt.Errorf("verify restored immutable receipt trigger: %w", err)
+		if err := execResetSQL(ctx, tx, enableThemeReceiptTriggerSQL, "restore immutable research theme receipt trigger"); err != nil {
+			return resetReport{}, err
+		}
+		if err := requireReceiptTriggersEnabled(ctx, tx); err != nil {
+			return resetReport{}, fmt.Errorf("verify restored immutable receipt triggers: %w", err)
 		}
 
-		after, err := readThemeCounts(ctx, tx)
+		after, err := readPublicationCounts(ctx, tx)
 		if err != nil {
 			return resetReport{}, err
 		}
 		if !after.isZero() {
-			return resetReport{}, fmt.Errorf("research theme reset left non-zero data counts: %+v", after)
+			return resetReport{}, fmt.Errorf("research publication reset left non-zero data counts: %+v", after)
 		}
 		protectedAfter, err := readProtectedCounts(ctx, tx)
 		if err != nil {
@@ -258,7 +280,7 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 	}
 
 	if err := tx.Commit(); err != nil {
-		return resetReport{}, fmt.Errorf("commit research theme reset transaction: %w", err)
+		return resetReport{}, fmt.Errorf("commit research publication reset transaction: %w", err)
 	}
 	committed = true
 	return report, nil
@@ -275,35 +297,46 @@ func currentDatabase(ctx context.Context, tx *sql.Tx) (string, error) {
 func acquireResetLock(ctx context.Context, tx *sql.Tx) error {
 	var locked bool
 	if err := tx.QueryRowContext(ctx, acquireResetLockSQL, resetLockKey).Scan(&locked); err != nil {
-		return fmt.Errorf("acquire research theme reset lock: %w", err)
+		return fmt.Errorf("acquire research publication reset lock: %w", err)
 	}
 	if !locked {
-		return fmt.Errorf("another research theme reset is already running")
+		return fmt.Errorf("another research publication reset is already running")
 	}
 	return nil
 }
 
-func requireReceiptTriggerEnabled(ctx context.Context, tx *sql.Tx) error {
+func requireReceiptTriggersEnabled(ctx context.Context, tx *sql.Tx) error {
+	if err := requireReceiptTriggerEnabled(ctx, tx, themeReceiptTriggerStateSQL, "research theme"); err != nil {
+		return err
+	}
+	return requireReceiptTriggerEnabled(ctx, tx, anchorReceiptTriggerStateSQL, "research anchor")
+}
+
+func requireReceiptTriggerEnabled(ctx context.Context, tx *sql.Tx, stateSQL, receiptType string) error {
 	var state string
-	if err := tx.QueryRowContext(ctx, receiptTriggerStateSQL).Scan(&state); err != nil {
-		return fmt.Errorf("read immutable receipt trigger state: %w", err)
+	if err := tx.QueryRowContext(ctx, stateSQL).Scan(&state); err != nil {
+		return fmt.Errorf("read immutable %s receipt trigger state: %w", receiptType, err)
 	}
 	if state != "O" {
-		return fmt.Errorf("immutable receipt trigger is not enabled, state=%q", state)
+		return fmt.Errorf("immutable %s receipt trigger is not enabled, state=%q", receiptType, state)
 	}
 	return nil
 }
 
-func readThemeCounts(ctx context.Context, tx *sql.Tx) (themeCounts, error) {
-	var counts themeCounts
-	if err := tx.QueryRowContext(ctx, themeCountsSQL).Scan(
+func readPublicationCounts(ctx context.Context, tx *sql.Tx) (publicationCounts, error) {
+	var counts publicationCounts
+	if err := tx.QueryRowContext(ctx, publicationCountsSQL).Scan(
 		&counts.ResearchThemes,
 		&counts.ResearchThemeChainNodes,
 		&counts.ResearchThemeIndices,
 		&counts.ResearchThemeEvents,
 		&counts.ResearchThemeImportReceipts,
+		&counts.ResearchAnchorImportReceipts,
+		&counts.ResearchAnchors,
+		&counts.ResearchAnchorChainNodes,
+		&counts.ResearchAnchorEvents,
 	); err != nil {
-		return themeCounts{}, fmt.Errorf("read research theme counts: %w", err)
+		return publicationCounts{}, fmt.Errorf("read research publication counts: %w", err)
 	}
 	return counts, nil
 }
@@ -318,10 +351,6 @@ func readProtectedCounts(ctx context.Context, tx *sql.Tx) (protectedCounts, erro
 		&counts.EventTagDefs,
 		&counts.EventTagMaps,
 		&counts.RawDocuments,
-		&counts.ResearchAnchors,
-		&counts.ResearchAnchorChainNodes,
-		&counts.ResearchAnchorIndices,
-		&counts.ResearchAnchorEvents,
 	); err != nil {
 		return protectedCounts{}, fmt.Errorf("read protected data counts: %w", err)
 	}

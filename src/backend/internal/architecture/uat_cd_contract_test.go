@@ -63,8 +63,11 @@ func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 			continue
 		}
 		fields := strings.Split(line, "\t")
-		if len(fields) < 3 || (fields[1] != "normal" && fields[1] != "high") || strings.TrimSpace(fields[2]) == "" {
+		if len(fields) < 3 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") || strings.TrimSpace(fields[2]) == "" {
 			t.Fatalf("invalid UAT migration risk row %q", line)
+		}
+		if fields[0] == "000025" && fields[1] != "blocked" {
+			t.Fatal("migration 000025 must remain release-blocked until TW-04 and TW-05 remove legacy Anchor APIs")
 		}
 		classified = append(classified, fields[0])
 	}
@@ -133,6 +136,7 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		"flock -n", "dbmigrate -apply", "rollback_current_release",
 		"current.images.env", "previous.images.env", "current.compose.yaml", "previous.compose.yaml",
 		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS bff-to-data-read-paths",
+		"FAIL migration-release-gate", "PASS migration-release-gate",
 	} {
 		if !strings.Contains(deploy, required) {
 			t.Fatalf("UAT deploy executor missing %q", required)
