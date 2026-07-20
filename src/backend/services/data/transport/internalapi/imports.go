@@ -7,9 +7,11 @@ import (
 	"unicode/utf8"
 
 	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventimport"
+	researchanchordomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchanchorimport"
 	researchdomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchthemeimport"
 	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
+	researchanchorimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchanchorimport"
 	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 )
 
@@ -149,4 +151,72 @@ func writeResearchThemeImportError(response http.ResponseWriter, requestID strin
 	default:
 		writeError(response, requestID, http.StatusInternalServerError, "RESEARCH_THEME_IMPORT_FAILED", "research Theme import failed")
 	}
+}
+
+func (d Dependencies) importResearchAnchors(response http.ResponseWriter, request *http.Request, principal Principal, requestID string) {
+	if d.ResearchAnchorImports == nil {
+		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Anchor import service is unavailable")
+		return
+	}
+	request.Body = http.MaxBytesReader(response, request.Body, MaxRequestBodyBytes)
+	publication, err := researchanchordomainimport.DecodeStrict(request.Body)
+	if err != nil {
+		var decodeError *researchanchordomainimport.DecodeError
+		if errors.As(err, &decodeError) {
+			writeResearchAnchorErrorDetails(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Anchor V1 contract", decodeError.CenterChainNodeID, decodeError.Path, "")
+			return
+		}
+		writeDecodeError(response, requestID, err)
+		return
+	}
+	result, err := d.ResearchAnchorImports.Import(request.Context(), principal.Identity, publication)
+	if err != nil {
+		writeResearchAnchorImportError(response, requestID, err)
+		return
+	}
+	status := http.StatusCreated
+	if result.Replayed {
+		status = http.StatusOK
+	}
+	writeEnvelope(response, status, requestID, result)
+}
+
+func writeResearchAnchorImportError(response http.ResponseWriter, requestID string, err error) {
+	var validation *researchanchordomainimport.ValidationError
+	if errors.As(err, &validation) {
+		writeResearchAnchorErrorDetails(response, requestID, http.StatusBadRequest, "RESEARCH_ANCHOR_IMPORT_REJECTED", "research Anchor publication failed validation", validation.CenterChainNodeID, validation.Path, validation.Reference)
+		return
+	}
+	var contractError *researchanchorimportapp.ContractError
+	if errors.As(err, &contractError) {
+		writeResearchAnchorErrorDetails(response, requestID, http.StatusBadRequest, "RESEARCH_ANCHOR_IMPORT_REJECTED", "research Anchor publication failed validation", contractError.CenterChainNodeID, contractError.Path, contractError.Reference)
+		return
+	}
+	var reference *researchanchorimportapp.ReferenceError
+	if errors.As(err, &reference) {
+		code := "RESEARCH_ANCHOR_REFERENCE_NOT_FOUND"
+		message := "research Anchor publication references missing data"
+		if reference.Kind == researchanchorimportapp.ReferenceInvalid {
+			code = "RESEARCH_ANCHOR_REFERENCE_INVALID"
+			message = "research Anchor publication references data outside its Theme boundary"
+		}
+		writeResearchAnchorErrorDetails(response, requestID, http.StatusUnprocessableEntity, code, message, reference.CenterChainNodeID, reference.Path, reference.Reference)
+		return
+	}
+	switch {
+	case errors.Is(err, researchanchorimportapp.ErrPayloadConflict):
+		writeError(response, requestID, http.StatusConflict, "RESEARCH_ANCHOR_PAYLOAD_CONFLICT", "theme_id conflicts with the published Research Anchor payload")
+	case errors.Is(err, researchanchorimportapp.ErrPublisherConflict):
+		writeError(response, requestID, http.StatusConflict, "RESEARCH_ANCHOR_PUBLISHER_CONFLICT", "Theme or Anchor receipt belongs to another publisher subject")
+	default:
+		writeError(response, requestID, http.StatusInternalServerError, "RESEARCH_ANCHOR_IMPORT_FAILED", "research Anchor import failed")
+	}
+}
+
+func writeResearchAnchorErrorDetails(response http.ResponseWriter, requestID string, status int, code, message, centerID, path, reference string) {
+	writeErrorWithDetails(response, requestID, status, code, message, map[string]any{
+		"center_chain_node_id": centerID,
+		"path":                 path,
+		"reference":            reference,
+	})
 }

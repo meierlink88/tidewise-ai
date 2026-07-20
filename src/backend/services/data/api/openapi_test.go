@@ -34,6 +34,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/raw-document-imports/{idempotency_key}": {method: "get", operationID: "getRawDocumentImportStatus", scope: "data.raw-documents.import"},
 		namespace + "/reviewed-event-imports":                 {method: "post", operationID: "importReviewedEvent", scope: "data.reviewed-events.import"},
 		namespace + "/research-theme-imports":                 {method: "post", operationID: "importResearchThemes", scope: "data.research.import"},
+		namespace + "/research-anchor-imports":                {method: "post", operationID: "importResearchAnchors", scope: "data.research.import"},
 	}
 
 	if len(paths) != len(want) {
@@ -56,6 +57,46 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesResearchAnchorPublicationV1(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/research-anchor-imports"], "research Anchor import path")["post"], "research Anchor import operation")
+	assertString(t, operation, "x-canonicalization", "rfc8785-sha256")
+	assertString(t, operation, "x-atomicity", "whole-theme-single-postgresql-transaction")
+	assertString(t, operation, "x-receipt-schema", "research_anchor_import_receipts")
+	assertString(t, operation, "x-retry-policy", "idempotent-with-theme-id")
+
+	request := schema(t, document, "ResearchAnchorImportRequest")
+	assertRequired(t, request, "theme_id", "anchors")
+	properties := object(t, request["properties"], "ResearchAnchorImportRequest properties")
+	for _, forbidden := range []string{"publisher_subject", "published_at", "imported_at", "idempotency_key"} {
+		if _, exists := properties[forbidden]; exists {
+			t.Fatalf("ResearchAnchorImportRequest must not expose %q", forbidden)
+		}
+	}
+	anchors := object(t, properties["anchors"], "anchors")
+	assertInt(t, anchors, "minItems", 1)
+
+	anchor := schema(t, document, "ResearchAnchorImportItem")
+	assertRequired(t, anchor, "center_chain_node_id", "one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint", "events", "path_nodes")
+	anchorProperties := object(t, anchor["properties"], "ResearchAnchorImportItem properties")
+	for _, forbidden := range []string{"anchor_id", "anchor_type", "importance", "indices", "transmission_path"} {
+		if _, exists := anchorProperties[forbidden]; exists {
+			t.Fatalf("ResearchAnchorImportItem must not expose %q", forbidden)
+		}
+	}
+
+	event := schema(t, document, "ResearchAnchorImportEvent")
+	assertRequired(t, event, "event_id", "evidence_role", "evidence_summary")
+	assertStringSet(t, object(t, object(t, event["properties"], "event properties")["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
+	pathNode := schema(t, document, "ResearchAnchorImportPathNode")
+	assertRequired(t, pathNode, "chain_node_id", "change_direction", "change_summary", "impact_summary", "incoming_transmission_mechanism")
+	assertStringSet(t, object(t, object(t, pathNode["properties"], "path node properties")["change_direction"], "change_direction")["enum"], "increase", "decrease", "mixed", "unchanged", "uncertain")
+
+	result := schema(t, document, "ResearchAnchorImportResult")
+	assertRequired(t, result, "receipt_id", "theme_id", "payload_hash", "anchor_ids_by_center_chain_node_id", "counts", "published_at", "imported_at", "replayed")
 }
 
 func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {

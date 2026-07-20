@@ -19,6 +19,7 @@ tags:
   - name: Raw document import
   - name: Reviewed event import
   - name: Research Theme import
+  - name: Research Anchor import
 
 paths:
   /internal/data/v1/research/themes:
@@ -550,6 +551,68 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /internal/data/v1/research-anchor-imports:
+    post:
+      tags: [Research Anchor import]
+      operationId: importResearchAnchors
+      x-client-drift-anchor: data.v1.importResearchAnchors
+      x-required-service-scope: data.research.import
+      x-retry-policy: idempotent-with-theme-id
+      x-timeout-budget-ms: 15000
+      x-canonicalization: rfc8785-sha256
+      x-atomicity: whole-theme-single-postgresql-transaction
+      x-receipt-schema: research_anchor_import_receipts
+      x-transaction-membership: research-anchor-import-receipt,research-anchor,research-anchor-event,research-anchor-path-node
+      summary: 原子发布一个 Theme 的完整 Research Anchor 推理树快照
+      description: >-
+        theme_id 是唯一幂等身份。发布主体必须与父 Theme Publication Receipt 一致；
+        anchors 与 events 必须按合同键升序，path_nodes 顺序是业务事实。任一 Anchor、
+        Event 或 Chain Node 引用无效时，整个 Theme 的 Anchor 集合回滚。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              maxLength: 1048576
+              x-max-body-bytes: 1048576
+              allOf:
+                - $ref: '#/components/schemas/ResearchAnchorImportRequest'
+      responses:
+        '200':
+          description: 相同发布主体、theme_id 与 payload 的首次结果重放
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchAnchorImportEnvelope'
+        '201':
+          description: 完整 Anchor 集合和 immutable receipt 已原子提交
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchAnchorImportEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   securitySchemes:
     ServiceBearer:
@@ -963,6 +1026,154 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/ResearchThemeImportResult'
+
+    ResearchAnchorImportRequest:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchAnchorImportRequest
+      required: [theme_id, anchors]
+      properties:
+        theme_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        anchors:
+          type: array
+          minItems: 1
+          description: 必须按小写 center_chain_node_id 升序且完整覆盖父 Theme 的 Chain Node 集合。
+          items:
+            $ref: '#/components/schemas/ResearchAnchorImportItem'
+
+    ResearchAnchorImportItem:
+      type: object
+      additionalProperties: false
+      required:
+        - center_chain_node_id
+        - one_line_conclusion
+        - fact_summary
+        - net_direction_summary
+        - trading_direction
+        - next_checkpoint
+        - events
+        - path_nodes
+      properties:
+        center_chain_node_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        one_line_conclusion:
+          type: string
+          minLength: 1
+        fact_summary:
+          type: string
+          minLength: 1
+        net_direction_summary:
+          type: string
+          minLength: 1
+        trading_direction:
+          type: string
+          minLength: 1
+        next_checkpoint:
+          type: string
+          minLength: 1
+        events:
+          type: array
+          minItems: 1
+          description: 必须按小写 event_id 升序且 ID 唯一；至少包含一个 driver。
+          items:
+            $ref: '#/components/schemas/ResearchAnchorImportEvent'
+        path_nodes:
+          type: array
+          minItems: 2
+          description: 单条有序业务路径；中心节点恰好出现一次，不允许重复或循环。
+          items:
+            $ref: '#/components/schemas/ResearchAnchorImportPathNode'
+
+    ResearchAnchorImportEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, evidence_role, evidence_summary]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        evidence_role:
+          type: string
+          enum: [driver, supporting, contradicting, context]
+        evidence_summary:
+          type: string
+          minLength: 1
+
+    ResearchAnchorImportPathNode:
+      type: object
+      additionalProperties: false
+      required: [chain_node_id, change_direction, change_summary, impact_summary, incoming_transmission_mechanism]
+      properties:
+        chain_node_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        change_direction:
+          type: string
+          enum: [increase, decrease, mixed, unchanged, uncertain]
+        change_summary:
+          type: string
+          minLength: 1
+        impact_summary:
+          type: string
+          minLength: 1
+        incoming_transmission_mechanism:
+          type: string
+          nullable: true
+          description: 第一节点必须为 null；第二节点起必须为非空白字符串。
+
+    ResearchAnchorImportCounts:
+      type: object
+      additionalProperties: false
+      required: [anchors, event_associations, path_nodes, receipts]
+      properties:
+        anchors:
+          type: integer
+          minimum: 1
+        event_associations:
+          type: integer
+          minimum: 1
+        path_nodes:
+          type: integer
+          minimum: 2
+        receipts:
+          type: integer
+          minimum: 1
+          maximum: 1
+
+    ResearchAnchorImportResult:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.ResearchAnchorImportResult
+      required: [receipt_id, theme_id, payload_hash, anchor_ids_by_center_chain_node_id, counts, published_at, imported_at, replayed]
+      properties:
+        receipt_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        theme_id:
+          $ref: '#/components/schemas/LowercaseUUID'
+        payload_hash:
+          $ref: '#/components/schemas/PayloadHash'
+        anchor_ids_by_center_chain_node_id:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            $ref: '#/components/schemas/LowercaseUUID'
+        counts:
+          $ref: '#/components/schemas/ResearchAnchorImportCounts'
+        published_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        imported_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        replayed:
+          type: boolean
+
+    ResearchAnchorImportEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchAnchorImportResult'
 
     ResearchThemeChainNode:
       type: object

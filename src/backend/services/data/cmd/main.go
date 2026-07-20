@@ -18,6 +18,7 @@ import (
 	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/research"
+	researchanchorimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchanchorimport"
 	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/sourcemetadata"
 )
@@ -48,13 +49,14 @@ func main() {
 	}
 	repository := repositories.NewPostgresRepository(db)
 	api := internalapi.NewHandler(internalapi.Dependencies{
-		Authenticator:        authenticator,
-		RawImports:           rawimport.NewService(postgresstore.New(db), time.Now),
-		ReviewedEvents:       eventapp.NewService(repository),
-		ResearchThemeImports: researchimportapp.NewService(repository),
-		Research:             research.NewService(repository, time.Now),
-		Admin:                adminquery.NewService(repository),
-		SourceMetadata:       sourcemetadata.NewService(repository),
+		Authenticator:         authenticator,
+		RawImports:            rawimport.NewService(postgresstore.New(db), time.Now),
+		ReviewedEvents:        eventapp.NewService(repository),
+		ResearchThemeImports:  researchimportapp.NewService(repository),
+		ResearchAnchorImports: researchanchorimportapp.NewService(repository),
+		Research:              research.NewService(repository, time.Now),
+		Admin:                 adminquery.NewService(repository),
+		SourceMetadata:        sourcemetadata.NewService(repository),
 	})
 
 	server := data.NewServer(cfg, api)

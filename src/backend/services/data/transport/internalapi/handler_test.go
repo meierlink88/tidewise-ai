@@ -15,11 +15,13 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/backend/services/data/domain"
 	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventimport"
+	researchanchordomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchanchorimport"
 	researchdomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/adminquery"
 	eventapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/research"
+	researchanchorimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchanchorimport"
 	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/sourcemetadata"
 )
@@ -246,6 +248,116 @@ func TestResearchThemeImportUsesDedicatedPublisherIdentityAndFrozenResult(t *tes
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden || importer.calls != 2 {
 		t.Fatalf("wrong-scope response=%d calls=%d body=%s", response.Code, importer.calls, response.Body.String())
+	}
+}
+
+func TestResearchAnchorImportUsesDedicatedPublisherIdentityAndFrozenResult(t *testing.T) {
+	now := time.Date(2026, 7, 20, 9, 0, 0, 0, time.UTC)
+	importer := &fakeResearchAnchorImporter{result: researchanchorimportapp.Result{
+		ReceiptID: "99999999-9999-4999-8999-999999999999", ThemeID: "11111111-1111-4111-8111-111111111111",
+		PayloadHash: "316ae969f3a946d6ffb2e58bc13ccabae81d95cd7e27575006670890909cb4eb",
+		AnchorIDsByCenterChainNodeID: map[string]string{
+			"22222222-2222-4222-8222-222222222222": "534d83be-774b-51d9-ad00-cdee4ba91799",
+			"33333333-3333-4333-8333-333333333333": "5c18fc57-6bd8-5612-9a24-01a4e928b761",
+		},
+		Counts:      researchanchorimportapp.Counts{Anchors: 2, EventAssociations: 4, PathNodes: 4, Receipts: 1},
+		PublishedAt: now, ImportedAt: now,
+	}}
+	handler := testHandler(t, Dependencies{ResearchAnchorImports: importer})
+	body, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "reasoning-tree-v1", "01-multi-anchor-import-request.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated || importer.calls != 1 || importer.publisher != "research-theme-publisher" {
+		t.Fatalf("response=%d calls=%d publisher=%q body=%s", response.Code, importer.calls, importer.publisher, response.Body.String())
+	}
+	for _, expected := range []string{
+		`"anchor_ids_by_center_chain_node_id":{"22222222-2222-4222-8222-222222222222":"534d83be-774b-51d9-ad00-cdee4ba91799","33333333-3333-4333-8333-333333333333":"5c18fc57-6bd8-5612-9a24-01a4e928b761"}`,
+		`"anchors":2`, `"event_associations":4`, `"path_nodes":4`,
+		`"published_at":"2026-07-20T09:00:00Z"`, `"imported_at":"2026-07-20T09:00:00Z"`, `"replayed":false`,
+	} {
+		if !strings.Contains(response.Body.String(), expected) {
+			t.Fatalf("response missing %s: %s", expected, response.Body.String())
+		}
+	}
+
+	importer.result.Replayed = true
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"replayed":true`) {
+		t.Fatalf("replay response=%d body=%s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-agent")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || importer.calls != 2 {
+		t.Fatalf("wrong-scope response=%d calls=%d body=%s", response.Code, importer.calls, response.Body.String())
+	}
+}
+
+func TestResearchAnchorImportReturnsFrozenActionableErrors(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "reasoning-tree-v1", "01-multi-anchor-import-request.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	importer := &fakeResearchAnchorImporter{err: &researchanchorimportapp.ReferenceError{
+		Kind: researchanchorimportapp.ReferenceInvalid, CenterChainNodeID: "22222222-2222-4222-8222-222222222222",
+		Path: "anchors[0].events[0].event_id", Reference: "55555555-5555-4555-8555-555555555555",
+	}}
+	handler := testHandler(t, Dependencies{ResearchAnchorImports: importer})
+
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	for _, expected := range []string{`"code":"RESEARCH_ANCHOR_REFERENCE_INVALID"`, `"center_chain_node_id":"22222222-2222-4222-8222-222222222222"`, `"path":"anchors[0].events[0].event_id"`} {
+		if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), expected) {
+			t.Fatalf("reference response=%d missing %s: %s", response.Code, expected, response.Body.String())
+		}
+	}
+
+	importer.err = &researchanchorimportapp.ContractError{Path: "anchors", Reference: "33333333-3333-4333-8333-333333333333"}
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"RESEARCH_ANCHOR_IMPORT_REJECTED"`) {
+		t.Fatalf("contract response=%d body=%s", response.Code, response.Body.String())
+	}
+
+	importer.err = researchanchorimportapp.ErrPayloadConflict
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), `"code":"RESEARCH_ANCHOR_PAYLOAD_CONFLICT"`) {
+		t.Fatalf("conflict response=%d body=%s", response.Code, response.Body.String())
+	}
+
+	calls := importer.calls
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", strings.NewReader(`{"theme_id":null,"anchors":[]}`))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || importer.calls != calls || !strings.Contains(response.Body.String(), `"path":"theme_id"`) {
+		t.Fatalf("strict decode response=%d calls=%d body=%s", response.Code, importer.calls, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, Namespace+"/research-anchor-imports", strings.NewReader(`{"theme_id":"AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA","anchors":[]}`))
+	request.Header.Set("Authorization", "Bearer cred-research-publisher")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || importer.calls != calls || !strings.Contains(response.Body.String(), `"code":"INVALID_REQUEST"`) || !strings.Contains(response.Body.String(), `"path":"theme_id"`) {
+		t.Fatalf("UUID format response=%d calls=%d body=%s", response.Code, importer.calls, response.Body.String())
 	}
 }
 
@@ -665,6 +777,21 @@ type fakeResearchThemeImporter struct {
 	publisher string
 	err       error
 	calls     int
+}
+
+type fakeResearchAnchorImporter struct {
+	result      researchanchorimportapp.Result
+	publication researchanchordomainimport.Publication
+	publisher   string
+	err         error
+	calls       int
+}
+
+func (f *fakeResearchAnchorImporter) Import(_ context.Context, publisher string, publication researchanchordomainimport.Publication) (researchanchorimportapp.Result, error) {
+	f.calls++
+	f.publisher = publisher
+	f.publication = publication
+	return f.result, f.err
 }
 
 func (f *fakeResearchThemeImporter) Import(_ context.Context, publisher string, batch researchdomainimport.Batch) (researchimportapp.Result, error) {
