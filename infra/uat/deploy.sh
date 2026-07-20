@@ -86,7 +86,7 @@ echo "PASS compose-contract"
 "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate > "$report_file"
 echo "PASS rds-tls-readonly"
 
-high_risk_pending="$(python3 - "$report_file" "$migration_risk_manifest" <<'PY'
+migration_risk_summary="$(python3 - "$report_file" "$migration_risk_manifest" <<'PY'
 import json
 import pathlib
 import sys
@@ -97,7 +97,7 @@ for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
     if not line.strip() or line.lstrip().startswith("#"):
         continue
     version, classification, *_ = line.split("\t")
-    if classification not in {"normal", "high"}:
+    if classification not in {"normal", "high", "blocked"}:
         raise SystemExit(f"invalid migration risk classification for {version}: {classification}")
     risk[version] = classification
 pending = report.get("pending", [])
@@ -106,8 +106,11 @@ unclassified = [version for version in versions if version not in risk]
 if unclassified:
     raise SystemExit("pending migrations lack risk classification: " + ",".join(unclassified))
 print(",".join(version for version in versions if risk[version] == "high"))
+print(",".join(version for version in versions if risk[version] == "blocked"))
 PY
 )"
+high_risk_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '1p')"
+blocked_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '2p')"
 
 database_identity="$(python3 - <<'PY'
 import os
@@ -125,6 +128,7 @@ PY
   echo "- Database: \`${database_identity}\`"
   echo "- TLS database check: passed"
   echo "- High-risk pending migrations: \`${high_risk_pending:-none}\`"
+  echo "- Release-blocked pending migrations: \`${blocked_pending:-none}\`"
   echo
   echo '<details><summary>Migration state before apply</summary>'
   echo
@@ -133,6 +137,12 @@ PY
   echo '```'
   echo '</details>'
 } >> "$summary_file"
+
+if [ -n "$blocked_pending" ]; then
+  echo "FAIL migration-release-gate: pending migration is not release-compatible: $blocked_pending" >&2
+  exit 1
+fi
+echo "PASS migration-release-gate"
 
 if [ -n "$high_risk_pending" ] && [ "$backup_confirmed" != true ]; then
   echo "FAIL migration-risk-gate: confirm_high_risk_backup=true is required for $high_risk_pending" >&2

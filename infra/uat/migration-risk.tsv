@@ -23,3 +23,4 @@
 000022	normal	additive raw document import receipts
 000023	high	transmission stage constraint correction
 000024	high	research theme receipt backfill and constraints
+000025	blocked	blocked until TW-04 and TW-05 remove legacy Anchor APIs

@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/internal/data/v1/research/themes/dddddddd-dddd-4ddd-8ddd-dddddddddddd/reasoning-trees"
+  },
+  "response": {
+    "status": 404,
+    "body": {
+      "request_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      "error": {
+        "code": "RESEARCH_REASONING_TREES_NOT_FOUND",
+        "message": "research Theme has no published reasoning trees",
+        "details": {}
+      }
+    }
+  }
+}
