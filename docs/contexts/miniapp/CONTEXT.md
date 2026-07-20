@@ -27,6 +27,33 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 - **推理主线**：研究主题在 Miniapp 面向用户展示时使用的产品名称，不是另一种数据实体。
 - **主题卡片**：首页列表中呈现一条推理主线的界面单元，不拥有独立于研究主题的业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
+- **影响路径页**：从首页 Theme 卡片进入的一句话结论研究依据页。一个 Theme 页面可包含多条推理树，每条树对应一个以产业链节点为中心的 Research Anchor，页面通过 Tab 切换。
+- **产品可见主题**：已拥有完整 Research Anchor 推理树集合的 Research Theme。首页只展示这类 Theme，因此不需要 `has_reasoning_tree` 字段。
+
+## Reasoning Trees API
+
+- Miniapp Frontend 先调用 `GET /api/v1/miniapp/research/themes/{theme_id}/reasoning-trees` 获取 Theme 与全部 Anchor Tab 摘要。
+- Miniapp Frontend 在某个 Tab 首次选中时调用 `GET /api/v1/miniapp/research/themes/{theme_id}/reasoning-trees/{anchor_id}` 获取单棵完整推理树。
+- Miniapp BFF 将两个请求分别一对一代理到对应 Data API，并映射成页面可直接渲染的 DTO。
+- BFF 成功响应直接使用 Data envelope 的 `result` 内容，不向小程序返回 Data `request_id/result` 外壳。
+- BFF 保留每棵树的单一 `events` 数组；Miniapp Frontend 按 `evidence_role` 确定性过滤出原子事实、当前支持和当前反证，不复制数据或重排。
+- BFF 不为一次请求扇出多个 Anchor 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。
+- 现有 Theme 详情 API 保持不变。
+- 删除尚未正式使用的旧 `/api/v1/miniapp/research/anchors` 列表和按 Anchor ID 读取接口；不保留兼容别名，Research Anchor 统一作为 Theme 下的推理树子资源读取。
+
+## Reasoning Trees Frontend Route
+
+- 影响路径页固定注册为 `pages/research-theme/reasoning-trees/index`。
+- 首页 Theme 卡片使用 `Taro.navigateTo` 跳转到 `pages/research-theme/reasoning-trees/index?theme_id=<uuid>`。
+- 页面是非 Tab 页面，不引入自定义路由器；保持微信小程序、抖音小程序和 H5 的 Taro 路由兼容性。
+- `theme_id` 缺失或不是标准小写 UUID 时，页面展示参数错误且不得请求 BFF。
+- 页面数据访问必须经过独立 typed port 和 adapter，页面组件不得直接实现 HTTP 调用。
+- 页面打开后加载 Tab 摘要和排序后的第一棵树；其他 Tab 首次选中时才加载详情。
+- 已成功加载的单树按 `anchor_id` 缓存在当前页面会话，再次切换不重复请求；重新进入或刷新页面时重新加载。
+- 单个 Tab 详情加载失败时，仅该 Tab 内容区显示错误与重试操作；其他已加载缓存保持可用，页面不自动切换 Tab。
+- 单 Tab 重试只请求当前 `anchor_id` 的详情，不连带刷新列表或其他推理树。
+- Theme 不存在或尚未成功发布推理树时，小程序统一展示“该研究主题暂不可用”与返回操作，不暴露内部错误码。
+- 列表网络或服务故障展示可重试错误；推理树列表不存在合法空集合，因此不设计正常空态。
 
 ## Frontend Mock Policy
 

@@ -1,0 +1,55 @@
+{
+  "request_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "result": {
+    "theme_id": "11111111-1111-4111-8111-111111111111",
+    "reasoning_tree": {
+      "anchor_id": "534d83be-774b-51d9-ad00-cdee4ba91799",
+      "center_chain_node": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "name": "光模块"
+      },
+      "one_line_conclusion": "算力扩产正在抬升光模块需求，但订单兑现仍待验证",
+      "fact_summary": "云厂商上调AI资本开支，同时光模块订单交付节奏出现分化",
+      "net_direction_summary": "需求方向偏强，但兑现节奏存在分化",
+      "trading_direction": "优先研究高速光模块订单、交期和客户结构变化",
+      "next_checkpoint": "跟踪高速光模块订单与交付周期是否连续两个观察期改善",
+      "event_count": 2,
+      "events": [
+        {
+          "event_id": "55555555-5555-4555-8555-555555555555",
+          "title": "北美云厂商上调AI资本开支",
+          "summary": "云厂商提高AI基础设施投入并扩大芯片采购计划。",
+          "event_time": "2026-07-20T01:00:00Z",
+          "evidence_role": "driver",
+          "evidence_summary": "资本开支上调直接支持算力基础设施需求扩张判断"
+        },
+        {
+          "event_id": "77777777-7777-4777-8777-777777777777",
+          "title": "光模块订单交付节奏仍有分化",
+          "summary": "部分厂商订单增长，但不同规格和客户的交付节奏仍有分化。",
+          "event_time": "2026-07-20T03:00:00Z",
+          "evidence_role": "contradicting",
+          "evidence_summary": "交付节奏分化反驳需求已经全面兑现的判断"
+        }
+      ],
+      "path_nodes": [
+        {
+          "chain_node_id": "44444444-4444-4444-8444-444444444444",
+          "name": "AI芯片",
+          "change_direction": "increase",
+          "change_summary": "AI芯片采购计划增加",
+          "impact_summary": "扩大高速互联设备的部署基础",
+          "incoming_transmission_mechanism": null
+        },
+        {
+          "chain_node_id": "22222222-2222-4222-8222-222222222222",
+          "name": "光模块",
+          "change_direction": "mixed",
+          "change_summary": "需求预期上升但交付节奏分化",
+          "impact_summary": "订单机会增加，同时需要验证实际交付",
+          "incoming_transmission_mechanism": "AI集群扩容提高节点间高速光互联需求"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "theme_id": "11111111-1111-4111-8111-111111111111",
+  "anchors": [
+    {
+      "center_chain_node_id": "22222222-2222-4222-8222-222222222222",
+      "one_line_conclusion": "算力扩产正在抬升光模块需求，但订单兑现仍待验证",
+      "fact_summary": "云厂商上调AI资本开支，同时光模块订单交付节奏出现分化",
+      "net_direction_summary": "需求方向偏强，但兑现节奏存在分化",
+      "trading_direction": "优先研究高速光模块订单、交期和客户结构变化",
+      "next_checkpoint": "跟踪高速光模块订单与交付周期是否连续两个观察期改善",
+      "events": [
+        {
+          "event_id": "55555555-5555-4555-8555-555555555555",
+          "evidence_role": "driver",
+          "evidence_summary": "资本开支上调直接支持算力基础设施需求扩张判断"
+        },
+        {
+          "event_id": "77777777-7777-4777-8777-777777777777",
+          "evidence_role": "contradicting",
+          "evidence_summary": "交付节奏分化反驳需求已经全面兑现的判断"
+        }
+      ],
+      "path_nodes": [
+        {
+          "chain_node_id": "44444444-4444-4444-8444-444444444444",
+          "change_direction": "increase",
+          "change_summary": "AI芯片采购计划增加",
+          "impact_summary": "扩大高速互联设备的部署基础",
+          "incoming_transmission_mechanism": null
+        },
+        {
+          "chain_node_id": "22222222-2222-4222-8222-222222222222",
+          "change_direction": "mixed",
+          "change_summary": "需求预期上升但交付节奏分化",
+          "impact_summary": "订单机会增加，同时需要验证实际交付",
+          "incoming_transmission_mechanism": "AI集群扩容提高节点间高速光互联需求"
+        }
+      ]
+    },
+    {
+      "center_chain_node_id": "33333333-3333-4333-8333-333333333333",
+      "one_line_conclusion": "AI芯片需求继续支撑先进封装景气，但当前增量尚未量化",
+      "fact_summary": "AI资本开支与先进封装利用率均走强，但当前批次没有可归属的量化增量",
+      "net_direction_summary": "方向偏正，强度仍需后续数据确认",
+      "trading_direction": "重点研究先进封装利用率、交期与扩产约束",
+      "next_checkpoint": "等待可归属的订单、利用率或扩产数字验证需求强度",
+      "events": [
+        {
+          "event_id": "55555555-5555-4555-8555-555555555555",
+          "evidence_role": "driver",
+          "evidence_summary": "AI芯片采购增加构成先进封装需求的主要驱动"
+        },
+        {
+          "event_id": "66666666-6666-4666-8666-666666666666",
+          "evidence_role": "supporting",
+          "evidence_summary": "高利用率支持先进封装环节仍处于偏紧状态"
+        }
+      ],
+      "path_nodes": [
+        {
+          "chain_node_id": "44444444-4444-4444-8444-444444444444",
+          "change_direction": "increase",
+          "change_summary": "AI芯片采购计划增加",
+          "impact_summary": "提高高性能芯片封装需求",
+          "incoming_transmission_mechanism": null
+        },
+        {
+          "chain_node_id": "33333333-3333-4333-8333-333333333333",
+          "change_direction": "uncertain",
+          "change_summary": "利用率偏高但新增量尚未量化",
+          "impact_summary": "景气方向偏正，量化强度有待确认",
+          "incoming_transmission_mechanism": "高性能AI芯片增加对先进封装产能的占用"
+        }
+      ]
+    }
+  ]
+}
