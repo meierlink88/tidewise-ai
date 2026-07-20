@@ -20,11 +20,11 @@ COPY services/miniapp/config ./config
 
 ENV APP_ENV=local
 ENV TIDEWISE_CONFIG_DIR=/app/config
-EXPOSE 8080
+EXPOSE 9012
 
 USER tidewise
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null && wget -qO- http://127.0.0.1:8080/readyz >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:9012/healthz >/dev/null && wget -qO- http://127.0.0.1:9012/readyz >/dev/null || exit 1
 
 CMD ["/usr/local/bin/miniapp-service"]

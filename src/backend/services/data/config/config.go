@@ -107,8 +107,29 @@ func Load() (Config, error) {
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
+	if err := cfg.validateRuntimeSecrets(); err != nil {
+		return Config{}, err
+	}
 
 	return cfg, nil
+}
+
+func (c Config) validateRuntimeSecrets() error {
+	if c.App.Env != EnvUAT {
+		return nil
+	}
+	if c.Secrets.DatabaseURL == "" {
+		return fmt.Errorf("TIDEWISE_DATABASE_URL is required in uat")
+	}
+	parsed, err := url.ParseRequestURI(c.Secrets.DatabaseURL)
+	if err != nil || parsed.Scheme != "postgres" || parsed.Hostname() == "" || parsed.User == nil || parsed.Path == "" || parsed.Path == "/" {
+		return fmt.Errorf("uat database url must be a complete postgres URL")
+	}
+	query := parsed.Query()
+	if query.Get("sslmode") != "require" {
+		return fmt.Errorf("uat database url must use sslmode=require")
+	}
+	return nil
 }
 
 func (c Config) Validate() error {

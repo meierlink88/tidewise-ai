@@ -16,7 +16,7 @@ const ServiceName = adminconfig.ServiceName
 // NewHandler composes the Admin BFF exclusively through its DataServiceClient.
 func NewHandler(cfg adminconfig.RuntimeConfig, client dataclient.DataServiceClient, adminToken string) http.Handler {
 	cfg.App.Name = ServiceName
-	return transport.NewRouter(cfg.App, usecase.NewService(client), adminToken)
+	return transport.NewRouter(cfg.App, usecase.NewService(client), adminToken, cfg.AllowedOrigin)
 }
 
 func NewServer(cfg adminconfig.RuntimeConfig, handler http.Handler) *http.Server {

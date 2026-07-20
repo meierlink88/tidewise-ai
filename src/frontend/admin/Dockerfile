@@ -10,13 +10,13 @@ RUN npm ci --workspace @tidewise/admin --include-workspace-root=false
 COPY src/frontend/admin ./src/frontend/admin
 RUN npm --workspace @tidewise/admin run build
 
-FROM nginx:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 COPY src/frontend/admin/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /workspace/src/frontend/admin/dist /usr/share/nginx/html
 
-ENV ADMIN_API_UPSTREAM=http://backend:8080
-EXPOSE 8080
+ENV ADMIN_API_BASE_URL=http://127.0.0.1:9013
+EXPOSE 9014
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:9014/healthz >/dev/null || exit 1

@@ -1,5 +1,5 @@
 server {
-    listen 8080;
+    listen 9014;
     server_name _;
 
     root /usr/share/nginx/html;
@@ -11,13 +11,11 @@ server {
         return 200 "ok\n";
     }
 
-    location /admin/ {
-        proxy_pass ${ADMIN_API_UPSTREAM};
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    location = /runtime-config.js {
+        access_log off;
+        add_header Cache-Control "no-store";
+        default_type application/javascript;
+        return 200 'window.__TIDEWISE_RUNTIME_CONFIG__ = { adminApiBaseUrl: "${ADMIN_API_BASE_URL}" };';
     }
 
     location / {

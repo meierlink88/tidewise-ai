@@ -114,6 +114,31 @@ func TestPostgresURLPrefersInjectedURLAndCanBuildFromFields(t *testing.T) {
 	}
 }
 
+func TestLoadUATRequiresEncryptedDatabaseURL(t *testing.T) {
+	uatConfig := strings.Replace(fullConfigYAML(), "env: local", "env: uat", 1)
+	uatConfig = strings.Replace(uatConfig, "ssl_mode: disable", "ssl_mode: require", 1)
+	dir := writeTestConfig(t, uatConfig)
+	if err := os.Rename(filepath.Join(dir, "config.local.yaml"), filepath.Join(dir, "config.uat.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
+	t.Setenv("APP_ENV", "uat")
+	for _, databaseURL := range []string{
+		"",
+		"postgres://data:secret@rds.internal:5432/tidewise_uat?sslmode=disable",
+		"postgres://data:secret@rds.internal:5432/tidewise_uat?sslmode=verify-full",
+	} {
+		t.Setenv("TIDEWISE_DATABASE_URL", databaseURL)
+		if _, err := Load(); err == nil {
+			t.Fatalf("Load() accepted unsafe UAT database URL %q", databaseURL)
+		}
+	}
+	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://data:secret@rds.internal:5432/tidewise_uat?sslmode=require")
+	if _, err := Load(); err != nil {
+		t.Fatalf("Load() rejected valid UAT database URL: %v", err)
+	}
+}
+
 func writeTestConfig(t *testing.T, body string) string {
 	t.Helper()
 	dir := t.TempDir()

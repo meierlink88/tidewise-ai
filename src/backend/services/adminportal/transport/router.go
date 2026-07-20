@@ -84,7 +84,7 @@ type healthResponse struct {
 	Checks      map[string]string         `json:"checks,omitempty"`
 }
 
-func NewRouter(app runtimeconfig.AppConfig, service *usecase.Service, adminToken string) *gin.Engine {
+func NewRouter(app runtimeconfig.AppConfig, service *usecase.Service, adminToken string, allowedOrigins ...string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -93,11 +93,44 @@ func NewRouter(app runtimeconfig.AppConfig, service *usecase.Service, adminToken
 	router.GET("/readyz", readyHandler(app))
 
 	admin := router.Group("/admin")
+	admin.Use(adminCORSMiddleware(firstAllowedOrigin(allowedOrigins)))
 	admin.Use(adminTokenMiddleware(adminToken))
+	admin.OPTIONS("/*path", func(*gin.Context) {})
 	admin.GET("/raw-documents", listRawDocuments(service))
 	admin.GET("/events", listEvents(service))
 	admin.GET("/source-catalogs", listSourceCatalogs(service))
 	return router
+}
+
+func firstAllowedOrigin(origins []string) string {
+	if len(origins) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(origins[0])
+}
+
+func adminCORSMiddleware(allowedOrigin string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		origin := strings.TrimSpace(ctx.GetHeader("Origin"))
+		if origin == "" {
+			ctx.Next()
+			return
+		}
+		if allowedOrigin == "" || origin != allowedOrigin {
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "origin is not allowed"})
+			return
+		}
+		ctx.Header("Access-Control-Allow-Origin", allowedOrigin)
+		ctx.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+		ctx.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
+		ctx.Header("Access-Control-Max-Age", "600")
+		ctx.Header("Vary", "Origin")
+		if ctx.Request.Method == http.MethodOptions {
+			ctx.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		ctx.Next()
+	}
 }
 
 func healthHandler(app runtimeconfig.AppConfig) gin.HandlerFunc {

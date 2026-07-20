@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,10 +24,11 @@ type DataServiceRuntimeConfig struct {
 // RuntimeConfig contains only Admin process, browser authentication, and Data
 // API settings. It cannot carry PostgreSQL or migration configuration.
 type RuntimeConfig struct {
-	App         runtimeconfig.AppConfig
-	Server      runtimeconfig.ServerConfig
-	AdminToken  string
-	DataService DataServiceRuntimeConfig
+	App           runtimeconfig.AppConfig
+	Server        runtimeconfig.ServerConfig
+	AdminToken    string
+	AllowedOrigin string
+	DataService   DataServiceRuntimeConfig
 }
 
 func LoadRuntimeConfig() (RuntimeConfig, error) {
@@ -53,9 +55,10 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	}
 
 	runtime := RuntimeConfig{
-		App:        fileConfig.App,
-		Server:     fileConfig.Server,
-		AdminToken: strings.TrimSpace(os.Getenv("ADMIN_API_TOKEN")),
+		App:           fileConfig.App,
+		Server:        fileConfig.Server,
+		AdminToken:    strings.TrimSpace(os.Getenv("ADMIN_API_TOKEN")),
+		AllowedOrigin: strings.TrimSpace(os.Getenv("ADMIN_ALLOWED_ORIGIN")),
 		DataService: DataServiceRuntimeConfig{
 			BaseURL:       strings.TrimSpace(os.Getenv("DATA_SERVICE_BASE_URL")),
 			IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_ADMIN_TOKEN")),
@@ -65,6 +68,9 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	if runtime.AdminToken == "" {
 		return RuntimeConfig{}, fmt.Errorf("ADMIN_API_TOKEN is required")
 	}
+	if err := validateAllowedOrigin(runtime.AllowedOrigin); err != nil {
+		return RuntimeConfig{}, err
+	}
 	if runtime.DataService.BaseURL == "" {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_BASE_URL is required")
 	}
@@ -72,4 +78,15 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_ADMIN_TOKEN is required")
 	}
 	return runtime, nil
+}
+
+func validateAllowedOrigin(value string) error {
+	if value == "" {
+		return fmt.Errorf("ADMIN_ALLOWED_ORIGIN is required")
+	}
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("ADMIN_ALLOWED_ORIGIN must be an http(s) origin without path, query, or fragment")
+	}
+	return nil
 }

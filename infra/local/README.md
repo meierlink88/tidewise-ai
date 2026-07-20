@@ -16,7 +16,7 @@ cp infra/local/.env.example infra/local/.env.local
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml config
 ```
 
-统一编排使用三个 service-owned Dockerfile；默认端口为 Admin `8080`、Miniapp `8081`、Data `8082`、PostgreSQL `5432`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin只获得各自Data Service identity token，不携带Data PostgreSQL或Neo4j凭据。
+统一编排使用三个 service-owned Dockerfile；默认端口为 Data `9011`、Miniapp `9012`、Admin `9013`、PostgreSQL `5432`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin只获得各自Data Service identity token，不携带Data PostgreSQL或Neo4j凭据。
 
 ## 本地 PostgreSQL
 
@@ -140,7 +140,7 @@ go run ./services/data/cmd/research-theme-dev-seed
 
 ## 运行 Admin 前端
 
-Admin Portal BFF由统一compose在`8080`提供，并使用`ADMIN_API_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo。
+Admin Portal BFF由统一compose在`9013`提供，并使用`ADMIN_API_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo；本地只允许 `http://127.0.0.1:5174` Origin。
 
 管理后台位于：
 

@@ -1,48 +1,98 @@
 name: tidewise-uat
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
-  backend:
-    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+  data:
+    image: ${DATA_IMAGE:?DATA_IMAGE is required}
     restart: unless-stopped
     environment:
       APP_ENV: uat
       TIDEWISE_CONFIG_DIR: /app/config
-      TIDEWISE_DATABASE_URL: ${TIDEWISE_DATABASE_URL:-}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-}
-      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?ADMIN_API_TOKEN is required}
-      AGENT_PLATFORM_API_KEY: ${AGENT_PLATFORM_API_KEY:-}
-      JWT_SECRET: ${JWT_SECRET:-}
-      PAYMENT_SECRET: ${PAYMENT_SECRET:-}
-      CLOUD_SECRET: ${CLOUD_SECRET:-}
-    ports:
-      - "${BACKEND_HTTP_PORT:-8080}:8080"
+      TIDEWISE_DATABASE_URL: ${TIDEWISE_DATABASE_URL:?TIDEWISE_DATABASE_URL is required}
+      DATA_SERVICE_AGENT_TOKEN: ${DATA_SERVICE_AGENT_TOKEN:?DATA_SERVICE_AGENT_TOKEN is required}
+      DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: ${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN:?DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN is required}
+      DATA_SERVICE_MINIAPP_TOKEN: ${DATA_SERVICE_MINIAPP_TOKEN:?DATA_SERVICE_MINIAPP_TOKEN is required}
+      DATA_SERVICE_ADMIN_TOKEN: ${DATA_SERVICE_ADMIN_TOKEN:?DATA_SERVICE_ADMIN_TOKEN is required}
+    expose:
+      - "9011"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/readyz"]
-      interval: 30s
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9011/readyz"]
+      interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 6
       start_period: 20s
-    networks:
-      - tidewise-uat
+    logging: *default-logging
+    networks: [tidewise-uat]
+
+  miniapp:
+    image: ${MINIAPP_IMAGE:?MINIAPP_IMAGE is required}
+    restart: unless-stopped
+    environment:
+      APP_ENV: uat
+      TIDEWISE_CONFIG_DIR: /app/config
+      DATA_SERVICE_BASE_URL: http://data:9011
+      DATA_SERVICE_MINIAPP_TOKEN: ${DATA_SERVICE_MINIAPP_TOKEN:?DATA_SERVICE_MINIAPP_TOKEN is required}
+    ports:
+      - "9012:9012"
+    depends_on:
+      data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9012/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging: *default-logging
+    networks: [tidewise-uat]
+
+  adminportal:
+    image: ${ADMINPORTAL_IMAGE:?ADMINPORTAL_IMAGE is required}
+    restart: unless-stopped
+    environment:
+      APP_ENV: uat
+      TIDEWISE_CONFIG_DIR: /app/config
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?ADMIN_API_TOKEN is required}
+      ADMIN_ALLOWED_ORIGIN: ${ADMIN_ALLOWED_ORIGIN:?ADMIN_ALLOWED_ORIGIN is required}
+      DATA_SERVICE_BASE_URL: http://data:9011
+      DATA_SERVICE_ADMIN_TOKEN: ${DATA_SERVICE_ADMIN_TOKEN:?DATA_SERVICE_ADMIN_TOKEN is required}
+    ports:
+      - "9013:9013"
+    depends_on:
+      data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9013/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging: *default-logging
+    networks: [tidewise-uat]
 
   admin:
     image: ${ADMIN_IMAGE:?ADMIN_IMAGE is required}
     restart: unless-stopped
     environment:
-      ADMIN_API_UPSTREAM: ${ADMIN_API_UPSTREAM:-http://backend:8080}
+      ADMIN_API_BASE_URL: ${ADMIN_API_BASE_URL:?ADMIN_API_BASE_URL is required}
     ports:
-      - "${ADMIN_HTTP_PORT:-8081}:8080"
+      - "9014:9014"
     depends_on:
-      backend:
+      adminportal:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
-      interval: 30s
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9014/healthz"]
+      interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 6
       start_period: 10s
-    networks:
-      - tidewise-uat
+    logging: *default-logging
+    networks: [tidewise-uat]
 
 networks:
   tidewise-uat:

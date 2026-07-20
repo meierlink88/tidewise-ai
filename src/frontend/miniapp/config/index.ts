@@ -4,7 +4,7 @@ import path from 'node:path';
 const buildTarget = process.env.TARO_ENV ?? 'weapp';
 const researchSource = process.env.TARO_APP_RESEARCH_SOURCE;
 const miniappApiBaseUrl = process.env.TARO_APP_MINIAPP_API_BASE_URL ?? '';
-const h5ApiProxyTarget = process.env.TARO_APP_H5_API_PROXY_TARGET ?? 'http://127.0.0.1:8081';
+const h5ApiProxyTarget = process.env.TARO_APP_H5_API_PROXY_TARGET ?? 'http://127.0.0.1:9012';
 
 if (researchSource !== 'mock' && researchSource !== 'api') {
   throw new Error('TARO_APP_RESEARCH_SOURCE must explicitly be mock or api');

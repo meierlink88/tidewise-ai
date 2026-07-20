@@ -1,8 +1,8 @@
 app:
-  name: miniapp
-  env: local
+  name: adminportal
+  env: uat
 server:
   host: 0.0.0.0
-  port: 9012
+  port: 9013
   read_timeout_seconds: 5
   write_timeout_seconds: 10
