@@ -7,9 +7,8 @@ import (
 )
 
 const (
-	DataAPIPrefix       = "/internal/data/v1"
-	ResearchThemesPath  = DataAPIPrefix + "/research/themes"
-	ResearchAnchorsPath = DataAPIPrefix + "/research/anchors"
+	DataAPIPrefix      = "/internal/data/v1"
+	ResearchThemesPath = DataAPIPrefix + "/research/themes"
 )
 
 // DataServiceClient is the Miniapp-owned boundary for page-level research data.
@@ -17,8 +16,6 @@ const (
 type DataServiceClient interface {
 	ListResearchThemes(context.Context, ResearchListQuery) (ResearchThemePage, error)
 	GetResearchTheme(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
-	ListResearchAnchors(context.Context, ResearchListQuery) (ResearchAnchorPage, error)
-	GetResearchAnchor(context.Context, string, ResearchDetailQuery) (ResearchAnchorDetail, error)
 }
 
 type ResearchListQuery struct {
@@ -46,26 +43,6 @@ const (
 	TransmissionStageValidation     TransmissionStage = "validation"
 	TransmissionStageDiffusion      TransmissionStage = "diffusion"
 	TransmissionStageDampening      TransmissionStage = "dampening"
-)
-
-type AnchorType string
-
-const (
-	AnchorTypePolicy          AnchorType = "policy"
-	AnchorTypeSupply          AnchorType = "supply"
-	AnchorTypeDemand          AnchorType = "demand"
-	AnchorTypeTechnology      AnchorType = "technology"
-	AnchorTypeCost            AnchorType = "cost"
-	AnchorTypeGeopolitics     AnchorType = "geopolitics"
-	AnchorTypeMarketStructure AnchorType = "market_structure"
-)
-
-type Importance string
-
-const (
-	ImportancePrimary    Importance = "primary"
-	ImportanceSecondary  Importance = "secondary"
-	ImportanceContextual Importance = "contextual"
 )
 
 type EvidenceRole string
@@ -118,47 +95,11 @@ type ResearchThemeDetail struct {
 	Events []ResearchEvent `json:"events"`
 }
 
-type ResearchAnchorPage struct {
-	WindowStart time.Time        `json:"window_start"`
-	WindowEnd   time.Time        `json:"window_end"`
-	AsOf        time.Time        `json:"as_of"`
-	AnchorCount int              `json:"anchor_count"`
-	EventCount  int              `json:"event_count"`
-	Items       []ResearchAnchor `json:"items"`
-	NextCursor  *string          `json:"next_cursor"`
-}
-
-type ResearchAnchor struct {
-	ID                string                    `json:"id"`
-	AnchorType        AnchorType                `json:"anchor_type"`
-	Name              string                    `json:"name"`
-	OneLineConclusion string                    `json:"one_line_conclusion"`
-	Importance        Importance                `json:"importance"`
-	TransmissionPath  string                    `json:"transmission_path"`
-	TradingDirection  string                    `json:"trading_direction"`
-	PublishedAt       time.Time                 `json:"published_at"`
-	RelatedChainNodes []ResearchAnchorChainNode `json:"related_chain_nodes"`
-	RelatedIndices    []ResearchIndex           `json:"related_indices"`
-	RelatedEventCount int                       `json:"related_event_count"`
-}
-
-type ResearchAnchorDetail struct {
-	Anchor ResearchAnchor  `json:"anchor"`
-	Events []ResearchEvent `json:"events"`
-}
-
 type ResearchThemeChainNode struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	RelationRole  string `json:"relation_role"`
 	ImpactSummary string `json:"impact_summary"`
-}
-
-type ResearchAnchorChainNode struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	RelationRole    string `json:"relation_role"`
-	RelationSummary string `json:"relation_summary"`
 }
 
 type ResearchIndex struct {
@@ -181,10 +122,8 @@ var ErrFakeMethodNotConfigured = errors.New("data service fake method is not con
 
 // Fake keeps Miniapp orchestration tests independent from HTTP and databases.
 type Fake struct {
-	ListResearchThemesFunc  func(context.Context, ResearchListQuery) (ResearchThemePage, error)
-	GetResearchThemeFunc    func(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
-	ListResearchAnchorsFunc func(context.Context, ResearchListQuery) (ResearchAnchorPage, error)
-	GetResearchAnchorFunc   func(context.Context, string, ResearchDetailQuery) (ResearchAnchorDetail, error)
+	ListResearchThemesFunc func(context.Context, ResearchListQuery) (ResearchThemePage, error)
+	GetResearchThemeFunc   func(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
 }
 
 func (f *Fake) ListResearchThemes(ctx context.Context, query ResearchListQuery) (ResearchThemePage, error) {
@@ -199,18 +138,4 @@ func (f *Fake) GetResearchTheme(ctx context.Context, id string, query ResearchDe
 		return ResearchThemeDetail{}, ErrFakeMethodNotConfigured
 	}
 	return f.GetResearchThemeFunc(ctx, id, query)
-}
-
-func (f *Fake) ListResearchAnchors(ctx context.Context, query ResearchListQuery) (ResearchAnchorPage, error) {
-	if f == nil || f.ListResearchAnchorsFunc == nil {
-		return ResearchAnchorPage{}, ErrFakeMethodNotConfigured
-	}
-	return f.ListResearchAnchorsFunc(ctx, query)
-}
-
-func (f *Fake) GetResearchAnchor(ctx context.Context, id string, query ResearchDetailQuery) (ResearchAnchorDetail, error) {
-	if f == nil || f.GetResearchAnchorFunc == nil {
-		return ResearchAnchorDetail{}, ErrFakeMethodNotConfigured
-	}
-	return f.GetResearchAnchorFunc(ctx, id, query)
 }

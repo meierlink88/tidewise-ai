@@ -73,47 +73,11 @@ type ResearchThemeDetail struct {
 	Events []ResearchEvent `json:"events"`
 }
 
-type ResearchAnchorPage struct {
-	WindowStart time.Time        `json:"window_start"`
-	WindowEnd   time.Time        `json:"window_end"`
-	AsOf        time.Time        `json:"as_of"`
-	AnchorCount int              `json:"anchor_count"`
-	EventCount  int              `json:"event_count"`
-	Items       []ResearchAnchor `json:"items"`
-	NextCursor  *string          `json:"next_cursor"`
-}
-
-type ResearchAnchor struct {
-	ID                string                    `json:"id"`
-	AnchorType        domain.AnchorType         `json:"anchor_type"`
-	Name              string                    `json:"name"`
-	OneLineConclusion string                    `json:"one_line_conclusion"`
-	Importance        domain.ResearchImportance `json:"importance"`
-	TransmissionPath  string                    `json:"transmission_path"`
-	TradingDirection  string                    `json:"trading_direction"`
-	PublishedAt       time.Time                 `json:"published_at"`
-	RelatedChainNodes []ResearchAnchorChainNode `json:"related_chain_nodes"`
-	RelatedIndices    []ResearchIndex           `json:"related_indices"`
-	RelatedEventCount int                       `json:"related_event_count"`
-}
-
-type ResearchAnchorDetail struct {
-	Anchor ResearchAnchor  `json:"anchor"`
-	Events []ResearchEvent `json:"events"`
-}
-
 type ResearchThemeChainNode struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	RelationRole  string `json:"relation_role"`
 	ImpactSummary string `json:"impact_summary"`
-}
-
-type ResearchAnchorChainNode struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	RelationRole    string `json:"relation_role"`
-	RelationSummary string `json:"relation_summary"`
 }
 
 type ResearchIndex struct {
@@ -198,62 +162,6 @@ func (s *Service) GetTheme(ctx context.Context, id string, request ResearchDetai
 		return ResearchThemeDetail{}, mapRepositoryError(err)
 	}
 	return ResearchThemeDetail{Theme: themeDTO(item.ResearchThemeSummary), Events: eventDTOs(item.Events)}, nil
-}
-
-func (s *Service) ListAnchors(ctx context.Context, request ResearchListRequest) (ResearchAnchorPage, error) {
-	windowHours, limit, err := normalizeListRequest(request)
-	if err != nil {
-		return ResearchAnchorPage{}, err
-	}
-	asOf, windowStart, cursor, err := s.prepareCursor("anchors", windowHours, request.Cursor)
-	if err != nil {
-		return ResearchAnchorPage{}, err
-	}
-	page, err := s.repository.ListResearchAnchors(ctx, repositories.ResearchAnchorListFilter{
-		WindowStart: windowStart, AsOf: asOf, Limit: limit, CursorRank: cursor.Rank,
-		CursorPublishedAt: cursor.PublishedAtPtr(), CursorID: cursor.ID,
-	})
-	if err != nil {
-		return ResearchAnchorPage{}, mapRepositoryError(err)
-	}
-	response := ResearchAnchorPage{
-		WindowStart: page.WindowStart.UTC(), WindowEnd: page.WindowEnd.UTC(), AsOf: page.AsOf.UTC(),
-		AnchorCount: page.AnchorCount, EventCount: page.EventCount,
-		Items: make([]ResearchAnchor, 0, len(page.Items)),
-	}
-	for _, item := range page.Items {
-		response.Items = append(response.Items, anchorDTO(item))
-	}
-	if page.HasMore && len(page.Items) > 0 {
-		last := page.Items[len(page.Items)-1]
-		next, err := encodeResearchCursor(researchCursor{
-			Version: 1, Kind: "anchors", WindowHours: windowHours, AsOf: asOf,
-			Rank: importanceRank(last.Importance), PublishedAt: last.PublishedAt, ID: last.ID,
-		})
-		if err != nil {
-			return ResearchAnchorPage{}, fmt.Errorf("encode research cursor: %w", err)
-		}
-		response.NextCursor = &next
-	}
-	return response, nil
-}
-
-func (s *Service) GetAnchor(ctx context.Context, id string, request ResearchDetailRequest) (ResearchAnchorDetail, error) {
-	windowHours, err := normalizeDetailRequest(request)
-	if err != nil {
-		return ResearchAnchorDetail{}, err
-	}
-	if !researchUUIDPattern.MatchString(strings.TrimSpace(id)) {
-		return ResearchAnchorDetail{}, fmt.Errorf("%w: anchor id must be a UUID", ErrInvalidRequest)
-	}
-	asOf := s.now().UTC()
-	item, err := s.repository.GetResearchAnchor(ctx, id, repositories.ResearchDetailFilter{
-		WindowStart: asOf.Add(-time.Duration(windowHours) * time.Hour), AsOf: asOf,
-	})
-	if err != nil {
-		return ResearchAnchorDetail{}, mapRepositoryError(err)
-	}
-	return ResearchAnchorDetail{Anchor: anchorDTO(item.ResearchAnchorSummary), Events: eventDTOs(item.Events)}, nil
 }
 
 func normalizeListRequest(request ResearchListRequest) (int, int, error) {
@@ -347,30 +255,11 @@ func themeDTO(item repositories.ResearchThemeSummary) ResearchTheme {
 	}
 }
 
-func anchorDTO(item repositories.ResearchAnchorSummary) ResearchAnchor {
-	return ResearchAnchor{
-		ID: item.ID, AnchorType: item.AnchorType, Name: item.Name, OneLineConclusion: item.OneLineConclusion,
-		Importance: item.Importance, TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection,
-		PublishedAt: item.PublishedAt.UTC(), RelatedChainNodes: anchorChainNodeDTOs(item.ChainNodes),
-		RelatedIndices: indexDTOs(item.Indices), RelatedEventCount: item.RelatedEventCount,
-	}
-}
-
 func themeChainNodeDTOs(values []repositories.ResearchChainNode) []ResearchThemeChainNode {
 	result := make([]ResearchThemeChainNode, 0, len(values))
 	for _, value := range values {
 		result = append(result, ResearchThemeChainNode{
 			ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, ImpactSummary: value.Summary,
-		})
-	}
-	return result
-}
-
-func anchorChainNodeDTOs(values []repositories.ResearchChainNode) []ResearchAnchorChainNode {
-	result := make([]ResearchAnchorChainNode, 0, len(values))
-	for _, value := range values {
-		result = append(result, ResearchAnchorChainNode{
-			ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, RelationSummary: value.Summary,
 		})
 	}
 	return result
@@ -408,17 +297,6 @@ func impactRank(value domain.ImpactLevel) int {
 	case domain.ImpactLevelHigh:
 		return 3
 	case domain.ImpactLevelFocus:
-		return 2
-	default:
-		return 1
-	}
-}
-
-func importanceRank(value domain.ResearchImportance) int {
-	switch value {
-	case domain.ResearchImportancePrimary:
-		return 3
-	case domain.ResearchImportanceSecondary:
 		return 2
 	default:
 		return 1

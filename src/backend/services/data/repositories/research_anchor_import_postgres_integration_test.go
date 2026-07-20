@@ -93,12 +93,44 @@ func openResearchAnchorImportDatabase(t *testing.T) *sql.DB {
 func prepareResearchAnchorImportSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	statements := []string{
-		`CREATE TABLE research_theme_import_receipts (id UUID PRIMARY KEY, publisher_subject TEXT NOT NULL)`,
-		`CREATE TABLE research_themes (id UUID PRIMARY KEY, import_receipt_id UUID REFERENCES research_theme_import_receipts(id))`,
-		`CREATE TABLE chain_node_profiles (entity_id UUID PRIMARY KEY)`,
-		`CREATE TABLE events (id UUID PRIMARY KEY)`,
-		`CREATE TABLE research_theme_chain_nodes (theme_id UUID NOT NULL REFERENCES research_themes(id), chain_node_entity_id UUID NOT NULL REFERENCES chain_node_profiles(entity_id), PRIMARY KEY(theme_id, chain_node_entity_id))`,
-		`CREATE TABLE research_theme_events (theme_id UUID NOT NULL REFERENCES research_themes(id), event_id UUID NOT NULL REFERENCES events(id), PRIMARY KEY(theme_id, event_id))`,
+		`CREATE TABLE research_theme_import_receipts (id UUID PRIMARY KEY, publisher_subject TEXT NOT NULL, published_at TIMESTAMPTZ NOT NULL)`,
+		`CREATE TABLE entity_nodes (id UUID PRIMARY KEY, name TEXT NOT NULL)`,
+		`CREATE TABLE research_themes (
+            id UUID PRIMARY KEY,
+            import_receipt_id UUID REFERENCES research_theme_import_receipts(id),
+            name TEXT NOT NULL,
+            one_line_conclusion TEXT NOT NULL,
+            impact_level TEXT NOT NULL,
+            transmission_path TEXT NOT NULL,
+            trading_direction TEXT NOT NULL,
+            transmission_stage TEXT NOT NULL,
+            next_checkpoint TEXT NOT NULL,
+            market_confirmation_summary TEXT NOT NULL,
+            published_at TIMESTAMPTZ
+        )`,
+		`CREATE TABLE chain_node_profiles (entity_id UUID PRIMARY KEY REFERENCES entity_nodes(id))`,
+		`CREATE TABLE events (id UUID PRIMARY KEY, title TEXT NOT NULL, summary TEXT NOT NULL, event_time TIMESTAMPTZ)`,
+		`CREATE TABLE research_theme_chain_nodes (
+            theme_id UUID NOT NULL REFERENCES research_themes(id),
+            chain_node_entity_id UUID NOT NULL REFERENCES chain_node_profiles(entity_id),
+            relation_role TEXT NOT NULL,
+            impact_summary TEXT NOT NULL,
+            PRIMARY KEY(theme_id, chain_node_entity_id)
+        )`,
+		`CREATE TABLE research_theme_indices (
+            theme_id UUID NOT NULL REFERENCES research_themes(id),
+            index_entity_id UUID NOT NULL REFERENCES entity_nodes(id),
+            impact_direction TEXT NOT NULL,
+            impact_summary TEXT NOT NULL,
+            PRIMARY KEY(theme_id, index_entity_id)
+        )`,
+		`CREATE TABLE research_theme_events (
+            theme_id UUID NOT NULL REFERENCES research_themes(id),
+            event_id UUID NOT NULL REFERENCES events(id),
+            evidence_role TEXT NOT NULL,
+            supported_claim TEXT NOT NULL,
+            PRIMARY KEY(theme_id, event_id)
+        )`,
 		`CREATE TABLE research_anchor_import_receipts (
             id UUID PRIMARY KEY,
             theme_id UUID NOT NULL UNIQUE REFERENCES research_themes(id),
@@ -167,10 +199,17 @@ func readResearchAnchorPublication(t *testing.T) domainimport.Publication {
 func seedResearchAnchorPrerequisites(t *testing.T, db *sql.DB, publication domainimport.Publication) {
 	t.Helper()
 	const themeReceiptID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	if _, err := db.Exec(`INSERT INTO research_theme_import_receipts (id, publisher_subject) VALUES ($1, $2)`, themeReceiptID, "service:ai-research-analyst"); err != nil {
+	publishedAt := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	if _, err := db.Exec(`INSERT INTO research_theme_import_receipts (id, publisher_subject, published_at) VALUES ($1, $2, $3)`, themeReceiptID, "service:ai-research-analyst", publishedAt); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO research_themes (id, import_receipt_id) VALUES ($1, $2)`, publication.ThemeID, themeReceiptID); err != nil {
+	if _, err := db.Exec(`INSERT INTO research_themes (
+        id, import_receipt_id, name, one_line_conclusion, impact_level, transmission_path,
+        trading_direction, transmission_stage, next_checkpoint, market_confirmation_summary, published_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		publication.ThemeID, themeReceiptID, "AI算力扩产与半导体", "AI算力扩产继续传导", "high", "资本开支 → AI芯片 → 光模块与先进封装",
+		"优先研究订单与交期", "diffusion", "跟踪订单兑现", "产业证据偏强", publishedAt,
+	); err != nil {
 		t.Fatal(err)
 	}
 	nodes := map[string]struct{}{}
@@ -185,21 +224,43 @@ func seedResearchAnchorPrerequisites(t *testing.T, db *sql.DB, publication domai
 			nodes[node.ChainNodeID] = struct{}{}
 		}
 	}
+	nodeNames := map[string]string{
+		"22222222-2222-4222-8222-222222222222": "光模块",
+		"33333333-3333-4333-8333-333333333333": "先进封装",
+		"44444444-4444-4444-8444-444444444444": "AI芯片",
+	}
 	for nodeID := range nodes {
+		name := nodeNames[nodeID]
+		if name == "" {
+			name = "测试节点"
+		}
+		if _, err := db.Exec(`INSERT INTO entity_nodes (id, name) VALUES ($1, $2)`, nodeID, name); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := db.Exec(`INSERT INTO chain_node_profiles (entity_id) VALUES ($1)`, nodeID); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for centerID := range centers {
-		if _, err := db.Exec(`INSERT INTO research_theme_chain_nodes (theme_id, chain_node_entity_id) VALUES ($1, $2)`, publication.ThemeID, centerID); err != nil {
+		if _, err := db.Exec(`INSERT INTO research_theme_chain_nodes (theme_id, chain_node_entity_id, relation_role, impact_summary) VALUES ($1, $2, $3, $4)`, publication.ThemeID, centerID, "beneficiary", "受益于算力扩产"); err != nil {
 			t.Fatal(err)
 		}
 	}
+	eventTimes := map[string]any{
+		"55555555-5555-4555-8555-555555555555": time.Date(2026, 7, 20, 1, 0, 0, 0, time.UTC),
+		"66666666-6666-4666-8666-666666666666": time.Date(2026, 7, 20, 1, 0, 0, 0, time.UTC),
+		"77777777-7777-4777-8777-777777777777": nil,
+	}
+	eventRoles := map[string]string{
+		"55555555-5555-4555-8555-555555555555": "driver",
+		"66666666-6666-4666-8666-666666666666": "supporting",
+		"77777777-7777-4777-8777-777777777777": "contradicting",
+	}
 	for eventID := range events {
-		if _, err := db.Exec(`INSERT INTO events (id) VALUES ($1)`, eventID); err != nil {
+		if _, err := db.Exec(`INSERT INTO events (id, title, summary, event_time) VALUES ($1, $2, $3, $4)`, eventID, "测试事件 "+eventID[:8], "用于读取集成测试", eventTimes[eventID]); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := db.Exec(`INSERT INTO research_theme_events (theme_id, event_id) VALUES ($1, $2)`, publication.ThemeID, eventID); err != nil {
+		if _, err := db.Exec(`INSERT INTO research_theme_events (theme_id, event_id, evidence_role, supported_claim) VALUES ($1, $2, $3, $4)`, publication.ThemeID, eventID, eventRoles[eventID], "支持测试 Theme"); err != nil {
 			t.Fatal(err)
 		}
 	}

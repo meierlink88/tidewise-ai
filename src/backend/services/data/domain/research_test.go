@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
@@ -63,20 +62,5 @@ func TestResearchThemeValidateAcceptsConclusionTransmissionStagesOnly(t *testing
 		if err := value.Validate(); err == nil {
 			t.Fatalf("Validate() legacy stage %q error = nil", legacyStage)
 		}
-	}
-}
-
-func TestResearchAnchorValidateRejectsUnsupportedValues(t *testing.T) {
-	anchor := ResearchAnchor{
-		ID: "anchor-1", AnalysisBatchID: "batch-1", AnchorType: AnchorTypePolicy,
-		Name: "政策锚点", OneLineConclusion: "政策方向稳定。", Importance: ResearchImportancePrimary,
-		TransmissionPath: "政策 -> 需求", TradingDirection: "观察政策兑现",
-	}
-	if err := anchor.Validate(); err != nil {
-		t.Fatalf("Validate() error = %v", err)
-	}
-	anchor.AnchorType = "unsupported"
-	if err := anchor.Validate(); err == nil || !strings.Contains(err.Error(), "anchor type") {
-		t.Fatalf("Validate() error = %v, want anchor type validation error", err)
 	}
 }

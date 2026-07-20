@@ -28,7 +28,7 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 - **主题卡片**：首页列表中呈现一条推理主线的界面单元，不拥有独立于研究主题的业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
 - **影响路径页**：从首页 Theme 卡片进入的一句话结论研究依据页。一个 Theme 页面可包含多条推理树，每条树对应一个以产业链节点为中心的 Research Anchor，页面通过 Tab 切换。
-- **产品可见主题**：已拥有完整 Research Anchor 推理树集合的 Research Theme。首页只展示这类 Theme，因此不需要 `has_reasoning_tree` 字段。
+- **产品可见主题**：按现有 Theme 查询合同处于发布窗口内的 Research Theme。首页不依赖 Research Anchor 发布状态，也不增加 `has_reasoning_tree` 字段。
 
 ## Reasoning Trees API
 
@@ -52,7 +52,7 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 - 已成功加载的单树按 `anchor_id` 缓存在当前页面会话，再次切换不重复请求；重新进入或刷新页面时重新加载。
 - 单个 Tab 详情加载失败时，仅该 Tab 内容区显示错误与重试操作；其他已加载缓存保持可用，页面不自动切换 Tab。
 - 单 Tab 重试只请求当前 `anchor_id` 的详情，不连带刷新列表或其他推理树。
-- Theme 不存在或尚未成功发布推理树时，小程序统一展示“该研究主题暂不可用”与返回操作，不暴露内部错误码。
+- Theme 不存在时，小程序展示“该研究主题暂不可用”；Theme 存在但推理树尚未发布时展示“影响路径暂未生成”。两种状态均提供返回操作，且不向用户暴露内部错误码。
 - 列表网络或服务故障展示可重试错误；推理树列表不存在合法空集合，因此不设计正常空态。
 
 ## Frontend Mock Policy

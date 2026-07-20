@@ -32,14 +32,6 @@ const (
 	ResearchRelationExposure    ResearchRelationRole = "exposure"
 )
 
-type ResearchImportance string
-
-const (
-	ResearchImportancePrimary    ResearchImportance = "primary"
-	ResearchImportanceSecondary  ResearchImportance = "secondary"
-	ResearchImportanceContextual ResearchImportance = "contextual"
-)
-
 type ResearchEvidenceRole string
 
 const (
@@ -58,18 +50,6 @@ const (
 	ResearchImpactNeutral  ResearchImpactDirection = "neutral"
 )
 
-type AnchorType string
-
-const (
-	AnchorTypePolicy          AnchorType = "policy"
-	AnchorTypeSupply          AnchorType = "supply"
-	AnchorTypeDemand          AnchorType = "demand"
-	AnchorTypeTechnology      AnchorType = "technology"
-	AnchorTypeCost            AnchorType = "cost"
-	AnchorTypeGeopolitics     AnchorType = "geopolitics"
-	AnchorTypeMarketStructure AnchorType = "market_structure"
-)
-
 type ResearchTheme struct {
 	ID                        string
 	AnalysisBatchID           string
@@ -84,18 +64,6 @@ type ResearchTheme struct {
 	WindowStart               *time.Time
 	WindowEnd                 *time.Time
 	PublishedAt               *time.Time
-}
-
-type ResearchAnchor struct {
-	ID                string
-	AnalysisBatchID   string
-	AnchorType        AnchorType
-	Name              string
-	OneLineConclusion string
-	Importance        ResearchImportance
-	TransmissionPath  string
-	TradingDirection  string
-	PublishedAt       *time.Time
 }
 
 func (r ResearchTheme) Validate() error {
@@ -121,24 +89,6 @@ func (r ResearchTheme) Validate() error {
 	}
 	if r.WindowStart != nil && r.WindowEnd.Before(*r.WindowStart) {
 		return fmt.Errorf("window end must be greater than or equal to window start")
-	}
-	return nil
-}
-
-func (r ResearchAnchor) Validate() error {
-	if err := validateResearchIdentity(r.ID, r.AnalysisBatchID); err != nil {
-		return err
-	}
-	for field, value := range map[string]string{"name": r.Name, "one_line_conclusion": r.OneLineConclusion, "transmission_path": r.TransmissionPath, "trading_direction": r.TradingDirection} {
-		if strings.TrimSpace(value) == "" {
-			return fmt.Errorf("%s is required", field)
-		}
-	}
-	if !validResearchValue(r.AnchorType, AnchorTypePolicy, AnchorTypeSupply, AnchorTypeDemand, AnchorTypeTechnology, AnchorTypeCost, AnchorTypeGeopolitics, AnchorTypeMarketStructure) {
-		return fmt.Errorf("unsupported anchor type %q", r.AnchorType)
-	}
-	if !validResearchValue(r.Importance, ResearchImportancePrimary, ResearchImportanceSecondary, ResearchImportanceContextual) {
-		return fmt.Errorf("unsupported importance %q", r.Importance)
 	}
 	return nil
 }

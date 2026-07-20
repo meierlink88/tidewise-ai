@@ -16,8 +16,6 @@ func RegisterResearchRoutes(group *gin.RouterGroup, service *usecase.ResearchSer
 	research := group.Group("/miniapp/research")
 	research.GET("/themes", func(ctx *gin.Context) { handleListThemes(ctx, service) })
 	research.GET("/themes/:theme_id", func(ctx *gin.Context) { handleGetTheme(ctx, service) })
-	research.GET("/anchors", func(ctx *gin.Context) { handleListAnchors(ctx, service) })
-	research.GET("/anchors/:anchor_id", func(ctx *gin.Context) { handleGetAnchor(ctx, service) })
 }
 
 func handleListThemes(ctx *gin.Context, service *usecase.ResearchService) {
@@ -27,16 +25,6 @@ func handleListThemes(ctx *gin.Context, service *usecase.ResearchService) {
 
 func handleGetTheme(ctx *gin.Context, service *usecase.ResearchService) {
 	response, err := service.GetTheme(dataRequestContext(ctx), ctx.Param("theme_id"), parseResearchDetailRequest(ctx))
-	writeResearchResponse(ctx, response, err)
-}
-
-func handleListAnchors(ctx *gin.Context, service *usecase.ResearchService) {
-	response, err := service.ListAnchors(dataRequestContext(ctx), parseResearchListRequest(ctx))
-	writeResearchResponse(ctx, response, err)
-}
-
-func handleGetAnchor(ctx *gin.Context, service *usecase.ResearchService) {
-	response, err := service.GetAnchor(dataRequestContext(ctx), ctx.Param("anchor_id"), parseResearchDetailRequest(ctx))
 	writeResearchResponse(ctx, response, err)
 }
 

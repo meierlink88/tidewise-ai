@@ -52,8 +52,8 @@ type ResearchAnchorImportService interface {
 type ResearchService interface {
 	ListThemes(context.Context, research.ResearchListRequest) (research.ResearchThemePage, error)
 	GetTheme(context.Context, string, research.ResearchDetailRequest) (research.ResearchThemeDetail, error)
-	ListAnchors(context.Context, research.ResearchListRequest) (research.ResearchAnchorPage, error)
-	GetAnchor(context.Context, string, research.ResearchDetailRequest) (research.ResearchAnchorDetail, error)
+	ListReasoningTrees(context.Context, string) (research.ResearchReasoningTreeList, error)
+	GetReasoningTree(context.Context, string, string) (research.ResearchReasoningTreeDetail, error)
 }
 
 type AdminService interface {
@@ -92,8 +92,8 @@ func NewHandler(dependencies Dependencies) http.Handler {
 	mux.Handle("POST "+Namespace+"/research-anchor-imports", dependencies.authorize(ScopeResearchImport, dependencies.importResearchAnchors))
 	mux.Handle("GET "+Namespace+"/research/themes", dependencies.authorize(ScopeResearchRead, dependencies.listResearchThemes))
 	mux.Handle("GET "+Namespace+"/research/themes/{theme_id}", dependencies.authorize(ScopeResearchRead, dependencies.getResearchTheme))
-	mux.Handle("GET "+Namespace+"/research/anchors", dependencies.authorize(ScopeResearchRead, dependencies.listResearchAnchors))
-	mux.Handle("GET "+Namespace+"/research/anchors/{anchor_id}", dependencies.authorize(ScopeResearchRead, dependencies.getResearchAnchor))
+	mux.Handle("GET "+Namespace+"/research/themes/{theme_id}/reasoning-trees", dependencies.authorize(ScopeResearchRead, dependencies.listResearchThemeReasoningTrees))
+	mux.Handle("GET "+Namespace+"/research/themes/{theme_id}/reasoning-trees/{anchor_id}", dependencies.authorize(ScopeResearchRead, dependencies.getResearchThemeReasoningTree))
 	mux.Handle("GET "+Namespace+"/admin/raw-documents", dependencies.authorize(ScopeAdminRead, dependencies.listAdminRawDocuments))
 	mux.Handle("GET "+Namespace+"/admin/events", dependencies.authorize(ScopeAdminRead, dependencies.listAdminEvents))
 	mux.Handle("GET "+Namespace+"/admin/source-catalogs", dependencies.authorize(ScopeAdminRead, dependencies.listAdminSources))

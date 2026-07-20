@@ -48,29 +48,6 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 	}
 }
 
-func TestHTTPClientDecodesAnchorRelationSummaryWithoutImplicitMapping(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != ResearchAnchorsPath {
-			t.Fatalf("path = %q, want %q", request.URL.Path, ResearchAnchorsPath)
-		}
-		_, _ = writer.Write([]byte(`{"request_id":"data-anchor-1","result":{"items":[{"id":"11111111-1111-5111-8111-111111111111","anchor_type":"market_structure","importance":"contextual","trading_direction":"等待供需关系进一步确认","related_chain_nodes":[{"id":"22222222-2222-5222-8222-222222222222","name":"需求端","relation_role":"constraint","relation_summary":"需求仍有不确定性"}],"related_indices":[]}]}}`))
-	}))
-	defer server.Close()
-
-	client := newTestClient(t, server.URL, server.Client(), "token")
-	page, err := client.ListResearchAnchors(context.Background(), ResearchListQuery{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(page.Items) != 1 || page.Items[0].AnchorType != AnchorTypeMarketStructure || page.Items[0].Importance != ImportanceContextual || page.Items[0].TradingDirection != "等待供需关系进一步确认" {
-		t.Fatalf("anchor = %#v", page.Items)
-	}
-	if len(page.Items[0].RelatedChainNodes) != 1 || page.Items[0].RelatedChainNodes[0].RelationSummary != "需求仍有不确定性" {
-		t.Fatalf("anchor nodes = %#v", page.Items[0].RelatedChainNodes)
-	}
-}
-
 func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	t.Parallel()
 	var gotPath, gotQuery, gotRequestID string
@@ -120,7 +97,7 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	if _, err := client.ListResearchAnchors(context.Background(), ResearchListQuery{}); err != nil {
+	if _, err := client.ListResearchThemes(context.Background(), ResearchListQuery{}); err != nil {
 		t.Fatalf("safe read error = %v", err)
 	}
 	if got := readAttempts.Load(); got != 2 {
@@ -160,7 +137,7 @@ func TestHTTPClientClassifiesHTTPFailuresWithoutLeakingSecrets(t *testing.T) {
 			defer server.Close()
 			client := newTestClient(t, server.URL, server.Client(), "secret-service-token")
 
-			_, err := client.GetResearchAnchor(context.Background(), "11111111-1111-5111-8111-111111111111", ResearchDetailQuery{})
+			_, err := client.GetResearchTheme(context.Background(), "11111111-1111-5111-8111-111111111111", ResearchDetailQuery{})
 			var clientErr *Error
 			if !errors.As(err, &clientErr) || clientErr.Kind != test.kind || clientErr.StatusCode != test.status || clientErr.Code != "UPSTREAM_CODE" || clientErr.RequestID != "response-request-id" {
 				t.Fatalf("error = %#v", err)

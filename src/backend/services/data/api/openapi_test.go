@@ -22,19 +22,19 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	want := map[string]operationContract{
-		namespace + "/research/themes":                        {method: "get", operationID: "listResearchThemes", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}":             {method: "get", operationID: "getResearchTheme", scope: "data.research.read"},
-		namespace + "/research/anchors":                       {method: "get", operationID: "listResearchAnchors", scope: "data.research.read"},
-		namespace + "/research/anchors/{anchor_id}":           {method: "get", operationID: "getResearchAnchor", scope: "data.research.read"},
-		namespace + "/admin/raw-documents":                    {method: "get", operationID: "listAdminRawDocuments", scope: "data.admin.read"},
-		namespace + "/admin/events":                           {method: "get", operationID: "listAdminEvents", scope: "data.admin.read"},
-		namespace + "/admin/source-catalogs":                  {method: "get", operationID: "listAdminSourceCatalogs", scope: "data.admin.read"},
-		namespace + "/agent-run/source-metadata":              {method: "get", operationID: "listAgentSourceMetadata", scope: "data.source-metadata.read"},
-		namespace + "/raw-document-imports":                   {method: "post", operationID: "importRawDocuments", scope: "data.raw-documents.import"},
-		namespace + "/raw-document-imports/{idempotency_key}": {method: "get", operationID: "getRawDocumentImportStatus", scope: "data.raw-documents.import"},
-		namespace + "/reviewed-event-imports":                 {method: "post", operationID: "importReviewedEvent", scope: "data.reviewed-events.import"},
-		namespace + "/research-theme-imports":                 {method: "post", operationID: "importResearchThemes", scope: "data.research.import"},
-		namespace + "/research-anchor-imports":                {method: "post", operationID: "importResearchAnchors", scope: "data.research.import"},
+		namespace + "/research/themes":                                        {method: "get", operationID: "listResearchThemes", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}":                             {method: "get", operationID: "getResearchTheme", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}/reasoning-trees":             {method: "get", operationID: "listResearchThemeReasoningTrees", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {method: "get", operationID: "getResearchThemeReasoningTree", scope: "data.research.read"},
+		namespace + "/admin/raw-documents":                                    {method: "get", operationID: "listAdminRawDocuments", scope: "data.admin.read"},
+		namespace + "/admin/events":                                           {method: "get", operationID: "listAdminEvents", scope: "data.admin.read"},
+		namespace + "/admin/source-catalogs":                                  {method: "get", operationID: "listAdminSourceCatalogs", scope: "data.admin.read"},
+		namespace + "/agent-run/source-metadata":                              {method: "get", operationID: "listAgentSourceMetadata", scope: "data.source-metadata.read"},
+		namespace + "/raw-document-imports":                                   {method: "post", operationID: "importRawDocuments", scope: "data.raw-documents.import"},
+		namespace + "/raw-document-imports/{idempotency_key}":                 {method: "get", operationID: "getRawDocumentImportStatus", scope: "data.raw-documents.import"},
+		namespace + "/reviewed-event-imports":                                 {method: "post", operationID: "importReviewedEvent", scope: "data.reviewed-events.import"},
+		namespace + "/research-theme-imports":                                 {method: "post", operationID: "importResearchThemes", scope: "data.research.import"},
+		namespace + "/research-anchor-imports":                                {method: "post", operationID: "importResearchAnchors", scope: "data.research.import"},
 	}
 
 	if len(paths) != len(want) {
@@ -57,6 +57,53 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	for _, legacy := range []string{namespace + "/research/anchors", namespace + "/research/anchors/{anchor_id}"} {
+		if _, exists := paths[legacy]; exists {
+			t.Fatalf("legacy research Anchor path remains in OpenAPI: %s", legacy)
+		}
+	}
+
+	for _, path := range []string{
+		namespace + "/research/themes/{theme_id}/reasoning-trees",
+		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}",
+	} {
+		operation := object(t, object(t, paths[path], "path "+path)["get"], "GET "+path)
+		parameters := array(t, operation["parameters"], "reasoning tree operation parameters")
+		if len(parameters) != 1 || stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
+			t.Fatalf("GET %s must accept only X-Request-ID at operation level: %v", path, parameters)
+		}
+		responses := object(t, operation["responses"], "reasoning tree responses")
+		for _, status := range []string{"200", "400", "401", "403", "404", "500"} {
+			if _, exists := responses[status]; !exists {
+				t.Fatalf("GET %s missing response %s", path, status)
+			}
+		}
+	}
+
+	list := schema(t, document, "ResearchReasoningTreeList")
+	assertRequired(t, list, "theme", "reasoning_trees")
+	listProperties := object(t, list["properties"], "ResearchReasoningTreeList properties")
+	trees := object(t, listProperties["reasoning_trees"], "reasoning_trees")
+	assertInt(t, trees, "minItems", 1)
+	assertString(t, object(t, trees["items"], "reasoning tree summary items"), "$ref", "#/components/schemas/ResearchReasoningTreeSummary")
+
+	tree := schema(t, document, "ResearchReasoningTree")
+	assertRequired(t, tree, "anchor_id", "center_chain_node", "one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint", "event_count", "events", "path_nodes")
+	treeProperties := object(t, tree["properties"], "ResearchReasoningTree properties")
+	assertInt(t, object(t, treeProperties["events"], "events"), "minItems", 1)
+	assertInt(t, object(t, treeProperties["path_nodes"], "path_nodes"), "minItems", 2)
+
+	pathNode := schema(t, document, "ResearchReasoningTreePathNode")
+	pathProperties := object(t, pathNode["properties"], "ResearchReasoningTreePathNode properties")
+	assertStringSet(t, object(t, pathProperties["change_direction"], "change_direction")["enum"], "increase", "decrease", "mixed", "unchanged", "uncertain")
+	event := schema(t, document, "ResearchReasoningTreeEvent")
+	eventProperties := object(t, event["properties"], "ResearchReasoningTreeEvent properties")
+	assertStringSet(t, object(t, eventProperties["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
 }
 
 func TestOpenAPIContractFreezesResearchAnchorPublicationV1(t *testing.T) {
@@ -281,7 +328,7 @@ func TestOpenAPIContractFreezesBoundedAtomicRawImportAndStatus(t *testing.T) {
 func TestOpenAPIContractFreezesDTOFormatsEnumsAndSensitiveMetadataBoundary(t *testing.T) {
 	document := loadContract(t)
 	for _, name := range []string{
-		"ResearchThemeCollection", "ResearchThemeDetail", "ResearchAnchorCollection", "ResearchAnchorDetail",
+		"ResearchThemeCollection", "ResearchThemeDetail", "ResearchReasoningTreeList", "ResearchReasoningTreeDetail",
 		"AdminRawDocumentPage", "AdminEventPage", "AdminSourceCatalogCollection",
 		"AgentSourceMetadataCollection", "RawDocumentBatchImportRequest", "RawDocumentImportStatusResponse",
 		"ReviewedEventImportRequest", "ReviewedEventImportResult", "ErrorEnvelope",

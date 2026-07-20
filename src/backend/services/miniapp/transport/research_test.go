@@ -58,42 +58,18 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 	}
 }
 
-func TestResearchRoutesPreservePublicAnchorRelationSummaryGolden(t *testing.T) {
-	calls := 0
-	client := &dataclient.Fake{GetResearchAnchorFunc: func(context.Context, string, dataclient.ResearchDetailQuery) (dataclient.ResearchAnchorDetail, error) {
-		calls++
-		return dataclient.ResearchAnchorDetail{
-			Anchor: dataclient.ResearchAnchor{
-				ID: "11111111-1111-4111-8111-111111111111", AnchorType: dataclient.AnchorTypeMarketStructure,
-				Name: "市场结构", OneLineConclusion: "结论", Importance: dataclient.ImportanceContextual,
-				TransmissionPath: "制度到预期", TradingDirection: "等待供需关系进一步确认",
-				PublishedAt: time.Date(2026, 7, 17, 1, 0, 0, 0, time.UTC),
-				RelatedChainNodes: []dataclient.ResearchAnchorChainNode{{
-					ID: "22222222-2222-4222-8222-222222222222", Name: "需求端", RelationRole: "constraint", RelationSummary: "需求仍待确认",
-				}},
-				RelatedIndices: []dataclient.ResearchIndex{}, RelatedEventCount: 0,
-			},
-			Events: []dataclient.ResearchEvent{},
-		}, nil
-	}}
-	response := serveResearch(t, usecase.NewResearchService(client), "/api/v1/miniapp/research/anchors/11111111-1111-4111-8111-111111111111?window_hours=24")
-	if response.Code != http.StatusOK || calls != 1 {
-		t.Fatalf("status/calls = %d/%d, body=%s", response.Code, calls, response.Body.String())
-	}
-	var body map[string]any
-	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	nodes := body["related_chain_nodes"].([]any)
-	node := nodes[0].(map[string]any)
-	if node["relation_summary"] != "需求仍待确认" {
-		t.Fatalf("node = %#v", node)
-	}
-	if _, exists := node["impact_summary"]; exists {
-		t.Fatalf("anchor node must not expose theme impact_summary: %#v", node)
-	}
-	if body["anchor_type"] != "market_structure" || body["importance"] != "contextual" || body["trading_direction"] != "等待供需关系进一步确认" {
-		t.Fatalf("anchor = %#v", body)
+func TestResearchRoutesDoNotExposeLegacyStandaloneAnchorAPI(t *testing.T) {
+	router := researchTestRouter(usecase.NewResearchService(&dataclient.Fake{}))
+	for _, path := range []string{
+		"/api/v1/miniapp/research/anchors",
+		"/api/v1/miniapp/research/anchors/11111111-1111-4111-8111-111111111111",
+	} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("GET %s status = %d, want 404", path, response.Code)
+		}
 	}
 }
 
