@@ -15,6 +15,8 @@ import (
 func RegisterResearchRoutes(group *gin.RouterGroup, service *usecase.ResearchService) {
 	research := group.Group("/miniapp/research")
 	research.GET("/themes", func(ctx *gin.Context) { handleListThemes(ctx, service) })
+	research.GET("/themes/:theme_id/reasoning-trees", func(ctx *gin.Context) { handleListReasoningTrees(ctx, service) })
+	research.GET("/themes/:theme_id/reasoning-trees/:anchor_id", func(ctx *gin.Context) { handleGetReasoningTree(ctx, service) })
 	research.GET("/themes/:theme_id", func(ctx *gin.Context) { handleGetTheme(ctx, service) })
 }
 
@@ -26,6 +28,24 @@ func handleListThemes(ctx *gin.Context, service *usecase.ResearchService) {
 func handleGetTheme(ctx *gin.Context, service *usecase.ResearchService) {
 	response, err := service.GetTheme(dataRequestContext(ctx), ctx.Param("theme_id"), parseResearchDetailRequest(ctx))
 	writeResearchResponse(ctx, response, err)
+}
+
+func handleListReasoningTrees(ctx *gin.Context, service *usecase.ResearchService) {
+	if ctx.Request.URL.RawQuery != "" {
+		writeReasoningTreeResponse(ctx, nil, usecase.ErrInvalidResearchRequest)
+		return
+	}
+	response, err := service.ListReasoningTrees(dataRequestContext(ctx), ctx.Param("theme_id"))
+	writeReasoningTreeResponse(ctx, response, err)
+}
+
+func handleGetReasoningTree(ctx *gin.Context, service *usecase.ResearchService) {
+	if ctx.Request.URL.RawQuery != "" {
+		writeReasoningTreeResponse(ctx, nil, usecase.ErrInvalidResearchRequest)
+		return
+	}
+	response, err := service.GetReasoningTree(dataRequestContext(ctx), ctx.Param("theme_id"), ctx.Param("anchor_id"))
+	writeReasoningTreeResponse(ctx, response, err)
 }
 
 func dataRequestContext(ctx *gin.Context) context.Context {
@@ -71,4 +91,35 @@ func writeResearchResponse(ctx *gin.Context, response any, err error) {
 		message = usecase.ErrResearchNotFound.Error()
 	}
 	ctx.AbortWithStatusJSON(status, gin.H{"error": message})
+}
+
+func writeReasoningTreeResponse(ctx *gin.Context, response any, err error) {
+	if err == nil {
+		ctx.JSON(http.StatusOK, response)
+		return
+	}
+	status := http.StatusBadGateway
+	code := "RESEARCH_DATA_UNAVAILABLE"
+	message := "research data is temporarily unavailable"
+	switch {
+	case errors.Is(err, usecase.ErrInvalidResearchRequest):
+		status = http.StatusBadRequest
+		code = "INVALID_REQUEST"
+		message = "invalid research request"
+	case errors.Is(err, usecase.ErrResearchThemeNotFound):
+		status = http.StatusNotFound
+		code = "RESEARCH_THEME_NOT_FOUND"
+		message = "research Theme was not found"
+	case errors.Is(err, usecase.ErrResearchReasoningTreesNotFound):
+		status = http.StatusNotFound
+		code = "RESEARCH_REASONING_TREES_NOT_FOUND"
+		message = "research Theme has no published reasoning trees"
+	case errors.Is(err, usecase.ErrResearchReasoningTreeNotFound):
+		status = http.StatusNotFound
+		code = "RESEARCH_REASONING_TREE_NOT_FOUND"
+		message = "research reasoning tree was not found for the Theme"
+	}
+	ctx.AbortWithStatusJSON(status, gin.H{
+		"error": gin.H{"code": code, "message": message},
+	})
 }

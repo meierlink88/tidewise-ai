@@ -87,6 +87,18 @@ func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query Rese
 	return unwrapEnvelope(envelope, err)
 }
 
+func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
+	var envelope responseEnvelope[ResearchReasoningTreeList]
+	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeListPath(themeID), nil, &envelope)
+	return unwrapEnvelope(envelope, err)
+}
+
+func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (ResearchReasoningTreeDetail, error) {
+	var envelope responseEnvelope[ResearchReasoningTreeDetail]
+	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, anchorID), nil, &envelope)
+	return unwrapEnvelope(envelope, err)
+}
+
 type responseEnvelope[T any] struct {
 	RequestID string `json:"request_id"`
 	Result    *T     `json:"result"`
@@ -123,6 +135,14 @@ func researchDetailPath(path string, id string, query ResearchDetailQuery) strin
 		values.Set("window_hours", strconv.Itoa(query.WindowHours))
 	}
 	return appendQuery(path+"/"+url.PathEscape(id), values)
+}
+
+func researchReasoningTreeListPath(themeID string) string {
+	return ResearchThemesPath + "/" + url.PathEscape(themeID) + "/reasoning-trees"
+}
+
+func researchReasoningTreeDetailPath(themeID, anchorID string) string {
+	return researchReasoningTreeListPath(themeID) + "/" + url.PathEscape(anchorID)
 }
 
 func appendQuery(path string, values url.Values) string {

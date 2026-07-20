@@ -2,10 +2,13 @@ package dataclient
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -64,6 +67,85 @@ func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	}
 	if gotPath != ResearchThemesPath+"/theme%2Fid" || gotQuery != "window_hours=48" || gotRequestID == "" || result.Theme.Name != "detail" {
 		t.Fatalf("path/query/request ID/result = %q/%q/%q/%#v", gotPath, gotQuery, gotRequestID, result)
+	}
+}
+
+func TestHTTPClientReadsResearchReasoningTreeListFromSharedFixture(t *testing.T) {
+	t.Parallel()
+	var gotAuthorization, gotRequestID, gotPath, gotQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		gotAuthorization = request.Header.Get("Authorization")
+		gotRequestID = request.Header.Get(RequestIDHeader)
+		gotPath = request.URL.EscapedPath()
+		gotQuery = request.URL.RawQuery
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write(readReasoningTreeFixture(t, "01-reasoning-tree-list-result.json"))
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
+	result, err := client.ListResearchThemeReasoningTrees(WithRequestID(context.Background(), "req-reasoning-list"), "theme/id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees" || gotQuery != "" {
+		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
+	}
+	if gotAuthorization != "Bearer miniapp-service-token" || gotRequestID != "req-reasoning-list" {
+		t.Fatalf("auth/request ID = %q/%q", gotAuthorization, gotRequestID)
+	}
+	if result.Theme.ID != "11111111-1111-4111-8111-111111111111" || len(result.ReasoningTrees) != 2 || result.ReasoningTrees[0].CenterChainNode.Name != "先进封装" {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestHTTPClientReadsResearchReasoningTreeDetailFromSharedFixture(t *testing.T) {
+	t.Parallel()
+	var gotPath, gotQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		gotPath = request.URL.EscapedPath()
+		gotQuery = request.URL.RawQuery
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write(readReasoningTreeFixture(t, "02-reasoning-tree-with-contradiction-result.json"))
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
+	result, err := client.GetResearchThemeReasoningTree(context.Background(), "theme/id", "anchor/id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees/anchor%2Fid" || gotQuery != "" {
+		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
+	}
+	if result.ThemeID != "11111111-1111-4111-8111-111111111111" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != EvidenceRoleContradicting || result.ReasoningTree.PathNodes[1].ChangeDirection != ChangeDirectionMixed {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestHTTPClientPreservesReasoningTreesNotFoundFromSharedFixture(t *testing.T) {
+	t.Parallel()
+	var fixture struct {
+		Response struct {
+			Status int             `json:"status"`
+			Body   json.RawMessage `json:"body"`
+		} `json:"response"`
+	}
+	if err := json.Unmarshal(readReasoningTreeFixture(t, "04-theme-without-reasoning-trees-error.json"), &fixture); err != nil {
+		t.Fatalf("decode error fixture: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(fixture.Response.Status)
+		_, _ = writer.Write(fixture.Response.Body)
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
+	_, err := client.ListResearchThemeReasoningTrees(context.Background(), "dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+	var clientErr *Error
+	if !errors.As(err, &clientErr) || clientErr.StatusCode != http.StatusNotFound || clientErr.Code != "RESEARCH_REASONING_TREES_NOT_FOUND" || clientErr.RequestID != "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" {
+		t.Fatalf("error = %#v", err)
 	}
 }
 
@@ -217,6 +299,15 @@ func newTestClient(t *testing.T, baseURL string, httpClient *http.Client, token 
 		t.Fatal(err)
 	}
 	return client
+}
+
+func readReasoningTreeFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "testdata", "reasoning-tree-v1", name))
+	if err != nil {
+		t.Fatalf("read reasoning tree fixture %s: %v", name, err)
+	}
+	return payload
 }
 
 func assertErrorKind(t *testing.T, err error, want ErrorKind) {

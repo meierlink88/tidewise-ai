@@ -38,6 +38,7 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 - BFF 成功响应直接使用 Data envelope 的 `result` 内容，不向小程序返回 Data `request_id/result` 外壳。
 - BFF 保留每棵树的单一 `events` 数组；Miniapp Frontend 按 `evidence_role` 确定性过滤出原子事实、当前支持和当前反证，不复制数据或重排。
 - BFF 不为一次请求扇出多个 Anchor 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。
+- BFF 对 Theme 不存在、Theme 尚未发布推理树、Anchor 不属于该 Theme 三种 `404` 状态分别返回 `RESEARCH_THEME_NOT_FOUND`、`RESEARCH_REASONING_TREES_NOT_FOUND`、`RESEARCH_REASONING_TREE_NOT_FOUND`；它们是 Miniapp 的稳定错误语义，不透传 Data 的 request ID 或错误外壳。
 - 现有 Theme 详情 API 保持不变。
 - 删除尚未正式使用的旧 `/api/v1/miniapp/research/anchors` 列表和按 Anchor ID 读取接口；不保留兼容别名，Research Anchor 统一作为 Theme 下的推理树子资源读取。
 
