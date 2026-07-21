@@ -1,8 +1,12 @@
 import Taro from '@tarojs/taro';
 import { Button, Image, Text, View } from '@tarojs/components';
 import type { BaseEventOrig } from '@tarojs/components/types/common';
-import type { HomeResearchThemeItem, ResearchImpactLevel } from '../../../features/research-themes/contract';
+import type {
+  HomeResearchThemeItem,
+  ResearchImpactLevel
+} from '../../../features/research-themes/contract';
 import { researchTransmissionStageLabel } from '../../../features/research-themes/presentation';
+import { navigateToResearchReasoningTrees } from '../../../features/research-reasoning-trees/navigation';
 import arrowRightIcon from '../../../assets/icons/arrow-right.svg';
 
 const impactLabels: Record<ResearchImpactLevel, string> = {
@@ -26,10 +30,7 @@ function handleNestedTap(event: BaseEventOrig, title: string) {
 
 export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
   return (
-    <View
-      className={`theme-card theme-card--${theme.impactLevel}`}
-      onClick={() => showUnavailable('主线详情即将开放')}
-    >
+    <View className={`theme-card theme-card--${theme.impactLevel}`}>
       <View className='theme-card__rail' />
       <View className='theme-card__topline'>
         <View className='theme-card__identity'>
@@ -88,7 +89,12 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
         <Button
           className='tidewise-button theme-card__detail-button'
           hoverClass='none'
-          onClick={(event) => handleNestedTap(event, '影响路径即将开放')}
+          onClick={(event) => {
+            event.stopPropagation();
+            void navigateToResearchReasoningTrees(theme.id, (options) =>
+              Taro.navigateTo(options)
+            ).catch(() => showUnavailable('影响路径暂时无法打开'));
+          }}
         >
           <Text>查看影响路径</Text>
           <Image className='theme-card__detail-icon' src={arrowRightIcon} mode='scaleToFill' />

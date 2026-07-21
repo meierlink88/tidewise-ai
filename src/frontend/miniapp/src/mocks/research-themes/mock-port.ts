@@ -1,6 +1,6 @@
 import type { HomeResearchThemeFeed, ResearchThemeFeedPort } from '../../features/research-themes/contract';
 
-const feed: HomeResearchThemeFeed = {
+export const mockResearchThemeFeed: HomeResearchThemeFeed = {
   windowStart: '2026-07-06T09:00:00+08:00',
   windowEnd: '2026-07-07T09:00:00+08:00',
   asOf: '2026-07-07T09:00:00+08:00',
@@ -126,7 +126,7 @@ const feed: HomeResearchThemeFeed = {
 export function createMockResearchThemeFeedPort(): ResearchThemeFeedPort {
   return {
     async list() {
-      return feed;
+      return mockResearchThemeFeed;
     }
   };
 }
