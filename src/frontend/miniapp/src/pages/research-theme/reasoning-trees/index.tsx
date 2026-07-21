@@ -8,6 +8,7 @@ import {
   type ResearchReasoningTreeSessionState
 } from '../../../features/research-reasoning-trees/session';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
+import { ReasoningThemeHero, ReasoningTreeView } from './view';
 import './index.scss';
 
 const port = createResearchReasoningTreePort();
@@ -55,7 +56,7 @@ export default function ResearchReasoningTreesPage() {
   );
 }
 
-function IndexContent({
+export function IndexContent({
   state,
   session
 }: {
@@ -87,38 +88,47 @@ function IndexContent({
   const detailState = state.detailsByAnchorId[selectedAnchorId] ?? { status: 'idle' as const };
 
   return (
-    <View className='reasoning-page__content'>
-      <View className='reasoning-theme'>
-        <Text className='reasoning-theme__eyebrow'>{theme.name}</Text>
-        <Text className='reasoning-theme__title'>{theme.oneLineConclusion}</Text>
+    <View className='reasoning-page__ready'>
+      <ReasoningThemeHero theme={theme} />
+
+      <View id='reasoning-tabs-wrap' className='reasoning-tabs-wrap'>
+        <View className='reasoning-tabs__label'>
+          <Text>研究锚点</Text>
+          <Text>{reasoningTrees.length} 条独立推理树</Text>
+        </View>
+        <ScrollView className='reasoning-tabs' scrollX showScrollbar={false}>
+          <View className='reasoning-tabs__items'>
+            {reasoningTrees.map((tree) => (
+              <Button
+                key={tree.anchorId}
+                className={`tidewise-button reasoning-tab ${
+                  selectedAnchorId === tree.anchorId ? 'reasoning-tab--active' : ''
+                }`}
+                hoverClass='none'
+                onClick={() => {
+                  if (selectedAnchorId === tree.anchorId) return;
+                  session.selectAnchor(tree.anchorId);
+                  scrollToReasoningTreeStart();
+                }}
+              >
+                {tree.centerChainNode.name}
+              </Button>
+            ))}
+          </View>
+        </ScrollView>
       </View>
 
-      <ScrollView className='reasoning-tabs' scrollX enhanced showScrollbar={false}>
-        <View className='reasoning-tabs__items'>
-          {reasoningTrees.map((tree) => (
-            <Button
-              key={tree.anchorId}
-              className={`tidewise-button reasoning-tab ${
-                selectedAnchorId === tree.anchorId ? 'reasoning-tab--active' : ''
-              }`}
-              hoverClass='none'
-              onClick={() => session.selectAnchor(tree.anchorId)}
-            >
-              {tree.centerChainNode.name}
-            </Button>
-          ))}
-        </View>
-      </ScrollView>
-
-      <ReasoningTreeSkeleton
-        state={detailState}
-        onRetry={() => session.retryAnchor(selectedAnchorId)}
-      />
+      <View id='reasoning-tree-content' className='reasoning-page__content'>
+        <ReasoningTreeContent
+          state={detailState}
+          onRetry={() => session.retryAnchor(selectedAnchorId)}
+        />
+      </View>
     </View>
   );
 }
 
-function ReasoningTreeSkeleton({
+function ReasoningTreeContent({
   state,
   onRetry
 }: {
@@ -126,7 +136,12 @@ function ReasoningTreeSkeleton({
   onRetry: () => void;
 }) {
   if (state.status === 'idle' || state.status === 'loading') {
-    return <View className='reasoning-tree-state'>正在加载当前推理树</View>;
+    return (
+      <View className='reasoning-tree-state'>
+        <View className='reasoning-tree-state__pulse' />
+        <Text>正在加载当前推理树</Text>
+      </View>
+    );
   }
   if (state.status === 'error') {
     return (
@@ -143,22 +158,7 @@ function ReasoningTreeSkeleton({
     );
   }
 
-  const tree = state.value.reasoningTree;
-  return (
-    <View className='reasoning-tree-skeleton'>
-      <Text className='reasoning-tree-skeleton__label'>{tree.centerChainNode.name} · 研究锚点</Text>
-      <Text className='reasoning-tree-skeleton__title'>{tree.oneLineConclusion}</Text>
-      <View className='reasoning-tree-skeleton__block'>
-        <Text className='reasoning-tree-skeleton__block-title'>事实摘要</Text>
-        <Text>{tree.factSummary}</Text>
-      </View>
-      <View className='reasoning-tree-skeleton__metrics'>
-        <Text>{tree.eventCount} 条事件证据</Text>
-        <Text>{tree.pathNodes.length} 个传导节点</Text>
-      </View>
-      <Text className='reasoning-tree-skeleton__handoff'>完整证据与传导视觉将在下一阶段呈现</Text>
-    </View>
-  );
+  return <ReasoningTreeView tree={state.value.reasoningTree} />;
 }
 
 function PageState({
@@ -195,5 +195,14 @@ function goBack() {
     fail: () => {
       void Taro.reLaunch({ url: '/pages/index/index' });
     }
+  });
+}
+
+function scrollToReasoningTreeStart() {
+  Taro.nextTick(() => {
+    void Taro.pageScrollTo({
+      selector: '#reasoning-tabs-wrap',
+      duration: 180
+    }).catch(() => undefined);
   });
 }

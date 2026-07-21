@@ -43,6 +43,10 @@ describe('research reasoning tree BFF adapter', () => {
       themeId,
       reasoningTree: {
         anchorId,
+        supportSummary:
+          '云厂商资本开支上调支持高速光互联需求扩张，但兑现仍取决于订单和交付改善',
+        counterSummary:
+          '不同规格和客户的交付节奏仍有分化，反驳需求已经全面兑现的判断',
         eventCount: 2,
         events: [
           { evidenceRole: 'driver', eventTime: '2026-07-20T01:00:00Z' },
@@ -92,6 +96,62 @@ describe('research reasoning tree BFF adapter', () => {
       reasoning_tree: { events: Array<{ event_time: string | null }> };
     };
     detail.reasoning_tree.events[0].event_time = '2026/07/20 09:00:00';
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const port = createResearchReasoningTreeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request
+    });
+
+    await expect(port.get(themeId, anchorId)).rejects.toMatchObject({
+      kind: 'serviceUnavailable'
+    });
+  });
+
+  it('accepts an explicit null counter summary without inventing a counter claim', async () => {
+    const detail = await fixtureResult(
+      '03-reasoning-tree-without-contradiction-unquantified-result.json'
+    );
+    const fixtureAnchorId = (detail as { reasoning_tree: { anchor_id: string } }).reasoning_tree
+      .anchor_id;
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const port = createResearchReasoningTreeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request
+    });
+
+    await expect(port.get(themeId, fixtureAnchorId)).resolves.toMatchObject({
+      reasoningTree: {
+        supportSummary: expect.any(String),
+        counterSummary: null
+      }
+    });
+  });
+
+  it('fails closed when the anchor support summary is missing', async () => {
+    const detail = structuredClone(
+      await fixtureResult('02-reasoning-tree-with-contradiction-result.json')
+    ) as { reasoning_tree: Record<string, unknown> };
+    delete detail.reasoning_tree.support_summary;
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const port = createResearchReasoningTreeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request
+    });
+
+    await expect(port.get(themeId, anchorId)).rejects.toMatchObject({
+      kind: 'serviceUnavailable'
+    });
+  });
+
+  it('rejects an ordered path whose downstream node has no transmission mechanism', async () => {
+    const detail = structuredClone(
+      await fixtureResult('02-reasoning-tree-with-contradiction-result.json')
+    ) as {
+      reasoning_tree: {
+        path_nodes: Array<{ incoming_transmission_mechanism: string | null }>;
+      };
+    };
+    detail.reasoning_tree.path_nodes[1].incoming_transmission_mechanism = null;
     const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',

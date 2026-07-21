@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>观潮家｜产业链影响推理树原型</title>
+  <!--
+    PROTOTYPE — throwaway UI exploration, not production code.
+    Question: how should one Theme expand into multiple anchor-specific causal research trees?
+    Run: python3 -m http.server 63094 --directory tidewise-ai/prototype
+    Open: http://localhost:63094/reasoning-tree-prototype.html?variant=A
+  -->
+  <link rel="stylesheet" href="./.design_library/观潮家/colors_and_type.css">
+  <link rel="stylesheet" href="./.design_library/观潮家/components.css">
+  <style>
+    * { box-sizing: border-box; }
+    html { background: #dbe3ee; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(37, 99, 235, .13), transparent 32%),
+        #e9eef5;
+      color: var(--tide-gray-900);
+      font-family: var(--font-body), "PingFang SC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; }
+
+    .prototype-stage {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px 16px 96px;
+    }
+    .phone {
+      width: min(100%, 430px);
+      min-height: 932px;
+      overflow: hidden;
+      background: var(--tide-gray-50);
+      border: 8px solid #172554;
+      border-radius: 40px;
+      box-shadow: var(--shadow-5);
+      position: relative;
+    }
+    .status-bar {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px 0;
+      background: #172554;
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .status-icons { display: flex; align-items: center; gap: 7px; }
+    .status-icons svg { width: 15px; height: 15px; stroke-width: 2; }
+
+    .theme-hero {
+      color: #fff;
+      padding: 12px 18px 20px;
+      background:
+        linear-gradient(140deg, #172554 0%, #1e3a8a 58%, #1d4ed8 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .theme-hero::after {
+      content: "";
+      position: absolute;
+      width: 230px;
+      height: 230px;
+      right: -112px;
+      bottom: -150px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 38px rgba(255,255,255,.025), 0 0 0 76px rgba(255,255,255,.018);
+    }
+    .hero-nav,
+    .hero-meta,
+    .hero-summary,
+    .hero-path { position: relative; z-index: 1; }
+    .hero-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .icon-button {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.20);
+      border-radius: var(--radius-md);
+    }
+    .icon-button svg { width: 20px; height: 20px; }
+    .hero-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255,255,255,.72);
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+    .hero-meta .impact {
+      color: #fff;
+      background: rgba(245,158,11,.22);
+      border: 1px solid rgba(245,158,11,.56);
+      padding: 3px 7px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+    }
+    .hero-summary {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.42;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+    .hero-path {
+      margin: 11px 0 0;
+      padding-left: 11px;
+      border-left: 2px solid #f59e0b;
+      color: rgba(255,255,255,.82);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .anchor-tabs-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 10px 14px;
+      background: rgba(248,250,252,.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--tide-gray-200);
+    }
+    .anchor-tabs-label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--tide-gray-500);
+      font-size: 10px;
+      margin: 0 2px 7px;
+    }
+    .anchor-tabs {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .anchor-tabs::-webkit-scrollbar { display: none; }
+    .anchor-tab {
+      height: 32px;
+      flex: 0 0 auto;
+      padding: 0 12px;
+      border: 1px solid var(--tide-gray-200);
+      border-radius: var(--radius-full);
+      background: #fff;
+      color: var(--tide-gray-600);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .anchor-tab.active {
+      color: #fff;
+      background: var(--tide-blue-600);
+      border-color: var(--tide-blue-600);
+      box-shadow: 0 4px 12px rgba(37,99,235,.20);
+    }
+
+    .screen-content { padding: 16px 14px 28px; }
+    .section-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 2px 12px;
+    }
+    .section-heading h2 {
+      margin: 0;
+      color: #172554;
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+    .section-heading span {
+      flex: 0 0 auto;
+      color: var(--tide-gray-400);
+      font-size: 10px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid var(--tide-gray-200);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-1);
+    }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--tide-gray-500);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .06em;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--tide-blue-500);
+      box-shadow: 0 0 0 3px var(--tide-blue-50);
+    }
+    .source-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border-radius: var(--radius-full);
+      color: var(--tide-blue-700);
+      background: var(--tide-blue-50);
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .source-count svg { width: 11px; height: 11px; }
+
+    /* Variant A — balanced causal tree */
+    .variant-a .tree-stack { position: relative; display: grid; gap: 14px; }
+    .variant-a .tree-stack::before {
+      content: "";
+      position: absolute;
+      top: 32px;
+      bottom: 52px;
+      left: 50%;
+      width: 2px;
+      transform: translateX(-50%);
+      background: linear-gradient(var(--tide-blue-300), var(--tide-blue-100) 72%, transparent);
+      z-index: 0;
+    }
+    .variant-a .tree-stack > * { position: relative; z-index: 1; }
+    .fact-card { padding: 14px; }
+    .fact-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .fact-card h3 {
+      margin: 0 0 9px;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #172554;
+    }
+    .fact-list {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .fact-item {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 8px;
+      align-items: start;
+      color: var(--tide-gray-600);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .fact-number {
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      color: var(--tide-blue-700);
+      background: var(--tide-blue-50);
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .anchor-conclusion {
+      padding: 15px;
+      text-align: center;
+      color: #fff;
+      background: linear-gradient(135deg, #1d4ed8, #172554);
+      border: 1px solid #1e40af;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-3);
+    }
+    .anchor-conclusion small {
+      display: block;
+      margin-bottom: 6px;
+      color: #fcd34d;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .08em;
+    }
+    .anchor-conclusion strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .anchor-conclusion .direction {
+      display: inline-flex;
+      margin-top: 9px;
+      padding: 3px 8px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: var(--radius-full);
+      color: rgba(255,255,255,.78);
+      background: rgba(255,255,255,.08);
+      font-size: 10px;
+    }
+    .evidence-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .evidence-card {
+      min-width: 0;
+      padding: 12px;
+      border-top: 3px solid var(--tide-blue-500);
+    }
+    .evidence-card.counter { border-top-color: var(--tide-amber-500); }
+    .evidence-card .branch-title {
+      margin-bottom: 7px;
+      color: var(--tide-blue-700);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .evidence-card.counter .branch-title { color: var(--tide-amber-700); }
+    .evidence-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--tide-gray-800);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .evidence-card p {
+      margin: 0;
+      color: var(--tide-gray-500);
+      font-size: 10px;
+      line-height: 1.55;
+    }
+    .chain-card { padding: 14px 10px 12px; overflow: hidden; }
+    .chain-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 4px 12px;
+    }
+    .chain-card-head strong { color: #172554; font-size: 12px; }
+    .chain-card-head span { color: var(--tide-gray-400); font-size: 9px; }
+    .chain-scroll {
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .chain-scroll::-webkit-scrollbar { display: none; }
+    .chain-flow {
+      display: flex;
+      width: max-content;
+      min-width: 100%;
+      align-items: stretch;
+      position: relative;
+      padding: 2px 4px 6px;
+    }
+    .chain-node {
+      width: 112px;
+      flex: 0 0 112px;
+      position: relative;
+      z-index: 1;
+      padding: 10px 8px;
+      text-align: center;
+      background: var(--tide-gray-50);
+      border: 1px solid var(--tide-gray-200);
+      border-radius: var(--radius-md);
+    }
+    .chain-node.anchor {
+      background: var(--tide-blue-50);
+      border-color: var(--tide-blue-300);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.07);
+    }
+    .chain-node.inferred { border-style: dashed; }
+    .chain-edge {
+      width: 104px;
+      flex: 0 0 104px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 7px;
+      color: var(--tide-gray-500);
+    }
+    .chain-edge-line {
+      width: 100%;
+      height: 1px;
+      position: relative;
+      margin-bottom: 8px;
+      background: var(--tide-blue-300);
+    }
+    .chain-edge-line::after {
+      content: "";
+      position: absolute;
+      top: -4px;
+      right: -1px;
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid var(--tide-blue-500);
+    }
+    .chain-edge p {
+      margin: 0;
+      color: var(--tide-gray-500);
+      font-size: 9px;
+      line-height: 1.45;
+      text-align: center;
+      white-space: normal;
+    }
+    .chain-node .node-index {
+      display: block;
+      color: var(--tide-gray-400);
+      font-family: var(--font-display);
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .chain-node b {
+      display: block;
+      overflow: hidden;
+      margin: 6px 0 4px;
+      color: #172554;
+      font-size: 11px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .node-shift {
+      display: block;
+      color: var(--tide-red-600);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .node-shift.negative { color: var(--tide-green-600); }
+    .node-shift.neutral { color: var(--tide-gray-500); }
+    .chain-node p {
+      margin: 6px 0 0;
+      color: var(--tide-gray-500);
+      font-size: 9px;
+      line-height: 1.45;
+    }
+    .formal-tag {
+      display: inline-flex;
+      margin-top: 6px;
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
+      color: var(--tide-blue-700);
+      background: var(--tide-blue-100);
+      font-size: 8px;
+      font-weight: 600;
+    }
+    .formal-tag.infer {
+      color: var(--tide-gray-600);
+      background: var(--tide-gray-100);
+    }
+    .watch-card {
+      padding: 12px 14px;
+      background: #fffbeb;
+      border-color: var(--tide-amber-200);
+    }
+    .watch-card strong {
+      display: block;
+      color: var(--tide-amber-800);
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+    .watch-card p {
+      margin: 0;
+      color: var(--tide-amber-900);
+      font-size: 10px;
+      line-height: 1.55;
+    }
+
+    /* Variant B — evidence balance */
+    .variant-b .summary-panel { padding: 14px; margin-bottom: 12px; }
+    .variant-b .summary-panel h3 {
+      margin: 8px 0 9px;
+      color: #172554;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .variant-b .direction-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--tide-gray-500);
+      font-size: 10px;
+    }
+    .variant-b .direction-line b {
+      color: var(--tide-blue-700);
+      background: var(--tide-blue-50);
+      border-radius: var(--radius-sm);
+      padding: 3px 6px;
+    }
+    .balance {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .balance-column {
+      padding: 12px;
+      background: #fff;
+      border: 1px solid var(--tide-gray-200);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-1);
+    }
+    .balance-column.support { box-shadow: inset 0 3px 0 var(--tide-blue-500), var(--shadow-1); }
+    .balance-column.counter { box-shadow: inset 0 3px 0 var(--tide-amber-500), var(--shadow-1); }
+    .balance-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .balance-title span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      border-radius: var(--radius-full);
+      background: var(--tide-gray-100);
+      color: var(--tide-gray-500);
+      font-size: 9px;
+    }
+    .balance-event {
+      padding: 8px 0;
+      border-top: 1px solid var(--tide-gray-100);
+    }
+    .balance-event:first-of-type { border-top: 0; padding-top: 0; }
+    .balance-event b {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--tide-gray-700);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .balance-event p {
+      margin: 0;
+      color: var(--tide-gray-400);
+      font-size: 9px;
+      line-height: 1.45;
+    }
+    .verdict-card {
+      margin-bottom: 12px;
+      padding: 14px;
+      color: #fff;
+      background: #172554;
+      border-color: #172554;
+    }
+    .verdict-card small {
+      display: block;
+      margin-bottom: 6px;
+      color: #fcd34d;
+      font-size: 9px;
+      letter-spacing: .08em;
+    }
+    .verdict-card strong { display: block; font-size: 14px; line-height: 1.55; }
+    .verdict-card p { margin: 8px 0 0; color: rgba(255,255,255,.67); font-size: 10px; line-height: 1.5; }
+    .vertical-chain { padding: 14px; }
+    .vertical-chain h3 { margin: 0 0 12px; color: #172554; font-size: 12px; }
+    .v-node {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 9px;
+      align-items: start;
+      position: relative;
+      padding-bottom: 13px;
+    }
+    .v-node:last-child { padding-bottom: 0; }
+    .v-node:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 24px;
+      bottom: 2px;
+      left: 13px;
+      width: 1px;
+      background: var(--tide-blue-200);
+    }
+    .v-index {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      color: #fff;
+      background: var(--tide-blue-600);
+      font-family: var(--font-display);
+      font-size: 9px;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+    .v-node.inferred .v-index { background: var(--tide-gray-400); }
+    .v-copy b { display: block; color: var(--tide-gray-800); font-size: 11px; margin-bottom: 3px; }
+    .v-copy p { margin: 0; color: var(--tide-gray-500); font-size: 9px; line-height: 1.5; }
+    .v-shift { font-size: 10px; font-weight: 700; color: var(--tide-red-600); white-space: nowrap; }
+    .v-shift.negative { color: var(--tide-green-600); }
+    .v-shift.neutral { color: var(--tide-gray-500); }
+
+    /* Variant C — transmission map */
+    .variant-c .map-card { overflow: hidden; margin-bottom: 12px; }
+    .variant-c .map-head {
+      padding: 14px;
+      color: #fff;
+      background: linear-gradient(135deg, #1e40af, #172554);
+    }
+    .variant-c .map-head .eyebrow { color: rgba(255,255,255,.65); }
+    .variant-c .map-head .eyebrow::before { background: #f59e0b; box-shadow: none; }
+    .variant-c .map-head h3 { margin: 8px 0 0; font-size: 15px; line-height: 1.5; }
+    .path-steps { padding: 8px 14px 14px; }
+    .path-step {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 9px;
+      position: relative;
+      padding: 8px 0;
+    }
+    .path-step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      top: 31px;
+      bottom: -7px;
+      width: 2px;
+      background: var(--tide-blue-100);
+    }
+    .path-symbol {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      background: var(--tide-blue-50);
+      color: var(--tide-blue-700);
+      font-size: 12px;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+    .path-step:last-child .path-symbol { background: #fffbeb; color: var(--tide-amber-700); }
+    .path-copy small { display: block; color: var(--tide-gray-400); font-size: 9px; margin-bottom: 2px; }
+    .path-copy b { display: block; color: var(--tide-gray-800); font-size: 11px; line-height: 1.4; }
+    .path-copy p { margin: 3px 0 0; color: var(--tide-gray-500); font-size: 9px; line-height: 1.45; }
+    .signal-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--tide-gray-200);
+      border-top: 1px solid var(--tide-gray-200);
+    }
+    .signal-cell { padding: 9px 6px; text-align: center; background: #fff; }
+    .signal-cell span { display: block; color: var(--tide-gray-400); font-size: 8px; }
+    .signal-cell b { display: block; margin-top: 3px; color: var(--tide-gray-700); font-size: 10px; }
+    .variant-c .evidence-ledger { padding: 13px 14px; margin-bottom: 12px; }
+    .ledger-row {
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid var(--tide-gray-100);
+    }
+    .ledger-row:first-of-type { border-top: 0; }
+    .ledger-label {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 5px;
+      color: var(--tide-blue-700);
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .ledger-label::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      margin-top: 4px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .ledger-label.counter { color: var(--tide-amber-700); }
+    .ledger-copy { color: var(--tide-gray-600); font-size: 10px; line-height: 1.5; }
+    .variant-c .node-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .compact-node { padding: 11px; }
+    .compact-node.anchor { border-color: var(--tide-blue-300); background: var(--tide-blue-50); }
+    .compact-node b { display: block; color: #172554; font-size: 11px; }
+    .compact-node .compact-shift { display: block; margin: 5px 0; font-size: 11px; font-weight: 700; color: var(--tide-red-600); }
+    .compact-node .compact-shift.negative { color: var(--tide-green-600); }
+    .compact-node .compact-shift.neutral { color: var(--tide-gray-500); }
+    .compact-node p { margin: 0; color: var(--tide-gray-500); font-size: 9px; line-height: 1.45; }
+
+    .prototype-switcher {
+      position: fixed;
+      left: 50%;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      z-index: 100;
+      display: grid;
+      grid-template-columns: 38px minmax(170px, auto) 38px;
+      align-items: center;
+      overflow: hidden;
+      transform: translateX(-50%);
+      color: #fff;
+      background: rgba(15,23,42,.94);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-4);
+      backdrop-filter: blur(12px);
+    }
+    .prototype-switcher button {
+      height: 42px;
+      padding: 0;
+      border: 0;
+      color: #fff;
+      background: transparent;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .prototype-switcher button:hover { background: rgba(255,255,255,.10); }
+    .variant-label {
+      padding: 0 12px;
+      text-align: center;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .variant-label b { color: #fcd34d; margin-right: 5px; }
+
+    .home-indicator {
+      width: 126px;
+      height: 5px;
+      margin: 6px auto 10px;
+      border-radius: var(--radius-full);
+      background: var(--tide-gray-900);
+      opacity: .72;
+    }
+    .prototype-note {
+      width: min(100%, 430px);
+      margin: 12px auto 0;
+      color: var(--tide-gray-500);
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    @media (max-width: 520px) {
+      .prototype-stage { padding: 0 0 82px; background: var(--tide-gray-50); }
+      .phone { width: 100%; min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+      .prototype-note { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="prototype-stage">
+    <div>
+      <section class="phone" aria-label="产业链影响推理树原型">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-icons" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20v-4M9 20v-8M14 20V8M19 20V4"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M12 20h.01"/></svg>
+            <svg viewBox="0 0 28 16" fill="none" stroke="currentColor"><rect x="1" y="1" width="22" height="14" rx="3"/><path d="M25 5v6"/><rect x="4" y="4" width="15" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+          </div>
+        </div>
+
+        <header class="theme-hero">
+          <div class="hero-nav">
+            <button class="icon-button" aria-label="返回">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <span class="hero-title">影响链路</span>
+            <button class="icon-button" aria-label="更多">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+            </button>
+          </div>
+          <div class="hero-meta">
+            <span class="impact">重点</span>
+            <span>中东冲突与能源避险背离</span>
+            <span>·</span>
+            <span>17:48 更新</span>
+          </div>
+          <h1 class="hero-summary">地缘冲突升级抬升供给担忧，但同期油金走弱，能源与避险行情缺少上涨支撑</h1>
+          <p class="hero-path">冲突升级与港区风险 → 供给及物流中断担忧 → 油金同期走弱 → 等待实体中断与价格确认</p>
+        </header>
+
+        <div class="anchor-tabs-wrap">
+          <div class="anchor-tabs-label">
+            <span>受影响锚点</span>
+            <span id="anchorCount">4 条独立推理树</span>
+          </div>
+          <nav class="anchor-tabs" id="anchorTabs" aria-label="锚点切换"></nav>
+        </div>
+
+        <div class="screen-content" id="screenContent"></div>
+        <div class="home-indicator"></div>
+      </section>
+      <p class="prototype-note">原型数据来自分析批次 20260719T154838Z-theme-language-v7；页面仅验证内容层级与阅读路径。</p>
+    </div>
+  </main>
+
+  <aside class="prototype-switcher" aria-label="原型方案切换">
+    <button id="variantPrev" aria-label="上一个方案">‹</button>
+    <div class="variant-label" id="variantLabel"></div>
+    <button id="variantNext" aria-label="下一个方案">›</button>
+  </aside>
+
+  <script>
+    const prototypeData = {
+      theme: {
+        runId: '20260719T154838Z-theme-language-v7',
+        eventCount: 7
+      },
+      anchors: [
+        {
+          id: 'oil-gas',
+          name: '油气开采',
+          eventCount: 5,
+          update: '17:48',
+          direction: '风险上升，行情未确认',
+          conclusion: '冲突推升断供预期，但原油未确认，油气开采暂处风险观察而非趋势看多。',
+          factTitle: '冲突与能源供应警告同步出现，原油价格却未给出正向确认',
+          facts: [
+            '美军完成对伊朗新一轮大规模打击，区域冲突确认升级。',
+            '伊朗顾问警告能源供应风险，只证明风险机制，不证明实际断供。',
+            '上期所原油期货收跌 0.46%，能源风险溢价尚未在价格上兑现。',
+            '美方称伊朗仍在对话，为持续升级路径保留外交缓冲。'
+          ],
+          support: {
+            title: '供应中断概率抬升',
+            claim: '军事行动与供应警告共同抬高断供尾部风险',
+            detail: '如果出口、港口或海峡运输受扰，油气供给收缩会先传导至原料价格与开采利润预期。'
+          },
+          counter: {
+            title: '价格与外交反证',
+            claim: '原油收跌且对话仍在继续',
+            detail: '当前只有风险叙事，没有实体断供、库存下降或油价持续上行，不能提前写成能源上涨逻辑。'
+          },
+          nodes: [
+            { name: '油气资源', shift: '断供风险 ↑', tone: 'positive', summary: '冲突抬高潜在供给约束，但尚无产量变化。', relation: '推断关系', inferred: true },
+            { name: '油气开采', shift: '风险 ↑ / 价格未确认', tone: 'neutral', summary: '锚点进入观察，暂不形成趋势性看多。', incomingMechanism: '潜在断供预期抬升开采端风险溢价', relation: '当前锚点', anchor: true },
+            { name: '炼油化工', shift: '成本方向待验证', tone: 'neutral', summary: '只有油价持续上行，成本压力才会向下游传导。', incomingMechanism: '原油价格持续上行才会转化为炼化成本压力', relation: '正式关系', inferred: false }
+          ],
+          checkpoint: '重点检查实际出口量、港口作业、原油库存与油价是否同步转强。',
+          pathSteps: [
+            ['驱动事件', '冲突升级与能源供应警告', '风险机制已经出现'],
+            ['关键机制', '潜在断供 → 供给收缩预期', '仍缺实际出口和库存证据'],
+            ['市场验证', '原油期货收跌 0.46%', '价格暂未确认风险溢价'],
+            ['研究结论', '风险观察，而非趋势看多', '等待实体中断与价格共振']
+          ]
+        },
+        {
+          id: 'port',
+          name: '港口',
+          eventCount: 2,
+          update: '17:48',
+          direction: '运营风险上升，尚未停运',
+          conclusion: '港区附近异常抬高运营中断概率，但无停运证据，港口链只进入预警。',
+          factTitle: '阿巴斯港附近出现异常，但没有港口停运或吞吐下降证据',
+          facts: [
+            '阿巴斯港西部出现爆炸声，港区周边安全风险上升。',
+            '现有信息没有证明码头停运、装卸中断或船期取消。'
+          ],
+          support: {
+            title: '地点风险接近关键设施',
+            claim: '港区附近异常提高作业中断概率',
+            detail: '一旦码头封闭或装卸受限，影响会从港口吞吐传至船期、货流和区域供应。'
+          },
+          counter: {
+            title: '运营事实缺失',
+            claim: '异常声响不等于港口停运',
+            detail: '没有港口公告、AIS 船舶行为或吞吐数据支持，当前只能标记预警，不能写成物流中断。'
+          },
+          nodes: [
+            { name: '港区安全', shift: '风险 ↑', tone: 'positive', summary: '地点风险已观察，设施受损尚未确认。', relation: '推断关系', inferred: true },
+            { name: '港口', shift: '预警 / 作业未确认', tone: 'neutral', summary: '锚点进入运营核验，不能等同于停摆。', incomingMechanism: '港区设施安全风险可能压制码头作业连续性', relation: '当前锚点', anchor: true },
+            { name: '航运', shift: '船期影响待验证', tone: 'neutral', summary: '需观察绕行、停航和即期运价变化。', incomingMechanism: '停运或装卸受限将扰动船期与有效运力', relation: '推断关系', inferred: true }
+          ],
+          checkpoint: '检查港口公告、AIS 船位、码头吞吐和船期取消；若作业持续正常则预警失效。',
+          pathSteps: [
+            ['驱动事件', '阿巴斯港附近出现异常', '地点风险已经出现'],
+            ['关键机制', '设施威胁 → 作业中断概率', '只有概率，没有停运事实'],
+            ['运营验证', '暂无公告、吞吐或 AIS 异常', '物流链尚未确认受损'],
+            ['研究结论', '港口链进入预警', '等待作业数据再提高烈度']
+          ]
+        },
+        {
+          id: 'shipping',
+          name: '航运',
+          eventCount: 3,
+          update: '17:48',
+          direction: '安全成本上升，运价未确认',
+          conclusion: '区域冲突抬高航线与保险成本风险，但没有绕行和运价确认，航运链不宜提前定价。',
+          factTitle: '区域打击、导弹拦截与港区异常并存，航线运行数据仍为空白',
+          facts: [
+            '美军完成新一轮大规模打击，区域安全风险升级。',
+            '卡塔尔拦截来袭导弹，证明风险已向周边扩散。',
+            '当前没有航线绕行、停航、保费或即期运价上升证据。'
+          ],
+          support: {
+            title: '航线安全成本可能上升',
+            claim: '风险外溢会提高绕行与保险成本概率',
+            detail: '若船东改变航线或保险附加费上调，有效运力收紧会推动即期运价和交付周期。'
+          },
+          counter: {
+            title: '货运数据尚未响应',
+            claim: '没有绕行、停航和运价上行证据',
+            detail: '风险事件不能自动等于航运受益；只有运力和价格数据出现变化，传导路径才真正启动。'
+          },
+          nodes: [
+            { name: '港口', shift: '运营风险 ↑', tone: 'positive', summary: '港区异常提供风险入口，停运未确认。', relation: '推断关系', inferred: true },
+            { name: '航运', shift: '成本风险 ↑', tone: 'positive', summary: '锚点关注保费、绕行与有效运力。', incomingMechanism: '港口及航线风险推高绕行与保险成本', relation: '当前锚点', anchor: true },
+            { name: '油气货流', shift: '交付影响待验证', tone: 'neutral', summary: '只有实际货流变化才会向商品供应传导。', incomingMechanism: '有效运力收紧与船期延长会影响油气货流交付', relation: '推断关系', inferred: true }
+          ],
+          checkpoint: '重点检查船东公告、绕行比例、战争险保费、即期运价与交付周期。',
+          pathSteps: [
+            ['驱动事件', '区域风险向周边航线扩散', '军事与安全事实成立'],
+            ['关键机制', '保费与绕行 ↑ → 有效运力 ↓', '机制成立，运行事实缺失'],
+            ['市场验证', '暂无运价与航线变化', '航运受益逻辑未启动'],
+            ['研究结论', '不提前定价航运行情', '等运力和价格同步变化']
+          ]
+        },
+        {
+          id: 'metals',
+          name: '贵金属',
+          eventCount: 3,
+          update: '17:48',
+          direction: '避险叙事增强，黄金反向走弱',
+          conclusion: '冲突升级却未推升黄金，贵金属避险交易缺少价格确认，需先排查美元与实际利率。',
+          factTitle: '区域冲突确认升级，沪金主力合约同期收跌 1.34%',
+          facts: [
+            '美军完成对伊朗新一轮大规模打击，避险叙事增强。',
+            '沪金主力合约收跌 1.34%，价格信号与避险叙事背离。',
+            '美方称对话仍在继续，为冲突降温提供潜在路径。'
+          ],
+          support: {
+            title: '避险需求理论上抬升',
+            claim: '地缘冲突通常提高避险资产配置需求',
+            detail: '如果风险持续升级且资金流入避险资产，黄金价格与相关权益才可能获得支撑。'
+          },
+          counter: {
+            title: '黄金价格给出反向信号',
+            claim: '沪金下跌 1.34%，避险行情未启动',
+            detail: '同期价格背离说明美元、实际利率或仓位因素可能更强，不能把冲突直接映射为黄金上涨。'
+          },
+          nodes: [
+            { name: '黄金产业', shift: '避险预期 ↑', tone: 'positive', summary: '叙事增强，但尚未转成价格与盈利证据。', relation: '推断关系', inferred: true },
+            { name: '贵金属', shift: '沪金 -1.34%', tone: 'negative', summary: '锚点出现明确反向市场信号。', incomingMechanism: '避险需求预期需由黄金价格与资金流共同确认', relation: '当前锚点', anchor: true },
+            { name: '黄金交易需求', shift: '资金流待验证', tone: 'neutral', summary: '需拆分美元、实际利率与持仓变化。', incomingMechanism: '价格信号与资金流共同决定避险交易需求强弱', relation: '推断关系', inferred: true }
+          ],
+          checkpoint: '校准冲突与收盘价时序，并检查美元、实际利率、ETF 资金流和期货持仓。',
+          pathSteps: [
+            ['驱动事件', '区域冲突升级', '避险叙事已经增强'],
+            ['关键机制', '风险偏好下降 → 避险需求上升', '理论机制存在'],
+            ['市场验证', '沪金主力收跌 1.34%', '价格与叙事形成背离'],
+            ['研究结论', '避险交易缺少支撑', '先排查美元与实际利率']
+          ]
+        }
+      ]
+    };
+
+    const variants = [
+      { key: 'A', name: '树状推导' },
+      { key: 'B', name: '证据天平' },
+      { key: 'C', name: '路径地图' }
+    ];
+    let currentAnchorId = prototypeData.anchors[0].id;
+
+    const iconLink = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+
+    function toneClass(tone) {
+      if (tone === 'negative') return 'negative';
+      if (tone === 'neutral') return 'neutral';
+      return '';
+    }
+
+    function renderTabs() {
+      const tabs = document.getElementById('anchorTabs');
+      tabs.innerHTML = prototypeData.anchors.map(anchor => `
+        <button class="anchor-tab ${anchor.id === currentAnchorId ? 'active' : ''}" data-anchor="${anchor.id}">${escapeHtml(anchor.name)}</button>
+      `).join('');
+      tabs.querySelectorAll('.anchor-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          currentAnchorId = tab.dataset.anchor;
+          renderTabs();
+          renderVariant();
+        });
+      });
+    }
+
+    function renderFacts(anchor) {
+      return anchor.facts.map((fact, index) => `
+        <li class="fact-item">
+          <span class="fact-number">${String(index + 1).padStart(2, '0')}</span>
+          <span>${escapeHtml(fact)}</span>
+        </li>
+      `).join('');
+    }
+
+    function renderHorizontalNodes(anchor) {
+      return anchor.nodes.map((node, index) => {
+        const edge = index === 0 ? '' : `
+          <div class="chain-edge" aria-label="传导机制">
+            <span class="chain-edge-line" aria-hidden="true"></span>
+            <p>${escapeHtml(node.incomingMechanism)}</p>
+          </div>
+        `;
+        return `${edge}
+          <article class="chain-node ${node.anchor ? 'anchor' : ''}">
+            <span class="node-index">${String(index + 1).padStart(2, '0')}</span>
+            <b>${escapeHtml(node.name)}</b>
+            <span class="node-shift ${toneClass(node.tone)}">${escapeHtml(node.shift)}</span>
+            <p>${escapeHtml(node.summary)}</p>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderVariantA(anchor) {
+      return `
+        <div class="variant-a">
+          <div class="section-heading">
+            <h2>${escapeHtml(anchor.name)}影响推理树</h2>
+            <span>${escapeHtml(anchor.update)} 更新</span>
+          </div>
+          <div class="tree-stack">
+            <article class="card fact-card">
+              <div class="fact-card-head">
+                <span class="eyebrow">事件事实汇总</span>
+                <span class="source-count">${iconLink}${anchor.eventCount} 条 Event</span>
+              </div>
+              <h3>${escapeHtml(anchor.factTitle)}</h3>
+              <ul class="fact-list">${renderFacts(anchor)}</ul>
+            </article>
+
+            <article class="anchor-conclusion">
+              <small>锚点结论</small>
+              <strong>${escapeHtml(anchor.conclusion)}</strong>
+              <span class="direction">${escapeHtml(anchor.direction)}</span>
+            </article>
+
+            <div class="evidence-split">
+              <article class="card evidence-card">
+                <div class="branch-title">当前支持</div>
+                <p>${escapeHtml(anchor.support.claim)}。${escapeHtml(anchor.support.detail)}</p>
+              </article>
+              <article class="card evidence-card counter">
+                <div class="branch-title">当前反证</div>
+                <p>${anchor.counter ? `${escapeHtml(anchor.counter.claim)}。${escapeHtml(anchor.counter.detail)}` : '当前暂无明确反证'}</p>
+              </article>
+            </div>
+
+            <article class="card chain-card">
+              <div class="chain-card-head">
+                <strong>产业链节点传导</strong>
+                <span>左右滑动查看完整路径</span>
+              </div>
+              <div class="chain-scroll">
+                <div class="chain-flow">${renderHorizontalNodes(anchor)}</div>
+              </div>
+            </article>
+
+            <article class="card watch-card">
+              <strong>下一检查点</strong>
+              <p>${escapeHtml(anchor.checkpoint)}</p>
+            </article>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBalanceEvents(anchor, type) {
+      const source = type === 'support'
+        ? [anchor.support.claim, anchor.support.detail]
+        : [anchor.counter.claim, anchor.counter.detail];
+      return source.map((copy, index) => `
+        <div class="balance-event">
+          <b>${index === 0 ? (type === 'support' ? '已观察支持' : '已观察反证') : '机制判断'}</b>
+          <p>${escapeHtml(copy)}</p>
+        </div>
+      `).join('');
+    }
+
+    function renderVerticalNodes(anchor) {
+      return anchor.nodes.map((node, index) => `
+        <div class="v-node ${node.inferred ? 'inferred' : ''}">
+          <span class="v-index">${index + 1}</span>
+          <div class="v-copy">
+            <b>${escapeHtml(node.name)} · ${escapeHtml(node.relation)}</b>
+            <p>${escapeHtml(node.summary)}</p>
+          </div>
+          <span class="v-shift ${toneClass(node.tone)}">${escapeHtml(node.shift)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderVariantB(anchor) {
+      return `
+        <div class="variant-b">
+          <div class="section-heading">
+            <h2>${escapeHtml(anchor.name)}证据天平</h2>
+            <span>${anchor.eventCount} 条 Event</span>
+          </div>
+
+          <article class="card summary-panel">
+            <span class="eyebrow">当前研究问题</span>
+            <h3>${escapeHtml(anchor.factTitle)}</h3>
+            <div class="direction-line"><b>${escapeHtml(anchor.direction)}</b><span>证据与反证必须同时成立检验</span></div>
+          </article>
+
+          <div class="balance">
+            <article class="balance-column support">
+              <div class="balance-title">支持证据 <span>2</span></div>
+              ${renderBalanceEvents(anchor, 'support')}
+            </article>
+            <article class="balance-column counter">
+              <div class="balance-title">反向证据 <span>2</span></div>
+              ${renderBalanceEvents(anchor, 'counter')}
+            </article>
+          </div>
+
+          <article class="card verdict-card">
+            <small>综合判定</small>
+            <strong>${escapeHtml(anchor.conclusion)}</strong>
+            <p>该判断不是买卖指令；烈度只有在检查点得到新事实后才上调或下调。</p>
+          </article>
+
+          <article class="card vertical-chain">
+            <h3>节点影响顺序</h3>
+            ${renderVerticalNodes(anchor)}
+          </article>
+
+          <article class="card watch-card" style="margin-top:12px">
+            <strong>下一检查点</strong>
+            <p>${escapeHtml(anchor.checkpoint)}</p>
+          </article>
+        </div>
+      `;
+    }
+
+    function renderPathSteps(anchor) {
+      return anchor.pathSteps.map((step, index) => `
+        <div class="path-step">
+          <span class="path-symbol">${index + 1}</span>
+          <div class="path-copy">
+            <small>${escapeHtml(step[0])}</small>
+            <b>${escapeHtml(step[1])}</b>
+            <p>${escapeHtml(step[2])}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderCompactNodes(anchor) {
+      return anchor.nodes.map(node => `
+        <article class="card compact-node ${node.anchor ? 'anchor' : ''}">
+          <b>${escapeHtml(node.name)}</b>
+          <span class="compact-shift ${toneClass(node.tone)}">${escapeHtml(node.shift)}</span>
+          <p>${escapeHtml(node.summary)}</p>
+        </article>
+      `).join('');
+    }
+
+    function renderVariantC(anchor) {
+      return `
+        <div class="variant-c">
+          <div class="section-heading">
+            <h2>${escapeHtml(anchor.name)}传导路径</h2>
+            <span>因果链视图</span>
+          </div>
+
+          <article class="card map-card">
+            <div class="map-head">
+              <span class="eyebrow">锚点方向判断</span>
+              <h3>${escapeHtml(anchor.conclusion)}</h3>
+            </div>
+            <div class="path-steps">${renderPathSteps(anchor)}</div>
+            <div class="signal-strip">
+              <div class="signal-cell"><span>证据数量</span><b>${anchor.eventCount} 条</b></div>
+              <div class="signal-cell"><span>传导状态</span><b>验证期</b></div>
+              <div class="signal-cell"><span>研究动作</span><b>继续跟踪</b></div>
+            </div>
+          </article>
+
+          <article class="card evidence-ledger">
+            <div class="ledger-row">
+              <span class="ledger-label">支持逻辑</span>
+              <span class="ledger-copy">${escapeHtml(anchor.support.claim)}。${escapeHtml(anchor.support.detail)}</span>
+            </div>
+            <div class="ledger-row">
+              <span class="ledger-label counter">反向逻辑</span>
+              <span class="ledger-copy">${escapeHtml(anchor.counter.claim)}。${escapeHtml(anchor.counter.detail)}</span>
+            </div>
+          </article>
+
+          <div class="node-grid">${renderCompactNodes(anchor)}</div>
+
+          <article class="card watch-card">
+            <strong>下一检查点</strong>
+            <p>${escapeHtml(anchor.checkpoint)}</p>
+          </article>
+        </div>
+      `;
+    }
+
+    function getVariantKey() {
+      const params = new URLSearchParams(window.location.search);
+      const key = (params.get('variant') || 'A').toUpperCase();
+      return variants.some(item => item.key === key) ? key : 'A';
+    }
+
+    function setVariant(key) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('variant', key);
+      window.history.replaceState({}, '', url);
+      renderVariant();
+    }
+
+    function cycleVariant(offset) {
+      const current = variants.findIndex(item => item.key === getVariantKey());
+      const next = (current + offset + variants.length) % variants.length;
+      setVariant(variants[next].key);
+    }
+
+    function renderVariant() {
+      const key = getVariantKey();
+      const anchor = prototypeData.anchors.find(item => item.id === currentAnchorId) || prototypeData.anchors[0];
+      const content = document.getElementById('screenContent');
+      content.innerHTML = key === 'B' ? renderVariantB(anchor) : key === 'C' ? renderVariantC(anchor) : renderVariantA(anchor);
+      const descriptor = variants.find(item => item.key === key);
+      document.getElementById('variantLabel').innerHTML = `<b>${descriptor.key}</b>${descriptor.name}`;
+    }
+
+    document.getElementById('variantPrev').addEventListener('click', () => cycleVariant(-1));
+    document.getElementById('variantNext').addEventListener('click', () => cycleVariant(1));
+    document.addEventListener('keydown', event => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+      if (event.key === 'ArrowLeft') cycleVariant(-1);
+      if (event.key === 'ArrowRight') cycleVariant(1);
+    });
+    window.addEventListener('popstate', renderVariant);
+
+    renderTabs();
+    renderVariant();
+  </script>
+</body>
+</html>

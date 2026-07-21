@@ -77,6 +77,8 @@ export interface ResearchReasoningTree {
   oneLineConclusion: string;
   factSummary: string;
   netDirectionSummary: string;
+  supportSummary: string;
+  counterSummary: string | null;
   tradingDirection: string;
   nextCheckpoint: string;
   eventCount: number;
