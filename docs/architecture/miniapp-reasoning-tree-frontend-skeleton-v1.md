@@ -3,7 +3,7 @@
 ## 状态
 
 - 所属任务：TW-06
-- 当前状态：Spec、Implement、验证与 Code Review 已完成，进入 PR Review
+- 当前状态：Spec、Implement、验证、Code Review 与 PR Review 已完成，PR #69 已合并并验收
 - 前置条件：TW-05 Miniapp BFF 已合并至 `main`
 
 ## 用途
