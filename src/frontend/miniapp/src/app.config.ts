@@ -6,6 +6,6 @@ export default defineAppConfig({
     navigationBarTitleText: '观潮',
     navigationBarTextStyle: 'white',
     navigationStyle: 'custom',
-    backgroundColor: '#f4f0e8'
+    backgroundColor: '#f8fafc'
   }
 });

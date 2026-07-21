@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev:h5": "WATCHPACK_POLLING=true taro build --type h5 --watch",
-    "dev:weapp": "taro build --type weapp --watch",
+    "dev:weapp": "WATCHPACK_POLLING=true taro build --type weapp --watch",
     "dev:tt": "taro build --type tt --watch",
     "build:h5": "taro build --type h5 --no-check",
     "build:weapp": "taro build --type weapp --no-check",

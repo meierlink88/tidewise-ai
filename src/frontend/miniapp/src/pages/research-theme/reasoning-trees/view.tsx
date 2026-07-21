@@ -134,7 +134,7 @@ function ChainPath({ tree }: { tree: ResearchReasoningTree }) {
         <View className='reasoning-chain__flow'>
           {tree.pathNodes.map((node, index) => (
             <Fragment key={node.chainNodeId}>
-              {index > 0 ? <ChainConnector node={node} /> : null}
+              {index > 0 ? <ChainConnector /> : null}
               <ChainNode
                 node={node}
                 index={index}
@@ -148,15 +148,12 @@ function ChainPath({ tree }: { tree: ResearchReasoningTree }) {
   );
 }
 
-function ChainConnector({ node }: { node: ResearchReasoningTreePathNode }) {
+function ChainConnector() {
   return (
     <View className='reasoning-chain-edge'>
       <View className='reasoning-chain-edge__line'>
         <View className='reasoning-chain-edge__arrow' />
       </View>
-      <Text className='reasoning-chain-edge__mechanism'>
-        {node.incomingTransmissionMechanism}
-      </Text>
     </View>
   );
 }
@@ -181,6 +178,14 @@ function ChainNode({
         {direction.label}
       </Text>
       <Text className='reasoning-chain-node__change'>{node.changeSummary}</Text>
+      {node.incomingTransmissionMechanism ? (
+        <View className='reasoning-chain-node__mechanism'>
+          <Text className='reasoning-chain-node__mechanism-label'>传导机制</Text>
+          <Text className='reasoning-chain-node__mechanism-text'>
+            {node.incomingTransmissionMechanism}
+          </Text>
+        </View>
+      ) : null}
       <View className='reasoning-chain-node__impact'>
         <Text className='reasoning-chain-node__impact-label'>影响</Text>
         <Text>{node.impactSummary}</Text>

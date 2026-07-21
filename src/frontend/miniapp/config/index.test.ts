@@ -6,7 +6,8 @@ async function loadConfig(
   target?: string,
   source: 'mock' | 'api' | null = 'mock',
   baseUrl = '',
-  h5ApiProxyTarget = ''
+  h5ApiProxyTarget = '',
+  windowHours = ''
 ) {
   vi.resetModules()
   vi.unstubAllEnvs()
@@ -14,6 +15,7 @@ async function loadConfig(
   if (source !== null) vi.stubEnv('TARO_APP_RESEARCH_SOURCE', source)
   if (baseUrl !== '') vi.stubEnv('TARO_APP_MINIAPP_API_BASE_URL', baseUrl)
   if (h5ApiProxyTarget !== '') vi.stubEnv('TARO_APP_H5_API_PROXY_TARGET', h5ApiProxyTarget)
+  if (windowHours !== '') vi.stubEnv('TARO_APP_RESEARCH_WINDOW_HOURS', windowHours)
 
   const config = (await import('./index')).default
   if (typeof config === 'function') throw new Error('Expected an object-based Taro config')
@@ -45,11 +47,12 @@ describe('platform output directories', () => {
   })
 
   it('injects an explicit homepage data source and public Miniapp BFF URL', async () => {
-    const config = await loadConfig('weapp', 'api', 'https://miniapp.example.test')
+    const config = await loadConfig('weapp', 'api', 'https://miniapp.example.test', '', '168')
 
     expect(config.env).toMatchObject({
       TARO_APP_RESEARCH_SOURCE: JSON.stringify('api'),
-      TARO_APP_MINIAPP_API_BASE_URL: JSON.stringify('https://miniapp.example.test')
+      TARO_APP_MINIAPP_API_BASE_URL: JSON.stringify('https://miniapp.example.test'),
+      TARO_APP_RESEARCH_WINDOW_HOURS: JSON.stringify('168')
     })
   })
 

@@ -46,6 +46,8 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain(tree.counterSummary);
     expect(countClass(markup, 'reasoning-chain-node')).toBe(2);
     expect(countClass(markup, 'reasoning-chain-edge')).toBe(1);
+    expect(countClass(markup, 'reasoning-chain-node__mechanism')).toBe(1);
+    expect(markup).not.toContain('reasoning-chain-edge__mechanism');
     expect(markup).toContain('AI集群扩容提高节点间高速光互联需求');
     expect(markup).toContain('reasoning-chain-node--anchor');
     expect(markup).toContain('光模块');
