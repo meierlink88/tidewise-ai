@@ -142,6 +142,7 @@ jobs:
           file: src/backend/services/data/Dockerfile
           platforms: linux/amd64
           push: true
+          provenance: false
           tags: ${{ steps.images.outputs.data_image }}
 
       - name: Build and push Miniapp Backend Service
@@ -151,6 +152,7 @@ jobs:
           file: src/backend/services/miniapp/Dockerfile
           platforms: linux/amd64
           push: true
+          provenance: false
           tags: ${{ steps.images.outputs.miniapp_image }}
 
       - name: Build and push Admin Portal Backend Service
@@ -160,6 +162,7 @@ jobs:
           file: src/backend/services/adminportal/Dockerfile
           platforms: linux/amd64
           push: true
+          provenance: false
           tags: ${{ steps.images.outputs.adminportal_image }}
 
       - name: Build and push Admin Portal Frontend
@@ -169,6 +172,7 @@ jobs:
           file: src/frontend/admin/Dockerfile
           platforms: linux/amd64
           push: true
+          provenance: false
           tags: ${{ steps.images.outputs.admin_image }}
 
   deploy:
