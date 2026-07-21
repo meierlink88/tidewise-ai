@@ -1,6 +1,8 @@
 # GitHub CLI reads credentials from the macOS Keychain, which is unavailable
 # inside the workspace sandbox. Read-only commands may run outside the sandbox;
 # commands that change GitHub state still require approval.
+# Invoke gh directly as one command. Shell wrappers and advanced shell syntax can
+# hide the gh argument prefix from the rule engine.
 
 prefix_rule(
     pattern = ["gh", "auth", "status"],
@@ -15,6 +17,16 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["gh", "repo", "view"],
+    decision = "allow",
+    justification = "Read repository metadata with macOS Keychain access",
+    match = [
+        "gh repo view --json nameWithOwner,defaultBranchRef",
+        "gh repo view meierlink88/tidewise-ai",
+    ],
+)
+
+prefix_rule(
     pattern = ["gh", "pr", ["list", "view", "checks", "diff", "status"]],
     decision = "allow",
     justification = "Read pull request state with macOS Keychain access",
@@ -24,6 +36,17 @@ prefix_rule(
     pattern = ["gh", "issue", ["list", "view"]],
     decision = "allow",
     justification = "Read issue state with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "run", ["list", "view", "watch"]],
+    decision = "allow",
+    justification = "Read GitHub Actions state with macOS Keychain access",
+    match = [
+        "gh run list --limit 10",
+        "gh run view 123456789 --log-failed",
+        "gh run watch 123456789",
+    ],
 )
 
 prefix_rule(
