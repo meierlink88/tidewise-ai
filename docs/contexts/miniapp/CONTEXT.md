@@ -57,6 +57,15 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 - Theme 不存在时，小程序展示“该研究主题暂不可用”；Theme 存在但推理树尚未发布时展示“影响路径暂未生成”。两种状态均提供返回操作，且不向用户暴露内部错误码。
 - 列表网络或服务故障展示可重试错误；推理树列表不存在合法空集合，因此不设计正常空态。
 
+## Reasoning Tree Page Presentation
+
+- Anchor Tab 栏吸顶，Theme 顶部信息正常滚出屏幕；切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
+- 原子事件按 BFF 稳定顺序全部展示，不折叠；每条显示标题、摘要、可用时间与驱动/支持/反证/背景角色标签。
+- 当前支持与当前反证是 Anchor 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
+- 产业链路径使用局部横向 ScrollView。节点之间显示方向箭头和完整传导机制，允许多行，不展示正式/推断关系标签，页面主体不得横向溢出。
+- `increase/decrease/mixed/unchanged/uncertain` 分别映射为增强、减弱、分化、持平、待验证；`uncertain` 不显示方向箭头或涨跌色。
+- 结论、证据汇总、节点说明、传导机制、交易指向和下一检查点全部自然换行并完整展示，不使用省略号截断。
+
 ## Frontend Mock Policy
 
 真实 API 尚未接入时，可以在 Miniapp Frontend 内保留仍被页面使用的 mock。mock 必须收敛到明确的 `mocks/` 或 `devdata/` 目录，并通过可替换 adapter 注入。未被页面、测试或开发场景引用的 mock、model、service 和 component 应删除。

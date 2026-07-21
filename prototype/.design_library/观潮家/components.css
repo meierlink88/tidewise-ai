@@ -1,0 +1,112 @@
+/* ═══════════════════════════════════════════════════════════════
+   components.css — Design System Component Definitions
+   Auto-extracted from preview/component-*.html
+   DO NOT EDIT MANUALLY — regenerate via extract-components-css.mjs
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Avatar ────────────────────────────────────────────────── */
+/* @anatomy
+   <span class="label">初字母</span> <div class="avatar avatar-sm avatar-initials">观
+*/
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-full); flex-shrink: 0; overflow: hidden; font-family: var(--font-body); white-space: nowrap; }
+.avatar-sm { width: 32px; height: 32px; font-size: 14px; }
+.avatar-md { width: 40px; height: 40px; font-size: var(--type-body-md); font-weight: 600; }
+.avatar-lg { width: 56px; height: 56px; font-size: 24px; font-weight: 600; }
+.avatar-initials { background: var(--color-primary-container); color: var(--color-primary); }
+.avatar-placeholder { background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.35); color: var(--color-on-surface-variant); }
+.avatar-img { border: 1px solid var(--color-border); }
+.avatar-img img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Bottom Nav ────────────────────────────────────────────── */
+/* @anatomy
+   <nav class="bottom-nav bottom-nav-5"> <button class="nav-item active" aria-label="行情"><svg width="22" height="22"><use href="#icon-trending"/></svg><span class="nav-label">行情</span></button> <button class="nav-item" aria-label="指数"><svg width="22" height="22"><use href="#icon-bar-chart"/></svg><span class="nav-label">指数</span></button> <button class="nav-item" aria-label="AI"><svg width="22" he...
+*/
+/* Component definitions — extracted to components.css by deterministic script */
+.bottom-nav { display: flex; align-items: center; background: var(--color-card); border-top: 1px solid var(--color-border); height: 56px; width: 100%; }
+.bottom-nav-4 { max-width: 320px; }
+.bottom-nav-5 { max-width: 375px; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; border: none; background: none; padding: var(--space-1) 0; transition: background var(--duration-fast) var(--easing-default); flex-shrink: 0; min-width: 0; }
+.nav-item:hover { background: var(--color-surface-container); }
+.nav-item svg { width: 22px; height: 22px; flex-shrink: 0; }
+.nav-item .nav-label { font-size: 10px; font-weight: 400; color: var(--color-muted-foreground); white-space: nowrap; line-height: 1.2; }
+.nav-item svg { color: var(--color-muted-foreground); }
+.nav-item.active .nav-label { color: var(--color-primary); font-weight: 600; }
+.nav-item.active svg { color: var(--color-primary); }
+
+/* ── Button ────────────────────────────────────────────────── */
+/* @anatomy
+   <span class="label">主要</span><button class="btn btn-primary btn-md">登录</button><button class="btn btn-primary btn-md" disabled>登录</button>
+*/
+/* Component definitions — extracted to components.css by deterministic script */
+.btn { display:inline-flex; align-items:center; justify-content:center; border:none; cursor:pointer; font-family:var(--font-body); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; flex-shrink:0; transition:background var(--duration-fast) var(--easing-default),border-color var(--duration-fast) var(--easing-default); }
+.btn:disabled { opacity:0.4; cursor:not-allowed; }
+.btn-primary { background:var(--color-primary); color:var(--color-on-primary); border-radius:var(--radius-md); font-weight:600; }
+.btn-primary:hover:not(:disabled) { filter:brightness(0.9); }
+.btn-secondary { background:transparent; color:var(--color-primary); border:1px solid var(--color-border); border-radius:var(--radius-md); font-weight:600; }
+.btn-secondary:hover:not(:disabled) { border-color:currentColor; }
+.btn-ghost { background:transparent; color:var(--color-primary); border:none; border-radius:var(--radius-md); font-weight:500; }
+.btn-ghost:hover:not(:disabled) { background:var(--color-primary-container); }
+.btn-sm { height:var(--size-button-height-sm); padding:0 var(--space-3); font-size:13px; min-width:var(--size-button-height-sm); }
+.btn-md { height:var(--size-button-height-md); padding:0 20px; font-size:15px; min-width:var(--size-button-height-md); }
+.btn-lg { height:var(--size-button-height-lg); padding:0 var(--space-5); font-size:var(--font-size-body); min-width:var(--size-button-height-lg); }
+
+/* ── Card ──────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="card card-raised" data-evidence-sample="Raised Default" style="width:100%"> <div class="card-header"> <span class="card-title">沪深300</span> <span class="card-action">详情</span>
+*/
+.card-raised { background: var(--color-card); border-radius: var(--radius-lg); padding: var(--space-4); box-shadow: var(--shadow-1); border: 1px solid var(--color-border); }
+.card-raised:hover { box-shadow: var(--shadow-2); transition: box-shadow .15s; }
+.card-flat { background: var(--color-surface-container); border-radius: var(--radius-md); padding: var(--space-3); box-shadow: none; border: none; }
+.card-flat:hover { background: var(--color-surface-container-high); transition: background .15s; }
+.card-gradient { background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: var(--radius-xl); padding: 18px; box-shadow: var(--shadow-3); color: #ffffff; }
+.card-gradient .card-title { color: #ffffff; }
+.card-gradient .card-subtitle { color: rgba(255,255,255,.8); }
+.card-gradient .card-action { color: #ffffff; }
+.metric-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.metric-label { font-family: var(--font-body); font-size: var(--type-body-sm); color: var(--color-on-surface-variant); white-space: nowrap; }
+.metric-value { font-family: var(--font-display); font-size: var(--type-body-md); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.metric-positive { color: var(--color-error); }
+.metric-negative { color: var(--color-success); }
+.tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-full); font-size: var(--type-body-sm); white-space: nowrap; }
+.tag-accent { background: var(--accent); color: #ffffff; }
+
+/* ── Chip ──────────────────────────────────────────────────── */
+/* @anatomy
+   <span class="chip chip-filled"><span class="chip-dot"></span>半导体</span> <span class="chip chip-outlined">新能源</span> <span class="chip chip-outlined">人工智能</span> <span class="chip chip-filled">已订阅<span class="chip-close" aria-label="移除">&times;</span></span>
+*/
+.chip { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; cursor: default; flex-shrink: 0; min-width: 28px; transition: background var(--duration-fast) var(--easing-default), border-color var(--duration-fast) var(--easing-default); }
+.chip-filled { background: var(--color-primary); color: var(--color-on-primary); border-radius: var(--radius-full); height: 28px; padding: 0 var(--space-3); font-size: var(--font-size-caption); font-weight: 500; border: none; }
+.chip-filled:hover { filter: brightness(1.08); }
+.chip-outlined { background: transparent; color: var(--color-foreground); border: 1px solid var(--color-border); border-radius: var(--radius-full); height: 28px; padding: 0 var(--space-3); font-size: var(--font-size-caption); font-weight: var(--font-weight-body); }
+.chip-outlined:hover { border-color: var(--color-primary); }
+.chip-status { border-radius: var(--radius-sm); height: 22px; padding: 0 var(--space-2); font-size: var(--font-size-eyebrow); font-weight: var(--font-weight-eyebrow); border: none; min-width: 22px; }
+.chip-status-success { background: var(--tide-green-50); color: var(--color-success); }
+.chip-status-success:hover { background: var(--tide-green-100); }
+.chip-status-error { background: var(--error-container); color: var(--tide-red-700); }
+.chip-status-error:hover { background: var(--tide-red-100); }
+.chip-status-info { background: var(--tide-blue-50); color: var(--color-primary); }
+.chip-status-info:hover { background: var(--tide-blue-100); }
+.chip-dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; flex-shrink: 0; }
+.chip-close { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: var(--radius-full); cursor: pointer; font-size: 10px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
+.chip-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+
+/* ── Input ─────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="specimen"> <div class="header"><h2>Input</h2></div>
+*/
+.input-label{display:block;font-size:var(--type-body-sm);font-weight:500;color:var(--color-on-surface);margin-bottom:6px}
+.input-row{display:flex;align-items:center;width:100%;background:var(--color-surface-container);border:1px solid var(--color-border);border-radius:var(--radius-md);height:var(--size-input-height);padding:0 14px;transition:border-color var(--duration-fast) var(--easing-default),box-shadow var(--duration-fast) var(--easing-default)}
+.input-row:hover{border-color:var(--tide-gray-300)}
+.input-row:focus-within{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-container)}
+.input-row.error{border-color:var(--color-error)}
+.input-row.error:focus-within{box-shadow:0 0 0 3px var(--error-container)}
+.input-row.focused{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-container)}
+.input-row.disabled{opacity:.5;pointer-events:none;background:var(--muted)}
+.input-row input{flex:1;border:none;outline:none;background:transparent;font-family:var(--font-family-base);font-size:15px;color:var(--color-on-surface);min-width:0}
+.input-row input::placeholder{color:var(--color-muted-foreground)}
+.input-icon{flex-shrink:0;width:var(--size-icon-md);height:var(--size-icon-md);margin-right:var(--space-2);color:var(--color-muted-foreground)}
+.input-action{flex-shrink:0;margin-left:var(--space-2);background:none;border:none;cursor:pointer;padding:var(--space-1);color:var(--color-muted-foreground);border-radius:var(--radius-sm);transition:background var(--duration-fast)}
+.input-action:hover{background:var(--muted)}
+.helper-text{font-size:var(--type-body-sm);color:var(--color-error);margin-top:4px}
+.size-sm .input-row{height:36px;padding:0 12px}
+.size-sm .input-row input{font-size:14px}

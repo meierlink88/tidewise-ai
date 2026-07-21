@@ -2,18 +2,14 @@ import Taro from '@tarojs/taro';
 import { Button, Image, Text, View } from '@tarojs/components';
 import type { BaseEventOrig } from '@tarojs/components/types/common';
 import type {
-  HomeResearchThemeItem,
-  ResearchImpactLevel
+  HomeResearchThemeItem
 } from '../../../features/research-themes/contract';
-import { researchTransmissionStageLabel } from '../../../features/research-themes/presentation';
+import {
+  researchImpactLabel,
+  researchTransmissionStageLabel
+} from '../../../features/research-themes/presentation';
 import { navigateToResearchReasoningTrees } from '../../../features/research-reasoning-trees/navigation';
 import arrowRightIcon from '../../../assets/icons/arrow-right.svg';
-
-const impactLabels: Record<ResearchImpactLevel, string> = {
-  high: '高影响',
-  focus: '重点关注',
-  watch: '持续观察'
-};
 
 interface ResearchThemeCardProps {
   theme: HomeResearchThemeItem;
@@ -34,7 +30,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       <View className='theme-card__rail' />
       <View className='theme-card__topline'>
         <View className='theme-card__identity'>
-          <Text className='theme-card__impact'>{impactLabels[theme.impactLevel]}</Text>
+          <Text className='theme-card__impact'>{researchImpactLabel(theme.impactLevel)}</Text>
           <View className='theme-card__divider' />
           <Text className='theme-card__category'>{theme.name}</Text>
         </View>

@@ -1,4 +1,10 @@
-import type { ResearchTransmissionStage } from './contract';
+import type { ResearchImpactLevel, ResearchTransmissionStage } from './contract';
+
+const impactLabels: Record<ResearchImpactLevel, string> = {
+  high: '高影响',
+  focus: '重点关注',
+  watch: '持续观察'
+};
 
 const transmissionStageLabels: Record<ResearchTransmissionStage, string> = {
   identification: '识别',
@@ -9,6 +15,10 @@ const transmissionStageLabels: Record<ResearchTransmissionStage, string> = {
 
 export function researchTransmissionStageLabel(stage: ResearchTransmissionStage): string {
   return transmissionStageLabels[stage];
+}
+
+export function researchImpactLabel(level: ResearchImpactLevel): string {
+  return impactLabels[level];
 }
 
 export function formatResearchUpdateLabel(publishedAt: string, asOf: string): string {

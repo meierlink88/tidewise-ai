@@ -77,6 +77,8 @@ interface APIDetailResponse {
     one_line_conclusion: string;
     fact_summary: string;
     net_direction_summary: string;
+    support_summary: string;
+    counter_summary: string | null;
     trading_direction: string;
     next_checkpoint: string;
     event_count: number;
@@ -133,9 +135,11 @@ function isDetailResponse(
       'one_line_conclusion',
       'fact_summary',
       'net_direction_summary',
+      'support_summary',
       'trading_direction',
       'next_checkpoint'
     ]) ||
+    (tree.counter_summary !== null && !isNonEmptyString(tree.counter_summary)) ||
     !isNonNegativeInteger(tree.event_count) ||
     !Array.isArray(tree.events) ||
     !Array.isArray(tree.path_nodes) ||
@@ -152,8 +156,14 @@ function isDetailResponse(
       eventIds.add(event.event_id);
       return true;
     }) &&
-    tree.path_nodes.every((node) => {
+    tree.path_nodes.every((node, index) => {
       if (!isPathNode(node) || nodeIds.has(node.chain_node_id)) return false;
+      if (
+        (index === 0 && node.incoming_transmission_mechanism !== null) ||
+        (index > 0 && node.incoming_transmission_mechanism === null)
+      ) {
+        return false;
+      }
       nodeIds.add(node.chain_node_id);
       return true;
     })
@@ -308,6 +318,8 @@ function mapDetail(value: APIDetailResponse): ResearchReasoningTreeDetail {
       oneLineConclusion: tree.one_line_conclusion,
       factSummary: tree.fact_summary,
       netDirectionSummary: tree.net_direction_summary,
+      supportSummary: tree.support_summary,
+      counterSummary: tree.counter_summary,
       tradingDirection: tree.trading_direction,
       nextCheckpoint: tree.next_checkpoint,
       eventCount: tree.event_count,
