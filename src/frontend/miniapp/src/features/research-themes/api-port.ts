@@ -69,16 +69,18 @@ interface APIResearchThemeFeed {
 interface APIOptions {
   baseUrl: string;
   request: ResearchThemeRequest;
+  windowHours?: number;
 }
 
-export function createResearchThemeApiPort({ baseUrl, request }: APIOptions): ResearchThemeFeedPort {
+export function createResearchThemeApiPort({ baseUrl, request, windowHours = 24 }: APIOptions): ResearchThemeFeedPort {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const normalizedWindowHours = normalizeWindowHours(windowHours);
   return {
     async list() {
       const response = await request<APIResearchThemeFeed>({
         url: normalizedBaseUrl + themesPath,
         method: 'GET',
-        data: { window_hours: 24, limit: 20 },
+        data: { window_hours: normalizedWindowHours, limit: 20 },
         dataType: 'json'
       });
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -90,6 +92,13 @@ export function createResearchThemeApiPort({ baseUrl, request }: APIOptions): Re
       return mapFeed(response.data);
     }
   };
+}
+
+function normalizeWindowHours(value: number): number {
+  if (!Number.isInteger(value) || value < 1 || value > 168) {
+    throw new Error('Research Theme window hours must be an integer between 1 and 168');
+  }
+  return value;
 }
 
 function normalizeBaseUrl(value: string): string {

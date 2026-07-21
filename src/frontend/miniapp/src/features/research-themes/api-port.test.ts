@@ -69,4 +69,29 @@ describe('research theme BFF adapter', () => {
 
     await expect(port.list()).rejects.toThrow('503');
   });
+
+  it('allows a bounded local preview window without changing the default contract', async () => {
+    const request = vi.fn().mockResolvedValue({
+      statusCode: 200,
+      data: {
+        window_start: '2026-07-14T00:00:00Z',
+        window_end: '2026-07-21T00:00:00Z',
+        as_of: '2026-07-21T00:00:00Z',
+        theme_count: 0,
+        event_count: 0,
+        next_cursor: null,
+        items: []
+      }
+    });
+
+    await createResearchThemeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request,
+      windowHours: 168
+    }).list();
+
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { window_hours: 168, limit: 20 } })
+    );
+  });
 });
