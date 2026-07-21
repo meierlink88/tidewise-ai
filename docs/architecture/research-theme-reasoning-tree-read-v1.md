@@ -90,6 +90,8 @@ Authorization: Bearer <service-token>
       "one_line_conclusion": "中心节点结论",
       "fact_summary": "原子事实汇总",
       "net_direction_summary": "当前净方向",
+      "support_summary": "当前支持的整体结论",
+      "counter_summary": "当前反证的整体结论或 null",
       "trading_direction": "交易研究指向",
       "next_checkpoint": "下一验证项",
       "event_count": 2,
@@ -119,6 +121,7 @@ Authorization: Bearer <service-token>
 ```
 
 - `event_time` 沿用 Event 当前可空语义；无时间时 JSON 字段按现有 Event DTO 约定省略。
+- `support_summary` 原样返回且非空；`counter_summary` 在无 `contradicting` Event 时显式返回 `null`。
 - `event_count` 等于响应中去重后的 `events` 数量。
 - 中心节点与路径节点名称实时读取当前 Chain Node 主数据，不复制 Anchor 快照名称。
 - 响应不返回 `position`；`path_nodes` 数组顺序本身就是传导顺序。
@@ -237,7 +240,7 @@ TW-04 同步删除：
 4. Theme 不存在、Theme 缺树、Anchor 不存在和 Anchor 属于其他 Theme 返回各自错误码。
 5. Receipt 映射、数量、路径或证据被破坏时返回不变量错误，绝不返回部分结果。
 6. Event `NULL` 时间排在末尾；同时间、同名时使用 UUID 稳定打破平局。
-7. 空反证不丢失，空数组不返回 `null`。
+7. 无反证时 `counter_summary: null` 原样返回，Event 数组仍保持非空且不返回 `null`。
 8. 查询数量不随 Anchor/Event/Path Node 数量增长。
 9. 首页 Theme 列表在有树、无树两种数据状态下响应一致，不增加任何树状态字段。
 10. 旧 Data/Miniapp Anchor 路径不再注册，旧 OpenAPI 路径和旧 client contract 已删除。

@@ -1051,6 +1051,8 @@ components:
         - one_line_conclusion
         - fact_summary
         - net_direction_summary
+        - support_summary
+        - counter_summary
         - trading_direction
         - next_checkpoint
         - events
@@ -1067,6 +1069,15 @@ components:
         net_direction_summary:
           type: string
           minLength: 1
+        support_summary:
+          type: string
+          minLength: 1
+          description: AI 分析师生成的当前支持结论，Tidewise 原样保存。
+        counter_summary:
+          type: string
+          nullable: true
+          minLength: 1
+          description: 存在 contradicting Event 时必填；否则必须为 null。
         trading_direction:
           type: string
           minLength: 1
@@ -1424,6 +1435,8 @@ components:
         - one_line_conclusion
         - fact_summary
         - net_direction_summary
+        - support_summary
+        - counter_summary
         - trading_direction
         - next_checkpoint
         - event_count
@@ -1442,6 +1455,13 @@ components:
           minLength: 1
         net_direction_summary:
           type: string
+          minLength: 1
+        support_summary:
+          type: string
+          minLength: 1
+        counter_summary:
+          type: string
+          nullable: true
           minLength: 1
         trading_direction:
           type: string

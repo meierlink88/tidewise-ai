@@ -38,6 +38,15 @@ func TestServicePublishesCompleteThemeAtomically(t *testing.T) {
 	if len(store.tx.anchors) != 2 || len(store.tx.events) != 4 || len(store.tx.pathNodes) != 4 || store.tx.receipt == nil {
 		t.Fatalf("persisted anchors/events/path/receipt = %d/%d/%d/%v", len(store.tx.anchors), len(store.tx.events), len(store.tx.pathNodes), store.tx.receipt != nil)
 	}
+	if got := store.tx.anchors[0].SupportSummary; got != publication.Anchors[0].SupportSummary {
+		t.Fatalf("persisted support summary = %q, want %q", got, publication.Anchors[0].SupportSummary)
+	}
+	if got := store.tx.anchors[0].CounterSummary; !reflect.DeepEqual(got, publication.Anchors[0].CounterSummary) {
+		t.Fatalf("persisted counter summary = %#v, want %#v", got, publication.Anchors[0].CounterSummary)
+	}
+	if got := store.tx.anchors[1].CounterSummary; got != nil {
+		t.Fatalf("persisted no-contradiction counter summary = %#v, want nil", got)
+	}
 	if store.commits != 1 || store.rollbacks != 0 {
 		t.Fatalf("commit/rollback = %d/%d", store.commits, store.rollbacks)
 	}

@@ -82,11 +82,11 @@ func TestPostgresResearchReasoningTreeDetailKeepsEventAndPathOrder(t *testing.T)
 		WithArgs(reasoningThemeID, reasoningAnchorID, "99999999-9999-4999-8999-999999999999").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"anchor_id", "theme_id", "center_chain_node_id", "center_chain_node_name",
-			"one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint",
+			"one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint",
 			"events", "path_nodes", "invalid_theme_event_count",
 		}).AddRow(
 			reasoningAnchorID, reasoningThemeID, reasoningCenterID, "光模块",
-			"需求偏强", "资本开支增加", "偏正", "研究订单", "观察交付", events, pathNodes, 0,
+			"需求偏强", "资本开支增加", "偏正", "当前支持", nil, "研究订单", "观察交付", events, pathNodes, 0,
 		))
 
 	result, err := NewPostgresRepository(db).GetResearchThemeReasoningTree(context.Background(), reasoningThemeID, reasoningAnchorID)
@@ -123,11 +123,11 @@ func TestPostgresResearchReasoningTreeDetailRejectsReceiptCenterDrift(t *testing
 		WithArgs(reasoningThemeID, reasoningAnchorID, "99999999-9999-4999-8999-999999999999").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"anchor_id", "theme_id", "center_chain_node_id", "center_chain_node_name",
-			"one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint",
+			"one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint",
 			"events", "path_nodes", "invalid_theme_event_count",
 		}).AddRow(
 			reasoningAnchorID, reasoningThemeID, "66666666-6666-4666-8666-666666666666", "先进封装",
-			"需求偏强", "资本开支增加", "偏正", "研究订单", "观察交付", events, pathNodes, 0,
+			"需求偏强", "资本开支增加", "偏正", "当前支持", nil, "研究订单", "观察交付", events, pathNodes, 0,
 		))
 
 	_, err = NewPostgresRepository(db).GetResearchThemeReasoningTree(context.Background(), reasoningThemeID, reasoningAnchorID)
@@ -178,11 +178,11 @@ func TestPostgresResearchReasoningTreeDetailRejectsEventOutsideTheme(t *testing.
 		WithArgs(reasoningThemeID, reasoningAnchorID, "99999999-9999-4999-8999-999999999999").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"anchor_id", "theme_id", "center_chain_node_id", "center_chain_node_name",
-			"one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint",
+			"one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint",
 			"events", "path_nodes", "invalid_theme_event_count",
 		}).AddRow(
 			reasoningAnchorID, reasoningThemeID, reasoningCenterID, "光模块",
-			"需求偏强", "资本开支增加", "偏正", "研究订单", "观察交付", events, pathNodes, 1,
+			"需求偏强", "资本开支增加", "偏正", "当前支持", nil, "研究订单", "观察交付", events, pathNodes, 1,
 		))
 
 	_, err = NewPostgresRepository(db).GetResearchThemeReasoningTree(context.Background(), reasoningThemeID, reasoningAnchorID)
@@ -196,7 +196,7 @@ func TestValidReasoningTreeRejectsIncompletePublishedRows(t *testing.T) {
 	base := ResearchReasoningTree{
 		AnchorID: reasoningAnchorID, CenterChainNodeID: reasoningCenterID, CenterChainNodeName: "光模块",
 		OneLineConclusion: "需求偏强", FactSummary: "资本开支增加", NetDirectionSummary: "偏正",
-		TradingDirection: "研究订单", NextCheckpoint: "观察交付",
+		SupportSummary: "当前支持", TradingDirection: "研究订单", NextCheckpoint: "观察交付",
 		Events: []ResearchReasoningTreeEvent{{
 			EventID: "44444444-4444-4444-8444-444444444444", Title: "资本开支上调", Summary: "投入增加",
 			EvidenceRole: "driver", EvidenceSummary: "直接驱动",
@@ -215,6 +215,17 @@ func TestValidReasoningTreeRejectsIncompletePublishedRows(t *testing.T) {
 		mutate func(*ResearchReasoningTree)
 	}{
 		{name: "blank fact summary", mutate: func(value *ResearchReasoningTree) { value.FactSummary = " " }},
+		{name: "blank support summary", mutate: func(value *ResearchReasoningTree) { value.SupportSummary = " " }},
+		{name: "counter summary without contradiction", mutate: func(value *ResearchReasoningTree) {
+			counter := "不应存在"
+			value.CounterSummary = &counter
+		}},
+		{name: "contradiction without counter summary", mutate: func(value *ResearchReasoningTree) {
+			value.Events = append(value.Events, ResearchReasoningTreeEvent{
+				EventID: "77777777-7777-4777-8777-777777777777", Title: "反证", Summary: "反证事实",
+				EvidenceRole: "contradicting", EvidenceSummary: "反驳判断",
+			})
+		}},
 		{name: "unsupported change direction", mutate: func(value *ResearchReasoningTree) { value.PathNodes[0].ChangeDirection = "up" }},
 		{name: "blank path impact", mutate: func(value *ResearchReasoningTree) { value.PathNodes[1].ImpactSummary = " " }},
 	}

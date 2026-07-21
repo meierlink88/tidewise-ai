@@ -36,6 +36,7 @@ func TestResearchAnchorImportPostgresIntegration(t *testing.T) {
 		t.Fatalf("concurrent results differ: %#v / %#v", first, second)
 	}
 	assertResearchAnchorImportCounts(t, db, first)
+	assertResearchAnchorBranchSummaries(t, db, publication)
 
 	changed := publication
 	changed.Anchors = append([]domainimport.Anchor(nil), publication.Anchors...)
@@ -150,6 +151,8 @@ func prepareResearchAnchorImportSchema(t *testing.T, db *sql.DB) {
             one_line_conclusion TEXT NOT NULL,
             fact_summary TEXT NOT NULL,
             net_direction_summary TEXT NOT NULL,
+			support_summary TEXT NOT NULL,
+			counter_summary TEXT,
             trading_direction TEXT NOT NULL,
             next_checkpoint TEXT NOT NULL,
             UNIQUE(theme_id, center_chain_node_entity_id),
@@ -324,6 +327,30 @@ func assertResearchAnchorImportCounts(t *testing.T, db *sql.DB, result app.Resul
 		}
 		if count != check.want {
 			t.Fatalf("count for %q = %d, want %d", check.query, count, check.want)
+		}
+	}
+}
+
+func assertResearchAnchorBranchSummaries(t *testing.T, db *sql.DB, publication domainimport.Publication) {
+	t.Helper()
+	for _, anchor := range publication.Anchors {
+		var supportSummary string
+		var counterSummary sql.NullString
+		if err := db.QueryRow(`SELECT support_summary, counter_summary
+FROM research_anchors WHERE theme_id = $1 AND center_chain_node_entity_id = $2`,
+			publication.ThemeID, anchor.CenterChainNodeID,
+		).Scan(&supportSummary, &counterSummary); err != nil {
+			t.Fatal(err)
+		}
+		if supportSummary != anchor.SupportSummary {
+			t.Fatalf("support summary for %s = %q, want %q", anchor.CenterChainNodeID, supportSummary, anchor.SupportSummary)
+		}
+		if anchor.CounterSummary == nil {
+			if counterSummary.Valid {
+				t.Fatalf("counter summary for %s = %q, want null", anchor.CenterChainNodeID, counterSummary.String)
+			}
+		} else if !counterSummary.Valid || counterSummary.String != *anchor.CounterSummary {
+			t.Fatalf("counter summary for %s = %#v, want %q", anchor.CenterChainNodeID, counterSummary, *anchor.CounterSummary)
 		}
 	}
 }

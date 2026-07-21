@@ -55,6 +55,8 @@ type ResearchReasoningTree struct {
 	OneLineConclusion   string
 	FactSummary         string
 	NetDirectionSummary string
+	SupportSummary      string
+	CounterSummary      *string
 	TradingDirection    string
 	NextCheckpoint      string
 	Events              []ResearchReasoningTreeEvent
@@ -108,7 +110,7 @@ WHERE r.theme_id = $1`
 const getResearchReasoningTreeDetailQuery = `
 SELECT a.id, a.theme_id, a.center_chain_node_entity_id, center.name,
        a.one_line_conclusion, a.fact_summary, a.net_direction_summary,
-       a.trading_direction, a.next_checkpoint,
+       a.support_summary, a.counter_summary, a.trading_direction, a.next_checkpoint,
        COALESCE((
            SELECT jsonb_agg(
                jsonb_build_object(
@@ -199,7 +201,8 @@ func (r PostgresRepository) GetResearchThemeReasoningTree(ctx context.Context, t
 	err = r.db.QueryRowContext(ctx, getResearchReasoningTreeDetailQuery, themeID, anchorID, publication.ReceiptID).Scan(
 		&tree.AnchorID, &returnedThemeID, &tree.CenterChainNodeID, &tree.CenterChainNodeName,
 		&tree.OneLineConclusion, &tree.FactSummary, &tree.NetDirectionSummary,
-		&tree.TradingDirection, &tree.NextCheckpoint, &eventsJSON, &pathNodesJSON, &invalidThemeEventCount,
+		&tree.SupportSummary, &tree.CounterSummary, &tree.TradingDirection, &tree.NextCheckpoint,
+		&eventsJSON, &pathNodesJSON, &invalidThemeEventCount,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ResearchReasoningTreeDetail{}, ErrResearchReasoningTreeInvariant
@@ -314,7 +317,7 @@ func publicationContainsAnchor(mapping map[string]string, anchorID string) bool 
 func validReasoningTree(tree ResearchReasoningTree) bool {
 	for _, value := range []string{
 		tree.AnchorID, tree.CenterChainNodeID, tree.CenterChainNodeName, tree.OneLineConclusion,
-		tree.FactSummary, tree.NetDirectionSummary, tree.TradingDirection, tree.NextCheckpoint,
+		tree.FactSummary, tree.NetDirectionSummary, tree.SupportSummary, tree.TradingDirection, tree.NextCheckpoint,
 	} {
 		if strings.TrimSpace(value) == "" {
 			return false
@@ -325,6 +328,7 @@ func validReasoningTree(tree ResearchReasoningTree) bool {
 	}
 	eventIDs := make(map[string]struct{}, len(tree.Events))
 	hasDriver := false
+	hasContradiction := false
 	for _, event := range tree.Events {
 		if strings.TrimSpace(event.EventID) == "" || strings.TrimSpace(event.EvidenceSummary) == "" {
 			return false
@@ -337,11 +341,20 @@ func validReasoningTree(tree ResearchReasoningTree) bool {
 		case "driver":
 			hasDriver = true
 		case "supporting", "contradicting", "context":
+			if event.EvidenceRole == "contradicting" {
+				hasContradiction = true
+			}
 		default:
 			return false
 		}
 	}
 	if !hasDriver {
+		return false
+	}
+	if hasContradiction && (tree.CounterSummary == nil || strings.TrimSpace(*tree.CounterSummary) == "") {
+		return false
+	}
+	if !hasContradiction && tree.CounterSummary != nil {
 		return false
 	}
 

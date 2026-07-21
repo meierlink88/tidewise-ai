@@ -46,6 +46,8 @@ type ResearchReasoningTreeDTO struct {
 	OneLineConclusion   string                             `json:"one_line_conclusion"`
 	FactSummary         string                             `json:"fact_summary"`
 	NetDirectionSummary string                             `json:"net_direction_summary"`
+	SupportSummary      string                             `json:"support_summary"`
+	CounterSummary      *string                            `json:"counter_summary"`
 	TradingDirection    string                             `json:"trading_direction"`
 	NextCheckpoint      string                             `json:"next_checkpoint"`
 	EventCount          int                                `json:"event_count"`
@@ -149,7 +151,7 @@ func validReasoningTreeDetail(value dataclient.ResearchReasoningTreeDetail, them
 	if value.ThemeID != themeID || tree.AnchorID != anchorID || !validReasoningChainNode(tree.CenterChainNode) {
 		return false
 	}
-	if !allNonBlank(tree.OneLineConclusion, tree.FactSummary, tree.NetDirectionSummary, tree.TradingDirection, tree.NextCheckpoint) {
+	if !allNonBlank(tree.OneLineConclusion, tree.FactSummary, tree.NetDirectionSummary, tree.SupportSummary, tree.TradingDirection, tree.NextCheckpoint) {
 		return false
 	}
 	if tree.Events == nil || tree.EventCount != len(tree.Events) || len(tree.Events) == 0 || tree.PathNodes == nil || len(tree.PathNodes) < 2 {
@@ -157,6 +159,7 @@ func validReasoningTreeDetail(value dataclient.ResearchReasoningTreeDetail, them
 	}
 	seenEvents := make(map[string]struct{}, len(tree.Events))
 	driverCount := 0
+	hasContradiction := false
 	for _, event := range tree.Events {
 		if !validReasoningUUID(event.EventID) || !allNonBlank(event.Title, event.Summary, event.EvidenceSummary) || !validEvidenceRole(event.EvidenceRole) {
 			return false
@@ -168,8 +171,17 @@ func validReasoningTreeDetail(value dataclient.ResearchReasoningTreeDetail, them
 		if event.EvidenceRole == dataclient.EvidenceRoleDriver {
 			driverCount++
 		}
+		if event.EvidenceRole == dataclient.EvidenceRoleContradicting {
+			hasContradiction = true
+		}
 	}
 	if driverCount == 0 {
+		return false
+	}
+	if hasContradiction && (tree.CounterSummary == nil || strings.TrimSpace(*tree.CounterSummary) == "") {
+		return false
+	}
+	if !hasContradiction && tree.CounterSummary != nil {
 		return false
 	}
 	seenNodes := make(map[string]struct{}, len(tree.PathNodes))
@@ -313,6 +325,8 @@ func reasoningTreeDTO(value dataclient.ResearchReasoningTree) ResearchReasoningT
 		OneLineConclusion:   value.OneLineConclusion,
 		FactSummary:         value.FactSummary,
 		NetDirectionSummary: value.NetDirectionSummary,
+		SupportSummary:      value.SupportSummary,
+		CounterSummary:      value.CounterSummary,
 		TradingDirection:    value.TradingDirection,
 		NextCheckpoint:      value.NextCheckpoint,
 		EventCount:          value.EventCount,

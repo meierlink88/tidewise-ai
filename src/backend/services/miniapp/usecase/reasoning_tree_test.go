@@ -78,6 +78,40 @@ func TestResearchServicePreservesReasoningTreeWithoutContradictionOrQuantificati
 	assertJSONEquivalent(t, expected, result)
 }
 
+func TestResearchServiceRejectsInvalidReasoningTreeBranchSummaries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		fixture string
+		mutate  func(*dataclient.ResearchReasoningTree)
+	}{
+		{name: "blank support", fixture: "02-reasoning-tree-with-contradiction-result.json", mutate: func(tree *dataclient.ResearchReasoningTree) {
+			tree.SupportSummary = "   "
+		}},
+		{name: "contradiction without counter", fixture: "02-reasoning-tree-with-contradiction-result.json", mutate: func(tree *dataclient.ResearchReasoningTree) {
+			tree.CounterSummary = nil
+		}},
+		{name: "counter without contradiction", fixture: "03-reasoning-tree-without-contradiction-unquantified-result.json", mutate: func(tree *dataclient.ResearchReasoningTree) {
+			value := "不应存在"
+			tree.CounterSummary = &value
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dataResult, _ := reasoningTreeFixtureResult[dataclient.ResearchReasoningTreeDetail](t, test.fixture)
+			test.mutate(&dataResult.ReasoningTree)
+			client := &dataclient.Fake{GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (dataclient.ResearchReasoningTreeDetail, error) {
+				return dataResult, nil
+			}}
+			_, err := NewResearchService(client).GetReasoningTree(context.Background(), dataResult.ThemeID, dataResult.ReasoningTree.AnchorID)
+			if !errors.Is(err, ErrResearchDataUnavailable) {
+				t.Fatalf("error = %v, want data unavailable", err)
+			}
+		})
+	}
+}
+
 func TestResearchServicePreservesNullReasoningTreeEventTime(t *testing.T) {
 	t.Parallel()
 	dataResult, _ := reasoningTreeFixtureResult[dataclient.ResearchReasoningTreeDetail](t, "02-reasoning-tree-with-contradiction-result.json")

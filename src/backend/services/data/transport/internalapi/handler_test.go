@@ -256,7 +256,7 @@ func TestResearchAnchorImportUsesDedicatedPublisherIdentityAndFrozenResult(t *te
 	now := time.Date(2026, 7, 20, 9, 0, 0, 0, time.UTC)
 	importer := &fakeResearchAnchorImporter{result: researchanchorimportapp.Result{
 		ReceiptID: "99999999-9999-4999-8999-999999999999", ThemeID: "11111111-1111-4111-8111-111111111111",
-		PayloadHash: "316ae969f3a946d6ffb2e58bc13ccabae81d95cd7e27575006670890909cb4eb",
+		PayloadHash: "e006ca80db77df2b07e0028d3b499b664956fd9ff0d5b57e2d00ccc6c19741a2",
 		AnchorIDsByCenterChainNodeID: map[string]string{
 			"22222222-2222-4222-8222-222222222222": "534d83be-774b-51d9-ad00-cdee4ba91799",
 			"33333333-3333-4333-8333-333333333333": "5c18fc57-6bd8-5612-9a24-01a4e928b761",

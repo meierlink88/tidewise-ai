@@ -38,6 +38,8 @@ type ResearchAnchorImportAnchor struct {
 	OneLineConclusion       string
 	FactSummary             string
 	NetDirectionSummary     string
+	SupportSummary          string
+	CounterSummary          *string
 	TradingDirection        string
 	NextCheckpoint          string
 }

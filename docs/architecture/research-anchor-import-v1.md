@@ -50,6 +50,8 @@ Content-Type: application/json
   "one_line_conclusion": "中心节点结论",
   "fact_summary": "原子事实汇总",
   "net_direction_summary": "当前净方向",
+  "support_summary": "当前支持的整体结论",
+  "counter_summary": "当前反证的整体结论",
   "trading_direction": "交易研究指向",
   "next_checkpoint": "下一验证项",
   "events": [
@@ -115,7 +117,8 @@ Content-Type: application/json
 
 ## Anchor 不变量
 
-- 五个 Anchor 文本字段必填且非空白，Data 不生成或改写。
+- `one_line_conclusion`、`fact_summary`、`net_direction_summary`、`support_summary`、`trading_direction`、`next_checkpoint` 必填且非空白，Data 不生成或改写。
+- 存在 `contradicting` Event 时 `counter_summary` 必填且非空白；不存在时必须显式为 `null`。
 - 每棵 Anchor 至少一个 `driver` Event。
 - Event 角色只允许 `driver`、`supporting`、`contradicting`、`context`。
 - 同一 Event 在同一 Anchor 内唯一且只能承担一个角色。
@@ -191,7 +194,7 @@ Content-Type: application/json
 - 相同请求重放不增加 receipt、Anchor、Event 或 Path Node。
 - payload 冲突、发布主体冲突及无 Theme Receipt 均拒绝。
 - 缺失 Theme/Event/Chain Node 与越界 Theme Event/中心节点返回准确错误。
-- 缺失 driver、重复 Event、错误排序、路径过短、重复/循环节点、缺中心节点和非法入边机制均拒绝。
+- 缺失支持汇总、反证汇总与 Event 角色不一致、缺失 driver、重复 Event、错误排序、路径过短、重复/循环节点、缺中心节点和非法入边机制均拒绝。
 - 任一 Anchor 无效时数据库零部分写入。
 - 并发相同请求只产生一次成功事实，另一次返回重放。
 - 真实 PostgreSQL 集成测试证明 receipt、Anchor、Event、Path Node 同事务写入并可核验。
