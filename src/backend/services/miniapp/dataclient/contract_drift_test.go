@@ -21,6 +21,8 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	}{
 		{ResearchThemesPath, "listResearchThemes", "ResearchThemeListEnvelope", []string{"Cursor", "Limit", "RequestID", "WindowHours"}},
 		{ResearchThemesPath + "/{theme_id}", "getResearchTheme", "ResearchThemeDetailEnvelope", []string{"RequestID", "WindowHours"}},
+		{ResearchThemesPath + "/{theme_id}/reasoning-trees", "listResearchThemeReasoningTrees", "ResearchReasoningTreeListEnvelope", []string{"RequestID"}},
+		{ResearchThemesPath + "/{theme_id}/reasoning-trees/{anchor_id}", "getResearchThemeReasoningTree", "ResearchReasoningTreeDetailEnvelope", []string{"RequestID"}},
 	} {
 		operation := openAPIOperation(t, document, contract.path)
 		assertOpenAPIString(t, operation, "operationId", contract.operationID)
@@ -35,12 +37,19 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"ResearchThemeCollection": reflect.TypeOf(ResearchThemePage{}),
-		"ResearchThemeSummary":    reflect.TypeOf(ResearchTheme{}),
-		"ResearchThemeDetail":     reflect.TypeOf(ResearchThemeDetail{}),
-		"ResearchThemeChainNode":  reflect.TypeOf(ResearchThemeChainNode{}),
-		"ResearchIndex":           reflect.TypeOf(ResearchIndex{}),
-		"ResearchEvent":           reflect.TypeOf(ResearchEvent{}),
+		"ResearchThemeCollection":        reflect.TypeOf(ResearchThemePage{}),
+		"ResearchThemeSummary":           reflect.TypeOf(ResearchTheme{}),
+		"ResearchThemeDetail":            reflect.TypeOf(ResearchThemeDetail{}),
+		"ResearchThemeChainNode":         reflect.TypeOf(ResearchThemeChainNode{}),
+		"ResearchIndex":                  reflect.TypeOf(ResearchIndex{}),
+		"ResearchEvent":                  reflect.TypeOf(ResearchEvent{}),
+		"ResearchReasoningTreeChainNode": reflect.TypeOf(ResearchReasoningTreeChainNode{}),
+		"ResearchReasoningTreeSummary":   reflect.TypeOf(ResearchReasoningTreeSummary{}),
+		"ResearchReasoningTreeList":      reflect.TypeOf(ResearchReasoningTreeList{}),
+		"ResearchReasoningTreeEvent":     reflect.TypeOf(ResearchReasoningTreeEvent{}),
+		"ResearchReasoningTreePathNode":  reflect.TypeOf(ResearchReasoningTreePathNode{}),
+		"ResearchReasoningTree":          reflect.TypeOf(ResearchReasoningTree{}),
+		"ResearchReasoningTreeDetail":    reflect.TypeOf(ResearchReasoningTreeDetail{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
@@ -51,6 +60,11 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	assertSchemaEnum(t, document, "ResearchIndex", "impact_direction", []string{"mixed", "negative", "neutral", "positive"})
 	assertSchemaEnum(t, document, "ResearchEvent", "evidence_role", []string{"context", "contradicting", "driver", "supporting"})
 	assertArrayItemSchema(t, document, "ResearchThemeSummary", "affected_chain_nodes", "ResearchThemeChainNode")
+	assertSchemaEnum(t, document, "ResearchReasoningTreeEvent", "evidence_role", []string{"context", "contradicting", "driver", "supporting"})
+	assertSchemaEnum(t, document, "ResearchReasoningTreePathNode", "change_direction", []string{"decrease", "increase", "mixed", "unchanged", "uncertain"})
+	assertArrayItemSchema(t, document, "ResearchReasoningTreeList", "reasoning_trees", "ResearchReasoningTreeSummary")
+	assertArrayItemSchema(t, document, "ResearchReasoningTree", "events", "ResearchReasoningTreeEvent")
+	assertArrayItemSchema(t, document, "ResearchReasoningTree", "path_nodes", "ResearchReasoningTreePathNode")
 }
 
 func loadOpenAPI(t *testing.T) map[string]any {
