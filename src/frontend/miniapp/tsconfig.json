@@ -11,6 +11,7 @@
       "@/*": ["src/*"]
     },
     "types": ["@tarojs/taro", "node"],
+    "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

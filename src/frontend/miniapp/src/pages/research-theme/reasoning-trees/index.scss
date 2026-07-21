@@ -1,0 +1,205 @@
+@use '../../../styles/tokens' as *;
+
+.reasoning-page {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $color-ivory-200;
+}
+
+.reasoning-page__chrome {
+  background: $color-navy-950;
+  color: #fff;
+}
+
+.reasoning-page__nav {
+  display: grid;
+  grid-template-columns: 150rpx 1fr 150rpx;
+  align-items: center;
+  padding: 0 $spacing-page;
+}
+
+.reasoning-page__back {
+  display: inline-flex;
+  min-height: 56rpx;
+  align-items: center;
+  color: #fff;
+  font-size: 26rpx;
+}
+
+.reasoning-page__back-icon {
+  margin-right: 8rpx;
+  font-size: 48rpx;
+  line-height: 1;
+}
+
+.reasoning-page__nav-title {
+  align-self: center;
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.reasoning-page__nav-spacer {
+  min-height: 1rpx;
+}
+
+.reasoning-page__content {
+  padding: 34rpx $spacing-page calc(44rpx + env(safe-area-inset-bottom));
+}
+
+.reasoning-theme {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 28rpx;
+}
+
+.reasoning-theme__eyebrow {
+  margin-bottom: 12rpx;
+  color: $color-blue-700;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.reasoning-theme__title {
+  color: $color-text-primary;
+  font-size: 38rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.reasoning-tabs {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.reasoning-tabs__items {
+  display: inline-flex;
+  min-width: 100%;
+  padding: 2rpx 0 20rpx;
+}
+
+.reasoning-tab {
+  display: inline-flex;
+  min-height: 64rpx;
+  align-items: center;
+  justify-content: center;
+  margin-right: 14rpx;
+  padding: 0 28rpx;
+  border: 2rpx solid $color-border;
+  border-radius: 32rpx;
+  background: #fff;
+  color: $color-text-secondary;
+  font-size: 27rpx;
+  white-space: nowrap;
+}
+
+.reasoning-tab--active {
+  border-color: $color-navy-900;
+  background: $color-navy-900;
+  color: #fff;
+  font-weight: 700;
+}
+
+.reasoning-tree-skeleton,
+.reasoning-tree-state,
+.reasoning-page-state {
+  border: 2rpx solid $color-border;
+  border-radius: $radius-card;
+  background: $color-card;
+  box-shadow: $shadow-card;
+}
+
+.reasoning-tree-skeleton {
+  display: flex;
+  flex-direction: column;
+  padding: 30rpx;
+}
+
+.reasoning-tree-skeleton__label {
+  margin-bottom: 14rpx;
+  color: $color-blue-700;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.reasoning-tree-skeleton__title {
+  margin-bottom: 24rpx;
+  color: $color-text-primary;
+  font-size: 32rpx;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.reasoning-tree-skeleton__block {
+  display: flex;
+  flex-direction: column;
+  padding: 24rpx;
+  border-radius: 8rpx;
+  background: $color-ivory-100;
+  color: $color-text-secondary;
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.reasoning-tree-skeleton__block-title {
+  margin-bottom: 8rpx;
+  color: $color-text-primary;
+  font-weight: 700;
+}
+
+.reasoning-tree-skeleton__metrics {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  color: $color-text-secondary;
+  font-size: 24rpx;
+}
+
+.reasoning-tree-skeleton__handoff {
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx solid $color-border;
+  color: $color-text-muted;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.reasoning-tree-state,
+.reasoning-page-state {
+  display: flex;
+  min-height: 320rpx;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 32rpx $spacing-page;
+  padding: 40rpx;
+  color: $color-text-secondary;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.reasoning-page-state__title {
+  color: $color-text-primary;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.reasoning-page-state__description {
+  margin-top: 14rpx;
+  color: $color-text-muted;
+  line-height: 1.5;
+}
+
+.reasoning-state-button {
+  display: inline-flex;
+  min-height: 64rpx;
+  align-items: center;
+  justify-content: center;
+  margin-top: 28rpx;
+  padding: 0 30rpx;
+  border-radius: 32rpx;
+  background: $color-navy-900;
+  color: #fff;
+  font-size: 25rpx;
+  font-weight: 700;
+}

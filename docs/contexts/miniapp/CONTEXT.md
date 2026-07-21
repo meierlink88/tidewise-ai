@@ -45,11 +45,12 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 ## Reasoning Trees Frontend Route
 
 - 影响路径页固定注册为 `pages/research-theme/reasoning-trees/index`。
-- 首页 Theme 卡片使用 `Taro.navigateTo` 跳转到 `pages/research-theme/reasoning-trees/index?theme_id=<uuid>`。
-- 页面是非 Tab 页面，不引入自定义路由器；保持微信小程序、抖音小程序和 H5 的 Taro 路由兼容性。
+- 首页 Theme 卡片仅由“查看影响路径”按钮使用 `Taro.navigateTo` 跳转到 `/pages/research-theme/reasoning-trees/index?theme_id=<uuid>`；整张卡片、产业链节点和事件数量不触发该导航。
+- 页面是非 Tab 页面，不引入自定义路由器；推理树 V1 以微信和抖音小程序为目标平台，不实现或验收 H5 专属路由、刷新与深链行为。
 - `theme_id` 缺失或不是标准小写 UUID 时，页面展示参数错误且不得请求 BFF。
 - 页面数据访问必须经过独立 typed port 和 adapter，页面组件不得直接实现 HTTP 调用。
 - 页面打开后加载 Tab 摘要和排序后的第一棵树；其他 Tab 首次选中时才加载详情。
+- Tab 摘要可用后所有 Tab 立即允许切换；各 Tab 的详情请求与 loading、ready、error 状态相互独立，切换 Tab 不取消其他在途请求，也不允许较晚完成的请求覆盖当前选中项。
 - 已成功加载的单树按 `anchor_id` 缓存在当前页面会话，再次切换不重复请求；重新进入或刷新页面时重新加载。
 - 单个 Tab 详情加载失败时，仅该 Tab 内容区显示错误与重试操作；其他已加载缓存保持可用，页面不自动切换 Tab。
 - 单 Tab 重试只请求当前 `anchor_id` 的详情，不连带刷新列表或其他推理树。
@@ -61,3 +62,5 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 真实 API 尚未接入时，可以在 Miniapp Frontend 内保留仍被页面使用的 mock。mock 必须收敛到明确的 `mocks/` 或 `devdata/` 目录，并通过可替换 adapter 注入。未被页面、测试或开发场景引用的 mock、model、service 和 component 应删除。
 
 本次源码治理不把 Miniapp Frontend 接入真实 BFF；该行为变更单独实施。
+
+推理树前端与首页 Theme 列表共用构建期变量 `TARO_APP_RESEARCH_SOURCE`。`mock` 模式下两者都使用匹配的 Mock Adapter，`api` 模式下两者都调用真实 Miniapp BFF；不增加推理树专属开关，也不允许 API 失败后静默回退到 mock。TW-06 使用共享 fixture 验收页面状态，并实现 API Adapter 及合同测试；真实 Data、BFF 与小程序全链路验收留给 TW-08。
