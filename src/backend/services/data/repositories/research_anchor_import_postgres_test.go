@@ -81,6 +81,47 @@ FROM research_anchor_import_receipts WHERE theme_id = $1`
 	}
 }
 
+func TestResearchAnchorImportPersistsBranchSummaries(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repositoryTx := &postgresResearchAnchorImportTx{tx: tx}
+	counterSummary := "交付节奏仍有分化"
+	query := `INSERT INTO research_anchors (
+    id, theme_id, center_chain_node_entity_id, import_receipt_id,
+    one_line_conclusion, fact_summary, net_direction_summary, support_summary,
+    counter_summary, trading_direction, next_checkpoint
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	mock.ExpectExec(regexp.QuoteMeta(query)).WithArgs(
+		"anchor-id", "theme-id", "center-id", "receipt-id",
+		"结论", "事实", "方向", "当前支持", counterSummary, "交易", "检查",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err = repositoryTx.InsertResearchAnchor(context.Background(), ResearchAnchorImportAnchor{
+		ID: "anchor-id", ThemeID: "theme-id", CenterChainNodeEntityID: "center-id", ImportReceiptID: "receipt-id",
+		OneLineConclusion: "结论", FactSummary: "事实", NetDirectionSummary: "方向",
+		SupportSummary: "当前支持", CounterSummary: &counterSummary,
+		TradingDirection: "交易", NextCheckpoint: "检查",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectRollback()
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestResearchAnchorImportReadsParentPublicationAndAssociationBoundaries(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

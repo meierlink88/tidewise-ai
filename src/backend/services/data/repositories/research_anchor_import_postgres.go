@@ -145,11 +145,12 @@ func (t *postgresResearchAnchorImportTx) InsertResearchAnchorImportReceipt(ctx c
 func (t *postgresResearchAnchorImportTx) InsertResearchAnchor(ctx context.Context, anchor ResearchAnchorImportAnchor) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_anchors (
     id, theme_id, center_chain_node_entity_id, import_receipt_id,
-    one_line_conclusion, fact_summary, net_direction_summary, trading_direction, next_checkpoint
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    one_line_conclusion, fact_summary, net_direction_summary, support_summary,
+    counter_summary, trading_direction, next_checkpoint
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		anchor.ID, anchor.ThemeID, anchor.CenterChainNodeEntityID, anchor.ImportReceiptID,
 		anchor.OneLineConclusion, anchor.FactSummary, anchor.NetDirectionSummary,
-		anchor.TradingDirection, anchor.NextCheckpoint,
+		anchor.SupportSummary, anchor.CounterSummary, anchor.TradingDirection, anchor.NextCheckpoint,
 	)
 	return err
 }

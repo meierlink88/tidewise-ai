@@ -93,7 +93,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	assertString(t, object(t, trees["items"], "reasoning tree summary items"), "$ref", "#/components/schemas/ResearchReasoningTreeSummary")
 
 	tree := schema(t, document, "ResearchReasoningTree")
-	assertRequired(t, tree, "anchor_id", "center_chain_node", "one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint", "event_count", "events", "path_nodes")
+	assertRequired(t, tree, "anchor_id", "center_chain_node", "one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint", "event_count", "events", "path_nodes")
 	treeProperties := object(t, tree["properties"], "ResearchReasoningTree properties")
 	assertInt(t, object(t, treeProperties["events"], "events"), "minItems", 1)
 	assertInt(t, object(t, treeProperties["path_nodes"], "path_nodes"), "minItems", 2)
@@ -127,7 +127,7 @@ func TestOpenAPIContractFreezesResearchAnchorPublicationV1(t *testing.T) {
 	assertInt(t, anchors, "minItems", 1)
 
 	anchor := schema(t, document, "ResearchAnchorImportItem")
-	assertRequired(t, anchor, "center_chain_node_id", "one_line_conclusion", "fact_summary", "net_direction_summary", "trading_direction", "next_checkpoint", "events", "path_nodes")
+	assertRequired(t, anchor, "center_chain_node_id", "one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint", "events", "path_nodes")
 	anchorProperties := object(t, anchor["properties"], "ResearchAnchorImportItem properties")
 	for _, forbidden := range []string{"anchor_id", "anchor_type", "importance", "indices", "transmission_path"} {
 		if _, exists := anchorProperties[forbidden]; exists {

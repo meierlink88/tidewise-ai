@@ -56,6 +56,8 @@ type ResearchReasoningTree struct {
 	OneLineConclusion   string                          `json:"one_line_conclusion"`
 	FactSummary         string                          `json:"fact_summary"`
 	NetDirectionSummary string                          `json:"net_direction_summary"`
+	SupportSummary      string                          `json:"support_summary"`
+	CounterSummary      *string                         `json:"counter_summary"`
 	TradingDirection    string                          `json:"trading_direction"`
 	NextCheckpoint      string                          `json:"next_checkpoint"`
 	EventCount          int                             `json:"event_count"`
@@ -128,7 +130,8 @@ func reasoningTreeDTO(value repositories.ResearchReasoningTree) ResearchReasonin
 		AnchorID:          value.AnchorID,
 		CenterChainNode:   ResearchReasoningTreeChainNode{ID: value.CenterChainNodeID, Name: value.CenterChainNodeName},
 		OneLineConclusion: value.OneLineConclusion, FactSummary: value.FactSummary,
-		NetDirectionSummary: value.NetDirectionSummary, TradingDirection: value.TradingDirection,
+		NetDirectionSummary: value.NetDirectionSummary, SupportSummary: value.SupportSummary,
+		CounterSummary: value.CounterSummary, TradingDirection: value.TradingDirection,
 		NextCheckpoint: value.NextCheckpoint, EventCount: len(events), Events: events, PathNodes: pathNodes,
 	}
 }

@@ -19,6 +19,8 @@ type Anchor struct {
 	OneLineConclusion   string     `json:"one_line_conclusion"`
 	FactSummary         string     `json:"fact_summary"`
 	NetDirectionSummary string     `json:"net_direction_summary"`
+	SupportSummary      string     `json:"support_summary"`
+	CounterSummary      *string    `json:"counter_summary"`
 	TradingDirection    string     `json:"trading_direction"`
 	NextCheckpoint      string     `json:"next_checkpoint"`
 	Events              []Event    `json:"events"`
@@ -95,6 +97,7 @@ func (a Anchor) validate(path string) error {
 		{"one_line_conclusion", a.OneLineConclusion},
 		{"fact_summary", a.FactSummary},
 		{"net_direction_summary", a.NetDirectionSummary},
+		{"support_summary", a.SupportSummary},
 		{"trading_direction", a.TradingDirection},
 		{"next_checkpoint", a.NextCheckpoint},
 	}
@@ -107,6 +110,7 @@ func (a Anchor) validate(path string) error {
 		return invalid(a.CenterChainNodeID, path+".events", "", "must contain at least one evidence association")
 	}
 	hasDriver := false
+	hasContradiction := false
 	for index, event := range a.Events {
 		eventPath := fmt.Sprintf("%s.events[%d]", path, index)
 		if !uuidPattern.MatchString(event.EventID) {
@@ -125,12 +129,21 @@ func (a Anchor) validate(path string) error {
 		if event.EvidenceRole == "driver" {
 			hasDriver = true
 		}
+		if event.EvidenceRole == "contradicting" {
+			hasContradiction = true
+		}
 		if strings.TrimSpace(event.EvidenceSummary) == "" {
 			return invalid(a.CenterChainNodeID, eventPath+".evidence_summary", "", "is required")
 		}
 	}
 	if !hasDriver {
 		return invalid(a.CenterChainNodeID, path+".events", "", "must contain at least one driver Event")
+	}
+	if hasContradiction && (a.CounterSummary == nil || strings.TrimSpace(*a.CounterSummary) == "") {
+		return invalid(a.CenterChainNodeID, path+".counter_summary", "", "is required when the Anchor contains a contradicting Event")
+	}
+	if !hasContradiction && a.CounterSummary != nil {
+		return invalid(a.CenterChainNodeID, path+".counter_summary", "", "must be null when the Anchor has no contradicting Event")
 	}
 	if len(a.PathNodes) < 2 {
 		return invalid(a.CenterChainNodeID, path+".path_nodes", "", "must contain at least two Path Nodes")

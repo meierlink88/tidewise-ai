@@ -28,7 +28,7 @@ func TestSharedMultiAnchorFixtureHasFrozenIdentityAndPayloadHash(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CanonicalHash() error = %v", err)
 	}
-	if want := "316ae969f3a946d6ffb2e58bc13ccabae81d95cd7e27575006670890909cb4eb"; hash != want {
+	if want := "e006ca80db77df2b07e0028d3b499b664956fd9ff0d5b57e2d00ccc6c19741a2"; hash != want {
 		t.Fatalf("payload hash = %q, want %q", hash, want)
 	}
 
@@ -56,6 +56,11 @@ func TestDecodeStrictRejectsTheFirstWrongJSONType(t *testing.T) {
 }
 
 func TestDecodeStrictRejectsTheFirstMissingRequiredField(t *testing.T) {
+	completeAnchor := `{"theme_id":"11111111-1111-4111-8111-111111111111","anchors":[{` +
+		`"center_chain_node_id":"22222222-2222-4222-8222-222222222222",` +
+		`"one_line_conclusion":"结论","fact_summary":"事实","net_direction_summary":"方向",` +
+		`"support_summary":"支持","counter_summary":null,` +
+		`"trading_direction":"交易","next_checkpoint":"检查","events":[],"path_nodes":[]}]}`
 	tests := []struct {
 		name    string
 		payload string
@@ -63,10 +68,21 @@ func TestDecodeStrictRejectsTheFirstMissingRequiredField(t *testing.T) {
 	}{
 		{name: "top level", payload: `{"anchors":[]}`, path: "theme_id"},
 		{
+			name:    "support summary",
+			payload: strings.Replace(completeAnchor, `"support_summary":"支持",`, "", 1),
+			path:    "anchors[0].support_summary",
+		},
+		{
+			name:    "explicit nullable counter summary",
+			payload: strings.Replace(completeAnchor, `"counter_summary":null,`, "", 1),
+			path:    "anchors[0].counter_summary",
+		},
+		{
 			name: "explicit nullable path field",
 			payload: `{"theme_id":"11111111-1111-4111-8111-111111111111","anchors":[{` +
 				`"center_chain_node_id":"22222222-2222-4222-8222-222222222222",` +
 				`"one_line_conclusion":"结论","fact_summary":"事实","net_direction_summary":"方向",` +
+				`"support_summary":"支持","counter_summary":null,` +
 				`"trading_direction":"交易","next_checkpoint":"检查","events":[],` +
 				`"path_nodes":[{"chain_node_id":"33333333-3333-4333-8333-333333333333",` +
 				`"change_direction":"increase","change_summary":"变化","impact_summary":"影响"}]}]}`,
@@ -107,6 +123,16 @@ func TestPublicationRejectsFrozenAnchorInvariantsAtDeterministicPaths(t *testing
 	}{
 		{"anchor order", func(p *Publication) { p.Anchors[0], p.Anchors[1] = p.Anchors[1], p.Anchors[0] }, "anchors[1].center_chain_node_id"},
 		{"required text", func(p *Publication) { p.Anchors[0].FactSummary = "   " }, "anchors[0].fact_summary"},
+		{"required support summary", func(p *Publication) { p.Anchors[0].SupportSummary = "   " }, "anchors[0].support_summary"},
+		{"contradiction requires counter summary", func(p *Publication) { p.Anchors[0].CounterSummary = nil }, "anchors[0].counter_summary"},
+		{"contradiction rejects blank counter summary", func(p *Publication) {
+			value := "   "
+			p.Anchors[0].CounterSummary = &value
+		}, "anchors[0].counter_summary"},
+		{"counter summary forbidden without contradiction", func(p *Publication) {
+			value := "不应存在的反证汇总"
+			p.Anchors[1].CounterSummary = &value
+		}, "anchors[1].counter_summary"},
 		{"driver event", func(p *Publication) {
 			for index := range p.Anchors[0].Events {
 				p.Anchors[0].Events[index].EvidenceRole = "context"

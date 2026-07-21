@@ -256,10 +256,11 @@ func publicationShape() *jsonShape {
 	}}
 	anchor := &jsonShape{kind: jsonObject, capturesCenterID: true, required: []string{
 		"center_chain_node_id", "one_line_conclusion", "fact_summary", "net_direction_summary",
-		"trading_direction", "next_checkpoint", "events", "path_nodes",
+		"support_summary", "counter_summary", "trading_direction", "next_checkpoint", "events", "path_nodes",
 	}, fields: map[string]*jsonShape{
 		"center_chain_node_id": scalar, "one_line_conclusion": scalar, "fact_summary": scalar,
-		"net_direction_summary": scalar, "trading_direction": scalar, "next_checkpoint": scalar,
+		"net_direction_summary": scalar, "support_summary": scalar, "counter_summary": nullableScalar,
+		"trading_direction": scalar, "next_checkpoint": scalar,
 		"events": {kind: jsonArray, item: event}, "path_nodes": {kind: jsonArray, item: pathNode},
 	}}
 	return &jsonShape{kind: jsonObject, required: []string{"theme_id", "anchors"}, fields: map[string]*jsonShape{

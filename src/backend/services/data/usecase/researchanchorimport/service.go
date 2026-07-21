@@ -146,6 +146,7 @@ func (s *Service) Import(ctx context.Context, publisherSubject string, publicati
 				ID: anchorID, ThemeID: publication.ThemeID, CenterChainNodeEntityID: anchor.CenterChainNodeID,
 				ImportReceiptID: receipt.ID, OneLineConclusion: anchor.OneLineConclusion,
 				FactSummary: anchor.FactSummary, NetDirectionSummary: anchor.NetDirectionSummary,
+				SupportSummary: anchor.SupportSummary, CounterSummary: anchor.CounterSummary,
 				TradingDirection: anchor.TradingDirection, NextCheckpoint: anchor.NextCheckpoint,
 			}); err != nil {
 				return fmt.Errorf("insert Anchor %q: %w", anchor.CenterChainNodeID, err)
