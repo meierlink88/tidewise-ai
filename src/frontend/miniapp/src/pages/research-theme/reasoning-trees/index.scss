@@ -4,11 +4,11 @@
   width: 100%;
   max-width: 100%;
   min-height: 100vh;
-  background: $color-ivory-200;
+  background: #f8fafc;
 }
 
 .reasoning-page__chrome {
-  background: $color-navy-950;
+  background: #172554;
   color: #fff;
 }
 
@@ -50,11 +50,33 @@
 }
 
 .reasoning-theme-hero {
+  position: relative;
   display: flex;
+  overflow: hidden;
   flex-direction: column;
   padding: 18rpx $spacing-page 46rpx;
-  background: linear-gradient(145deg, $color-navy-950 0%, $color-navy-800 100%);
+  background: linear-gradient(140deg, #172554 0%, #1e3a8a 58%, #1d4ed8 100%);
   color: #fff;
+}
+
+.reasoning-theme-hero::after {
+  position: absolute;
+  right: -224rpx;
+  bottom: -300rpx;
+  width: 460rpx;
+  height: 460rpx;
+  border: 2rpx solid rgba(255, 255, 255, .13);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 76rpx rgba(255, 255, 255, .025),
+    0 0 0 152rpx rgba(255, 255, 255, .018);
+  content: '';
+  pointer-events: none;
+}
+
+.reasoning-theme-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .reasoning-theme-hero__meta {
@@ -235,7 +257,7 @@
 .reasoning-action {
   border: 2rpx solid $color-border;
   border-radius: $radius-card;
-  background: $color-card;
+  background: #fff;
   box-shadow: $shadow-card;
 }
 
@@ -671,7 +693,7 @@
   padding: 40rpx;
   border: 2rpx solid $color-border;
   border-radius: $radius-card;
-  background: $color-card;
+  background: #fff;
   box-shadow: $shadow-card;
   color: $color-text-secondary;
   font-size: 26rpx;
