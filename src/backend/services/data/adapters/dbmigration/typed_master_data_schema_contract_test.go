@@ -14,7 +14,10 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-const typedMasterDataMigration = "000027_add_typed_master_data_schema.sql"
+const (
+	typedMasterDataMigration           = "000027_add_typed_master_data_schema.sql"
+	chainNodeReviewValidationMigration = "000028_validate_chain_node_review_status.sql"
+)
 
 func TestTypedMasterDataMigrationIsSchemaOnly(t *testing.T) {
 	raw := readMigration(t, typedMasterDataMigration)
@@ -183,6 +186,32 @@ func TestTypedMasterDataMigrationIsSchemaOnly(t *testing.T) {
 	}
 }
 
+func TestChainNodeReviewValidationMigrationIsSchemaOnly(t *testing.T) {
+	raw := readMigration(t, chainNodeReviewValidationMigration)
+	up, down := migrationSections(t, raw)
+	normalized := strings.ToLower(up)
+
+	for _, fragment := range []string{
+		"create trigger trg_chain_node_profile_review_status_entity_type",
+		"before update of review_status on chain_node_profiles",
+		"new.review_status is not null",
+		"new.review_status is distinct from old.review_status",
+		"execute function assert_entity_profile_type('chain_node')",
+	} {
+		if !strings.Contains(normalized, fragment) {
+			t.Errorf("chain node review validation migration Up must contain %q", fragment)
+		}
+	}
+
+	dml := regexp.MustCompile(`(?mi)^\s*(insert\s+into|update\s+|delete\s+from|truncate\s+)`)
+	if match := dml.FindString(up); match != "" {
+		t.Fatalf("chain node review validation migration must contain no business DML, found %q", strings.TrimSpace(match))
+	}
+	if !strings.Contains(strings.ToLower(down), "migration 000028 is forward-only") || !strings.Contains(strings.ToLower(down), "raise exception") {
+		t.Fatal("chain node review validation migration Down must fail closed as forward-only")
+	}
+}
+
 func TestTypedMasterDataIntegrationTargetRejectsCurrentLocalDatabase(t *testing.T) {
 	for _, testCase := range []struct {
 		name    string
@@ -228,6 +257,33 @@ WHERE n.id = $1`, typedSchemaID(1)).Scan(&entityType, &entityKey, &definition, &
 	}
 	if entityType != "chain_node" || entityKey != "chain_node:legacy" || definition != "历史节点" || boundaryNote.Valid || reviewStatus.Valid {
 		t.Fatalf("legacy row changed: type=%q key=%q definition=%q boundary=%v review=%v", entityType, entityKey, definition, boundaryNote, reviewStatus)
+	}
+
+	if _, err := db.Exec(`
+UPDATE chain_node_profiles
+SET definition = '仍允许维护历史定义'
+WHERE entity_id = $1`, typedSchemaID(2)); err != nil {
+		t.Fatalf("ordinary legacy profile update must remain compatible: %v", err)
+	}
+	expectPostgresStatementFailure(t, db, `
+UPDATE chain_node_profiles
+SET review_status = 'candidate'
+WHERE entity_id = $1`, typedSchemaID(2))
+	expectPostgresStatementFailure(t, db, `
+UPDATE chain_node_profiles
+SET review_status = 'approved'
+WHERE entity_id = $1`, typedSchemaID(3))
+	if _, err := db.Exec(`
+UPDATE chain_node_profiles
+SET review_status = 'candidate'
+WHERE entity_id = $1`, typedSchemaID(1)); err != nil {
+		t.Fatalf("valid legacy chain node must be promotable to candidate: %v", err)
+	}
+	if _, err := db.Exec(`
+UPDATE chain_node_profiles
+SET review_status = 'approved'
+WHERE entity_id = $1`, typedSchemaID(1)); err != nil {
+		t.Fatalf("valid legacy chain node must be promotable to approved: %v", err)
 	}
 
 	insertTypedSchemaEntity(t, db, 10, "industry", "industry:artificial_intelligence", "人工智能")
@@ -483,7 +539,15 @@ func prepareTypedMasterDataBaseSchema(t *testing.T, db *sql.DB) {
 		`INSERT INTO entity_nodes (id, entity_type, entity_key, name)
          VALUES ('00000000-0000-4000-8000-000000000001', 'chain_node', 'chain_node:legacy', '历史节点')`,
 		`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note)
-         VALUES ('00000000-0000-4000-8000-000000000001', '历史节点', NULL)`,
+	         VALUES ('00000000-0000-4000-8000-000000000001', '历史节点', NULL)`,
+		`INSERT INTO entity_nodes (id, entity_type, entity_key, name)
+	         VALUES ('00000000-0000-4000-8000-000000000002', 'concept', 'concept:legacy_misclassified', '错误类型历史节点')`,
+		`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note)
+	         VALUES ('00000000-0000-4000-8000-000000000002', '错误类型历史节点', NULL)`,
+		`INSERT INTO entity_nodes (id, entity_type, entity_key, name)
+	         VALUES ('00000000-0000-4000-8000-000000000003', 'chain_node', '', '空键历史节点')`,
+		`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note)
+	         VALUES ('00000000-0000-4000-8000-000000000003', '空键历史节点', NULL)`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatal(err)
@@ -499,15 +563,17 @@ func applyTypedMasterDataMigration(t *testing.T, db *sql.DB) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatal(err)
 	}
-	migrations, err := goose.CollectMigrations(migrationDirectory(), 26, 27)
+	migrations, err := goose.CollectMigrations(migrationDirectory(), 26, 28)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(migrations) != 1 {
-		t.Fatalf("typed master data migrations = %d, want 1", len(migrations))
+	if len(migrations) != 2 {
+		t.Fatalf("typed master data migrations = %d, want 2", len(migrations))
 	}
-	if err := migrations[0].UpContext(context.Background(), db); err != nil {
-		t.Fatal(err)
+	for _, migration := range migrations {
+		if err := migration.UpContext(context.Background(), db); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

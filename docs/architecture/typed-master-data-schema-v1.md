@@ -18,7 +18,7 @@
 
 ### Typed identity
 
-非空 `entity_key` 全局唯一，与现有 UUID 生成和按 key 查询合同保持一致。跨类型同名实体使用不同 typed key，例如 `industry:artificial_intelligence` 与 `concept:artificial_intelligence`；名称不做唯一约束。Industry、Concept、Chain Node 和 Industry Chain definition 通过触发器校验所绑定实体类型，并阻止已有 profile 的实体被改成其他类型或空 key。
+非空 `entity_key` 全局唯一，与现有 UUID 生成和按 key 查询合同保持一致。跨类型同名实体使用不同 typed key，例如 `industry:artificial_intelligence` 与 `concept:artificial_intelligence`；名称不做唯一约束。Industry、Concept、Chain Node 和 Industry Chain definition 通过触发器校验所绑定实体类型，并阻止已有 profile 的实体被改成其他类型或空 key。历史 Chain Node profile 的审核状态从 NULL 提升为 candidate/approved 时，也必须重新通过相同的类型和稳定 key 校验。
 
 ### Industry
 
@@ -30,7 +30,7 @@
 
 ### Chain Node
 
-现有 `chain_node_profiles` 只增加可空的 `review_status`。NULL 明确表示历史记录尚未通过本次主数据清洗；migration 不把 842 条旧记录批量判成 candidate 或 approved。后续正式导入合同必须为新增或已清洗记录提交审核状态。
+现有 `chain_node_profiles` 只增加可空的 `review_status`。NULL 明确表示历史记录尚未通过本次主数据清洗；migration 不把 842 条旧记录批量判成 candidate 或 approved。后续正式导入合同必须为新增或已清洗记录提交审核状态。`000028` 仅在审核状态实际变为非空值时重新校验绑定实体，不扫描、回填或修改仍为 NULL 的历史记录。
 
 ### Industry Chain
 
@@ -61,8 +61,9 @@ active graph edge 只能引用 active membership；仍被 active edge 引用的 
 
 ## Migration 安全边界
 
-- `000027` 仅包含 DDL、约束函数和触发器，不包含业务 `INSERT`、`UPDATE`、`DELETE` 或 `TRUNCATE`。
+- `000027` 与 `000028` 仅包含 DDL、约束函数和触发器，不包含业务 `INSERT`、`UPDATE`、`DELETE` 或 `TRUNCATE`。
 - 若现库存在重复非空 `entity_key`，唯一索引会 fail closed；本 migration 不会自动合并或重写任何身份。
-- migration 不应用到 `tidewise_local`、UAT、production 或 shared 数据库。
+- `000027` 已在完整备份和迁移前后计数核验后获授权应用到本地 `tidewise_local`；新表保持为空，原有业务数据未清洗或改写。
+- 本设计不授权对 UAT、production 或 shared 数据库执行 migration；各环境仍需走独立发布门禁。
 - PostgreSQL 行为测试只允许连接 loopback 上的专用测试数据库（CI 的一次性 service database 例外），在临时 schema 中运行并在结束后删除。
 - Down fail closed；已发布 Schema 的撤回必须通过审核后的 forward fix。
