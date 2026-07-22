@@ -25,6 +25,20 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/data:"+fixtureSHA)
 }
 
+func TestUATDeployExecutorTreatsNullPendingAsNoMigrations(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		migrationReport: `{"current_version":"24","pending":null,"applied":null,"remaining":null}`,
+	})
+	if result.err != nil {
+		t.Fatalf("null pending migration report failed deployment: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{"PASS rds-tls-readonly", "PASS migration-risk-gate", "PASS migration-apply"} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("deploy output missing %q: %s", want, result.output)
+		}
+	}
+}
+
 func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failFirstUp: true})
 	if result.err == nil {

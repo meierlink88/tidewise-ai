@@ -100,7 +100,7 @@ for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
     if classification not in {"normal", "high", "blocked"}:
         raise SystemExit(f"invalid migration risk classification for {version}: {classification}")
     risk[version] = classification
-pending = report.get("pending", [])
+pending = report.get("pending") or []
 versions = [str(item.get("Version", item.get("version", ""))).zfill(6) for item in pending]
 unclassified = [version for version in versions if version not in risk]
 if unclassified:
