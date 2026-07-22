@@ -240,6 +240,7 @@ type ChainNodeProfile struct {
 	EntityID     string
 	Definition   string
 	BoundaryNote string
+	ReviewStatus ReviewStatus
 }
 
 func (p ChainNodeProfile) Validate() error {
@@ -248,6 +249,9 @@ func (p ChainNodeProfile) Validate() error {
 	}
 	if p.BoundaryNote != "" && strings.TrimSpace(p.BoundaryNote) == "" {
 		return fmt.Errorf("chain node boundary note must be nonblank when present")
+	}
+	if p.ReviewStatus != "" && !validMasterDataReviewStatus(p.ReviewStatus) {
+		return fmt.Errorf("unsupported chain node review status %q", p.ReviewStatus)
 	}
 	return nil
 }
