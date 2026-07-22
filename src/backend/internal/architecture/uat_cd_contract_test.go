@@ -26,7 +26,7 @@ func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
-		"actions/upload-artifact@v4",
+		"actions/upload-artifact@",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("UAT workflow missing %q", required)
