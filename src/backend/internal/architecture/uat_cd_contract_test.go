@@ -44,6 +44,25 @@ func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 	}
 }
 
+func TestUATWorkflowUsesImmutableMainControlPlaneForHistoricalRelease(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "..")
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	for _, required := range []string{
+		"Checkout trusted UAT control plane",
+		"ref: ${{ github.sha }}",
+		"path: .uat-control",
+		"sparse-checkout: infra/uat",
+		".uat-control/infra/uat/preflight.sh",
+		".uat-control/infra/uat/deploy.sh",
+		".uat-control/infra/uat/collect-diagnostics.sh",
+		".uat-control/infra/uat/migration-risk.tsv",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT workflow does not pin trusted control plane contract %q", required)
+		}
+	}
+}
+
 func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..")
 	entries, err := filepath.Glob(filepath.Join(root, "src", "backend", "migrations", "*.sql"))

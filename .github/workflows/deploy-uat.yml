@@ -203,9 +203,16 @@ jobs:
         with:
           ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
+      - name: Checkout trusted UAT control plane
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .uat-control
+          sparse-checkout: infra/uat
+
       - name: Preflight ECS runtime and network
         shell: bash
-        run: infra/uat/preflight.sh
+        run: .uat-control/infra/uat/preflight.sh
 
       - name: Login to SWR with pull credentials
         uses: docker/login-action@v3
@@ -251,7 +258,8 @@ jobs:
         env:
           RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
           CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
-        run: infra/uat/deploy.sh
+          MIGRATION_RISK_MANIFEST: ${{ github.workspace }}/.uat-control/infra/uat/migration-risk.tsv
+        run: .uat-control/infra/uat/deploy.sh
 
       - name: Show diagnostics on failure
         id: diagnostics
@@ -262,7 +270,7 @@ jobs:
           CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
         run: |
           diagnostics_file="${RUNNER_TEMP}/uat-diagnostics-${GITHUB_RUN_ID}.log"
-          infra/uat/collect-diagnostics.sh > "$diagnostics_file"
+          .uat-control/infra/uat/collect-diagnostics.sh > "$diagnostics_file"
           echo "diagnostics_file=$diagnostics_file" >> "$GITHUB_OUTPUT"
 
       - name: Upload sanitized failure diagnostics
