@@ -10,9 +10,11 @@
 .DS_Store
 /midscene_run/
 
-# Local-only agent instructions and Codex configuration.
+# Local-only agent instructions and Codex configuration. The GitHub CLI rule is
+# repository workflow configuration and is intentionally tracked.
 /.agent/
 /.agents/
-/.codex/
+/.codex/*
+!/.codex/rules/
+!/.codex/rules/github.rules
 /AGENT.md
-/AGENTS.md
