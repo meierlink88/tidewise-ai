@@ -5,7 +5,14 @@ on:
   push:
     branches:
       - main
-      - "codex/**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend:
@@ -30,13 +37,25 @@ jobs:
         working-directory: src/backend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: src/backend/go.mod
           cache-dependency-path: src/backend/go.sum
+
+      - name: Verify Go formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "The following Go files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet backend
+        run: go vet ./...
 
       - name: Research Anchor PostgreSQL integration
         env:
@@ -50,7 +69,7 @@ jobs:
         run: go test ./internal/architecture
 
       - name: Test backend
-        run: go test ./...
+        run: go test -race ./...
 
       - name: Build service binaries
         run: |
@@ -69,10 +88,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -80,6 +101,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify changed frontend and workflow formatting
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/check-prettier-diff.sh
 
       - name: Test
         run: npm run test
@@ -101,3 +128,21 @@ jobs:
 
       - name: Build Admin portal image
         run: docker build -f src/frontend/admin/Dockerfile -t tidewise-admin:ci .
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan commits for credentials
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
