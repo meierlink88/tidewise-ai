@@ -19,6 +19,8 @@ func validEntityType(value EntityType) bool {
 		EntityTypeIndex,
 		EntityTypeBenchmark,
 		EntityTypeSector,
+		EntityTypeIndustry,
+		EntityTypeConcept,
 		EntityTypeIndustryChain,
 		EntityTypeChainNode,
 		EntityTypeTheme,

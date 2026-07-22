@@ -24,6 +24,8 @@ const (
 	EntityTypeIndex         EntityType = "index"
 	EntityTypeBenchmark     EntityType = "benchmark"
 	EntityTypeSector        EntityType = "sector"
+	EntityTypeIndustry      EntityType = "industry"
+	EntityTypeConcept       EntityType = "concept"
 	EntityTypeIndustryChain EntityType = "industry_chain"
 	EntityTypeChainNode     EntityType = "chain_node"
 	EntityTypeTheme         EntityType = "theme"

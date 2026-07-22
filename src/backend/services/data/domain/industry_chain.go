@@ -63,6 +63,8 @@ const (
 	PhysicalConstraintPhysicalExpansionCycle PhysicalConstraintType = "physical_expansion_cycle"
 )
 
+// IndustryChainProfile models the retired migration 000014 import contract.
+// Deprecated: new code should use IndustryChainDefinition.
 type IndustryChainProfile struct {
 	EntityID               string
 	ChainCode              string
@@ -96,6 +98,8 @@ func (p IndustryChainProfile) Validate() error {
 	return validateIndustryChainProvenance(p.SourceName, p.SourceURL, p.VerifiedAt)
 }
 
+// IndustryChainMembership models the retired migration 000014 import contract.
+// Deprecated: new code should use IndustryChainNodeMembership.
 type IndustryChainMembership struct {
 	ID                    string
 	IndustryChainEntityID string
@@ -129,6 +133,8 @@ func (m IndustryChainMembership) Validate() error {
 	return validateIndustryChainProvenance(m.SourceName, m.SourceURL, m.VerifiedAt)
 }
 
+// IndustryChainTopologyEdge models the retired migration 000014 import contract.
+// Deprecated: new code should use IndustryChainGraphEdge.
 type IndustryChainTopologyEdge struct {
 	ID                    string
 	IndustryChainEntityID string

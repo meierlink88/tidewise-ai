@@ -33,6 +33,16 @@ func TestPhaseAPreflightSQLIsReadOnlyAndCoversMigrationRisks(t *testing.T) {
 			t.Fatalf("post-cleanup preflight must not query retired relation %q", retired)
 		}
 	}
+	if strings.Contains(sql, "sector_source_mappings|industry_chain|entity_convergence") {
+		t.Fatal("legacy catalog scan must name retired Industry Chain objects instead of matching the active namespace broadly")
+	}
+	for _, activeSchemaObject := range []string{
+		"industry_chain_definitions", "industry_chain_node_memberships", "industry_chain_graph_edges",
+	} {
+		if strings.Contains(sql, activeSchemaObject) {
+			t.Fatalf("legacy preflight must not classify active schema object %q as retired", activeSchemaObject)
+		}
+	}
 	for _, forbidden := range []string{"insert ", "update ", "delete ", "alter ", "drop ", "truncate ", "create "} {
 		if strings.Contains(sql, forbidden) {
 			t.Fatalf("preflight SQL contains write keyword %q", forbidden)
