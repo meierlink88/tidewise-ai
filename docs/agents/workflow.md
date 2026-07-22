@@ -15,7 +15,16 @@ When delegation is explicitly requested, use `gpt-5.6-sol` with `medium` reasoni
 - Read `AGENTS.md`, `CONTEXT.md`, relevant ADRs, authoritative specs, and the affected implementation.
 - Inspect the current branch, HEAD, remote baseline, and dirty/untracked files before writing.
 - Treat existing changes as user-owned. Preserve them and keep unrelated files out of the task commit.
-- For Eino changes, inspect the shared read-only references under the main checkout's `.reference/cloudwego/` when available. A worktree-local clone is not required.
+
+### Eino reference-first gate
+
+Any change that introduces or modifies Eino orchestration, Agent architecture, a model or Provider adapter, or multi-Agent execution must complete a targeted reference audit before specification or implementation:
+
+- Inspect all available shared read-only clones at `.reference/cloudwego/eino`, `.reference/cloudwego/eino-ext`, and `.reference/cloudwego/eino-examples`. A worktree-local clone or mapping is not required.
+- Record each clone's exact commit, the relevant files or examples inspected, adopted patterns, rejected patterns, and project-specific gaps in the authoritative Spec or PR.
+- Audit the relevant surfaces deeply; do not mechanically read unrelated packages merely to claim full-repository coverage.
+- If a required clone is unavailable, stop before implementation and report the missing shared reference rather than silently relying on memory or remote snippets.
+- Treat the audit as design evidence, not as authority to copy example project layout or introduce Eino features outside the accepted scope.
 
 ### 2. Grill with docs
 

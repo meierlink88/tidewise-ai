@@ -9,6 +9,8 @@ const ContentOrigin = "connector_response"
 
 type ContentLevel string
 
+type CandidateDisposition string
+
 const (
 	LevelFullText ContentLevel = "full_text"
 	LevelSummary  ContentLevel = "summary"
@@ -16,10 +18,20 @@ const (
 	LevelTitle    ContentLevel = "title_only"
 )
 
+const (
+	DispositionAccepted       CandidateDisposition = "accepted"
+	DispositionKnownURL       CandidateDisposition = "known_url"
+	DispositionOutOfWindow    CandidateDisposition = "out_of_window"
+	DispositionInvalidResult  CandidateDisposition = "invalid_result"
+	DispositionExactDuplicate CandidateDisposition = "exact_duplicate"
+	DispositionNearDuplicate  CandidateDisposition = "near_duplicate"
+)
+
 type Request struct {
 	RunID           string
-	Objective       string
+	Prompt          string
 	SearchQueries   []string
+	CombinedQuery   string
 	CandidateLimit  int
 	TimeWindowHours int
 	CollectedAt     time.Time
@@ -41,9 +53,12 @@ type Candidate struct {
 }
 
 type ConnectorRun struct {
-	Connector string
-	Results   []Candidate
-	Error     string
+	Connector    string
+	Request      *Request
+	Results      []Candidate
+	ErrorCode    string
+	ErrorSummary string
+	Err          error
 }
 
 type Stats struct {
@@ -63,12 +78,15 @@ type Stats struct {
 }
 
 type Result struct {
-	RunID      string `json:"run_id"`
-	StopReason string `json:"stop_reason"`
-	Documents  string `json:"documents_path"`
-	Index      string `json:"index_path"`
-	Summary    string `json:"summary_path"`
-	Stats      Stats  `json:"stats"`
+	RunID             string   `json:"run_id"`
+	StopReason        string   `json:"stop_reason"`
+	Documents         string   `json:"documents_path"`
+	AcceptedDocuments []string `json:"accepted_documents"`
+	Index             string   `json:"index_path"`
+	Candidates        string   `json:"candidates_path"`
+	Manifest          string   `json:"manifest_path"`
+	Summary           string   `json:"summary_path"`
+	Stats             Stats    `json:"stats"`
 }
 
 type Connector interface {
