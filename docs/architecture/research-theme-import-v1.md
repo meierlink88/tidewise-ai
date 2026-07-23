@@ -5,7 +5,7 @@
 AI 分析服务通过 Data Service 将一次分析运行产生的全部 Research Theme 原子发布。Theme 是不可变的批次快照，不承担跨批次长期主题身份。
 
 ```text
-POST /internal/data/v1/research-theme-imports
+POST /api/data/v1/research-theme-imports
 Authorization: Bearer <service-token>
 Content-Type: application/json
 ```

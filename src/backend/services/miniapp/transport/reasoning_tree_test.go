@@ -26,7 +26,7 @@ func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.
 			}
 			return dataResult, nil
 		}}
-		request := httptest.NewRequest(http.MethodGet, "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees", nil)
+		request := httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees", nil)
 		request.Header.Set(dataclient.RequestIDHeader, "miniapp-reasoning-1")
 		response := httptest.NewRecorder()
 		researchTestRouter(usecase.NewResearchService(client)).ServeHTTP(response, request)
@@ -47,7 +47,7 @@ func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.
 			}
 			return dataResult, nil
 		}}
-		response := serveResearch(t, usecase.NewResearchService(client), "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799")
+		response := serveResearch(t, usecase.NewResearchService(client), "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799")
 
 		if response.Code != http.StatusOK || calls != 1 {
 			t.Fatalf("status/calls = %d/%d, body=%s", response.Code, calls, response.Body.String())
@@ -70,10 +70,10 @@ func TestResearchReasoningTreeRoutesRejectQueryAndInvalidUUIDBeforeDataCall(t *t
 	}
 	service := usecase.NewResearchService(client)
 	for _, path := range []string{
-		"/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees?window_hours=24",
-		"/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799?unused=1",
-		"/api/v1/miniapp/research/themes/11111111-1111-4111-8111-11111111111A/reasoning-trees",
-		"/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/NOT-A-UUID",
+		"/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees?window_hours=24",
+		"/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799?unused=1",
+		"/api/miniapp/v1/research/themes/11111111-1111-4111-8111-11111111111A/reasoning-trees",
+		"/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/NOT-A-UUID",
 	} {
 		response := serveResearch(t, service, path)
 		assertReasoningError(t, response, http.StatusBadRequest, "INVALID_REQUEST")
@@ -93,23 +93,23 @@ func TestResearchReasoningTreeRoutesExposeStableErrorsWithoutUpstreamMetadata(t 
 		wantCode   string
 	}{
 		{
-			name: "Theme missing", path: "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees",
+			name: "Theme missing", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees",
 			code: "RESEARCH_THEME_NOT_FOUND", wantStatus: http.StatusNotFound, wantCode: "RESEARCH_THEME_NOT_FOUND",
 		},
 		{
-			name: "trees missing", path: "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees",
+			name: "trees missing", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees",
 			code: "RESEARCH_REASONING_TREES_NOT_FOUND", wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREES_NOT_FOUND",
 		},
 		{
-			name: "tree missing", path: "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
+			name: "tree missing", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
 			code: "RESEARCH_REASONING_TREE_NOT_FOUND", wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREE_NOT_FOUND",
 		},
 		{
-			name: "unknown upstream 404", path: "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
+			name: "unknown upstream 404", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
 			code: "UNEXPECTED_NOT_FOUND", wantStatus: http.StatusBadGateway, wantCode: "RESEARCH_DATA_UNAVAILABLE",
 		},
 		{
-			name: "network", path: "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
+			name: "network", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
 			upstream: errors.New("dial postgres password=must-not-leak"), wantStatus: http.StatusBadGateway, wantCode: "RESEARCH_DATA_UNAVAILABLE",
 		},
 	}
@@ -165,12 +165,18 @@ func transportReasoningFixtureResult[T any](t *testing.T, name string) (T, any) 
 
 func assertTransportJSONEquivalent(t *testing.T, want any, payload []byte) {
 	t.Helper()
-	var got any
-	if err := json.Unmarshal(payload, &got); err != nil {
+	var envelope struct {
+		RequestID string `json:"request_id"`
+		Result    any    `json:"result"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
 		t.Fatalf("decode response: %v; body=%s", err, payload)
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("response = %#v, want %#v", got, want)
+	if envelope.RequestID == "" {
+		t.Fatal("response request_id is empty")
+	}
+	if !reflect.DeepEqual(envelope.Result, want) {
+		t.Fatalf("response result = %#v, want %#v", envelope.Result, want)
 	}
 }
 
@@ -181,15 +187,20 @@ func assertReasoningError(t *testing.T, response *httptest.ResponseRecorder, wan
 	}
 	var body struct {
 		Error struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
+			Code    string         `json:"code"`
+			Message string         `json:"message"`
+			Details map[string]any `json:"details"`
 		} `json:"error"`
+		RequestID string `json:"request_id"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode error: %v; body=%s", err, response.Body.String())
 	}
-	if body.Error.Code != wantCode || body.Error.Message == "" {
+	if body.Error.Code != wantCode || body.Error.Message == "" || body.Error.Details == nil || body.RequestID == "" {
 		t.Fatalf("error = %#v, want code %s", body.Error, wantCode)
+	}
+	if response.Header().Get(dataclient.RequestIDHeader) != body.RequestID {
+		t.Fatalf("header/body request IDs = %q/%q", response.Header().Get(dataclient.RequestIDHeader), body.RequestID)
 	}
 }
 

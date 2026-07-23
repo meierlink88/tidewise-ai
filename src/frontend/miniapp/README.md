@@ -32,7 +32,7 @@ npm run dev:h5
 
 然后打开 `http://localhost:10086/`。H5 开发服务会把同源 `/api` 请求代理到本地 Miniapp Backend `http://127.0.0.1:9012`，浏览器不会直接访问 Data Service，也不需要额外处理 CORS。可通过 `TARO_APP_H5_API_PROXY_TARGET` 覆盖代理目标。
 
-`TARO_APP_RESEARCH_SOURCE` 仅允许 `mock` 或 `api`。API 模式调用 Miniapp Backend 的 `/api/v1/miniapp/research/themes`，请求失败会展示错误状态，不会静默回退 Mock。前端不保存 Data Service token，也不直接调用 Data Service。
+`TARO_APP_RESEARCH_SOURCE` 仅允许 `mock` 或 `api`。API 模式调用 Miniapp Backend 的 `/api/miniapp/v1/research/themes`，请求失败会展示错误状态，不会静默回退 Mock。前端不保存 Data Service token，也不直接调用 Data Service。
 
 ## 验证
 

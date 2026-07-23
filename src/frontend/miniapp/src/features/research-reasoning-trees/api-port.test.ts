@@ -5,6 +5,7 @@ import { createResearchReasoningTreeApiPort } from './api-port';
 
 const themeId = '11111111-1111-4111-8111-111111111111';
 const anchorId = '534d83be-774b-51d9-ad00-cdee4ba91799';
+const success = (result: unknown) => ({ request_id: 'miniapp-reasoning-test', result });
 
 describe('research reasoning tree BFF adapter', () => {
   it('maps the shared list and detail fixtures through the public Port', async () => {
@@ -12,8 +13,8 @@ describe('research reasoning tree BFF adapter', () => {
     const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json');
     const request = vi
       .fn()
-      .mockResolvedValueOnce({ statusCode: 200, data: list })
-      .mockResolvedValueOnce({ statusCode: 200, data: detail });
+      .mockResolvedValueOnce({ statusCode: 200, data: success(list) })
+      .mockResolvedValueOnce({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test/',
       request
@@ -23,12 +24,12 @@ describe('research reasoning tree BFF adapter', () => {
     const tree = await port.get(themeId, anchorId);
 
     expect(request).toHaveBeenNthCalledWith(1, {
-      url: `https://miniapp.example.test/api/v1/miniapp/research/themes/${themeId}/reasoning-trees`,
+      url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}/reasoning-trees`,
       method: 'GET',
       dataType: 'json'
     });
     expect(request).toHaveBeenNthCalledWith(2, {
-      url: `https://miniapp.example.test/api/v1/miniapp/research/themes/${themeId}/reasoning-trees/${anchorId}`,
+      url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}/reasoning-trees/${anchorId}`,
       method: 'GET',
       dataType: 'json'
     });
@@ -78,7 +79,9 @@ describe('research reasoning tree BFF adapter', () => {
   });
 
   it('fails closed when the BFF returns an invalid success payload', async () => {
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: { reasoning_trees: [] } });
+    const request = vi
+      .fn()
+      .mockResolvedValue({ statusCode: 200, data: success({ reasoning_trees: [] }) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
@@ -96,7 +99,7 @@ describe('research reasoning tree BFF adapter', () => {
       reasoning_tree: { events: Array<{ event_time: string | null }> };
     };
     detail.reasoning_tree.events[0].event_time = '2026/07/20 09:00:00';
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
@@ -113,7 +116,7 @@ describe('research reasoning tree BFF adapter', () => {
     );
     const fixtureAnchorId = (detail as { reasoning_tree: { anchor_id: string } }).reasoning_tree
       .anchor_id;
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
@@ -132,7 +135,7 @@ describe('research reasoning tree BFF adapter', () => {
       await fixtureResult('02-reasoning-tree-with-contradiction-result.json')
     ) as { reasoning_tree: Record<string, unknown> };
     delete detail.reasoning_tree.support_summary;
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
@@ -152,7 +155,7 @@ describe('research reasoning tree BFF adapter', () => {
       };
     };
     detail.reasoning_tree.path_nodes[1].incoming_transmission_mechanism = null;
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: detail });
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request

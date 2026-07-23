@@ -2,7 +2,7 @@
 
 这些文件是 Tidewise Data、Miniapp BFF 和小程序共用的确定性合同测试数据，不是 AI 分析师运行产物、生产 seed 或导入 outbox。
 
-真实推理树只能由 AI 分析师发布器调用 `POST /internal/data/v1/research-anchor-imports` 入库。
+真实推理树只能由 AI 分析师发布器调用 `POST /api/data/v1/research-anchor-imports` 入库。
 
 ## Files
 

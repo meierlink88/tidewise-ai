@@ -101,7 +101,7 @@ ORDER BY relation_type;
 
 Source Catalog、采集调度和完整原始 Artifact 已归 AgentRun。Data 不再提供
 `source-seed` 或维护 `source_catalogs`；新 Event 只能通过
-`POST /internal/data/v2/reviewed-event-imports` 连同轻量证据原子接纳。历史
+`POST /api/data/v1/reviewed-event-imports` 连同轻量证据原子接纳。历史
 `raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。
 
 ## Neo4j 图谱投影记录

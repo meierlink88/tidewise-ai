@@ -6,44 +6,47 @@ describe('research theme BFF adapter', () => {
     const request = vi.fn().mockResolvedValue({
       statusCode: 200,
       data: {
-        window_start: '2026-07-18T00:00:00Z',
-        window_end: '2026-07-18T10:00:00Z',
-        as_of: '2026-07-18T10:00:00Z',
-        theme_count: 1,
-        event_count: 2,
-        next_cursor: null,
-        items: [
-          {
-            id: '11111111-1111-5111-8111-111111111111',
-            name: 'AI算力扩产与半导体',
-            one_line_conclusion: '晶圆扩产增强但卡点与价格背离',
-            impact_level: 'high',
-            transmission_path: '资本开支 → 设备材料需求',
-            trading_direction: '重点验证订单、交期和关键材料价格',
-            transmission_stage: 'diffusion',
-            next_checkpoint: '卡点尚未证明',
-            market_confirmation_summary: '市场混合偏背离',
-            published_at: '2026-07-18T09:00:00Z',
-            affected_chain_nodes: [
-              {
-                id: '22222222-2222-5222-8222-222222222222',
-                name: '半导体设备',
-                relation_role: 'beneficiary',
-                impact_summary: '订单仍待验证'
-              }
-            ],
-            related_indices: [],
-            supporting_event_count: 2,
-            contradicting_event_count: 1
-          }
-        ]
+        request_id: 'miniapp-theme-test',
+        result: {
+          window_start: '2026-07-18T00:00:00Z',
+          window_end: '2026-07-18T10:00:00Z',
+          as_of: '2026-07-18T10:00:00Z',
+          theme_count: 1,
+          event_count: 2,
+          next_cursor: null,
+          items: [
+            {
+              id: '11111111-1111-5111-8111-111111111111',
+              name: 'AI算力扩产与半导体',
+              one_line_conclusion: '晶圆扩产增强但卡点与价格背离',
+              impact_level: 'high',
+              transmission_path: '资本开支 → 设备材料需求',
+              trading_direction: '重点验证订单、交期和关键材料价格',
+              transmission_stage: 'diffusion',
+              next_checkpoint: '卡点尚未证明',
+              market_confirmation_summary: '市场混合偏背离',
+              published_at: '2026-07-18T09:00:00Z',
+              affected_chain_nodes: [
+                {
+                  id: '22222222-2222-5222-8222-222222222222',
+                  name: '半导体设备',
+                  relation_role: 'beneficiary',
+                  impact_summary: '订单仍待验证'
+                }
+              ],
+              related_indices: [],
+              supporting_event_count: 2,
+              contradicting_event_count: 1
+            }
+          ]
+        }
       }
     });
 
     const feed = await createResearchThemeApiPort({ baseUrl: 'https://miniapp.example.test', request }).list();
 
     expect(request).toHaveBeenCalledWith({
-      url: 'https://miniapp.example.test/api/v1/miniapp/research/themes',
+      url: 'https://miniapp.example.test/api/miniapp/v1/research/themes',
       method: 'GET',
       data: { window_hours: 24, limit: 20 },
       dataType: 'json'
@@ -74,13 +77,16 @@ describe('research theme BFF adapter', () => {
     const request = vi.fn().mockResolvedValue({
       statusCode: 200,
       data: {
-        window_start: '2026-07-14T00:00:00Z',
-        window_end: '2026-07-21T00:00:00Z',
-        as_of: '2026-07-21T00:00:00Z',
-        theme_count: 0,
-        event_count: 0,
-        next_cursor: null,
-        items: []
+        request_id: 'miniapp-theme-preview',
+        result: {
+          window_start: '2026-07-14T00:00:00Z',
+          window_end: '2026-07-21T00:00:00Z',
+          as_of: '2026-07-21T00:00:00Z',
+          theme_count: 0,
+          event_count: 0,
+          next_cursor: null,
+          items: []
+        }
       }
     });
 

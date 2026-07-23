@@ -130,14 +130,14 @@ func DecodeStrict(reader io.Reader) (Publication, error) {
 	decoder.UseNumber()
 	var publication Publication
 	if err := decoder.Decode(&publication); err != nil {
-		return Publication{}, fmt.Errorf("decode Event Publication V2: %w", err)
+		return Publication{}, fmt.Errorf("decode Event Publication: %w", err)
 	}
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
 		if err == nil {
-			return Publication{}, fmt.Errorf("Event Publication V2 body must contain exactly one JSON object")
+			return Publication{}, fmt.Errorf("Event Publication body must contain exactly one JSON object")
 		}
-		return Publication{}, fmt.Errorf("decode trailing Event Publication V2 data: %w", err)
+		return Publication{}, fmt.Errorf("decode trailing Event Publication data: %w", err)
 	}
 	return publication, nil
 }

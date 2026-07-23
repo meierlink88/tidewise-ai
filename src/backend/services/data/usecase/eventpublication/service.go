@@ -71,7 +71,7 @@ type ConflictError struct {
 
 func (e *ConflictError) Error() string {
 	if e == nil || len(e.Issues) == 0 {
-		return "Event Publication V2 conflicts with stored data"
+		return "Event Publication conflicts with stored data"
 	}
 	return fmt.Sprintf("%s: %s", e.Issues[0].Path, e.Issues[0].Message)
 }
@@ -116,10 +116,10 @@ type tagPlan struct {
 
 func (s *Service) Import(ctx context.Context, callerSubject string, publication publicationdomain.Publication) (Result, error) {
 	if s == nil || s.store == nil {
-		return Result{}, errors.New("Event Publication V2 store is required")
+		return Result{}, errors.New("Event Publication store is required")
 	}
 	if strings.TrimSpace(callerSubject) == "" {
-		return Result{}, errors.New("Event Publication V2 caller subject is required")
+		return Result{}, errors.New("Event Publication caller subject is required")
 	}
 	if err := publication.Validate(); err != nil {
 		return Result{}, err
@@ -154,7 +154,7 @@ func (s *Service) Import(ctx context.Context, callerSubject string, publication 
 		}
 		receiptID, err := s.newUUID()
 		if err != nil {
-			return fmt.Errorf("generate Event Publication V2 receipt ID: %w", err)
+			return fmt.Errorf("generate Event Publication receipt ID: %w", err)
 		}
 		importedAt := s.now().UTC()
 		result = buildResult(receiptID, importedAt, publication.PackageID, rawPlans, eventPlans)

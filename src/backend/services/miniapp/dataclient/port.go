@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DataAPIPrefix      = "/internal/data/v1"
+	DataAPIPrefix      = "/api/data/v1"
 	ResearchThemesPath = DataAPIPrefix + "/research/themes"
 )
 

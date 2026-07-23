@@ -33,7 +33,7 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 		}, nil
 	}}
 	router := researchTestRouter(usecase.NewResearchService(client))
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/miniapp/research/themes?window_hours=24&limit=20", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes?window_hours=24&limit=20", nil)
 	request.Header.Set(dataclient.RequestIDHeader, "miniapp-request-1")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
@@ -45,9 +45,16 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	items, ok := body["items"].([]any)
+	if body["request_id"] != "miniapp-request-1" || response.Header().Get(dataclient.RequestIDHeader) != "miniapp-request-1" {
+		t.Fatalf("request IDs = %#v/%q", body["request_id"], response.Header().Get(dataclient.RequestIDHeader))
+	}
+	result, ok := body["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("result = %#v", body["result"])
+	}
+	items, ok := result["items"].([]any)
 	if !ok || len(items) != 1 {
-		t.Fatalf("items = %#v", body["items"])
+		t.Fatalf("items = %#v", result["items"])
 	}
 	item := items[0].(map[string]any)
 	if item["impact_level"] != "high" || item["trading_direction"] != "风险偏好可能回升" || item["transmission_stage"] != "identification" {
@@ -61,8 +68,8 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 func TestResearchRoutesDoNotExposeLegacyStandaloneAnchorAPI(t *testing.T) {
 	router := researchTestRouter(usecase.NewResearchService(&dataclient.Fake{}))
 	for _, path := range []string{
-		"/api/v1/miniapp/research/anchors",
-		"/api/v1/miniapp/research/anchors/11111111-1111-4111-8111-111111111111",
+		"/api/miniapp/v1/research/anchors",
+		"/api/miniapp/v1/research/anchors/11111111-1111-4111-8111-111111111111",
 	} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		response := httptest.NewRecorder()
@@ -80,7 +87,7 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 			calls++
 			return dataclient.ResearchThemePage{}, nil
 		}}
-		response := serveResearch(t, usecase.NewResearchService(client), "/api/v1/miniapp/research/themes?limit=51")
+		response := serveResearch(t, usecase.NewResearchService(client), "/api/miniapp/v1/research/themes?limit=51")
 		if response.Code != http.StatusBadRequest || calls != 0 {
 			t.Fatalf("status/calls = %d/%d", response.Code, calls)
 		}
@@ -90,10 +97,10 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 		name       string
 		upstream   error
 		wantStatus int
-		wantBody   string
+		wantCode   string
 	}{
-		{name: "not found", upstream: &dataclient.Error{Kind: dataclient.ErrorKindClient, StatusCode: 404}, wantStatus: 404, wantBody: `{"error":"research result not found"}`},
-		{name: "internal", upstream: errors.New("postgres password=do-not-leak"), wantStatus: 500, wantBody: `{"error":"research data service failure"}`},
+		{name: "not found", upstream: &dataclient.Error{Kind: dataclient.ErrorKindClient, StatusCode: 404}, wantStatus: 404, wantCode: "RESEARCH_RESULT_NOT_FOUND"},
+		{name: "internal", upstream: errors.New("postgres password=do-not-leak"), wantStatus: 500, wantCode: "RESEARCH_DATA_UNAVAILABLE"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
@@ -101,10 +108,11 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 				calls++
 				return dataclient.ResearchThemeDetail{}, test.upstream
 			}}
-			response := serveResearch(t, usecase.NewResearchService(client), "/api/v1/miniapp/research/themes/11111111-1111-4111-8111-111111111111")
-			if response.Code != test.wantStatus || response.Body.String() != test.wantBody || calls != 1 {
+			response := serveResearch(t, usecase.NewResearchService(client), "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111")
+			if response.Code != test.wantStatus || calls != 1 {
 				t.Fatalf("status/body/calls = %d/%q/%d", response.Code, response.Body.String(), calls)
 			}
+			assertReasoningError(t, response, test.wantStatus, test.wantCode)
 		})
 	}
 }
@@ -112,7 +120,7 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 func researchTestRouter(service *usecase.ResearchService) http.Handler {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterResearchRoutes(router.Group("/api/v1"), service)
+	RegisterResearchRoutes(router.Group("/api/miniapp/v1"), service)
 	return router
 }
 

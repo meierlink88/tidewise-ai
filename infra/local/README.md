@@ -108,7 +108,7 @@ go run ./services/data/cmd/research-theme-dev-seed
 
 ## 采集运行边界
 
-Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采集编排归属独立 AgentRun 项目。Tidewise Data 只通过受认证的 `POST /internal/data/v2/reviewed-event-imports` 原子接纳正式 Event 及其轻量证据记录；AgentRun 不得绕过 Data Service 直接写 Data DB。
+Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采集编排归属独立 AgentRun 项目。Tidewise Data 只通过受认证的 `POST /api/data/v1/reviewed-event-imports` 原子接纳正式 Event 及其轻量证据记录；AgentRun 不得绕过 Data Service 直接写 Data DB。
 
 历史 Source、scheduler/run 表只存在于旧 migration 历史中；当前 Schema 和运行时不再提供对应控制面。
 

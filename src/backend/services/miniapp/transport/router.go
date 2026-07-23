@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apihttp"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/usecase"
 )
@@ -25,19 +26,37 @@ func NewRouter(app runtimeconfig.AppConfig, researchServices ...*usecase.Researc
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(apiRecoveryMiddleware())
 
 	router.GET("/healthz", healthHandler(app))
 	router.GET("/readyz", readyHandler(app))
 
-	registerV1Routes(router.Group("/api/v1"), firstResearchService(researchServices))
+	registerV1Routes(router.Group("/api/miniapp/v1"), firstResearchService(researchServices))
 
 	return router
+}
+
+func apiRecoveryMiddleware() gin.HandlerFunc {
+	return gin.CustomRecovery(func(ctx *gin.Context, _ any) {
+		requestID := apihttp.ResolveRequestID(ctx.GetHeader(apihttp.RequestIDHeader), "miniapp")
+		ctx.Request.Header.Set(apihttp.RequestIDHeader, requestID)
+		ctx.Header(apihttp.RequestIDHeader, requestID)
+		writeAPIError(ctx, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+	})
 }
 
 func registerV1Routes(group *gin.RouterGroup, researchService *usecase.ResearchService) {
 	if researchService != nil {
 		RegisterResearchRoutes(group, researchService)
+	}
+}
+
+func requestIDMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		requestID := apihttp.ResolveRequestID(ctx.GetHeader(apihttp.RequestIDHeader), "miniapp")
+		ctx.Request.Header.Set(apihttp.RequestIDHeader, requestID)
+		ctx.Header(apihttp.RequestIDHeader, requestID)
+		ctx.Next()
 	}
 }
 

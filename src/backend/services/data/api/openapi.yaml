@@ -1,11 +1,11 @@
-openapi: 3.0.3
+openapi: 3.0.4
 info:
   title: Tidewise Data Service API
-  version: 2.0.0
+  version: 1.0.0
   description: >-
     Data Service 内部 HTTP REST + JSON 合同。消费方拥有小型手写 typed client，
     并以本文件的 operationId、schema drift anchor 和静态合同测试防止漂移。
-x-contract-id: tidewise-data-v2
+x-contract-id: tidewise-data-v1
 x-handwritten-client-policy: consumer-owned-small-typed-clients
 servers:
   - url: /
@@ -13,15 +13,69 @@ servers:
 security:
   - ServiceBearer: []
 tags:
+  - name: Operations
   - name: Research
   - name: Admin aggregates
   - name: Event publication
-  - name: Retired imports
   - name: Research Theme import
   - name: Research Anchor import
 
 paths:
-  /internal/data/v1/research/themes:
+  /healthz:
+    get:
+      tags: [Operations]
+      operationId: getDataServiceHealth
+      summary: Data Service 存活检查
+      security: []
+      responses:
+        '200':
+          description: 进程存活
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, service, environment]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    enum: [data-service]
+                  environment:
+                    type: string
+
+  /readyz:
+    get:
+      tags: [Operations]
+      operationId: getDataServiceReadiness
+      summary: Data Service 就绪检查
+      security: []
+      responses:
+        '200':
+          description: 服务配置就绪
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, service, environment, checks]
+                properties:
+                  status:
+                    type: string
+                    enum: [ready]
+                  service:
+                    type: string
+                    enum: [data-service]
+                  environment:
+                    type: string
+                  checks:
+                    type: object
+                    additionalProperties:
+                      type: string
+
+  /api/data/v1/research/themes:
     get:
       tags: [Research]
       operationId: listResearchThemes
@@ -54,7 +108,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research/themes/{theme_id}:
+  /api/data/v1/research/themes/{theme_id}:
     parameters:
       - $ref: '#/components/parameters/ThemeID'
     get:
@@ -89,7 +143,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research/themes/{theme_id}/reasoning-trees:
+  /api/data/v1/research/themes/{theme_id}/reasoning-trees:
     parameters:
       - $ref: '#/components/parameters/ThemeID'
     get:
@@ -123,7 +177,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}:
+  /api/data/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}:
     parameters:
       - $ref: '#/components/parameters/ThemeID'
       - $ref: '#/components/parameters/AnchorID'
@@ -158,7 +212,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/admin/raw-documents:
+  /api/data/v1/raw-documents:
     get:
       tags: [Admin aggregates]
       operationId: listAdminRawDocuments
@@ -204,7 +258,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/admin/events:
+  /api/data/v1/events:
     get:
       tags: [Admin aggregates]
       operationId: listAdminEvents
@@ -265,82 +319,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/raw-document-imports:
-    post:
-      tags: [Retired imports]
-      operationId: retiredRawDocumentImportV1
-      x-client-drift-anchor: data.v1.retiredRawDocumentImportV1
-      x-required-service-scope: data.reviewed-events.import
-      x-retry-policy: none
-      summary: 已退役的 Raw Document Import V1
-      description: 认证成功后始终返回 410；请使用 Event Publication V2。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '410':
-          $ref: '#/components/responses/Gone'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /internal/data/v1/raw-document-imports/{idempotency_key}:
-    parameters:
-      - name: idempotency_key
-        in: path
-        required: true
-        description: 历史 V1 路径参数，仅用于返回 410。
-        schema:
-          type: string
-          minLength: 1
-    get:
-      tags: [Retired imports]
-      operationId: retiredRawDocumentImportStatusV1
-      x-client-drift-anchor: data.v1.retiredRawDocumentImportStatusV1
-      x-required-service-scope: data.reviewed-events.import
-      x-retry-policy: none
-      summary: 已退役的 Raw Document Import V1 状态查询
-      description: 认证成功后始终返回 410；V2 不提供状态接口。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '410':
-          $ref: '#/components/responses/Gone'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /internal/data/v1/reviewed-event-imports:
-    post:
-      tags: [Retired imports]
-      operationId: retiredReviewedEventImportV1
-      x-client-drift-anchor: data.v1.retiredReviewedEventImportV1
-      x-required-service-scope: data.reviewed-events.import
-      x-retry-policy: none
-      summary: 已退役的 Reviewed Event Import V1
-      description: 认证成功后始终返回 410；请使用 Event Publication V2。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '410':
-          $ref: '#/components/responses/Gone'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /internal/data/v2/reviewed-event-imports:
+  /api/data/v1/reviewed-event-imports:
     post:
       tags: [Event publication]
-      operationId: publishReviewedEventsV2
-      x-client-drift-anchor: data.v2.publishReviewedEventsV2
+      operationId: publishReviewedEvents
+      x-client-drift-anchor: data.v1.publishReviewedEvents
       x-required-service-scope: data.reviewed-events.import
       x-retry-policy: retry-failed-call-with-natural-identities
       x-timeout-budget-ms: 15000
@@ -362,7 +345,7 @@ paths:
               maxLength: 1048576
               x-max-body-bytes: 1048576
               allOf:
-                - $ref: '#/components/schemas/EventPublicationV2Request'
+                - $ref: '#/components/schemas/EventPublicationRequest'
       responses:
         '201':
           description: 完整 publication 和新 receipt 已原子提交
@@ -372,7 +355,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventPublicationV2Envelope'
+                $ref: '#/components/schemas/EventPublicationEnvelope'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -388,7 +371,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research-theme-imports:
+  /api/data/v1/research-theme-imports:
     post:
       tags: [Research Theme import]
       operationId: importResearchThemes
@@ -450,7 +433,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /internal/data/v1/research-anchor-imports:
+  /api/data/v1/research-anchor-imports:
     post:
       tags: [Research Anchor import]
       operationId: importResearchAnchors
@@ -654,15 +637,6 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
     UnprocessableEntity:
       description: 已解析 DTO 未通过 whole-batch 业务 validation；零 mutation
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
-    Gone:
-      description: 已认证调用命中了退役合同；不执行任何 mutation
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestID'
@@ -1582,10 +1556,10 @@ components:
         result:
           $ref: '#/components/schemas/AdminEventPage'
 
-    EventPublicationV2Request:
+    EventPublicationRequest:
       type: object
       additionalProperties: false
-      x-client-drift-anchor: data.v2.schema.EventPublicationV2Request
+      x-client-drift-anchor: data.v1.schema.EventPublicationRequest
       required: [package_id, provenance, raw_documents, events]
       properties:
         package_id:
@@ -1859,10 +1833,10 @@ components:
           type: integer
           minimum: 0
 
-    EventPublicationV2Result:
+    EventPublicationResult:
       type: object
       additionalProperties: false
-      x-client-drift-anchor: data.v2.schema.EventPublicationV2Result
+      x-client-drift-anchor: data.v1.schema.EventPublicationResult
       required: [receipt_id, package_id, imported_at, events, raw_documents, counts]
       properties:
         receipt_id:
@@ -1884,7 +1858,7 @@ components:
         counts:
           $ref: '#/components/schemas/EventPublicationCounts'
 
-    EventPublicationV2Envelope:
+    EventPublicationEnvelope:
       type: object
       additionalProperties: false
       required: [request_id, result]
@@ -1893,4 +1867,4 @@ components:
           type: string
           minLength: 1
         result:
-          $ref: '#/components/schemas/EventPublicationV2Result'
+          $ref: '#/components/schemas/EventPublicationResult'

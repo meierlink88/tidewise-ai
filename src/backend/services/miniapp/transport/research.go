@@ -8,12 +8,14 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apihttp"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/usecase"
 )
 
 func RegisterResearchRoutes(group *gin.RouterGroup, service *usecase.ResearchService) {
-	research := group.Group("/miniapp/research")
+	group.Use(requestIDMiddleware())
+	research := group.Group("/research")
 	research.GET("/themes", func(ctx *gin.Context) { handleListThemes(ctx, service) })
 	research.GET("/themes/:theme_id/reasoning-trees", func(ctx *gin.Context) { handleListReasoningTrees(ctx, service) })
 	research.GET("/themes/:theme_id/reasoning-trees/:anchor_id", func(ctx *gin.Context) { handleGetReasoningTree(ctx, service) })
@@ -78,24 +80,27 @@ func parseIntQuery(ctx *gin.Context, key string) int {
 
 func writeResearchResponse(ctx *gin.Context, response any, err error) {
 	if err == nil {
-		ctx.JSON(http.StatusOK, response)
+		writeSuccess(ctx, response)
 		return
 	}
 	status := http.StatusInternalServerError
+	code := "RESEARCH_DATA_UNAVAILABLE"
 	message := usecase.ErrResearchDataService.Error()
 	if errors.Is(err, usecase.ErrInvalidResearchRequest) {
 		status = http.StatusBadRequest
+		code = "INVALID_REQUEST"
 		message = err.Error()
 	} else if errors.Is(err, usecase.ErrResearchNotFound) {
 		status = http.StatusNotFound
+		code = "RESEARCH_RESULT_NOT_FOUND"
 		message = usecase.ErrResearchNotFound.Error()
 	}
-	ctx.AbortWithStatusJSON(status, gin.H{"error": message})
+	writeAPIError(ctx, status, code, message)
 }
 
 func writeReasoningTreeResponse(ctx *gin.Context, response any, err error) {
 	if err == nil {
-		ctx.JSON(http.StatusOK, response)
+		writeSuccess(ctx, response)
 		return
 	}
 	status := http.StatusBadGateway
@@ -119,7 +124,15 @@ func writeReasoningTreeResponse(ctx *gin.Context, response any, err error) {
 		code = "RESEARCH_REASONING_TREE_NOT_FOUND"
 		message = "research reasoning tree was not found for the Theme"
 	}
-	ctx.AbortWithStatusJSON(status, gin.H{
-		"error": gin.H{"code": code, "message": message},
-	})
+	writeAPIError(ctx, status, code, message)
+}
+
+func writeSuccess(ctx *gin.Context, result any) {
+	requestID := ctx.GetHeader(apihttp.RequestIDHeader)
+	ctx.JSON(http.StatusOK, apihttp.Success(requestID, result))
+}
+
+func writeAPIError(ctx *gin.Context, status int, code, message string) {
+	requestID := ctx.GetHeader(apihttp.RequestIDHeader)
+	ctx.AbortWithStatusJSON(status, apihttp.Error(requestID, code, message, map[string]any{}))
 }

@@ -4,7 +4,9 @@ package miniapp
 import (
 	"net/http"
 
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apidocs"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/servicehttp"
+	miniappapi "github.com/meierlink88/tidewise-ai/backend/services/miniapp/api"
 	miniappconfig "github.com/meierlink88/tidewise-ai/backend/services/miniapp/config"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/dataclient"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/transport"
@@ -17,10 +19,16 @@ const ServiceName = miniappconfig.ServiceName
 // A missing client produces health endpoints for process-level diagnostics.
 func NewHandler(cfg miniappconfig.RuntimeConfig, clients ...dataclient.DataServiceClient) http.Handler {
 	cfg.App.Name = ServiceName
+	var application http.Handler
 	if len(clients) > 0 && clients[0] != nil {
-		return transport.NewRouter(cfg.App, usecase.NewResearchService(clients[0]))
+		application = transport.NewRouter(cfg.App, usecase.NewResearchService(clients[0]))
+	} else {
+		application = servicehttp.NewHealthHandler(ServiceName, cfg.App.Env)
 	}
-	return servicehttp.NewHealthHandler(ServiceName, cfg.App.Env)
+	return apidocs.Wrap(cfg.App.Env, application, apidocs.Config{
+		Title:    "Tidewise Miniapp Service API",
+		Document: miniappapi.Document(),
+	})
 }
 
 func NewServer(cfg miniappconfig.RuntimeConfig, handler http.Handler) *http.Server {

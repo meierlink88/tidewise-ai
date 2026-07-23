@@ -75,7 +75,7 @@ export async function loadRawDocuments(
   if (query.title.trim()) {
     params.set('title', query.title.trim());
   }
-  const response = await fetch(adminAPIURL(`/admin/raw-documents?${params.toString()}`), {
+  const response = await fetch(adminAPIURL(`/api/admin/v1/raw-documents?${params.toString()}`), {
     headers: authHeaders(token)
   });
   return readJSON(response);
@@ -95,7 +95,7 @@ export async function loadEvents(
   appendParam(params, 'event_time_to', query.event_time_to);
   appendParam(params, 'first_seen_from', query.first_seen_from);
   appendParam(params, 'first_seen_to', query.first_seen_to);
-  const response = await fetch(adminAPIURL(`/admin/events?${params.toString()}`), {
+  const response = await fetch(adminAPIURL(`/api/admin/v1/events?${params.toString()}`), {
     headers: authHeaders(token)
   });
   return readJSON(response);
@@ -123,14 +123,27 @@ async function readJSON<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new Error(await responseErrorMessage(response));
   }
-  return response.json() as Promise<T>;
+  const payload = (await response.json()) as {
+    request_id?: unknown;
+    result?: T;
+  };
+  if (
+    typeof payload.request_id !== 'string' ||
+    payload.request_id.length === 0 ||
+    !Object.prototype.hasOwnProperty.call(payload, 'result')
+  ) {
+    throw new Error('Admin API returned an invalid response');
+  }
+  return payload.result as T;
 }
 
 async function responseErrorMessage(response: Response): Promise<string> {
   try {
-    const payload = (await response.json()) as { error?: string };
-    if (payload.error) {
-      return payload.error;
+    const payload = (await response.json()) as {
+      error?: { message?: string };
+    };
+    if (payload.error?.message) {
+      return payload.error.message;
     }
   } catch {}
   return `request failed with status ${response.status}`;

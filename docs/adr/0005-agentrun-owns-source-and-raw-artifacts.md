@@ -25,7 +25,7 @@ AgentRun 已成为完整采集与 Event 提取系统：它拥有 Source、调度
   产生正式 Event 的 Artifact 永不进入 Data。
 - 新证据记录保存 AgentRun Artifact 身份、内容 SHA-256、无外键
   `source_ref`、来源快照和必要时间元数据，不保存正文或 Artifact URI。
-- AgentRun 通过 `POST /internal/data/v2/reviewed-event-imports` 原子发布一至
+- AgentRun 通过 `POST /api/data/v1/reviewed-event-imports` 原子发布一至
   十个 `confirmed + verified` Event。V2 不提供显式幂等键、payload hash、
   重放响应或状态查询。
 - Event、Artifact 和关联通过自然身份收敛；相同身份内容不一致时整批冲突。

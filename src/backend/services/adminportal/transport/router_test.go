@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apihttp"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/dataclient"
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/usecase"
@@ -64,7 +65,7 @@ func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredTokenWithoutDataC
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
 			router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls)), test.token)
-			request := httptest.NewRequest(http.MethodGet, "/admin/raw-documents", nil)
+			request := httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil)
 			if test.header != "" {
 				request.Header.Set("Authorization", test.header)
 			}
@@ -85,9 +86,9 @@ func TestRetiredSchedulerEndpointsAreAbsent(t *testing.T) {
 		path   string
 		body   any
 	}{
-		{method: http.MethodGet, path: "/admin/scheduler/config"},
-		{method: http.MethodPut, path: "/admin/scheduler/config", body: map[string]any{"invalid": true}},
-		{method: http.MethodGet, path: "/admin/scheduler/runs?limit=invalid"},
+		{method: http.MethodGet, path: "/api/admin/v1/scheduler/config"},
+		{method: http.MethodPut, path: "/api/admin/v1/scheduler/config", body: map[string]any{"invalid": true}},
+		{method: http.MethodGet, path: "/api/admin/v1/scheduler/runs?limit=invalid"},
 	} {
 		response := performJSONRequest(t, router, test.method, test.path, test.body, "secret", "")
 		if response.Code != http.StatusNotFound {
@@ -122,15 +123,22 @@ func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
 	}}
 	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
 
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents?title=央行&page=2&page_size=25", nil, "secret", "admin-request-raw")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents?title=央行&page=2&page_size=25", nil, "secret", "admin-request-raw")
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
 	if calls != 1 || gotQuery.Title != "央行" || gotQuery.Page != 2 || gotQuery.PageSize != 25 || gotRequestID != "admin-request-raw" {
 		t.Fatalf("calls/query/request id = %d/%#v/%q", calls, gotQuery, gotRequestID)
 	}
-	var body rawDocumentListResponse
-	decodeJSON(t, response, &body)
+	var envelope struct {
+		RequestID string                  `json:"request_id"`
+		Result    rawDocumentListResponse `json:"result"`
+	}
+	decodeJSON(t, response, &envelope)
+	body := envelope.Result
+	if envelope.RequestID != "admin-request-raw" || response.Header().Get(dataclient.RequestIDHeader) != envelope.RequestID {
+		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(dataclient.RequestIDHeader))
+	}
 	if body.Total != 1 || body.Page != 2 || body.PageSize != 25 || len(body.Items) != 1 || body.Items[0].Title != "央行公布金融数据" || body.Items[0].ContractVersion != 2 || body.Items[0].ArtifactID != "artifact-1" || body.Items[0].SourceRef != "source:reuters:world" || body.Items[0].PublishedAt != publishedAt.Format(time.RFC3339) {
 		t.Fatalf("response = %#v", body)
 	}
@@ -139,7 +147,7 @@ func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
 func TestInvalidRawPaginationReturns400WithoutDataCall(t *testing.T) {
 	calls := 0
 	router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls)), "secret")
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents?page=0", nil, "secret", "")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents?page=0", nil, "secret", "")
 	if response.Code != http.StatusBadRequest || calls != 0 {
 		t.Fatalf("status/calls = %d/%d, want 400/0", response.Code, calls)
 	}
@@ -165,7 +173,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
 	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
-	path := "/admin/events?title=美联储&event_status=confirmed&fact_status=verified&event_time_from=2026-07-09T00:00:00Z&event_time_to=2026-07-10T00:00:00Z&first_seen_from=2026-07-09T00:00:00Z&first_seen_to=2026-07-10T00:00:00Z"
+	path := "/api/admin/v1/events?title=美联储&event_status=confirmed&fact_status=verified&event_time_from=2026-07-09T00:00:00Z&event_time_to=2026-07-10T00:00:00Z&first_seen_from=2026-07-09T00:00:00Z&first_seen_to=2026-07-10T00:00:00Z"
 	response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "admin-request-event")
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
@@ -176,8 +184,15 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	if strings.Contains(response.Body.String(), "fact_payload") {
 		t.Fatalf("public response exposes fact_payload: %s", response.Body.String())
 	}
-	var body eventListResponse
-	decodeJSON(t, response, &body)
+	var envelope struct {
+		RequestID string            `json:"request_id"`
+		Result    eventListResponse `json:"result"`
+	}
+	decodeJSON(t, response, &envelope)
+	body := envelope.Result
+	if envelope.RequestID != "admin-request-event" || response.Header().Get(dataclient.RequestIDHeader) != envelope.RequestID {
+		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(dataclient.RequestIDHeader))
+	}
 	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].ID != "event-1" || body.Items[0].PrimarySourceID != primarySourceID || body.Items[0].KnowableAt != knowableAt.Format(time.RFC3339) {
 		t.Fatalf("response = %#v", body)
 	}
@@ -188,7 +203,7 @@ func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 		return dataclient.RawDocumentPage{}, errors.New("postgres connection secret-internal-detail")
 	}}
 	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/raw-documents", nil, "secret", "")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents", nil, "secret", "")
 	if response.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", response.Code)
 	}
@@ -197,10 +212,43 @@ func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 	}
 }
 
+func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
+	client := &dataclient.Fake{
+		ListEventsFunc: func(context.Context, dataclient.EventListQuery) (dataclient.EventPage, error) {
+			panic("sensitive upstream failure")
+		},
+	}
+	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
+	response := performJSONRequest(
+		t,
+		router,
+		http.MethodGet,
+		"/api/admin/v1/events",
+		nil,
+		"secret",
+		"admin-panic-request",
+	)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusInternalServerError)
+	}
+	var body apihttp.ErrorEnvelope
+	decodeJSON(t, response, &body)
+	if body.RequestID != "admin-panic-request" || response.Header().Get(apihttp.RequestIDHeader) != body.RequestID {
+		t.Fatalf("request IDs = %q/%q", body.RequestID, response.Header().Get(apihttp.RequestIDHeader))
+	}
+	if body.Error.Code != "INTERNAL_ERROR" || body.Error.Message != "internal server error" || body.Error.Details == nil {
+		t.Fatalf("error = %#v", body.Error)
+	}
+	if strings.Contains(response.Body.String(), "sensitive upstream failure") {
+		t.Fatalf("panic detail leaked: %s", response.Body.String())
+	}
+}
+
 func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *testing.T) {
 	router := NewRouter(testConfig(), usecase.NewService(countingClient(new(int))), "secret", "http://uat.example.test:9014")
 
-	preflight := httptest.NewRequest(http.MethodOptions, "/admin/raw-documents", nil)
+	preflight := httptest.NewRequest(http.MethodOptions, "/api/admin/v1/raw-documents", nil)
 	preflight.Header.Set("Origin", "http://uat.example.test:9014")
 	preflight.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	allowed := httptest.NewRecorder()
@@ -209,7 +257,7 @@ func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *tes
 		t.Fatalf("allowed preflight = status %d, origin %q", allowed.Code, allowed.Header().Get("Access-Control-Allow-Origin"))
 	}
 
-	deniedRequest := httptest.NewRequest(http.MethodGet, "/admin/raw-documents", nil)
+	deniedRequest := httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil)
 	deniedRequest.Header.Set("Origin", "http://attacker.example.test")
 	denied := httptest.NewRecorder()
 	router.ServeHTTP(denied, deniedRequest)
