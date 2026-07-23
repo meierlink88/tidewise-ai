@@ -111,10 +111,11 @@ func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
 		gotRequestID = dataclient.RequestIDFromContext(ctx)
 		return dataclient.RawDocumentPage{
 			Items: []dataclient.RawDocument{{
-				ID: "raw-1", SourceID: "source-1", IngestChannel: "rss_feed", SourceType: "news",
+				ID: "raw-1", ContractVersion: 2, ArtifactID: "artifact-1", SourceRef: "source:reuters:world", SourceType: "news",
 				SourceName: "示例来源", SourceURL: "https://example.com/rss.xml", Title: "央行公布金融数据",
-				ContentText: "正文", ContentLevel: "full", PublishedAt: &publishedAt, CollectedAt: collectedAt,
-				IngestStatus: dataclient.IngestStatusCollected,
+				PublishedAt: &publishedAt, CollectedAt: collectedAt,
+				IngestStatus:  dataclient.IngestStatusCollected,
+				ContentSHA256: strings.Repeat("a", 64),
 			}},
 			Total: 1, Page: 2, PageSize: 25,
 		}, nil
@@ -128,12 +129,9 @@ func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
 	if calls != 1 || gotQuery.Title != "央行" || gotQuery.Page != 2 || gotQuery.PageSize != 25 || gotRequestID != "admin-request-raw" {
 		t.Fatalf("calls/query/request id = %d/%#v/%q", calls, gotQuery, gotRequestID)
 	}
-	if strings.Contains(response.Body.String(), "content_level") {
-		t.Fatalf("public response exposes Data-only content_level: %s", response.Body.String())
-	}
 	var body rawDocumentListResponse
 	decodeJSON(t, response, &body)
-	if body.Total != 1 || body.Page != 2 || body.PageSize != 25 || len(body.Items) != 1 || body.Items[0].Title != "央行公布金融数据" || body.Items[0].PublishedAt != publishedAt.Format(time.RFC3339) {
+	if body.Total != 1 || body.Page != 2 || body.PageSize != 25 || len(body.Items) != 1 || body.Items[0].Title != "央行公布金融数据" || body.Items[0].ContractVersion != 2 || body.Items[0].ArtifactID != "artifact-1" || body.Items[0].SourceRef != "source:reuters:world" || body.Items[0].PublishedAt != publishedAt.Format(time.RFC3339) {
 		t.Fatalf("response = %#v", body)
 	}
 }
@@ -185,40 +183,6 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	}
 }
 
-func TestSourceCatalogsAPIUsesOneDataCallWithoutExposingParser(t *testing.T) {
-	calls := 0
-	var gotQuery dataclient.SourceCatalogListQuery
-	client := &dataclient.Fake{ListSourceCatalogsFunc: func(ctx context.Context, query dataclient.SourceCatalogListQuery) (dataclient.SourceCatalogCollection, error) {
-		calls++
-		gotQuery = query
-		if dataclient.RequestIDFromContext(ctx) != "admin-request-source" {
-			t.Fatalf("request id = %q", dataclient.RequestIDFromContext(ctx))
-		}
-		return dataclient.SourceCatalogCollection{Items: []dataclient.SourceCatalog{{
-			ID: "source-2", IngestChannel: "rss_feed", ProviderKey: "rss", ConnectorKey: "rss",
-			ParserKey: "rss_item", SourceType: "news", SourceName: "暂停 RSS", SourceURL: "https://example.com/rss.xml",
-			Status: dataclient.SourceStatusInactive,
-		}}}, nil
-	}}
-	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
-
-	response := performJSONRequest(t, router, http.MethodGet, "/admin/source-catalogs?status=inactive", nil, "secret", "admin-request-source")
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
-	}
-	if calls != 1 || gotQuery.Status != dataclient.SourceStatusInactive {
-		t.Fatalf("calls/query = %d/%#v", calls, gotQuery)
-	}
-	if strings.Contains(response.Body.String(), "parser_key") || strings.Contains(response.Body.String(), "rss_item") {
-		t.Fatalf("public response exposes parser fields: %s", response.Body.String())
-	}
-	var body sourceCatalogListResponse
-	decodeJSON(t, response, &body)
-	if len(body.Items) != 1 || body.Items[0].ID != "source-2" || body.Items[0].Status != "inactive" {
-		t.Fatalf("response = %#v", body)
-	}
-}
-
 func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 	client := &dataclient.Fake{ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
 		return dataclient.RawDocumentPage{}, errors.New("postgres connection secret-internal-detail")
@@ -236,7 +200,7 @@ func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *testing.T) {
 	router := NewRouter(testConfig(), usecase.NewService(countingClient(new(int))), "secret", "http://uat.example.test:9014")
 
-	preflight := httptest.NewRequest(http.MethodOptions, "/admin/source-catalogs", nil)
+	preflight := httptest.NewRequest(http.MethodOptions, "/admin/raw-documents", nil)
 	preflight.Header.Set("Origin", "http://uat.example.test:9014")
 	preflight.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	allowed := httptest.NewRecorder()
@@ -245,7 +209,7 @@ func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *tes
 		t.Fatalf("allowed preflight = status %d, origin %q", allowed.Code, allowed.Header().Get("Access-Control-Allow-Origin"))
 	}
 
-	deniedRequest := httptest.NewRequest(http.MethodGet, "/admin/source-catalogs", nil)
+	deniedRequest := httptest.NewRequest(http.MethodGet, "/admin/raw-documents", nil)
 	deniedRequest.Header.Set("Origin", "http://attacker.example.test")
 	denied := httptest.NewRecorder()
 	router.ServeHTTP(denied, deniedRequest)
@@ -263,10 +227,6 @@ func countingClient(calls *int) *dataclient.Fake {
 		ListEventsFunc: func(context.Context, dataclient.EventListQuery) (dataclient.EventPage, error) {
 			*calls++
 			return dataclient.EventPage{}, nil
-		},
-		ListSourceCatalogsFunc: func(context.Context, dataclient.SourceCatalogListQuery) (dataclient.SourceCatalogCollection, error) {
-			*calls++
-			return dataclient.SourceCatalogCollection{}, nil
 		},
 	}
 }

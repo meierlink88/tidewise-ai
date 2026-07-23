@@ -1,7 +1,6 @@
 package internalapi
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +14,7 @@ func (d Dependencies) listAdminRawDocuments(response http.ResponseWriter, reques
 	if !ok {
 		return
 	}
-	filter := adminquery.RawDocumentListRequest{Title: strings.TrimSpace(request.URL.Query().Get("title")), SourceID: strings.TrimSpace(request.URL.Query().Get("source_id")), IngestStatus: domain.IngestStatus(request.URL.Query().Get("ingest_status")), Page: page, PageSize: pageSize}
+	filter := adminquery.RawDocumentListRequest{Title: strings.TrimSpace(request.URL.Query().Get("title")), SourceRef: strings.TrimSpace(request.URL.Query().Get("source_ref")), IngestStatus: domain.IngestStatus(request.URL.Query().Get("ingest_status")), Page: page, PageSize: pageSize}
 	if filter.IngestStatus != "" && !oneOf(string(filter.IngestStatus), "collected", "duplicate", "failed", "pending_extract") {
 		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "unsupported ingest_status")
 		return
@@ -26,10 +25,6 @@ func (d Dependencies) listAdminRawDocuments(response http.ResponseWriter, reques
 	}
 	pageResult, err := d.Admin.ListRawDocuments(request.Context(), filter)
 	if err != nil {
-		if errors.Is(err, adminquery.ErrInvalidSourceID) {
-			writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "source_id must be a UUID")
-			return
-		}
 		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "admin raw-document aggregate failed")
 		return
 	}
@@ -77,31 +72,11 @@ func (d Dependencies) listAdminEvents(response http.ResponseWriter, request *htt
 	writeEnvelope(response, http.StatusOK, requestID, map[string]any{"items": items, "total": pageResult.Total, "page": pageResult.Page, "page_size": pageResult.PageSize})
 }
 
-func (d Dependencies) listAdminSources(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	status := domain.SourceCatalogStatus(request.URL.Query().Get("status"))
-	if status != "" && !oneOf(string(status), "active", "inactive", "disabled") {
-		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "unsupported source status")
-		return
-	}
-	if d.Admin == nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "admin aggregate store is unavailable")
-		return
-	}
-	sources, err := d.Admin.ListSourceCatalogs(request.Context(), adminquery.SourceCatalogListRequest{Status: status})
-	if err != nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "admin source aggregate failed")
-		return
-	}
-	items := make([]adminSource, 0, len(sources))
-	for _, source := range sources {
-		items = append(items, adminSourceDTO(source))
-	}
-	writeEnvelope(response, http.StatusOK, requestID, map[string]any{"items": items})
-}
-
 type adminRawDocument struct {
 	ID               string  `json:"id"`
-	SourceID         string  `json:"source_id"`
+	ContractVersion  int     `json:"contract_version"`
+	ArtifactID       string  `json:"artifact_id,omitempty"`
+	SourceRef        string  `json:"source_ref,omitempty"`
 	IngestChannel    string  `json:"ingest_channel"`
 	SourceType       string  `json:"source_type"`
 	SourceName       string  `json:"source_name"`
@@ -116,10 +91,11 @@ type adminRawDocument struct {
 	PublishedAt      *string `json:"published_at"`
 	CollectedAt      string  `json:"collected_at"`
 	IngestStatus     string  `json:"ingest_status"`
+	ContentSHA256    string  `json:"content_sha256"`
 }
 
 func rawDocumentDTO(document domain.RawDocument) adminRawDocument {
-	return adminRawDocument{ID: document.ID, SourceID: document.SourceID, IngestChannel: document.IngestChannel, SourceType: document.SourceType, SourceName: document.SourceName, SourceURL: document.SourceURL, SourceExternalID: document.SourceExternalID, Title: document.Title, ContentText: document.ContentText, ContentLevel: document.ContentLevel, RawObjectURI: document.RawObjectURI, RawMIMEType: document.RawMIMEType, Language: document.Language, PublishedAt: formatOptionalTime(document.PublishedAt), CollectedAt: document.CollectedAt.UTC().Format(time.RFC3339Nano), IngestStatus: string(document.IngestStatus)}
+	return adminRawDocument{ID: document.ID, ContractVersion: document.ContractVersion, ArtifactID: document.ArtifactID, SourceRef: document.SourceRef, IngestChannel: document.IngestChannel, SourceType: document.SourceType, SourceName: document.SourceName, SourceURL: document.SourceURL, SourceExternalID: document.SourceExternalID, Title: document.Title, ContentText: document.ContentText, ContentLevel: document.ContentLevel, RawObjectURI: document.RawObjectURI, RawMIMEType: document.RawMIMEType, Language: document.Language, PublishedAt: formatOptionalTime(document.PublishedAt), CollectedAt: document.CollectedAt.UTC().Format(time.RFC3339Nano), IngestStatus: string(document.IngestStatus), ContentSHA256: document.ContentHash}
 }
 
 type adminEvent struct {
@@ -142,23 +118,4 @@ func eventDTO(event domain.Event) adminEvent {
 		primary = &value
 	}
 	return adminEvent{ID: event.ID, Title: event.Title, Summary: event.Summary, EventTime: formatOptionalTime(event.EventTime), FirstSeenAt: event.FirstSeenAt.UTC().Format(time.RFC3339Nano), KnowableAt: formatOptionalTime(event.KnowableAt), EventStatus: string(event.EventStatus), FactStatus: string(event.FactStatus), DedupeKey: event.DedupeKey, PrimarySourceID: primary}
-}
-
-type adminSource struct {
-	ID            string `json:"id"`
-	IngestChannel string `json:"ingest_channel"`
-	ProviderKey   string `json:"provider_key"`
-	ConnectorKey  string `json:"connector_key"`
-	ParserKey     string `json:"parser_key"`
-	SourceType    string `json:"source_type"`
-	SourceName    string `json:"source_name"`
-	SourceURL     string `json:"source_url"`
-	SourceLevel   string `json:"source_level"`
-	TopicHint     string `json:"topic_hint"`
-	UsagePolicy   string `json:"usage_policy"`
-	Status        string `json:"status"`
-}
-
-func adminSourceDTO(source domain.SourceCatalog) adminSource {
-	return adminSource{ID: source.ID, IngestChannel: source.IngestChannel, ProviderKey: source.ProviderKey, ConnectorKey: source.ConnectorKey, ParserKey: source.ParserKey, SourceType: source.SourceType, SourceName: source.SourceName, SourceURL: source.SourceURL, SourceLevel: source.SourceLevel, TopicHint: source.TopicHint, UsagePolicy: source.UsagePolicy, Status: string(source.Status)}
 }

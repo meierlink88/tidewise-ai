@@ -8,7 +8,6 @@ import (
 
 type InMemoryRepository struct {
 	mu                  sync.Mutex
-	sources             []domain.SourceCatalog
 	documents           map[string]domain.RawDocument
 	events              map[string]domain.Event
 	eventSources        map[string]domain.EventSource
@@ -22,14 +21,8 @@ type InMemoryRepository struct {
 	physicalConstraints map[string]domain.IndustryChainPhysicalConstraint
 }
 
-func NewInMemoryRepository(sources []domain.SourceCatalog) *InMemoryRepository {
-	copiedSources := make([]domain.SourceCatalog, len(sources))
-	for index, source := range sources {
-		copiedSources[index] = cloneSource(normalizeInMemorySource(source))
-	}
-
+func NewInMemoryRepository() *InMemoryRepository {
 	return &InMemoryRepository{
-		sources:             copiedSources,
 		documents:           map[string]domain.RawDocument{},
 		events:              map[string]domain.Event{},
 		eventSources:        map[string]domain.EventSource{},

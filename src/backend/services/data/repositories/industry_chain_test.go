@@ -10,7 +10,7 @@ import (
 )
 
 func TestInMemoryRepositoryListsPhysicalConstraintsByPathIDs(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	repo.SeedIndustryChainPhysicalConstraints([]domain.IndustryChainPhysicalConstraint{
 		{ID: "node", IndustryChainEntityID: "chain-a", ChainNodeEntityID: "node-a", ConstraintType: domain.PhysicalConstraintBandwidth, ReviewStatus: domain.ReviewStatusApproved, Status: domain.StatusActive},
 		{ID: "edge", IndustryChainEntityID: "chain-a", TopologyEdgeID: "edge-a", ConstraintType: domain.PhysicalConstraintLatency, ReviewStatus: domain.ReviewStatusApproved, Status: domain.StatusActive},

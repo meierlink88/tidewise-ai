@@ -2,15 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { loadEvents, loadRawDocuments, loadSourceCatalogs } from './api/dataIngestion';
+import { loadEvents, loadRawDocuments } from './api/dataIngestion';
 
 vi.mock('./api/dataIngestion', async () => {
   const actual = await vi.importActual<typeof import('./api/dataIngestion')>('./api/dataIngestion');
   return {
     ...actual,
     loadEvents: vi.fn(),
-    loadRawDocuments: vi.fn(),
-    loadSourceCatalogs: vi.fn()
+    loadRawDocuments: vi.fn()
   };
 });
 
@@ -32,7 +31,6 @@ describe('App admin login', () => {
     vi.stubGlobal('localStorage', localStorageMock);
     vi.mocked(loadRawDocuments).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
-    vi.mocked(loadSourceCatalogs).mockResolvedValue({ items: [] });
   });
 
   it('shows a login page with the local admin token hint before entering the admin shell', () => {
@@ -51,11 +49,19 @@ describe('App admin login', () => {
     await user.type(screen.getByLabelText('Admin Token'), 'local-admin-token');
     await user.click(screen.getByRole('button', { name: '登录' }));
 
-    expect(await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
-    expect(within(screen.getByRole('main')).queryByRole('heading', { name: '数据采集中心' })).not.toBeInTheDocument();
+    expect(
+      await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('main')).queryByRole('heading', { name: '数据采集中心' })
+    ).not.toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByText('Data Ingestion')).not.toBeInTheDocument();
-    expect(within(screen.getByRole('main')).queryByText('查看采集原始数据、事件结果、搜索通道和调度器运行记录。')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(
+      within(screen.getByRole('main')).queryByText(
+        '查看采集原始数据、事件结果、搜索通道和调度器运行记录。'
+      )
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
     expect(screen.queryByRole('tab', { name: '调度器' })).not.toBeInTheDocument();
     expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');

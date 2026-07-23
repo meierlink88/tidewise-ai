@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/rawimport"
 )
 
 func decodeStrictLimited(response http.ResponseWriter, request *http.Request, target any) error {
@@ -37,17 +35,6 @@ func writeDecodeError(response http.ResponseWriter, requestID string, err error)
 		return
 	}
 	writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract")
-}
-
-func writeRawImportError(response http.ResponseWriter, requestID string, err error) {
-	switch rawimport.ErrorCode(err) {
-	case rawimport.CodeIdempotencyConflict, rawimport.CodeIdentityConflict, rawimport.CodeBatchCollision:
-		writeError(response, requestID, http.StatusConflict, rawimport.ErrorCode(err), err.Error())
-	case rawimport.CodeInvalidRequest:
-		writeError(response, requestID, http.StatusUnprocessableEntity, rawimport.ErrorCode(err), err.Error())
-	default:
-		writeError(response, requestID, http.StatusInternalServerError, "RAW_DOCUMENT_IMPORT_FAILED", "raw document import failed")
-	}
 }
 
 func pageQuery(response http.ResponseWriter, request *http.Request, requestID string) (int, int, bool) {
@@ -112,7 +99,7 @@ func writeError(response http.ResponseWriter, requestID string, status int, code
 	writeErrorWithDetails(response, requestID, status, code, message, map[string]any{})
 }
 
-func writeErrorWithDetails(response http.ResponseWriter, requestID string, status int, code, message string, details map[string]any) {
+func writeErrorWithDetails(response http.ResponseWriter, requestID string, status int, code, message string, details any) {
 	writeJSON(response, status, map[string]any{"request_id": requestID, "error": map[string]any{"code": code, "message": message, "details": details}})
 }
 

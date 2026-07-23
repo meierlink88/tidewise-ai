@@ -23,7 +23,9 @@ type rawDocumentListResponse struct {
 
 type rawDocumentResponse struct {
 	ID               string `json:"id"`
-	SourceID         string `json:"source_id"`
+	ContractVersion  int    `json:"contract_version"`
+	ArtifactID       string `json:"artifact_id,omitempty"`
+	SourceRef        string `json:"source_ref,omitempty"`
 	IngestChannel    string `json:"ingest_channel"`
 	SourceType       string `json:"source_type"`
 	SourceName       string `json:"source_name"`
@@ -37,6 +39,7 @@ type rawDocumentResponse struct {
 	PublishedAt      string `json:"published_at,omitempty"`
 	CollectedAt      string `json:"collected_at"`
 	IngestStatus     string `json:"ingest_status"`
+	ContentSHA256    string `json:"content_sha256"`
 }
 
 type eventListResponse struct {
@@ -57,24 +60,6 @@ type eventResponse struct {
 	FactStatus      string `json:"fact_status"`
 	DedupeKey       string `json:"dedupe_key"`
 	PrimarySourceID string `json:"primary_source_id,omitempty"`
-}
-
-type sourceCatalogListResponse struct {
-	Items []sourceCatalogResponse `json:"items"`
-}
-
-type sourceCatalogResponse struct {
-	ID            string `json:"id"`
-	IngestChannel string `json:"ingest_channel"`
-	ProviderKey   string `json:"provider_key"`
-	ConnectorKey  string `json:"connector_key"`
-	SourceType    string `json:"source_type"`
-	SourceName    string `json:"source_name"`
-	SourceURL     string `json:"source_url"`
-	SourceLevel   string `json:"source_level"`
-	TopicHint     string `json:"topic_hint"`
-	UsagePolicy   string `json:"usage_policy"`
-	Status        string `json:"status"`
 }
 
 type healthResponse struct {
@@ -98,7 +83,6 @@ func NewRouter(app runtimeconfig.AppConfig, service *usecase.Service, adminToken
 	admin.OPTIONS("/*path", func(*gin.Context) {})
 	admin.GET("/raw-documents", listRawDocuments(service))
 	admin.GET("/events", listEvents(service))
-	admin.GET("/source-catalogs", listSourceCatalogs(service))
 	return router
 }
 
@@ -188,26 +172,6 @@ func listEvents(service *usecase.Service) gin.HandlerFunc {
 	}
 }
 
-func listSourceCatalogs(service *usecase.Service) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		status := dataclient.SourceStatus(ctx.Query("status"))
-		if status != "" && status != dataclient.SourceStatusActive && status != dataclient.SourceStatusInactive && status != dataclient.SourceStatusDisabled {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "unsupported source status"})
-			return
-		}
-		collection, err := service.ListSourceCatalogs(dataRequestContext(ctx), dataclient.SourceCatalogListQuery{Status: status})
-		if err != nil {
-			writeInternalError(ctx)
-			return
-		}
-		items := make([]sourceCatalogResponse, 0, len(collection.Items))
-		for _, source := range collection.Items {
-			items = append(items, sourceCatalogDTO(source))
-		}
-		ctx.JSON(http.StatusOK, sourceCatalogListResponse{Items: items})
-	}
-}
-
 func adminTokenMiddleware(adminToken string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if adminToken == "" {
@@ -241,7 +205,9 @@ func rawDocumentListQueryFromRequest(ctx *gin.Context) (dataclient.RawDocumentLi
 	if err != nil {
 		return dataclient.RawDocumentListQuery{}, err
 	}
-	return dataclient.RawDocumentListQuery{Title: ctx.Query("title"), Page: page, PageSize: pageSize}, nil
+	return dataclient.RawDocumentListQuery{
+		Title: ctx.Query("title"), SourceRef: ctx.Query("source_ref"), Page: page, PageSize: pageSize,
+	}, nil
 }
 
 func eventListQueryFromRequest(ctx *gin.Context) (dataclient.EventListQuery, error) {
@@ -309,11 +275,12 @@ func (e errBadRequest) Error() string { return string(e) }
 
 func rawDocumentDTO(document dataclient.RawDocument) rawDocumentResponse {
 	response := rawDocumentResponse{
-		ID: document.ID, SourceID: document.SourceID, IngestChannel: document.IngestChannel, SourceType: document.SourceType,
+		ID: document.ID, ContractVersion: document.ContractVersion, ArtifactID: document.ArtifactID,
+		SourceRef: document.SourceRef, IngestChannel: document.IngestChannel, SourceType: document.SourceType,
 		SourceName: document.SourceName, SourceURL: document.SourceURL, SourceExternalID: document.SourceExternalID,
 		Title: document.Title, ContentText: document.ContentText, RawObjectURI: document.RawObjectURI,
 		RawMIMEType: document.RawMIMEType, Language: document.Language, CollectedAt: document.CollectedAt.Format(time.RFC3339),
-		IngestStatus: string(document.IngestStatus),
+		IngestStatus: string(document.IngestStatus), ContentSHA256: document.ContentSHA256,
 	}
 	if document.PublishedAt != nil {
 		response.PublishedAt = document.PublishedAt.Format(time.RFC3339)
@@ -336,12 +303,4 @@ func eventDTO(event dataclient.Event) eventResponse {
 		response.PrimarySourceID = *event.PrimarySourceID
 	}
 	return response
-}
-
-func sourceCatalogDTO(source dataclient.SourceCatalog) sourceCatalogResponse {
-	return sourceCatalogResponse{
-		ID: source.ID, IngestChannel: source.IngestChannel, ProviderKey: source.ProviderKey, ConnectorKey: source.ConnectorKey,
-		SourceType: source.SourceType, SourceName: source.SourceName, SourceURL: source.SourceURL, SourceLevel: source.SourceLevel,
-		TopicHint: source.TopicHint, UsagePolicy: source.UsagePolicy, Status: string(source.Status),
-	}
 }

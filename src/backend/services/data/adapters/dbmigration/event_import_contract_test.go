@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	domainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventimport"
 )
 
 func TestEventImportMigrationFreezesSourceReceiptAndTagSeed(t *testing.T) {
@@ -28,9 +26,6 @@ func TestEventImportMigrationFreezesSourceReceiptAndTagSeed(t *testing.T) {
 			t.Fatalf("migration missing %q", required)
 		}
 	}
-	if len(domainimport.FrozenTags) != 22 {
-		t.Fatalf("frozen tag fixture count = %d, want 22", len(domainimport.FrozenTags))
-	}
 	insertStart := strings.Index(rawSQL, "INSERT INTO event_tag_defs")
 	if insertStart < 0 {
 		t.Fatal("migration tag seed INSERT/ON CONFLICT block is missing")
@@ -42,18 +37,32 @@ func TestEventImportMigrationFreezesSourceReceiptAndTagSeed(t *testing.T) {
 	seedSQL := rawSQL[insertStart : insertStart+conflictStart]
 	tuplePattern := regexp.MustCompile(`\('([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*(true|false)\s*,\s*([0-9]+)\s*,\s*now\(\)\)`)
 	matches := tuplePattern.FindAllStringSubmatch(seedSQL, -1)
-	if len(matches) != len(domainimport.FrozenTags) {
-		t.Fatalf("migration seed tuple count = %d, want %d", len(matches), len(domainimport.FrozenTags))
+	if len(matches) != 22 {
+		t.Fatalf("migration seed tuple count = %d, want 22", len(matches))
 	}
+	seen := make(map[string]struct{}, len(matches))
+	kindCounts := map[string]int{}
 	for index, match := range matches {
 		order, err := strconv.Atoi(match[6])
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := domainimport.FrozenTags[index]
-		if match[1] != expected.ID || match[2] != expected.Kind || match[3] != expected.Code || match[4] != expected.Name || match[5] != "true" || order != expected.DisplayOrder {
-			t.Fatalf("migration seed tuple %d = %#v, want %#v", index, match[1:7], expected)
+		identity := match[2] + "\x00" + match[3]
+		if _, duplicate := seen[identity]; duplicate {
+			t.Fatalf("migration seed tuple %d duplicates %q", index, identity)
 		}
+		seen[identity] = struct{}{}
+		kindCounts[match[2]]++
+		if match[1] == "" || match[3] == "" || match[4] == "" || match[5] != "true" {
+			t.Fatalf("migration seed tuple %d is incomplete: %#v", index, match[1:7])
+		}
+		wantOrder := kindCounts[match[2]]
+		if order != wantOrder {
+			t.Fatalf("migration seed tuple %d display order = %d, want %d within %s", index, order, wantOrder, match[2])
+		}
+	}
+	if kindCounts["news_category"] != 10 || kindCounts["index_category"] != 12 {
+		t.Fatalf("migration tag kind counts = %#v, want news/index 10/12", kindCounts)
 	}
 	if strings.Contains(sql, "drop table") || strings.Contains(sql, "truncate") {
 		t.Fatal("event import migration must not destructively reset data")

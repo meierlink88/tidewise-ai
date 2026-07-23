@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 )
 
 type Principal struct {
@@ -38,6 +39,9 @@ func NewAuthenticator(credentials []Credential) (*Authenticator, error) {
 		credential.Principal.Identity = strings.TrimSpace(credential.Principal.Identity)
 		if credential.Secret == "" || credential.Principal.Identity == "" || len(credential.Principal.Scopes) == 0 {
 			return nil, fmt.Errorf("service credential, identity and scopes are required")
+		}
+		if utf8.RuneCountInString(credential.Principal.Identity) > 200 {
+			return nil, fmt.Errorf("service identity must contain at most 200 characters")
 		}
 		if _, duplicate := seenSecret[credential.Secret]; duplicate {
 			return nil, fmt.Errorf("service credentials must be unique")

@@ -10,7 +10,7 @@ import (
 )
 
 func TestInMemoryRepositoryListsRawDocumentsWithPaginationAndTitleSearch(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	base := time.Date(2026, 7, 9, 10, 0, 0, 0, time.UTC)
 	for _, doc := range []domain.RawDocument{
 		validRawDocumentWithTitle("raw-1", "央行公布金融数据", base.Add(2*time.Minute)),
@@ -34,7 +34,7 @@ func TestInMemoryRepositoryListsRawDocumentsWithPaginationAndTitleSearch(t *test
 }
 
 func TestInMemoryRepositoryListsEventsWithFilters(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	eventTime := time.Date(2026, 7, 9, 10, 0, 0, 0, time.UTC)
 	if err := repo.SeedEvent(context.Background(), domain.Event{
 		ID:          "event-1",
@@ -83,23 +83,6 @@ func TestInMemoryRepositoryListsEventsWithFilters(t *testing.T) {
 	}
 }
 
-func TestInMemoryRepositoryListsSourceCatalogsByStatus(t *testing.T) {
-	repo := NewInMemoryRepository([]domain.SourceCatalog{
-		{ID: "source-1", ProviderKey: "rss", IngestChannel: "rss_feed", SourceType: "news", SourceName: "RSS 1", Status: domain.SourceCatalogStatusActive},
-		{ID: "source-2", ProviderKey: "rss", IngestChannel: "rss_feed", SourceType: "news", SourceName: "RSS 2", Status: domain.SourceCatalogStatusInactive},
-		{ID: "source-3", ProviderKey: "eastmoney", IngestChannel: "http_api", SourceType: "market", SourceName: "东方财富", Status: domain.SourceCatalogStatusDisabled},
-	})
-
-	sources, err := repo.ListSourceCatalogs(context.Background(), SourceCatalogListFilter{Status: domain.SourceCatalogStatusInactive})
-	if err != nil {
-		t.Fatalf("ListSourceCatalogs() error = %v", err)
-	}
-
-	if got := sourceIDs(sources); !reflect.DeepEqual(got, []string{"source-2"}) {
-		t.Fatalf("source ids = %v, want inactive source-2", got)
-	}
-}
-
 func validRawDocumentWithTitle(id string, title string, collectedAt time.Time) domain.RawDocument {
 	doc := validRawDocument(id)
 	doc.Title = title
@@ -111,7 +94,6 @@ func validRawDocumentWithTitle(id string, title string, collectedAt time.Time) d
 func validRawDocument(id string) domain.RawDocument {
 	return domain.RawDocument{
 		ID:            id,
-		SourceID:      "source-1",
 		IngestChannel: "rss_feed",
 		SourceType:    "news",
 		SourceName:    "Test Source",

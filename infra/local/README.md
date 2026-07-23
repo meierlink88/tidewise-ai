@@ -94,32 +94,6 @@ APP_ENV=local TIDEWISE_DATABASE_URL='postgres://tidewise:<local-password>@localh
 APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./services/data/cmd/dbmigrate
 ```
 
-## 初始化 source catalog
-
-先确认 migration 已完成，再把 repo 内版本化来源清单写入 `source_catalogs`：
-
-```bash
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./services/data/cmd/source-seed
-```
-
-该命令默认读取：
-
-```text
-src/backend/data/source_catalogs/
-```
-
-输出 report 应包含 Vibe-Research、Vibe-Trading、Stock 的来源数量、Vibe-Research 108 条配置和 106 个唯一 URL、总来源数量、provider/type/status 分布以及 SDK 排除口径。
-
-可用以下 SQL 快速核验来源目录：
-
-```sql
-SELECT COUNT(*) FROM source_catalogs;
-SELECT provider_key, COUNT(*) FROM source_catalogs GROUP BY provider_key ORDER BY COUNT(*) DESC, provider_key;
-SELECT source_type, COUNT(*) FROM source_catalogs GROUP BY source_type ORDER BY source_type;
-SELECT status, COUNT(*) FROM source_catalogs GROUP BY status ORDER BY status;
-SELECT origin_system, COUNT(*) FROM source_catalogs GROUP BY origin_system ORDER BY origin_system;
-```
-
 ## 初始化本地 Research Theme
 
 应用 migration 后，可将版本化的首页开发批次通过正式 Research Theme Import Service 写入本地库：
@@ -134,9 +108,9 @@ go run ./services/data/cmd/research-theme-dev-seed
 
 ## 采集运行边界
 
-本仓库只保留 source metadata、source catalog 主数据和 Data Service 的 raw-document/reviewed-event 受控导入合同。connector、parser、prompt 与采集编排归属独立 agent-run 项目；agent-run 通过 `/internal/data/v1` 的受认证接口导入结果，不得绕过 Data Service 直接写 Data DB。
+Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采集编排归属独立 AgentRun 项目。Tidewise Data 只通过受认证的 `POST /internal/data/v2/reviewed-event-imports` 原子接纳正式 Event 及其轻量证据记录；AgentRun 不得绕过 Data Service 直接写 Data DB。
 
-历史 scheduler/run 表及 migrations 为审计兼容保留，不代表仍可从 Tidewise 启动 scheduler，也不得通过本说明直接修改这些历史表。
+历史 Source、scheduler/run 表只存在于旧 migration 历史中；当前 Schema 和运行时不再提供对应控制面。
 
 ## 运行 Admin 前端
 

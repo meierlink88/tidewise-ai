@@ -13,7 +13,7 @@ import (
 
 type RawDocumentListFilter struct {
 	Title        string
-	SourceID     string
+	SourceRef    string
 	IngestStatus domain.IngestStatus
 	Page         int
 	PageSize     int
@@ -45,14 +45,9 @@ type EventPage struct {
 	PageSize int
 }
 
-type SourceCatalogListFilter struct {
-	Status domain.SourceCatalogStatus
-}
-
 type AdminQueryRepository interface {
 	ListRawDocuments(context.Context, RawDocumentListFilter) (RawDocumentPage, error)
 	ListEvents(context.Context, EventListFilter) (EventPage, error)
-	ListSourceCatalogs(context.Context, SourceCatalogListFilter) ([]domain.SourceCatalog, error)
 }
 
 func (r *InMemoryRepository) SeedEvent(_ context.Context, event domain.Event) error {
@@ -78,7 +73,7 @@ func (r *InMemoryRepository) ListRawDocuments(_ context.Context, filter RawDocum
 		if title != "" && !strings.Contains(strings.ToLower(doc.Title), title) {
 			continue
 		}
-		if filter.SourceID != "" && doc.SourceID != filter.SourceID {
+		if filter.SourceRef != "" && doc.SourceRef != filter.SourceRef {
 			continue
 		}
 		if filter.IngestStatus != "" && doc.IngestStatus != filter.IngestStatus {
@@ -146,29 +141,6 @@ func (r *InMemoryRepository) ListEvents(_ context.Context, filter EventListFilte
 	return EventPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
-func (r *InMemoryRepository) ListSourceCatalogs(_ context.Context, filter SourceCatalogListFilter) ([]domain.SourceCatalog, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	items := make([]domain.SourceCatalog, 0, len(r.sources))
-	for _, source := range r.sources {
-		if filter.Status != "" && source.Status != filter.Status {
-			continue
-		}
-		items = append(items, cloneSource(normalizeInMemorySource(source)))
-	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].ProviderKey != items[j].ProviderKey {
-			return items[i].ProviderKey < items[j].ProviderKey
-		}
-		if items[i].SourceName != items[j].SourceName {
-			return items[i].SourceName < items[j].SourceName
-		}
-		return items[i].ID < items[j].ID
-	})
-	return items, nil
-}
-
 func cloneEvent(event domain.Event) domain.Event {
 	if event.EventTime != nil {
 		value := *event.EventTime
@@ -192,11 +164,15 @@ func cloneRawDocument(document domain.RawDocument) domain.RawDocument {
 
 func scanRawDocument(scanner rawDocumentScanner) (domain.RawDocument, error) {
 	var document domain.RawDocument
+	var artifactID sql.NullString
+	var sourceRef sql.NullString
 	var sourceExternalID sql.NullString
 	var publishedAt sql.NullTime
 	if err := scanner.Scan(
 		&document.ID,
-		&document.SourceID,
+		&document.ContractVersion,
+		&artifactID,
+		&sourceRef,
 		&document.IngestChannel,
 		&document.SourceType,
 		&document.SourceName,
@@ -214,6 +190,12 @@ func scanRawDocument(scanner rawDocumentScanner) (domain.RawDocument, error) {
 		&document.IngestStatus,
 	); err != nil {
 		return domain.RawDocument{}, err
+	}
+	if artifactID.Valid {
+		document.ArtifactID = artifactID.String
+	}
+	if sourceRef.Valid {
+		document.SourceRef = sourceRef.String
 	}
 	if sourceExternalID.Valid {
 		document.SourceExternalID = sourceExternalID.String
@@ -253,23 +235,23 @@ func (r PostgresRepository) ListRawDocuments(ctx context.Context, filter RawDocu
 SELECT COUNT(*)
 FROM raw_documents
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
-  AND ($2 = '' OR source_id = $2::uuid)
+  AND ($2 = '' OR source_ref = $2)
   AND ($3 = '' OR ingest_status = $3)
-`, filter.Title, filter.SourceID, string(filter.IngestStatus)).Scan(&total); err != nil {
+`, filter.Title, filter.SourceRef, string(filter.IngestStatus)).Scan(&total); err != nil {
 		return RawDocumentPage{}, fmt.Errorf("count raw documents: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-SELECT id, source_id, ingest_channel, source_type, source_name, source_url,
+SELECT id, contract_version, artifact_id, source_ref, ingest_channel, source_type, source_name, source_url,
        source_external_id, title, content_text, content_level, raw_object_uri, raw_mime_type,
        language, published_at, collected_at, content_hash, ingest_status
 FROM raw_documents
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
-  AND ($2 = '' OR source_id = $2::uuid)
+  AND ($2 = '' OR source_ref = $2)
   AND ($3 = '' OR ingest_status = $3)
 ORDER BY collected_at DESC, id
 LIMIT $4 OFFSET $5
-`, filter.Title, filter.SourceID, string(filter.IngestStatus), pageSize, (page-1)*pageSize)
+`, filter.Title, filter.SourceRef, string(filter.IngestStatus), pageSize, (page-1)*pageSize)
 	if err != nil {
 		return RawDocumentPage{}, fmt.Errorf("query raw documents: %w", err)
 	}
@@ -337,34 +319,6 @@ LIMIT $8 OFFSET $9
 		return EventPage{}, fmt.Errorf("iterate events: %w", err)
 	}
 	return EventPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
-}
-
-func (r PostgresRepository) ListSourceCatalogs(ctx context.Context, filter SourceCatalogListFilter) ([]domain.SourceCatalog, error) {
-	rows, err := r.db.QueryContext(ctx, `
-SELECT id, ingest_channel, provider_key, connector_key, parser_key, source_type,
-       source_name, source_url, source_level, topic_hint, route_template, code_style,
-       auth_required, auth_type, credential_ref, source_config, rate_limit_policy, usage_policy, status
-FROM source_catalogs
-WHERE ($1 = '' OR status = $1)
-ORDER BY provider_key, source_name, id
-`, string(filter.Status))
-	if err != nil {
-		return nil, fmt.Errorf("query source catalogs: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]domain.SourceCatalog, 0)
-	for rows.Next() {
-		source, err := scanSource(rows)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, source)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate source catalogs: %w", err)
-	}
-	return items, nil
 }
 
 func scanEvent(scanner rawDocumentScanner) (domain.Event, error) {

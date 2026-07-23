@@ -11,7 +11,7 @@ import (
 )
 
 func TestInMemoryRepositoryListsEntityGraphSnapshot(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
 
 	repo.SeedGraphEntity(GraphEntityNode{
@@ -68,7 +68,7 @@ func TestInMemoryRepositoryListsEntityGraphSnapshot(t *testing.T) {
 }
 
 func TestInMemoryRepositoryListsOnlyActiveGraphProjectionInputs(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	now := time.Date(2026, 7, 12, 12, 0, 0, 0, time.UTC)
 	for _, node := range []GraphEntityNode{
 		{ID: "active-a", EntityType: domain.EntityTypeEconomy, LayerCode: "economy", Name: "A", CanonicalName: "A", Status: domain.StatusActive, UpdatedAt: now},
@@ -102,7 +102,7 @@ func TestInMemoryRepositoryListsOnlyActiveGraphProjectionInputs(t *testing.T) {
 }
 
 func TestInMemoryRepositoryPreservesSectorClassificationForProjection(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	now := time.Date(2026, 7, 12, 12, 0, 0, 0, time.UTC)
 	repo.SeedGraphEntity(GraphEntityNode{
 		ID: "sector", EntityKey: "sector:industry_test", EntityType: domain.EntityTypeSector,
@@ -130,7 +130,7 @@ func TestInMemoryRepositoryPreservesSectorClassificationForProjection(t *testing
 }
 
 func TestInMemoryRepositoryRecordsGraphProjectionRuns(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	started := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)
 	finished := started.Add(2 * time.Second)
 

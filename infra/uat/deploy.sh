@@ -66,7 +66,7 @@ verify_services() {
   echo "PASS host-entry-health"
 
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/api/v1/miniapp/research/themes?limit=1" >/dev/null || return 1
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9013/admin/source-catalogs?limit=1" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9013/admin/events?page=1&page_size=1" >/dev/null || return 1
   echo "PASS bff-to-data-read-paths"
 }
 

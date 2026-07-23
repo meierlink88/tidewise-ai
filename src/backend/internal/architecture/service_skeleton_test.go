@@ -58,11 +58,8 @@ func TestDataDomainServiceOwnsBusinessAndAdapters(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
 		"services/data/usecase/adminquery",
-		"services/data/usecase/eventimport",
-		"services/data/usecase/rawimport",
+		"services/data/usecase/eventpublication",
 		"services/data/usecase/research",
-		"services/data/usecase/sourcecatalog",
-		"services/data/usecase/sourcemetadata",
 		"services/data/domain",
 		"services/data/repositories",
 		"services/data/adapters/database",

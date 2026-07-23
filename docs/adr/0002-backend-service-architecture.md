@@ -29,7 +29,10 @@ Backend 使用两类可部署 Service：
 
 三个 Service 当前保留在同一 repository 和同一 Go module，但必须拥有独立 binary、配置、健康检查、Dockerfile 和部署能力。当前不引入 service mesh、分布式事务、服务注册中心或多 repository 治理。
 
-Data collection connector、parser、prompt 和调度执行归外部 agent-run。Tidewise 只保留 Source Catalog、受控导入 API、幂等、事务和数据事实。
+Data collection connector、parser、prompt 和调度执行归外部 AgentRun。Source、
+完整原始 Artifact 与 Event 提取的最终所有权由 ADR-0005 进一步收敛到
+AgentRun；Tidewise Data 只保留正式 Event 的受控接纳、轻量证据、事务、审计和
+数据事实。
 
 Miniapp Frontend 暂时可以使用 Frontend-owned mock；本决策不要求立即接入真实 BFF。
 

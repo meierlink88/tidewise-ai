@@ -14,17 +14,15 @@ import (
 
 func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing.T) {
 	t.Parallel()
-	requests := make(chan *http.Request, 3)
+	requests := make(chan *http.Request, 2)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requests <- request.Clone(context.Background())
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case AdminRawDocumentsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"items":[{"id":"11111111-1111-5111-8111-111111111111","title":"raw","content_level":"full","collected_at":"2026-07-17T01:02:03Z"}],"total":1,"page":2,"page_size":10}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"items":[{"id":"11111111-1111-5111-8111-111111111111","contract_version":2,"artifact_id":"artifact-1","source_ref":"source:reuters:world","title":"raw","content_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","collected_at":"2026-07-17T01:02:03Z"}],"total":1,"page":2,"page_size":10}}`))
 		case AdminEventsPath:
 			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"22222222-2222-5222-8222-222222222222","title":"event","first_seen_at":"2026-07-17T01:02:03Z","event_status":"confirmed","fact_status":"verified"}],"total":1,"page":1,"page_size":20}}`))
-		case AdminSourceCatalogsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-3","result":{"items":[{"id":"source-1","source_name":"source","parser_key":"rss_item","status":"inactive"}]}}`))
 		default:
 			writer.WriteHeader(http.StatusNotFound)
 		}
@@ -33,7 +31,7 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
 	ctx := WithRequestID(context.Background(), "admin-req-123")
 
-	rawPage, err := client.ListRawDocuments(ctx, RawDocumentListQuery{Title: "央行 data", SourceID: "source-id", IngestStatus: "collected", Page: 2, PageSize: 10})
+	rawPage, err := client.ListRawDocuments(ctx, RawDocumentListQuery{Title: "央行 data", SourceRef: "source:reuters:world", IngestStatus: "collected", Page: 2, PageSize: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,32 +40,24 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources, err := client.ListSourceCatalogs(ctx, SourceCatalogListQuery{Status: "inactive"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(rawPage.Items) != 1 || rawPage.Items[0].Title != "raw" || rawPage.Items[0].ContentLevel != "full" || rawPage.Page != 2 || !rawPage.Items[0].CollectedAt.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
+	if len(rawPage.Items) != 1 || rawPage.Items[0].Title != "raw" || rawPage.Items[0].ContractVersion != 2 || rawPage.Items[0].ArtifactID != "artifact-1" || rawPage.Items[0].SourceRef != "source:reuters:world" || rawPage.Page != 2 || !rawPage.Items[0].CollectedAt.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
 		t.Fatalf("raw page = %#v", rawPage)
 	}
-	if len(eventPage.Items) != 1 || eventPage.Items[0].EventStatus != "confirmed" || len(sources.Items) != 1 || sources.Items[0].Status != "inactive" || sources.Items[0].ParserKey != "rss_item" {
-		t.Fatalf("events/sources = %#v/%#v", eventPage, sources)
+	if len(eventPage.Items) != 1 || eventPage.Items[0].EventStatus != "confirmed" {
+		t.Fatalf("events = %#v", eventPage)
 	}
 
-	rawRequest, eventRequest, sourceRequest := <-requests, <-requests, <-requests
-	for _, request := range []*http.Request{rawRequest, eventRequest, sourceRequest} {
+	rawRequest, eventRequest := <-requests, <-requests
+	for _, request := range []*http.Request{rawRequest, eventRequest} {
 		if request.Header.Get("Authorization") != "Bearer admin-service-token" || request.Header.Get(RequestIDHeader) != "admin-req-123" {
 			t.Fatalf("auth/request ID for %q = %q/%q", request.URL.Path, request.Header.Get("Authorization"), request.Header.Get(RequestIDHeader))
 		}
 	}
-	if rawRequest.URL.Path != AdminRawDocumentsPath || rawRequest.URL.Query().Get("title") != "央行 data" || rawRequest.URL.Query().Get("source_id") != "source-id" || rawRequest.URL.Query().Get("ingest_status") != "collected" || rawRequest.URL.Query().Get("page") != "2" || rawRequest.URL.Query().Get("page_size") != "10" {
+	if rawRequest.URL.Path != AdminRawDocumentsPath || rawRequest.URL.Query().Get("title") != "央行 data" || rawRequest.URL.Query().Get("source_ref") != "source:reuters:world" || rawRequest.URL.Query().Get("ingest_status") != "collected" || rawRequest.URL.Query().Get("page") != "2" || rawRequest.URL.Query().Get("page_size") != "10" {
 		t.Fatalf("raw request = %s?%s", rawRequest.URL.Path, rawRequest.URL.RawQuery)
 	}
 	if eventRequest.URL.Path != AdminEventsPath || eventRequest.URL.Query().Get("event_time_from") != eventFrom.Format(time.RFC3339) || eventRequest.URL.Query().Get("event_status") != "confirmed" {
 		t.Fatalf("event request = %s?%s", eventRequest.URL.Path, eventRequest.URL.RawQuery)
-	}
-	if sourceRequest.URL.Path != AdminSourceCatalogsPath || sourceRequest.URL.Query().Get("status") != "inactive" {
-		t.Fatalf("source request = %s?%s", sourceRequest.URL.Path, sourceRequest.URL.RawQuery)
 	}
 }
 
@@ -91,7 +81,7 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	if _, err := client.ListSourceCatalogs(context.Background(), SourceCatalogListQuery{}); err != nil {
+	if _, err := client.ListRawDocuments(context.Background(), RawDocumentListQuery{}); err != nil {
 		t.Fatalf("safe read error = %v", err)
 	}
 	if got := attempts.Load(); got != 2 {
