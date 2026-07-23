@@ -6,7 +6,6 @@ deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 runtime_env="${RUNTIME_ENV:?RUNTIME_ENV is required}"
 candidate_images="${CANDIDATE_IMAGES:?CANDIDATE_IMAGES is required}"
 release_sha="${COMMIT_SHA:?COMMIT_SHA is required}"
-public_base_url="${UAT_PUBLIC_BASE_URL:?UAT_PUBLIC_BASE_URL is required}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
@@ -21,6 +20,7 @@ previous_images="${state_dir}/previous.images.env"
 previous_compose="${state_dir}/previous.compose.yaml"
 previous_sha="${state_dir}/previous.sha"
 report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual}.json"
+host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 
 test -d "$state_dir"
 test -w "$state_dir"
@@ -32,7 +32,11 @@ if ! flock -n 9; then
 fi
 echo "PASS deployment-lock"
 
-candidate_compose=(docker compose --env-file "$runtime_env" --env-file "$candidate_images" -f "$compose_file")
+# Process environment variables have higher precedence than Compose --env-file.
+# The workflow exposes candidate image names at job scope, so clear them before
+# every Compose invocation and let the selected release image file be authoritative.
+compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE docker compose)
+candidate_compose=("${compose_command[@]}" --env-file "$runtime_env" --env-file "$candidate_images" -f "$compose_file")
 
 runtime_value() {
   local file="$1"
@@ -56,13 +60,13 @@ verify_services() {
   "${compose_command[@]}" exec -T admin wget -qO- http://127.0.0.1:9014/healthz >/dev/null || return 1
   echo "PASS container-health"
 
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/healthz" >/dev/null || return 1
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9013/healthz" >/dev/null || return 1
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9014/healthz" >/dev/null || return 1
-  echo "PASS public-entry-health"
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/healthz" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9013/healthz" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9014/healthz" >/dev/null || return 1
+  echo "PASS host-entry-health"
 
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/api/v1/research/themes?limit=1" >/dev/null || return 1
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${public_base_url}:9013/admin/source-catalogs?limit=1" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/api/v1/miniapp/research/themes?limit=1" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9013/admin/source-catalogs?limit=1" >/dev/null || return 1
   echo "PASS bff-to-data-read-paths"
 }
 
@@ -72,7 +76,7 @@ rollback_current_release() {
     return 1
   fi
   echo "Candidate verification failed; restoring release $(sed -n '1p' "$current_sha")" >&2
-  local -a rollback_compose=(docker compose --env-file "$current_runtime" --env-file "$current_images" -f "$current_compose")
+  local -a rollback_compose=("${compose_command[@]}" --env-file "$current_runtime" --env-file "$current_images" -f "$current_compose")
   "${rollback_compose[@]}" up -d --wait --wait-timeout 120 --remove-orphans
   verify_services "$current_runtime" "${rollback_compose[@]}"
   echo "PASS rollback: previous complete release restored" >&2
