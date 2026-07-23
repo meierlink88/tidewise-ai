@@ -53,6 +53,17 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *t
 	}
 }
 
+func TestUATDeployExecutorRestoresCurrentReleaseAfterPublicHealthFailure(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failFirstCurl: true})
+	if result.err == nil {
+		t.Fatal("public health failure fixture unexpectedly succeeded")
+	}
+	if !strings.Contains(result.output, "PASS rollback: previous complete release restored") {
+		t.Fatalf("rollback output missing success evidence: %s", result.output)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), previousFixtureSHA)
+}
+
 func TestUATDeployExecutorBlocksUnconfirmedHighRiskMigration(t *testing.T) {
 	report := `{"current_version":"23","pending":[{"Version":"24","Name":"add research imports"}],"applied":[],"remaining":[]}`
 	result := runDeployFixture(t, deployFixtureOptions{migrationReport: report})
@@ -127,6 +138,7 @@ const (
 type deployFixtureOptions struct {
 	currentRelease  bool
 	failFirstUp     bool
+	failFirstCurl   bool
 	migrationReport string
 	migrationRisk   string
 	backupConfirmed bool
@@ -158,6 +170,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	manifest := filepath.Join(temp, "migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
+	curlCount := filepath.Join(temp, "curl-count")
 	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture-admin-secret\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
 	writeFixture(t, compose, "name: tidewise-uat\nservices: {}\n")
@@ -179,7 +192,15 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		report = `{"current_version":"24","pending":[],"applied":[],"remaining":[]}`
 	}
 	writeFixture(t, filepath.Join(temp, "migration.json"), report+"\n")
-	writeExecutable(t, filepath.Join(bin, "curl"), "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, filepath.Join(bin, "curl"), `#!/bin/sh
+set -eu
+count=0
+if [ -f "$FAKE_CURL_COUNT" ]; then count="$(cat "$FAKE_CURL_COUNT")"; fi
+count=$((count + 1))
+echo "$count" > "$FAKE_CURL_COUNT"
+if [ "${FAKE_FAIL_FIRST_CURL:-false}" = true ] && [ "$count" -eq 1 ]; then exit 1; fi
+exit 0
+`)
 	writeExecutable(t, filepath.Join(bin, "flock"), "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, filepath.Join(bin, "docker"), `#!/bin/sh
 set -eu
@@ -216,6 +237,8 @@ exit 0
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_UP_COUNT="+upCount,
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
+		"FAKE_CURL_COUNT="+curlCount,
+		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
 	)
 	output, err := cmd.CombinedOutput()
 	return deployFixtureResult{root: root, dockerLog: dockerLog, output: string(output), err: err}
