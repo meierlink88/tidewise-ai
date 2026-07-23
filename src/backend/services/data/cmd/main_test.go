@@ -26,9 +26,7 @@ func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertPrincipal(t, authenticator, "agent-token", "agent-run", []string{
-		internalapi.ScopeRawImport,
 		internalapi.ScopeReviewedEventImport,
-		internalapi.ScopeSourceMetadataRead,
 	})
 	assertPrincipal(t, authenticator, "miniapp-token", "miniapp-bff", []string{internalapi.ScopeResearchRead})
 	assertPrincipal(t, authenticator, "admin-token", "admin-portal-bff", []string{internalapi.ScopeAdminRead})

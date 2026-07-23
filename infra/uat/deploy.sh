@@ -62,7 +62,7 @@ verify_services() {
   echo "PASS public-entry-health"
 
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/api/v1/research/themes?limit=1" >/dev/null
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${public_base_url}:9013/admin/source-catalogs?limit=1" >/dev/null
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${public_base_url}:9013/admin/events?page=1&page_size=1" >/dev/null
   echo "PASS bff-to-data-read-paths"
 }
 

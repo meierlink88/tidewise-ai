@@ -9,7 +9,7 @@ import (
 )
 
 func TestInMemoryEventWriteContractPersistsApprovedFields(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	ctx := context.Background()
 	event := domain.Event{
 		ID:          "event-1",
@@ -99,7 +99,7 @@ func TestInMemoryEventWriteContractPersistsApprovedFields(t *testing.T) {
 }
 
 func TestInMemoryEventTagAssignmentRequiresTidewiseTagDefinition(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	ctx := context.Background()
 	event := domain.Event{
 		ID:          "event-1",

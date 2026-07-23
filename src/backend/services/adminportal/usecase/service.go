@@ -31,10 +31,3 @@ func (s *Service) ListEvents(ctx context.Context, query dataclient.EventListQuer
 	}
 	return s.client.ListEvents(ctx, query)
 }
-
-func (s *Service) ListSourceCatalogs(ctx context.Context, query dataclient.SourceCatalogListQuery) (dataclient.SourceCatalogCollection, error) {
-	if s == nil || s.client == nil {
-		return dataclient.SourceCatalogCollection{}, ErrDataServiceUnavailable
-	}
-	return s.client.ListSourceCatalogs(ctx, query)
-}

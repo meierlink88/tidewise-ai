@@ -23,19 +23,13 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 			AdminRawDocumentsPath,
 			"listAdminRawDocuments",
 			"AdminRawDocumentPageEnvelope",
-			[]string{"Page", "PageSize", "RequestID", "ingest_status", "source_id", "title"},
+			[]string{"Page", "PageSize", "RequestID", "ingest_status", "source_ref", "title"},
 		},
 		{
 			AdminEventsPath,
 			"listAdminEvents",
 			"AdminEventPageEnvelope",
 			[]string{"Page", "PageSize", "RequestID", "event_status", "event_time_from", "event_time_to", "fact_status", "first_seen_from", "first_seen_to", "title"},
-		},
-		{
-			AdminSourceCatalogsPath,
-			"listAdminSourceCatalogs",
-			"AdminSourceCatalogCollectionEnvelope",
-			[]string{"RequestID", "SourceStatus"},
 		},
 	} {
 		operation := openAPIOperation(t, document, contract.path)
@@ -51,12 +45,10 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"AdminRawDocumentPage":         reflect.TypeOf(RawDocumentPage{}),
-		"AdminRawDocument":             reflect.TypeOf(RawDocument{}),
-		"AdminEventPage":               reflect.TypeOf(EventPage{}),
-		"AdminEvent":                   reflect.TypeOf(Event{}),
-		"AdminSourceCatalogCollection": reflect.TypeOf(SourceCatalogCollection{}),
-		"AdminSourceCatalog":           reflect.TypeOf(SourceCatalog{}),
+		"AdminRawDocumentPage": reflect.TypeOf(RawDocumentPage{}),
+		"AdminRawDocument":     reflect.TypeOf(RawDocument{}),
+		"AdminEventPage":       reflect.TypeOf(EventPage{}),
+		"AdminEvent":           reflect.TypeOf(Event{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
@@ -64,7 +56,6 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 	assertComponentEnum(t, document, "IngestStatus", []string{"collected", "duplicate", "failed", "pending_extract"})
 	assertComponentEnum(t, document, "EventStatus", []string{"candidate", "confirmed", "rejected"})
 	assertComponentEnum(t, document, "FactStatus", []string{"disputed", "unverified", "verified"})
-	assertComponentEnum(t, document, "SourceStatus", []string{"active", "disabled", "inactive"})
 }
 
 func loadOpenAPI(t *testing.T) map[string]any {

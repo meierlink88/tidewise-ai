@@ -9,7 +9,7 @@ import (
 )
 
 func TestInMemoryRepositoryUpsertsBenchmarkObservationsIdempotently(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	repo.SeedGraphEntity(GraphEntityNode{
 		ID:         "benchmark-1",
 		EntityKey:  "benchmark:us_10y",
@@ -51,7 +51,7 @@ func TestInMemoryRepositoryUpsertsBenchmarkObservationsIdempotently(t *testing.T
 }
 
 func TestInMemoryRepositoryAllowsDifferentBenchmarkObservationSourcesAndSortsDescending(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	repo.SeedGraphEntity(GraphEntityNode{
 		ID:         "benchmark-1",
 		EntityKey:  "benchmark:us_10y",
@@ -87,7 +87,7 @@ func TestInMemoryRepositoryAllowsDifferentBenchmarkObservationSourcesAndSortsDes
 }
 
 func TestInMemoryRepositoryRejectsInvalidBenchmarkObservation(t *testing.T) {
-	repo := NewInMemoryRepository(nil)
+	repo := NewInMemoryRepository()
 	repo.SeedGraphEntity(GraphEntityNode{ID: "index-1", EntityKey: "index:vix", EntityType: domain.EntityTypeIndex, Status: domain.StatusActive})
 	invalid := domain.BenchmarkObservation{
 		ID:                "observation-1",

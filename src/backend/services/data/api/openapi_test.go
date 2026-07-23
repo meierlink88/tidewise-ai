@@ -10,11 +10,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const namespace = "/internal/data/v1"
+const (
+	namespace   = "/internal/data/v1"
+	v2Namespace = "/internal/data/v2"
+)
 
 type operationContract struct {
 	method      string
 	operationID string
+	driftAnchor string
 	scope       string
 }
 
@@ -22,32 +26,31 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	want := map[string]operationContract{
-		namespace + "/research/themes":                                        {method: "get", operationID: "listResearchThemes", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}":                             {method: "get", operationID: "getResearchTheme", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}/reasoning-trees":             {method: "get", operationID: "listResearchThemeReasoningTrees", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {method: "get", operationID: "getResearchThemeReasoningTree", scope: "data.research.read"},
-		namespace + "/admin/raw-documents":                                    {method: "get", operationID: "listAdminRawDocuments", scope: "data.admin.read"},
-		namespace + "/admin/events":                                           {method: "get", operationID: "listAdminEvents", scope: "data.admin.read"},
-		namespace + "/admin/source-catalogs":                                  {method: "get", operationID: "listAdminSourceCatalogs", scope: "data.admin.read"},
-		namespace + "/agent-run/source-metadata":                              {method: "get", operationID: "listAgentSourceMetadata", scope: "data.source-metadata.read"},
-		namespace + "/raw-document-imports":                                   {method: "post", operationID: "importRawDocuments", scope: "data.raw-documents.import"},
-		namespace + "/raw-document-imports/{idempotency_key}":                 {method: "get", operationID: "getRawDocumentImportStatus", scope: "data.raw-documents.import"},
-		namespace + "/reviewed-event-imports":                                 {method: "post", operationID: "importReviewedEvent", scope: "data.reviewed-events.import"},
-		namespace + "/research-theme-imports":                                 {method: "post", operationID: "importResearchThemes", scope: "data.research.import"},
-		namespace + "/research-anchor-imports":                                {method: "post", operationID: "importResearchAnchors", scope: "data.research.import"},
+		namespace + "/research/themes":                                        {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}":                             {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}/reasoning-trees":             {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
+		namespace + "/admin/raw-documents":                                    {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
+		namespace + "/admin/events":                                           {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
+		namespace + "/raw-document-imports":                                   {method: "post", operationID: "retiredRawDocumentImportV1", driftAnchor: "data.v1.retiredRawDocumentImportV1", scope: "data.reviewed-events.import"},
+		namespace + "/raw-document-imports/{idempotency_key}":                 {method: "get", operationID: "retiredRawDocumentImportStatusV1", driftAnchor: "data.v1.retiredRawDocumentImportStatusV1", scope: "data.reviewed-events.import"},
+		namespace + "/reviewed-event-imports":                                 {method: "post", operationID: "retiredReviewedEventImportV1", driftAnchor: "data.v1.retiredReviewedEventImportV1", scope: "data.reviewed-events.import"},
+		v2Namespace + "/reviewed-event-imports":                               {method: "post", operationID: "publishReviewedEventsV2", driftAnchor: "data.v2.publishReviewedEventsV2", scope: "data.reviewed-events.import"},
+		namespace + "/research-theme-imports":                                 {method: "post", operationID: "importResearchThemes", driftAnchor: "data.v1.importResearchThemes", scope: "data.research.import"},
+		namespace + "/research-anchor-imports":                                {method: "post", operationID: "importResearchAnchors", driftAnchor: "data.v1.importResearchAnchors", scope: "data.research.import"},
 	}
 
 	if len(paths) != len(want) {
 		t.Fatalf("path count = %d, want %d; got %v", len(paths), len(want), sortedKeys(paths))
 	}
 	for path, expected := range want {
-		if !strings.HasPrefix(path, namespace+"/") {
-			t.Fatalf("path %q escapes namespace %q", path, namespace)
+		if !strings.HasPrefix(path, namespace+"/") && !strings.HasPrefix(path, v2Namespace+"/") {
+			t.Fatalf("path %q escapes supported Data namespaces", path)
 		}
 		pathItem := object(t, paths[path], "path "+path)
 		operation := object(t, pathItem[expected.method], expected.method+" "+path)
 		assertString(t, operation, "operationId", expected.operationID)
-		assertString(t, operation, "x-client-drift-anchor", "data.v1."+expected.operationID)
+		assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
 		assertString(t, operation, "x-required-service-scope", expected.scope)
 		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
 			if method != expected.method {
@@ -206,7 +209,7 @@ func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *tes
 	if document["openapi"] != "3.0.3" {
 		t.Fatalf("openapi = %v, want 3.0.3", document["openapi"])
 	}
-	assertString(t, document, "x-contract-id", "tidewise-data-v1")
+	assertString(t, document, "x-contract-id", "tidewise-data-v2")
 	assertString(t, document, "x-handwritten-client-policy", "consumer-owned-small-typed-clients")
 
 	security := array(t, document["security"], "security")
@@ -254,84 +257,75 @@ func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *tes
 	}
 }
 
-func TestOpenAPIContractFreezesBoundedAtomicRawImportAndStatus(t *testing.T) {
+func TestOpenAPIContractFreezesEventPublicationV2AndRetiredV1(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	importOperation := object(t, object(t, paths[namespace+"/raw-document-imports"], "raw import path")["post"], "raw import operation")
-	assertString(t, importOperation, "x-canonicalization", "raw-document-import-v1")
-	assertString(t, importOperation, "x-atomicity", "whole-batch-single-postgresql-transaction")
-	assertString(t, importOperation, "x-retry-policy", "idempotent-with-key")
-	requestBody := object(t, importOperation["requestBody"], "raw import requestBody")
-	content := object(t, requestBody["content"], "raw import content")
-	media := object(t, content["application/json"], "raw import application/json")
-	requestSchemaRef := object(t, media["schema"], "raw import request schema")
-	assertInt(t, requestSchemaRef, "maxLength", 1048576)
-	assertInt(t, requestSchemaRef, "x-max-body-bytes", 1048576)
-
-	request := schema(t, document, "RawDocumentBatchImportRequest")
-	assertRequired(t, request, "idempotency_key", "items")
-	requestProperties := object(t, request["properties"], "RawDocumentBatchImportRequest properties")
-	if _, exists := requestProperties["caller_identity"]; exists {
-		t.Fatal("raw import request must derive caller_identity from bearer principal")
-	}
-	if _, exists := requestProperties["payload_hash"]; exists {
-		t.Fatal("raw import request must not trust a caller-supplied payload_hash")
-	}
-	key := object(t, requestProperties["idempotency_key"], "idempotency_key")
-	assertInt(t, key, "minLength", 1)
-	assertInt(t, key, "maxLength", 200)
-	items := object(t, requestProperties["items"], "raw import items")
-	assertInt(t, items, "minItems", 1)
-	assertInt(t, items, "maxItems", 100)
-
-	statusPath := object(t, paths[namespace+"/raw-document-imports/{idempotency_key}"], "raw import status path")
-	parameters := array(t, statusPath["parameters"], "status parameters")
-	if len(parameters) != 1 {
-		t.Fatalf("status parameter count = %d, want 1", len(parameters))
-	}
-	statusKey := object(t, parameters[0], "status idempotency key")
-	assertString(t, statusKey, "name", "idempotency_key")
-	assertString(t, statusKey, "in", "path")
-	keySchema := object(t, statusKey["schema"], "status idempotency key schema")
-	assertInt(t, keySchema, "minLength", 1)
-	assertInt(t, keySchema, "maxLength", 200)
-	statusOperation := object(t, statusPath["get"], "raw import status operation")
-	statusResponses := object(t, statusOperation["responses"], "raw import status responses")
-	if _, ok := statusResponses["400"]; !ok {
-		t.Fatal("raw import status must reject out-of-bounds idempotency_key with 400")
+	for _, retired := range []struct {
+		path   string
+		method string
+	}{
+		{namespace + "/raw-document-imports", "post"},
+		{namespace + "/raw-document-imports/{idempotency_key}", "get"},
+		{namespace + "/reviewed-event-imports", "post"},
+	} {
+		operation := object(t, object(t, paths[retired.path], retired.path)[retired.method], retired.method+" "+retired.path)
+		if _, exists := operation["requestBody"]; exists {
+			t.Fatalf("retired operation %s must not expose an active request contract", retired.path)
+		}
+		responses := object(t, operation["responses"], "retired responses")
+		if _, exists := responses["410"]; !exists {
+			t.Fatalf("retired operation %s is missing 410", retired.path)
+		}
 	}
 
-	result := schema(t, document, "RawDocumentImportResult")
-	assertRequired(t, result, "receipt_id", "payload_hash", "raw_document_ids", "items", "imported_at")
-	resultProperties := object(t, result["properties"], "RawDocumentImportResult properties")
-	payloadHash := object(t, resultProperties["payload_hash"], "payload_hash")
-	assertString(t, payloadHash, "pattern", "^[0-9a-f]{64}$")
-	resultItems := object(t, resultProperties["items"], "result items")
-	itemSchema := schema(t, document, refName(t, object(t, resultItems["items"], "result item schema")))
-	disposition := object(t, object(t, itemSchema["properties"], "RawDocumentImportItem properties")["disposition"], "disposition")
-	if _, referenced := disposition["$ref"]; referenced {
-		disposition = schema(t, document, refName(t, disposition))
-	}
-	assertStringSet(t, disposition["enum"], "created", "reused")
+	operation := object(t, object(t, paths[v2Namespace+"/reviewed-event-imports"], "Event Publication V2 path")["post"], "Event Publication V2 operation")
+	assertString(t, operation, "x-atomicity", "whole-batch-single-postgresql-transaction")
+	assertString(t, operation, "x-receipt-schema", "event_publication_receipts")
+	assertString(t, operation, "x-retry-policy", "retry-failed-call-with-natural-identities")
+	requestBody := object(t, operation["requestBody"], "Event Publication V2 request body")
+	media := object(t, object(t, requestBody["content"], "request content")["application/json"], "request media")
+	requestSchema := object(t, media["schema"], "request schema")
+	assertInt(t, requestSchema, "x-max-body-bytes", 1048576)
 
-	status := schema(t, document, "RawDocumentImportStatusResponse")
-	statusProperties := object(t, status["properties"], "RawDocumentImportStatusResponse properties")
-	statusEnum := object(t, statusProperties["status"], "raw import status")
-	assertStringSet(t, statusEnum["enum"], "completed", "unknown")
-
-	responses := object(t, importOperation["responses"], "raw import responses")
-	if _, ok := responses["409"]; !ok {
-		t.Fatal("raw import must define same caller/key changed-payload 409")
+	request := schema(t, document, "EventPublicationV2Request")
+	assertRequired(t, request, "package_id", "provenance", "raw_documents", "events")
+	requestProperties := object(t, request["properties"], "EventPublicationV2Request properties")
+	for _, forbidden := range []string{"idempotency_key", "payload_hash", "caller_subject", "content_text", "artifact_uri"} {
+		if _, exists := requestProperties[forbidden]; exists {
+			t.Fatalf("EventPublicationV2Request exposes forbidden field %q", forbidden)
+		}
 	}
+	events := object(t, requestProperties["events"], "publication events")
+	assertInt(t, events, "minItems", 1)
+	assertInt(t, events, "maxItems", 10)
+
+	raw := schema(t, document, "EventPublicationRawDocument")
+	assertRequired(t, raw, "artifact_id", "content_sha256", "source_ref", "source_name", "source_type", "title", "collected_at")
+	rawProperties := object(t, raw["properties"], "raw document properties")
+	for _, forbidden := range []string{"content_text", "artifact_uri", "ingest_channel", "ingest_status", "content_level", "source_external_id"} {
+		if _, exists := rawProperties[forbidden]; exists {
+			t.Fatalf("EventPublicationRawDocument exposes forbidden field %q", forbidden)
+		}
+	}
+	assertInt(t, object(t, rawProperties["source_type"], "source_type"), "maxLength", 64)
+	assertInt(t, object(t, rawProperties["language"], "language"), "maxLength", 16)
+	assertInt(t, object(t, rawProperties["mime_type"], "mime_type"), "maxLength", 128)
+	event := schema(t, document, "EventPublicationEvent")
+	assertRequired(t, event, "dedupe_key", "title", "factual_summary", "fact_payload", "evidence", "tags", "review")
+	for _, forbidden := range []string{"event_status", "fact_status"} {
+		if _, exists := object(t, event["properties"], "event properties")[forbidden]; exists {
+			t.Fatalf("EventPublicationEvent lets caller submit %q", forbidden)
+		}
+	}
+	result := schema(t, document, "EventPublicationV2Result")
+	assertRequired(t, result, "receipt_id", "package_id", "imported_at", "events", "raw_documents", "counts")
 }
 
 func TestOpenAPIContractFreezesDTOFormatsEnumsAndSensitiveMetadataBoundary(t *testing.T) {
 	document := loadContract(t)
 	for _, name := range []string{
 		"ResearchThemeCollection", "ResearchThemeDetail", "ResearchReasoningTreeList", "ResearchReasoningTreeDetail",
-		"AdminRawDocumentPage", "AdminEventPage", "AdminSourceCatalogCollection",
-		"AgentSourceMetadataCollection", "RawDocumentBatchImportRequest", "RawDocumentImportStatusResponse",
-		"ReviewedEventImportRequest", "ReviewedEventImportResult", "ErrorEnvelope",
+		"AdminRawDocumentPage", "AdminEventPage", "ErrorEnvelope",
 	} {
 		contractSchema := schema(t, document, name)
 		assertString(t, contractSchema, "x-client-drift-anchor", "data.v1.schema."+name)
@@ -347,40 +341,9 @@ func TestOpenAPIContractFreezesDTOFormatsEnumsAndSensitiveMetadataBoundary(t *te
 		t.Fatalf("UTCTimestamp description must freeze UTC RFC3339 semantics: %v", utc["description"])
 	}
 
-	assertStringSet(t, schema(t, document, "SourceStatus")["enum"], "active", "inactive", "disabled")
-	assertStringSet(t, schema(t, document, "RawDocumentDisposition")["enum"], "created", "reused")
 	assertStringSet(t, schema(t, document, "EventStatus")["enum"], "candidate", "confirmed", "rejected")
 	assertStringSet(t, schema(t, document, "FactStatus")["enum"], "unverified", "verified", "disputed")
-
-	agentMetadata := schema(t, document, "AgentSourceMetadata")
-	properties := object(t, agentMetadata["properties"], "AgentSourceMetadata properties")
-	forbidden := []string{"secret", "api_key", "token", "cookie", "authorization", "password", "credential_value"}
-	for key := range properties {
-		lower := strings.ToLower(key)
-		for _, fragment := range forbidden {
-			if strings.Contains(lower, fragment) {
-				t.Fatalf("AgentSourceMetadata exposes forbidden property %q", key)
-			}
-		}
-	}
-	if _, ok := properties["credential_ref"]; !ok {
-		t.Fatal("AgentSourceMetadata must expose only the credential reference name")
-	}
-	approved := schema(t, document, "ApprovedSourceConfig")
-	if value, ok := approved["additionalProperties"]; !ok || value != false {
-		t.Fatalf("ApprovedSourceConfig additionalProperties = %v, want false", value)
-	}
-
-	reviewed := schema(t, document, "ReviewedEventImportRequest")
-	assertRequired(t, reviewed, "idempotency_key", "package_id", "raw_documents", "event", "event_sources", "event_tags", "review")
-	paths := object(t, document["paths"], "paths")
-	reviewedOperation := object(t, object(t, paths[namespace+"/reviewed-event-imports"], "reviewed event path")["post"], "reviewed event operation")
-	assertString(t, reviewedOperation, "x-receipt-schema", "event_import_receipts")
-	assertString(t, reviewedOperation, "x-transaction-membership", "raw-document,event,event-source,event-tag,event-import-receipt")
-	responses := object(t, reviewedOperation["responses"], "reviewed event responses")
-	if _, ok := responses["409"]; !ok {
-		t.Fatal("reviewed event import must define idempotency conflict 409")
-	}
+	assertStringSet(t, schema(t, document, "EventPublicationDisposition")["enum"], "created", "reused")
 }
 
 func TestOpenAPIContractHasNoDanglingLocalReferences(t *testing.T) {

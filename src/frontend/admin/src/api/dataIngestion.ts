@@ -7,6 +7,9 @@ export interface PagedResponse<T> {
 
 export interface RawDocumentItem {
   id: string;
+  contract_version?: number;
+  artifact_id?: string;
+  source_ref?: string;
   source_id?: string;
   ingest_channel?: string;
   source_type?: string;
@@ -36,20 +39,6 @@ export interface EventItem {
   primary_source_id?: string;
 }
 
-export interface SourceCatalogItem {
-  id: string;
-  ingest_channel: string;
-  provider_key: string;
-  connector_key?: string;
-  source_type: string;
-  source_name: string;
-  source_url?: string;
-  source_level?: string;
-  topic_hint?: string;
-  usage_policy?: string;
-  status: string;
-}
-
 export interface RawDocumentQuery {
   page: number;
   title: string;
@@ -66,10 +55,6 @@ export interface EventQuery {
   first_seen_to?: string;
 }
 
-export interface SourceCatalogQuery {
-  status?: string;
-}
-
 const defaultPageSize = 50;
 
 declare global {
@@ -80,7 +65,10 @@ declare global {
   }
 }
 
-export async function loadRawDocuments(token: string, query: RawDocumentQuery): Promise<PagedResponse<RawDocumentItem>> {
+export async function loadRawDocuments(
+  token: string,
+  query: RawDocumentQuery
+): Promise<PagedResponse<RawDocumentItem>> {
   const params = new URLSearchParams();
   params.set('page', String(query.page));
   params.set('page_size', String(defaultPageSize));
@@ -93,7 +81,10 @@ export async function loadRawDocuments(token: string, query: RawDocumentQuery): 
   return readJSON(response);
 }
 
-export async function loadEvents(token: string, query: EventQuery): Promise<PagedResponse<EventItem>> {
+export async function loadEvents(
+  token: string,
+  query: EventQuery
+): Promise<PagedResponse<EventItem>> {
   const params = new URLSearchParams();
   params.set('page', String(query.page));
   params.set('page_size', String(defaultPageSize));
@@ -110,18 +101,9 @@ export async function loadEvents(token: string, query: EventQuery): Promise<Page
   return readJSON(response);
 }
 
-export async function loadSourceCatalogs(token: string, query: SourceCatalogQuery = {}): Promise<{ items: SourceCatalogItem[] }> {
-  const params = new URLSearchParams();
-  appendParam(params, 'status', query.status);
-  const suffix = params.toString();
-  const response = await fetch(adminAPIURL(`/admin/source-catalogs${suffix ? `?${suffix}` : ''}`), {
-    headers: authHeaders(token)
-  });
-  return readJSON(response);
-}
-
 export function adminAPIURL(path: string): string {
-  const baseURL = window.__TIDEWISE_RUNTIME_CONFIG__?.adminApiBaseUrl?.trim().replace(/\/$/, '') ?? '';
+  const baseURL =
+    window.__TIDEWISE_RUNTIME_CONFIG__?.adminApiBaseUrl?.trim().replace(/\/$/, '') ?? '';
   return `${baseURL}${path}`;
 }
 
@@ -146,11 +128,10 @@ async function readJSON<T>(response: Response): Promise<T> {
 
 async function responseErrorMessage(response: Response): Promise<string> {
   try {
-    const payload = await response.json() as { error?: string };
+    const payload = (await response.json()) as { error?: string };
     if (payload.error) {
       return payload.error;
     }
-  } catch {
-  }
+  } catch {}
   return `request failed with status ${response.status}`;
 }

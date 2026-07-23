@@ -57,10 +57,10 @@ jobs:
       - name: Vet backend
         run: go vet ./...
 
-      - name: Research Anchor PostgreSQL integration
+      - name: Data PostgreSQL integration
         env:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
-        run: go test ./services/data/adapters/dbmigration ./services/data/cmd/research-theme-dev-reset -run '^TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset)' -count=1
+        run: go test ./services/data/adapters/dbmigration ./services/data/cmd/research-theme-dev-reset ./services/data/transport/internalapi -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
 
       - name: Data API and typed-client drift contracts
         run: go test ./services/data/api ./services/miniapp/dataclient ./services/adminportal/dataclient

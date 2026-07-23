@@ -27,3 +27,4 @@
 000026	high	research anchor branch summaries require empty publication tables
 000027	high	additive typed master data schema with new identity constraints and forward-only triggers
 000028	high	chain node review promotion identity validation trigger
+000029	high	replace Data ingestion control-plane schema with Event Publication V2 evidence contract

@@ -160,10 +160,11 @@ func (s EventSource) Validate() error {
 }
 
 type EventTagDef struct {
-	ID      string
-	TagKind string
-	Code    string
-	Name    string
+	ID       string
+	TagKind  string
+	Code     string
+	Name     string
+	IsActive bool
 }
 
 type ReviewStatus string

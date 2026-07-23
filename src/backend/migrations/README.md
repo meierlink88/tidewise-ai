@@ -26,11 +26,12 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./services/data/cmd/dbmi
 - `000001_init_event_knowledge_schema.sql`：创建事件知识 schema、实体节点、实体关系和各类 profile 表。
 - `000002_add_alliance_org_profiles.sql`：补充联盟组织 profile 表。
 - `000003_add_sector_seed_snapshot_fields.sql`：补充板块初始化热度快照字段 `rank_snapshot` 和 `snapshot_date`。
-- `000004_add_source_catalog_source_config.sql`：为 `source_catalogs` 补充 `source_config` JSONB 扩展配置字段。
-- `000005_add_ingestion_scheduler.sql`：创建采集调度器配置、执行批次和 source 级执行记录表。
+- `000004_add_source_catalog_source_config.sql`：历史上为 `source_catalogs` 补充 `source_config`；相关 Source 控制面已由 `000029` 退出 Data。
+- `000005_add_ingestion_scheduler.sql`：历史上创建 Data 采集调度与执行表；相关控制面已由 `000029` 退出 Data。
 - `000006_add_graph_projection_runs.sql`：补充 `entity_nodes.entity_key`，创建 Neo4j 图谱投影 run 和明细记录表。
 - `000015_refactor_industry_chain_node_phase_a.sql`：以人工授权门禁执行旧产业结构受控 cleanup，并收敛最小 chain_node/theme profile。
 - `000016_add_entity_external_identifiers.sql`：新增通用实体外部标识表、外部 identity 唯一约束与实体侧查询索引；不包含任何 mapping 数据。
+- `000029_add_event_publication_v2.sql`：保留历史 Event/证据正文与关联，把新 `raw_documents` 收敛为轻量 Event 证据记录，新增 V2 Receipt，并退出 Data 内旧 Source、采集运行及 V1 Import Receipt 结构。
 
 实体基础库 seed 使用 repo 内版本化 JSON 文件：
 
@@ -98,28 +99,10 @@ ORDER BY relation_type;
 
 任一层数量不一致时，不得手工修改 Neo4j；应先修正 repo seed 或 PostgreSQL 事实，再运行 `graph-projector rebuild-entities`。
 
-采集源目录 seed 使用 repo 内版本化 JSON 文件：
-
-```text
-src/backend/data/source_catalogs/
-```
-
-本地执行采集源 seed 前，应先执行 migration：
-
-```bash
-cd src/backend
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./services/data/cmd/dbmigrate -apply
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./services/data/cmd/source-seed
-```
-
-`services/data/cmd/source-seed` 会输出来源统计 report，重复执行应按稳定来源 ID 幂等 upsert，不应创建重复 `source_catalogs` 记录。常用核验 SQL：
-
-```sql
-SELECT COUNT(*) FROM source_catalogs;
-SELECT provider_key, COUNT(*) FROM source_catalogs GROUP BY provider_key ORDER BY COUNT(*) DESC, provider_key;
-SELECT source_type, COUNT(*) FROM source_catalogs GROUP BY source_type ORDER BY source_type;
-SELECT status, COUNT(*) FROM source_catalogs GROUP BY status ORDER BY status;
-```
+Source Catalog、采集调度和完整原始 Artifact 已归 AgentRun。Data 不再提供
+`source-seed` 或维护 `source_catalogs`；新 Event 只能通过
+`POST /internal/data/v2/reviewed-event-imports` 连同轻量证据原子接纳。历史
+`raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。
 
 ## Neo4j 图谱投影记录
 

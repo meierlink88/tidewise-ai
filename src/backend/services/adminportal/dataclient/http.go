@@ -87,16 +87,6 @@ func (c *HTTPClient) ListEvents(ctx context.Context, query EventListQuery) (Even
 	return unwrapEnvelope(envelope, err)
 }
 
-func (c *HTTPClient) ListSourceCatalogs(ctx context.Context, query SourceCatalogListQuery) (SourceCatalogCollection, error) {
-	values := url.Values{}
-	if query.Status != "" {
-		values.Set("status", string(query.Status))
-	}
-	var envelope responseEnvelope[SourceCatalogCollection]
-	err := c.doJSON(ctx, http.MethodGet, appendQuery(AdminSourceCatalogsPath, values), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
-}
-
 type responseEnvelope[T any] struct {
 	RequestID string `json:"request_id"`
 	Result    *T     `json:"result"`
@@ -118,8 +108,8 @@ func rawDocumentListPath(query RawDocumentListQuery) string {
 	if query.Title != "" {
 		values.Set("title", query.Title)
 	}
-	if query.SourceID != "" {
-		values.Set("source_id", query.SourceID)
+	if query.SourceRef != "" {
+		values.Set("source_ref", query.SourceRef)
 	}
 	if query.IngestStatus != "" {
 		values.Set("ingest_status", string(query.IngestStatus))
