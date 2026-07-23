@@ -19,3 +19,5 @@ yarn-error.log*
 pnpm-debug.log*
 
 midscene_run/
+
+/prototype/.design_library/
