@@ -262,6 +262,35 @@ func TestCollectorHTTPReadinessAndPromptValidation(t *testing.T) {
 	}
 }
 
+func TestCollectorHTTPReadinessAllowsEmptyConnectorKeys(t *testing.T) {
+	store := openHTTPTestStore(t)
+	configureHTTPTestProviders(t, store, "http://127.0.0.1:9081")
+	connectors, err := store.LoadConnectorConfigs(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, config := range connectors {
+		config.APIKey = ""
+		if err := store.UpsertConnectorConfig(context.Background(), config); err != nil {
+			t.Fatalf("clear %s key: %v", key, err)
+		}
+	}
+	application, err := collectorapp.New(store, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(httpapi.NewHandler(application, "service-test-token"))
+	defer server.Close()
+	response, err := http.Get(server.URL + "/readyz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("keyless Connector readiness status = %d, want 200", response.StatusCode)
+	}
+}
+
 func TestPlannerFailureIsFailClosedAndRedacted(t *testing.T) {
 	store := openHTTPTestStore(t)
 	var connectorCalls atomic.Int32
@@ -760,18 +789,25 @@ func openHTTPTestStore(t *testing.T) *postgres.Store {
 
 func configureHTTPTestProviders(t *testing.T, store *postgres.Store, baseURL string) {
 	t.Helper()
-	configs := []collector.ProviderConfig{
-		{Key: "deepseek", BaseURL: baseURL, Model: "deepseek-chat", APIKey: "deepseek-test-key"},
-		{Key: "parallel_search", BaseURL: baseURL + "/parallel", APIKey: "parallel-test-key"},
-		{Key: "tavily", BaseURL: baseURL + "/tavily", APIKey: "tavily-test-key"},
-		{Key: "bocha", BaseURL: baseURL + "/bocha", APIKey: "bocha-test-key"},
-		{Key: "cls_telegraph", BaseURL: baseURL + "/cls"},
-		{Key: "eastmoney_fastnews", BaseURL: baseURL + "/eastmoney-fast"},
-		{Key: "eastmoney_stock_news", BaseURL: baseURL + "/eastmoney-stock"},
-		{Key: "stcn_quicknews", BaseURL: baseURL + "/stcn"},
+	if err := store.UpsertModelProviderConfig(context.Background(), agentrun.ModelProviderConfig{
+		ProviderKey: collector.ModelProviderDeepSeek,
+		BaseURL:     baseURL,
+		Model:       "deepseek-chat",
+		APIKey:      "deepseek-test-key",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	configs := []agentrun.ConnectorConfig{
+		{ConnectorKey: collector.ConnectorParallelSearch, BaseURL: baseURL + "/parallel", APIKey: "parallel-test-key"},
+		{ConnectorKey: collector.ConnectorTavily, BaseURL: baseURL + "/tavily", APIKey: "tavily-test-key"},
+		{ConnectorKey: collector.ConnectorBocha, BaseURL: baseURL + "/bocha", APIKey: "bocha-test-key"},
+		{ConnectorKey: collector.ConnectorCLSTelegraph, BaseURL: baseURL + "/cls"},
+		{ConnectorKey: collector.ConnectorEastmoneyFastNews, BaseURL: baseURL + "/eastmoney-fast"},
+		{ConnectorKey: collector.ConnectorEastmoneyStock, BaseURL: baseURL + "/eastmoney-stock"},
+		{ConnectorKey: collector.ConnectorSTCNQuickNews, BaseURL: baseURL + "/stcn"},
 	}
 	for _, config := range configs {
-		if err := store.UpsertProviderConfig(context.Background(), config); err != nil {
+		if err := store.UpsertConnectorConfig(context.Background(), config); err != nil {
 			t.Fatal(err)
 		}
 	}

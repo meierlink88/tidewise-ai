@@ -30,11 +30,13 @@ var errStatePersistence = errors.New("AgentRun state persistence failed")
 var errArtifactMaterialization = errors.New("Artifact materialization failed")
 
 type Application struct {
-	store        Repository
-	artifactRoot string
-	environment  string
-	executionTTL time.Duration
-	now          func() time.Time
+	store                      Repository
+	artifactRoot               string
+	environment                string
+	executionTTL               time.Duration
+	now                        func() time.Time
+	runtimeConfiguration       collector.RuntimeConfiguration
+	runtimeConfigurationLoaded bool
 }
 
 type Option func(*Application)
@@ -65,6 +67,10 @@ func New(store Repository, artifactRoot string, options ...Option) (*Application
 	if application.executionTTL <= 0 {
 		return nil, errors.New("Execution timeout must be positive")
 	}
+	if runtimeConfiguration, err := application.loadRuntimeConfiguration(context.Background()); err == nil {
+		application.runtimeConfiguration = runtimeConfiguration
+		application.runtimeConfigurationLoaded = true
+	}
 	return application, nil
 }
 
@@ -75,7 +81,7 @@ func (a *Application) Ready(ctx context.Context) error {
 	if !a.store.SchemaReady(ctx) {
 		return ErrNotReady
 	}
-	if _, err := a.loadProviderConfiguration(ctx); err != nil {
+	if !a.runtimeConfigurationLoaded {
 		return ErrNotReady
 	}
 	if err := os.MkdirAll(a.artifactRoot, 0o755); err != nil {
@@ -111,8 +117,7 @@ func (a *Application) CreateCollectorRun(ctx context.Context, idempotencyKey, pr
 	if err := a.Ready(ctx); err != nil {
 		return agentrun.Execution{}, "", ErrNotReady
 	}
-	providerConfig, err := a.loadProviderConfiguration(ctx)
-	if err != nil {
+	if !a.runtimeConfigurationLoaded {
 		return agentrun.Execution{}, "", ErrNotReady
 	}
 	createdAt := a.now().UTC()
@@ -133,17 +138,21 @@ func (a *Application) CreateCollectorRun(ctx context.Context, idempotencyKey, pr
 		}
 	}
 	if disposition == agentrun.ExecutionCreated {
-		go a.run(execution, providerConfig)
+		go a.run(execution, a.runtimeConfiguration)
 	}
 	return execution, disposition, nil
 }
 
-func (a *Application) loadProviderConfiguration(ctx context.Context) (collector.ProviderConfiguration, error) {
-	configs, err := a.store.LoadProviderConfigs(ctx)
+func (a *Application) loadRuntimeConfiguration(ctx context.Context) (collector.RuntimeConfiguration, error) {
+	models, err := a.store.LoadModelProviderConfigs(ctx)
 	if err != nil {
-		return collector.ProviderConfiguration{}, err
+		return collector.RuntimeConfiguration{}, err
 	}
-	return collector.BuildProviderConfigurationForEnvironment(configs, a.environment)
+	connectors, err := a.store.LoadConnectorConfigs(ctx)
+	if err != nil {
+		return collector.RuntimeConfiguration{}, err
+	}
+	return collector.BuildRuntimeConfigurationForEnvironment(models, connectors, a.environment)
 }
 
 func (a *Application) GetCollectorRun(ctx context.Context, executionID string) (agentrun.Execution, error) {
@@ -184,7 +193,7 @@ func (a *Application) PublishMissingTerminalAudits(ctx context.Context) error {
 	return nil
 }
 
-func (a *Application) run(execution agentrun.Execution, providerConfig collector.ProviderConfiguration) {
+func (a *Application) run(execution agentrun.Execution, runtimeConfig collector.RuntimeConfiguration) {
 	ctx, cancel := context.WithTimeout(context.Background(), a.executionTTL)
 	defer cancel()
 	if err := a.store.SetExecutionStatus(ctx, execution.ID, agentrun.StatusPlanning, a.now()); err != nil {
@@ -192,7 +201,7 @@ func (a *Application) run(execution agentrun.Execution, providerConfig collector
 		return
 	}
 
-	workflow, err := (runtimeFactory{store: a.store, artifactRoot: a.artifactRoot, now: a.now}).Build(ctx, execution.ID, providerConfig)
+	workflow, err := (runtimeFactory{store: a.store, artifactRoot: a.artifactRoot, now: a.now}).Build(ctx, execution.ID, runtimeConfig)
 	if err != nil {
 		a.fail(execution.ID, "workflow_initialization_failed", "Could not initialize Collector Workflow")
 		return

@@ -11,7 +11,8 @@ import (
 // PostgreSQL is the current adapter; tests may replace it at this seam.
 type Repository interface {
 	SchemaReady(context.Context) bool
-	LoadProviderConfigs(context.Context) (map[string]agentrun.ProviderConfig, error)
+	LoadModelProviderConfigs(context.Context) (map[string]agentrun.ModelProviderConfig, error)
+	LoadConnectorConfigs(context.Context) (map[string]agentrun.ConnectorConfig, error)
 	FindExecutionByIdempotencyKey(context.Context, string, string) (agentrun.Execution, bool, error)
 	CreateExecution(context.Context, agentrun.CreateExecutionInput) (agentrun.Execution, agentrun.CreateDisposition, error)
 	GetExecution(context.Context, string) (agentrun.Execution, error)

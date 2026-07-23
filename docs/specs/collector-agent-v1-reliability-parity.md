@@ -78,10 +78,10 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 46. As an operator, I want PostgreSQL terminal completion idempotent and read back after unknown results, so that a timeout cannot incorrectly turn published success into failure.
 47. As an operator, I want startup to reconcile prepared publication only, so that reliability does not become general task replay.
 48. As a caller, I want GET to expose formal Artifact paths only after terminal database completion, so that the HTTP contract never advertises an uncommitted publication.
-49. As an operator, I want Provider Base URLs validated as absolute HTTP(S) URLs with hosts, so that readiness does not accept unusable endpoints.
-50. As a security-conscious operator, I want remote plaintext HTTP Provider endpoints rejected, so that credentials are not sent without transport protection.
-51. As a developer, I want loopback HTTP endpoints allowed in development tests, so that fake Providers remain practical.
-52. As a security-conscious operator, I want Provider keys excluded from errors, logs, HTTP responses and all Artifacts, so that failure evidence does not leak credentials.
+49. As an operator, I want Model Provider and Connector Base URLs validated as absolute HTTP(S) URLs with hosts, so that readiness does not accept unusable endpoints.
+50. As a security-conscious operator, I want remote plaintext HTTP model and Connector endpoints rejected, so that credentials are not sent without transport protection.
+51. As a developer, I want loopback HTTP endpoints allowed in development tests, so that fake external services remain practical.
+52. As a security-conscious operator, I want model and Connector keys excluded from errors, logs, HTTP responses and all Artifacts, so that failure evidence does not leak credentials.
 53. As an owner of historical data, I want existing polluted Artifacts inventoried without mutation, so that immutable history is not silently rewritten.
 54. As an owner of historical data, I want any future quarantine operation to preserve exact bytes and hashes, so that corrupted history remains auditable.
 55. As an owner of historical data, I want index migration and re-collection performed only after explicit authorization, so that repair does not imply data deletion.
@@ -96,7 +96,7 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 ### Scope and preserved architecture
 
 - The change modifies only AgentRun. It does not modify Tidewise Data or access the Tidewise Data database.
-- The existing Agent Definition, Agent Version, Agent Execution, Connector Invocation, Provider configuration, HTTP API and capability-first package direction remain.
+- The existing Agent Definition, Agent Version, Agent Execution, Connector Invocation, HTTP API and capability-first package direction remain. Current configuration is represented by separate Model Provider Configuration and Connector Configuration resources.
 - Eino remains the typed orchestration boundary for `Planner -> seven Connector fan-out -> materialization`. The change does not introduce AgenticModel, tool calling, multi-Agent delegation or conversational state.
 - The fixed Connector set remains Parallel, Tavily, Bocha, CLS Telegraph, Eastmoney Fast News, Eastmoney Stock News and STCN Quick News.
 - Codex-only `live_search` remains excluded.
@@ -187,12 +187,12 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 - Executions interrupted before publication preparation are not replayed; they are marked failed as before.
 - Pending publication state stores only the minimum plan identity, safe counts, paths and hashes needed for reconciliation. It is not a generic queue, lease, worker or retry framework.
 
-### Provider readiness and secret safety
+### Model Provider and Connector readiness and secret safety
 
-- Every Provider Base URL must parse as an absolute HTTP(S) URL with a non-empty host and no embedded credentials.
+- Every Model Provider and Connector Base URL must parse as an absolute HTTP(S) URL with a non-empty host and no embedded credentials.
 - UAT requires HTTPS.
-- Development permits HTTP only for loopback hosts used by local services and fake Provider tests; non-loopback development endpoints require HTTPS.
-- Provider keys remain required according to the existing Provider contract.
+- Development permits HTTP only for loopback hosts used by local services and fake external-service tests; non-loopback development endpoints require HTTPS.
+- The DeepSeek Model Provider key is required. Connector keys follow one uniform optional rule and do not block readiness; an external endpoint that rejects anonymous requests produces the ordinary safe Connector Invocation failure.
 - Errors, logs, HTTP responses, publication plans, manifests, summaries, ledgers and Markdown must not contain keys, Authorization headers, full Prompt text or raw model error/response bodies.
 
 ### Existing polluted Artifact migration
@@ -224,10 +224,10 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 - Publication fault injection covers failure or process interruption after prepare, after partial document publication, after summary/ledger publication, after index replacement, after manifest publication, before PostgreSQL terminal commit, during a failed commit and after an unknown commit result.
 - A PostgreSQL-backed HTTP restart test forces all in-process publication commit attempts to fail, then proves startup reconciles the prepared publication before stale failure, invokes no second model or Connector call, clears prepared state and exposes the recovered Artifact through GET. Separate tests prove pre-prepare stale executions fail without replay.
 - Security tests inject keys, Authorization values, full Prompt and raw Provider/model payloads into underlying errors and assert no observable output contains them.
-- Provider configuration tests cover malformed, relative, hostless, credential-bearing, remote plaintext and valid loopback/HTTPS URLs in dev and UAT.
+- Model Provider and Connector Configuration tests cover malformed, relative, hostless, credential-bearing, remote plaintext and valid loopback/HTTPS URLs in dev and UAT.
 - Existing polluted Artifact tests use read-only fixture copies. Repository `data` is never edited by automated tests.
 - Final local verification runs gofmt, go vet, command builds, `go test -count=1 ./...`, race tests, isolated PostgreSQL repository and HTTP tests, migration checks, diff checks, credential scans and forbidden-path scans.
-- When all local Provider configurations are available, one real seven-Connector smoke is run after deterministic tests. The report distinguishes zero results, Provider failures and missing configuration; it never reports a false pass.
+- When all local Model Provider and Connector Configurations are available, one real seven-Connector smoke is run after deterministic tests. The report distinguishes zero results, external-service failures and missing configuration; it never reports a false pass.
 - Final review runs Standards and Spec axes independently against the merge base and includes untracked task files while excluding the pre-existing user-owned research Spec.
 
 ## Out of Scope

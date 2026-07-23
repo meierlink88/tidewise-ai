@@ -20,10 +20,10 @@ type runtimeFactory struct {
 	now          func() time.Time
 }
 
-func (f runtimeFactory) Build(ctx context.Context, executionID string, providerConfig collector.ProviderConfiguration) (compose.Runnable[*collector.Request, *collector.Result], error) {
+func (f runtimeFactory) Build(ctx context.Context, executionID string, runtimeConfig collector.RuntimeConfiguration) (compose.Runnable[*collector.Request, *collector.Result], error) {
 	model, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
-		APIKey: providerConfig.DeepSeek.APIKey, Model: providerConfig.DeepSeek.Model,
-		BaseURL: providerConfig.DeepSeek.BaseURL, Timeout: plannerTimeout,
+		APIKey: runtimeConfig.ModelProvider.APIKey, Model: runtimeConfig.ModelProvider.Model,
+		BaseURL: runtimeConfig.ModelProvider.BaseURL, Timeout: plannerTimeout,
 		ResponseFormatType: deepseek.ResponseFormatTypeJSONObject,
 	})
 	if err != nil {
@@ -36,15 +36,15 @@ func (f runtimeFactory) Build(ctx context.Context, executionID string, providerC
 	plannerWithState := &trackingPlanner{executionID: executionID, store: f.store, delegate: planner, now: f.now}
 
 	httpClient := &http.Client{Timeout: connectorTimeout}
-	configured := providerConfig.Connectors
+	configured := runtimeConfig.Connectors
 	connectorSet := []collector.Connector{
-		connectors.ParallelSearch{APIKey: configured[collector.ProviderParallelSearch].APIKey, Endpoint: configured[collector.ProviderParallelSearch].BaseURL, Client: httpClient},
-		connectors.Tavily{APIKey: configured[collector.ProviderTavily].APIKey, Endpoint: configured[collector.ProviderTavily].BaseURL, Client: httpClient},
-		connectors.Bocha{APIKey: configured[collector.ProviderBocha].APIKey, Endpoint: configured[collector.ProviderBocha].BaseURL, Client: httpClient},
-		connectors.CLSTelegraph{Endpoint: configured[collector.ProviderCLSTelegraph].BaseURL, Client: httpClient},
-		connectors.EastmoneyFastNews{Endpoint: configured[collector.ProviderEastmoneyFastNews].BaseURL, Client: httpClient},
-		connectors.EastmoneyStockNews{Endpoint: configured[collector.ProviderEastmoneyStock].BaseURL, Client: httpClient},
-		connectors.STCNQuickNews{Endpoint: configured[collector.ProviderSTCNQuickNews].BaseURL, Client: httpClient},
+		connectors.ParallelSearch{APIKey: configured[collector.ConnectorParallelSearch].APIKey, Endpoint: configured[collector.ConnectorParallelSearch].BaseURL, Client: httpClient},
+		connectors.Tavily{APIKey: configured[collector.ConnectorTavily].APIKey, Endpoint: configured[collector.ConnectorTavily].BaseURL, Client: httpClient},
+		connectors.Bocha{APIKey: configured[collector.ConnectorBocha].APIKey, Endpoint: configured[collector.ConnectorBocha].BaseURL, Client: httpClient},
+		connectors.CLSTelegraph{Endpoint: configured[collector.ConnectorCLSTelegraph].BaseURL, Client: httpClient},
+		connectors.EastmoneyFastNews{Endpoint: configured[collector.ConnectorEastmoneyFastNews].BaseURL, Client: httpClient},
+		connectors.EastmoneyStockNews{Endpoint: configured[collector.ConnectorEastmoneyStock].BaseURL, Client: httpClient},
+		connectors.STCNQuickNews{Endpoint: configured[collector.ConnectorSTCNQuickNews].BaseURL, Client: httpClient},
 	}
 	tracked := make([]collector.Connector, 0, len(connectorSet))
 	for _, connector := range connectorSet {

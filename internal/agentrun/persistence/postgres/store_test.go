@@ -12,6 +12,7 @@ import (
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/persistence/postgres"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/testsupport"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var testConnectorKeys = []string{
@@ -55,11 +56,186 @@ func TestMigrateSeedsCollectorV1(t *testing.T) {
 	if version.Version != "collector.v1" {
 		t.Fatalf("version = %q, want collector.v1", version.Version)
 	}
-	if _, err := database.Exec(ctx, `ALTER TABLE provider_configs DROP COLUMN updated_at`); err != nil {
+	if _, err := database.Exec(ctx, `ALTER TABLE connector_configs DROP COLUMN updated_at`); err != nil {
 		t.Fatal(err)
 	}
 	if store.SchemaReady(ctx) {
 		t.Fatal("schema with a missing required column reported ready")
+	}
+}
+
+func TestMigrationSplitsModelAndConnectorConfigurations(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "storage_config_split_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	applyHistoricalMigrations(t, ctx, database, []string{
+		"001_agent_registry.sql",
+		"002_executions.sql",
+		"003_provider_configs.sql",
+		"004_collector_audit_publication.sql",
+	})
+	configs := [][]string{
+		{"deepseek", "https://deepseek.test/v1", "deepseek-chat", "deepseek-secret"},
+		{"parallel_search", "https://parallel.test/search", "", "parallel-secret"},
+		{"tavily", "https://tavily.test/search", "", "tavily-secret"},
+		{"bocha", "https://bocha.test/search", "", "bocha-secret"},
+		{"cls_telegraph", "https://cls.test/roll", "", ""},
+		{"eastmoney_fastnews", "https://eastmoney.test/fast", "", ""},
+		{"eastmoney_stock_news", "https://eastmoney.test/search", "", ""},
+		{"stcn_quicknews", "https://stcn.test/list", "", ""},
+	}
+	for _, config := range configs {
+		if _, err := database.Exec(ctx, `
+			INSERT INTO provider_configs (provider_key, base_url, model, api_key)
+			VALUES ($1, $2, $3, $4)
+		`, config[0], config[1], config[2], config[3]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatalf("migrate historical Provider configurations: %v", err)
+	}
+	var oldTable, modelTable, connectorTable *string
+	if err := database.QueryRow(ctx, `
+		SELECT to_regclass('provider_configs')::text,
+		       to_regclass('model_provider_configs')::text,
+		       to_regclass('connector_configs')::text
+	`).Scan(&oldTable, &modelTable, &connectorTable); err != nil {
+		t.Fatal(err)
+	}
+	if oldTable != nil || modelTable == nil || connectorTable == nil {
+		t.Fatalf("configuration tables old=%v model=%v connector=%v", oldTable, modelTable, connectorTable)
+	}
+	var providerKey, baseURL, model, apiKey string
+	if err := database.QueryRow(ctx, `
+		SELECT provider_key, base_url, model, api_key
+		FROM model_provider_configs
+	`).Scan(&providerKey, &baseURL, &model, &apiKey); err != nil {
+		t.Fatal(err)
+	}
+	if providerKey != "deepseek" || baseURL != "https://deepseek.test/v1" ||
+		model != "deepseek-chat" || apiKey != "deepseek-secret" {
+		t.Fatalf("migrated Model Provider Configuration = %q %q %q %q", providerKey, baseURL, model, apiKey)
+	}
+	var connectorCount int
+	if err := database.QueryRow(ctx, `SELECT count(*) FROM connector_configs`).Scan(&connectorCount); err != nil {
+		t.Fatal(err)
+	}
+	if connectorCount != 7 {
+		t.Fatalf("migrated Connector Configurations = %d, want 7", connectorCount)
+	}
+	var tavilyURL, tavilyKey string
+	if err := database.QueryRow(ctx, `
+		SELECT base_url, api_key FROM connector_configs WHERE connector_key = 'tavily'
+	`).Scan(&tavilyURL, &tavilyKey); err != nil {
+		t.Fatal(err)
+	}
+	if tavilyURL != "https://tavily.test/search" || tavilyKey != "tavily-secret" {
+		t.Fatalf("migrated Tavily configuration = %q %q", tavilyURL, tavilyKey)
+	}
+	if !postgres.New(database).SchemaReady(ctx) {
+		t.Fatal("split configuration schema is not ready")
+	}
+}
+
+func TestMigrationRejectsUnknownProviderWithoutPartialSplit(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "storage_config_unknown_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	applyHistoricalMigrations(t, ctx, database, []string{
+		"001_agent_registry.sql",
+		"002_executions.sql",
+		"003_provider_configs.sql",
+		"004_collector_audit_publication.sql",
+	})
+	if _, err := database.Exec(ctx, `
+		INSERT INTO provider_configs (provider_key, base_url, model, api_key)
+		VALUES ('unexpected_provider', 'https://unexpected.test', '', '')
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := postgres.Migrate(ctx, database); err == nil {
+		t.Fatal("migration accepted an unknown Provider configuration")
+	}
+	var oldTable, modelTable, connectorTable *string
+	if err := database.QueryRow(ctx, `
+		SELECT to_regclass('provider_configs')::text,
+		       to_regclass('model_provider_configs')::text,
+		       to_regclass('connector_configs')::text
+	`).Scan(&oldTable, &modelTable, &connectorTable); err != nil {
+		t.Fatal(err)
+	}
+	if oldTable == nil || modelTable != nil || connectorTable != nil {
+		t.Fatalf("failed migration left partial tables old=%v model=%v connector=%v", oldTable, modelTable, connectorTable)
+	}
+	var recorded bool
+	if err := database.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM schema_migrations
+			WHERE version = 'migrations/005_split_provider_configs.sql'
+		)
+	`).Scan(&recorded); err != nil {
+		t.Fatal(err)
+	}
+	if recorded {
+		t.Fatal("failed migration was recorded")
+	}
+}
+
+func applyHistoricalMigrations(
+	t *testing.T,
+	ctx context.Context,
+	database interface {
+		Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	},
+	names []string,
+) {
+	t.Helper()
+	if _, err := database.Exec(ctx, `
+		CREATE TABLE schema_migrations (
+			version text PRIMARY KEY,
+			applied_at timestamptz NOT NULL DEFAULT now()
+		)
+	`); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		payload, err := os.ReadFile("migrations/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := database.Exec(ctx, string(payload)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := database.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, "migrations/"+name); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -435,7 +611,7 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	}
 }
 
-func TestProviderConfigurationUsesCurrentRowsAndRedactedViews(t *testing.T) {
+func TestModelAndConnectorConfigurationsUseSeparateCurrentRowsAndRedactedViews(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
@@ -457,56 +633,76 @@ func TestProviderConfigurationUsesCurrentRowsAndRedactedViews(t *testing.T) {
 	}
 	store := postgres.New(database)
 
-	configs := []agentrun.ProviderConfig{
-		{Key: "deepseek", BaseURL: "https://deepseek.test/v1", Model: "deepseek-chat", APIKey: "deepseek-secret-1234"},
-		{Key: "parallel_search", BaseURL: "https://parallel.test/search", APIKey: "parallel-secret-1234"},
-		{Key: "tavily", BaseURL: "https://tavily.test/search", APIKey: "tavily-secret-1234"},
-		{Key: "bocha", BaseURL: "https://bocha.test/search", APIKey: "bocha-secret-1234"},
-		{Key: "cls_telegraph", BaseURL: "https://cls.test/roll"},
-		{Key: "eastmoney_fastnews", BaseURL: "https://eastmoney.test/fast"},
-		{Key: "eastmoney_stock_news", BaseURL: "https://eastmoney.test/search"},
-		{Key: "stcn_quicknews", BaseURL: "https://stcn.test/list"},
+	modelConfig := agentrun.ModelProviderConfig{
+		ProviderKey: "deepseek",
+		BaseURL:     "https://deepseek.test/v1",
+		Model:       "deepseek-chat",
+		APIKey:      "deepseek-secret-1234",
 	}
-	for _, config := range configs {
-		if err := store.UpsertProviderConfig(ctx, config); err != nil {
-			t.Fatalf("upsert %s: %v", config.Key, err)
+	if err := store.UpsertModelProviderConfig(ctx, modelConfig); err != nil {
+		t.Fatalf("upsert DeepSeek: %v", err)
+	}
+	connectorConfigs := []agentrun.ConnectorConfig{
+		{ConnectorKey: "parallel_search", BaseURL: "https://parallel.test/search", APIKey: "parallel-secret-1234"},
+		{ConnectorKey: "tavily", BaseURL: "https://tavily.test/search", APIKey: "tavily-secret-1234"},
+		{ConnectorKey: "bocha", BaseURL: "https://bocha.test/search", APIKey: "bocha-secret-1234"},
+		{ConnectorKey: "cls_telegraph", BaseURL: "https://cls.test/roll"},
+		{ConnectorKey: "eastmoney_fastnews", BaseURL: "https://eastmoney.test/fast"},
+		{ConnectorKey: "eastmoney_stock_news", BaseURL: "https://eastmoney.test/search"},
+		{ConnectorKey: "stcn_quicknews", BaseURL: "https://stcn.test/list"},
+	}
+	for _, config := range connectorConfigs {
+		if err := store.UpsertConnectorConfig(ctx, config); err != nil {
+			t.Fatalf("upsert %s: %v", config.ConnectorKey, err)
 		}
 	}
-	configs[0].Model = "deepseek-reasoner"
-	if err := store.UpsertProviderConfig(ctx, configs[0]); err != nil {
+	modelConfig.Model = "deepseek-reasoner"
+	if err := store.UpsertModelProviderConfig(ctx, modelConfig); err != nil {
 		t.Fatalf("replace DeepSeek config: %v", err)
 	}
 
-	loaded, err := store.LoadProviderConfigs(ctx)
+	models, err := store.LoadModelProviderConfigs(ctx)
 	if err != nil {
-		t.Fatalf("load Provider configs: %v", err)
+		t.Fatalf("load Model Provider Configurations: %v", err)
 	}
-	if loaded["deepseek"].Model != "deepseek-reasoner" || loaded["deepseek"].APIKey != "deepseek-secret-1234" {
-		t.Fatalf("DeepSeek runtime config = %#v", loaded["deepseek"])
+	if models["deepseek"].Model != "deepseek-reasoner" || models["deepseek"].APIKey != "deepseek-secret-1234" {
+		t.Fatalf("DeepSeek runtime config = %#v", models["deepseek"])
 	}
-	if len(loaded) != 8 {
-		t.Fatalf("Provider config count = %d, want 8", len(loaded))
+	if len(models) != 1 {
+		t.Fatalf("Model Provider Configuration count = %d, want 1", len(models))
 	}
-
-	views, err := store.ListProviderConfigViews(ctx)
+	connectors, err := store.LoadConnectorConfigs(ctx)
 	if err != nil {
-		t.Fatalf("list Provider config views: %v", err)
+		t.Fatalf("load Connector Configurations: %v", err)
 	}
-	for _, view := range views {
-		if view.Key == "deepseek" {
-			if !view.KeyConfigured || view.MaskedKey != "***1234" {
-				t.Fatalf("DeepSeek redacted view = %#v", view)
-			}
-			if view.Model != "deepseek-reasoner" {
-				t.Fatalf("DeepSeek model = %q", view.Model)
-			}
-		}
+	if len(connectors) != 7 || connectors["tavily"].APIKey != "tavily-secret-1234" {
+		t.Fatalf("Connector Configurations = %#v", connectors)
 	}
-	encoded, err := json.Marshal(views)
+	modelViews, err := store.ListModelProviderConfigViews(ctx)
+	if err != nil {
+		t.Fatalf("list Model Provider Configuration views: %v", err)
+	}
+	if len(modelViews) != 1 || modelViews[0].ProviderKey != "deepseek" ||
+		!modelViews[0].KeyConfigured || modelViews[0].MaskedKey != "***1234" ||
+		modelViews[0].Model != "deepseek-reasoner" {
+		t.Fatalf("DeepSeek redacted view = %#v", modelViews)
+	}
+	connectorViews, err := store.ListConnectorConfigViews(ctx)
+	if err != nil {
+		t.Fatalf("list Connector Configuration views: %v", err)
+	}
+	if len(connectorViews) != 7 {
+		t.Fatalf("Connector Configuration views = %d, want 7", len(connectorViews))
+	}
+	encoded, err := json.Marshal(struct {
+		Models     []agentrun.ModelProviderConfigView `json:"models"`
+		Connectors []agentrun.ConnectorConfigView     `json:"connectors"`
+	}{Models: modelViews, Connectors: connectorViews})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(encoded), "deepseek-secret-1234") {
-		t.Fatalf("view leaked API key: %s", encoded)
+	if strings.Contains(string(encoded), "deepseek-secret-1234") ||
+		strings.Contains(string(encoded), "tavily-secret-1234") {
+		t.Fatalf("configuration view leaked API key: %s", encoded)
 	}
 }

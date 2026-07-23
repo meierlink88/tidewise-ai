@@ -48,12 +48,16 @@ _Avoid_: Collection Candidate、Tidewise 正式 Raw Document、临时文件
 调用方提交、定义一次采集“采什么”的完整自然语言任务文本；Collector 只对它做查询语义规划，不在本地维护业务采集内容。
 _Avoid_: Connector 配置、agent-run 本地业务提示词、机器输出协议
 
-**Provider Configuration**:
-AgentRun PostgreSQL 中某个 LLM 或 Connector 当前生效的 Base URL、模型和必要 Key；V1 直接覆盖当前值，不保存配置版本或轮换历史。明文 Key 只允许 dev/UAT MVP，任何接口和 Artifact 都不得暴露它。
-_Avoid_: Agent Version 固定护栏、Collection Prompt、Provider 环境变量 fallback
+**Model Provider Configuration**:
+定义 Agent 访问某个模型供应商及其选定模型所需的当前运行信息；它属于模型调用边界，不属于采集通道。
+_Avoid_: Connector Configuration、Agent Version、Collection Prompt
+
+**Connector Configuration**:
+定义一个 Connector 访问其外部采集通道所需的当前运行信息；Connector 本身就是平台中的采集适配器，不再额外称为 Connector Provider。
+_Avoid_: Model Provider Configuration、Connector Invocation、Collection Prompt
 
 **Run Artifact Manifest**:
-一次 Agent Execution 本地 Artifact 完成的权威标记；它记录执行身份、Prompt hash/长度、Connector 与 Candidate 统计、accepted 文件路径/hash 和时间戳，但不包含完整 Prompt、新闻正文或 Provider Key。
+一次 Agent Execution 本地 Artifact 完成的权威标记；它记录执行身份、Prompt hash/长度、Connector 与 Candidate 统计、accepted 文件路径/hash 和时间戳，但不包含完整 Prompt、新闻正文、Model Provider Key 或 Connector Key。
 _Avoid_: PostgreSQL Execution 行、临时文件、Tidewise Raw Document Import receipt
 
 **Artifact Publication**:

@@ -19,7 +19,7 @@ Tidewise Data Service 需要通过稳定的 HTTP 接口异步驱动原始资讯�
 
 在 AgentRun 仓库中交付 Collector Agent V1 的单服务纵切：Data Service 或运维客户端以一段完整自然语言 Collection Prompt 调用内部 HTTP API，AgentRun 创建一个可查询的 Agent Execution，并在当前进程中异步运行 Eino Workflow。DeepSeek 只理解 Prompt、生成搜索 queries、组合查询和可选时间窗口；Go 程序固定执行七个 Connector，确定性完成结果解析、URL 合并、时间门禁、SHA-256/SimHash64 去重、Candidate 终态判定和本地 Artifact 写入。
 
-AgentRun 使用独立 PostgreSQL database `tidewise_ai_server` 保存执行控制面和当前 Provider 配置，使用持久化本地 Artifact Volume 保存采集数据。V1 不调用 Tidewise Data Raw Document Import，也不回调 Run Outcome；后续 Tidewise Data 仓库任务通过本 Spec 的 HTTP 合同和本地 Artifact 合同完成跨服务集成。
+AgentRun 使用独立 PostgreSQL database `tidewise_ai_server` 保存执行控制面、当前 Model Provider Configuration 和当前 Connector Configuration，使用持久化本地 Artifact Volume 保存采集数据。V1 不调用 Tidewise Data Raw Document Import，也不回调 Run Outcome；后续 Tidewise Data 仓库任务通过本 Spec 的 HTTP 合同和本地 Artifact 合同完成跨服务集成。
 
 ## User Stories
 
@@ -31,11 +31,11 @@ AgentRun 使用独立 PostgreSQL database `tidewise_ai_server` 保存执行控�
 6. As Tidewise Data Service, I want the exact Prompt preserved with a hash, so that execution intent is auditable without returning it through status APIs.
 7. As an operator, I want at most one active Collector Execution, so that this MVP does not overrun external quotas or local artifacts.
 8. As an operator, I want a clear conflict response containing the active Execution ID, so that I can inspect the work already in progress.
-9. As an operator, I want health and readiness endpoints, so that process liveness is distinct from database, schema, authentication, and Provider configuration readiness.
+9. As an operator, I want health and readiness endpoints, so that process liveness is distinct from database, schema, authentication, Model Provider Configuration, and Connector Configuration readiness.
 10. As an operator, I want explicit database migrations, so that service startup never mutates production schema implicitly.
-11. As an operator, I want a bootstrap CLI for current Provider configuration, so that the later Admin Portal has a database-backed configuration source from day one.
-12. As a security-conscious operator, I want API, CLI, logs, errors, snapshots, and Artifacts never to reveal Provider keys, even though this dev/UAT MVP stores them in plaintext.
-13. As a deployment owner, I want plaintext Provider storage to make production readiness fail, so that the MVP security exception cannot be mistaken for production readiness.
+11. As an operator, I want the bootstrap CLI to manage Model Provider Configuration and Connector Configuration as separate resources, so that their different fields and invariants are explicit before a later Admin Portal is built.
+12. As a security-conscious operator, I want API, CLI, logs, errors, snapshots, and Artifacts never to reveal model or Connector keys, even though this dev/UAT MVP stores them in plaintext.
+13. As a deployment owner, I want plaintext model and Connector credential storage to make production readiness fail, so that the MVP security exception cannot be mistaken for production readiness.
 14. As an Agent platform owner, I want Agent Definition, immutable Agent Version, and Agent Execution separated, so that later Agents can reuse the execution control plane.
 15. As an Agent platform owner, I want the migration to seed `collector` and `collector.v1`, so that every run records an explicit immutable execution contract.
 16. As a Collector user, I want DeepSeek to understand long, multiline, Markdown-capable Prompt text, so that collection intent can remain expressive and change frequently outside AgentRun source code.
@@ -70,14 +70,14 @@ This design completed the repository's Eino reference-first gate against the sha
 - `cloudwego/eino-ext` at `9137edd89e72b72735ede69db1c5ae29178a6e41` (`components/model/deepseek/v0.1.7`): inspected the DeepSeek README, constructor, configuration, Generate path, structured response option, and tests/examples. Adopted the official `ChatModel` adapter, explicit Base URL/model/key/timeout mapping, `ResponseFormatTypeJSONObject`, and the `model.BaseChatModel` seam used by the Planner. Rejected a custom DeepSeek HTTP client and Provider-specific types in the Collector domain model.
 - `cloudwego/eino-examples` at `171220631fb7068ead50b7cd964b8c471647117d`: inspected typed Workflow field/dependency examples, parallel ADK workflows, the multi-Agent project-manager example, and the Deer-Go composition/handler/infrastructure split. Adopted explicit composition at the application edge and capability-local orchestration. Rejected example-level global model state, building complex graphs in HTTP handlers, and multi-Agent supervisor patterns for this V1.
 
-Project-specific gaps remain intentionally implemented in AgentRun rather than Eino: HTTP idempotency, Agent Definition/Version/Execution state, Connector Invocation persistence, Provider configuration, fixed Connector policy, timeouts and bounded concurrency, Candidate accounting, deduplication, and atomic Artifact publication. Eino remains an orchestration implementation detail inside the Collector capability and does not define the repository's domain structure.
+Project-specific gaps remain intentionally implemented in AgentRun rather than Eino: HTTP idempotency, Agent Definition/Version/Execution state, Connector Invocation persistence, Model Provider Configuration, Connector Configuration, fixed Connector policy, timeouts and bounded concurrency, Candidate accounting, deduplication, and atomic Artifact publication. Eino remains an orchestration implementation detail inside the Collector capability and does not define the repository's domain structure.
 
 The resulting package direction is capability-first: `internal/agentrun` owns reusable platform execution concepts and persistence adapters, while `internal/collector` owns Collector application orchestration, planning, Workflow, Connectors, Artifacts, and HTTP transport. Future Agent capabilities receive sibling packages instead of adding their behavior to global technical-layer packages.
 
 ### Scope and ownership
 
 - This change modifies only AgentRun. It does not modify Tidewise Data, access the Tidewise Data database, or include Tidewise Data code in the PR.
-- AgentRun owns Agent Execution, Connector Invocation, current Provider configuration, Candidate processing, and local Raw Document Artifacts.
+- AgentRun owns Agent Execution, Connector Invocation, current Model Provider Configuration, current Connector Configuration, Candidate processing, and local Raw Document Artifacts.
 - Tidewise Data owns its Prompt Registry, Collection Run/Attempt, Remote AI Executor, final Run state, Watermark, and future import/callback integration.
 - V1 does not implement AgentRun-to-Data Raw Document Import, Run Outcome callback, Delivery Outbox, or a fake Data server.
 
@@ -100,9 +100,9 @@ The resulting package direction is capability-first: `internal/agentrun` owns re
 - A first valid POST persists the Execution and seven pending Connector Invocations, starts asynchronous in-process work, and returns `202` with schema identifier `collector_run.v1`, Execution ID, current status, creation time, and status URL.
 - Replaying the same idempotency key with the same exact Prompt returns the existing Execution representation and does not start work again. Idempotency lookup happens before the active-run check.
 - Reusing an idempotency key with different Prompt bytes returns `409 idempotency_conflict`.
-- Missing idempotency key returns `400`; unavailable schema or Provider configuration returns `503 configuration_not_ready`.
+- Missing idempotency key returns `400`; unavailable schema, Model Provider Configuration, or Connector Configuration returns `503 configuration_not_ready`.
 - Only one Execution may be active in `queued`, `planning`, `collecting`, or `materializing`. A new non-replay POST during that period returns `409 active_execution_exists` with the active Execution ID; V1 has no waiting queue.
-- GET returns schema identifier, Agent key/version, Prompt SHA-256 and byte length, Execution status, all seven Connector Invocations, Candidate counts, completed Artifact paths, timestamps, and a stable safe error code/summary. It never returns the full Prompt, Provider keys, or Candidate bodies.
+- GET returns schema identifier, Agent key/version, Prompt SHA-256 and byte length, Execution status, all seven Connector Invocations, Candidate counts, completed Artifact paths, timestamps, and a stable safe error code/summary. It never returns the full Prompt, model or Connector keys, or Candidate bodies.
 - GET for an unknown UUID returns `404 execution_not_found`. All errors use stable error codes and redact model responses, endpoint bodies, Prompt content, credentials, and Authorization headers.
 
 ### Execution state and failure semantics
@@ -120,19 +120,23 @@ The resulting package direction is capability-first: `internal/agentrun` owns re
 - The Data caller may create a new task with a new idempotency key. The old key always resolves to the old failed Execution.
 - V1 has no cancel endpoint, cancelled state, lease, heartbeat, Worker Attempt, cross-process claim, automatic HTTP retry, or external task queue.
 
-### Provider configuration and database boundary
+### Model Provider Configuration, Connector Configuration, and database boundary
 
 - AgentRun uses an independent PostgreSQL database named `tidewise_ai_server`, with its own DSN, migrations, connection pool, database user, backup, and restore boundary.
 - Sharing a PostgreSQL instance with Tidewise Data is allowed, but shared databases, schemas, business tables, FDW, `dblink`, cross-database SQL, and Tidewise Data DSNs are prohibited.
-- PostgreSQL is the only source for current Provider configuration. There is no Provider-key or Provider-endpoint environment fallback.
-- Current mutable configuration covers DeepSeek Base URL, model, and key; Parallel, Tavily, and Bocha Base URL and key; and Base URLs for CLS Telegraph, Eastmoney Fast News, Eastmoney Stock News, and STCN Quick News.
-- Each Provider has one current row. Updates overwrite current values; V1 does not preserve profile versions, credential versions, rotation history, or configuration history. An active Execution uses the configuration snapshot already loaded in memory; a later Execution reads current values.
-- A bootstrap CLI supports schema-aware upsert, list/check, and redacted inspection. It never prints a full key; output may show only configured/not-configured and a masked suffix.
-- Provider keys are plaintext in PostgreSQL only for the dev/UAT MVP, as accepted by ADR 0001. HTTP responses, CLI reads, logs, errors, Execution data, Candidate ledgers, manifests, summaries, and documents never contain them.
+- PostgreSQL is the only source for current Model Provider Configuration and Connector Configuration. There is no model/Connector key or endpoint environment fallback.
+- Model Provider Configuration and Connector Configuration are distinct domain resources and distinct PostgreSQL tables. The generic `provider_configs` resource is retired.
+- `model_provider_configs` stores one current DeepSeek row with `provider_key`, Base URL, model name, key, and update time. Collector V1 does not select among multiple providers or models.
+- `connector_configs` stores one current row for each fixed Connector with `connector_key`, Base URL, optional key, and update time. It has no model field and does not introduce a second “Connector Provider” abstraction.
+- All Connector keys follow one optional rule. The database, CLI, readiness check, and Collector configuration validator do not maintain Connector-specific key requirements. A missing Connector key does not block startup or readiness; if the external endpoint rejects an anonymous request, that Invocation follows the ordinary safe Connector-failure path and can contribute to a partial or failed Execution. DeepSeek model access remains separately validated and requires its key.
+- Migration from `provider_configs` creates both tables, copies the DeepSeek row and the seven known Connector rows, rejects unknown or unaccounted keys, verifies that no row was lost or duplicated, and drops the generic table in the same transaction. There is no compatibility read path or dual write.
+- Updates overwrite current values; V1 does not preserve profile versions, credential versions, rotation history, or configuration history. The service loads one immutable configuration snapshot at process startup. CLI changes take effect only after restart and cannot alter an in-flight Execution.
+- The bootstrap CLI exposes `model set|list` and `connector set|list` as separate resource operations plus one aggregate `check`. It never prints a full key; output may show only configured/not-configured and a masked suffix. Successful writes tell the operator that a service restart is required.
+- Model and Connector keys are plaintext in PostgreSQL only for the dev/UAT MVP, as accepted by ADR 0001. HTTP responses, CLI reads, logs, errors, Execution data, Candidate ledgers, manifests, summaries, and documents never contain them.
 - Only `dev` and `uat` are supported while plaintext credential storage is active. A future production change must add database-external key management, encrypted storage, and plaintext migration before production can become ready.
 - Non-secret runtime configuration is selected by `APP_ENV` and loaded from `internal/agentrun/config/config.dev.yaml` or `config.uat.yaml`. Environment variables are limited to the optional config directory override, database password or complete DSN, and static inbound service token.
-- Migrations run only through an explicit migration CLI. Server startup checks schema compatibility but never auto-migrates. The Provider config CLI refuses to operate against an incompatible schema.
-- `/healthz` reports process liveness. `/readyz` requires database connectivity, exact supported schema, a non-empty service token, a supported dev/UAT environment, writable Artifact root, and every required Provider URL/model/key. Missing readiness requirements also make Collector POST return `503`.
+- Migrations run only through an explicit migration CLI. Server startup checks schema compatibility but never auto-migrates. The configuration CLI refuses to operate against an incompatible schema.
+- `/healthz` reports process liveness. `/readyz` requires database connectivity, exact supported schema, a non-empty service token, a supported dev/UAT environment, writable Artifact root, one complete DeepSeek Model Provider Configuration, and all seven Connector Configurations with valid Base URLs. Connector keys are not a readiness requirement. Missing readiness requirements also make Collector POST return `503`.
 - The HTTP service port is fixed at `9080` in dev and UAT. Development reuses the existing local PostgreSQL instance while retaining an independent `tidewise_ai_server` database and `agentrun` user; AgentRun does not start another PostgreSQL container. Automated database tests use an isolated temporary database and explicitly reject production and Tidewise Data database names.
 
 ### Planner and Eino workflow
@@ -197,12 +201,12 @@ The resulting package direction is capability-first: `internal/agentrun` owns re
 - Black-box tests cover Bearer authentication, Prompt validation and preservation, idempotent replay/conflict, active-run conflict, asynchronous status transitions, GET redaction, unknown ID, readiness failures, fixed seven-Connector calls, bounded fan-out, and completed Artifact visibility.
 - Outcome matrices cover Planner failure with zero Connector calls, seven completed with accepted results, seven completed with no change, mixed completed/failed with and without accepted results, all seven failed, execution timeout, Artifact failure, and process-start stale-state marking.
 - Every successful-class test asserts seven Invocation records, terminal post-merge Candidate accounting, `results_pending=0`, manifest-last publication, and no secrets or full Prompt in observable output.
-- Focused tests cover strict Planner JSON and trailing-content rejection, query limits, optional/default time window, Connector request mapping, Connector parsing, URL canonicalization, content-level merge, time gating, SHA-256, BLAKE2b-based SimHash64 with radius 3, Candidate dispositions, atomic file contracts, configuration redaction, and database-name isolation.
-- Persistence integration tests run migrations in an isolated temporary database and cover seeded Agent/Version, idempotency uniqueness, active-run exclusion, seven Invocation rows, startup stale-state failure, current Provider upsert, and schema-readiness checks.
+- Focused tests cover strict Planner JSON and trailing-content rejection, query limits, optional/default time window, Connector request mapping, Connector parsing, URL canonicalization, content-level merge, time gating, SHA-256, BLAKE2b-based SimHash64 with radius 3, Candidate dispositions, atomic file contracts, separate model/Connector configuration validation, optional Connector keys, configuration redaction, and database-name isolation.
+- Persistence integration tests run migrations in an isolated temporary database and cover seeded Agent/Version, idempotency uniqueness, active-run exclusion, seven Invocation rows, startup stale-state failure, transactional migration from the generic configuration table, separate model/Connector upserts and reads, and schema-readiness checks.
 - Tests assert external behavior and durable contracts rather than Eino node internals or private helper implementation.
 - TDD is used at the agreed HTTP seam and focused deterministic seams: capture a meaningful failing test, implement the minimum behavior, then refactor.
 - The final automated gate includes formatting, the complete Go test suite, race-sensitive concurrency tests where practical, migration verification, diff checks, credential scans, and a Standards/Spec code review.
-- If all real Provider configurations are locally available, pre-merge acceptance also performs one manual network collection and inspects its manifest, summary, Candidate ledger, and accepted Markdown. This smoke is reported honestly but is not an automated gate; missing credentials or external outages do not permit a false pass and do not block deterministic code acceptance.
+- If all real Model Provider and Connector configurations are locally available, pre-merge acceptance also performs one manual network collection and inspects its manifest, summary, Candidate ledger, and accepted Markdown. This smoke is reported honestly but is not an automated gate; missing credentials or external outages do not permit a false pass and do not block deterministic code acceptance.
 
 ## Out of Scope
 

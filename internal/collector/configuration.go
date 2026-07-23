@@ -9,79 +9,79 @@ import (
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
 )
 
-type ProviderConfig = agentrun.ProviderConfig
-
-type ProviderConfiguration struct {
-	DeepSeek   agentrun.ProviderConfig
-	Connectors map[string]agentrun.ProviderConfig
+type RuntimeConfiguration struct {
+	ModelProvider agentrun.ModelProviderConfig
+	Connectors    map[string]agentrun.ConnectorConfig
 }
 
-type ProviderConfigView = agentrun.ProviderConfigView
-
 const (
-	ProviderDeepSeek          = "deepseek"
-	ProviderParallelSearch    = "parallel_search"
-	ProviderTavily            = "tavily"
-	ProviderBocha             = "bocha"
-	ProviderCLSTelegraph      = "cls_telegraph"
-	ProviderEastmoneyFastNews = "eastmoney_fastnews"
-	ProviderEastmoneyStock    = "eastmoney_stock_news"
-	ProviderSTCNQuickNews     = "stcn_quicknews"
+	ModelProviderDeepSeek      = "deepseek"
+	ConnectorParallelSearch    = "parallel_search"
+	ConnectorTavily            = "tavily"
+	ConnectorBocha             = "bocha"
+	ConnectorCLSTelegraph      = "cls_telegraph"
+	ConnectorEastmoneyFastNews = "eastmoney_fastnews"
+	ConnectorEastmoneyStock    = "eastmoney_stock_news"
+	ConnectorSTCNQuickNews     = "stcn_quicknews"
 )
 
 var connectorKeys = []string{
-	ProviderParallelSearch,
-	ProviderTavily,
-	ProviderBocha,
-	ProviderCLSTelegraph,
-	ProviderEastmoneyFastNews,
-	ProviderEastmoneyStock,
-	ProviderSTCNQuickNews,
+	ConnectorParallelSearch,
+	ConnectorTavily,
+	ConnectorBocha,
+	ConnectorCLSTelegraph,
+	ConnectorEastmoneyFastNews,
+	ConnectorEastmoneyStock,
+	ConnectorSTCNQuickNews,
 }
 
-var providerRequirements = map[string]struct {
-	model bool
-	key   bool
-}{
-	ProviderDeepSeek:          {model: true, key: true},
-	ProviderParallelSearch:    {key: true},
-	ProviderTavily:            {key: true},
-	ProviderBocha:             {key: true},
-	ProviderCLSTelegraph:      {},
-	ProviderEastmoneyFastNews: {},
-	ProviderEastmoneyStock:    {},
-	ProviderSTCNQuickNews:     {},
-}
+var connectorKeySet = func() map[string]struct{} {
+	keys := make(map[string]struct{}, len(connectorKeys))
+	for _, key := range connectorKeys {
+		keys[key] = struct{}{}
+	}
+	return keys
+}()
 
 func ConnectorKeys() []string {
 	return append([]string(nil), connectorKeys...)
 }
 
-func ValidateProviderConfig(config agentrun.ProviderConfig) error {
-	return ValidateProviderConfigForEnvironment(config, "dev")
+func ValidateModelProviderConfig(config agentrun.ModelProviderConfig) error {
+	return ValidateModelProviderConfigForEnvironment(config, "dev")
 }
 
-func ValidateProviderConfigForEnvironment(config agentrun.ProviderConfig, environment string) error {
-	requirement, known := providerRequirements[config.Key]
-	if !known {
-		return fmt.Errorf("unknown Provider configuration key %q", config.Key)
+func ValidateModelProviderConfigForEnvironment(config agentrun.ModelProviderConfig, environment string) error {
+	if config.ProviderKey != ModelProviderDeepSeek {
+		return fmt.Errorf("unknown Model Provider Configuration key %q", config.ProviderKey)
 	}
-	if strings.TrimSpace(config.BaseURL) == "" {
-		return fmt.Errorf("Provider Base URL is required")
+	if !validConfigurationBaseURL(config.BaseURL, environment) {
+		return fmt.Errorf("Model Provider Base URL must be an absolute HTTPS URL or loopback HTTP URL without credentials")
 	}
-	if !validProviderBaseURL(config.BaseURL, environment) {
-		return fmt.Errorf("Provider Base URL must be an absolute HTTPS URL or loopback HTTP URL without credentials")
+	if strings.TrimSpace(config.Model) == "" {
+		return fmt.Errorf("Model Provider model is required")
 	}
-	if requirement.model && strings.TrimSpace(config.Model) == "" {
-		return fmt.Errorf("Provider model is required")
-	}
-	if requirement.key && strings.TrimSpace(config.APIKey) == "" {
-		return fmt.Errorf("Provider API key is required")
+	if strings.TrimSpace(config.APIKey) == "" {
+		return fmt.Errorf("Model Provider API key is required")
 	}
 	return nil
 }
 
-func validProviderBaseURL(raw, environment string) bool {
+func ValidateConnectorConfig(config agentrun.ConnectorConfig) error {
+	return ValidateConnectorConfigForEnvironment(config, "dev")
+}
+
+func ValidateConnectorConfigForEnvironment(config agentrun.ConnectorConfig, environment string) error {
+	if _, known := connectorKeySet[config.ConnectorKey]; !known {
+		return fmt.Errorf("unknown Connector Configuration key %q", config.ConnectorKey)
+	}
+	if !validConfigurationBaseURL(config.BaseURL, environment) {
+		return fmt.Errorf("Connector Base URL must be an absolute HTTPS URL or loopback HTTP URL without credentials")
+	}
+	return nil
+}
+
+func validConfigurationBaseURL(raw, environment string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || !parsed.IsAbs() || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
 		return false
@@ -104,23 +104,41 @@ func validProviderBaseURL(raw, environment string) bool {
 	}
 }
 
-func BuildProviderConfiguration(loaded map[string]agentrun.ProviderConfig) (ProviderConfiguration, error) {
-	return BuildProviderConfigurationForEnvironment(loaded, "dev")
+func BuildRuntimeConfiguration(
+	models map[string]agentrun.ModelProviderConfig,
+	connectors map[string]agentrun.ConnectorConfig,
+) (RuntimeConfiguration, error) {
+	return BuildRuntimeConfigurationForEnvironment(models, connectors, "dev")
 }
 
-func BuildProviderConfigurationForEnvironment(loaded map[string]agentrun.ProviderConfig, environment string) (ProviderConfiguration, error) {
-	for key := range providerRequirements {
-		config, exists := loaded[key]
-		if !exists {
-			return ProviderConfiguration{}, fmt.Errorf("required Provider configuration %s is incomplete", key)
-		}
-		if err := ValidateProviderConfigForEnvironment(config, environment); err != nil {
-			return ProviderConfiguration{}, fmt.Errorf("required Provider configuration %s is incomplete", key)
-		}
+func BuildRuntimeConfigurationForEnvironment(
+	models map[string]agentrun.ModelProviderConfig,
+	connectors map[string]agentrun.ConnectorConfig,
+	environment string,
+) (RuntimeConfiguration, error) {
+	if len(models) != 1 {
+		return RuntimeConfiguration{}, fmt.Errorf("required Model Provider Configuration %s is incomplete", ModelProviderDeepSeek)
 	}
-	connectors := make(map[string]agentrun.ProviderConfig, len(connectorKeys))
+	modelConfig, exists := models[ModelProviderDeepSeek]
+	if !exists {
+		return RuntimeConfiguration{}, fmt.Errorf("required Model Provider Configuration %s is incomplete", ModelProviderDeepSeek)
+	}
+	if err := ValidateModelProviderConfigForEnvironment(modelConfig, environment); err != nil {
+		return RuntimeConfiguration{}, fmt.Errorf("required Model Provider Configuration %s is incomplete", ModelProviderDeepSeek)
+	}
+	configured := make(map[string]agentrun.ConnectorConfig, len(connectorKeys))
 	for _, key := range connectorKeys {
-		connectors[key] = loaded[key]
+		config, exists := connectors[key]
+		if !exists {
+			return RuntimeConfiguration{}, fmt.Errorf("required Connector Configuration %s is incomplete", key)
+		}
+		if err := ValidateConnectorConfigForEnvironment(config, environment); err != nil {
+			return RuntimeConfiguration{}, fmt.Errorf("required Connector Configuration %s is incomplete", key)
+		}
+		configured[key] = config
 	}
-	return ProviderConfiguration{DeepSeek: loaded[ProviderDeepSeek], Connectors: connectors}, nil
+	if len(connectors) != len(connectorKeys) {
+		return RuntimeConfiguration{}, fmt.Errorf("Connector Configurations contain an unknown key")
+	}
+	return RuntimeConfiguration{ModelProvider: modelConfig, Connectors: configured}, nil
 }

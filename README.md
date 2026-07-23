@@ -23,7 +23,7 @@ internal/
     └── httpapi/                  # Collector HTTP transport
 ```
 
-后续 Event Extractor、Analyst 等 Agent 使用 `internal/` 下的同级能力目录；通用执行身份、状态和 Provider 数据结构放在 `internal/agentrun`。`persistence` 是通用持久化概念，`postgres` 是当前具体适配器，并不宣称实现与数据库无关。
+后续 Event Extractor、Analyst 等 Agent 使用 `internal/` 下的同级能力目录；通用执行身份、状态、Model Provider Configuration 和 Connector Configuration 数据结构放在 `internal/agentrun`。`persistence` 是通用持久化概念，`postgres` 是当前具体适配器，并不宣称实现与数据库无关。
 
 ## 本地启动
 
@@ -49,22 +49,23 @@ set +a
 go run ./cmd/agentrun-migrate
 ```
 
-Provider 配置只保存在 `tidewise_ai_server`，不读取 DeepSeek、Parallel、Tavily 或 Bocha 环境变量。使用 Bootstrap CLI 写入当前配置：
+Model Provider Configuration 和 Connector Configuration 分别保存在 `tidewise_ai_server`，不读取 DeepSeek、Parallel、Tavily 或 Bocha 环境变量。使用 Bootstrap CLI 写入当前配置：
 
 ```bash
-printf '%s' "$DEEPSEEK_API_KEY" | go run ./cmd/agentrun-config set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
-printf '%s' "$PARALLEL_API_KEY" | go run ./cmd/agentrun-config set --provider parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
-printf '%s' "$TAVILY_API_KEY" | go run ./cmd/agentrun-config set --provider tavily --base-url https://api.tavily.com/search --api-key-stdin
-printf '%s' "$BOCHA_API_KEY" | go run ./cmd/agentrun-config set --provider bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
-go run ./cmd/agentrun-config set --provider cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
-go run ./cmd/agentrun-config set --provider eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
-go run ./cmd/agentrun-config set --provider eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
-go run ./cmd/agentrun-config set --provider stcn_quicknews --base-url https://www.stcn.com/article/list.html
+printf '%s' "$DEEPSEEK_API_KEY" | go run ./cmd/agentrun-config model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
+printf '%s' "$PARALLEL_API_KEY" | go run ./cmd/agentrun-config connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
+printf '%s' "$TAVILY_API_KEY" | go run ./cmd/agentrun-config connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
+printf '%s' "$BOCHA_API_KEY" | go run ./cmd/agentrun-config connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
+go run ./cmd/agentrun-config connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
+go run ./cmd/agentrun-config connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
+go run ./cmd/agentrun-config connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
+go run ./cmd/agentrun-config connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
 go run ./cmd/agentrun-config check
-go run ./cmd/agentrun-config list
+go run ./cmd/agentrun-config model list
+go run ./cmd/agentrun-config connector list
 ```
 
-`list` 只显示 Key 是否已配置及脱敏尾号。V1 的 dev/UAT 环境暂时以明文将 Provider Key 保存在独立数据库；HTTP、日志、Artifact 和 CLI 读取不会返回完整 Key。
+Model Provider Key 必填；所有 Connector Key 统一可空，缺少 Connector Key 不阻止 readiness，外部端点拒绝匿名请求时记录为该 Connector Invocation 失败。`list` 只显示 Key 是否已配置及脱敏尾号。CLI 修改配置后必须重启 AgentRun 才会生效，当前进程及在途 Execution 继续使用启动时快照。V1 的 dev/UAT 环境暂时以明文保存 Key；HTTP、日志、Artifact 和 CLI 读取不会返回完整 Key。
 
 启动服务：
 
@@ -72,7 +73,7 @@ go run ./cmd/agentrun-config list
 go run ./cmd/agentrun-server
 ```
 
-Server 不自动执行 migration。Schema 或任一必需 Provider 配置缺失时，`/readyz` 返回 503，Collector POST 返回 `configuration_not_ready`。
+Server 不自动执行 migration。Schema、DeepSeek Model Provider Configuration 或任一必需 Connector Configuration 缺失时，`/readyz` 返回 503，Collector POST 返回 `configuration_not_ready`。
 
 ## Collector HTTP Interface
 

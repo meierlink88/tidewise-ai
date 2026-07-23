@@ -7,34 +7,53 @@ import (
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
 )
 
-func TestProviderConfigurationOwnsCollectorRequirements(t *testing.T) {
+func TestRuntimeConfigurationSeparatesModelAndConnectorRequirements(t *testing.T) {
 	t.Parallel()
 
-	if err := ValidateProviderConfig(agentrun.ProviderConfig{Key: "unknown", BaseURL: "https://example.test"}); err == nil {
-		t.Fatal("unknown Collector Provider was accepted")
+	if err := ValidateModelProviderConfig(agentrun.ModelProviderConfig{
+		ProviderKey: "unknown", BaseURL: "https://example.test", Model: "model", APIKey: "key",
+	}); err == nil {
+		t.Fatal("unknown Model Provider was accepted")
 	}
-	if err := ValidateProviderConfig(agentrun.ProviderConfig{Key: ProviderDeepSeek, BaseURL: "https://deepseek.test", APIKey: "key"}); err == nil {
+	if err := ValidateModelProviderConfig(agentrun.ModelProviderConfig{
+		ProviderKey: ModelProviderDeepSeek, BaseURL: "https://deepseek.test", APIKey: "key",
+	}); err == nil {
 		t.Fatal("DeepSeek configuration without a model was accepted")
 	}
-	if err := ValidateProviderConfig(agentrun.ProviderConfig{Key: ProviderCLSTelegraph, BaseURL: "https://cls.test"}); err != nil {
-		t.Fatalf("keyless feed configuration was rejected: %v", err)
+	if err := ValidateModelProviderConfig(agentrun.ModelProviderConfig{
+		ProviderKey: ModelProviderDeepSeek, BaseURL: "https://deepseek.test", Model: "deepseek-chat",
+	}); err == nil {
+		t.Fatal("DeepSeek configuration without a key was accepted")
+	}
+	if err := ValidateConnectorConfig(agentrun.ConnectorConfig{
+		ConnectorKey: ConnectorTavily, BaseURL: "https://tavily.test",
+	}); err != nil {
+		t.Fatalf("keyless Connector Configuration was rejected: %v", err)
 	}
 
-	loaded := make(map[string]agentrun.ProviderConfig)
-	for _, key := range append([]string{ProviderDeepSeek}, ConnectorKeys()...) {
-		loaded[key] = agentrun.ProviderConfig{Key: key, BaseURL: "https://provider.test", Model: "deepseek-chat", APIKey: "key"}
+	models := map[string]agentrun.ModelProviderConfig{
+		ModelProviderDeepSeek: {
+			ProviderKey: ModelProviderDeepSeek,
+			BaseURL:     "https://deepseek.test",
+			Model:       "deepseek-chat",
+			APIKey:      "key",
+		},
 	}
-	configuration, err := BuildProviderConfiguration(loaded)
+	connectors := make(map[string]agentrun.ConnectorConfig)
+	for _, key := range ConnectorKeys() {
+		connectors[key] = agentrun.ConnectorConfig{ConnectorKey: key, BaseURL: "https://connector.test"}
+	}
+	configuration, err := BuildRuntimeConfiguration(models, connectors)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if configuration.DeepSeek.Key != ProviderDeepSeek || len(configuration.Connectors) != 7 {
+	if configuration.ModelProvider.ProviderKey != ModelProviderDeepSeek || len(configuration.Connectors) != 7 {
 		t.Fatalf("configuration = %#v", configuration)
 	}
 
-	delete(loaded, ProviderTavily)
-	_, err = BuildProviderConfiguration(loaded)
-	if err == nil || !strings.Contains(err.Error(), ProviderTavily) {
+	delete(connectors, ConnectorTavily)
+	_, err = BuildRuntimeConfiguration(models, connectors)
+	if err == nil || !strings.Contains(err.Error(), ConnectorTavily) {
 		t.Fatalf("missing Tavily error = %v", err)
 	}
 }
@@ -49,7 +68,7 @@ func TestConnectorKeysReturnsIndependentCopy(t *testing.T) {
 	}
 }
 
-func TestProviderBaseURLMustBeUsableAndProtectCredentials(t *testing.T) {
+func TestConfigurationBaseURLMustBeUsableAndProtectCredentials(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -69,23 +88,23 @@ func TestProviderBaseURLMustBeUsableAndProtectCredentials(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := ValidateProviderConfig(agentrun.ProviderConfig{
-				Key: ProviderCLSTelegraph, BaseURL: test.baseURL,
+			err := ValidateConnectorConfig(agentrun.ConnectorConfig{
+				ConnectorKey: ConnectorCLSTelegraph, BaseURL: test.baseURL,
 			})
 			if test.wantErr && err == nil {
-				t.Fatalf("ValidateProviderConfig(%q) accepted", test.baseURL)
+				t.Fatalf("ValidateConnectorConfig(%q) accepted", test.baseURL)
 			}
 			if !test.wantErr && err != nil {
-				t.Fatalf("ValidateProviderConfig(%q) error = %v", test.baseURL, err)
+				t.Fatalf("ValidateConnectorConfig(%q) error = %v", test.baseURL, err)
 			}
 			if err != nil && strings.Contains(err.Error(), "secret:password") {
 				t.Fatalf("error leaked URL credentials: %v", err)
 			}
 		})
 	}
-	if err := ValidateProviderConfigForEnvironment(agentrun.ProviderConfig{
-		Key: ProviderCLSTelegraph, BaseURL: "http://127.0.0.1:9080/v1",
+	if err := ValidateConnectorConfigForEnvironment(agentrun.ConnectorConfig{
+		ConnectorKey: ConnectorCLSTelegraph, BaseURL: "http://127.0.0.1:9080/v1",
 	}, "uat"); err == nil {
-		t.Fatal("UAT accepted a plaintext loopback Provider URL")
+		t.Fatal("UAT accepted a plaintext loopback Connector URL")
 	}
 }
