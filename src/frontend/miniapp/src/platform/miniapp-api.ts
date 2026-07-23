@@ -14,7 +14,11 @@ export function normalizeMiniappAPIBaseURL(value: string): string {
 export function unwrapMiniappAPIEnvelope<T>(value: unknown): T | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const envelope = value as Partial<MiniappAPIEnvelope<T>>;
-  if (typeof envelope.request_id !== 'string' || envelope.request_id.length === 0 || !('result' in envelope)) {
+  if (
+    typeof envelope.request_id !== 'string' ||
+    envelope.request_id.length === 0 ||
+    !('result' in envelope)
+  ) {
     return undefined;
   }
   return envelope.result;

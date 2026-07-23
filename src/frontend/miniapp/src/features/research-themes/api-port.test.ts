@@ -43,7 +43,10 @@ describe('research theme BFF adapter', () => {
       }
     });
 
-    const feed = await createResearchThemeApiPort({ baseUrl: 'https://miniapp.example.test', request }).list();
+    const feed = await createResearchThemeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request
+    }).list();
 
     expect(request).toHaveBeenCalledWith({
       url: 'https://miniapp.example.test/api/miniapp/v1/research/themes',
@@ -51,7 +54,12 @@ describe('research theme BFF adapter', () => {
       data: { window_hours: 24, limit: 20 },
       dataType: 'json'
     });
-    expect(feed).toMatchObject({ themeCount: 1, eventCount: 2, trackingCount: 17, nextCursor: null });
+    expect(feed).toMatchObject({
+      themeCount: 1,
+      eventCount: 2,
+      trackingCount: 17,
+      nextCursor: null
+    });
     expect(feed.items[0]).toMatchObject({
       name: 'AI算力扩产与半导体',
       tradingDirection: '重点验证订单、交期和关键材料价格',
@@ -60,7 +68,9 @@ describe('research theme BFF adapter', () => {
       updateLabel: '1小时前更新',
       categories: ['算力基建'],
       supportingEventCount: 2,
-      affectedChainNodes: [{ name: '半导体设备', relationRole: 'beneficiary', impactSummary: '订单仍待验证' }]
+      affectedChainNodes: [
+        { name: '半导体设备', relationRole: 'beneficiary', impactSummary: '订单仍待验证' }
+      ]
     });
     expect(feed.items[0]).not.toHaveProperty('transmissionPhaseLabel');
     expect(feed.items[0]).not.toHaveProperty('hasMoreDetail');

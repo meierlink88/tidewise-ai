@@ -44,10 +44,8 @@ describe('research reasoning tree BFF adapter', () => {
       themeId,
       reasoningTree: {
         anchorId,
-        supportSummary:
-          '云厂商资本开支上调支持高速光互联需求扩张，但兑现仍取决于订单和交付改善',
-        counterSummary:
-          '不同规格和客户的交付节奏仍有分化，反驳需求已经全面兑现的判断',
+        supportSummary: '云厂商资本开支上调支持高速光互联需求扩张，但兑现仍取决于订单和交付改善',
+        counterSummary: '不同规格和客户的交付节奏仍有分化，反驳需求已经全面兑现的判断',
         eventCount: 2,
         events: [
           { evidenceRole: 'driver', eventTime: '2026-07-20T01:00:00Z' },

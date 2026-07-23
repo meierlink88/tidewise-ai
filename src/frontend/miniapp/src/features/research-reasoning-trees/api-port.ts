@@ -1,12 +1,6 @@
 import { ResearchReasoningTreeError, type ResearchReasoningTreePort } from './contract';
-import {
-  parseResearchReasoningTreeDetail,
-  parseResearchReasoningTreeIndex
-} from './wire-contract';
-import {
-  normalizeMiniappAPIBaseURL,
-  unwrapMiniappAPIEnvelope
-} from '../../platform/miniapp-api';
+import { parseResearchReasoningTreeDetail, parseResearchReasoningTreeIndex } from './wire-contract';
+import { normalizeMiniappAPIBaseURL, unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
 
 const themesPath = '/api/miniapp/v1/research/themes';
 

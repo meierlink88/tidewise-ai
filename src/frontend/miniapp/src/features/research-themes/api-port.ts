@@ -28,7 +28,9 @@ export interface ResearchThemeRequestResult<T> {
   data: T;
 }
 
-export type ResearchThemeRequest = <T>(options: ResearchThemeRequestOptions) => Promise<ResearchThemeRequestResult<T>>;
+export type ResearchThemeRequest = <T>(
+  options: ResearchThemeRequestOptions
+) => Promise<ResearchThemeRequestResult<T>>;
 
 interface APIResearchChainNode {
   id: string;
@@ -77,7 +79,11 @@ interface APIOptions {
   windowHours?: number;
 }
 
-export function createResearchThemeApiPort({ baseUrl, request, windowHours = 24 }: APIOptions): ResearchThemeFeedPort {
+export function createResearchThemeApiPort({
+  baseUrl,
+  request,
+  windowHours = 24
+}: APIOptions): ResearchThemeFeedPort {
   const normalizedBaseUrl = normalizeMiniappAPIBaseURL(baseUrl);
   const normalizedWindowHours = normalizeWindowHours(windowHours);
   return {
@@ -167,6 +173,7 @@ function mapTheme(theme: APIResearchTheme, asOf: string): HomeResearchThemeItem 
 
 function categoriesForTheme(name: string): string[] {
   if (name.includes('中东') || name.includes('冲突')) return ['地缘政治'];
-  if (name.includes('AI') || name.includes('人工智能') || name.includes('半导体')) return ['算力基建'];
+  if (name.includes('AI') || name.includes('人工智能') || name.includes('半导体'))
+    return ['算力基建'];
   return ['货币政策'];
 }
