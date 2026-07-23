@@ -23,6 +23,7 @@ var expectedSchemaColumns = map[string]string{
 	"agent_executions.execution_id": "uuid:NO", "agent_executions.agent_version": "text:NO", "agent_executions.idempotency_key": "text:NO",
 	"agent_executions.prompt": "text:NO", "agent_executions.prompt_sha256": "bpchar:NO", "agent_executions.prompt_bytes": "int4:NO",
 	"agent_executions.status": "text:NO", "agent_executions.error_code": "text:YES", "agent_executions.error_summary": "text:YES",
+	"agent_executions.stop_reason": "text:YES", "agent_executions.blocked_by_execution_id": "uuid:YES",
 	"agent_executions.candidate_counts": "jsonb:NO", "agent_executions.artifacts": "jsonb:NO", "agent_executions.created_at": "timestamptz:NO",
 	"agent_executions.started_at": "timestamptz:YES", "agent_executions.completed_at": "timestamptz:YES", "agent_executions.updated_at": "timestamptz:NO",
 	"connector_invocations.execution_id": "uuid:NO", "connector_invocations.connector_key": "text:NO", "connector_invocations.position": "int2:NO",
@@ -30,14 +31,18 @@ var expectedSchemaColumns = map[string]string{
 	"connector_invocations.error_summary": "text:YES", "connector_invocations.started_at": "timestamptz:YES", "connector_invocations.completed_at": "timestamptz:YES",
 	"provider_configs.provider_key": "text:NO", "provider_configs.base_url": "text:NO", "provider_configs.model": "text:NO",
 	"provider_configs.api_key": "text:NO", "provider_configs.updated_at": "timestamptz:NO",
+	"collector_artifact_publications.execution_id": "uuid:NO", "collector_artifact_publications.plan_path": "text:NO",
+	"collector_artifact_publications.plan_sha256": "bpchar:NO", "collector_artifact_publications.prepared_at": "timestamptz:NO",
 }
 
 var expectedSchemaConstraints = map[string]struct{}{
 	"agent_definitions_pkey": {}, "agent_versions_pkey": {}, "agent_versions_agent_key_fkey": {},
 	"agent_executions_pkey": {}, "agent_executions_agent_version_fkey": {}, "agent_executions_idempotency_key_key": {},
 	"agent_executions_prompt_bytes_check": {}, "agent_executions_status_check": {},
-	"connector_invocations_pkey": {}, "connector_invocations_execution_id_fkey": {}, "connector_invocations_execution_id_position_key": {},
+	"agent_executions_blocked_by_execution_id_fkey": {},
+	"connector_invocations_pkey":                    {}, "connector_invocations_execution_id_fkey": {}, "connector_invocations_execution_id_position_key": {},
 	"connector_invocations_result_count_check": {}, "connector_invocations_status_check": {}, "provider_configs_pkey": {},
+	"collector_artifact_publications_pkey": {}, "collector_artifact_publications_execution_id_fkey": {},
 }
 
 func Migrate(ctx context.Context, database *pgxpool.Pool) error {
@@ -95,7 +100,7 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		FROM information_schema.columns
 		WHERE table_schema = current_schema()
 		  AND table_name = ANY($1)
-	`, []string{"schema_migrations", "agent_definitions", "agent_versions", "agent_executions", "connector_invocations", "provider_configs"})
+	`, []string{"schema_migrations", "agent_definitions", "agent_versions", "agent_executions", "connector_invocations", "provider_configs", "collector_artifact_publications"})
 	if err != nil {
 		return false
 	}
@@ -127,7 +132,7 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		FROM information_schema.table_constraints
 		WHERE constraint_schema = current_schema()
 		  AND table_name = ANY($1)
-	`, []string{"agent_definitions", "agent_versions", "agent_executions", "connector_invocations", "provider_configs"})
+	`, []string{"agent_definitions", "agent_versions", "agent_executions", "connector_invocations", "provider_configs", "collector_artifact_publications"})
 	if err != nil {
 		return false
 	}

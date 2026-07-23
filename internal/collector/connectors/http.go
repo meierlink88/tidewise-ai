@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -58,7 +59,13 @@ func getJSON(ctx context.Context, client HTTPClient, endpoint string, params url
 		}
 		trimmed = trimmed[start+1 : end]
 	}
-	if err := json.Unmarshal([]byte(trimmed), output); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(trimmed))
+	decoder.UseNumber()
+	if err := decoder.Decode(output); err != nil {
+		return fmt.Errorf("decode response")
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return fmt.Errorf("decode response")
 	}
 	return nil
@@ -83,14 +90,17 @@ func postJSON(ctx context.Context, client HTTPClient, endpoint string, headers m
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return errors.New("Connector request failed")
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("request failed: status=%d", response.StatusCode)
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 20<<20)).Decode(output); err != nil {
-		return fmt.Errorf("decode response: %w", err)
+		return errors.New("Connector response was invalid")
 	}
 	return nil
 }

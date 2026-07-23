@@ -84,6 +84,104 @@ func TestMaterializeMergesOnceAndProducesMarkdownTSVAndSummary(t *testing.T) {
 	}
 }
 
+func TestManifestAndSummaryContainCompleteBatchAudit(t *testing.T) {
+	root := t.TempDir()
+	collectedAt := time.Date(2026, 7, 22, 8, 30, 0, 0, time.UTC)
+	result, err := (File{Root: root, NearDuplicateRadius: 3}).Materialize(context.Background(), collector.Request{
+		RunID: "audit", Prompt: "collect", CollectedAt: collectedAt, TimeWindowHours: 48,
+	}, map[string]collector.ConnectorRun{
+		"parallel_search": {
+			Connector: "parallel_search",
+			Results: []collector.Candidate{{
+				Connector: "parallel_search", Title: "Policy", URL: "https://example.com/policy",
+				Content: "direct result", ContentLevel: collector.LevelFullText,
+			}},
+		},
+		"tavily": {
+			Connector: "tavily", ErrorCode: "connector_failed", ErrorSummary: "Connector request failed",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := os.ReadFile(result.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		WindowStart         string `json:"window_start"`
+		WindowEnd           string `json:"window_end"`
+		ConnectorsAttempted int    `json:"connectors_attempted"`
+		ConnectorsCompleted int    `json:"connectors_completed"`
+		ConnectorsFailed    int    `json:"connectors_failed"`
+		ConnectorOutcomes   []struct {
+			Connector   string `json:"connector"`
+			Status      string `json:"status"`
+			ResultCount int    `json:"result_count"`
+			ErrorCode   string `json:"error_code"`
+		} `json:"connector_outcomes"`
+		CandidateCounts map[string]int      `json:"candidate_counts"`
+		ContentLevels   map[string]int      `json:"content_levels"`
+		Artifacts       map[string]string   `json:"artifacts"`
+		Accepted        []map[string]string `json:"accepted"`
+	}
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.WindowStart != "2026-07-20T08:30:00Z" || manifest.WindowEnd != "2026-07-22T08:30:00Z" {
+		t.Fatalf("window = %s .. %s", manifest.WindowStart, manifest.WindowEnd)
+	}
+	if manifest.ConnectorsAttempted != 2 || manifest.ConnectorsCompleted != 1 || manifest.ConnectorsFailed != 1 {
+		t.Fatalf("connector totals = attempted:%d completed:%d failed:%d", manifest.ConnectorsAttempted, manifest.ConnectorsCompleted, manifest.ConnectorsFailed)
+	}
+	if len(manifest.ConnectorOutcomes) != 2 ||
+		manifest.ConnectorOutcomes[0].Connector != "parallel_search" ||
+		manifest.ConnectorOutcomes[0].Status != "completed" ||
+		manifest.ConnectorOutcomes[0].ResultCount != 1 ||
+		manifest.ConnectorOutcomes[1].Connector != "tavily" ||
+		manifest.ConnectorOutcomes[1].Status != "failed" ||
+		manifest.ConnectorOutcomes[1].ErrorCode != "connector_failed" {
+		t.Fatalf("connector outcomes = %#v", manifest.ConnectorOutcomes)
+	}
+	if manifest.CandidateCounts["merged_results"] != manifest.CandidateCounts["results_terminal"]+manifest.CandidateCounts["results_pending"] {
+		t.Fatalf("Candidate conservation = %#v", manifest.CandidateCounts)
+	}
+	if manifest.ContentLevels["full_text"] != 1 ||
+		manifest.ContentLevels["summary"] != 0 ||
+		manifest.ContentLevels["snippet"] != 0 ||
+		manifest.ContentLevels["title_only"] != 0 {
+		t.Fatalf("content levels = %#v", manifest.ContentLevels)
+	}
+	for _, key := range []string{"documents", "index", "candidates", "summary", "manifest"} {
+		if manifest.Artifacts[key] == "" {
+			t.Fatalf("missing Artifact path %q: %#v", key, manifest.Artifacts)
+		}
+	}
+	if len(manifest.Accepted) != 1 || manifest.Accepted[0]["path"] == "" || len(manifest.Accepted[0]["sha256"]) != 64 {
+		t.Fatalf("accepted audit = %#v", manifest.Accepted)
+	}
+	summary, err := os.ReadFile(result.Summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{
+		"window_start: 2026-07-20T08:30:00Z",
+		"window_end: 2026-07-22T08:30:00Z",
+		"connectors_attempted: 2",
+		"connectors_completed: 1",
+		"connectors_failed: 1",
+		"full_text: 1",
+		"manifest: " + result.Manifest,
+		manifest.Accepted[0]["path"] + " sha256:" + manifest.Accepted[0]["sha256"],
+		"parallel_search: completed (1)",
+		"tavily: failed (0), connector_failed: Connector request failed",
+	} {
+		if !strings.Contains(string(summary), fragment) {
+			t.Fatalf("summary missing %q:\n%s", fragment, summary)
+		}
+	}
+}
+
 func TestMaterializeHonorsCanceledExecutionBeforePublishing(t *testing.T) {
 	t.Parallel()
 
@@ -114,6 +212,74 @@ func TestNormalizeBodyMatchesCrossLanguageContract(t *testing.T) {
 	input := "e\u0301\r\nline with spaces  \r\n\r\n\r\nnext\n"
 	if got := normalizeBody(input); got != "é\nline with spaces\n\nnext" {
 		t.Fatalf("normalized body = %q", got)
+	}
+}
+
+func TestDeterministicContractMatchesCodexPythonGolden(t *testing.T) {
+	var golden struct {
+		URL            string `json:"url"`
+		CanonicalURL   string `json:"canonical_url"`
+		BodyInput      string `json:"body_input"`
+		NormalizedBody string `json:"normalized_body"`
+		ContentSHA256  string `json:"content_sha256"`
+		DocumentID     string `json:"document_id"`
+		SimHash64      string `json:"simhash64"`
+	}
+	payload, err := os.ReadFile("testdata/deterministic_golden.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &golden); err != nil {
+		t.Fatal(err)
+	}
+	if got := canonicalURL(golden.URL); got != golden.CanonicalURL {
+		t.Fatalf("canonical URL = %q, want %q", got, golden.CanonicalURL)
+	}
+	body := normalizeBody(golden.BodyInput)
+	if body != golden.NormalizedBody {
+		t.Fatalf("normalized body = %q, want %q", body, golden.NormalizedBody)
+	}
+	contentHash := hash(body)
+	if contentHash != golden.ContentSHA256 {
+		t.Fatalf("content SHA-256 = %q, want %q", contentHash, golden.ContentSHA256)
+	}
+	if got := "sha256:" + hash(golden.CanonicalURL+"\n"+contentHash); got != golden.DocumentID {
+		t.Fatalf("document ID = %q, want %q", got, golden.DocumentID)
+	}
+	if got := simhash(body); got != golden.SimHash64 {
+		t.Fatalf("SimHash64 = %q, want %q", got, golden.SimHash64)
+	}
+}
+
+func TestCanonicalURLSuppliesRootPath(t *testing.T) {
+	if got := canonicalURL("https://EXAMPLE.com"); got != "https://example.com/" {
+		t.Fatalf("canonical URL = %q, want root path", got)
+	}
+}
+
+func TestDeterministicMergeUsesUnicodeRichnessAndStableConnectorOrder(t *testing.T) {
+	rows := []collector.Candidate{
+		{Connector: "tavily", URL: "https://example.com/item", Title: "标题", Content: "a b      ", ContentLevel: collector.LevelSnippet},
+		{Connector: "parallel_search", URL: "https://example.com/item", Title: "标题", Content: "abc", ContentLevel: collector.LevelSnippet},
+	}
+	for _, input := range [][]collector.Candidate{rows, {rows[1], rows[0]}} {
+		merged := merge(input)
+		if len(merged) != 1 || merged[0].PrimaryConnector != "parallel_search" || merged[0].Content != "abc" {
+			t.Fatalf("merged = %#v", merged)
+		}
+	}
+}
+
+func TestTimeParserAcceptsCommonPythonISOForms(t *testing.T) {
+	for input, want := range map[string]string{
+		"2026-07-22 12:03:44":       "2026-07-22T12:03:44Z",
+		"2026-07-22T12:03:44Z":      "2026-07-22T12:03:44Z",
+		"2026-07-22T20:03:44+08:00": "2026-07-22T12:03:44Z",
+		"2026-07-22":                "2026-07-22T00:00:00Z",
+	} {
+		if got := parseTime(input); got.IsZero() || got.Format(time.RFC3339) != want {
+			t.Fatalf("parseTime(%q) = %v, want %s", input, got, want)
+		}
 	}
 }
 
@@ -150,6 +316,289 @@ func TestMaterializeClassifiesKnownExactAndNearDuplicatesAcrossRuns(t *testing.T
 	nearContent := baseContent + " today."
 	if stats := materializeOneRun("near", "https://example.com/near", baseTitle, nearContent); stats.NearDuplicate != 1 {
 		t.Fatalf("near duplicate stats = %#v", stats)
+	}
+}
+
+func TestMaterializeRebuildsMissingIndexFromAcceptedMarkdown(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 7, 22, 8, 0, 0, 0, time.UTC)
+	materializer := File{Root: root, NearDuplicateRadius: 3}
+	run := func(runID, content string) (*collector.Result, error) {
+		return materializer.Materialize(context.Background(), collector.Request{
+			RunID: runID, Prompt: "collect", CollectedAt: now, TimeWindowHours: 48,
+		}, map[string]collector.ConnectorRun{"tavily": {
+			Connector: "tavily",
+			Results: []collector.Candidate{{
+				Connector: "tavily", Title: "Policy", URL: "https://example.com/policy",
+				Content: content, ContentLevel: collector.LevelSnippet,
+			}},
+		}})
+	}
+	first, err := run("first", "original direct result")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(first.Index); err != nil {
+		t.Fatal(err)
+	}
+
+	second, err := run("second", "changed direct result")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Stats.KnownURL != 1 || second.Stats.Accepted != 0 {
+		t.Fatalf("stats = %#v", second.Stats)
+	}
+	index, err := os.ReadFile(second.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lines := strings.Split(strings.TrimSpace(string(index)), "\n"); len(lines) != 2 {
+		t.Fatalf("rebuilt index = %s", index)
+	}
+}
+
+func TestVerifyIndexDetectsStaleCacheAndRebuildRepairsIt(t *testing.T) {
+	root := t.TempDir()
+	result, err := (File{Root: root, NearDuplicateRadius: 3}).Materialize(context.Background(), collector.Request{
+		RunID: "verify", Prompt: "collect", CollectedAt: time.Date(2026, 7, 22, 8, 0, 0, 0, time.UTC), TimeWindowHours: 48,
+	}, map[string]collector.ConnectorRun{"tavily": {
+		Results: []collector.Candidate{{
+			Connector: "tavily", Title: "Policy", URL: "https://example.com/policy",
+			Content: "direct result", ContentLevel: collector.LevelSnippet,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, err := os.ReadFile(result.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(index)), "\n")
+	columns := strings.Split(lines[1], "\t")
+	columns[3] = strings.Repeat("0", 64)
+	lines[1] = strings.Join(columns, "\t")
+	if err := os.WriteFile(result.Index, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := VerifyIndex(root); err == nil || !strings.Contains(err.Error(), "content hash") {
+		t.Fatalf("VerifyIndex error = %v", err)
+	}
+	rebuilt, err := RebuildIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rebuilt.Documents != 1 || rebuilt.Records != 1 {
+		t.Fatalf("rebuild report = %#v", rebuilt)
+	}
+	verified, err := VerifyIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verified.Documents != 1 || verified.Records != 1 {
+		t.Fatalf("verify report = %#v", verified)
+	}
+}
+
+func TestVerifyIndexDetectsMissingAndExtraRows(t *testing.T) {
+	root := t.TempDir()
+	result, err := (File{Root: root, NearDuplicateRadius: 3}).Materialize(context.Background(), collector.Request{
+		RunID: "coverage", Prompt: "collect",
+		CollectedAt: time.Date(2026, 7, 22, 8, 0, 0, 0, time.UTC), TimeWindowHours: 48,
+	}, map[string]collector.ConnectorRun{"tavily": {
+		Results: []collector.Candidate{{
+			Connector: "tavily", Title: "Policy", URL: "https://example.com/policy",
+			Content: "direct result", ContentLevel: collector.LevelSnippet,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalIndex, err := os.ReadFile(result.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(result.Index, []byte(indexHeader), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyIndex(root); err == nil || !strings.Contains(err.Error(), "missing document path") {
+		t.Fatalf("missing-row VerifyIndex error = %v", err)
+	}
+
+	extraPath := filepath.Join(root, "documents", "extra.txt")
+	if err := os.WriteFile(extraPath, []byte("extra"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	extraRecord := strings.Join([]string{
+		"sha256:" + strings.Repeat("a", 64), "",
+		strings.Repeat("b", 64), strings.Repeat("c", 64),
+		strings.Repeat("d", 16), extraPath,
+	}, "\t") + "\n"
+	if err := os.WriteFile(result.Index, append(originalIndex, []byte(extraRecord)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyIndex(root); err == nil || !strings.Contains(err.Error(), "extra document path") {
+		t.Fatalf("extra-row VerifyIndex error = %v", err)
+	}
+}
+
+func TestRebuildIndexFailureLeavesPreviousCacheUntouched(t *testing.T) {
+	root := t.TempDir()
+	indexPath := filepath.Join(root, "indexes", "dedup-index.tsv")
+	if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	previous := []byte(indexHeader)
+	if err := os.WriteFile(indexPath, previous, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	invalidDocument := filepath.Join(root, "documents", "invalid.md")
+	if err := os.MkdirAll(filepath.Dir(invalidDocument), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(invalidDocument, []byte("not accepted Markdown"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RebuildIndex(root); err == nil {
+		t.Fatal("invalid accepted Markdown did not fail rebuild")
+	}
+	after, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(previous) {
+		t.Fatalf("failed rebuild changed index:\n%s", after)
+	}
+}
+
+func TestRebuildIndexRejectsDuplicateAcceptedDocumentIdentity(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 7, 22, 8, 0, 0, 0, time.UTC)
+	result, err := (File{Root: root, NearDuplicateRadius: 3}).Materialize(context.Background(), collector.Request{
+		RunID: "duplicate-source", Prompt: "collect", CollectedAt: now, TimeWindowHours: 48,
+	}, map[string]collector.ConnectorRun{"tavily": {
+		Results: []collector.Candidate{{
+			Connector: "tavily", Title: "Policy", URL: "https://example.com/policy",
+			Content: "direct result", ContentLevel: collector.LevelSnippet,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous, err := os.ReadFile(result.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	duplicate := filepath.Join(root, "documents", "duplicate.md")
+	payload, err := os.ReadFile(result.AcceptedDocuments[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(duplicate, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RebuildIndex(root); err == nil || !strings.Contains(err.Error(), "duplicate document ID") {
+		t.Fatalf("RebuildIndex error = %v", err)
+	}
+	after, err := os.ReadFile(result.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(previous) {
+		t.Fatal("duplicate-identity rebuild changed the previous cache")
+	}
+}
+
+func TestLoadIndexRejectsMalformedSchemaAndDuplicateIdentity(t *testing.T) {
+	t.Parallel()
+
+	validRecord := strings.Join([]string{
+		"sha256:" + strings.Repeat("1", 64),
+		"2026-07-22T08:00:00Z",
+		strings.Repeat("2", 64),
+		strings.Repeat("3", 64),
+		strings.Repeat("4", 16),
+		"/tmp/document.md",
+	}, "\t")
+	tests := map[string]string{
+		"wrong header":     strings.Replace(indexHeader, "document_id", "id", 1) + validRecord + "\n",
+		"bad document ID":  indexHeader + strings.Replace(validRecord, "sha256:"+strings.Repeat("1", 64), "document-1", 1) + "\n",
+		"bad URL hash":     indexHeader + strings.Replace(validRecord, strings.Repeat("2", 64), "not-a-hash", 1) + "\n",
+		"bad content hash": indexHeader + strings.Replace(validRecord, strings.Repeat("3", 64), "not-a-hash", 1) + "\n",
+		"bad SimHash":      indexHeader + strings.Replace(validRecord, strings.Repeat("4", 16), "not-a-hash", 1) + "\n",
+		"missing path":     indexHeader + strings.TrimSuffix(validRecord, "/tmp/document.md") + "\n",
+		"duplicate document ID": indexHeader + validRecord + "\n" +
+			strings.Replace(validRecord, "/tmp/document.md", "/tmp/other.md", 1) + "\n",
+		"duplicate path": indexHeader + validRecord + "\n" +
+			strings.Replace(validRecord, "sha256:"+strings.Repeat("1", 64), "sha256:"+strings.Repeat("5", 64), 1) + "\n",
+	}
+	for name, content := range tests {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "dedup-index.tsv")
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := loadIndex(path); err == nil {
+				t.Fatalf("loadIndex accepted:\n%s", content)
+			}
+		})
+	}
+}
+
+func TestMaterializeUsesHealthyIndexWithoutReadingAcceptedMarkdown(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 7, 22, 8, 0, 0, 0, time.UTC)
+	materializer := File{Root: root, NearDuplicateRadius: 3}
+	first, err := materializer.Materialize(context.Background(), collector.Request{
+		RunID: "first", Prompt: "collect", CollectedAt: now, TimeWindowHours: 48,
+	}, map[string]collector.ConnectorRun{"tavily": {
+		Results: []collector.Candidate{{
+			Connector: "tavily", Title: "Policy", URL: "https://example.com/policy",
+			Content: "direct result", ContentLevel: collector.LevelSnippet,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.AcceptedDocuments) != 1 {
+		t.Fatalf("accepted documents = %#v", first.AcceptedDocuments)
+	}
+	if err := os.WriteFile(first.AcceptedDocuments[0], []byte("deliberately unreadable as accepted Markdown"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	second, err := materializer.Materialize(context.Background(), collector.Request{
+		RunID: "second", Prompt: "collect", CollectedAt: now, TimeWindowHours: 48,
+	}, map[string]collector.ConnectorRun{"tavily": {
+		Results: []collector.Candidate{{
+			Connector: "tavily", Title: "Changed", URL: "https://example.com/policy",
+			Content: "changed direct result", ContentLevel: collector.LevelSnippet,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Stats.KnownURL != 1 || second.Stats.Accepted != 0 {
+		t.Fatalf("stats = %#v", second.Stats)
+	}
+	if _, err := VerifyIndex(root); err == nil || !strings.Contains(err.Error(), "invalid accepted Markdown") {
+		t.Fatalf("VerifyIndex error = %v", err)
+	}
+}
+
+func TestOrderedRunNamesAreStableForKnownAndUnknownConnectors(t *testing.T) {
+	runs := map[string]collector.ConnectorRun{
+		"z_custom":        {},
+		"tavily":          {},
+		"a_custom":        {},
+		"parallel_search": {},
+	}
+	got := orderedRunNames(runs)
+	want := []string{"parallel_search", "tavily", "a_custom", "z_custom"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("ordered run names = %#v, want %#v", got, want)
 	}
 }
 

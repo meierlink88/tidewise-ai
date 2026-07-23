@@ -5,12 +5,64 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector"
 )
+
+func TestProfessionalConnectorsPreserveObservedNumericIdentityAndHighlightedText(t *testing.T) {
+	t.Run("CLS numeric ID", func(t *testing.T) {
+		payload, err := os.ReadFile("testdata/cls_numeric_id.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			_, _ = writer.Write(payload)
+		}))
+		defer server.Close()
+
+		results, err := (CLSTelegraph{Endpoint: server.URL, Client: server.Client()}).Collect(context.Background(), collector.Request{CandidateLimit: 10})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("results = %#v", results)
+		}
+		if results[0].SourceExternalID != "2434241" || results[0].URL != "https://www.cls.cn/detail/2434241" {
+			t.Fatalf("numeric identity was not preserved: %#v", results[0])
+		}
+	})
+
+	t.Run("Eastmoney highlight tags", func(t *testing.T) {
+		payload, err := os.ReadFile("testdata/eastmoney_highlight.jsonp")
+		if err != nil {
+			t.Fatal(err)
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			_, _ = writer.Write(payload)
+		}))
+		defer server.Close()
+
+		results, err := (EastmoneyStockNews{Endpoint: server.URL, Client: server.Client()}).Collect(context.Background(), collector.Request{
+			CombinedQuery: "产业链", CandidateLimit: 10,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("results = %#v", results)
+		}
+		if results[0].Title != "融信中国：6月合同销售金额1.80亿元" {
+			t.Fatalf("title = %q", results[0].Title)
+		}
+		if results[0].Content != "公司上半年实现销售金额1.80亿元，拟回购股份。" {
+			t.Fatalf("content = %q", results[0].Content)
+		}
+	})
+}
 
 func TestProfessionalFinanceConnectorsPreserveDirectResults(t *testing.T) {
 	now := time.Date(2026, 7, 16, 12, 0, 0, 0, time.UTC)
@@ -78,7 +130,7 @@ func TestProfessionalFinanceConnectorsPreserveDirectResults(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(results) != 1 || results[0].URL != "https://example.com/em001" || results[0].PublishedAtHint != "2026-07-16T09:00:00Z" || !strings.Contains(results[0].Content, "证券时报") || results[0].ContentLevel != collector.LevelSnippet {
+		if len(results) != 1 || results[0].URL != "https://example.com/em001" || results[0].PublishedAtHint != "2026-07-16T09:00:00Z" || results[0].Content != "候选新闻片段" || results[0].SourceName != "证券时报" || results[0].ContentLevel != collector.LevelSnippet {
 			t.Fatalf("Eastmoney stock-news results = %#v", results)
 		}
 	})
@@ -99,7 +151,7 @@ func TestProfessionalFinanceConnectorsPreserveDirectResults(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(results) != 2 || results[0].URL != "https://www.stcn.com/article/detail/4022599.html" || results[0].PublishedAtHint != "2026-07-16T10:30:00Z" || !strings.Contains(results[0].Content, "人民财讯") || results[0].ContentLevel != collector.LevelFullText || results[1].PublishedAtHint != "2026-07-10T10:30:00Z" {
+		if len(results) != 2 || results[0].URL != "https://www.stcn.com/article/detail/4022599.html" || results[0].PublishedAtHint != "2026-07-16T10:30:00Z" || results[0].Content != "候选快讯内容" || results[0].SourceName != "人民财讯" || results[0].ContentLevel != collector.LevelFullText || results[1].PublishedAtHint != "2026-07-10T10:30:00Z" {
 			t.Fatalf("STCN results = %#v", results)
 		}
 	})

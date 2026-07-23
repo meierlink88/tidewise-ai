@@ -78,6 +78,7 @@ func New(
 				for index := range run.Results {
 					run.Results[index].Connector = connector.Name()
 					run.Results[index].ContentOrigin = collector.ContentOrigin
+					run.Results[index].ResultPosition = index
 				}
 				return run, nil
 			},

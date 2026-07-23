@@ -2,6 +2,8 @@ package collector
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
@@ -56,12 +58,19 @@ func ConnectorKeys() []string {
 }
 
 func ValidateProviderConfig(config agentrun.ProviderConfig) error {
+	return ValidateProviderConfigForEnvironment(config, "dev")
+}
+
+func ValidateProviderConfigForEnvironment(config agentrun.ProviderConfig, environment string) error {
 	requirement, known := providerRequirements[config.Key]
 	if !known {
 		return fmt.Errorf("unknown Provider configuration key %q", config.Key)
 	}
 	if strings.TrimSpace(config.BaseURL) == "" {
 		return fmt.Errorf("Provider Base URL is required")
+	}
+	if !validProviderBaseURL(config.BaseURL, environment) {
+		return fmt.Errorf("Provider Base URL must be an absolute HTTPS URL or loopback HTTP URL without credentials")
 	}
 	if requirement.model && strings.TrimSpace(config.Model) == "" {
 		return fmt.Errorf("Provider model is required")
@@ -72,13 +81,40 @@ func ValidateProviderConfig(config agentrun.ProviderConfig) error {
 	return nil
 }
 
+func validProviderBaseURL(raw, environment string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || !parsed.IsAbs() || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
+		return false
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "https":
+		return true
+	case "http":
+		if environment != "dev" {
+			return false
+		}
+		host := parsed.Hostname()
+		if strings.EqualFold(host, "localhost") {
+			return true
+		}
+		address := net.ParseIP(host)
+		return address != nil && address.IsLoopback()
+	default:
+		return false
+	}
+}
+
 func BuildProviderConfiguration(loaded map[string]agentrun.ProviderConfig) (ProviderConfiguration, error) {
+	return BuildProviderConfigurationForEnvironment(loaded, "dev")
+}
+
+func BuildProviderConfigurationForEnvironment(loaded map[string]agentrun.ProviderConfig, environment string) (ProviderConfiguration, error) {
 	for key := range providerRequirements {
 		config, exists := loaded[key]
 		if !exists {
 			return ProviderConfiguration{}, fmt.Errorf("required Provider configuration %s is incomplete", key)
 		}
-		if err := ValidateProviderConfig(config); err != nil {
+		if err := ValidateProviderConfigForEnvironment(config, environment); err != nil {
 			return ProviderConfiguration{}, fmt.Errorf("required Provider configuration %s is incomplete", key)
 		}
 	}

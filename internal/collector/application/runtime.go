@@ -39,7 +39,7 @@ func (f runtimeFactory) Build(ctx context.Context, executionID string, providerC
 	configured := providerConfig.Connectors
 	connectorSet := []collector.Connector{
 		connectors.ParallelSearch{APIKey: configured[collector.ProviderParallelSearch].APIKey, Endpoint: configured[collector.ProviderParallelSearch].BaseURL, Client: httpClient},
-		connectors.Tavily{APIKey: configured[collector.ProviderTavily].APIKey, Endpoint: configured[collector.ProviderTavily].BaseURL, Client: httpClient, Topic: "finance", MaxResults: 5},
+		connectors.Tavily{APIKey: configured[collector.ProviderTavily].APIKey, Endpoint: configured[collector.ProviderTavily].BaseURL, Client: httpClient},
 		connectors.Bocha{APIKey: configured[collector.ProviderBocha].APIKey, Endpoint: configured[collector.ProviderBocha].BaseURL, Client: httpClient},
 		connectors.CLSTelegraph{Endpoint: configured[collector.ProviderCLSTelegraph].BaseURL, Client: httpClient},
 		connectors.EastmoneyFastNews{Endpoint: configured[collector.ProviderEastmoneyFastNews].BaseURL, Client: httpClient},
@@ -52,7 +52,7 @@ func (f runtimeFactory) Build(ctx context.Context, executionID string, providerC
 	}
 	materializer := &trackingMaterializer{
 		executionID: executionID, store: f.store, now: f.now,
-		delegate: artifacts.File{Root: f.artifactRoot, NearDuplicateRadius: 3},
+		delegate: artifacts.File{Root: f.artifactRoot, NearDuplicateRadius: 3, Publications: f.store, Now: f.now},
 	}
 	return collectorworkflow.New(ctx, plannerWithState, tracked, maxParallel, materializer)
 }

@@ -56,6 +56,18 @@ _Avoid_: Agent Version 固定护栏、Collection Prompt、Provider 环境变量 
 一次 Agent Execution 本地 Artifact 完成的权威标记；它记录执行身份、Prompt hash/长度、Connector 与 Candidate 统计、accepted 文件路径/hash 和时间戳，但不包含完整 Prompt、新闻正文或 Provider Key。
 _Avoid_: PostgreSQL Execution 行、临时文件、Tidewise Raw Document Import receipt
 
+**Artifact Publication**:
+一次已完成 Collector 物化结果从持久化 pending 计划进入 accepted Markdown、共享 dedup index、Run Artifact Manifest 和 PostgreSQL 终态的可恢复提交过程。它只恢复文件发布与终态对账，不重新运行 Planner 或 Connector。
+_Avoid_: Agent Execution 重试、任务队列、Eino checkpoint、Data Raw Document Import
+
+**Dedup Index Cache**:
+从 accepted Raw Document Artifact 确定性派生的 TSV 缓存，用于 canonical URL、正文 SHA-256 与 SimHash64 去重。索引缺失可从 Markdown 重建；索引不是事实载体，也不得在缺失时被静默当作空历史。
+_Avoid_: Raw Document Artifact、Candidate ledger、PostgreSQL Candidate 表
+
+**Skipped Agent Execution**:
+因另一 Collector Execution 正在运行而未启动 Planner 或 Connector 的终态 Agent Execution。它保留幂等身份、Prompt hash/长度、七个 `not_invoked` Invocation 和 `skipped_previous_run_active` 审计，但不是排队任务。
+_Avoid_: Active Agent Execution、Collection Attempt、等待队列
+
 ## Language
 
 **瓶颈假设（Bottleneck Thesis）**:

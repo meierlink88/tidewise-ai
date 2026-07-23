@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/persistence/postgres"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector"
 	collectorapp "github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/application"
@@ -22,11 +24,34 @@ import (
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/testsupport"
 )
 
+type failingPublicationCommitStore struct {
+	*postgres.Store
+	attempts  atomic.Int32
+	exhausted chan struct{}
+	once      sync.Once
+}
+
+func (s *failingPublicationCommitStore) CommitPreparedPublication(
+	ctx context.Context,
+	reference agentrun.PublicationReference,
+	completion agentrun.ExecutionCompletion,
+) error {
+	if s.attempts.Add(1) <= 3 {
+		if s.attempts.Load() == 3 {
+			s.once.Do(func() { close(s.exhausted) })
+		}
+		return errors.New("injected persistent commit failure")
+	}
+	return s.Store.CommitPreparedPublication(ctx, reference, completion)
+}
+
 type runSnapshot struct {
-	ExecutionID string `json:"execution_id"`
-	Status      string `json:"status"`
-	ErrorCode   string `json:"error_code"`
-	Invocations []struct {
+	ExecutionID          string `json:"execution_id"`
+	Status               string `json:"status"`
+	ErrorCode            string `json:"error_code"`
+	StopReason           string `json:"stop_reason"`
+	BlockedByExecutionID string `json:"blocked_by_execution_id"`
+	Invocations          []struct {
 		Status       string `json:"status"`
 		ErrorCode    string `json:"error_code"`
 		ErrorSummary string `json:"error_summary"`
@@ -107,8 +132,31 @@ func TestCollectorHTTPAuthenticationIdempotencyAndActiveRunConflict(t *testing.T
 		t.Fatalf("idempotency conflict status=%d body=%#v", status, conflict)
 	}
 	status, conflict = rawPostHTTPTestRun(t, server.URL, key+"-other", "另一轮采集")
-	if status != http.StatusConflict || conflict["error_code"] != "active_execution_exists" || conflict["execution_id"] != first.ExecutionID {
+	if status != http.StatusConflict || conflict["error_code"] != "active_execution_exists" ||
+		conflict["active_execution_id"] != first.ExecutionID || conflict["skipped_execution_id"] == "" {
 		t.Fatalf("active conflict status=%d body=%#v", status, conflict)
+	}
+	skippedID, ok := conflict["skipped_execution_id"].(string)
+	if !ok {
+		t.Fatalf("skipped execution ID = %#v", conflict["skipped_execution_id"])
+	}
+	skipped := getHTTPTestRun(t, server.URL, skippedID)
+	if skipped.Status != "skipped" || skipped.StopReason != "skipped_previous_run_active" ||
+		skipped.BlockedByExecutionID != first.ExecutionID || len(skipped.Invocations) != 7 {
+		t.Fatalf("skipped execution = %#v", skipped)
+	}
+	if _, err := os.Stat(skipped.Artifacts["manifest"]); err != nil {
+		t.Fatalf("skipped audit manifest: %v", err)
+	}
+	for _, invocation := range skipped.Invocations {
+		if invocation.Status != "not_invoked" || invocation.ErrorCode != "not_invoked" {
+			t.Fatalf("skipped invocation = %#v", invocation)
+		}
+	}
+	status, replayedConflict := rawPostHTTPTestRun(t, server.URL, key+"-other", "另一轮采集")
+	if status != http.StatusConflict || replayedConflict["skipped_execution_id"] != skippedID ||
+		replayedConflict["active_execution_id"] != first.ExecutionID {
+		t.Fatalf("replayed active conflict status=%d body=%#v", status, replayedConflict)
 	}
 	for deadline := time.Now().Add(time.Second); plannerCalls.Load() == 0 && time.Now().Before(deadline); {
 		time.Sleep(10 * time.Millisecond)
@@ -237,19 +285,19 @@ func TestPlannerFailureIsFailClosedAndRedacted(t *testing.T) {
 
 	created := postHTTPTestRun(t, server.URL, "planner-failure-"+fmt.Sprint(time.Now().UnixNano()), "secret business collection prompt")
 	observed := waitHTTPTestRun(t, server.URL, created.ExecutionID)
-	if observed.Status != "failed" || observed.ErrorCode != "planning_failed" {
+	if observed.Status != "failed" || observed.ErrorCode != "planning_failed" || observed.StopReason != "agent_or_tool_limit" {
 		t.Fatalf("run = %#v", observed)
 	}
 	if connectorCalls.Load() != 0 || len(observed.Invocations) != 7 {
 		t.Fatalf("connector calls=%d invocations=%#v", connectorCalls.Load(), observed.Invocations)
 	}
 	for _, invocation := range observed.Invocations {
-		if invocation.Status != "failed" || invocation.ErrorCode != "not_invoked" || invocation.ErrorSummary != "Connector was not invoked because query planning failed" {
+		if invocation.Status != "not_invoked" || invocation.ErrorCode != "not_invoked" || invocation.ErrorSummary != "Connector was not invoked because query planning failed" {
 			t.Fatalf("invocation = %#v", invocation)
 		}
 	}
-	if len(observed.Artifacts) != 0 {
-		t.Fatalf("failed planning exposed Artifacts: %#v", observed.Artifacts)
+	if _, err := os.Stat(observed.Artifacts["manifest"]); err != nil {
+		t.Fatalf("failed planning audit manifest: %v", err)
 	}
 	encoded, _ := json.Marshal(observed)
 	for _, secret := range []string{"secret business collection prompt", "secret malformed planner response"} {
@@ -328,11 +376,15 @@ func TestExecutionTimeoutAndArtifactFailure(t *testing.T) {
 		defer server.Close()
 		created := postHTTPTestRun(t, server.URL, "timeout-"+fmt.Sprint(time.Now().UnixNano()), "采集超时测试")
 		observed := waitHTTPTestRun(t, server.URL, created.ExecutionID)
-		if observed.Status != "failed" || observed.ErrorCode != "execution_timeout" || connectorCalls.Load() != 0 || len(observed.Artifacts) != 0 {
+		if observed.Status != "failed" || observed.ErrorCode != "execution_timeout" ||
+			observed.StopReason != "agent_or_tool_limit" || connectorCalls.Load() != 0 {
 			t.Fatalf("timeout run=%#v connector_calls=%d", observed, connectorCalls.Load())
 		}
+		if _, err := os.Stat(observed.Artifacts["manifest"]); err != nil {
+			t.Fatalf("timeout audit manifest: %v", err)
+		}
 		for _, invocation := range observed.Invocations {
-			if invocation.ErrorCode != "not_invoked" {
+			if invocation.Status != "not_invoked" || invocation.ErrorCode != "not_invoked" {
 				t.Fatalf("timeout invocation=%#v", invocation)
 			}
 		}
@@ -458,16 +510,169 @@ func TestConnectorFailureMatrix(t *testing.T) {
 
 		created := postHTTPTestRun(t, server.URL, "all-failed-"+fmt.Sprint(time.Now().UnixNano()), "采集中国市场资讯")
 		observed := waitHTTPTestRun(t, server.URL, created.ExecutionID)
-		if observed.Status != "failed" || observed.ErrorCode != "all_connectors_failed" || len(observed.Artifacts) != 0 {
+		if observed.Status != "failed" || observed.ErrorCode != "all_connectors_failed" ||
+			observed.StopReason != "completed_with_connector_failures" ||
+			observed.CandidateCounts["results_pending"] != 0 {
 			t.Fatalf("all-failed run = %#v", observed)
 		}
-		if _, err := os.Stat(artifactRoot + "/runs/" + created.ExecutionID + "/manifest.json"); !os.IsNotExist(err) {
-			t.Fatalf("all-failed run published manifest: %v", err)
+		if _, err := os.Stat(observed.Artifacts["manifest"]); err != nil {
+			t.Fatalf("all-failed audit manifest: %v", err)
 		}
 		for _, invocation := range observed.Invocations {
 			if invocation.Status != "failed" {
 				t.Fatalf("invocation = %#v", invocation)
 			}
+		}
+	})
+}
+
+func TestStartupReconcilesPreparedPublicationBeforeStaleAndExposesArtifacts(t *testing.T) {
+	store := openHTTPTestStore(t)
+	var providerCalls atomic.Int32
+	providers := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		providerCalls.Add(1)
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Path == "/chat/completions" {
+			_, _ = writer.Write([]byte(`{"id":"chat-reconcile","object":"chat.completion","created":1,"model":"deepseek-chat","choices":[{"index":0,"message":{"role":"assistant","content":"{\"queries\":[\"中国市场\"],\"combined_query\":\"中国市场\"}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
+			return
+		}
+		if request.URL.Path == "/parallel" {
+			_, _ = writer.Write([]byte(`{"results":[{"url":"https://example.com/recovered","title":"恢复测试","excerpts":["直接片段"]}]}`))
+			return
+		}
+		writeEmptyConnectorResponse(writer, request.URL.Path)
+	}))
+	defer providers.Close()
+	configureHTTPTestProviders(t, store, providers.URL)
+
+	artifactRoot := t.TempDir()
+	failingStore := &failingPublicationCommitStore{
+		Store: store, exhausted: make(chan struct{}),
+	}
+	firstApplication, err := collectorapp.New(failingStore, artifactRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstServer := httptest.NewServer(httpapi.NewHandler(firstApplication, "service-test-token"))
+	defer firstServer.Close()
+	created := postHTTPTestRun(t, firstServer.URL, "restart-reconcile-"+fmt.Sprint(time.Now().UnixNano()), "采集恢复测试")
+	select {
+	case <-failingStore.exhausted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("publication commit failure was not reached")
+	}
+	prepared, err := store.GetExecution(context.Background(), created.ExecutionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prepared.Status != agentrun.StatusMaterializing || len(prepared.Artifacts) != 0 {
+		t.Fatalf("prepared Execution = %#v", prepared)
+	}
+	references, err := store.ListPreparedPublications(context.Background())
+	if err != nil || len(references) != 1 {
+		t.Fatalf("prepared references = %#v, err=%v", references, err)
+	}
+	callsBeforeRestart := providerCalls.Load()
+
+	restartedApplication, err := collectorapp.New(store, artifactRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := restartedApplication.ReconcileStartup(context.Background(), time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if providerCalls.Load() != callsBeforeRestart {
+		t.Fatalf("startup reconciliation called Planner or Connector: before=%d after=%d", callsBeforeRestart, providerCalls.Load())
+	}
+	restartedServer := httptest.NewServer(httpapi.NewHandler(restartedApplication, "service-test-token"))
+	defer restartedServer.Close()
+	recovered := getHTTPTestRun(t, restartedServer.URL, created.ExecutionID)
+	if recovered.Status != string(agentrun.StatusSucceeded) ||
+		recovered.CandidateCounts["results_pending"] != 0 ||
+		recovered.Artifacts["manifest"] == "" {
+		t.Fatalf("recovered Execution = %#v", recovered)
+	}
+	if _, err := os.Stat(recovered.Artifacts["manifest"]); err != nil {
+		t.Fatalf("recovered manifest: %v", err)
+	}
+	references, err = store.ListPreparedPublications(context.Background())
+	if err != nil || len(references) != 0 {
+		t.Fatalf("remaining prepared references = %#v, err=%v", references, err)
+	}
+}
+
+func TestStartupAuditsUnpreparedAndTerminalFailureWithoutProviderReplay(t *testing.T) {
+	t.Run("unprepared active Execution becomes stale failure", func(t *testing.T) {
+		store := openHTTPTestStore(t)
+		now := time.Date(2026, 7, 23, 8, 0, 0, 0, time.UTC)
+		execution, _, err := store.CreateExecution(context.Background(), agentrun.CreateExecutionInput{
+			IdempotencyKey: "stale-before-prepare", Prompt: "collect",
+			CreatedAt: now, AgentVersion: "collector.v1", InvocationKeys: collector.ConnectorKeys(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := store.SetExecutionStatus(context.Background(), execution.ID, agentrun.StatusPlanning, now); err != nil {
+			t.Fatal(err)
+		}
+		application, err := collectorapp.New(store, t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := application.ReconcileStartup(context.Background(), now.Add(time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+		server := httptest.NewServer(httpapi.NewHandler(application, "service-test-token"))
+		defer server.Close()
+		observed := getHTTPTestRun(t, server.URL, execution.ID)
+		if observed.Status != string(agentrun.StatusFailed) ||
+			observed.ErrorCode != "process_restarted" ||
+			observed.StopReason != "agent_or_tool_limit" ||
+			observed.Artifacts["manifest"] == "" {
+			t.Fatalf("stale Execution = %#v", observed)
+		}
+		for _, invocation := range observed.Invocations {
+			if invocation.Status != string(agentrun.InvocationNotInvoked) {
+				t.Fatalf("stale invocation = %#v", invocation)
+			}
+		}
+	})
+
+	t.Run("terminal database row receives missing audit", func(t *testing.T) {
+		store := openHTTPTestStore(t)
+		now := time.Date(2026, 7, 23, 9, 0, 0, 0, time.UTC)
+		execution, _, err := store.CreateExecution(context.Background(), agentrun.CreateExecutionInput{
+			IdempotencyKey: "terminal-without-audit", Prompt: "collect",
+			CreatedAt: now, AgentVersion: "collector.v1", InvocationKeys: collector.ConnectorKeys(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := store.FailExecutionAndIncompleteInvocations(context.Background(), agentrun.ExecutionFailure{
+			ExecutionID: execution.ID, ErrorCode: "planning_failed", ErrorSummary: "Query planning failed",
+			StopReason: "agent_or_tool_limit", NotInvokedSummary: "Connector was not invoked",
+			CompletedAt: now.Add(time.Minute),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		artifactRoot := t.TempDir()
+		application, err := collectorapp.New(store, artifactRoot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := application.ReconcileStartup(context.Background(), now.Add(time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+		server := httptest.NewServer(httpapi.NewHandler(application, "service-test-token"))
+		defer server.Close()
+		observed := getHTTPTestRun(t, server.URL, execution.ID)
+		if observed.Status != string(agentrun.StatusFailed) ||
+			observed.ErrorCode != "planning_failed" ||
+			observed.Artifacts["manifest"] == "" {
+			t.Fatalf("terminal audit recovery = %#v", observed)
+		}
+		if _, err := os.Stat(observed.Artifacts["manifest"]); err != nil {
+			t.Fatalf("recovered terminal audit: %v", err)
 		}
 	})
 }
@@ -619,8 +824,12 @@ func waitHTTPTestRun(t *testing.T, serverURL, executionID string) runSnapshot {
 	for {
 		snapshot := getHTTPTestRun(t, serverURL, executionID)
 		switch snapshot.Status {
-		case "succeeded", "succeeded_no_change", "partially_succeeded", "failed":
+		case "succeeded", "succeeded_no_change", "partially_succeeded":
 			return snapshot
+		case "failed":
+			if snapshot.ErrorCode == "artifact_failed" || len(snapshot.Artifacts) > 0 {
+				return snapshot
+			}
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("execution did not finish: %#v", snapshot)

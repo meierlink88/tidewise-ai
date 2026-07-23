@@ -50,6 +50,7 @@ type Candidate struct {
 	ContentOrigin    string       `json:"content_origin"`
 	Connectors       []string     `json:"connectors,omitempty"`
 	PrimaryConnector string       `json:"primary_connector,omitempty"`
+	ResultPosition   int          `json:"-"`
 }
 
 type ConnectorRun struct {

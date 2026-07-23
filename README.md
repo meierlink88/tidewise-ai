@@ -93,13 +93,14 @@ curl -sS http://localhost:9080/internal/agent-run/v1/collector/runs/<execution_i
   -H "Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}"
 ```
 
-V1 全局只允许一个活动 Execution，不排队、不取消、不在进程重启后恢复。相同 `Idempotency-Key` 与相同 Prompt 返回原 Execution；同键异文返回 409。
+V1 全局只允许一个活动 Execution，不排队、不取消，也不在进程重启后重跑 Planner 或 Connector。相同 `Idempotency-Key` 与相同 Prompt 返回原 Execution；同键异文返回 409。活动冲突会同时生成一个可查询的 `skipped` Execution，409 返回 active 与 skipped 两个 Execution ID。
 
 ## 固定执行合同
 
 - DeepSeek 只把自然语言 Prompt 规划为 `queries[]`、`combined_query` 和可选 `time_window_hours`。
 - Prompt 未明确时间时，程序默认 48 小时。
 - 七个 Connector 固定为 Parallel、Tavily、Bocha、财联社电报、东方财富快讯、东方财富个股新闻和证券时报快讯。
+- 每个 Connector 最多保留 10 条直接结果；Tavily 使用 advanced、自动参数、每来源 3 个片段和 Markdown raw content，存在 raw content 时标记为 `full_text`。
 - LLM 不选择 Connector，不读取结果，不生成事实，不做相关性、垃圾或证据质量判断。
 - Connector 直接结果不二次打开 URL。
 - Candidate 使用 canonical URL、SHA-256 和 SimHash64（Hamming 距离不超过 3）完成确定性合并与去重。
@@ -110,6 +111,7 @@ V1 全局只允许一个活动 Execution，不排队、不取消、不在进程�
 
 ```text
 data/
+├── .pending/<execution_id>/...       # publication staging；未 prepare 失败或提交后清理
 ├── documents/YYYY/MM/DD/*.md
 ├── indexes/dedup-index.tsv
 └── runs/<execution_id>/
@@ -119,6 +121,18 @@ data/
 ```
 
 只有 accepted Candidate 写入 Markdown 正文；其他终态只在 Candidate ledger 中保存元数据和原因。`manifest.json` 最后原子发布，是一次本地 Artifact 完成的标记。
+
+Artifact 发布使用最小 `prepare -> publish -> commit` 协议。成功类终态只能通过该协议提交。服务重启时先恢复已经写入 durable plan 并登记到 PostgreSQL 的文件发布，再处理普通 stale Execution，不重新调用 LLM 或 Connector；prepare 前失败会清理 staging，进程中断的 Execution 仍直接失败。普通失败先提交 PostgreSQL 终态，再发布并挂接安全审计，若中间重启则由启动对账补齐。
+
+dedup index 是 accepted Markdown 的派生缓存。运维 CLI 支持只读校验、显式重建和污染盘点：
+
+```bash
+go run ./cmd/agentrun-artifacts verify-index --root data
+go run ./cmd/agentrun-artifacts rebuild-index --root data
+go run ./cmd/agentrun-artifacts audit-pollution --root data
+```
+
+`audit-pollution` 只报告文件路径、SHA-256 和检测原因，不修改历史 Artifact；`rebuild-index` 是显式写操作，运行时应停止 AgentRun 服务。
 
 ## 测试
 
@@ -136,5 +150,7 @@ AGENTRUN_TEST_DATABASE_URL='postgres://agentrun:agentrun-local-dev-password@loca
 GOCACHE=/tmp/tidewise-go-cache \
 go test ./internal/agentrun/persistence/postgres ./internal/collector/httpapi -count=1
 ```
+
+`agentrun` 本地测试用户需要 `CREATEDB`，仅用于在同一 PostgreSQL 实例内创建并清理隔离的 `tidewise_ai_server_test_<uuid>` 临时数据库；测试结束后只保留固定基础库。
 
 UAT 使用 `APP_ENV=uat`，并必须通过 `AGENTRUN_DATABASE_URL` 注入带 `sslmode=require` 的完整 PostgreSQL URL；UAT 的非敏感参数维护在 `config.uat.yaml`。

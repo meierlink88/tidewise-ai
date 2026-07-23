@@ -31,15 +31,15 @@ func main() {
 	}
 	defer database.Close()
 	store := postgres.New(database)
-	if store.SchemaReady(context.Background()) {
-		if err := store.FailStaleExecutions(context.Background(), time.Now().UTC()); err != nil {
-			serverFail("could not reconcile stale Agent Executions")
-		}
-	}
 
 	collectorApplication, err := application.New(store, cfg.Artifact.Root, application.WithEnvironment(string(cfg.App.Env)))
 	if err != nil {
 		serverFail("could not initialize AgentRun")
+	}
+	if store.SchemaReady(context.Background()) {
+		if err := collectorApplication.ReconcileStartup(context.Background(), time.Now().UTC()); err != nil {
+			serverFail("could not reconcile AgentRun startup state")
+		}
 	}
 	server := newHTTPServer(cfg, httpapi.NewHandler(collectorApplication, cfg.Secrets.ServiceToken))
 	stop := make(chan os.Signal, 1)

@@ -19,5 +19,10 @@ type Repository interface {
 	StartInvocation(context.Context, string, string, time.Time) error
 	FinishInvocation(context.Context, agentrun.InvocationCompletion) error
 	FailExecutionAndIncompleteInvocations(context.Context, agentrun.ExecutionFailure) error
-	CompleteExecution(context.Context, agentrun.ExecutionCompletion) error
+	PreparePublication(context.Context, agentrun.PublicationReference) error
+	ListPreparedPublications(context.Context) ([]agentrun.PublicationReference, error)
+	CommitPreparedPublication(context.Context, agentrun.PublicationReference, agentrun.ExecutionCompletion) error
+	AttachTerminalArtifacts(context.Context, string, map[string]string, time.Time) error
+	ListTerminalExecutionsWithoutArtifacts(context.Context) ([]agentrun.Execution, error)
+	FailStaleExecutions(context.Context, time.Time) error
 }

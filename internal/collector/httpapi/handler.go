@@ -120,7 +120,8 @@ func (h *handler) writeCreateError(writer http.ResponseWriter, err error) {
 		if errors.As(err, &active) {
 			writeJSON(writer, http.StatusConflict, map[string]any{
 				"error_code": "active_execution_exists", "message": "Another Collector run is active",
-				"execution_id": active.ExecutionID,
+				"active_execution_id":  active.ActiveExecutionID,
+				"skipped_execution_id": active.SkippedExecutionID,
 			})
 			return
 		}
@@ -160,6 +161,7 @@ func runResponse(execution agentrun.Execution) map[string]any {
 		"artifacts": execution.Artifacts, "created_at": execution.CreatedAt,
 		"started_at": execution.StartedAt, "completed_at": execution.CompletedAt,
 		"error_code": execution.ErrorCode, "error_summary": execution.ErrorSummary,
+		"stop_reason": execution.StopReason, "blocked_by_execution_id": execution.BlockedByExecutionID,
 	}
 }
 

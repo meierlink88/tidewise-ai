@@ -1,5 +1,9 @@
 # Collector Agent V1 与 AgentRun Platform Foundation Spec
 
+> 可靠性、Codex parity、dedup index、失败审计与 Artifact 发布合同已由
+> `collector-agent-v1-reliability-parity.md` 修订。本文继续作为平台基础历史合同，
+> 与修订 Spec 冲突时以修订 Spec 为准。
+
 状态：Ready for implementation
 日期：2026-07-22
 Issue：#13

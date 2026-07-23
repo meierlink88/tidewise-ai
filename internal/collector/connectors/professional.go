@@ -7,9 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html"
+	"io"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,9 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector"
+	"golang.org/x/net/html"
 )
-
-var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
 
 type CLSTelegraph struct {
 	Endpoint string
@@ -151,9 +149,6 @@ func (c EastmoneyStockNews) Collect(ctx context.Context, request collector.Reque
 	for _, row := range payload.Result.Rows {
 		published := chinaDateTimeISO(row.Date)
 		content := plainText(row.Content)
-		if media := plainText(row.MediaName); media != "" && content != "" {
-			content = "来源：" + media + "；" + content
-		}
 		externalID := firstNonEmpty(row.Code, row.ArticleID)
 		results = appendCandidate(results, collector.Candidate{
 			Title: plainText(row.Title), URL: strings.TrimSpace(row.URL), PublishedAtHint: published,
@@ -191,9 +186,6 @@ func (c STCNQuickNews) Collect(ctx context.Context, request collector.Request) (
 	for _, row := range payload.Rows {
 		published := timestampISO(row.Time)
 		content := plainText(row.Content)
-		if source := plainText(row.Source); source != "" && content != "" {
-			content = "来源：" + source + "；" + content
-		}
 		itemURL := ""
 		if strings.TrimSpace(row.URL) != "" {
 			itemURL, _ = url.JoinPath("https://www.stcn.com", row.URL)
@@ -236,8 +228,19 @@ func plainText(value any) string {
 	if value == nil {
 		return ""
 	}
-	text := html.UnescapeString(fmt.Sprint(value))
-	return strings.Join(strings.Fields(htmlTagPattern.ReplaceAllString(text, " ")), " ")
+	tokenizer := html.NewTokenizer(strings.NewReader(fmt.Sprint(value)))
+	var builder strings.Builder
+	for {
+		switch tokenizer.Next() {
+		case html.TextToken:
+			builder.Write(tokenizer.Text())
+		case html.ErrorToken:
+			if tokenizer.Err() != nil && tokenizer.Err() != io.EOF {
+				return strings.Join(strings.Fields(builder.String()), " ")
+			}
+			return strings.Join(strings.Fields(builder.String()), " ")
+		}
+	}
 }
 
 func firstNonEmpty(values ...string) string {

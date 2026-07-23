@@ -98,7 +98,37 @@ func (s *Store) CreateExecution(ctx context.Context, input agentrun.CreateExecut
 	var activeID string
 	err = tx.QueryRow(ctx, `SELECT execution_id::text FROM agent_executions WHERE status IN ('queued', 'planning', 'collecting', 'materializing') LIMIT 1`).Scan(&activeID)
 	if err == nil {
-		return agentrun.Execution{}, "", &agentrun.ActiveExecutionError{ExecutionID: activeID}
+		id := uuid.NewString()
+		createdAt := input.CreatedAt.UTC()
+		sum := sha256.Sum256([]byte(input.Prompt))
+		promptHash := hex.EncodeToString(sum[:])
+		_, err = tx.Exec(ctx, `
+			INSERT INTO agent_executions (
+				execution_id, agent_version, idempotency_key, prompt, prompt_sha256,
+				prompt_bytes, status, stop_reason, blocked_by_execution_id,
+				created_at, completed_at, updated_at
+			) VALUES ($1, $2, $3, $4, $5, $6, 'skipped', 'skipped_previous_run_active', $7, $8, $8, $8)
+		`, id, input.AgentVersion, input.IdempotencyKey, input.Prompt, promptHash,
+			len([]byte(input.Prompt)), activeID, createdAt)
+		if err != nil {
+			return agentrun.Execution{}, "", fmt.Errorf("insert skipped execution: %w", err)
+		}
+		for position, key := range input.InvocationKeys {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO connector_invocations (
+					execution_id, connector_key, position, status, error_code,
+					error_summary, completed_at
+				) VALUES ($1, $2, $3, 'not_invoked', 'not_invoked',
+				          'Connector was not invoked because another Agent Execution was active', $4)
+			`, id, key, position, createdAt); err != nil {
+				return agentrun.Execution{}, "", fmt.Errorf("insert skipped connector invocation: %w", err)
+			}
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return agentrun.Execution{}, "", fmt.Errorf("commit skipped execution: %w", err)
+		}
+		execution, err := s.GetExecution(ctx, id)
+		return execution, agentrun.ExecutionSkipped, err
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return agentrun.Execution{}, "", fmt.Errorf("check active execution: %w", err)
@@ -154,12 +184,14 @@ func (s *Store) GetExecution(ctx context.Context, id string) (agentrun.Execution
 	err := s.database.QueryRow(ctx, `
 		SELECT execution_id::text, agent_version, idempotency_key, prompt, prompt_sha256,
 		       prompt_bytes, status, COALESCE(error_code, ''), COALESCE(error_summary, ''),
+		       COALESCE(stop_reason, ''), COALESCE(blocked_by_execution_id::text, ''),
 		       candidate_counts, artifacts, created_at, started_at, completed_at
 		FROM agent_executions WHERE execution_id = $1
 	`, id).Scan(
 		&result.ID, &result.AgentVersion, &result.IdempotencyKey, &result.Prompt,
 		&result.PromptSHA256, &result.PromptBytes, &result.Status, &result.ErrorCode,
-		&result.ErrorSummary, &countsJSON, &artifactsJSON, &result.CreatedAt,
+		&result.ErrorSummary, &result.StopReason, &result.BlockedByExecutionID,
+		&countsJSON, &artifactsJSON, &result.CreatedAt,
 		&result.StartedAt, &result.CompletedAt,
 	)
 	if err != nil {
@@ -203,8 +235,13 @@ func (s *Store) FailStaleExecutions(ctx context.Context, now time.Time) error {
 		UPDATE agent_executions
 		SET status = 'failed', error_code = 'process_restarted',
 		    error_summary = 'AgentRun restarted before execution completed',
+		    stop_reason = 'agent_or_tool_limit',
 		    completed_at = $1, updated_at = $1
 		WHERE status IN ('queued', 'planning', 'collecting', 'materializing')
+		  AND NOT EXISTS (
+		      SELECT 1 FROM collector_artifact_publications publication
+		      WHERE publication.execution_id = agent_executions.execution_id
+		  )
 		RETURNING execution_id
 	`, now.UTC())
 	if err != nil {
@@ -227,8 +264,12 @@ func (s *Store) FailStaleExecutions(ctx context.Context, now time.Time) error {
 	for _, id := range ids {
 		if _, err := tx.Exec(ctx, `
 			UPDATE connector_invocations
-			SET status = 'failed', error_code = 'process_restarted',
-			    error_summary = 'AgentRun restarted before connector completed',
+			SET status = CASE status WHEN 'pending' THEN 'not_invoked' ELSE 'failed' END,
+			    error_code = CASE status WHEN 'pending' THEN 'not_invoked' ELSE 'process_restarted' END,
+			    error_summary = CASE status
+			        WHEN 'pending' THEN 'Connector was not invoked before AgentRun restarted'
+			        ELSE 'AgentRun restarted before connector completed'
+			    END,
 			    completed_at = $2
 			WHERE execution_id = $1 AND status IN ('pending', 'running')
 		`, id, now.UTC()); err != nil {
@@ -306,6 +347,13 @@ func (s *Store) FinishInvocation(ctx context.Context, completion agentrun.Invoca
 }
 
 func (s *Store) FailExecutionAndIncompleteInvocations(ctx context.Context, failure agentrun.ExecutionFailure) error {
+	if failure.Artifacts == nil {
+		failure.Artifacts = map[string]string{}
+	}
+	artifactsJSON, err := json.Marshal(failure.Artifacts)
+	if err != nil {
+		return fmt.Errorf("encode failed Execution Artifact paths: %w", err)
+	}
 	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin fail execution: %w", err)
@@ -314,9 +362,15 @@ func (s *Store) FailExecutionAndIncompleteInvocations(ctx context.Context, failu
 	command, err := tx.Exec(ctx, `
 		UPDATE agent_executions
 		SET status = 'failed', error_code = $2, error_summary = $3,
-		    completed_at = $4, updated_at = $4
+		    stop_reason = $4, artifacts = $5,
+		    completed_at = $6, updated_at = $6
 		WHERE execution_id = $1 AND status IN ('queued', 'planning', 'collecting', 'materializing')
-	`, failure.ExecutionID, failure.ErrorCode, failure.ErrorSummary, failure.CompletedAt.UTC())
+		  AND NOT EXISTS (
+		      SELECT 1 FROM collector_artifact_publications
+		      WHERE execution_id = $1
+		  )
+	`, failure.ExecutionID, failure.ErrorCode, failure.ErrorSummary, failure.StopReason,
+		artifactsJSON, failure.CompletedAt.UTC())
 	if err != nil {
 		return fmt.Errorf("fail execution: %w", err)
 	}
@@ -325,7 +379,7 @@ func (s *Store) FailExecutionAndIncompleteInvocations(ctx context.Context, failu
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE connector_invocations
-		SET status = 'failed',
+		SET status = CASE status WHEN 'pending' THEN 'not_invoked' ELSE 'failed' END,
 		    error_code = CASE status WHEN 'pending' THEN 'not_invoked' ELSE 'execution_interrupted' END,
 		    error_summary = CASE status WHEN 'pending' THEN $2 ELSE 'Connector did not complete because Agent Execution stopped' END,
 		    completed_at = $3
@@ -335,36 +389,6 @@ func (s *Store) FailExecutionAndIncompleteInvocations(ctx context.Context, failu
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit failed execution: %w", err)
-	}
-	return nil
-}
-
-func (s *Store) CompleteExecution(ctx context.Context, completion agentrun.ExecutionCompletion) error {
-	if completion.Status != agentrun.StatusSucceeded && completion.Status != agentrun.StatusSucceededNoChange && completion.Status != agentrun.StatusPartiallySucceeded {
-		return fmt.Errorf("invalid successful terminal Execution status %q", completion.Status)
-	}
-	if pending, exists := completion.CandidateCounts["results_pending"]; !exists || pending != 0 {
-		return fmt.Errorf("successful Execution requires results_pending=0")
-	}
-	countsJSON, err := json.Marshal(completion.CandidateCounts)
-	if err != nil {
-		return fmt.Errorf("encode Candidate counts: %w", err)
-	}
-	artifactsJSON, err := json.Marshal(completion.Artifacts)
-	if err != nil {
-		return fmt.Errorf("encode Artifact paths: %w", err)
-	}
-	command, err := s.database.Exec(ctx, `
-		UPDATE agent_executions
-		SET status = $2, candidate_counts = $3, artifacts = $4,
-		    completed_at = $5, updated_at = $5
-		WHERE execution_id = $1 AND status = 'materializing'
-	`, completion.ExecutionID, completion.Status, countsJSON, artifactsJSON, completion.CompletedAt.UTC())
-	if err != nil {
-		return fmt.Errorf("complete execution: %w", err)
-	}
-	if command.RowsAffected() != 1 {
-		return fmt.Errorf("execution is not active")
 	}
 	return nil
 }
