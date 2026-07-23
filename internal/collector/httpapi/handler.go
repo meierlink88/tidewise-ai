@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
+	agentrunopenapi "github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/openapi"
 	collectorapp "github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/application"
 	"github.com/jackc/pgx/v5"
 )
@@ -35,6 +36,7 @@ type handler struct {
 func NewHandler(application application, serviceToken string) http.Handler {
 	h := &handler{application: application, serviceToken: serviceToken}
 	mux := http.NewServeMux()
+	agentrunopenapi.Register(mux)
 	mux.HandleFunc("GET /healthz", h.health)
 	mux.HandleFunc("GET /readyz", h.ready)
 	mux.Handle("POST "+runsPath, h.authenticate(http.HandlerFunc(h.createCollectorRun)))

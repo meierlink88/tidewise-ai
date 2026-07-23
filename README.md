@@ -77,6 +77,18 @@ Server 不自动执行 migration。Schema、DeepSeek Model Provider Configuratio
 
 ## Collector HTTP Interface
 
+AgentRun 提供一份随服务二进制发布的 OpenAPI 3.0.4 合同和 Swagger UI：
+
+- OpenAPI YAML：`http://localhost:9080/openapi.yaml`
+- Swagger UI：`http://localhost:9080/docs/`
+
+这两个文档入口及其本地静态资源在 dev/UAT 中无需认证，也不依赖运行时 CDN。Collector 创建与查询接口仍要求 `Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}`；Swagger UI 不预填 Token，可在浏览器中通过 Authorize 手动输入。
+
+```bash
+curl -sS http://localhost:9080/openapi.yaml
+curl -sS http://localhost:9080/docs/
+```
+
 创建异步采集：
 
 ```bash

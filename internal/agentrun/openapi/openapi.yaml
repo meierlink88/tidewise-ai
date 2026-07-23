@@ -1,0 +1,409 @@
+openapi: 3.0.4
+info:
+  title: Tidewise AI AgentRun API
+  version: 1.0.0
+  description: |
+    HTTP contract for the Tidewise Agent execution service.
+
+    Collector operations accept a Collection Prompt and expose safe Agent
+    Execution metadata. They never return the full Prompt, credentials,
+    Connector result bodies, or model responses.
+servers:
+  - url: /
+tags:
+  - name: Platform
+    description: AgentRun process health and readiness.
+  - name: Collector
+    description: Asynchronous Collector Agent execution.
+  - name: Documentation
+    description: OpenAPI contract and interactive documentation.
+paths:
+  /healthz:
+    get:
+      tags:
+        - Platform
+      operationId: getHealth
+      summary: Check process liveness
+      security: []
+      responses:
+        "200":
+          description: AgentRun process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /readyz:
+    get:
+      tags:
+        - Platform
+      operationId: getReadiness
+      summary: Check service readiness
+      description: |
+        Readiness requires a compatible database schema, a configured service
+        token, writable Artifact storage, one complete Model Provider
+        Configuration, and all required Connector Configurations.
+      security: []
+      responses:
+        "200":
+          description: AgentRun is ready to accept Collector executions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: AgentRun is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /internal/agent-run/v1/collector/runs:
+    post:
+      tags:
+        - Collector
+      operationId: createCollectorRun
+      summary: Create an asynchronous Collector Agent Execution
+      description: |
+        Creates or idempotently replays a Collector Agent Execution. Only one
+        Collector Execution may be active at a time.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: |
+            Caller-generated identity for this exact Collection Prompt. Reuse
+            with different Prompt bytes is rejected.
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectorRunRequest"
+      responses:
+        "202":
+          description: Execution created or an exact idempotent replay returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectorRunResponse"
+        "400":
+          description: Request, Idempotency-Key, or Prompt is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Bearer authentication is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: |
+            The Idempotency-Key belongs to another Prompt, or another Collector
+            Execution is active.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ErrorResponse"
+                  - $ref: "#/components/schemas/ActiveExecutionConflict"
+        "413":
+          description: Collection Prompt exceeds 64 KiB in UTF-8 bytes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: AgentRun could not create the Execution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Collector configuration or service dependencies are not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /internal/agent-run/v1/collector/runs/{execution_id}:
+    get:
+      tags:
+        - Collector
+      operationId: getCollectorRun
+      summary: Get a Collector Agent Execution
+      description: Returns safe execution, invocation, accounting, and Artifact metadata.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: execution_id
+          in: path
+          required: true
+          description: Agent Execution identifier.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Collector Agent Execution found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectorRunResponse"
+        "401":
+          description: Bearer authentication is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent Execution was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: AgentRun could not read the Execution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /openapi.yaml:
+    get:
+      tags:
+        - Documentation
+      operationId: getOpenAPIDocument
+      summary: Download the AgentRun OpenAPI document
+      security: []
+      responses:
+        "200":
+          description: Embedded OpenAPI 3.0.4 YAML document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /docs/:
+    get:
+      tags:
+        - Documentation
+      operationId: getSwaggerUI
+      summary: Open the embedded Swagger UI
+      description: Swagger UI loads this service's `/openapi.yaml` document.
+      security: []
+      responses:
+        "200":
+          description: Embedded Swagger UI HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Opaque AgentRun service token.
+  schemas:
+    CollectorRunRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          x-max-bytes: 65536
+          description: |
+            Complete natural-language Collection Prompt. It may contain UTF-8,
+            Markdown, and newlines; the server rejects blank text and values
+            larger than 64 KiB in UTF-8 bytes.
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+    ReadyResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string
+    ActiveExecutionConflict:
+      type: object
+      additionalProperties: false
+      required:
+        - error_code
+        - message
+        - active_execution_id
+        - skipped_execution_id
+      properties:
+        error_code:
+          type: string
+          enum:
+            - active_execution_exists
+        message:
+          type: string
+        active_execution_id:
+          type: string
+          format: uuid
+        skipped_execution_id:
+          type: string
+          format: uuid
+    CollectorRunResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - schema
+        - agent_key
+        - agent_version
+        - execution_id
+        - status
+        - status_url
+        - prompt_sha256
+        - prompt_bytes
+        - invocations
+        - candidate_counts
+        - artifacts
+        - created_at
+        - started_at
+        - completed_at
+        - error_code
+        - error_summary
+        - stop_reason
+        - blocked_by_execution_id
+      properties:
+        schema:
+          type: string
+          enum:
+            - collector_run.v1
+        agent_key:
+          type: string
+          enum:
+            - collector
+        agent_version:
+          type: string
+        execution_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ExecutionStatus"
+        status_url:
+          type: string
+          description: Relative URL for this Agent Execution.
+        prompt_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: SHA-256 of the exact accepted Collection Prompt.
+        prompt_bytes:
+          type: integer
+          minimum: 0
+          description: Collection Prompt length in UTF-8 bytes.
+        invocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorInvocation"
+        candidate_counts:
+          $ref: "#/components/schemas/CandidateCounts"
+        artifacts:
+          $ref: "#/components/schemas/ArtifactReferences"
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_code:
+          type: string
+        error_summary:
+          type: string
+        stop_reason:
+          type: string
+        blocked_by_execution_id:
+          type: string
+          description: Empty unless this skipped Execution was blocked by an active Execution.
+    ExecutionStatus:
+      type: string
+      enum:
+        - queued
+        - planning
+        - collecting
+        - materializing
+        - succeeded
+        - succeeded_no_change
+        - partially_succeeded
+        - failed
+        - skipped
+    ConnectorInvocation:
+      type: object
+      additionalProperties: false
+      required:
+        - connector_key
+        - status
+        - result_count
+      properties:
+        connector_key:
+          type: string
+        status:
+          $ref: "#/components/schemas/InvocationStatus"
+        result_count:
+          type: integer
+          minimum: 0
+        error_code:
+          type: string
+        error_summary:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+    InvocationStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - not_invoked
+    CandidateCounts:
+      type: object
+      description: Collector Candidate and content-level conservation counters.
+      additionalProperties:
+        type: integer
+        minimum: 0
+    ArtifactReferences:
+      type: object
+      description: Completed local Artifact names mapped to their service-side paths.
+      additionalProperties:
+        type: string
