@@ -1,0 +1,651 @@
+openapi: 3.0.4
+info:
+  title: Tidewise Miniapp Service API
+  version: 1.0.0
+  description: Miniapp BFF 的手写 REST + JSON 合同。当前公开业务接口不要求认证。
+servers:
+  - url: /
+    description: 由运行环境注入 Miniapp Service origin。
+tags:
+  - name: Operations
+  - name: Research
+paths:
+  /healthz:
+    get:
+      tags: [Operations]
+      operationId: getMiniappHealth
+      summary: Miniapp Service 存活检查
+      responses:
+        '200':
+          description: 进程存活
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /readyz:
+    get:
+      tags: [Operations]
+      operationId: getMiniappReadiness
+      summary: Miniapp Service 就绪检查
+      responses:
+        '200':
+          description: 服务配置就绪
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+  /api/miniapp/v1/research/themes:
+    get:
+      tags: [Research]
+      operationId: listMiniappResearchThemes
+      summary: 获取首页 Research Theme 列表
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/WindowHours'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResearchThemePageSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/miniapp/v1/research/themes/{theme_id}:
+    get:
+      tags: [Research]
+      operationId: getMiniappResearchTheme
+      summary: 获取一个 Research Theme 详情
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ThemeID'
+        - $ref: '#/components/parameters/WindowHours'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResearchThemeDetailSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees:
+    get:
+      tags: [Research]
+      operationId: listMiniappResearchReasoningTrees
+      summary: 获取 Theme 的推理树 Tab 列表
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ThemeID'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReasoningTreeListSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}:
+    get:
+      tags: [Research]
+      operationId: getMiniappResearchReasoningTree
+      summary: 获取 Theme 下的一棵推理树
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ThemeID'
+        - $ref: '#/components/parameters/AnchorID'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReasoningTreeDetailSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+components:
+  parameters:
+    RequestID:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: 可选 caller request id；缺失或不合法时由 Miniapp Service 生成。
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    ThemeID:
+      name: theme_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    AnchorID:
+      name: anchor_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    WindowHours:
+      name: window_hours
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 168
+        default: 24
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 2048
+  headers:
+    RequestID:
+      required: true
+      description: 与响应 body 中 request_id 一致。
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+  responses:
+    ResearchThemePageSuccess:
+      description: 首页 Theme 列表
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ResearchThemePageEnvelope'
+    ResearchThemeDetailSuccess:
+      description: Theme 详情
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ResearchThemeDetailEnvelope'
+    ReasoningTreeListSuccess:
+      description: 推理树 Tab 列表
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReasoningTreeListEnvelope'
+    ReasoningTreeDetailSuccess:
+      description: 单棵推理树
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReasoningTreeDetailEnvelope'
+    BadRequest:
+      description: 请求参数不合法
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Theme 或推理树不存在
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    InternalError:
+      description: Miniapp Service 内部错误
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    BadGateway:
+      description: Data Service 暂时不可用或返回不可信结果
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    UTCTimestamp:
+      type: string
+      format: date-time
+      description: UTC RFC3339 timestamp。
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, environment]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+        environment:
+          type: string
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, environment, checks]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        service:
+          type: string
+        environment:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, request_id]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        request_id:
+          type: string
+    ResearchThemePageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchThemePage'
+    ResearchThemeDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchThemeDetail'
+    ReasoningTreeListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ReasoningTreeList'
+    ReasoningTreeDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ReasoningTreeDetail'
+    ResearchThemePage:
+      type: object
+      additionalProperties: false
+      required: [window_start, window_end, as_of, theme_count, event_count, items, next_cursor]
+      properties:
+        window_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        window_end:
+          $ref: '#/components/schemas/UTCTimestamp'
+        as_of:
+          $ref: '#/components/schemas/UTCTimestamp'
+        theme_count:
+          type: integer
+          minimum: 0
+        event_count:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchTheme'
+        next_cursor:
+          type: string
+          nullable: true
+    ResearchTheme:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - one_line_conclusion
+        - impact_level
+        - transmission_path
+        - trading_direction
+        - transmission_stage
+        - next_checkpoint
+        - market_confirmation_summary
+        - published_at
+        - affected_chain_nodes
+        - related_indices
+        - supporting_event_count
+        - contradicting_event_count
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        one_line_conclusion:
+          type: string
+        impact_level:
+          type: string
+          enum: [high, focus, watch]
+        transmission_path:
+          type: string
+        trading_direction:
+          type: string
+        transmission_stage:
+          type: string
+          enum: [identification, validation, diffusion, dampening]
+        next_checkpoint:
+          type: string
+        market_confirmation_summary:
+          type: string
+        published_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        affected_chain_nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchChainNode'
+        related_indices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchIndex'
+        supporting_event_count:
+          type: integer
+          minimum: 0
+        contradicting_event_count:
+          type: integer
+          minimum: 0
+    ResearchThemeDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - one_line_conclusion
+        - impact_level
+        - transmission_path
+        - trading_direction
+        - transmission_stage
+        - next_checkpoint
+        - market_confirmation_summary
+        - published_at
+        - affected_chain_nodes
+        - related_indices
+        - supporting_event_count
+        - contradicting_event_count
+        - events
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        one_line_conclusion:
+          type: string
+        impact_level:
+          type: string
+          enum: [high, focus, watch]
+        transmission_path:
+          type: string
+        trading_direction:
+          type: string
+        transmission_stage:
+          type: string
+          enum: [identification, validation, diffusion, dampening]
+        next_checkpoint:
+          type: string
+        market_confirmation_summary:
+          type: string
+        published_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        affected_chain_nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchChainNode'
+        related_indices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchIndex'
+        supporting_event_count:
+          type: integer
+          minimum: 0
+        contradicting_event_count:
+          type: integer
+          minimum: 0
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchEvent'
+    ResearchChainNode:
+      type: object
+      additionalProperties: false
+      required: [id, name, relation_role, impact_summary]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        relation_role:
+          type: string
+        impact_summary:
+          type: string
+    ResearchIndex:
+      type: object
+      additionalProperties: false
+      required: [id, name, impact_direction, impact_summary]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        impact_direction:
+          type: string
+        impact_summary:
+          type: string
+    ResearchEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, title, summary, evidence_role, supported_claim]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        event_time:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        evidence_role:
+          type: string
+        supported_claim:
+          type: string
+    ReasoningTreeList:
+      type: object
+      additionalProperties: false
+      required: [theme, reasoning_trees]
+      properties:
+        theme:
+          $ref: '#/components/schemas/ResearchTheme'
+        reasoning_trees:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReasoningTreeSummary'
+    ReasoningTreeSummary:
+      type: object
+      additionalProperties: false
+      required: [anchor_id, center_chain_node]
+      properties:
+        anchor_id:
+          $ref: '#/components/schemas/UUID'
+        center_chain_node:
+          $ref: '#/components/schemas/ReasoningTreeChainNode'
+    ReasoningTreeDetail:
+      type: object
+      additionalProperties: false
+      required: [theme_id, reasoning_tree]
+      properties:
+        theme_id:
+          $ref: '#/components/schemas/UUID'
+        reasoning_tree:
+          $ref: '#/components/schemas/ReasoningTree'
+    ReasoningTree:
+      type: object
+      additionalProperties: false
+      required:
+        - anchor_id
+        - center_chain_node
+        - one_line_conclusion
+        - fact_summary
+        - net_direction_summary
+        - support_summary
+        - counter_summary
+        - trading_direction
+        - next_checkpoint
+        - event_count
+        - events
+        - path_nodes
+      properties:
+        anchor_id:
+          $ref: '#/components/schemas/UUID'
+        center_chain_node:
+          $ref: '#/components/schemas/ReasoningTreeChainNode'
+        one_line_conclusion:
+          type: string
+        fact_summary:
+          type: string
+        net_direction_summary:
+          type: string
+        support_summary:
+          type: string
+        counter_summary:
+          type: string
+          nullable: true
+        trading_direction:
+          type: string
+        next_checkpoint:
+          type: string
+        event_count:
+          type: integer
+          minimum: 1
+        events:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReasoningTreeEvent'
+        path_nodes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReasoningTreePathNode'
+    ReasoningTreeChainNode:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+    ReasoningTreeEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, title, summary, event_time, evidence_role, evidence_summary]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        event_time:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        evidence_role:
+          type: string
+          enum: [driver, supporting, contradicting, context]
+        evidence_summary:
+          type: string
+    ReasoningTreePathNode:
+      type: object
+      additionalProperties: false
+      required:
+        - chain_node_id
+        - name
+        - change_direction
+        - change_summary
+        - impact_summary
+        - incoming_transmission_mechanism
+      properties:
+        chain_node_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        change_direction:
+          type: string
+        change_summary:
+          type: string
+        impact_summary:
+          type: string
+        incoming_transmission_mechanism:
+          type: string
+          nullable: true

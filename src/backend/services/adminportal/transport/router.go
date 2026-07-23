@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apihttp"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/dataclient"
 	"github.com/meierlink88/tidewise-ai/backend/services/adminportal/usecase"
@@ -72,18 +73,37 @@ type healthResponse struct {
 func NewRouter(app runtimeconfig.AppConfig, service *usecase.Service, adminToken string, allowedOrigins ...string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(apiRecoveryMiddleware())
 
 	router.GET("/healthz", healthHandler(app))
 	router.GET("/readyz", readyHandler(app))
 
-	admin := router.Group("/admin")
+	admin := router.Group("/api/admin/v1")
+	admin.Use(requestIDMiddleware())
 	admin.Use(adminCORSMiddleware(firstAllowedOrigin(allowedOrigins)))
 	admin.Use(adminTokenMiddleware(adminToken))
 	admin.OPTIONS("/*path", func(*gin.Context) {})
 	admin.GET("/raw-documents", listRawDocuments(service))
 	admin.GET("/events", listEvents(service))
 	return router
+}
+
+func apiRecoveryMiddleware() gin.HandlerFunc {
+	return gin.CustomRecovery(func(ctx *gin.Context, _ any) {
+		requestID := apihttp.ResolveRequestID(ctx.GetHeader(apihttp.RequestIDHeader), "admin")
+		ctx.Request.Header.Set(apihttp.RequestIDHeader, requestID)
+		ctx.Header(apihttp.RequestIDHeader, requestID)
+		writeAPIError(ctx, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+	})
+}
+
+func requestIDMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		requestID := apihttp.ResolveRequestID(ctx.GetHeader(apihttp.RequestIDHeader), "admin")
+		ctx.Request.Header.Set(apihttp.RequestIDHeader, requestID)
+		ctx.Header(apihttp.RequestIDHeader, requestID)
+		ctx.Next()
+	}
 }
 
 func firstAllowedOrigin(origins []string) string {
@@ -101,7 +121,7 @@ func adminCORSMiddleware(allowedOrigin string) gin.HandlerFunc {
 			return
 		}
 		if allowedOrigin == "" || origin != allowedOrigin {
-			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "origin is not allowed"})
+			writeAPIError(ctx, http.StatusForbidden, "FORBIDDEN", "origin is not allowed")
 			return
 		}
 		ctx.Header("Access-Control-Allow-Origin", allowedOrigin)
@@ -136,7 +156,7 @@ func listRawDocuments(service *usecase.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		query, err := rawDocumentListQueryFromRequest(ctx)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 			return
 		}
 		page, err := service.ListRawDocuments(dataRequestContext(ctx), query)
@@ -148,7 +168,7 @@ func listRawDocuments(service *usecase.Service) gin.HandlerFunc {
 		for _, document := range page.Items {
 			items = append(items, rawDocumentDTO(document))
 		}
-		ctx.JSON(http.StatusOK, rawDocumentListResponse{Items: items, Total: page.Total, Page: page.Page, PageSize: page.PageSize})
+		writeSuccess(ctx, rawDocumentListResponse{Items: items, Total: page.Total, Page: page.Page, PageSize: page.PageSize})
 	}
 }
 
@@ -156,7 +176,7 @@ func listEvents(service *usecase.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		query, err := eventListQueryFromRequest(ctx)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 			return
 		}
 		page, err := service.ListEvents(dataRequestContext(ctx), query)
@@ -168,24 +188,24 @@ func listEvents(service *usecase.Service) gin.HandlerFunc {
 		for _, event := range page.Items {
 			items = append(items, eventDTO(event))
 		}
-		ctx.JSON(http.StatusOK, eventListResponse{Items: items, Total: page.Total, Page: page.Page, PageSize: page.PageSize})
+		writeSuccess(ctx, eventListResponse{Items: items, Total: page.Total, Page: page.Page, PageSize: page.PageSize})
 	}
 }
 
 func adminTokenMiddleware(adminToken string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if adminToken == "" {
-			ctx.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "admin token is not configured"})
+			writeAPIError(ctx, http.StatusServiceUnavailable, "ADMIN_NOT_CONFIGURED", "admin token is not configured")
 			return
 		}
 		header := ctx.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			writeAPIError(ctx, http.StatusUnauthorized, "UNAUTHENTICATED", "valid admin identity is required")
 			return
 		}
 		value := strings.TrimPrefix(header, "Bearer ")
 		if subtle.ConstantTimeCompare([]byte(value), []byte(adminToken)) != 1 {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			writeAPIError(ctx, http.StatusUnauthorized, "UNAUTHENTICATED", "valid admin identity is required")
 			return
 		}
 		ctx.Next()
@@ -197,7 +217,17 @@ func dataRequestContext(ctx *gin.Context) context.Context {
 }
 
 func writeInternalError(ctx *gin.Context) {
-	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	writeAPIError(ctx, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+}
+
+func writeSuccess(ctx *gin.Context, result any) {
+	requestID := ctx.GetHeader(apihttp.RequestIDHeader)
+	ctx.JSON(http.StatusOK, apihttp.Success(requestID, result))
+}
+
+func writeAPIError(ctx *gin.Context, status int, code, message string) {
+	requestID := ctx.GetHeader(apihttp.RequestIDHeader)
+	ctx.AbortWithStatusJSON(status, apihttp.Error(requestID, code, message, map[string]any{}))
 }
 
 func rawDocumentListQueryFromRequest(ctx *gin.Context) (dataclient.RawDocumentListQuery, error) {

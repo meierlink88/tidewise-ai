@@ -23,7 +23,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func TestPostgresEventPublicationV2CreatesThenReusesNaturalIdentities(t *testing.T) {
+func TestPostgresEventPublicationCreatesThenReusesNaturalIdentities(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
 	handler, service := newEventPublicationTestHandler(t, db)
 
@@ -127,7 +127,7 @@ func TestPostgresEventPublicationV2CreatesThenReusesNaturalIdentities(t *testing
 	}
 }
 
-func TestPostgresEventPublicationV2ContractScenarios(t *testing.T) {
+func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
 	handler, service := newEventPublicationTestHandler(t, db)
 
@@ -199,7 +199,7 @@ WHERE contract_version = 2
 			t.Fatal(err)
 		}
 		if lightweightDocuments != 2 {
-			t.Fatalf("lightweight V2 documents = %d, want 2", lightweightDocuments)
+			t.Fatalf("lightweight publication documents = %d, want 2", lightweightDocuments)
 		}
 	})
 
@@ -488,7 +488,7 @@ EXECUTE FUNCTION fail_event_publication_receipt_insert()`); err != nil {
 	})
 }
 
-func TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent(t *testing.T) {
+func TestEventPublicationMigrationPreservesHistoricalEvidenceContent(t *testing.T) {
 	db := openEventPublicationTestDatabaseAt(t, 28)
 	const (
 		rawID          = "11111111-1111-4111-8111-111111111111"
@@ -756,11 +756,13 @@ type eventPublicationValidationIssue struct {
 
 func (e eventPublicationHTTPError) ValidationIssues(t *testing.T) []eventPublicationValidationIssue {
 	t.Helper()
-	var issues []eventPublicationValidationIssue
-	if err := json.Unmarshal(e.Details, &issues); err != nil {
+	var details struct {
+		Issues []eventPublicationValidationIssue `json:"issues"`
+	}
+	if err := json.Unmarshal(e.Details, &details); err != nil {
 		t.Fatalf("decode validation issues: %v\n%s", err, e.Details)
 	}
-	return issues
+	return details.Issues
 }
 
 func postEventPublication(t *testing.T, handler http.Handler, body []byte) eventPublicationHTTPResult {
@@ -769,7 +771,7 @@ func postEventPublication(t *testing.T, handler http.Handler, body []byte) event
 
 func postEventPublicationAs(t *testing.T, handler http.Handler, body []byte, token string) eventPublicationHTTPResult {
 	t.Helper()
-	request := httptest.NewRequest(http.MethodPost, EventPublicationNamespace+"/reviewed-event-imports", bytes.NewReader(body))
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/reviewed-event-imports", bytes.NewReader(body))
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -792,7 +794,7 @@ func openEventPublicationTestDatabaseAt(t *testing.T, version int64) *sql.DB {
 	t.Helper()
 	databaseURL := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
 	if databaseURL == "" {
-		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run Event Publication V2 integration tests")
+		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run Event Publication integration tests")
 	}
 	parsed, err := url.Parse(databaseURL)
 	if err != nil {

@@ -5,7 +5,7 @@
 - 状态：Accepted
 - 所属上下文：Data
 - 决策：ADR-0005
-- 唯一写入口：`POST /internal/data/v2/reviewed-event-imports`
+- 唯一写入口：`POST /api/data/v1/reviewed-event-imports`
 
 本合同让 AgentRun 将已完成采集、提取和审核的正式 Event 连同轻量证据原子发布
 到 Tidewise Data。它不实现采集、原文存储、Event 提取、异步任务或失败恢复。
@@ -287,9 +287,9 @@ forward migration：
 
 ## 退出接口
 
-- `POST /internal/data/v1/raw-document-imports`：`410 Gone`
-- `GET /internal/data/v1/raw-document-imports/{idempotency_key}`：`410 Gone`
-- `POST /internal/data/v1/reviewed-event-imports`：`410 Gone`
+- `POST /internal/data/v1/raw-document-imports`：路由已删除，返回 `404`
+- `GET /internal/data/v1/raw-document-imports/{idempotency_key}`：路由已删除，返回 `404`
+- `POST /internal/data/v1/reviewed-event-imports`：路由已删除，返回 `404`
 - Data 与 Admin Portal 的 Source Catalog/Source Metadata 查询接口及其实现删除
 
 ## 必测场景

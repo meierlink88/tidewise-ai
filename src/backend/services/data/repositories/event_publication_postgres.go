@@ -16,7 +16,7 @@ import (
 func (r PostgresRepository) InEventPublicationTransaction(ctx context.Context, fn func(EventPublicationTransaction) error) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin Event Publication V2 transaction: %w", err)
+		return fmt.Errorf("begin Event Publication transaction: %w", err)
 	}
 	wrapper := &postgresEventPublicationTx{tx: tx}
 	if err := fn(wrapper); err != nil {
@@ -24,7 +24,7 @@ func (r PostgresRepository) InEventPublicationTransaction(ctx context.Context, f
 		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit Event Publication V2 transaction: %w", err)
+		return fmt.Errorf("commit Event Publication transaction: %w", err)
 	}
 	return nil
 }
@@ -38,7 +38,7 @@ func (t *postgresEventPublicationTx) LockEventPublicationIdentities(ctx context.
 	sort.Strings(keys)
 	for _, key := range keys {
 		if _, err := t.tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, key); err != nil {
-			return fmt.Errorf("lock Event Publication V2 identity %q: %w", key, err)
+			return fmt.Errorf("lock Event Publication identity %q: %w", key, err)
 		}
 	}
 	return nil
@@ -280,7 +280,7 @@ INSERT INTO event_publication_receipts (
 		reviewMetadata, writeCounts, receipt.ImportedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("insert Event Publication V2 receipt: %w", err)
+		return fmt.Errorf("insert Event Publication receipt: %w", err)
 	}
 	return nil
 }

@@ -10,10 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	namespace   = "/internal/data/v1"
-	v2Namespace = "/internal/data/v2"
-)
+const namespace = "/api/data/v1"
 
 type operationContract struct {
 	method      string
@@ -26,16 +23,15 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	want := map[string]operationContract{
-		namespace + "/research/themes":                                        {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
+		"/healthz":                     {method: "get", operationID: "getDataServiceHealth"},
+		"/readyz":                      {method: "get", operationID: "getDataServiceReadiness"},
+		namespace + "/research/themes": {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}":                             {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees":             {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
-		namespace + "/admin/raw-documents":                                    {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
-		namespace + "/admin/events":                                           {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
-		namespace + "/raw-document-imports":                                   {method: "post", operationID: "retiredRawDocumentImportV1", driftAnchor: "data.v1.retiredRawDocumentImportV1", scope: "data.reviewed-events.import"},
-		namespace + "/raw-document-imports/{idempotency_key}":                 {method: "get", operationID: "retiredRawDocumentImportStatusV1", driftAnchor: "data.v1.retiredRawDocumentImportStatusV1", scope: "data.reviewed-events.import"},
-		namespace + "/reviewed-event-imports":                                 {method: "post", operationID: "retiredReviewedEventImportV1", driftAnchor: "data.v1.retiredReviewedEventImportV1", scope: "data.reviewed-events.import"},
-		v2Namespace + "/reviewed-event-imports":                               {method: "post", operationID: "publishReviewedEventsV2", driftAnchor: "data.v2.publishReviewedEventsV2", scope: "data.reviewed-events.import"},
+		namespace + "/raw-documents":                                          {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
+		namespace + "/events":                                                 {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
+		namespace + "/reviewed-event-imports":                                 {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
 		namespace + "/research-theme-imports":                                 {method: "post", operationID: "importResearchThemes", driftAnchor: "data.v1.importResearchThemes", scope: "data.research.import"},
 		namespace + "/research-anchor-imports":                                {method: "post", operationID: "importResearchAnchors", driftAnchor: "data.v1.importResearchAnchors", scope: "data.research.import"},
 	}
@@ -44,14 +40,18 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		t.Fatalf("path count = %d, want %d; got %v", len(paths), len(want), sortedKeys(paths))
 	}
 	for path, expected := range want {
-		if !strings.HasPrefix(path, namespace+"/") && !strings.HasPrefix(path, v2Namespace+"/") {
+		if path != "/healthz" && path != "/readyz" && !strings.HasPrefix(path, namespace+"/") {
 			t.Fatalf("path %q escapes supported Data namespaces", path)
 		}
 		pathItem := object(t, paths[path], "path "+path)
 		operation := object(t, pathItem[expected.method], expected.method+" "+path)
 		assertString(t, operation, "operationId", expected.operationID)
-		assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
-		assertString(t, operation, "x-required-service-scope", expected.scope)
+		if expected.driftAnchor != "" {
+			assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
+		}
+		if expected.scope != "" {
+			assertString(t, operation, "x-required-service-scope", expected.scope)
+		}
 		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
 			if method != expected.method {
 				if _, exists := pathItem[method]; exists {
@@ -206,10 +206,10 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 
 func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *testing.T) {
 	document := loadContract(t)
-	if document["openapi"] != "3.0.3" {
-		t.Fatalf("openapi = %v, want 3.0.3", document["openapi"])
+	if document["openapi"] != "3.0.4" {
+		t.Fatalf("openapi = %v, want 3.0.4", document["openapi"])
 	}
-	assertString(t, document, "x-contract-id", "tidewise-data-v2")
+	assertString(t, document, "x-contract-id", "tidewise-data-v1")
 	assertString(t, document, "x-handwritten-client-policy", "consumer-owned-small-typed-clients")
 
 	security := array(t, document["security"], "security")
@@ -240,6 +240,9 @@ func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *tes
 
 	paths := object(t, document["paths"], "paths")
 	for path, rawPathItem := range paths {
+		if path == "/healthz" || path == "/readyz" {
+			continue
+		}
 		pathItem := object(t, rawPathItem, "path "+path)
 		for _, method := range []string{"get", "post"} {
 			rawOperation, exists := pathItem[method]
@@ -257,42 +260,24 @@ func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *tes
 	}
 }
 
-func TestOpenAPIContractFreezesEventPublicationV2AndRetiredV1(t *testing.T) {
+func TestOpenAPIContractFreezesEventPublication(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	for _, retired := range []struct {
-		path   string
-		method string
-	}{
-		{namespace + "/raw-document-imports", "post"},
-		{namespace + "/raw-document-imports/{idempotency_key}", "get"},
-		{namespace + "/reviewed-event-imports", "post"},
-	} {
-		operation := object(t, object(t, paths[retired.path], retired.path)[retired.method], retired.method+" "+retired.path)
-		if _, exists := operation["requestBody"]; exists {
-			t.Fatalf("retired operation %s must not expose an active request contract", retired.path)
-		}
-		responses := object(t, operation["responses"], "retired responses")
-		if _, exists := responses["410"]; !exists {
-			t.Fatalf("retired operation %s is missing 410", retired.path)
-		}
-	}
-
-	operation := object(t, object(t, paths[v2Namespace+"/reviewed-event-imports"], "Event Publication V2 path")["post"], "Event Publication V2 operation")
+	operation := object(t, object(t, paths[namespace+"/reviewed-event-imports"], "Event Publication path")["post"], "Event Publication operation")
 	assertString(t, operation, "x-atomicity", "whole-batch-single-postgresql-transaction")
 	assertString(t, operation, "x-receipt-schema", "event_publication_receipts")
 	assertString(t, operation, "x-retry-policy", "retry-failed-call-with-natural-identities")
-	requestBody := object(t, operation["requestBody"], "Event Publication V2 request body")
+	requestBody := object(t, operation["requestBody"], "Event Publication request body")
 	media := object(t, object(t, requestBody["content"], "request content")["application/json"], "request media")
 	requestSchema := object(t, media["schema"], "request schema")
 	assertInt(t, requestSchema, "x-max-body-bytes", 1048576)
 
-	request := schema(t, document, "EventPublicationV2Request")
+	request := schema(t, document, "EventPublicationRequest")
 	assertRequired(t, request, "package_id", "provenance", "raw_documents", "events")
-	requestProperties := object(t, request["properties"], "EventPublicationV2Request properties")
+	requestProperties := object(t, request["properties"], "EventPublicationRequest properties")
 	for _, forbidden := range []string{"idempotency_key", "payload_hash", "caller_subject", "content_text", "artifact_uri"} {
 		if _, exists := requestProperties[forbidden]; exists {
-			t.Fatalf("EventPublicationV2Request exposes forbidden field %q", forbidden)
+			t.Fatalf("EventPublicationRequest exposes forbidden field %q", forbidden)
 		}
 	}
 	events := object(t, requestProperties["events"], "publication events")
@@ -317,7 +302,7 @@ func TestOpenAPIContractFreezesEventPublicationV2AndRetiredV1(t *testing.T) {
 			t.Fatalf("EventPublicationEvent lets caller submit %q", forbidden)
 		}
 	}
-	result := schema(t, document, "EventPublicationV2Result")
+	result := schema(t, document, "EventPublicationResult")
 	assertRequired(t, result, "receipt_id", "package_id", "imported_at", "events", "raw_documents", "counts")
 }
 

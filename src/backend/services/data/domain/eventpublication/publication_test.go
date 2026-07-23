@@ -14,7 +14,7 @@ func TestDecodeStrictRejectsUnknownFields(t *testing.T) {
 	}
 }
 
-func TestPublicationValidateAcceptsFrozenV2Contract(t *testing.T) {
+func TestPublicationValidateAcceptsFrozenContract(t *testing.T) {
 	if err := validPublication().Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}

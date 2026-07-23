@@ -1,10 +1,8 @@
 import { ResearchReasoningTreeError, type ResearchReasoningTreePort } from './contract';
-import {
-  parseResearchReasoningTreeDetail,
-  parseResearchReasoningTreeIndex
-} from './wire-contract';
+import { parseResearchReasoningTreeDetail, parseResearchReasoningTreeIndex } from './wire-contract';
+import { normalizeMiniappAPIBaseURL, unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
 
-const themesPath = '/api/v1/miniapp/research/themes';
+const themesPath = '/api/miniapp/v1/research/themes';
 
 export interface ResearchReasoningTreeRequestOptions {
   url: string;
@@ -30,7 +28,7 @@ export function createResearchReasoningTreeApiPort({
   baseUrl,
   request
 }: APIOptions): ResearchReasoningTreePort {
-  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const normalizedBaseUrl = normalizeMiniappAPIBaseURL(baseUrl);
 
   return {
     async list(themeId) {
@@ -51,16 +49,20 @@ export function createResearchReasoningTreeApiPort({
 }
 
 async function get<T>(request: ResearchReasoningTreeRequest, url: string): Promise<T> {
-  let response: ResearchReasoningTreeRequestResult<T>;
+  let response: ResearchReasoningTreeRequestResult<unknown>;
   try {
-    response = await request<T>({ url, method: 'GET', dataType: 'json' });
+    response = await request<unknown>({ url, method: 'GET', dataType: 'json' });
   } catch {
     throw new ResearchReasoningTreeError('serviceUnavailable');
   }
   if (response.statusCode < 200 || response.statusCode >= 300) {
     throw errorFromResponse(response.statusCode, response.data);
   }
-  return response.data;
+  const result = unwrapMiniappAPIEnvelope<T>(response.data);
+  if (result === undefined) {
+    throw new ResearchReasoningTreeError('serviceUnavailable');
+  }
+  return result;
 }
 
 function errorFromResponse(statusCode: number, data: unknown): ResearchReasoningTreeError {
@@ -94,12 +96,4 @@ function reasoningTreeListPath(themeId: string): string {
 
 function reasoningTreeDetailPath(themeId: string, anchorId: string): string {
   return `${reasoningTreeListPath(themeId)}/${encodeURIComponent(anchorId)}`;
-}
-
-function normalizeBaseUrl(value: string): string {
-  const normalized = value.trim().replace(/\/+$/, '');
-  if (!/^https?:\/\/[^/]+/i.test(normalized)) {
-    throw new Error('TARO_APP_MINIAPP_API_BASE_URL must be an absolute HTTP(S) URL in api mode');
-  }
-  return normalized;
 }

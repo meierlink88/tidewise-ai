@@ -99,7 +99,7 @@
 
 **主要产物**：
 
-- `POST /internal/data/v1/research-anchor-imports`。
+- `POST /api/data/v1/research-anchor-imports`。
 - Theme、中心节点、Event、Path Node 和关系引用校验。
 - Theme 范围单事务原子写入。
 - 独立 receipt、canonical payload hash、幂等重放、冲突和并发控制。

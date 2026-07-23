@@ -26,7 +26,7 @@
 ### 请求
 
 ```http
-POST /internal/data/v1/research-anchor-imports
+POST /api/data/v1/research-anchor-imports
 Authorization: Bearer <service-token>
 Content-Type: application/json
 ```

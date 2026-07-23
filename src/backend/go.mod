@@ -8,6 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/pressly/goose/v3 v3.24.3
+	github.com/swaggest/swgui v1.8.9
 	golang.org/x/text v0.25.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -38,6 +39,7 @@ require (
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
+	github.com/vearutop/statigz v1.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect

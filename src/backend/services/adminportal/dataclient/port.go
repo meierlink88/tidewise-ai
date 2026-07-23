@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	DataAPIPrefix         = "/internal/data/v1"
-	AdminRawDocumentsPath = DataAPIPrefix + "/admin/raw-documents"
-	AdminEventsPath       = DataAPIPrefix + "/admin/events"
+	DataAPIPrefix         = "/api/data/v1"
+	AdminRawDocumentsPath = DataAPIPrefix + "/raw-documents"
+	AdminEventsPath       = DataAPIPrefix + "/events"
 )
 
 // DataServiceClient is the Admin-owned boundary for the retained management

@@ -15,39 +15,84 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/backend/services/data/domain"
+	publicationdomain "github.com/meierlink88/tidewise-ai/backend/services/data/domain/eventpublication"
 	researchanchordomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchanchorimport"
 	researchdomainimport "github.com/meierlink88/tidewise-ai/backend/services/data/domain/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/adminquery"
+	eventpublicationapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/eventpublication"
 	"github.com/meierlink88/tidewise-ai/backend/services/data/usecase/research"
 	researchanchorimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchanchorimport"
 	researchimportapp "github.com/meierlink88/tidewise-ai/backend/services/data/usecase/researchthemeimport"
 )
 
-func TestRetiredEventImportContractsReturnGoneAfterAuthentication(t *testing.T) {
+func TestUnifiedDataNamespaceExposesOnlySupportedOperations(t *testing.T) {
+	if Namespace != "/api/data/v1" {
+		t.Fatalf("Namespace = %q, want /api/data/v1", Namespace)
+	}
+
 	handler := testHandler(t, Dependencies{})
-	tests := []struct {
+	for _, active := range []struct {
 		method string
 		path   string
 	}{
-		{method: http.MethodPost, path: Namespace + "/raw-document-imports"},
-		{method: http.MethodGet, path: Namespace + "/raw-document-imports/legacy-key"},
 		{method: http.MethodPost, path: Namespace + "/reviewed-event-imports"},
-	}
-	for _, test := range tests {
-		request := httptest.NewRequest(test.method, test.path, strings.NewReader(`{}`))
-		request.Header.Set("Authorization", "Bearer cred-agent")
+		{method: http.MethodGet, path: Namespace + "/research/themes"},
+	} {
+		request := httptest.NewRequest(active.method, active.path, strings.NewReader(`{}`))
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
-		if response.Code != http.StatusGone || !strings.Contains(response.Body.String(), "EVENT_IMPORT_CONTRACT_RETIRED") {
-			t.Fatalf("%s %s response=%d body=%s", test.method, test.path, response.Code, response.Body.String())
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s %s response=%d body=%s", active.method, active.path, response.Code, response.Body.String())
 		}
 	}
 
-	request := httptest.NewRequest(http.MethodPost, Namespace+"/reviewed-event-imports", strings.NewReader(`{}`))
+	for _, retired := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/internal/data/v1/research/themes"},
+		{method: http.MethodPost, path: "/internal/data/v2/reviewed-event-imports"},
+		{method: http.MethodPost, path: Namespace + "/raw-document-imports"},
+		{method: http.MethodGet, path: Namespace + "/raw-document-imports/legacy-key"},
+	} {
+		request := httptest.NewRequest(retired.method, retired.path, strings.NewReader(`{}`))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("%s %s response=%d, want 404; body=%s", retired.method, retired.path, response.Code, response.Body.String())
+		}
+	}
+}
+
+func TestEventPublicationValidationDetailsRemainAnObject(t *testing.T) {
+	importer := &fakeEventPublicationImporter{err: &publicationdomain.ValidationError{Issues: []publicationdomain.ValidationIssue{{
+		Path: "events[0].title", Code: "required", Message: "title is required",
+	}}}}
+	payload, err := json.Marshal(eventPublicationFixture("error-details"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, Namespace+"/reviewed-event-imports", bytes.NewReader(payload))
+	request.Header.Set("Authorization", "Bearer cred-agent")
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthenticated retired route response=%d body=%s", response.Code, response.Body.String())
+
+	testHandler(t, Dependencies{EventPublications: importer}).ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusUnprocessableEntity, response.Body.String())
+	}
+	var envelope struct {
+		Error struct {
+			Details struct {
+				Issues []publicationdomain.ValidationIssue `json:"issues"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode envelope: %v", err)
+	}
+	if len(envelope.Error.Details.Issues) != 1 || envelope.Error.Details.Issues[0].Path != "events[0].title" {
+		t.Fatalf("details = %#v", envelope.Error.Details)
 	}
 }
 
@@ -292,7 +337,7 @@ func TestResearchAndAdminQueriesUseSingleAggregateCalls(t *testing.T) {
 		t.Fatalf("research response=%d calls=%d body=%s", response.Code, research.themeCalls, response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodGet, Namespace+"/admin/raw-documents?source_ref=source%3Areuters%3Aworld&ingest_status=collected&page=1&page_size=20", nil)
+	request = httptest.NewRequest(http.MethodGet, Namespace+"/raw-documents?source_ref=source%3Areuters%3Aworld&ingest_status=collected&page=1&page_size=20", nil)
 	request.Header.Set("Authorization", "Bearer cred-admin")
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -695,6 +740,14 @@ type fakeResearchThemeImporter struct {
 	publisher string
 	err       error
 	calls     int
+}
+
+type fakeEventPublicationImporter struct {
+	err error
+}
+
+func (f *fakeEventPublicationImporter) Import(context.Context, string, publicationdomain.Publication) (eventpublicationapp.Result, error) {
+	return eventpublicationapp.Result{}, f.err
 }
 
 type fakeResearchAnchorImporter struct {

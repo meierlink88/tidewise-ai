@@ -8,8 +8,13 @@ import type {
   ResearchTransmissionStage
 } from './contract';
 import { formatResearchUpdateLabel } from './presentation';
+import {
+  normalizeMiniappAPIBaseURL,
+  type MiniappAPIEnvelope,
+  unwrapMiniappAPIEnvelope
+} from '../../platform/miniapp-api';
 
-const themesPath = '/api/v1/miniapp/research/themes';
+const themesPath = '/api/miniapp/v1/research/themes';
 
 export interface ResearchThemeRequestOptions {
   url: string;
@@ -23,7 +28,9 @@ export interface ResearchThemeRequestResult<T> {
   data: T;
 }
 
-export type ResearchThemeRequest = <T>(options: ResearchThemeRequestOptions) => Promise<ResearchThemeRequestResult<T>>;
+export type ResearchThemeRequest = <T>(
+  options: ResearchThemeRequestOptions
+) => Promise<ResearchThemeRequestResult<T>>;
 
 interface APIResearchChainNode {
   id: string;
@@ -72,12 +79,16 @@ interface APIOptions {
   windowHours?: number;
 }
 
-export function createResearchThemeApiPort({ baseUrl, request, windowHours = 24 }: APIOptions): ResearchThemeFeedPort {
-  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+export function createResearchThemeApiPort({
+  baseUrl,
+  request,
+  windowHours = 24
+}: APIOptions): ResearchThemeFeedPort {
+  const normalizedBaseUrl = normalizeMiniappAPIBaseURL(baseUrl);
   const normalizedWindowHours = normalizeWindowHours(windowHours);
   return {
     async list() {
-      const response = await request<APIResearchThemeFeed>({
+      const response = await request<MiniappAPIEnvelope<APIResearchThemeFeed>>({
         url: normalizedBaseUrl + themesPath,
         method: 'GET',
         data: { window_hours: normalizedWindowHours, limit: 20 },
@@ -86,10 +97,11 @@ export function createResearchThemeApiPort({ baseUrl, request, windowHours = 24 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw new Error(`Miniapp research API returned HTTP ${response.statusCode}`);
       }
-      if (!isThemeFeed(response.data)) {
+      const result = unwrapMiniappAPIEnvelope<APIResearchThemeFeed>(response.data);
+      if (!isThemeFeed(result)) {
         throw new Error('Miniapp research API returned an invalid response');
       }
-      return mapFeed(response.data);
+      return mapFeed(result);
     }
   };
 }
@@ -99,14 +111,6 @@ function normalizeWindowHours(value: number): number {
     throw new Error('Research Theme window hours must be an integer between 1 and 168');
   }
   return value;
-}
-
-function normalizeBaseUrl(value: string): string {
-  const normalized = value.trim().replace(/\/+$/, '');
-  if (!/^https?:\/\/[^/]+/i.test(normalized)) {
-    throw new Error('TARO_APP_MINIAPP_API_BASE_URL must be an absolute HTTP(S) URL in api mode');
-  }
-  return normalized;
 }
 
 function isThemeFeed(value: unknown): value is APIResearchThemeFeed {
@@ -169,6 +173,7 @@ function mapTheme(theme: APIResearchTheme, asOf: string): HomeResearchThemeItem 
 
 function categoriesForTheme(name: string): string[] {
   if (name.includes('中东') || name.includes('冲突')) return ['地缘政治'];
-  if (name.includes('AI') || name.includes('人工智能') || name.includes('半导体')) return ['算力基建'];
+  if (name.includes('AI') || name.includes('人工智能') || name.includes('半导体'))
+    return ['算力基建'];
   return ['货币政策'];
 }

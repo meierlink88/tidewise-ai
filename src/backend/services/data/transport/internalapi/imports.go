@@ -14,7 +14,7 @@ import (
 
 func (d Dependencies) importEventPublication(response http.ResponseWriter, request *http.Request, principal Principal, requestID string) {
 	if d.EventPublications == nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Event Publication V2 service is unavailable")
+		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Event Publication service is unavailable")
 		return
 	}
 	request.Body = http.MaxBytesReader(response, request.Body, MaxRequestBodyBytes)
@@ -29,7 +29,7 @@ func (d Dependencies) importEventPublication(response http.ResponseWriter, reque
 		if errors.As(err, &validation) {
 			writeErrorWithDetails(
 				response, requestID, http.StatusUnprocessableEntity,
-				"EVENT_PUBLICATION_INVALID", "Event Publication V2 failed validation", validation.Issues,
+				"EVENT_PUBLICATION_INVALID", "Event Publication failed validation", map[string]any{"issues": validation.Issues},
 			)
 			return
 		}
@@ -37,11 +37,11 @@ func (d Dependencies) importEventPublication(response http.ResponseWriter, reque
 		if errors.As(err, &conflict) {
 			writeErrorWithDetails(
 				response, requestID, http.StatusConflict,
-				"EVENT_PUBLICATION_CONFLICT", "Event Publication V2 conflicts with stored data", conflict.Issues,
+				"EVENT_PUBLICATION_CONFLICT", "Event Publication conflicts with stored data", map[string]any{"issues": conflict.Issues},
 			)
 			return
 		}
-		writeError(response, requestID, http.StatusInternalServerError, "EVENT_PUBLICATION_FAILED", "Event Publication V2 failed")
+		writeError(response, requestID, http.StatusInternalServerError, "EVENT_PUBLICATION_FAILED", "Event Publication failed")
 		return
 	}
 	writeEnvelope(response, http.StatusCreated, requestID, result)

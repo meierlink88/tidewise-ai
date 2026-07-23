@@ -18,9 +18,8 @@ import (
 )
 
 const (
-	Namespace                 = "/internal/data/v1"
-	EventPublicationNamespace = "/internal/data/v2"
-	MaxRequestBodyBytes       = 1_048_576
+	Namespace           = "/api/data/v1"
+	MaxRequestBodyBytes = 1_048_576
 
 	ScopeResearchRead        = "data.research.read"
 	ScopeResearchImport      = "data.research.import"
@@ -64,32 +63,34 @@ type Dependencies struct {
 
 type operation func(http.ResponseWriter, *http.Request, Principal, string)
 
+type businessRoute struct {
+	method    string
+	path      string
+	scope     string
+	operation operation
+}
+
 func NewHandler(dependencies Dependencies) http.Handler {
 	if dependencies.NewRequestID == nil {
 		dependencies.NewRequestID = func() string { return fmt.Sprintf("data-%d", time.Now().UTC().UnixNano()) }
 	}
 	mux := http.NewServeMux()
-	mux.Handle("POST "+Namespace+"/raw-document-imports", dependencies.authorize(ScopeReviewedEventImport, dependencies.retiredEventImport))
-	mux.Handle("GET "+Namespace+"/raw-document-imports/{idempotency_key}", dependencies.authorize(ScopeReviewedEventImport, dependencies.retiredEventImport))
-	mux.Handle("POST "+Namespace+"/reviewed-event-imports", dependencies.authorize(ScopeReviewedEventImport, dependencies.retiredEventImport))
-	mux.Handle("POST "+EventPublicationNamespace+"/reviewed-event-imports", dependencies.authorize(ScopeReviewedEventImport, dependencies.importEventPublication))
-	mux.Handle("POST "+Namespace+"/research-theme-imports", dependencies.authorize(ScopeResearchImport, dependencies.importResearchThemes))
-	mux.Handle("POST "+Namespace+"/research-anchor-imports", dependencies.authorize(ScopeResearchImport, dependencies.importResearchAnchors))
-	mux.Handle("GET "+Namespace+"/research/themes", dependencies.authorize(ScopeResearchRead, dependencies.listResearchThemes))
-	mux.Handle("GET "+Namespace+"/research/themes/{theme_id}", dependencies.authorize(ScopeResearchRead, dependencies.getResearchTheme))
-	mux.Handle("GET "+Namespace+"/research/themes/{theme_id}/reasoning-trees", dependencies.authorize(ScopeResearchRead, dependencies.listResearchThemeReasoningTrees))
-	mux.Handle("GET "+Namespace+"/research/themes/{theme_id}/reasoning-trees/{anchor_id}", dependencies.authorize(ScopeResearchRead, dependencies.getResearchThemeReasoningTree))
-	mux.Handle("GET "+Namespace+"/admin/raw-documents", dependencies.authorize(ScopeAdminRead, dependencies.listAdminRawDocuments))
-	mux.Handle("GET "+Namespace+"/admin/events", dependencies.authorize(ScopeAdminRead, dependencies.listAdminEvents))
+	for _, route := range dependencies.businessRoutes() {
+		mux.Handle(route.method+" "+route.path, dependencies.authorize(route.scope, route.operation))
+	}
 	return mux
 }
 
-func (d Dependencies) retiredEventImport(response http.ResponseWriter, _ *http.Request, _ Principal, requestID string) {
-	writeError(
-		response,
-		requestID,
-		http.StatusGone,
-		"EVENT_IMPORT_CONTRACT_RETIRED",
-		"this import contract has retired; use POST /internal/data/v2/reviewed-event-imports",
-	)
+func (d Dependencies) businessRoutes() []businessRoute {
+	return []businessRoute{
+		{method: http.MethodPost, path: Namespace + "/reviewed-event-imports", scope: ScopeReviewedEventImport, operation: d.importEventPublication},
+		{method: http.MethodPost, path: Namespace + "/research-theme-imports", scope: ScopeResearchImport, operation: d.importResearchThemes},
+		{method: http.MethodPost, path: Namespace + "/research-anchor-imports", scope: ScopeResearchImport, operation: d.importResearchAnchors},
+		{method: http.MethodGet, path: Namespace + "/research/themes", scope: ScopeResearchRead, operation: d.listResearchThemes},
+		{method: http.MethodGet, path: Namespace + "/research/themes/{theme_id}", scope: ScopeResearchRead, operation: d.getResearchTheme},
+		{method: http.MethodGet, path: Namespace + "/research/themes/{theme_id}/reasoning-trees", scope: ScopeResearchRead, operation: d.listResearchThemeReasoningTrees},
+		{method: http.MethodGet, path: Namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}", scope: ScopeResearchRead, operation: d.getResearchThemeReasoningTree},
+		{method: http.MethodGet, path: Namespace + "/raw-documents", scope: ScopeAdminRead, operation: d.listAdminRawDocuments},
+		{method: http.MethodGet, path: Namespace + "/events", scope: ScopeAdminRead, operation: d.listAdminEvents},
+	}
 }

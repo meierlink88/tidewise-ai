@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "path": "/internal/data/v1/research/themes/dddddddd-dddd-4ddd-8ddd-dddddddddddd/reasoning-trees"
+    "path": "/api/data/v1/research/themes/dddddddd-dddd-4ddd-8ddd-dddddddddddd/reasoning-trees"
   },
   "response": {
     "status": 404,
