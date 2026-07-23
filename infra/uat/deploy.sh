@@ -47,22 +47,22 @@ verify_services() {
   local verification_admin_token
   verification_admin_token="$(runtime_value "$verification_runtime" ADMIN_API_TOKEN)"
 
-  "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/healthz >/dev/null
-  "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/readyz >/dev/null
-  "${compose_command[@]}" exec -T miniapp wget -qO- http://127.0.0.1:9012/healthz >/dev/null
-  "${compose_command[@]}" exec -T miniapp wget -qO- http://127.0.0.1:9012/readyz >/dev/null
-  "${compose_command[@]}" exec -T adminportal wget -qO- http://127.0.0.1:9013/healthz >/dev/null
-  "${compose_command[@]}" exec -T adminportal wget -qO- http://127.0.0.1:9013/readyz >/dev/null
-  "${compose_command[@]}" exec -T admin wget -qO- http://127.0.0.1:9014/healthz >/dev/null
+  "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/healthz >/dev/null || return 1
+  "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/readyz >/dev/null || return 1
+  "${compose_command[@]}" exec -T miniapp wget -qO- http://127.0.0.1:9012/healthz >/dev/null || return 1
+  "${compose_command[@]}" exec -T miniapp wget -qO- http://127.0.0.1:9012/readyz >/dev/null || return 1
+  "${compose_command[@]}" exec -T adminportal wget -qO- http://127.0.0.1:9013/healthz >/dev/null || return 1
+  "${compose_command[@]}" exec -T adminportal wget -qO- http://127.0.0.1:9013/readyz >/dev/null || return 1
+  "${compose_command[@]}" exec -T admin wget -qO- http://127.0.0.1:9014/healthz >/dev/null || return 1
   echo "PASS container-health"
 
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/healthz" >/dev/null
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9013/healthz" >/dev/null
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9014/healthz" >/dev/null
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/healthz" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9013/healthz" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9014/healthz" >/dev/null || return 1
   echo "PASS public-entry-health"
 
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/api/v1/research/themes?limit=1" >/dev/null
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${public_base_url}:9013/admin/source-catalogs?limit=1" >/dev/null
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${public_base_url}:9012/api/v1/research/themes?limit=1" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${public_base_url}:9013/admin/source-catalogs?limit=1" >/dev/null || return 1
   echo "PASS bff-to-data-read-paths"
 }
 
