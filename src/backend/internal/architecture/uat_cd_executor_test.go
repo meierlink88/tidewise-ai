@@ -23,6 +23,21 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
 	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/data:"+fixtureSHA)
+	curlLog, err := os.ReadFile(result.curlLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"http://127.0.0.1:9012/healthz",
+		"http://127.0.0.1:9012/api/v1/miniapp/research/themes?limit=1",
+	} {
+		if !strings.Contains(string(curlLog), want) {
+			t.Fatalf("host verification missing %q: %s", want, curlLog)
+		}
+	}
+	if strings.Contains(string(curlLog), "uat.example.test") {
+		t.Fatalf("deployment attempted unsupported public-IP hairpin verification: %s", curlLog)
+	}
 }
 
 func TestUATDeployExecutorTreatsNullPendingAsNoMigrations(t *testing.T) {
@@ -50,6 +65,24 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *t
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), previousFixtureSHA)
 	if strings.Contains(result.output, "previous-admin-secret") {
 		t.Fatalf("rollback output leaked previous secret: %s", result.output)
+	}
+}
+
+func TestUATDeployExecutorRestoresCurrentReleaseAfterHostEntryFailure(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failFirstCurl: true})
+	if result.err == nil {
+		t.Fatal("public health failure fixture unexpectedly succeeded")
+	}
+	if !strings.Contains(result.output, "PASS rollback: previous complete release restored") {
+		t.Fatalf("rollback output missing success evidence: %s", result.output)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), previousFixtureSHA)
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "resolved-data-image=fixture/data:"+previousFixtureSHA) {
+		t.Fatalf("rollback did not select previous image file: %s", dockerLog)
 	}
 }
 
@@ -127,6 +160,7 @@ const (
 type deployFixtureOptions struct {
 	currentRelease  bool
 	failFirstUp     bool
+	failFirstCurl   bool
 	migrationReport string
 	migrationRisk   string
 	backupConfirmed bool
@@ -135,6 +169,7 @@ type deployFixtureOptions struct {
 type deployFixtureResult struct {
 	root      string
 	dockerLog string
+	curlLog   string
 	output    string
 	err       error
 }
@@ -158,6 +193,8 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	manifest := filepath.Join(temp, "migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
+	curlCount := filepath.Join(temp, "curl-count")
+	curlLog := filepath.Join(temp, "curl.log")
 	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture-admin-secret\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
 	writeFixture(t, compose, "name: tidewise-uat\nservices: {}\n")
@@ -179,11 +216,32 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		report = `{"current_version":"24","pending":[],"applied":[],"remaining":[]}`
 	}
 	writeFixture(t, filepath.Join(temp, "migration.json"), report+"\n")
-	writeExecutable(t, filepath.Join(bin, "curl"), "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, filepath.Join(bin, "curl"), `#!/bin/sh
+set -eu
+echo " $* " >> "$FAKE_CURL_LOG"
+count=0
+if [ -f "$FAKE_CURL_COUNT" ]; then count="$(cat "$FAKE_CURL_COUNT")"; fi
+count=$((count + 1))
+echo "$count" > "$FAKE_CURL_COUNT"
+if [ "${FAKE_FAIL_FIRST_CURL:-false}" = true ] && [ "$count" -eq 1 ]; then exit 1; fi
+exit 0
+`)
 	writeExecutable(t, filepath.Join(bin, "flock"), "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, filepath.Join(bin, "docker"), `#!/bin/sh
 set -eu
-echo " $* " >> "$FAKE_DOCKER_LOG"
+resolved_data_image="${DATA_IMAGE:-}"
+if [ -z "$resolved_data_image" ]; then
+  image_file=""
+  previous=""
+  for argument in "$@"; do
+    if [ "$previous" = "--env-file" ]; then image_file="$argument"; fi
+    previous="$argument"
+  done
+  if [ -n "$image_file" ] && [ -f "$image_file" ]; then
+    resolved_data_image="$(sed -n 's/^DATA_IMAGE=//p' "$image_file" | tail -n 1)"
+  fi
+fi
+echo "resolved-data-image=${resolved_data_image:-unset} $* " >> "$FAKE_DOCKER_LOG"
 case " $* " in
   *" run "*" /usr/local/bin/dbmigrate "*) cat "$FAKE_MIGRATION_REPORT" ;;
   *" up "*)
@@ -216,9 +274,16 @@ exit 0
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_UP_COUNT="+upCount,
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
+		"FAKE_CURL_COUNT="+curlCount,
+		"FAKE_CURL_LOG="+curlLog,
+		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
+		"DATA_IMAGE=fixture/data:"+fixtureSHA,
+		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
+		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,
+		"ADMIN_IMAGE=fixture/admin:"+fixtureSHA,
 	)
 	output, err := cmd.CombinedOutput()
-	return deployFixtureResult{root: root, dockerLog: dockerLog, output: string(output), err: err}
+	return deployFixtureResult{root: root, dockerLog: dockerLog, curlLog: curlLog, output: string(output), err: err}
 }
 
 func writeFixture(t *testing.T, path, content string) {

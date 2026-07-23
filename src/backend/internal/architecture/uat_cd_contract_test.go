@@ -85,8 +85,8 @@ func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 		if len(fields) < 3 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") || strings.TrimSpace(fields[2]) == "" {
 			t.Fatalf("invalid UAT migration risk row %q", line)
 		}
-		if fields[0] == "000025" && fields[1] != "blocked" {
-			t.Fatal("migration 000025 must remain release-blocked until TW-04 and TW-05 remove legacy Anchor APIs")
+		if fields[0] == "000025" && fields[1] != "high" {
+			t.Fatal("migration 000025 must require backup confirmation after TW-04 and TW-05 removed legacy Anchor APIs")
 		}
 		classified = append(classified, fields[0])
 	}
