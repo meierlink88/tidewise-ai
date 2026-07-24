@@ -1,0 +1,1410 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>观潮家 Admin Portal - 采集器配置</title>
+    <link rel="stylesheet" href="./minimal-tokens.css" />
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        background: var(--background-50);
+        color: var(--color-text);
+        font-family: var(--font-sans);
+        letter-spacing: 0;
+        overflow: hidden;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        color: inherit;
+        font: inherit;
+        letter-spacing: 0;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      .app-shell {
+        display: grid;
+        gap: 28px;
+        grid-template-columns: 236px minmax(0, 1fr);
+        height: 100vh;
+        overflow: hidden;
+        padding: 18px;
+      }
+
+      .sidebar {
+        background: var(--minimal-sidebar);
+        border: 1px solid var(--sidebar-border);
+        border-radius: var(--radius-md);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 36px);
+        overflow: hidden;
+        padding: 18px 14px;
+      }
+
+      .brand {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        margin-bottom: 28px;
+      }
+
+      .brand-mark {
+        align-items: center;
+        background: var(--sidebar-primary);
+        border-radius: 8px;
+        color: var(--sidebar-primary-foreground);
+        display: inline-flex;
+        font-family: var(--font-serif);
+        height: 32px;
+        justify-content: center;
+        width: 32px;
+      }
+
+      .brand strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .brand small {
+        color: var(--color-text-muted);
+        display: block;
+        font-size: 12px;
+        margin-top: 2px;
+      }
+
+      .nav-title {
+        color: var(--text-400);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        margin: 0 12px 10px;
+        text-transform: uppercase;
+      }
+
+      .nav-item {
+        align-items: center;
+        background: var(--sidebar-primary);
+        border: 0;
+        border-radius: 10px;
+        color: var(--sidebar-primary-foreground);
+        display: grid;
+        gap: 10px;
+        grid-template-columns: auto 1fr auto;
+        min-height: 44px;
+        padding: 0 12px;
+        text-align: left;
+        width: 100%;
+      }
+
+      .nav-item span {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .nav-item small {
+        font-size: 12px;
+        opacity: 0.72;
+      }
+
+      .sidebar-foot {
+        border-top: 1px solid var(--sidebar-border);
+        color: var(--color-text-muted);
+        display: grid;
+        gap: 8px;
+        margin-top: auto;
+        padding: 16px 10px 2px;
+      }
+
+      .environment {
+        align-items: center;
+        display: flex;
+        font-size: 12px;
+        gap: 8px;
+      }
+
+      .status-dot {
+        background: var(--success);
+        border-radius: 50%;
+        height: 8px;
+        width: 8px;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .page-header {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        min-height: 64px;
+        padding: 4px 2px 14px;
+      }
+
+      .page-header h1 {
+        font-size: 24px;
+        font-weight: 650;
+        line-height: 1.2;
+        margin: 0;
+      }
+
+      .page-header p {
+        color: var(--color-text-muted);
+        font-size: 13px;
+        margin: 6px 0 0;
+      }
+
+      .service-state {
+        align-items: center;
+        border: 1px solid var(--success-border);
+        border-radius: 999px;
+        color: var(--success-text);
+        display: flex;
+        font-size: 12px;
+        font-weight: 600;
+        gap: 7px;
+        padding: 7px 11px;
+      }
+
+      .primary-tabs {
+        align-items: center;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        gap: 24px;
+        min-height: 48px;
+      }
+
+      .primary-tab {
+        background: none;
+        border: 0;
+        color: var(--color-text-muted);
+        font-size: 14px;
+        font-weight: 600;
+        height: 48px;
+        padding: 0 2px;
+        position: relative;
+      }
+
+      .primary-tab.active {
+        color: var(--color-text);
+      }
+
+      .primary-tab.active::after {
+        background: var(--primary);
+        bottom: -1px;
+        content: "";
+        height: 2px;
+        left: 0;
+        position: absolute;
+        right: 0;
+      }
+
+      .workspace {
+        background: var(--background-100);
+        border-radius: var(--radius-md);
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        margin-top: 18px;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .agent-head {
+        align-items: center;
+        background: var(--background-50);
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        min-height: 70px;
+        padding: 14px 18px;
+      }
+
+      .agent-identity {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .agent-icon {
+        align-items: center;
+        background: var(--brand-900);
+        border-radius: 8px;
+        color: var(--brand-50);
+        display: flex;
+        height: 36px;
+        justify-content: center;
+        width: 36px;
+      }
+
+      .agent-identity h2 {
+        font-size: 16px;
+        margin: 0;
+      }
+
+      .agent-meta {
+        align-items: center;
+        color: var(--color-text-muted);
+        display: flex;
+        font-size: 12px;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .badge {
+        align-items: center;
+        background: var(--background-200);
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        color: var(--text-600);
+        display: inline-flex;
+        font-size: 11px;
+        font-weight: 650;
+        gap: 5px;
+        line-height: 1;
+        min-height: 24px;
+        padding: 0 9px;
+      }
+
+      .badge.success {
+        background: var(--success-subtle);
+        border-color: var(--success-border);
+        color: var(--success-text);
+      }
+
+      .badge.warn {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #c2410c;
+      }
+
+      .badge.danger {
+        background: var(--destructive-subtle);
+        border-color: var(--destructive-border);
+        color: var(--destructive-text);
+      }
+
+      .agent-actions {
+        align-items: center;
+        display: flex;
+        gap: 10px;
+      }
+
+      .button {
+        align-items: center;
+        background: var(--background-50);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 650;
+        gap: 7px;
+        height: 36px;
+        justify-content: center;
+        padding: 0 13px;
+      }
+
+      .button:hover {
+        background: var(--background-100);
+      }
+
+      .button.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: var(--primary-foreground);
+      }
+
+      .button.danger {
+        border-color: var(--destructive-border);
+        color: var(--destructive-text);
+      }
+
+      .button.icon-only {
+        padding: 0;
+        width: 36px;
+      }
+
+      .button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
+      .secondary-tabs {
+        align-items: center;
+        background: var(--background-50);
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        gap: 4px;
+        min-height: 54px;
+        padding: 8px 18px;
+      }
+
+      .secondary-tab {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        border-radius: 8px;
+        color: var(--color-text-muted);
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 600;
+        gap: 7px;
+        height: 36px;
+        padding: 0 12px;
+      }
+
+      .secondary-tab:hover {
+        background: var(--background-100);
+        color: var(--color-text);
+      }
+
+      .secondary-tab.active {
+        background: var(--brand-900);
+        color: var(--brand-50);
+      }
+
+      .content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 18px;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      .readiness {
+        align-items: center;
+        background: var(--success-subtle);
+        border: 1px solid var(--success-border);
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        min-height: 52px;
+        padding: 10px 14px;
+      }
+
+      .readiness-copy {
+        align-items: center;
+        color: var(--success-text);
+        display: flex;
+        font-size: 13px;
+        font-weight: 600;
+        gap: 9px;
+      }
+
+      .readiness small {
+        color: var(--text-500);
+        font-size: 12px;
+      }
+
+      .schedule-layout {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.7fr);
+      }
+
+      .surface {
+        background: var(--background-50);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .surface-head {
+        align-items: flex-start;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        min-height: 64px;
+        padding: 14px 16px;
+      }
+
+      .surface-head h3 {
+        font-size: 14px;
+        margin: 0;
+      }
+
+      .surface-head p {
+        color: var(--color-text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+        margin: 5px 0 0;
+      }
+
+      .surface-body {
+        padding: 16px;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 16px;
+      }
+
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      .field-label {
+        align-items: center;
+        display: flex;
+        font-size: 12px;
+        font-weight: 650;
+        justify-content: space-between;
+      }
+
+      .field-label small {
+        color: var(--color-text-muted);
+        font-weight: 500;
+      }
+
+      .input,
+      .select,
+      .textarea {
+        background: var(--background-50);
+        border: 1px solid var(--input);
+        border-radius: 8px;
+        font-size: 13px;
+        width: 100%;
+      }
+
+      .input,
+      .select {
+        height: 38px;
+        padding: 0 11px;
+      }
+
+      .textarea {
+        line-height: 1.6;
+        min-height: 156px;
+        padding: 10px 11px;
+        resize: vertical;
+      }
+
+      .segment {
+        background: var(--background-200);
+        border-radius: 8px;
+        display: inline-grid;
+        gap: 3px;
+        grid-template-columns: 1fr 1fr;
+        padding: 3px;
+      }
+
+      .segment button {
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        height: 32px;
+        padding: 0 14px;
+      }
+
+      .segment button.active {
+        background: var(--background-50);
+        box-shadow: var(--shadow-xs);
+      }
+
+      .time-row {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .time-chip {
+        align-items: center;
+        background: var(--background-100);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        display: inline-flex;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        gap: 8px;
+        height: 36px;
+        padding: 0 8px 0 11px;
+      }
+
+      .time-chip button {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        color: var(--color-text-muted);
+        display: flex;
+        padding: 2px;
+      }
+
+      .cron-field {
+        display: none;
+      }
+
+      .cron-field.visible {
+        display: grid;
+      }
+
+      .daily-field.hidden {
+        display: none;
+      }
+
+      .form-actions {
+        align-items: center;
+        border-top: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 16px;
+      }
+
+      .form-actions small {
+        color: var(--color-text-muted);
+        font-size: 12px;
+      }
+
+      .details-list {
+        display: grid;
+      }
+
+      .detail-row {
+        align-items: start;
+        border-bottom: 1px solid var(--color-border);
+        display: grid;
+        gap: 12px;
+        grid-template-columns: 108px minmax(0, 1fr);
+        padding: 12px 0;
+      }
+
+      .detail-row:last-child {
+        border-bottom: 0;
+      }
+
+      .detail-row dt {
+        color: var(--color-text-muted);
+        font-size: 12px;
+      }
+
+      .detail-row dd {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.5;
+        margin: 0;
+        overflow-wrap: anywhere;
+        text-align: right;
+      }
+
+      .panel-heading {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .panel-heading h3 {
+        font-size: 15px;
+        margin: 0;
+      }
+
+      .panel-heading p {
+        color: var(--color-text-muted);
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        border-collapse: collapse;
+        min-width: 760px;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--color-border);
+        font-size: 12px;
+        padding: 12px 14px;
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      th {
+        background: var(--background-100);
+        color: var(--color-text-muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      tbody tr:hover td {
+        background: var(--background-100);
+      }
+
+      .mono {
+        font-family: var(--font-mono);
+      }
+
+      .cell-title {
+        display: grid;
+        gap: 3px;
+      }
+
+      .cell-title strong {
+        font-size: 12px;
+      }
+
+      .cell-title small {
+        color: var(--color-text-muted);
+        font-size: 11px;
+      }
+
+      .table-actions {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .table-button {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        color: var(--color-text);
+        display: inline-flex;
+        font-size: 12px;
+        font-weight: 650;
+        gap: 5px;
+        padding: 4px;
+      }
+
+      .pagination {
+        align-items: center;
+        border-top: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        min-height: 52px;
+        padding: 8px 14px;
+      }
+
+      .pagination small {
+        color: var(--color-text-muted);
+        font-size: 12px;
+      }
+
+      .page-actions {
+        align-items: center;
+        display: flex;
+        gap: 6px;
+      }
+
+      .page-number {
+        align-items: center;
+        background: var(--primary);
+        border: 1px solid var(--primary);
+        border-radius: 7px;
+        color: var(--primary-foreground);
+        display: flex;
+        font-size: 12px;
+        height: 30px;
+        justify-content: center;
+        width: 30px;
+      }
+
+      .drawer-backdrop {
+        background: rgba(10, 10, 10, 0.28);
+        inset: 0;
+        opacity: 0;
+        pointer-events: none;
+        position: fixed;
+        transition: opacity 180ms ease;
+        z-index: 20;
+      }
+
+      .drawer {
+        background: var(--background-50);
+        border-left: 1px solid var(--color-border);
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        max-width: 100%;
+        position: fixed;
+        right: 0;
+        top: 0;
+        transform: translateX(100%);
+        transition: transform 200ms ease;
+        width: 430px;
+        z-index: 21;
+      }
+
+      body.drawer-open .drawer-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      body.drawer-open .drawer {
+        transform: translateX(0);
+      }
+
+      .drawer-head {
+        align-items: center;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        min-height: 70px;
+        padding: 14px 18px;
+      }
+
+      .drawer-head h3 {
+        font-size: 16px;
+        margin: 0;
+      }
+
+      .drawer-head p {
+        color: var(--color-text-muted);
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+
+      .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 18px;
+      }
+
+      .drawer-foot {
+        align-items: center;
+        border-top: 1px solid var(--color-border);
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        min-height: 64px;
+        padding: 12px 18px;
+      }
+
+      .secret-current {
+        align-items: center;
+        background: var(--background-100);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        min-height: 40px;
+        padding: 0 11px;
+      }
+
+      .secret-current code {
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+
+      .secret-current small {
+        color: var(--success-text);
+        font-size: 11px;
+        font-weight: 650;
+      }
+
+      .clear-key {
+        align-items: center;
+        color: var(--destructive-text);
+        display: none;
+        font-size: 12px;
+        gap: 7px;
+        margin-top: 10px;
+      }
+
+      .drawer.connector-mode .clear-key {
+        display: flex;
+      }
+
+      .lucide {
+        height: 16px;
+        stroke-width: 1.8;
+        width: 16px;
+      }
+
+      @media (max-width: 1080px) {
+        .app-shell {
+          gap: 16px;
+          grid-template-columns: 204px minmax(0, 1fr);
+        }
+
+        .schedule-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">潮</span>
+          <span>
+            <strong>观潮家</strong>
+            <small>Admin Portal</small>
+          </span>
+        </div>
+        <p class="nav-title">工作台</p>
+        <button class="nav-item" type="button">
+          <i data-lucide="database"></i>
+          <span>数据采集中心</span>
+          <small>3</small>
+        </button>
+        <div class="sidebar-foot">
+          <div class="environment">
+            <span class="status-dot"></span>
+            <span>UAT 环境</span>
+          </div>
+          <small>Admin Service · 9013</small>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="page-header">
+          <div>
+            <h1>数据采集中心</h1>
+            <p>管理证据数据、全球事件与采集 Agent 运行配置</p>
+          </div>
+          <div class="service-state">
+            <span class="status-dot"></span>
+            AgentRun 已连接
+          </div>
+        </header>
+
+        <nav class="primary-tabs" aria-label="数据采集中心">
+          <button class="primary-tab" type="button">原始数据</button>
+          <button class="primary-tab" type="button">全球事件</button>
+          <button class="primary-tab active" type="button">采集器配置</button>
+        </nav>
+
+        <section class="workspace">
+          <header class="agent-head">
+            <div class="agent-identity">
+              <span class="agent-icon"><i data-lucide="radar"></i></span>
+              <div>
+                <h2>综合采集 Agent</h2>
+                <div class="agent-meta">
+                  <span>collector</span>
+                  <span>·</span>
+                  <span>collector.v1</span>
+                  <span class="badge success" id="schedule-badge">
+                    <span class="status-dot"></span>
+                    运行中
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="agent-actions">
+              <button class="button danger" id="schedule-toggle" type="button">
+                <i data-lucide="circle-pause"></i>
+                <span>停止定时器</span>
+              </button>
+            </div>
+          </header>
+
+          <nav class="secondary-tabs" aria-label="采集器配置">
+            <button class="secondary-tab active" data-tab="schedule" type="button">
+              <i data-lucide="calendar-clock"></i>
+              定时任务
+            </button>
+            <button class="secondary-tab" data-tab="executions" type="button">
+              <i data-lucide="history"></i>
+              执行记录
+            </button>
+            <button class="secondary-tab" data-tab="models" type="button">
+              <i data-lucide="brain-circuit"></i>
+              模型配置
+            </button>
+            <button class="secondary-tab" data-tab="connectors" type="button">
+              <i data-lucide="plug-zap"></i>
+              连接器配置
+            </button>
+          </nav>
+
+          <div class="content">
+            <section class="tab-panel active" data-panel="schedule">
+              <div class="readiness">
+                <div class="readiness-copy">
+                  <i data-lucide="circle-check-big"></i>
+                  模型和 7 个连接器配置完整，可以运行
+                </div>
+                <small>最终校验由 AgentRun 执行</small>
+              </div>
+
+              <div class="schedule-layout">
+                <section class="surface">
+                  <header class="surface-head">
+                    <div>
+                      <h3>定时配置</h3>
+                      <p>保存后影响下一次触发，不会改变正在执行的任务。</p>
+                    </div>
+                    <span class="badge">已保存</span>
+                  </header>
+                  <div class="surface-body">
+                    <div class="field">
+                      <span class="field-label">执行策略</span>
+                      <div class="segment">
+                        <button class="active" data-mode="daily" type="button">每日定时</button>
+                        <button data-mode="cron" type="button">Cron</button>
+                      </div>
+                    </div>
+
+                    <div class="field daily-field">
+                      <span class="field-label">
+                        每日执行时间
+                        <small>使用 AgentRun 服务器时间</small>
+                      </span>
+                      <div class="time-row">
+                        <span class="time-chip">
+                          08:30
+                          <button aria-label="移除 08:30" type="button"><i data-lucide="x"></i></button>
+                        </span>
+                        <span class="time-chip">
+                          12:30
+                          <button aria-label="移除 12:30" type="button"><i data-lucide="x"></i></button>
+                        </span>
+                        <span class="time-chip">
+                          18:30
+                          <button aria-label="移除 18:30" type="button"><i data-lucide="x"></i></button>
+                        </span>
+                        <button class="button" type="button">
+                          <i data-lucide="plus"></i>
+                          添加时间
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="field cron-field">
+                      <span class="field-label">
+                        Cron 表达式
+                        <small>标准五段式，最小粒度为分钟</small>
+                      </span>
+                      <input class="input mono" value="0 * * * *" aria-label="Cron 表达式" />
+                    </div>
+
+                    <div class="field">
+                      <span class="field-label">
+                        Collection Prompt
+                        <small>由 collector.v1 校验</small>
+                      </span>
+                      <textarea class="textarea" aria-label="Collection Prompt">采集过去 6 小时内可能影响全球宏观、地缘政治、科技产业、资本市场和大宗商品的重要事实。优先获取一手来源与可验证数据，排除重复转载、无事实增量的评论和营销内容。</textarea>
+                    </div>
+                  </div>
+                  <footer class="form-actions">
+                    <small>上次保存：2026-07-24 15:36</small>
+                    <button class="button primary" type="button">
+                      <i data-lucide="save"></i>
+                      保存配置
+                    </button>
+                  </footer>
+                </section>
+
+                <aside class="surface">
+                  <header class="surface-head">
+                    <div>
+                      <h3>运行信息</h3>
+                      <p>时间由 AgentRun 返回。</p>
+                    </div>
+                  </header>
+                  <div class="surface-body">
+                    <dl class="details-list">
+                      <div class="detail-row">
+                        <dt>当前状态</dt>
+                        <dd><span class="badge success">运行中</span></dd>
+                      </div>
+                      <div class="detail-row">
+                        <dt>调度策略</dt>
+                        <dd>每日 08:30、12:30、18:30</dd>
+                      </div>
+                      <div class="detail-row">
+                        <dt>下次计划</dt>
+                        <dd>2026-07-24 18:30</dd>
+                      </div>
+                      <div class="detail-row">
+                        <dt>上次触发</dt>
+                        <dd>2026-07-24 12:30</dd>
+                      </div>
+                      <div class="detail-row">
+                        <dt>模型配置</dt>
+                        <dd><span class="badge success">1 / 1 完整</span></dd>
+                      </div>
+                      <div class="detail-row">
+                        <dt>连接器配置</dt>
+                        <dd><span class="badge success">7 / 7 完整</span></dd>
+                      </div>
+                    </dl>
+                  </div>
+                </aside>
+              </div>
+            </section>
+
+            <section class="tab-panel" data-panel="executions">
+              <div class="panel-heading">
+                <div>
+                  <h3>采集执行记录</h3>
+                  <p>只展示 Collector Execution 的安全审计摘要。</p>
+                </div>
+                <button class="button" type="button">
+                  <i data-lucide="refresh-cw"></i>
+                  刷新
+                </button>
+              </div>
+              <section class="surface">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>执行时间</th>
+                        <th>触发方式</th>
+                        <th>状态</th>
+                        <th>耗时</th>
+                        <th>停止或失败原因</th>
+                        <th>执行 ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>2026-07-24 12:30:00</td>
+                        <td><span class="badge">定时</span></td>
+                        <td><span class="badge success">已完成</span></td>
+                        <td>03:42</td>
+                        <td>-</td>
+                        <td class="mono">8d7c…f42a</td>
+                      </tr>
+                      <tr>
+                        <td>2026-07-24 08:30:00</td>
+                        <td><span class="badge">定时</span></td>
+                        <td><span class="badge success">已完成</span></td>
+                        <td>04:06</td>
+                        <td>-</td>
+                        <td class="mono">3ab1…92d8</td>
+                      </tr>
+                      <tr>
+                        <td>2026-07-23 18:30:00</td>
+                        <td><span class="badge">定时</span></td>
+                        <td><span class="badge warn">已跳过</span></td>
+                        <td>-</td>
+                        <td>同一 Agent 已有执行中的任务</td>
+                        <td class="mono">d4f8…10ac</td>
+                      </tr>
+                      <tr>
+                        <td>2026-07-23 12:30:00</td>
+                        <td><span class="badge">定时</span></td>
+                        <td><span class="badge danger">失败</span></td>
+                        <td>00:18</td>
+                        <td>Connector request failed</td>
+                        <td class="mono">9ce2…430f</td>
+                      </tr>
+                      <tr>
+                        <td>2026-07-23 08:30:00</td>
+                        <td><span class="badge">API</span></td>
+                        <td><span class="badge success">已完成</span></td>
+                        <td>03:51</td>
+                        <td>-</td>
+                        <td class="mono">f123…e7b2</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <footer class="pagination">
+                  <small>共 86 条 · 每页 20 条</small>
+                  <div class="page-actions">
+                    <button class="button icon-only" disabled aria-label="上一页" type="button">
+                      <i data-lucide="chevron-left"></i>
+                    </button>
+                    <span class="page-number">1</span>
+                    <button class="button icon-only" aria-label="下一页" type="button">
+                      <i data-lucide="chevron-right"></i>
+                    </button>
+                  </div>
+                </footer>
+              </section>
+            </section>
+
+            <section class="tab-panel" data-panel="models">
+              <div class="panel-heading">
+                <div>
+                  <h3>模型配置</h3>
+                  <p>只维护 AgentRun 代码已注册的模型供应商。</p>
+                </div>
+              </div>
+              <section class="surface">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Provider</th>
+                        <th>Base URL</th>
+                        <th>模型</th>
+                        <th>Key</th>
+                        <th>状态</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <div class="cell-title">
+                            <strong>DeepSeek</strong>
+                            <small class="mono">deepseek</small>
+                          </div>
+                        </td>
+                        <td class="mono">https://api.deepseek.com</td>
+                        <td class="mono">deepseek-chat</td>
+                        <td class="mono">••••••••a9f2</td>
+                        <td><span class="badge success">已配置</span></td>
+                        <td class="table-actions">
+                          <button class="table-button edit-model" type="button">
+                            <i data-lucide="pencil"></i>
+                            编辑
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </section>
+
+            <section class="tab-panel" data-panel="connectors">
+              <div class="panel-heading">
+                <div>
+                  <h3>连接器配置</h3>
+                  <p>连接器能力由代码注册，管理页只维护当前连接信息。</p>
+                </div>
+              </div>
+              <section class="surface">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Connector</th>
+                        <th>Base URL</th>
+                        <th>Key</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="connector-rows"></tbody>
+                  </table>
+                </div>
+              </section>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="drawer-backdrop" id="drawer-backdrop"></div>
+    <aside class="drawer" id="config-drawer" aria-label="编辑配置">
+      <header class="drawer-head">
+        <div>
+          <h3 id="drawer-title">编辑模型配置</h3>
+          <p id="drawer-subtitle">deepseek</p>
+        </div>
+        <button class="button icon-only" id="drawer-close" aria-label="关闭" type="button">
+          <i data-lucide="x"></i>
+        </button>
+      </header>
+      <div class="drawer-body">
+        <div class="field">
+          <span class="field-label">Base URL</span>
+          <input class="input" id="drawer-url" value="https://api.deepseek.com" />
+        </div>
+        <div class="field" id="model-field">
+          <span class="field-label">模型</span>
+          <input class="input" value="deepseek-chat" />
+        </div>
+        <div class="field">
+          <span class="field-label">当前 Key</span>
+          <div class="secret-current">
+            <code id="masked-key">••••••••a9f2</code>
+            <small>已配置</small>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">
+            新 Key
+            <small>留空则保留当前值</small>
+          </span>
+          <input class="input" type="password" placeholder="输入新的 Key" />
+          <label class="clear-key">
+            <input type="checkbox" />
+            明确清除当前 Connector Key
+          </label>
+        </div>
+      </div>
+      <footer class="drawer-foot">
+        <button class="button" id="drawer-cancel" type="button">取消</button>
+        <button class="button primary" type="button">
+          <i data-lucide="save"></i>
+          保存
+        </button>
+      </footer>
+    </aside>
+
+    <script>
+      const connectors = [
+        ["Parallel Search", "parallel_search", "https://search.example.com/v1", "••••2f6c"],
+        ["Tavily", "tavily", "https://api.tavily.com/search", "••••7b31"],
+        ["Bocha", "bocha", "https://api.bochaai.com/v1/web-search", "••••c418"],
+        ["财联社电报", "cls_telegraph", "https://www.cls.cn/nodeapi/telegraphList", "未设置"],
+        ["东方财富快讯", "eastmoney_fastnews", "https://np-listapi.eastmoney.com", "未设置"],
+        ["东方财富个股新闻", "eastmoney_stock_news", "https://search-api-web.eastmoney.com", "未设置"],
+        ["证券时报快讯", "stcn_quicknews", "https://api.stcn.com", "未设置"]
+      ];
+
+      const connectorRows = document.querySelector("#connector-rows");
+      connectorRows.innerHTML = connectors
+        .map(
+          ([name, key, url, masked]) => `
+            <tr>
+              <td>
+                <div class="cell-title">
+                  <strong>${name}</strong>
+                  <small class="mono">${key}</small>
+                </div>
+              </td>
+              <td class="mono">${url}</td>
+              <td class="mono">${masked}</td>
+              <td><span class="badge success">已配置</span></td>
+              <td>2026-07-24 14:20</td>
+              <td class="table-actions">
+                <button
+                  class="table-button edit-connector"
+                  data-name="${name}"
+                  data-key="${key}"
+                  data-url="${url}"
+                  data-masked="${masked}"
+                  type="button"
+                >
+                  <i data-lucide="pencil"></i>
+                  编辑
+                </button>
+              </td>
+            </tr>
+          `
+        )
+        .join("");
+
+      document.querySelectorAll(".secondary-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = button.dataset.tab;
+          document.querySelectorAll(".secondary-tab").forEach((item) => item.classList.remove("active"));
+          document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          document.querySelector(`[data-panel="${target}"]`).classList.add("active");
+        });
+      });
+
+      document.querySelectorAll("[data-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const cronMode = button.dataset.mode === "cron";
+          document.querySelectorAll("[data-mode]").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          document.querySelector(".daily-field").classList.toggle("hidden", cronMode);
+          document.querySelector(".cron-field").classList.toggle("visible", cronMode);
+        });
+      });
+
+      const scheduleToggle = document.querySelector("#schedule-toggle");
+      const scheduleBadge = document.querySelector("#schedule-badge");
+      let scheduleRunning = true;
+      scheduleToggle.addEventListener("click", () => {
+        scheduleRunning = !scheduleRunning;
+        scheduleBadge.className = `badge ${scheduleRunning ? "success" : ""}`;
+        scheduleBadge.innerHTML = scheduleRunning
+          ? '<span class="status-dot"></span>运行中'
+          : '<i data-lucide="circle-pause"></i>已停止';
+        scheduleToggle.className = `button ${scheduleRunning ? "danger" : "primary"}`;
+        scheduleToggle.innerHTML = scheduleRunning
+          ? '<i data-lucide="circle-pause"></i><span>停止定时器</span>'
+          : '<i data-lucide="circle-play"></i><span>开始定时器</span>';
+        lucide.createIcons();
+      });
+
+      const drawer = document.querySelector("#config-drawer");
+      const modelField = document.querySelector("#model-field");
+      const drawerTitle = document.querySelector("#drawer-title");
+      const drawerSubtitle = document.querySelector("#drawer-subtitle");
+      const drawerURL = document.querySelector("#drawer-url");
+      const maskedKey = document.querySelector("#masked-key");
+
+      function openDrawer(mode, payload) {
+        drawer.classList.toggle("connector-mode", mode === "connector");
+        modelField.style.display = mode === "model" ? "grid" : "none";
+        drawerTitle.textContent = mode === "model" ? "编辑模型配置" : `编辑 ${payload.name}`;
+        drawerSubtitle.textContent = payload.key;
+        drawerURL.value = payload.url;
+        maskedKey.textContent = payload.masked;
+        document.body.classList.add("drawer-open");
+      }
+
+      function closeDrawer() {
+        document.body.classList.remove("drawer-open");
+      }
+
+      document.querySelector(".edit-model").addEventListener("click", () => {
+        openDrawer("model", {
+          key: "deepseek",
+          url: "https://api.deepseek.com",
+          masked: "••••••••a9f2"
+        });
+      });
+
+      document.querySelectorAll(".edit-connector").forEach((button) => {
+        button.addEventListener("click", () => {
+          openDrawer("connector", {
+            name: button.dataset.name,
+            key: button.dataset.key,
+            url: button.dataset.url,
+            masked: button.dataset.masked
+          });
+        });
+      });
+
+      document.querySelector("#drawer-close").addEventListener("click", closeDrawer);
+      document.querySelector("#drawer-cancel").addEventListener("click", closeDrawer);
+      document.querySelector("#drawer-backdrop").addEventListener("click", closeDrawer);
+
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

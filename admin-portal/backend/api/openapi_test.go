@@ -25,41 +25,77 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 	}
 
 	paths := adminObject(t, document["paths"], "paths")
-	want := map[string]struct {
+	type operationExpectation struct {
+		method      string
 		operationID string
 		envelope    string
-	}{
-		"/healthz":                    {operationID: "getAdminPortalHealth"},
-		"/readyz":                     {operationID: "getAdminPortalReadiness"},
-		"/api/admin/v1/raw-documents": {operationID: "listAdminPortalRawDocuments", envelope: "RawDocumentPageEnvelope"},
-		"/api/admin/v1/events":        {operationID: "listAdminPortalEvents", envelope: "EventPageEnvelope"},
+		statuses    []string
+	}
+	want := map[string][]operationExpectation{
+		"/healthz": {
+			{method: "get", operationID: "getAdminPortalHealth"},
+		},
+		"/readyz": {
+			{method: "get", operationID: "getAdminPortalReadiness"},
+		},
+		"/api/admin/v1/raw-documents": {
+			{method: "get", operationID: "listAdminPortalRawDocuments", envelope: "RawDocumentPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/events": {
+			{method: "get", operationID: "listAdminPortalEvents", envelope: "EventPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/agent-schedules/{agent_key}": {
+			{method: "get", operationID: "getAdminPortalAgentSchedule", envelope: "AgentScheduleEnvelope", statuses: []string{"401", "403", "404", "500", "503"}},
+			{method: "put", operationID: "saveAdminPortalAgentSchedule", envelope: "AgentScheduleEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
+			{method: "patch", operationID: "setAdminPortalAgentScheduleEnabled", envelope: "AgentScheduleEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
+		},
+		"/api/admin/v1/agent-executions": {
+			{method: "get", operationID: "listAdminPortalCollectorExecutions", envelope: "AgentExecutionPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/model-providers": {
+			{method: "get", operationID: "listAdminPortalModelProviders", envelope: "ModelProviderListEnvelope", statuses: []string{"401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/model-providers/{provider_key}": {
+			{method: "get", operationID: "getAdminPortalModelProvider", envelope: "ModelProviderEnvelope", statuses: []string{"401", "403", "404", "500", "503"}},
+			{method: "patch", operationID: "updateAdminPortalModelProvider", envelope: "ModelProviderEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
+		},
+		"/api/admin/v1/connectors": {
+			{method: "get", operationID: "listAdminPortalConnectors", envelope: "ConnectorListEnvelope", statuses: []string{"401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/connectors/{connector_key}": {
+			{method: "get", operationID: "getAdminPortalConnector", envelope: "ConnectorEnvelope", statuses: []string{"401", "403", "404", "500", "503"}},
+			{method: "patch", operationID: "updateAdminPortalConnector", envelope: "ConnectorEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
+		},
 	}
 	if len(paths) != len(want) {
 		t.Fatalf("path count = %d, want %d", len(paths), len(want))
 	}
 	seen := map[string]bool{}
-	for path, expected := range want {
-		operation := adminObject(t, adminObject(t, paths[path], "path "+path)["get"], "GET "+path)
-		operationID, _ := operation["operationId"].(string)
-		if operationID != expected.operationID || seen[operationID] {
-			t.Fatalf("GET %s operationId = %q, duplicate=%v", path, operationID, seen[operationID])
-		}
-		seen[operationID] = true
-		if path == "/healthz" || path == "/readyz" {
-			override := adminArray(t, operation["security"], "operation security")
-			if len(override) != 0 {
-				t.Fatalf("GET %s must disable global auth", path)
+	for path, expectations := range want {
+		pathItem := adminObject(t, paths[path], "path "+path)
+		for _, expected := range expectations {
+			operation := adminObject(t, pathItem[expected.method], strings.ToUpper(expected.method)+" "+path)
+			operationID, _ := operation["operationId"].(string)
+			if operationID != expected.operationID || seen[operationID] {
+				t.Fatalf("%s %s operationId = %q, duplicate=%v", strings.ToUpper(expected.method), path, operationID, seen[operationID])
 			}
-			continue
-		}
-		responses := adminObject(t, operation["responses"], "responses")
-		schema := adminResponseSchema(t, document, responses["200"])
-		if schema["$ref"] != "#/components/schemas/"+expected.envelope {
-			t.Fatalf("GET %s success schema = %v", path, schema["$ref"])
-		}
-		for _, status := range []string{"400", "401", "403", "500", "503"} {
-			if _, exists := responses[status]; !exists {
-				t.Fatalf("GET %s missing %s response", path, status)
+			seen[operationID] = true
+			if path == "/healthz" || path == "/readyz" {
+				override := adminArray(t, operation["security"], "operation security")
+				if len(override) != 0 {
+					t.Fatalf("GET %s must disable global auth", path)
+				}
+				continue
+			}
+			responses := adminObject(t, operation["responses"], "responses")
+			schema := adminResponseSchema(t, document, responses["200"])
+			if schema["$ref"] != "#/components/schemas/"+expected.envelope {
+				t.Fatalf("%s %s success schema = %v", strings.ToUpper(expected.method), path, schema["$ref"])
+			}
+			for _, status := range expected.statuses {
+				if _, exists := responses[status]; !exists {
+					t.Fatalf("%s %s missing %s response", strings.ToUpper(expected.method), path, status)
+				}
 			}
 		}
 	}

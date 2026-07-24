@@ -61,7 +61,7 @@ describe('App admin login', () => {
         '查看采集原始数据、事件结果、搜索通道和调度器运行记录。'
       )
     ).not.toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
     expect(screen.queryByRole('tab', { name: '调度器' })).not.toBeInTheDocument();
     expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');

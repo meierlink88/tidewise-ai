@@ -62,6 +62,7 @@ Variables：
 | `SWR_ADMIN_REPOSITORY` | Admin Portal Frontend 镜像仓库名 |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| `AGENTRUN_BASE_URL` | Admin Portal Backend 可访问的 AgentRun Admin API origin |
 
 Secrets：
 
@@ -75,6 +76,7 @@ Secrets：
 | `DATA_SERVICE_MINIAPP_TOKEN` | Data Service 与 Miniapp Backend |
 | `DATA_SERVICE_ADMIN_TOKEN` | Data Service 与 Admin Portal Backend |
 | `ADMIN_API_TOKEN` | Admin Portal Backend 浏览器鉴权 |
+| `AGENTRUN_ADMIN_TOKEN` | Admin Portal Backend 调用 AgentRun Admin API 的服务身份 |
 
 `UAT_DATABASE_URL` 必须使用 RDS VPC 私网地址和 `sslmode=require`：
 
@@ -96,6 +98,8 @@ RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
 Admin Frontend 启动时从 `UAT_PUBLIC_BASE_URL` 生成运行时 API 地址，不把公网 IP 烧录进镜像。Admin Backend 只允许 `${UAT_PUBLIC_BASE_URL}:9014` Origin。Miniapp 开发者工具另行把 `TARO_APP_MINIAPP_API_BASE_URL` 设置为 `${UAT_PUBLIC_BASE_URL}:9012`。
+
+Admin Portal Backend 通过 `AGENTRUN_BASE_URL` 调用 AgentRun Admin API，并使用仅注入后端容器的 `AGENTRUN_ADMIN_TOKEN`。浏览器不得直接访问 AgentRun，也不得获得该令牌。
 
 ## Migration、备份门禁与回退
 

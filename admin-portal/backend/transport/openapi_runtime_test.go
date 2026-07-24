@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/agentrunclient"
 	adminapi "github.com/meierlink88/tidewise-ai/admin-portal/backend/api"
 	"github.com/meierlink88/tidewise-ai/admin-portal/backend/dataclient"
 	"github.com/meierlink88/tidewise-ai/admin-portal/backend/usecase"
@@ -22,7 +23,7 @@ func TestRuntimeRoutesMatchOpenAPI(t *testing.T) {
 	}
 	openAPIRoutes := adminOpenAPIRoutes(t, document)
 	runtimeRoutes := map[string]struct{}{}
-	router := NewRouter(testConfig(), usecase.NewService(&dataclient.Fake{}), "test-token")
+	router := NewRouter(testConfig(), usecase.NewService(&dataclient.Fake{}, nil), "test-token")
 	for _, route := range router.Routes() {
 		if route.Method == "OPTIONS" {
 			continue
@@ -38,10 +39,15 @@ func TestResponseDTOFieldsMatchOpenAPI(t *testing.T) {
 		t.Fatalf("parse OpenAPI: %v", err)
 	}
 	for schemaName, dto := range map[string]any{
-		"RawDocumentPage": rawDocumentListResponse{},
-		"RawDocument":     rawDocumentResponse{},
-		"EventPage":       eventListResponse{},
-		"Event":           eventResponse{},
+		"RawDocumentPage":            rawDocumentListResponse{},
+		"RawDocument":                rawDocumentResponse{},
+		"EventPage":                  eventListResponse{},
+		"Event":                      eventResponse{},
+		"AgentSchedule":              agentrunclient.AgentSchedule{},
+		"AgentExecutionPage":         agentrunclient.AgentExecutionPage{},
+		"AgentExecution":             agentrunclient.AgentExecution{},
+		"ModelProviderConfiguration": agentrunclient.ModelProviderConfiguration{},
+		"ConnectorConfiguration":     agentrunclient.ConnectorConfiguration{},
 	} {
 		assertAdminSchemaFields(t, document, schemaName, dto)
 	}
@@ -52,7 +58,7 @@ func TestOperationalResponseFieldsMatchOpenAPI(t *testing.T) {
 	if err := yaml.Unmarshal(adminapi.Document(), &document); err != nil {
 		t.Fatalf("parse OpenAPI: %v", err)
 	}
-	router := NewRouter(testConfig(), usecase.NewService(&dataclient.Fake{}), "test-token")
+	router := NewRouter(testConfig(), usecase.NewService(&dataclient.Fake{}, nil), "test-token")
 	for path, schemaName := range map[string]string{
 		"/healthz": "HealthResponse",
 		"/readyz":  "ReadinessResponse",
@@ -81,11 +87,26 @@ func adminOpenAPIRoutes(t *testing.T, document map[string]any) map[string]struct
 		}
 		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
 			if _, exists := pathItem[method]; exists {
-				routes[strings.ToUpper(method)+" "+path] = struct{}{}
+				routes[strings.ToUpper(method)+" "+adminGinPath(path)] = struct{}{}
 			}
 		}
 	}
 	return routes
+}
+
+func adminGinPath(path string) string {
+	for {
+		start := strings.Index(path, "{")
+		if start < 0 {
+			return path
+		}
+		relativeEnd := strings.Index(path[start:], "}")
+		if relativeEnd < 0 {
+			return path
+		}
+		end := start + relativeEnd
+		path = path[:start] + ":" + path[start+1:end] + path[end+1:]
+	}
 }
 
 func assertAdminRouteSetsEqual(t *testing.T, runtimeRoutes, openAPIRoutes map[string]struct{}) {

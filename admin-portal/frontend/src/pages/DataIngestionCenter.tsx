@@ -17,14 +17,16 @@ import Pagination from '../components/ui/Pagination';
 import Select from '../components/ui/Select';
 import StatusBadge from '../components/ui/StatusBadge';
 import Tabs, { TabPanel } from '../components/ui/Tabs';
+import CollectorConfiguration from './CollectorConfiguration';
 
-type ActiveTab = 'raw' | 'events';
+type ActiveTab = 'raw' | 'events' | 'collector';
 
 const pageSize = 50;
 
 const tabItems: { id: ActiveTab; label: string }[] = [
   { id: 'raw', label: '原始数据' },
-  { id: 'events', label: '全球事件' }
+  { id: 'events', label: '全球事件' },
+  { id: 'collector', label: '采集器配置' }
 ];
 
 export default function DataIngestionCenter({ token }: { token: string }) {
@@ -296,6 +298,8 @@ export default function DataIngestionCenter({ token }: { token: string }) {
             </Card>
           </TabPanel>
         ) : null}
+
+        {activeTab === 'collector' ? <CollectorConfiguration token={token} /> : null}
       </div>
     </section>
   );

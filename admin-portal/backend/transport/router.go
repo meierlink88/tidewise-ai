@@ -1,14 +1,19 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/agentrunclient"
 	adminconfig "github.com/meierlink88/tidewise-ai/admin-portal/backend/config"
 	"github.com/meierlink88/tidewise-ai/admin-portal/backend/dataclient"
 	"github.com/meierlink88/tidewise-ai/admin-portal/backend/usecase"
@@ -84,7 +89,174 @@ func NewRouter(app adminconfig.AppConfig, service *usecase.Service, adminToken s
 	admin.OPTIONS("/*path", func(*gin.Context) {})
 	admin.GET("/raw-documents", listRawDocuments(service))
 	admin.GET("/events", listEvents(service))
+	admin.GET("/agent-schedules/:agent_key", getAgentSchedule(service))
+	admin.PUT("/agent-schedules/:agent_key", saveAgentSchedule(service))
+	admin.PATCH("/agent-schedules/:agent_key", setAgentScheduleEnabled(service))
+	admin.GET("/agent-executions", listCollectorExecutions(service))
+	admin.GET("/model-providers", listModelProviders(service))
+	admin.GET("/model-providers/:provider_key", getModelProvider(service))
+	admin.PATCH("/model-providers/:provider_key", patchModelProvider(service))
+	admin.GET("/connectors", listConnectors(service))
+	admin.GET("/connectors/:connector_key", getConnector(service))
+	admin.PATCH("/connectors/:connector_key", patchConnector(service))
 	return router
+}
+
+func getAgentSchedule(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		schedule, err := service.GetAgentSchedule(agentRunRequestContext(ctx), ctx.Param("agent_key"))
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, schedule)
+	}
+}
+
+func saveAgentSchedule(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var input struct {
+			AgentVersion   string                      `json:"agent_version"`
+			ScheduleType   agentrunclient.ScheduleType `json:"schedule_type"`
+			CronExpression string                      `json:"cron_expression"`
+			DailyTimes     []string                    `json:"daily_times"`
+			Input          json.RawMessage             `json:"input"`
+		}
+		if err := decodeStrictJSON(ctx, &input); err != nil {
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", "request body is invalid")
+			return
+		}
+		schedule, err := service.SaveAgentSchedule(agentRunRequestContext(ctx), ctx.Param("agent_key"), usecase.SaveAgentScheduleInput{
+			AgentVersion: input.AgentVersion, ScheduleType: input.ScheduleType,
+			CronExpression: input.CronExpression, DailyTimes: input.DailyTimes, Input: input.Input,
+		})
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, schedule)
+	}
+}
+
+func setAgentScheduleEnabled(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var input struct {
+			Enabled *bool `json:"enabled"`
+		}
+		if err := decodeStrictJSON(ctx, &input); err != nil || input.Enabled == nil {
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", "enabled is required")
+			return
+		}
+		schedule, err := service.SetAgentScheduleEnabled(agentRunRequestContext(ctx), ctx.Param("agent_key"), *input.Enabled)
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, schedule)
+	}
+}
+
+func listCollectorExecutions(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		page, err := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+		if err != nil || page <= 0 {
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", "page must be positive")
+			return
+		}
+		result, err := service.ListCollectorExecutions(agentRunRequestContext(ctx), page)
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, result)
+	}
+}
+
+func listModelProviders(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		items, err := service.ListModelProviders(agentRunRequestContext(ctx))
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, map[string]any{"items": items})
+	}
+}
+
+func getModelProvider(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		result, err := service.GetModelProvider(agentRunRequestContext(ctx), ctx.Param("provider_key"))
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, result)
+	}
+}
+
+func patchModelProvider(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var input struct {
+			BaseURL *string `json:"base_url"`
+			Model   *string `json:"model"`
+			APIKey  *string `json:"api_key"`
+		}
+		if err := decodeStrictJSON(ctx, &input); err != nil || (input.BaseURL == nil && input.Model == nil && input.APIKey == nil) {
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", "request body is invalid")
+			return
+		}
+		result, err := service.PatchModelProvider(agentRunRequestContext(ctx), ctx.Param("provider_key"), agentrunclient.ModelProviderPatch{
+			BaseURL: input.BaseURL, Model: input.Model, APIKey: input.APIKey,
+		})
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, result)
+	}
+}
+
+func listConnectors(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		items, err := service.ListConnectors(agentRunRequestContext(ctx))
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, map[string]any{"items": items})
+	}
+}
+
+func getConnector(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		result, err := service.GetConnector(agentRunRequestContext(ctx), ctx.Param("connector_key"))
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, result)
+	}
+}
+
+func patchConnector(service *usecase.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var input struct {
+			BaseURL *string `json:"base_url"`
+			APIKey  *string `json:"api_key"`
+		}
+		if err := decodeStrictJSON(ctx, &input); err != nil || (input.BaseURL == nil && input.APIKey == nil) {
+			writeAPIError(ctx, http.StatusBadRequest, "INVALID_REQUEST", "request body is invalid")
+			return
+		}
+		result, err := service.PatchConnector(agentRunRequestContext(ctx), ctx.Param("connector_key"), agentrunclient.ConnectorPatch{
+			BaseURL: input.BaseURL, APIKey: input.APIKey,
+		})
+		if err != nil {
+			writeAgentRunError(ctx, err)
+			return
+		}
+		writeSuccess(ctx, result)
+	}
 }
 
 func apiRecoveryMiddleware() gin.HandlerFunc {
@@ -124,7 +296,7 @@ func adminCORSMiddleware(allowedOrigin string) gin.HandlerFunc {
 			return
 		}
 		ctx.Header("Access-Control-Allow-Origin", allowedOrigin)
-		ctx.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+		ctx.Header("Access-Control-Allow-Methods", "GET, PUT, PATCH, OPTIONS")
 		ctx.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
 		ctx.Header("Access-Control-Max-Age", "600")
 		ctx.Header("Vary", "Origin")
@@ -215,6 +387,30 @@ func dataRequestContext(ctx *gin.Context) context.Context {
 	return dataclient.WithRequestID(ctx.Request.Context(), ctx.GetHeader(dataclient.RequestIDHeader))
 }
 
+func agentRunRequestContext(ctx *gin.Context) context.Context {
+	return agentrunclient.WithRequestID(ctx.Request.Context(), ctx.GetHeader(agentrunclient.RequestIDHeader))
+}
+
+func writeAgentRunError(ctx *gin.Context, err error) {
+	var clientError *agentrunclient.Error
+	if !errors.As(err, &clientError) {
+		writeAPIError(ctx, http.StatusServiceUnavailable, "AGENTRUN_UNAVAILABLE", "AgentRun is unavailable")
+		return
+	}
+	switch clientError.StatusCode {
+	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		writeAPIError(ctx, http.StatusBadRequest, "AGENTRUN_INVALID_REQUEST", "AgentRun rejected the request")
+	case http.StatusUnauthorized, http.StatusForbidden:
+		writeAPIError(ctx, http.StatusServiceUnavailable, "AGENTRUN_AUTHENTICATION_FAILED", "AgentRun authentication is unavailable")
+	case http.StatusNotFound:
+		writeAPIError(ctx, http.StatusNotFound, "AGENTRUN_NOT_FOUND", "AgentRun resource was not found")
+	case http.StatusConflict:
+		writeAPIError(ctx, http.StatusConflict, "AGENTRUN_CONFLICT", "AgentRun rejected the conflicting request")
+	default:
+		writeAPIError(ctx, http.StatusServiceUnavailable, "AGENTRUN_UNAVAILABLE", "AgentRun is unavailable")
+	}
+}
+
 func writeInternalError(ctx *gin.Context) {
 	writeAPIError(ctx, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 }
@@ -227,6 +423,23 @@ func writeSuccess(ctx *gin.Context, result any) {
 func writeAPIError(ctx *gin.Context, status int, code, message string) {
 	requestID := ctx.GetHeader(requestIDHeader)
 	ctx.AbortWithStatusJSON(status, errorResponse(requestID, code, message, map[string]any{}))
+}
+
+func decodeStrictJSON(ctx *gin.Context, target any) error {
+	body, err := io.ReadAll(io.LimitReader(ctx.Request.Body, 128*1024+1))
+	if err != nil || len(body) == 0 || len(body) > 128*1024 {
+		return errors.New("invalid request body")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return errors.New("trailing request content")
+	}
+	return nil
 }
 
 func rawDocumentListQueryFromRequest(ctx *gin.Context) (dataclient.RawDocumentListQuery, error) {

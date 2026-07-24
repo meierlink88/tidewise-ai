@@ -7,13 +7,19 @@ interface TabItem<T extends string> {
 
 interface TabsProps<T extends string> {
   active: T;
+  ariaLabel?: string;
   items: TabItem<T>[];
   onChange: (id: T) => void;
 }
 
-export default function Tabs<T extends string>({ active, items, onChange }: TabsProps<T>) {
+export default function Tabs<T extends string>({
+  active,
+  ariaLabel = '数据采集中心标签',
+  items,
+  onChange
+}: TabsProps<T>) {
   return (
-    <div className="ui-tabs" role="tablist" aria-label="数据采集中心标签">
+    <div className="ui-tabs" role="tablist" aria-label={ariaLabel}>
       {items.map((item) => (
         <button
           aria-selected={active === item.id}

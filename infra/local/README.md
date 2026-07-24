@@ -114,7 +114,7 @@ Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采
 
 ## 运行 Admin 前端
 
-Admin Portal BFF由统一compose在`9013`提供，并使用`ADMIN_API_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo；本地只允许 `http://127.0.0.1:5174` Origin。
+Admin Portal BFF由统一compose在`9013`提供，并使用`ADMIN_API_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo；本地只允许 `http://127.0.0.1:5174` Origin。采集器管理功能由 BFF 使用独立的 `AGENTRUN_ADMIN_TOKEN` 访问 `AGENTRUN_BASE_URL`，该服务令牌不会下发浏览器。
 
 管理后台位于：
 

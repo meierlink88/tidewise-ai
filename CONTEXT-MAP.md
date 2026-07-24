@@ -27,6 +27,7 @@ Miniapp Frontend
 Admin Portal Frontend
   -> Admin Application Backend Service
       -> Data Domain Service REST API
+      -> AgentRun Admin REST API
       -> future User/Payment Domain Service REST API
 ```
 

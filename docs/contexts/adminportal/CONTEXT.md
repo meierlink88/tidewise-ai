@@ -6,18 +6,49 @@ Admin Portal 是跨系统管理产品，由 Admin Portal Frontend 和 Admin Appl
 
 ## Dependency Rule
 
-Admin Portal Frontend 只能调用 Admin Application Backend Service。Admin Application Backend Service 通过 REST API 调用 Data 以及未来 User、Payment 等 Domain Service。
+Admin Portal Frontend 只能调用 Admin Application Backend Service。Admin Application Backend Service 通过 REST API 调用 Data、AgentRun 以及未来 User、Payment 等服务。
+
+## Language
+
+**AgentRun 管理代理（AgentRun Management Facade）**：
+Admin Portal 面向管理员提供 AgentRun 管理入口，并把管理请求转交给 AgentRun。Schedule、Execution、Model Provider Configuration 和 Connector Configuration 的事实与规则仍由 AgentRun 拥有；浏览器不直接调用 AgentRun。
+_Avoid_: Admin Portal 自建采集调度、复制 AgentRun 配置事实、浏览器直连 AgentRun
+
+**采集 Agent 管理（Collector Agent Management）**：
+Admin Portal 第一阶段面向 Collector Agent 提供的管理视图，覆盖其 Schedule、Execution 历史及运行所需配置。它是通用 Agent 管理能力的首个产品入口，不代表 AgentRun 只能管理 Collector。
+_Avoid_: 把 Collector 专属字段固化为所有 Agent 的通用合同、在本阶段同时管理 Event Extractor 或 Analyst
+
+**采集 Agent 定时配置（Collector Agent Schedule Configuration）**：
+采集 Agent 唯一综合采集任务的周期触发配置。管理员可以维护其中的 Collection Prompt，并在“多个每日固定时间”或“标准五段式 Cron”两种策略中选择一种执行；Cron 支持分钟级和每小时等重复周期。Prompt 与调度策略的合法性仍由 AgentRun 负责。当前只有 `collector.v1` 生效，Admin Portal 不提供版本选择。配置保存与运行状态相互独立，管理员通过“开始”或“停止”即时改变现有 Schedule 的运行状态。停止只阻止后续触发，配置变化也只影响后续 Execution；两者都不取消在途 Execution。
+_Avoid_: 同时启用多种调度策略、把多个 Prompt 建模成多条 Collector Schedule、为尚不存在的多版本能力增加选择流程、删除 Schedule、把编辑配置误当作开始运行、通过管理页立即执行一次、在 Admin Portal 配置调度时区、把停止 Schedule 表述为取消当前执行
+
+**采集 Agent 配置就绪（Collector Configuration Readiness）**：
+采集 Schedule 可以开始运行前，所需模型和全部已注册 Connector 均具有完整当前配置。Admin Portal 可以提前展示缺失项并阻止误操作，但 AgentRun 仍是最终校验者。
+_Avoid_: 由 Admin Portal 复制 AgentRun 的完整配置规则、绕过 AgentRun 强制开始
+
+**采集执行记录（Collector Execution Record）**：
+采集 Agent 一次 Execution 的安全审计摘要，用于分页查看触发方式、状态、时间和停止或失败原因。它不是执行详情，也不包含 Prompt、采集正文、Artifact 或 Connector 调用内容。
+_Avoid_: 从记录列表读取业务载荷、把列表行当作可重放或可编辑任务
+
+**模型配置视图（Model Provider Configuration View）**：
+AgentRun 代码已注册模型供应商的可管理安全视图。它展示 Provider、Base URL、模型、配置状态和脱敏 Key；完整旧 Key 永不返回，管理员只能保留或用新 Key 覆盖。Provider 能力与代码紧密绑定，管理面永远不负责新增或删除。
+_Avoid_: 回显完整 Key、把脱敏 Key 当作可再次提交的 Credential、允许清空必需的模型 Key、动态新增或删除 Provider
+
+**连接器配置视图（Connector Configuration View）**：
+AgentRun 代码已注册 Connector 的可管理安全视图。它展示 Connector、Base URL、配置状态和脱敏 Key；管理员可以保留、覆盖或明确清除可选 Key，完整旧 Key 永不返回。Connector 能力与代码紧密绑定，管理面永远不负责新增或删除。
+_Avoid_: 回显完整 Key、用空输入意外清除 Key、动态新增或删除 Connector、把连接参数误当作能力注册
 
 ## Application Backend Service Owns
 
 - Admin 对外 API、管理员认证和前端专用 DTO。
 - 跨 Domain Service 的管理编排、错误转换和审计入口。
+- AgentRun 管理面的前端适配、权限入口和安全响应转换。
 - Admin 专用权限表达和页面查询 contract。
 
 ## Does Not Own
 
 - Data、Miniapp、User 或 Payment 的数据库与 repository。
 - 被管理领域的事实数据和领域规则。
-- 已迁移到外部 agent-run 的采集调度能力。
+- 已迁移到 AgentRun 的采集调度、执行历史、模型和 Connector 配置事实。
 
 Admin 当前可以没有独立业务数据库。未来确需 Admin-owned 审计或管理数据时，必须明确其数据 owner 和 API 边界。

@@ -17,7 +17,7 @@ import (
 )
 
 func TestHealthAndReadyEndpointsDoNotRequireAdminToken(t *testing.T) {
-	router := NewRouter(testConfig(), usecase.NewService(nil), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(nil, nil), "secret")
 
 	for _, test := range []struct {
 		path       string
@@ -63,7 +63,7 @@ func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredTokenWithoutDataC
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
-			router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls)), test.token)
+			router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls), nil), test.token)
 			request := httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil)
 			if test.header != "" {
 				request.Header.Set("Authorization", test.header)
@@ -79,7 +79,7 @@ func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredTokenWithoutDataC
 
 func TestRetiredSchedulerEndpointsAreAbsent(t *testing.T) {
 	calls := 0
-	router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls)), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls), nil), "secret")
 	for _, test := range []struct {
 		method string
 		path   string
@@ -120,7 +120,7 @@ func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
 			Total: 1, Page: 2, PageSize: 25,
 		}, nil
 	}}
-	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(client, nil), "secret")
 
 	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents?title=央行&page=2&page_size=25", nil, "secret", "admin-request-raw")
 	if response.Code != http.StatusOK {
@@ -145,7 +145,7 @@ func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
 
 func TestInvalidRawPaginationReturns400WithoutDataCall(t *testing.T) {
 	calls := 0
-	router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls)), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(countingClient(&calls), nil), "secret")
 	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents?page=0", nil, "secret", "")
 	if response.Code != http.StatusBadRequest || calls != 0 {
 		t.Fatalf("status/calls = %d/%d, want 400/0", response.Code, calls)
@@ -171,7 +171,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 			FactStatus: dataclient.FactStatusVerified, DedupeKey: "fed-rate-hold", PrimarySourceID: &primarySourceID,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
-	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(client, nil), "secret")
 	path := "/api/admin/v1/events?title=美联储&event_status=confirmed&fact_status=verified&event_time_from=2026-07-09T00:00:00Z&event_time_to=2026-07-10T00:00:00Z&first_seen_from=2026-07-09T00:00:00Z&first_seen_to=2026-07-10T00:00:00Z"
 	response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "admin-request-event")
 	if response.Code != http.StatusOK {
@@ -201,7 +201,7 @@ func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 	client := &dataclient.Fake{ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
 		return dataclient.RawDocumentPage{}, errors.New("postgres connection secret-internal-detail")
 	}}
-	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(client, nil), "secret")
 	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents", nil, "secret", "")
 	if response.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", response.Code)
@@ -217,7 +217,7 @@ func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 			panic("sensitive upstream failure")
 		},
 	}
-	router := NewRouter(testConfig(), usecase.NewService(client), "secret")
+	router := NewRouter(testConfig(), usecase.NewService(client, nil), "secret")
 	response := performJSONRequest(
 		t,
 		router,
@@ -245,7 +245,7 @@ func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 }
 
 func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *testing.T) {
-	router := NewRouter(testConfig(), usecase.NewService(countingClient(new(int))), "secret", "http://uat.example.test:9014")
+	router := NewRouter(testConfig(), usecase.NewService(countingClient(new(int)), nil), "secret", "http://uat.example.test:9014")
 
 	preflight := httptest.NewRequest(http.MethodOptions, "/api/admin/v1/raw-documents", nil)
 	preflight.Header.Set("Origin", "http://uat.example.test:9014")
