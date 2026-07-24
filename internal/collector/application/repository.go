@@ -15,6 +15,7 @@ type Repository interface {
 	LoadConnectorConfigs(context.Context) (map[string]agentrun.ConnectorConfig, error)
 	FindExecutionByIdempotencyKey(context.Context, string, string) (agentrun.Execution, bool, error)
 	CreateExecution(context.Context, agentrun.CreateExecutionInput) (agentrun.Execution, agentrun.CreateDisposition, error)
+	CreateExecutionIfActive(context.Context, agentrun.CreateExecutionInput) (agentrun.Execution, agentrun.CreateDisposition, error)
 	GetExecution(context.Context, string) (agentrun.Execution, error)
 	SetExecutionStatus(context.Context, string, agentrun.ExecutionStatus, time.Time) error
 	StartInvocation(context.Context, string, string, time.Time) error

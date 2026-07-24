@@ -131,4 +131,4 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Test PostgreSQL-backed contracts
-        run: go test ./internal/agentrun/persistence/postgres ./internal/collector/httpapi -count=1
+        run: go test ./cmd/agentrun-server ./internal/agentrun/persistence/postgres ./internal/agentrun/httpapi ./internal/agentrun/scheduling ./internal/collector/httpapi -count=1

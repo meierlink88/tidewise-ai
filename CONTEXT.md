@@ -16,6 +16,18 @@ _Avoid_: 原地修改已发布 Agent、把业务任务提示词当作 Agent Vers
 平台接受一个外部任务后创建的一次可追踪执行实例；它记录实际使用的 Agent Version 和任务快照，但不取代调用方拥有的业务 Run。
 _Avoid_: Data Collection Run、分析批次、定时计划
 
+**Agent Input**:
+提交给某个明确 Agent Version 的业务输入；其结构由该版本定义，Schedule 中保存的输入会在每次触发时复制为新的 Agent Execution 快照。
+_Avoid_: 把所有 Agent Input 都称为 Prompt、模型或 Connector 配置
+
+**Agent Schedule**:
+平台为某个 Agent Definition 保存的唯一周期性触发计划；它固定绑定一个明确 Agent Version，每次到期触发都会创建新的 Agent Execution。
+_Avoid_: Agent Execution、Collection Run、仅属于 Collector 的定时器
+
+**Admin Portal Service**:
+代表运维管理员调用 AgentRun 管理面的受信任后端服务；浏览器不直接访问 AgentRun Admin API。
+_Avoid_: Tidewise Data Service、浏览器客户端、Agent Execution 调用方
+
 **Collection Run**:
 由 Tidewise Data Center 拥有的一次业务采集运行身份；AgentRun 不拥有其调度、最终状态或 Watermark。Collector V1 HTTP 不传输该身份，Data Service 在自身边界内保存它与 Agent Execution ID 的映射。
 _Avoid_: Agent Execution、Connector Invocation
@@ -49,12 +61,12 @@ _Avoid_: Collection Candidate、Tidewise 正式 Raw Document、临时文件
 _Avoid_: Connector 配置、agent-run 本地业务提示词、机器输出协议
 
 **Model Provider Configuration**:
-定义 Agent 访问某个模型供应商及其选定模型所需的当前运行信息；它属于模型调用边界，不属于采集通道。
-_Avoid_: Connector Configuration、Agent Version、Collection Prompt
+定义 Agent 访问某个已由 AgentRun 实现并注册的模型供应商及其选定模型所需的当前运行信息；它属于模型调用边界，不属于采集通道，也不能通过新增任意配置 key 创造模型能力。
+_Avoid_: Connector Configuration、Agent Version、Collection Prompt、未实现 Provider 的动态注册
 
 **Connector Configuration**:
-定义一个 Connector 访问其外部采集通道所需的当前运行信息；Connector 本身就是平台中的采集适配器，不再额外称为 Connector Provider。
-_Avoid_: Model Provider Configuration、Connector Invocation、Collection Prompt
+定义一个已由 AgentRun 实现并注册的 Connector 访问其外部采集通道所需的当前运行信息；Connector 本身就是平台中的采集适配器，不再额外称为 Connector Provider，也不能通过新增任意配置 key 创造采集能力。
+_Avoid_: Model Provider Configuration、Connector Invocation、Collection Prompt、未实现 Connector 的动态注册
 
 **Run Artifact Manifest**:
 一次 Agent Execution 本地 Artifact 完成的权威标记；它记录执行身份、Prompt hash/长度、Connector 与 Candidate 统计、accepted 文件路径/hash 和时间戳，但不包含完整 Prompt、新闻正文、Model Provider Key 或 Connector Key。
@@ -69,8 +81,8 @@ _Avoid_: Agent Execution 重试、任务队列、Eino checkpoint、Data Raw Docu
 _Avoid_: Raw Document Artifact、Candidate ledger、PostgreSQL Candidate 表
 
 **Skipped Agent Execution**:
-因另一 Collector Execution 正在运行而未启动 Planner 或 Connector 的终态 Agent Execution。它保留幂等身份、Prompt hash/长度、七个 `not_invoked` Invocation 和 `skipped_previous_run_active` 审计，但不是排队任务。
-_Avoid_: Active Agent Execution、Collection Attempt、等待队列
+因同一 Agent Definition 已有活跃 Execution 而未启动目标 Agent Workflow 的终态 Agent Execution；它保留触发身份和阻塞来源以供审计，但不是排队任务。
+_Avoid_: Active Agent Execution、Collection Attempt、等待队列、不同 Agent 之间的全局互斥
 
 ## Language
 

@@ -937,6 +937,7 @@ func hamming(left, right string) int {
 func parseTime(value string) time.Time {
 	for _, layout := range []string{
 		time.RFC3339Nano,
+		time.RFC1123,
 		"2006-01-02 15:04:05.999999999Z07:00",
 		"2006-01-02 15:04:05",
 		"2006-01-02 15:04",

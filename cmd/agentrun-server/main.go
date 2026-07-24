@@ -10,10 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/admin"
 	agentrunconfig "github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/config"
+	agentrunhttp "github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/httpapi"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/persistence/postgres"
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/scheduling"
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/application"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/httpapi"
+	collectorhttp "github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/httpapi"
 )
 
 func main() {
@@ -41,7 +45,37 @@ func main() {
 			serverFail("could not reconcile AgentRun startup state")
 		}
 	}
-	server := newHTTPServer(cfg, httpapi.NewHandler(collectorApplication, cfg.Secrets.ServiceToken))
+	scheduleRunner := collectorScheduleRunner{collector: collectorApplication}
+	scheduleService, err := scheduling.New(
+		store,
+		cfg.Location,
+		map[string]scheduling.AgentRunner{collectorAgentKey: scheduleRunner},
+	)
+	if err != nil {
+		serverFail("could not initialize Agent Scheduler")
+	}
+	defer func() { _ = scheduleService.Shutdown() }()
+	if store.SchemaReady(context.Background()) {
+		if err := scheduleService.Start(context.Background()); err != nil {
+			serverFail("could not start Agent Scheduler")
+		}
+	}
+	adminService, err := admin.New(
+		store,
+		admin.Registry{
+			ModelProviderKeys: []string{collector.ModelProviderDeepSeek},
+			ConnectorKeys:     collector.ConnectorKeys(),
+		},
+		string(cfg.App.Env),
+		admin.WithScheduleManager(scheduleService),
+	)
+	if err != nil {
+		serverFail("could not initialize AgentRun Admin API")
+	}
+	server := newHTTPServer(cfg, newRootHandler(
+		collectorhttp.NewHandler(collectorApplication, cfg.Secrets.ServiceToken),
+		agentrunhttp.NewAdminHandler(adminService, cfg.Secrets.AdminToken),
+	))
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -54,6 +88,13 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		serverFail("AgentRun HTTP server failed")
 	}
+}
+
+func newRootHandler(collectorHandler, adminHandler http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/api/admin/", adminHandler)
+	mux.Handle("/", collectorHandler)
+	return mux
 }
 
 func newHTTPServer(cfg agentrunconfig.Config, handler http.Handler) *http.Server {

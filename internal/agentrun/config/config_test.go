@@ -9,6 +9,7 @@ import (
 )
 
 func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
+	setRequiredRuntimeEnvironment(t)
 	dir := t.TempDir()
 	writeConfig(t, dir, "dev", configYAML("dev", 9080, "disable"))
 	t.Setenv("APP_ENV", "")
@@ -41,7 +42,47 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	}
 }
 
+func TestLoadRequiresAdminTokenAndDeploymentTimezone(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "dev", configYAML("dev", 9080, "disable"))
+	t.Setenv("APP_ENV", "dev")
+	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
+	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
+	t.Setenv("AGENTRUN_ADMIN_TOKEN", "")
+	t.Setenv("TZ", "Asia/Shanghai")
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENTRUN_ADMIN_TOKEN") {
+		t.Fatalf("Load() error = %v, want missing Admin Token rejection", err)
+	}
+
+	t.Setenv("AGENTRUN_ADMIN_TOKEN", "admin-token")
+	t.Setenv("TZ", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TZ") {
+		t.Fatalf("Load() error = %v, want missing deployment timezone rejection", err)
+	}
+
+	t.Setenv("TZ", "Not/A-Timezone")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TZ") {
+		t.Fatalf("Load() error = %v, want invalid deployment timezone rejection", err)
+	}
+
+	t.Setenv("TZ", "Local")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TZ") {
+		t.Fatalf("Load() error = %v, want host-local timezone rejection", err)
+	}
+
+	t.Setenv("TZ", "Asia/Shanghai")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Location == nil || cfg.Location.String() != "Asia/Shanghai" {
+		t.Fatalf("deployment location = %v, want Asia/Shanghai", cfg.Location)
+	}
+}
+
 func TestLoadUATRequiresEncryptedDatabaseURL(t *testing.T) {
+	setRequiredRuntimeEnvironment(t)
 	dir := t.TempDir()
 	writeConfig(t, dir, "uat", configYAML("uat", 9080, "require"))
 	t.Setenv("APP_ENV", "uat")
@@ -68,6 +109,7 @@ func TestLoadUATRequiresEncryptedDatabaseURL(t *testing.T) {
 }
 
 func TestLoadRejectsNonStandardServicePort(t *testing.T) {
+	setRequiredRuntimeEnvironment(t)
 	dir := t.TempDir()
 	writeConfig(t, dir, "dev", configYAML("dev", 8080, "disable"))
 	t.Setenv("APP_ENV", "dev")
@@ -79,6 +121,7 @@ func TestLoadRejectsNonStandardServicePort(t *testing.T) {
 }
 
 func TestLoadRejectsConfigurationIdentityMismatch(t *testing.T) {
+	setRequiredRuntimeEnvironment(t)
 	dir := t.TempDir()
 	writeConfig(t, dir, "dev", strings.Replace(configYAML("uat", 9080, "disable"), "name: agentrun", "name: wrong-service", 1))
 	t.Setenv("APP_ENV", "dev")
@@ -90,6 +133,7 @@ func TestLoadRejectsConfigurationIdentityMismatch(t *testing.T) {
 }
 
 func TestCheckedInEnvironmentConfigurations(t *testing.T) {
+	setRequiredRuntimeEnvironment(t)
 	configDir := "."
 	t.Setenv("AGENTRUN_CONFIG_DIR", configDir)
 	t.Setenv("AGENTRUN_DATABASE_PASSWORD", "dev-password")
@@ -114,6 +158,12 @@ func TestCheckedInEnvironmentConfigurations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setRequiredRuntimeEnvironment(t *testing.T) {
+	t.Helper()
+	t.Setenv("AGENTRUN_ADMIN_TOKEN", "admin-token")
+	t.Setenv("TZ", "Asia/Shanghai")
 }
 
 func writeConfig(t *testing.T, dir, environment, body string) {

@@ -84,6 +84,37 @@ func TestMaterializeMergesOnceAndProducesMarkdownTSVAndSummary(t *testing.T) {
 	}
 }
 
+func TestMaterializeRejectsOutOfWindowTavilyRFC1123PublishedAt(t *testing.T) {
+	root := t.TempDir()
+	collectedAt := time.Date(2026, 7, 24, 8, 55, 35, 0, time.UTC)
+	result, err := (File{Root: root, NearDuplicateRadius: 3}).Materialize(context.Background(), collector.Request{
+		RunID: "tavily-rfc1123", Prompt: "collect", CollectedAt: collectedAt, TimeWindowHours: 2,
+	}, map[string]collector.ConnectorRun{
+		"tavily": {
+			Connector: "tavily",
+			Results: []collector.Candidate{{
+				Connector: "tavily", Title: "Old market news", URL: "https://example.com/old-market-news",
+				Content: "direct Tavily result", ContentLevel: collector.LevelFullText,
+				PublishedAtHint: "Fri, 24 Jul 2026 04:55:35 GMT",
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Stats.Accepted != 0 || result.Stats.OutOfWindow != 1 || result.Stats.ResultsPending != 0 {
+		t.Fatalf("unexpected stats: %+v", result.Stats)
+	}
+	ledger, err := os.ReadFile(result.Candidates)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(ledger), `"disposition":"out_of_window"`) ||
+		!strings.Contains(string(ledger), `"reason":"published_at_outside_time_window"`) {
+		t.Fatalf("candidate ledger = %s", ledger)
+	}
+}
+
 func TestManifestAndSummaryContainCompleteBatchAudit(t *testing.T) {
 	root := t.TempDir()
 	collectedAt := time.Date(2026, 7, 22, 8, 30, 0, 0, time.UTC)
@@ -215,15 +246,17 @@ func TestNormalizeBodyMatchesCrossLanguageContract(t *testing.T) {
 	}
 }
 
-func TestDeterministicContractMatchesCodexPythonGolden(t *testing.T) {
+func TestDeterministicContractMatchesGolden(t *testing.T) {
 	var golden struct {
-		URL            string `json:"url"`
-		CanonicalURL   string `json:"canonical_url"`
-		BodyInput      string `json:"body_input"`
-		NormalizedBody string `json:"normalized_body"`
-		ContentSHA256  string `json:"content_sha256"`
-		DocumentID     string `json:"document_id"`
-		SimHash64      string `json:"simhash64"`
+		URL              string `json:"url"`
+		CanonicalURL     string `json:"canonical_url"`
+		BodyInput        string `json:"body_input"`
+		NormalizedBody   string `json:"normalized_body"`
+		PublishedAtInput string `json:"published_at_input"`
+		PublishedAtUTC   string `json:"published_at_utc"`
+		ContentSHA256    string `json:"content_sha256"`
+		DocumentID       string `json:"document_id"`
+		SimHash64        string `json:"simhash64"`
 	}
 	payload, err := os.ReadFile("testdata/deterministic_golden.json")
 	if err != nil {
@@ -238,6 +271,9 @@ func TestDeterministicContractMatchesCodexPythonGolden(t *testing.T) {
 	body := normalizeBody(golden.BodyInput)
 	if body != golden.NormalizedBody {
 		t.Fatalf("normalized body = %q, want %q", body, golden.NormalizedBody)
+	}
+	if got := parseTime(golden.PublishedAtInput); got.IsZero() || got.Format(time.RFC3339) != golden.PublishedAtUTC {
+		t.Fatalf("published_at = %v, want %s", got, golden.PublishedAtUTC)
 	}
 	contentHash := hash(body)
 	if contentHash != golden.ContentSHA256 {

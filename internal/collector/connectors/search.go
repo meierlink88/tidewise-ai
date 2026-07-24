@@ -82,7 +82,9 @@ func (c Tavily) Collect(ctx context.Context, request collector.Request) ([]colle
 		client = defaultClient()
 	}
 	query := request.CombinedQuery
-	start := request.CollectedAt.Add(-time.Duration(request.TimeWindowHours) * time.Hour).Format("2006-01-02")
+	collectedAt := request.CollectedAt.UTC()
+	startDate := collectedAt.Add(-time.Duration(request.TimeWindowHours) * time.Hour).Format("2006-01-02")
+	endDate := collectedAt.Format("2006-01-02")
 	maxResults := min(request.CandidateLimit, 10)
 	var response struct {
 		Results []struct {
@@ -94,10 +96,15 @@ func (c Tavily) Collect(ctx context.Context, request collector.Request) ([]colle
 		} `json:"results"`
 	}
 	body := map[string]any{
-		"query": query, "search_depth": "advanced", "auto_parameters": true,
+		"query": query, "topic": "news", "search_depth": "advanced", "auto_parameters": false,
 		"chunks_per_source": 3, "max_results": maxResults,
 		"include_answer": false, "include_raw_content": "markdown",
-		"start_date": start, "end_date": request.CollectedAt.Format("2006-01-02"),
+	}
+	if request.TimeWindowHours <= 24 {
+		body["time_range"] = "day"
+	} else {
+		body["start_date"] = startDate
+		body["end_date"] = endDate
 	}
 	if err := postJSON(ctx, client, endpoint, map[string]string{"Authorization": "Bearer " + c.APIKey}, body, &response); err != nil {
 		return nil, err

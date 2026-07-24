@@ -93,7 +93,9 @@ func TestRunConfigurationCommandSeparatesModelAndConnectorResources(t *testing.T
 	if model.Model != "deepseek-chat" || model.APIKey != "model-secret" {
 		t.Fatalf("Model Provider Configuration = %#v", model)
 	}
-	if !strings.Contains(output.String(), "restart AgentRun") || strings.Contains(output.String(), "model-secret") {
+	if !strings.Contains(output.String(), "next Agent Execution") ||
+		strings.Contains(output.String(), "restart AgentRun") ||
+		strings.Contains(output.String(), "model-secret") {
 		t.Fatalf("model set output = %q", output.String())
 	}
 
@@ -113,7 +115,8 @@ func TestRunConfigurationCommandSeparatesModelAndConnectorResources(t *testing.T
 	if connector.BaseURL != "https://tavily.test" || connector.APIKey != "" {
 		t.Fatalf("Connector Configuration = %#v", connector)
 	}
-	if !strings.Contains(output.String(), "restart AgentRun") {
+	if !strings.Contains(output.String(), "next Agent Execution") ||
+		strings.Contains(output.String(), "restart AgentRun") {
 		t.Fatalf("connector set output = %q", output.String())
 	}
 }
@@ -291,7 +294,7 @@ func TestHistoricalConfigurationUpgradeRunsThroughCLIReadinessAndCollectorHTTP(t
 	}
 
 	body := strings.NewReader(`{"prompt":"采集中国市场资讯"}`)
-	request, _ := http.NewRequest(http.MethodPost, server.URL+"/internal/agent-run/v1/collector/runs", body)
+	request, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/collector/runs", body)
 	request.Header.Set("Authorization", "Bearer service-test-token")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Idempotency-Key", fmt.Sprintf("upgrade-e2e-%d", time.Now().UnixNano()))
@@ -315,7 +318,7 @@ func TestHistoricalConfigurationUpgradeRunsThroughCLIReadinessAndCollectorHTTP(t
 	for {
 		statusRequest, _ := http.NewRequest(
 			http.MethodGet,
-			server.URL+"/internal/agent-run/v1/collector/runs/"+created.ExecutionID,
+			server.URL+"/api/v1/collector/runs/"+created.ExecutionID,
 			nil,
 		)
 		statusRequest.Header.Set("Authorization", "Bearer service-test-token")

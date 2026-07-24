@@ -100,7 +100,7 @@ func TestCollectorHTTPAuthenticationIdempotencyAndActiveRunConflict(t *testing.T
 	server := httptest.NewServer(httpapi.NewHandler(application, "service-test-token"))
 	defer server.Close()
 
-	unauthorized, _ := http.NewRequest(http.MethodGet, server.URL+"/internal/agent-run/v1/collector/runs/00000000-0000-0000-0000-000000000000", nil)
+	unauthorized, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/collector/runs/00000000-0000-0000-0000-000000000000", nil)
 	unauthorizedResponse, err := http.DefaultClient.Do(unauthorized)
 	if err != nil {
 		t.Fatal(err)
@@ -131,9 +131,18 @@ func TestCollectorHTTPAuthenticationIdempotencyAndActiveRunConflict(t *testing.T
 	if status != http.StatusConflict || conflict["error_code"] != "idempotency_conflict" {
 		t.Fatalf("idempotency conflict status=%d body=%#v", status, conflict)
 	}
+	if err := store.UpsertModelProviderConfig(context.Background(), agentrun.ModelProviderConfig{
+		ProviderKey: collector.ModelProviderDeepSeek,
+		BaseURL:     "http://remote-plaintext.invalid",
+		Model:       "deepseek-chat",
+		APIKey:      "temporarily-invalid-key",
+	}); err != nil {
+		t.Fatal(err)
+	}
 	status, conflict = rawPostHTTPTestRun(t, server.URL, key+"-other", "另一轮采集")
 	if status != http.StatusConflict || conflict["error_code"] != "active_execution_exists" ||
 		conflict["active_execution_id"] != first.ExecutionID || conflict["skipped_execution_id"] == "" {
+		releaseOnce.Do(func() { close(releasePlanner) })
 		t.Fatalf("active conflict status=%d body=%#v", status, conflict)
 	}
 	skippedID, ok := conflict["skipped_execution_id"].(string)
@@ -221,7 +230,7 @@ func TestCollectorHTTPReadinessAndPromptValidation(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request, _ := http.NewRequest(http.MethodPost, localServer.URL+"/internal/agent-run/v1/collector/runs", strings.NewReader(test.body))
+			request, _ := http.NewRequest(http.MethodPost, localServer.URL+"/api/v1/collector/runs", strings.NewReader(test.body))
 			request.Header.Set("Authorization", "Bearer service-test-token")
 			request.Header.Set("Content-Type", "application/json")
 			if test.idempotencyKey != "" {
@@ -355,7 +364,7 @@ func TestCollectorAcceptsEscapedPromptAtDecodedLimit(t *testing.T) {
 	server := httptest.NewServer(httpapi.NewHandler(application, "service-test-token"))
 	defer server.Close()
 	body := `{"prompt":"` + strings.Repeat(`\u0061`, 64*1024) + `"}`
-	request, _ := http.NewRequest(http.MethodPost, server.URL+"/internal/agent-run/v1/collector/runs", strings.NewReader(body))
+	request, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/collector/runs", strings.NewReader(body))
 	request.Header.Set("Authorization", "Bearer service-test-token")
 	request.Header.Set("Idempotency-Key", "escaped-limit-"+fmt.Sprint(time.Now().UnixNano()))
 	response, err := http.DefaultClient.Do(request)
@@ -816,7 +825,7 @@ func configureHTTPTestProviders(t *testing.T, store *postgres.Store, baseURL str
 func postHTTPTestRun(t *testing.T, serverURL, idempotencyKey, prompt string) runSnapshot {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"prompt": prompt})
-	request, _ := http.NewRequest(http.MethodPost, serverURL+"/internal/agent-run/v1/collector/runs", bytes.NewReader(body))
+	request, _ := http.NewRequest(http.MethodPost, serverURL+"/api/v1/collector/runs", bytes.NewReader(body))
 	request.Header.Set("Authorization", "Bearer service-test-token")
 	request.Header.Set("Idempotency-Key", idempotencyKey)
 	request.Header.Set("Content-Type", "application/json")
@@ -838,7 +847,7 @@ func postHTTPTestRun(t *testing.T, serverURL, idempotencyKey, prompt string) run
 func rawPostHTTPTestRun(t *testing.T, serverURL, idempotencyKey, prompt string) (int, map[string]any) {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"prompt": prompt})
-	request, _ := http.NewRequest(http.MethodPost, serverURL+"/internal/agent-run/v1/collector/runs", bytes.NewReader(body))
+	request, _ := http.NewRequest(http.MethodPost, serverURL+"/api/v1/collector/runs", bytes.NewReader(body))
 	request.Header.Set("Authorization", "Bearer service-test-token")
 	request.Header.Set("Idempotency-Key", idempotencyKey)
 	request.Header.Set("Content-Type", "application/json")
@@ -876,7 +885,7 @@ func waitHTTPTestRun(t *testing.T, serverURL, executionID string) runSnapshot {
 
 func getHTTPTestRun(t *testing.T, serverURL, executionID string) runSnapshot {
 	t.Helper()
-	request, _ := http.NewRequest(http.MethodGet, serverURL+"/internal/agent-run/v1/collector/runs/"+executionID, nil)
+	request, _ := http.NewRequest(http.MethodGet, serverURL+"/api/v1/collector/runs/"+executionID, nil)
 	request.Header.Set("Authorization", "Bearer service-test-token")
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {

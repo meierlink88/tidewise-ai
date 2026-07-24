@@ -3,6 +3,7 @@
 状态：Ready for implementation
 日期：2026-07-23
 Issue：#17
+修订：2026-07-24 Tavily 同日时间窗兼容及零结果参数修正（Issue #25）
 涉及系统：`tidewise-ai-agentrun`
 基线：AgentRun `4306eaa`；Collector Platform Foundation Issue #13
 
@@ -20,7 +21,7 @@ Collector Agent V1 已具备异步 HTTP 接口、PostgreSQL 执行控制面、De
 
 在不推翻 Eino Workflow 和 AgentRun 平台模型的前提下，补齐 Collector V1 的直接结果、Tavily、确定性处理、可重建 index、批后审计和可恢复发布合同。
 
-Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanced、auto parameters、三段 chunk、原始 Markdown 和每轮 10 条结果。Collector 使用一套跨语言 golden contract 统一 canonical URL、同 URL 正文选择、发布时间解析、normalized body、SHA-256、document ID 和 SimHash64；近似重复唯一权威半径固定为 3。
+Connector Adapter 忠实保留数字身份和相邻文本，Tavily 使用 explicit news、advanced、确定性时间参数、三段 chunk、原始 Markdown 和每轮 10 条结果。Collector 使用一套跨语言 golden contract 统一 canonical URL、同 URL 正文选择、发布时间解析、normalized body、SHA-256、document ID 和 SimHash64；近似重复唯一权威半径固定为 3。
 
 `data/documents` 中 accepted Markdown 继续作为事实载体，TSV 只作为可重建缓存。索引缺失时从 Markdown 自动重建；显式 verify/rebuild 能发现和修复损坏或 stale index；健康索引不在每轮全量扫描 Markdown 正文。
 
@@ -38,7 +39,7 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 6. As a data consumer, I want numeric source IDs preserved exactly, so that URLs and provenance do not change through JSON decoding.
 7. As a data consumer, I want HTML highlight tags removed without inserting artificial spaces, so that adjacent Chinese characters and numbers remain intact.
 8. As an auditor, I want real provider payload shapes represented by regression fixtures, so that fixes cover observed failures rather than synthetic examples only.
-9. As a Tavily user, I want advanced search and automatic parameters enabled, so that Tavily follows the proven Codex request contract.
+9. As a Tavily user, I want advanced search with explicit news and deterministic time parameters, so that Tavily returns auditable recent-news results instead of silently changing search modes.
 10. As a Tavily user, I want three chunks per source and raw Markdown content requested, so that direct full text is available when the Provider returns it.
 11. As a Tavily user, I want raw content preferred over snippets, so that the richest direct Connector result is retained.
 12. As a Tavily user, I want at most 10 direct results, so that Tavily has the same per-Connector budget as the other V1 channels.
@@ -90,6 +91,9 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 58. As a maintainer, I want deterministic and fault-injection tests before implementation, so that each reliability change is proven by a failing test first.
 59. As a maintainer, I want PostgreSQL-backed tests to use an isolated test database, so that skipped tests are not accepted as evidence.
 60. As a maintainer, I want one honest seven-Connector smoke when local configuration permits, so that deterministic tests are complemented by current Provider evidence.
+61. As a Collector user, I want a sub-day Tavily window to remain a valid Connector request, so that same-day `start_date` and `end_date` do not fail the Connector before the exact downstream time gate runs.
+62. As a Collector user, I want Tavily recent-news retrieval to use explicit news and relative-time semantics, so that automatic finance classification plus an absolute date does not silently return zero direct results.
+63. As a Collector user, I want Tavily RFC1123 publication timestamps recognized by the exact downstream time gate, so that old search results cannot pass as unknown-time Candidates.
 
 ## Implementation Decisions
 
@@ -122,8 +126,9 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 ### Tavily parity
 
 - Tavily receives one `combined_query` request per Execution.
-- The request enables advanced search, automatic parameters, three chunks per source, no generated answer, raw content in Markdown form, date bounds and a result limit of 10.
-- The fixed `finance` topic is removed because the Codex reference request does not send a topic and automatic parameters may select appropriate behavior.
+- The request explicitly uses the `news` topic, disables automatic parameters, enables advanced search and three chunks per source, requests no generated answer, requests raw content in Markdown form and limits direct results to 10.
+- A time window of 24 hours or less sends `time_range: "day"` and no `start_date` or `end_date`. Longer windows retain UTC absolute date bounds. The existing exact timestamp gate remains authoritative for the requested hour-level window.
+- Explicit news classification is authoritative because the real Tavily API returned zero results when automatic parameters selected `finance` together with an absolute `start_date`, while the same query returned results with explicit `news`.
 - Response normalization prefers nonblank raw content and marks it `full_text`; otherwise it uses the direct content snippet and marks it `snippet`; otherwise it uses the title and marks it `title_only`.
 - The Connector never follows returned URLs.
 
@@ -133,7 +138,7 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 - Invalid or hostless URLs remain invalid Candidates rather than being hashed.
 - Same-URL selection first compares content level, then the number of non-whitespace Unicode code points.
 - An exact richness tie uses a stable tuple independent of Go map iteration: fixed Connector order, original Connector result position, source external ID and content bytes. The first tuple wins; bodies are never concatenated.
-- Common ISO forms accepted by Python `datetime.fromisoformat`, including `YYYY-MM-DD HH:MM:SS`, are supported. A naive timestamp at the materializer boundary is interpreted as UTC; Provider adapters continue converting known local source times before materialization.
+- Common ISO forms accepted by Python `datetime.fromisoformat`, including `YYYY-MM-DD HH:MM:SS`, and Tavily's observed RFC1123 HTTP-date form are supported. A naive timestamp at the materializer boundary is interpreted as UTC; Provider adapters continue converting known local source times before materialization.
 - An unparseable timestamp is unknown. A successfully parsed timestamp outside the inclusive window is `out_of_window`.
 - Body normalization uses NFC, LF line endings, trailing Unicode whitespace removal per line, outer trim and collapse of three or more newlines to two.
 - Content SHA-256 hashes the normalized Markdown body beginning with the level-one title.
@@ -218,7 +223,7 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 - PostgreSQL-backed tests always run with an isolated `AGENTRUN_TEST_DATABASE_URL`. A skipped database test is not acceptance evidence.
 - Focused Connector tests assert lossless CLS number handling, HTML text extraction, Tavily request shape, raw-content priority, content level and limit 10 using fixtures shaped like observed real responses.
 - Deterministic golden fixtures cover canonical URL, equal-level merge and tie-break, timestamp parsing, normalized body, content SHA-256, document ID and SimHash64. Fixture provenance records the audited Python reference hashes.
-- Golden cases include Unicode, repeated query keys, tracking parameters, default ports, empty paths, multiple trailing slashes, space-separated timestamps, naive timestamps and equal-richness candidates.
+- Golden cases include Unicode, repeated query keys, tracking parameters, default ports, empty paths, multiple trailing slashes, space-separated timestamps, naive timestamps, Tavily RFC1123 timestamps and equal-richness candidates.
 - Index tests cover missing-index automatic rebuild, healthy-index no-body-scan behavior, malformed header/row, duplicate identity, missing path, extra row, missing row, content/hash mismatch, explicit verify and atomic rebuild failure.
 - Audit tests assert actual window bounds, attempted/completed counts, every Connector outcome, Candidate and content-level conservation, accepted path/hash integrity and all four stop reasons.
 - Publication fault injection covers failure or process interruption after prepare, after partial document publication, after summary/ledger publication, after index replacement, after manifest publication, before PostgreSQL terminal commit, during a failed commit and after an unknown commit result.
@@ -229,6 +234,27 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 恢复 advanc
 - Final local verification runs gofmt, go vet, command builds, `go test -count=1 ./...`, race tests, isolated PostgreSQL repository and HTTP tests, migration checks, diff checks, credential scans and forbidden-path scans.
 - When all local Model Provider and Connector Configurations are available, one real seven-Connector smoke is run after deterministic tests. The report distinguishes zero results, external-service failures and missing configuration; it never reports a false pass.
 - Final review runs Standards and Spec axes independently against the merge base and includes untracked task files while excluding the pre-existing user-owned research Spec.
+
+### 2026-07-24 Tavily 同日时间窗修复证据
+
+- RED: 原同日请求测试失败并捕获请求仍含 `end_date: "2026-07-24"`，与当时的同日窗口合同冲突。
+- GREEN: 同日用例与原有跨日合同用例共同通过；完整 Connector package 通过。
+- REFACTOR: 日期计算统一到 UTC，并使用 `startDate`、`endDate` 表达 Provider 日期边界；没有引入日期类型、重试、fallback 或额外抽象。
+- Regression: 配置隔离 PostgreSQL 后执行 `go test -count=1 ./...` 全部通过；`go vet ./...`、`go build ./cmd/...` 和 `git diff --check` 通过。
+- Real smoke: API Execution `de79800b-db3b-4075-aded-535f7d54173c` 与 Schedule Execution `69b7df1b-58c6-472e-96ec-4108f8a6c1bc` 均为 `succeeded` / `connectors_completed`；七个 Connector 全部 `completed`，60 个 Candidate 全部终态且 `results_pending=0`。Tavily 连续返回 0 条成为后续参数诊断的输入，而不再被视为质量通过。
+
+### 2026-07-24 Tavily 零结果与 RFC1123 时间门禁修复证据
+
+- Tavily API diagnosis: 固定同一 Planner query 与日期后，`auto_parameters=true` 选择的 `finance` topic 加绝对 `start_date` 返回 0 条；去掉日期、改用 `time_range: "day"`、关闭自动参数，或显式使用 `news` 均返回 10 条。最终选择显式 `news`、关闭自动参数，并对 24 小时内窗口使用相对 `day`。
+- RED 1: Tavily request-shape 测试先失败，捕获缺少 `topic: "news"` 且仍发送 `auto_parameters: true`。
+- GREEN 1: 显式 news、关闭自动参数后，原始 Markdown、advanced、三段 chunk、10 条上限及 48 小时绝对日期合同共同通过。
+- RED 2: 两小时窗口测试先失败，捕获请求仍发送绝对 `start_date` 且未发送 `time_range: "day"`。
+- GREEN 2: 24 小时内窗口改为相对 `day` 且不发送绝对日期；长窗口仍发送 UTC `start_date`/`end_date`。
+- First smoke: API Execution `10c2af38-3ef9-4d37-a4f3-8129ee8e207b` 为 `succeeded` / `connectors_completed`，七个 Connector 全部完成且 Tavily 从 0 恢复为 10 条；该批同时暴露 Tavily 的 RFC1123 `published_at` 未被解析，导致部分旧闻误记为 accepted。该历史 Artifact 与共享 index 未被静默删除或改写。
+- RED 3: 使用真实形态 `Fri, 24 Jul 2026 04:55:35 GMT` 的 materializer 回归测试失败，旧闻被计为 `accepted: 1` 而不是 `out_of_window: 1`。
+- GREEN 3: 增加 RFC1123 解析后，同一测试进入 `out_of_window`，Candidate ledger 原因为 `published_at_outside_time_window`。
+- Final smoke: Schedule Execution `4f8cebf0-ca8c-40ee-b71f-efbf9e07f531` 为 `succeeded` / `connectors_completed`；七个 Connector 各返回 10 条，70 个 Candidate 全部终态，`accepted=16`、`known_url=27`、`out_of_window=27`、`results_pending=0`。Tavily 的 10 条 RFC1123 结果全部按精确两小时时间门禁进入 `out_of_window`。
+- Regression: 使用隔离数据库 `tidewise_ai_server_test` 执行 `go test -count=1 ./...` 全部通过；服务在 smoke 后关闭。
 
 ## Out of Scope
 

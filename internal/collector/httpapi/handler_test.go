@@ -22,6 +22,26 @@ import (
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/testsupport"
 )
 
+type configurationCountingRepository struct {
+	collectorapp.Repository
+	modelLoads     atomic.Int32
+	connectorLoads atomic.Int32
+}
+
+func (r *configurationCountingRepository) LoadModelProviderConfigs(
+	ctx context.Context,
+) (map[string]agentrun.ModelProviderConfig, error) {
+	r.modelLoads.Add(1)
+	return r.Repository.LoadModelProviderConfigs(ctx)
+}
+
+func (r *configurationCountingRepository) LoadConnectorConfigs(
+	ctx context.Context,
+) (map[string]agentrun.ConnectorConfig, error) {
+	r.connectorLoads.Add(1)
+	return r.Repository.LoadConnectorConfigs(ctx)
+}
+
 func TestCollectorRunCompletesThroughHTTPWithSevenDirectConnectors(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -49,6 +69,14 @@ func TestCollectorRunCompletesThroughHTTPWithSevenDirectConnectors(t *testing.T)
 	now := time.Now().UTC()
 	var callsMu sync.Mutex
 	calls := map[string]int{}
+	plannerStarted := make(chan struct{})
+	releasePlanner := make(chan struct{})
+	var plannerStartedOnce sync.Once
+	var releasePlannerOnce sync.Once
+	releasePlannerCall := func() {
+		releasePlannerOnce.Do(func() { close(releasePlanner) })
+	}
+	defer releasePlannerCall()
 	recordCall := func(path string) {
 		callsMu.Lock()
 		calls[path]++
@@ -59,6 +87,8 @@ func TestCollectorRunCompletesThroughHTTPWithSevenDirectConnectors(t *testing.T)
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case "/chat/completions":
+			plannerStartedOnce.Do(func() { close(plannerStarted) })
+			<-releasePlanner
 			_, _ = writer.Write([]byte(`{"id":"chat-1","object":"chat.completion","created":1,"model":"deepseek-chat","choices":[{"index":0,"message":{"role":"assistant","content":"{\"queries\":[\"中国半导体政策\",\"芯片供应链价格\"],\"combined_query\":\"中国半导体政策 芯片供应链价格\",\"time_window_hours\":168}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":10,"total_tokens":20}}`))
 		case "/parallel":
 			_, _ = writer.Write([]byte(`{"results":[{"url":"https://example.com/parallel","title":"Parallel 结果","excerpts":["Parallel 直接片段"]}]}`))
@@ -103,35 +133,22 @@ func TestCollectorRunCompletesThroughHTTPWithSevenDirectConnectors(t *testing.T)
 		}
 	}
 
-	application, err := collectorapp.New(store, t.TempDir())
+	countingStore := &configurationCountingRepository{Repository: store}
+	application, err := collectorapp.New(countingStore, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	var replacementCalls atomic.Int32
 	replacement := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		replacementCalls.Add(1)
-		http.Error(writer, "replacement configuration must require restart", http.StatusBadGateway)
+		http.Error(writer, "replacement configuration is active", http.StatusBadGateway)
 	}))
 	defer replacement.Close()
-	if err := store.UpsertModelProviderConfig(ctx, agentrun.ModelProviderConfig{
-		ProviderKey: collector.ModelProviderDeepSeek,
-		BaseURL:     replacement.URL,
-		Model:       "deepseek-chat",
-		APIKey:      "replacement-key",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.UpsertConnectorConfig(ctx, agentrun.ConnectorConfig{
-		ConnectorKey: collector.ConnectorTavily,
-		BaseURL:      replacement.URL + "/tavily",
-	}); err != nil {
-		t.Fatal(err)
-	}
 	server := httptest.NewServer(httpapi.NewHandler(application, "service-test-token"))
 	defer server.Close()
 
 	body := []byte(`{"prompt":"采集最近一周中国半导体产业链的政策、供需和价格变化。"}`)
-	request, _ := http.NewRequest(http.MethodPost, server.URL+"/internal/agent-run/v1/collector/runs", bytes.NewReader(body))
+	request, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/collector/runs", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer service-test-token")
 	request.Header.Set("Idempotency-Key", fmt.Sprintf("http-e2e-%d", time.Now().UnixNano()))
@@ -155,6 +172,36 @@ func TestCollectorRunCompletesThroughHTTPWithSevenDirectConnectors(t *testing.T)
 	if created.Schema != "collector_run.v1" || created.ExecutionID == "" || created.Status != "queued" {
 		t.Fatalf("created response = %#v", created)
 	}
+	select {
+	case <-plannerStarted:
+	case <-time.After(time.Second):
+		t.Fatal("initial execution did not reach the Planner")
+	}
+	modelLoads := countingStore.modelLoads.Load()
+	connectorLoads := countingStore.connectorLoads.Load()
+	if modelLoads != 1 || connectorLoads != 1 {
+		releasePlannerCall()
+		t.Fatalf(
+			"initial execution configuration loads model=%d connector=%d, want one frozen snapshot",
+			modelLoads,
+			connectorLoads,
+		)
+	}
+	if err := store.UpsertModelProviderConfig(ctx, agentrun.ModelProviderConfig{
+		ProviderKey: collector.ModelProviderDeepSeek,
+		BaseURL:     replacement.URL,
+		Model:       "deepseek-chat",
+		APIKey:      "replacement-key",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertConnectorConfig(ctx, agentrun.ConnectorConfig{
+		ConnectorKey: collector.ConnectorTavily,
+		BaseURL:      replacement.URL + "/tavily",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	releasePlannerCall()
 
 	var observed struct {
 		Schema      string `json:"schema"`
@@ -203,18 +250,12 @@ func TestCollectorRunCompletesThroughHTTPWithSevenDirectConnectors(t *testing.T)
 		t.Fatalf("completed response = %#v", observed)
 	}
 	if replacementCalls.Load() != 0 {
-		t.Fatalf("running service used post-start configuration %d times", replacementCalls.Load())
+		t.Fatalf("in-flight execution used replacement configuration %d times", replacementCalls.Load())
 	}
-	restartedApplication, err := collectorapp.New(store, t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	restartedServer := httptest.NewServer(httpapi.NewHandler(restartedApplication, "service-test-token"))
-	defer restartedServer.Close()
-	restarted := postHTTPTestRun(t, restartedServer.URL, fmt.Sprintf("http-restarted-%d", time.Now().UnixNano()), "采集配置重启验证")
-	restartedResult := waitForHandlerTestRun(t, restartedServer.URL, restarted.ExecutionID)
-	if restartedResult.Status != "failed" || replacementCalls.Load() == 0 {
-		t.Fatalf("restarted service status=%q replacement calls=%d", restartedResult.Status, replacementCalls.Load())
+	updated := postHTTPTestRun(t, server.URL, fmt.Sprintf("http-updated-%d", time.Now().UnixNano()), "采集配置热更新验证")
+	updatedResult := waitForHandlerTestRun(t, server.URL, updated.ExecutionID)
+	if updatedResult.Status != "failed" || replacementCalls.Load() == 0 {
+		t.Fatalf("updated service status=%q replacement calls=%d", updatedResult.Status, replacementCalls.Load())
 	}
 	if _, err := os.Stat(observed.Artifacts["manifest"]); err != nil {
 		t.Fatalf("manifest is not readable: %v", err)
@@ -237,7 +278,7 @@ func waitForHandlerTestRun(t *testing.T, serverURL, executionID string) struct {
 	t.Helper()
 	deadline := time.Now().Add(8 * time.Second)
 	for {
-		request, _ := http.NewRequest(http.MethodGet, serverURL+"/internal/agent-run/v1/collector/runs/"+executionID, nil)
+		request, _ := http.NewRequest(http.MethodGet, serverURL+"/api/v1/collector/runs/"+executionID, nil)
 		request.Header.Set("Authorization", "Bearer service-test-token")
 		response, err := http.DefaultClient.Do(request)
 		if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
 )
@@ -54,7 +55,7 @@ func (s *Store) LoadModelProviderConfigs(ctx context.Context) (map[string]agentr
 
 func (s *Store) ListModelProviderConfigViews(ctx context.Context) ([]agentrun.ModelProviderConfigView, error) {
 	rows, err := s.database.Query(ctx, `
-		SELECT provider_key, base_url, model, api_key
+		SELECT provider_key, base_url, model, api_key, updated_at
 		FROM model_provider_configs
 		ORDER BY provider_key
 	`)
@@ -66,9 +67,12 @@ func (s *Store) ListModelProviderConfigViews(ctx context.Context) ([]agentrun.Mo
 	for rows.Next() {
 		var view agentrun.ModelProviderConfigView
 		var key string
-		if err := rows.Scan(&view.ProviderKey, &view.BaseURL, &view.Model, &key); err != nil {
+		var updatedAt time.Time
+		if err := rows.Scan(&view.ProviderKey, &view.BaseURL, &view.Model, &key, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan Model Provider Configuration view: %w", err)
 		}
+		view.Configured = true
+		view.UpdatedAt = &updatedAt
 		view.KeyConfigured, view.MaskedKey = redactKey(key)
 		views = append(views, view)
 	}
@@ -123,7 +127,7 @@ func (s *Store) LoadConnectorConfigs(ctx context.Context) (map[string]agentrun.C
 
 func (s *Store) ListConnectorConfigViews(ctx context.Context) ([]agentrun.ConnectorConfigView, error) {
 	rows, err := s.database.Query(ctx, `
-		SELECT connector_key, base_url, api_key
+		SELECT connector_key, base_url, api_key, updated_at
 		FROM connector_configs
 		ORDER BY connector_key
 	`)
@@ -135,9 +139,12 @@ func (s *Store) ListConnectorConfigViews(ctx context.Context) ([]agentrun.Connec
 	for rows.Next() {
 		var view agentrun.ConnectorConfigView
 		var key string
-		if err := rows.Scan(&view.ConnectorKey, &view.BaseURL, &key); err != nil {
+		var updatedAt time.Time
+		if err := rows.Scan(&view.ConnectorKey, &view.BaseURL, &key, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan Connector Configuration view: %w", err)
 		}
+		view.Configured = true
+		view.UpdatedAt = &updatedAt
 		view.KeyConfigured, view.MaskedKey = redactKey(key)
 		views = append(views, view)
 	}
@@ -151,7 +158,7 @@ func redactKey(key string) (bool, string) {
 	if key == "" {
 		return false, ""
 	}
-	if len(key) < 4 {
+	if len(key) <= 4 {
 		return true, "***"
 	}
 	return true, "***" + key[len(key)-4:]

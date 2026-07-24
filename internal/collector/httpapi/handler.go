@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	runsPath        = "/internal/agent-run/v1/collector/runs"
+	runsPath        = "/api/v1/collector/runs"
 	maxPromptBytes  = 64 * 1024
 	maxRequestBytes = maxPromptBytes*6 + 4096
 )

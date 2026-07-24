@@ -208,6 +208,96 @@ func TestMigrationRejectsUnknownProviderWithoutPartialSplit(t *testing.T) {
 	}
 }
 
+func TestMigrationAddsAgentSchedulesAndBackfillsExecutionTriggerMetadata(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "storage_schedule_upgrade_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	applyHistoricalMigrations(t, ctx, database, []string{
+		"001_agent_registry.sql",
+		"002_executions.sql",
+		"003_provider_configs.sql",
+		"004_collector_audit_publication.sql",
+		"005_split_provider_configs.sql",
+	})
+	executionID := "00000000-0000-0000-0000-000000000023"
+	if _, err := database.Exec(ctx, `
+		INSERT INTO agent_executions (
+			execution_id, agent_version, idempotency_key, prompt, prompt_sha256,
+			prompt_bytes, status, stop_reason, created_at, completed_at, updated_at
+		) VALUES ($1, 'collector.v1', 'historical-schedule-upgrade', 'historical prompt',
+		          $2, 17, 'succeeded', 'connectors_completed', now(), now(), now())
+	`, executionID, strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	var scheduleTable *string
+	if err := database.QueryRow(ctx, `SELECT to_regclass('agent_schedules')::text`).Scan(&scheduleTable); err != nil {
+		t.Fatal(err)
+	}
+	if scheduleTable == nil || *scheduleTable != "agent_schedules" {
+		t.Fatalf("agent_schedules table = %v", scheduleTable)
+	}
+	var agentKey, triggerSource string
+	var inputPayload []byte
+	if err := database.QueryRow(ctx, `
+		SELECT agent_key, trigger_source, input_payload
+		FROM agent_executions
+		WHERE execution_id = $1
+	`, executionID).Scan(&agentKey, &triggerSource, &inputPayload); err != nil {
+		t.Fatal(err)
+	}
+	var input map[string]string
+	if err := json.Unmarshal(inputPayload, &input); err != nil {
+		t.Fatal(err)
+	}
+	if agentKey != "collector" || triggerSource != "api" || input["prompt"] != "historical prompt" {
+		t.Fatalf("backfilled execution agent=%q trigger=%q input=%#v", agentKey, triggerSource, input)
+	}
+	var promptNullable string
+	if err := database.QueryRow(ctx, `
+		SELECT is_nullable
+		FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'agent_executions'
+		  AND column_name = 'prompt'
+	`).Scan(&promptNullable); err != nil {
+		t.Fatal(err)
+	}
+	if promptNullable != "YES" {
+		t.Fatalf("Collector prompt compatibility projection nullable = %q, want YES", promptNullable)
+	}
+	var activeIndex string
+	if err := database.QueryRow(ctx, `
+		SELECT indexdef
+		FROM pg_indexes
+		WHERE schemaname = current_schema()
+		  AND indexname = 'agent_executions_one_active'
+	`).Scan(&activeIndex); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(activeIndex, "(agent_key)") {
+		t.Fatalf("active execution index = %q, want per-agent uniqueness", activeIndex)
+	}
+	if !postgres.New(database).SchemaReady(ctx) {
+		t.Fatal("schedule migration schema is not ready")
+	}
+}
+
 func applyHistoricalMigrations(
 	t *testing.T,
 	ctx context.Context,
@@ -375,8 +465,54 @@ func TestCreateExecutionEnforcesIdempotencyAndSingleActiveRun(t *testing.T) {
 	if first.ID == "" || first.Status != agentrun.StatusQueued {
 		t.Fatalf("created execution = %#v", first)
 	}
+	if first.AgentKey != "collector" || first.TriggerSource != agentrun.TriggerAPI ||
+		!first.TriggeredAt.Equal(first.CreatedAt) {
+		t.Fatalf("execution trigger metadata = %#v", first)
+	}
+	var firstInput map[string]string
+	if err := json.Unmarshal(first.InputPayload, &firstInput); err != nil {
+		t.Fatal(err)
+	}
+	if firstInput["prompt"] != "采集最近一周中国半导体产业链资讯\n并保留直接来源。" {
+		t.Fatalf("execution input = %#v", firstInput)
+	}
 	if len(first.Invocations) != 7 {
 		t.Fatalf("invocation count = %d, want 7", len(first.Invocations))
+	}
+	if _, err := database.Exec(ctx, `
+		INSERT INTO agent_definitions (agent_key, display_name)
+		VALUES ('analyst', 'Analyst Agent');
+		INSERT INTO agent_versions (version, agent_key)
+		VALUES ('analyst.v1', 'analyst')
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "analyst-missing-input",
+		CreatedAt:      time.Now().UTC(),
+		AgentVersion:   "analyst.v1",
+	}); err == nil {
+		t.Fatal("generic Agent Execution accepted a missing Agent Input")
+	}
+	analyst, analystDisposition, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "analyst-active",
+		InputPayload:   json.RawMessage(`{"thesis":"分析产业链"}`),
+		CreatedAt:      time.Now().UTC(),
+		AgentVersion:   "analyst.v1",
+	})
+	if err != nil || analystDisposition != agentrun.ExecutionCreated ||
+		analyst.AgentKey != "analyst" || len(analyst.Invocations) != 0 {
+		t.Fatalf("different-Agent execution = %#v, %q, %v", analyst, analystDisposition, err)
+	}
+	blockedAnalyst, blockedDisposition, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "analyst-overlap",
+		InputPayload:   json.RawMessage(`{"thesis":"再次分析产业链"}`),
+		CreatedAt:      time.Now().UTC(),
+		AgentVersion:   "analyst.v1",
+	})
+	if err != nil || blockedDisposition != agentrun.ExecutionSkipped ||
+		blockedAnalyst.BlockedByExecutionID != analyst.ID {
+		t.Fatalf("same-Agent overlap = %#v, %q, %v", blockedAnalyst, blockedDisposition, err)
 	}
 
 	replayed, disposition, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
@@ -436,6 +572,95 @@ func TestCreateExecutionEnforcesIdempotencyAndSingleActiveRun(t *testing.T) {
 	})
 	if err != nil || replayDisposition != agentrun.ExecutionReplayed || replayedSkipped.ID != skipped.ID {
 		t.Fatalf("skipped replay = %#v, %q, %v", replayedSkipped, replayDisposition, err)
+	}
+}
+
+func TestAgentScheduleRepositoryPreservesIdentityAcrossReplacement(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "storage_schedule_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	now := time.Date(2026, 7, 24, 2, 0, 0, 0, time.UTC)
+	created, err := store.PutAgentSchedule(ctx, agentrun.PutAgentScheduleInput{
+		AgentKey:       "collector",
+		AgentVersion:   "collector.v1",
+		Type:           agentrun.ScheduleCron,
+		CronExpression: "0 */2 * * *",
+		InputPayload:   json.RawMessage(`{"prompt":"采集最近两小时资讯"}`),
+		Enabled:        true,
+		UpdatedAt:      now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID == "" || created.AgentKey != "collector" || created.Type != agentrun.ScheduleCron ||
+		created.CronExpression != "0 */2 * * *" || !created.Enabled {
+		t.Fatalf("created Schedule = %#v", created)
+	}
+
+	replaced, err := store.PutAgentSchedule(ctx, agentrun.PutAgentScheduleInput{
+		AgentKey:     "collector",
+		AgentVersion: "collector.v1",
+		Type:         agentrun.ScheduleDaily,
+		DailyTimes:   []string{"09:00", "13:30"},
+		InputPayload: json.RawMessage(`{"prompt":"采集固定时点资讯"}`),
+		Enabled:      false,
+		UpdatedAt:    now.Add(time.Minute),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replaced.ID != created.ID || replaced.Type != agentrun.ScheduleDaily ||
+		len(replaced.DailyTimes) != 2 || replaced.DailyTimes[0] != "09:00" ||
+		replaced.CronExpression != "" || replaced.Enabled {
+		t.Fatalf("replaced Schedule = %#v", replaced)
+	}
+	loaded, err := store.GetAgentSchedule(ctx, "collector")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ID != created.ID || string(loaded.InputPayload) != `{"prompt": "采集固定时点资讯"}` {
+		t.Fatalf("loaded Schedule = %#v", loaded)
+	}
+	triggeredAt := now.Add(2 * time.Minute)
+	execution, disposition, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "scheduled-collector-execution",
+		InputPayload:   json.RawMessage(`{"prompt":"采集固定时点资讯"}`),
+		Prompt:         "采集固定时点资讯",
+		CreatedAt:      triggeredAt,
+		TriggeredAt:    triggeredAt,
+		TriggerSource:  agentrun.TriggerSchedule,
+		ScheduleID:     loaded.ID,
+		AgentVersion:   "collector.v1",
+		InvocationKeys: testConnectorKeys,
+	})
+	if err != nil || disposition != agentrun.ExecutionCreated {
+		t.Fatalf("scheduled Execution = %#v, disposition=%q, err=%v", execution, disposition, err)
+	}
+	if execution.TriggerSource != agentrun.TriggerSchedule ||
+		execution.ScheduleID != loaded.ID ||
+		!execution.TriggeredAt.Equal(triggeredAt) ||
+		string(execution.InputPayload) != `{"prompt": "采集固定时点资讯"}` {
+		t.Fatalf("scheduled Execution metadata = %#v", execution)
+	}
+	listed, err := store.ListAgentSchedules(ctx)
+	if err != nil || len(listed) != 1 || listed[0].ID != created.ID {
+		t.Fatalf("listed Schedules = %#v, err=%v", listed, err)
 	}
 }
 

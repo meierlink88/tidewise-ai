@@ -113,7 +113,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 	if !strings.Contains(databaseURL, "/tidewise_ai_server_test?") || strings.Contains(databaseURL, "tidewise_local") {
 		t.Fatalf("unsafe integration database URL %q", databaseURL)
 	}
-	assertRunsCommand(t, integration.Steps, "go test ./internal/agentrun/persistence/postgres ./internal/collector/httpapi -count=1")
+	assertRunsCommand(t, integration.Steps, "go test ./cmd/agentrun-server ./internal/agentrun/persistence/postgres ./internal/agentrun/httpapi ./internal/agentrun/scheduling ./internal/collector/httpapi -count=1")
 }
 
 func assertAllActionsPinned(t *testing.T, steps []ciStep) {

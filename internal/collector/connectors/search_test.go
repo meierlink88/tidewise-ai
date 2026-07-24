@@ -73,8 +73,9 @@ func TestTavilyUsesCodexDirectResultContract(t *testing.T) {
 		}
 		want := map[string]any{
 			"query":               "A股半导体产业链最新变化",
+			"topic":               "news",
 			"search_depth":        "advanced",
-			"auto_parameters":     true,
+			"auto_parameters":     false,
 			"chunks_per_source":   float64(3),
 			"max_results":         float64(10),
 			"include_answer":      false,
@@ -86,9 +87,6 @@ func TestTavilyUsesCodexDirectResultContract(t *testing.T) {
 			if body[key] != value {
 				t.Fatalf("body[%q] = %#v, want %#v; body=%#v", key, body[key], value, body)
 			}
-		}
-		if _, exists := body["topic"]; exists {
-			t.Fatalf("request contains fixed topic: %#v", body)
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -123,6 +121,38 @@ func TestTavilyUsesCodexDirectResultContract(t *testing.T) {
 	}
 	if results[2].Content != "只有标题" || results[2].ContentLevel != collector.LevelTitle {
 		t.Fatalf("title fallback result = %+v", results[2])
+	}
+}
+
+func TestTavilyUsesRelativeDayForSubDayWindow(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		var body map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["time_range"] != "day" {
+			t.Fatalf("time_range = %#v, want day; body=%#v", body["time_range"], body)
+		}
+		if startDate, exists := body["start_date"]; exists {
+			t.Fatalf("sub-day request contains start_date = %#v; body=%#v", startDate, body)
+		}
+		if endDate, exists := body["end_date"]; exists {
+			t.Fatalf("sub-day request contains end_date = %#v; body=%#v", endDate, body)
+		}
+		return jsonResponse(map[string]any{"results": []any{}}), nil
+	})}
+
+	_, err := (Tavily{APIKey: "key", Endpoint: "https://tavily.test/search", Client: client}).Collect(
+		context.Background(),
+		collector.Request{
+			CombinedQuery:   "A股产业链最新资讯",
+			CandidateLimit:  10,
+			CollectedAt:     time.Date(2026, 7, 24, 1, 0, 0, 0, time.FixedZone("UTC+8", 8*60*60)),
+			TimeWindowHours: 2,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

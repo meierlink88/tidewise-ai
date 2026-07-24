@@ -54,11 +54,20 @@ func (s *Store) GetAgentVersion(ctx context.Context, version string) (agentrun.A
 }
 
 func (s *Store) CreateExecution(ctx context.Context, input agentrun.CreateExecutionInput) (agentrun.Execution, agentrun.CreateDisposition, error) {
+	return s.createExecution(ctx, input, false)
+}
+
+func (s *Store) CreateExecutionIfActive(ctx context.Context, input agentrun.CreateExecutionInput) (agentrun.Execution, agentrun.CreateDisposition, error) {
+	return s.createExecution(ctx, input, true)
+}
+
+func (s *Store) createExecution(
+	ctx context.Context,
+	input agentrun.CreateExecutionInput,
+	requireActive bool,
+) (agentrun.Execution, agentrun.CreateDisposition, error) {
 	if strings.TrimSpace(input.AgentVersion) == "" {
 		return agentrun.Execution{}, "", errors.New("Agent Version is required")
-	}
-	if len(input.InvocationKeys) == 0 {
-		return agentrun.Execution{}, "", errors.New("at least one Invocation key is required")
 	}
 	seenInvocationKeys := make(map[string]struct{}, len(input.InvocationKeys))
 	for _, key := range input.InvocationKeys {
@@ -70,17 +79,66 @@ func (s *Store) CreateExecution(ctx context.Context, input agentrun.CreateExecut
 		}
 		seenInvocationKeys[key] = struct{}{}
 	}
+	inputPayload := input.InputPayload
+	generatedCollectorInput := len(inputPayload) == 0
+	if generatedCollectorInput {
+		if len([]byte(input.Prompt)) > 64*1024 {
+			return agentrun.Execution{}, "", errors.New("Collector Prompt exceeds 64 KiB")
+		}
+		encoded, err := json.Marshal(map[string]string{"prompt": input.Prompt})
+		if err != nil {
+			return agentrun.Execution{}, "", fmt.Errorf("encode Agent Input: %w", err)
+		}
+		inputPayload = encoded
+	}
+	var inputObject map[string]json.RawMessage
+	if err := json.Unmarshal(inputPayload, &inputObject); err != nil || inputObject == nil {
+		return agentrun.Execution{}, "", errors.New("Agent Input must be a JSON object")
+	}
+	if !generatedCollectorInput && len(inputPayload) > 64*1024 {
+		return agentrun.Execution{}, "", errors.New("Agent Input exceeds 64 KiB")
+	}
+	triggerSource := input.TriggerSource
+	if triggerSource == "" {
+		triggerSource = agentrun.TriggerAPI
+	}
+	if triggerSource != agentrun.TriggerAPI && triggerSource != agentrun.TriggerSchedule {
+		return agentrun.Execution{}, "", errors.New("Execution trigger source is invalid")
+	}
+	if (triggerSource == agentrun.TriggerAPI && input.ScheduleID != "") ||
+		(triggerSource == agentrun.TriggerSchedule && input.ScheduleID == "") {
+		return agentrun.Execution{}, "", errors.New("Execution Schedule identity does not match trigger source")
+	}
+	createdAt := input.CreatedAt.UTC()
+	triggeredAt := input.TriggeredAt.UTC()
+	if input.TriggeredAt.IsZero() {
+		triggeredAt = createdAt
+	}
+	var scheduleID any
+	if input.ScheduleID != "" {
+		scheduleID = input.ScheduleID
+	}
 	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return agentrun.Execution{}, "", fmt.Errorf("begin create execution: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('agentrun_single_active_execution'))`); err != nil {
+	var agentKey string
+	if err := tx.QueryRow(ctx, `SELECT agent_key FROM agent_versions WHERE version = $1`, input.AgentVersion).Scan(&agentKey); err != nil {
+		return agentrun.Execution{}, "", fmt.Errorf("resolve Agent Version: %w", err)
+	}
+	if generatedCollectorInput && agentKey != "collector" {
+		return agentrun.Execution{}, "", errors.New("Agent Input is required")
+	}
+	if agentKey == "collector" && len(input.InvocationKeys) == 0 {
+		return agentrun.Execution{}, "", errors.New("Collector requires at least one Connector Invocation")
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "agentrun_active:"+agentKey); err != nil {
 		return agentrun.Execution{}, "", fmt.Errorf("lock execution creation: %w", err)
 	}
 
 	var existingID, existingPrompt string
-	err = tx.QueryRow(ctx, `SELECT execution_id::text, prompt FROM agent_executions WHERE idempotency_key = $1`, input.IdempotencyKey).Scan(&existingID, &existingPrompt)
+	err = tx.QueryRow(ctx, `SELECT execution_id::text, COALESCE(prompt, '') FROM agent_executions WHERE idempotency_key = $1`, input.IdempotencyKey).Scan(&existingID, &existingPrompt)
 	if err == nil {
 		if existingPrompt != input.Prompt {
 			return agentrun.Execution{}, "", agentrun.ErrIdempotencyConflict
@@ -96,19 +154,31 @@ func (s *Store) CreateExecution(ctx context.Context, input agentrun.CreateExecut
 	}
 
 	var activeID string
-	err = tx.QueryRow(ctx, `SELECT execution_id::text FROM agent_executions WHERE status IN ('queued', 'planning', 'collecting', 'materializing') LIMIT 1`).Scan(&activeID)
+	err = tx.QueryRow(ctx, `
+		SELECT execution_id::text
+		FROM agent_executions
+		WHERE agent_key = $1
+		  AND status IN ('queued', 'planning', 'collecting', 'materializing')
+		LIMIT 1
+	`, agentKey).Scan(&activeID)
 	if err == nil {
 		id := uuid.NewString()
-		createdAt := input.CreatedAt.UTC()
 		sum := sha256.Sum256([]byte(input.Prompt))
 		promptHash := hex.EncodeToString(sum[:])
 		_, err = tx.Exec(ctx, `
 			INSERT INTO agent_executions (
-				execution_id, agent_version, idempotency_key, prompt, prompt_sha256,
+				execution_id, agent_key, agent_version, idempotency_key, input_payload,
+				trigger_source, schedule_id, triggered_at, prompt, prompt_sha256,
 				prompt_bytes, status, stop_reason, blocked_by_execution_id,
 				created_at, completed_at, updated_at
-			) VALUES ($1, $2, $3, $4, $5, $6, 'skipped', 'skipped_previous_run_active', $7, $8, $8, $8)
-		`, id, input.AgentVersion, input.IdempotencyKey, input.Prompt, promptHash,
+			) VALUES (
+				$1, $2, $3, $4, $5,
+				$6, $7, $8, $9, $10,
+				$11, 'skipped', 'skipped_previous_run_active', $12,
+				$13, $13, $13
+			)
+		`, id, agentKey, input.AgentVersion, input.IdempotencyKey, inputPayload,
+			triggerSource, scheduleID, triggeredAt, input.Prompt, promptHash,
 			len([]byte(input.Prompt)), activeID, createdAt)
 		if err != nil {
 			return agentrun.Execution{}, "", fmt.Errorf("insert skipped execution: %w", err)
@@ -133,17 +203,26 @@ func (s *Store) CreateExecution(ctx context.Context, input agentrun.CreateExecut
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return agentrun.Execution{}, "", fmt.Errorf("check active execution: %w", err)
 	}
+	if requireActive {
+		return agentrun.Execution{}, "", agentrun.ErrNoActiveExecution
+	}
 
 	id := uuid.NewString()
-	createdAt := input.CreatedAt.UTC()
 	sum := sha256.Sum256([]byte(input.Prompt))
 	promptHash := hex.EncodeToString(sum[:])
 	_, err = tx.Exec(ctx, `
 		INSERT INTO agent_executions (
-			execution_id, agent_version, idempotency_key, prompt, prompt_sha256,
+			execution_id, agent_key, agent_version, idempotency_key, input_payload,
+			trigger_source, schedule_id, triggered_at, prompt, prompt_sha256,
 			prompt_bytes, status, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, 'queued', $7, $7)
-	`, id, input.AgentVersion, input.IdempotencyKey, input.Prompt, promptHash, len([]byte(input.Prompt)), createdAt)
+		) VALUES (
+			$1, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10,
+			$11, 'queued', $12, $12
+		)
+	`, id, agentKey, input.AgentVersion, input.IdempotencyKey, inputPayload,
+		triggerSource, scheduleID, triggeredAt, input.Prompt, promptHash,
+		len([]byte(input.Prompt)), createdAt)
 	if err != nil {
 		return agentrun.Execution{}, "", fmt.Errorf("insert execution: %w", err)
 	}
@@ -161,7 +240,7 @@ func (s *Store) CreateExecution(ctx context.Context, input agentrun.CreateExecut
 
 func (s *Store) FindExecutionByIdempotencyKey(ctx context.Context, idempotencyKey, prompt string) (agentrun.Execution, bool, error) {
 	var id, storedPrompt string
-	err := s.database.QueryRow(ctx, `SELECT execution_id::text, prompt FROM agent_executions WHERE idempotency_key = $1`, idempotencyKey).Scan(&id, &storedPrompt)
+	err := s.database.QueryRow(ctx, `SELECT execution_id::text, COALESCE(prompt, '') FROM agent_executions WHERE idempotency_key = $1`, idempotencyKey).Scan(&id, &storedPrompt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return agentrun.Execution{}, false, nil
 	}
@@ -180,16 +259,19 @@ func (s *Store) FindExecutionByIdempotencyKey(ctx context.Context, idempotencyKe
 
 func (s *Store) GetExecution(ctx context.Context, id string) (agentrun.Execution, error) {
 	var result agentrun.Execution
-	var countsJSON, artifactsJSON []byte
+	var inputJSON, countsJSON, artifactsJSON []byte
 	err := s.database.QueryRow(ctx, `
-		SELECT execution_id::text, agent_version, idempotency_key, prompt, prompt_sha256,
-		       prompt_bytes, status, COALESCE(error_code, ''), COALESCE(error_summary, ''),
+		SELECT execution_id::text, agent_key, agent_version, idempotency_key, input_payload,
+		       trigger_source, COALESCE(schedule_id::text, ''), triggered_at,
+		       COALESCE(prompt, ''), COALESCE(prompt_sha256::text, ''), COALESCE(prompt_bytes, 0),
+		       status, COALESCE(error_code, ''), COALESCE(error_summary, ''),
 		       COALESCE(stop_reason, ''), COALESCE(blocked_by_execution_id::text, ''),
 		       candidate_counts, artifacts, created_at, started_at, completed_at
 		FROM agent_executions WHERE execution_id = $1
 	`, id).Scan(
-		&result.ID, &result.AgentVersion, &result.IdempotencyKey, &result.Prompt,
-		&result.PromptSHA256, &result.PromptBytes, &result.Status, &result.ErrorCode,
+		&result.ID, &result.AgentKey, &result.AgentVersion, &result.IdempotencyKey, &inputJSON,
+		&result.TriggerSource, &result.ScheduleID, &result.TriggeredAt,
+		&result.Prompt, &result.PromptSHA256, &result.PromptBytes, &result.Status, &result.ErrorCode,
 		&result.ErrorSummary, &result.StopReason, &result.BlockedByExecutionID,
 		&countsJSON, &artifactsJSON, &result.CreatedAt,
 		&result.StartedAt, &result.CompletedAt,
@@ -197,6 +279,7 @@ func (s *Store) GetExecution(ctx context.Context, id string) (agentrun.Execution
 	if err != nil {
 		return agentrun.Execution{}, err
 	}
+	result.InputPayload = append(result.InputPayload[:0], inputJSON...)
 	if err := json.Unmarshal(countsJSON, &result.CandidateCounts); err != nil {
 		return agentrun.Execution{}, fmt.Errorf("decode candidate counts: %w", err)
 	}

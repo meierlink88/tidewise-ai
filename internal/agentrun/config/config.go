@@ -7,6 +7,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
+	_ "time/tzdata"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,6 +32,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Artifact ArtifactConfig `yaml:"artifact"`
 	Secrets  SecretConfig   `yaml:"-"`
+	Location *time.Location `yaml:"-"`
 }
 
 type AppConfig struct {
@@ -58,6 +62,7 @@ type SecretConfig struct {
 	DatabaseURL      string
 	DatabasePassword string
 	ServiceToken     string
+	AdminToken       string
 }
 
 func Load() (Config, error) {
@@ -87,6 +92,15 @@ func Load() (Config, error) {
 		DatabaseURL:      os.Getenv("AGENTRUN_DATABASE_URL"),
 		DatabasePassword: os.Getenv("AGENTRUN_DATABASE_PASSWORD"),
 		ServiceToken:     os.Getenv("AGENTRUN_SERVICE_TOKEN"),
+		AdminToken:       os.Getenv("AGENTRUN_ADMIN_TOKEN"),
+	}
+	timezone := strings.TrimSpace(os.Getenv("TZ"))
+	if timezone == "" || timezone == "Local" {
+		return Config{}, fmt.Errorf("TZ is required")
+	}
+	cfg.Location, err = time.LoadLocation(timezone)
+	if err != nil {
+		return Config{}, fmt.Errorf("TZ must name a valid IANA timezone")
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
@@ -145,6 +159,9 @@ func (c Config) Validate() error {
 }
 
 func (c Config) validateRuntimeSecrets() error {
+	if strings.TrimSpace(c.Secrets.AdminToken) == "" {
+		return fmt.Errorf("AGENTRUN_ADMIN_TOKEN is required")
+	}
 	if c.App.Env != EnvUAT {
 		return nil
 	}

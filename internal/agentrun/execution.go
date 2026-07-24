@@ -1,6 +1,7 @@
 package agentrun
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -34,6 +35,13 @@ const (
 	InvocationNotInvoked InvocationStatus = "not_invoked"
 )
 
+type TriggerSource string
+
+const (
+	TriggerAPI      TriggerSource = "api"
+	TriggerSchedule TriggerSource = "schedule"
+)
+
 type ConnectorInvocation struct {
 	ConnectorKey string           `json:"connector_key"`
 	Status       InvocationStatus `json:"status"`
@@ -46,8 +54,13 @@ type ConnectorInvocation struct {
 
 type Execution struct {
 	ID                   string                `json:"execution_id"`
+	AgentKey             string                `json:"agent_key"`
 	AgentVersion         string                `json:"agent_version"`
 	IdempotencyKey       string                `json:"-"`
+	InputPayload         json.RawMessage       `json:"-"`
+	TriggerSource        TriggerSource         `json:"trigger_source"`
+	ScheduleID           string                `json:"schedule_id,omitempty"`
+	TriggeredAt          time.Time             `json:"triggered_at"`
 	Prompt               string                `json:"-"`
 	PromptSHA256         string                `json:"prompt_sha256"`
 	PromptBytes          int                   `json:"prompt_bytes"`
@@ -64,10 +77,46 @@ type Execution struct {
 	Invocations          []ConnectorInvocation `json:"invocations"`
 }
 
+type ExecutionListItem struct {
+	ID                   string          `json:"execution_id"`
+	AgentKey             string          `json:"agent_key"`
+	AgentVersion         string          `json:"agent_version"`
+	TriggerSource        TriggerSource   `json:"trigger_source"`
+	ScheduleID           string          `json:"schedule_id,omitempty"`
+	Status               ExecutionStatus `json:"status"`
+	ErrorCode            string          `json:"error_code,omitempty"`
+	ErrorSummary         string          `json:"error_summary,omitempty"`
+	StopReason           string          `json:"stop_reason,omitempty"`
+	BlockedByExecutionID string          `json:"blocked_by_execution_id,omitempty"`
+	CreatedAt            time.Time       `json:"created_at"`
+	TriggeredAt          time.Time       `json:"triggered_at"`
+	StartedAt            *time.Time      `json:"started_at,omitempty"`
+	CompletedAt          *time.Time      `json:"completed_at,omitempty"`
+}
+
+type ExecutionListQuery struct {
+	AgentKey  string
+	Page      int
+	PageSize  int
+	Ascending bool
+}
+
+type ExecutionPage struct {
+	Items      []ExecutionListItem `json:"items"`
+	Page       int                 `json:"page"`
+	PageSize   int                 `json:"page_size"`
+	TotalItems int                 `json:"total_items"`
+	TotalPages int                 `json:"total_pages"`
+}
+
 type CreateExecutionInput struct {
 	IdempotencyKey string
+	InputPayload   json.RawMessage
 	Prompt         string
 	CreatedAt      time.Time
+	TriggeredAt    time.Time
+	TriggerSource  TriggerSource
+	ScheduleID     string
 	AgentVersion   string
 	InvocationKeys []string
 }
@@ -81,6 +130,7 @@ const (
 )
 
 var ErrIdempotencyConflict = errors.New("idempotency key already belongs to a different prompt")
+var ErrNoActiveExecution = errors.New("Agent has no active Execution")
 
 type ActiveExecutionError struct {
 	ActiveExecutionID  string

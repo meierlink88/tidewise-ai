@@ -11,7 +11,9 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/httpapi"
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/admin"
+	agentrunhttp "github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/httpapi"
+	collectorhttp "github.com/guanchaojia/tidewise-ai-agentrun/internal/collector/httpapi"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,9 +31,48 @@ func (documentedApplication) GetCollectorRun(context.Context, string) (agentrun.
 	return agentrun.Execution{}, nil
 }
 
+type documentedAdminApplication struct{}
+
+func (documentedAdminApplication) ListModelProviders(context.Context) ([]agentrun.ModelProviderConfigView, error) {
+	return nil, nil
+}
+func (documentedAdminApplication) GetModelProvider(context.Context, string) (agentrun.ModelProviderConfigView, error) {
+	return agentrun.ModelProviderConfigView{}, nil
+}
+func (documentedAdminApplication) PatchModelProvider(context.Context, string, admin.ModelProviderPatch) (agentrun.ModelProviderConfigView, error) {
+	return agentrun.ModelProviderConfigView{}, nil
+}
+func (documentedAdminApplication) ListConnectors(context.Context) ([]agentrun.ConnectorConfigView, error) {
+	return nil, nil
+}
+func (documentedAdminApplication) GetConnector(context.Context, string) (agentrun.ConnectorConfigView, error) {
+	return agentrun.ConnectorConfigView{}, nil
+}
+func (documentedAdminApplication) PatchConnector(context.Context, string, admin.ConnectorPatch) (agentrun.ConnectorConfigView, error) {
+	return agentrun.ConnectorConfigView{}, nil
+}
+func (documentedAdminApplication) ListAgentSchedules(context.Context) ([]agentrun.AgentSchedule, error) {
+	return nil, nil
+}
+func (documentedAdminApplication) GetAgentSchedule(context.Context, string) (agentrun.AgentSchedule, error) {
+	return agentrun.AgentSchedule{}, nil
+}
+func (documentedAdminApplication) PutAgentSchedule(context.Context, agentrun.PutAgentScheduleInput) (agentrun.AgentSchedule, error) {
+	return agentrun.AgentSchedule{}, nil
+}
+func (documentedAdminApplication) PatchAgentSchedule(context.Context, string, agentrun.PatchAgentScheduleInput) (agentrun.AgentSchedule, error) {
+	return agentrun.AgentSchedule{}, nil
+}
+func (documentedAdminApplication) ListAgentExecutions(context.Context, agentrun.ExecutionListQuery) (agentrun.ExecutionPage, error) {
+	return agentrun.ExecutionPage{}, nil
+}
+
 func newDocumentedHTTPServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	server := httptest.NewServer(httpapi.NewHandler(documentedApplication{}, "service-test-token"))
+	mux := http.NewServeMux()
+	mux.Handle("/api/admin/", agentrunhttp.NewAdminHandler(documentedAdminApplication{}, "admin-test-token"))
+	mux.Handle("/", collectorhttp.NewHandler(documentedApplication{}, "service-test-token"))
+	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return server
 }
@@ -77,6 +118,27 @@ func TestAgentRunServesEmbeddedOpenAPIDocument(t *testing.T) {
 	}
 }
 
+func TestCollectorHTTPUsesAPIPrefixWithoutLegacyAlias(t *testing.T) {
+	server := newDocumentedHTTPServer(t)
+
+	for _, request := range []struct {
+		path       string
+		wantStatus int
+	}{
+		{path: "/api/v1/collector/runs", wantStatus: http.StatusUnauthorized},
+		{path: "/internal/agent-run/v1/collector/runs", wantStatus: http.StatusNotFound},
+	} {
+		response, err := server.Client().Post(server.URL+request.path, "application/json", strings.NewReader(`{"prompt":"采集资讯"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != request.wantStatus {
+			t.Errorf("POST %s status = %d, want %d", request.path, response.StatusCode, request.wantStatus)
+		}
+	}
+}
+
 func TestAgentRunOpenAPIContractMatchesHTTPInterface(t *testing.T) {
 	server := newDocumentedHTTPServer(t)
 
@@ -99,8 +161,19 @@ func TestAgentRunOpenAPIContractMatchesHTTPInterface(t *testing.T) {
 	}{
 		{method: http.MethodGet, path: "/healthz"},
 		{method: http.MethodGet, path: "/readyz"},
-		{method: http.MethodPost, path: "/internal/agent-run/v1/collector/runs"},
-		{method: http.MethodGet, path: "/internal/agent-run/v1/collector/runs/{execution_id}"},
+		{method: http.MethodPost, path: "/api/v1/collector/runs"},
+		{method: http.MethodGet, path: "/api/v1/collector/runs/{execution_id}"},
+		{method: http.MethodGet, path: "/api/admin/v1/model-providers"},
+		{method: http.MethodGet, path: "/api/admin/v1/model-providers/{provider_key}"},
+		{method: http.MethodPatch, path: "/api/admin/v1/model-providers/{provider_key}"},
+		{method: http.MethodGet, path: "/api/admin/v1/connectors"},
+		{method: http.MethodGet, path: "/api/admin/v1/connectors/{connector_key}"},
+		{method: http.MethodPatch, path: "/api/admin/v1/connectors/{connector_key}"},
+		{method: http.MethodGet, path: "/api/admin/v1/agent-schedules"},
+		{method: http.MethodGet, path: "/api/admin/v1/agent-schedules/{agent_key}"},
+		{method: http.MethodPut, path: "/api/admin/v1/agent-schedules/{agent_key}"},
+		{method: http.MethodPatch, path: "/api/admin/v1/agent-schedules/{agent_key}"},
+		{method: http.MethodGet, path: "/api/admin/v1/agent-executions"},
 		{method: http.MethodGet, path: "/openapi.yaml"},
 		{method: http.MethodGet, path: "/docs/"},
 	}
@@ -114,9 +187,11 @@ func TestAgentRunOpenAPIContractMatchesHTTPInterface(t *testing.T) {
 		t.FailNow()
 	}
 
-	bearer := document.Components.SecuritySchemes["bearerAuth"]
-	if bearer == nil || bearer.Value == nil || bearer.Value.Type != "http" || bearer.Value.Scheme != "bearer" {
-		t.Fatalf("bearerAuth = %#v", bearer)
+	for _, name := range []string{"serviceBearerAuth", "adminBearerAuth"} {
+		bearer := document.Components.SecuritySchemes[name]
+		if bearer == nil || bearer.Value == nil || bearer.Value.Type != "http" || bearer.Value.Scheme != "bearer" {
+			t.Fatalf("%s = %#v", name, bearer)
+		}
 	}
 	for _, public := range []struct {
 		method string
@@ -133,14 +208,34 @@ func TestAgentRunOpenAPIContractMatchesHTTPInterface(t *testing.T) {
 		}
 	}
 
-	create := document.Paths.Value("/internal/agent-run/v1/collector/runs").Post
-	get := document.Paths.Value("/internal/agent-run/v1/collector/runs/{execution_id}").Get
+	create := document.Paths.Value("/api/v1/collector/runs").Post
+	get := document.Paths.Value("/api/v1/collector/runs/{execution_id}").Get
 	for name, operation := range map[string]*openapi3.Operation{"create": create, "get": get} {
 		if operation.Security == nil || len(*operation.Security) != 1 {
 			t.Fatalf("%s security = %#v", name, operation.Security)
 		}
-		if _, ok := (*operation.Security)[0]["bearerAuth"]; !ok {
-			t.Fatalf("%s does not require bearerAuth", name)
+		if _, ok := (*operation.Security)[0]["serviceBearerAuth"]; !ok {
+			t.Fatalf("%s does not require serviceBearerAuth", name)
+		}
+	}
+	for _, target := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/api/admin/v1/model-providers"},
+		{method: http.MethodPatch, path: "/api/admin/v1/model-providers/{provider_key}"},
+		{method: http.MethodGet, path: "/api/admin/v1/connectors"},
+		{method: http.MethodPatch, path: "/api/admin/v1/connectors/{connector_key}"},
+		{method: http.MethodGet, path: "/api/admin/v1/agent-schedules"},
+		{method: http.MethodPut, path: "/api/admin/v1/agent-schedules/{agent_key}"},
+		{method: http.MethodGet, path: "/api/admin/v1/agent-executions"},
+	} {
+		operation := document.Paths.Value(target.path).GetOperation(target.method)
+		if operation.Security == nil || len(*operation.Security) != 1 {
+			t.Fatalf("%s %s security = %#v", target.method, target.path, operation.Security)
+		}
+		if _, ok := (*operation.Security)[0]["adminBearerAuth"]; !ok {
+			t.Fatalf("%s %s does not require adminBearerAuth", target.method, target.path)
 		}
 	}
 
@@ -199,6 +294,31 @@ func TestAgentRunOpenAPIContractMatchesHTTPInterface(t *testing.T) {
 			}
 		}
 	}
+	const dailyTimePattern = `^([01][0-9]|2[0-3]):[0-5][0-9]$`
+	for _, schemaName := range []string{"AgentSchedulePut", "AgentSchedulePatch"} {
+		schema := document.Components.Schemas[schemaName]
+		if schema == nil || schema.Value == nil {
+			t.Fatalf("%s schema is missing", schemaName)
+		}
+		dailyTimes := schema.Value.Properties["daily_times"]
+		if dailyTimes == nil || dailyTimes.Value == nil || dailyTimes.Value.Items == nil ||
+			dailyTimes.Value.Items.Value == nil || dailyTimes.Value.Items.Value.Pattern != dailyTimePattern {
+			t.Fatalf("%s daily_times pattern is not strict HH:MM", schemaName)
+		}
+	}
+
+	executionListItem := document.Components.Schemas["AgentExecutionListItem"]
+	if executionListItem == nil || executionListItem.Value == nil {
+		t.Fatal("AgentExecutionListItem schema is missing")
+	}
+	for _, forbidden := range []string{
+		"prompt", "prompt_sha256", "prompt_bytes", "input", "input_payload",
+		"output", "artifacts", "candidate_counts", "invocations",
+	} {
+		if executionListItem.Value.Properties[forbidden] != nil {
+			t.Errorf("AgentExecutionListItem exposes forbidden property %q", forbidden)
+		}
+	}
 }
 
 func TestDocumentationMountPreservesExistingHTTPRoutes(t *testing.T) {
@@ -211,8 +331,9 @@ func TestDocumentationMountPreservesExistingHTTPRoutes(t *testing.T) {
 	}{
 		{method: http.MethodGet, path: "/healthz", wantStatus: http.StatusOK},
 		{method: http.MethodGet, path: "/readyz", wantStatus: http.StatusOK},
-		{method: http.MethodPost, path: "/internal/agent-run/v1/collector/runs", wantStatus: http.StatusUnauthorized},
-		{method: http.MethodGet, path: "/internal/agent-run/v1/collector/runs/00000000-0000-0000-0000-000000000000", wantStatus: http.StatusUnauthorized},
+		{method: http.MethodPost, path: "/api/v1/collector/runs", wantStatus: http.StatusUnauthorized},
+		{method: http.MethodGet, path: "/api/v1/collector/runs/00000000-0000-0000-0000-000000000000", wantStatus: http.StatusUnauthorized},
+		{method: http.MethodGet, path: "/api/admin/v1/agent-executions", wantStatus: http.StatusUnauthorized},
 	} {
 		httpRequest, err := http.NewRequest(request.method, server.URL+request.path, nil)
 		if err != nil {

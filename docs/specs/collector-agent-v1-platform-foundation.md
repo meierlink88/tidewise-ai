@@ -91,7 +91,7 @@ The resulting package direction is capability-first: `internal/agentrun` owns re
 
 ### HTTP contract
 
-- The versioned endpoints are `POST /internal/agent-run/v1/collector/runs` and `GET /internal/agent-run/v1/collector/runs/{execution_id}`.
+- The versioned endpoints are `POST /api/v1/collector/runs` and `GET /api/v1/collector/runs/{execution_id}`. The previous `/internal/agent-run/v1` path was removed by the later Agent Scheduling/Admin API contract.
 - Both endpoints require `Authorization: Bearer <AGENTRUN_SERVICE_TOKEN>`. Missing or incorrect credentials return `401`. Authorization headers are never logged.
 - Health and readiness endpoints are anonymous and return no sensitive configuration detail.
 - POST requires an `Idempotency-Key` header and JSON containing exactly one business field, `prompt`.
@@ -130,11 +130,11 @@ The resulting package direction is capability-first: `internal/agentrun` owns re
 - `connector_configs` stores one current row for each fixed Connector with `connector_key`, Base URL, optional key, and update time. It has no model field and does not introduce a second “Connector Provider” abstraction.
 - All Connector keys follow one optional rule. The database, CLI, readiness check, and Collector configuration validator do not maintain Connector-specific key requirements. A missing Connector key does not block startup or readiness; if the external endpoint rejects an anonymous request, that Invocation follows the ordinary safe Connector-failure path and can contribute to a partial or failed Execution. DeepSeek model access remains separately validated and requires its key.
 - Migration from `provider_configs` creates both tables, copies the DeepSeek row and the seven known Connector rows, rejects unknown or unaccounted keys, verifies that no row was lost or duplicated, and drops the generic table in the same transaction. There is no compatibility read path or dual write.
-- Updates overwrite current values; V1 does not preserve profile versions, credential versions, rotation history, or configuration history. The service loads one immutable configuration snapshot at process startup. CLI changes take effect only after restart and cannot alter an in-flight Execution.
-- The bootstrap CLI exposes `model set|list` and `connector set|list` as separate resource operations plus one aggregate `check`. It never prints a full key; output may show only configured/not-configured and a masked suffix. Successful writes tell the operator that a service restart is required.
+- Updates overwrite current values; V1 does not preserve profile versions, credential versions, rotation history, or configuration history. Each new Execution loads and freezes one immutable configuration snapshot. CLI or Admin API changes affect the next Execution without restart and cannot alter an in-flight Execution.
+- The bootstrap CLI exposes `model set|list` and `connector set|list` as separate resource operations plus one aggregate `check`. It never prints a full key; output may show only configured/not-configured and a masked suffix. Successful writes tell the operator that the next Execution reads the new configuration without restarting the service.
 - Model and Connector keys are plaintext in PostgreSQL only for the dev/UAT MVP, as accepted by ADR 0001. HTTP responses, CLI reads, logs, errors, Execution data, Candidate ledgers, manifests, summaries, and documents never contain them.
 - Only `dev` and `uat` are supported while plaintext credential storage is active. A future production change must add database-external key management, encrypted storage, and plaintext migration before production can become ready.
-- Non-secret runtime configuration is selected by `APP_ENV` and loaded from `internal/agentrun/config/config.dev.yaml` or `config.uat.yaml`. Environment variables are limited to the optional config directory override, database password or complete DSN, and static inbound service token.
+- Non-secret runtime configuration is selected by `APP_ENV` and loaded from `internal/agentrun/config/config.dev.yaml` or `config.uat.yaml`. Environment variables are limited to the optional config directory override, database password or complete DSN, static inbound Service/Admin tokens, and the deployment-owned `TZ`.
 - Migrations run only through an explicit migration CLI. Server startup checks schema compatibility but never auto-migrates. The configuration CLI refuses to operate against an incompatible schema.
 - `/healthz` reports process liveness. `/readyz` requires database connectivity, exact supported schema, a non-empty service token, a supported dev/UAT environment, writable Artifact root, one complete DeepSeek Model Provider Configuration, and all seven Connector Configurations with valid Base URLs. Connector keys are not a readiness requirement. Missing readiness requirements also make Collector POST return `503`.
 - The HTTP service port is fixed at `9080` in dev and UAT. Development reuses the existing local PostgreSQL instance while retaining an independent `tidewise_ai_server` database and `agentrun` user; AgentRun does not start another PostgreSQL container. Automated database tests use an isolated temporary database and explicitly reject production and Tidewise Data database names.
@@ -215,16 +215,17 @@ The resulting package direction is capability-first: `internal/agentrun` owns re
 - AgentRun-to-Data Raw Document Import, Run Outcome callback, Delivery Outbox, batching, receipt reconciliation, or callback retry.
 - Candidate body/query API, Candidate PostgreSQL table, or formal Tidewise Raw Document persistence.
 - Cancellation, waiting queue, multi-instance worker claims, PostgreSQL job queue, lease, heartbeat, Worker Attempt, crash recovery, or automatic replay after restart.
-- Admin HTTP API, configuration UI, Profile Version, Credential Version, rotation history, or configuration audit history.
+- Admin Portal UI, Profile Version, Credential Version, rotation history, or configuration audit history. The later Agent Scheduling/Admin API contract owns the current Admin HTTP management surface.
 - Production credential storage, encryption master key, envelope encryption, or a production-ready security claim.
 - Codex `live_search`, Brave or another replacement, secondary URL fetching, PDF/attachment fetching, multi-round search, tool calling, AgenticModel, Provider fallback, or automatic external-call retry.
 - LLM result review, relevance/spam filtering, evidence verification, factual scoring, summarization, translation, rewriting, Event extraction, industrial-chain analysis, or investment analysis.
 - Runtime configuration of timeouts, result limits, query limits, concurrency, or rate limits.
-- A test-only second Agent or Registry management surface.
+- Runtime registration of a second production Agent or an Agent Registry management surface. Tests may seed a fake Agent Definition to verify platform-level per-Agent concurrency.
 
 ## Further Notes
 
 - This Spec is the authoritative implementation contract for Issue #13 and supersedes the earlier draft that included eight Connectors, Brave, Data publishing, callback/outbox, cancellation, encrypted versioned credentials, and crash-recovery queues.
+- `agent-scheduling-admin-api.md` supersedes this document only for HTTP route names, per-Execution configuration loading, per-Agent active uniqueness, Agent Schedule, and Admin API behavior.
 - `collector.v1` is intentionally a deterministic workflow with a narrow LLM planning role. “Agent” does not mean the model can alter source coverage or execution policy.
 - Plaintext Provider storage is a conscious dev/UAT exception recorded in ADR 0001, not a recommended final architecture.
 - The later Tidewise Data change may rely only on the versioned HTTP response and completed Artifact contract described here; it must not couple to AgentRun tables or query `tidewise_ai_server` directly.

@@ -128,7 +128,7 @@ func setModelProviderConfiguration(
 	if err := store.UpsertModelProviderConfig(ctx, config); err != nil {
 		return errors.New("Model Provider Configuration is invalid or could not be saved")
 	}
-	_, err := fmt.Fprintf(stdout, "Model Provider %s configured; restart AgentRun for changes to take effect\n", config.ProviderKey)
+	_, err := fmt.Fprintf(stdout, "Model Provider %s configured; the next Agent Execution will use the change\n", config.ProviderKey)
 	return err
 }
 
@@ -163,7 +163,7 @@ func setConnectorConfiguration(
 	if err := store.UpsertConnectorConfig(ctx, config); err != nil {
 		return errors.New("Connector Configuration is invalid or could not be saved")
 	}
-	_, err := fmt.Fprintf(stdout, "Connector %s configured; restart AgentRun for changes to take effect\n", config.ConnectorKey)
+	_, err := fmt.Fprintf(stdout, "Connector %s configured; the next Agent Execution will use the change\n", config.ConnectorKey)
 	return err
 }
 

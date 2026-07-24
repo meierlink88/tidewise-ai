@@ -2,8 +2,6 @@ package collector
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 	"strings"
 
 	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun"
@@ -55,7 +53,7 @@ func ValidateModelProviderConfigForEnvironment(config agentrun.ModelProviderConf
 	if config.ProviderKey != ModelProviderDeepSeek {
 		return fmt.Errorf("unknown Model Provider Configuration key %q", config.ProviderKey)
 	}
-	if !validConfigurationBaseURL(config.BaseURL, environment) {
+	if !agentrun.ConfigurationBaseURLValid(config.BaseURL, environment) {
 		return fmt.Errorf("Model Provider Base URL must be an absolute HTTPS URL or loopback HTTP URL without credentials")
 	}
 	if strings.TrimSpace(config.Model) == "" {
@@ -75,33 +73,10 @@ func ValidateConnectorConfigForEnvironment(config agentrun.ConnectorConfig, envi
 	if _, known := connectorKeySet[config.ConnectorKey]; !known {
 		return fmt.Errorf("unknown Connector Configuration key %q", config.ConnectorKey)
 	}
-	if !validConfigurationBaseURL(config.BaseURL, environment) {
+	if !agentrun.ConfigurationBaseURLValid(config.BaseURL, environment) {
 		return fmt.Errorf("Connector Base URL must be an absolute HTTPS URL or loopback HTTP URL without credentials")
 	}
 	return nil
-}
-
-func validConfigurationBaseURL(raw, environment string) bool {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || !parsed.IsAbs() || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
-		return false
-	}
-	switch strings.ToLower(parsed.Scheme) {
-	case "https":
-		return true
-	case "http":
-		if environment != "dev" {
-			return false
-		}
-		host := parsed.Hostname()
-		if strings.EqualFold(host, "localhost") {
-			return true
-		}
-		address := net.ParseIP(host)
-		return address != nil && address.IsLoopback()
-	default:
-		return false
-	}
 }
 
 func BuildRuntimeConfiguration(

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -30,13 +31,11 @@ var errStatePersistence = errors.New("AgentRun state persistence failed")
 var errArtifactMaterialization = errors.New("Artifact materialization failed")
 
 type Application struct {
-	store                      Repository
-	artifactRoot               string
-	environment                string
-	executionTTL               time.Duration
-	now                        func() time.Time
-	runtimeConfiguration       collector.RuntimeConfiguration
-	runtimeConfigurationLoaded bool
+	store        Repository
+	artifactRoot string
+	environment  string
+	executionTTL time.Duration
+	now          func() time.Time
 }
 
 type Option func(*Application)
@@ -67,43 +66,83 @@ func New(store Repository, artifactRoot string, options ...Option) (*Application
 	if application.executionTTL <= 0 {
 		return nil, errors.New("Execution timeout must be positive")
 	}
-	if runtimeConfiguration, err := application.loadRuntimeConfiguration(context.Background()); err == nil {
-		application.runtimeConfiguration = runtimeConfiguration
-		application.runtimeConfigurationLoaded = true
-	}
 	return application, nil
 }
 
 func (a *Application) Ready(ctx context.Context) error {
+	_, err := a.loadReadyRuntimeConfiguration(ctx)
+	return err
+}
+
+func (a *Application) loadReadyRuntimeConfiguration(ctx context.Context) (collector.RuntimeConfiguration, error) {
 	if a.environment != "dev" && a.environment != "uat" {
-		return ErrNotReady
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
 	if !a.store.SchemaReady(ctx) {
-		return ErrNotReady
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
-	if !a.runtimeConfigurationLoaded {
-		return ErrNotReady
+	runtimeConfiguration, err := a.loadRuntimeConfiguration(ctx)
+	if err != nil {
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
 	if err := os.MkdirAll(a.artifactRoot, 0o755); err != nil {
-		return ErrNotReady
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
 	probe, err := os.CreateTemp(a.artifactRoot, ".ready-*")
 	if err != nil {
-		return ErrNotReady
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
 	name := probe.Name()
 	if err := probe.Close(); err != nil {
 		_ = os.Remove(name)
-		return ErrNotReady
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
 	if err := os.Remove(name); err != nil {
-		return ErrNotReady
+		return collector.RuntimeConfiguration{}, ErrNotReady
 	}
-	return nil
+	return runtimeConfiguration, nil
 }
 
 func (a *Application) CreateCollectorRun(ctx context.Context, idempotencyKey, prompt string) (agentrun.Execution, agentrun.CreateDisposition, error) {
-	if execution, found, err := a.store.FindExecutionByIdempotencyKey(ctx, idempotencyKey, prompt); err != nil {
+	createdAt := a.now().UTC()
+	return a.createCollectorRun(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: idempotencyKey,
+		Prompt:         prompt,
+		CreatedAt:      createdAt,
+		TriggeredAt:    createdAt,
+		TriggerSource:  agentrun.TriggerAPI,
+		AgentVersion:   collectorAgentVersion,
+		InvocationKeys: collectorConnectorKeys,
+	})
+}
+
+func (a *Application) CreateScheduledCollectorRun(
+	ctx context.Context,
+	idempotencyKey string,
+	scheduleID string,
+	prompt string,
+	inputPayload json.RawMessage,
+	triggeredAt time.Time,
+) (agentrun.Execution, agentrun.CreateDisposition, error) {
+	triggeredAt = triggeredAt.UTC()
+	return a.createCollectorRun(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: idempotencyKey,
+		InputPayload:   append(json.RawMessage(nil), inputPayload...),
+		Prompt:         prompt,
+		CreatedAt:      triggeredAt,
+		TriggeredAt:    triggeredAt,
+		TriggerSource:  agentrun.TriggerSchedule,
+		ScheduleID:     scheduleID,
+		AgentVersion:   collectorAgentVersion,
+		InvocationKeys: collectorConnectorKeys,
+	})
+}
+
+func (a *Application) createCollectorRun(
+	ctx context.Context,
+	input agentrun.CreateExecutionInput,
+) (agentrun.Execution, agentrun.CreateDisposition, error) {
+	if execution, found, err := a.store.FindExecutionByIdempotencyKey(ctx, input.IdempotencyKey, input.Prompt); err != nil {
 		return agentrun.Execution{}, "", err
 	} else if found {
 		if execution.Status == agentrun.StatusSkipped {
@@ -114,20 +153,24 @@ func (a *Application) CreateCollectorRun(ctx context.Context, idempotencyKey, pr
 		}
 		return execution, agentrun.ExecutionReplayed, nil
 	}
-	if err := a.Ready(ctx); err != nil {
-		return agentrun.Execution{}, "", ErrNotReady
+	runtimeConfiguration, err := a.loadReadyRuntimeConfiguration(ctx)
+	if err != nil {
+		execution, disposition, createErr := a.store.CreateExecutionIfActive(ctx, input)
+		if errors.Is(createErr, agentrun.ErrNoActiveExecution) {
+			return agentrun.Execution{}, "", ErrNotReady
+		}
+		if createErr != nil {
+			return agentrun.Execution{}, "", createErr
+		}
+		if disposition == agentrun.ExecutionSkipped || execution.Status == agentrun.StatusSkipped {
+			a.attachTerminalAudit(execution)
+			return execution, disposition, &agentrun.ActiveExecutionError{
+				ActiveExecutionID: execution.BlockedByExecutionID, SkippedExecutionID: execution.ID,
+			}
+		}
+		return execution, disposition, nil
 	}
-	if !a.runtimeConfigurationLoaded {
-		return agentrun.Execution{}, "", ErrNotReady
-	}
-	createdAt := a.now().UTC()
-	execution, disposition, err := a.store.CreateExecution(ctx, agentrun.CreateExecutionInput{
-		IdempotencyKey: idempotencyKey,
-		Prompt:         prompt,
-		CreatedAt:      createdAt,
-		AgentVersion:   collectorAgentVersion,
-		InvocationKeys: collectorConnectorKeys,
-	})
+	execution, disposition, err := a.store.CreateExecution(ctx, input)
 	if err != nil {
 		return agentrun.Execution{}, "", err
 	}
@@ -138,7 +181,7 @@ func (a *Application) CreateCollectorRun(ctx context.Context, idempotencyKey, pr
 		}
 	}
 	if disposition == agentrun.ExecutionCreated {
-		go a.run(execution, a.runtimeConfiguration)
+		go a.run(execution, runtimeConfiguration)
 	}
 	return execution, disposition, nil
 }
