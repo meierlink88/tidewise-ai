@@ -454,9 +454,9 @@ Collection Prompt
 - `cloudwego/eino` commit
   `922b6a8a233b5233fe47eecee6cd2c005e8c39cd`：检查
   `compose/doc.go`、`compose/workflow.go` 和 typed Runnable/Workflow 合同。
-- `cloudwego/eino-ext` commit
-  `9137edd89e72b72735ede69db1c5ae29178a6e41`：检查
-  `components/model/deepseek/deepseek.go` 与 module `go.mod`。
+- `cloudwego/eino-ext/components/model/openai` `v0.1.13`：检查自定义 Base URL、
+  JSON 响应格式、HTTP Client 与 `ChatModel` 合同；DeepSeek 通过其
+  OpenAI-compatible API 接入，避免引入无关的 Ollama server 依赖。
 - `cloudwego/eino-examples` commit
   `171220631fb7068ead50b7cd964b8c471647117d`：检查 typed Workflow field mapping
   和 HTTP SSE Agent 示例。

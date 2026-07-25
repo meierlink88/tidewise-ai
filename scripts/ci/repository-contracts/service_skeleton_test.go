@@ -68,7 +68,7 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	agentRunDependencies := listCommandDependencies(t, "./agent-run/backend/cmd/server")
 	for _, required := range []string{
 		"github.com/cloudwego/eino",
-		"github.com/cloudwego/eino-ext/components/model/deepseek",
+		"github.com/cloudwego/eino-ext/components/model/openai",
 	} {
 		found := false
 		for _, dependency := range agentRunDependencies {
@@ -79,6 +79,16 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 		}
 		if !found {
 			t.Fatalf("AgentRun binary closure is missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		"github.com/cohesion-org/deepseek-go",
+		"github.com/ollama/ollama",
+	} {
+		for _, dependency := range agentRunDependencies {
+			if dependency == forbidden || strings.HasPrefix(dependency, forbidden+"/") {
+				t.Fatalf("AgentRun binary unexpectedly includes vulnerable dependency %q", dependency)
+			}
 		}
 	}
 }

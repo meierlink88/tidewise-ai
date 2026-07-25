@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	einodeepseek "github.com/cloudwego/eino-ext/components/model/deepseek"
+	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
@@ -28,13 +28,15 @@ func (f Factory) New(ctx context.Context, config agentrun.ModelProviderConfig) (
 	if timeout < 0 {
 		return nil, errors.New("model timeout must be positive")
 	}
-	return einodeepseek.NewChatModel(ctx, &einodeepseek.ChatModelConfig{
-		APIKey:             config.APIKey,
-		Model:              config.Model,
-		BaseURL:            config.BaseURL,
-		Timeout:            timeout,
-		HTTPClient:         executionBoundClient(ctx, timeout, f.Transport),
-		ResponseFormatType: einodeepseek.ResponseFormatTypeJSONObject,
+	return einoopenai.NewChatModel(ctx, &einoopenai.ChatModelConfig{
+		APIKey:     config.APIKey,
+		Model:      config.Model,
+		BaseURL:    config.BaseURL,
+		Timeout:    timeout,
+		HTTPClient: executionBoundClient(ctx, timeout, f.Transport),
+		ResponseFormat: &einoopenai.ChatCompletionResponseFormat{
+			Type: einoopenai.ChatCompletionResponseFormatTypeJSONObject,
+		},
 	})
 }
 
