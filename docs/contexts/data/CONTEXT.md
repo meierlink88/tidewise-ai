@@ -20,9 +20,13 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - Source 主数据、完整原始 Artifact、数据采集 connector、parser、采集 prompt 或采集调度执行。
 - Agent 的模型推理和工作流运行。
 
-## External Agent Boundary
+## AgentRun Boundary
 
-外部 AgentRun 拥有 Source 主数据、采集调度、采集执行、完整原始 Artifact 和 Event 提取工作流。AgentRun 只能按照 Data 定义的版本化 Event Publication 合同提交已提取 Event 及其证据引用，不直接访问 Data 数据库；Data 不维护 Source Catalog，也不接纳未产生正式 Event 的采集 Artifact。
+当前仍位于外部仓库、未来将以 `agent-run/` 纳入本仓库的 AgentRun 拥有 Source
+主数据、采集调度、采集执行、完整原始 Artifact 和 Event 提取工作流。物理共仓不改变
+ownership：AgentRun 只能按照 Data 定义的版本化 Event Publication 合同提交已提取
+Event 及其证据引用，不直接访问 Data 数据库；Data 不维护 Source Catalog，也不接纳
+未产生正式 Event 的采集 Artifact。
 
 Tidewise 中遗留的 Source Catalog、采集调度与采集运行控制面通过保留 `raw_documents` 来源快照的 forward migration 物理移除；该收敛不得删除历史 Event、Evidence Record 或既有证据关联。
 Data 的 AgentRun Source Metadata、Admin Source Catalog 查询，以及 Admin Portal 对应代理接口、Client、Repository、Seed 和专属测试一并移除，不保留静态兼容路由；AgentRun 仅使用自身 Source Catalog。
@@ -284,7 +288,7 @@ _Avoid_: 把 position 当界面 display order、跳号、重复节点、首节�
 _Avoid_: 复制 Event 正文、同一 Event 多角色、没有 driver、越过父 Theme 证据边界、为页面分组创建重复关联表
 
 **推理树共享测试 Fixture（Reasoning Tree Shared Test Fixture）**:
-`src/testdata/reasoning-tree-v1/` 中用于验证 Data、BFF 和小程序合同一致性的确定性 JSON 样例。它不是 AI 分析师运行产物或产品数据来源；真实 Research Anchor 只能由分析师发布器通过 Anchor Import V1 入库。
+`testdata/reasoning-tree-v1/` 中用于验证 Data、BFF 和小程序合同一致性的确定性 JSON 样例。它不是 AI 分析师运行产物或产品数据来源；真实 Research Anchor 只能由分析师发布器通过 Anchor Import V1 入库。
 _Avoid_: 生产启动时导入 fixture、把 fixture 当分析师 outbox、真实分析缺失时回退到测试数据、各服务复制并修改不同版本
 
 **推理树字段血缘（Reasoning Tree Field Lineage）**:
@@ -315,7 +319,7 @@ _Avoid_: 用 Trading Direction 表达下一检查点、由发布器或 Data 补�
 
 ## Source Ownership
 
-Data 业务代码必须收敛到 `src/backend/services/data/`：
+Data 业务代码必须收敛到 `analyse-data-service/backend/`：
 
 ```text
 cmd/          process and maintenance entrypoints
@@ -327,4 +331,4 @@ transport/    Data REST routes, handlers, middleware and DTOs
 config/       Data-only runtime configuration
 ```
 
-`src/backend/migrations/` 与 `src/backend/data/` 是 Data 的统一事实资产，可以保留为 Backend 根资产，但不得被 BFF 直接读取。
+`analyse-data-service/backend/migrations/` 与 `analyse-data-service/backend/data/` 是 Data 的统一事实资产，可以保留为 Backend 根资产，但不得被 BFF 直接读取。

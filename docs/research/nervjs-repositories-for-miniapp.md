@@ -137,7 +137,7 @@ NervJS 当前有 81 个公开仓库。对观潮家 Miniapp 首页重做而言：
 
 ## 对观潮家 Miniapp 的工程建议
 
-1. 保留 `src/frontend/miniapp/package.json`、`config/`、Babel、TypeScript、发布脚本和 Taro 4.2 平台插件。
+1. 保留 `miniapp/frontend/package.json`、`config/`、Babel、TypeScript、发布脚本和 Taro 4.2 平台插件。
 2. 删除旧业务页面、组件、model、service、mock、template 和专属测试后重新实现；不要运行 `taro init` 覆盖现有 workspace。
 3. 首页页面放在 `src/pages/home/`，本页专属组件放在 `src/pages/home/components/`；只有跨页面复用后才提升到 `src/components/`。
 4. 建立首页专用的类型化 view model 和数据 port。mock adapter 与未来 Miniapp Backend API adapter 实现同一 port。

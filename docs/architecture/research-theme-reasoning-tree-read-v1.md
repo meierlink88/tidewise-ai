@@ -6,7 +6,7 @@
 - 状态：实现、全量验证与 Code Review 已完成，等待 PR Review
 - 前置：TW-01 合同、TW-02 数据结构、TW-03 Anchor Import V1 均已验收
 - 权威语义：`docs/architecture/reasoning-tree-contract-v1.md`
-- 共享样例：`src/testdata/reasoning-tree-v1/`
+- 共享样例：`testdata/reasoning-tree-v1/`
 
 本文只把已冻结合同收敛为 TW-04 的可实施边界，不重新定义 Research Anchor，不修改 Theme Import V1 或 Anchor Import V1。
 

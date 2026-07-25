@@ -27,6 +27,19 @@ docs/contexts/adminportal/adr/
 
 Data、Miniapp、Admin Portal 使用各自定义的领域术语。跨上下文输出不得自行替换已定义术语。
 
+工程目录按应用垂直组织：
+
+```text
+miniapp/{frontend,backend}
+admin-portal/{frontend,backend}
+analyse-data-service/backend
+```
+
+`analyse-data-service` 是工程应用名；对应领域术语仍为 Data Domain Service。未来
+AgentRun 纳入本仓库时使用独立应用根，不因物理共仓改变上下文 ownership。
+仓库根不承载应用间共享运行时源码；公共目录只保存治理、基础设施、脚本和冻结合同
+资产。
+
 如果实现与 ADR 冲突，必须明确指出冲突，不得静默覆盖。
 
 具体 CONTEXT 和 ADR 由 `domain-modeling` Skill 在实际形成领域决策时按需创建。

@@ -14,13 +14,23 @@ if [[ "$HEAD_SHA" != "WORKTREE" ]]; then
 fi
 
 files=()
-while IFS= read -r -d '' file; do
+while IFS= read -r -d '' status; do
+  if [[ "$status" == R* ]]; then
+    IFS= read -r -d '' old_file
+    IFS= read -r -d '' file
+    if [[ "$status" == "R100" ]]; then
+      continue
+    fi
+  else
+    IFS= read -r -d '' file
+  fi
+
   case "$file" in
-    .github/*.yml | .github/*.yaml | package.json | package-lock.json | src/frontend/*.js | src/frontend/*.mjs | src/frontend/*.cjs | src/frontend/*.ts | src/frontend/*.tsx | src/frontend/*.json | src/frontend/*.css | src/frontend/*.scss | src/frontend/*.html)
+    .github/*.yml | .github/*.yaml | package.json | package-lock.json | miniapp/frontend/*.js | miniapp/frontend/*.mjs | miniapp/frontend/*.cjs | miniapp/frontend/*.ts | miniapp/frontend/*.tsx | miniapp/frontend/*.json | miniapp/frontend/*.css | miniapp/frontend/*.scss | miniapp/frontend/*.html | admin-portal/frontend/*.js | admin-portal/frontend/*.mjs | admin-portal/frontend/*.cjs | admin-portal/frontend/*.ts | admin-portal/frontend/*.tsx | admin-portal/frontend/*.json | admin-portal/frontend/*.css | admin-portal/frontend/*.scss | admin-portal/frontend/*.html)
       files+=("$file")
       ;;
   esac
-done < <(git diff --name-only --diff-filter=ACMR -z "${diff_range[@]}")
+done < <(git diff --name-status --find-renames --diff-filter=ACMR -z "${diff_range[@]}")
 
 if (( ${#files[@]} == 0 )); then
   echo "No changed Prettier-managed files"

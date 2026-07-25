@@ -7,8 +7,9 @@ date: 2026-07-25
 
 ## 背景
 
-Tidewise AI 当前在一个 repository 和一个 Go module 内维护 Data、Miniapp、
-Admin Portal 三个可独立部署的 Backend Service。原有
+Tidewise AI 当前在一个 repository 和一个根 Go module 内维护 Data、Miniapp、
+Admin Portal 三个可独立部署的 Backend Service。ADR-0007 将它们分别放在
+`analyse-data-service/backend`、`miniapp/backend` 与 `admin-portal/backend`。原有
 `cmd/usecase/transport/dataclient/config` 顶层布局能够表达服务 ownership，
 但没有完整采用 Kratos 的 Application 组织方式，进程生命周期、HTTP Server、
 Router 和 Client 仍由自定义 `net/http`/Gin 代码承担。
@@ -22,7 +23,7 @@ Router 和 Client 仍由自定义 `net/http`/Gin 代码承担。
 Application Layout：
 
 ```text
-services/<service>/
+<application>/backend/
 ├── api/<service>/v1/
 ├── cmd/server/
 ├── configs/

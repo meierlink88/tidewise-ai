@@ -707,7 +707,7 @@ V1 不继续使用对反证语义不对称的 `supported_claim` 名称。Event �
 
 状态：已确认。
 
-- TW-01 的共享测试样例统一存放在 `src/testdata/reasoning-tree-v1/`。
+- TW-01 的共享测试样例统一存放在 `testdata/reasoning-tree-v1/`。
 - fixture 至少覆盖：多 Anchor、包含反证、无反证且明确未量化、Theme 已存在但推理树尚未发布四组场景。
 - Data、Miniapp BFF 和小程序测试应复用该目录中的合同事实，禁止各自维护语义不一致的重复样例。
 - 该目录不是 AI 分析师输出目录、生产 outbox、seed 数据或运行时导入入口。

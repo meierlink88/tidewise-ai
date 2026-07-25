@@ -75,19 +75,19 @@ Miniapp Service
 
 ## 旧结构到官方 Layout 的映射
 
-| 当前内容 | 目标位置 | 迁移规则 |
-|---|---|---|
-| `api/openapi.yaml`、`api/document.go` | `api/miniapp/v1/` | 只移动工程位置，不改变 HTTP wire contract |
-| `cmd/main.go` | `cmd/server/main.go` | 只显式构造和运行 Kratos App |
-| `config/*.yaml` | `configs/` | 保留 local/UAT 非敏感配置 |
-| `config/config.go` | `internal/conf/` | 保留 YAML/env 语义与校验 |
-| `usecase/` | `internal/biz/` | 业务规则、Use Case、上游业务不变量 |
-| `dataclient/port.go` | `internal/biz/` | 改为 Biz-owned Research Port |
-| `dataclient/http.go` | `internal/data/` | Kratos HTTP Client Adapter |
-| `dataclient` fake/test support | `internal/data/` 或 Biz `_test.go` | 实现 Biz Port，不暴露网络细节 |
-| `transport/research.go` | `internal/service/` | API DTO 转换、输入校验、错误映射 |
-| `transport/router.go` | `api/miniapp/v1/` + `internal/server/` | API 注册与 Server 创建分离 |
-| 根 `service.go` | 删除 | 装配归 `cmd/server` 与 `internal/server` |
+| 当前内容                              | 目标位置                               | 迁移规则                                  |
+| ------------------------------------- | -------------------------------------- | ----------------------------------------- |
+| `api/openapi.yaml`、`api/document.go` | `api/miniapp/v1/`                      | 只移动工程位置，不改变 HTTP wire contract |
+| `cmd/main.go`                         | `cmd/server/main.go`                   | 只显式构造和运行 Kratos App               |
+| `config/*.yaml`                       | `configs/`                             | 保留 local/UAT 非敏感配置                 |
+| `config/config.go`                    | `internal/conf/`                       | 保留 YAML/env 语义与校验                  |
+| `usecase/`                            | `internal/biz/`                        | 业务规则、Use Case、上游业务不变量        |
+| `dataclient/port.go`                  | `internal/biz/`                        | 改为 Biz-owned Research Port              |
+| `dataclient/http.go`                  | `internal/data/`                       | Kratos HTTP Client Adapter                |
+| `dataclient` fake/test support        | `internal/data/` 或 Biz `_test.go`     | 实现 Biz Port，不暴露网络细节             |
+| `transport/research.go`               | `internal/service/`                    | API DTO 转换、输入校验、错误映射          |
+| `transport/router.go`                 | `api/miniapp/v1/` + `internal/server/` | API 注册与 Server 创建分离                |
+| 根 `service.go`                       | 删除                                   | 装配归 `cmd/server` 与 `internal/server`  |
 
 目录移动不得改变 Theme、Reasoning Tree 的业务规则和返回结果。
 
@@ -99,9 +99,9 @@ Miniapp Service
 - [ADR-0006：Kratos 官方 Service Layout](../adr/0006-kratos-official-service-layout.md)
 - [Miniapp Context](../contexts/miniapp/CONTEXT.md)
 - [OpenAPI 与 Swagger UI V1](openapi-swagger-ui-v1.md)
-- 当前 `src/backend/services/miniapp/api/openapi.yaml`；
-- 目标 `src/backend/services/miniapp/api/miniapp/v1/openapi.yaml`；
-- `src/testdata/reasoning-tree-v1/`；
+- 当前 `miniapp/backend/api/openapi.yaml`；
+- 目标 `miniapp/backend/api/miniapp/v1/openapi.yaml`；
+- `testdata/reasoning-tree-v1/`；
 - [Kratos Backend Service 开发规范 V1](kratos-backend-development-standard-v1.md)。
 
 旧设计文档如与当前 OpenAPI 成功/错误 envelope 冲突，以当前 OpenAPI 为准。
@@ -137,14 +137,14 @@ Miniapp Service
 
 ### 公开接口
 
-| 方法 | 路径 | 功能 |
-|---|---|---|
-| GET | `/healthz` | 进程健康 |
-| GET | `/readyz` | `config=ok` 的就绪状态 |
-| GET | `/api/miniapp/v1/research/themes` | Theme 列表 |
-| GET | `/api/miniapp/v1/research/themes/{theme_id}` | Theme 详情 |
-| GET | `/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees` | Theme 的推理树 Tab 摘要 |
-| GET | `/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}` | 单棵完整推理树 |
+| 方法 | 路径                                                                     | 功能                    |
+| ---- | ------------------------------------------------------------------------ | ----------------------- |
+| GET  | `/healthz`                                                               | 进程健康                |
+| GET  | `/readyz`                                                                | `config=ok` 的就绪状态  |
+| GET  | `/api/miniapp/v1/research/themes`                                        | Theme 列表              |
+| GET  | `/api/miniapp/v1/research/themes/{theme_id}`                             | Theme 详情              |
+| GET  | `/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees`             | Theme 的推理树 Tab 摘要 |
+| GET  | `/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}` | 单棵完整推理树          |
 
 不得恢复：
 
@@ -223,12 +223,7 @@ flowchart TD
 ## 目标源码结构
 
 ```text
-src/backend/
-├── internal/platform/
-│   ├── apihttp/                       # 现有通用 envelope / request ID
-│   ├── apidocs/                       # 现有嵌入式文档交付
-│   └── runtimeconfig/                 # 经复核后保留的通用配置机制
-└── services/miniapp/
+miniapp/backend/
     ├── Dockerfile
     ├── api/
     │   └── miniapp/v1/
@@ -245,7 +240,7 @@ src/backend/
     │   └── config.uat.yaml
     └── internal/
         ├── conf/
-        │   ├── config.go
+        │   ├── config.go              # Miniapp 独立拥有运行时配置
         │   └── config_test.go
         ├── biz/
         │   ├── biz.go
@@ -262,8 +257,8 @@ src/backend/
         │   └── reasoning_tree.go
         └── server/
             ├── http.go
-            ├── middleware.go
-            └── docs.go
+            ├── middleware.go          # Miniapp 独立拥有 envelope / request ID
+            └── docs.go                # Miniapp 独立拥有嵌入式文档交付
 ```
 
 文件名是实施建议；目录、职责、依赖方向和禁止旧层回流是强制要求。
@@ -478,7 +473,7 @@ Data Adapter 保留：
 ## OpenAPI 与 Swagger
 
 现有 `api/openapi.yaml` 移动到 `api/miniapp/v1/openapi.yaml` 后仍是事实来源。
-`internal/platform/apidocs` 通过 `internal/server` 显式注册：
+Miniapp-owned `internal/server` 显式注册：
 
 - `/openapi.yaml` 使用 Kratos Server handler；
 - `/docs` 使用明确 307；
@@ -576,9 +571,9 @@ Data Adapter 保留：
 验收：
 
 ```bash
-rg -n 'github\.com/gin-gonic/gin|\bgin\.' src/backend/services/miniapp
-go -C src/backend list -deps ./services/miniapp/cmd/server | rg 'github.com/gin-gonic/gin'
-find src/backend/services/miniapp -name 'wire.go' -o -name 'wire_gen.go'
+rg -n 'github\.com/gin-gonic/gin|\bgin\.' miniapp/backend
+go list -deps ./miniapp/backend/cmd/server | rg 'github.com/gin-gonic/gin'
+find miniapp/backend -name 'wire.go' -o -name 'wire_gen.go'
 ```
 
 三条检查都不得产生匹配。根 `go.mod` 可因 Admin Portal 暂时保留 Gin。
@@ -595,20 +590,20 @@ find src/backend/services/miniapp -name 'wire.go' -o -name 'wire_gen.go'
 
 ## 测试矩阵
 
-| 范围 | 必须覆盖 |
-|---|---|
-| Layout | 官方目录存在、旧目录消失、无 Wire |
-| Dependency | Biz 不依赖 Data/Service/Server，跨 Service 无实现 import |
-| OpenAPI | 3.0.4、精确 routes、operationId、DTO、状态码 |
-| API/Router | 六个接口、无旧路径、精确 method、404/405、Middleware 实际执行 |
-| Envelope | 成功、业务错误、panic、Request ID header/body |
-| Service | DTO 转换、输入拒绝、错误映射 |
-| Biz | 默认值、业务不变量、fake Research Port、稳定错误分类 |
-| Reasoning Tree | query 拒绝、小写 UUID、三类 404、502、共享 fixture |
-| Data | token、request ID、timeout、retry、1 MiB、错误清洗 |
-| Docs | local/UAT 开放，prod 404，`/docs` 307 |
-| Lifecycle | 启动失败、SIGTERM、Server stop、client cleanup |
-| Deployment | binary、Docker、Compose、Miniapp→Data smoke |
+| 范围           | 必须覆盖                                                      |
+| -------------- | ------------------------------------------------------------- |
+| Layout         | 官方目录存在、旧目录消失、无 Wire                             |
+| Dependency     | Biz 不依赖 Data/Service/Server，跨 Service 无实现 import      |
+| OpenAPI        | 3.0.4、精确 routes、operationId、DTO、状态码                  |
+| API/Router     | 六个接口、无旧路径、精确 method、404/405、Middleware 实际执行 |
+| Envelope       | 成功、业务错误、panic、Request ID header/body                 |
+| Service        | DTO 转换、输入拒绝、错误映射                                  |
+| Biz            | 默认值、业务不变量、fake Research Port、稳定错误分类          |
+| Reasoning Tree | query 拒绝、小写 UUID、三类 404、502、共享 fixture            |
+| Data           | token、request ID、timeout、retry、1 MiB、错误清洗            |
+| Docs           | local/UAT 开放，prod 404，`/docs` 307                         |
+| Lifecycle      | 启动失败、SIGTERM、Server stop、client cleanup                |
+| Deployment     | binary、Docker、Compose、Miniapp→Data smoke                   |
 
 旧测试按职责迁移：
 
@@ -647,19 +642,19 @@ Local/UAT 保持：
 
 ## 风险与门禁
 
-| 风险 | 门禁 |
-|---|---|
-| 目录改名但职责仍混乱 | 架构依赖测试与旧目录删除 |
-| `service` 与可部署 Service 混淆 | 文档与 package 使用“Kratos Service Layer” |
-| `data` 被误解为 Data Domain Service | Biz Port + 远端 HTTP Adapter，禁止 DB 凭据 |
-| 手写路由绕过 Middleware | API 注册 helper + Middleware 执行测试 |
-| Kratos 默认 1 秒 timeout | 显式 timeout + 慢请求 smoke |
-| Kratos 默认错误破坏合同 | golden envelope 测试 |
-| Request ID header/body 不一致 | Filter + golden 测试 |
-| 迁移顺手修改业务合同 | OpenAPI/fixture drift gate |
-| speculative shared platform | Miniapp 先在 internal/server 实现，通过复用证明后再提取 |
-| Wire 重新进入工程 | 文件、依赖与 CI architecture gate |
-| Gin 通过间接入口残留 | 源码与 binary dependency 双门禁 |
+| 风险                                | 门禁                                                   |
+| ----------------------------------- | ------------------------------------------------------ |
+| 目录改名但职责仍混乱                | 架构依赖测试与旧目录删除                               |
+| `service` 与可部署 Service 混淆     | 文档与 package 使用“Kratos Service Layer”              |
+| `data` 被误解为 Data Domain Service | Biz Port + 远端 HTTP Adapter，禁止 DB 凭据             |
+| 手写路由绕过 Middleware             | API 注册 helper + Middleware 执行测试                  |
+| Kratos 默认 1 秒 timeout            | 显式 timeout + 慢请求 smoke                            |
+| Kratos 默认错误破坏合同             | golden envelope 测试                                   |
+| Request ID header/body 不一致       | Filter + golden 测试                                   |
+| 迁移顺手修改业务合同                | OpenAPI/fixture drift gate                             |
+| shared runtime implementation       | Miniapp 保持 internal/server ownership，不向仓库根提取 |
+| Wire 重新进入工程                   | 文件、依赖与 CI architecture gate                      |
+| Gin 通过间接入口残留                | 源码与 binary dependency 双门禁                        |
 
 ## 最终验收
 

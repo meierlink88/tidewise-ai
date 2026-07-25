@@ -1,13 +1,13 @@
 module.exports = {
   root: true,
-  ignorePatterns: ["dist", "node_modules", "src/frontend/miniapp/dist"],
+  ignorePatterns: ["dist", "node_modules", "miniapp/frontend/dist"],
   overrides: [
     {
-      files: ["src/frontend/miniapp/**/*.{ts,tsx}"],
+      files: ["miniapp/frontend/**/*.{ts,tsx}"],
       extends: ["taro/react"],
       parserOptions: {
         tsconfigRootDir: __dirname,
-        project: ["./src/frontend/miniapp/tsconfig.json"]
+        project: ["./miniapp/frontend/tsconfig.json"]
       },
       rules: {
         "react/react-in-jsx-scope": "off",

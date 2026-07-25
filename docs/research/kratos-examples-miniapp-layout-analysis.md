@@ -12,7 +12,7 @@ Kratos 官方材料支持以下判断：
    Go 私有边界。
 3. `examples` 中的 `http/*`、`swagger`、`auth/jwt`、`registry/*` 等只演示单个组件，不能用来否定
    或替代完整 Application Layout。
-4. Tidewise 应把 `src/backend/services/miniapp` 视为一个完整 Kratos Application 根目录，在当前
+4. Tidewise 应把 `miniapp/backend` 视为一个完整 Kratos Application 根目录，在当前
    Monorepo 中保持独立二进制、配置、镜像和私有实现边界；不需要为了采用 Kratos 立即拆成独立仓库。
 5. Tidewise 采用官方分层职责，但不采用官方模板中的 Protobuf API/配置、gRPC 和 Wire。Miniapp
    继续保持 HTTP-only、OpenAPI 3.0.4-first、显式构造，并保留 Swagger UI。
@@ -167,7 +167,7 @@ Miniapp 绕过 Biz、Data、Service 分层。
 ### 推荐目录
 
 ```text
-src/backend/services/miniapp/
+miniapp/backend/
 ├── Dockerfile
 ├── api/
 │   └── miniapp/
@@ -211,7 +211,7 @@ src/backend/services/miniapp/
         └── *_test.go
 ```
 
-`services/miniapp` 是一个完整 Application 根目录；`internal` 包含其五个私有实现层。未来需要独立
+`miniapp/backend` 是一个完整 Application 根目录；`internal` 包含其五个私有实现层。未来需要独立
 仓库时，可以整体移动该目录，而不需要重新拆分业务层。
 
 ### 业务组件归属
@@ -249,15 +249,18 @@ src/backend/services/miniapp/
 当前继续使用：
 
 ```text
-src/backend/services/
+.
 ├── miniapp/
-├── adminportal/
-└── data/
+│   └── backend/
+├── admin-portal/
+│   └── backend/
+└── analyse-data-service/
+    └── backend/
 ```
 
 每个目录未来都采用完整 Application Layout，分别构建二进制和镜像。三个服务共享 Backend
-`go.mod` 不会破坏 `internal` 隔离：Go 编译器只允许 `services/miniapp` 目录树内的包导入
-`services/miniapp/internal/*`，兄弟 Service 不能直接导入。
+`go.mod` 不会破坏 `internal` 隔离：Go 编译器只允许 `miniapp/backend` 目录树内的包导入
+`miniapp/backend/internal/*`，兄弟 Service 不能直接导入。
 
 官方大仓示例倾向把 API 放在仓库公共根目录；Tidewise 则把 API 放回每个 Service 根目录，以满足独立
 部署和未来整目录拆仓的目标。Kratos 官方 Design 文档明确 Layout 是推荐模板而不是框架强制，因此这项
@@ -287,7 +290,7 @@ Kratos v3 仍负责 Application 生命周期、HTTP Server/Router/Client、Middl
 `examples` 的组件目录按需学习单项能力。目录决定冻结为：
 
 ```text
-services/miniapp/
+miniapp/backend/
 ├── api/miniapp/v1
 ├── cmd/server
 ├── configs

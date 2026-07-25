@@ -6,7 +6,7 @@
 - 状态：实现与验证已完成，等待用户验收
 - 前置：TW-01 合同已冻结，TW-02 数据结构已合并
 - 权威语义：`docs/architecture/reasoning-tree-contract-v1.md`
-- 共享样例：`src/testdata/reasoning-tree-v1/`
+- 共享样例：`testdata/reasoning-tree-v1/`
 
 本文只把冻结合同收敛为 TW-03 的可实施边界，不修改 Theme Import V1，不重新定义 Research Anchor 领域语义。
 

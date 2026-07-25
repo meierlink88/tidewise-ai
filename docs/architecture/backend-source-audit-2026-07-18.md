@@ -11,6 +11,9 @@
 
 本次审计未修改业务源码、数据库、migration、seed 或运行环境。
 
+> 后续 ADR-0007 已进一步决定：仓库根不保留跨 Application 共享运行时 Go package。
+> 本文以下关于提取 `internal/platform` 的候选建议已被该决策取代。
+
 ## 主要发现
 
 ### 1. 两代目录同时存在
@@ -68,13 +71,13 @@ Miniapp research package 同时包含 use case、DTO mapping、Gin route 和 han
 
 ### 6. Data HTTP handler 过深
 
-`services/data/internalapi/handler.go` 约 700 行，同时处理认证、raw import、event import、research、admin query、source metadata、DTO 和错误 envelope。它已经归 Data，但目录和文件责任不清晰。
+`analyse-data-service/backend/internalapi/handler.go` 约 700 行，同时处理认证、raw import、event import、research、admin query、source metadata、DTO 和错误 envelope。它已经归 Data，但目录和文件责任不清晰。
 
-应移动到 `services/data/transport/internalapi`，按 auth、raw import、event import、research、admin query、source metadata 和 response 拆文件。handler 只调用 use case port。
+应移动到 `analyse-data-service/backend/transport/internalapi`，按 auth、raw import、event import、research、admin query、source metadata 和 response 拆文件。handler 只调用 use case port。
 
 ### 7. Raw Document 存在旧写路径
 
-通用 `internal/repositories/raw_document.go` 的生产 `UpsertRawDocument` 已没有调用。当前 Raw Document 入库走 `services/data/rawimport/postgresstore`，后者提供 transaction、identity lock、receipt 和 whole-batch 原子性。
+通用 `internal/repositories/raw_document.go` 的生产 `UpsertRawDocument` 已没有调用。当前 Raw Document 入库走 `analyse-data-service/backend/rawimport/postgresstore`，后者提供 transaction、identity lock、receipt 和 whole-batch 原子性。
 
 应删除旧直接写接口和专属测试，保留 Admin read query 与 raw import transaction store。测试需要数据时使用明确 fixture/helper，不应保留无生产语义的写 API 只为测试造数据。
 
@@ -82,7 +85,8 @@ Miniapp research package 同时包含 use case、DTO mapping、Gin route 和 han
 
 Miniapp/Admin 两个 Data HTTP client 各约 370 至 400 行，request ID、认证、timeout、retry、安全错误解析和 envelope 解码高度重复，业务 path/DTO 不同。
 
-consumer-owned port、DTO 和业务方法必须继续分开。可以提取一个无业务语义的 `internal/platform/serviceclient`，只承载 HTTP 机制；若提取后接口没有明显变小，则宁可保留局部重复，避免共享业务 client。
+consumer-owned port、DTO、业务方法和 HTTP client 机制都由各 Application 独立拥有。
+使用合同测试验证线协议一致，不再提取根级 `internal/platform/serviceclient`。
 
 ### 9. Architecture tests 保护的是过渡结构
 
@@ -93,7 +97,7 @@ consumer-owned port、DTO 和业务方法必须继续分开。可以提取一个
 - 只允许三个 Service 拥有业务代码。
 - BFF 禁止 import Data implementation 和数据库 adapter。
 - 不同 Service 禁止方法级调用。
-- platform 禁止 import Service 业务包。
+- 根目录禁止出现被多个 Service import 的共享运行时 package。
 - 禁止旧 `internal/apps/domain/repositories/http/config` 复活。
 - 保留 Docker、CI、OpenAPI、security、migration 和 service asset tests。
 
@@ -165,7 +169,7 @@ local compose 已有 Data、Miniapp、Admin Portal 三服务；UAT compose 仍�
 
 ## 完成标准
 
-- `src/backend/internal` 只保留没有业务语义的 `platform`。
+- 根 `internal` 只保留没有业务语义的 `platform` 与架构门禁。
 - 三个 Backend Service 的业务源码全部位于自己的 service 目录。
 - Frontend 不直接访问 Domain Service。
 - 不同 Backend Service 之间没有 Go implementation import，只通过 REST contract。
@@ -182,7 +186,7 @@ Issue #40 已完成以下源码治理：
 
 - Miniapp、Admin Portal 的 use case、transport 与配置已迁入各自 Service。
 - Data 的 domain、use case、repository、adapter、transport 与配置已迁入 Data Service。
-- `src/backend/internal` 只保留无业务语义的 platform 机制与 architecture tests。
+- 根 `internal` 只保留无业务语义的 platform 机制与 architecture tests。
 - Miniapp/Admin 不直接 import Data 实现；服务间继续通过各自维护的 REST client 协作。
 - Data HTTP handler 已按认证、导入、研究查询、管理查询、来源元数据和通用响应拆分。
 - 旧采集 connector、parser、prompt、promptstore、退役 scheduler 路由及专属测试已删除。
