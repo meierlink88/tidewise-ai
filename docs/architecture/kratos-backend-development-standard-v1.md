@@ -451,21 +451,33 @@ Kratos 不规定数据库、缓存或消息系统实现：
 
 ## 测试与架构门禁
 
-每个迁移后的 Service 至少具备：
+测试采用按风险边界选择的策略，详细执行规则与 Issue 模板见
+[`docs/agents/testing.md`](../agents/testing.md)。TDD 不要求每个 Kratos 层级或源码文件
+都有测试。
 
-1. OpenAPI 解析、路径、方法、DTO、状态码防漂移测试；
-2. API 注册与运行时精确路由集合测试；
-3. Request ID、Recovery、成功/错误 envelope 测试；
-4. Service Layer 输入校验、DTO 转换和错误映射测试；
-5. Biz Layer 测试，使用 fake Port；
-6. Data Layer 的 header、timeout、重试、响应上限和错误清洗测试；
-7. 生命周期启动、优雅停机和资源关闭测试；
-8. health、ready、Swagger 环境策略测试；
-9. `go test -race ./...`；
-10. 每个 Service 的 binary 和 Docker image 构建；
-11. Docker Compose 下的真实 Service 间 smoke test。
+每个业务变更默认确认两个测试 seam：
 
-架构测试必须验证：
+1. **Biz 行为 seam**：通过 fake Port 验证业务不变量、状态变化、边界和稳定错误分类；
+2. **API/HTTP 合同 seam**：验证输入、DTO 转换、状态码、错误 envelope、Request ID 和
+   必要的 OpenAPI/runtime 一致性。
+
+API 测试不得重复 Biz 的完整业务规则矩阵。Data、Migration、Conf、Lifecycle、
+Architecture、Provider/Consumer、Binary/Container 和真实 HTTP smoke 仅在本次修改触及
+对应风险时启用：
+
+- 修改 SQL、事务、Repository 或远端 Client，增加 Data 集成或 Adapter 契约测试；
+- 修改 Schema、约束、索引或 migration，增加 Migration/Schema 测试；
+- 修改配置校验或环境覆盖，增加 Conf 测试；
+- 修改启动、信号、停机或资源释放，增加 Lifecycle 测试；
+- 修改 Service 边界、依赖方向或目录所有权，运行集中式 Architecture 测试；
+- 修改跨 Service API，运行 Provider/Consumer 合同测试和必要 HTTP smoke；
+- 修改镜像或部署入口，构建受影响 Binary/Container 并运行必要 smoke。
+
+简单构造函数、机械 DTO/PO 映射、无校验配置读取、`cmd/server` 装配和框架注册胶水
+默认不单独编写单元测试。开发循环只运行目标测试；任务完成时运行受影响 Service
+套件及本次触发的门禁，不在每个 Red/Green 循环执行全仓回归。
+
+当 Architecture seam 被触及时，集中式架构测试验证：
 
 - 每个已迁移 Service 存在官方 Layout；
 - `biz` 不依赖 `data/service/server`；

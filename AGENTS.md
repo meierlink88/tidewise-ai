@@ -21,6 +21,13 @@
 `analyse-data-service/`、`miniapp/` 和 `admin-portal/`；未来 AgentRun 以
 `agent-run/` 纳入时仍保持独立 Context 与 API 边界。详见 `docs/agents/domain.md`。
 
+### Testing
+
+Backend Service 采用按风险边界测试，不要求每个源码文件或 Kratos 层级都拥有测试。
+开发前先确认测试 seam，默认覆盖 Biz 行为与 API/HTTP 合同；Data、Migration、Conf、
+Lifecycle 和 Architecture 仅在对应风险被本次修改触及时启用。详见
+`docs/agents/testing.md`。
+
 ### 观潮家开发规范
 
 讨论、设计、实现、调试、迁移或审查任何观潮家工程需求前，必须先使用全局 Skill
