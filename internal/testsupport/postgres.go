@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/agentrun/persistence/postgres"
+	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/postgres"
 	"github.com/jackc/pgx/v5"
 )
 

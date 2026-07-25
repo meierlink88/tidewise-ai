@@ -10,44 +10,82 @@ import (
 	"testing"
 )
 
-func TestInternalLayoutIsCapabilityFirst(t *testing.T) {
+const modulePath = "github.com/guanchaojia/tidewise-ai-agentrun"
+
+func TestRepositoryUsesKratosServiceLayout(t *testing.T) {
 	t.Parallel()
 
-	repositoryRoot := filepath.Clean(filepath.Join("..", ".."))
-	forbidden := []string{
-		"internal/connectors",
-		"internal/httpapi",
-		"internal/materialize",
-		"internal/storage",
+	root := repositoryRoot()
+	required := []string{
+		"api/agentrun/v1/openapi.yaml",
+		"cmd/server/main.go",
+		"cmd/migrate/main.go",
+		"cmd/config/main.go",
+		"cmd/artifacts/main.go",
+		"configs/config.dev.yaml",
+		"configs/config.uat.yaml",
+		"internal/conf",
+		"internal/biz/platform",
+		"internal/biz/agents/collector",
+		"internal/biz/agents/collector/materialization",
+		"internal/data/postgres",
+		"internal/data/modelprovider/deepseek",
+		"internal/data/connectors",
+		"internal/data/artifacts",
+		"internal/data/scheduler",
+		"internal/service",
+		"internal/server",
 	}
-	for _, relative := range forbidden {
-		if _, err := os.Stat(filepath.Join(repositoryRoot, relative)); !os.IsNotExist(err) {
-			t.Errorf("technical-layer package %s must move under its owning capability or platform adapter", relative)
+	for _, relative := range required {
+		if _, err := os.Stat(filepath.Join(root, relative)); err != nil {
+			t.Errorf("required Kratos service path %s is missing: %v", relative, err)
 		}
 	}
 
-	required := []string{
-		"internal/agentrun/execution.go",
-		"internal/agentrun/persistence/postgres/store.go",
-		"internal/collector/application/application.go",
-		"internal/collector/artifacts/file.go",
-		"internal/collector/connectors/http.go",
-		"internal/collector/httpapi/handler.go",
-		"internal/collector/planning/query_planner.go",
-		"internal/collector/workflow/workflow.go",
+	forbidden := []string{
+		"cmd/agentrun-server",
+		"cmd/agentrun-migrate",
+		"cmd/agentrun-config",
+		"cmd/agentrun-artifacts",
+		"internal/agentrun",
+		"internal/collector",
 	}
-	for _, relative := range required {
-		if _, err := os.Stat(filepath.Join(repositoryRoot, relative)); err != nil {
-			t.Errorf("required capability-first path %s is missing: %v", relative, err)
+	for _, relative := range forbidden {
+		if _, err := os.Stat(filepath.Join(root, relative)); !os.IsNotExist(err) {
+			t.Errorf("legacy path %s must be removed after the Kratos cutover", relative)
 		}
 	}
 }
 
-func TestAgentRunPlatformDoesNotImportAgentCapabilities(t *testing.T) {
+func TestBizDoesNotImportInfrastructureOrTransport(t *testing.T) {
 	t.Parallel()
 
-	agentRunRoot := filepath.Clean(filepath.Join("..", "agentrun"))
-	err := filepath.WalkDir(agentRunRoot, func(path string, entry os.DirEntry, walkErr error) error {
+	forbidden := []string{
+		modulePath + "/internal/data",
+		modulePath + "/internal/service",
+		modulePath + "/internal/server",
+		"github.com/go-kratos/kratos",
+		"github.com/jackc/pgx",
+		"github.com/go-co-op/gocron",
+		"github.com/cloudwego/eino-ext",
+	}
+	assertImportsAbsent(t, filepath.Join(repositoryRoot(), "internal", "biz"), forbidden)
+}
+
+func TestDataDoesNotImportServiceOrServer(t *testing.T) {
+	t.Parallel()
+
+	assertImportsAbsent(t, filepath.Join(repositoryRoot(), "internal", "data"), []string{
+		modulePath + "/internal/service",
+		modulePath + "/internal/server",
+	})
+}
+
+func TestConcreteEinoProviderLivesOnlyInDataAdapter(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join(repositoryRoot(), "internal")
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -59,12 +97,13 @@ func TestAgentRunPlatformDoesNotImportAgentCapabilities(t *testing.T) {
 			return err
 		}
 		for _, imported := range file.Imports {
-			pathValue, err := strconv.Unquote(imported.Path.Value)
+			value, err := strconv.Unquote(imported.Path.Value)
 			if err != nil {
 				return err
 			}
-			if strings.Contains(pathValue, "/internal/collector") {
-				t.Errorf("AgentRun platform package %s imports Collector capability %s", path, pathValue)
+			if strings.HasPrefix(value, "github.com/cloudwego/eino-ext/") &&
+				!strings.Contains(filepath.ToSlash(path), "/internal/data/modelprovider/") {
+				t.Errorf("concrete Eino provider import %s must stay in internal/data/modelprovider: %s", value, path)
 			}
 		}
 		return nil
@@ -72,4 +111,50 @@ func TestAgentRunPlatformDoesNotImportAgentCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestCompositionRootDoesNotUseWireOrImplementBusinessRules(t *testing.T) {
+	t.Parallel()
+
+	root := repositoryRoot()
+	for _, relative := range []string{"cmd/server/wire.go", "cmd/server/wire_gen.go"} {
+		if _, err := os.Stat(filepath.Join(root, relative)); !os.IsNotExist(err) {
+			t.Errorf("explicit construction is required; %s must not exist", relative)
+		}
+	}
+}
+
+func assertImportsAbsent(t *testing.T, root string, forbidden []string) {
+	t.Helper()
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".go" {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, imported := range file.Imports {
+			value, err := strconv.Unquote(imported.Path.Value)
+			if err != nil {
+				return err
+			}
+			for _, prefix := range forbidden {
+				if strings.HasPrefix(value, prefix) {
+					t.Errorf("%s imports forbidden dependency %s", path, value)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func repositoryRoot() string {
+	return filepath.Clean(filepath.Join("..", ".."))
 }

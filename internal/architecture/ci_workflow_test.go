@@ -82,6 +82,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 		"go test ./... -count=1",
 		"go test -race ./... -count=1",
 		"go build ./cmd/...",
+		"docker build --tag tidewise-ai-agentrun:ci .",
 	} {
 		assertRunsCommand(t, quality.Steps, command)
 	}
@@ -92,7 +93,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 		"added_diff=\"$(mktemp \"$RUNNER_TEMP/agentrun-added-diff.",
 		"trap 'rm -f \"$changed_paths\" \"$added_diff\"' EXIT",
 		"git diff --name-only \"$base\" \"$GITHUB_SHA\" >\"$changed_paths\"",
-		"if grep -Eq '(^|/)(data|\\.reference)",
+		"if grep -Eq '^(data|\\.reference)",
 		"git diff --unified=0 \"$base\" \"$GITHUB_SHA\" >\"$added_diff\"",
 		"if grep -Eq '^\\+.*(sk-",
 	} {
@@ -113,7 +114,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 	if !strings.Contains(databaseURL, "/tidewise_ai_server_test?") || strings.Contains(databaseURL, "tidewise_local") {
 		t.Fatalf("unsafe integration database URL %q", databaseURL)
 	}
-	assertRunsCommand(t, integration.Steps, "go test ./cmd/agentrun-server ./internal/agentrun/persistence/postgres ./internal/agentrun/httpapi ./internal/agentrun/scheduling ./internal/collector/httpapi -count=1")
+	assertRunsCommand(t, integration.Steps, "go test ./cmd/server ./cmd/config ./internal/data/postgres ./internal/data/scheduler ./internal/server ./internal/service -count=1")
 }
 
 func assertAllActionsPinned(t *testing.T, steps []ciStep) {

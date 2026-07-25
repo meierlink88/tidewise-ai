@@ -6,35 +6,33 @@ Collector V1 不提取 Event、不做投资分析，也不主动调用 Tidewise 
 
 ## 工程结构
 
-代码按 Agent 能力组织，Eino 是能力内部的编排实现，不是仓库顶层分层方式：
+代码采用 Kratos 标准的 API、Biz、Data、Service、Server 分层；Eino 只在具体
+Agent 能力内部负责工作流编排：
 
 ```text
-cmd/                              # 进程与 CLI 组合入口
+api/agentrun/v1/                  # OpenAPI 合同和 Kratos HTTP binding
+cmd/                              # Kratos 服务与 CLI 组合入口
+configs/                          # dev/UAT 非敏感配置
 internal/
-├── agentrun/                     # 可复用的 AgentRun 平台执行模型
-│   ├── admin/                    # Admin 管理用例
-│   ├── config/                   # dev/UAT 运行配置及统一加载器
-│   ├── httpapi/                  # 平台 Admin HTTP transport
-│   ├── openapi/                  # OpenAPI 合同和 Swagger UI 静态资源
-│   ├── persistence/postgres/     # 当前 PostgreSQL 持久化适配器与 migration
-│   └── scheduling/               # Agent Schedule 与 gocron 运行时投影
-└── collector/                    # Collector Agent 能力
-    ├── application/              # 一次 Collector Execution 的应用编排
-    ├── planning/                 # DeepSeek 语义查询规划
-    ├── workflow/                 # Eino typed Workflow
-    ├── connectors/               # 七个外部采集通道适配器
-    ├── artifacts/                # Candidate 门禁、去重和本地 Artifact
-    └── httpapi/                  # Collector HTTP transport
+├── conf/                         # typed 配置加载和校验
+├── biz/
+│   ├── platform/                 # 执行、配置、Schedule 领域规则
+│   └── agents/collector/         # Collector 用例、Eino Workflow、确定性规则
+├── data/                         # PostgreSQL、Provider、Connector、Artifact、gocron Adapter
+├── service/                      # API DTO 与 Biz 转换
+└── server/                       # Kratos HTTP、Middleware、认证、健康和文档
 ```
 
-后续 Event Extractor、Analyst 等 Agent 使用 `internal/` 下的同级能力目录；通用执行身份、状态、Model Provider Configuration 和 Connector Configuration 数据结构放在 `internal/agentrun`。`persistence` 是通用持久化概念，`postgres` 是当前具体适配器，并不宣称实现与数据库无关。
+后续 Event Extractor、Analyst 等 Agent 放在 `internal/biz/agents/` 下，各自维护 Eino
+Workflow；平台通用规则位于 `internal/biz/platform`。Kratos 管理服务生命周期和
+Transport，Eino 不进入 HTTP、数据库或 Schedule Adapter。
 
 ## 本地启动
 
 非敏感运行参数维护在以下文件中：
 
-- `internal/agentrun/config/config.dev.yaml`
-- `internal/agentrun/config/config.uat.yaml`
+- `configs/config.dev.yaml`
+- `configs/config.uat.yaml`
 
 两个环境均固定监听 `9080`。`APP_ENV` 选择环境，默认是 `dev`。部署必须通过 `TZ` 提供有效的 IANA 时区；dev/UAT 使用 `Asia/Shanghai`。数据库密码、完整数据库连接串、入站 Service Token 和独立 Admin Token 通过环境变量注入。
 
@@ -50,23 +48,23 @@ set +a
 开发环境复用本机已有 PostgreSQL 实例，但必须使用独立的 `tidewise_ai_server` 数据库和 `agentrun` 用户。仓库不再启动第二个 PostgreSQL 容器。数据库准备完成后执行 migration：
 
 ```bash
-go run ./cmd/agentrun-migrate
+go run ./cmd/migrate
 ```
 
 Model Provider Configuration 和 Connector Configuration 分别保存在 `tidewise_ai_server`，不读取 DeepSeek、Parallel、Tavily 或 Bocha 环境变量。使用 Bootstrap CLI 写入当前配置：
 
 ```bash
-printf '%s' "$DEEPSEEK_API_KEY" | go run ./cmd/agentrun-config model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
-printf '%s' "$PARALLEL_API_KEY" | go run ./cmd/agentrun-config connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
-printf '%s' "$TAVILY_API_KEY" | go run ./cmd/agentrun-config connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
-printf '%s' "$BOCHA_API_KEY" | go run ./cmd/agentrun-config connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
-go run ./cmd/agentrun-config connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
-go run ./cmd/agentrun-config connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
-go run ./cmd/agentrun-config connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
-go run ./cmd/agentrun-config connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
-go run ./cmd/agentrun-config check
-go run ./cmd/agentrun-config model list
-go run ./cmd/agentrun-config connector list
+printf '%s' "$DEEPSEEK_API_KEY" | go run ./cmd/config model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
+printf '%s' "$PARALLEL_API_KEY" | go run ./cmd/config connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
+printf '%s' "$TAVILY_API_KEY" | go run ./cmd/config connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
+printf '%s' "$BOCHA_API_KEY" | go run ./cmd/config connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
+go run ./cmd/config connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
+go run ./cmd/config connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
+go run ./cmd/config connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
+go run ./cmd/config connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
+go run ./cmd/config check
+go run ./cmd/config model list
+go run ./cmd/config connector list
 ```
 
 Model Provider Key 必填；所有 Connector Key 统一可空，缺少 Connector Key 不阻止 readiness，外部端点拒绝匿名请求时记录为该 Connector Invocation 失败。`list` 只显示 Key 是否已配置及脱敏尾号。CLI 或 Admin API 修改配置后，下一次 Execution 无需重启即可读取新值；已经启动的 Execution 继续使用其启动快照。V1 的 dev/UAT 环境暂时以明文保存 Key；HTTP、日志、Artifact 和 CLI 读取不会返回完整 Key。
@@ -74,8 +72,12 @@ Model Provider Key 必填；所有 Connector Key 统一可空，缺少 Connector
 启动服务：
 
 ```bash
-go run ./cmd/agentrun-server
+go run ./cmd/server
 ```
+
+CI 同时构建非 root 的 Kratos Service 镜像；本地可用
+`docker build --tag tidewise-ai-agentrun:local .` 验证相同构建合同。镜像包含
+`configs/` 和内嵌时区数据，不包含 `.env`、本地 Artifact、参考仓库或开发文档。
 
 Server 不自动执行 migration。Schema、DeepSeek Model Provider Configuration 或任一必需 Connector Configuration 缺失时，`/readyz` 返回 503，Collector POST 返回 `configuration_not_ready`。
 
@@ -161,6 +163,21 @@ curl -sS 'http://localhost:9080/api/admin/v1/agent-executions?agent_key=collecto
 
 Provider/Connector PATCH 使用严格 JSON。Model Key 不可清空；Connector Key 可通过显式空字符串清空。所有读取响应只返回 Key 是否配置及安全尾号掩码。
 
+### 消费方迁移
+
+本次 Kratos 切换不改变路径、HTTP method 或 Bearer Token 的职责，但业务响应 body
+不再直接返回资源：
+
+| 调用方 | 路径 | 认证 | 新响应读取方式 |
+|---|---|---|---|
+| Tidewise Data | `/api/v1/collector/runs...` | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
+| Admin Portal Service | `/api/admin/v1/...` | `AGENTRUN_ADMIN_TOKEN` | 成功读取 `result`，失败读取 `error` |
+
+所有业务响应同时读取顶层 `request_id`，并与 `X-Request-ID` 对照。旧的
+`error_code`、`message` 顶层错误结构不再兼容。冻结示例位于
+`api/agentrun/v1/testdata/`；消费方应以 OpenAPI 和这些 fixture 更新各自客户端，
+不导入本仓 Go package。
+
 ## 固定执行合同
 
 - DeepSeek 只把自然语言 Prompt 规划为 `queries[]`、`combined_query` 和可选 `time_window_hours`。
@@ -193,9 +210,9 @@ Artifact 发布使用最小 `prepare -> publish -> commit` 协议。成功类终
 dedup index 是 accepted Markdown 的派生缓存。运维 CLI 支持只读校验、显式重建和污染盘点：
 
 ```bash
-go run ./cmd/agentrun-artifacts verify-index --root data
-go run ./cmd/agentrun-artifacts rebuild-index --root data
-go run ./cmd/agentrun-artifacts audit-pollution --root data
+go run ./cmd/artifacts verify-index --root data
+go run ./cmd/artifacts rebuild-index --root data
+go run ./cmd/artifacts audit-pollution --root data
 ```
 
 `audit-pollution` 只报告文件路径、SHA-256 和检测原因，不修改历史 Artifact；`rebuild-index` 是显式写操作，运行时应停止 AgentRun 服务。

@@ -1,0 +1,12 @@
+.git
+.github
+.reference
+.codex
+.agents
+.env
+data
+docs
+midscene_run
+AGENTS.md
+CONTEXT.md
+README.md

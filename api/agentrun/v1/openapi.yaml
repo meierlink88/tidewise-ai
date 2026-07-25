@@ -1,0 +1,1151 @@
+openapi: 3.0.4
+info:
+  title: Tidewise AI AgentRun API
+  version: 1.0.0
+  description: |
+    HTTP contract for the Tidewise Agent execution service.
+
+    Collector operations accept a Collection Prompt and expose safe Agent
+    Execution metadata. They never return the full Prompt, credentials,
+    Connector result bodies, or model responses.
+servers:
+  - url: /
+tags:
+  - name: Platform
+    description: AgentRun process health and readiness.
+  - name: Collector
+    description: Asynchronous Collector Agent execution.
+  - name: Admin
+    description: Trusted Admin Portal Service management operations.
+  - name: Documentation
+    description: OpenAPI contract and interactive documentation.
+paths:
+  /healthz:
+    get:
+      tags:
+        - Platform
+      operationId: getHealth
+      summary: Check process liveness
+      security: []
+      responses:
+        "200":
+          description: AgentRun process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /readyz:
+    get:
+      tags:
+        - Platform
+      operationId: getReadiness
+      summary: Check service readiness
+      description: |
+        Readiness requires a compatible database schema, a configured service
+        token, writable Artifact storage, one complete Model Provider
+        Configuration, and all required Connector Configurations.
+      security: []
+      responses:
+        "200":
+          description: AgentRun is ready to accept Collector executions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: AgentRun is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+  /api/v1/collector/runs:
+    post:
+      tags:
+        - Collector
+      operationId: createCollectorRun
+      summary: Create an asynchronous Collector Agent Execution
+      description: |
+        Creates or idempotently replays a Collector Agent Execution. Only one
+        Collector Execution may be active at a time.
+      security:
+        - serviceBearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: |
+            Caller-generated identity for this exact Collection Prompt. Reuse
+            with different Prompt bytes is rejected.
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectorRunRequest"
+      responses:
+        "202":
+          description: Execution created or an exact idempotent replay returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectorRunEnvelope"
+        "400":
+          description: Request, Idempotency-Key, or Prompt is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Bearer authentication is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: |
+            The Idempotency-Key belongs to another Prompt, or another Collector
+            Execution is active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Collection Prompt exceeds 64 KiB in UTF-8 bytes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: AgentRun could not create the Execution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Collector configuration or service dependencies are not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/collector/runs/{execution_id}:
+    get:
+      tags:
+        - Collector
+      operationId: getCollectorRun
+      summary: Get a Collector Agent Execution
+      description: Returns safe execution, invocation, accounting, and Artifact metadata.
+      security:
+        - serviceBearerAuth: []
+      parameters:
+        - name: execution_id
+          in: path
+          required: true
+          description: Agent Execution identifier.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Collector Agent Execution found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectorRunEnvelope"
+        "401":
+          description: Bearer authentication is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent Execution was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: AgentRun could not read the Execution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/admin/v1/model-providers:
+    get:
+      tags:
+        - Admin
+      operationId: listModelProviders
+      summary: List registered Model Provider configuration targets
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: Registered Model Provider targets, including unconfigured targets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviderListEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/v1/model-providers/{provider_key}:
+    parameters:
+      - $ref: "#/components/parameters/ProviderKey"
+    get:
+      tags:
+        - Admin
+      operationId: getModelProvider
+      summary: Get one registered Model Provider configuration
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: Current redacted Model Provider configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviderConfigurationEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags:
+        - Admin
+      operationId: patchModelProvider
+      summary: Partially update one registered Model Provider configuration
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelProviderPatch"
+      responses:
+        "200":
+          description: Updated redacted Model Provider configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviderConfigurationEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/v1/connectors:
+    get:
+      tags:
+        - Admin
+      operationId: listConnectors
+      summary: List registered Connector configuration targets
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: Registered Connector targets, including unconfigured targets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorListEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/v1/connectors/{connector_key}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectorKey"
+    get:
+      tags:
+        - Admin
+      operationId: getConnector
+      summary: Get one registered Connector configuration
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: Current redacted Connector configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorConfigurationEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags:
+        - Admin
+      operationId: patchConnector
+      summary: Partially update one registered Connector configuration
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorPatch"
+      responses:
+        "200":
+          description: Updated redacted Connector configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorConfigurationEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/v1/agent-schedules:
+    get:
+      tags:
+        - Admin
+      operationId: listAgentSchedules
+      summary: List Agent Schedules
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: All configured Agent Schedules.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentScheduleListEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/v1/agent-schedules/{agent_key}:
+    parameters:
+      - $ref: "#/components/parameters/AgentKey"
+    get:
+      tags:
+        - Admin
+      operationId: getAgentSchedule
+      summary: Get one Agent Definition's Schedule
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: Agent Schedule found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentScheduleEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags:
+        - Admin
+      operationId: putAgentSchedule
+      summary: Create or fully replace one Agent Schedule
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentSchedulePut"
+      responses:
+        "200":
+          description: Saved Agent Schedule.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentScheduleEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    patch:
+      tags:
+        - Admin
+      operationId: patchAgentSchedule
+      summary: Partially update or enable/disable one Agent Schedule
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentSchedulePatch"
+      responses:
+        "200":
+          description: Updated Agent Schedule.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentScheduleEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/admin/v1/agent-executions:
+    get:
+      tags:
+        - Admin
+      operationId: listAgentExecutions
+      summary: List Agent Execution audit metadata
+      description: Never returns Agent Input, Output Payload, Artifact or Connector content.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: agent_key
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        "200":
+          description: Paginated Agent Execution audit metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentExecutionPageEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /openapi.yaml:
+    get:
+      tags:
+        - Documentation
+      operationId: getOpenAPIDocument
+      summary: Download the AgentRun OpenAPI document
+      security: []
+      responses:
+        "200":
+          description: Embedded OpenAPI 3.0.4 YAML document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /docs/:
+    get:
+      tags:
+        - Documentation
+      operationId: getSwaggerUI
+      summary: Open the embedded Swagger UI
+      description: Swagger UI loads this service's `/openapi.yaml` document.
+      security: []
+      responses:
+        "200":
+          description: Embedded Swagger UI HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+  /docs:
+    get:
+      tags:
+        - Documentation
+      operationId: redirectSwaggerUI
+      summary: Redirect to the canonical Swagger UI path
+      security: []
+      responses:
+        "301":
+          description: Redirects to `/docs/`.
+components:
+  securitySchemes:
+    serviceBearerAuth:
+      type: http
+      scheme: bearer
+      description: Opaque AgentRun service token.
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      description: Independent opaque token for the trusted Admin Portal Service.
+  parameters:
+    ProviderKey:
+      name: provider_key
+      in: path
+      required: true
+      schema:
+        type: string
+    ConnectorKey:
+      name: connector_key
+      in: path
+      required: true
+      schema:
+        type: string
+    AgentKey:
+      name: agent_key
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Request is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Admin Bearer authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Registered target or Agent Schedule was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: AgentRun could not complete the operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: The saved Schedule could not be synchronized to the runtime scheduler.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    CollectorRunRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          x-max-bytes: 65536
+          description: |
+            Complete natural-language Collection Prompt. It may contain UTF-8,
+            Markdown, and newlines; the server rejects blank text and values
+            larger than 64 KiB in UTF-8 bytes.
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - service
+        - environment
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        service:
+          type: string
+          enum:
+            - agentrun
+        environment:
+          type: string
+          enum:
+            - dev
+            - uat
+    ReadyResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - error
+      properties:
+        request_id:
+          type: string
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+            - details
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+    CollectorRunEnvelope:
+      $ref: "#/components/schemas/CollectorRunSuccessEnvelope"
+    CollectorRunSuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - result
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/CollectorRunResponse"
+    ModelProviderListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/ModelProviderList"
+    ModelProviderConfigurationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/ModelProviderConfiguration"
+    ConnectorListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/ConnectorList"
+    ConnectorConfigurationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/ConnectorConfiguration"
+    AgentScheduleListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/AgentScheduleList"
+    AgentScheduleEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/AgentSchedule"
+    AgentExecutionPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/AgentExecutionPage"
+    ModelProviderList:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelProviderConfiguration"
+    ModelProviderConfiguration:
+      type: object
+      additionalProperties: false
+      required:
+        - provider_key
+        - base_url
+        - model
+        - configured
+        - key_configured
+      properties:
+        provider_key:
+          type: string
+        base_url:
+          type: string
+        model:
+          type: string
+        configured:
+          type: boolean
+        key_configured:
+          type: boolean
+        masked_key:
+          type: string
+          description: Safe suffix mask; never the full Credential.
+        updated_at:
+          type: string
+          format: date-time
+    ModelProviderPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        base_url:
+          type: string
+          format: uri
+        model:
+          type: string
+          minLength: 1
+        api_key:
+          type: string
+          minLength: 1
+          writeOnly: true
+    ConnectorList:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorConfiguration"
+    ConnectorConfiguration:
+      type: object
+      additionalProperties: false
+      required:
+        - connector_key
+        - base_url
+        - configured
+        - key_configured
+      properties:
+        connector_key:
+          type: string
+        base_url:
+          type: string
+        configured:
+          type: boolean
+        key_configured:
+          type: boolean
+        masked_key:
+          type: string
+          description: Safe suffix mask; never the full Credential.
+        updated_at:
+          type: string
+          format: date-time
+    ConnectorPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+          writeOnly: true
+          description: Empty string explicitly clears an optional Connector Key.
+    AgentInput:
+      type: object
+      x-max-bytes: 65536
+      additionalProperties: true
+      description: Agent-Version-specific JSON Input copied into each triggered Execution.
+    AgentScheduleList:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSchedule"
+    AgentSchedule:
+      type: object
+      additionalProperties: false
+      required:
+        - schedule_id
+        - agent_key
+        - agent_version
+        - schedule_type
+        - input
+        - enabled
+        - created_at
+        - updated_at
+      properties:
+        schedule_id:
+          type: string
+          format: uuid
+        agent_key:
+          type: string
+        agent_version:
+          type: string
+        schedule_type:
+          $ref: "#/components/schemas/ScheduleType"
+        cron_expression:
+          type: string
+        daily_times:
+          type: array
+          items:
+            type: string
+            pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        input:
+          $ref: "#/components/schemas/AgentInput"
+        enabled:
+          type: boolean
+        last_triggered_at:
+          type: string
+          format: date-time
+        next_run_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AgentSchedulePut:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_version
+        - schedule_type
+        - input
+        - enabled
+      properties:
+        agent_version:
+          type: string
+          minLength: 1
+        schedule_type:
+          $ref: "#/components/schemas/ScheduleType"
+        cron_expression:
+          type: string
+          description: Required for cron and limited to standard five-field syntax.
+        daily_times:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        input:
+          $ref: "#/components/schemas/AgentInput"
+        enabled:
+          type: boolean
+    AgentSchedulePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        agent_version:
+          type: string
+          minLength: 1
+        schedule_type:
+          $ref: "#/components/schemas/ScheduleType"
+        cron_expression:
+          type: string
+        daily_times:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        input:
+          $ref: "#/components/schemas/AgentInput"
+        enabled:
+          type: boolean
+    ScheduleType:
+      type: string
+      enum:
+        - cron
+        - daily
+    AgentExecutionPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - page
+        - page_size
+        - total_items
+        - total_pages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentExecutionListItem"
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total_items:
+          type: integer
+          minimum: 0
+        total_pages:
+          type: integer
+          minimum: 0
+    AgentExecutionListItem:
+      type: object
+      additionalProperties: false
+      required:
+        - execution_id
+        - agent_key
+        - agent_version
+        - trigger_source
+        - status
+        - created_at
+        - triggered_at
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        agent_key:
+          type: string
+        agent_version:
+          type: string
+        trigger_source:
+          type: string
+          enum:
+            - api
+            - schedule
+        schedule_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ExecutionStatus"
+        error_code:
+          type: string
+        error_summary:
+          type: string
+        stop_reason:
+          type: string
+        blocked_by_execution_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        triggered_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+    ActiveExecutionConflict:
+      type: object
+      additionalProperties: false
+      required:
+        - error_code
+        - message
+        - active_execution_id
+        - skipped_execution_id
+      properties:
+        error_code:
+          type: string
+          enum:
+            - active_execution_exists
+        message:
+          type: string
+        active_execution_id:
+          type: string
+          format: uuid
+        skipped_execution_id:
+          type: string
+          format: uuid
+    CollectorRunResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - schema
+        - agent_key
+        - agent_version
+        - execution_id
+        - status
+        - status_url
+        - prompt_sha256
+        - prompt_bytes
+        - invocations
+        - candidate_counts
+        - artifacts
+        - created_at
+        - started_at
+        - completed_at
+        - error_code
+        - error_summary
+        - stop_reason
+        - blocked_by_execution_id
+      properties:
+        schema:
+          type: string
+          enum:
+            - collector_run.v1
+        agent_key:
+          type: string
+          enum:
+            - collector
+        agent_version:
+          type: string
+        execution_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ExecutionStatus"
+        status_url:
+          type: string
+          description: Relative URL for this Agent Execution.
+        prompt_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: SHA-256 of the exact accepted Collection Prompt.
+        prompt_bytes:
+          type: integer
+          minimum: 0
+          description: Collection Prompt length in UTF-8 bytes.
+        invocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorInvocation"
+        candidate_counts:
+          $ref: "#/components/schemas/CandidateCounts"
+        artifacts:
+          $ref: "#/components/schemas/ArtifactReferences"
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_code:
+          type: string
+        error_summary:
+          type: string
+        stop_reason:
+          type: string
+        blocked_by_execution_id:
+          type: string
+          description: Empty unless this skipped Execution was blocked by an active Execution.
+    ExecutionStatus:
+      type: string
+      enum:
+        - queued
+        - planning
+        - collecting
+        - materializing
+        - succeeded
+        - succeeded_no_change
+        - partially_succeeded
+        - failed
+        - skipped
+    ConnectorInvocation:
+      type: object
+      additionalProperties: false
+      required:
+        - connector_key
+        - status
+        - result_count
+      properties:
+        connector_key:
+          type: string
+        status:
+          $ref: "#/components/schemas/InvocationStatus"
+        result_count:
+          type: integer
+          minimum: 0
+        error_code:
+          type: string
+        error_summary:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+    InvocationStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - not_invoked
+    CandidateCounts:
+      type: object
+      description: Collector Candidate and content-level conservation counters.
+      additionalProperties:
+        type: integer
+        minimum: 0
+    ArtifactReferences:
+      type: object
+      description: Completed local Artifact names mapped to their service-side paths.
+      additionalProperties:
+        type: string
