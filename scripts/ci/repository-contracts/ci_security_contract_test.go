@@ -36,13 +36,22 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
 
 	for _, required := range []string{
-		"name: Backend",
-		"name: Frontend",
+		"name: Data Service",
+		"name: Miniapp",
+		"name: Admin Portal",
+		"name: AgentRun",
 		"name: Security",
-		"gofmt -l analyse-data-service/backend admin-portal/backend miniapp/backend scripts/ci/repository-contracts",
-		"go vet ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts",
-		"go test -race ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts",
+		"bash scripts/ci/detect-app-change.sh data",
+		"bash scripts/ci/detect-app-change.sh miniapp",
+		"bash scripts/ci/detect-app-change.sh adminportal",
+		"bash scripts/ci/detect-app-change.sh agentrun",
+		"go test -race ./analyse-data-service/backend/... ./scripts/ci/repository-contracts",
+		"go test -race ./miniapp/backend/... -count=1",
+		"go test -race ./admin-portal/backend/... -count=1",
+		"go test -race ./agent-run/backend/... -count=1",
 		"scripts/ci/check-prettier-diff.sh",
+		"npm run test:miniapp",
+		"npm run test:admin",
 		"npm run lint",
 		"bash scripts/ci/scan-git-secrets.sh",
 		"actions/upload-artifact@",
@@ -51,6 +60,15 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("CI workflow missing quality or security gate %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		"name: Backend",
+		"name: Frontend",
+		"name: Detect changed applications",
+	} {
+		if strings.Contains(workflow, forbidden) {
+			t.Fatalf("CI workflow contains obsolete top-level task %q", forbidden)
 		}
 	}
 }

@@ -193,7 +193,8 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	for _, required := range []string{
 		"go-version-file: go.mod",
 		"cache-dependency-path: go.sum",
-		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/internal/data",
+		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data",
+		"go test ./analyse-data-service/backend/api ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
 		"go test ./scripts/ci/repository-contracts",
 		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
@@ -208,8 +209,10 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
 		"cache-dependency-path: package-lock.json",
-		"npm run test",
-		"npm run typecheck",
+		"npm run test:miniapp",
+		"npm run test:admin",
+		"npm run typecheck:miniapp",
+		"npm run typecheck:admin",
 		"npm run build:weapp",
 		"npm run build:admin",
 		"docker build -f admin-portal/frontend/Dockerfile -t tidewise-admin:ci .",
@@ -221,18 +224,26 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	if strings.Contains(text, "docker build -f Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
 	}
-	if strings.Count(text, "\n  agentrun:") != 1 {
-		t.Fatal("CI must expose exactly one top-level AgentRun job")
+	for _, job := range []string{"data", "miniapp", "adminportal", "agentrun", "security"} {
+		if strings.Count(text, "\n  "+job+":") != 1 {
+			t.Fatalf("CI must expose exactly one top-level %s job", job)
+		}
 	}
 	if strings.Contains(text, "\n  changes:") || strings.Contains(text, "needs: changes") {
-		t.Fatal("AgentRun path detection must stay inside the AgentRun job")
+		t.Fatal("application path detection must stay inside each application job")
 	}
 	if strings.Contains(text, "\n  agentrun-postgres:") {
 		t.Fatal("AgentRun PostgreSQL verification must stay inside the AgentRun job")
 	}
 	for _, required := range []string{
+		"name: Data Service",
+		"name: Miniapp",
+		"name: Admin Portal",
 		"name: AgentRun",
-		"name: Detect AgentRun boundary changes",
+		"bash scripts/ci/detect-app-change.sh data",
+		"bash scripts/ci/detect-app-change.sh miniapp",
+		"bash scripts/ci/detect-app-change.sh adminportal",
+		"bash scripts/ci/detect-app-change.sh agentrun",
 		"POSTGRES_DB: tidewise_ai_server_test",
 		"Test AgentRun PostgreSQL boundaries",
 	} {

@@ -82,7 +82,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 	if fmt.Sprint(checkout.With["fetch-depth"]) != "0" {
 		t.Fatalf("AgentRun checkout fetch-depth = %#v, want 0", checkout.With["fetch-depth"])
 	}
-	assertRunLineStartsWith(t, quality.Steps, "if grep -Eq '^(agent-run/")
+	assertRunsCommand(t, quality.Steps, "bash scripts/ci/detect-app-change.sh agentrun")
 	assertSetupGoConfiguration(t, quality.Steps)
 	for _, command := range []string{
 		"go vet ./agent-run/backend/...",
@@ -109,7 +109,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 	if !strings.Contains(databaseURL, "/tidewise_ai_server_test?") || strings.Contains(databaseURL, "tidewise_local") {
 		t.Fatalf("unsafe integration database URL %q", databaseURL)
 	}
-	if integration.If != "steps.paths.outputs.agentrun == 'true'" {
+	if integration.If != "steps.paths.outputs.changed == 'true'" {
 		t.Fatalf("AgentRun PostgreSQL step condition = %q", integration.If)
 	}
 }
