@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const modulePath = "github.com/guanchaojia/tidewise-ai-agentrun"
+const modulePath = "github.com/meierlink88/tidewise-ai/agent-run/backend"
 
 func TestRepositoryUsesKratosServiceLayout(t *testing.T) {
 	t.Parallel()
@@ -157,4 +157,8 @@ func assertImportsAbsent(t *testing.T, root string, forbidden []string) {
 
 func repositoryRoot() string {
 	return filepath.Clean(filepath.Join("..", ".."))
+}
+
+func monorepoRoot() string {
+	return filepath.Clean(filepath.Join(repositoryRoot(), "..", ".."))
 }

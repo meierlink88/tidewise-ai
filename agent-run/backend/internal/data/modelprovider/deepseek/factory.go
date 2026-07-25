@@ -8,7 +8,7 @@ import (
 
 	einodeepseek "github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino/components/model"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 const defaultTimeout = 30 * time.Second

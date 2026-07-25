@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
 	"github.com/jackc/pgx/v5"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 func (s *Store) PreparePublication(ctx context.Context, reference agentrun.PublicationReference) error {

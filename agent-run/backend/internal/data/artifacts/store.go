@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	collectorusecase "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/usecase"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	collectorusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 // Store is the filesystem adapter for Collector Artifacts.

@@ -34,7 +34,10 @@ if ! id "$deploy_user" >/dev/null 2>&1; then
 fi
 usermod -aG docker "$deploy_user"
 
-install -d -m 0750 -o "$deploy_user" -g "$deploy_user" "$deploy_root" "$deploy_root/state"
+install -d -m 0750 -o "$deploy_user" -g "$deploy_user" \
+  "$deploy_root" \
+  "$deploy_root/state" \
+  "$deploy_root/agentrun-artifacts"
 
 printf '%s  %s\n' "$runner_archive_sha256" "$runner_archive" | sha256sum --check --status
 

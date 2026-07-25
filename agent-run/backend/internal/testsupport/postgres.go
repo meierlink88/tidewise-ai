@@ -6,8 +6,8 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/postgres"
 	"github.com/jackc/pgx/v5"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
 )
 
 func IsolatedPostgresDatabase(ctx context.Context, databaseURL, _ string) (string, func(), error) {

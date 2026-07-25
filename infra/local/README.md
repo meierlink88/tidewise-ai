@@ -1,6 +1,6 @@
-# Local Three-Service Stack
+# Local Application Stack
 
-本目录只编排 Data、Miniapp、Admin Portal 三个服务，以及 PostgreSQL、Neo4j、共享 network/volumes。这里的模板只用于开发环境，不得复用为 uat 或 prod secret 来源。采集调度与运行由独立 agent-run 项目负责，不在本仓库提供本地 scheduler、source-ingest 或 ingest-smoke 命令。
+本目录编排 Data、Miniapp、Admin Portal、AgentRun 四个后端服务，以及 Admin 前端、PostgreSQL、Neo4j 和共享 network/volumes。这里的模板只用于开发环境，不得复用为 uat 或 prod secret 来源。AgentRun 在单仓中保持独立数据库、Artifact 卷与 API 边界，不与 Data Service 共享表。
 
 ## 静态检查与服务入口
 
@@ -16,7 +16,7 @@ cp infra/local/.env.example infra/local/.env.local
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml config
 ```
 
-统一编排使用三个 service-owned Dockerfile；默认端口为 Data `9011`、Miniapp `9012`、Admin `9013`、PostgreSQL `5432`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin只获得各自Data Service identity token，不携带Data PostgreSQL或Neo4j凭据。
+统一编排使用四个 backend service-owned Dockerfile；默认端口为 Data `9011`、Miniapp `9012`、Admin `9013`、AgentRun `9080`、PostgreSQL `5432`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin 只获得各自下游 Service identity token，不携带 Data 或 AgentRun 的数据库凭据。
 
 ## 本地 PostgreSQL
 
@@ -106,9 +106,31 @@ go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 
 该命令只允许连接 `tidewise_local`，默认读取 `analyse-data-service/backend/data/research_themes/local_homepage.json`。文件使用生产 V1 导入合同；命令不会直接 upsert Theme 或清空关联表。首次执行创建不可变 receipt，重复执行返回原结果并标记 `replayed: true`。
 
+## AgentRun
+
+AgentRun 源码位于 `agent-run/backend/`，与其他 Go 服务共享根 `go.mod`，但拥有独立 Context、配置、PostgreSQL database 和 Artifact 目录。统一 Compose 会先幂等创建 AgentRun 的数据库身份、应用 AgentRun migration，再启动服务。
+
+单独运行代码：
+
+```bash
+npm run backend:dev:agentrun
+```
+
+只读检查或应用 AgentRun migration：
+
+```bash
+APP_ENV=dev AGENTRUN_DATABASE_URL='postgres://agentrun:<password>@localhost:5432/tidewise_ai_server?sslmode=disable' \
+go run ./agent-run/backend/cmd/migrate --check-only
+
+APP_ENV=dev AGENTRUN_DATABASE_URL='postgres://agentrun:<password>@localhost:5432/tidewise_ai_server?sslmode=disable' \
+go run ./agent-run/backend/cmd/migrate
+```
+
+完整的配置和 Artifact 运维命令见 `agent-run/backend/README.md`。
+
 ## 采集运行边界
 
-Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采集编排归属独立 AgentRun 项目。Tidewise Data 只通过受认证的 `POST /api/data/v1/reviewed-event-imports` 原子接纳正式 Event 及其轻量证据记录；AgentRun 不得绕过 Data Service 直接写 Data DB。
+Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采集编排归属 AgentRun 应用。Tidewise Data 只通过受认证的 `POST /api/data/v1/reviewed-event-imports` 原子接纳正式 Event 及其轻量证据记录；AgentRun 不得绕过 Data Service 直接写 Data DB。
 
 历史 Source、scheduler/run 表只存在于旧 migration 历史中；当前 Schema 和运行时不再提供对应控制面。
 

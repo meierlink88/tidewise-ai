@@ -6,8 +6,8 @@ import (
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 // Repository is the persistence seam required by the Collector application.

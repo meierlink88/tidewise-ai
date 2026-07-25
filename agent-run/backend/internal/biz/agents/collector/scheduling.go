@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform/scheduling"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
 )
 
 const (

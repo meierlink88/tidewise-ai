@@ -12,7 +12,8 @@ When delegation is explicitly requested, use `gpt-5.6-sol` with `medium` reasoni
 
 ### 1. Explore and preserve
 
-- Read `AGENTS.md`, `CONTEXT.md`, relevant ADRs, authoritative specs, and the affected implementation.
+- Read `AGENTS.md`, `CONTEXT-MAP.md`, the affected Context, relevant ADRs, authoritative specs,
+  and the affected implementation.
 - Inspect the current branch, HEAD, remote baseline, and dirty/untracked files before writing.
 - Treat existing changes as user-owned. Preserve them and keep unrelated files out of the task commit.
 
@@ -20,7 +21,9 @@ When delegation is explicitly requested, use `gpt-5.6-sol` with `medium` reasoni
 
 Any change that introduces or modifies Eino orchestration, Agent architecture, a model or Provider adapter, or multi-Agent execution must complete a targeted reference audit before specification or implementation:
 
-- Inspect all available shared read-only clones at `.reference/cloudwego/eino`, `.reference/cloudwego/eino-ext`, and `.reference/cloudwego/eino-examples`. A worktree-local clone or mapping is not required.
+- Inspect all available shared read-only clones at `.reference/cloudwego/eino`,
+  `.reference/cloudwego/eino-ext`, and `.reference/cloudwego/eino-examples`. These clones live at
+  the Monorepo root and are shared by AgentRun tasks; an application-local clone is not required.
 - Record each clone's exact commit, the relevant files or examples inspected, adopted patterns, rejected patterns, and project-specific gaps in the authoritative Spec or PR.
 - Audit the relevant surfaces deeply; do not mechanically read unrelated packages merely to claim full-repository coverage.
 - If a required clone is unavailable, stop before implementation and report the missing shared reference rather than silently relying on memory or remote snippets.

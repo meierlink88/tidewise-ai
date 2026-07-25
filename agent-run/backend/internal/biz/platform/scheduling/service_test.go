@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 type scheduleStoreStub struct {

@@ -46,6 +46,7 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 		"npm run lint",
 		"gitleaks/gitleaks-action@",
 		"actions/dependency-review-action@",
+		"bash scripts/ci/check-sensitive-diff.sh",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("CI workflow missing quality or security gate %q", required)

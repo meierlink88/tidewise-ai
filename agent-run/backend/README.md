@@ -12,7 +12,7 @@ Agent 能力内部负责工作流编排：
 ```text
 api/agentrun/v1/                  # OpenAPI 合同和 Kratos HTTP binding
 cmd/                              # Kratos 服务与 CLI 组合入口
-configs/                          # dev/UAT 非敏感配置
+agent-run/backend/configs/        # dev/UAT 非敏感配置
 internal/
 ├── conf/                         # typed 配置加载和校验
 ├── biz/
@@ -31,40 +31,42 @@ Transport，Eino 不进入 HTTP、数据库或 Schedule Adapter。
 
 非敏感运行参数维护在以下文件中：
 
-- `configs/config.dev.yaml`
-- `configs/config.uat.yaml`
+- `agent-run/backend/configs/config.dev.yaml`
+- `agent-run/backend/configs/config.uat.yaml`
 
 两个环境均固定监听 `9080`。`APP_ENV` 选择环境，默认是 `dev`。部署必须通过 `TZ` 提供有效的 IANA 时区；dev/UAT 使用 `Asia/Shanghai`。数据库密码、完整数据库连接串、入站 Service Token 和独立 Admin Token 通过环境变量注入。
 
-复制 Secret 示例配置：
+本地 Secret 示例统一维护在根级 Local Compose 环境文件中：
 
 ```bash
-cp .env.example .env
-set -a
-source .env
-set +a
+cp infra/local/.env.example infra/local/.env.local
 ```
 
-开发环境复用本机已有 PostgreSQL 实例，但必须使用独立的 `tidewise_ai_server` 数据库和 `agentrun` 用户。仓库不再启动第二个 PostgreSQL 容器。数据库准备完成后执行 migration：
+填写 `infra/local/.env.local` 后，根级 Compose 会在共享 PostgreSQL 实例中幂等创建独立的
+`tidewise_ai_server` 数据库和 `agentrun` 用户，不会启动第二个 PostgreSQL 容器。推荐用根级编排启动：
 
 ```bash
-go run ./cmd/migrate
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d agentrun
 ```
+
+直接运行 Go 命令时，需先显式注入 `APP_ENV=dev`、`AGENTRUN_DATABASE_URL`、
+`AGENTRUN_SERVICE_TOKEN`、`AGENTRUN_ADMIN_TOKEN` 和 `TZ`，然后先执行
+`go run ./agent-run/backend/cmd/migrate`，再启动服务。
 
 Model Provider Configuration 和 Connector Configuration 分别保存在 `tidewise_ai_server`，不读取 DeepSeek、Parallel、Tavily 或 Bocha 环境变量。使用 Bootstrap CLI 写入当前配置：
 
 ```bash
-printf '%s' "$DEEPSEEK_API_KEY" | go run ./cmd/config model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
-printf '%s' "$PARALLEL_API_KEY" | go run ./cmd/config connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
-printf '%s' "$TAVILY_API_KEY" | go run ./cmd/config connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
-printf '%s' "$BOCHA_API_KEY" | go run ./cmd/config connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
-go run ./cmd/config connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
-go run ./cmd/config connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
-go run ./cmd/config connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
-go run ./cmd/config connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
-go run ./cmd/config check
-go run ./cmd/config model list
-go run ./cmd/config connector list
+printf '%s' "$DEEPSEEK_API_KEY" | go run ./agent-run/backend/cmd/config model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
+printf '%s' "$PARALLEL_API_KEY" | go run ./agent-run/backend/cmd/config connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
+printf '%s' "$TAVILY_API_KEY" | go run ./agent-run/backend/cmd/config connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
+printf '%s' "$BOCHA_API_KEY" | go run ./agent-run/backend/cmd/config connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
+go run ./agent-run/backend/cmd/config connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
+go run ./agent-run/backend/cmd/config connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
+go run ./agent-run/backend/cmd/config connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
+go run ./agent-run/backend/cmd/config connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
+go run ./agent-run/backend/cmd/config check
+go run ./agent-run/backend/cmd/config model list
+go run ./agent-run/backend/cmd/config connector list
 ```
 
 Model Provider Key 必填；所有 Connector Key 统一可空，缺少 Connector Key 不阻止 readiness，外部端点拒绝匿名请求时记录为该 Connector Invocation 失败。`list` 只显示 Key 是否已配置及脱敏尾号。CLI 或 Admin API 修改配置后，下一次 Execution 无需重启即可读取新值；已经启动的 Execution 继续使用其启动快照。V1 的 dev/UAT 环境暂时以明文保存 Key；HTTP、日志、Artifact 和 CLI 读取不会返回完整 Key。
@@ -72,12 +74,13 @@ Model Provider Key 必填；所有 Connector Key 统一可空，缺少 Connector
 启动服务：
 
 ```bash
-go run ./cmd/server
+go run ./agent-run/backend/cmd/server
 ```
 
 CI 同时构建非 root 的 Kratos Service 镜像；本地可用
-`docker build --tag tidewise-ai-agentrun:local .` 验证相同构建合同。镜像包含
-`configs/` 和内嵌时区数据，不包含 `.env`、本地 Artifact、参考仓库或开发文档。
+`docker build -f agent-run/backend/Dockerfile --tag tidewise-agentrun:local .`
+验证相同构建合同。镜像包含 `agent-run/backend/configs/` 和内嵌时区数据，
+不包含 `.env`、本地 Artifact、参考仓库或开发文档。
 
 Server 不自动执行 migration。Schema、DeepSeek Model Provider Configuration 或任一必需 Connector Configuration 缺失时，`/readyz` 返回 503，Collector POST 返回 `configuration_not_ready`。
 
@@ -210,9 +213,9 @@ Artifact 发布使用最小 `prepare -> publish -> commit` 协议。成功类终
 dedup index 是 accepted Markdown 的派生缓存。运维 CLI 支持只读校验、显式重建和污染盘点：
 
 ```bash
-go run ./cmd/artifacts verify-index --root data
-go run ./cmd/artifacts rebuild-index --root data
-go run ./cmd/artifacts audit-pollution --root data
+go run ./agent-run/backend/cmd/artifacts verify-index --root data
+go run ./agent-run/backend/cmd/artifacts rebuild-index --root data
+go run ./agent-run/backend/cmd/artifacts audit-pollution --root data
 ```
 
 `audit-pollution` 只报告文件路径、SHA-256 和检测原因，不修改历史 Artifact；`rebuild-index` 是显式写操作，运行时应停止 AgentRun 服务。

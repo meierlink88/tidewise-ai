@@ -7,8 +7,8 @@ import (
 	"regexp"
 
 	"github.com/cloudwego/eino/compose"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/planning"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/planning"
 )
 
 var nodeNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)

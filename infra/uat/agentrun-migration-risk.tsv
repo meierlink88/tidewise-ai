@@ -1,0 +1,7 @@
+# version	classification	reason
+001	normal	Create Agent definition and version registry.
+002	normal	Create execution and connector invocation state.
+003	normal	Create legacy provider configuration storage.
+004	normal	Add collector publication audit and recovery state.
+005	normal	Split model and connector configuration tables.
+006	normal	Add Agent schedule state and trigger metadata.

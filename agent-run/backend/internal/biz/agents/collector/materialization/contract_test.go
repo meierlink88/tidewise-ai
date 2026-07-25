@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 func TestDeterministicContractMatchesCrossLanguageGolden(t *testing.T) {

@@ -9,15 +9,61 @@ import (
 	"testing"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/postgres"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/testsupport"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/testsupport"
 )
 
 var testConnectorKeys = []string{
 	"parallel_search", "tavily", "bocha", "cls_telegraph",
 	"eastmoney_fastnews", "eastmoney_stock_news", "stcn_quicknews",
+}
+
+func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "migration_report_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	report, err := postgres.InspectMigrations(ctx, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 6 {
+		t.Fatalf("empty database migration report = %#v", report)
+	}
+	var ledger *string
+	if err := database.QueryRow(ctx, `SELECT to_regclass('schema_migrations')::text`).Scan(&ledger); err != nil {
+		t.Fatal(err)
+	}
+	if ledger != nil {
+		t.Fatal("read-only migration report created schema_migrations")
+	}
+
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	report, err = postgres.InspectMigrations(ctx, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.CurrentVersion != "006" ||
+		len(report.Applied) != 6 || len(report.Pending) != 0 {
+		t.Fatalf("migrated database report = %#v", report)
+	}
 }
 
 func TestMigrateSeedsCollectorV1(t *testing.T) {

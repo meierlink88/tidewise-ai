@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
-	bizschedule "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform/scheduling"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/postgres"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/scheduler"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/testsupport"
 	"github.com/jonboulle/clockwork"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+	bizschedule "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/scheduler"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/testsupport"
 )
 
 type recordingAgentRunner struct {

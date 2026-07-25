@@ -22,11 +22,11 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 ## AgentRun Boundary
 
-当前仍位于外部仓库、未来将以 `agent-run/` 纳入本仓库的 AgentRun 拥有 Source
-主数据、采集调度、采集执行、完整原始 Artifact 和 Event 提取工作流。物理共仓不改变
-ownership：AgentRun 只能按照 Data 定义的版本化 Event Publication 合同提交已提取
-Event 及其证据引用，不直接访问 Data 数据库；Data 不维护 Source Catalog，也不接纳
-未产生正式 Event 的采集 Artifact。
+位于本仓库 `agent-run/backend/` 的 AgentRun 拥有 Source 主数据、采集调度、采集
+执行、完整原始 Artifact 和 Event 提取工作流。物理共仓不改变 ownership：AgentRun
+只能按照 Data 定义的版本化 Event Publication 合同提交已提取 Event 及其证据引用，
+不直接访问 Data 数据库；Data 不维护 Source Catalog，也不接纳未产生正式 Event 的
+采集 Artifact。
 
 Tidewise 中遗留的 Source Catalog、采集调度与采集运行控制面通过保留 `raw_documents` 来源快照的 forward migration 物理移除；该收敛不得删除历史 Event、Evidence Record 或既有证据关联。
 Data 的 AgentRun Source Metadata、Admin Source Catalog 查询，以及 Admin Portal 对应代理接口、Client、Repository、Seed 和专属测试一并移除，不保留静态兼容路由；AgentRun 仅使用自身 Source Catalog。

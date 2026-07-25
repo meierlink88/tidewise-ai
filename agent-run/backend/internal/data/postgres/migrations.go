@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -60,6 +61,70 @@ var expectedSchemaConstraints = map[string]struct{}{
 	"connector_invocations_result_count_check": {}, "connector_invocations_status_check": {},
 	"model_provider_configs_pkey": {}, "connector_configs_pkey": {},
 	"collector_artifact_publications_pkey": {}, "collector_artifact_publications_execution_id_fkey": {},
+}
+
+type MigrationReport struct {
+	CurrentVersion string      `json:"current_version"`
+	Applied        []Migration `json:"applied"`
+	Pending        []Migration `json:"pending"`
+}
+
+type Migration struct {
+	Version string `json:"version"`
+	Name    string `json:"name"`
+}
+
+func InspectMigrations(ctx context.Context, database *pgxpool.Pool) (MigrationReport, error) {
+	if database == nil {
+		return MigrationReport{}, errors.New("AgentRun database is required")
+	}
+	entries, err := fs.Glob(migrations, "migrations/*.sql")
+	if err != nil {
+		return MigrationReport{}, fmt.Errorf("list migrations: %w", err)
+	}
+	sort.Strings(entries)
+
+	var ledgerExists bool
+	if err := database.QueryRow(ctx, `SELECT to_regclass('schema_migrations') IS NOT NULL`).Scan(&ledgerExists); err != nil {
+		return MigrationReport{}, fmt.Errorf("inspect migration ledger: %w", err)
+	}
+	appliedSet := make(map[string]struct{}, len(entries))
+	report := MigrationReport{
+		Applied: make([]Migration, 0, len(entries)),
+		Pending: make([]Migration, 0, len(entries)),
+	}
+	if ledgerExists {
+		rows, err := database.Query(ctx, `SELECT version FROM schema_migrations ORDER BY version`)
+		if err != nil {
+			return MigrationReport{}, fmt.Errorf("read migration ledger: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var version string
+			if err := rows.Scan(&version); err != nil {
+				return MigrationReport{}, fmt.Errorf("scan migration ledger: %w", err)
+			}
+			appliedSet[version] = struct{}{}
+			report.Applied = append(report.Applied, migrationDescriptor(version))
+		}
+		if err := rows.Err(); err != nil {
+			return MigrationReport{}, fmt.Errorf("read migration ledger: %w", err)
+		}
+	}
+	for _, entry := range entries {
+		if _, ok := appliedSet[entry]; ok {
+			report.CurrentVersion = migrationDescriptor(entry).Version
+			continue
+		}
+		report.Pending = append(report.Pending, migrationDescriptor(entry))
+	}
+	return report, nil
+}
+
+func migrationDescriptor(path string) Migration {
+	name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	version, _, _ := strings.Cut(name, "_")
+	return Migration{Version: version, Name: name}
 }
 
 func Migrate(ctx context.Context, database *pgxpool.Pool) error {

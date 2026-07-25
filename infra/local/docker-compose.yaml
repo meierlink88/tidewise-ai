@@ -19,6 +19,25 @@ services:
       retries: 10
     networks: [tidewise-local]
 
+  agentrun-db-init:
+    image: postgres:16
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: '${POSTGRES_USER:-tidewise}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}'
+      POSTGRES_DB: '${POSTGRES_DB:-tidewise_local}'
+      AGENTRUN_DATABASE_USER: '${AGENTRUN_DATABASE_USER:-agentrun}'
+      AGENTRUN_DATABASE_PASSWORD: '${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}'
+      AGENTRUN_DATABASE_NAME: '${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}'
+    volumes:
+      - ./bootstrap-agentrun-db.sh:/usr/local/bin/bootstrap-agentrun-db:ro
+    entrypoint: ['/usr/local/bin/bootstrap-agentrun-db']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    networks: [tidewise-local]
+
   neo4j:
     image: neo4j:5-community
     ports:
@@ -71,6 +90,50 @@ services:
       retries: 12
     networks: [tidewise-local]
 
+  agentrun:
+    build:
+      context: ../..
+      dockerfile: agent-run/backend/Dockerfile
+    image: '${AGENTRUN_SERVICE_IMAGE:-tidewise-agentrun:local}'
+    ports:
+      - '${AGENTRUN_SERVICE_PORT:-9080}:9080'
+    environment:
+      APP_ENV: dev
+      AGENTRUN_CONFIG_DIR: /app/configs
+      TZ: Asia/Shanghai
+      AGENTRUN_DATABASE_URL: 'postgres://${AGENTRUN_DATABASE_USER:-agentrun}:${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}@postgres:5432/${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}?sslmode=disable'
+      AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
+      AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+    volumes:
+      - agentrun_artifacts:/app/data
+    depends_on:
+      agentrun-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9080/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [tidewise-local]
+
+  agentrun-migrate:
+    build:
+      context: ../..
+      dockerfile: agent-run/backend/Dockerfile
+    image: '${AGENTRUN_SERVICE_IMAGE:-tidewise-agentrun:local}'
+    entrypoint: ['/app/agentrun-migrate']
+    environment:
+      APP_ENV: dev
+      AGENTRUN_CONFIG_DIR: /app/configs
+      TZ: Asia/Shanghai
+      AGENTRUN_DATABASE_URL: 'postgres://${AGENTRUN_DATABASE_USER:-agentrun}:${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}@postgres:5432/${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}?sslmode=disable'
+      AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+    depends_on:
+      agentrun-db-init:
+        condition: service_completed_successfully
+    restart: 'no'
+    networks: [tidewise-local]
+
   miniapp:
     build:
       context: ../..
@@ -101,7 +164,7 @@ services:
     build:
       context: ../..
       dockerfile: admin-portal/backend/Dockerfile
-    image: tidewise-adminportal:local
+    image: '${ADMIN_SERVICE_IMAGE:-tidewise-adminportal:local}'
     ports:
       - '${ADMIN_SERVICE_PORT:-9013}:9013'
     environment:
@@ -111,10 +174,12 @@ services:
       ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:5174}'
       DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_ADMIN_TOKEN: '${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}'
-      AGENTRUN_BASE_URL: '${AGENTRUN_BASE_URL:-http://host.docker.internal:9080}'
+      AGENTRUN_BASE_URL: http://agentrun:9080
       AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
     depends_on:
       data:
+        condition: service_healthy
+      agentrun:
         condition: service_healthy
     healthcheck:
       test:
@@ -135,3 +200,4 @@ volumes:
   tidewise_postgres_data:
   tidewise_neo4j_data:
   tidewise_neo4j_logs:
+  agentrun_artifacts:

@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	v1 "github.com/guanchaojia/tidewise-ai-agentrun/api/agentrun/v1"
-	collectorusecase "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/usecase"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform/admin"
+	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
+	collectorusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
 )
 
 type CollectorUseCase interface {

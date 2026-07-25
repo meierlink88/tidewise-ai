@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
+func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
 	for _, required := range []string{
@@ -23,7 +23,8 @@ func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 		"environment: uat",
 		"SWR_PULL_USERNAME",
 		"UAT_PUBLIC_BASE_URL",
-		"AGENTRUN_BASE_URL",
+		"AGENTRUN_DATABASE_URL",
+		"AGENTRUN_SERVICE_TOKEN",
 		"AGENTRUN_ADMIN_TOKEN",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
@@ -34,7 +35,7 @@ func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 			t.Fatalf("UAT workflow missing %q", required)
 		}
 	}
-	for _, image := range []string{"data_image", "miniapp_image", "adminportal_image", "admin_image"} {
+	for _, image := range []string{"data_image", "miniapp_image", "adminportal_image", "admin_image", "agentrun_image"} {
 		if !strings.Contains(workflow, image+"=") && !strings.Contains(workflow, image+":") {
 			t.Fatalf("UAT workflow missing complete release image %q", image)
 		}
@@ -58,10 +59,41 @@ func TestUATWorkflowUsesImmutableMainControlPlaneForHistoricalRelease(t *testing
 		".uat-control/infra/uat/deploy.sh",
 		".uat-control/infra/uat/collect-diagnostics.sh",
 		".uat-control/infra/uat/migration-risk.tsv",
+		".uat-control/infra/uat/agentrun-migration-risk.tsv",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("UAT workflow does not pin trusted control plane contract %q", required)
 		}
+	}
+}
+
+func TestEveryAgentRunMigrationHasExplicitUATRiskClassification(t *testing.T) {
+	root := repositoryRoot()
+	entries, err := filepath.Glob(filepath.Join(root, "agent-run", "backend", "internal", "data", "postgres", "migrations", "*.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	versions := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		versions = append(versions, strings.SplitN(filepath.Base(entry), "_", 2)[0])
+	}
+	sort.Strings(versions)
+
+	manifest := readContractFile(t, filepath.Join(root, "infra", "uat", "agentrun-migration-risk.tsv"))
+	classified := make([]string, 0, len(versions))
+	for _, line := range strings.Split(manifest, "\n") {
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 3 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") || strings.TrimSpace(fields[2]) == "" {
+			t.Fatalf("invalid AgentRun UAT migration risk row %q", line)
+		}
+		classified = append(classified, fields[0])
+	}
+	sort.Strings(classified)
+	if strings.Join(classified, ",") != strings.Join(versions, ",") {
+		t.Fatalf("AgentRun UAT migration risk versions = %v, repository versions = %v", classified, versions)
 	}
 }
 
@@ -102,9 +134,9 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	root := repositoryRoot()
 	compose := readContractFile(t, filepath.Join(root, "infra", "uat", "docker-compose.yaml"))
 	for _, required := range []string{
-		"  data:", "  miniapp:", "  adminportal:", "  admin:",
-		"http://data:9011", "9012:9012", "9013:9013", "9014:9014",
-		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "AGENTRUN_BASE_URL", "AGENTRUN_ADMIN_TOKEN",
+		"  data:", "  miniapp:", "  adminportal:", "  admin:", "  agentrun:",
+		"http://data:9011", "http://agentrun:9080", "9012:9012", "9013:9013", "9014:9014", "\"9080\"",
+		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "AGENTRUN_DATABASE_URL", "AGENTRUN_ADMIN_TOKEN",
 		"restart: unless-stopped", "max-size: \"20m\"", "max-file: \"5\"",
 	} {
 		if !strings.Contains(compose, required) {
@@ -123,6 +155,12 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 			}
 		}
 	}
+	agentrun := composeServiceSection(t, compose, "agentrun")
+	for _, required := range []string{"AGENTRUN_DATABASE_URL", "AGENTRUN_SERVICE_TOKEN", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
+		if !strings.Contains(agentrun, required) {
+			t.Fatalf("AgentRun UAT service missing %q", required)
+		}
+	}
 }
 
 func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
@@ -135,6 +173,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 		"data":        {root: "analyse-data-service/backend", configDir: "config", port: "9011"},
 		"miniapp":     {root: "miniapp/backend", configDir: "configs", port: "9012"},
 		"adminportal": {root: "admin-portal/backend", configDir: "configs", port: "9013"},
+		"agentrun":    {root: "agent-run/backend", configDir: "configs", port: "9080"},
 	}
 	for service, asset := range services {
 		config := readContractFile(t, filepath.Join(root, filepath.FromSlash(asset.root), asset.configDir, "config.uat.yaml"))
@@ -142,7 +181,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("%s UAT config does not use port %s", service, asset.port)
 		}
 		dockerfile := readContractFile(t, filepath.Join(root, filepath.FromSlash(asset.root), "Dockerfile"))
-		if !strings.Contains(dockerfile, "USER tidewise") || !strings.Contains(dockerfile, "EXPOSE "+asset.port) {
+		if (!strings.Contains(dockerfile, "USER tidewise") && !strings.Contains(dockerfile, "USER agentrun")) || !strings.Contains(dockerfile, "EXPOSE "+asset.port) {
 			t.Fatalf("%s image does not enforce non-root port %s runtime", service, asset.port)
 		}
 	}
@@ -164,7 +203,9 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	for _, required := range []string{
 		"flock -n", "dbmigrate -apply", "rollback_current_release",
 		"current.images.env", "previous.images.env", "current.compose.yaml", "previous.compose.yaml",
-		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS bff-to-data-read-paths",
+		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS agentrun-rds-tls-readonly", "PASS bff-to-service-read-paths",
+		"/api/admin/v1/model-providers",
+		"http://127.0.0.1:9080/readyz",
 		"FAIL migration-release-gate", "PASS migration-release-gate",
 	} {
 		if !strings.Contains(deploy, required) {
@@ -177,7 +218,7 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		}
 	}
 	bootstrap := readContractFile(t, filepath.Join(root, "infra", "uat", "bootstrap-ecs.sh"))
-	for _, required := range []string{"Ubuntu 24.04", "tidewise-deploy", "docker-compose-v2", "sha256sum --check", "tidewise-uat-ecs", "systemctl"} {
+	for _, required := range []string{"Ubuntu 24.04", "tidewise-deploy", "docker-compose-v2", "sha256sum --check", "tidewise-uat-ecs", "systemctl", "agentrun-artifacts"} {
 		if !strings.Contains(bootstrap, required) {
 			t.Fatalf("UAT bootstrap missing %q", required)
 		}

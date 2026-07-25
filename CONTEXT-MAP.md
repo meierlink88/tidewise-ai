@@ -1,6 +1,6 @@
 # Context Map
 
-观潮家当前使用一个 repository 和一个根 Go module，按应用垂直组织三个可独立构建、
+观潮家当前使用一个 repository 和一个根 Go module，按应用垂直组织四个可独立构建、
 启动和部署的 Backend Service。源码是否在同一仓库，不改变 Service 之间只能通过远程
 API 协作的边界。
 
@@ -11,10 +11,12 @@ API 协作的边界。
 | Miniapp      | 产品系统 | `miniapp/frontend` 与 `miniapp/backend`                  | `docs/contexts/miniapp/CONTEXT.md`     |
 | Admin Portal | 产品系统 | `admin-portal/frontend` 与 `admin-portal/backend`        | `docs/contexts/adminportal/CONTEXT.md` |
 | Data         | 领域系统 | `analyse-data-service/backend`、数据事实、导入和查询能力 | `docs/contexts/data/CONTEXT.md`        |
+| AgentRun     | Agent 平台 | `agent-run/backend`、Agent 执行、调度、配置与 Artifact | `docs/contexts/agentrun/CONTEXT.md`    |
 
-`analyse-data-service` 是工程应用名，领域术语仍为 Data Domain Service。未来 AgentRun
-以 `agent-run/` 纳入本仓库时，继续拥有独立事实与持久化边界；也可以新增 User、
-Payment 等 Domain Service，但不得把领域能力放回没有 owner 的共享业务目录。
+`analyse-data-service` 是工程应用名，领域术语仍为 Data Domain Service。AgentRun
+虽已纳入本仓库，仍拥有独立事实、PostgreSQL 数据库、migration ledger 与 Artifact
+持久化边界；也可以新增 User、Payment 等 Domain Service，但不得把领域能力放回没有
+owner 的共享业务目录。
 
 ## Allowed Dependencies
 
@@ -29,6 +31,9 @@ Admin Portal Frontend
       -> Data Domain Service REST API
       -> AgentRun Admin REST API
       -> future User/Payment Domain Service REST API
+
+Tidewise Data Domain Service
+  <-> AgentRun versioned execution/publication REST APIs
 ```
 
 禁止依赖：

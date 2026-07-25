@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/artifacts"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/artifacts"
 )
 
 func main() {

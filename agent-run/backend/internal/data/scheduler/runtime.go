@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
-	bizschedule "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform/scheduling"
 	"github.com/jonboulle/clockwork"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+	bizschedule "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
 )
 
 type RuntimeStore interface {

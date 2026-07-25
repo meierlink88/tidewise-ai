@@ -14,8 +14,8 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
-	v1 "github.com/guanchaojia/tidewise-ai-agentrun/api/agentrun/v1"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/conf"
+	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
 )
 
 func TestKratosHTTPServerAppliesAuthAndTidewiseEnvelope(t *testing.T) {

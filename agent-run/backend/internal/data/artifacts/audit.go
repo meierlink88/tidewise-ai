@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 const terminalAuditDefaultTimeWindowHours = 48

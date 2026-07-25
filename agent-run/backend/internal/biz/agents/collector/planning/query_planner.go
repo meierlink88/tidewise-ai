@@ -12,7 +12,7 @@ import (
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
 )
 
 const (

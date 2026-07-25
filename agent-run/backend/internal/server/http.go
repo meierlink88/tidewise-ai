@@ -15,8 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/swaggest/swgui/v5emb"
 
-	v1 "github.com/guanchaojia/tidewise-ai-agentrun/api/agentrun/v1"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/conf"
+	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
 )
 
 const RequestIDHeader = "X-Request-ID"

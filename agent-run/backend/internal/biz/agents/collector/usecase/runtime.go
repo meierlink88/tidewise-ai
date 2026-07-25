@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/compose"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/materialization"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/planning"
-	collectorworkflow "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/workflow"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/materialization"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/planning"
+	collectorworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/workflow"
 )
 
 type runtimeFactory struct {

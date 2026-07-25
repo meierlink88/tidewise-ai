@@ -6,7 +6,7 @@ import (
 
 	kratoslog "github.com/go-kratos/kratos/v3/log"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/conf"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
 )
 
 func main() {

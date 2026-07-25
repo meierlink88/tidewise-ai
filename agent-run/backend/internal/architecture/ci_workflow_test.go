@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ type ciStep struct {
 }
 
 func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
-	content, err := os.ReadFile("../../.github/workflows/ci.yml")
+	content, err := os.ReadFile(filepath.Join(monorepoRoot(), ".github", "workflows", "ci.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,53 +58,49 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 	if !containsValue(push["branches"], "main") || collectionLength(push["branches"]) != 1 {
 		t.Fatalf("CI push branches = %#v, want only main", push["branches"])
 	}
-	if len(workflow.Permissions) != 1 || workflow.Permissions["contents"] != "read" {
-		t.Fatalf("CI permissions = %#v, want only contents: read", workflow.Permissions)
+	if workflow.Permissions["contents"] != "read" || workflow.Permissions["pull-requests"] != "read" {
+		t.Fatalf("CI permissions = %#v, want read-only repository and pull-request access", workflow.Permissions)
 	}
-	if workflow.Concurrency.Group != "ci-${{ github.workflow }}-${{ github.ref }}" || !workflow.Concurrency.CancelInProgress {
+	if workflow.Concurrency.Group != "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}" || !workflow.Concurrency.CancelInProgress {
 		t.Fatalf("CI concurrency = %#v, want grouped runs with cancellation", workflow.Concurrency)
 	}
 	for _, job := range workflow.Jobs {
 		assertAllActionsPinned(t, job.Steps)
 	}
 
-	quality, ok := workflow.Jobs["quality"]
+	changes, ok := workflow.Jobs["changes"]
 	if !ok {
-		t.Fatal("CI workflow must define the quality job")
+		t.Fatal("CI workflow must define path-aware application detection")
 	}
-	checkout := findPinnedAction(t, quality.Steps, "actions/checkout")
+	checkout := findPinnedAction(t, changes.Steps, "actions/checkout")
 	if fmt.Sprint(checkout.With["fetch-depth"]) != "0" {
-		t.Fatalf("quality checkout fetch-depth = %#v, want 0", checkout.With["fetch-depth"])
+		t.Fatalf("changes checkout fetch-depth = %#v, want 0", checkout.With["fetch-depth"])
 	}
+	assertRunLineStartsWith(t, changes.Steps, "if grep -Eq '^(agent-run/")
+
+	quality, ok := workflow.Jobs["agentrun"]
+	if !ok {
+		t.Fatal("CI workflow must define the path-aware AgentRun job")
+	}
+	findPinnedAction(t, quality.Steps, "actions/checkout")
 	assertSetupGoConfiguration(t, quality.Steps)
 	for _, command := range []string{
-		"go mod download",
-		"go vet ./...",
-		"go test ./... -count=1",
-		"go test -race ./... -count=1",
-		"go build ./cmd/...",
-		"docker build --tag tidewise-ai-agentrun:ci .",
+		"go vet ./agent-run/backend/...",
+		"go test -race ./agent-run/backend/... -count=1",
+		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
+		"go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate",
+		"go build -o /tmp/agentrun-config ./agent-run/backend/cmd/config",
+		"go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts",
+		"docker build -f agent-run/backend/Dockerfile -t tidewise-agentrun:ci .",
+		"docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .",
+		"bash scripts/ci/smoke-admin-agentrun-compose.sh",
 	} {
 		assertRunsCommand(t, quality.Steps, command)
 	}
-	for _, command := range []string{
-		"unformatted=\"$(gofmt -l $(git ls-files '*.go'))\"",
-		"if ! git diff --check \"$base\" \"$GITHUB_SHA\" >/dev/null 2>&1; then",
-		"changed_paths=\"$(mktemp \"$RUNNER_TEMP/agentrun-changed-paths.",
-		"added_diff=\"$(mktemp \"$RUNNER_TEMP/agentrun-added-diff.",
-		"trap 'rm -f \"$changed_paths\" \"$added_diff\"' EXIT",
-		"git diff --name-only \"$base\" \"$GITHUB_SHA\" >\"$changed_paths\"",
-		"if grep -Eq '^(data|\\.reference)",
-		"git diff --unified=0 \"$base\" \"$GITHUB_SHA\" >\"$added_diff\"",
-		"if grep -Eq '^\\+.*(sk-",
-	} {
-		assertRunLineStartsWith(t, quality.Steps, command)
-	}
-	assertRunLineCount(t, quality.Steps, "if [ \"$grep_status\" -ne 1 ]; then", 2)
 
-	integration, ok := workflow.Jobs["postgres-integration"]
+	integration, ok := workflow.Jobs["agentrun-postgres"]
 	if !ok {
-		t.Fatal("CI workflow must define the postgres-integration job")
+		t.Fatal("CI workflow must define the path-aware AgentRun PostgreSQL job")
 	}
 	findPinnedAction(t, integration.Steps, "actions/checkout")
 	assertSetupGoConfiguration(t, integration.Steps)
@@ -114,7 +111,7 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 	if !strings.Contains(databaseURL, "/tidewise_ai_server_test?") || strings.Contains(databaseURL, "tidewise_local") {
 		t.Fatalf("unsafe integration database URL %q", databaseURL)
 	}
-	assertRunsCommand(t, integration.Steps, "go test ./cmd/server ./cmd/config ./internal/data/postgres ./internal/data/scheduler ./internal/server ./internal/service -count=1")
+	assertRunsCommand(t, integration.Steps, "go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1")
 }
 
 func assertAllActionsPinned(t *testing.T, steps []ciStep) {

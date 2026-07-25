@@ -21,3 +21,7 @@ pnpm-debug.log*
 midscene_run/
 
 /prototype/.design_library/
+/.reference/cloudwego/
+/agent-run/backend/.env
+/agent-run/backend/data/
+/agent-run/backend/bin/

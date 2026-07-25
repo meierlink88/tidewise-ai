@@ -27,9 +27,10 @@
     "backend:dev:data": "go run ./analyse-data-service/backend/cmd",
     "backend:dev:miniapp": "go run ./miniapp/backend/cmd/server",
     "backend:dev:admin": "go run ./admin-portal/backend/cmd/server",
-    "backend:test": "go test ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts",
-    "backend:fmt": "gofmt -w analyse-data-service/backend admin-portal/backend miniapp/backend scripts/ci/repository-contracts",
-    "backend:vet": "go vet ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts",
+    "backend:dev:agentrun": "go run ./agent-run/backend/cmd/server",
+    "backend:test": "go test ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./agent-run/backend/... ./scripts/ci/repository-contracts",
+    "backend:fmt": "gofmt -w analyse-data-service/backend admin-portal/backend miniapp/backend agent-run/backend scripts/ci/repository-contracts",
+    "backend:vet": "go vet ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./agent-run/backend/... ./scripts/ci/repository-contracts",
     "format": "prettier --check ."
   },
   "devDependencies": {

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/guanchaojia/tidewise-ai-agentrun/api/agentrun/v1"
-	collectorusecase "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/usecase"
-	agentrun "github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
+	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
+	collectorusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 func TestCollectorErrorMapsBizFailuresWithoutInfrastructureDetails(t *testing.T) {

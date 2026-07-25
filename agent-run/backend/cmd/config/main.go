@@ -10,10 +10,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/platform"
-	agentrunconfig "github.com/guanchaojia/tidewise-ai-agentrun/internal/conf"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/data/postgres"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+	agentrunconfig "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
 )
 
 const configurationUsage = "usage: agentrun-config model set|list | connector set|list | check"

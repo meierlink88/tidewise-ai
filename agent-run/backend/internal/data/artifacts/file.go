@@ -16,8 +16,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector"
-	"github.com/guanchaojia/tidewise-ai-agentrun/internal/biz/agents/collector/materialization"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/materialization"
 )
 
 const indexHeader = "document_id\tpublished_at\turl_sha256\tcontent_sha256\tsimhash64\tdocument_path\n"

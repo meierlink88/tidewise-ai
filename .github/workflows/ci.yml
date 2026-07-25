@@ -15,6 +15,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed applications
+    runs-on: ubuntu-latest
+    outputs:
+      agentrun: ${{ steps.paths.outputs.agentrun }}
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect AgentRun boundary changes
+        id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${BASE_SHA:-}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+          fi
+          changed="$(git diff --name-only "$base" "$GITHUB_SHA")"
+          if grep -Eq '^(agent-run/|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents|contexts/agentrun|architecture/agentrun|research/agentrun)/|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)' <<<"$changed"; then
+            echo "agentrun=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "agentrun=false" >> "$GITHUB_OUTPUT"
+          fi
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
@@ -88,6 +117,88 @@ jobs:
       - name: Smoke Miniapp Kratos stack
         run: bash scripts/ci/smoke-miniapp-data-compose.sh
 
+  agentrun:
+    name: AgentRun
+    needs: changes
+    if: needs.changes.outputs.agentrun == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Verify AgentRun formatting
+        run: |
+          unformatted="$(gofmt -l agent-run/backend)"
+          if [ -n "$unformatted" ]; then
+            echo "The following AgentRun Go files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet AgentRun
+        run: go vet ./agent-run/backend/...
+
+      - name: Test AgentRun
+        run: go test -race ./agent-run/backend/... -count=1
+
+      - name: Build AgentRun commands
+        run: |
+          go build -o /tmp/agentrun ./agent-run/backend/cmd/server
+          go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate
+          go build -o /tmp/agentrun-config ./agent-run/backend/cmd/config
+          go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts
+
+      - name: Build AgentRun image
+        run: docker build -f agent-run/backend/Dockerfile -t tidewise-agentrun:ci .
+
+      - name: Build Admin Portal image for AgentRun smoke
+        run: docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
+
+      - name: Smoke Admin Portal to AgentRun
+        run: bash scripts/ci/smoke-admin-agentrun-compose.sh
+
+  agentrun-postgres:
+    name: AgentRun PostgreSQL
+    needs: changes
+    if: needs.changes.outputs.agentrun == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentrun
+          POSTGRES_PASSWORD: agentrun-ci-password
+          POSTGRES_DB: tidewise_ai_server_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentrun -d tidewise_ai_server_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Test AgentRun PostgreSQL boundaries
+        run: go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -142,6 +253,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Check changed paths and credential patterns
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/check-sensitive-diff.sh
 
       - name: Scan commits for credentials
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2

@@ -9,6 +9,7 @@ release_sha="${COMMIT_SHA:?COMMIT_SHA is required}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
+agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
 summary_file="${GITHUB_STEP_SUMMARY:-/dev/null}"
 state_dir="${deployment_root}/state"
 current_runtime="${deployment_root}/runtime.env"
@@ -20,6 +21,7 @@ previous_images="${state_dir}/previous.images.env"
 previous_compose="${state_dir}/previous.compose.yaml"
 previous_sha="${state_dir}/previous.sha"
 report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual}.json"
+agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GITHUB_RUN_ID:-manual}.json"
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 
 test -d "$state_dir"
@@ -35,7 +37,7 @@ echo "PASS deployment-lock"
 # Process environment variables have higher precedence than Compose --env-file.
 # The workflow exposes candidate image names at job scope, so clear them before
 # every Compose invocation and let the selected release image file be authoritative.
-compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE docker compose)
+compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE -u AGENTRUN_IMAGE docker compose)
 candidate_compose=("${compose_command[@]}" --env-file "$runtime_env" --env-file "$candidate_images" -f "$compose_file")
 
 runtime_value() {
@@ -53,6 +55,7 @@ verify_services() {
 
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/healthz >/dev/null || return 1
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/readyz >/dev/null || return 1
+  "${compose_command[@]}" exec -T agentrun wget -qO- http://127.0.0.1:9080/readyz >/dev/null || return 1
   "${compose_command[@]}" exec -T miniapp wget -qO- http://127.0.0.1:9012/healthz >/dev/null || return 1
   "${compose_command[@]}" exec -T miniapp wget -qO- http://127.0.0.1:9012/readyz >/dev/null || return 1
   "${compose_command[@]}" exec -T adminportal wget -qO- http://127.0.0.1:9013/healthz >/dev/null || return 1
@@ -67,7 +70,8 @@ verify_services() {
 
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/api/miniapp/v1/research/themes?limit=1" >/dev/null || return 1
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9013/api/admin/v1/events?page=1&page_size=1" >/dev/null || return 1
-  echo "PASS bff-to-data-read-paths"
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9013/api/admin/v1/model-providers" >/dev/null || return 1
+  echo "PASS bff-to-service-read-paths"
 }
 
 rollback_current_release() {
@@ -89,6 +93,8 @@ echo "PASS compose-contract"
 # current/pending migration state without taking the migration lock or writing.
 "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate > "$report_file"
 echo "PASS rds-tls-readonly"
+"${candidate_compose[@]}" run --rm --no-deps --entrypoint /app/agentrun-migrate agentrun --check-only > "$agentrun_report_file"
+echo "PASS agentrun-rds-tls-readonly"
 
 migration_risk_summary="$(python3 - "$report_file" "$migration_risk_manifest" <<'PY'
 import json
@@ -116,6 +122,32 @@ PY
 high_risk_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '1p')"
 blocked_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '2p')"
 
+agentrun_migration_risk_summary="$(python3 - "$agentrun_report_file" "$agentrun_migration_risk_manifest" <<'PY'
+import json
+import pathlib
+import sys
+
+report = json.loads(pathlib.Path(sys.argv[1]).read_text())
+risk = {}
+for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
+    if not line.strip() or line.lstrip().startswith("#"):
+        continue
+    version, classification, *_ = line.split("\t")
+    if classification not in {"normal", "high", "blocked"}:
+        raise SystemExit(f"invalid AgentRun migration risk classification for {version}: {classification}")
+    risk[version] = classification
+pending = report.get("pending") or []
+versions = [str(item.get("version", item.get("Version", ""))).zfill(3) for item in pending]
+unclassified = [version for version in versions if version not in risk]
+if unclassified:
+    raise SystemExit("pending AgentRun migrations lack risk classification: " + ",".join(unclassified))
+print(",".join(version for version in versions if risk[version] == "high"))
+print(",".join(version for version in versions if risk[version] == "blocked"))
+PY
+)"
+agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
+agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '2p')"
+
 database_identity="$(python3 - <<'PY'
 import os
 from urllib.parse import urlparse
@@ -133,6 +165,8 @@ PY
   echo "- TLS database check: passed"
   echo "- High-risk pending migrations: \`${high_risk_pending:-none}\`"
   echo "- Release-blocked pending migrations: \`${blocked_pending:-none}\`"
+  echo "- AgentRun high-risk pending migrations: \`${agentrun_high_risk_pending:-none}\`"
+  echo "- AgentRun release-blocked pending migrations: \`${agentrun_blocked_pending:-none}\`"
   echo
   echo '<details><summary>Migration state before apply</summary>'
   echo
@@ -140,27 +174,42 @@ PY
   sed -n '1,200p' "$report_file"
   echo '```'
   echo '</details>'
+  echo
+  echo '<details><summary>AgentRun migration state before apply</summary>'
+  echo
+  echo '```json'
+  sed -n '1,200p' "$agentrun_report_file"
+  echo '```'
+  echo '</details>'
 } >> "$summary_file"
 
-if [ -n "$blocked_pending" ]; then
-  echo "FAIL migration-release-gate: pending migration is not release-compatible: $blocked_pending" >&2
+if [ -n "$blocked_pending" ] || [ -n "$agentrun_blocked_pending" ]; then
+  echo "FAIL migration-release-gate: pending migration is not release-compatible: data=${blocked_pending:-none} agentrun=${agentrun_blocked_pending:-none}" >&2
   exit 1
 fi
 echo "PASS migration-release-gate"
 
-if [ -n "$high_risk_pending" ] && [ "$backup_confirmed" != true ]; then
-  echo "FAIL migration-risk-gate: confirm_high_risk_backup=true is required for $high_risk_pending" >&2
+if { [ -n "$high_risk_pending" ] || [ -n "$agentrun_high_risk_pending" ]; } && [ "$backup_confirmed" != true ]; then
+  echo "FAIL migration-risk-gate: confirm_high_risk_backup=true is required for data=${high_risk_pending:-none} agentrun=${agentrun_high_risk_pending:-none}" >&2
   exit 1
 fi
 echo "PASS migration-risk-gate"
 
 "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply > "$report_file"
+"${candidate_compose[@]}" run --rm --no-deps --entrypoint /app/agentrun-migrate agentrun > "$agentrun_report_file"
 {
   echo
   echo '<details><summary>Migration apply result</summary>'
   echo
   echo '```json'
   sed -n '1,200p' "$report_file"
+  echo '```'
+  echo '</details>'
+  echo
+  echo '<details><summary>AgentRun migration apply result</summary>'
+  echo
+  echo '```json'
+  sed -n '1,200p' "$agentrun_report_file"
   echo '```'
   echo '</details>'
 } >> "$summary_file"
@@ -192,7 +241,7 @@ echo "PASS release-state-recorded"
   echo
   echo "### UAT deployment"
   echo
-  echo "Deployed \`${release_sha}\` as one four-image release unit."
+  echo "Deployed \`${release_sha}\` as one five-image release unit."
   if [ -s "$previous_sha" ]; then
     echo "Previous successful release: \`$(sed -n '1p' "$previous_sha")\`."
   fi
