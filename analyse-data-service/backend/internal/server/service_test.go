@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,10 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	dataapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 	"gopkg.in/yaml.v3"
 )
 
@@ -82,19 +81,19 @@ func TestServerComposesDataAPIWithHealth(t *testing.T) {
 }
 
 func TestServerOwnsAuthenticationAuthorizationAndPrincipalInjection(t *testing.T) {
-	authenticator, err := service.NewAuthenticator([]service.Credential{
+	authenticator, err := NewAuthenticator([]Credential{
 		{
 			Secret: "admin-token",
-			Principal: service.Principal{
+			Principal: dataapi.Principal{
 				Identity: "admin-portal-bff",
-				Scopes:   []string{service.ScopeAdminRead},
+				Scopes:   []string{ScopeAdminRead},
 			},
 		},
 		{
 			Secret: "research-token",
-			Principal: service.Principal{
+			Principal: dataapi.Principal{
 				Identity: "miniapp-bff",
-				Scopes:   []string{service.ScopeResearchRead},
+				Scopes:   []string{ScopeResearchRead},
 			},
 		},
 	})
@@ -135,12 +134,50 @@ func TestServerOwnsAuthenticationAuthorizationAndPrincipalInjection(t *testing.T
 	}
 }
 
+func TestAuthenticatorRejectsInvalidCredentials(t *testing.T) {
+	valid := Credential{
+		Secret: "token",
+		Principal: dataapi.Principal{
+			Identity: "caller",
+			Scopes:   []string{ScopeAdminRead},
+		},
+	}
+	for _, test := range []struct {
+		name        string
+		credentials []Credential
+	}{
+		{name: "missing secret", credentials: []Credential{{Principal: valid.Principal}}},
+		{name: "missing identity", credentials: []Credential{{Secret: valid.Secret, Principal: dataapi.Principal{Scopes: valid.Principal.Scopes}}}},
+		{name: "missing scope", credentials: []Credential{{Secret: valid.Secret, Principal: dataapi.Principal{Identity: valid.Principal.Identity}}}},
+		{name: "oversized identity", credentials: []Credential{{
+			Secret: valid.Secret,
+			Principal: dataapi.Principal{
+				Identity: strings.Repeat("界", 201),
+				Scopes:   valid.Principal.Scopes,
+			},
+		}}},
+		{name: "duplicate secret", credentials: []Credential{valid, {
+			Secret: valid.Secret,
+			Principal: dataapi.Principal{
+				Identity: "other-caller",
+				Scopes:   []string{ScopeResearchRead},
+			},
+		}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := NewAuthenticator(test.credentials); err == nil {
+				t.Fatal("NewAuthenticator() error = nil")
+			}
+		})
+	}
+}
+
 func TestServerRecoveryPreservesStableErrorEnvelope(t *testing.T) {
-	authenticator, err := service.NewAuthenticator([]service.Credential{{
+	authenticator, err := NewAuthenticator([]Credential{{
 		Secret: "admin-token",
-		Principal: service.Principal{
+		Principal: dataapi.Principal{
 			Identity: "admin-portal-bff",
-			Scopes:   []string{service.ScopeAdminRead},
+			Scopes:   []string{ScopeAdminRead},
 		},
 	}})
 	if err != nil {
@@ -166,11 +203,11 @@ func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) htt
 	if application == nil {
 		return NewHTTPServer(config, nil, nil, nil).Server.Handler
 	}
-	authenticator, err := service.NewAuthenticator([]service.Credential{{
+	authenticator, err := NewAuthenticator([]Credential{{
 		Secret: "admin-token",
-		Principal: service.Principal{
+		Principal: dataapi.Principal{
 			Identity: "admin-portal-bff",
-			Scopes:   []string{service.ScopeAdminRead},
+			Scopes:   []string{ScopeAdminRead},
 		},
 	}})
 	if err != nil {
@@ -181,36 +218,35 @@ func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) htt
 
 type serverTestDataService struct{}
 
-func (serverTestDataService) respond(ctx kratoshttp.Context) error {
-	ctx.Response().WriteHeader(http.StatusNoContent)
-	return nil
+func (serverTestDataService) respond() (*dataapi.Response, error) {
+	return &dataapi.Response{Status: http.StatusNoContent}, nil
 }
-func (s serverTestDataService) ImportReviewedEvents(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.ImportRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) ImportResearchThemes(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ImportResearchThemes(context.Context, *dataapi.ImportRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) ImportResearchAnchors(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ImportResearchAnchors(context.Context, *dataapi.ImportRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) ListResearchThemes(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ListResearchThemes(context.Context, *dataapi.ListResearchThemesRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) GetResearchTheme(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) GetResearchTheme(context.Context, *dataapi.GetResearchThemeRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) ListResearchReasoningTrees(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ListResearchReasoningTrees(context.Context, *dataapi.ReasoningTreeListRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) GetResearchReasoningTree(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) GetResearchReasoningTree(context.Context, *dataapi.ReasoningTreeDetailRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) ListRawDocuments(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ListRawDocuments(context.Context, *dataapi.RawDocumentListRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
-func (s serverTestDataService) ListEvents(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s serverTestDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response, error) {
+	return s.respond()
 }
 
 type principalRecordingDataService struct {
@@ -218,17 +254,17 @@ type principalRecordingDataService struct {
 	identity string
 }
 
-func (s *principalRecordingDataService) ListEvents(ctx kratoshttp.Context) error {
-	principal, ok := service.PrincipalFromContext(ctx.Request().Context())
+func (s *principalRecordingDataService) ListEvents(ctx context.Context, _ *dataapi.EventListRequest) (*dataapi.Response, error) {
+	principal, ok := dataapi.PrincipalFromContext(ctx)
 	if ok {
 		s.identity = principal.Identity
 	}
-	return s.respond(ctx)
+	return s.respond()
 }
 
 type panickingDataService struct{ serverTestDataService }
 
-func (panickingDataService) ListEvents(kratoshttp.Context) error {
+func (panickingDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response, error) {
 	panic("sensitive panic detail")
 }
 

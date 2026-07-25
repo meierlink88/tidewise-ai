@@ -7,29 +7,11 @@ import (
 	"testing"
 
 	dataapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	researchanchordomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
-	researchanchorimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
 	researchthemedomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
-	researchthemeimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 	"gopkg.in/yaml.v3"
 )
-
-type adminRawDocumentPageDTO struct {
-	Items    []adminRawDocument `json:"items"`
-	Total    int                `json:"total"`
-	Page     int                `json:"page"`
-	PageSize int                `json:"page_size"`
-}
-
-type adminEventPageDTO struct {
-	Items    []adminEvent `json:"items"`
-	Total    int          `json:"total"`
-	Page     int          `json:"page"`
-	PageSize int          `json:"page_size"`
-}
 
 func TestResponseDTOFieldsMatchOpenAPI(t *testing.T) {
 	var document map[string]any
@@ -37,23 +19,23 @@ func TestResponseDTOFieldsMatchOpenAPI(t *testing.T) {
 		t.Fatalf("parse OpenAPI: %v", err)
 	}
 	for schemaName, dto := range map[string]any{
-		"ResearchThemeCollection":            research.ResearchThemePage{},
-		"ResearchThemeSummary":               research.ResearchTheme{},
-		"ResearchThemeDetail":                research.ResearchThemeDetail{},
-		"ResearchThemeChainNode":             research.ResearchThemeChainNode{},
-		"ResearchIndex":                      research.ResearchIndex{},
-		"ResearchEvent":                      research.ResearchEvent{},
-		"ResearchReasoningTreeList":          research.ResearchReasoningTreeList{},
-		"ResearchReasoningTreeSummary":       research.ResearchReasoningTreeSummary{},
-		"ResearchReasoningTreeDetail":        research.ResearchReasoningTreeDetail{},
-		"ResearchReasoningTree":              research.ResearchReasoningTree{},
-		"ResearchReasoningTreeChainNode":     research.ResearchReasoningTreeChainNode{},
-		"ResearchReasoningTreeEvent":         research.ResearchReasoningTreeEvent{},
-		"ResearchReasoningTreePathNode":      research.ResearchReasoningTreePathNode{},
-		"AdminRawDocumentPage":               adminRawDocumentPageDTO{},
-		"AdminRawDocument":                   adminRawDocument{},
-		"AdminEventPage":                     adminEventPageDTO{},
-		"AdminEvent":                         adminEvent{},
+		"ResearchThemeCollection":            dataapi.ResearchThemePage{},
+		"ResearchThemeSummary":               dataapi.ResearchTheme{},
+		"ResearchThemeDetail":                dataapi.ResearchThemeDetail{},
+		"ResearchThemeChainNode":             dataapi.ResearchThemeChainNode{},
+		"ResearchIndex":                      dataapi.ResearchIndex{},
+		"ResearchEvent":                      dataapi.ResearchEvent{},
+		"ResearchReasoningTreeList":          dataapi.ResearchReasoningTreeList{},
+		"ResearchReasoningTreeSummary":       dataapi.ResearchReasoningTreeSummary{},
+		"ResearchReasoningTreeDetail":        dataapi.ResearchReasoningTreeDetail{},
+		"ResearchReasoningTree":              dataapi.ResearchReasoningTree{},
+		"ResearchReasoningTreeChainNode":     dataapi.ResearchReasoningTreeChainNode{},
+		"ResearchReasoningTreeEvent":         dataapi.ResearchReasoningTreeEvent{},
+		"ResearchReasoningTreePathNode":      dataapi.ResearchReasoningTreePathNode{},
+		"AdminRawDocumentPage":               dataapi.AdminRawDocumentPage{},
+		"AdminRawDocument":                   dataapi.AdminRawDocument{},
+		"AdminEventPage":                     dataapi.AdminEventPage{},
+		"AdminEvent":                         dataapi.AdminEvent{},
 		"EventPublicationRequest":            publicationdomain.Publication{},
 		"EventPublicationProvenance":         publicationdomain.Provenance{},
 		"EventPublicationCollectorExecution": publicationdomain.CollectorExecution{},
@@ -62,22 +44,22 @@ func TestResponseDTOFieldsMatchOpenAPI(t *testing.T) {
 		"EventPublicationEvidence":           publicationdomain.Evidence{},
 		"EventPublicationTag":                publicationdomain.Tag{},
 		"EventPublicationReview":             publicationdomain.Review{},
-		"EventPublicationResult":             eventpublicationapp.Result{},
-		"EventPublicationEventResult":        eventpublicationapp.EventResult{},
-		"EventPublicationRawDocumentResult":  eventpublicationapp.RawDocumentResult{},
-		"EventPublicationCounts":             eventpublicationapp.Counts{},
+		"EventPublicationResult":             dataapi.EventPublicationResult{},
+		"EventPublicationEventResult":        dataapi.EventPublicationEventResult{},
+		"EventPublicationRawDocumentResult":  dataapi.EventPublicationRawDocumentResult{},
+		"EventPublicationCounts":             dataapi.EventPublicationCounts{},
 		"ResearchThemeImportRequest":         researchthemedomain.Batch{},
 		"ResearchThemeImportItem":            researchthemedomain.Theme{},
 		"ResearchThemeImportChainNode":       researchthemedomain.ChainNode{},
 		"ResearchThemeImportEvent":           researchthemedomain.Event{},
-		"ResearchThemeImportCounts":          researchthemeimportapp.Counts{},
-		"ResearchThemeImportResult":          researchthemeimportapp.Result{},
+		"ResearchThemeImportCounts":          dataapi.ResearchThemeImportCounts{},
+		"ResearchThemeImportResult":          dataapi.ResearchThemeImportResult{},
 		"ResearchAnchorImportRequest":        researchanchordomain.Publication{},
 		"ResearchAnchorImportItem":           researchanchordomain.Anchor{},
 		"ResearchAnchorImportEvent":          researchanchordomain.Event{},
 		"ResearchAnchorImportPathNode":       researchanchordomain.PathNode{},
-		"ResearchAnchorImportCounts":         researchanchorimportapp.Counts{},
-		"ResearchAnchorImportResult":         researchanchorimportapp.Result{},
+		"ResearchAnchorImportCounts":         dataapi.ResearchAnchorImportCounts{},
+		"ResearchAnchorImportResult":         dataapi.ResearchAnchorImportResult{},
 	} {
 		assertDataSchemaFields(t, document, schemaName, dto)
 	}

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 )
 
 const ServiceName = conf.ServiceName
@@ -28,17 +28,19 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, authenticator *service.Authenticator, logger *slog.Logger) *kratoshttp.Server {
+func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, authenticator *Authenticator, logger *slog.Logger) *kratoshttp.Server {
 	server := kratoshttp.NewServer(
 		kratoshttp.Address(config.Server.Address()),
 		kratoshttp.Timeout(0),
 		kratoshttp.StrictSlash(false),
 		kratoshttp.Middleware(
 			sanitizedLoggingMiddleware(config.App, logger),
+			authenticationMiddleware(authenticator),
 			kratosrecovery.Recovery(
 				kratosrecovery.WithLogger(slog.New(slog.NewJSONHandler(io.Discard, nil))),
 			),
 		),
+		kratoshttp.ResponseEncoder(responseEncoder),
 		kratoshttp.ErrorEncoder(errorEncoder),
 		kratoshttp.NotFoundHandler(http.HandlerFunc(notFoundHandler)),
 		kratoshttp.MethodNotAllowedHandler(http.HandlerFunc(methodNotAllowedHandler)),
@@ -55,7 +57,7 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, authentica
 		Title:    "Tidewise Data Service API",
 		Document: v1.Document(),
 	})
-	server.Server.Handler = observabilityFilter(config.App, logger)(authenticationFilter(authenticator)(documented))
+	server.Server.Handler = observabilityFilter(config.App, logger)(documented)
 	return server
 }
 
@@ -206,17 +208,38 @@ func methodNotAllowedHandler(response http.ResponseWriter, request *http.Request
 	writeError(response, request.Header.Get("X-Request-ID"), http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 }
 
-func errorEncoder(response http.ResponseWriter, request *http.Request, _ error) {
-	writeError(response, request.Header.Get("X-Request-ID"), http.StatusInternalServerError, "INTERNAL_ERROR", "internal data service error")
+func responseEncoder(response http.ResponseWriter, request *http.Request, result any) error {
+	response.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(response).Encode(map[string]any{
+		"request_id": request.Header.Get("X-Request-ID"),
+		"result":     result,
+	})
 }
 
-func writeError(response http.ResponseWriter, requestID string, status int, code, message string) {
-	response.Header().Set("Content-Type", "application/json")
-	response.WriteHeader(status)
-	_ = json.NewEncoder(response).Encode(map[string]any{
+func errorEncoder(response http.ResponseWriter, request *http.Request, err error) {
+	var public *v1.PublicError
+	if errors.As(err, &public) {
+		writeError(response, request.Header.Get("X-Request-ID"), public.Status, public.Code, public.Message, public.Details)
+		return
+	}
+	writeError(response, request.Header.Get("X-Request-ID"), http.StatusInternalServerError, "INTERNAL_ERROR", "internal data service error", map[string]any{})
+}
+
+func writeError(response http.ResponseWriter, requestID string, status int, code, message string, details ...any) {
+	errorDetails := any(map[string]any{})
+	if len(details) > 0 && details[0] != nil {
+		errorDetails = details[0]
+	}
+	_ = writeJSON(response, status, map[string]any{
 		"request_id": requestID,
 		"error": map[string]any{
-			"code": code, "message": message, "details": map[string]any{},
+			"code": code, "message": message, "details": errorDetails,
 		},
 	})
+}
+
+func writeJSON(response http.ResponseWriter, status int, value any) error {
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(status)
+	return json.NewEncoder(response).Encode(value)
 }

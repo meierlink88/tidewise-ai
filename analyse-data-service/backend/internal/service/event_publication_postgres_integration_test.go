@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
@@ -874,29 +875,19 @@ func newEventPublicationTestHandler(t *testing.T, db *sql.DB) (http.Handler, *ca
 	t.Helper()
 	repository := postgres.NewEventPublicationStore(db)
 	service := &capturingEventPublicationService{delegate: eventpublicationapp.NewService(repository)}
-	authenticator, err := NewAuthenticator([]Credential{
-		{
-			Secret: "agent-token",
-			Principal: Principal{
-				Identity: "agent-run",
-				Scopes:   []string{ScopeReviewedEventImport},
-			},
+	credentials := map[string]v1.Principal{
+		"agent-token": {
+			Identity: "agent-run",
+			Scopes:   []string{ScopeReviewedEventImport},
 		},
-		{
-			Secret: "read-only-token",
-			Principal: Principal{
-				Identity: "read-only-client",
-				Scopes:   []string{ScopeResearchRead},
-			},
+		"read-only-token": {
+			Identity: "read-only-client",
+			Scopes:   []string{ScopeResearchRead},
 		},
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 	return dataServiceTestHandler(Dependencies{
 		EventPublications: service,
-		NewRequestID:      func() string { return "request-event-publication" },
-	}, authenticator), service
+	}, credentials, "request-event-publication"), service
 }
 
 func eventPublicationFixture(suffix string) publicationdomain.Publication {

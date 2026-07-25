@@ -298,3 +298,13 @@ func TestPostgresCorrectionDriftRollsBack(t *testing.T) {
 func correctionEdgeRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{"id", "from_id", "from_key", "from_type", "to_id", "to_key", "to_type", "relation_type", "evidence_note", "source_name", "source_url", "verified_at", "status"})
 }
+
+func TestSectorReferenceRegistryIsTypeSafeAndUnknownReferencesFailClosed(t *testing.T) {
+	registry := NewSectorReferenceRegistry()
+	if rule, ok := registry.Rule("sector_source_mappings", "sector_entity_id"); !ok || !rule.SectorOnly {
+		t.Fatalf("sector source mapping rule = %+v, %v", rule, ok)
+	}
+	if _, ok := registry.Rule("future_sector_facts", "sector_id"); ok {
+		t.Fatal("unknown FK was registered implicitly")
+	}
+}

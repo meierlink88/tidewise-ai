@@ -1,14 +1,9 @@
-// Package internalapi owns the versioned Data Service HTTP transport.
 package service
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"time"
 
-	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
-
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
@@ -20,8 +15,7 @@ import (
 )
 
 const (
-	Namespace           = "/api/data/v1"
-	MaxRequestBodyBytes = 1_048_576
+	Namespace = v1.APIPrefix
 
 	ScopeResearchRead        = "data.research.read"
 	ScopeResearchImport      = "data.research.import"
@@ -59,72 +53,14 @@ type Dependencies struct {
 	ResearchAnchorImports ResearchAnchorImportService
 	Research              ResearchService
 	Admin                 AdminService
-	NewRequestID          func() string
 }
-
-type operation func(http.ResponseWriter, *http.Request, Principal, string)
 
 type DataService struct {
 	dependencies Dependencies
 }
 
 func NewDataService(dependencies Dependencies) *DataService {
-	if dependencies.NewRequestID == nil {
-		dependencies.NewRequestID = func() string { return fmt.Sprintf("data-%d", time.Now().UTC().UnixNano()) }
-	}
 	return &DataService{dependencies: dependencies}
 }
 
-func (s *DataService) invoke(ctx kratoshttp.Context, operation operation) error {
-	request := ctx.Request()
-	for key, values := range ctx.Vars() {
-		if len(values) > 0 {
-			request.SetPathValue(key, values[0])
-		}
-	}
-	requestID := request.Header.Get("X-Request-ID")
-	if requestID == "" || len(requestID) > 128 {
-		requestID = s.dependencies.NewRequestID()
-		request.Header.Set("X-Request-ID", requestID)
-		ctx.Response().Header().Set("X-Request-ID", requestID)
-	}
-	principal, _ := PrincipalFromContext(request.Context())
-	operation(ctx.Response(), request, principal, requestID)
-	return nil
-}
-
-func (s *DataService) ImportReviewedEvents(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.importEventPublication)
-}
-
-func (s *DataService) ImportResearchThemes(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.importResearchThemes)
-}
-
-func (s *DataService) ImportResearchAnchors(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.importResearchAnchors)
-}
-
-func (s *DataService) ListResearchThemes(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.listResearchThemes)
-}
-
-func (s *DataService) GetResearchTheme(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.getResearchTheme)
-}
-
-func (s *DataService) ListResearchReasoningTrees(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.listResearchThemeReasoningTrees)
-}
-
-func (s *DataService) GetResearchReasoningTree(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.getResearchThemeReasoningTree)
-}
-
-func (s *DataService) ListRawDocuments(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.listAdminRawDocuments)
-}
-
-func (s *DataService) ListEvents(ctx kratoshttp.Context) error {
-	return s.invoke(ctx, s.dependencies.listAdminEvents)
-}
+var _ v1.DataHTTPServer = (*DataService)(nil)

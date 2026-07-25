@@ -50,7 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var relationInput entityseed.ChainNodeRelationManifest
+	var relationInput entityseeddata.ChainNodeRelationManifest
 	if strings.TrimSpace(*relationManifest) != "" {
 		relationInput, err = loadRelationDryRunManifest(*relationManifest)
 		if err != nil {
@@ -102,7 +102,7 @@ func main() {
 	}
 	if strings.TrimSpace(*relationManifest) != "" {
 		repository := entityseeddata.NewRepository(db)
-		var report entityseed.ChainNodeRelationReport
+		var report entityseeddata.ChainNodeRelationReport
 		if *relationDryRun {
 			report, err = repository.DryRunFrozenChainNodeRelations(ctx, relationInput.Relations)
 		} else {
@@ -115,7 +115,7 @@ func main() {
 		return
 	}
 	if mappingMode {
-		manifest, err := entityseed.LoadExternalIdentifierMappingFile(*mappingManifest)
+		manifest, err := entityseeddata.LoadExternalIdentifierMappingFile(*mappingManifest)
 		if err != nil {
 			log.Fatalf("load external identifier mappings: %v", err)
 		}
@@ -138,7 +138,7 @@ func main() {
 		if !*mappingApprovedFirstBatch {
 			log.Fatal("mapping write requires -external-identifier-mapping-approved-first-batch")
 		}
-		if err := entityseed.ValidateFrozenFirstBatchExternalIdentifierManifest(*mappingManifest, manifest.Mappings); err != nil {
+		if err := entityseeddata.ValidateFrozenFirstBatchExternalIdentifierManifest(*mappingManifest, manifest.Mappings); err != nil {
 			log.Fatalf("validate frozen first-batch mapping manifest: %v", err)
 		}
 		report, err := entityseeddata.NewRepository(db).ApplyFrozenFirstBatchExternalIdentifiers(ctx, manifest.Mappings)
@@ -165,8 +165,8 @@ func main() {
 			log.Fatalf("run phase A preflight: %v", err)
 		}
 		content, err := json.MarshalIndent(struct {
-			Preflight entityseed.PhaseAPreflightReport `json:"preflight"`
-			Manifest  manifestPreflight                `json:"manifest"`
+			Preflight entityseeddata.PhaseAPreflightReport `json:"preflight"`
+			Manifest  manifestPreflight                    `json:"manifest"`
 		}{Preflight: report, Manifest: proof}, "", "  ")
 		if err != nil {
 			log.Fatalf("encode phase A preflight report: %v", err)
@@ -229,12 +229,12 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 	return entityseed.LoadFiles(entityseed.DefaultSeedPaths(seedDir)...)
 }
 
-func loadRelationDryRunManifest(path string) (entityseed.ChainNodeRelationManifest, error) {
-	manifest, err := entityseed.LoadFrozenAdditiveChainNodeRelationManifest(path)
+func loadRelationDryRunManifest(path string) (entityseeddata.ChainNodeRelationManifest, error) {
+	manifest, err := entityseeddata.LoadFrozenAdditiveChainNodeRelationManifest(path)
 	if err != nil {
 		return manifest, err
 	}
-	if err := entityseed.ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
+	if err := entityseeddata.ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
 		return manifest, err
 	}
 	return manifest, nil

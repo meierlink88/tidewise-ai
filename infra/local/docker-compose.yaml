@@ -66,7 +66,7 @@ services:
       - '${DATA_SERVICE_PORT:-9011}:9011'
     environment:
       APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/config
+      TIDEWISE_CONFIG_DIR: /app/configs
       TIDEWISE_DATABASE_URL: 'postgres://${POSTGRES_USER:-tidewise}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}@postgres:5432/${POSTGRES_DB:-tidewise_local}?sslmode=disable'
       DATA_SERVICE_AGENT_TOKEN: '${DATA_SERVICE_AGENT_TOKEN:?set DATA_SERVICE_AGENT_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: '${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN:?set DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN in infra/local/.env.local}'

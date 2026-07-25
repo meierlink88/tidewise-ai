@@ -98,19 +98,6 @@ func TestEventPublicationValidationDetailsRemainAnObject(t *testing.T) {
 	}
 }
 
-func TestNewAuthenticatorRejectsOversizedServiceIdentity(t *testing.T) {
-	_, err := NewAuthenticator([]Credential{{
-		Secret: "secret",
-		Principal: Principal{
-			Identity: strings.Repeat("a", 201),
-			Scopes:   []string{ScopeReviewedEventImport},
-		},
-	}})
-	if err == nil || !strings.Contains(err.Error(), "at most 200 characters") {
-		t.Fatalf("NewAuthenticator error = %v, want identity length error", err)
-	}
-}
-
 func TestResearchThemeImportUsesDedicatedPublisherIdentityAndFrozenResult(t *testing.T) {
 	now := time.Date(2026, 7, 19, 9, 30, 0, 0, time.UTC)
 	importer := &fakeResearchThemeImporter{result: researchimportapp.Result{
@@ -710,26 +697,38 @@ func testHandler(t *testing.T, dependencies Dependencies) http.Handler {
 
 func testHandlerWithRequestID(t *testing.T, dependencies Dependencies, requestID string) http.Handler {
 	t.Helper()
-	authenticator, err := NewAuthenticator([]Credential{
-		{Secret: "cred-agent", Principal: Principal{Identity: "agent-run", Scopes: []string{ScopeReviewedEventImport}}},
-		{Secret: "cred-research-publisher", Principal: Principal{Identity: "research-theme-publisher", Scopes: []string{ScopeResearchImport}}},
-		{Secret: "cred-miniapp", Principal: Principal{Identity: "miniapp-service", Scopes: []string{ScopeResearchRead}}},
-		{Secret: "cred-admin", Principal: Principal{Identity: "adminportal-service", Scopes: []string{ScopeAdminRead}}},
-	})
-	if err != nil {
-		t.Fatal(err)
+	credentials := map[string]v1.Principal{
+		"cred-agent":              {Identity: "agent-run", Scopes: []string{ScopeReviewedEventImport}},
+		"cred-research-publisher": {Identity: "research-theme-publisher", Scopes: []string{ScopeResearchImport}},
+		"cred-miniapp":            {Identity: "miniapp-service", Scopes: []string{ScopeResearchRead}},
+		"cred-admin":              {Identity: "adminportal-service", Scopes: []string{ScopeAdminRead}},
 	}
-	dependencies.NewRequestID = func() string { return requestID }
-	return dataServiceTestHandler(dependencies, authenticator)
+	return dataServiceTestHandler(dependencies, credentials, requestID)
 }
 
-func dataServiceTestHandler(dependencies Dependencies, authenticator *Authenticator) http.Handler {
-	server := kratoshttp.NewServer()
+func dataServiceTestHandler(dependencies Dependencies, credentials map[string]v1.Principal, generatedRequestID string) http.Handler {
+	server := kratoshttp.NewServer(
+		kratoshttp.ResponseEncoder(func(response http.ResponseWriter, request *http.Request, result any) error {
+			response.Header().Set("Content-Type", "application/json")
+			return json.NewEncoder(response).Encode(map[string]any{"request_id": request.Header.Get("X-Request-ID"), "result": result})
+		}),
+		kratoshttp.ErrorEncoder(func(response http.ResponseWriter, request *http.Request, err error) {
+			public := asPublicError(err)
+			if public == nil {
+				public = v1.NewPublicError(http.StatusInternalServerError, "INTERNAL_ERROR", "internal data service error", nil)
+			}
+			response.Header().Set("Content-Type", "application/json")
+			response.WriteHeader(public.Status)
+			_ = json.NewEncoder(response).Encode(map[string]any{"request_id": request.Header.Get("X-Request-ID"), "error": map[string]any{
+				"code": public.Code, "message": public.Message, "details": public.Details,
+			}})
+		}),
+	)
 	v1.RegisterDataHTTPServer(server, NewDataService(dependencies))
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		requestID := strings.TrimSpace(request.Header.Get("X-Request-ID"))
 		if requestID == "" || len(requestID) > 128 {
-			requestID = dependencies.NewRequestID()
+			requestID = generatedRequestID
 			request.Header.Set("X-Request-ID", requestID)
 		}
 		response.Header().Set("X-Request-ID", requestID)
@@ -739,17 +738,26 @@ func dataServiceTestHandler(dependencies Dependencies, authenticator *Authentica
 			server.ServeHTTP(response, request)
 			return
 		}
-		principal, ok := authenticator.Authenticate(request.Header.Get("Authorization"))
+		token := strings.TrimPrefix(request.Header.Get("Authorization"), "Bearer ")
+		principal, ok := credentials[token]
 		if !ok {
-			writeError(response, requestID, http.StatusUnauthorized, "UNAUTHENTICATED", "valid service identity is required")
+			writeTestError(response, requestID, http.StatusUnauthorized, "UNAUTHENTICATED", "valid service identity is required")
 			return
 		}
 		if !principal.HasScope(scope) {
-			writeError(response, requestID, http.StatusForbidden, "FORBIDDEN", "service identity lacks the required scope")
+			writeTestError(response, requestID, http.StatusForbidden, "FORBIDDEN", "service identity lacks the required scope")
 			return
 		}
-		server.ServeHTTP(response, request.WithContext(WithPrincipal(request.Context(), principal)))
+		server.ServeHTTP(response, request.WithContext(v1.WithPrincipal(request.Context(), principal)))
 	})
+}
+
+func writeTestError(response http.ResponseWriter, requestID string, status int, code, message string) {
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(status)
+	_ = json.NewEncoder(response).Encode(map[string]any{"request_id": requestID, "error": map[string]any{
+		"code": code, "message": message, "details": map[string]any{},
+	}})
 }
 
 func testRequiredScope(method, path string) (string, bool) {

@@ -1,61 +1,28 @@
 package service
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"strconv"
 	"strings"
 	"time"
+
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 )
 
-func decodeStrictLimited(response http.ResponseWriter, request *http.Request, target any) error {
-	request.Body = http.MaxBytesReader(response, request.Body, MaxRequestBodyBytes)
-	decoder := json.NewDecoder(request.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(target); err != nil {
-		return err
-	}
-	var extra any
-	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return fmt.Errorf("request body must contain one JSON object")
-		}
-		return err
-	}
-	return nil
+func publicError(status int, code, message string) error {
+	return v1.NewPublicError(status, code, message, nil)
 }
 
-func writeDecodeError(response http.ResponseWriter, requestID string, err error) {
-	var tooLarge *http.MaxBytesError
-	if errors.As(err, &tooLarge) || strings.Contains(err.Error(), "request body too large") {
-		writeError(response, requestID, http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body exceeds 1048576 bytes")
-		return
-	}
-	writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract")
+func publicErrorWithDetails(status int, code, message string, details any) error {
+	return v1.NewPublicError(status, code, message, details)
 }
 
-func pageQuery(response http.ResponseWriter, request *http.Request, requestID string) (int, int, bool) {
-	page, ok := optionalInt(response, requestID, request.URL.Query().Get("page"), 1, 1, 1_000_000, "page")
-	if !ok {
-		return 0, 0, false
+func decodeError(err error) error {
+	if err != nil && strings.Contains(err.Error(), "request body too large") {
+		return publicError(v1.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body exceeds 1048576 bytes")
 	}
-	pageSize, ok := optionalInt(response, requestID, request.URL.Query().Get("page_size"), 50, 1, 100, "page_size")
-	return page, pageSize, ok
-}
-
-func optionalInt(response http.ResponseWriter, requestID, raw string, fallback, minimum, maximum int, name string) (int, bool) {
-	if raw == "" {
-		return fallback, true
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil || value < minimum || value > maximum {
-		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", fmt.Sprintf("%s must be between %d and %d", name, minimum, maximum))
-		return 0, false
-	}
-	return value, true
+	return publicError(v1.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract")
 }
 
 func optionalUTC(raw string) (*time.Time, error) {
@@ -91,20 +58,17 @@ func oneOf(value string, allowed ...string) bool {
 	return false
 }
 
-func writeEnvelope(response http.ResponseWriter, status int, requestID string, result any) {
-	writeJSON(response, status, map[string]any{"request_id": requestID, "result": result})
+func principalIdentity(ctx context.Context) string {
+	if principal, ok := v1.PrincipalFromContext(ctx); ok {
+		return principal.Identity
+	}
+	return ""
 }
 
-func writeError(response http.ResponseWriter, requestID string, status int, code, message string) {
-	writeErrorWithDetails(response, requestID, status, code, message, map[string]any{})
-}
-
-func writeErrorWithDetails(response http.ResponseWriter, requestID string, status int, code, message string, details any) {
-	writeJSON(response, status, map[string]any{"request_id": requestID, "error": map[string]any{"code": code, "message": message, "details": details}})
-}
-
-func writeJSON(response http.ResponseWriter, status int, payload any) {
-	response.Header().Set("Content-Type", "application/json")
-	response.WriteHeader(status)
-	_ = json.NewEncoder(response).Encode(payload)
+func asPublicError(err error) *v1.PublicError {
+	var public *v1.PublicError
+	if errors.As(err, &public) {
+		return public
+	}
+	return nil
 }

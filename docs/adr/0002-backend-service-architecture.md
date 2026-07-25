@@ -18,8 +18,8 @@ Backend 使用两类可部署 Service：
 - Data 是 **Domain Service**，拥有当前数据领域的规则、事实和持久化。未来 User、Payment 可以成为新的 Domain Service。
 
 每个 Service 内部的业务编排层称为 **Use Case Layer**。采用 Kratos 官方
-Application Layout 的 Service 使用 `internal/biz/` 承载该层；尚未迁移的
-Service 暂时保留 `usecase/`，不得为了目录统一跨 Service 搬运业务代码。
+Application Layout 的 Service 使用 `internal/biz/` 承载该层；不得为了目录统一
+跨 Service 搬运业务代码。
 
 依赖规则如下：
 
@@ -68,13 +68,15 @@ admin-portal/
 
 analyse-data-service/
   backend/
-      cmd/
-      usecase/
-      domain/
-      repositories/
-      adapters/
-      transport/
-      config/
+      api/data/v1/
+      cmd/server/
+      configs/
+      internal/
+        conf/
+        biz/
+        data/
+        service/
+        server/
 
 scripts/ci/repository-contracts/
 testdata/
@@ -98,5 +100,5 @@ repository 和根 Go module；暂不拆分 repository/module 不代表三个 Bac
 
 `0006-kratos-official-service-layout.md` 进一步规定迁移后的 Go Service 内部布局。
 Miniapp 是首个完成迁移的 Service，Admin Portal 随后按
-`docs/architecture/admin-portal-kratos-migration-v1.md` 完成迁移；Data 在其独立
-迁移前仍沿用本 ADR 原有布局。
+`docs/architecture/admin-portal-kratos-migration-v1.md` 完成迁移，Data 按
+`docs/architecture/data-domain-service-kratos-migration-v1.md` 完成迁移。

@@ -30,8 +30,8 @@ func TestDataBindingRunsKratosMiddlewareWithStableOperation(t *testing.T) {
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/events", nil))
 
-	if response.Code != 204 {
-		t.Fatalf("status = %d, want 204", response.Code)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.Code)
 	}
 	if operation != "data.v1.listAdminEvents" {
 		t.Fatalf("operation = %q, want data.v1.listAdminEvents", operation)
@@ -119,8 +119,8 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		RegisterDataHTTPServer(server, testDataHTTPServer{})
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, httptest.NewRequest(method, runtime.requestPath, nil))
-		if response.Code != 204 {
-			t.Errorf("%s returned status %d, want 204", route, response.Code)
+		if response.Code != http.StatusOK {
+			t.Errorf("%s returned status %d, want 200", route, response.Code)
 		}
 	}
 }
@@ -158,29 +158,33 @@ func httpContractString(t *testing.T, value any, label string) string {
 
 type testDataHTTPServer struct{}
 
-func (testDataHTTPServer) respond(ctx kratoshttp.Context) error { return ctx.JSON(204, nil) }
-func (s testDataHTTPServer) ImportReviewedEvents(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (testDataHTTPServer) respond() (*Response, error) {
+	return &Response{Status: http.StatusNoContent}, nil
 }
-func (s testDataHTTPServer) ImportResearchThemes(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) ImportReviewedEvents(context.Context, *ImportRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) ImportResearchAnchors(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) ImportResearchThemes(context.Context, *ImportRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) ListResearchThemes(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) ImportResearchAnchors(context.Context, *ImportRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) GetResearchTheme(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) ListResearchReasoningTrees(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) GetResearchReasoningTree(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) ListRawDocuments(ctx kratoshttp.Context) error {
-	return s.respond(ctx)
+func (s testDataHTTPServer) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response, error) {
+	return s.respond()
 }
-func (s testDataHTTPServer) ListEvents(ctx kratoshttp.Context) error { return s.respond(ctx) }
+func (s testDataHTTPServer) ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response, error) {
+	return s.respond()
+}
+func (s testDataHTTPServer) ListEvents(context.Context, *EventListRequest) (*Response, error) {
+	return s.respond()
+}

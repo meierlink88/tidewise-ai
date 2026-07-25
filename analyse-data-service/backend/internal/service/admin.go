@@ -1,121 +1,117 @@
 package service
 
 import (
-	"net/http"
+	"context"
 	"strings"
 	"time"
 
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
-func (d Dependencies) listAdminRawDocuments(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	page, pageSize, ok := pageQuery(response, request, requestID)
-	if !ok {
-		return
-	}
-	filter := adminquery.RawDocumentListRequest{Title: strings.TrimSpace(request.URL.Query().Get("title")), SourceRef: strings.TrimSpace(request.URL.Query().Get("source_ref")), IngestStatus: model.IngestStatus(request.URL.Query().Get("ingest_status")), Page: page, PageSize: pageSize}
-	if filter.IngestStatus != "" && !oneOf(string(filter.IngestStatus), "collected", "duplicate", "failed", "pending_extract") {
-		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "unsupported ingest_status")
-		return
-	}
-	if d.Admin == nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "admin aggregate store is unavailable")
-		return
-	}
-	pageResult, err := d.Admin.ListRawDocuments(request.Context(), filter)
+func (s *DataService) ListRawDocuments(ctx context.Context, request *v1.RawDocumentListRequest) (*v1.Response, error) {
+	page, err := v1.ParseBoundedInt(request.Page, 1, 1, 1_000_000, "page")
 	if err != nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "admin raw-document aggregate failed")
-		return
+		return nil, err
 	}
-	items := make([]adminRawDocument, 0, len(pageResult.Items))
-	for _, document := range pageResult.Items {
+	pageSize, err := v1.ParseBoundedInt(request.PageSize, 50, 1, 100, "page_size")
+	if err != nil {
+		return nil, err
+	}
+	filter := adminquery.RawDocumentListRequest{
+		Title: strings.TrimSpace(request.Title), SourceRef: strings.TrimSpace(request.SourceRef),
+		IngestStatus: model.IngestStatus(request.IngestStatus), Page: page, PageSize: pageSize,
+	}
+	if filter.IngestStatus != "" && !oneOf(string(filter.IngestStatus), "collected", "duplicate", "failed", "pending_extract") {
+		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "unsupported ingest_status")
+	}
+	if s == nil || s.dependencies.Admin == nil {
+		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "admin aggregate store is unavailable")
+	}
+	result, err := s.dependencies.Admin.ListRawDocuments(ctx, filter)
+	if err != nil {
+		return nil, publicError(v1.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "admin raw-document aggregate failed")
+	}
+	items := make([]v1.AdminRawDocument, 0, len(result.Items))
+	for _, document := range result.Items {
 		items = append(items, rawDocumentDTO(document))
 	}
-	writeEnvelope(response, http.StatusOK, requestID, map[string]any{"items": items, "total": pageResult.Total, "page": pageResult.Page, "page_size": pageResult.PageSize})
+	return &v1.Response{Status: v1.StatusOK, Result: v1.AdminRawDocumentPage{
+		Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
+	}}, nil
 }
 
-func (d Dependencies) listAdminEvents(response http.ResponseWriter, request *http.Request, _ Principal, requestID string) {
-	page, pageSize, ok := pageQuery(response, request, requestID)
-	if !ok {
-		return
+func (s *DataService) ListEvents(ctx context.Context, request *v1.EventListRequest) (*v1.Response, error) {
+	page, err := v1.ParseBoundedInt(request.Page, 1, 1, 1_000_000, "page")
+	if err != nil {
+		return nil, err
 	}
-	filter := adminquery.EventListRequest{Title: strings.TrimSpace(request.URL.Query().Get("title")), EventStatus: model.EventStatus(request.URL.Query().Get("event_status")), FactStatus: model.FactStatus(request.URL.Query().Get("fact_status")), Page: page, PageSize: pageSize}
-	if filter.EventStatus != "" && !oneOf(string(filter.EventStatus), "candidate", "confirmed", "rejected") || filter.FactStatus != "" && !oneOf(string(filter.FactStatus), "unverified", "verified", "disputed") {
-		writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", "unsupported event or fact status")
-		return
+	pageSize, err := v1.ParseBoundedInt(request.PageSize, 50, 1, 100, "page_size")
+	if err != nil {
+		return nil, err
 	}
-	var err error
-	for value, target := range map[string]**time.Time{
-		"event_time_from": &filter.EventTimeFrom, "event_time_to": &filter.EventTimeTo,
-		"first_seen_from": &filter.FirstSeenFrom, "first_seen_to": &filter.FirstSeenTo,
+	filter := adminquery.EventListRequest{
+		Title: strings.TrimSpace(request.Title), EventStatus: model.EventStatus(request.EventStatus),
+		FactStatus: model.FactStatus(request.FactStatus), Page: page, PageSize: pageSize,
+	}
+	if filter.EventStatus != "" && !oneOf(string(filter.EventStatus), "candidate", "confirmed", "rejected") ||
+		filter.FactStatus != "" && !oneOf(string(filter.FactStatus), "unverified", "verified", "disputed") {
+		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "unsupported event or fact status")
+	}
+	for _, value := range []struct {
+		name   string
+		raw    string
+		target **time.Time
+	}{
+		{name: "event_time_from", raw: request.EventTimeFrom, target: &filter.EventTimeFrom},
+		{name: "event_time_to", raw: request.EventTimeTo, target: &filter.EventTimeTo},
+		{name: "first_seen_from", raw: request.FirstSeenFrom, target: &filter.FirstSeenFrom},
+		{name: "first_seen_to", raw: request.FirstSeenTo, target: &filter.FirstSeenTo},
 	} {
-		*target, err = optionalUTC(request.URL.Query().Get(value))
+		*value.target, err = optionalUTC(value.raw)
 		if err != nil {
-			writeError(response, requestID, http.StatusBadRequest, "INVALID_REQUEST", value+" must be a UTC RFC3339 timestamp")
-			return
+			return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", value.name+" must be a UTC RFC3339 timestamp")
 		}
 	}
-	if d.Admin == nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "admin aggregate store is unavailable")
-		return
+	if s == nil || s.dependencies.Admin == nil {
+		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "admin aggregate store is unavailable")
 	}
-	pageResult, err := d.Admin.ListEvents(request.Context(), filter)
+	result, err := s.dependencies.Admin.ListEvents(ctx, filter)
 	if err != nil {
-		writeError(response, requestID, http.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "admin event aggregate failed")
-		return
+		return nil, publicError(v1.StatusInternalServerError, "DATA_REPOSITORY_FAILURE", "admin event aggregate failed")
 	}
-	items := make([]adminEvent, 0, len(pageResult.Items))
-	for _, event := range pageResult.Items {
+	items := make([]v1.AdminEvent, 0, len(result.Items))
+	for _, event := range result.Items {
 		items = append(items, eventDTO(event))
 	}
-	writeEnvelope(response, http.StatusOK, requestID, map[string]any{"items": items, "total": pageResult.Total, "page": pageResult.Page, "page_size": pageResult.PageSize})
+	return &v1.Response{Status: v1.StatusOK, Result: v1.AdminEventPage{
+		Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
+	}}, nil
 }
 
-type adminRawDocument struct {
-	ID               string  `json:"id"`
-	ContractVersion  int     `json:"contract_version"`
-	ArtifactID       string  `json:"artifact_id,omitempty"`
-	SourceRef        string  `json:"source_ref,omitempty"`
-	IngestChannel    string  `json:"ingest_channel"`
-	SourceType       string  `json:"source_type"`
-	SourceName       string  `json:"source_name"`
-	SourceURL        string  `json:"source_url"`
-	SourceExternalID string  `json:"source_external_id,omitempty"`
-	Title            string  `json:"title"`
-	ContentText      string  `json:"content_text"`
-	ContentLevel     string  `json:"content_level"`
-	RawObjectURI     string  `json:"raw_object_uri"`
-	RawMIMEType      string  `json:"raw_mime_type"`
-	Language         string  `json:"language"`
-	PublishedAt      *string `json:"published_at"`
-	CollectedAt      string  `json:"collected_at"`
-	IngestStatus     string  `json:"ingest_status"`
-	ContentSHA256    string  `json:"content_sha256"`
+func rawDocumentDTO(document model.RawDocument) v1.AdminRawDocument {
+	return v1.AdminRawDocument{
+		ID: document.ID, ContractVersion: document.ContractVersion, ArtifactID: document.ArtifactID,
+		SourceRef: document.SourceRef, IngestChannel: document.IngestChannel, SourceType: document.SourceType,
+		SourceName: document.SourceName, SourceURL: document.SourceURL, SourceExternalID: document.SourceExternalID,
+		Title: document.Title, ContentText: document.ContentText, ContentLevel: document.ContentLevel,
+		RawObjectURI: document.RawObjectURI, RawMIMEType: document.RawMIMEType, Language: document.Language,
+		PublishedAt: formatOptionalTime(document.PublishedAt), CollectedAt: document.CollectedAt.UTC().Format(time.RFC3339Nano),
+		IngestStatus: string(document.IngestStatus), ContentSHA256: document.ContentHash,
+	}
 }
 
-func rawDocumentDTO(document model.RawDocument) adminRawDocument {
-	return adminRawDocument{ID: document.ID, ContractVersion: document.ContractVersion, ArtifactID: document.ArtifactID, SourceRef: document.SourceRef, IngestChannel: document.IngestChannel, SourceType: document.SourceType, SourceName: document.SourceName, SourceURL: document.SourceURL, SourceExternalID: document.SourceExternalID, Title: document.Title, ContentText: document.ContentText, ContentLevel: document.ContentLevel, RawObjectURI: document.RawObjectURI, RawMIMEType: document.RawMIMEType, Language: document.Language, PublishedAt: formatOptionalTime(document.PublishedAt), CollectedAt: document.CollectedAt.UTC().Format(time.RFC3339Nano), IngestStatus: string(document.IngestStatus), ContentSHA256: document.ContentHash}
-}
-
-type adminEvent struct {
-	ID              string  `json:"id"`
-	Title           string  `json:"title"`
-	Summary         string  `json:"summary"`
-	EventTime       *string `json:"event_time"`
-	FirstSeenAt     string  `json:"first_seen_at"`
-	KnowableAt      *string `json:"knowable_at"`
-	EventStatus     string  `json:"event_status"`
-	FactStatus      string  `json:"fact_status"`
-	DedupeKey       string  `json:"dedupe_key"`
-	PrimarySourceID *string `json:"primary_source_id"`
-}
-
-func eventDTO(event model.Event) adminEvent {
+func eventDTO(event model.Event) v1.AdminEvent {
 	var primary *string
 	if event.PrimarySourceID != "" {
 		value := event.PrimarySourceID
 		primary = &value
 	}
-	return adminEvent{ID: event.ID, Title: event.Title, Summary: event.Summary, EventTime: formatOptionalTime(event.EventTime), FirstSeenAt: event.FirstSeenAt.UTC().Format(time.RFC3339Nano), KnowableAt: formatOptionalTime(event.KnowableAt), EventStatus: string(event.EventStatus), FactStatus: string(event.FactStatus), DedupeKey: event.DedupeKey, PrimarySourceID: primary}
+	return v1.AdminEvent{
+		ID: event.ID, Title: event.Title, Summary: event.Summary, EventTime: formatOptionalTime(event.EventTime),
+		FirstSeenAt: event.FirstSeenAt.UTC().Format(time.RFC3339Nano), KnowableAt: formatOptionalTime(event.KnowableAt),
+		EventStatus: string(event.EventStatus), FactStatus: string(event.FactStatus), DedupeKey: event.DedupeKey,
+		PrimarySourceID: primary,
+	}
 }

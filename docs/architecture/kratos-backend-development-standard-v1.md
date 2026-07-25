@@ -2,8 +2,8 @@
 
 ## 状态
 
-已确认，按 Service 分批实施。Miniapp 与 Admin Portal 已完成迁移；Data
-仍待独立任务实施。
+已确认，按 Service 分批实施。Miniapp、Admin Portal 与 Data 均已完成迁移；
+AgentRun 按其独立 Context 的迁移决策实施。
 
 ## 目的
 

@@ -1,4 +1,4 @@
-// Package research owns Data Service research aggregate queries and transport DTOs.
+// Package research owns Data Service research aggregate queries and business result models.
 package research
 
 import (

@@ -97,7 +97,11 @@ func TestDataDoesNotUseGoogleWireArtifacts(t *testing.T) {
 
 func TestDataKratosLayersFollowDependencyDirection(t *testing.T) {
 	backendRoot := filepath.Clean(filepath.Join("..", ".."))
+	assertSourceImportsExclude(t, filepath.Join(backendRoot, "api"),
+		"/analyse-data-service/backend/internal/",
+	)
 	assertSourceImportsExclude(t, filepath.Join(backendRoot, "internal", "biz"),
+		"database/sql",
 		"net/http",
 		"/analyse-data-service/backend/internal/data",
 		"/analyse-data-service/backend/internal/service",
@@ -105,6 +109,8 @@ func TestDataKratosLayersFollowDependencyDirection(t *testing.T) {
 		"github.com/go-kratos/kratos/v3/transport/http",
 	)
 	assertSourceImportsExclude(t, filepath.Join(backendRoot, "internal", "service"),
+		"net/http",
+		"github.com/go-kratos/kratos/v3/transport/http",
 		"/analyse-data-service/backend/internal/data",
 		"/analyse-data-service/backend/internal/server",
 	)

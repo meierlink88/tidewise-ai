@@ -10,6 +10,7 @@ import (
 	kratos "github.com/go-kratos/kratos/v3"
 	"github.com/go-kratos/kratos/v3/transport"
 
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
@@ -66,37 +67,37 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	}, nil
 }
 
-func buildAuthenticator(config conf.Config) (*service.Authenticator, error) {
-	credentials := []service.Credential{
+func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
+	credentials := []server.Credential{
 		{
 			Secret: config.Secrets.DataServiceAgentToken,
-			Principal: service.Principal{Identity: "agent-run", Scopes: []string{
-				service.ScopeReviewedEventImport,
+			Principal: v1.Principal{Identity: "agent-run", Scopes: []string{
+				server.ScopeReviewedEventImport,
 			}},
 		},
 		{
 			Secret: config.Secrets.DataServiceResearchPublisherToken,
-			Principal: service.Principal{
+			Principal: v1.Principal{
 				Identity: "research-theme-publisher",
-				Scopes:   []string{service.ScopeResearchImport},
+				Scopes:   []string{server.ScopeResearchImport},
 			},
 		},
 		{
 			Secret: config.Secrets.DataServiceMiniappToken,
-			Principal: service.Principal{
+			Principal: v1.Principal{
 				Identity: "miniapp-bff",
-				Scopes:   []string{service.ScopeResearchRead},
+				Scopes:   []string{server.ScopeResearchRead},
 			},
 		},
 		{
 			Secret: config.Secrets.DataServiceAdminToken,
-			Principal: service.Principal{
+			Principal: v1.Principal{
 				Identity: "admin-portal-bff",
-				Scopes:   []string{service.ScopeAdminRead},
+				Scopes:   []string{server.ScopeAdminRead},
 			},
 		},
 	}
-	authenticator, err := service.NewAuthenticator(credentials)
+	authenticator, err := server.NewAuthenticator(credentials)
 	if err != nil {
 		return nil, fmt.Errorf("build Data authenticator: %w", err)
 	}

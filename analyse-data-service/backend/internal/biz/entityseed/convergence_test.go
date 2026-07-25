@@ -142,16 +142,6 @@ func TestMemoryConvergenceAppendsReviewedCorrectionAndRollsBackInvalidVersion(t 
 	}
 }
 
-func TestSectorReferenceRegistryIsTypeSafeAndUnknownReferencesFailClosed(t *testing.T) {
-	registry := NewSectorReferenceRegistry()
-	if rule, ok := registry.Rule("sector_source_mappings", "sector_entity_id"); !ok || !rule.SectorOnly {
-		t.Fatalf("sector source mapping rule = %+v, %v", rule, ok)
-	}
-	if _, ok := registry.Rule("future_sector_facts", "sector_id"); ok {
-		t.Fatal("unknown FK was registered implicitly")
-	}
-}
-
 func TestMemoryCorrectionDriftRollsBackAndEdgeConflictsResolveDeterministically(t *testing.T) {
 	relationships := map[string]Relationship{
 		"relationship:z": {Key: "relationship:z", From: "market:a_share", To: "sector:target", RelationType: "covers_sector", Status: model.StatusActive},

@@ -1,51 +1,104 @@
 package server
 
 import (
-	"net/http"
+	"context"
+	"crypto/subtle"
+	"fmt"
 	"strings"
+	"unicode/utf8"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
+	"github.com/go-kratos/kratos/v3/middleware"
+	"github.com/go-kratos/kratos/v3/transport"
+
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 )
 
-func authenticationFilter(authenticator *service.Authenticator) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-			scope, protected := requiredScope(request.Method, request.URL.Path)
-			if !protected {
-				next.ServeHTTP(response, request)
-				return
-			}
+const (
+	ScopeResearchRead        = "data.research.read"
+	ScopeResearchImport      = "data.research.import"
+	ScopeAdminRead           = "data.admin.read"
+	ScopeReviewedEventImport = "data.reviewed-events.import"
+)
 
-			requestID := request.Header.Get("X-Request-ID")
-			principal, ok := authenticator.Authenticate(request.Header.Get("Authorization"))
+type Credential struct {
+	Secret    string
+	Principal v1.Principal
+}
+
+type Authenticator struct {
+	credentials []Credential
+}
+
+func NewAuthenticator(credentials []Credential) (*Authenticator, error) {
+	result := &Authenticator{credentials: make([]Credential, 0, len(credentials))}
+	seenSecret := map[string]struct{}{}
+	for _, credential := range credentials {
+		credential.Secret = strings.TrimSpace(credential.Secret)
+		credential.Principal.Identity = strings.TrimSpace(credential.Principal.Identity)
+		if credential.Secret == "" || credential.Principal.Identity == "" || len(credential.Principal.Scopes) == 0 {
+			return nil, fmt.Errorf("service credential, identity and scopes are required")
+		}
+		if utf8.RuneCountInString(credential.Principal.Identity) > 200 {
+			return nil, fmt.Errorf("service identity must contain at most 200 characters")
+		}
+		if _, duplicate := seenSecret[credential.Secret]; duplicate {
+			return nil, fmt.Errorf("service credentials must be unique")
+		}
+		seenSecret[credential.Secret] = struct{}{}
+		result.credentials = append(result.credentials, credential)
+	}
+	return result, nil
+}
+
+func (a *Authenticator) Authenticate(header string) (v1.Principal, bool) {
+	const prefix = "Bearer "
+	if a == nil || !strings.HasPrefix(header, prefix) {
+		return v1.Principal{}, false
+	}
+	presented := strings.TrimSpace(strings.TrimPrefix(header, prefix))
+	for _, credential := range a.credentials {
+		if len(presented) == len(credential.Secret) &&
+			subtle.ConstantTimeCompare([]byte(presented), []byte(credential.Secret)) == 1 {
+			return credential.Principal, true
+		}
+	}
+	return v1.Principal{}, false
+}
+
+func authenticationMiddleware(authenticator *Authenticator) middleware.Middleware {
+	return func(next middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, request any) (any, error) {
+			serverTransport, ok := transport.FromServerContext(ctx)
 			if !ok {
-				writeError(response, requestID, http.StatusUnauthorized, "UNAUTHENTICATED", "valid service identity is required")
-				return
+				return nil, v1.NewPublicError(v1.StatusInternalServerError, "INTERNAL_ERROR", "internal data service error", nil)
+			}
+			scope, protected := requiredScope(serverTransport.Operation())
+			if !protected {
+				return next(ctx, request)
+			}
+			principal, authenticated := authenticator.Authenticate(serverTransport.RequestHeader().Get("Authorization"))
+			if !authenticated {
+				return nil, v1.NewPublicError(v1.StatusUnauthorized, "UNAUTHENTICATED", "valid service identity is required", nil)
 			}
 			if !principal.HasScope(scope) {
-				writeError(response, requestID, http.StatusForbidden, "FORBIDDEN", "service identity lacks the required scope")
-				return
+				return nil, v1.NewPublicError(v1.StatusForbidden, "FORBIDDEN", "service identity lacks the required scope", nil)
 			}
-
-			ctx := service.WithPrincipal(request.Context(), principal)
-			next.ServeHTTP(response, request.WithContext(ctx))
-		})
+			return next(v1.WithPrincipal(ctx, principal), request)
+		}
 	}
 }
 
-func requiredScope(method, path string) (string, bool) {
-	switch {
-	case method == http.MethodPost && path == service.Namespace+"/reviewed-event-imports":
-		return service.ScopeReviewedEventImport, true
-	case method == http.MethodPost && (path == service.Namespace+"/research-theme-imports" ||
-		path == service.Namespace+"/research-anchor-imports"):
-		return service.ScopeResearchImport, true
-	case method == http.MethodGet && (path == service.Namespace+"/research/themes" ||
-		strings.HasPrefix(path, service.Namespace+"/research/themes/")):
-		return service.ScopeResearchRead, true
-	case method == http.MethodGet && (path == service.Namespace+"/raw-documents" ||
-		path == service.Namespace+"/events"):
-		return service.ScopeAdminRead, true
+func requiredScope(operation string) (string, bool) {
+	switch operation {
+	case "data.v1.publishReviewedEvents":
+		return ScopeReviewedEventImport, true
+	case "data.v1.importResearchThemes", "data.v1.importResearchAnchors":
+		return ScopeResearchImport, true
+	case "data.v1.listResearchThemes", "data.v1.getResearchTheme",
+		"data.v1.listResearchThemeReasoningTrees", "data.v1.getResearchThemeReasoningTree":
+		return ScopeResearchRead, true
+	case "data.v1.listAdminRawDocuments", "data.v1.listAdminEvents":
+		return ScopeAdminRead, true
 	default:
 		return "", false
 	}

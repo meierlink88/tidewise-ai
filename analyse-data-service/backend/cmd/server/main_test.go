@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 )
 
 func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {
@@ -26,14 +26,14 @@ func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertPrincipal(t, authenticator, "agent-token", "agent-run", []string{
-		service.ScopeReviewedEventImport,
+		server.ScopeReviewedEventImport,
 	})
-	assertPrincipal(t, authenticator, "miniapp-token", "miniapp-bff", []string{service.ScopeResearchRead})
-	assertPrincipal(t, authenticator, "admin-token", "admin-portal-bff", []string{service.ScopeAdminRead})
-	assertPrincipal(t, authenticator, "research-publisher-token", "research-theme-publisher", []string{service.ScopeResearchImport})
+	assertPrincipal(t, authenticator, "miniapp-token", "miniapp-bff", []string{server.ScopeResearchRead})
+	assertPrincipal(t, authenticator, "admin-token", "admin-portal-bff", []string{server.ScopeAdminRead})
+	assertPrincipal(t, authenticator, "research-publisher-token", "research-theme-publisher", []string{server.ScopeResearchImport})
 }
 
-func assertPrincipal(t *testing.T, authenticator *service.Authenticator, token string, identity string, scopes []string) {
+func assertPrincipal(t *testing.T, authenticator *server.Authenticator, token string, identity string, scopes []string) {
 	t.Helper()
 	principal, ok := authenticator.Authenticate("Bearer " + token)
 	if !ok || principal.Identity != identity {
