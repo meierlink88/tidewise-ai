@@ -15,6 +15,22 @@ Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Appl
 - Data API 错误、分页、时间和字段到 Miniapp contract 的转换。
 - Miniapp 专用缓存和降级策略，但不拥有 Data 事实。
 
+## Backend Implementation
+
+Miniapp Application Backend Service 是仓库内首个完整 Kratos v3 Application：
+
+- `api/miniapp/v1` 保存 OpenAPI 3.0.4、wire DTO 和 HTTP 绑定；
+- `cmd/server` 显式构造依赖并运行 `kratos.App`；
+- `internal/service` 实现 Miniapp API；
+- `internal/biz` 承载 Research Use Case、业务校验和 `ResearchRepo` Port；
+- `internal/data` 使用 Kratos HTTP Client 调用 Data Service；
+- `internal/server` 拥有 Kratos HTTP Server、Request ID、Recovery、错误 envelope、
+  health/readiness 与 Swagger UI；
+- `internal/conf` 和 `configs` 承载本地/UAT 启动配置。
+
+Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发现、Wire 或
+远程配置中心。Miniapp binary dependency closure 不得包含 Gin。
+
 ## Does Not Own
 
 - Data PostgreSQL、migration、repository、Neo4j 或 Data domain model。

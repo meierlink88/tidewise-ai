@@ -25,7 +25,7 @@
     "lint": "npm --workspace @tidewise/miniapp run lint",
     "backend:dev": "npm run backend:dev:miniapp",
     "backend:dev:data": "cd src/backend && go run ./services/data/cmd",
-    "backend:dev:miniapp": "cd src/backend && go run ./services/miniapp/cmd",
+    "backend:dev:miniapp": "cd src/backend && go run ./services/miniapp/cmd/server",
     "backend:dev:admin": "cd src/backend && go run ./services/adminportal/cmd",
     "backend:test": "cd src/backend && go test ./...",
     "backend:fmt": "cd src/backend && gofmt -w .",

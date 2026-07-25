@@ -63,7 +63,7 @@ jobs:
         run: go test ./services/data/adapters/dbmigration ./services/data/cmd/research-theme-dev-reset ./services/data/transport/internalapi -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
 
       - name: Data API and typed-client drift contracts
-        run: go test ./services/data/api ./services/miniapp/dataclient ./services/adminportal/dataclient
+        run: go test ./services/data/api ./services/miniapp/internal/data ./services/adminportal/dataclient
 
       - name: Architecture and reference contracts
         run: go test ./internal/architecture
@@ -74,7 +74,7 @@ jobs:
       - name: Build service binaries
         run: |
           go build -o /tmp/data-service ./services/data/cmd
-          go build -o /tmp/miniapp-service ./services/miniapp/cmd
+          go build -o /tmp/miniapp-service ./services/miniapp/cmd/server
           go build -o /tmp/adminportal-service ./services/adminportal/cmd
 
       - name: Build service images
@@ -82,6 +82,14 @@ jobs:
           docker build -f services/data/Dockerfile -t tidewise-data:ci .
           docker build -f services/miniapp/Dockerfile -t tidewise-miniapp:ci .
           docker build -f services/adminportal/Dockerfile -t tidewise-adminportal:ci .
+
+      - name: Validate local and UAT Compose contracts
+        run: |
+          docker compose --env-file ../../infra/local/.env.example -f ../../infra/local/docker-compose.yaml config --quiet
+          docker compose --env-file ../../infra/uat/.env.example -f ../../infra/uat/docker-compose.yaml config --quiet
+
+      - name: Smoke Miniapp Kratos stack
+        run: bash ../../scripts/ci/smoke-miniapp-data-compose.sh
 
   frontend:
     name: Frontend

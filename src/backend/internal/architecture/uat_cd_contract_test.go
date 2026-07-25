@@ -127,7 +127,11 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..")
 	ports := map[string]string{"data": "9011", "miniapp": "9012", "adminportal": "9013"}
 	for service, port := range ports {
-		config := readContractFile(t, filepath.Join(root, "src", "backend", "services", service, "config", "config.uat.yaml"))
+		configDir := "config"
+		if service == "miniapp" {
+			configDir = "configs"
+		}
+		config := readContractFile(t, filepath.Join(root, "src", "backend", "services", service, configDir, "config.uat.yaml"))
 		if !strings.Contains(config, "port: "+port) {
 			t.Fatalf("%s UAT config does not use port %s", service, port)
 		}

@@ -14,11 +14,13 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		service    string
 		binary     string
 		port       string
+		command    string
+		configDir  string
 		mustCopyDB bool
 	}{
-		{service: "data", binary: "data-service", port: "9011", mustCopyDB: true},
-		{service: "miniapp", binary: "miniapp-service", port: "9012"},
-		{service: "adminportal", binary: "adminportal-service", port: "9013"},
+		{service: "data", binary: "data-service", port: "9011", command: "cmd", configDir: "config", mustCopyDB: true},
+		{service: "miniapp", binary: "miniapp-service", port: "9012", command: "cmd/server", configDir: "configs"},
+		{service: "adminportal", binary: "adminportal-service", port: "9013", command: "cmd", configDir: "config"},
 	}
 
 	for _, asset := range assets {
@@ -29,7 +31,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		}
 		text := string(contents)
 		for _, required := range []string{
-			"./services/" + asset.service + "/cmd",
+			"./services/" + asset.service + "/" + asset.command,
 			"/usr/local/bin/" + asset.binary,
 			"/healthz",
 			"/readyz",
@@ -42,10 +44,10 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		if asset.mustCopyDB && !strings.Contains(text, "COPY migrations") {
 			t.Fatal("Data Dockerfile must own migration assets")
 		}
-		if !strings.Contains(text, "COPY services/"+asset.service+"/config ./config") {
+		if !strings.Contains(text, "COPY services/"+asset.service+"/"+asset.configDir+" ./config") {
 			t.Fatalf("%s Dockerfile must copy its service-owned start config", asset.service)
 		}
-		configPath := filepath.Join(repoRoot, "src", "backend", "services", asset.service, "config", "config.local.yaml")
+		configPath := filepath.Join(repoRoot, "src", "backend", "services", asset.service, asset.configDir, "config.local.yaml")
 		configContents, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("read %s start config: %v", asset.service, err)
@@ -134,14 +136,17 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"working-directory: src/backend",
 		"go-version-file: src/backend/go.mod",
 		"cache-dependency-path: src/backend/go.sum",
-		"go test ./services/data/api ./services/miniapp/dataclient ./services/adminportal/dataclient",
+		"go test ./services/data/api ./services/miniapp/internal/data ./services/adminportal/dataclient",
 		"go test ./internal/architecture",
 		"go build -o /tmp/data-service ./services/data/cmd",
-		"go build -o /tmp/miniapp-service ./services/miniapp/cmd",
+		"go build -o /tmp/miniapp-service ./services/miniapp/cmd/server",
 		"go build -o /tmp/adminportal-service ./services/adminportal/cmd",
 		"-f services/data/Dockerfile",
 		"-f services/miniapp/Dockerfile",
 		"-f services/adminportal/Dockerfile",
+		"docker compose --env-file ../../infra/local/.env.example -f ../../infra/local/docker-compose.yaml config --quiet",
+		"docker compose --env-file ../../infra/uat/.env.example -f ../../infra/uat/docker-compose.yaml config --quiet",
+		"bash ../../scripts/ci/smoke-miniapp-data-compose.sh",
 		"cache-dependency-path: package-lock.json",
 		"npm run test",
 		"npm run typecheck",
@@ -155,6 +160,30 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	}
 	if strings.Contains(text, "-f Dockerfile") || strings.Contains(text, "backend/Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
+	}
+
+	smokeContents, err := os.ReadFile(filepath.Join(repoRoot, "scripts", "ci", "smoke-miniapp-data-compose.sh"))
+	if err != nil {
+		t.Fatalf("read Miniapp Compose smoke script: %v", err)
+	}
+	smoke := string(smokeContents)
+	for _, required := range []string{
+		"dbmigrate -apply",
+		"tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified",
+		"tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified",
+		"tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified",
+		"/api/miniapp/v1/research/themes",
+		"APP_ENV=prod",
+		"/docs/",
+		"--signal=SIGTERM",
+		"did not stop within 15 seconds",
+		"COMPOSE_NETWORK_NAME",
+		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
+		"MINIAPP_SERVICE_IMAGE=\"tidewise-miniapp:ci\"",
+	} {
+		if !strings.Contains(smoke, required) {
+			t.Fatalf("Miniapp Compose smoke script missing %q", required)
+		}
 	}
 }
 
