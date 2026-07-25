@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -41,10 +42,11 @@ func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService,
 		kratoshttp.Address(config.Server.Address()),
 		kratoshttp.Timeout(0),
 		kratoshttp.StrictSlash(false),
-		kratoshttp.Filter(observabilityFilter(config.App, logger)),
 		kratoshttp.Middleware(
-			kratosrecovery.Recovery(),
 			sanitizedLoggingMiddleware(config.App, logger),
+			kratosrecovery.Recovery(
+				kratosrecovery.WithLogger(slog.New(slog.NewJSONHandler(io.Discard, nil))),
+			),
 		),
 		kratoshttp.ResponseEncoder(responseEncoder),
 		kratoshttp.ErrorEncoder(errorEncoder),
@@ -60,10 +62,11 @@ func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService,
 	}
 
 	application := server.Server.Handler
-	server.Server.Handler = apidocs.Wrap(config.App.Env, application, apidocs.Config{
+	documentedApplication := apidocs.Wrap(config.App.Env, application, apidocs.Config{
 		Title:    "Tidewise Miniapp Service API",
 		Document: v1.Document(),
 	})
+	server.Server.Handler = observabilityFilter(config.App, logger)(documentedApplication)
 	return server
 }
 
@@ -166,10 +169,13 @@ func operationForRequest(request *http.Request) string {
 		return "miniapp.health"
 	case "/readyz":
 		return "miniapp.ready"
-	case "/docs", "/docs/", "/openapi.yaml":
+	case "/docs", "/openapi.yaml":
 		return "miniapp.docs"
 	case v1.APIPrefix + "/research/themes":
 		return "miniapp.research.listThemes"
+	}
+	if strings.HasPrefix(request.URL.Path, "/docs/") {
+		return "miniapp.docs"
 	}
 	const prefix = v1.APIPrefix + "/research/themes/"
 	if !strings.HasPrefix(request.URL.Path, prefix) {

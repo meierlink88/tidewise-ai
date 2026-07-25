@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -18,40 +20,59 @@ import (
 const applicationStopTimeout = 10 * time.Second
 const resourceCleanupTimeout = 5 * time.Second
 
-func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, error) {
+func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func(context.Context) error, error) {
 	repository, err := data.NewHTTPClient(data.HTTPConfig{
 		BaseURL:      config.DataService.BaseURL,
 		ServiceToken: config.DataService.IdentityToken,
 		Timeout:      config.DataService.Timeout,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	useCase := biz.NewResearchService(repository)
 	applicationService := service.NewResearchService(useCase)
 	httpServer := server.NewHTTPServer(config, applicationService, logger)
 
-	return newApp(httpServer, logger, func(context.Context) error {
+	return newApp(httpServer, logger), func(context.Context) error {
 		return repository.Close()
-	}), nil
+	}, nil
 }
 
-func newApp(server transport.Server, logger *slog.Logger, cleanup func(context.Context) error) *kratos.App {
-	options := []kratos.Option{
+func newApp(server transport.Server, logger *slog.Logger) *kratos.App {
+	return kratos.New(
 		kratos.Name(conf.ServiceName),
 		kratos.Version(conf.ServiceVersion),
 		kratos.Logger(logger),
 		kratos.StopTimeout(applicationStopTimeout),
 		kratos.Server(server),
-	}
-	if cleanup != nil {
-		options = append(options, kratos.AfterStop(func(ctx context.Context) error {
-			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), resourceCleanupTimeout)
-			defer cancel()
-			return cleanup(cleanupCtx)
-		}))
-	}
-	return kratos.New(
-		options...,
 	)
+}
+
+func runApplication(app interface{ Run() error }, cleanup func(context.Context) error) error {
+	runErr := app.Run()
+	cleanupErr := runCleanup(cleanup, resourceCleanupTimeout)
+	return errors.Join(runErr, cleanupErr)
+}
+
+func runCleanup(cleanup func(context.Context) error, timeout time.Duration) error {
+	if cleanup == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	result := make(chan error, 1)
+	go func() {
+		result <- cleanup(ctx)
+	}()
+
+	select {
+	case err := <-result:
+		if err != nil {
+			return fmt.Errorf("cleanup Miniapp resources: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("cleanup Miniapp resources: %w", ctx.Err())
+	}
 }

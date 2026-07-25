@@ -46,11 +46,11 @@ func getResearchThemeHandler(service ResearchHTTPServer) kratoshttp.HandlerFunc 
 
 func listResearchThemeReasoningTreesHandler(service ResearchHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		if ctx.Request().URL.RawQuery != "" {
-			return ErrInvalidRequest
-		}
 		request := &ListResearchThemeReasoningTreesRequest{ThemeID: ctx.Vars().Get("theme_id")}
 		return call(ctx, OperationListResearchThemeReasoningTrees, request, func(callContext context.Context) (any, error) {
+			if ctx.Request().URL.RawQuery != "" {
+				return nil, ErrInvalidRequest
+			}
 			return service.ListResearchThemeReasoningTrees(callContext, request)
 		})
 	}
@@ -58,14 +58,14 @@ func listResearchThemeReasoningTreesHandler(service ResearchHTTPServer) kratosht
 
 func getResearchThemeReasoningTreeHandler(service ResearchHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		if ctx.Request().URL.RawQuery != "" {
-			return ErrInvalidRequest
-		}
 		request := &GetResearchThemeReasoningTreeRequest{
 			ThemeID:  ctx.Vars().Get("theme_id"),
 			AnchorID: ctx.Vars().Get("anchor_id"),
 		}
 		return call(ctx, OperationGetResearchThemeReasoningTree, request, func(callContext context.Context) (any, error) {
+			if ctx.Request().URL.RawQuery != "" {
+				return nil, ErrInvalidRequest
+			}
 			return service.GetResearchThemeReasoningTree(callContext, request)
 		})
 	}

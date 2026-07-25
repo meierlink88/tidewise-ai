@@ -204,19 +204,17 @@ func TestResearchServiceMapsReasoningTreeDataErrorsToStablePublicErrors(t *testi
 
 	for _, test := range []struct {
 		name string
-		code string
+		err  error
 		want error
 	}{
-		{name: "Theme missing", code: "RESEARCH_THEME_NOT_FOUND", want: ErrResearchThemeNotFound},
-		{name: "trees missing", code: "RESEARCH_REASONING_TREES_NOT_FOUND", want: ErrResearchReasoningTreesNotFound},
-		{name: "tree missing", code: "RESEARCH_REASONING_TREE_NOT_FOUND", want: ErrResearchReasoningTreeNotFound},
-		{name: "unknown not found", code: "UNEXPECTED_NOT_FOUND", want: ErrResearchDataUnavailable},
+		{name: "Theme missing", err: ErrResearchThemeNotFound, want: ErrResearchThemeNotFound},
+		{name: "trees missing", err: ErrResearchReasoningTreesNotFound, want: ErrResearchReasoningTreesNotFound},
+		{name: "tree missing", err: ErrResearchReasoningTreeNotFound, want: ErrResearchReasoningTreeNotFound},
+		{name: "unknown adapter failure", err: errors.New("must not cross the Biz port"), want: ErrResearchDataUnavailable},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			client := &Fake{GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (ResearchReasoningTreeDetail, error) {
-				return ResearchReasoningTreeDetail{}, &Error{
-					Kind: ErrorKindClient, StatusCode: 404, Code: test.code, RequestID: "must-not-leak",
-				}
+				return ResearchReasoningTreeDetail{}, test.err
 			}}
 			_, err := NewResearchService(client).GetReasoningTree(
 				context.Background(),

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -109,7 +108,7 @@ func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRe
 	}
 	page, err := s.repo.ListResearchThemes(ctx, ResearchListQuery{WindowHours: windowHours, Limit: limit, Cursor: request.Cursor})
 	if err != nil {
-		return ResearchThemeListResponse{}, mapDataServiceError(err)
+		return ResearchThemeListResponse{}, normalizeResearchRepoError(err)
 	}
 	items := make([]ResearchThemeItem, 0, len(page.Items))
 	for _, item := range page.Items {
@@ -135,7 +134,7 @@ func (s *ResearchService) GetTheme(ctx context.Context, id string, request Resea
 	}
 	detail, err := s.repo.GetResearchTheme(ctx, id, ResearchDetailQuery{WindowHours: windowHours})
 	if err != nil {
-		return ResearchThemeDetailResponse{}, mapDataServiceError(err)
+		return ResearchThemeDetailResponse{}, normalizeResearchRepoError(err)
 	}
 	return ResearchThemeDetailResponse{ResearchThemeItem: themeItemDTO(detail.Theme), Events: eventDTOs(detail.Events)}, nil
 }
@@ -213,15 +212,15 @@ func eventDTOs(values []ResearchEvent) []ResearchEventDTO {
 
 func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339) }
 
-func mapDataServiceError(err error) error {
-	var clientErr *Error
-	if errors.As(err, &clientErr) {
-		switch clientErr.StatusCode {
-		case http.StatusBadRequest:
-			return ErrInvalidResearchRequest
-		case http.StatusNotFound:
-			return ErrResearchNotFound
-		}
+func normalizeResearchRepoError(err error) error {
+	switch {
+	case errors.Is(err, ErrInvalidResearchRequest):
+		return ErrInvalidResearchRequest
+	case errors.Is(err, ErrResearchNotFound):
+		return ErrResearchNotFound
+	case errors.Is(err, ErrResearchDataService):
+		return ErrResearchDataService
+	default:
+		return ErrResearchDataService
 	}
-	return ErrResearchDataService
 }

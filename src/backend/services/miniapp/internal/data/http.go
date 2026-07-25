@@ -23,6 +23,8 @@ import (
 
 const (
 	RequestIDHeader      = "X-Request-ID"
+	DataAPIPrefix        = "/api/data/v1"
+	ResearchThemesPath   = DataAPIPrefix + "/research/themes"
 	maxResponseBodyBytes = 1 << 20
 	maxErrorCodeLength   = 100
 	maxReadAttempts      = 3
@@ -66,13 +68,9 @@ type TransmissionStage = biz.TransmissionStage
 type EvidenceRole = biz.EvidenceRole
 type ImpactDirection = biz.ImpactDirection
 type ChangeDirection = biz.ChangeDirection
-type ErrorKind = biz.ErrorKind
-type Error = biz.Error
 type Fake = biz.Fake
 
 const (
-	ResearchThemesPath = biz.ResearchThemesPath
-
 	ImpactLevelHigh  = biz.ImpactLevelHigh
 	ImpactLevelFocus = biz.ImpactLevelFocus
 	ImpactLevelWatch = biz.ImpactLevelWatch
@@ -97,16 +95,6 @@ const (
 	ChangeDirectionMixed     = biz.ChangeDirectionMixed
 	ChangeDirectionUnchanged = biz.ChangeDirectionUnchanged
 	ChangeDirectionUncertain = biz.ChangeDirectionUncertain
-
-	ErrorKindClient     = biz.ErrorKindClient
-	ErrorKindConflict   = biz.ErrorKindConflict
-	ErrorKindServer     = biz.ErrorKindServer
-	ErrorKindConnection = biz.ErrorKindConnection
-	ErrorKindTimeout    = biz.ErrorKindTimeout
-	ErrorKindCanceled   = biz.ErrorKindCanceled
-	ErrorKindProtocol   = biz.ErrorKindProtocol
-	ErrorKindEncode     = biz.ErrorKindEncode
-	ErrorKindDecode     = biz.ErrorKindDecode
 )
 
 var ErrFakeMethodNotConfigured = biz.ErrFakeMethodNotConfigured
@@ -177,28 +165,40 @@ func (c *HTTPClient) ListResearchThemes(ctx context.Context, query ResearchListQ
 	var envelope responseEnvelope[wireResearchThemePage]
 	err := c.doJSON(ctx, http.MethodGet, researchListPath(ResearchThemesPath, query), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
-	return value.toBiz(), err
+	if err != nil {
+		return ResearchThemePage{}, mapThemeDataError(err)
+	}
+	return value.toBiz(), nil
 }
 
 func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query ResearchDetailQuery) (ResearchThemeDetail, error) {
 	var envelope responseEnvelope[wireResearchThemeDetail]
 	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id, query), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
-	return value.toBiz(), err
+	if err != nil {
+		return ResearchThemeDetail{}, mapThemeDataError(err)
+	}
+	return value.toBiz(), nil
 }
 
 func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
 	var envelope responseEnvelope[wireResearchReasoningTreeList]
 	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeListPath(themeID), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
-	return value.toBiz(), err
+	if err != nil {
+		return ResearchReasoningTreeList{}, mapReasoningTreeDataError(err)
+	}
+	return value.toBiz(), nil
 }
 
 func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (ResearchReasoningTreeDetail, error) {
 	var envelope responseEnvelope[wireResearchReasoningTreeDetail]
 	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, anchorID), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
-	return value.toBiz(), err
+	if err != nil {
+		return ResearchReasoningTreeDetail{}, mapReasoningTreeDataError(err)
+	}
+	return value.toBiz(), nil
 }
 
 type responseEnvelope[T any] struct {
@@ -435,24 +435,6 @@ func httpStatusError(status int, headerRequestID string, body []byte) *Error {
 		Code:       safeMetadata(envelope.Error.Code, maxErrorCodeLength),
 		RequestID:  requestID,
 	}
-}
-
-func safeMetadata(value string, maxLength int) string {
-	value = strings.TrimSpace(value)
-	if value == "" || len(value) > maxLength {
-		return ""
-	}
-	for _, character := range value {
-		switch {
-		case character >= 'a' && character <= 'z':
-		case character >= 'A' && character <= 'Z':
-		case character >= '0' && character <= '9':
-		case character == '-', character == '_', character == '.', character == ':':
-		default:
-			return ""
-		}
-	}
-	return value
 }
 
 func newRequestID() string {

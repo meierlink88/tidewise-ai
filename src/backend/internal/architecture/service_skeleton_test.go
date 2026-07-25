@@ -79,6 +79,58 @@ func TestMiniappDoesNotUseGoogleWireArtifacts(t *testing.T) {
 	}
 }
 
+func TestMiniappKratosLayersFollowDependencyDirection(t *testing.T) {
+	for _, pkg := range listServicePackages(t) {
+		owner := localPackageName(pkg.ImportPath)
+		switch {
+		case owner == "services/miniapp/internal/biz" || strings.HasPrefix(owner, "services/miniapp/internal/biz/"):
+			assertImportsExclude(t, pkg,
+				"net/http",
+				"github.com/go-kratos/kratos/v3/transport/http",
+				"/services/miniapp/internal/data",
+				"/services/miniapp/internal/service",
+				"/services/miniapp/internal/server",
+			)
+		case owner == "services/miniapp/internal/service" || strings.HasPrefix(owner, "services/miniapp/internal/service/"):
+			assertImportsExclude(t, pkg,
+				"/services/miniapp/internal/data",
+				"/services/miniapp/internal/server",
+			)
+		case owner == "services/miniapp/internal/data" || strings.HasPrefix(owner, "services/miniapp/internal/data/"):
+			assertImportsExclude(t, pkg,
+				"/services/miniapp/api/",
+				"/services/miniapp/internal/service",
+				"/services/miniapp/internal/server",
+			)
+		case owner == "services/miniapp/internal/conf" || strings.HasPrefix(owner, "services/miniapp/internal/conf/"):
+			assertImportsExclude(t, pkg,
+				"/services/miniapp/api/",
+				"/services/miniapp/internal/biz",
+				"/services/miniapp/internal/data",
+				"/services/miniapp/internal/service",
+				"/services/miniapp/internal/server",
+			)
+		}
+	}
+}
+
+func TestMiniappLegacyRuntimeLayoutIsRemoved(t *testing.T) {
+	miniappRoot := filepath.Join("..", "..", "services", "miniapp")
+	for _, legacy := range []string{
+		"config",
+		"dataclient",
+		"usecase",
+		"transport",
+		"service.go",
+		filepath.Join("cmd", "main.go"),
+	} {
+		path := filepath.Join(miniappRoot, legacy)
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("legacy Miniapp runtime path %q must be absent: %v", path, err)
+		}
+	}
+}
+
 func TestAdminPortalApplicationBackendOwnsUseCaseAndTransport(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
@@ -137,6 +189,17 @@ func deployableService(packageName string) string {
 		}
 	}
 	return ""
+}
+
+func assertImportsExclude(t *testing.T, pkg packageInfo, forbidden ...string) {
+	t.Helper()
+	for _, imported := range pkg.Imports {
+		for _, fragment := range forbidden {
+			if imported == fragment || strings.Contains(imported, fragment) {
+				t.Fatalf("%s must not import %s across its Kratos layer boundary", pkg.ImportPath, imported)
+			}
+		}
+	}
 }
 
 func TestRootCompatibilityCommandsAreRemoved(t *testing.T) {

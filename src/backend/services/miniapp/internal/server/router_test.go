@@ -16,6 +16,7 @@ import (
 	usecase "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/conf"
 	dataclient "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/data"
+	appservice "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/service"
 )
 
 func TestHealthz(t *testing.T) {
@@ -61,14 +62,21 @@ func TestReadyz(t *testing.T) {
 }
 
 func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	client := &dataclient.Fake{
 		ListResearchThemesFunc: func(context.Context, dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
 			panic("sensitive upstream failure")
 		},
 	}
-	router := researchTestRouter(usecase.NewResearchService(client))
-	request := httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes", nil)
+	router := NewHTTPServer(
+		testRuntimeConfig(),
+		appservice.NewResearchService(usecase.NewResearchService(client)),
+		logger,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes?cursor=sensitive-request-value", nil)
 	request.Header.Set(apihttp.RequestIDHeader, "miniapp-panic-request")
+	request.Header.Set("Authorization", "Bearer sensitive-token-value")
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -88,6 +96,15 @@ func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 	}
 	if strings.Contains(response.Body.String(), "sensitive upstream failure") {
 		t.Fatalf("panic detail leaked: %s", response.Body.String())
+	}
+	for _, secret := range []string{"sensitive upstream failure", "sensitive-request-value", "sensitive-token-value", "runtime/debug"} {
+		if strings.Contains(logs.String(), secret) {
+			t.Fatalf("recovery log leaked %q: %s", secret, logs.String())
+		}
+	}
+	if !strings.Contains(logs.String(), `"operation":"miniapp.research.listThemes"`) ||
+		!strings.Contains(logs.String(), `"status":500`) {
+		t.Fatalf("sanitized panic access log is incomplete: %s", logs.String())
 	}
 }
 
@@ -173,6 +190,25 @@ func TestOpenAPIDocumentationVisibilityFollowsEnvironment(t *testing.T) {
 		if test.wantStatus == http.StatusOK && !strings.HasPrefix(response.Body.String(), "openapi: 3.0.4\n") {
 			t.Fatalf("%s OpenAPI document does not declare 3.0.4", test.environment)
 		}
+	}
+}
+
+func TestDocumentationRoutesUseObservabilityFilter(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	request := httptest.NewRequest(http.MethodGet, "/docs", nil)
+	request.Header.Set(apihttp.RequestIDHeader, "miniapp-docs-request")
+	response := httptest.NewRecorder()
+
+	NewHTTPServer(testRuntimeConfig(), nil, logger).ServeHTTP(response, request)
+
+	if response.Code != http.StatusTemporaryRedirect || response.Header().Get(apihttp.RequestIDHeader) != "miniapp-docs-request" {
+		t.Fatalf("docs status/request ID = %d/%q", response.Code, response.Header().Get(apihttp.RequestIDHeader))
+	}
+	if !strings.Contains(logs.String(), `"operation":"miniapp.docs"`) ||
+		!strings.Contains(logs.String(), `"request_id":"miniapp-docs-request"`) ||
+		!strings.Contains(logs.String(), `"status":307`) {
+		t.Fatalf("docs access log is incomplete: %s", logs.String())
 	}
 }
 

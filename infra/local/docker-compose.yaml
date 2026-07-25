@@ -41,7 +41,7 @@ services:
     build:
       context: ../../src/backend
       dockerfile: services/data/Dockerfile
-    image: tidewise-data:local
+    image: "${DATA_SERVICE_IMAGE:-tidewise-data:local}"
     ports:
       - "${DATA_SERVICE_PORT:-9011}:9011"
     environment:
@@ -70,7 +70,7 @@ services:
     build:
       context: ../../src/backend
       dockerfile: services/miniapp/Dockerfile
-    image: tidewise-miniapp:local
+    image: "${MINIAPP_SERVICE_IMAGE:-tidewise-miniapp:local}"
     ports:
       - "${MINIAPP_SERVICE_PORT:-9012}:9012"
     environment:
@@ -114,7 +114,7 @@ services:
 
 networks:
   tidewise-local:
-    name: tidewise-local
+    name: "${COMPOSE_NETWORK_NAME:-tidewise-local}"
 
 volumes:
   tidewise_postgres_data:

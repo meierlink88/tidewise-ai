@@ -223,6 +223,9 @@ func (value wireResearchReasoningTreeDetail) toBiz() biz.ResearchReasoningTreeDe
 }
 
 func mapSlice[From any, To any](values []From, convert func(From) To) []To {
+	if values == nil {
+		return nil
+	}
 	result := make([]To, 0, len(values))
 	for _, value := range values {
 		result = append(result, convert(value))

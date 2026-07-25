@@ -3,14 +3,7 @@ package biz
 import (
 	"context"
 	"errors"
-	"strconv"
-	"strings"
 	"time"
-)
-
-const (
-	DataAPIPrefix      = "/api/data/v1"
-	ResearchThemesPath = DataAPIPrefix + "/research/themes"
 )
 
 // ResearchRepo is the Miniapp-owned boundary for page-level research data.
@@ -186,64 +179,6 @@ type ResearchReasoningTreeDetail struct {
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")
-
-type ErrorKind string
-
-const (
-	ErrorKindClient     ErrorKind = "client"
-	ErrorKindConflict   ErrorKind = "conflict"
-	ErrorKindServer     ErrorKind = "server"
-	ErrorKindConnection ErrorKind = "connection"
-	ErrorKindTimeout    ErrorKind = "timeout"
-	ErrorKindCanceled   ErrorKind = "canceled"
-	ErrorKindProtocol   ErrorKind = "protocol"
-	ErrorKindEncode     ErrorKind = "encode"
-	ErrorKindDecode     ErrorKind = "decode"
-)
-
-// Error is the sanitized failure contract between the ResearchRepo adapter and
-// the Miniapp business layer.
-type Error struct {
-	Kind       ErrorKind
-	StatusCode int
-	Code       string
-	RequestID  string
-}
-
-func (e *Error) Error() string {
-	if e == nil {
-		return "data service request failed"
-	}
-	message := "data service request failed: kind=" + string(e.Kind)
-	if e.StatusCode != 0 {
-		message += " status=" + strconv.Itoa(e.StatusCode)
-	}
-	if code := safeMetadata(e.Code, 100); code != "" {
-		message += " code=" + code
-	}
-	if requestID := safeMetadata(e.RequestID, 128); requestID != "" {
-		message += " request_id=" + requestID
-	}
-	return message
-}
-
-func safeMetadata(value string, maxLength int) string {
-	value = strings.TrimSpace(value)
-	if value == "" || len(value) > maxLength {
-		return ""
-	}
-	for _, character := range value {
-		switch {
-		case character >= 'a' && character <= 'z':
-		case character >= 'A' && character <= 'Z':
-		case character >= '0' && character <= '9':
-		case character == '-', character == '_', character == '.', character == ':':
-		default:
-			return ""
-		}
-	}
-	return value
-}
 
 // Fake keeps Miniapp orchestration tests independent from HTTP and databases.
 type Fake struct {

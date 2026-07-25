@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 )
@@ -80,7 +79,7 @@ func (s *ResearchService) ListReasoningTrees(ctx context.Context, themeID string
 	}
 	result, err := s.repo.ListResearchThemeReasoningTrees(ctx, themeID)
 	if err != nil {
-		return ResearchReasoningTreeListResponse{}, mapReasoningTreeDataError(err)
+		return ResearchReasoningTreeListResponse{}, normalizeReasoningTreeRepoError(err)
 	}
 	if !validReasoningTreeList(result, themeID) {
 		return ResearchReasoningTreeListResponse{}, ErrResearchDataUnavailable
@@ -109,7 +108,7 @@ func (s *ResearchService) GetReasoningTree(ctx context.Context, themeID, anchorI
 	}
 	result, err := s.repo.GetResearchThemeReasoningTree(ctx, themeID, anchorID)
 	if err != nil {
-		return ResearchReasoningTreeDetailResponse{}, mapReasoningTreeDataError(err)
+		return ResearchReasoningTreeDetailResponse{}, normalizeReasoningTreeRepoError(err)
 	}
 	if !validReasoningTreeDetail(result, themeID, anchorID) {
 		return ResearchReasoningTreeDetailResponse{}, ErrResearchDataUnavailable
@@ -361,17 +360,17 @@ func reasoningTreePathNodeDTOs(values []ResearchReasoningTreePathNode) []Researc
 	return result
 }
 
-func mapReasoningTreeDataError(err error) error {
-	var clientErr *Error
-	if errors.As(err, &clientErr) && clientErr.StatusCode == http.StatusNotFound {
-		switch clientErr.Code {
-		case "RESEARCH_THEME_NOT_FOUND":
-			return ErrResearchThemeNotFound
-		case "RESEARCH_REASONING_TREES_NOT_FOUND":
-			return ErrResearchReasoningTreesNotFound
-		case "RESEARCH_REASONING_TREE_NOT_FOUND":
-			return ErrResearchReasoningTreeNotFound
-		}
+func normalizeReasoningTreeRepoError(err error) error {
+	switch {
+	case errors.Is(err, ErrResearchThemeNotFound):
+		return ErrResearchThemeNotFound
+	case errors.Is(err, ErrResearchReasoningTreesNotFound):
+		return ErrResearchReasoningTreesNotFound
+	case errors.Is(err, ErrResearchReasoningTreeNotFound):
+		return ErrResearchReasoningTreeNotFound
+	case errors.Is(err, ErrResearchDataUnavailable):
+		return ErrResearchDataUnavailable
+	default:
+		return ErrResearchDataUnavailable
 	}
-	return ErrResearchDataUnavailable
 }

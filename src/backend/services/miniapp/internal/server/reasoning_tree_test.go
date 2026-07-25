@@ -1,18 +1,22 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	usecase "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
 	dataclient "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/data"
+	appservice "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/service"
 )
 
 func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.T) {
@@ -83,30 +87,61 @@ func TestResearchReasoningTreeRoutesRejectQueryAndInvalidUUIDBeforeDataCall(t *t
 	}
 }
 
+func TestResearchReasoningTreeInvalidQueryRunsKratosMiddleware(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	client := &dataclient.Fake{
+		ListResearchThemeReasoningTreesFunc: func(context.Context, string) (dataclient.ResearchReasoningTreeList, error) {
+			t.Fatal("Data must not be called for an invalid query")
+			return dataclient.ResearchReasoningTreeList{}, nil
+		},
+	}
+	router := NewHTTPServer(
+		testRuntimeConfig(),
+		appservice.NewResearchService(usecase.NewResearchService(client)),
+		logger,
+	)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(
+		response,
+		httptest.NewRequest(
+			http.MethodGet,
+			"/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees?unused=1",
+			nil,
+		),
+	)
+
+	assertReasoningError(t, response, http.StatusBadRequest, "INVALID_REQUEST")
+	if !strings.Contains(logs.String(), `"msg":"business request failed"`) ||
+		!strings.Contains(logs.String(), `"operation":"/miniapp.v1.ResearchService/ListResearchThemeReasoningTrees"`) ||
+		!strings.Contains(logs.String(), `"status":400`) {
+		t.Fatalf("invalid query bypassed Kratos middleware: %s", logs.String())
+	}
+}
+
 func TestResearchReasoningTreeRoutesExposeStableErrorsWithoutUpstreamMetadata(t *testing.T) {
 	tests := []struct {
 		name       string
 		path       string
-		code       string
 		upstream   error
 		wantStatus int
 		wantCode   string
 	}{
 		{
 			name: "Theme missing", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees",
-			code: "RESEARCH_THEME_NOT_FOUND", wantStatus: http.StatusNotFound, wantCode: "RESEARCH_THEME_NOT_FOUND",
+			upstream: usecase.ErrResearchThemeNotFound, wantStatus: http.StatusNotFound, wantCode: "RESEARCH_THEME_NOT_FOUND",
 		},
 		{
 			name: "trees missing", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees",
-			code: "RESEARCH_REASONING_TREES_NOT_FOUND", wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREES_NOT_FOUND",
+			upstream: usecase.ErrResearchReasoningTreesNotFound, wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREES_NOT_FOUND",
 		},
 		{
 			name: "tree missing", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
-			code: "RESEARCH_REASONING_TREE_NOT_FOUND", wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREE_NOT_FOUND",
+			upstream: usecase.ErrResearchReasoningTreeNotFound, wantStatus: http.StatusNotFound, wantCode: "RESEARCH_REASONING_TREE_NOT_FOUND",
 		},
 		{
 			name: "unknown upstream 404", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
-			code: "UNEXPECTED_NOT_FOUND", wantStatus: http.StatusBadGateway, wantCode: "RESEARCH_DATA_UNAVAILABLE",
+			upstream: errors.New("unexpected upstream not found"), wantStatus: http.StatusBadGateway, wantCode: "RESEARCH_DATA_UNAVAILABLE",
 		},
 		{
 			name: "network", path: "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees/534d83be-774b-51d9-ad00-cdee4ba91799",
@@ -116,19 +151,12 @@ func TestResearchReasoningTreeRoutesExposeStableErrorsWithoutUpstreamMetadata(t 
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			upstream := test.upstream
-			if upstream == nil {
-				upstream = &dataclient.Error{
-					Kind: dataclient.ErrorKindClient, StatusCode: http.StatusNotFound,
-					Code: test.code, RequestID: "must-not-leak",
-				}
-			}
 			client := &dataclient.Fake{
 				ListResearchThemeReasoningTreesFunc: func(context.Context, string) (dataclient.ResearchReasoningTreeList, error) {
-					return dataclient.ResearchReasoningTreeList{}, upstream
+					return dataclient.ResearchReasoningTreeList{}, test.upstream
 				},
 				GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (dataclient.ResearchReasoningTreeDetail, error) {
-					return dataclient.ResearchReasoningTreeDetail{}, upstream
+					return dataclient.ResearchReasoningTreeDetail{}, test.upstream
 				},
 			}
 			response := serveResearch(t, usecase.NewResearchService(client), test.path)

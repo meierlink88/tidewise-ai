@@ -19,7 +19,7 @@ func TestMiniappResearchRequestTraversesKratosDataClient(t *testing.T) {
 	dataService := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		gotAuthorization = request.Header.Get("Authorization")
 		gotRequestID = request.Header.Get(apihttp.RequestIDHeader)
-		if request.Method != http.MethodGet || request.URL.Path != biz.ResearchThemesPath {
+		if request.Method != http.MethodGet || request.URL.Path != data.ResearchThemesPath {
 			t.Fatalf("upstream request = %s %s", request.Method, request.URL.Path)
 		}
 		writer.Header().Set("Content-Type", "application/json")

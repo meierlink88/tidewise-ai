@@ -101,7 +101,7 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 		wantStatus int
 		wantCode   string
 	}{
-		{name: "not found", upstream: &dataclient.Error{Kind: dataclient.ErrorKindClient, StatusCode: 404}, wantStatus: 404, wantCode: "RESEARCH_RESULT_NOT_FOUND"},
+		{name: "not found", upstream: usecase.ErrResearchNotFound, wantStatus: 404, wantCode: "RESEARCH_RESULT_NOT_FOUND"},
 		{name: "internal", upstream: errors.New("postgres password=do-not-leak"), wantStatus: 500, wantCode: "RESEARCH_DATA_UNAVAILABLE"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

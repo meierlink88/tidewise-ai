@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
 )
 
 func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
@@ -143,9 +145,8 @@ func TestHTTPClientPreservesReasoningTreesNotFoundFromSharedFixture(t *testing.T
 
 	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
 	_, err := client.ListResearchThemeReasoningTrees(context.Background(), "dddddddd-dddd-4ddd-8ddd-dddddddddddd")
-	var clientErr *Error
-	if !errors.As(err, &clientErr) || clientErr.StatusCode != http.StatusNotFound || clientErr.Code != "RESEARCH_REASONING_TREES_NOT_FOUND" || clientErr.RequestID != "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" {
-		t.Fatalf("error = %#v", err)
+	if !errors.Is(err, biz.ErrResearchReasoningTreesNotFound) {
+		t.Fatalf("error = %#v, want stable Biz not-found error", err)
 	}
 }
 
@@ -157,8 +158,15 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	_, err := client.ListResearchThemes(context.Background(), ResearchListQuery{})
+	var envelope responseEnvelope[wireResearchThemePage]
+	err := client.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, &envelope)
+	_, err = unwrapEnvelope(envelope, err)
 	assertErrorKind(t, err, ErrorKindDecode)
+
+	_, err = client.ListResearchThemes(context.Background(), ResearchListQuery{})
+	if !errors.Is(err, biz.ErrResearchDataService) {
+		t.Fatalf("public repository error = %v, want stable Biz data-service error", err)
+	}
 }
 
 func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
@@ -219,7 +227,7 @@ func TestHTTPClientClassifiesHTTPFailuresWithoutLeakingSecrets(t *testing.T) {
 			defer server.Close()
 			client := newTestClient(t, server.URL, server.Client(), "secret-service-token")
 
-			_, err := client.GetResearchTheme(context.Background(), "11111111-1111-5111-8111-111111111111", ResearchDetailQuery{})
+			err := client.doJSON(context.Background(), http.MethodGet, ResearchThemesPath+"/11111111-1111-5111-8111-111111111111", nil, nil)
 			var clientErr *Error
 			if !errors.As(err, &clientErr) || clientErr.Kind != test.kind || clientErr.StatusCode != test.status || clientErr.Code != "UPSTREAM_CODE" || clientErr.RequestID != "response-request-id" {
 				t.Fatalf("error = %#v", err)
@@ -245,7 +253,7 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 		connectionAttempts.Add(1)
 		return nil, fmt.Errorf("dial failed with secret-service-token")
 	})}, "secret-service-token")
-	_, err := connectionClient.ListResearchThemes(context.Background(), ResearchListQuery{})
+	err := connectionClient.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, nil)
 	assertErrorKind(t, err, ErrorKindConnection)
 	if connectionAttempts.Load() != 2 || strings.Contains(err.Error(), "secret-service-token") {
 		t.Fatalf("connection attempts/error = %d/%q", connectionAttempts.Load(), err)
@@ -264,13 +272,13 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = timeoutClient.ListResearchThemes(context.Background(), ResearchListQuery{})
+	err = timeoutClient.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, nil)
 	assertErrorKind(t, err, ErrorKindTimeout)
 
 	transportTimeoutClient := newTestClient(t, "http://data.invalid", &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("transport secret: %w", context.DeadlineExceeded)
 	})}, "token")
-	_, err = transportTimeoutClient.ListResearchThemes(context.Background(), ResearchListQuery{})
+	err = transportTimeoutClient.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, nil)
 	assertErrorKind(t, err, ErrorKindTimeout)
 	if strings.Contains(err.Error(), "transport secret") {
 		t.Fatalf("unsafe timeout error = %q", err)

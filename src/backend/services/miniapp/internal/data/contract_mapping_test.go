@@ -49,3 +49,31 @@ func TestWireReasoningTreeConvertsToBizModel(t *testing.T) {
 		t.Fatalf("path conversion = %#v", got.ReasoningTree.PathNodes)
 	}
 }
+
+func TestWireMappingPreservesNullCollectionsForBizValidation(t *testing.T) {
+	theme := wireResearchTheme{}.toBiz()
+	if theme.AffectedChainNodes != nil || theme.RelatedIndices != nil {
+		t.Fatalf(
+			"null Theme collections became %#v/%#v; Biz must be able to reject upstream null",
+			theme.AffectedChainNodes,
+			theme.RelatedIndices,
+		)
+	}
+
+	tree := wireResearchReasoningTree{}.toBiz()
+	if tree.Events != nil || tree.PathNodes != nil {
+		t.Fatalf(
+			"null reasoning tree collections became %#v/%#v; Biz must be able to reject upstream null",
+			tree.Events,
+			tree.PathNodes,
+		)
+	}
+
+	empty := wireResearchTheme{
+		AffectedChainNodes: []wireResearchThemeChainNode{},
+		RelatedIndices:     []wireResearchIndex{},
+	}.toBiz()
+	if empty.AffectedChainNodes == nil || empty.RelatedIndices == nil {
+		t.Fatal("explicit empty arrays must remain non-nil empty arrays")
+	}
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"sync/atomic"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestBuildAppComposesKratosApplicationWithoutStartingNetwork(t *testing.T) {
-	app, err := buildApp(conf.RuntimeConfig{
+	app, cleanup, err := buildApp(conf.RuntimeConfig{
 		App: runtimeconfig.AppConfig{Name: conf.ServiceName, Env: runtimeconfig.EnvLocal},
 		Server: runtimeconfig.ServerConfig{
 			Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10,
@@ -30,9 +31,15 @@ func TestBuildAppComposesKratosApplicationWithoutStartingNetwork(t *testing.T) {
 	if app == nil {
 		t.Fatal("buildApp() = nil")
 	}
+	if cleanup == nil {
+		t.Fatal("buildApp() cleanup = nil")
+	}
+	if err := runCleanup(cleanup, time.Second); err != nil {
+		t.Fatalf("cleanup built app: %v", err)
+	}
 }
 
-func TestApplicationStopUsesBoundedContextAndRunsCleanup(t *testing.T) {
+func TestApplicationRunUsesBoundedStopContextAndAlwaysRunsCleanup(t *testing.T) {
 	server := &lifecycleServer{
 		started: make(chan struct{}),
 		stopped: make(chan time.Duration, 1),
@@ -40,7 +47,8 @@ func TestApplicationStopUsesBoundedContextAndRunsCleanup(t *testing.T) {
 	}
 	var cleaned atomic.Bool
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	app := newApp(server, logger, func(ctx context.Context) error {
+	app := newApp(server, logger)
+	cleanup := func(ctx context.Context) error {
 		deadline, ok := ctx.Deadline()
 		if !ok {
 			t.Error("cleanup context has no deadline")
@@ -49,13 +57,13 @@ func TestApplicationStopUsesBoundedContextAndRunsCleanup(t *testing.T) {
 		}
 		cleaned.Store(true)
 		return nil
-	})
+	}
 	if app.Name() != conf.ServiceName || app.Version() != conf.ServiceVersion {
 		t.Fatalf("app identity = %q/%q", app.Name(), app.Version())
 	}
 	result := make(chan error, 1)
 	go func() {
-		result <- app.Run()
+		result <- runApplication(app, cleanup)
 	}()
 
 	select {
@@ -83,8 +91,48 @@ func TestApplicationStopUsesBoundedContextAndRunsCleanup(t *testing.T) {
 		t.Fatal("server Stop was not called")
 	}
 	if !cleaned.Load() {
-		t.Fatal("after-stop client cleanup was not called")
+		t.Fatal("client cleanup was not called")
 	}
+}
+
+func TestApplicationRunsCleanupWhenServerStartFails(t *testing.T) {
+	startErr := errors.New("start failed")
+	var cleaned atomic.Bool
+	app := newApp(failingLifecycleServer{startErr: startErr}, testCommandLogger())
+
+	err := runApplication(app, func(context.Context) error {
+		cleaned.Store(true)
+		return nil
+	})
+
+	if !errors.Is(err, startErr) {
+		t.Fatalf("run error = %v, want %v", err, startErr)
+	}
+	if !cleaned.Load() {
+		t.Fatal("cleanup did not run after server start failure")
+	}
+}
+
+func TestRunCleanupReturnsAtDeadlineWhenCloserBlocks(t *testing.T) {
+	timeout := 20 * time.Millisecond
+	release := make(chan struct{})
+	startedAt := time.Now()
+	err := runCleanup(func(context.Context) error {
+		<-release
+		return nil
+	}, timeout)
+	close(release)
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cleanup error = %v, want deadline exceeded", err)
+	}
+	if elapsed := time.Since(startedAt); elapsed < timeout || elapsed > 10*timeout {
+		t.Fatalf("bounded cleanup elapsed = %s, want approximately %s", elapsed, timeout)
+	}
+}
+
+func testCommandLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, nil))
 }
 
 type lifecycleServer struct {
@@ -111,3 +159,12 @@ func (s *lifecycleServer) Stop(ctx context.Context) error {
 	s.stopped <- time.Until(deadline)
 	return nil
 }
+
+type failingLifecycleServer struct {
+	startErr error
+}
+
+var _ transport.Server = failingLifecycleServer{}
+
+func (s failingLifecycleServer) Start(context.Context) error { return s.startErr }
+func (failingLifecycleServer) Stop(context.Context) error    { return nil }

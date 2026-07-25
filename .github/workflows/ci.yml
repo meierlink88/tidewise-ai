@@ -88,6 +88,9 @@ jobs:
           docker compose --env-file ../../infra/local/.env.example -f ../../infra/local/docker-compose.yaml config --quiet
           docker compose --env-file ../../infra/uat/.env.example -f ../../infra/uat/docker-compose.yaml config --quiet
 
+      - name: Smoke Miniapp Kratos stack
+        run: bash ../../scripts/ci/smoke-miniapp-data-compose.sh
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

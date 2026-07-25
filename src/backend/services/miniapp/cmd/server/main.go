@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"os"
 
@@ -9,17 +8,32 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	config, err := conf.LoadRuntimeConfig()
 	if err != nil {
-		log.Fatalf("load Miniapp config: %v", err)
+		logger.Error("load Miniapp config", slog.String("error", err.Error()))
+		return 1
 	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	app, err := buildApp(config, logger)
+	app, cleanup, err := buildApp(config, logger)
 	if err != nil {
-		log.Fatalf("compose Miniapp service: %v", err)
+		logger.Error("compose Miniapp service", slog.String("error", err.Error()))
+		return 1
 	}
-	log.Printf("starting %s on %s in %s", conf.ServiceName, config.Server.Address(), config.App.Env)
-	if err := app.Run(); err != nil {
-		log.Fatalf("Miniapp service failed: %v", err)
+	logger.Info("starting service",
+		slog.String("service", conf.ServiceName),
+		slog.String("address", config.Server.Address()),
+		slog.String("environment", string(config.App.Env)),
+	)
+	if err := runApplication(app, cleanup); err != nil {
+		logger.Error("Miniapp service failed",
+			slog.String("service", conf.ServiceName),
+			slog.String("error", err.Error()),
+		)
+		return 1
 	}
+	return 0
 }

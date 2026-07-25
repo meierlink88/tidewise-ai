@@ -77,10 +77,10 @@ func TestResearchServiceMapsDataErrorsToStablePublicErrors(t *testing.T) {
 		err  error
 		want error
 	}{
-		{name: "bad request", err: &Error{Kind: ErrorKindClient, StatusCode: 400}, want: ErrInvalidResearchRequest},
-		{name: "not found", err: &Error{Kind: ErrorKindClient, StatusCode: 404}, want: ErrResearchNotFound},
-		{name: "server", err: &Error{Kind: ErrorKindServer, StatusCode: 500, RequestID: "safe-upstream-id"}, want: ErrResearchDataService},
-		{name: "timeout", err: &Error{Kind: ErrorKindTimeout}, want: ErrResearchDataService},
+		{name: "invalid request", err: ErrInvalidResearchRequest, want: ErrInvalidResearchRequest},
+		{name: "not found", err: ErrResearchNotFound, want: ErrResearchNotFound},
+		{name: "data service", err: ErrResearchDataService, want: ErrResearchDataService},
+		{name: "unknown adapter failure", err: errors.New("must not cross the Biz port"), want: ErrResearchDataService},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0

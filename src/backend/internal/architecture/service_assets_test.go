@@ -146,6 +146,7 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"-f services/adminportal/Dockerfile",
 		"docker compose --env-file ../../infra/local/.env.example -f ../../infra/local/docker-compose.yaml config --quiet",
 		"docker compose --env-file ../../infra/uat/.env.example -f ../../infra/uat/docker-compose.yaml config --quiet",
+		"bash ../../scripts/ci/smoke-miniapp-data-compose.sh",
 		"cache-dependency-path: package-lock.json",
 		"npm run test",
 		"npm run typecheck",
@@ -159,6 +160,30 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	}
 	if strings.Contains(text, "-f Dockerfile") || strings.Contains(text, "backend/Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
+	}
+
+	smokeContents, err := os.ReadFile(filepath.Join(repoRoot, "scripts", "ci", "smoke-miniapp-data-compose.sh"))
+	if err != nil {
+		t.Fatalf("read Miniapp Compose smoke script: %v", err)
+	}
+	smoke := string(smokeContents)
+	for _, required := range []string{
+		"dbmigrate -apply",
+		"tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified",
+		"tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified",
+		"tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified",
+		"/api/miniapp/v1/research/themes",
+		"APP_ENV=prod",
+		"/docs/",
+		"--signal=SIGTERM",
+		"did not stop within 15 seconds",
+		"COMPOSE_NETWORK_NAME",
+		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
+		"MINIAPP_SERVICE_IMAGE=\"tidewise-miniapp:ci\"",
+	} {
+		if !strings.Contains(smoke, required) {
+			t.Fatalf("Miniapp Compose smoke script missing %q", required)
+		}
 	}
 }
 
