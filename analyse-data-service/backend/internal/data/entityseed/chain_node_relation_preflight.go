@@ -3,25 +3,9 @@ package entityseed
 import (
 	"context"
 	"fmt"
-	"strings"
-)
 
-type ChainNodeRelationDataPreflightReport struct {
-	DatabaseName         string `json:"database_name"`
-	ServerVersion        string `json:"server_version"`
-	GooseVersion         int    `json:"goose_version"`
-	ActiveChainNodes     int    `json:"active_chain_nodes"`
-	ChainNodeProfiles    int    `json:"chain_node_profiles"`
-	ExternalIdentifiers  int    `json:"external_identifiers"`
-	EntityEdges          int    `json:"entity_edges"`
-	ExistingRelations    int    `json:"existing_relations"`
-	SubcategoryRelations int    `json:"subcategory_relations"`
-	ComponentRelations   int    `json:"component_relations"`
-	InputRelations       int    `json:"input_relations"`
-	DependsRelations     int    `json:"depends_relations"`
-	ExistingConstraints  int    `json:"existing_constraints"`
-	SchemaValid          bool   `json:"schema_valid"`
-}
+	biz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entityseed"
+)
 
 const relationDataBaselineSQL = `SELECT current_database(), current_setting('server_version'),
  (SELECT version_id FROM goose_db_version ORDER BY id DESC LIMIT 1),
@@ -72,8 +56,8 @@ func assertChainNodeRelationDataBaseline(ctx context.Context, db postgresExecuto
 	if err != nil {
 		return report, err
 	}
-	if report.DatabaseName != "tidewise_local" || !strings.HasPrefix(report.ServerVersion, "16.14") || report.GooseVersion != 18 || report.ActiveChainNodes != 842 || report.ChainNodeProfiles != 842 || report.ExternalIdentifiers != 1169 || report.EntityEdges != 241 || report.ExistingRelations != expectedRelations || report.ExistingConstraints != 0 || !report.SchemaValid {
-		return report, fmt.Errorf("relation data preflight baseline mismatch: %+v", report)
+	if err := biz.ValidateChainNodeRelationDataPreflight(report, expectedRelations); err != nil {
+		return report, err
 	}
 	return report, nil
 }
@@ -83,7 +67,7 @@ func preflightChainNodeRelationData(ctx context.Context, db postgresExecutor) (C
 	if err != nil {
 		return report, err
 	}
-	if err := validateFrozenChainNodeRelationDryRunBaseline(report); err != nil {
+	if err := biz.ValidateFrozenChainNodeRelationBaseline(frozenChainNodeRelationBaseline(report)); err != nil {
 		return report, err
 	}
 	return report, nil

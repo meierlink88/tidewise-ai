@@ -27,6 +27,7 @@ type ExternalIdentifierBatchReport = biz.ExternalIdentifierBatchReport
 type ExternalIdentifierMappingManifest = biz.ExternalIdentifierMappingManifest
 type ChainNodeRelationManifest = biz.ChainNodeRelationManifest
 type ChainNodeRelationReport = biz.ChainNodeRelationReport
+type ChainNodeRelationDataPreflightReport = biz.ChainNodeRelationDataPreflightReport
 type IndustryChainBatch = biz.IndustryChainBatch
 type IndustryChainWriteReport = biz.IndustryChainWriteReport
 type AllianceEconomyDependencyCount = biz.AllianceEconomyDependencyCount
