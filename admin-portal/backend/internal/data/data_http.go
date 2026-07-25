@@ -1,7 +1,6 @@
-package dataclient
+package data
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -15,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-kratos/kratos/v3/transport"
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/biz"
 )
 
 const (
@@ -22,9 +26,12 @@ const (
 	maxResponseBodyBytes = 1 << 20
 	maxErrorCodeLength   = 100
 	maxReadAttempts      = 3
+	dataAPIPrefix        = "/api/data/v1"
+	rawDocumentsPath     = dataAPIPrefix + "/raw-documents"
+	eventsPath           = dataAPIPrefix + "/events"
 )
 
-type HTTPConfig struct {
+type DataHTTPConfig struct {
 	BaseURL         string
 	ServiceToken    string
 	Timeout         time.Duration
@@ -32,15 +39,15 @@ type HTTPConfig struct {
 	HTTPClient      *http.Client
 }
 
-type HTTPClient struct {
-	baseURL         string
+type DataHTTPClient struct {
 	serviceToken    string
 	timeout         time.Duration
 	maxReadAttempts int
-	httpClient      *http.Client
+	httpClient      *kratoshttp.Client
+	closeIdle       func()
 }
 
-func NewHTTPClient(config HTTPConfig) (*HTTPClient, error) {
+func NewDataHTTPClient(config DataHTTPConfig) (*DataHTTPClient, error) {
 	parsed, err := url.Parse(strings.TrimSpace(config.BaseURL))
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return nil, errors.New("data service base URL must be an absolute HTTP(S) URL")
@@ -62,29 +69,73 @@ func NewHTTPClient(config HTTPConfig) (*HTTPClient, error) {
 	if attempts < 1 || attempts > maxReadAttempts {
 		return nil, fmt.Errorf("data service read attempts must be between 1 and %d", maxReadAttempts)
 	}
-	httpClient := config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
+	httpTransport := http.DefaultTransport
+	closeIdle := http.DefaultClient.CloseIdleConnections
+	if config.HTTPClient != nil && config.HTTPClient.Transport != nil {
+		httpTransport = config.HTTPClient.Transport
+		closeIdle = config.HTTPClient.CloseIdleConnections
 	}
-	return &HTTPClient{
-		baseURL:         parsed.Scheme + "://" + parsed.Host,
+	httpClient, err := kratoshttp.NewClient(
+		context.Background(),
+		kratoshttp.WithEndpoint(parsed.Scheme+"://"+parsed.Host),
+		kratoshttp.WithTimeout(config.Timeout),
+		kratoshttp.WithTransport(httpTransport),
+		kratoshttp.WithResponseDecoder(decodeDataSuccessResponse),
+		kratoshttp.WithErrorDecoder(decodeDataErrorResponse),
+	)
+	if err != nil {
+		return nil, errors.New("create data service HTTP client")
+	}
+	return &DataHTTPClient{
 		serviceToken:    token,
 		timeout:         config.Timeout,
 		maxReadAttempts: attempts,
 		httpClient:      httpClient,
+		closeIdle:       closeIdle,
 	}, nil
 }
 
-func (c *HTTPClient) ListRawDocuments(ctx context.Context, query RawDocumentListQuery) (RawDocumentPage, error) {
-	var envelope responseEnvelope[RawDocumentPage]
-	err := c.doJSON(ctx, http.MethodGet, rawDocumentListPath(query), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
+func (c *DataHTTPClient) Close() error {
+	if c == nil {
+		return nil
+	}
+	if c.closeIdle != nil {
+		c.closeIdle()
+	}
+	if c.httpClient != nil {
+		return c.httpClient.Close()
+	}
+	return nil
 }
 
-func (c *HTTPClient) ListEvents(ctx context.Context, query EventListQuery) (EventPage, error) {
-	var envelope responseEnvelope[EventPage]
-	err := c.doJSON(ctx, http.MethodGet, eventListPath(query), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
+func (c *DataHTTPClient) ListRawDocuments(ctx context.Context, query biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
+	var envelope responseEnvelope[rawDocumentPageWire]
+	err := c.doJSON(ctx, http.MethodGet, "Data.ListRawDocuments", rawDocumentsPath,
+		rawDocumentListPath(query), nil, &envelope)
+	wire, err := unwrapEnvelope(envelope, err)
+	if err != nil {
+		return biz.RawDocumentPage{}, biz.ErrDataServiceUnavailable
+	}
+	page, err := wire.toBiz()
+	if err != nil {
+		return biz.RawDocumentPage{}, biz.ErrDataServiceUnavailable
+	}
+	return page, nil
+}
+
+func (c *DataHTTPClient) ListEvents(ctx context.Context, query biz.EventListQuery) (biz.EventPage, error) {
+	var envelope responseEnvelope[eventPageWire]
+	err := c.doJSON(ctx, http.MethodGet, "Data.ListEvents", eventsPath,
+		eventListPath(query), nil, &envelope)
+	wire, err := unwrapEnvelope(envelope, err)
+	if err != nil {
+		return biz.EventPage{}, biz.ErrDataServiceUnavailable
+	}
+	page, err := wire.toBiz()
+	if err != nil {
+		return biz.EventPage{}, biz.ErrDataServiceUnavailable
+	}
+	return page, nil
 }
 
 type responseEnvelope[T any] struct {
@@ -103,7 +154,7 @@ func unwrapEnvelope[T any](envelope responseEnvelope[T], err error) (T, error) {
 	return *envelope.Result, nil
 }
 
-func rawDocumentListPath(query RawDocumentListQuery) string {
+func rawDocumentListPath(query biz.RawDocumentListQuery) string {
 	values := url.Values{}
 	if query.Title != "" {
 		values.Set("title", query.Title)
@@ -115,10 +166,10 @@ func rawDocumentListPath(query RawDocumentListQuery) string {
 		values.Set("ingest_status", string(query.IngestStatus))
 	}
 	setPageQuery(values, query.Page, query.PageSize)
-	return appendQuery(AdminRawDocumentsPath, values)
+	return appendQuery(rawDocumentsPath, values)
 }
 
-func eventListPath(query EventListQuery) string {
+func eventListPath(query biz.EventListQuery) string {
 	values := url.Values{}
 	if query.Title != "" {
 		values.Set("title", query.Title)
@@ -134,7 +185,7 @@ func eventListPath(query EventListQuery) string {
 	setTimeQuery(values, "first_seen_from", query.FirstSeenFrom)
 	setTimeQuery(values, "first_seen_to", query.FirstSeenTo)
 	setPageQuery(values, query.Page, query.PageSize)
-	return appendQuery(AdminEventsPath, values)
+	return appendQuery(eventsPath, values)
 }
 
 func setPageQuery(values url.Values, page int, pageSize int) {
@@ -173,10 +224,23 @@ func RequestIDFromContext(ctx context.Context) string {
 		return ""
 	}
 	requestID, _ := ctx.Value(requestIDContextKey{}).(string)
+	if requestID == "" {
+		if serverTransport, ok := transport.FromServerContext(ctx); ok {
+			requestID = serverTransport.RequestHeader().Get(RequestIDHeader)
+		}
+	}
 	return safeMetadata(requestID, 128)
 }
 
-func (c *HTTPClient) doJSON(ctx context.Context, method string, path string, requestBody any, responseBody any) error {
+func (c *DataHTTPClient) doJSON(
+	ctx context.Context,
+	method string,
+	operation string,
+	pathTemplate string,
+	path string,
+	requestBody any,
+	responseBody any,
+) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -196,7 +260,7 @@ func (c *HTTPClient) doJSON(ctx context.Context, method string, path string, req
 		attempts = c.maxReadAttempts
 	}
 	for attempt := 1; attempt <= attempts; attempt++ {
-		err = c.doJSONAttempt(operationCtx, method, path, payload, requestID, responseBody)
+		err = c.doJSONAttempt(operationCtx, method, operation, pathTemplate, path, payload, requestID, responseBody)
 		if err == nil {
 			return nil
 		}
@@ -218,40 +282,52 @@ func marshalRequest(body any) ([]byte, error) {
 	return payload, nil
 }
 
-func (c *HTTPClient) doJSONAttempt(ctx context.Context, method string, path string, payload []byte, requestID string, result any) error {
-	var body io.Reader
+func (c *DataHTTPClient) doJSONAttempt(
+	ctx context.Context,
+	method string,
+	operation string,
+	pathTemplate string,
+	path string,
+	payload []byte,
+	requestID string,
+	result any,
+) error {
+	var body any
 	if payload != nil {
-		body = bytes.NewReader(payload)
+		body = json.RawMessage(payload)
 	}
-	request, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	headers := http.Header{
+		"Accept":        []string{"application/json"},
+		"Authorization": []string{"Bearer " + c.serviceToken},
+		RequestIDHeader: []string{requestID},
+		"Content-Type":  []string{"application/json"},
+	}
+	err := c.httpClient.Invoke(
+		ctx,
+		method,
+		path,
+		body,
+		result,
+		kratoshttp.Header(&headers),
+		kratoshttp.Accept("application/json"),
+		kratoshttp.Operation(operation),
+		kratoshttp.PathTemplate(pathTemplate),
+	)
 	if err != nil {
-		return &Error{Kind: ErrorKindProtocol}
-	}
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+c.serviceToken)
-	request.Header.Set(RequestIDHeader, requestID)
-	if payload != nil {
-		request.Header.Set("Content-Type", "application/json")
-	}
-
-	response, err := c.httpClient.Do(request)
-	if err != nil {
-		if response != nil && response.Body != nil {
-			_ = response.Body.Close()
+		var clientErr *Error
+		if errors.As(err, &clientErr) {
+			return clientErr
 		}
 		return transportError(ctx, err)
 	}
-	bodyBytes, readErr := io.ReadAll(io.LimitReader(response.Body, maxResponseBodyBytes+1))
-	closeErr := response.Body.Close()
-	if readErr != nil || closeErr != nil {
-		if readErr != nil {
-			return transportError(ctx, readErr)
-		}
-		return transportError(ctx, closeErr)
-	}
+	return nil
+}
 
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return httpStatusError(response.StatusCode, response.Header.Get(RequestIDHeader), bodyBytes)
+func decodeDataSuccessResponse(_ context.Context, response *http.Response, result any) error {
+	defer response.Body.Close()
+	bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBodyBytes+1))
+	if err != nil {
+		return err
 	}
 	if len(bodyBytes) > maxResponseBodyBytes || len(bodyBytes) == 0 {
 		return &Error{Kind: ErrorKindDecode, RequestID: response.Header.Get(RequestIDHeader)}
@@ -263,6 +339,22 @@ func (c *HTTPClient) doJSONAttempt(ctx context.Context, method string, path stri
 		return &Error{Kind: ErrorKindDecode, RequestID: response.Header.Get(RequestIDHeader)}
 	}
 	return nil
+}
+
+func decodeDataErrorResponse(_ context.Context, response *http.Response) error {
+	if response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices {
+		return nil
+	}
+	defer response.Body.Close()
+	bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBodyBytes+1))
+	if err != nil {
+		return &Error{
+			Kind:       ErrorKindProtocol,
+			StatusCode: response.StatusCode,
+			RequestID:  safeMetadata(response.Header.Get(RequestIDHeader), 128),
+		}
+	}
+	return httpStatusError(response.StatusCode, response.Header.Get(RequestIDHeader), bodyBytes)
 }
 
 func retryableReadFailure(method string, err error) bool {

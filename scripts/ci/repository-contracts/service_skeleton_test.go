@@ -19,8 +19,8 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 		"analyse-data-service/backend/cmd",
 		"miniapp/backend/api/miniapp/v1",
 		"miniapp/backend/cmd/server",
-		"admin-portal/backend",
-		"admin-portal/backend/cmd",
+		"admin-portal/backend/api/admin/v1",
+		"admin-portal/backend/cmd/server",
 	} {
 		if !hasPackageSuffix(packages, suffix) {
 			t.Errorf("expected service-owned package %q to exist", suffix)

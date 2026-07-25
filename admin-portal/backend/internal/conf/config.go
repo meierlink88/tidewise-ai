@@ -1,4 +1,4 @@
-package config
+package conf
 
 import (
 	"fmt"
@@ -15,6 +15,7 @@ import (
 const DataServiceTimeout = 5 * time.Second
 const AgentRunTimeout = 5 * time.Second
 const ServiceName = "adminportal"
+const ServiceVersion = "1.0.0"
 
 type Environment string
 
@@ -136,7 +137,7 @@ func resolveConfigDir(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	return "admin-portal/backend/config"
+	return "admin-portal/backend/configs"
 }
 
 func (c ServerConfig) Validate() error {

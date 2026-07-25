@@ -31,7 +31,7 @@ miniapp/backend/api/miniapp/v1/
 ├── document.go
 └── openapi_test.go
 
-admin-portal/backend/api/
+admin-portal/backend/api/admin/v1/
 ├── openapi.yaml
 ├── document.go
 └── openapi_test.go

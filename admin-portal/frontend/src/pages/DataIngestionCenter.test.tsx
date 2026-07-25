@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as agentManagementAPI from '../api/agentManagement';
@@ -140,21 +140,68 @@ describe('DataIngestionCenter', () => {
 
     const prompt = screen.getByLabelText('Collection Prompt');
     await user.clear(prompt);
-    await user.type(prompt, '新的采集 Prompt');
+    await user.type(prompt, '  新的采集 Prompt  ');
     await user.click(screen.getByRole('button', { name: '保存配置' }));
 
     expect(saveSchedule).toHaveBeenCalledWith('secret-token', 'collector', {
       agent_version: 'collector.v1',
       schedule_type: 'daily',
       daily_times: ['08:30', '12:30', '18:30'],
-      input: { prompt: '新的采集 Prompt' }
+      input: { prompt: '  新的采集 Prompt  ' }
     });
     expect(setEnabled).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: '停止定时器' }));
     expect(screen.getByRole('dialog', { name: '停止定时器' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '取消' }));
+    expect(setEnabled).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: '停止定时器' }));
     await user.click(screen.getByRole('button', { name: '确认停止' }));
     expect(setEnabled).toHaveBeenCalledWith('secret-token', 'collector', false);
+  });
+
+  it('switches to Cron, submits it, and starts a ready stopped schedule', async () => {
+    const user = userEvent.setup();
+    mockRawDocuments();
+    const schedule = { ...collectorSchedule(), enabled: false };
+    vi.spyOn(agentManagementAPI, 'loadAgentSchedule').mockResolvedValue(schedule);
+    vi.spyOn(agentManagementAPI, 'loadModelProviders').mockResolvedValue([
+      {
+        provider_key: 'deepseek',
+        base_url: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        configured: true,
+        key_configured: true
+      }
+    ]);
+    vi.spyOn(agentManagementAPI, 'loadConnectors').mockResolvedValue(configuredConnectors());
+    const saveSchedule = vi.spyOn(agentManagementAPI, 'saveAgentSchedule').mockResolvedValue({
+      ...schedule,
+      schedule_type: 'cron',
+      cron_expression: '15 * * * *'
+    });
+    const setEnabled = vi
+      .spyOn(agentManagementAPI, 'setAgentScheduleEnabled')
+      .mockResolvedValue({ ...schedule, enabled: true });
+
+    render(<DataIngestionCenter token="secret-token" />);
+    await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
+    await user.click(screen.getByRole('button', { name: 'Cron' }));
+    await user.clear(screen.getByLabelText('Cron 表达式'));
+    await user.type(screen.getByLabelText('Cron 表达式'), '15 * * * *');
+    await user.click(screen.getByRole('button', { name: '保存配置' }));
+    expect(saveSchedule).toHaveBeenCalledWith(
+      'secret-token',
+      'collector',
+      expect.objectContaining({
+        schedule_type: 'cron',
+        cron_expression: '15 * * * *'
+      })
+    );
+
+    await user.click(screen.getByRole('button', { name: '启动定时器' }));
+    expect(setEnabled).toHaveBeenCalledWith('secret-token', 'collector', true);
+    expect(await screen.findByText('定时器已启动')).toBeInTheDocument();
   });
 
   it('loads collector execution records in fixed twenty-item pages', async () => {
@@ -170,7 +217,8 @@ describe('DataIngestionCenter', () => {
             agent_key: 'collector',
             agent_version: 'collector.v1',
             trigger_source: 'schedule',
-            status: 'succeeded',
+            status: 'failed',
+            error_summary: '上游响应不可用',
             created_at: '2026-07-24T04:30:00Z',
             triggered_at: '2026-07-24T04:30:00Z',
             started_at: '2026-07-24T04:30:01Z',
@@ -188,9 +236,40 @@ describe('DataIngestionCenter', () => {
     await user.click(await screen.findByRole('tab', { name: '执行记录' }));
 
     expect(await screen.findByText('execution-1')).toBeInTheDocument();
+    expect(screen.getByText('上游响应不可用')).toBeInTheDocument();
     expect(loadExecutions).toHaveBeenCalledWith('secret-token', 1);
     await user.click(screen.getByRole('button', { name: '下一页' }));
     expect(loadExecutions).toHaveBeenLastCalledWith('secret-token', 2);
+  });
+
+  it('shows an execution loading state before rendering the empty state', async () => {
+    const user = userEvent.setup();
+    mockRawDocuments();
+    mockCollectorConfiguration();
+    let resolveExecutions:
+      | ((value: Awaited<ReturnType<typeof agentManagementAPI.loadAgentExecutions>>) => void)
+      | undefined;
+    vi.spyOn(agentManagementAPI, 'loadAgentExecutions').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveExecutions = resolve;
+        })
+    );
+
+    render(<DataIngestionCenter token="secret-token" />);
+    await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
+    await user.click(await screen.findByRole('tab', { name: '执行记录' }));
+    expect(await screen.findByText('正在加载执行记录')).toBeInTheDocument();
+    await act(async () => {
+      resolveExecutions?.({
+        items: [],
+        page: 1,
+        page_size: 20,
+        total_items: 0,
+        total_pages: 0
+      });
+    });
+    expect(await screen.findByText('暂无执行记录')).toBeInTheDocument();
   });
 
   it('retries execution loading and links incomplete readiness to the affected configuration', async () => {
@@ -278,6 +357,14 @@ describe('DataIngestionCenter', () => {
       base_url: 'https://api.deepseek.com',
       model: 'deepseek-chat'
     });
+    await user.click(await screen.findByRole('button', { name: '编辑 deepseek' }));
+    await user.type(screen.getByLabelText('新 API Key'), 'new-model-key');
+    await user.click(screen.getByRole('button', { name: '保存模型配置' }));
+    expect(updateModel).toHaveBeenLastCalledWith('secret-token', 'deepseek', {
+      base_url: 'https://api.deepseek.com',
+      model: 'deepseek-chat',
+      api_key: 'new-model-key'
+    });
 
     await user.click(screen.getByRole('tab', { name: '连接器配置' }));
     await user.click(await screen.findByRole('button', { name: '编辑 parallel_search' }));
@@ -287,6 +374,52 @@ describe('DataIngestionCenter', () => {
       base_url: 'https://search.example.com',
       api_key: ''
     });
+    await user.click(await screen.findByRole('button', { name: '编辑 parallel_search' }));
+    await user.type(screen.getByLabelText('新 API Key'), 'new-connector-key');
+    await user.click(screen.getByRole('button', { name: '保存连接器配置' }));
+    expect(updateConnector).toHaveBeenLastCalledWith('secret-token', 'parallel_search', {
+      base_url: 'https://search.example.com',
+      api_key: 'new-connector-key'
+    });
+  });
+
+  it('keeps Data-backed tabs usable when AgentRun configuration fails locally', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({
+      items: [{
+        id: 'raw-safe',
+        source_name: 'BBC',
+        title: 'Data 仍可用',
+        content_text: '摘要',
+        collected_at: '2026-07-09T10:00:00Z',
+        ingest_status: 'collected'
+      }],
+      total: 1,
+      page: 1,
+      page_size: 50
+    });
+    vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 50
+    });
+    vi.spyOn(agentManagementAPI, 'loadAgentSchedule').mockRejectedValue(
+      new Error('AgentRun 暂时不可用')
+    );
+    vi.spyOn(agentManagementAPI, 'loadModelProviders').mockRejectedValue(
+      new Error('AgentRun 暂时不可用')
+    );
+    vi.spyOn(agentManagementAPI, 'loadConnectors').mockRejectedValue(
+      new Error('AgentRun 暂时不可用')
+    );
+
+    render(<DataIngestionCenter token="secret-token" />);
+    expect(await screen.findByText('Data 仍可用')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: '采集器配置' }));
+    expect(await screen.findByText('AgentRun 暂时不可用')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: '原始数据' }));
+    expect(screen.getByText('Data 仍可用')).toBeInTheDocument();
   });
 });
 

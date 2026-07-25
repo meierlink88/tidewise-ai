@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/adminportal-service ./admin-portal/backend/cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/adminportal-service ./admin-portal/backend/cmd/server
 
 FROM alpine:3.20
 
@@ -16,7 +16,7 @@ RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 
 COPY --from=builder /out/adminportal-service /usr/local/bin/adminportal-service
-COPY admin-portal/backend/config ./config
+COPY admin-portal/backend/configs ./config
 
 ENV APP_ENV=local
 ENV TIDEWISE_CONFIG_DIR=/app/config

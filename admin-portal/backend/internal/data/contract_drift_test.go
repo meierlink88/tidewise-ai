@@ -1,4 +1,4 @@
-package dataclient
+package data
 
 import (
 	"os"
@@ -20,13 +20,13 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 		parameters  []string
 	}{
 		{
-			AdminRawDocumentsPath,
+			rawDocumentsPath,
 			"listAdminRawDocuments",
 			"AdminRawDocumentPageEnvelope",
 			[]string{"Page", "PageSize", "RequestID", "ingest_status", "source_ref", "title"},
 		},
 		{
-			AdminEventsPath,
+			eventsPath,
 			"listAdminEvents",
 			"AdminEventPageEnvelope",
 			[]string{"Page", "PageSize", "RequestID", "event_status", "event_time_from", "event_time_to", "fact_status", "first_seen_from", "first_seen_to", "title"},
@@ -45,10 +45,10 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"AdminRawDocumentPage": reflect.TypeOf(RawDocumentPage{}),
-		"AdminRawDocument":     reflect.TypeOf(RawDocument{}),
-		"AdminEventPage":       reflect.TypeOf(EventPage{}),
-		"AdminEvent":           reflect.TypeOf(Event{}),
+		"AdminRawDocumentPage": reflect.TypeOf(rawDocumentPageWire{}),
+		"AdminRawDocument":     reflect.TypeOf(rawDocumentWire{}),
+		"AdminEventPage":       reflect.TypeOf(eventPageWire{}),
+		"AdminEvent":           reflect.TypeOf(eventWire{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
@@ -60,7 +60,7 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 
 func loadOpenAPI(t *testing.T) map[string]any {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "analyse-data-service", "backend", "api", "openapi.yaml")
+	path := filepath.Join("..", "..", "..", "..", "analyse-data-service", "backend", "api", "openapi.yaml")
 	payload, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read OpenAPI contract: %v", err)

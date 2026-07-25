@@ -147,4 +147,4 @@ http://127.0.0.1:5174/
 - `ping postgres`：本地 PostgreSQL 未启动、端口不对、数据库不存在或 password 未注入。
 - `pending migrations exist`：当前环境关闭了 `migration.auto_apply`，需要先运行 `dbmigrate -apply`。
 - `insert raw document`：通常表示 migration 未执行、source seed 失败或 schema 与 repository 不一致。
-- `admin token is not configured`：启动 `admin-portal/backend/cmd` 时没有注入 `ADMIN_API_TOKEN`。
+- `admin token is not configured`：启动 `admin-portal/backend/cmd/server` 时没有注入 `ADMIN_API_TOKEN`。

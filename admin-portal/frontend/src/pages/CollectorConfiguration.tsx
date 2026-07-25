@@ -209,7 +209,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
         ...(scheduleType === 'daily'
           ? { daily_times: [...dailyTimes].sort() }
           : { cron_expression: cronExpression.trim() }),
-        input: { prompt: normalizedPrompt }
+        input: { prompt }
       });
       setSchedule(nextSchedule);
       setNotice('定时配置已保存');

@@ -21,7 +21,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 	}{
 		{name: "analyse-data-service", root: "analyse-data-service/backend", binary: "data-service", port: "9011", command: "cmd", configDir: "config", mustCopyDB: true},
 		{name: "miniapp", root: "miniapp/backend", binary: "miniapp-service", port: "9012", command: "cmd/server", configDir: "configs"},
-		{name: "admin-portal", root: "admin-portal/backend", binary: "adminportal-service", port: "9013", command: "cmd", configDir: "config"},
+		{name: "admin-portal", root: "admin-portal/backend", binary: "adminportal-service", port: "9013", command: "cmd/server", configDir: "configs"},
 	}
 
 	for _, asset := range assets {
@@ -142,11 +142,11 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	for _, required := range []string{
 		"go-version-file: go.mod",
 		"cache-dependency-path: go.sum",
-		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/dataclient",
+		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/internal/data",
 		"go test ./scripts/ci/repository-contracts",
 		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
-		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd",
+		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server",
 		"-f analyse-data-service/backend/Dockerfile",
 		"-f miniapp/backend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",

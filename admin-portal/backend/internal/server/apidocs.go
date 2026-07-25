@@ -1,10 +1,9 @@
-package adminportal
+package server
 
 import (
 	"net/http"
-	"time"
 
-	adminconfig "github.com/meierlink88/tidewise-ai/admin-portal/backend/config"
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/conf"
 	"github.com/swaggest/swgui"
 	"github.com/swaggest/swgui/v5emb"
 )
@@ -20,11 +19,11 @@ type apiDocsConfig struct {
 	Document []byte
 }
 
-func wrapAPIDocs(environment adminconfig.Environment, application http.Handler, docs apiDocsConfig) http.Handler {
+func wrapAPIDocs(environment conf.Environment, application http.Handler, docs apiDocsConfig) http.Handler {
 	if application == nil {
 		application = http.NotFoundHandler()
 	}
-	if environment == adminconfig.EnvProd {
+	if environment == conf.EnvProd {
 		return application
 	}
 
@@ -44,13 +43,4 @@ func wrapAPIDocs(environment adminconfig.Environment, application http.Handler, 
 	mux.Handle(docsBase, ui)
 	mux.Handle("/", application)
 	return mux
-}
-
-func newHTTPServer(cfg adminconfig.ServerConfig, handler http.Handler) *http.Server {
-	return &http.Server{
-		Addr:         cfg.Address(),
-		Handler:      handler,
-		ReadTimeout:  time.Duration(cfg.ReadTimeoutSeconds) * time.Second,
-		WriteTimeout: time.Duration(cfg.WriteTimeoutSeconds) * time.Second,
-	}
 }

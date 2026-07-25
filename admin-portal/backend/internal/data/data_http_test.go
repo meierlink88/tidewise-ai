@@ -1,4 +1,4 @@
-package dataclient
+package data
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/biz"
 )
 
 func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing.T) {
@@ -19,9 +21,9 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 		requests <- request.Clone(context.Background())
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
-		case AdminRawDocumentsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"items":[{"id":"11111111-1111-5111-8111-111111111111","contract_version":2,"artifact_id":"artifact-1","source_ref":"source:reuters:world","title":"raw","content_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","collected_at":"2026-07-17T01:02:03Z"}],"total":1,"page":2,"page_size":10}}`))
-		case AdminEventsPath:
+		case rawDocumentsPath:
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"items":[{"id":"11111111-1111-5111-8111-111111111111","contract_version":2,"artifact_id":"artifact-1","source_ref":"source:reuters:world","title":"raw","content_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","collected_at":"2026-07-17T01:02:03Z","ingest_status":"collected"}],"total":1,"page":2,"page_size":10}}`))
+		case eventsPath:
 			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"22222222-2222-5222-8222-222222222222","title":"event","first_seen_at":"2026-07-17T01:02:03Z","event_status":"confirmed","fact_status":"verified"}],"total":1,"page":1,"page_size":20}}`))
 		default:
 			writer.WriteHeader(http.StatusNotFound)
@@ -31,12 +33,12 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
 	ctx := WithRequestID(context.Background(), "admin-req-123")
 
-	rawPage, err := client.ListRawDocuments(ctx, RawDocumentListQuery{Title: "央行 data", SourceRef: "source:reuters:world", IngestStatus: "collected", Page: 2, PageSize: 10})
+	rawPage, err := client.ListRawDocuments(ctx, biz.RawDocumentListQuery{Title: "央行 data", SourceRef: "source:reuters:world", IngestStatus: "collected", Page: 2, PageSize: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
 	eventFrom := time.Date(2026, 7, 1, 2, 3, 4, 0, time.UTC)
-	eventPage, err := client.ListEvents(ctx, EventListQuery{Title: "event title", EventStatus: "confirmed", FactStatus: "verified", EventTimeFrom: &eventFrom, Page: 1, PageSize: 20})
+	eventPage, err := client.ListEvents(ctx, biz.EventListQuery{Title: "event title", EventStatus: "confirmed", FactStatus: "verified", EventTimeFrom: &eventFrom, Page: 1, PageSize: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,10 +55,10 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 			t.Fatalf("auth/request ID for %q = %q/%q", request.URL.Path, request.Header.Get("Authorization"), request.Header.Get(RequestIDHeader))
 		}
 	}
-	if rawRequest.URL.Path != AdminRawDocumentsPath || rawRequest.URL.Query().Get("title") != "央行 data" || rawRequest.URL.Query().Get("source_ref") != "source:reuters:world" || rawRequest.URL.Query().Get("ingest_status") != "collected" || rawRequest.URL.Query().Get("page") != "2" || rawRequest.URL.Query().Get("page_size") != "10" {
+	if rawRequest.URL.Path != rawDocumentsPath || rawRequest.URL.Query().Get("title") != "央行 data" || rawRequest.URL.Query().Get("source_ref") != "source:reuters:world" || rawRequest.URL.Query().Get("ingest_status") != "collected" || rawRequest.URL.Query().Get("page") != "2" || rawRequest.URL.Query().Get("page_size") != "10" {
 		t.Fatalf("raw request = %s?%s", rawRequest.URL.Path, rawRequest.URL.RawQuery)
 	}
-	if eventRequest.URL.Path != AdminEventsPath || eventRequest.URL.Query().Get("event_time_from") != eventFrom.Format(time.RFC3339) || eventRequest.URL.Query().Get("event_status") != "confirmed" {
+	if eventRequest.URL.Path != eventsPath || eventRequest.URL.Query().Get("event_time_from") != eventFrom.Format(time.RFC3339) || eventRequest.URL.Query().Get("event_status") != "confirmed" {
 		t.Fatalf("event request = %s?%s", eventRequest.URL.Path, eventRequest.URL.RawQuery)
 	}
 }
@@ -72,7 +74,7 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 				writer.WriteHeader(http.StatusServiceUnavailable)
 				return
 			}
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-4","result":{"items":[]}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-4","result":{"items":[],"total":0,"page":1,"page_size":50}}`))
 			return
 		}
 		attempts.Add(1)
@@ -81,7 +83,7 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	if _, err := client.ListRawDocuments(context.Background(), RawDocumentListQuery{}); err != nil {
+	if _, err := client.ListRawDocuments(context.Background(), biz.RawDocumentListQuery{}); err != nil {
 		t.Fatalf("safe read error = %v", err)
 	}
 	if got := attempts.Load(); got != 2 {
@@ -92,7 +94,10 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	}
 
 	attempts.Store(0)
-	err := client.doJSON(context.Background(), http.MethodPost, AdminRawDocumentsPath, map[string]string{"value": "mutation"}, nil)
+	err := client.doJSON(
+		context.Background(), http.MethodPost, "Data.TestMutation", rawDocumentsPath,
+		rawDocumentsPath, map[string]string{"value": "mutation"}, nil,
+	)
 	if err == nil {
 		t.Fatal("mutation error = nil")
 	}
@@ -109,8 +114,8 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	_, err := client.ListEvents(context.Background(), EventListQuery{})
-	assertErrorKind(t, err, ErrorKindDecode)
+	_, err := client.ListEvents(context.Background(), biz.EventListQuery{})
+	assertDataUnavailable(t, err)
 }
 
 func TestHTTPClientClassifiesFailuresWithoutLeakingSecrets(t *testing.T) {
@@ -136,9 +141,8 @@ func TestHTTPClientClassifiesFailuresWithoutLeakingSecrets(t *testing.T) {
 			defer server.Close()
 			client := newTestClient(t, server.URL, server.Client(), "secret-service-token")
 
-			_, err := client.ListRawDocuments(context.Background(), RawDocumentListQuery{})
-			var clientErr *Error
-			if !errors.As(err, &clientErr) || clientErr.Kind != test.kind || clientErr.StatusCode != test.status || clientErr.Code != "UPSTREAM_CODE" || clientErr.RequestID != "response-request-id" {
+			_, err := client.ListRawDocuments(context.Background(), biz.RawDocumentListQuery{})
+			if !errors.Is(err, biz.ErrDataServiceUnavailable) {
 				t.Fatalf("error = %#v", err)
 			}
 			if strings.Contains(err.Error(), "secret-service-token") || strings.Contains(err.Error(), "secret-response-body") {
@@ -162,13 +166,13 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 		connectionAttempts.Add(1)
 		return nil, fmt.Errorf("dial failed with secret-service-token")
 	})}, "secret-service-token")
-	_, err := connectionClient.ListEvents(context.Background(), EventListQuery{})
-	assertErrorKind(t, err, ErrorKindConnection)
+	_, err := connectionClient.ListEvents(context.Background(), biz.EventListQuery{})
+	assertDataUnavailable(t, err)
 	if connectionAttempts.Load() != 2 || strings.Contains(err.Error(), "secret-service-token") {
 		t.Fatalf("connection attempts/error = %d/%q", connectionAttempts.Load(), err)
 	}
 
-	timeoutClient, err := NewHTTPClient(HTTPConfig{
+	timeoutClient, err := NewDataHTTPClient(DataHTTPConfig{
 		BaseURL:         "http://data.invalid",
 		ServiceToken:    "token",
 		Timeout:         10 * time.Millisecond,
@@ -181,48 +185,32 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = timeoutClient.ListEvents(context.Background(), EventListQuery{})
-	assertErrorKind(t, err, ErrorKindTimeout)
+	_, err = timeoutClient.ListEvents(context.Background(), biz.EventListQuery{})
+	assertDataUnavailable(t, err)
 
 	transportTimeoutClient := newTestClient(t, "http://data.invalid", &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("transport secret: %w", context.DeadlineExceeded)
 	})}, "token")
-	_, err = transportTimeoutClient.ListEvents(context.Background(), EventListQuery{})
-	assertErrorKind(t, err, ErrorKindTimeout)
+	_, err = transportTimeoutClient.ListEvents(context.Background(), biz.EventListQuery{})
+	assertDataUnavailable(t, err)
 	if strings.Contains(err.Error(), "transport secret") {
 		t.Fatalf("unsafe timeout error = %q", err)
 	}
 }
 
-func TestFakeImplementsPort(t *testing.T) {
-	t.Parallel()
-	fake := &Fake{ListRawDocumentsFunc: func(context.Context, RawDocumentListQuery) (RawDocumentPage, error) {
-		return RawDocumentPage{Items: []RawDocument{{Title: "fake"}}}, nil
-	}}
-	var client DataServiceClient = fake
-	page, err := client.ListRawDocuments(context.Background(), RawDocumentListQuery{})
-	if err != nil || len(page.Items) != 1 || page.Items[0].Title != "fake" {
-		t.Fatalf("fake result/error = %#v/%v", page, err)
-	}
-	if _, err := client.ListEvents(context.Background(), EventListQuery{}); !errors.Is(err, ErrFakeMethodNotConfigured) {
-		t.Fatalf("unconfigured fake error = %v", err)
-	}
-}
-
-func newTestClient(t *testing.T, baseURL string, httpClient *http.Client, token string) *HTTPClient {
+func newTestClient(t *testing.T, baseURL string, httpClient *http.Client, token string) *DataHTTPClient {
 	t.Helper()
-	client, err := NewHTTPClient(HTTPConfig{BaseURL: baseURL, ServiceToken: token, Timeout: time.Second, MaxReadAttempts: 2, HTTPClient: httpClient})
+	client, err := NewDataHTTPClient(DataHTTPConfig{BaseURL: baseURL, ServiceToken: token, Timeout: time.Second, MaxReadAttempts: 2, HTTPClient: httpClient})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return client
 }
 
-func assertErrorKind(t *testing.T, err error, want ErrorKind) {
+func assertDataUnavailable(t *testing.T, err error) {
 	t.Helper()
-	var clientErr *Error
-	if !errors.As(err, &clientErr) || clientErr.Kind != want {
-		t.Fatalf("error = %#v, want kind %q", err, want)
+	if !errors.Is(err, biz.ErrDataServiceUnavailable) {
+		t.Fatalf("error = %#v, want data service unavailable", err)
 	}
 }
 

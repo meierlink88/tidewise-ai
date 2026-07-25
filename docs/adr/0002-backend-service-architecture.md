@@ -56,11 +56,15 @@ miniapp/
 admin-portal/
   frontend/
   backend/
-      cmd/
-      usecase/
-      transport/
-      dataclient/
-      config/
+      api/admin/v1/
+      cmd/server/
+      configs/
+      internal/
+        conf/
+        biz/
+        data/
+        service/
+        server/
 
 analyse-data-service/
   backend/
@@ -93,5 +97,6 @@ repository 和根 Go module；暂不拆分 repository/module 不代表三个 Bac
 不能独立构建和部署。
 
 `0006-kratos-official-service-layout.md` 进一步规定迁移后的 Go Service 内部布局。
-Miniapp 是首个完成迁移的 Service；Data 与 Admin Portal 在各自迁移前仍沿用本
-ADR 原有布局。
+Miniapp 是首个完成迁移的 Service，Admin Portal 随后按
+`docs/architecture/admin-portal-kratos-migration-v1.md` 完成迁移；Data 在其独立
+迁移前仍沿用本 ADR 原有布局。

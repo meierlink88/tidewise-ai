@@ -134,7 +134,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 	}{
 		"data":        {root: "analyse-data-service/backend", configDir: "config", port: "9011"},
 		"miniapp":     {root: "miniapp/backend", configDir: "configs", port: "9012"},
-		"adminportal": {root: "admin-portal/backend", configDir: "config", port: "9013"},
+		"adminportal": {root: "admin-portal/backend", configDir: "configs", port: "9013"},
 	}
 	for service, asset := range services {
 		config := readContractFile(t, filepath.Join(root, filepath.FromSlash(asset.root), asset.configDir, "config.uat.yaml"))

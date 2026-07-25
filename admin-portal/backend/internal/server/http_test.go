@@ -1,4 +1,4 @@
-package adminportal
+package server
 
 import (
 	"context"
@@ -11,21 +11,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/admin-portal/backend/agentrunclient"
-	adminconfig "github.com/meierlink88/tidewise-ai/admin-portal/backend/config"
-	"github.com/meierlink88/tidewise-ai/admin-portal/backend/dataclient"
+	v1 "github.com/meierlink88/tidewise-ai/admin-portal/backend/api/admin/v1"
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/biz"
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/conf"
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/data"
+	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/service"
 )
 
 func TestHealthAndReadiness(t *testing.T) {
-	assertServiceHealth(t, NewHandler(testConfig(), nil, nil, ""), ServiceName)
+	assertServiceHealth(t, newHandler(testConfig(), nil, nil, ""), conf.ServiceName)
 }
 
 func TestHandlerPublishesEmbeddedOpenAPIOutsideProduction(t *testing.T) {
-	for _, environment := range []adminconfig.Environment{adminconfig.EnvLocal, adminconfig.EnvUAT} {
+	for _, environment := range []conf.Environment{conf.EnvLocal, conf.EnvUAT} {
 		cfg := testConfig()
 		cfg.App.Env = environment
 		response := httptest.NewRecorder()
-		NewHandler(cfg, nil, nil, "").ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
+		newHandler(cfg, nil, nil, "").ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
 		if response.Code != http.StatusOK {
 			t.Fatalf("%s openapi status = %d, want %d", environment, response.Code, http.StatusOK)
 		}
@@ -37,10 +39,10 @@ func TestHandlerPublishesEmbeddedOpenAPIOutsideProduction(t *testing.T) {
 
 func TestHandlerDoesNotPublishOpenAPIInProduction(t *testing.T) {
 	cfg := testConfig()
-	cfg.App.Env = adminconfig.EnvProd
+	cfg.App.Env = conf.EnvProd
 
 	response := httptest.NewRecorder()
-	NewHandler(cfg, nil, nil, "").ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
+	newHandler(cfg, nil, nil, "").ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("production openapi status = %d, want %d", response.Code, http.StatusNotFound)
 	}
@@ -48,16 +50,16 @@ func TestHandlerDoesNotPublishOpenAPIInProduction(t *testing.T) {
 
 func TestNewHandlerComposesAdminBFFWithOneDataServiceCall(t *testing.T) {
 	calls := 0
-	client := &dataclient.Fake{ListRawDocumentsFunc: func(context.Context, dataclient.RawDocumentListQuery) (dataclient.RawDocumentPage, error) {
+	client := &biz.FakeDataServiceRepo{ListRawDocumentsFunc: func(context.Context, biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
 		calls++
-		return dataclient.RawDocumentPage{Items: []dataclient.RawDocument{}, Page: 1, PageSize: 50}, nil
+		return biz.RawDocumentPage{Items: []biz.RawDocument{}, Page: 1, PageSize: 50}, nil
 	}}
-	handler := NewHandler(testConfig(), client, nil, "admin-token")
-	assertServiceHealth(t, handler, ServiceName)
+	handler := newHandler(testConfig(), client, nil, "admin-token")
+	assertServiceHealth(t, handler, conf.ServiceName)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil)
 	request.Header.Set("Authorization", "Bearer admin-token")
-	request.Header.Set(dataclient.RequestIDHeader, "admin-service-test")
+	request.Header.Set(data.RequestIDHeader, "admin-service-test")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || calls != 1 {
@@ -104,13 +106,13 @@ func TestNewHandlerProxiesCollectorScheduleWithServiceIdentity(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 	request := httptest.NewRequest(http.MethodGet, "/api/admin/v1/agent-schedules/collector", nil)
 	request.Header.Set("Authorization", "Bearer browser-admin-token")
 	request.Header.Set("X-Request-ID", "admin-schedule-request")
@@ -127,8 +129,8 @@ func TestNewHandlerProxiesCollectorScheduleWithServiceIdentity(t *testing.T) {
 		t.Fatalf("response leaked token: %s", response.Body.String())
 	}
 	var envelope struct {
-		RequestID string                       `json:"request_id"`
-		Result    agentrunclient.AgentSchedule `json:"result"`
+		RequestID string           `json:"request_id"`
+		Result    v1.AgentSchedule `json:"result"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
 		t.Fatal(err)
@@ -172,13 +174,13 @@ func TestAgentRunProxyRetriesOneTransientReadFailureButNeverRetriesWrites(t *tes
 	}))
 	defer upstream.Close()
 
-	agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 	readResponse := performAdminRequest(t, handler, http.MethodGet, "/api/admin/v1/agent-schedules/collector", nil)
 	if readResponse.Code != http.StatusOK || readCalls != 2 {
 		t.Fatalf("read response/calls = %d/%d, body=%s", readResponse.Code, readCalls, readResponse.Body.String())
@@ -236,13 +238,13 @@ func TestAdminScheduleSavePreservesEnabledAndStopUsesIndependentPatch(t *testing
 	}))
 	defer upstream.Close()
 
-	agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 	save := performAdminRequest(t, handler, http.MethodPut, "/api/admin/v1/agent-schedules/collector", map[string]any{
 		"agent_version":   "collector.v1",
 		"schedule_type":   "cron",
@@ -301,13 +303,13 @@ func TestAdminScheduleFirstSaveCreatesDisabledSchedule(t *testing.T) {
 		}
 	}))
 	defer upstream.Close()
-	agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 	response := performAdminRequest(t, handler, http.MethodPut, "/api/admin/v1/agent-schedules/collector", map[string]any{
 		"agent_version": "collector.v1",
 		"schedule_type": "daily",
@@ -339,13 +341,13 @@ func TestAdminAgentRunErrorsAreMappedWithoutUpstreamMessageLeak(t *testing.T) {
 				_, _ = response.Write([]byte(`{"error_code":"upstream_code","message":"secret upstream detail"}`))
 			}))
 			defer upstream.Close()
-			agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+			agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 				BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+			handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 			response := performAdminRequest(t, handler, http.MethodGet, "/api/admin/v1/agent-schedules/collector", nil)
 			if response.Code != test.wantStatus || !strings.Contains(response.Body.String(), `"`+test.wantCode+`"`) {
 				t.Fatalf("response = %d %s", response.Code, response.Body.String())
@@ -384,13 +386,13 @@ func TestAdminExecutionListPinsCollectorAndTwentyItemPagination(t *testing.T) {
 		}`))
 	}))
 	defer upstream.Close()
-	agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 	response := performAdminRequest(t, handler, http.MethodGet, "/api/admin/v1/agent-executions?page=2", nil)
 
 	if response.Code != http.StatusOK {
@@ -475,13 +477,13 @@ func TestAdminConfigurationListsAndUpdatesRegisteredTargetsWithoutCredentialLeak
 		}
 	}))
 	defer upstream.Close()
-	agentClient, err := agentrunclient.NewHTTPClient(agentrunclient.HTTPConfig{
+	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
 		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(testConfig(), nil, agentClient, "browser-admin-token")
+	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
 
 	for _, path := range []string{
 		"/api/admin/v1/model-providers",
@@ -509,18 +511,6 @@ func TestAdminConfigurationListsAndUpdatesRegisteredTargetsWithoutCredentialLeak
 	})
 	if connectorResponse.Code != http.StatusOK || connectorPatch["api_key"] != "" {
 		t.Fatalf("connector response/patch = %d %s / %#v", connectorResponse.Code, connectorResponse.Body.String(), connectorPatch)
-	}
-}
-
-func TestNewServerPreservesCompatibilityHandler(t *testing.T) {
-	legacy := http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
-		response.WriteHeader(http.StatusNoContent)
-	})
-	server := NewServer(testConfig(), legacy)
-	response := httptest.NewRecorder()
-	server.Handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil))
-	if response.Code != http.StatusNoContent {
-		t.Fatalf("compatibility status = %d, want %d", response.Code, http.StatusNoContent)
 	}
 }
 
@@ -558,15 +548,15 @@ func assertServiceHealth(t *testing.T, handler http.Handler, service string) {
 			t.Fatalf("%s status = %d, want %d", test.path, response.Code, http.StatusOK)
 		}
 		var body struct {
-			Status      string                  `json:"status"`
-			Service     string                  `json:"service"`
-			Environment adminconfig.Environment `json:"environment"`
-			Checks      map[string]string       `json:"checks"`
+			Status      string            `json:"status"`
+			Service     string            `json:"service"`
+			Environment conf.Environment  `json:"environment"`
+			Checks      map[string]string `json:"checks"`
 		}
 		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 			t.Fatalf("decode %s: %v", test.path, err)
 		}
-		if body.Status != test.wantStatus || body.Service != service || body.Environment != adminconfig.EnvLocal {
+		if body.Status != test.wantStatus || body.Service != service || body.Environment != conf.EnvLocal {
 			t.Fatalf("%s response = %+v", test.path, body)
 		}
 		if test.path == "/readyz" && body.Checks["config"] != "ok" {
@@ -575,14 +565,27 @@ func assertServiceHealth(t *testing.T, handler http.Handler, service string) {
 	}
 }
 
-func testConfig() adminconfig.RuntimeConfig {
-	return adminconfig.RuntimeConfig{
-		App: adminconfig.AppConfig{Env: adminconfig.EnvLocal},
-		Server: adminconfig.ServerConfig{
+func testConfig() conf.RuntimeConfig {
+	return conf.RuntimeConfig{
+		App: conf.AppConfig{Name: conf.ServiceName, Env: conf.EnvLocal},
+		Server: conf.ServerConfig{
 			Host:                "127.0.0.1",
 			Port:                18083,
 			ReadTimeoutSeconds:  5,
 			WriteTimeoutSeconds: 10,
 		},
+		AllowedOrigin: "http://127.0.0.1:5174",
 	}
+}
+
+func newHandler(
+	config conf.RuntimeConfig,
+	dataService biz.DataServiceRepo,
+	agentRun biz.AgentRunRepo,
+	adminToken string,
+) http.Handler {
+	config.AdminToken = adminToken
+	useCase := biz.NewService(dataService, agentRun)
+	applicationService := service.NewAdminService(useCase)
+	return NewHTTPServer(config, applicationService, nil).Server.Handler
 }

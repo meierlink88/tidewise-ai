@@ -43,8 +43,8 @@ Application 试点：
 - 不存在 `wire.go`、`wire_gen.go`、Service Locator 或双框架回退开关；
 - 二进制和容器仅依赖本地 YAML、环境变量与 Data Service 固定 URL 即可启动。
 
-三个 Service 当前共享一个 Go module，Admin Portal 仍使用 Gin。因此本试点不能要求
-从根 `go.mod` 删除 Gin；应在 Admin Portal 完成迁移后再进行模块级清理。
+三个 Service 共享一个 Go module。本试点实施时 Admin Portal 仍使用 Gin，因此当时
+不能从根 `go.mod` 删除 Gin；Admin Portal 后续迁移完成后执行模块级清理。
 
 ## 迁移前实现基线
 
@@ -576,7 +576,8 @@ go list -deps ./miniapp/backend/cmd/server | rg 'github.com/gin-gonic/gin'
 find miniapp/backend -name 'wire.go' -o -name 'wire_gen.go'
 ```
 
-三条检查都不得产生匹配。根 `go.mod` 可因 Admin Portal 暂时保留 Gin。
+三条检查都不得产生匹配。Miniapp 试点阶段根 `go.mod` 曾因 Admin Portal 暂时保留
+Gin；Admin Portal 迁移完成后不再保留该直接依赖。
 
 ### P5：容器与端到端
 

@@ -14,8 +14,8 @@ Admin Portal 三个可独立部署的 Backend Service。ADR-0007 将它们分别
 但没有完整采用 Kratos 的 Application 组织方式，进程生命周期、HTTP Server、
 Router 和 Client 仍由自定义 `net/http`/Gin 代码承担。
 
-本决策首先在 Miniapp Service 落地。Data 与 Admin Portal 仍保持现状，直到各自
-独立迁移任务完成。
+本决策首先在 Miniapp Service 落地，随后应用于 Admin Portal。Data 仍保持现状，
+直到其独立迁移任务完成。
 
 ## 决策
 
@@ -53,8 +53,8 @@ Application Layout：
 - 固定服务 URL，不引入注册中心；
 - 不引入 gRPC、Protobuf、Kubernetes、远程配置中心或 Service Mesh。
 
-Miniapp 试点固定使用 Go 1.25 与 Kratos v3.0.0。Miniapp 二进制依赖闭包不得包含
-Gin；根 `go.mod` 暂时仍可为尚未迁移的 Admin Portal 保留 Gin。
+当前固定使用 Go 1.25 与 Kratos v3.0.0。Miniapp 与 Admin Portal 二进制依赖闭包
+均不得包含 Gin；Admin Portal 完成迁移后根 `go.mod` 不再保留 Gin 直接依赖。
 
 ## 取舍
 
@@ -73,11 +73,10 @@ Gin；根 `go.mod` 暂时仍可为尚未迁移的 Admin Portal 保留 Gin。
 
 ## 影响
 
-- Miniapp 的旧 `config/dataclient/usecase/transport` 和根 `service.go` 被完整替代，
-  不保留 Gin/Kratos 双栈。
-- Miniapp 现有路径、DTO、状态码、错误语义、Request ID、OpenAPI 和 Swagger UI
-  行为保持不变。
-- Data 与 Admin Portal 是否迁移，分别由后续任务决定；本 ADR 不授权顺带修改其
-  业务结构。
-- 架构测试必须验证 Kratos 目录存在、服务间无实现依赖，以及 Miniapp binary
-  closure 不包含 Gin。
+- Miniapp 与 Admin Portal 的旧顶层自定义分层和根装配文件被完整替代，不保留
+  Gin/Kratos 双栈。
+- 两个 Application Backend 的现有路径、DTO、状态码、错误语义、Request ID、
+  OpenAPI 和 Swagger UI 行为保持不变。
+- Data 是否迁移由后续独立任务决定；本 ADR 不授权顺带修改其业务结构。
+- 架构测试必须验证 Kratos 目录存在、服务间无实现依赖，以及 Miniapp/Admin Portal
+  binary closure 不包含 Gin。
