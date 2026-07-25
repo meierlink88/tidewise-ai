@@ -13,7 +13,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS migration-apply", "PASS bff-to-data-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -23,6 +23,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
 	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/data:"+fixtureSHA)
+	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/agentrun:"+fixtureSHA)
 	curlLog, err := os.ReadFile(result.curlLog)
 	if err != nil {
 		t.Fatal(err)
@@ -30,6 +31,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	for _, want := range []string{
 		"http://127.0.0.1:9012/healthz",
 		"http://127.0.0.1:9012/api/miniapp/v1/research/themes?limit=1",
+		"http://127.0.0.1:9013/api/admin/v1/model-providers",
 	} {
 		if !strings.Contains(string(curlLog), want) {
 			t.Fatalf("host verification missing %q: %s", want, curlLog)
@@ -37,6 +39,13 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	if strings.Contains(string(curlLog), "uat.example.test") {
 		t.Fatalf("deployment attempted unsupported public-IP hairpin verification: %s", curlLog)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "http://127.0.0.1:9080/readyz") {
+		t.Fatalf("deployment did not enforce AgentRun readiness: %s", dockerLog)
 	}
 }
 
@@ -191,18 +200,20 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	imagesEnv := filepath.Join(temp, "candidate.images.env")
 	compose := filepath.Join(temp, "compose.yaml")
 	manifest := filepath.Join(temp, "migration-risk.tsv")
+	agentrunManifest := filepath.Join(temp, "agentrun-migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
-	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture-admin-secret\n")
-	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
+	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture-admin-secret\nAGENTRUN_ADMIN_TOKEN=fixture-agentrun-secret\n")
+	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA+"\n")
 	writeFixture(t, compose, "name: tidewise-uat\nservices: {}\n")
 	migrationRisk := options.migrationRisk
 	if migrationRisk == "" {
 		migrationRisk = "high"
 	}
 	writeFixture(t, manifest, "000025\t"+migrationRisk+"\tfixture migration risk\n000024\thigh\tfixture high risk\n")
+	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n")
 
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_API_TOKEN=previous-admin-secret\n")
@@ -216,6 +227,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		report = `{"current_version":"24","pending":[],"applied":[],"remaining":[]}`
 	}
 	writeFixture(t, filepath.Join(temp, "migration.json"), report+"\n")
+	writeFixture(t, filepath.Join(temp, "agentrun-migration.json"), `{"current_version":"006","pending":[],"applied":[]}`+"\n")
 	writeExecutable(t, filepath.Join(bin, "curl"), `#!/bin/sh
 set -eu
 echo " $* " >> "$FAKE_CURL_LOG"
@@ -243,7 +255,9 @@ if [ -z "$resolved_data_image" ]; then
 fi
 echo "resolved-data-image=${resolved_data_image:-unset} $* " >> "$FAKE_DOCKER_LOG"
 case " $* " in
+  *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
   *" run "*" /usr/local/bin/dbmigrate "*) cat "$FAKE_MIGRATION_REPORT" ;;
+  *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
   *" up "*)
     count=0
     if [ -f "$FAKE_UP_COUNT" ]; then count="$(cat "$FAKE_UP_COUNT")"; fi
@@ -264,14 +278,17 @@ exit 0
 		"COMMIT_SHA="+fixtureSHA,
 		"UAT_PUBLIC_BASE_URL=http://uat.example.test",
 		"UAT_DATABASE_URL=postgres://fixture:fixture-db-secret@rds.example.test:5432/tidewise_uat?sslmode=require",
+		"AGENTRUN_DATABASE_URL=postgres://agentrun:fixture-agentrun-db-secret@rds.example.test:5432/agentrun_uat?sslmode=require",
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
+		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
 		"RUNNER_TEMP="+temp,
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
 		"FAKE_DOCKER_LOG="+dockerLog,
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
+		"FAKE_AGENTRUN_MIGRATION_REPORT="+filepath.Join(temp, "agentrun-migration.json"),
 		"FAKE_UP_COUNT="+upCount,
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
 		"FAKE_CURL_COUNT="+curlCount,
@@ -281,6 +298,7 @@ exit 0
 		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
 		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,
 		"ADMIN_IMAGE=fixture/admin:"+fixtureSHA,
+		"AGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA,
 	)
 	output, err := cmd.CombinedOutput()
 	return deployFixtureResult{root: root, dockerLog: dockerLog, curlLog: curlLog, output: string(output), err: err}

@@ -93,6 +93,7 @@ jobs:
       miniapp_image: ${{ steps.images.outputs.miniapp_image }}
       adminportal_image: ${{ steps.images.outputs.adminportal_image }}
       admin_image: ${{ steps.images.outputs.admin_image }}
+      agentrun_image: ${{ steps.images.outputs.agentrun_image }}
     env:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       SWR_NAMESPACE: ${{ vars.SWR_NAMESPACE }}
@@ -100,6 +101,7 @@ jobs:
       SWR_MINIAPP_REPOSITORY: ${{ vars.SWR_MINIAPP_REPOSITORY }}
       SWR_ADMINPORTAL_REPOSITORY: ${{ vars.SWR_ADMINPORTAL_REPOSITORY }}
       SWR_ADMIN_REPOSITORY: ${{ vars.SWR_ADMIN_REPOSITORY }}
+      SWR_AGENTRUN_REPOSITORY: ${{ vars.SWR_AGENTRUN_REPOSITORY }}
     steps:
       - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -119,11 +121,13 @@ jobs:
           : "${SWR_MINIAPP_REPOSITORY:?Set the SWR_MINIAPP_REPOSITORY uat Environment variable}"
           : "${SWR_ADMINPORTAL_REPOSITORY:?Set the SWR_ADMINPORTAL_REPOSITORY uat Environment variable}"
           : "${SWR_ADMIN_REPOSITORY:?Set the SWR_ADMIN_REPOSITORY uat Environment variable}"
+          : "${SWR_AGENTRUN_REPOSITORY:?Set the SWR_AGENTRUN_REPOSITORY uat Environment variable}"
           prefix="${SWR_REGISTRY}/${SWR_NAMESPACE}"
           echo "data_image=${prefix}/${SWR_DATA_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "miniapp_image=${prefix}/${SWR_MINIAPP_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "adminportal_image=${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "admin_image=${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "agentrun_image=${prefix}/${SWR_AGENTRUN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -175,6 +179,16 @@ jobs:
           provenance: false
           tags: ${{ steps.images.outputs.admin_image }}
 
+      - name: Build and push AgentRun
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: agent-run/backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ steps.images.outputs.agentrun_image }}
+
   deploy:
     name: Deploy to UAT ECS
     runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
@@ -185,19 +199,21 @@ jobs:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       UAT_RUNNER_NAME: ${{ vars.UAT_RUNNER_NAME }}
       UAT_PUBLIC_BASE_URL: ${{ vars.UAT_PUBLIC_BASE_URL }}
-      AGENTRUN_BASE_URL: ${{ vars.AGENTRUN_BASE_URL }}
       COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
       DATA_IMAGE: ${{ needs.build-and-push.outputs.data_image }}
       MINIAPP_IMAGE: ${{ needs.build-and-push.outputs.miniapp_image }}
       ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
       ADMIN_IMAGE: ${{ needs.build-and-push.outputs.admin_image }}
+      AGENTRUN_IMAGE: ${{ needs.build-and-push.outputs.agentrun_image }}
       UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+      AGENTRUN_DATABASE_URL: ${{ secrets.AGENTRUN_DATABASE_URL }}
       DATA_SERVICE_AGENT_TOKEN: ${{ secrets.DATA_SERVICE_AGENT_TOKEN }}
       DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: ${{ secrets.DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN }}
       DATA_SERVICE_MINIAPP_TOKEN: ${{ secrets.DATA_SERVICE_MINIAPP_TOKEN }}
       DATA_SERVICE_ADMIN_TOKEN: ${{ secrets.DATA_SERVICE_ADMIN_TOKEN }}
       ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
       AGENTRUN_ADMIN_TOKEN: ${{ secrets.AGENTRUN_ADMIN_TOKEN }}
+      AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
     steps:
       - name: Checkout release commit
@@ -234,8 +250,10 @@ jobs:
           printf '%s\n' \
             "ADMIN_API_BASE_URL=${UAT_PUBLIC_BASE_URL}:9013" \
             "ADMIN_ALLOWED_ORIGIN=${UAT_PUBLIC_BASE_URL}:9014" \
-            "AGENTRUN_BASE_URL=${AGENTRUN_BASE_URL}" \
             "TIDEWISE_DATABASE_URL=${UAT_DATABASE_URL}" \
+            "AGENTRUN_DATABASE_URL=${AGENTRUN_DATABASE_URL}" \
+            "AGENTRUN_ARTIFACT_DIR=${DEPLOY_ROOT}/agentrun-artifacts" \
+            "AGENTRUN_SERVICE_TOKEN=${AGENTRUN_SERVICE_TOKEN}" \
             "DATA_SERVICE_AGENT_TOKEN=${DATA_SERVICE_AGENT_TOKEN}" \
             "DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN=${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN}" \
             "DATA_SERVICE_MINIAPP_TOKEN=${DATA_SERVICE_MINIAPP_TOKEN}" \
@@ -246,7 +264,8 @@ jobs:
             "DATA_IMAGE=${DATA_IMAGE}" \
             "MINIAPP_IMAGE=${MINIAPP_IMAGE}" \
             "ADMINPORTAL_IMAGE=${ADMINPORTAL_IMAGE}" \
-            "ADMIN_IMAGE=${ADMIN_IMAGE}" > "$images_env"
+            "ADMIN_IMAGE=${ADMIN_IMAGE}" \
+            "AGENTRUN_IMAGE=${AGENTRUN_IMAGE}" > "$images_env"
           echo "runtime_env=$runtime_env" >> "$GITHUB_OUTPUT"
           echo "images_env=$images_env" >> "$GITHUB_OUTPUT"
           docker compose --env-file "$runtime_env" --env-file "$images_env" -f infra/uat/docker-compose.yaml config --quiet
@@ -263,6 +282,7 @@ jobs:
           RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
           CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
           MIGRATION_RISK_MANIFEST: ${{ github.workspace }}/.uat-control/infra/uat/migration-risk.tsv
+          AGENTRUN_MIGRATION_RISK_MANIFEST: ${{ github.workspace }}/.uat-control/infra/uat/agentrun-migration-risk.tsv
         run: .uat-control/infra/uat/deploy.sh
 
       - name: Show diagnostics on failure

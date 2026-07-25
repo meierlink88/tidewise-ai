@@ -28,6 +28,9 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"data:",
 		"miniapp:",
 		"adminportal:",
+		"agentrun:",
+		"agentrun-db-init:",
+		"agentrun-migrate:",
 		"postgres:",
 		"neo4j:",
 		"NEO4J_AUTH",
@@ -35,6 +38,7 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"${NEO4J_PASSWORD",
 		"7474",
 		"7687",
+		"9080",
 	} {
 		if !strings.Contains(composeText, want) {
 			t.Fatalf("neo4j compose missing %q", want)
@@ -46,6 +50,8 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"NEO4J_PASSWORD",
 		"TIDEWISE_ENABLE_NEO4J_SMOKE",
 		"graph-projector",
+		"agent-run/backend",
+		"AGENTRUN_DATABASE_URL",
 	} {
 		if !strings.Contains(readmeText, want) {
 			t.Fatalf("local README missing %q", want)

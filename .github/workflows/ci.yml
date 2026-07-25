@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend
+  data:
+    name: Data Service
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -35,61 +35,71 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect Data Service boundary changes
+        id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-app-change.sh data
 
       - name: Setup Go
+        if: steps.paths.outputs.changed == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Verify Go formatting
+      - name: Verify Data Service formatting
+        if: steps.paths.outputs.changed == 'true'
         run: |
-          unformatted="$(gofmt -l analyse-data-service/backend admin-portal/backend miniapp/backend scripts/ci/repository-contracts)"
+          unformatted="$(gofmt -l analyse-data-service/backend scripts/ci/repository-contracts)"
           if [ -n "$unformatted" ]; then
-            echo "The following Go files are not formatted:"
+            echo "The following Data Service or repository contract files are not formatted:"
             echo "$unformatted"
             exit 1
           fi
 
-      - name: Vet backend
-        run: go vet ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts
+      - name: Vet Data Service
+        if: steps.paths.outputs.changed == 'true'
+        run: go vet ./analyse-data-service/backend/... ./scripts/ci/repository-contracts
 
       - name: Data PostgreSQL integration
+        if: steps.paths.outputs.changed == 'true'
         env:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
         run: go test ./analyse-data-service/backend/adapters/dbmigration ./analyse-data-service/backend/cmd/research-theme-dev-reset ./analyse-data-service/backend/transport/internalapi -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
 
-      - name: Data API and typed-client drift contracts
-        run: go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/internal/data
+      - name: Test Data API
+        if: steps.paths.outputs.changed == 'true'
+        run: go test ./analyse-data-service/backend/api
 
       - name: Architecture and reference contracts
+        if: steps.paths.outputs.changed == 'true'
         run: go test ./scripts/ci/repository-contracts
 
-      - name: Test backend
-        run: go test -race ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts
+      - name: Test Data Service
+        if: steps.paths.outputs.changed == 'true'
+        run: go test -race ./analyse-data-service/backend/... ./scripts/ci/repository-contracts
 
-      - name: Build service binaries
-        run: |
-          go build -o /tmp/data-service ./analyse-data-service/backend/cmd
-          go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server
-          go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server
+      - name: Build Data Service binary
+        if: steps.paths.outputs.changed == 'true'
+        run: go build -o /tmp/data-service ./analyse-data-service/backend/cmd
 
-      - name: Build service images
-        run: |
-          docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
-          docker build -f miniapp/backend/Dockerfile -t tidewise-miniapp:ci .
-          docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
+      - name: Build Data Service image
+        if: steps.paths.outputs.changed == 'true'
+        run: docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
 
       - name: Validate local and UAT Compose contracts
+        if: steps.paths.outputs.changed == 'true'
         run: |
           docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet
           docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet
 
-      - name: Smoke Miniapp Kratos stack
-        run: bash scripts/ci/smoke-miniapp-data-compose.sh
-
-  frontend:
-    name: Frontend
+  miniapp:
+    name: Miniapp
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -97,42 +107,268 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect Miniapp boundary changes
+        id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-app-change.sh miniapp
+
+      - name: Setup Go
+        if: steps.paths.outputs.changed == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Verify Miniapp Backend formatting
+        if: steps.paths.outputs.changed == 'true'
+        run: |
+          unformatted="$(gofmt -l miniapp/backend)"
+          if [ -n "$unformatted" ]; then
+            echo "The following Miniapp Backend files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Miniapp Backend
+        if: steps.paths.outputs.changed == 'true'
+        run: go vet ./miniapp/backend/...
+
+      - name: Test Data API client contract
+        if: steps.paths.outputs.changed == 'true'
+        run: go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data
+
+      - name: Test repository boundaries
+        if: steps.paths.outputs.changed == 'true'
+        run: go test ./scripts/ci/repository-contracts
+
+      - name: Test Miniapp Backend
+        if: steps.paths.outputs.changed == 'true'
+        run: go test -race ./miniapp/backend/... -count=1
+
+      - name: Build Miniapp Backend binary
+        if: steps.paths.outputs.changed == 'true'
+        run: go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server
+
       - name: Setup Node
+        if: steps.paths.outputs.changed == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        if: steps.paths.outputs.changed == 'true'
         run: npm ci
 
-      - name: Verify changed frontend and workflow formatting
+      - name: Verify changed Miniapp formatting
+        if: steps.paths.outputs.changed == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/check-prettier-diff.sh
 
-      - name: Test
-        run: npm run test
+      - name: Test Miniapp Frontend
+        if: steps.paths.outputs.changed == 'true'
+        run: npm run test:miniapp
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck Miniapp Frontend
+        if: steps.paths.outputs.changed == 'true'
+        run: npm run typecheck:miniapp
 
-      - name: Lint Miniapp
+      - name: Lint Miniapp Frontend
+        if: steps.paths.outputs.changed == 'true'
         run: npm run lint
 
-      - name: Build Miniapp
+      - name: Build Miniapp Frontend
+        if: steps.paths.outputs.changed == 'true'
         env:
           TARO_APP_RESEARCH_SOURCE: api
           TARO_APP_MINIAPP_API_BASE_URL: https://miniapp.example.invalid
         run: npm run build:weapp
 
-      - name: Build Admin portal
+      - name: Build Miniapp integration images
+        if: steps.paths.outputs.changed == 'true'
+        run: |
+          docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
+          docker build -f miniapp/backend/Dockerfile -t tidewise-miniapp:ci .
+
+      - name: Smoke Miniapp to Data Service
+        if: steps.paths.outputs.changed == 'true'
+        run: bash scripts/ci/smoke-miniapp-data-compose.sh
+
+  adminportal:
+    name: Admin Portal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect Admin Portal boundary changes
+        id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-app-change.sh adminportal
+
+      - name: Setup Go
+        if: steps.paths.outputs.changed == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Verify Admin Portal Backend formatting
+        if: steps.paths.outputs.changed == 'true'
+        run: |
+          unformatted="$(gofmt -l admin-portal/backend)"
+          if [ -n "$unformatted" ]; then
+            echo "The following Admin Portal Backend files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Admin Portal Backend
+        if: steps.paths.outputs.changed == 'true'
+        run: go vet ./admin-portal/backend/...
+
+      - name: Test provider API client contracts
+        if: steps.paths.outputs.changed == 'true'
+        run: go test ./analyse-data-service/backend/api ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data
+
+      - name: Test repository boundaries
+        if: steps.paths.outputs.changed == 'true'
+        run: go test ./scripts/ci/repository-contracts
+
+      - name: Test Admin Portal Backend
+        if: steps.paths.outputs.changed == 'true'
+        run: go test -race ./admin-portal/backend/... -count=1
+
+      - name: Build Admin Portal Backend binary
+        if: steps.paths.outputs.changed == 'true'
+        run: go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server
+
+      - name: Setup Node
+        if: steps.paths.outputs.changed == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        if: steps.paths.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Verify changed Admin Portal formatting
+        if: steps.paths.outputs.changed == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/check-prettier-diff.sh
+
+      - name: Test Admin Portal Frontend
+        if: steps.paths.outputs.changed == 'true'
+        run: npm run test:admin
+
+      - name: Typecheck Admin Portal Frontend
+        if: steps.paths.outputs.changed == 'true'
+        run: npm run typecheck:admin
+
+      - name: Build Admin Portal Frontend
+        if: steps.paths.outputs.changed == 'true'
         run: npm run build:admin
 
-      - name: Build Admin portal image
-        run: docker build -f admin-portal/frontend/Dockerfile -t tidewise-admin:ci .
+      - name: Build Admin Portal images
+        if: steps.paths.outputs.changed == 'true'
+        run: |
+          docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
+          docker build -f admin-portal/frontend/Dockerfile -t tidewise-admin:ci .
+
+  agentrun:
+    name: AgentRun
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentrun
+          POSTGRES_PASSWORD: agentrun-ci-password
+          POSTGRES_DB: tidewise_ai_server_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentrun -d tidewise_ai_server_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect AgentRun boundary changes
+        id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-app-change.sh agentrun
+
+      - name: Setup Go
+        if: steps.paths.outputs.changed == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Verify AgentRun formatting
+        if: steps.paths.outputs.changed == 'true'
+        run: |
+          unformatted="$(gofmt -l agent-run/backend)"
+          if [ -n "$unformatted" ]; then
+            echo "The following AgentRun Go files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet AgentRun
+        if: steps.paths.outputs.changed == 'true'
+        run: go vet ./agent-run/backend/...
+
+      - name: Test AgentRun
+        if: steps.paths.outputs.changed == 'true'
+        run: go test -race ./agent-run/backend/... -count=1
+
+      - name: Test AgentRun PostgreSQL boundaries
+        if: steps.paths.outputs.changed == 'true'
+        env:
+          AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
+        run: go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1
+
+      - name: Build AgentRun commands
+        if: steps.paths.outputs.changed == 'true'
+        run: |
+          go build -o /tmp/agentrun ./agent-run/backend/cmd/server
+          go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate
+          go build -o /tmp/agentrun-config ./agent-run/backend/cmd/config
+          go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts
+
+      - name: Build AgentRun image
+        if: steps.paths.outputs.changed == 'true'
+        run: docker build -f agent-run/backend/Dockerfile -t tidewise-agentrun:ci .
+
+      - name: Build Admin Portal image for AgentRun smoke
+        if: steps.paths.outputs.changed == 'true'
+        run: docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
+
+      - name: Smoke Admin Portal to AgentRun
+        if: steps.paths.outputs.changed == 'true'
+        run: bash scripts/ci/smoke-admin-agentrun-compose.sh
 
   security:
     name: Security
@@ -143,10 +379,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Scan commits for credentials
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+      - name: Check changed paths and credential patterns
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/check-sensitive-diff.sh
+
+      - name: Scan introduced Git history for credentials
+        id: gitleaks
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GITLEAKS_REPORT_PATH: ${{ runner.temp }}/gitleaks-results.sarif
+        run: bash scripts/ci/scan-git-secrets.sh
+
+      - name: Upload Gitleaks results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gitleaks-results
+          path: ${{ runner.temp }}/gitleaks-results.sarif
+          if-no-files-found: warn
+
+      - name: Enforce Gitleaks result
+        if: steps.gitleaks.outcome == 'failure'
+        run: exit 1
 
       - name: Review dependency changes
         if: github.event_name == 'pull_request'

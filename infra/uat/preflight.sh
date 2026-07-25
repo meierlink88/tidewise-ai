@@ -64,14 +64,17 @@ import os
 import socket
 from urllib.parse import parse_qsl, urlparse
 
-endpoint = urlparse(os.environ["UAT_DATABASE_URL"])
-if not endpoint.hostname or not endpoint.path.strip("/") or not endpoint.username:
-    raise SystemExit("FAIL rds-url: hostname, database, and username are required")
-query = dict(parse_qsl(endpoint.query))
-if query.get("sslmode") != "require":
-    raise SystemExit("FAIL rds-url: sslmode=require is required")
-with socket.create_connection((endpoint.hostname, endpoint.port or 5432), timeout=10):
-    pass
+for variable in ("UAT_DATABASE_URL", "AGENTRUN_DATABASE_URL"):
+    endpoint = urlparse(os.environ[variable])
+    if not endpoint.hostname or not endpoint.path.strip("/") or not endpoint.username:
+        raise SystemExit(f"FAIL rds-url: {variable} requires hostname, database, and username")
+    if variable == "AGENTRUN_DATABASE_URL" and endpoint.path.strip("/") != "tidewise_ai_server":
+        raise SystemExit("FAIL rds-url: AGENTRUN_DATABASE_URL database must be tidewise_ai_server")
+    query = dict(parse_qsl(endpoint.query))
+    if query.get("sslmode") != "require":
+        raise SystemExit(f"FAIL rds-url: {variable} requires sslmode=require")
+    with socket.create_connection((endpoint.hostname, endpoint.port or 5432), timeout=10):
+        pass
 
 public_endpoint = urlparse(os.environ["UAT_PUBLIC_BASE_URL"])
 if public_endpoint.scheme != "http" or not public_endpoint.hostname:
@@ -79,8 +82,14 @@ if public_endpoint.scheme != "http" or not public_endpoint.hostname:
 if public_endpoint.port or public_endpoint.path not in ("", "/") or public_endpoint.query or public_endpoint.fragment:
     raise SystemExit("FAIL public-base-url: port, path, query, and fragment are not allowed")
 PY
-pass rds-private-tcp-and-url
+pass data-and-agentrun-rds-private-tcp-and-url
 pass public-base-url
+
+artifact_dir="${AGENTRUN_ARTIFACT_DIR:-${deployment_root}/agentrun-artifacts}"
+[ -d "$artifact_dir" ] || fail agentrun-artifact-directory "$artifact_dir is missing"
+[ -w "$artifact_dir" ] || fail agentrun-artifact-directory "$artifact_dir is not writable"
+[ "$(stat -c '%U' "$artifact_dir")" = tidewise-deploy ] || fail agentrun-artifact-directory "$artifact_dir owner must be tidewise-deploy"
+pass agentrun-artifact-directory
 
 for port in 9012 9013 9014; do
   container_ids="$(docker ps --filter "publish=$port" --format '{{.ID}}')"

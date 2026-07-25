@@ -84,6 +84,7 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 		"admin-portal/frontend",
 		"admin-portal/backend",
 		"analyse-data-service/backend",
+		"agent-run/backend",
 	} {
 		info, err := os.Lstat(filepath.Join(repoRoot, filepath.FromSlash(path)))
 		if err != nil {
@@ -100,7 +101,51 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 	}
 }
 
-func TestLocalComposeOwnsOnlyThreeServicesAndDataStores(t *testing.T) {
+func TestAgentRunMigrationManifestAccountsForEveryFrozenTrackedFile(t *testing.T) {
+	repoRoot := repositoryRoot()
+	path := filepath.Join(repoRoot, "docs", "architecture", "agentrun", "agentrun-monorepo-file-disposition.tsv")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read AgentRun file disposition manifest: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(contents)), "\n")
+	if len(lines) != 110 {
+		t.Fatalf("AgentRun file disposition rows = %d, want header plus 109 frozen files", len(lines))
+	}
+	if lines[0] != "source_path\tdisposition\tdestination" {
+		t.Fatalf("AgentRun file disposition header = %q", lines[0])
+	}
+	allowed := map[string]bool{
+		"moved":                   true,
+		"merged":                  true,
+		"superseded-as-duplicate": true,
+	}
+	seen := make(map[string]bool, len(lines)-1)
+	for lineNumber, line := range lines[1:] {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 3 {
+			t.Fatalf("AgentRun file disposition line %d has %d fields", lineNumber+2, len(fields))
+		}
+		source, disposition, destinations := fields[0], fields[1], fields[2]
+		if seen[source] {
+			t.Fatalf("AgentRun source asset %q is classified more than once", source)
+		}
+		seen[source] = true
+		if !allowed[disposition] {
+			t.Fatalf("AgentRun source asset %q has unsupported disposition %q", source, disposition)
+		}
+		for _, destination := range strings.Split(destinations, ";") {
+			if destination == "" {
+				t.Fatalf("AgentRun source asset %q has an empty destination", source)
+			}
+			if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(destination))); err != nil {
+				t.Fatalf("AgentRun source asset %q destination %q is missing: %v", source, destination, err)
+			}
+		}
+	}
+}
+
+func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 	repoRoot := repositoryRoot()
 	contents, err := os.ReadFile(filepath.Join(repoRoot, "infra", "local", "docker-compose.yaml"))
 	if err != nil {
@@ -108,9 +153,9 @@ func TestLocalComposeOwnsOnlyThreeServicesAndDataStores(t *testing.T) {
 	}
 	text := string(contents)
 	for _, required := range []string{
-		"  data:", "  miniapp:", "  adminportal:", "  postgres:", "  neo4j:",
+		"  data:", "  miniapp:", "  adminportal:", "  agentrun:", "  agentrun-db-init:", "  agentrun-migrate:", "  postgres:", "  neo4j:",
 		"context: ../..",
-		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile", "admin-portal/backend/Dockerfile",
+		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile", "admin-portal/backend/Dockerfile", "agent-run/backend/Dockerfile",
 		"tidewise-local", "/healthz", "/readyz",
 	} {
 		if !strings.Contains(text, required) {
@@ -130,9 +175,15 @@ func TestLocalComposeOwnsOnlyThreeServicesAndDataStores(t *testing.T) {
 			}
 		}
 	}
+	agentrun := composeServiceSection(t, text, "agentrun")
+	for _, required := range []string{"AGENTRUN_DATABASE_URL", "AGENTRUN_SERVICE_TOKEN", "AGENTRUN_ADMIN_TOKEN", "agentrun_artifacts"} {
+		if !strings.Contains(agentrun, required) {
+			t.Fatalf("AgentRun compose service missing %q", required)
+		}
+	}
 }
 
-func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
+func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	repoRoot := repositoryRoot()
 	contents, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
 	if err != nil {
@@ -142,20 +193,26 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	for _, required := range []string{
 		"go-version-file: go.mod",
 		"cache-dependency-path: go.sum",
-		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/internal/data",
+		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data",
+		"go test ./analyse-data-service/backend/api ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
 		"go test ./scripts/ci/repository-contracts",
 		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
 		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server",
+		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
 		"-f analyse-data-service/backend/Dockerfile",
 		"-f miniapp/backend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",
+		"-f agent-run/backend/Dockerfile",
+		"go test -race ./agent-run/backend/... -count=1",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
 		"cache-dependency-path: package-lock.json",
-		"npm run test",
-		"npm run typecheck",
+		"npm run test:miniapp",
+		"npm run test:admin",
+		"npm run typecheck:miniapp",
+		"npm run typecheck:admin",
 		"npm run build:weapp",
 		"npm run build:admin",
 		"docker build -f admin-portal/frontend/Dockerfile -t tidewise-admin:ci .",
@@ -166,6 +223,33 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	}
 	if strings.Contains(text, "docker build -f Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
+	}
+	for _, job := range []string{"data", "miniapp", "adminportal", "agentrun", "security"} {
+		if strings.Count(text, "\n  "+job+":") != 1 {
+			t.Fatalf("CI must expose exactly one top-level %s job", job)
+		}
+	}
+	if strings.Contains(text, "\n  changes:") || strings.Contains(text, "needs: changes") {
+		t.Fatal("application path detection must stay inside each application job")
+	}
+	if strings.Contains(text, "\n  agentrun-postgres:") {
+		t.Fatal("AgentRun PostgreSQL verification must stay inside the AgentRun job")
+	}
+	for _, required := range []string{
+		"name: Data Service",
+		"name: Miniapp",
+		"name: Admin Portal",
+		"name: AgentRun",
+		"bash scripts/ci/detect-app-change.sh data",
+		"bash scripts/ci/detect-app-change.sh miniapp",
+		"bash scripts/ci/detect-app-change.sh adminportal",
+		"bash scripts/ci/detect-app-change.sh agentrun",
+		"POSTGRES_DB: tidewise_ai_server_test",
+		"Test AgentRun PostgreSQL boundaries",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("unified AgentRun CI job missing %q", required)
+		}
 	}
 
 	smokeContents, err := os.ReadFile(filepath.Join(repoRoot, "scripts", "ci", "smoke-miniapp-data-compose.sh"))
@@ -201,8 +285,13 @@ func composeServiceSection(t *testing.T, compose, service string) string {
 		t.Fatalf("compose service %q is missing", service)
 	}
 	remainder := compose[start+len(startMarker):]
-	if end := strings.Index(remainder, "\n  "); end >= 0 {
-		return remainder[:end]
+	lines := strings.Split(remainder, "\n")
+	end := len(lines)
+	for index, line := range lines {
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && strings.TrimSpace(line) != "" {
+			end = index
+			break
+		}
 	}
-	return remainder
+	return strings.Join(lines[:end], "\n")
 }

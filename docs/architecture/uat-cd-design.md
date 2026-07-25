@@ -14,10 +14,11 @@ ECS 运行以下组件：
 - Miniapp Application Backend Service
 - Admin Portal Application Backend Service
 - Admin Portal Frontend
+- AgentRun Backend Service
 
 Miniapp Frontend 不部署到 ECS。当前仅允许微信开发者工具调用 ECS 上的 Miniapp Backend Service；体验版与真机正式验收不在本期范围内。
 
-RDS for PostgreSQL 只允许 Data Domain Service 访问。Miniapp 和 Admin Portal Backend Service 只能通过 Data REST API 使用 Data 能力，不持有数据库凭据。
+RDS for PostgreSQL 使用相互隔离的 Data 和 AgentRun database/role。只有 Data Domain Service 与 AgentRun Backend Service 分别访问自己的数据库；禁止跨库 SQL。Miniapp 和 Admin Portal Backend Service 只能通过 REST API 使用下游能力，不持有数据库凭据。
 
 UAT 本期不部署 Neo4j，Data Domain Service 在 UAT 配置中关闭 Neo4j。
 
@@ -58,19 +59,17 @@ GitHub `uat` Environment 只用于隔离 Variables、Secrets 和部署记录，�
 
 因此 ECS 访问 GitHub、接收 self-hosted runner job 的基础条件已具备。镜像仓库认证和实际镜像拉取仍须作为正式部署 preflight 的独立检查项。
 
-## Current Repository Gaps
+## Repository Implementation
 
-- `.github/workflows/deploy-uat.yml` 仍引用已经删除的旧源码路径。
-- `infra/uat/docker-compose.yaml` 仍将后端建模为单个 `backend` 服务。
-- 三个 Backend Service 尚无可启动的 UAT 配置文件。
-- 旧 migration 调用方式不适配当前 Data Service 镜像。
-- 当前 UAT 编排没有落实只有 Data Service 可以持有 RDS 凭据的边界。
+仓库现已按应用边界构建五个镜像，并由 `infra/uat/` 统一编排。Data 与 AgentRun
+分别使用自己的 migration command、RDS database/role 和运行配置；Miniapp 与
+Admin Portal 不持有数据库凭据。
 
 ## Container Registry
 
 UAT 使用华为云 SWR 私有镜像仓库，不使用 GHCR 作为正式部署镜像来源。
 
-- GitHub-hosted runner 构建并向 SWR 推送四个可独立部署的镜像：Data Service、Miniapp Backend Service、Admin Portal Backend Service、Admin Portal Frontend。
+- GitHub-hosted runner 构建并向 SWR 推送五个可独立部署的镜像：Data Service、Miniapp Backend Service、Admin Portal Backend Service、Admin Portal Frontend、AgentRun。
 - 镜像使用不可变的 Git commit SHA 标签；不得使用可被覆盖的 `latest` 作为发布身份。
 - GitHub Actions 的 SWR 推送凭据保存在 GitHub `uat` Environment Secrets 中。
 - ECS 只配置 SWR 拉取权限，遵循最小权限原则。
@@ -83,7 +82,7 @@ SWR 镜像保留策略：
 - 每个组件保留最近 20 套完整 Git SHA 版本。
 - 当前运行版本和上一个可回退版本始终受保护，不得被清理。
 - 发布 workflow 不执行镜像删除；清理由 SWR 生命周期规则或独立维护任务完成。
-- 四个组件按完整发布单元清理，不能只保留部分组件的某个 SHA。
+- 五个组件按完整发布单元清理，不能只保留部分组件的某个 SHA。
 
 ## Public Entry And TLS
 
@@ -107,6 +106,7 @@ UAT 当前没有域名，且 Miniapp 尚未进入上架阶段。本期允许开�
 | Miniapp Application Backend Service | `9012` | 开放，用于 Miniapp 开发联调 |
 | Admin Portal Application Backend Service | `9013` | 开放，用于 Admin Portal API 联调 |
 | Admin Portal Frontend | `9014` | 开放，用于浏览器访问 |
+| AgentRun Backend Service | `9080` | 不开放，仅供 Admin Portal Backend 与受控运维调用 |
 
 以上端口在 local 与 UAT 保持一致。Backend Service 配置、Docker 暴露端口、Compose 健康检查、前端开发代理和服务间 Base URL 必须统一使用该合同。正式部署 preflight 必须检查 ECS 端口占用；不得占用 `9000/9001` 等常见中间件端口。
 
@@ -115,7 +115,7 @@ UAT 当前没有域名，且 Miniapp 尚未进入上架阶段。本期允许开�
 每次 UAT 手工发布自动包含数据库 migration，固定顺序如下：
 
 1. 完成只读 preflight，并拉取目标 Git commit SHA 对应的全部镜像。
-2. 使用目标版本的 Data Service 镜像运行一次性 migration command。
+2. 使用目标版本的 Data Service 与 AgentRun 镜像分别运行只读 migration preflight，再运行各自一次性 migration command。
 3. migration 使用 PostgreSQL advisory lock，防止并发发布同时修改 schema。
 4. migration 成功后才允许更新和启动新版本服务。
 5. migration 失败时立即终止发布，新版本服务不得启动，当前运行中的旧服务保持不变。
@@ -127,7 +127,7 @@ Migration 遵循项目 forward-only 原则。是否允许应用镜像自动回�
 
 新版本服务启动后必须执行健康检查。任一必要服务未通过时：
 
-1. 自动将四个应用组件恢复到本次发布前记录的镜像 SHA。
+1. 自动将五个应用组件恢复到本次发布前记录的镜像 SHA。
 2. 数据库 migration 不执行自动 down migration 或数据恢复。
 3. 所有 schema migration 必须兼容至少前一个应用版本，确保旧镜像能够在新 schema 上继续运行。
 4. 回退后重新检查全部服务；回退成功则将本次发布标记为失败并报告原因。
@@ -137,21 +137,22 @@ Workflow 必须在发布前记录当前运行镜像身份，不能依赖可变�
 
 ## Release Unit
 
-UAT 将一个 Git commit SHA 对应的四个组件作为不可拆分的完整发布单元：
+UAT 将一个 Git commit SHA 对应的五个组件作为不可拆分的完整发布单元：
 
 - Data Domain Service
 - Miniapp Application Backend Service
 - Admin Portal Application Backend Service
 - Admin Portal Frontend
+- AgentRun Backend Service
 
-每次手工发布均构建并部署四个相同 SHA 标签的镜像，即使该提交只修改其中一个组件。发布成功、版本记录和失败回退均按整套执行，不允许把不同 Git SHA 的组件混合成一个 UAT 版本。
+每次手工发布均构建并部署五个相同 SHA 标签的镜像，即使该提交只修改其中一个组件。发布成功、版本记录和失败回退均按整套执行，不允许把不同 Git SHA 的组件混合成一个 UAT 版本。
 
 ## Health Verification
 
 发布成功必须同时通过两层健康验证：
 
-1. 容器内部验证：三个 Go Service 均通过 `/healthz` 和 `/readyz`；Admin Portal Frontend 通过 `/healthz`。
-2. ECS 实际访问验证：Miniapp Backend `9012`、Admin Portal Backend `9013`、Admin Portal Frontend `9014` 均可访问，并验证两个 BFF 能够通过内部 `9011` 调用 Data Service 的代表性只读接口。
+1. 容器内部验证：Data、Miniapp、Admin Portal 均通过 `/healthz` 和 `/readyz`；AgentRun 通过 `/healthz`，其 `/readyz` 独立表示采集配置完整；Admin Portal Frontend 通过 `/healthz`。
+2. ECS 实际访问验证：Miniapp Backend `9012`、Admin Portal Backend `9013`、Admin Portal Frontend `9014` 均可访问，并验证 BFF 能够通过内部 `9011`/`9080` 调用 Data/AgentRun。
 
 健康检查使用有限次数和固定超时，不得无限重试。任一必要检查失败，整套发布失败并触发已确认的应用镜像回退流程。
 
@@ -206,7 +207,7 @@ ECS 使用专用 Linux 用户 `tidewise-deploy` 运行 GitHub Actions Runner 和
 
 ## Host Restart Recovery
 
-- 四个应用容器使用 `restart: unless-stopped`。
+- 五个应用容器使用 `restart: unless-stopped`。
 - Docker Engine 和 GitHub Actions Runner systemd service 均设置开机自启。
 - Compose 文件、受限环境文件、当前成功 Git SHA 和上一可回退 Git SHA 保存在 `/opt/tidewise/uat`。
 - ECS 重启后只恢复上一次成功发布的容器，不重新运行 migration，也不触发新的 GitHub Actions 发布。
@@ -250,7 +251,7 @@ UAT migration 采用分级数据保护：
 - ECS 通过华为云 VPC 私网地址访问 RDS for PostgreSQL。
 - RDS 不启用公网访问。
 - RDS 安全组或白名单只允许目标 ECS 私网来源访问 PostgreSQL `5432`。
-- 只有 Data Service 和由 Data Service 镜像执行的一次性 migration command 持有数据库连接信息。
+- 只有 Data Service/AgentRun 和由各自镜像执行的一次性 migration command 持有各自数据库连接信息。
 - Miniapp Backend、Admin Portal Backend、Admin Portal Frontend 和 GitHub-hosted runner 均不能直接连接 RDS。
 - 正式发布 preflight 在 ECS Runner 上验证目标 RDS 私网地址和 `5432` 连通性，但不得打印连接密码。
 
@@ -265,6 +266,6 @@ UAT 数据库连接强制启用 TLS：
 
 以下参数不改变已确认设计，但在实际接通 UAT 前必须提供并写入 GitHub `uat` Environment Variables/Secrets：
 
-- SWR 区域、组织、四个镜像仓库地址、推送凭据和 ECS 只读拉取凭据。
-- RDS 私网地址、端口、数据库名、最小权限用户和密码。
+- SWR 区域、组织、五个镜像仓库地址、推送凭据和 ECS 只读拉取凭据。
+- Data 与 AgentRun 各自的 RDS 私网 database、最小权限用户和密码。
 - ECS 私网 IP、华为云安全组实际规则，以及 Miniapp/Admin Portal 开发联调来源。

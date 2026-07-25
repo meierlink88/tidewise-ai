@@ -8,7 +8,7 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 默认发布 `main` 最新提交；回滚或复验可填写 `main` 历史提交的完整 40 位 SHA。
 - 目标提交必须属于 `main`，且同一 SHA 的 `CI` workflow 必须成功。
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
-- GitHub-hosted runner 构建四个 `linux/amd64` 镜像并推送到 SWR，镜像 tag 固定为 Git commit SHA。
+- GitHub-hosted runner 构建五个 `linux/amd64` 镜像并推送到 SWR，镜像 tag 固定为 Git commit SHA。
 - ECS runner 负责 preflight、SWR 拉取、Data migration、Compose 启动、两层健康检查和失败时的整套镜像回退。
 
 ## ECS runner 与目录
@@ -40,8 +40,9 @@ ACTIONS_RUNNER_ARCHIVE_SHA256=<official-sha256> \
 Workflow 在成功后持久保存：
 
 - `/opt/tidewise/uat/runtime.env`：当前运行版本需要的 Secrets，权限 `0600`。
-- `/opt/tidewise/uat/state/current.*`：当前成功版本的 SHA、四镜像与 Compose。
-- `/opt/tidewise/uat/state/previous.*`：上一成功版本的 SHA、四镜像与 Compose。
+- `/opt/tidewise/uat/state/current.*`：当前成功版本的 SHA、五镜像与 Compose。
+- `/opt/tidewise/uat/state/previous.*`：上一成功版本的 SHA、五镜像与 Compose。
+- `/opt/tidewise/uat/agentrun-artifacts`：AgentRun 持久化 Artifact，归 `tidewise-deploy` 管理。
 - `/opt/tidewise/uat/previous.runtime.env`：上一成功版本回退所需的临时保留配置，权限 `0600`。
 
 不要启用 root 密码 SSH。Runner 注册 token 是一次性的，不得写入仓库、配置文件、shell 历史或日志。
@@ -60,9 +61,9 @@ Variables：
 | `SWR_MINIAPP_REPOSITORY` | Miniapp Backend 镜像仓库名 |
 | `SWR_ADMINPORTAL_REPOSITORY` | Admin Portal Backend 镜像仓库名 |
 | `SWR_ADMIN_REPOSITORY` | Admin Portal Frontend 镜像仓库名 |
+| `SWR_AGENTRUN_REPOSITORY` | AgentRun 镜像仓库名 |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
-| `AGENTRUN_BASE_URL` | Admin Portal Backend 可访问的 AgentRun Admin API origin |
 
 Secrets：
 
@@ -77,12 +78,17 @@ Secrets：
 | `DATA_SERVICE_ADMIN_TOKEN` | Data Service 与 Admin Portal Backend |
 | `ADMIN_API_TOKEN` | Admin Portal Backend 浏览器鉴权 |
 | `AGENTRUN_ADMIN_TOKEN` | Admin Portal Backend 调用 AgentRun Admin API 的服务身份 |
+| `AGENTRUN_SERVICE_TOKEN` | AgentRun Service API 身份 |
+| `AGENTRUN_DATABASE_URL` | AgentRun 独立 RDS database |
 
-`UAT_DATABASE_URL` 必须使用 RDS VPC 私网地址和 `sslmode=require`：
+`UAT_DATABASE_URL` 与 `AGENTRUN_DATABASE_URL` 必须使用 RDS VPC 私网地址和 `sslmode=require`，并指向相互独立的 database/role：
 
 ```text
 postgres://<user>:<password>@<private-rds-host>:5432/<database>?sslmode=require
 ```
+
+AgentRun 的 database 名固定为 `tidewise_ai_server`；环境隔离由 UAT RDS instance/database
+边界和独立 role 保证，不能使用任意名称绕过 AgentRun 的数据库身份保护。
 
 RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、Admin Portal Backend 和 Frontend 容器中没有数据库连接信息。`sslmode=require` 会加密链路，但不使用 CA 校验服务器身份；这是本期明确接受的 UAT 安全取舍，不得降级为 `prefer` 或 `disable`。
 
@@ -94,12 +100,19 @@ RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、
 | Miniapp Backend Service | `9012` | 开发联调按需开放 |
 | Admin Portal Backend Service | `9013` | 开发联调按需开放 |
 | Admin Portal Frontend | `9014` | 开发联调按需开放 |
+| AgentRun | `9080` | Admin Portal 联调按需开放 |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
 Admin Frontend 启动时从 `UAT_PUBLIC_BASE_URL` 生成运行时 API 地址，不把公网 IP 烧录进镜像。Admin Backend 只允许 `${UAT_PUBLIC_BASE_URL}:9014` Origin。Miniapp 开发者工具另行把 `TARO_APP_MINIAPP_API_BASE_URL` 设置为 `${UAT_PUBLIC_BASE_URL}:9012`。
 
-Admin Portal Backend 通过 `AGENTRUN_BASE_URL` 调用 AgentRun Admin API，并使用仅注入后端容器的 `AGENTRUN_ADMIN_TOKEN`。浏览器不得直接访问 AgentRun，也不得获得该令牌。
+Admin Portal Backend 在 Compose 网络中固定通过 `http://agentrun:9080` 调用 AgentRun Admin API，并使用仅注入后端容器的 `AGENTRUN_ADMIN_TOKEN`。浏览器不得直接访问 AgentRun，也不得获得该令牌。
+
+AgentRun 的 UAT 容器门禁和发布校验统一使用 `/readyz`。只有数据库 Schema、Service
+Token、模型与连接器配置以及 Artifact 持久化目录全部就绪，候选发布才会通过。首次
+配置应在正式发布前通过运维 CLI 或既有管理入口完成，不能把未配置实例标记为 UAT
+可发布。Local Compose 为了允许首次进入 Admin Portal 配置，容器启动检查仍使用
+`/healthz`；配置完成后用 `/readyz` 判断采集执行能力。
 
 ## Migration、备份门禁与回退
 
@@ -107,7 +120,7 @@ Admin Portal Backend 通过 `AGENTRUN_BASE_URL` 调用 AgentRun Admin API，并�
 
 所有 migration 的风险分类维护在 `migration-risk.tsv`。未分类的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容，只要 pending 就禁止发布且不能用备份确认绕过；存在 `high` migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选 `confirm_high_risk_backup`，否则发布失败。
 
-Migration 成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 和四镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试。Schema migration 必须兼容至少前一个应用版本。
+Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 和五镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试。Schema migration 必须兼容至少前一个应用版本。
 
 部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012`、`9013`、`9014`。这会验证容器端口已正确发布到 ECS，同时避免云厂商不支持公网 IP NAT 回环造成误判；`UAT_PUBLIC_BASE_URL` 仍只用于客户端运行时地址和 CORS 配置。发布完成后应从 ECS 外部检查公网健康端点。
 
@@ -119,8 +132,8 @@ Migration 成功后才更新服务。若启动或健康检查失败，脚本使�
 
 1. 确认 RDS 自动备份和 PITR 已启用，并确认 ECS 可通过私网访问 RDS。
 2. 创建 RDS 数据库与最小权限用户，并配置 VPC 私网访问。
-3. 创建四个 SWR 私有仓库和相互独立的 push/pull 凭据。
+3. 创建五个 SWR 私有仓库和相互独立的 push/pull 凭据。
 4. 配置 GitHub `uat` Environment Variables 与 Secrets。
 5. 将 ECS runner 迁移到 `tidewise-deploy`，添加专属标签，并创建固定部署目录。
 6. 从 `main` 手工运行 `Deploy UAT`。如 check-only 报告包含高风险 migration，核验恢复点后重新勾选确认项执行。
-7. 检查 Actions summary、四个服务、代表性 BFF→Data 读取以及 `state/current.sha`、`state/previous.sha`。
+7. 检查 Actions summary、五镜像服务单元、代表性 BFF→Data/AgentRun 读取以及 `state/current.sha`、`state/previous.sha`。
