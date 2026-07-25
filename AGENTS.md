@@ -14,8 +14,8 @@ branch 中完成，并由用户控制 PR 合并。
 
 ### GitHub CLI
 
-- `gh pr create` 是实现完成后的默认自动交付动作，无需用户逐次授权；允许 Codex
-  自动在沙箱外读取 macOS Keychain 凭据并创建 PR。
+- `gh issue create` 和 `gh pr create` 是默认自动交付动作，无需用户逐次授权；允许
+  Codex 自动在沙箱外读取 macOS Keychain 凭据并创建 Issue 或 PR。
 - Codex Runtime 自动添加的 Shell 启动层不视为人工 Shell 包装。Agent 不应主动使用
   `bash -lc`、`zsh -lc`、命令串联或变量替换来隐藏 GitHub CLI 操作。
 - PR 和 Issue 的多行正文优先写入临时文件，再通过 `--body-file` 传入，避免转义错误。

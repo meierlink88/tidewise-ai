@@ -1,7 +1,7 @@
 # GitHub CLI reads credentials from the macOS Keychain, which is unavailable
-# inside the workspace sandbox. Read-only commands and PR creation may run
-# outside the sandbox without per-action approval. Other GitHub mutations still
-# require approval.
+# inside the workspace sandbox. Read-only commands plus PR and Issue creation
+# may run outside the sandbox without per-action approval. Other GitHub
+# mutations still require approval.
 
 prefix_rule(
     pattern = ["gh", "auth", "status"],
@@ -61,7 +61,13 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["gh", "issue", ["create", "close", "reopen", "edit", "comment"]],
+    pattern = ["gh", "issue", "create"],
+    decision = "allow",
+    justification = "Create issues automatically with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["close", "reopen", "edit", "comment"]],
     decision = "prompt",
-    justification = "Issue mutations require approval and macOS Keychain access",
+    justification = "Mutating an existing issue requires approval and macOS Keychain access",
 )

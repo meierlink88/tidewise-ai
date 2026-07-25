@@ -12,6 +12,8 @@
 - 关闭：`gh issue close <number> --comment "..."`
 
 当 Skill 要求发布到 Issue Tracker 时，创建 GitHub Issue。当 Skill 要求读取 ticket 时，使用 `gh issue view` 获取正文、评论和标签。
+`gh issue create` 无需用户逐次批准，并允许自动在沙箱外读取 macOS Keychain。对现有
+Issue 的编辑、评论、关闭和重新打开仍按 GitHub 写操作规则处理。
 
 ## Pull Requests As A Request Surface
 

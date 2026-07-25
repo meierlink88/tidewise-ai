@@ -44,6 +44,8 @@ Use `$to-spec` after the design is sufficiently resolved.
 
 - Prefer one high, observable test seam. Confirm it with the user unless their frozen acceptance criteria already establish it.
 - Create or update a GitHub Issue using the repository spec template and apply only the `ready-for-agent` triage label.
+- Create the Issue automatically without requesting separate user approval. `gh issue create` may
+  run outside the workspace sandbox to read the macOS Keychain.
 - The Issue is the implementation ticket and PR traceability anchor. Do not create an OpenSpec change or parallel local planning format.
 - If GitHub is temporarily unavailable, keep the reviewed authoritative spec as the source of truth, report the delivery blocker, and do not invent a substitute Issue identifier.
 
