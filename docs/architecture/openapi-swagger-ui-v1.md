@@ -21,30 +21,24 @@ OpenAPI 文档描述服务对外暴露的 HTTP 合同；Swagger UI 只负责浏�
 每个 Backend Service 都维护自己的 OpenAPI 3.0.4 文档，不建立中央聚合合同：
 
 ```text
-src/backend/
-├── internal/platform/
-│   └── apidocs/
-│       ├── handler.go
-│       └── handler_test.go
-└── services/
-    ├── data/
-    │   └── api/
-    │       ├── openapi.yaml
-    │       ├── document.go
-    │       └── openapi_test.go
-    ├── miniapp/
-    │   └── api/
-    │       ├── openapi.yaml
-    │       ├── document.go
-    │       └── openapi_test.go
-    └── adminportal/
-        └── api/
-            ├── openapi.yaml
-            ├── document.go
-            └── openapi_test.go
+analyse-data-service/backend/api/
+├── openapi.yaml
+├── document.go
+└── openapi_test.go
+
+miniapp/backend/api/miniapp/v1/
+├── openapi.yaml
+├── document.go
+└── openapi_test.go
+
+admin-portal/backend/api/
+├── openapi.yaml
+├── document.go
+└── openapi_test.go
 ```
 
-`internal/platform/apidocs` 只提供无业务语义的 OpenAPI 文档与 Swagger UI HTTP 交付机制。每份 `openapi.yaml` 及其合同测试由所属 Service 维护。
+每个 Backend 同时拥有自己的 OpenAPI 文档交付和 Swagger UI 注册实现，不通过根级
+runtime package 复用。每份 `openapi.yaml`、交付实现及合同测试都由所属 Service 维护。
 
 ### 固定入口
 
@@ -178,8 +172,8 @@ servers:
 - `request_id` 同时写入 `X-Request-ID` 响应头，供调用链和日志关联。
 - Data、Miniapp 和 Admin Portal 在各自 OpenAPI 中独立定义该 Schema；
   不使用跨 Service `$ref`。
-- Go 实现可以复用 `internal/platform` 下的错误响应工具，但各 Service
-  仍独立决定业务错误码与 HTTP 状态映射。
+- Go 实现由各 Service 独立拥有；相似 envelope 不通过跨应用 package 复用，各
+  Service 仍独立决定业务错误码与 HTTP 状态映射。
 
 ### 成功响应
 

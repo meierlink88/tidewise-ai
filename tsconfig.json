@@ -2,10 +2,10 @@
   "files": [],
   "references": [
     {
-      "path": "./src/frontend/miniapp"
+      "path": "./miniapp/frontend"
     },
     {
-      "path": "./src/frontend/admin"
+      "path": "./admin-portal/frontend"
     }
   ]
 }

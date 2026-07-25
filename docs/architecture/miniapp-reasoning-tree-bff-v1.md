@@ -150,7 +150,7 @@ Miniapp Application Backend Service 将 Data Service 的 Theme 推理树已发�
 
 ## 实现边界
 
-实现限定在 `src/backend/services/miniapp/`：
+实现限定在 `miniapp/backend/`：
 
 - 扩展 `dataclient` 的局部 DTO、typed client、fake 与 drift test。
 - 扩展 `usecase` 的局部页面 DTO、输入校验、枚举校验和错误映射。

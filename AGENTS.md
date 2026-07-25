@@ -17,8 +17,18 @@
 
 ### Domain docs
 
-采用 Data、Miniapp、Admin Portal 三个上下文的 multi-context 布局。详见 `docs/agents/domain.md`。
+采用 Data、Miniapp、Admin Portal 三个上下文的 multi-context 布局。应用源码分别位于
+`analyse-data-service/`、`miniapp/` 和 `admin-portal/`；未来 AgentRun 以
+`agent-run/` 纳入时仍保持独立 Context 与 API 边界。详见 `docs/agents/domain.md`。
 
-### Miniapp reference-first
+### 观潮家开发规范
 
-讨论、设计或实现任何 Miniapp 前端需求前，先使用项目 Skill `$taro-reference-first` 匹配当前 Taro 官方案例并输出简短参考结论。小型文案或样式修改走 Skill 的快速路径，不重复扫描 NervJS 全部仓库。
+讨论、设计、实现、调试、迁移或审查任何观潮家工程需求前，必须先使用全局 Skill
+`$ganchaojia-development-standard`，不得以熟悉现有代码为由跳过。
+
+- Miniapp 前端工作执行其中的 Taro reference-first 分支，并继续读取本项目现有
+  `$taro-reference-first` 规则和来源目录。
+- Backend Service 工作执行其中的 Kratos 分支。
+- Eino/Agent 工作执行其中的 Eino reference-first 分支。
+- 跨前端、Service 与 Agent 的需求同时执行所有适用分支，并先冻结 API、数据和所有权边界。
+- 仅不改变系统行为或项目事实的纯解释、纯文案工作可以不触发。

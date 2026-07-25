@@ -103,12 +103,12 @@ Content-Type: application/json
 
 ## 本地验证
 
-在 `src/backend` 下执行本地开发 seed。该命令严格读取同一 V1 合同，并调用正式 application service，不直接写表：
+在仓库根目录执行本地开发 seed。该命令严格读取同一 V1 合同，并调用正式 application service，不直接写表：
 
 ```bash
 APP_ENV=local \
 TIDEWISE_DATABASE_URL='postgres://tidewise:<local-password>@localhost:5432/tidewise_local?sslmode=disable' \
-go run ./services/data/cmd/research-theme-dev-seed
+go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 ```
 
-默认请求文件是 `src/backend/data/research_themes/local_homepage.json`。重复执行应返回相同结果且 `replayed: true`。
+默认请求文件是 `analyse-data-service/backend/data/research_themes/local_homepage.json`。重复执行应返回相同结果且 `replayed: true`。

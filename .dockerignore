@@ -5,5 +5,5 @@ midscene_run
 node_modules
 dist
 *.tsbuildinfo
-src/backend/.data
-src/frontend/miniapp/.swc
+analyse-data-service/backend/.data
+miniapp/frontend/.swc

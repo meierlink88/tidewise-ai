@@ -22,7 +22,7 @@ Use for copy, color, spacing, or similarly local presentation changes:
 
 Use for new pages or components, routing, platform APIs, authentication, payment, data adapters, long lists, performance, testing, build, publishing, or cross-platform behavior:
 
-1. Inspect `src/frontend/miniapp/package.json`, relevant config, and the affected code.
+1. Inspect `miniapp/frontend/package.json`, relevant config, and the affected code.
 2. Read `references/source-catalog.md` and select only relevant candidates.
 3. Check the current official Taro documentation and `NervJS/taro` example when behavior or compatibility may have changed.
 4. Verify Taro version, React support, and both `weapp` and `tt` implications.

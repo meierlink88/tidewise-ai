@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 run_suffix="${GITHUB_RUN_ID:-$$}"
 project_name="tidewise-kratos-smoke-${run_suffix}"
 prod_container=""
+failure_body="/tmp/${project_name}-miniapp-data-unavailable.json"
 
 export COMPOSE_NETWORK_NAME="${project_name}-network"
 export POSTGRES_PORT="${TIDEWISE_SMOKE_POSTGRES_PORT:-55432}"
@@ -27,6 +28,7 @@ compose=(
 
 cleanup() {
   set +e
+  rm -f -- "$failure_body"
   if [[ -n "$prod_container" ]]; then
     docker rm -f "$prod_container" >/dev/null 2>&1
   fi
@@ -47,6 +49,29 @@ curl --fail --silent --show-error \
 curl --fail --silent --show-error \
   "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/docs/" \
   >/dev/null
+
+"${compose[@]}" stop data >/dev/null
+failure_status="$(
+  curl --silent --show-error \
+    --output "$failure_body" \
+    --write-out "%{http_code}" \
+    "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees"
+)"
+if [[ "$failure_status" != "502" ]]; then
+  echo "Miniapp returned ${failure_status}, want 502 while Data Service is unavailable" >&2
+  sed -n '1,20p' "$failure_body" >&2
+  exit 1
+fi
+if ! grep -Fq '"code":"RESEARCH_DATA_UNAVAILABLE"' "$failure_body"; then
+  echo "Miniapp did not return the stable Data-unavailable error code" >&2
+  sed -n '1,20p' "$failure_body" >&2
+  exit 1
+fi
+if grep -Eiq 'postgres|password|compose-smoke|data:9011' "$failure_body"; then
+  echo "Miniapp leaked upstream implementation details while Data Service was unavailable" >&2
+  sed -n '1,20p' "$failure_body" >&2
+  exit 1
+fi
 
 prod_container="$(
   "${compose[@]}" run -d --no-deps \

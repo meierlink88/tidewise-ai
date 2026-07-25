@@ -57,10 +57,11 @@ Kratos 在本项目中既是统一 Service 运行时，也是 Backend 工程结�
 
 ### 官方 Application Layout
 
-每个 `src/backend/services/<service>` 都是一个 Kratos Application，并必须采用：
+每个 `<application>/backend` 都是一个独立 Backend Service 根。迁移后的 Kratos
+Application 必须采用：
 
 ```text
-services/<service>/
+<application>/backend/
 ├── api/<service>/v1/
 ├── cmd/server/
 ├── configs/
@@ -142,8 +143,9 @@ ADR-0002 的可部署 Service 类型保持不变：
   import 其 `internal/biz`、`internal/data`、`internal/service` 或
   `internal/server`；
 - Domain Service 不得 import Application Backend Service 实现；
-- Service 不得通过共享 Go DTO 或方法调用绕过远程 API；
-- `src/backend/internal/platform` 只能承载无业务语义、真实复用的机制。
+- Service 不得通过共享 Go DTO、共享运行时 helper 或方法调用绕过远程 API；
+- 仓库根不得提供被多个 Application import 的运行时 Go package。配置、HTTP
+  envelope、API 文档、健康检查和 Server 构造由各自 Application 独立拥有。
 
 Kratos Layout 统一源码组织，但不改变业务边界和数据 ownership。
 
@@ -272,18 +274,12 @@ Server Layer 负责：
 
 Server Layer 不得实现 Theme、Event、Payment 等业务规则。
 
-### `internal/platform`
+### Application-owned runtime mechanisms
 
-共享平台模块必须同时满足：
-
-- 被至少两个 Service 真实使用；
-- 不含业务术语和业务 DTO；
-- 通过小接口隐藏有价值的通用机制；
-- 不 import 任一 Service 的 `internal` 实现。
-
-每个 Service 必须拥有自己的 `internal/server`。不得预先创建共享 `apphost`、
-`transporthttp` 来替代官方层；只有真实重复出现且通过删除测试后，才可提取小型
-平台模块。现有 `apihttp`、`apidocs`、`runtimeconfig` 等模块按该标准继续审查。
+每个 Service 必须拥有自己的配置、HTTP envelope、API 文档、健康检查、Server 构造和
+`internal/server`。这些机制即使相似，也不得提取到仓库根供多个 Application import。
+重复通过应用内 Module 收敛，并用 OpenAPI、冻结 fixture、provider-consumer 合同和
+仓库门禁保持线协议一致；不得用实现复用代替合同协作。
 
 ## Kratos App 与生命周期
 
@@ -474,7 +470,7 @@ Kratos 不规定数据库、缓存或消息系统实现：
 - 每个已迁移 Service 存在官方 Layout；
 - `biz` 不依赖 `data/service/server`；
 - Service 间没有实现 import；
-- `internal/platform` 不依赖 Service；
+- 根目录不存在被多个 Service import 的共享运行时 Go package；
 - 已迁移 Service 的旧顶层目录已经删除；
 - `cmd/server` 不包含 Wire 文件或业务规则；
 - 每个手写 endpoint 实际执行 Kratos Middleware。
@@ -492,7 +488,7 @@ Kratos 不规定数据库、缓存或消息系统实现：
 - 在 API handler 中复制 middleware 与 envelope 编码；
 - 使用 Kratos 默认 1 秒 server timeout；
 - 将 registry、config center 或 Kubernetes 作为本地启动条件；
-- 在 `internal/platform` 放入业务名、DTO 或错误码；
+- 在仓库根建立跨 Application 共享的配置、HTTP、文档或 Server helper；
 - 自动重试非幂等写入；
 - 直接返回 Kratos 默认错误格式或下游错误正文；
 - 通过同时注册旧框架路由完成回滚；

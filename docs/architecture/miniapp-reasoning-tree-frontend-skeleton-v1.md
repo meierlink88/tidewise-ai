@@ -41,7 +41,7 @@
 | `api`  | Theme API Adapter  | 推理树 API Adapter  |
 
 - `api` 模式失败时不得静默回退到 mock。
-- `mock` 模式使用 `src/testdata/reasoning-tree-v1/` 中已冻结的共享 fixture，不维护第二套业务样例。
+- `mock` 模式使用 `testdata/reasoning-tree-v1/` 中已冻结的共享 fixture，不维护第二套业务样例。
 - API Adapter 在 TW-06 内完整实现并通过 HTTP 合同测试；本任务不要求连接正在运行的真实后端进行验收。
 
 ## Typed Port

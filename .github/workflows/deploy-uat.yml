@@ -138,8 +138,8 @@ jobs:
       - name: Build and push Data Service
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: src/backend
-          file: src/backend/services/data/Dockerfile
+          context: .
+          file: analyse-data-service/backend/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
@@ -148,8 +148,8 @@ jobs:
       - name: Build and push Miniapp Backend Service
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: src/backend
-          file: src/backend/services/miniapp/Dockerfile
+          context: .
+          file: miniapp/backend/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
@@ -158,8 +158,8 @@ jobs:
       - name: Build and push Admin Portal Backend Service
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: src/backend
-          file: src/backend/services/adminportal/Dockerfile
+          context: .
+          file: admin-portal/backend/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
@@ -169,7 +169,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: src/frontend/admin/Dockerfile
+          file: admin-portal/frontend/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false

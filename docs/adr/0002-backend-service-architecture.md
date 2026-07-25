@@ -38,12 +38,12 @@ AgentRun；Tidewise Data 只保留正式 Event 的受控接纳、轻量证据、
 
 Miniapp Frontend 暂时可以使用 Frontend-owned mock；本决策不要求立即接入真实 BFF。
 
-## 目标源码结构
+## 当前源码结构
 
 ```text
-src/backend/
-  services/
-    miniapp/
+miniapp/
+  frontend/
+  backend/
       api/miniapp/v1/
       cmd/server/
       configs/
@@ -53,13 +53,17 @@ src/backend/
         data/
         service/
         server/
-    adminportal/
+admin-portal/
+  frontend/
+  backend/
       cmd/
       usecase/
       transport/
       dataclient/
       config/
-    data/
+
+analyse-data-service/
+  backend/
       cmd/
       usecase/
       domain/
@@ -67,22 +71,26 @@ src/backend/
       adapters/
       transport/
       config/
-  internal/platform/
-  migrations/
-  data/
+
+scripts/ci/repository-contracts/
+testdata/
 ```
 
 ## 影响
 
 - 旧无 owner 的业务目录必须迁入 owning Service 后删除。
 - BFF 与 Data 的 API contract、DTO 和 consumer-owned client 继续独立维护。
+- 配置、HTTP、文档、健康检查与 Server 构造由各 Backend 独立拥有，不建立跨应用
+  共享运行时 Go package。
 - 各 Service 可以独立构建和部署，但当前仍共享仓库与 Go module。
 - 架构测试应验证最终边界，不再保护 compatibility 或 transitional 路径。
 - 若未来拆分 repository/module，现有 REST contract 和 ownership 可以直接成为拆分边界。
 
 ## 与既有决策的关系
 
-`0001-product-source-root.md` 关于唯一 `src/` 根目录、单 repository 和单 Go module 的决策继续有效。本 ADR 澄清：暂不拆分 repository/module 不代表三个 Backend Service 不能独立构建和部署。
+ADR-0007 已取代 `0001-product-source-root.md` 的顶层 `src/` 决策。仓库继续保持单
+repository 和根 Go module；暂不拆分 repository/module 不代表三个 Backend Service
+不能独立构建和部署。
 
 `0006-kratos-official-service-layout.md` 进一步规定迁移后的 Go Service 内部布局。
 Miniapp 是首个完成迁移的 Service；Data 与 Admin Portal 在各自迁移前仍沿用本
