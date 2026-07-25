@@ -60,7 +60,7 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 
 func loadOpenAPI(t *testing.T) map[string]any {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "..", "analyse-data-service", "backend", "api", "openapi.yaml")
+	path := filepath.Join("..", "..", "..", "..", "analyse-data-service", "backend", "api", "data", "v1", "openapi.yaml")
 	payload, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read OpenAPI contract: %v", err)
