@@ -95,7 +95,10 @@ export class AdminAgentRunAPIError extends Error {
 }
 
 export function loadAgentSchedule(token: string, agentKey: string): Promise<AgentSchedule> {
-  return request<AgentSchedule>(token, `/api/admin/v1/agent-schedules/${encodeURIComponent(agentKey)}`);
+  return request<AgentSchedule>(
+    token,
+    `/api/admin/v1/agent-schedules/${encodeURIComponent(agentKey)}`
+  );
 }
 
 export function saveAgentSchedule(
@@ -133,9 +136,7 @@ export function loadAgentExecutions(token: string, page: number): Promise<AgentE
   return request<AgentExecutionPage>(token, `/api/admin/v1/agent-executions?${params.toString()}`);
 }
 
-export async function loadModelProviders(
-  token: string
-): Promise<ModelProviderConfiguration[]> {
+export async function loadModelProviders(token: string): Promise<ModelProviderConfiguration[]> {
   const result = await request<{ items: ModelProviderConfiguration[] }>(
     token,
     '/api/admin/v1/model-providers'

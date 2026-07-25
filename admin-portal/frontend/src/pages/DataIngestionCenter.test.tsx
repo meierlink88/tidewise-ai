@@ -208,28 +208,26 @@ describe('DataIngestionCenter', () => {
     const user = userEvent.setup();
     mockRawDocuments();
     mockCollectorConfiguration();
-    const loadExecutions = vi
-      .spyOn(agentManagementAPI, 'loadAgentExecutions')
-      .mockResolvedValue({
-        items: [
-          {
-            execution_id: 'execution-1',
-            agent_key: 'collector',
-            agent_version: 'collector.v1',
-            trigger_source: 'schedule',
-            status: 'failed',
-            error_summary: '上游响应不可用',
-            created_at: '2026-07-24T04:30:00Z',
-            triggered_at: '2026-07-24T04:30:00Z',
-            started_at: '2026-07-24T04:30:01Z',
-            completed_at: '2026-07-24T04:31:20Z'
-          }
-        ],
-        page: 1,
-        page_size: 20,
-        total_items: 21,
-        total_pages: 2
-      });
+    const loadExecutions = vi.spyOn(agentManagementAPI, 'loadAgentExecutions').mockResolvedValue({
+      items: [
+        {
+          execution_id: 'execution-1',
+          agent_key: 'collector',
+          agent_version: 'collector.v1',
+          trigger_source: 'schedule',
+          status: 'failed',
+          error_summary: '上游响应不可用',
+          created_at: '2026-07-24T04:30:00Z',
+          triggered_at: '2026-07-24T04:30:00Z',
+          started_at: '2026-07-24T04:30:01Z',
+          completed_at: '2026-07-24T04:31:20Z'
+        }
+      ],
+      page: 1,
+      page_size: 20,
+      total_items: 21,
+      total_pages: 2
+    });
 
     render(<DataIngestionCenter token="secret-token" />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
@@ -329,24 +327,20 @@ describe('DataIngestionCenter', () => {
     const user = userEvent.setup();
     mockRawDocuments();
     mockCollectorConfiguration();
-    const updateModel = vi
-      .spyOn(agentManagementAPI, 'updateModelProvider')
-      .mockResolvedValue({
-        provider_key: 'deepseek',
-        base_url: 'https://api.deepseek.com',
-        model: 'deepseek-chat',
-        configured: true,
-        key_configured: true,
-        masked_key: '••••a9f2'
-      });
-    const updateConnector = vi
-      .spyOn(agentManagementAPI, 'updateConnector')
-      .mockResolvedValue({
-        connector_key: 'parallel_search',
-        base_url: 'https://search.example.com',
-        configured: false,
-        key_configured: false
-      });
+    const updateModel = vi.spyOn(agentManagementAPI, 'updateModelProvider').mockResolvedValue({
+      provider_key: 'deepseek',
+      base_url: 'https://api.deepseek.com',
+      model: 'deepseek-chat',
+      configured: true,
+      key_configured: true,
+      masked_key: '••••a9f2'
+    });
+    const updateConnector = vi.spyOn(agentManagementAPI, 'updateConnector').mockResolvedValue({
+      connector_key: 'parallel_search',
+      base_url: 'https://search.example.com',
+      configured: false,
+      key_configured: false
+    });
 
     render(<DataIngestionCenter token="secret-token" />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
@@ -386,14 +380,16 @@ describe('DataIngestionCenter', () => {
   it('keeps Data-backed tabs usable when AgentRun configuration fails locally', async () => {
     const user = userEvent.setup();
     vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({
-      items: [{
-        id: 'raw-safe',
-        source_name: 'BBC',
-        title: 'Data 仍可用',
-        content_text: '摘要',
-        collected_at: '2026-07-09T10:00:00Z',
-        ingest_status: 'collected'
-      }],
+      items: [
+        {
+          id: 'raw-safe',
+          source_name: 'BBC',
+          title: 'Data 仍可用',
+          content_text: '摘要',
+          collected_at: '2026-07-09T10:00:00Z',
+          ingest_status: 'collected'
+        }
+      ],
       total: 1,
       page: 1,
       page_size: 50
@@ -480,7 +476,10 @@ function configuredConnectors() {
     'stcn_quicknews'
   ].map((connector_key) => ({
     connector_key,
-    base_url: connector_key === 'parallel_search' ? 'https://search.example.com' : `https://${connector_key}.example.com`,
+    base_url:
+      connector_key === 'parallel_search'
+        ? 'https://search.example.com'
+        : `https://${connector_key}.example.com`,
     configured: true,
     key_configured: true,
     masked_key: '••••cafe'

@@ -274,11 +274,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
             </p>
           </div>
           {schedule?.enabled ? (
-            <Button
-              disabled={saving}
-              onClick={() => setStopConfirmation(true)}
-              variant="danger"
-            >
+            <Button disabled={saving} onClick={() => setStopConfirmation(true)} variant="danger">
               停止定时器
             </Button>
           ) : (
@@ -449,9 +445,7 @@ interface SchedulePanelProps {
 function SchedulePanel(props: SchedulePanelProps) {
   return (
     <TabPanel label="定时任务配置">
-      <div
-        className={`collector-readiness ${props.readinessComplete ? 'ready' : 'incomplete'}`}
-      >
+      <div className={`collector-readiness ${props.readinessComplete ? 'ready' : 'incomplete'}`}>
         <div className="collector-readiness-copy">
           <strong>
             {props.readinessComplete
@@ -467,8 +461,7 @@ function SchedulePanel(props: SchedulePanelProps) {
                 前往模型配置
               </button>
             ) : null}
-            {props.connectorsTotal === 0 ||
-            props.configuredConnectors < props.connectorsTotal ? (
+            {props.connectorsTotal === 0 || props.configuredConnectors < props.connectorsTotal ? (
               <button onClick={() => props.onSectionChange('connectors')} type="button">
                 前往连接器配置
               </button>
@@ -563,7 +556,9 @@ function SchedulePanel(props: SchedulePanelProps) {
           </div>
           <footer className="collector-form-actions">
             <span>
-              {props.schedule ? `上次保存：${formatDateTime(props.schedule.updated_at)}` : '尚未保存'}
+              {props.schedule
+                ? `上次保存：${formatDateTime(props.schedule.updated_at)}`
+                : '尚未保存'}
             </span>
             <Button disabled={props.saving} onClick={props.onSave}>
               保存配置
@@ -585,11 +580,7 @@ function SchedulePanel(props: SchedulePanelProps) {
               </StatusBadge>
             </DetailRow>
             <DetailRow label="调度策略">
-              {scheduleSummary(
-                props.scheduleType,
-                props.dailyTimes,
-                props.cronExpression
-              )}
+              {scheduleSummary(props.scheduleType, props.dailyTimes, props.cronExpression)}
             </DetailRow>
             <DetailRow label="下次计划">
               {props.schedule?.next_run_at ? formatDateTime(props.schedule.next_run_at) : '-'}
@@ -613,8 +604,7 @@ function SchedulePanel(props: SchedulePanelProps) {
             <DetailRow label="连接器配置">
               <StatusBadge
                 tone={
-                  props.connectorsTotal > 0 &&
-                  props.configuredConnectors === props.connectorsTotal
+                  props.connectorsTotal > 0 && props.configuredConnectors === props.connectorsTotal
                     ? 'success'
                     : 'danger'
                 }
@@ -753,9 +743,7 @@ interface ConfigurationDrawerProps {
 function ConfigurationDrawer(props: ConfigurationDrawerProps) {
   const isModel = props.target.kind === 'model';
   const [baseURL, setBaseURL] = useState(props.target.value.base_url);
-  const [model, setModel] = useState(
-    props.target.kind === 'model' ? props.target.value.model : ''
-  );
+  const [model, setModel] = useState(props.target.kind === 'model' ? props.target.value.model : '');
   const [apiKey, setAPIKey] = useState('');
   const [clearKey, setClearKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -868,11 +856,7 @@ function ConfigurationDrawer(props: ConfigurationDrawerProps) {
   );
 }
 
-function ConfirmationDialog(props: {
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
+function ConfirmationDialog(props: { busy: boolean; onCancel: () => void; onConfirm: () => void }) {
   return (
     <div className="collector-overlay collector-confirmation-overlay">
       <section aria-label="停止定时器" className="collector-confirmation" role="dialog">
@@ -896,11 +880,7 @@ function promptFromSchedule(schedule: AgentSchedule): string {
   return typeof value === 'string' ? value : '';
 }
 
-function scheduleSummary(
-  type: ScheduleType,
-  dailyTimes: string[],
-  cronExpression: string
-): string {
+function scheduleSummary(type: ScheduleType, dailyTimes: string[], cronExpression: string): string {
   if (type === 'daily') {
     return dailyTimes.length > 0 ? `每日 ${dailyTimes.join('、')}` : '每日定时未配置';
   }
