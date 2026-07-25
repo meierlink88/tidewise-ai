@@ -144,6 +144,8 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"-f services/data/Dockerfile",
 		"-f services/miniapp/Dockerfile",
 		"-f services/adminportal/Dockerfile",
+		"docker compose --env-file ../../infra/local/.env.example -f ../../infra/local/docker-compose.yaml config --quiet",
+		"docker compose --env-file ../../infra/uat/.env.example -f ../../infra/uat/docker-compose.yaml config --quiet",
 		"cache-dependency-path: package-lock.json",
 		"npm run test",
 		"npm run typecheck",

@@ -13,6 +13,7 @@ import (
 
 const DataServiceTimeout = 5 * time.Second
 const ServiceName = "miniapp"
+const ServiceVersion = "1.0.0"
 
 type DataServiceRuntimeConfig struct {
 	BaseURL       string

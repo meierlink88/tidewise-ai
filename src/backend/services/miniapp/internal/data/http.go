@@ -174,27 +174,31 @@ func (c *HTTPClient) Close() error {
 }
 
 func (c *HTTPClient) ListResearchThemes(ctx context.Context, query ResearchListQuery) (ResearchThemePage, error) {
-	var envelope responseEnvelope[ResearchThemePage]
+	var envelope responseEnvelope[wireResearchThemePage]
 	err := c.doJSON(ctx, http.MethodGet, researchListPath(ResearchThemesPath, query), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
+	value, err := unwrapEnvelope(envelope, err)
+	return value.toBiz(), err
 }
 
 func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query ResearchDetailQuery) (ResearchThemeDetail, error) {
-	var envelope responseEnvelope[ResearchThemeDetail]
+	var envelope responseEnvelope[wireResearchThemeDetail]
 	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id, query), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
+	value, err := unwrapEnvelope(envelope, err)
+	return value.toBiz(), err
 }
 
 func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
-	var envelope responseEnvelope[ResearchReasoningTreeList]
+	var envelope responseEnvelope[wireResearchReasoningTreeList]
 	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeListPath(themeID), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
+	value, err := unwrapEnvelope(envelope, err)
+	return value.toBiz(), err
 }
 
 func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (ResearchReasoningTreeDetail, error) {
-	var envelope responseEnvelope[ResearchReasoningTreeDetail]
+	var envelope responseEnvelope[wireResearchReasoningTreeDetail]
 	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, anchorID), nil, &envelope)
-	return unwrapEnvelope(envelope, err)
+	value, err := unwrapEnvelope(envelope, err)
+	return value.toBiz(), err
 }
 
 type responseEnvelope[T any] struct {

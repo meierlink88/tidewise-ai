@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,7 +19,7 @@ import (
 )
 
 func TestHealthz(t *testing.T) {
-	router := NewHTTPServer(testRuntimeConfig(), nil)
+	router := NewHTTPServer(testRuntimeConfig(), nil, testLogger())
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -37,7 +40,7 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestReadyz(t *testing.T) {
-	router := NewHTTPServer(testRuntimeConfig(), nil)
+	router := NewHTTPServer(testRuntimeConfig(), nil, testLogger())
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/readyz", nil)
@@ -88,6 +91,69 @@ func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 	}
 }
 
+func TestServerDoesNotImposeRequestContextDeadline(t *testing.T) {
+	var hasDeadline bool
+	client := &dataclient.Fake{
+		ListResearchThemesFunc: func(ctx context.Context, _ dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
+			_, hasDeadline = ctx.Deadline()
+			return dataclient.ResearchThemePage{}, nil
+		},
+	}
+	response := httptest.NewRecorder()
+	researchTestRouter(usecase.NewResearchService(client)).ServeHTTP(
+		response,
+		httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes", nil),
+	)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if hasDeadline {
+		t.Fatal("Kratos server added a request context deadline; Biz/Data must own the request budget")
+	}
+}
+
+func TestOuterFilterRecoversPanicAndWritesSanitizedAccessLog(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	handler := observabilityFilter(
+		runtimeconfig.AppConfig{Name: "miniapp", Env: runtimeconfig.EnvLocal},
+		logger,
+	)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("secret binding failure")
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	request.Header.Set(apihttp.RequestIDHeader, "outer-panic-request")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusInternalServerError)
+	}
+	if strings.Contains(response.Body.String(), "secret binding failure") || strings.Contains(logs.String(), "secret binding failure") {
+		t.Fatal("panic details leaked into response or access log")
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &entry); err != nil {
+		t.Fatalf("decode access log: %v\n%s", err, logs.String())
+	}
+	for key, want := range map[string]any{
+		"service":     "miniapp",
+		"environment": "local",
+		"operation":   "miniapp.health",
+		"request_id":  "outer-panic-request",
+		"status":      float64(http.StatusInternalServerError),
+	} {
+		if entry[key] != want {
+			t.Fatalf("access log %s = %#v, want %#v", key, entry[key], want)
+		}
+	}
+	if duration, ok := entry["duration_ms"].(float64); !ok || duration < 0 {
+		t.Fatalf("access log duration_ms = %#v", entry["duration_ms"])
+	}
+}
+
 func TestOpenAPIDocumentationVisibilityFollowsEnvironment(t *testing.T) {
 	for _, test := range []struct {
 		environment runtimeconfig.Environment
@@ -100,7 +166,7 @@ func TestOpenAPIDocumentationVisibilityFollowsEnvironment(t *testing.T) {
 		config := testRuntimeConfig()
 		config.App.Env = test.environment
 		response := httptest.NewRecorder()
-		NewHTTPServer(config, nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
+		NewHTTPServer(config, nil, testLogger()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
 		if response.Code != test.wantStatus {
 			t.Fatalf("%s OpenAPI status = %d, want %d", test.environment, response.Code, test.wantStatus)
 		}
@@ -116,7 +182,7 @@ func TestLegacyMiniappRoutesRemainRemoved(t *testing.T) {
 		"/api/miniapp/v1/research/anchors",
 	} {
 		response := httptest.NewRecorder()
-		NewHTTPServer(testRuntimeConfig(), nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		NewHTTPServer(testRuntimeConfig(), nil, testLogger()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
 		if response.Code != http.StatusNotFound {
 			t.Fatalf("GET %s status = %d, want %d", path, response.Code, http.StatusNotFound)
 		}
@@ -130,4 +196,8 @@ func testRuntimeConfig() conf.RuntimeConfig {
 			Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10,
 		},
 	}
+}
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, nil))
 }

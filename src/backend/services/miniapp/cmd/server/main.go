@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/conf"
 )
@@ -11,7 +13,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("load Miniapp config: %v", err)
 	}
-	app, err := buildApp(config)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	app, err := buildApp(config, logger)
 	if err != nil {
 		log.Fatalf("compose Miniapp service: %v", err)
 	}

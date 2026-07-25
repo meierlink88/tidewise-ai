@@ -1,12 +1,17 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/go-kratos/kratos/v3/middleware"
 	kratosrecovery "github.com/go-kratos/kratos/v3/middleware/recovery"
+	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apidocs"
@@ -31,12 +36,16 @@ type ReadyResponse struct {
 	Checks      map[string]string         `json:"checks"`
 }
 
-func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService) *kratoshttp.Server {
+func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService, logger *slog.Logger) *kratoshttp.Server {
 	server := kratoshttp.NewServer(
 		kratoshttp.Address(config.Server.Address()),
-		kratoshttp.Timeout(time.Duration(config.Server.WriteTimeoutSeconds)*time.Second),
-		kratoshttp.Filter(requestIDFilter()),
-		kratoshttp.Middleware(kratosrecovery.Recovery()),
+		kratoshttp.Timeout(0),
+		kratoshttp.StrictSlash(false),
+		kratoshttp.Filter(observabilityFilter(config.App, logger)),
+		kratoshttp.Middleware(
+			kratosrecovery.Recovery(),
+			sanitizedLoggingMiddleware(config.App, logger),
+		),
 		kratoshttp.ResponseEncoder(responseEncoder),
 		kratoshttp.ErrorEncoder(errorEncoder),
 		kratoshttp.NotFoundHandler(http.HandlerFunc(notFoundHandler)),
@@ -73,15 +82,136 @@ func registerHealthRoutes(server *kratoshttp.Server, app runtimeconfig.AppConfig
 	})
 }
 
-func requestIDFilter() kratoshttp.FilterFunc {
+func observabilityFilter(app runtimeconfig.AppConfig, logger *slog.Logger) kratoshttp.FilterFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+			startedAt := time.Now()
 			requestID := apihttp.ResolveRequestID(request.Header.Get(apihttp.RequestIDHeader), "miniapp")
 			request.Header.Set(apihttp.RequestIDHeader, requestID)
 			response.Header().Set(apihttp.RequestIDHeader, requestID)
-			next.ServeHTTP(response, request)
+			recorder := &responseStatusWriter{ResponseWriter: response}
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					if !recorder.wroteHeader {
+						_ = writeJSON(recorder, http.StatusInternalServerError, apihttp.Error(
+							requestID,
+							"INTERNAL_ERROR",
+							"internal server error",
+							map[string]any{},
+						))
+					} else {
+						recorder.status = http.StatusInternalServerError
+					}
+				}
+				status := recorder.status
+				if status == 0 {
+					status = http.StatusOK
+				}
+				if logger != nil {
+					logger.InfoContext(request.Context(), "http access",
+						slog.String("service", app.Name),
+						slog.String("environment", string(app.Env)),
+						slog.String("operation", operationForRequest(request)),
+						slog.String("request_id", requestID),
+						slog.Int("status", status),
+						slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+					)
+				}
+			}()
+			next.ServeHTTP(recorder, request)
 		})
 	}
+}
+
+func sanitizedLoggingMiddleware(app runtimeconfig.AppConfig, logger *slog.Logger) middleware.Middleware {
+	return func(next middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, request any) (any, error) {
+			reply, err := next(ctx, request)
+			if logger == nil {
+				return reply, err
+			}
+			operation := "miniapp.unknown"
+			requestID := ""
+			if serverTransport, ok := transport.FromServerContext(ctx); ok {
+				operation = serverTransport.Operation()
+				requestID = serverTransport.RequestHeader().Get(apihttp.RequestIDHeader)
+			}
+			if err != nil {
+				status, code, _ := publicError(err)
+				logger.WarnContext(ctx, "business request failed",
+					slog.String("service", app.Name),
+					slog.String("environment", string(app.Env)),
+					slog.String("operation", operation),
+					slog.String("request_id", requestID),
+					slog.Int("status", status),
+					slog.String("error_code", code),
+				)
+			} else {
+				logger.DebugContext(ctx, "business request completed",
+					slog.String("service", app.Name),
+					slog.String("environment", string(app.Env)),
+					slog.String("operation", operation),
+					slog.String("request_id", requestID),
+					slog.Int("status", http.StatusOK),
+				)
+			}
+			return reply, err
+		}
+	}
+}
+
+func operationForRequest(request *http.Request) string {
+	switch request.URL.Path {
+	case "/healthz":
+		return "miniapp.health"
+	case "/readyz":
+		return "miniapp.ready"
+	case "/docs", "/docs/", "/openapi.yaml":
+		return "miniapp.docs"
+	case v1.APIPrefix + "/research/themes":
+		return "miniapp.research.listThemes"
+	}
+	const prefix = v1.APIPrefix + "/research/themes/"
+	if !strings.HasPrefix(request.URL.Path, prefix) {
+		return "miniapp.unknown"
+	}
+	segments := strings.Split(strings.TrimPrefix(request.URL.Path, prefix), "/")
+	switch {
+	case len(segments) == 1 && segments[0] != "":
+		return "miniapp.research.getTheme"
+	case len(segments) == 2 && segments[0] != "" && segments[1] == "reasoning-trees":
+		return "miniapp.research.listReasoningTrees"
+	case len(segments) == 3 && segments[0] != "" && segments[1] == "reasoning-trees" && segments[2] != "":
+		return "miniapp.research.getReasoningTree"
+	default:
+		return "miniapp.unknown"
+	}
+}
+
+type responseStatusWriter struct {
+	http.ResponseWriter
+	status      int
+	wroteHeader bool
+}
+
+func (w *responseStatusWriter) WriteHeader(status int) {
+	if w.wroteHeader {
+		return
+	}
+	w.status = status
+	w.wroteHeader = true
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *responseStatusWriter) Write(payload []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(payload)
+}
+
+func (w *responseStatusWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 func responseEncoder(response http.ResponseWriter, request *http.Request, result any) error {

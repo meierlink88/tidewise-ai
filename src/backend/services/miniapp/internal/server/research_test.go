@@ -124,7 +124,7 @@ func researchTestRouter(service *usecase.ResearchService) http.Handler {
 }
 
 func researchTestServer(useCase *usecase.ResearchService) *kratoshttp.Server {
-	return NewHTTPServer(testRuntimeConfig(), appservice.NewResearchService(useCase))
+	return NewHTTPServer(testRuntimeConfig(), appservice.NewResearchService(useCase), testLogger())
 }
 
 func serveResearch(t *testing.T, service *usecase.ResearchService, path string) *httptest.ResponseRecorder {

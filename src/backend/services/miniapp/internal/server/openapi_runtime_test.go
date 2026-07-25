@@ -63,7 +63,7 @@ func TestOperationalResponseFieldsMatchOpenAPI(t *testing.T) {
 	if err := yaml.Unmarshal(miniappapi.Document(), &document); err != nil {
 		t.Fatalf("parse OpenAPI: %v", err)
 	}
-	router := NewHTTPServer(testRuntimeConfig(), nil)
+	router := NewHTTPServer(testRuntimeConfig(), nil, testLogger())
 	for path, schemaName := range map[string]string{
 		"/healthz": "HealthResponse",
 		"/readyz":  "ReadinessResponse",

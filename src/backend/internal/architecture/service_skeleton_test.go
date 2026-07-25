@@ -57,6 +57,28 @@ func TestMiniappKratosBinaryDoesNotDependOnGin(t *testing.T) {
 	}
 }
 
+func TestMiniappDoesNotUseGoogleWireArtifacts(t *testing.T) {
+	miniappRoot := filepath.Join("..", "..", "services", "miniapp")
+	for _, name := range []string{"wire.go", "wire_gen.go"} {
+		var matches []string
+		err := filepath.WalkDir(miniappRoot, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !entry.IsDir() && entry.Name() == name {
+				matches = append(matches, path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("scan Miniapp for %s: %v", name, err)
+		}
+		if len(matches) != 0 {
+			t.Fatalf("Miniapp must use explicit constructors, found Google Wire artifact names: %v", matches)
+		}
+	}
+}
+
 func TestAdminPortalApplicationBackendOwnsUseCaseAndTransport(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
