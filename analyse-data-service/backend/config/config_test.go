@@ -28,8 +28,8 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	if cfg.App.Name != ServiceName || cfg.App.Env != EnvLocal {
 		t.Fatalf("app = %#v", cfg.App)
 	}
-	if cfg.Database.Name != "tidewise_local" || cfg.Migration.Directory != "migrations" || !cfg.Neo4j.Enabled {
-		t.Fatalf("Data configuration = %#v/%#v/%#v", cfg.Database, cfg.Migration, cfg.Neo4j)
+	if cfg.Database.Name != "tidewise_local" || cfg.Migration.Directory != "migrations" {
+		t.Fatalf("Data configuration = %#v/%#v", cfg.Database, cfg.Migration)
 	}
 	if cfg.Secrets.DatabaseURL == "" || cfg.Secrets.DataServiceAgentToken == "" || cfg.Secrets.DataServiceResearchPublisherToken == "" || cfg.Secrets.DataServiceMiniappToken == "" || cfg.Secrets.DataServiceAdminToken == "" {
 		t.Fatalf("Data secrets were not loaded: %#v", cfg.Secrets)
@@ -59,16 +59,6 @@ func TestLoadRejectsMissingDataConfiguration(t *testing.T) {
 	t.Setenv("APP_ENV", "local")
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted incomplete Data configuration")
-	}
-}
-
-func TestLoadRejectsInvalidEnabledNeo4jConfiguration(t *testing.T) {
-	invalid := strings.Replace(fullConfigYAML(), "uri: bolt://localhost:7687", "uri: ''", 1)
-	dir := writeTestConfig(t, invalid)
-	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
-	t.Setenv("APP_ENV", "local")
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "neo4j.uri is required") {
-		t.Fatalf("Load() error = %v", err)
 	}
 }
 
@@ -168,14 +158,6 @@ database:
   max_idle_conns: 5
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 5
-neo4j:
-  enabled: true
-  uri: bolt://localhost:7687
-  database: neo4j
-  username_env: NEO4J_USERNAME
-  password_env: NEO4J_PASSWORD
-  connect_timeout_seconds: 5
-  max_connection_pool_size: 10
 migration:
   directory: migrations
   auto_apply: false

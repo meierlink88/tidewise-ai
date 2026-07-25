@@ -97,16 +97,19 @@ RETURN type(r) AS relation_type, count(r) AS relation_count
 ORDER BY relation_type;
 ```
 
-任一层数量不一致时，不得手工修改 Neo4j；应先修正 repo seed 或 PostgreSQL 事实，再运行 `graph-projector rebuild-entities`。
+任一层数量不一致时，不得手工修改 Neo4j；应先修正 repo seed 或 PostgreSQL
+事实。旧投影器已退役，在新业务规则和投影器完成设计前，不执行 Neo4j 重建。
 
 Source Catalog、采集调度和完整原始 Artifact 已归 AgentRun。Data 不再提供
 `source-seed` 或维护 `source_catalogs`；新 Event 只能通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量证据原子接纳。历史
 `raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。
 
-## Neo4j 图谱投影记录
+## 历史 Neo4j 图谱投影记录
 
-PostgreSQL 仍然是实体、关系、事件和证据链的事实源。Neo4j 只保存从 PostgreSQL 派生的图谱查询视图；Neo4j 数据清空后，应通过 `graph-projector` 从 PostgreSQL 重新投影。
+PostgreSQL 仍然是实体、关系、事件和证据链的事实源。Neo4j 只作为未来从
+PostgreSQL 派生图谱查询视图的可选基础设施，不是事实源。旧投影规则和
+`graph-projector` 已退役，当前没有受支持的 Neo4j 写入或重建命令。
 
 `graph_projection_runs` 和 `graph_projection_run_items` 用于审计每次实体图投影的输入数量、成功数量、跳过数量、失败数量和错误摘要。常用核验 SQL：
 
@@ -123,18 +126,5 @@ ORDER BY created_at DESC
 LIMIT 20;
 ```
 
-本地执行实体图投影前，应先完成 migration、实体 seed，并启动 Neo4j：
-
-```bash
-cd /path/to/tidewise-ai
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> go run ./analyse-data-service/backend/cmd/entity-seed
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./analyse-data-service/backend/cmd/graph-projector check
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./analyse-data-service/backend/cmd/graph-projector project-entities
-```
-
-需要清理并重建本系统命名空间下的实体图时使用：
-
-```bash
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./analyse-data-service/backend/cmd/graph-projector rebuild-entities
-```
+这些表仅保留历史投影审计记录。未来重建投影器时，应根据新的实体关系业务规则
+单独设计，并明确历史运行记录的兼容或归档策略。

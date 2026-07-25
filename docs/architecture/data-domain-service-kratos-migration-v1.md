@@ -2,7 +2,8 @@
 
 ## 状态
 
-已确认，由 GitHub Issue #105 冻结并进入实现准备。`entity-seed` 保留，现有
+已确认，由 GitHub Issue #105 冻结；实现基线为已合并 AgentRun 应用后的
+`main@3568f72`。`entity-seed` 保留，现有
 `graph-projector` 删除，Neo4j 作为未来可重建投影基础设施保留，并解除与 Data
 Server 的强启动依赖。命令生命周期、单任务/单 PR 的原子交付方式、共享集成顺序、
 capability-oriented Biz/Data 分包、失败、安全、发布和验证方案均已冻结。
@@ -200,15 +201,17 @@ internal/data/
 命令、认证、配置和部署合同以 projector 退役后的基线为准保持不变。源码、binary、
 Docker、Compose 和 CI 最终一次切换，不保留旧目录、旧入口或双运行时。
 
-## 8. 与 AgentRun 并仓的并行边界
+## 8. AgentRun 并仓后的实施基线
 
-GitHub Issue #104 先负责 AgentRun 历史迁入及根 `go.mod/go.sum`、CI、Local/UAT
-Compose、UAT CD、Context Map 和仓库级契约。Data 迁移在其合并前只修改
-`analyse-data-service/backend/**` 与 Data 专属迁移设计，不争用以上共享集成面。
+GitHub Issue #104 / PR #106 已完成 AgentRun 历史迁入及根 `go.mod/go.sum`、CI、
+Local/UAT Compose、UAT CD、Context Map 和仓库级契约，并以
+`main@3568f72` 通过 Data、Miniapp、Admin Portal、AgentRun 与 Security CI。
 
-Issue #104 合并后，Data 分支 rebase 到最新 `main`，再由 Data PR 修改共享 CI、
-Compose、UAT、仓库契约和根级文档，执行全仓验证并一次切换。Data PR 不先于
-Issue #104 合并。
+Issue #105 已 rebase 到该提交。实现必须保留共仓后的四 Context、独立数据库与
+Artifact ownership、根 module 和共享交付结构，不恢复并仓前的外部仓库假设。
+当前 AgentRun 尚未实现 Data Event Publication HTTP client；本迁移只保持 Data
+provider OpenAPI、fixture 和现有消费方合同，不以框架迁移为由新增 AgentRun
+publication capability。
 
 ## 9. 失败、安全与生命周期
 
@@ -240,7 +243,7 @@ Issue #104 合并。
 
 ## 10. 发布与回滚
 
-- Issue #104 合并后 rebase 并完成共享集成，然后才允许 Data PR 合并。
+- Data PR 必须保持 `main@3568f72` 之后形成的 AgentRun 根 module、CI 和交付合同。
 - Data 源码、OpenAPI 位置、binary build path、Docker、Compose、CI 和文档一次切换
   到新结构，不维护旧入口或双栈。
 - Data OpenAPI、数据库 schema、migration ledger 和调用方合同不变，因此 Miniapp、
@@ -276,7 +279,8 @@ Issue #104 合并。
 - Projector 退役：旧 command、graph projection Use Case、Neo4j Adapter 和失效运行
   说明不存在；Neo4j local 基础设施仍可选存在，但 Data Server 不依赖其健康或凭据。
 - Provider/Consumer：Miniapp/Admin Data client 与 Data OpenAPI/fixture 合同保持；
-  Issue #104 合并后增加或复用 AgentRun→Data Event Publication 合同验证。
+  Data Event Publication provider OpenAPI 与冻结 fixture 保持。当前 AgentRun 没有
+  Data publication client，本迁移不新增消费者实现。
 - Delivery：Data Server 与 `dbmigrate` binary、Data image、local/UAT Compose config、
   Miniapp→Data smoke 及 Data 不可用安全失败路径。
 
@@ -293,5 +297,5 @@ Issue #104 合并。
 
 ## 12. 开放决策
 
-无实现级开放决策。完整设计确认后创建 GitHub Issue 和实现分支；实现期间如发现会
+无实现级开放决策。Issue #104 门禁已满足并完成合并后基线复核；实现期间如发现会
 改变已冻结合同、数据库、所有权或交付顺序的新事实，必须返回设计门禁。

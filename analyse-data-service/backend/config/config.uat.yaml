@@ -18,14 +18,6 @@ database:
   max_idle_conns: 10
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 10
-neo4j:
-  enabled: false
-  uri: ""
-  database: ""
-  username_env: ""
-  password_env: ""
-  connect_timeout_seconds: 0
-  max_connection_pool_size: 0
 migration:
   directory: migrations
   auto_apply: false

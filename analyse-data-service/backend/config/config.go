@@ -37,7 +37,6 @@ type Config struct {
 	Server    ServerConfig    `yaml:"server"`
 	Log       LogConfig       `yaml:"log"`
 	Database  DatabaseConfig  `yaml:"database"`
-	Neo4j     Neo4jConfig     `yaml:"neo4j"`
 	Migration MigrationConfig `yaml:"migration"`
 	Secrets   SecretConfig    `yaml:"-"`
 }
@@ -56,16 +55,6 @@ type DatabaseConfig struct {
 	MaxIdleConns           int    `yaml:"max_idle_conns"`
 	ConnMaxLifetimeSeconds int    `yaml:"conn_max_lifetime_seconds"`
 	ConnectTimeoutSeconds  int    `yaml:"connect_timeout_seconds"`
-}
-
-type Neo4jConfig struct {
-	Enabled               bool   `yaml:"enabled"`
-	URI                   string `yaml:"uri"`
-	Database              string `yaml:"database"`
-	UsernameEnv           string `yaml:"username_env"`
-	PasswordEnv           string `yaml:"password_env"`
-	ConnectTimeoutSeconds int    `yaml:"connect_timeout_seconds"`
-	MaxConnectionPoolSize int    `yaml:"max_connection_pool_size"`
 }
 
 type MigrationConfig struct {
@@ -180,30 +169,6 @@ func (c Config) Validate() error {
 	}
 	if c.Database.ConnectTimeoutSeconds <= 0 {
 		return fmt.Errorf("database.connect_timeout_seconds must be positive")
-	}
-	if c.Neo4j.Enabled {
-		if c.Neo4j.URI == "" {
-			return fmt.Errorf("neo4j.uri is required when neo4j is enabled")
-		}
-		parsed, err := url.ParseRequestURI(c.Neo4j.URI)
-		if err != nil || (parsed.Scheme != "bolt" && parsed.Scheme != "neo4j" && parsed.Scheme != "neo4j+s" && parsed.Scheme != "bolt+s") {
-			return fmt.Errorf("neo4j.uri must be a valid Neo4j URI")
-		}
-		if c.Neo4j.Database == "" {
-			return fmt.Errorf("neo4j.database is required when neo4j is enabled")
-		}
-		if c.Neo4j.UsernameEnv == "" {
-			return fmt.Errorf("neo4j.username_env is required when neo4j is enabled")
-		}
-		if c.Neo4j.PasswordEnv == "" {
-			return fmt.Errorf("neo4j.password_env is required when neo4j is enabled")
-		}
-		if c.Neo4j.ConnectTimeoutSeconds <= 0 {
-			return fmt.Errorf("neo4j.connect_timeout_seconds must be positive when neo4j is enabled")
-		}
-		if c.Neo4j.MaxConnectionPoolSize <= 0 {
-			return fmt.Errorf("neo4j.max_connection_pool_size must be positive when neo4j is enabled")
-		}
 	}
 	if c.Migration.Directory == "" {
 		return fmt.Errorf("migration.directory is required")

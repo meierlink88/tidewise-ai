@@ -18,14 +18,6 @@ database:
   max_idle_conns: 5
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 5
-neo4j:
-  enabled: true
-  uri: bolt://neo4j:7687
-  database: neo4j
-  username_env: NEO4J_USERNAME
-  password_env: NEO4J_PASSWORD
-  connect_timeout_seconds: 5
-  max_connection_pool_size: 10
 migration:
   directory: migrations
   auto_apply: false

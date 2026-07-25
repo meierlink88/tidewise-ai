@@ -101,6 +101,32 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 	}
 }
 
+func TestRetiredDataGraphProjectorIsAbsent(t *testing.T) {
+	repoRoot := repositoryRoot()
+	for _, path := range []string{
+		"analyse-data-service/backend/adapters/graphdb",
+		"analyse-data-service/backend/cmd/graph-projector",
+		"analyse-data-service/backend/usecase/graphprojection",
+	} {
+		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(path))); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("retired Data graph projection path %q must be absent: %v", path, err)
+		}
+	}
+
+	for _, path := range []string{
+		"analyse-data-service/backend/config/config.local.yaml",
+		"analyse-data-service/backend/config/config.uat.yaml",
+	} {
+		contents, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatalf("read Data config %q: %v", path, err)
+		}
+		if strings.Contains(string(contents), "\nneo4j:") {
+			t.Fatalf("Data Server config %q retains retired Neo4j runtime configuration", path)
+		}
+	}
+}
+
 func TestAgentRunMigrationManifestAccountsForEveryFrozenTrackedFile(t *testing.T) {
 	repoRoot := repositoryRoot()
 	path := filepath.Join(repoRoot, "docs", "architecture", "agentrun", "agentrun-monorepo-file-disposition.tsv")
@@ -173,6 +199,12 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 			if strings.Contains(section, forbidden) {
 				t.Fatalf("%s compose service carries Data credential %q", bff, forbidden)
 			}
+		}
+	}
+	data := composeServiceSection(t, text, "data")
+	for _, forbidden := range []string{"NEO4J_USERNAME", "NEO4J_PASSWORD", "\n      neo4j:"} {
+		if strings.Contains(data, forbidden) {
+			t.Fatalf("Data compose service retains retired graph projection dependency %q", forbidden)
 		}
 	}
 	agentrun := composeServiceSection(t, text, "agentrun")

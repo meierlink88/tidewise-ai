@@ -68,16 +68,12 @@ services:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/config
       TIDEWISE_DATABASE_URL: 'postgres://${POSTGRES_USER:-tidewise}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}@postgres:5432/${POSTGRES_DB:-tidewise_local}?sslmode=disable'
-      NEO4J_USERNAME: '${NEO4J_USERNAME:?set NEO4J_USERNAME in infra/local/.env.local}'
-      NEO4J_PASSWORD: '${NEO4J_PASSWORD:?set NEO4J_PASSWORD in infra/local/.env.local}'
       DATA_SERVICE_AGENT_TOKEN: '${DATA_SERVICE_AGENT_TOKEN:?set DATA_SERVICE_AGENT_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: '${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN:?set DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_MINIAPP_TOKEN: '${DATA_SERVICE_MINIAPP_TOKEN:?set DATA_SERVICE_MINIAPP_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_ADMIN_TOKEN: '${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}'
     depends_on:
       postgres:
-        condition: service_healthy
-      neo4j:
         condition: service_healthy
     healthcheck:
       test:
