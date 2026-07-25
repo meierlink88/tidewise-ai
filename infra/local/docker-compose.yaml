@@ -111,6 +111,8 @@ services:
       ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:5174}'
       DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_ADMIN_TOKEN: '${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}'
+      AGENTRUN_BASE_URL: '${AGENTRUN_BASE_URL:-http://host.docker.internal:9080}'
+      AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
     depends_on:
       data:
         condition: service_healthy

@@ -53,10 +53,10 @@ API、数据库 schema、业务数据、认证、运行时或部署拓扑。
 
 - Provider OpenAPI 继续位于所属 Backend；HTTP path、method、DTO、status、error、
   Request ID、时间、顺序、空值、分页、鉴权、超时、重试和幂等语义保持不变。
-- Miniapp Backend 继续使用完整 Kratos Application Layout：
-  `api/miniapp/v1`、`cmd/server`、`configs` 与
-  `internal/{conf,biz,data,service,server}`。
-- Data 与 Admin Portal 在各自 Kratos 迁移任务前保留现有内部层名；本次只改变应用根。
+- Miniapp 与 Admin Portal Backend 使用完整 Kratos Application Layout；
+  两者分别使用 `api/miniapp/v1` 与 `api/admin/v1`，并各自拥有 `cmd/server`、
+  `configs` 与 `internal/{conf,biz,data,service,server}`。
+- Data 在其 Kratos 迁移任务前保留现有内部层名。
 - Data-owned migration、seed、版本化 data 和数据库适配器跟随
   `analyse-data-service/backend`。
 - 跨 Data、BFF 与 Miniapp 的冻结 JSON fixture 位于根 `testdata/`；它是合同测试资产，

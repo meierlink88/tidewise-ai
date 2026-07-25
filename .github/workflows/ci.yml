@@ -60,7 +60,7 @@ jobs:
         run: go test ./analyse-data-service/backend/adapters/dbmigration ./analyse-data-service/backend/cmd/research-theme-dev-reset ./analyse-data-service/backend/transport/internalapi -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
 
       - name: Data API and typed-client drift contracts
-        run: go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/dataclient
+        run: go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data ./admin-portal/backend/internal/data
 
       - name: Architecture and reference contracts
         run: go test ./scripts/ci/repository-contracts
@@ -72,7 +72,7 @@ jobs:
         run: |
           go build -o /tmp/data-service ./analyse-data-service/backend/cmd
           go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server
-          go build -o /tmp/adminportal-service ./admin-portal/backend/cmd
+          go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server
 
       - name: Build service images
         run: |

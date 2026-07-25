@@ -185,6 +185,7 @@ jobs:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       UAT_RUNNER_NAME: ${{ vars.UAT_RUNNER_NAME }}
       UAT_PUBLIC_BASE_URL: ${{ vars.UAT_PUBLIC_BASE_URL }}
+      AGENTRUN_BASE_URL: ${{ vars.AGENTRUN_BASE_URL }}
       COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
       DATA_IMAGE: ${{ needs.build-and-push.outputs.data_image }}
       MINIAPP_IMAGE: ${{ needs.build-and-push.outputs.miniapp_image }}
@@ -196,6 +197,7 @@ jobs:
       DATA_SERVICE_MINIAPP_TOKEN: ${{ secrets.DATA_SERVICE_MINIAPP_TOKEN }}
       DATA_SERVICE_ADMIN_TOKEN: ${{ secrets.DATA_SERVICE_ADMIN_TOKEN }}
       ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+      AGENTRUN_ADMIN_TOKEN: ${{ secrets.AGENTRUN_ADMIN_TOKEN }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
     steps:
       - name: Checkout release commit
@@ -232,12 +234,14 @@ jobs:
           printf '%s\n' \
             "ADMIN_API_BASE_URL=${UAT_PUBLIC_BASE_URL}:9013" \
             "ADMIN_ALLOWED_ORIGIN=${UAT_PUBLIC_BASE_URL}:9014" \
+            "AGENTRUN_BASE_URL=${AGENTRUN_BASE_URL}" \
             "TIDEWISE_DATABASE_URL=${UAT_DATABASE_URL}" \
             "DATA_SERVICE_AGENT_TOKEN=${DATA_SERVICE_AGENT_TOKEN}" \
             "DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN=${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN}" \
             "DATA_SERVICE_MINIAPP_TOKEN=${DATA_SERVICE_MINIAPP_TOKEN}" \
             "DATA_SERVICE_ADMIN_TOKEN=${DATA_SERVICE_ADMIN_TOKEN}" \
-            "ADMIN_API_TOKEN=${ADMIN_API_TOKEN}" > "$runtime_env"
+            "ADMIN_API_TOKEN=${ADMIN_API_TOKEN}" \
+            "AGENTRUN_ADMIN_TOKEN=${AGENTRUN_ADMIN_TOKEN}" > "$runtime_env"
           printf '%s\n' \
             "DATA_IMAGE=${DATA_IMAGE}" \
             "MINIAPP_IMAGE=${MINIAPP_IMAGE}" \

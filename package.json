@@ -26,7 +26,7 @@
     "backend:dev": "npm run backend:dev:miniapp",
     "backend:dev:data": "go run ./analyse-data-service/backend/cmd",
     "backend:dev:miniapp": "go run ./miniapp/backend/cmd/server",
-    "backend:dev:admin": "go run ./admin-portal/backend/cmd",
+    "backend:dev:admin": "go run ./admin-portal/backend/cmd/server",
     "backend:test": "go test ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts",
     "backend:fmt": "gofmt -w analyse-data-service/backend admin-portal/backend miniapp/backend scripts/ci/repository-contracts",
     "backend:vet": "go vet ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./scripts/ci/repository-contracts",

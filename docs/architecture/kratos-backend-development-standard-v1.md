@@ -2,8 +2,8 @@
 
 ## 状态
 
-已确认，按 Service 分批实施。Miniapp 已完成迁移；Data 与 Admin Portal
-仍待各自独立任务实施。
+已确认，按 Service 分批实施。Miniapp 与 Admin Portal 已完成迁移；Data
+仍待独立任务实施。
 
 ## 目的
 

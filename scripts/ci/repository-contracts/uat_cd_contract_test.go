@@ -23,6 +23,8 @@ func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 		"environment: uat",
 		"SWR_PULL_USERNAME",
 		"UAT_PUBLIC_BASE_URL",
+		"AGENTRUN_BASE_URL",
+		"AGENTRUN_ADMIN_TOKEN",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -102,7 +104,7 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	for _, required := range []string{
 		"  data:", "  miniapp:", "  adminportal:", "  admin:",
 		"http://data:9011", "9012:9012", "9013:9013", "9014:9014",
-		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN",
+		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "AGENTRUN_BASE_URL", "AGENTRUN_ADMIN_TOKEN",
 		"restart: unless-stopped", "max-size: \"20m\"", "max-file: \"5\"",
 	} {
 		if !strings.Contains(compose, required) {
@@ -132,7 +134,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 	}{
 		"data":        {root: "analyse-data-service/backend", configDir: "config", port: "9011"},
 		"miniapp":     {root: "miniapp/backend", configDir: "configs", port: "9012"},
-		"adminportal": {root: "admin-portal/backend", configDir: "config", port: "9013"},
+		"adminportal": {root: "admin-portal/backend", configDir: "configs", port: "9013"},
 	}
 	for service, asset := range services {
 		config := readContractFile(t, filepath.Join(root, filepath.FromSlash(asset.root), asset.configDir, "config.uat.yaml"))
