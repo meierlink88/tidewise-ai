@@ -14,8 +14,12 @@ branch 中完成，并由用户控制 PR 合并。
 
 ### GitHub CLI
 
-- 访问 GitHub API 的 `gh` 命令必须单独直接执行，不得使用 `bash -lc`、`zsh -lc`、命令串联、变量替换或内联多行正文包装。
-- PR 和 Issue 的多行正文先写入临时文件，再通过 `--body-file` 传入，确保 `.codex/rules/github.rules` 能匹配命令并在沙箱外读取 macOS Keychain 凭据。
+- `gh pr create` 是实现完成后的默认自动交付动作，无需用户逐次授权；允许 Codex
+  自动在沙箱外读取 macOS Keychain 凭据并创建 PR。
+- Codex Runtime 自动添加的 Shell 启动层不视为人工 Shell 包装。Agent 不应主动使用
+  `bash -lc`、`zsh -lc`、命令串联或变量替换来隐藏 GitHub CLI 操作。
+- PR 和 Issue 的多行正文优先写入临时文件，再通过 `--body-file` 传入，避免转义错误。
+  这是一项正文格式约定，不是 PR 创建审批门禁。
 
 ### Triage labels
 

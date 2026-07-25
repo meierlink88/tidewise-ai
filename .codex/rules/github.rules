@@ -1,8 +1,7 @@
 # GitHub CLI reads credentials from the macOS Keychain, which is unavailable
-# inside the workspace sandbox. Read-only commands may run outside the sandbox;
-# commands that change GitHub state still require approval.
-# Invoke gh directly as one command. Shell wrappers and advanced shell syntax can
-# hide the gh argument prefix from the rule engine.
+# inside the workspace sandbox. Read-only commands and PR creation may run
+# outside the sandbox without per-action approval. Other GitHub mutations still
+# require approval.
 
 prefix_rule(
     pattern = ["gh", "auth", "status"],
@@ -50,9 +49,15 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["gh", "pr", ["create", "merge", "close", "reopen", "ready", "review"]],
+    pattern = ["gh", "pr", "create"],
+    decision = "allow",
+    justification = "Create pull requests automatically with macOS Keychain access",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["merge", "close", "reopen", "ready", "review"]],
     decision = "prompt",
-    justification = "Pull request mutations require approval and macOS Keychain access",
+    justification = "Mutating an existing pull request requires approval and macOS Keychain access",
 )
 
 prefix_rule(

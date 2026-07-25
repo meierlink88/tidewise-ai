@@ -60,7 +60,11 @@ Use `$implement` against the reviewed spec and Issue.
 
 ### 5. Deliver and merge
 
-- When the requested outcome includes delivery, push the feature branch and create a draft PR linked to the Issue. Keep multiline PR text in a temporary body file.
+- After implementation, verification, and code review pass, automatically push the feature branch
+  and create a ready-for-review PR linked to the Issue. Do not request separate user approval for
+  `gh pr create`; it may run outside the workspace sandbox to read the macOS Keychain.
+- Use a draft PR only when the user explicitly asks for an early review or the implementation is
+  intentionally incomplete. Keep multiline PR text in a temporary body file.
 - Do not merge the PR. The user controls merge.
 - After the user confirms merge, fetch `origin/main`, verify the commit is present, return the main checkout to a clean updated state, and remove obsolete local/remote feature branches when authorized.
 

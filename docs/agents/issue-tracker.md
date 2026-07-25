@@ -18,3 +18,5 @@
 PRs as a request surface: no.
 
 PR 不进入 Issue triage 队列；PR Review 使用独立的 GitHub Review 流程。
+实现、验证和 Code Review 完成后，Agent 自动推送 feature branch 并创建关联 Issue 的
+ready-for-review PR，不需要用户再次批准 PR 创建。PR 合并仍由用户控制。
