@@ -1,0 +1,20 @@
+# Local upstream learning references. Never commit or publish these clones.
+/.reference/cloudwego/
+
+# Local secrets and collector runtime outputs.
+/.env
+/data/
+/bin/
+
+# Local operating-system and browser automation artifacts.
+.DS_Store
+/midscene_run/
+
+# Local-only agent instructions and Codex configuration. The GitHub CLI rule is
+# repository workflow configuration and is intentionally tracked.
+/.agent/
+/.agents/
+/.codex/*
+!/.codex/rules/
+!/.codex/rules/github.rules
+/AGENT.md

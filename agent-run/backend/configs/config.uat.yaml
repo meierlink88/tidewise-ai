@@ -1,0 +1,15 @@
+app:
+  name: agentrun
+  env: uat
+server:
+  host: 0.0.0.0
+  port: 9080
+database:
+  host: rds.invalid
+  port: 5432
+  name: tidewise_ai_server
+  user: agentrun
+  ssl_mode: require
+  connect_timeout_seconds: 10
+artifact:
+  root: data
