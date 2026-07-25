@@ -260,10 +260,26 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/check-sensitive-diff.sh
 
-      - name: Scan commits for credentials
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+      - name: Scan introduced Git history for credentials
+        id: gitleaks
+        continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          GITLEAKS_REPORT_PATH: ${{ runner.temp }}/gitleaks-results.sarif
+        run: bash scripts/ci/scan-git-secrets.sh
+
+      - name: Upload Gitleaks results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gitleaks-results
+          path: ${{ runner.temp }}/gitleaks-results.sarif
+          if-no-files-found: warn
+
+      - name: Enforce Gitleaks result
+        if: steps.gitleaks.outcome == 'failure'
+        run: exit 1
 
       - name: Review dependency changes
         if: github.event_name == 'pull_request'
