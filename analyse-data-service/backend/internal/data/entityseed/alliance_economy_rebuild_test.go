@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	biz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entityseed"
 )
 
 func TestCleanupAllianceEconomyLocalFailsClosedOnUnapprovedAllianceIncidentEdge(t *testing.T) {
@@ -133,7 +134,7 @@ func TestRebuildApprovedAllianceEconomyLocalIsAtomicExactAndIdempotent(t *testin
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.ManifestChecksum != approvedAllianceEconomyManifestSHA256 || result.Alliances != 45 || result.AllianceProfiles != 45 || result.Economies != 79 || result.EconomyProfiles != 79 || result.MemberOf != 133 || result.NonTargetEconomies != 15 || result.NonTargetEconomyProfiles != 15 || result.Orphans != 0 || result.DuplicateTuples != 0 || result.Mismatches != 0 || result.EntityWrites != entityWrites || result.ProfileWrites != profileWrites || result.MemberWrites != memberWrites {
+		if result.ManifestChecksum != biz.ApprovedAllianceEconomyManifestSHA256 || result.Alliances != 45 || result.AllianceProfiles != 45 || result.Economies != 79 || result.EconomyProfiles != 79 || result.MemberOf != 133 || result.NonTargetEconomies != 15 || result.NonTargetEconomyProfiles != 15 || result.Orphans != 0 || result.DuplicateTuples != 0 || result.Mismatches != 0 || result.EntityWrites != entityWrites || result.ProfileWrites != profileWrites || result.MemberWrites != memberWrites {
 			t.Fatalf("run %d result = %+v", run+1, result)
 		}
 	}

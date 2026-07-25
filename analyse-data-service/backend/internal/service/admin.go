@@ -10,7 +10,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
-func (s *DataService) ListRawDocuments(ctx context.Context, request *v1.RawDocumentListRequest) (*v1.Response, error) {
+func (s *DataService) ListRawDocuments(ctx context.Context, request *v1.RawDocumentListRequest) (*v1.Response[v1.AdminRawDocumentPage], error) {
 	page, err := v1.ParseBoundedInt(request.Page, 1, 1, 1_000_000, "page")
 	if err != nil {
 		return nil, err
@@ -37,12 +37,12 @@ func (s *DataService) ListRawDocuments(ctx context.Context, request *v1.RawDocum
 	for _, document := range result.Items {
 		items = append(items, rawDocumentDTO(document))
 	}
-	return &v1.Response{Status: v1.StatusOK, Result: v1.AdminRawDocumentPage{
+	return &v1.Response[v1.AdminRawDocumentPage]{Status: v1.StatusOK, Result: v1.AdminRawDocumentPage{
 		Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
 	}}, nil
 }
 
-func (s *DataService) ListEvents(ctx context.Context, request *v1.EventListRequest) (*v1.Response, error) {
+func (s *DataService) ListEvents(ctx context.Context, request *v1.EventListRequest) (*v1.Response[v1.AdminEventPage], error) {
 	page, err := v1.ParseBoundedInt(request.Page, 1, 1, 1_000_000, "page")
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (s *DataService) ListEvents(ctx context.Context, request *v1.EventListReque
 	for _, event := range result.Items {
 		items = append(items, eventDTO(event))
 	}
-	return &v1.Response{Status: v1.StatusOK, Result: v1.AdminEventPage{
+	return &v1.Response[v1.AdminEventPage]{Status: v1.StatusOK, Result: v1.AdminEventPage{
 		Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
 	}}, nil
 }

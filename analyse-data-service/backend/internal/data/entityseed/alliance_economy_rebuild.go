@@ -2,82 +2,13 @@ package entityseed
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
+
+	biz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entityseed"
 )
-
-type AllianceEconomyDependencyCount struct {
-	Scope        string `json:"scope"`
-	RelationType string `json:"relation_type,omitempty"`
-	FromType     string `json:"from_type,omitempty"`
-	ToType       string `json:"to_type,omitempty"`
-	RowCount     int    `json:"row_count"`
-}
-
-type AllianceEconomyForeignKey struct {
-	TableName       string `json:"table_name"`
-	ColumnName      string `json:"column_name"`
-	ReferencedTable string `json:"referenced_table"`
-	DeleteRule      string `json:"delete_rule"`
-}
-
-type AllianceEconomyDependencyReport struct {
-	Counts            []AllianceEconomyDependencyCount `json:"counts"`
-	ForeignKeys       []AllianceEconomyForeignKey      `json:"foreign_keys"`
-	Fingerprints      []string                         `json:"fingerprints"`
-	CrossDomainEdges  []AllianceEconomyDependencyCount `json:"cross_domain_edges"`
-	Blocked           bool                             `json:"blocked"`
-	Checksum          string                           `json:"checksum"`
-	ProtectedChecksum string                           `json:"protected_checksum"`
-}
-
-type AllianceEconomyCleanupResult struct {
-	DeletedMemberOf           int `json:"deleted_member_of"`
-	DeletedAllianceProfiles   int `json:"deleted_alliance_profiles"`
-	DeletedAlliances          int `json:"deleted_alliances"`
-	RemainingAlliances        int `json:"remaining_alliances"`
-	RemainingAllianceProfiles int `json:"remaining_alliance_profiles"`
-	RemainingMemberOf         int `json:"remaining_member_of"`
-	RemainingEconomies        int `json:"remaining_economies"`
-	RemainingEconomyProfiles  int `json:"remaining_economy_profiles"`
-}
-
-type AllianceEconomyRebuildResult struct {
-	ManifestChecksum         string `json:"manifest_checksum"`
-	Alliances                int    `json:"alliances"`
-	AllianceProfiles         int    `json:"alliance_profiles"`
-	Economies                int    `json:"economies"`
-	EconomyProfiles          int    `json:"economy_profiles"`
-	MemberOf                 int    `json:"member_of"`
-	NonTargetEconomies       int    `json:"non_target_economies"`
-	NonTargetEconomyProfiles int    `json:"non_target_economy_profiles"`
-	Orphans                  int    `json:"orphans"`
-	DuplicateTuples          int    `json:"duplicate_tuples"`
-	Mismatches               int    `json:"mismatches"`
-	EntityWrites             int    `json:"entity_writes"`
-	ProfileWrites            int    `json:"profile_writes"`
-	MemberWrites             int    `json:"member_writes"`
-}
-
-type allianceEconomyRebuildPreflight struct {
-	SchemaReady              bool
-	IDConflicts              int
-	KeyConflicts             int
-	UnexpectedAllianceNodes  int
-	UnexpectedAllianceEdges  int
-	Alliances                int
-	AllianceProfiles         int
-	Economies                int
-	EconomyProfiles          int
-	NonTargetEconomies       int
-	NonTargetEconomyProfiles int
-	MemberOf                 int
-}
 
 func (r PostgresRepository) AuditAllianceEconomyRebuildDependencies(ctx context.Context) (AllianceEconomyDependencyReport, error) {
 	return auditAllianceEconomyRebuildDependencies(ctx, r.db)
@@ -143,39 +74,6 @@ func auditAllianceEconomyRebuildDependencies(ctx context.Context, executor postg
 	return buildAllianceEconomyDependencyReport(counts, foreignKeys, fingerprints, protected)
 }
 
-func buildAllianceEconomyDependencyReport(counts []AllianceEconomyDependencyCount, foreignKeys []AllianceEconomyForeignKey, fingerprints, protected []string) (AllianceEconomyDependencyReport, error) {
-	report := AllianceEconomyDependencyReport{Counts: counts, ForeignKeys: foreignKeys, Fingerprints: fingerprints}
-	for _, item := range counts {
-		if item.Scope == "entity_edges" && (item.RelationType != "member_of" || item.FromType != "economy" || item.ToType != "alliance_org") && item.RowCount > 0 {
-			report.CrossDomainEdges = append(report.CrossDomainEdges, item)
-			if item.FromType == "alliance_org" || item.ToType == "alliance_org" {
-				report.Blocked = true
-			}
-		}
-	}
-	sort.Slice(report.Counts, func(i, j int) bool {
-		a, b := report.Counts[i], report.Counts[j]
-		return a.Scope+"\x00"+a.RelationType+"\x00"+a.FromType+"\x00"+a.ToType < b.Scope+"\x00"+b.RelationType+"\x00"+b.FromType+"\x00"+b.ToType
-	})
-	sort.Slice(report.ForeignKeys, func(i, j int) bool {
-		return report.ForeignKeys[i].TableName+"\x00"+report.ForeignKeys[i].ColumnName < report.ForeignKeys[j].TableName+"\x00"+report.ForeignKeys[j].ColumnName
-	})
-	sort.Strings(report.Fingerprints)
-	sort.Strings(protected)
-	payload, err := json.Marshal(struct {
-		Counts       []AllianceEconomyDependencyCount `json:"counts"`
-		ForeignKeys  []AllianceEconomyForeignKey      `json:"foreign_keys"`
-		Fingerprints []string                         `json:"fingerprints"`
-	}{report.Counts, report.ForeignKeys, report.Fingerprints})
-	if err != nil {
-		return AllianceEconomyDependencyReport{}, err
-	}
-	sum := sha256.Sum256(payload)
-	report.Checksum = hex.EncodeToString(sum[:])
-	report.ProtectedChecksum = allianceEconomyFingerprintChecksum(protected)
-	return report, nil
-}
-
 func (r PostgresRepository) CleanupAllianceEconomyLocal(ctx context.Context, reviewedDependencyChecksum string) (AllianceEconomyCleanupResult, error) {
 	tx, err := r.root.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -189,11 +87,8 @@ func (r PostgresRepository) CleanupAllianceEconomyLocal(ctx context.Context, rev
 	if err != nil {
 		return AllianceEconomyCleanupResult{}, err
 	}
-	if report.Blocked {
-		return AllianceEconomyCleanupResult{}, fmt.Errorf("cross-domain alliance/economy dependencies require an explicit Review decision")
-	}
-	if strings.TrimSpace(reviewedDependencyChecksum) == "" || reviewedDependencyChecksum != report.Checksum {
-		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy dependency snapshot differs from reviewed checksum")
+	if err := biz.ValidateAllianceEconomyCleanupAuthorization(report, reviewedDependencyChecksum); err != nil {
+		return AllianceEconomyCleanupResult{}, err
 	}
 	var result AllianceEconomyCleanupResult
 	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupSQL()).Scan(&result.DeletedMemberOf, &result.DeletedAllianceProfiles, &result.DeletedAlliances); err != nil {
@@ -202,15 +97,15 @@ func (r PostgresRepository) CleanupAllianceEconomyLocal(ctx context.Context, rev
 	if err := tx.QueryRowContext(ctx, allianceEconomyCleanupRemainingSQL()).Scan(&result.RemainingAlliances, &result.RemainingAllianceProfiles, &result.RemainingMemberOf, &result.RemainingEconomies, &result.RemainingEconomyProfiles); err != nil {
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("query alliance economy cleanup remaining scope: %w", err)
 	}
-	if result.RemainingAlliances != 0 || result.RemainingAllianceProfiles != 0 || result.RemainingMemberOf != 0 || result.RemainingEconomies != 50 || result.RemainingEconomyProfiles != 50 {
-		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy cleanup zero assertion failed: alliance=%d alliance_profile=%d member_of=%d economy=%d economy_profile=%d", result.RemainingAlliances, result.RemainingAllianceProfiles, result.RemainingMemberOf, result.RemainingEconomies, result.RemainingEconomyProfiles)
+	if err := biz.ValidateAllianceEconomyCleanupResult(result); err != nil {
+		return AllianceEconomyCleanupResult{}, err
 	}
 	postReport, err := auditAllianceEconomyRebuildDependencies(ctx, tx)
 	if err != nil {
 		return AllianceEconomyCleanupResult{}, err
 	}
-	if postReport.Blocked || postReport.ProtectedChecksum != report.ProtectedChecksum {
-		return AllianceEconomyCleanupResult{}, fmt.Errorf("alliance/economy cleanup changed protected cross-domain facts")
+	if err := biz.ValidateAllianceEconomyProtectedFacts(report, postReport); err != nil {
+		return AllianceEconomyCleanupResult{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return AllianceEconomyCleanupResult{}, fmt.Errorf("commit alliance economy cleanup: %w", err)
@@ -244,16 +139,9 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 	); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("preflight approved alliance economy rebuild: %w", err)
 	}
-	if !preflight.SchemaReady {
-		return AllianceEconomyRebuildResult{}, fmt.Errorf("migration 000018 must be applied in the separately authorized local rebuild package")
-	}
-	if preflight.IDConflicts != 0 || preflight.KeyConflicts != 0 || preflight.UnexpectedAllianceNodes != 0 || preflight.UnexpectedAllianceEdges != 0 {
-		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild identity or scope collision: %+v", preflight)
-	}
-	cleanupReady := preflight.Alliances == 0 && preflight.AllianceProfiles == 0 && preflight.Economies == 35 && preflight.EconomyProfiles == 35 && preflight.NonTargetEconomies == 15 && preflight.NonTargetEconomyProfiles == 15 && preflight.MemberOf == 0
-	exact := preflight.Alliances == 45 && preflight.AllianceProfiles == 45 && preflight.Economies == 79 && preflight.EconomyProfiles == 79 && preflight.NonTargetEconomies == 15 && preflight.NonTargetEconomyProfiles == 15 && preflight.MemberOf == 133
-	if !cleanupReady && !exact {
-		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild requires scoped cleanup or an exact idempotent target: %+v", preflight)
+	_, exact, err := biz.ClassifyAllianceEconomyRebuild(preflight)
+	if err != nil {
+		return AllianceEconomyRebuildResult{}, err
 	}
 	protected, err := allianceEconomyRebuildProtectionFingerprints(ctx, tx, economies)
 	if err != nil {
@@ -265,8 +153,8 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 		if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&existing.Alliances, &existing.AllianceProfiles, &existing.Economies, &existing.EconomyProfiles, &existing.MemberOf, &existing.NonTargetEconomies, &existing.NonTargetEconomyProfiles, &existing.Orphans, &existing.DuplicateTuples, &existing.Mismatches); err != nil {
 			return AllianceEconomyRebuildResult{}, fmt.Errorf("verify idempotent alliance economy target: %w", err)
 		}
-		if existing != (AllianceEconomyRebuildResult{Alliances: 45, AllianceProfiles: 45, Economies: 79, EconomyProfiles: 79, MemberOf: 133, NonTargetEconomies: 15, NonTargetEconomyProfiles: 15}) {
-			return AllianceEconomyRebuildResult{}, fmt.Errorf("existing alliance/economy target is not an exact idempotent match: %+v", existing)
+		if err := biz.ValidateAllianceEconomyExactResult(existing); err != nil {
+			return AllianceEconomyRebuildResult{}, err
 		}
 	}
 	var result AllianceEconomyRebuildResult
@@ -285,8 +173,8 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 	if err := tx.QueryRowContext(ctx, allianceEconomyExactQuerySQL(), alliances, economies, memberOf).Scan(&result.Alliances, &result.AllianceProfiles, &result.Economies, &result.EconomyProfiles, &result.MemberOf, &result.NonTargetEconomies, &result.NonTargetEconomyProfiles, &result.Orphans, &result.DuplicateTuples, &result.Mismatches); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("query rebuilt alliance economy manifest: %w", err)
 	}
-	if result.Alliances != 45 || result.AllianceProfiles != 45 || result.Economies != 79 || result.EconomyProfiles != 79 || result.MemberOf != 133 || result.NonTargetEconomies != 15 || result.NonTargetEconomyProfiles != 15 || result.Orphans != 0 || result.DuplicateTuples != 0 || result.Mismatches != 0 {
-		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild exact assertion failed: %+v", result)
+	if err := biz.ValidateAllianceEconomyRebuildResult(result); err != nil {
+		return AllianceEconomyRebuildResult{}, err
 	}
 	postProtected, err := allianceEconomyRebuildProtectionFingerprints(ctx, tx, economies)
 	if err != nil {
@@ -295,52 +183,11 @@ func (r PostgresRepository) RebuildApprovedAllianceEconomyLocal(ctx context.Cont
 	if allianceEconomyFingerprintChecksum(postProtected) != protectedChecksum {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("alliance/economy rebuild changed protected cross-domain facts")
 	}
-	result.ManifestChecksum = approvedAllianceEconomyManifestSHA256
+	result.ManifestChecksum = biz.ApprovedAllianceEconomyManifestSHA256
 	if err := tx.Commit(); err != nil {
 		return AllianceEconomyRebuildResult{}, fmt.Errorf("commit alliance economy rebuild: %w", err)
 	}
 	return result, nil
-}
-
-func allianceEconomyRebuildPayloads(manifest AllianceEconomyManifest) ([]byte, []byte, []byte, error) {
-	type allianceRow struct {
-		ID, EntityKey, Name                                    string
-		Aliases                                                []string
-		Abbreviation, LeadershipSummary, InfluenceScopeSummary string
-	}
-	type economyRow struct {
-		ID, EntityKey, Name               string
-		Aliases                           []string
-		CountryCode, CurrencyCode, Region string
-	}
-	type edgeRow struct {
-		ID, EdgeKey, FromID, ToID, SourceName, SourceURL, VerifiedAt string
-	}
-	alliances := make([]allianceRow, 0, len(manifest.Alliances))
-	for _, item := range manifest.Alliances {
-		alliances = append(alliances, allianceRow{entitySeedUUID(item.EntityKey), item.EntityKey, item.Name, item.Aliases, item.Profile.Abbreviation, item.Profile.LeadershipSummary, item.Profile.InfluenceScopeSummary})
-	}
-	economies := make([]economyRow, 0, len(manifest.Economies))
-	for _, item := range manifest.Economies {
-		economies = append(economies, economyRow{entitySeedUUID(item.EntityKey), item.EntityKey, item.Name, item.Aliases, item.CountryCode, item.CurrencyCode, item.Region})
-	}
-	edges := make([]edgeRow, 0, len(manifest.MemberOf))
-	for _, item := range manifest.MemberOf {
-		edges = append(edges, edgeRow{entitySeedUUID(item.EdgeKey), item.EdgeKey, entitySeedUUID(item.FromKey), entitySeedUUID(item.ToKey), item.SourceName, item.SourceURL, item.VerifiedAt})
-	}
-	a, err := json.Marshal(alliances)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	e, err := json.Marshal(economies)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	m, err := json.Marshal(edges)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return a, e, m, nil
 }
 
 func allianceEconomyDependencyCountsSQL() string {
@@ -425,13 +272,6 @@ func allianceEconomyFingerprintRows(ctx context.Context, executor postgresExecut
 		return nil, err
 	}
 	return fingerprints, nil
-}
-
-func allianceEconomyFingerprintChecksum(fingerprints []string) string {
-	ordered := append([]string(nil), fingerprints...)
-	sort.Strings(ordered)
-	sum := sha256.Sum256([]byte(strings.Join(ordered, "\n")))
-	return hex.EncodeToString(sum[:])
 }
 
 func allianceEconomyCleanupProtectionSQL() string {

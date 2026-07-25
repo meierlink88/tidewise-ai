@@ -68,12 +68,12 @@ func registerHealthRoutes(server *kratoshttp.Server, app conf.AppConfig) {
 	}
 	router := server.Route("/")
 	router.GET("/healthz", func(ctx kratoshttp.Context) error {
-		return operationalResponse(ctx, "data.health", healthResponse{
+		return operationalResponse(ctx, operationHealth, healthResponse{
 			Status: "ok", Service: serviceName, Environment: app.Env,
 		})
 	})
 	router.GET("/readyz", func(ctx kratoshttp.Context) error {
-		return operationalResponse(ctx, "data.ready", healthResponse{
+		return operationalResponse(ctx, operationReady, healthResponse{
 			Status: "ready", Service: serviceName, Environment: app.Env,
 			Checks: map[string]string{"config": "ok"},
 		})

@@ -18,6 +18,8 @@ const (
 	ScopeResearchImport      = "data.research.import"
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
+	operationHealth          = "data.health"
+	operationReady           = "data.ready"
 )
 
 type Credential struct {
@@ -72,9 +74,13 @@ func authenticationMiddleware(authenticator *Authenticator) middleware.Middlewar
 			if !ok {
 				return nil, v1.NewPublicError(v1.StatusInternalServerError, "INTERNAL_ERROR", "internal data service error", nil)
 			}
-			scope, protected := requiredScope(serverTransport.Operation())
-			if !protected {
+			operation := serverTransport.Operation()
+			if operation == operationHealth || operation == operationReady {
 				return next(ctx, request)
+			}
+			scope, known := requiredScope(operation)
+			if !known {
+				return nil, v1.NewPublicError(v1.StatusInternalServerError, "INTERNAL_ERROR", "internal data service error", nil)
 			}
 			principal, authenticated := authenticator.Authenticate(serverTransport.RequestHeader().Get("Authorization"))
 			if !authenticated {
@@ -90,14 +96,14 @@ func authenticationMiddleware(authenticator *Authenticator) middleware.Middlewar
 
 func requiredScope(operation string) (string, bool) {
 	switch operation {
-	case "data.v1.publishReviewedEvents":
+	case v1.OperationPublishReviewedEvents:
 		return ScopeReviewedEventImport, true
-	case "data.v1.importResearchThemes", "data.v1.importResearchAnchors":
+	case v1.OperationImportResearchThemes, v1.OperationImportResearchAnchors:
 		return ScopeResearchImport, true
-	case "data.v1.listResearchThemes", "data.v1.getResearchTheme",
-		"data.v1.listResearchThemeReasoningTrees", "data.v1.getResearchThemeReasoningTree":
+	case v1.OperationListResearchThemes, v1.OperationGetResearchTheme,
+		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree:
 		return ScopeResearchRead, true
-	case "data.v1.listAdminRawDocuments", "data.v1.listAdminEvents":
+	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents:
 		return ScopeAdminRead, true
 	default:
 		return "", false

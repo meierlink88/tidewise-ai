@@ -10,20 +10,6 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
-type IndustryChainBatch struct {
-	Profiles            []model.IndustryChainProfile
-	Memberships         []model.IndustryChainMembership
-	TopologyEdges       []model.IndustryChainTopologyEdge
-	PhysicalConstraints []model.IndustryChainPhysicalConstraint
-	ApprovalGate        model.IndustryChainApprovalGate
-}
-
-type IndustryChainWriteReport struct {
-	Created   int
-	Updated   int
-	Unchanged int
-}
-
 func (r *MemoryRepository) UpsertIndustryChainBatch(_ context.Context, batch IndustryChainBatch) (IndustryChainWriteReport, error) {
 	topologyOnly := isTopologyOnlyBatch(batch)
 	constraintOnly := isConstraintOnlyBatch(batch)
@@ -61,25 +47,25 @@ func (r *MemoryRepository) UpsertIndustryChainBatch(_ context.Context, batch Ind
 		if prior, ok := profiles[value.EntityID]; ok && prior.ChainCode != value.ChainCode {
 			return IndustryChainWriteReport{}, fmt.Errorf("industry chain profile identity is immutable")
 		}
-		report.add(upsertTyped(profiles, value.EntityID, value))
+		addIndustryChainWriteReport(&report, upsertTyped(profiles, value.EntityID, value))
 	}
 	for _, value := range batch.Memberships {
 		if prior, ok := memberships[value.ID]; ok && (prior.IndustryChainEntityID != value.IndustryChainEntityID || prior.ChainNodeEntityID != value.ChainNodeEntityID) {
 			return IndustryChainWriteReport{}, fmt.Errorf("industry chain membership identity is immutable")
 		}
-		report.add(upsertTyped(memberships, value.ID, value))
+		addIndustryChainWriteReport(&report, upsertTyped(memberships, value.ID, value))
 	}
 	for _, value := range batch.TopologyEdges {
 		if prior, ok := topology[value.ID]; ok && (prior.IndustryChainEntityID != value.IndustryChainEntityID || prior.FromChainNodeEntityID != value.FromChainNodeEntityID || prior.ToChainNodeEntityID != value.ToChainNodeEntityID) {
 			return IndustryChainWriteReport{}, fmt.Errorf("industry chain topology identity is immutable")
 		}
-		report.add(upsertTyped(topology, value.ID, value))
+		addIndustryChainWriteReport(&report, upsertTyped(topology, value.ID, value))
 	}
 	for _, value := range batch.PhysicalConstraints {
 		if prior, ok := constraints[value.ID]; ok && (prior.IndustryChainEntityID != value.IndustryChainEntityID || prior.ChainNodeEntityID != value.ChainNodeEntityID || prior.TopologyEdgeID != value.TopologyEdgeID) {
 			return IndustryChainWriteReport{}, fmt.Errorf("industry chain physical constraint identity is immutable")
 		}
-		report.add(upsertTyped(constraints, value.ID, value))
+		addIndustryChainWriteReport(&report, upsertTyped(constraints, value.ID, value))
 	}
 	r.industryChainProfiles, r.industryChainMemberships = profiles, memberships
 	r.industryChainTopologyEdges, r.industryChainPhysicalConstraints = topology, constraints
@@ -135,28 +121,28 @@ func (r PostgresRepository) UpsertIndustryChainBatch(ctx context.Context, batch 
 		if err != nil {
 			return rollback(fmt.Errorf("upsert industry chain profile: %w", err))
 		}
-		report.add(action)
+		addIndustryChainWriteReport(&report, action)
 	}
 	for _, value := range batch.Memberships {
 		action, err := queryIndustryChainAction(ctx, tx, industryChainMembershipUpsertSQL, value.ID, value.IndustryChainEntityID, value.ChainNodeEntityID, value.StageCode, value.RoleCode, value.StageOrder, value.IsCore, value.SourceName, value.SourceURL, value.VerifiedAt, value.Status)
 		if err != nil {
 			return rollback(fmt.Errorf("upsert industry chain membership: %w", err))
 		}
-		report.add(action)
+		addIndustryChainWriteReport(&report, action)
 	}
 	for _, value := range batch.TopologyEdges {
 		action, err := queryIndustryChainAction(ctx, tx, industryChainTopologyUpsertSQL, value.ID, value.IndustryChainEntityID, value.FromChainNodeEntityID, value.ToChainNodeEntityID, value.RelationType, value.EvidenceNote, value.SourceName, value.SourceURL, value.VerifiedAt, value.Status)
 		if err != nil {
 			return rollback(fmt.Errorf("upsert industry chain topology: %w", err))
 		}
-		report.add(action)
+		addIndustryChainWriteReport(&report, action)
 	}
 	for _, value := range batch.PhysicalConstraints {
 		action, err := queryIndustryChainAction(ctx, tx, industryChainConstraintUpsertSQL, value.ID, value.IndustryChainEntityID, nullableString(value.ChainNodeEntityID), nullableString(value.TopologyEdgeID), value.ConstraintType, value.Mechanism, value.PhysicalLimitNote, value.MitigationPath, value.SourceName, value.SourceURL, value.VerifiedAt, value.ReviewStatus, value.Status, value.GeneratedByAI)
 		if err != nil {
 			return rollback(fmt.Errorf("upsert industry chain physical constraint: %w", err))
 		}
-		report.add(action)
+		addIndustryChainWriteReport(&report, action)
 	}
 	if err := tx.Commit(); err != nil {
 		return IndustryChainWriteReport{}, err
@@ -218,46 +204,6 @@ func queryIndustryChainAction(ctx context.Context, tx *sql.Tx, query string, arg
 	return action, nil
 }
 
-func validateIndustryChainBatch(batch IndustryChainBatch) error {
-	for _, value := range batch.Profiles {
-		if err := value.Validate(); err != nil {
-			return err
-		}
-	}
-	return model.ValidateIndustryChainBatch(batch.Memberships, batch.TopologyEdges, batch.PhysicalConstraints, batch.ApprovalGate)
-}
-
-func isTopologyOnlyBatch(batch IndustryChainBatch) bool {
-	return len(batch.Profiles) == 0 && len(batch.Memberships) == 0 && len(batch.TopologyEdges) > 0 && len(batch.PhysicalConstraints) == 0
-}
-
-func isConstraintOnlyBatch(batch IndustryChainBatch) bool {
-	return len(batch.Profiles) == 0 && len(batch.Memberships) == 0 && len(batch.TopologyEdges) == 0 && len(batch.PhysicalConstraints) > 0
-}
-
-func validateConstraintsAgainstPersistedSubjects(constraints []model.IndustryChainPhysicalConstraint, memberships map[string]model.IndustryChainMembership, topology map[string]model.IndustryChainTopologyEdge) error {
-	for _, constraint := range constraints {
-		if constraint.ChainNodeEntityID != "" {
-			found := false
-			for _, membership := range memberships {
-				if membership.IndustryChainEntityID == constraint.IndustryChainEntityID && membership.ChainNodeEntityID == constraint.ChainNodeEntityID && membership.Status == model.StatusActive {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return fmt.Errorf("node constraint must reference persisted same chain active membership")
-			}
-			continue
-		}
-		edge, ok := topology[constraint.TopologyEdgeID]
-		if !ok || edge.IndustryChainEntityID != constraint.IndustryChainEntityID || edge.Status != model.StatusActive {
-			return fmt.Errorf("edge constraint must reference persisted same chain active topology")
-		}
-	}
-	return nil
-}
-
 func validatePostgresConstraintSubjects(ctx context.Context, tx *sql.Tx, constraints []model.IndustryChainPhysicalConstraint) error {
 	byKey := map[string]model.IndustryChainPhysicalConstraint{}
 	for _, constraint := range constraints {
@@ -302,25 +248,6 @@ func validatePostgresConstraintSubjects(ctx context.Context, tx *sql.Tx, constra
 	return nil
 }
 
-func validateTopologyAgainstPersistedMemberships(edges []model.IndustryChainTopologyEdge, memberships map[string]model.IndustryChainMembership) error {
-	statusByEndpoint := map[string]model.Status{}
-	for _, membership := range memberships {
-		statusByEndpoint[membership.IndustryChainEntityID+"|"+membership.ChainNodeEntityID] = membership.Status
-	}
-	for _, edge := range edges {
-		for _, nodeID := range []string{edge.FromChainNodeEntityID, edge.ToChainNodeEntityID} {
-			status, exists := statusByEndpoint[edge.IndustryChainEntityID+"|"+nodeID]
-			if !exists {
-				return fmt.Errorf("topology endpoint must reference persisted same chain membership")
-			}
-			if edge.Status == model.StatusActive && status != model.StatusActive {
-				return fmt.Errorf("active topology endpoint must reference persisted active membership")
-			}
-		}
-	}
-	return nil
-}
-
 func validatePostgresTopologyMemberships(ctx context.Context, tx *sql.Tx, edges []model.IndustryChainTopologyEdge) error {
 	type endpoint struct {
 		chainID       string
@@ -359,7 +286,7 @@ func validatePostgresTopologyMemberships(ctx context.Context, tx *sql.Tx, edges 
 	return nil
 }
 
-func (r *IndustryChainWriteReport) add(action WriteAction) {
+func addIndustryChainWriteReport(r *IndustryChainWriteReport, action WriteAction) {
 	switch action {
 	case WriteCreated:
 		r.Created++

@@ -30,8 +30,8 @@ func TestDataBindingRunsKratosMiddlewareWithStableOperation(t *testing.T) {
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/events", nil))
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", response.Code)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", response.Code)
 	}
 	if operation != "data.v1.listAdminEvents" {
 		t.Fatalf("operation = %q, want data.v1.listAdminEvents", operation)
@@ -42,6 +42,7 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 	routes := map[string]struct {
 		requestPath string
 		operation   string
+		body        string
 	}{
 		"POST " + APIPrefix + "/reviewed-event-imports": {
 			requestPath: APIPrefix + "/reviewed-event-imports",
@@ -54,6 +55,7 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		"POST " + APIPrefix + "/research-anchor-imports": {
 			requestPath: APIPrefix + "/research-anchor-imports",
 			operation:   "data.v1.importResearchAnchors",
+			body:        `{"theme_id":"11111111-1111-4111-8111-111111111111","anchors":[]}`,
 		},
 		"GET " + APIPrefix + "/research/themes": {
 			requestPath: APIPrefix + "/research/themes",
@@ -115,12 +117,16 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		}
 
 		method, _, _ := strings.Cut(route, " ")
+		body := runtime.body
+		if body == "" {
+			body = `{}`
+		}
 		server := kratoshttp.NewServer()
 		RegisterDataHTTPServer(server, testDataHTTPServer{})
 		response := httptest.NewRecorder()
-		server.ServeHTTP(response, httptest.NewRequest(method, runtime.requestPath, nil))
-		if response.Code != http.StatusOK {
-			t.Errorf("%s returned status %d, want 200", route, response.Code)
+		server.ServeHTTP(response, httptest.NewRequest(method, runtime.requestPath, strings.NewReader(body)))
+		if response.Code != http.StatusNoContent {
+			t.Errorf("%s returned status %d, want 204", route, response.Code)
 		}
 	}
 }
@@ -158,33 +164,33 @@ func httpContractString(t *testing.T, value any, label string) string {
 
 type testDataHTTPServer struct{}
 
-func (testDataHTTPServer) respond() (*Response, error) {
-	return &Response{Status: http.StatusNoContent}, nil
+func testResponse[T any]() (*Response[T], error) {
+	return &Response[T]{Status: http.StatusNoContent}, nil
 }
-func (s testDataHTTPServer) ImportReviewedEvents(context.Context, *ImportRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error) {
+	return testResponse[EventPublicationResult]()
 }
-func (s testDataHTTPServer) ImportResearchThemes(context.Context, *ImportRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error) {
+	return testResponse[ResearchThemeImportResult]()
 }
-func (s testDataHTTPServer) ImportResearchAnchors(context.Context, *ImportRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ImportResearchAnchors(context.Context, *ResearchAnchorImportRequest) (*Response[ResearchAnchorImportResult], error) {
+	return testResponse[ResearchAnchorImportResult]()
 }
-func (s testDataHTTPServer) ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error) {
+	return testResponse[ResearchThemePage]()
 }
-func (s testDataHTTPServer) GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response[ResearchThemeDetail], error) {
+	return testResponse[ResearchThemeDetail]()
 }
-func (s testDataHTTPServer) ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response[ResearchReasoningTreeList], error) {
+	return testResponse[ResearchReasoningTreeList]()
 }
-func (s testDataHTTPServer) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response[ResearchReasoningTreeDetail], error) {
+	return testResponse[ResearchReasoningTreeDetail]()
 }
-func (s testDataHTTPServer) ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error) {
+	return testResponse[AdminRawDocumentPage]()
 }
-func (s testDataHTTPServer) ListEvents(context.Context, *EventListRequest) (*Response, error) {
-	return s.respond()
+func (testDataHTTPServer) ListEvents(context.Context, *EventListRequest) (*Response[AdminEventPage], error) {
+	return testResponse[AdminEventPage]()
 }

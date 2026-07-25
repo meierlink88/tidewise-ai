@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"errors"
 
@@ -14,17 +13,14 @@ import (
 	researchimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
 
-func (s *DataService) ImportReviewedEvents(ctx context.Context, request *v1.ImportRequest) (*v1.Response, error) {
+func (s *DataService) ImportReviewedEvents(ctx context.Context, request *v1.EventPublicationRequest) (*v1.Response[v1.EventPublicationResult], error) {
 	if s == nil || s.dependencies.EventPublications == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Event Publication service is unavailable")
 	}
-	publication, err := publicationdomain.DecodeStrict(bytes.NewReader(request.Payload))
-	if err != nil {
-		return nil, decodeError(err)
-	}
+	publication := eventPublicationInput(request)
 	result, err := s.dependencies.EventPublications.Import(ctx, principalIdentity(ctx), publication)
 	if err == nil {
-		return &v1.Response{Status: v1.StatusCreated, Result: eventPublicationDTO(result)}, nil
+		return &v1.Response[v1.EventPublicationResult]{Status: v1.StatusCreated, Result: eventPublicationDTO(result)}, nil
 	}
 	var validation *publicationdomain.ValidationError
 	if errors.As(err, &validation) {
@@ -37,20 +33,11 @@ func (s *DataService) ImportReviewedEvents(ctx context.Context, request *v1.Impo
 	return nil, publicError(v1.StatusInternalServerError, "EVENT_PUBLICATION_FAILED", "Event Publication failed")
 }
 
-func (s *DataService) ImportResearchThemes(ctx context.Context, request *v1.ImportRequest) (*v1.Response, error) {
+func (s *DataService) ImportResearchThemes(ctx context.Context, request *v1.ResearchThemeImportRequest) (*v1.Response[v1.ResearchThemeImportResult], error) {
 	if s == nil || s.dependencies.ResearchThemeImports == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Theme import service is unavailable")
 	}
-	batch, err := researchdomainimport.DecodeStrict(bytes.NewReader(request.Payload))
-	if err != nil {
-		var contract *researchdomainimport.DecodeError
-		if errors.As(err, &contract) {
-			return nil, publicErrorWithDetails(v1.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Theme V1 contract", map[string]any{
-				"theme_key": contract.ThemeKey, "path": contract.Path,
-			})
-		}
-		return nil, decodeError(err)
-	}
+	batch := researchThemeImportInput(request)
 	result, err := s.dependencies.ResearchThemeImports.Import(ctx, principalIdentity(ctx), batch)
 	if err != nil {
 		return nil, researchThemeImportError(err)
@@ -59,7 +46,7 @@ func (s *DataService) ImportResearchThemes(ctx context.Context, request *v1.Impo
 	if result.Replayed {
 		status = v1.StatusOK
 	}
-	return &v1.Response{Status: status, Result: researchThemeImportDTO(result)}, nil
+	return &v1.Response[v1.ResearchThemeImportResult]{Status: status, Result: researchThemeImportDTO(result)}, nil
 }
 
 func researchThemeImportError(err error) error {
@@ -85,18 +72,11 @@ func researchThemeImportError(err error) error {
 	}
 }
 
-func (s *DataService) ImportResearchAnchors(ctx context.Context, request *v1.ImportRequest) (*v1.Response, error) {
+func (s *DataService) ImportResearchAnchors(ctx context.Context, request *v1.ResearchAnchorImportRequest) (*v1.Response[v1.ResearchAnchorImportResult], error) {
 	if s == nil || s.dependencies.ResearchAnchorImports == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Anchor import service is unavailable")
 	}
-	publication, err := researchanchordomainimport.DecodeStrict(bytes.NewReader(request.Payload))
-	if err != nil {
-		var contract *researchanchordomainimport.DecodeError
-		if errors.As(err, &contract) {
-			return nil, researchAnchorError(v1.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Anchor V1 contract", contract.CenterChainNodeID, contract.Path, "")
-		}
-		return nil, decodeError(err)
-	}
+	publication := researchAnchorImportInput(request)
 	result, err := s.dependencies.ResearchAnchorImports.Import(ctx, principalIdentity(ctx), publication)
 	if err != nil {
 		return nil, researchAnchorImportError(err)
@@ -105,7 +85,7 @@ func (s *DataService) ImportResearchAnchors(ctx context.Context, request *v1.Imp
 	if result.Replayed {
 		status = v1.StatusOK
 	}
-	return &v1.Response{Status: status, Result: researchAnchorImportDTO(result)}, nil
+	return &v1.Response[v1.ResearchAnchorImportResult]{Status: status, Result: researchAnchorImportDTO(result)}, nil
 }
 
 func researchAnchorImportError(err error) error {

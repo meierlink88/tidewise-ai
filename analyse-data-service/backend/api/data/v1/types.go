@@ -19,13 +19,9 @@ const (
 	StatusInternalServerError   = http.StatusInternalServerError
 )
 
-type Response struct {
+type Response[T any] struct {
 	Status int
-	Result any
-}
-
-type ImportRequest struct {
-	Payload []byte
+	Result T
 }
 
 type ListResearchThemesRequest struct {

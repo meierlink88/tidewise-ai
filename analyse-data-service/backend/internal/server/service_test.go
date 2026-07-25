@@ -172,6 +172,53 @@ func TestAuthenticatorRejectsInvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
+	var document map[string]any
+	if err := yaml.Unmarshal(dataapi.Document(), &document); err != nil {
+		t.Fatalf("parse OpenAPI: %v", err)
+	}
+	openAPIOperations := map[string]struct{}{}
+	for path, rawPath := range document["paths"].(map[string]any) {
+		if !strings.HasPrefix(path, dataapi.APIPrefix) {
+			continue
+		}
+		pathItem := rawPath.(map[string]any)
+		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
+			rawOperation, exists := pathItem[method]
+			if !exists {
+				continue
+			}
+			operation, ok := rawOperation.(map[string]any)
+			if !ok {
+				continue
+			}
+			anchor, ok := operation["x-client-drift-anchor"].(string)
+			if !ok || anchor == "" {
+				t.Fatalf("OpenAPI business route %q has no client drift anchor", path)
+			}
+			if _, duplicate := openAPIOperations[anchor]; duplicate {
+				t.Fatalf("OpenAPI business operation %q is duplicated", anchor)
+			}
+			openAPIOperations[anchor] = struct{}{}
+		}
+	}
+	for _, operation := range dataapi.BusinessOperations {
+		if _, exists := openAPIOperations[operation]; !exists {
+			t.Errorf("business operation %q is absent from OpenAPI", operation)
+		}
+		if scope, ok := requiredScope(operation); !ok || scope == "" {
+			t.Errorf("business operation %q has no authentication scope", operation)
+		}
+		delete(openAPIOperations, operation)
+	}
+	for operation := range openAPIOperations {
+		t.Errorf("OpenAPI business operation %q is absent from BusinessOperations", operation)
+	}
+	if _, ok := requiredScope("data.v1.futureOperation"); ok {
+		t.Fatal("unknown business operation was implicitly authorized")
+	}
+}
+
 func TestServerRecoveryPreservesStableErrorEnvelope(t *testing.T) {
 	authenticator, err := NewAuthenticator([]Credential{{
 		Secret: "admin-token",
@@ -218,35 +265,35 @@ func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) htt
 
 type serverTestDataService struct{}
 
-func (serverTestDataService) respond() (*dataapi.Response, error) {
-	return &dataapi.Response{Status: http.StatusNoContent}, nil
+func serverTestResponse[T any]() (*dataapi.Response[T], error) {
+	return &dataapi.Response[T]{Status: http.StatusNoContent}, nil
 }
-func (s serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.ImportRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.EventPublicationRequest) (*dataapi.Response[dataapi.EventPublicationResult], error) {
+	return serverTestResponse[dataapi.EventPublicationResult]()
 }
-func (s serverTestDataService) ImportResearchThemes(context.Context, *dataapi.ImportRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ImportResearchThemes(context.Context, *dataapi.ResearchThemeImportRequest) (*dataapi.Response[dataapi.ResearchThemeImportResult], error) {
+	return serverTestResponse[dataapi.ResearchThemeImportResult]()
 }
-func (s serverTestDataService) ImportResearchAnchors(context.Context, *dataapi.ImportRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ImportResearchAnchors(context.Context, *dataapi.ResearchAnchorImportRequest) (*dataapi.Response[dataapi.ResearchAnchorImportResult], error) {
+	return serverTestResponse[dataapi.ResearchAnchorImportResult]()
 }
-func (s serverTestDataService) ListResearchThemes(context.Context, *dataapi.ListResearchThemesRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ListResearchThemes(context.Context, *dataapi.ListResearchThemesRequest) (*dataapi.Response[dataapi.ResearchThemePage], error) {
+	return serverTestResponse[dataapi.ResearchThemePage]()
 }
-func (s serverTestDataService) GetResearchTheme(context.Context, *dataapi.GetResearchThemeRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) GetResearchTheme(context.Context, *dataapi.GetResearchThemeRequest) (*dataapi.Response[dataapi.ResearchThemeDetail], error) {
+	return serverTestResponse[dataapi.ResearchThemeDetail]()
 }
-func (s serverTestDataService) ListResearchReasoningTrees(context.Context, *dataapi.ReasoningTreeListRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ListResearchReasoningTrees(context.Context, *dataapi.ReasoningTreeListRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeList], error) {
+	return serverTestResponse[dataapi.ResearchReasoningTreeList]()
 }
-func (s serverTestDataService) GetResearchReasoningTree(context.Context, *dataapi.ReasoningTreeDetailRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) GetResearchReasoningTree(context.Context, *dataapi.ReasoningTreeDetailRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeDetail], error) {
+	return serverTestResponse[dataapi.ResearchReasoningTreeDetail]()
 }
-func (s serverTestDataService) ListRawDocuments(context.Context, *dataapi.RawDocumentListRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ListRawDocuments(context.Context, *dataapi.RawDocumentListRequest) (*dataapi.Response[dataapi.AdminRawDocumentPage], error) {
+	return serverTestResponse[dataapi.AdminRawDocumentPage]()
 }
-func (s serverTestDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response, error) {
-	return s.respond()
+func (serverTestDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response[dataapi.AdminEventPage], error) {
+	return serverTestResponse[dataapi.AdminEventPage]()
 }
 
 type principalRecordingDataService struct {
@@ -254,17 +301,17 @@ type principalRecordingDataService struct {
 	identity string
 }
 
-func (s *principalRecordingDataService) ListEvents(ctx context.Context, _ *dataapi.EventListRequest) (*dataapi.Response, error) {
+func (s *principalRecordingDataService) ListEvents(ctx context.Context, _ *dataapi.EventListRequest) (*dataapi.Response[dataapi.AdminEventPage], error) {
 	principal, ok := dataapi.PrincipalFromContext(ctx)
 	if ok {
 		s.identity = principal.Identity
 	}
-	return s.respond()
+	return serverTestResponse[dataapi.AdminEventPage]()
 }
 
 type panickingDataService struct{ serverTestDataService }
 
-func (panickingDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response, error) {
+func (panickingDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response[dataapi.AdminEventPage], error) {
 	panic("sensitive panic detail")
 }
 

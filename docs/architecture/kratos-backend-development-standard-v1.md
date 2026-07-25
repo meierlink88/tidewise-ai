@@ -487,7 +487,7 @@ Architecture、Provider/Consumer、Binary/Container 和真实 HTTP smoke 仅在�
 - `cmd/server` 不包含 Wire 文件或业务规则；
 - 每个手写 endpoint 实际执行 Kratos Middleware。
 
-分批迁移期间，门禁按 Service 状态启用，不得要求尚未迁移的 Data/Admin Portal
+分批迁移期间，门禁按 Service 状态启用，不得要求尚未迁移的 Service
 提前改目录。
 
 ## 禁止模式

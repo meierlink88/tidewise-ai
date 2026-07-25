@@ -115,7 +115,7 @@ func main() {
 		return
 	}
 	if mappingMode {
-		manifest, err := entityseeddata.LoadExternalIdentifierMappingFile(*mappingManifest)
+		manifest, err := entityseed.LoadExternalIdentifierMappingFile(*mappingManifest)
 		if err != nil {
 			log.Fatalf("load external identifier mappings: %v", err)
 		}
@@ -138,7 +138,7 @@ func main() {
 		if !*mappingApprovedFirstBatch {
 			log.Fatal("mapping write requires -external-identifier-mapping-approved-first-batch")
 		}
-		if err := entityseeddata.ValidateFrozenFirstBatchExternalIdentifierManifest(*mappingManifest, manifest.Mappings); err != nil {
+		if err := entityseed.ValidateFrozenFirstBatchExternalIdentifierManifest(*mappingManifest, manifest.Mappings); err != nil {
 			log.Fatalf("validate frozen first-batch mapping manifest: %v", err)
 		}
 		report, err := entityseeddata.NewRepository(db).ApplyFrozenFirstBatchExternalIdentifiers(ctx, manifest.Mappings)
@@ -230,7 +230,7 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 }
 
 func loadRelationDryRunManifest(path string) (entityseeddata.ChainNodeRelationManifest, error) {
-	manifest, err := entityseeddata.LoadFrozenAdditiveChainNodeRelationManifest(path)
+	manifest, err := entityseed.LoadFrozenAdditiveChainNodeRelationManifest(path)
 	if err != nil {
 		return manifest, err
 	}

@@ -22,6 +22,19 @@ type SectorConvergenceManifest = biz.SectorConvergenceManifest
 type SectorConvergenceMode = biz.SectorConvergenceMode
 type SectorConvergenceReport = biz.SectorConvergenceReport
 type AllianceEconomyManifest = biz.AllianceEconomyManifest
+type ExternalIdentifierMapping = biz.ExternalIdentifierMapping
+type ExternalIdentifierBatchReport = biz.ExternalIdentifierBatchReport
+type ExternalIdentifierMappingManifest = biz.ExternalIdentifierMappingManifest
+type ChainNodeRelationManifest = biz.ChainNodeRelationManifest
+type ChainNodeRelationReport = biz.ChainNodeRelationReport
+type IndustryChainBatch = biz.IndustryChainBatch
+type IndustryChainWriteReport = biz.IndustryChainWriteReport
+type AllianceEconomyDependencyCount = biz.AllianceEconomyDependencyCount
+type AllianceEconomyForeignKey = biz.AllianceEconomyForeignKey
+type AllianceEconomyDependencyReport = biz.AllianceEconomyDependencyReport
+type AllianceEconomyCleanupResult = biz.AllianceEconomyCleanupResult
+type AllianceEconomyRebuildResult = biz.AllianceEconomyRebuildResult
+type allianceEconomyRebuildPreflight = biz.AllianceEconomyRebuildPreflight
 
 const (
 	WriteCreated                              = biz.WriteCreated
@@ -32,7 +45,6 @@ const (
 	SectorConvergenceReplaceWithExistingIndex = biz.SectorConvergenceReplaceWithExistingIndex
 	ExternalSourceEastmoney                   = biz.ExternalSourceEastmoney
 	ExternalTaxonomyConcept                   = biz.ExternalTaxonomyConcept
-	approvedAllianceEconomyManifestSHA256     = "118573006c341830f3c977a994d12a537fe2d1ac8174a818d8007fe98e87a55d"
 )
 
 func NewRepository(db *sql.DB) PostgresRepository {
@@ -74,6 +86,62 @@ func externalIdentifierIdentity(sourceSystem, taxonomy, code string) string {
 
 func externalIdentifierSeedUUID(identity string) string {
 	return biz.ExternalIdentifierSeedUUID(identity)
+}
+
+func mappingFromIdentifier(item model.EntityExternalIdentifier) ExternalIdentifierMapping {
+	return biz.ExternalIdentifierMappingFromIdentifier(item)
+}
+
+func externalIdentifierFromMapping(mapping ExternalIdentifierMapping) model.EntityExternalIdentifier {
+	return biz.ExternalIdentifierFromMapping(mapping)
+}
+
+func normalizeAndValidateExternalIdentifierMappings(mappings []ExternalIdentifierMapping) ([]ExternalIdentifierMapping, error) {
+	return biz.NormalizeAndValidateExternalIdentifierMappings(mappings)
+}
+
+func LoadExternalIdentifierMappingFile(path string) (ExternalIdentifierMappingManifest, error) {
+	return biz.LoadExternalIdentifierMappingFile(path)
+}
+
+func ValidateExternalIdentifierMappingFile(path string) (ExternalIdentifierBatchReport, error) {
+	return biz.ValidateExternalIdentifierMappingFile(path)
+}
+
+func ValidateFrozenFirstBatchExternalIdentifierManifest(path string, mappings []ExternalIdentifierMapping) error {
+	return biz.ValidateFrozenFirstBatchExternalIdentifierManifest(path, mappings)
+}
+
+func validateIndustryChainBatch(batch IndustryChainBatch) error {
+	return biz.ValidateIndustryChainBatch(batch)
+}
+
+func buildAllianceEconomyDependencyReport(counts []AllianceEconomyDependencyCount, foreignKeys []AllianceEconomyForeignKey, fingerprints, protected []string) (AllianceEconomyDependencyReport, error) {
+	return biz.BuildAllianceEconomyDependencyReport(counts, foreignKeys, fingerprints, protected)
+}
+
+func allianceEconomyRebuildPayloads(manifest AllianceEconomyManifest) ([]byte, []byte, []byte, error) {
+	return biz.AllianceEconomyRebuildPayloads(manifest)
+}
+
+func allianceEconomyFingerprintChecksum(fingerprints []string) string {
+	return biz.AllianceEconomyFingerprintChecksum(fingerprints)
+}
+
+func isTopologyOnlyBatch(batch IndustryChainBatch) bool {
+	return biz.IsTopologyOnlyIndustryChainBatch(batch)
+}
+
+func isConstraintOnlyBatch(batch IndustryChainBatch) bool {
+	return biz.IsConstraintOnlyIndustryChainBatch(batch)
+}
+
+func validateConstraintsAgainstPersistedSubjects(constraints []model.IndustryChainPhysicalConstraint, memberships map[string]model.IndustryChainMembership, topology map[string]model.IndustryChainTopologyEdge) error {
+	return biz.ValidateIndustryChainConstraintsAgainstPersistedSubjects(constraints, memberships, topology)
+}
+
+func validateTopologyAgainstPersistedMemberships(edges []model.IndustryChainTopologyEdge, memberships map[string]model.IndustryChainMembership) error {
+	return biz.ValidateIndustryChainTopologyAgainstPersistedMemberships(edges, memberships)
 }
 
 func normalizeSectorSourceMapping(mapping SectorSourceMapping) SectorSourceMapping {

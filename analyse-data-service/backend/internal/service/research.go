@@ -8,7 +8,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 )
 
-func (s *DataService) ListResearchThemes(ctx context.Context, request *v1.ListResearchThemesRequest) (*v1.Response, error) {
+func (s *DataService) ListResearchThemes(ctx context.Context, request *v1.ListResearchThemesRequest) (*v1.Response[v1.ResearchThemePage], error) {
 	window, err := v1.ParseBoundedInt(request.WindowHours, research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
 	if err != nil {
 		return nil, err
@@ -24,10 +24,10 @@ func (s *DataService) ListResearchThemes(ctx context.Context, request *v1.ListRe
 	if err != nil {
 		return nil, researchError(err)
 	}
-	return &v1.Response{Status: v1.StatusOK, Result: researchThemePageDTO(result)}, nil
+	return &v1.Response[v1.ResearchThemePage]{Status: v1.StatusOK, Result: researchThemePageDTO(result)}, nil
 }
 
-func (s *DataService) GetResearchTheme(ctx context.Context, request *v1.GetResearchThemeRequest) (*v1.Response, error) {
+func (s *DataService) GetResearchTheme(ctx context.Context, request *v1.GetResearchThemeRequest) (*v1.Response[v1.ResearchThemeDetail], error) {
 	window, err := v1.ParseBoundedInt(request.WindowHours, research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
 	if err != nil {
 		return nil, err
@@ -39,10 +39,10 @@ func (s *DataService) GetResearchTheme(ctx context.Context, request *v1.GetResea
 	if err != nil {
 		return nil, researchError(err)
 	}
-	return &v1.Response{Status: v1.StatusOK, Result: researchThemeDetailDTO(result)}, nil
+	return &v1.Response[v1.ResearchThemeDetail]{Status: v1.StatusOK, Result: researchThemeDetailDTO(result)}, nil
 }
 
-func (s *DataService) ListResearchReasoningTrees(ctx context.Context, request *v1.ReasoningTreeListRequest) (*v1.Response, error) {
+func (s *DataService) ListResearchReasoningTrees(ctx context.Context, request *v1.ReasoningTreeListRequest) (*v1.Response[v1.ResearchReasoningTreeList], error) {
 	if request.HasQuery {
 		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "reasoning tree list does not accept query parameters")
 	}
@@ -53,10 +53,10 @@ func (s *DataService) ListResearchReasoningTrees(ctx context.Context, request *v
 	if err != nil {
 		return nil, reasoningTreeError(err)
 	}
-	return &v1.Response{Status: v1.StatusOK, Result: reasoningTreeListDTO(result)}, nil
+	return &v1.Response[v1.ResearchReasoningTreeList]{Status: v1.StatusOK, Result: reasoningTreeListDTO(result)}, nil
 }
 
-func (s *DataService) GetResearchReasoningTree(ctx context.Context, request *v1.ReasoningTreeDetailRequest) (*v1.Response, error) {
+func (s *DataService) GetResearchReasoningTree(ctx context.Context, request *v1.ReasoningTreeDetailRequest) (*v1.Response[v1.ResearchReasoningTreeDetail], error) {
 	if request.HasQuery {
 		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "reasoning tree detail does not accept query parameters")
 	}
@@ -67,7 +67,7 @@ func (s *DataService) GetResearchReasoningTree(ctx context.Context, request *v1.
 	if err != nil {
 		return nil, reasoningTreeError(err)
 	}
-	return &v1.Response{Status: v1.StatusOK, Result: reasoningTreeDetailDTO(result)}, nil
+	return &v1.Response[v1.ResearchReasoningTreeDetail]{Status: v1.StatusOK, Result: reasoningTreeDetailDTO(result)}, nil
 }
 
 func researchError(err error) error {

@@ -53,6 +53,77 @@ type IndustryChainPhysicalConstraintSeed struct {
 	ApprovedByHuman   bool                         `json:"approved_by_human,omitempty"`
 }
 
+type IndustryChainBatch struct {
+	Profiles            []model.IndustryChainProfile
+	Memberships         []model.IndustryChainMembership
+	TopologyEdges       []model.IndustryChainTopologyEdge
+	PhysicalConstraints []model.IndustryChainPhysicalConstraint
+	ApprovalGate        model.IndustryChainApprovalGate
+}
+
+type IndustryChainWriteReport struct {
+	Created, Updated, Unchanged int
+}
+
+func ValidateIndustryChainBatch(batch IndustryChainBatch) error {
+	for _, value := range batch.Profiles {
+		if err := value.Validate(); err != nil {
+			return err
+		}
+	}
+	return model.ValidateIndustryChainBatch(batch.Memberships, batch.TopologyEdges, batch.PhysicalConstraints, batch.ApprovalGate)
+}
+
+func IsTopologyOnlyIndustryChainBatch(batch IndustryChainBatch) bool {
+	return len(batch.Profiles) == 0 && len(batch.Memberships) == 0 && len(batch.TopologyEdges) > 0 && len(batch.PhysicalConstraints) == 0
+}
+
+func IsConstraintOnlyIndustryChainBatch(batch IndustryChainBatch) bool {
+	return len(batch.Profiles) == 0 && len(batch.Memberships) == 0 && len(batch.TopologyEdges) == 0 && len(batch.PhysicalConstraints) > 0
+}
+
+func ValidateIndustryChainConstraintsAgainstPersistedSubjects(constraints []model.IndustryChainPhysicalConstraint, memberships map[string]model.IndustryChainMembership, topology map[string]model.IndustryChainTopologyEdge) error {
+	for _, constraint := range constraints {
+		if constraint.ChainNodeEntityID != "" {
+			found := false
+			for _, membership := range memberships {
+				if membership.IndustryChainEntityID == constraint.IndustryChainEntityID && membership.ChainNodeEntityID == constraint.ChainNodeEntityID && membership.Status == model.StatusActive {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("node constraint must reference persisted same chain active membership")
+			}
+			continue
+		}
+		edge, ok := topology[constraint.TopologyEdgeID]
+		if !ok || edge.IndustryChainEntityID != constraint.IndustryChainEntityID || edge.Status != model.StatusActive {
+			return fmt.Errorf("edge constraint must reference persisted same chain active topology")
+		}
+	}
+	return nil
+}
+
+func ValidateIndustryChainTopologyAgainstPersistedMemberships(edges []model.IndustryChainTopologyEdge, memberships map[string]model.IndustryChainMembership) error {
+	statusByEndpoint := map[string]model.Status{}
+	for _, membership := range memberships {
+		statusByEndpoint[membership.IndustryChainEntityID+"|"+membership.ChainNodeEntityID] = membership.Status
+	}
+	for _, edge := range edges {
+		for _, nodeID := range []string{edge.FromChainNodeEntityID, edge.ToChainNodeEntityID} {
+			status, exists := statusByEndpoint[edge.IndustryChainEntityID+"|"+nodeID]
+			if !exists {
+				return fmt.Errorf("topology endpoint must reference persisted same chain membership")
+			}
+			if edge.Status == model.StatusActive && status != model.StatusActive {
+				return fmt.Errorf("active topology endpoint must reference persisted active membership")
+			}
+		}
+	}
+	return nil
+}
+
 func validateIndustryChainManifest(manifest Manifest, entities map[string]Entity) error {
 	memberships := make([]model.IndustryChainMembership, 0, len(manifest.IndustryChainMemberships))
 	for _, item := range manifest.IndustryChainMemberships {

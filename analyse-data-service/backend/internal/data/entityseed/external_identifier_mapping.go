@@ -2,111 +2,20 @@ package entityseed
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
-const frozenFirstBatchExternalIdentifierManifestSHA256 = "05539cd9f940cfcc5ec67cde5c395563b672ffa52d56090da0a83bd0d5997658"
-
-type ExternalIdentifierMapping struct {
-	ID                 string       `json:"id"`
-	EntityID           string       `json:"entity_id"`
-	SourceSystem       string       `json:"source_system"`
-	SourceTaxonomyType string       `json:"source_taxonomy_type"`
-	ExternalCode       string       `json:"external_code"`
-	ExternalName       string       `json:"external_name"`
-	Status             model.Status `json:"status"`
-}
-type ExternalIdentifierBatchReport struct {
-	Created   int `json:"created"`
-	Updated   int `json:"updated"`
-	Unchanged int `json:"unchanged"`
-}
 type ExternalIdentifierMappingPreflightReport struct {
 	ManifestRows  int `json:"manifest_rows"`
 	ActiveTargets int `json:"active_targets"`
 	ExistingRows  int `json:"existing_rows"`
 }
-type ExternalIdentifierMappingManifest struct {
-	Mappings []ExternalIdentifierMapping `json:"mappings"`
-}
 type plannedExternalIdentifierMapping struct {
 	item   model.EntityExternalIdentifier
 	action WriteAction
-}
-
-func LoadExternalIdentifierMappingFile(path string) (ExternalIdentifierMappingManifest, error) {
-	b, e := os.ReadFile(path)
-	if e != nil {
-		return ExternalIdentifierMappingManifest{}, e
-	}
-	var m ExternalIdentifierMappingManifest
-	if e = json.Unmarshal(b, &m); e != nil {
-		return m, e
-	}
-	if len(m.Mappings) == 0 {
-		return m, fmt.Errorf("external identifier mapping manifest is empty")
-	}
-	if m.Mappings, e = normalizeAndValidateExternalIdentifierMappings(m.Mappings); e != nil {
-		return m, e
-	}
-	return m, nil
-}
-func ValidateExternalIdentifierMappingFile(path string) (ExternalIdentifierBatchReport, error) {
-	m, e := LoadExternalIdentifierMappingFile(path)
-	if e != nil {
-		return ExternalIdentifierBatchReport{}, e
-	}
-	return ExternalIdentifierBatchReport{Created: len(m.Mappings)}, nil
-}
-
-func ValidateFrozenFirstBatchExternalIdentifierManifest(path string, mappings []ExternalIdentifierMapping) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if fmt.Sprintf("%x", sha256.Sum256(content)) != frozenFirstBatchExternalIdentifierManifestSHA256 {
-		return fmt.Errorf("external identifier mapping manifest hash does not match approved first batch")
-	}
-	if len(mappings) != 1169 {
-		return fmt.Errorf("external identifier mapping manifest rows = %d, want 1169", len(mappings))
-	}
-	providers, entities := map[string]int{}, map[string]map[string]struct{}{}
-	for _, mapping := range mappings {
-		providers[mapping.SourceSystem]++
-		if entities[mapping.EntityID] == nil {
-			entities[mapping.EntityID] = map[string]struct{}{}
-		}
-		entities[mapping.EntityID][mapping.SourceSystem] = struct{}{}
-	}
-	if providers["eastmoney"] != 818 || providers["ths"] != 351 {
-		return fmt.Errorf("external identifier provider counts = eastmoney %d, ths %d; want 818/351", providers["eastmoney"], providers["ths"])
-	}
-	dualSource, multiTaxonomy := 0, 0
-	for _, systems := range entities {
-		if len(systems) == 2 {
-			dualSource++
-		}
-	}
-	byCode := map[string]int{}
-	for _, mapping := range mappings {
-		byCode[mapping.SourceSystem+"\x00"+mapping.ExternalCode]++
-	}
-	for _, count := range byCode {
-		if count == 2 {
-			multiTaxonomy++
-		}
-	}
-	if dualSource != 241 || multiTaxonomy != 13 {
-		return fmt.Errorf("external identifier dual-source/multi-taxonomy = %d/%d, want 241/13", dualSource, multiTaxonomy)
-	}
-	return nil
 }
 
 func (r PostgresRepository) PreflightExternalIdentifierMappings(ctx context.Context, mappings []ExternalIdentifierMapping) (ExternalIdentifierMappingPreflightReport, error) {
@@ -116,7 +25,7 @@ func (r PostgresRepository) PreflightExternalIdentifierMappings(ctx context.Cont
 	}
 	report := ExternalIdentifierMappingPreflightReport{ManifestRows: len(mappings)}
 	for _, mapping := range mappings {
-		item := mapping.identifier()
+		item := externalIdentifierFromMapping(mapping)
 		var targetID string
 		if err := r.root.QueryRowContext(ctx, externalIdentifierTargetSQL(), item.EntityID).Scan(&targetID); err != nil {
 			return report, fmt.Errorf("external identifier %q requires an active chain_node target", externalIdentifierIdentity(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode))
@@ -161,13 +70,6 @@ func (r PostgresRepository) DryRunExternalIdentifierBatch(ctx context.Context, m
 		}
 	}
 	return report, nil
-}
-
-func mappingFromIdentifier(item model.EntityExternalIdentifier) ExternalIdentifierMapping {
-	return ExternalIdentifierMapping{ID: item.ID, EntityID: item.EntityID, SourceSystem: item.SourceSystem, SourceTaxonomyType: item.SourceTaxonomyType, ExternalCode: item.ExternalCode, ExternalName: item.ExternalName, Status: item.Status}
-}
-func (m ExternalIdentifierMapping) identifier() model.EntityExternalIdentifier {
-	return model.EntityExternalIdentifier{ID: m.ID, EntityID: m.EntityID, SourceSystem: m.SourceSystem, SourceTaxonomyType: m.SourceTaxonomyType, ExternalCode: m.ExternalCode, ExternalName: m.ExternalName, Status: m.Status}
 }
 
 func (r PostgresRepository) ApplyExternalIdentifierBatch(ctx context.Context, mappings []ExternalIdentifierMapping) (ExternalIdentifierBatchReport, error) {
@@ -232,7 +134,7 @@ func (r PostgresRepository) applyExternalIdentifierBatch(ctx context.Context, ma
 func planExternalIdentifierMappings(ctx context.Context, tx *sql.Tx, mappings []ExternalIdentifierMapping, readOnly bool) ([]plannedExternalIdentifierMapping, error) {
 	planned := make([]plannedExternalIdentifierMapping, 0, len(mappings))
 	for _, mapping := range mappings {
-		item := mapping.identifier()
+		item := externalIdentifierFromMapping(mapping)
 		identity := externalIdentifierIdentity(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode)
 		if !readOnly {
 			if _, err := tx.ExecContext(ctx, externalIdentifierTransactionLockSQL(), identity); err != nil {
@@ -300,32 +202,4 @@ func verifyExternalIdentifierBatchPostWrite(ctx context.Context, tx *sql.Tx, pla
 		}
 	}
 	return nil
-}
-
-func normalizeAndValidateExternalIdentifierMappings(mappings []ExternalIdentifierMapping) ([]ExternalIdentifierMapping, error) {
-	if len(mappings) == 0 {
-		return nil, fmt.Errorf("external identifier mapping batch is empty")
-	}
-	seenIdentity := make(map[string]struct{}, len(mappings))
-	seenID := make(map[string]struct{}, len(mappings))
-	normalized := make([]ExternalIdentifierMapping, 0, len(mappings))
-	for _, mapping := range mappings {
-		item := normalizeExternalIdentifier(mapping.identifier())
-		if err := validateFirstBatchExternalIdentifier(item); err != nil {
-			return nil, err
-		}
-		identity := externalIdentifierIdentity(item.SourceSystem, item.SourceTaxonomyType, item.ExternalCode)
-		if _, exists := seenIdentity[identity]; exists {
-			return nil, fmt.Errorf("duplicate external identifier identity %q in mapping manifest", identity)
-		}
-		if _, exists := seenID[item.ID]; exists {
-			return nil, fmt.Errorf("duplicate external identifier id %q in mapping manifest", item.ID)
-		}
-		seenIdentity[identity], seenID[item.ID] = struct{}{}, struct{}{}
-		normalized = append(normalized, mappingFromIdentifier(item))
-	}
-	sort.Slice(normalized, func(i, j int) bool {
-		return externalIdentifierIdentity(normalized[i].SourceSystem, normalized[i].SourceTaxonomyType, normalized[i].ExternalCode) < externalIdentifierIdentity(normalized[j].SourceSystem, normalized[j].SourceTaxonomyType, normalized[j].ExternalCode)
-	})
-	return normalized, nil
 }

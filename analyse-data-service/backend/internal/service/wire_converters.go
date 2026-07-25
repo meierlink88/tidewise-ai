@@ -8,6 +8,116 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
 
+func eventPublicationInput(request *v1.EventPublicationRequest) eventpublication.Publication {
+	collectors := make([]eventpublication.CollectorExecution, 0, len(request.Provenance.CollectorExecutions))
+	for _, collector := range request.Provenance.CollectorExecutions {
+		collectors = append(collectors, eventpublication.CollectorExecution{
+			ArtifactID: collector.ArtifactID, CollectorExecutionID: collector.CollectorExecutionID,
+		})
+	}
+	rawDocuments := make([]eventpublication.RawDocument, 0, len(request.RawDocuments))
+	for _, document := range request.RawDocuments {
+		rawDocuments = append(rawDocuments, eventpublication.RawDocument{
+			ArtifactID: document.ArtifactID, ContentSHA256: document.ContentSHA256,
+			SourceRef: document.SourceRef, SourceName: document.SourceName, SourceType: document.SourceType,
+			SourceURL: document.SourceURL, Title: document.Title, PublishedAt: document.PublishedAt,
+			CollectedAt: document.CollectedAt, Language: document.Language, MIMEType: document.MIMEType,
+		})
+	}
+	events := make([]eventpublication.Event, 0, len(request.Events))
+	for _, event := range request.Events {
+		evidence := make([]eventpublication.Evidence, 0, len(event.Evidence))
+		for _, item := range event.Evidence {
+			evidence = append(evidence, eventpublication.Evidence{
+				ArtifactID: item.ArtifactID, EvidenceRelation: item.EvidenceRelation,
+				EvidenceExcerpt: item.EvidenceExcerpt, SupportsFields: item.SupportsFields,
+				SourceLevel: item.SourceLevel, IsPrimary: item.IsPrimary,
+			})
+		}
+		tags := make([]eventpublication.Tag, 0, len(event.Tags))
+		for _, tag := range event.Tags {
+			tags = append(tags, eventpublication.Tag{
+				TagID: tag.TagID, TagKind: tag.TagKind, TagCode: tag.TagCode, Confidence: tag.Confidence,
+				AssignmentReason: tag.AssignmentReason, AssignSource: tag.AssignSource,
+			})
+		}
+		events = append(events, eventpublication.Event{
+			DedupeKey: event.DedupeKey, Title: event.Title, FactualSummary: event.FactualSummary,
+			OccurredAt: event.OccurredAt, FactPayload: event.FactPayload, Evidence: evidence, Tags: tags,
+			Review: eventpublication.Review{
+				ReviewID: event.Review.ReviewID, EvidenceGrade: event.Review.EvidenceGrade, Reasons: event.Review.Reasons,
+			},
+		})
+	}
+	return eventpublication.Publication{
+		PackageID: request.PackageID,
+		Provenance: eventpublication.Provenance{
+			ExtractorExecutionID:  request.Provenance.ExtractorExecutionID,
+			ExtractorAgentVersion: request.Provenance.ExtractorAgentVersion,
+			CollectorExecutions:   collectors,
+		},
+		RawDocuments: rawDocuments,
+		Events:       events,
+	}
+}
+
+func researchThemeImportInput(request *v1.ResearchThemeImportRequest) researchthemeimport.Batch {
+	themes := make([]researchthemeimport.Theme, 0, len(request.Themes))
+	for _, theme := range request.Themes {
+		nodes := make([]researchthemeimport.ChainNode, 0, len(theme.ChainNodes))
+		for _, node := range theme.ChainNodes {
+			nodes = append(nodes, researchthemeimport.ChainNode{
+				ChainNodeID: node.ChainNodeID, RelationRole: node.RelationRole, ImpactSummary: node.ImpactSummary,
+			})
+		}
+		events := make([]researchthemeimport.Event, 0, len(theme.Events))
+		for _, event := range theme.Events {
+			events = append(events, researchthemeimport.Event{
+				EventID: event.EventID, EvidenceRole: event.EvidenceRole, SupportedClaim: event.SupportedClaim,
+			})
+		}
+		themes = append(themes, researchthemeimport.Theme{
+			ThemeKey: theme.ThemeKey, Name: theme.Name, OneLineConclusion: theme.OneLineConclusion,
+			ImpactLevel: theme.ImpactLevel, TransmissionPath: theme.TransmissionPath,
+			TradingDirection: theme.TradingDirection, TransmissionStage: theme.TransmissionStage,
+			NextCheckpoint: theme.NextCheckpoint, MarketConfirmationSummary: theme.MarketConfirmationSummary,
+			ChainNodes: nodes, Events: events,
+		})
+	}
+	return researchthemeimport.Batch{
+		AnalysisBatchID: request.AnalysisBatchID, WindowStart: request.WindowStart,
+		WindowEnd: request.WindowEnd, Themes: themes,
+	}
+}
+
+func researchAnchorImportInput(request *v1.ResearchAnchorImportRequest) researchanchorimport.Publication {
+	anchors := make([]researchanchorimport.Anchor, 0, len(request.Anchors))
+	for _, anchor := range request.Anchors {
+		events := make([]researchanchorimport.Event, 0, len(anchor.Events))
+		for _, event := range anchor.Events {
+			events = append(events, researchanchorimport.Event{
+				EventID: event.EventID, EvidenceRole: event.EvidenceRole, EvidenceSummary: event.EvidenceSummary,
+			})
+		}
+		pathNodes := make([]researchanchorimport.PathNode, 0, len(anchor.PathNodes))
+		for _, node := range anchor.PathNodes {
+			pathNodes = append(pathNodes, researchanchorimport.PathNode{
+				ChainNodeID: node.ChainNodeID, ChangeDirection: node.ChangeDirection,
+				ChangeSummary: node.ChangeSummary, ImpactSummary: node.ImpactSummary,
+				IncomingTransmissionMechanism: node.IncomingTransmissionMechanism,
+			})
+		}
+		anchors = append(anchors, researchanchorimport.Anchor{
+			CenterChainNodeID: anchor.CenterChainNodeID, OneLineConclusion: anchor.OneLineConclusion,
+			FactSummary: anchor.FactSummary, NetDirectionSummary: anchor.NetDirectionSummary,
+			SupportSummary: anchor.SupportSummary, CounterSummary: anchor.CounterSummary,
+			TradingDirection: anchor.TradingDirection, NextCheckpoint: anchor.NextCheckpoint,
+			Events: events, PathNodes: pathNodes,
+		})
+	}
+	return researchanchorimport.Publication{ThemeID: request.ThemeID, Anchors: anchors}
+}
+
 func eventPublicationDTO(result eventpublication.Result) v1.EventPublicationResult {
 	events := make([]v1.EventPublicationEventResult, 0, len(result.Events))
 	for _, event := range result.Events {

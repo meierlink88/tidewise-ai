@@ -7,9 +7,6 @@ import (
 	"testing"
 
 	dataapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	researchanchordomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
-	researchthemedomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,28 +33,28 @@ func TestResponseDTOFieldsMatchOpenAPI(t *testing.T) {
 		"AdminRawDocument":                   dataapi.AdminRawDocument{},
 		"AdminEventPage":                     dataapi.AdminEventPage{},
 		"AdminEvent":                         dataapi.AdminEvent{},
-		"EventPublicationRequest":            publicationdomain.Publication{},
-		"EventPublicationProvenance":         publicationdomain.Provenance{},
-		"EventPublicationCollectorExecution": publicationdomain.CollectorExecution{},
-		"EventPublicationRawDocument":        publicationdomain.RawDocument{},
-		"EventPublicationEvent":              publicationdomain.Event{},
-		"EventPublicationEvidence":           publicationdomain.Evidence{},
-		"EventPublicationTag":                publicationdomain.Tag{},
-		"EventPublicationReview":             publicationdomain.Review{},
+		"EventPublicationRequest":            dataapi.EventPublicationRequest{},
+		"EventPublicationProvenance":         dataapi.EventPublicationProvenance{},
+		"EventPublicationCollectorExecution": dataapi.EventPublicationCollectorExecution{},
+		"EventPublicationRawDocument":        dataapi.EventPublicationRawDocument{},
+		"EventPublicationEvent":              dataapi.EventPublicationEvent{},
+		"EventPublicationEvidence":           dataapi.EventPublicationEvidence{},
+		"EventPublicationTag":                dataapi.EventPublicationTag{},
+		"EventPublicationReview":             dataapi.EventPublicationReview{},
 		"EventPublicationResult":             dataapi.EventPublicationResult{},
 		"EventPublicationEventResult":        dataapi.EventPublicationEventResult{},
 		"EventPublicationRawDocumentResult":  dataapi.EventPublicationRawDocumentResult{},
 		"EventPublicationCounts":             dataapi.EventPublicationCounts{},
-		"ResearchThemeImportRequest":         researchthemedomain.Batch{},
-		"ResearchThemeImportItem":            researchthemedomain.Theme{},
-		"ResearchThemeImportChainNode":       researchthemedomain.ChainNode{},
-		"ResearchThemeImportEvent":           researchthemedomain.Event{},
+		"ResearchThemeImportRequest":         dataapi.ResearchThemeImportRequest{},
+		"ResearchThemeImportItem":            dataapi.ResearchThemeImportItem{},
+		"ResearchThemeImportChainNode":       dataapi.ResearchThemeImportChainNode{},
+		"ResearchThemeImportEvent":           dataapi.ResearchThemeImportEvent{},
 		"ResearchThemeImportCounts":          dataapi.ResearchThemeImportCounts{},
 		"ResearchThemeImportResult":          dataapi.ResearchThemeImportResult{},
-		"ResearchAnchorImportRequest":        researchanchordomain.Publication{},
-		"ResearchAnchorImportItem":           researchanchordomain.Anchor{},
-		"ResearchAnchorImportEvent":          researchanchordomain.Event{},
-		"ResearchAnchorImportPathNode":       researchanchordomain.PathNode{},
+		"ResearchAnchorImportRequest":        dataapi.ResearchAnchorImportRequest{},
+		"ResearchAnchorImportItem":           dataapi.ResearchAnchorImportItem{},
+		"ResearchAnchorImportEvent":          dataapi.ResearchAnchorImportEvent{},
+		"ResearchAnchorImportPathNode":       dataapi.ResearchAnchorImportPathNode{},
 		"ResearchAnchorImportCounts":         dataapi.ResearchAnchorImportCounts{},
 		"ResearchAnchorImportResult":         dataapi.ResearchAnchorImportResult{},
 	} {
