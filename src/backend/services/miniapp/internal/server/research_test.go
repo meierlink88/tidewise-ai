@@ -19,18 +19,18 @@ import (
 func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.T) {
 	now := time.Date(2026, 7, 17, 1, 0, 0, 0, time.UTC)
 	calls := 0
-	client := &dataclient.Fake{ListResearchThemesFunc: func(ctx context.Context, query dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
+	client := &usecase.Fake{ListResearchThemesFunc: func(ctx context.Context, query usecase.ResearchListQuery) (usecase.ResearchThemePage, error) {
 		calls++
 		if dataclient.RequestIDFromContext(ctx) != "miniapp-request-1" {
 			t.Fatalf("request ID = %q", dataclient.RequestIDFromContext(ctx))
 		}
-		return dataclient.ResearchThemePage{
+		return usecase.ResearchThemePage{
 			WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, AsOf: now, ThemeCount: 1, EventCount: 1,
-			Items: []dataclient.ResearchTheme{{
+			Items: []usecase.ResearchTheme{{
 				ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
-				ImpactLevel: dataclient.ImpactLevelHigh, TransmissionPath: "政策到产业链", TradingDirection: "风险偏好可能回升",
-				TransmissionStage: dataclient.TransmissionStageIdentification, NextCheckpoint: "下周数据", PublishedAt: now,
-				AffectedChainNodes: []dataclient.ResearchThemeChainNode{}, RelatedIndices: []dataclient.ResearchIndex{},
+				ImpactLevel: usecase.ImpactLevelHigh, TransmissionPath: "政策到产业链", TradingDirection: "风险偏好可能回升",
+				TransmissionStage: usecase.TransmissionStageIdentification, NextCheckpoint: "下周数据", PublishedAt: now,
+				AffectedChainNodes: []usecase.ResearchThemeChainNode{}, RelatedIndices: []usecase.ResearchIndex{},
 			}},
 		}, nil
 	}}
@@ -68,7 +68,7 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 }
 
 func TestResearchRoutesDoNotExposeLegacyStandaloneAnchorAPI(t *testing.T) {
-	router := researchTestRouter(usecase.NewResearchService(&dataclient.Fake{}))
+	router := researchTestRouter(usecase.NewResearchService(&usecase.Fake{}))
 	for _, path := range []string{
 		"/api/miniapp/v1/research/anchors",
 		"/api/miniapp/v1/research/anchors/11111111-1111-4111-8111-111111111111",
@@ -85,9 +85,9 @@ func TestResearchRoutesDoNotExposeLegacyStandaloneAnchorAPI(t *testing.T) {
 func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 	t.Run("invalid request", func(t *testing.T) {
 		calls := 0
-		client := &dataclient.Fake{ListResearchThemesFunc: func(context.Context, dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
+		client := &usecase.Fake{ListResearchThemesFunc: func(context.Context, usecase.ResearchListQuery) (usecase.ResearchThemePage, error) {
 			calls++
-			return dataclient.ResearchThemePage{}, nil
+			return usecase.ResearchThemePage{}, nil
 		}}
 		response := serveResearch(t, usecase.NewResearchService(client), "/api/miniapp/v1/research/themes?limit=51")
 		if response.Code != http.StatusBadRequest || calls != 0 {
@@ -106,9 +106,9 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
-			client := &dataclient.Fake{GetResearchThemeFunc: func(context.Context, string, dataclient.ResearchDetailQuery) (dataclient.ResearchThemeDetail, error) {
+			client := &usecase.Fake{GetResearchThemeFunc: func(context.Context, string, usecase.ResearchDetailQuery) (usecase.ResearchThemeDetail, error) {
 				calls++
-				return dataclient.ResearchThemeDetail{}, test.upstream
+				return usecase.ResearchThemeDetail{}, test.upstream
 			}}
 			response := serveResearch(t, usecase.NewResearchService(client), "/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111")
 			if response.Code != test.wantStatus || calls != 1 {

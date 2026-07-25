@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -41,5 +42,29 @@ func TestResearchServiceMapsBizReadModelToPublicContract(t *testing.T) {
 		result.Items[0].AffectedChainNodes[0].ImpactSummary != "需求增加" ||
 		result.Items[0].RelatedIndices == nil {
 		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestResearchServiceMapsBizErrorsToAPIContract(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name string
+		err  error
+		want error
+	}{
+		{name: "invalid request", err: biz.ErrInvalidResearchRequest, want: v1.ErrInvalidRequest},
+		{name: "result not found", err: biz.ErrResearchNotFound, want: v1.ErrResearchResultNotFound},
+		{name: "theme not found", err: biz.ErrResearchThemeNotFound, want: v1.ErrResearchThemeNotFound},
+		{name: "trees not found", err: biz.ErrResearchReasoningTreesNotFound, want: v1.ErrResearchReasoningTreesNotFound},
+		{name: "tree not found", err: biz.ErrResearchReasoningTreeNotFound, want: v1.ErrResearchReasoningTreeNotFound},
+		{name: "data failure", err: biz.ErrResearchDataService, want: v1.ErrResearchDataFailure},
+		{name: "data unavailable", err: biz.ErrResearchDataUnavailable, want: v1.ErrResearchDataUnavailable},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := mapBizError(test.err); !errors.Is(got, test.want) {
+				t.Fatalf("mapBizError(%v) = %v, want %v", test.err, got, test.want)
+			}
+		})
 	}
 }

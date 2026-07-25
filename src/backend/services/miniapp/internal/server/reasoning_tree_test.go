@@ -21,9 +21,9 @@ import (
 
 func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.T) {
 	t.Run("list", func(t *testing.T) {
-		dataResult, expected := transportReasoningFixtureResult[dataclient.ResearchReasoningTreeList](t, "01-reasoning-tree-list-result.json")
+		dataResult, expected := transportReasoningFixtureResult[usecase.ResearchReasoningTreeList](t, "01-reasoning-tree-list-result.json")
 		calls := 0
-		client := &dataclient.Fake{ListResearchThemeReasoningTreesFunc: func(ctx context.Context, themeID string) (dataclient.ResearchReasoningTreeList, error) {
+		client := &usecase.Fake{ListResearchThemeReasoningTreesFunc: func(ctx context.Context, themeID string) (usecase.ResearchReasoningTreeList, error) {
 			calls++
 			if dataclient.RequestIDFromContext(ctx) != "miniapp-reasoning-1" || themeID != "11111111-1111-4111-8111-111111111111" {
 				t.Fatalf("request ID/theme ID = %q/%q", dataclient.RequestIDFromContext(ctx), themeID)
@@ -42,9 +42,9 @@ func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.
 	})
 
 	t.Run("detail", func(t *testing.T) {
-		dataResult, expected := transportReasoningFixtureResult[dataclient.ResearchReasoningTreeDetail](t, "02-reasoning-tree-with-contradiction-result.json")
+		dataResult, expected := transportReasoningFixtureResult[usecase.ResearchReasoningTreeDetail](t, "02-reasoning-tree-with-contradiction-result.json")
 		calls := 0
-		client := &dataclient.Fake{GetResearchThemeReasoningTreeFunc: func(_ context.Context, themeID, anchorID string) (dataclient.ResearchReasoningTreeDetail, error) {
+		client := &usecase.Fake{GetResearchThemeReasoningTreeFunc: func(_ context.Context, themeID, anchorID string) (usecase.ResearchReasoningTreeDetail, error) {
 			calls++
 			if themeID != "11111111-1111-4111-8111-111111111111" || anchorID != "534d83be-774b-51d9-ad00-cdee4ba91799" {
 				t.Fatalf("theme/anchor IDs = %q/%q", themeID, anchorID)
@@ -62,14 +62,14 @@ func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.
 
 func TestResearchReasoningTreeRoutesRejectQueryAndInvalidUUIDBeforeDataCall(t *testing.T) {
 	calls := 0
-	client := &dataclient.Fake{
-		ListResearchThemeReasoningTreesFunc: func(context.Context, string) (dataclient.ResearchReasoningTreeList, error) {
+	client := &usecase.Fake{
+		ListResearchThemeReasoningTreesFunc: func(context.Context, string) (usecase.ResearchReasoningTreeList, error) {
 			calls++
-			return dataclient.ResearchReasoningTreeList{}, nil
+			return usecase.ResearchReasoningTreeList{}, nil
 		},
-		GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (dataclient.ResearchReasoningTreeDetail, error) {
+		GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (usecase.ResearchReasoningTreeDetail, error) {
 			calls++
-			return dataclient.ResearchReasoningTreeDetail{}, nil
+			return usecase.ResearchReasoningTreeDetail{}, nil
 		},
 	}
 	service := usecase.NewResearchService(client)
@@ -90,10 +90,10 @@ func TestResearchReasoningTreeRoutesRejectQueryAndInvalidUUIDBeforeDataCall(t *t
 func TestResearchReasoningTreeInvalidQueryRunsKratosMiddleware(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
-	client := &dataclient.Fake{
-		ListResearchThemeReasoningTreesFunc: func(context.Context, string) (dataclient.ResearchReasoningTreeList, error) {
+	client := &usecase.Fake{
+		ListResearchThemeReasoningTreesFunc: func(context.Context, string) (usecase.ResearchReasoningTreeList, error) {
 			t.Fatal("Data must not be called for an invalid query")
-			return dataclient.ResearchReasoningTreeList{}, nil
+			return usecase.ResearchReasoningTreeList{}, nil
 		},
 	}
 	router := NewHTTPServer(
@@ -151,12 +151,12 @@ func TestResearchReasoningTreeRoutesExposeStableErrorsWithoutUpstreamMetadata(t 
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			client := &dataclient.Fake{
-				ListResearchThemeReasoningTreesFunc: func(context.Context, string) (dataclient.ResearchReasoningTreeList, error) {
-					return dataclient.ResearchReasoningTreeList{}, test.upstream
+			client := &usecase.Fake{
+				ListResearchThemeReasoningTreesFunc: func(context.Context, string) (usecase.ResearchReasoningTreeList, error) {
+					return usecase.ResearchReasoningTreeList{}, test.upstream
 				},
-				GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (dataclient.ResearchReasoningTreeDetail, error) {
-					return dataclient.ResearchReasoningTreeDetail{}, test.upstream
+				GetResearchThemeReasoningTreeFunc: func(context.Context, string, string) (usecase.ResearchReasoningTreeDetail, error) {
+					return usecase.ResearchReasoningTreeDetail{}, test.upstream
 				},
 			}
 			response := serveResearch(t, usecase.NewResearchService(client), test.path)

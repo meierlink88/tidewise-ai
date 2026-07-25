@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,7 +18,6 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/apihttp"
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
 	v1 "github.com/meierlink88/tidewise-ai/backend/services/miniapp/api/miniapp/v1"
-	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/conf"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/service"
 )
@@ -73,16 +71,28 @@ func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService,
 func registerHealthRoutes(server *kratoshttp.Server, app runtimeconfig.AppConfig) {
 	router := server.Route("/")
 	router.GET("/healthz", func(ctx kratoshttp.Context) error {
-		return ctx.JSON(http.StatusOK, HealthResponse{
+		return operationalResponse(ctx, "miniapp.health", HealthResponse{
 			Status: "ok", Service: app.Name, Environment: app.Env,
 		})
 	})
 	router.GET("/readyz", func(ctx kratoshttp.Context) error {
-		return ctx.JSON(http.StatusOK, ReadyResponse{
+		return operationalResponse(ctx, "miniapp.ready", ReadyResponse{
 			Status: "ready", Service: app.Name, Environment: app.Env,
 			Checks: map[string]string{"config": "ok"},
 		})
 	})
+}
+
+func operationalResponse(ctx kratoshttp.Context, operation string, response any) error {
+	kratoshttp.SetOperation(ctx, operation)
+	handler := ctx.Middleware(func(context.Context, any) (any, error) {
+		return response, nil
+	})
+	result, err := handler(ctx, nil)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, result)
 }
 
 func observabilityFilter(app runtimeconfig.AppConfig, logger *slog.Logger) kratoshttp.FilterFunc {
@@ -238,24 +248,10 @@ func errorEncoder(response http.ResponseWriter, request *http.Request, err error
 }
 
 func publicError(err error) (int, string, string) {
-	switch {
-	case errors.Is(err, v1.ErrInvalidRequest), errors.Is(err, biz.ErrInvalidResearchRequest):
-		return http.StatusBadRequest, "INVALID_REQUEST", "invalid research request"
-	case errors.Is(err, biz.ErrResearchNotFound):
-		return http.StatusNotFound, "RESEARCH_RESULT_NOT_FOUND", biz.ErrResearchNotFound.Error()
-	case errors.Is(err, biz.ErrResearchThemeNotFound):
-		return http.StatusNotFound, "RESEARCH_THEME_NOT_FOUND", "research Theme was not found"
-	case errors.Is(err, biz.ErrResearchReasoningTreesNotFound):
-		return http.StatusNotFound, "RESEARCH_REASONING_TREES_NOT_FOUND", "research Theme has no published reasoning trees"
-	case errors.Is(err, biz.ErrResearchReasoningTreeNotFound):
-		return http.StatusNotFound, "RESEARCH_REASONING_TREE_NOT_FOUND", "research reasoning tree was not found for the Theme"
-	case errors.Is(err, biz.ErrResearchDataService):
-		return http.StatusInternalServerError, "RESEARCH_DATA_UNAVAILABLE", biz.ErrResearchDataService.Error()
-	case errors.Is(err, biz.ErrResearchDataUnavailable):
-		return http.StatusBadGateway, "RESEARCH_DATA_UNAVAILABLE", "research data is temporarily unavailable"
-	default:
-		return http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error"
+	if public, ok := v1.PublicError(err); ok {
+		return public.Status(), public.Code(), public.Message()
 	}
+	return http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error"
 }
 
 func notFoundHandler(response http.ResponseWriter, request *http.Request) {

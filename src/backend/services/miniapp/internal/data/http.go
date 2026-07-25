@@ -39,65 +39,12 @@ type HTTPConfig struct {
 }
 
 type HTTPClient struct {
-	baseURL         string
 	serviceToken    string
 	timeout         time.Duration
 	maxReadAttempts int
 	httpClient      *kratoshttp.Client
 	closeIdle       func()
 }
-
-type DataServiceClient = biz.ResearchRepo
-type ResearchListQuery = biz.ResearchListQuery
-type ResearchDetailQuery = biz.ResearchDetailQuery
-type ResearchThemePage = biz.ResearchThemePage
-type ResearchTheme = biz.ResearchTheme
-type ResearchThemeDetail = biz.ResearchThemeDetail
-type ResearchThemeChainNode = biz.ResearchThemeChainNode
-type ResearchIndex = biz.ResearchIndex
-type ResearchEvent = biz.ResearchEvent
-type ResearchReasoningTreeChainNode = biz.ResearchReasoningTreeChainNode
-type ResearchReasoningTreeSummary = biz.ResearchReasoningTreeSummary
-type ResearchReasoningTreeList = biz.ResearchReasoningTreeList
-type ResearchReasoningTreeEvent = biz.ResearchReasoningTreeEvent
-type ResearchReasoningTreePathNode = biz.ResearchReasoningTreePathNode
-type ResearchReasoningTree = biz.ResearchReasoningTree
-type ResearchReasoningTreeDetail = biz.ResearchReasoningTreeDetail
-type ImpactLevel = biz.ImpactLevel
-type TransmissionStage = biz.TransmissionStage
-type EvidenceRole = biz.EvidenceRole
-type ImpactDirection = biz.ImpactDirection
-type ChangeDirection = biz.ChangeDirection
-type Fake = biz.Fake
-
-const (
-	ImpactLevelHigh  = biz.ImpactLevelHigh
-	ImpactLevelFocus = biz.ImpactLevelFocus
-	ImpactLevelWatch = biz.ImpactLevelWatch
-
-	TransmissionStageIdentification = biz.TransmissionStageIdentification
-	TransmissionStageValidation     = biz.TransmissionStageValidation
-	TransmissionStageDiffusion      = biz.TransmissionStageDiffusion
-	TransmissionStageDampening      = biz.TransmissionStageDampening
-
-	EvidenceRoleDriver        = biz.EvidenceRoleDriver
-	EvidenceRoleSupporting    = biz.EvidenceRoleSupporting
-	EvidenceRoleContradicting = biz.EvidenceRoleContradicting
-	EvidenceRoleContext       = biz.EvidenceRoleContext
-
-	ImpactDirectionPositive = biz.ImpactDirectionPositive
-	ImpactDirectionNegative = biz.ImpactDirectionNegative
-	ImpactDirectionMixed    = biz.ImpactDirectionMixed
-	ImpactDirectionNeutral  = biz.ImpactDirectionNeutral
-
-	ChangeDirectionIncrease  = biz.ChangeDirectionIncrease
-	ChangeDirectionDecrease  = biz.ChangeDirectionDecrease
-	ChangeDirectionMixed     = biz.ChangeDirectionMixed
-	ChangeDirectionUnchanged = biz.ChangeDirectionUnchanged
-	ChangeDirectionUncertain = biz.ChangeDirectionUncertain
-)
-
-var ErrFakeMethodNotConfigured = biz.ErrFakeMethodNotConfigured
 
 func NewHTTPClient(config HTTPConfig) (*HTTPClient, error) {
 	parsed, err := url.Parse(strings.TrimSpace(config.BaseURL))
@@ -139,7 +86,6 @@ func NewHTTPClient(config HTTPConfig) (*HTTPClient, error) {
 		return nil, errors.New("create data service HTTP client")
 	}
 	return &HTTPClient{
-		baseURL:         parsed.Scheme + "://" + parsed.Host,
 		serviceToken:    token,
 		timeout:         config.Timeout,
 		maxReadAttempts: attempts,
@@ -161,42 +107,42 @@ func (c *HTTPClient) Close() error {
 	return c.httpClient.Close()
 }
 
-func (c *HTTPClient) ListResearchThemes(ctx context.Context, query ResearchListQuery) (ResearchThemePage, error) {
+func (c *HTTPClient) ListResearchThemes(ctx context.Context, query biz.ResearchListQuery) (biz.ResearchThemePage, error) {
 	var envelope responseEnvelope[wireResearchThemePage]
 	err := c.doJSON(ctx, http.MethodGet, researchListPath(ResearchThemesPath, query), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
-		return ResearchThemePage{}, mapThemeDataError(err)
+		return biz.ResearchThemePage{}, mapThemeDataError(err)
 	}
 	return value.toBiz(), nil
 }
 
-func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query ResearchDetailQuery) (ResearchThemeDetail, error) {
+func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query biz.ResearchDetailQuery) (biz.ResearchThemeDetail, error) {
 	var envelope responseEnvelope[wireResearchThemeDetail]
 	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id, query), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
-		return ResearchThemeDetail{}, mapThemeDataError(err)
+		return biz.ResearchThemeDetail{}, mapThemeDataError(err)
 	}
 	return value.toBiz(), nil
 }
 
-func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
+func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (biz.ResearchReasoningTreeList, error) {
 	var envelope responseEnvelope[wireResearchReasoningTreeList]
 	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeListPath(themeID), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
-		return ResearchReasoningTreeList{}, mapReasoningTreeDataError(err)
+		return biz.ResearchReasoningTreeList{}, mapReasoningTreeDataError(err)
 	}
 	return value.toBiz(), nil
 }
 
-func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (ResearchReasoningTreeDetail, error) {
+func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (biz.ResearchReasoningTreeDetail, error) {
 	var envelope responseEnvelope[wireResearchReasoningTreeDetail]
 	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, anchorID), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
-		return ResearchReasoningTreeDetail{}, mapReasoningTreeDataError(err)
+		return biz.ResearchReasoningTreeDetail{}, mapReasoningTreeDataError(err)
 	}
 	return value.toBiz(), nil
 }
@@ -217,7 +163,7 @@ func unwrapEnvelope[T any](envelope responseEnvelope[T], err error) (T, error) {
 	return *envelope.Result, nil
 }
 
-func researchListPath(path string, query ResearchListQuery) string {
+func researchListPath(path string, query biz.ResearchListQuery) string {
 	values := url.Values{}
 	if query.WindowHours != 0 {
 		values.Set("window_hours", strconv.Itoa(query.WindowHours))
@@ -231,7 +177,7 @@ func researchListPath(path string, query ResearchListQuery) string {
 	return appendQuery(path, values)
 }
 
-func researchDetailPath(path string, id string, query ResearchDetailQuery) string {
+func researchDetailPath(path string, id string, query biz.ResearchDetailQuery) string {
 	values := url.Values{}
 	if query.WindowHours != 0 {
 		values.Set("window_hours", strconv.Itoa(query.WindowHours))

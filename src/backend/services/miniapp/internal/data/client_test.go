@@ -33,7 +33,7 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 	defer server.Close()
 
 	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
-	page, err := client.ListResearchThemes(WithRequestID(context.Background(), "req-123"), ResearchListQuery{WindowHours: 24, Limit: 20, Cursor: "cursor value"})
+	page, err := client.ListResearchThemes(WithRequestID(context.Background(), "req-123"), biz.ResearchListQuery{WindowHours: 24, Limit: 20, Cursor: "cursor value"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,10 +45,10 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 			t.Fatalf("query = %q, want %q", gotQuery, fragment)
 		}
 	}
-	if len(page.Items) != 1 || page.Items[0].Name != "theme" || page.Items[0].ImpactLevel != ImpactLevelFocus || page.Items[0].TransmissionStage != TransmissionStageDiffusion || page.Items[0].TradingDirection != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
+	if len(page.Items) != 1 || page.Items[0].Name != "theme" || page.Items[0].ImpactLevel != biz.ImpactLevelFocus || page.Items[0].TransmissionStage != biz.TransmissionStageDiffusion || page.Items[0].TradingDirection != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
 		t.Fatalf("page = %#v", page)
 	}
-	if len(page.Items[0].AffectedChainNodes) != 1 || page.Items[0].AffectedChainNodes[0].ImpactSummary != "资本开支上升" || page.Items[0].RelatedIndices[0].ImpactDirection != ImpactDirectionNeutral {
+	if len(page.Items[0].AffectedChainNodes) != 1 || page.Items[0].AffectedChainNodes[0].ImpactSummary != "资本开支上升" || page.Items[0].RelatedIndices[0].ImpactDirection != biz.ImpactDirectionNeutral {
 		t.Fatalf("theme relations = %#v/%#v", page.Items[0].AffectedChainNodes, page.Items[0].RelatedIndices)
 	}
 }
@@ -63,7 +63,7 @@ func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	result, err := client.GetResearchTheme(context.Background(), "theme/id", ResearchDetailQuery{WindowHours: 48})
+	result, err := client.GetResearchTheme(context.Background(), "theme/id", biz.ResearchDetailQuery{WindowHours: 48})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestHTTPClientReadsResearchReasoningTreeDetailFromSharedFixture(t *testing.
 	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees/anchor%2Fid" || gotQuery != "" {
 		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
 	}
-	if result.ThemeID != "11111111-1111-4111-8111-111111111111" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != EvidenceRoleContradicting || result.ReasoningTree.PathNodes[1].ChangeDirection != ChangeDirectionMixed {
+	if result.ThemeID != "11111111-1111-4111-8111-111111111111" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != biz.EvidenceRoleContradicting || result.ReasoningTree.PathNodes[1].ChangeDirection != biz.ChangeDirectionMixed {
 		t.Fatalf("result = %#v", result)
 	}
 }
@@ -163,7 +163,7 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 	_, err = unwrapEnvelope(envelope, err)
 	assertErrorKind(t, err, ErrorKindDecode)
 
-	_, err = client.ListResearchThemes(context.Background(), ResearchListQuery{})
+	_, err = client.ListResearchThemes(context.Background(), biz.ResearchListQuery{})
 	if !errors.Is(err, biz.ErrResearchDataService) {
 		t.Fatalf("public repository error = %v, want stable Biz data-service error", err)
 	}
@@ -187,7 +187,7 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	if _, err := client.ListResearchThemes(context.Background(), ResearchListQuery{}); err != nil {
+	if _, err := client.ListResearchThemes(context.Background(), biz.ResearchListQuery{}); err != nil {
 		t.Fatalf("safe read error = %v", err)
 	}
 	if got := readAttempts.Load(); got != 2 {
@@ -282,21 +282,6 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 	assertErrorKind(t, err, ErrorKindTimeout)
 	if strings.Contains(err.Error(), "transport secret") {
 		t.Fatalf("unsafe timeout error = %q", err)
-	}
-}
-
-func TestFakeImplementsPort(t *testing.T) {
-	t.Parallel()
-	fake := &Fake{ListResearchThemesFunc: func(context.Context, ResearchListQuery) (ResearchThemePage, error) {
-		return ResearchThemePage{Items: []ResearchTheme{{Name: "fake"}}}, nil
-	}}
-	var client DataServiceClient = fake
-	page, err := client.ListResearchThemes(context.Background(), ResearchListQuery{})
-	if err != nil || len(page.Items) != 1 || page.Items[0].Name != "fake" {
-		t.Fatalf("fake result/error = %#v/%v", page, err)
-	}
-	if _, err := client.GetResearchTheme(context.Background(), "id", ResearchDetailQuery{}); !errors.Is(err, ErrFakeMethodNotConfigured) {
-		t.Fatalf("unconfigured fake error = %v", err)
 	}
 }
 

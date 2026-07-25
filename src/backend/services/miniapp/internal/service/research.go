@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	v1 "github.com/meierlink88/tidewise-ai/backend/services/miniapp/api/miniapp/v1"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
@@ -19,7 +20,7 @@ func NewResearchService(research *biz.ResearchService) *ResearchService {
 
 func (s *ResearchService) ListResearchThemes(ctx context.Context, request *v1.ListResearchThemesRequest) (*v1.ResearchThemeListResponse, error) {
 	if s == nil || s.research == nil || request == nil {
-		return nil, biz.ErrInvalidResearchRequest
+		return nil, v1.ErrInvalidRequest
 	}
 	result, err := s.research.ListThemes(ctx, biz.ResearchListRequest{
 		WindowHours: request.WindowHours,
@@ -27,29 +28,29 @@ func (s *ResearchService) ListResearchThemes(ctx context.Context, request *v1.Li
 		Cursor:      request.Cursor,
 	})
 	if err != nil {
-		return nil, err
+		return nil, mapBizError(err)
 	}
 	return themeListResponse(result), nil
 }
 
 func (s *ResearchService) GetResearchTheme(ctx context.Context, request *v1.GetResearchThemeRequest) (*v1.ResearchThemeDetailResponse, error) {
 	if s == nil || s.research == nil || request == nil {
-		return nil, biz.ErrInvalidResearchRequest
+		return nil, v1.ErrInvalidRequest
 	}
 	result, err := s.research.GetTheme(ctx, request.ThemeID, biz.ResearchDetailRequest{WindowHours: request.WindowHours})
 	if err != nil {
-		return nil, err
+		return nil, mapBizError(err)
 	}
 	return themeDetailResponse(result), nil
 }
 
 func (s *ResearchService) ListResearchThemeReasoningTrees(ctx context.Context, request *v1.ListResearchThemeReasoningTreesRequest) (*v1.ResearchReasoningTreeListResponse, error) {
 	if s == nil || s.research == nil || request == nil {
-		return nil, biz.ErrInvalidResearchRequest
+		return nil, v1.ErrInvalidRequest
 	}
 	result, err := s.research.ListReasoningTrees(ctx, request.ThemeID)
 	if err != nil {
-		return nil, err
+		return nil, mapBizError(err)
 	}
 	trees := make([]v1.ResearchReasoningTreeSummary, 0, len(result.ReasoningTrees))
 	for _, tree := range result.ReasoningTrees {
@@ -68,16 +69,37 @@ func (s *ResearchService) ListResearchThemeReasoningTrees(ctx context.Context, r
 
 func (s *ResearchService) GetResearchThemeReasoningTree(ctx context.Context, request *v1.GetResearchThemeReasoningTreeRequest) (*v1.ResearchReasoningTreeDetailResponse, error) {
 	if s == nil || s.research == nil || request == nil {
-		return nil, biz.ErrInvalidResearchRequest
+		return nil, v1.ErrInvalidRequest
 	}
 	result, err := s.research.GetReasoningTree(ctx, request.ThemeID, request.AnchorID)
 	if err != nil {
-		return nil, err
+		return nil, mapBizError(err)
 	}
 	return &v1.ResearchReasoningTreeDetailResponse{
 		ThemeID:       result.ThemeID,
 		ReasoningTree: reasoningTree(result.ReasoningTree),
 	}, nil
+}
+
+func mapBizError(err error) error {
+	switch {
+	case errors.Is(err, biz.ErrInvalidResearchRequest):
+		return v1.ErrInvalidRequest
+	case errors.Is(err, biz.ErrResearchNotFound):
+		return v1.ErrResearchResultNotFound
+	case errors.Is(err, biz.ErrResearchThemeNotFound):
+		return v1.ErrResearchThemeNotFound
+	case errors.Is(err, biz.ErrResearchReasoningTreesNotFound):
+		return v1.ErrResearchReasoningTreesNotFound
+	case errors.Is(err, biz.ErrResearchReasoningTreeNotFound):
+		return v1.ErrResearchReasoningTreeNotFound
+	case errors.Is(err, biz.ErrResearchDataService):
+		return v1.ErrResearchDataFailure
+	case errors.Is(err, biz.ErrResearchDataUnavailable):
+		return v1.ErrResearchDataUnavailable
+	default:
+		return err
+	}
 }
 
 func themeListResponse(value biz.ResearchThemeListResponse) *v1.ResearchThemeListResponse {

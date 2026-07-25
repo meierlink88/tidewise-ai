@@ -37,19 +37,19 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"ResearchThemeCollection":        reflect.TypeOf(ResearchThemePage{}),
-		"ResearchThemeSummary":           reflect.TypeOf(ResearchTheme{}),
-		"ResearchThemeDetail":            reflect.TypeOf(ResearchThemeDetail{}),
-		"ResearchThemeChainNode":         reflect.TypeOf(ResearchThemeChainNode{}),
-		"ResearchIndex":                  reflect.TypeOf(ResearchIndex{}),
-		"ResearchEvent":                  reflect.TypeOf(ResearchEvent{}),
-		"ResearchReasoningTreeChainNode": reflect.TypeOf(ResearchReasoningTreeChainNode{}),
-		"ResearchReasoningTreeSummary":   reflect.TypeOf(ResearchReasoningTreeSummary{}),
-		"ResearchReasoningTreeList":      reflect.TypeOf(ResearchReasoningTreeList{}),
-		"ResearchReasoningTreeEvent":     reflect.TypeOf(ResearchReasoningTreeEvent{}),
-		"ResearchReasoningTreePathNode":  reflect.TypeOf(ResearchReasoningTreePathNode{}),
-		"ResearchReasoningTree":          reflect.TypeOf(ResearchReasoningTree{}),
-		"ResearchReasoningTreeDetail":    reflect.TypeOf(ResearchReasoningTreeDetail{}),
+		"ResearchThemeCollection":        reflect.TypeOf(wireResearchThemePage{}),
+		"ResearchThemeSummary":           reflect.TypeOf(wireResearchTheme{}),
+		"ResearchThemeDetail":            reflect.TypeOf(wireResearchThemeDetail{}),
+		"ResearchThemeChainNode":         reflect.TypeOf(wireResearchThemeChainNode{}),
+		"ResearchIndex":                  reflect.TypeOf(wireResearchIndex{}),
+		"ResearchEvent":                  reflect.TypeOf(wireResearchEvent{}),
+		"ResearchReasoningTreeChainNode": reflect.TypeOf(wireResearchReasoningTreeChainNode{}),
+		"ResearchReasoningTreeSummary":   reflect.TypeOf(wireResearchReasoningTreeSummary{}),
+		"ResearchReasoningTreeList":      reflect.TypeOf(wireResearchReasoningTreeList{}),
+		"ResearchReasoningTreeEvent":     reflect.TypeOf(wireResearchReasoningTreeEvent{}),
+		"ResearchReasoningTreePathNode":  reflect.TypeOf(wireResearchReasoningTreePathNode{}),
+		"ResearchReasoningTree":          reflect.TypeOf(wireResearchReasoningTree{}),
+		"ResearchReasoningTreeDetail":    reflect.TypeOf(wireResearchReasoningTreeDetail{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}

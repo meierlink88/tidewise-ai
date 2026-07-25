@@ -15,7 +15,6 @@ import (
 	"github.com/meierlink88/tidewise-ai/backend/internal/platform/runtimeconfig"
 	usecase "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
 	"github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/conf"
-	dataclient "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/data"
 	appservice "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/service"
 )
 
@@ -61,11 +60,30 @@ func TestReadyz(t *testing.T) {
 	}
 }
 
+func TestHealthRoutesRunKratosMiddlewareWithStableOperation(t *testing.T) {
+	var logs bytes.Buffer
+	router := NewHTTPServer(testRuntimeConfig(), nil, slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", response.Code, http.StatusOK)
+	}
+	if !strings.Contains(logs.String(), `"msg":"business request completed"`) ||
+		!strings.Contains(logs.String(), `"operation":"miniapp.health"`) {
+		t.Fatalf("health middleware log is incomplete: %s", logs.String())
+	}
+}
+
 func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
-	client := &dataclient.Fake{
-		ListResearchThemesFunc: func(context.Context, dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
+	client := &usecase.Fake{
+		ListResearchThemesFunc: func(context.Context, usecase.ResearchListQuery) (usecase.ResearchThemePage, error) {
 			panic("sensitive upstream failure")
 		},
 	}
@@ -110,10 +128,10 @@ func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 
 func TestServerDoesNotImposeRequestContextDeadline(t *testing.T) {
 	var hasDeadline bool
-	client := &dataclient.Fake{
-		ListResearchThemesFunc: func(ctx context.Context, _ dataclient.ResearchListQuery) (dataclient.ResearchThemePage, error) {
+	client := &usecase.Fake{
+		ListResearchThemesFunc: func(ctx context.Context, _ usecase.ResearchListQuery) (usecase.ResearchThemePage, error) {
 			_, hasDeadline = ctx.Deadline()
-			return dataclient.ResearchThemePage{}, nil
+			return usecase.ResearchThemePage{}, nil
 		},
 	}
 	response := httptest.NewRecorder()

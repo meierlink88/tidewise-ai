@@ -96,6 +96,11 @@ func TestMiniappKratosLayersFollowDependencyDirection(t *testing.T) {
 				"/services/miniapp/internal/data",
 				"/services/miniapp/internal/server",
 			)
+		case owner == "services/miniapp/internal/server" || strings.HasPrefix(owner, "services/miniapp/internal/server/"):
+			assertImportsExclude(t, pkg,
+				"/services/miniapp/internal/biz",
+				"/services/miniapp/internal/data",
+			)
 		case owner == "services/miniapp/internal/data" || strings.HasPrefix(owner, "services/miniapp/internal/data/"):
 			assertImportsExclude(t, pkg,
 				"/services/miniapp/api/",

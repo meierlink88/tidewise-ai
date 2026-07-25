@@ -2,14 +2,11 @@ package v1
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 )
-
-var ErrInvalidRequest = errors.New("invalid Miniapp API request")
 
 func RegisterResearchHTTPServer(server *kratoshttp.Server, service ResearchHTTPServer) {
 	router := server.Route(APIPrefix)

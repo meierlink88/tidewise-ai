@@ -13,7 +13,6 @@ import (
 
 	miniappapi "github.com/meierlink88/tidewise-ai/backend/services/miniapp/api/miniapp/v1"
 	usecase "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/biz"
-	dataclient "github.com/meierlink88/tidewise-ai/backend/services/miniapp/internal/data"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,7 +23,7 @@ func TestRuntimeRoutesMatchOpenAPI(t *testing.T) {
 	}
 	openAPIRoutes := miniappOpenAPIRoutes(t, document)
 	runtimeRoutes := map[string]struct{}{}
-	server := researchTestServer(usecase.NewResearchService(&dataclient.Fake{}))
+	server := researchTestServer(usecase.NewResearchService(&usecase.Fake{}))
 	if err := server.WalkRoute(func(route kratoshttp.RouteInfo) error {
 		runtimeRoutes[route.Method+" "+route.Path] = struct{}{}
 		return nil
