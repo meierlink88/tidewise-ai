@@ -15,35 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Detect changed applications
-    runs-on: ubuntu-latest
-    outputs:
-      agentrun: ${{ steps.paths.outputs.agentrun }}
-    steps:
-      - name: Checkout full history
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Detect AgentRun boundary changes
-        id: paths
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          base="${BASE_SHA:-}"
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
-          fi
-          changed="$(git diff --name-only "$base" "$GITHUB_SHA")"
-          if grep -Eq '^(agent-run/|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents|contexts/agentrun|architecture/agentrun|research/agentrun)/|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)' <<<"$changed"; then
-            echo "agentrun=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "agentrun=false" >> "$GITHUB_OUTPUT"
-          fi
-
   backend:
     name: Backend
     runs-on: ubuntu-latest
@@ -119,8 +90,6 @@ jobs:
 
   agentrun:
     name: AgentRun
-    needs: changes
-    if: needs.changes.outputs.agentrun == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -142,13 +111,33 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect AgentRun boundary changes
+        id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${BASE_SHA:-}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+          fi
+          changed="$(git diff --name-only "$base" "$GITHUB_SHA")"
+          if grep -Eq '^(agent-run/|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents|contexts/agentrun|architecture/agentrun|research/agentrun)/|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)' <<<"$changed"; then
+            echo "agentrun=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "agentrun=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Go
+        if: steps.paths.outputs.agentrun == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
       - name: Verify AgentRun formatting
+        if: steps.paths.outputs.agentrun == 'true'
         run: |
           unformatted="$(gofmt -l agent-run/backend)"
           if [ -n "$unformatted" ]; then
@@ -158,17 +147,21 @@ jobs:
           fi
 
       - name: Vet AgentRun
+        if: steps.paths.outputs.agentrun == 'true'
         run: go vet ./agent-run/backend/...
 
       - name: Test AgentRun
+        if: steps.paths.outputs.agentrun == 'true'
         run: go test -race ./agent-run/backend/... -count=1
 
       - name: Test AgentRun PostgreSQL boundaries
+        if: steps.paths.outputs.agentrun == 'true'
         env:
           AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
         run: go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1
 
       - name: Build AgentRun commands
+        if: steps.paths.outputs.agentrun == 'true'
         run: |
           go build -o /tmp/agentrun ./agent-run/backend/cmd/server
           go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate
@@ -176,12 +169,15 @@ jobs:
           go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts
 
       - name: Build AgentRun image
+        if: steps.paths.outputs.agentrun == 'true'
         run: docker build -f agent-run/backend/Dockerfile -t tidewise-agentrun:ci .
 
       - name: Build Admin Portal image for AgentRun smoke
+        if: steps.paths.outputs.agentrun == 'true'
         run: docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
 
       - name: Smoke Admin Portal to AgentRun
+        if: steps.paths.outputs.agentrun == 'true'
         run: bash scripts/ci/smoke-admin-agentrun-compose.sh
 
   frontend:

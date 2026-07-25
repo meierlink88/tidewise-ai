@@ -34,9 +34,11 @@ type ciService struct {
 }
 
 type ciStep struct {
-	Uses string         `yaml:"uses"`
-	Run  string         `yaml:"run"`
-	With map[string]any `yaml:"with"`
+	Uses string            `yaml:"uses"`
+	Run  string            `yaml:"run"`
+	If   string            `yaml:"if"`
+	Env  map[string]string `yaml:"env"`
+	With map[string]any    `yaml:"with"`
 }
 
 func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
@@ -68,21 +70,19 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 		assertAllActionsPinned(t, job.Steps)
 	}
 
-	changes, ok := workflow.Jobs["changes"]
-	if !ok {
-		t.Fatal("CI workflow must define path-aware application detection")
+	if _, ok := workflow.Jobs["changes"]; ok {
+		t.Fatal("AgentRun path detection must not be exposed as a top-level CI job")
 	}
-	checkout := findPinnedAction(t, changes.Steps, "actions/checkout")
-	if fmt.Sprint(checkout.With["fetch-depth"]) != "0" {
-		t.Fatalf("changes checkout fetch-depth = %#v, want 0", checkout.With["fetch-depth"])
-	}
-	assertRunLineStartsWith(t, changes.Steps, "if grep -Eq '^(agent-run/")
 
 	quality, ok := workflow.Jobs["agentrun"]
 	if !ok {
 		t.Fatal("CI workflow must define the path-aware AgentRun job")
 	}
-	findPinnedAction(t, quality.Steps, "actions/checkout")
+	checkout := findPinnedAction(t, quality.Steps, "actions/checkout")
+	if fmt.Sprint(checkout.With["fetch-depth"]) != "0" {
+		t.Fatalf("AgentRun checkout fetch-depth = %#v, want 0", checkout.With["fetch-depth"])
+	}
+	assertRunLineStartsWith(t, quality.Steps, "if grep -Eq '^(agent-run/")
 	assertSetupGoConfiguration(t, quality.Steps)
 	for _, command := range []string{
 		"go vet ./agent-run/backend/...",
@@ -98,20 +98,20 @@ func TestCIWorkflowEnforcesGoAndPostgresContracts(t *testing.T) {
 		assertRunsCommand(t, quality.Steps, command)
 	}
 
-	integration, ok := workflow.Jobs["agentrun-postgres"]
-	if !ok {
-		t.Fatal("CI workflow must define the path-aware AgentRun PostgreSQL job")
+	if _, ok := workflow.Jobs["agentrun-postgres"]; ok {
+		t.Fatal("AgentRun PostgreSQL verification must not be exposed as a separate CI job")
 	}
-	findPinnedAction(t, integration.Steps, "actions/checkout")
-	assertSetupGoConfiguration(t, integration.Steps)
-	if integration.Services["postgres"].Image != "postgres:16" {
-		t.Fatalf("PostgreSQL service image = %q, want postgres:16", integration.Services["postgres"].Image)
+	if quality.Services["postgres"].Image != "postgres:16" {
+		t.Fatalf("PostgreSQL service image = %q, want postgres:16", quality.Services["postgres"].Image)
 	}
+	integration := findStepRunning(t, quality.Steps, "go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1")
 	databaseURL := integration.Env["AGENTRUN_TEST_DATABASE_URL"]
 	if !strings.Contains(databaseURL, "/tidewise_ai_server_test?") || strings.Contains(databaseURL, "tidewise_local") {
 		t.Fatalf("unsafe integration database URL %q", databaseURL)
 	}
-	assertRunsCommand(t, integration.Steps, "go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1")
+	if integration.If != "steps.paths.outputs.agentrun == 'true'" {
+		t.Fatalf("AgentRun PostgreSQL step condition = %q", integration.If)
+	}
 }
 
 func assertAllActionsPinned(t *testing.T, steps []ciStep) {
@@ -159,14 +159,20 @@ func findPinnedAction(t *testing.T, steps []ciStep, action string) ciStep {
 
 func assertRunsCommand(t *testing.T, steps []ciStep, command string) {
 	t.Helper()
+	findStepRunning(t, steps, command)
+}
+
+func findStepRunning(t *testing.T, steps []ciStep, command string) ciStep {
+	t.Helper()
 	for _, step := range steps {
 		for _, line := range strings.Split(step.Run, "\n") {
 			if strings.TrimSpace(line) == command {
-				return
+				return step
 			}
 		}
 	}
 	t.Fatalf("CI workflow does not run command %q", command)
+	return ciStep{}
 }
 
 func assertRunLineStartsWith(t *testing.T, steps []ciStep, prefix string) {

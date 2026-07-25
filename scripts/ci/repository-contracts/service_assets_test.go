@@ -224,11 +224,15 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	if strings.Count(text, "\n  agentrun:") != 1 {
 		t.Fatal("CI must expose exactly one top-level AgentRun job")
 	}
+	if strings.Contains(text, "\n  changes:") || strings.Contains(text, "needs: changes") {
+		t.Fatal("AgentRun path detection must stay inside the AgentRun job")
+	}
 	if strings.Contains(text, "\n  agentrun-postgres:") {
 		t.Fatal("AgentRun PostgreSQL verification must stay inside the AgentRun job")
 	}
 	for _, required := range []string{
 		"name: AgentRun",
+		"name: Detect AgentRun boundary changes",
 		"POSTGRES_DB: tidewise_ai_server_test",
 		"Test AgentRun PostgreSQL boundaries",
 	} {
