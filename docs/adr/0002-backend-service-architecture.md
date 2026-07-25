@@ -17,7 +17,9 @@ Backend 使用两类可部署 Service：
 - Miniapp 与 Admin Portal 是 **Application Backend Service**，面向各自 Frontend 提供 BFF 能力。
 - Data 是 **Domain Service**，拥有当前数据领域的规则、事实和持久化。未来 User、Payment 可以成为新的 Domain Service。
 
-每个 Service 内部的业务编排层称为 **Use Case Layer**，源码目录使用 `usecase/`。
+每个 Service 内部的业务编排层称为 **Use Case Layer**。采用 Kratos 官方
+Application Layout 的 Service 使用 `internal/biz/` 承载该层；尚未迁移的
+Service 暂时保留 `usecase/`，不得为了目录统一跨 Service 搬运业务代码。
 
 依赖规则如下：
 
@@ -42,11 +44,15 @@ Miniapp Frontend 暂时可以使用 Frontend-owned mock；本决策不要求立�
 src/backend/
   services/
     miniapp/
-      cmd/
-      usecase/
-      transport/
-      dataclient/
-      config/
+      api/miniapp/v1/
+      cmd/server/
+      configs/
+      internal/
+        conf/
+        biz/
+        data/
+        service/
+        server/
     adminportal/
       cmd/
       usecase/
@@ -77,3 +83,7 @@ src/backend/
 ## 与既有决策的关系
 
 `0001-product-source-root.md` 关于唯一 `src/` 根目录、单 repository 和单 Go module 的决策继续有效。本 ADR 澄清：暂不拆分 repository/module 不代表三个 Backend Service 不能独立构建和部署。
+
+`0006-kratos-official-service-layout.md` 进一步规定迁移后的 Go Service 内部布局。
+Miniapp 是首个完成迁移的 Service；Data 与 Admin Portal 在各自迁移前仍沿用本
+ADR 原有布局。

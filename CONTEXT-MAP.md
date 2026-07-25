@@ -37,10 +37,13 @@ Admin Portal Frontend
 
 - **Application Backend Service**：面向一个 Frontend 的可部署后端进程。当前为 Miniapp 和 Admin Portal。
 - **Domain Service**：拥有领域规则、事实数据和持久化的可部署后端进程。当前为 Data。
-- **Use Case Layer**：单个 Service 内部的业务编排层。源码目录统一使用 `usecase/`，避免与 Application Backend Service 混淆。
+- **Use Case Layer**：单个 Service 内部的业务编排层。Kratos Service 使用
+  `internal/biz/`；尚未迁移的 Service 可以暂时保留 `usecase/`。二者是同一
+  逻辑层的不同工程布局，不是跨 Service 共享层。
 - **Platform**：没有业务语义的通用机制，例如配置文件读取、HTTP server/client 基础能力。
 
 ## System Decisions
 
 - `docs/adr/0001-product-source-root.md`
 - `docs/adr/0002-backend-service-architecture.md`
+- `docs/adr/0006-kratos-official-service-layout.md`

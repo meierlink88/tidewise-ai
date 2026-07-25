@@ -14,11 +14,13 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		service    string
 		binary     string
 		port       string
+		command    string
+		configDir  string
 		mustCopyDB bool
 	}{
-		{service: "data", binary: "data-service", port: "9011", mustCopyDB: true},
-		{service: "miniapp", binary: "miniapp-service", port: "9012"},
-		{service: "adminportal", binary: "adminportal-service", port: "9013"},
+		{service: "data", binary: "data-service", port: "9011", command: "cmd", configDir: "config", mustCopyDB: true},
+		{service: "miniapp", binary: "miniapp-service", port: "9012", command: "cmd/server", configDir: "configs"},
+		{service: "adminportal", binary: "adminportal-service", port: "9013", command: "cmd", configDir: "config"},
 	}
 
 	for _, asset := range assets {
@@ -29,7 +31,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		}
 		text := string(contents)
 		for _, required := range []string{
-			"./services/" + asset.service + "/cmd",
+			"./services/" + asset.service + "/" + asset.command,
 			"/usr/local/bin/" + asset.binary,
 			"/healthz",
 			"/readyz",
@@ -42,10 +44,10 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		if asset.mustCopyDB && !strings.Contains(text, "COPY migrations") {
 			t.Fatal("Data Dockerfile must own migration assets")
 		}
-		if !strings.Contains(text, "COPY services/"+asset.service+"/config ./config") {
+		if !strings.Contains(text, "COPY services/"+asset.service+"/"+asset.configDir+" ./config") {
 			t.Fatalf("%s Dockerfile must copy its service-owned start config", asset.service)
 		}
-		configPath := filepath.Join(repoRoot, "src", "backend", "services", asset.service, "config", "config.local.yaml")
+		configPath := filepath.Join(repoRoot, "src", "backend", "services", asset.service, asset.configDir, "config.local.yaml")
 		configContents, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("read %s start config: %v", asset.service, err)
@@ -134,10 +136,10 @@ func TestCIConsumesThreeServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"working-directory: src/backend",
 		"go-version-file: src/backend/go.mod",
 		"cache-dependency-path: src/backend/go.sum",
-		"go test ./services/data/api ./services/miniapp/dataclient ./services/adminportal/dataclient",
+		"go test ./services/data/api ./services/miniapp/internal/data ./services/adminportal/dataclient",
 		"go test ./internal/architecture",
 		"go build -o /tmp/data-service ./services/data/cmd",
-		"go build -o /tmp/miniapp-service ./services/miniapp/cmd",
+		"go build -o /tmp/miniapp-service ./services/miniapp/cmd/server",
 		"go build -o /tmp/adminportal-service ./services/adminportal/cmd",
 		"-f services/data/Dockerfile",
 		"-f services/miniapp/Dockerfile",

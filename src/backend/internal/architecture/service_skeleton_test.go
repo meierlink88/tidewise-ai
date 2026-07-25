@@ -17,8 +17,8 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	for _, suffix := range []string{
 		"services/data",
 		"services/data/cmd",
-		"services/miniapp",
-		"services/miniapp/cmd",
+		"services/miniapp/api/miniapp/v1",
+		"services/miniapp/cmd/server",
 		"services/adminportal",
 		"services/adminportal/cmd",
 	} {
@@ -28,16 +28,32 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	}
 }
 
-func TestMiniappApplicationBackendOwnsUseCaseAndTransport(t *testing.T) {
+func TestMiniappApplicationBackendUsesKratosServiceLayers(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
-		"services/miniapp/usecase",
-		"services/miniapp/transport",
-		"services/miniapp/config",
+		"services/miniapp/api/miniapp/v1",
+		"services/miniapp/cmd/server",
+		"services/miniapp/internal/biz",
+		"services/miniapp/internal/conf",
+		"services/miniapp/internal/data",
+		"services/miniapp/internal/server",
+		"services/miniapp/internal/service",
 	} {
 		if !hasPackageSuffix(packages, suffix) {
 			t.Errorf("Miniapp Application Backend Service package %q is missing", suffix)
 		}
+	}
+}
+
+func TestMiniappKratosBinaryDoesNotDependOnGin(t *testing.T) {
+	command := exec.Command("go", "list", "-deps", "./services/miniapp/cmd/server")
+	command.Dir = "../.."
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("list Miniapp binary dependencies: %v\n%s", err, output)
+	}
+	if strings.Contains(string(output), "github.com/gin-gonic/gin") {
+		t.Fatal("Miniapp Kratos binary dependency closure must not include Gin")
 	}
 }
 
