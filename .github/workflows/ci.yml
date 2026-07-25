@@ -265,7 +265,7 @@ jobs:
         continue-on-error: true
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GITLEAKS_REPORT_PATH: ${{ runner.temp }}/gitleaks-results.sarif
         run: bash scripts/ci/scan-git-secrets.sh
 

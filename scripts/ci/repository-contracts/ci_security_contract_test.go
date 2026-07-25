@@ -83,10 +83,10 @@ func TestGitSecretAllowlistUsesExactFindingFingerprints(t *testing.T) {
 	allowlist := readContractFile(t, filepath.Join(root, ".gitleaksignore"))
 	fingerprint := regexp.MustCompile(`^[0-9a-f]{40}:[^:]+:[a-z0-9-]+:[0-9]+$`)
 	expected := map[string]bool{
-		"69737b9814275ab6374c4a3d1e261492f76d2660:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:647": false,
-		"69737b9814275ab6374c4a3d1e261492f76d2660:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:648": false,
-		"14973cbd75b64cfd0eb3e6fd3fb89b63d8f605c2:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:285": false,
-		"14973cbd75b64cfd0eb3e6fd3fb89b63d8f605c2:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:286": false,
+		"69737b9814275ab6374c4a3d1e261492f76d2660:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:647":   false,
+		"69737b9814275ab6374c4a3d1e261492f76d2660:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:648":   false,
+		"14973cbd75b64cfd0eb3e6fd3fb89b63d8f605c2:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:285":   false,
+		"14973cbd75b64cfd0eb3e6fd3fb89b63d8f605c2:internal/agentrun/persistence/postgres/store_test.go:generic-api-key:286":   false,
 		"d89ba1e5d08890918b24e5a1dfc983b60fafeb37:agent-run/backend/internal/data/postgres/store_test.go:generic-api-key:872": false,
 		"d89ba1e5d08890918b24e5a1dfc983b60fafeb37:agent-run/backend/internal/data/postgres/store_test.go:generic-api-key:873": false,
 	}
@@ -117,6 +117,7 @@ func TestCIUploadsGitSecretReportAndFailsClosed(t *testing.T) {
 
 	for _, required := range []string{
 		"continue-on-error: true",
+		"HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}",
 		"if: always()",
 		"path: ${{ runner.temp }}/gitleaks-results.sarif",
 		"if-no-files-found: warn",
