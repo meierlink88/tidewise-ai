@@ -170,7 +170,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 		configDir string
 		port      string
 	}{
-		"data":        {root: "analyse-data-service/backend", configDir: "config", port: "9011"},
+		"data":        {root: "analyse-data-service/backend", configDir: "configs", port: "9011"},
 		"miniapp":     {root: "miniapp/backend", configDir: "configs", port: "9012"},
 		"adminportal": {root: "admin-portal/backend", configDir: "configs", port: "9013"},
 		"agentrun":    {root: "agent-run/backend", configDir: "configs", port: "9080"},
@@ -185,8 +185,8 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("%s image does not enforce non-root port %s runtime", service, asset.port)
 		}
 	}
-	dataConfig := readContractFile(t, filepath.Join(root, "analyse-data-service", "backend", "config", "config.uat.yaml"))
-	for _, required := range []string{"ssl_mode: require", "enabled: false", "auto_apply: false"} {
+	dataConfig := readContractFile(t, filepath.Join(root, "analyse-data-service", "backend", "configs", "config.uat.yaml"))
+	for _, required := range []string{"ssl_mode: require", "auto_apply: false"} {
 		if !strings.Contains(dataConfig, required) {
 			t.Fatalf("Data UAT config missing %q", required)
 		}

@@ -8,24 +8,24 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/config"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
 
 func TestValidateResetTargetRequiresLocalLoopbackDatabase(t *testing.T) {
-	valid := []config.Config{
+	valid := []conf.Config{
 		{
-			App:      config.AppConfig{Env: config.EnvLocal},
-			Database: config.DatabaseConfig{Host: "localhost", Name: "tidewise_local"},
+			App:      conf.AppConfig{Env: conf.EnvLocal},
+			Database: conf.DatabaseConfig{Host: "localhost", Name: "tidewise_local"},
 		},
 		{
-			App: config.AppConfig{Env: config.EnvLocal},
-			Secrets: config.SecretConfig{
+			App: conf.AppConfig{Env: conf.EnvLocal},
+			Secrets: conf.SecretConfig{
 				DatabaseURL: "postgres://user:secret@127.0.0.1:5432/tidewise_local?sslmode=disable",
 			},
 		},
 		{
-			App: config.AppConfig{Env: config.EnvLocal},
-			Secrets: config.SecretConfig{
+			App: conf.AppConfig{Env: conf.EnvLocal},
+			Secrets: conf.SecretConfig{
 				DatabaseURL: "postgres://user:secret@[::1]:5432/tidewise_local?sslmode=disable",
 			},
 		},
@@ -36,13 +36,13 @@ func TestValidateResetTargetRequiresLocalLoopbackDatabase(t *testing.T) {
 		}
 	}
 
-	invalid := []config.Config{
-		{App: config.AppConfig{Env: config.EnvUAT}, Database: config.DatabaseConfig{Host: "localhost", Name: "tidewise_local"}},
-		{App: config.AppConfig{Env: config.EnvProd}, Database: config.DatabaseConfig{Host: "127.0.0.1", Name: "tidewise_local"}},
-		{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Host: "postgres", Name: "tidewise_local"}},
-		{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Host: "db.internal", Name: "tidewise_local"}},
-		{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Host: "localhost", Name: "tidewise_shared"}},
-		{App: config.AppConfig{Env: config.EnvLocal}, Secrets: config.SecretConfig{DatabaseURL: "://invalid"}},
+	invalid := []conf.Config{
+		{App: conf.AppConfig{Env: conf.EnvUAT}, Database: conf.DatabaseConfig{Host: "localhost", Name: "tidewise_local"}},
+		{App: conf.AppConfig{Env: conf.EnvProd}, Database: conf.DatabaseConfig{Host: "127.0.0.1", Name: "tidewise_local"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "postgres", Name: "tidewise_local"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "db.internal", Name: "tidewise_local"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "localhost", Name: "tidewise_shared"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Secrets: conf.SecretConfig{DatabaseURL: "://invalid"}},
 	}
 	for index, cfg := range invalid {
 		if err := validateResetTarget(cfg); err == nil {

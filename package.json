@@ -24,7 +24,7 @@
     "typecheck:admin": "npm --workspace @tidewise/admin run typecheck",
     "lint": "npm --workspace @tidewise/miniapp run lint",
     "backend:dev": "npm run backend:dev:miniapp",
-    "backend:dev:data": "go run ./analyse-data-service/backend/cmd",
+    "backend:dev:data": "go run ./analyse-data-service/backend/cmd/server",
     "backend:dev:miniapp": "go run ./miniapp/backend/cmd/server",
     "backend:dev:admin": "go run ./admin-portal/backend/cmd/server",
     "backend:dev:agentrun": "go run ./agent-run/backend/cmd/server",

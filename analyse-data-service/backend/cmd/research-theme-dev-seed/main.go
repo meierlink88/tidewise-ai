@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/adapters/database"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/config"
-	domainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/domain/researchthemeimport"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/repositories"
-	appimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/usecase/researchthemeimport"
+	appimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
+	domainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	researchthemeimportdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchthemeimport"
 )
 
 const (
@@ -28,7 +28,7 @@ func main() {
 	manifestPath := flag.String("manifest-file", defaultManifestPath, "local research theme V1 import batch")
 	flag.Parse()
 
-	cfg, err := config.Load()
+	cfg, err := conf.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
@@ -42,13 +42,13 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	db, err := database.Open(ctx, cfg)
+	db, err := postgres.Open(ctx, cfg)
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
 
-	repository := repositories.NewPostgresRepository(db)
+	repository := researchthemeimportdata.NewRepository(db)
 	report, err := appimport.NewService(repository).Import(ctx, localSeedPublisherSubject, batch)
 	if err != nil {
 		log.Fatal(err)
@@ -75,8 +75,8 @@ func loadBatch(path string) (domainimport.Batch, error) {
 	return batch, nil
 }
 
-func validateLocalTarget(cfg config.Config) error {
-	if cfg.App.Env != config.EnvLocal {
+func validateLocalTarget(cfg conf.Config) error {
+	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research theme development seed is local-only, got %q", cfg.App.Env)
 	}
 	host, databaseName := cfg.Database.Host, cfg.Database.Name

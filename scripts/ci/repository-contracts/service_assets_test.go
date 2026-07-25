@@ -19,7 +19,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		configDir  string
 		mustCopyDB bool
 	}{
-		{name: "analyse-data-service", root: "analyse-data-service/backend", binary: "data-service", port: "9011", command: "cmd", configDir: "config", mustCopyDB: true},
+		{name: "analyse-data-service", root: "analyse-data-service/backend", binary: "data-service", port: "9011", command: "cmd/server", configDir: "configs", mustCopyDB: true},
 		{name: "miniapp", root: "miniapp/backend", binary: "miniapp-service", port: "9012", command: "cmd/server", configDir: "configs"},
 		{name: "admin-portal", root: "admin-portal/backend", binary: "adminportal-service", port: "9013", command: "cmd/server", configDir: "configs"},
 	}
@@ -106,6 +106,9 @@ func TestRetiredDataGraphProjectorIsAbsent(t *testing.T) {
 	for _, path := range []string{
 		"analyse-data-service/backend/adapters/graphdb",
 		"analyse-data-service/backend/cmd/graph-projector",
+		"analyse-data-service/backend/internal/biz/graphprojection",
+		"analyse-data-service/backend/internal/data/graphdb",
+		"analyse-data-service/backend/internal/data/postgres/graph_projection.go",
 		"analyse-data-service/backend/usecase/graphprojection",
 	} {
 		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(path))); !errors.Is(err, os.ErrNotExist) {
@@ -114,8 +117,8 @@ func TestRetiredDataGraphProjectorIsAbsent(t *testing.T) {
 	}
 
 	for _, path := range []string{
-		"analyse-data-service/backend/config/config.local.yaml",
-		"analyse-data-service/backend/config/config.uat.yaml",
+		"analyse-data-service/backend/configs/config.local.yaml",
+		"analyse-data-service/backend/configs/config.uat.yaml",
 	} {
 		contents, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(path)))
 		if err != nil {
@@ -225,10 +228,10 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	for _, required := range []string{
 		"go-version-file: go.mod",
 		"cache-dependency-path: go.sum",
-		"go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data",
-		"go test ./analyse-data-service/backend/api ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
+		"go test ./analyse-data-service/backend/api/data/v1 ./miniapp/backend/internal/data",
+		"go test ./analyse-data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
 		"go test ./scripts/ci/repository-contracts",
-		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd",
+		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
 		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server",
 		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
