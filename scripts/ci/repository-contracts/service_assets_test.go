@@ -221,6 +221,21 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	if strings.Contains(text, "docker build -f Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
 	}
+	if strings.Count(text, "\n  agentrun:") != 1 {
+		t.Fatal("CI must expose exactly one top-level AgentRun job")
+	}
+	if strings.Contains(text, "\n  agentrun-postgres:") {
+		t.Fatal("AgentRun PostgreSQL verification must stay inside the AgentRun job")
+	}
+	for _, required := range []string{
+		"name: AgentRun",
+		"POSTGRES_DB: tidewise_ai_server_test",
+		"Test AgentRun PostgreSQL boundaries",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("unified AgentRun CI job missing %q", required)
+		}
+	}
 
 	smokeContents, err := os.ReadFile(filepath.Join(repoRoot, "scripts", "ci", "smoke-miniapp-data-compose.sh"))
 	if err != nil {

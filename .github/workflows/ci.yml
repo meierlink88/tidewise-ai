@@ -122,6 +122,20 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agentrun == 'true'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentrun
+          POSTGRES_PASSWORD: agentrun-ci-password
+          POSTGRES_DB: tidewise_ai_server_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentrun -d tidewise_ai_server_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -149,6 +163,11 @@ jobs:
       - name: Test AgentRun
         run: go test -race ./agent-run/backend/... -count=1
 
+      - name: Test AgentRun PostgreSQL boundaries
+        env:
+          AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
+        run: go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1
+
       - name: Build AgentRun commands
         run: |
           go build -o /tmp/agentrun ./agent-run/backend/cmd/server
@@ -164,40 +183,6 @@ jobs:
 
       - name: Smoke Admin Portal to AgentRun
         run: bash scripts/ci/smoke-admin-agentrun-compose.sh
-
-  agentrun-postgres:
-    name: AgentRun PostgreSQL
-    needs: changes
-    if: needs.changes.outputs.agentrun == 'true'
-    runs-on: ubuntu-latest
-    env:
-      AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: agentrun
-          POSTGRES_PASSWORD: agentrun-ci-password
-          POSTGRES_DB: tidewise_ai_server_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U agentrun -d tidewise_ai_server_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-
-      - name: Test AgentRun PostgreSQL boundaries
-        run: go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1
 
   frontend:
     name: Frontend
