@@ -29,7 +29,7 @@ jobs:
       commit_sha: ${{ steps.release.outputs.commit_sha }}
     steps:
       - name: Checkout main history
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           fetch-depth: 0
@@ -102,7 +102,7 @@ jobs:
       SWR_ADMIN_REPOSITORY: ${{ vars.SWR_ADMIN_REPOSITORY }}
     steps:
       - name: Checkout release commit
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
@@ -199,12 +199,12 @@ jobs:
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
     steps:
       - name: Checkout release commit
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
       - name: Checkout trusted UAT control plane
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           path: .uat-control
