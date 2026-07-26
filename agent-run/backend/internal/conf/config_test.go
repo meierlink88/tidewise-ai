@@ -31,6 +31,9 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	if cfg.Artifact.Root != "data" {
 		t.Fatalf("artifact root = %q, want data", cfg.Artifact.Root)
 	}
+	if cfg.EventFact.ModelTimeoutSeconds != 180 {
+		t.Fatalf("Event Fact model timeout = %d, want 180", cfg.EventFact.ModelTimeoutSeconds)
+	}
 	databaseURL, err := cfg.PostgresURL()
 	if err != nil {
 		t.Fatal(err)
@@ -197,5 +200,6 @@ data:
   max_response_bytes: 1048576
 event_fact:
   reconcile_interval_seconds: 60
+  model_timeout_seconds: 180
 `
 }

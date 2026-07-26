@@ -55,22 +55,19 @@ func TestWorkflowAutoApprovesSingleVerifiedSource(t *testing.T) {
 				"title":"某公司宣布新增产线",
 				"factual_summary":"某公司于2026年7月26日宣布新增一条产线。",
 				"occurred_at":"2026-07-26T00:00:00Z",
-				"fact_payload":{"lifecycle_status":"announced","action":"新增产线"},
 				"evidence_excerpt":"某公司于2026年7月26日宣布新增一条产线。",
-				"supports_fields":["title","factual_summary","occurred_at","fact_payload"],
-				"source_level":"primary",
 				"actor_mentions":["某公司"],
 				"action":"新增",
 				"object_mentions":["产线"],
+				"change":{},
 				"lifecycle_status":"announced",
 				"time_precision":"day",
 				"location_mentions":[],
 				"reference_period":"",
-				"quantities":["一条"],
-				"tag_codes":["technology"]
+				"quantities":["一条"]
 			}]
 		}]
-	}`}}
+	}`, tagClassificationJSON()}}
 	reviewer := &fakeModel{responses: []string{`{
 		"reviews":[{
 			"candidate_id":"candidate:1",
@@ -93,6 +90,7 @@ func TestWorkflowAutoApprovesSingleVerifiedSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := runnable.Invoke(context.Background(), &Input{
+		ArtifactID: artifact.ArtifactID,
 		Attempt: eventfact.ExecutionAttempt{
 			ID: "22222222-2222-4222-8222-222222222222",
 			WorkItem: eventfact.WorkItem{
@@ -110,14 +108,62 @@ func TestWorkflowAutoApprovesSingleVerifiedSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if extractor.calls != 1 || reviewer.calls != 1 ||
-		result.ExtractionModelCalls != 1 || result.ReviewModelCalls != 1 {
+	if extractor.calls != 2 || reviewer.calls != 1 ||
+		result.ExtractionModelCalls != 2 || result.ReviewModelCalls != 1 {
 		t.Fatalf("model calls extraction=%d review=%d result=%#v", extractor.calls, reviewer.calls, result)
 	}
 	if len(result.Candidates) != 1 || result.Candidates[0].ReviewState != eventfact.ReviewAutoApproved ||
 		result.Candidates[0].Tags[0].ID != "33333333-3333-4333-8333-333333333333" ||
-		result.Candidates[0].DedupeKey == "" || result.Candidates[0].IdentityHash == "" {
+		result.Candidates[0].DedupeKey == "" || result.Candidates[0].IdentityHash == "" ||
+		result.Candidates[0].FactPayload["action"] != "新增" ||
+		result.Candidates[0].FactPayload["lifecycle_status"] != "announced" ||
+		result.Candidates[0].SourceLevel != "primary" ||
+		!containsString(result.Candidates[0].SupportsFields, "occurred_at") {
 		t.Fatalf("candidate = %#v", result.Candidates)
+	}
+}
+
+func TestFailureCodeClassifiesSafeDeterministicModelFailures(t *testing.T) {
+	for _, test := range []struct {
+		err  error
+		code string
+	}{
+		{
+			err:  errors.New("[NodeRunError] Event Fact extraction response is invalid"),
+			code: "event_fact_model_response_invalid",
+		},
+		{
+			err:  errors.New("[NodeRunError] Event extraction did not account for every Artifact"),
+			code: "event_fact_model_output_incomplete",
+		},
+		{
+			err:  errors.New("unexpected internal failure"),
+			code: "event_fact_workflow_rejected",
+		},
+	} {
+		if got := FailureCode(test.err); got != test.code {
+			t.Fatalf("FailureCode(%v) = %q, want %q", test.err, got, test.code)
+		}
+	}
+}
+
+func TestArtifactUnitCollapsesDuplicateDeterministicEventCandidates(t *testing.T) {
+	candidate := eventfact.Candidate{
+		CandidateID: "candidate:1", ArtifactID: "sha256:artifact",
+		Title: "某公司宣布扩产", FactualSummary: "某公司宣布扩产。",
+		FactPayload:   map[string]any{"action": "扩产"},
+		ActorMentions: []string{"某公司"}, Action: "扩产",
+		ObjectMentions: []string{"产线"}, LifecycleStatus: "announced",
+		TimePrecision: "unknown",
+	}
+	duplicate := candidate
+	duplicate.CandidateID = "candidate:2"
+	candidates := []eventfact.Candidate{candidate, duplicate}
+	applyDeterministicIdentities(candidates)
+	candidates = dedupeExactUnitCandidates(candidates)
+	if len(candidates) != 1 || candidates[0].CandidateID != "candidate:1" ||
+		candidates[0].DedupeKey == "" {
+		t.Fatalf("deduplicated Artifact Unit candidates = %#v", candidates)
 	}
 }
 
@@ -149,8 +195,9 @@ func TestWorkflowResumesPersistedFactsAtCatalogClassificationBoundary(t *testing
 		TimePrecision: "unknown",
 	}
 	result, err := runnable.Invoke(context.Background(), &Input{
-		Attempt: testInput().Attempt,
-		Catalog: testInput().Catalog,
+		ArtifactID: "sha256:artifact",
+		Attempt:    testInput().Attempt,
+		Catalog:    testInput().Catalog,
 		ResumeResult: &eventfact.Result{
 			Candidates:           []eventfact.Candidate{partialCandidate},
 			ExtractionModelCalls: 1,
@@ -169,8 +216,8 @@ func TestWorkflowResumesPersistedFactsAtCatalogClassificationBoundary(t *testing
 	}
 }
 
-func TestWorkflowMapsSemanticConflictToManualReview(t *testing.T) {
-	extractor := &fakeModel{responses: []string{validExtractionJSON()}}
+func TestWorkflowRejectsSemanticConflictWithoutHumanReview(t *testing.T) {
+	extractor := &fakeModel{responses: []string{validExtractionJSON(), tagClassificationJSON()}}
 	reviewer := &fakeModel{responses: []string{`{"reviews":[{"candidate_id":"candidate:1","semantic_pass":false,"conflict":true,"reasons":["证据存在语义冲突"],"confidence":0.7}]}`}}
 	runnable, err := New(context.Background(), fakeReader{artifacts: []eventfact.Artifact{testArtifact()}}, fakeCanonicalReader{}, extractor, reviewer)
 	if err != nil {
@@ -180,7 +227,7 @@ func TestWorkflowMapsSemanticConflictToManualReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Candidates[0].ReviewState != eventfact.ReviewManual {
+	if result.Candidates[0].ReviewState != eventfact.ReviewRejected {
 		t.Fatalf("review state = %q", result.Candidates[0].ReviewState)
 	}
 }
@@ -194,7 +241,7 @@ func TestWorkflowReusesAgentRunCanonicalCoreFacts(t *testing.T) {
 	identityCandidate[0].OccurredAt = &occurredAt
 	applyDeterministicIdentities(identityCandidate)
 	canonicalCore := []byte(`{"title":"已发布规范标题","factual_summary":"已发布且不可变的事实摘要。","occurred_at":"2026-07-26T00:00:00Z","fact_payload":{"action":"既有核心事实"}}`)
-	extractor := &fakeModel{responses: []string{validExtractionJSON()}}
+	extractor := &fakeModel{responses: []string{validExtractionJSON(), tagClassificationJSON()}}
 	reviewer := &fakeModel{responses: []string{`{"reviews":[{"candidate_id":"candidate:1","semantic_pass":true,"conflict":false,"reasons":["新增证据支持既有核心事实"],"confidence":0.95}]}`}}
 	runnable, err := New(
 		context.Background(),
@@ -222,7 +269,7 @@ func TestWorkflowReusesAgentRunCanonicalCoreFacts(t *testing.T) {
 }
 
 func TestWorkflowLetsModelJudgeProgrammaticallyRecalledSemanticDuplicate(t *testing.T) {
-	extractor := &fakeModel{responses: []string{validExtractionJSON()}}
+	extractor := &fakeModel{responses: []string{validExtractionJSON(), tagClassificationJSON()}}
 	reviewer := &fakeModel{responses: []string{
 		`{"judgments":[{"candidate_id":"candidate:1","dedupe_key":"canonical:semantic","same_event":true}]}`,
 		`{"reviews":[{"candidate_id":"candidate:1","semantic_pass":true,"conflict":false,"reasons":["新增证据支持既有核心事实"],"confidence":0.95}]}`,
@@ -285,8 +332,8 @@ func TestWorkflowPreservesRejectedNonVerbatimCandidateWithoutReviewCall(t *testi
 func TestWorkflowRejectsCamelCaseSemanticRelationInFactPayload(t *testing.T) {
 	extractor := &fakeModel{responses: []string{strings.Replace(
 		validExtractionJSON(),
-		`"fact_payload":{"lifecycle_status":"announced","action":"新增产线"}`,
-		`"fact_payload":{"action":"新增产线","eventToEntity":{"entityId":"entity-1"}}`,
+		`"change":{}`,
+		`"change":{"eventToEntity":{"entityId":"entity-1"}}`,
 		1,
 	)}}
 	reviewer := &fakeModel{responses: []string{`{}`}}
@@ -314,7 +361,11 @@ func TestWorkflowRejectsCamelCaseSemanticRelationInFactPayload(t *testing.T) {
 }
 
 func validExtractionJSON() string {
-	return `{"documents":[{"artifact_id":"sha256:artifact","no_event_reason":"","events":[{"title":"某公司宣布新增产线","factual_summary":"某公司于2026年7月26日宣布新增一条产线。","occurred_at":"2026-07-26T00:00:00Z","fact_payload":{"lifecycle_status":"announced","action":"新增产线"},"evidence_excerpt":"某公司于2026年7月26日宣布新增一条产线。","supports_fields":["title","factual_summary","occurred_at","fact_payload"],"source_level":"primary","actor_mentions":["某公司"],"action":"新增","object_mentions":["产线"],"lifecycle_status":"announced","time_precision":"day","location_mentions":[],"reference_period":"","quantities":["一条"],"tag_codes":["technology"]}]}]}`
+	return `{"documents":[{"artifact_id":"sha256:artifact","no_event_reason":"","events":[{"title":"某公司宣布新增产线","factual_summary":"某公司于2026年7月26日宣布新增一条产线。","occurred_at":"2026-07-26T00:00:00Z","evidence_excerpt":"某公司于2026年7月26日宣布新增一条产线。","actor_mentions":["某公司"],"action":"新增","object_mentions":["产线"],"change":{},"lifecycle_status":"announced","time_precision":"day","location_mentions":[],"reference_period":"","quantities":["一条"]}]}]}`
+}
+
+func tagClassificationJSON() string {
+	return `{"assignments":[{"candidate_id":"candidate:1","tag_codes":["technology"]}]}`
 }
 
 func testArtifact() eventfact.Artifact {
@@ -330,6 +381,7 @@ func testArtifact() eventfact.Artifact {
 
 func testInput() *Input {
 	return &Input{
+		ArtifactID: "sha256:artifact",
 		Attempt: eventfact.ExecutionAttempt{
 			ID: "22222222-2222-4222-8222-222222222222",
 			WorkItem: eventfact.WorkItem{

@@ -45,7 +45,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 7 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 8 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -63,8 +63,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "007" ||
-		len(report.Applied) != 7 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "008" ||
+		len(report.Applied) != 8 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -903,6 +903,26 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	if workCount != 1 {
 		t.Fatalf("Event extraction Work Item count = %d, want 1", workCount)
 	}
+	unplanned, unplannedExists, err := store.NextUnplannedWork(ctx)
+	if err != nil || !unplannedExists {
+		t.Fatalf("unplanned Event extraction Work Item: exists=%v err=%v", unplannedExists, err)
+	}
+	if err := store.InitializeArtifactUnits(
+		ctx,
+		unplanned,
+		[]eventfact.ArtifactSummary{{
+			ArtifactID:           "sha256:artifact",
+			CollectorExecutionID: execution.ID,
+			ContentSHA256:        strings.Repeat("b", 64),
+		}, {
+			ArtifactID:           "sha256:artifact-2",
+			CollectorExecutionID: execution.ID,
+			ContentSHA256:        strings.Repeat("c", 64),
+		}},
+		now.Add(2*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
 	attempt, claimed, err := store.ClaimNextWork(ctx, eventfact.ExtractionSnapshot{
 		PromptSHA256: strings.Repeat("c", 64),
 		SchemaSHA256: strings.Repeat("d", 64),
@@ -914,7 +934,8 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	}
 	if attempt.WorkItem.ExtractorAgentVersion != eventfact.AgentVersion ||
 		len(attempt.WorkItem.CollectorExecutionIDs) != 1 ||
-		attempt.WorkItem.CollectorExecutionIDs[0] != execution.ID {
+		attempt.WorkItem.CollectorExecutionIDs[0] != execution.ID ||
+		attempt.Unit.ArtifactID != "sha256:artifact" {
 		t.Fatalf("Extractor attempt = %#v", attempt)
 	}
 	extractorExecution, err := store.GetExecution(ctx, attempt.ID)
@@ -934,7 +955,7 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	journalPayload := []byte(`{"package_id":"immutable-package"}`)
 	journalSum := sha256.Sum256(journalPayload)
 	journal := eventfact.JournalEntry{
-		WorkItemKey: attempt.WorkItem.Key, BatchOrdinal: 1,
+		WorkItemKey: attempt.WorkItem.Key, UnitKey: attempt.Unit.Key, BatchOrdinal: 1,
 		PackageID: "immutable-package", Payload: journalPayload,
 		PayloadHash: hex.EncodeToString(journalSum[:]),
 	}
@@ -1015,13 +1036,43 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	`, attempt.WorkItem.Key).Scan(&publicationStatus, &workStatus); err != nil {
 		t.Fatal(err)
 	}
-	if publicationStatus != "acknowledged" || workStatus != "published" {
+	if publicationStatus != "acknowledged" || workStatus != "pending" {
 		t.Fatalf("stale delivery result regressed journal=%q work=%q", publicationStatus, workStatus)
 	}
 	recalled, err := store.FindCanonicalEvents(ctx, []string{canonical.IdentityHash})
 	if err != nil || len(recalled) != 1 ||
 		recalled[0].DedupeKey != canonical.DedupeKey {
 		t.Fatalf("recalled canonical Event facts = %#v, err=%v", recalled, err)
+	}
+	secondAttempt, claimed, err := store.ClaimNextWork(ctx, eventfact.ExtractionSnapshot{
+		PromptSHA256: strings.Repeat("c", 64),
+		SchemaSHA256: strings.Repeat("d", 64),
+		ProviderKey:  "deepseek",
+		Model:        "deepseek-chat",
+	}, now.Add(11*time.Minute))
+	if err != nil || !claimed || secondAttempt.Unit.ArtifactID != "sha256:artifact-2" ||
+		secondAttempt.Unit.ArtifactOrdinal != 2 {
+		t.Fatalf("claim second Artifact Unit: attempt=%#v claimed=%v err=%v", secondAttempt, claimed, err)
+	}
+	if err := store.CompleteWithoutPublication(
+		ctx,
+		secondAttempt,
+		eventfact.Result{ExecutionID: secondAttempt.ID, ExtractionModelCalls: 1, ReviewModelCalls: 1},
+		eventfact.WorkRejected,
+		now.Add(12*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	var finalWorkStatus string
+	if err := database.QueryRow(ctx, `
+		SELECT status
+		FROM event_extraction_work_items
+		WHERE work_item_key = $1
+	`, attempt.WorkItem.Key).Scan(&finalWorkStatus); err != nil {
+		t.Fatal(err)
+	}
+	if finalWorkStatus != "partially_published" {
+		t.Fatalf("mixed Artifact Unit outcomes produced Work status %q", finalWorkStatus)
 	}
 	committed, err := store.GetExecution(ctx, execution.ID)
 	if err != nil {

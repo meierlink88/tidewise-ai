@@ -78,20 +78,24 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 				ProviderKey:  modelConfiguration.ProviderKey,
 				Model:        modelConfiguration.Model,
 			}
+			artifactReader := artifacts.EventReader{Root: config.Artifact.Root, Executions: store}
 			return eventusecase.Runtime{
-				Snapshot: snapshot,
+				Snapshot:      snapshot,
+				ReadArtifacts: artifactReader.Read,
 				ExtractFacts: func(
 					runContext context.Context,
 					attempt *eventfact.ExecutionAttempt,
 				) (*eventfact.Result, error) {
-					modelFactory := deepseek.Factory{}
+					modelFactory := deepseek.Factory{
+						Timeout: time.Duration(config.EventFact.ModelTimeoutSeconds) * time.Second,
+					}
 					extractionModel, err := modelFactory.New(runContext, modelConfiguration)
 					if err != nil {
 						return nil, eventworkflow.ErrExtractionModel
 					}
 					eventRunnable, err := eventworkflow.NewFactExtraction(
 						runContext,
-						artifacts.EventReader{Root: config.Artifact.Root, Executions: store},
+						artifactReader,
 						extractionModel,
 					)
 					if err != nil {
@@ -100,7 +104,9 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 					return eventRunnable.Invoke(runContext, attempt)
 				},
 				Run: func(runContext context.Context, input *eventworkflow.Input) (*eventfact.Result, error) {
-					modelFactory := deepseek.Factory{}
+					modelFactory := deepseek.Factory{
+						Timeout: time.Duration(config.EventFact.ModelTimeoutSeconds) * time.Second,
+					}
 					extractionModel, err := modelFactory.New(runContext, modelConfiguration)
 					if err != nil {
 						return nil, eventworkflow.ErrExtractionModel
@@ -111,7 +117,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 					}
 					eventRunnable, err := eventworkflow.New(
 						runContext,
-						artifacts.EventReader{Root: config.Artifact.Root, Executions: store},
+						artifactReader,
 						store,
 						extractionModel,
 						reviewModel,

@@ -6,3 +6,4 @@
 005	normal	Split model and connector configuration tables.
 006	normal	Add Agent schedule state and trigger metadata.
 007	high	Extend active Execution constraints and add durable Event Fact extraction and publication state.
+008	normal	Add Artifact Unit extraction state and nullable Unit lineage without rewriting existing Event Fact rows.

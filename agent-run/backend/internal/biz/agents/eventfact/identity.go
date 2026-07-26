@@ -17,6 +17,13 @@ type workIdentity struct {
 	ExtractorAgentVersion string   `json:"extractor_agent_version"`
 }
 
+type unitIdentity struct {
+	Schema        string `json:"schema"`
+	WorkItemKey   string `json:"work_item_key"`
+	ArtifactID    string `json:"artifact_id"`
+	ContentSHA256 string `json:"content_sha256"`
+}
+
 func WorkItemIdentity(collectorExecutionIDs []string, agentVersion string) (string, []string, error) {
 	if strings.TrimSpace(agentVersion) == "" {
 		return "", nil, errors.New("Extractor Agent Version is required")
@@ -47,4 +54,27 @@ func WorkItemIdentity(collectorExecutionIDs []string, agentVersion string) (stri
 	}
 	sum := sha256.Sum256(encoded)
 	return hex.EncodeToString(sum[:]), ids, nil
+}
+
+func ArtifactUnitIdentity(parentIdentity, artifactID, contentSHA256 string) (string, error) {
+	if len(parentIdentity) != 64 || strings.Trim(parentIdentity, "0123456789abcdef") != "" {
+		return "", errors.New("Event extraction Work Item identity is invalid")
+	}
+	if strings.TrimSpace(artifactID) == "" {
+		return "", errors.New("Artifact identity is required")
+	}
+	if len(contentSHA256) != 64 || strings.Trim(contentSHA256, "0123456789abcdef") != "" {
+		return "", errors.New("Artifact content identity is invalid")
+	}
+	encoded, err := json.Marshal(unitIdentity{
+		Schema:        "event_artifact_extraction_unit.v1",
+		WorkItemKey:   parentIdentity,
+		ArtifactID:    strings.TrimSpace(artifactID),
+		ContentSHA256: contentSHA256,
+	})
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(encoded)
+	return hex.EncodeToString(sum[:]), nil
 }

@@ -11,9 +11,9 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 )
 
-const factOnlyProtocol = `你是事实事件提取器。只返回一个严格 JSON 对象，不要 Markdown。逐文档提取零到多个原子事件：一个事件只能有一个核心动作和一次生命周期状态变化；不得把 announced、planned、approved、effective、executing、completed、paused、cancelled、reported 合并。occurred_at 只能来自正文，不能用 published_at 或 collected_at 代替。evidence_excerpt 必须是正文连续逐字片段。规范标题、摘要和 action 使用中文且不得补充原文没有的事实。保留原始认识论模态。title_only 不生成事件。此阶段不选择标签。不得生成 Entity ID、Chain Node ID、产业链传播、投资判断或 SQL。`
+const factOnlyProtocol = extractionProtocol
 
-const factOnlySchema = `event_fact_candidate_output.v1:{documents:[{artifact_id,no_event_reason,events:[{title,factual_summary,occurred_at,fact_payload,evidence_excerpt,supports_fields,source_level,actor_mentions,action,object_mentions,lifecycle_status,time_precision,location_mentions,reference_period,quantities,tag_codes:[]}]}]}`
+const factOnlySchema = extractionSchema
 
 type factState struct {
 	attempt        eventfact.ExecutionAttempt
@@ -33,18 +33,25 @@ func NewFactExtraction(
 	workflow := compose.NewWorkflow[*eventfact.ExecutionAttempt, *eventfact.Result]()
 	workflow.AddLambdaNode("load_verified_artifacts", compose.InvokableLambda(
 		func(ctx context.Context, attempt *eventfact.ExecutionAttempt) (*factState, error) {
-			if attempt == nil || len(attempt.WorkItem.CollectorExecutionIDs) == 0 {
+			if attempt == nil || len(attempt.WorkItem.CollectorExecutionIDs) == 0 ||
+				attempt.Unit.ArtifactID == "" {
 				return nil, errors.New("Event Fact extraction input is invalid")
 			}
 			artifacts, err := reader.Read(ctx, attempt.WorkItem.CollectorExecutionIDs)
 			if err != nil {
 				return nil, err
 			}
-			if len(artifacts) == 0 {
-				return nil, errors.New("Event Fact extraction has no accepted Artifacts")
+			var selected []eventfact.Artifact
+			for _, artifact := range artifacts {
+				if artifact.ArtifactID == attempt.Unit.ArtifactID {
+					selected = append(selected, artifact)
+				}
+			}
+			if len(selected) != 1 {
+				return nil, errors.New("Event Fact Artifact Unit is not present in verified Artifacts")
 			}
 			return &factState{
-				attempt: *attempt, artifacts: artifacts,
+				attempt: *attempt, artifacts: selected,
 				noEventReasons: make(map[string]string),
 			}, nil
 		},
@@ -86,6 +93,7 @@ func NewFactExtraction(
 		func(_ context.Context, current *factState) (*factState, error) {
 			rejectInvalidCandidates(current.artifacts, current.candidates)
 			applyDeterministicIdentities(current.candidates)
+			current.candidates = dedupeExactUnitCandidates(current.candidates)
 			return current, nil
 		},
 	)).AddInput("extract_fact_candidates")

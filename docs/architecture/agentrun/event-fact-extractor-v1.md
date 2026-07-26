@@ -130,9 +130,22 @@ work_item_key = sha256(canonical_json({
 ```
 
 立即 dispatcher 和 Reconciler 使用相同 Key。一个 Work Item 可以经历多个技术
-Execution attempt；每个真实模型运行有独立 Extractor Execution ID，并快照 Agent
-Version、Prompt/Schema hash、Provider/Model 配置、输入 Collector Execution IDs 与
-后续实际使用的 Tag Catalog Revision/Hash。
+Execution attempt。ArtifactReader 完成整批完整性验证后，为每个 accepted Artifact
+建立一个稳定 Artifact Unit：
+
+```text
+unit_key = sha256(canonical_json({
+  schema: "event_fact_artifact_unit.v1",
+  work_item_key,
+  artifact_id,
+  content_sha256
+}))
+```
+
+Unit 按稳定 Artifact ID 排序取得 `artifact_ordinal`，同一 Work Item 内依次处理。每个
+真实模型运行有独立 Extractor Execution ID，并关联 Unit，快照 Agent Version、
+Prompt/Schema hash、Provider/Model 配置、输入 Collector Execution IDs 与后续实际
+使用的 Tag Catalog Revision/Hash。
 
 Candidate 使用结构化身份字段进行重复召回：
 
@@ -182,7 +195,7 @@ load_verified_artifacts
 
 模型负责语义理解、原子事实提取、受控 Tag Code 提议和被召回候选对的语义裁决。
 程序负责 Schema、证据逐字命中、禁止字段、中文规范字段、时间格式、生命周期强制拆分、
-身份、排序、Tag ID 映射、审核状态、批次拆分和所有副作用。
+身份、排序、Tag ID 映射、审核状态、Artifact Unit Journal 和所有副作用。
 
 Candidate 可以保存 `actor_mentions`、`action`、`object_mentions`、`change`、
 `lifecycle_status`、`time_precision`、`location_mentions`、`reference_period`、
@@ -209,8 +222,8 @@ V1 采用包含独立第二次 AI 语义审核的 `auto_only` Policy：
 - 独立语义审核返回 `semantic_pass = true`、`conflict = false` 和非空中文理由；
 - 同时满足以上条件才算“提取成功”，确定性写入 `auto_approved` 并允许发布；
 - 硬门禁失败写入 `rejected`；
-- 语义审核失败或存在冲突写入保留的 `manual_review` 隔离状态，但 V1 没有人工消费者，
-  因此不进入 Data；
+- 语义审核失败或存在冲突写入 `rejected`，不进入 Data，并继续处理下一个 Artifact
+  Unit；`manual_review` 仅保留为未来策略枚举，V1 不产生该状态；
 - 语义审核置信度作为审计事实保存，V1 不以来源数量、官方性或单独置信度阈值阻止已经
   通过布尔语义门禁的 Candidate。
 
@@ -257,30 +270,41 @@ Tag API 不可用时，已验证 Candidate 保持在 `awaiting_tag_catalog`，�
 本里程碑不新增 Event、Evidence 或 Receipt 查询 API。Event Publication 成功响应提供
 正式身份和 Receipt；完整事务与血缘由 Data provider 集成测试在 Data 边界验证。
 
-## 11. Publication Batching And Journal
+## 11. Artifact Unit Publication And Journal
 
-文件型原型证明十篇文档可能产生超过十个 Event，因此 V1 不得丢弃第十个之后的合法
-Event。程序按 Dedupe Key 稳定排序后拆成多个 `1..10` Event Publication Batch。
+一个 Collector Execution 的全部 accepted Artifact 是父 Extraction Batch/Work Item；
+其中每个 accepted Artifact 是一个独立、耐久的 Artifact Unit。Unit 固定执行：
 
-每个批次：
+```text
+读取与校验一个 Artifact
+→ 提取 0..10 个原子 Event
+→ Unit 内去重
+→ 与已发布 Canonical Event 跨 Unit 去重
+→ AI 语义确认
+→ 立即发布
+```
 
-- 只携带该批 Event 实际引用的去重 Artifact；
-- 为每个 Artifact 携带唯一 Collector Execution 血缘；
-- 使用稳定 `batch_ordinal` 和 `package_id`；
+每个有 Event 的 Unit 只建立一个 Publication Journal：
+
+- 只携带该 Unit 的一个 Artifact；
+- 携带该 Artifact 的 Collector Execution 血缘；
+- 使用稳定 `artifact_ordinal` 和基于 `unit_key` 的 `package_id`；
 - 在首次 POST 前持久化精确请求字节和 SHA-256；
 - 独立取得 Data Receipt。
 
-Work Item 只有在所有 Batch 均取得 Receipt 后才为 `published`。超过一个 V2 Batch 时，
-Data 可以在批次间部分可见；这是 V2 单批最多十个 Event 的明确结果，不伪装成跨批
-原子性。
+Unit 取得 Receipt 后先更新 AgentRun Canonical Event 缓存，再允许下一个 Unit
+领取；因此下一份 Artifact 可以复用既有 Dedupe Key 并只为同一 Event 追加 Evidence。
+一个 Artifact 产生超过十个可发布 Event 时整 Unit 拒绝，不截断。父 Work Item
+聚合全部 Unit：全成功为 `published`，成功与拒绝/阻塞混合为
+`partially_published`。Data 按 Unit 逐份可见，不伪装父批次跨 Unit 原子性。
 
 网络超时、响应丢失、`429` 或 `5xx` 只重发 Journal 中相同字节。`401/403` 阻塞配置，
 `409/422` 阻塞合同或事实冲突。未知结果重试可能在 Data 生成多个 Receipt，但自然身份
 一致的 Event、Evidence 和 Tag 不重复；模型调用次数不增加。
 
 投递领取使用 Journal `status + attempt_count` 条件更新和有界 `sending` 租约。过期
-worker 的成功或失败回调不能覆盖更新 attempt 的结果；Publication 重试保持在
-`ready_to_publish/publishing` 路径，带 Journal 的 Work Item 永远不再进入提取领取。
+worker 的成功或失败回调不能覆盖更新 attempt 的结果；Publication 重试保持当前
+Unit 在 `ready_to_publish/publishing`，后续 Unit 不得越过它领取，也不重新调用模型。
 
 ## 12. State Summary
 
@@ -290,12 +314,15 @@ pending → dispatched
 
 Work Item:
 pending → running
-        → awaiting_tag_catalog
-        → awaiting_review          (状态保留，V1 无人工消费者)
-        → retry_wait                (仅提取/审核技术重试)
-        → ready_to_publish
-        → publishing
-        → published | blocked | rejected | no_events
+        → pending | awaiting_tag_catalog | retry_wait
+        → ready_to_publish | publishing
+        → published | partially_published | blocked | rejected | no_events
+
+Artifact Unit:
+pending → running
+        → awaiting_tag_catalog | retry_wait
+        → ready_to_publish → publishing → published
+        → rejected | blocked | no_events
 
 Extractor Execution:
 queued → running → succeeded | succeeded_no_change | failed
@@ -304,7 +331,8 @@ Publication Journal:
 prepared → sending → acknowledged | retry_wait | blocked
 ```
 
-人工等待和发布恢复不占用 Eino Runner，也不使用 Eino checkpoint。
+`manual_review` 状态枚举仅为未来策略保留，V1 不产生人工等待。发布恢复不占用 Eino
+Runner，也不使用 Eino checkpoint。
 
 ## 13. Highest Observable Verification
 
@@ -313,11 +341,12 @@ Eino Workflow、计数 Fake ChatModel、真实 Data HTTP 与隔离 Data PostgreS
 
 1. Collector Publication 提交并写 Artifact Ready Signal；
 2. 不等待定时器即可创建唯一 Work Item；
-3. ArtifactReader 验证真实 Manifest 与 Markdown；
-4. 提取零到多个原子 Event，并对无 Event 文档记录理由；
+3. ArtifactReader 验证真实 Manifest 与 Markdown，并为每个 accepted Artifact 建立
+   一个 Unit；
+4. 每个 Unit 提取零到十个原子 Event，并对无 Event 文档记录理由；
 5. 从真实 Tag Catalog API 读取并快照 Catalog；
-6. 合法 Event 拆成一个或多个 V2 Batch；
-7. Data 返回 Receipt；
+6. 每个 Unit 完成校验后立即建立 Journal 并发布；
+7. Data 返回 Receipt，AgentRun 更新 Canonical 缓存后才领取下一个 Unit；
 8. Data provider 集成断言正式 Event、Evidence、Tag 和完整血缘。
 
 未知结果测试要求：
@@ -333,8 +362,8 @@ Data 已提交，但响应被丢弃
 ```
 
 还需覆盖漏触发由 Reconciler 补齐、重复 Signal、零 accepted Artifact、Artifact hash/
-document identity 漂移、Tag API 不可用、超过十个 Event 的稳定拆批，以及
-`401/403/409/422` 不重新调用模型。
+document identity 漂移、Tag API 不可用、单 Unit 超过十个 Event、Unit 失败不阻塞后续
+Unit、跨 Unit 去重，以及 `401/403/409/422` 不重新调用模型。
 
 ## 14. Roadmap Dependency Recommendation
 

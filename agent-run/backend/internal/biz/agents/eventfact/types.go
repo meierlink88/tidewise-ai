@@ -20,6 +20,7 @@ const (
 	WorkReadyToPublish     WorkStatus = "ready_to_publish"
 	WorkPublishing         WorkStatus = "publishing"
 	WorkPublished          WorkStatus = "published"
+	WorkPartiallyPublished WorkStatus = "partially_published"
 	WorkRetryWait          WorkStatus = "retry_wait"
 	WorkBlocked            WorkStatus = "blocked"
 	WorkRejected           WorkStatus = "rejected"
@@ -54,9 +55,26 @@ type ExtractionSnapshot struct {
 	Model        string
 }
 
+type ArtifactUnit struct {
+	Key                  string
+	WorkItemKey          string
+	ArtifactOrdinal      int
+	ArtifactID           string
+	CollectorExecutionID string
+	ContentSHA256        string
+	Status               WorkStatus
+	CurrentExecutionID   string
+	ExtractionResult     json.RawMessage
+	TagCatalogRevision   string
+	TagCatalogHash       string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
 type ExecutionAttempt struct {
 	ID       string
 	WorkItem WorkItem
+	Unit     ArtifactUnit
 	Snapshot ExtractionSnapshot
 }
 
@@ -75,19 +93,19 @@ type TagCatalog struct {
 }
 
 type Artifact struct {
-	ArtifactID           string
-	CollectorExecutionID string
-	DocumentID           string
-	Title                string
-	SourceName           string
-	SourceType           string
-	SourceURL            string
-	ContentLevel         string
-	PublishedAt          *time.Time
-	CollectedAt          time.Time
-	Language             string
-	ContentSHA256        string
-	Body                 string
+	ArtifactID           string     `json:"artifact_id"`
+	CollectorExecutionID string     `json:"collector_execution_id"`
+	DocumentID           string     `json:"document_id"`
+	Title                string     `json:"title"`
+	SourceName           string     `json:"source_name"`
+	SourceType           string     `json:"source_type"`
+	SourceURL            string     `json:"source_url"`
+	ContentLevel         string     `json:"content_level"`
+	PublishedAt          *time.Time `json:"published_at"`
+	CollectedAt          time.Time  `json:"collected_at"`
+	Language             string     `json:"language"`
+	ContentSHA256        string     `json:"content_sha256"`
+	Body                 string     `json:"body"`
 }
 
 type Candidate struct {
@@ -103,6 +121,7 @@ type Candidate struct {
 	ActorMentions    []string       `json:"actor_mentions"`
 	Action           string         `json:"action"`
 	ObjectMentions   []string       `json:"object_mentions"`
+	Change           map[string]any `json:"change"`
 	LifecycleStatus  string         `json:"lifecycle_status"`
 	TimePrecision    string         `json:"time_precision"`
 	LocationMentions []string       `json:"location_mentions"`
@@ -149,6 +168,7 @@ type ArtifactSummary struct {
 
 type JournalEntry struct {
 	WorkItemKey  string
+	UnitKey      string
 	BatchOrdinal int
 	PackageID    string
 	Payload      []byte

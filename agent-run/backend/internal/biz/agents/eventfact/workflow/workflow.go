@@ -20,21 +20,68 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 )
 
-const extractionProtocol = `你是事实事件提取器。只返回一个严格 JSON 对象，不要 Markdown。逐文档提取零到多个原子事件：一个事件只能有一个核心动作和一次生命周期状态变化；不得把 announced、planned、approved、effective、executing、completed、paused、cancelled、reported 合并。occurred_at 只能来自正文，不能用 published_at 或 collected_at 代替。evidence_excerpt 必须是正文连续逐字片段。规范标题、摘要和 action 使用中文且不得补充原文没有的事实。保留原始认识论模态。title_only 不生成事件。tag_codes 只能从输入 Catalog 选择。不得生成 Entity ID、Chain Node ID、产业链传播、投资判断或 SQL。`
+const extractionProtocol = `你是单文档事实事件提取器。只返回一个严格 JSON 对象，不要 Markdown 代码块或解释。每个输入 Artifact 必须在 documents 中恰好出现一次。逐文档提取零到多个原子事件：一个事件只能有一个核心动作和一次生命周期状态变化；不得把 announced、planned、approved、effective、executing、completed、paused、cancelled、reported 合并。occurred_at 只能来自正文，不能用 published_at 或 collected_at 代替；未知时为 null，只有日期时用该日 UTC 零点。evidence_excerpt 必须是正文连续逐字片段并足以支持主体、动作、对象和状态变化。规范 title、factual_summary 和 action 使用中文且不得补充原文没有的事实；actor_mentions、object_mentions、location_mentions 保留正文原始称谓。保留报道、预测、观点、传闻和计划的原始认识论模态。title_only 不生成事件。不得选择 Tag，不得生成 fact_payload、supports_fields、source_level、Entity ID、Chain Node ID、产业链传播、投资判断或 SQL。每个事件必须包含且只能包含输出 Schema 列出的字段，字段缺失时也要用 null、空字符串、空对象或空数组显式返回。`
 
 const reviewProtocol = `你是独立事实语义审核器。只返回一个严格 JSON 对象，不要 Markdown。逐候选判断规范标题、事实摘要、时间、fact_payload 是否被给定逐字证据支持，是否遗漏关键限定条件，是否存在语义冲突。不要选择数据库状态。每项必须返回 semantic_pass、conflict、非空中文 reasons 和 0..1 confidence。`
 const classificationProtocol = `你是事件标签分类器。只返回一个严格 JSON 对象，不要 Markdown。只能从输入的权威 Tag Catalog 中为每个候选选择 tag_codes，不得创造标签。每个事件必须有 1 到 2 个 news_category，可以有 0 到 3 个 index_category，总数不超过 5。`
 const duplicateJudgeProtocol = `你是事件事实去重裁决器。只返回一个严格 JSON 对象，不要 Markdown。程序已召回少量可能重复对；逐对判断是否是同一原子事实。生命周期、统计期或明确发生时间不同必须返回 false。不要改写事实，不要创建数据库身份。`
 
-const extractionSchema = `event_fact_extraction_model_output.v1:{documents:[{artifact_id,no_event_reason,events:[{title,factual_summary,occurred_at,fact_payload,evidence_excerpt,supports_fields,source_level,actor_mentions,action,object_mentions,lifecycle_status,time_precision,location_mentions,reference_period,quantities,tag_codes}]}]}`
-const classificationSchema = `event_fact_tag_classification.v1:{assignments:[{candidate_id,tag_codes}]}`
-const duplicateJudgeSchema = `event_fact_duplicate_judgment.v1:{judgments:[{candidate_id,dedupe_key,same_event}]}`
+const extractionSchema = `{
+  "documents": [{
+    "artifact_id": "输入 Artifact 的 artifact_id",
+    "no_event_reason": "有事件时必须为空字符串；零事件时必须是具体中文理由",
+    "events": [{
+      "title": "中文中性事实标题",
+      "factual_summary": "只复述逐字证据支持的中文事实",
+      "occurred_at": "带时区 RFC3339 字符串或 null",
+      "evidence_excerpt": "正文连续逐字片段，保持原语言",
+      "actor_mentions": ["正文原始主体称谓"],
+      "action": "中文单一动作",
+      "object_mentions": ["正文原始对象称谓"],
+      "change": {},
+      "lifecycle_status": "announced|planned|approved|effective|executing|completed|paused|cancelled|reported",
+      "time_precision": "minute|hour|day|month|quarter|year|range|unknown",
+      "location_mentions": [],
+      "reference_period": "",
+      "quantities": []
+    }]
+  }]
+}`
+const classificationSchema = `{"assignments":[{"candidate_id":"输入 Candidate ID","tag_codes":["权威 Catalog 中的 code"]}]}`
+const duplicateJudgeSchema = `{"judgments":[{"candidate_id":"输入 Candidate ID","dedupe_key":"输入 Canonical Dedupe Key","same_event":true}]}`
+const reviewSchema = `{"reviews":[{"candidate_id":"输入 Candidate ID","semantic_pass":true,"conflict":false,"reasons":["非空中文理由"],"confidence":0.0}]}`
 
 var ErrExtractionModel = errors.New("Event Fact extraction model call failed")
 var ErrReviewModel = errors.New("Event semantic review model call failed")
 
+func FailureCode(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "response is invalid"):
+		return "event_fact_model_response_invalid"
+	case strings.Contains(message, "did not account for every"):
+		return "event_fact_model_output_incomplete"
+	case strings.Contains(message, "unknown Artifact"):
+		return "event_fact_model_output_unknown_artifact"
+	case strings.Contains(message, "repeated an Artifact"):
+		return "event_fact_model_output_duplicate_artifact"
+	case strings.Contains(message, "zero-Event Artifact requires a reason"):
+		return "event_fact_model_output_missing_no_event_reason"
+	case strings.Contains(message, "cannot also have a no-Event reason"):
+		return "event_fact_model_output_conflicting_no_event_reason"
+	case strings.Contains(message, "occurred_at is invalid"):
+		return "event_fact_model_output_invalid_occurred_at"
+	default:
+		return "event_fact_workflow_rejected"
+	}
+}
+
 type Input struct {
 	Attempt      eventfact.ExecutionAttempt
+	ArtifactID   string
 	Catalog      eventfact.TagCatalog
 	ResumeResult *eventfact.Result
 }
@@ -64,19 +111,16 @@ type extractedEvent struct {
 	Title            string         `json:"title"`
 	FactualSummary   string         `json:"factual_summary"`
 	OccurredAt       *jsonTime      `json:"occurred_at"`
-	FactPayload      map[string]any `json:"fact_payload"`
 	EvidenceExcerpt  string         `json:"evidence_excerpt"`
-	SupportsFields   []string       `json:"supports_fields"`
-	SourceLevel      string         `json:"source_level"`
 	ActorMentions    []string       `json:"actor_mentions"`
 	Action           string         `json:"action"`
 	ObjectMentions   []string       `json:"object_mentions"`
+	Change           map[string]any `json:"change"`
 	LifecycleStatus  string         `json:"lifecycle_status"`
 	TimePrecision    string         `json:"time_precision"`
 	LocationMentions []string       `json:"location_mentions"`
 	ReferencePeriod  string         `json:"reference_period"`
 	Quantities       []string       `json:"quantities"`
-	TagCodes         []string       `json:"tag_codes"`
 }
 
 type reviewOutput struct {
@@ -148,17 +192,24 @@ func New(
 	workflow := compose.NewWorkflow[*Input, *eventfact.Result]()
 	workflow.AddLambdaNode("load_verified_artifacts", compose.InvokableLambda(
 		func(ctx context.Context, input *Input) (*state, error) {
-			if input == nil || len(input.Attempt.WorkItem.CollectorExecutionIDs) == 0 {
+			if input == nil || len(input.Attempt.WorkItem.CollectorExecutionIDs) == 0 ||
+				strings.TrimSpace(input.ArtifactID) == "" {
 				return nil, errors.New("Event Fact workflow input is invalid")
 			}
 			artifacts, err := reader.Read(ctx, input.Attempt.WorkItem.CollectorExecutionIDs)
 			if err != nil {
 				return nil, err
 			}
-			if len(artifacts) == 0 {
-				return nil, errors.New("Event Fact workflow has no accepted Artifacts")
+			var selected []eventfact.Artifact
+			for _, artifact := range artifacts {
+				if artifact.ArtifactID == input.ArtifactID {
+					selected = append(selected, artifact)
+				}
 			}
-			return &state{input: input, artifacts: artifacts, noEventReasons: make(map[string]string)}, nil
+			if len(selected) != 1 {
+				return nil, errors.New("Event Fact Artifact Unit is not present in verified Artifacts")
+			}
+			return &state{input: input, artifacts: selected, noEventReasons: make(map[string]string)}, nil
 		},
 	)).AddInput(compose.START)
 	workflow.AddLambdaNode("prepare_extraction_input", compose.InvokableLambda(
@@ -181,9 +232,8 @@ func New(
 			}
 			request := struct {
 				Artifacts []eventfact.Artifact `json:"artifacts"`
-				Catalog   eventfact.TagCatalog `json:"tag_catalog"`
 				Schema    string               `json:"output_schema"`
-			}{Artifacts: current.artifacts, Catalog: current.input.Catalog, Schema: extractionSchema}
+			}{Artifacts: current.artifacts, Schema: extractionSchema}
 			payload, err := json.Marshal(request)
 			if err != nil {
 				return nil, errors.New("encode Event Fact model input")
@@ -217,6 +267,7 @@ func New(
 	workflow.AddLambdaNode("recall_possible_duplicates", compose.InvokableLambda(
 		func(ctx context.Context, current *state) (*state, error) {
 			applyDeterministicIdentities(current.candidates)
+			current.candidates = dedupeExactUnitCandidates(current.candidates)
 			hashes := make([]string, 0, len(current.candidates))
 			for _, candidate := range current.candidates {
 				if candidate.ReviewState == eventfact.ReviewRejected {
@@ -228,7 +279,10 @@ func New(
 			if err != nil {
 				return nil, errors.New("canonical Event recall failed")
 			}
-			current.duplicatePairs = recallPossibleDuplicatePairs(current.candidates, recalled)
+			current.duplicatePairs = append(
+				intraUnitDuplicatePairs(current.candidates),
+				recallPossibleDuplicatePairs(current.candidates, recalled)...,
+			)
 			if err := applyCanonicalFacts(current.candidates, recalled); err != nil {
 				return nil, err
 			}
@@ -262,6 +316,7 @@ func New(
 			); err != nil {
 				return nil, err
 			}
+			current.candidates = dedupeExactUnitCandidates(current.candidates)
 			current.reviewCalls++
 			return current, nil
 		},
@@ -311,7 +366,8 @@ func New(
 			payload, err := json.Marshal(struct {
 				Candidates []eventfact.Candidate `json:"candidates"`
 				Artifacts  []eventfact.Artifact  `json:"artifacts"`
-			}{Candidates: reviewable, Artifacts: current.artifacts})
+				Schema     string                `json:"output_schema"`
+			}{Candidates: reviewable, Artifacts: current.artifacts, Schema: reviewSchema})
 			if err != nil {
 				return nil, errors.New("encode Event review input")
 			}
@@ -551,20 +607,22 @@ func convertExtraction(
 			return nil, nil, errors.New("Event Artifact cannot also have a no-Event reason")
 		}
 		for _, item := range document.Events {
+			supportsFields := []string{"title", "factual_summary", "fact_payload"}
 			candidate := eventfact.Candidate{
 				CandidateID: fmt.Sprintf("candidate:%d", len(candidates)+1),
 				ArtifactID:  document.ArtifactID, Title: strings.TrimSpace(item.Title),
-				FactualSummary: strings.TrimSpace(item.FactualSummary), FactPayload: item.FactPayload,
+				FactualSummary:  strings.TrimSpace(item.FactualSummary),
 				EvidenceExcerpt: strings.TrimSpace(item.EvidenceExcerpt),
-				SupportsFields:  normalizeStrings(item.SupportsFields),
-				SourceLevel:     strings.TrimSpace(item.SourceLevel),
+				SupportsFields:  supportsFields,
+				SourceLevel:     sourceLevelForArtifact(artifactByID[document.ArtifactID]),
 				ActorMentions:   normalizeStrings(item.ActorMentions), Action: strings.TrimSpace(item.Action),
 				ObjectMentions:   normalizeStrings(item.ObjectMentions),
+				Change:           item.Change,
 				LifecycleStatus:  strings.TrimSpace(item.LifecycleStatus),
 				TimePrecision:    strings.TrimSpace(item.TimePrecision),
 				LocationMentions: normalizeStrings(item.LocationMentions),
 				ReferencePeriod:  strings.TrimSpace(item.ReferencePeriod),
-				Quantities:       normalizeStrings(item.Quantities), TagCodes: normalizeStrings(item.TagCodes),
+				Quantities:       normalizeStrings(item.Quantities),
 			}
 			if item.OccurredAt != nil && item.OccurredAt.Time != "" {
 				parsed, err := time.Parse(time.RFC3339, item.OccurredAt.Time)
@@ -573,7 +631,9 @@ func convertExtraction(
 				}
 				parsed = parsed.UTC()
 				candidate.OccurredAt = &parsed
+				candidate.SupportsFields = append(candidate.SupportsFields, "occurred_at")
 			}
+			candidate.FactPayload = deterministicFactPayload(candidate)
 			candidates = append(candidates, candidate)
 		}
 	}
@@ -607,8 +667,8 @@ func validateCandidate(
 		"completed": {}, "paused": {}, "cancelled": {}, "reported": {},
 	}
 	timePrecision := map[string]struct{}{
-		"instant": {}, "day": {}, "month": {}, "quarter": {}, "year": {},
-		"range": {}, "unknown": {},
+		"instant": {}, "minute": {}, "hour": {}, "day": {}, "month": {}, "quarter": {},
+		"year": {}, "range": {}, "unknown": {},
 	}
 	allowedSupport := map[string]struct{}{
 		"title": {}, "factual_summary": {}, "occurred_at": {}, "fact_payload": {},
@@ -667,6 +727,37 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
+func deterministicFactPayload(candidate eventfact.Candidate) map[string]any {
+	result := map[string]any{
+		"action":           candidate.Action,
+		"lifecycle_status": candidate.LifecycleStatus,
+		"time_precision":   candidate.TimePrecision,
+	}
+	if len(candidate.Change) > 0 {
+		result["change"] = candidate.Change
+	}
+	if candidate.ReferencePeriod != "" {
+		result["reference_period"] = candidate.ReferencePeriod
+	}
+	if len(candidate.Quantities) > 0 {
+		result["quantities"] = append([]string(nil), candidate.Quantities...)
+	}
+	if len(candidate.LocationMentions) > 0 {
+		result["location_mentions"] = append([]string(nil), candidate.LocationMentions...)
+	}
+	return result
+}
+
+func sourceLevelForArtifact(artifact eventfact.Artifact) string {
+	switch strings.ToLower(strings.TrimSpace(artifact.SourceType)) {
+	case "official", "government", "regulator", "exchange", "filing",
+		"company_announcement", "press_release":
+		return "primary"
+	default:
+		return "secondary"
+	}
+}
+
 func bodyMentionsOccurredAt(body string, occurredAt time.Time) bool {
 	year, month, day := occurredAt.Date()
 	variants := []string{
@@ -711,6 +802,66 @@ func applyDeterministicIdentities(candidates []eventfact.Candidate) {
 		candidates[index].IdentityHash = hex.EncodeToString(sum[:])
 		candidates[index].DedupeKey = "event-fact:" + candidates[index].IdentityHash
 	}
+}
+
+func dedupeExactUnitCandidates(candidates []eventfact.Candidate) []eventfact.Candidate {
+	seen := make(map[string]struct{}, len(candidates))
+	result := make([]eventfact.Candidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.ReviewState == eventfact.ReviewRejected {
+			result = append(result, candidate)
+			continue
+		}
+		if _, exists := seen[candidate.DedupeKey]; exists {
+			continue
+		}
+		seen[candidate.DedupeKey] = struct{}{}
+		result = append(result, candidate)
+	}
+	for index := range result {
+		result[index].CandidateID = fmt.Sprintf("candidate:%d", index+1)
+	}
+	return result
+}
+
+func intraUnitDuplicatePairs(candidates []eventfact.Candidate) []duplicatePair {
+	var pairs []duplicatePair
+	for candidateIndex := 1; candidateIndex < len(candidates); candidateIndex++ {
+		candidate := candidates[candidateIndex]
+		if candidate.ReviewState == eventfact.ReviewRejected {
+			continue
+		}
+		for canonicalIndex := 0; canonicalIndex < candidateIndex; canonicalIndex++ {
+			canonicalCandidate := candidates[canonicalIndex]
+			if canonicalCandidate.ReviewState == eventfact.ReviewRejected ||
+				canonicalCandidate.IdentityHash == candidate.IdentityHash {
+				continue
+			}
+			core := canonicalCore{
+				Title:          canonicalCandidate.Title,
+				FactualSummary: canonicalCandidate.FactualSummary,
+				OccurredAt:     canonicalCandidate.OccurredAt,
+				FactPayload:    canonicalCandidate.FactPayload,
+			}
+			if !possibleDuplicate(candidate, core) {
+				continue
+			}
+			encoded, err := json.Marshal(core)
+			if err != nil {
+				continue
+			}
+			pairs = append(pairs, duplicatePair{
+				CandidateID: candidate.CandidateID,
+				Candidate:   candidate,
+				Canonical: eventfact.CanonicalEvent{
+					DedupeKey:    canonicalCandidate.DedupeKey,
+					IdentityHash: canonicalCandidate.IdentityHash,
+					CoreFacts:    encoded,
+				},
+			})
+		}
+	}
+	return pairs
 }
 
 func assignCatalogTags(catalog eventfact.TagCatalog, candidates []eventfact.Candidate) error {
@@ -824,7 +975,7 @@ func applyReviews(candidates []eventfact.Candidate, output reviewOutput) error {
 		if item.SemanticPass && !item.Conflict {
 			candidates[index].ReviewState = eventfact.ReviewAutoApproved
 		} else {
-			candidates[index].ReviewState = eventfact.ReviewManual
+			candidates[index].ReviewState = eventfact.ReviewRejected
 		}
 	}
 	return nil
@@ -925,7 +1076,7 @@ func PromptSHA256() string {
 func SchemaSHA256() string {
 	sum := sha256.Sum256([]byte(
 		extractionSchema + "\n" + factOnlySchema + "\n" +
-			classificationSchema + "\n" + duplicateJudgeSchema,
+			classificationSchema + "\n" + duplicateJudgeSchema + "\n" + reviewSchema,
 	))
 	return hex.EncodeToString(sum[:])
 }

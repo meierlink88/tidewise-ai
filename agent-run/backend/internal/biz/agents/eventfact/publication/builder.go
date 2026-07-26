@@ -187,6 +187,30 @@ func Build(
 	return journals, nil
 }
 
+func BuildArtifactUnit(
+	workItemKey, unitKey string,
+	artifactOrdinal int,
+	agentVersion string,
+	result eventfact.Result,
+) ([]eventfact.JournalEntry, error) {
+	if len(workItemKey) != 64 || len(unitKey) != 64 || artifactOrdinal < 1 {
+		return nil, errors.New("Event Artifact Unit publication identity is invalid")
+	}
+	journals, err := Build(unitKey, agentVersion, result)
+	if err != nil {
+		return nil, err
+	}
+	if len(journals) > 1 {
+		return nil, errors.New("Event Artifact Unit produced more than ten publishable Events")
+	}
+	for index := range journals {
+		journals[index].WorkItemKey = workItemKey
+		journals[index].UnitKey = unitKey
+		journals[index].BatchOrdinal = artifactOrdinal
+	}
+	return journals, nil
+}
+
 func CanonicalEvents(payload []byte) ([]eventfact.CanonicalEvent, error) {
 	var decoded request
 	if err := json.Unmarshal(payload, &decoded); err != nil {

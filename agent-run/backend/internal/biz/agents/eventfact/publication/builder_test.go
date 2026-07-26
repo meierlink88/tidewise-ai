@@ -75,3 +75,43 @@ func TestBuildExcludesManualReviewCandidates(t *testing.T) {
 		t.Fatalf("manual review journals=%#v err=%v", journals, err)
 	}
 }
+
+func TestBuildArtifactUnitCreatesOneStableImmediatePublication(t *testing.T) {
+	result := eventfact.Result{
+		ExecutionID: "22222222-2222-4222-8222-222222222222",
+		PublicationArtifacts: []eventfact.Artifact{{
+			ArtifactID: "sha256:artifact", DocumentID: "sha256:artifact",
+			CollectorExecutionID: "11111111-1111-4111-8111-111111111111",
+			Title:                "原始文档", SourceName: "来源", SourceType: "official",
+			CollectedAt:   time.Date(2026, 7, 26, 1, 0, 0, 0, time.UTC),
+			ContentSHA256: strings.Repeat("a", 64),
+		}},
+		Candidates: []eventfact.Candidate{{
+			CandidateID: "candidate:1", ArtifactID: "sha256:artifact",
+			Title: "某公司宣布扩产", FactualSummary: "某公司宣布扩产。",
+			FactPayload: map[string]any{"action": "扩产"}, EvidenceExcerpt: "逐字证据",
+			SupportsFields: []string{"factual_summary"}, SourceLevel: "primary",
+			DedupeKey:    "event-fact:" + strings.Repeat("f", 64),
+			IdentityHash: strings.Repeat("f", 64),
+			Tags: []eventfact.AssignedTag{{
+				ID: "33333333-3333-4333-8333-333333333333", Kind: "news_category",
+				Code: "technology", Confidence: 1, AssignmentReason: "Catalog 分类",
+			}},
+			Review: eventfact.Review{
+				SemanticPass: true, Reasons: []string{"AI 确认事实与证据一致"}, Confidence: 1,
+			},
+			ReviewState: eventfact.ReviewAutoApproved,
+		}},
+	}
+	workKey := strings.Repeat("b", 64)
+	unitKey := strings.Repeat("c", 64)
+	journals, err := BuildArtifactUnit(workKey, unitKey, 7, eventfact.AgentVersion, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(journals) != 1 || journals[0].WorkItemKey != workKey ||
+		journals[0].UnitKey != unitKey || journals[0].BatchOrdinal != 7 ||
+		!strings.Contains(journals[0].PackageID, unitKey) {
+		t.Fatalf("Artifact Unit journals = %#v", journals)
+	}
+}

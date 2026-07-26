@@ -13,11 +13,13 @@ import (
 )
 
 type memoryRepository struct {
-	attempt  eventfact.ExecutionAttempt
-	claimed  bool
-	reclaim  bool
-	journals []eventfact.JournalEntry
-	status   string
+	attempt         eventfact.ExecutionAttempt
+	claimed         bool
+	reclaim         bool
+	journals        []eventfact.JournalEntry
+	status          string
+	completedStatus eventfact.WorkStatus
+	completionCalls int
 }
 
 func (*memoryRepository) DispatchPendingSignals(context.Context, string, time.Time) (int, error) {
@@ -26,11 +28,23 @@ func (*memoryRepository) DispatchPendingSignals(context.Context, string, time.Ti
 func (*memoryRepository) EnqueueWork(context.Context, []string, string, time.Time) (eventfact.WorkItem, bool, error) {
 	return eventfact.WorkItem{}, true, nil
 }
+func (*memoryRepository) NextUnplannedWork(context.Context) (eventfact.WorkItem, bool, error) {
+	return eventfact.WorkItem{}, false, nil
+}
+func (*memoryRepository) InitializeArtifactUnits(context.Context, eventfact.WorkItem, []eventfact.ArtifactSummary, time.Time) error {
+	return nil
+}
+func (*memoryRepository) RejectUnplannedWork(context.Context, eventfact.WorkItem, string, time.Time) error {
+	return nil
+}
 func (r *memoryRepository) ClaimNextWork(context.Context, eventfact.ExtractionSnapshot, time.Time) (eventfact.ExecutionAttempt, bool, error) {
 	if r.claimed {
 		return eventfact.ExecutionAttempt{}, false, nil
 	}
 	r.claimed = true
+	if r.attempt.Unit.Key == "" {
+		r.attempt.Unit = testArtifactUnit()
+	}
 	return r.attempt, true, nil
 }
 func (r *memoryRepository) SetAwaitingTagCatalog(
@@ -46,7 +60,8 @@ func (r *memoryRepository) SetAwaitingTagCatalog(
 	}
 	r.attempt = attempt
 	r.attempt.WorkItem.Status = eventfact.WorkAwaitingTagCatalog
-	r.attempt.WorkItem.ExtractionResult = encoded
+	r.attempt.Unit.Status = eventfact.WorkAwaitingTagCatalog
+	r.attempt.Unit.ExtractionResult = encoded
 	if r.reclaim {
 		r.claimed = false
 	}
@@ -62,7 +77,15 @@ func (r *memoryRepository) CompleteExtraction(_ context.Context, _ eventfact.Exe
 	r.journals = append([]eventfact.JournalEntry(nil), journals...)
 	return nil
 }
-func (*memoryRepository) CompleteWithoutPublication(context.Context, eventfact.ExecutionAttempt, eventfact.Result, eventfact.WorkStatus, time.Time) error {
+func (r *memoryRepository) CompleteWithoutPublication(
+	_ context.Context,
+	_ eventfact.ExecutionAttempt,
+	_ eventfact.Result,
+	status eventfact.WorkStatus,
+	_ time.Time,
+) error {
+	r.completedStatus = status
+	r.completionCalls++
 	return nil
 }
 func (r *memoryRepository) ListDeliverableJournals(context.Context, time.Time) ([]eventfact.JournalEntry, error) {
@@ -123,7 +146,8 @@ func TestTagCatalogRecoveryResumesPersistedFactsWithoutFactExtractionRerun(t *te
 	resumeCalls := 0
 	runtime := func(context.Context) (Runtime, error) {
 		return Runtime{
-			Snapshot: eventFactTestSnapshot(),
+			Snapshot:      eventFactTestSnapshot(),
+			ReadArtifacts: testReadArtifacts,
 			ExtractFacts: func(
 				_ context.Context,
 				attempt *eventfact.ExecutionAttempt,
@@ -199,7 +223,7 @@ func TestUnknownPublicationResultReplaysExactPayloadWithoutModelRerun(t *testing
 		ProviderKey: "deepseek", Model: "deepseek-chat",
 	}
 	runtime := func(context.Context) (Runtime, error) {
-		return Runtime{Snapshot: snapshot, Run: run}, nil
+		return Runtime{Snapshot: snapshot, Run: run, ReadArtifacts: testReadArtifacts}, nil
 	}
 	first, err := New(repository, data, runtime, time.Minute)
 	if err != nil {
@@ -224,6 +248,44 @@ func TestUnknownPublicationResultReplaysExactPayloadWithoutModelRerun(t *testing
 	}
 	if string(data.published[0]) != string(data.published[1]) {
 		t.Fatal("unknown result retry changed publication bytes")
+	}
+}
+
+func TestManualReviewResultIsRejectedInsteadOfWaitingForHuman(t *testing.T) {
+	repository := &memoryRepository{attempt: eventfact.ExecutionAttempt{
+		ID: "22222222-2222-4222-8222-222222222222",
+		WorkItem: eventfact.WorkItem{
+			Key: strings.Repeat("b", 64), ExtractorAgentVersion: eventfact.AgentVersion,
+			CollectorExecutionIDs: []string{"11111111-1111-4111-8111-111111111111"},
+		},
+	}}
+	data := &lossThenSuccessData{}
+	runtime := func(context.Context) (Runtime, error) {
+		return Runtime{
+			Snapshot:      eventFactTestSnapshot(),
+			ReadArtifacts: testReadArtifacts,
+			Run: func(_ context.Context, input *eventworkflow.Input) (*eventfact.Result, error) {
+				result := approvedResult()
+				result.ExecutionID = input.Attempt.ID
+				result.Candidates[0].ReviewState = eventfact.ReviewManual
+				return result, nil
+			},
+		}, nil
+	}
+	application, err := New(repository, data, runtime, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if repository.completionCalls != 1 ||
+		repository.completedStatus != eventfact.WorkRejected ||
+		len(data.published) != 0 {
+		t.Fatalf(
+			"manual result completionCalls=%d status=%q publications=%d",
+			repository.completionCalls, repository.completedStatus, len(data.published),
+		)
 	}
 }
 
@@ -257,4 +319,21 @@ func approvedResult() *eventfact.Result {
 	}
 	_, _ = json.Marshal(result)
 	return result
+}
+
+func testArtifactUnit() eventfact.ArtifactUnit {
+	result := approvedResult()
+	return eventfact.ArtifactUnit{
+		Key:                  strings.Repeat("a", 64),
+		WorkItemKey:          strings.Repeat("b", 64),
+		ArtifactOrdinal:      1,
+		ArtifactID:           result.PublicationArtifacts[0].ArtifactID,
+		CollectorExecutionID: result.PublicationArtifacts[0].CollectorExecutionID,
+		ContentSHA256:        result.PublicationArtifacts[0].ContentSHA256,
+		Status:               eventfact.WorkPending,
+	}
+}
+
+func testReadArtifacts(context.Context, []string) ([]eventfact.Artifact, error) {
+	return append([]eventfact.Artifact(nil), approvedResult().PublicationArtifacts...), nil
 }

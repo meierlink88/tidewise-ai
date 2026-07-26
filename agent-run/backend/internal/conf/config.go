@@ -68,6 +68,7 @@ type DataConfig struct {
 
 type EventFactConfig struct {
 	ReconcileIntervalSeconds int `yaml:"reconcile_interval_seconds"`
+	ModelTimeoutSeconds      int `yaml:"model_timeout_seconds"`
 }
 
 type SecretConfig struct {
@@ -187,6 +188,9 @@ func (c Config) Validate() error {
 	}
 	if c.EventFact.ReconcileIntervalSeconds <= 0 {
 		return fmt.Errorf("event_fact.reconcile_interval_seconds must be positive")
+	}
+	if c.EventFact.ModelTimeoutSeconds <= 0 {
+		return fmt.Errorf("event_fact.model_timeout_seconds must be positive")
 	}
 	return nil
 }

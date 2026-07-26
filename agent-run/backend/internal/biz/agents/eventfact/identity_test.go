@@ -45,3 +45,30 @@ func TestWorkItemKeyRejectsInvalidIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestArtifactUnitKeyIncludesStableArtifactContentIdentity(t *testing.T) {
+	workKey := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	contentHash := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	first, err := ArtifactUnitIdentity(workKey, "sha256:artifact", contentHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay, err := ArtifactUnitIdentity(workKey, " sha256:artifact ", contentHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != replay || len(first) != 64 {
+		t.Fatalf("Artifact Unit identities = %q %q", first, replay)
+	}
+	changed, err := ArtifactUnitIdentity(
+		workKey,
+		"sha256:artifact",
+		"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed == first {
+		t.Fatal("Artifact content change did not change Unit identity")
+	}
+}

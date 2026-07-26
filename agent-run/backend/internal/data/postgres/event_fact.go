@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,6 +30,17 @@ func (s *Store) DispatchPendingSignals(ctx context.Context, agentVersion string,
 		  AND updated_at < $1::timestamptz - interval '15 minutes'
 	`, now.UTC(), eventfact.AgentKey); err != nil {
 		return 0, fmt.Errorf("reconcile interrupted Event extractor Executions: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units u
+		SET status = 'pending', error_code = NULL, error_summary = NULL, updated_at = $1
+		FROM agent_executions e
+		WHERE u.current_execution_id = e.execution_id
+		  AND u.status = 'running'
+		  AND e.status = 'failed'
+		  AND e.error_code = 'extractor_interrupted'
+	`, now.UTC()); err != nil {
+		return 0, fmt.Errorf("requeue interrupted Event Artifact Units: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE event_extraction_work_items w
@@ -169,6 +181,105 @@ func (s *Store) EnqueueWork(
 	return work, command.RowsAffected() == 1, nil
 }
 
+func (s *Store) NextUnplannedWork(ctx context.Context) (eventfact.WorkItem, bool, error) {
+	var work eventfact.WorkItem
+	var result []byte
+	err := s.database.QueryRow(ctx, `
+		SELECT work_item_key, collector_execution_ids::text[], extractor_agent_version,
+		       status, COALESCE(current_execution_id::text, ''), extraction_result,
+		       COALESCE(tag_catalog_revision, ''), COALESCE(tag_catalog_hash, ''),
+		       created_at, updated_at
+		FROM event_extraction_work_items w
+		WHERE w.status = 'pending'
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM event_artifact_extraction_units u
+		      WHERE u.work_item_key = w.work_item_key
+		  )
+		ORDER BY created_at DESC, work_item_key
+		LIMIT 1
+	`).Scan(
+		&work.Key, &work.CollectorExecutionIDs, &work.ExtractorAgentVersion,
+		&work.Status, &work.CurrentExecutionID, &result,
+		&work.TagCatalogRevision, &work.TagCatalogHash, &work.CreatedAt, &work.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return eventfact.WorkItem{}, false, nil
+	}
+	if err != nil {
+		return eventfact.WorkItem{}, false, fmt.Errorf("read unplanned Event extraction Work Item: %w", err)
+	}
+	work.ExtractionResult = append(json.RawMessage(nil), result...)
+	return work, true, nil
+}
+
+func (s *Store) InitializeArtifactUnits(
+	ctx context.Context,
+	work eventfact.WorkItem,
+	artifacts []eventfact.ArtifactSummary,
+	now time.Time,
+) error {
+	if len(artifacts) == 0 {
+		return errors.New("Event extraction Batch has no Artifact Units")
+	}
+	sort.Slice(artifacts, func(i, j int) bool {
+		return artifacts[i].ArtifactID < artifacts[j].ArtifactID
+	})
+	allowedCollectors := make(map[string]struct{}, len(work.CollectorExecutionIDs))
+	for _, id := range work.CollectorExecutionIDs {
+		allowedCollectors[id] = struct{}{}
+	}
+	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	for index, artifact := range artifacts {
+		if _, exists := allowedCollectors[artifact.CollectorExecutionID]; !exists {
+			return errors.New("Artifact Unit references a Collector outside the Batch")
+		}
+		unitKey, err := eventfact.ArtifactUnitIdentity(
+			work.Key, artifact.ArtifactID, artifact.ContentSHA256,
+		)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO event_artifact_extraction_units (
+				unit_key, work_item_key, artifact_ordinal, artifact_id,
+				collector_execution_id, content_sha256, status, created_at, updated_at
+			) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $7)
+			ON CONFLICT (unit_key) DO NOTHING
+		`, unitKey, work.Key, index+1, artifact.ArtifactID,
+			artifact.CollectorExecutionID, artifact.ContentSHA256, now.UTC()); err != nil {
+			return fmt.Errorf("initialize Event Artifact Unit: %w", err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) RejectUnplannedWork(
+	ctx context.Context,
+	work eventfact.WorkItem,
+	summary string,
+	now time.Time,
+) error {
+	_, err := s.database.Exec(ctx, `
+		UPDATE event_extraction_work_items
+		SET status = 'rejected', error_code = 'artifact_unit_planning_failed',
+		    error_summary = $2, updated_at = $3
+		WHERE work_item_key = $1 AND status = 'pending'
+		  AND NOT EXISTS (
+		      SELECT 1 FROM event_artifact_extraction_units u
+		      WHERE u.work_item_key = event_extraction_work_items.work_item_key
+		  )
+	`, work.Key, summary, now.UTC())
+	if err != nil {
+		return fmt.Errorf("reject unplanned Event extraction Work Item: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) ClaimNextWork(
 	ctx context.Context,
 	snapshot eventfact.ExtractionSnapshot,
@@ -181,26 +292,39 @@ func (s *Store) ClaimNextWork(
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	var work eventfact.WorkItem
+	var unit eventfact.ArtifactUnit
 	var result []byte
 	err = tx.QueryRow(ctx, `
-		SELECT work_item_key, collector_execution_ids::text[], extractor_agent_version,
-		       status, COALESCE(current_execution_id::text, ''), extraction_result,
-		       COALESCE(tag_catalog_revision, ''), COALESCE(tag_catalog_hash, ''),
-		       created_at, updated_at
-		FROM event_extraction_work_items
-		WHERE status IN ('pending', 'awaiting_tag_catalog', 'retry_wait')
+		SELECT w.work_item_key, w.collector_execution_ids::text[], w.extractor_agent_version,
+		       w.status, COALESCE(w.current_execution_id::text, ''), w.extraction_result,
+		       COALESCE(w.tag_catalog_revision, ''), COALESCE(w.tag_catalog_hash, ''),
+		       w.created_at, w.updated_at,
+		       u.unit_key, u.work_item_key, u.artifact_ordinal, u.artifact_id,
+		       u.collector_execution_id::text, u.content_sha256, u.status,
+		       COALESCE(u.current_execution_id::text, ''), u.extraction_result,
+		       COALESCE(u.tag_catalog_revision, ''), COALESCE(u.tag_catalog_hash, ''),
+		       u.created_at, u.updated_at
+		FROM event_artifact_extraction_units u
+		JOIN event_extraction_work_items w ON w.work_item_key = u.work_item_key
+		WHERE u.status IN ('pending', 'awaiting_tag_catalog', 'retry_wait')
 		  AND NOT EXISTS (
 		      SELECT 1
-		      FROM event_publication_journal j
-		      WHERE j.work_item_key = event_extraction_work_items.work_item_key
+		      FROM event_artifact_extraction_units previous
+		      WHERE previous.work_item_key = u.work_item_key
+		        AND previous.artifact_ordinal < u.artifact_ordinal
+		        AND previous.status NOT IN ('published', 'no_events', 'rejected', 'blocked')
 		  )
-		ORDER BY updated_at, work_item_key
+		ORDER BY w.created_at DESC, u.artifact_ordinal, u.unit_key
 		LIMIT 1
 		FOR UPDATE SKIP LOCKED
 	`).Scan(
 		&work.Key, &work.CollectorExecutionIDs, &work.ExtractorAgentVersion,
 		&work.Status, &work.CurrentExecutionID, &result,
 		&work.TagCatalogRevision, &work.TagCatalogHash, &work.CreatedAt, &work.UpdatedAt,
+		&unit.Key, &unit.WorkItemKey, &unit.ArtifactOrdinal, &unit.ArtifactID,
+		&unit.CollectorExecutionID, &unit.ContentSHA256, &unit.Status,
+		&unit.CurrentExecutionID, &unit.ExtractionResult,
+		&unit.TagCatalogRevision, &unit.TagCatalogHash, &unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(ctx); err != nil {
@@ -215,12 +339,15 @@ func (s *Store) ClaimNextWork(
 	executionID := uuid.NewString()
 	input, err := json.Marshal(map[string]any{
 		"work_item_key":           work.Key,
+		"unit_key":                unit.Key,
+		"artifact_id":             unit.ArtifactID,
+		"artifact_ordinal":        unit.ArtifactOrdinal,
 		"collector_execution_ids": work.CollectorExecutionIDs,
 	})
 	if err != nil {
 		return eventfact.ExecutionAttempt{}, false, err
 	}
-	idempotencyKey := "event-fact-execution:" + work.Key + ":" + executionID
+	idempotencyKey := "event-fact-execution:" + unit.Key + ":" + executionID
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO agent_executions (
 			execution_id, agent_key, agent_version, idempotency_key, input_payload,
@@ -237,11 +364,19 @@ func (s *Store) ClaimNextWork(
 	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO event_extractor_executions (
-			execution_id, work_item_key, prompt_sha256, schema_sha256, provider_key, model
-		) VALUES ($1, $2, $3, $4, $5, $6)
-	`, executionID, work.Key, snapshot.PromptSHA256, snapshot.SchemaSHA256,
+			execution_id, work_item_key, unit_key, prompt_sha256, schema_sha256, provider_key, model
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, executionID, work.Key, unit.Key, snapshot.PromptSHA256, snapshot.SchemaSHA256,
 		snapshot.ProviderKey, snapshot.Model); err != nil {
 		return eventfact.ExecutionAttempt{}, false, fmt.Errorf("snapshot Event extractor Execution: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units
+		SET status = 'running', current_execution_id = $2,
+		    error_code = NULL, error_summary = NULL, updated_at = $3
+		WHERE unit_key = $1
+	`, unit.Key, executionID, now.UTC()); err != nil {
+		return eventfact.ExecutionAttempt{}, false, fmt.Errorf("start Event Artifact Unit: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE event_extraction_work_items
@@ -257,6 +392,7 @@ func (s *Store) ClaimNextWork(
 	return eventfact.ExecutionAttempt{
 		ID:       executionID,
 		WorkItem: work,
+		Unit:     unit,
 		Snapshot: snapshot,
 	}, true, nil
 }
@@ -278,11 +414,19 @@ func (s *Store) RetryExtraction(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, `
-		UPDATE event_extraction_work_items
+		UPDATE event_artifact_extraction_units
 		SET status = 'retry_wait', extraction_result = $3,
 		    error_code = 'extractor_model_unavailable', error_summary = $4, updated_at = $5
+		WHERE unit_key = $1 AND current_execution_id = $2
+	`, attempt.Unit.Key, attempt.ID, encoded, errorSummary, now.UTC()); err != nil {
+		return fmt.Errorf("schedule Event Artifact Unit retry: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_extraction_work_items
+		SET status = 'retry_wait',
+		    error_code = 'extractor_model_unavailable', error_summary = $3, updated_at = $4
 		WHERE work_item_key = $1 AND current_execution_id = $2
-	`, attempt.WorkItem.Key, attempt.ID, encoded, errorSummary, now.UTC()); err != nil {
+	`, attempt.WorkItem.Key, attempt.ID, errorSummary, now.UTC()); err != nil {
 		return fmt.Errorf("schedule Event extraction retry: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -321,11 +465,19 @@ func (s *Store) SetAwaitingTagCatalog(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, `
-		UPDATE event_extraction_work_items
+		UPDATE event_artifact_extraction_units
 		SET status = 'awaiting_tag_catalog', extraction_result = $3,
 		    error_code = 'tag_catalog_unavailable', error_summary = $4, updated_at = $5
+		WHERE unit_key = $1 AND current_execution_id = $2
+	`, attempt.Unit.Key, attempt.ID, encoded, errorSummary, now.UTC()); err != nil {
+		return fmt.Errorf("pause Event Artifact Unit for Tag Catalog: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_extraction_work_items
+		SET status = 'awaiting_tag_catalog',
+		    error_code = 'tag_catalog_unavailable', error_summary = $3, updated_at = $4
 		WHERE work_item_key = $1 AND current_execution_id = $2
-	`, attempt.WorkItem.Key, attempt.ID, encoded, errorSummary, now.UTC()); err != nil {
+	`, attempt.WorkItem.Key, attempt.ID, errorSummary, now.UTC()); err != nil {
 		return fmt.Errorf("pause Event extraction for Tag Catalog: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -365,6 +517,13 @@ func (s *Store) SetExecutionCatalog(
 		return fmt.Errorf("snapshot Event Tag Catalog: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units u
+		SET tag_catalog_revision = $2, tag_catalog_hash = $3, updated_at = $4
+		WHERE current_execution_id = $1
+	`, executionID, revision, hash, now.UTC()); err != nil {
+		return fmt.Errorf("snapshot Artifact Unit Tag Catalog: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
 		UPDATE event_extraction_work_items w
 		SET tag_catalog_revision = $2, tag_catalog_hash = $3, updated_at = $4
 		WHERE current_execution_id = $1
@@ -396,20 +555,27 @@ func (s *Store) CompleteExtraction(
 	for _, entry := range journals {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO event_publication_journal (
-				work_item_key, batch_ordinal, package_id, payload_bytes, payload_sha256,
+				work_item_key, unit_key, batch_ordinal, package_id, payload_bytes, payload_sha256,
 				status, created_at, updated_at
-			) VALUES ($1, $2, $3, $4, $5, 'prepared', $6, $6)
+			) VALUES ($1, $2, $3, $4, $5, $6, 'prepared', $7, $7)
 			ON CONFLICT (work_item_key, batch_ordinal) DO NOTHING
-		`, attempt.WorkItem.Key, entry.BatchOrdinal, entry.PackageID, entry.Payload,
+		`, attempt.WorkItem.Key, attempt.Unit.Key, entry.BatchOrdinal, entry.PackageID, entry.Payload,
 			entry.PayloadHash, now.UTC()); err != nil {
 			return fmt.Errorf("persist Event publication journal: %w", err)
 		}
 	}
 	if _, err := tx.Exec(ctx, `
-		UPDATE event_extraction_work_items
+		UPDATE event_artifact_extraction_units
 		SET status = 'ready_to_publish', extraction_result = $3, updated_at = $4
+		WHERE unit_key = $1 AND current_execution_id = $2
+	`, attempt.Unit.Key, attempt.ID, encoded, now.UTC()); err != nil {
+		return fmt.Errorf("complete Event Artifact Unit extraction: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_extraction_work_items
+		SET status = 'ready_to_publish', updated_at = $3
 		WHERE work_item_key = $1 AND current_execution_id = $2
-	`, attempt.WorkItem.Key, attempt.ID, encoded, now.UTC()); err != nil {
+	`, attempt.WorkItem.Key, attempt.ID, now.UTC()); err != nil {
 		return fmt.Errorf("complete Event extraction Work Item: %w", err)
 	}
 	return tx.Commit(ctx)
@@ -444,11 +610,14 @@ func (s *Store) CompleteWithoutPublication(
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-		UPDATE event_extraction_work_items
+		UPDATE event_artifact_extraction_units
 		SET status = $3, extraction_result = $4, updated_at = $5
-		WHERE work_item_key = $1 AND current_execution_id = $2
-	`, attempt.WorkItem.Key, attempt.ID, status, encoded, now.UTC()); err != nil {
-		return fmt.Errorf("complete non-publication Event extraction Work Item: %w", err)
+		WHERE unit_key = $1 AND current_execution_id = $2
+	`, attempt.Unit.Key, attempt.ID, status, encoded, now.UTC()); err != nil {
+		return fmt.Errorf("complete non-publication Event Artifact Unit: %w", err)
+	}
+	if err := refreshEventExtractionWorkStatus(ctx, tx, attempt.WorkItem.Key, now); err != nil {
+		return err
 	}
 	return tx.Commit(ctx)
 }
@@ -483,12 +652,76 @@ func completeEventExtractorExecution(
 	return nil
 }
 
+func refreshEventExtractionWorkStatus(
+	ctx context.Context,
+	tx pgx.Tx,
+	workItemKey string,
+	now time.Time,
+) error {
+	var total, pending, running, awaitingCatalog, retryWait, ready, publishing int
+	var published, noEvents, rejected, blocked int
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*),
+		       count(*) FILTER (WHERE status = 'pending'),
+		       count(*) FILTER (WHERE status = 'running'),
+		       count(*) FILTER (WHERE status = 'awaiting_tag_catalog'),
+		       count(*) FILTER (WHERE status = 'retry_wait'),
+		       count(*) FILTER (WHERE status = 'ready_to_publish'),
+		       count(*) FILTER (WHERE status = 'publishing'),
+		       count(*) FILTER (WHERE status = 'published'),
+		       count(*) FILTER (WHERE status = 'no_events'),
+		       count(*) FILTER (WHERE status = 'rejected'),
+		       count(*) FILTER (WHERE status = 'blocked')
+		FROM event_artifact_extraction_units
+		WHERE work_item_key = $1
+	`, workItemKey).Scan(
+		&total, &pending, &running, &awaitingCatalog, &retryWait, &ready, &publishing,
+		&published, &noEvents, &rejected, &blocked,
+	); err != nil {
+		return fmt.Errorf("summarize Event Artifact Units: %w", err)
+	}
+	status := eventfact.WorkPending
+	switch {
+	case publishing > 0:
+		status = eventfact.WorkPublishing
+	case ready > 0:
+		status = eventfact.WorkReadyToPublish
+	case running > 0:
+		status = eventfact.WorkRunning
+	case retryWait > 0:
+		status = eventfact.WorkRetryWait
+	case awaitingCatalog > 0:
+		status = eventfact.WorkAwaitingTagCatalog
+	case pending > 0 || total == 0:
+		status = eventfact.WorkPending
+	case published > 0 && rejected+blocked > 0:
+		status = eventfact.WorkPartiallyPublished
+	case published > 0:
+		status = eventfact.WorkPublished
+	case noEvents == total:
+		status = eventfact.WorkNoEvents
+	case blocked > 0:
+		status = eventfact.WorkBlocked
+	default:
+		status = eventfact.WorkRejected
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_extraction_work_items
+		SET status = $2, current_execution_id = NULL,
+		    error_code = NULL, error_summary = NULL, updated_at = $3
+		WHERE work_item_key = $1
+	`, workItemKey, status, now.UTC()); err != nil {
+		return fmt.Errorf("refresh Event extraction Batch status: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) ListDeliverableJournals(
 	ctx context.Context,
 	now time.Time,
 ) ([]eventfact.JournalEntry, error) {
 	rows, err := s.database.Query(ctx, `
-		SELECT work_item_key, batch_ordinal, package_id, payload_bytes,
+		SELECT work_item_key, COALESCE(unit_key::text, ''), batch_ordinal, package_id, payload_bytes,
 		       payload_sha256, status, COALESCE(receipt_id, ''), attempt_count
 		FROM event_publication_journal
 		WHERE status IN ('prepared', 'retry_wait')
@@ -503,7 +736,7 @@ func (s *Store) ListDeliverableJournals(
 	for rows.Next() {
 		var entry eventfact.JournalEntry
 		if err := rows.Scan(
-			&entry.WorkItemKey, &entry.BatchOrdinal, &entry.PackageID, &entry.Payload,
+			&entry.WorkItemKey, &entry.UnitKey, &entry.BatchOrdinal, &entry.PackageID, &entry.Payload,
 			&entry.PayloadHash, &entry.Status, &entry.ReceiptID, &entry.AttemptCount,
 		); err != nil {
 			return nil, fmt.Errorf("scan Event publication journal: %w", err)
@@ -591,6 +824,13 @@ func (s *Store) MarkJournalSending(
 		return false, nil
 	}
 	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units
+		SET status = 'publishing', error_code = NULL, error_summary = NULL, updated_at = $2
+		WHERE unit_key = $1 AND status = 'ready_to_publish'
+	`, entry.UnitKey, now.UTC()); err != nil {
+		return false, fmt.Errorf("mark Event Artifact Unit sending: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
 		UPDATE event_extraction_work_items
 		SET status = 'publishing', error_code = NULL, error_summary = NULL, updated_at = $2
 		WHERE work_item_key = $1 AND status IN ('ready_to_publish', 'publishing')
@@ -650,6 +890,19 @@ func (s *Store) updateJournalFailure(
 		workStatus = eventfact.WorkBlocked
 	}
 	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units
+		SET status = $2, error_code = $3, error_summary = $4, updated_at = $5
+		WHERE unit_key = $1
+	`, entry.UnitKey, workStatus, code, summary, now.UTC()); err != nil {
+		return fmt.Errorf("record Event Artifact Unit publication failure: %w", err)
+	}
+	if status == "blocked" {
+		if err := refreshEventExtractionWorkStatus(ctx, tx, entry.WorkItemKey, now); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	if _, err := tx.Exec(ctx, `
 		UPDATE event_extraction_work_items
 		SET status = $2, error_code = $3, error_summary = $4, updated_at = $5
 		WHERE work_item_key = $1
@@ -695,22 +948,15 @@ func (s *Store) AcknowledgeJournal(
 			return fmt.Errorf("record canonical Event fact: %w", err)
 		}
 	}
-	var pending int
-	if err := tx.QueryRow(ctx, `
-		SELECT count(*)
-		FROM event_publication_journal
-		WHERE work_item_key = $1 AND status <> 'acknowledged'
-	`, entry.WorkItemKey).Scan(&pending); err != nil {
-		return fmt.Errorf("count pending Event publications: %w", err)
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units
+		SET status = 'published', error_code = NULL, error_summary = NULL, updated_at = $2
+		WHERE unit_key = $1
+	`, entry.UnitKey, now.UTC()); err != nil {
+		return fmt.Errorf("complete Event Artifact Unit publication: %w", err)
 	}
-	if pending == 0 {
-		if _, err := tx.Exec(ctx, `
-			UPDATE event_extraction_work_items
-			SET status = 'published', error_code = NULL, error_summary = NULL, updated_at = $2
-			WHERE work_item_key = $1
-		`, entry.WorkItemKey, now.UTC()); err != nil {
-			return fmt.Errorf("complete Event publication Work Item: %w", err)
-		}
+	if err := refreshEventExtractionWorkStatus(ctx, tx, entry.WorkItemKey, now); err != nil {
+		return err
 	}
 	return tx.Commit(ctx)
 }

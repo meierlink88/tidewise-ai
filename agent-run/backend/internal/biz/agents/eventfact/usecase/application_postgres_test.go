@@ -85,6 +85,11 @@ func TestPostgresRestartReplaysUnknownPublicationWithoutExtractionClaim(t *testi
 	runtime := func(context.Context) (Runtime, error) {
 		return Runtime{
 			Snapshot: eventFactTestSnapshot(),
+			ReadArtifacts: func(context.Context, []string) ([]eventfact.Artifact, error) {
+				result := approvedResult()
+				result.PublicationArtifacts[0].CollectorExecutionID = collector.ID
+				return result.PublicationArtifacts, nil
+			},
 			Run: func(_ context.Context, input *eventworkflow.Input) (*eventfact.Result, error) {
 				modelCalls++
 				result := approvedResult()

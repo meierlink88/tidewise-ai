@@ -16,9 +16,10 @@ type RunWorkflow func(context.Context, *eventworkflow.Input) (*eventfact.Result,
 type ExtractFacts func(context.Context, *eventfact.ExecutionAttempt) (*eventfact.Result, error)
 
 type Runtime struct {
-	Snapshot     eventfact.ExtractionSnapshot
-	Run          RunWorkflow
-	ExtractFacts ExtractFacts
+	Snapshot      eventfact.ExtractionSnapshot
+	Run           RunWorkflow
+	ExtractFacts  ExtractFacts
+	ReadArtifacts func(context.Context, []string) ([]eventfact.Artifact, error)
 }
 
 type RuntimeProvider func(context.Context) (Runtime, error)
@@ -148,7 +149,8 @@ func (a *Application) Tick(ctx context.Context) error {
 	if _, err := a.repository.DispatchPendingSignals(ctx, eventfact.AgentVersion, now); err != nil {
 		return err
 	}
-	if err := a.deliver(ctx); err != nil {
+	advanced, err := a.deliver(ctx)
+	if err != nil {
 		return err
 	}
 	runtime, err := a.runtime(ctx)
@@ -157,19 +159,51 @@ func (a *Application) Tick(ctx context.Context) error {
 	}
 	if runtime.Run == nil || len(runtime.Snapshot.PromptSHA256) != 64 ||
 		len(runtime.Snapshot.SchemaSHA256) != 64 ||
-		runtime.Snapshot.ProviderKey == "" || runtime.Snapshot.Model == "" {
+		runtime.Snapshot.ProviderKey == "" || runtime.Snapshot.Model == "" ||
+		runtime.ReadArtifacts == nil {
 		return errors.New("Event Fact Extractor runtime is invalid")
+	}
+	unplanned, exists, err := a.repository.NextUnplannedWork(ctx)
+	if err != nil {
+		return err
+	}
+	if exists {
+		artifacts, readErr := runtime.ReadArtifacts(ctx, unplanned.CollectorExecutionIDs)
+		if readErr != nil {
+			return a.repository.RejectUnplannedWork(
+				ctx, unplanned, "Collector Artifacts failed integrity validation", a.now().UTC(),
+			)
+		}
+		summaries := make([]eventfact.ArtifactSummary, 0, len(artifacts))
+		for _, artifact := range artifacts {
+			summaries = append(summaries, eventfact.ArtifactSummary{
+				ArtifactID: artifact.ArtifactID, CollectorExecutionID: artifact.CollectorExecutionID,
+				ContentSHA256: artifact.ContentSHA256,
+			})
+		}
+		if err := a.repository.InitializeArtifactUnits(ctx, unplanned, summaries, a.now().UTC()); err != nil {
+			return err
+		}
 	}
 	attempt, exists, err := a.repository.ClaimNextWork(ctx, runtime.Snapshot, now)
 	if err != nil {
 		return err
 	}
 	if exists {
-		if err := a.extract(ctx, attempt, runtime.Run, runtime.ExtractFacts); err != nil {
+		unitAdvanced, err := a.extract(ctx, attempt, runtime.Run, runtime.ExtractFacts)
+		if err != nil {
 			return err
 		}
+		advanced = advanced || unitAdvanced
 	}
-	return a.deliver(ctx)
+	delivered, err := a.deliver(ctx)
+	if err != nil {
+		return err
+	}
+	if advanced || delivered {
+		a.Notify()
+	}
+	return nil
 }
 
 func (a *Application) extract(
@@ -177,13 +211,13 @@ func (a *Application) extract(
 	attempt eventfact.ExecutionAttempt,
 	run RunWorkflow,
 	extractFacts ExtractFacts,
-) error {
+) (bool, error) {
 	catalog, err := a.data.ActiveEventTags(ctx)
 	if err != nil {
 		partial := decodePersistedResult(attempt)
 		if len(partial.Candidates) == 0 && len(partial.NoEventReason) == 0 {
 			if extractFacts == nil {
-				return errors.New("Event Fact-only extraction runtime is invalid")
+				return false, errors.New("Event Fact-only extraction runtime is invalid")
 			}
 			extracted, extractionErr := extractFacts(ctx, &attempt)
 			if extractionErr != nil {
@@ -191,7 +225,7 @@ func (a *Application) extract(
 				if errors.Is(extractionErr, eventworkflow.ErrExtractionModel) {
 					callCount = 1
 				}
-				return a.repository.RetryExtraction(
+				return false, a.repository.RetryExtraction(
 					ctx, attempt,
 					eventfact.Result{
 						ExecutionID: attempt.ID, ExtractionModelCalls: callCount,
@@ -202,60 +236,71 @@ func (a *Application) extract(
 			partial = *extracted
 		}
 		if status, terminal := preCatalogTerminalStatus(partial); terminal {
-			return a.repository.CompleteWithoutPublication(
+			err := a.repository.CompleteWithoutPublication(
 				ctx, attempt, partial, status, a.now().UTC(),
 			)
+			return err == nil, err
 		}
-		return a.repository.SetAwaitingTagCatalog(
+		return false, a.repository.SetAwaitingTagCatalog(
 			ctx, attempt, partial, "Data Event Tag Catalog is unavailable", a.now().UTC(),
 		)
 	}
 	if err := a.repository.SetExecutionCatalog(
 		ctx, attempt.ID, catalog.Revision, catalog.Hash, a.now().UTC(),
 	); err != nil {
-		return err
+		return false, err
 	}
 	var resume *eventfact.Result
-	if attempt.WorkItem.Status == eventfact.WorkAwaitingTagCatalog {
+	if attempt.Unit.Status == eventfact.WorkAwaitingTagCatalog {
 		persisted := decodePersistedResult(attempt)
 		if len(persisted.Candidates) > 0 || len(persisted.NoEventReason) > 0 {
 			resume = &persisted
 		}
 	}
 	result, err := run(ctx, &eventworkflow.Input{
-		Attempt: attempt, Catalog: catalog, ResumeResult: resume,
+		Attempt: attempt, ArtifactID: attempt.Unit.ArtifactID,
+		Catalog: catalog, ResumeResult: resume,
 	})
 	if err != nil {
 		if errors.Is(err, eventworkflow.ErrExtractionModel) ||
 			errors.Is(err, eventworkflow.ErrReviewModel) ||
 			errors.Is(err, context.DeadlineExceeded) {
-			return a.repository.RetryExtraction(
+			return false, a.repository.RetryExtraction(
 				ctx, attempt,
 				eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
 				"Event Fact model is unavailable", a.now().UTC(),
 			)
 		}
-		return a.repository.CompleteWithoutPublication(
+		a.logger.Error(eventworkflow.FailureCode(err))
+		completeErr := a.repository.CompleteWithoutPublication(
 			ctx, attempt,
 			eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
 			eventfact.WorkRejected, a.now().UTC(),
 		)
+		return completeErr == nil, completeErr
 	}
-	for _, candidate := range result.Candidates {
-		if candidate.ReviewState == eventfact.ReviewManual {
-			return a.repository.CompleteWithoutPublication(
-				ctx, attempt, *result, eventfact.WorkAwaitingReview, a.now().UTC(),
+	for index := range result.Candidates {
+		if result.Candidates[index].ReviewState == eventfact.ReviewManual {
+			result.Candidates[index].ReviewState = eventfact.ReviewRejected
+			result.Candidates[index].Review.SemanticPass = false
+			result.Candidates[index].Review.Reasons = append(
+				result.Candidates[index].Review.Reasons,
+				"当前版本不启用人工审核，未获得 AI 确认的事件不得发布",
 			)
 		}
 	}
-	journals, err := publication.Build(attempt.WorkItem.Key, attempt.WorkItem.ExtractorAgentVersion, *result)
+	journals, err := publication.BuildArtifactUnit(
+		attempt.WorkItem.Key, attempt.Unit.Key, attempt.Unit.ArtifactOrdinal,
+		attempt.WorkItem.ExtractorAgentVersion, *result,
+	)
 	if err != nil {
-		return a.repository.CompleteWithoutPublication(
+		completeErr := a.repository.CompleteWithoutPublication(
 			ctx, attempt, *result, eventfact.WorkRejected, a.now().UTC(),
 		)
+		return completeErr == nil, completeErr
 	}
 	if len(journals) > 0 {
-		return a.repository.CompleteExtraction(ctx, attempt, *result, journals, a.now().UTC())
+		return false, a.repository.CompleteExtraction(ctx, attempt, *result, journals, a.now().UTC())
 	}
 	status := eventfact.WorkNoEvents
 	for _, candidate := range result.Candidates {
@@ -263,7 +308,10 @@ func (a *Application) extract(
 			status = eventfact.WorkRejected
 		}
 	}
-	return a.repository.CompleteWithoutPublication(ctx, attempt, *result, status, a.now().UTC())
+	completeErr := a.repository.CompleteWithoutPublication(
+		ctx, attempt, *result, status, a.now().UTC(),
+	)
+	return completeErr == nil, completeErr
 }
 
 func preCatalogTerminalStatus(result eventfact.Result) (eventfact.WorkStatus, bool) {
@@ -278,16 +326,17 @@ func preCatalogTerminalStatus(result eventfact.Result) (eventfact.WorkStatus, bo
 	return eventfact.WorkRejected, true
 }
 
-func (a *Application) deliver(ctx context.Context) error {
+func (a *Application) deliver(ctx context.Context) (bool, error) {
 	now := a.now().UTC()
 	journals, err := a.repository.ListDeliverableJournals(ctx, now)
 	if err != nil {
-		return err
+		return false, err
 	}
+	advanced := false
 	for _, journal := range journals {
 		claimed, err := a.repository.MarkJournalSending(ctx, journal, now)
 		if err != nil {
-			return err
+			return advanced, err
 		}
 		if !claimed {
 			continue
@@ -299,7 +348,7 @@ func (a *Application) deliver(ctx context.Context) error {
 				if err := a.repository.MarkJournalRetry(
 					ctx, journal, remote.Code, remote.Summary, a.now().UTC(),
 				); err != nil {
-					return err
+					return advanced, err
 				}
 				continue
 			}
@@ -310,30 +359,33 @@ func (a *Application) deliver(ctx context.Context) error {
 			if err := a.repository.MarkJournalBlocked(
 				ctx, journal, code, summary, a.now().UTC(),
 			); err != nil {
-				return err
+				return advanced, err
 			}
+			advanced = true
 			continue
 		}
 		canonical, err := publication.CanonicalEvents(journal.Payload)
 		if err != nil {
-			return a.repository.MarkJournalBlocked(
+			err := a.repository.MarkJournalBlocked(
 				ctx, journal, "stored_payload_invalid",
 				"Stored Event publication payload is invalid", a.now().UTC(),
 			)
+			return advanced, err
 		}
 		if err := a.repository.AcknowledgeJournal(
 			ctx, journal, receiptID, canonical, a.now().UTC(),
 		); err != nil {
-			return err
+			return advanced, err
 		}
+		advanced = true
 	}
-	return nil
+	return advanced, nil
 }
 
 func decodePersistedResult(attempt eventfact.ExecutionAttempt) eventfact.Result {
 	var result eventfact.Result
-	if len(attempt.WorkItem.ExtractionResult) > 0 {
-		_ = json.Unmarshal(attempt.WorkItem.ExtractionResult, &result)
+	if len(attempt.Unit.ExtractionResult) > 0 {
+		_ = json.Unmarshal(attempt.Unit.ExtractionResult, &result)
 	}
 	result.ExecutionID = attempt.ID
 	return result

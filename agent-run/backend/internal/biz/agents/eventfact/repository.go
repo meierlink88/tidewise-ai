@@ -8,6 +8,9 @@ import (
 type Repository interface {
 	DispatchPendingSignals(context.Context, string, time.Time) (int, error)
 	EnqueueWork(context.Context, []string, string, time.Time) (WorkItem, bool, error)
+	NextUnplannedWork(context.Context) (WorkItem, bool, error)
+	InitializeArtifactUnits(context.Context, WorkItem, []ArtifactSummary, time.Time) error
+	RejectUnplannedWork(context.Context, WorkItem, string, time.Time) error
 	ClaimNextWork(context.Context, ExtractionSnapshot, time.Time) (ExecutionAttempt, bool, error)
 	SetAwaitingTagCatalog(context.Context, ExecutionAttempt, Result, string, time.Time) error
 	RetryExtraction(context.Context, ExecutionAttempt, Result, string, time.Time) error
