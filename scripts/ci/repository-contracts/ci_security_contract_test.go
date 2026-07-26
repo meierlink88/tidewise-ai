@@ -36,6 +36,7 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
 
 	for _, required := range []string{
+		"name: Repository Governance",
 		"name: Data Service",
 		"name: Miniapp",
 		"name: Admin Portal",
@@ -45,13 +46,23 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 		"bash scripts/ci/detect-app-change.sh miniapp",
 		"bash scripts/ci/detect-app-change.sh adminportal",
 		"bash scripts/ci/detect-app-change.sh agentrun",
-		"go test -race ./analyse-data-service/backend/... ./scripts/ci/repository-contracts",
-		"go test -race ./miniapp/backend/... -count=1",
-		"go test -race ./admin-portal/backend/... -count=1",
-		"go test -race ./agent-run/backend/... -count=1",
+		"bash scripts/ci/detect-test-risk.sh repository",
+		"bash scripts/ci/detect-test-risk.sh data",
+		"bash scripts/ci/detect-test-risk.sh miniapp",
+		"bash scripts/ci/detect-test-risk.sh adminportal",
+		"bash scripts/ci/detect-test-risk.sh agentrun",
+		"Test Data Biz and API seams",
+		"Test Miniapp Biz and API seams",
+		"Test Admin Portal Biz and API seams",
+		"Test AgentRun Biz, API and Eino seams",
+		"Test Data PostgreSQL boundaries",
+		"Test Data migration chain",
+		"Test AgentRun Data, migration and provider boundaries",
 		"scripts/ci/check-prettier-diff.sh",
 		"npm run test:miniapp",
 		"npm run test:admin",
+		"npm run build:weapp",
+		"npm run build:tt",
 		"npm run lint",
 		"bash scripts/ci/scan-git-secrets.sh",
 		"actions/upload-artifact@",
@@ -66,6 +77,10 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 		"name: Backend",
 		"name: Frontend",
 		"name: Detect changed applications",
+		"go test -race ./analyse-data-service/backend/...",
+		"go test -race ./miniapp/backend/...",
+		"go test -race ./admin-portal/backend/...",
+		"go test -race ./agent-run/backend/...",
 	} {
 		if strings.Contains(workflow, forbidden) {
 			t.Fatalf("CI workflow contains obsolete top-level task %q", forbidden)

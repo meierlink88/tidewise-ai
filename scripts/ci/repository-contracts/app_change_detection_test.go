@@ -92,6 +92,180 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 	}
 }
 
+func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
+	tests := []struct {
+		name  string
+		scope string
+		path  string
+		want  map[string]bool
+	}{
+		{
+			name:  "Data Biz change uses default seams",
+			scope: "data",
+			path:  "analyse-data-service/backend/internal/biz/research/service.go",
+			want:  map[string]bool{"default": true},
+		},
+		{
+			name:  "Data migration change selects real Data and migration boundaries",
+			scope: "data",
+			path:  "analyse-data-service/backend/migrations/000099_example.sql",
+			want:  map[string]bool{"default": true, "data": true, "migration": true},
+		},
+		{
+			name:  "Data migration implementation selects the migration suite",
+			scope: "data",
+			path:  "analyse-data-service/backend/internal/data/dbmigration/executor.go",
+			want:  map[string]bool{"default": true, "data": true, "migration": true},
+		},
+		{
+			name:  "Miniapp frontend change does not select Backend suites",
+			scope: "miniapp",
+			path:  "miniapp/frontend/src/pages/index.tsx",
+			want:  map[string]bool{"frontend": true},
+		},
+		{
+			name:  "Miniapp Data adapter selects its provider contract",
+			scope: "miniapp",
+			path:  "miniapp/backend/internal/data/client.go",
+			want:  map[string]bool{"default": true, "data": true, "provider_consumer": true},
+		},
+		{
+			name:  "Admin sees a changed AgentRun provider contract without running unrelated defaults",
+			scope: "adminportal",
+			path:  "agent-run/backend/api/agentrun/v1/admin.go",
+			want:  map[string]bool{"provider_consumer": true},
+		},
+		{
+			name:  "AgentRun Eino workflow remains a default Biz seam",
+			scope: "agentrun",
+			path:  "agent-run/backend/internal/biz/agents/collector/workflow/workflow.go",
+			want:  map[string]bool{"default": true},
+		},
+		{
+			name:  "AgentRun connector selects a real Adapter contract",
+			scope: "agentrun",
+			path:  "agent-run/backend/internal/data/connectors/search.go",
+			want:  map[string]bool{"default": true, "data": true, "provider_consumer": true},
+		},
+		{
+			name:  "AgentRun embedded migration selects its PostgreSQL migration seam",
+			scope: "agentrun",
+			path:  "agent-run/backend/internal/data/postgres/migrations/006_example.sql",
+			want:  map[string]bool{"default": true, "data": true, "migration": true},
+		},
+		{
+			name:  "AgentRun migration implementation selects its PostgreSQL migration seam",
+			scope: "agentrun",
+			path:  "agent-run/backend/internal/data/postgres/migrations.go",
+			want:  map[string]bool{"default": true, "data": true, "migration": true},
+		},
+		{
+			name:  "Shared Go module selects every Backend risk affected by dependencies",
+			scope: "data",
+			path:  "go.mod",
+			want: map[string]bool{
+				"default": true, "data": true, "migration": true,
+				"conf_lifecycle": true, "provider_consumer": true,
+			},
+		},
+		{
+			name:  "Shared frontend lockfile selects frontend behavior",
+			scope: "miniapp",
+			path:  "package-lock.json",
+			want:  map[string]bool{"frontend": true},
+		},
+		{
+			name:  "CI workflow selects container contracts",
+			scope: "data",
+			path:  ".github/workflows/ci.yml",
+			want:  map[string]bool{"container": true},
+		},
+		{
+			name:  "Runtime configuration selects the conditional lifecycle seam",
+			scope: "adminportal",
+			path:  "admin-portal/backend/internal/conf/config.go",
+			want:  map[string]bool{"default": true, "conf_lifecycle": true},
+		},
+		{
+			name:  "Container change does not repeat application tests",
+			scope: "miniapp",
+			path:  "miniapp/backend/Dockerfile",
+			want:  map[string]bool{"container": true},
+		},
+		{
+			name:  "Repository governance follows Backend dependency changes",
+			scope: "repository",
+			path:  "miniapp/backend/internal/biz/research.go",
+			want:  map[string]bool{"architecture": true},
+		},
+		{
+			name:  "Repository governance follows CI workflow changes",
+			scope: "repository",
+			path:  ".github/workflows/ci.yml",
+			want:  map[string]bool{"architecture": true},
+		},
+	}
+
+	script, err := filepath.Abs(filepath.Join(repositoryRoot(), "scripts", "ci", "detect-test-risk.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := t.TempDir()
+			runTestCommand(t, repo, "git", "init", "-q")
+			runTestCommand(t, repo, "git", "config", "user.name", "CI Contract")
+			runTestCommand(t, repo, "git", "config", "user.email", "ci-contract@example.invalid")
+			writeChangeDetectionFixture(t, repo, "README.md", "baseline\n")
+			runTestCommand(t, repo, "git", "add", ".")
+			runTestCommand(t, repo, "git", "commit", "-q", "-m", "baseline")
+			base := strings.TrimSpace(runTestCommand(t, repo, "git", "rev-parse", "HEAD"))
+
+			writeChangeDetectionFixture(t, repo, tt.path, "changed\n")
+			runTestCommand(t, repo, "git", "add", ".")
+			runTestCommand(t, repo, "git", "commit", "-q", "-m", "change")
+			head := strings.TrimSpace(runTestCommand(t, repo, "git", "rev-parse", "HEAD"))
+
+			outputFile := filepath.Join(repo, tt.scope+".output")
+			cmd := exec.Command("bash", script, tt.scope)
+			cmd.Dir = repo
+			cmd.Env = append(os.Environ(),
+				"BASE_SHA="+base,
+				"HEAD_SHA="+head,
+				"GITHUB_OUTPUT="+outputFile,
+			)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("detect %s risks: %v: %s", tt.scope, err, output)
+			}
+			result, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := parseRiskOutputs(string(result))
+			for _, risk := range []string{
+				"default", "frontend", "data", "migration", "conf_lifecycle",
+				"provider_consumer", "container", "architecture",
+			} {
+				if got[risk] != tt.want[risk] {
+					t.Fatalf("%s = %t, want %t; output=%q", risk, got[risk], tt.want[risk], result)
+				}
+			}
+		})
+	}
+}
+
+func parseRiskOutputs(output string) map[string]bool {
+	result := map[string]bool{}
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			result[key] = value == "true"
+		}
+	}
+	return result
+}
+
 func writeChangeDetectionFixture(t *testing.T, root, name, contents string) {
 	t.Helper()
 	path := filepath.Join(root, filepath.FromSlash(name))

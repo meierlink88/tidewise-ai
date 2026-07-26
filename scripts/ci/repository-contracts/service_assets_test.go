@@ -148,6 +148,7 @@ func TestAgentRunMigrationManifestAccountsForEveryFrozenTrackedFile(t *testing.T
 		"moved":                   true,
 		"merged":                  true,
 		"superseded-as-duplicate": true,
+		"retired-low-value-test":  true,
 	}
 	seen := make(map[string]bool, len(lines)-1)
 	for lineNumber, line := range lines[1:] {
@@ -162,6 +163,12 @@ func TestAgentRunMigrationManifestAccountsForEveryFrozenTrackedFile(t *testing.T
 		seen[source] = true
 		if !allowed[disposition] {
 			t.Fatalf("AgentRun source asset %q has unsupported disposition %q", source, disposition)
+		}
+		if disposition == "retired-low-value-test" {
+			if destinations != "-" {
+				t.Fatalf("retired AgentRun test %q destination = %q, want -", source, destinations)
+			}
+			continue
 		}
 		for _, destination := range strings.Split(destinations, ";") {
 			if destination == "" {
@@ -230,7 +237,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"cache-dependency-path: go.sum",
 		"go test ./analyse-data-service/backend/api/data/v1 ./miniapp/backend/internal/data",
 		"go test ./analyse-data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
-		"go test ./scripts/ci/repository-contracts",
+		"go test ./scripts/ci/repository-contracts -count=1",
 		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
 		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server",
@@ -239,7 +246,8 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"-f miniapp/backend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",
 		"-f agent-run/backend/Dockerfile",
-		"go test -race ./agent-run/backend/... -count=1",
+		"Test AgentRun Biz, API and Eino seams",
+		"Test AgentRun Data, migration and provider boundaries",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
@@ -259,7 +267,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	if strings.Contains(text, "docker build -f Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
 	}
-	for _, job := range []string{"data", "miniapp", "adminportal", "agentrun", "security"} {
+	for _, job := range []string{"governance", "data", "miniapp", "adminportal", "agentrun", "security"} {
 		if strings.Count(text, "\n  "+job+":") != 1 {
 			t.Fatalf("CI must expose exactly one top-level %s job", job)
 		}
@@ -272,6 +280,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	}
 	for _, required := range []string{
 		"name: Data Service",
+		"name: Repository Governance",
 		"name: Miniapp",
 		"name: Admin Portal",
 		"name: AgentRun",
@@ -280,7 +289,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"bash scripts/ci/detect-app-change.sh adminportal",
 		"bash scripts/ci/detect-app-change.sh agentrun",
 		"POSTGRES_DB: tidewise_ai_server_test",
-		"Test AgentRun PostgreSQL boundaries",
+		"Test AgentRun Data, migration and provider boundaries",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("unified AgentRun CI job missing %q", required)

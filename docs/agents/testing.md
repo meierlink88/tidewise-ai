@@ -1,8 +1,8 @@
-# Backend Testing Workflow
+# Risk-boundary Testing Workflow
 
-本规则适用于 Tidewise AI 中采用 Kratos Layout 的 Backend Service。它把 TDD 约束在
-有业务价值的测试边界上，而不是要求每个目录、类型或源码文件机械对应一个测试。
-Miniapp Frontend 与 Agent/Eino 使用各自开发规范中的测试策略。
+本规则适用于 Tidewise AI 的四个 Kratos Backend、Miniapp/Admin Portal Frontend、
+AgentRun/Eino 与 CI。它把 TDD 约束在有业务价值的测试边界上，而不是要求每个目录、
+类型或源码文件机械对应一个测试。
 
 ## 核心原则
 
@@ -42,17 +42,50 @@ API 测试不重复 Biz 的完整业务规则矩阵。一个成功样例和受�
 
 以下测试仅在本次变更触及对应风险时启用：
 
-| 变更 | 必要测试 |
-| --- | --- |
-| SQL、事务、Repository、缓存或远端 HTTP Client | Data 集成或 Adapter 契约测试 |
-| Schema、约束、索引或 forward migration | Migration/Schema 测试 |
-| 配置默认值、必填项、环境覆盖或安全校验 | Conf 测试 |
-| 启动失败、信号、优雅停机、资源释放 | Lifecycle 测试 |
-| Service 边界、依赖方向或目录所有权 | 集中式 Architecture 测试 |
-| Provider/Consumer API 合同 | 双方合同测试和必要的 HTTP smoke |
-| Docker、运行镜像或部署入口 | Binary/Container 构建和必要 smoke |
+| 变更                                          | 必要测试                          |
+| --------------------------------------------- | --------------------------------- |
+| SQL、事务、Repository、缓存或远端 HTTP Client | Data 集成或 Adapter 契约测试      |
+| Schema、约束、索引或 forward migration        | Migration/Schema 测试             |
+| 配置默认值、必填项、环境覆盖或安全校验        | Conf 测试                         |
+| 启动失败、信号、优雅停机、资源释放            | Lifecycle 测试                    |
+| Service 边界、依赖方向或目录所有权            | 集中式 Architecture 测试          |
+| Provider/Consumer API 合同                    | 双方合同测试和必要的 HTTP smoke   |
+| Docker、运行镜像或部署入口                    | Binary/Container 构建和必要 smoke |
 
 未修改这些边界时，不因一次普通 Biz 或 API 变更重复运行或新增对应测试。
+
+## Frontend 与 AgentRun
+
+Miniapp Frontend 与 Admin Portal Frontend 默认只保留：
+
+- 关键页面、组件交互和导航行为；
+- typed API Adapter 合同；
+- 状态变化以及用户可见的 loading、error、empty、retry 行为；
+- typecheck 与受影响目标构建。
+
+CSS 细节、构建配置源码、简单 presentation mapping 和重复 Mock fixture 不单独测试；
+平台差异或安全失败逻辑确有独立行为时除外。
+
+AgentRun 的 Eino Workflow、调度和 Agent 能力中会改变可观察结果的行为归入 Biz seam。
+测试使用真实编译的 Eino 编排和 fake model、Tool、Connector、Provider；Provider
+协议、Artifact 持久化和 PostgreSQL 事务归入条件 Data/Adapter seam。
+
+## CI 套件选择
+
+CI 先按应用边界选择 Data、Miniapp、Admin Portal 或 AgentRun，再按变更路径选择：
+
+- 默认 Biz/API；
+- Frontend；
+- Data/Adapter；
+- Migration；
+- Conf/Lifecycle；
+- Provider/Consumer；
+- Container；
+- 集中式 Architecture。
+
+同一 package 不得先作为 focused suite 执行，再被同一 job 的无条件递归全量命令重复
+执行。仓库级 Architecture/CI 合同由单独的治理 job 最多执行一次。格式化、vet、
+typecheck、binary build 和目标平台 build 仍按受影响应用执行，它们不由单元测试替代。
 
 ## 默认不测试
 
@@ -83,25 +116,41 @@ API 测试不重复 Biz 的完整业务规则矩阵。一个成功样例和受�
 ## 测试边界
 
 默认测试：
-- Biz seam：
-- API/HTTP seam：
+
+- Biz seam：涉及 / 不涉及，最高可观察行为：
+- API/HTTP seam：涉及 / 不涉及，合同：
+- Frontend seam：不涉及 / 涉及，页面、Adapter 或状态：
+- AgentRun/Eino seam：不涉及 / 涉及，真实编排与 fake 边界：
 
 条件测试：
+
 - Data：不涉及 / 涉及，原因：
 - Migration：不涉及 / 涉及，原因：
 - Conf/Lifecycle：不涉及 / 涉及，原因：
 - Architecture：不涉及 / 涉及，原因：
-- Provider/Consumer 或 Container：不涉及 / 涉及，原因：
+- Provider/Consumer：不涉及 / 涉及，原因：
+- Container：不涉及 / 涉及，原因：
+
+完成验证：
+
+- Red/Green 期间的 focused test：
+- 完成时只运行一次的 affected suite：
+- typecheck/vet/build：
 
 明确不测：
-- 简单映射、构造和框架胶水
+
+- 简单映射、构造、框架胶水及其他实现细节：
 ```
 
 ## 既有测试清理
 
-不因本规则一次性批量删除既有测试。修改相关模块时逐步处理：
+删除或合并既有测试前，将其归入下列一类并在任务审计中记录：
 
-- 删除与 Biz 测试重复的 Handler 业务矩阵；
-- 删除只验证私有实现、简单构造或机械映射的测试；
-- 保留 SQL、事务、migration、外部协议和错误清洗等高价值测试；
-- 每次删除前确认仍有一个更强的公开行为 seam 防止回归。
+- `duplicated-by-stronger-seam`：行为已经由更高的 Biz、API/HTTP 或页面 seam 完整覆盖；
+- `implementation-only`：只验证私有实现、构造、机械映射、目录或配置源码；
+- `obsolete`：对应行为或受支持工作流已经退出；
+- `consolidated`：合并到更小的真实风险边界套件。
+
+Data 层 Mock 矩阵、逐 Repository 方法测试和机械 PO/DTO 映射默认删除。SQL、事务、
+constraint、复杂查询、Migration forward chain、远端协议和错误清洗只保留最少的真实
+边界用例。fixture 只有在仍有保留测试或受支持本地工作流引用时才能继续存在。

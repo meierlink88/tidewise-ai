@@ -322,6 +322,9 @@ func openIsolatedMigrationDatabase(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	config.RuntimeParams["search_path"] = schema
+	config.RuntimeParams["tidewise.phase_a_cleanup_write_authorized"] = "reviewed_backup_verified"
+	config.RuntimeParams["tidewise.external_identifier_schema_write_authorized"] = "reviewed_backup_verified"
+	config.RuntimeParams["tidewise.alliance_economy_schema_write_authorized"] = "reviewed_local_cleanup_verified"
 	db := stdlib.OpenDB(*config)
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()

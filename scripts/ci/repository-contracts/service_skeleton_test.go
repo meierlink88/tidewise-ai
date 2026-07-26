@@ -17,18 +17,48 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	for _, suffix := range []string{
 		"analyse-data-service/backend/api/data/v1",
 		"analyse-data-service/backend/cmd/server",
+		"analyse-data-service/backend/internal/conf",
+		"analyse-data-service/backend/internal/server",
+		"analyse-data-service/backend/internal/service",
 		"miniapp/backend/api/miniapp/v1",
 		"miniapp/backend/cmd/server",
+		"miniapp/backend/internal/biz",
+		"miniapp/backend/internal/conf",
+		"miniapp/backend/internal/data",
+		"miniapp/backend/internal/server",
+		"miniapp/backend/internal/service",
 		"admin-portal/backend/api/admin/v1",
 		"admin-portal/backend/cmd/server",
+		"admin-portal/backend/internal/biz",
+		"admin-portal/backend/internal/conf",
+		"admin-portal/backend/internal/data",
+		"admin-portal/backend/internal/server",
+		"admin-portal/backend/internal/service",
 		"agent-run/backend/api/agentrun/v1",
 		"agent-run/backend/cmd/server",
 		"agent-run/backend/cmd/migrate",
 		"agent-run/backend/cmd/config",
 		"agent-run/backend/cmd/artifacts",
+		"agent-run/backend/internal/conf",
+		"agent-run/backend/internal/server",
+		"agent-run/backend/internal/service",
 	} {
 		if !hasPackageSuffix(packages, suffix) {
 			t.Errorf("expected service-owned package %q to exist", suffix)
+		}
+	}
+
+	for _, service := range []string{
+		"analyse-data-service/backend",
+		"miniapp/backend",
+		"admin-portal/backend",
+		"agent-run/backend",
+	} {
+		for _, layer := range []string{"conf", "biz", "data", "service", "server"} {
+			path := filepath.Join(repositoryRoot(), service, "internal", layer)
+			if info, err := os.Stat(path); err != nil || !info.IsDir() {
+				t.Errorf("expected Kratos layer directory %q to exist: %v", path, err)
+			}
 		}
 	}
 }
@@ -62,6 +92,9 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 			if strings.HasPrefix(dependency, "github.com/cloudwego/eino") {
 				t.Fatalf("%s binary unexpectedly includes Eino dependency %q", name, dependency)
 			}
+			if dependency == "github.com/gin-gonic/gin" {
+				t.Fatalf("%s binary unexpectedly includes Gin", name)
+			}
 		}
 	}
 
@@ -83,6 +116,7 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"github.com/cohesion-org/deepseek-go",
+		"github.com/gin-gonic/gin",
 		"github.com/ollama/ollama",
 	} {
 		for _, dependency := range agentRunDependencies {
@@ -90,6 +124,119 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 				t.Fatalf("AgentRun binary unexpectedly includes vulnerable dependency %q", dependency)
 			}
 		}
+	}
+}
+
+func TestKratosLayersFollowOneCentralDependencyPolicy(t *testing.T) {
+	packages := listServicePackages(t)
+	for _, pkg := range packages {
+		local := localPackageName(pkg.ImportPath)
+		service := deployableService(local)
+		if service == "" {
+			continue
+		}
+		root := serviceRoot(service)
+		for _, imported := range pkg.Imports {
+			if service == "agent-run" &&
+				strings.HasPrefix(imported, "github.com/cloudwego/eino-ext/") &&
+				!strings.Contains(local, "/internal/data/modelprovider/") {
+				t.Fatalf("%s imports concrete Eino provider %s outside internal/data/modelprovider", local, imported)
+			}
+			switch {
+			case strings.Contains(local, "/api/"):
+				assertImportOutside(t, local, imported, root+"/internal/")
+			case strings.Contains(local, "/internal/biz"):
+				assertImportOutside(
+					t,
+					local,
+					imported,
+					root+"/internal/data",
+					root+"/internal/service",
+					root+"/internal/server",
+					"database/sql",
+					"net/http",
+					"github.com/go-kratos/kratos/v3/transport/http",
+				)
+			case strings.Contains(local, "/internal/data"):
+				assertImportOutside(
+					t,
+					local,
+					imported,
+					root+"/api/",
+					root+"/internal/service",
+					root+"/internal/server",
+				)
+			case strings.Contains(local, "/internal/service"):
+				assertImportOutside(
+					t,
+					local,
+					imported,
+					root+"/internal/data",
+					root+"/internal/server",
+				)
+			case strings.Contains(local, "/internal/server"):
+				assertImportOutside(t, local, imported, root+"/internal/biz", root+"/internal/data")
+			case strings.Contains(local, "/internal/conf"):
+				assertImportOutside(
+					t,
+					local,
+					imported,
+					root+"/api/",
+					root+"/internal/biz",
+					root+"/internal/data",
+					root+"/internal/service",
+					root+"/internal/server",
+				)
+			}
+		}
+	}
+}
+
+func TestDeployableServicesUseExplicitConstructionWithoutWire(t *testing.T) {
+	root := repositoryRoot()
+	for _, service := range []string{
+		"analyse-data-service/backend",
+		"miniapp/backend",
+		"admin-portal/backend",
+		"agent-run/backend",
+	} {
+		err := filepath.WalkDir(filepath.Join(root, service), func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !entry.IsDir() && (entry.Name() == "wire.go" || entry.Name() == "wire_gen.go") {
+				t.Errorf("%s must use explicit constructors; found %s", service, path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func assertImportOutside(t *testing.T, owner, imported string, forbidden ...string) {
+	t.Helper()
+	imported = localPackageName(imported)
+	for _, prefix := range forbidden {
+		if imported == prefix || strings.HasPrefix(imported, prefix+"/") {
+			t.Fatalf("%s imports forbidden dependency %s", owner, imported)
+		}
+	}
+}
+
+func serviceRoot(service string) string {
+	switch service {
+	case "analyse-data-service":
+		return "analyse-data-service/backend"
+	case "miniapp":
+		return "miniapp/backend"
+	case "admin-portal":
+		return "admin-portal/backend"
+	case "agent-run":
+		return "agent-run/backend"
+	default:
+		return ""
 	}
 }
 

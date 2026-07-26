@@ -86,3 +86,16 @@ WHERE source_system=$1 AND source_taxonomy_type=$2 AND external_code=$3`, identi
 		t.Fatalf("stored external identities = %d, want 1", count)
 	}
 }
+
+func firstBatchExternalIdentifier(entityKey, source, taxonomy, code, name string) model.EntityExternalIdentifier {
+	identity := externalIdentifierIdentity(source, taxonomy, code)
+	return model.EntityExternalIdentifier{
+		ID:                 externalIdentifierSeedUUID(identity),
+		EntityID:           entitySeedUUID(entityKey),
+		SourceSystem:       source,
+		SourceTaxonomyType: taxonomy,
+		ExternalCode:       code,
+		ExternalName:       name,
+		Status:             model.StatusActive,
+	}
+}
