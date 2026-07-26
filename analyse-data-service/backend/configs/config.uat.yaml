@@ -12,7 +12,7 @@ database:
   host: 775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com
   port: 5432
   name: tidewise_uat
-  user: tidewise
+  user: tidewise_uat
   ssl_mode: require
   max_open_conns: 20
   max_idle_conns: 10
