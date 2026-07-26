@@ -154,7 +154,7 @@ PY
 agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
 agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '2p')"
 
-database_identity="tidewise@config.uat.yaml/tidewise_uat"
+database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
 
 {
   echo "### UAT migration preflight"

@@ -189,12 +189,15 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 		}
 	}
 	dataConfig := readContractFile(t, filepath.Join(root, "analyse-data-service", "backend", "configs", "config.uat.yaml"))
-	for _, required := range []string{"ssl_mode: require", "auto_apply: false"} {
+	for _, required := range []string{"user: tidewise_uat", "ssl_mode: require", "auto_apply: false"} {
 		if !strings.Contains(dataConfig, required) {
 			t.Fatalf("Data UAT config missing %q", required)
 		}
 	}
 	agentRunConfig := readContractFile(t, filepath.Join(root, "agent-run", "backend", "configs", "config.uat.yaml"))
+	if !strings.Contains(agentRunConfig, "user: agentrun_uat") {
+		t.Fatal("AgentRun UAT config must use the audited RDS role agentrun_uat")
+	}
 	const privateRDSHost = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
 	for service, config := range map[string]string{"Data": dataConfig, "AgentRun": agentRunConfig} {
 		if !strings.Contains(config, "host: "+privateRDSHost) ||

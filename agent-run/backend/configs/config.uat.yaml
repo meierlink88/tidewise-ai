@@ -8,7 +8,7 @@ database:
   host: 775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com
   port: 5432
   name: tidewise_ai_server
-  user: agentrun
+  user: agentrun_uat
   ssl_mode: require
   connect_timeout_seconds: 10
 artifact:
