@@ -2,6 +2,7 @@ package architecture
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -22,6 +23,7 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]",
 		"environment: uat",
 		"SWR_PULL_USERNAME",
+		"SWR_DEPLOY_REPOSITORY",
 		"UAT_PUBLIC_BASE_URL",
 		"TIDEWISW_DB_PASSWORD",
 		"AGENTRUN_DB_PASSWORD",
@@ -31,6 +33,10 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
+		"Stage immutable UAT deployment bundle",
+		"Build and push immutable UAT deployment bundle",
+		"deploy_bundle_image",
+		"sha256sum --check",
 		"actions/upload-artifact@",
 	} {
 		if !strings.Contains(workflow, required) {
@@ -49,6 +55,44 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 	}
 }
 
+func TestUATDeployJobConsumesSWRBundleWithoutGitHubCheckout(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	parts := strings.SplitN(workflow, "\n  deploy:\n", 2)
+	if len(parts) != 2 {
+		t.Fatal("UAT workflow is missing the deploy job")
+	}
+	deploy := parts[1]
+	for _, required := range []string{
+		"DEPLOY_BUNDLE_IMAGE:",
+		"docker pull \"$DEPLOY_BUNDLE_IMAGE\"",
+		"docker create \"$DEPLOY_BUNDLE_IMAGE\"",
+		"sha256sum --check SHA256SUMS",
+		"RELEASE_SHA",
+		"CONTROL_PLANE_SHA",
+	} {
+		if !strings.Contains(deploy, required) {
+			t.Fatalf("UAT deploy job does not verify the SWR deployment bundle contract %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		"actions/checkout@",
+		"github.com",
+		"git ls-remote",
+	} {
+		if strings.Contains(deploy, forbidden) {
+			t.Fatalf("UAT deploy job still depends on GitHub repository access %q", forbidden)
+		}
+	}
+
+	preflight := readContractFile(t, filepath.Join(root, "infra", "uat", "preflight.sh"))
+	for _, forbidden := range []string{"github.com", "git ls-remote"} {
+		if strings.Contains(preflight, forbidden) {
+			t.Fatalf("UAT preflight still requires GitHub repository access %q", forbidden)
+		}
+	}
+}
+
 func TestUATWorkflowUsesImmutableMainControlPlaneForHistoricalRelease(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
@@ -57,15 +101,82 @@ func TestUATWorkflowUsesImmutableMainControlPlaneForHistoricalRelease(t *testing
 		"ref: ${{ github.sha }}",
 		"path: .uat-control",
 		"sparse-checkout: infra/uat",
-		".uat-control/infra/uat/preflight.sh",
-		".uat-control/infra/uat/deploy.sh",
-		".uat-control/infra/uat/collect-diagnostics.sh",
-		".uat-control/infra/uat/migration-risk.tsv",
-		".uat-control/infra/uat/agentrun-migration-risk.tsv",
+		"CONTROL_PLANE_SHA: ${{ github.sha }}",
+		".uat-control/infra/uat/stage-deploy-bundle.sh",
+		"CONTROL_PLANE_SHA",
+		"steps.bundle.outputs.control_root",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("UAT workflow does not pin trusted control plane contract %q", required)
 		}
+	}
+}
+
+func TestStageUATDeployBundlePinsIdentityAndChecksums(t *testing.T) {
+	root := repositoryRoot()
+	temp := t.TempDir()
+	releaseRoot := filepath.Join(temp, "release")
+	controlRoot := filepath.Join(temp, "control")
+	bundleRoot := filepath.Join(temp, "bundle")
+
+	fixtures := map[string]string{
+		filepath.Join(releaseRoot, "infra/uat/docker-compose.yaml"):                        "release-compose\n",
+		filepath.Join(releaseRoot, "analyse-data-service/backend/configs/config.uat.yaml"): "data-config\n",
+		filepath.Join(releaseRoot, "agent-run/backend/configs/config.uat.yaml"):            "agentrun-config\n",
+		filepath.Join(controlRoot, "infra/uat/preflight.sh"):                               "preflight\n",
+		filepath.Join(controlRoot, "infra/uat/deploy.sh"):                                  "deploy\n",
+		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):                     "diagnostics\n",
+		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                         "data-risk\n",
+		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):                "agentrun-risk\n",
+	}
+	for path, content := range fixtures {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	releaseSHA := strings.Repeat("a", 40)
+	controlSHA := strings.Repeat("b", 40)
+	command := exec.Command(
+		"bash",
+		filepath.Join(root, "infra", "uat", "stage-deploy-bundle.sh"),
+		releaseRoot,
+		controlRoot,
+		bundleRoot,
+		releaseSHA,
+		controlSHA,
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("stage deploy bundle: %v\n%s", err, output)
+	}
+
+	metadata := readContractFile(t, filepath.Join(bundleRoot, "metadata.env"))
+	for _, expected := range []string{
+		"RELEASE_SHA=" + releaseSHA,
+		"CONTROL_PLANE_SHA=" + controlSHA,
+	} {
+		if !strings.Contains(metadata, expected) {
+			t.Fatalf("deployment bundle metadata is missing %q", expected)
+		}
+	}
+
+	check := exec.Command("sha256sum", "--check", "SHA256SUMS")
+	check.Dir = bundleRoot
+	if output, err := check.CombinedOutput(); err != nil {
+		t.Fatalf("deployment bundle checksum verification failed: %v\n%s", err, output)
+	}
+
+	compose := filepath.Join(bundleRoot, "release", "infra", "uat", "docker-compose.yaml")
+	if err := os.WriteFile(compose, []byte("tampered\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	check = exec.Command("sha256sum", "--check", "SHA256SUMS")
+	check.Dir = bundleRoot
+	if err := check.Run(); err == nil {
+		t.Fatal("deployment bundle checksum verification accepted tampered content")
 	}
 }
 

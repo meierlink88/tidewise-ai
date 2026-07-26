@@ -8,8 +8,14 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 默认发布 `main` 最新提交；回滚或复验可填写 `main` 历史提交的完整 40 位 SHA。
 - 目标提交必须属于 `main`，且同一 SHA 的 `CI` workflow 必须成功。
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
-- GitHub-hosted runner 构建五个 `linux/amd64` 镜像并推送到 SWR，镜像 tag 固定为 Git commit SHA。
-- ECS runner 负责 preflight、SWR 拉取、AgentRun Artifact 写入探针、Data migration、Compose 启动、两层健康检查和失败时的整套镜像回退。
+- GitHub-hosted runner 构建五个 `linux/amd64` 业务镜像和一个 UAT deployment
+  bundle image 并推送到 SWR，tag 固定为 Git commit SHA。
+- Deployment bundle 包含 release Compose/UAT 配置和受信 control-plane
+  脚本/风险清单；ECS 使用 build job 返回的 image digest 拉取，并在 migration 前
+  校验 release SHA、control-plane SHA 和逐文件 SHA-256。
+- ECS runner 不 checkout Git repository，只负责 SWR 制品拉取、preflight、
+  AgentRun Artifact 写入探针、Data/AgentRun migration、Compose 启动、两层健康
+  检查和失败时的整套镜像回退。
 
 ## ECS runner 与目录
 
@@ -64,6 +70,7 @@ Variables：
 | `SWR_ADMINPORTAL_REPOSITORY` | Admin Portal Backend 镜像仓库名 |
 | `SWR_ADMIN_REPOSITORY` | Admin Portal Frontend 镜像仓库名 |
 | `SWR_AGENTRUN_REPOSITORY` | AgentRun 镜像仓库名 |
+| `SWR_DEPLOY_REPOSITORY` | UAT deployment bundle 镜像仓库名 |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
 
@@ -136,7 +143,8 @@ Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分�
 
 1. 确认 RDS 自动备份和 PITR 已启用，并确认 ECS 可通过私网访问 RDS。
 2. 创建 RDS 数据库与最小权限用户，并配置 VPC 私网访问。
-3. 创建五个 SWR 私有仓库和相互独立的 push/pull 凭据。
+3. 创建五个业务镜像 SWR 私有仓库和一个 deployment bundle SWR 私有仓库，并配置
+   相互独立的 push/pull 凭据。
 4. 配置 GitHub `uat` Environment Variables 与 Secrets。
 5. 将 ECS runner 迁移到 `tidewise-deploy`，添加专属标签，并创建固定部署目录。
 6. 从 `main` 手工运行 `Deploy UAT`。如 check-only 报告包含高风险 migration，核验恢复点后重新勾选确认项执行。
