@@ -89,6 +89,12 @@ rollback_current_release() {
 "${candidate_compose[@]}" config --quiet
 echo "PASS compose-contract"
 
+# The host runner owning the bind-mount directory is not enough: the
+# unprivileged AgentRun image user must be able to create durable Artifacts.
+"${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh agentrun \
+  -c 'probe="$(mktemp /app/data/.uat-write-probe.XXXXXX)" && rm -f "$probe"'
+echo "PASS agentrun-artifact-write"
+
 # Check-only dbmigrate establishes a real TLS PostgreSQL connection and reports
 # current/pending migration state without taking the migration lock or writing.
 "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate > "$report_file"

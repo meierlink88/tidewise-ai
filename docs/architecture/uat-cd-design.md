@@ -190,6 +190,9 @@ ECS 使用专用 Linux 用户 `tidewise-deploy` 运行 GitHub Actions Runner 和
 
 - Runner 不以 `root` 运行。
 - `tidewise-deploy` 加入 `docker` 组，只管理 `/opt/tidewise/uat` 下的部署文件。
+- AgentRun 镜像固定使用 UID/GID `10001:10001`；持久化 Artifact 目录由
+  `tidewise-deploy` 和固定 GID `10001` 的 `tidewise-agentrun` 共享组管理，发布在
+  migration 前由候选容器执行真实写入探针。
 - 不授予通用免密 `sudo` 权限。
 - 应用容器继续使用镜像内的非 root 运行用户。
 - 实施前先只读核验当前 Runner systemd unit 的运行用户；若当前为 root，则受控迁移到专用用户，并验证 Runner 标签、在线状态和 Docker 权限。

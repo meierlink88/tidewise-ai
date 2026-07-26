@@ -556,6 +556,12 @@ jobs:
           steps.risks.outputs.provider_consumer == 'true'
         run: docker build -f agent-run/backend/Dockerfile -t tidewise-agentrun:ci .
 
+      - name: Smoke AgentRun Artifact bind mount permissions
+        if: >-
+          steps.risks.outputs.container == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
+        run: bash scripts/ci/smoke-agentrun-artifact-permissions.sh tidewise-agentrun:ci
+
       - name: Build Admin Portal image for AgentRun smoke
         if: steps.risks.outputs.provider_consumer == 'true'
         run: docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .

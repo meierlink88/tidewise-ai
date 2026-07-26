@@ -9,7 +9,7 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 目标提交必须属于 `main`，且同一 SHA 的 `CI` workflow 必须成功。
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
 - GitHub-hosted runner 构建五个 `linux/amd64` 镜像并推送到 SWR，镜像 tag 固定为 Git commit SHA。
-- ECS runner 负责 preflight、SWR 拉取、Data migration、Compose 启动、两层健康检查和失败时的整套镜像回退。
+- ECS runner 负责 preflight、SWR 拉取、AgentRun Artifact 写入探针、Data migration、Compose 启动、两层健康检查和失败时的整套镜像回退。
 
 ## ECS runner 与目录
 
@@ -42,7 +42,9 @@ Workflow 在成功后持久保存：
 - `/opt/tidewise/uat/runtime.env`：当前运行版本需要的 Secrets，权限 `0600`。
 - `/opt/tidewise/uat/state/current.*`：当前成功版本的 SHA、五镜像与 Compose。
 - `/opt/tidewise/uat/state/previous.*`：上一成功版本的 SHA、五镜像与 Compose。
-- `/opt/tidewise/uat/agentrun-artifacts`：AgentRun 持久化 Artifact，归 `tidewise-deploy` 管理。
+- `/opt/tidewise/uat/agentrun-artifacts`：AgentRun 持久化 Artifact，owner 为
+  `tidewise-deploy`、group 为固定 GID `10001` 的 `tidewise-agentrun`，权限
+  `2770`；AgentRun 镜像使用同一固定 GID，以非 root 用户读写。
 - `/opt/tidewise/uat/previous.runtime.env`：上一成功版本回退所需的临时保留配置，权限 `0600`。
 
 不要启用 root 密码 SSH。Runner 注册 token 是一次性的，不得写入仓库、配置文件、shell 历史或日志。
@@ -121,6 +123,10 @@ Token、模型与连接器配置以及 Artifact 持久化目录全部就绪，�
 所有 migration 的风险分类维护在 `migration-risk.tsv`。未分类的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容，只要 pending 就禁止发布且不能用备份确认绕过；存在 `high` migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选 `confirm_high_risk_backup`，否则发布失败。
 
 Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 和五镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试。Schema migration 必须兼容至少前一个应用版本。
+
+在任何数据库检查或 migration 之前，部署脚本先让候选 AgentRun 镜像以自身非 root
+用户在 `/app/data` 创建并删除临时探针。宿主机目录存在但容器用户无权写入时，发布
+会在修改数据库前失败。
 
 部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012`、`9013`、`9014`。这会验证容器端口已正确发布到 ECS，同时避免云厂商不支持公网 IP NAT 回环造成误判；`UAT_PUBLIC_BASE_URL` 仍只用于客户端运行时地址和 CORS 配置。发布完成后应从 ECS 外部检查公网健康端点。
 

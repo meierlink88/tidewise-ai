@@ -12,8 +12,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates \
-    && addgroup -S agentrun \
-    && adduser -S -G agentrun agentrun \
+    && addgroup -S -g 10001 agentrun \
+    && adduser -S -D -H -u 10001 -G agentrun agentrun \
     && mkdir -p /app/data \
     && chown -R agentrun:agentrun /app
 WORKDIR /app

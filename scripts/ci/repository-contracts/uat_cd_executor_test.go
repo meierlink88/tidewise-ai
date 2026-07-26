@@ -13,7 +13,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS agentrun-artifact-write", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -47,6 +47,11 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if !strings.Contains(string(dockerLog), "http://127.0.0.1:9080/readyz") {
 		t.Fatalf("deployment did not enforce AgentRun readiness: %s", dockerLog)
 	}
+	artifactProbe := strings.Index(string(dockerLog), "/app/data/.uat-write-probe")
+	migrationPreflight := strings.Index(string(dockerLog), "/usr/local/bin/dbmigrate")
+	if artifactProbe < 0 || migrationPreflight < 0 || artifactProbe > migrationPreflight {
+		t.Fatalf("AgentRun Artifact write probe must run before migrations: %s", dockerLog)
+	}
 }
 
 func TestUATDeployExecutorTreatsNullPendingAsNoMigrations(t *testing.T) {
@@ -60,6 +65,23 @@ func TestUATDeployExecutorTreatsNullPendingAsNoMigrations(t *testing.T) {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
+	}
+}
+
+func TestUATDeployExecutorStopsBeforeMigrationWhenAgentRunArtifactIsNotWritable(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{failArtifactProbe: true})
+	if result.err == nil {
+		t.Fatal("unwritable AgentRun Artifact fixture unexpectedly succeeded")
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "/app/data/.uat-write-probe") {
+		t.Fatalf("deployment did not attempt the AgentRun Artifact write probe: %s", dockerLog)
+	}
+	if strings.Contains(string(dockerLog), "/usr/local/bin/dbmigrate") {
+		t.Fatalf("deployment started migration after the AgentRun Artifact write probe failed: %s", dockerLog)
 	}
 }
 
@@ -167,12 +189,13 @@ const (
 )
 
 type deployFixtureOptions struct {
-	currentRelease  bool
-	failFirstUp     bool
-	failFirstCurl   bool
-	migrationReport string
-	migrationRisk   string
-	backupConfirmed bool
+	currentRelease    bool
+	failFirstUp       bool
+	failFirstCurl     bool
+	migrationReport   string
+	migrationRisk     string
+	backupConfirmed   bool
+	failArtifactProbe bool
 }
 
 type deployFixtureResult struct {
@@ -255,6 +278,9 @@ if [ -z "$resolved_data_image" ]; then
 fi
 echo "resolved-data-image=${resolved_data_image:-unset} $* " >> "$FAKE_DOCKER_LOG"
 case " $* " in
+  *"/app/data/.uat-write-probe."*)
+    if [ "${FAKE_FAIL_ARTIFACT_PROBE:-false}" = true ]; then exit 1; fi
+    ;;
   *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
   *" run "*" /usr/local/bin/dbmigrate "*) cat "$FAKE_MIGRATION_REPORT" ;;
   *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
@@ -294,6 +320,7 @@ exit 0
 		"FAKE_CURL_COUNT="+curlCount,
 		"FAKE_CURL_LOG="+curlLog,
 		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
+		"FAKE_FAIL_ARTIFACT_PROBE="+boolText(options.failArtifactProbe),
 		"DATA_IMAGE=fixture/data:"+fixtureSHA,
 		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
 		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,
