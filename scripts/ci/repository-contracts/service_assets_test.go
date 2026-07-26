@@ -290,9 +290,28 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"bash scripts/ci/detect-app-change.sh agentrun",
 		"POSTGRES_DB: tidewise_ai_server_test",
 		"Test AgentRun Data, migration and provider boundaries",
+		"Build Data and Admin Portal images for AgentRun smoke",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("unified AgentRun CI job missing %q", required)
+		}
+	}
+
+	agentRunSmokeContents, err := os.ReadFile(filepath.Join(
+		repoRoot, "scripts", "ci", "smoke-admin-agentrun-compose.sh",
+	))
+	if err != nil {
+		t.Fatalf("read Admin Portal to AgentRun Compose smoke script: %v", err)
+	}
+	agentRunSmoke := string(agentRunSmokeContents)
+	for _, required := range []string{
+		"dbmigrate -apply",
+		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
+		"AGENTRUN_SERVICE_IMAGE=\"tidewise-agentrun:ci\"",
+		"ADMIN_SERVICE_IMAGE=\"tidewise-adminportal:ci\"",
+	} {
+		if !strings.Contains(agentRunSmoke, required) {
+			t.Fatalf("Admin Portal to AgentRun Compose smoke script missing %q", required)
 		}
 	}
 

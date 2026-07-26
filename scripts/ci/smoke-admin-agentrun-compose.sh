@@ -11,6 +11,7 @@ export COMPOSE_NETWORK_NAME="${project_name}-network"
 export POSTGRES_PORT="${TIDEWISE_SMOKE_POSTGRES_PORT:-55433}"
 export ADMIN_SERVICE_PORT="${TIDEWISE_SMOKE_ADMIN_PORT:-19013}"
 export AGENTRUN_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_PORT:-19080}"
+export DATA_SERVICE_IMAGE="tidewise-data:ci"
 export ADMIN_SERVICE_IMAGE="tidewise-adminportal:ci"
 export AGENTRUN_SERVICE_IMAGE="tidewise-agentrun:ci"
 export POSTGRES_USER="tidewise"
@@ -44,13 +45,28 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" up -d --wait postgres
+"${compose[@]}" run --rm --no-deps \
+  -e "TIDEWISE_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable&tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified&tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified&tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
+  data /usr/local/bin/dbmigrate -apply
 "${compose[@]}" up -d --wait --no-build agentrun
 "${compose[@]}" up -d --wait --no-build --no-deps adminportal
 
-curl --fail --silent --show-error \
-  --header "Authorization: Bearer ${ADMIN_API_TOKEN}" \
-  --output "$success_body" \
-  "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"
+success_status="$(
+  curl --silent --show-error \
+    --header "Authorization: Bearer ${ADMIN_API_TOKEN}" \
+    --output "$success_body" \
+    --write-out "%{http_code}" \
+    "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"
+)"
+if [[ "$success_status" != "200" ]]; then
+  echo "Admin Portal returned ${success_status}, want 200 while AgentRun is available" >&2
+  sed -n '1,20p' "$success_body" >&2
+  echo "Direct AgentRun response:" >&2
+  curl --silent --show-error \
+    --header "Authorization: Bearer ${AGENTRUN_ADMIN_TOKEN}" \
+    "http://127.0.0.1:${AGENTRUN_SERVICE_PORT}/api/admin/v1/model-providers" >&2 || true
+  exit 1
+fi
 if ! grep -Fq '"result"' "$success_body"; then
   echo "Admin Portal did not return its stable success envelope" >&2
   sed -n '1,20p' "$success_body" >&2

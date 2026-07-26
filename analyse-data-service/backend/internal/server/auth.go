@@ -18,7 +18,7 @@ const (
 	ScopeResearchImport      = "data.research.import"
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
-	ScopeEventTagRead         = "data.event-tags.read"
+	ScopeEventTagRead        = "data.event-tags.read"
 	operationHealth          = "data.health"
 	operationReady           = "data.ready"
 )

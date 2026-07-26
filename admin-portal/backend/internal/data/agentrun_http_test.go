@@ -81,3 +81,69 @@ func TestAgentRunHTTPClientDecodesExecutionSuccessEnvelope(t *testing.T) {
 		t.Errorf("execution = %+v, want decoded collector execution", got)
 	}
 }
+
+func TestAgentRunHTTPClientAcceptsRegisteredButUnconfiguredTargets(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/api/admin/v1/model-providers":
+			_, _ = response.Write([]byte(`{
+				"request_id": "agentrun-test-models",
+				"result": {
+					"items": [{
+						"provider_key": "deepseek",
+						"base_url": "",
+						"model": "",
+						"configured": false,
+						"key_configured": false
+					}]
+				}
+			}`))
+		case "/api/admin/v1/connectors":
+			_, _ = response.Write([]byte(`{
+				"request_id": "agentrun-test-connectors",
+				"result": {
+					"items": [{
+						"connector_key": "tavily",
+						"base_url": "",
+						"configured": false,
+						"key_configured": false
+					}]
+				}
+			}`))
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewAgentRunHTTPClient(AgentRunHTTPConfig{
+		BaseURL:         server.URL,
+		ServiceToken:    "agentrun-admin-token",
+		Timeout:         time.Second,
+		MaxReadAttempts: 1,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("create AgentRun HTTP client: %v", err)
+	}
+	defer client.Close()
+
+	models, modelErr := client.ListModelProviders(context.Background())
+	if modelErr != nil {
+		t.Fatalf("list unconfigured Model Providers: %v", modelErr)
+	}
+	if len(models) != 1 || models[0].ProviderKey != "deepseek" || models[0].Configured ||
+		models[0].BaseURL != "" {
+		t.Fatalf("Model Providers = %+v, want registered unconfigured deepseek", models)
+	}
+
+	connectors, connectorErr := client.ListConnectors(context.Background())
+	if connectorErr != nil {
+		t.Fatalf("list unconfigured Connectors: %v", connectorErr)
+	}
+	if len(connectors) != 1 || connectors[0].ConnectorKey != "tavily" || connectors[0].Configured ||
+		connectors[0].BaseURL != "" {
+		t.Fatalf("Connectors = %+v, want registered unconfigured tavily", connectors)
+	}
+}
