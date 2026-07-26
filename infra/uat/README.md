@@ -73,21 +73,15 @@ Secrets：
 | --- | --- |
 | `SWR_USERNAME`, `SWR_PASSWORD` | GitHub-hosted build runner，仅推送 |
 | `SWR_PULL_USERNAME`, `SWR_PULL_PASSWORD` | UAT ECS，仅拉取 |
-| `UAT_DATABASE_URL` | Data Service 与 Data migration |
-| `DATA_SERVICE_AGENT_TOKEN` | Data Service agent-run 身份 |
-| `DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN` | Data Service research publisher 身份 |
-| `DATA_SERVICE_MINIAPP_TOKEN` | Data Service 与 Miniapp Backend |
-| `DATA_SERVICE_ADMIN_TOKEN` | Data Service 与 Admin Portal Backend |
-| `ADMIN_API_TOKEN` | Admin Portal Backend 浏览器鉴权 |
-| `AGENTRUN_ADMIN_TOKEN` | Admin Portal Backend 调用 AgentRun Admin API 的服务身份 |
-| `AGENTRUN_SERVICE_TOKEN` | AgentRun Service API 身份 |
-| `AGENTRUN_DATABASE_URL` | AgentRun 独立 RDS database |
+| `TIDEWISW_DB_PASSWORD` | Data Service 与 Data migration 的数据库密码 |
+| `AGENTRUN_DB_PASSWORD` | AgentRun 独立 database 的密码 |
+| `DATA_SERVICE_TOKEN` | 所有受信服务调用 Data Service 的统一身份 |
+| `ADMIN_SERVICE_TOKEN` | Admin Portal Backend 的浏览器/API 鉴权 |
+| `AGENTRUN_SERVICE_TOKEN` | 所有受信服务调用 AgentRun 的统一身份 |
 
-`UAT_DATABASE_URL` 与 `AGENTRUN_DATABASE_URL` 必须使用 RDS VPC 私网地址和 `sslmode=require`，并指向相互独立的 database/role：
-
-```text
-postgres://<user>:<password>@<private-rds-host>:5432/<database>?sslmode=require
-```
+RDS 的 host、port、database、user 与 `sslmode=require` 固定保存在两个服务各自的
+`config.uat.yaml`；GitHub Environment 只保存上述密码。两套配置必须指向相互独立的
+database/role，且不得通过完整数据库 URL 覆盖。
 
 AgentRun 的 database 名固定为 `tidewise_ai_server`；环境隔离由 UAT RDS instance/database
 边界和独立 role 保证，不能使用任意名称绕过 AgentRun 的数据库身份保护。
@@ -108,7 +102,7 @@ IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上
 
 Admin Frontend 启动时从 `UAT_PUBLIC_BASE_URL` 生成运行时 API 地址，不把公网 IP 烧录进镜像。Admin Backend 只允许 `${UAT_PUBLIC_BASE_URL}:9014` Origin。Miniapp 开发者工具另行把 `TARO_APP_MINIAPP_API_BASE_URL` 设置为 `${UAT_PUBLIC_BASE_URL}:9012`。
 
-Admin Portal Backend 在 Compose 网络中固定通过 `http://agentrun:9080` 调用 AgentRun Admin API，并使用仅注入后端容器的 `AGENTRUN_ADMIN_TOKEN`。浏览器不得直接访问 AgentRun，也不得获得该令牌。
+Admin Portal Backend 在 Compose 网络中固定通过 `http://agentrun:9080` 调用 AgentRun Admin API，并使用仅注入后端容器的 `AGENTRUN_SERVICE_TOKEN`。浏览器不得直接访问 AgentRun，也不得获得该令牌。
 
 AgentRun 的 UAT 容器门禁和发布校验统一使用 `/readyz`。只有数据库 Schema、Service
 Token、模型与连接器配置以及 Artifact 持久化目录全部就绪，候选发布才会通过。首次
@@ -122,6 +116,10 @@ Token、模型与连接器配置以及 Artifact 持久化目录全部就绪，�
 
 所有 migration 的风险分类维护在 `migration-risk.tsv`。未分类的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容，只要 pending 就禁止发布且不能用备份确认绕过；存在 `high` migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选 `confirm_high_risk_backup`，否则发布失败。
 
+部署脚本不会自动注入历史 migration 内部要求的人工 Review session 参数。若全新数据库
+仍 pending 这些受控 migration，普通 UAT Deploy 应失败；必须先按对应 migration 的
+Review、备份和零行校验要求执行独立、可审计的受控迁移，不能用通用备份勾选替代。
+
 Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 和五镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试。Schema migration 必须兼容至少前一个应用版本。
 
 在任何数据库检查或 migration 之前，部署脚本先让候选 AgentRun 镜像以自身非 root
@@ -130,7 +128,7 @@ Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分�
 
 部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012`、`9013`、`9014`。这会验证容器端口已正确发布到 ECS，同时避免云厂商不支持公网 IP NAT 回环造成误判；`UAT_PUBLIC_BASE_URL` 仍只用于客户端运行时地址和 CORS 配置。发布完成后应从 ECS 外部检查公网健康端点。
 
-每个容器使用 Docker `json-file` 日志，单文件最多 20 MB、保留 5 个。失败诊断经过数据库 URL、Authorization 和常见 Secret 模式过滤后，以保留 7 天的 Actions artifact 上传。
+每个容器使用 Docker `json-file` 日志，单文件最多 20 MB、保留 5 个。失败诊断经过数据库密码、Authorization 和常见 Secret 模式过滤后，以保留 7 天的 Actions artifact 上传。
 
 首次由本方案接管 UAT 时尚无 `current.images.env`，因此不存在可自动回退的仓库管理版本；首次发布前应另行保留当前环境恢复方案。
 

@@ -12,13 +12,13 @@ func TestLoadRuntimeConfigRequiresBFFDataServiceAndAgentRunSettings(t *testing.T
 	t.Setenv("APP_ENV", "local")
 	t.Setenv("TIDEWISE_CONFIG_DIR", configDir)
 	t.Setenv("DATA_SERVICE_BASE_URL", "http://data.internal:8081")
-	t.Setenv("DATA_SERVICE_ADMIN_TOKEN", "admin-service-identity")
+	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 	t.Setenv("AGENTRUN_BASE_URL", "http://agentrun.internal:9080")
-	t.Setenv("AGENTRUN_ADMIN_TOKEN", "agentrun-service-identity")
-	t.Setenv("ADMIN_API_TOKEN", "browser-admin-token")
+	t.Setenv("AGENTRUN_SERVICE_TOKEN", "agentrun-service-token")
+	t.Setenv("ADMIN_SERVICE_TOKEN", "admin-service-token")
 	t.Setenv("ADMIN_ALLOWED_ORIGIN", "http://127.0.0.1:5174")
-	t.Setenv("DATABASE_PASSWORD", "must-not-be-loaded")
-	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://must-not-be-loaded")
+	t.Setenv("TIDEWISW_DB_PASSWORD", "must-not-be-loaded")
+	t.Setenv("AGENTRUN_DB_PASSWORD", "must-not-be-loaded")
 
 	runtime, err := LoadRuntimeConfig()
 	if err != nil {
@@ -26,11 +26,11 @@ func TestLoadRuntimeConfigRequiresBFFDataServiceAndAgentRunSettings(t *testing.T
 	}
 	if runtime.App.Name != ServiceName ||
 		runtime.DataService.BaseURL != "http://data.internal:8081" ||
-		runtime.DataService.IdentityToken != "admin-service-identity" ||
+		runtime.DataService.IdentityToken != "data-service-token" ||
 		runtime.AgentRun.BaseURL != "http://agentrun.internal:9080" ||
-		runtime.AgentRun.ServiceToken != "agentrun-service-identity" ||
+		runtime.AgentRun.ServiceToken != "agentrun-service-token" ||
 		runtime.AgentRun.Timeout != 5*time.Second ||
-		runtime.AdminToken != "browser-admin-token" ||
+		runtime.AdminToken != "admin-service-token" ||
 		runtime.AllowedOrigin != "http://127.0.0.1:5174" ||
 		runtime.DataService.Timeout != 5*time.Second {
 		t.Fatalf("runtime = %#v", runtime)
@@ -40,10 +40,10 @@ func TestLoadRuntimeConfigRequiresBFFDataServiceAndAgentRunSettings(t *testing.T
 func TestLoadRuntimeConfigFailsClosedWithoutRequiredServiceIdentity(t *testing.T) {
 	for _, missing := range []string{
 		"DATA_SERVICE_BASE_URL",
-		"DATA_SERVICE_ADMIN_TOKEN",
+		"DATA_SERVICE_TOKEN",
 		"AGENTRUN_BASE_URL",
-		"AGENTRUN_ADMIN_TOKEN",
-		"ADMIN_API_TOKEN",
+		"AGENTRUN_SERVICE_TOKEN",
+		"ADMIN_SERVICE_TOKEN",
 		"ADMIN_ALLOWED_ORIGIN",
 	} {
 		t.Run(missing, func(t *testing.T) {
@@ -51,10 +51,10 @@ func TestLoadRuntimeConfigFailsClosedWithoutRequiredServiceIdentity(t *testing.T
 			t.Setenv("APP_ENV", "local")
 			t.Setenv("TIDEWISE_CONFIG_DIR", configDir)
 			t.Setenv("DATA_SERVICE_BASE_URL", "http://data.internal:8081")
-			t.Setenv("DATA_SERVICE_ADMIN_TOKEN", "admin-service-identity")
+			t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 			t.Setenv("AGENTRUN_BASE_URL", "http://agentrun.internal:9080")
-			t.Setenv("AGENTRUN_ADMIN_TOKEN", "agentrun-service-identity")
-			t.Setenv("ADMIN_API_TOKEN", "browser-admin-token")
+			t.Setenv("AGENTRUN_SERVICE_TOKEN", "agentrun-service-token")
+			t.Setenv("ADMIN_SERVICE_TOKEN", "admin-service-token")
 			t.Setenv("ADMIN_ALLOWED_ORIGIN", "http://127.0.0.1:5174")
 			t.Setenv(missing, "")
 			if _, err := LoadRuntimeConfig(); err == nil {
@@ -70,10 +70,10 @@ func TestLoadRuntimeConfigRejectsWildcardOrPathOrigin(t *testing.T) {
 			t.Setenv("APP_ENV", "local")
 			t.Setenv("TIDEWISE_CONFIG_DIR", writeRuntimeConfig(t))
 			t.Setenv("DATA_SERVICE_BASE_URL", "http://data.internal:9011")
-			t.Setenv("DATA_SERVICE_ADMIN_TOKEN", "admin-service-identity")
+			t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 			t.Setenv("AGENTRUN_BASE_URL", "http://agentrun.internal:9080")
-			t.Setenv("AGENTRUN_ADMIN_TOKEN", "agentrun-service-identity")
-			t.Setenv("ADMIN_API_TOKEN", "browser-admin-token")
+			t.Setenv("AGENTRUN_SERVICE_TOKEN", "agentrun-service-token")
+			t.Setenv("ADMIN_SERVICE_TOKEN", "admin-service-token")
 			t.Setenv("ADMIN_ALLOWED_ORIGIN", origin)
 			if _, err := LoadRuntimeConfig(); err == nil {
 				t.Fatalf("LoadRuntimeConfig() accepted origin %q", origin)

@@ -73,14 +73,14 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	}
 	dataService := DataServiceRuntimeConfig{
 		BaseURL:       strings.TrimSpace(os.Getenv("DATA_SERVICE_BASE_URL")),
-		IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_MINIAPP_TOKEN")),
+		IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_TOKEN")),
 		Timeout:       DataServiceTimeout,
 	}
 	if dataService.BaseURL == "" {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_BASE_URL is required")
 	}
 	if dataService.IdentityToken == "" {
-		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_MINIAPP_TOKEN is required")
+		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
 	return RuntimeConfig{App: fileConfig.App, Server: fileConfig.Server, DataService: dataService}, nil
 }

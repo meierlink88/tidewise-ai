@@ -18,16 +18,12 @@ func TestValidateResetTargetRequiresLocalLoopbackDatabase(t *testing.T) {
 			Database: conf.DatabaseConfig{Host: "localhost", Name: "tidewise_local"},
 		},
 		{
-			App: conf.AppConfig{Env: conf.EnvLocal},
-			Secrets: conf.SecretConfig{
-				DatabaseURL: "postgres://user:secret@127.0.0.1:5432/tidewise_local?sslmode=disable",
-			},
+			App:      conf.AppConfig{Env: conf.EnvLocal},
+			Database: conf.DatabaseConfig{Host: "127.0.0.1", Name: "tidewise_local"},
 		},
 		{
-			App: conf.AppConfig{Env: conf.EnvLocal},
-			Secrets: conf.SecretConfig{
-				DatabaseURL: "postgres://user:secret@[::1]:5432/tidewise_local?sslmode=disable",
-			},
+			App:      conf.AppConfig{Env: conf.EnvLocal},
+			Database: conf.DatabaseConfig{Host: "::1", Name: "tidewise_local"},
 		},
 	}
 	for index, cfg := range valid {
@@ -42,7 +38,6 @@ func TestValidateResetTargetRequiresLocalLoopbackDatabase(t *testing.T) {
 		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "postgres", Name: "tidewise_local"}},
 		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "db.internal", Name: "tidewise_local"}},
 		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "localhost", Name: "tidewise_shared"}},
-		{App: conf.AppConfig{Env: conf.EnvLocal}, Secrets: conf.SecretConfig{DatabaseURL: "://invalid"}},
 	}
 	for index, cfg := range invalid {
 		if err := validateResetTarget(cfg); err == nil {

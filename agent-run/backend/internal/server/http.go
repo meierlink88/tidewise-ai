@@ -73,7 +73,7 @@ func NewHTTPServer(
 		kratoshttp.Filter(requestBoundaryFilter(logger, string(config.App.Env))),
 		kratoshttp.Middleware(
 			accessLogMiddleware(logger, string(config.App.Env)),
-			authenticationMiddleware(config.Secrets.ServiceToken, config.Secrets.AdminToken),
+			authenticationMiddleware(config.Secrets.ServiceToken),
 		),
 		kratoshttp.ResponseEncoder(responseEncoder),
 		kratoshttp.ErrorEncoder(errorEncoder),
@@ -141,7 +141,7 @@ func registerDocumentation(server *kratoshttp.Server) {
 	})
 }
 
-func authenticationMiddleware(serviceToken, adminToken string) middleware.Middleware {
+func authenticationMiddleware(serviceToken string) middleware.Middleware {
 	return func(next middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, request any) (any, error) {
 			tr, ok := transport.FromServerContext(ctx)
@@ -151,16 +151,9 @@ func authenticationMiddleware(serviceToken, adminToken string) middleware.Middle
 			if isPublicOperation(tr.Operation()) {
 				return next(ctx, request)
 			}
-			required := ""
-			switch tr.Operation() {
-			case v1.OperationCreateCollectorRun, v1.OperationGetCollectorRun:
-				required = serviceToken
-			default:
-				if strings.HasPrefix(tr.Operation(), "/agentrun.v1.AgentRun/") {
-					required = adminToken
-				}
-			}
-			if required == "" || tr.RequestHeader().Get("Authorization") != "Bearer "+required {
+			if !strings.HasPrefix(tr.Operation(), "/agentrun.v1.AgentRun/") ||
+				serviceToken == "" ||
+				tr.RequestHeader().Get("Authorization") != "Bearer "+serviceToken {
 				return nil, v1.NewPublicError(http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required", nil)
 			}
 			return next(ctx, request)

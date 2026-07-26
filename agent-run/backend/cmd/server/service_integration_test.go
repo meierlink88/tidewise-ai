@@ -167,7 +167,6 @@ func TestAdminScheduleTriggersCollectorAndListsExecution(t *testing.T) {
 		Artifact: conf.ArtifactConfig{Root: artifactRoot},
 		Secrets: conf.SecretConfig{
 			ServiceToken: "service-test-token",
-			AdminToken:   "admin-test-token",
 		},
 	}, apiService, apiService, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	httpServer.Route("/").GET("/__test/panic", func(ctx kratoshttp.Context) error {
@@ -268,22 +267,29 @@ func TestAdminScheduleTriggersCollectorAndListsExecution(t *testing.T) {
 	unauthorizedRequest.Header.Set("Content-Type", "application/json")
 	unauthorizedRequest.Header.Set("Idempotency-Key", "black-box-unauthorized")
 	assertLiveErrorResponse(t, testServer, unauthorizedRequest, http.StatusUnauthorized, "UNAUTHORIZED")
-	adminOnCollectorRequest, _ := http.NewRequest(
+	wrongTokenRequest, _ := http.NewRequest(
 		http.MethodPost,
 		testServer.URL+v1.CollectorRunsPath,
 		strings.NewReader(`{"prompt":"wrong token"}`),
 	)
-	adminOnCollectorRequest.Header.Set("Authorization", "Bearer admin-test-token")
-	adminOnCollectorRequest.Header.Set("Content-Type", "application/json")
-	adminOnCollectorRequest.Header.Set("Idempotency-Key", "black-box-admin-on-collector")
-	assertLiveErrorResponse(t, testServer, adminOnCollectorRequest, http.StatusUnauthorized, "UNAUTHORIZED")
+	wrongTokenRequest.Header.Set("Authorization", "Bearer wrong-token")
+	wrongTokenRequest.Header.Set("Content-Type", "application/json")
+	wrongTokenRequest.Header.Set("Idempotency-Key", "black-box-wrong-token")
+	assertLiveErrorResponse(t, testServer, wrongTokenRequest, http.StatusUnauthorized, "UNAUTHORIZED")
 	serviceOnAdminRequest, _ := http.NewRequest(
 		http.MethodGet,
 		testServer.URL+"/api/admin/v1/model-providers",
 		nil,
 	)
 	serviceOnAdminRequest.Header.Set("Authorization", "Bearer service-test-token")
-	assertLiveErrorResponse(t, testServer, serviceOnAdminRequest, http.StatusUnauthorized, "UNAUTHORIZED")
+	serviceOnAdminResponse, err := testServer.Client.Do(serviceOnAdminRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer serviceOnAdminResponse.Body.Close()
+	if serviceOnAdminResponse.StatusCode != http.StatusOK {
+		t.Fatalf("AgentRun Service Token on Admin API status=%d", serviceOnAdminResponse.StatusCode)
+	}
 
 	strictRequest, _ := http.NewRequest(
 		http.MethodPost,
@@ -633,7 +639,7 @@ func adminJSONRequest(
 	if err != nil {
 		t.Fatal(err)
 	}
-	request.Header.Set("Authorization", "Bearer admin-test-token")
+	request.Header.Set("Authorization", "Bearer service-test-token")
 	if payload != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}

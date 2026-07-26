@@ -24,7 +24,7 @@ func TestLoadBatchUsesFrozenImportContract(t *testing.T) {
 func TestValidateLocalTarget(t *testing.T) {
 	valid := []conf.Config{
 		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "postgres", Name: "tidewise_local"}},
-		{App: conf.AppConfig{Env: conf.EnvLocal}, Secrets: conf.SecretConfig{DatabaseURL: "postgres://user:secret@127.0.0.1:5432/tidewise_local?sslmode=disable"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "127.0.0.1", Name: "tidewise_local"}},
 	}
 	for _, cfg := range valid {
 		if err := validateLocalTarget(cfg); err != nil {
@@ -36,8 +36,8 @@ func TestValidateLocalTarget(t *testing.T) {
 		{App: conf.AppConfig{Env: conf.EnvUAT}, Database: conf.DatabaseConfig{Host: "postgres", Name: "tidewise_local"}},
 		{App: conf.AppConfig{Env: conf.EnvProd}, Database: conf.DatabaseConfig{Host: "db.prod", Name: "tidewise_prod"}},
 		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "postgres", Name: "shared_local"}},
-		{App: conf.AppConfig{Env: conf.EnvLocal}, Secrets: conf.SecretConfig{DatabaseURL: "postgres://user:secret@db.prod:5432/tidewise_local"}},
-		{App: conf.AppConfig{Env: conf.EnvLocal}, Secrets: conf.SecretConfig{DatabaseURL: "postgres://user:secret@localhost:5432/tidewise_prod"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "db.prod", Name: "tidewise_local"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Host: "localhost", Name: "tidewise_prod"}},
 	}
 	for index, cfg := range invalid {
 		if err := validateLocalTarget(cfg); err == nil || !strings.Contains(err.Error(), "local") {

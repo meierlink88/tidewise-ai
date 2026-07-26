@@ -34,7 +34,7 @@ Transport，Eino 不进入 HTTP、数据库或 Schedule Adapter。
 - `agent-run/backend/configs/config.dev.yaml`
 - `agent-run/backend/configs/config.uat.yaml`
 
-两个环境均固定监听 `9080`。`APP_ENV` 选择环境，默认是 `dev`。部署必须通过 `TZ` 提供有效的 IANA 时区；dev/UAT 使用 `Asia/Shanghai`。数据库密码、完整数据库连接串、入站 Service Token 和独立 Admin Token 通过环境变量注入。
+两个环境均固定监听 `9080`。`APP_ENV` 选择环境，默认是 `dev`。部署必须通过 `TZ` 提供有效的 IANA 时区；dev/UAT 使用 `Asia/Shanghai`。数据库 host、port、name、user 与 SSL 来自对应 YAML；环境变量只注入 `AGENTRUN_DB_PASSWORD`、统一的 `AGENTRUN_SERVICE_TOKEN` 和下游 `DATA_SERVICE_TOKEN`。
 
 本地 Secret 示例统一维护在根级 Local Compose 环境文件中：
 
@@ -49,8 +49,12 @@ cp infra/local/.env.example infra/local/.env.local
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d agentrun
 ```
 
-直接运行 Go 命令时，需先显式注入 `APP_ENV=dev`、`AGENTRUN_DATABASE_URL`、
-`AGENTRUN_SERVICE_TOKEN`、`AGENTRUN_ADMIN_TOKEN` 和 `TZ`，然后先执行
+宿主机直接运行使用 `configs/config.dev.yaml` 中的 `localhost`；Local Compose 显式选择
+`configs/compose/config.dev.yaml`，并通过 Docker DNS 使用 `postgres`。两者都只从
+`AGENTRUN_DB_PASSWORD` 注入密码。
+
+直接运行 Go 命令时，需先显式注入 `APP_ENV=dev`、`AGENTRUN_DB_PASSWORD`、
+`AGENTRUN_SERVICE_TOKEN`、`DATA_SERVICE_TOKEN` 和 `TZ`，然后先执行
 `go run ./agent-run/backend/cmd/migrate`，再启动服务。
 
 Model Provider Configuration 和 Connector Configuration 分别保存在 `tidewise_ai_server`，不读取 DeepSeek、Parallel、Tavily 或 Bocha 环境变量。使用 Bootstrap CLI 写入当前配置：
@@ -91,7 +95,7 @@ AgentRun 提供一份随服务二进制发布的 OpenAPI 3.0.4 合同和 Swagger
 - OpenAPI YAML：`http://localhost:9080/openapi.yaml`
 - Swagger UI：`http://localhost:9080/docs/`
 
-这两个文档入口及其本地静态资源在 dev/UAT 中无需认证，也不依赖运行时 CDN。Collector 创建与查询接口要求 `Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}`；Admin API 使用独立的 `${AGENTRUN_ADMIN_TOKEN}`。Swagger UI 不预填 Token，可在浏览器中通过 Authorize 分别输入。
+这两个文档入口及其本地静态资源在 dev/UAT 中无需认证，也不依赖运行时 CDN。Collector 与 Admin API 均要求 `Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}`。Swagger UI 不预填 Token，可在浏览器中通过 Authorize 输入。
 
 ```bash
 curl -sS http://localhost:9080/openapi.yaml
@@ -124,14 +128,14 @@ PostgreSQL 是 Agent Schedule 的唯一事实源，进程启动时将已启用�
 Admin API 均要求：
 
 ```bash
--H "Authorization: Bearer ${AGENTRUN_ADMIN_TOKEN}"
+-H "Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}"
 ```
 
 创建或完整替换 Collector Schedule：
 
 ```bash
 curl -sS -X PUT http://localhost:9080/api/admin/v1/agent-schedules/collector \
-  -H "Authorization: Bearer ${AGENTRUN_ADMIN_TOKEN}" \
+  -H "Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
     "agent_version":"collector.v1",
@@ -146,7 +150,7 @@ curl -sS -X PUT http://localhost:9080/api/admin/v1/agent-schedules/collector \
 
 ```bash
 curl -sS -X PATCH http://localhost:9080/api/admin/v1/agent-schedules/collector \
-  -H "Authorization: Bearer ${AGENTRUN_ADMIN_TOKEN}" \
+  -H "Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{"enabled":false}'
 ```
@@ -155,7 +159,7 @@ curl -sS -X PATCH http://localhost:9080/api/admin/v1/agent-schedules/collector \
 
 ```bash
 curl -sS 'http://localhost:9080/api/admin/v1/agent-executions?agent_key=collector&page=1&page_size=20&sort_order=desc' \
-  -H "Authorization: Bearer ${AGENTRUN_ADMIN_TOKEN}"
+  -H "Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}"
 ```
 
 执行列表只返回 Agent、状态、触发来源、安全失败原因和时间等审计元数据，不返回 Prompt、Input、Connector 结果或 Artifact 内容。其他管理端点如下：
@@ -174,7 +178,7 @@ Provider/Connector PATCH 使用严格 JSON。Model Key 不可清空；Connector 
 | 调用方 | 路径 | 认证 | 新响应读取方式 |
 |---|---|---|---|
 | Tidewise Data | `/api/v1/collector/runs...` | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
-| Admin Portal Service | `/api/admin/v1/...` | `AGENTRUN_ADMIN_TOKEN` | 成功读取 `result`，失败读取 `error` |
+| Admin Portal Service | `/api/admin/v1/...` | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
 
 所有业务响应同时读取顶层 `request_id`，并与 `X-Request-ID` 对照。旧的
 `error_code`、`message` 顶层错误结构不再兼容。冻结示例位于
@@ -239,4 +243,5 @@ go test -count=1 ./...
 
 `agentrun` 本地测试用户需要 `CREATEDB`，仅用于在同一 PostgreSQL 实例内创建并清理隔离的 `tidewise_ai_server_test_<uuid>` 临时数据库；测试结束后只保留固定基础库。
 
-UAT 使用 `APP_ENV=uat`，并必须通过 `AGENTRUN_DATABASE_URL` 注入带 `sslmode=require` 的完整 PostgreSQL URL；UAT 的非敏感参数维护在 `config.uat.yaml`。
+UAT 使用 `APP_ENV=uat`。RDS host、port、database、user 和 `sslmode=require` 维护在
+`config.uat.yaml`，只通过 `AGENTRUN_DB_PASSWORD` 注入密码，不接受完整 PostgreSQL URL。

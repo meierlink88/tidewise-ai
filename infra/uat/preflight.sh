@@ -62,19 +62,45 @@ esac
 
 python3 - <<'PY'
 import os
+import pathlib
+import re
 import socket
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import urlparse
 
-for variable in ("UAT_DATABASE_URL", "AGENTRUN_DATABASE_URL"):
-    endpoint = urlparse(os.environ[variable])
-    if not endpoint.hostname or not endpoint.path.strip("/") or not endpoint.username:
-        raise SystemExit(f"FAIL rds-url: {variable} requires hostname, database, and username")
-    if variable == "AGENTRUN_DATABASE_URL" and endpoint.path.strip("/") != "tidewise_ai_server":
-        raise SystemExit("FAIL rds-url: AGENTRUN_DATABASE_URL database must be tidewise_ai_server")
-    query = dict(parse_qsl(endpoint.query))
-    if query.get("sslmode") != "require":
-        raise SystemExit(f"FAIL rds-url: {variable} requires sslmode=require")
-    with socket.create_connection((endpoint.hostname, endpoint.port or 5432), timeout=10):
+def database_config(path):
+    values = {}
+    inside = False
+    for line in pathlib.Path(path).read_text().splitlines():
+        if line == "database:":
+            inside = True
+            continue
+        if inside and line and not line.startswith(" "):
+            break
+        if inside:
+            match = re.match(r"^  (host|port|name|user|ssl_mode):\s*(.+?)\s*$", line)
+            if match:
+                values[match.group(1)] = match.group(2)
+    required = {"host", "port", "name", "user", "ssl_mode"}
+    if set(values) != required:
+        raise SystemExit(f"FAIL rds-config: {path} requires {sorted(required)}")
+    if values["ssl_mode"] != "require":
+        raise SystemExit(f"FAIL rds-config: {path} requires ssl_mode=require")
+    return values
+
+paths = (
+    "analyse-data-service/backend/configs/config.uat.yaml",
+    "agent-run/backend/configs/config.uat.yaml",
+)
+endpoints = [database_config(path) for path in paths]
+data_endpoint, agentrun_endpoint = endpoints
+if agentrun_endpoint["name"] != "tidewise_ai_server":
+    raise SystemExit("FAIL rds-config: AgentRun database must be tidewise_ai_server")
+if data_endpoint["name"] == agentrun_endpoint["name"]:
+    raise SystemExit("FAIL rds-config: Data and AgentRun must use different database names")
+if data_endpoint["user"] == agentrun_endpoint["user"]:
+    raise SystemExit("FAIL rds-config: Data and AgentRun must use different database users")
+for endpoint in endpoints:
+    with socket.create_connection((endpoint["host"], int(endpoint["port"])), timeout=10):
         pass
 
 public_endpoint = urlparse(os.environ["UAT_PUBLIC_BASE_URL"])
@@ -83,7 +109,7 @@ if public_endpoint.scheme != "http" or not public_endpoint.hostname:
 if public_endpoint.port or public_endpoint.path not in ("", "/") or public_endpoint.query or public_endpoint.fragment:
     raise SystemExit("FAIL public-base-url: port, path, query, and fragment are not allowed")
 PY
-pass data-and-agentrun-rds-private-tcp-and-url
+pass data-and-agentrun-rds-private-tcp-and-config
 pass public-base-url
 
 artifact_dir="${AGENTRUN_ARTIFACT_DIR:-${deployment_root}/agentrun-artifacts}"

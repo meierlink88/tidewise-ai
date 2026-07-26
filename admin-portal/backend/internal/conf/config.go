@@ -86,21 +86,21 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	runtime := RuntimeConfig{
 		App:           fileConfig.App,
 		Server:        fileConfig.Server,
-		AdminToken:    strings.TrimSpace(os.Getenv("ADMIN_API_TOKEN")),
+		AdminToken:    strings.TrimSpace(os.Getenv("ADMIN_SERVICE_TOKEN")),
 		AllowedOrigin: strings.TrimSpace(os.Getenv("ADMIN_ALLOWED_ORIGIN")),
 		DataService: DataServiceRuntimeConfig{
 			BaseURL:       strings.TrimSpace(os.Getenv("DATA_SERVICE_BASE_URL")),
-			IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_ADMIN_TOKEN")),
+			IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_TOKEN")),
 			Timeout:       DataServiceTimeout,
 		},
 		AgentRun: AgentRunRuntimeConfig{
 			BaseURL:      strings.TrimSpace(os.Getenv("AGENTRUN_BASE_URL")),
-			ServiceToken: strings.TrimSpace(os.Getenv("AGENTRUN_ADMIN_TOKEN")),
+			ServiceToken: strings.TrimSpace(os.Getenv("AGENTRUN_SERVICE_TOKEN")),
 			Timeout:      AgentRunTimeout,
 		},
 	}
 	if runtime.AdminToken == "" {
-		return RuntimeConfig{}, fmt.Errorf("ADMIN_API_TOKEN is required")
+		return RuntimeConfig{}, fmt.Errorf("ADMIN_SERVICE_TOKEN is required")
 	}
 	if err := validateAllowedOrigin(runtime.AllowedOrigin); err != nil {
 		return RuntimeConfig{}, err
@@ -109,13 +109,13 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_BASE_URL is required")
 	}
 	if runtime.DataService.IdentityToken == "" {
-		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_ADMIN_TOKEN is required")
+		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
 	if runtime.AgentRun.BaseURL == "" {
 		return RuntimeConfig{}, fmt.Errorf("AGENTRUN_BASE_URL is required")
 	}
 	if runtime.AgentRun.ServiceToken == "" {
-		return RuntimeConfig{}, fmt.Errorf("AGENTRUN_ADMIN_TOKEN is required")
+		return RuntimeConfig{}, fmt.Errorf("AGENTRUN_SERVICE_TOKEN is required")
 	}
 	return runtime, nil
 }

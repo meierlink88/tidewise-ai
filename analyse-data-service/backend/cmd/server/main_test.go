@@ -7,30 +7,24 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 )
 
-func TestBuildAuthenticatorRequiresAllScopedServiceCredentials(t *testing.T) {
-	cfg := conf.Config{Secrets: conf.SecretConfig{
-		DataServiceAgentToken:   "agent-token",
-		DataServiceMiniappToken: "miniapp-token",
-	}}
+func TestBuildAuthenticatorUsesOneDataServiceTokenForAllBusinessScopes(t *testing.T) {
+	cfg := conf.Config{}
 	if _, err := buildAuthenticator(cfg); err == nil {
-		t.Fatal("buildAuthenticator accepted a missing Admin credential")
+		t.Fatal("buildAuthenticator accepted a missing Data Service token")
 	}
 
-	cfg.Secrets.DataServiceAdminToken = "admin-token"
-	if _, err := buildAuthenticator(cfg); err == nil {
-		t.Fatal("buildAuthenticator accepted a missing Research publisher credential")
-	}
-	cfg.Secrets.DataServiceResearchPublisherToken = "research-publisher-token"
+	cfg.Secrets.ServiceToken = "data-service-token"
 	authenticator, err := buildAuthenticator(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertPrincipal(t, authenticator, "agent-token", "agent-run", []string{
+	assertPrincipal(t, authenticator, "data-service-token", "tidewise-internal-service", []string{
 		server.ScopeReviewedEventImport,
+		server.ScopeEventTagRead,
+		server.ScopeResearchImport,
+		server.ScopeResearchRead,
+		server.ScopeAdminRead,
 	})
-	assertPrincipal(t, authenticator, "miniapp-token", "miniapp-bff", []string{server.ScopeResearchRead})
-	assertPrincipal(t, authenticator, "admin-token", "admin-portal-bff", []string{server.ScopeAdminRead})
-	assertPrincipal(t, authenticator, "research-publisher-token", "research-theme-publisher", []string{server.ScopeResearchImport})
 }
 
 func assertPrincipal(t *testing.T, authenticator *server.Authenticator, token string, identity string, scopes []string) {

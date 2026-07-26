@@ -72,32 +72,14 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 	credentials := []server.Credential{
 		{
-			Secret: config.Secrets.DataServiceAgentToken,
-			Principal: v1.Principal{Identity: "agent-run", Scopes: []string{
+			Secret: config.Secrets.ServiceToken,
+			Principal: v1.Principal{Identity: "tidewise-internal-service", Scopes: []string{
 				server.ScopeReviewedEventImport,
 				server.ScopeEventTagRead,
+				server.ScopeResearchImport,
+				server.ScopeResearchRead,
+				server.ScopeAdminRead,
 			}},
-		},
-		{
-			Secret: config.Secrets.DataServiceResearchPublisherToken,
-			Principal: v1.Principal{
-				Identity: "research-theme-publisher",
-				Scopes:   []string{server.ScopeResearchImport},
-			},
-		},
-		{
-			Secret: config.Secrets.DataServiceMiniappToken,
-			Principal: v1.Principal{
-				Identity: "miniapp-bff",
-				Scopes:   []string{server.ScopeResearchRead},
-			},
-		},
-		{
-			Secret: config.Secrets.DataServiceAdminToken,
-			Principal: v1.Principal{
-				Identity: "admin-portal-bff",
-				Scopes:   []string{server.ScopeAdminRead},
-			},
 		},
 	}
 	authenticator, err := server.NewAuthenticator(credentials)

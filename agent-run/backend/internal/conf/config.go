@@ -72,10 +72,8 @@ type EventFactConfig struct {
 }
 
 type SecretConfig struct {
-	DatabaseURL      string
 	DatabasePassword string
 	ServiceToken     string
-	AdminToken       string
 	DataServiceToken string
 }
 
@@ -103,11 +101,9 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("app.env must match selected APP_ENV %s", environment)
 	}
 	cfg.Secrets = SecretConfig{
-		DatabaseURL:      os.Getenv("AGENTRUN_DATABASE_URL"),
-		DatabasePassword: os.Getenv("AGENTRUN_DATABASE_PASSWORD"),
+		DatabasePassword: os.Getenv("AGENTRUN_DB_PASSWORD"),
 		ServiceToken:     os.Getenv("AGENTRUN_SERVICE_TOKEN"),
-		AdminToken:       os.Getenv("AGENTRUN_ADMIN_TOKEN"),
-		DataServiceToken: os.Getenv("DATA_SERVICE_AGENT_TOKEN"),
+		DataServiceToken: os.Getenv("DATA_SERVICE_TOKEN"),
 	}
 	if baseURL := strings.TrimSpace(os.Getenv("AGENTRUN_DATA_BASE_URL")); baseURL != "" {
 		cfg.Data.BaseURL = baseURL
@@ -196,35 +192,25 @@ func (c Config) Validate() error {
 }
 
 func (c Config) validateRuntimeSecrets() error {
-	if strings.TrimSpace(c.Secrets.AdminToken) == "" {
-		return fmt.Errorf("AGENTRUN_ADMIN_TOKEN is required")
+	if strings.TrimSpace(c.Secrets.ServiceToken) == "" {
+		return fmt.Errorf("AGENTRUN_SERVICE_TOKEN is required")
 	}
 	if strings.TrimSpace(c.Secrets.DataServiceToken) == "" {
-		return fmt.Errorf("DATA_SERVICE_AGENT_TOKEN is required")
+		return fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
 	if c.App.Env != EnvUAT {
 		return nil
 	}
-	if c.Secrets.DatabaseURL == "" {
-		return fmt.Errorf("AGENTRUN_DATABASE_URL is required in uat")
+	if c.Secrets.DatabasePassword == "" {
+		return fmt.Errorf("AGENTRUN_DB_PASSWORD is required in uat")
 	}
-	parsed, err := parsePostgresURL(c.Secrets.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("uat database url must be a complete postgres URL")
-	}
-	if parsed.Query().Get("sslmode") != "require" {
-		return fmt.Errorf("uat database url must use sslmode=require")
+	if c.Database.SSLMode != "require" {
+		return fmt.Errorf("uat database configuration must use ssl_mode=require")
 	}
 	return nil
 }
 
 func (c Config) PostgresURL() (string, error) {
-	if c.Secrets.DatabaseURL != "" {
-		if _, err := parsePostgresURL(c.Secrets.DatabaseURL); err != nil {
-			return "", fmt.Errorf("database url must be a complete postgres URL")
-		}
-		return c.Secrets.DatabaseURL, nil
-	}
 	values := url.Values{}
 	values.Set("sslmode", c.Database.SSLMode)
 	values.Set("connect_timeout", fmt.Sprintf("%d", c.Database.ConnectTimeoutSeconds))
@@ -240,14 +226,6 @@ func (c Config) PostgresURL() (string, error) {
 		dsn.User = url.User(c.Database.User)
 	}
 	return dsn.String(), nil
-}
-
-func parsePostgresURL(value string) (*url.URL, error) {
-	parsed, err := url.ParseRequestURI(value)
-	if err != nil || parsed.Scheme != "postgres" || parsed.Hostname() == "" || parsed.User == nil || parsed.Path == "" || parsed.Path == "/" {
-		return nil, fmt.Errorf("invalid postgres URL")
-	}
-	return parsed, nil
 }
 
 func (c ServerConfig) Validate() error {

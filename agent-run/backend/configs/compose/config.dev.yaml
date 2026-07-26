@@ -1,16 +1,16 @@
 app:
   name: agentrun
-  env: uat
+  env: dev
 server:
   host: 0.0.0.0
   port: 9080
 database:
-  host: 775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com
+  host: postgres
   port: 5432
   name: tidewise_ai_server
   user: agentrun
-  ssl_mode: require
-  connect_timeout_seconds: 10
+  ssl_mode: disable
+  connect_timeout_seconds: 5
 artifact:
   root: data
 data:

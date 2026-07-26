@@ -13,11 +13,8 @@ export DATA_SERVICE_PORT="${TIDEWISE_SMOKE_DATA_PORT:-19011}"
 export MINIAPP_SERVICE_PORT="${TIDEWISE_SMOKE_MINIAPP_PORT:-19012}"
 export DATA_SERVICE_IMAGE="tidewise-data:ci"
 export MINIAPP_SERVICE_IMAGE="tidewise-miniapp:ci"
-export POSTGRES_PASSWORD="tidewise-compose-smoke-password"
-export DATA_SERVICE_AGENT_TOKEN="compose-smoke-agent-token"
-export DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN="compose-smoke-research-token"
-export DATA_SERVICE_MINIAPP_TOKEN="compose-smoke-miniapp-token"
-export DATA_SERVICE_ADMIN_TOKEN="compose-smoke-admin-token"
+export TIDEWISW_DB_PASSWORD="tidewise-compose-smoke-password"
+export DATA_SERVICE_TOKEN="compose-smoke-data-service-token"
 
 compose=(
   docker compose
@@ -38,8 +35,8 @@ trap cleanup EXIT
 
 "${compose[@]}" up -d --wait postgres
 "${compose[@]}" run --rm --no-deps \
-  -e "TIDEWISE_DATABASE_URL=postgres://tidewise:${POSTGRES_PASSWORD}@postgres:5432/tidewise_local?sslmode=disable&tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified&tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified&tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
-  data /usr/local/bin/dbmigrate -apply
+  -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
+  data /usr/local/bin/dbmigrate -apply >/dev/null
 "${compose[@]}" up -d --wait --no-build --no-deps data
 "${compose[@]}" up -d --wait --no-build --no-deps miniapp
 

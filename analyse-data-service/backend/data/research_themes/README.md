@@ -6,7 +6,7 @@
 
 ```bash
 APP_ENV=local \
-TIDEWISE_DATABASE_URL='postgres://...' \
+TIDEWISW_DB_PASSWORD='<local-password>' \
 go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 ```
 
@@ -18,7 +18,7 @@ go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 
 ```bash
 APP_ENV=local \
-TIDEWISE_DATABASE_URL='postgres://...' \
+TIDEWISW_DB_PASSWORD='<local-password>' \
 go run ./analyse-data-service/backend/cmd/research-theme-dev-reset
 ```
 
@@ -26,7 +26,7 @@ go run ./analyse-data-service/backend/cmd/research-theme-dev-reset
 
 ```bash
 APP_ENV=local \
-TIDEWISE_DATABASE_URL='postgres://...' \
+TIDEWISW_DB_PASSWORD='<local-password>' \
 go run ./analyse-data-service/backend/cmd/research-theme-dev-reset \
   --execute \
   --confirm-database tidewise_local

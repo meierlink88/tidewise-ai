@@ -49,7 +49,11 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"NEO4J_USERNAME",
 		"NEO4J_PASSWORD",
 		"agent-run/backend",
-		"AGENTRUN_DATABASE_URL",
+		"TIDEWISW_DB_PASSWORD",
+		"AGENTRUN_DB_PASSWORD",
+		"DATA_SERVICE_TOKEN",
+		"AGENTRUN_SERVICE_TOKEN",
+		"ADMIN_SERVICE_TOKEN",
 	} {
 		if !strings.Contains(readmeText, want) {
 			t.Fatalf("local README missing %q", want)

@@ -66,7 +66,7 @@ _Avoid_: 独立 Raw Document 导入、Agent 直写数据库、先存全文后补
 **Event Import Receipt**:
 Data 为每次成功 Event Publication Batch 生成的不可变审计凭证，记录调用主体、`package_id`、正式事实身份、`extractor_execution_id`、`extractor_agent_version`、每个 Artifact 对应的 `collector_execution_id` 和导入时间。以上执行血缘均为必填；Prompt、模型和 Profile 版本仍由 AgentRun 保存。Receipt 不承担请求幂等、重放判断或异步状态查询职责；失败事务不生成 Receipt。
 `package_id` 只是 AgentRun 提供的审计关联编号，不唯一且不参与事实复用；相同 package 可以产生多个成功 Receipt，每次成功调用均由 Data 生成新的 `receipt_id`。
-Event Publication 必须通过内部 Bearer service token 鉴权；Token 只存在于运行环境，不进入数据库。Data 从凭据解析稳定 `caller_subject` 写入 Receipt，用于服务级审计，与 Source、采集通道或 Artifact 来源无关。
+Event Publication 必须通过 Data 唯一的内部 Bearer service token 鉴权；Token 只存在于运行环境，不进入数据库。Data 将该凭据解析为稳定的 Data 内部 trust-domain `caller_subject` 写入 Receipt，不区分 AgentRun、Miniapp 或 Admin 等消费者。Event 的消费者级审计由必填 Collector/Extractor 执行血缘承担，与 Source、采集通道或 Artifact 来源无关。本期明确不提供 Data API 的逐消费者 token、scope 隔离或逐消费者 Receipt 主体。
 V2 Receipt 存储在专用 `event_publication_receipts`。旧独立 Raw Document 导入和单 Event V1 导入退出后，其 `raw_document_import_receipts`、`event_import_receipts` 及专属数据库触发器/函数连同历史审计记录物理移除；该清理不得删除正式 Event、Event Evidence Record 或 Event Evidence Link。
 每次成功调用均创建 Receipt 并返回 `201 Created`，响应包含 `receipt_id`、`package_id`、`imported_at`、Dedupe Key 到 Event ID 的 created/reused 映射、Artifact ID 到 Raw Document ID 的 created/reused 映射，以及 Event、Raw Document、Event Source、Event Tag 的 created/reused 分类计数；不返回 payload hash、replayed 或异步任务状态。
 _Avoid_: Idempotency Record、Import Job、失败占位记录
@@ -108,8 +108,8 @@ _Avoid_: 第二套幂等键、覆盖已发布批次、失败校验生成成功 r
 _Avoid_: 零长度窗口、每个 Theme 重复声明窗口、用发布时间替代分析窗口
 
 **研究主题发布主体（Research Theme Publisher Subject）**:
-获准发布 Research Theme 的稳定内部服务身份，由 Data 从认证上下文解析，不由请求声明。首次成功发布时该主体取得批次所有权；后续幂等重放必须来自同一主体。主体身份独立于可轮换 token，审计只保存主体 ID，不保存凭据。
-_Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份、其他服务接管已发布批次
+Data 内唯一内部 service token 对应的稳定 trust-domain 身份，由 Data 从认证上下文解析，不由请求声明。首次成功发布时该主体取得批次所有权；后续幂等重放必须来自同一 trust-domain 主体。主体身份独立于可轮换 token，审计只保存主体 ID，不保存凭据。本期不以调用方服务区分 Theme 所有权，所有持有 Data service token 的受信内部消费者处于同一发布信任域。
+_Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份、把同一 trust-domain 内的消费者伪装成独立鉴权主体
 
 **Theme 发布未知结果恢复（Theme Publication Unknown-outcome Recovery）**:
 同步 Theme 发布请求超时后，发布器以完全相同的 Analysis Batch ID 和发布内容重试 POST。首次事务已成功时返回原结果并标记重放，未成功时正常执行，内容变化时返回冲突。本期不提供状态查询、轮询或异步任务接口。
@@ -193,9 +193,9 @@ _Avoid_: 调用方生成 Anchor UUID、维护第二套 Anchor Key、使用 Ancho
 _Avoid_: 使用 Theme Import 的 canonical UUID 顺序当作产品顺序、由 BFF 或前端二次重排、复活旧 importance 字段
 
 **Research Anchor 发布主体（Research Anchor Publisher Subject）**:
-已成功发布 Research Theme 的同一稳定内部服务身份，也是该 Theme 的 Anchor 集合唯一允许的发布和重放主体。Data 从认证上下文解析主体并与 Theme Publication Receipt 比对；请求不得声明发布者，token 轮换不改变稳定主体归属。
+已成功发布 Research Theme 的同一稳定 Data 内部 trust-domain 身份，也是该 Theme 的 Anchor 集合唯一允许的发布和重放主体。Data 从认证上下文解析主体并与 Theme Publication Receipt 比对；请求不得声明发布者，token 轮换不改变稳定主体归属。本期不在同一 Data service token 的受信消费者之间建立独立 Anchor 所有权。
 没有 Theme Publication Receipt 的历史 Theme 不具备可核验发布主体，不能接收 Research Anchor 发布，也不存在本地环境或历史数据绕过。
-_Avoid_: 其他服务接管 Theme 的 Anchor 发布、在请求体声明发布者、使用 token 字符串作为长期主体身份、为无发布回执的历史 Theme 补发 Anchor
+_Avoid_: 在请求体声明发布者、使用 token 字符串作为长期主体身份、把同一 trust-domain 的消费者伪装成不同主体、为无发布回执的历史 Theme 补发 Anchor
 
 **Anchor 一句话结论（Anchor One-line Conclusion）**:
 围绕 Research Anchor 中心 Chain Node 得出的必填、非空研究结论，属于当次 Anchor 快照。它与 Theme 的总体一句话结论层级不同，由 AI 分析师生成，Data 只校验完整性并原样保存。

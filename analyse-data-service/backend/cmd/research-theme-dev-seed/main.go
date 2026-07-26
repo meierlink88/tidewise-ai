@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -79,16 +78,7 @@ func validateLocalTarget(cfg conf.Config) error {
 	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research theme development seed is local-only, got %q", cfg.App.Env)
 	}
-	host, databaseName := cfg.Database.Host, cfg.Database.Name
-	if cfg.Secrets.DatabaseURL != "" {
-		parsed, err := url.Parse(cfg.Secrets.DatabaseURL)
-		if err != nil {
-			return fmt.Errorf("research theme development seed requires a valid local database URL")
-		}
-		host = parsed.Hostname()
-		databaseName = strings.TrimPrefix(parsed.Path, "/")
-	}
-	if !isLocalDatabaseHost(host) || databaseName != "tidewise_local" {
+	if !isLocalDatabaseHost(cfg.Database.Host) || cfg.Database.Name != "tidewise_local" {
 		return fmt.Errorf("research theme development seed requires a local PostgreSQL host and database tidewise_local")
 	}
 	return nil
