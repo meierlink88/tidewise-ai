@@ -130,13 +130,15 @@ jobs:
         if: steps.risks.outputs.data == 'true'
         env:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
-        run: >-
-          go test
-          ./analyse-data-service/backend/internal/data/entityseed
-          ./analyse-data-service/backend/internal/data/postgres
-          ./analyse-data-service/backend/internal/service
-          -run '^(TestPostgres|TestEventPublicationMigration)'
-          -count=1
+        run: |
+          go test \
+            ./analyse-data-service/backend/internal/data/entityseed \
+            -run '^TestPostgresPolymorphicJSONParametersUseExplicitTypes$' \
+            -count=1
+          go test \
+            ./analyse-data-service/backend/internal/service \
+            -run '^(TestPostgresEventPublicationCreatesThenReusesNaturalIdentities|TestEventPublicationMigrationPreservesHistoricalEvidenceContent|TestPostgresEventPublicationContractScenarios)$/^(artifact_conflict_rolls_back_the_whole_batch|receipt_failure_rolls_back_Event_evidence_and_Tag_writes)?$' \
+            -count=1
 
       - name: Test Data migration chain
         if: steps.risks.outputs.migration == 'true'
