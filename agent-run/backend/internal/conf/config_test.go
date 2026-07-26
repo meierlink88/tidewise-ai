@@ -49,6 +49,7 @@ func TestLoadRequiresAdminTokenAndDeploymentTimezone(t *testing.T) {
 	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
 	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
 	t.Setenv("AGENTRUN_ADMIN_TOKEN", "")
+	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "data-agent-token")
 	t.Setenv("TZ", "Asia/Shanghai")
 
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENTRUN_ADMIN_TOKEN") {
@@ -163,6 +164,7 @@ func TestCheckedInEnvironmentConfigurations(t *testing.T) {
 func setRequiredRuntimeEnvironment(t *testing.T) {
 	t.Helper()
 	t.Setenv("AGENTRUN_ADMIN_TOKEN", "admin-token")
+	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "data-agent-token")
 	t.Setenv("TZ", "Asia/Shanghai")
 }
 
@@ -189,5 +191,11 @@ database:
   connect_timeout_seconds: 5
 artifact:
   root: data
+data:
+  base_url: http://127.0.0.1:9011
+  timeout_seconds: 10
+  max_response_bytes: 1048576
+event_fact:
+  reconcile_interval_seconds: 60
 `
 }

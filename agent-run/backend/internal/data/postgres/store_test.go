@@ -2,6 +2,8 @@ package postgres_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/testsupport"
@@ -42,7 +45,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 6 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 7 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -60,13 +63,13 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "006" ||
-		len(report.Applied) != 6 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "007" ||
+		len(report.Applied) != 7 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
 
-func TestMigrateSeedsCollectorV1(t *testing.T) {
+func TestMigrateSeedsCollectorAndEventFactExtractorV1(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
@@ -101,6 +104,13 @@ func TestMigrateSeedsCollectorV1(t *testing.T) {
 	}
 	if version.Version != "collector.v1" {
 		t.Fatalf("version = %q, want collector.v1", version.Version)
+	}
+	extractorVersion, err := store.GetAgentVersion(ctx, "event-fact-extractor.v1")
+	if err != nil {
+		t.Fatalf("get seeded Event Fact Extractor version: %v", err)
+	}
+	if extractorVersion.AgentKey != "event-fact-extractor" {
+		t.Fatalf("Event Fact Extractor agent key = %q", extractorVersion.AgentKey)
 	}
 	if _, err := database.Exec(ctx, `ALTER TABLE connector_configs DROP COLUMN updated_at`); err != nil {
 		t.Fatal(err)
@@ -864,8 +874,154 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	if err := store.CommitPreparedPublication(ctx, reference, completion); err != nil {
 		t.Fatal(err)
 	}
+	var signalCount int
+	if err := database.QueryRow(ctx, `
+		SELECT count(*) FROM artifact_ready_signals WHERE collector_execution_id = $1
+	`, execution.ID).Scan(&signalCount); err != nil {
+		t.Fatal(err)
+	}
+	if signalCount != 1 {
+		t.Fatalf("Artifact ready signal count = %d, want 1", signalCount)
+	}
 	if err := store.CommitPreparedPublication(ctx, reference, completion); err != nil {
 		t.Fatalf("idempotent commit: %v", err)
+	}
+	if dispatched, err := store.DispatchPendingSignals(
+		ctx, "event-fact-extractor.v1", now.Add(2*time.Minute),
+	); err != nil || dispatched != 1 {
+		t.Fatalf("dispatch Artifact signal = %d, err=%v", dispatched, err)
+	}
+	var workCount int
+	if err := database.QueryRow(ctx, `
+		SELECT count(*)
+		FROM event_extraction_work_items
+		WHERE collector_execution_ids = ARRAY[$1::uuid]
+		  AND extractor_agent_version = 'event-fact-extractor.v1'
+	`, execution.ID).Scan(&workCount); err != nil {
+		t.Fatal(err)
+	}
+	if workCount != 1 {
+		t.Fatalf("Event extraction Work Item count = %d, want 1", workCount)
+	}
+	attempt, claimed, err := store.ClaimNextWork(ctx, eventfact.ExtractionSnapshot{
+		PromptSHA256: strings.Repeat("c", 64),
+		SchemaSHA256: strings.Repeat("d", 64),
+		ProviderKey:  "deepseek",
+		Model:        "deepseek-chat",
+	}, now.Add(3*time.Minute))
+	if err != nil || !claimed {
+		t.Fatalf("claim Event extraction Work Item: claimed=%v err=%v", claimed, err)
+	}
+	if attempt.WorkItem.ExtractorAgentVersion != eventfact.AgentVersion ||
+		len(attempt.WorkItem.CollectorExecutionIDs) != 1 ||
+		attempt.WorkItem.CollectorExecutionIDs[0] != execution.ID {
+		t.Fatalf("Extractor attempt = %#v", attempt)
+	}
+	extractorExecution, err := store.GetExecution(ctx, attempt.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if extractorExecution.AgentKey != eventfact.AgentKey ||
+		extractorExecution.TriggerSource != agentrun.TriggerDependent ||
+		extractorExecution.Status != agentrun.StatusRunning {
+		t.Fatalf("Extractor Agent Execution = %#v", extractorExecution)
+	}
+	if err := store.SetExecutionCatalog(
+		ctx, attempt.ID, "event-tags:catalog", strings.Repeat("e", 64), now.Add(4*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	journalPayload := []byte(`{"package_id":"immutable-package"}`)
+	journalSum := sha256.Sum256(journalPayload)
+	journal := eventfact.JournalEntry{
+		WorkItemKey: attempt.WorkItem.Key, BatchOrdinal: 1,
+		PackageID: "immutable-package", Payload: journalPayload,
+		PayloadHash: hex.EncodeToString(journalSum[:]),
+	}
+	if err := store.CompleteExtraction(
+		ctx, attempt,
+		eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
+		[]eventfact.JournalEntry{journal}, now.Add(5*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(ctx, `
+		UPDATE event_publication_journal
+		SET payload_bytes = '{"package_id":"mutated"}'
+		WHERE work_item_key = $1 AND batch_ordinal = 1
+	`, attempt.WorkItem.Key); err == nil {
+		t.Fatal("Publication Journal allowed payload mutation")
+	}
+	deliverable, err := store.ListDeliverableJournals(ctx, now.Add(6*time.Minute))
+	if err != nil || len(deliverable) != 1 ||
+		string(deliverable[0].Payload) != string(journalPayload) {
+		t.Fatalf("deliverable Publication Journal = %#v, err=%v", deliverable, err)
+	}
+	if claimed, err := store.MarkJournalSending(
+		ctx, deliverable[0], now.Add(6*time.Minute),
+	); err != nil || !claimed {
+		t.Fatal(err)
+	}
+	if claimed, err := store.MarkJournalSending(
+		ctx, deliverable[0], now.Add(6*time.Minute),
+	); err != nil || claimed {
+		t.Fatalf("duplicate Publication claim: claimed=%v err=%v", claimed, err)
+	}
+	if err := store.MarkJournalRetry(
+		ctx, deliverable[0], "transport_unknown", "response was lost", now.Add(7*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, claimed, err := store.ClaimNextWork(ctx, eventfact.ExtractionSnapshot{
+		PromptSHA256: strings.Repeat("c", 64),
+		SchemaSHA256: strings.Repeat("d", 64),
+		ProviderKey:  "deepseek",
+		Model:        "deepseek-chat",
+	}, now.Add(8*time.Minute)); err != nil || claimed {
+		t.Fatalf("Publication retry was reclaimed for extraction: claimed=%v err=%v", claimed, err)
+	}
+	replayed, err := store.ListDeliverableJournals(ctx, now.Add(8*time.Minute))
+	if err != nil || len(replayed) != 1 ||
+		string(replayed[0].Payload) != string(journalPayload) {
+		t.Fatalf("replayed Publication Journal = %#v, err=%v", replayed, err)
+	}
+	if claimed, err := store.MarkJournalSending(
+		ctx, replayed[0], now.Add(8*time.Minute),
+	); err != nil || !claimed {
+		t.Fatalf("claim replayed Publication Journal: claimed=%v err=%v", claimed, err)
+	}
+	canonical := eventfact.CanonicalEvent{
+		DedupeKey:    "event-fact:" + strings.Repeat("f", 64),
+		IdentityHash: strings.Repeat("f", 64),
+		CoreFacts:    json.RawMessage(`{"title":"事件","factual_summary":"事实摘要","occurred_at":null,"fact_payload":{"action":"test"}}`),
+	}
+	if err := store.AcknowledgeJournal(
+		ctx, replayed[0], "receipt-1", []eventfact.CanonicalEvent{canonical},
+		now.Add(9*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkJournalRetry(
+		ctx, deliverable[0], "late_transport_error", "stale worker result", now.Add(10*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	var publicationStatus, workStatus string
+	if err := database.QueryRow(ctx, `
+		SELECT j.status, w.status
+		FROM event_publication_journal j
+		JOIN event_extraction_work_items w USING (work_item_key)
+		WHERE j.work_item_key = $1 AND j.batch_ordinal = 1
+	`, attempt.WorkItem.Key).Scan(&publicationStatus, &workStatus); err != nil {
+		t.Fatal(err)
+	}
+	if publicationStatus != "acknowledged" || workStatus != "published" {
+		t.Fatalf("stale delivery result regressed journal=%q work=%q", publicationStatus, workStatus)
+	}
+	recalled, err := store.FindCanonicalEvents(ctx, []string{canonical.IdentityHash})
+	if err != nil || len(recalled) != 1 ||
+		recalled[0].DedupeKey != canonical.DedupeKey {
+		t.Fatalf("recalled canonical Event facts = %#v, err=%v", recalled, err)
 	}
 	committed, err := store.GetExecution(ctx, execution.ID)
 	if err != nil {

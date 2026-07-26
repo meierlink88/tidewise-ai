@@ -34,6 +34,20 @@ type EventPublicationCounts struct {
 	EventTagsReused     int `json:"event_tags_reused"`
 }
 
+type EventTagCatalog struct {
+	CatalogRevision string                `json:"catalog_revision"`
+	CatalogHash     string                `json:"catalog_hash"`
+	Tags            []EventTagCatalogItem `json:"tags"`
+}
+
+type EventTagCatalogItem struct {
+	ID       string `json:"id"`
+	TagKind  string `json:"tag_kind"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+}
+
 type ResearchThemeImportResult struct {
 	ReceiptID       string                    `json:"receipt_id"`
 	AnalysisBatchID string                    `json:"analysis_batch_id"`

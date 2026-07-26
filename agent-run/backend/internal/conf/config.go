@@ -27,12 +27,14 @@ const (
 )
 
 type Config struct {
-	App      AppConfig      `yaml:"app"`
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Artifact ArtifactConfig `yaml:"artifact"`
-	Secrets  SecretConfig   `yaml:"-"`
-	Location *time.Location `yaml:"-"`
+	App       AppConfig       `yaml:"app"`
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Artifact  ArtifactConfig  `yaml:"artifact"`
+	Data      DataConfig      `yaml:"data"`
+	EventFact EventFactConfig `yaml:"event_fact"`
+	Secrets   SecretConfig    `yaml:"-"`
+	Location  *time.Location  `yaml:"-"`
 }
 
 type AppConfig struct {
@@ -58,11 +60,22 @@ type ArtifactConfig struct {
 	Root string `yaml:"root"`
 }
 
+type DataConfig struct {
+	BaseURL          string `yaml:"base_url"`
+	TimeoutSeconds   int    `yaml:"timeout_seconds"`
+	MaxResponseBytes int64  `yaml:"max_response_bytes"`
+}
+
+type EventFactConfig struct {
+	ReconcileIntervalSeconds int `yaml:"reconcile_interval_seconds"`
+}
+
 type SecretConfig struct {
 	DatabaseURL      string
 	DatabasePassword string
 	ServiceToken     string
 	AdminToken       string
+	DataServiceToken string
 }
 
 func Load() (Config, error) {
@@ -93,6 +106,10 @@ func Load() (Config, error) {
 		DatabasePassword: os.Getenv("AGENTRUN_DATABASE_PASSWORD"),
 		ServiceToken:     os.Getenv("AGENTRUN_SERVICE_TOKEN"),
 		AdminToken:       os.Getenv("AGENTRUN_ADMIN_TOKEN"),
+		DataServiceToken: os.Getenv("DATA_SERVICE_AGENT_TOKEN"),
+	}
+	if baseURL := strings.TrimSpace(os.Getenv("AGENTRUN_DATA_BASE_URL")); baseURL != "" {
+		cfg.Data.BaseURL = baseURL
 	}
 	timezone := strings.TrimSpace(os.Getenv("TZ"))
 	if timezone == "" || timezone == "Local" {
@@ -155,12 +172,31 @@ func (c Config) Validate() error {
 	if c.Artifact.Root == "" {
 		return fmt.Errorf("artifact.root is required")
 	}
+	dataURL, err := url.Parse(c.Data.BaseURL)
+	if err != nil || dataURL.Scheme == "" || dataURL.Host == "" ||
+		(dataURL.Scheme != "http" && dataURL.Scheme != "https") ||
+		(dataURL.Path != "" && dataURL.Path != "/") ||
+		dataURL.User != nil || dataURL.RawQuery != "" || dataURL.Fragment != "" {
+		return fmt.Errorf("data.base_url must be an absolute HTTP URL without credentials")
+	}
+	if c.Data.TimeoutSeconds <= 0 {
+		return fmt.Errorf("data.timeout_seconds must be positive")
+	}
+	if c.Data.MaxResponseBytes <= 0 {
+		return fmt.Errorf("data.max_response_bytes must be positive")
+	}
+	if c.EventFact.ReconcileIntervalSeconds <= 0 {
+		return fmt.Errorf("event_fact.reconcile_interval_seconds must be positive")
+	}
 	return nil
 }
 
 func (c Config) validateRuntimeSecrets() error {
 	if strings.TrimSpace(c.Secrets.AdminToken) == "" {
 		return fmt.Errorf("AGENTRUN_ADMIN_TOKEN is required")
+	}
+	if strings.TrimSpace(c.Secrets.DataServiceToken) == "" {
+		return fmt.Errorf("DATA_SERVICE_AGENT_TOKEN is required")
 	}
 	if c.App.Env != EnvUAT {
 		return nil

@@ -13,3 +13,9 @@ database:
   connect_timeout_seconds: 5
 artifact:
   root: data
+data:
+  base_url: http://127.0.0.1:9011
+  timeout_seconds: 10
+  max_response_bytes: 1048576
+event_fact:
+  reconcile_interval_seconds: 60

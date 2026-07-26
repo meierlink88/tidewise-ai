@@ -100,11 +100,15 @@ services:
       AGENTRUN_DATABASE_URL: 'postgres://${AGENTRUN_DATABASE_USER:-agentrun}:${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}@postgres:5432/${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}?sslmode=disable'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
       AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_AGENT_TOKEN: '${DATA_SERVICE_AGENT_TOKEN:?set DATA_SERVICE_AGENT_TOKEN in infra/local/.env.local}'
+      AGENTRUN_DATA_BASE_URL: http://data:9011
     volumes:
       - agentrun_artifacts:/app/data
     depends_on:
       agentrun-migrate:
         condition: service_completed_successfully
+      data:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9080/healthz']
       interval: 10s
@@ -124,6 +128,7 @@ services:
       TZ: Asia/Shanghai
       AGENTRUN_DATABASE_URL: 'postgres://${AGENTRUN_DATABASE_USER:-agentrun}:${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}@postgres:5432/${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}?sslmode=disable'
       AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_AGENT_TOKEN: '${DATA_SERVICE_AGENT_TOKEN:?set DATA_SERVICE_AGENT_TOKEN in infra/local/.env.local}'
     depends_on:
       agentrun-db-init:
         condition: service_completed_successfully

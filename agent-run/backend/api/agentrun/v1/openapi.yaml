@@ -969,6 +969,7 @@ components:
           enum:
             - api
             - schedule
+            - dependent
         schedule_id:
           type: string
           format: uuid
@@ -1100,6 +1101,7 @@ components:
         - planning
         - collecting
         - materializing
+        - running
         - succeeded
         - succeeded_no_change
         - partially_succeeded

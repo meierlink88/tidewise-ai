@@ -52,6 +52,10 @@ _Avoid_: 完整正文副本、无语义 Artifact 引用、真实性认证结果
 正式 Event 的受控 Tag 映射。每个 Event 必须包含一至两个 active `news_category`，并可包含零至三个 active `index_category`；每项提交匹配的 Tag ID、kind、code，以及 `confidence`、非空 `assignment_reason` 和 `ai` 或 `rule` 来源。V2 不接收 Tag review status，Data 统一写为 `approved`。已有同 Tag 映射仅在内容一致时复用，新映射可以追加，冲突时整批失败。
 _Avoid_: 待审核 Tag、未知或停用 Tag、静默覆盖已有分配依据
 
+**Event Tag Catalog**:
+Data 拥有的 Event 分类主数据集合，包含稳定 Tag ID、kind、code、名称、启停状态和可校验版本身份；AgentRun 只能通过 Data 的版本化只读合同取得快照后进行分类。
+_Avoid_: AgentRun 自建 Tag 主数据、在 Prompt 或 YAML 中复制 Tag ID、模型创造 Tag
+
 **Event Publication Batch**:
 AgentRun 将一至十个已完成提取与审核、状态固定为 `confirmed + verified` 的原子 Event，连同其共享 Event Evidence Record、证据关联、Tag、Review 和提取血缘，按照 Data 定义的严格同步合同整批原子提交为正式事实；候选、未验证或拒绝 Event 不进入 Data，任一成员失败时整批不可见。
 每个 Event 独立提交必填的 `review_id`、`evidence_grade` 和非空 `reasons`；V2 不重复提交审核决定、Event/Fact 状态或组件版本，Data 统一写入 `confirmed + verified`。

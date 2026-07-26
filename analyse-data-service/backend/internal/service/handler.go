@@ -5,6 +5,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
@@ -21,10 +22,15 @@ const (
 	ScopeResearchImport      = "data.research.import"
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
+	ScopeEventTagRead         = "data.event-tags.read"
 )
 
 type EventPublicationService interface {
 	Import(context.Context, string, publicationdomain.Publication) (eventpublicationapp.Result, error)
+}
+
+type EventTagCatalogService interface {
+	Active(context.Context) (eventtagcatalog.Catalog, error)
 }
 
 type ResearchThemeImportService interface {
@@ -49,6 +55,7 @@ type AdminService interface {
 
 type Dependencies struct {
 	EventPublications     EventPublicationService
+	EventTagCatalog       EventTagCatalogService
 	ResearchThemeImports  ResearchThemeImportService
 	ResearchAnchorImports ResearchAnchorImportService
 	Research              ResearchService

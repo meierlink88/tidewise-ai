@@ -5,3 +5,4 @@
 004	normal	Add collector publication audit and recovery state.
 005	normal	Split model and connector configuration tables.
 006	normal	Add Agent schedule state and trigger metadata.
+007	high	Extend active Execution constraints and add durable Event Fact extraction and publication state.

@@ -24,7 +24,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func TestPostgresEventPublicationCreatesThenReusesNaturalIdentities(t *testing.T) {
+func TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineage(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
 	handler, service := newEventPublicationTestHandler(t, db)
 
@@ -125,6 +125,36 @@ func TestPostgresEventPublicationCreatesThenReusesNaturalIdentities(t *testing.T
 	if second.Result.Events[0].EventID != first.Result.Events[0].EventID ||
 		second.Result.RawDocuments[0].RawDocumentID != first.Result.RawDocuments[0].RawDocumentID {
 		t.Fatalf("natural identities changed between successful publications")
+	}
+	assertPublicationDBCounts(t, db, publicationDBCounts{
+		RawDocuments: 1,
+		Events:       1,
+		EventSources: 1,
+		EventTags:    1,
+		Receipts:     2,
+	})
+	var receiptCount, extractorExecutions, extractorVersions, collectorLineages int
+	if err := db.QueryRow(`
+SELECT
+  count(*),
+  count(DISTINCT extractor_execution_id),
+  count(DISTINCT extractor_agent_version),
+  count(DISTINCT collector_executions::text)
+FROM event_publication_receipts
+WHERE package_id = 'agentrun:event-publication:20260723:001'`).Scan(
+		&receiptCount,
+		&extractorExecutions,
+		&extractorVersions,
+		&collectorLineages,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if receiptCount != 2 || extractorExecutions != 1 ||
+		extractorVersions != 1 || collectorLineages != 1 {
+		t.Fatalf(
+			"replayed receipt lineage count=%d extractorExecutions=%d extractorVersions=%d collectors=%d",
+			receiptCount, extractorExecutions, extractorVersions, collectorLineages,
+		)
 	}
 }
 
