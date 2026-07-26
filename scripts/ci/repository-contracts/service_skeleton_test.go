@@ -15,8 +15,8 @@ import (
 func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
-		"analyse-data-service/backend",
-		"analyse-data-service/backend/cmd",
+		"analyse-data-service/backend/api/data/v1",
+		"analyse-data-service/backend/cmd/server",
 		"miniapp/backend/api/miniapp/v1",
 		"miniapp/backend/cmd/server",
 		"admin-portal/backend/api/admin/v1",
@@ -52,7 +52,7 @@ func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 
 func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	commands := map[string]string{
-		"data":         "./analyse-data-service/backend/cmd",
+		"data":         "./analyse-data-service/backend/cmd/server",
 		"miniapp":      "./miniapp/backend/cmd/server",
 		"admin-portal": "./admin-portal/backend/cmd/server",
 	}

@@ -70,11 +70,11 @@ jobs:
         if: steps.paths.outputs.changed == 'true'
         env:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
-        run: go test ./analyse-data-service/backend/adapters/dbmigration ./analyse-data-service/backend/cmd/research-theme-dev-reset ./analyse-data-service/backend/transport/internalapi -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
+        run: go test ./analyse-data-service/backend/internal/data/dbmigration ./analyse-data-service/backend/cmd/research-theme-dev-reset ./analyse-data-service/backend/internal/service -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
 
       - name: Test Data API
         if: steps.paths.outputs.changed == 'true'
-        run: go test ./analyse-data-service/backend/api
+        run: go test ./analyse-data-service/backend/api/data/v1
 
       - name: Architecture and reference contracts
         if: steps.paths.outputs.changed == 'true'
@@ -86,7 +86,7 @@ jobs:
 
       - name: Build Data Service binary
         if: steps.paths.outputs.changed == 'true'
-        run: go build -o /tmp/data-service ./analyse-data-service/backend/cmd
+        run: go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server
 
       - name: Build Data Service image
         if: steps.paths.outputs.changed == 'true'
@@ -137,7 +137,7 @@ jobs:
 
       - name: Test Data API client contract
         if: steps.paths.outputs.changed == 'true'
-        run: go test ./analyse-data-service/backend/api ./miniapp/backend/internal/data
+        run: go test ./analyse-data-service/backend/api/data/v1 ./miniapp/backend/internal/data
 
       - name: Test repository boundaries
         if: steps.paths.outputs.changed == 'true'
@@ -238,7 +238,7 @@ jobs:
 
       - name: Test provider API client contracts
         if: steps.paths.outputs.changed == 'true'
-        run: go test ./analyse-data-service/backend/api ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data
+        run: go test ./analyse-data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data
 
       - name: Test repository boundaries
         if: steps.paths.outputs.changed == 'true'

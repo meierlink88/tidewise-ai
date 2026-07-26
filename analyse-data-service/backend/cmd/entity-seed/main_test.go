@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/config"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/domain"
-	entityseed "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/usecase/entityseed"
+	entityseed "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entityseed"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
 
 func TestValidateCommandOptionsRejectsRetiredApplyScopes(t *testing.T) {
@@ -86,7 +86,7 @@ func TestManifestPreflightProofUsesExplicitFileAndCountsChainNodeProfiles(t *tes
 	if err := os.WriteFile(path, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	manifest := entityseed.Manifest{Entities: []entityseed.Entity{{EntityType: domain.EntityTypeChainNode, Profile: content}}}
+	manifest := entityseed.Manifest{Entities: []entityseed.Entity{{EntityType: model.EntityTypeChainNode, Profile: content}}}
 	proof, err := manifestPreflightProof(path, manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -138,14 +138,14 @@ func TestValidateAllianceEconomyCommandOptionsRequiresOneIsolatedMode(t *testing
 }
 
 func TestValidateAllianceEconomyLocalTarget(t *testing.T) {
-	valid := config.Config{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Name: "tidewise_local"}}
+	valid := conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Name: "tidewise_local"}}
 	if err := validateAllianceEconomyLocalTarget(valid); err != nil {
 		t.Fatal(err)
 	}
-	for _, invalid := range []config.Config{
-		{App: config.AppConfig{Env: config.EnvUAT}, Database: config.DatabaseConfig{Name: "tidewise_local"}},
-		{App: config.AppConfig{Env: config.EnvProd}, Database: config.DatabaseConfig{Name: "tidewise_prod"}},
-		{App: config.AppConfig{Env: config.EnvLocal}, Database: config.DatabaseConfig{Name: "shared_local"}},
+	for _, invalid := range []conf.Config{
+		{App: conf.AppConfig{Env: conf.EnvUAT}, Database: conf.DatabaseConfig{Name: "tidewise_local"}},
+		{App: conf.AppConfig{Env: conf.EnvProd}, Database: conf.DatabaseConfig{Name: "tidewise_prod"}},
+		{App: conf.AppConfig{Env: conf.EnvLocal}, Database: conf.DatabaseConfig{Name: "shared_local"}},
 	} {
 		if err := validateAllianceEconomyLocalTarget(invalid); err == nil {
 			t.Fatalf("validateAllianceEconomyLocalTarget(%+v) error = nil", invalid)

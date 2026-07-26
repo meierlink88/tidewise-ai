@@ -9,14 +9,10 @@
 
 ## PostgreSQL 与 Neo4j
 
-PostgreSQL 是事实源，保存 `entity_nodes`、`benchmark_profiles`、`entity_edges` 和 `benchmark_observations`。Neo4j 是可重建投影，只保存单一 `Entity` 标签下的稳定实体定义及已审阅关系。benchmark observation 不进入图投影。
-
-Graph projector 必须复用 `entity_nodes` 的 `name`、`canonical_name` 和 `aliases`，并写入唯一的 `projection_namespace=tidewise`。本地重建使用：
-
-```bash
-cd /path/to/tidewise-ai
-APP_ENV=local DATABASE_PASSWORD="$DATABASE_PASSWORD" go run ./analyse-data-service/backend/cmd/graph-projector rebuild-entities
-```
+PostgreSQL 是事实源，保存 `entity_nodes`、`benchmark_profiles`、`entity_edges` 和
+`benchmark_observations`。Neo4j 仍是未来可重建投影目标，但旧 projector 已随过时
+实体关系规则退役。当前没有受支持的图投影写入或重建命令；新规则冻结前不得手工同步
+或把 Neo4j 当作事实源。benchmark observation 不进入未来图投影。
 
 ## Review Gate
 

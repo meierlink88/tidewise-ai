@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/adapters/database"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/config"
-	entityseed "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/usecase/entityseed"
+	entityseed "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entityseed"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	entityseeddata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/entityseed"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 )
 
 func main() {
@@ -49,7 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var relationInput entityseed.ChainNodeRelationManifest
+	var relationInput entityseeddata.ChainNodeRelationManifest
 	if strings.TrimSpace(*relationManifest) != "" {
 		relationInput, err = loadRelationDryRunManifest(*relationManifest)
 		if err != nil {
@@ -63,7 +64,7 @@ func main() {
 			log.Fatalf("load approved alliance economy manifest: %v", err)
 		}
 	}
-	cfg, err := config.Load()
+	cfg, err := conf.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
@@ -77,13 +78,13 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	db, err := database.Open(ctx, cfg)
+	db, err := postgres.Open(ctx, cfg)
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
 	if strings.TrimSpace(*allianceEconomyManifest) != "" {
-		repository := entityseed.NewPostgresRepository(db)
+		repository := entityseeddata.NewRepository(db)
 		var result any
 		switch {
 		case *allianceEconomyDependencyAudit:
@@ -100,8 +101,8 @@ func main() {
 		return
 	}
 	if strings.TrimSpace(*relationManifest) != "" {
-		repository := entityseed.NewPostgresRepository(db)
-		var report entityseed.ChainNodeRelationReport
+		repository := entityseeddata.NewRepository(db)
+		var report entityseeddata.ChainNodeRelationReport
 		if *relationDryRun {
 			report, err = repository.DryRunFrozenChainNodeRelations(ctx, relationInput.Relations)
 		} else {
@@ -119,7 +120,7 @@ func main() {
 			log.Fatalf("load external identifier mappings: %v", err)
 		}
 		if *mappingPreflight {
-			report, err := entityseed.NewPostgresRepository(db).PreflightExternalIdentifierMappings(ctx, manifest.Mappings)
+			report, err := entityseeddata.NewRepository(db).PreflightExternalIdentifierMappings(ctx, manifest.Mappings)
 			if err != nil {
 				log.Fatalf("preflight external identifier mappings: %v", err)
 			}
@@ -127,7 +128,7 @@ func main() {
 			return
 		}
 		if *mappingDryRun {
-			report, err := entityseed.NewPostgresRepository(db).DryRunExternalIdentifierBatch(ctx, manifest.Mappings)
+			report, err := entityseeddata.NewRepository(db).DryRunExternalIdentifierBatch(ctx, manifest.Mappings)
 			if err != nil {
 				log.Fatalf("dry-run external identifier mappings: %v", err)
 			}
@@ -140,7 +141,7 @@ func main() {
 		if err := entityseed.ValidateFrozenFirstBatchExternalIdentifierManifest(*mappingManifest, manifest.Mappings); err != nil {
 			log.Fatalf("validate frozen first-batch mapping manifest: %v", err)
 		}
-		report, err := entityseed.NewPostgresRepository(db).ApplyFrozenFirstBatchExternalIdentifiers(ctx, manifest.Mappings)
+		report, err := entityseeddata.NewRepository(db).ApplyFrozenFirstBatchExternalIdentifiers(ctx, manifest.Mappings)
 		if err != nil {
 			log.Fatalf("apply external identifier mappings: %v", err)
 		}
@@ -159,13 +160,13 @@ func main() {
 		if err != nil {
 			log.Fatalf("build reviewed manifest preflight proof: %v", err)
 		}
-		report, err := entityseed.NewPostgresRepository(db).RunPhaseAPreflight(ctx)
+		report, err := entityseeddata.NewRepository(db).RunPhaseAPreflight(ctx)
 		if err != nil {
 			log.Fatalf("run phase A preflight: %v", err)
 		}
 		content, err := json.MarshalIndent(struct {
-			Preflight entityseed.PhaseAPreflightReport `json:"preflight"`
-			Manifest  manifestPreflight                `json:"manifest"`
+			Preflight entityseeddata.PhaseAPreflightReport `json:"preflight"`
+			Manifest  manifestPreflight                    `json:"manifest"`
 		}{Preflight: report, Manifest: proof}, "", "  ")
 		if err != nil {
 			log.Fatalf("encode phase A preflight report: %v", err)
@@ -179,7 +180,7 @@ func main() {
 		log.Fatalf("load entity seed files: %v", err)
 	}
 
-	service := entityseed.NewService(entityseed.NewPostgresRepository(db))
+	service := entityseed.NewService(entityseeddata.NewRepository(db))
 	report, err := service.Apply(ctx, manifest, entityseed.ApplyOptions{IncludeInactive: *includeInactive, Scope: scope})
 	if err != nil {
 		log.Fatalf("apply entity seed: %v", err)
@@ -228,12 +229,12 @@ func loadManifest(seedDir, manifestFile string) (entityseed.Manifest, error) {
 	return entityseed.LoadFiles(entityseed.DefaultSeedPaths(seedDir)...)
 }
 
-func loadRelationDryRunManifest(path string) (entityseed.ChainNodeRelationManifest, error) {
+func loadRelationDryRunManifest(path string) (entityseeddata.ChainNodeRelationManifest, error) {
 	manifest, err := entityseed.LoadFrozenAdditiveChainNodeRelationManifest(path)
 	if err != nil {
 		return manifest, err
 	}
-	if err := entityseed.ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
+	if err := entityseeddata.ValidateChainNodeRelationDryRunManifest(manifest); err != nil {
 		return manifest, err
 	}
 	return manifest, nil
@@ -281,8 +282,8 @@ func validateAllianceEconomyCommandOptions(o allianceEconomyCommandOptions) erro
 	return nil
 }
 
-func validateAllianceEconomyLocalTarget(cfg config.Config) error {
-	if cfg.App.Env != config.EnvLocal || cfg.Database.Name != "tidewise_local" {
+func validateAllianceEconomyLocalTarget(cfg conf.Config) error {
+	if cfg.App.Env != conf.EnvLocal || cfg.Database.Name != "tidewise_local" {
 		return fmt.Errorf("alliance/economy cleanup and rebuild are restricted to APP_ENV=local and database tidewise_local")
 	}
 	return nil

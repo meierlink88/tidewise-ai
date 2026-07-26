@@ -39,7 +39,10 @@ user: tidewise
 
 ## 本地 Neo4j
 
-Neo4j 是从 PostgreSQL 事实源投影出来的图谱查询库。local 环境默认在 `analyse-data-service/backend/config/config.local.yaml` 中启用 Neo4j，但真实用户名和密码只通过环境变量注入。
+Neo4j 是 PostgreSQL 事实未来可重建的图谱查询库。local Compose 保留独立 Neo4j
+服务和持久化卷，但 Data Server 不连接它、不等待其健康，也不接收其凭据。Neo4j
+用户名和密码只用于 Neo4j 容器本身，通过本地 `NEO4J_USERNAME` 和
+`NEO4J_PASSWORD` 环境变量注入。
 
 Neo4j Browser 默认访问：
 
@@ -47,32 +50,14 @@ Neo4j Browser 默认访问：
 http://localhost:7474
 ```
 
-Bolt 连接地址与 local config 对齐：
+从宿主机访问 Bolt：
 
 ```text
 bolt://localhost:7687
 ```
 
-图谱投影命令位于 `analyse-data-service/backend/cmd/graph-projector`。真实 Neo4j smoke 必须显式启用，普通 `go test ./...` 不会连接 Neo4j：
-
-```bash
-APP_ENV=local \
-DATABASE_PASSWORD=<local-postgres-password> \
-NEO4J_USERNAME=<local-neo4j-user> \
-NEO4J_PASSWORD=<local-neo4j-password> \
-TIDEWISE_ENABLE_NEO4J_SMOKE=true \
-go test ./analyse-data-service/backend/cmd/graph-projector ./analyse-data-service/backend/adapters/graphdb ./analyse-data-service/backend/usecase/graphprojection
-```
-
-手动检查连接和投影：
-
-```bash
-APP_ENV=local NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./analyse-data-service/backend/cmd/graph-projector check
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./analyse-data-service/backend/cmd/graph-projector project-entities
-APP_ENV=local DATABASE_PASSWORD=<local-postgres-password> NEO4J_USERNAME=<local-neo4j-user> NEO4J_PASSWORD=<local-neo4j-password> go run ./analyse-data-service/backend/cmd/graph-projector rebuild-entities
-```
-
-`project-entities` 会读取 PostgreSQL 的 `entity_nodes` 和 `entity_edges`，写入 Neo4j 的 `Entity` 标签，并通过 `projection_namespace=tidewise` 标识本系统投影。`rebuild-entities` 只清理该命名空间的实体图，不会清空整个 Neo4j database。
+旧实体图投影规则已退役。当前没有受支持的投影、重建或连接检查命令，不得手工把
+PostgreSQL 事实复制到 Neo4j。新的 projector 必须等实体关系业务规则冻结后另行设计。
 
 ## 执行 migration
 

@@ -1,0 +1,73 @@
+package postgres
+
+import (
+	"database/sql"
+	"time"
+
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
+)
+
+type repository struct {
+	db *sql.DB
+}
+
+func newRepository(db *sql.DB) repository {
+	return repository{db: db}
+}
+
+func NewEventPublicationStore(db *sql.DB) eventpublication.Store {
+	return newRepository(db)
+}
+
+func NewResearchThemeImportStore(db *sql.DB) researchthemeimport.Store {
+	return newRepository(db)
+}
+
+func NewResearchAnchorImportStore(db *sql.DB) researchanchorimport.Store {
+	return newRepository(db)
+}
+
+func NewResearchRepository(db *sql.DB) research.Repository {
+	return newRepository(db)
+}
+
+func NewAdminQueryRepository(db *sql.DB) adminquery.Repository {
+	return newRepository(db)
+}
+
+func NewBenchmarkObservationRepository(db *sql.DB) BenchmarkObservationRepository {
+	return newRepository(db)
+}
+
+func NewIndustryChainRepository(db *sql.DB) IndustryChainRepository {
+	return newRepository(db)
+}
+
+type rawDocumentScanner interface {
+	Scan(dest ...any) error
+}
+
+func nullString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func nullTime(value *time.Time) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func nullablePositiveInt(value int) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
+}

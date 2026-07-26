@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/adapters/dbmigration"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/config"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 		log.Fatalf("parse migration options: %v", err)
 	}
 
-	cfg, err := config.Load()
+	cfg, err := conf.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}

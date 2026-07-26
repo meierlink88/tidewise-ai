@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/adapters/database"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/config"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 )
 
 const (
@@ -115,7 +115,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cfg, err := config.Load()
+	cfg, err := conf.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
@@ -125,7 +125,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	db, err := database.Open(ctx, cfg)
+	db, err := postgres.Open(ctx, cfg)
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
@@ -150,8 +150,8 @@ func validateExecutionGate(options resetOptions) error {
 	return nil
 }
 
-func validateResetTarget(cfg config.Config) error {
-	if cfg.App.Env != config.EnvLocal {
+func validateResetTarget(cfg conf.Config) error {
+	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research publication development reset is local-only, got %q", cfg.App.Env)
 	}
 

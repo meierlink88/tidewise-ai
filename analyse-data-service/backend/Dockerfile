@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./analyse-data-service/backend/cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./analyse-data-service/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigrate ./analyse-data-service/backend/cmd/dbmigrate
 
 FROM alpine:3.20
@@ -18,11 +18,11 @@ WORKDIR /app
 
 COPY --from=builder /out/data-service /usr/local/bin/data-service
 COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
-COPY analyse-data-service/backend/config ./config
+COPY analyse-data-service/backend/configs ./configs
 COPY analyse-data-service/backend/migrations ./migrations
 
 ENV APP_ENV=local
-ENV TIDEWISE_CONFIG_DIR=/app/config
+ENV TIDEWISE_CONFIG_DIR=/app/configs
 EXPOSE 9011
 
 USER tidewise
