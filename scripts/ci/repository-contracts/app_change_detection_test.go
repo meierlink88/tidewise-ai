@@ -160,6 +160,12 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			want:  map[string]bool{"default": true, "data": true, "migration": true},
 		},
 		{
+			name:  "AgentRun Artifact permission smoke selects the container seam",
+			scope: "agentrun",
+			path:  "scripts/ci/smoke-agentrun-artifact-permissions.sh",
+			want:  map[string]bool{"container": true},
+		},
+		{
 			name:  "Shared Go module selects every Backend risk affected by dependencies",
 			scope: "data",
 			path:  "go.mod",

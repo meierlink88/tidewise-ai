@@ -18,6 +18,8 @@ fi
 deploy_user="${TIDEWISE_DEPLOY_USER:-tidewise-deploy}"
 deploy_root="${TIDEWISE_DEPLOY_ROOT:-/opt/tidewise/uat}"
 runner_root="${TIDEWISE_RUNNER_ROOT:-/opt/tidewise/actions-runner}"
+agentrun_artifact_group="tidewise-agentrun"
+agentrun_artifact_gid="10001"
 runner_name="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 repository_url="${GITHUB_REPOSITORY_URL:?GITHUB_REPOSITORY_URL is required}"
 registration_token="${GITHUB_RUNNER_REGISTRATION_TOKEN:?GITHUB_RUNNER_REGISTRATION_TOKEN is required}"
@@ -32,12 +34,29 @@ systemctl enable --now docker.service
 if ! id "$deploy_user" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "$deploy_user"
 fi
+if group_entry="$(getent group "$agentrun_artifact_group")"; then
+  existing_gid="$(printf '%s\n' "$group_entry" | cut -d: -f3)"
+  if [ "$existing_gid" != "$agentrun_artifact_gid" ]; then
+    echo "${agentrun_artifact_group} must use GID ${agentrun_artifact_gid}, found ${existing_gid}" >&2
+    exit 1
+  fi
+elif getent group "$agentrun_artifact_gid" >/dev/null; then
+  echo "GID ${agentrun_artifact_gid} is already assigned to another group" >&2
+  exit 1
+else
+  groupadd --gid "$agentrun_artifact_gid" "$agentrun_artifact_group"
+fi
 usermod -aG docker "$deploy_user"
+usermod -aG "$agentrun_artifact_group" "$deploy_user"
 
 install -d -m 0750 -o "$deploy_user" -g "$deploy_user" \
   "$deploy_root" \
-  "$deploy_root/state" \
+  "$deploy_root/state"
+install -d -m 2770 -o "$deploy_user" -g "$agentrun_artifact_group" \
   "$deploy_root/agentrun-artifacts"
+chgrp -R "$agentrun_artifact_group" "$deploy_root/agentrun-artifacts"
+chmod -R g+rwX,o-rwx "$deploy_root/agentrun-artifacts"
+find "$deploy_root/agentrun-artifacts" -type d -exec chmod g+s {} +
 
 printf '%s  %s\n' "$runner_archive_sha256" "$runner_archive" | sha256sum --check --status
 

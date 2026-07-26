@@ -114,7 +114,7 @@ case "$scope" in
     if matches '^agent-run/backend/(api/|internal/data/connectors/|internal/data/modelprovider/)|^admin-portal/backend/(api/|internal/data/)' || matches "$shared_go"; then
       provider_consumer=true
     fi
-    if matches '^agent-run/backend/Dockerfile$' || matches "$container_assets"; then
+    if matches '^agent-run/backend/Dockerfile$|^scripts/ci/smoke-agentrun-artifact-permissions\.sh$' || matches "$container_assets"; then
       container=true
     fi
     ;;

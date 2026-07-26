@@ -6,6 +6,7 @@ deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 expected_runner="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 swr_registry="${SWR_REGISTRY:?SWR_REGISTRY is required}"
 public_base_url="${UAT_PUBLIC_BASE_URL:?UAT_PUBLIC_BASE_URL is required}"
+agentrun_artifact_gid="10001"
 
 pass() {
   echo "PASS $1"
@@ -89,6 +90,8 @@ artifact_dir="${AGENTRUN_ARTIFACT_DIR:-${deployment_root}/agentrun-artifacts}"
 [ -d "$artifact_dir" ] || fail agentrun-artifact-directory "$artifact_dir is missing"
 [ -w "$artifact_dir" ] || fail agentrun-artifact-directory "$artifact_dir is not writable"
 [ "$(stat -c '%U' "$artifact_dir")" = tidewise-deploy ] || fail agentrun-artifact-directory "$artifact_dir owner must be tidewise-deploy"
+[ "$(stat -c '%g' "$artifact_dir")" = "$agentrun_artifact_gid" ] || fail agentrun-artifact-directory "$artifact_dir group must use GID $agentrun_artifact_gid"
+[ "$(stat -c '%a' "$artifact_dir")" = 2770 ] || fail agentrun-artifact-directory "$artifact_dir mode must be 2770"
 pass agentrun-artifact-directory
 
 for port in 9012 9013 9014; do
