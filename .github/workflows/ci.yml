@@ -15,6 +15,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  governance:
+    name: Repository Governance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect repository architecture risk
+        id: risks
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-test-risk.sh repository
+
+      - name: Setup Go
+        if: steps.risks.outputs.architecture == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Test repository architecture and CI contracts
+        if: steps.risks.outputs.architecture == 'true'
+        run: go test ./scripts/ci/repository-contracts -count=1
+
   data:
     name: Data Service
     runs-on: ubuntu-latest
@@ -45,15 +72,33 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/detect-app-change.sh data
 
-      - name: Setup Go
+      - name: Select Data Service risk suites
+        id: risks
         if: steps.paths.outputs.changed == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-test-risk.sh data
+
+      - name: Setup Go
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
       - name: Verify Data Service formatting
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: |
           unformatted="$(gofmt -l analyse-data-service/backend scripts/ci/repository-contracts)"
           if [ -n "$unformatted" ]; then
@@ -63,37 +108,67 @@ jobs:
           fi
 
       - name: Vet Data Service
-        if: steps.paths.outputs.changed == 'true'
-        run: go vet ./analyse-data-service/backend/... ./scripts/ci/repository-contracts
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
+        run: go vet ./analyse-data-service/backend/...
 
-      - name: Data PostgreSQL integration
-        if: steps.paths.outputs.changed == 'true'
+      - name: Test Data Biz and API seams
+        if: steps.risks.outputs.default == 'true'
+        run: >-
+          go test -race
+          ./analyse-data-service/backend/internal/biz/...
+          ./analyse-data-service/backend/api/data/v1
+          ./analyse-data-service/backend/internal/service
+          ./analyse-data-service/backend/internal/server
+          -count=1
+
+      - name: Test Data PostgreSQL boundaries
+        if: steps.risks.outputs.data == 'true'
         env:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
-        run: go test ./analyse-data-service/backend/internal/data/dbmigration ./analyse-data-service/backend/cmd/research-theme-dev-reset ./analyse-data-service/backend/internal/service -run '^(TestPostgres(ResearchAnchorReasoningTreeMigration|ResearchAnchorBranchSummariesMigration|TypedMasterDataMigration|RunReset|EventPublicationV2.*)|TestEventPublicationV2MigrationPreservesHistoricalEvidenceContent)$' -count=1
+        run: >-
+          go test
+          ./analyse-data-service/backend/internal/data/entityseed
+          ./analyse-data-service/backend/internal/data/postgres
+          ./analyse-data-service/backend/internal/service
+          -run '^(TestPostgres|TestEventPublicationMigration)'
+          -count=1
 
-      - name: Test Data API
-        if: steps.paths.outputs.changed == 'true'
-        run: go test ./analyse-data-service/backend/api/data/v1
+      - name: Test Data migration chain
+        if: steps.risks.outputs.migration == 'true'
+        env:
+          TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
+        run: go test ./analyse-data-service/backend/internal/data/dbmigration -count=1
 
-      - name: Architecture and reference contracts
-        if: steps.paths.outputs.changed == 'true'
-        run: go test ./scripts/ci/repository-contracts
-
-      - name: Test Data Service
-        if: steps.paths.outputs.changed == 'true'
-        run: go test -race ./analyse-data-service/backend/... ./scripts/ci/repository-contracts
+      - name: Test Data configuration and lifecycle
+        if: steps.risks.outputs.conf_lifecycle == 'true'
+        env:
+          TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
+        run: >-
+          go test
+          ./analyse-data-service/backend/internal/conf
+          ./analyse-data-service/backend/cmd/research-theme-dev-reset
+          -count=1
 
       - name: Build Data Service binary
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server
 
       - name: Build Data Service image
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.container == 'true'
         run: docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
 
       - name: Validate local and UAT Compose contracts
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.container == 'true'
         run: |
           docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet
           docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet
@@ -114,15 +189,31 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/detect-app-change.sh miniapp
 
-      - name: Setup Go
+      - name: Select Miniapp risk suites
+        id: risks
         if: steps.paths.outputs.changed == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-test-risk.sh miniapp
+
+      - name: Setup Go
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
       - name: Verify Miniapp Backend formatting
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: |
           unformatted="$(gofmt -l miniapp/backend)"
           if [ -n "$unformatted" ]; then
@@ -132,27 +223,43 @@ jobs:
           fi
 
       - name: Vet Miniapp Backend
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go vet ./miniapp/backend/...
 
-      - name: Test Data API client contract
-        if: steps.paths.outputs.changed == 'true'
+      - name: Test Miniapp Biz and API seams
+        if: steps.risks.outputs.default == 'true'
+        run: >-
+          go test -race
+          ./miniapp/backend/internal/biz/...
+          ./miniapp/backend/api/miniapp/v1
+          ./miniapp/backend/internal/service
+          ./miniapp/backend/internal/server
+          -count=1
+
+      - name: Test Miniapp Data API Adapter contract
+        if: >-
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go test ./analyse-data-service/backend/api/data/v1 ./miniapp/backend/internal/data
 
-      - name: Test repository boundaries
-        if: steps.paths.outputs.changed == 'true'
-        run: go test ./scripts/ci/repository-contracts
-
-      - name: Test Miniapp Backend
-        if: steps.paths.outputs.changed == 'true'
-        run: go test -race ./miniapp/backend/... -count=1
+      - name: Test Miniapp configuration and lifecycle
+        if: steps.risks.outputs.conf_lifecycle == 'true'
+        run: go test ./miniapp/backend/internal/conf -count=1
 
       - name: Build Miniapp Backend binary
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server
 
       - name: Setup Node
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -160,43 +267,52 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install frontend dependencies
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm ci
 
       - name: Verify changed Miniapp formatting
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/check-prettier-diff.sh
 
       - name: Test Miniapp Frontend
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm run test:miniapp
 
       - name: Typecheck Miniapp Frontend
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm run typecheck:miniapp
 
       - name: Lint Miniapp Frontend
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm run lint
 
-      - name: Build Miniapp Frontend
-        if: steps.paths.outputs.changed == 'true'
+      - name: Build Miniapp Frontend for WeChat
+        if: steps.risks.outputs.frontend == 'true'
         env:
           TARO_APP_RESEARCH_SOURCE: api
           TARO_APP_MINIAPP_API_BASE_URL: https://miniapp.example.invalid
         run: npm run build:weapp
 
+      - name: Build Miniapp Frontend for Douyin
+        if: steps.risks.outputs.frontend == 'true'
+        env:
+          TARO_APP_RESEARCH_SOURCE: api
+          TARO_APP_MINIAPP_API_BASE_URL: https://miniapp.example.invalid
+        run: npm run build:tt
+
       - name: Build Miniapp integration images
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.container == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: |
           docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
           docker build -f miniapp/backend/Dockerfile -t tidewise-miniapp:ci .
 
       - name: Smoke Miniapp to Data Service
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.provider_consumer == 'true'
         run: bash scripts/ci/smoke-miniapp-data-compose.sh
 
   adminportal:
@@ -215,15 +331,31 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/detect-app-change.sh adminportal
 
-      - name: Setup Go
+      - name: Select Admin Portal risk suites
+        id: risks
         if: steps.paths.outputs.changed == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-test-risk.sh adminportal
+
+      - name: Setup Go
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
       - name: Verify Admin Portal Backend formatting
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: |
           unformatted="$(gofmt -l admin-portal/backend)"
           if [ -n "$unformatted" ]; then
@@ -233,27 +365,42 @@ jobs:
           fi
 
       - name: Vet Admin Portal Backend
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go vet ./admin-portal/backend/...
 
-      - name: Test provider API client contracts
-        if: steps.paths.outputs.changed == 'true'
+      - name: Test Admin Portal Biz and API seams
+        if: steps.risks.outputs.default == 'true'
+        run: >-
+          go test -race
+          ./admin-portal/backend/internal/biz/...
+          ./admin-portal/backend/api/admin/v1
+          ./admin-portal/backend/internal/server
+          -count=1
+
+      - name: Test Admin Portal provider API Adapter contracts
+        if: >-
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go test ./analyse-data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data
 
-      - name: Test repository boundaries
-        if: steps.paths.outputs.changed == 'true'
-        run: go test ./scripts/ci/repository-contracts
-
-      - name: Test Admin Portal Backend
-        if: steps.paths.outputs.changed == 'true'
-        run: go test -race ./admin-portal/backend/... -count=1
+      - name: Test Admin Portal configuration and lifecycle
+        if: steps.risks.outputs.conf_lifecycle == 'true'
+        run: go test ./admin-portal/backend/internal/conf -count=1
 
       - name: Build Admin Portal Backend binary
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server
 
       - name: Setup Node
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -261,30 +408,30 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install frontend dependencies
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm ci
 
       - name: Verify changed Admin Portal formatting
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/check-prettier-diff.sh
 
       - name: Test Admin Portal Frontend
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm run test:admin
 
       - name: Typecheck Admin Portal Frontend
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm run typecheck:admin
 
       - name: Build Admin Portal Frontend
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.frontend == 'true'
         run: npm run build:admin
 
       - name: Build Admin Portal images
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.container == 'true'
         run: |
           docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
           docker build -f admin-portal/frontend/Dockerfile -t tidewise-admin:ci .
@@ -319,15 +466,33 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: bash scripts/ci/detect-app-change.sh agentrun
 
-      - name: Setup Go
+      - name: Select AgentRun risk suites
+        id: risks
         if: steps.paths.outputs.changed == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bash scripts/ci/detect-test-risk.sh agentrun
+
+      - name: Setup Go
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
       - name: Verify AgentRun formatting
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: |
           unformatted="$(gofmt -l agent-run/backend)"
           if [ -n "$unformatted" ]; then
@@ -337,21 +502,46 @@ jobs:
           fi
 
       - name: Vet AgentRun
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: go vet ./agent-run/backend/...
 
-      - name: Test AgentRun
-        if: steps.paths.outputs.changed == 'true'
-        run: go test -race ./agent-run/backend/... -count=1
+      - name: Test AgentRun Biz, API and Eino seams
+        if: steps.risks.outputs.default == 'true'
+        run: >-
+          go test -race
+          ./agent-run/backend/internal/biz/...
+          ./agent-run/backend/api/agentrun/v1
+          ./agent-run/backend/internal/service
+          ./agent-run/backend/internal/server
+          -count=1
 
-      - name: Test AgentRun PostgreSQL boundaries
-        if: steps.paths.outputs.changed == 'true'
+      - name: Test AgentRun Data, migration and provider boundaries
+        if: >-
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         env:
           AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
-        run: go test ./agent-run/backend/cmd/server ./agent-run/backend/cmd/config ./agent-run/backend/internal/data/postgres ./agent-run/backend/internal/data/scheduler ./agent-run/backend/internal/server ./agent-run/backend/internal/service -count=1
+        run: go test ./agent-run/backend/internal/data/... -count=1
+
+      - name: Test AgentRun configuration and lifecycle
+        if: steps.risks.outputs.conf_lifecycle == 'true'
+        env:
+          AGENTRUN_TEST_DATABASE_URL: postgres://agentrun:agentrun-ci-password@localhost:5432/tidewise_ai_server_test?sslmode=disable
+        run: go test ./agent-run/backend/internal/conf ./agent-run/backend/cmd/server -count=1
 
       - name: Build AgentRun commands
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.default == 'true' ||
+          steps.risks.outputs.data == 'true' ||
+          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.conf_lifecycle == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: |
           go build -o /tmp/agentrun ./agent-run/backend/cmd/server
           go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate
@@ -359,15 +549,17 @@ jobs:
           go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts
 
       - name: Build AgentRun image
-        if: steps.paths.outputs.changed == 'true'
+        if: >-
+          steps.risks.outputs.container == 'true' ||
+          steps.risks.outputs.provider_consumer == 'true'
         run: docker build -f agent-run/backend/Dockerfile -t tidewise-agentrun:ci .
 
       - name: Build Admin Portal image for AgentRun smoke
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.provider_consumer == 'true'
         run: docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
 
       - name: Smoke Admin Portal to AgentRun
-        if: steps.paths.outputs.changed == 'true'
+        if: steps.risks.outputs.provider_consumer == 'true'
         run: bash scripts/ci/smoke-admin-agentrun-compose.sh
 
   security:

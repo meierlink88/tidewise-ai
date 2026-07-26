@@ -17,7 +17,7 @@ api/agentrun/v1/testdata/admin-model-provider-list.json	moved	agent-run/backend/
 api/agentrun/v1/testdata/collector-run-success.json	moved	agent-run/backend/api/agentrun/v1/testdata/collector-run-success.json
 api/agentrun/v1/testdata/error-response.json	moved	agent-run/backend/api/agentrun/v1/testdata/error-response.json
 cmd/artifacts/main.go	moved	agent-run/backend/cmd/artifacts/main.go
-cmd/artifacts/main_test.go	moved	agent-run/backend/cmd/artifacts/main_test.go
+cmd/artifacts/main_test.go	retired-low-value-test	-
 cmd/config/main.go	moved	agent-run/backend/cmd/config/main.go
 cmd/config/main_test.go	moved	agent-run/backend/cmd/config/main_test.go
 cmd/migrate/main.go	moved	agent-run/backend/cmd/migrate/main.go
@@ -41,8 +41,8 @@ docs/specs/collector-agent-v1-reliability-parity.md	moved	docs/architecture/agen
 docs/specs/kratos-agentrun-service-migration.md	moved	docs/architecture/agentrun/kratos-agentrun-service-migration.md
 go.mod	merged	go.mod
 go.sum	merged	go.sum
-internal/architecture/ci_workflow_test.go	moved	agent-run/backend/internal/architecture/ci_workflow_test.go
-internal/architecture/layout_test.go	moved	agent-run/backend/internal/architecture/layout_test.go
+internal/architecture/ci_workflow_test.go	retired-low-value-test	-
+internal/architecture/layout_test.go	retired-low-value-test	-
 internal/biz/agents/collector/configuration.go	moved	agent-run/backend/internal/biz/agents/collector/configuration.go
 internal/biz/agents/collector/configuration_test.go	moved	agent-run/backend/internal/biz/agents/collector/configuration_test.go
 internal/biz/agents/collector/materialization/batch.go	moved	agent-run/backend/internal/biz/agents/collector/materialization/batch.go

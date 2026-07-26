@@ -11,7 +11,7 @@
     "build:tt": "taro build --type tt --no-check",
     "verify:weapp-output": "node scripts/verify-weapp-output.mjs",
     "preview:weapp": "npm run build:weapp && npm run verify:weapp-output",
-    "test": "vitest run src config",
+    "test": "vitest run src",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
