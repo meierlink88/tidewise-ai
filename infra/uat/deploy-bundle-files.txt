@@ -1,0 +1,8 @@
+release	infra/uat/docker-compose.yaml
+release	analyse-data-service/backend/configs/config.uat.yaml
+release	agent-run/backend/configs/config.uat.yaml
+control	infra/uat/preflight.sh
+control	infra/uat/deploy.sh
+control	infra/uat/collect-diagnostics.sh
+control	infra/uat/migration-risk.tsv
+control	infra/uat/agentrun-migration-risk.tsv

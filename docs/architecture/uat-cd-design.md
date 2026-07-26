@@ -84,10 +84,14 @@ UAT 使用华为云 SWR 私有镜像仓库，不使用 GHCR 作为正式部署�
 - 同一 build job 额外生成一个 UAT deployment bundle image。Bundle 包含目标 release
   的 Compose 和 UAT 配置、当前 workflow SHA 对应的受信 preflight/deploy/diagnostics
   脚本及 migration 风险清单。
-- Deployment bundle tag 使用目标 Git commit SHA；ECS 必须使用 build job 返回的
-  `repository:tag@sha256:<digest>` 拉取，不能只按可变 tag 消费。
+- Deployment bundle tag 使用
+  `<release-sha>-<control-plane-sha>` 复合身份，避免同一历史 release 在受信 control
+  plane 更新后覆盖旧 bundle；ECS 必须使用 build job 返回的
+  `repository:tag@sha256:<digest>` 拉取，不能只按 tag 消费。
 - Bundle 内记录 release SHA、control-plane SHA 和逐文件 SHA-256；这些校验在任何
-  migration 或服务更新之前完成。
+  migration 或服务更新之前完成。Bundle 文件集合由
+  `infra/uat/deploy-bundle-files.txt` 单一 manifest 管理，staging 和 ECS 验证不得分别
+  维护两套文件清单。
 - 镜像使用不可变的 Git commit SHA 标签；不得使用可被覆盖的 `latest` 作为发布身份。
 - GitHub Actions 的 SWR 推送凭据保存在 GitHub `uat` Environment Secrets 中。
 - ECS 只配置 SWR 拉取权限，遵循最小权限原则。

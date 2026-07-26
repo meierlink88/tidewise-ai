@@ -12,7 +12,8 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
   bundle image 并推送到 SWR，tag 固定为 Git commit SHA。
 - Deployment bundle 包含 release Compose/UAT 配置和受信 control-plane
   脚本/风险清单；ECS 使用 build job 返回的 image digest 拉取，并在 migration 前
-  校验 release SHA、control-plane SHA 和逐文件 SHA-256。
+  校验 release SHA、control-plane SHA 和逐文件 SHA-256。Bundle tag 使用
+  `<release-sha>-<control-plane-sha>`，文件集合由 `deploy-bundle-files.txt` 单一维护。
 - ECS runner 不 checkout Git repository，只负责 SWR 制品拉取、preflight、
   AgentRun Artifact 写入探针、Data/AgentRun migration、Compose 启动、两层健康
   检查和失败时的整套镜像回退。

@@ -36,6 +36,8 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"Stage immutable UAT deployment bundle",
 		"Build and push immutable UAT deployment bundle",
 		"deploy_bundle_image",
+		"deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}-${CONTROL_PLANE_SHA}",
+		"files.manifest",
 		"sha256sum --check",
 		"actions/upload-artifact@",
 	} {
@@ -91,6 +93,11 @@ func TestUATDeployJobConsumesSWRBundleWithoutGitHubCheckout(t *testing.T) {
 			t.Fatalf("UAT preflight still requires GitHub repository access %q", forbidden)
 		}
 	}
+
+	ci := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
+	if !strings.Contains(ci, "bash scripts/ci/smoke-uat-deploy-bundle.sh") {
+		t.Fatal("CI does not build and extract the immutable UAT deployment bundle container")
+	}
 }
 
 func TestUATWorkflowUsesImmutableMainControlPlaneForHistoricalRelease(t *testing.T) {
@@ -128,6 +135,17 @@ func TestStageUATDeployBundlePinsIdentityAndChecksums(t *testing.T) {
 		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):                     "diagnostics\n",
 		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                         "data-risk\n",
 		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):                "agentrun-risk\n",
+		filepath.Join(controlRoot, "infra/uat/deploy-bundle-files.txt"): strings.Join([]string{
+			"release\tinfra/uat/docker-compose.yaml",
+			"release\tanalyse-data-service/backend/configs/config.uat.yaml",
+			"release\tagent-run/backend/configs/config.uat.yaml",
+			"control\tinfra/uat/preflight.sh",
+			"control\tinfra/uat/deploy.sh",
+			"control\tinfra/uat/collect-diagnostics.sh",
+			"control\tinfra/uat/migration-risk.tsv",
+			"control\tinfra/uat/agentrun-migration-risk.tsv",
+			"",
+		}, "\n"),
 	}
 	for path, content := range fixtures {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

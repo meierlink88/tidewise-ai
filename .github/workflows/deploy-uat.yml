@@ -121,6 +121,7 @@ jobs:
         id: images
         env:
           COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+          CONTROL_PLANE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -138,7 +139,7 @@ jobs:
           echo "adminportal_image=${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "admin_image=${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "agentrun_image=${prefix}/${SWR_AGENTRUN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}-${CONTROL_PLANE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -321,18 +322,13 @@ jobs:
           release_root="${bundle_root}/release"
           control_root="${bundle_root}/control"
           compose_file="${release_root}/infra/uat/docker-compose.yaml"
-          for required in \
-            "$compose_file" \
-            "$release_root/analyse-data-service/backend/configs/config.uat.yaml" \
-            "$release_root/agent-run/backend/configs/config.uat.yaml" \
-            "$control_root/infra/uat/preflight.sh" \
-            "$control_root/infra/uat/deploy.sh" \
-            "$control_root/infra/uat/collect-diagnostics.sh" \
-            "$control_root/infra/uat/migration-risk.tsv" \
-            "$control_root/infra/uat/agentrun-migration-risk.tsv"
-          do
-            test -f "$required"
-          done
+          while IFS=$'\t' read -r scope path extra; do
+            if [ -n "${extra:-}" ] || ! [[ "$scope" =~ ^(release|control)$ ]] || ! [[ "$path" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "/$path/" == *"/../"* ]]; then
+              echo "invalid deployment bundle manifest row" >&2
+              exit 1
+            fi
+            test -f "${bundle_root}/${scope}/${path}"
+          done < "$bundle_root/files.manifest"
           echo "bundle_root=$bundle_root" >> "$GITHUB_OUTPUT"
           echo "release_root=$release_root" >> "$GITHUB_OUTPUT"
           echo "control_root=$control_root" >> "$GITHUB_OUTPUT"
