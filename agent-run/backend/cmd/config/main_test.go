@@ -321,7 +321,7 @@ func TestHistoricalConfigurationUpgradeRunsThroughCLIReadinessAndCollectorHTTP(t
 	httpServer := serverlayer.NewHTTPServer(conf.Config{
 		App:     conf.AppConfig{Name: conf.ServiceName, Env: conf.EnvDev},
 		Server:  conf.ServerConfig{Host: "127.0.0.1", Port: conf.ServicePort},
-		Secrets: conf.SecretConfig{ServiceToken: "service-test-token", AdminToken: "admin-test-token"},
+		Secrets: conf.SecretConfig{ServiceToken: "service-test-token"},
 	}, apiService, apiService, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	runtimeServer := httptest.NewServer(httpServer)
 	defer runtimeServer.Close()

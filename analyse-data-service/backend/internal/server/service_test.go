@@ -271,6 +271,9 @@ func serverTestResponse[T any]() (*dataapi.Response[T], error) {
 func (serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.EventPublicationRequest) (*dataapi.Response[dataapi.EventPublicationResult], error) {
 	return serverTestResponse[dataapi.EventPublicationResult]()
 }
+func (serverTestDataService) ListActiveEventTags(context.Context, *dataapi.EventTagCatalogRequest) (*dataapi.Response[dataapi.EventTagCatalog], error) {
+	return serverTestResponse[dataapi.EventTagCatalog]()
+}
 func (serverTestDataService) ImportResearchThemes(context.Context, *dataapi.ResearchThemeImportRequest) (*dataapi.Response[dataapi.ResearchThemeImportResult], error) {
 	return serverTestResponse[dataapi.ResearchThemeImportResult]()
 }

@@ -13,6 +13,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
@@ -55,6 +56,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 
 	application := service.NewDataService(service.Dependencies{
 		EventPublications:     eventpublication.NewService(eventpublicationdata.NewRepository(db)),
+		EventTagCatalog:       eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
 		ResearchThemeImports:  researchthemeimport.NewService(researchthemeimportdata.NewRepository(db)),
 		ResearchAnchorImports: researchanchorimport.NewService(researchanchorimportdata.NewRepository(db)),
 		Research:              research.NewService(researchdata.NewRepository(db), time.Now),
@@ -70,31 +72,14 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 	credentials := []server.Credential{
 		{
-			Secret: config.Secrets.DataServiceAgentToken,
-			Principal: v1.Principal{Identity: "agent-run", Scopes: []string{
+			Secret: config.Secrets.ServiceToken,
+			Principal: v1.Principal{Identity: "tidewise-internal-service", Scopes: []string{
 				server.ScopeReviewedEventImport,
+				server.ScopeEventTagRead,
+				server.ScopeResearchImport,
+				server.ScopeResearchRead,
+				server.ScopeAdminRead,
 			}},
-		},
-		{
-			Secret: config.Secrets.DataServiceResearchPublisherToken,
-			Principal: v1.Principal{
-				Identity: "research-theme-publisher",
-				Scopes:   []string{server.ScopeResearchImport},
-			},
-		},
-		{
-			Secret: config.Secrets.DataServiceMiniappToken,
-			Principal: v1.Principal{
-				Identity: "miniapp-bff",
-				Scopes:   []string{server.ScopeResearchRead},
-			},
-		},
-		{
-			Secret: config.Secrets.DataServiceAdminToken,
-			Principal: v1.Principal{
-				Identity: "admin-portal-bff",
-				Scopes:   []string{server.ScopeAdminRead},
-			},
 		},
 	}
 	authenticator, err := server.NewAuthenticator(credentials)

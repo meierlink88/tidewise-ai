@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -155,19 +154,10 @@ func validateResetTarget(cfg conf.Config) error {
 		return fmt.Errorf("research publication development reset is local-only, got %q", cfg.App.Env)
 	}
 
-	host, databaseName := cfg.Database.Host, cfg.Database.Name
-	if cfg.Secrets.DatabaseURL != "" {
-		parsed, err := url.ParseRequestURI(cfg.Secrets.DatabaseURL)
-		if err != nil || parsed.Hostname() == "" {
-			return fmt.Errorf("research publication development reset requires a valid PostgreSQL URL")
-		}
-		host = parsed.Hostname()
-		databaseName = strings.TrimPrefix(parsed.EscapedPath(), "/")
-	}
-	if !isLoopbackHost(host) {
+	if !isLoopbackHost(cfg.Database.Host) {
 		return fmt.Errorf("research publication development reset requires a loopback PostgreSQL host")
 	}
-	if databaseName != localDatabaseName {
+	if cfg.Database.Name != localDatabaseName {
 		return fmt.Errorf("research publication development reset requires database tidewise_local")
 	}
 	return nil

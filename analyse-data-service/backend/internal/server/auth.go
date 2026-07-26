@@ -18,6 +18,7 @@ const (
 	ScopeResearchImport      = "data.research.import"
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
+	ScopeEventTagRead        = "data.event-tags.read"
 	operationHealth          = "data.health"
 	operationReady           = "data.ready"
 )
@@ -98,6 +99,8 @@ func requiredScope(operation string) (string, bool) {
 	switch operation {
 	case v1.OperationPublishReviewedEvents:
 		return ScopeReviewedEventImport, true
+	case v1.OperationListActiveEventTags:
+		return ScopeEventTagRead, true
 	case v1.OperationImportResearchThemes, v1.OperationImportResearchAnchors:
 		return ScopeResearchImport, true
 	case v1.OperationListResearchThemes, v1.OperationGetResearchTheme,

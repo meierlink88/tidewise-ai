@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -68,5 +69,22 @@ func TestOpenAPIParsesWithLocalReferencesAndFreezesTidewiseEnvelopes(t *testing.
 		if err := schema.Value.VisitJSON(value); err != nil {
 			t.Fatalf("fixture %s violates %s: %v", fixture, schemaName, err)
 		}
+	}
+}
+
+func TestOpenAPIIncludesDependentEventExtractorExecutionStates(t *testing.T) {
+	loader := openapi3.NewLoader()
+	document, err := loader.LoadFromData(Document())
+	if err != nil {
+		t.Fatal(err)
+	}
+	execution := document.Components.Schemas["AgentExecutionListItem"].Value
+	trigger := execution.Properties["trigger_source"].Value.Enum
+	if !slices.Contains(trigger, any("dependent")) {
+		t.Fatalf("trigger_source enum = %#v, want dependent", trigger)
+	}
+	status := document.Components.Schemas["ExecutionStatus"].Value.Enum
+	if !slices.Contains(status, any("running")) {
+		t.Fatalf("ExecutionStatus enum = %#v, want running", status)
 	}
 }

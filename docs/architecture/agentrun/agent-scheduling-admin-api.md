@@ -138,8 +138,8 @@ AgentRun 同时新增由独立 Admin Bearer Token 保护的管理 API，用于�
 
 ### Admin authentication and security
 
-- Admin API uses `Authorization: Bearer ${AGENTRUN_ADMIN_TOKEN}`.
-- `AGENTRUN_ADMIN_TOKEN` is independent from `AGENTRUN_SERVICE_TOKEN` and is required for service startup in every supported environment.
+- Admin API uses `Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}`.
+- Collector and Admin endpoints share the single AgentRun service identity token required at startup.
 - Missing or invalid Admin authorization returns the same generic unauthorized response without revealing token state.
 - The browser does not call AgentRun directly; Admin Portal Service is the trusted management client.
 - Full Model Provider and Connector Keys are accepted only on write, never returned.

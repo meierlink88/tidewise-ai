@@ -25,6 +25,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	want := map[string]operationContract{
 		"/healthz":                     {method: "get", operationID: "getDataServiceHealth"},
 		"/readyz":                      {method: "get", operationID: "getDataServiceReadiness"},
+		namespace + "/event-tags":      {method: "get", operationID: "listActiveEventTags", driftAnchor: "data.v1.listActiveEventTags", scope: "data.event-tags.read"},
 		namespace + "/research/themes": {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}":                             {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees":             {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
@@ -60,6 +61,33 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/event-tags"], "Event Tag Catalog path")["get"], "Event Tag Catalog operation")
+	assertString(t, operation, "x-retry-policy", "safe-get")
+	assertString(t, operation, "x-required-service-scope", "data.event-tags.read")
+
+	parameters := array(t, operation["parameters"], "Event Tag Catalog parameters")
+	if len(parameters) != 2 {
+		t.Fatalf("Event Tag Catalog parameter count = %d, want 2", len(parameters))
+	}
+	active := object(t, parameters[1], "active parameter")
+	assertString(t, active, "name", "active")
+	assertStringSet(t, object(t, active["schema"], "active schema")["enum"], "true")
+
+	catalog := schema(t, document, "EventTagCatalog")
+	assertRequired(t, catalog, "catalog_revision", "catalog_hash", "tags")
+	properties := object(t, catalog["properties"], "EventTagCatalog properties")
+	assertString(t, object(t, properties["catalog_hash"], "catalog_hash"), "$ref", "#/components/schemas/PayloadHash")
+	tags := object(t, properties["tags"], "tags")
+	assertInt(t, tags, "minItems", 1)
+
+	tag := schema(t, document, "EventTagCatalogItem")
+	assertRequired(t, tag, "id", "tag_kind", "code", "name", "is_active")
+	assertString(t, object(t, object(t, tag["properties"], "tag properties")["tag_kind"], "tag_kind"), "$ref", "#/components/schemas/TagKind")
 }
 
 func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {

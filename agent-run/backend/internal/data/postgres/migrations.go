@@ -44,6 +44,38 @@ var expectedSchemaColumns = map[string]string{
 	"connector_configs.api_key": "text:NO", "connector_configs.updated_at": "timestamptz:NO",
 	"collector_artifact_publications.execution_id": "uuid:NO", "collector_artifact_publications.plan_path": "text:NO",
 	"collector_artifact_publications.plan_sha256": "bpchar:NO", "collector_artifact_publications.prepared_at": "timestamptz:NO",
+	"artifact_ready_signals.collector_execution_id": "uuid:NO", "artifact_ready_signals.status": "text:NO",
+	"artifact_ready_signals.created_at": "timestamptz:NO", "artifact_ready_signals.updated_at": "timestamptz:NO",
+	"artifact_ready_signals.dispatched_at":      "timestamptz:YES",
+	"event_extraction_work_items.work_item_key": "bpchar:NO", "event_extraction_work_items.collector_execution_ids": "_uuid:NO",
+	"event_extraction_work_items.extractor_agent_version": "text:NO", "event_extraction_work_items.status": "text:NO",
+	"event_extraction_work_items.current_execution_id": "uuid:YES", "event_extraction_work_items.extraction_result": "jsonb:NO",
+	"event_extraction_work_items.tag_catalog_revision": "text:YES", "event_extraction_work_items.tag_catalog_hash": "bpchar:YES",
+	"event_extraction_work_items.error_code": "text:YES", "event_extraction_work_items.error_summary": "text:YES",
+	"event_extraction_work_items.created_at": "timestamptz:NO", "event_extraction_work_items.updated_at": "timestamptz:NO",
+	"event_artifact_extraction_units.unit_key": "bpchar:NO", "event_artifact_extraction_units.work_item_key": "bpchar:NO",
+	"event_artifact_extraction_units.artifact_ordinal": "int4:NO", "event_artifact_extraction_units.artifact_id": "text:NO",
+	"event_artifact_extraction_units.collector_execution_id": "uuid:NO", "event_artifact_extraction_units.content_sha256": "bpchar:NO",
+	"event_artifact_extraction_units.status": "text:NO", "event_artifact_extraction_units.current_execution_id": "uuid:YES",
+	"event_artifact_extraction_units.extraction_result":    "jsonb:NO",
+	"event_artifact_extraction_units.tag_catalog_revision": "text:YES", "event_artifact_extraction_units.tag_catalog_hash": "bpchar:YES",
+	"event_artifact_extraction_units.error_code": "text:YES", "event_artifact_extraction_units.error_summary": "text:YES",
+	"event_artifact_extraction_units.created_at": "timestamptz:NO", "event_artifact_extraction_units.updated_at": "timestamptz:NO",
+	"event_extractor_executions.execution_id": "uuid:NO", "event_extractor_executions.work_item_key": "bpchar:NO",
+	"event_extractor_executions.unit_key":      "bpchar:YES",
+	"event_extractor_executions.prompt_sha256": "bpchar:NO", "event_extractor_executions.schema_sha256": "bpchar:NO",
+	"event_extractor_executions.provider_key": "text:NO", "event_extractor_executions.model": "text:NO",
+	"event_extractor_executions.tag_catalog_revision": "text:YES", "event_extractor_executions.tag_catalog_hash": "bpchar:YES",
+	"event_extractor_executions.extraction_model_calls": "int4:NO", "event_extractor_executions.review_model_calls": "int4:NO",
+	"event_publication_journal.work_item_key": "bpchar:NO", "event_publication_journal.unit_key": "bpchar:YES",
+	"event_publication_journal.batch_ordinal": "int2:NO",
+	"event_publication_journal.package_id":    "text:NO", "event_publication_journal.payload_bytes": "bytea:NO",
+	"event_publication_journal.payload_sha256": "bpchar:NO", "event_publication_journal.status": "text:NO",
+	"event_publication_journal.receipt_id": "text:YES", "event_publication_journal.attempt_count": "int4:NO",
+	"event_publication_journal.error_code": "text:YES", "event_publication_journal.error_summary": "text:YES",
+	"event_publication_journal.created_at": "timestamptz:NO", "event_publication_journal.updated_at": "timestamptz:NO",
+	"event_fact_canonical_events.dedupe_key": "text:NO", "event_fact_canonical_events.identity_hash": "bpchar:NO",
+	"event_fact_canonical_events.core_facts": "jsonb:NO", "event_fact_canonical_events.published_at": "timestamptz:NO",
 }
 
 var expectedSchemaConstraints = map[string]struct{}{
@@ -61,6 +93,31 @@ var expectedSchemaConstraints = map[string]struct{}{
 	"connector_invocations_result_count_check": {}, "connector_invocations_status_check": {},
 	"model_provider_configs_pkey": {}, "connector_configs_pkey": {},
 	"collector_artifact_publications_pkey": {}, "collector_artifact_publications_execution_id_fkey": {},
+	"artifact_ready_signals_pkey": {}, "artifact_ready_signals_collector_execution_id_fkey": {},
+	"artifact_ready_signals_status_check": {}, "artifact_ready_signals_dispatch_check": {},
+	"event_extraction_work_items_pkey": {}, "event_extraction_work_items_extractor_agent_version_fkey": {},
+	"event_extraction_work_items_current_execution_id_fkey": {}, "event_extraction_work_items_key_check": {},
+	"event_extraction_work_items_collectors_check": {}, "event_extraction_work_items_status_check": {},
+	"event_extraction_work_items_result_check": {}, "event_extraction_work_items_catalog_check": {},
+	"event_artifact_extraction_units_pkey": {}, "event_artifact_extraction_units_work_item_key_fkey": {},
+	"event_artifact_extraction_units_collector_execution_id_fkey": {}, "event_artifact_extraction_units_current_execution_id_fkey": {},
+	"event_artifact_units_work_ordinal_key": {}, "event_artifact_units_work_artifact_key": {},
+	"event_artifact_extraction_units_key_check": {}, "event_artifact_extraction_units_ordinal_check": {},
+	"event_artifact_extraction_units_artifact_check": {}, "event_artifact_extraction_units_content_check": {},
+	"event_artifact_extraction_units_status_check": {}, "event_artifact_extraction_units_result_check": {},
+	"event_artifact_extraction_units_catalog_check": {},
+	"event_extractor_executions_pkey":               {}, "event_extractor_executions_execution_id_fkey": {},
+	"event_extractor_executions_work_item_key_fkey": {}, "event_extractor_executions_prompt_hash_check": {},
+	"event_extractor_executions_unit_key_fkey":     {},
+	"event_extractor_executions_schema_hash_check": {}, "event_extractor_executions_catalog_check": {},
+	"event_extractor_executions_call_count_check": {},
+	"event_publication_journal_pkey":              {}, "event_publication_journal_package_id_key": {},
+	"event_publication_journal_work_item_key_fkey": {}, "event_publication_journal_ordinal_check": {},
+	"event_publication_journal_unit_key_fkey": {},
+	"event_publication_journal_payload_check": {}, "event_publication_journal_status_check": {},
+	"event_publication_journal_attempt_check": {}, "event_publication_journal_receipt_check": {},
+	"event_fact_canonical_events_pkey": {}, "event_fact_canonical_events_identity_hash_key": {},
+	"event_fact_canonical_events_identity_check": {}, "event_fact_canonical_events_core_check": {},
 }
 
 type MigrationReport struct {
@@ -182,7 +239,13 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		FROM information_schema.columns
 		WHERE table_schema = current_schema()
 		  AND table_name = ANY($1)
-	`, []string{"schema_migrations", "agent_definitions", "agent_versions", "agent_executions", "agent_schedules", "connector_invocations", "model_provider_configs", "connector_configs", "collector_artifact_publications"})
+	`, []string{
+		"schema_migrations", "agent_definitions", "agent_versions", "agent_executions",
+		"agent_schedules", "connector_invocations", "model_provider_configs", "connector_configs",
+		"collector_artifact_publications", "artifact_ready_signals", "event_extraction_work_items",
+		"event_artifact_extraction_units", "event_extractor_executions",
+		"event_publication_journal", "event_fact_canonical_events",
+	})
 	if err != nil {
 		return false
 	}
@@ -214,7 +277,13 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		FROM information_schema.table_constraints
 		WHERE constraint_schema = current_schema()
 		  AND table_name = ANY($1)
-	`, []string{"agent_definitions", "agent_versions", "agent_executions", "agent_schedules", "connector_invocations", "model_provider_configs", "connector_configs", "collector_artifact_publications"})
+	`, []string{
+		"agent_definitions", "agent_versions", "agent_executions", "agent_schedules",
+		"connector_invocations", "model_provider_configs", "connector_configs",
+		"collector_artifact_publications", "artifact_ready_signals", "event_extraction_work_items",
+		"event_artifact_extraction_units", "event_extractor_executions",
+		"event_publication_journal", "event_fact_canonical_events",
+	})
 	if err != nil {
 		return false
 	}
@@ -243,7 +312,8 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		WHERE schemaname = current_schema() AND indexname = 'agent_executions_one_active'
 	`).Scan(&activeIndex)
 	return err == nil && strings.Contains(activeIndex, "UNIQUE INDEX") &&
-		strings.Contains(activeIndex, "(agent_key)") && strings.Contains(activeIndex, "materializing")
+		strings.Contains(activeIndex, "(agent_key)") &&
+		strings.Contains(activeIndex, "materializing") && strings.Contains(activeIndex, "running")
 }
 
 func applyMigration(ctx context.Context, database *pgxpool.Pool, name string) error {

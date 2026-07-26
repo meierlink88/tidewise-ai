@@ -27,6 +27,7 @@ type File struct {
 	NearDuplicateRadius int
 	Publications        PublicationRepository
 	BeforePublish       func(string) error
+	AfterPublication    func()
 	Now                 func() time.Time
 }
 
@@ -293,6 +294,9 @@ func (f File) Materialize(ctx context.Context, request collector.Request, runs m
 		return f.Publications.CommitPreparedPublication(ctx, reference, completion)
 	}); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrPublicationPending, err)
+	}
+	if f.AfterPublication != nil {
+		f.AfterPublication()
 	}
 	_ = os.RemoveAll(stageRoot)
 	return result, nil

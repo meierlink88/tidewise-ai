@@ -205,14 +205,10 @@ jobs:
       ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
       ADMIN_IMAGE: ${{ needs.build-and-push.outputs.admin_image }}
       AGENTRUN_IMAGE: ${{ needs.build-and-push.outputs.agentrun_image }}
-      UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
-      AGENTRUN_DATABASE_URL: ${{ secrets.AGENTRUN_DATABASE_URL }}
-      DATA_SERVICE_AGENT_TOKEN: ${{ secrets.DATA_SERVICE_AGENT_TOKEN }}
-      DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: ${{ secrets.DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN }}
-      DATA_SERVICE_MINIAPP_TOKEN: ${{ secrets.DATA_SERVICE_MINIAPP_TOKEN }}
-      DATA_SERVICE_ADMIN_TOKEN: ${{ secrets.DATA_SERVICE_ADMIN_TOKEN }}
-      ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
-      AGENTRUN_ADMIN_TOKEN: ${{ secrets.AGENTRUN_ADMIN_TOKEN }}
+      TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
+      AGENTRUN_DB_PASSWORD: ${{ secrets.AGENTRUN_DB_PASSWORD }}
+      DATA_SERVICE_TOKEN: ${{ secrets.DATA_SERVICE_TOKEN }}
+      ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
     steps:
@@ -250,16 +246,12 @@ jobs:
           printf '%s\n' \
             "ADMIN_API_BASE_URL=${UAT_PUBLIC_BASE_URL}:9013" \
             "ADMIN_ALLOWED_ORIGIN=${UAT_PUBLIC_BASE_URL}:9014" \
-            "TIDEWISE_DATABASE_URL=${UAT_DATABASE_URL}" \
-            "AGENTRUN_DATABASE_URL=${AGENTRUN_DATABASE_URL}" \
+            "TIDEWISW_DB_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
+            "AGENTRUN_DB_PASSWORD=${AGENTRUN_DB_PASSWORD}" \
             "AGENTRUN_ARTIFACT_DIR=${DEPLOY_ROOT}/agentrun-artifacts" \
             "AGENTRUN_SERVICE_TOKEN=${AGENTRUN_SERVICE_TOKEN}" \
-            "DATA_SERVICE_AGENT_TOKEN=${DATA_SERVICE_AGENT_TOKEN}" \
-            "DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN=${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN}" \
-            "DATA_SERVICE_MINIAPP_TOKEN=${DATA_SERVICE_MINIAPP_TOKEN}" \
-            "DATA_SERVICE_ADMIN_TOKEN=${DATA_SERVICE_ADMIN_TOKEN}" \
-            "ADMIN_API_TOKEN=${ADMIN_API_TOKEN}" \
-            "AGENTRUN_ADMIN_TOKEN=${AGENTRUN_ADMIN_TOKEN}" > "$runtime_env"
+            "DATA_SERVICE_TOKEN=${DATA_SERVICE_TOKEN}" \
+            "ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN}" > "$runtime_env"
           printf '%s\n' \
             "DATA_IMAGE=${DATA_IMAGE}" \
             "MINIAPP_IMAGE=${MINIAPP_IMAGE}" \

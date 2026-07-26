@@ -16,7 +16,7 @@ func TestLoadRuntimeConfigRequiresOnlyBFFAndDataServiceSettings(t *testing.T) {
 	t.Setenv("APP_ENV", "local")
 	t.Setenv("TIDEWISE_CONFIG_DIR", configDir)
 	t.Setenv("DATA_SERVICE_BASE_URL", "http://data.internal:8081")
-	t.Setenv("DATA_SERVICE_MINIAPP_TOKEN", "miniapp-identity")
+	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 	t.Setenv("DATABASE_PASSWORD", "must-not-be-loaded")
 	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://must-not-be-loaded")
 
@@ -24,7 +24,7 @@ func TestLoadRuntimeConfigRequiresOnlyBFFAndDataServiceSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if runtime.App.Name != ServiceName || runtime.DataService.BaseURL != "http://data.internal:8081" || runtime.DataService.IdentityToken != "miniapp-identity" || runtime.DataService.Timeout != 5*time.Second {
+	if runtime.App.Name != ServiceName || runtime.DataService.BaseURL != "http://data.internal:8081" || runtime.DataService.IdentityToken != "data-service-token" || runtime.DataService.Timeout != 5*time.Second {
 		t.Fatalf("runtime = %#v", runtime)
 	}
 }
@@ -38,9 +38,9 @@ func TestLoadRuntimeConfigFailsClosedWithoutDataServiceIdentity(t *testing.T) {
 	t.Setenv("APP_ENV", "local")
 	t.Setenv("TIDEWISE_CONFIG_DIR", configDir)
 	t.Setenv("DATA_SERVICE_BASE_URL", "http://data.internal:8081")
-	t.Setenv("DATA_SERVICE_MINIAPP_TOKEN", "")
+	t.Setenv("DATA_SERVICE_TOKEN", "")
 
 	if _, err := LoadRuntimeConfig(); err == nil {
-		t.Fatal("LoadRuntimeConfig() error = nil without Miniapp Data Service identity")
+		t.Fatal("LoadRuntimeConfig() error = nil without Data Service Token")
 	}
 }

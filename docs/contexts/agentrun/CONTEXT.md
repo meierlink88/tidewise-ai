@@ -76,6 +76,34 @@ _Avoid_: PostgreSQL Execution 行、临时文件、Tidewise Raw Document Import 
 一次已完成 Collector 物化结果从持久化 pending 计划进入 accepted Markdown、共享 dedup index、Run Artifact Manifest 和 PostgreSQL 终态的可恢复提交过程。它只恢复文件发布与终态对账，不重新运行 Planner 或 Connector。
 _Avoid_: Agent Execution 重试、任务队列、Eino checkpoint、Data Raw Document Import
 
+**Artifact Ready Signal**:
+Collector Artifact Publication 完成且至少产生一个 accepted Raw Document Artifact 后形成的持久化依赖事实；它使下游 Event Fact Extraction 可立即开始，并可在漏触发时被重新发现。
+_Avoid_: Agent Schedule、轮询文件目录、Collector Workflow 内的 Event 提取节点
+
+**Event Fact Extractor Agent**:
+读取一个或多个已完成 Collector Execution 的 accepted Raw Document Artifact，提取、校验并发布原子 Event 核心事实的 Agent Definition；它不建立 Event 到 Entity、Chain Node 或影响信号的正式语义关联。
+_Avoid_: Collector Agent、Event Semantic Enricher、把采集与提取合成一个 Agent
+
+**Event Extraction Work Item**:
+AgentRun 对一组明确 Collector Execution 和一个 Event Fact Extractor Agent Version 承担的持久化处理义务；它跨 Agent Execution 尝试、审核等待和发布重试保持稳定。
+_Avoid_: Agent Execution、Agent Schedule、临时内存任务
+
+**Event Fact Candidate**:
+Event Fact Extractor 从 Artifact 中形成并通过候选级校验的原子事实解释；在 Event Publication 成功前它只属于 AgentRun，不是 Data 的正式 Event。
+_Avoid_: Data Event、未经校验的模型输出、Event Semantic Link
+
+**Event Review State**:
+AgentRun 对 Event Fact Candidate 是否可发布的审核结论；平台保留自动通过、待人工审核和拒绝等状态，即使当前运行策略只启用自动通过路径。
+_Avoid_: Data Event Status、模型自行选择数据库状态
+
+**Event Publication Journal**:
+AgentRun 为一次待发布 Event Publication Batch 持久化的不可变请求正文、内容哈希和投递结果；未知调用结果只能重发同一正文，不重新运行 Event 提取。
+_Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草稿
+
+**Event Semantic Enricher**:
+在正式 Event 已存在后，将原始 Mention 解析为 Data Entity 或 Chain Node 并形成受控语义关联和直接信号的后续 Agent Definition。
+_Avoid_: Event Fact Extractor Agent、在 Fact Payload 中隐藏正式语义关联
+
 **Dedup Index Cache**:
 从 accepted Raw Document Artifact 确定性派生的 TSV 缓存，用于 canonical URL、正文 SHA-256 与 SimHash64 去重。索引缺失可从 Markdown 重建；索引不是事实载体，也不得在缺失时被静默当作空历史。
 _Avoid_: Raw Document Artifact、Candidate ledger、PostgreSQL Candidate 表

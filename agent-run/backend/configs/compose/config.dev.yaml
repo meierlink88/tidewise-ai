@@ -1,0 +1,22 @@
+app:
+  name: agentrun
+  env: dev
+server:
+  host: 0.0.0.0
+  port: 9080
+database:
+  host: postgres
+  port: 5432
+  name: tidewise_ai_server
+  user: agentrun
+  ssl_mode: disable
+  connect_timeout_seconds: 5
+artifact:
+  root: data
+data:
+  base_url: http://data:9011
+  timeout_seconds: 10
+  max_response_bytes: 1048576
+event_fact:
+  reconcile_interval_seconds: 60
+  model_timeout_seconds: 180

@@ -51,7 +51,7 @@ verify_services() {
   shift
   local -a compose_command=("$@")
   local verification_admin_token
-  verification_admin_token="$(runtime_value "$verification_runtime" ADMIN_API_TOKEN)"
+  verification_admin_token="$(runtime_value "$verification_runtime" ADMIN_SERVICE_TOKEN)"
 
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/healthz >/dev/null || return 1
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/readyz >/dev/null || return 1
@@ -154,14 +154,7 @@ PY
 agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
 agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '2p')"
 
-database_identity="$(python3 - <<'PY'
-import os
-from urllib.parse import urlparse
-
-endpoint = urlparse(os.environ["UAT_DATABASE_URL"])
-print(f"{endpoint.username or '<unknown>'}@{endpoint.hostname or '<unknown>'}:{endpoint.port or 5432}{endpoint.path}")
-PY
-)"
+database_identity="tidewise@config.uat.yaml/tidewise_uat"
 
 {
   echo "### UAT migration preflight"

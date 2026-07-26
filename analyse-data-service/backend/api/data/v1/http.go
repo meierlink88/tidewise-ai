@@ -17,6 +17,7 @@ const (
 
 type DataHTTPServer interface {
 	ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error)
+	ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error)
 	ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error)
 	ImportResearchAnchors(context.Context, *ResearchAnchorImportRequest) (*Response[ResearchAnchorImportResult], error)
 	ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error)
@@ -30,6 +31,7 @@ type DataHTTPServer interface {
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
 	router := server.Route(APIPrefix)
 	router.POST("/reviewed-event-imports", eventPublicationImportHandler(application))
+	router.GET("/event-tags", listActiveEventTagsHandler(application))
 	router.POST("/research-theme-imports", researchThemeImportHandler(application))
 	router.POST("/research-anchor-imports", researchAnchorImportHandler(application))
 	router.GET("/research/themes", listResearchThemesHandler(application))
@@ -38,6 +40,20 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.GET("/research/themes/{theme_id}/reasoning-trees/{anchor_id}", getReasoningTreeHandler(application))
 	router.GET("/raw-documents", listRawDocumentsHandler(application))
 	router.GET("/events", listEventsHandler(application))
+}
+
+func listActiveEventTagsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		query := ctx.Request().URL.Query()
+		values, exists := query["active"]
+		if !exists || len(query) != 1 || len(values) != 1 || values[0] != "true" {
+			return NewPublicError(StatusBadRequest, "INVALID_REQUEST", "active must be exactly true", nil)
+		}
+		request := &EventTagCatalogRequest{Active: true}
+		return call(ctx, OperationListActiveEventTags, request, func(callContext context.Context) (*Response[EventTagCatalog], error) {
+			return application.ListActiveEventTags(callContext, request)
+		})
+	}
 }
 
 func eventPublicationImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {

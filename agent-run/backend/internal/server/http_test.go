@@ -196,7 +196,7 @@ func testConfig() conf.Config {
 	return conf.Config{
 		App:     conf.AppConfig{Name: conf.ServiceName, Env: conf.EnvDev},
 		Server:  conf.ServerConfig{Host: "127.0.0.1", Port: conf.ServicePort},
-		Secrets: conf.SecretConfig{ServiceToken: "service-token", AdminToken: "admin-token"},
+		Secrets: conf.SecretConfig{ServiceToken: "service-token"},
 	}
 }
 

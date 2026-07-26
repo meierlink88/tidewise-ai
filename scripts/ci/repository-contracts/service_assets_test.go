@@ -60,7 +60,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 			}
 		}
 		if !asset.mustCopyDB {
-			for _, forbidden := range []string{"COPY migrations", "dbmigrate", "DATABASE_PASSWORD", "TIDEWISE_DATABASE_URL"} {
+			for _, forbidden := range []string{"COPY migrations", "dbmigrate", "TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD"} {
 				if strings.Contains(text, forbidden) {
 					t.Fatalf("%s Dockerfile carries Data DB concern %q", asset.name, forbidden)
 				}
@@ -205,7 +205,7 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 	}
 	for _, bff := range []string{"miniapp", "adminportal"} {
 		section := composeServiceSection(t, text, bff)
-		for _, forbidden := range []string{"DATABASE_PASSWORD", "TIDEWISE_DATABASE_URL", "POSTGRES_", "NEO4J_"} {
+		for _, forbidden := range []string{"TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD", "POSTGRES_", "NEO4J_"} {
 			if strings.Contains(section, forbidden) {
 				t.Fatalf("%s compose service carries Data credential %q", bff, forbidden)
 			}
@@ -218,10 +218,20 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 		}
 	}
 	agentrun := composeServiceSection(t, text, "agentrun")
-	for _, required := range []string{"AGENTRUN_DATABASE_URL", "AGENTRUN_SERVICE_TOKEN", "AGENTRUN_ADMIN_TOKEN", "agentrun_artifacts"} {
+	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs/compose", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "agentrun_artifacts"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun compose service missing %q", required)
 		}
+	}
+	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "configs", "compose", "config.local.yaml"))
+	agentRunComposeConfig := readContractFile(t, filepath.Join(repoRoot, "agent-run", "backend", "configs", "compose", "config.dev.yaml"))
+	for service, config := range map[string]string{"Data": dataComposeConfig, "AgentRun": agentRunComposeConfig} {
+		if !strings.Contains(config, "host: postgres") {
+			t.Fatalf("%s local Compose config must use Docker DNS host postgres", service)
+		}
+	}
+	if !strings.Contains(data, "TIDEWISE_CONFIG_DIR: /app/configs/compose") {
+		t.Fatal("Data local Compose service must select its Docker-specific YAML configuration")
 	}
 }
 
@@ -290,9 +300,29 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"bash scripts/ci/detect-app-change.sh agentrun",
 		"POSTGRES_DB: tidewise_ai_server_test",
 		"Test AgentRun Data, migration and provider boundaries",
+		"Build Data and Admin Portal images for AgentRun smoke",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("unified AgentRun CI job missing %q", required)
+		}
+	}
+
+	agentRunSmokeContents, err := os.ReadFile(filepath.Join(
+		repoRoot, "scripts", "ci", "smoke-admin-agentrun-compose.sh",
+	))
+	if err != nil {
+		t.Fatalf("read Admin Portal to AgentRun Compose smoke script: %v", err)
+	}
+	agentRunSmoke := string(agentRunSmokeContents)
+	for _, required := range []string{
+		"dbmigrate -apply",
+		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
+		"AGENTRUN_SERVICE_IMAGE=\"tidewise-agentrun:ci\"",
+		"ADMIN_SERVICE_IMAGE=\"tidewise-adminportal:ci\"",
+		"TIDEWISE_SMOKE_AGENTRUN_DATA_PORT",
+	} {
+		if !strings.Contains(agentRunSmoke, required) {
+			t.Fatalf("Admin Portal to AgentRun Compose smoke script missing %q", required)
 		}
 	}
 
@@ -303,6 +333,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	smoke := string(smokeContents)
 	for _, required := range []string{
 		"dbmigrate -apply",
+		"PGOPTIONS",
 		"tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified",
 		"tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified",
 		"tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified",

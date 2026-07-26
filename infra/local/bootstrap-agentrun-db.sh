@@ -6,7 +6,7 @@ set -eu
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
 : "${AGENTRUN_DATABASE_USER:?AGENTRUN_DATABASE_USER is required}"
-: "${AGENTRUN_DATABASE_PASSWORD:?AGENTRUN_DATABASE_PASSWORD is required}"
+: "${AGENTRUN_DB_PASSWORD:?AGENTRUN_DB_PASSWORD is required}"
 : "${AGENTRUN_DATABASE_NAME:?AGENTRUN_DATABASE_NAME is required}"
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
@@ -17,7 +17,7 @@ psql \
   --dbname "$POSTGRES_DB" \
   --set ON_ERROR_STOP=1 \
   --set agentrun_user="$AGENTRUN_DATABASE_USER" \
-  --set agentrun_password="$AGENTRUN_DATABASE_PASSWORD" \
+  --set agentrun_password="$AGENTRUN_DB_PASSWORD" \
   --set agentrun_database="$AGENTRUN_DATABASE_NAME" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'agentrun_user', :'agentrun_password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'agentrun_user') \gexec

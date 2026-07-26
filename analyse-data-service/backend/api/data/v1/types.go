@@ -66,6 +66,10 @@ type EventListRequest struct {
 	PageSize      string
 }
 
+type EventTagCatalogRequest struct {
+	Active bool
+}
+
 type PublicError struct {
 	Status  int
 	Code    string

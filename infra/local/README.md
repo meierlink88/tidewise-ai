@@ -36,6 +36,9 @@ user: tidewise
 ```
 
 真实 password 通过环境变量注入，不写入 repo。
+Data、AgentRun 和 Admin Portal Backend 分别只使用一个服务身份令牌：
+`DATA_SERVICE_TOKEN`、`AGENTRUN_SERVICE_TOKEN`、`ADMIN_SERVICE_TOKEN`。数据库密码使用
+`TIDEWISW_DB_PASSWORD` 与 `AGENTRUN_DB_PASSWORD`，容器内外名称保持一致。
 
 ## 本地 Neo4j
 
@@ -64,20 +67,18 @@ PostgreSQL 事实复制到 Neo4j。新的 projector 必须等实体关系业务�
 在仓库根目录执行：
 
 ```bash
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
-```
-
-也可以用完整连接串覆盖 host/user/password：
-
-```bash
-APP_ENV=local TIDEWISE_DATABASE_URL='postgres://tidewise:<local-password>@localhost:5432/tidewise_local?sslmode=disable' go run ./analyse-data-service/backend/cmd/dbmigrate -apply
+APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
 ```
 
 检查模式不会修改 schema：
 
 ```bash
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate
+APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate
 ```
+
+host、port、database、user 和 SSL 均由 `analyse-data-service/backend/configs/config.local.yaml`
+提供，运行时不接受完整数据库 URL 覆盖。宿主机配置使用 `localhost`；Local Compose
+显式选择镜像内 `configs/compose/config.local.yaml`，并通过 Docker DNS 使用 `postgres`。
 
 ## 初始化本地 Research Theme
 
@@ -85,7 +86,7 @@ APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./analyse-data-service/b
 
 ```bash
 APP_ENV=local \
-TIDEWISE_DATABASE_URL='postgres://tidewise:<local-password>@localhost:5432/tidewise_local?sslmode=disable' \
+TIDEWISW_DB_PASSWORD=<local-password> \
 go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 ```
 
@@ -104,10 +105,10 @@ npm run backend:dev:agentrun
 只读检查或应用 AgentRun migration：
 
 ```bash
-APP_ENV=dev AGENTRUN_DATABASE_URL='postgres://agentrun:<password>@localhost:5432/tidewise_ai_server?sslmode=disable' \
+APP_ENV=dev AGENTRUN_DB_PASSWORD=<password> \
 go run ./agent-run/backend/cmd/migrate --check-only
 
-APP_ENV=dev AGENTRUN_DATABASE_URL='postgres://agentrun:<password>@localhost:5432/tidewise_ai_server?sslmode=disable' \
+APP_ENV=dev AGENTRUN_DB_PASSWORD=<password> \
 go run ./agent-run/backend/cmd/migrate
 ```
 
@@ -121,7 +122,7 @@ Source 主数据、connector、parser、prompt、完整 Markdown Artifact 与采
 
 ## 运行 Admin 前端
 
-Admin Portal BFF由统一compose在`9013`提供，并使用`ADMIN_API_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo；本地只允许 `http://127.0.0.1:5174` Origin。采集器管理功能由 BFF 使用独立的 `AGENTRUN_ADMIN_TOKEN` 访问 `AGENTRUN_BASE_URL`，该服务令牌不会下发浏览器。
+Admin Portal BFF由统一compose在`9013`提供，并使用`ADMIN_SERVICE_TOKEN`鉴权。真实token只通过未提交的`.env.local`注入，不写入repo；本地只允许 `http://127.0.0.1:5174` Origin。采集器管理功能由 BFF 使用统一的 `AGENTRUN_SERVICE_TOKEN` 访问 `AGENTRUN_BASE_URL`，该服务令牌不会下发浏览器。
 
 管理后台位于：
 
@@ -147,11 +148,11 @@ npm run dev -- --port 5174
 http://127.0.0.1:5174/
 ```
 
-页面右上角输入 `ADMIN_API_TOKEN` 后，可以查询采集源、原始数据和事件。已退役的 scheduler 路由已经删除。
+页面右上角输入 `ADMIN_SERVICE_TOKEN` 后，可以查询采集源、原始数据和事件。已退役的 scheduler 路由已经删除。
 
 ## 常见失败
 
 - `ping postgres`：本地 PostgreSQL 未启动、端口不对、数据库不存在或 password 未注入。
 - `pending migrations exist`：当前环境关闭了 `migration.auto_apply`，需要先运行 `dbmigrate -apply`。
 - `insert raw document`：通常表示 migration 未执行、source seed 失败或 schema 与 repository 不一致。
-- `admin token is not configured`：启动 `admin-portal/backend/cmd/server` 时没有注入 `ADMIN_API_TOKEN`。
+- `admin token is not configured`：启动 `admin-portal/backend/cmd/server` 时没有注入 `ADMIN_SERVICE_TOKEN`。

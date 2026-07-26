@@ -13,11 +13,8 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	dir := writeTestConfig(t, fullConfigYAML())
 	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
 	t.Setenv("APP_ENV", "local")
-	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://data:secret@localhost:5432/tidewise_local?sslmode=disable")
-	t.Setenv("DATA_SERVICE_AGENT_TOKEN", "agent-token")
-	t.Setenv("DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN", "research-publisher-token")
-	t.Setenv("DATA_SERVICE_MINIAPP_TOKEN", "miniapp-token")
-	t.Setenv("DATA_SERVICE_ADMIN_TOKEN", "admin-token")
+	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
+	t.Setenv("DATA_SERVICE_TOKEN", "service-token")
 	t.Setenv("AGENT_PLATFORM_API_KEY", "must-not-be-loaded")
 	t.Setenv("JWT_SECRET", "must-not-be-loaded")
 
@@ -31,7 +28,7 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	if cfg.Database.Name != "tidewise_local" || cfg.Migration.Directory != "migrations" {
 		t.Fatalf("Data configuration = %#v/%#v", cfg.Database, cfg.Migration)
 	}
-	if cfg.Secrets.DatabaseURL == "" || cfg.Secrets.DataServiceAgentToken == "" || cfg.Secrets.DataServiceResearchPublisherToken == "" || cfg.Secrets.DataServiceMiniappToken == "" || cfg.Secrets.DataServiceAdminToken == "" {
+	if cfg.Secrets.DatabasePassword != "database-secret" || cfg.Secrets.ServiceToken != "service-token" {
 		t.Fatalf("Data secrets were not loaded: %#v", cfg.Secrets)
 	}
 }
@@ -40,6 +37,7 @@ func TestLoadDefaultsToLocalAndRejectsUnknownEnvironment(t *testing.T) {
 	dir := writeTestConfig(t, fullConfigYAML())
 	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
 	t.Setenv("APP_ENV", "")
+	t.Setenv("DATA_SERVICE_TOKEN", "service-token")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
@@ -64,36 +62,26 @@ func TestLoadRejectsMissingDataConfiguration(t *testing.T) {
 
 func TestSecretsAreNotSerialized(t *testing.T) {
 	cfg := Config{Secrets: SecretConfig{
-		DatabaseURL:                       "postgres://data:secret@localhost/db",
-		DatabasePassword:                  "database-secret",
-		DataServiceAgentToken:             "agent-token",
-		DataServiceResearchPublisherToken: "research-publisher-token",
-		DataServiceMiniappToken:           "miniapp-token",
-		DataServiceAdminToken:             "admin-token",
+		DatabasePassword: "database-secret",
+		ServiceToken:     "service-token",
 	}}
 	content, err := yaml.Marshal(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"database-secret", "agent-token", "research-publisher-token", "miniapp-token", "admin-token"} {
+	for _, secret := range []string{"database-secret", "service-token"} {
 		if strings.Contains(string(content), secret) {
 			t.Fatalf("serialized configuration leaked %q", secret)
 		}
 	}
 }
 
-func TestPostgresURLPrefersInjectedURLAndCanBuildFromFields(t *testing.T) {
-	injected := Config{Secrets: SecretConfig{DatabaseURL: "postgres://override:secret@localhost:5432/override?sslmode=disable"}}
-	got, err := injected.PostgresURL()
-	if err != nil || got != injected.Secrets.DatabaseURL {
-		t.Fatalf("injected PostgresURL = %q, %v", got, err)
-	}
-
+func TestPostgresURLBuildsFromNonSecretFieldsAndPassword(t *testing.T) {
 	configured := Config{
 		Database: DatabaseConfig{Host: "db.local", Port: 5432, Name: "tidewise_local", User: "tidewise", SSLMode: "disable", ConnectTimeoutSeconds: 7},
 		Secrets:  SecretConfig{DatabasePassword: "test-password"},
 	}
-	got, err = configured.PostgresURL()
+	got, err := configured.PostgresURL()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +92,7 @@ func TestPostgresURLPrefersInjectedURLAndCanBuildFromFields(t *testing.T) {
 	}
 }
 
-func TestLoadUATRequiresEncryptedDatabaseURL(t *testing.T) {
+func TestLoadUATRequiresPasswordAndEncryptedYAMLDatabaseConfiguration(t *testing.T) {
 	uatConfig := strings.Replace(fullConfigYAML(), "env: local", "env: uat", 1)
 	uatConfig = strings.Replace(uatConfig, "ssl_mode: disable", "ssl_mode: require", 1)
 	dir := writeTestConfig(t, uatConfig)
@@ -113,19 +101,19 @@ func TestLoadUATRequiresEncryptedDatabaseURL(t *testing.T) {
 	}
 	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
 	t.Setenv("APP_ENV", "uat")
-	for _, databaseURL := range []string{
-		"",
-		"postgres://data:secret@rds.internal:5432/tidewise_uat?sslmode=disable",
-		"postgres://data:secret@rds.internal:5432/tidewise_uat?sslmode=verify-full",
-	} {
-		t.Setenv("TIDEWISE_DATABASE_URL", databaseURL)
-		if _, err := Load(); err == nil {
-			t.Fatalf("Load() accepted unsafe UAT database URL %q", databaseURL)
-		}
+	t.Setenv("DATA_SERVICE_TOKEN", "service-token")
+	t.Setenv("TIDEWISW_DB_PASSWORD", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TIDEWISW_DB_PASSWORD") {
+		t.Fatalf("Load() error = %v, want missing database password rejection", err)
 	}
-	t.Setenv("TIDEWISE_DATABASE_URL", "postgres://data:secret@rds.internal:5432/tidewise_uat?sslmode=require")
-	if _, err := Load(); err != nil {
-		t.Fatalf("Load() rejected valid UAT database URL: %v", err)
+	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() rejected valid UAT database configuration: %v", err)
+	}
+	dsn, err := cfg.PostgresURL()
+	if err != nil || !strings.Contains(dsn, "database-secret") || !strings.Contains(dsn, "sslmode=require") {
+		t.Fatalf("PostgresURL() = %q, %v", dsn, err)
 	}
 }
 

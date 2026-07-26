@@ -286,7 +286,7 @@ API 注册不得直接调用 Data Adapter。
 - 从 `configs/config.<env>.yaml` 读取非敏感设置；
 - `TIDEWISE_CONFIG_DIR` 可以指定外部配置目录；
 - service name 固定 `miniapp`；
-- `DATA_SERVICE_BASE_URL` 与 `DATA_SERVICE_MINIAPP_TOKEN` 必填；
+- `DATA_SERVICE_BASE_URL` 与 `DATA_SERVICE_TOKEN` 必填；
 - token 只从环境变量读取；
 - 启动前完成默认值和校验。
 

@@ -23,9 +23,11 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"environment: uat",
 		"SWR_PULL_USERNAME",
 		"UAT_PUBLIC_BASE_URL",
-		"AGENTRUN_DATABASE_URL",
+		"TIDEWISW_DB_PASSWORD",
+		"AGENTRUN_DB_PASSWORD",
+		"DATA_SERVICE_TOKEN",
+		"ADMIN_SERVICE_TOKEN",
 		"AGENTRUN_SERVICE_TOKEN",
-		"AGENTRUN_ADMIN_TOKEN",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -136,7 +138,8 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	for _, required := range []string{
 		"  data:", "  miniapp:", "  adminportal:", "  admin:", "  agentrun:",
 		"http://data:9011", "http://agentrun:9080", "9012:9012", "9013:9013", "9014:9014", "\"9080\"",
-		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "AGENTRUN_DATABASE_URL", "AGENTRUN_ADMIN_TOKEN",
+		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD",
+		"DATA_SERVICE_TOKEN", "ADMIN_SERVICE_TOKEN", "AGENTRUN_SERVICE_TOKEN",
 		"restart: unless-stopped", "max-size: \"20m\"", "max-file: \"5\"",
 	} {
 		if !strings.Contains(compose, required) {
@@ -149,14 +152,14 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	}
 	for _, service := range []string{"miniapp", "adminportal", "admin"} {
 		section := composeServiceSection(t, compose, service)
-		for _, forbidden := range []string{"TIDEWISE_DATABASE_URL", "DATABASE_PASSWORD", "RDS_CA_CERT_PATH"} {
+		for _, forbidden := range []string{"TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD", "RDS_CA_CERT_PATH"} {
 			if strings.Contains(section, forbidden) {
 				t.Fatalf("%s receives Data credential %q", service, forbidden)
 			}
 		}
 	}
 	agentrun := composeServiceSection(t, compose, "agentrun")
-	for _, required := range []string{"AGENTRUN_DATABASE_URL", "AGENTRUN_SERVICE_TOKEN", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
+	for _, required := range []string{"AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun UAT service missing %q", required)
 		}
@@ -191,6 +194,15 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("Data UAT config missing %q", required)
 		}
 	}
+	agentRunConfig := readContractFile(t, filepath.Join(root, "agent-run", "backend", "configs", "config.uat.yaml"))
+	const privateRDSHost = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
+	for service, config := range map[string]string{"Data": dataConfig, "AgentRun": agentRunConfig} {
+		if !strings.Contains(config, "host: "+privateRDSHost) ||
+			strings.Contains(config, "host: http") ||
+			strings.Contains(config, "rds.invalid") {
+			t.Fatalf("%s UAT config must use the confirmed private RDS hostname", service)
+		}
+	}
 	adminImage := readContractFile(t, filepath.Join(root, "admin-portal", "frontend", "Dockerfile"))
 	if !strings.Contains(adminImage, "nginxinc/nginx-unprivileged") || !strings.Contains(adminImage, "EXPOSE 9014") {
 		t.Fatal("Admin Frontend image must use unprivileged nginx on 9014")
@@ -212,6 +224,10 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 			t.Fatalf("UAT deploy executor missing %q", required)
 		}
 	}
+	if strings.Contains(deploy, "PGOPTIONS") ||
+		strings.Contains(deploy, "reviewed_local_cleanup_verified") {
+		t.Fatal("UAT deploy must not auto-grant historical migration review authorization")
+	}
 	for _, forbidden := range []string{"dbmigrate -down", "pg_restore", "compose down", ":latest"} {
 		if strings.Contains(deploy, forbidden) {
 			t.Fatalf("UAT deploy executor contains forbidden behavior %q", forbidden)
@@ -221,6 +237,19 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	for _, required := range []string{"Ubuntu 24.04", "tidewise-deploy", "docker-compose-v2", "sha256sum --check", "tidewise-uat-ecs", "systemctl", "agentrun-artifacts"} {
 		if !strings.Contains(bootstrap, required) {
 			t.Fatalf("UAT bootstrap missing %q", required)
+		}
+	}
+}
+
+func TestUATPreflightEnforcesIndependentDataAndAgentRunDatabaseIdentities(t *testing.T) {
+	root := repositoryRoot()
+	preflight := readContractFile(t, filepath.Join(root, "infra", "uat", "preflight.sh"))
+	for _, required := range []string{
+		"Data and AgentRun must use different database names",
+		"Data and AgentRun must use different database users",
+	} {
+		if !strings.Contains(preflight, required) {
+			t.Fatalf("UAT preflight missing database identity guard %q", required)
 		}
 	}
 }

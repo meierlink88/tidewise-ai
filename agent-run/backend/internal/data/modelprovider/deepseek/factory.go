@@ -3,7 +3,9 @@ package deepseek
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
@@ -49,13 +51,53 @@ func executionBoundClient(executionContext context.Context, timeout time.Duratio
 		Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
 			requestContext, cancel := context.WithCancel(request.Context())
 			stop := context.AfterFunc(executionContext, cancel)
-			defer func() {
+			response, err := transport.RoundTrip(request.WithContext(requestContext))
+			if err != nil {
 				stop()
 				cancel()
-			}()
-			return transport.RoundTrip(request.WithContext(requestContext))
+				return nil, err
+			}
+			if response.Body == nil {
+				stop()
+				cancel()
+				return response, nil
+			}
+			response.Body = &executionBoundBody{
+				ReadCloser: response.Body,
+				stop:       stop,
+				cancel:     cancel,
+			}
+			return response, nil
 		}),
 	}
+}
+
+type executionBoundBody struct {
+	io.ReadCloser
+	stop   func() bool
+	cancel context.CancelFunc
+	once   sync.Once
+}
+
+func (b *executionBoundBody) Read(payload []byte) (int, error) {
+	read, err := b.ReadCloser.Read(payload)
+	if err != nil {
+		b.finish()
+	}
+	return read, err
+}
+
+func (b *executionBoundBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.finish()
+	return err
+}
+
+func (b *executionBoundBody) finish() {
+	b.once.Do(func() {
+		b.stop()
+		b.cancel()
+	})
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)

@@ -9,7 +9,7 @@ server:
 log:
   level: debug
 database:
-  host: postgres
+  host: localhost
   port: 5432
   name: tidewise_local
   user: tidewise

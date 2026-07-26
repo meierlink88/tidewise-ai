@@ -9,23 +9,21 @@ failure_body="/tmp/${project_name}-unavailable.json"
 
 export COMPOSE_NETWORK_NAME="${project_name}-network"
 export POSTGRES_PORT="${TIDEWISE_SMOKE_POSTGRES_PORT:-55433}"
+export DATA_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_DATA_PORT:-19015}"
 export ADMIN_SERVICE_PORT="${TIDEWISE_SMOKE_ADMIN_PORT:-19013}"
 export AGENTRUN_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_PORT:-19080}"
+export DATA_SERVICE_IMAGE="tidewise-data:ci"
 export ADMIN_SERVICE_IMAGE="tidewise-adminportal:ci"
 export AGENTRUN_SERVICE_IMAGE="tidewise-agentrun:ci"
 export POSTGRES_USER="tidewise"
-export POSTGRES_PASSWORD="compose-smoke-postgres-password"
+export TIDEWISW_DB_PASSWORD="compose-smoke-postgres-password"
 export POSTGRES_DB="tidewise_local"
 export AGENTRUN_DATABASE_USER="agentrun"
-export AGENTRUN_DATABASE_PASSWORD="compose-smoke-agentrun-database-password"
+export AGENTRUN_DB_PASSWORD="compose-smoke-agentrun-database-password"
 export AGENTRUN_DATABASE_NAME="tidewise_ai_server"
 export AGENTRUN_SERVICE_TOKEN="compose-smoke-agentrun-service-token"
-export AGENTRUN_ADMIN_TOKEN="compose-smoke-agentrun-admin-token"
-export ADMIN_API_TOKEN="compose-smoke-admin-browser-token"
-export DATA_SERVICE_AGENT_TOKEN="compose-smoke-data-agent-token"
-export DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN="compose-smoke-research-token"
-export DATA_SERVICE_MINIAPP_TOKEN="compose-smoke-miniapp-token"
-export DATA_SERVICE_ADMIN_TOKEN="compose-smoke-data-admin-token"
+export ADMIN_SERVICE_TOKEN="compose-smoke-admin-browser-token"
+export DATA_SERVICE_TOKEN="compose-smoke-data-service-token"
 export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="compose-smoke-neo4j-password"
 
@@ -44,15 +42,35 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" up -d --wait postgres
+"${compose[@]}" run --rm --no-deps \
+  -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
+  data /usr/local/bin/dbmigrate -apply >/dev/null
 "${compose[@]}" up -d --wait --no-build agentrun
 "${compose[@]}" up -d --wait --no-build --no-deps adminportal
 
-curl --fail --silent --show-error \
-  --header "Authorization: Bearer ${ADMIN_API_TOKEN}" \
-  --output "$success_body" \
-  "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"
+success_status="$(
+  curl --silent --show-error \
+    --header "Authorization: Bearer ${ADMIN_SERVICE_TOKEN}" \
+    --output "$success_body" \
+    --write-out "%{http_code}" \
+    "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"
+)"
+if [[ "$success_status" != "200" ]]; then
+  echo "Admin Portal returned ${success_status}, want 200 while AgentRun is available" >&2
+  sed -n '1,20p' "$success_body" >&2
+  echo "Direct AgentRun response:" >&2
+  curl --silent --show-error \
+    --header "Authorization: Bearer ${AGENTRUN_SERVICE_TOKEN}" \
+    "http://127.0.0.1:${AGENTRUN_SERVICE_PORT}/api/admin/v1/model-providers" >&2 || true
+  exit 1
+fi
 if ! grep -Fq '"result"' "$success_body"; then
   echo "Admin Portal did not return its stable success envelope" >&2
+  sed -n '1,20p' "$success_body" >&2
+  exit 1
+fi
+if ! grep -Fq '"provider_key":"deepseek"' "$success_body"; then
+  echo "Admin Portal did not decode the registered DeepSeek provider from AgentRun" >&2
   sed -n '1,20p' "$success_body" >&2
   exit 1
 fi
@@ -60,7 +78,7 @@ fi
 "${compose[@]}" stop agentrun >/dev/null
 failure_status="$(
   curl --silent --show-error \
-    --header "Authorization: Bearer ${ADMIN_API_TOKEN}" \
+    --header "Authorization: Bearer ${ADMIN_SERVICE_TOKEN}" \
     --output "$failure_body" \
     --write-out "%{http_code}" \
     "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"

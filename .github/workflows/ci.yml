@@ -562,9 +562,11 @@ jobs:
           steps.risks.outputs.provider_consumer == 'true'
         run: bash scripts/ci/smoke-agentrun-artifact-permissions.sh tidewise-agentrun:ci
 
-      - name: Build Admin Portal image for AgentRun smoke
+      - name: Build Data and Admin Portal images for AgentRun smoke
         if: steps.risks.outputs.provider_consumer == 'true'
-        run: docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
+        run: |
+          docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
+          docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
 
       - name: Smoke Admin Portal to AgentRun
         if: steps.risks.outputs.provider_consumer == 'true'

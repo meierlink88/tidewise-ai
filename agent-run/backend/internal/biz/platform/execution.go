@@ -18,6 +18,7 @@ const (
 	StatusPlanning           ExecutionStatus = "planning"
 	StatusCollecting         ExecutionStatus = "collecting"
 	StatusMaterializing      ExecutionStatus = "materializing"
+	StatusRunning            ExecutionStatus = "running"
 	StatusSucceeded          ExecutionStatus = "succeeded"
 	StatusSucceededNoChange  ExecutionStatus = "succeeded_no_change"
 	StatusPartiallySucceeded ExecutionStatus = "partially_succeeded"
@@ -38,8 +39,9 @@ const (
 type TriggerSource string
 
 const (
-	TriggerAPI      TriggerSource = "api"
-	TriggerSchedule TriggerSource = "schedule"
+	TriggerAPI       TriggerSource = "api"
+	TriggerSchedule  TriggerSource = "schedule"
+	TriggerDependent TriggerSource = "dependent"
 )
 
 type ConnectorInvocation struct {

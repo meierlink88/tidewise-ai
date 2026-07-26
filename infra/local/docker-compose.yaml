@@ -7,7 +7,7 @@ services:
       - '${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_USER: '${POSTGRES_USER:-tidewise}'
-      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}'
+      POSTGRES_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
       POSTGRES_DB: '${POSTGRES_DB:-tidewise_local}'
     volumes:
       - tidewise_postgres_data:/var/lib/postgresql/data
@@ -24,10 +24,10 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_USER: '${POSTGRES_USER:-tidewise}'
-      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}'
+      POSTGRES_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
       POSTGRES_DB: '${POSTGRES_DB:-tidewise_local}'
       AGENTRUN_DATABASE_USER: '${AGENTRUN_DATABASE_USER:-agentrun}'
-      AGENTRUN_DATABASE_PASSWORD: '${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}'
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
       AGENTRUN_DATABASE_NAME: '${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}'
     volumes:
       - ./bootstrap-agentrun-db.sh:/usr/local/bin/bootstrap-agentrun-db:ro
@@ -66,12 +66,9 @@ services:
       - '${DATA_SERVICE_PORT:-9011}:9011'
     environment:
       APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/configs
-      TIDEWISE_DATABASE_URL: 'postgres://${POSTGRES_USER:-tidewise}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/local/.env.local}@postgres:5432/${POSTGRES_DB:-tidewise_local}?sslmode=disable'
-      DATA_SERVICE_AGENT_TOKEN: '${DATA_SERVICE_AGENT_TOKEN:?set DATA_SERVICE_AGENT_TOKEN in infra/local/.env.local}'
-      DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN: '${DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN:?set DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN in infra/local/.env.local}'
-      DATA_SERVICE_MINIAPP_TOKEN: '${DATA_SERVICE_MINIAPP_TOKEN:?set DATA_SERVICE_MINIAPP_TOKEN in infra/local/.env.local}'
-      DATA_SERVICE_ADMIN_TOKEN: '${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}'
+      TIDEWISE_CONFIG_DIR: /app/configs/compose
+      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,16 +92,19 @@ services:
       - '${AGENTRUN_SERVICE_PORT:-9080}:9080'
     environment:
       APP_ENV: dev
-      AGENTRUN_CONFIG_DIR: /app/configs
+      AGENTRUN_CONFIG_DIR: /app/configs/compose
       TZ: Asia/Shanghai
-      AGENTRUN_DATABASE_URL: 'postgres://${AGENTRUN_DATABASE_USER:-agentrun}:${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}@postgres:5432/${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}?sslmode=disable'
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
-      AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+      AGENTRUN_DATA_BASE_URL: http://data:9011
     volumes:
       - agentrun_artifacts:/app/data
     depends_on:
       agentrun-migrate:
         condition: service_completed_successfully
+      data:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9080/healthz']
       interval: 10s
@@ -120,10 +120,11 @@ services:
     entrypoint: ['/app/agentrun-migrate']
     environment:
       APP_ENV: dev
-      AGENTRUN_CONFIG_DIR: /app/configs
+      AGENTRUN_CONFIG_DIR: /app/configs/compose
       TZ: Asia/Shanghai
-      AGENTRUN_DATABASE_URL: 'postgres://${AGENTRUN_DATABASE_USER:-agentrun}:${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DATABASE_PASSWORD in infra/local/.env.local}@postgres:5432/${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}?sslmode=disable'
-      AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
+      AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:
       agentrun-db-init:
         condition: service_completed_successfully
@@ -141,7 +142,7 @@ services:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/config
       DATA_SERVICE_BASE_URL: http://data:9011
-      DATA_SERVICE_MINIAPP_TOKEN: '${DATA_SERVICE_MINIAPP_TOKEN:?set DATA_SERVICE_MINIAPP_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:
       data:
         condition: service_healthy
@@ -166,12 +167,12 @@ services:
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/config
-      ADMIN_API_TOKEN: '${ADMIN_API_TOKEN:?set ADMIN_API_TOKEN in infra/local/.env.local}'
+      ADMIN_SERVICE_TOKEN: '${ADMIN_SERVICE_TOKEN:?set ADMIN_SERVICE_TOKEN in infra/local/.env.local}'
       ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:5174}'
       DATA_SERVICE_BASE_URL: http://data:9011
-      DATA_SERVICE_ADMIN_TOKEN: '${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_ADMIN_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
       AGENTRUN_BASE_URL: http://agentrun:9080
-      AGENTRUN_ADMIN_TOKEN: '${AGENTRUN_ADMIN_TOKEN:?set AGENTRUN_ADMIN_TOKEN in infra/local/.env.local}'
+      AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:
       data:
         condition: service_healthy

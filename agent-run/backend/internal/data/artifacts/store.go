@@ -13,9 +13,10 @@ import (
 
 // Store is the filesystem adapter for Collector Artifacts.
 type Store struct {
-	Root         string
-	Publications PublicationRepository
-	Now          func() time.Time
+	Root             string
+	Publications     PublicationRepository
+	Now              func() time.Time
+	AfterPublication func()
 }
 
 func (s Store) Ready(_ context.Context) error {
@@ -46,11 +47,18 @@ func (s Store) Materializer(nearDuplicateRadius int) collector.Materializer {
 		NearDuplicateRadius: nearDuplicateRadius,
 		Publications:        s.Publications,
 		Now:                 s.Now,
+		AfterPublication:    s.AfterPublication,
 	}
 }
 
 func (s Store) ReconcilePreparedPublications(ctx context.Context) error {
-	return ReconcilePreparedPublications(ctx, s.Root, s.Publications)
+	if err := ReconcilePreparedPublications(ctx, s.Root, s.Publications); err != nil {
+		return err
+	}
+	if s.AfterPublication != nil {
+		s.AfterPublication()
+	}
+	return nil
 }
 
 func (s Store) WriteTerminalAudit(execution agentrun.Execution) (map[string]string, error) {

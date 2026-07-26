@@ -107,7 +107,7 @@ Content-Type: application/json
 
 ```bash
 APP_ENV=local \
-TIDEWISE_DATABASE_URL='postgres://tidewise:<local-password>@localhost:5432/tidewise_local?sslmode=disable' \
+TIDEWISW_DB_PASSWORD='<local-password>' \
 go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 ```
 

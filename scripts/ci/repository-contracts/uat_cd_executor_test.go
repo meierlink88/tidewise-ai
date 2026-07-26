@@ -161,11 +161,11 @@ func TestUATDiagnosticsRedactsCredentials(t *testing.T) {
 	writeExecutable(t, filepath.Join(bin, "docker"), `#!/bin/sh
 echo 'Authorization: Bearer visible-token'
 echo 'DATABASE_URL=postgres://data:visible-password@rds.internal:5432/uat'
-echo 'ADMIN_API_TOKEN=visible-admin-token'
+echo 'ADMIN_SERVICE_TOKEN=visible-admin-token'
 `)
 	runtimeEnv := filepath.Join(temp, "runtime.env")
 	imagesEnv := filepath.Join(temp, "images.env")
-	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture\n")
+	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture\n")
 	cmd := exec.Command("bash", filepath.Join(repoRoot, "infra", "uat", "collect-diagnostics.sh"))
 	cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), "RUNTIME_ENV="+runtimeEnv, "CANDIDATE_IMAGES="+imagesEnv, "COMPOSE_FILE=fixture.yaml")
@@ -228,7 +228,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	upCount := filepath.Join(temp, "up-count")
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
-	writeFixture(t, runtimeEnv, "ADMIN_API_TOKEN=fixture-admin-secret\nAGENTRUN_ADMIN_TOKEN=fixture-agentrun-secret\n")
+	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA+"\n")
 	writeFixture(t, compose, "name: tidewise-uat\nservices: {}\n")
 	migrationRisk := options.migrationRisk
@@ -239,7 +239,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n")
 
 	if options.currentRelease {
-		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_API_TOKEN=previous-admin-secret\n")
+		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
 		writeFixture(t, filepath.Join(state, "current.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\n")
 		writeFixture(t, filepath.Join(state, "current.compose.yaml"), "name: tidewise-uat\nservices: {}\n")
 		writeFixture(t, filepath.Join(state, "current.sha"), previousFixtureSHA+"\n")
@@ -303,8 +303,8 @@ exit 0
 		"CANDIDATE_IMAGES="+imagesEnv,
 		"COMMIT_SHA="+fixtureSHA,
 		"UAT_PUBLIC_BASE_URL=http://uat.example.test",
-		"UAT_DATABASE_URL=postgres://fixture:fixture-db-secret@rds.example.test:5432/tidewise_uat?sslmode=require",
-		"AGENTRUN_DATABASE_URL=postgres://agentrun:fixture-agentrun-db-secret@rds.example.test:5432/agentrun_uat?sslmode=require",
+		"TIDEWISW_DB_PASSWORD=fixture-db-secret",
+		"AGENTRUN_DB_PASSWORD=fixture-agentrun-db-secret",
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
 		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,

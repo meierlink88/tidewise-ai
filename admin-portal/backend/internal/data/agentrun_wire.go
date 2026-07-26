@@ -141,7 +141,7 @@ type modelProviderWire struct {
 }
 
 func (w modelProviderWire) toBiz() (biz.ModelProviderConfiguration, error) {
-	if strings.TrimSpace(w.ProviderKey) == "" || !validAbsoluteHTTPURL(w.BaseURL) {
+	if strings.TrimSpace(w.ProviderKey) == "" || !validConfigurationURL(w.BaseURL, w.Configured) {
 		return biz.ModelProviderConfiguration{}, biz.ErrAgentRunUnavailable
 	}
 	return biz.ModelProviderConfiguration{
@@ -171,7 +171,7 @@ type connectorWire struct {
 }
 
 func (w connectorWire) toBiz() (biz.ConnectorConfiguration, error) {
-	if strings.TrimSpace(w.ConnectorKey) == "" || !validAbsoluteHTTPURL(w.BaseURL) {
+	if strings.TrimSpace(w.ConnectorKey) == "" || !validConfigurationURL(w.BaseURL, w.Configured) {
 		return biz.ConnectorConfiguration{}, biz.ErrAgentRunUnavailable
 	}
 	return biz.ConnectorConfiguration{
@@ -208,4 +208,11 @@ func agentRunBusinessError(status int) error {
 func validAbsoluteHTTPURL(value string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(value))
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+}
+
+func validConfigurationURL(value string, configured bool) bool {
+	if strings.TrimSpace(value) == "" {
+		return !configured
+	}
+	return validAbsoluteHTTPURL(value)
 }

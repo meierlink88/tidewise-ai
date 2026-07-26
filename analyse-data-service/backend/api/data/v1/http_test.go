@@ -57,6 +57,10 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			operation:   "data.v1.importResearchAnchors",
 			body:        `{"theme_id":"11111111-1111-4111-8111-111111111111","anchors":[]}`,
 		},
+		"GET " + APIPrefix + "/event-tags": {
+			requestPath: APIPrefix + "/event-tags?active=true",
+			operation:   "data.v1.listActiveEventTags",
+		},
 		"GET " + APIPrefix + "/research/themes": {
 			requestPath: APIPrefix + "/research/themes",
 			operation:   "data.v1.listResearchThemes",
@@ -169,6 +173,9 @@ func testResponse[T any]() (*Response[T], error) {
 }
 func (testDataHTTPServer) ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error) {
 	return testResponse[EventPublicationResult]()
+}
+func (testDataHTTPServer) ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error) {
+	return testResponse[EventTagCatalog]()
 }
 func (testDataHTTPServer) ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error) {
 	return testResponse[ResearchThemeImportResult]()

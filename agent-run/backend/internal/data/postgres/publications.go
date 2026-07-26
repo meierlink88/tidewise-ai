@@ -125,6 +125,16 @@ func (s *Store) CommitPreparedPublication(ctx context.Context, reference agentru
 	if command.RowsAffected() != 1 {
 		return fmt.Errorf("Execution is not awaiting Artifact publication")
 	}
+	if shouldSignalEventFactExtraction(completion) {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO artifact_ready_signals (
+				collector_execution_id, status, created_at, updated_at
+			) VALUES ($1, 'pending', $2, $2)
+			ON CONFLICT (collector_execution_id) DO NOTHING
+		`, completion.ExecutionID, completion.CompletedAt.UTC()); err != nil {
+			return fmt.Errorf("record Artifact ready signal: %w", err)
+		}
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM collector_artifact_publications WHERE execution_id = $1`, reference.ExecutionID); err != nil {
 		return fmt.Errorf("clear prepared Artifact publication: %w", err)
 	}
@@ -132,6 +142,14 @@ func (s *Store) CommitPreparedPublication(ctx context.Context, reference agentru
 		return fmt.Errorf("commit Artifact publication transaction: %w", err)
 	}
 	return nil
+}
+
+func shouldSignalEventFactExtraction(completion agentrun.ExecutionCompletion) bool {
+	if completion.Status != agentrun.StatusSucceeded &&
+		completion.Status != agentrun.StatusPartiallySucceeded {
+		return false
+	}
+	return completion.CandidateCounts["accepted"] > 0 && completion.Artifacts["manifest"] != ""
 }
 
 func (s *Store) AttachTerminalArtifacts(ctx context.Context, executionID string, artifacts map[string]string, now time.Time) error {

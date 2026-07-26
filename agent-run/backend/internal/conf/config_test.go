@@ -14,8 +14,7 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	writeConfig(t, dir, "dev", configYAML("dev", 9080, "disable"))
 	t.Setenv("APP_ENV", "")
 	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
-	t.Setenv("AGENTRUN_DATABASE_URL", "")
-	t.Setenv("AGENTRUN_DATABASE_PASSWORD", "dev-password")
+	t.Setenv("AGENTRUN_DB_PASSWORD", "dev-password")
 	t.Setenv("AGENTRUN_SERVICE_TOKEN", "dev-token")
 
 	cfg, err := Load()
@@ -31,6 +30,9 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	if cfg.Artifact.Root != "data" {
 		t.Fatalf("artifact root = %q, want data", cfg.Artifact.Root)
 	}
+	if cfg.EventFact.ModelTimeoutSeconds != 180 {
+		t.Fatalf("Event Fact model timeout = %d, want 180", cfg.EventFact.ModelTimeoutSeconds)
+	}
 	databaseURL, err := cfg.PostgresURL()
 	if err != nil {
 		t.Fatal(err)
@@ -42,20 +44,26 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	}
 }
 
-func TestLoadRequiresAdminTokenAndDeploymentTimezone(t *testing.T) {
+func TestLoadRequiresServiceTokensAndDeploymentTimezone(t *testing.T) {
 	dir := t.TempDir()
 	writeConfig(t, dir, "dev", configYAML("dev", 9080, "disable"))
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
-	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
-	t.Setenv("AGENTRUN_ADMIN_TOKEN", "")
+	t.Setenv("AGENTRUN_SERVICE_TOKEN", "")
+	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 	t.Setenv("TZ", "Asia/Shanghai")
 
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENTRUN_ADMIN_TOKEN") {
-		t.Fatalf("Load() error = %v, want missing Admin Token rejection", err)
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENTRUN_SERVICE_TOKEN") {
+		t.Fatalf("Load() error = %v, want missing AgentRun Service Token rejection", err)
 	}
 
-	t.Setenv("AGENTRUN_ADMIN_TOKEN", "admin-token")
+	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
+	t.Setenv("DATA_SERVICE_TOKEN", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DATA_SERVICE_TOKEN") {
+		t.Fatalf("Load() error = %v, want missing Data Service Token rejection", err)
+	}
+
+	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 	t.Setenv("TZ", "")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TZ") {
 		t.Fatalf("Load() error = %v, want missing deployment timezone rejection", err)
@@ -81,30 +89,28 @@ func TestLoadRequiresAdminTokenAndDeploymentTimezone(t *testing.T) {
 	}
 }
 
-func TestLoadUATRequiresEncryptedDatabaseURL(t *testing.T) {
+func TestLoadUATRequiresPasswordAndEncryptedYAMLDatabaseConfiguration(t *testing.T) {
 	setRequiredRuntimeEnvironment(t)
 	dir := t.TempDir()
 	writeConfig(t, dir, "uat", configYAML("uat", 9080, "require"))
 	t.Setenv("APP_ENV", "uat")
 	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
 
-	for _, databaseURL := range []string{
-		"",
-		"postgres://agentrun:secret@rds.internal:5432/tidewise_ai_server?sslmode=disable",
-	} {
-		t.Setenv("AGENTRUN_DATABASE_URL", databaseURL)
-		if _, err := Load(); err == nil {
-			t.Fatalf("Load() accepted unsafe UAT database URL %q", databaseURL)
-		}
+	t.Setenv("AGENTRUN_DB_PASSWORD", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENTRUN_DB_PASSWORD") {
+		t.Fatalf("Load() error = %v, want missing database password rejection", err)
 	}
-
-	t.Setenv("AGENTRUN_DATABASE_URL", "postgres://agentrun:secret@rds.internal:5432/tidewise_ai_server?sslmode=require")
+	t.Setenv("AGENTRUN_DB_PASSWORD", "database-secret")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() rejected valid UAT configuration: %v", err)
 	}
 	if cfg.App.Env != EnvUAT || cfg.Server.Port != 9080 {
 		t.Fatalf("UAT configuration = %#v", cfg)
+	}
+	dsn, err := cfg.PostgresURL()
+	if err != nil || !strings.Contains(dsn, "database-secret") || !strings.Contains(dsn, "sslmode=require") {
+		t.Fatalf("PostgresURL() = %q, %v", dsn, err)
 	}
 }
 
@@ -136,19 +142,17 @@ func TestCheckedInEnvironmentConfigurations(t *testing.T) {
 	setRequiredRuntimeEnvironment(t)
 	configDir := filepath.Join("..", "..", "configs")
 	t.Setenv("AGENTRUN_CONFIG_DIR", configDir)
-	t.Setenv("AGENTRUN_DATABASE_PASSWORD", "dev-password")
+	t.Setenv("AGENTRUN_DB_PASSWORD", "database-secret")
 	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
 
 	for _, test := range []struct {
 		environment Environment
-		databaseURL string
 	}{
 		{environment: EnvDev},
-		{environment: EnvUAT, databaseURL: "postgres://agentrun:secret@rds.internal:5432/tidewise_ai_server?sslmode=require"},
+		{environment: EnvUAT},
 	} {
 		t.Run(string(test.environment), func(t *testing.T) {
 			t.Setenv("APP_ENV", string(test.environment))
-			t.Setenv("AGENTRUN_DATABASE_URL", test.databaseURL)
 			cfg, err := Load()
 			if err != nil {
 				t.Fatal(err)
@@ -162,7 +166,8 @@ func TestCheckedInEnvironmentConfigurations(t *testing.T) {
 
 func setRequiredRuntimeEnvironment(t *testing.T) {
 	t.Helper()
-	t.Setenv("AGENTRUN_ADMIN_TOKEN", "admin-token")
+	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
+	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 	t.Setenv("TZ", "Asia/Shanghai")
 }
 
@@ -189,5 +194,12 @@ database:
   connect_timeout_seconds: 5
 artifact:
   root: data
+data:
+  base_url: http://127.0.0.1:9011
+  timeout_seconds: 10
+  max_response_bytes: 1048576
+event_fact:
+  reconcile_interval_seconds: 60
+  model_timeout_seconds: 180
 `
 }

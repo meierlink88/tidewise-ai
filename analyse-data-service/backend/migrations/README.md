@@ -16,7 +16,7 @@
 
 ```bash
 cd /path/to/tidewise-ai
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
+APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
 ```
 
 只检查 pending migration 时不加 `-apply`。
@@ -43,8 +43,8 @@ analyse-data-service/backend/data/entity_foundation/
 
 ```bash
 cd /path/to/tidewise-ai
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
-APP_ENV=local DATABASE_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/entity-seed
+APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
+APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/entity-seed
 ```
 
 `analyse-data-service/backend/cmd/entity-seed` 默认读取 `data/entity_foundation` 下的实体 seed 文件，并输出 JSON report。重复执行同一组 seed 应保持幂等，report 中应主要体现为 `unchanged`，不应新增重复实体、重复 profile 或重复关系。

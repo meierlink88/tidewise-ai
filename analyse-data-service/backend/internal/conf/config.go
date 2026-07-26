@@ -65,12 +65,8 @@ type MigrationConfig struct {
 }
 
 type SecretConfig struct {
-	DatabaseURL                       string
-	DatabasePassword                  string
-	DataServiceAgentToken             string
-	DataServiceResearchPublisherToken string
-	DataServiceMiniappToken           string
-	DataServiceAdminToken             string
+	DatabasePassword string
+	ServiceToken     string
 }
 
 func Load() (Config, error) {
@@ -95,12 +91,8 @@ func Load() (Config, error) {
 	cfg.App.Name = ServiceName
 	cfg.App.Env = env
 	cfg.Secrets = SecretConfig{
-		DatabaseURL:                       firstEnv("TIDEWISE_DATABASE_URL", "DATABASE_URL"),
-		DatabasePassword:                  os.Getenv("DATABASE_PASSWORD"),
-		DataServiceAgentToken:             os.Getenv("DATA_SERVICE_AGENT_TOKEN"),
-		DataServiceResearchPublisherToken: os.Getenv("DATA_SERVICE_RESEARCH_PUBLISHER_TOKEN"),
-		DataServiceMiniappToken:           os.Getenv("DATA_SERVICE_MINIAPP_TOKEN"),
-		DataServiceAdminToken:             os.Getenv("DATA_SERVICE_ADMIN_TOKEN"),
+		DatabasePassword: os.Getenv("TIDEWISW_DB_PASSWORD"),
+		ServiceToken:     os.Getenv("DATA_SERVICE_TOKEN"),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -114,19 +106,17 @@ func Load() (Config, error) {
 }
 
 func (c Config) validateRuntimeSecrets() error {
+	if c.Secrets.ServiceToken == "" {
+		return fmt.Errorf("DATA_SERVICE_TOKEN is required")
+	}
 	if c.App.Env != EnvUAT {
 		return nil
 	}
-	if c.Secrets.DatabaseURL == "" {
-		return fmt.Errorf("TIDEWISE_DATABASE_URL is required in uat")
+	if c.Secrets.DatabasePassword == "" {
+		return fmt.Errorf("TIDEWISW_DB_PASSWORD is required in uat")
 	}
-	parsed, err := url.ParseRequestURI(c.Secrets.DatabaseURL)
-	if err != nil || parsed.Scheme != "postgres" || parsed.Hostname() == "" || parsed.User == nil || parsed.Path == "" || parsed.Path == "/" {
-		return fmt.Errorf("uat database url must be a complete postgres URL")
-	}
-	query := parsed.Query()
-	if query.Get("sslmode") != "require" {
-		return fmt.Errorf("uat database url must use sslmode=require")
+	if c.Database.SSLMode != "require" {
+		return fmt.Errorf("uat database configuration must use ssl_mode=require")
 	}
 	return nil
 }
@@ -221,13 +211,6 @@ func (c ServerConfig) Address() string {
 }
 
 func (c Config) PostgresURL() (string, error) {
-	if c.Secrets.DatabaseURL != "" {
-		if _, err := url.ParseRequestURI(c.Secrets.DatabaseURL); err != nil {
-			return "", fmt.Errorf("database url must be a valid URL: %w", err)
-		}
-		return c.Secrets.DatabaseURL, nil
-	}
-
 	values := url.Values{}
 	values.Set("sslmode", c.Database.SSLMode)
 	values.Set("connect_timeout", fmt.Sprintf("%d", c.Database.ConnectTimeoutSeconds))
@@ -245,13 +228,4 @@ func (c Config) PostgresURL() (string, error) {
 	}
 
 	return dsn.String(), nil
-}
-
-func firstEnv(names ...string) string {
-	for _, name := range names {
-		if value := os.Getenv(name); value != "" {
-			return value
-		}
-	}
-	return ""
 }
