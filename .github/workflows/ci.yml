@@ -42,6 +42,10 @@ jobs:
         if: steps.risks.outputs.architecture == 'true'
         run: go test ./scripts/ci/repository-contracts -count=1
 
+      - name: Smoke immutable UAT deployment bundle container
+        if: steps.risks.outputs.architecture == 'true'
+        run: bash scripts/ci/smoke-uat-deploy-bundle.sh
+
   data:
     name: Data Service
     runs-on: ubuntu-latest

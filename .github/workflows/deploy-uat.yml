@@ -94,6 +94,7 @@ jobs:
       adminportal_image: ${{ steps.images.outputs.adminportal_image }}
       admin_image: ${{ steps.images.outputs.admin_image }}
       agentrun_image: ${{ steps.images.outputs.agentrun_image }}
+      deploy_bundle_image: ${{ steps.deploy-bundle-ref.outputs.deploy_bundle_image }}
     env:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       SWR_NAMESPACE: ${{ vars.SWR_NAMESPACE }}
@@ -102,16 +103,25 @@ jobs:
       SWR_ADMINPORTAL_REPOSITORY: ${{ vars.SWR_ADMINPORTAL_REPOSITORY }}
       SWR_ADMIN_REPOSITORY: ${{ vars.SWR_ADMIN_REPOSITORY }}
       SWR_AGENTRUN_REPOSITORY: ${{ vars.SWR_AGENTRUN_REPOSITORY }}
+      SWR_DEPLOY_REPOSITORY: ${{ vars.SWR_DEPLOY_REPOSITORY }}
     steps:
       - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
+      - name: Checkout trusted UAT control plane
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: .uat-control
+          sparse-checkout: infra/uat
+
       - name: Resolve immutable image names
         id: images
         env:
           COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+          CONTROL_PLANE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -122,12 +132,14 @@ jobs:
           : "${SWR_ADMINPORTAL_REPOSITORY:?Set the SWR_ADMINPORTAL_REPOSITORY uat Environment variable}"
           : "${SWR_ADMIN_REPOSITORY:?Set the SWR_ADMIN_REPOSITORY uat Environment variable}"
           : "${SWR_AGENTRUN_REPOSITORY:?Set the SWR_AGENTRUN_REPOSITORY uat Environment variable}"
+          : "${SWR_DEPLOY_REPOSITORY:?Set the SWR_DEPLOY_REPOSITORY uat Environment variable}"
           prefix="${SWR_REGISTRY}/${SWR_NAMESPACE}"
           echo "data_image=${prefix}/${SWR_DATA_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "miniapp_image=${prefix}/${SWR_MINIAPP_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "adminportal_image=${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "admin_image=${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "agentrun_image=${prefix}/${SWR_AGENTRUN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}-${CONTROL_PLANE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -138,6 +150,24 @@ jobs:
           registry: ${{ env.SWR_REGISTRY }}
           username: ${{ secrets.SWR_USERNAME }}
           password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Stage immutable UAT deployment bundle
+        id: deploy-bundle
+        env:
+          RELEASE_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+          CONTROL_PLANE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle_context="${RUNNER_TEMP}/tidewise-uat-deploy-bundle-${GITHUB_RUN_ID}"
+          rm -rf "$bundle_context"
+          bash .uat-control/infra/uat/stage-deploy-bundle.sh \
+            "$GITHUB_WORKSPACE" \
+            "$GITHUB_WORKSPACE/.uat-control" \
+            "$bundle_context" \
+            "$RELEASE_SHA" \
+            "$CONTROL_PLANE_SHA"
+          echo "context=$bundle_context" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Data Service
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -189,6 +219,34 @@ jobs:
           provenance: false
           tags: ${{ steps.images.outputs.agentrun_image }}
 
+      - name: Build and push immutable UAT deployment bundle
+        id: deploy-bundle-image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ steps.deploy-bundle.outputs.context }}
+          file: .uat-control/infra/uat/deploy-bundle.Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ steps.images.outputs.deploy_bundle_tag }}
+          labels: |
+            org.opencontainers.image.revision=${{ needs.resolve-release.outputs.commit_sha }}
+            com.tidewise.uat.control-plane-revision=${{ github.sha }}
+
+      - name: Resolve immutable deployment bundle digest
+        id: deploy-bundle-ref
+        env:
+          DEPLOY_BUNDLE_TAG: ${{ steps.images.outputs.deploy_bundle_tag }}
+          DEPLOY_BUNDLE_DIGEST: ${{ steps.deploy-bundle-image.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$DEPLOY_BUNDLE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "deployment bundle build did not return an immutable digest" >&2
+            exit 1
+          fi
+          echo "deploy_bundle_image=${DEPLOY_BUNDLE_TAG}@${DEPLOY_BUNDLE_DIGEST}" >> "$GITHUB_OUTPUT"
+
   deploy:
     name: Deploy to UAT ECS
     runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
@@ -205,6 +263,7 @@ jobs:
       ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
       ADMIN_IMAGE: ${{ needs.build-and-push.outputs.admin_image }}
       AGENTRUN_IMAGE: ${{ needs.build-and-push.outputs.agentrun_image }}
+      DEPLOY_BUNDLE_IMAGE: ${{ needs.build-and-push.outputs.deploy_bundle_image }}
       TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
       AGENTRUN_DB_PASSWORD: ${{ secrets.AGENTRUN_DB_PASSWORD }}
       DATA_SERVICE_TOKEN: ${{ secrets.DATA_SERVICE_TOKEN }}
@@ -212,28 +271,75 @@ jobs:
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
     steps:
-      - name: Checkout release commit
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.resolve-release.outputs.commit_sha }}
-
-      - name: Checkout trusted UAT control plane
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          path: .uat-control
-          sparse-checkout: infra/uat
-
-      - name: Preflight ECS runtime and network
-        shell: bash
-        run: .uat-control/infra/uat/preflight.sh
-
       - name: Login to SWR with pull credentials
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.SWR_REGISTRY }}
           username: ${{ secrets.SWR_PULL_USERNAME }}
           password: ${{ secrets.SWR_PULL_PASSWORD }}
+
+      - name: Pull and verify immutable UAT deployment bundle
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$DEPLOY_BUNDLE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]; then
+            echo "deployment bundle must be addressed by digest" >&2
+            exit 1
+          fi
+          docker pull "$DEPLOY_BUNDLE_IMAGE"
+          bundle_root="${RUNNER_TEMP}/tidewise-uat-deploy-bundle-${GITHUB_RUN_ID}"
+          rm -rf "$bundle_root"
+          mkdir -p "$bundle_root"
+          bundle_container="$(docker create "$DEPLOY_BUNDLE_IMAGE")"
+          cleanup_bundle_container() {
+            docker rm -f "$bundle_container" >/dev/null 2>&1 || true
+          }
+          trap cleanup_bundle_container EXIT
+          docker cp "${bundle_container}:/bundle/." "$bundle_root"
+          cleanup_bundle_container
+          trap - EXIT
+
+          (
+            cd "$bundle_root"
+            sha256sum --check SHA256SUMS
+          )
+          metadata_value() {
+            local key="$1"
+            sed -n "s/^${key}=//p" "$bundle_root/metadata.env"
+          }
+          bundle_release_sha="$(metadata_value RELEASE_SHA)"
+          bundle_control_plane_sha="$(metadata_value CONTROL_PLANE_SHA)"
+          if [ "$bundle_release_sha" != "${COMMIT_SHA,,}" ]; then
+            echo "deployment bundle release SHA does not match the validated release" >&2
+            exit 1
+          fi
+          if [ "$bundle_control_plane_sha" != "${GITHUB_SHA,,}" ]; then
+            echo "deployment bundle control-plane SHA does not match this workflow" >&2
+            exit 1
+          fi
+
+          release_root="${bundle_root}/release"
+          control_root="${bundle_root}/control"
+          compose_file="${release_root}/infra/uat/docker-compose.yaml"
+          while IFS=$'\t' read -r scope path extra; do
+            if [ -n "${extra:-}" ] || ! [[ "$scope" =~ ^(release|control)$ ]] || ! [[ "$path" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "/$path/" == *"/../"* ]]; then
+              echo "invalid deployment bundle manifest row" >&2
+              exit 1
+            fi
+            test -f "${bundle_root}/${scope}/${path}"
+          done < "$bundle_root/files.manifest"
+          echo "bundle_root=$bundle_root" >> "$GITHUB_OUTPUT"
+          echo "release_root=$release_root" >> "$GITHUB_OUTPUT"
+          echo "control_root=$control_root" >> "$GITHUB_OUTPUT"
+          echo "compose_file=$compose_file" >> "$GITHUB_OUTPUT"
+          echo "PASS immutable-deployment-bundle"
+
+      - name: Preflight ECS runtime and network
+        shell: bash
+        run: |
+          cd "${{ steps.bundle.outputs.release_root }}"
+          "${{ steps.bundle.outputs.control_root }}/infra/uat/preflight.sh"
 
       - name: Prepare deployment environment
         id: runtime
@@ -260,12 +366,12 @@ jobs:
             "AGENTRUN_IMAGE=${AGENTRUN_IMAGE}" > "$images_env"
           echo "runtime_env=$runtime_env" >> "$GITHUB_OUTPUT"
           echo "images_env=$images_env" >> "$GITHUB_OUTPUT"
-          docker compose --env-file "$runtime_env" --env-file "$images_env" -f infra/uat/docker-compose.yaml config --quiet
+          docker compose --env-file "$runtime_env" --env-file "$images_env" -f "${{ steps.bundle.outputs.compose_file }}" config --quiet
 
       - name: Pull immutable release images
         shell: bash
         run: |
-          docker compose --env-file "${{ steps.runtime.outputs.runtime_env }}" --env-file "${{ steps.runtime.outputs.images_env }}" -f infra/uat/docker-compose.yaml pull
+          docker compose --env-file "${{ steps.runtime.outputs.runtime_env }}" --env-file "${{ steps.runtime.outputs.images_env }}" -f "${{ steps.bundle.outputs.compose_file }}" pull
           echo "PASS swr-login-and-image-pull"
 
       - name: Migrate and deploy the complete release unit
@@ -273,9 +379,10 @@ jobs:
         env:
           RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
           CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
-          MIGRATION_RISK_MANIFEST: ${{ github.workspace }}/.uat-control/infra/uat/migration-risk.tsv
-          AGENTRUN_MIGRATION_RISK_MANIFEST: ${{ github.workspace }}/.uat-control/infra/uat/agentrun-migration-risk.tsv
-        run: .uat-control/infra/uat/deploy.sh
+          COMPOSE_FILE: ${{ steps.bundle.outputs.compose_file }}
+          MIGRATION_RISK_MANIFEST: ${{ steps.bundle.outputs.control_root }}/infra/uat/migration-risk.tsv
+          AGENTRUN_MIGRATION_RISK_MANIFEST: ${{ steps.bundle.outputs.control_root }}/infra/uat/agentrun-migration-risk.tsv
+        run: ${{ steps.bundle.outputs.control_root }}/infra/uat/deploy.sh
 
       - name: Show diagnostics on failure
         id: diagnostics
@@ -284,9 +391,10 @@ jobs:
         env:
           RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
           CANDIDATE_IMAGES: ${{ steps.runtime.outputs.images_env }}
+          COMPOSE_FILE: ${{ steps.bundle.outputs.compose_file }}
         run: |
           diagnostics_file="${RUNNER_TEMP}/uat-diagnostics-${GITHUB_RUN_ID}.log"
-          .uat-control/infra/uat/collect-diagnostics.sh > "$diagnostics_file"
+          "${{ steps.bundle.outputs.control_root }}/infra/uat/collect-diagnostics.sh" > "$diagnostics_file"
           echo "diagnostics_file=$diagnostics_file" >> "$GITHUB_OUTPUT"
 
       - name: Upload sanitized failure diagnostics
@@ -301,4 +409,10 @@ jobs:
       - name: Remove temporary secret files
         if: always() && steps.runtime.outcome == 'success'
         shell: bash
-        run: rm -f "${{ steps.runtime.outputs.runtime_env }}" "${{ steps.runtime.outputs.images_env }}" "${{ steps.diagnostics.outputs.diagnostics_file }}"
+        run: |
+          rm -f "${{ steps.runtime.outputs.runtime_env }}" "${{ steps.runtime.outputs.images_env }}" "${{ steps.diagnostics.outputs.diagnostics_file }}"
+
+      - name: Remove temporary deployment bundle
+        if: always() && steps.bundle.outcome == 'success'
+        shell: bash
+        run: rm -rf "${{ steps.bundle.outputs.bundle_root }}"

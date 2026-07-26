@@ -28,7 +28,7 @@ pass os-architecture
 pass runner-identity
 pass runner-label-route
 
-for command in docker git curl python3 flock ss systemctl; do
+for command in docker curl python3 sha256sum flock ss systemctl; do
   command -v "$command" >/dev/null || fail dependency "$command is missing"
 done
 docker info >/dev/null || fail docker-engine "docker info failed"
@@ -48,11 +48,6 @@ pass directory-permissions
 available_kb="$(df -Pk "$deployment_root" | awk 'NR == 2 {print $4}')"
 [ "$available_kb" -ge 10485760 ] || fail disk-space "at least 10 GiB is required"
 pass disk-space
-
-curl --fail --silent --show-error --connect-timeout 5 --max-time 15 https://github.com/ >/dev/null || fail github-https "github.com is unavailable"
-curl --fail --silent --show-error --connect-timeout 5 --max-time 15 https://api.github.com/ >/dev/null || fail github-api "api.github.com is unavailable"
-git ls-remote https://github.com/actions/checkout.git HEAD >/dev/null || fail github-git "checkout repository is unavailable"
-pass github-connectivity
 
 swr_status="$(curl --silent --show-error --connect-timeout 5 --max-time 15 --output /dev/null --write-out '%{http_code}' "https://${swr_registry}/v2/")"
 case "$swr_status" in

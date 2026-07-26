@@ -34,13 +34,18 @@ GitHub `uat` Environment 只用于隔离 Variables、Secrets 和部署记录，�
 
 ## Deployment Execution Channel
 
-镜像构建运行在 GitHub-hosted runner。ECS 上安装 repository-level self-hosted runner，部署 job 只负责环境预检、拉取镜像、执行 migration、启动服务和健康检查。
+镜像和部署包构建运行在 GitHub-hosted runner。ECS 上安装 repository-level
+self-hosted runner，部署 job 只负责从 SWR 拉取并校验不可变部署包、环境预检、拉取
+业务镜像、执行 migration、启动服务和健康检查。ECS deploy job 不 checkout Git
+repository，也不把 `github.com` repository content 链路作为日常发布依赖。
 
 部署 runner 必须使用 ECS 专属标签，不能只使用当前通用的 `self-hosted`、`tidewise`、`uat` 标签。仓库当前同时存在 Linux runner `tidewise-uat-linux-amd64` 和 macOS runner `tidewise-uat-mini`；最近一次成功的旧 UAT 部署实际由 macOS runner 执行，不能作为 ECS 部署链路已验证的证据。
 
-正式部署前必须在 ECS runner 上执行连接性预检，至少覆盖：
+正式部署前必须在 ECS runner 上执行连接性与部署包预检，至少覆盖：
 
-- GitHub Actions checkout 和必要 GitHub HTTPS endpoint
+- GitHub Actions runner 控制通道可接收 job
+- SWR 部署包使用构建 job 返回的 image digest 拉取，包内 release/control-plane SHA
+  与 workflow 身份一致，全部文件通过 SHA-256 校验
 - 容器镜像仓库登录与拉取
 - Docker Engine 与 Docker Compose v2
 - RDS PostgreSQL 地址和 5432 端口连通性
@@ -50,14 +55,18 @@ GitHub `uat` Environment 只用于隔离 Variables、Secrets 和部署记录，�
 
 当前只读探测确认 ECS 的 SSH 端口可达，但 SSH 服务只接受公钥认证；现有开发机没有被授权的 key。不得为了 CD 开启 root 密码登录。
 
-2026-07-20 已在 ECS 上完成人工只读连接性验证：
+2026-07-20 曾在 ECS 上完成人工只读连接性验证：
 
 - `github.com` 和 `api.github.com` 返回 HTTP 200。
 - GitHub Actions 所需的对象、发布、流水线、结果接收及 GHCR 端点均可达；未认证请求返回的 401、403 或 404 属于预期响应。
 - `git ls-remote https://github.com/actions/checkout.git HEAD` 执行成功。
 - ECS 上的 GitHub Actions Runner systemd 服务处于 loaded、active、running 状态。
 
-因此 ECS 访问 GitHub、接收 self-hosted runner job 的基础条件已具备。镜像仓库认证和实际镜像拉取仍须作为正式部署 preflight 的独立检查项。
+2026-07-27 实际发布中 ECS 到 `github.com:443` 的 repository checkout 链路再次出现
+超时，但 runner 控制通道、GitHub-hosted build 和 SWR push 正常。日常 CD 因此不再
+要求 ECS 访问 Git repository；GitHub-hosted runner 负责将目标 release 文件和受信
+control plane 打包到 SWR，ECS 只消费 digest 固定的部署制品。镜像仓库认证、部署包
+校验和实际镜像拉取仍是正式发布门禁。
 
 ## Repository Implementation
 
@@ -69,7 +78,20 @@ Admin Portal 不持有数据库凭据。
 
 UAT 使用华为云 SWR 私有镜像仓库，不使用 GHCR 作为正式部署镜像来源。
 
-- GitHub-hosted runner 构建并向 SWR 推送五个可独立部署的镜像：Data Service、Miniapp Backend Service、Admin Portal Backend Service、Admin Portal Frontend、AgentRun。
+- GitHub-hosted runner 构建并向 SWR 推送五个可独立部署的业务镜像：Data Service、
+  Miniapp Backend Service、Admin Portal Backend Service、Admin Portal Frontend、
+  AgentRun。
+- 同一 build job 额外生成一个 UAT deployment bundle image。Bundle 包含目标 release
+  的 Compose 和 UAT 配置、当前 workflow SHA 对应的受信 preflight/deploy/diagnostics
+  脚本及 migration 风险清单。
+- Deployment bundle tag 使用
+  `<release-sha>-<control-plane-sha>` 复合身份，避免同一历史 release 在受信 control
+  plane 更新后覆盖旧 bundle；ECS 必须使用 build job 返回的
+  `repository:tag@sha256:<digest>` 拉取，不能只按 tag 消费。
+- Bundle 内记录 release SHA、control-plane SHA 和逐文件 SHA-256；这些校验在任何
+  migration 或服务更新之前完成。Bundle 文件集合由
+  `infra/uat/deploy-bundle-files.txt` 单一 manifest 管理，staging 和 ECS 验证不得分别
+  维护两套文件清单。
 - 镜像使用不可变的 Git commit SHA 标签；不得使用可被覆盖的 `latest` 作为发布身份。
 - GitHub Actions 的 SWR 推送凭据保存在 GitHub `uat` Environment Secrets 中。
 - ECS 只配置 SWR 拉取权限，遵循最小权限原则。
@@ -82,7 +104,8 @@ SWR 镜像保留策略：
 - 每个组件保留最近 20 套完整 Git SHA 版本。
 - 当前运行版本和上一个可回退版本始终受保护，不得被清理。
 - 发布 workflow 不执行镜像删除；清理由 SWR 生命周期规则或独立维护任务完成。
-- 五个组件按完整发布单元清理，不能只保留部分组件的某个 SHA。
+- 五个业务组件与同 SHA 的 deployment bundle 按完整发布单元清理，不能只保留部分
+  制品。
 
 ## Public Entry And TLS
 
@@ -269,6 +292,7 @@ UAT 数据库连接强制启用 TLS：
 
 以下参数不改变已确认设计，但在实际接通 UAT 前必须提供并写入 GitHub `uat` Environment Variables/Secrets：
 
-- SWR 区域、组织、五个镜像仓库地址、推送凭据和 ECS 只读拉取凭据。
+- SWR 区域、组织、五个业务镜像仓库、一个 deployment bundle 仓库、推送凭据和 ECS
+  只读拉取凭据。
 - Data 与 AgentRun 各自的 RDS 私网 database、最小权限用户和密码。
 - ECS 私网 IP、华为云安全组实际规则，以及 Miniapp/Admin Portal 开发联调来源。
