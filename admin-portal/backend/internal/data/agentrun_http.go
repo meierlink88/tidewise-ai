@@ -339,7 +339,12 @@ func decodeAgentRunSuccessResponse(_ context.Context, response *http.Response, r
 	if len(responseBody) > maxResponseBodyBytes {
 		return &agentRunDecodeError{}
 	}
-	if len(responseBody) == 0 || json.Unmarshal(responseBody, result) != nil {
+	var envelope struct {
+		Result json.RawMessage `json:"result"`
+	}
+	if len(responseBody) == 0 || result == nil || json.Unmarshal(responseBody, &envelope) != nil ||
+		len(envelope.Result) == 0 || string(envelope.Result) == "null" ||
+		json.Unmarshal(envelope.Result, result) != nil {
 		return &agentRunDecodeError{}
 	}
 	return nil

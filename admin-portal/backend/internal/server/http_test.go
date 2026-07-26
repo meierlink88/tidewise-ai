@@ -90,7 +90,7 @@ func TestNewHandlerProxiesCollectorScheduleWithServiceIdentity(t *testing.T) {
 			t.Fatalf("upstream request = %s %s", request.Method, request.URL.Path)
 		}
 		response.Header().Set("Content-Type", "application/json")
-		_, _ = response.Write([]byte(`{
+		writeAgentRunSuccess(response, `{
 			"schedule_id":"11111111-1111-4111-8111-111111111111",
 			"agent_key":"collector",
 			"agent_version":"collector.v1",
@@ -102,7 +102,7 @@ func TestNewHandlerProxiesCollectorScheduleWithServiceIdentity(t *testing.T) {
 			"next_run_at":"2026-07-24T10:30:00Z",
 			"created_at":"2026-07-20T01:00:00Z",
 			"updated_at":"2026-07-24T04:30:00Z"
-		}`))
+		}`)
 	}))
 	defer upstream.Close()
 
@@ -153,7 +153,7 @@ func TestAgentRunProxyRetriesOneTransientReadFailureButNeverRetriesWrites(t *tes
 				_, _ = response.Write([]byte(`{"error_code":"temporary_failure"}`))
 				return
 			}
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"schedule_id":"11111111-1111-4111-8111-111111111111",
 				"agent_key":"collector",
 				"agent_version":"collector.v1",
@@ -163,7 +163,7 @@ func TestAgentRunProxyRetriesOneTransientReadFailureButNeverRetriesWrites(t *tes
 				"enabled":false,
 				"created_at":"2026-07-20T01:00:00Z",
 				"updated_at":"2026-07-24T04:30:00Z"
-			}`))
+			}`)
 		case http.MethodPatch:
 			writeCalls++
 			response.WriteHeader(http.StatusBadGateway)
@@ -198,7 +198,7 @@ func TestAdminScheduleSavePreservesEnabledAndStopUsesIndependentPatch(t *testing
 		response.Header().Set("Content-Type", "application/json")
 		switch request.Method {
 		case http.MethodGet:
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"schedule_id":"11111111-1111-4111-8111-111111111111",
 				"agent_key":"collector",
 				"agent_version":"collector.v1",
@@ -208,7 +208,7 @@ func TestAdminScheduleSavePreservesEnabledAndStopUsesIndependentPatch(t *testing
 				"enabled":true,
 				"created_at":"2026-07-20T01:00:00Z",
 				"updated_at":"2026-07-24T04:30:00Z"
-			}`))
+			}`)
 		case http.MethodPatch:
 			var body map[string]any
 			if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
@@ -221,17 +221,17 @@ func TestAdminScheduleSavePreservesEnabledAndStopUsesIndependentPatch(t *testing
 				enabled, _ = value.(bool)
 				scheduleType = "cron"
 			}
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"schedule_id":"11111111-1111-4111-8111-111111111111",
 				"agent_key":"collector",
 				"agent_version":"collector.v1",
-				"schedule_type":"` + scheduleType + `",
+				"schedule_type":"`+scheduleType+`",
 				"cron_expression":"0 * * * *",
 				"input":{"prompt":"每小时采集一次"},
-				"enabled":` + strconv.FormatBool(enabled) + `,
+				"enabled":`+strconv.FormatBool(enabled)+`,
 				"created_at":"2026-07-20T01:00:00Z",
 				"updated_at":"2026-07-24T05:00:00Z"
-			}`))
+			}`)
 		default:
 			t.Fatalf("unexpected upstream request: %s %s", request.Method, request.URL.Path)
 		}
@@ -287,7 +287,7 @@ func TestAdminScheduleFirstSaveCreatesDisabledSchedule(t *testing.T) {
 			if err := json.NewDecoder(request.Body).Decode(&putBody); err != nil {
 				t.Fatal(err)
 			}
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"schedule_id":"11111111-1111-4111-8111-111111111111",
 				"agent_key":"collector",
 				"agent_version":"collector.v1",
@@ -297,7 +297,7 @@ func TestAdminScheduleFirstSaveCreatesDisabledSchedule(t *testing.T) {
 				"enabled":false,
 				"created_at":"2026-07-24T05:00:00Z",
 				"updated_at":"2026-07-24T05:00:00Z"
-			}`))
+			}`)
 		default:
 			t.Fatalf("unexpected upstream request: %s", request.Method)
 		}
@@ -367,7 +367,7 @@ func TestAdminExecutionListPinsCollectorAndTwentyItemPagination(t *testing.T) {
 		}
 		gotQuery = request.URL.RawQuery
 		response.Header().Set("Content-Type", "application/json")
-		_, _ = response.Write([]byte(`{
+		writeAgentRunSuccess(response, `{
 			"items":[{
 				"execution_id":"22222222-2222-4222-8222-222222222222",
 				"agent_key":"collector",
@@ -383,7 +383,7 @@ func TestAdminExecutionListPinsCollectorAndTwentyItemPagination(t *testing.T) {
 			"page_size":20,
 			"total_items":21,
 			"total_pages":2
-		}`))
+		}`)
 	}))
 	defer upstream.Close()
 	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
@@ -417,61 +417,61 @@ func TestAdminConfigurationListsAndUpdatesRegisteredTargetsWithoutCredentialLeak
 		response.Header().Set("Content-Type", "application/json")
 		switch request.Method + " " + request.URL.Path {
 		case "GET /api/admin/v1/model-providers":
-			_, _ = response.Write([]byte(`{"items":[{
+			writeAgentRunSuccess(response, `{"items":[{
 				"provider_key":"deepseek",
 				"base_url":"https://api.deepseek.com",
 				"model":"deepseek-chat",
 				"configured":true,
 				"key_configured":true,
 				"masked_key":"***9023"
-			}]}`))
+			}]}`)
 		case "GET /api/admin/v1/model-providers/deepseek":
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"provider_key":"deepseek",
 				"base_url":"https://api.deepseek.com",
 				"model":"deepseek-chat",
 				"configured":true,
 				"key_configured":true,
 				"masked_key":"***9023"
-			}`))
+			}`)
 		case "PATCH /api/admin/v1/model-providers/deepseek":
 			if err := json.NewDecoder(request.Body).Decode(&modelPatch); err != nil {
 				t.Fatal(err)
 			}
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"provider_key":"deepseek",
 				"base_url":"https://api.deepseek.com/v1",
 				"model":"deepseek-chat",
 				"configured":true,
 				"key_configured":true,
 				"masked_key":"***1234"
-			}`))
+			}`)
 		case "GET /api/admin/v1/connectors":
-			_, _ = response.Write([]byte(`{"items":[{
+			writeAgentRunSuccess(response, `{"items":[{
 				"connector_key":"tavily",
 				"base_url":"https://api.tavily.com",
 				"configured":true,
 				"key_configured":true,
 				"masked_key":"***7788"
-			}]}`))
+			}]}`)
 		case "GET /api/admin/v1/connectors/tavily":
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"connector_key":"tavily",
 				"base_url":"https://api.tavily.com",
 				"configured":true,
 				"key_configured":true,
 				"masked_key":"***7788"
-			}`))
+			}`)
 		case "PATCH /api/admin/v1/connectors/tavily":
 			if err := json.NewDecoder(request.Body).Decode(&connectorPatch); err != nil {
 				t.Fatal(err)
 			}
-			_, _ = response.Write([]byte(`{
+			writeAgentRunSuccess(response, `{
 				"connector_key":"tavily",
 				"base_url":"https://api.tavily.com",
 				"configured":true,
 				"key_configured":false
-			}`))
+			}`)
 		default:
 			t.Fatalf("unexpected upstream request: %s %s", request.Method, request.URL.Path)
 		}
@@ -512,6 +512,10 @@ func TestAdminConfigurationListsAndUpdatesRegisteredTargetsWithoutCredentialLeak
 	if connectorResponse.Code != http.StatusOK || connectorPatch["api_key"] != "" {
 		t.Fatalf("connector response/patch = %d %s / %#v", connectorResponse.Code, connectorResponse.Body.String(), connectorPatch)
 	}
+}
+
+func writeAgentRunSuccess(response http.ResponseWriter, result string) {
+	_, _ = response.Write([]byte(`{"request_id":"agentrun-test","result":` + result + `}`))
 }
 
 func performAdminRequest(t *testing.T, handler http.Handler, method, path string, body any) *httptest.ResponseRecorder {

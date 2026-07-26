@@ -56,6 +56,11 @@ if ! grep -Fq '"result"' "$success_body"; then
   sed -n '1,20p' "$success_body" >&2
   exit 1
 fi
+if ! grep -Fq '"provider_key":"deepseek"' "$success_body"; then
+  echo "Admin Portal did not decode the registered DeepSeek provider from AgentRun" >&2
+  sed -n '1,20p' "$success_body" >&2
+  exit 1
+fi
 
 "${compose[@]}" stop agentrun >/dev/null
 failure_status="$(
