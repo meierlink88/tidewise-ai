@@ -33,6 +33,22 @@ Data 的 AgentRun Source Metadata、Admin Source Catalog 查询，以及 Admin P
 
 ## Language
 
+**产业链（Industry Chain）**:
+围绕明确目标产出与终端用途，由多个独立经济节点通过投入、组成、技术支撑或依赖形成的有边界、有方向研究子图。
+_Avoid_: Industry、Concept、Chain Node 列表
+
+**产业链节点归属（Industry Chain Node Membership）**:
+一个 Chain Node 被纳入某一特定 Industry Chain 的上下文关系；上中下游阶段和位置属于该关系，不是节点的全局属性。
+_Avoid_: 节点全局上下游标签、节点之间的图谱边
+
+**产业链图谱边（Industry Chain Graph Edge）**:
+同一 Industry Chain 的两个成员节点之间，带有明确方向和结构机制的关系。
+_Avoid_: 发现映射、关键词相关、单次 Research Anchor 的临时传导路径
+
+**实体关系类型（Entity Relation Type）**:
+对实体关系语义、允许端点、固定方向和遍历含义的规范谓词；正式关系只能使用已批准的稳定 code。
+_Avoid_: AI 自由关系字符串、无语义的 related_to
+
 **AgentRun Artifact**:
 AgentRun 在采集执行中生成并长期保存的不可变原始文档对象，包含完整 Markdown 正文和全局唯一 Artifact 身份。它只属于 AgentRun；Data 不保存其存储位置，不读取或校验原文。
 _Avoid_: Data Raw Document、Event Evidence Record、Data 原始语料
