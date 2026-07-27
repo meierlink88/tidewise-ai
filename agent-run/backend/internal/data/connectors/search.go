@@ -34,6 +34,11 @@ func (c ParallelSearch) Collect(ctx context.Context, request collector.Request) 
 		"objective":       request.Prompt,
 		"search_queries":  request.SearchQueries,
 		"max_chars_total": 50000,
+		"advanced_settings": map[string]any{
+			"source_policy": map[string]any{
+				"after_date": request.CollectedAt.UTC().Add(-24 * time.Hour).Format("2006-01-02"),
+			},
+		},
 	}
 	var response struct {
 		Results []struct {
@@ -82,9 +87,6 @@ func (c Tavily) Collect(ctx context.Context, request collector.Request) ([]colle
 		client = defaultClient()
 	}
 	query := request.CombinedQuery
-	collectedAt := request.CollectedAt.UTC()
-	startDate := collectedAt.Add(-time.Duration(request.TimeWindowHours) * time.Hour).Format("2006-01-02")
-	endDate := collectedAt.Format("2006-01-02")
 	maxResults := min(request.CandidateLimit, 10)
 	var response struct {
 		Results []struct {
@@ -99,12 +101,7 @@ func (c Tavily) Collect(ctx context.Context, request collector.Request) ([]colle
 		"query": query, "topic": "news", "search_depth": "advanced", "auto_parameters": false,
 		"chunks_per_source": 3, "max_results": maxResults,
 		"include_answer": false, "include_raw_content": "markdown",
-	}
-	if request.TimeWindowHours <= 24 {
-		body["time_range"] = "day"
-	} else {
-		body["start_date"] = startDate
-		body["end_date"] = endDate
+		"time_range": "day",
 	}
 	if err := postJSON(ctx, client, endpoint, map[string]string{"Authorization": "Bearer " + c.APIKey}, body, &response); err != nil {
 		return nil, err
@@ -160,7 +157,7 @@ func (c Bocha) Collect(ctx context.Context, request collector.Request) ([]collec
 	}
 	body := map[string]any{
 		"query":     request.CombinedQuery,
-		"freshness": bochaFreshness(request.TimeWindowHours),
+		"freshness": "oneDay",
 		"summary":   true, "count": request.CandidateLimit,
 	}
 	if err := postJSON(ctx, client, endpoint, map[string]string{"Authorization": "Bearer " + c.APIKey}, body, &response); err != nil {
@@ -210,17 +207,4 @@ func host(raw string) string {
 		return ""
 	}
 	return parsed.Hostname()
-}
-
-func bochaFreshness(hours int) string {
-	switch {
-	case hours <= 24:
-		return "oneDay"
-	case hours <= 7*24:
-		return "oneWeek"
-	case hours <= 30*24:
-		return "oneMonth"
-	default:
-		return "oneYear"
-	}
 }

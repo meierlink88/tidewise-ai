@@ -10,6 +10,9 @@ _Avoid_: 用命令名、模型名或一次任务标识 Agent
 
 **Agent Version**:
 某个 Agent Definition 的不可变执行合同版本，冻结其输入、输出、工作流能力和执行协议。
+已批准的特定例外只有 Collector Issue #121：其 Web Search freshness 修正按
+`collector.v1` conformance fix 交付，并由 Collector 可靠性 Spec 记录部署前后的
+可观察差异；该例外不授权其他 Agent 或后续变更原地修改已发布版本。
 _Avoid_: 原地修改已发布 Agent、把业务任务提示词当作 Agent Version
 
 **Agent Execution**:

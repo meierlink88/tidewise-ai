@@ -4,6 +4,7 @@
 日期：2026-07-23
 Issue：#17
 修订：2026-07-24 Tavily 同日时间窗兼容及零结果参数修正（Issue #25）
+修订：2026-07-27 Web Search 最近一天召回策略（Issue #121）
 涉及系统：`tidewise-ai-agentrun`
 基线：AgentRun `4306eaa`；Collector Platform Foundation Issue #13
 
@@ -94,6 +95,8 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 使用 explic
 61. As a Collector user, I want a sub-day Tavily window to remain a valid Connector request, so that same-day `start_date` and `end_date` do not fail the Connector before the exact downstream time gate runs.
 62. As a Collector user, I want Tavily recent-news retrieval to use explicit news and relative-time semantics, so that automatic finance classification plus an absolute date does not silently return zero direct results.
 63. As a Collector user, I want Tavily RFC1123 publication timestamps recognized by the exact downstream time gate, so that old search results cannot pass as unknown-time Candidates.
+64. As a Collector user, I want Bocha, Tavily and Parallel Search to limit provider-side discovery to the most recent day, so that older search results do not consume the fixed per-Connector result budget.
+65. As an auditor, I want the exact downstream timestamp gate preserved after provider-side freshness filtering, so that provider date granularity cannot silently decide Candidate acceptance.
 
 ## Implementation Decisions
 
@@ -127,10 +130,20 @@ Connector Adapter 忠实保留数字身份和相邻文本，Tavily 使用 explic
 
 - Tavily receives one `combined_query` request per Execution.
 - The request explicitly uses the `news` topic, disables automatic parameters, enables advanced search and three chunks per source, requests no generated answer, requests raw content in Markdown form and limits direct results to 10.
-- A time window of 24 hours or less sends `time_range: "day"` and no `start_date` or `end_date`. Longer windows retain UTC absolute date bounds. The existing exact timestamp gate remains authoritative for the requested hour-level window.
+- Every request sends `time_range: "day"` and no `start_date` or `end_date`, independently of the Planner's effective time window.
 - Explicit news classification is authoritative because the real Tavily API returned zero results when automatic parameters selected `finance` together with an absolute `start_date`, while the same query returned results with explicit `news`.
 - Response normalization prefers nonblank raw content and marks it `full_text`; otherwise it uses the direct content snippet and marks it `snippet`; otherwise it uses the title and marks it `title_only`.
 - The Connector never follows returned URLs.
+
+### Web Search freshness
+
+- Issue #121 is a documented `collector.v1` conformance fix rather than a new Agent Version. It corrects the intended V1 provider freshness rules; Executions before and after deployment may therefore differ while retaining the `collector.v1` runtime identity.
+- Web Search provider-side discovery prioritizes the most recent day independently of the Planner's effective time window.
+- Bocha always sends `freshness: "oneDay"`; it no longer maps wider Planner windows to `oneWeek`, `oneMonth` or `oneYear`.
+- Tavily always sends `time_range: "day"` as defined above.
+- Parallel Search sends `advanced_settings.source_policy.after_date` as the UTC collection date minus 24 hours, formatted as `YYYY-MM-DD`.
+- Provider date filtering is a recall constraint, not the Candidate acceptance authority. Collector materialization continues applying its exact inclusive timestamp window after merge.
+- When the Planner window exceeds 24 hours, Web Search does not actively cover the older portion of that window. The four fixed professional feeds and their existing downstream gate are unchanged.
 
 ### Deterministic Candidate contract
 
