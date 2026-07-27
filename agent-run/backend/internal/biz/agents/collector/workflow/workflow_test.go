@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/planning"
 )
@@ -29,6 +31,18 @@ const (
 )
 
 type QueryPlanner = planning.QueryPlanner
+
+type workflowChatModel struct {
+	generate func(context.Context, []*schema.Message) (*schema.Message, error)
+}
+
+func (m workflowChatModel) Generate(ctx context.Context, messages []*schema.Message, _ ...model.Option) (*schema.Message, error) {
+	return m.generate(ctx, messages)
+}
+
+func (workflowChatModel) Stream(context.Context, []*schema.Message, ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	return nil, errors.New("unexpected stream call")
+}
 
 type fakeConnector struct {
 	name        string
@@ -178,6 +192,72 @@ func TestWorkflowPlanningRunsBeforeConnectorsAndSharesPlannedRequest(t *testing.
 	}
 	if input.SearchQueries != nil {
 		t.Fatalf("workflow mutated input: %#v", input.SearchQueries)
+	}
+}
+
+func TestWorkflowRepairsOverlongCombinedQueryBeforeConnectors(t *testing.T) {
+	var modelCalls, connectorCalls int32
+	var requests []Request
+	var mu sync.Mutex
+	overlong := strings.Repeat("macro ", 50)
+	planner, err := planning.NewDeepSeekQueryPlanner(workflowChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+		switch atomic.AddInt32(&modelCalls, 1) {
+		case 1:
+			return schema.AssistantMessage(fmt.Sprintf(`{"queries":["global macro"],"combined_query":%q}`, overlong), nil), nil
+		case 2:
+			return schema.AssistantMessage(`{"queries":["global macro"],"combined_query":"global macro"}`, nil), nil
+		default:
+			return nil, errors.New("unexpected model call")
+		}
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	materializer := &captureMaterializer{}
+	runnable, err := New(context.Background(), planner, []Connector{
+		recordingConnector{name: "one", calls: &connectorCalls, mu: &mu, requests: &requests},
+	}, 1, materializer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := runnable.Invoke(context.Background(), &Request{RunID: "repair", Prompt: "global macro news"}); err != nil {
+		t.Fatal(err)
+	}
+	if modelCalls != 2 || connectorCalls != 1 || materializer.calls != 1 {
+		t.Fatalf("calls model=%d connectors=%d materializer=%d", modelCalls, connectorCalls, materializer.calls)
+	}
+	if len(requests) != 1 || requests[0].CombinedQuery != "global macro" {
+		t.Fatalf("Connector requests = %#v", requests)
+	}
+}
+
+func TestWorkflowStopsBeforeConnectorsWhenQueryRepairIsExhausted(t *testing.T) {
+	var modelCalls, connectorCalls int32
+	var requests []Request
+	var mu sync.Mutex
+	overlong := strings.Repeat("macro ", 50)
+	planner, err := planning.NewDeepSeekQueryPlanner(workflowChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+		atomic.AddInt32(&modelCalls, 1)
+		return schema.AssistantMessage(fmt.Sprintf(`{"queries":["global macro"],"combined_query":%q}`, overlong), nil), nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	materializer := &captureMaterializer{}
+	runnable, err := New(context.Background(), planner, []Connector{
+		recordingConnector{name: "one", calls: &connectorCalls, mu: &mu, requests: &requests},
+	}, 1, materializer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = runnable.Invoke(context.Background(), &Request{RunID: "repair-exhausted", Prompt: "global macro news"})
+	if !errors.Is(err, planning.ErrQueryPlanningSchema) {
+		t.Fatalf("error = %v, want schema error", err)
+	}
+	if modelCalls != 2 || connectorCalls != 0 || materializer.calls != 0 {
+		t.Fatalf("calls model=%d connectors=%d materializer=%d", modelCalls, connectorCalls, materializer.calls)
 	}
 }
 

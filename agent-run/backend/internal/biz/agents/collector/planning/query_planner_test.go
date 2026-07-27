@@ -79,6 +79,29 @@ func (f fakeChatModel) Stream(context.Context, []*schema.Message, ...model.Optio
 	return nil, errors.New("unexpected stream call")
 }
 
+func TestDeepSeekQueryPlannerProtocolBoundsCombinedQueryAndForbidsSources(t *testing.T) {
+	var captured []*schema.Message
+	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(_ context.Context, messages []*schema.Message) (*schema.Message, error) {
+		captured = messages
+		return schema.AssistantMessage(`{"queries":["global macro"],"combined_query":"global macro"}`, nil), nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := planner.Plan(context.Background(), &Request{Prompt: "global macro news"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(captured) != 2 {
+		t.Fatalf("messages = %#v", captured)
+	}
+	for _, required := range []string{"220 Unicode characters", "search terms, not explanatory prose", "site:", "provider"} {
+		if !strings.Contains(captured[0].Content, required) {
+			t.Fatalf("Planner protocol does not contain %q: %s", required, captured[0].Content)
+		}
+	}
+}
+
 func TestDeepSeekQueryPlannerBuildsPromptAndReturnsIndependentRequest(t *testing.T) {
 	var captured []*schema.Message
 	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(_ context.Context, messages []*schema.Message) (*schema.Message, error) {
@@ -144,10 +167,16 @@ func TestDeepSeekQueryPlannerStrictJSONValidation(t *testing.T) {
 		"trailing object":    `{"queries":["q"],"combined_query":"q"}{"queries":["other"]}`,
 		"trailing primitive": `{"queries":["q"],"combined_query":"q"} true`,
 		"too long":           fmt.Sprintf(`{"queries":[%q],"combined_query":"q"}`, strings.Repeat("界", 257)),
+		"overlong combined and invalid window": fmt.Sprintf(
+			`{"queries":["q"],"combined_query":%q,"time_window_hours":0}`,
+			strings.Repeat("界", 257),
+		),
 	}
 	for name, content := range tests {
 		t.Run(name, func(t *testing.T) {
+			modelCalls := 0
 			planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+				modelCalls++
 				return schema.AssistantMessage(content, nil), nil
 			}})
 			if err != nil {
@@ -160,7 +189,141 @@ func TestDeepSeekQueryPlannerStrictJSONValidation(t *testing.T) {
 			if content != "" && strings.Contains(err.Error(), content) || strings.Contains(err.Error(), "system-prompt-secret") {
 				t.Fatalf("error leaked raw content or prompt: %v", err)
 			}
+			if modelCalls != 1 {
+				t.Fatalf("model calls = %d, want 1 for non-repairable schema error", modelCalls)
+			}
 		})
+	}
+}
+
+func TestDeepSeekQueryPlannerEnforcesCombinedQueryHardLimit(t *testing.T) {
+	tests := []struct {
+		name    string
+		runes   int
+		wantErr bool
+	}{
+		{name: "accepts boundary", runes: 256},
+		{name: "rejects over boundary", runes: 257, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			combinedQuery := strings.Repeat("界", test.runes)
+			planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+				return schema.AssistantMessage(fmt.Sprintf(`{"queries":["q"],"combined_query":%q}`, combinedQuery), nil), nil
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			output, err := planner.Plan(context.Background(), &Request{Prompt: "intent"})
+			if test.wantErr {
+				if !errors.Is(err, ErrQueryPlanningSchema) {
+					t.Fatalf("error = %v, want schema error", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if output.CombinedQuery != combinedQuery {
+				t.Fatalf("combined query changed at hard boundary")
+			}
+		})
+	}
+}
+
+func TestDeepSeekQueryPlannerRepairsOnlyOverlongCombinedQueryOnce(t *testing.T) {
+	modelCalls := 0
+	var repairMessages []*schema.Message
+	overlong := strings.Repeat("macro ", 50)
+	planCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	wantDeadline, _ := planCtx.Deadline()
+	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(ctx context.Context, messages []*schema.Message) (*schema.Message, error) {
+		gotDeadline, ok := ctx.Deadline()
+		if !ok || !gotDeadline.Equal(wantDeadline) {
+			t.Fatalf("model call deadline = %v, want %v", gotDeadline, wantDeadline)
+		}
+		modelCalls++
+		switch modelCalls {
+		case 1:
+			return schema.AssistantMessage(fmt.Sprintf(`{"queries":["global macro","central banks"],"combined_query":%q,"time_window_hours":48}`, overlong), nil), nil
+		case 2:
+			repairMessages = messages
+			return schema.AssistantMessage(`{"queries":["global macro","central banks"],"combined_query":"global macro OR central banks","time_window_hours":48}`, nil), nil
+		default:
+			t.Fatalf("unexpected model call %d", modelCalls)
+			return nil, nil
+		}
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := planner.Plan(planCtx, &Request{Prompt: "global macro news from the last 48 hours"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if modelCalls != 2 {
+		t.Fatalf("model calls = %d, want 2", modelCalls)
+	}
+	if output.CombinedQuery != "global macro OR central banks" || output.TimeWindowHours != 48 {
+		t.Fatalf("repaired output = %#v", output)
+	}
+	if len(repairMessages) != 2 ||
+		!strings.Contains(repairMessages[0].Content, "repair") ||
+		!strings.Contains(repairMessages[0].Content, "220 Unicode characters") ||
+		!strings.Contains(repairMessages[0].Content, "search terms, not explanatory prose") ||
+		!strings.Contains(repairMessages[1].Content, overlong) {
+		t.Fatalf("repair messages = %#v", repairMessages)
+	}
+}
+
+func TestDeepSeekQueryPlannerStopsAfterOneOverlongRepair(t *testing.T) {
+	modelCalls := 0
+	overlong := strings.Repeat("macro ", 50)
+	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+		modelCalls++
+		return schema.AssistantMessage(fmt.Sprintf(`{"queries":["global macro"],"combined_query":%q}`, overlong), nil), nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = planner.Plan(context.Background(), &Request{Prompt: "global macro news"})
+	if !errors.Is(err, ErrQueryPlanningSchema) {
+		t.Fatalf("error = %v, want schema error", err)
+	}
+	if modelCalls != 2 {
+		t.Fatalf("model calls = %d, want exactly 2", modelCalls)
+	}
+}
+
+func TestDeepSeekQueryPlannerRejectsRepairThatChangesOriginalPlan(t *testing.T) {
+	modelCalls := 0
+	overlong := strings.Repeat("macro ", 50)
+	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+		modelCalls++
+		switch modelCalls {
+		case 1:
+			return schema.AssistantMessage(fmt.Sprintf(`{"queries":["global macro"],"combined_query":%q,"time_window_hours":72}`, overlong), nil), nil
+		case 2:
+			return schema.AssistantMessage(`{"queries":["changed intent"],"combined_query":"global macro","time_window_hours":48}`, nil), nil
+		default:
+			t.Fatalf("unexpected model call %d", modelCalls)
+			return nil, nil
+		}
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = planner.Plan(context.Background(), &Request{Prompt: "global macro news"})
+	if !errors.Is(err, ErrQueryPlanningSchema) {
+		t.Fatalf("error = %v, want schema error", err)
+	}
+	if modelCalls != 2 {
+		t.Fatalf("model calls = %d, want exactly 2", modelCalls)
 	}
 }
 
@@ -217,7 +380,9 @@ func TestDeepSeekQueryPlannerSanitizesModelFailureAndPreservesCancellation(t *te
 	const apiKey = "secret-deepseek-api-key"
 	const rawResponse = `{"error":"secret raw response"}`
 	const prompt = "complete secret prompt"
+	modelCalls := 0
 	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(context.Context, []*schema.Message) (*schema.Message, error) {
+		modelCalls++
 		return nil, fmt.Errorf("provider failed key=%s prompt=%s response=%s", apiKey, prompt, rawResponse)
 	}})
 	if err != nil {
@@ -232,10 +397,15 @@ func TestDeepSeekQueryPlannerSanitizesModelFailureAndPreservesCancellation(t *te
 			t.Fatalf("error leaked %q: %v", secret, err)
 		}
 	}
+	if modelCalls != 1 {
+		t.Fatalf("model calls = %d, want 1 for Provider failure", modelCalls)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+	modelCalls = 0
 	planner, err = NewDeepSeekQueryPlanner(fakeChatModel{generate: func(ctx context.Context, _ []*schema.Message) (*schema.Message, error) {
+		modelCalls++
 		return nil, ctx.Err()
 	}})
 	if err != nil {
@@ -244,5 +414,26 @@ func TestDeepSeekQueryPlannerSanitizesModelFailureAndPreservesCancellation(t *te
 	_, err = planner.Plan(ctx, &Request{Prompt: "prompt"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	if modelCalls != 1 {
+		t.Fatalf("model calls = %d, want 1 for cancellation", modelCalls)
+	}
+
+	deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer deadlineCancel()
+	modelCalls = 0
+	planner, err = NewDeepSeekQueryPlanner(fakeChatModel{generate: func(ctx context.Context, _ []*schema.Message) (*schema.Message, error) {
+		modelCalls++
+		return nil, ctx.Err()
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = planner.Plan(deadlineCtx, &Request{Prompt: "prompt"})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want context.DeadlineExceeded", err)
+	}
+	if modelCalls != 1 {
+		t.Fatalf("model calls = %d, want 1 for deadline expiry", modelCalls)
 	}
 }
