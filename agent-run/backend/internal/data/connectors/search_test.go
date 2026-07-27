@@ -31,6 +31,14 @@ func TestParallelSearchUsesDirectAPIContract(t *testing.T) {
 		if !ok || len(queries) != 2 {
 			t.Fatalf("unexpected search_queries: %#v", body["search_queries"])
 		}
+		advancedSettings, ok := body["advanced_settings"].(map[string]any)
+		if !ok {
+			t.Fatalf("advanced_settings = %#v, want object; body=%#v", body["advanced_settings"], body)
+		}
+		sourcePolicy, ok := advancedSettings["source_policy"].(map[string]any)
+		if !ok || sourcePolicy["after_date"] != "2026-07-17" {
+			t.Fatalf("source_policy = %#v, want after_date 2026-07-17; body=%#v", advancedSettings["source_policy"], body)
+		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -41,7 +49,7 @@ func TestParallelSearchUsesDirectAPIContract(t *testing.T) {
 	connector := ParallelSearch{APIKey: "parallel-key", Endpoint: "https://parallel.test/v1/search", Client: client}
 	results, err := connector.Collect(context.Background(), collector.Request{
 		Prompt: "目标", SearchQueries: []string{"全球政策", "资本市场"},
-		CandidateLimit: 10, CollectedAt: time.Now().UTC(), TimeWindowHours: 48,
+		CandidateLimit: 10, CollectedAt: time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC), TimeWindowHours: 48,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -80,13 +88,18 @@ func TestTavilyUsesCodexDirectResultContract(t *testing.T) {
 			"max_results":         float64(10),
 			"include_answer":      false,
 			"include_raw_content": "markdown",
-			"start_date":          "2026-07-16",
-			"end_date":            "2026-07-18",
+			"time_range":          "day",
 		}
 		for key, value := range want {
 			if body[key] != value {
 				t.Fatalf("body[%q] = %#v, want %#v; body=%#v", key, body[key], value, body)
 			}
+		}
+		if startDate, exists := body["start_date"]; exists {
+			t.Fatalf("one-day request contains start_date = %#v; body=%#v", startDate, body)
+		}
+		if endDate, exists := body["end_date"]; exists {
+			t.Fatalf("one-day request contains end_date = %#v; body=%#v", endDate, body)
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -179,7 +192,7 @@ func TestBochaUsesCombinedQueryOnceAndDirectSummary(t *testing.T) {
 		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if body["query"] != "中国半导体政策 芯片供应链价格" || body["summary"] != true || body["freshness"] != "oneWeek" || body["count"] != float64(10) {
+		if body["query"] != "中国半导体政策 芯片供应链价格" || body["summary"] != true || body["freshness"] != "oneDay" || body["count"] != float64(10) {
 			t.Fatalf("Bocha body = %#v", body)
 		}
 		return &http.Response{
