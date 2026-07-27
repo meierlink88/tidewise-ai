@@ -34,6 +34,12 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"industry_relationship_package_sha:",
 		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:",
 		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA:",
+		"apply_industry_graph_projection:",
+		"industry_graph_package_sha:",
+		"INDUSTRY_GRAPH_PROJECTION_ENABLED:",
+		"INDUSTRY_GRAPH_PACKAGE_SHA:",
+		"NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}",
+		"NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -57,6 +63,30 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 	for _, forbidden := range []string{"\n  push:\n", "\n  pull_request:\n", "ghcr.io", ":latest"} {
 		if strings.Contains(workflow, forbidden) {
 			t.Fatalf("UAT workflow contains forbidden release contract %q", forbidden)
+		}
+	}
+}
+
+func TestUATWorkflowScopesNeo4jCredentialsToEnabledProjectionStep(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	prepareStart := strings.Index(workflow, "- name: Prepare deployment environment")
+	pullStart := strings.Index(workflow, "- name: Pull immutable release images")
+	if prepareStart < 0 || pullStart <= prepareStart {
+		t.Fatal("UAT workflow is missing the deployment environment preparation boundary")
+	}
+	prepare := workflow[prepareStart:pullStart]
+	if strings.Contains(prepare, "NEO4J_") {
+		t.Fatal("UAT runtime environment must not persist Neo4j configuration or credentials")
+	}
+	for _, required := range []string{
+		"NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}",
+		"NEO4J_USERNAME: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_USERNAME || '' }}",
+		"NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}",
+		"NEO4J_DATABASE: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_DATABASE || '' }}",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT workflow does not conditionally scope graph projection value %q", required)
 		}
 	}
 }
@@ -362,6 +392,11 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		"PASS industry-relationship-import-dry-run",
 		"PASS industry-relationship-import-apply",
 		"PASS industry-relationship-import-replay",
+		"FAIL industry-graph-projection-gate",
+		"PASS industry-graph-projection-dry-run",
+		"PASS industry-graph-projection-apply",
+		"PASS industry-graph-projection-replay",
+		"/usr/local/bin/industry-graph-projector",
 		"-expected-sha256",
 		"-apply -allow-env uat",
 	} {

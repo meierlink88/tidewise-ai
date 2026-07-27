@@ -3,9 +3,11 @@ package industrygraphprojection
 import "fmt"
 
 const (
-	FrozenV1PackageSHA256     = "7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608"
-	frozenV1NodeCount         = 4449
-	frozenV1RelationshipCount = 7867
+	FrozenV1PackageSHA256           = "7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608"
+	FrozenV1NodeFingerprint         = "4229146e37ee554cd58377843743f93dc753bdfd92bbe7f2c9afac61c2003d63"
+	FrozenV1RelationshipFingerprint = "aba6be387c0dad1b93c6fd14a4f9216b77a625d206cae9e7b977854f0cacec94"
+	frozenV1NodeCount               = 4449
+	frozenV1RelationshipCount       = 7867
 )
 
 func ValidateFrozenV1Projection(projection Projection) error {
@@ -33,6 +35,20 @@ func ValidateFrozenV1Projection(projection Projection) error {
 			"relationship count %d, want frozen V1 count %d",
 			summary.RelationshipCount,
 			frozenV1RelationshipCount,
+		)
+	}
+	if summary.NodeFingerprint != FrozenV1NodeFingerprint {
+		return fmt.Errorf(
+			"node fingerprint %q, want frozen V1 fingerprint %s",
+			summary.NodeFingerprint,
+			FrozenV1NodeFingerprint,
+		)
+	}
+	if summary.RelationshipFingerprint != FrozenV1RelationshipFingerprint {
+		return fmt.Errorf(
+			"relationship fingerprint %q, want frozen V1 fingerprint %s",
+			summary.RelationshipFingerprint,
+			FrozenV1RelationshipFingerprint,
 		)
 	}
 

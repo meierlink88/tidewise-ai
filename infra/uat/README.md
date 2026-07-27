@@ -74,6 +74,9 @@ Variables：
 | `SWR_DEPLOY_REPOSITORY` | UAT deployment bundle 镜像仓库名 |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| `NEO4J_URI` | UAT Neo4j 的无凭据 Bolt URI |
+| `NEO4J_USERNAME` | UAT Neo4j 用户名 |
+| `NEO4J_DATABASE` | 固定为 `neo4j` |
 
 Secrets：
 
@@ -86,6 +89,7 @@ Secrets：
 | `DATA_SERVICE_TOKEN` | 所有受信服务调用 Data Service 的统一身份 |
 | `ADMIN_SERVICE_TOKEN` | Admin Portal Backend 的浏览器/API 鉴权 |
 | `AGENTRUN_SERVICE_TOKEN` | 所有受信服务调用 AgentRun 的统一身份 |
+| `NEO4J_PASSWORD` | 一次性 Industry graph projector 使用的 Neo4j 密码 |
 
 RDS 的 host、port、database、user 与 `sslmode=require` 固定保存在两个服务各自的
 `config.uat.yaml`；GitHub Environment 只保存上述密码。两套配置必须指向相互独立的
@@ -129,6 +133,27 @@ Token、模型与连接器配置以及 Artifact 持久化目录全部就绪，�
 Review、备份和零行校验要求执行独立、可审计的受控迁移，不能用通用备份勾选替代。
 
 Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 和五镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试。Schema migration 必须兼容至少前一个应用版本。
+
+## Industry graph 投影
+
+Neo4j 是 PostgreSQL Industry 关系数据的派生查询视图，不是事实源。普通 UAT 发布不会
+自动重建图谱。只有手工勾选 `apply_industry_graph_projection` 并填写已审核关系包的完整
+SHA-256 时，候选 Data 镜像才会在服务切换前执行一次性 projector。
+
+投影依次执行 dry-run、事务性 apply 和同包 replay，并校验固定命名空间、合同版本、
+4,449 个实体、7,867 条关系、实体/关系类型计数、语义指纹、零完整性异常以及 replay
+的 `unchanged=true`。任一步失败都会阻断候选发布。关系包 SHA 可以与
+`apply_industry_relationship_package` 独立填写，因此 UAT PostgreSQL 已经存在该包时，
+无需再次导入关系数据。
+
+只有勾选图谱投影时，`NEO4J_URI`、`NEO4J_USERNAME`、`NEO4J_DATABASE` 和
+`NEO4J_PASSWORD` 才会注入 `Migrate and deploy the complete release unit` 编排步骤，
+并由 deploy 脚本按变量名仅转发给 one-shot Data 容器；默认关闭时该步骤收到空值。
+这些值不会写入 `runtime.env`、Compose 服务环境、部署状态或诊断文件，其他容器也不会
+获得这些变量。
+CLI 同时校验仓库固定的 UAT PostgreSQL 身份和批准的 Neo4j Bolt 目标，拒绝 production
+及任意远程地址。完整合同见
+`docs/architecture/uat-industry-graph-projection-v1.md`。
 
 在任何数据库检查或 migration 之前，部署脚本先让候选 AgentRun 镜像以自身非 root
 用户在 `/app/data` 创建并删除临时探针。宿主机目录存在但容器用户无权写入时，发布

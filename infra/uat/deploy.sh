@@ -9,6 +9,8 @@ release_sha="${COMMIT_SHA:?COMMIT_SHA is required}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
 industry_import_enabled="${INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:-false}"
 industry_package_sha="${INDUSTRY_RELATIONSHIP_PACKAGE_SHA:-}"
+industry_graph_projection_enabled="${INDUSTRY_GRAPH_PROJECTION_ENABLED:-false}"
+industry_graph_package_sha="${INDUSTRY_GRAPH_PACKAGE_SHA:-}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
 agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
@@ -27,6 +29,9 @@ agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GIT
 industry_import_dry_run_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-dry-run-${GITHUB_RUN_ID:-manual}.json"
 industry_import_apply_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-apply-${GITHUB_RUN_ID:-manual}.json"
 industry_import_replay_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-replay-${GITHUB_RUN_ID:-manual}.json"
+industry_graph_dry_run_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-graph-dry-run-${GITHUB_RUN_ID:-manual}.json"
+industry_graph_apply_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-graph-apply-${GITHUB_RUN_ID:-manual}.json"
+industry_graph_replay_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-graph-replay-${GITHUB_RUN_ID:-manual}.json"
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 industry_package_path="/app/data/industry_relationships/2026-07-27-v1"
 
@@ -45,6 +50,25 @@ if [ "$industry_import_enabled" = true ]; then
   fi
 elif [ -n "$industry_package_sha" ]; then
   echo "FAIL industry-relationship-import-gate: package SHA was supplied while import is disabled" >&2
+  exit 1
+fi
+if [ "$industry_graph_projection_enabled" != true ] && [ "$industry_graph_projection_enabled" != false ]; then
+  echo "FAIL industry-graph-projection-gate: enable flag must be true or false" >&2
+  exit 1
+fi
+if [ "$industry_graph_projection_enabled" = true ]; then
+  if ! [[ "$industry_graph_package_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "FAIL industry-graph-projection-gate: a 64-character lowercase package SHA is required" >&2
+    exit 1
+  fi
+  for required_name in NEO4J_URI NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE; do
+    if [ -z "${!required_name:-}" ]; then
+      echo "FAIL industry-graph-projection-gate: ${required_name} is required" >&2
+      exit 1
+    fi
+  done
+elif [ -n "$industry_graph_package_sha" ]; then
+  echo "FAIL industry-graph-projection-gate: package SHA was supplied while projection is disabled" >&2
   exit 1
 fi
 
@@ -293,6 +317,121 @@ PY
     echo
     echo '```json'
     sed -n '1,200p' "$industry_import_replay_report"
+    echo '```'
+    echo '</details>'
+  } >> "$summary_file"
+fi
+
+if [ "$industry_graph_projection_enabled" = true ]; then
+  industry_graph_command=(
+    /usr/local/bin/industry-graph-projector
+    -package "$industry_package_path"
+    -expected-sha256 "$industry_graph_package_sha"
+  )
+  neo4j_environment=(
+    -e NEO4J_URI
+    -e NEO4J_USERNAME
+    -e NEO4J_PASSWORD
+    -e NEO4J_DATABASE
+  )
+  "${candidate_compose[@]}" run --rm --no-deps \
+    "${neo4j_environment[@]}" data \
+    "${industry_graph_command[@]}" -dry-run > "$industry_graph_dry_run_report"
+  echo "PASS industry-graph-projection-dry-run"
+  "${candidate_compose[@]}" run --rm --no-deps \
+    "${neo4j_environment[@]}" data \
+    "${industry_graph_command[@]}" -apply -allow-env uat > "$industry_graph_apply_report"
+  echo "PASS industry-graph-projection-apply"
+  "${candidate_compose[@]}" run --rm --no-deps \
+    "${neo4j_environment[@]}" data \
+    "${industry_graph_command[@]}" -apply -allow-env uat > "$industry_graph_replay_report"
+
+  python3 - \
+    "$industry_graph_package_sha" \
+    "$industry_graph_dry_run_report" \
+    "$industry_graph_apply_report" \
+    "$industry_graph_replay_report" <<'PY'
+import json
+import pathlib
+import sys
+
+expected_sha = sys.argv[1]
+reports = [json.loads(pathlib.Path(path).read_text()) for path in sys.argv[2:]]
+labels = ["dry-run", "apply", "replay"]
+expected_node_types = {
+    "industry": 512,
+    "concept": 180,
+    "industry_chain": 708,
+    "chain_node": 3049,
+}
+expected_relationship_types = {
+    "MAPPED_TO_INDUSTRY": 716,
+    "MAPPED_TO_CONCEPT": 521,
+    "HAS_NODE": 3350,
+    "INPUT_TO": 1537,
+    "IS_COMPONENT_OF": 704,
+    "DEPENDS_ON": 404,
+    "IS_SUBCATEGORY_OF": 635,
+}
+expected_node_fingerprint = "4229146e37ee554cd58377843743f93dc753bdfd92bbe7f2c9afac61c2003d63"
+expected_relationship_fingerprint = "aba6be387c0dad1b93c6fd14a4f9216b77a625d206cae9e7b977854f0cacec94"
+for label, report in zip(labels, reports):
+    if report.get("namespace") != "tidewise-industry-v1":
+        raise SystemExit(f"{label} namespace does not match the frozen V1 contract")
+    if report.get("contract_version") != "industry-graph-projection-v1":
+        raise SystemExit(f"{label} contract version does not match the frozen V1 contract")
+    if report.get("package_sha256") != expected_sha:
+        raise SystemExit(f"{label} package SHA does not match the approved input")
+    if report.get("node_count") != 4449 or report.get("relationship_count") != 7867:
+        raise SystemExit(f"{label} top-level graph counts do not match the frozen V1 contract")
+    source = report.get("source") or {}
+    if source.get("node_count") != 4449 or source.get("relationship_count") != 7867:
+        raise SystemExit(f"{label} source counts do not match the frozen V1 contract")
+    if source.get("node_type_counts") != expected_node_types:
+        raise SystemExit(f"{label} source node type counts do not match the frozen V1 contract")
+    if source.get("relationship_type_counts") != expected_relationship_types:
+        raise SystemExit(f"{label} source relationship type counts do not match the frozen V1 contract")
+    if source.get("node_fingerprint") != expected_node_fingerprint:
+        raise SystemExit(f"{label} source node fingerprint does not match the frozen V1 contract")
+    if source.get("relationship_fingerprint") != expected_relationship_fingerprint:
+        raise SystemExit(f"{label} source relationship fingerprint does not match the frozen V1 contract")
+    for defect in (
+        "orphan_count",
+        "duplicate_node_count",
+        "duplicate_relationship_count",
+        "self_loop_count",
+        "missing_chain_identity_count",
+    ):
+        if source.get(defect) != 0:
+            raise SystemExit(f"{label} source integrity check {defect} is not zero")
+if reports[0].get("dry_run") is not True or reports[0].get("applied") is not False:
+    raise SystemExit("preflight result has invalid dry-run/apply flags")
+for label, report in zip(labels[1:], reports[1:]):
+    if report.get("dry_run") is not False:
+        raise SystemExit(f"{label} unexpectedly reports dry_run")
+    if report.get("final_integrity_violation_count") != 0:
+        raise SystemExit(f"{label} final Neo4j integrity violations are not zero")
+    if report.get("final_neo4j") != report.get("source"):
+        raise SystemExit(f"{label} final Neo4j projection differs from the approved source")
+if reports[1].get("applied") is not True and reports[1].get("unchanged") is not True:
+    raise SystemExit("apply neither changed nor confirmed the approved graph")
+if reports[2].get("unchanged") is not True:
+    raise SystemExit("replay did not verify the persisted graph as unchanged")
+PY
+  echo "PASS industry-graph-projection-replay"
+  {
+    echo
+    echo "### UAT Industry graph projection"
+    echo
+    echo "- Package SHA: \`${industry_graph_package_sha}\`"
+    echo "- PostgreSQL/Neo4j preflight: passed"
+    echo "- Transactional projection: passed"
+    echo "- Same-package replay: unchanged"
+    echo
+    echo '<details><summary>Projection counts and fingerprints</summary>'
+    echo
+    echo '```json'
+    sed -n '1,240p' "$industry_graph_replay_report"
     echo '```'
     echo '</details>'
   } >> "$summary_file"

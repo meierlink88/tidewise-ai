@@ -27,13 +27,25 @@ func TestParseCLIOptionsRequiresPinnedPackageAndExactlyOneMode(t *testing.T) {
 	if !options.DryRun || options.Apply || options.ExpectedSHA != testPackageSHA {
 		t.Fatalf("options = %#v", options)
 	}
+	uat, err := parseCLIOptions([]string{
+		"-package", "/tmp/package",
+		"-expected-sha256", testPackageSHA,
+		"-apply",
+		"-allow-env", "uat",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !uat.Apply || uat.AllowEnv != "uat" {
+		t.Fatalf("UAT options = %#v", uat)
+	}
 
 	invalid := [][]string{
 		{"-expected-sha256", testPackageSHA},
 		{"-expected-sha256", testPackageSHA, "-dry-run", "-apply", "-allow-env", "local"},
 		{"-expected-sha256", "ABC", "-dry-run"},
 		{"-expected-sha256", testPackageSHA, "-apply"},
-		{"-expected-sha256", testPackageSHA, "-apply", "-allow-env", "uat"},
+		{"-expected-sha256", testPackageSHA, "-apply", "-allow-env", "prod"},
 		{"-expected-sha256", testPackageSHA, "-dry-run", "-allow-env", "local"},
 	}
 	for index, args := range invalid {
@@ -109,67 +121,111 @@ func (f *fakeCommandRuntime) Close(ctx context.Context) error {
 	return nil
 }
 
-func TestValidateTargetAcceptsOnlyLoopbackLocalPostgreSQL(t *testing.T) {
+func TestValidateTargetAcceptsOnlyApprovedLocalAndUATPostgreSQL(t *testing.T) {
 	local := conf.Config{
 		App: conf.AppConfig{Env: conf.EnvLocal},
 		Database: conf.DatabaseConfig{
 			Host: "localhost", Name: "tidewise_local", SSLMode: "disable",
 		},
 	}
-	if err := validateTarget(local); err != nil {
+	if err := validateTarget(local, cliOptions{Apply: true, AllowEnv: "local"}); err != nil {
 		t.Fatalf("valid target: %v", err)
 	}
-
-	invalid := []conf.Config{
-		{
-			App: conf.AppConfig{Env: conf.EnvUAT},
-			Database: conf.DatabaseConfig{
-				Host: "localhost", Name: "tidewise_local", SSLMode: "disable",
-			},
-		},
-		{
-			App: conf.AppConfig{Env: conf.EnvProd},
-			Database: conf.DatabaseConfig{
-				Host: "localhost", Name: "tidewise_local", SSLMode: "disable",
-			},
-		},
-		{
-			App: conf.AppConfig{Env: conf.EnvLocal},
-			Database: conf.DatabaseConfig{
-				Host: "postgres", Name: "tidewise_local", SSLMode: "disable",
-			},
-		},
-		{
-			App: conf.AppConfig{Env: conf.EnvLocal},
-			Database: conf.DatabaseConfig{
-				Host: "127.0.0.1", Name: "tidewise_uat", SSLMode: "disable",
-			},
+	uat := conf.Config{
+		App: conf.AppConfig{Env: conf.EnvUAT},
+		Database: conf.DatabaseConfig{
+			Host: uatPostgreSQLHost, Port: 5432, Name: "tidewise_uat",
+			User: "tidewise_uat", SSLMode: "require",
 		},
 	}
-	for index, config := range invalid {
-		if err := validateTarget(config); err == nil {
+	if err := validateTarget(uat, cliOptions{Apply: true, AllowEnv: "uat"}); err != nil {
+		t.Fatalf("valid UAT target: %v", err)
+	}
+
+	invalid := []struct {
+		config  conf.Config
+		options cliOptions
+	}{
+		{
+			config:  uat,
+			options: cliOptions{Apply: true, AllowEnv: "local"},
+		},
+		{
+			config: conf.Config{
+				App: conf.AppConfig{Env: conf.EnvUAT},
+				Database: conf.DatabaseConfig{
+					Host: "localhost", Port: 5432, Name: "tidewise_uat",
+					User: "tidewise_uat", SSLMode: "require",
+				},
+			},
+			options: cliOptions{DryRun: true},
+		},
+		{
+			config: conf.Config{
+				App: conf.AppConfig{Env: conf.EnvProd},
+				Database: conf.DatabaseConfig{
+					Host: uatPostgreSQLHost, Port: 5432, Name: "tidewise_uat",
+					User: "tidewise_uat", SSLMode: "require",
+				},
+			},
+			options: cliOptions{DryRun: true},
+		},
+		{
+			config: conf.Config{
+				App: conf.AppConfig{Env: conf.EnvLocal},
+				Database: conf.DatabaseConfig{
+					Host: "postgres", Name: "tidewise_local", SSLMode: "disable",
+				},
+			},
+			options: cliOptions{DryRun: true},
+		},
+		{
+			config: conf.Config{
+				App: conf.AppConfig{Env: conf.EnvLocal},
+				Database: conf.DatabaseConfig{
+					Host: "127.0.0.1", Name: "tidewise_uat", SSLMode: "disable",
+				},
+			},
+			options: cliOptions{DryRun: true},
+		},
+	}
+	for index, target := range invalid {
+		if err := validateTarget(target.config, target.options); err == nil {
 			t.Fatalf("invalid PostgreSQL target %d was accepted", index)
 		}
 	}
 }
 
-func TestValidateNeo4jTargetAcceptsOnlyLoopbackNeo4jDatabase(t *testing.T) {
+func TestValidateNeo4jTargetAcceptsOnlyEnvironmentSpecificTarget(t *testing.T) {
 	valid := neo4jdata.Config{
 		URI: "bolt://localhost:7687", Username: "neo4j",
 		Password: "secret", Database: "neo4j",
 	}
-	if err := validateNeo4jTarget(valid); err != nil {
+	if err := validateNeo4jTarget(conf.EnvLocal, valid); err != nil {
 		t.Fatalf("valid Neo4j target: %v", err)
 	}
-	for index, config := range []neo4jdata.Config{
-		{URI: "bolt://graph.internal:7687", Username: "neo4j", Password: "secret", Database: "neo4j"},
-		{URI: "neo4j://localhost:7687", Username: "neo4j", Password: "secret", Database: "neo4j"},
-		{URI: "bolt://neo4j:secret@localhost:7687", Username: "neo4j", Password: "secret", Database: "neo4j"},
-		{URI: "bolt://127.0.0.1:7687", Username: "neo4j", Password: "secret", Database: "system"},
-		{URI: "bolt://127.0.0.1:7687", Username: "", Password: "secret", Database: "neo4j"},
+	uat := neo4jdata.Config{
+		URI: "bolt://" + uatNeo4jHost + ":7687", Username: "neo4j",
+		Password: "secret", Database: "neo4j",
+	}
+	if err := validateNeo4jTarget(conf.EnvUAT, uat); err != nil {
+		t.Fatalf("valid UAT Neo4j target: %v", err)
+	}
+	for index, target := range []struct {
+		environment conf.Environment
+		config      neo4jdata.Config
+	}{
+		{conf.EnvLocal, neo4jdata.Config{URI: "bolt://graph.internal:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://localhost:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://203.0.113.10:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "neo4j://" + uatNeo4jHost + ":7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://neo4j:secret@" + uatNeo4jHost + ":7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://" + uatNeo4jHost + ":7687", Username: "neo4j", Password: "secret", Database: "system"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://" + uatNeo4jHost + ":7687", Username: "", Password: "secret", Database: "neo4j"}},
+		{conf.EnvProd, uat},
 	} {
-		if err := validateNeo4jTarget(config); err == nil {
-			t.Fatalf("invalid Neo4j target %d was accepted: %#v", index, config)
+		if err := validateNeo4jTarget(target.environment, target.config); err == nil {
+			t.Fatalf("invalid Neo4j target %d was accepted: %#v", index, target.config)
 		} else if strings.Contains(err.Error(), "secret") {
 			t.Fatalf("Neo4j target error exposed credentials: %v", err)
 		}

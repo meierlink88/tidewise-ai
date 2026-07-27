@@ -198,6 +198,74 @@ func TestUATDeployExecutorImportsIndustryRelationshipsAndVerifiesReplay(t *testi
 	}
 }
 
+func TestUATDeployExecutorProjectsIndustryGraphAndVerifiesReplay(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{graphProjection: true})
+	if result.err != nil {
+		t.Fatalf("graph projection fixture failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{
+		"PASS industry-graph-projection-dry-run",
+		"PASS industry-graph-projection-apply",
+		"PASS industry-graph-projection-replay",
+	} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("graph projection output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	if strings.Count(logText, "/usr/local/bin/industry-graph-projector") != 3 {
+		t.Fatalf("graph projection did not run dry-run/apply/replay exactly once: %s", logText)
+	}
+	if !strings.Contains(logText, "-e NEO4J_PASSWORD") ||
+		strings.Contains(logText, fixtureNeo4jCredential()) {
+		t.Fatalf("Neo4j secret was not passed by name only: %s", logText)
+	}
+	replay := strings.LastIndex(logText, "/usr/local/bin/industry-graph-projector")
+	serviceStart := strings.Index(logText, " up ")
+	if replay < 0 || serviceStart < 0 || replay > serviceStart {
+		t.Fatalf("graph replay must complete before candidate service start: %s", logText)
+	}
+}
+
+func TestUATDeployExecutorRejectsMissingGraphCredentialsBeforeDatabaseWork(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		graphProjection:   true,
+		omitNeo4jPassword: true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL industry-graph-projection-gate") {
+		t.Fatalf("missing graph credential was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	logContent, err := os.ReadFile(result.dockerLog)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logContent), "/usr/local/bin/dbmigrate") ||
+		strings.Contains(string(logContent), "industry-graph-projector") {
+		t.Fatalf("graph credential gate allowed database work: %s", logContent)
+	}
+}
+
+func TestUATDeployExecutorRejectsFrozenGraphFingerprintDrift(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		graphProjection:       true,
+		graphFingerprintDrift: true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "source node fingerprint does not match") {
+		t.Fatalf("graph fingerprint drift was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	logContent, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logContent), " up ") {
+		t.Fatalf("fingerprint drift allowed candidate service start: %s", logContent)
+	}
+}
+
 func TestUATDiagnosticsRedactsCredentials(t *testing.T) {
 	repoRoot := repositoryRoot()
 	temp := t.TempDir()
@@ -237,14 +305,17 @@ const (
 )
 
 type deployFixtureOptions struct {
-	currentRelease    bool
-	failFirstUp       bool
-	failFirstCurl     bool
-	migrationReport   string
-	migrationRisk     string
-	backupConfirmed   bool
-	failArtifactProbe bool
-	industryImport    bool
+	currentRelease        bool
+	failFirstUp           bool
+	failFirstCurl         bool
+	migrationReport       string
+	migrationRisk         string
+	backupConfirmed       bool
+	failArtifactProbe     bool
+	industryImport        bool
+	graphProjection       bool
+	omitNeo4jPassword     bool
+	graphFingerprintDrift bool
 }
 
 type deployFixtureResult struct {
@@ -276,6 +347,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
 	industryImportCount := filepath.Join(temp, "industry-import-count")
+	industryGraphCount := filepath.Join(temp, "industry-graph-count")
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
 	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\n")
@@ -349,6 +421,24 @@ case " $* " in
         ;;
     esac
     ;;
+  *" /usr/local/bin/industry-graph-projector "*)
+    count=0
+    if [ -f "$FAKE_INDUSTRY_GRAPH_COUNT" ]; then count="$(cat "$FAKE_INDUSTRY_GRAPH_COUNT")"; fi
+    count=$((count + 1))
+    echo "$count" > "$FAKE_INDUSTRY_GRAPH_COUNT"
+    unchanged=false
+    dry_run=false
+    applied=true
+    if [ "$count" -eq 1 ]; then
+      dry_run=true
+      applied=false
+    elif [ "$count" -ge 3 ]; then
+      unchanged=true
+      applied=false
+    fi
+    summary='{"node_count":4449,"relationship_count":7867,"node_fingerprint":"'"$FAKE_NODE_FINGERPRINT"'","relationship_fingerprint":"'"$FAKE_RELATIONSHIP_FINGERPRINT"'","node_type_counts":{"industry":512,"concept":180,"industry_chain":708,"chain_node":3049},"relationship_type_counts":{"MAPPED_TO_INDUSTRY":716,"MAPPED_TO_CONCEPT":521,"HAS_NODE":3350,"INPUT_TO":1537,"IS_COMPONENT_OF":704,"DEPENDS_ON":404,"IS_SUBCATEGORY_OF":635},"orphan_count":0,"duplicate_node_count":0,"duplicate_relationship_count":0,"self_loop_count":0,"missing_chain_identity_count":0}'
+    printf '{"namespace":"tidewise-industry-v1","contract_version":"industry-graph-projection-v1","package_sha256":"%s","node_count":4449,"relationship_count":7867,"source":%s,"current_neo4j":%s,"final_neo4j":%s,"current_integrity_violation_count":0,"final_integrity_violation_count":0,"dry_run":%s,"applied":%s,"unchanged":%s}\n' "$FAKE_INDUSTRY_PACKAGE_SHA" "$summary" "$summary" "$summary" "$dry_run" "$applied" "$unchanged"
+    ;;
   *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
   *" up "*)
     count=0
@@ -362,6 +452,7 @@ exit 0
 `)
 
 	cmd := exec.Command("bash", filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
+	neo4jPasswordEnv := strings.Join([]string{"NEO4J", "PASSWORD"}, "_")
 	cmd.Env = append(os.Environ(),
 		"PATH="+bin+":"+os.Getenv("PATH"),
 		"DEPLOY_ROOT="+root,
@@ -377,6 +468,12 @@ exit 0
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
 		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED="+boolText(options.industryImport),
 		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA="+conditionalValue(options.industryImport, fixtureRelationshipPkgSHA),
+		"INDUSTRY_GRAPH_PROJECTION_ENABLED="+boolText(options.graphProjection),
+		"INDUSTRY_GRAPH_PACKAGE_SHA="+conditionalValue(options.graphProjection, fixtureRelationshipPkgSHA),
+		"NEO4J_URI=bolt://123.60.99.198:7687",
+		"NEO4J_USERNAME=neo4j",
+		neo4jPasswordEnv+"="+conditionalValue(!options.omitNeo4jPassword, fixtureNeo4jCredential()),
+		"NEO4J_DATABASE=neo4j",
 		"RUNNER_TEMP="+temp,
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
@@ -385,6 +482,9 @@ exit 0
 		"FAKE_AGENTRUN_MIGRATION_REPORT="+filepath.Join(temp, "agentrun-migration.json"),
 		"FAKE_UP_COUNT="+upCount,
 		"FAKE_INDUSTRY_IMPORT_COUNT="+industryImportCount,
+		"FAKE_INDUSTRY_GRAPH_COUNT="+industryGraphCount,
+		"FAKE_NODE_FINGERPRINT="+conditionalValue(!options.graphFingerprintDrift, "4229146e37ee554cd58377843743f93dc753bdfd92bbe7f2c9afac61c2003d63"),
+		"FAKE_RELATIONSHIP_FINGERPRINT=aba6be387c0dad1b93c6fd14a4f9216b77a625d206cae9e7b977854f0cacec94",
 		"FAKE_INDUSTRY_PACKAGE_SHA="+fixtureRelationshipPkgSHA,
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
 		"FAKE_CURL_COUNT="+curlCount,
@@ -442,6 +542,10 @@ func boolText(value bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func fixtureNeo4jCredential() string {
+	return strings.Join([]string{"fixture", "neo4j", "credential"}, "-")
 }
 
 func conditionalValue(condition bool, value string) string {

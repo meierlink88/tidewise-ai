@@ -76,7 +76,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 	}
 }
 
-func TestDataImageCarriesUATIndustryRelationshipImportAssets(t *testing.T) {
+func TestDataImageCarriesUATIndustryRelationshipAndGraphAssets(t *testing.T) {
 	repoRoot := repositoryRoot()
 	dockerfile := readContractFile(t, filepath.Join(
 		repoRoot,
@@ -87,11 +87,13 @@ func TestDataImageCarriesUATIndustryRelationshipImportAssets(t *testing.T) {
 	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
 
 	const (
-		importerBinary = "/usr/local/bin/industry-relationship-import"
-		packagePath    = "/app/data/industry_relationships/2026-07-27-v1"
+		importerBinary  = "/usr/local/bin/industry-relationship-import"
+		projectorBinary = "/usr/local/bin/industry-graph-projector"
+		packagePath     = "/app/data/industry_relationships/2026-07-27-v1"
 	)
 	for _, required := range []string{
 		importerBinary,
+		projectorBinary,
 		`industry_package_path="` + packagePath + `"`,
 	} {
 		if !strings.Contains(deploy, required) {
@@ -105,6 +107,12 @@ func TestDataImageCarriesUATIndustryRelationshipImportAssets(t *testing.T) {
 	) {
 		t.Fatal("Data Dockerfile must build the UAT Industry relationship importer")
 	}
+	if !strings.Contains(
+		dockerfile,
+		"-o /out/industry-graph-projector ./analyse-data-service/backend/cmd/industry-graph-projector",
+	) {
+		t.Fatal("Data Dockerfile must build the UAT Industry graph projector")
+	}
 	runtimeStageStart := strings.LastIndex(dockerfile, "\nFROM ")
 	if runtimeStageStart < 0 {
 		t.Fatal("Data Dockerfile must define a separate runtime stage")
@@ -112,6 +120,7 @@ func TestDataImageCarriesUATIndustryRelationshipImportAssets(t *testing.T) {
 	runtimeStage := dockerfile[runtimeStageStart:]
 	for _, required := range []string{
 		"COPY --from=builder /out/industry-relationship-import " + importerBinary,
+		"COPY --from=builder /out/industry-graph-projector " + projectorBinary,
 		"COPY analyse-data-service/backend/data/industry_relationships/2026-07-27-v1 ./data/industry_relationships/2026-07-27-v1",
 	} {
 		if !strings.Contains(runtimeStage, required) {
