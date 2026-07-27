@@ -1,0 +1,167 @@
+{
+  "schema_version": "industry_relationship_source_inventory_v1",
+  "database_source": {
+    "kind": "local_postgresql",
+    "environment": "local",
+    "snapshot_at": "2026-07-27T04:51:54Z"
+  },
+  "evidence_cutoff_at": "2026-07-27T12:00:00.000Z",
+  "relation_spec_version": "entity-relationship-construction-v1",
+  "review_mode": "user_explicit_delegated_review",
+  "allowed_relation_types": [
+    "depends_on",
+    "has_node",
+    "input_to",
+    "is_component_of",
+    "is_subcategory_of",
+    "mapped_to_concept",
+    "mapped_to_industry"
+  ],
+  "sources": [
+    {
+      "source_kind": "industry_chain_registry",
+      "path": "outputs/entity-relationship-build-v1/frozen/approved_industry_chain_registry.json",
+      "sha256": "885fd32055ae0cd90d1998a2d0e00976bfe1d411efe8d2e3da7a196347f5b384"
+    },
+    {
+      "source_kind": "relationship_build_execution_prompt",
+      "path": "outputs/entity-relationship-build-v1/RELATIONSHIP_BUILD_EXECUTION_PROMPT.md",
+      "sha256": "2c7fb0cb3d8ef02b7337128a7e31a553fb0ca395e5ed1affe9e88677665b4cbb"
+    },
+    {
+      "source_kind": "concept_dispositions",
+      "path": "outputs/entity-relationship-build-v1/reviewed/concept_dispositions.json",
+      "sha256": "5a69b49d966455c275ddafedd01eb1e52be2fa1d9a8cca83e8d4defe8bb42a38"
+    },
+    {
+      "source_kind": "base_global_chain_node_relations",
+      "path": "outputs/entity-relationship-build-v1/reviewed/global_chain_node_relations.reviewed.json",
+      "sha256": "e4bbae42496e560d46733ef22720904adeaa65a21c670bc38fb5a598a87a9c5d"
+    },
+    {
+      "source_kind": "concept_mapping_decisions",
+      "path": "outputs/entity-relationship-build-v1/reviewed/industry_chain_concept_relations.reviewed.json",
+      "sha256": "78410a69acdc563d7cdf43b462f4bbcc69d63c34561d6a152a30849079308dbe"
+    },
+    {
+      "source_kind": "industry_mapping_decisions",
+      "path": "outputs/entity-relationship-build-v1/reviewed/industry_chain_industry_relations.reviewed.json",
+      "sha256": "07961f262baa9f05fc48cc3bce5f88248261df31fa78fc82599f88c5d921262d"
+    },
+    {
+      "source_kind": "node_dispositions",
+      "path": "outputs/entity-relationship-build-v1/reviewed/node_dispositions.json",
+      "sha256": "731d3ab1dab911205ea09016c8a6a8a60766019d7a456e90185e5047d894bfbd"
+    },
+    {
+      "source_kind": "topology_review_contract",
+      "path": "outputs/entity-relationship-build-v1/TOPOLOGY_REVIEW_CONTRACT.md",
+      "sha256": "4d9ab0e05f9bab61e9e9941db26ec4470871ea49a86fadaed875d85be2cd314b"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-01.json",
+      "sha256": "9152fad011bc1642e898243a0ab0779b4ebee23e82621208fcfcb5562708f4ee"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-02.json",
+      "sha256": "74e7032d24af6bea4fec3fd11d54b725d0c06e41e78d0842844b0b28cac14f46"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-03.json",
+      "sha256": "815b15d2b43545fc9a47bbdd54b248bfe9a0de036d7cfbaf67d2beba7e7fbd32"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-04.json",
+      "sha256": "43588f2386294e58d8f7384b6db3abf2a064802886720df2eeabe6a527f48074"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-05.json",
+      "sha256": "b4926f7088b51d71afbd4f35fd093a682106fd7af7ba0c21aa80c58fcf7b1bd3"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-06.json",
+      "sha256": "16385343bc17c03679f297482971aff25728970458dbd065aabcb4e3f5afe390"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-07.json",
+      "sha256": "163f3683b5897d0801246d957326f9da469a2d071ac2096dad24cb47c1334ac3"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-08.json",
+      "sha256": "17277749d8796c129ded13db826d318d7e7d217c311d75b32b12dff2cf79b538"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-09.json",
+      "sha256": "0dd978366433f186eb858d13c4fac0a868f38f83162f15bc4259a6da51904769"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-10.json",
+      "sha256": "6fb50e4ff63747f272c41d321b789624ea5868bfec61ec6409d29da128eb2b15"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-11.json",
+      "sha256": "c1696ffa681aa9ca006d52dcf72d3ba391fde9d7c4ac32e79af41cfd6f58407a"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-12.json",
+      "sha256": "a368c19f7ad63f9fcd65aec3ad0119cb470a874018f0d1a7de9703092f5018dd"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-13.json",
+      "sha256": "9d9db71208bedcf54866f826097c9c7226741c27f4a90305bc2174c4ccace5d1"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-14.json",
+      "sha256": "4271bcc775757b14166501fd437a288d1b20aed878ea9f05b5db25c82cbbace1"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-15.json",
+      "sha256": "e1a1111f6d38693c164318f4d93f9a453a06bde615c367d1fecc9ea0a446ddda"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-16.json",
+      "sha256": "3b909d8359e128997e7a54cf80370ab56a8ee9424d96f641b113e5b1e98f0a2d"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-17.json",
+      "sha256": "3523f4225231def10983ff31c634b0cfa829ba12fe77902834d4366f059dbba6"
+    },
+    {
+      "source_kind": "topology_work_item",
+      "path": "outputs/entity-relationship-build-v1/work-items/topology-m2/topology-m2-18.json",
+      "sha256": "b0334950c6cbc0f167fee4223a3869bbd68c46f8b7d5e3de99f2b5c1a241f5b2"
+    },
+    {
+      "source_kind": "concept_registry",
+      "path": "outputs/industry-chain-discovery-v2/local-pg-baseline-20260727/canonical_concept_registry.json",
+      "sha256": "608e7be98aebe7f75e915f3157fc1bd88f768eac0a31475d9347e2efd49e473a"
+    },
+    {
+      "source_kind": "industry_registry",
+      "path": "outputs/industry-chain-discovery-v2/local-pg-baseline-20260727/canonical_industry_registry.json",
+      "sha256": "e5b8cfcdbcf013adff72d868bcf0e52bc9ade44dba05200d266a047748e92405"
+    },
+    {
+      "source_kind": "chain_node_registry",
+      "path": "outputs/industry-chain-discovery-v2/local-pg-baseline-20260727/canonical_node_registry.json",
+      "sha256": "15afb27470e67cc4faa21e75982bd20562a64de5ce4097c984e93869eb77bb9f"
+    }
+  ]
+}

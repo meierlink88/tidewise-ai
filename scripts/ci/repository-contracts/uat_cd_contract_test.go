@@ -30,6 +30,10 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"DATA_SERVICE_TOKEN",
 		"ADMIN_SERVICE_TOKEN",
 		"AGENTRUN_SERVICE_TOKEN",
+		"apply_industry_relationship_package:",
+		"industry_relationship_package_sha:",
+		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:",
+		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA:",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -253,6 +257,9 @@ func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 		if fields[0] == "000025" && fields[1] != "high" {
 			t.Fatal("migration 000025 must require backup confirmation after TW-04 and TW-05 removed legacy Anchor APIs")
 		}
+		if fields[0] == "000030" && fields[1] != "high" {
+			t.Fatal("migration 000030 must require an RDS recovery point before relationship import")
+		}
 		classified = append(classified, fields[0])
 	}
 	sort.Strings(classified)
@@ -351,6 +358,12 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		"/api/admin/v1/model-providers",
 		"http://127.0.0.1:9080/readyz",
 		"FAIL migration-release-gate", "PASS migration-release-gate",
+		"FAIL industry-relationship-import-gate",
+		"PASS industry-relationship-import-dry-run",
+		"PASS industry-relationship-import-apply",
+		"PASS industry-relationship-import-replay",
+		"-expected-sha256",
+		"-apply -allow-env uat",
 	} {
 		if !strings.Contains(deploy, required) {
 			t.Fatalf("UAT deploy executor missing %q", required)

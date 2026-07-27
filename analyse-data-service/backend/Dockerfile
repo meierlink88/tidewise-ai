@@ -8,6 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./analyse-data-service/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigrate ./analyse-data-service/backend/cmd/dbmigrate
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-relationship-import ./analyse-data-service/backend/cmd/industry-relationship-import
 
 FROM alpine:3.20
 
@@ -18,8 +19,10 @@ WORKDIR /app
 
 COPY --from=builder /out/data-service /usr/local/bin/data-service
 COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
+COPY --from=builder /out/industry-relationship-import /usr/local/bin/industry-relationship-import
 COPY analyse-data-service/backend/configs ./configs
 COPY analyse-data-service/backend/migrations ./migrations
+COPY analyse-data-service/backend/data/industry_relationships/2026-07-27-v1 ./data/industry_relationships/2026-07-27-v1
 
 ENV APP_ENV=local
 ENV TIDEWISE_CONFIG_DIR=/app/configs

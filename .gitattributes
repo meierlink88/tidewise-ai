@@ -1,0 +1,2 @@
+# Preserve content-addressed package bytes that use Markdown hard line breaks.
+analyse-data-service/backend/data/industry_relationships/2026-07-27-v1/relation_spec.md whitespace=-trailing-space

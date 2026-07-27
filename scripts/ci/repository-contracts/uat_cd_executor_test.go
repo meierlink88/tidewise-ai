@@ -124,7 +124,7 @@ func TestUATDeployExecutorBlocksUnconfirmedHighRiskMigration(t *testing.T) {
 		t.Fatalf("high-risk fixture was not blocked: err=%v output=%s", result.err, result.output)
 	}
 	logContent, err := os.ReadFile(result.dockerLog)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(logContent), " up ") {
@@ -143,11 +143,58 @@ func TestUATDeployExecutorBlocksReleaseIncompatibleMigrationEvenWithBackup(t *te
 		t.Fatalf("release-blocked fixture was not blocked: err=%v output=%s", result.err, result.output)
 	}
 	logContent, err := os.ReadFile(result.dockerLog)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(logContent), " up ") {
 		t.Fatalf("release gate started services: %s", logContent)
+	}
+}
+
+func TestUATDeployExecutorBlocksIndustryRelationshipImportWithoutRecoveryPoint(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{industryImport: true})
+	if result.err == nil || !strings.Contains(result.output, "FAIL industry-relationship-import-gate") {
+		t.Fatalf("relationship import without recovery point was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	logContent, err := os.ReadFile(result.dockerLog)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logContent), "/usr/local/bin/dbmigrate") ||
+		strings.Contains(string(logContent), "industry-relationship-import") {
+		t.Fatalf("recovery-point gate allowed database work: %s", logContent)
+	}
+}
+
+func TestUATDeployExecutorImportsIndustryRelationshipsAndVerifiesReplay(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		industryImport:  true,
+		backupConfirmed: true,
+	})
+	if result.err != nil {
+		t.Fatalf("relationship import fixture failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{
+		"PASS industry-relationship-import-dry-run",
+		"PASS industry-relationship-import-apply",
+		"PASS industry-relationship-import-replay",
+	} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("relationship import output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	if strings.Count(logText, "/usr/local/bin/industry-relationship-import") != 3 {
+		t.Fatalf("relationship import did not run dry-run/apply/replay exactly once: %s", logText)
+	}
+	replay := strings.LastIndex(logText, "/usr/local/bin/industry-relationship-import")
+	serviceStart := strings.Index(logText, " up ")
+	if replay < 0 || serviceStart < 0 || replay > serviceStart {
+		t.Fatalf("relationship replay must complete before candidate service start: %s", logText)
 	}
 }
 
@@ -184,8 +231,9 @@ echo 'ADMIN_SERVICE_TOKEN=visible-admin-token'
 }
 
 const (
-	fixtureSHA         = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	previousFixtureSHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	fixtureSHA                = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	previousFixtureSHA        = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	fixtureRelationshipPkgSHA = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 )
 
 type deployFixtureOptions struct {
@@ -196,6 +244,7 @@ type deployFixtureOptions struct {
 	migrationRisk     string
 	backupConfirmed   bool
 	failArtifactProbe bool
+	industryImport    bool
 }
 
 type deployFixtureResult struct {
@@ -226,6 +275,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	agentrunManifest := filepath.Join(temp, "agentrun-migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
+	industryImportCount := filepath.Join(temp, "industry-import-count")
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
 	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\n")
@@ -283,6 +333,22 @@ case " $* " in
     ;;
   *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
   *" run "*" /usr/local/bin/dbmigrate "*) cat "$FAKE_MIGRATION_REPORT" ;;
+  *" /usr/local/bin/industry-relationship-import "*)
+    count=0
+    if [ -f "$FAKE_INDUSTRY_IMPORT_COUNT" ]; then count="$(cat "$FAKE_INDUSTRY_IMPORT_COUNT")"; fi
+    count=$((count + 1))
+    echo "$count" > "$FAKE_INDUSTRY_IMPORT_COUNT"
+    case " $* " in
+      *" -dry-run "*)
+        printf '{"package_sha256":"%s","package_counts":{"industry_chain":708},"dry_run":true,"unchanged":false}\n' "$FAKE_INDUSTRY_PACKAGE_SHA"
+        ;;
+      *)
+        unchanged=false
+        if [ "$count" -ge 3 ]; then unchanged=true; fi
+        printf '{"package_sha256":"%s","package_counts":{"industry_chain":708},"dry_run":false,"unchanged":%s}\n' "$FAKE_INDUSTRY_PACKAGE_SHA" "$unchanged"
+        ;;
+    esac
+    ;;
   *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
   *" up "*)
     count=0
@@ -309,6 +375,8 @@ exit 0
 		"MIGRATION_RISK_MANIFEST="+manifest,
 		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
+		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED="+boolText(options.industryImport),
+		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA="+conditionalValue(options.industryImport, fixtureRelationshipPkgSHA),
 		"RUNNER_TEMP="+temp,
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
@@ -316,6 +384,8 @@ exit 0
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_AGENTRUN_MIGRATION_REPORT="+filepath.Join(temp, "agentrun-migration.json"),
 		"FAKE_UP_COUNT="+upCount,
+		"FAKE_INDUSTRY_IMPORT_COUNT="+industryImportCount,
+		"FAKE_INDUSTRY_PACKAGE_SHA="+fixtureRelationshipPkgSHA,
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
 		"FAKE_CURL_COUNT="+curlCount,
 		"FAKE_CURL_LOG="+curlLog,
@@ -372,4 +442,11 @@ func boolText(value bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func conditionalValue(condition bool, value string) string {
+	if condition {
+		return value
+	}
+	return ""
 }

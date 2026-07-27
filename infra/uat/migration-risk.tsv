@@ -28,3 +28,4 @@
 000027	high	additive typed master data schema with new identity constraints and forward-only triggers
 000028	high	chain node review promotion identity validation trigger
 000029	high	replace Data ingestion control-plane schema with Event Publication V2 evidence contract
+000030	high	forward-only Industry relationship import contract with fail-closed empty-table checks
