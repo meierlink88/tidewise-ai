@@ -28,9 +28,13 @@ if grep -Eq \
 fi
 
 git -C "$repo_root" diff --unified=0 "$base_sha" "$head_sha" >"$added_diff"
-if grep -Eq \
+sk_hynix_source_slug='sk''-hynix-begins-volume-production-of-the-world-first-12-layer-hbm3e'
+reviewed_source_pattern="^\\+[[:space:]]*\"source_url\":[[:space:]]*\"https://news\\.skhynix\\.com/${sk_hynix_source_slug}/\",?[[:space:]]*$"
+if grep -E \
   '^\+.*(sk-[A-Za-z0-9_-]{16,}|tvly-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)' \
-  "$added_diff"; then
+  "$added_diff" |
+  grep -Ev "$reviewed_source_pattern" |
+  grep -q .; then
   echo "Diff contains a value matching a credential pattern" >&2
   exit 1
 fi

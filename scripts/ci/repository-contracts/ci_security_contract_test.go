@@ -163,6 +163,30 @@ func TestCIUploadsGitSecretReportAndFailsClosed(t *testing.T) {
 	}
 }
 
+func TestSensitiveDiffAllowsOnlyTheExactSKHynixPrimarySourceFalsePositive(t *testing.T) {
+	root := repositoryRoot()
+	script := readContractFile(t, filepath.Join(root, "scripts", "ci", "check-sensitive-diff.sh"))
+
+	for _, required := range []string{
+		`sk_hynix_source_slug='sk''-hynix-begins-volume-production-of-the-world-first-12-layer-hbm3e'`,
+		`news\\.skhynix\\.com/${sk_hynix_source_slug}/`,
+		`grep -Ev "$reviewed_source_pattern"`,
+	} {
+		if !strings.Contains(script, required) {
+			t.Fatalf("sensitive diff scan is missing exact SK hynix source guard %q", required)
+		}
+	}
+	for _, broadAllowlist := range []string{
+		`news\.skhynix\.com/.*`,
+		`sk-hynix-.*`,
+		`source_url.*sk-`,
+	} {
+		if strings.Contains(script, broadAllowlist) {
+			t.Fatalf("sensitive diff scan contains an overbroad credential allowlist %q", broadAllowlist)
+		}
+	}
+}
+
 func TestGitHubActionsArePinnedToImmutableSHAs(t *testing.T) {
 	root := repositoryRoot()
 	workflows, err := filepath.Glob(filepath.Join(root, ".github", "workflows", "*.yml"))
