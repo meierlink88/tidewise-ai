@@ -2,6 +2,7 @@ package deepseek
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,57 @@ import (
 	"github.com/cloudwego/eino/schema"
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
+
+func TestFactoryGenerateExplicitlyDisablesThinking(t *testing.T) {
+	requestBody := make(chan map[string]any, 1)
+	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			t.Errorf("decode provider request: %v", err)
+			response.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		requestBody <- body
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{
+			"id":"chatcmpl-thinking-disabled",
+			"object":"chat.completion",
+			"created":1720000000,
+			"model":"deepseek-v4-pro",
+			"choices":[{
+				"index":0,
+				"message":{"role":"assistant","content":"{\"ok\":true}"},
+				"finish_reason":"stop"
+			}],
+			"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}
+		}`))
+	}))
+	defer provider.Close()
+
+	chatModel, err := (Factory{Timeout: time.Second}).New(context.Background(), agentrun.ModelProviderConfig{
+		ProviderKey: "deepseek",
+		BaseURL:     provider.URL,
+		Model:       "deepseek-v4-pro",
+		APIKey:      "test-key",
+	})
+	if err != nil {
+		t.Fatalf("create DeepSeek model: %v", err)
+	}
+	if _, err := chatModel.Generate(context.Background(), []*schema.Message{
+		schema.UserMessage("return JSON"),
+	}); err != nil {
+		t.Fatalf("generate DeepSeek response: %v", err)
+	}
+
+	body := <-requestBody
+	thinking, ok := body["thinking"].(map[string]any)
+	if !ok {
+		t.Fatalf("provider request thinking = %#v, want object", body["thinking"])
+	}
+	if thinking["type"] != "disabled" {
+		t.Fatalf("provider request thinking.type = %#v, want disabled", thinking["type"])
+	}
+}
 
 func TestFactoryGenerateReadsProviderResponseBeforeExecutionCancel(t *testing.T) {
 	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {

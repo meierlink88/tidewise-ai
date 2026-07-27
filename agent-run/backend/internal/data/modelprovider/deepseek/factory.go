@@ -39,6 +39,9 @@ func (f Factory) New(ctx context.Context, config agentrun.ModelProviderConfig) (
 		ResponseFormat: &einoopenai.ChatCompletionResponseFormat{
 			Type: einoopenai.ChatCompletionResponseFormatTypeJSONObject,
 		},
+		ExtraFields: map[string]any{
+			"thinking": map[string]string{"type": "disabled"},
+		},
 	})
 }
 
