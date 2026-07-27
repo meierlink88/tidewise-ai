@@ -76,6 +76,50 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 	}
 }
 
+func TestDataImageCarriesUATIndustryRelationshipImportAssets(t *testing.T) {
+	repoRoot := repositoryRoot()
+	dockerfile := readContractFile(t, filepath.Join(
+		repoRoot,
+		"analyse-data-service",
+		"backend",
+		"Dockerfile",
+	))
+	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
+
+	const (
+		importerBinary = "/usr/local/bin/industry-relationship-import"
+		packagePath    = "/app/data/industry_relationships/2026-07-27-v1"
+	)
+	for _, required := range []string{
+		importerBinary,
+		`industry_package_path="` + packagePath + `"`,
+	} {
+		if !strings.Contains(deploy, required) {
+			t.Fatalf("UAT deploy contract missing %q", required)
+		}
+	}
+
+	if !strings.Contains(
+		dockerfile,
+		"-o /out/industry-relationship-import ./analyse-data-service/backend/cmd/industry-relationship-import",
+	) {
+		t.Fatal("Data Dockerfile must build the UAT Industry relationship importer")
+	}
+	runtimeStageStart := strings.LastIndex(dockerfile, "\nFROM ")
+	if runtimeStageStart < 0 {
+		t.Fatal("Data Dockerfile must define a separate runtime stage")
+	}
+	runtimeStage := dockerfile[runtimeStageStart:]
+	for _, required := range []string{
+		"COPY --from=builder /out/industry-relationship-import " + importerBinary,
+		"COPY analyse-data-service/backend/data/industry_relationships/2026-07-27-v1 ./data/industry_relationships/2026-07-27-v1",
+	} {
+		if !strings.Contains(runtimeStage, required) {
+			t.Fatalf("Data runtime image missing %q", required)
+		}
+	}
+}
+
 func TestApplicationRootsAreCanonical(t *testing.T) {
 	repoRoot := repositoryRoot()
 	for _, path := range []string{

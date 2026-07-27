@@ -8,10 +8,19 @@ on:
         required: false
         type: string
       confirm_high_risk_backup:
-        description: Confirm an RDS recovery point when pending migrations are classified high risk.
+        description: Confirm an RDS recovery point for high-risk migrations or relationship data import.
         required: false
         default: false
         type: boolean
+      apply_industry_relationship_package:
+        description: Apply the approved Industry relationship package after Data migrations.
+        required: false
+        default: false
+        type: boolean
+      industry_relationship_package_sha:
+        description: Required 64-character package SHA when applying the Industry relationship package.
+        required: false
+        type: string
 
 permissions:
   actions: read
@@ -270,6 +279,8 @@ jobs:
       ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
+      INDUSTRY_RELATIONSHIP_IMPORT_ENABLED: ${{ inputs.apply_industry_relationship_package }}
+      INDUSTRY_RELATIONSHIP_PACKAGE_SHA: ${{ inputs.industry_relationship_package_sha }}
     steps:
       - name: Login to SWR with pull credentials
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3

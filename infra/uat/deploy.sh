@@ -7,6 +7,8 @@ runtime_env="${RUNTIME_ENV:?RUNTIME_ENV is required}"
 candidate_images="${CANDIDATE_IMAGES:?CANDIDATE_IMAGES is required}"
 release_sha="${COMMIT_SHA:?COMMIT_SHA is required}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
+industry_import_enabled="${INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:-false}"
+industry_package_sha="${INDUSTRY_RELATIONSHIP_PACKAGE_SHA:-}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
 agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
@@ -22,7 +24,29 @@ previous_compose="${state_dir}/previous.compose.yaml"
 previous_sha="${state_dir}/previous.sha"
 report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual}.json"
 agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GITHUB_RUN_ID:-manual}.json"
+industry_import_dry_run_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-dry-run-${GITHUB_RUN_ID:-manual}.json"
+industry_import_apply_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-apply-${GITHUB_RUN_ID:-manual}.json"
+industry_import_replay_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-replay-${GITHUB_RUN_ID:-manual}.json"
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
+industry_package_path="/app/data/industry_relationships/2026-07-27-v1"
+
+if [ "$industry_import_enabled" != true ] && [ "$industry_import_enabled" != false ]; then
+  echo "FAIL industry-relationship-import-gate: enable flag must be true or false" >&2
+  exit 1
+fi
+if [ "$industry_import_enabled" = true ]; then
+  if ! [[ "$industry_package_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "FAIL industry-relationship-import-gate: a 64-character lowercase package SHA is required" >&2
+    exit 1
+  fi
+  if [ "$backup_confirmed" != true ]; then
+    echo "FAIL industry-relationship-import-gate: confirm_high_risk_backup=true is required" >&2
+    exit 1
+  fi
+elif [ -n "$industry_package_sha" ]; then
+  echo "FAIL industry-relationship-import-gate: package SHA was supplied while import is disabled" >&2
+  exit 1
+fi
 
 test -d "$state_dir"
 test -w "$state_dir"
@@ -213,6 +237,66 @@ echo "PASS migration-risk-gate"
   echo '</details>'
 } >> "$summary_file"
 echo "PASS migration-apply"
+
+if [ "$industry_import_enabled" = true ]; then
+  industry_import_command=(
+    /usr/local/bin/industry-relationship-import
+    -package "$industry_package_path"
+    -expected-sha256 "$industry_package_sha"
+    -caller-subject tidewise-uat-industry-relationship-import-v1
+  )
+  "${candidate_compose[@]}" run --rm --no-deps data \
+    "${industry_import_command[@]}" -dry-run > "$industry_import_dry_run_report"
+  echo "PASS industry-relationship-import-dry-run"
+  "${candidate_compose[@]}" run --rm --no-deps data \
+    "${industry_import_command[@]}" -apply -allow-env uat > "$industry_import_apply_report"
+  echo "PASS industry-relationship-import-apply"
+  "${candidate_compose[@]}" run --rm --no-deps data \
+    "${industry_import_command[@]}" -apply -allow-env uat > "$industry_import_replay_report"
+
+  python3 - \
+    "$industry_package_sha" \
+    "$industry_import_dry_run_report" \
+    "$industry_import_apply_report" \
+    "$industry_import_replay_report" <<'PY'
+import json
+import pathlib
+import sys
+
+expected_sha = sys.argv[1]
+reports = [json.loads(pathlib.Path(path).read_text()) for path in sys.argv[2:]]
+labels = ["dry-run", "apply", "replay"]
+for label, report in zip(labels, reports):
+    if report.get("package_sha256") != expected_sha:
+        raise SystemExit(f"{label} package SHA does not match the approved input")
+if reports[0].get("dry_run") is not True:
+    raise SystemExit("preflight result is not marked dry_run")
+if reports[1].get("dry_run") is not False or reports[2].get("dry_run") is not False:
+    raise SystemExit("apply/replay result unexpectedly reports dry_run")
+if reports[2].get("unchanged") is not True:
+    raise SystemExit("replay did not verify the persisted package as unchanged")
+counts = [report.get("package_counts") for report in reports]
+if counts[0] != counts[1] or counts[1] != counts[2]:
+    raise SystemExit("dry-run/apply/replay package counts differ")
+PY
+  echo "PASS industry-relationship-import-replay"
+  {
+    echo
+    echo "### UAT Industry relationship import"
+    echo
+    echo "- Package SHA: \`${industry_package_sha}\`"
+    echo "- Database preflight: passed"
+    echo "- Transactional apply: passed"
+    echo "- Same-package replay: unchanged"
+    echo
+    echo '<details><summary>Package counts</summary>'
+    echo
+    echo '```json'
+    sed -n '1,200p' "$industry_import_replay_report"
+    echo '```'
+    echo '</details>'
+  } >> "$summary_file"
+fi
 
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120 --remove-orphans; then
   rollback_current_release

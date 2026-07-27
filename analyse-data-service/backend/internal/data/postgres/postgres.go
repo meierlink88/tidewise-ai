@@ -6,6 +6,7 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/industryrelationshipimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
@@ -28,6 +29,10 @@ func NewResearchThemeImportStore(db *sql.DB) researchthemeimport.Store {
 }
 
 func NewResearchAnchorImportStore(db *sql.DB) researchanchorimport.Store {
+	return newRepository(db)
+}
+
+func NewIndustryRelationshipImportStore(db *sql.DB) industryrelationshipimport.Store {
 	return newRepository(db)
 }
 

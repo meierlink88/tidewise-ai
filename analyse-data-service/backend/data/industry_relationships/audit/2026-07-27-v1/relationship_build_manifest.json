@@ -1,0 +1,163 @@
+{
+  "schema_version": "entity_relationship_build_manifest_v1",
+  "package_version": "2026-07-27-v1",
+  "build_status": "approved",
+  "review_status": "approved",
+  "approval_basis": "user_explicit_delegated_review",
+  "frozen_at": "2026-07-27T12:00:00Z",
+  "database_source": {
+    "environment": "local",
+    "database_name": "tidewise_local",
+    "snapshot_at": "2026-07-27T04:51:54Z"
+  },
+  "evidence_cutoff_at": "2026-07-27T12:00:00Z",
+  "import_package": {
+    "path": "analyse-data-service/backend/data/industry_relationships/2026-07-27-v1",
+    "package_sha256": "7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608",
+    "manifest_sha256": "8afe8e7ff64782b14eced426e7d23aabfaa8ce21da7630035e9a3d1a55157f41",
+    "source_inventory_sha256": "538ed84ddd0d6893f6356543bf5b54803085a57c0256efbf4d4ce1b417c5dffe"
+  },
+  "relation_spec": {
+    "version": "entity-relationship-construction-v1",
+    "path": "research/methodology/analysis-engine/2026-07-27-entity-relationship-construction-spec-v1.md",
+    "sha256": "1234193868fb5154199cdf19f7c787180e1434f55c502d80d1467b38b4f1bae1"
+  },
+  "input_registries": {
+    "industry_chain": {
+      "schema_version": "approved_industry_chain_registry_v1",
+      "path": "outputs/entity-relationship-build-v1/frozen/approved_industry_chain_registry.json",
+      "sha256": "885fd32055ae0cd90d1998a2d0e00976bfe1d411efe8d2e3da7a196347f5b384",
+      "input_count": 708,
+      "deduplicated_count": 708,
+      "duplicate_removed_count": 0,
+      "rejected_count": 0,
+      "pending_count": 0
+    },
+    "industry": {
+      "schema_version": "canonical_industry_registry_v1",
+      "path": "outputs/industry-chain-discovery-v2/local-pg-baseline-20260727/canonical_industry_registry.json",
+      "sha256": "e5b8cfcdbcf013adff72d868bcf0e52bc9ade44dba05200d266a047748e92405",
+      "input_count": 512,
+      "deduplicated_count": 512,
+      "duplicate_removed_count": 0,
+      "rejected_count": 0,
+      "pending_count": 0
+    },
+    "concept": {
+      "schema_version": "canonical_concept_registry_v1",
+      "path": "outputs/industry-chain-discovery-v2/local-pg-baseline-20260727/canonical_concept_registry.json",
+      "sha256": "608e7be98aebe7f75e915f3157fc1bd88f768eac0a31475d9347e2efd49e473a",
+      "input_count": 194,
+      "deduplicated_count": 194,
+      "duplicate_removed_count": 0,
+      "rejected_count": 0,
+      "pending_count": 0
+    },
+    "chain_node": {
+      "schema_version": "canonical_node_registry_v1",
+      "path": "outputs/industry-chain-discovery-v2/local-pg-baseline-20260727/canonical_node_registry.json",
+      "sha256": "15afb27470e67cc4faa21e75982bd20562a64de5ce4097c984e93869eb77bb9f",
+      "input_count": 588,
+      "deduplicated_count": 588,
+      "duplicate_removed_count": 0,
+      "rejected_count": 0,
+      "pending_count": 0
+    }
+  },
+  "relation_decisions": {
+    "mapped_to_industry": {
+      "output_count_key": "industry_chain_industry_relations",
+      "audit_path": "outputs/entity-relationship-build-v1/reviewed/industry_chain_industry_relations.audit.json",
+      "audit_sha256": "84a876e3481e485988710f0c54300b7568110ef851ef0dcf65ac23b57b165378",
+      "candidate_count": 715,
+      "deduplicated_count": 715,
+      "approved_count": 716,
+      "rejected_count": 5,
+      "pending_count": 0,
+      "corrected_replacement_count": 5,
+      "expert_added_count": 1
+    },
+    "mapped_to_concept": {
+      "output_count_key": "industry_chain_concept_relations",
+      "audit_path": "outputs/entity-relationship-build-v1/reviewed/industry_chain_concept_relations.audit.json",
+      "audit_sha256": "0fa722394493b70e9b7b193a2e087506c82a6f63e2cd43df4dd1381ba4b67fe1",
+      "candidate_count": 613,
+      "deduplicated_count": 613,
+      "approved_count": 521,
+      "rejected_count": 196,
+      "pending_count": 0,
+      "expert_added_count": 104,
+      "excluded_needs_chain_expansion_concept_count": 14
+    },
+    "has_node": {
+      "output_count_key": "industry_chain_node_memberships",
+      "audit_path": "outputs/entity-relationship-build-v1/package/2026-07-27-v1/relationship_validation_report.json",
+      "audit_sha256": "302fea3859c1caacf1fcc979b313747fb830fad15297fec3357d38e08e88de4d",
+      "candidate_count": 3350,
+      "deduplicated_count": 3350,
+      "approved_count": 3350,
+      "rejected_count": 0,
+      "pending_count": 0
+    },
+    "chain_graph_edge": {
+      "output_count_key": "industry_chain_graph_edges",
+      "audit_path": "outputs/entity-relationship-build-v1/package/2026-07-27-v1/relationship_validation_report.json",
+      "audit_sha256": "302fea3859c1caacf1fcc979b313747fb830fad15297fec3357d38e08e88de4d",
+      "candidate_count": 2645,
+      "deduplicated_count": 2645,
+      "approved_count": 2645,
+      "rejected_count": 0,
+      "pending_count": 0
+    },
+    "global_chain_node_relation": {
+      "output_count_key": "global_chain_node_relations",
+      "audit_path": "outputs/entity-relationship-build-v1/reviewed/topology_global_chain_node_relations.reviewed.json",
+      "audit_sha256": "90dfc171d12e3816a0ca3909c7f88b421527c4c90eda1bc78e037363805b0861",
+      "candidate_count": 183,
+      "deduplicated_count": 183,
+      "approved_count": 155,
+      "rejected_count": 28,
+      "pending_count": 0,
+      "base_approved_count": 68,
+      "closure_approved_count": 87,
+      "redirected_to_membership_count": 28
+    }
+  },
+  "entity_decisions": {
+    "chain_node_additions": {
+      "output_count_key": "chain_node_additions",
+      "candidate_count": 2461,
+      "deduplicated_count": 2461,
+      "approved_count": 2461,
+      "rejected_count": 0,
+      "pending_count": 0,
+      "required_gate_count": 6
+    }
+  },
+  "semantic_review": {
+    "warning_count": 130,
+    "reviewed_warning_count": 130,
+    "pending_warning_count": 0,
+    "error_count": 0,
+    "status": "passed"
+  },
+  "output_counts": {
+    "industry_chain": 708,
+    "chain_node_additions": 2461,
+    "industry_chain_industry_relations": 716,
+    "industry_chain_concept_relations": 521,
+    "industry_chain_node_memberships": 3350,
+    "industry_chain_graph_edges": 2645,
+    "global_chain_node_relations": 155,
+    "relationship_evidence": 9736,
+    "concept_dispositions": 194,
+    "node_dispositions": 588,
+    "unmapped_relation_candidates": 0
+  },
+  "database_write_at_freeze": {
+    "executed": false,
+    "status": "not_written_at_package_freeze",
+    "runtime_record_contract": "industry_relationship_import_receipts",
+    "note": "Local and UAT execution are recorded by immutable import receipts; this frozen build manifest is never rewritten after database execution."
+  }
+}
