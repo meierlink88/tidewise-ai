@@ -33,6 +33,28 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadDatabaseOperationRequiresOnlyDatabasePassword(t *testing.T) {
+	dir := writeTestConfig(t, fullConfigYAML())
+	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
+	t.Setenv("DATA_SERVICE_TOKEN", "must-not-be-loaded")
+
+	cfg, err := LoadDatabaseOperation()
+	if err != nil {
+		t.Fatalf("LoadDatabaseOperation() error = %v", err)
+	}
+	if cfg.Secrets.DatabasePassword != "database-secret" || cfg.Secrets.ServiceToken != "" {
+		t.Fatalf("database operation secrets = %#v", cfg.Secrets)
+	}
+
+	t.Setenv("TIDEWISW_DB_PASSWORD", "")
+	if _, err := LoadDatabaseOperation(); err == nil ||
+		!strings.Contains(err.Error(), "TIDEWISW_DB_PASSWORD") {
+		t.Fatalf("LoadDatabaseOperation() error = %v, want missing database password", err)
+	}
+}
+
 func TestLoadDefaultsToLocalAndRejectsUnknownEnvironment(t *testing.T) {
 	dir := writeTestConfig(t, fullConfigYAML())
 	t.Setenv("TIDEWISE_CONFIG_DIR", dir)

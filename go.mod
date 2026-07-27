@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jonboulle/clockwork v0.5.0
+	github.com/neo4j/neo4j-go-driver/v6 v6.2.0
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/swaggest/swgui v1.8.9
 	golang.org/x/crypto v0.53.0

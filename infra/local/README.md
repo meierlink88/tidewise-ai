@@ -59,8 +59,62 @@ http://localhost:7474
 bolt://localhost:7687
 ```
 
-旧实体图投影规则已退役。当前没有受支持的投影、重建或连接检查命令，不得手工把
-PostgreSQL 事实复制到 Neo4j。新的 projector 必须等实体关系业务规则冻结后另行设计。
+旧的通用实体图投影规则仍然退役，不得恢复或手工复制 PostgreSQL 事实。产业链关系
+V1 使用独立、受支持的 local-only projector；PostgreSQL 是事实源，Neo4j 只是可重建
+查询投影。
+
+先执行只读核验：
+
+```bash
+APP_ENV=local \
+TIDEWISW_DB_PASSWORD=<local-postgres-password> \
+NEO4J_USERNAME=<local-neo4j-user> \
+NEO4J_PASSWORD=<local-neo4j-password> \
+NEO4J_URI=bolt://localhost:7687 \
+NEO4J_DATABASE=neo4j \
+go run ./analyse-data-service/backend/cmd/industry-graph-projector \
+  -expected-sha256 7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608 \
+  -dry-run
+```
+
+确认 PostgreSQL 与冻结 CSV 的语义指纹一致后，原子替换固定命名空间：
+
+```bash
+APP_ENV=local \
+TIDEWISW_DB_PASSWORD=<local-postgres-password> \
+NEO4J_USERNAME=<local-neo4j-user> \
+NEO4J_PASSWORD=<local-neo4j-password> \
+NEO4J_URI=bolt://localhost:7687 \
+NEO4J_DATABASE=neo4j \
+go run ./analyse-data-service/backend/cmd/industry-graph-projector \
+  -expected-sha256 7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608 \
+  -apply -allow-env local
+```
+
+命令只允许 loopback `tidewise_local` PostgreSQL、loopback Neo4j 和数据库 `neo4j`。
+固定命名空间为 `tidewise-industry-v1`；历史 `projection_namespace=tidewise` 图不会被
+删除。首次成功结果应为 4,449 个节点和 7,867 条关系；同包再次执行应返回
+`unchanged: true`。
+
+最小独立验收：
+
+```cypher
+MATCH (n:TidewiseEntity {projection_namespace: 'tidewise-industry-v1'})
+RETURN n.entity_type, count(*) ORDER BY n.entity_type;
+
+MATCH (:TidewiseEntity {projection_namespace: 'tidewise-industry-v1'})
+      -[r]->
+      (:TidewiseEntity {projection_namespace: 'tidewise-industry-v1'})
+WHERE r.projection_namespace = 'tidewise-industry-v1'
+RETURN type(r), count(*) ORDER BY type(r);
+
+MATCH (n:TidewiseEntity {projection_namespace: 'tidewise-industry-v1'})
+WHERE NOT (n)--()
+RETURN count(n); // 必须为 0
+```
+
+完整合同、类型分布和事务门禁见
+`docs/architecture/local-industry-graph-projection-v1.md`。
 
 ## 执行 migration
 

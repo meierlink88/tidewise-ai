@@ -66,11 +66,12 @@ SELECT COUNT(*) FROM alliance_org_profiles;
 SELECT COUNT(*) FROM sector_profiles WHERE snapshot_date IS NOT NULL OR rank_snapshot > 0;
 ```
 
-最终实体图一致性核验分三层执行：
+历史基础实体图一致性核验分三层执行：
 
 1. repo seed：实体 seed 测试必须通过，并核对各关系文件数量。
 2. PostgreSQL：只统计 active `entity_edges`，当前应为 `member_of=223`、`has_market=40`、`tracks_index=43`，合计 306。
-3. Neo4j：重建结果必须为 548 个 `Entity` 节点和 306 条关系，且关系类型计数与 PostgreSQL 完全一致。
+3. 历史 Neo4j：旧 `projection_namespace=tidewise` 曾以 548 个 `Entity` 节点和 306
+   条关系作为 seed 基准。它不是当前产业图的验收口径。
 
 PostgreSQL 查询：
 
@@ -98,18 +99,35 @@ ORDER BY relation_type;
 ```
 
 任一层数量不一致时，不得手工修改 Neo4j；应先修正 repo seed 或 PostgreSQL
-事实。旧投影器已退役，在新业务规则和投影器完成设计前，不执行 Neo4j 重建。
+事实。旧通用投影器保持退役。
 
 Source Catalog、采集调度和完整原始 Artifact 已归 AgentRun。Data 不再提供
 `source-seed` 或维护 `source_catalogs`；新 Event 只能通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量证据原子接纳。历史
 `raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。
 
-## 历史 Neo4j 图谱投影记录
+## Neo4j 图谱投影
 
-PostgreSQL 仍然是实体、关系、事件和证据链的事实源。Neo4j 只作为未来从
-PostgreSQL 派生图谱查询视图的可选基础设施，不是事实源。旧投影规则和
-`graph-projector` 已退役，当前没有受支持的 Neo4j 写入或重建命令。
+PostgreSQL 仍然是实体、关系、事件和证据链的事实源。Neo4j 只是从 PostgreSQL
+派生的可重建查询视图，不是事实源。旧通用 `graph-projector` 仍然退役。
+
+产业链关系 V1 提供 local-only
+`analyse-data-service/backend/cmd/industry-graph-projector`。它读取精确的 approved import
+receipt，在一个 `REPEATABLE READ READ ONLY` PostgreSQL 快照中构建语义集合，与冻结
+CSV 逐项比较后，才在 Neo4j 显式事务中替换固定
+`projection_namespace=tidewise-industry-v1`。
+
+当前冻结验收口径：
+
+- 节点：4,449（Industry 512、Concept 180、Industry Chain 708、Chain Node 3,049）；
+- 关系：7,867（`MAPPED_TO_INDUSTRY` 716、`MAPPED_TO_CONCEPT` 521、`HAS_NODE`
+  3,350、`INPUT_TO` 1,537、`IS_COMPONENT_OF` 704、`DEPENDS_ON` 404、
+  `IS_SUBCATEGORY_OF` 635）；
+- 孤立节点、重复关系键、自环和缺失链身份均为 0；
+- 相同 package 重放必须返回 `unchanged=true`。
+
+运行方式与独立 Cypher 核验见 `infra/local/README.md`；完整合同见
+`docs/architecture/local-industry-graph-projection-v1.md`。
 
 `graph_projection_runs` 和 `graph_projection_run_items` 用于审计每次实体图投影的输入数量、成功数量、跳过数量、失败数量和错误摘要。常用核验 SQL：
 
@@ -126,5 +144,5 @@ ORDER BY created_at DESC
 LIMIT 20;
 ```
 
-这些表仅保留历史投影审计记录。未来重建投影器时，应根据新的实体关系业务规则
-单独设计，并明确历史运行记录的兼容或归档策略。
+这些表在 V1 仅保留历史投影审计记录；local-only 产业图 projector 不写入它们，运行
+结果通过 JSON 中的 package SHA、计数、语义指纹及 `applied/unchanged` 状态审计。

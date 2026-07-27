@@ -70,6 +70,31 @@ type SecretConfig struct {
 }
 
 func Load() (Config, error) {
+	cfg, err := loadConfiguration()
+	if err != nil {
+		return Config{}, err
+	}
+	if err := cfg.validateRuntimeSecrets(); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+// LoadDatabaseOperation loads Data-owned database configuration without requiring
+// the HTTP service identity token. It is intended for short-lived offline commands.
+func LoadDatabaseOperation() (Config, error) {
+	cfg, err := loadConfiguration()
+	if err != nil {
+		return Config{}, err
+	}
+	if cfg.Secrets.DatabasePassword == "" {
+		return Config{}, fmt.Errorf("TIDEWISW_DB_PASSWORD is required for database operations")
+	}
+	cfg.Secrets.ServiceToken = ""
+	return cfg, nil
+}
+
+func loadConfiguration() (Config, error) {
 	env, err := resolveEnvironment(os.Getenv("APP_ENV"))
 	if err != nil {
 		return Config{}, err
@@ -98,10 +123,6 @@ func Load() (Config, error) {
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
-	if err := cfg.validateRuntimeSecrets(); err != nil {
-		return Config{}, err
-	}
-
 	return cfg, nil
 }
 
