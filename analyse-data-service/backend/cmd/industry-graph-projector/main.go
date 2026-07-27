@@ -27,6 +27,8 @@ const (
 	defaultPackagePath = "analyse-data-service/backend/data/industry_relationships/2026-07-27-v1"
 	defaultNeo4jURI    = "bolt://localhost:7687"
 	defaultNeo4jDB     = "neo4j"
+	uatPostgreSQLHost  = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
+	uatNeo4jHost       = "123.60.99.198"
 )
 
 type cliOptions struct {
@@ -62,13 +64,13 @@ func run(args []string, output io.Writer) error {
 	}
 	cfg, err := conf.LoadDatabaseOperation()
 	if err != nil {
-		return fmt.Errorf("load local Data configuration: %w", err)
+		return fmt.Errorf("load Data configuration: %w", err)
 	}
-	if err := validateTarget(cfg); err != nil {
+	if err := validateTarget(cfg, options); err != nil {
 		return err
 	}
 	neo4jConfig := loadNeo4jConfig()
-	if err := validateNeo4jTarget(neo4jConfig); err != nil {
+	if err := validateNeo4jTarget(cfg.App.Env, neo4jConfig); err != nil {
 		return err
 	}
 
@@ -100,7 +102,7 @@ func openLiveCommandRuntime(
 ) (commandRuntime, error) {
 	db, err := postgres.Open(ctx, cfg)
 	if err != nil {
-		return nil, errors.New("open local PostgreSQL for Industry graph projection failed")
+		return nil, errors.New("open PostgreSQL for Industry graph projection failed")
 	}
 	graphStore, err := neo4jdata.Open(ctx, neo4jConfig)
 	if err != nil {
@@ -131,7 +133,7 @@ func (r *liveCommandRuntime) Close(ctx context.Context) error {
 	}
 	if r.database != nil {
 		if err := r.database.Close(); err != nil {
-			databaseError = errors.New("close local PostgreSQL connection failed")
+			databaseError = errors.New("close PostgreSQL connection failed")
 		}
 	}
 	return errors.Join(graphError, databaseError)
@@ -155,7 +157,7 @@ func executeProjection(
 
 	result, err := runtime.Project(ctx, request)
 	if err != nil {
-		return fmt.Errorf("project local Industry graph: %s", projectionErrorForCLI(err))
+		return fmt.Errorf("project Industry graph: %s", projectionErrorForCLI(err))
 	}
 	encoder := json.NewEncoder(output)
 	encoder.SetIndent("", "  ")
@@ -170,7 +172,7 @@ func projectionErrorForCLI(err error) string {
 		return ""
 	}
 	if strings.HasPrefix(err.Error(), "read Industry graph source snapshot:") {
-		return "read local PostgreSQL Industry graph snapshot failed"
+		return "read PostgreSQL Industry graph snapshot failed"
 	}
 	return err.Error()
 }
@@ -181,9 +183,9 @@ func parseCLIOptions(args []string) (cliOptions, error) {
 	var options cliOptions
 	flags.StringVar(&options.PackagePath, "package", defaultPackagePath, "approved relationship package directory")
 	flags.StringVar(&options.ExpectedSHA, "expected-sha256", "", "required approved package SHA-256")
-	flags.StringVar(&options.AllowEnv, "allow-env", "", "required write target: local")
+	flags.StringVar(&options.AllowEnv, "allow-env", "", "required write target: local or uat")
 	flags.BoolVar(&options.DryRun, "dry-run", false, "validate PostgreSQL and inspect Neo4j without writes")
-	flags.BoolVar(&options.Apply, "apply", false, "atomically replace the fixed local Neo4j namespace")
+	flags.BoolVar(&options.Apply, "apply", false, "atomically replace the fixed Neo4j namespace")
 	if err := flags.Parse(args); err != nil {
 		return cliOptions{}, err
 	}
@@ -199,8 +201,8 @@ func parseCLIOptions(args []string) (cliOptions, error) {
 	if strings.TrimSpace(options.PackagePath) == "" {
 		return cliOptions{}, errors.New("-package is required")
 	}
-	if options.Apply && options.AllowEnv != "local" {
-		return cliOptions{}, errors.New("-apply requires -allow-env local")
+	if options.Apply && options.AllowEnv != string(conf.EnvLocal) && options.AllowEnv != string(conf.EnvUAT) {
+		return cliOptions{}, errors.New("-apply requires -allow-env local or -allow-env uat")
 	}
 	if options.DryRun && options.AllowEnv != "" {
 		return cliOptions{}, errors.New("-allow-env is only valid with -apply")
@@ -208,14 +210,27 @@ func parseCLIOptions(args []string) (cliOptions, error) {
 	return options, nil
 }
 
-func validateTarget(cfg conf.Config) error {
-	if cfg.App.Env != conf.EnvLocal {
-		return errors.New("Industry graph projector only accepts APP_ENV=local")
+func validateTarget(cfg conf.Config, options cliOptions) error {
+	if options.Apply && options.AllowEnv != string(cfg.App.Env) {
+		return errors.New("Industry graph projector write authorization does not match APP_ENV")
 	}
-	if !isLoopbackHost(cfg.Database.Host) ||
-		cfg.Database.Name != "tidewise_local" ||
-		cfg.Database.SSLMode != "disable" {
-		return errors.New("Industry graph projector requires loopback tidewise_local PostgreSQL with ssl_mode=disable")
+	switch cfg.App.Env {
+	case conf.EnvLocal:
+		if !isLoopbackHost(cfg.Database.Host) ||
+			cfg.Database.Name != "tidewise_local" ||
+			cfg.Database.SSLMode != "disable" {
+			return errors.New("Industry graph projector requires loopback tidewise_local PostgreSQL with ssl_mode=disable")
+		}
+	case conf.EnvUAT:
+		if cfg.Database.Host != uatPostgreSQLHost ||
+			cfg.Database.Port != 5432 ||
+			cfg.Database.Name != "tidewise_uat" ||
+			cfg.Database.User != "tidewise_uat" ||
+			cfg.Database.SSLMode != "require" {
+			return errors.New("Industry graph projector requires the repository-controlled tidewise_uat PostgreSQL target")
+		}
+	default:
+		return errors.New("Industry graph projector only accepts APP_ENV=local or APP_ENV=uat")
 	}
 	return nil
 }
@@ -237,27 +252,39 @@ func loadNeo4jConfig() neo4jdata.Config {
 	}
 }
 
-func validateNeo4jTarget(config neo4jdata.Config) error {
+func validateNeo4jTarget(environment conf.Environment, config neo4jdata.Config) error {
 	if strings.TrimSpace(config.Username) == "" ||
 		config.Password == "" ||
 		config.Database != defaultNeo4jDB {
-		return errors.New("Industry graph projector requires local Neo4j credentials and database neo4j")
+		return errors.New("Industry graph projector requires Neo4j credentials and database neo4j")
 	}
 	target, err := url.Parse(config.URI)
 	if err != nil ||
 		target.Scheme != "bolt" ||
+		target.Hostname() == "" ||
 		target.User != nil ||
 		target.RawQuery != "" ||
 		target.Fragment != "" ||
-		(target.Path != "" && target.Path != "/") ||
-		!isLoopbackHost(target.Hostname()) {
-		return errors.New("Industry graph projector requires a credential-free loopback bolt URI")
+		(target.Path != "" && target.Path != "/") {
+		return errors.New("Industry graph projector requires a credential-free bolt URI")
 	}
 	if target.Port() != "" {
 		port, err := net.LookupPort("tcp", target.Port())
 		if err != nil || port <= 0 || port > 65535 {
 			return errors.New("Industry graph projector Neo4j URI has an invalid port")
 		}
+	}
+	switch environment {
+	case conf.EnvLocal:
+		if !isLoopbackHost(target.Hostname()) {
+			return errors.New("Industry graph projector local target requires a loopback bolt URI")
+		}
+	case conf.EnvUAT:
+		if target.Hostname() != uatNeo4jHost || target.Port() != "7687" {
+			return errors.New("Industry graph projector UAT target requires the approved bolt endpoint")
+		}
+	default:
+		return errors.New("Industry graph projector Neo4j target only accepts local or uat")
 	}
 	return nil
 }

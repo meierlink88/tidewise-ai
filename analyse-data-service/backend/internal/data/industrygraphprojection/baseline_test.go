@@ -39,6 +39,21 @@ func TestLoadFrozenV1CSVBaselineLoadsFrozenIndustryGraph(t *testing.T) {
 	if got, want := len(projection.Relationships), 7867; got != want {
 		t.Fatalf("relationship count = %d, want %d", got, want)
 	}
+	summary := graphbiz.SummarizeProjection(projection)
+	if summary.NodeFingerprint != graphbiz.FrozenV1NodeFingerprint {
+		t.Fatalf(
+			"node fingerprint = %q, want %q",
+			summary.NodeFingerprint,
+			graphbiz.FrozenV1NodeFingerprint,
+		)
+	}
+	if summary.RelationshipFingerprint != graphbiz.FrozenV1RelationshipFingerprint {
+		t.Fatalf(
+			"relationship fingerprint = %q, want %q",
+			summary.RelationshipFingerprint,
+			graphbiz.FrozenV1RelationshipFingerprint,
+		)
+	}
 
 	nodeCounts := make(map[graphbiz.EntityType]int)
 	for _, node := range projection.Nodes {
@@ -147,6 +162,20 @@ func TestLoadFrozenV1CSVBaselineRejectsUnpinnedManifestValues(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestFrozenV1ContractRejectsSemanticFingerprintDrift(t *testing.T) {
+	t.Parallel()
+
+	projection, err := LoadFrozenV1CSVBaseline(loadFrozenRelationshipPackage(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection.Nodes[0].CanonicalName += " drift"
+	err = graphbiz.ValidateFrozenV1Projection(projection)
+	if err == nil || !strings.Contains(err.Error(), "node fingerprint") {
+		t.Fatalf("fingerprint drift error = %v, want frozen node fingerprint rejection", err)
 	}
 }
 

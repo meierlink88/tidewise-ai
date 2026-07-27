@@ -21,6 +21,15 @@ on:
         description: Required 64-character package SHA when applying the Industry relationship package.
         required: false
         type: string
+      apply_industry_graph_projection:
+        description: Project the approved Industry graph from UAT PostgreSQL into Neo4j.
+        required: false
+        default: false
+        type: boolean
+      industry_graph_package_sha:
+        description: Required 64-character package SHA when projecting the Industry graph.
+        required: false
+        type: string
 
 permissions:
   actions: read
@@ -281,6 +290,8 @@ jobs:
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
       INDUSTRY_RELATIONSHIP_IMPORT_ENABLED: ${{ inputs.apply_industry_relationship_package }}
       INDUSTRY_RELATIONSHIP_PACKAGE_SHA: ${{ inputs.industry_relationship_package_sha }}
+      INDUSTRY_GRAPH_PROJECTION_ENABLED: ${{ inputs.apply_industry_graph_projection }}
+      INDUSTRY_GRAPH_PACKAGE_SHA: ${{ inputs.industry_graph_package_sha }}
     steps:
       - name: Login to SWR with pull credentials
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -393,6 +404,10 @@ jobs:
           COMPOSE_FILE: ${{ steps.bundle.outputs.compose_file }}
           MIGRATION_RISK_MANIFEST: ${{ steps.bundle.outputs.control_root }}/infra/uat/migration-risk.tsv
           AGENTRUN_MIGRATION_RISK_MANIFEST: ${{ steps.bundle.outputs.control_root }}/infra/uat/agentrun-migration-risk.tsv
+          NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}
+          NEO4J_USERNAME: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_USERNAME || '' }}
+          NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}
+          NEO4J_DATABASE: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_DATABASE || '' }}
         run: ${{ steps.bundle.outputs.control_root }}/infra/uat/deploy.sh
 
       - name: Show diagnostics on failure
