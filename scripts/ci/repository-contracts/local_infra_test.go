@@ -66,7 +66,7 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"NEO4J_PASSWORD=neo4j",
 		"NEO4J_PASSWORD=password",
 		"TIDEWISE_ENABLE_NEO4J_SMOKE",
-		"graph-projector",
+		"cmd/graph-projector",
 	} {
 		if strings.Contains(composeText, forbidden) || strings.Contains(readmeText, forbidden) {
 			t.Fatalf("local infra leaks forbidden secret pattern %q", forbidden)
