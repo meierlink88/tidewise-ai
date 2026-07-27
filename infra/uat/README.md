@@ -74,7 +74,7 @@ Variables：
 | `SWR_DEPLOY_REPOSITORY` | UAT deployment bundle 镜像仓库名 |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
-| `NEO4J_URI` | UAT Neo4j 的无凭据 Bolt URI |
+| `NEO4J_URI` | 固定为 `bolt://host.docker.internal:7687`，通过 Data 容器的 Docker host-gateway 访问宿主机 Neo4j |
 | `NEO4J_USERNAME` | UAT Neo4j 用户名 |
 | `NEO4J_DATABASE` | 固定为 `neo4j` |
 

@@ -17,6 +17,8 @@ services:
       DATA_SERVICE_TOKEN: ${DATA_SERVICE_TOKEN:?DATA_SERVICE_TOKEN is required}
     expose:
       - "9011"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9011/readyz"]
       interval: 15s

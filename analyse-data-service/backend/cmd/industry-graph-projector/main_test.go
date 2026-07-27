@@ -205,7 +205,7 @@ func TestValidateNeo4jTargetAcceptsOnlyEnvironmentSpecificTarget(t *testing.T) {
 		t.Fatalf("valid Neo4j target: %v", err)
 	}
 	uat := neo4jdata.Config{
-		URI: "bolt://" + uatNeo4jHost + ":7687", Username: "neo4j",
+		URI: "bolt://host.docker.internal:7687", Username: "neo4j",
 		Password: "secret", Database: "neo4j",
 	}
 	if err := validateNeo4jTarget(conf.EnvUAT, uat); err != nil {
@@ -217,6 +217,7 @@ func TestValidateNeo4jTargetAcceptsOnlyEnvironmentSpecificTarget(t *testing.T) {
 	}{
 		{conf.EnvLocal, neo4jdata.Config{URI: "bolt://graph.internal:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
 		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://localhost:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
+		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://123.60.99.198:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
 		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://203.0.113.10:7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
 		{conf.EnvUAT, neo4jdata.Config{URI: "neo4j://" + uatNeo4jHost + ":7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},
 		{conf.EnvUAT, neo4jdata.Config{URI: "bolt://neo4j:secret@" + uatNeo4jHost + ":7687", Username: "neo4j", Password: "secret", Database: "neo4j"}},

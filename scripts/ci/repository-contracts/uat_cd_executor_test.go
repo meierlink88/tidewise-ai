@@ -470,7 +470,7 @@ exit 0
 		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA="+conditionalValue(options.industryImport, fixtureRelationshipPkgSHA),
 		"INDUSTRY_GRAPH_PROJECTION_ENABLED="+boolText(options.graphProjection),
 		"INDUSTRY_GRAPH_PACKAGE_SHA="+conditionalValue(options.graphProjection, fixtureRelationshipPkgSHA),
-		"NEO4J_URI=bolt://123.60.99.198:7687",
+		"NEO4J_URI=bolt://host.docker.internal:7687",
 		"NEO4J_USERNAME=neo4j",
 		neo4jPasswordEnv+"="+conditionalValue(!options.omitNeo4jPassword, fixtureNeo4jCredential()),
 		"NEO4J_DATABASE=neo4j",

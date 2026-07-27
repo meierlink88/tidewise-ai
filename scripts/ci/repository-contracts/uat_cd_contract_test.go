@@ -316,6 +316,9 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	if strings.Contains(data, "ports:") {
 		t.Fatal("Data Service must not publish port 9011 to the ECS host")
 	}
+	if !strings.Contains(data, "host.docker.internal:host-gateway") {
+		t.Fatal("Data Service one-shot jobs must resolve the UAT Neo4j host through Docker host-gateway")
+	}
 	for _, service := range []string{"miniapp", "adminportal", "admin"} {
 		section := composeServiceSection(t, compose, service)
 		for _, forbidden := range []string{"TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD", "RDS_CA_CERT_PATH"} {

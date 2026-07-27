@@ -70,9 +70,14 @@ The UAT projector accepts only:
 - PostgreSQL role `tidewise_uat`
 - PostgreSQL `ssl_mode=require`
 - the repository-controlled UAT PostgreSQL host
-- credential-free `bolt://123.60.99.198:7687`
+- credential-free `bolt://host.docker.internal:7687`
 - Neo4j database `neo4j`
 - non-empty Neo4j username and password
+
+The UAT Data service maps `host.docker.internal` to Docker's `host-gateway`.
+This keeps the one-shot projector on the host-local route to the systemd-managed
+Neo4j service and avoids unsupported public-IP NAT hairpinning from the
+deployment container.
 
 Local projection remains restricted to loopback PostgreSQL
 `tidewise_local`/`ssl_mode=disable` and a loopback Bolt URI. Production and
