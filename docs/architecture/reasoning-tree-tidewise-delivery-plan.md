@@ -244,7 +244,7 @@ TW-04 与 TW-03 在 TW-02 完成后具备技术并行条件，TW-06 在 TW-01 �
 
 ## 八、参考资料
 
-- 总体任务记录：`/Users/meierlink/Documents/david/创业项目/观潮家/research/methodology/2026-07-20-reasoning-tree-delivery-roadmap.md`
+- 总体任务记录：`/Users/meierlink/Documents/david/创业项目/观潮家/research/methodology/analysis-engine/2026-07-20-reasoning-tree-delivery-roadmap.md`
 - 推理树原型：`prototype/reasoning-tree-prototype.html`
 - 推理树截图：`/Users/meierlink/Documents/david/创业项目/观潮家/research/methodology/2026-07-20-reasoning-tree-prototype.png`
 - 原首页原型：`prototype/miniprogram.html`
