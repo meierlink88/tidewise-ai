@@ -28,7 +28,7 @@ const (
 	defaultNeo4jURI    = "bolt://localhost:7687"
 	defaultNeo4jDB     = "neo4j"
 	uatPostgreSQLHost  = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
-	uatNeo4jHost       = "123.60.99.198"
+	uatNeo4jHost       = "host.docker.internal"
 )
 
 type cliOptions struct {
