@@ -68,11 +68,6 @@ export function ReasoningTreeView({ detail }: { detail: ResearchReasoningTreeDet
               tree.impactSummary
             )}
           </Text>
-          {tree.transmissionSummary ? (
-            <Text className='reasoning-tree-conclusion__transmission'>
-              {tree.transmissionSummary}
-            </Text>
-          ) : null}
         </View>
         <View className='reasoning-evidence'>
           <View className='reasoning-evidence__card reasoning-evidence__card--support'>

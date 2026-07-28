@@ -38,7 +38,7 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain(`${detail.reasoningTree.eventCount} 条 Event`);
     expect(markup).toContain(detail.reasoningTree.supportSummary);
     expect(markup).toContain(detail.reasoningTree.counterSummary);
-    expect(markup).toContain(detail.reasoningTree.transmissionSummary);
+    expect(markup).not.toContain(detail.reasoningTree.transmissionSummary);
     expect(markup).toContain(detail.reasoningTree.impactSummary);
     expect(markup).toContain(detail.reasoningTree.conclusionBoundarySummary);
     expect(countClass(markup, 'reasoning-chain-node')).toBe(3);
