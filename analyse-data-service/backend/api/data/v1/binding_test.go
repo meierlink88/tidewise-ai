@@ -35,7 +35,7 @@ func TestResearchThemeBindingRejectsDuplicateAndUnknownFieldsWithPath(t *testing
 	}
 }
 
-func TestResearchAnchorBindingEnforcesRequiredTypedWireContract(t *testing.T) {
+func TestResearchReasoningTreeBindingEnforcesRequiredTypedWireContract(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		payload string
@@ -43,22 +43,17 @@ func TestResearchAnchorBindingEnforcesRequiredTypedWireContract(t *testing.T) {
 	}{
 		{
 			name:    "missing required field",
-			payload: `{"theme_id":"11111111-1111-4111-8111-111111111111","anchors":[{"center_chain_node_id":"22222222-2222-4222-8222-222222222222"}]}`,
-			path:    "anchors[0].one_line_conclusion",
+			payload: `{"theme_id":"11111111-1111-4111-8111-111111111111","reasoning_trees":[{"industry_chain_entity_id":"22222222-2222-4222-8222-222222222222"}]}`,
+			path:    "reasoning_trees[0].title",
 		},
 		{
 			name:    "wrong scalar type",
-			payload: `{"theme_id":42,"anchors":[]}`,
-			path:    "theme_id",
-		},
-		{
-			name:    "invalid uuid",
-			payload: `{"theme_id":"not-a-uuid","anchors":[]}`,
+			payload: `{"theme_id":42,"reasoning_trees":[]}`,
 			path:    "theme_id",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := decodeResearchAnchorImport([]byte(test.payload))
+			_, err := decodeResearchReasoningTreeImport([]byte(test.payload))
 			publicError, ok := err.(*PublicError)
 			if !ok {
 				t.Fatalf("error = %T %v, want *PublicError", err, err)

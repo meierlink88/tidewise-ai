@@ -25,8 +25,8 @@ export type ResearchReasoningTreeDetailState =
 export interface ResearchReasoningTreeSessionState {
   routeStatus: 'valid' | 'invalid';
   index: ResearchReasoningTreeIndexState;
-  selectedAnchorId: string | null;
-  detailsByAnchorId: Record<string, ResearchReasoningTreeDetailState>;
+  selectedReasoningTreeId: string | null;
+  detailsByReasoningTreeId: Record<string, ResearchReasoningTreeDetailState>;
 }
 
 type Listener = (state: ResearchReasoningTreeSessionState) => void;
@@ -43,8 +43,8 @@ export class ResearchReasoningTreeSession {
     this.state = {
       routeStatus: isLowercaseUUID(themeId) ? 'valid' : 'invalid',
       index: { status: 'idle' },
-      selectedAnchorId: null,
-      detailsByAnchorId: {}
+      selectedReasoningTreeId: null,
+      detailsByReasoningTreeId: {}
     };
   }
 
@@ -69,17 +69,20 @@ export class ResearchReasoningTreeSession {
     }
   }
 
-  selectAnchor(anchorId: string): void {
-    if (!this.hasAnchor(anchorId)) return;
-    this.update({ ...this.state, selectedAnchorId: anchorId });
-    void this.ensureDetail(anchorId);
+  selectReasoningTree(reasoningTreeId: string): void {
+    if (!this.hasReasoningTree(reasoningTreeId)) return;
+    this.update({ ...this.state, selectedReasoningTreeId: reasoningTreeId });
+    void this.ensureDetail(reasoningTreeId);
   }
 
-  retryAnchor(anchorId: string): void {
-    if (!this.hasAnchor(anchorId) || this.state.detailsByAnchorId[anchorId]?.status !== 'error')
+  retryReasoningTree(reasoningTreeId: string): void {
+    if (
+      !this.hasReasoningTree(reasoningTreeId) ||
+      this.state.detailsByReasoningTreeId[reasoningTreeId]?.status !== 'error'
+    )
       return;
-    this.setDetail(anchorId, { status: 'idle' });
-    void this.ensureDetail(anchorId);
+    this.setDetail(reasoningTreeId, { status: 'idle' });
+    void this.ensureDetail(reasoningTreeId);
   }
 
   dispose(): void {
@@ -91,17 +94,20 @@ export class ResearchReasoningTreeSession {
     this.update({
       ...this.state,
       index: { status: 'loading' },
-      selectedAnchorId: null,
-      detailsByAnchorId: {}
+      selectedReasoningTreeId: null,
+      detailsByReasoningTreeId: {}
     });
     try {
       const value = await this.port.list(this.themeId);
       if (this.disposed) return;
-      if (value.theme.id !== this.themeId || value.reasoningTrees.length === 0) {
+      if (value.theme.id !== this.themeId) {
         throw new ResearchReasoningTreeError('serviceUnavailable');
       }
+      if (value.reasoningTrees.length === 0) {
+        throw new ResearchReasoningTreeError('treesNotPublished');
+      }
       this.update({ ...this.state, index: { status: 'ready', value } });
-      this.selectAnchor(value.reasoningTrees[0].anchorId);
+      this.selectReasoningTree(value.reasoningTrees[0].reasoningTreeId);
     } catch (error) {
       if (this.disposed) return;
       const kind = errorKind(error);
@@ -114,20 +120,20 @@ export class ResearchReasoningTreeSession {
       this.update({
         ...this.state,
         index: { status },
-        selectedAnchorId: null,
-        detailsByAnchorId: {}
+        selectedReasoningTreeId: null,
+        detailsByReasoningTreeId: {}
       });
     }
   }
 
-  private async ensureDetail(anchorId: string): Promise<void> {
-    const current = this.state.detailsByAnchorId[anchorId];
+  private async ensureDetail(reasoningTreeId: string): Promise<void> {
+    const current = this.state.detailsByReasoningTreeId[reasoningTreeId];
     if (current?.status === 'loading' || current?.status === 'ready') return;
-    this.setDetail(anchorId, { status: 'loading' });
+    this.setDetail(reasoningTreeId, { status: 'loading' });
     try {
-      const value = await this.port.get(this.themeId, anchorId);
+      const value = await this.port.get(this.themeId, reasoningTreeId);
       if (this.disposed) return;
-      this.setDetail(anchorId, { status: 'ready', value });
+      this.setDetail(reasoningTreeId, { status: 'ready', value });
     } catch (error) {
       if (this.disposed) return;
       const kind = errorKind(error);
@@ -135,26 +141,29 @@ export class ResearchReasoningTreeSession {
         this.update({
           ...this.state,
           index: { status: kind },
-          selectedAnchorId: null,
-          detailsByAnchorId: {}
+          selectedReasoningTreeId: null,
+          detailsByReasoningTreeId: {}
         });
         return;
       }
-      this.setDetail(anchorId, { status: 'error', errorKind: kind });
+      this.setDetail(reasoningTreeId, { status: 'error', errorKind: kind });
     }
   }
 
-  private hasAnchor(anchorId: string): boolean {
+  private hasReasoningTree(reasoningTreeId: string): boolean {
     return (
       this.state.index.status === 'ready' &&
-      this.state.index.value.reasoningTrees.some((tree) => tree.anchorId === anchorId)
+      this.state.index.value.reasoningTrees.some((tree) => tree.reasoningTreeId === reasoningTreeId)
     );
   }
 
-  private setDetail(anchorId: string, detail: ResearchReasoningTreeDetailState): void {
+  private setDetail(reasoningTreeId: string, detail: ResearchReasoningTreeDetailState): void {
     this.update({
       ...this.state,
-      detailsByAnchorId: { ...this.state.detailsByAnchorId, [anchorId]: detail }
+      detailsByReasoningTreeId: {
+        ...this.state.detailsByReasoningTreeId,
+        [reasoningTreeId]: detail
+      }
     });
   }
 

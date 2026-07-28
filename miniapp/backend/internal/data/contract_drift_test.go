@@ -22,7 +22,7 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 		{ResearchThemesPath, "listResearchThemes", "ResearchThemeListEnvelope", []string{"Cursor", "Limit", "RequestID", "WindowHours"}},
 		{ResearchThemesPath + "/{theme_id}", "getResearchTheme", "ResearchThemeDetailEnvelope", []string{"RequestID", "WindowHours"}},
 		{ResearchThemesPath + "/{theme_id}/reasoning-trees", "listResearchThemeReasoningTrees", "ResearchReasoningTreeListEnvelope", []string{"RequestID"}},
-		{ResearchThemesPath + "/{theme_id}/reasoning-trees/{anchor_id}", "getResearchThemeReasoningTree", "ResearchReasoningTreeDetailEnvelope", []string{"RequestID"}},
+		{ResearchThemesPath + "/{theme_id}/reasoning-trees/{reasoning_tree_id}", "getResearchThemeReasoningTree", "ResearchReasoningTreeDetailEnvelope", []string{"RequestID"}},
 	} {
 		operation := openAPIOperation(t, document, contract.path)
 		assertOpenAPIString(t, operation, "operationId", contract.operationID)
@@ -40,31 +40,25 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 		"ResearchThemeCollection":        reflect.TypeOf(wireResearchThemePage{}),
 		"ResearchThemeSummary":           reflect.TypeOf(wireResearchTheme{}),
 		"ResearchThemeDetail":            reflect.TypeOf(wireResearchThemeDetail{}),
-		"ResearchThemeChainNode":         reflect.TypeOf(wireResearchThemeChainNode{}),
-		"ResearchIndex":                  reflect.TypeOf(wireResearchIndex{}),
+		"ResearchThemeImpact":            reflect.TypeOf(wireResearchThemeImpact{}),
 		"ResearchEvent":                  reflect.TypeOf(wireResearchEvent{}),
-		"ResearchReasoningTreeChainNode": reflect.TypeOf(wireResearchReasoningTreeChainNode{}),
 		"ResearchReasoningTreeSummary":   reflect.TypeOf(wireResearchReasoningTreeSummary{}),
 		"ResearchReasoningTreeList":      reflect.TypeOf(wireResearchReasoningTreeList{}),
-		"ResearchReasoningTreeEvent":     reflect.TypeOf(wireResearchReasoningTreeEvent{}),
-		"ResearchReasoningTreePathNode":  reflect.TypeOf(wireResearchReasoningTreePathNode{}),
+		"ResearchReasoningTreeGraphEdge": reflect.TypeOf(wireResearchGraphEdge{}),
+		"ResearchReasoningTreeSignal":    reflect.TypeOf(wireResearchSignal{}),
+		"ResearchReasoningTreeNode":      reflect.TypeOf(wireResearchReasoningTreeNode{}),
 		"ResearchReasoningTree":          reflect.TypeOf(wireResearchReasoningTree{}),
 		"ResearchReasoningTreeDetail":    reflect.TypeOf(wireResearchReasoningTreeDetail{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
 
-	assertSchemaEnum(t, document, "ResearchThemeSummary", "impact_level", []string{"focus", "high", "watch"})
-	assertSchemaHasNoEnum(t, document, "ResearchThemeSummary", "trading_direction")
 	assertSchemaEnum(t, document, "ResearchThemeSummary", "transmission_stage", []string{"dampening", "diffusion", "identification", "validation"})
-	assertSchemaEnum(t, document, "ResearchIndex", "impact_direction", []string{"mixed", "negative", "neutral", "positive"})
 	assertSchemaEnum(t, document, "ResearchEvent", "evidence_role", []string{"context", "contradicting", "driver", "supporting"})
-	assertArrayItemSchema(t, document, "ResearchThemeSummary", "affected_chain_nodes", "ResearchThemeChainNode")
-	assertSchemaEnum(t, document, "ResearchReasoningTreeEvent", "evidence_role", []string{"context", "contradicting", "driver", "supporting"})
-	assertSchemaEnum(t, document, "ResearchReasoningTreePathNode", "change_direction", []string{"decrease", "increase", "mixed", "unchanged", "uncertain"})
+	assertArrayItemSchema(t, document, "ResearchThemeSummary", "impacts", "ResearchThemeImpact")
 	assertArrayItemSchema(t, document, "ResearchReasoningTreeList", "reasoning_trees", "ResearchReasoningTreeSummary")
-	assertArrayItemSchema(t, document, "ResearchReasoningTree", "events", "ResearchReasoningTreeEvent")
-	assertArrayItemSchema(t, document, "ResearchReasoningTree", "path_nodes", "ResearchReasoningTreePathNode")
+	assertArrayItemSchema(t, document, "ResearchReasoningTree", "events", "ResearchEvent")
+	assertArrayItemSchema(t, document, "ResearchReasoningTree", "nodes", "ResearchReasoningTreeNode")
 }
 
 func loadOpenAPI(t *testing.T) map[string]any {

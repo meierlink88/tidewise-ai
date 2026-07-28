@@ -137,9 +137,9 @@ func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeI
 	return value.toBiz(), nil
 }
 
-func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (biz.ResearchReasoningTreeDetail, error) {
+func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, reasoningTreeID string) (biz.ResearchReasoningTreeDetail, error) {
 	var envelope responseEnvelope[wireResearchReasoningTreeDetail]
-	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, anchorID), nil, &envelope)
+	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, reasoningTreeID), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
 		return biz.ResearchReasoningTreeDetail{}, mapReasoningTreeDataError(err)
@@ -189,8 +189,8 @@ func researchReasoningTreeListPath(themeID string) string {
 	return ResearchThemesPath + "/" + url.PathEscape(themeID) + "/reasoning-trees"
 }
 
-func researchReasoningTreeDetailPath(themeID, anchorID string) string {
-	return researchReasoningTreeListPath(themeID) + "/" + url.PathEscape(anchorID)
+func researchReasoningTreeDetailPath(themeID, reasoningTreeID string) string {
+	return researchReasoningTreeListPath(themeID) + "/" + url.PathEscape(reasoningTreeID)
 }
 
 func appendQuery(path string, values url.Values) string {

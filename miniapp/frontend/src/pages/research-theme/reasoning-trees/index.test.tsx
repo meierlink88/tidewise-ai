@@ -30,18 +30,18 @@ vi.mock('../../../features/research-reasoning-trees/port', () => ({
 }));
 
 describe('reasoning tree page interactions', () => {
-  it('loads a newly selected Anchor and returns the page to the tree content top', () => {
+  it('loads a newly selected Reason Tree and returns the page to the tree content top', () => {
     const index = parseResearchReasoningTreeIndex(listFixture.result);
     const session = new ResearchReasoningTreeSession(index.theme.id, inertPort);
-    const selectAnchor = vi.spyOn(session, 'selectAnchor');
-    const selectedAnchorId = index.reasoningTrees[0].anchorId;
-    const nextAnchorId = index.reasoningTrees[1].anchorId;
+    const selectReasoningTree = vi.spyOn(session, 'selectReasoningTree');
+    const selectedReasoningTreeId = index.reasoningTrees[0].reasoningTreeId;
+    const nextReasoningTreeId = index.reasoningTrees[1].reasoningTreeId;
     const content = IndexContent({
       state: {
         routeStatus: 'valid',
         index: { status: 'ready', value: index },
-        selectedAnchorId,
-        detailsByAnchorId: {}
+        selectedReasoningTreeId,
+        detailsByReasoningTreeId: {}
       },
       session
     });
@@ -49,7 +49,7 @@ describe('reasoning tree page interactions', () => {
     const tabs = findAllByClass(content, 'reasoning-tab');
     tabs[1].props.onClick?.();
 
-    expect(selectAnchor).toHaveBeenCalledWith(nextAnchorId);
+    expect(selectReasoningTree).toHaveBeenCalledWith(nextReasoningTreeId);
     expect(Taro.nextTick).toHaveBeenCalledOnce();
     expect(Taro.pageScrollTo).toHaveBeenCalledWith({
       selector: '#reasoning-tabs-wrap',

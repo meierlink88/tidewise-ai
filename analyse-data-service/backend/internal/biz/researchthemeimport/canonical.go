@@ -20,6 +20,7 @@ func CanonicalHash(batch Batch) (string, error) {
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
 	var value any
 	if err := decoder.Decode(&value); err != nil {
 		return "", fmt.Errorf("decode research theme publication batch: %w", err)
@@ -39,6 +40,8 @@ func writeCanonicalJSON(writer *bytes.Buffer, value any) error {
 		writer.WriteString("null")
 	case string:
 		return writeCanonicalString(writer, typed)
+	case json.Number:
+		writer.WriteString(typed.String())
 	case []any:
 		writer.WriteByte('[')
 		for index, item := range typed {

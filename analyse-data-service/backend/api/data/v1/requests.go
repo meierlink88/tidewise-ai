@@ -74,65 +74,101 @@ type EventPublicationReview struct {
 
 type ResearchThemeImportRequest struct {
 	AnalysisBatchID string                    `json:"analysis_batch_id"`
+	AnalysisAsOf    string                    `json:"analysis_as_of"`
 	WindowStart     string                    `json:"window_start"`
 	WindowEnd       string                    `json:"window_end"`
 	Themes          []ResearchThemeImportItem `json:"themes"`
 }
 
 type ResearchThemeImportItem struct {
-	ThemeKey                  string                         `json:"theme_key"`
-	Name                      string                         `json:"name"`
-	OneLineConclusion         string                         `json:"one_line_conclusion"`
-	ImpactLevel               string                         `json:"impact_level"`
-	TransmissionPath          string                         `json:"transmission_path"`
-	TradingDirection          string                         `json:"trading_direction"`
-	TransmissionStage         string                         `json:"transmission_stage"`
-	NextCheckpoint            string                         `json:"next_checkpoint"`
-	MarketConfirmationSummary string                         `json:"market_confirmation_summary"`
-	ChainNodes                []ResearchThemeImportChainNode `json:"chain_nodes"`
-	Events                    []ResearchThemeImportEvent     `json:"events"`
+	ThemeKey                  string                      `json:"theme_key"`
+	Title                     string                      `json:"title"`
+	OneLineConclusion         string                      `json:"one_line_conclusion"`
+	ConclusionDirection       string                      `json:"conclusion_direction"`
+	ImpactStrength            string                      `json:"impact_strength"`
+	AttentionLevel            *string                     `json:"attention_level"`
+	ConclusionStatus          *string                     `json:"conclusion_status"`
+	TransmissionStage         string                      `json:"transmission_stage"`
+	InvestmentGuidanceAction  string                      `json:"investment_guidance_action"`
+	InvestmentGuidanceSummary string                      `json:"investment_guidance_summary"`
+	TimeHorizonCategory       string                      `json:"time_horizon_category"`
+	TimeHorizonSummary        *string                     `json:"time_horizon_summary"`
+	TransmissionSummary       *string                     `json:"transmission_summary"`
+	CheckpointSummary         *string                     `json:"checkpoint_summary"`
+	RiskSummary               *string                     `json:"risk_summary"`
+	Impacts                   []ResearchThemeImportImpact `json:"impacts"`
+	Events                    []ResearchThemeImportEvent  `json:"events"`
 }
 
-type ResearchThemeImportChainNode struct {
-	ChainNodeID   string `json:"chain_node_id"`
-	RelationRole  string `json:"relation_role"`
-	ImpactSummary string `json:"impact_summary"`
+type ResearchThemeImportImpact struct {
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 
 type ResearchThemeImportEvent struct {
-	EventID        string `json:"event_id"`
-	EvidenceRole   string `json:"evidence_role"`
-	SupportedClaim string `json:"supported_claim"`
+	EventID        string  `json:"event_id"`
+	EvidenceRole   string  `json:"evidence_role"`
+	SupportedClaim *string `json:"supported_claim"`
 }
 
-type ResearchAnchorImportRequest struct {
-	ThemeID string                     `json:"theme_id"`
-	Anchors []ResearchAnchorImportItem `json:"anchors"`
+type ResearchReasoningTreeImportRequest struct {
+	ThemeID        string                            `json:"theme_id"`
+	ReasoningTrees []ResearchReasoningTreeImportItem `json:"reasoning_trees"`
 }
 
-type ResearchAnchorImportItem struct {
-	CenterChainNodeID   string                         `json:"center_chain_node_id"`
-	OneLineConclusion   string                         `json:"one_line_conclusion"`
-	FactSummary         string                         `json:"fact_summary"`
-	NetDirectionSummary string                         `json:"net_direction_summary"`
-	SupportSummary      string                         `json:"support_summary"`
-	CounterSummary      *string                        `json:"counter_summary"`
-	TradingDirection    string                         `json:"trading_direction"`
-	NextCheckpoint      string                         `json:"next_checkpoint"`
-	Events              []ResearchAnchorImportEvent    `json:"events"`
-	PathNodes           []ResearchAnchorImportPathNode `json:"path_nodes"`
+type ResearchReasoningTreeImportItem struct {
+	IndustryChainEntityID     string                                  `json:"industry_chain_entity_id"`
+	Title                     string                                  `json:"title"`
+	DisplayOrder              int                                     `json:"display_order"`
+	OneLineConclusion         string                                  `json:"one_line_conclusion"`
+	FactSummary               *string                                 `json:"fact_summary"`
+	TransmissionSummary       *string                                 `json:"transmission_summary"`
+	ImpactDirection           string                                  `json:"impact_direction"`
+	ImpactStrength            string                                  `json:"impact_strength"`
+	ImpactSummary             *string                                 `json:"impact_summary"`
+	ConclusionBoundarySummary *string                                 `json:"conclusion_boundary_summary"`
+	SupportSummary            *string                                 `json:"support_summary"`
+	CounterSummary            *string                                 `json:"counter_summary"`
+	InvalidationConditions    []string                                `json:"invalidation_conditions"`
+	Checkpoints               []ResearchReasoningTreeImportCheckpoint `json:"checkpoints"`
+	Events                    []ResearchReasoningTreeImportEvent      `json:"events"`
+	Nodes                     []ResearchReasoningTreeImportNode       `json:"nodes"`
 }
 
-type ResearchAnchorImportEvent struct {
-	EventID         string `json:"event_id"`
-	EvidenceRole    string `json:"evidence_role"`
-	EvidenceSummary string `json:"evidence_summary"`
+type ResearchReasoningTreeImportCheckpoint struct {
+	Type    string `json:"type"`
+	Summary string `json:"summary"`
 }
 
-type ResearchAnchorImportPathNode struct {
-	ChainNodeID                   string  `json:"chain_node_id"`
-	ChangeDirection               string  `json:"change_direction"`
-	ChangeSummary                 string  `json:"change_summary"`
-	ImpactSummary                 string  `json:"impact_summary"`
-	IncomingTransmissionMechanism *string `json:"incoming_transmission_mechanism"`
+type ResearchReasoningTreeImportEvent struct {
+	EventID      string `json:"event_id"`
+	EvidenceRole string `json:"evidence_role"`
+	DisplayOrder int    `json:"display_order"`
+}
+
+type ResearchReasoningTreeImportNode struct {
+	Position                         int                                 `json:"position"`
+	ChainNodeEntityID                string                              `json:"chain_node_entity_id"`
+	StateSummary                     *string                             `json:"state_summary"`
+	ImpactDirection                  string                              `json:"impact_direction"`
+	ImpactStrength                   string                              `json:"impact_strength"`
+	ImpactSummary                    *string                             `json:"impact_summary"`
+	ReasoningBasisSummary            *string                             `json:"reasoning_basis_summary"`
+	EvidenceGapSummary               *string                             `json:"evidence_gap_summary"`
+	IncomingIndustryChainGraphEdgeID *string                             `json:"incoming_industry_chain_graph_edge_id"`
+	IncomingTransmissionTitle        *string                             `json:"incoming_transmission_title"`
+	IncomingTransmissionMechanism    *string                             `json:"incoming_transmission_mechanism"`
+	IncomingConditionSummary         *string                             `json:"incoming_condition_summary"`
+	Signals                          []ResearchReasoningTreeImportSignal `json:"signals"`
+}
+
+type ResearchReasoningTreeImportSignal struct {
+	VariableSignalKey string `json:"variable_signal_key"`
+	SignalRole        string `json:"signal_role"`
+	SignalDirection   string `json:"signal_direction"`
+	DisplaySummary    string `json:"display_summary"`
+	DisplayOrder      int    `json:"display_order"`
 }

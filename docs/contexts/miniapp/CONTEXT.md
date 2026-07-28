@@ -34,7 +34,7 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 ## Does Not Own
 
 - Data PostgreSQL、migration、repository、Neo4j 或 Data domain model。
-- Entity、Raw Document、Event、Research Theme 和 Research Anchor 的事实数据。
+- Entity、Raw Document、Event、Research Theme、Theme Impact 和 Reason Tree 的事实数据。
 - Admin Portal contract。
 
 ## Product Language
@@ -43,20 +43,21 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - **推理主线**：研究主题在 Miniapp 面向用户展示时使用的产品名称，不是另一种数据实体。
 - **主题卡片**：首页列表中呈现一条推理主线的界面单元，不拥有独立于研究主题的业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
-- **影响路径页**：从首页 Theme 卡片进入的一句话结论研究依据页。一个 Theme 页面可包含多条推理树，每条树对应一个以产业链节点为中心的 Research Anchor，页面通过 Tab 切换。
-- **产品可见主题**：按现有 Theme 查询合同处于发布窗口内的 Research Theme。首页不依赖 Research Anchor 发布状态，也不增加 `has_reasoning_tree` 字段。
+- **主题影响（Theme Impact）**：Theme 影响的 Chain Node 集合，节点之间没有主次；页面仅按 Data 稳定顺序展示。
+- **影响路径页**：从首页 Theme 卡片进入的研究依据页。一个 Theme 页面可包含多棵 Reason Tree，每棵 Tree 对应一条 Industry Chain 推导链路，页面通过 Tab 切换。
+- **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。首页不依赖 Reason Tree 发布状态；零 Tree Theme 仍保留入口，由影响路径页展示“影响路径暂未生成”。
 
 ## Reasoning Trees API
 
-- Miniapp Frontend 先调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees` 获取 Theme 与全部 Anchor Tab 摘要。
-- Miniapp Frontend 在某个 Tab 首次选中时调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}` 获取单棵完整推理树。
+- Miniapp Frontend 先调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees` 获取 Theme 与全部 Reason Tree Tab 摘要。
+- Miniapp Frontend 在某个 Tab 首次选中时调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}` 获取单棵完整推理树。
 - Miniapp BFF 将两个请求分别一对一代理到对应 Data API，并映射成页面可直接渲染的 DTO。
 - BFF 成功响应直接使用 Data envelope 的 `result` 内容，不向小程序返回 Data `request_id/result` 外壳。
-- BFF 保留每棵树的单一 `events` 数组，并原样返回 Anchor 级 `support_summary` 与可空 `counter_summary`。Miniapp Frontend 在原子事件清单中展示 `evidence_role` 标签，但当前支持和当前反证只读取两个汇总字段，不拼接、推断或重排研究语义。
-- BFF 不为一次请求扇出多个 Anchor 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。
-- BFF 对 Theme 不存在、Theme 尚未发布推理树、Anchor 不属于该 Theme 三种 `404` 状态分别返回 `RESEARCH_THEME_NOT_FOUND`、`RESEARCH_REASONING_TREES_NOT_FOUND`、`RESEARCH_REASONING_TREE_NOT_FOUND`；它们是 Miniapp 的稳定错误语义，不透传 Data 的 request ID 或错误外壳。
+- BFF 保留每棵树的单一 `events` 数组、Tree 摘要、节点和 Variable Signal 展示快照，不拼接、推断或重排研究语义。
+- BFF 不为一次请求扇出多个 Tree 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。
+- BFF 对 Theme 不存在、Theme 尚未发布推理树、Tree 不属于该 Theme 三种 `404` 状态分别返回 `RESEARCH_THEME_NOT_FOUND`、`RESEARCH_REASONING_TREES_NOT_FOUND`、`RESEARCH_REASONING_TREE_NOT_FOUND`；它们是 Miniapp 的稳定错误语义，不透传 Data 的 request ID 或错误外壳。
 - 现有 Theme 详情 API 保持不变。
-- 删除尚未正式使用的旧 `/api/miniapp/v1/research/anchors` 列表和按 Anchor ID 读取接口；不保留兼容别名，Research Anchor 统一作为 Theme 下的推理树子资源读取。
+- 不提供旧 Research Anchor API、字段或兼容别名；Reason Tree 只作为 Theme 子资源读取。
 
 ## Reasoning Trees Frontend Route
 
@@ -67,20 +68,21 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - 页面数据访问必须经过独立 typed port 和 adapter，页面组件不得直接实现 HTTP 调用。
 - 页面打开后加载 Tab 摘要和排序后的第一棵树；其他 Tab 首次选中时才加载详情。
 - Tab 摘要可用后所有 Tab 立即允许切换；各 Tab 的详情请求与 loading、ready、error 状态相互独立，切换 Tab 不取消其他在途请求，也不允许较晚完成的请求覆盖当前选中项。
-- 已成功加载的单树按 `anchor_id` 缓存在当前页面会话，再次切换不重复请求；重新进入或刷新页面时重新加载。
+- 已成功加载的单树按 `reasoning_tree_id` 缓存在当前页面会话，再次切换不重复请求；重新进入或刷新页面时重新加载。
 - 单个 Tab 详情加载失败时，仅该 Tab 内容区显示错误与重试操作；其他已加载缓存保持可用，页面不自动切换 Tab。
-- 单 Tab 重试只请求当前 `anchor_id` 的详情，不连带刷新列表或其他推理树。
+- 单 Tab 重试只请求当前 `reasoning_tree_id` 的详情，不连带刷新列表或其他推理树。
 - Theme 不存在时，小程序展示“该研究主题暂不可用”；Theme 存在但推理树尚未发布时展示“影响路径暂未生成”。两种状态均提供返回操作，且不向用户暴露内部错误码。
 - 列表网络或服务故障展示可重试错误；推理树列表不存在合法空集合，因此不设计正常空态。
 
 ## Reasoning Tree Page Presentation
 
-- Anchor Tab 栏吸顶，Theme 顶部信息正常滚出屏幕；切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
+- Reason Tree Tab 栏吸顶，Theme 顶部信息正常滚出屏幕；切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
 - 原子事件按 BFF 稳定顺序全部展示，不折叠；每条显示标题、摘要、可用时间与驱动/支持/反证/背景角色标签。
-- 当前支持与当前反证是 Anchor 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
-- 产业链路径使用局部横向 ScrollView。节点之间显示方向箭头和完整传导机制，允许多行，不展示正式/推断关系标签，页面主体不得横向溢出。
-- `increase/decrease/mixed/unchanged/uncertain` 分别映射为增强、减弱、分化、持平、待验证；`uncertain` 不显示方向箭头或涨跌色。
-- 结论、证据汇总、节点说明、传导机制、交易指向和下一检查点全部自然换行并完整展示，不使用省略号截断。
+- 当前支持与当前反证是 Tree 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
+- 产业链路径使用横向 ScrollView 展示全部紧凑节点与箭头，默认选择最大 `position` 的结果节点；选择节点只更新下方单个详情面板。
+- 结果节点只由路径位置派生；Theme Impact 身份只由节点 ID 与父 Theme Impact ID 集合相交得到，不保存 primary/subject/result 标记。
+- 后续节点显示正式 Graph Edge 类型/状态或“分析推断”；首节点标记为信号入口，不展示或伪造传入关系。
+- 节点详情展示影响状态、变量状态、传导机制、全部 Variable Signal、推导依据和数据缺口。所有研究文本自然换行并完整展示，不使用省略号截断。
 
 ## Frontend Mock Policy
 

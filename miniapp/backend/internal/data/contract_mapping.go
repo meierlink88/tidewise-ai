@@ -15,211 +15,180 @@ type wireResearchThemePage struct {
 	Items       []wireResearchTheme `json:"items"`
 	NextCursor  *string             `json:"next_cursor"`
 }
-
 type wireResearchTheme struct {
-	ID                        string                       `json:"id"`
-	Name                      string                       `json:"name"`
-	OneLineConclusion         string                       `json:"one_line_conclusion"`
-	ImpactLevel               string                       `json:"impact_level"`
-	TransmissionPath          string                       `json:"transmission_path"`
-	TradingDirection          string                       `json:"trading_direction"`
-	TransmissionStage         string                       `json:"transmission_stage"`
-	NextCheckpoint            string                       `json:"next_checkpoint"`
-	MarketConfirmationSummary string                       `json:"market_confirmation_summary"`
-	PublishedAt               time.Time                    `json:"published_at"`
-	AffectedChainNodes        []wireResearchThemeChainNode `json:"affected_chain_nodes"`
-	RelatedIndices            []wireResearchIndex          `json:"related_indices"`
-	SupportingEventCount      int                          `json:"supporting_event_count"`
-	ContradictingEventCount   int                          `json:"contradicting_event_count"`
+	ID                        string                    `json:"id"`
+	AnalysisBatchID           string                    `json:"analysis_batch_id"`
+	Title                     string                    `json:"title"`
+	OneLineConclusion         string                    `json:"one_line_conclusion"`
+	ConclusionDirection       string                    `json:"conclusion_direction"`
+	ImpactStrength            string                    `json:"impact_strength"`
+	AttentionLevel            *string                   `json:"attention_level"`
+	ConclusionStatus          *string                   `json:"conclusion_status"`
+	TransmissionStage         string                    `json:"transmission_stage"`
+	InvestmentGuidanceAction  string                    `json:"investment_guidance_action"`
+	InvestmentGuidanceSummary string                    `json:"investment_guidance_summary"`
+	TimeHorizonCategory       string                    `json:"time_horizon_category"`
+	TimeHorizonSummary        *string                   `json:"time_horizon_summary"`
+	TransmissionSummary       *string                   `json:"transmission_summary"`
+	CheckpointSummary         *string                   `json:"checkpoint_summary"`
+	RiskSummary               *string                   `json:"risk_summary"`
+	AnalysisAsOf              time.Time                 `json:"analysis_as_of"`
+	WindowStart               time.Time                 `json:"window_start"`
+	WindowEnd                 time.Time                 `json:"window_end"`
+	PublishedAt               time.Time                 `json:"published_at"`
+	Impacts                   []wireResearchThemeImpact `json:"impacts"`
+	EvidenceEventCount        int                       `json:"evidence_event_count"`
+	ReasoningTreeCount        int                       `json:"reasoning_tree_count"`
 }
-
+type wireResearchThemeImpact struct {
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	Name              string  `json:"name"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
+}
 type wireResearchThemeDetail struct {
 	Theme  wireResearchTheme   `json:"theme"`
 	Events []wireResearchEvent `json:"events"`
 }
-
-type wireResearchThemeChainNode struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	RelationRole  string `json:"relation_role"`
-	ImpactSummary string `json:"impact_summary"`
-}
-
-type wireResearchIndex struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	ImpactDirection string `json:"impact_direction"`
-	ImpactSummary   string `json:"impact_summary"`
-}
-
 type wireResearchEvent struct {
 	EventID        string     `json:"event_id"`
 	Title          string     `json:"title"`
 	Summary        string     `json:"summary"`
-	EventTime      *time.Time `json:"event_time,omitempty"`
+	EventTime      *time.Time `json:"event_time"`
 	EvidenceRole   string     `json:"evidence_role"`
-	SupportedClaim string     `json:"supported_claim"`
+	SupportedClaim *string    `json:"supported_claim"`
+	DisplayOrder   int        `json:"display_order"`
 }
-
-type wireResearchReasoningTreeChainNode struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
 type wireResearchReasoningTreeSummary struct {
-	AnchorID        string                             `json:"anchor_id"`
-	CenterChainNode wireResearchReasoningTreeChainNode `json:"center_chain_node"`
+	ReasoningTreeID       string    `json:"reasoning_tree_id"`
+	IndustryChainEntityID string    `json:"industry_chain_entity_id"`
+	IndustryChainName     string    `json:"industry_chain_name"`
+	Title                 string    `json:"title"`
+	DisplayOrder          int       `json:"display_order"`
+	EventCount            int       `json:"event_count"`
+	PublishedAt           time.Time `json:"published_at"`
 }
-
 type wireResearchReasoningTreeList struct {
 	Theme          wireResearchTheme                  `json:"theme"`
 	ReasoningTrees []wireResearchReasoningTreeSummary `json:"reasoning_trees"`
 }
-
-type wireResearchReasoningTreeEvent struct {
-	EventID         string     `json:"event_id"`
-	Title           string     `json:"title"`
-	Summary         string     `json:"summary"`
-	EventTime       *time.Time `json:"event_time,omitempty"`
-	EvidenceRole    string     `json:"evidence_role"`
-	EvidenceSummary string     `json:"evidence_summary"`
+type wireResearchCheckpoint struct {
+	Type    string `json:"type"`
+	Summary string `json:"summary"`
 }
-
-type wireResearchReasoningTreePathNode struct {
-	ChainNodeID                   string  `json:"chain_node_id"`
-	Name                          string  `json:"name"`
-	ChangeDirection               string  `json:"change_direction"`
-	ChangeSummary                 string  `json:"change_summary"`
-	ImpactSummary                 string  `json:"impact_summary"`
-	IncomingTransmissionMechanism *string `json:"incoming_transmission_mechanism"`
+type wireResearchGraphEdge struct {
+	ID           string `json:"id"`
+	RelationType string `json:"relation_type"`
+	ReviewStatus string `json:"review_status"`
+	Status       string `json:"status"`
 }
-
+type wireResearchSignal struct {
+	VariableSignalKey string `json:"variable_signal_key"`
+	SignalRole        string `json:"signal_role"`
+	SignalDirection   string `json:"signal_direction"`
+	DisplaySummary    string `json:"display_summary"`
+	DisplayOrder      int    `json:"display_order"`
+}
+type wireResearchReasoningTreeNode struct {
+	ID                               string                 `json:"id"`
+	Position                         int                    `json:"position"`
+	ChainNodeEntityID                string                 `json:"chain_node_entity_id"`
+	Name                             string                 `json:"name"`
+	StateSummary                     *string                `json:"state_summary"`
+	ImpactDirection                  string                 `json:"impact_direction"`
+	ImpactStrength                   string                 `json:"impact_strength"`
+	ImpactSummary                    *string                `json:"impact_summary"`
+	ReasoningBasisSummary            *string                `json:"reasoning_basis_summary"`
+	EvidenceGapSummary               *string                `json:"evidence_gap_summary"`
+	IncomingIndustryChainGraphEdgeID *string                `json:"incoming_industry_chain_graph_edge_id"`
+	IncomingTransmissionTitle        *string                `json:"incoming_transmission_title"`
+	IncomingTransmissionMechanism    *string                `json:"incoming_transmission_mechanism"`
+	IncomingConditionSummary         *string                `json:"incoming_condition_summary"`
+	IncomingGraphEdge                *wireResearchGraphEdge `json:"incoming_graph_edge"`
+	Signals                          []wireResearchSignal   `json:"signals"`
+	PrimarySignal                    wireResearchSignal     `json:"primary_signal"`
+	SignalDisplaySummary             string                 `json:"signal_display_summary"`
+}
 type wireResearchReasoningTree struct {
-	AnchorID            string                              `json:"anchor_id"`
-	CenterChainNode     wireResearchReasoningTreeChainNode  `json:"center_chain_node"`
-	OneLineConclusion   string                              `json:"one_line_conclusion"`
-	FactSummary         string                              `json:"fact_summary"`
-	NetDirectionSummary string                              `json:"net_direction_summary"`
-	SupportSummary      string                              `json:"support_summary"`
-	CounterSummary      *string                             `json:"counter_summary"`
-	TradingDirection    string                              `json:"trading_direction"`
-	NextCheckpoint      string                              `json:"next_checkpoint"`
-	EventCount          int                                 `json:"event_count"`
-	Events              []wireResearchReasoningTreeEvent    `json:"events"`
-	PathNodes           []wireResearchReasoningTreePathNode `json:"path_nodes"`
+	ReasoningTreeID           string                          `json:"reasoning_tree_id"`
+	ThemeID                   string                          `json:"theme_id"`
+	IndustryChainEntityID     string                          `json:"industry_chain_entity_id"`
+	IndustryChainName         string                          `json:"industry_chain_name"`
+	Title                     string                          `json:"title"`
+	DisplayOrder              int                             `json:"display_order"`
+	OneLineConclusion         string                          `json:"one_line_conclusion"`
+	FactSummary               *string                         `json:"fact_summary"`
+	TransmissionSummary       *string                         `json:"transmission_summary"`
+	ImpactDirection           string                          `json:"impact_direction"`
+	ImpactStrength            string                          `json:"impact_strength"`
+	ImpactSummary             *string                         `json:"impact_summary"`
+	ConclusionBoundarySummary *string                         `json:"conclusion_boundary_summary"`
+	SupportSummary            *string                         `json:"support_summary"`
+	CounterSummary            *string                         `json:"counter_summary"`
+	InvalidationConditions    []string                        `json:"invalidation_conditions"`
+	Checkpoints               []wireResearchCheckpoint        `json:"checkpoints"`
+	PublishedAt               time.Time                       `json:"published_at"`
+	EventCount                int                             `json:"event_count"`
+	Events                    []wireResearchEvent             `json:"events"`
+	Nodes                     []wireResearchReasoningTreeNode `json:"nodes"`
 }
-
 type wireResearchReasoningTreeDetail struct {
 	ThemeID       string                    `json:"theme_id"`
+	ImpactNodeIDs []string                  `json:"impact_node_ids"`
 	ReasoningTree wireResearchReasoningTree `json:"reasoning_tree"`
 }
 
-func (value wireResearchThemePage) toBiz() biz.ResearchThemePage {
-	return biz.ResearchThemePage{
-		WindowStart: value.WindowStart,
-		WindowEnd:   value.WindowEnd,
-		AsOf:        value.AsOf,
-		ThemeCount:  value.ThemeCount,
-		EventCount:  value.EventCount,
-		Items:       mapSlice(value.Items, wireResearchTheme.toBiz),
-		NextCursor:  value.NextCursor,
-	}
+func (v wireResearchThemePage) toBiz() biz.ResearchThemePage {
+	return biz.ResearchThemePage{WindowStart: v.WindowStart, WindowEnd: v.WindowEnd, AsOf: v.AsOf, ThemeCount: v.ThemeCount, EventCount: v.EventCount, Items: mapSlice(v.Items, wireResearchTheme.toBiz), NextCursor: v.NextCursor}
 }
-
-func (value wireResearchTheme) toBiz() biz.ResearchTheme {
+func (v wireResearchTheme) toBiz() biz.ResearchTheme {
 	return biz.ResearchTheme{
-		ID:                        value.ID,
-		Name:                      value.Name,
-		OneLineConclusion:         value.OneLineConclusion,
-		ImpactLevel:               biz.ImpactLevel(value.ImpactLevel),
-		TransmissionPath:          value.TransmissionPath,
-		TradingDirection:          value.TradingDirection,
-		TransmissionStage:         biz.TransmissionStage(value.TransmissionStage),
-		NextCheckpoint:            value.NextCheckpoint,
-		MarketConfirmationSummary: value.MarketConfirmationSummary,
-		PublishedAt:               value.PublishedAt,
-		AffectedChainNodes:        mapSlice(value.AffectedChainNodes, wireResearchThemeChainNode.toBiz),
-		RelatedIndices:            mapSlice(value.RelatedIndices, wireResearchIndex.toBiz),
-		SupportingEventCount:      value.SupportingEventCount,
-		ContradictingEventCount:   value.ContradictingEventCount,
+		ID: v.ID, AnalysisBatchID: v.AnalysisBatchID, Title: v.Title, OneLineConclusion: v.OneLineConclusion,
+		ConclusionDirection: v.ConclusionDirection, ImpactStrength: v.ImpactStrength, AttentionLevel: v.AttentionLevel,
+		ConclusionStatus: v.ConclusionStatus, TransmissionStage: v.TransmissionStage,
+		InvestmentGuidanceAction: v.InvestmentGuidanceAction, InvestmentGuidanceSummary: v.InvestmentGuidanceSummary,
+		TimeHorizonCategory: v.TimeHorizonCategory, TimeHorizonSummary: v.TimeHorizonSummary,
+		TransmissionSummary: v.TransmissionSummary, CheckpointSummary: v.CheckpointSummary, RiskSummary: v.RiskSummary,
+		AnalysisAsOf: v.AnalysisAsOf, WindowStart: v.WindowStart, WindowEnd: v.WindowEnd, PublishedAt: v.PublishedAt,
+		Impacts: mapSlice(v.Impacts, wireResearchThemeImpact.toBiz), EvidenceEventCount: v.EvidenceEventCount, ReasoningTreeCount: v.ReasoningTreeCount,
 	}
 }
-
-func (value wireResearchThemeDetail) toBiz() biz.ResearchThemeDetail {
-	return biz.ResearchThemeDetail{
-		Theme:  value.Theme.toBiz(),
-		Events: mapSlice(value.Events, wireResearchEvent.toBiz),
-	}
+func (v wireResearchThemeImpact) toBiz() biz.ResearchThemeImpact {
+	return biz.ResearchThemeImpact{ChainNodeEntityID: v.ChainNodeEntityID, Name: v.Name, RelationRole: v.RelationRole, ImpactDirection: v.ImpactDirection, ImpactSummary: v.ImpactSummary, DisplayOrder: v.DisplayOrder}
 }
-
-func (value wireResearchThemeChainNode) toBiz() biz.ResearchThemeChainNode {
-	return biz.ResearchThemeChainNode{
-		ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, ImpactSummary: value.ImpactSummary,
-	}
+func (v wireResearchEvent) toBiz() biz.ResearchEvent {
+	return biz.ResearchEvent{EventID: v.EventID, Title: v.Title, Summary: v.Summary, EventTime: v.EventTime, EvidenceRole: v.EvidenceRole, SupportedClaim: v.SupportedClaim, DisplayOrder: v.DisplayOrder}
 }
-
-func (value wireResearchIndex) toBiz() biz.ResearchIndex {
-	return biz.ResearchIndex{
-		ID: value.ID, Name: value.Name, ImpactDirection: biz.ImpactDirection(value.ImpactDirection),
-		ImpactSummary: value.ImpactSummary,
-	}
+func (v wireResearchThemeDetail) toBiz() biz.ResearchThemeDetail {
+	return biz.ResearchThemeDetail{Theme: v.Theme.toBiz(), Events: mapSlice(v.Events, wireResearchEvent.toBiz)}
 }
-
-func (value wireResearchEvent) toBiz() biz.ResearchEvent {
-	return biz.ResearchEvent{
-		EventID: value.EventID, Title: value.Title, Summary: value.Summary, EventTime: value.EventTime,
-		EvidenceRole: biz.EvidenceRole(value.EvidenceRole), SupportedClaim: value.SupportedClaim,
-	}
+func (v wireResearchReasoningTreeSummary) toBiz() biz.ResearchReasoningTreeSummary {
+	return biz.ResearchReasoningTreeSummary{ReasoningTreeID: v.ReasoningTreeID, IndustryChainEntityID: v.IndustryChainEntityID, IndustryChainName: v.IndustryChainName, Title: v.Title, DisplayOrder: v.DisplayOrder, EventCount: v.EventCount, PublishedAt: v.PublishedAt}
 }
-
-func (value wireResearchReasoningTreeChainNode) toBiz() biz.ResearchReasoningTreeChainNode {
-	return biz.ResearchReasoningTreeChainNode{ID: value.ID, Name: value.Name}
+func (v wireResearchReasoningTreeList) toBiz() biz.ResearchReasoningTreeList {
+	return biz.ResearchReasoningTreeList{Theme: v.Theme.toBiz(), ReasoningTrees: mapSlice(v.ReasoningTrees, wireResearchReasoningTreeSummary.toBiz)}
 }
-
-func (value wireResearchReasoningTreeSummary) toBiz() biz.ResearchReasoningTreeSummary {
-	return biz.ResearchReasoningTreeSummary{
-		AnchorID: value.AnchorID, CenterChainNode: value.CenterChainNode.toBiz(),
-	}
+func (v wireResearchSignal) toBiz() biz.ResearchSignal {
+	return biz.ResearchSignal{VariableSignalKey: v.VariableSignalKey, SignalRole: v.SignalRole, SignalDirection: v.SignalDirection, DisplaySummary: v.DisplaySummary, DisplayOrder: v.DisplayOrder}
 }
-
-func (value wireResearchReasoningTreeList) toBiz() biz.ResearchReasoningTreeList {
-	return biz.ResearchReasoningTreeList{
-		Theme: value.Theme.toBiz(), ReasoningTrees: mapSlice(value.ReasoningTrees, wireResearchReasoningTreeSummary.toBiz),
+func (v wireResearchReasoningTreeNode) toBiz() biz.ResearchReasoningTreeNode {
+	var edge *biz.ResearchGraphEdge
+	if v.IncomingGraphEdge != nil {
+		edge = &biz.ResearchGraphEdge{ID: v.IncomingGraphEdge.ID, RelationType: v.IncomingGraphEdge.RelationType, ReviewStatus: v.IncomingGraphEdge.ReviewStatus, Status: v.IncomingGraphEdge.Status}
 	}
+	return biz.ResearchReasoningTreeNode{ID: v.ID, Position: v.Position, ChainNodeEntityID: v.ChainNodeEntityID, Name: v.Name, StateSummary: v.StateSummary, ImpactDirection: v.ImpactDirection, ImpactStrength: v.ImpactStrength, ImpactSummary: v.ImpactSummary, ReasoningBasisSummary: v.ReasoningBasisSummary, EvidenceGapSummary: v.EvidenceGapSummary, IncomingIndustryChainGraphEdgeID: v.IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle: v.IncomingTransmissionTitle, IncomingTransmissionMechanism: v.IncomingTransmissionMechanism, IncomingConditionSummary: v.IncomingConditionSummary, IncomingGraphEdge: edge, Signals: mapSlice(v.Signals, wireResearchSignal.toBiz), PrimarySignal: v.PrimarySignal.toBiz(), SignalDisplaySummary: v.SignalDisplaySummary}
 }
-
-func (value wireResearchReasoningTreeEvent) toBiz() biz.ResearchReasoningTreeEvent {
-	return biz.ResearchReasoningTreeEvent{
-		EventID: value.EventID, Title: value.Title, Summary: value.Summary, EventTime: value.EventTime,
-		EvidenceRole: biz.EvidenceRole(value.EvidenceRole), EvidenceSummary: value.EvidenceSummary,
+func (v wireResearchReasoningTree) toBiz() biz.ResearchReasoningTree {
+	checkpoints := make([]biz.ResearchCheckpoint, 0, len(v.Checkpoints))
+	for _, c := range v.Checkpoints {
+		checkpoints = append(checkpoints, biz.ResearchCheckpoint{Type: c.Type, Summary: c.Summary})
 	}
+	return biz.ResearchReasoningTree{ReasoningTreeID: v.ReasoningTreeID, ThemeID: v.ThemeID, IndustryChainEntityID: v.IndustryChainEntityID, IndustryChainName: v.IndustryChainName, Title: v.Title, DisplayOrder: v.DisplayOrder, OneLineConclusion: v.OneLineConclusion, FactSummary: v.FactSummary, TransmissionSummary: v.TransmissionSummary, ImpactDirection: v.ImpactDirection, ImpactStrength: v.ImpactStrength, ImpactSummary: v.ImpactSummary, ConclusionBoundarySummary: v.ConclusionBoundarySummary, SupportSummary: v.SupportSummary, CounterSummary: v.CounterSummary, InvalidationConditions: v.InvalidationConditions, Checkpoints: checkpoints, PublishedAt: v.PublishedAt, EventCount: v.EventCount, Events: mapSlice(v.Events, wireResearchEvent.toBiz), Nodes: mapSlice(v.Nodes, wireResearchReasoningTreeNode.toBiz)}
 }
-
-func (value wireResearchReasoningTreePathNode) toBiz() biz.ResearchReasoningTreePathNode {
-	return biz.ResearchReasoningTreePathNode{
-		ChainNodeID: value.ChainNodeID, Name: value.Name,
-		ChangeDirection: biz.ChangeDirection(value.ChangeDirection),
-		ChangeSummary:   value.ChangeSummary, ImpactSummary: value.ImpactSummary,
-		IncomingTransmissionMechanism: value.IncomingTransmissionMechanism,
-	}
-}
-
-func (value wireResearchReasoningTree) toBiz() biz.ResearchReasoningTree {
-	return biz.ResearchReasoningTree{
-		AnchorID: value.AnchorID, CenterChainNode: value.CenterChainNode.toBiz(),
-		OneLineConclusion: value.OneLineConclusion, FactSummary: value.FactSummary,
-		NetDirectionSummary: value.NetDirectionSummary, SupportSummary: value.SupportSummary,
-		CounterSummary: value.CounterSummary, TradingDirection: value.TradingDirection,
-		NextCheckpoint: value.NextCheckpoint, EventCount: value.EventCount,
-		Events:    mapSlice(value.Events, wireResearchReasoningTreeEvent.toBiz),
-		PathNodes: mapSlice(value.PathNodes, wireResearchReasoningTreePathNode.toBiz),
-	}
-}
-
-func (value wireResearchReasoningTreeDetail) toBiz() biz.ResearchReasoningTreeDetail {
-	return biz.ResearchReasoningTreeDetail{
-		ThemeID: value.ThemeID, ReasoningTree: value.ReasoningTree.toBiz(),
-	}
+func (v wireResearchReasoningTreeDetail) toBiz() biz.ResearchReasoningTreeDetail {
+	return biz.ResearchReasoningTreeDetail{ThemeID: v.ThemeID, ImpactNodeIDs: v.ImpactNodeIDs, ReasoningTree: v.ReasoningTree.toBiz()}
 }
 
 func mapSlice[From any, To any](values []From, convert func(From) To) []To {

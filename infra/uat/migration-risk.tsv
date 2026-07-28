@@ -29,3 +29,4 @@
 000028	high	chain node review promotion identity validation trigger
 000029	high	replace Data ingestion control-plane schema with Event Publication V2 evidence contract
 000030	high	forward-only Industry relationship import contract with fail-closed empty-table checks
+000031	high	destructive Theme and Reason Tree V1 publication-table rebuild

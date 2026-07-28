@@ -12,7 +12,7 @@ func RegisterResearchHTTPServer(server *kratoshttp.Server, service ResearchHTTPS
 	router := server.Route(APIPrefix)
 	router.GET("/research/themes", listResearchThemesHandler(service))
 	router.GET("/research/themes/{theme_id}/reasoning-trees", listResearchThemeReasoningTreesHandler(service))
-	router.GET("/research/themes/{theme_id}/reasoning-trees/{anchor_id}", getResearchThemeReasoningTreeHandler(service))
+	router.GET("/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}", getResearchThemeReasoningTreeHandler(service))
 	router.GET("/research/themes/{theme_id}", getResearchThemeHandler(service))
 }
 
@@ -56,8 +56,8 @@ func listResearchThemeReasoningTreesHandler(service ResearchHTTPServer) kratosht
 func getResearchThemeReasoningTreeHandler(service ResearchHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &GetResearchThemeReasoningTreeRequest{
-			ThemeID:  ctx.Vars().Get("theme_id"),
-			AnchorID: ctx.Vars().Get("anchor_id"),
+			ThemeID:         ctx.Vars().Get("theme_id"),
+			ReasoningTreeID: ctx.Vars().Get("reasoning_tree_id"),
 		}
 		return call(ctx, OperationGetResearchThemeReasoningTree, request, func(callContext context.Context) (any, error) {
 			if ctx.Request().URL.RawQuery != "" {

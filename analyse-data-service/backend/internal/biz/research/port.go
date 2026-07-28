@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
 var (
@@ -16,39 +14,36 @@ var (
 	ErrResearchReasoningTreeInvariant = errors.New("research reasoning tree invariant violation")
 )
 
-type ChainNodeRecord struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	RelationRole string `json:"relation_role"`
-	Summary      string `json:"impact_summary"`
-}
-
-type IndexRecord struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	ImpactDirection string `json:"impact_direction"`
-	Summary         string `json:"impact_summary"`
+type ThemeImpactRecord struct {
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	Name              string  `json:"name"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 
 type EventRecord struct {
 	EventID        string     `json:"event_id"`
 	Title          string     `json:"title"`
 	Summary        string     `json:"summary"`
-	EventTime      *time.Time `json:"event_time,omitempty"`
+	EventTime      *time.Time `json:"event_time"`
 	EvidenceRole   string     `json:"evidence_role"`
-	SupportedClaim string     `json:"supported_claim"`
+	SupportedClaim *string    `json:"supported_claim"`
+	DisplayOrder   int        `json:"display_order,omitempty"`
 }
 
 type ThemeSummaryRecord struct {
-	ID, Name, OneLineConclusion                   string
-	ImpactLevel                                   model.ImpactLevel
-	TransmissionPath, TradingDirection            string
-	TransmissionStage                             model.TransmissionStage
-	NextCheckpoint, MarketConfirmationSummary     string
-	PublishedAt                                   time.Time
-	ChainNodes                                    []ChainNodeRecord
-	Indices                                       []IndexRecord
-	SupportingEventCount, ContradictingEventCount int
+	ID, AnalysisBatchID, Title, OneLineConclusion              string
+	ConclusionDirection, ImpactStrength, TransmissionStage     string
+	InvestmentGuidanceAction, InvestmentGuidanceSummary        string
+	TimeHorizonCategory                                        string
+	AttentionLevel, ConclusionStatus                           *string
+	TimeHorizonSummary, TransmissionSummary, CheckpointSummary *string
+	RiskSummary                                                *string
+	AnalysisAsOf, WindowStart, WindowEnd, PublishedAt          time.Time
+	Impacts                                                    []ThemeImpactRecord
+	EvidenceEventCount, ReasoningTreeCount                     int
 }
 
 type ThemeDetailRecord struct {
@@ -58,7 +53,7 @@ type ThemeDetailRecord struct {
 
 type ThemeListFilter struct {
 	WindowStart, AsOf time.Time
-	Limit, CursorRank int
+	Limit             int
 	CursorPublishedAt *time.Time
 	CursorID          string
 }
@@ -75,9 +70,9 @@ type ThemeStorePage struct {
 }
 
 type ReasoningTreeSummaryRecord struct {
-	AnchorID            string `json:"anchor_id"`
-	CenterChainNodeID   string `json:"center_chain_node_id"`
-	CenterChainNodeName string `json:"center_chain_node_name"`
+	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
+	DisplayOrder, EventCount                                         int
+	PublishedAt                                                      time.Time
 }
 
 type ReasoningTreeListRecord struct {
@@ -85,37 +80,46 @@ type ReasoningTreeListRecord struct {
 	ReasoningTrees []ReasoningTreeSummaryRecord
 }
 
-type ReasoningTreeEventRecord struct {
-	EventID         string     `json:"event_id"`
-	Title           string     `json:"title"`
-	Summary         string     `json:"summary"`
-	EventTime       *time.Time `json:"event_time"`
-	EvidenceRole    string     `json:"evidence_role"`
-	EvidenceSummary string     `json:"evidence_summary"`
+type CheckpointRecord struct {
+	Type, Summary string
 }
 
-type ReasoningTreePathNodeRecord struct {
-	Position                      int     `json:"position"`
-	ChainNodeID                   string  `json:"chain_node_id"`
-	Name                          string  `json:"name"`
-	ChangeDirection               string  `json:"change_direction"`
-	ChangeSummary                 string  `json:"change_summary"`
-	ImpactSummary                 string  `json:"impact_summary"`
-	IncomingTransmissionMechanism *string `json:"incoming_transmission_mechanism"`
+type GraphEdgeRecord struct {
+	ID, RelationType, ReviewStatus, Status string
+}
+
+type SignalRecord struct {
+	VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
+	DisplayOrder                                                   int
+}
+
+type ReasoningTreeNodeRecord struct {
+	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
+	Position                                                     int
+	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
+	EvidenceGapSummary                                           *string
+	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle  *string
+	IncomingTransmissionMechanism, IncomingConditionSummary      *string
+	IncomingGraphEdge                                            *GraphEdgeRecord
+	Signals                                                      []SignalRecord
 }
 
 type ReasoningTreeRecord struct {
-	AnchorID, CenterChainNodeID, CenterChainNodeName    string
-	OneLineConclusion, FactSummary, NetDirectionSummary string
-	SupportSummary                                      string
-	CounterSummary                                      *string
-	TradingDirection, NextCheckpoint                    string
-	Events                                              []ReasoningTreeEventRecord
-	PathNodes                                           []ReasoningTreePathNodeRecord
+	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
+	DisplayOrder, EventCount                                           int
+	FactSummary, TransmissionSummary, ImpactSummary                    *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
+	InvalidationConditions                                             []string
+	Checkpoints                                                        []CheckpointRecord
+	PublishedAt                                                        time.Time
+	Events                                                             []EventRecord
+	Nodes                                                              []ReasoningTreeNodeRecord
 }
 
 type ReasoningTreeDetailRecord struct {
 	ThemeID       string
+	ImpactNodeIDs []string
 	ReasoningTree ReasoningTreeRecord
 }
 
