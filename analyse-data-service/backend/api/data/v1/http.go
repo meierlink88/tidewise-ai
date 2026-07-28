@@ -19,7 +19,7 @@ type DataHTTPServer interface {
 	ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error)
 	ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error)
 	ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error)
-	ImportResearchAnchors(context.Context, *ResearchAnchorImportRequest) (*Response[ResearchAnchorImportResult], error)
+	ImportResearchReasoningTrees(context.Context, *ResearchReasoningTreeImportRequest) (*Response[ResearchReasoningTreeImportResult], error)
 	ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error)
 	GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response[ResearchThemeDetail], error)
 	ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response[ResearchReasoningTreeList], error)
@@ -33,11 +33,11 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.POST("/reviewed-event-imports", eventPublicationImportHandler(application))
 	router.GET("/event-tags", listActiveEventTagsHandler(application))
 	router.POST("/research-theme-imports", researchThemeImportHandler(application))
-	router.POST("/research-anchor-imports", researchAnchorImportHandler(application))
+	router.POST("/research-reasoning-tree-imports", researchReasoningTreeImportHandler(application))
 	router.GET("/research/themes", listResearchThemesHandler(application))
 	router.GET("/research/themes/{theme_id}", getResearchThemeHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees", listReasoningTreesHandler(application))
-	router.GET("/research/themes/{theme_id}/reasoning-trees/{anchor_id}", getReasoningTreeHandler(application))
+	router.GET("/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}", getReasoningTreeHandler(application))
 	router.GET("/raw-documents", listRawDocumentsHandler(application))
 	router.GET("/events", listEventsHandler(application))
 }
@@ -88,18 +88,18 @@ func researchThemeImportHandler(application DataHTTPServer) kratoshttp.HandlerFu
 	}
 }
 
-func researchAnchorImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+func researchReasoningTreeImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		payload, err := readImportPayload(ctx)
 		if err != nil {
 			return err
 		}
-		request, err := decodeResearchAnchorImport(payload)
+		request, err := decodeResearchReasoningTreeImport(payload)
 		if err != nil {
 			return err
 		}
-		return call(ctx, OperationImportResearchAnchors, request, func(callContext context.Context) (*Response[ResearchAnchorImportResult], error) {
-			return application.ImportResearchAnchors(callContext, request)
+		return call(ctx, OperationImportResearchReasoningTrees, request, func(callContext context.Context) (*Response[ResearchReasoningTreeImportResult], error) {
+			return application.ImportResearchReasoningTrees(callContext, request)
 		})
 	}
 }
@@ -149,7 +149,7 @@ func listReasoningTreesHandler(application DataHTTPServer) kratoshttp.HandlerFun
 func getReasoningTreeHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &ReasoningTreeDetailRequest{
-			ThemeID: ctx.Vars().Get("theme_id"), AnchorID: ctx.Vars().Get("anchor_id"), HasQuery: ctx.Request().URL.RawQuery != "",
+			ThemeID: ctx.Vars().Get("theme_id"), ReasoningTreeID: ctx.Vars().Get("reasoning_tree_id"), HasQuery: ctx.Request().URL.RawQuery != "",
 		}
 		return call(ctx, OperationGetResearchThemeReasoningTree, request, func(callContext context.Context) (*Response[ResearchReasoningTreeDetail], error) {
 			return application.GetResearchReasoningTree(callContext, request)

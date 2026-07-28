@@ -27,14 +27,14 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		"/readyz":                      {method: "get", operationID: "getDataServiceReadiness"},
 		namespace + "/event-tags":      {method: "get", operationID: "listActiveEventTags", driftAnchor: "data.v1.listActiveEventTags", scope: "data.event-tags.read"},
 		namespace + "/research/themes": {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}":                             {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}/reasoning-trees":             {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
-		namespace + "/raw-documents":                                          {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
-		namespace + "/events":                                                 {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
-		namespace + "/reviewed-event-imports":                                 {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
-		namespace + "/research-theme-imports":                                 {method: "post", operationID: "importResearchThemes", driftAnchor: "data.v1.importResearchThemes", scope: "data.research.import"},
-		namespace + "/research-anchor-imports":                                {method: "post", operationID: "importResearchAnchors", driftAnchor: "data.v1.importResearchAnchors", scope: "data.research.import"},
+		namespace + "/research/themes/{theme_id}":                                     {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}/reasoning-trees":                     {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
+		namespace + "/raw-documents":                                                  {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
+		namespace + "/events":                                                         {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
+		namespace + "/reviewed-event-imports":                                         {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
+		namespace + "/research-theme-imports":                                         {method: "post", operationID: "importResearchThemes", driftAnchor: "data.v1.importResearchThemes", scope: "data.research.import"},
+		namespace + "/research-reasoning-tree-imports":                                {method: "post", operationID: "importResearchReasoningTrees", driftAnchor: "data.v1.importResearchReasoningTrees", scope: "data.research.import"},
 	}
 
 	if len(paths) != len(want) {
@@ -93,7 +93,7 @@ func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
 func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	for _, legacy := range []string{namespace + "/research/anchors", namespace + "/research/anchors/{anchor_id}"} {
+	for _, legacy := range []string{namespace + "/research/anchors", namespace + "/research/anchors/{anchor_id}", namespace + "/research-anchor-imports"} {
 		if _, exists := paths[legacy]; exists {
 			t.Fatalf("legacy research Anchor path remains in OpenAPI: %s", legacy)
 		}
@@ -101,7 +101,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 
 	for _, path := range []string{
 		namespace + "/research/themes/{theme_id}/reasoning-trees",
-		namespace + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}",
+		namespace + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}",
 	} {
 		operation := object(t, object(t, paths[path], "path "+path)["get"], "GET "+path)
 		parameters := array(t, operation["parameters"], "reasoning tree operation parameters")
@@ -120,61 +120,57 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	assertRequired(t, list, "theme", "reasoning_trees")
 	listProperties := object(t, list["properties"], "ResearchReasoningTreeList properties")
 	trees := object(t, listProperties["reasoning_trees"], "reasoning_trees")
-	assertInt(t, trees, "minItems", 1)
 	assertString(t, object(t, trees["items"], "reasoning tree summary items"), "$ref", "#/components/schemas/ResearchReasoningTreeSummary")
 
 	tree := schema(t, document, "ResearchReasoningTree")
-	assertRequired(t, tree, "anchor_id", "center_chain_node", "one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint", "event_count", "events", "path_nodes")
-	treeProperties := object(t, tree["properties"], "ResearchReasoningTree properties")
-	assertInt(t, object(t, treeProperties["events"], "events"), "minItems", 1)
-	assertInt(t, object(t, treeProperties["path_nodes"], "path_nodes"), "minItems", 2)
-
-	pathNode := schema(t, document, "ResearchReasoningTreePathNode")
-	pathProperties := object(t, pathNode["properties"], "ResearchReasoningTreePathNode properties")
-	assertStringSet(t, object(t, pathProperties["change_direction"], "change_direction")["enum"], "increase", "decrease", "mixed", "unchanged", "uncertain")
-	event := schema(t, document, "ResearchReasoningTreeEvent")
-	eventProperties := object(t, event["properties"], "ResearchReasoningTreeEvent properties")
-	assertStringSet(t, object(t, eventProperties["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
+	assertRequired(t, tree,
+		"reasoning_tree_id", "theme_id", "industry_chain_entity_id", "industry_chain_name", "title",
+		"display_order", "one_line_conclusion", "fact_summary", "transmission_summary",
+		"impact_direction", "impact_strength", "impact_summary", "conclusion_boundary_summary",
+		"support_summary", "counter_summary", "invalidation_conditions", "checkpoints",
+		"published_at", "event_count", "events", "nodes",
+	)
+	node := schema(t, document, "ResearchReasoningTreeNode")
+	assertRequired(t, node,
+		"id", "position", "chain_node_entity_id", "name", "state_summary", "impact_direction",
+		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
+		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
+		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_graph_edge",
+		"signals", "primary_signal", "signal_display_summary",
+	)
+	detail := schema(t, document, "ResearchReasoningTreeDetail")
+	assertRequired(t, detail, "theme_id", "impact_node_ids", "reasoning_tree")
 }
 
-func TestOpenAPIContractFreezesResearchAnchorPublicationV1(t *testing.T) {
+func TestOpenAPIContractFreezesResearchReasoningTreePublicationV1(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	operation := object(t, object(t, paths[namespace+"/research-anchor-imports"], "research Anchor import path")["post"], "research Anchor import operation")
+	operation := object(t, object(t, paths[namespace+"/research-reasoning-tree-imports"], "research Reason Tree import path")["post"], "research Reason Tree import operation")
 	assertString(t, operation, "x-canonicalization", "rfc8785-sha256")
 	assertString(t, operation, "x-atomicity", "whole-theme-single-postgresql-transaction")
-	assertString(t, operation, "x-receipt-schema", "research_anchor_import_receipts")
+	assertString(t, operation, "x-receipt-schema", "research_reasoning_tree_import_receipts")
 	assertString(t, operation, "x-retry-policy", "idempotent-with-theme-id")
 
-	request := schema(t, document, "ResearchAnchorImportRequest")
-	assertRequired(t, request, "theme_id", "anchors")
-	properties := object(t, request["properties"], "ResearchAnchorImportRequest properties")
-	for _, forbidden := range []string{"publisher_subject", "published_at", "imported_at", "idempotency_key"} {
-		if _, exists := properties[forbidden]; exists {
-			t.Fatalf("ResearchAnchorImportRequest must not expose %q", forbidden)
-		}
-	}
-	anchors := object(t, properties["anchors"], "anchors")
-	assertInt(t, anchors, "minItems", 1)
-
-	anchor := schema(t, document, "ResearchAnchorImportItem")
-	assertRequired(t, anchor, "center_chain_node_id", "one_line_conclusion", "fact_summary", "net_direction_summary", "support_summary", "counter_summary", "trading_direction", "next_checkpoint", "events", "path_nodes")
-	anchorProperties := object(t, anchor["properties"], "ResearchAnchorImportItem properties")
-	for _, forbidden := range []string{"anchor_id", "anchor_type", "importance", "indices", "transmission_path"} {
-		if _, exists := anchorProperties[forbidden]; exists {
-			t.Fatalf("ResearchAnchorImportItem must not expose %q", forbidden)
-		}
-	}
-
-	event := schema(t, document, "ResearchAnchorImportEvent")
-	assertRequired(t, event, "event_id", "evidence_role", "evidence_summary")
-	assertStringSet(t, object(t, object(t, event["properties"], "event properties")["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
-	pathNode := schema(t, document, "ResearchAnchorImportPathNode")
-	assertRequired(t, pathNode, "chain_node_id", "change_direction", "change_summary", "impact_summary", "incoming_transmission_mechanism")
-	assertStringSet(t, object(t, object(t, pathNode["properties"], "path node properties")["change_direction"], "change_direction")["enum"], "increase", "decrease", "mixed", "unchanged", "uncertain")
-
-	result := schema(t, document, "ResearchAnchorImportResult")
-	assertRequired(t, result, "receipt_id", "theme_id", "payload_hash", "anchor_ids_by_center_chain_node_id", "counts", "published_at", "imported_at", "replayed")
+	request := schema(t, document, "ResearchReasoningTreeImportRequest")
+	assertRequired(t, request, "theme_id", "reasoning_trees")
+	tree := schema(t, document, "ResearchReasoningTreeImportItem")
+	assertRequired(t, tree,
+		"industry_chain_entity_id", "title", "display_order", "one_line_conclusion", "fact_summary",
+		"transmission_summary", "impact_direction", "impact_strength", "impact_summary",
+		"conclusion_boundary_summary", "support_summary", "counter_summary",
+		"invalidation_conditions", "checkpoints", "events", "nodes",
+	)
+	node := schema(t, document, "ResearchReasoningTreeImportNode")
+	assertRequired(t, node,
+		"position", "chain_node_entity_id", "state_summary", "impact_direction", "impact_strength",
+		"impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
+		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
+		"incoming_transmission_mechanism", "incoming_condition_summary", "signals",
+	)
+	signal := schema(t, document, "ResearchReasoningTreeSignal")
+	assertRequired(t, signal, "variable_signal_key", "signal_role", "signal_direction", "display_summary", "display_order")
+	result := schema(t, document, "ResearchReasoningTreeImportResult")
+	assertRequired(t, result, "receipt_id", "theme_id", "payload_hash", "reasoning_tree_ids_by_industry_chain_entity_id", "counts", "published_at", "imported_at", "replayed")
 }
 
 func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
@@ -187,7 +183,7 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 	assertString(t, operation, "x-retry-policy", "idempotent-with-analysis-batch-id")
 
 	request := schema(t, document, "ResearchThemeImportRequest")
-	assertRequired(t, request, "analysis_batch_id", "window_start", "window_end", "themes")
+	assertRequired(t, request, "analysis_batch_id", "analysis_as_of", "window_start", "window_end", "themes")
 	properties := object(t, request["properties"], "ResearchThemeImportRequest properties")
 	for _, forbidden := range []string{"idempotency_key", "publisher_subject", "published_at", "confidence", "market_confirmation"} {
 		if _, exists := properties[forbidden]; exists {
@@ -199,9 +195,10 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 
 	theme := schema(t, document, "ResearchThemeImportItem")
 	assertRequired(t, theme,
-		"theme_key", "name", "one_line_conclusion", "impact_level", "transmission_path",
-		"trading_direction", "transmission_stage", "next_checkpoint", "market_confirmation_summary",
-		"chain_nodes", "events",
+		"theme_key", "title", "one_line_conclusion", "conclusion_direction", "impact_strength",
+		"attention_level", "conclusion_status", "transmission_stage", "investment_guidance_action",
+		"investment_guidance_summary", "time_horizon_category", "time_horizon_summary",
+		"transmission_summary", "checkpoint_summary", "risk_summary", "impacts", "events",
 	)
 	themeProperties := object(t, theme["properties"], "ResearchThemeImportItem properties")
 	for _, forbidden := range []string{"id", "event_ids", "chain_node_ids", "indices", "index_entity_ids", "confidence", "causal_chain", "research_direction", "confirmation_conditions"} {
@@ -210,15 +207,14 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 		}
 	}
 	assertString(t, object(t, themeProperties["theme_key"], "theme_key"), "pattern", "^[a-z0-9][a-z0-9._:-]{0,127}$")
-	assertStringSet(t, object(t, themeProperties["impact_level"], "impact_level")["enum"], "high", "focus", "watch")
 	assertStringSet(t, object(t, themeProperties["transmission_stage"], "transmission_stage")["enum"], "identification", "validation", "diffusion", "dampening")
 
-	chainNode := schema(t, document, "ResearchThemeImportChainNode")
-	assertRequired(t, chainNode, "chain_node_id", "relation_role", "impact_summary")
+	impact := schema(t, document, "ResearchThemeImportImpact")
+	assertRequired(t, impact, "chain_node_entity_id", "relation_role", "impact_direction", "impact_summary", "display_order")
 	lowercaseUUID := schema(t, document, "LowercaseUUID")
 	assertString(t, lowercaseUUID, "pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-	assertString(t, object(t, object(t, chainNode["properties"], "chain node properties")["chain_node_id"], "chain_node_id"), "$ref", "#/components/schemas/LowercaseUUID")
-	assertStringSet(t, object(t, object(t, chainNode["properties"], "chain node properties")["relation_role"], "relation_role")["enum"], "driver", "beneficiary", "constraint", "exposure")
+	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_entity_id"], "chain_node_entity_id"), "$ref", "#/components/schemas/LowercaseUUID")
+	assertStringSet(t, object(t, object(t, impact["properties"], "impact properties")["relation_role"], "relation_role")["enum"], "driver", "beneficiary", "constraint", "exposure")
 	event := schema(t, document, "ResearchThemeImportEvent")
 	assertRequired(t, event, "event_id", "evidence_role", "supported_claim")
 	assertString(t, object(t, object(t, event["properties"], "event properties")["event_id"], "event_id"), "$ref", "#/components/schemas/LowercaseUUID")

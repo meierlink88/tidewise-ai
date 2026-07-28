@@ -3,216 +3,150 @@ package researchthemeimport
 import (
 	"context"
 	"errors"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
 
-func TestServiceRejectsInvalidPublisherSubjectBeforeTransaction(t *testing.T) {
-	for _, publisher := range []string{"", strings.Repeat("a", 201)} {
-		store := newFakeStore()
-		if _, err := NewService(store).Import(context.Background(), publisher, validServiceBatch()); err == nil {
-			t.Fatalf("publisher length %d error = nil", len(publisher))
-		}
-		if store.commits != 0 || store.rollbacks != 0 {
-			t.Fatalf("invalid publisher reached transaction: commits=%d rollbacks=%d", store.commits, store.rollbacks)
-		}
-	}
+type fakeThemeStore struct{ tx *fakeThemeTransaction }
+
+func (s *fakeThemeStore) InResearchThemeImportTransaction(ctx context.Context, fn func(Transaction) error) error {
+	return fn(s.tx)
 }
 
-func TestServicePublishesWholeBatchWithOneTimestamp(t *testing.T) {
-	store := newFakeStore()
-	now := time.Date(2026, 7, 19, 9, 30, 0, 0, time.UTC)
-	service := NewService(store)
+type fakeThemeTransaction struct {
+	receipt         *Receipt
+	nodes           map[string]struct{}
+	events          map[string]struct{}
+	inserted        Receipt
+	insertedThemes  []ThemeRecord
+	insertedImpacts []ImpactRecord
+	verifyCalls     int
+}
+
+func (f *fakeThemeTransaction) LockResearchThemeImportBatch(context.Context, string) error {
+	return nil
+}
+func (f *fakeThemeTransaction) ResearchThemeImportReceipt(context.Context, string) (*Receipt, error) {
+	return f.receipt, nil
+}
+func (f *fakeThemeTransaction) ExistingResearchThemeImpactNodes(context.Context, []string) (map[string]struct{}, error) {
+	return f.nodes, nil
+}
+func (f *fakeThemeTransaction) ExistingResearchThemeEvents(context.Context, []string) (map[string]struct{}, error) {
+	return f.events, nil
+}
+func (f *fakeThemeTransaction) InsertResearchTheme(_ context.Context, value ThemeRecord) error {
+	f.insertedThemes = append(f.insertedThemes, value)
+	return nil
+}
+func (f *fakeThemeTransaction) InsertResearchThemeImpact(_ context.Context, value ImpactRecord) error {
+	f.insertedImpacts = append(f.insertedImpacts, value)
+	return nil
+}
+func (f *fakeThemeTransaction) InsertResearchThemeEvent(context.Context, EventRecord) error {
+	return nil
+}
+func (f *fakeThemeTransaction) InsertResearchThemeImportReceipt(_ context.Context, value Receipt) error {
+	f.inserted = value
+	return nil
+}
+func (f *fakeThemeTransaction) VerifyResearchThemeImportReceipt(context.Context, Receipt) error {
+	f.verifyCalls++
+	return nil
+}
+
+func TestServicePublishesReplaysAndProtectsThemeBatchIdentity(t *testing.T) {
+	batch := validThemeBatch()
+	nodeID := batch.Themes[0].Impacts[0].ChainNodeEntityID
+	tx := &fakeThemeTransaction{
+		nodes:  map[string]struct{}{nodeID: {}},
+		events: map[string]struct{}{},
+	}
+	service := NewService(&fakeThemeStore{tx: tx})
+	now := time.Date(2026, 7, 28, 8, 0, 0, 123456789, time.UTC)
+	persistedTime := now.Truncate(time.Microsecond)
 	service.now = func() time.Time { return now }
 
-	result, err := service.Import(context.Background(), "agent-run", validServiceBatch())
-	if err != nil {
-		t.Fatalf("Import() error = %v", err)
-	}
-	if result.AnalysisBatchID != validServiceBatch().AnalysisBatchID || result.Replayed {
-		t.Fatalf("result = %#v", result)
-	}
-	if result.PublishedAt != now || result.ImportedAt != now {
-		t.Fatalf("published/imported = %s/%s, want %s", result.PublishedAt, result.ImportedAt, now)
-	}
-	if got := result.ThemeIDsByKey[validServiceBatch().Themes[0].ThemeKey]; got != ThemeID(validServiceBatch().AnalysisBatchID, validServiceBatch().Themes[0].ThemeKey) {
-		t.Fatalf("theme ID = %q", got)
-	}
-	wantCounts := Counts{Themes: 1, ChainNodeAssociations: 1, EventAssociations: 1, Receipts: 1}
-	if result.Counts != wantCounts {
-		t.Fatalf("counts = %#v, want %#v", result.Counts, wantCounts)
-	}
-	if len(store.tx.themes) != 1 || len(store.tx.chainNodes) != 1 || len(store.tx.events) != 1 || store.tx.receipt == nil {
-		t.Fatalf("persisted themes/nodes/events/receipt = %d/%d/%d/%v", len(store.tx.themes), len(store.tx.chainNodes), len(store.tx.events), store.tx.receipt != nil)
-	}
-	if store.commits != 1 || store.rollbacks != 0 {
-		t.Fatalf("commit/rollback = %d/%d", store.commits, store.rollbacks)
-	}
-}
-
-func TestServiceReplaysSamePublisherAndPayload(t *testing.T) {
-	store := newFakeStore()
-	service := NewService(store)
-	first, err := service.Import(context.Background(), "agent-run", validServiceBatch())
+	first, err := service.Import(context.Background(), "analysis-publisher", batch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := service.Import(context.Background(), "agent-run", validServiceBatch())
+	if first.Replayed || first.Counts != (Counts{Themes: 1, Impacts: 1, Receipts: 1}) {
+		t.Fatalf("first result = %#v", first)
+	}
+	if !first.PublishedAt.Equal(persistedTime) {
+		t.Fatalf("first published_at = %s, want %s", first.PublishedAt, persistedTime)
+	}
+	if len(tx.insertedThemes) != 1 || len(tx.insertedImpacts) != 1 {
+		t.Fatalf("inserted themes=%d impacts=%d", len(tx.insertedThemes), len(tx.insertedImpacts))
+	}
+	if tx.verifyCalls != 1 {
+		t.Fatalf("first publication verify calls = %d", tx.verifyCalls)
+	}
+
+	tx.receipt = &tx.inserted
+	replay, err := service.Import(context.Background(), "analysis-publisher", batch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !second.Replayed {
-		t.Fatal("replay result is not marked replayed")
+	if !replay.Replayed || replay.ReceiptID != first.ReceiptID || !replay.PublishedAt.Equal(persistedTime) {
+		t.Fatalf("replay result = %#v", replay)
 	}
-	second.Replayed = false
-	if !reflect.DeepEqual(second, first) {
-		t.Fatalf("replay = %#v, want %#v", second, first)
+	if tx.verifyCalls != 2 {
+		t.Fatalf("replay verify calls = %d", tx.verifyCalls)
 	}
-	if len(store.tx.themes) != 1 || len(store.tx.chainNodes) != 1 || len(store.tx.events) != 1 {
-		t.Fatal("replay wrote duplicate business rows")
+
+	changed := batch
+	changed.Themes = append([]Theme(nil), batch.Themes...)
+	changed.Themes[0].Title = "changed"
+	if _, err := service.Import(context.Background(), "analysis-publisher", changed); !errors.Is(err, ErrPayloadConflict) {
+		t.Fatalf("changed payload error = %v", err)
+	}
+	if _, err := service.Import(context.Background(), "another-publisher", batch); !errors.Is(err, ErrPublisherConflict) {
+		t.Fatalf("publisher error = %v", err)
 	}
 }
 
-func TestServiceRejectsBatchOwnershipAndPayloadConflicts(t *testing.T) {
-	store := newFakeStore()
-	service := NewService(store)
-	if _, err := service.Import(context.Background(), "agent-run", validServiceBatch()); err != nil {
-		t.Fatal(err)
-	}
+func TestServiceRejectsMissingFormalThemeImpact(t *testing.T) {
+	batch := validThemeBatch()
+	service := NewService(&fakeThemeStore{tx: &fakeThemeTransaction{
+		nodes:  map[string]struct{}{},
+		events: map[string]struct{}{},
+	}})
 
-	if _, err := service.Import(context.Background(), "other-publisher", validServiceBatch()); !errors.Is(err, ErrPublisherConflict) {
-		t.Fatalf("publisher conflict = %v, want ErrPublisherConflict", err)
-	}
-	changed := validServiceBatch()
-	changed.Themes[0].Name = "changed"
-	if _, err := service.Import(context.Background(), "agent-run", changed); !errors.Is(err, ErrPayloadConflict) {
-		t.Fatalf("payload conflict = %v, want ErrPayloadConflict", err)
-	}
-}
-
-func TestServiceRejectsMissingReferencesAndRollsBackWholeBatch(t *testing.T) {
-	store := newFakeStore()
-	delete(store.tx.chainNodeIDs, validServiceBatch().Themes[0].ChainNodes[0].ChainNodeID)
-	service := NewService(store)
-
-	_, err := service.Import(context.Background(), "agent-run", validServiceBatch())
+	_, err := service.Import(context.Background(), "analysis-publisher", batch)
 	var referenceError *ReferenceError
 	if !errors.As(err, &referenceError) {
-		t.Fatalf("Import() error = %T %v, want ReferenceError", err, err)
-	}
-	if referenceError.ThemeKey != validServiceBatch().Themes[0].ThemeKey || referenceError.Path != "themes[0].chain_nodes[0].chain_node_id" {
-		t.Fatalf("reference error = %#v", referenceError)
-	}
-	if len(store.tx.themes) != 0 || store.tx.receipt != nil || store.commits != 0 || store.rollbacks != 1 {
-		t.Fatalf("partial state themes/receipt/commit/rollback = %d/%v/%d/%d", len(store.tx.themes), store.tx.receipt != nil, store.commits, store.rollbacks)
+		t.Fatalf("error = %v, want ReferenceError", err)
 	}
 }
 
-func validServiceBatch() Batch {
+func validThemeBatch() Batch {
 	return Batch{
-		AnalysisBatchID: "20260718T-v6-72h-validation",
-		WindowStart:     "2026-07-15T00:00:00Z",
-		WindowEnd:       "2026-07-18T00:00:00Z",
+		AnalysisBatchID: "analysis-20260728",
+		AnalysisAsOf:    "2026-07-28T08:00:00Z",
+		WindowStart:     "2026-07-27T00:00:00Z",
+		WindowEnd:       "2026-07-28T00:00:00Z",
 		Themes: []Theme{{
-			ThemeKey:                  "theme:ai-semiconductor-expansion",
-			Name:                      "AI算力扩产与半导体",
-			OneLineConclusion:         "晶圆扩产增强但卡点与价格背离",
-			ImpactLevel:               "high",
-			TransmissionPath:          "AI芯片采购 → 晶圆扩产",
-			TradingDirection:          "优先研究设备和材料",
+			ThemeKey:                  "theme:optical-demand",
+			Title:                     "高速光模块需求验证",
+			OneLineConclusion:         "端口计划上调可能增强需求",
+			ConclusionDirection:       "positive",
+			ImpactStrength:            "medium",
 			TransmissionStage:         "validation",
-			NextCheckpoint:            "重点跟踪订单和交期",
-			MarketConfirmationSummary: "当前没有可归属的正式市场观测",
-			ChainNodes: []ChainNode{{
-				ChainNodeID: "11111111-1111-4111-8111-111111111111", RelationRole: "driver", ImpactSummary: "需求驱动",
+			InvestmentGuidanceAction:  "focus",
+			InvestmentGuidanceSummary: "关注采购订单",
+			TimeHorizonCategory:       "medium_term",
+			Impacts: []Impact{{
+				ChainNodeEntityID: "11111111-1111-4111-8111-111111111111",
+				RelationRole:      "beneficiary",
+				ImpactDirection:   "positive",
+				DisplayOrder:      1,
 			}},
-			Events: []Event{{
-				EventID: "22222222-2222-4222-8222-222222222222", EvidenceRole: "driver", SupportedClaim: "支持扩产判断",
-			}},
+			Events: []Event{},
 		}},
 	}
 }
 
-type fakeStore struct {
-	tx        *fakeTx
-	commits   int
-	rollbacks int
-}
-
-func newFakeStore() *fakeStore {
-	return &fakeStore{tx: &fakeTx{
-		chainNodeIDs: map[string]struct{}{validServiceBatch().Themes[0].ChainNodes[0].ChainNodeID: {}},
-		eventIDs:     map[string]struct{}{validServiceBatch().Themes[0].Events[0].EventID: {}},
-	}}
-}
-
-func (s *fakeStore) InResearchThemeImportTransaction(_ context.Context, fn func(Transaction) error) error {
-	beforeThemes := len(s.tx.themes)
-	beforeNodes := len(s.tx.chainNodes)
-	beforeEvents := len(s.tx.events)
-	beforeReceipt := s.tx.receipt
-	if err := fn(s.tx); err != nil {
-		s.tx.themes = s.tx.themes[:beforeThemes]
-		s.tx.chainNodes = s.tx.chainNodes[:beforeNodes]
-		s.tx.events = s.tx.events[:beforeEvents]
-		s.tx.receipt = beforeReceipt
-		s.rollbacks++
-		return err
-	}
-	s.commits++
-	return nil
-}
-
-type fakeTx struct {
-	chainNodeIDs map[string]struct{}
-	eventIDs     map[string]struct{}
-	themes       []ThemeRecord
-	chainNodes   []ChainNodeRecord
-	events       []EventRecord
-	receipt      *Receipt
-}
-
-func (f *fakeTx) LockResearchThemeImportBatch(context.Context, string) error { return nil }
-
-func (f *fakeTx) ResearchThemeImportReceipt(_ context.Context, batchID string) (*Receipt, error) {
-	if f.receipt == nil || f.receipt.AnalysisBatchID != batchID {
-		return nil, nil
-	}
-	copy := *f.receipt
-	copy.ThemeIDsByKey = cloneStringMap(f.receipt.ThemeIDsByKey)
-	return &copy, nil
-}
-
-func (f *fakeTx) ExistingResearchThemeChainNodes(_ context.Context, _ []string) (map[string]struct{}, error) {
-	return f.chainNodeIDs, nil
-}
-
-func (f *fakeTx) ExistingResearchThemeEvents(_ context.Context, _ []string) (map[string]struct{}, error) {
-	return f.eventIDs, nil
-}
-
-func (f *fakeTx) InsertResearchTheme(_ context.Context, theme ThemeRecord) error {
-	f.themes = append(f.themes, theme)
-	return nil
-}
-
-func (f *fakeTx) InsertResearchThemeChainNode(_ context.Context, node ChainNodeRecord) error {
-	f.chainNodes = append(f.chainNodes, node)
-	return nil
-}
-
-func (f *fakeTx) InsertResearchThemeEvent(_ context.Context, event EventRecord) error {
-	f.events = append(f.events, event)
-	return nil
-}
-
-func (f *fakeTx) InsertResearchThemeImportReceipt(_ context.Context, receipt Receipt) error {
-	copy := receipt
-	copy.ThemeIDsByKey = cloneStringMap(receipt.ThemeIDsByKey)
-	f.receipt = &copy
-	return nil
-}
-
-func (f *fakeTx) VerifyResearchThemeImportReceipt(context.Context, Receipt) error { return nil }
+var _ Store = (*fakeThemeStore)(nil)
+var _ Transaction = (*fakeThemeTransaction)(nil)

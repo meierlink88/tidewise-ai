@@ -12,7 +12,7 @@ describe('research reasoning tree Port selection', () => {
     vi.stubEnv('TARO_APP_RESEARCH_SOURCE', 'mock');
     const port = createResearchReasoningTreePort();
 
-    const result = await port.list('11111111-1111-4111-8111-111111111111');
+    const result = await port.list('c26337f2-a79f-5089-84f4-63d57bc32230');
 
     expect(result.reasoningTrees).toHaveLength(2);
   });

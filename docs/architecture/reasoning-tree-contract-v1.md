@@ -833,3 +833,5 @@ erDiagram
 - AI Prompt、Adapter、Outbox 和 Publisher 实现。
 - 运行时 Neo4j 推理或 Markdown 反向解析。
 - 跨批次 Research Thesis 跟踪。
+> **Superseded:** 本文件描述旧 Research Anchor/Reasoning Tree 合同，只保留历史背景；
+> 当前实现以 `research-theme-reasoning-tree-spec.md` 为准。

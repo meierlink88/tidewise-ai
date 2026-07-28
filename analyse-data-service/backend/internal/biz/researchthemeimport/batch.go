@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -15,40 +16,50 @@ var (
 
 type Batch struct {
 	AnalysisBatchID string  `json:"analysis_batch_id"`
+	AnalysisAsOf    string  `json:"analysis_as_of"`
 	WindowStart     string  `json:"window_start"`
 	WindowEnd       string  `json:"window_end"`
 	Themes          []Theme `json:"themes"`
 }
 
 type Theme struct {
-	ThemeKey                  string      `json:"theme_key"`
-	Name                      string      `json:"name"`
-	OneLineConclusion         string      `json:"one_line_conclusion"`
-	ImpactLevel               string      `json:"impact_level"`
-	TransmissionPath          string      `json:"transmission_path"`
-	TradingDirection          string      `json:"trading_direction"`
-	TransmissionStage         string      `json:"transmission_stage"`
-	NextCheckpoint            string      `json:"next_checkpoint"`
-	MarketConfirmationSummary string      `json:"market_confirmation_summary"`
-	ChainNodes                []ChainNode `json:"chain_nodes"`
-	Events                    []Event     `json:"events"`
+	ThemeKey                  string   `json:"theme_key"`
+	Title                     string   `json:"title"`
+	OneLineConclusion         string   `json:"one_line_conclusion"`
+	ConclusionDirection       string   `json:"conclusion_direction"`
+	ImpactStrength            string   `json:"impact_strength"`
+	AttentionLevel            *string  `json:"attention_level"`
+	ConclusionStatus          *string  `json:"conclusion_status"`
+	TransmissionStage         string   `json:"transmission_stage"`
+	InvestmentGuidanceAction  string   `json:"investment_guidance_action"`
+	InvestmentGuidanceSummary string   `json:"investment_guidance_summary"`
+	TimeHorizonCategory       string   `json:"time_horizon_category"`
+	TimeHorizonSummary        *string  `json:"time_horizon_summary"`
+	TransmissionSummary       *string  `json:"transmission_summary"`
+	CheckpointSummary         *string  `json:"checkpoint_summary"`
+	RiskSummary               *string  `json:"risk_summary"`
+	Impacts                   []Impact `json:"impacts"`
+	Events                    []Event  `json:"events"`
 }
 
-type ChainNode struct {
-	ChainNodeID   string `json:"chain_node_id"`
-	RelationRole  string `json:"relation_role"`
-	ImpactSummary string `json:"impact_summary"`
+type Impact struct {
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 
 type Event struct {
-	EventID        string `json:"event_id"`
-	EvidenceRole   string `json:"evidence_role"`
-	SupportedClaim string `json:"supported_claim"`
+	EventID        string  `json:"event_id"`
+	EvidenceRole   string  `json:"evidence_role"`
+	SupportedClaim *string `json:"supported_claim"`
 }
 
 type Window struct {
-	Start time.Time
-	End   time.Time
+	AnalysisAsOf time.Time
+	Start        time.Time
+	End          time.Time
 }
 
 type ValidationError struct {
@@ -77,22 +88,20 @@ func DecodeStrict(reader io.Reader) (Batch, error) {
 }
 
 func (b Batch) Validate() (Window, error) {
-	if value := strings.TrimSpace(b.AnalysisBatchID); value == "" || len(value) > 200 {
+	if value := strings.TrimSpace(b.AnalysisBatchID); value == "" || utf8.RuneCountInString(value) > 200 {
 		return Window{}, invalid("", "analysis_batch_id", "", "must contain 1..200 characters")
 	}
-	start, err := time.Parse(time.RFC3339, b.WindowStart)
+	analysisAsOf, err := parseUTCTime("analysis_as_of", b.AnalysisAsOf)
 	if err != nil {
-		return Window{}, invalid("", "window_start", b.WindowStart, "must be an RFC3339 UTC timestamp")
+		return Window{}, err
 	}
-	if _, offset := start.Zone(); offset != 0 {
-		return Window{}, invalid("", "window_start", b.WindowStart, "must use UTC")
-	}
-	end, err := time.Parse(time.RFC3339, b.WindowEnd)
+	start, err := parseUTCTime("window_start", b.WindowStart)
 	if err != nil {
-		return Window{}, invalid("", "window_end", b.WindowEnd, "must be an RFC3339 UTC timestamp")
+		return Window{}, err
 	}
-	if _, offset := end.Zone(); offset != 0 {
-		return Window{}, invalid("", "window_end", b.WindowEnd, "must use UTC")
+	end, err := parseUTCTime("window_end", b.WindowEnd)
+	if err != nil {
+		return Window{}, err
 	}
 	if !start.Before(end) {
 		return Window{}, invalid("", "window_end", b.WindowEnd, "must be greater than window_start")
@@ -117,58 +126,85 @@ func (b Batch) Validate() (Window, error) {
 			return Window{}, err
 		}
 	}
-	return Window{Start: start.UTC(), End: end.UTC()}, nil
+	return Window{AnalysisAsOf: analysisAsOf, Start: start, End: end}, nil
 }
 
 func (t Theme) validate(path string) error {
 	required := []struct {
 		name  string
 		value string
+		max   int
 	}{
-		{"name", t.Name},
-		{"one_line_conclusion", t.OneLineConclusion},
-		{"transmission_path", t.TransmissionPath},
-		{"trading_direction", t.TradingDirection},
-		{"next_checkpoint", t.NextCheckpoint},
-		{"market_confirmation_summary", t.MarketConfirmationSummary},
+		{"title", t.Title, 300},
+		{"one_line_conclusion", t.OneLineConclusion, 1000},
+		{"investment_guidance_summary", t.InvestmentGuidanceSummary, 2000},
 	}
 	for _, field := range required {
-		if strings.TrimSpace(field.value) == "" {
-			return invalid(t.ThemeKey, path+"."+field.name, "", "is required")
+		if err := validateRequiredText(t.ThemeKey, path+"."+field.name, field.value, field.max); err != nil {
+			return err
 		}
 	}
-	if !oneOf(t.ImpactLevel, "high", "focus", "watch") {
-		return invalid(t.ThemeKey, path+".impact_level", t.ImpactLevel, "must be high, focus, or watch")
+	if !oneOf(t.ConclusionDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+		return invalid(t.ThemeKey, path+".conclusion_direction", t.ConclusionDirection, "has an unsupported value")
+	}
+	if !oneOf(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
+		return invalid(t.ThemeKey, path+".impact_strength", t.ImpactStrength, "has an unsupported value")
+	}
+	if t.AttentionLevel != nil && !oneOf(*t.AttentionLevel, "high", "medium", "low") {
+		return invalid(t.ThemeKey, path+".attention_level", *t.AttentionLevel, "has an unsupported value")
+	}
+	if t.ConclusionStatus != nil && !oneOf(*t.ConclusionStatus, "supported", "partial", "conflicted") {
+		return invalid(t.ThemeKey, path+".conclusion_status", *t.ConclusionStatus, "has an unsupported value")
 	}
 	if !oneOf(t.TransmissionStage, "identification", "validation", "diffusion", "dampening") {
 		return invalid(t.ThemeKey, path+".transmission_stage", t.TransmissionStage, "has an unsupported value")
 	}
-	if len(t.ChainNodes) == 0 {
-		return invalid(t.ThemeKey, path+".chain_nodes", "", "must contain at least one association")
+	if !oneOf(t.InvestmentGuidanceAction, "focus", "avoid", "observe", "differentiate") {
+		return invalid(t.ThemeKey, path+".investment_guidance_action", t.InvestmentGuidanceAction, "has an unsupported value")
 	}
-	for index, node := range t.ChainNodes {
-		nodePath := fmt.Sprintf("%s.chain_nodes[%d]", path, index)
-		if !uuidPattern.MatchString(node.ChainNodeID) {
-			return invalid(t.ThemeKey, nodePath+".chain_node_id", node.ChainNodeID, "must be a standard lowercase UUID")
-		}
-		if index > 0 && node.ChainNodeID <= t.ChainNodes[index-1].ChainNodeID {
-			message := "must be sorted by chain_node_id"
-			if node.ChainNodeID == t.ChainNodes[index-1].ChainNodeID {
-				message = "must be unique within the Theme"
-			}
-			return invalid(t.ThemeKey, nodePath+".chain_node_id", node.ChainNodeID, message)
-		}
-		if !oneOf(node.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
-			return invalid(t.ThemeKey, nodePath+".relation_role", node.RelationRole, "has an unsupported value")
-		}
-		if strings.TrimSpace(node.ImpactSummary) == "" {
-			return invalid(t.ThemeKey, nodePath+".impact_summary", "", "is required")
+	if !oneOf(t.TimeHorizonCategory, "short_term", "medium_term", "long_term", "custom") {
+		return invalid(t.ThemeKey, path+".time_horizon_category", t.TimeHorizonCategory, "has an unsupported value")
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+		max   int
+	}{
+		{"time_horizon_summary", t.TimeHorizonSummary, 1000},
+		{"transmission_summary", t.TransmissionSummary, 4000},
+		{"checkpoint_summary", t.CheckpointSummary, 4000},
+		{"risk_summary", t.RiskSummary, 4000},
+	} {
+		if err := validateOptionalText(t.ThemeKey, path+"."+field.name, field.value, field.max); err != nil {
+			return err
 		}
 	}
-	if len(t.Events) == 0 {
-		return invalid(t.ThemeKey, path+".events", "", "must contain at least one evidence association")
+	if len(t.Impacts) == 0 {
+		return invalid(t.ThemeKey, path+".impacts", "", "must contain at least one Theme Impact")
 	}
-	hasDriver := false
+	seenImpacts := make(map[string]struct{}, len(t.Impacts))
+	for index, impact := range t.Impacts {
+		impactPath := fmt.Sprintf("%s.impacts[%d]", path, index)
+		if impact.DisplayOrder != index+1 {
+			return invalid(t.ThemeKey, impactPath+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
+		}
+		if !uuidPattern.MatchString(impact.ChainNodeEntityID) {
+			return invalid(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be a standard lowercase UUID")
+		}
+		if _, duplicate := seenImpacts[impact.ChainNodeEntityID]; duplicate {
+			return invalid(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be unique within the Theme")
+		}
+		seenImpacts[impact.ChainNodeEntityID] = struct{}{}
+		if !oneOf(impact.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
+			return invalid(t.ThemeKey, impactPath+".relation_role", impact.RelationRole, "has an unsupported value")
+		}
+		if !oneOf(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+			return invalid(t.ThemeKey, impactPath+".impact_direction", impact.ImpactDirection, "has an unsupported value")
+		}
+		if err := validateOptionalText(t.ThemeKey, impactPath+".impact_summary", impact.ImpactSummary, 2000); err != nil {
+			return err
+		}
+	}
 	for index, event := range t.Events {
 		eventPath := fmt.Sprintf("%s.events[%d]", path, index)
 		if !uuidPattern.MatchString(event.EventID) {
@@ -184,15 +220,39 @@ func (t Theme) validate(path string) error {
 		if !oneOf(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
 			return invalid(t.ThemeKey, eventPath+".evidence_role", event.EvidenceRole, "has an unsupported value")
 		}
-		if event.EvidenceRole == "driver" {
-			hasDriver = true
-		}
-		if strings.TrimSpace(event.SupportedClaim) == "" {
-			return invalid(t.ThemeKey, eventPath+".supported_claim", "", "is required")
+		if err := validateOptionalText(t.ThemeKey, eventPath+".supported_claim", event.SupportedClaim, 2000); err != nil {
+			return err
 		}
 	}
-	if !hasDriver {
-		return invalid(t.ThemeKey, path+".events", "", "must contain at least one driver Event")
+	return nil
+}
+
+func parseUTCTime(path, value string) (time.Time, error) {
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return time.Time{}, invalid("", path, value, "must be an RFC3339 UTC timestamp")
+	}
+	_, offset := parsed.Zone()
+	if offset != 0 {
+		return time.Time{}, invalid("", path, value, "must use UTC")
+	}
+	return parsed.UTC(), nil
+}
+
+func validateRequiredText(themeKey, path, value string, max int) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return invalid(themeKey, path, "", "is required")
+	}
+	if utf8.RuneCountInString(trimmed) > max {
+		return invalid(themeKey, path, "", fmt.Sprintf("must contain at most %d characters", max))
+	}
+	return nil
+}
+
+func validateOptionalText(themeKey, path string, value *string, max int) error {
+	if value != nil && utf8.RuneCountInString(strings.TrimSpace(*value)) > max {
+		return invalid(themeKey, path, "", fmt.Sprintf("must contain at most %d characters", max))
 	}
 	return nil
 }

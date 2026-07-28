@@ -1,6 +1,7 @@
 # Local Research Theme Data
 
-`local_homepage.json` 保存 Miniapp 首页 API 的本地开发样例，来源于已复核报告 `20260718T-v6-72h-validation.md` 中三条主题。它不是生产 seed，也不由 migration 自动写入。
+`local_homepage.json` 保存 Miniapp 首页 API 的 Theme + Reason Tree V1 本地开发样例。它
+不是生产 seed，也不由 migration 自动写入。
 
 应用最新 migration 后，在仓库根目录运行：
 
@@ -14,7 +15,8 @@ go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
 
 ## 清空本地 Research 发布快照
 
-重新验收分析 Agent 发布结果前，可使用本地专用重置命令。命令默认仅检查目标数据库，并输出 Theme 与 Research Anchor 发布数据的清理前计数：
+重新验收分析 Agent 发布结果前，可使用本地专用重置命令。命令默认仅检查目标数据库，
+并输出 Theme 与 Reason Tree 发布数据的清理前计数：
 
 ```bash
 APP_ENV=local \
@@ -34,9 +36,11 @@ go run ./analyse-data-service/backend/cmd/research-theme-dev-reset \
 
 命令只接受 `APP_ENV=local`、loopback PostgreSQL 地址和实际数据库名 `tidewise_local`。它在一个带互斥锁的事务内清空：
 
-- Theme、Theme 的产业链/指数/Event 关联和 Theme Import Receipt；
-- Research Anchor、有序路径节点、Anchor Event 证据关联和 Anchor Import Receipt。
+- Theme、Theme Impact、Theme Event 与 Theme Import Receipt；
+- Reason Tree、Tree Node、Variable Signal 展示快照、Tree Event 与 Tree Import Receipt。
 
-执行时会受控禁用并恢复 Theme/Anchor 两类不可变回执触发器，然后断言九类发布数据计数全部为零。任何失败都会整体回滚。
+执行时会受控禁用并恢复九张发布表的不可变触发器，然后断言九类发布数据计数全部为零。
+任何失败都会整体回滚。
 
-命令同时核对并保留 Event、实体、产业链节点、指数、Tag 和 Raw Document 主数据。它不是生产运维接口，不得用于 UAT、生产或共享数据库。
+命令同时核对并保留 Event、Entity、Chain Node、Industry Chain、Graph Edge、Index、Tag
+和 Raw Document 主数据。它不是生产运维接口，不得用于 UAT、生产或共享数据库。

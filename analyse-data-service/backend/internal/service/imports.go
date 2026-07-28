@@ -7,8 +7,8 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	researchanchordomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
-	researchanchorimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
+	researchtreedomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
+	researchtreeimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
 	researchdomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 	researchimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
@@ -72,51 +72,51 @@ func researchThemeImportError(err error) error {
 	}
 }
 
-func (s *DataService) ImportResearchAnchors(ctx context.Context, request *v1.ResearchAnchorImportRequest) (*v1.Response[v1.ResearchAnchorImportResult], error) {
-	if s == nil || s.dependencies.ResearchAnchorImports == nil {
-		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Anchor import service is unavailable")
+func (s *DataService) ImportResearchReasoningTrees(ctx context.Context, request *v1.ResearchReasoningTreeImportRequest) (*v1.Response[v1.ResearchReasoningTreeImportResult], error) {
+	if s == nil || s.dependencies.ResearchReasoningTreeImports == nil {
+		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Reason Tree import service is unavailable")
 	}
-	publication := researchAnchorImportInput(request)
-	result, err := s.dependencies.ResearchAnchorImports.Import(ctx, principalIdentity(ctx), publication)
+	publication := researchReasoningTreeImportInput(request)
+	result, err := s.dependencies.ResearchReasoningTreeImports.Import(ctx, principalIdentity(ctx), publication)
 	if err != nil {
-		return nil, researchAnchorImportError(err)
+		return nil, researchReasoningTreeImportError(err)
 	}
 	status := v1.StatusCreated
 	if result.Replayed {
 		status = v1.StatusOK
 	}
-	return &v1.Response[v1.ResearchAnchorImportResult]{Status: status, Result: researchAnchorImportDTO(result)}, nil
+	return &v1.Response[v1.ResearchReasoningTreeImportResult]{Status: status, Result: researchReasoningTreeImportDTO(result)}, nil
 }
 
-func researchAnchorImportError(err error) error {
-	var validation *researchanchordomainimport.ValidationError
+func researchReasoningTreeImportError(err error) error {
+	var validation *researchtreedomainimport.ValidationError
 	if errors.As(err, &validation) {
-		return researchAnchorError(v1.StatusBadRequest, "RESEARCH_ANCHOR_IMPORT_REJECTED", "research Anchor publication failed validation", validation.CenterChainNodeID, validation.Path, validation.Reference)
+		return researchReasoningTreeError(v1.StatusBadRequest, "RESEARCH_REASONING_TREE_IMPORT_REJECTED", "research Reason Tree publication failed validation", validation.IndustryChainEntityID, validation.Path, validation.Reference)
 	}
-	var contract *researchanchorimportapp.ContractError
+	var contract *researchtreeimportapp.ContractError
 	if errors.As(err, &contract) {
-		return researchAnchorError(v1.StatusBadRequest, "RESEARCH_ANCHOR_IMPORT_REJECTED", "research Anchor publication failed validation", contract.CenterChainNodeID, contract.Path, contract.Reference)
+		return researchReasoningTreeError(v1.StatusBadRequest, "RESEARCH_REASONING_TREE_IMPORT_REJECTED", "research Reason Tree publication failed validation", "", contract.Path, contract.Reference)
 	}
-	var reference *researchanchorimportapp.ReferenceError
+	var reference *researchtreeimportapp.ReferenceError
 	if errors.As(err, &reference) {
-		code, message := "RESEARCH_ANCHOR_REFERENCE_NOT_FOUND", "research Anchor publication references missing data"
-		if reference.Kind == researchanchorimportapp.ReferenceInvalid {
-			code, message = "RESEARCH_ANCHOR_REFERENCE_INVALID", "research Anchor publication references data outside its Theme boundary"
+		code, message := "RESEARCH_REASONING_TREE_REFERENCE_NOT_FOUND", "research Reason Tree publication references missing data"
+		if reference.Kind == researchtreeimportapp.ReferenceInvalid {
+			code, message = "RESEARCH_REASONING_TREE_REFERENCE_INVALID", "research Reason Tree publication references data outside its Theme or Industry Chain boundary"
 		}
-		return researchAnchorError(v1.StatusUnprocessableEntity, code, message, reference.CenterChainNodeID, reference.Path, reference.Reference)
+		return researchReasoningTreeError(v1.StatusUnprocessableEntity, code, message, reference.IndustryChainEntityID, reference.Path, reference.Reference)
 	}
 	switch {
-	case errors.Is(err, researchanchorimportapp.ErrPayloadConflict):
-		return publicError(v1.StatusConflict, "RESEARCH_ANCHOR_PAYLOAD_CONFLICT", "theme_id conflicts with the published Research Anchor payload")
-	case errors.Is(err, researchanchorimportapp.ErrPublisherConflict):
-		return publicError(v1.StatusConflict, "RESEARCH_ANCHOR_PUBLISHER_CONFLICT", "Theme or Anchor receipt belongs to another publisher subject")
+	case errors.Is(err, researchtreeimportapp.ErrPayloadConflict):
+		return publicError(v1.StatusConflict, "RESEARCH_REASONING_TREE_PAYLOAD_CONFLICT", "theme_id conflicts with the published Research Reason Tree payload")
+	case errors.Is(err, researchtreeimportapp.ErrPublisherConflict):
+		return publicError(v1.StatusConflict, "RESEARCH_REASONING_TREE_PUBLISHER_CONFLICT", "Theme or Reason Tree receipt belongs to another publisher subject")
 	default:
-		return publicError(v1.StatusInternalServerError, "RESEARCH_ANCHOR_IMPORT_FAILED", "research Anchor import failed")
+		return publicError(v1.StatusInternalServerError, "RESEARCH_REASONING_TREE_IMPORT_FAILED", "research Reason Tree import failed")
 	}
 }
 
-func researchAnchorError(status int, code, message, centerID, path, reference string) error {
+func researchReasoningTreeError(status int, code, message, chainID, path, reference string) error {
 	return publicErrorWithDetails(status, code, message, map[string]any{
-		"center_chain_node_id": centerID, "path": path, "reference": reference,
+		"industry_chain_entity_id": chainID, "path": path, "reference": reference,
 	})
 }

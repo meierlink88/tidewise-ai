@@ -15,7 +15,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
@@ -23,7 +23,7 @@ import (
 	eventpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
-	researchanchorimportdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchanchorimport"
+	researchreasoningtreeimportdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchreasoningtreeimport"
 	researchthemeimportdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchthemeimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
@@ -55,12 +55,12 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	}
 
 	application := service.NewDataService(service.Dependencies{
-		EventPublications:     eventpublication.NewService(eventpublicationdata.NewRepository(db)),
-		EventTagCatalog:       eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
-		ResearchThemeImports:  researchthemeimport.NewService(researchthemeimportdata.NewRepository(db)),
-		ResearchAnchorImports: researchanchorimport.NewService(researchanchorimportdata.NewRepository(db)),
-		Research:              research.NewService(researchdata.NewRepository(db), time.Now),
-		Admin:                 adminquery.NewService(adminquerydata.NewRepository(db)),
+		EventPublications:            eventpublication.NewService(eventpublicationdata.NewRepository(db)),
+		EventTagCatalog:              eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
+		ResearchThemeImports:         researchthemeimport.NewService(researchthemeimportdata.NewRepository(db)),
+		ResearchReasoningTreeImports: researchreasoningtreeimport.NewService(researchreasoningtreeimportdata.NewRepository(db)),
+		Research:                     research.NewService(researchdata.NewRepository(db), time.Now),
+		Admin:                        adminquery.NewService(adminquerydata.NewRepository(db)),
 	})
 	httpServer := server.NewHTTPServer(config, application, authenticator, logger)
 

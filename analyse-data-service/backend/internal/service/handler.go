@@ -9,8 +9,8 @@ import (
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
-	researchanchordomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
-	researchanchorimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanchorimport"
+	researchtreedomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
+	researchtreeimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
 	researchdomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 	researchimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
@@ -37,8 +37,8 @@ type ResearchThemeImportService interface {
 	Import(context.Context, string, researchdomainimport.Batch) (researchimportapp.Result, error)
 }
 
-type ResearchAnchorImportService interface {
-	Import(context.Context, string, researchanchordomainimport.Publication) (researchanchorimportapp.Result, error)
+type ResearchReasoningTreeImportService interface {
+	Import(context.Context, string, researchtreedomainimport.Publication) (researchtreeimportapp.Result, error)
 }
 
 type ResearchService interface {
@@ -54,12 +54,12 @@ type AdminService interface {
 }
 
 type Dependencies struct {
-	EventPublications     EventPublicationService
-	EventTagCatalog       EventTagCatalogService
-	ResearchThemeImports  ResearchThemeImportService
-	ResearchAnchorImports ResearchAnchorImportService
-	Research              ResearchService
-	Admin                 AdminService
+	EventPublications            EventPublicationService
+	EventTagCatalog              EventTagCatalogService
+	ResearchThemeImports         ResearchThemeImportService
+	ResearchReasoningTreeImports ResearchReasoningTreeImportService
+	Research                     ResearchService
+	Admin                        AdminService
 }
 
 type DataService struct {

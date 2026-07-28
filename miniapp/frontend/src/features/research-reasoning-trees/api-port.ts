@@ -38,12 +38,12 @@ export function createResearchReasoningTreeApiPort({
       );
       return parseResearchReasoningTreeIndex(response);
     },
-    async get(themeId, anchorId) {
+    async get(themeId, reasoningTreeId) {
       const response = await get<unknown>(
         request,
-        normalizedBaseUrl + reasoningTreeDetailPath(themeId, anchorId)
+        normalizedBaseUrl + reasoningTreeDetailPath(themeId, reasoningTreeId)
       );
-      return parseResearchReasoningTreeDetail(response, themeId, anchorId);
+      return parseResearchReasoningTreeDetail(response, themeId, reasoningTreeId);
     }
   };
 }
@@ -94,6 +94,6 @@ function reasoningTreeListPath(themeId: string): string {
   return `${themesPath}/${encodeURIComponent(themeId)}/reasoning-trees`;
 }
 
-function reasoningTreeDetailPath(themeId: string, anchorId: string): string {
-  return `${reasoningTreeListPath(themeId)}/${encodeURIComponent(anchorId)}`;
+function reasoningTreeDetailPath(themeId: string, reasoningTreeId: string): string {
+  return `${reasoningTreeListPath(themeId)}/${encodeURIComponent(reasoningTreeId)}`;
 }

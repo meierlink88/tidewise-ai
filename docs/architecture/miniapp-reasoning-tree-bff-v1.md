@@ -168,3 +168,5 @@ Miniapp Application Backend Service 将 Data Service 的 Theme 推理树已发�
 5. `counter_summary: null`、未量化路径说明和 `event_time: null` 不会被改写、删除或重排。
 6. 未知枚举、Data 超时、网络失败和无效响应安全地映射为 `502 RESEARCH_DATA_UNAVAILABLE`。
 7. 现有 Theme 首页列表与详情的回归测试通过。
+> **Superseded:** 本文件中的 Anchor 路径与 DTO 已被新的 Reason Tree V1 原地替换；
+> 当前合同以 `research-theme-reasoning-tree-spec.md` 为准。
