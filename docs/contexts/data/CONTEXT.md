@@ -8,7 +8,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 - Entity、产业链节点及关系、Benchmark、Index 等主数据。
 - 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
-- Research Theme、Research Anchor 及其关联数据。
+- Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration、repository 和 Neo4j 可重建投影。
 - AgentRun 使用的 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
@@ -132,7 +132,7 @@ _Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份�
 
 **Theme 发布回执（Theme Publication Receipt）**:
 一个成功 Research Theme Publication Batch 的不可变技术回执，也是 Analysis Batch ID 全局唯一性、发布主体所有权、payload hash、首次 Theme IDs、发布时间和写入数量的持久化依据。每批只有一条回执；回执、全部 Theme 及其关联事实必须在同一事务中提交或回滚。`replayed` 表示当前响应是否来自重放，不是回执中固化的首次结果。
-V1 HTTP 成功结果使用 `theme_ids_by_key` 对象返回完整的 Theme Key 到 Theme UUID 映射；`counts` 仅包含 `themes`、`chain_node_associations`、`event_associations` 和 `receipts`。首次成功返回 `201 Created` 和 `replayed: false`，同主体同载荷重放返回 `200 OK` 和 `replayed: true`。两种结果都返回首次成功时的 `receipt_id`、`payload_hash`、`published_at`、`imported_at`、Theme 映射和数量；重放不得刷新或重算这些结果。
+V1 HTTP 成功结果使用 `theme_ids_by_key` 对象返回完整的 Theme Key 到 Theme UUID 映射；`counts` 仅包含 `themes`、`impacts`、`event_associations` 和 `receipts`。首次成功返回 `201 Created` 和 `replayed: false`，同主体同载荷重放返回 `200 OK` 和 `replayed: true`。两种结果都返回首次成功时的 `receipt_id`、`payload_hash`、`published_at`、`imported_at`、Theme 映射和数量；重放不得刷新或重算这些结果。
 _Avoid_: 在单条 Theme 上设置批次 ID 唯一约束、业务数据失败后保留回执、修改成功回执
 
 **Theme 发布载荷哈希（Theme Publication Payload Hash）**:
@@ -143,199 +143,83 @@ Theme 发布请求只有一种合法数组表示：`themes` 按批次内 Theme K
 _Avoid_: 大小写混合 UUID、重复关联、服务端静默重排、同一语义存在多种合法数组顺序
 
 **Theme 发布 V1（Theme Publication V1）**:
-批次级字段仅包含 `analysis_batch_id`、`window_start`、`window_end` 和 `themes`。每个 Theme 仅包含 `theme_key`、`name`、`one_line_conclusion`、`impact_level`、`transmission_path`、`trading_direction`、`transmission_stage`、`next_checkpoint`、`market_confirmation_summary`、`chain_nodes` 和 `events`。V1 使用严格字段合同，出现未声明字段时整个批次拒绝。
-_Avoid_: 将完整分析报告直接作为发布请求、在 V1 中携带分析侧内部字段或指数关联
+批次级字段为 `analysis_batch_id`、`analysis_as_of`、`window_start`、`window_end` 和
+`themes`。每个 Theme 使用显式结论、影响强度、传导阶段、投资指引、时间范围、可空
+摘要、Theme Impact 与 Event 关联字段。合同严格拒绝旧字段和未知字段。
+_Avoid_: `subject_entity_id`、Theme `name`、`impact_level`、`trading_direction`、
+`transmission_path`、`next_checkpoint`、`market_confirmation_summary`
 
-**影响等级（Impact Level）**:
-Research Theme 对产品用户呈现的影响程度，允许值为 `high`（高影响）、`focus`（重点关注）、`watch`（持续观察），当前是 Theme 唯一保存和展示的强弱判断。该值由分析侧明确提交；Data 不从结论可信度、Event 数量或其他字段推断。分析侧的结论可信度 `confidence` 不属于当前 Theme 发布合同，发布时忽略且不得映射为 Impact Level。
-_Avoid_: 把结论可信度和影响程度混为同一字段
-
-**主题产业链节点关联（Theme Chain Node Association）**:
-分析 Agent 对单个产业链节点在 Research Theme 中所承担角色的明确判断，由节点、角色和关联依据共同组成。角色仅允许 `driver`、`beneficiary`、`constraint`、`exposure`；关联依据必须说明该节点为何与 Theme 相关。每个 Theme 至少包含一个产业链节点关联。Data 只校验关联事实，不从整体传导路径或既有产业链关系自动推断。
-_Avoid_: 没有产业链节点的 Theme、仅提交节点 ID、同时提交 ID 数组和关联对象、由 Data 补写分析语义
-
-**研究锚点（Research Anchor）**:
-隶属于一个 Research Theme、并以该 Theme 已关联的一个 Chain Node 为中心的不可变推理树研究快照。它表达本批次中针对该节点的结论、正反证据、传导节点及后续检查点，不是 Chain Node 主数据或运行时动态推理。Anchor 不复制中心节点名称；读取时使用中心 Chain Node 的当前规范主数据名称。Anchor 不再按 `anchor_type` 分类，也不使用 `importance` 表达可见性或优先级。
-_Avoid_: 独立于 Theme 的 Anchor、把 Anchor 当作 Chain Node 类型、使用旧类型或重要性枚举区分 Anchor、在 Anchor 中复制节点名称、页面打开时生成 Anchor
-
-**Anchor 净方向摘要（Anchor Net Direction Summary）**:
-一句自然语言文本，概括某棵 Research Anchor 当前事实、支持证据和反证合并后的总体指向，例如“风险上升，行情未确认”。它由 AI 分析师明确生成，不收窄为利多/利空枚举，也不等同于用户投研行动导向的 Trading Direction。
-_Avoid_: 由 Data 或 BFF 合成净方向、用 Trading Direction 替代净方向、强制转换为利多/利空枚举
-
-**Anchor 事实汇总（Anchor Fact Summary）**:
-一句由 AI 分析师生成的非空文本，用于概括当前 Research Anchor 所引用的原子 Event 事实组合，但不替代 Event 本身。页面的事实明细和数量分别来自已关联 Event 的标题/摘要/时间与去重计数，不另建不可追溯的事实文本数组。
-_Avoid_: 用 `fact_statements` 复制 Event 事实、从 Markdown 反向生成事实列表、由 BFF 合成事实汇总
-
-**Research Anchor 完整覆盖（Complete Anchor Coverage）**:
-一个 Theme 的推理树集合必须对该 Theme 的每个 Theme Chain Node Association 恰好提供一个以该节点为中心的 Research Anchor，中心节点集合不得缺失、新增或重复。任一 Anchor 缺失或无效时，该 Theme 的 Anchor 集合整体不发布，并保持无可见推理树；这不影响已发布 Theme 按独立首页合同继续可见。
-_Avoid_: 部分 Anchor 可见、额外 Anchor Tab、一个中心节点对应多个 Anchor
+**主题影响（Theme Impact）**:
+Research Theme 与受影响 Chain Node 的不可变关系，保存角色、方向、可空摘要和稳定
+展示顺序。所有 Impact 平等，不存在 subject、primary 或主要影响节点；当前目标类型
+只允许有效 Chain Node。一个 Theme 至少有一个 Impact。
+_Avoid_: Company/Concept 等其他目标类型、`is_primary`、把展示顺序解释为影响优先级
 
 **产品可见 Theme（Product-visible Research Theme）**:
-属于成功 Research Theme Publication Batch，并满足首页时间窗口与最新批次查询条件的 Theme。首页 Theme 列表不读取 Research Anchor Publication Receipt，不判断推理树是否存在，也不增加 `has_reasoning_tree`；Theme/Event 计数完全由 Theme 查询合同决定。推理树属于进入影响路径页后读取的独立子资源。
-_Avoid_: 用 Anchor 发布状态过滤首页 Theme、把待补树 Theme 隐藏为技术暂存、在首页增加推理树存在性字段、Anchor 失败时删除或隐藏已成功导入的 Theme
+属于成功 Theme Publication Batch 且满足查询窗口的 Theme。Theme 发布与 Reason Tree
+发布是两个独立同步事务；Theme 可以在没有 Tree 回执时继续可见。
+_Avoid_: 用 Tree 发布状态过滤首页 Theme、要求 Theme 与 Tree 同时可见
 
-**Research Anchor 发布回执（Research Anchor Publication Receipt）**:
-一个 Theme 的完整 Research Anchor 集合成功发布后产生的不可变技术回执，同时是该 Theme 的 Anchor 发布幂等性和可见性依据。它记录 `receipt_id`、`theme_id`、发布服务主体、payload hash、完整的中心节点到 Anchor ID 映射、Anchor/Event 关联/路径节点/回执计数、Anchor 集合正式可见时间和导入时间。回执、全部 Anchor 及其 Event/路径关联必须在同一事务中提交或回滚；只有存在成功回执的 Theme 才拥有可见推理树。同一 `theme_id` 成功发布后不得使用不同内容覆盖。幂等重放返回首次结果，`replayed` 只是本次 HTTP 响应状态。
-_Avoid_: 每个 Anchor 独立发布、部分写入后生成回执、在 Anchor 行重复保存 Theme 分析批次和逐行发布时间
+**推理树（Reason Tree）**:
+一个 Theme 在一条 Industry Chain 内的不可变线性推导链路。同一 Theme 与同一
+Industry Chain 最多一棵 Tree；一棵 Tree 可以解释该链内一个或多个 Theme Impact，
+也可以包含只承担传导上下文的 Chain Node。Tree 没有中心节点或主要影响节点。
+_Avoid_: Research Anchor、中心节点、任意图、分叉、循环、用 Tree `display_order`
+表达影响优先级
 
-**Research Anchor 发布幂等身份（Research Anchor Publication Idempotency Identity）**:
-所属 Research Theme 的 `theme_id`，也是 Anchor Import V1 唯一幂等身份，不再增加请求头或请求体幂等键。同一 Theme 和相同 canonical payload 是幂等重放；同一 Theme 成功发布后使用不同 payload 属于冲突。校验失败或事务回滚不会占用该身份，成功内容的修订必须通过新分析批次和新 Theme 发布。
-_Avoid_: 第二套 Anchor 幂等键、原地覆盖已发布 Anchor、为校验失败请求生成成功回执
+**Reason Tree 发布集合（Reason Tree Publication Set）**:
+`POST /api/data/v1/research-reasoning-tree-imports` 对一个已发布 Theme 的完整 Tree
+集合执行同步、原子、幂等发布。`theme_id` 是集合幂等身份；请求至少包含一棵 Tree，
+每棵 Tree 至少命中一个 Theme Impact，全部 Tree 的命中并集覆盖父 Theme 的所有
+Impact。发布主体必须与父 Theme 回执一致。
+_Avoid_: 单树分批发布、空集合回执、部分覆盖、第二套幂等键
 
-**Research Anchor 确定性请求（Deterministic Research Anchor Request）**:
-用于保证 Anchor Publication canonical hash 跨运行时稳定的唯一合法数组表示。`anchors` 按小写中心节点 UUID 升序，每棵 Anchor 的 `events` 按小写 Event UUID 升序，而 `path_nodes` 保持不可重排的业务传导顺序。所有 UUID 使用标准小写格式。Data 校验而不重排，通过后才对原始合法表示计算 canonical hash。
-_Avoid_: 服务端静默重排请求、将语义路径按 UUID 排序、混用大小写 UUID、同一语义存在多种合法数组表示
+**Reason Tree 身份与回执（Reason Tree Identity and Receipt）**:
+Tree 身份由 `theme_id + NUL + industry_chain_entity_id` 确定性生成。每个 Theme
+最多一条 Tree 集合回执，保存发布主体、payload hash、Industry Chain 到 Tree ID
+映射、写入计数和首次发布时间；回执与全部 Tree 子记录同事务提交。
+_Avoid_: 调用方提交 Tree ID、原地覆盖、每棵 Tree 单独回执
 
-**Research Anchor Import V1**:
-通过 `POST /api/data/v1/research-anchor-imports` 对一个已发布 Theme 的完整 Anchor 集合执行同步、原子、幂等发布的内部合同。顶层严格只有 `theme_id` 和 `anchors`；`theme_id` 同时表达父 Theme、整体发布边界和幂等身份。每棵 Anchor 严格只提交中心节点、独立结论、事实汇总、净方向、交易指向、下一检查点、Event 证据和有序路径节点。
-_Avoid_: 将 Anchor 嵌入 Theme Import V1、按单棵 Anchor 分批发布、增加第二套批次或幂等字段、接收未声明字段、由调用方提交 Anchor ID/名称/时间或历史类型字段
+**Reason Tree 节点（Reason Tree Node）**:
+Tree 的有序 Chain Node 快照。`position` 从 1 连续排列并且是唯一路径顺序；一个
+节点在 Tree 内唯一。每个节点必须是该 Tree Industry Chain 的 active/approved
+成员。首节点全部 `incoming_*` 为空；后续节点必须保存传导标题、机制和成立条件。
+可空正式 Graph Edge 必须 active/approved、属于同一链且端点匹配；为空表示分析推断。
+_Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写正式图谱
 
-**Research Anchor Import 错误定位（Research Anchor Import Error Location）**:
-遵循 Theme Import V1 错误分层的可操作失败信息。结构与合同错误使用 `400`，缺失或越界引用使用 `422`，payload 或发布主体冲突使用 `409`。可定位错误统一携带 `center_chain_node_id`、`path` 和 `reference`，使发布器能直接定位具体 Anchor 和字段。
-一个请求同时存在多个错误时，只按请求的确定性遍历顺序返回第一个错误，不聚合错误列表；发布器修正后使用完整请求重新提交，整批原子失败规则不变。
-_Avoid_: 只返回黑盒失败文本、将不存在与越界引用混为内部错误、在失败响应中返回部分写入结果、返回顺序不稳定的错误集合
+**Variable Signal 展示快照（Variable Signal Display Snapshot）**:
+每个 Tree 节点拥有 1..5 个按 `display_order` 排列的弱外部引用快照，恰好一个
+`primary` 且顺序为 1；其余角色为 `supporting` 或 `contradicting`。同一分析批次
+复用同一 key 时，方向和展示摘要必须一致。Data 不建设 Signal 事实表，也不验证其
+Entity、Evidence、Metric 或观测语义。
+_Avoid_: Variable Signal 外键、事实读取 API、从展示文本推断研究语义
 
-**Research Anchor 未知结果恢复（Research Anchor Unknown-outcome Recovery）**:
-同步 Anchor Import POST 在客户端未收到响应时的唯一恢复方式：使用原 `theme_id` 和完全相同的 payload 重试 POST。已成功则返回首次 Receipt，未成功则执行新事务，内容改变则冲突。
-正式 Theme 的 Anchor 可以在更新分析批次已经发布后延迟补发；只要父 Theme 及其发布回执仍存在且主体一致，补发没有人为截止时间。晚到的 Anchor 不改变父 Theme 的发布时间，也不把旧 Theme 提升为最新批次。
-_Avoid_: 增加状态查询端点、将小批量发布改为异步 job、为失败请求持久化 unknown 占位、响应丢失后修改 payload 重试、因 Theme 不是最新批次而拒绝补树
+**Reason Tree Event 关联（Reason Tree Event Association）**:
+Tree 可以从父 Theme Event 集合选择零个或多个正式 Event，并保存角色与稳定展示
+顺序；不复制 Event 正文或证据摘要。Theme Event 与 Tree Event 都只接受
+`confirmed + verified` 的正式 Event 事实。
+_Avoid_: Tree 扩展父 Theme Event 边界、要求特定角色组合、复制 Event 文本
 
-**Research Anchor 身份（Research Anchor Identity）**:
-一棵 Research Anchor 在单个 Theme 内的身份由 `theme_id` 与 `center_chain_node_id` 共同决定，不另设 `anchor_key`。调用方不提交 Anchor UUID；Data 使用冻结命名空间 `f219ded4-fc65-5948-9e28-c1cdb6a8288e`，对标准小写 `theme_id + NUL + center_chain_node_id` 生成确定性 UUIDv5 `anchor_id`。
-_Avoid_: 调用方生成 Anchor UUID、维护第二套 Anchor Key、使用 Anchor ID 跨 Theme 合并研究快照
+**Reason Tree 读取边界（Reason Tree Read Boundary）**:
+列表使用 `GET /api/data/v1/research/themes/{theme_id}/reasoning-trees`，详情使用
+`GET /api/data/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}`。
+Theme 缺失、无 Tree 回执、Tree 缺失分别返回稳定 `404`；回执存在但投影无法完整
+重建返回 `500 RESEARCH_REASONING_TREE_INVARIANT_VIOLATION`。读取按服务端顺序返回
+Theme Impact IDs，消费者仅通过 ID 相交判断节点是否为 Theme Impact。
+_Avoid_: `anchor_id`、独立 Anchor API、`is_theme_impact`、BFF 扇出查询
 
-**Research Anchor 展示顺序（Research Anchor Presentation Order）**:
-同一 Theme 下多个 Research Anchor 在读取端的稳定顺序，由 Data 按中心 Chain Node 的当前规范名称使用 PostgreSQL `COLLATE "C"` 升序排列，名称相同时再按中心节点 UUID 升序。V1 不保存 `display_order`、重要性或 AI 排名；BFF 和小程序保持 Data 顺序。
-_Avoid_: 使用 Theme Import 的 canonical UUID 顺序当作产品顺序、由 BFF 或前端二次重排、复活旧 importance 字段
-
-**Research Anchor 发布主体（Research Anchor Publisher Subject）**:
-已成功发布 Research Theme 的同一稳定 Data 内部 trust-domain 身份，也是该 Theme 的 Anchor 集合唯一允许的发布和重放主体。Data 从认证上下文解析主体并与 Theme Publication Receipt 比对；请求不得声明发布者，token 轮换不改变稳定主体归属。本期不在同一 Data service token 的受信消费者之间建立独立 Anchor 所有权。
-没有 Theme Publication Receipt 的历史 Theme 不具备可核验发布主体，不能接收 Research Anchor 发布，也不存在本地环境或历史数据绕过。
-_Avoid_: 在请求体声明发布者、使用 token 字符串作为长期主体身份、把同一 trust-domain 的消费者伪装成不同主体、为无发布回执的历史 Theme 补发 Anchor
-
-**Anchor 一句话结论（Anchor One-line Conclusion）**:
-围绕 Research Anchor 中心 Chain Node 得出的必填、非空研究结论，属于当次 Anchor 快照。它与 Theme 的总体一句话结论层级不同，由 AI 分析师生成，Data 只校验完整性并原样保存。
-_Avoid_: 复制 Theme 结论作为默认值、由 Data/BFF/前端从证据或路径临时生成
-
-**Anchor 交易指向（Anchor Trading Direction）**:
-围绕 Research Anchor 中心 Chain Node 提出的必填、非空研究与交易映射，可表达研究优先级、受益或承压方向以及应重点关注的环节。它与 Theme 级交易指向和表达客观变化的 Anchor Net Direction Summary 层级、职责不同，由 AI 分析师生成，Data 原样保存。
-_Avoid_: 复用 Theme 交易指向补缺、将客观变化方向当作交易建议、由 Data/BFF/前端推断
-
-**Anchor 下一检查点（Anchor Next Checkpoint）**:
-围绕 Research Anchor 中心 Chain Node 定义的必填、非空后续验证项，明确下一步需要跟踪的指标、事实或条件。它属于 Anchor 快照，与 Theme 级检查点层级不同，由 AI 分析师生成，Data 原样保存。
-_Avoid_: 复用 Theme 检查点补缺、由 Data 拼接条件或设置默认文本
-
-**Anchor 指数关联（Anchor Index Association）**:
-未纳入 Research Anchor V1 的能力。V1 导入、存储写入、Theme 推理树详情和 Miniapp DTO 都不包含 Anchor 指数数据；历史空的 `research_anchor_indices` 在新 migration 的空表断言通过后删除且不重建。
-_Avoid_: 为兼容空闲历史表而增加 `indices` 请求字段、强制指数主数据、在 BFF 临时补齐指数关联
-
-**Theme 推理树集合读取（Theme Reasoning Trees Read）**:
-通过 `GET /api/data/v1/research/themes/{theme_id}/reasoning-trees` 返回某个 Theme 已发布的完整 Anchor Tab 摘要集合，并通过 `GET /api/data/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}` 按需返回一棵完整推理树。一个 Theme 可以对应多个 Anchor，每个 Anchor 是一条独立推理树。列表不嵌入现有 Theme Detail，也不分页；详情必须校验 Anchor 属于路径中的 Theme。两个端点不接收查询时间窗口，完全按 `theme_id` 读取已发布不可变快照，即使 Theme 已离开首页窗口仍可访问。Theme 缺失、待补树或单树不存在分别使用明确 `404`，不返回合法空数组。首页始终保留影响路径入口；Theme 存在但待补树时由推理树页面解释为“影响路径暂未生成”。
-_Avoid_: 为推理树扩张现有 Theme Detail、由 BFF 为一次请求扇出多个 Anchor 查询、使用旧独立 Anchor 详情代替 Theme 子资源、将整个 Theme 误称为一棵推理树、用 `200` + 空数组掩盖待发布或数据破坏
-
-**推理树读取不变量破坏（Reasoning Tree Read Invariant Violation）**:
-成功 Research Anchor Publication Receipt 存在，但 Anchor 映射、数量、Event 证据或路径节点无法完整重建时的数据损坏状态。Data 必须返回 `500 RESEARCH_REASONING_TREE_INVARIANT_VIOLATION`，不把它解释为尚未生成、资源不存在、合法空集合或部分成功。
-_Avoid_: 用 `404` 隐藏已发布数据损坏、返回部分 Anchor Tab、忽略回执与事实不一致、让 BFF 猜测缺失数据
-
-**Research Anchor 推理树读取模型（Research Anchor Reasoning Tree Read Model）**:
-单树详情端点返回的一棵完整已发布视图，包含 Anchor ID、当前中心节点主数据身份与名称、Anchor 结论/事实汇总/净方向/交易指向/下一检查点、全部 Event 证据及其主数据展示字段，以及带当前节点名称的有序路径节点。它不暴露技术 Receipt 或历史 Anchor 字段，BFF 可用一次对应 Data 请求驱动当前 Tab。
-_Avoid_: 在 BFF 拉取第二批 Data 补名称/事件、返回路径位置与数组顺序两套事实、暴露 Receipt 时间或重复证据汇总
-
-**Anchor 传导节点（Anchor Path Node）**:
-某棵 Research Anchor 的单条有序产业链传导路径中，被选中并附带当次影响判断的 Chain Node 快照项。每个节点的快照必须由受控的变化方向、简短变化描述和影响说明组成。一条合法路径至少包含两个不同节点。节点数组顺序就是传导顺序；第一个节点没有入边机制，其余节点都携带从前一节点传入的非空机制说明。每棵 Anchor 的传导节点必须包含其中心 Chain Node 且恰好一次；路径内任何 Chain Node 都只能出现一次，因此不允许任何重复节点或循环。中心节点的变化和说明也必须来自已发布快照，不由 BFF 或前端补写。除中心节点外，路径可以引用未被 Theme 选为 Anchor 的既有 Chain Node 作为传导上下文；该引用不会新增 Theme 关联或 Anchor。V1 不表达分叉、多路径、循环或通用图结构。
-_Avoid_: 单节点路径、路径中缺少中心节点、任何重复节点、循环路径、由页面临时合成中心节点
-
-**Anchor 节点变化方向（Anchor Node Change Direction）**:
-Anchor Path Node 在当次研究快照中所观察或判断的变化方向，只允许 `increase`、`decrease`、`mixed`、`unchanged` 或 `uncertain`。它表达“上升、下降或未确认”，不等同于投资上的利好或利空；具体变化和研究含义分别由 `change_summary` 和 `impact_summary` 表达。
-_Avoid_: 用 `positive`/`negative` 混合数值变化与投资判断、由 BFF 从文本推断变化方向
-
-**Anchor 辅助路径节点（Anchor Supporting Path Node）**:
-在 Anchor Chain Transmission Path 中用于说明上下游背景或影响去向，但未被当前 Theme 选为 Anchor 中心的既有 Chain Node。它拥有当次快照的变化和说明，但不会因此获得 Anchor Tab 或变成 Theme Chain Node Association。
-_Avoid_: 为所有路径上下文节点强制创建 Anchor、由 Data 自动扩充 Theme 产业链节点
-
-**Anchor 产业链传导路径（Anchor Chain Transmission Path）**:
-一棵 Research Anchor 中由 Anchor Path Node 和 Anchor Transmission Edge 组成的唯一有序产业链路径，用于表达本批次研究判断中影响如何经过中心节点传导。该结构是 Anchor 传导语义的唯一事实表达，不另外保存自然语言 `transmission_path`。“推理树”的分支来自支持证据与反证；V1 的产业链路径本身不分叉。
-_Avoid_: 在 V1 中建模任意图、多条并行路径、同时保存可能冲突的 Anchor 路径文本、由读取端自行排序节点
-
-**Anchor 传导连线（Anchor Transmission Edge）**:
-一棵 Research Anchor 中相邻两个 Anchor Path Node 之间的当次研究传导判断。V1 不使用独立 Edge 数组；连线机制由后一个 Path Node 的 `incoming_transmission_mechanism` 承载。它属于 Anchor 快照，不要求在 `chain_node_relations` 中已有对应关系；Data 不以正式图谱是否存在或完整作为推理树的发布条件，Anchor 发布也不会新增或修改正式关系主数据。每条连线必须包含非空的传导机制说明，由 AI 分析师发布，Data 只校验存在性和非空性。V1 不将连线标记为“正式关系”或“推断关系”，页面也不展示这组来源标签。
-_Avoid_: 因正式关系缺失而拒绝研究路径、把 Anchor 连线当作正式产业链关系、未验证却标记“正式关系”、从 Anchor 导入回写关系主数据
-
-**整体传导路径（Causal Chain）**:
-分析侧对 Research Theme 端到端影响路径的命名。发布器将其一对一重命名为 `transmission_path`，不拼接、推断或改写；发布合同只保留 `transmission_path`。整体路径与单个节点的角色关联是两类互补事实，不能相互替代。
-
-**传导路径（Transmission Path）**:
-Research Theme 在 Tidewise 发布边界中的整体影响路径。Data 只校验其存在且非空，不解析或重写路径内容。
-
-**主题 Event 证据关联（Theme Event Evidence Association）**:
-一个 Event 对 Research Theme 中具体判断所承担的证据角色，由 Event、证据角色和被支持或反驳的判断共同组成。角色仅允许 `driver`、`supporting`、`contradicting`、`context`，且每个 Theme 至少有一个 `driver` Event。Data 只校验证据事实，不从市场确认、结论文本或其他字段推断。
-_Avoid_: 仅提交 Event ID、同时提交 ID 数组和证据对象、没有 driver Event 的 Theme
-
-**Anchor Event 证据（Anchor Event Evidence）**:
-一个已属于 Research Theme 的 Event 在其中某棵 Research Anchor 中承担的具体证据角色和与该 Anchor 相关的证据摘要。一棵 Anchor 只能从所属 Theme 已发布的 Theme Event Evidence Association 中选择 Event，不得借 Anchor 发布引入 Theme 证据边界外的 Event。每棵 Anchor 必须至少有一个 `driver` Event；`supporting`、`contradicting` 和 `context` 可以为空，没有反证时也是需要明确呈现的合法研究状态。同一 Event 在同一 Anchor 中恰好最多出现一次并承担一个证据角色。`evidence_summary` 由 AI 分析师提交并必须非空；Event 标题、摘要和时间仍由 Event 主数据提供。
-_Avoid_: Anchor 引用 Theme 之外的 Event、没有 driver Event 的 Anchor、同一 Event 在一棵 Anchor 中承担多个角色、把无反证视为导入错误、由 Anchor Import 扩展 Theme Event 集合、从 Markdown 临时生成证据
-
-**Anchor 支持与反证汇总（Anchor Support and Counter Summaries）**:
-AI 分析师基于一棵 Research Anchor 的完整证据形成的两项结论性快照。`support_summary` 必填并表达整体证据目前支持什么；`counter_summary` 只在存在 `contradicting` Event 时提交，没有反证时为 `null`。它们不等于具体 Event 清单，也不得由发布器、Data、BFF 或前端按 `evidence_role` 拼接生成。Event 角色和 `evidence_summary` 继续承担单条事实追溯，页面在原子事件清单中展示角色标签。
-_Avoid_: 用 Event 文本拼接 Anchor 汇总、把汇总复制成 Event 数组、没有反证时伪造反证结论、在 BFF 或前端重新推理
-
-**Anchor 原子事件汇总（Anchor Atomic Event Rollup）**:
-该 Research Anchor 关联的全部去重 Event 事实视图，覆盖 `driver`、`supporting`、`contradicting` 和 `context` 四种角色。它复用同一份 Anchor Event Evidence Association 和 Event 主数据，与 Anchor 级支持/反证汇总提供不同阅读视角，不创建第二套事实或关联。读取时按 `event_time` 从早到晚排列，时间相同时以 `event_id` 升序稳定排序，缺失时间的 Event 放在最后。
-_Avoid_: 只展示 driver Event、排除反证或上下文 Event、为页面汇总复制存储 Event、按行数而非去重 `event_id` 计数、由 BFF 或前端重新排序
-
-**Research Anchor 读取边界（Research Anchor Read Boundary）**:
-Research Anchor 只能作为所属 Research Theme 下的推理树子资源读取。旧的独立 Anchor 列表和详情 API 基于已经废弃的 `anchor_type`、`importance` 语义，尚未正式投入使用，因此直接删除而不提供兼容层。新的列表读取返回 Theme 下全部推理树摘要，单树详情读取必须同时使用 `theme_id` 和 `anchor_id` 并校验归属关系。
-_Avoid_: 恢复全局 Anchor 列表、仅凭 `anchor_id` 跨 Theme 读取、同时维护旧 Anchor DTO 与新推理树 DTO、为未使用接口建立兼容层
-
-**旧 Anchor 结构替换（Legacy Anchor Schema Replacement）**:
-旧 Anchor 四张表尚未正式投入使用，当前本地均为空。新 forward migration 必须先断言四表为空，非空则停止；断言通过后才可删除旧结构并以原表名重建新 Research Anchor、Event Evidence 和 Path Node 结构，同时新增 Theme 级发布回执。V1 删除空的 `research_anchor_indices` 且不重建，不迁移或伪造旧语义数据。
-_Avoid_: 修改历史 migration、静默删除旧数据、猜测转换旧 Anchor、同时保留新旧字段、为当前 V1 重建 Anchor 指数表
-
-**Research Anchor 发布回执（Research Anchor Import Receipt）**:
-一个 Research Theme 的完整 Anchor 集合首次成功发布后形成的不可变技术事实，存放于 `research_anchor_import_receipts`。每个 Theme 最多一条回执；回执保存发布主体、payload hash、中心节点到 Anchor ID 的映射、写入计数以及首次发布时间和导入时间。所有 Anchor 必须通过 `import_receipt_id` 关联同一回执，回执与业务数据在一个事务内提交。
-_Avoid_: 每棵 Anchor 单独回执、修改或删除回执、保存 token、重放时生成新时间或新 ID、让没有回执的 Anchor 对产品可见
-
-**Research Anchor 主表（Research Anchor Record）**:
-Research Anchor 主表只保存 Theme 归属、中心 Chain Node、发布回执和不可变自然语言快照：一句话结论、原子事实汇总、净方向、当前支持、可空的当前反证、交易研究指向、下一检查点。它不复制 Theme 批次、节点名称、Theme 发布时间或旧 Anchor 分类字段；同一 Theme 与中心节点组合唯一。
-_Avoid_: 复制节点名称、保存 analysis batch、恢复 anchor type/importance、保存第二份 transmission path、用 updated_at 暗示可变业务记录
-
-**Anchor 路径节点记录（Research Anchor Chain Node Record）**:
-`research_anchor_chain_nodes` 保存一棵 Anchor 唯一线性路径的节点快照，而不是普通多对多关联。`position` 从 1 开始并表达路径业务顺序；首节点没有传入机制，后续节点必须说明从前一节点传入的机制。同一节点在一条路径中唯一，整条路径至少两个节点且必须包含中心节点一次。
-_Avoid_: 把 position 当界面 display order、跳号、重复节点、首节点伪造传入机制、后续节点缺失传导机制、将该表当正式产业链关系
-
-**Research Anchor Event 记录（Research Anchor Event Record）**:
-`research_anchor_events` 是 Anchor 中 Event 证据语义的唯一存储，每个 Anchor 与 Event 组合唯一。它只保存受控证据角色和非空证据摘要；Event 标题、摘要与时间始终来自 Event 主数据。每棵 Anchor 至少有一个 driver，且全部 Event 必须属于父 Theme 已发布的 Event 子集。
-_Avoid_: 复制 Event 正文、同一 Event 多角色、没有 driver、越过父 Theme 证据边界、为页面分组创建重复关联表
+**Theme 与 Tree 摘要（Theme and Tree Summaries）**:
+Theme 与 Tree 都可保存 `transmission_summary` 和检查点信息，但作用域不同：
+Theme 概括整体投资结论，可综合多棵 Tree；Tree 只解释一条 Industry Chain 路径。
+Data 原样承接分析师内容，不复制、拼接或执行研究质量校验。
 
 **推理树共享测试 Fixture（Reasoning Tree Shared Test Fixture）**:
-`testdata/reasoning-tree-v1/` 中用于验证 Data、BFF 和小程序合同一致性的确定性 JSON 样例。它不是 AI 分析师运行产物或产品数据来源；真实 Research Anchor 只能由分析师发布器通过 Anchor Import V1 入库。
-_Avoid_: 生产启动时导入 fixture、把 fixture 当分析师 outbox、真实分析缺失时回退到测试数据、各服务复制并修改不同版本
-
-**推理树字段血缘（Reasoning Tree Field Lineage）**:
-AI 分析师 V3 与 Research Anchor Import V1 对 Anchor、支持/反证汇总、Event Evidence 和 Path Node 使用同名结构。发布器只把 Theme Import 回执解析出的 `theme_id` 与对应完整 `anchors` 集合装入请求，不做语义转换。Tidewise 生成 Anchor/Receipt 身份与时间，并用 Chain Node、Event 主数据补充读取名称和展示字段；BFF 不改写研究语义。
-_Avoid_: 发布器字段重命名、从 Markdown 重新解析、Data 推断缺失语义、AI 复制节点名称或 Event 正文、BFF 改写证据和路径
-
-**主题指数关联（Theme Index Association）**:
-Research Theme 与指数之间的方向性影响判断。当前数据库保留该能力，但 Theme 发布 V1 不接收或写入指数关联；请求出现 `indices` 或 `index_entity_ids` 时按未知字段拒绝。没有指数关联时对外读取为空集合。分析侧本地保存的指数信息不因此成为已发布事实，未来通过新合同版本引入。
+`testdata/reasoning-tree-v1/` 保存 provider/consumer 共用的确定性合同样例，不是
+生产数据来源；真实 Theme/Tree 只能经发布 API 入库。
 
 **传导阶段（Transmission Stage）**:
-研究主题结论沿证据与影响路径发展的当前生命周期。`identification` 表示刚识别出传导假设，`validation` 表示已有事件或市场证据验证，`diffusion` 表示影响已向多个产业链节点或市场对象扩散，`dampening` 表示驱动减弱或出现反向证据。该判断由分析侧明确提交；Data 不设置默认值或从其他字段推断。
-_Avoid_: 上游阶段、中游阶段、下游阶段、用市场确认状态替代传导阶段
-
-**市场确认状态（Market Confirmation）**:
-市场数据对 Research Theme 判断的确认、背离、混合或未观察状态。当前仅保留在分析侧结构化结果和报告中，用于证据一致性与报告质量校验，不进入 Theme 发布合同或 Data 持久化。它不能推导或替代 Transmission Stage 等数据库字段。
-
-**市场确认摘要（Market Confirmation Summary）**:
-对 Research Theme 整体市场验证情况的必填自然语言说明，可以涵盖指数、股票、ETF、商品等市场对象。内容由 AI 分析师生成，发布器将分析侧 `market_confirmation.reasoning` 一对一重命名后原样传递；Data 只校验存在且非空，不生成默认文本，也不解析、推断或改写。没有观察到市场验证时，摘要必须明确说明未获得可归属的市场证据，以区分没有证据和分析遗漏。
-_Avoid_: 使用 `index_impact_summary` 表示整体市场确认、与单个指数关联的影响说明混用
-
-**下一检查点（Next Checkpoint）**:
-研究主题当前尚待显现或验证的凝练、可执行中文观察项，不是固定枚举。它由 AI 分析师直接生成，发布器原样传递；Data 只校验非空，不拼接、不改写也不设置默认值。分析侧更详细的确认条件不进入当前 Theme 发布合同。
-_Avoid_: 发布器机械拼接确认条件、由 Data 生成观察项
-
-**交易研究指向（Trading Direction）**:
-基于当前结论给出的受益、承压、关注方向及交易映射，以自然语言保存，不是做多/做空枚举。内容由 AI 分析师生成，发布器将分析侧 `research_direction` 一对一重命名后原样传递；Data 只校验非空。泛化的“继续关注”等表述应在分析侧校验或审核阶段拦截。
-_Avoid_: 用 Trading Direction 表达下一检查点、由发布器或 Data 补写交易语义
+Research Theme 的分析阶段，仅允许 `identification`、`validation`、`diffusion`
+和 `dampening`。它与可空 `conclusion_status` 是不同维度，Data 不根据其他字段推断。
 
 ## Source Ownership
 

@@ -13,10 +13,10 @@ func TestLoadBatchUsesFrozenImportContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if batch.AnalysisBatchID != "20260718T-v6-72h-validation-home-dev" || len(batch.Themes) != 3 {
+	if batch.AnalysisBatchID != "20260728T-theme-reason-tree-v1-dev" || len(batch.Themes) != 1 {
 		t.Fatalf("batch = %#v", batch)
 	}
-	if batch.Themes[0].ThemeKey != "ai-application-commercialization" {
+	if batch.Themes[0].ThemeKey != "ai-optical-module-demand" {
 		t.Fatalf("first theme key = %q", batch.Themes[0].ThemeKey)
 	}
 }

@@ -63,7 +63,7 @@ func (s *DataService) GetResearchReasoningTree(ctx context.Context, request *v1.
 	if s == nil || s.dependencies.Research == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 	}
-	result, err := s.dependencies.Research.GetReasoningTree(ctx, request.ThemeID, request.AnchorID)
+	result, err := s.dependencies.Research.GetReasoningTree(ctx, request.ThemeID, request.ReasoningTreeID)
 	if err != nil {
 		return nil, reasoningTreeError(err)
 	}

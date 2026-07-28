@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -24,8 +23,6 @@ var scalarShape = &bindingShape{}
 var anyShape = &bindingShape{any: true}
 var stringShape = &bindingShape{string: true}
 var nullableStringShape = &bindingShape{string: true, null: true}
-
-var lowerUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 func objectShape(fields map[string]*bindingShape) *bindingShape {
 	return &bindingShape{fields: fields}
@@ -59,21 +56,14 @@ func decodeResearchThemeImport(payload []byte) (*ResearchThemeImportRequest, err
 	return request, nil
 }
 
-func decodeResearchAnchorImport(payload []byte) (*ResearchAnchorImportRequest, error) {
-	request := new(ResearchAnchorImportRequest)
-	if err := decodeStrictBinding(payload, researchAnchorImportShape(), request); err != nil {
+func decodeResearchReasoningTreeImport(payload []byte) (*ResearchReasoningTreeImportRequest, error) {
+	request := new(ResearchReasoningTreeImportRequest)
+	if err := decodeStrictBinding(payload, researchReasoningTreeImportShape(), request); err != nil {
 		path := bindingErrorPath(err)
-		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Anchor V1 contract", map[string]any{
-			"center_chain_node_id": researchAnchorCenterAtPath(payload, path),
-			"path":                 path,
-			"reference":            "",
-		})
-	}
-	if path, centerID := validateResearchAnchorUUIDs(request); path != "" {
-		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Anchor V1 contract", map[string]any{
-			"center_chain_node_id": centerID,
-			"path":                 path,
-			"reference":            "",
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Reason Tree V1 contract", map[string]any{
+			"industry_chain_entity_id": researchTreeChainAtPath(payload, path),
+			"path":                     path,
+			"reference":                "",
 		})
 	}
 	return request, nil
@@ -254,41 +244,18 @@ func researchThemeKeyAtPath(payload []byte, path string) string {
 	return ""
 }
 
-func researchAnchorCenterAtPath(payload []byte, path string) string {
+func researchTreeChainAtPath(payload []byte, path string) string {
 	var hint struct {
-		Anchors []struct {
-			CenterChainNodeID string `json:"center_chain_node_id"`
-		} `json:"anchors"`
+		ReasoningTrees []struct {
+			IndustryChainEntityID string `json:"industry_chain_entity_id"`
+		} `json:"reasoning_trees"`
 	}
 	_ = json.Unmarshal(payload, &hint)
-	index, ok := indexedBindingPath(path, "anchors")
-	if ok && index < len(hint.Anchors) {
-		return hint.Anchors[index].CenterChainNodeID
+	index, ok := indexedBindingPath(path, "reasoning_trees")
+	if ok && index < len(hint.ReasoningTrees) {
+		return hint.ReasoningTrees[index].IndustryChainEntityID
 	}
 	return ""
-}
-
-func validateResearchAnchorUUIDs(request *ResearchAnchorImportRequest) (string, string) {
-	if !lowerUUIDPattern.MatchString(request.ThemeID) {
-		return "theme_id", ""
-	}
-	for anchorIndex, anchor := range request.Anchors {
-		anchorPath := "anchors[" + strconv.Itoa(anchorIndex) + "]"
-		if !lowerUUIDPattern.MatchString(anchor.CenterChainNodeID) {
-			return anchorPath + ".center_chain_node_id", anchor.CenterChainNodeID
-		}
-		for eventIndex, event := range anchor.Events {
-			if !lowerUUIDPattern.MatchString(event.EventID) {
-				return fmt.Sprintf("%s.events[%d].event_id", anchorPath, eventIndex), anchor.CenterChainNodeID
-			}
-		}
-		for nodeIndex, node := range anchor.PathNodes {
-			if !lowerUUIDPattern.MatchString(node.ChainNodeID) {
-				return fmt.Sprintf("%s.path_nodes[%d].chain_node_id", anchorPath, nodeIndex), anchor.CenterChainNodeID
-			}
-		}
-	}
-	return "", ""
 }
 
 func indexedBindingPath(path, field string) (int, bool) {
@@ -339,44 +306,72 @@ func eventPublicationShape() *bindingShape {
 }
 
 func researchThemeImportShape() *bindingShape {
-	chainNode := objectShape(map[string]*bindingShape{
-		"chain_node_id": scalarShape, "relation_role": scalarShape, "impact_summary": scalarShape,
+	impact := objectShape(map[string]*bindingShape{
+		"chain_node_entity_id": scalarShape, "relation_role": scalarShape,
+		"impact_direction": scalarShape, "impact_summary": nullableStringShape,
+		"display_order": scalarShape,
 	})
 	event := objectShape(map[string]*bindingShape{
-		"event_id": scalarShape, "evidence_role": scalarShape, "supported_claim": scalarShape,
+		"event_id": scalarShape, "evidence_role": scalarShape, "supported_claim": nullableStringShape,
 	})
 	theme := objectShape(map[string]*bindingShape{
-		"theme_key": scalarShape, "name": scalarShape, "one_line_conclusion": scalarShape,
-		"impact_level": scalarShape, "transmission_path": scalarShape, "trading_direction": scalarShape,
-		"transmission_stage": scalarShape, "next_checkpoint": scalarShape,
-		"market_confirmation_summary": scalarShape, "chain_nodes": arrayShape(chainNode), "events": arrayShape(event),
+		"theme_key": scalarShape, "title": scalarShape, "one_line_conclusion": scalarShape,
+		"conclusion_direction": scalarShape, "impact_strength": scalarShape,
+		"attention_level": nullableStringShape, "conclusion_status": nullableStringShape,
+		"transmission_stage": scalarShape, "investment_guidance_action": scalarShape,
+		"investment_guidance_summary": scalarShape, "time_horizon_category": scalarShape,
+		"time_horizon_summary": nullableStringShape, "transmission_summary": nullableStringShape,
+		"checkpoint_summary": nullableStringShape, "risk_summary": nullableStringShape,
+		"impacts": arrayShape(impact), "events": arrayShape(event),
 	})
 	return objectShape(map[string]*bindingShape{
-		"analysis_batch_id": scalarShape, "window_start": scalarShape, "window_end": scalarShape,
+		"analysis_batch_id": scalarShape, "analysis_as_of": scalarShape,
+		"window_start": scalarShape, "window_end": scalarShape,
 		"themes": arrayShape(theme),
 	})
 }
 
-func researchAnchorImportShape() *bindingShape {
-	event := requiredObjectShape([]string{"event_id", "evidence_role", "evidence_summary"}, map[string]*bindingShape{
-		"event_id": stringShape, "evidence_role": stringShape, "evidence_summary": stringShape,
+func researchReasoningTreeImportShape() *bindingShape {
+	checkpoint := objectShape(map[string]*bindingShape{
+		"type": stringShape, "summary": stringShape,
 	})
-	pathNode := requiredObjectShape([]string{
-		"chain_node_id", "change_direction", "change_summary", "impact_summary", "incoming_transmission_mechanism",
+	event := objectShape(map[string]*bindingShape{
+		"event_id": stringShape, "evidence_role": stringShape, "display_order": scalarShape,
+	})
+	signal := objectShape(map[string]*bindingShape{
+		"variable_signal_key": stringShape, "signal_role": stringShape,
+		"signal_direction": stringShape, "display_summary": stringShape, "display_order": scalarShape,
+	})
+	node := requiredObjectShape([]string{
+		"position", "chain_node_entity_id", "state_summary", "impact_direction",
+		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
+		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
+		"incoming_transmission_mechanism", "incoming_condition_summary", "signals",
 	}, map[string]*bindingShape{
-		"chain_node_id": stringShape, "change_direction": stringShape, "change_summary": stringShape,
-		"impact_summary": stringShape, "incoming_transmission_mechanism": nullableStringShape,
+		"position": scalarShape, "chain_node_entity_id": stringShape,
+		"state_summary": nullableStringShape, "impact_direction": stringShape,
+		"impact_strength": stringShape, "impact_summary": nullableStringShape,
+		"reasoning_basis_summary": nullableStringShape, "evidence_gap_summary": nullableStringShape,
+		"incoming_industry_chain_graph_edge_id": nullableStringShape,
+		"incoming_transmission_title":           nullableStringShape,
+		"incoming_transmission_mechanism":       nullableStringShape,
+		"incoming_condition_summary":            nullableStringShape, "signals": arrayShape(signal),
 	})
-	anchor := requiredObjectShape([]string{
-		"center_chain_node_id", "one_line_conclusion", "fact_summary", "net_direction_summary",
-		"support_summary", "counter_summary", "trading_direction", "next_checkpoint", "events", "path_nodes",
+	tree := requiredObjectShape([]string{
+		"industry_chain_entity_id", "title", "display_order", "one_line_conclusion",
+		"fact_summary", "transmission_summary", "impact_direction", "impact_strength",
+		"impact_summary", "conclusion_boundary_summary", "support_summary", "counter_summary",
+		"invalidation_conditions", "checkpoints", "events", "nodes",
 	}, map[string]*bindingShape{
-		"center_chain_node_id": stringShape, "one_line_conclusion": stringShape,
-		"fact_summary": stringShape, "net_direction_summary": stringShape, "support_summary": stringShape,
-		"counter_summary": nullableStringShape, "trading_direction": stringShape, "next_checkpoint": stringShape,
-		"events": arrayShape(event), "path_nodes": arrayShape(pathNode),
+		"industry_chain_entity_id": stringShape, "title": stringShape, "display_order": scalarShape,
+		"one_line_conclusion": stringShape, "fact_summary": nullableStringShape,
+		"transmission_summary": nullableStringShape, "impact_direction": stringShape,
+		"impact_strength": stringShape, "impact_summary": nullableStringShape,
+		"conclusion_boundary_summary": nullableStringShape, "support_summary": nullableStringShape,
+		"counter_summary": nullableStringShape, "invalidation_conditions": arrayShape(stringShape),
+		"checkpoints": arrayShape(checkpoint), "events": arrayShape(event), "nodes": arrayShape(node),
 	})
-	return requiredObjectShape([]string{"theme_id", "anchors"}, map[string]*bindingShape{
-		"theme_id": stringShape, "anchors": arrayShape(anchor),
+	return requiredObjectShape([]string{"theme_id", "reasoning_trees"}, map[string]*bindingShape{
+		"theme_id": stringShape, "reasoning_trees": arrayShape(tree),
 	})
 }

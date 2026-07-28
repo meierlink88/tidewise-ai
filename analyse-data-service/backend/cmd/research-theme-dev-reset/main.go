@@ -20,46 +20,68 @@ const (
 	localDatabaseName = "tidewise_local"
 	resetLockKey      = "tidewise:research-theme-dev-reset:v1"
 
-	currentDatabaseSQL          = `SELECT current_database()`
-	acquireResetLockSQL         = `SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))`
-	themeReceiptTriggerStateSQL = `SELECT tgenabled::text
+	currentDatabaseSQL       = `SELECT current_database()`
+	acquireResetLockSQL      = `SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))`
+	immutableTriggerStateSQL = `SELECT COUNT(*), COUNT(*) FILTER (WHERE tgenabled = 'O')
 FROM pg_trigger
-WHERE tgrelid = 'research_theme_import_receipts'::regclass
-  AND tgname = 'trg_research_theme_import_receipts_immutable'`
-	anchorReceiptTriggerStateSQL = `SELECT tgenabled::text
-FROM pg_trigger
-WHERE tgrelid = 'research_anchor_import_receipts'::regclass
-  AND tgname = 'trg_research_anchor_import_receipts_immutable'`
+WHERE tgname IN (
+    'trg_research_theme_receipts_immutable',
+    'trg_research_themes_immutable',
+    'trg_research_theme_impacts_immutable',
+    'trg_research_theme_events_immutable',
+    'trg_research_reasoning_tree_receipts_immutable',
+    'trg_research_reasoning_trees_immutable',
+    'trg_research_reasoning_tree_events_immutable',
+    'trg_research_reasoning_tree_nodes_immutable',
+    'trg_research_reasoning_tree_node_signals_immutable'
+)`
 	publicationCountsSQL = `SELECT
-    (SELECT COUNT(*) FROM research_themes),
-    (SELECT COUNT(*) FROM research_theme_chain_nodes),
-    (SELECT COUNT(*) FROM research_theme_indices),
-    (SELECT COUNT(*) FROM research_theme_events),
     (SELECT COUNT(*) FROM research_theme_import_receipts),
-    (SELECT COUNT(*) FROM research_anchor_import_receipts),
-    (SELECT COUNT(*) FROM research_anchors),
-    (SELECT COUNT(*) FROM research_anchor_chain_nodes),
-    (SELECT COUNT(*) FROM research_anchor_events)`
+    (SELECT COUNT(*) FROM research_themes),
+    (SELECT COUNT(*) FROM research_theme_impacts),
+    (SELECT COUNT(*) FROM research_theme_events),
+    (SELECT COUNT(*) FROM research_reasoning_tree_import_receipts),
+    (SELECT COUNT(*) FROM research_reasoning_trees),
+    (SELECT COUNT(*) FROM research_reasoning_tree_events),
+    (SELECT COUNT(*) FROM research_reasoning_tree_nodes),
+    (SELECT COUNT(*) FROM research_reasoning_tree_node_signals)`
 	protectedCountsSQL = `SELECT
     (SELECT COUNT(*) FROM events),
     (SELECT COUNT(*) FROM entity_nodes),
     (SELECT COUNT(*) FROM chain_node_profiles),
+    (SELECT COUNT(*) FROM industry_chain_definitions),
+    (SELECT COUNT(*) FROM industry_chain_graph_edges),
     (SELECT COUNT(*) FROM index_profiles),
     (SELECT COUNT(*) FROM event_tag_defs),
     (SELECT COUNT(*) FROM event_tag_maps),
-	(SELECT COUNT(*) FROM raw_documents)`
-	disableThemeReceiptTriggerSQL = `ALTER TABLE research_theme_import_receipts
-DISABLE TRIGGER trg_research_theme_import_receipts_immutable`
-	disableAnchorReceiptTriggerSQL = `ALTER TABLE research_anchor_import_receipts
-DISABLE TRIGGER trg_research_anchor_import_receipts_immutable`
-	deleteAnchorsSQL              = `DELETE FROM research_anchors`
-	deleteAnchorReceiptsSQL       = `DELETE FROM research_anchor_import_receipts`
-	deleteThemesSQL               = `DELETE FROM research_themes`
-	deleteThemeReceiptsSQL        = `DELETE FROM research_theme_import_receipts`
-	enableAnchorReceiptTriggerSQL = `ALTER TABLE research_anchor_import_receipts
-ENABLE TRIGGER trg_research_anchor_import_receipts_immutable`
-	enableThemeReceiptTriggerSQL = `ALTER TABLE research_theme_import_receipts
-ENABLE TRIGGER trg_research_theme_import_receipts_immutable`
+    (SELECT COUNT(*) FROM raw_documents)`
+	disablePublicationTriggersSQL = `ALTER TABLE research_theme_import_receipts DISABLE TRIGGER trg_research_theme_receipts_immutable;
+ALTER TABLE research_themes DISABLE TRIGGER trg_research_themes_immutable;
+ALTER TABLE research_theme_impacts DISABLE TRIGGER trg_research_theme_impacts_immutable;
+ALTER TABLE research_theme_events DISABLE TRIGGER trg_research_theme_events_immutable;
+ALTER TABLE research_reasoning_tree_import_receipts DISABLE TRIGGER trg_research_reasoning_tree_receipts_immutable;
+ALTER TABLE research_reasoning_trees DISABLE TRIGGER trg_research_reasoning_trees_immutable;
+ALTER TABLE research_reasoning_tree_events DISABLE TRIGGER trg_research_reasoning_tree_events_immutable;
+ALTER TABLE research_reasoning_tree_nodes DISABLE TRIGGER trg_research_reasoning_tree_nodes_immutable;
+ALTER TABLE research_reasoning_tree_node_signals DISABLE TRIGGER trg_research_reasoning_tree_node_signals_immutable`
+	deletePublicationsSQL = `DELETE FROM research_reasoning_tree_node_signals;
+DELETE FROM research_reasoning_tree_nodes;
+DELETE FROM research_reasoning_tree_events;
+DELETE FROM research_reasoning_trees;
+DELETE FROM research_reasoning_tree_import_receipts;
+DELETE FROM research_theme_events;
+DELETE FROM research_theme_impacts;
+DELETE FROM research_themes;
+DELETE FROM research_theme_import_receipts`
+	enablePublicationTriggersSQL = `ALTER TABLE research_theme_import_receipts ENABLE TRIGGER trg_research_theme_receipts_immutable;
+ALTER TABLE research_themes ENABLE TRIGGER trg_research_themes_immutable;
+ALTER TABLE research_theme_impacts ENABLE TRIGGER trg_research_theme_impacts_immutable;
+ALTER TABLE research_theme_events ENABLE TRIGGER trg_research_theme_events_immutable;
+ALTER TABLE research_reasoning_tree_import_receipts ENABLE TRIGGER trg_research_reasoning_tree_receipts_immutable;
+ALTER TABLE research_reasoning_trees ENABLE TRIGGER trg_research_reasoning_trees_immutable;
+ALTER TABLE research_reasoning_tree_events ENABLE TRIGGER trg_research_reasoning_tree_events_immutable;
+ALTER TABLE research_reasoning_tree_nodes ENABLE TRIGGER trg_research_reasoning_tree_nodes_immutable;
+ALTER TABLE research_reasoning_tree_node_signals ENABLE TRIGGER trg_research_reasoning_tree_node_signals_immutable`
 )
 
 type resetOptions struct {
@@ -68,29 +90,29 @@ type resetOptions struct {
 }
 
 type publicationCounts struct {
-	ResearchThemes               int64 `json:"research_themes"`
-	ResearchThemeChainNodes      int64 `json:"research_theme_chain_nodes"`
-	ResearchThemeIndices         int64 `json:"research_theme_indices"`
-	ResearchThemeEvents          int64 `json:"research_theme_events"`
-	ResearchThemeImportReceipts  int64 `json:"research_theme_import_receipts"`
-	ResearchAnchorImportReceipts int64 `json:"research_anchor_import_receipts"`
-	ResearchAnchors              int64 `json:"research_anchors"`
-	ResearchAnchorChainNodes     int64 `json:"research_anchor_chain_nodes"`
-	ResearchAnchorEvents         int64 `json:"research_anchor_events"`
+	ResearchThemeImportReceipts         int64 `json:"research_theme_import_receipts"`
+	ResearchThemes                      int64 `json:"research_themes"`
+	ResearchThemeImpacts                int64 `json:"research_theme_impacts"`
+	ResearchThemeEvents                 int64 `json:"research_theme_events"`
+	ResearchReasoningTreeImportReceipts int64 `json:"research_reasoning_tree_import_receipts"`
+	ResearchReasoningTrees              int64 `json:"research_reasoning_trees"`
+	ResearchReasoningTreeEvents         int64 `json:"research_reasoning_tree_events"`
+	ResearchReasoningTreeNodes          int64 `json:"research_reasoning_tree_nodes"`
+	ResearchReasoningTreeNodeSignals    int64 `json:"research_reasoning_tree_node_signals"`
 }
 
-func (c publicationCounts) isZero() bool {
-	return c == (publicationCounts{})
-}
+func (c publicationCounts) isZero() bool { return c == (publicationCounts{}) }
 
 type protectedCounts struct {
-	Events            int64 `json:"events"`
-	EntityNodes       int64 `json:"entity_nodes"`
-	ChainNodeProfiles int64 `json:"chain_node_profiles"`
-	IndexProfiles     int64 `json:"index_profiles"`
-	EventTagDefs      int64 `json:"event_tag_defs"`
-	EventTagMaps      int64 `json:"event_tag_maps"`
-	RawDocuments      int64 `json:"raw_documents"`
+	Events                   int64 `json:"events"`
+	EntityNodes              int64 `json:"entity_nodes"`
+	ChainNodeProfiles        int64 `json:"chain_node_profiles"`
+	IndustryChainDefinitions int64 `json:"industry_chain_definitions"`
+	IndustryChainGraphEdges  int64 `json:"industry_chain_graph_edges"`
+	IndexProfiles            int64 `json:"index_profiles"`
+	EventTagDefs             int64 `json:"event_tag_defs"`
+	EventTagMaps             int64 `json:"event_tag_maps"`
+	RawDocuments             int64 `json:"raw_documents"`
 }
 
 type resetReport struct {
@@ -105,15 +127,13 @@ type resetReport struct {
 }
 
 func main() {
-	execute := flag.Bool("execute", false, "delete all local Research Theme and Research Anchor publication data")
+	execute := flag.Bool("execute", false, "delete all local Research Theme and Reason Tree publication data")
 	confirmDatabase := flag.String("confirm-database", "", "must equal tidewise_local when --execute is used")
 	flag.Parse()
-
 	options := resetOptions{Execute: *execute, ConfirmDatabase: *confirmDatabase}
 	if err := validateExecutionGate(options); err != nil {
 		log.Fatal(err)
 	}
-
 	cfg, err := conf.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
@@ -121,7 +141,6 @@ func main() {
 	if err := validateResetTarget(cfg); err != nil {
 		log.Fatal(err)
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	db, err := postgres.Open(ctx, cfg)
@@ -129,7 +148,6 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
-
 	report, err := runReset(ctx, db, options)
 	if err != nil {
 		log.Fatal(err)
@@ -140,10 +158,7 @@ func main() {
 }
 
 func validateExecutionGate(options resetOptions) error {
-	if !options.Execute {
-		return nil
-	}
-	if options.ConfirmDatabase != localDatabaseName {
+	if options.Execute && options.ConfirmDatabase != localDatabaseName {
 		return fmt.Errorf("execution requires --execute --confirm-database tidewise_local")
 	}
 	return nil
@@ -153,7 +168,6 @@ func validateResetTarget(cfg conf.Config) error {
 	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research publication development reset is local-only, got %q", cfg.App.Env)
 	}
-
 	if !isLoopbackHost(cfg.Database.Host) {
 		return fmt.Errorf("research publication development reset requires a loopback PostgreSQL host")
 	}
@@ -176,7 +190,6 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 	if err := validateExecutionGate(options); err != nil {
 		return resetReport{}, err
 	}
-
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return resetReport{}, fmt.Errorf("begin research publication reset transaction: %w", err)
@@ -198,10 +211,9 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 	if err := acquireResetLock(ctx, tx); err != nil {
 		return resetReport{}, err
 	}
-	if err := requireReceiptTriggersEnabled(ctx, tx); err != nil {
+	if err := requirePublicationTriggersEnabled(ctx, tx); err != nil {
 		return resetReport{}, err
 	}
-
 	before, err := readPublicationCounts(ctx, tx)
 	if err != nil {
 		return resetReport{}, err
@@ -211,44 +223,23 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 		return resetReport{}, err
 	}
 	report := resetReport{
-		Database:        databaseName,
-		Mode:            "dry-run",
-		Before:          before,
-		After:           before,
-		ProtectedBefore: protectedBefore,
-		ProtectedAfter:  protectedBefore,
-		TriggerRestored: true,
+		Database: databaseName, Mode: "dry-run", Before: before, After: before,
+		ProtectedBefore: protectedBefore, ProtectedAfter: protectedBefore, TriggerRestored: true,
 	}
 
 	if options.Execute {
-		if err := execResetSQL(ctx, tx, disableThemeReceiptTriggerSQL, "disable immutable research theme receipt trigger"); err != nil {
+		if err := execResetSQL(ctx, tx, disablePublicationTriggersSQL, "disable immutable research publication triggers"); err != nil {
 			return resetReport{}, err
 		}
-		if err := execResetSQL(ctx, tx, disableAnchorReceiptTriggerSQL, "disable immutable research anchor receipt trigger"); err != nil {
+		if err := execResetSQL(ctx, tx, deletePublicationsSQL, "delete Research Theme and Reason Tree publications"); err != nil {
 			return resetReport{}, err
 		}
-		if err := execResetSQL(ctx, tx, deleteAnchorsSQL, "delete research anchors"); err != nil {
+		if err := execResetSQL(ctx, tx, enablePublicationTriggersSQL, "restore immutable research publication triggers"); err != nil {
 			return resetReport{}, err
 		}
-		if err := execResetSQL(ctx, tx, deleteAnchorReceiptsSQL, "delete research anchor import receipts"); err != nil {
-			return resetReport{}, err
+		if err := requirePublicationTriggersEnabled(ctx, tx); err != nil {
+			return resetReport{}, fmt.Errorf("verify restored immutable publication triggers: %w", err)
 		}
-		if err := execResetSQL(ctx, tx, deleteThemesSQL, "delete research themes"); err != nil {
-			return resetReport{}, err
-		}
-		if err := execResetSQL(ctx, tx, deleteThemeReceiptsSQL, "delete research theme import receipts"); err != nil {
-			return resetReport{}, err
-		}
-		if err := execResetSQL(ctx, tx, enableAnchorReceiptTriggerSQL, "restore immutable research anchor receipt trigger"); err != nil {
-			return resetReport{}, err
-		}
-		if err := execResetSQL(ctx, tx, enableThemeReceiptTriggerSQL, "restore immutable research theme receipt trigger"); err != nil {
-			return resetReport{}, err
-		}
-		if err := requireReceiptTriggersEnabled(ctx, tx); err != nil {
-			return resetReport{}, fmt.Errorf("verify restored immutable receipt triggers: %w", err)
-		}
-
 		after, err := readPublicationCounts(ctx, tx)
 		if err != nil {
 			return resetReport{}, err
@@ -263,10 +254,7 @@ func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetRepor
 		if protectedAfter != protectedBefore {
 			return resetReport{}, fmt.Errorf("protected data counts changed: before=%+v after=%+v", protectedBefore, protectedAfter)
 		}
-		report.Mode = "execute"
-		report.Executed = true
-		report.After = after
-		report.ProtectedAfter = protectedAfter
+		report.Mode, report.Executed, report.After, report.ProtectedAfter = "execute", true, after, protectedAfter
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -295,37 +283,27 @@ func acquireResetLock(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-func requireReceiptTriggersEnabled(ctx context.Context, tx *sql.Tx) error {
-	if err := requireReceiptTriggerEnabled(ctx, tx, themeReceiptTriggerStateSQL, "research theme"); err != nil {
-		return err
+func requirePublicationTriggersEnabled(ctx context.Context, tx *sql.Tx) error {
+	var total, enabled int
+	if err := tx.QueryRowContext(ctx, immutableTriggerStateSQL).Scan(&total, &enabled); err != nil {
+		return fmt.Errorf("read immutable research publication trigger state: %w", err)
 	}
-	return requireReceiptTriggerEnabled(ctx, tx, anchorReceiptTriggerStateSQL, "research anchor")
-}
-
-func requireReceiptTriggerEnabled(ctx context.Context, tx *sql.Tx, stateSQL, receiptType string) error {
-	var state string
-	if err := tx.QueryRowContext(ctx, stateSQL).Scan(&state); err != nil {
-		return fmt.Errorf("read immutable %s receipt trigger state: %w", receiptType, err)
-	}
-	if state != "O" {
-		return fmt.Errorf("immutable %s receipt trigger is not enabled, state=%q", receiptType, state)
+	if total != 9 || enabled != total {
+		return fmt.Errorf("immutable research publication triggers are incomplete or disabled: total=%d enabled=%d", total, enabled)
 	}
 	return nil
 }
 
 func readPublicationCounts(ctx context.Context, tx *sql.Tx) (publicationCounts, error) {
 	var counts publicationCounts
-	if err := tx.QueryRowContext(ctx, publicationCountsSQL).Scan(
-		&counts.ResearchThemes,
-		&counts.ResearchThemeChainNodes,
-		&counts.ResearchThemeIndices,
-		&counts.ResearchThemeEvents,
-		&counts.ResearchThemeImportReceipts,
-		&counts.ResearchAnchorImportReceipts,
-		&counts.ResearchAnchors,
-		&counts.ResearchAnchorChainNodes,
-		&counts.ResearchAnchorEvents,
-	); err != nil {
+	err := tx.QueryRowContext(ctx, publicationCountsSQL).Scan(
+		&counts.ResearchThemeImportReceipts, &counts.ResearchThemes,
+		&counts.ResearchThemeImpacts, &counts.ResearchThemeEvents,
+		&counts.ResearchReasoningTreeImportReceipts, &counts.ResearchReasoningTrees,
+		&counts.ResearchReasoningTreeEvents, &counts.ResearchReasoningTreeNodes,
+		&counts.ResearchReasoningTreeNodeSignals,
+	)
+	if err != nil {
 		return publicationCounts{}, fmt.Errorf("read research publication counts: %w", err)
 	}
 	return counts, nil
@@ -333,15 +311,12 @@ func readPublicationCounts(ctx context.Context, tx *sql.Tx) (publicationCounts, 
 
 func readProtectedCounts(ctx context.Context, tx *sql.Tx) (protectedCounts, error) {
 	var counts protectedCounts
-	if err := tx.QueryRowContext(ctx, protectedCountsSQL).Scan(
-		&counts.Events,
-		&counts.EntityNodes,
-		&counts.ChainNodeProfiles,
-		&counts.IndexProfiles,
-		&counts.EventTagDefs,
-		&counts.EventTagMaps,
-		&counts.RawDocuments,
-	); err != nil {
+	err := tx.QueryRowContext(ctx, protectedCountsSQL).Scan(
+		&counts.Events, &counts.EntityNodes, &counts.ChainNodeProfiles,
+		&counts.IndustryChainDefinitions, &counts.IndustryChainGraphEdges,
+		&counts.IndexProfiles, &counts.EventTagDefs, &counts.EventTagMaps, &counts.RawDocuments,
+	)
+	if err != nil {
 		return protectedCounts{}, fmt.Errorf("read protected data counts: %w", err)
 	}
 	return counts, nil

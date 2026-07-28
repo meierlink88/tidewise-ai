@@ -11,7 +11,7 @@
   padding-bottom: 72rpx;
   overflow: hidden;
   background:
-    radial-gradient(circle at 20% -30%, rgba(76, 120, 210, .48), transparent 58%),
+    radial-gradient(circle at 20% -30%, rgba(76, 120, 210, 0.48), transparent 58%),
     linear-gradient(180deg, $color-navy-950 0%, $color-navy-900 64%, #18376b 100%);
   color: #fff;
 }
@@ -23,7 +23,7 @@
   width: 440rpx;
   height: 260rpx;
   border-radius: 50%;
-  background: rgba(218, 192, 139, .12);
+  background: rgba(218, 192, 139, 0.12);
   content: '';
 }
 
@@ -42,9 +42,9 @@
   height: 64rpx;
   align-items: center;
   justify-content: center;
-  border: 2rpx solid rgba(231, 213, 170, .9);
+  border: 2rpx solid rgba(231, 213, 170, 0.9);
   border-radius: 50%;
-  background: rgba(255, 255, 255, .16);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .home-nav__avatar {
@@ -82,10 +82,10 @@
   flex: 1;
   align-items: center;
   padding-left: 24rpx;
-  border: 2rpx solid rgba(231, 213, 170, .9);
+  border: 2rpx solid rgba(231, 213, 170, 0.9);
   border-radius: 40rpx;
-  background: rgba(255, 255, 255, .98);
-  box-shadow: 0 12rpx 30rpx rgba(3, 12, 34, .24);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12rpx 30rpx rgba(3, 12, 34, 0.24);
 }
 
 .home-search__icon {
@@ -119,7 +119,7 @@
   border: 2rpx solid $color-champagne-300;
   border-radius: 50%;
   background: $color-navy-900;
-  box-shadow: 0 5rpx 12rpx rgba(7, 20, 47, .24);
+  box-shadow: 0 5rpx 12rpx rgba(7, 20, 47, 0.24);
 }
 
 .home-search__send-icon {
@@ -137,8 +137,8 @@
   margin-left: 18rpx;
   border: 2rpx solid $color-champagne-300;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .98);
-  box-shadow: 0 12rpx 30rpx rgba(3, 12, 34, .22);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12rpx 30rpx rgba(3, 12, 34, 0.22);
 }
 
 .home-history-button__icon {
@@ -154,7 +154,7 @@
   padding: 34rpx $spacing-page calc(44rpx + env(safe-area-inset-bottom));
   border-radius: 44rpx 44rpx 0 0;
   background: $color-page-background;
-  box-shadow: 0 -10rpx 35rpx rgba(7, 20, 47, .08);
+  box-shadow: 0 -10rpx 35rpx rgba(7, 20, 47, 0.08);
 }
 
 .category-bar {
@@ -195,7 +195,7 @@
   padding: 0 26rpx;
   border: 2rpx solid #dae2ef;
   border-radius: 32rpx;
-  background: rgba(255, 255, 255, .9);
+  background: rgba(255, 255, 255, 0.9);
   color: #42516a;
   font-size: 27rpx;
   white-space: nowrap;
@@ -266,11 +266,11 @@
   box-shadow: $shadow-card;
 }
 
-.theme-card--high {
+.theme-card--strong {
   border-color: #f1b9bf;
 }
 
-.theme-card--focus {
+.theme-card--medium {
   border-color: #eadbbb;
 }
 
@@ -283,11 +283,12 @@
   background: $color-warning;
 }
 
-.theme-card--high .theme-card__rail {
+.theme-card--strong .theme-card__rail {
   background: $color-danger;
 }
 
-.theme-card--watch .theme-card__rail {
+.theme-card--weak .theme-card__rail,
+.theme-card--unknown .theme-card__rail {
   background: #8797af;
 }
 
@@ -325,12 +326,13 @@
   white-space: nowrap;
 }
 
-.theme-card--focus .theme-card__impact {
+.theme-card--medium .theme-card__impact {
   background: #fff4df;
   color: #b77816;
 }
 
-.theme-card--watch .theme-card__impact {
+.theme-card--weak .theme-card__impact,
+.theme-card--unknown .theme-card__impact {
   background: #eef1f6;
   color: #52627a;
 }
@@ -389,53 +391,55 @@
 }
 
 .theme-card__industries {
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   margin: 20rpx 0 16rpx;
 }
 
 .theme-card__industry-count {
-  flex: 0 0 auto;
-  margin-right: 18rpx;
+  align-self: flex-start;
+  margin-bottom: 10rpx;
 }
 
 .theme-card__industry-number {
   color: $color-blue-700;
-  font-size: 52rpx;
+  font-size: 32rpx;
   font-weight: 800;
   line-height: 1;
 }
 
 .theme-card__industry-label {
-  margin-left: 8rpx;
+  margin-left: 6rpx;
   color: #6c7d93;
-  font-size: 22rpx;
+  font-size: 21rpx;
   white-space: nowrap;
 }
 
 .theme-card__node-list {
+  width: 100%;
   min-width: 0;
-  flex: 1;
+  flex: none;
   flex-wrap: wrap;
   overflow: visible;
 }
 
 .theme-card__node {
   display: inline-flex;
-  height: 48rpx;
+  height: 44rpx;
   min-width: 0;
   max-width: 100%;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8rpx;
+  margin-bottom: 6rpx;
   margin-right: 9rpx;
-  padding: 0 15rpx;
+  padding: 0 13rpx;
   overflow: hidden;
   border: 2rpx solid $color-champagne-300;
   border-radius: 12rpx;
   background: #fff;
   color: $color-blue-700;
-  font-size: 21rpx;
+  font-size: 20rpx;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;

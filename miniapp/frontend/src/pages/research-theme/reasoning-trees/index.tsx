@@ -64,7 +64,7 @@ export function IndexContent({
   session: ResearchReasoningTreeSession;
 }) {
   if (state.index.status === 'idle' || state.index.status === 'loading') {
-    return <PageState title='正在整理影响路径' description='正在加载研究主题与产业链锚点' />;
+    return <PageState title='正在整理影响路径' description='正在加载研究主题与产业链路径' />;
   }
   if (state.index.status === 'themeUnavailable') {
     return <PageState title='该研究主题暂不可用' description='请返回首页选择其他研究主题' />;
@@ -84,8 +84,11 @@ export function IndexContent({
   }
 
   const { theme, reasoningTrees } = state.index.value;
-  const selectedAnchorId = state.selectedAnchorId ?? reasoningTrees[0].anchorId;
-  const detailState = state.detailsByAnchorId[selectedAnchorId] ?? { status: 'idle' as const };
+  const selectedReasoningTreeId =
+    state.selectedReasoningTreeId ?? reasoningTrees[0].reasoningTreeId;
+  const detailState = state.detailsByReasoningTreeId[selectedReasoningTreeId] ?? {
+    status: 'idle' as const
+  };
 
   return (
     <View className='reasoning-page__ready'>
@@ -93,25 +96,25 @@ export function IndexContent({
 
       <View id='reasoning-tabs-wrap' className='reasoning-tabs-wrap'>
         <View className='reasoning-tabs__label'>
-          <Text>研究锚点</Text>
-          <Text>{reasoningTrees.length} 条独立推理树</Text>
+          <Text>产业链路径</Text>
+          <Text>{reasoningTrees.length} 棵推理树</Text>
         </View>
         <ScrollView className='reasoning-tabs' scrollX showScrollbar={false}>
           <View className='reasoning-tabs__items'>
             {reasoningTrees.map((tree) => (
               <Button
-                key={tree.anchorId}
+                key={tree.reasoningTreeId}
                 className={`tidewise-button reasoning-tab ${
-                  selectedAnchorId === tree.anchorId ? 'reasoning-tab--active' : ''
+                  selectedReasoningTreeId === tree.reasoningTreeId ? 'reasoning-tab--active' : ''
                 }`}
                 hoverClass='none'
                 onClick={() => {
-                  if (selectedAnchorId === tree.anchorId) return;
-                  session.selectAnchor(tree.anchorId);
+                  if (selectedReasoningTreeId === tree.reasoningTreeId) return;
+                  session.selectReasoningTree(tree.reasoningTreeId);
                   scrollToReasoningTreeStart();
                 }}
               >
-                {tree.centerChainNode.name}
+                {tree.title}
               </Button>
             ))}
           </View>
@@ -121,7 +124,7 @@ export function IndexContent({
       <View id='reasoning-tree-content' className='reasoning-page__content'>
         <ReasoningTreeContent
           state={detailState}
-          onRetry={() => session.retryAnchor(selectedAnchorId)}
+          onRetry={() => session.retryReasoningTree(selectedReasoningTreeId)}
         />
       </View>
     </View>
@@ -158,7 +161,7 @@ function ReasoningTreeContent({
     );
   }
 
-  return <ReasoningTreeView tree={state.value.reasoningTree} />;
+  return <ReasoningTreeView detail={state.value} />;
 }
 
 function PageState({

@@ -1,39 +1,48 @@
-import type { ResearchChangeDirection, ResearchEvidenceRole } from './contract';
+import type { ResearchEvidenceRole, ResearchSignalDirection } from './contract';
+import type { ResearchDirection, ResearchImpactStrength } from '../research-themes/contract';
 
-const evidenceRoleLabels: Record<ResearchEvidenceRole, string> = {
+const evidenceLabels: Record<ResearchEvidenceRole, string> = {
   driver: '驱动',
   supporting: '支持',
   contradicting: '反证',
   context: '背景'
 };
-
-const changeDirectionPresentations: Record<
-  ResearchChangeDirection,
-  { label: string; tone: 'positive' | 'negative' | 'mixed' | 'neutral' | 'uncertain' }
-> = {
-  increase: { label: '↑ 增强', tone: 'positive' },
-  decrease: { label: '↓ 减弱', tone: 'negative' },
-  mixed: { label: '↕ 分化', tone: 'mixed' },
-  unchanged: { label: '→ 持平', tone: 'neutral' },
-  uncertain: { label: '待验证', tone: 'uncertain' }
+const signalLabels: Record<ResearchSignalDirection, string> = {
+  increase: '↑',
+  decrease: '↓',
+  mixed: '↕',
+  unchanged: '→',
+  uncertain: '待确认'
 };
-
-export function researchEvidenceRoleLabel(role: ResearchEvidenceRole): string {
-  return evidenceRoleLabels[role];
+const directionLabels: Record<ResearchDirection, string> = {
+  positive: '正向',
+  negative: '负向',
+  mixed: '分化',
+  neutral: '中性',
+  uncertain: '待验证'
+};
+const strengthLabels: Record<ResearchImpactStrength, string> = {
+  strong: '强影响',
+  medium: '中等影响',
+  weak: '弱影响',
+  unknown: '影响待判断'
+};
+export const researchEvidenceRoleLabel = (role: ResearchEvidenceRole) => evidenceLabels[role];
+export const researchSignalDirectionLabel = (direction: ResearchSignalDirection) =>
+  signalLabels[direction];
+export const researchDirectionLabel = (direction: ResearchDirection) => directionLabels[direction];
+export const researchStrengthLabel = (strength: ResearchImpactStrength) => strengthLabels[strength];
+export function researchTreeConclusionMeta(
+  direction: ResearchDirection,
+  strength: ResearchImpactStrength,
+  impactSummary: string | null
+): string {
+  const base = `${researchDirectionLabel(direction)} · ${researchStrengthLabel(strength)}`;
+  return impactSummary ? `${base} | ${impactSummary}` : base;
 }
-
-export function researchChangeDirectionPresentation(direction: ResearchChangeDirection) {
-  return changeDirectionPresentations[direction];
-}
-
 export function formatReasoningTimestamp(value: string): string {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return '时间未知';
-
   const date = new Date(timestamp);
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  const hour = String(date.getUTCHours()).padStart(2, '0');
-  const minute = String(date.getUTCMinutes()).padStart(2, '0');
-  return `${month}-${day} ${hour}:${minute}`;
+  return `${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
 }

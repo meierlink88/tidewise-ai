@@ -101,3 +101,5 @@ AI Anchor V1
 5. 任一 Anchor 无效时 receipt、Anchor、Event association 和 path node 零部分写入。
 6. Data 与 BFF 原样返回两个字段和单一 Event 数组。
 7. Theme Import V1、现有 Theme API 和推理树错误合同回归通过。
+> **Superseded:** Research Anchor 已退役；当前支持/反证字段属于 Reason Tree，合同以
+> `research-theme-reasoning-tree-spec.md` 为准。本文件只保留历史背景。

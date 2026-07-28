@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
 const (
@@ -36,9 +34,7 @@ type ResearchListRequest struct {
 	Cursor      string
 }
 
-type ResearchDetailRequest struct {
-	WindowHours int
-}
+type ResearchDetailRequest struct{ WindowHours int }
 
 type ResearchThemePage struct {
 	WindowStart time.Time       `json:"window_start"`
@@ -51,20 +47,38 @@ type ResearchThemePage struct {
 }
 
 type ResearchTheme struct {
-	ID                        string                   `json:"id"`
-	Name                      string                   `json:"name"`
-	OneLineConclusion         string                   `json:"one_line_conclusion"`
-	ImpactLevel               model.ImpactLevel        `json:"impact_level"`
-	TransmissionPath          string                   `json:"transmission_path"`
-	TradingDirection          string                   `json:"trading_direction"`
-	TransmissionStage         model.TransmissionStage  `json:"transmission_stage"`
-	NextCheckpoint            string                   `json:"next_checkpoint"`
-	MarketConfirmationSummary string                   `json:"market_confirmation_summary"`
-	PublishedAt               time.Time                `json:"published_at"`
-	AffectedChainNodes        []ResearchThemeChainNode `json:"affected_chain_nodes"`
-	RelatedIndices            []ResearchIndex          `json:"related_indices"`
-	SupportingEventCount      int                      `json:"supporting_event_count"`
-	ContradictingEventCount   int                      `json:"contradicting_event_count"`
+	ID                        string                `json:"id"`
+	AnalysisBatchID           string                `json:"analysis_batch_id"`
+	Title                     string                `json:"title"`
+	OneLineConclusion         string                `json:"one_line_conclusion"`
+	ConclusionDirection       string                `json:"conclusion_direction"`
+	ImpactStrength            string                `json:"impact_strength"`
+	AttentionLevel            *string               `json:"attention_level"`
+	ConclusionStatus          *string               `json:"conclusion_status"`
+	TransmissionStage         string                `json:"transmission_stage"`
+	InvestmentGuidanceAction  string                `json:"investment_guidance_action"`
+	InvestmentGuidanceSummary string                `json:"investment_guidance_summary"`
+	TimeHorizonCategory       string                `json:"time_horizon_category"`
+	TimeHorizonSummary        *string               `json:"time_horizon_summary"`
+	TransmissionSummary       *string               `json:"transmission_summary"`
+	CheckpointSummary         *string               `json:"checkpoint_summary"`
+	RiskSummary               *string               `json:"risk_summary"`
+	AnalysisAsOf              time.Time             `json:"analysis_as_of"`
+	WindowStart               time.Time             `json:"window_start"`
+	WindowEnd                 time.Time             `json:"window_end"`
+	PublishedAt               time.Time             `json:"published_at"`
+	Impacts                   []ResearchThemeImpact `json:"impacts"`
+	EvidenceEventCount        int                   `json:"evidence_event_count"`
+	ReasoningTreeCount        int                   `json:"reasoning_tree_count"`
+}
+
+type ResearchThemeImpact struct {
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	Name              string  `json:"name"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 
 type ResearchThemeDetail struct {
@@ -72,27 +86,14 @@ type ResearchThemeDetail struct {
 	Events []ResearchEvent `json:"events"`
 }
 
-type ResearchThemeChainNode struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	RelationRole  string `json:"relation_role"`
-	ImpactSummary string `json:"impact_summary"`
-}
-
-type ResearchIndex struct {
-	ID              string                        `json:"id"`
-	Name            string                        `json:"name"`
-	ImpactDirection model.ResearchImpactDirection `json:"impact_direction"`
-	ImpactSummary   string                        `json:"impact_summary"`
-}
-
 type ResearchEvent struct {
-	EventID        string                     `json:"event_id"`
-	Title          string                     `json:"title"`
-	Summary        string                     `json:"summary"`
-	EventTime      *time.Time                 `json:"event_time,omitempty"`
-	EvidenceRole   model.ResearchEvidenceRole `json:"evidence_role"`
-	SupportedClaim string                     `json:"supported_claim"`
+	EventID        string     `json:"event_id"`
+	Title          string     `json:"title"`
+	Summary        string     `json:"summary"`
+	EventTime      *time.Time `json:"event_time"`
+	EvidenceRole   string     `json:"evidence_role"`
+	SupportedClaim *string    `json:"supported_claim,omitempty"`
+	DisplayOrder   int        `json:"display_order,omitempty"`
 }
 
 type Service struct {
@@ -117,7 +118,7 @@ func (s *Service) ListThemes(ctx context.Context, request ResearchListRequest) (
 		return ResearchThemePage{}, err
 	}
 	page, err := s.repository.ListResearchThemes(ctx, ThemeListFilter{
-		WindowStart: windowStart, AsOf: asOf, Limit: limit, CursorRank: cursor.Rank,
+		WindowStart: windowStart, AsOf: asOf, Limit: limit,
 		CursorPublishedAt: cursor.PublishedAtPtr(), CursorID: cursor.ID,
 	})
 	if err != nil {
@@ -135,7 +136,7 @@ func (s *Service) ListThemes(ctx context.Context, request ResearchListRequest) (
 		last := page.Items[len(page.Items)-1]
 		next, err := encodeResearchCursor(researchCursor{
 			Version: 1, Kind: "themes", WindowHours: windowHours, AsOf: asOf,
-			Rank: impactRank(last.ImpactLevel), PublishedAt: last.PublishedAt, ID: last.ID,
+			PublishedAt: last.PublishedAt, ID: last.ID,
 		})
 		if err != nil {
 			return ResearchThemePage{}, fmt.Errorf("encode research cursor: %w", err)
@@ -197,7 +198,6 @@ type researchCursor struct {
 	Kind        string    `json:"kind"`
 	WindowHours int       `json:"window_hours"`
 	AsOf        time.Time `json:"as_of"`
-	Rank        int       `json:"rank"`
 	PublishedAt time.Time `json:"published_at"`
 	ID          string    `json:"id"`
 }
@@ -245,31 +245,28 @@ func decodeResearchCursor(value string) (researchCursor, error) {
 
 func themeDTO(item ThemeSummaryRecord) ResearchTheme {
 	return ResearchTheme{
-		ID: item.ID, Name: item.Name, OneLineConclusion: item.OneLineConclusion,
-		ImpactLevel: item.ImpactLevel, TransmissionPath: item.TransmissionPath, TradingDirection: item.TradingDirection,
-		TransmissionStage: item.TransmissionStage, NextCheckpoint: item.NextCheckpoint,
-		MarketConfirmationSummary: item.MarketConfirmationSummary, PublishedAt: item.PublishedAt.UTC(),
-		AffectedChainNodes: themeChainNodeDTOs(item.ChainNodes), RelatedIndices: indexDTOs(item.Indices),
-		SupportingEventCount: item.SupportingEventCount, ContradictingEventCount: item.ContradictingEventCount,
+		ID: item.ID, AnalysisBatchID: item.AnalysisBatchID, Title: item.Title,
+		OneLineConclusion: item.OneLineConclusion, ConclusionDirection: item.ConclusionDirection,
+		ImpactStrength: item.ImpactStrength, AttentionLevel: item.AttentionLevel,
+		ConclusionStatus: item.ConclusionStatus, TransmissionStage: item.TransmissionStage,
+		InvestmentGuidanceAction:  item.InvestmentGuidanceAction,
+		InvestmentGuidanceSummary: item.InvestmentGuidanceSummary,
+		TimeHorizonCategory:       item.TimeHorizonCategory, TimeHorizonSummary: item.TimeHorizonSummary,
+		TransmissionSummary: item.TransmissionSummary, CheckpointSummary: item.CheckpointSummary,
+		RiskSummary: item.RiskSummary, AnalysisAsOf: item.AnalysisAsOf.UTC(),
+		WindowStart: item.WindowStart.UTC(), WindowEnd: item.WindowEnd.UTC(),
+		PublishedAt: item.PublishedAt.UTC(), Impacts: impactDTOs(item.Impacts),
+		EvidenceEventCount: item.EvidenceEventCount, ReasoningTreeCount: item.ReasoningTreeCount,
 	}
 }
 
-func themeChainNodeDTOs(values []ChainNodeRecord) []ResearchThemeChainNode {
-	result := make([]ResearchThemeChainNode, 0, len(values))
+func impactDTOs(values []ThemeImpactRecord) []ResearchThemeImpact {
+	result := make([]ResearchThemeImpact, 0, len(values))
 	for _, value := range values {
-		result = append(result, ResearchThemeChainNode{
-			ID: value.ID, Name: value.Name, RelationRole: value.RelationRole, ImpactSummary: value.Summary,
-		})
-	}
-	return result
-}
-
-func indexDTOs(values []IndexRecord) []ResearchIndex {
-	result := make([]ResearchIndex, 0, len(values))
-	for _, value := range values {
-		result = append(result, ResearchIndex{
-			ID: value.ID, Name: value.Name,
-			ImpactDirection: model.ResearchImpactDirection(value.ImpactDirection), ImpactSummary: value.Summary,
+		result = append(result, ResearchThemeImpact{
+			ChainNodeEntityID: value.ChainNodeEntityID, Name: value.Name,
+			RelationRole: value.RelationRole, ImpactDirection: value.ImpactDirection,
+			ImpactSummary: value.ImpactSummary, DisplayOrder: value.DisplayOrder,
 		})
 	}
 	return result
@@ -277,34 +274,30 @@ func indexDTOs(values []IndexRecord) []ResearchIndex {
 
 func eventDTOs(values []EventRecord) []ResearchEvent {
 	result := make([]ResearchEvent, 0, len(values))
-	for _, value := range values {
+	for index, value := range values {
 		var eventTime *time.Time
 		if value.EventTime != nil {
 			formatted := value.EventTime.UTC()
 			eventTime = &formatted
 		}
+		displayOrder := value.DisplayOrder
+		if displayOrder == 0 {
+			displayOrder = index + 1
+		}
 		result = append(result, ResearchEvent{
-			EventID: value.EventID, Title: value.Title, Summary: value.Summary, EventTime: eventTime,
-			EvidenceRole: model.ResearchEvidenceRole(value.EvidenceRole), SupportedClaim: value.SupportedClaim,
+			EventID: value.EventID, Title: value.Title, Summary: value.Summary,
+			EventTime: eventTime, EvidenceRole: value.EvidenceRole,
+			SupportedClaim: value.SupportedClaim, DisplayOrder: displayOrder,
 		})
 	}
 	return result
 }
 
-func impactRank(value model.ImpactLevel) int {
-	switch value {
-	case model.ImpactLevelHigh:
-		return 3
-	case model.ImpactLevelFocus:
-		return 2
-	default:
-		return 1
-	}
-}
-
 func mapRepositoryError(err error) error {
-	if errors.Is(err, ErrResearchNotFound) {
+	switch {
+	case errors.Is(err, ErrResearchNotFound), errors.Is(err, ErrResearchThemeNotFound):
 		return ErrNotFound
+	default:
+		return fmt.Errorf("%w: %v", ErrRepository, err)
 	}
-	return fmt.Errorf("%w: %v", ErrRepository, err)
 }

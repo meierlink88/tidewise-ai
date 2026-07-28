@@ -199,3 +199,5 @@ Content-Type: application/json
 - 并发相同请求只产生一次成功事实，另一次返回重放。
 - 真实 PostgreSQL 集成测试证明 receipt、Anchor、Event、Path Node 同事务写入并可核验。
 - 现有 Theme Import V1 与 Data Service 全量测试保持通过。
+> **Superseded:** Research Anchor 已退役。本文件只保留历史背景；当前实现以
+> `research-theme-reasoning-tree-spec.md` 为准。
