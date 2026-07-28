@@ -163,7 +163,7 @@ jobs:
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Login to SWR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           registry: ${{ env.SWR_REGISTRY }}
           username: ${{ secrets.SWR_USERNAME }}
@@ -294,7 +294,7 @@ jobs:
       INDUSTRY_GRAPH_PACKAGE_SHA: ${{ inputs.industry_graph_package_sha }}
     steps:
       - name: Login to SWR with pull credentials
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           registry: ${{ env.SWR_REGISTRY }}
           username: ${{ secrets.SWR_PULL_USERNAME }}
