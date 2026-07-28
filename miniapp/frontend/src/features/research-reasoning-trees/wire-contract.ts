@@ -1,348 +1,344 @@
 import {
   ResearchReasoningTreeError,
-  type ResearchChangeDirection,
   type ResearchEvidenceRole,
+  type ResearchReasoningTree,
   type ResearchReasoningTreeDetail,
+  type ResearchReasoningTreeEvent,
   type ResearchReasoningTreeIndex,
-  type ResearchReasoningTreeTheme
+  type ResearchReasoningTreeNode,
+  type ResearchReasoningTreeSignal,
+  type ResearchReasoningTreeSummary,
+  type ResearchSignalDirection
 } from './contract';
+import type { ResearchDirection, ResearchImpactStrength } from '../research-themes/contract';
+import { parseResearchThemeWire } from '../research-themes/wire-contract';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
+const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
+const evidenceRoleValues = ['driver', 'supporting', 'contradicting', 'context'] as const;
+const signalRoleValues = ['primary', 'supporting', 'contradicting'] as const;
+const signalDirectionValues = ['increase', 'decrease', 'mixed', 'unchanged', 'uncertain'] as const;
 
-interface APIChainNode {
-  id: string;
-  name: string;
-}
-
-interface APIAffectedChainNode extends APIChainNode {
-  relation_role: 'driver' | 'beneficiary' | 'constraint' | 'exposure';
-  impact_summary: string;
-}
-
-interface APIIndex extends APIChainNode {
-  impact_direction: 'positive' | 'negative' | 'mixed' | 'neutral';
-  impact_summary: string;
-}
-
-interface APITheme {
-  id: string;
-  name: string;
-  one_line_conclusion: string;
-  impact_level: 'high' | 'focus' | 'watch';
-  transmission_path: string;
-  trading_direction: string;
-  transmission_stage: 'identification' | 'validation' | 'diffusion' | 'dampening';
-  next_checkpoint: string;
-  market_confirmation_summary: string;
-  published_at: string;
-  affected_chain_nodes: APIAffectedChainNode[];
-  related_indices: APIIndex[];
-  supporting_event_count: number;
-  contradicting_event_count: number;
-}
-
-interface APISummary {
-  anchor_id: string;
-  center_chain_node: APIChainNode;
-}
-
-interface APIIndexResponse {
-  theme: APITheme;
-  reasoning_trees: APISummary[];
-}
-
-interface APIEvent {
-  event_id: string;
-  title: string;
-  summary: string;
-  event_time: string | null;
-  evidence_role: ResearchEvidenceRole;
-  evidence_summary: string;
-}
-
-interface APIPathNode {
-  chain_node_id: string;
-  name: string;
-  change_direction: ResearchChangeDirection;
-  change_summary: string;
-  impact_summary: string;
-  incoming_transmission_mechanism: string | null;
-}
-
-interface APIDetailResponse {
-  theme_id: string;
-  reasoning_tree: {
-    anchor_id: string;
-    center_chain_node: APIChainNode;
-    one_line_conclusion: string;
-    fact_summary: string;
-    net_direction_summary: string;
-    support_summary: string;
-    counter_summary: string | null;
-    trading_direction: string;
-    next_checkpoint: string;
-    event_count: number;
-    events: APIEvent[];
-    path_nodes: APIPathNode[];
-  };
-}
+type RecordValue = Record<string, unknown>;
 
 export function parseResearchReasoningTreeIndex(value: unknown): ResearchReasoningTreeIndex {
-  if (!isIndexResponse(value)) throw new ResearchReasoningTreeError('serviceUnavailable');
-  return mapIndex(value);
+  return failClosed(() => {
+    const root = record(value);
+    onlyKeys(root, ['theme', 'reasoning_trees']);
+    const theme = parseResearchThemeWire(root.theme);
+    const reasoningTrees = array(root.reasoning_trees).map((item, index) => {
+      const summary = mapSummary(record(item));
+      if (summary.displayOrder !== index + 1) invalid();
+      return summary;
+    });
+    return { theme, reasoningTrees };
+  });
 }
 
 export function parseResearchReasoningTreeDetail(
   value: unknown,
   themeId: string,
-  anchorId: string
+  reasoningTreeId: string
 ): ResearchReasoningTreeDetail {
-  if (!isDetailResponse(value, themeId, anchorId)) {
-    throw new ResearchReasoningTreeError('serviceUnavailable');
-  }
-  return mapDetail(value);
-}
-
-function isIndexResponse(value: unknown): value is APIIndexResponse {
-  if (!isRecord(value) || !isTheme(value.theme) || !Array.isArray(value.reasoning_trees)) {
-    return false;
-  }
-  if (value.reasoning_trees.length === 0) return false;
-  const anchorIds = new Set<string>();
-  return value.reasoning_trees.every((tree) => {
-    if (!isRecord(tree) || !isUUID(tree.anchor_id) || !isChainNode(tree.center_chain_node)) {
-      return false;
+  return failClosed(() => {
+    const root = record(value);
+    onlyKeys(root, ['theme_id', 'impact_node_ids', 'reasoning_tree']);
+    if (uuid(root.theme_id) !== themeId) invalid();
+    const reasoningTree = mapTree(record(root.reasoning_tree));
+    if (reasoningTree.themeId !== themeId || reasoningTree.reasoningTreeId !== reasoningTreeId) {
+      invalid();
     }
-    if (anchorIds.has(tree.anchor_id)) return false;
-    anchorIds.add(tree.anchor_id);
-    return true;
+    return {
+      themeId,
+      impactNodeIds: array(root.impact_node_ids).map(uuid),
+      reasoningTree
+    };
   });
 }
 
-function isDetailResponse(
-  value: unknown,
-  themeId: string,
-  anchorId: string
-): value is APIDetailResponse {
-  if (!isRecord(value) || value.theme_id !== themeId || !isRecord(value.reasoning_tree)) {
-    return false;
-  }
-  const tree = value.reasoning_tree;
+function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
+  onlyKeys(value, [
+    'reasoning_tree_id',
+    'industry_chain_entity_id',
+    'industry_chain_name',
+    'title',
+    'display_order',
+    'event_count',
+    'published_at'
+  ]);
+  return {
+    reasoningTreeId: uuid(value.reasoning_tree_id),
+    industryChainEntityId: uuid(value.industry_chain_entity_id),
+    industryChainName: text(value.industry_chain_name),
+    title: text(value.title),
+    displayOrder: positiveInteger(value.display_order),
+    eventCount: nonNegativeInteger(value.event_count),
+    publishedAt: timestamp(value.published_at)
+  };
+}
+
+function mapTree(value: RecordValue): ResearchReasoningTree {
+  onlyKeys(value, [
+    'reasoning_tree_id',
+    'theme_id',
+    'industry_chain_entity_id',
+    'industry_chain_name',
+    'title',
+    'display_order',
+    'one_line_conclusion',
+    'fact_summary',
+    'transmission_summary',
+    'impact_direction',
+    'impact_strength',
+    'impact_summary',
+    'conclusion_boundary_summary',
+    'support_summary',
+    'counter_summary',
+    'invalidation_conditions',
+    'checkpoints',
+    'published_at',
+    'event_count',
+    'events',
+    'nodes'
+  ]);
+  const events = array(value.events).map((item, index) => mapEvent(record(item), index));
+  const nodes = array(value.nodes).map((item, index) => mapNode(record(item), index));
+  if (nodes.length === 0 || nonNegativeInteger(value.event_count) !== events.length) invalid();
+  return {
+    reasoningTreeId: uuid(value.reasoning_tree_id),
+    themeId: uuid(value.theme_id),
+    industryChainEntityId: uuid(value.industry_chain_entity_id),
+    industryChainName: text(value.industry_chain_name),
+    title: text(value.title),
+    displayOrder: positiveInteger(value.display_order),
+    oneLineConclusion: text(value.one_line_conclusion),
+    factSummary: nullableText(value.fact_summary),
+    transmissionSummary: nullableText(value.transmission_summary),
+    impactDirection: enumValue<ResearchDirection>(value.impact_direction, directionValues),
+    impactStrength: enumValue<ResearchImpactStrength>(value.impact_strength, strengthValues),
+    impactSummary: nullableText(value.impact_summary),
+    conclusionBoundarySummary: nullableText(value.conclusion_boundary_summary),
+    supportSummary: nullableText(value.support_summary),
+    counterSummary: nullableText(value.counter_summary),
+    invalidationConditions: array(value.invalidation_conditions).map(text),
+    checkpoints: array(value.checkpoints).map((item) => {
+      const checkpoint = record(item);
+      onlyKeys(checkpoint, ['type', 'summary']);
+      return {
+        type: enumValue(checkpoint.type, ['event', 'relationship', 'metric'] as const),
+        summary: text(checkpoint.summary)
+      };
+    }),
+    publishedAt: timestamp(value.published_at),
+    eventCount: events.length,
+    events,
+    nodes
+  };
+}
+
+function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent {
+  onlyKeys(value, [
+    'event_id',
+    'title',
+    'summary',
+    'event_time',
+    'evidence_role',
+    'supported_claim',
+    'display_order'
+  ]);
+  const displayOrder = positiveInteger(value.display_order);
+  if (displayOrder !== index + 1) invalid();
+  return {
+    eventId: uuid(value.event_id),
+    title: text(value.title),
+    summary: text(value.summary),
+    eventTime: value.event_time === null ? null : timestamp(value.event_time),
+    evidenceRole: enumValue<ResearchEvidenceRole>(value.evidence_role, evidenceRoleValues),
+    supportedClaim: nullableText(value.supported_claim),
+    displayOrder
+  };
+}
+
+function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
+  onlyKeys(value, [
+    'id',
+    'position',
+    'chain_node_entity_id',
+    'name',
+    'state_summary',
+    'impact_direction',
+    'impact_strength',
+    'impact_summary',
+    'reasoning_basis_summary',
+    'evidence_gap_summary',
+    'incoming_industry_chain_graph_edge_id',
+    'incoming_transmission_title',
+    'incoming_transmission_mechanism',
+    'incoming_condition_summary',
+    'incoming_graph_edge',
+    'signals',
+    'primary_signal',
+    'signal_display_summary'
+  ]);
+  const position = positiveInteger(value.position);
+  if (position !== index + 1) invalid();
+  const signals = array(value.signals).map((item, signalIndex) =>
+    mapSignal(record(item), signalIndex)
+  );
+  if (signals.length < 1 || signals.length > 5) invalid();
+  const primarySignal = mapSignal(record(value.primary_signal), 0);
+  const primary = signals.filter((signal) => signal.signalRole === 'primary');
+  if (primary.length !== 1 || !sameSignal(primary[0], primarySignal)) invalid();
+  const signalDisplaySummary = textAllowEmpty(value.signal_display_summary);
   if (
-    tree.anchor_id !== anchorId ||
-    !isChainNode(tree.center_chain_node) ||
-    !hasStrings(tree, [
-      'one_line_conclusion',
-      'fact_summary',
-      'net_direction_summary',
-      'support_summary',
-      'trading_direction',
-      'next_checkpoint'
-    ]) ||
-    (tree.counter_summary !== null && !isNonEmptyString(tree.counter_summary)) ||
-    !isNonNegativeInteger(tree.event_count) ||
-    !Array.isArray(tree.events) ||
-    !Array.isArray(tree.path_nodes) ||
-    tree.path_nodes.length === 0
+    signalDisplaySummary !==
+    signals
+      .filter((signal) => signal.signalRole !== 'primary')
+      .map((signal) => signal.displaySummary)
+      .join(' · ')
   ) {
-    return false;
+    invalid();
   }
-  if (tree.event_count !== tree.events.length) return false;
-  const eventIds = new Set<string>();
-  const nodeIds = new Set<string>();
-  return (
-    tree.events.every((event) => {
-      if (!isEvent(event) || eventIds.has(event.event_id)) return false;
-      eventIds.add(event.event_id);
-      return true;
-    }) &&
-    tree.path_nodes.every((node, index) => {
-      if (!isPathNode(node) || nodeIds.has(node.chain_node_id)) return false;
-      if (
-        (index === 0 && node.incoming_transmission_mechanism !== null) ||
-        (index > 0 && node.incoming_transmission_mechanism === null)
-      ) {
-        return false;
-      }
-      nodeIds.add(node.chain_node_id);
-      return true;
-    })
-  );
-}
-
-function isTheme(value: unknown): value is APITheme {
-  if (!isRecord(value)) return false;
-  return (
-    isUUID(value.id) &&
-    hasStrings(value, [
-      'name',
-      'one_line_conclusion',
-      'transmission_path',
-      'trading_direction',
-      'next_checkpoint',
-      'market_confirmation_summary',
-      'published_at'
-    ]) &&
-    isOneOf(value.impact_level, ['high', 'focus', 'watch']) &&
-    isOneOf(value.transmission_stage, ['identification', 'validation', 'diffusion', 'dampening']) &&
-    Array.isArray(value.affected_chain_nodes) &&
-    value.affected_chain_nodes.every(isAffectedChainNode) &&
-    Array.isArray(value.related_indices) &&
-    value.related_indices.every(isIndex) &&
-    isNonNegativeInteger(value.supporting_event_count) &&
-    isNonNegativeInteger(value.contradicting_event_count)
-  );
-}
-
-function isAffectedChainNode(value: unknown): value is APIAffectedChainNode {
-  const record = value as Record<string, unknown>;
-  return (
-    isChainNode(value) &&
-    isOneOf(record.relation_role, ['driver', 'beneficiary', 'constraint', 'exposure']) &&
-    isNonEmptyString(record.impact_summary)
-  );
-}
-
-function isIndex(value: unknown): value is APIIndex {
-  const record = value as Record<string, unknown>;
-  return (
-    isChainNode(value) &&
-    isOneOf(record.impact_direction, ['positive', 'negative', 'mixed', 'neutral']) &&
-    isNonEmptyString(record.impact_summary)
-  );
-}
-
-function isEvent(value: unknown): value is APIEvent {
-  if (!isRecord(value)) return false;
-  return (
-    isUUID(value.event_id) &&
-    hasStrings(value, ['title', 'summary', 'evidence_summary']) &&
-    (value.event_time === null || isUTCRFC3339(value.event_time)) &&
-    isOneOf(value.evidence_role, ['driver', 'supporting', 'contradicting', 'context'])
-  );
-}
-
-function isPathNode(value: unknown): value is APIPathNode {
-  if (!isRecord(value)) return false;
-  return (
-    isUUID(value.chain_node_id) &&
-    hasStrings(value, ['name', 'change_summary', 'impact_summary']) &&
-    isOneOf(value.change_direction, ['increase', 'decrease', 'mixed', 'unchanged', 'uncertain']) &&
-    (value.incoming_transmission_mechanism === null ||
-      isNonEmptyString(value.incoming_transmission_mechanism))
-  );
-}
-
-function isChainNode(value: unknown): value is APIChainNode {
-  return isRecord(value) && isUUID(value.id) && isNonEmptyString(value.name);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function hasStrings(value: Record<string, unknown>, keys: string[]): boolean {
-  return keys.every((key) => isNonEmptyString(value[key]));
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function isUUID(value: unknown): value is string {
-  return typeof value === 'string' && uuidPattern.test(value);
-}
-
-function isUTCRFC3339(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value) &&
-    !Number.isNaN(Date.parse(value))
-  );
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
-
-function isOneOf<T extends string>(value: unknown, allowed: readonly T[]): value is T {
-  return typeof value === 'string' && allowed.includes(value as T);
-}
-
-function mapIndex(value: APIIndexResponse): ResearchReasoningTreeIndex {
+  const incomingGraphEdge =
+    value.incoming_graph_edge === null ? null : mapGraphEdge(record(value.incoming_graph_edge));
   return {
-    theme: mapTheme(value.theme),
-    reasoningTrees: value.reasoning_trees.map((tree) => ({
-      anchorId: tree.anchor_id,
-      centerChainNode: mapChainNode(tree.center_chain_node)
-    }))
+    id: uuid(value.id),
+    position,
+    chainNodeEntityId: uuid(value.chain_node_entity_id),
+    name: text(value.name),
+    stateSummary: nullableText(value.state_summary),
+    impactDirection: enumValue<ResearchDirection>(value.impact_direction, directionValues),
+    impactStrength: enumValue<ResearchImpactStrength>(value.impact_strength, strengthValues),
+    impactSummary: nullableText(value.impact_summary),
+    reasoningBasisSummary: nullableText(value.reasoning_basis_summary),
+    evidenceGapSummary: nullableText(value.evidence_gap_summary),
+    incomingIndustryChainGraphEdgeId: nullableUUID(value.incoming_industry_chain_graph_edge_id),
+    incomingTransmissionTitle: nullableText(value.incoming_transmission_title),
+    incomingTransmissionMechanism: nullableText(value.incoming_transmission_mechanism),
+    incomingConditionSummary: nullableText(value.incoming_condition_summary),
+    incomingGraphEdge,
+    signals,
+    primarySignal,
+    signalDisplaySummary
   };
 }
 
-function mapTheme(value: APITheme): ResearchReasoningTreeTheme {
+function mapSignal(value: RecordValue, index: number): ResearchReasoningTreeSignal {
+  onlyKeys(value, [
+    'variable_signal_key',
+    'signal_role',
+    'signal_direction',
+    'display_summary',
+    'display_order'
+  ]);
+  const displayOrder = positiveInteger(value.display_order);
+  if (displayOrder !== index + 1) invalid();
   return {
-    id: value.id,
-    name: value.name,
-    oneLineConclusion: value.one_line_conclusion,
-    impactLevel: value.impact_level,
-    transmissionPath: value.transmission_path,
-    tradingDirection: value.trading_direction,
-    transmissionStage: value.transmission_stage,
-    nextCheckpoint: value.next_checkpoint,
-    marketConfirmationSummary: value.market_confirmation_summary,
-    publishedAt: value.published_at,
-    affectedChainNodes: value.affected_chain_nodes.map((node) => ({
-      id: node.id,
-      name: node.name,
-      relationRole: node.relation_role,
-      impactSummary: node.impact_summary
-    })),
-    relatedIndices: value.related_indices.map((index) => ({
-      id: index.id,
-      name: index.name,
-      impactDirection: index.impact_direction,
-      impactSummary: index.impact_summary
-    })),
-    supportingEventCount: value.supporting_event_count,
-    contradictingEventCount: value.contradicting_event_count
+    variableSignalKey: text(value.variable_signal_key),
+    signalRole: enumValue(value.signal_role, signalRoleValues),
+    signalDirection: enumValue<ResearchSignalDirection>(
+      value.signal_direction,
+      signalDirectionValues
+    ),
+    displaySummary: text(value.display_summary),
+    displayOrder
   };
 }
 
-function mapDetail(value: APIDetailResponse): ResearchReasoningTreeDetail {
-  const tree = value.reasoning_tree;
+function mapGraphEdge(value: RecordValue) {
+  onlyKeys(value, ['id', 'relation_type', 'review_status', 'status']);
   return {
-    themeId: value.theme_id,
-    reasoningTree: {
-      anchorId: tree.anchor_id,
-      centerChainNode: mapChainNode(tree.center_chain_node),
-      oneLineConclusion: tree.one_line_conclusion,
-      factSummary: tree.fact_summary,
-      netDirectionSummary: tree.net_direction_summary,
-      supportSummary: tree.support_summary,
-      counterSummary: tree.counter_summary,
-      tradingDirection: tree.trading_direction,
-      nextCheckpoint: tree.next_checkpoint,
-      eventCount: tree.event_count,
-      events: tree.events.map((event) => ({
-        eventId: event.event_id,
-        title: event.title,
-        summary: event.summary,
-        eventTime: event.event_time,
-        evidenceRole: event.evidence_role,
-        evidenceSummary: event.evidence_summary
-      })),
-      pathNodes: tree.path_nodes.map((node) => ({
-        chainNodeId: node.chain_node_id,
-        name: node.name,
-        changeDirection: node.change_direction,
-        changeSummary: node.change_summary,
-        impactSummary: node.impact_summary,
-        incomingTransmissionMechanism: node.incoming_transmission_mechanism
-      }))
-    }
+    id: uuid(value.id),
+    relationType: text(value.relation_type),
+    reviewStatus: text(value.review_status),
+    status: text(value.status)
   };
 }
 
-function mapChainNode(value: APIChainNode) {
-  return { id: value.id, name: value.name };
+function sameSignal(left: ResearchReasoningTreeSignal, right: ResearchReasoningTreeSignal) {
+  return (
+    left.variableSignalKey === right.variableSignalKey &&
+    left.signalRole === right.signalRole &&
+    left.signalDirection === right.signalDirection &&
+    left.displaySummary === right.displaySummary &&
+    left.displayOrder === right.displayOrder
+  );
+}
+
+function failClosed<T>(operation: () => T): T {
+  try {
+    return operation();
+  } catch (error) {
+    if (error instanceof ResearchReasoningTreeError) throw error;
+    throw new ResearchReasoningTreeError('serviceUnavailable');
+  }
+}
+
+function invalid(): never {
+  throw new ResearchReasoningTreeError('serviceUnavailable');
+}
+
+function record(value: unknown): RecordValue {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) invalid();
+  return value as RecordValue;
+}
+
+function array(value: unknown): unknown[] {
+  if (!Array.isArray(value)) invalid();
+  return value;
+}
+
+function onlyKeys(value: RecordValue, allowed: string[]) {
+  const keys = Object.keys(value);
+  if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) invalid();
+}
+
+function text(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) invalid();
+  return value;
+}
+
+function textAllowEmpty(value: unknown): string {
+  if (typeof value !== 'string') invalid();
+  return value;
+}
+
+function nullableText(value: unknown): string | null {
+  return value === null ? null : textAllowEmpty(value);
+}
+
+function uuid(value: unknown): string {
+  const parsed = text(value);
+  if (!uuidPattern.test(parsed)) invalid();
+  return parsed;
+}
+
+function nullableUUID(value: unknown): string | null {
+  return value === null ? null : uuid(value);
+}
+
+function timestamp(value: unknown): string {
+  const parsed = text(value);
+  if (!parsed.endsWith('Z') || !Number.isFinite(Date.parse(parsed))) invalid();
+  return parsed;
+}
+
+function positiveInteger(value: unknown): number {
+  if (!Number.isInteger(value) || (value as number) < 1) invalid();
+  return value as number;
+}
+
+function nonNegativeInteger(value: unknown): number {
+  if (!Number.isInteger(value) || (value as number) < 0) invalid();
+  return value as number;
+}
+
+function enumValue<T extends string>(value: unknown, allowed: readonly T[]): T {
+  if (typeof value !== 'string' || !allowed.includes(value as T)) invalid();
+  return value as T;
+}
+
+export function isLowercaseUUID(value: string): boolean {
+  return uuidPattern.test(value);
 }

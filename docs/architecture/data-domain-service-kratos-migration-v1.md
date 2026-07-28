@@ -299,3 +299,5 @@ publication capability。
 
 无实现级开放决策。Issue #104 门禁已满足并完成合并后基线复核；实现期间如发现会
 改变已冻结合同、数据库、所有权或交付顺序的新事实，必须返回设计门禁。
+> **Research contract note:** 本文件的 Kratos 迁移结论仍有效；其中 Research
+> Theme/Anchor 路径与 DTO 已由 `research-theme-reasoning-tree-spec.md` 原地替换。

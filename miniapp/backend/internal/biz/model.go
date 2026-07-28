@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-// ResearchRepo is the Miniapp-owned boundary for page-level research data.
-// The Data Service HTTP adapter implements this port.
 type ResearchRepo interface {
 	ListResearchThemes(context.Context, ResearchListQuery) (ResearchThemePage, error)
 	GetResearchTheme(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
@@ -21,166 +19,98 @@ type ResearchListQuery struct {
 	Cursor      string
 }
 
-type ResearchDetailQuery struct {
-	WindowHours int
-}
-
-type ImpactLevel string
-
-const (
-	ImpactLevelHigh  ImpactLevel = "high"
-	ImpactLevelFocus ImpactLevel = "focus"
-	ImpactLevelWatch ImpactLevel = "watch"
-)
-
-type TransmissionStage string
-
-const (
-	TransmissionStageIdentification TransmissionStage = "identification"
-	TransmissionStageValidation     TransmissionStage = "validation"
-	TransmissionStageDiffusion      TransmissionStage = "diffusion"
-	TransmissionStageDampening      TransmissionStage = "dampening"
-)
-
-type EvidenceRole string
-
-const (
-	EvidenceRoleDriver        EvidenceRole = "driver"
-	EvidenceRoleSupporting    EvidenceRole = "supporting"
-	EvidenceRoleContradicting EvidenceRole = "contradicting"
-	EvidenceRoleContext       EvidenceRole = "context"
-)
-
-type ImpactDirection string
-
-const (
-	ImpactDirectionPositive ImpactDirection = "positive"
-	ImpactDirectionNegative ImpactDirection = "negative"
-	ImpactDirectionMixed    ImpactDirection = "mixed"
-	ImpactDirectionNeutral  ImpactDirection = "neutral"
-)
-
-type ChangeDirection string
-
-const (
-	ChangeDirectionIncrease  ChangeDirection = "increase"
-	ChangeDirectionDecrease  ChangeDirection = "decrease"
-	ChangeDirectionMixed     ChangeDirection = "mixed"
-	ChangeDirectionUnchanged ChangeDirection = "unchanged"
-	ChangeDirectionUncertain ChangeDirection = "uncertain"
-)
+type ResearchDetailQuery struct{ WindowHours int }
 
 type ResearchThemePage struct {
-	WindowStart time.Time       `json:"window_start"`
-	WindowEnd   time.Time       `json:"window_end"`
-	AsOf        time.Time       `json:"as_of"`
-	ThemeCount  int             `json:"theme_count"`
-	EventCount  int             `json:"event_count"`
-	Items       []ResearchTheme `json:"items"`
-	NextCursor  *string         `json:"next_cursor"`
+	WindowStart, WindowEnd, AsOf time.Time
+	ThemeCount, EventCount       int
+	Items                        []ResearchTheme
+	NextCursor                   *string
 }
 
 type ResearchTheme struct {
-	ID                        string                   `json:"id"`
-	Name                      string                   `json:"name"`
-	OneLineConclusion         string                   `json:"one_line_conclusion"`
-	ImpactLevel               ImpactLevel              `json:"impact_level"`
-	TransmissionPath          string                   `json:"transmission_path"`
-	TradingDirection          string                   `json:"trading_direction"`
-	TransmissionStage         TransmissionStage        `json:"transmission_stage"`
-	NextCheckpoint            string                   `json:"next_checkpoint"`
-	MarketConfirmationSummary string                   `json:"market_confirmation_summary"`
-	PublishedAt               time.Time                `json:"published_at"`
-	AffectedChainNodes        []ResearchThemeChainNode `json:"affected_chain_nodes"`
-	RelatedIndices            []ResearchIndex          `json:"related_indices"`
-	SupportingEventCount      int                      `json:"supporting_event_count"`
-	ContradictingEventCount   int                      `json:"contradicting_event_count"`
+	ID, AnalysisBatchID, Title, OneLineConclusion          string
+	ConclusionDirection, ImpactStrength, TransmissionStage string
+	InvestmentGuidanceAction, InvestmentGuidanceSummary    string
+	TimeHorizonCategory                                    string
+	AttentionLevel, ConclusionStatus                       *string
+	TimeHorizonSummary, TransmissionSummary                *string
+	CheckpointSummary, RiskSummary                         *string
+	AnalysisAsOf, WindowStart, WindowEnd, PublishedAt      time.Time
+	Impacts                                                []ResearchThemeImpact
+	EvidenceEventCount, ReasoningTreeCount                 int
+}
+
+type ResearchThemeImpact struct {
+	ChainNodeEntityID, Name, RelationRole, ImpactDirection string
+	ImpactSummary                                          *string
+	DisplayOrder                                           int
 }
 
 type ResearchThemeDetail struct {
-	Theme  ResearchTheme   `json:"theme"`
-	Events []ResearchEvent `json:"events"`
-}
-
-type ResearchThemeChainNode struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	RelationRole  string `json:"relation_role"`
-	ImpactSummary string `json:"impact_summary"`
-}
-
-type ResearchIndex struct {
-	ID              string          `json:"id"`
-	Name            string          `json:"name"`
-	ImpactDirection ImpactDirection `json:"impact_direction"`
-	ImpactSummary   string          `json:"impact_summary"`
+	Theme  ResearchTheme
+	Events []ResearchEvent
 }
 
 type ResearchEvent struct {
-	EventID        string       `json:"event_id"`
-	Title          string       `json:"title"`
-	Summary        string       `json:"summary"`
-	EventTime      *time.Time   `json:"event_time,omitempty"`
-	EvidenceRole   EvidenceRole `json:"evidence_role"`
-	SupportedClaim string       `json:"supported_claim"`
-}
-
-type ResearchReasoningTreeChainNode struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	EventID, Title, Summary, EvidenceRole string
+	EventTime                             *time.Time
+	SupportedClaim                        *string
+	DisplayOrder                          int
 }
 
 type ResearchReasoningTreeSummary struct {
-	AnchorID        string                         `json:"anchor_id"`
-	CenterChainNode ResearchReasoningTreeChainNode `json:"center_chain_node"`
+	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
+	DisplayOrder, EventCount                                         int
+	PublishedAt                                                      time.Time
 }
 
 type ResearchReasoningTreeList struct {
-	Theme          ResearchTheme                  `json:"theme"`
-	ReasoningTrees []ResearchReasoningTreeSummary `json:"reasoning_trees"`
+	Theme          ResearchTheme
+	ReasoningTrees []ResearchReasoningTreeSummary
 }
 
-type ResearchReasoningTreeEvent struct {
-	EventID         string       `json:"event_id"`
-	Title           string       `json:"title"`
-	Summary         string       `json:"summary"`
-	EventTime       *time.Time   `json:"event_time,omitempty"`
-	EvidenceRole    EvidenceRole `json:"evidence_role"`
-	EvidenceSummary string       `json:"evidence_summary"`
+type ResearchCheckpoint struct{ Type, Summary string }
+type ResearchGraphEdge struct{ ID, RelationType, ReviewStatus, Status string }
+type ResearchSignal struct {
+	VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
+	DisplayOrder                                                   int
 }
 
-type ResearchReasoningTreePathNode struct {
-	ChainNodeID                   string          `json:"chain_node_id"`
-	Name                          string          `json:"name"`
-	ChangeDirection               ChangeDirection `json:"change_direction"`
-	ChangeSummary                 string          `json:"change_summary"`
-	ImpactSummary                 string          `json:"impact_summary"`
-	IncomingTransmissionMechanism *string         `json:"incoming_transmission_mechanism"`
+type ResearchReasoningTreeNode struct {
+	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
+	Position                                                     int
+	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
+	EvidenceGapSummary                                           *string
+	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle  *string
+	IncomingTransmissionMechanism, IncomingConditionSummary      *string
+	IncomingGraphEdge                                            *ResearchGraphEdge
+	Signals                                                      []ResearchSignal
+	PrimarySignal                                                ResearchSignal
+	SignalDisplaySummary                                         string
 }
 
 type ResearchReasoningTree struct {
-	AnchorID            string                          `json:"anchor_id"`
-	CenterChainNode     ResearchReasoningTreeChainNode  `json:"center_chain_node"`
-	OneLineConclusion   string                          `json:"one_line_conclusion"`
-	FactSummary         string                          `json:"fact_summary"`
-	NetDirectionSummary string                          `json:"net_direction_summary"`
-	SupportSummary      string                          `json:"support_summary"`
-	CounterSummary      *string                         `json:"counter_summary"`
-	TradingDirection    string                          `json:"trading_direction"`
-	NextCheckpoint      string                          `json:"next_checkpoint"`
-	EventCount          int                             `json:"event_count"`
-	Events              []ResearchReasoningTreeEvent    `json:"events"`
-	PathNodes           []ResearchReasoningTreePathNode `json:"path_nodes"`
+	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
+	DisplayOrder, EventCount                                           int
+	FactSummary, TransmissionSummary, ImpactSummary                    *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
+	InvalidationConditions                                             []string
+	Checkpoints                                                        []ResearchCheckpoint
+	PublishedAt                                                        time.Time
+	Events                                                             []ResearchEvent
+	Nodes                                                              []ResearchReasoningTreeNode
 }
 
 type ResearchReasoningTreeDetail struct {
-	ThemeID       string                `json:"theme_id"`
-	ReasoningTree ResearchReasoningTree `json:"reasoning_tree"`
+	ThemeID       string
+	ImpactNodeIDs []string
+	ReasoningTree ResearchReasoningTree
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")
 
-// Fake keeps Miniapp orchestration tests independent from HTTP and databases.
 type Fake struct {
 	ListResearchThemesFunc              func(context.Context, ResearchListQuery) (ResearchThemePage, error)
 	GetResearchThemeFunc                func(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
@@ -194,24 +124,21 @@ func (f *Fake) ListResearchThemes(ctx context.Context, query ResearchListQuery) 
 	}
 	return f.ListResearchThemesFunc(ctx, query)
 }
-
 func (f *Fake) GetResearchTheme(ctx context.Context, id string, query ResearchDetailQuery) (ResearchThemeDetail, error) {
 	if f == nil || f.GetResearchThemeFunc == nil {
 		return ResearchThemeDetail{}, ErrFakeMethodNotConfigured
 	}
 	return f.GetResearchThemeFunc(ctx, id, query)
 }
-
-func (f *Fake) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
+func (f *Fake) ListResearchThemeReasoningTrees(ctx context.Context, id string) (ResearchReasoningTreeList, error) {
 	if f == nil || f.ListResearchThemeReasoningTreesFunc == nil {
 		return ResearchReasoningTreeList{}, ErrFakeMethodNotConfigured
 	}
-	return f.ListResearchThemeReasoningTreesFunc(ctx, themeID)
+	return f.ListResearchThemeReasoningTreesFunc(ctx, id)
 }
-
-func (f *Fake) GetResearchThemeReasoningTree(ctx context.Context, themeID, anchorID string) (ResearchReasoningTreeDetail, error) {
+func (f *Fake) GetResearchThemeReasoningTree(ctx context.Context, themeID, treeID string) (ResearchReasoningTreeDetail, error) {
 	if f == nil || f.GetResearchThemeReasoningTreeFunc == nil {
 		return ResearchReasoningTreeDetail{}, ErrFakeMethodNotConfigured
 	}
-	return f.GetResearchThemeReasoningTreeFunc(ctx, themeID, anchorID)
+	return f.GetResearchThemeReasoningTreeFunc(ctx, themeID, treeID)
 }

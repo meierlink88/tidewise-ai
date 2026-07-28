@@ -671,3 +671,5 @@ Local/UAT 保持：
 8. 全部合同、共享 fixture、race、binary、Docker、Compose 测试通过；
 9. 服务可用固定 URL 和本地 YAML/env 独立运行；
 10. 没有引入 Kubernetes、registry、config center 或其他控制面。
+> **Research contract note:** 本文件的 Miniapp Kratos 边界仍有效；其中 Anchor 路径、
+> 参数与 DTO 已由 `research-theme-reasoning-tree-spec.md` 原地替换。

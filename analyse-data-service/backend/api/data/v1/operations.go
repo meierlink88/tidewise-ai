@@ -4,7 +4,7 @@ const (
 	OperationPublishReviewedEvents           = "data.v1.publishReviewedEvents"
 	OperationListActiveEventTags             = "data.v1.listActiveEventTags"
 	OperationImportResearchThemes            = "data.v1.importResearchThemes"
-	OperationImportResearchAnchors           = "data.v1.importResearchAnchors"
+	OperationImportResearchReasoningTrees    = "data.v1.importResearchReasoningTrees"
 	OperationListResearchThemes              = "data.v1.listResearchThemes"
 	OperationGetResearchTheme                = "data.v1.getResearchTheme"
 	OperationListResearchThemeReasoningTrees = "data.v1.listResearchThemeReasoningTrees"
@@ -17,7 +17,7 @@ var BusinessOperations = []string{
 	OperationPublishReviewedEvents,
 	OperationListActiveEventTags,
 	OperationImportResearchThemes,
-	OperationImportResearchAnchors,
+	OperationImportResearchReasoningTrees,
 	OperationListResearchThemes,
 	OperationGetResearchTheme,
 	OperationListResearchThemeReasoningTrees,

@@ -52,10 +52,10 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/research-theme-imports",
 			operation:   "data.v1.importResearchThemes",
 		},
-		"POST " + APIPrefix + "/research-anchor-imports": {
-			requestPath: APIPrefix + "/research-anchor-imports",
-			operation:   "data.v1.importResearchAnchors",
-			body:        `{"theme_id":"11111111-1111-4111-8111-111111111111","anchors":[]}`,
+		"POST " + APIPrefix + "/research-reasoning-tree-imports": {
+			requestPath: APIPrefix + "/research-reasoning-tree-imports",
+			operation:   "data.v1.importResearchReasoningTrees",
+			body:        `{"theme_id":"11111111-1111-4111-8111-111111111111","reasoning_trees":[]}`,
 		},
 		"GET " + APIPrefix + "/event-tags": {
 			requestPath: APIPrefix + "/event-tags?active=true",
@@ -73,8 +73,8 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/research/themes/theme-1/reasoning-trees",
 			operation:   "data.v1.listResearchThemeReasoningTrees",
 		},
-		"GET " + APIPrefix + "/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {
-			requestPath: APIPrefix + "/research/themes/theme-1/reasoning-trees/anchor-1",
+		"GET " + APIPrefix + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {
+			requestPath: APIPrefix + "/research/themes/theme-1/reasoning-trees/tree-1",
 			operation:   "data.v1.getResearchThemeReasoningTree",
 		},
 		"GET " + APIPrefix + "/raw-documents": {
@@ -180,8 +180,8 @@ func (testDataHTTPServer) ListActiveEventTags(context.Context, *EventTagCatalogR
 func (testDataHTTPServer) ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error) {
 	return testResponse[ResearchThemeImportResult]()
 }
-func (testDataHTTPServer) ImportResearchAnchors(context.Context, *ResearchAnchorImportRequest) (*Response[ResearchAnchorImportResult], error) {
-	return testResponse[ResearchAnchorImportResult]()
+func (testDataHTTPServer) ImportResearchReasoningTrees(context.Context, *ResearchReasoningTreeImportRequest) (*Response[ResearchReasoningTreeImportResult], error) {
+	return testResponse[ResearchReasoningTreeImportResult]()
 }
 func (testDataHTTPServer) ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error) {
 	return testResponse[ResearchThemePage]()

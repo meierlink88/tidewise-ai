@@ -152,3 +152,5 @@ TW-06 至少覆盖：
 - 页面运行时访问 Neo4j 或自行推理研究语义。
 - H5 页面适配。
 - 推理树最终视觉实现。
+> **Superseded:** 本文件中的 Anchor 状态与字段只保留历史背景；当前前端合同以
+> `research-theme-reasoning-tree-spec.md` 为准。

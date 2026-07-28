@@ -33,8 +33,10 @@ describe('ResearchThemeCard navigation', () => {
     const detailButton = findByClass(card, 'theme-card__detail-button');
     const eventButton = findByClass(card, 'theme-card__event-button');
     const nodeButton = findByClass(card, 'theme-card__node');
+    const industryLabel = findByClass(card, 'theme-card__industry-label');
 
     expect(root.props.onClick).toBeUndefined();
+    expect(industryLabel.props.children).toBe('个受影响节点');
     eventButton.props.onClick?.(tapEvent());
     nodeButton.props.onClick?.(tapEvent());
     expect(Taro.navigateTo).not.toHaveBeenCalled();
@@ -62,6 +64,18 @@ describe('ResearchThemeCard navigation', () => {
         duration: 1600
       });
     });
+  });
+
+  it('opens the page when no Reason Tree receipt exists so the page can show its empty state', () => {
+    const detailButton = findByClass(
+      ResearchThemeCard({ theme: { ...theme, reasoningTreeCount: 0 } }),
+      'theme-card__detail-button'
+    );
+
+    detailButton.props.onClick?.(tapEvent());
+
+    expect(Taro.navigateTo).toHaveBeenCalledOnce();
+    expect(Taro.showToast).not.toHaveBeenCalled();
   });
 });
 

@@ -104,3 +104,5 @@
 6. 五种 `change_direction` 映射正确，`uncertain` 不制造方向含义。
 7. 长文本与窄屏不截断、不重叠。
 8. 微信与抖音小程序构建和相关前端测试通过。
+> **Superseded:** 本文件中的 Anchor 页面内容已被新的 Theme + Reason Tree V1 内容层级
+> 原地替换；当前实现以 `research-theme-reasoning-tree-spec.md` 为准。

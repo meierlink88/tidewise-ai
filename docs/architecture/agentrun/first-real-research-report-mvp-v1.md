@@ -589,3 +589,5 @@ Data 已提交，但客户端在收到响应前断开
 
 本 Spec 不替代总 Roadmap。它只固定“先交付首份真实报告”所需的最短纵向路径，
 并允许在不锁死长期存储和部署拓扑的前提下开始实现。
+> **Research publication note:** 本文件的历史 AgentRun MVP 背景保留；其中 Theme/Anchor
+> 发布合同已由 `../research-theme-reasoning-tree-spec.md` 原地替换。
