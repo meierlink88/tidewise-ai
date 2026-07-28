@@ -49,7 +49,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       <View className='theme-card__industries'>
         <View className='theme-card__industry-count'>
           <Text className='theme-card__industry-number'>{theme.impacts.length}</Text>
-          <Text className='theme-card__industry-label'>个产业链节点受到影响</Text>
+          <Text className='theme-card__industry-label'>个受影响节点</Text>
         </View>
         <View className='theme-card__node-list'>
           {theme.impacts.map((node) => (

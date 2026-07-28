@@ -26,6 +26,8 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain(theme.title);
     expect(markup).toContain(theme.oneLineConclusion);
     expect(markup).toContain(theme.transmissionSummary);
+    expect(markup).toContain('主题传导摘要');
+    expect(markup).not.toContain('Theme 传导摘要');
     expect(markup).toContain('07-28 08:05 发布');
   });
 
@@ -35,7 +37,7 @@ describe('ReasoningTreeView', () => {
 
     expect(countClass(markup, 'reasoning-event')).toBe(2);
     expect(markup).toContain(detail.reasoningTree.title);
-    expect(markup).toContain(`${detail.reasoningTree.eventCount} 条 Event`);
+    expect(markup).toContain(`${detail.reasoningTree.eventCount} 条政经事件`);
     expect(markup).toContain(detail.reasoningTree.supportSummary);
     expect(markup).toContain(detail.reasoningTree.counterSummary);
     expect(markup).not.toContain(detail.reasoningTree.transmissionSummary);
@@ -56,7 +58,8 @@ describe('ReasoningTreeView', () => {
     }
     expect(markup).toContain('产业链节点传导');
     expect(markup).toContain('reasoning-chain-node--selected');
-    expect(markup).toContain('Theme Impact');
+    expect(markup).toContain('主题影响');
+    expect(markup).not.toContain('Theme Impact');
     expect(markup).toContain('变量信号');
     expect(markup).toContain('数据缺口');
     expect(markup).toContain('结论边界与失效条件');

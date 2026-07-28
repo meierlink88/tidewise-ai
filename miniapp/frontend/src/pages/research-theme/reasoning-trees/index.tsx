@@ -97,7 +97,7 @@ export function IndexContent({
       <View id='reasoning-tabs-wrap' className='reasoning-tabs-wrap'>
         <View className='reasoning-tabs__label'>
           <Text>产业链路径</Text>
-          <Text>{reasoningTrees.length} 棵 Reason Tree</Text>
+          <Text>{reasoningTrees.length} 棵推理树</Text>
         </View>
         <ScrollView className='reasoning-tabs' scrollX showScrollbar={false}>
           <View className='reasoning-tabs__items'>

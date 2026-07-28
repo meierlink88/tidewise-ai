@@ -30,7 +30,7 @@ export function ReasoningThemeHero({ theme }: { theme: ResearchReasoningTreeThem
       <Text className='reasoning-theme-hero__title'>{theme.oneLineConclusion}</Text>
       {theme.transmissionSummary ? (
         <View className='reasoning-theme-hero__path'>
-          <Text className='reasoning-theme-hero__path-label'>Theme 传导摘要</Text>
+          <Text className='reasoning-theme-hero__path-label'>主题传导摘要</Text>
           <Text className='reasoning-theme-hero__path-text'>{theme.transmissionSummary}</Text>
         </View>
       ) : null}
@@ -55,7 +55,7 @@ export function ReasoningTreeView({ detail }: { detail: ResearchReasoningTreeDet
       <View className='reasoning-tree__stack'>
         <View className='reasoning-tree__heading'>
           <Text className='reasoning-tree__heading-title'>{tree.title}</Text>
-          <Text className='reasoning-tree__heading-meta'>{tree.eventCount} 条 Event</Text>
+          <Text className='reasoning-tree__heading-meta'>{tree.eventCount} 条政经事件</Text>
         </View>
         <EventFactCard detail={detail} />
         <View className='reasoning-tree-conclusion'>
@@ -207,7 +207,7 @@ function NodeDetail({
             节点 {String(node.position).padStart(2, '0')} ·{' '}
             {node.position === 1 ? '信号入口' : isResult ? '结果节点' : '路径节点'}
             {node.position === 1 && isResult ? ' · 结果节点' : ''}
-            {isImpact ? ' · Theme Impact' : ''}
+            {isImpact ? ' · 主题影响' : ''}
           </Text>
           <Text className='reasoning-node-detail__title'>{node.name}</Text>
         </View>
@@ -292,7 +292,7 @@ function EventFactCard({ detail }: { detail: ResearchReasoningTreeDetail }) {
     <View className='reasoning-facts'>
       <View className='reasoning-facts__head'>
         <Text className='reasoning-section-label'>事件事实汇总</Text>
-        <Text className='reasoning-facts__count'>{tree.eventCount} 条 Event</Text>
+        <Text className='reasoning-facts__count'>{tree.eventCount} 条政经事件</Text>
       </View>
       {tree.factSummary ? (
         <Text className='reasoning-facts__summary'>{tree.factSummary}</Text>
