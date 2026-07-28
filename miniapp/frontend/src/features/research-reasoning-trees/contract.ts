@@ -1,97 +1,32 @@
-import type {
-  HomeResearchChainNode,
-  HomeResearchIndex,
-  ResearchImpactLevel,
-  ResearchTransmissionStage
-} from '../research-themes/contract';
+import type { HomeResearchThemeItem, ResearchDirection, ResearchImpactStrength } from '../research-themes/contract';
 
-export type ResearchEvidenceRole = 'driver' | 'supporting' | 'contradicting' | 'context';
-export type ResearchChangeDirection = 'increase' | 'decrease' | 'mixed' | 'unchanged' | 'uncertain';
-export type ResearchReasoningTreeErrorKind =
-  | 'invalidRequest'
-  | 'themeUnavailable'
-  | 'treesNotPublished'
-  | 'treeUnavailable'
-  | 'serviceUnavailable';
-
-export class ResearchReasoningTreeError extends Error {
-  constructor(public readonly kind: ResearchReasoningTreeErrorKind) {
-    super(kind);
-    this.name = 'ResearchReasoningTreeError';
-  }
+export type ResearchEvidenceRole='driver'|'supporting'|'contradicting'|'context';
+export type ResearchSignalDirection='increase'|'decrease'|'mixed'|'unchanged'|'uncertain';
+export type ResearchReasoningTreeErrorKind='invalidRequest'|'themeUnavailable'|'treesNotPublished'|'treeUnavailable'|'serviceUnavailable';
+export class ResearchReasoningTreeError extends Error{constructor(public readonly kind:ResearchReasoningTreeErrorKind){super(kind);this.name='ResearchReasoningTreeError'}}
+export type ResearchReasoningTreeTheme=HomeResearchThemeItem;
+export interface ResearchReasoningTreeSummary{reasoningTreeId:string;industryChainEntityId:string;industryChainName:string;title:string;displayOrder:number;eventCount:number;publishedAt:string}
+export interface ResearchReasoningTreeIndex{theme:ResearchReasoningTreeTheme;reasoningTrees:ResearchReasoningTreeSummary[]}
+export interface ResearchReasoningTreeEvent{eventId:string;title:string;summary:string;eventTime:string|null;evidenceRole:ResearchEvidenceRole;supportedClaim:string|null;displayOrder:number}
+export interface ResearchReasoningTreeCheckpoint{type:'event'|'relationship'|'metric';summary:string}
+export interface ResearchReasoningTreeGraphEdge{id:string;relationType:string;reviewStatus:string;status:string}
+export interface ResearchReasoningTreeSignal{variableSignalKey:string;signalRole:'primary'|'supporting'|'contradicting';signalDirection:ResearchSignalDirection;displaySummary:string;displayOrder:number}
+export interface ResearchReasoningTreeNode{
+  id:string;position:number;chainNodeEntityId:string;name:string;stateSummary:string|null;
+  impactDirection:ResearchDirection;impactStrength:ResearchImpactStrength;impactSummary:string|null;
+  reasoningBasisSummary:string|null;evidenceGapSummary:string|null;
+  incomingIndustryChainGraphEdgeId:string|null;incomingTransmissionTitle:string|null;
+  incomingTransmissionMechanism:string|null;incomingConditionSummary:string|null;
+  incomingGraphEdge:ResearchReasoningTreeGraphEdge|null;signals:ResearchReasoningTreeSignal[];
+  primarySignal:ResearchReasoningTreeSignal;signalDisplaySummary:string;
 }
-
-export interface ResearchReasoningTreeTheme {
-  id: string;
-  name: string;
-  oneLineConclusion: string;
-  impactLevel: ResearchImpactLevel;
-  transmissionPath: string;
-  tradingDirection: string;
-  transmissionStage: ResearchTransmissionStage;
-  nextCheckpoint: string;
-  marketConfirmationSummary: string;
-  publishedAt: string;
-  affectedChainNodes: HomeResearchChainNode[];
-  relatedIndices: HomeResearchIndex[];
-  supportingEventCount: number;
-  contradictingEventCount: number;
+export interface ResearchReasoningTree{
+  reasoningTreeId:string;themeId:string;industryChainEntityId:string;industryChainName:string;title:string;
+  displayOrder:number;oneLineConclusion:string;factSummary:string|null;transmissionSummary:string|null;
+  impactDirection:ResearchDirection;impactStrength:ResearchImpactStrength;impactSummary:string|null;
+  conclusionBoundarySummary:string|null;supportSummary:string|null;counterSummary:string|null;
+  invalidationConditions:string[];checkpoints:ResearchReasoningTreeCheckpoint[];publishedAt:string;
+  eventCount:number;events:ResearchReasoningTreeEvent[];nodes:ResearchReasoningTreeNode[];
 }
-
-export interface ResearchReasoningTreeChainNode {
-  id: string;
-  name: string;
-}
-
-export interface ResearchReasoningTreeSummary {
-  anchorId: string;
-  centerChainNode: ResearchReasoningTreeChainNode;
-}
-
-export interface ResearchReasoningTreeIndex {
-  theme: ResearchReasoningTreeTheme;
-  reasoningTrees: ResearchReasoningTreeSummary[];
-}
-
-export interface ResearchReasoningTreeEvent {
-  eventId: string;
-  title: string;
-  summary: string;
-  eventTime: string | null;
-  evidenceRole: ResearchEvidenceRole;
-  evidenceSummary: string;
-}
-
-export interface ResearchReasoningTreePathNode {
-  chainNodeId: string;
-  name: string;
-  changeDirection: ResearchChangeDirection;
-  changeSummary: string;
-  impactSummary: string;
-  incomingTransmissionMechanism: string | null;
-}
-
-export interface ResearchReasoningTree {
-  anchorId: string;
-  centerChainNode: ResearchReasoningTreeChainNode;
-  oneLineConclusion: string;
-  factSummary: string;
-  netDirectionSummary: string;
-  supportSummary: string;
-  counterSummary: string | null;
-  tradingDirection: string;
-  nextCheckpoint: string;
-  eventCount: number;
-  events: ResearchReasoningTreeEvent[];
-  pathNodes: ResearchReasoningTreePathNode[];
-}
-
-export interface ResearchReasoningTreeDetail {
-  themeId: string;
-  reasoningTree: ResearchReasoningTree;
-}
-
-export interface ResearchReasoningTreePort {
-  list(themeId: string): Promise<ResearchReasoningTreeIndex>;
-  get(themeId: string, anchorId: string): Promise<ResearchReasoningTreeDetail>;
-}
+export interface ResearchReasoningTreeDetail{themeId:string;impactNodeIds:string[];reasoningTree:ResearchReasoningTree}
+export interface ResearchReasoningTreePort{list(themeId:string):Promise<ResearchReasoningTreeIndex>;get(themeId:string,reasoningTreeId:string):Promise<ResearchReasoningTreeDetail>}

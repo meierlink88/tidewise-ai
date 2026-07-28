@@ -63,6 +63,18 @@ describe('ResearchThemeCard navigation', () => {
       });
     });
   });
+
+  it('opens the page when no Reason Tree receipt exists so the page can show its empty state', () => {
+    const detailButton = findByClass(
+      ResearchThemeCard({ theme: { ...theme, reasoningTreeCount: 0 } }),
+      'theme-card__detail-button'
+    );
+
+    detailButton.props.onClick?.(tapEvent());
+
+    expect(Taro.navigateTo).toHaveBeenCalledOnce();
+    expect(Taro.showToast).not.toHaveBeenCalled();
+  });
 });
 
 interface TestElementProps {

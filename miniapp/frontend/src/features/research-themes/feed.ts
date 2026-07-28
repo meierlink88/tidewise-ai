@@ -1,5 +1,5 @@
 import type { HomeResearchThemeItem } from './contract';
-import { researchTransmissionStageLabel } from './presentation';
+import { researchImpactStrengthLabel, researchTransmissionStageLabel } from './presentation';
 
 const ALL_CATEGORY = '全部';
 const HOME_CATEGORY_ORDER = ['算力基建', '地缘政治', '贸易管制', '货币政策'];
@@ -37,14 +37,15 @@ export function filterHomeResearchThemes(
     }
 
     const searchableText = [
-      item.name,
+      item.title,
       item.oneLineConclusion,
-      item.transmissionPath,
-      item.tradingDirection,
+      item.transmissionSummary ?? '',
+      item.investmentGuidanceSummary,
+      item.checkpointSummary ?? '',
+      researchImpactStrengthLabel(item.impactStrength),
       researchTransmissionStageLabel(item.transmissionStage),
-      item.nextCheckpoint,
       ...item.categories,
-      ...item.affectedChainNodes.flatMap((node) => [node.name, node.impactSummary])
+      ...item.impacts.flatMap((node) => [node.name, node.impactSummary ?? ''])
     ]
       .join(' ')
       .toLocaleLowerCase();

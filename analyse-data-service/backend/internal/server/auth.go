@@ -101,7 +101,7 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeReviewedEventImport, true
 	case v1.OperationListActiveEventTags:
 		return ScopeEventTagRead, true
-	case v1.OperationImportResearchThemes, v1.OperationImportResearchAnchors:
+	case v1.OperationImportResearchThemes, v1.OperationImportResearchReasoningTrees:
 		return ScopeResearchImport, true
 	case v1.OperationListResearchThemes, v1.OperationGetResearchTheme,
 		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree:

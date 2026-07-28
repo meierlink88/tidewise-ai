@@ -41,9 +41,9 @@ type ReasoningTreeListRequest struct {
 }
 
 type ReasoningTreeDetailRequest struct {
-	ThemeID  string
-	AnchorID string
-	HasQuery bool
+	ThemeID         string
+	ReasoningTreeID string
+	HasQuery        bool
 }
 
 type RawDocumentListRequest struct {

@@ -27,10 +27,11 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 		return usecase.ResearchThemePage{
 			WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, AsOf: now, ThemeCount: 1, EventCount: 1,
 			Items: []usecase.ResearchTheme{{
-				ID: "11111111-1111-4111-8111-111111111111", Name: "主题", OneLineConclusion: "结论",
-				ImpactLevel: usecase.ImpactLevelHigh, TransmissionPath: "政策到产业链", TradingDirection: "风险偏好可能回升",
-				TransmissionStage: usecase.TransmissionStageIdentification, NextCheckpoint: "下周数据", PublishedAt: now,
-				AffectedChainNodes: []usecase.ResearchThemeChainNode{}, RelatedIndices: []usecase.ResearchIndex{},
+				ID: "11111111-1111-4111-8111-111111111111", Title: "主题", OneLineConclusion: "结论",
+				ConclusionDirection: "positive", ImpactStrength: "medium", TransmissionStage: "identification",
+				InvestmentGuidanceAction: "focus", InvestmentGuidanceSummary: "风险偏好可能回升",
+				TimeHorizonCategory: "short_term", AnalysisAsOf: now, WindowStart: now.Add(-24 * time.Hour),
+				WindowEnd: now, PublishedAt: now, Impacts: []usecase.ResearchThemeImpact{},
 			}},
 		}, nil
 	}}
@@ -59,11 +60,11 @@ func TestResearchRoutesPreserveNonEmptyPublicThemeGoldenAndRequestID(t *testing.
 		t.Fatalf("items = %#v", result["items"])
 	}
 	item := items[0].(map[string]any)
-	if item["impact_level"] != "high" || item["trading_direction"] != "风险偏好可能回升" || item["transmission_stage"] != "identification" {
+	if item["impact_strength"] != "medium" || item["investment_guidance_summary"] != "风险偏好可能回升" || item["transmission_stage"] != "identification" {
 		t.Fatalf("item = %#v", item)
 	}
-	if item["affected_chain_nodes"] == nil || item["related_indices"] == nil || calls != 1 {
-		t.Fatalf("collections/calls = %#v/%#v/%d", item["affected_chain_nodes"], item["related_indices"], calls)
+	if item["impacts"] == nil || calls != 1 {
+		t.Fatalf("collections/calls = %#v/%d", item["impacts"], calls)
 	}
 }
 

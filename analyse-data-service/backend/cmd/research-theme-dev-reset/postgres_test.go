@@ -5,56 +5,35 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 )
 
-func TestPostgresRunResetClearsResearchPublicationsAndPreservesMasterData(t *testing.T) {
+func TestPostgresResetClearsOnlyV1ResearchPublications(t *testing.T) {
 	db := openIsolatedResetDatabase(t)
-	prepareResetSchema(t, db)
-
-	dryRun, err := runReset(context.Background(), db, resetOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dryRun.Executed || dryRun.Mode != "dry-run" || dryRun.Before.isZero() || dryRun.After != dryRun.Before {
-		t.Fatalf("dry-run report = %#v", dryRun)
-	}
-	if dryRun.ProtectedBefore != dryRun.ProtectedAfter {
-		t.Fatalf("dry-run protected counts changed: %#v", dryRun)
-	}
+	prepareV1ResetSchema(t, db)
 
 	report, err := runReset(context.Background(), db, resetOptions{
-		Execute:         true,
-		ConfirmDatabase: localDatabaseName,
+		Execute: true, ConfirmDatabase: localDatabaseName,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Executed || report.Mode != "execute" || !report.After.isZero() {
+	if !report.Executed || !report.After.isZero() {
 		t.Fatalf("reset report = %#v", report)
 	}
 	if report.ProtectedBefore != report.ProtectedAfter {
-		t.Fatalf("protected counts changed: %#v", report)
+		t.Fatalf("protected data changed: %#v", report)
 	}
-	if !report.TriggerRestored {
-		t.Fatal("reset did not report restored immutable receipt triggers")
+	var total, enabled int
+	if err := db.QueryRow(immutableTriggerStateSQL).Scan(&total, &enabled); err != nil {
+		t.Fatal(err)
 	}
-
-	for _, query := range []string{themeReceiptTriggerStateSQL, anchorReceiptTriggerStateSQL} {
-		var state string
-		if err := db.QueryRow(query).Scan(&state); err != nil {
-			t.Fatal(err)
-		}
-		if state != "O" {
-			t.Fatalf("receipt trigger state = %q, want O", state)
-		}
+	if total != 9 || enabled != 9 {
+		t.Fatalf("immutable triggers total=%d enabled=%d", total, enabled)
 	}
 }
 
@@ -64,7 +43,6 @@ func openIsolatedResetDatabase(t *testing.T) *sql.DB {
 	if databaseURL == "" {
 		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run reset integration tests")
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	t.Cleanup(cancel)
 	admin, err := sql.Open("pgx", databaseURL)
@@ -80,7 +58,6 @@ func openIsolatedResetDatabase(t *testing.T) *sql.DB {
 		admin.Close()
 		t.Skipf("reset integration test requires database %s, got %s", localDatabaseName, databaseName)
 	}
-
 	schema := fmt.Sprintf("tw_research_reset_%d", time.Now().UnixNano())
 	if _, err := admin.ExecContext(ctx, `CREATE SCHEMA `+schema); err != nil {
 		admin.Close()
@@ -98,7 +75,6 @@ func openIsolatedResetDatabase(t *testing.T) *sql.DB {
 		admin.Close()
 		t.Fatal(err)
 	}
-
 	t.Cleanup(func() {
 		db.Close()
 		_, _ = admin.ExecContext(context.Background(), `DROP SCHEMA IF EXISTS `+schema+` CASCADE`)
@@ -107,113 +83,54 @@ func openIsolatedResetDatabase(t *testing.T) *sql.DB {
 	return db
 }
 
-func prepareResetSchema(t *testing.T, db *sql.DB) {
+func prepareV1ResetSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
-	for _, statement := range []string{
-		`CREATE TABLE research_theme_import_receipts (id UUID PRIMARY KEY)`,
-		`CREATE TABLE research_themes (
-			id UUID PRIMARY KEY,
-			import_receipt_id UUID REFERENCES research_theme_import_receipts(id)
-		)`,
-		`CREATE TABLE events (id UUID PRIMARY KEY)`,
-		`CREATE TABLE entity_nodes (id UUID PRIMARY KEY)`,
-		`CREATE TABLE chain_node_profiles (entity_id UUID PRIMARY KEY)`,
-		`CREATE TABLE index_profiles (entity_id UUID PRIMARY KEY)`,
-		`CREATE TABLE research_theme_chain_nodes (
-			theme_id UUID REFERENCES research_themes(id) ON DELETE CASCADE,
-			chain_node_entity_id UUID REFERENCES chain_node_profiles(entity_id)
-		)`,
-		`CREATE TABLE research_theme_indices (
-			theme_id UUID REFERENCES research_themes(id) ON DELETE CASCADE,
-			index_entity_id UUID REFERENCES index_profiles(entity_id)
-		)`,
-		`CREATE TABLE research_theme_events (
-			theme_id UUID REFERENCES research_themes(id) ON DELETE CASCADE,
-			event_id UUID REFERENCES events(id)
-		)`,
-		`CREATE TABLE research_anchors (id UUID PRIMARY KEY)`,
-		`CREATE TABLE research_anchor_chain_nodes (anchor_id UUID NOT NULL REFERENCES research_anchors(id))`,
-		`CREATE TABLE research_anchor_indices (anchor_id UUID NOT NULL REFERENCES research_anchors(id))`,
-		`CREATE TABLE research_anchor_events (anchor_id UUID NOT NULL REFERENCES research_anchors(id))`,
-		`CREATE TABLE event_tag_defs (id INTEGER PRIMARY KEY)`,
-		`CREATE TABLE event_tag_maps (id INTEGER PRIMARY KEY)`,
-		`CREATE TABLE raw_documents (id INTEGER PRIMARY KEY)`,
-		`CREATE FUNCTION prevent_test_theme_receipt_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
-		BEGIN RAISE EXCEPTION 'immutable'; END; $$`,
-		`CREATE TRIGGER trg_research_theme_import_receipts_immutable
-		BEFORE UPDATE OR DELETE OR TRUNCATE ON research_theme_import_receipts
-		FOR EACH STATEMENT EXECUTE FUNCTION prevent_test_theme_receipt_mutation()`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatalf("execute %q: %v", statement, err)
+	publicationTables := []struct {
+		table, trigger string
+	}{
+		{"research_theme_import_receipts", "trg_research_theme_receipts_immutable"},
+		{"research_themes", "trg_research_themes_immutable"},
+		{"research_theme_impacts", "trg_research_theme_impacts_immutable"},
+		{"research_theme_events", "trg_research_theme_events_immutable"},
+		{"research_reasoning_tree_import_receipts", "trg_research_reasoning_tree_receipts_immutable"},
+		{"research_reasoning_trees", "trg_research_reasoning_trees_immutable"},
+		{"research_reasoning_tree_events", "trg_research_reasoning_tree_events_immutable"},
+		{"research_reasoning_tree_nodes", "trg_research_reasoning_tree_nodes_immutable"},
+		{"research_reasoning_tree_node_signals", "trg_research_reasoning_tree_node_signals_immutable"},
+	}
+	protectedTables := []string{
+		"events", "entity_nodes", "chain_node_profiles", "industry_chain_definitions",
+		"industry_chain_graph_edges", "index_profiles", "event_tag_defs",
+		"event_tag_maps", "raw_documents",
+	}
+	for _, table := range append(publicationTableNames(publicationTables), protectedTables...) {
+		if _, err := db.Exec(`CREATE TABLE ` + table + ` (id INTEGER PRIMARY KEY)`); err != nil {
+			t.Fatalf("create %s: %v", table, err)
+		}
+		if _, err := db.Exec(`INSERT INTO ` + table + ` VALUES (1)`); err != nil {
+			t.Fatalf("seed %s: %v", table, err)
 		}
 	}
-
-	if _, err := goose.EnsureDBVersionContext(context.Background(), db); err != nil {
+	if _, err := db.Exec(`CREATE FUNCTION prevent_test_research_mutation()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'immutable'; END;
+$$`); err != nil {
 		t.Fatal(err)
 	}
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatal(err)
-	}
-	migrations, err := goose.CollectMigrations(filepath.Join("..", "..", "migrations"), 24, 25)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(migrations) != 1 {
-		t.Fatalf("Research Anchor migrations = %d, want 1", len(migrations))
-	}
-	if err := migrations[0].UpContext(context.Background(), db); err != nil {
-		t.Fatal(err)
-	}
-
-	const (
-		themeReceiptID = "00000000-0000-4000-8000-000000000101"
-		themeID        = "00000000-0000-4000-8000-000000000102"
-		anchorReceipt  = "00000000-0000-4000-8000-000000000103"
-		anchorID       = "00000000-0000-4000-8000-000000000104"
-		centerID       = "00000000-0000-4000-8000-000000000105"
-		downstreamID   = "00000000-0000-4000-8000-000000000106"
-		eventID        = "00000000-0000-4000-8000-000000000107"
-		indexID        = "00000000-0000-4000-8000-000000000108"
-		entityID       = "00000000-0000-4000-8000-000000000109"
-	)
-	mapping := fmt.Sprintf(`{"%s":"%s"}`, centerID, anchorID)
-	for _, statement := range []string{
-		`INSERT INTO events VALUES ('` + eventID + `')`,
-		`INSERT INTO entity_nodes VALUES ('` + entityID + `')`,
-		`INSERT INTO chain_node_profiles VALUES ('` + centerID + `'), ('` + downstreamID + `')`,
-		`INSERT INTO index_profiles VALUES ('` + indexID + `')`,
-		`INSERT INTO event_tag_defs VALUES (1)`,
-		`INSERT INTO event_tag_maps VALUES (1)`,
-		`INSERT INTO raw_documents VALUES (1)`,
-		`INSERT INTO research_theme_import_receipts VALUES ('` + themeReceiptID + `')`,
-		`INSERT INTO research_themes VALUES ('` + themeID + `', '` + themeReceiptID + `')`,
-		`INSERT INTO research_theme_chain_nodes VALUES ('` + themeID + `', '` + centerID + `')`,
-		`INSERT INTO research_theme_indices VALUES ('` + themeID + `', '` + indexID + `')`,
-		`INSERT INTO research_theme_events VALUES ('` + themeID + `', '` + eventID + `')`,
-		`INSERT INTO research_anchor_import_receipts (
-			id, theme_id, publisher_subject, payload_hash,
-			anchor_ids_by_center_chain_node_id, write_counts, published_at, imported_at
-		) VALUES ('` + anchorReceipt + `', '` + themeID + `', 'analyst-service', '` + strings.Repeat("a", 64) + `',
-			'` + mapping + `'::jsonb,
-			'{"anchors":1,"event_associations":1,"path_nodes":2,"receipts":1}'::jsonb,
-			now(), now())`,
-		`INSERT INTO research_anchors (
-			id, theme_id, center_chain_node_entity_id, import_receipt_id,
-			one_line_conclusion, fact_summary, net_direction_summary, trading_direction, next_checkpoint
-		) VALUES ('` + anchorID + `', '` + themeID + `', '` + centerID + `', '` + anchorReceipt + `',
-			'结论', '事实', '净方向', '交易指向', '下一检查点')`,
-		`INSERT INTO research_anchor_chain_nodes (
-			anchor_id, position, chain_node_entity_id, change_direction,
-			change_summary, impact_summary, incoming_transmission_mechanism
-		) VALUES
-			('` + anchorID + `', 1, '` + centerID + `', 'increase', '起点变化', '起点影响', NULL),
-			('` + anchorID + `', 2, '` + downstreamID + `', 'increase', '下游变化', '下游影响', '需求传导')`,
-		`INSERT INTO research_anchor_events (anchor_id, event_id, evidence_role, evidence_summary)
-		VALUES ('` + anchorID + `', '` + eventID + `', 'driver', '事件支持中心节点判断')`,
-	} {
+	for _, publication := range publicationTables {
+		statement := `CREATE TRIGGER ` + publication.trigger +
+			` BEFORE UPDATE OR DELETE OR TRUNCATE ON ` + publication.table +
+			` FOR EACH STATEMENT EXECUTE FUNCTION prevent_test_research_mutation()`
 		if _, err := db.Exec(statement); err != nil {
-			t.Fatalf("execute fixture %q: %v", statement, err)
+			t.Fatalf("create trigger %s: %v", publication.trigger, err)
 		}
 	}
+}
+
+func publicationTableNames(values []struct{ table, trigger string }) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		result = append(result, value.table)
+	}
+	return result
 }

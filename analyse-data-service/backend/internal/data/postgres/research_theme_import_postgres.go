@@ -27,6 +27,12 @@ func (r repository) InResearchThemeImportTransaction(ctx context.Context, fn fun
 
 type postgresResearchThemeImportTx struct{ tx *sql.Tx }
 
+const existingResearchThemeEventsSQL = `SELECT id::text
+FROM events
+WHERE id = ANY($1::uuid[])
+  AND event_status = 'confirmed'
+  AND fact_status = 'verified'`
+
 func (t *postgresResearchThemeImportTx) LockResearchThemeImportBatch(ctx context.Context, analysisBatchID string) error {
 	if _, err := t.tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, analysisBatchID); err != nil {
 		return fmt.Errorf("lock analysis batch %q: %w", analysisBatchID, err)
@@ -62,12 +68,17 @@ FROM research_theme_import_receipts WHERE analysis_batch_id = $1`, analysisBatch
 	return &receipt, nil
 }
 
-func (t *postgresResearchThemeImportTx) ExistingResearchThemeChainNodes(ctx context.Context, ids []string) (map[string]struct{}, error) {
-	return queryExistingResearchThemeIDs(ctx, t.tx, `SELECT entity_id::text FROM chain_node_profiles WHERE entity_id = ANY($1::uuid[])`, ids)
+func (t *postgresResearchThemeImportTx) ExistingResearchThemeImpactNodes(ctx context.Context, ids []string) (map[string]struct{}, error) {
+	return queryExistingResearchThemeIDs(ctx, t.tx, `SELECT profile.entity_id::text
+FROM chain_node_profiles profile
+JOIN entity_nodes node ON node.id = profile.entity_id
+WHERE profile.entity_id = ANY($1::uuid[])
+  AND node.status = 'active'
+  AND profile.review_status = 'approved'`, ids)
 }
 
 func (t *postgresResearchThemeImportTx) ExistingResearchThemeEvents(ctx context.Context, ids []string) (map[string]struct{}, error) {
-	return queryExistingResearchThemeIDs(ctx, t.tx, `SELECT id::text FROM events WHERE id = ANY($1::uuid[])`, ids)
+	return queryExistingResearchThemeIDs(ctx, t.tx, existingResearchThemeEventsSQL, ids)
 }
 
 func queryExistingResearchThemeIDs(ctx context.Context, tx *sql.Tx, query string, ids []string) (map[string]struct{}, error) {
@@ -111,22 +122,30 @@ func (t *postgresResearchThemeImportTx) InsertResearchThemeImportReceipt(ctx con
 
 func (t *postgresResearchThemeImportTx) InsertResearchTheme(ctx context.Context, theme ResearchThemeImportTheme) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_themes (
-    id, import_receipt_id, analysis_batch_id, theme_key, name, one_line_conclusion,
-    impact_level, transmission_path, trading_direction, transmission_stage,
-    next_checkpoint, market_confirmation_summary, window_start, window_end, published_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-		theme.ID, theme.ImportReceiptID, theme.AnalysisBatchID, theme.ThemeKey, theme.Name,
-		theme.OneLineConclusion, theme.ImpactLevel, theme.TransmissionPath, theme.TradingDirection,
-		theme.TransmissionStage, theme.NextCheckpoint, theme.MarketConfirmationSummary,
+    id, import_receipt_id, analysis_batch_id, theme_key, title, one_line_conclusion,
+    conclusion_direction, impact_strength, attention_level, conclusion_status,
+    transmission_stage, investment_guidance_action, investment_guidance_summary,
+    time_horizon_category, time_horizon_summary, transmission_summary,
+    checkpoint_summary, risk_summary, analysis_as_of, window_start, window_end, published_at
+) VALUES (
+    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+)`,
+		theme.ID, theme.ImportReceiptID, theme.AnalysisBatchID, theme.ThemeKey, theme.Title,
+		theme.OneLineConclusion, theme.ConclusionDirection, theme.ImpactStrength,
+		theme.AttentionLevel, theme.ConclusionStatus, theme.TransmissionStage,
+		theme.InvestmentGuidanceAction, theme.InvestmentGuidanceSummary,
+		theme.TimeHorizonCategory, theme.TimeHorizonSummary, theme.TransmissionSummary,
+		theme.CheckpointSummary, theme.RiskSummary, theme.AnalysisAsOf,
 		theme.WindowStart, theme.WindowEnd, theme.PublishedAt,
 	)
 	return err
 }
 
-func (t *postgresResearchThemeImportTx) InsertResearchThemeChainNode(ctx context.Context, node ResearchThemeImportChainNode) error {
-	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_chain_nodes (
-    theme_id, chain_node_entity_id, relation_role, impact_summary
-) VALUES ($1,$2,$3,$4)`, node.ThemeID, node.ChainNodeEntityID, node.RelationRole, node.ImpactSummary)
+func (t *postgresResearchThemeImportTx) InsertResearchThemeImpact(ctx context.Context, impact ResearchThemeImportImpact) error {
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_impacts (
+    theme_id, chain_node_entity_id, relation_role, impact_direction, impact_summary, display_order
+) VALUES ($1,$2,$3,$4,$5,$6)`, impact.ThemeID, impact.ChainNodeEntityID,
+		impact.RelationRole, impact.ImpactDirection, impact.ImpactSummary, impact.DisplayOrder)
 	return err
 }
 
@@ -154,9 +173,9 @@ FROM research_themes WHERE import_receipt_id = $1`, receipt.ID).Scan(&themeIDsJS
 	var counts ResearchThemeImportCounts
 	if err := t.tx.QueryRowContext(ctx, `SELECT
     (SELECT count(*) FROM research_themes WHERE import_receipt_id = $1),
-    (SELECT count(*) FROM research_theme_chain_nodes n JOIN research_themes t ON t.id = n.theme_id WHERE t.import_receipt_id = $1),
+    (SELECT count(*) FROM research_theme_impacts i JOIN research_themes t ON t.id = i.theme_id WHERE t.import_receipt_id = $1),
     (SELECT count(*) FROM research_theme_events e JOIN research_themes t ON t.id = e.theme_id WHERE t.import_receipt_id = $1)`, receipt.ID).Scan(
-		&counts.Themes, &counts.ChainNodeAssociations, &counts.EventAssociations,
+		&counts.Themes, &counts.Impacts, &counts.EventAssociations,
 	); err != nil {
 		return fmt.Errorf("verify receipt write counts: %w", err)
 	}

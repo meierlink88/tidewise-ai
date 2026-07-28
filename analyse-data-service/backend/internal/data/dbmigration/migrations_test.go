@@ -64,6 +64,36 @@ func TestMigrationChainRejectsCatastrophicResetStatements(t *testing.T) {
 	}
 }
 
+func TestResearchThemeReasoningTreeV1MigrationOwnsOnlyPublicationTables(t *testing.T) {
+	content := strings.ToLower(readMigration(t, "000031_rebuild_research_theme_reasoning_trees_v1.sql"))
+	for _, required := range []string{
+		"create table research_theme_import_receipts",
+		"create table research_themes",
+		"create table research_theme_impacts",
+		"create table research_theme_events",
+		"create table research_reasoning_tree_import_receipts",
+		"create table research_reasoning_trees",
+		"create table research_reasoning_tree_events",
+		"create table research_reasoning_tree_nodes",
+		"create table research_reasoning_tree_node_signals",
+		"trg_research_reasoning_tree_node_signals_immutable",
+	} {
+		if !strings.Contains(content, required) {
+			t.Fatalf("V1 migration is missing %q", required)
+		}
+	}
+	for _, protected := range []string{
+		"events", "entity_nodes", "chain_node_profiles", "industry_chain_definitions",
+		"industry_chain_graph_edges", "index_profiles", "event_tag_defs",
+		"event_tag_maps", "raw_documents",
+	} {
+		if strings.Contains(content, "drop table "+protected) ||
+			strings.Contains(content, "delete from "+protected) {
+			t.Fatalf("V1 migration mutates protected table %q", protected)
+		}
+	}
+}
+
 func TestPostgresAppliesTheCompleteForwardMigrationChain(t *testing.T) {
 	db := openIsolatedMigrationDatabase(t)
 	executor := NewGooseExecutor(db, migrationDirectory())
@@ -90,7 +120,10 @@ func TestPostgresAppliesTheCompleteForwardMigrationChain(t *testing.T) {
 		"events",
 		"event_publication_receipts",
 		"research_theme_import_receipts",
-		"research_anchor_import_receipts",
+		"research_reasoning_tree_import_receipts",
+		"research_reasoning_trees",
+		"research_reasoning_tree_nodes",
+		"research_reasoning_tree_node_signals",
 	} {
 		var relation string
 		if err := db.QueryRow(`SELECT COALESCE(to_regclass($1)::text, '')`, table).Scan(&relation); err != nil {
@@ -105,6 +138,8 @@ func TestPostgresAppliesTheCompleteForwardMigrationChain(t *testing.T) {
 		"chk_industry_profile_level",
 		"uq_research_themes_batch_theme_key",
 		"chk_research_theme_import_receipts_payload_hash",
+		"uq_research_reasoning_trees_theme_chain",
+		"chk_research_reasoning_tree_node_signals_key",
 		"chk_event_publication_receipts_version",
 	} {
 		var exists bool

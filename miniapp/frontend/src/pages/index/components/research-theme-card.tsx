@@ -5,7 +5,8 @@ import type {
   HomeResearchThemeItem
 } from '../../../features/research-themes/contract';
 import {
-  researchImpactLabel,
+  researchImpactStrengthLabel,
+  researchInvestmentGuidanceActionLabel,
   researchTransmissionStageLabel
 } from '../../../features/research-themes/presentation';
 import { navigateToResearchReasoningTrees } from '../../../features/research-reasoning-trees/navigation';
@@ -26,13 +27,13 @@ function handleNestedTap(event: BaseEventOrig, title: string) {
 
 export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
   return (
-    <View className={`theme-card theme-card--${theme.impactLevel}`}>
+    <View className={`theme-card theme-card--${theme.impactStrength}`}>
       <View className='theme-card__rail' />
       <View className='theme-card__topline'>
         <View className='theme-card__identity'>
-          <Text className='theme-card__impact'>{researchImpactLabel(theme.impactLevel)}</Text>
+          <Text className='theme-card__impact'>{researchImpactStrengthLabel(theme.impactStrength)}</Text>
           <View className='theme-card__divider' />
-          <Text className='theme-card__category'>{theme.name}</Text>
+          <Text className='theme-card__category'>{theme.title}</Text>
         </View>
         <View className='theme-card__updated'>
           <View className='theme-card__updated-dot' />
@@ -42,18 +43,18 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
 
       <Text className='theme-card__title'>{theme.oneLineConclusion}</Text>
       <View className='theme-card__path'>
-        <Text>{theme.transmissionPath}</Text>
+        <Text>{theme.transmissionSummary || '—'}</Text>
       </View>
 
       <View className='theme-card__industries'>
         <View className='theme-card__industry-count'>
-          <Text className='theme-card__industry-number'>{theme.affectedChainNodes.length}</Text>
-          <Text className='theme-card__industry-label'>个产业受到影响</Text>
+          <Text className='theme-card__industry-number'>{theme.impacts.length}</Text>
+          <Text className='theme-card__industry-label'>个产业链节点受到影响</Text>
         </View>
         <View className='theme-card__node-list'>
-          {theme.affectedChainNodes.map((node) => (
+          {theme.impacts.map((node) => (
             <Button
-              key={node.id}
+              key={node.chainNodeEntityId}
               className='tidewise-button theme-card__node'
               hoverClass='none'
               onClick={(event) => handleNestedTap(event, `${node.name}详情即将开放`)}
@@ -65,8 +66,8 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       </View>
 
       <View className='theme-card__checkpoint'>
-        <Text className='theme-card__checkpoint-label'>{theme.nextCheckpoint}</Text>
-        <Text className='theme-card__checkpoint-text'>{theme.tradingDirection}</Text>
+        <Text className='theme-card__checkpoint-label'>{researchInvestmentGuidanceActionLabel(theme.investmentGuidanceAction)}</Text>
+        <Text className='theme-card__checkpoint-text'>{theme.investmentGuidanceSummary}</Text>
       </View>
 
       <View className='theme-card__footer'>
@@ -75,7 +76,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
           hoverClass='none'
           onClick={(event) => handleNestedTap(event, '事件清单即将开放')}
         >
-          <Text>{theme.supportingEventCount} 条政经事件</Text>
+          <Text>{theme.evidenceEventCount} 条政经事件</Text>
         </Button>
         <View className='theme-card__phase'>
           <Text>传导阶段</Text>

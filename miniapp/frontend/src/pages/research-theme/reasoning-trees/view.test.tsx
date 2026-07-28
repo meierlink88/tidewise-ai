@@ -1,8 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import listFixture from '../../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
-import contradictionFixture from '../../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
-import unquantifiedFixture from '../../../../../../testdata/reasoning-tree-v1/03-reasoning-tree-without-contradiction-unquantified-result.json';
+import detailFixture from '../../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
 import {
   parseResearchReasoningTreeDetail,
   parseResearchReasoningTreeIndex
@@ -15,69 +14,108 @@ vi.mock('@tarojs/components', () => ({
   View: 'view'
 }));
 
-const themeId = '11111111-1111-4111-8111-111111111111';
+const themeId = listFixture.result.theme.id;
+const treeId = detailFixture.result.reasoning_tree.reasoning_tree_id;
 
 describe('ReasoningTreeView', () => {
-  it('renders the complete Theme judgment above the Anchor tabs', () => {
+  it('renders the Theme-level judgment separately from each tree', () => {
     const theme = parseResearchReasoningTreeIndex(listFixture.result).theme;
     const markup = renderToStaticMarkup(<ReasoningThemeHero theme={theme} />);
 
-    expect(markup).toContain('高影响');
-    expect(markup).toContain(theme.name);
+    expect(markup).toContain('中等影响');
+    expect(markup).toContain(theme.title);
     expect(markup).toContain(theme.oneLineConclusion);
-    expect(markup).toContain(theme.transmissionPath);
-    expect(markup).toContain('07-20 08:00 发布');
+    expect(markup).toContain(theme.transmissionSummary);
+    expect(markup).toContain('07-28 08:05 发布');
   });
 
-  it('renders all atomic events, branch summaries, and the ordered transmission path', () => {
-    const anchorId = contradictionFixture.result.reasoning_tree.anchor_id;
-    const tree = parseResearchReasoningTreeDetail(
-      contradictionFixture.result,
-      themeId,
-      anchorId
-    ).reasoningTree;
-    const markup = renderToStaticMarkup(<ReasoningTreeView tree={tree} />);
+  it('renders selectable industry-chain nodes and the selected-node detail contract', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const markup = renderToStaticMarkup(<ReasoningTreeView detail={detail} />);
 
     expect(countClass(markup, 'reasoning-event')).toBe(2);
-    expect(markup.indexOf('北美云厂商上调AI资本开支')).toBeLessThan(
-      markup.indexOf('光模块订单交付节奏仍有分化')
-    );
-    expect(markup).toContain(tree.supportSummary);
-    expect(markup).toContain(tree.counterSummary);
-    expect(countClass(markup, 'reasoning-chain-node')).toBe(2);
-    expect(countClass(markup, 'reasoning-chain-edge')).toBe(1);
-    expect(countClass(markup, 'reasoning-chain-node__mechanism')).toBe(1);
-    expect(markup).not.toContain('reasoning-chain-edge__mechanism');
-    expect(markup).toContain('AI集群扩容提高节点间高速光互联需求');
-    expect(markup).toContain('reasoning-chain-node--anchor');
-    expect(markup).toContain('光模块');
+    expect(markup).toContain(detail.reasoningTree.title);
+    expect(markup).toContain(`${detail.reasoningTree.eventCount} 条 Event`);
+    expect(markup).toContain(detail.reasoningTree.supportSummary);
+    expect(markup).toContain(detail.reasoningTree.counterSummary);
+    expect(markup).toContain(detail.reasoningTree.transmissionSummary);
+    expect(markup).toContain(detail.reasoningTree.impactSummary);
+    expect(markup).toContain(detail.reasoningTree.conclusionBoundarySummary);
+    expect(countClass(markup, 'reasoning-chain-node')).toBe(3);
+    expect(countClass(markup, 'reasoning-chain-edge')).toBe(2);
+    expect(markup).toContain('产业链节点传导');
+    expect(markup).toContain('reasoning-chain-node--selected');
+    expect(markup).toContain('Theme Impact');
+    expect(markup).toContain('变量信号');
+    expect(markup).toContain('数据缺口');
+    expect(markup).toContain('结论边界与失效条件');
+    expect(markup).toContain('下一检查点');
   });
 
-  it('keeps the counter branch visible when no counter conclusion was published', () => {
-    const anchorId = unquantifiedFixture.result.reasoning_tree.anchor_id;
-    const tree = parseResearchReasoningTreeDetail(
-      unquantifiedFixture.result,
-      themeId,
-      anchorId
-    ).reasoningTree;
-    const markup = renderToStaticMarkup(<ReasoningTreeView tree={tree} />);
+  it('labels a non-first node without a formal graph edge as analyst inference', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const inferred = {
+      ...detail,
+      reasoningTree: {
+        ...detail.reasoningTree,
+        nodes: detail.reasoningTree.nodes.slice(0, 2).map((node, index) =>
+          index === 1 ? { ...node, incomingGraphEdge: null } : node
+        )
+      }
+    };
+
+    const markup = renderToStaticMarkup(<ReasoningTreeView detail={inferred} />);
+
+    expect(markup).toContain('分析推断');
+  });
+
+  it('retains neutral boundary and checkpoint sections when arrays are empty', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const empty = {
+      ...detail,
+      reasoningTree: {
+        ...detail.reasoningTree,
+        conclusionBoundarySummary: null,
+        counterSummary: '',
+        invalidationConditions: [],
+        checkpoints: []
+      }
+    };
+
+    const markup = renderToStaticMarkup(<ReasoningTreeView detail={empty} />);
 
     expect(markup).toContain('当前暂无明确反证');
-    expect(markup).toContain('待验证');
+    expect(markup).toContain('结论边界与失效条件');
+    expect(markup).toContain('下一检查点');
+    expect(markup).toContain('暂无');
   });
 
-  it('omits event time cleanly when the BFF did not publish one', () => {
-    const anchorId = contradictionFixture.result.reasoning_tree.anchor_id;
-    const tree = parseResearchReasoningTreeDetail(
-      contradictionFixture.result,
-      themeId,
-      anchorId
-    ).reasoningTree;
-    const withoutTimes = {
-      ...tree,
-      events: tree.events.map((event) => ({ ...event, eventTime: null }))
+  it('shows a one-node Tree as both signal entry and result', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const oneNode = {
+      ...detail,
+      reasoningTree: {
+        ...detail.reasoningTree,
+        nodes: detail.reasoningTree.nodes.slice(0, 1)
+      }
     };
-    const markup = renderToStaticMarkup(<ReasoningTreeView tree={withoutTimes} />);
+
+    const markup = renderToStaticMarkup(<ReasoningTreeView detail={oneNode} />);
+
+    expect(markup).toContain('信号入口 · 结果');
+    expect(markup).toContain('信号入口 · 结果节点');
+  });
+
+  it('omits event time when the BFF publishes null', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const withoutTimes = {
+      ...detail,
+      reasoningTree: {
+        ...detail.reasoningTree,
+        events: detail.reasoningTree.events.map((event) => ({ ...event, eventTime: null }))
+      }
+    };
+    const markup = renderToStaticMarkup(<ReasoningTreeView detail={withoutTimes} />);
 
     expect(countClass(markup, 'reasoning-event__time')).toBe(0);
     expect(markup).not.toContain('时间未知');

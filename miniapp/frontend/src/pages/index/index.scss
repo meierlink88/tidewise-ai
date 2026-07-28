@@ -266,11 +266,11 @@
   box-shadow: $shadow-card;
 }
 
-.theme-card--high {
+.theme-card--strong {
   border-color: #f1b9bf;
 }
 
-.theme-card--focus {
+.theme-card--medium {
   border-color: #eadbbb;
 }
 
@@ -283,11 +283,12 @@
   background: $color-warning;
 }
 
-.theme-card--high .theme-card__rail {
+.theme-card--strong .theme-card__rail {
   background: $color-danger;
 }
 
-.theme-card--watch .theme-card__rail {
+.theme-card--weak .theme-card__rail,
+.theme-card--unknown .theme-card__rail {
   background: #8797af;
 }
 
@@ -325,12 +326,13 @@
   white-space: nowrap;
 }
 
-.theme-card--focus .theme-card__impact {
+.theme-card--medium .theme-card__impact {
   background: #fff4df;
   color: #b77816;
 }
 
-.theme-card--watch .theme-card__impact {
+.theme-card--weak .theme-card__impact,
+.theme-card--unknown .theme-card__impact {
   background: #eef1f6;
   color: #52627a;
 }
