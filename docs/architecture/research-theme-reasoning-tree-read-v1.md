@@ -247,3 +247,5 @@ TW-04 同步删除：
 11. 现有 Theme API、Theme Import V1、Anchor Import V1 和全量相关测试保持通过。
 
 TW-04 完成条件是：新 Data 两端点、严格错误与不变量、稳定排序、旧合同清理和回归测试全部通过；不以 TW-05 BFF 或小程序页面完成为条件。
+> **Superseded:** 本文件描述旧读取合同，只保留历史背景；当前 Theme + Reason Tree V1
+> 读取合同以 `research-theme-reasoning-tree-spec.md` 为准。

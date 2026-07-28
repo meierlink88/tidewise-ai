@@ -51,6 +51,7 @@ type plan struct {
 	PayloadHash   string
 	ThemeIDsByKey map[string]string
 	Counts        Counts
+	AnalysisAsOf  time.Time
 	WindowStart   time.Time
 	WindowEnd     time.Time
 }
@@ -91,7 +92,7 @@ func (s *Service) Import(ctx context.Context, publisherSubject string, batch Bat
 		if err := validateReferences(ctx, tx, batch); err != nil {
 			return err
 		}
-		publishedAt := s.now().UTC()
+		publishedAt := s.now().UTC().Truncate(time.Microsecond)
 		receipt := Receipt{
 			ID: publication.ReceiptID, AnalysisBatchID: batch.AnalysisBatchID, PublisherSubject: publisherSubject,
 			PayloadHash: publication.PayloadHash, ThemeIDsByKey: cloneStringMap(publication.ThemeIDsByKey), Counts: publication.Counts,
@@ -104,19 +105,26 @@ func (s *Service) Import(ctx context.Context, publisherSubject string, batch Bat
 			themeID := publication.ThemeIDsByKey[theme.ThemeKey]
 			if err := tx.InsertResearchTheme(ctx, ThemeRecord{
 				ID: themeID, ImportReceiptID: receipt.ID, AnalysisBatchID: batch.AnalysisBatchID, ThemeKey: theme.ThemeKey,
-				Name: theme.Name, OneLineConclusion: theme.OneLineConclusion, ImpactLevel: theme.ImpactLevel,
-				TransmissionPath: theme.TransmissionPath, TradingDirection: theme.TradingDirection,
-				TransmissionStage: theme.TransmissionStage, NextCheckpoint: theme.NextCheckpoint,
-				MarketConfirmationSummary: theme.MarketConfirmationSummary,
-				WindowStart:               publication.WindowStart, WindowEnd: publication.WindowEnd, PublishedAt: publishedAt,
+				Title: theme.Title, OneLineConclusion: theme.OneLineConclusion,
+				ConclusionDirection: theme.ConclusionDirection, ImpactStrength: theme.ImpactStrength,
+				AttentionLevel: theme.AttentionLevel, ConclusionStatus: theme.ConclusionStatus,
+				TransmissionStage:         theme.TransmissionStage,
+				InvestmentGuidanceAction:  theme.InvestmentGuidanceAction,
+				InvestmentGuidanceSummary: theme.InvestmentGuidanceSummary,
+				TimeHorizonCategory:       theme.TimeHorizonCategory, TimeHorizonSummary: theme.TimeHorizonSummary,
+				TransmissionSummary: theme.TransmissionSummary, CheckpointSummary: theme.CheckpointSummary,
+				RiskSummary: theme.RiskSummary, AnalysisAsOf: publication.AnalysisAsOf,
+				WindowStart: publication.WindowStart, WindowEnd: publication.WindowEnd, PublishedAt: publishedAt,
 			}); err != nil {
 				return fmt.Errorf("insert Theme %q: %w", theme.ThemeKey, err)
 			}
-			for nodeIndex, node := range theme.ChainNodes {
-				if err := tx.InsertResearchThemeChainNode(ctx, ChainNodeRecord{
-					ThemeID: themeID, ChainNodeEntityID: node.ChainNodeID, RelationRole: node.RelationRole, ImpactSummary: node.ImpactSummary,
+			for impactIndex, impact := range theme.Impacts {
+				if err := tx.InsertResearchThemeImpact(ctx, ImpactRecord{
+					ThemeID: themeID, ChainNodeEntityID: impact.ChainNodeEntityID,
+					RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
+					ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
 				}); err != nil {
-					return fmt.Errorf("insert %s chain node %d: %w", theme.ThemeKey, nodeIndex, err)
+					return fmt.Errorf("insert %s Impact %d: %w", theme.ThemeKey, impactIndex, err)
 				}
 			}
 			for eventIndex, event := range theme.Events {
@@ -126,6 +134,9 @@ func (s *Service) Import(ctx context.Context, publisherSubject string, batch Bat
 					return fmt.Errorf("insert %s Event %d: %w", theme.ThemeKey, eventIndex, err)
 				}
 			}
+		}
+		if err := tx.VerifyResearchThemeImportReceipt(ctx, receipt); err != nil {
+			return fmt.Errorf("verify research Theme import receipt: %w", err)
 		}
 		result = resultFromReceipt(receipt, false)
 		return nil
@@ -149,13 +160,13 @@ func buildPlan(batch Batch) (plan, error) {
 	counts := Counts{Themes: len(batch.Themes), Receipts: 1}
 	for _, theme := range batch.Themes {
 		themeIDs[theme.ThemeKey] = ThemeID(batch.AnalysisBatchID, theme.ThemeKey)
-		counts.ChainNodeAssociations += len(theme.ChainNodes)
+		counts.Impacts += len(theme.Impacts)
 		counts.EventAssociations += len(theme.Events)
 	}
 	return plan{
 		ReceiptID:   identity.NormalizeUUID("research_theme_import_receipt", batch.AnalysisBatchID),
 		PayloadHash: payloadHash, ThemeIDsByKey: themeIDs, Counts: counts,
-		WindowStart: window.Start, WindowEnd: window.End,
+		AnalysisAsOf: window.AnalysisAsOf, WindowStart: window.Start, WindowEnd: window.End,
 	}, nil
 }
 
@@ -163,14 +174,14 @@ func validateReferences(ctx context.Context, tx Transaction, batch Batch) error 
 	chainNodeIDs := make([]string, 0)
 	eventIDs := make([]string, 0)
 	for _, theme := range batch.Themes {
-		for _, node := range theme.ChainNodes {
-			chainNodeIDs = append(chainNodeIDs, node.ChainNodeID)
+		for _, impact := range theme.Impacts {
+			chainNodeIDs = append(chainNodeIDs, impact.ChainNodeEntityID)
 		}
 		for _, event := range theme.Events {
 			eventIDs = append(eventIDs, event.EventID)
 		}
 	}
-	existingNodes, err := tx.ExistingResearchThemeChainNodes(ctx, chainNodeIDs)
+	existingNodes, err := tx.ExistingResearchThemeImpactNodes(ctx, chainNodeIDs)
 	if err != nil {
 		return fmt.Errorf("resolve research theme chain nodes: %w", err)
 	}
@@ -179,9 +190,9 @@ func validateReferences(ctx context.Context, tx Transaction, batch Batch) error 
 		return fmt.Errorf("resolve research theme Events: %w", err)
 	}
 	for themeIndex, theme := range batch.Themes {
-		for nodeIndex, node := range theme.ChainNodes {
-			if _, exists := existingNodes[node.ChainNodeID]; !exists {
-				return &ReferenceError{ThemeKey: theme.ThemeKey, Path: fmt.Sprintf("themes[%d].chain_nodes[%d].chain_node_id", themeIndex, nodeIndex), Reference: node.ChainNodeID}
+		for impactIndex, impact := range theme.Impacts {
+			if _, exists := existingNodes[impact.ChainNodeEntityID]; !exists {
+				return &ReferenceError{ThemeKey: theme.ThemeKey, Path: fmt.Sprintf("themes[%d].impacts[%d].chain_node_entity_id", themeIndex, impactIndex), Reference: impact.ChainNodeEntityID}
 			}
 		}
 		for eventIndex, event := range theme.Events {

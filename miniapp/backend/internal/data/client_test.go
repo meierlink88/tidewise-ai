@@ -28,7 +28,7 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 			t.Fatalf("path = %q, want %q", request.URL.Path, ResearchThemesPath)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","name":"theme","impact_level":"focus","trading_direction":"流动性改善后风险偏好可能回升","transmission_stage":"diffusion","affected_chain_nodes":[{"id":"22222222-2222-5222-8222-222222222222","name":"算力基础设施","relation_role":"driver","impact_summary":"资本开支上升"}],"related_indices":[{"id":"33333333-3333-5333-8333-333333333333","name":"示例指数","impact_direction":"neutral","impact_summary":"等待验证"}]}],"next_cursor":null}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","title":"theme","conclusion_direction":"positive","impact_strength":"medium","transmission_stage":"diffusion","investment_guidance_summary":"流动性改善后风险偏好可能回升","impacts":[{"chain_node_entity_id":"22222222-2222-5222-8222-222222222222","name":"算力基础设施","relation_role":"driver","impact_direction":"positive","impact_summary":"资本开支上升","display_order":1}]}],"next_cursor":null}}`))
 	}))
 	defer server.Close()
 
@@ -45,11 +45,11 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 			t.Fatalf("query = %q, want %q", gotQuery, fragment)
 		}
 	}
-	if len(page.Items) != 1 || page.Items[0].Name != "theme" || page.Items[0].ImpactLevel != biz.ImpactLevelFocus || page.Items[0].TransmissionStage != biz.TransmissionStageDiffusion || page.Items[0].TradingDirection != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
+	if len(page.Items) != 1 || page.Items[0].Title != "theme" || page.Items[0].ImpactStrength != "medium" || page.Items[0].TransmissionStage != "diffusion" || page.Items[0].InvestmentGuidanceSummary != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
 		t.Fatalf("page = %#v", page)
 	}
-	if len(page.Items[0].AffectedChainNodes) != 1 || page.Items[0].AffectedChainNodes[0].ImpactSummary != "资本开支上升" || page.Items[0].RelatedIndices[0].ImpactDirection != biz.ImpactDirectionNeutral {
-		t.Fatalf("theme relations = %#v/%#v", page.Items[0].AffectedChainNodes, page.Items[0].RelatedIndices)
+	if len(page.Items[0].Impacts) != 1 || *page.Items[0].Impacts[0].ImpactSummary != "资本开支上升" {
+		t.Fatalf("theme impacts = %#v", page.Items[0].Impacts)
 	}
 }
 
@@ -58,7 +58,7 @@ func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	var gotPath, gotQuery, gotRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		gotPath, gotQuery, gotRequestID = request.URL.EscapedPath(), request.URL.RawQuery, request.Header.Get(RequestIDHeader)
-		_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"theme":{"id":"theme/id","name":"detail"},"events":[]}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"theme":{"id":"theme/id","title":"detail"},"events":[]}}`))
 	}))
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
@@ -67,7 +67,7 @@ func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != ResearchThemesPath+"/theme%2Fid" || gotQuery != "window_hours=48" || gotRequestID == "" || result.Theme.Name != "detail" {
+	if gotPath != ResearchThemesPath+"/theme%2Fid" || gotQuery != "window_hours=48" || gotRequestID == "" || result.Theme.Title != "detail" {
 		t.Fatalf("path/query/request ID/result = %q/%q/%q/%#v", gotPath, gotQuery, gotRequestID, result)
 	}
 }
@@ -96,7 +96,7 @@ func TestHTTPClientReadsResearchReasoningTreeListFromSharedFixture(t *testing.T)
 	if gotAuthorization != "Bearer miniapp-service-token" || gotRequestID != "req-reasoning-list" {
 		t.Fatalf("auth/request ID = %q/%q", gotAuthorization, gotRequestID)
 	}
-	if result.Theme.ID != "11111111-1111-4111-8111-111111111111" || len(result.ReasoningTrees) != 2 || result.ReasoningTrees[0].CenterChainNode.Name != "先进封装" {
+	if result.Theme.ID != "c26337f2-a79f-5089-84f4-63d57bc32230" || len(result.ReasoningTrees) != 2 || result.ReasoningTrees[0].IndustryChainName != "高速光模块产业链" {
 		t.Fatalf("result = %#v", result)
 	}
 }
@@ -113,14 +113,14 @@ func TestHTTPClientReadsResearchReasoningTreeDetailFromSharedFixture(t *testing.
 	defer server.Close()
 
 	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
-	result, err := client.GetResearchThemeReasoningTree(context.Background(), "theme/id", "anchor/id")
+	result, err := client.GetResearchThemeReasoningTree(context.Background(), "theme/id", "tree/id")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees/anchor%2Fid" || gotQuery != "" {
+	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees/tree%2Fid" || gotQuery != "" {
 		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
 	}
-	if result.ThemeID != "11111111-1111-4111-8111-111111111111" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != biz.EvidenceRoleContradicting || result.ReasoningTree.PathNodes[1].ChangeDirection != biz.ChangeDirectionMixed {
+	if result.ThemeID != "c26337f2-a79f-5089-84f4-63d57bc32230" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != "contradicting" || result.ReasoningTree.Nodes[2].PrimarySignal.VariableSignalKey != "dsp-demand" {
 		t.Fatalf("result = %#v", result)
 	}
 }

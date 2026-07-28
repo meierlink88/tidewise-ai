@@ -9,63 +9,81 @@ import (
 )
 
 var (
-	ErrThemeNotFound                   = errors.New("research theme not found")
-	ErrReasoningTreesNotFound          = errors.New("research reasoning trees not found")
+	ErrThemeNotFound                   = errors.New("research Theme not found")
+	ErrReasoningTreesNotFound          = errors.New("research Theme has no published reasoning trees")
 	ErrReasoningTreeNotFound           = errors.New("research reasoning tree not found")
 	ErrReasoningTreeInvariantViolation = errors.New("research reasoning tree invariant violation")
 )
-
-type ResearchReasoningTreeChainNode struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type ResearchReasoningTreeSummary struct {
-	AnchorID        string                         `json:"anchor_id"`
-	CenterChainNode ResearchReasoningTreeChainNode `json:"center_chain_node"`
-}
 
 type ResearchReasoningTreeList struct {
 	Theme          ResearchTheme                  `json:"theme"`
 	ReasoningTrees []ResearchReasoningTreeSummary `json:"reasoning_trees"`
 }
 
-type ResearchReasoningTreeEvent struct {
-	EventID         string     `json:"event_id"`
-	Title           string     `json:"title"`
-	Summary         string     `json:"summary"`
-	EventTime       *time.Time `json:"event_time,omitempty"`
-	EvidenceRole    string     `json:"evidence_role"`
-	EvidenceSummary string     `json:"evidence_summary"`
+type ResearchReasoningTreeSummary struct {
+	ReasoningTreeID       string    `json:"reasoning_tree_id"`
+	IndustryChainEntityID string    `json:"industry_chain_entity_id"`
+	IndustryChainName     string    `json:"industry_chain_name"`
+	Title                 string    `json:"title"`
+	DisplayOrder          int       `json:"display_order"`
+	EventCount            int       `json:"event_count"`
+	PublishedAt           time.Time `json:"published_at"`
 }
 
-type ResearchReasoningTreePathNode struct {
-	ChainNodeID                   string  `json:"chain_node_id"`
-	Name                          string  `json:"name"`
-	ChangeDirection               string  `json:"change_direction"`
-	ChangeSummary                 string  `json:"change_summary"`
-	ImpactSummary                 string  `json:"impact_summary"`
-	IncomingTransmissionMechanism *string `json:"incoming_transmission_mechanism"`
+type ResearchCheckpoint struct {
+	Type, Summary string
+}
+
+type ResearchGraphEdge struct {
+	ID, RelationType, ReviewStatus, Status string
+}
+
+type ResearchSignal struct {
+	VariableSignalKey string `json:"variable_signal_key"`
+	SignalRole        string `json:"signal_role"`
+	SignalDirection   string `json:"signal_direction"`
+	DisplaySummary    string `json:"display_summary"`
+	DisplayOrder      int    `json:"display_order"`
+}
+
+type ResearchReasoningTreeNode struct {
+	ID                               string             `json:"id"`
+	Position                         int                `json:"position"`
+	ChainNodeEntityID                string             `json:"chain_node_entity_id"`
+	Name                             string             `json:"name"`
+	StateSummary                     *string            `json:"state_summary"`
+	ImpactDirection                  string             `json:"impact_direction"`
+	ImpactStrength                   string             `json:"impact_strength"`
+	ImpactSummary                    *string            `json:"impact_summary"`
+	ReasoningBasisSummary            *string            `json:"reasoning_basis_summary"`
+	EvidenceGapSummary               *string            `json:"evidence_gap_summary"`
+	IncomingIndustryChainGraphEdgeID *string            `json:"incoming_industry_chain_graph_edge_id"`
+	IncomingTransmissionTitle        *string            `json:"incoming_transmission_title"`
+	IncomingTransmissionMechanism    *string            `json:"incoming_transmission_mechanism"`
+	IncomingConditionSummary         *string            `json:"incoming_condition_summary"`
+	IncomingGraphEdge                *ResearchGraphEdge `json:"incoming_graph_edge"`
+	Signals                          []ResearchSignal   `json:"signals"`
+	PrimarySignal                    ResearchSignal     `json:"primary_signal"`
+	SignalDisplaySummary             string             `json:"signal_display_summary"`
 }
 
 type ResearchReasoningTree struct {
-	AnchorID            string                          `json:"anchor_id"`
-	CenterChainNode     ResearchReasoningTreeChainNode  `json:"center_chain_node"`
-	OneLineConclusion   string                          `json:"one_line_conclusion"`
-	FactSummary         string                          `json:"fact_summary"`
-	NetDirectionSummary string                          `json:"net_direction_summary"`
-	SupportSummary      string                          `json:"support_summary"`
-	CounterSummary      *string                         `json:"counter_summary"`
-	TradingDirection    string                          `json:"trading_direction"`
-	NextCheckpoint      string                          `json:"next_checkpoint"`
-	EventCount          int                             `json:"event_count"`
-	Events              []ResearchReasoningTreeEvent    `json:"events"`
-	PathNodes           []ResearchReasoningTreePathNode `json:"path_nodes"`
+	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
+	DisplayOrder, EventCount                                           int
+	FactSummary, TransmissionSummary, ImpactSummary                    *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
+	InvalidationConditions                                             []string
+	Checkpoints                                                        []ResearchCheckpoint
+	PublishedAt                                                        time.Time
+	Events                                                             []ResearchEvent
+	Nodes                                                              []ResearchReasoningTreeNode
 }
 
 type ResearchReasoningTreeDetail struct {
-	ThemeID       string                `json:"theme_id"`
-	ReasoningTree ResearchReasoningTree `json:"reasoning_tree"`
+	ThemeID       string
+	ImpactNodeIDs []string
+	ReasoningTree ResearchReasoningTree
 }
 
 func (s *Service) ListReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
@@ -77,61 +95,89 @@ func (s *Service) ListReasoningTrees(ctx context.Context, themeID string) (Resea
 	if err != nil {
 		return ResearchReasoningTreeList{}, mapReasoningTreeRepositoryError(err)
 	}
-	trees := make([]ResearchReasoningTreeSummary, 0, len(result.ReasoningTrees))
-	for _, tree := range result.ReasoningTrees {
-		trees = append(trees, ResearchReasoningTreeSummary{
-			AnchorID:        tree.AnchorID,
-			CenterChainNode: ResearchReasoningTreeChainNode{ID: tree.CenterChainNodeID, Name: tree.CenterChainNodeName},
+	summaries := make([]ResearchReasoningTreeSummary, 0, len(result.ReasoningTrees))
+	for _, value := range result.ReasoningTrees {
+		summaries = append(summaries, ResearchReasoningTreeSummary{
+			ReasoningTreeID:       value.ReasoningTreeID,
+			IndustryChainEntityID: value.IndustryChainEntityID,
+			IndustryChainName:     value.IndustryChainName, Title: value.Title,
+			DisplayOrder: value.DisplayOrder, EventCount: value.EventCount,
+			PublishedAt: value.PublishedAt.UTC(),
 		})
 	}
-	return ResearchReasoningTreeList{Theme: themeDTO(result.Theme), ReasoningTrees: trees}, nil
+	return ResearchReasoningTreeList{Theme: themeDTO(result.Theme), ReasoningTrees: summaries}, nil
 }
 
-func (s *Service) GetReasoningTree(ctx context.Context, themeID, anchorID string) (ResearchReasoningTreeDetail, error) {
+func (s *Service) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID string) (ResearchReasoningTreeDetail, error) {
 	themeID = strings.ToLower(strings.TrimSpace(themeID))
-	anchorID = strings.ToLower(strings.TrimSpace(anchorID))
+	reasoningTreeID = strings.ToLower(strings.TrimSpace(reasoningTreeID))
 	if !researchUUIDPattern.MatchString(themeID) {
 		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: theme id must be a UUID", ErrInvalidRequest)
 	}
-	if !researchUUIDPattern.MatchString(anchorID) {
-		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: anchor id must be a UUID", ErrInvalidRequest)
+	if !researchUUIDPattern.MatchString(reasoningTreeID) {
+		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: reasoning tree id must be a UUID", ErrInvalidRequest)
 	}
-	result, err := s.repository.GetResearchThemeReasoningTree(ctx, themeID, anchorID)
+	result, err := s.repository.GetResearchThemeReasoningTree(ctx, themeID, reasoningTreeID)
 	if err != nil {
 		return ResearchReasoningTreeDetail{}, mapReasoningTreeRepositoryError(err)
 	}
-	return ResearchReasoningTreeDetail{ThemeID: result.ThemeID, ReasoningTree: reasoningTreeDTO(result.ReasoningTree)}, nil
-}
-
-func reasoningTreeDTO(value ReasoningTreeRecord) ResearchReasoningTree {
-	events := make([]ResearchReasoningTreeEvent, 0, len(value.Events))
-	for _, event := range value.Events {
-		var eventTime *time.Time
-		if event.EventTime != nil {
-			formatted := event.EventTime.UTC()
-			eventTime = &formatted
+	tree := result.ReasoningTree
+	nodes := make([]ResearchReasoningTreeNode, 0, len(tree.Nodes))
+	for _, node := range tree.Nodes {
+		signals := make([]ResearchSignal, 0, len(node.Signals))
+		var primary ResearchSignal
+		secondary := make([]string, 0, len(node.Signals)-1)
+		for _, signal := range node.Signals {
+			item := ResearchSignal{
+				VariableSignalKey: signal.VariableSignalKey, SignalRole: signal.SignalRole,
+				SignalDirection: signal.SignalDirection, DisplaySummary: signal.DisplaySummary,
+				DisplayOrder: signal.DisplayOrder,
+			}
+			signals = append(signals, item)
+			if signal.SignalRole == "primary" {
+				primary = item
+			} else {
+				secondary = append(secondary, signal.DisplaySummary)
+			}
 		}
-		events = append(events, ResearchReasoningTreeEvent{
-			EventID: event.EventID, Title: event.Title, Summary: event.Summary, EventTime: eventTime,
-			EvidenceRole: event.EvidenceRole, EvidenceSummary: event.EvidenceSummary,
+		var graphEdge *ResearchGraphEdge
+		if node.IncomingGraphEdge != nil {
+			graphEdge = &ResearchGraphEdge{
+				ID: node.IncomingGraphEdge.ID, RelationType: node.IncomingGraphEdge.RelationType,
+				ReviewStatus: node.IncomingGraphEdge.ReviewStatus, Status: node.IncomingGraphEdge.Status,
+			}
+		}
+		nodes = append(nodes, ResearchReasoningTreeNode{
+			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID,
+			Name: node.Name, StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
+			ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
+			ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
+			IncomingIndustryChainGraphEdgeID: node.IncomingIndustryChainGraphEdgeID,
+			IncomingTransmissionTitle:        node.IncomingTransmissionTitle,
+			IncomingTransmissionMechanism:    node.IncomingTransmissionMechanism,
+			IncomingConditionSummary:         node.IncomingConditionSummary, IncomingGraphEdge: graphEdge,
+			Signals: signals, PrimarySignal: primary, SignalDisplaySummary: strings.Join(secondary, " · "),
 		})
 	}
-	pathNodes := make([]ResearchReasoningTreePathNode, 0, len(value.PathNodes))
-	for _, node := range value.PathNodes {
-		pathNodes = append(pathNodes, ResearchReasoningTreePathNode{
-			ChainNodeID: node.ChainNodeID, Name: node.Name, ChangeDirection: node.ChangeDirection,
-			ChangeSummary: node.ChangeSummary, ImpactSummary: node.ImpactSummary,
-			IncomingTransmissionMechanism: node.IncomingTransmissionMechanism,
-		})
+	checkpoints := make([]ResearchCheckpoint, 0, len(tree.Checkpoints))
+	for _, checkpoint := range tree.Checkpoints {
+		checkpoints = append(checkpoints, ResearchCheckpoint{Type: checkpoint.Type, Summary: checkpoint.Summary})
 	}
-	return ResearchReasoningTree{
-		AnchorID:          value.AnchorID,
-		CenterChainNode:   ResearchReasoningTreeChainNode{ID: value.CenterChainNodeID, Name: value.CenterChainNodeName},
-		OneLineConclusion: value.OneLineConclusion, FactSummary: value.FactSummary,
-		NetDirectionSummary: value.NetDirectionSummary, SupportSummary: value.SupportSummary,
-		CounterSummary: value.CounterSummary, TradingDirection: value.TradingDirection,
-		NextCheckpoint: value.NextCheckpoint, EventCount: len(events), Events: events, PathNodes: pathNodes,
-	}
+	return ResearchReasoningTreeDetail{
+		ThemeID: result.ThemeID, ImpactNodeIDs: append([]string(nil), result.ImpactNodeIDs...),
+		ReasoningTree: ResearchReasoningTree{
+			ReasoningTreeID: tree.ReasoningTreeID, ThemeID: tree.ThemeID,
+			IndustryChainEntityID: tree.IndustryChainEntityID, IndustryChainName: tree.IndustryChainName,
+			Title: tree.Title, DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
+			FactSummary: tree.FactSummary, TransmissionSummary: tree.TransmissionSummary,
+			ImpactDirection: tree.ImpactDirection, ImpactStrength: tree.ImpactStrength,
+			ImpactSummary: tree.ImpactSummary, ConclusionBoundarySummary: tree.ConclusionBoundarySummary,
+			SupportSummary: tree.SupportSummary, CounterSummary: tree.CounterSummary,
+			InvalidationConditions: append([]string(nil), tree.InvalidationConditions...),
+			Checkpoints:            checkpoints, PublishedAt: tree.PublishedAt.UTC(),
+			EventCount: tree.EventCount, Events: eventDTOs(tree.Events), Nodes: nodes,
+		},
+	}, nil
 }
 
 func mapReasoningTreeRepositoryError(err error) error {

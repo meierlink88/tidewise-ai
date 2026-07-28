@@ -1,37 +1,45 @@
-export type ResearchImpactLevel = 'high' | 'focus' | 'watch';
+export type ResearchDirection = 'positive' | 'negative' | 'mixed' | 'neutral' | 'uncertain';
+export type ResearchImpactStrength = 'strong' | 'medium' | 'weak' | 'unknown';
 export type ResearchTransmissionStage = 'identification' | 'validation' | 'diffusion' | 'dampening';
+export type ResearchAttentionLevel = 'high' | 'medium' | 'low';
+export type ResearchConclusionStatus = 'supported' | 'partial' | 'conflicted';
+export type ResearchInvestmentGuidanceAction = 'focus' | 'avoid' | 'observe' | 'differentiate';
 
-export interface HomeResearchChainNode {
-  id: string;
+export interface HomeResearchThemeImpact {
+  chainNodeEntityId: string;
   name: string;
   relationRole: 'driver' | 'beneficiary' | 'constraint' | 'exposure';
-  impactSummary: string;
-}
-
-export interface HomeResearchIndex {
-  id: string;
-  name: string;
-  impactDirection: 'positive' | 'negative' | 'mixed' | 'neutral';
-  impactSummary: string;
+  impactDirection: ResearchDirection;
+  impactSummary: string | null;
+  displayOrder: number;
 }
 
 export interface HomeResearchThemeItem {
   id: string;
-  name: string;
+  analysisBatchId: string;
+  title: string;
   oneLineConclusion: string;
-  impactLevel: ResearchImpactLevel;
-  transmissionPath: string;
-  tradingDirection: string;
+  conclusionDirection: ResearchDirection;
+  impactStrength: ResearchImpactStrength;
+  attentionLevel: ResearchAttentionLevel | null;
+  conclusionStatus: ResearchConclusionStatus | null;
   transmissionStage: ResearchTransmissionStage;
-  nextCheckpoint: string;
-  marketConfirmationSummary: string;
+  investmentGuidanceAction: ResearchInvestmentGuidanceAction;
+  investmentGuidanceSummary: string;
+  timeHorizonCategory: 'short_term' | 'medium_term' | 'long_term' | 'custom';
+  timeHorizonSummary: string | null;
+  transmissionSummary: string | null;
+  checkpointSummary: string | null;
+  riskSummary: string | null;
+  analysisAsOf: string;
+  windowStart: string;
+  windowEnd: string;
   publishedAt: string;
   updateLabel: string;
   categories: string[];
-  affectedChainNodes: HomeResearchChainNode[];
-  relatedIndices: HomeResearchIndex[];
-  supportingEventCount: number;
-  contradictingEventCount: number;
+  impacts: HomeResearchThemeImpact[];
+  evidenceEventCount: number;
+  reasoningTreeCount: number;
 }
 
 export interface HomeResearchThemeFeed {
@@ -44,7 +52,6 @@ export interface HomeResearchThemeFeed {
   items: HomeResearchThemeItem[];
   nextCursor: string | null;
 }
-
 export interface ResearchThemeFeedPort {
   list(): Promise<HomeResearchThemeFeed>;
 }

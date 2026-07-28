@@ -7,7 +7,7 @@ import (
 type ResearchThemeImportStore = researchthemeimport.Store
 type ResearchThemeImportTransaction = researchthemeimport.Transaction
 type ResearchThemeImportTheme = researchthemeimport.ThemeRecord
-type ResearchThemeImportChainNode = researchthemeimport.ChainNodeRecord
+type ResearchThemeImportImpact = researchthemeimport.ImpactRecord
 type ResearchThemeImportEvent = researchthemeimport.EventRecord
 type ResearchThemeImportCounts = researchthemeimport.Counts
 type ResearchThemeImportReceipt = researchthemeimport.Receipt

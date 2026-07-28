@@ -29,9 +29,9 @@ func TestOpenAPIContractFreezesMiniappRoutesAndEnvelopes(t *testing.T) {
 		"/healthz":                        {operationID: "getMiniappHealth"},
 		"/readyz":                         {operationID: "getMiniappReadiness"},
 		"/api/miniapp/v1/research/themes": {operationID: "listMiniappResearchThemes", envelope: "ResearchThemePageEnvelope"},
-		"/api/miniapp/v1/research/themes/{theme_id}":                             {operationID: "getMiniappResearchTheme", envelope: "ResearchThemeDetailEnvelope"},
-		"/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees":             {operationID: "listMiniappResearchReasoningTrees", envelope: "ReasoningTreeListEnvelope"},
-		"/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{anchor_id}": {operationID: "getMiniappResearchReasoningTree", envelope: "ReasoningTreeDetailEnvelope"},
+		"/api/miniapp/v1/research/themes/{theme_id}":                                     {operationID: "getMiniappResearchTheme", envelope: "ResearchThemeDetailEnvelope"},
+		"/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees":                     {operationID: "listMiniappResearchReasoningTrees", envelope: "ReasoningTreeListEnvelope"},
+		"/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {operationID: "getMiniappResearchReasoningTree", envelope: "ReasoningTreeDetailEnvelope"},
 	}
 	if len(paths) != len(want) {
 		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeysFromContract(want))
@@ -72,9 +72,9 @@ func TestOpenAPIContractFreezesMiniappRoutesAndEnvelopes(t *testing.T) {
 	errorDetail := schema(t, document, "ErrorDetail")
 	assertRequired(t, errorDetail, "code", "message", "details")
 	reasoningTree := schema(t, document, "ReasoningTree")
-	pathNodes := object(t, object(t, reasoningTree["properties"], "ReasoningTree.properties")["path_nodes"], "ReasoningTree.path_nodes")
-	if pathNodes["minItems"] != 2 {
-		t.Fatalf("ReasoningTree.path_nodes.minItems = %v, want 2", pathNodes["minItems"])
+	nodes := object(t, object(t, reasoningTree["properties"], "ReasoningTree.properties")["nodes"], "ReasoningTree.nodes")
+	if object(t, nodes["items"], "ReasoningTree.nodes.items")["$ref"] != "#/components/schemas/ReasoningTreeNode" {
+		t.Fatalf("ReasoningTree.nodes = %#v", nodes)
 	}
 	assertNoDanglingLocalReferences(t, document)
 }

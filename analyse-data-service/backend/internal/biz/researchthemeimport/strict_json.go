@@ -192,21 +192,26 @@ func joinJSONPath(parent, field string) string {
 
 func researchThemeBatchShape() *jsonShape {
 	scalar := &jsonShape{kind: jsonScalar}
-	chainNode := &jsonShape{kind: jsonObject, fields: map[string]*jsonShape{
-		"chain_node_id": scalar, "relation_role": scalar, "impact_summary": scalar,
+	impact := &jsonShape{kind: jsonObject, fields: map[string]*jsonShape{
+		"chain_node_entity_id": scalar, "relation_role": scalar, "impact_direction": scalar,
+		"impact_summary": scalar, "display_order": scalar,
 	}}
 	event := &jsonShape{kind: jsonObject, fields: map[string]*jsonShape{
 		"event_id": scalar, "evidence_role": scalar, "supported_claim": scalar,
 	}}
 	theme := &jsonShape{kind: jsonObject, capturesThemeKey: true, fields: map[string]*jsonShape{
-		"theme_key": scalar, "name": scalar, "one_line_conclusion": scalar,
-		"impact_level": scalar, "transmission_path": scalar, "trading_direction": scalar,
-		"transmission_stage": scalar, "next_checkpoint": scalar, "market_confirmation_summary": scalar,
-		"chain_nodes": {kind: jsonArray, item: chainNode},
-		"events":      {kind: jsonArray, item: event},
+		"theme_key": scalar, "title": scalar, "one_line_conclusion": scalar,
+		"conclusion_direction": scalar, "impact_strength": scalar, "attention_level": scalar,
+		"conclusion_status": scalar, "transmission_stage": scalar,
+		"investment_guidance_action": scalar, "investment_guidance_summary": scalar,
+		"time_horizon_category": scalar, "time_horizon_summary": scalar,
+		"transmission_summary": scalar, "checkpoint_summary": scalar, "risk_summary": scalar,
+		"impacts": {kind: jsonArray, item: impact},
+		"events":  {kind: jsonArray, item: event},
 	}}
 	return &jsonShape{kind: jsonObject, fields: map[string]*jsonShape{
 		"analysis_batch_id": scalar,
+		"analysis_as_of":    scalar,
 		"window_start":      scalar,
 		"window_end":        scalar,
 		"themes":            {kind: jsonArray, item: theme},

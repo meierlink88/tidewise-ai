@@ -32,7 +32,7 @@ func TestEveryResearchEndpointExecutesKratosMiddleware(t *testing.T) {
 		{path: "/api/miniapp/v1/research/themes", operation: OperationListResearchThemes},
 		{path: "/api/miniapp/v1/research/themes/theme-id", operation: OperationGetResearchTheme},
 		{path: "/api/miniapp/v1/research/themes/theme-id/reasoning-trees", operation: OperationListResearchThemeReasoningTrees},
-		{path: "/api/miniapp/v1/research/themes/theme-id/reasoning-trees/anchor-id", operation: OperationGetResearchThemeReasoningTree},
+		{path: "/api/miniapp/v1/research/themes/theme-id/reasoning-trees/tree-id", operation: OperationGetResearchThemeReasoningTree},
 	} {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, request.path, nil))

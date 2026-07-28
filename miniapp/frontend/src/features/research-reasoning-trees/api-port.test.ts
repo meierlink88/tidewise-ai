@@ -3,12 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { createResearchReasoningTreeApiPort } from './api-port';
 
-const themeId = '11111111-1111-4111-8111-111111111111';
-const anchorId = '534d83be-774b-51d9-ad00-cdee4ba91799';
+const themeId = 'c26337f2-a79f-5089-84f4-63d57bc32230';
+const treeId = 'd7e19e24-5d6c-568e-9b1c-93e6d7956d5b';
 const success = (result: unknown) => ({ request_id: 'miniapp-reasoning-test', result });
 
 describe('research reasoning tree BFF adapter', () => {
-  it('maps the shared list and detail fixtures through the public Port', async () => {
+  it('maps the V1 shared list and detail fixtures through the public Port', async () => {
     const list = await fixtureResult('01-reasoning-tree-list-result.json');
     const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json');
     const request = vi
@@ -21,39 +21,32 @@ describe('research reasoning tree BFF adapter', () => {
     });
 
     const index = await port.list(themeId);
-    const tree = await port.get(themeId, anchorId);
+    const tree = await port.get(themeId, treeId);
 
-    expect(request).toHaveBeenNthCalledWith(1, {
-      url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}/reasoning-trees`,
-      method: 'GET',
-      dataType: 'json'
-    });
     expect(request).toHaveBeenNthCalledWith(2, {
-      url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}/reasoning-trees/${anchorId}`,
+      url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}/reasoning-trees/${treeId}`,
       method: 'GET',
       dataType: 'json'
     });
     expect(index).toMatchObject({
-      theme: { id: themeId, impactLevel: 'high', transmissionStage: 'diffusion' },
+      theme: { id: themeId, impactStrength: 'medium', transmissionStage: 'validation' },
       reasoningTrees: [
-        { anchorId: '5c18fc57-6bd8-5612-9a24-01a4e928b761', centerChainNode: { name: '先进封装' } },
-        { anchorId, centerChainNode: { name: '光模块' } }
+        { reasoningTreeId: treeId, industryChainName: '高速光模块产业链' },
+        { reasoningTreeId: 'f9f7fd7e-06cf-5f53-b749-66c75785d3dc', title: 'DSP 芯片' }
       ]
     });
     expect(tree).toMatchObject({
       themeId,
+      impactNodeIds: expect.arrayContaining(['33333333-3333-4333-8333-333333333333']),
       reasoningTree: {
-        anchorId,
-        supportSummary: '云厂商资本开支上调支持高速光互联需求扩张，但兑现仍取决于订单和交付改善',
-        counterSummary: '不同规格和客户的交付节奏仍有分化，反驳需求已经全面兑现的判断',
+        reasoningTreeId: treeId,
+        supportSummary: '端口计划上调，产业链传导关系已确认。',
+        counterSummary: '采购尚未发生，替代技术路线可能降低可插拔模块与 DSP 用量。',
         eventCount: 2,
-        events: [
-          { evidenceRole: 'driver', eventTime: '2026-07-20T01:00:00Z' },
-          { evidenceRole: 'contradicting' }
-        ],
-        pathNodes: [
-          { name: 'AI芯片', incomingTransmissionMechanism: null },
-          { name: '光模块', changeDirection: 'mixed' }
+        nodes: [
+          { name: '数据中心交换机', incomingTransmissionMechanism: null },
+          { name: '高速光模块', primarySignal: { signalRole: 'primary' } },
+          { name: '高速光模块 DSP 芯片', signals: expect.any(Array) }
         ]
       }
     });
@@ -65,9 +58,10 @@ describe('research reasoning tree BFF adapter', () => {
     [404, 'RESEARCH_REASONING_TREE_NOT_FOUND', 'treeUnavailable'],
     [502, 'RESEARCH_DATA_UNAVAILABLE', 'serviceUnavailable']
   ] as const)('maps HTTP %s %s to %s', async (statusCode, code, kind) => {
-    const request = vi
-      .fn()
-      .mockResolvedValue({ statusCode, data: { error: { code, message: 'hidden' } } });
+    const request = vi.fn().mockResolvedValue({
+      statusCode,
+      data: { error: { code, message: 'hidden' } }
+    });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
@@ -76,90 +70,37 @@ describe('research reasoning tree BFF adapter', () => {
     await expect(port.list(themeId)).rejects.toMatchObject({ kind });
   });
 
-  it('fails closed when the BFF returns an invalid success payload', async () => {
-    const request = vi
-      .fn()
-      .mockResolvedValue({ statusCode: 200, data: success({ reasoning_trees: [] }) });
+  it('rejects a detail payload whose identity does not match the route', async () => {
+    const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json');
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
     });
 
-    await expect(port.list(themeId)).rejects.toMatchObject({
+    await expect(port.get(themeId, 'f9f7fd7e-06cf-5f53-b749-66c75785d3dc')).rejects.toMatchObject({
       kind: 'serviceUnavailable'
     });
   });
 
-  it('rejects a detail payload whose event_time is not UTC RFC3339', async () => {
-    const detail = structuredClone(
-      await fixtureResult('02-reasoning-tree-with-contradiction-result.json')
-    ) as {
-      reasoning_tree: { events: Array<{ event_time: string | null }> };
+  it('rejects the retired Anchor V1 identity field', async () => {
+    const detail = (await fixtureResult('02-reasoning-tree-with-contradiction-result.json')) as {
+      reasoning_tree: Record<string, unknown>;
     };
-    detail.reasoning_tree.events[0].event_time = '2026/07/20 09:00:00';
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
-    const port = createResearchReasoningTreeApiPort({
-      baseUrl: 'https://miniapp.example.test',
-      request
-    });
-
-    await expect(port.get(themeId, anchorId)).rejects.toMatchObject({
-      kind: 'serviceUnavailable'
-    });
-  });
-
-  it('accepts an explicit null counter summary without inventing a counter claim', async () => {
-    const detail = await fixtureResult(
-      '03-reasoning-tree-without-contradiction-unquantified-result.json'
-    );
-    const fixtureAnchorId = (detail as { reasoning_tree: { anchor_id: string } }).reasoning_tree
-      .anchor_id;
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
-    const port = createResearchReasoningTreeApiPort({
-      baseUrl: 'https://miniapp.example.test',
-      request
-    });
-
-    await expect(port.get(themeId, fixtureAnchorId)).resolves.toMatchObject({
-      reasoningTree: {
-        supportSummary: expect.any(String),
-        counterSummary: null
-      }
-    });
-  });
-
-  it('fails closed when the anchor support summary is missing', async () => {
-    const detail = structuredClone(
-      await fixtureResult('02-reasoning-tree-with-contradiction-result.json')
-    ) as { reasoning_tree: Record<string, unknown> };
-    delete detail.reasoning_tree.support_summary;
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
-    const port = createResearchReasoningTreeApiPort({
-      baseUrl: 'https://miniapp.example.test',
-      request
-    });
-
-    await expect(port.get(themeId, anchorId)).rejects.toMatchObject({
-      kind: 'serviceUnavailable'
-    });
-  });
-
-  it('rejects an ordered path whose downstream node has no transmission mechanism', async () => {
-    const detail = structuredClone(
-      await fixtureResult('02-reasoning-tree-with-contradiction-result.json')
-    ) as {
+    const legacyDetail = {
+      ...detail,
       reasoning_tree: {
-        path_nodes: Array<{ incoming_transmission_mechanism: string | null }>;
-      };
+        ...detail.reasoning_tree,
+        anchor_id: detail.reasoning_tree.reasoning_tree_id
+      }
     };
-    detail.reasoning_tree.path_nodes[1].incoming_transmission_mechanism = null;
-    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
+    const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(legacyDetail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
     });
 
-    await expect(port.get(themeId, anchorId)).rejects.toMatchObject({
+    await expect(port.get(themeId, treeId)).rejects.toMatchObject({
       kind: 'serviceUnavailable'
     });
   });

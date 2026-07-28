@@ -277,8 +277,8 @@ func (serverTestDataService) ListActiveEventTags(context.Context, *dataapi.Event
 func (serverTestDataService) ImportResearchThemes(context.Context, *dataapi.ResearchThemeImportRequest) (*dataapi.Response[dataapi.ResearchThemeImportResult], error) {
 	return serverTestResponse[dataapi.ResearchThemeImportResult]()
 }
-func (serverTestDataService) ImportResearchAnchors(context.Context, *dataapi.ResearchAnchorImportRequest) (*dataapi.Response[dataapi.ResearchAnchorImportResult], error) {
-	return serverTestResponse[dataapi.ResearchAnchorImportResult]()
+func (serverTestDataService) ImportResearchReasoningTrees(context.Context, *dataapi.ResearchReasoningTreeImportRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeImportResult], error) {
+	return serverTestResponse[dataapi.ResearchReasoningTreeImportResult]()
 }
 func (serverTestDataService) ListResearchThemes(context.Context, *dataapi.ListResearchThemesRequest) (*dataapi.Response[dataapi.ResearchThemePage], error) {
 	return serverTestResponse[dataapi.ResearchThemePage]()
