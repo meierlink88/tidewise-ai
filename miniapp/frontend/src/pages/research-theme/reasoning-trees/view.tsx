@@ -88,7 +88,6 @@ export function ReasoningTreeView({ detail }: { detail: ResearchReasoningTreeDet
         </View>
         <ChainPath
           nodes={tree.nodes}
-          impactNodeIds={impactNodeIds}
           selectedNodeId={selected?.id ?? ''}
           onSelect={setSelectedNodeId}
         />
@@ -133,16 +132,13 @@ export function ReasoningTreeView({ detail }: { detail: ResearchReasoningTreeDet
 
 function ChainPath({
   nodes,
-  impactNodeIds,
   selectedNodeId,
   onSelect
 }: {
   nodes: ResearchReasoningTreeNode[];
-  impactNodeIds: string[];
   selectedNodeId: string;
   onSelect: (id: string) => void;
 }) {
-  const resultNodeId = nodes.at(-1)?.id;
   return (
     <View className='reasoning-chain'>
       <View className='reasoning-chain__head'>
@@ -160,20 +156,27 @@ function ChainPath({
               >
                 <Text className='reasoning-chain-node__index'>
                   节点 {String(node.position).padStart(2, '0')}
-                  {index === 0 ? ' · 信号入口' : ''}
-                  {node.id === resultNodeId ? ' · 结果' : ''}
-                  {impactNodeIds.includes(node.chainNodeEntityId) ? ' · Impact' : ''}
                 </Text>
-                <Text className='reasoning-chain-node__name'>{node.name}</Text>
-                <Text className='reasoning-chain-node__direction'>
-                  {node.primarySignal.displaySummary}
-                </Text>
-                {node.signalDisplaySummary ? (
-                  <Text className='reasoning-chain-node__change'>{node.signalDisplaySummary}</Text>
-                ) : null}
-                <Text className='reasoning-chain-node__impact'>
-                  {selectedNodeId === node.id ? '当前节点' : '节点详情'}
-                </Text>
+                <View className='reasoning-chain-node__name-slot'>
+                  <Text className='reasoning-chain-node__name'>{node.name}</Text>
+                </View>
+                <View className='reasoning-chain-node__signal-slot'>
+                  <Text
+                    className={`reasoning-chain-node__direction reasoning-chain-node__direction--${node.primarySignal.signalDirection}`}
+                  >
+                    {node.primarySignal.displaySummary}
+                  </Text>
+                </View>
+                <View className='reasoning-chain-node__gap'>
+                  <Text className='reasoning-chain-node__gap-text'>
+                    {node.evidenceGapSummary || '—'}
+                  </Text>
+                </View>
+                <View className='reasoning-chain-node__action'>
+                  <Text className='reasoning-chain-node__action-label'>
+                    {selectedNodeId === node.id ? '当前节点' : '节点详情'}
+                  </Text>
+                </View>
               </View>
             </Fragment>
           ))}

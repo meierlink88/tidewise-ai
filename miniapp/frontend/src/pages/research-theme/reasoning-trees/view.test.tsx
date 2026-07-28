@@ -43,6 +43,17 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain(detail.reasoningTree.conclusionBoundarySummary);
     expect(countClass(markup, 'reasoning-chain-node')).toBe(3);
     expect(countClass(markup, 'reasoning-chain-edge')).toBe(2);
+    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual([
+      '节点 01',
+      '节点 02',
+      '节点 03'
+    ]);
+    expect(countClass(markup, 'reasoning-chain-node__signal-slot')).toBe(3);
+    expect(countClass(markup, 'reasoning-chain-node__direction--increase')).toBe(3);
+    expect(countClass(markup, 'reasoning-chain-node__gap')).toBe(3);
+    for (const node of detail.reasoningTree.nodes) {
+      expect(markup).toContain(node.evidenceGapSummary);
+    }
     expect(markup).toContain('产业链节点传导');
     expect(markup).toContain('reasoning-chain-node--selected');
     expect(markup).toContain('Theme Impact');
@@ -102,7 +113,7 @@ describe('ReasoningTreeView', () => {
 
     const markup = renderToStaticMarkup(<ReasoningTreeView detail={oneNode} />);
 
-    expect(markup).toContain('信号入口 · 结果');
+    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual(['节点 01']);
     expect(markup).toContain('信号入口 · 结果节点');
   });
 
@@ -126,4 +137,11 @@ function countClass(markup: string, className: string): number {
   return [...markup.matchAll(/class="([^"]*)"/g)].filter((match) =>
     match[1].split(/\s+/).includes(className)
   ).length;
+}
+
+function classTextContents(markup: string, className: string): string[] {
+  const pattern = new RegExp(`<text class="${className}">([\\s\\S]*?)</text>`, 'g');
+  return [...markup.matchAll(pattern)].map((match) =>
+    match[1].replace(/<!--.*?-->/g, '').replace(/<[^>]+>/g, '')
+  );
 }
