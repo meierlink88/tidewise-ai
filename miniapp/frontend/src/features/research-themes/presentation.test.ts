@@ -29,9 +29,17 @@ describe('research theme presentation', () => {
   });
 
   it('derives a stable update label from API timestamps', () => {
-    expect(formatResearchUpdateLabel('2026-07-18T09:59:00Z', '2026-07-18T10:00:00Z')).toBe('1 分钟前');
-    expect(formatResearchUpdateLabel('2026-07-18T09:00:00Z', '2026-07-18T10:00:00Z')).toBe('1 小时前');
-    expect(formatResearchUpdateLabel('2026-07-18T10:00:00Z', '2026-07-18T10:00:00Z')).toBe('刚刚更新');
-    expect(formatResearchUpdateLabel('2026-07-17T09:00:00Z', '2026-07-18T10:00:00Z')).toBe('07-17 09:00');
+    expect(formatResearchUpdateLabel('2026-07-18T09:59:00Z', '2026-07-18T10:00:00Z')).toBe(
+      '1 分钟前'
+    );
+    expect(formatResearchUpdateLabel('2026-07-18T09:00:00Z', '2026-07-18T10:00:00Z')).toBe(
+      '1 小时前'
+    );
+    expect(formatResearchUpdateLabel('2026-07-18T10:00:00Z', '2026-07-18T10:00:00Z')).toBe(
+      '刚刚更新'
+    );
+    expect(formatResearchUpdateLabel('2026-07-17T09:00:00Z', '2026-07-18T10:00:00Z')).toBe(
+      '07-17 09:00'
+    );
   });
 });

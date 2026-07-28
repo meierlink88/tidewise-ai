@@ -1,4 +1,7 @@
-import type { HomeResearchThemeFeed, ResearchThemeFeedPort } from '../../features/research-themes/contract';
+import type {
+  HomeResearchThemeFeed,
+  ResearchThemeFeedPort
+} from '../../features/research-themes/contract';
 
 export const mockResearchThemeFeed: HomeResearchThemeFeed = {
   windowStart: '2026-07-27T08:00:00Z',
@@ -20,7 +23,8 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
       conclusionStatus: 'partial',
       transmissionStage: 'validation',
       investmentGuidanceAction: 'focus',
-      investmentGuidanceSummary: '关注高速互联产业链，优先验证采购订单、可插拔技术路线及光模块排产。',
+      investmentGuidanceSummary:
+        '关注高速互联产业链，优先验证采购订单、可插拔技术路线及光模块排产。',
       timeHorizonCategory: 'short_term',
       timeHorizonSummary: '未来一个季度',
       transmissionSummary: '端口计划 +80% → 数据中心交换机 → 高速光模块 → DSP 芯片',
@@ -33,9 +37,30 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
       updateLabel: '刚刚更新',
       categories: [],
       impacts: [
-        { chainNodeEntityId: '22222222-2222-4222-8222-222222222222', name: '交换机', relationRole: 'beneficiary', impactDirection: 'positive', impactSummary: '端口计划增加可能提高交换机需求。', displayOrder: 1 },
-        { chainNodeEntityId: '33333333-3333-4333-8333-333333333333', name: '高速光模块', relationRole: 'beneficiary', impactDirection: 'positive', impactSummary: '端口配置增加可能提高模块需求。', displayOrder: 2 },
-        { chainNodeEntityId: '44444444-4444-4444-8444-444444444444', name: 'DSP 芯片', relationRole: 'beneficiary', impactDirection: 'positive', impactSummary: '模块排产增加可能提高备料需求。', displayOrder: 3 }
+        {
+          chainNodeEntityId: '22222222-2222-4222-8222-222222222222',
+          name: '交换机',
+          relationRole: 'beneficiary',
+          impactDirection: 'positive',
+          impactSummary: '端口计划增加可能提高交换机需求。',
+          displayOrder: 1
+        },
+        {
+          chainNodeEntityId: '33333333-3333-4333-8333-333333333333',
+          name: '高速光模块',
+          relationRole: 'beneficiary',
+          impactDirection: 'positive',
+          impactSummary: '端口配置增加可能提高模块需求。',
+          displayOrder: 2
+        },
+        {
+          chainNodeEntityId: '44444444-4444-4444-8444-444444444444',
+          name: 'DSP 芯片',
+          relationRole: 'beneficiary',
+          impactDirection: 'positive',
+          impactSummary: '模块排产增加可能提高备料需求。',
+          displayOrder: 3
+        }
       ],
       evidenceEventCount: 2,
       reasoningTreeCount: 2
@@ -44,5 +69,9 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
 };
 
 export function createMockResearchThemeFeedPort(): ResearchThemeFeedPort {
-  return { async list() { return mockResearchThemeFeed; } };
+  return {
+    async list() {
+      return mockResearchThemeFeed;
+    }
+  };
 }

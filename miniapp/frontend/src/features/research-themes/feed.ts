@@ -19,7 +19,9 @@ export function getHomeThemeCategories(items: HomeResearchThemeItem[]): string[]
   }
 
   const orderedCategories = HOME_CATEGORY_ORDER.filter((category) => categories.delete(category));
-  const remainingCategories = [...categories].sort((left, right) => left.localeCompare(right, 'zh-CN'));
+  const remainingCategories = [...categories].sort((left, right) =>
+    left.localeCompare(right, 'zh-CN')
+  );
 
   return [ALL_CATEGORY, ...orderedCategories, ...remainingCategories];
 }

@@ -11,7 +11,8 @@ describe('research reasoning tree BFF adapter', () => {
   it('maps the V1 shared list and detail fixtures through the public Port', async () => {
     const list = await fixtureResult('01-reasoning-tree-list-result.json');
     const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json');
-    const request = vi.fn()
+    const request = vi
+      .fn()
       .mockResolvedValueOnce({ statusCode: 200, data: success(list) })
       .mockResolvedValueOnce({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
@@ -83,7 +84,7 @@ describe('research reasoning tree BFF adapter', () => {
   });
 
   it('rejects the retired Anchor V1 identity field', async () => {
-    const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json') as {
+    const detail = (await fixtureResult('02-reasoning-tree-with-contradiction-result.json')) as {
       reasoning_tree: Record<string, unknown>;
     };
     const legacyDetail = {

@@ -52,4 +52,6 @@ export interface HomeResearchThemeFeed {
   items: HomeResearchThemeItem[];
   nextCursor: string | null;
 }
-export interface ResearchThemeFeedPort { list(): Promise<HomeResearchThemeFeed>; }
+export interface ResearchThemeFeedPort {
+  list(): Promise<HomeResearchThemeFeed>;
+}

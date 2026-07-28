@@ -59,8 +59,13 @@ export function parseResearchReasoningTreeDetail(
 
 function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
   onlyKeys(value, [
-    'reasoning_tree_id', 'industry_chain_entity_id', 'industry_chain_name',
-    'title', 'display_order', 'event_count', 'published_at'
+    'reasoning_tree_id',
+    'industry_chain_entity_id',
+    'industry_chain_name',
+    'title',
+    'display_order',
+    'event_count',
+    'published_at'
   ]);
   return {
     reasoningTreeId: uuid(value.reasoning_tree_id),
@@ -75,11 +80,27 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
 
 function mapTree(value: RecordValue): ResearchReasoningTree {
   onlyKeys(value, [
-    'reasoning_tree_id', 'theme_id', 'industry_chain_entity_id', 'industry_chain_name',
-    'title', 'display_order', 'one_line_conclusion', 'fact_summary', 'transmission_summary',
-    'impact_direction', 'impact_strength', 'impact_summary', 'conclusion_boundary_summary',
-    'support_summary', 'counter_summary', 'invalidation_conditions', 'checkpoints',
-    'published_at', 'event_count', 'events', 'nodes'
+    'reasoning_tree_id',
+    'theme_id',
+    'industry_chain_entity_id',
+    'industry_chain_name',
+    'title',
+    'display_order',
+    'one_line_conclusion',
+    'fact_summary',
+    'transmission_summary',
+    'impact_direction',
+    'impact_strength',
+    'impact_summary',
+    'conclusion_boundary_summary',
+    'support_summary',
+    'counter_summary',
+    'invalidation_conditions',
+    'checkpoints',
+    'published_at',
+    'event_count',
+    'events',
+    'nodes'
   ]);
   const events = array(value.events).map((item, index) => mapEvent(record(item), index));
   const nodes = array(value.nodes).map((item, index) => mapNode(record(item), index));
@@ -118,8 +139,13 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
 
 function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent {
   onlyKeys(value, [
-    'event_id', 'title', 'summary', 'event_time', 'evidence_role',
-    'supported_claim', 'display_order'
+    'event_id',
+    'title',
+    'summary',
+    'event_time',
+    'evidence_role',
+    'supported_claim',
+    'display_order'
   ]);
   const displayOrder = positiveInteger(value.display_order);
   if (displayOrder !== index + 1) invalid();
@@ -136,11 +162,24 @@ function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent
 
 function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
   onlyKeys(value, [
-    'id', 'position', 'chain_node_entity_id', 'name', 'state_summary', 'impact_direction',
-    'impact_strength', 'impact_summary', 'reasoning_basis_summary', 'evidence_gap_summary',
-    'incoming_industry_chain_graph_edge_id', 'incoming_transmission_title',
-    'incoming_transmission_mechanism', 'incoming_condition_summary', 'incoming_graph_edge',
-    'signals', 'primary_signal', 'signal_display_summary'
+    'id',
+    'position',
+    'chain_node_entity_id',
+    'name',
+    'state_summary',
+    'impact_direction',
+    'impact_strength',
+    'impact_summary',
+    'reasoning_basis_summary',
+    'evidence_gap_summary',
+    'incoming_industry_chain_graph_edge_id',
+    'incoming_transmission_title',
+    'incoming_transmission_mechanism',
+    'incoming_condition_summary',
+    'incoming_graph_edge',
+    'signals',
+    'primary_signal',
+    'signal_display_summary'
   ]);
   const position = positiveInteger(value.position);
   if (position !== index + 1) invalid();
@@ -152,15 +191,17 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
   const primary = signals.filter((signal) => signal.signalRole === 'primary');
   if (primary.length !== 1 || !sameSignal(primary[0], primarySignal)) invalid();
   const signalDisplaySummary = textAllowEmpty(value.signal_display_summary);
-  if (signalDisplaySummary !== signals
-    .filter((signal) => signal.signalRole !== 'primary')
-    .map((signal) => signal.displaySummary)
-    .join(' · ')) {
+  if (
+    signalDisplaySummary !==
+    signals
+      .filter((signal) => signal.signalRole !== 'primary')
+      .map((signal) => signal.displaySummary)
+      .join(' · ')
+  ) {
     invalid();
   }
-  const incomingGraphEdge = value.incoming_graph_edge === null
-    ? null
-    : mapGraphEdge(record(value.incoming_graph_edge));
+  const incomingGraphEdge =
+    value.incoming_graph_edge === null ? null : mapGraphEdge(record(value.incoming_graph_edge));
   return {
     id: uuid(value.id),
     position,
@@ -185,7 +226,11 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
 
 function mapSignal(value: RecordValue, index: number): ResearchReasoningTreeSignal {
   onlyKeys(value, [
-    'variable_signal_key', 'signal_role', 'signal_direction', 'display_summary', 'display_order'
+    'variable_signal_key',
+    'signal_role',
+    'signal_direction',
+    'display_summary',
+    'display_order'
   ]);
   const displayOrder = positiveInteger(value.display_order);
   if (displayOrder !== index + 1) invalid();
@@ -212,11 +257,13 @@ function mapGraphEdge(value: RecordValue) {
 }
 
 function sameSignal(left: ResearchReasoningTreeSignal, right: ResearchReasoningTreeSignal) {
-  return left.variableSignalKey === right.variableSignalKey
-    && left.signalRole === right.signalRole
-    && left.signalDirection === right.signalDirection
-    && left.displaySummary === right.displaySummary
-    && left.displayOrder === right.displayOrder;
+  return (
+    left.variableSignalKey === right.variableSignalKey &&
+    left.signalRole === right.signalRole &&
+    left.signalDirection === right.signalDirection &&
+    left.displaySummary === right.displaySummary &&
+    left.displayOrder === right.displayOrder
+  );
 }
 
 function failClosed<T>(operation: () => T): T {

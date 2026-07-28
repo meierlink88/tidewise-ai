@@ -76,7 +76,10 @@ export class ResearchReasoningTreeSession {
   }
 
   retryReasoningTree(reasoningTreeId: string): void {
-    if (!this.hasReasoningTree(reasoningTreeId) || this.state.detailsByReasoningTreeId[reasoningTreeId]?.status !== 'error')
+    if (
+      !this.hasReasoningTree(reasoningTreeId) ||
+      this.state.detailsByReasoningTreeId[reasoningTreeId]?.status !== 'error'
+    )
       return;
     this.setDetail(reasoningTreeId, { status: 'idle' });
     void this.ensureDetail(reasoningTreeId);
@@ -157,7 +160,10 @@ export class ResearchReasoningTreeSession {
   private setDetail(reasoningTreeId: string, detail: ResearchReasoningTreeDetailState): void {
     this.update({
       ...this.state,
-      detailsByReasoningTreeId: { ...this.state.detailsByReasoningTreeId, [reasoningTreeId]: detail }
+      detailsByReasoningTreeId: {
+        ...this.state.detailsByReasoningTreeId,
+        [reasoningTreeId]: detail
+      }
     });
   }
 

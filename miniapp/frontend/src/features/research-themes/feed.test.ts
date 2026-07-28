@@ -25,8 +25,12 @@ describe('research theme homepage feed', () => {
     const { items } = await createMockResearchThemeFeedPort().list();
 
     expect(getHomeThemeCategories(items)).toEqual(['全部']);
-    expect(filterHomeResearchThemes(items, { category: '全部', query: 'DSP 芯片' })).toHaveLength(1);
-    expect(filterHomeResearchThemes(items, { category: '全部', query: '采购订单' })).toHaveLength(1);
+    expect(filterHomeResearchThemes(items, { category: '全部', query: 'DSP 芯片' })).toHaveLength(
+      1
+    );
+    expect(filterHomeResearchThemes(items, { category: '全部', query: '采购订单' })).toHaveLength(
+      1
+    );
     expect(filterHomeResearchThemes(items, { category: '全部', query: '不存在' })).toEqual([]);
     expect(filterHomeResearchThemes(items, { category: '不存在的分类', query: '' })).toEqual([]);
   });

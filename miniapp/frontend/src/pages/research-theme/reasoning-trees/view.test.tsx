@@ -58,9 +58,9 @@ describe('ReasoningTreeView', () => {
       ...detail,
       reasoningTree: {
         ...detail.reasoningTree,
-        nodes: detail.reasoningTree.nodes.slice(0, 2).map((node, index) =>
-          index === 1 ? { ...node, incomingGraphEdge: null } : node
-        )
+        nodes: detail.reasoningTree.nodes
+          .slice(0, 2)
+          .map((node, index) => (index === 1 ? { ...node, incomingGraphEdge: null } : node))
       }
     };
 

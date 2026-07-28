@@ -1,9 +1,7 @@
 import Taro from '@tarojs/taro';
 import { Button, Image, Text, View } from '@tarojs/components';
 import type { BaseEventOrig } from '@tarojs/components/types/common';
-import type {
-  HomeResearchThemeItem
-} from '../../../features/research-themes/contract';
+import type { HomeResearchThemeItem } from '../../../features/research-themes/contract';
 import {
   researchImpactStrengthLabel,
   researchInvestmentGuidanceActionLabel,
@@ -31,7 +29,9 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       <View className='theme-card__rail' />
       <View className='theme-card__topline'>
         <View className='theme-card__identity'>
-          <Text className='theme-card__impact'>{researchImpactStrengthLabel(theme.impactStrength)}</Text>
+          <Text className='theme-card__impact'>
+            {researchImpactStrengthLabel(theme.impactStrength)}
+          </Text>
           <View className='theme-card__divider' />
           <Text className='theme-card__category'>{theme.title}</Text>
         </View>
@@ -66,7 +66,9 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       </View>
 
       <View className='theme-card__checkpoint'>
-        <Text className='theme-card__checkpoint-label'>{researchInvestmentGuidanceActionLabel(theme.investmentGuidanceAction)}</Text>
+        <Text className='theme-card__checkpoint-label'>
+          {researchInvestmentGuidanceActionLabel(theme.investmentGuidanceAction)}
+        </Text>
         <Text className='theme-card__checkpoint-text'>{theme.investmentGuidanceSummary}</Text>
       </View>
 

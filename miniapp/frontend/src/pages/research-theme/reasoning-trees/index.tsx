@@ -84,8 +84,11 @@ export function IndexContent({
   }
 
   const { theme, reasoningTrees } = state.index.value;
-  const selectedReasoningTreeId = state.selectedReasoningTreeId ?? reasoningTrees[0].reasoningTreeId;
-  const detailState = state.detailsByReasoningTreeId[selectedReasoningTreeId] ?? { status: 'idle' as const };
+  const selectedReasoningTreeId =
+    state.selectedReasoningTreeId ?? reasoningTrees[0].reasoningTreeId;
+  const detailState = state.detailsByReasoningTreeId[selectedReasoningTreeId] ?? {
+    status: 'idle' as const
+  };
 
   return (
     <View className='reasoning-page__ready'>

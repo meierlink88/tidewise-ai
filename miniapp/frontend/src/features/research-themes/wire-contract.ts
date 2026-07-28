@@ -24,12 +24,29 @@ type RecordValue = Record<string, unknown>;
 export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResearchThemeItem {
   const theme = record(value);
   onlyKeys(theme, [
-    'id', 'analysis_batch_id', 'title', 'one_line_conclusion', 'conclusion_direction',
-    'impact_strength', 'attention_level', 'conclusion_status', 'transmission_stage',
-    'investment_guidance_action', 'investment_guidance_summary', 'time_horizon_category',
-    'time_horizon_summary', 'transmission_summary', 'checkpoint_summary', 'risk_summary',
-    'analysis_as_of', 'window_start', 'window_end', 'published_at', 'impacts',
-    'evidence_event_count', 'reasoning_tree_count'
+    'id',
+    'analysis_batch_id',
+    'title',
+    'one_line_conclusion',
+    'conclusion_direction',
+    'impact_strength',
+    'attention_level',
+    'conclusion_status',
+    'transmission_stage',
+    'investment_guidance_action',
+    'investment_guidance_summary',
+    'time_horizon_category',
+    'time_horizon_summary',
+    'transmission_summary',
+    'checkpoint_summary',
+    'risk_summary',
+    'analysis_as_of',
+    'window_start',
+    'window_end',
+    'published_at',
+    'impacts',
+    'evidence_event_count',
+    'reasoning_tree_count'
   ]);
   const title = text(theme.title);
   const publishedAt = timestamp(theme.published_at);
@@ -68,8 +85,12 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
     impacts: array(theme.impacts).map((item, index) => {
       const impact = record(item);
       onlyKeys(impact, [
-        'chain_node_entity_id', 'name', 'relation_role', 'impact_direction',
-        'impact_summary', 'display_order'
+        'chain_node_entity_id',
+        'name',
+        'relation_role',
+        'impact_direction',
+        'impact_summary',
+        'display_order'
       ]);
       const displayOrder = positiveInteger(impact.display_order);
       if (displayOrder !== index + 1) invalid();
@@ -97,7 +118,10 @@ function array(value: unknown): unknown[] {
 }
 function onlyKeys(value: RecordValue, keys: string[]): void {
   const expected = new Set(keys);
-  if (Object.keys(value).length !== keys.length || Object.keys(value).some((key) => !expected.has(key))) {
+  if (
+    Object.keys(value).length !== keys.length ||
+    Object.keys(value).some((key) => !expected.has(key))
+  ) {
     invalid();
   }
 }
@@ -138,7 +162,8 @@ function nullableEnum<T extends string>(value: unknown, allowed: readonly T[]): 
 }
 function categoriesForTheme(title: string): string[] {
   if (title.includes('中东') || title.includes('冲突')) return ['地缘政治'];
-  if (title.includes('AI') || title.includes('光模块') || title.includes('半导体')) return ['算力基建'];
+  if (title.includes('AI') || title.includes('光模块') || title.includes('半导体'))
+    return ['算力基建'];
   return ['货币政策'];
 }
 function invalid(): never {
