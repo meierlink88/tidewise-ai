@@ -1,8 +1,13 @@
 # Research Theme 与 Reason Tree 原位改造 Spec
 
-状态：实现完成，待评审
+状态：已同步 Theme MVP 原子发布与强血缘合同，待 PR 评审
 适用上下文：Data、Miniapp
 交付方式：直接变更现有 V1 合同，不建设 V2，不保留旧合同兼容层
+
+本 Spec 最初冻结了 Theme/Reason Tree 字段与读取模型。2026-07-30 已按
+`theme-analysis-system-requirements.md` 同步发布边界：下文的单 Theme Aggregate
+原子发布、正式 Signal/DirectImpact 强血缘及逐 Tree Event 覆盖要求，取代此前的
+Theme/Tree 独立发布和弱 Signal 引用决定。
 
 ## Problem Statement
 
@@ -19,15 +24,15 @@ Tree 解释一条产业链传导路径”的目标模型。
 - Theme 与 Tree 的传导摘要、检查点和风险边界缺少清晰的作用范围。
 - `impact_level`、`trading_direction`、`transmission_path`、
   `next_checkpoint`、`net_direction_summary` 等旧字段承载了互相重叠的语义。
-- Variable Signal 尚无正式事实模型，但 Miniapp 节点卡片已经需要展示分析侧提交的
-  变量信号。
+- 本 Spec 初版时 Variable Signal 尚无正式事实模型；Phase One 现已补齐正式
+  VariableSignal、DirectImpactAssertion 与 Evidence 血缘。
 - Data Domain Service 当前承担了部分研究内容完整性判断，模糊了分析师与发布存储
   之间的职责边界。
 - 现有 API、数据库和 Miniapp DTO 仍包含 Research Anchor 和
   `market_confirmation_summary` 等即将退出的合同。
 
-系统尚未上线，不存在生产历史数据、旧版 Miniapp 客户端或并行发布兼容要求。因此，
-继续维护 V1/V2 双版本只会增加迁移和长期维护成本。
+系统尚未上线，不保留旧版 Miniapp 客户端或并行 API 兼容栈；但数据库中既有
+Theme/Tree 仍是不可变审计记录，后续迁移必须保持可读，不得伪造强血缘回填。
 
 ## Solution
 
@@ -36,31 +41,34 @@ Tree 解释一条产业链传导路径”的目标模型。
 产业链线性传导路径。
 
 一个 Theme 必须关联一个或多个 Theme Impact；本期 Theme Impact 只允许引用 Chain
-Node，并且所有受影响节点地位平等。一个 Theme 可以由零棵或多棵 Reason Tree 解释；
+Node，并且所有受影响节点地位平等。一个 Theme 必须由一棵或多棵 Reason Tree 解释；
 一棵 Reason Tree 属于且只属于一条 Industry Chain，可以解释该产业链内一个或多个
 Theme Impact 节点，也可以包含仅用于传导上下文的其他 Chain Node。多个受影响节点
 分属不同产业链时，由多棵 Reason Tree 分别解释。
 
-Theme 与 Reason Tree 由分析侧通过两个独立的同步 API 发布。Theme 成功后立即可见；
-Reason Tree 尚未发布或发布失败，不回滚、不隐藏 Theme。Tree 发布以 `theme_id` 为
-完整集合和幂等边界，同一 Theme 与同一 Industry Chain 最多一棵 Tree。
+分析侧通过现有 `POST /api/data/v1/research-theme-imports` 一次提交一个 Theme 及其全部
+Reason Trees。`analysis_batch_id` 是 Aggregate 幂等边界；Data 在同一 PostgreSQL
+事务中完成整体校验和保存，任何 Theme、Tree、Node、Event 或血缘失败均不产生部分
+可见结果。同一 Theme 与同一 Industry Chain 最多一棵 Tree。
 
 Data Domain Service 负责严格 HTTP 合同、身份、引用、归属、顺序、唯一性、事务、
-幂等和读取投影，不负责判断研究结论是否合理。分析师负责所有研究内容、业务逻辑和
-语义一致性。
+幂等、正式事实血缘和读取投影，不负责判断研究结论是否合理。工程外部 Codex 分析师
+负责研究内容、推理策略和结论。
 
-本次不建设 Variable Signal 事实模型。Reason Tree Node 仍保存 Variable Signal 的
-批次内弱引用、方向和不可变展示快照，以满足当前 Miniapp 展示需求；弱校验只适用于
-Variable Signal，其他现有正式数据类型继续强校验。
+Phase One 已建设 Variable Signal 和 DirectImpactAssertion 正式事实模型。Reason
+Tree 同时保存正式 UUID/Submission/Evidence 血缘与不可变展示快照；没有正式
+Signal/Impact 的分析师推导必须明确标记为 `analyst_inference`，并引用上游正式事实及
+实际 Relation，不得以自由 key 冒充正式事实。
 
 Miniapp 的内容结构以已确认的 Theme / Reason Tree 字段映射原型为准。该原型只决定
 页面展示哪些研究内容、内容的层级和机械组合方式，尤其决定“产业链节点传导”采用
 紧凑路径节点加单节点详情的阅读方式；原型中的颜色、字体、尺寸、间距、圆角和具体
 布局不是本次实现验收目标。
 
-数据库通过新的 forward migration 直接舍弃现有 Theme、Anchor/Tree 及其专属关联和
-回执数据，重建目标结构。Entity、Industry Chain、Chain Node、Event、正式 Industry
-Chain Graph Edge 及其他共享事实不得被删除或改写。
+字段模型曾由 migration `000031` 完成受控重建；本次 migration `000033` 只做增量扩展，
+保留既有 Theme/Tree 与弱血缘显示快照，并以 `legacy_snapshot` 明确其历史语义，不伪造
+Signal/Impact/Evidence 引用。Entity、Industry Chain、Chain Node、Event、正式
+Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 
 ## User Stories
 
@@ -72,8 +80,8 @@ Chain Graph Edge 及其他共享事实不得被删除或改写。
 6. As an 分析师, I want to publish a one-node Reason Tree when that is the complete current explanation, so that Data does not reject a valid analyst-owned research shape.
 7. As an 分析师, I want Theme-level transmission and checkpoint summaries to describe the whole conclusion across trees, so that users can understand the overall thesis from the Theme.
 8. As an 分析师, I want Tree-level transmission summaries and structured checkpoints to describe only one industry-chain path, so that tree details do not duplicate or overwrite the Theme conclusion.
-9. As an 分析师, I want to publish Theme and Reason Tree through two independent APIs, so that Theme availability is not blocked by later Tree publication.
-10. As an 分析师, I want a failed Tree publication to leave the already published Theme unchanged, so that independent publication boundaries remain predictable.
+9. As an 分析师, I want to publish one Theme and all of its Reason Trees through one aggregate API, so that one receipt always represents a complete explanation set.
+10. As an 分析师, I want any Theme, Tree or lineage failure to roll back the whole aggregate, so that partial reasoning is never product-visible.
 11. As an 分析师, I want identical retries to return the first successful publication receipt, so that a timeout can be recovered without duplicating data.
 12. As an 分析师, I want a changed payload under an already published identity to be rejected, so that immutable snapshots cannot be silently overwritten.
 13. As an 分析师, I want Theme corrections to use a new Analysis Batch, so that previous published conclusions remain auditable.
@@ -82,22 +90,22 @@ Chain Graph Edge 及其他共享事实不得被删除或改写。
 16. As an 分析师, I want to attach existing Event facts to Themes and Trees with explicit evidence roles, so that users can trace the conclusion to formal evidence.
 17. As an 分析师, I want to reference a formal Industry Chain Graph Edge when one exists and leave it absent for an analyst inference, so that temporary reasoning is not promoted into master data.
 18. As an 分析师, I want a Variable Signal key to be stable within one Analysis Batch, so that the same signal snapshot can appear consistently on multiple nodes.
-19. As an 分析师, I want Variable Signal references to remain publishable before a Variable Signal fact service exists, so that the current Reason Tree UI is not blocked by a future capability.
+19. As an 分析师, I want formal Variable Signal and DirectImpact references to carry immutable Submission and Evidence lineage, so that each displayed conclusion remains auditable.
 20. As a Miniapp user, I want Theme cards ordered by publication time, so that I see the latest successfully published analysis first.
 21. As a Miniapp user, I want the Theme card to show the number and names of affected Chain Nodes, so that I understand what investment objects are affected.
-22. As a Miniapp user, I want an already published Theme to remain visible while its Reason Trees are unavailable, so that missing explanation data does not hide the conclusion.
+22. As a Miniapp user, I want every visible Theme to have its atomically published Reason Trees, so that I never receive a partial explanation aggregate.
 23. As a Miniapp user, I want each Reason Tree tab to represent one Industry Chain, so that switching tabs changes the causal-chain context rather than the priority of an impacted node.
 24. As a Miniapp user, I want every Reason Tree node card to show its primary and supporting Variable Signals, so that the node judgment has visible quantitative or state context.
 25. As a Miniapp user, I want Variable Signal summaries displayed completely and in stable order, so that important values are not truncated or rearranged.
 26. As a Miniapp user, I want formal graph relationships and analyst-inferred transitions to remain distinguishable, so that I do not mistake a temporary inference for approved master data.
 27. As a Miniapp user, I want Theme and Tree summaries to preserve their different scopes, so that the same sentence is not repeated as if it were two independent conclusions.
 28. As a Miniapp user, I want Tree checkpoints and invalidation conditions displayed in analyst-provided order, so that the intended verification sequence is preserved.
-29. As a Miniapp user, I want a clear “impact path not yet generated” state when a Theme has no published Tree, so that temporary absence is not confused with a missing Theme.
+29. As a Miniapp user, I want an invariant error rather than a partial Theme when a stored aggregate cannot reconstruct its Reason Trees, so that corrupt lineage is not silently displayed.
 30. As a Miniapp user, I want one failed Tree tab to remain retryable without invalidating other loaded tabs, so that a partial network failure does not destroy the whole reading session.
 31. As a Data maintainer, I want Theme and Tree identities generated deterministically, so that receipts, retries and fixtures are reproducible.
 32. As a Data maintainer, I want strong validation for existing Entity, Chain Node, Industry Chain, Event and Graph Edge references, so that published projections cannot point to invalid formal facts.
-33. As a Data maintainer, I want weak Variable Signal references to be clearly isolated, so that they cannot be mistaken for foreign-key-backed facts.
-34. As a Data maintainer, I want a Tree publication to cover the complete Theme Impact set across all submitted trees, so that a successful receipt never represents an incomplete explanation set.
+33. As a Data maintainer, I want strong formal Signal/Impact lineage and explicit analyst inference references, so that display snapshots cannot be mistaken for provenance.
+34. As a Data maintainer, I want an aggregate publication to cover the complete Theme Impact set and every Tree to cover the source Events of the formal facts it uses, so that each Tree is independently auditable.
 35. As a Data maintainer, I want migration scope limited to Theme and Tree-owned tables, so that unrelated domain data survives the breaking cutover.
 36. As a Miniapp Backend maintainer, I want to map Data DTOs mechanically without inferring research meaning, so that the BFF remains a consumer boundary rather than a second analysis engine.
 37. As a Frontend maintainer, I want mock and API adapters to implement the same typed port, so that changing the data source does not change page behavior.
@@ -121,8 +129,9 @@ Chain Graph Edge 及其他共享事实不得被删除或改写。
 
 - Data Domain Service owns Research Theme, Theme Impact, Reason Tree, publication receipts,
   PostgreSQL persistence, domain validation and Data read APIs.
-- The analysis system owns research generation and all semantic/business validation. It publishes
-  only analyst-approved content through Data APIs and never writes the Data database directly.
+- The engineering-external Codex analyst owns research generation and investment reasoning. It
+  publishes candidates only through Data APIs and never writes the Data database directly. Data
+  still owns deterministic structural, reference and provenance validation.
 - Miniapp Backend is the Application Backend/BFF. It owns Miniapp DTOs, downstream calls and stable
   Miniapp error mapping, but it does not own or derive research facts.
 - Miniapp Frontend calls only Miniapp Backend through the existing V1 API. It keeps the existing
@@ -137,25 +146,26 @@ Chain Graph Edge 及其他共享事实不得被删除或改写。
 - Change the existing `/api/data/v1` and `/api/miniapp/v1` contracts in place.
 - Do not preserve old Miniapp clients, old request shapes, old response fields, old paths or
   aliases.
-- The system is pre-launch. Existing Theme and Anchor/Tree data has no compatibility or retention
-  value and can be discarded.
+- The system is pre-launch and does not retain old client/API compatibility, but existing
+  Theme/Tree rows remain immutable readable audit records. Legacy display snapshots retain
+  `legacy_snapshot` provenance and are never fabricated into formal lineage.
 - Source rollback is the previous application revision plus a fresh development database or
   explicit backup restore. The new source does not keep runtime compatibility with the old schema.
 
 ### 3. Canonical domain model
 
 ```text
-Analysis Batch
-└── Research Theme 1..N
+Research Publication Aggregate (analysis_batch_id)
+└── Research Theme exactly 1
     ├── Theme Impact 1..N -> Chain Node
     ├── Theme Event 0..N -> Event
-    └── Reason Tree 0..N
+    └── Reason Tree 1..N
         ├── belongs to exactly one Industry Chain
-        ├── Tree Event 0..N -> Theme Event subset
+        ├── Tree Event 0..N shape -> Theme Event subset
         └── ordered Tree Node 1..N
             ├── Chain Node
             ├── optional incoming formal Graph Edge
-            └── Variable Signal snapshot 1..5
+            └── Variable Signal snapshot + lineage 1..5
 ```
 
 - Research Theme is an immutable conclusion snapshot in one Analysis Batch. It is not a
@@ -173,6 +183,9 @@ Analysis Batch
   analytically useful belongs to analyst validation.
 - Nodes in a Tree path are unique; cycles, duplicate positions and non-contiguous positions are
   structural contract violations.
+- The Tree Event array is structurally allowed to be empty, but reference validation requires it to
+  contain every source Event of each formal Signal/DirectImpact or upstream formal fact used by
+  that Tree. Therefore a successful Tree cannot omit Event provenance required by its lineage.
 
 ### 4. Research Theme fields
 
@@ -241,31 +254,38 @@ correct value.
 - Data does not require a particular evidence-role combination and does not infer
   `conclusion_status`, `transmission_stage`, direction or strength from Event counts or roles.
 
-### 7. Theme publication contract
+### 7. Theme Aggregate publication contract
 
 - Endpoint remains `POST /api/data/v1/research-theme-imports`.
 - Authentication continues to use the Data internal Bearer service-token trust domain.
 - The strict top-level payload contains:
   - `analysis_batch_id`
   - `analysis_as_of`
-  - `window_start`
-  - `window_end`
-  - `themes`
-- `analysis_as_of`, `window_start` and `window_end` are RFC 3339 UTC timestamps.
-  `window_end` must be later than `window_start`; Data does not impose research-semantic ordering
-  between `analysis_as_of` and the window.
-- Theme arrays use one canonical representation for hashing: Themes are ordered by `theme_key`;
-  Theme Impacts by `display_order`; Theme Events by normalized Event UUID.
-- `analysis_batch_id` remains the Theme batch idempotency identity.
+  - `discovery_window_start`
+  - `discovery_window_end`
+  - `theme`
+  - `reasoning_trees`
+- `analysis_as_of`, `discovery_window_start` and `discovery_window_end` are RFC 3339 UTC
+  timestamps. The end is later than the start and no later than `analysis_as_of`.
+- Each request contains exactly one Theme and 1..N Reason Trees. Multiple Themes use independent
+  requests and independent `analysis_batch_id` values.
+- Arrays use one canonical representation for hashing: Theme Impacts, Trees, Nodes and their
+  display associations follow their explicit order; Theme and Tree Event identities are
+  normalized deterministically.
+- `analysis_batch_id` is the complete Theme Aggregate idempotency identity.
 - First success returns `201` and `replayed=false`; same publisher and canonical payload retry
   returns the original receipt with `200` and `replayed=true`.
 - Same identity with changed payload or a different publisher subject returns `409`.
 - Contract/shape/enum/order failures return `400`; missing, inactive or invalid formal references
   return `422`.
-- Validation or transaction failure creates no receipt and exposes no partial Theme.
+- Validation or transaction failure creates no receipt and exposes no partial Theme or Tree.
 - The receipt retains `receipt_id`, `analysis_batch_id`, `payload_hash`,
-  `theme_ids_by_key`, write counts, `published_at`, `imported_at` and publisher subject.
-- Write counts cover Themes, Theme Impacts, Theme Event associations and receipts.
+  `theme_id`, `reasoning_tree_ids_by_industry_chain_entity_id`, write counts, `published_at`,
+  `imported_at` and publisher subject.
+- Write counts cover the Theme, Theme Impacts, Theme Events, Reason Trees, Nodes, Tree Events,
+  Node Signals and receipts.
+- Data computes the canonical payload hash and persists the complete aggregate only after
+  structural and formal-reference validation succeeds.
 
 ### 8. Reason Tree identity and fields
 
@@ -316,9 +336,18 @@ correct value.
   - `incoming_transmission_mechanism` is required.
   - `incoming_condition_summary` is required.
   - `incoming_industry_chain_graph_edge_id` is optional.
+  - `incoming_lineage` is required and is either `formal_direct_impact` or
+    `analyst_inference`.
 - A non-null formal Graph Edge reference must exist, be active and approved, belong to the same
   Industry Chain, and have endpoints equal to the previous and current node in the referenced
   direction.
+- A `formal_direct_impact` must resolve to an accepted/latest/non-superseded
+  DirectImpactAssertion whose source VariableSignal subject equals the previous Node and whose
+  target equals the current Node. Submission, affected-variable snapshot, direction, Evidence and
+  source Event must match the formal fact.
+- An `analyst_inference` cannot claim a formal DirectImpact. It must cite exactly one accepted
+  upstream Signal/Impact and an active Entity Relation or the formal incoming Graph Edge used for
+  the step.
 - A null formal Graph Edge means analyst inference. It does not create, approve or update an
   Industry Chain Graph Edge.
 - No independent Reason Tree Edge table is introduced. Incoming transmission belongs to the
@@ -327,14 +356,19 @@ correct value.
 ### 10. Variable Signal snapshots
 
 - Use `research_reasoning_tree_node_signals`.
-- This relation is an immutable display snapshot and a weak external reference, not a Variable
-  Signal fact table.
+- This relation is an immutable display snapshot plus formal provenance. It does not own or copy
+  the VariableSignal fact; Data Service remains the fact owner.
 - Each row contains `reasoning_tree_node_id`, `variable_signal_key`, `signal_role`,
-  `signal_direction`, `display_summary`, `display_order` and `created_at`.
-- `variable_signal_key` is Publisher-owned and deterministic within the parent
-  `analysis_batch_id`; it must match `^[a-z0-9][a-z0-9._:-]{0,127}$`.
-- It has no foreign key and no cross-batch identity. Reusing the same key in different Analysis
-  Batches does not assert that the signals are the same long-lived fact.
+  `signal_direction`, `display_summary`, `display_order`, `source_kind`, formal lineage columns and
+  `created_at`.
+- `source_kind=formal_signal` requires a concrete accepted/latest/non-superseded
+  `variable_signal_id`, owning `semantic_submission_id`, matching Evidence ID/hash and matching
+  Node subject, variable key and direction.
+- `source_kind=analyst_inference` must not provide formal Signal/Evidence fields. It cites exactly
+  one accepted upstream Signal/Impact plus the active Entity Relation or Industry Chain Graph Edge
+  used to infer the node-level display state.
+- `variable_signal_key` is the immutable display snapshot key and must match
+  `^[a-z0-9][a-z0-9._:-]{0,127}$`; it does not replace the formal UUID lineage.
 - The same key may be referenced by multiple nodes in one Analysis Batch. Within that batch, all
   occurrences of the key must have identical `signal_direction` and `display_summary`.
 - Within one node, a key is unique.
@@ -344,10 +378,10 @@ correct value.
   `display_order=1`.
 - Signal `display_order` is unique and contiguous from 1 within a node.
 - `display_summary` is a trimmed 1..200-character complete display string.
-- Data does not validate Variable Signal existence, owner, object relation, Evidence lineage,
-  metric identity, observation value, unit or time.
-- Weak validation is limited to Variable Signal. It does not weaken any formal Entity, Event,
-  Chain membership, Graph Edge or Tree-structure validation.
+- Data validates formal Signal/Impact existence, accepted/latest/non-superseded status,
+  Submission ownership, Entity alignment, direction snapshot, Evidence lineage, source Event and
+  `analysis_as_of` availability. It does not judge whether the analyst selected the best fact or
+  whether the resulting investment conclusion is correct.
 
 ### 11. Reason Tree Event association
 
@@ -357,8 +391,10 @@ correct value.
 - `evidence_role` is `driver | supporting | contradicting | context`.
 - An Event is unique within one Tree and must already belong to the parent Theme Event set.
 - Event identity and existence remain strongly validated.
-- Tree publication may contain zero Events. Data does not require a driver, supporting or
-  contradicting Event and does not couple Event roles to `conclusion_status` or summaries.
+- The array may be structurally empty, and Data does not require a particular role. During formal
+  reference validation, however, each Tree must include every source Event of every formal
+  Signal/DirectImpact and upstream formal fact used by that Tree. A missing required Event returns
+  `422`; inclusion only at Theme level is insufficient.
 - Tree Event associations do not copy Event title, summary, time or an
   `evidence_summary`; read APIs join formal Event display facts.
 - `display_order` is unique and contiguous when Events are present and only controls stable
@@ -366,9 +402,8 @@ correct value.
 
 ### 12. Reason Tree set constraints
 
-- A Theme can have no published Reason Tree. This is a legitimate state represented by absence of a
-  Tree publication receipt, not by an empty successful Tree publication.
-- If the Tree publication endpoint is called, it must contain at least one Tree.
+- A successful Theme Aggregate always contains at least one Reason Tree. Theme-without-Tree is not
+  a valid publication state.
 - Every submitted Tree must contain at least one Chain Node whose ID is in the Theme Impact set.
 - The union of all Tree-node intersections with the Theme Impact set must cover every Theme Impact.
 - The same Theme Impact may occur in more than one Tree if the analyst intentionally uses it in
@@ -379,42 +414,26 @@ correct value.
 
 ### 13. Reason Tree publication contract
 
-- Replace the old Anchor endpoint with
-  `POST /api/data/v1/research-reasoning-tree-imports`.
-- Delete `/api/data/v1/research-anchor-imports`; do not register an alias or redirect.
-- The strict payload contains only `theme_id` and `reasoning_trees`.
-- Do not repeat `analysis_batch_id`, `analysis_as_of`, analysis window or publisher in the Tree
-  payload. Data obtains them from the immutable parent Theme publication.
-- `theme_id` is the Tree-set publication and idempotency identity. One Theme has at most one
-  successful Tree receipt.
-- The publishing subject must match the parent Theme publication subject.
+- `/api/data/v1/research-reasoning-tree-imports` and the old Anchor endpoint are removed; neither
+  has an alias or redirect.
+- Reason Trees exist only inside the Theme Aggregate payload defined in section 7.
 - Trees are submitted by `display_order`; Events, Nodes and Signals follow their explicit order
   fields. Ordered invalidation and checkpoint arrays preserve analyst order.
-- Data computes the canonical payload hash only after structural and reference validation.
-- First success returns `201` and `replayed=false`; identical same-subject retry returns the first
-  receipt with `200` and `replayed=true`.
-- Changed payload or publisher mismatch after success returns `409`.
-- Contract/shape/enum/order failures return `400`; missing, inactive, out-of-scope or mismatched
-  formal references return `422`.
-- The full Tree set, Nodes, Events, Signals and receipt commit in one transaction. Failure leaves
-  the Theme unchanged and creates no visible partial Tree set.
-- The receipt returns `receipt_id`, `theme_id`, `payload_hash`,
-  `reasoning_tree_ids_by_industry_chain_entity_id`, write counts, `published_at`,
-  `imported_at` and `replayed`.
-- Write counts cover Reason Trees, Nodes, Tree Event associations, Node Signal associations and
-  receipts.
+- The aggregate canonical hash includes the Theme, all Trees and all lineage snapshots.
+- Contract/shape/enum/order failures return `400`; missing, inactive, out-of-scope, temporally
+  unavailable or mismatched formal references return `422`; replay identity conflicts return
+  `409`.
+- Theme, full Tree set, Nodes, Events, Signals, lineage and receipts commit in one transaction.
+  Failure creates no visible partial aggregate.
 
 ### 14. Publication timing and visibility
 
-- Theme and Tree are normally both produced by the same analyst report but are sent through two
-  independent APIs.
-- They do not need to become visible simultaneously.
-- Theme success immediately participates in existing product-visible Theme queries.
-- Tree failure, delay or absence does not roll back, hide or mutate Theme.
-- Theme and Tree have independent server-generated `published_at` values.
-- Publishing a Tree never rewrites Theme summaries, `published_at`, order or conclusion fields.
-- A Tree can be published later even after its Theme has left the current homepage time window, as
-  long as the parent Theme and receipt still exist and the publishing subject matches.
+- Theme and all Trees are produced by the same aggregate request and become visible atomically.
+- One server-generated `published_at` applies to the complete aggregate and its receipts.
+- There is no later Tree append, update or repair endpoint. A new analysis creates a new
+  `analysis_batch_id`, Theme ID and immutable aggregate.
+- Existing read resources remain separate Theme/Tree projections for consumers; separate reads do
+  not imply separate publication or mutable lifecycle states.
 
 ### 15. Data validation boundary
 
@@ -429,6 +448,10 @@ Data validates:
 - contiguous display/position order;
 - Tree-to-Theme-Impact coverage;
 - same-batch Variable Signal snapshot consistency;
+- accepted/latest/non-superseded Signal and DirectImpact existence at `analysis_as_of`;
+- Signal subject-to-Node and DirectImpact previous-Node-to-current-Node alignment;
+- Submission ownership, Evidence ID/hash/Event lineage and per-Tree Event coverage;
+- analyst inference references to one formal upstream fact and the actual active Relation;
 - canonical hash, receipt identity, publisher ownership and immutable replay;
 - transaction atomicity and receipt-to-row consistency.
 
@@ -441,7 +464,8 @@ Data does not validate:
 - whether a path is the best or only causal explanation;
 - whether an analyst inference should already be a formal graph relation;
 - whether optional summaries have ideal research wording;
-- Variable Signal fact existence, Evidence lineage or metric semantics.
+- whether a formally valid Signal, Impact or Evidence is sufficient to support the analyst's
+  investment conclusion.
 
 No BFF or Frontend component may add these research-semantic validations or synthesize missing
 research content.
@@ -449,9 +473,13 @@ research content.
 ### 16. Database migration
 
 - Add a new forward migration; do not edit historical migrations.
-- The migration may directly drop existing Theme, Theme association, Theme receipt, Research
-  Anchor, Anchor association and Anchor receipt rows and structures.
-- Rebuild the target tables:
+- Migration `000031` remains the field-model rebuild baseline; migration `000033` adds Aggregate
+  contract versioning and strong Signal/DirectImpact/Evidence lineage without rewriting historical
+  migration files.
+- Migration `000033` must preserve every existing Theme/Tree row and receipt. Existing node-signal
+  rows receive `source_kind=legacy_snapshot`; new formal lineage columns remain null rather than
+  inventing unsupported backfills.
+- The target tables remain:
   - `research_theme_import_receipts`
   - `research_themes`
   - `research_theme_impacts`
@@ -461,13 +489,14 @@ research content.
   - `research_reasoning_tree_nodes`
   - `research_reasoning_tree_events`
   - `research_reasoning_tree_node_signals`
-- Remove old Anchor tables, Anchor triggers/functions/indexes and
-  `research_theme_indices`; do not recreate compatibility views.
+- Historical Anchor removal belongs to the already-applied `000031` field-model cutover, not to
+  `000033`.
 - Foreign keys from Theme/Tree-owned tables may cascade only within the Theme/Tree aggregate.
 - The migration must not delete, truncate, update or recreate shared Entity, Industry Chain,
   Chain Node, membership, Event, Evidence or Industry Chain Graph Edge data.
 - Immutable publication tables and receipts retain database constraints/triggers that reject
-  updates and deletes during normal runtime. The one-time migration is the authorized data reset.
+  updates and deletes during normal runtime. Migration `000033` is additive and not an authorized
+  data reset.
 - Indexes must support latest Theme publication-time queries, Theme child lookups, deterministic
   Tree tab ordering and all uniqueness constraints.
 
@@ -507,7 +536,8 @@ updated so that it cannot override this spec.
   names, Theme Events with current Event display facts, and mechanical counts.
 - `evidence_event_count` is the de-duplicated total of all Theme Event associations regardless of
   evidence role; it is the Theme-card “N 条政经事件” count.
-- Theme read may expose `reasoning_tree_count`, but Theme visibility never depends on that count.
+- Theme read may expose `reasoning_tree_count`; aggregates published under contract version 2 must
+  always reconstruct at least one Tree.
 - `analysis_as_of` is returned as the shared batch cutoff; it is not recomputed at read time.
 - `transmission_summary`, `checkpoint_summary` and `risk_summary` are returned exactly from the
   Theme snapshot and are not derived from Trees.
@@ -538,7 +568,8 @@ Stable read errors remain:
 
 - Theme missing: `404 RESEARCH_THEME_NOT_FOUND`.
 - Theme exists without a successful Tree receipt:
-  `404 RESEARCH_REASONING_TREES_NOT_FOUND`.
+  `404 RESEARCH_REASONING_TREES_NOT_FOUND` as a defensive legacy/invariant read error, not a valid
+  contract-version-2 publication state.
 - Tree missing or not owned by the Theme:
   `404 RESEARCH_REASONING_TREE_NOT_FOUND`.
 - Receipt exists but its complete projection cannot be reconstructed:
@@ -574,9 +605,9 @@ Stable read errors remain:
   or Tree order.
 - Empty optional summaries use existing section-level empty presentation where the section already
   exists; Frontend does not invent research wording.
-- Theme missing, Trees not yet published, list failure and single-Tree failure keep distinct user
-  states. A failed Tree retry only reloads that Tree, and already loaded Trees remain cached for
-  the current page session.
+- Theme missing, Tree projection invariant failure, list failure and single-Tree read failure keep
+  distinct user states. A failed Tree read retry only reloads that Tree, and already loaded Trees
+  remain cached for the current page session.
 - Mock and API modes continue to share `TARO_APP_RESEARCH_SOURCE`; API failure never silently falls
   back to mock.
 
@@ -747,7 +778,8 @@ Frontend must not parse those strings to infer direction, strength, identity or 
 - `window_start`/`window_end` describe the fact window.
 - `analysis_as_of` describes the analysis cutoff.
 - `time_horizon` describes the expected future effect horizon.
-- `published_at` is server publication time and may differ between Theme and Tree.
+- `published_at` is the server publication time shared by the atomically committed Theme
+  Aggregate.
 - Stable display orders are presentation facts only. They never express research priority.
 - Optional natural-language fields may be `null` or empty according to their declared wire schema;
   consumers preserve that distinction only when needed for presentation and never infer a hidden
@@ -761,8 +793,8 @@ Frontend must not parse those strings to infer direction, strength, identity or 
 - Receipt rows store stable publisher subject, never credentials.
 - Strict body-size limits, safe JSON decoding, sanitized errors, Request ID behavior and panic
   recovery remain mandatory.
-- Both publication APIs are synchronous and transactional. No async job, status polling endpoint,
-  queue or failure placeholder is introduced.
+- The single Aggregate publication API is synchronous and transactional. No async job, status
+  polling endpoint, queue or failure placeholder is introduced.
 - Unknown POST outcomes are recovered only by retrying the identical request under the same
   idempotency identity.
 - A partial database write is never product-visible.
@@ -774,15 +806,14 @@ Frontend must not parse those strings to infer direction, strength, identity or 
 The primary acceptance seam is one shared deterministic fixture exercised across the provider and
 consumers:
 
-1. publish a Theme batch;
-2. publish the complete Reason Tree set for one Theme;
-3. read Theme list/detail and Reason Tree list/detail from Data;
-4. pass the exact Data wire responses through the Miniapp Backend consumer;
-5. decode them through the Miniapp Frontend typed API adapter.
+1. publish one Theme plus its complete Reason Tree set atomically;
+2. read Theme list/detail and Reason Tree list/detail from Data;
+3. pass the exact Data wire responses through the Miniapp Backend consumer;
+4. decode them through the Miniapp Frontend typed API adapter.
 
-This fixture must prove field lineage, enum/null/time/order semantics, Theme-before-Tree
-visibility, multi-impact coverage, multiple Industry Chains, context nodes, a one-node Tree,
-formal and inferred incoming edges, Event roles and Variable Signal display snapshots.
+This fixture must prove formal lineage, enum/null/time/order semantics, aggregate atomicity,
+multi-impact coverage, multiple Industry Chains, context nodes, a one-node Tree, formal and
+inferred incoming edges, per-Tree Event coverage and Variable Signal display snapshots.
 
 Tests should assert externally observable behavior and stable contracts, not private helper
 functions, struct-copy code or SQL statement shape.
@@ -791,14 +822,15 @@ functions, struct-copy code or SQL statement shape.
 
 Cover:
 
-- Theme batch idempotent first publication, replay and payload conflict;
-- Tree-set idempotent first publication, replay, payload conflict and publisher mismatch;
-- Theme remains visible when Tree is absent or Tree publication fails;
+- Theme Aggregate idempotent first publication, replay, payload conflict and publisher mismatch;
+- any Theme, Tree or lineage failure leaves zero aggregate rows;
 - deterministic Theme, Tree and Node identities;
 - one Tree per Theme and Industry Chain;
 - Tree Impact intersection and complete union coverage;
 - one-node and multi-node paths;
-- formal reference validation and analyst-inferred null Graph Edge;
+- formal Signal/DirectImpact/Submission/Evidence validation and analyst-inferred null Graph Edge;
+- DirectImpact source Signal subject equals the previous Node and target equals the current Node;
+- every Tree covers the source Events of every formal fact it references;
 - Variable Signal count, primary role, order, key format and same-batch snapshot consistency;
 - no research-semantic cross-field gates.
 
@@ -820,7 +852,7 @@ Cover:
 Use PostgreSQL integration tests for:
 
 - forward migration from the current schema;
-- complete reset of Theme/Anchor-owned data;
+- survival of representative existing V1 Theme/Tree rows as readable `legacy_snapshot` history;
 - survival of representative Entity, Industry Chain, Chain Node, Event and Graph Edge rows;
 - foreign keys, unique constraints, contiguous-order enforcement where implemented in Biz, indexes
   and immutable triggers;
@@ -828,17 +860,17 @@ Use PostgreSQL integration tests for:
 - receipt-to-row verification and read invariant failures;
 - latest Theme batch and Tree read query order.
 
-No automatic semantic backfill test is required because existing Theme/Tree data is intentionally
-discarded.
+No automatic semantic backfill test is required: existing Theme/Tree data is preserved, and its
+weak snapshots remain explicitly legacy rather than receiving fabricated formal lineage.
 
 ### Miniapp Backend seam
 
 Use existing Biz and HTTP/client patterns to cover:
 
 - Data provider fixture decoding and consumer DTO mapping;
-- Theme and Tree endpoint parity;
+- Theme and Tree read endpoint parity;
 - renamed `reasoning_tree_id`;
-- distinct missing Theme, missing Tree set and missing Tree errors;
+- distinct missing Theme, invariant-missing Tree set and missing Tree errors;
 - downstream timeout/unavailable/error-body sanitization;
 - preservation of order, nulls and research text without inference.
 
@@ -862,7 +894,7 @@ Cover the typed API Adapter and user-visible state transitions:
 - keep the first node free of fabricated incoming transmission content;
 - distinguish Theme Impact nodes by ID intersection;
 - preserve independent Tab loading, cache, error and retry behavior;
-- show Theme missing and Tree-not-yet-published states separately;
+- show Theme missing and Tree projection invariant failure states separately;
 - remove `marketConfirmationSummary` from all types and mocks.
 
 Component tests assert visible text hierarchy, selected-node behavior and absence of stale
@@ -879,6 +911,10 @@ the adapter/fixture seam.
 - `consolidated`: the old Theme batch tests are absorbed by the Theme V1 canonicalization and Biz
   service suites, which cover strict input, deterministic identity, first publish, replay,
   conflict, publisher ownership and formal-reference behavior.
+- `consolidated`: the standalone Reason Tree Import handler, error-mapping and OpenAPI publication
+  tests are absorbed by the atomic Theme Aggregate handler/OpenAPI tests and the
+  `researchpublication` Biz suite. The removed endpoint is additionally protected by the
+  OpenAPI/runtime path-absence contract.
 - `duplicated-by-stronger-seam`: deleted per-method PostgreSQL read mocks are replaced by the
   PostgreSQL V1 import/replay/read/immutability integration seam plus Biz stable-error tests.
 - `implementation-only`: mechanical Anchor-era DTO/fixture assertions that did not protect a
@@ -898,17 +934,20 @@ the adapter/fixture seam.
 
 ## Out of Scope
 
-- Building a Variable Signal fact model, fact table, publication/read API, Metric Observation or
-  Evidence lineage.
-- Validating that a Variable Signal exists, belongs to an Entity or is supported by Evidence.
+- Creating, updating or reviewing VariableSignal, DirectImpactAssertion, Measurement or Evidence
+  facts inside Theme publication. Those Phase One facts already exist and are referenced
+  read-only through strong lineage.
+- Judging VariableSignal metric meaning, Evidence sufficiency or whether the analyst selected the
+  best available formal fact.
 - Supporting Theme Impact targets other than Chain Node, including Company, Security, Concept,
   Industry and Index.
 - Arbitrary graph Reason Trees, branching, multiple parents, cycles, reverse formal-edge traversal
   or independent Tree Edge records.
 - A cross-batch Research Thesis identity or longitudinal Theme mutation.
 - Updating, deleting, withdrawing or partially replacing a published Theme or Tree set.
-- Simultaneous Theme/Tree visibility, distributed transactions, rollback coupling or publication
-  orchestration inside Data.
+- Cross-service distributed transactions, async publication jobs or publication orchestration
+  outside the single Data PostgreSQL transaction. Atomic Theme/Tree visibility and rollback inside
+  that transaction are in scope.
 - Data-side validation of research quality, causal truth, evidence sufficiency or analyst report
   completeness.
 - Market Confirmation storage or display. `market_confirmation_summary` is removed; a future
@@ -927,8 +966,8 @@ the adapter/fixture seam.
 
 - This spec supersedes the active Research Anchor and old Reasoning Tree contract wherever their
   center-node, old-field, old-path or compatibility semantics conflict with this document.
-- Data and Miniapp Context language must be updated during implementation so Research Anchor is no
-  longer described as the active model.
+- Data and Miniapp Context language is synchronized so Research Anchor is no longer described as
+  the active model.
 - The existing implementation and tests are the prior-state baseline, not authority for retaining
   removed behavior.
 - The existing Theme and Tree page shell remains the visual acceptance baseline. The field-mapping

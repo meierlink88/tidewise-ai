@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -69,6 +71,67 @@ func TestResearchThemeImportMapsV1Contract(t *testing.T) {
 	}
 }
 
+func TestResearchThemePublicationReferenceErrorMapsToHTTP422(t *testing.T) {
+	referenceError := &researchpublication.ReferenceError{
+		Path:      "reasoning_trees[0].nodes[1].incoming_lineage.direct_impact_assertion_id",
+		Reference: "88888888-8888-4888-8888-888888888888",
+		Message:   "Direct Impact source Signal subject must equal the previous Node",
+	}
+	importer := &fakeThemeImporter{err: referenceError}
+	handler := dataServiceTestHandler(
+		Dependencies{ResearchThemeImports: importer},
+		map[string]v1.Principal{
+			"research-publisher": {
+				Identity: "codex",
+				Scopes:   []string{ScopeResearchImport},
+			},
+		},
+		"generated-request-id",
+	)
+	body := []byte(`{
+		"analysis_batch_id":"reference-error",
+		"analysis_as_of":"2026-07-29T10:00:00Z",
+		"discovery_window_start":"2026-07-28T00:00:00Z",
+		"discovery_window_end":"2026-07-29T10:00:00Z",
+		"theme":{},
+		"reasoning_trees":[]
+	}`)
+	request := httptest.NewRequest(
+		http.MethodPost,
+		Namespace+"/research-theme-imports",
+		bytes.NewReader(body),
+	)
+	request.Header.Set("Authorization", "Bearer research-publisher")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Request-ID", "lineage-request")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422; body=%s", response.Code, response.Body)
+	}
+	if response.Header().Get("X-Request-ID") != "lineage-request" {
+		t.Fatalf("X-Request-ID = %q", response.Header().Get("X-Request-ID"))
+	}
+	var envelope struct {
+		RequestID string `json:"request_id"`
+		Error     struct {
+			Code    string         `json:"code"`
+			Details map[string]any `json:"details"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode response: %v\n%s", err, response.Body.String())
+	}
+	if envelope.RequestID != "lineage-request" ||
+		envelope.Error.Code != "RESEARCH_THEME_REFERENCE_INVALID" ||
+		envelope.Error.Details["path"] != referenceError.Path ||
+		envelope.Error.Details["reference"] != referenceError.Reference {
+		t.Fatalf("envelope = %#v", envelope)
+	}
+}
+
 func TestReasoningTreeDetailExposesImpactIntersectionAndSignals(t *testing.T) {
 	treeID := "22222222-2222-4222-8222-222222222222"
 	researchService := &fakeResearchService{detail: research.ResearchReasoningTreeDetail{
@@ -100,11 +163,12 @@ type fakeThemeImporter struct {
 	result    researchpublication.Result
 	aggregate researchpublication.Aggregate
 	publisher string
+	err       error
 }
 
 func (f *fakeThemeImporter) Publish(_ context.Context, publisher string, aggregate researchpublication.Aggregate) (researchpublication.Result, error) {
 	f.publisher, f.aggregate = publisher, aggregate
-	return f.result, nil
+	return f.result, f.err
 }
 
 type fakeResearchService struct {

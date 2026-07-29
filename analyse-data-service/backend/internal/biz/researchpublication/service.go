@@ -321,9 +321,7 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 			return invalidReference(fmt.Sprintf("theme.impacts[%d].chain_node_entity_id", index), impact.ChainNodeEntityID, "active approved Chain Node does not exist")
 		}
 	}
-	themeEvents := make(map[string]struct{}, len(a.Theme.Events))
 	for index, event := range a.Theme.Events {
-		themeEvents[event.EventID] = struct{}{}
 		fact, ok := facts.Events[event.EventID]
 		if !ok {
 			return invalidReference(fmt.Sprintf("theme.events[%d].event_id", index), event.EventID, "confirmed verified Event does not exist")
@@ -343,6 +341,10 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 		if !ok || !temporalFactAvailableAt(chainTemporal, asOf) {
 			return invalidReference(treePath+".industry_chain_entity_id", tree.IndustryChainEntityID, "active approved Industry Chain does not exist")
 		}
+		treeEvents := make(map[string]struct{}, len(tree.Events))
+		for _, event := range tree.Events {
+			treeEvents[event.EventID] = struct{}{}
+		}
 		for nodeIndex, node := range tree.Nodes {
 			nodePath := fmt.Sprintf("%s.nodes[%d]", treePath, nodeIndex)
 			membership, ok := facts.Memberships[tree.IndustryChainEntityID][node.ChainNodeEntityID]
@@ -359,14 +361,22 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 				}
 			}
 			if node.IncomingLineage != nil {
-				if err := validateIncomingLineage(nodePath+".incoming_lineage", *node.IncomingLineage, node.ChainNodeEntityID, themeEvents, asOf, facts); err != nil {
+				if err := validateIncomingLineage(
+					nodePath+".incoming_lineage",
+					*node.IncomingLineage,
+					tree.Nodes[nodeIndex-1].ChainNodeEntityID,
+					node.ChainNodeEntityID,
+					treeEvents,
+					asOf,
+					facts,
+				); err != nil {
 					return err
 				}
 			}
 			for signalIndex, signal := range node.Signals {
 				if err := validateSignalLineage(
 					fmt.Sprintf("%s.signals[%d].lineage", nodePath, signalIndex),
-					signal, node.ChainNodeEntityID, themeEvents, asOf, facts,
+					signal, node.ChainNodeEntityID, treeEvents, asOf, facts,
 				); err != nil {
 					return err
 				}
@@ -376,7 +386,7 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 	return nil
 }
 
-func validateSignalLineage(path string, input Signal, nodeEntityID string, themeEvents map[string]struct{}, asOf time.Time, facts ReferenceFacts) error {
+func validateSignalLineage(path string, input Signal, nodeEntityID string, treeEvents map[string]struct{}, asOf time.Time, facts ReferenceFacts) error {
 	l := input.Lineage
 	if l.SourceKind == "formal_signal" {
 		fact, ok := facts.Signals[*l.VariableSignalID]
@@ -392,8 +402,8 @@ func validateSignalLineage(path string, input Signal, nodeEntityID string, theme
 		if fact.VariableKey != input.VariableSignalKey || fact.Direction != input.SignalDirection {
 			return invalidReference(path+".variable_signal_id", fact.ID, "Signal display snapshot does not match the formal Signal")
 		}
-		if _, ok := themeEvents[fact.EventID]; !ok {
-			return invalidReference(path+".variable_signal_id", fact.ID, "Signal source Event is not covered by Theme events")
+		if _, ok := treeEvents[fact.EventID]; !ok {
+			return invalidReference(path+".variable_signal_id", fact.ID, "Signal source Event is not covered by Reason Tree events")
 		}
 		if err := validateEvidence(path, *l.EvidenceID, *l.EvidenceHash, fact.EventID, fact.EvidenceIDs, asOf, facts); err != nil {
 			return err
@@ -406,11 +416,18 @@ func validateSignalLineage(path string, input Signal, nodeEntityID string, theme
 	return validateInference(
 		path, l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID,
 		l.EntityRelationID, l.IndustryChainGraphEdgeID, nodeEntityID,
-		themeEvents, asOf, facts,
+		treeEvents, asOf, facts,
 	)
 }
 
-func validateIncomingLineage(path string, l IncomingLineage, targetEntityID string, themeEvents map[string]struct{}, asOf time.Time, facts ReferenceFacts) error {
+func validateIncomingLineage(
+	path string,
+	l IncomingLineage,
+	sourceEntityID, targetEntityID string,
+	treeEvents map[string]struct{},
+	asOf time.Time,
+	facts ReferenceFacts,
+) error {
 	if l.SourceKind == "formal_direct_impact" {
 		fact, ok := facts.Impacts[*l.DirectImpactAssertionID]
 		if !ok {
@@ -422,11 +439,14 @@ func validateIncomingLineage(path string, l IncomingLineage, targetEntityID stri
 		if fact.TargetEntityID != targetEntityID {
 			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "Direct Impact target must equal the downstream Node")
 		}
+		if fact.SourceEntityID != sourceEntityID {
+			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "Direct Impact source Signal subject must equal the previous Node")
+		}
 		if fact.AffectedVariableKey != *l.AffectedVariableKey || fact.AffectedDirection != *l.AffectedDirection {
 			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "affected-variable snapshot does not match the formal Direct Impact")
 		}
-		if _, ok := themeEvents[fact.SourceEventID]; !ok {
-			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "Direct Impact source Event is not covered by Theme events")
+		if _, ok := treeEvents[fact.SourceEventID]; !ok {
+			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "Direct Impact source Event is not covered by Reason Tree events")
 		}
 		if err := validateEvidence(path, *l.EvidenceID, *l.EvidenceHash, fact.SourceEventID, fact.EvidenceIDs, asOf, facts); err != nil {
 			return err
@@ -438,7 +458,7 @@ func validateIncomingLineage(path string, l IncomingLineage, targetEntityID stri
 	}
 	return validateInference(
 		path, l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID,
-		l.EntityRelationID, nil, targetEntityID, themeEvents, asOf, facts,
+		l.EntityRelationID, nil, targetEntityID, treeEvents, asOf, facts,
 	)
 }
 
@@ -446,7 +466,7 @@ func validateInference(
 	path string,
 	signalID, impactID, entityRelationID, graphEdgeID *string,
 	targetEntityID string,
-	themeEvents map[string]struct{},
+	treeEvents map[string]struct{},
 	asOf time.Time,
 	facts ReferenceFacts,
 ) error {
@@ -456,8 +476,8 @@ func validateInference(
 		if !ok || fact.AcceptedAt.After(asOf) {
 			return invalidReference(path+".upstream_variable_signal_id", *signalID, "accepted latest upstream Signal does not exist at analysis_as_of")
 		}
-		if _, ok := themeEvents[fact.EventID]; !ok {
-			return invalidReference(path+".upstream_variable_signal_id", *signalID, "upstream Signal source Event is not covered by Theme events")
+		if _, ok := treeEvents[fact.EventID]; !ok {
+			return invalidReference(path+".upstream_variable_signal_id", *signalID, "upstream Signal source Event is not covered by Reason Tree events")
 		}
 		upstreamEntityIDs[fact.SubjectEntityID] = struct{}{}
 	}
@@ -466,8 +486,8 @@ func validateInference(
 		if !ok || fact.AcceptedAt.After(asOf) {
 			return invalidReference(path+".upstream_direct_impact_assertion_id", *impactID, "accepted latest upstream Direct Impact does not exist at analysis_as_of")
 		}
-		if _, ok := themeEvents[fact.SourceEventID]; !ok {
-			return invalidReference(path+".upstream_direct_impact_assertion_id", *impactID, "upstream Direct Impact source Event is not covered by Theme events")
+		if _, ok := treeEvents[fact.SourceEventID]; !ok {
+			return invalidReference(path+".upstream_direct_impact_assertion_id", *impactID, "upstream Direct Impact source Event is not covered by Reason Tree events")
 		}
 		upstreamEntityIDs[fact.SourceEntityID] = struct{}{}
 		upstreamEntityIDs[fact.TargetEntityID] = struct{}{}

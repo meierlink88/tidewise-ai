@@ -204,6 +204,8 @@ Tree 的有序 Chain Node 快照。`position` 从 1 连续排列并且是唯一�
 节点在 Tree 内唯一。每个节点必须是该 Tree Industry Chain 的 active/approved
 成员。首节点全部 `incoming_*` 为空；后续节点必须保存传导标题、机制和成立条件。
 可空正式 Graph Edge 必须 active/approved、属于同一链且端点匹配；为空表示分析推断。
+`formal_direct_impact` 的 source VariableSignal subject 必须等于前一节点、target
+必须等于当前节点；`analyst_inference` 必须引用上游正式事实与实际使用的关系。
 _Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写正式图谱
 
 **Variable Signal 展示快照（Variable Signal Display Snapshot）**:
@@ -314,8 +316,11 @@ _Avoid_: Reanalysis Task、Agent Work Item、在 Data 中调度模型调用、�
 **Reason Tree Event 关联（Reason Tree Event Association）**:
 Tree 可以从父 Theme Event 集合选择零个或多个正式 Event，并保存角色与稳定展示
 顺序；不复制 Event 正文或证据摘要。Theme Event 与 Tree Event 都只接受
-`confirmed + verified` 的正式 Event 事实。
-_Avoid_: Tree 扩展父 Theme Event 边界、要求特定角色组合、复制 Event 文本
+`confirmed + verified` 的正式 Event 事实。结构上数组可为空，但发布引用校验要求每棵
+Tree 覆盖自身引用的全部正式 Signal/DirectImpact 及上游正式事实的来源 Event；仅在
+Theme Event 集合中出现不构成该 Tree 的完整血缘。
+_Avoid_: Tree 扩展父 Theme Event 边界、遗漏所用事实的来源 Event、要求特定角色组合、
+复制 Event 文本
 
 **Reason Tree 读取边界（Reason Tree Read Boundary）**:
 列表使用 `GET /api/data/v1/research/themes/{theme_id}/reasoning-trees`，详情使用

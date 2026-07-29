@@ -1280,6 +1280,7 @@ components:
           items: {$ref: '#/components/schemas/ResearchReasoningTreeImportCheckpoint'}
         events:
           type: array
+          description: Must cover every source Event of each formal Signal, DirectImpact, or upstream formal fact referenced by this Reason Tree; Theme-level inclusion alone is insufficient.
           items: {$ref: '#/components/schemas/ResearchReasoningTreeImportEvent'}
         nodes:
           type: array
@@ -1320,6 +1321,7 @@ components:
         incoming_transmission_mechanism: {type: string, nullable: true}
         incoming_condition_summary: {type: string, nullable: true}
         incoming_lineage:
+          description: Null for the first Node and required for every later Node. A formal DirectImpact source Signal subject must equal the previous Node and its target must equal this Node.
           nullable: true
           allOf: [{$ref: '#/components/schemas/ResearchReasoningTreeIncomingLineage'}]
         signals:

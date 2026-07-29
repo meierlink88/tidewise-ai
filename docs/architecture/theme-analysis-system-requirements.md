@@ -597,9 +597,12 @@ Data 发布 Service 必须确定性校验并在发布回执/强关联中证明�
 - Signal/Impact ID 存在，且在发布时为 accepted/latest/non-superseded；
 - Signal 的 Event、subject、VariableDefinition 和 Evidence 关系存在；
 - 正式 Signal 节点的 Entity 与 Signal subject 一致；
-- DirectImpact 的 source Signal、target、affected variable、direction 与传导结构一致；
+- DirectImpact 的 source Signal subject 必须等于前一个 Reason Tree Node，target 必须等于
+  当前下游 Node，affected variable、direction 与传导结构一致；
 - `event_explicit` Evidence 或 `rule_inferred` Signal/Rule/Relation 血缘完整；
-- Theme/Tree Event association 覆盖所有正式 Signal/Impact 的来源 Event；
+- Theme Event association 覆盖 Aggregate 使用的所有正式来源 Event；每棵 Tree 自己的
+  Event association 还必须覆盖该 Tree 引用的所有正式 Signal/Impact 及上游正式事实的
+  来源 Event，仅出现在 Theme Event 集合中不构成该 Tree 的有效血缘；
 - 正式引用不晚于 `analysis_as_of`；
 - analyst inference 没有冒充正式 Signal 或 DirectImpact。
 - 校验与 Aggregate 写入处于同一事务边界；发布记录保留引用 UUID、
@@ -718,7 +721,7 @@ POST /api/data/v1/research-theme-imports
 
 1. 通过既有链路准备四类真实 Golden Event，记录最终 Event/Evidence ID；
 2. 完成 4.6 的 Phase One 合同与 Worker 收尾；
-3. 实施时将本需求中的新决策同步回
+3. 已将本需求中的新决策同步回
    `research-theme-reasoning-tree-spec.md`、Data Context 和正式 OpenAPI；
 4. 完成后由外部 Codex 分析师执行单 Event、多 Event 汇聚、冲突/零 Theme 和强血缘
    Aggregate 验收。
