@@ -19,6 +19,13 @@ _Avoid_: 原地修改已发布 Agent、把业务任务提示词当作 Agent Vers
 平台接受一个外部任务后创建的一次可追踪执行实例；它记录实际使用的 Agent Version 和任务快照，但不取代调用方拥有的业务 Run。
 _Avoid_: Data Collection Run、分析批次、定时计划
 
+**Agent Status Monitor**:
+AgentRun 为全部已注册 Agent Definition 提供的只读当前状态快照：Agent Key、显示名称、
+当前 Version、是否存在在途 Execution、当前 Execution Status 与更新时间；没有在途
+Execution 时状态为 `idle`。AgentRun 拥有该状态事实，Admin Portal 只做代理和展示。
+_Avoid_: 单次执行详情、阶段/耗时/重试/候选统计、人工审核 UI、Admin Portal 自建运行状态、
+泄露业务载荷
+
 **Agent Input**:
 提交给某个明确 Agent Version 的业务输入；其结构由该版本定义，Schedule 中保存的输入会在每次触发时复制为新的 Agent Execution 快照。
 _Avoid_: 把所有 Agent Input 都称为 Prompt、模型或 Connector 配置
@@ -106,6 +113,17 @@ _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草�
 **Event Semantic Enricher**:
 在正式 Event 已存在后，将原始 Mention 解析为 Data Entity 或 Chain Node 并形成受控语义关联和直接信号的后续 Agent Definition。
 _Avoid_: Event Fact Extractor Agent、在 Fact Payload 中隐藏正式语义关联
+
+**Event Semantic Work Item**:
+AgentRun 对一个 Data Event 的一次初始语义分析或显式重新分析承担的持久化处理义务。
+它拥有队列状态、幂等键、执行租约、有限尝试次数和当前 Agent Execution；初始分析按
+Event ID 幂等建立，重新分析必须明确携带被替代的 Data Submission ID。
+_Avoid_: Data Context Lease、Data Submission、临时内存任务、无限重试
+
+**Event Semantic Reanalysis Request**:
+受信任调用方通过 AgentRun 内部 API 明确请求重新分析既有 Data Submission 的命令。
+AgentRun 将其转为本地 Work Item 并自行闭环执行；Data Service 不保存或调度此任务。
+_Avoid_: Data 任务队列、原地覆盖 Submission、无 supersedes identity 的模糊重跑
 
 **Dedup Index Cache**:
 从 accepted Raw Document Artifact 确定性派生的 TSV 缓存，用于 canonical URL、正文 SHA-256 与 SimHash64 去重。索引缺失可从 Markdown 重建；索引不是事实载体，也不得在缺失时被静默当作空历史。

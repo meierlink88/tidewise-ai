@@ -4,11 +4,13 @@ import Icon from '../components/ui/Icon';
 
 interface AdminShellProps {
   children: ReactNode;
+  currentPage: 'data-ingestion' | 'agent-status';
   currentTitle: string;
+  onNavigate: (page: 'data-ingestion' | 'agent-status') => void;
   onLogout: () => void;
 }
 
-export default function AdminShell({ children, currentTitle, onLogout }: AdminShellProps) {
+export default function AdminShell({ children, currentPage, currentTitle, onNavigate, onLogout }: AdminShellProps) {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
@@ -21,12 +23,27 @@ export default function AdminShell({ children, currentTitle, onLogout }: AdminSh
         </div>
         <div className="admin-section">WORKSPACE</div>
         <nav className="admin-nav" aria-label="管理后台菜单">
-          <button className="admin-nav-item active" type="button">
+          <button
+            className={`admin-nav-item ${currentPage === 'data-ingestion' ? 'active' : ''}`}
+            onClick={() => onNavigate('data-ingestion')}
+            type="button"
+          >
             <span className="admin-nav-icon-slot">
               <Icon name="database" />
             </span>
             <span>数据采集中心</span>
             <small>Today</small>
+          </button>
+          <button
+            className={`admin-nav-item ${currentPage === 'agent-status' ? 'active' : ''}`}
+            onClick={() => onNavigate('agent-status')}
+            type="button"
+          >
+            <span className="admin-nav-icon-slot">
+              <Icon name="activity" />
+            </span>
+            <span>Agent 状态</span>
+            <small>Live</small>
           </button>
         </nav>
         <div className="admin-sidebar-foot">
@@ -48,7 +65,7 @@ export default function AdminShell({ children, currentTitle, onLogout }: AdminSh
         <main className="admin-content">{children}</main>
         <footer className="admin-footer">
           <span>LOCAL ADMIN</span>
-          <strong>数据采集中心</strong>
+          <strong>{currentTitle}</strong>
         </footer>
       </div>
     </div>

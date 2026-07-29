@@ -1,9 +1,10 @@
 interface IconProps {
-  name: 'chart' | 'database' | 'file' | 'log-out' | 'search' | 'settings' | 'table' | 'tag';
+  name: 'activity' | 'chart' | 'database' | 'file' | 'log-out' | 'search' | 'settings' | 'table' | 'tag';
   size?: number;
 }
 
 const paths: Record<IconProps['name'], string[]> = {
+  activity: ['M3 12h4l3-8 4 16 3-8h4'],
   chart: ['M3 3v18h18', 'M7 15v2', 'M12 9v8', 'M17 12v5'],
   database: ['M4 6c0-2 4-3 8-3s8 1 8 3-4 3-8 3-8-1-8-3Z', 'M4 6v6c0 2 4 3 8 3s8-1 8-3V6', 'M4 12v6c0 2 4 3 8 3s8-1 8-3v-6'],
   file: ['M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2Z', 'M14 2v6h6'],

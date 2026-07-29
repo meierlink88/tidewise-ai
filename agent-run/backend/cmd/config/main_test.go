@@ -17,6 +17,7 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
 	collectorapp "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
@@ -32,6 +33,15 @@ import (
 type readyComponent struct{}
 
 func (readyComponent) Ready(context.Context) error { return nil }
+
+type semanticReanalysisStub struct{}
+
+func (semanticReanalysisStub) RequestReanalysis(
+	context.Context,
+	eventsemantic.ReanalysisRequest,
+) (eventsemantic.WorkItem, bool, error) {
+	return eventsemantic.WorkItem{}, false, nil
+}
 
 type memoryConfigurationStore struct {
 	models     map[string]agentrun.ModelProviderConfig
@@ -314,7 +324,12 @@ func TestHistoricalConfigurationUpgradeRunsThroughCLIReadinessAndCollectorHTTP(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	apiService, err := service.NewAgentRunService(application, adminService, readyComponent{})
+	apiService, err := service.NewAgentRunService(
+		application,
+		adminService,
+		semanticReanalysisStub{},
+		readyComponent{},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

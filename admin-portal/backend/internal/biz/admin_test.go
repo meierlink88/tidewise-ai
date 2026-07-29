@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 func TestSaveAgentSchedulePreservesExistingEnabledState(t *testing.T) {
@@ -73,11 +74,34 @@ func TestCollectorExecutionsUseFixedAgentAndPageSize(t *testing.T) {
 	}
 }
 
+func TestListAgentStatusesDelegatesWithoutExpandingExecutionDetails(t *testing.T) {
+	now := time.Date(2026, 7, 29, 8, 30, 0, 0, time.UTC)
+	repo := &fakeAgentRunRepo{
+		listStatuses: func(context.Context) ([]AgentStatus, error) {
+			return []AgentStatus{{
+				AgentKey: "event-semantic-enricher", DisplayName: "Event Semantic Enricher",
+				CurrentVersion: "event-semantic-enricher.v1", IsWorking: true,
+				CurrentExecutionStatus: "running", UpdatedAt: now,
+			}}, nil
+		},
+	}
+
+	result, err := NewService(nil, repo).ListAgentStatuses(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0].AgentKey != "event-semantic-enricher" ||
+		!result[0].IsWorking || result[0].CurrentExecutionStatus != "running" {
+		t.Fatalf("statuses = %#v", result)
+	}
+}
+
 type fakeAgentRunRepo struct {
 	getSchedule    func(context.Context, string) (AgentSchedule, error)
 	putSchedule    func(context.Context, string, PutAgentScheduleInput) (AgentSchedule, error)
 	patchSchedule  func(context.Context, string, PatchAgentScheduleInput) (AgentSchedule, error)
 	listExecutions func(context.Context, AgentExecutionQuery) (AgentExecutionPage, error)
+	listStatuses   func(context.Context) ([]AgentStatus, error)
 }
 
 func (f *fakeAgentRunRepo) GetAgentSchedule(ctx context.Context, key string) (AgentSchedule, error) {
@@ -91,6 +115,9 @@ func (f *fakeAgentRunRepo) PatchAgentSchedule(ctx context.Context, key string, i
 }
 func (f *fakeAgentRunRepo) ListAgentExecutions(ctx context.Context, query AgentExecutionQuery) (AgentExecutionPage, error) {
 	return f.listExecutions(ctx, query)
+}
+func (f *fakeAgentRunRepo) ListAgentStatuses(ctx context.Context) ([]AgentStatus, error) {
+	return f.listStatuses(ctx)
 }
 func (*fakeAgentRunRepo) ListModelProviders(context.Context) ([]ModelProviderConfiguration, error) {
 	return nil, nil

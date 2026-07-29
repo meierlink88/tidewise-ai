@@ -230,6 +230,25 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/admin/v1/agent-statuses:
+    get:
+      tags: [AgentRun management]
+      operationId: listAdminPortalAgentStatuses
+      summary: 获取已注册 Agent 的当前运行状态
+      description: 只返回 Agent 标识、当前版本、是否工作、当前执行状态和更新时间，不暴露执行详情。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          $ref: '#/components/responses/AgentStatusListSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/admin/v1/model-providers:
     get:
       tags: [AgentRun management]
@@ -470,6 +489,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AgentExecutionPageEnvelope'
+    AgentStatusListSuccess:
+      description: 已注册 Agent 的当前运行状态列表
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AgentStatusListEnvelope'
     ModelProviderListSuccess:
       description: 已注册模型配置列表
       headers:
@@ -659,6 +687,15 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/AgentExecutionPage'
+    AgentStatusListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/AgentStatusList'
     ModelProviderListEnvelope:
       type: object
       additionalProperties: false
@@ -949,6 +986,42 @@ components:
         started_at:
           $ref: '#/components/schemas/UTCTimestamp'
         completed_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+    AgentStatusList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentStatus'
+    AgentStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_key
+        - display_name
+        - current_version
+        - is_working
+        - current_execution_status
+        - updated_at
+      properties:
+        agent_key:
+          type: string
+          minLength: 1
+        display_name:
+          type: string
+          minLength: 1
+        current_version:
+          type: string
+          minLength: 1
+        is_working:
+          type: boolean
+        current_execution_status:
+          type: string
+          minLength: 1
+        updated_at:
           $ref: '#/components/schemas/UTCTimestamp'
     ModelProviderList:
       type: object

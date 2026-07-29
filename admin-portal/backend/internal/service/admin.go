@@ -136,6 +136,28 @@ func (s *AdminService) ListAgentExecutions(
 	}, nil
 }
 
+func (s *AdminService) ListAgentStatuses(
+	ctx context.Context,
+	_ *v1.EmptyRequest,
+) (*v1.AgentStatusListResponse, error) {
+	if s == nil || s.admin == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	result, err := s.admin.ListAgentStatuses(ctx)
+	if err != nil {
+		return nil, mapAgentRunError(err)
+	}
+	items := make([]v1.AgentStatus, 0, len(result))
+	for _, value := range result {
+		items = append(items, v1.AgentStatus{
+			AgentKey: value.AgentKey, DisplayName: value.DisplayName,
+			CurrentVersion: value.CurrentVersion, IsWorking: value.IsWorking,
+			CurrentExecutionStatus: value.CurrentExecutionStatus, UpdatedAt: value.UpdatedAt,
+		})
+	}
+	return &v1.AgentStatusListResponse{Items: items}, nil
+}
+
 func (s *AdminService) ListModelProviders(
 	ctx context.Context,
 	_ *v1.EmptyRequest,

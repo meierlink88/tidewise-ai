@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AdminAgentRunAPIError,
   loadAgentExecutions,
+  loadAgentStatuses,
   loadConnector,
   loadModelProvider,
   saveAgentSchedule,
@@ -51,6 +52,26 @@ describe('AgentRun management Admin API client', () => {
     await loadAgentExecutions('browser-token', 2);
 
     expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/agent-executions?page=2');
+  });
+
+  it('loads the safe Agent status projection through the Admin BFF', async () => {
+    const fetchMock = successFetch({
+      items: [{
+        agent_key: 'event-semantic-enricher',
+        display_name: 'Event Semantic Enricher',
+        current_version: 'event-semantic-enricher.v1',
+        is_working: true,
+        current_execution_status: 'running',
+        updated_at: '2026-07-29T08:30:00Z'
+      }]
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await loadAgentStatuses('browser-token');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/agent-statuses');
+    expect(result).toHaveLength(1);
+    expect(result[0].current_execution_status).toBe('running');
   });
 
   it('preserves model keys when omitted and explicitly clears connector keys', async () => {

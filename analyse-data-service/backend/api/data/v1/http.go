@@ -26,6 +26,14 @@ type DataHTTPServer interface {
 	GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response[ResearchReasoningTreeDetail], error)
 	ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error)
 	ListEvents(context.Context, *EventListRequest) (*Response[AdminEventPage], error)
+	ListEligibleEventSemanticEvents(context.Context, *EligibleEventSemanticEventsRequest) (*Response[EligibleEventSemanticEvents], error)
+	CreateEventSemanticContextLease(context.Context, *EventSemanticContextLeaseRequest) (*Response[EventSemanticContextLease], error)
+	GetEventSemanticContext(context.Context, *EventSemanticContextRequest) (*Response[EventSemanticContext], error)
+	ResolveEventSemanticEntities(context.Context, *EventSemanticEntityResolutionRequest) (*Response[EventSemanticEntityResolutionResult], error)
+	SearchEventSemanticDirectTargets(context.Context, *EventSemanticDirectTargetSearchRequest) (*Response[EventSemanticDirectTargetSearchResult], error)
+	CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*Response[EventSemanticSubmissionResult], error)
+	SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*Response[EventSemanticSubmissionResult], error)
+	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error)
 }
 
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
@@ -40,6 +48,14 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.GET("/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}", getReasoningTreeHandler(application))
 	router.GET("/raw-documents", listRawDocumentsHandler(application))
 	router.GET("/events", listEventsHandler(application))
+	router.GET("/event-semantics/eligible-events", listEligibleEventSemanticEventsHandler(application))
+	router.POST("/event-semantics/context-leases", createEventSemanticContextLeaseHandler(application))
+	router.GET("/event-semantics/context-leases/{context_lease_id}/context", getEventSemanticContextHandler(application))
+	router.POST("/event-semantics/entity-resolutions", resolveEventSemanticEntitiesHandler(application))
+	router.POST("/event-semantics/direct-targets:search", searchEventSemanticDirectTargetsHandler(application))
+	router.POST("/event-semantics/submissions", createEventSemanticSubmissionHandler(application))
+	router.POST("/event-semantics/submissions/{submission_id}/reviews", submitEventSemanticReviewHandler(application))
+	router.GET("/events/{event_id}/semantics", getEventSemanticsHandler(application))
 }
 
 func listActiveEventTagsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {

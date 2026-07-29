@@ -19,6 +19,8 @@ const (
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
 	ScopeEventTagRead        = "data.event-tags.read"
+	ScopeEventSemanticsRead  = "data.event-semantics.read"
+	ScopeEventSemanticsWrite = "data.event-semantics.write"
 	operationHealth          = "data.health"
 	operationReady           = "data.ready"
 )
@@ -108,6 +110,13 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeResearchRead, true
 	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents:
 		return ScopeAdminRead, true
+	case v1.OperationListEligibleEventSemanticEvents,
+		v1.OperationGetEventSemanticContext, v1.OperationGetEventSemantics:
+		return ScopeEventSemanticsRead, true
+	case v1.OperationCreateEventSemanticContextLease, v1.OperationResolveEventSemanticEntities,
+		v1.OperationSearchEventSemanticDirectTargets, v1.OperationCreateEventSemanticSubmission,
+		v1.OperationSubmitEventSemanticReview:
+		return ScopeEventSemanticsWrite, true
 	default:
 		return "", false
 	}

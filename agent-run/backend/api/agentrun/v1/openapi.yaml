@@ -15,6 +15,8 @@ tags:
     description: AgentRun process health and readiness.
   - name: Collector
     description: Asynchronous Collector Agent execution.
+  - name: Event Semantic
+    description: Internal Event Semantic Work Item control.
   - name: Admin
     description: Trusted Admin Portal Service management operations.
   - name: Documentation
@@ -84,7 +86,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CollectorRunRequest"
+              $ref: "#/components/schemas/CollectorSubmissionRequest"
       responses:
         "202":
           description: Execution created or an exact idempotent replay returned.
@@ -172,6 +174,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/agentrun/v1/event-semantic-reanalysis:
+    post:
+      tags:
+        - Event Semantic
+      operationId: createEventSemanticReanalysis
+      summary: Enqueue an AgentRun-owned Event Semantic reanalysis Work Item
+      description: |
+        Creates or idempotently replays a local AgentRun Work Item. AgentRun
+        owns queueing, leasing, retry, execution, and monitoring. Data Service
+        receives a Context Lease request only when this Work Item executes.
+      security:
+        - serviceBearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventSemanticReanalysisRequest"
+      responses:
+        "202":
+          description: Work Item created or exact idempotent replay returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSemanticWorkItemEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: The Idempotency-Key belongs to a different reanalysis request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /api/admin/v1/model-providers:
     get:
       tags:
@@ -462,6 +508,26 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
+  /api/admin/v1/agent-statuses:
+    get:
+      tags:
+        - Admin
+      operationId: listAgentStatuses
+      summary: List the current status of every registered Agent
+      description: Returns only Agent identity and current working state; no execution details are exposed.
+      security:
+        - adminBearerAuth: []
+      responses:
+        "200":
+          description: Current registered Agent statuses.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentStatusListEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /openapi.yaml:
     get:
       tags:
@@ -562,7 +628,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
-    CollectorRunRequest:
+    CollectorSubmissionRequest:
       type: object
       additionalProperties: false
       required:
@@ -576,6 +642,23 @@ components:
             Complete natural-language Collection Prompt. It may contain UTF-8,
             Markdown, and newlines; the server rejects blank text and values
             larger than 64 KiB in UTF-8 bytes.
+    EventSemanticReanalysisRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - event_id
+        - supersedes_submission_id
+        - reason
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        supersedes_submission_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
     HealthResponse:
       type: object
       additionalProperties: false
@@ -645,6 +728,15 @@ components:
           type: string
         result:
           $ref: "#/components/schemas/CollectorRunResponse"
+    EventSemanticWorkItemEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/EventSemanticWorkItem"
     ModelProviderListEnvelope:
       type: object
       additionalProperties: false
@@ -708,6 +800,45 @@ components:
           type: string
         result:
           $ref: "#/components/schemas/AgentExecutionPage"
+    AgentStatusListEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - result
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: "#/components/schemas/AgentStatusList"
+    EventSemanticWorkItem:
+      type: object
+      additionalProperties: false
+      required:
+        - work_item_id
+        - event_id
+        - supersedes_submission_id
+        - status
+        - replayed
+        - created_at
+      properties:
+        work_item_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        supersedes_submission_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed]
+        replayed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
     ModelProviderList:
       type: object
       additionalProperties: false
@@ -994,6 +1125,50 @@ components:
           type: string
           format: date-time
         completed_at:
+          type: string
+          format: date-time
+    AgentStatusList:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentStatus"
+    AgentStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_key
+        - display_name
+        - current_version
+        - is_working
+        - current_execution_status
+        - updated_at
+      properties:
+        agent_key:
+          type: string
+          minLength: 1
+        display_name:
+          type: string
+          minLength: 1
+        current_version:
+          type: string
+          minLength: 1
+        is_working:
+          type: boolean
+        current_execution_status:
+          type: string
+          enum:
+            - idle
+            - queued
+            - planning
+            - collecting
+            - materializing
+            - running
+        updated_at:
           type: string
           format: date-time
     ActiveExecutionConflict:

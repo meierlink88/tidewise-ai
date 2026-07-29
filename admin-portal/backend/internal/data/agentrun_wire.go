@@ -115,6 +115,32 @@ type agentExecutionWire struct {
 	CompletedAt          *time.Time `json:"completed_at,omitempty"`
 }
 
+type agentStatusListWire struct {
+	Items []agentStatusWire `json:"items"`
+}
+
+type agentStatusWire struct {
+	AgentKey               string    `json:"agent_key"`
+	DisplayName            string    `json:"display_name"`
+	CurrentVersion         string    `json:"current_version"`
+	IsWorking              bool      `json:"is_working"`
+	CurrentExecutionStatus string    `json:"current_execution_status"`
+	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+func (w agentStatusWire) toBiz() (biz.AgentStatus, error) {
+	status := strings.TrimSpace(w.CurrentExecutionStatus)
+	if strings.TrimSpace(w.AgentKey) == "" || strings.TrimSpace(w.DisplayName) == "" ||
+		strings.TrimSpace(w.CurrentVersion) == "" || status == "" || w.UpdatedAt.IsZero() ||
+		(w.IsWorking && status == "idle") || (!w.IsWorking && status != "idle") {
+		return biz.AgentStatus{}, biz.ErrAgentRunUnavailable
+	}
+	return biz.AgentStatus{
+		AgentKey: w.AgentKey, DisplayName: w.DisplayName, CurrentVersion: w.CurrentVersion,
+		IsWorking: w.IsWorking, CurrentExecutionStatus: status, UpdatedAt: w.UpdatedAt,
+	}, nil
+}
+
 func (w agentExecutionWire) toBiz() (biz.AgentExecution, error) {
 	if strings.TrimSpace(w.ID) == "" || strings.TrimSpace(w.AgentKey) == "" ||
 		strings.TrimSpace(w.AgentVersion) == "" || strings.TrimSpace(w.TriggerSource) == "" ||

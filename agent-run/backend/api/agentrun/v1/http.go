@@ -18,6 +18,9 @@ func RegisterAgentRunHTTPServer(server *kratoshttp.Server, service AgentRunHTTPS
 	collector.POST("", createCollectorRunHandler(service))
 	collector.GET("/{execution_id}", getCollectorRunHandler(service))
 
+	eventSemantic := server.Route(EventSemanticReanalysisPath)
+	eventSemantic.POST("", createEventSemanticReanalysisHandler(service))
+
 	admin := server.Route(AdminAPIPrefix)
 	admin.GET("/model-providers", listModelProvidersHandler(service))
 	admin.GET("/model-providers/{provider_key}", getModelProviderHandler(service))
@@ -30,11 +33,35 @@ func RegisterAgentRunHTTPServer(server *kratoshttp.Server, service AgentRunHTTPS
 	admin.PUT("/agent-schedules/{agent_key}", putAgentScheduleHandler(service))
 	admin.PATCH("/agent-schedules/{agent_key}", patchAgentScheduleHandler(service))
 	admin.GET("/agent-executions", listAgentExecutionsHandler(service))
+	admin.GET("/agent-statuses", listAgentStatusesHandler(service))
+}
+
+func createEventSemanticReanalysisHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &CreateEventSemanticReanalysisRequest{
+			IdempotencyKey: strings.TrimSpace(ctx.Request().Header.Get("Idempotency-Key")),
+		}
+		return call(
+			ctx,
+			OperationCreateEventSemanticReanalysis,
+			request,
+			http.StatusAccepted,
+			func(callContext context.Context) (any, error) {
+				if request.IdempotencyKey == "" {
+					return nil, InvalidRequest("IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key is required")
+				}
+				if err := decodeStrict(ctx.Request(), request, MaxAdminRequestBody); err != nil {
+					return nil, InvalidRequest("INVALID_REQUEST", "request body is invalid")
+				}
+				return service.CreateEventSemanticReanalysis(callContext, request)
+			},
+		)
+	}
 }
 
 func createCollectorRunHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request := &CreateCollectorRunRequest{
+		request := &CreateCollectorSubmissionRequest{
 			IdempotencyKey: strings.TrimSpace(ctx.Request().Header.Get("Idempotency-Key")),
 		}
 		return call(ctx, OperationCreateCollectorRun, request, http.StatusAccepted, func(callContext context.Context) (any, error) {
@@ -54,7 +81,7 @@ func createCollectorRunHandler(service AgentRunHTTPServer) kratoshttp.HandlerFun
 
 func getCollectorRunHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request := &GetCollectorRunRequest{ExecutionID: strings.TrimSpace(ctx.Vars().Get("execution_id"))}
+		request := &GetCollectorSubmissionRequest{ExecutionID: strings.TrimSpace(ctx.Vars().Get("execution_id"))}
 		return call(ctx, OperationGetCollectorRun, request, http.StatusOK, func(callContext context.Context) (any, error) {
 			return service.GetCollectorRun(callContext, request)
 		})
@@ -197,6 +224,15 @@ func listAgentExecutionsHandler(service AgentRunHTTPServer) kratoshttp.HandlerFu
 			request.PageSize = pageSize
 			request.SortOrder = sortOrder
 			return service.ListAgentExecutions(callContext, request)
+		})
+	}
+}
+
+func listAgentStatusesHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &ListAgentStatusesRequest{}
+		return call(ctx, OperationListAgentStatuses, request, http.StatusOK, func(callContext context.Context) (any, error) {
+			return service.ListAgentStatuses(callContext, request)
 		})
 	}
 }

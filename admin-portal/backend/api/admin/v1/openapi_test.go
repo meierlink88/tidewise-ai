@@ -52,6 +52,9 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 		"/api/admin/v1/agent-executions": {
 			{method: "get", operationID: "listAdminPortalCollectorExecutions", envelope: "AgentExecutionPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
 		},
+		"/api/admin/v1/agent-statuses": {
+			{method: "get", operationID: "listAdminPortalAgentStatuses", envelope: "AgentStatusListEnvelope", statuses: []string{"401", "403", "500", "503"}},
+		},
 		"/api/admin/v1/model-providers": {
 			{method: "get", operationID: "listAdminPortalModelProviders", envelope: "ModelProviderListEnvelope", statuses: []string{"401", "403", "500", "503"}},
 		},

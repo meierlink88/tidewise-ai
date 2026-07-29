@@ -52,6 +52,15 @@ export interface AgentExecutionPage {
   total_pages: number;
 }
 
+export interface AgentStatus {
+  agent_key: string;
+  display_name: string;
+  current_version: string;
+  is_working: boolean;
+  current_execution_status: string;
+  updated_at: string;
+}
+
 export interface ModelProviderConfiguration {
   provider_key: string;
   base_url: string;
@@ -134,6 +143,11 @@ export function setAgentScheduleEnabled(
 export function loadAgentExecutions(token: string, page: number): Promise<AgentExecutionPage> {
   const params = new URLSearchParams({ page: String(page) });
   return request<AgentExecutionPage>(token, `/api/admin/v1/agent-executions?${params.toString()}`);
+}
+
+export async function loadAgentStatuses(token: string): Promise<AgentStatus[]> {
+  const result = await request<{ items: AgentStatus[] }>(token, '/api/admin/v1/agent-statuses');
+  return result.items;
 }
 
 export async function loadModelProviders(token: string): Promise<ModelProviderConfiguration[]> {

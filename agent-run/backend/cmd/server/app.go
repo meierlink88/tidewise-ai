@@ -13,6 +13,8 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 	eventusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact/usecase"
 	eventworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact/workflow"
+	semanticusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/usecase"
+	semanticworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/workflow"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
 	bizschedule "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
@@ -135,6 +137,47 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 	if err != nil {
 		return nil, err
 	}
+	semanticApplication, err := semanticusecase.New(
+		store,
+		dataClient,
+		func(ctx context.Context) (semanticusecase.Runtime, error) {
+			modelConfigurations, err := store.LoadModelProviderConfigs(ctx)
+			if err != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic model configuration is unavailable")
+			}
+			modelConfiguration, exists := modelConfigurations[collector.ModelProviderDeepSeek]
+			if !exists || collector.ValidateModelProviderConfigForEnvironment(
+				modelConfiguration, string(config.App.Env),
+			) != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic model configuration is incomplete")
+			}
+			modelFactory := deepseek.Factory{
+				Timeout: time.Duration(config.EventFact.ModelTimeoutSeconds) * time.Second,
+			}
+			generator, err := modelFactory.New(ctx, modelConfiguration)
+			if err != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic Generator is unavailable")
+			}
+			reviewer, err := modelFactory.New(ctx, modelConfiguration)
+			if err != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic Reviewer is unavailable")
+			}
+			runnable, err := semanticworkflow.New(ctx, dataClient, generator, reviewer)
+			if err != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic workflow could not compile")
+			}
+			return semanticusecase.Runtime{
+				GeneratorModel: modelConfiguration.Model,
+				ReviewerModel:  modelConfiguration.Model,
+				Run:            runnable,
+			}, nil
+		},
+		time.Duration(config.EventFact.ReconcileIntervalSeconds)*time.Second,
+		semanticusecase.WithEventLogger(slogEventSemanticLogger{logger: logger}),
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	artifactStore := artifacts.Store{
 		Root: config.Artifact.Root, Publications: store, Now: time.Now,
@@ -191,7 +234,12 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		_ = scheduleService.Shutdown()
 		return nil, err
 	}
-	apiService, err := service.NewAgentRunService(collectorApplication, adminService, scheduleService)
+	apiService, err := service.NewAgentRunService(
+		collectorApplication,
+		adminService,
+		semanticApplication,
+		scheduleService,
+	)
 	if err != nil {
 		_ = scheduleService.Shutdown()
 		return nil, err
@@ -208,12 +256,18 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		kratos.BeforeStart(func(context.Context) error {
 			eventApplication.Start(context.Background())
 			eventApplication.Notify()
+			semanticApplication.Start(context.Background())
+			semanticApplication.Notify()
 			return nil
 		}),
 		kratos.BeforeStop(func(context.Context) error {
 			eventContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			return errors.Join(scheduleService.Shutdown(), eventApplication.Shutdown(eventContext))
+			return errors.Join(
+				scheduleService.Shutdown(),
+				eventApplication.Shutdown(eventContext),
+				semanticApplication.Shutdown(eventContext),
+			)
 		}),
 		kratos.AfterStop(func(context.Context) error {
 			stopContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -259,6 +313,18 @@ type slogEventLogger struct {
 
 type slogEventFactLogger struct {
 	logger *slog.Logger
+}
+
+type slogEventSemanticLogger struct {
+	logger *slog.Logger
+}
+
+func (l slogEventSemanticLogger) Error(eventCode string) {
+	l.logger.Error(
+		"Event Semantic Enricher lifecycle event",
+		"service", conf.ServiceName,
+		"event_code", eventCode,
+	)
 }
 
 func (l slogEventFactLogger) Error(eventCode string) {

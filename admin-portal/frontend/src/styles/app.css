@@ -250,6 +250,69 @@ select {
   font-size: 12px;
 }
 
+.agent-status-monitor {
+  display: grid;
+  gap: 18px;
+  height: 100%;
+  overflow: auto;
+  padding-bottom: 24px;
+}
+
+.agent-status-toolbar {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.agent-status-toolbar h2 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  margin: 6px 0;
+}
+
+.agent-status-toolbar p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.agent-status-summary {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agent-status-summary .ui-card {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-status-summary span,
+.agent-status-identity span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.agent-status-summary strong {
+  font-family: var(--font-serif);
+  font-size: 28px;
+}
+
+.agent-status-identity {
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 760px) {
+  .agent-status-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-status-toolbar {
+    gap: 16px;
+  }
+}
+
 .data-ingestion-center {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

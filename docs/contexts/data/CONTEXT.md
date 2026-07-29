@@ -49,6 +49,11 @@ _Avoid_: 发现映射、关键词相关、单次 Research Anchor 的临时传导
 对实体关系语义、允许端点、固定方向和遍历含义的规范谓词；正式关系只能使用已批准的稳定 code。
 _Avoid_: AI 自由关系字符串、无语义的 related_to
 
+**产品实体（Product Entity）**:
+企业生产、销售、采购或被市场需求的可识别产品对象。Product 不等同于表示经济环节或
+活动的 Chain Node，也不等同于标准化可交易的 Commodity。
+_Avoid_: Chain Node、Commodity、Technology、产品名称 Mention
+
 **AgentRun Artifact**:
 AgentRun 在采集执行中生成并长期保存的不可变原始文档对象，包含完整 Markdown 正文和全局唯一 Artifact 身份。它只属于 AgentRun；Data 不保存其存储位置，不读取或校验原文。
 _Avoid_: Data Raw Document、Event Evidence Record、Data 原始语料
@@ -190,9 +195,95 @@ _Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写�
 **Variable Signal 展示快照（Variable Signal Display Snapshot）**:
 每个 Tree 节点拥有 1..5 个按 `display_order` 排列的弱外部引用快照，恰好一个
 `primary` 且顺序为 1；其余角色为 `supporting` 或 `contradicting`。同一分析批次
-复用同一 key 时，方向和展示摘要必须一致。Data 不建设 Signal 事实表，也不验证其
-Entity、Evidence、Metric 或观测语义。
+复用同一 key 时，方向和展示摘要必须一致。该展示快照自身不建设或替代 Event-native
+Signal 事实表，也不验证其 Entity、Evidence、Metric 或观测语义；Phase One 的正式
+Event-native Variable Signal 由下述独立领域对象与 API 管理。
 _Avoid_: Variable Signal 外键、事实读取 API、从展示文本推断研究语义
+
+**Event 原生 Variable Signal（Event-native Variable Signal）**:
+由正式 Event 的明确陈述与 Evidence 直接支持、描述规范 Entity 上受控变量状态或变化的
+语义事实；它保留来源原有模态，不包含 Agent 自行预测或下游影响推导。
+_Avoid_: Variable Signal Display Snapshot、模型预测、产业链传导结论
+
+**Signal 断言模态（Signal Assertion Modality）**:
+Event 原生 Variable Signal 对来源陈述性质的区分：`actual` 表示实际结果或当前可观测
+状态，`stated_intent` 表示尚未兑现的明确计划或承诺，`source_forecast` 表示可归因于
+明确外部主体的预测或指引。
+_Avoid_: 实现状态、审核状态、Agent 预测置信度
+
+**Variable Definition**:
+对一个可用于 Event 语义的变量所作的受控 TBox 定义，明确其业务含义、值语义、允许
+方向和适用 Entity Type。它不是一次观测、一个 Metric Entity 或自由 Prompt 词汇。
+_Avoid_: Observation、Event-native Variable Signal、Metric Entity、模型自由变量名
+
+**Measurement Value**:
+Variable Signal 或未来 Observation 复用的结构化数值对象。它以受控角色区分绝对水平、
+绝对变化、相对变化和百分点变化，保留 exact/range/单边界、原始与规范值、单位、币种、
+尺度、比较口径、业务期间、近似标记和来源精度。Phase One 内嵌于 Variable Signal，
+不单独成为 Observation。
+_Avoid_: 松散 value/unit 字段、只保存格式化文本、浮点误差、丢弃原始边界或精度
+
+**Observation**:
+未来用于表达某个变量在一个时点或期间的独立实际测量对象，适用于连续采集、时间序列、
+数据修订、多来源融合和预测兑现验证。Phase One 不建立 Observation，待持续指标需求
+出现时复用 Measurement Value 并从 Variable Signal 无损迁移。
+_Avoid_: Phase One Event-native Measurement、Variable Signal 方向断言、展示快照
+
+**Direct Impact Assertion**:
+一个 Event 原生 Variable Signal 通过明确的一跳业务关系和单一机制，对另一个规范
+Entity 的受控变量形成的分析断言。它必须声明受影响 Variable Definition 与方向；
+即使被接受也不是 Event 原生事实。Signal Subject 是变量原始落点，Target 必须是不同
+Entity；没有合法跨实体 Target 时 Signal 可以独立存在。
+_Avoid_: Signal 自影响、无受控变量的利好/利空、产业链多跳传导、Security 投资方向、
+Sector/Concept 聚合结论
+
+**Direct Transmission Rule**:
+Data Service 拥有、版本化并审核的一跳 TBox 因果映射。它以 Source Entity Type、
+Source Variable、Source Direction、Entity Relation Type 和 Target Entity Type 为
+匹配条件，输出 Target 上的受影响 Variable 与方向；规则不包含具体 Event 或 Entity
+实例 ID。阶段一只为 Golden Scenario 人工定义和批准少量规则，不建设递归、自动学习、
+复杂条件或通用 DSL 引擎。
+_Avoid_: Entity Relation 实例、Direct Impact Assertion、把 Golden Entity ID 写入规则、
+AgentRun 私有规则、完整多跳 Transmission Rule 引擎
+
+**语义候选审核状态（Semantic Candidate Review Status）**:
+Event Entity Link、Variable Signal 和 Direct Impact Assertion 各自拥有的领域审核
+状态：`accepted` 可供下游使用；`pending_review` 正在等待自动 AI 复核或可恢复处理；
+`needs_reanalysis` 需要补充 Evidence、重新提取或解析；`quarantined` 表示自动重试
+预算耗尽后长期隔离；`rejected` 保留稳定拒绝原因；`superseded` 表示已有新候选替代但
+旧记录继续审计。上游未 accepted 时，下游不得 accepted。
+_Avoid_: 用 Submission 单一状态覆盖全部候选、把 Pending 当正式 ABox、等待人工 UI、
+重试耗尽后自动接受、删除拒绝记录
+
+**Acceptance Policy**:
+Data Service 用于把已通过基本合同校验的语义候选路由到审核状态的版本化策略。它组合
+确定性门禁、逐字 Evidence、独立语义审核、冲突/歧义与经 Golden Fixture 校准的分对象
+Confidence 阈值；Evidence Grade 或模型 Confidence 都不能单独决定接受或拒绝。
+_Avoid_: 全局永久阈值、未经校准的置信常量、Grade A 自动接受、Grade C 自动拒绝
+
+**独立语义复核（Independent Semantic Review）**:
+Candidate Generator 之后的独立 AI 调用，使用独立 Prompt/版本，仅接收候选、Event
+Evidence、Ontology Context 和校验清单，结构化输出 `pass | fail | indeterminate`。
+它可以与 Generator 使用同一基础 LLM，但不读取 Generator 的自由推理过程，也不能直接
+写 accepted；最终状态始终由 Data Service 的确定性门禁和 Acceptance Policy 决定。
+_Avoid_: Generator 自我确认、Reviewer 直接改领域状态、开放式多 Agent 辩论
+
+**Event Semantic Submission**:
+Data Service 对一个正式 Event 的一次语义提交、确定性校验、独立 AI Review Result、
+Acceptance Policy 裁决和产物血缘记录，与 AgentRun 的一个 Agent Execution 一对一。
+它保存外部执行身份及 Agent/Ontology/Rule/Prompt/Model 版本快照，但不复制 AgentRun 的
+runtime 状态、调度重试或执行错误；重新分析创建新 Submission 并 supersede 旧
+Submission。
+_Avoid_: Agent Execution 副本、Theme Analysis Batch、原地覆盖重新分析、跨 Event 批次
+
+**Event Semantic Context Lease**:
+Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。
+它固定 Event、Evidence、Ontology、Variable、Rule 和可选 superseded Submission 边界，
+并在创建事务中持久化 Entity / EntityRelation 在内的完整 Context snapshot。Lease 以
+Agent Execution ID 为唯一恢复身份；同一执行可精确续期，但只能复用原 snapshot，不能
+刷新实时数据。对应 Submission 终结后 Lease 被消费。它不是任务、队列或 Agent 执行租约；
+调度、失败恢复和重试始终属于 AgentRun。
+_Avoid_: Reanalysis Task、Agent Work Item、在 Data 中调度模型调用、无限续租
 
 **Reason Tree Event 关联（Reason Tree Event Association）**:
 Tree 可以从父 Theme Event 集合选择零个或多个正式 Event，并保存角色与稳定展示

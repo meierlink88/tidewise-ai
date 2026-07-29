@@ -38,6 +38,7 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		{http.MethodPut, APIPrefix + "/agent-schedules/collector", `{"agent_version":"collector.v1","schedule_type":"daily","daily_times":["08:00"],"input":{}}`, OperationSaveAgentSchedule},
 		{http.MethodPatch, APIPrefix + "/agent-schedules/collector", `{"enabled":true}`, OperationSetScheduleEnabled},
 		{http.MethodGet, APIPrefix + "/agent-executions", "", OperationListAgentExecutions},
+		{http.MethodGet, APIPrefix + "/agent-statuses", "", OperationListAgentStatuses},
 		{http.MethodGet, APIPrefix + "/model-providers", "", OperationListModelProviders},
 		{http.MethodGet, APIPrefix + "/model-providers/deepseek", "", OperationGetModelProvider},
 		{http.MethodPatch, APIPrefix + "/model-providers/deepseek", `{"model":"deepseek-chat"}`, OperationPatchModelProvider},
@@ -79,6 +80,9 @@ func (stubAdminHTTPServer) SetAgentScheduleEnabled(context.Context, *SetAgentSch
 }
 func (stubAdminHTTPServer) ListAgentExecutions(context.Context, *ListAgentExecutionsRequest) (*AgentExecutionPage, error) {
 	return &AgentExecutionPage{}, nil
+}
+func (stubAdminHTTPServer) ListAgentStatuses(context.Context, *EmptyRequest) (*AgentStatusListResponse, error) {
+	return &AgentStatusListResponse{}, nil
 }
 func (stubAdminHTTPServer) ListModelProviders(context.Context, *EmptyRequest) (*ModelProviderListResponse, error) {
 	return &ModelProviderListResponse{}, nil

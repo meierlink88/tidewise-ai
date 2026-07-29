@@ -1,0 +1,24 @@
+{
+  "request_id": "contract-supply-targets",
+  "result": {
+    "targets": [
+      {
+        "entity": {
+          "entity_id": "44444444-4444-4444-8444-444444444444",
+          "entity_type": "product",
+          "name": "8英寸晶圆",
+          "canonical_name": "8英寸晶圆",
+          "aliases": ["8-inch wafer"],
+          "status": "active"
+        },
+        "relation": {
+          "entity_relation_id": "55555555-5555-4555-8555-555555555555",
+          "from_entity_id": "33333333-3333-4333-8333-333333333333",
+          "to_entity_id": "44444444-4444-4444-8444-444444444444",
+          "relation_type": "produces",
+          "status": "active"
+        }
+      }
+    ]
+  }
+}

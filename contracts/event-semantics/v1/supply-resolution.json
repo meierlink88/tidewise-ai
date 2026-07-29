@@ -1,0 +1,21 @@
+{
+  "request_id": "contract-supply-resolution",
+  "result": {
+    "resolutions": [
+      {
+        "mention": "某晶圆厂",
+        "candidates": [
+          {
+            "entity_id": "33333333-3333-4333-8333-333333333333",
+            "entity_type": "company",
+            "name": "某晶圆厂",
+            "canonical_name": "某晶圆厂",
+            "aliases": [],
+            "status": "active"
+          }
+        ],
+        "ambiguous": false
+      }
+    ]
+  }
+}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/testsupport"
@@ -45,7 +46,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 8 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 9 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -63,8 +64,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "008" ||
-		len(report.Applied) != 8 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "009" ||
+		len(report.Applied) != 9 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -111,6 +112,13 @@ func TestMigrateSeedsCollectorAndEventFactExtractorV1(t *testing.T) {
 	}
 	if extractorVersion.AgentKey != "event-fact-extractor" {
 		t.Fatalf("Event Fact Extractor agent key = %q", extractorVersion.AgentKey)
+	}
+	semanticVersion, err := store.GetAgentVersion(ctx, "event-semantic-enricher.v1")
+	if err != nil {
+		t.Fatalf("get seeded Event Semantic Enricher version: %v", err)
+	}
+	if semanticVersion.AgentKey != "event-semantic-enricher" {
+		t.Fatalf("Event Semantic Enricher agent key = %q", semanticVersion.AgentKey)
 	}
 	if _, err := database.Exec(ctx, `ALTER TABLE connector_configs DROP COLUMN updated_at`); err != nil {
 		t.Fatal(err)
@@ -476,6 +484,68 @@ func TestOpenRejectsTidewiseDataDatabase(t *testing.T) {
 	_, err := postgres.Open(context.Background(), "postgres://user:password@localhost:5432/tidewise_local?sslmode=disable")
 	if err == nil {
 		t.Fatal("expected Tidewise Data database to be rejected before connection")
+	}
+}
+
+func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "semantic_restart_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	now := time.Date(2026, 7, 29, 8, 30, 0, 0, time.UTC)
+	eventID := "22222222-2222-4222-8222-222222222222"
+	if err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now); err != nil {
+		t.Fatal(err)
+	}
+	attempt, found, err := store.StartNextExecution(ctx, "worker-1", strings.Repeat("a", 64), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || attempt.WorkItem.EventID != eventID || attempt.WorkItem.AttemptCount != 1 {
+		t.Fatalf("first attempt = %#v found=%v", attempt, found)
+	}
+	if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+		ExecutionID: attempt.ID, Status: "failed", ErrorCode: "temporary_failure",
+		ErrorSummary: "retry", CompletedAt: now.Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second, found, err := store.StartNextExecution(
+		ctx, "worker-1", strings.Repeat("a", 64), now.Add(2*time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || second.ID != attempt.ID ||
+		second.WorkItem.ID != attempt.WorkItem.ID || second.WorkItem.AttemptCount != 2 {
+		t.Fatalf("second attempt = %#v found=%v", second, found)
+	}
+	if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+		ExecutionID: second.ID, Status: "failed", ErrorCode: "permanent_failure",
+		ErrorSummary: "exhausted", CompletedAt: now.Add(3 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, found, err = store.StartNextExecution(
+		ctx, "worker-1", strings.Repeat("a", 64), now.Add(4*time.Minute),
+	)
+	if err != nil || found {
+		t.Fatalf("exhausted Work Item found=%v err=%v", found, err)
 	}
 }
 

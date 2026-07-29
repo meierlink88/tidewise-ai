@@ -9,35 +9,39 @@ import (
 )
 
 const (
-	OperationCreateCollectorRun  = "/agentrun.v1.AgentRun/CreateCollectorRun"
-	OperationGetCollectorRun     = "/agentrun.v1.AgentRun/GetCollectorRun"
-	OperationListModelProviders  = "/agentrun.v1.AgentRun/ListModelProviders"
-	OperationGetModelProvider    = "/agentrun.v1.AgentRun/GetModelProvider"
-	OperationPatchModelProvider  = "/agentrun.v1.AgentRun/PatchModelProvider"
-	OperationListConnectors      = "/agentrun.v1.AgentRun/ListConnectors"
-	OperationGetConnector        = "/agentrun.v1.AgentRun/GetConnector"
-	OperationPatchConnector      = "/agentrun.v1.AgentRun/PatchConnector"
-	OperationListAgentSchedules  = "/agentrun.v1.AgentRun/ListAgentSchedules"
-	OperationGetAgentSchedule    = "/agentrun.v1.AgentRun/GetAgentSchedule"
-	OperationPutAgentSchedule    = "/agentrun.v1.AgentRun/PutAgentSchedule"
-	OperationPatchAgentSchedule  = "/agentrun.v1.AgentRun/PatchAgentSchedule"
-	OperationListAgentExecutions = "/agentrun.v1.AgentRun/ListAgentExecutions"
+	OperationCreateCollectorRun            = "/agentrun.v1.AgentRun/CreateCollectorRun"
+	OperationGetCollectorRun               = "/agentrun.v1.AgentRun/GetCollectorRun"
+	OperationCreateEventSemanticReanalysis = "/agentrun.v1.AgentRun/CreateEventSemanticReanalysis"
+	OperationListModelProviders            = "/agentrun.v1.AgentRun/ListModelProviders"
+	OperationGetModelProvider              = "/agentrun.v1.AgentRun/GetModelProvider"
+	OperationPatchModelProvider            = "/agentrun.v1.AgentRun/PatchModelProvider"
+	OperationListConnectors                = "/agentrun.v1.AgentRun/ListConnectors"
+	OperationGetConnector                  = "/agentrun.v1.AgentRun/GetConnector"
+	OperationPatchConnector                = "/agentrun.v1.AgentRun/PatchConnector"
+	OperationListAgentSchedules            = "/agentrun.v1.AgentRun/ListAgentSchedules"
+	OperationGetAgentSchedule              = "/agentrun.v1.AgentRun/GetAgentSchedule"
+	OperationPutAgentSchedule              = "/agentrun.v1.AgentRun/PutAgentSchedule"
+	OperationPatchAgentSchedule            = "/agentrun.v1.AgentRun/PatchAgentSchedule"
+	OperationListAgentExecutions           = "/agentrun.v1.AgentRun/ListAgentExecutions"
+	OperationListAgentStatuses             = "/agentrun.v1.AgentRun/ListAgentStatuses"
 )
 
 const (
-	CollectorRunsPath   = "/api/v1/collector/runs"
-	AdminAPIPrefix      = "/api/admin/v1"
-	MaxCollectorPrompt  = 64 * 1024
-	MaxAgentInput       = 64 * 1024
-	MaxRequestBody      = MaxCollectorPrompt*6 + 4096
-	MaxAdminRequestBody = 128 * 1024
+	CollectorRunsPath           = "/api/v1/collector/runs"
+	EventSemanticReanalysisPath = "/api/agentrun/v1/event-semantic-reanalysis"
+	AdminAPIPrefix              = "/api/admin/v1"
+	MaxCollectorPrompt          = 64 * 1024
+	MaxAgentInput               = 64 * 1024
+	MaxRequestBody              = MaxCollectorPrompt*6 + 4096
+	MaxAdminRequestBody         = 128 * 1024
 )
 
 var ErrInvalidRequest = errors.New("invalid AgentRun API request")
 
 type AgentRunHTTPServer interface {
-	CreateCollectorRun(context.Context, *CreateCollectorRunRequest) (*CollectorRunResult, error)
-	GetCollectorRun(context.Context, *GetCollectorRunRequest) (*CollectorRunResult, error)
+	CreateCollectorRun(context.Context, *CreateCollectorSubmissionRequest) (*CollectorSubmissionResult, error)
+	GetCollectorRun(context.Context, *GetCollectorSubmissionRequest) (*CollectorSubmissionResult, error)
+	CreateEventSemanticReanalysis(context.Context, *CreateEventSemanticReanalysisRequest) (*EventSemanticWorkItem, error)
 	ListModelProviders(context.Context, *ListModelProvidersRequest) (*ModelProviderList, error)
 	GetModelProvider(context.Context, *GetModelProviderRequest) (*ModelProviderConfiguration, error)
 	PatchModelProvider(context.Context, *PatchModelProviderRequest) (*ModelProviderConfiguration, error)
@@ -49,6 +53,7 @@ type AgentRunHTTPServer interface {
 	PutAgentSchedule(context.Context, *PutAgentScheduleRequest) (*AgentSchedule, error)
 	PatchAgentSchedule(context.Context, *PatchAgentScheduleRequest) (*AgentSchedule, error)
 	ListAgentExecutions(context.Context, *ListAgentExecutionsRequest) (*AgentExecutionPage, error)
+	ListAgentStatuses(context.Context, *ListAgentStatusesRequest) (*AgentStatusList, error)
 }
 
 type PublicError struct {
@@ -73,13 +78,20 @@ func InvalidRequest(code, message string) error {
 	return NewPublicError(http.StatusBadRequest, code, message, nil)
 }
 
-type CreateCollectorRunRequest struct {
+type CreateCollectorSubmissionRequest struct {
 	IdempotencyKey string `json:"-"`
 	Prompt         string `json:"prompt"`
 }
 
-type GetCollectorRunRequest struct {
+type GetCollectorSubmissionRequest struct {
 	ExecutionID string
+}
+
+type CreateEventSemanticReanalysisRequest struct {
+	IdempotencyKey         string `json:"-"`
+	EventID                string `json:"event_id"`
+	SupersedesSubmissionID string `json:"supersedes_submission_id"`
+	Reason                 string `json:"reason"`
 }
 
 type ListModelProvidersRequest struct{}
@@ -139,6 +151,8 @@ type ListAgentExecutionsRequest struct {
 	PageSize  int
 	SortOrder string
 }
+
+type ListAgentStatusesRequest struct{}
 
 type OptionalString struct {
 	Set   bool
@@ -235,7 +249,29 @@ type AgentExecutionListItem struct {
 	CompletedAt          *time.Time `json:"completed_at,omitempty"`
 }
 
-type CollectorRunResult struct {
+type AgentStatusList struct {
+	Items []AgentStatus `json:"items"`
+}
+
+type AgentStatus struct {
+	AgentKey               string    `json:"agent_key"`
+	DisplayName            string    `json:"display_name"`
+	CurrentVersion         string    `json:"current_version"`
+	IsWorking              bool      `json:"is_working"`
+	CurrentExecutionStatus string    `json:"current_execution_status"`
+	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+type EventSemanticWorkItem struct {
+	WorkItemID             string    `json:"work_item_id"`
+	EventID                string    `json:"event_id"`
+	SupersedesSubmissionID string    `json:"supersedes_submission_id"`
+	Status                 string    `json:"status"`
+	Replayed               bool      `json:"replayed"`
+	CreatedAt              time.Time `json:"created_at"`
+}
+
+type CollectorSubmissionResult struct {
 	Schema               string                `json:"schema"`
 	AgentKey             string                `json:"agent_key"`
 	AgentVersion         string                `json:"agent_version"`

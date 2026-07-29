@@ -259,6 +259,8 @@ func operationForRequest(request *http.Request) string {
 		return v1.OperationListEvents
 	case v1.APIPrefix + "/agent-executions":
 		return v1.OperationListAgentExecutions
+	case v1.APIPrefix + "/agent-statuses":
+		return v1.OperationListAgentStatuses
 	case v1.APIPrefix + "/model-providers":
 		return v1.OperationListModelProviders
 	case v1.APIPrefix + "/connectors":

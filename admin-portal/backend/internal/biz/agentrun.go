@@ -12,6 +12,7 @@ type AgentRunRepo interface {
 	PutAgentSchedule(context.Context, string, PutAgentScheduleInput) (AgentSchedule, error)
 	PatchAgentSchedule(context.Context, string, PatchAgentScheduleInput) (AgentSchedule, error)
 	ListAgentExecutions(context.Context, AgentExecutionQuery) (AgentExecutionPage, error)
+	ListAgentStatuses(context.Context) ([]AgentStatus, error)
 	ListModelProviders(context.Context) ([]ModelProviderConfiguration, error)
 	GetModelProvider(context.Context, string) (ModelProviderConfiguration, error)
 	PatchModelProvider(context.Context, string, ModelProviderPatch) (ModelProviderConfiguration, error)
@@ -89,6 +90,15 @@ type AgentExecution struct {
 	TriggeredAt          time.Time
 	StartedAt            *time.Time
 	CompletedAt          *time.Time
+}
+
+type AgentStatus struct {
+	AgentKey               string
+	DisplayName            string
+	CurrentVersion         string
+	IsWorking              bool
+	CurrentExecutionStatus string
+	UpdatedAt              time.Time
 }
 
 type ModelProviderConfiguration struct {

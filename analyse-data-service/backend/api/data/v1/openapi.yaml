@@ -18,6 +18,7 @@ tags:
   - name: Admin aggregates
   - name: Event publication
   - name: Event Tag Catalog
+  - name: Event Semantics
   - name: Research Theme import
   - name: Research Reason Tree import
 
@@ -356,6 +357,329 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/data/v1/event-semantics/eligible-events:
+    get:
+      tags: [Event Semantics]
+      operationId: listEligibleEventSemanticEvents
+      x-client-drift-anchor: data.v1.listEligibleEventSemanticEvents
+      x-required-service-scope: data.event-semantics.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 列出可创建首次语义分析 Work Item 的 Event
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Eligible Event 列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibleEventSemanticEventsEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/context-leases:
+    post:
+      tags: [Event Semantics]
+      operationId: createEventSemanticContextLease
+      x-client-drift-anchor: data.v1.createEventSemanticContextLease
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: no-automatic-retry
+      x-timeout-budget-ms: 5000
+      summary: 为 AgentRun 已领取的 Work Item 创建数据侧 Context Lease
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticContextLeaseRequest'
+      responses:
+        '201':
+          description: Context Lease 已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticContextLeaseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/context-leases/{context_lease_id}/context:
+    get:
+      tags: [Event Semantics]
+      operationId: getEventSemanticContext
+      x-client-drift-anchor: data.v1.getEventSemanticContext
+      x-required-service-scope: data.event-semantics.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Context Lease 对应 Event 与版本化本体上下文
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: context_lease_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Event Semantic Context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticContextEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/entity-resolutions:
+    post:
+      tags: [Event Semantics]
+      operationId: resolveEventSemanticEntities
+      x-client-drift-anchor: data.v1.resolveEventSemanticEntities
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-read-via-post
+      x-timeout-budget-ms: 5000
+      summary: 在 Context Lease 边界内解析既有规范 Entity
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticEntityResolutionRequest'
+      responses:
+        '200':
+          description: Entity Resolution 候选
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticEntityResolutionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/direct-targets:search:
+    post:
+      tags: [Event Semantics]
+      operationId: searchEventSemanticDirectTargets
+      x-client-drift-anchor: data.v1.searchEventSemanticDirectTargets
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-read-via-post
+      x-timeout-budget-ms: 5000
+      summary: 查询已批准 EntityRelation 上的一跳 Direct Target
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticDirectTargetSearchRequest'
+      responses:
+        '200':
+          description: Direct Target 候选
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticDirectTargetSearchEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/submissions:
+    post:
+      tags: [Event Semantics]
+      operationId: createEventSemanticSubmission
+      x-client-drift-anchor: data.v1.createEventSemanticSubmission
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-with-agent-execution-id-and-canonical-payload
+      x-timeout-budget-ms: 15000
+      x-atomicity: whole-submission-candidate-snapshot
+      summary: 持久化一个 Event 的候选快照并执行确定性预检
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticSubmissionRequest'
+      responses:
+        '200':
+          description: 相同 canonical payload 的安全重放
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticSubmissionEnvelope'
+        '201':
+          description: Submission 与候选快照已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticSubmissionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/submissions/{submission_id}/reviews:
+    post:
+      tags: [Event Semantics]
+      operationId: submitEventSemanticReview
+      x-client-drift-anchor: data.v1.submitEventSemanticReview
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-with-reviewer-execution-key-and-canonical-payload
+      x-timeout-budget-ms: 15000
+      x-atomicity: whole-review-snapshot
+      summary: 提交独立 Reviewer 或 Adjudicator 结构化结果
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: submission_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticReviewRequest'
+      responses:
+        '200':
+          description: Review 已保存并由 Data 完成状态裁决
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticSubmissionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/events/{event_id}/semantics:
+    get:
+      tags: [Event Semantics]
+      operationId: getEventSemantics
+      x-client-drift-anchor: data.v1.getEventSemantics
+      x-required-service-scope: data.event-semantics.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 读取 Event 的完整语义结果与审计状态
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Event Semantics 结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticsEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/data/v1/reviewed-event-imports:
     post:
       tags: [Event publication]
@@ -683,6 +1007,15 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
     InternalError:
       description: Data Service 内部错误
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ServiceUnavailable:
+      description: Event Semantics 依赖暂时不可用
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestID'
@@ -1697,3 +2030,788 @@ components:
           minLength: 1
         result:
           $ref: '#/components/schemas/EventPublicationResult'
+
+    EventSemanticContextLeaseRequest:
+      type: object
+      additionalProperties: false
+      required: [event_id, agent_execution_id, worker_id, lease_seconds]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        supersedes_submission_id:
+          $ref: '#/components/schemas/UUID'
+        agent_execution_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        worker_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        lease_seconds:
+          type: integer
+          minimum: 60
+          maximum: 900
+
+    EventSemanticContextLease:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, event_id, status, lease_expires_at]
+      properties:
+        context_lease_id:
+          $ref: '#/components/schemas/UUID'
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        supersedes_submission_id:
+          $ref: '#/components/schemas/UUID'
+        status:
+          type: string
+          enum: [active]
+        lease_expires_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+
+    EventSemanticContextLeaseEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EventSemanticContextLease'
+
+    EligibleEventSemanticEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+
+    EligibleEventSemanticEvents:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EligibleEventSemanticEvent'
+
+    EligibleEventSemanticEventsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EligibleEventSemanticEvents'
+
+    EventSemanticEvent:
+      type: object
+      additionalProperties: false
+      required: [id, title, summary, occurred_at, event_status, fact_status]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        occurred_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        event_status:
+          type: string
+          enum: [confirmed]
+        fact_status:
+          type: string
+          enum: [verified]
+
+    EventSemanticEvidence:
+      type: object
+      additionalProperties: false
+      required: [evidence_id, excerpt, source_level, relation, supports_fields, raw_document_id]
+      properties:
+        evidence_id:
+          $ref: '#/components/schemas/UUID'
+        excerpt:
+          type: string
+          minLength: 1
+        source_level:
+          type: string
+          enum: [primary, secondary]
+        relation:
+          type: string
+          enum: [supports, contradicts, context]
+        supports_fields:
+          type: array
+          items:
+            type: string
+        raw_document_id:
+          $ref: '#/components/schemas/UUID'
+
+    EventSemanticEntity:
+      type: object
+      additionalProperties: false
+      required: [entity_id, entity_type, name, canonical_name, aliases, status]
+      properties:
+        entity_id:
+          $ref: '#/components/schemas/UUID'
+        entity_type:
+          type: string
+        name:
+          type: string
+        canonical_name:
+          type: string
+        aliases:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+
+    EventSemanticEntityRelation:
+      type: object
+      additionalProperties: false
+      required: [entity_relation_id, from_entity_id, to_entity_id, relation_type, status]
+      properties:
+        entity_relation_id:
+          $ref: '#/components/schemas/UUID'
+        from_entity_id:
+          $ref: '#/components/schemas/UUID'
+        to_entity_id:
+          $ref: '#/components/schemas/UUID'
+        relation_type:
+          type: string
+        status:
+          type: string
+
+    EventSemanticVariableDefinition:
+      type: object
+      additionalProperties: false
+      required: [key, version, name_zh, name_en, domain, value_type, status, allowed_directions, applicable_entity_types]
+      properties:
+        key:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        name_zh:
+          type: string
+        name_en:
+          type: string
+        domain:
+          type: string
+        value_type:
+          type: string
+        status:
+          type: string
+        allowed_directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticDirection'
+        applicable_entity_types:
+          type: array
+          items:
+            type: string
+
+    EventSemanticTransmissionRule:
+      type: object
+      additionalProperties: false
+      required: [rule_key, version, status, source_entity_type, source_variable_key, source_variable_version, source_direction, relation_type, target_entity_type, affected_variable_key, affected_variable_version, affected_direction, condition_summary, mechanism_template]
+      properties:
+        rule_key:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [approved]
+        source_entity_type:
+          type: string
+        source_variable_key:
+          type: string
+        source_variable_version:
+          type: integer
+          minimum: 1
+        source_direction:
+          $ref: '#/components/schemas/EventSemanticDirection'
+        relation_type:
+          type: string
+        target_entity_type:
+          type: string
+        affected_variable_key:
+          type: string
+        affected_variable_version:
+          type: integer
+          minimum: 1
+        affected_direction:
+          $ref: '#/components/schemas/EventSemanticDirection'
+        condition_summary:
+          type: string
+        mechanism_template:
+          type: string
+
+    EventSemanticContext:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, ontology_version, acceptance_policy_version, event, evidence, entities, relations, variable_definitions, direct_transmission_rules]
+      properties:
+        context_lease_id:
+          $ref: '#/components/schemas/UUID'
+        ontology_version:
+          type: string
+        acceptance_policy_version:
+          type: string
+        event:
+          $ref: '#/components/schemas/EventSemanticEvent'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEvidence'
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntity'
+        relations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntityRelation'
+        variable_definitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticVariableDefinition'
+        direct_transmission_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticTransmissionRule'
+
+    EventSemanticContextEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EventSemanticContext'
+
+    EventSemanticEntityMention:
+      type: object
+      additionalProperties: false
+      required: [mention, allowed_entity_types]
+      properties:
+        mention:
+          type: string
+          minLength: 1
+        allowed_entity_types:
+          type: array
+          minItems: 1
+          items:
+            type: string
+
+    EventSemanticEntityResolutionRequest:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, mentions]
+      properties:
+        context_lease_id:
+          $ref: '#/components/schemas/UUID'
+        mentions:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/EventSemanticEntityMention'
+
+    EventSemanticEntityResolution:
+      type: object
+      additionalProperties: false
+      required: [mention, candidates, ambiguous]
+      properties:
+        mention:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntity'
+        ambiguous:
+          type: boolean
+
+    EventSemanticEntityResolutionResult:
+      type: object
+      additionalProperties: false
+      required: [resolutions]
+      properties:
+        resolutions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntityResolution'
+
+    EventSemanticEntityResolutionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EventSemanticEntityResolutionResult'
+
+    EventSemanticDirectTargetSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, subject_entity_id, allowed_target_types]
+      properties:
+        context_lease_id:
+          $ref: '#/components/schemas/UUID'
+        subject_entity_id:
+          $ref: '#/components/schemas/UUID'
+        allowed_target_types:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+
+    EventSemanticDirectTarget:
+      type: object
+      additionalProperties: false
+      required: [entity, relation]
+      properties:
+        entity:
+          $ref: '#/components/schemas/EventSemanticEntity'
+        relation:
+          $ref: '#/components/schemas/EventSemanticEntityRelation'
+
+    EventSemanticDirectTargetSearchResult:
+      type: object
+      additionalProperties: false
+      required: [targets]
+      properties:
+        targets:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticDirectTarget'
+
+    EventSemanticDirectTargetSearchEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EventSemanticDirectTargetSearchResult'
+
+    EventSemanticDirection:
+      type: string
+      enum: [increase, decrease, unchanged, mixed, uncertain]
+
+    EventSemanticMeasurement:
+      type: object
+      additionalProperties: false
+      required: [measurement_role, value_shape, raw_text, is_approximate, evidence_id]
+      properties:
+        measurement_role:
+          type: string
+          enum: [absolute_level, absolute_change, relative_change, percentage_point_change]
+        value_shape:
+          type: string
+          enum: [exact, range, lower_bound, upper_bound]
+        raw_value:
+          type: string
+        raw_lower:
+          type: string
+        raw_upper:
+          type: string
+        raw_unit:
+          type: string
+        canonical_value:
+          type: string
+        canonical_lower:
+          type: string
+        canonical_upper:
+          type: string
+        canonical_unit:
+          type: string
+        currency:
+          type: string
+        scale:
+          type: string
+        comparison_basis:
+          type: string
+        comparison_period:
+          type: string
+        raw_text:
+          type: string
+        is_approximate:
+          type: boolean
+        evidence_id:
+          $ref: '#/components/schemas/UUID'
+
+    EventSemanticEntityLinkCandidate:
+      type: object
+      additionalProperties: false
+      required: [candidate_key, mention, entity_id, entity_role, evidence_ids, resolution_method]
+      properties:
+        candidate_key:
+          type: string
+        mention:
+          type: string
+        entity_id:
+          $ref: '#/components/schemas/UUID'
+        entity_role:
+          type: string
+        evidence_ids:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/UUID'
+        resolution_method:
+          type: string
+        resolution_confidence:
+          type: string
+          pattern: '^(0(\.\d{1,5})?|1(\.0{1,5})?)$'
+
+    EventSemanticVariableSignalCandidate:
+      type: object
+      additionalProperties: false
+      required: [candidate_key, subject_link_key, variable_key, variable_version, direction, assertion_modality, evidence_ids, measurements]
+      properties:
+        candidate_key:
+          type: string
+        subject_link_key:
+          type: string
+        variable_key:
+          type: string
+        variable_version:
+          type: integer
+          minimum: 1
+        direction:
+          $ref: '#/components/schemas/EventSemanticDirection'
+        assertion_modality:
+          type: string
+          enum: [actual, stated_intent, source_forecast]
+        evidence_ids:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/UUID'
+        measurements:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticMeasurement'
+        statement_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        valid_from:
+          $ref: '#/components/schemas/UTCTimestamp'
+        valid_until:
+          $ref: '#/components/schemas/UTCTimestamp'
+        forecast_period_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        forecast_period_end:
+          $ref: '#/components/schemas/UTCTimestamp'
+        extraction_confidence:
+          type: string
+          pattern: '^(0(\.\d{1,5})?|1(\.0{1,5})?)$'
+
+    EventSemanticDirectImpactCandidate:
+      type: object
+      additionalProperties: false
+      required: [candidate_key, source_signal_key, target_entity_id, affected_variable_key, affected_variable_version, affected_direction, derivation_type, mechanism_summary, evidence_ids]
+      properties:
+        candidate_key:
+          type: string
+        source_signal_key:
+          type: string
+        target_entity_id:
+          $ref: '#/components/schemas/UUID'
+        affected_variable_key:
+          type: string
+        affected_variable_version:
+          type: integer
+          minimum: 1
+        affected_direction:
+          $ref: '#/components/schemas/EventSemanticDirection'
+        derivation_type:
+          type: string
+          enum: [event_explicit, rule_inferred]
+        mechanism_summary:
+          type: string
+        entity_relation_id:
+          $ref: '#/components/schemas/UUID'
+        rule_key:
+          type: string
+        rule_version:
+          type: integer
+          minimum: 1
+        evidence_ids:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/UUID'
+        assertion_confidence:
+          type: string
+          pattern: '^(0(\.\d{1,5})?|1(\.0{1,5})?)$'
+
+    EventSemanticSubmissionRequest:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, event_id, agent_execution_id, agent_key, agent_version, generator_prompt_hash, generator_model, reviewer_prompt_hash, reviewer_model, ontology_version, acceptance_policy_version, entity_links, variable_signals, direct_impacts]
+      properties:
+        context_lease_id:
+          $ref: '#/components/schemas/UUID'
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        agent_execution_id:
+          type: string
+        agent_key:
+          type: string
+          enum: [event-semantic-enricher]
+        agent_version:
+          type: string
+          enum: [event-semantic-enricher.v1]
+        supersedes_submission_id:
+          $ref: '#/components/schemas/UUID'
+        generator_prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        generator_model:
+          type: string
+        reviewer_prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        reviewer_model:
+          type: string
+        adjudicator_prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        adjudicator_model:
+          type: string
+        ontology_version:
+          type: string
+        acceptance_policy_version:
+          type: string
+        entity_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntityLinkCandidate'
+        variable_signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticVariableSignalCandidate'
+        direct_impacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticDirectImpactCandidate'
+
+    EventSemanticCandidateDecision:
+      type: object
+      additionalProperties: false
+      required: [candidate_key, status]
+      properties:
+        candidate_key:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, needs_reanalysis, quarantined, accepted, rejected, superseded]
+        reason_code:
+          type: string
+        record_id:
+          $ref: '#/components/schemas/UUID'
+
+    EventSemanticReviewSnapshot:
+      type: object
+      additionalProperties: false
+      required: [reviewer_execution_key, canonical_payload_hash, payload, created_at]
+      properties:
+        reviewer_execution_key:
+          type: string
+        canonical_payload_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        payload:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    EventSemanticReviewerWorkPackage:
+      type: object
+      additionalProperties: false
+      required: [event, evidence, entity_links, variable_signals, direct_impacts]
+      properties:
+        event:
+          $ref: '#/components/schemas/EventSemanticEvent'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEvidence'
+        entity_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntityLinkCandidate'
+        variable_signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticVariableSignalCandidate'
+        direct_impacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticDirectImpactCandidate'
+
+    EventSemanticSubmissionResult:
+      type: object
+      additionalProperties: false
+      required: [submission_id, event_id, status, canonical_payload_hash, replayed, entity_links, variable_signals, direct_impacts]
+      properties:
+        submission_id:
+          $ref: '#/components/schemas/UUID'
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        status:
+          type: string
+          enum: [pending_review, needs_reanalysis, quarantined, accepted, rejected, superseded]
+        canonical_payload_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        replayed:
+          type: boolean
+        entity_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticCandidateDecision'
+        variable_signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticCandidateDecision'
+        direct_impacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticCandidateDecision'
+        reviewer_work_package:
+          $ref: '#/components/schemas/EventSemanticReviewerWorkPackage'
+        audit_work_package:
+          $ref: '#/components/schemas/EventSemanticReviewerWorkPackage'
+        context_lease_id:
+          $ref: '#/components/schemas/UUID'
+        agent_execution_id:
+          type: string
+        agent_key:
+          type: string
+          enum: [event-semantic-enricher]
+        agent_version:
+          type: string
+          enum: [event-semantic-enricher.v1]
+        supersedes_submission_id:
+          $ref: '#/components/schemas/UUID'
+        generator_prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        generator_model:
+          type: string
+        reviewer_prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        reviewer_model:
+          type: string
+        adjudicator_prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        adjudicator_model:
+          type: string
+        ontology_version:
+          type: string
+        acceptance_policy_version:
+          type: string
+        candidate_snapshot:
+          type: object
+          additionalProperties: true
+        review_snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticReviewSnapshot'
+        created_at:
+          type: string
+          format: date-time
+        finalized_at:
+          type: string
+          format: date-time
+
+    EventSemanticSubmissionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EventSemanticSubmissionResult'
+
+    EventSemanticReviewItem:
+      type: object
+      additionalProperties: false
+      required: [candidate_type, candidate_key, decision, reason_codes, evidence_ids]
+      properties:
+        candidate_type:
+          type: string
+          enum: [entity_link, variable_signal, direct_impact]
+        candidate_key:
+          type: string
+        decision:
+          type: string
+          enum: [pass, fail, indeterminate]
+        reason_codes:
+          type: array
+          items:
+            type: string
+        evidence_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/UUID'
+
+    EventSemanticReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [reviewer_execution_key, prompt_hash, model, items]
+      properties:
+        reviewer_execution_key:
+          type: string
+        prompt_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        model:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/EventSemanticReviewItem'
+
+    EventSemanticsResult:
+      type: object
+      additionalProperties: false
+      required: [event_id, submissions]
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        submissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticSubmissionResult'
+
+    EventSemanticsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EventSemanticsResult'

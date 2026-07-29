@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
 	collectorusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
 )
@@ -32,11 +33,20 @@ type AdminUseCase interface {
 	PutAgentSchedule(context.Context, agentrun.PutAgentScheduleInput) (agentrun.AgentSchedule, error)
 	PatchAgentSchedule(context.Context, string, agentrun.PatchAgentScheduleInput) (agentrun.AgentSchedule, error)
 	ListAgentExecutions(context.Context, agentrun.ExecutionListQuery) (agentrun.ExecutionPage, error)
+	ListAgentStatuses(context.Context) ([]agentrun.AgentStatus, error)
+}
+
+type EventSemanticUseCase interface {
+	RequestReanalysis(
+		context.Context,
+		eventsemantic.ReanalysisRequest,
+	) (eventsemantic.WorkItem, bool, error)
 }
 
 type AgentRunService struct {
 	collector         CollectorUseCase
 	admin             AdminUseCase
+	eventSemantic     EventSemanticUseCase
 	scheduleReadiness Readiness
 }
 
@@ -47,6 +57,7 @@ type Readiness interface {
 func NewAgentRunService(
 	collector CollectorUseCase,
 	adminUseCase AdminUseCase,
+	eventSemanticUseCase EventSemanticUseCase,
 	scheduleReadiness Readiness,
 ) (*AgentRunService, error) {
 	if collector == nil {
@@ -55,11 +66,15 @@ func NewAgentRunService(
 	if adminUseCase == nil {
 		return nil, errors.New("Admin Use Case is required")
 	}
+	if eventSemanticUseCase == nil {
+		return nil, errors.New("Event Semantic Use Case is required")
+	}
 	if scheduleReadiness == nil {
 		return nil, errors.New("Agent Schedule Readiness is required")
 	}
 	return &AgentRunService{
-		collector: collector, admin: adminUseCase, scheduleReadiness: scheduleReadiness,
+		collector: collector, admin: adminUseCase, eventSemantic: eventSemanticUseCase,
+		scheduleReadiness: scheduleReadiness,
 	}, nil
 }
 
@@ -72,8 +87,8 @@ func (s *AgentRunService) Ready(ctx context.Context) error {
 
 func (s *AgentRunService) CreateCollectorRun(
 	ctx context.Context,
-	request *v1.CreateCollectorRunRequest,
-) (*v1.CollectorRunResult, error) {
+	request *v1.CreateCollectorSubmissionRequest,
+) (*v1.CollectorSubmissionResult, error) {
 	if request == nil || strings.TrimSpace(request.Prompt) == "" {
 		return nil, v1.InvalidRequest("PROMPT_REQUIRED", "Prompt must not be blank")
 	}
@@ -84,14 +99,14 @@ func (s *AgentRunService) CreateCollectorRun(
 	if err != nil {
 		return nil, collectorError(err)
 	}
-	result := collectorRunResult(execution)
+	result := collectorSubmissionResult(execution)
 	return &result, nil
 }
 
 func (s *AgentRunService) GetCollectorRun(
 	ctx context.Context,
-	request *v1.GetCollectorRunRequest,
-) (*v1.CollectorRunResult, error) {
+	request *v1.GetCollectorSubmissionRequest,
+) (*v1.CollectorSubmissionResult, error) {
 	if request == nil {
 		return nil, executionNotFound()
 	}
@@ -105,8 +120,50 @@ func (s *AgentRunService) GetCollectorRun(
 		}
 		return nil, internalError("Could not read Agent Execution")
 	}
-	result := collectorRunResult(execution)
+	result := collectorSubmissionResult(execution)
 	return &result, nil
+}
+
+func (s *AgentRunService) CreateEventSemanticReanalysis(
+	ctx context.Context,
+	request *v1.CreateEventSemanticReanalysisRequest,
+) (*v1.EventSemanticWorkItem, error) {
+	if request == nil ||
+		strings.TrimSpace(request.IdempotencyKey) == "" ||
+		strings.TrimSpace(request.Reason) == "" {
+		return nil, v1.InvalidRequest("INVALID_REQUEST", "Event Semantic reanalysis request is invalid")
+	}
+	if _, err := uuid.Parse(request.EventID); err != nil {
+		return nil, v1.InvalidRequest("INVALID_EVENT_ID", "Event ID is invalid")
+	}
+	if _, err := uuid.Parse(request.SupersedesSubmissionID); err != nil {
+		return nil, v1.InvalidRequest(
+			"INVALID_SUBMISSION_ID",
+			"Superseded Submission ID is invalid",
+		)
+	}
+	item, replayed, err := s.eventSemantic.RequestReanalysis(ctx, eventsemantic.ReanalysisRequest{
+		EventID:                request.EventID,
+		SupersedesSubmissionID: request.SupersedesSubmissionID,
+		Reason:                 strings.TrimSpace(request.Reason),
+		IdempotencyKey:         request.IdempotencyKey,
+	})
+	if err != nil {
+		if errors.Is(err, eventsemantic.ErrReanalysisIdempotencyConflict) {
+			return nil, v1.NewPublicError(
+				http.StatusConflict,
+				"IDEMPOTENCY_CONFLICT",
+				"Idempotency-Key belongs to another Event Semantic reanalysis request",
+				nil,
+			)
+		}
+		return nil, internalError("Could not enqueue Event Semantic reanalysis")
+	}
+	return &v1.EventSemanticWorkItem{
+		WorkItemID: item.ID, EventID: item.EventID,
+		SupersedesSubmissionID: item.SupersedesSubmissionID,
+		Status:                 item.Status, Replayed: replayed, CreatedAt: item.CreatedAt,
+	}, nil
 }
 
 func (s *AgentRunService) ListModelProviders(
@@ -280,6 +337,25 @@ func (s *AgentRunService) ListAgentExecutions(
 	return result, nil
 }
 
+func (s *AgentRunService) ListAgentStatuses(
+	ctx context.Context,
+	_ *v1.ListAgentStatusesRequest,
+) (*v1.AgentStatusList, error) {
+	items, err := s.admin.ListAgentStatuses(ctx)
+	if err != nil {
+		return nil, internalError("Could not list Agent statuses")
+	}
+	result := &v1.AgentStatusList{Items: make([]v1.AgentStatus, 0, len(items))}
+	for _, item := range items {
+		result.Items = append(result.Items, v1.AgentStatus{
+			AgentKey: item.AgentKey, DisplayName: item.DisplayName,
+			CurrentVersion: item.CurrentVersion, IsWorking: item.IsWorking,
+			CurrentExecutionStatus: item.CurrentExecutionStatus, UpdatedAt: item.UpdatedAt,
+		})
+	}
+	return result, nil
+}
+
 func collectorError(err error) error {
 	switch {
 	case errors.Is(err, collectorusecase.ErrNotReady):
@@ -365,7 +441,7 @@ func agentExecutionListItem(input agentrun.ExecutionListItem) v1.AgentExecutionL
 	}
 }
 
-func collectorRunResult(input agentrun.Execution) v1.CollectorRunResult {
+func collectorSubmissionResult(input agentrun.Execution) v1.CollectorSubmissionResult {
 	invocations := make([]v1.ConnectorInvocation, 0, len(input.Invocations))
 	for _, invocation := range input.Invocations {
 		invocations = append(invocations, v1.ConnectorInvocation{
@@ -374,7 +450,7 @@ func collectorRunResult(input agentrun.Execution) v1.CollectorRunResult {
 			ErrorSummary: invocation.ErrorSummary, StartedAt: invocation.StartedAt, CompletedAt: invocation.CompletedAt,
 		})
 	}
-	return v1.CollectorRunResult{
+	return v1.CollectorSubmissionResult{
 		Schema: "collector_run.v1", AgentKey: "collector", AgentVersion: input.AgentVersion,
 		ExecutionID: input.ID, Status: string(input.Status), StatusURL: v1.CollectorRunsPath + "/" + input.ID,
 		PromptSHA256: input.PromptSHA256, PromptBytes: input.PromptBytes, Invocations: invocations,

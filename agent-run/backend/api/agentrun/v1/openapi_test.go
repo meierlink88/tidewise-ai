@@ -33,6 +33,8 @@ func TestOpenAPIParsesWithLocalReferencesAndFreezesTidewiseEnvelopes(t *testing.
 		"AgentScheduleListEnvelope",
 		"AgentScheduleEnvelope",
 		"AgentExecutionPageEnvelope",
+		"AgentStatusListEnvelope",
+		"EventSemanticWorkItemEnvelope",
 	} {
 		schema := document.Components.Schemas[schemaName]
 		if schema == nil || schema.Value == nil {

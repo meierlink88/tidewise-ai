@@ -15,6 +15,7 @@ const (
 	OperationSaveAgentSchedule   = "admin.agentSchedules.save"
 	OperationSetScheduleEnabled  = "admin.agentSchedules.setEnabled"
 	OperationListAgentExecutions = "admin.agentExecutions.list"
+	OperationListAgentStatuses   = "admin.agentStatuses.list"
 	OperationListModelProviders  = "admin.modelProviders.list"
 	OperationGetModelProvider    = "admin.modelProviders.get"
 	OperationPatchModelProvider  = "admin.modelProviders.patch"
@@ -30,6 +31,7 @@ type AdminHTTPServer interface {
 	SaveAgentSchedule(context.Context, *SaveAgentScheduleRequest) (*AgentSchedule, error)
 	SetAgentScheduleEnabled(context.Context, *SetAgentScheduleEnabledRequest) (*AgentSchedule, error)
 	ListAgentExecutions(context.Context, *ListAgentExecutionsRequest) (*AgentExecutionPage, error)
+	ListAgentStatuses(context.Context, *EmptyRequest) (*AgentStatusListResponse, error)
 	ListModelProviders(context.Context, *EmptyRequest) (*ModelProviderListResponse, error)
 	GetModelProvider(context.Context, *ProviderKeyRequest) (*ModelProviderConfiguration, error)
 	PatchModelProvider(context.Context, *PatchModelProviderRequest) (*ModelProviderConfiguration, error)
@@ -188,6 +190,19 @@ type AgentExecution struct {
 	TriggeredAt          time.Time  `json:"triggered_at"`
 	StartedAt            *time.Time `json:"started_at,omitempty"`
 	CompletedAt          *time.Time `json:"completed_at,omitempty"`
+}
+
+type AgentStatusListResponse struct {
+	Items []AgentStatus `json:"items"`
+}
+
+type AgentStatus struct {
+	AgentKey               string    `json:"agent_key"`
+	DisplayName            string    `json:"display_name"`
+	CurrentVersion         string    `json:"current_version"`
+	IsWorking              bool      `json:"is_working"`
+	CurrentExecutionStatus string    `json:"current_execution_status"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 type ModelProviderListResponse struct {

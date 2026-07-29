@@ -30,6 +30,7 @@ type Client struct {
 	baseURL          string
 	serviceToken     string
 	http             *http.Client
+	timeout          time.Duration
 	maxResponseBytes int64
 }
 
@@ -73,7 +74,8 @@ func New(config Config) (*Client, error) {
 	}
 	return &Client{
 		baseURL: parsed.String(), serviceToken: config.ServiceToken,
-		http: &http.Client{Timeout: config.Timeout}, maxResponseBytes: config.MaxResponseBytes,
+		http: &http.Client{Timeout: config.Timeout}, timeout: config.Timeout,
+		maxResponseBytes: config.MaxResponseBytes,
 	}, nil
 }
 
