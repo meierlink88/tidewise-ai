@@ -1236,7 +1236,7 @@ Golden Data Preparation，不是新 Connector。只有证明现有能力无法�
 → AgentRun consumer 解码与血缘断言
 ```
 
-至少验证：
+Phase One 验收测试组合至少验证：
 
 - 正常形成 Entity Link、Variable Signal 和 Direct Impact；
 - 相同输入重复运行幂等；
@@ -1249,12 +1249,30 @@ Golden Data Preparation，不是新 Connector。只有证明现有能力无法�
 - Data Service 可重新读取完整语义结果；
 - 不生成 Theme / Reason Tree，不修改 Miniapp，不新增 Neo4j 投影。
 
+其中跨服务 smoke 负责证明一条完整 accepted 路径和自动隔离路径；确定性错误矩阵保留在
+Data Biz / PostgreSQL 边界，provider failure 与 durable resume 保留在 AgentRun
+Application / Workflow，unknown publication result 与 HTTP 重放保留在 typed Data Client。
+不把同一错误矩阵重复复制到跨服务 smoke：
+
+- Data 非法 ID / Variable / Unit / Time / Rule：
+  `internal/biz/eventsemantics/precheck_test.go`；
+- Data 状态、幂等、复核、隔离、supersede 和完整读回：
+  `internal/service/event_semantics_postgres_integration_test.go`；
+- AgentRun provider failure、terminal reconciliation 和不重复模型调用：
+  `internal/biz/agents/eventsemantic/usecase/application_test.go`；
+- Workflow 独立 Reviewer 与持久化 Submission resume：
+  `internal/biz/agents/eventsemantic/workflow/workflow_test.go`；
+- Data API unknown result 有界重放：
+  `internal/data/dataclient/event_semantic_test.go`。
+
 ### 12.3 隔离模拟链路
 
 `agent-run/backend/cmd/server/event_semantics_synthetic_e2e_test.go` 提供显式开启的跨服务
-验收，不进入普通单元测试默认路径。测试装置调用 Data-owned migration command 创建
-临时 Data PostgreSQL，启动真实 Data HTTP 服务，并创建独立 AgentRun PostgreSQL；
-AgentRun 仍只通过 Data v1 API 读取和发布，测试结束强制删除两个临时数据库。
+验收，不进入普通单元测试默认路径。Data-owned
+`cmd/event-semantics-synthetic-fixture` 负责临时 Data PostgreSQL 的生命周期、种子和
+Theme / Reason 排除检查；测试装置调用 Data-owned migration command 后启动真实 Data
+HTTP 服务，并创建独立 AgentRun PostgreSQL。AgentRun runtime 仍只通过 Data v1 API
+读取和发布，测试结束强制删除两个临时数据库。
 
 运行条件：
 
@@ -1279,6 +1297,7 @@ go test ./agent-run/backend/cmd/server \
   Review Snapshot 和 accepted record ID；
 - Agent Status 为非工作态 `idle`，两条 Event Semantic Execution 历史状态均为
   `succeeded`；
+- 再次 Tick 不新增 Work Item / Execution，也不重复调用 Generator / Reviewer；
 - `research_themes` 与 `research_reasoning_trees` 在执行前后均为 0。
 
 该模拟链路证明工程通路和分析师读取合同可用，但不替代 12.1 的真实 Event Golden

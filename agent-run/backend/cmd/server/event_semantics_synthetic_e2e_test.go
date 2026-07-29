@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -12,15 +12,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	semanticusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/usecase"
 	semanticworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/workflow"
@@ -42,30 +38,23 @@ const (
 	syntheticAcceptedEventID       = "20000000-0000-4000-8000-000000000002"
 	syntheticAcceptedEvidenceID    = "20000000-0000-4000-8000-000000000003"
 
-	syntheticQuarantinedRawDocumentID = "21000000-0000-4000-8000-000000000001"
-	syntheticQuarantinedEventID       = "21000000-0000-4000-8000-000000000002"
-	syntheticQuarantinedEvidenceID    = "21000000-0000-4000-8000-000000000003"
+	syntheticQuarantinedEventID    = "21000000-0000-4000-8000-000000000002"
+	syntheticQuarantinedEvidenceID = "21000000-0000-4000-8000-000000000003"
 )
 
 func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 	if os.Getenv("EVENT_SEMANTICS_SYNTHETIC_E2E") != "1" {
 		t.Skip("set EVENT_SEMANTICS_SYNTHETIC_E2E=1 to run the isolated cross-service acceptance")
 	}
-	dataDatabaseURL := requireSyntheticEnvironment(t, "TIDEWISE_TEST_DATABASE_URL")
-	agentRunDatabaseURL := requireSyntheticEnvironment(t, "AGENTRUN_TEST_DATABASE_URL")
+	dataDatabaseURL := requireSyntheticDatabaseEnvironment(t, "TIDEWISE_TEST_DATABASE_URL")
+	agentRunDatabaseURL := requireSyntheticDatabaseEnvironment(t, "AGENTRUN_TEST_DATABASE_URL")
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	repositoryRoot := syntheticRepositoryRoot(t)
-	isolatedDataURL := createSyntheticDatabase(t, ctx, dataDatabaseURL, "tw_semantic_acceptance")
-	dataBaseURL := startSyntheticDataService(t, ctx, repositoryRoot, isolatedDataURL)
-	dataDatabase, err := pgxpool.New(ctx, isolatedDataURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(dataDatabase.Close)
-	seedSyntheticEntities(t, ctx, dataDatabase)
-	assertSyntheticResearchOutputs(t, ctx, dataDatabase, 0, 0)
+	dataFixture := startSyntheticDataService(
+		t, ctx, syntheticRepositoryRoot(t), dataDatabaseURL,
+	)
+	dataFixture.assertEmptyResearch(t, ctx)
 
 	isolatedAgentRunURL, cleanupAgentRun, err := testsupport.IsolatedPostgresDatabase(
 		ctx, agentRunDatabaseURL, "event_semantics_synthetic_acceptance",
@@ -84,24 +73,15 @@ func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 	}
 	store := agentrunpostgres.New(agentRunDatabase)
 	dataClient, err := dataclient.New(dataclient.Config{
-		BaseURL: dataBaseURL, ServiceToken: syntheticDataToken,
+		BaseURL: dataFixture.baseURL, ServiceToken: syntheticDataToken,
 		Timeout: 5 * time.Second, MaxResponseBytes: 4 * 1024 * 1024,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	generator := &syntheticQueuedModel{responses: []string{
-		syntheticNativeCandidates(syntheticAcceptedEvidenceID),
-		syntheticDirectImpact(syntheticAcceptedEvidenceID),
-		syntheticNativeCandidates(syntheticQuarantinedEvidenceID),
-		syntheticDirectImpact(syntheticQuarantinedEvidenceID),
-	}}
-	reviewer := &syntheticQueuedModel{responses: []string{
-		syntheticReview("pass", syntheticAcceptedEvidenceID),
-		syntheticReview("indeterminate", syntheticQuarantinedEvidenceID),
-		syntheticReview("indeterminate", syntheticQuarantinedEvidenceID),
-	}}
+	generator := &syntheticSemanticModel{kind: "generator"}
+	reviewer := &syntheticSemanticModel{kind: "reviewer"}
 	runnable, err := semanticworkflow.New(ctx, dataClient, generator, reviewer)
 	if err != nil {
 		t.Fatal(err)
@@ -122,33 +102,32 @@ func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	seedSyntheticEvent(
-		t, ctx, dataDatabase,
-		syntheticAcceptedRawDocumentID, syntheticAcceptedEventID, syntheticAcceptedEvidenceID,
-		"synthetic:accepted", "2026-07-28T08:00:00Z",
-	)
-	if err := semanticApplication.Tick(ctx); err != nil {
-		t.Fatalf("run accepted synthetic Event: %v", err)
+	for index := 0; index < 2; index++ {
+		if err := semanticApplication.Tick(ctx); err != nil {
+			t.Fatalf("run synthetic Event %d: %v", index+1, err)
+		}
 	}
 	accepted, err := dataClient.GetEventSemantics(ctx, syntheticAcceptedEventID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertSyntheticAcceptedSemantics(t, accepted)
-
-	seedSyntheticEvent(
-		t, ctx, dataDatabase,
-		syntheticQuarantinedRawDocumentID, syntheticQuarantinedEventID,
-		syntheticQuarantinedEvidenceID, "synthetic:quarantined", "2026-07-28T09:00:00Z",
-	)
-	if err := semanticApplication.Tick(ctx); err != nil {
-		t.Fatalf("run quarantined synthetic Event: %v", err)
-	}
 	quarantined, err := dataClient.GetEventSemantics(ctx, syntheticQuarantinedEventID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertSyntheticQuarantinedSemantics(t, quarantined)
+
+	generatorCalls, reviewerCalls := generator.calls, reviewer.calls
+	if err := semanticApplication.Tick(ctx); err != nil {
+		t.Fatalf("replay empty Event Semantic tick: %v", err)
+	}
+	if generator.calls != generatorCalls || reviewer.calls != reviewerCalls {
+		t.Fatalf(
+			"idempotent tick repeated model calls: generator=%d/%d reviewer=%d/%d",
+			generator.calls, generatorCalls, reviewer.calls, reviewerCalls,
+		)
+	}
 
 	adminService, err := admin.New(store, admin.Registry{}, "dev")
 	if err != nil {
@@ -173,7 +152,7 @@ func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 			t.Fatalf("execution %s status = %q, want succeeded", execution.ID, execution.Status)
 		}
 	}
-	assertSyntheticResearchOutputs(t, ctx, dataDatabase, 0, 0)
+	dataFixture.assertEmptyResearch(t, ctx)
 	t.Logf(
 		"accepted_event=%s accepted_submission=%s quarantined_event=%s quarantined_submission=%s executions=%d",
 		syntheticAcceptedEventID, accepted.Submissions[0].SubmissionID,
@@ -182,27 +161,48 @@ func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 	)
 }
 
-type syntheticQueuedModel struct {
-	mu        sync.Mutex
-	responses []string
+type syntheticSemanticModel struct {
+	kind  string
+	calls int
 }
 
-func (m *syntheticQueuedModel) Generate(
+func (m *syntheticSemanticModel) Generate(
 	_ context.Context,
-	_ []*schema.Message,
+	input []*schema.Message,
 	_ ...model.Option,
 ) (*schema.Message, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if len(m.responses) == 0 {
-		return nil, errors.New("unexpected synthetic model call")
+	m.calls++
+	var content strings.Builder
+	for _, message := range input {
+		content.WriteString(message.Content)
 	}
-	response := m.responses[0]
-	m.responses = m.responses[1:]
-	return schema.AssistantMessage(response, nil), nil
+	payload := content.String()
+	evidenceID := ""
+	switch {
+	case strings.Contains(payload, syntheticAcceptedEvidenceID):
+		evidenceID = syntheticAcceptedEvidenceID
+	case strings.Contains(payload, syntheticQuarantinedEvidenceID):
+		evidenceID = syntheticQuarantinedEvidenceID
+	default:
+		return nil, errors.New("synthetic model input has no fixture Evidence")
+	}
+	if m.kind == "generator" {
+		if strings.Contains(payload, "direct_targets_by_link_key") {
+			return schema.AssistantMessage(syntheticDirectImpact(evidenceID), nil), nil
+		}
+		return schema.AssistantMessage(syntheticNativeCandidates(evidenceID), nil), nil
+	}
+	if m.kind == "reviewer" {
+		decision := "indeterminate"
+		if evidenceID == syntheticAcceptedEvidenceID {
+			decision = "pass"
+		}
+		return schema.AssistantMessage(syntheticReview(decision, evidenceID), nil), nil
+	}
+	return nil, errors.New("synthetic model kind is invalid")
 }
 
-func (*syntheticQueuedModel) Stream(
+func (*syntheticSemanticModel) Stream(
 	context.Context,
 	[]*schema.Message,
 	...model.Option,
@@ -210,7 +210,25 @@ func (*syntheticQueuedModel) Stream(
 	return nil, errors.New("synthetic model does not stream")
 }
 
-func requireSyntheticEnvironment(t *testing.T, key string) string {
+type syntheticDataService struct {
+	baseURL            string
+	fixtureBinary      string
+	fixtureEnvironment []string
+	repositoryRoot     string
+}
+
+func (s syntheticDataService) assertEmptyResearch(
+	t *testing.T,
+	ctx context.Context,
+) {
+	t.Helper()
+	runSyntheticFixture(
+		t, ctx, s.repositoryRoot, s.fixtureBinary, s.fixtureEnvironment,
+		"-action", "assert-empty-research",
+	)
+}
+
+func requireSyntheticDatabaseEnvironment(t *testing.T, key string) string {
 	t.Helper()
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -236,51 +254,64 @@ func syntheticRepositoryRoot(t *testing.T) string {
 	return root
 }
 
-func createSyntheticDatabase(
-	t *testing.T,
-	ctx context.Context,
-	baseURL string,
-	prefix string,
-) string {
-	t.Helper()
-	base, err := pgxpool.New(ctx, baseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	databaseName := prefix + "_" + strings.ReplaceAll(uuid.NewString(), "-", "")
-	identifier := pgx.Identifier{databaseName}.Sanitize()
-	if _, err := base.Exec(ctx, "CREATE DATABASE "+identifier); err != nil {
-		base.Close()
-		t.Fatal(err)
-	}
-	parsed, err := url.Parse(baseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed.Path = "/" + databaseName
-	t.Cleanup(func() {
-		cleanupContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_, _ = base.Exec(cleanupContext, "DROP DATABASE "+identifier+" WITH (FORCE)")
-		base.Close()
-	})
-	return parsed.String()
-}
-
 func startSyntheticDataService(
 	t *testing.T,
 	ctx context.Context,
 	repositoryRoot string,
-	databaseURL string,
-) string {
+	baseDatabaseURL string,
+) syntheticDataService {
 	t.Helper()
-	parsed, err := url.Parse(databaseURL)
+	temporary := t.TempDir()
+	binaryDirectory := filepath.Join(temporary, "bin")
+	if err := os.Mkdir(binaryDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	fixtureBinary := filepath.Join(binaryDirectory, "data-fixture")
+	migrateBinary := filepath.Join(binaryDirectory, "data-migrate")
+	serverBinary := filepath.Join(binaryDirectory, "data-server")
+	buildSyntheticBinary(
+		t, ctx, repositoryRoot, fixtureBinary,
+		"./analyse-data-service/backend/cmd/event-semantics-synthetic-fixture",
+	)
+	buildSyntheticBinary(
+		t, ctx, repositoryRoot, migrateBinary, "./analyse-data-service/backend/cmd/dbmigrate",
+	)
+	buildSyntheticBinary(
+		t, ctx, repositoryRoot, serverBinary, "./analyse-data-service/backend/cmd/server",
+	)
+	createOutput := runSyntheticFixture(
+		t, ctx, repositoryRoot, fixtureBinary,
+		append(os.Environ(), "EVENT_SEMANTICS_SYNTHETIC_FIXTURE=1"),
+		"-action", "create-database", "-base-url", baseDatabaseURL,
+	)
+	var created struct {
+		DatabaseName string `json:"database_name"`
+		DatabaseURL  string `json:"database_url"`
+	}
+	if err := json.Unmarshal(createOutput, &created); err != nil ||
+		created.DatabaseName == "" || created.DatabaseURL == "" {
+		t.Fatalf("decode Data fixture database identity: %v\n%s", err, createOutput)
+	}
+	t.Cleanup(func() {
+		cleanupContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		command := exec.CommandContext(
+			cleanupContext, fixtureBinary,
+			"-action", "drop-database",
+			"-base-url", baseDatabaseURL,
+			"-target-database", created.DatabaseName,
+		)
+		command.Dir = repositoryRoot
+		command.Env = append(os.Environ(), "EVENT_SEMANTICS_SYNTHETIC_FIXTURE=1")
+		_ = command.Run()
+	})
+
+	parsed, err := url.Parse(created.DatabaseURL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	password, _ := parsed.User.Password()
 	port := reserveSyntheticPort(t)
-	temporary := t.TempDir()
 	configDirectory := filepath.Join(temporary, "config")
 	if err := os.Mkdir(configDirectory, 0o700); err != nil {
 		t.Fatal(err)
@@ -323,37 +354,29 @@ migration:
 	); err != nil {
 		t.Fatal(err)
 	}
-	binaryDirectory := filepath.Join(temporary, "bin")
-	if err := os.Mkdir(binaryDirectory, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	migrateBinary := filepath.Join(binaryDirectory, "data-migrate")
-	serverBinary := filepath.Join(binaryDirectory, "data-server")
-	buildSyntheticBinary(
-		t, ctx, repositoryRoot, migrateBinary, "./analyse-data-service/backend/cmd/dbmigrate",
-	)
-	buildSyntheticBinary(
-		t, ctx, repositoryRoot, serverBinary, "./analyse-data-service/backend/cmd/server",
-	)
-	environment := append(os.Environ(),
+	fixtureEnvironment := append(os.Environ(),
 		"APP_ENV=local",
 		"TIDEWISE_CONFIG_DIR="+configDirectory,
 		"TIDEWISW_DB_PASSWORD="+password,
 		"DATA_SERVICE_TOKEN="+syntheticDataToken,
+		"EVENT_SEMANTICS_SYNTHETIC_FIXTURE=1",
 		"PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified "+
 			"-c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified "+
 			"-c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified",
 	)
 	migration := exec.CommandContext(ctx, migrateBinary, "-apply")
 	migration.Dir = repositoryRoot
-	migration.Env = environment
+	migration.Env = fixtureEnvironment
 	if output, err := migration.CombinedOutput(); err != nil {
 		t.Fatalf("migrate synthetic Data database: %v\n%s", err, output)
 	}
+	runSyntheticFixture(
+		t, ctx, repositoryRoot, fixtureBinary, fixtureEnvironment, "-action", "seed",
+	)
 
 	command := exec.Command(serverBinary)
 	command.Dir = repositoryRoot
-	command.Env = environment
+	command.Env = fixtureEnvironment
 	var logs strings.Builder
 	command.Stdout = &logs
 	command.Stderr = &logs
@@ -362,7 +385,7 @@ migration:
 	}
 	finished := make(chan error, 1)
 	go func() { finished <- command.Wait() }()
-	stop := func() {
+	t.Cleanup(func() {
 		if command.Process == nil {
 			return
 		}
@@ -371,9 +394,42 @@ migration:
 		case <-finished:
 		case <-time.After(5 * time.Second):
 		}
-	}
-	t.Cleanup(stop)
+	})
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+	waitForSyntheticDataService(t, ctx, baseURL, finished, &logs)
+	return syntheticDataService{
+		baseURL: baseURL, fixtureBinary: fixtureBinary,
+		fixtureEnvironment: fixtureEnvironment, repositoryRoot: repositoryRoot,
+	}
+}
+
+func runSyntheticFixture(
+	t *testing.T,
+	ctx context.Context,
+	repositoryRoot string,
+	fixtureBinary string,
+	environment []string,
+	args ...string,
+) []byte {
+	t.Helper()
+	command := exec.CommandContext(ctx, fixtureBinary, args...)
+	command.Dir = repositoryRoot
+	command.Env = environment
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run Data-owned synthetic fixture %v: %v\n%s", args, err, output)
+	}
+	return output
+}
+
+func waitForSyntheticDataService(
+	t *testing.T,
+	ctx context.Context,
+	baseURL string,
+	finished <-chan error,
+	logs *strings.Builder,
+) {
+	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		request, _ := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/healthz", nil)
@@ -382,7 +438,7 @@ migration:
 		if requestErr == nil {
 			response.Body.Close()
 			if response.StatusCode == http.StatusOK {
-				return baseURL
+				return
 			}
 		}
 		select {
@@ -391,7 +447,6 @@ migration:
 		default:
 		}
 		if time.Now().After(deadline) {
-			stop()
 			t.Fatalf("synthetic Data Service did not become ready\n%s", logs.String())
 		}
 		time.Sleep(25 * time.Millisecond)
@@ -427,86 +482,6 @@ func buildSyntheticBinary(
 	}
 }
 
-func seedSyntheticEntities(t *testing.T, ctx context.Context, database *pgxpool.Pool) {
-	t.Helper()
-	if _, err := database.Exec(ctx, `
-INSERT INTO entity_nodes (
-  id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-) VALUES
-  ($1, 'company:synthetic-wafer-fab', 'company', 'company',
-   'Synthetic Wafer Fab', 'Synthetic Wafer Fab', ARRAY['SWF'], 'active'),
-  ($2, 'product:synthetic-wafer', 'product', 'product',
-   'Synthetic 8-inch Wafer', 'Synthetic 8-inch Wafer', ARRAY['Synthetic Wafer'], 'active')
-`, syntheticCompanyID, syntheticProductID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(ctx, `
-INSERT INTO entity_edges (
-  id, from_entity_id, to_entity_id, relation_type, evidence_note, status
-) VALUES ($1, $2, $3, 'produces', 'Synthetic acceptance fixture', 'active')
-`, syntheticRelationID, syntheticCompanyID, syntheticProductID); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func seedSyntheticEvent(
-	t *testing.T,
-	ctx context.Context,
-	database *pgxpool.Pool,
-	rawDocumentID string,
-	eventID string,
-	evidenceID string,
-	dedupeKey string,
-	occurredAt string,
-) {
-	t.Helper()
-	contentHash := fmt.Sprintf("%x", sha256.Sum256([]byte("raw:"+eventID)))
-	evidenceHash := fmt.Sprintf("%x", sha256.Sum256([]byte("evidence:"+evidenceID)))
-	if _, err := database.Exec(ctx, `
-INSERT INTO raw_documents (
-  id, ingest_channel, source_type, source_name, source_url, title, content_text,
-  raw_mime_type, language, published_at, collected_at, content_hash, ingest_status
-) VALUES (
-  $1, 'synthetic_acceptance', 'news', 'Synthetic Primary Source',
-  'https://synthetic.invalid/wafer', 'Synthetic wafer production update',
-  'Synthetic Wafer Fab production fell 10%', 'text/plain', 'en',
-  $2, $2::timestamptz + interval '1 minute', $3, 'collected'
-)
-`, rawDocumentID, occurredAt, contentHash); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(ctx, `
-INSERT INTO events (
-  id, title, summary, event_time, first_seen_at, knowable_at,
-  event_status, fact_status, dedupe_key, fact_payload
-) VALUES (
-  $1, 'Synthetic Wafer Fab production fell 10%',
-  'Synthetic Wafer Fab confirmed a 10% production decline.',
-  $3, $3::timestamptz + interval '1 minute', $3::timestamptz + interval '1 minute',
-  'confirmed', 'verified', $2, '{"production_change_percent":-10}'::jsonb
-)
-`, eventID, dedupeKey, occurredAt); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(ctx, `
-INSERT INTO event_sources (
-  id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
-  evidence_relation, supports_fields, is_primary
-) VALUES (
-  $1, $2, $3, 'primary', 'Synthetic Wafer Fab production fell 10%',
-  $4, 'supports',
-  ARRAY['title','factual_summary','occurred_at','fact_payload'], true
-)
-`, evidenceID, eventID, rawDocumentID, evidenceHash); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(
-		ctx, `UPDATE events SET primary_source_id = $2 WHERE id = $1`, eventID, evidenceID,
-	); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func syntheticNativeCandidates(evidenceID string) string {
 	return fmt.Sprintf(
 		`{"entity_links":[{"candidate_key":"company","mention":"Synthetic Wafer Fab","entity_id":"%s","entity_role":"subject","evidence_ids":["%s"],"resolution_method":"model_guess","resolution_confidence":"0.99"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["%s"],"measurements":[{"measurement_role":"relative_change","value_shape":"exact","raw_value":"-10","raw_unit":"%%","canonical_value":"-10","canonical_unit":"percent","raw_text":"production fell 10%%","is_approximate":false,"evidence_id":"%s"}],"extraction_confidence":"0.98"}]}`,
@@ -535,6 +510,18 @@ func assertSyntheticAcceptedSemantics(t *testing.T, semantics eventsemantic.Even
 	}
 	submission := semantics.Submissions[0]
 	if submission.Status != "accepted" ||
+		submission.ContextLeaseID == "" || submission.AgentExecutionID == "" ||
+		submission.AgentKey != eventsemantic.AgentKey ||
+		submission.AgentVersion != eventsemantic.AgentVersion ||
+		len(submission.GeneratorPromptHash) != 64 ||
+		submission.GeneratorModel != "synthetic-generator-v1" ||
+		len(submission.ReviewerPromptHash) != 64 ||
+		submission.ReviewerModel != "synthetic-reviewer-v1" ||
+		len(submission.AdjudicatorPromptHash) != 64 ||
+		submission.AdjudicatorModel != "synthetic-reviewer-v1" ||
+		submission.OntologyVersion != "event-semantics.phase-one@1" ||
+		submission.AcceptancePolicyVersion != "event-semantics.phase-one@1" ||
+		len(submission.CandidateSnapshot) == 0 ||
 		len(submission.EntityLinks) != 1 || submission.EntityLinks[0].Status != "accepted" ||
 		len(submission.VariableSignals) != 1 || submission.VariableSignals[0].Status != "accepted" ||
 		submission.VariableSignals[0].RecordID == "" ||
@@ -542,6 +529,9 @@ func assertSyntheticAcceptedSemantics(t *testing.T, semantics eventsemantic.Even
 		submission.DirectImpacts[0].RecordID == "" ||
 		submission.AuditWorkPackage == nil ||
 		submission.AuditWorkPackage.Evidence[0].RawDocumentID != syntheticAcceptedRawDocumentID ||
+		submission.AuditWorkPackage.DirectImpacts[0].RuleKey !=
+			"production_decrease_reduces_product_supply" ||
+		submission.AuditWorkPackage.DirectImpacts[0].RuleVersion != 1 ||
 		len(submission.ReviewSnapshots) != 1 {
 		t.Fatalf("accepted Submission = %#v", submission)
 	}
@@ -554,6 +544,7 @@ func assertSyntheticQuarantinedSemantics(t *testing.T, semantics eventsemantic.E
 	}
 	submission := semantics.Submissions[0]
 	if submission.Status != "quarantined" ||
+		submission.AgentExecutionID == "" ||
 		len(submission.EntityLinks) != 1 || submission.EntityLinks[0].Status != "quarantined" ||
 		len(submission.VariableSignals) != 1 || submission.VariableSignals[0].Status != "quarantined" ||
 		len(submission.DirectImpacts) != 1 || submission.DirectImpacts[0].Status != "quarantined" ||
@@ -574,27 +565,4 @@ func assertSyntheticAgentStatus(t *testing.T, statuses []agentrun.AgentStatus) {
 		return
 	}
 	t.Fatalf("Event Semantic Agent status missing from %#v", statuses)
-}
-
-func assertSyntheticResearchOutputs(
-	t *testing.T,
-	ctx context.Context,
-	database *pgxpool.Pool,
-	wantThemes int,
-	wantReasoningTrees int,
-) {
-	t.Helper()
-	var themes, reasoningTrees int
-	if err := database.QueryRow(ctx, `SELECT count(*) FROM research_themes`).Scan(&themes); err != nil {
-		t.Fatal(err)
-	}
-	if err := database.QueryRow(ctx, `SELECT count(*) FROM research_reasoning_trees`).Scan(&reasoningTrees); err != nil {
-		t.Fatal(err)
-	}
-	if themes != wantThemes || reasoningTrees != wantReasoningTrees {
-		t.Fatalf(
-			"research outputs themes=%d reasoning_trees=%d, want %d/%d",
-			themes, reasoningTrees, wantThemes, wantReasoningTrees,
-		)
-	}
 }
