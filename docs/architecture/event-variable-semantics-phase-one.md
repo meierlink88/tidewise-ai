@@ -1249,6 +1249,41 @@ Golden Data Preparation，不是新 Connector。只有证明现有能力无法�
 - Data Service 可重新读取完整语义结果；
 - 不生成 Theme / Reason Tree，不修改 Miniapp，不新增 Neo4j 投影。
 
+### 12.3 隔离模拟链路
+
+`agent-run/backend/cmd/server/event_semantics_synthetic_e2e_test.go` 提供显式开启的跨服务
+验收，不进入普通单元测试默认路径。测试装置调用 Data-owned migration command 创建
+临时 Data PostgreSQL，启动真实 Data HTTP 服务，并创建独立 AgentRun PostgreSQL；
+AgentRun 仍只通过 Data v1 API 读取和发布，测试结束强制删除两个临时数据库。
+
+运行条件：
+
+```text
+EVENT_SEMANTICS_SYNTHETIC_E2E=1
+TIDEWISE_TEST_DATABASE_URL=<loopback Data PostgreSQL URL>
+AGENTRUN_TEST_DATABASE_URL=<loopback AgentRun PostgreSQL URL>
+go test ./agent-run/backend/cmd/server \
+  -run '^TestSyntheticEventSemanticsEndToEnd$' -count=1 -v
+```
+
+固定覆盖：
+
+- `20000000-0000-4000-8000-000000000002`：Generator 产生 Company Entity Link、
+  `production_volume decrease + actual` Signal；Data 解析规范实体并以 approved
+  `production_decrease_reduces_product_supply@1` 规则形成 Product
+  `market_supply decrease` Direct Impact；独立 Reviewer pass 后 Data accepted；
+- `21000000-0000-4000-8000-000000000002`：相同合法候选由 Reviewer 与一次
+  Adjudicator 连续返回 indeterminate；Data 在 retry budget 耗尽后 quarantined，
+  不允许进入下游；
+- Data read API 读回 Evidence / Raw Document、Prompt / Model / Ontology / Policy、
+  Review Snapshot 和 accepted record ID；
+- Agent Status 为非工作态 `idle`，两条 Event Semantic Execution 历史状态均为
+  `succeeded`；
+- `research_themes` 与 `research_reasoning_trees` 在执行前后均为 0。
+
+该模拟链路证明工程通路和分析师读取合同可用，但不替代 12.1 的真实 Event Golden
+生产门禁，也不降低真实 Evidence、时间、血缘或 `event_explicit` 覆盖要求。
+
 ## 13. Eino Reference-First 记录
 
 实现采用以下最窄参考审计：
