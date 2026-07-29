@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
@@ -323,13 +324,16 @@ func (s *Store) FailStaleExecutions(ctx context.Context, now time.Time) error {
 		    error_summary = 'AgentRun restarted before execution completed',
 		    stop_reason = 'agent_or_tool_limit',
 		    completed_at = $1, updated_at = $1
-		WHERE status IN ('queued', 'planning', 'collecting', 'materializing')
+		WHERE (
+		        status IN ('queued', 'planning', 'collecting', 'materializing')
+		        OR (agent_key = $2 AND status = 'running')
+		      )
 		  AND NOT EXISTS (
 		      SELECT 1 FROM collector_artifact_publications publication
 		      WHERE publication.execution_id = agent_executions.execution_id
 		  )
 		RETURNING execution_id
-	`, now.UTC())
+	`, now.UTC(), eventsemantic.AgentKey)
 	if err != nil {
 		return fmt.Errorf("mark stale executions failed: %w", err)
 	}

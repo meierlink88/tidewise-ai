@@ -82,6 +82,80 @@ func TestAgentRunHTTPClientDecodesExecutionSuccessEnvelope(t *testing.T) {
 	}
 }
 
+func TestAgentRunHTTPClientDecodesSafeAgentStatusList(t *testing.T) {
+	requests := make(chan *http.Request, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		requests <- request.Clone(request.Context())
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{
+			"request_id": "agentrun-status-test",
+			"result": {
+				"items": [{
+					"agent_key": "event-semantic-enricher",
+					"display_name": "Event Semantic Enricher",
+					"current_version": "event-semantic-enricher.v1",
+					"is_working": true,
+					"current_execution_status": "running",
+					"updated_at": "2026-07-29T08:30:00Z"
+				}]
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	client, err := NewAgentRunHTTPClient(AgentRunHTTPConfig{
+		BaseURL: server.URL, ServiceToken: "agentrun-admin-token",
+		Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	statuses, callErr := client.ListAgentStatuses(context.Background())
+	request := <-requests
+	if callErr != nil {
+		t.Fatal(callErr)
+	}
+	if request.URL.Path != "/api/admin/v1/agent-statuses" {
+		t.Fatalf("path = %q", request.URL.Path)
+	}
+	if len(statuses) != 1 || statuses[0].AgentKey != "event-semantic-enricher" ||
+		!statuses[0].IsWorking || statuses[0].CurrentExecutionStatus != "running" {
+		t.Fatalf("statuses = %#v", statuses)
+	}
+}
+
+func TestAgentRunHTTPClientRejectsInconsistentAgentStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{
+			"request_id": "agentrun-status-invalid",
+			"result": {"items": [{
+				"agent_key": "collector",
+				"display_name": "Collector",
+				"current_version": "collector.v1",
+				"is_working": false,
+				"current_execution_status": "running",
+				"updated_at": "2026-07-29T08:30:00Z"
+			}]}
+		}`))
+	}))
+	defer server.Close()
+	client, err := NewAgentRunHTTPClient(AgentRunHTTPConfig{
+		BaseURL: server.URL, ServiceToken: "token", Timeout: time.Second,
+		MaxReadAttempts: 1, HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	if _, callErr := client.ListAgentStatuses(context.Background()); callErr == nil {
+		t.Fatal("expected inconsistent status to be rejected")
+	}
+}
+
 func TestAgentRunHTTPClientAcceptsRegisteredButUnconfiguredTargets(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		response.Header().Set("Content-Type", "application/json")

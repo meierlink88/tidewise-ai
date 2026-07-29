@@ -111,6 +111,15 @@ type ExecutionPage struct {
 	TotalPages int                 `json:"total_pages"`
 }
 
+type AgentStatus struct {
+	AgentKey               string
+	DisplayName            string
+	CurrentVersion         string
+	IsWorking              bool
+	CurrentExecutionStatus string
+	UpdatedAt              time.Time
+}
+
 type CreateExecutionInput struct {
 	IdempotencyKey string
 	InputPayload   json.RawMessage

@@ -28,6 +28,7 @@ type Store interface {
 	ListConnectorConfigViews(context.Context) ([]agentrun.ConnectorConfigView, error)
 	UpsertConnectorConfig(context.Context, agentrun.ConnectorConfig) error
 	ListAgentExecutions(context.Context, agentrun.ExecutionListQuery) (agentrun.ExecutionPage, error)
+	ListAgentStatuses(context.Context) ([]agentrun.AgentStatus, error)
 }
 
 type Service struct {
@@ -125,6 +126,10 @@ func (s *Service) PatchAgentSchedule(
 
 func (s *Service) ListAgentExecutions(ctx context.Context, query agentrun.ExecutionListQuery) (agentrun.ExecutionPage, error) {
 	return s.store.ListAgentExecutions(ctx, query)
+}
+
+func (s *Service) ListAgentStatuses(ctx context.Context) ([]agentrun.AgentStatus, error) {
+	return s.store.ListAgentStatuses(ctx)
 }
 
 func (s *Service) ListModelProviders(ctx context.Context) ([]agentrun.ModelProviderConfigView, error) {

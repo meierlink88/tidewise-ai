@@ -1,0 +1,95 @@
+{
+  "request_id": "contract-supply-context",
+  "result": {
+    "context_lease_id": "11111111-1111-4111-8111-111111111111",
+    "ontology_version": "event-semantics.phase-one@1",
+    "acceptance_policy_version": "event-semantics.phase-one@1",
+    "event": {
+      "id": "88888888-8888-4888-8888-888888888888",
+      "title": "某晶圆厂8英寸晶圆产量下降10%",
+      "summary": "某晶圆厂确认8英寸晶圆产量下降10%。",
+      "occurred_at": "2026-07-28T08:00:00Z",
+      "event_status": "confirmed",
+      "fact_status": "verified"
+    },
+    "evidence": [
+      {
+        "evidence_id": "22222222-2222-4222-8222-222222222222",
+        "excerpt": "某晶圆厂8英寸晶圆产量下降10%",
+        "source_level": "primary",
+        "relation": "supports",
+        "supports_fields": ["subject", "variable", "direction", "measurement"],
+        "raw_document_id": "99999999-9999-4999-8999-999999999999"
+      }
+    ],
+    "entities": [
+      {
+        "entity_id": "33333333-3333-4333-8333-333333333333",
+        "entity_type": "company",
+        "name": "某晶圆厂",
+        "canonical_name": "某晶圆厂",
+        "aliases": [],
+        "status": "active"
+      },
+      {
+        "entity_id": "44444444-4444-4444-8444-444444444444",
+        "entity_type": "product",
+        "name": "8英寸晶圆",
+        "canonical_name": "8英寸晶圆",
+        "aliases": ["8-inch wafer"],
+        "status": "active"
+      }
+    ],
+    "relations": [
+      {
+        "entity_relation_id": "55555555-5555-4555-8555-555555555555",
+        "from_entity_id": "33333333-3333-4333-8333-333333333333",
+        "to_entity_id": "44444444-4444-4444-8444-444444444444",
+        "relation_type": "produces",
+        "status": "active"
+      }
+    ],
+    "variable_definitions": [
+      {
+        "key": "production_volume",
+        "version": 1,
+        "name_zh": "产量",
+        "name_en": "Production Volume",
+        "domain": "operations",
+        "value_type": "quantity",
+        "status": "active",
+        "allowed_directions": ["increase", "decrease", "unchanged", "mixed", "uncertain"],
+        "applicable_entity_types": ["commodity", "product", "chain_node", "company", "industry"]
+      },
+      {
+        "key": "market_supply",
+        "version": 1,
+        "name_zh": "市场供给",
+        "name_en": "Market Supply",
+        "domain": "supply_demand",
+        "value_type": "quantity_or_index",
+        "status": "active",
+        "allowed_directions": ["increase", "decrease", "unchanged", "mixed", "uncertain"],
+        "applicable_entity_types": ["commodity", "product", "chain_node", "industry", "industry_chain"]
+      }
+    ],
+    "direct_transmission_rules": [
+      {
+        "rule_key": "production_decrease_reduces_product_supply",
+        "version": 1,
+        "status": "approved",
+        "source_entity_type": "company",
+        "source_variable_key": "production_volume",
+        "source_variable_version": 1,
+        "source_direction": "decrease",
+        "relation_type": "produces",
+        "target_entity_type": "product",
+        "affected_variable_key": "market_supply",
+        "affected_variable_version": 1,
+        "affected_direction": "decrease",
+        "condition_summary": "产量下降必须明确适用于目标产品，且时间窗口与生产关系有效期重叠",
+        "mechanism_template": "{source_entity}生产{target_entity}；其产量下降会减少该产品的可供应量"
+      }
+    ]
+  }
+}

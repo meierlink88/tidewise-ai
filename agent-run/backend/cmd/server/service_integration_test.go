@@ -24,6 +24,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
 	collectorapp "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
 	bizschedule "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
@@ -37,6 +38,15 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/service"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/testsupport"
 )
+
+type semanticReanalysisTestStub struct{}
+
+func (semanticReanalysisTestStub) RequestReanalysis(
+	context.Context,
+	eventsemantic.ReanalysisRequest,
+) (eventsemantic.WorkItem, bool, error) {
+	return eventsemantic.WorkItem{}, false, nil
+}
 
 func TestAdminScheduleTriggersCollectorAndListsExecution(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
@@ -157,7 +167,12 @@ func TestAdminScheduleTriggersCollectorAndListsExecution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	apiService, err := service.NewAgentRunService(collectorApplication, adminService, scheduleService)
+	apiService, err := service.NewAgentRunService(
+		collectorApplication,
+		adminService,
+		semanticReanalysisTestStub{},
+		scheduleService,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

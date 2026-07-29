@@ -143,6 +143,24 @@ func (c *AgentRunHTTPClient) ListAgentExecutions(ctx context.Context, query biz.
 	return wire.toBiz()
 }
 
+func (c *AgentRunHTTPClient) ListAgentStatuses(ctx context.Context) ([]biz.AgentStatus, error) {
+	var wire agentStatusListWire
+	err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListAgentStatuses",
+		agentRunAdminPrefix+"/agent-statuses", agentRunAdminPrefix+"/agent-statuses", nil, &wire)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]biz.AgentStatus, 0, len(wire.Items))
+	for _, item := range wire.Items {
+		mapped, mapErr := item.toBiz()
+		if mapErr != nil {
+			return nil, mapErr
+		}
+		items = append(items, mapped)
+	}
+	return items, nil
+}
+
 func (c *AgentRunHTTPClient) ListModelProviders(ctx context.Context) ([]biz.ModelProviderConfiguration, error) {
 	var wire modelProviderListWire
 	err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListModelProviders", agentRunAdminPrefix+"/model-providers",

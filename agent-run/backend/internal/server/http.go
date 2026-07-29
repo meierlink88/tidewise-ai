@@ -184,7 +184,8 @@ func accessLogMiddleware(logger *slog.Logger, environment string) middleware.Mid
 				case directResponse:
 					status = result.Status
 				default:
-					if operation == v1.OperationCreateCollectorRun {
+					if operation == v1.OperationCreateCollectorRun ||
+						operation == v1.OperationCreateEventSemanticReanalysis {
 						status = http.StatusAccepted
 					}
 				}

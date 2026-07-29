@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
@@ -22,8 +23,8 @@ func TestKratosHTTPServerAppliesAuthAndTidewiseEnvelope(t *testing.T) {
 	t.Parallel()
 
 	api := stubAPI{
-		create: func(_ context.Context, request *v1.CreateCollectorRunRequest) (*v1.CollectorRunResult, error) {
-			return &v1.CollectorRunResult{
+		create: func(_ context.Context, request *v1.CreateCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
+			return &v1.CollectorSubmissionResult{
 				Schema: "collector_run.v1", AgentKey: "collector",
 				ExecutionID: "11111111-1111-4111-8111-111111111111",
 				Status:      "queued", PromptSHA256: string(make([]byte, 64)),
@@ -72,14 +73,58 @@ func TestKratosHTTPServerAppliesAuthAndTidewiseEnvelope(t *testing.T) {
 	}
 }
 
+func TestEventSemanticReanalysisRouteIsAuthenticatedAndReturnsWorkItem(t *testing.T) {
+	t.Parallel()
+	api := stubAPI{
+		reanalyze: func(
+			_ context.Context,
+			request *v1.CreateEventSemanticReanalysisRequest,
+		) (*v1.EventSemanticWorkItem, error) {
+			return &v1.EventSemanticWorkItem{
+				WorkItemID: "11111111-1111-4111-8111-111111111111",
+				EventID:    request.EventID, SupersedesSubmissionID: request.SupersedesSubmissionID,
+				Status: "pending", CreatedAt: time.Date(2026, 7, 29, 8, 0, 0, 0, time.UTC),
+			}, nil
+		},
+	}
+	server := newTestServer(t, api)
+	body := `{"event_id":"22222222-2222-4222-8222-222222222222",` +
+		`"supersedes_submission_id":"33333333-3333-4333-8333-333333333333",` +
+		`"reason":"ontology_upgrade"}`
+	unauthorized := request(
+		t, server, http.MethodPost, v1.EventSemanticReanalysisPath, body, nil,
+	)
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+	response := request(t, server, http.MethodPost, v1.EventSemanticReanalysisPath, body, map[string]string{
+		"Authorization":   "Bearer service-token",
+		"Idempotency-Key": "semantic-reanalysis-1",
+		RequestIDHeader:   "semantic-request-1",
+	})
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d body=%s", response.Code, response.Body.String())
+	}
+	var envelope struct {
+		RequestID string                   `json:"request_id"`
+		Result    v1.EventSemanticWorkItem `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.RequestID != "semantic-request-1" || envelope.Result.Status != "pending" {
+		t.Fatalf("response = %#v", envelope)
+	}
+}
+
 func TestKratosHTTPServerOwnsNotFoundMethodPanicHealthAndDocs(t *testing.T) {
 	t.Parallel()
 
 	api := stubAPI{
-		create: func(context.Context, *v1.CreateCollectorRunRequest) (*v1.CollectorRunResult, error) {
+		create: func(context.Context, *v1.CreateCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
 			panic("must not leak")
 		},
-		get: func(context.Context, *v1.GetCollectorRunRequest) (*v1.CollectorRunResult, error) {
+		get: func(context.Context, *v1.GetCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
 			return nil, v1.NewPublicError(http.StatusNotFound, "EXECUTION_NOT_FOUND", "Agent Execution was not found", nil)
 		},
 	}
@@ -148,10 +193,10 @@ func TestOperationalAndDocumentationRoutesExecuteKratosMiddleware(t *testing.T) 
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	config := testConfig()
 	api := stubAPI{
-		create: func(context.Context, *v1.CreateCollectorRunRequest) (*v1.CollectorRunResult, error) {
+		create: func(context.Context, *v1.CreateCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
 			panic("must not leak")
 		},
-		get: func(context.Context, *v1.GetCollectorRunRequest) (*v1.CollectorRunResult, error) {
+		get: func(context.Context, *v1.GetCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
 			return nil, v1.NewPublicError(http.StatusNotFound, "EXECUTION_NOT_FOUND", "Agent Execution was not found", nil)
 		},
 	}
@@ -248,25 +293,36 @@ func assertErrorEnvelope(t *testing.T, response *httptest.ResponseRecorder, stat
 }
 
 type stubAPI struct {
-	create   func(context.Context, *v1.CreateCollectorRunRequest) (*v1.CollectorRunResult, error)
-	get      func(context.Context, *v1.GetCollectorRunRequest) (*v1.CollectorRunResult, error)
-	readyErr error
+	create    func(context.Context, *v1.CreateCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error)
+	get       func(context.Context, *v1.GetCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error)
+	reanalyze func(context.Context, *v1.CreateEventSemanticReanalysisRequest) (*v1.EventSemanticWorkItem, error)
+	readyErr  error
 }
 
 func (s stubAPI) Ready(context.Context) error { return s.readyErr }
 
-func (s stubAPI) CreateCollectorRun(ctx context.Context, request *v1.CreateCollectorRunRequest) (*v1.CollectorRunResult, error) {
+func (s stubAPI) CreateCollectorRun(ctx context.Context, request *v1.CreateCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
 	if s.create != nil {
 		return s.create(ctx, request)
 	}
-	return &v1.CollectorRunResult{}, nil
+	return &v1.CollectorSubmissionResult{}, nil
 }
 
-func (s stubAPI) GetCollectorRun(ctx context.Context, request *v1.GetCollectorRunRequest) (*v1.CollectorRunResult, error) {
+func (s stubAPI) GetCollectorRun(ctx context.Context, request *v1.GetCollectorSubmissionRequest) (*v1.CollectorSubmissionResult, error) {
 	if s.get != nil {
 		return s.get(ctx, request)
 	}
-	return &v1.CollectorRunResult{}, nil
+	return &v1.CollectorSubmissionResult{}, nil
+}
+
+func (s stubAPI) CreateEventSemanticReanalysis(
+	ctx context.Context,
+	request *v1.CreateEventSemanticReanalysisRequest,
+) (*v1.EventSemanticWorkItem, error) {
+	if s.reanalyze != nil {
+		return s.reanalyze(ctx, request)
+	}
+	return &v1.EventSemanticWorkItem{}, nil
 }
 
 func (stubAPI) ListModelProviders(context.Context, *v1.ListModelProvidersRequest) (*v1.ModelProviderList, error) {
@@ -311,4 +367,8 @@ func (stubAPI) PatchAgentSchedule(context.Context, *v1.PatchAgentScheduleRequest
 
 func (stubAPI) ListAgentExecutions(context.Context, *v1.ListAgentExecutionsRequest) (*v1.AgentExecutionPage, error) {
 	return &v1.AgentExecutionPage{}, nil
+}
+
+func (stubAPI) ListAgentStatuses(context.Context, *v1.ListAgentStatusesRequest) (*v1.AgentStatusList, error) {
+	return &v1.AgentStatusList{}, nil
 }

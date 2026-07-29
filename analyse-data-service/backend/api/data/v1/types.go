@@ -17,6 +17,7 @@ const (
 	StatusRequestEntityTooLarge = http.StatusRequestEntityTooLarge
 	StatusUnprocessableEntity   = http.StatusUnprocessableEntity
 	StatusInternalServerError   = http.StatusInternalServerError
+	StatusServiceUnavailable    = http.StatusServiceUnavailable
 )
 
 type Response[T any] struct {

@@ -13,6 +13,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
@@ -57,6 +58,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	application := service.NewDataService(service.Dependencies{
 		EventPublications:            eventpublication.NewService(eventpublicationdata.NewRepository(db)),
 		EventTagCatalog:              eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
+		EventSemantics:               eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
 		ResearchThemeImports:         researchthemeimport.NewService(researchthemeimportdata.NewRepository(db)),
 		ResearchReasoningTreeImports: researchreasoningtreeimport.NewService(researchreasoningtreeimportdata.NewRepository(db)),
 		Research:                     research.NewService(researchdata.NewRepository(db), time.Now),
@@ -76,6 +78,8 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 			Principal: v1.Principal{Identity: "tidewise-internal-service", Scopes: []string{
 				server.ScopeReviewedEventImport,
 				server.ScopeEventTagRead,
+				server.ScopeEventSemanticsRead,
+				server.ScopeEventSemanticsWrite,
 				server.ScopeResearchImport,
 				server.ScopeResearchRead,
 				server.ScopeAdminRead,

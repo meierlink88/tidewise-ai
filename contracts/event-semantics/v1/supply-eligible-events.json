@@ -1,0 +1,10 @@
+{
+  "request_id": "contract-supply-eligible-events",
+  "result": {
+    "events": [
+      {
+        "event_id": "88888888-8888-4888-8888-888888888888"
+      }
+    ]
+  }
+}

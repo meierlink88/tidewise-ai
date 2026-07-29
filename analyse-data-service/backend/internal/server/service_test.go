@@ -298,6 +298,30 @@ func (serverTestDataService) ListRawDocuments(context.Context, *dataapi.RawDocum
 func (serverTestDataService) ListEvents(context.Context, *dataapi.EventListRequest) (*dataapi.Response[dataapi.AdminEventPage], error) {
 	return serverTestResponse[dataapi.AdminEventPage]()
 }
+func (serverTestDataService) ListEligibleEventSemanticEvents(context.Context, *dataapi.EligibleEventSemanticEventsRequest) (*dataapi.Response[dataapi.EligibleEventSemanticEvents], error) {
+	return serverTestResponse[dataapi.EligibleEventSemanticEvents]()
+}
+func (serverTestDataService) CreateEventSemanticContextLease(context.Context, *dataapi.EventSemanticContextLeaseRequest) (*dataapi.Response[dataapi.EventSemanticContextLease], error) {
+	return serverTestResponse[dataapi.EventSemanticContextLease]()
+}
+func (serverTestDataService) GetEventSemanticContext(context.Context, *dataapi.EventSemanticContextRequest) (*dataapi.Response[dataapi.EventSemanticContext], error) {
+	return serverTestResponse[dataapi.EventSemanticContext]()
+}
+func (serverTestDataService) ResolveEventSemanticEntities(context.Context, *dataapi.EventSemanticEntityResolutionRequest) (*dataapi.Response[dataapi.EventSemanticEntityResolutionResult], error) {
+	return serverTestResponse[dataapi.EventSemanticEntityResolutionResult]()
+}
+func (serverTestDataService) SearchEventSemanticDirectTargets(context.Context, *dataapi.EventSemanticDirectTargetSearchRequest) (*dataapi.Response[dataapi.EventSemanticDirectTargetSearchResult], error) {
+	return serverTestResponse[dataapi.EventSemanticDirectTargetSearchResult]()
+}
+func (serverTestDataService) CreateEventSemanticSubmission(context.Context, *dataapi.EventSemanticSubmissionRequest) (*dataapi.Response[dataapi.EventSemanticSubmissionResult], error) {
+	return serverTestResponse[dataapi.EventSemanticSubmissionResult]()
+}
+func (serverTestDataService) SubmitEventSemanticReview(context.Context, *dataapi.EventSemanticReviewRequest) (*dataapi.Response[dataapi.EventSemanticSubmissionResult], error) {
+	return serverTestResponse[dataapi.EventSemanticSubmissionResult]()
+}
+func (serverTestDataService) GetEventSemantics(context.Context, *dataapi.GetEventSemanticsRequest) (*dataapi.Response[dataapi.EventSemanticsResult], error) {
+	return serverTestResponse[dataapi.EventSemanticsResult]()
+}
 
 type principalRecordingDataService struct {
 	serverTestDataService

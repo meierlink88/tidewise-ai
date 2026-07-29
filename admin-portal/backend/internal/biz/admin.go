@@ -97,6 +97,13 @@ func (s *Service) ListCollectorExecutions(ctx context.Context, page int) (AgentE
 	})
 }
 
+func (s *Service) ListAgentStatuses(ctx context.Context) ([]AgentStatus, error) {
+	if s == nil || s.agentRunClient == nil {
+		return nil, ErrAgentRunUnavailable
+	}
+	return s.agentRunClient.ListAgentStatuses(ctx)
+}
+
 func (s *Service) ListModelProviders(ctx context.Context) ([]ModelProviderConfiguration, error) {
 	if s == nil || s.agentRunClient == nil {
 		return nil, ErrAgentRunUnavailable

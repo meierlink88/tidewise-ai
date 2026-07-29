@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { loadEvents, loadRawDocuments } from './api/dataIngestion';
+import { loadAgentStatuses } from './api/agentManagement';
 
 vi.mock('./api/dataIngestion', async () => {
   const actual = await vi.importActual<typeof import('./api/dataIngestion')>('./api/dataIngestion');
@@ -10,6 +11,15 @@ vi.mock('./api/dataIngestion', async () => {
     ...actual,
     loadEvents: vi.fn(),
     loadRawDocuments: vi.fn()
+  };
+});
+
+vi.mock('./api/agentManagement', async () => {
+  const actual =
+    await vi.importActual<typeof import('./api/agentManagement')>('./api/agentManagement');
+  return {
+    ...actual,
+    loadAgentStatuses: vi.fn()
   };
 });
 
@@ -31,6 +41,7 @@ describe('App admin login', () => {
     vi.stubGlobal('localStorage', localStorageMock);
     vi.mocked(loadRawDocuments).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
+    vi.mocked(loadAgentStatuses).mockResolvedValue([]);
   });
 
   it('shows a login page with the local admin token hint before entering the admin shell', () => {
@@ -70,5 +81,27 @@ describe('App admin login', () => {
 
     expect(screen.getByRole('heading', { name: '观潮家管理后台' })).toBeInTheDocument();
     expect(storage.has('tidewise_admin_token')).toBe(false);
+  });
+
+  it('navigates to the read-only Agent status monitor', async () => {
+    storage.set('tidewise_admin_token', 'local-admin-token');
+    const user = userEvent.setup();
+    vi.mocked(loadAgentStatuses).mockResolvedValue([
+      {
+        agent_key: 'event-semantic-enricher',
+        display_name: 'Event Semantic Enricher',
+        current_version: 'event-semantic-enricher.v1',
+        is_working: true,
+        current_execution_status: 'running',
+        updated_at: '2026-07-29T08:30:00Z'
+      }
+    ]);
+
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Agent 状态/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Agent 运行状态' })).toBeInTheDocument();
+    expect(screen.getByText('Event Semantic Enricher')).toBeInTheDocument();
+    expect(loadAgentStatuses).toHaveBeenCalledWith('local-admin-token');
   });
 });

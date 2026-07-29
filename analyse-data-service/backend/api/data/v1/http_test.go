@@ -85,6 +85,41 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/events",
 			operation:   "data.v1.listAdminEvents",
 		},
+		"GET " + APIPrefix + "/event-semantics/eligible-events": {
+			requestPath: APIPrefix + "/event-semantics/eligible-events?limit=20",
+			operation:   "data.v1.listEligibleEventSemanticEvents",
+		},
+		"POST " + APIPrefix + "/event-semantics/context-leases": {
+			requestPath: APIPrefix + "/event-semantics/context-leases",
+			operation:   "data.v1.createEventSemanticContextLease",
+			body:        `{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`,
+		},
+		"GET " + APIPrefix + "/event-semantics/context-leases/{context_lease_id}/context": {
+			requestPath: APIPrefix + "/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
+			operation:   "data.v1.getEventSemanticContext",
+		},
+		"POST " + APIPrefix + "/event-semantics/entity-resolutions": {
+			requestPath: APIPrefix + "/event-semantics/entity-resolutions",
+			operation:   "data.v1.resolveEventSemanticEntities",
+			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","mentions":[]}`,
+		},
+		"POST " + APIPrefix + "/event-semantics/direct-targets:search": {
+			requestPath: APIPrefix + "/event-semantics/direct-targets:search",
+			operation:   "data.v1.searchEventSemanticDirectTargets",
+			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","subject_entity_id":"22222222-2222-4222-8222-222222222222","allowed_target_types":["product"]}`,
+		},
+		"POST " + APIPrefix + "/event-semantics/submissions": {
+			requestPath: APIPrefix + "/event-semantics/submissions",
+			operation:   "data.v1.createEventSemanticSubmission",
+		},
+		"POST " + APIPrefix + "/event-semantics/submissions/{submission_id}/reviews": {
+			requestPath: APIPrefix + "/event-semantics/submissions/11111111-1111-4111-8111-111111111111/reviews",
+			operation:   "data.v1.submitEventSemanticReview",
+		},
+		"GET " + APIPrefix + "/events/{event_id}/semantics": {
+			requestPath: APIPrefix + "/events/22222222-2222-4222-8222-222222222222/semantics",
+			operation:   "data.v1.getEventSemantics",
+		},
 	}
 
 	contractRoutes := make(map[string]string)

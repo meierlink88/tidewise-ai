@@ -23,6 +23,7 @@ func RegisterAdminHTTPServer(server *kratoshttp.Server, service AdminHTTPServer)
 	router.PUT("/agent-schedules/{agent_key}", saveAgentScheduleHandler(service))
 	router.PATCH("/agent-schedules/{agent_key}", setAgentScheduleEnabledHandler(service))
 	router.GET("/agent-executions", listAgentExecutionsHandler(service))
+	router.GET("/agent-statuses", listAgentStatusesHandler(service))
 	router.GET("/model-providers", listModelProvidersHandler(service))
 	router.GET("/model-providers/{provider_key}", getModelProviderHandler(service))
 	router.PATCH("/model-providers/{provider_key}", patchModelProviderHandler(service))
@@ -107,6 +108,15 @@ func listAgentExecutionsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc 
 		request := &ListAgentExecutionsRequest{Page: page}
 		return call(ctx, OperationListAgentExecutions, request, func(callContext context.Context) (any, error) {
 			return service.ListAgentExecutions(callContext, request)
+		})
+	}
+}
+
+func listAgentStatusesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &EmptyRequest{}
+		return call(ctx, OperationListAgentStatuses, request, func(callContext context.Context) (any, error) {
+			return service.ListAgentStatuses(callContext, request)
 		})
 	}
 }
