@@ -48,22 +48,9 @@ func decodeResearchThemeImport(payload []byte) (*ResearchThemeImportRequest, err
 	request := new(ResearchThemeImportRequest)
 	if err := decodeStrictBinding(payload, researchThemeImportShape(), request); err != nil {
 		path := bindingErrorPath(err)
-		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Theme V1 contract", map[string]any{
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Theme Aggregate V2 contract", map[string]any{
 			"theme_key": researchThemeKeyAtPath(payload, path),
 			"path":      path,
-		})
-	}
-	return request, nil
-}
-
-func decodeResearchReasoningTreeImport(payload []byte) (*ResearchReasoningTreeImportRequest, error) {
-	request := new(ResearchReasoningTreeImportRequest)
-	if err := decodeStrictBinding(payload, researchReasoningTreeImportShape(), request); err != nil {
-		path := bindingErrorPath(err)
-		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Reason Tree V1 contract", map[string]any{
-			"industry_chain_entity_id": researchTreeChainAtPath(payload, path),
-			"path":                     path,
-			"reference":                "",
 		})
 	}
 	return request, nil
@@ -112,6 +99,9 @@ func validateBindingValue(decoder *json.Decoder, shape *bindingShape, path strin
 		return &bindingError{path: path, err: err}
 	}
 	delim, composite := token.(json.Delim)
+	if token == nil && shape.null {
+		return nil
+	}
 	if shape.any {
 		return consumeBindingComposite(decoder, delim, composite, path)
 	}
@@ -170,9 +160,6 @@ func validateBindingValue(decoder *json.Decoder, shape *bindingShape, path strin
 		return nil
 	}
 	if shape.string {
-		if token == nil && shape.null {
-			return nil
-		}
 		if _, ok := token.(string); !ok {
 			return &bindingError{path: path, err: fmt.Errorf("must be a JSON string")}
 		}
@@ -232,30 +219,12 @@ func jsonDecodeErrorPath(err error) string {
 
 func researchThemeKeyAtPath(payload []byte, path string) string {
 	var hint struct {
-		Themes []struct {
+		Theme struct {
 			ThemeKey string `json:"theme_key"`
-		} `json:"themes"`
+		} `json:"theme"`
 	}
 	_ = json.Unmarshal(payload, &hint)
-	index, ok := indexedBindingPath(path, "themes")
-	if ok && index < len(hint.Themes) {
-		return hint.Themes[index].ThemeKey
-	}
-	return ""
-}
-
-func researchTreeChainAtPath(payload []byte, path string) string {
-	var hint struct {
-		ReasoningTrees []struct {
-			IndustryChainEntityID string `json:"industry_chain_entity_id"`
-		} `json:"reasoning_trees"`
-	}
-	_ = json.Unmarshal(payload, &hint)
-	index, ok := indexedBindingPath(path, "reasoning_trees")
-	if ok && index < len(hint.ReasoningTrees) {
-		return hint.ReasoningTrees[index].IndustryChainEntityID
-	}
-	return ""
+	return hint.Theme.ThemeKey
 }
 
 func indexedBindingPath(path, field string) (int, bool) {
@@ -324,29 +293,45 @@ func researchThemeImportShape() *bindingShape {
 		"checkpoint_summary": nullableStringShape, "risk_summary": nullableStringShape,
 		"impacts": arrayShape(impact), "events": arrayShape(event),
 	})
-	return objectShape(map[string]*bindingShape{
-		"analysis_batch_id": scalarShape, "analysis_as_of": scalarShape,
-		"window_start": scalarShape, "window_end": scalarShape,
-		"themes": arrayShape(theme),
-	})
-}
-
-func researchReasoningTreeImportShape() *bindingShape {
 	checkpoint := objectShape(map[string]*bindingShape{
 		"type": stringShape, "summary": stringShape,
 	})
-	event := objectShape(map[string]*bindingShape{
+	treeEvent := objectShape(map[string]*bindingShape{
 		"event_id": stringShape, "evidence_role": stringShape, "display_order": scalarShape,
+	})
+	signalLineage := requiredObjectShape([]string{
+		"source_kind", "variable_signal_id", "semantic_submission_id", "evidence_id",
+		"evidence_hash", "upstream_variable_signal_id", "upstream_direct_impact_assertion_id",
+		"entity_relation_id", "industry_chain_graph_edge_id",
+	}, map[string]*bindingShape{
+		"source_kind": stringShape, "variable_signal_id": nullableStringShape,
+		"semantic_submission_id": nullableStringShape, "evidence_id": nullableStringShape,
+		"evidence_hash": nullableStringShape, "upstream_variable_signal_id": nullableStringShape,
+		"upstream_direct_impact_assertion_id": nullableStringShape,
+		"entity_relation_id":                  nullableStringShape, "industry_chain_graph_edge_id": nullableStringShape,
 	})
 	signal := objectShape(map[string]*bindingShape{
 		"variable_signal_key": stringShape, "signal_role": stringShape,
 		"signal_direction": stringShape, "display_summary": stringShape, "display_order": scalarShape,
+		"lineage": signalLineage,
+	})
+	incomingLineage := requiredObjectShape([]string{
+		"source_kind", "direct_impact_assertion_id", "semantic_submission_id", "evidence_id",
+		"evidence_hash", "affected_variable_key", "affected_direction",
+		"upstream_variable_signal_id", "upstream_direct_impact_assertion_id", "entity_relation_id",
+	}, map[string]*bindingShape{
+		"source_kind": stringShape, "direct_impact_assertion_id": nullableStringShape,
+		"semantic_submission_id": nullableStringShape, "evidence_id": nullableStringShape,
+		"evidence_hash": nullableStringShape, "affected_variable_key": nullableStringShape,
+		"affected_direction": nullableStringShape, "upstream_variable_signal_id": nullableStringShape,
+		"upstream_direct_impact_assertion_id": nullableStringShape,
+		"entity_relation_id":                  nullableStringShape,
 	})
 	node := requiredObjectShape([]string{
 		"position", "chain_node_entity_id", "state_summary", "impact_direction",
 		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
 		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
-		"incoming_transmission_mechanism", "incoming_condition_summary", "signals",
+		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_lineage", "signals",
 	}, map[string]*bindingShape{
 		"position": scalarShape, "chain_node_entity_id": stringShape,
 		"state_summary": nullableStringShape, "impact_direction": stringShape,
@@ -355,7 +340,9 @@ func researchReasoningTreeImportShape() *bindingShape {
 		"incoming_industry_chain_graph_edge_id": nullableStringShape,
 		"incoming_transmission_title":           nullableStringShape,
 		"incoming_transmission_mechanism":       nullableStringShape,
-		"incoming_condition_summary":            nullableStringShape, "signals": arrayShape(signal),
+		"incoming_condition_summary":            nullableStringShape,
+		"incoming_lineage":                      &bindingShape{fields: incomingLineage.fields, required: incomingLineage.required, null: true},
+		"signals":                               arrayShape(signal),
 	})
 	tree := requiredObjectShape([]string{
 		"industry_chain_entity_id", "title", "display_order", "one_line_conclusion",
@@ -369,9 +356,14 @@ func researchReasoningTreeImportShape() *bindingShape {
 		"impact_strength": stringShape, "impact_summary": nullableStringShape,
 		"conclusion_boundary_summary": nullableStringShape, "support_summary": nullableStringShape,
 		"counter_summary": nullableStringShape, "invalidation_conditions": arrayShape(stringShape),
-		"checkpoints": arrayShape(checkpoint), "events": arrayShape(event), "nodes": arrayShape(node),
+		"checkpoints": arrayShape(checkpoint), "events": arrayShape(treeEvent), "nodes": arrayShape(node),
 	})
-	return requiredObjectShape([]string{"theme_id", "reasoning_trees"}, map[string]*bindingShape{
-		"theme_id": stringShape, "reasoning_trees": arrayShape(tree),
+	return requiredObjectShape([]string{
+		"analysis_batch_id", "analysis_as_of", "discovery_window_start",
+		"discovery_window_end", "theme", "reasoning_trees",
+	}, map[string]*bindingShape{
+		"analysis_batch_id": stringShape, "analysis_as_of": stringShape,
+		"discovery_window_start": stringShape, "discovery_window_end": stringShape,
+		"theme": theme, "reasoning_trees": arrayShape(tree),
 	})
 }

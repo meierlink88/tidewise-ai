@@ -10,10 +10,8 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
-	researchtreedomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
-	researchtreeimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
-	researchdomainimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
-	researchimportapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 )
 
 const (
@@ -48,11 +46,7 @@ type EventSemanticsService interface {
 }
 
 type ResearchThemeImportService interface {
-	Import(context.Context, string, researchdomainimport.Batch) (researchimportapp.Result, error)
-}
-
-type ResearchReasoningTreeImportService interface {
-	Import(context.Context, string, researchtreedomainimport.Publication) (researchtreeimportapp.Result, error)
+	Publish(context.Context, string, researchpublication.Aggregate) (researchpublication.Result, error)
 }
 
 type ResearchService interface {
@@ -62,19 +56,26 @@ type ResearchService interface {
 	GetReasoningTree(context.Context, string, string) (research.ResearchReasoningTreeDetail, error)
 }
 
+type ResearchAnalysisContextService interface {
+	List(
+		context.Context,
+		researchanalysiscontext.Request,
+	) (researchanalysiscontext.Result, error)
+}
+
 type AdminService interface {
 	ListRawDocuments(context.Context, adminquery.RawDocumentListRequest) (adminquery.RawDocumentPage, error)
 	ListEvents(context.Context, adminquery.EventListRequest) (adminquery.EventPage, error)
 }
 
 type Dependencies struct {
-	EventPublications            EventPublicationService
-	EventTagCatalog              EventTagCatalogService
-	EventSemantics               EventSemanticsService
-	ResearchThemeImports         ResearchThemeImportService
-	ResearchReasoningTreeImports ResearchReasoningTreeImportService
-	Research                     ResearchService
-	Admin                        AdminService
+	EventPublications       EventPublicationService
+	EventTagCatalog         EventTagCatalogService
+	EventSemantics          EventSemanticsService
+	ResearchThemeImports    ResearchThemeImportService
+	Research                ResearchService
+	ResearchAnalysisContext ResearchAnalysisContextService
+	Admin                   AdminService
 }
 
 type DataService struct {

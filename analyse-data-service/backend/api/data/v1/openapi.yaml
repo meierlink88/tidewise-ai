@@ -680,6 +680,77 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /api/data/v1/research-analysis-context:
+    get:
+      tags: [Research Analysis]
+      operationId: listResearchAnalysisContext
+      x-client-drift-anchor: data.v1.listResearchAnalysisContext
+      x-required-service-scope: data.research.read
+      x-retry-policy: safe-get-restart-from-first-page-on-cursor-mismatch
+      x-timeout-budget-ms: 15000
+      summary: 按显式研究时间窗口读取正式 Event Semantics 批量上下文
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: discovery_window_start
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: discovery_window_end
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: analysis_as_of
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: prediction_horizon_start
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: prediction_horizon_end
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: page_size
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: 实时正式 Event Semantic Bundles 与解析字典
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchAnalysisContextEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/data/v1/reviewed-event-imports:
     post:
       tags: [Event publication]
@@ -734,21 +805,21 @@ paths:
 
   /api/data/v1/research-theme-imports:
     post:
-      tags: [Research Theme import]
-      operationId: importResearchThemes
-      x-client-drift-anchor: data.v1.importResearchThemes
+      tags: [Research Theme publication]
+      operationId: publishResearchTheme
+      x-client-drift-anchor: data.v1.publishResearchTheme
       x-required-service-scope: data.research.import
       x-retry-policy: idempotent-with-analysis-batch-id
       x-timeout-budget-ms: 15000
       x-canonicalization: rfc8785-sha256
-      x-atomicity: whole-batch-single-postgresql-transaction
+      x-atomicity: one-theme-and-all-reason-trees-single-postgresql-transaction
       x-receipt-schema: research_theme_import_receipts
-      x-transaction-membership: research-theme-import-receipt,research-theme,research-theme-chain-node,research-theme-event
-      summary: 原子发布一个不可变 Research Theme 批次快照
+      x-transaction-membership: research-theme-import-receipt,research-theme,research-theme-impact,research-theme-event,research-reasoning-tree-import-receipt,research-reasoning-tree,research-reasoning-tree-event,research-reasoning-tree-node,research-reasoning-tree-node-signal
+      summary: 原子发布一条不可变 Theme 及其全部 Reason Trees
       description: >-
-        analysis_batch_id 是唯一批次及幂等身份。发布者身份只从 Bearer service principal
-        派生；同一主体、批次和 payload 重放首次结果，内容或主体冲突返回 409。
-        themes、chain_nodes 和 events 必须按合同键升序提交，任一引用无效时整批回滚。
+        analysis_batch_id 是本次单 Theme Aggregate 的幂等身份。Data Service 只校验
+        结构、正式引用、accepted/latest/non-superseded 状态与 Evidence 血缘，不判断投研
+        结论是否正确。Theme 与 1..N Reason Trees 在同一事务内全部发布或全部回滚。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -771,7 +842,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResearchThemeImportEnvelope'
         '201':
-          description: Theme 批次和 immutable receipt 已原子提交
+          description: Theme Aggregate 和 immutable receipt 已原子提交
           headers:
             X-Request-ID:
               $ref: '#/components/headers/RequestID'
@@ -779,68 +850,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResearchThemeImportEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '413':
-          $ref: '#/components/responses/PayloadTooLarge'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/data/v1/research-reasoning-tree-imports:
-    post:
-      tags: [Research Reason Tree import]
-      operationId: importResearchReasoningTrees
-      x-client-drift-anchor: data.v1.importResearchReasoningTrees
-      x-required-service-scope: data.research.import
-      x-retry-policy: idempotent-with-theme-id
-      x-timeout-budget-ms: 15000
-      x-canonicalization: rfc8785-sha256
-      x-atomicity: whole-theme-single-postgresql-transaction
-      x-receipt-schema: research_reasoning_tree_import_receipts
-      x-transaction-membership: research-reasoning-tree-import-receipt,research-reasoning-tree,research-reasoning-tree-event,research-reasoning-tree-node,research-reasoning-tree-node-signal
-      summary: 原子发布一个 Theme 的完整 Reason Tree 快照
-      description: >-
-        theme_id 是唯一幂等身份。发布主体必须与父 Theme Publication Receipt 一致；
-        每棵树限定一个 Industry Chain，nodes 顺序是业务事实。任一 Tree、Event、
-        Chain Node 或 Graph Edge 引用无效时，整个 Theme 的 Reason Tree 集合回滚。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              maxLength: 1048576
-              x-max-body-bytes: 1048576
-              allOf:
-                - $ref: '#/components/schemas/ResearchReasoningTreeImportRequest'
-      responses:
-        '200':
-          description: 相同发布主体、theme_id 与 payload 的首次结果重放
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/RequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResearchReasoningTreeImportEnvelope'
-        '201':
-          description: 完整 Reason Tree 集合和 immutable receipt 已原子提交
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/RequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResearchReasoningTreeImportEnvelope'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1005,6 +1014,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+    TooManyRequests:
+      description: 查询超过当前资源保护预算
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     InternalError:
       description: Data Service 内部错误
       headers:
@@ -1145,16 +1163,17 @@ components:
       type: object
       additionalProperties: false
       x-client-drift-anchor: data.v1.schema.ResearchThemeImportRequest
-      required: [analysis_batch_id, analysis_as_of, window_start, window_end, themes]
+      required: [analysis_batch_id, analysis_as_of, discovery_window_start, discovery_window_end, theme, reasoning_trees]
       properties:
         analysis_batch_id: {type: string, minLength: 1, maxLength: 200}
         analysis_as_of: {$ref: '#/components/schemas/UTCTimestamp'}
-        window_start: {$ref: '#/components/schemas/UTCTimestamp'}
-        window_end: {$ref: '#/components/schemas/UTCTimestamp'}
-        themes:
+        discovery_window_start: {$ref: '#/components/schemas/UTCTimestamp'}
+        discovery_window_end: {$ref: '#/components/schemas/UTCTimestamp'}
+        theme: {$ref: '#/components/schemas/ResearchThemeImportItem'}
+        reasoning_trees:
           type: array
           minItems: 1
-          items: {$ref: '#/components/schemas/ResearchThemeImportItem'}
+          items: {$ref: '#/components/schemas/ResearchReasoningTreeImportItem'}
     ResearchThemeImportItem:
       type: object
       additionalProperties: false
@@ -1203,22 +1222,27 @@ components:
     ResearchThemeImportCounts:
       type: object
       additionalProperties: false
-      required: [themes, impacts, event_associations, receipts]
+      required: [themes, impacts, theme_event_associations, reasoning_trees, nodes, tree_event_associations, signal_associations, receipts]
       properties:
-        themes: {type: integer, minimum: 1}
+        themes: {type: integer, minimum: 1, maximum: 1}
         impacts: {type: integer, minimum: 1}
-        event_associations: {type: integer, minimum: 0}
-        receipts: {type: integer, minimum: 1, maximum: 1}
+        theme_event_associations: {type: integer, minimum: 0}
+        reasoning_trees: {type: integer, minimum: 1}
+        nodes: {type: integer, minimum: 1}
+        tree_event_associations: {type: integer, minimum: 0}
+        signal_associations: {type: integer, minimum: 1}
+        receipts: {type: integer, minimum: 2, maximum: 2}
     ResearchThemeImportResult:
       type: object
       additionalProperties: false
       x-client-drift-anchor: data.v1.schema.ResearchThemeImportResult
-      required: [receipt_id, analysis_batch_id, payload_hash, theme_ids_by_key, counts, published_at, imported_at, replayed]
+      required: [receipt_id, analysis_batch_id, payload_hash, theme_id, reasoning_tree_ids_by_industry_chain_entity_id, counts, published_at, imported_at, replayed]
       properties:
         receipt_id: {$ref: '#/components/schemas/LowercaseUUID'}
         analysis_batch_id: {type: string}
         payload_hash: {$ref: '#/components/schemas/PayloadHash'}
-        theme_ids_by_key:
+        theme_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        reasoning_tree_ids_by_industry_chain_entity_id:
           type: object
           additionalProperties: {$ref: '#/components/schemas/LowercaseUUID'}
         counts: {$ref: '#/components/schemas/ResearchThemeImportCounts'}
@@ -1233,17 +1257,6 @@ components:
         request_id: {type: string}
         result: {$ref: '#/components/schemas/ResearchThemeImportResult'}
 
-    ResearchReasoningTreeImportRequest:
-      type: object
-      additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.ResearchReasoningTreeImportRequest
-      required: [theme_id, reasoning_trees]
-      properties:
-        theme_id: {$ref: '#/components/schemas/LowercaseUUID'}
-        reasoning_trees:
-          type: array
-          minItems: 1
-          items: {$ref: '#/components/schemas/ResearchReasoningTreeImportItem'}
     ResearchReasoningTreeImportItem:
       type: object
       additionalProperties: false
@@ -1290,7 +1303,7 @@ components:
     ResearchReasoningTreeImportNode:
       type: object
       additionalProperties: false
-      required: [position, chain_node_entity_id, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, signals]
+      required: [position, chain_node_entity_id, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_lineage, signals]
       properties:
         position: {type: integer, minimum: 1}
         chain_node_entity_id: {$ref: '#/components/schemas/LowercaseUUID'}
@@ -1306,61 +1319,70 @@ components:
         incoming_transmission_title: {type: string, nullable: true}
         incoming_transmission_mechanism: {type: string, nullable: true}
         incoming_condition_summary: {type: string, nullable: true}
+        incoming_lineage:
+          nullable: true
+          allOf: [{$ref: '#/components/schemas/ResearchReasoningTreeIncomingLineage'}]
         signals:
           type: array
           minItems: 1
           maxItems: 5
-          items: {$ref: '#/components/schemas/ResearchReasoningTreeSignal'}
-    ResearchReasoningTreeSignal:
+          items: {$ref: '#/components/schemas/ResearchReasoningTreeImportSignal'}
+    ResearchReasoningTreeImportSignal:
       type: object
       additionalProperties: false
-      required: [variable_signal_key, signal_role, signal_direction, display_summary, display_order]
+      required: [variable_signal_key, signal_role, signal_direction, display_summary, display_order, lineage]
       properties:
         variable_signal_key: {type: string, pattern: '^[a-z0-9][a-z0-9._:-]{0,127}$'}
         signal_role: {type: string, enum: [primary, supporting, contradicting]}
         signal_direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain]}
         display_summary: {type: string, minLength: 1}
         display_order: {type: integer, minimum: 1, maximum: 5}
-    ResearchReasoningTreeImportCounts:
+        lineage: {$ref: '#/components/schemas/ResearchReasoningTreeSignalLineage'}
+    ResearchReasoningTreeSignalLineage:
       type: object
       additionalProperties: false
-      required: [reasoning_trees, nodes, event_associations, signal_associations, receipts]
+      required: [source_kind, variable_signal_id, semantic_submission_id, evidence_id, evidence_hash, upstream_variable_signal_id, upstream_direct_impact_assertion_id, entity_relation_id, industry_chain_graph_edge_id]
       properties:
-        reasoning_trees: {type: integer, minimum: 1}
-        nodes: {type: integer, minimum: 1}
-        event_associations: {type: integer, minimum: 0}
-        signal_associations: {type: integer, minimum: 1}
-        receipts: {type: integer, minimum: 1, maximum: 1}
-    ResearchReasoningTreeImportResult:
+        source_kind: {type: string, enum: [formal_signal, analyst_inference]}
+        variable_signal_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        semantic_submission_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        evidence_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        evidence_hash: {allOf: [{$ref: '#/components/schemas/PayloadHash'}], nullable: true}
+        upstream_variable_signal_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        upstream_direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        entity_relation_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        industry_chain_graph_edge_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+    ResearchReasoningTreeIncomingLineage:
       type: object
       additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.ResearchReasoningTreeImportResult
-      required: [receipt_id, theme_id, payload_hash, reasoning_tree_ids_by_industry_chain_entity_id, counts, published_at, imported_at, replayed]
+      required: [source_kind, direct_impact_assertion_id, semantic_submission_id, evidence_id, evidence_hash, affected_variable_key, affected_direction, upstream_variable_signal_id, upstream_direct_impact_assertion_id, entity_relation_id]
       properties:
-        receipt_id: {$ref: '#/components/schemas/LowercaseUUID'}
-        theme_id: {$ref: '#/components/schemas/LowercaseUUID'}
-        payload_hash: {$ref: '#/components/schemas/PayloadHash'}
-        reasoning_tree_ids_by_industry_chain_entity_id:
-          type: object
-          additionalProperties: {$ref: '#/components/schemas/LowercaseUUID'}
-        counts: {$ref: '#/components/schemas/ResearchReasoningTreeImportCounts'}
-        published_at: {$ref: '#/components/schemas/UTCTimestamp'}
-        imported_at: {$ref: '#/components/schemas/UTCTimestamp'}
-        replayed: {type: boolean}
-    ResearchReasoningTreeImportEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: {type: string}
-        result: {$ref: '#/components/schemas/ResearchReasoningTreeImportResult'}
-
+        source_kind: {type: string, enum: [formal_direct_impact, analyst_inference]}
+        direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        semantic_submission_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        evidence_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        evidence_hash: {allOf: [{$ref: '#/components/schemas/PayloadHash'}], nullable: true}
+        affected_variable_key: {type: string, nullable: true}
+        affected_direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain], nullable: true}
+        upstream_variable_signal_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        upstream_direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        entity_relation_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
     ResearchDirection:
       type: string
       enum: [positive, negative, mixed, neutral, uncertain]
     ResearchImpactStrength:
       type: string
       enum: [strong, medium, weak, unknown]
+    ResearchReasoningTreeSignal:
+      type: object
+      additionalProperties: false
+      required: [variable_signal_key, signal_role, signal_direction, display_summary, display_order]
+      properties:
+        variable_signal_key: {type: string}
+        signal_role: {type: string, enum: [primary, supporting, contradicting]}
+        signal_direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain]}
+        display_summary: {type: string}
+        display_order: {type: integer, minimum: 0}
     ResearchThemeImpact:
       type: object
       additionalProperties: false
@@ -1602,7 +1624,6 @@ components:
           type: string
         source_url:
           type: string
-          format: uri
         source_external_id:
           type: string
         title:
@@ -2133,10 +2154,28 @@ components:
     EventSemanticEvidence:
       type: object
       additionalProperties: false
-      required: [evidence_id, excerpt, source_level, relation, supports_fields, raw_document_id]
+      required:
+        - evidence_id
+        - evidence_hash
+        - excerpt
+        - source_level
+        - relation
+        - supports_fields
+        - is_primary
+        - raw_document_id
+        - source_name
+        - source_type
+        - title
+        - first_seen_at
+        - knowledge_available_at
+        - accepted_at
+        - statement_source
       properties:
         evidence_id:
           $ref: '#/components/schemas/UUID'
+        evidence_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
         excerpt:
           type: string
           minLength: 1
@@ -2152,6 +2191,33 @@ components:
             type: string
         raw_document_id:
           $ref: '#/components/schemas/UUID'
+        is_primary:
+          type: boolean
+        source_name:
+          type: string
+          minLength: 1
+        source_type:
+          type: string
+          minLength: 1
+        source_url:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+        published_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        first_seen_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        knowledge_available_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        accepted_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        statement_source:
+          type: string
+          description: Event Fact 明确提供的原始声明主体；空字符串表示正式事实尚未提供，不能用媒体来源名补齐。
 
     EventSemanticEntity:
       type: object
@@ -2289,6 +2355,408 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EventSemanticTransmissionRule'
+
+    ResearchAnalysisEvent:
+      type: object
+      additionalProperties: false
+      required: [id, title, summary, occurred_at, first_seen_at, knowledge_available_at, event_status, fact_status]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        summary:
+          type: string
+        occurred_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        first_seen_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        knowledge_available_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        event_status:
+          type: string
+          enum: [confirmed]
+        fact_status:
+          type: string
+          enum: [verified]
+
+    ResearchAnalysisEntityLink:
+      type: object
+      additionalProperties: false
+      required: [event_entity_link_id, semantic_submission_id, entity_id, entity_role, resolved_mention, resolution_method, resolution_confidence, evidence_ids, review_status]
+      properties:
+        event_entity_link_id:
+          $ref: '#/components/schemas/UUID'
+        semantic_submission_id:
+          $ref: '#/components/schemas/UUID'
+        entity_id:
+          $ref: '#/components/schemas/UUID'
+        entity_role:
+          type: string
+          enum: [event_subject, actor, affected_entity, statement_source, event_object, context]
+        resolved_mention:
+          type: string
+          nullable: true
+        resolution_method:
+          type: string
+          nullable: true
+        resolution_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        evidence_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/UUID'
+        review_status:
+          type: string
+          enum: [accepted]
+
+    ResearchAnalysisMeasurement:
+      type: object
+      additionalProperties: false
+      required: [measurement_id, measurement_role, value_shape, raw_value, raw_lower, raw_upper, raw_unit, canonical_value, canonical_lower, canonical_upper, canonical_unit, currency, scale, comparison_basis, comparison_period, raw_text, is_approximate, evidence_id]
+      properties:
+        measurement_id:
+          $ref: '#/components/schemas/UUID'
+        measurement_role:
+          type: string
+          enum: [absolute_level, absolute_change, relative_change, percentage_point_change]
+        value_shape:
+          type: string
+          enum: [exact, range, lower_bound, upper_bound]
+        raw_value: {type: string, nullable: true}
+        raw_lower: {type: string, nullable: true}
+        raw_upper: {type: string, nullable: true}
+        raw_unit: {type: string, nullable: true}
+        canonical_value: {type: string, nullable: true}
+        canonical_lower: {type: string, nullable: true}
+        canonical_upper: {type: string, nullable: true}
+        canonical_unit: {type: string, nullable: true}
+        currency: {type: string, nullable: true}
+        scale: {type: string, nullable: true}
+        comparison_basis: {type: string, nullable: true}
+        comparison_period: {type: string, nullable: true}
+        raw_text:
+          type: string
+        is_approximate:
+          type: boolean
+        evidence_id:
+          $ref: '#/components/schemas/UUID'
+
+    ResearchAnalysisDirectImpact:
+      type: object
+      additionalProperties: false
+      required: [direct_impact_assertion_id, semantic_submission_id, source_variable_signal_id, target_entity_id, affected_variable_key, affected_variable_version, affected_direction, derivation_type, mechanism_summary, evidence_ids, entity_relation_id, rule_key, rule_version, assertion_confidence, effective_from, effective_to, review_status]
+      properties:
+        direct_impact_assertion_id:
+          $ref: '#/components/schemas/UUID'
+        semantic_submission_id:
+          $ref: '#/components/schemas/UUID'
+        source_variable_signal_id:
+          $ref: '#/components/schemas/UUID'
+        target_entity_id:
+          $ref: '#/components/schemas/UUID'
+        affected_variable_key:
+          type: string
+        affected_variable_version:
+          type: integer
+          minimum: 1
+        affected_direction:
+          $ref: '#/components/schemas/EventSemanticDirection'
+        derivation_type:
+          type: string
+          enum: [event_explicit, rule_inferred]
+        mechanism_summary:
+          type: string
+        evidence_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/UUID'
+        entity_relation_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        rule_key:
+          type: string
+          nullable: true
+        rule_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        assertion_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        effective_from:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        effective_to:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        review_status:
+          type: string
+          enum: [accepted]
+
+    ResearchAnalysisVariableSignal:
+      type: object
+      additionalProperties: false
+      required: [variable_signal_id, semantic_submission_id, source_event_id, subject_event_entity_link_id, subject_entity_id, variable_key, variable_version, direction, assertion_modality, evidence_ids, statement_at, valid_from, valid_until, forecast_period_start, forecast_period_end, extraction_confidence, review_status, measurements, direct_impacts]
+      properties:
+        variable_signal_id:
+          $ref: '#/components/schemas/UUID'
+        semantic_submission_id:
+          $ref: '#/components/schemas/UUID'
+        source_event_id:
+          $ref: '#/components/schemas/UUID'
+        subject_event_entity_link_id:
+          $ref: '#/components/schemas/UUID'
+        subject_entity_id:
+          $ref: '#/components/schemas/UUID'
+        variable_key:
+          type: string
+        variable_version:
+          type: integer
+          minimum: 1
+        direction:
+          $ref: '#/components/schemas/EventSemanticDirection'
+        assertion_modality:
+          type: string
+          enum: [actual, stated_intent, source_forecast]
+        evidence_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/UUID'
+        statement_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        valid_from:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        valid_until:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        forecast_period_start:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        forecast_period_end:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        extraction_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        review_status:
+          type: string
+          enum: [accepted]
+        measurements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnalysisMeasurement'
+        direct_impacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnalysisDirectImpact'
+
+    ResearchAnalysisEventSemanticBundle:
+      type: object
+      additionalProperties: false
+      required: [event, evidence, entity_links, variable_signals]
+      properties:
+        event:
+          $ref: '#/components/schemas/ResearchAnalysisEvent'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEvidence'
+        entity_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnalysisEntityLink'
+        variable_signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnalysisVariableSignal'
+
+    ResearchAnalysisDictionaries:
+      type: object
+      additionalProperties: false
+      required: [entities, relation_definitions, entity_relations, industry_chains, industry_chain_memberships, industry_chain_graph_edges, entity_type_definitions, variable_definitions, direct_transmission_rules, acceptance_policies]
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntity'
+        relation_definitions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [relation_type, direction]
+            properties:
+              relation_type: {type: string}
+              direction: {type: string, enum: [directed]}
+        entity_relations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticEntityRelation'
+        industry_chains:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [industry_chain_entity_id, scope, target_output, end_use, geography, as_of_date, review_status]
+            properties:
+              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+              scope: {type: string}
+              target_output: {type: string}
+              end_use: {type: string}
+              geography: {type: string}
+              as_of_date: {type: string, format: date}
+              review_status: {type: string, enum: [approved]}
+        industry_chain_memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [industry_chain_entity_id, chain_node_entity_id, position, contextual_stage, review_status, status]
+            properties:
+              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+              chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              position: {type: integer, minimum: 1}
+              contextual_stage: {type: string}
+              review_status: {type: string, enum: [approved]}
+              status: {type: string, enum: [active]}
+        industry_chain_graph_edges:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [industry_chain_graph_edge_id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
+            properties:
+              industry_chain_graph_edge_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+              from_chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              to_chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              relation_type: {type: string}
+              mechanism: {type: string}
+              condition_note: {type: string, nullable: true}
+              segment_kind: {type: string}
+              omitted_step_note: {type: string, nullable: true}
+              review_status: {type: string, enum: [approved]}
+              status: {type: string, enum: [active]}
+        entity_type_definitions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [type_key, version, signal_subject_allowed, direct_target_mode, status]
+            properties:
+              type_key: {type: string}
+              version: {type: integer, minimum: 1}
+              signal_subject_allowed: {type: boolean}
+              direct_target_mode: {type: string, enum: [allow, conditional, deny, context]}
+              status: {type: string, enum: [active]}
+        variable_definitions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [key, version, name_zh, name_en, domain, business_definition, value_type, allowed_directions, canonical_unit, status, applicable_entity_types]
+            properties:
+              key: {type: string}
+              version: {type: integer, minimum: 1}
+              name_zh: {type: string}
+              name_en: {type: string}
+              domain: {type: string}
+              business_definition: {type: string}
+              value_type: {type: string}
+              allowed_directions:
+                type: array
+                items: {$ref: '#/components/schemas/EventSemanticDirection'}
+              canonical_unit: {type: string, nullable: true}
+              status: {type: string, enum: [active]}
+              applicable_entity_types:
+                type: array
+                items: {type: string}
+        direct_transmission_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSemanticTransmissionRule'
+        acceptance_policies:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [policy_key, version, retry_budget, status, policy]
+            properties:
+              policy_key: {type: string}
+              version: {type: integer, minimum: 1}
+              retry_budget: {type: integer, minimum: 0, maximum: 3}
+              status: {type: string, enum: [active]}
+              policy:
+                type: object
+                additionalProperties: true
+
+    ResearchAnalysisContext:
+      type: object
+      additionalProperties: false
+      required: [contract_version, temporal_semantics, temporal_limitation, dictionary_fingerprint, discovery_window_start, discovery_window_end, analysis_as_of, event_semantic_bundles, dictionaries, has_more]
+      properties:
+        contract_version:
+          type: string
+          enum: [research-analysis-context.v1]
+        temporal_semantics:
+          type: string
+          enum: [retrospective_reconstruction]
+          description: Event ABox 按 analysis_as_of 过滤；关系与 TBox 字典是当前状态重建，不声明严格历史回放。
+        temporal_limitation:
+          type: string
+          minLength: 1
+        dictionary_fingerprint:
+          $ref: '#/components/schemas/PayloadHash'
+        discovery_window_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        discovery_window_end:
+          $ref: '#/components/schemas/UTCTimestamp'
+        analysis_as_of:
+          $ref: '#/components/schemas/UTCTimestamp'
+        prediction_horizon_start:
+          $ref: '#/components/schemas/UTCTimestamp'
+        prediction_horizon_end:
+          $ref: '#/components/schemas/UTCTimestamp'
+        event_semantic_bundles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchAnalysisEventSemanticBundle'
+        dictionaries:
+          $ref: '#/components/schemas/ResearchAnalysisDictionaries'
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+
+    ResearchAnalysisContextEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ResearchAnalysisContext'
 
     EventSemanticContextEnvelope:
       type: object

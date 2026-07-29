@@ -73,11 +73,12 @@ type EventPublicationReview struct {
 }
 
 type ResearchThemeImportRequest struct {
-	AnalysisBatchID string                    `json:"analysis_batch_id"`
-	AnalysisAsOf    string                    `json:"analysis_as_of"`
-	WindowStart     string                    `json:"window_start"`
-	WindowEnd       string                    `json:"window_end"`
-	Themes          []ResearchThemeImportItem `json:"themes"`
+	AnalysisBatchID      string                            `json:"analysis_batch_id"`
+	AnalysisAsOf         string                            `json:"analysis_as_of"`
+	DiscoveryWindowStart string                            `json:"discovery_window_start"`
+	DiscoveryWindowEnd   string                            `json:"discovery_window_end"`
+	Theme                ResearchThemeImportItem           `json:"theme"`
+	ReasoningTrees       []ResearchReasoningTreeImportItem `json:"reasoning_trees"`
 }
 
 type ResearchThemeImportItem struct {
@@ -114,11 +115,6 @@ type ResearchThemeImportEvent struct {
 	SupportedClaim *string `json:"supported_claim"`
 }
 
-type ResearchReasoningTreeImportRequest struct {
-	ThemeID        string                            `json:"theme_id"`
-	ReasoningTrees []ResearchReasoningTreeImportItem `json:"reasoning_trees"`
-}
-
 type ResearchReasoningTreeImportItem struct {
 	IndustryChainEntityID     string                                  `json:"industry_chain_entity_id"`
 	Title                     string                                  `json:"title"`
@@ -150,25 +146,52 @@ type ResearchReasoningTreeImportEvent struct {
 }
 
 type ResearchReasoningTreeImportNode struct {
-	Position                         int                                 `json:"position"`
-	ChainNodeEntityID                string                              `json:"chain_node_entity_id"`
-	StateSummary                     *string                             `json:"state_summary"`
-	ImpactDirection                  string                              `json:"impact_direction"`
-	ImpactStrength                   string                              `json:"impact_strength"`
-	ImpactSummary                    *string                             `json:"impact_summary"`
-	ReasoningBasisSummary            *string                             `json:"reasoning_basis_summary"`
-	EvidenceGapSummary               *string                             `json:"evidence_gap_summary"`
-	IncomingIndustryChainGraphEdgeID *string                             `json:"incoming_industry_chain_graph_edge_id"`
-	IncomingTransmissionTitle        *string                             `json:"incoming_transmission_title"`
-	IncomingTransmissionMechanism    *string                             `json:"incoming_transmission_mechanism"`
-	IncomingConditionSummary         *string                             `json:"incoming_condition_summary"`
-	Signals                          []ResearchReasoningTreeImportSignal `json:"signals"`
+	Position                         int                                   `json:"position"`
+	ChainNodeEntityID                string                                `json:"chain_node_entity_id"`
+	StateSummary                     *string                               `json:"state_summary"`
+	ImpactDirection                  string                                `json:"impact_direction"`
+	ImpactStrength                   string                                `json:"impact_strength"`
+	ImpactSummary                    *string                               `json:"impact_summary"`
+	ReasoningBasisSummary            *string                               `json:"reasoning_basis_summary"`
+	EvidenceGapSummary               *string                               `json:"evidence_gap_summary"`
+	IncomingIndustryChainGraphEdgeID *string                               `json:"incoming_industry_chain_graph_edge_id"`
+	IncomingTransmissionTitle        *string                               `json:"incoming_transmission_title"`
+	IncomingTransmissionMechanism    *string                               `json:"incoming_transmission_mechanism"`
+	IncomingConditionSummary         *string                               `json:"incoming_condition_summary"`
+	IncomingLineage                  *ResearchReasoningTreeIncomingLineage `json:"incoming_lineage"`
+	Signals                          []ResearchReasoningTreeImportSignal   `json:"signals"`
 }
 
 type ResearchReasoningTreeImportSignal struct {
-	VariableSignalKey string `json:"variable_signal_key"`
-	SignalRole        string `json:"signal_role"`
-	SignalDirection   string `json:"signal_direction"`
-	DisplaySummary    string `json:"display_summary"`
-	DisplayOrder      int    `json:"display_order"`
+	VariableSignalKey string                             `json:"variable_signal_key"`
+	SignalRole        string                             `json:"signal_role"`
+	SignalDirection   string                             `json:"signal_direction"`
+	DisplaySummary    string                             `json:"display_summary"`
+	DisplayOrder      int                                `json:"display_order"`
+	Lineage           ResearchReasoningTreeSignalLineage `json:"lineage"`
+}
+
+type ResearchReasoningTreeSignalLineage struct {
+	SourceKind                      string  `json:"source_kind"`
+	VariableSignalID                *string `json:"variable_signal_id"`
+	SemanticSubmissionID            *string `json:"semantic_submission_id"`
+	EvidenceID                      *string `json:"evidence_id"`
+	EvidenceHash                    *string `json:"evidence_hash"`
+	UpstreamVariableSignalID        *string `json:"upstream_variable_signal_id"`
+	UpstreamDirectImpactAssertionID *string `json:"upstream_direct_impact_assertion_id"`
+	EntityRelationID                *string `json:"entity_relation_id"`
+	IndustryChainGraphEdgeID        *string `json:"industry_chain_graph_edge_id"`
+}
+
+type ResearchReasoningTreeIncomingLineage struct {
+	SourceKind                      string  `json:"source_kind"`
+	DirectImpactAssertionID         *string `json:"direct_impact_assertion_id"`
+	SemanticSubmissionID            *string `json:"semantic_submission_id"`
+	EvidenceID                      *string `json:"evidence_id"`
+	EvidenceHash                    *string `json:"evidence_hash"`
+	AffectedVariableKey             *string `json:"affected_variable_key"`
+	AffectedDirection               *string `json:"affected_direction"`
+	UpstreamVariableSignalID        *string `json:"upstream_variable_signal_id"`
+	UpstreamDirectImpactAssertionID *string `json:"upstream_direct_impact_assertion_id"`
+	EntityRelationID                *string `json:"entity_relation_id"`
 }

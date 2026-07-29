@@ -72,6 +72,11 @@ func validateLink(context Context, candidate EntityLinkCandidate, evidence map[s
 		strings.TrimSpace(candidate.EntityRole) == "" || strings.TrimSpace(candidate.ResolutionMethod) == "" {
 		return "link_invalid"
 	}
+	if !contains([]string{
+		"event_subject", "actor", "affected_entity", "statement_source", "event_object", "context",
+	}, candidate.EntityRole) {
+		return "entity_role_invalid"
+	}
 	entity, exists := entities[candidate.EntityID]
 	if !exists || entity.Status != "active" {
 		return "entity_not_found"

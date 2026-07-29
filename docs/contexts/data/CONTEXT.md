@@ -112,20 +112,29 @@ _Avoid_: 调用方提交 Theme UUID、把 Theme Key 当作长期主题身份
 **长期研究命题（Research Thesis）**:
 未来用于跨批次持续跟踪同一研究议题或产业瓶颈的独立对象。Research Theme 不承担该职责。
 
-**研究主题发布批次（Research Theme Publication Batch）**:
-同一次分析产生、通过分析侧校验并由授权发布主体共同发布的一组 Research Theme，是 Theme 导入和发布的最小原子单元。发布批次至少包含一个 Theme；没有可发布 Theme 时分析侧不发起发布，也不生成回执。任一 Theme 引用了不存在的 Event、产业链节点或其他强关联主数据时，整个批次拒绝且不产生任何可见 Theme；首页只展示完整成功发布的最新批次。本期不建模人工审核状态或审核元数据。
-_Avoid_: 部分入库、跳过无效 Theme 后继续发布、展示未完整发布的批次
+**研究主题发布聚合（Research Theme Publication Aggregate）**:
+一次同步请求只发布一条 Theme 及其 1..N 棵完整 Reason Tree；二者是最小事务聚合，
+要么全部可见，要么全部回滚。一次 Codex 分析产生多个 Theme 时分别提交，彼此不共享
+事务。零 Theme 是 Codex 合法结果，不向 Data 提交占位对象。Data 只校验 DTO、正式
+引用、状态、结构和 Evidence 血缘，不判断投研结论是否正确。
+_Avoid_: Theme 先可见再补 Tree、独立 Tree 写入口、部分入库、零 Theme 占位
 
 **主题批次发布时间（Theme Batch Published At）**:
 一个完整 Research Theme Publication Batch 正式成为产品可见事实的服务端时间。Data 在整批校验通过并提交事务时统一生成，同一批次全部 Theme 共享该时间；失败批次不产生发布时间，幂等重放保留首次成功发布的时间。首页在调用方指定的查询时间范围内，按批次发布时间选择最新成功发布批次；范围内没有批次时返回空集合。
 _Avoid_: 调用方指定发布时间、按单条 Theme 选择最新批次、重放时刷新发布时间
 
 **分析批次身份（Analysis Batch ID）**:
-分析侧一次运行的全局唯一、不可变身份，由分析侧 `run_id` 一对一传入，同时承担 Theme 发布的幂等身份，不另设幂等键。同一 Analysis Batch ID 和相同 canonical 发布内容属于幂等重放，并保留首次发布结果；同一身份对应不同内容属于冲突，不能覆盖或修订已发布批次。校验失败不占用该身份，修复依赖后可以相同请求重试；内容修订必须使用新的分析运行身份。
+工程外部 Codex 为一条 Theme Publication Aggregate 提供的稳定、不可变发布身份，仅承担
+幂等和审计关联，不表示 Data 拥有 Codex Run 或任务。同一 Analysis Batch ID 和相同
+canonical 聚合属于幂等重放；同一身份对应不同内容返回冲突。校验失败不占用该身份；
+新结论必须使用新身份创建新 Theme，不更新旧 Theme。
 _Avoid_: 第二套幂等键、覆盖已发布批次、失败校验生成成功 receipt
 
 **分析窗口（Analysis Window）**:
-一个研究主题发布批次所覆盖的事实时间范围，由批次级 `window_start` 和 `window_end` 表达，使用 UTC 时间且结束时间必须严格晚于开始时间。同一批次所有 Theme 共享该窗口；分析窗口与服务端发布时间相互独立。
+一条 Theme Aggregate 实际查询 Event 的知识可得时间范围，由
+`discovery_window_start`（含）和 `discovery_window_end`（不含）表达，并固定
+`analysis_as_of`。三者使用 UTC，结束时间必须晚于开始时间且不得晚于
+`analysis_as_of`；它们与服务端发布时间相互独立。
 _Avoid_: 零长度窗口、每个 Theme 重复声明窗口、用发布时间替代分析窗口
 
 **研究主题发布主体（Research Theme Publisher Subject）**:
@@ -136,21 +145,27 @@ _Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份�
 同步 Theme 发布请求超时后，发布器以完全相同的 Analysis Batch ID 和发布内容重试 POST。首次事务已成功时返回原结果并标记重放，未成功时正常执行，内容变化时返回冲突。本期不提供状态查询、轮询或异步任务接口。
 
 **Theme 发布回执（Theme Publication Receipt）**:
-一个成功 Research Theme Publication Batch 的不可变技术回执，也是 Analysis Batch ID 全局唯一性、发布主体所有权、payload hash、首次 Theme IDs、发布时间和写入数量的持久化依据。每批只有一条回执；回执、全部 Theme 及其关联事实必须在同一事务中提交或回滚。`replayed` 表示当前响应是否来自重放，不是回执中固化的首次结果。
-V1 HTTP 成功结果使用 `theme_ids_by_key` 对象返回完整的 Theme Key 到 Theme UUID 映射；`counts` 仅包含 `themes`、`impacts`、`event_associations` 和 `receipts`。首次成功返回 `201 Created` 和 `replayed: false`，同主体同载荷重放返回 `200 OK` 和 `replayed: true`。两种结果都返回首次成功时的 `receipt_id`、`payload_hash`、`published_at`、`imported_at`、Theme 映射和数量；重放不得刷新或重算这些结果。
+一个成功 Theme Aggregate 的不可变技术回执，持久化 Analysis Batch ID、发布主体、
+payload hash、唯一 Theme ID、Industry Chain 到 Tree ID 的映射、首次发布时间及整棵
+聚合的写入计数。Theme、全部 Trees、强血缘和两类既有回执在同一事务内提交。
+首次成功返回 `201 + replayed:false`，相同主体和载荷重放返回
+`200 + replayed:true`；重放不得刷新结果。
 _Avoid_: 在单条 Theme 上设置批次 ID 唯一约束、业务数据失败后保留回执、修改成功回执
 
 **Theme 发布载荷哈希（Theme Publication Payload Hash）**:
 对完整 Theme 发布请求体按 RFC 8785 规范化后计算的小写十六进制 SHA-256，用于批次幂等重放和内容冲突检测。哈希只覆盖调用方提交的批次身份、分析窗口和 Theme 内容，不包含认证信息、请求 ID、服务端发布时间或响应字段；由 Data 计算并返回，调用方不提交。
 
 **Theme 发布规范数组顺序（Theme Publication Canonical Array Order）**:
-Theme 发布请求只有一种合法数组表示：`themes` 按批次内 Theme Key 升序，`chain_nodes` 按规范化小写节点 UUID 升序，`events` 按规范化小写 Event UUID 升序。UUID 必须使用标准小写字符串，同一数组不得重复键或 ID。Data 校验但不重排数组，通过结构与顺序校验后才按原顺序计算 canonical hash。
+Theme 发布请求只有一个 `theme`；其 Impact/Event、Reason Trees、Tree Event、Node 和
+Signal 数组均使用合同规定的唯一稳定顺序。UUID 必须使用标准小写字符串，同一作用域
+不得重复键或 ID。Data 校验但不静默重排，通过结构与顺序校验后计算 canonical hash。
 _Avoid_: 大小写混合 UUID、重复关联、服务端静默重排、同一语义存在多种合法数组顺序
 
-**Theme 发布 V1（Theme Publication V1）**:
-批次级字段为 `analysis_batch_id`、`analysis_as_of`、`window_start`、`window_end` 和
-`themes`。每个 Theme 使用显式结论、影响强度、传导阶段、投资指引、时间范围、可空
-摘要、Theme Impact 与 Event 关联字段。合同严格拒绝旧字段和未知字段。
+**Theme Aggregate 发布 V2（Theme Aggregate Publication V2）**:
+顶层字段为 `analysis_batch_id`、`analysis_as_of`、`discovery_window_start`、
+`discovery_window_end`、单个 `theme` 和 `reasoning_trees[1..N]`。Reason Tree Signal
+必须声明 `formal_signal` 或 `analyst_inference` 血缘；非根节点 incoming transmission
+必须声明 `formal_direct_impact` 或 `analyst_inference` 血缘。合同严格拒绝未知字段。
 _Avoid_: `subject_entity_id`、Theme `name`、`impact_level`、`trading_direction`、
 `transmission_path`、`next_checkpoint`、`market_confirmation_summary`
 
@@ -161,9 +176,9 @@ Research Theme 与受影响 Chain Node 的不可变关系，保存角色、方�
 _Avoid_: Company/Concept 等其他目标类型、`is_primary`、把展示顺序解释为影响优先级
 
 **产品可见 Theme（Product-visible Research Theme）**:
-属于成功 Theme Publication Batch 且满足查询窗口的 Theme。Theme 发布与 Reason Tree
-发布是两个独立同步事务；Theme 可以在没有 Tree 回执时继续可见。
-_Avoid_: 用 Tree 发布状态过滤首页 Theme、要求 Theme 与 Tree 同时可见
+属于一次成功 Theme Aggregate 事务且满足读取窗口的 Theme。新 V2 Theme 必然同时拥有
+至少一棵完整 Tree；既有 V1 历史数据保持可读，但不构成新发布兼容约束。
+_Avoid_: 新 Theme 无 Tree 可见、读取时动态补写 Tree
 
 **推理树（Reason Tree）**:
 一个 Theme 在一条 Industry Chain 内的不可变线性推导链路。同一 Theme 与同一
@@ -173,11 +188,10 @@ _Avoid_: Research Anchor、中心节点、任意图、分叉、循环、用 Tree
 表达影响优先级
 
 **Reason Tree 发布集合（Reason Tree Publication Set）**:
-`POST /api/data/v1/research-reasoning-tree-imports` 对一个已发布 Theme 的完整 Tree
-集合执行同步、原子、幂等发布。`theme_id` 是集合幂等身份；请求至少包含一棵 Tree，
-每棵 Tree 至少命中一个 Theme Impact，全部 Tree 的命中并集覆盖父 Theme 的所有
-Impact。发布主体必须与父 Theme 回执一致。
-_Avoid_: 单树分批发布、空集合回执、部分覆盖、第二套幂等键
+Reason Trees 只能通过 `POST /api/data/v1/research-theme-imports` 随所属 Theme
+Aggregate 同步发布，不存在独立写入口。请求至少包含一棵 Tree，全部 Tree 与 Theme
+共同使用 `analysis_batch_id` 幂等身份和同一事务。
+_Avoid_: `research-reasoning-tree-imports` 写入口、先 Theme 后 Tree、第二套幂等键
 
 **Reason Tree 身份与回执（Reason Tree Identity and Receipt）**:
 Tree 身份由 `theme_id + NUL + industry_chain_entity_id` 确定性生成。每个 Theme
@@ -193,12 +207,12 @@ Tree 的有序 Chain Node 快照。`position` 从 1 连续排列并且是唯一�
 _Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写正式图谱
 
 **Variable Signal 展示快照（Variable Signal Display Snapshot）**:
-每个 Tree 节点拥有 1..5 个按 `display_order` 排列的弱外部引用快照，恰好一个
-`primary` 且顺序为 1；其余角色为 `supporting` 或 `contradicting`。同一分析批次
-复用同一 key 时，方向和展示摘要必须一致。该展示快照自身不建设或替代 Event-native
-Signal 事实表，也不验证其 Entity、Evidence、Metric 或观测语义；Phase One 的正式
-Event-native Variable Signal 由下述独立领域对象与 API 管理。
-_Avoid_: Variable Signal 外键、事实读取 API、从展示文本推断研究语义
+每个 Tree 节点拥有 1..5 个按 `display_order` 排列的不可变显示快照，恰好一个
+`primary`。`formal_signal` 同时固定 VariableSignal UUID、Semantic Submission、
+Evidence ID/hash，并验证节点 Entity、变量和方向一致；`analyst_inference` 不得冒充
+正式 Signal，必须引用一个正式上游 Signal/Impact 和实际关系。读取时只返回发布时显示
+快照，不用当前正式事实动态重写文案。
+_Avoid_: 只有字符串 key 的弱引用、从显示文本反推正式事实、Inference 伪造 Signal ID
 
 **Event 原生 Variable Signal（Event-native Variable Signal）**:
 由正式 Event 的明确陈述与 Evidence 直接支持、描述规范 Entity 上受控变量状态或变化的
@@ -276,6 +290,18 @@ runtime 状态、调度重试或执行错误；重新分析创建新 Submission 
 Submission。
 _Avoid_: Agent Execution 副本、Theme Analysis Batch、原地覆盖重新分析、跨 Event 批次
 
+**Research Analysis Context**:
+Data Service 面向工程外部 Codex 分析师提供的同步、无状态、实时批量读取合同。调用方
+显式提交 discovery window、`analysis_as_of` 与 page size；Data 只返回
+`confirmed + verified` Event 及 accepted/latest/non-superseded Event Semantics、
+Evidence、可解析 Entity/产业链关系和版本化 TBox。分页单位是完整 Event Bundle，
+cursor 绑定查询与字典 fingerprint。MVP 不保存 Snapshot，也不宣称严格历史回放；
+响应固定标记 `retrospective_reconstruction`，未来创建/更新的字典事实被排除，已知
+状态历史缺口返回 `422`。PostgreSQL 在 JSON 聚合前执行行数与原始字节预算，最终编码
+仍执行 Bundle、字典和整页预算，超限返回 `429`。
+_Avoid_: Data 聚合 Event 成 Theme、Snapshot/Task 表、Codex 直连 PG/Neo4j、当前 TBox
+冒充严格历史 TBox、先物化无界 JSON 再做资源限制
+
 **Event Semantic Context Lease**:
 Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。
 它固定 Event、Evidence、Ontology、Variable、Rule 和可选 superseded Submission 边界，
@@ -314,16 +340,16 @@ Research Theme 的分析阶段，仅允许 `identification`、`validation`、`di
 
 ## Source Ownership
 
-Data 业务代码必须收敛到 `analyse-data-service/backend/`：
+Data Backend 使用 Kratos 分层，业务代码必须收敛到 `analyse-data-service/backend/`：
 
 ```text
+api/data/v1/  versioned HTTP contract, strict binding and DTOs
 cmd/          process and maintenance entrypoints
-usecase/      import, query, seed and projection orchestration
-domain/       Data-owned rules and models
-repositories/ persistence ports and implementations
-adapters/     PostgreSQL, Neo4j, migration and inbound/outbound adapters
-transport/    Data REST routes, handlers, middleware and DTOs
-config/       Data-only runtime configuration
+internal/biz/ Data-owned rules, use cases and outbound ports
+internal/data/ persistence adapters and repository wrappers
+internal/service/ API-to-Biz application service
+internal/server/ Kratos transport, auth and lifecycle wiring
+internal/conf/ Data-only runtime configuration
 ```
 
 `analyse-data-service/backend/migrations/` 与 `analyse-data-service/backend/data/` 是 Data 的统一事实资产，可以保留为 Backend 根资产，但不得被 BFF 直接读取。

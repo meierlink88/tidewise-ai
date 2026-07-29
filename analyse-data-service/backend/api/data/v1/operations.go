@@ -3,8 +3,7 @@ package v1
 const (
 	OperationPublishReviewedEvents            = "data.v1.publishReviewedEvents"
 	OperationListActiveEventTags              = "data.v1.listActiveEventTags"
-	OperationImportResearchThemes             = "data.v1.importResearchThemes"
-	OperationImportResearchReasoningTrees     = "data.v1.importResearchReasoningTrees"
+	OperationPublishResearchTheme             = "data.v1.publishResearchTheme"
 	OperationListResearchThemes               = "data.v1.listResearchThemes"
 	OperationGetResearchTheme                 = "data.v1.getResearchTheme"
 	OperationListResearchThemeReasoningTrees  = "data.v1.listResearchThemeReasoningTrees"
@@ -19,13 +18,13 @@ const (
 	OperationCreateEventSemanticSubmission    = "data.v1.createEventSemanticSubmission"
 	OperationSubmitEventSemanticReview        = "data.v1.submitEventSemanticReview"
 	OperationGetEventSemantics                = "data.v1.getEventSemantics"
+	OperationListResearchAnalysisContext      = "data.v1.listResearchAnalysisContext"
 )
 
 var BusinessOperations = []string{
 	OperationPublishReviewedEvents,
 	OperationListActiveEventTags,
-	OperationImportResearchThemes,
-	OperationImportResearchReasoningTrees,
+	OperationPublishResearchTheme,
 	OperationListResearchThemes,
 	OperationGetResearchTheme,
 	OperationListResearchThemeReasoningTrees,
@@ -40,4 +39,5 @@ var BusinessOperations = []string{
 	OperationCreateEventSemanticSubmission,
 	OperationSubmitEventSemanticReview,
 	OperationGetEventSemantics,
+	OperationListResearchAnalysisContext,
 }

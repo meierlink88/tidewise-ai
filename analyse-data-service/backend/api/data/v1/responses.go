@@ -49,40 +49,26 @@ type EventTagCatalogItem struct {
 }
 
 type ResearchThemeImportResult struct {
-	ReceiptID       string                    `json:"receipt_id"`
-	AnalysisBatchID string                    `json:"analysis_batch_id"`
-	PayloadHash     string                    `json:"payload_hash"`
-	ThemeIDsByKey   map[string]string         `json:"theme_ids_by_key"`
-	Counts          ResearchThemeImportCounts `json:"counts"`
-	PublishedAt     time.Time                 `json:"published_at"`
-	ImportedAt      time.Time                 `json:"imported_at"`
-	Replayed        bool                      `json:"replayed"`
+	ReceiptID                               string                    `json:"receipt_id"`
+	AnalysisBatchID                         string                    `json:"analysis_batch_id"`
+	PayloadHash                             string                    `json:"payload_hash"`
+	ThemeID                                 string                    `json:"theme_id"`
+	ReasoningTreeIDsByIndustryChainEntityID map[string]string         `json:"reasoning_tree_ids_by_industry_chain_entity_id"`
+	Counts                                  ResearchThemeImportCounts `json:"counts"`
+	PublishedAt                             time.Time                 `json:"published_at"`
+	ImportedAt                              time.Time                 `json:"imported_at"`
+	Replayed                                bool                      `json:"replayed"`
 }
 
 type ResearchThemeImportCounts struct {
-	Themes            int `json:"themes"`
-	Impacts           int `json:"impacts"`
-	EventAssociations int `json:"event_associations"`
-	Receipts          int `json:"receipts"`
-}
-
-type ResearchReasoningTreeImportResult struct {
-	ReceiptID                               string                            `json:"receipt_id"`
-	ThemeID                                 string                            `json:"theme_id"`
-	PayloadHash                             string                            `json:"payload_hash"`
-	ReasoningTreeIDsByIndustryChainEntityID map[string]string                 `json:"reasoning_tree_ids_by_industry_chain_entity_id"`
-	Counts                                  ResearchReasoningTreeImportCounts `json:"counts"`
-	PublishedAt                             time.Time                         `json:"published_at"`
-	ImportedAt                              time.Time                         `json:"imported_at"`
-	Replayed                                bool                              `json:"replayed"`
-}
-
-type ResearchReasoningTreeImportCounts struct {
-	ReasoningTrees     int `json:"reasoning_trees"`
-	Nodes              int `json:"nodes"`
-	EventAssociations  int `json:"event_associations"`
-	SignalAssociations int `json:"signal_associations"`
-	Receipts           int `json:"receipts"`
+	Themes                 int `json:"themes"`
+	Impacts                int `json:"impacts"`
+	ThemeEventAssociations int `json:"theme_event_associations"`
+	ReasoningTrees         int `json:"reasoning_trees"`
+	Nodes                  int `json:"nodes"`
+	TreeEventAssociations  int `json:"tree_event_associations"`
+	SignalAssociations     int `json:"signal_associations"`
+	Receipts               int `json:"receipts"`
 }
 
 type ResearchThemePage struct {
