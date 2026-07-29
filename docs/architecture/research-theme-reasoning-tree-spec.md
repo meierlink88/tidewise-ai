@@ -37,7 +37,7 @@ Theme/Tree 仍是不可变审计记录，后续迁移必须保持可读，不得
 ## Solution
 
 直接在现有 `/v1` API 上执行一次受控的 breaking cutover，把 Research Theme 定义为
-一个分析批次内的不可变投资结论快照，把 Reason Tree 定义为解释该 Theme 的一条
+一个单 Theme Publication Aggregate 内的不可变投资结论快照，把 Reason Tree 定义为解释该 Theme 的一条
 产业链线性传导路径。
 
 一个 Theme 必须关联一个或多个 Theme Impact；本期 Theme Impact 只允许引用 Chain
@@ -84,12 +84,12 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 10. As an 分析师, I want any Theme, Tree or lineage failure to roll back the whole aggregate, so that partial reasoning is never product-visible.
 11. As an 分析师, I want identical retries to return the first successful publication receipt, so that a timeout can be recovered without duplicating data.
 12. As an 分析师, I want a changed payload under an already published identity to be rejected, so that immutable snapshots cannot be silently overwritten.
-13. As an 分析师, I want Theme corrections to use a new Analysis Batch, so that previous published conclusions remain auditable.
+13. As an 分析师, I want Theme corrections to use a new Aggregate identity, so that previous published conclusions remain auditable.
 14. As an 分析师, I want to submit `conclusion_status` independently from `transmission_stage`, so that evidence state and transmission lifecycle are not conflated.
 15. As an 分析师, I want Data to accept analyst-reviewed content without imposing cross-field research rules, so that business validation stays in the analysis system.
 16. As an 分析师, I want to attach existing Event facts to Themes and Trees with explicit evidence roles, so that users can trace the conclusion to formal evidence.
 17. As an 分析师, I want to reference a formal Industry Chain Graph Edge when one exists and leave it absent for an analyst inference, so that temporary reasoning is not promoted into master data.
-18. As an 分析师, I want a Variable Signal key to be stable within one Analysis Batch, so that the same signal snapshot can appear consistently on multiple nodes.
+18. As an 分析师, I want a Variable Signal key to be stable within one Theme Aggregate, so that the same signal snapshot can appear consistently on multiple nodes.
 19. As an 分析师, I want formal Variable Signal and DirectImpact references to carry immutable Submission and Evidence lineage, so that each displayed conclusion remains auditable.
 20. As a Miniapp user, I want Theme cards ordered by publication time, so that I see the latest successfully published analysis first.
 21. As a Miniapp user, I want the Theme card to show the number and names of affected Chain Nodes, so that I understand what investment objects are affected.
@@ -168,8 +168,8 @@ Research Publication Aggregate (analysis_batch_id)
             └── Variable Signal snapshot + lineage 1..5
 ```
 
-- Research Theme is an immutable conclusion snapshot in one Analysis Batch. It is not a
-  cross-batch Research Thesis identity.
+- Research Theme is an immutable conclusion snapshot in one Theme Publication Aggregate. It is not
+  a cross-Aggregate Research Thesis identity.
 - Delete `subject_entity_id`. Theme has no subject, primary impacted object or `is_primary`.
 - Theme Impact is the relation between Theme and an affected Chain Node.
 - Reason Tree is an immutable published explanation projection for one Industry Chain and one
@@ -194,7 +194,8 @@ Research Theme stores:
 - `id`: Data-generated UUID.
 - `theme_key`: deterministic identity within `analysis_batch_id`; pattern
   `^[a-z0-9][a-z0-9._:-]{0,127}$`.
-- `analysis_batch_id`: immutable analysis-run identity inherited from the publication batch.
+- `analysis_batch_id`: immutable idempotency and audit identity of this single-Theme Publication
+  Aggregate; it does not identify a Data-owned analysis run.
 - `import_receipt_id`: Theme publication receipt.
 - `title`: replaces `name` in database and every API/DTO; no `name` alias.
 - `one_line_conclusion`: the Theme-level concise conclusion.
@@ -213,9 +214,9 @@ Research Theme stores:
 - `checkpoint_summary`: optional authoritative Theme-wide validation summary across all Trees. It
   is submitted with Theme and is never selected from a Tree.
 - `risk_summary`: optional Theme-wide risk and boundary summary.
-- `window_start` and `window_end`: inherited batch-level fact window.
-- `analysis_as_of`: inherited batch-level cutoff for facts used by the analysis.
-- `published_at`: server-generated Theme batch publication time.
+- `window_start` and `window_end`: fact window of this Theme Aggregate.
+- `analysis_as_of`: cutoff for facts used by this Theme Aggregate.
+- `published_at`: server-generated Theme Aggregate publication time.
 - `created_at`: database creation time.
 
 `neutral` means the direction is known to have no positive or negative effect. `uncertain` means
@@ -369,8 +370,8 @@ correct value.
   used to infer the node-level display state.
 - `variable_signal_key` is the immutable display snapshot key and must match
   `^[a-z0-9][a-z0-9._:-]{0,127}$`; it does not replace the formal UUID lineage.
-- The same key may be referenced by multiple nodes in one Analysis Batch. Within that batch, all
-  occurrences of the key must have identical `signal_direction` and `display_summary`.
+- The same key may be referenced by multiple nodes in one Theme Aggregate. Within that Aggregate,
+  all occurrences of the key must have identical `signal_direction` and `display_summary`.
 - Within one node, a key is unique.
 - `signal_role` is `primary | supporting | contradicting`.
 - `signal_direction` is `increase | decrease | mixed | unchanged | uncertain`.
@@ -447,7 +448,7 @@ Data validates:
 - Theme Impact, Tree, Node, Event and Signal uniqueness;
 - contiguous display/position order;
 - Tree-to-Theme-Impact coverage;
-- same-batch Variable Signal snapshot consistency;
+- same-Aggregate Variable Signal snapshot consistency;
 - accepted/latest/non-superseded Signal and DirectImpact existence at `analysis_as_of`;
 - Signal subject-to-Node and DirectImpact previous-Node-to-current-Node alignment;
 - Submission ownership, Evidence ID/hash/Event lineage and per-Tree Event coverage;
@@ -527,9 +528,10 @@ updated so that it cannot override this spec.
 ### 18. Data read contracts
 
 - Theme list and detail remain under `/api/data/v1/research/themes`.
-- Theme list keeps the existing latest-successful-batch and query-window behavior.
-- Product sorting uses `published_at DESC`; the UUID tie-breaker is only deterministic pagination,
-  not a second business ranking.
+- Theme list returns every successfully published single-Theme Aggregate in the fixed query window;
+  independent Theme publications remain independently visible and pageable.
+- Product sorting uses `published_at DESC, id ASC`; the UUID tie-breaker is only deterministic
+  pagination, not a second business ranking.
 - `attention_level`, Impact `display_order`, Tree `display_order` and any enum must not change
   homepage Theme ordering.
 - Theme read returns authoritative Theme fields, ordered Theme Impacts with current Chain Node
@@ -538,7 +540,7 @@ updated so that it cannot override this spec.
   evidence role; it is the Theme-card “N 条政经事件” count.
 - Theme read may expose `reasoning_tree_count`; aggregates published under contract version 2 must
   always reconstruct at least one Tree.
-- `analysis_as_of` is returned as the shared batch cutoff; it is not recomputed at read time.
+- `analysis_as_of` is returned as the Aggregate cutoff; it is not recomputed at read time.
 - `transmission_summary`, `checkpoint_summary` and `risk_summary` are returned exactly from the
   Theme snapshot and are not derived from Trees.
 
@@ -831,7 +833,7 @@ Cover:
 - formal Signal/DirectImpact/Submission/Evidence validation and analyst-inferred null Graph Edge;
 - DirectImpact source Signal subject equals the previous Node and target equals the current Node;
 - every Tree covers the source Events of every formal fact it references;
-- Variable Signal count, primary role, order, key format and same-batch snapshot consistency;
+- Variable Signal count, primary role, order, key format and same-Aggregate snapshot consistency;
 - no research-semantic cross-field gates.
 
 Use fake ports for Biz behavior. Do not duplicate the full Biz matrix in handlers.
@@ -858,7 +860,8 @@ Use PostgreSQL integration tests for:
   and immutable triggers;
 - atomic receipt and child writes;
 - receipt-to-row verification and read invariant failures;
-- latest Theme batch and Tree read query order.
+- stable Theme Aggregate and Tree read order;
+- two independently published Theme Aggregates remaining visible across cursor pages.
 
 No automatic semantic backfill test is required: existing Theme/Tree data is preserved, and its
 weak snapshots remain explicitly legacy rather than receiving fabricated formal lineage.
@@ -908,7 +911,7 @@ the adapter/fixture seam.
   Anchor and its supported workflow are removed by this breaking V1 rebuild.
 - `obsolete`: old Anchor request/result fixtures and old optional-contradiction fixture, because
   their fields and routes are no longer supported contracts.
-- `consolidated`: the old Theme batch tests are absorbed by the Theme V1 canonicalization and Biz
+- `consolidated`: the old Theme V1 import tests are absorbed by the Theme V1 canonicalization and Biz
   service suites, which cover strict input, deterministic identity, first publish, replay,
   conflict, publisher ownership and formal-reference behavior.
 - `consolidated`: the standalone Reason Tree Import handler, error-mapping and OpenAPI publication
@@ -943,7 +946,7 @@ the adapter/fixture seam.
   Industry and Index.
 - Arbitrary graph Reason Trees, branching, multiple parents, cycles, reverse formal-edge traversal
   or independent Tree Edge records.
-- A cross-batch Research Thesis identity or longitudinal Theme mutation.
+- A cross-Aggregate Research Thesis identity or longitudinal Theme mutation.
 - Updating, deleting, withdrawing or partially replacing a published Theme or Tree set.
 - Cross-service distributed transactions, async publication jobs or publication orchestration
   outside the single Data PostgreSQL transaction. Atomic Theme/Tree visibility and rollback inside

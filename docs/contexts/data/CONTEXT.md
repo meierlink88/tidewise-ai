@@ -101,12 +101,12 @@ _Avoid_: Event UUID、Import Idempotency Key、可覆盖的事件名称
 _Avoid_: 覆盖 Event 核心事实、删除旧证据、用新 Receipt 表示新 Event
 
 **研究主题（Research Theme）**:
-一次完成分析侧校验并由授权发布主体提交的分析批次内，对一组 Event 及其产业链影响形成的不可变、可发布研究判断快照，包含一句话结论、传导路径和结论演进阶段。同一现实议题在不同分析批次中生成不同 Research Theme；首页只展示最新成功发布批次的 Theme。
-已发布内容的纠错必须由分析侧生成新的运行身份并发布完整修正批次，旧批次保留审计。本期不提供更新、删除或撤回 Theme/批次的 API。
-_Avoid_: 覆盖或删除历史 Theme、把 `theme_key` 当作跨批次稳定身份、原地修订已发布批次
+一次完成分析侧校验并由授权发布主体提交的单 Theme Aggregate 内，对一组 Event 及其产业链影响形成的不可变、可发布研究判断快照，包含一句话结论、传导路径和结论演进阶段。同一现实议题在不同 Aggregate 中生成不同 Research Theme；首页展示查询时间范围内全部成功发布的 Theme Aggregate，并按发布时间稳定分页。
+已发布内容的纠错必须由分析侧使用新的 `analysis_batch_id` 发布完整修正 Aggregate，旧 Aggregate 保留审计。本期不提供更新、删除或撤回 Theme/Aggregate 的 API。
+_Avoid_: 覆盖或删除历史 Theme、把 `theme_key` 当作跨 Aggregate 稳定身份、原地修订已发布 Aggregate
 
-**批次内主题键（Theme Key）**:
-分析侧为单个 Research Theme 提供的批次内稳定键，在同一 Analysis Batch ID 内唯一，用于确定性 Theme 身份、回执映射和错误定位。合法键长度为 1 至 128，只允许小写 ASCII 字母、数字及 `.`、`_`、`:`、`-`，不接受服务端规范化；同批次按 ASCII 字节顺序排序。`theme:` 前缀推荐但不强制。它不跨批次合并主题，也不等同于未来 Research Thesis 身份；新批次即使复用同一 Theme Key，也产生不同 Research Theme。
+**聚合内主题键（Theme Key）**:
+分析侧为单个 Research Theme 提供的 Aggregate 内稳定键，与 `analysis_batch_id` 共同用于确定性 Theme 身份、回执映射和错误定位。合法键长度为 1 至 128，只允许小写 ASCII 字母、数字及 `.`、`_`、`:`、`-`，不接受服务端规范化。`theme:` 前缀推荐但不强制。它不跨 Aggregate 合并主题，也不等同于未来 Research Thesis 身份；新 Aggregate 即使复用同一 Theme Key，也产生不同 Research Theme。
 _Avoid_: 调用方提交 Theme UUID、把 Theme Key 当作长期主题身份
 
 **长期研究命题（Research Thesis）**:
@@ -119,9 +119,9 @@ _Avoid_: 调用方提交 Theme UUID、把 Theme Key 当作长期主题身份
 引用、状态、结构和 Evidence 血缘，不判断投研结论是否正确。
 _Avoid_: Theme 先可见再补 Tree、独立 Tree 写入口、部分入库、零 Theme 占位
 
-**主题批次发布时间（Theme Batch Published At）**:
-一个完整 Research Theme Publication Batch 正式成为产品可见事实的服务端时间。Data 在整批校验通过并提交事务时统一生成，同一批次全部 Theme 共享该时间；失败批次不产生发布时间，幂等重放保留首次成功发布的时间。首页在调用方指定的查询时间范围内，按批次发布时间选择最新成功发布批次；范围内没有批次时返回空集合。
-_Avoid_: 调用方指定发布时间、按单条 Theme 选择最新批次、重放时刷新发布时间
+**主题聚合发布时间（Theme Aggregate Published At）**:
+一条完整 Research Theme Publication Aggregate 正式成为产品可见事实的服务端时间。Data 在该单 Theme 及其全部 Reason Tree 校验通过并提交事务时统一生成；失败发布不产生发布时间，幂等重放保留首次成功发布的时间。首页在调用方指定的查询时间范围内返回全部成功发布的 Aggregate，按 `published_at DESC, id ASC` 稳定排序并通过游标分页；范围内没有 Aggregate 时返回空集合。
+_Avoid_: 调用方指定发布时间、只返回范围内最新 Aggregate、重放时刷新发布时间
 
 **分析批次身份（Analysis Batch ID）**:
 工程外部 Codex 为一条 Theme Publication Aggregate 提供的稳定、不可变发布身份，仅承担
@@ -135,10 +135,10 @@ _Avoid_: 第二套幂等键、覆盖已发布批次、失败校验生成成功 r
 `discovery_window_start`（含）和 `discovery_window_end`（不含）表达，并固定
 `analysis_as_of`。三者使用 UTC，结束时间必须晚于开始时间且不得晚于
 `analysis_as_of`；它们与服务端发布时间相互独立。
-_Avoid_: 零长度窗口、每个 Theme 重复声明窗口、用发布时间替代分析窗口
+_Avoid_: 零长度窗口、为 Tree 另设窗口、用发布时间替代分析窗口
 
 **研究主题发布主体（Research Theme Publisher Subject）**:
-Data 内唯一内部 service token 对应的稳定 trust-domain 身份，由 Data 从认证上下文解析，不由请求声明。首次成功发布时该主体取得批次所有权；后续幂等重放必须来自同一 trust-domain 主体。主体身份独立于可轮换 token，审计只保存主体 ID，不保存凭据。本期不以调用方服务区分 Theme 所有权，所有持有 Data service token 的受信内部消费者处于同一发布信任域。
+Data 内唯一内部 service token 对应的稳定 trust-domain 身份，由 Data 从认证上下文解析，不由请求声明。首次成功发布时该主体取得 Aggregate 所有权；后续幂等重放必须来自同一 trust-domain 主体。主体身份独立于可轮换 token，审计只保存主体 ID，不保存凭据。本期不以调用方服务区分 Theme 所有权，所有持有 Data service token 的受信内部消费者处于同一发布信任域。
 _Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份、把同一 trust-domain 内的消费者伪装成独立鉴权主体
 
 **Theme 发布未知结果恢复（Theme Publication Unknown-outcome Recovery）**:

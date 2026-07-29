@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
@@ -130,6 +131,64 @@ INSERT INTO variable_definitions (
 	replayed, err := publicationService.Publish(ctx, "integration-analyst", aggregate)
 	if err != nil || !replayed.Replayed || replayed.ThemeID != published.ThemeID {
 		t.Fatalf("publication replay = %#v err=%v", replayed, err)
+	}
+	secondAggregate := typedResearchAggregate(now)
+	secondAggregate.AnalysisBatchID = "typed-research-publication-2"
+	secondAggregate.Theme.ThemeKey = "typed-supply-2"
+	secondAggregate.Theme.Title = "Second typed supply context"
+	secondPublished, err := publicationService.Publish(
+		ctx,
+		"integration-analyst",
+		secondAggregate,
+	)
+	if err != nil {
+		t.Fatalf("publish second atomic Theme aggregate: %v", err)
+	}
+	if !secondPublished.PublishedAt.After(published.PublishedAt) {
+		t.Fatalf(
+			"second publication time = %s, want after %s",
+			secondPublished.PublishedAt,
+			published.PublishedAt,
+		)
+	}
+	readService := research.NewService(NewResearchRepository(db), func() time.Time {
+		return time.Now().UTC().Add(time.Second)
+	})
+	firstThemePage, err := readService.ListThemes(
+		ctx,
+		research.ResearchListRequest{WindowHours: 24, Limit: 1},
+	)
+	if err != nil {
+		t.Fatalf("list first independently published Theme page: %v", err)
+	}
+	if firstThemePage.ThemeCount != 2 ||
+		len(firstThemePage.Items) != 1 ||
+		firstThemePage.Items[0].ID != secondPublished.ThemeID ||
+		firstThemePage.NextCursor == nil {
+		t.Fatalf(
+			"first independent Theme page = %#v, want latest Theme plus next cursor",
+			firstThemePage,
+		)
+	}
+	secondThemePage, err := readService.ListThemes(
+		ctx,
+		research.ResearchListRequest{
+			WindowHours: 24,
+			Limit:       1,
+			Cursor:      *firstThemePage.NextCursor,
+		},
+	)
+	if err != nil {
+		t.Fatalf("list second independently published Theme page: %v", err)
+	}
+	if secondThemePage.ThemeCount != 2 ||
+		len(secondThemePage.Items) != 1 ||
+		secondThemePage.Items[0].ID != published.ThemeID ||
+		secondThemePage.NextCursor != nil {
+		t.Fatalf(
+			"second independent Theme page = %#v, want earlier Theme and no cursor",
+			secondThemePage,
+		)
 	}
 
 	store := NewResearchPublicationStore(db)

@@ -46,17 +46,12 @@ COALESCE((
 (SELECT count(*) FROM research_reasoning_trees tree WHERE tree.theme_id = t.id)`
 
 const listResearchThemesQuery = `
-WITH latest_batch AS MATERIALIZED (
-    SELECT id
-    FROM research_theme_import_receipts
-    WHERE published_at >= $1 AND published_at <= $2
-    ORDER BY published_at DESC, id DESC
-    LIMIT 1
-), page AS (
+WITH page AS (
     SELECT theme.*
     FROM research_themes theme
-    JOIN latest_batch batch ON batch.id = theme.import_receipt_id
-    WHERE ($3::timestamptz IS NULL
+    WHERE theme.published_at >= $1
+      AND theme.published_at <= $2
+      AND ($3::timestamptz IS NULL
         OR theme.published_at < $3
         OR (theme.published_at = $3 AND theme.id > $4))
     ORDER BY theme.published_at DESC, theme.id ASC
@@ -67,17 +62,10 @@ FROM page t
 ORDER BY t.published_at DESC, t.id ASC`
 
 const countResearchThemesQuery = `
-WITH latest_batch AS MATERIALIZED (
-    SELECT id
-    FROM research_theme_import_receipts
-    WHERE published_at >= $1 AND published_at <= $2
-    ORDER BY published_at DESC, id DESC
-    LIMIT 1
-)
 SELECT count(DISTINCT theme.id), count(DISTINCT event.event_id)
 FROM research_themes theme
-JOIN latest_batch batch ON batch.id = theme.import_receipt_id
-LEFT JOIN research_theme_events event ON event.theme_id = theme.id`
+LEFT JOIN research_theme_events event ON event.theme_id = theme.id
+WHERE theme.published_at >= $1 AND theme.published_at <= $2`
 
 const getResearchThemeQuery = `
 SELECT ` + researchThemeSummaryColumns + `,

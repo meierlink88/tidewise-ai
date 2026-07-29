@@ -86,6 +86,7 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       summary: 获取 Miniapp Research theme 页面聚合
+      description: 返回固定查询时间范围内全部成功发布的单 Theme Aggregate，按 published_at DESC、id ASC 稳定排序并通过 cursor 分页。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/WindowHours'
