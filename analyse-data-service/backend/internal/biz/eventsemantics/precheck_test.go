@@ -86,6 +86,29 @@ func TestPrecheckKeepsValidCandidatesReviewableAndRejectsInvalidItemsIndependent
 	}
 }
 
+func TestPrecheckRejectsEntityRoleOutsideControlledVocabulary(t *testing.T) {
+	context := Context{
+		Event:    Event{ID: "event", Status: "confirmed", FactStatus: "verified"},
+		Evidence: []Evidence{{ID: "evidence"}},
+		Entities: []Entity{{
+			ID: "company", Type: "company", Name: "company",
+			CanonicalName: "company", Status: "active",
+		}},
+	}
+	result := Precheck(context, Submission{
+		EventID: "event",
+		EntityLinks: []EntityLinkCandidate{{
+			Key: "company", Mention: "company", EntityID: "company",
+			EntityRole: "beneficiary", EvidenceIDs: []string{"evidence"},
+			ResolutionMethod: "data_service_resolution",
+		}},
+	})
+
+	assertCandidateStatus(
+		t, result.EntityLinks, "company", StatusRejected, "entity_role_invalid",
+	)
+}
+
 func TestPrecheckPropagatesRejectedUpstreamWithoutRejectingTheWholeSnapshot(t *testing.T) {
 	context := Context{
 		Event:    Event{ID: "event", Status: "confirmed", FactStatus: "verified", OccurredAt: timePtr(time.Now())},
@@ -177,7 +200,7 @@ func TestPrecheckRejectsInvalidConfidenceTimeAndMeasurementBeforePersistence(t *
 	result := Precheck(context, Submission{
 		EntityLinks: []EntityLinkCandidate{
 			{Key: "company", Mention: "company", EntityID: "company", EntityRole: "actor", EvidenceIDs: []string{"evidence"}, ResolutionMethod: "data_service_resolution"},
-			{Key: "bad-confidence", Mention: "product", EntityID: "product", EntityRole: "object", EvidenceIDs: []string{"evidence"}, ResolutionMethod: "data_service_resolution", ResolutionConfidence: "1.1"},
+			{Key: "bad-confidence", Mention: "product", EntityID: "product", EntityRole: "event_object", EvidenceIDs: []string{"evidence"}, ResolutionMethod: "data_service_resolution", ResolutionConfidence: "1.1"},
 		},
 		VariableSignals: []VariableSignalCandidate{
 			{Key: "bad-time", SubjectLinkKey: "company", VariableKey: "production_volume", VariableVersion: 1, Direction: "decrease", AssertionModality: "actual", EvidenceIDs: []string{"evidence"}, ValidFrom: &start, ValidUntil: &end},

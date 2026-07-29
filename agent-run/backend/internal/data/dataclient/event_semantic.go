@@ -377,7 +377,14 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 	}
 	for _, evidence := range value.Evidence {
 		if !validUUID(evidence.EvidenceID) || !validUUID(evidence.RawDocumentID) ||
-			strings.TrimSpace(evidence.Excerpt) == "" {
+			len(evidence.EvidenceHash) != 64 ||
+			strings.TrimSpace(evidence.Excerpt) == "" ||
+			strings.TrimSpace(evidence.SourceName) == "" ||
+			strings.TrimSpace(evidence.SourceType) == "" ||
+			strings.TrimSpace(evidence.Title) == "" ||
+			strings.TrimSpace(evidence.FirstSeenAt) == "" ||
+			strings.TrimSpace(evidence.KnowledgeAvailableAt) == "" ||
+			strings.TrimSpace(evidence.AcceptedAt) == "" {
 			return false
 		}
 	}

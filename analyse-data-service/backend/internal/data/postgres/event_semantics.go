@@ -287,10 +287,17 @@ func buildEventSemanticContext(
 
 func eventSemanticEvidence(ctx context.Context, query semanticQueryer, eventID string) ([]eventsemantics.Evidence, error) {
 	rows, err := query.QueryContext(ctx, `
-		SELECT es.id, es.evidence_excerpt, es.source_level, es.evidence_relation,
-		       array_to_json(es.supports_fields), es.raw_document_id, rd.published_at
+		SELECT es.id, es.evidence_hash, es.evidence_excerpt, es.source_level,
+		       es.evidence_relation, array_to_json(es.supports_fields),
+		       COALESCE(es.is_primary, false), es.raw_document_id,
+		       rd.source_name, rd.source_type, rd.source_url, rd.title,
+		       rd.published_at, rd.collected_at,
+		       GREATEST(COALESCE(rd.published_at, rd.collected_at), rd.collected_at),
+		       es.created_at,
+		       COALESCE(NULLIF(event.fact_payload ->> 'statement_source', ''), '')
 		FROM event_sources es
 		JOIN raw_documents rd ON rd.id = es.raw_document_id
+		JOIN events event ON event.id = es.event_id
 		WHERE es.event_id = $1
 		ORDER BY COALESCE(es.is_primary, false) DESC, es.id
 	`, eventID)
@@ -303,8 +310,11 @@ func eventSemanticEvidence(ctx context.Context, query semanticQueryer, eventID s
 		var item eventsemantics.Evidence
 		var supported []byte
 		if err := rows.Scan(
-			&item.ID, &item.Excerpt, &item.SourceLevel, &item.Relation, &supported,
-			&item.RawDocumentID, &item.RawDocumentDate,
+			&item.ID, &item.Hash, &item.Excerpt, &item.SourceLevel, &item.Relation,
+			&supported, &item.IsPrimary, &item.RawDocumentID, &item.SourceName,
+			&item.SourceType, &item.SourceURL, &item.Title, &item.PublishedAt,
+			&item.FirstSeenAt, &item.KnowledgeAvailableAt, &item.AcceptedAt,
+			&item.StatementSource,
 		); err != nil {
 			return nil, err
 		}

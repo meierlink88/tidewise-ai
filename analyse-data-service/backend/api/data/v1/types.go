@@ -16,6 +16,7 @@ const (
 	StatusConflict              = http.StatusConflict
 	StatusRequestEntityTooLarge = http.StatusRequestEntityTooLarge
 	StatusUnprocessableEntity   = http.StatusUnprocessableEntity
+	StatusTooManyRequests       = http.StatusTooManyRequests
 	StatusInternalServerError   = http.StatusInternalServerError
 	StatusServiceUnavailable    = http.StatusServiceUnavailable
 )

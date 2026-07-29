@@ -103,10 +103,11 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeReviewedEventImport, true
 	case v1.OperationListActiveEventTags:
 		return ScopeEventTagRead, true
-	case v1.OperationImportResearchThemes, v1.OperationImportResearchReasoningTrees:
+	case v1.OperationPublishResearchTheme:
 		return ScopeResearchImport, true
 	case v1.OperationListResearchThemes, v1.OperationGetResearchTheme,
-		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree:
+		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree,
+		v1.OperationListResearchAnalysisContext:
 		return ScopeResearchRead, true
 	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents:
 		return ScopeAdminRead, true

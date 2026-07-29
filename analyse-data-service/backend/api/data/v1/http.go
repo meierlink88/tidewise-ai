@@ -18,8 +18,7 @@ const (
 type DataHTTPServer interface {
 	ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error)
 	ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error)
-	ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error)
-	ImportResearchReasoningTrees(context.Context, *ResearchReasoningTreeImportRequest) (*Response[ResearchReasoningTreeImportResult], error)
+	PublishResearchTheme(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error)
 	ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error)
 	GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response[ResearchThemeDetail], error)
 	ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response[ResearchReasoningTreeList], error)
@@ -34,6 +33,7 @@ type DataHTTPServer interface {
 	CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*Response[EventSemanticSubmissionResult], error)
 	SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*Response[EventSemanticSubmissionResult], error)
 	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error)
+	ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error)
 }
 
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
@@ -41,7 +41,6 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.POST("/reviewed-event-imports", eventPublicationImportHandler(application))
 	router.GET("/event-tags", listActiveEventTagsHandler(application))
 	router.POST("/research-theme-imports", researchThemeImportHandler(application))
-	router.POST("/research-reasoning-tree-imports", researchReasoningTreeImportHandler(application))
 	router.GET("/research/themes", listResearchThemesHandler(application))
 	router.GET("/research/themes/{theme_id}", getResearchThemeHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees", listReasoningTreesHandler(application))
@@ -56,6 +55,70 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.POST("/event-semantics/submissions", createEventSemanticSubmissionHandler(application))
 	router.POST("/event-semantics/submissions/{submission_id}/reviews", submitEventSemanticReviewHandler(application))
 	router.GET("/events/{event_id}/semantics", getEventSemanticsHandler(application))
+	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
+}
+
+func listResearchAnalysisContextHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		query := ctx.Request().URL.Query()
+		allowed := map[string]struct{}{
+			"discovery_window_start": {}, "discovery_window_end": {},
+			"analysis_as_of": {}, "prediction_horizon_start": {},
+			"prediction_horizon_end": {}, "page_size": {}, "cursor": {},
+		}
+		for key, values := range query {
+			if _, ok := allowed[key]; !ok || len(values) != 1 {
+				return NewPublicError(
+					StatusBadRequest,
+					"INVALID_REQUEST",
+					"Research Analysis Context query parameters are invalid",
+					nil,
+				)
+			}
+		}
+		required := []string{
+			"discovery_window_start", "discovery_window_end", "analysis_as_of", "page_size",
+		}
+		for _, key := range required {
+			if len(query[key]) != 1 || strings.TrimSpace(query.Get(key)) == "" {
+				return NewPublicError(
+					StatusBadRequest,
+					"INVALID_REQUEST",
+					key+" is required",
+					nil,
+				)
+			}
+		}
+		pageSize, err := ParseBoundedInt(query.Get("page_size"), 0, 1, 50, "page_size")
+		if err != nil {
+			return err
+		}
+		request := &ResearchAnalysisContextRequest{
+			DiscoveryWindowStart:   query.Get("discovery_window_start"),
+			DiscoveryWindowEnd:     query.Get("discovery_window_end"),
+			AnalysisAsOf:           query.Get("analysis_as_of"),
+			PredictionHorizonStart: optionalQueryValue(query, "prediction_horizon_start"),
+			PredictionHorizonEnd:   optionalQueryValue(query, "prediction_horizon_end"),
+			PageSize:               pageSize,
+			Cursor:                 query.Get("cursor"),
+		}
+		return call(
+			ctx,
+			OperationListResearchAnalysisContext,
+			request,
+			func(callContext context.Context) (*Response[ResearchAnalysisContext], error) {
+				return application.ListResearchAnalysisContext(callContext, request)
+			},
+		)
+	}
+}
+
+func optionalQueryValue(query map[string][]string, key string) *string {
+	if len(query[key]) == 0 {
+		return nil
+	}
+	value := query[key][0]
+	return &value
 }
 
 func listActiveEventTagsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
@@ -98,24 +161,8 @@ func researchThemeImportHandler(application DataHTTPServer) kratoshttp.HandlerFu
 		if err != nil {
 			return err
 		}
-		return call(ctx, OperationImportResearchThemes, request, func(callContext context.Context) (*Response[ResearchThemeImportResult], error) {
-			return application.ImportResearchThemes(callContext, request)
-		})
-	}
-}
-
-func researchReasoningTreeImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		payload, err := readImportPayload(ctx)
-		if err != nil {
-			return err
-		}
-		request, err := decodeResearchReasoningTreeImport(payload)
-		if err != nil {
-			return err
-		}
-		return call(ctx, OperationImportResearchReasoningTrees, request, func(callContext context.Context) (*Response[ResearchReasoningTreeImportResult], error) {
-			return application.ImportResearchReasoningTrees(callContext, request)
+		return call(ctx, OperationPublishResearchTheme, request, func(callContext context.Context) (*Response[ResearchThemeImportResult], error) {
+			return application.PublishResearchTheme(callContext, request)
 		})
 	}
 }

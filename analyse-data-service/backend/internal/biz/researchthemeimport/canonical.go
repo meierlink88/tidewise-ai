@@ -14,20 +14,26 @@ import (
 // validated, typed request. V1 object keys are an ASCII-only fixed contract;
 // array order remains significant and is validated before this function runs.
 func CanonicalHash(batch Batch) (string, error) {
-	payload, err := json.Marshal(batch)
+	return CanonicalHashValue(batch, "research theme publication batch")
+}
+
+// CanonicalHashValue applies the shared Research Publication RFC 8785-compatible
+// representation to a validated typed value.
+func CanonicalHashValue(value any, label string) (string, error) {
+	payload, err := json.Marshal(value)
 	if err != nil {
-		return "", fmt.Errorf("encode research theme publication batch: %w", err)
+		return "", fmt.Errorf("encode %s: %w", label, err)
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.UseNumber()
-	var value any
-	if err := decoder.Decode(&value); err != nil {
-		return "", fmt.Errorf("decode research theme publication batch: %w", err)
+	var decoded any
+	if err := decoder.Decode(&decoded); err != nil {
+		return "", fmt.Errorf("decode %s: %w", label, err)
 	}
 
 	var canonical bytes.Buffer
-	if err := writeCanonicalJSON(&canonical, value); err != nil {
+	if err := writeCanonicalJSON(&canonical, decoded); err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256(canonical.Bytes())

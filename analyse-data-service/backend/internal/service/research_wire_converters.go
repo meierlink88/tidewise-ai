@@ -3,46 +3,38 @@ package service
 import (
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
 
-func researchThemeImportInput(request *v1.ResearchThemeImportRequest) researchthemeimport.Batch {
-	themes := make([]researchthemeimport.Theme, 0, len(request.Themes))
-	for _, theme := range request.Themes {
-		impacts := make([]researchthemeimport.Impact, 0, len(theme.Impacts))
-		for _, impact := range theme.Impacts {
-			impacts = append(impacts, researchthemeimport.Impact{
-				ChainNodeEntityID: impact.ChainNodeEntityID, RelationRole: impact.RelationRole,
-				ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary,
-				DisplayOrder: impact.DisplayOrder,
-			})
-		}
-		events := make([]researchthemeimport.Event, 0, len(theme.Events))
-		for _, event := range theme.Events {
-			events = append(events, researchthemeimport.Event{
-				EventID: event.EventID, EvidenceRole: event.EvidenceRole, SupportedClaim: event.SupportedClaim,
-			})
-		}
-		themes = append(themes, researchthemeimport.Theme{
-			ThemeKey: theme.ThemeKey, Title: theme.Title, OneLineConclusion: theme.OneLineConclusion,
-			ConclusionDirection: theme.ConclusionDirection, ImpactStrength: theme.ImpactStrength,
-			AttentionLevel: theme.AttentionLevel, ConclusionStatus: theme.ConclusionStatus,
-			TransmissionStage: theme.TransmissionStage, InvestmentGuidanceAction: theme.InvestmentGuidanceAction,
-			InvestmentGuidanceSummary: theme.InvestmentGuidanceSummary,
-			TimeHorizonCategory:       theme.TimeHorizonCategory, TimeHorizonSummary: theme.TimeHorizonSummary,
-			TransmissionSummary: theme.TransmissionSummary, CheckpointSummary: theme.CheckpointSummary,
-			RiskSummary: theme.RiskSummary, Impacts: impacts, Events: events,
+func researchThemeImportInput(request *v1.ResearchThemeImportRequest) researchpublication.Aggregate {
+	theme := request.Theme
+	impacts := make([]researchthemeimport.Impact, 0, len(theme.Impacts))
+	for _, impact := range theme.Impacts {
+		impacts = append(impacts, researchthemeimport.Impact{
+			ChainNodeEntityID: impact.ChainNodeEntityID, RelationRole: impact.RelationRole,
+			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary,
+			DisplayOrder: impact.DisplayOrder,
 		})
 	}
-	return researchthemeimport.Batch{
-		AnalysisBatchID: request.AnalysisBatchID, AnalysisAsOf: request.AnalysisAsOf,
-		WindowStart: request.WindowStart, WindowEnd: request.WindowEnd, Themes: themes,
+	themeEvents := make([]researchthemeimport.Event, 0, len(theme.Events))
+	for _, event := range theme.Events {
+		themeEvents = append(themeEvents, researchthemeimport.Event{
+			EventID: event.EventID, EvidenceRole: event.EvidenceRole, SupportedClaim: event.SupportedClaim,
+		})
 	}
-}
-
-func researchReasoningTreeImportInput(request *v1.ResearchReasoningTreeImportRequest) researchreasoningtreeimport.Publication {
-	trees := make([]researchreasoningtreeimport.ReasoningTree, 0, len(request.ReasoningTrees))
+	themeInput := researchthemeimport.Theme{
+		ThemeKey: theme.ThemeKey, Title: theme.Title, OneLineConclusion: theme.OneLineConclusion,
+		ConclusionDirection: theme.ConclusionDirection, ImpactStrength: theme.ImpactStrength,
+		AttentionLevel: theme.AttentionLevel, ConclusionStatus: theme.ConclusionStatus,
+		TransmissionStage: theme.TransmissionStage, InvestmentGuidanceAction: theme.InvestmentGuidanceAction,
+		InvestmentGuidanceSummary: theme.InvestmentGuidanceSummary,
+		TimeHorizonCategory:       theme.TimeHorizonCategory, TimeHorizonSummary: theme.TimeHorizonSummary,
+		TransmissionSummary: theme.TransmissionSummary, CheckpointSummary: theme.CheckpointSummary,
+		RiskSummary: theme.RiskSummary, Impacts: impacts, Events: themeEvents,
+	}
+	trees := make([]researchpublication.ReasoningTree, 0, len(request.ReasoningTrees))
 	for _, tree := range request.ReasoningTrees {
 		checkpoints := make([]researchreasoningtreeimport.Checkpoint, 0, len(tree.Checkpoints))
 		for _, checkpoint := range tree.Checkpoints {
@@ -56,17 +48,42 @@ func researchReasoningTreeImportInput(request *v1.ResearchReasoningTreeImportReq
 				EventID: event.EventID, EvidenceRole: event.EvidenceRole, DisplayOrder: event.DisplayOrder,
 			})
 		}
-		nodes := make([]researchreasoningtreeimport.Node, 0, len(tree.Nodes))
+		nodes := make([]researchpublication.Node, 0, len(tree.Nodes))
 		for _, node := range tree.Nodes {
-			signals := make([]researchreasoningtreeimport.Signal, 0, len(node.Signals))
+			signals := make([]researchpublication.Signal, 0, len(node.Signals))
 			for _, signal := range node.Signals {
-				signals = append(signals, researchreasoningtreeimport.Signal{
+				signals = append(signals, researchpublication.Signal{
 					VariableSignalKey: signal.VariableSignalKey, SignalRole: signal.SignalRole,
 					SignalDirection: signal.SignalDirection, DisplaySummary: signal.DisplaySummary,
 					DisplayOrder: signal.DisplayOrder,
+					Lineage: researchpublication.SignalLineage{
+						SourceKind:           signal.Lineage.SourceKind,
+						VariableSignalID:     signal.Lineage.VariableSignalID,
+						SemanticSubmissionID: signal.Lineage.SemanticSubmissionID,
+						EvidenceID:           signal.Lineage.EvidenceID, EvidenceHash: signal.Lineage.EvidenceHash,
+						UpstreamVariableSignalID:        signal.Lineage.UpstreamVariableSignalID,
+						UpstreamDirectImpactAssertionID: signal.Lineage.UpstreamDirectImpactAssertionID,
+						EntityRelationID:                signal.Lineage.EntityRelationID,
+						IndustryChainGraphEdgeID:        signal.Lineage.IndustryChainGraphEdgeID,
+					},
 				})
 			}
-			nodes = append(nodes, researchreasoningtreeimport.Node{
+			var incoming *researchpublication.IncomingLineage
+			if node.IncomingLineage != nil {
+				incoming = &researchpublication.IncomingLineage{
+					SourceKind:                      node.IncomingLineage.SourceKind,
+					DirectImpactAssertionID:         node.IncomingLineage.DirectImpactAssertionID,
+					SemanticSubmissionID:            node.IncomingLineage.SemanticSubmissionID,
+					EvidenceID:                      node.IncomingLineage.EvidenceID,
+					EvidenceHash:                    node.IncomingLineage.EvidenceHash,
+					AffectedVariableKey:             node.IncomingLineage.AffectedVariableKey,
+					AffectedDirection:               node.IncomingLineage.AffectedDirection,
+					UpstreamVariableSignalID:        node.IncomingLineage.UpstreamVariableSignalID,
+					UpstreamDirectImpactAssertionID: node.IncomingLineage.UpstreamDirectImpactAssertionID,
+					EntityRelationID:                node.IncomingLineage.EntityRelationID,
+				}
+			}
+			nodes = append(nodes, researchpublication.Node{
 				Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID,
 				StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 				ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
@@ -74,42 +91,42 @@ func researchReasoningTreeImportInput(request *v1.ResearchReasoningTreeImportReq
 				IncomingIndustryChainGraphEdgeID: node.IncomingIndustryChainGraphEdgeID,
 				IncomingTransmissionTitle:        node.IncomingTransmissionTitle,
 				IncomingTransmissionMechanism:    node.IncomingTransmissionMechanism,
-				IncomingConditionSummary:         node.IncomingConditionSummary, Signals: signals,
+				IncomingConditionSummary:         node.IncomingConditionSummary,
+				IncomingLineage:                  incoming, Signals: signals,
 			})
 		}
-		trees = append(trees, researchreasoningtreeimport.ReasoningTree{
-			IndustryChainEntityID: tree.IndustryChainEntityID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
-			OneLineConclusion: tree.OneLineConclusion, FactSummary: tree.FactSummary,
-			TransmissionSummary: tree.TransmissionSummary, ImpactDirection: tree.ImpactDirection,
-			ImpactStrength: tree.ImpactStrength, ImpactSummary: tree.ImpactSummary,
-			ConclusionBoundarySummary: tree.ConclusionBoundarySummary, SupportSummary: tree.SupportSummary,
-			CounterSummary: tree.CounterSummary, InvalidationConditions: tree.InvalidationConditions,
-			Checkpoints: checkpoints, Events: events, Nodes: nodes,
+		trees = append(trees, researchpublication.ReasoningTree{
+			ReasoningTree: researchreasoningtreeimport.ReasoningTree{
+				IndustryChainEntityID: tree.IndustryChainEntityID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
+				OneLineConclusion: tree.OneLineConclusion, FactSummary: tree.FactSummary,
+				TransmissionSummary: tree.TransmissionSummary, ImpactDirection: tree.ImpactDirection,
+				ImpactStrength: tree.ImpactStrength, ImpactSummary: tree.ImpactSummary,
+				ConclusionBoundarySummary: tree.ConclusionBoundarySummary, SupportSummary: tree.SupportSummary,
+				CounterSummary: tree.CounterSummary, InvalidationConditions: tree.InvalidationConditions,
+				Checkpoints: checkpoints, Events: events,
+			},
+			Nodes: nodes,
 		})
 	}
-	return researchreasoningtreeimport.Publication{ThemeID: request.ThemeID, ReasoningTrees: trees}
-}
-
-func researchThemeImportDTO(result researchthemeimport.Result) v1.ResearchThemeImportResult {
-	return v1.ResearchThemeImportResult{
-		ReceiptID: result.ReceiptID, AnalysisBatchID: result.AnalysisBatchID, PayloadHash: result.PayloadHash,
-		ThemeIDsByKey: result.ThemeIDsByKey,
-		Counts: v1.ResearchThemeImportCounts{
-			Themes: result.Counts.Themes, Impacts: result.Counts.Impacts,
-			EventAssociations: result.Counts.EventAssociations, Receipts: result.Counts.Receipts,
-		},
-		PublishedAt: result.PublishedAt, ImportedAt: result.ImportedAt, Replayed: result.Replayed,
+	return researchpublication.Aggregate{
+		AnalysisBatchID: request.AnalysisBatchID, AnalysisAsOf: request.AnalysisAsOf,
+		DiscoveryWindowStart: request.DiscoveryWindowStart,
+		DiscoveryWindowEnd:   request.DiscoveryWindowEnd,
+		Theme:                themeInput, ReasoningTrees: trees,
 	}
 }
 
-func researchReasoningTreeImportDTO(result researchreasoningtreeimport.Result) v1.ResearchReasoningTreeImportResult {
-	return v1.ResearchReasoningTreeImportResult{
-		ReceiptID: result.ReceiptID, ThemeID: result.ThemeID, PayloadHash: result.PayloadHash,
+func researchThemeImportDTO(result researchpublication.Result) v1.ResearchThemeImportResult {
+	return v1.ResearchThemeImportResult{
+		ReceiptID: result.ReceiptID, AnalysisBatchID: result.AnalysisBatchID, PayloadHash: result.PayloadHash,
+		ThemeID:                                 result.ThemeID,
 		ReasoningTreeIDsByIndustryChainEntityID: result.ReasoningTreeIDsByIndustryChainEntityID,
-		Counts: v1.ResearchReasoningTreeImportCounts{
-			ReasoningTrees: result.Counts.ReasoningTrees, Nodes: result.Counts.Nodes,
-			EventAssociations: result.Counts.EventAssociations, SignalAssociations: result.Counts.SignalAssociations,
-			Receipts: result.Counts.Receipts,
+		Counts: v1.ResearchThemeImportCounts{
+			Themes: result.Counts.Themes, Impacts: result.Counts.Impacts,
+			ThemeEventAssociations: result.Counts.ThemeEventAssociations,
+			ReasoningTrees:         result.Counts.ReasoningTrees, Nodes: result.Counts.Nodes,
+			TreeEventAssociations: result.Counts.TreeEventAssociations,
+			SignalAssociations:    result.Counts.SignalAssociations, Receipts: result.Counts.Receipts,
 		},
 		PublishedAt: result.PublishedAt, ImportedAt: result.ImportedAt, Replayed: result.Replayed,
 	}

@@ -50,12 +50,26 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		},
 		"POST " + APIPrefix + "/research-theme-imports": {
 			requestPath: APIPrefix + "/research-theme-imports",
-			operation:   "data.v1.importResearchThemes",
-		},
-		"POST " + APIPrefix + "/research-reasoning-tree-imports": {
-			requestPath: APIPrefix + "/research-reasoning-tree-imports",
-			operation:   "data.v1.importResearchReasoningTrees",
-			body:        `{"theme_id":"11111111-1111-4111-8111-111111111111","reasoning_trees":[]}`,
+			operation:   "data.v1.publishResearchTheme",
+			body: `{
+				"analysis_batch_id":"batch","analysis_as_of":"2026-07-02T00:00:00Z",
+				"discovery_window_start":"2026-07-01T00:00:00Z","discovery_window_end":"2026-07-02T00:00:00Z",
+				"theme":{},"reasoning_trees":[{
+					"industry_chain_entity_id":"22222222-2222-4222-8222-222222222222",
+					"title":"tree","display_order":1,"one_line_conclusion":"conclusion",
+					"fact_summary":null,"transmission_summary":null,"impact_direction":"positive",
+					"impact_strength":"medium","impact_summary":null,"conclusion_boundary_summary":null,
+					"support_summary":null,"counter_summary":null,"invalidation_conditions":[],
+					"checkpoints":[],"events":[],"nodes":[{
+						"position":1,"chain_node_entity_id":"33333333-3333-4333-8333-333333333333",
+						"state_summary":null,"impact_direction":"positive","impact_strength":"medium",
+						"impact_summary":null,"reasoning_basis_summary":null,"evidence_gap_summary":null,
+						"incoming_industry_chain_graph_edge_id":null,"incoming_transmission_title":null,
+						"incoming_transmission_mechanism":null,"incoming_condition_summary":null,
+						"incoming_lineage":null,"signals":[]
+					}]
+				}]
+			}`,
 		},
 		"GET " + APIPrefix + "/event-tags": {
 			requestPath: APIPrefix + "/event-tags?active=true",
@@ -120,6 +134,10 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/events/22222222-2222-4222-8222-222222222222/semantics",
 			operation:   "data.v1.getEventSemantics",
 		},
+		"GET " + APIPrefix + "/research-analysis-context": {
+			requestPath: APIPrefix + "/research-analysis-context?discovery_window_start=2026-07-01T00%3A00%3A00Z&discovery_window_end=2026-07-02T00%3A00%3A00Z&analysis_as_of=2026-07-02T00%3A00%3A00Z&page_size=20",
+			operation:   "data.v1.listResearchAnalysisContext",
+		},
 	}
 
 	contractRoutes := make(map[string]string)
@@ -165,7 +183,7 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, httptest.NewRequest(method, runtime.requestPath, strings.NewReader(body)))
 		if response.Code != http.StatusNoContent {
-			t.Errorf("%s returned status %d, want 204", route, response.Code)
+			t.Errorf("%s returned status %d, want 204: %s", route, response.Code, response.Body.String())
 		}
 	}
 }
@@ -212,11 +230,8 @@ func (testDataHTTPServer) ImportReviewedEvents(context.Context, *EventPublicatio
 func (testDataHTTPServer) ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error) {
 	return testResponse[EventTagCatalog]()
 }
-func (testDataHTTPServer) ImportResearchThemes(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error) {
+func (testDataHTTPServer) PublishResearchTheme(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error) {
 	return testResponse[ResearchThemeImportResult]()
-}
-func (testDataHTTPServer) ImportResearchReasoningTrees(context.Context, *ResearchReasoningTreeImportRequest) (*Response[ResearchReasoningTreeImportResult], error) {
-	return testResponse[ResearchReasoningTreeImportResult]()
 }
 func (testDataHTTPServer) ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error) {
 	return testResponse[ResearchThemePage]()

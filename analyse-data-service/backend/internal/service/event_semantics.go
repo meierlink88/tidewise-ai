@@ -315,11 +315,7 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 		DirectTransmissionRules: make([]v1.EventSemanticTransmissionRule, 0, len(value.Rules)),
 	}
 	for _, evidence := range value.Evidence {
-		result.Evidence = append(result.Evidence, v1.EventSemanticEvidence{
-			EvidenceID: evidence.ID, Excerpt: evidence.Excerpt, SourceLevel: evidence.SourceLevel,
-			Relation: evidence.Relation, SupportsFields: evidence.SupportsFields,
-			RawDocumentID: evidence.RawDocumentID,
-		})
+		result.Evidence = append(result.Evidence, eventSemanticEvidenceDTO(evidence))
 	}
 	for _, entity := range value.Entities {
 		result.Entities = append(result.Entities, eventSemanticEntityDTO(entity))
@@ -396,11 +392,26 @@ func eventSemanticReviewerWorkPackageDTO(
 		DirectImpacts:   eventSemanticImpactCandidatesDTO(work.DirectImpacts),
 	}
 	for _, evidence := range work.Evidence {
-		result.Evidence = append(result.Evidence, v1.EventSemanticEvidence{
-			EvidenceID: evidence.ID, Excerpt: evidence.Excerpt, SourceLevel: evidence.SourceLevel,
-			Relation: evidence.Relation, SupportsFields: evidence.SupportsFields,
-			RawDocumentID: evidence.RawDocumentID,
-		})
+		result.Evidence = append(result.Evidence, eventSemanticEvidenceDTO(evidence))
+	}
+	return result
+}
+
+func eventSemanticEvidenceDTO(value eventsemantics.Evidence) v1.EventSemanticEvidence {
+	result := v1.EventSemanticEvidence{
+		EvidenceID: value.ID, EvidenceHash: value.Hash, Excerpt: value.Excerpt,
+		SourceLevel: value.SourceLevel, Relation: value.Relation,
+		SupportsFields: value.SupportsFields, IsPrimary: value.IsPrimary,
+		RawDocumentID: value.RawDocumentID, SourceName: value.SourceName,
+		SourceType: value.SourceType, SourceURL: value.SourceURL, Title: value.Title,
+		FirstSeenAt:          value.FirstSeenAt.UTC().Format(time.RFC3339Nano),
+		KnowledgeAvailableAt: value.KnowledgeAvailableAt.UTC().Format(time.RFC3339Nano),
+		AcceptedAt:           value.AcceptedAt.UTC().Format(time.RFC3339Nano),
+		StatementSource:      value.StatementSource,
+	}
+	if value.PublishedAt != nil {
+		formatted := value.PublishedAt.UTC().Format(time.RFC3339Nano)
+		result.PublishedAt = &formatted
 	}
 	return result
 }

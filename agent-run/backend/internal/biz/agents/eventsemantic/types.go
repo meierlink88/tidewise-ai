@@ -42,12 +42,23 @@ type Event struct {
 }
 
 type Evidence struct {
-	EvidenceID     string   `json:"evidence_id"`
-	Excerpt        string   `json:"excerpt"`
-	SourceLevel    string   `json:"source_level"`
-	Relation       string   `json:"relation"`
-	SupportsFields []string `json:"supports_fields"`
-	RawDocumentID  string   `json:"raw_document_id"`
+	EvidenceID           string   `json:"evidence_id"`
+	EvidenceHash         string   `json:"evidence_hash"`
+	Excerpt              string   `json:"excerpt"`
+	SourceLevel          string   `json:"source_level"`
+	Relation             string   `json:"relation"`
+	SupportsFields       []string `json:"supports_fields"`
+	IsPrimary            bool     `json:"is_primary"`
+	RawDocumentID        string   `json:"raw_document_id"`
+	SourceName           string   `json:"source_name"`
+	SourceType           string   `json:"source_type"`
+	SourceURL            string   `json:"source_url,omitempty"`
+	Title                string   `json:"title"`
+	PublishedAt          *string  `json:"published_at,omitempty"`
+	FirstSeenAt          string   `json:"first_seen_at"`
+	KnowledgeAvailableAt string   `json:"knowledge_available_at"`
+	AcceptedAt           string   `json:"accepted_at"`
+	StatementSource      string   `json:"statement_source"`
 }
 
 type Entity struct {

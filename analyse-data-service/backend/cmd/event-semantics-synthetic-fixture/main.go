@@ -22,7 +22,7 @@ import (
 const syntheticDatabasePrefix = "tw_semantic_acceptance_"
 
 func main() {
-	action := flag.String("action", "", "create-database, drop-database, seed, or assert-empty-research")
+	action := flag.String("action", "", "create-database, drop-database, seed, assert-empty-research, or assert-research-publication")
 	baseURL := flag.String("base-url", "", "loopback PostgreSQL URL for database lifecycle actions")
 	targetDatabase := flag.String("target-database", "", "isolated database name for drop-database")
 	flag.Parse()
@@ -42,6 +42,8 @@ func main() {
 		err = seed(ctx)
 	case "assert-empty-research":
 		err = assertEmptyResearch(ctx)
+	case "assert-research-publication":
+		err = assertResearchPublication(ctx)
 	default:
 		err = errors.New("unsupported fixture action")
 	}
@@ -142,13 +144,43 @@ func seed(ctx context.Context) error {
 	); err != nil {
 		return err
 	}
-	return seedEvent(
+	if err := seedEvent(
 		ctx, database,
 		"21000000-0000-4000-8000-000000000001",
 		"21000000-0000-4000-8000-000000000002",
 		"21000000-0000-4000-8000-000000000003",
 		"synthetic:quarantined", "2026-07-28T09:00:00Z",
-	)
+	); err != nil {
+		return err
+	}
+	if err := seedEvent(
+		ctx, database,
+		"24000000-0000-4000-8000-000000000001",
+		"24000000-0000-4000-8000-000000000002",
+		"24000000-0000-4000-8000-000000000003",
+		"synthetic:forecast-no-impact", "2026-07-28T10:00:00Z",
+	); err != nil {
+		return err
+	}
+	_, err = database.Exec(ctx, `
+UPDATE raw_documents
+SET title = 'Synthetic demand forecast',
+    content_text = 'Synthetic Wafer Fab forecasts wafer demand growth of 12 percent'
+WHERE id = '24000000-0000-4000-8000-000000000001';
+UPDATE events
+SET title = 'Synthetic Wafer Fab forecasts demand growth',
+    summary = 'Synthetic Wafer Fab forecasts wafer demand growth of 12 percent.',
+    fact_payload = jsonb_build_object(
+        'statement_source', 'Synthetic Wafer Fab',
+        'forecast_demand_change_percent', 12
+    )
+WHERE id = '24000000-0000-4000-8000-000000000002';
+UPDATE event_sources
+SET evidence_excerpt = 'Synthetic Wafer Fab forecasts wafer demand growth of 12 percent',
+    supports_fields = ARRAY['title','factual_summary','occurred_at','fact_payload']
+WHERE id = '24000000-0000-4000-8000-000000000003'
+`)
+	return err
 }
 
 func seedEntities(ctx context.Context, database *pgxpool.Pool) error {
@@ -157,10 +189,53 @@ INSERT INTO entity_nodes (
   id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
 ) VALUES
   ('22000000-0000-4000-8000-000000000001', 'company:synthetic-wafer-fab',
-   'company', 'company', 'Synthetic Wafer Fab', 'Synthetic Wafer Fab', ARRAY['SWF'], 'active'),
+   'chain_node', 'chain_node', 'Synthetic Wafer Production', 'Synthetic Wafer Production',
+   ARRAY['Synthetic Wafer Fab'], 'active'),
   ('22000000-0000-4000-8000-000000000002', 'product:synthetic-wafer',
-   'product', 'product', 'Synthetic 8-inch Wafer', 'Synthetic 8-inch Wafer',
-   ARRAY['Synthetic Wafer'], 'active')
+   'chain_node', 'chain_node', 'Synthetic 8-inch Wafer Supply', 'Synthetic 8-inch Wafer Supply',
+   ARRAY['Synthetic Wafer'], 'active'),
+  ('23000000-0000-4000-8000-000000000001', 'industry-chain:synthetic-wafer',
+   'industry_chain', 'industry_chain', 'Synthetic Wafer Chain', 'Synthetic Wafer Chain',
+   ARRAY['Synthetic Chain'], 'active')
+`); err != nil {
+		return err
+	}
+	if _, err := database.Exec(ctx, `
+INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status) VALUES
+  ('22000000-0000-4000-8000-000000000001', 'Synthetic wafer producer', NULL, 'approved'),
+  ('22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
+INSERT INTO industry_chain_definitions (
+  entity_id, scope, target_output, end_use, geography, as_of_date, review_status,
+  observable_variables
+) VALUES (
+  '23000000-0000-4000-8000-000000000001',
+  'Synthetic acceptance scope', 'Synthetic 8-inch Wafer', 'Semiconductor manufacturing',
+  'Global', '2026-07-28', 'approved', ARRAY['production_volume','market_supply']
+);
+INSERT INTO industry_chain_node_memberships (
+  industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
+  review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
+) VALUES
+  ('23000000-0000-4000-8000-000000000001',
+   '22000000-0000-4000-8000-000000000001', 1, 'upstream', 'approved', 'active',
+   'Synthetic producer node', ARRAY['synthetic-membership-1'], 'Synthetic Fixture',
+   'artifact://synthetic/membership/1', '2026-07-28T00:00:00Z'),
+  ('23000000-0000-4000-8000-000000000001',
+   '22000000-0000-4000-8000-000000000002', 2, 'midstream', 'approved', 'active',
+   'Synthetic supply node', ARRAY['synthetic-membership-2'], 'Synthetic Fixture',
+   'artifact://synthetic/membership/2', '2026-07-28T00:00:00Z')
+;
+INSERT INTO direct_transmission_rules (
+  rule_key, version, source_entity_type, source_variable_key, source_variable_version,
+  source_direction, relation_type, target_entity_type,
+  affected_variable_key, affected_variable_version, affected_direction,
+  condition_summary, mechanism_template, status
+) VALUES (
+  'synthetic_production_decrease_reduces_chain_supply', 1,
+  'chain_node', 'production_volume', 1, 'decrease', 'produces', 'chain_node',
+  'market_supply', 1, 'decrease', 'Synthetic fixture only',
+  '{source_entity} production decline reduces {target_entity} supply', 'approved'
+)
 `); err != nil {
 		return err
 	}
@@ -249,5 +324,34 @@ func assertEmptyResearch(ctx context.Context) error {
 	}
 	return json.NewEncoder(os.Stdout).Encode(map[string]int{
 		"research_themes": themes, "research_reasoning_trees": reasoningTrees,
+	})
+}
+
+func assertResearchPublication(ctx context.Context) error {
+	database, err := openFixtureDatabase(ctx)
+	if err != nil {
+		return err
+	}
+	defer database.Close()
+	var themes, trees, formalSignals, formalImpacts, inferenceSignals int
+	if err := database.QueryRow(ctx, `SELECT
+    (SELECT count(*) FROM research_themes),
+    (SELECT count(*) FROM research_reasoning_trees),
+    (SELECT count(*) FROM research_reasoning_tree_node_signals WHERE source_kind = 'formal_signal'),
+    (SELECT count(*) FROM research_reasoning_tree_nodes WHERE incoming_source_kind = 'formal_direct_impact'),
+    (SELECT count(*) FROM research_reasoning_tree_node_signals WHERE source_kind = 'analyst_inference')
+`).Scan(&themes, &trees, &formalSignals, &formalImpacts, &inferenceSignals); err != nil {
+		return err
+	}
+	if themes != 1 || trees != 1 || formalSignals != 1 || formalImpacts != 1 || inferenceSignals != 1 {
+		return fmt.Errorf(
+			"unexpected research publication: themes=%d trees=%d formal_signals=%d formal_impacts=%d inference_signals=%d",
+			themes, trees, formalSignals, formalImpacts, inferenceSignals,
+		)
+	}
+	return json.NewEncoder(os.Stdout).Encode(map[string]int{
+		"research_themes": themes, "research_reasoning_trees": trees,
+		"formal_signals": formalSignals, "formal_direct_impacts": formalImpacts,
+		"analyst_inference_signals": inferenceSignals,
 	})
 }

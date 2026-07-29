@@ -26,13 +26,23 @@ type Event struct {
 }
 
 type Evidence struct {
-	ID              string     `json:"evidence_id"`
-	Excerpt         string     `json:"excerpt"`
-	SourceLevel     string     `json:"source_level"`
-	Relation        string     `json:"relation"`
-	SupportsFields  []string   `json:"supports_fields"`
-	RawDocumentID   string     `json:"raw_document_id"`
-	RawDocumentDate *time.Time `json:"raw_document_published_at,omitempty"`
+	ID                   string     `json:"evidence_id"`
+	Hash                 string     `json:"evidence_hash"`
+	Excerpt              string     `json:"excerpt"`
+	SourceLevel          string     `json:"source_level"`
+	Relation             string     `json:"relation"`
+	SupportsFields       []string   `json:"supports_fields"`
+	IsPrimary            bool       `json:"is_primary"`
+	RawDocumentID        string     `json:"raw_document_id"`
+	SourceName           string     `json:"source_name"`
+	SourceType           string     `json:"source_type"`
+	SourceURL            string     `json:"source_url,omitempty"`
+	Title                string     `json:"title"`
+	PublishedAt          *time.Time `json:"published_at,omitempty"`
+	FirstSeenAt          time.Time  `json:"first_seen_at"`
+	KnowledgeAvailableAt time.Time  `json:"knowledge_available_at"`
+	AcceptedAt           time.Time  `json:"accepted_at"`
+	StatementSource      string     `json:"statement_source"`
 }
 
 type Entity struct {

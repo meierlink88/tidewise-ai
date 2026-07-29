@@ -274,11 +274,8 @@ func (serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.Even
 func (serverTestDataService) ListActiveEventTags(context.Context, *dataapi.EventTagCatalogRequest) (*dataapi.Response[dataapi.EventTagCatalog], error) {
 	return serverTestResponse[dataapi.EventTagCatalog]()
 }
-func (serverTestDataService) ImportResearchThemes(context.Context, *dataapi.ResearchThemeImportRequest) (*dataapi.Response[dataapi.ResearchThemeImportResult], error) {
+func (serverTestDataService) PublishResearchTheme(context.Context, *dataapi.ResearchThemeImportRequest) (*dataapi.Response[dataapi.ResearchThemeImportResult], error) {
 	return serverTestResponse[dataapi.ResearchThemeImportResult]()
-}
-func (serverTestDataService) ImportResearchReasoningTrees(context.Context, *dataapi.ResearchReasoningTreeImportRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeImportResult], error) {
-	return serverTestResponse[dataapi.ResearchReasoningTreeImportResult]()
 }
 func (serverTestDataService) ListResearchThemes(context.Context, *dataapi.ListResearchThemesRequest) (*dataapi.Response[dataapi.ResearchThemePage], error) {
 	return serverTestResponse[dataapi.ResearchThemePage]()
@@ -321,6 +318,9 @@ func (serverTestDataService) SubmitEventSemanticReview(context.Context, *dataapi
 }
 func (serverTestDataService) GetEventSemantics(context.Context, *dataapi.GetEventSemanticsRequest) (*dataapi.Response[dataapi.EventSemanticsResult], error) {
 	return serverTestResponse[dataapi.EventSemanticsResult]()
+}
+func (serverTestDataService) ListResearchAnalysisContext(context.Context, *dataapi.ResearchAnalysisContextRequest) (*dataapi.Response[dataapi.ResearchAnalysisContext], error) {
+	return serverTestResponse[dataapi.ResearchAnalysisContext]()
 }
 
 type principalRecordingDataService struct {

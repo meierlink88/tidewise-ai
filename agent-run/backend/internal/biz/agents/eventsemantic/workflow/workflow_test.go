@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -124,7 +125,7 @@ func (*semanticDataStub) GetEventSemantics(
 }
 func TestWorkflowResolvesDataOwnedIdentitiesAndUsesIndependentReviewer(t *testing.T) {
 	generator := &queuedModel{responses: []string{
-		`{"entity_links":[{"candidate_key":"company","mention":"某晶圆厂","entity_id":"99999999-9999-4999-8999-999999999999","entity_role":"actor","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_method":"model_guess","resolution_confidence":"0.9"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[]}]}`,
+		`{"entity_links":[{"candidate_key":"company","mention":"某晶圆厂","entity_id":"99999999-9999-4999-8999-999999999999","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_method":"model_guess","resolution_confidence":"0.9"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"source_forecast","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[{"measurement_role":"relative_change","value_shape":"exact","raw_value":"-10","raw_unit":"%","canonical_value":"-10","canonical_unit":"percent","raw_text":"产量预计下降10%","is_approximate":false,"evidence_id":"22222222-2222-4222-8222-222222222222"}],"statement_at":"2026-07-28T08:00:00Z","valid_from":"2026-08-01T00:00:00Z","valid_until":"2026-12-31T23:59:59Z","forecast_period_start":"2026-08-01T00:00:00Z","forecast_period_end":"2026-12-31T23:59:59Z","extraction_confidence":"0.91"}]}`,
 		`{"direct_impacts":[{"candidate_key":"supply","source_signal_key":"production","target_entity_id":"44444444-4444-4444-8444-444444444444","affected_variable_key":"market_supply","affected_variable_version":1,"affected_direction":"decrease","derivation_type":"rule_inferred","mechanism_summary":"产量下降减少产品供给","entity_relation_id":"55555555-5555-4555-8555-555555555555","rule_key":"production_decrease_reduces_product_supply","rule_version":1,"evidence_ids":["22222222-2222-4222-8222-222222222222"],"assertion_confidence":"0.9"}]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
@@ -161,6 +162,11 @@ func TestWorkflowResolvesDataOwnedIdentitiesAndUsesIndependentReviewer(t *testin
 		data.runRequest.EntityLinks[0].EntityID != "33333333-3333-4333-8333-333333333333" ||
 		data.runRequest.EntityLinks[0].ResolutionMethod != "data_service_resolution" ||
 		data.runRequest.DirectImpacts[0].AffectedDirection != "decrease" ||
+		data.runRequest.VariableSignals[0].StatementAt == nil ||
+		data.runRequest.VariableSignals[0].ForecastPeriodEnd == nil ||
+		data.runRequest.VariableSignals[0].ExtractionConfidence != "0.91" ||
+		len(data.runRequest.VariableSignals[0].Measurements) != 1 ||
+		data.runRequest.VariableSignals[0].Measurements[0].CanonicalUnit != "percent" ||
 		data.runRequest.SupersedesSubmissionID != "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" ||
 		data.reviewRequest.ReviewerExecutionKey != "77777777-7777-4777-8777-777777777777:reviewer" {
 		t.Fatalf("run=%#v review=%#v", data.runRequest, data.reviewRequest)
@@ -168,6 +174,16 @@ func TestWorkflowResolvesDataOwnedIdentitiesAndUsesIndependentReviewer(t *testin
 	if len(generator.calls) != 2 || len(reviewer.calls) != 1 ||
 		reviewer.calls[0][0].Content != reviewerProtocol {
 		t.Fatalf("generator calls=%d reviewer calls=%d", len(generator.calls), len(reviewer.calls))
+	}
+	nativePrompt := generator.calls[0][1].Content
+	for _, required := range []string{
+		"statement_at", "valid_from", "valid_until",
+		"forecast_period_start", "forecast_period_end", "extraction_confidence",
+		"measurement_role", "canonical_unit", "evidence_id",
+	} {
+		if !strings.Contains(nativePrompt, required) {
+			t.Fatalf("Generator output contract is missing %s: %s", required, nativePrompt)
+		}
 	}
 }
 
@@ -233,8 +249,17 @@ func requestContext() eventsemantic.Context {
 			Title: "某晶圆厂产量下降", EventStatus: "confirmed", FactStatus: "verified",
 		},
 		Evidence: []eventsemantic.Evidence{{
-			EvidenceID: "22222222-2222-4222-8222-222222222222",
-			Excerpt:    "某晶圆厂8英寸晶圆产量下降10%",
+			EvidenceID:           "22222222-2222-4222-8222-222222222222",
+			Excerpt:              "某晶圆厂预计下半年8英寸晶圆产量下降10%",
+			RawDocumentID:        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+			SourceName:           "某晶圆厂",
+			SourceType:           "company_announcement",
+			SourceURL:            "https://example.com/forecast",
+			Title:                "某晶圆厂产量预测",
+			PublishedAt:          stringPointer("2026-07-28T08:00:00Z"),
+			FirstSeenAt:          "2026-07-28T08:05:00Z",
+			KnowledgeAvailableAt: "2026-07-28T08:05:00Z",
+			StatementSource:      "某晶圆厂",
 		}},
 		VariableDefinitions: []eventsemantic.VariableDefinition{
 			{Key: "production_volume", Version: 1, Status: "active"},
@@ -244,4 +269,8 @@ func requestContext() eventsemantic.Context {
 			RuleKey: "production_decrease_reduces_product_supply", Version: 1, Status: "approved",
 		}},
 	}
+}
+
+func stringPointer(value string) *string {
+	return &value
 }

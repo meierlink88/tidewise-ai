@@ -27,3 +27,23 @@ func TestCloseWithinWaitsForResourceCleanup(t *testing.T) {
 		t.Fatal("resource cleanup did not run")
 	}
 }
+
+func TestShutdownWithinEachStartsWorkersWithIndependentBudgets(t *testing.T) {
+	secondStarted := make(chan struct{})
+	first := func(ctx context.Context) error {
+		select {
+		case <-secondStarted:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	second := func(context.Context) error {
+		close(secondStarted)
+		return nil
+	}
+
+	if err := shutdownWithinEach(100*time.Millisecond, first, second); err != nil {
+		t.Fatalf("shutdown workers: %v", err)
+	}
+}

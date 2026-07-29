@@ -16,16 +16,16 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 	eventpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
-	researchreasoningtreeimportdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchreasoningtreeimport"
-	researchthemeimportdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchthemeimport"
+	researchanalysiscontextdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchanalysiscontext"
+	researchpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 )
@@ -56,13 +56,13 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	}
 
 	application := service.NewDataService(service.Dependencies{
-		EventPublications:            eventpublication.NewService(eventpublicationdata.NewRepository(db)),
-		EventTagCatalog:              eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
-		EventSemantics:               eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
-		ResearchThemeImports:         researchthemeimport.NewService(researchthemeimportdata.NewRepository(db)),
-		ResearchReasoningTreeImports: researchreasoningtreeimport.NewService(researchreasoningtreeimportdata.NewRepository(db)),
-		Research:                     research.NewService(researchdata.NewRepository(db), time.Now),
-		Admin:                        adminquery.NewService(adminquerydata.NewRepository(db)),
+		EventPublications:       eventpublication.NewService(eventpublicationdata.NewRepository(db)),
+		EventTagCatalog:         eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
+		EventSemantics:          eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
+		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
+		Research:                research.NewService(researchdata.NewRepository(db), time.Now),
+		ResearchAnalysisContext: researchanalysiscontext.NewService(researchanalysiscontextdata.NewRepository(db)),
+		Admin:                   adminquery.NewService(adminquerydata.NewRepository(db)),
 	})
 	httpServer := server.NewHTTPServer(config, application, authenticator, logger)
 

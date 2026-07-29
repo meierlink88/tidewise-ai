@@ -261,12 +261,13 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			return nil
 		}),
 		kratos.BeforeStop(func(context.Context) error {
-			eventContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
 			return errors.Join(
 				scheduleService.Shutdown(),
-				eventApplication.Shutdown(eventContext),
-				semanticApplication.Shutdown(eventContext),
+				shutdownWithinEach(
+					10*time.Second,
+					eventApplication.Shutdown,
+					semanticApplication.Shutdown,
+				),
 			)
 		}),
 		kratos.AfterStop(func(context.Context) error {
@@ -278,6 +279,25 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			return errors.Join(collectorErr, databaseErr)
 		}),
 	), nil
+}
+
+func shutdownWithinEach(
+	timeout time.Duration,
+	shutdowns ...func(context.Context) error,
+) error {
+	results := make(chan error, len(shutdowns))
+	for _, shutdown := range shutdowns {
+		go func(stop func(context.Context) error) {
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+			results <- stop(ctx)
+		}(shutdown)
+	}
+	var joined error
+	for range shutdowns {
+		joined = errors.Join(joined, <-results)
+	}
+	return joined
 }
 
 func closeWithin(ctx context.Context, closeResource func()) error {

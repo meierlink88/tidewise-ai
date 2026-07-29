@@ -26,3 +26,6 @@ func (testDataHTTPServer) SubmitEventSemanticReview(context.Context, *EventSeman
 func (testDataHTTPServer) GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error) {
 	return testResponse[EventSemanticsResult]()
 }
+func (testDataHTTPServer) ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error) {
+	return testResponse[ResearchAnalysisContext]()
+}
