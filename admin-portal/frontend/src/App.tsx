@@ -9,7 +9,9 @@ const tokenStorageKey = 'tidewise_admin_token';
 
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem(tokenStorageKey) ?? '');
-  const [currentPage, setCurrentPage] = useState<'data-ingestion' | 'agent-status'>('data-ingestion');
+  const [currentPage, setCurrentPage] = useState<'data-ingestion' | 'agent-status'>(
+    'data-ingestion'
+  );
 
   const handleLogin = (nextToken: string) => {
     localStorage.setItem(tokenStorageKey, nextToken);
@@ -23,7 +25,7 @@ export default function App() {
   };
 
   if (!token) {
-    return <AdminLogin onLogin={handleLogin} tokenHint="local-admin-token" />;
+    return <AdminLogin onLogin={handleLogin} tokenHint='local-admin-token' />;
   }
 
   return (
@@ -33,9 +35,11 @@ export default function App() {
       onNavigate={setCurrentPage}
       onLogout={handleLogout}
     >
-      {currentPage === 'agent-status'
-        ? <AgentStatusMonitor token={token} />
-        : <DataIngestionCenter token={token} />}
+      {currentPage === 'agent-status' ? (
+        <AgentStatusMonitor token={token} />
+      ) : (
+        <DataIngestionCenter token={token} />
+      )}
     </AdminShell>
   );
 }

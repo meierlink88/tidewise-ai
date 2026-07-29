@@ -31,52 +31,55 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
-  const columns = useMemo<DataTableColumn<AgentStatus>[]>(() => [
-    {
-      key: 'agent',
-      header: 'Agent',
-      render: (item) => (
-        <div className="agent-status-identity">
-          <strong>{item.display_name}</strong>
-          <span>{item.agent_key}</span>
-        </div>
-      )
-    },
-    { key: 'version', header: '当前版本', render: (item) => item.current_version },
-    {
-      key: 'working',
-      header: '工作状态',
-      render: (item) => (
-        <StatusBadge tone={item.is_working ? 'success' : 'neutral'}>
-          {item.is_working ? '工作中' : '空闲'}
-        </StatusBadge>
-      )
-    },
-    {
-      key: 'execution',
-      header: '执行状态',
-      render: (item) => executionStatusLabel(item.current_execution_status)
-    },
-    { key: 'updated', header: '更新时间', render: (item) => formatDateTime(item.updated_at) }
-  ], []);
+  const columns = useMemo<DataTableColumn<AgentStatus>[]>(
+    () => [
+      {
+        key: 'agent',
+        header: 'Agent',
+        render: (item) => (
+          <div className='agent-status-identity'>
+            <strong>{item.display_name}</strong>
+            <span>{item.agent_key}</span>
+          </div>
+        )
+      },
+      { key: 'version', header: '当前版本', render: (item) => item.current_version },
+      {
+        key: 'working',
+        header: '工作状态',
+        render: (item) => (
+          <StatusBadge tone={item.is_working ? 'success' : 'neutral'}>
+            {item.is_working ? '工作中' : '空闲'}
+          </StatusBadge>
+        )
+      },
+      {
+        key: 'execution',
+        header: '执行状态',
+        render: (item) => executionStatusLabel(item.current_execution_status)
+      },
+      { key: 'updated', header: '更新时间', render: (item) => formatDateTime(item.updated_at) }
+    ],
+    []
+  );
 
   const workingCount = items.filter((item) => item.is_working).length;
 
   return (
-    <section className="agent-status-monitor">
-      <div className="agent-status-toolbar">
+    <section className='agent-status-monitor'>
+      <div className='agent-status-toolbar'>
         <div>
-          <span className="eyebrow">Runtime monitor</span>
+          <span className='eyebrow'>Runtime monitor</span>
           <h2>Agent 运行状态</h2>
           <p>只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。</p>
         </div>
-        <Button disabled={loading} variant="secondary" onClick={() => void refresh()}>
-          <Icon name="activity" />
+        <Button disabled={loading} variant='secondary' onClick={() => void refresh()}>
+          <Icon name='activity' />
           刷新状态
         </Button>
       </div>
 
-      <div className="agent-status-summary" aria-label="Agent 状态概览">
+      <div className='agent-status-summary' aria-label='Agent 状态概览'>
         <Card>
           <span>已注册</span>
           <strong>{items.length}</strong>
@@ -91,7 +94,7 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
         </Card>
       </div>
 
-      {error ? <div className="ui-alert danger">{error}</div> : null}
+      {error ? <div className='ui-alert danger'>{error}</div> : null}
       <Card>
         <DataTable
           columns={columns}

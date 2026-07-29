@@ -56,14 +56,16 @@ describe('AgentRun management Admin API client', () => {
 
   it('loads the safe Agent status projection through the Admin BFF', async () => {
     const fetchMock = successFetch({
-      items: [{
-        agent_key: 'event-semantic-enricher',
-        display_name: 'Event Semantic Enricher',
-        current_version: 'event-semantic-enricher.v1',
-        is_working: true,
-        current_execution_status: 'running',
-        updated_at: '2026-07-29T08:30:00Z'
-      }]
+      items: [
+        {
+          agent_key: 'event-semantic-enricher',
+          display_name: 'Event Semantic Enricher',
+          current_version: 'event-semantic-enricher.v1',
+          is_working: true,
+          current_execution_status: 'running',
+          updated_at: '2026-07-29T08:30:00Z'
+        }
+      ]
     });
     vi.stubGlobal('fetch', fetchMock);
 

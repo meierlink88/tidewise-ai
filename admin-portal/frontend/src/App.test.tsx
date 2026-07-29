@@ -15,7 +15,8 @@ vi.mock('./api/dataIngestion', async () => {
 });
 
 vi.mock('./api/agentManagement', async () => {
-  const actual = await vi.importActual<typeof import('./api/agentManagement')>('./api/agentManagement');
+  const actual =
+    await vi.importActual<typeof import('./api/agentManagement')>('./api/agentManagement');
   return {
     ...actual,
     loadAgentStatuses: vi.fn()
@@ -85,14 +86,16 @@ describe('App admin login', () => {
   it('navigates to the read-only Agent status monitor', async () => {
     storage.set('tidewise_admin_token', 'local-admin-token');
     const user = userEvent.setup();
-    vi.mocked(loadAgentStatuses).mockResolvedValue([{
-      agent_key: 'event-semantic-enricher',
-      display_name: 'Event Semantic Enricher',
-      current_version: 'event-semantic-enricher.v1',
-      is_working: true,
-      current_execution_status: 'running',
-      updated_at: '2026-07-29T08:30:00Z'
-    }]);
+    vi.mocked(loadAgentStatuses).mockResolvedValue([
+      {
+        agent_key: 'event-semantic-enricher',
+        display_name: 'Event Semantic Enricher',
+        current_version: 'event-semantic-enricher.v1',
+        is_working: true,
+        current_execution_status: 'running',
+        updated_at: '2026-07-29T08:30:00Z'
+      }
+    ]);
 
     render(<App />);
     await user.click(screen.getByRole('button', { name: /Agent 状态/ }));
