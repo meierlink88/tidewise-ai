@@ -20,7 +20,7 @@ func TestEventSemanticProviderContractAcceptsFrozenConsumerFixtures(t *testing.T
 		t.Fatal(err)
 	}
 	fixtures := map[string]string{
-		"supply-eligible-events.json":      "EligibleEventSemanticEventsEnvelope",
+		"supply-eligible-events.json":     "EligibleEventSemanticEventsEnvelope",
 		"supply-context-lease.json":       "EventSemanticContextLeaseEnvelope",
 		"supply-context.json":             "EventSemanticContextEnvelope",
 		"supply-resolution.json":          "EventSemanticEntityResolutionEnvelope",
