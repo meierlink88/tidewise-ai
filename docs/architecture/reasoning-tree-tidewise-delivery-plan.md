@@ -1,5 +1,12 @@
 # 一句话结论推理树 Tidewise 交付计划
 
+> **状态：历史计划，已被取代。**
+>
+> 本文仅保留用于交付审计。当前 Theme / Reason Tree 的权威合同以
+> `docs/architecture/research-theme-reasoning-tree-spec.md` 为准。本文中的 Research
+> Anchor、独立 Anchor 发布、“交易指向”及“下一检查点”等旧语义均已失效，不得作为
+> 当前实现或验收依据。
+
 ## 状态
 
 - 计划日期：2026-07-20

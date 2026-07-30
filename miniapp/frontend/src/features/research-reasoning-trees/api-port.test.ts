@@ -42,11 +42,43 @@ describe('research reasoning tree BFF adapter', () => {
         reasoningTreeId: treeId,
         supportSummary: '端口计划上调，产业链传导关系已确认。',
         counterSummary: '采购尚未发生，替代技术路线可能降低可插拔模块与 DSP 用量。',
+        conclusionBoundarySummary: '当前仍处于采购与排产验证阶段。',
+        invalidationConditions: ['采购计划取消', '替代技术路线成为主流'],
+        checkpoints: [
+          { type: 'event', summary: '采购数量' },
+          { type: 'metric', summary: '单端口模块用量' },
+          { type: 'metric', summary: '光模块排产' }
+        ],
         eventCount: 2,
         nodes: [
-          { name: '数据中心交换机', incomingTransmissionMechanism: null },
-          { name: '高速光模块', primarySignal: { signalRole: 'primary' } },
-          { name: '高速光模块 DSP 芯片', signals: expect.any(Array) }
+          {
+            name: '数据中心交换机',
+            impactStrength: 'medium',
+            incomingTransmissionTitle: null,
+            incomingTransmissionMechanism: null,
+            incomingConditionSummary: null,
+            primarySignal: {
+              signalRole: 'primary',
+              displaySummary: '端口计划 +80%'
+            }
+          },
+          {
+            name: '高速光模块',
+            incomingTransmissionTitle: '端口配置传导',
+            incomingTransmissionMechanism: '新增交换机端口增加可插拔光模块配置需求。',
+            incomingConditionSummary: '采购发生且可插拔路线延续',
+            primarySignal: {
+              signalRole: 'primary',
+              displaySummary: '模块需求 ↑'
+            }
+          },
+          {
+            name: '高速光模块 DSP 芯片',
+            incomingTransmissionTitle: '排产向核心器件传导',
+            incomingTransmissionMechanism: '高速光模块排产若增加，将提高 DSP 芯片备料需求。',
+            incomingConditionSummary: '模块排产增加，且当前 DSP 技术方案延续',
+            signals: expect.any(Array)
+          }
         ]
       }
     });

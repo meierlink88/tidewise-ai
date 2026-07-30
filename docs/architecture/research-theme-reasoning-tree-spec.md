@@ -95,11 +95,15 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 21. As a Miniapp user, I want the Theme card to show the number and names of affected Chain Nodes, so that I understand what investment objects are affected.
 22. As a Miniapp user, I want every visible Theme to have its atomically published Reason Trees, so that I never receive a partial explanation aggregate.
 23. As a Miniapp user, I want each Reason Tree tab to represent one Industry Chain, so that switching tabs changes the causal-chain context rather than the priority of an impacted node.
-24. As a Miniapp user, I want every Reason Tree node card to show its primary and supporting Variable Signals, so that the node judgment has visible quantitative or state context.
-25. As a Miniapp user, I want Variable Signal summaries displayed completely and in stable order, so that important values are not truncated or rearranged.
-26. As a Miniapp user, I want formal graph relationships and analyst-inferred transitions to remain distinguishable, so that I do not mistake a temporary inference for approved master data.
+24. As a Miniapp user, I want every compact Reason Tree node card to show its primary Variable
+    Signal and impact strength without long data-gap text, so that the path stays scannable.
+25. As a Miniapp user, I want each displayed primary Variable Signal summary shown completely, so
+    that its published meaning is not truncated or rearranged.
+26. As a Miniapp user, I want each downstream node’s transmission detail to use that node’s
+    incoming semantics, so that an outgoing or unrelated mechanism is never presented as its cause.
 27. As a Miniapp user, I want Theme and Tree summaries to preserve their different scopes, so that the same sentence is not repeated as if it were two independent conclusions.
-28. As a Miniapp user, I want Tree checkpoints and invalidation conditions displayed in analyst-provided order, so that the intended verification sequence is preserved.
+28. As a Miniapp user, I want analyst-composed Tree checkpoints displayed in provided order without
+    repeating invalidation conditions, so that the intended verification sequence is concise.
 29. As a Miniapp user, I want an invariant error rather than a partial Theme when a stored aggregate cannot reconstruct its Reason Trees, so that corrupt lineage is not silently displayed.
 30. As a Miniapp user, I want one failed Tree tab to remain retryable without invalidating other loaded tabs, so that a partial network failure does not destroy the whole reading session.
 31. As a Data maintainer, I want Theme and Tree identities generated deterministically, so that receipts, retries and fixtures are reproducible.
@@ -118,7 +122,8 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 44. As a Miniapp user, I want the Industry Chain path to show compact nodes first, so that I can understand the whole transmission sequence without reading every detail at once.
 45. As a Miniapp user, I want to select any path node and inspect one detailed evidence panel below the path, so that I can focus on the reasoning for that node.
 46. As a Miniapp user, I want the last path node labeled as the result node without treating it as a primary Theme Impact, so that path position is not confused with investment priority.
-47. As a Miniapp user, I want the selected node detail to separate impact state, variable state, transmission mechanism, Variable Signals, reasoning basis and data gaps, so that each reasoning layer is explicit.
+47. As a Miniapp user, I want the selected node detail to show its position/role, name, primary
+    Signal and incoming mechanism only when one exists, so that the causal step is concise.
 48. As a Miniapp user, I want the first path node identified as the signal-entry point without a fabricated incoming Chain relationship, so that an Event or Signal entry is not misrepresented as a formal Graph Edge.
 49. As a Miniapp user, I want update labels and enum labels to be mechanically generated from published data, so that BFF and Frontend never rewrite analyst meaning.
 50. As a tester, I want the prototype’s content hierarchy covered by component and adapter tests while visual tokens are excluded, so that the intended information change is protected without freezing a screenshot implementation.
@@ -315,6 +320,10 @@ correct value.
 }
 ```
 
+- `summary` is the analyst-owned, directly displayable verification statement. It must explain
+  what to observe and how a stated change would strengthen, weaken, invalidate or otherwise alter
+  the current Tree judgment. Consumers render it as supplied; they do not pair it by array index
+  with `invalidation_conditions` or synthesize investment semantics.
 - Invalidation conditions and checkpoints are immutable display snapshot JSON owned by the Tree;
   they do not create separate fact tables or identities.
 - Tree content does not store `updated_at`, per-row `published_at`, Event count, Node count or a
@@ -680,9 +689,9 @@ The Reason Tree page displays:
 7. “当前支持” and “当前反证” using Tree `support_summary` and
    `counter_summary`.
 8. “产业链节点传导” using the compact path and selected-node detail contract below.
-9. “结论边界与失效条件” using `conclusion_boundary_summary` and the ordered
-   `invalidation_conditions`.
-10. “下一检查点” using ordered `checkpoints`.
+9. “判断边界” using only `conclusion_boundary_summary`. The underlying ordered
+   `invalidation_conditions` remain in the contract and lineage but are not rendered again here.
+10. “后续验证” using ordered analyst-authored `checkpoints[].summary`.
 
 The Tree conclusion metadata is mechanically composed as:
 
@@ -703,8 +712,8 @@ Evidence-role labels are:
 `context -> 背景`.
 
 An empty `counter_summary` keeps the existing “当前反证” section and displays
-“当前暂无明确反证”. Empty invalidation or checkpoint arrays retain their section heading and use
-the existing neutral empty treatment; they do not receive analyst-like default content.
+“当前暂无明确反证”. Empty boundary content or checkpoint arrays retain their section heading and
+use the existing neutral empty treatment; they do not receive analyst-like default content.
 
 #### 20.4 Industry Chain node transmission contract
 
@@ -725,8 +734,10 @@ Compact path behavior:
   - “· 结果” when it is the maximum-position node;
   - current Chain Node name;
   - primary Signal `display_summary`;
-  - `signal_display_summary`, containing all non-primary Signal snapshots joined with ` · `;
+  - the controlled `impact_strength` label;
   - “当前节点” when selected and “节点详情” otherwise.
+- Compact cards do not render `state_summary`, non-primary Signal summaries,
+  `reasoning_basis_summary` or `evidence_gap_summary`.
 - The maximum-position node is the default selection whenever a Tree detail first becomes ready.
 - Selecting another compact node changes only the detail panel below. It does not navigate, fetch
   another Tree, mutate the Tree cache or change Theme Impact membership.
@@ -739,27 +750,20 @@ Compact path behavior:
 
 Selected-node detail displays:
 
-1. Node position, derived “结果节点” label when applicable, Chain Node name and primary Signal
-   `display_summary`.
-2. “影响状态”: `state_summary` followed by the controlled `impact_strength` label; omit an
-   empty optional summary without generating text. Node `impact_direction` remains in the wire
-   contract but is not expanded into an extra prose phrase in this prototype-defined line.
-3. “变量状态”: primary Signal `signal_direction` plus the complete
-   `signal_display_summary`. This is mechanical presentation, not a new persisted
-   `variable_state_summary`.
-4. “传导机制” for positions greater than 1:
-   - formal relation type/status when `incoming_industry_chain_graph_edge_id` exists, otherwise
-     “分析推断”;
-   - `incoming_transmission_title`;
-   - `incoming_transmission_mechanism`;
-   - “成立条件：” plus `incoming_condition_summary`.
-5. “变量信号”: all 1..5 Signals in `display_order`, each with role label and complete
-   `display_summary`.
-6. “推导依据”: `reasoning_basis_summary`.
-7. “数据缺口”: `evidence_gap_summary`.
+1. Node position and presentation role: “信号入口” for position 1, “结果节点” for the
+   maximum-position node, and “路径节点” for an intermediate node. A one-node Tree displays both
+   “信号入口” and “结果节点”.
+2. Chain Node name and primary Signal `display_summary`.
+3. “传导机制” only for positions greater than 1:
+   - the derived route “节点 NN → 节点 NN” from the immediately preceding node to the selected
+     node;
+   - selected node `incoming_transmission_title`;
+   - selected node `incoming_transmission_mechanism`;
+   - “成立前提：” plus selected node `incoming_condition_summary` when present.
 
-Signal-role labels are:
-`primary -> 主要`, `supporting -> 支持`, `contradicting -> 反向`.
+The selected-node detail does not render “影响状态”, “变量状态”, “变量信号”, “推导依据”,
+“数据缺口”, formal graph relation metadata or Theme Impact membership. Those facts remain in the
+Data and wire contracts; removing their display does not weaken validation or lineage.
 
 For the first node:
 
@@ -767,12 +771,19 @@ For the first node:
 - Keep every `incoming_*` field null as required by the Data contract.
 - Do not render or fabricate a Chain transmission relation, formal edge, incoming mechanism or
   incoming condition.
-- Its primary/other Signals, state, reasoning basis and data gap explain how the signal enters the
-  path. The prototype’s illustrative “Event 直接映射” detail is not treated as a formal relation
-  unless a future contract adds an explicit Node–Event attribution.
+- The primary Signal `display_summary` explains how the signal enters the displayed path. Other
+  Signals, state, reasoning basis and data gap remain available in the underlying contract but are
+  not rendered in the simplified selected-node detail.
 
-All Signal summaries and analyst-authored text use natural wrapping and no ellipsis truncation.
-Frontend must not parse those strings to infer direction, strength, identity or evidence.
+For every downstream node, transmission content uses that selected node’s `incoming_*` fields. The
+Miniapp must not display the selected node’s outgoing mechanism as if it were incoming, and the
+maximum-position node never fabricates a further outgoing segment.
+
+Displayed Signal summaries and analyst-authored text use natural wrapping and no ellipsis
+truncation. Frontend must not parse those strings to infer direction, strength, identity or
+evidence. `checkpoints[].summary` is generated as the complete human-facing “observe what + effect
+on the current judgment” statement by the analyst owner; Miniapp and BFF do not compose it from
+other arrays.
 
 ### 21. Time, order and null semantics
 
@@ -886,16 +897,18 @@ Cover the typed API Adapter and user-visible state transitions:
 - render the complete Theme-card content contract, including relative update labels, action labels,
   total Event count and ordered Theme Impact names;
 - render the Reason Tree content sections in the prototype-defined hierarchy;
-- display 1..5 Signal snapshots in order and join non-primary summaries with ` · ` without
-  truncation or primary duplication;
+- display only the primary Signal summary and impact-strength label on each compact node without
+  truncation, non-primary summaries or evidence-gap text;
 - default node selection to the maximum-position result node;
 - selecting a compact path node updates the single detail panel without navigation or a new Tree
   request;
 - switching Trees establishes an independent result-node selection for the newly ready Tree;
-- render formal incoming relation metadata only for non-first nodes with a formal edge and use
-  “分析推断” for non-first nodes without one;
+- render the selected downstream node’s incoming title, mechanism and condition with the derived
+  preceding-node route, without formal Graph metadata;
 - keep the first node free of fabricated incoming transmission content;
-- distinguish Theme Impact nodes by ID intersection;
+- render only `conclusion_boundary_summary` under “判断边界” and keep
+  `invalidation_conditions` out of the page;
+- render ordered `checkpoints[].summary` under “后续验证” without pairing it to another array;
 - preserve independent Tab loading, cache, error and retry behavior;
 - show Theme missing and Tree projection invariant failure states separately;
 - remove `marketConfirmationSummary` from all types and mocks.
@@ -922,6 +935,8 @@ the adapter/fixture seam.
   PostgreSQL V1 import/replay/read/immutability integration seam plus Biz stable-error tests.
 - `implementation-only`: mechanical Anchor-era DTO/fixture assertions that did not protect a
   supported external behavior are not recreated.
+- `obsolete`: the previous Miniapp component test for the “分析推断” Graph-edge badge, because the
+  simplified selected-node detail no longer displays formal or inferred Graph relation metadata.
 
 ### Completion verification
 
