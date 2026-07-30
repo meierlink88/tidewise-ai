@@ -10,7 +10,11 @@ const h5ApiProxyTarget = process.env.TARO_APP_H5_API_PROXY_TARGET ?? 'http://127
 if (researchSource !== 'mock' && researchSource !== 'api') {
   throw new Error('TARO_APP_RESEARCH_SOURCE must explicitly be mock or api');
 }
-if (!/^\d+$/.test(researchWindowHours) || Number(researchWindowHours) < 1 || Number(researchWindowHours) > 168) {
+if (
+  !/^\d+$/.test(researchWindowHours) ||
+  Number(researchWindowHours) < 1 ||
+  Number(researchWindowHours) > 168
+) {
   throw new Error('TARO_APP_RESEARCH_WINDOW_HOURS must be an integer between 1 and 168');
 }
 
@@ -49,7 +53,9 @@ const config = defineConfig({
     postcss: {
       pxtransform: {
         enable: true,
-        config: {}
+        config: {
+          selectorBlackList: ['reasoning-']
+        }
       },
       cssModules: {
         enable: false,
