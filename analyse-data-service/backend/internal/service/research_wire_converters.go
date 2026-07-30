@@ -15,7 +15,8 @@ func researchThemeImportInput(request *v1.ResearchThemeImportRequest) researchpu
 		impacts = append(impacts, researchthemeimport.Impact{
 			ChainNodeEntityID: impact.ChainNodeEntityID, RelationRole: impact.RelationRole,
 			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary,
-			DisplayOrder: impact.DisplayOrder,
+			PrimarySignalDisplaySummary: impact.PrimarySignalDisplaySummary,
+			DisplayOrder:                impact.DisplayOrder,
 		})
 	}
 	themeEvents := make([]researchthemeimport.Event, 0, len(theme.Events))
@@ -138,7 +139,9 @@ func researchThemeDTO(value research.ResearchTheme) v1.ResearchTheme {
 		impacts = append(impacts, v1.ResearchThemeImpact{
 			ChainNodeEntityID: impact.ChainNodeEntityID, Name: impact.Name,
 			RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
-			ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
+			ImpactSummary:               impact.ImpactSummary,
+			PrimarySignalDisplaySummary: impact.PrimarySignalDisplaySummary,
+			DisplayOrder:                impact.DisplayOrder,
 		})
 	}
 	return v1.ResearchTheme{

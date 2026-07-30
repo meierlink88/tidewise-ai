@@ -122,7 +122,9 @@ func (s *Service) Import(ctx context.Context, publisherSubject string, batch Bat
 				if err := tx.InsertResearchThemeImpact(ctx, ImpactRecord{
 					ThemeID: themeID, ChainNodeEntityID: impact.ChainNodeEntityID,
 					RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
-					ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
+					ImpactSummary:               impact.ImpactSummary,
+					PrimarySignalDisplaySummary: impact.PrimarySignalDisplaySummary,
+					DisplayOrder:                impact.DisplayOrder,
 				}); err != nil {
 					return fmt.Errorf("insert %s Impact %d: %w", theme.ThemeKey, impactIndex, err)
 				}

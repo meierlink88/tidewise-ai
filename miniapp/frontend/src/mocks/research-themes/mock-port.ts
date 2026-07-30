@@ -43,6 +43,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
           relationRole: 'beneficiary',
           impactDirection: 'positive',
           impactSummary: '端口计划增加可能提高交换机需求。',
+          primarySignalDisplaySummary: '端口计划：增加 80%',
           displayOrder: 1
         },
         {
@@ -51,6 +52,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
           relationRole: 'beneficiary',
           impactDirection: 'positive',
           impactSummary: '端口配置增加可能提高模块需求。',
+          primarySignalDisplaySummary: '模块需求：可能增加',
           displayOrder: 2
         },
         {
@@ -59,6 +61,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
           relationRole: 'beneficiary',
           impactDirection: 'positive',
           impactSummary: '模块排产增加可能提高备料需求。',
+          primarySignalDisplaySummary: '备料需求：可能增加',
           displayOrder: 3
         }
       ],

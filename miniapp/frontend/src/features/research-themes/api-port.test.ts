@@ -43,6 +43,7 @@ describe('research theme BFF adapter', () => {
                   relation_role: 'beneficiary',
                   impact_direction: 'positive',
                   impact_summary: '需求预期增强',
+                  primary_signal_display_summary: '模块需求：可能增加',
                   display_order: 1
                 }
               ],
@@ -71,7 +72,13 @@ describe('research theme BFF adapter', () => {
       impactStrength: 'medium',
       transmissionSummary: '交换机 → 高速光模块',
       updateLabel: '1 小时前',
-      impacts: [{ name: '高速光模块', displayOrder: 1 }],
+      impacts: [
+        {
+          name: '高速光模块',
+          primarySignalDisplaySummary: '模块需求：可能增加',
+          displayOrder: 1
+        }
+      ],
       evidenceEventCount: 2,
       reasoningTreeCount: 1
     });

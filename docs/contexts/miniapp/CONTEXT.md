@@ -43,7 +43,8 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - **推理主线**：研究主题在 Miniapp 面向用户展示时使用的产品名称，不是另一种数据实体。
 - **主题卡片**：首页列表中呈现一条推理主线的界面单元，不拥有独立于研究主题的业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
-- **主题影响（Theme Impact）**：Theme 影响的 Chain Node 集合，节点之间没有主次；页面仅按 Data 稳定顺序展示。
+- **主题影响（Theme Impact）**：Theme 关注的 Chain Node 集合，节点之间没有主次；
+  首页按 Data 稳定顺序展示名称、机会/风险/不确定判断及正式主变量状态快照。
 - **影响路径页**：从首页 Theme 卡片进入的研究依据页。一个 Theme 页面可包含多棵 Reason Tree，每棵 Tree 对应一条 Industry Chain 推导链路，页面通过 Tab 切换。
 - **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。首页不依赖 Reason Tree 发布状态；零 Tree Theme 仍保留入口，由影响路径页展示“影响路径暂未生成”。
 
@@ -62,7 +63,9 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 ## Reasoning Trees Frontend Route
 
 - 影响路径页固定注册为 `pages/research-theme/reasoning-trees/index`。
-- 首页 Theme 卡片仅由“查看影响路径”按钮使用 `Taro.navigateTo` 跳转到 `/pages/research-theme/reasoning-trees/index?theme_id=<uuid>`；整张卡片、产业链节点和事件数量不触发该导航。
+- 首页 Theme 卡片仅由“推导详情”按钮使用 `Taro.navigateTo` 跳转到
+  `/pages/research-theme/reasoning-trees/index?theme_id=<uuid>`；整张卡片、关注节点和
+  事件数量不触发该导航。
 - 页面是非 Tab 页面，不引入自定义路由器；推理树 V1 以微信和抖音小程序为目标平台，不实现或验收 H5 专属路由、刷新与深链行为。
 - `theme_id` 缺失或不是标准小写 UUID 时，页面展示参数错误且不得请求 BFF。
 - 页面数据访问必须经过独立 typed port 和 adapter，页面组件不得直接实现 HTTP 调用。

@@ -170,9 +170,12 @@ _Avoid_: `subject_entity_id`、Theme `name`、`impact_level`、`trading_directio
 `transmission_path`、`next_checkpoint`、`market_confirmation_summary`
 
 **主题影响（Theme Impact）**:
-Research Theme 与受影响 Chain Node 的不可变关系，保存角色、方向、可空摘要和稳定
-展示顺序。所有 Impact 平等，不存在 subject、primary 或主要影响节点；当前目标类型
-只允许有效 Chain Node。一个 Theme 至少有一个 Impact。
+Research Theme 与受影响 Chain Node 的不可变关系，保存角色、方向、可空摘要、稳定
+展示顺序，以及面向 Theme 列表的可空主变量状态显示快照
+`primary_signal_display_summary`。新发布聚合必须提交非空主变量快照；数据库和读取合同
+仅为不可变历史行保留 `null`，不得从 Reason Tree 或 `impact_summary` 语义回填。所有
+Impact 平等，不存在 subject、primary 或主要影响节点；当前目标类型只允许有效 Chain
+Node。一个 Theme 至少有一个 Impact。
 _Avoid_: Company/Concept 等其他目标类型、`is_primary`、把展示顺序解释为影响优先级
 
 **产品可见 Theme（Product-visible Research Theme）**:

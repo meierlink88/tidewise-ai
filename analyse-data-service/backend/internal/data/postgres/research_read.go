@@ -36,6 +36,7 @@ COALESCE((
         'relation_role', impact.relation_role,
         'impact_direction', impact.impact_direction,
         'impact_summary', impact.impact_summary,
+        'primary_signal_display_summary', impact.primary_signal_display_summary,
         'display_order', impact.display_order
     ) ORDER BY impact.display_order)
     FROM research_theme_impacts impact

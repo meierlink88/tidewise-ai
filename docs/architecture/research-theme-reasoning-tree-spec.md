@@ -60,13 +60,12 @@ Tree 同时保存正式 UUID/Submission/Evidence 血缘与不可变展示快照�
 Signal/Impact 的分析师推导必须明确标记为 `analyst_inference`，并引用上游正式事实及
 实际 Relation，不得以自由 key 冒充正式事实。
 
-Miniapp 的内容结构以已确认的 Theme / Reason Tree 字段映射原型为准。该原型只决定
-页面展示哪些研究内容、内容的层级和机械组合方式，尤其决定“产业链节点传导”采用
-紧凑路径节点加单节点详情的阅读方式；原型中的颜色、字体、尺寸、间距、圆角和具体
-布局不是本次实现验收目标。
+Miniapp 的 Reason Tree 内容结构以已确认的字段映射原型为准；Theme 卡片内部视觉和
+数据表达以已定稿 Theme 列表原型为准。页面壳、卡片外部结构及交互继续沿用现有实现。
 
-字段模型曾由 migration `000031` 完成受控重建；本次 migration `000033` 只做增量扩展，
-保留既有 Theme/Tree 与弱血缘显示快照，并以 `legacy_snapshot` 明确其历史语义，不伪造
+字段模型曾由 migration `000031` 完成受控重建，migration `000033` 增量补齐正式血缘；
+本次 migration `000034` 只为 Theme Impact 增加可空主变量显示快照，不回填或改写既有
+Theme/Tree 行。既有弱血缘显示快照继续以 `legacy_snapshot` 表达，不伪造
 Signal/Impact/Evidence 引用。Entity、Industry Chain、Chain Node、Event、正式
 Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 
@@ -92,7 +91,9 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 18. As an 分析师, I want a Variable Signal key to be stable within one Theme Aggregate, so that the same signal snapshot can appear consistently on multiple nodes.
 19. As an 分析师, I want formal Variable Signal and DirectImpact references to carry immutable Submission and Evidence lineage, so that each displayed conclusion remains auditable.
 20. As a Miniapp user, I want Theme cards ordered by publication time, so that I see the latest successfully published analysis first.
-21. As a Miniapp user, I want the Theme card to show the number and names of affected Chain Nodes, so that I understand what investment objects are affected.
+21. As a Miniapp user, I want the Theme card to show every ordered focus node with its investment
+    judgment and analyst-published main-variable state, so that I can scan the affected investment
+    directions without internal relation terminology.
 22. As a Miniapp user, I want every visible Theme to have its atomically published Reason Trees, so that I never receive a partial explanation aggregate.
 23. As a Miniapp user, I want each Reason Tree tab to represent one Industry Chain, so that switching tabs changes the causal-chain context rather than the priority of an impacted node.
 24. As a Miniapp user, I want every compact Reason Tree node card to show its primary Variable
@@ -116,7 +117,10 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 38. As a product maintainer, I want Anchor terminology and unused market-confirmation fields removed everywhere, so that one domain vocabulary exists across schema, APIs, BFF and frontend.
 39. As a product maintainer, I want V1 changed once without a V2 compatibility stack, so that the pre-launch system has one supported contract.
 40. As a tester, I want one shared fixture to exercise publication, Data read, BFF mapping and frontend adapter behavior, so that provider and consumer contracts cannot drift independently.
-41. As a Miniapp user, I want each Theme card to show impact strength, Theme title, update time, conclusion, Theme transmission summary, affected Chain Nodes, investment guidance, Event count and transmission stage, so that the card presents one complete research conclusion.
+41. As a Miniapp user, I want each Theme card to show impact strength, Theme title, update time,
+    investment-facing conclusion, Theme transmission summary, all focus nodes, investment guidance,
+    Event count, Reason Tree count and the “推导详情” action, so that the card presents one complete
+    research outlook.
 42. As a Miniapp user, I want the Reason Tree page header to retain the parent Theme context, so that I know which overall conclusion the selected Industry Chain path explains.
 43. As a Miniapp user, I want the Tree conclusion to show direction, strength and current path judgment separately from the Theme conclusion, so that the two scopes are not confused.
 44. As a Miniapp user, I want the Industry Chain path to show compact nodes first, so that I can understand the whole transmission sequence without reading every detail at once.
@@ -237,13 +241,21 @@ correct value.
 
 - Use the dedicated `research_theme_impacts` relation.
 - Each row contains `theme_id`, `chain_node_entity_id`, `relation_role`, `impact_direction`,
-  optional `impact_summary`, `display_order` and `created_at`.
+  optional `impact_summary`, optional legacy-compatible `primary_signal_display_summary`,
+  `display_order` and `created_at`.
 - `relation_role` remains `driver | beneficiary | constraint | exposure`.
 - `impact_direction` uses `positive | negative | mixed | neutral | uncertain`.
 - One Theme must have at least one Theme Impact.
 - `(theme_id, chain_node_entity_id)` is unique.
 - `display_order` is unique and contiguous from 1 within a Theme. It provides stable presentation
   only and does not express importance or impact priority.
+- `primary_signal_display_summary` is the analyst-published 1..200-character display snapshot for
+  the Theme Impact's main variable state. New Aggregate publications require it to be trimmed and
+  non-empty. The database column and read DTO remain nullable only so immutable pre-migration rows
+  survive without a fabricated semantic backfill.
+- `primary_signal_display_summary` is owned by the Theme Impact. The same Theme Impact may occur in
+  more than one Reason Tree, so Data reads, the Miniapp BFF and the frontend must not select one
+  Tree node Signal as a substitute.
 - Data strongly validates that every referenced object exists as a valid Chain Node. Do not add
   `target_type` or accept Company, Security, Concept, Industry, Index or other Entity types in this
   change.
@@ -489,6 +501,9 @@ research content.
 - Migration `000033` must preserve every existing Theme/Tree row and receipt. Existing node-signal
   rows receive `source_kind=legacy_snapshot`; new formal lineage columns remain null rather than
   inventing unsupported backfills.
+- Migration `000034` additively adds nullable Theme Impact
+  `primary_signal_display_summary`; it contains no business DML or semantic backfill. New
+  publications require the field at the Biz/API boundary.
 - The target tables remain:
   - `research_theme_import_receipts`
   - `research_themes`
@@ -505,8 +520,8 @@ research content.
 - The migration must not delete, truncate, update or recreate shared Entity, Industry Chain,
   Chain Node, membership, Event, Evidence or Industry Chain Graph Edge data.
 - Immutable publication tables and receipts retain database constraints/triggers that reject
-  updates and deletes during normal runtime. Migration `000033` is additive and not an authorized
-  data reset.
+  updates and deletes during normal runtime. Migrations `000033` and `000034` are additive and are
+  not authorized data resets.
 - Indexes must support latest Theme publication-time queries, Theme child lookups, deterministic
   Tree tab ordering and all uniqueness constraints.
 
@@ -545,6 +560,8 @@ updated so that it cannot override this spec.
   homepage Theme ordering.
 - Theme read returns authoritative Theme fields, ordered Theme Impacts with current Chain Node
   names, Theme Events with current Event display facts, and mechanical counts.
+- Every Theme Impact returns its stored nullable `primary_signal_display_summary` unchanged. Reads
+  do not derive it from `impact_summary` or fan out to Reason Tree details.
 - `evidence_event_count` is the de-duplicated total of all Theme Event associations regardless of
   evidence role; it is the Theme-card “N 条政经事件” count.
 - Theme read may expose `reasoning_tree_count`; aggregates published under contract version 2 must
@@ -597,6 +614,8 @@ Stable read errors remain:
   counts and arrays.
 - The BFF preserves Data ordering and does not choose a primary Theme Impact, Tree, Event or
   Signal.
+- The BFF maps Theme Impact `primary_signal_display_summary` mechanically and does not request
+  Reason Tree details while serving the Theme feed.
 - Downstream failures map to stable Miniapp errors without exposing Data request IDs, URLs,
   credentials, response bodies or internal errors.
 - Existing total timeout, safe response-size limit, Request ID and read-retry policy remain unless
@@ -627,11 +646,23 @@ Stable read errors remain:
 - The Theme / Reason Tree field-mapping prototype is authoritative for displayed content,
   information hierarchy, section meaning and the node-selection interaction described below.
 - It is not authoritative for colors, fonts, font sizes, spacing, card dimensions, borders,
-  shadows, radius, responsive measurements or pixel-perfect layout.
+  shadows, radius, responsive measurements or pixel-perfect layout outside the Theme card
+  interior frozen below.
 - Existing Tidewise design-system components and tokens remain the implementation source for
-  visual presentation.
+  visual presentation outside the Theme card interior.
 - “Keep the existing page” means preserve routes, page shell, navigation, Tab loading/caching and
-  error states. It does not mean retaining the old Anchor-era content inside the cards.
+  error states. It does not mean retaining old content inside the cards.
+- `prototype/theme-investment-outlook-list-prototype.html` is the sole authority for the Theme
+  card interior's content hierarchy, typography, colors, borders, radius, shadow, spacing, rail,
+  focus-node grid, guidance block, footer and detail button.
+- The prototype does not authorize changes to the page title, search, filters, “今日推理主线”
+  heading, list container, page background, bottom navigation or other card-external DOM,
+  styling or interaction.
+- Prototype business text is sample content only. Production cards are generated from the formal
+  Theme feed contract.
+- “Keep the existing page” means preserve the route, page-level state, pagination, filtering,
+  navigation shell and all card-external behavior. No old card-interior UI branch or field
+  compatibility is retained.
 
 #### 20.2 Theme card content contract
 
@@ -643,19 +674,24 @@ Each Theme card displays the following content in this logical order:
    response `as_of`.
 4. `one_line_conclusion`.
 5. Theme `transmission_summary`; do not reconstruct it from Tree nodes.
-6. The number of Theme Impacts followed by the exact noun phrase
-   “个产业链节点受到影响”.
-7. Every Theme Impact Chain Node name in `display_order`. Do not select a primary subset or replace
-   the list with Industry/Company names.
-8. `investment_guidance_action` as a controlled label and
+6. The number of Theme Impacts followed by the exact noun phrase “个关注节点”.
+7. Every Theme Impact in `display_order` in a two-column grid. More than two nodes continue on new
+   rows; all five nodes remain visible, and an odd final node stays half width. Do not collapse,
+   horizontally scroll or render “+N”.
+8. Each focus-node card shows only:
+   - Chain Node name;
+   - the controlled investment judgment from `impact_direction`;
+   - the stored `primary_signal_display_summary` when present.
+   It does not show `relation_role`, “直接/间接影响” or any inferred variable text.
+9. `investment_guidance_action` as a controlled label and
    `investment_guidance_summary` as its text.
-9. The de-duplicated total Theme Event count across all evidence roles, displayed as
+10. The de-duplicated total Theme Event count across all evidence roles, displayed as
    “N 条政经事件”.
-10. `transmission_stage` as “传导阶段 · [阶段标签]”.
-11. The existing “查看影响路径” action.
+11. `reasoning_tree_count` displayed as “N 条产业链路径”.
+12. The “推导详情” action, preserving the existing Reason Tree `Taro.navigateTo` behavior.
 
 The card does not display `attention_level`, `conclusion_status`, `risk_summary`,
-`checkpoint_summary`, `reasoning_tree_count` or `market_confirmation_summary`.
+`checkpoint_summary`, `transmission_stage`, `relation_role` or `market_confirmation_summary`.
 
 Controlled Theme labels are:
 
@@ -663,8 +699,8 @@ Controlled Theme labels are:
   `unknown -> 影响待判断`.
 - `investment_guidance_action`: `focus -> 重点关注`, `avoid -> 回避`,
   `observe -> 继续观察`, `differentiate -> 区别对待`.
-- `transmission_stage`: `identification -> 识别`, `validation -> 验证`,
-  `diffusion -> 扩散`, `dampening -> 钝化`.
+- Theme Impact `impact_direction`: `positive -> 机会`, `negative -> 风险`,
+  `mixed | neutral | uncertain -> 不确定`.
 
 Relative update labels are deterministic:
 
@@ -826,7 +862,8 @@ consumers:
 
 This fixture must prove formal lineage, enum/null/time/order semantics, aggregate atomicity,
 multi-impact coverage, multiple Industry Chains, context nodes, a one-node Tree, formal and
-inferred incoming edges, per-Tree Event coverage and Variable Signal display snapshots.
+inferred incoming edges, per-Tree Event coverage, Variable Signal display snapshots and the Theme
+Impact `primary_signal_display_summary` provider-consumer contract.
 
 Tests should assert externally observable behavior and stable contracts, not private helper
 functions, struct-copy code or SQL statement shape.
@@ -865,6 +902,8 @@ Cover:
 Use PostgreSQL integration tests for:
 
 - forward migration from the current schema;
+- nullable additive Theme Impact `primary_signal_display_summary` storage with no legacy semantic
+  backfill, plus required non-empty validation for new publications;
 - survival of representative existing V1 Theme/Tree rows as readable `legacy_snapshot` history;
 - survival of representative Entity, Industry Chain, Chain Node, Event and Graph Edge rows;
 - foreign keys, unique constraints, contiguous-order enforcement where implemented in Biz, indexes
@@ -895,7 +934,8 @@ Cover the typed API Adapter and user-visible state transitions:
 - decode the shared fixture and reject obsolete/mixed old fields;
 - map new Theme and Reason Tree fields without semantic synthesis;
 - render the complete Theme-card content contract, including relative update labels, action labels,
-  total Event count and ordered Theme Impact names;
+  total Event and Reason Tree counts, ordered Theme Impact names, controlled judgments and stored
+  primary-variable summaries;
 - render the Reason Tree content sections in the prototype-defined hierarchy;
 - display only the primary Signal summary and impact-strength label on each compact node without
   truncation, non-primary summaries or evidence-gap text;
@@ -947,6 +987,8 @@ the adapter/fixture seam.
 - Miniapp Frontend tests, TypeScript typecheck and lint.
 - Go format, affected Go tests, vet and Data/Miniapp Backend builds.
 - Taro WeChat and Douyin builds; the change must not add platform-specific behavior.
+- Taro H5 build and rendered 375px/430px Theme-card smoke checks, including two-node and five-node
+  layouts and unchanged detail navigation.
 - Repository architecture checks because a cross-service provider/consumer contract changes, while
   service ownership and dependency direction must remain unchanged.
 
@@ -972,9 +1014,9 @@ the adapter/fixture seam.
   market-validation system requires its own model and contract.
 - Long-term V1/V2 coexistence, legacy API aliases, old Miniapp compatibility or historical
   Theme/Anchor data migration.
-- New Miniapp routes, page shell redesign, visual-style redesign, navigation changes, UI library,
-  global state, pagination or H5-specific behavior. The prototype-confirmed content hierarchy and
-  node-selection detail behavior are explicitly in scope.
+- New Miniapp routes, page shell redesign, card-external visual changes, navigation changes, UI
+  library, global state, pagination or H5-specific behavior. The prototype-confirmed Reason Tree
+  content/selection behavior and finalized Theme-card interior are explicitly in scope.
 - Changes to shared Entity, Industry Chain, Chain Node, Event, Evidence or Graph Edge facts beyond
   validating their references.
 - AgentRun/Eino orchestration, prompts or analysis-report implementation.
@@ -988,20 +1030,23 @@ the adapter/fixture seam.
   the active model.
 - The existing implementation and tests are the prior-state baseline, not authority for retaining
   removed behavior.
-- The existing Theme and Tree page shell remains the visual acceptance baseline. The field-mapping
-  prototype supersedes the old card/body content and old fully expanded chain-node content.
-  Visual styling is not copied from the prototype.
+- The existing Theme and Tree page shell remains the visual acceptance baseline outside the Theme
+  card. The Theme-list prototype supersedes the old Theme-card interior; the field-mapping
+  prototype continues to govern Reason Tree content and interaction.
 - Taro reference brief:
-  - Reference: current Taro 4.x `Taro.request` documentation and the project’s existing typed
-    Adapter pattern.
-  - Applicable: Promise-based requests, explicit timeout, and support for both WeChat and ByteDance
-    Mini Programs.
-  - Not applicable: adding Axios/plugin-http, copying an example application, or introducing a new
-    routing/state/UI framework.
-  - Version/platform: project uses Taro 4.x, React 18, WeChat-first and ByteDance-compatible builds.
-  - Project adaptation: keep the current port/adapter, page shell and Tree-session architecture;
-    replace the V1 DTO and field mapping, and add component-local selected-node state for the
-    prototype-confirmed compact-path/detail behavior.
+  - Reference: current Taro 4.x React component/event/style contracts, the project’s existing
+    `ResearchThemeCard` and navigation helper, and the official `NervJS/postcss-pxtransform`
+    case-sensitive unit escape.
+  - Applicable: `View`/`Text`/`Button`, existing `stopPropagation` plus `Taro.navigateTo`,
+    ordered list rendering, two-column CSS Grid and a component-local stylesheet headed by
+    `/*postcss-pxtransform disable*/` for fixed prototype pixels.
+  - Not applicable: adding a UI library, copying an example application, horizontal node lists,
+    Tree-detail fan-out or a routing/global-state framework.
+  - Version/platform: lockfile resolves Taro 4.2.0 with React 18; the shared implementation must
+    build for H5, WeChat and ByteDance.
+  - Project adaptation: preserve every card-external page surface; mechanically extend the typed
+    Theme feed contract, replace only the card interior, and keep its finalized 375px/430px pixel
+    tokens from rescaling through `rpx`/`rem`.
 - The implementation ticket should use this spec as the authority, execute TDD at the seams above,
   and deliver on a `codex/*` feature branch with a ready-for-review PR. The user retains merge
   control.

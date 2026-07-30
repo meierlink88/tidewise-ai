@@ -199,6 +199,16 @@ INSERT INTO variable_definitions (
 			secondThemePage,
 		)
 	}
+	if len(secondThemePage.Items[0].Impacts) != 1 ||
+		secondThemePage.Items[0].Impacts[0].PrimarySignalDisplaySummary == nil ||
+		*secondThemePage.Items[0].Impacts[0].PrimarySignalDisplaySummary !=
+			aggregate.Theme.Impacts[0].PrimarySignalDisplaySummary {
+		t.Fatalf(
+			"published Theme impact = %#v, want primary signal display summary %q",
+			secondThemePage.Items[0].Impacts,
+			aggregate.Theme.Impacts[0].PrimarySignalDisplaySummary,
+		)
+	}
 
 	store := NewResearchPublicationStore(db)
 	rollbackBatch := "typed-research-rollback"
@@ -585,7 +595,8 @@ func typedResearchAggregate(now time.Time) researchpublication.Aggregate {
 			TimeHorizonCategory:       "short_term",
 			Impacts: []researchthemeimport.Impact{{
 				ChainNodeEntityID: testTypedNodeID, RelationRole: "driver",
-				ImpactDirection: "negative", DisplayOrder: 1,
+				ImpactDirection: "negative", PrimarySignalDisplaySummary: "Market supply: decreases",
+				DisplayOrder: 1,
 			}},
 			Events: []researchthemeimport.Event{{
 				EventID: testTypedEventID, EvidenceRole: "driver",

@@ -90,6 +90,7 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
         'relation_role',
         'impact_direction',
         'impact_summary',
+        'primary_signal_display_summary',
         'display_order'
       ]);
       const displayOrder = positiveInteger(impact.display_order);
@@ -100,6 +101,7 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
         relationRole: enumValue(impact.relation_role, relationRoleValues),
         impactDirection: enumValue<ResearchDirection>(impact.impact_direction, directionValues),
         impactSummary: nullableText(impact.impact_summary),
+        primarySignalDisplaySummary: nullableText(impact.primary_signal_display_summary),
         displayOrder
       };
     }),

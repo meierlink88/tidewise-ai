@@ -52,7 +52,7 @@ type ResearchThemeItem struct {
 }
 type ResearchThemeImpactDTO struct {
 	ChainNodeEntityID, Name, RelationRole, ImpactDirection string
-	ImpactSummary                                          *string
+	ImpactSummary, PrimarySignalDisplaySummary             *string
 	DisplayOrder                                           int
 }
 type ResearchThemeDetailResponse struct {
@@ -143,7 +143,8 @@ func themeItemDTO(value ResearchTheme) ResearchThemeItem {
 	for _, impact := range value.Impacts {
 		impacts = append(impacts, ResearchThemeImpactDTO{
 			ChainNodeEntityID: impact.ChainNodeEntityID, Name: impact.Name, RelationRole: impact.RelationRole,
-			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
+			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary,
+			PrimarySignalDisplaySummary: impact.PrimarySignalDisplaySummary, DisplayOrder: impact.DisplayOrder,
 		})
 	}
 	return ResearchThemeItem{

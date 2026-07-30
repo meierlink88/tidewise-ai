@@ -11,6 +11,7 @@ export interface HomeResearchThemeImpact {
   relationRole: 'driver' | 'beneficiary' | 'constraint' | 'exposure';
   impactDirection: ResearchDirection;
   impactSummary: string | null;
+  primarySignalDisplaySummary: string | null;
   displayOrder: number;
 }
 

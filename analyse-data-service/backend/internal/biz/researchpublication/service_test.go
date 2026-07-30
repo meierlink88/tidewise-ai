@@ -59,6 +59,59 @@ func TestAggregateRejectsAnalystInferenceMasqueradingAsFormalFact(t *testing.T) 
 	}
 }
 
+func TestAggregateRejectsUntrimmedPrimarySignalDisplaySummary(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{name: "leading whitespace", value: " Supply decreases"},
+		{
+			name:  "trimmed value at limit but original over limit",
+			value: " " + strings.Repeat("x", 200),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			aggregate := validAggregate()
+			aggregate.Theme.Impacts[0].PrimarySignalDisplaySummary = test.value
+
+			_, _, err := aggregate.Validate()
+			var validation *researchthemeimport.ValidationError
+			if !errors.As(err, &validation) {
+				t.Fatalf("Validate() error = %T %v, want Theme ValidationError", err, err)
+			}
+			if validation.Path != "themes[0].impacts[0].primary_signal_display_summary" {
+				t.Fatalf("validation path = %q", validation.Path)
+			}
+		})
+	}
+}
+
+func TestAggregatePreservesExistingThemeRequiredTextWhitespaceContract(t *testing.T) {
+	aggregate := validAggregate()
+	aggregate.Theme.Title = " Wafer supply "
+
+	if _, _, err := aggregate.Validate(); err != nil {
+		t.Fatalf("Validate() rejected an existing Theme required-text value: %v", err)
+	}
+}
+
+func TestPublishPersistsThemeImpactPrimarySignalDisplaySummary(t *testing.T) {
+	aggregate := validAggregate()
+	tx := &fakeTransaction{facts: validFacts()}
+	service := NewService(fakeStore{tx: tx})
+
+	if _, err := service.Publish(context.Background(), "codex", aggregate); err != nil {
+		t.Fatalf("Publish() error = %v", err)
+	}
+	if len(tx.impacts) != 1 {
+		t.Fatalf("persisted impacts = %d, want 1", len(tx.impacts))
+	}
+	if got, want := tx.impacts[0].PrimarySignalDisplaySummary, aggregate.Theme.Impacts[0].PrimarySignalDisplaySummary; got != want {
+		t.Fatalf("primary signal display summary = %q, want %q", got, want)
+	}
+}
+
 func TestPublishRejectsReferenceMismatchBeforeAnyWrite(t *testing.T) {
 	aggregate := validAggregate()
 	tx := &fakeTransaction{facts: validFacts()}
@@ -282,7 +335,8 @@ func validAggregate() Aggregate {
 			InvestmentGuidanceSummary: "Watch supply", TimeHorizonCategory: "short_term",
 			Impacts: []researchthemeimport.Impact{{
 				ChainNodeEntityID: testNodeID, RelationRole: "driver",
-				ImpactDirection: "positive", DisplayOrder: 1,
+				ImpactDirection: "positive", PrimarySignalDisplaySummary: "Supply decreases",
+				DisplayOrder: 1,
 			}},
 			Events: []researchthemeimport.Event{{EventID: testEventID, EvidenceRole: "driver"}},
 		},
@@ -451,8 +505,9 @@ func (s fakeStore) InResearchPublicationTransaction(ctx context.Context, fn func
 }
 
 type fakeTransaction struct {
-	facts  ReferenceFacts
-	writes int
+	facts   ReferenceFacts
+	writes  int
+	impacts []researchthemeimport.ImpactRecord
 }
 
 func (*fakeTransaction) Lock(context.Context, string) error                { return nil }
@@ -465,8 +520,9 @@ func (f *fakeTransaction) InsertTheme(context.Context, researchthemeimport.Theme
 	f.writes++
 	return nil
 }
-func (f *fakeTransaction) InsertThemeImpact(context.Context, researchthemeimport.ImpactRecord) error {
+func (f *fakeTransaction) InsertThemeImpact(_ context.Context, value researchthemeimport.ImpactRecord) error {
 	f.writes++
+	f.impacts = append(f.impacts, value)
 	return nil
 }
 func (f *fakeTransaction) InsertThemeEvent(context.Context, researchthemeimport.EventRecord) error {

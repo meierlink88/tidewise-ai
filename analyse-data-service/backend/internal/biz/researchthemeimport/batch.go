@@ -43,11 +43,12 @@ type Theme struct {
 }
 
 type Impact struct {
-	ChainNodeEntityID string  `json:"chain_node_entity_id"`
-	RelationRole      string  `json:"relation_role"`
-	ImpactDirection   string  `json:"impact_direction"`
-	ImpactSummary     *string `json:"impact_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	ChainNodeEntityID           string  `json:"chain_node_entity_id"`
+	RelationRole                string  `json:"relation_role"`
+	ImpactDirection             string  `json:"impact_direction"`
+	ImpactSummary               *string `json:"impact_summary"`
+	PrimarySignalDisplaySummary string  `json:"primary_signal_display_summary"`
+	DisplayOrder                int     `json:"display_order"`
 }
 
 type Event struct {
@@ -204,6 +205,14 @@ func (t Theme) validate(path string) error {
 		if err := validateOptionalText(t.ThemeKey, impactPath+".impact_summary", impact.ImpactSummary, 2000); err != nil {
 			return err
 		}
+		if err := validateRequiredTrimmedText(
+			t.ThemeKey,
+			impactPath+".primary_signal_display_summary",
+			impact.PrimarySignalDisplaySummary,
+			200,
+		); err != nil {
+			return err
+		}
 	}
 	for index, event := range t.Events {
 		eventPath := fmt.Sprintf("%s.events[%d]", path, index)
@@ -246,6 +255,16 @@ func validateRequiredText(themeKey, path, value string, max int) error {
 	}
 	if utf8.RuneCountInString(trimmed) > max {
 		return invalid(themeKey, path, "", fmt.Sprintf("must contain at most %d characters", max))
+	}
+	return nil
+}
+
+func validateRequiredTrimmedText(themeKey, path, value string, max int) error {
+	if err := validateRequiredText(themeKey, path, value, max); err != nil {
+		return err
+	}
+	if value != strings.TrimSpace(value) {
+		return invalid(themeKey, path, "", "must not contain leading or trailing whitespace")
 	}
 	return nil
 }

@@ -27,10 +27,11 @@ func TestV1ThemeContractAcceptsImpactsWithoutEvents(t *testing.T) {
 			InvestmentGuidanceSummary: "关注采购订单与排产",
 			TimeHorizonCategory:       "medium_term",
 			Impacts: []Impact{{
-				ChainNodeEntityID: "11111111-1111-4111-8111-111111111111",
-				RelationRole:      "beneficiary",
-				ImpactDirection:   "positive",
-				DisplayOrder:      1,
+				ChainNodeEntityID:           "11111111-1111-4111-8111-111111111111",
+				RelationRole:                "beneficiary",
+				ImpactDirection:             "positive",
+				PrimarySignalDisplaySummary: "模块需求：可能增加",
+				DisplayOrder:                1,
 			}},
 		}},
 	}
@@ -119,10 +120,11 @@ func TestSharedV1FixtureKeepsPublicationAndReadLineageDeterministic(t *testing.T
 				TransmissionSummary string `json:"transmission_summary"`
 				PublishedAt         string `json:"published_at"`
 				Impacts             []struct {
-					ChainNodeEntityID string `json:"chain_node_entity_id"`
-					RelationRole      string `json:"relation_role"`
-					ImpactDirection   string `json:"impact_direction"`
-					DisplayOrder      int    `json:"display_order"`
+					ChainNodeEntityID           string `json:"chain_node_entity_id"`
+					RelationRole                string `json:"relation_role"`
+					ImpactDirection             string `json:"impact_direction"`
+					PrimarySignalDisplaySummary string `json:"primary_signal_display_summary"`
+					DisplayOrder                int    `json:"display_order"`
 				} `json:"impacts"`
 			} `json:"theme"`
 			ReasoningTrees []struct {
@@ -156,6 +158,7 @@ func TestSharedV1FixtureKeepsPublicationAndReadLineageDeterministic(t *testing.T
 		if got.ChainNodeEntityID != impact.ChainNodeEntityID ||
 			got.RelationRole != impact.RelationRole ||
 			got.ImpactDirection != impact.ImpactDirection ||
+			got.PrimarySignalDisplaySummary != impact.PrimarySignalDisplaySummary ||
 			got.DisplayOrder != impact.DisplayOrder {
 			t.Fatalf("Theme read Impact %d = %#v, want publication %#v", index, got, impact)
 		}

@@ -121,7 +121,9 @@ func (s *Service) Publish(ctx context.Context, publisher string, aggregate Aggre
 			if err := tx.InsertThemeImpact(ctx, researchthemeimport.ImpactRecord{
 				ThemeID: themeID, ChainNodeEntityID: impact.ChainNodeEntityID,
 				RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
-				ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
+				ImpactSummary:               impact.ImpactSummary,
+				PrimarySignalDisplaySummary: impact.PrimarySignalDisplaySummary,
+				DisplayOrder:                impact.DisplayOrder,
 			}); err != nil {
 				return fmt.Errorf("insert Theme Impact: %w", err)
 			}

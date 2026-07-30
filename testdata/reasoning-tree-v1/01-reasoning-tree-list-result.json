@@ -23,9 +23,9 @@
       "window_end": "2026-07-28T08:00:00Z",
       "published_at": "2026-07-28T08:05:00Z",
       "impacts": [
-        {"chain_node_entity_id":"22222222-2222-4222-8222-222222222222","name":"交换机","relation_role":"beneficiary","impact_direction":"positive","impact_summary":"端口计划增加可能提高交换机需求。","display_order":1},
-        {"chain_node_entity_id":"33333333-3333-4333-8333-333333333333","name":"高速光模块","relation_role":"beneficiary","impact_direction":"positive","impact_summary":"端口配置增加可能提高模块需求。","display_order":2},
-        {"chain_node_entity_id":"44444444-4444-4444-8444-444444444444","name":"DSP 芯片","relation_role":"beneficiary","impact_direction":"positive","impact_summary":"模块排产增加可能提高备料需求。","display_order":3}
+        {"chain_node_entity_id":"22222222-2222-4222-8222-222222222222","name":"交换机","relation_role":"beneficiary","impact_direction":"positive","impact_summary":"端口计划增加可能提高交换机需求。","primary_signal_display_summary":"端口计划：增加 80%","display_order":1},
+        {"chain_node_entity_id":"33333333-3333-4333-8333-333333333333","name":"高速光模块","relation_role":"beneficiary","impact_direction":"positive","impact_summary":"端口配置增加可能提高模块需求。","primary_signal_display_summary":"模块需求：可能增加","display_order":2},
+        {"chain_node_entity_id":"44444444-4444-4444-8444-444444444444","name":"DSP 芯片","relation_role":"beneficiary","impact_direction":"positive","impact_summary":"模块排产增加可能提高备料需求。","primary_signal_display_summary":"备料需求：可能增加","display_order":3}
       ],
       "evidence_event_count": 2,
       "reasoning_tree_count": 2

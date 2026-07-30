@@ -143,9 +143,11 @@ func (t *postgresResearchThemeImportTx) InsertResearchTheme(ctx context.Context,
 
 func (t *postgresResearchThemeImportTx) InsertResearchThemeImpact(ctx context.Context, impact ResearchThemeImportImpact) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_impacts (
-    theme_id, chain_node_entity_id, relation_role, impact_direction, impact_summary, display_order
-) VALUES ($1,$2,$3,$4,$5,$6)`, impact.ThemeID, impact.ChainNodeEntityID,
-		impact.RelationRole, impact.ImpactDirection, impact.ImpactSummary, impact.DisplayOrder)
+    theme_id, chain_node_entity_id, relation_role, impact_direction, impact_summary,
+    primary_signal_display_summary, display_order
+) VALUES ($1,$2,$3,$4,$5,$6,$7)`, impact.ThemeID, impact.ChainNodeEntityID,
+		impact.RelationRole, impact.ImpactDirection, impact.ImpactSummary,
+		impact.PrimarySignalDisplaySummary, impact.DisplayOrder)
 	return err
 }
 

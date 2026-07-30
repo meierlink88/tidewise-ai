@@ -194,7 +194,7 @@ func researchThemeBatchShape() *jsonShape {
 	scalar := &jsonShape{kind: jsonScalar}
 	impact := &jsonShape{kind: jsonObject, fields: map[string]*jsonShape{
 		"chain_node_entity_id": scalar, "relation_role": scalar, "impact_direction": scalar,
-		"impact_summary": scalar, "display_order": scalar,
+		"impact_summary": scalar, "primary_signal_display_summary": scalar, "display_order": scalar,
 	}}
 	event := &jsonShape{kind: jsonObject, fields: map[string]*jsonShape{
 		"event_id": scalar, "evidence_role": scalar, "supported_claim": scalar,

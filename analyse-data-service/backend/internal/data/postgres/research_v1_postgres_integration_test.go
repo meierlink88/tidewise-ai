@@ -51,10 +51,11 @@ func TestResearchV1PostgresImportReplayReadAndImmutability(t *testing.T) {
 			InvestmentGuidanceSummary: "优先验证采购订单与排产。",
 			TimeHorizonCategory:       "short_term",
 			Impacts: []themeimport.Impact{{
-				ChainNodeEntityID: nodeID,
-				RelationRole:      "beneficiary",
-				ImpactDirection:   "positive",
-				DisplayOrder:      1,
+				ChainNodeEntityID:           nodeID,
+				RelationRole:                "beneficiary",
+				ImpactDirection:             "positive",
+				PrimarySignalDisplaySummary: "模块需求：可能增加",
+				DisplayOrder:                1,
 			}},
 			Events: []themeimport.Event{{
 				EventID:      eventID,
