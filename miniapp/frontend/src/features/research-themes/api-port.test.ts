@@ -71,12 +71,7 @@ describe('research theme BFF adapter', () => {
       impactStrength: 'medium',
       transmissionSummary: '交换机 → 高速光模块',
       updateLabel: '1 小时前',
-      impacts: [
-        {
-          name: '高速光模块',
-          displayOrder: 1
-        }
-      ],
+      impacts: [{ name: '高速光模块', displayOrder: 1 }],
       evidenceEventCount: 2,
       reasoningTreeCount: 1
     });
