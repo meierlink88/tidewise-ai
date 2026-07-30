@@ -29,8 +29,24 @@ const stylesheetSize = (await stat(stylesheet)).size
 if (stylesheetSize >= 64 * 1024) throw new Error(`首页 WXSS 体积过大: ${stylesheetSize} bytes`)
 
 const reasoningTreeStyles = await readFile(reasoningTreeStylesheet, 'utf8')
-if (/\>\s*\*/.test(reasoningTreeStyles)) {
-  throw new Error('推理树 WXSS 不得使用微信编译器不支持的直系通配选择器')
+const reasoningTreeStylesWithoutComments = reasoningTreeStyles.replace(/\/\*[\s\S]*?\*\//g, '')
+const reasoningTreeSelectors = [...reasoningTreeStylesWithoutComments.matchAll(/([^{}]+)\{/g)].map(
+  ([, selector]) => selector
+)
+if (
+  reasoningTreeSelectors.some((selector) =>
+    /(^|[\s,>+~])\*(?=$|[\s,.#:[\]>+~])/.test(selector)
+  )
+) {
+  throw new Error('推理树 WXSS 不得使用微信编译器不支持的通配选择器')
+}
+if (
+  !/\.reasoning-theme-hero__title\s*\{[^}]*font-size:\s*19px;/s.test(reasoningTreeStyles)
+) {
+  throw new Error('推理树标题必须按定稿原型保留 19px，不得缩放为 rpx')
+}
+if (!/\.reasoning-chain-node\s*\{[^}]*width:\s*158px;/s.test(reasoningTreeStyles)) {
+  throw new Error('推理树节点必须按定稿原型保留 158px，不得缩放为 rpx')
 }
 
 const avatarSize = (await stat(avatar)).size

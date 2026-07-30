@@ -7,7 +7,9 @@
 }
 
 .reasoning-page,
-.reasoning-page * {
+.reasoning-page view,
+.reasoning-page text,
+.reasoning-page scroll-view {
   box-sizing: border-box;
 }
 

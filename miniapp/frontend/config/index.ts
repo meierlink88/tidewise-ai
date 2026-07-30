@@ -49,7 +49,9 @@ const config = defineConfig({
     postcss: {
       pxtransform: {
         enable: true,
-        config: {}
+        config: {
+          selectorBlackList: ['reasoning-']
+        }
       },
       cssModules: {
         enable: false,
