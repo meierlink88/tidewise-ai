@@ -81,8 +81,10 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - 当前支持与当前反证是 Tree 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
 - 产业链路径使用横向 ScrollView 展示全部紧凑节点与箭头，默认选择最大 `position` 的结果节点；选择节点只更新下方单个详情面板。
 - 结果节点只由路径位置派生；Theme Impact 身份只由节点 ID 与父 Theme Impact ID 集合相交得到，不保存 primary/subject/result 标记。
-- 后续节点显示正式 Graph Edge 类型/状态或“分析推断”；首节点标记为信号入口，不展示或伪造传入关系。
-- 节点详情展示影响状态、变量状态、传导机制、全部 Variable Signal、推导依据和数据缺口。所有研究文本自然换行并完整展示，不使用省略号截断。
+- 紧凑节点只展示节点序号/名称、primary Signal `display_summary`、影响强度和选择状态，不展示数据缺口等长文案。
+- 节点详情只展示节点序号/角色、名称、primary Signal `display_summary`；位置大于 1 时继续展示所选节点的 `incoming_*` 传导机制，首节点不展示或伪造传入关系。
+- “判断边界”只展示 `conclusion_boundary_summary`；“后续验证”按分析师顺序展示完整 `checkpoints[].summary`，不与 `invalidation_conditions` 按索引组合。
+- 所有已展示的研究文本自然换行并完整展示，不使用省略号截断；未展示的 Signal、Impact、Evidence、依据、缺口、失效条件与强血缘继续保留在现有合同中。
 
 ## Frontend Mock Policy
 

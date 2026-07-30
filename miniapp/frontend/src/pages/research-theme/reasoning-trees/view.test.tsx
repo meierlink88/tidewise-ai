@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import listFixture from '../../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
 import detailFixture from '../../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
@@ -6,7 +7,11 @@ import {
   parseResearchReasoningTreeDetail,
   parseResearchReasoningTreeIndex
 } from '../../../features/research-reasoning-trees/wire-contract';
-import { ReasoningThemeHero, ReasoningTreeView } from './view';
+import {
+  ReasoningThemeHero,
+  ReasoningTreeTransmission,
+  ReasoningTreeView
+} from './view';
 
 vi.mock('@tarojs/components', () => ({
   ScrollView: 'scroll-view',
@@ -31,9 +36,11 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain('07-28 08:05 发布');
   });
 
-  it('renders selectable industry-chain nodes and the selected-node detail contract', () => {
+  it('renders the compact node path and defaults the selected detail to the result node', () => {
     const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
     const markup = renderToStaticMarkup(<ReasoningTreeView detail={detail} />);
+    const nodes = detail.reasoningTree.nodes;
+    const selected = nodes.at(-1)!;
 
     expect(countClass(markup, 'reasoning-event')).toBe(2);
     expect(markup).toContain(detail.reasoningTree.title);
@@ -48,42 +55,92 @@ describe('ReasoningTreeView', () => {
     expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual([
       '节点 01',
       '节点 02',
-      '节点 03'
+      '节点 03 · 结果'
     ]);
     expect(countClass(markup, 'reasoning-chain-node__signal-slot')).toBe(3);
     expect(countClass(markup, 'reasoning-chain-node__direction--increase')).toBe(3);
-    expect(countClass(markup, 'reasoning-chain-node__gap')).toBe(3);
-    for (const node of detail.reasoningTree.nodes) {
-      expect(markup).toContain(node.evidenceGapSummary);
-    }
+    expect(countClass(markup, 'reasoning-chain-node__strength')).toBe(3);
+    expect(classTextContents(markup, 'reasoning-chain-node__strength')).toEqual([
+      '中等影响',
+      '中等影响',
+      '中等影响'
+    ]);
+    expect(countClass(markup, 'reasoning-chain-node__gap')).toBe(0);
+    expect(markup).not.toContain(nodes[0].evidenceGapSummary);
+    expect(markup).not.toContain(selected.reasoningBasisSummary);
     expect(markup).toContain('产业链节点传导');
     expect(markup).toContain('reasoning-chain-node--selected');
-    expect(markup).toContain('主题影响');
-    expect(markup).not.toContain('Theme Impact');
-    expect(markup).toContain('变量信号');
-    expect(markup).toContain('数据缺口');
-    expect(markup).toContain('结论边界与失效条件');
-    expect(markup).toContain('下一检查点');
+    expect(markup).toContain('节点 03 · 结果节点');
+    expect(markup).toContain(selected.name);
+    expect(markup).toContain(selected.primarySignal.displaySummary);
+    expect(markup).toContain(selected.incomingTransmissionTitle);
+    expect(markup).toContain(selected.incomingTransmissionMechanism);
+    expect(markup).toContain(selected.incomingConditionSummary);
+    expect(markup).toContain('节点 02 → 节点 03');
+    expect(markup).not.toContain(nodes[1].incomingTransmissionTitle);
+    expect(markup).not.toContain('影响状态');
+    expect(markup).not.toContain('变量状态');
+    expect(markup).not.toContain('变量信号');
+    expect(markup).not.toContain('推导依据');
+    expect(markup).not.toContain('数据缺口');
+    expect(markup).not.toContain('主题影响');
+    expect(markup).toContain('判断边界');
+    expect(markup).not.toContain('结论边界与失效条件');
+    expect(markup).toContain('后续验证');
+    expect(markup).not.toContain('下一检查点');
+    expect(markup).not.toContain(detail.reasoningTree.invalidationConditions[0]);
+    expect(markup).not.toContain(detail.reasoningTree.invalidationConditions[1]);
+    for (const checkpoint of detail.reasoningTree.checkpoints) {
+      expect(markup).toContain(checkpoint.summary);
+    }
   });
 
-  it('labels a non-first node without a formal graph edge as analyst inference', () => {
+  it('switches the selected detail and incoming transmission when a node card is clicked', () => {
     const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
-    const inferred = {
-      ...detail,
-      reasoningTree: {
-        ...detail.reasoningTree,
-        nodes: detail.reasoningTree.nodes
-          .slice(0, 2)
-          .map((node, index) => (index === 1 ? { ...node, incomingGraphEdge: null } : node))
+    const nodes = detail.reasoningTree.nodes;
+    let selectedNodeId = nodes.at(-1)!.id;
+    const transmission = ReasoningTreeTransmission({
+      nodes,
+      selectedNodeId,
+      onSelect: (id) => {
+        selectedNodeId = id;
       }
-    };
+    });
+    const nodeCards = findAllByClass(transmission, 'reasoning-chain-node');
 
-    const markup = renderToStaticMarkup(<ReasoningTreeView detail={inferred} />);
+    nodeCards[0].props.onClick?.();
+    expect(selectedNodeId).toBe(nodes[0].id);
+    const entryMarkup = renderToStaticMarkup(
+      <ReasoningTreeTransmission
+        nodes={nodes}
+        selectedNodeId={selectedNodeId}
+        onSelect={() => undefined}
+      />
+    );
+    expect(entryMarkup).toContain('节点 01 · 信号入口');
+    expect(entryMarkup).toContain(nodes[0].primarySignal.displaySummary);
+    expect(countClass(entryMarkup, 'reasoning-node-detail__mechanism')).toBe(0);
 
-    expect(markup).toContain('分析推断');
+    nodeCards[1].props.onClick?.();
+    expect(selectedNodeId).toBe(nodes[1].id);
+    const downstreamMarkup = renderToStaticMarkup(
+      <ReasoningTreeTransmission
+        nodes={nodes}
+        selectedNodeId={selectedNodeId}
+        onSelect={() => undefined}
+      />
+    );
+    expect(downstreamMarkup).toContain('节点 02 · 路径节点');
+    expect(downstreamMarkup).toContain(nodes[1].incomingTransmissionTitle);
+    expect(downstreamMarkup).toContain(nodes[1].incomingTransmissionMechanism);
+    expect(downstreamMarkup).toContain(nodes[1].incomingConditionSummary);
+    expect(downstreamMarkup).toContain('节点 01 → 节点 02');
+    expect(downstreamMarkup).not.toContain(nodes[2].incomingTransmissionTitle);
+    expect(downstreamMarkup).not.toContain('component_of');
+    expect(downstreamMarkup).not.toContain('approved');
   });
 
-  it('retains neutral boundary and checkpoint sections when arrays are empty', () => {
+  it('retains neutral boundary and follow-up verification sections when content is empty', () => {
     const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
     const empty = {
       ...detail,
@@ -99,12 +156,12 @@ describe('ReasoningTreeView', () => {
     const markup = renderToStaticMarkup(<ReasoningTreeView detail={empty} />);
 
     expect(markup).toContain('当前暂无明确反证');
-    expect(markup).toContain('结论边界与失效条件');
-    expect(markup).toContain('下一检查点');
+    expect(markup).toContain('判断边界');
+    expect(markup).toContain('后续验证');
     expect(markup).toContain('暂无');
   });
 
-  it('shows a one-node Tree as both signal entry and result', () => {
+  it('shows a one-node Tree as both signal entry and result without a transmission mechanism', () => {
     const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
     const oneNode = {
       ...detail,
@@ -116,8 +173,12 @@ describe('ReasoningTreeView', () => {
 
     const markup = renderToStaticMarkup(<ReasoningTreeView detail={oneNode} />);
 
-    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual(['节点 01']);
+    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual([
+      '节点 01 · 结果'
+    ]);
     expect(markup).toContain('信号入口 · 结果节点');
+    expect(countClass(markup, 'reasoning-node-detail__mechanism')).toBe(0);
+    expect(markup).not.toContain('传导机制');
   });
 
   it('omits event time when the BFF publishes null', () => {
@@ -147,4 +208,26 @@ function classTextContents(markup: string, className: string): string[] {
   return [...markup.matchAll(pattern)].map((match) =>
     match[1].replace(/<!--.*?-->/g, '').replace(/<[^>]+>/g, '')
   );
+}
+
+interface TestElementProps {
+  className?: string;
+  children?: ReactNode;
+  onClick?: () => void;
+}
+
+type TestElement = ReactElement<TestElementProps>;
+
+function findAllByClass(root: ReactNode, className: string): TestElement[] {
+  return flattenElements(root).filter((element) =>
+    element.props.className?.split(/\s+/).includes(className)
+  );
+}
+
+function flattenElements(node: ReactNode): TestElement[] {
+  if (!isValidElement<TestElementProps>(node)) return [];
+  return [
+    node,
+    ...Children.toArray(node.props.children).flatMap((child) => flattenElements(child))
+  ];
 }
