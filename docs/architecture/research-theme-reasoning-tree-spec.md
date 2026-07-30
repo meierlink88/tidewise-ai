@@ -581,8 +581,9 @@ Rules:
 - The Tree response includes enough Theme Impact IDs for the consumer to determine membership by
   ID intersection; it does not return an `is_theme_impact` marker.
 - `signal_display_summary` is a mechanical join of every non-primary Signal
-  `display_summary` using `·` in `display_order`, with no truncation. The primary Signal is
-  returned separately and must not be duplicated in this joined summary.
+  `display_summary` using `·` surrounded by one ASCII space on each side in `display_order`, with no
+  truncation. The primary Signal is returned separately and must not be duplicated in this joined
+  summary.
 - `primary_signal` is the single Signal whose role is `primary`; BFF and Frontend do not select a
   substitute.
 
