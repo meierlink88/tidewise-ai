@@ -17,6 +17,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
@@ -25,6 +26,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
 	researchanalysiscontextdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchanalysiscontext"
+	researchgraphdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchgraph"
 	researchpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
@@ -62,6 +64,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
 		Research:                research.NewService(researchdata.NewRepository(db), time.Now),
 		ResearchAnalysisContext: researchanalysiscontext.NewService(researchanalysiscontextdata.NewRepository(db)),
+		ResearchGraph:           researchgraph.NewService(researchgraphdata.NewRepository(db)),
 		Admin:                   adminquery.NewService(adminquerydata.NewRepository(db)),
 	})
 	httpServer := server.NewHTTPServer(config, application, authenticator, logger)

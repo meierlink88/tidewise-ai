@@ -10,8 +10,13 @@ var ErrHistoricalSemanticsUnavailable = errors.New(
 	"strict historical Event semantics are unavailable because a selected Event was superseded after analysis_as_of",
 )
 
+var ErrReferenceClosureInconsistent = errors.New(
+	"Research Analysis Context reference closure is inconsistent; restart from the first page",
+)
+
 type Store interface {
-	List(context.Context, StoreQuery) (StorePage, error)
+	ListBundles(context.Context, StoreQuery) (StorePage, error)
+	ReferenceClosure(context.Context, ReferenceClosureQuery) (Dictionaries, error)
 }
 
 type StoreQuery struct {
@@ -32,8 +37,21 @@ type BundleRecord struct {
 }
 
 type StorePage struct {
-	Bundles               []BundleRecord
-	Dictionaries          Dictionaries
-	DictionaryFingerprint string
-	HasMore               bool
+	Bundles      []BundleRecord
+	Dictionaries Dictionaries
+	HasMore      bool
+}
+
+type VersionedReference struct {
+	Key     string
+	Version int
+}
+
+type ReferenceClosureQuery struct {
+	AnalysisAsOf            time.Time
+	EntityIDs               []string
+	EntityRelationIDs       []string
+	VariableDefinitions     []VersionedReference
+	DirectTransmissionRules []VersionedReference
+	SemanticSubmissionIDs   []string
 }

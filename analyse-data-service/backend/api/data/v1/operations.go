@@ -19,6 +19,7 @@ const (
 	OperationSubmitEventSemanticReview        = "data.v1.submitEventSemanticReview"
 	OperationGetEventSemantics                = "data.v1.getEventSemantics"
 	OperationListResearchAnalysisContext      = "data.v1.listResearchAnalysisContext"
+	OperationSearchResearchGraph              = "data.v1.searchResearchGraph"
 )
 
 var BusinessOperations = []string{
@@ -40,4 +41,5 @@ var BusinessOperations = []string{
 	OperationSubmitEventSemanticReview,
 	OperationGetEventSemantics,
 	OperationListResearchAnalysisContext,
+	OperationSearchResearchGraph,
 }

@@ -107,7 +107,7 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeResearchImport, true
 	case v1.OperationListResearchThemes, v1.OperationGetResearchTheme,
 		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree,
-		v1.OperationListResearchAnalysisContext:
+		v1.OperationListResearchAnalysisContext, v1.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
 	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents:
 		return ScopeAdminRead, true

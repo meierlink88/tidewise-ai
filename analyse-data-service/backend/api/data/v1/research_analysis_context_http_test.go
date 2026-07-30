@@ -22,16 +22,18 @@ func (s *researchAnalysisContextHTTPStub) ListResearchAnalysisContext(
 	return &Response[ResearchAnalysisContext]{
 		Status: StatusOK,
 		Result: ResearchAnalysisContext{
-			ContractVersion:       "research-analysis-context.v1",
-			TemporalSemantics:     "retrospective_reconstruction",
-			TemporalLimitation:    "current-state dictionaries",
-			DictionaryFingerprint: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-			DiscoveryWindowStart:  request.DiscoveryWindowStart,
-			DiscoveryWindowEnd:    request.DiscoveryWindowEnd,
-			AnalysisAsOf:          request.AnalysisAsOf,
-			EventSemanticBundles:  []ResearchAnalysisEventSemanticBundle{},
-			Dictionaries:          ResearchAnalysisDictionaries{},
-			HasMore:               false,
+			ContractVersion:             "research-analysis-context.v1",
+			TBoxContractVersion:         "event-semantics.phase-one@1",
+			TemporalSemantics:           "retrospective_reconstruction",
+			TemporalLimitation:          "current-state dictionaries",
+			EventPageFingerprint:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			ReferenceClosureFingerprint: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			DiscoveryWindowStart:        request.DiscoveryWindowStart,
+			DiscoveryWindowEnd:          request.DiscoveryWindowEnd,
+			AnalysisAsOf:                request.AnalysisAsOf,
+			EventSemanticBundles:        []ResearchAnalysisEventSemanticBundle{},
+			Dictionaries:                ResearchAnalysisDictionaries{},
+			HasMore:                     false,
 		},
 	}, nil
 }

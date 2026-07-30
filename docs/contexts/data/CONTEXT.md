@@ -296,13 +296,29 @@ _Avoid_: Agent Execution 副本、Theme Analysis Batch、原地覆盖重新分�
 Data Service 面向工程外部 Codex 分析师提供的同步、无状态、实时批量读取合同。调用方
 显式提交 discovery window、`analysis_as_of` 与 page size；Data 只返回
 `confirmed + verified` Event 及 accepted/latest/non-superseded Event Semantics、
-Evidence、可解析 Entity/产业链关系和版本化 TBox。分页单位是完整 Event Bundle，
-cursor 绑定查询与字典 fingerprint。MVP 不保存 Snapshot，也不宣称严格历史回放；
-响应固定标记 `retrospective_reconstruction`，未来创建/更新的字典事实被排除，已知
-状态历史缺口返回 `422`。PostgreSQL 在 JSON 聚合前执行行数与原始字节预算，最终编码
-仍执行 Bundle、字典和整页预算，超限返回 `429`。
+Evidence 和版本化 TBox。分页单位是完整 Event Bundle；Data 先选本页 Event，再返回
+这些正式事实所引用 Entity、Relation、Variable、Rule、Policy 及端点的最小引用闭包。
+cursor 只绑定标准化查询、稳定排序与合同版本，不绑定全库或页级字典 Payload；
+`event_page_fingerprint` 与 `reference_closure_fingerprint` 分别记录本页事实和闭包
+血缘。MVP 不保存 Snapshot，也不宣称严格历史回放；响应固定标记
+`retrospective_reconstruction`，未来创建/更新的字典事实被排除，已知状态历史缺口
+返回 `422`，实时引用不一致返回 `409` 并要求从第一页重查。PostgreSQL 在 JSON 聚合前
+执行行数与原始字节预算，最终编码仍执行 Bundle、闭包和整页预算。超限返回包含组件、
+上限和技术性重试建议的结构化 `429`；只有完成计数或测量时返回实际值，bounded
+traversal 在 `budget+1` 提前停止时省略未知的实际总数。
 _Avoid_: Data 聚合 Event 成 Theme、Snapshot/Task 表、Codex 直连 PG/Neo4j、当前 TBox
-冒充严格历史 TBox、先物化无界 JSON 再做资源限制
+冒充严格历史 TBox、把全库字典重复装入每个 Event 页、先物化无界 JSON 再做资源限制
+
+**Research Graph Search**:
+Data Service 面向 Codex 分析师提供的同步、无状态、幂等只读图谱检索合同。Codex 显式
+指定 seed Entity、每种 Relation 的方向、最大深度、可选 Industry Chain scope 以及
+node/edge budget；Data 只校验引用和预算，并从 PostgreSQL 返回稳定排序、引用完整的
+可达 EntityRelation 与 Industry Chain Graph 子图。`industry_chain_entity_id` 只约束
+Industry Chain Graph Edge，全局 EntityRelation 仍完全由显式 Relation filter 控制。
+第一版不分页；预算超限整次返回结构化 `429`，不静默截断。未来可在不改变 API 语义的
+前提下把 Data Adapter 切换为 Neo4j 投影。
+_Avoid_: Data 自动选择 seed/主产业链/最佳路径、Theme readiness 或投资方向判断、
+Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未声明的部分子图
 
 **Event Semantic Context Lease**:
 Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。

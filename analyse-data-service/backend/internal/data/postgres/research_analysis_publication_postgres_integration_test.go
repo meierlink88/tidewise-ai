@@ -56,7 +56,10 @@ INSERT INTO variable_definitions (
 		t.Fatalf("list second typed Research Analysis Context page: %v", err)
 	}
 	if secondPage.HasMore || len(secondPage.EventSemanticBundles) != 1 ||
-		secondPage.DictionaryFingerprint != firstPage.DictionaryFingerprint {
+		len(firstPage.EventPageFingerprint) != 64 ||
+		len(secondPage.EventPageFingerprint) != 64 ||
+		len(firstPage.ReferenceClosureFingerprint) != 64 ||
+		len(secondPage.ReferenceClosureFingerprint) != 64 {
 		t.Fatalf("second typed Analysis Context page = %#v", secondPage)
 	}
 	bundles := append(firstPage.EventSemanticBundles, secondPage.EventSemanticBundles...)
@@ -79,13 +82,19 @@ INSERT INTO variable_definitions (
 	}
 	if !actualFound || !forecastFound ||
 		firstPage.TemporalSemantics != researchanalysiscontext.TemporalSemantics ||
-		len(firstPage.DictionaryFingerprint) != 64 ||
-		len(firstPage.Dictionaries.VariableDefinitions) == 0 {
+		firstPage.TBoxContractVersion != researchanalysiscontext.TBoxContractVersion ||
+		len(firstPage.Dictionaries.VariableDefinitions) == 0 ||
+		len(secondPage.Dictionaries.VariableDefinitions) == 0 {
 		t.Fatalf("typed Analysis Context bundles = %#v", bundles)
 	}
-	for _, definition := range firstPage.Dictionaries.VariableDefinitions {
-		if definition.Key == "future_only_variable" {
-			t.Fatal("Analysis Context leaked a TBox definition created after analysis_as_of")
+	for _, dictionaries := range []researchanalysiscontext.Dictionaries{
+		firstPage.Dictionaries,
+		secondPage.Dictionaries,
+	} {
+		for _, definition := range dictionaries.VariableDefinitions {
+			if definition.Key == "future_only_variable" {
+				t.Fatal("Analysis Context leaked a TBox definition created after analysis_as_of")
+			}
 		}
 	}
 	if _, err := db.ExecContext(
