@@ -3,6 +3,8 @@ import {
   formatResearchUpdateLabel,
   researchImpactStrengthLabel,
   researchInvestmentGuidanceActionLabel,
+  researchNodeOutlook,
+  researchNodeOutlookLabel,
   researchTransmissionStageLabel
 } from './presentation';
 
@@ -26,6 +28,17 @@ describe('research theme presentation', () => {
     expect(researchInvestmentGuidanceActionLabel('avoid')).toBe('回避');
     expect(researchInvestmentGuidanceActionLabel('observe')).toBe('继续观察');
     expect(researchInvestmentGuidanceActionLabel('differentiate')).toBe('区别对待');
+  });
+
+  it('maps Theme Impact direction into the frozen investor judgment vocabulary', () => {
+    expect(researchNodeOutlook('positive')).toBe('opportunity');
+    expect(researchNodeOutlook('negative')).toBe('risk');
+    for (const direction of ['neutral', 'uncertain', 'mixed'] as const) {
+      expect(researchNodeOutlook(direction)).toBe('uncertain');
+    }
+    expect(researchNodeOutlookLabel('opportunity')).toBe('机会');
+    expect(researchNodeOutlookLabel('risk')).toBe('风险');
+    expect(researchNodeOutlookLabel('uncertain')).toBe('不确定');
   });
 
   it('derives a stable update label from API timestamps', () => {

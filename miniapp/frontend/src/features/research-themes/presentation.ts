@@ -1,4 +1,5 @@
 import type {
+  ResearchDirection,
   ResearchImpactStrength,
   ResearchInvestmentGuidanceAction,
   ResearchTransmissionStage
@@ -27,6 +28,18 @@ export const researchTransmissionStageLabel = (value: ResearchTransmissionStage)
   stageLabels[value];
 export const researchInvestmentGuidanceActionLabel = (value: ResearchInvestmentGuidanceAction) =>
   guidanceActionLabels[value];
+export type ResearchNodeOutlook = 'opportunity' | 'risk' | 'uncertain';
+const nodeOutlookLabels: Record<ResearchNodeOutlook, string> = {
+  opportunity: '机会',
+  risk: '风险',
+  uncertain: '不确定'
+};
+export function researchNodeOutlook(value: ResearchDirection): ResearchNodeOutlook {
+  if (value === 'positive') return 'opportunity';
+  if (value === 'negative') return 'risk';
+  return 'uncertain';
+}
+export const researchNodeOutlookLabel = (value: ResearchNodeOutlook) => nodeOutlookLabels[value];
 export function formatResearchUpdateLabel(publishedAt: string, asOf: string): string {
   const published = Date.parse(publishedAt),
     reference = Date.parse(asOf);

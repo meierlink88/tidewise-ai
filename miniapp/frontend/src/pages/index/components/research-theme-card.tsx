@@ -1,14 +1,15 @@
 import Taro from '@tarojs/taro';
 import { Button, Image, Text, View } from '@tarojs/components';
-import type { BaseEventOrig } from '@tarojs/components/types/common';
 import type { HomeResearchThemeItem } from '../../../features/research-themes/contract';
 import {
   researchImpactStrengthLabel,
   researchInvestmentGuidanceActionLabel,
-  researchTransmissionStageLabel
+  researchNodeOutlook,
+  researchNodeOutlookLabel
 } from '../../../features/research-themes/presentation';
 import { navigateToResearchReasoningTrees } from '../../../features/research-reasoning-trees/navigation';
 import arrowRightIcon from '../../../assets/icons/arrow-right.svg';
+import './research-theme-card.scss';
 
 interface ResearchThemeCardProps {
   theme: HomeResearchThemeItem;
@@ -16,11 +17,6 @@ interface ResearchThemeCardProps {
 
 function showUnavailable(title: string) {
   void Taro.showToast({ title, icon: 'none', duration: 1600 });
-}
-
-function handleNestedTap(event: BaseEventOrig, title: string) {
-  event.stopPropagation();
-  showUnavailable(title);
 }
 
 export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
@@ -42,26 +38,29 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       </View>
 
       <Text className='theme-card__title'>{theme.oneLineConclusion}</Text>
-      <View className='theme-card__path'>
-        <Text>{theme.transmissionSummary || '—'}</Text>
-      </View>
+      {theme.transmissionSummary ? (
+        <View className='theme-card__path'>
+          <Text>{theme.transmissionSummary}</Text>
+        </View>
+      ) : null}
 
       <View className='theme-card__industries'>
         <View className='theme-card__industry-count'>
           <Text className='theme-card__industry-number'>{theme.impacts.length}</Text>
-          <Text className='theme-card__industry-label'>个受影响节点</Text>
+          <Text className='theme-card__industry-label'>个关注节点</Text>
         </View>
         <View className='theme-card__node-list'>
-          {theme.impacts.map((node) => (
-            <Button
-              key={node.chainNodeEntityId}
-              className='tidewise-button theme-card__node'
-              hoverClass='none'
-              onClick={(event) => handleNestedTap(event, `${node.name}详情即将开放`)}
-            >
-              {node.name}
-            </Button>
-          ))}
+          {theme.impacts.map((node) => {
+            const outlook = researchNodeOutlook(node.impactDirection);
+            return (
+              <View key={node.chainNodeEntityId} className='theme-card__node'>
+                <Text className='theme-card__node-name'>{node.name}</Text>
+                <Text className={`theme-card__outlook theme-card__outlook--${outlook}`}>
+                  {researchNodeOutlookLabel(outlook)}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -73,18 +72,8 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       </View>
 
       <View className='theme-card__footer'>
-        <Button
-          className='tidewise-button theme-card__event-button'
-          hoverClass='none'
-          onClick={(event) => handleNestedTap(event, '事件清单即将开放')}
-        >
-          <Text>{theme.evidenceEventCount} 条政经事件</Text>
-        </Button>
-        <View className='theme-card__phase'>
-          <Text>传导阶段</Text>
-          <Text className='theme-card__phase-dot'>·</Text>
-          <Text>{researchTransmissionStageLabel(theme.transmissionStage)}</Text>
-        </View>
+        <Text className='theme-card__event-count'>{theme.evidenceEventCount} 条政经事件</Text>
+        <Text className='theme-card__path-count'>{theme.reasoningTreeCount} 条产业链路径</Text>
         <Button
           className='tidewise-button theme-card__detail-button'
           hoverClass='none'
@@ -95,7 +84,7 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
             ).catch(() => showUnavailable('影响路径暂时无法打开'));
           }}
         >
-          <Text>查看影响路径</Text>
+          <Text>推导详情</Text>
           <Image className='theme-card__detail-icon' src={arrowRightIcon} mode='scaleToFill' />
         </Button>
       </View>
