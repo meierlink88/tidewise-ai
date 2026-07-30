@@ -47,6 +47,7 @@ describe('reasoning tree page interactions', () => {
     });
 
     const tabs = findAllByClass(content, 'reasoning-tab');
+    expect(tabs.map((tab) => tab.props.children)).toEqual(['高速光模块产业链', 'DSP 芯片产业链']);
     tabs[1].props.onClick?.();
 
     expect(selectReasoningTree).toHaveBeenCalledWith(nextReasoningTreeId);

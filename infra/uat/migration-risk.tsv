@@ -32,4 +32,3 @@
 000031	high	destructive Theme and Reason Tree V1 publication-table rebuild
 000032	high	forward-only Event semantics TBox/ABox schema and event entity link constraint migration
 000033	high	forward-only atomic Theme publication lineage constraints and indexes
-000034	normal	additive nullable Theme Impact primary signal display snapshot

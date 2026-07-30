@@ -1268,13 +1268,12 @@ components:
     ResearchThemeImportImpact:
       type: object
       additionalProperties: false
-      required: [chain_node_entity_id, relation_role, impact_direction, impact_summary, primary_signal_display_summary, display_order]
+      required: [chain_node_entity_id, relation_role, impact_direction, impact_summary, display_order]
       properties:
         chain_node_entity_id: {$ref: '#/components/schemas/LowercaseUUID'}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_summary: {type: string, nullable: true}
-        primary_signal_display_summary: {type: string, minLength: 1, maxLength: 200}
         display_order: {type: integer, minimum: 1}
     ResearchThemeImportEvent:
       type: object
@@ -1453,14 +1452,13 @@ components:
     ResearchThemeImpact:
       type: object
       additionalProperties: false
-      required: [chain_node_entity_id, name, relation_role, impact_direction, impact_summary, primary_signal_display_summary, display_order]
+      required: [chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
       properties:
         chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
         name: {type: string}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_summary: {type: string, nullable: true}
-        primary_signal_display_summary: {type: string, nullable: true, minLength: 1, maxLength: 200}
         display_order: {type: integer, minimum: 1}
     ResearchEvent:
       type: object

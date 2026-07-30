@@ -60,12 +60,13 @@ Tree 同时保存正式 UUID/Submission/Evidence 血缘与不可变展示快照�
 Signal/Impact 的分析师推导必须明确标记为 `analyst_inference`，并引用上游正式事实及
 实际 Relation，不得以自由 key 冒充正式事实。
 
-Miniapp 的 Reason Tree 内容结构以已确认的字段映射原型为准；Theme 卡片内部视觉和
-数据表达以已定稿 Theme 列表原型为准。页面壳、卡片外部结构及交互继续沿用现有实现。
+Miniapp 的内容结构以已确认的 Theme / Reason Tree 字段映射原型为准。该原型只决定
+页面展示哪些研究内容、内容的层级和机械组合方式，尤其决定“产业链节点传导”采用
+紧凑路径节点加单节点详情的阅读方式；原型中的颜色、字体、尺寸、间距、圆角和具体
+布局不是本次实现验收目标。
 
-字段模型曾由 migration `000031` 完成受控重建，migration `000033` 增量补齐正式血缘；
-本次 migration `000034` 只为 Theme Impact 增加可空主变量显示快照，不回填或改写既有
-Theme/Tree 行。既有弱血缘显示快照继续以 `legacy_snapshot` 表达，不伪造
+字段模型曾由 migration `000031` 完成受控重建；本次 migration `000033` 只做增量扩展，
+保留既有 Theme/Tree 与弱血缘显示快照，并以 `legacy_snapshot` 明确其历史语义，不伪造
 Signal/Impact/Evidence 引用。Entity、Industry Chain、Chain Node、Event、正式
 Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 
@@ -91,9 +92,9 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 18. As an 分析师, I want a Variable Signal key to be stable within one Theme Aggregate, so that the same signal snapshot can appear consistently on multiple nodes.
 19. As an 分析师, I want formal Variable Signal and DirectImpact references to carry immutable Submission and Evidence lineage, so that each displayed conclusion remains auditable.
 20. As a Miniapp user, I want Theme cards ordered by publication time, so that I see the latest successfully published analysis first.
-21. As a Miniapp user, I want the Theme card to show every ordered focus node with its investment
-    judgment and analyst-published main-variable state, so that I can scan the affected investment
-    directions without internal relation terminology.
+21. As a Miniapp user, I want the Theme card to show every ordered focus node with its
+    opportunity/risk/uncertain judgment, so that I can scan affected investment directions without
+    internal relation terminology or an invented variable state.
 22. As a Miniapp user, I want every visible Theme to have its atomically published Reason Trees, so that I never receive a partial explanation aggregate.
 23. As a Miniapp user, I want each Reason Tree tab to represent one Industry Chain, so that switching tabs changes the causal-chain context rather than the priority of an impacted node.
 24. As a Miniapp user, I want every compact Reason Tree node card to show its primary Variable
@@ -125,12 +126,18 @@ Industry Chain Graph Edge 及其他共享事实不得被删除或改写。
 43. As a Miniapp user, I want the Tree conclusion to show direction, strength and current path judgment separately from the Theme conclusion, so that the two scopes are not confused.
 44. As a Miniapp user, I want the Industry Chain path to show compact nodes first, so that I can understand the whole transmission sequence without reading every detail at once.
 45. As a Miniapp user, I want to select any path node and inspect one detailed evidence panel below the path, so that I can focus on the reasoning for that node.
-46. As a Miniapp user, I want the last path node labeled as the result node without treating it as a primary Theme Impact, so that path position is not confused with investment priority.
-47. As a Miniapp user, I want the selected node detail to show its position/role, name, primary
-    Signal and incoming mechanism only when one exists, so that the causal step is concise.
-48. As a Miniapp user, I want the first path node identified as the signal-entry point without a fabricated incoming Chain relationship, so that an Event or Signal entry is not misrepresented as a formal Graph Edge.
+46. As a Miniapp user, I want every compact node to show exactly one primary Signal summary and its
+    opportunity/risk/uncertain judgment, so that I can scan the path without seeing internal
+    analysis roles or a second variable.
+47. As a Miniapp user, I want the selected-node detail to show every ordered Signal, the aggregate
+    investment meaning and the real incoming mechanism when one exists, so that variable state,
+    node judgment and causal transmission remain distinct.
+48. As a Miniapp user, I want path position and internal Signal roles omitted from the presentation,
+    so that implementation terminology is not mistaken for investment priority or user guidance.
 49. As a Miniapp user, I want update labels and enum labels to be mechanically generated from published data, so that BFF and Frontend never rewrite analyst meaning.
-50. As a tester, I want the prototype’s content hierarchy covered by component and adapter tests while visual tokens are excluded, so that the intended information change is protected without freezing a screenshot implementation.
+50. As a tester, I want the prototype’s content hierarchy, interaction behavior and key visual
+    tokens covered by component, adapter and build checks, so that the authoritative mobile design
+    is protected at both 375px and 430px widths.
 
 ## Implementation Decisions
 
@@ -241,21 +248,13 @@ correct value.
 
 - Use the dedicated `research_theme_impacts` relation.
 - Each row contains `theme_id`, `chain_node_entity_id`, `relation_role`, `impact_direction`,
-  optional `impact_summary`, optional legacy-compatible `primary_signal_display_summary`,
-  `display_order` and `created_at`.
+  optional `impact_summary`, `display_order` and `created_at`.
 - `relation_role` remains `driver | beneficiary | constraint | exposure`.
 - `impact_direction` uses `positive | negative | mixed | neutral | uncertain`.
 - One Theme must have at least one Theme Impact.
 - `(theme_id, chain_node_entity_id)` is unique.
 - `display_order` is unique and contiguous from 1 within a Theme. It provides stable presentation
   only and does not express importance or impact priority.
-- `primary_signal_display_summary` is the analyst-published 1..200-character display snapshot for
-  the Theme Impact's main variable state. New Aggregate publications require it to be trimmed and
-  non-empty. The database column and read DTO remain nullable only so immutable pre-migration rows
-  survive without a fabricated semantic backfill.
-- `primary_signal_display_summary` is owned by the Theme Impact. The same Theme Impact may occur in
-  more than one Reason Tree, so Data reads, the Miniapp BFF and the frontend must not select one
-  Tree node Signal as a substitute.
 - Data strongly validates that every referenced object exists as a valid Chain Node. Do not add
   `target_type` or accept Company, Security, Concept, Industry, Index or other Entity types in this
   change.
@@ -501,9 +500,6 @@ research content.
 - Migration `000033` must preserve every existing Theme/Tree row and receipt. Existing node-signal
   rows receive `source_kind=legacy_snapshot`; new formal lineage columns remain null rather than
   inventing unsupported backfills.
-- Migration `000034` additively adds nullable Theme Impact
-  `primary_signal_display_summary`; it contains no business DML or semantic backfill. New
-  publications require the field at the Biz/API boundary.
 - The target tables remain:
   - `research_theme_import_receipts`
   - `research_themes`
@@ -520,8 +516,8 @@ research content.
 - The migration must not delete, truncate, update or recreate shared Entity, Industry Chain,
   Chain Node, membership, Event, Evidence or Industry Chain Graph Edge data.
 - Immutable publication tables and receipts retain database constraints/triggers that reject
-  updates and deletes during normal runtime. Migrations `000033` and `000034` are additive and are
-  not authorized data resets.
+  updates and deletes during normal runtime. Migration `000033` is additive and not an authorized
+  data reset.
 - Indexes must support latest Theme publication-time queries, Theme child lookups, deterministic
   Tree tab ordering and all uniqueness constraints.
 
@@ -560,8 +556,6 @@ updated so that it cannot override this spec.
   homepage Theme ordering.
 - Theme read returns authoritative Theme fields, ordered Theme Impacts with current Chain Node
   names, Theme Events with current Event display facts, and mechanical counts.
-- Every Theme Impact returns its stored nullable `primary_signal_display_summary` unchanged. Reads
-  do not derive it from `impact_summary` or fan out to Reason Tree details.
 - `evidence_event_count` is the de-duplicated total of all Theme Event associations regardless of
   evidence role; it is the Theme-card “N 条政经事件” count.
 - Theme read may expose `reasoning_tree_count`; aggregates published under contract version 2 must
@@ -587,7 +581,7 @@ Rules:
 - The Tree response includes enough Theme Impact IDs for the consumer to determine membership by
   ID intersection; it does not return an `is_theme_impact` marker.
 - `signal_display_summary` is a mechanical join of every non-primary Signal
-  `display_summary` using ` · ` in `display_order`, with no truncation. The primary Signal is
+  `display_summary` using `·` in `display_order`, with no truncation. The primary Signal is
   returned separately and must not be duplicated in this joined summary.
 - `primary_signal` is the single Signal whose role is `primary`; BFF and Frontend do not select a
   substitute.
@@ -614,8 +608,6 @@ Stable read errors remain:
   counts and arrays.
 - The BFF preserves Data ordering and does not choose a primary Theme Impact, Tree, Event or
   Signal.
-- The BFF maps Theme Impact `primary_signal_display_summary` mechanically and does not request
-  Reason Tree details while serving the Theme feed.
 - Downstream failures map to stable Miniapp errors without exposing Data request IDs, URLs,
   credentials, response bodies or internal errors.
 - Existing total timeout, safe response-size limit, Request ID and read-retry policy remain unless
@@ -643,26 +635,25 @@ Stable read errors remain:
 
 #### 20.1 Prototype authority
 
-- The Theme / Reason Tree field-mapping prototype is authoritative for displayed content,
-  information hierarchy, section meaning and the node-selection interaction described below.
-- It is not authoritative for colors, fonts, font sizes, spacing, card dimensions, borders,
-  shadows, radius, responsive measurements or pixel-perfect layout outside the Theme card
-  interior frozen below.
-- Existing Tidewise design-system components and tokens remain the implementation source for
-  visual presentation outside the Theme card interior.
+- `prototype/theme-direct-impact-investment-outlook-prototype.html` is the only authoritative
+  Reason Tree page reference for displayed content, information hierarchy, interaction, colors,
+  typography, spacing, card dimensions, borders, shadows, radius and responsive layout.
+- The prototype has one accepted design. Do not implement its historical A/B/C switcher or any
+  alternate presentation branch.
+- Prototype business text is sample content only. Every rendered business value comes from the
+  formal Miniapp API response.
 - “Keep the existing page” means preserve routes, page shell, navigation, Tab loading/caching and
-  error states. It does not mean retaining old content inside the cards.
+  error states. It does not mean retaining the previous Reason Tree card content, display
+  terminology or field compatibility.
 - `prototype/theme-investment-outlook-list-prototype.html` is the sole authority for the Theme
   card interior's content hierarchy, typography, colors, borders, radius, shadow, spacing, rail,
-  focus-node grid, guidance block, footer and detail button.
-- The prototype does not authorize changes to the page title, search, filters, “今日推理主线”
-  heading, list container, page background, bottom navigation or other card-external DOM,
-  styling or interaction.
-- Prototype business text is sample content only. Production cards are generated from the formal
-  Theme feed contract.
-- “Keep the existing page” means preserve the route, page-level state, pagination, filtering,
-  navigation shell and all card-external behavior. No old card-interior UI branch or field
-  compatibility is retained.
+  focus-node grid, guidance block, footer and detail button, except that the later product decision
+  removes the focus-node main-variable-state line.
+- The Theme-card prototype does not authorize changes to the page title, search, filters,
+  “今日推理主线” heading, list container, page background, bottom navigation or other
+  card-external DOM, styling or interaction.
+- Theme-card prototype business text is sample content only. Production cards use the existing
+  Theme feed contract without a new Backend, Data or persistence field.
 
 #### 20.2 Theme card content contract
 
@@ -680,18 +671,20 @@ Each Theme card displays the following content in this logical order:
    horizontally scroll or render “+N”.
 8. Each focus-node card shows only:
    - Chain Node name;
-   - the controlled investment judgment from `impact_direction`;
-   - the stored `primary_signal_display_summary` when present.
-   It does not show `relation_role`, “直接/间接影响” or any inferred variable text.
+   - the controlled investment judgment from `impact_direction`.
+     It does not show `impact_summary`, `relation_role`, “直接/间接影响”, a main-variable state or any
+     inferred variable text.
 9. `investment_guidance_action` as a controlled label and
    `investment_guidance_summary` as its text.
 10. The de-duplicated total Theme Event count across all evidence roles, displayed as
-   “N 条政经事件”.
+    “N 条政经事件”.
 11. `reasoning_tree_count` displayed as “N 条产业链路径”.
 12. The “推导详情” action, preserving the existing Reason Tree `Taro.navigateTo` behavior.
 
 The card does not display `attention_level`, `conclusion_status`, `risk_summary`,
-`checkpoint_summary`, `transmission_stage`, `relation_role` or `market_confirmation_summary`.
+`checkpoint_summary`, `transmission_stage`, `relation_role`, `impact_summary` or
+`market_confirmation_summary`. It does not request Reason Tree details or derive a variable status
+while serving the Theme list.
 
 Controlled Theme labels are:
 
@@ -713,39 +706,36 @@ Relative update labels are deterministic:
 
 The Reason Tree page displays:
 
-1. Parent Theme context: Theme `impact_strength`, `title`, Theme `published_at`,
-   `one_line_conclusion` and Theme `transmission_summary`.
+1. Parent Theme context: Theme `impact_strength`, Theme `published_at`, `one_line_conclusion` and
+   Theme `transmission_summary`.
 2. “产业链路径” plus the number of published Trees.
-3. Tree Tabs using each Tree `title` in server `display_order`.
-4. Selected Tree title and Event count.
-5. Event fact summary and the complete ordered Tree Event list.
-6. “本树结论”: Tree `one_line_conclusion`, `impact_direction`,
-   `impact_strength`, optional `impact_summary` and optional Tree
-   `transmission_summary`.
-7. “当前支持” and “当前反证” using Tree `support_summary` and
+3. Tree Tabs using each Tree `industry_chain_name` in server `display_order`; one Industry Chain
+   maps to one Tree.
+4. Event fact summary and the complete ordered Tree Event list. Each Event displays its title,
+   summary and available time without exposing evidence-role implementation vocabulary.
+5. “本树结论” using Tree `one_line_conclusion`, followed by the mechanically counted numbers of
+   opportunity, risk and uncertain nodes.
+6. “当前支持” and “当前反证” using Tree `support_summary` and
    `counter_summary`.
-8. “产业链节点传导” using the compact path and selected-node detail contract below.
-9. “判断边界” using only `conclusion_boundary_summary`. The underlying ordered
+7. “产业链节点传导” using the compact path and selected-node detail contract below.
+8. “判断边界” using only `conclusion_boundary_summary`. The underlying ordered
    `invalidation_conditions` remain in the contract and lineage but are not rendered again here.
-10. “后续验证” using ordered analyst-authored `checkpoints[].summary`.
+9. “后续验证” using ordered analyst-authored `checkpoints[].summary`.
 
-The Tree conclusion metadata is mechanically composed as:
+The Tree conclusion metadata is mechanically composed from node investment judgments:
 
 ```text
-[impact_direction label] · [impact_strength label] | [impact_summary]
+[opportunity count] 个机会 · [risk count] 个风险 · [uncertain count] 个不确定
 ```
 
-If `impact_summary` is empty, omit the separator and right-hand text. Do not derive a new
-`conclusion_status` for the Tree. Prototype text such as “当前处于条件性验证” is an example
-Tree `impact_summary`, not a new status enum.
+Node judgment display mapping is:
 
-Direction labels are:
-`positive -> 正向`, `negative -> 负向`, `mixed -> 分化`, `neutral -> 中性`,
-`uncertain -> 待验证`.
+- `positive -> opportunity -> 机会`;
+- `negative -> risk -> 风险`;
+- `mixed | neutral | uncertain -> uncertain -> 不确定`.
 
-Evidence-role labels are:
-`driver -> 驱动`, `supporting -> 支持`, `contradicting -> 反证`,
-`context -> 背景`.
+This is a presentation projection into the accepted three user judgments; it does not rewrite the
+underlying five-value `impact_direction` contract.
 
 An empty `counter_summary` keeps the existing “当前反证” section and displays
 “当前暂无明确反证”. Empty boundary content or checkpoint arrays retain their section heading and
@@ -767,59 +757,53 @@ Compact path behavior:
 - Render all Tree nodes in `position` order with arrow connectors.
 - Each compact node displays:
   - “节点 NN”;
-  - “· 结果” when it is the maximum-position node;
   - current Chain Node name;
-  - primary Signal `display_summary`;
-  - the controlled `impact_strength` label;
-  - “当前节点” when selected and “节点详情” otherwise.
+  - exactly one primary Signal `display_summary`;
+  - the controlled opportunity/risk/uncertain judgment;
+  - the controlled `impact_strength` label.
 - Compact cards do not render `state_summary`, non-primary Signal summaries,
   `reasoning_basis_summary` or `evidence_gap_summary`.
 - The maximum-position node is the default selection whenever a Tree detail first becomes ready.
 - Selecting another compact node changes only the detail panel below. It does not navigate, fetch
   another Tree, mutate the Tree cache or change Theme Impact membership.
 - Switching to another Tree selects that Tree’s maximum-position node after its detail is ready.
-- “结果节点” is derived only from maximum `position`. It is not persisted and does not mean
-  primary Theme Impact, subject, highest priority or strongest impact.
 - Theme Impact membership continues to be determined by intersecting
   `chain_node_entity_id` with the parent Theme Impact ID set. Do not add a stored or wire-level
   primary/subject/result marker.
 
 Selected-node detail displays:
 
-1. Node position and presentation role: “信号入口” for position 1, “结果节点” for the
-   maximum-position node, and “路径节点” for an intermediate node. A one-node Tree displays both
-   “信号入口” and “结果节点”.
-2. Chain Node name and primary Signal `display_summary`.
-3. “传导机制” only for positions greater than 1:
-   - the derived route “节点 NN → 节点 NN” from the immediately preceding node to the selected
-     node;
+1. Node position, Chain Node name, the controlled opportunity/risk/uncertain judgment and
+   `impact_strength`.
+2. “变量状态” using every `signals[].display_summary` in `display_order`. Do not expose
+   `primary`, `supporting` or `contradicting` Signal roles.
+3. “投资含义” using node `impact_summary`. It is the node-level aggregate investment judgment and
+   must remain separate from the individual Signal states; the frontend does not synthesize it
+   from Signal text.
+4. For downstream nodes with a real incoming mechanism:
    - selected node `incoming_transmission_title`;
    - selected node `incoming_transmission_mechanism`;
-   - “成立前提：” plus selected node `incoming_condition_summary` when present.
+   - “成立条件：” plus selected node `incoming_condition_summary` when present.
 
-The selected-node detail does not render “影响状态”, “变量状态”, “变量信号”, “推导依据”,
-“数据缺口”, formal graph relation metadata or Theme Impact membership. Those facts remain in the
-Data and wire contracts; removing their display does not weaken validation or lineage.
+The selected-node detail does not render “直接影响节点”, “后续推导节点”, “直接/间接”,
+“信号入口”, “路径节点”, “结果节点”, “变量信号”, “推导依据”, “数据缺口”, “为什么形成这一判断”,
+derived “Event → 节点 NN” labels, formal Signal roles, formal graph relation metadata or Theme
+Impact membership. Those facts remain in the Data and wire contracts where applicable; removing
+their display does not weaken validation or lineage.
 
-For the first node:
-
-- Label it as the signal-entry point in presentation.
-- Keep every `incoming_*` field null as required by the Data contract.
-- Do not render or fabricate a Chain transmission relation, formal edge, incoming mechanism or
-  incoming condition.
-- The primary Signal `display_summary` explains how the signal enters the displayed path. Other
-  Signals, state, reasoning basis and data gap remain available in the underlying contract but are
-  not rendered in the simplified selected-node detail.
+For the first node, keep every `incoming_*` field null as required by the Data contract and do not
+render or fabricate a Chain transmission relation, formal edge, incoming mechanism or incoming
+condition.
 
 For every downstream node, transmission content uses that selected node’s `incoming_*` fields. The
 Miniapp must not display the selected node’s outgoing mechanism as if it were incoming, and the
 maximum-position node never fabricates a further outgoing segment.
 
 Displayed Signal summaries and analyst-authored text use natural wrapping and no ellipsis
-truncation. Frontend must not parse those strings to infer direction, strength, identity or
-evidence. `checkpoints[].summary` is generated as the complete human-facing “observe what + effect
-on the current judgment” statement by the analyst owner; Miniapp and BFF do not compose it from
-other arrays.
+truncation. Frontend must not parse those strings to infer direction, strength, identity, evidence
+or investment meaning. `checkpoints[].summary` is generated as the complete human-facing “observe
+what + effect on the current judgment” statement by the analyst owner; Miniapp and BFF do not
+compose it from other arrays.
 
 ### 21. Time, order and null semantics
 
@@ -862,8 +846,7 @@ consumers:
 
 This fixture must prove formal lineage, enum/null/time/order semantics, aggregate atomicity,
 multi-impact coverage, multiple Industry Chains, context nodes, a one-node Tree, formal and
-inferred incoming edges, per-Tree Event coverage, Variable Signal display snapshots and the Theme
-Impact `primary_signal_display_summary` provider-consumer contract.
+inferred incoming edges, per-Tree Event coverage and Variable Signal display snapshots.
 
 Tests should assert externally observable behavior and stable contracts, not private helper
 functions, struct-copy code or SQL statement shape.
@@ -902,8 +885,6 @@ Cover:
 Use PostgreSQL integration tests for:
 
 - forward migration from the current schema;
-- nullable additive Theme Impact `primary_signal_display_summary` storage with no legacy semantic
-  backfill, plus required non-empty validation for new publications;
 - survival of representative existing V1 Theme/Tree rows as readable `legacy_snapshot` history;
 - survival of representative Entity, Industry Chain, Chain Node, Event and Graph Edge rows;
 - foreign keys, unique constraints, contiguous-order enforcement where implemented in Biz, indexes
@@ -934,17 +915,22 @@ Cover the typed API Adapter and user-visible state transitions:
 - decode the shared fixture and reject obsolete/mixed old fields;
 - map new Theme and Reason Tree fields without semantic synthesis;
 - render the complete Theme-card content contract, including relative update labels, action labels,
-  total Event and Reason Tree counts, ordered Theme Impact names, controlled judgments and stored
-  primary-variable summaries;
+  total Event and Reason Tree counts, ordered Theme Impact names and controlled judgments;
+- keep Theme focus nodes free of `impact_summary`, variable-state text and Reason Tree fan-out;
 - render the Reason Tree content sections in the prototype-defined hierarchy;
-- display only the primary Signal summary and impact-strength label on each compact node without
-  truncation, non-primary summaries or evidence-gap text;
-- default node selection to the maximum-position result node;
+- use `industry_chain_name` for each Tree Tab;
+- display only the primary Signal summary, node investment judgment and impact-strength label on
+  each compact node without truncation, non-primary summaries or evidence-gap text;
+- map node judgments to opportunity/risk/uncertain and count those judgments in the Tree conclusion;
+- default node selection to the maximum-position node;
 - selecting a compact path node updates the single detail panel without navigation or a new Tree
   request;
-- switching Trees establishes an independent result-node selection for the newly ready Tree;
-- render the selected downstream node’s incoming title, mechanism and condition with the derived
-  preceding-node route, without formal Graph metadata;
+- switching Trees establishes an independent maximum-position-node selection for the newly ready
+  Tree;
+- render every selected-node Signal summary in display order and node `impact_summary` as a
+  separate investment meaning;
+- render the selected downstream node’s incoming title, mechanism and condition without derived
+  route labels or formal Graph metadata;
 - keep the first node free of fabricated incoming transmission content;
 - render only `conclusion_boundary_summary` under “判断边界” and keep
   `invalidation_conditions` out of the page;
@@ -954,9 +940,15 @@ Cover the typed API Adapter and user-visible state transitions:
 - remove `marketConfirmationSummary` from all types and mocks.
 
 Component tests assert visible text hierarchy, selected-node behavior and absence of stale
-Anchor-era content. They do not assert colors, fonts, pixel dimensions, exact DOM nesting or CSS
-token values. Do not add tests for simple constructors or DTO property copying already covered by
-the adapter/fixture seam.
+Anchor-era content. Rendered H5 smoke checks at 375px and 430px verify the authoritative prototype
+layout, horizontal node path and selected detail. Do not add tests for simple constructors or DTO
+property copying already covered by the adapter/fixture seam.
+
+The delivery smoke check builds H5 with the mock adapter, opens the real Taro route at both
+viewports and verifies computed layout plus interaction state. At both widths the Theme conclusion
+font is `19px` and each compact node is `158px`; the node path has horizontal overflow, selecting
+node 01 changes the detail to node 01 without a fabricated mechanism, and selecting another
+Industry Chain Tab changes the active Tree.
 
 ### Existing test cleanup audit
 
@@ -987,8 +979,6 @@ the adapter/fixture seam.
 - Miniapp Frontend tests, TypeScript typecheck and lint.
 - Go format, affected Go tests, vet and Data/Miniapp Backend builds.
 - Taro WeChat and Douyin builds; the change must not add platform-specific behavior.
-- Taro H5 build and rendered 375px/430px Theme-card smoke checks, including two-node and five-node
-  layouts and unchanged detail navigation.
 - Repository architecture checks because a cross-service provider/consumer contract changes, while
   service ownership and dependency direction must remain unchanged.
 
@@ -1030,23 +1020,42 @@ the adapter/fixture seam.
   the active model.
 - The existing implementation and tests are the prior-state baseline, not authority for retaining
   removed behavior.
-- The existing Theme and Tree page shell remains the visual acceptance baseline outside the Theme
-  card. The Theme-list prototype supersedes the old Theme-card interior; the field-mapping
-  prototype continues to govern Reason Tree content and interaction.
+- `prototype/theme-direct-impact-investment-outlook-prototype.html` supersedes the previous Theme
+  and Tree page visual baseline, old card/body content and old chain-node presentation.
+- `prototype/theme-investment-outlook-list-prototype.html` separately supersedes the Theme-card
+  interior while preserving every card-external page surface. The later product decision removes
+  the prototype's focus-node main-variable-state line and does not change the Theme feed contract.
 - Taro reference brief:
-  - Reference: current Taro 4.x React component/event/style contracts, the project’s existing
+  - Reference: current Taro 4.x React component/event documentation at
+    `https://docs.taro.zone/en/docs/react-overall`, Taro page-component documentation at
+    `https://docs.taro.zone/en/docs/react-page`, the official `NervJS/postcss-pxtransform`
+    README’s case-sensitive unit escape documented under “Use Cases”, and the project’s existing
+    horizontal `ScrollView`, typed port/adapter and Tree-session patterns.
+  - Applicable: React `useState`/`useEffect`, Taro `onClick`, `ScrollView scrollX`, component-local
+    node selection, the existing per-Tree lazy-load/cache state, and uppercase `PX` units where a
+    fixed CSS-pixel value must bypass Taro’s configured `px` conversion.
+  - Not applicable: copying an example application, adding a UI library, or introducing a new
+    routing/global-state framework.
+  - Version/platform: lockfile resolves Taro 4.2.0 with React 18; the shared Taro component
+    implementation is used unchanged for WeChat and ByteDance Mini Programs. H5, WeChat and
+    ByteDance builds preserve the escaped fixed units and compile successfully.
+  - Project adaptation: preserve the existing port/adapter, route and Tree-session architecture;
+    use the official React/Taro component contracts for horizontal node selection, and map the
+    authoritative prototype’s fixed pixel tokens to uppercase `PX` in the project SCSS so 375px and
+    430px viewports do not rescale them through `rpx`/`rem`; no new dependency is introduced.
+- Theme-card Taro reference brief:
+  - Reference: the same Taro 4.x React component/event/style contracts, the project’s existing
     `ResearchThemeCard` and navigation helper, and the official `NervJS/postcss-pxtransform`
-    case-sensitive unit escape.
-  - Applicable: `View`/`Text`/`Button`, existing `stopPropagation` plus `Taro.navigateTo`,
-    ordered list rendering, two-column CSS Grid and a component-local stylesheet headed by
+    file-level disable contract.
+  - Applicable: `View`/`Text`/`Button`, existing `stopPropagation` plus `Taro.navigateTo`, ordered
+    list rendering, two-column CSS Grid and a component-local stylesheet headed by
     `/*postcss-pxtransform disable*/` for fixed prototype pixels.
-  - Not applicable: adding a UI library, copying an example application, horizontal node lists,
-    Tree-detail fan-out or a routing/global-state framework.
-  - Version/platform: lockfile resolves Taro 4.2.0 with React 18; the shared implementation must
-    build for H5, WeChat and ByteDance.
-  - Project adaptation: preserve every card-external page surface; mechanically extend the typed
-    Theme feed contract, replace only the card interior, and keep its finalized 375px/430px pixel
-    tokens from rescaling through `rpx`/`rem`.
+  - Not applicable: a new API field, Backend or database change, Tree-detail fan-out, UI library,
+    horizontal focus-node list or routing/global-state framework.
+  - Version/platform: lockfile resolves Taro 4.2.0 with React 18; H5, WeChat and ByteDance builds
+    share the same component.
+  - Project adaptation: map only the existing Theme feed fields, replace only the card interior,
+    omit the cancelled variable-state line and preserve all card-external behavior.
 - The implementation ticket should use this spec as the authority, execute TDD at the seams above,
   and deliver on a `codex/*` feature branch with a ready-for-review PR. The user retains merge
   control.

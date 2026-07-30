@@ -278,8 +278,7 @@ func researchThemeImportShape() *bindingShape {
 	impact := objectShape(map[string]*bindingShape{
 		"chain_node_entity_id": scalarShape, "relation_role": scalarShape,
 		"impact_direction": scalarShape, "impact_summary": nullableStringShape,
-		"primary_signal_display_summary": stringShape,
-		"display_order":                  scalarShape,
+		"display_order": scalarShape,
 	})
 	event := objectShape(map[string]*bindingShape{
 		"event_id": scalarShape, "evidence_role": scalarShape, "supported_claim": nullableStringShape,

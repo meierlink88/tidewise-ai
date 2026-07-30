@@ -26,7 +26,6 @@
           "relation_role": "beneficiary",
           "impact_direction": "positive",
           "impact_summary": "交换机端口计划增加可能提高设备需求。",
-          "primary_signal_display_summary": "端口计划：增加 80%",
           "display_order": 1
         },
         {
@@ -34,7 +33,6 @@
           "relation_role": "beneficiary",
           "impact_direction": "positive",
           "impact_summary": "端口配置增加可能提高高速光模块需求。",
-          "primary_signal_display_summary": "模块需求：可能增加",
           "display_order": 2
         },
         {
@@ -42,7 +40,6 @@
           "relation_role": "beneficiary",
           "impact_direction": "positive",
           "impact_summary": "光模块排产增加可能提高 DSP 芯片备料需求。",
-          "primary_signal_display_summary": "备料需求：可能增加",
           "display_order": 3
         }
       ],

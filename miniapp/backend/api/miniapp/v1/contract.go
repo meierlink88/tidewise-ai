@@ -62,13 +62,12 @@ type ResearchThemeItem struct {
 	ReasoningTreeCount        int                   `json:"reasoning_tree_count"`
 }
 type ResearchThemeImpact struct {
-	ChainNodeEntityID           string  `json:"chain_node_entity_id"`
-	Name                        string  `json:"name"`
-	RelationRole                string  `json:"relation_role"`
-	ImpactDirection             string  `json:"impact_direction"`
-	ImpactSummary               *string `json:"impact_summary"`
-	PrimarySignalDisplaySummary *string `json:"primary_signal_display_summary"`
-	DisplayOrder                int     `json:"display_order"`
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	Name              string  `json:"name"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 type ResearchThemeDetailResponse struct {
 	ResearchThemeItem

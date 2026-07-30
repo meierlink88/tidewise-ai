@@ -41,13 +41,12 @@ type wireResearchTheme struct {
 	ReasoningTreeCount        int                       `json:"reasoning_tree_count"`
 }
 type wireResearchThemeImpact struct {
-	ChainNodeEntityID           string  `json:"chain_node_entity_id"`
-	Name                        string  `json:"name"`
-	RelationRole                string  `json:"relation_role"`
-	ImpactDirection             string  `json:"impact_direction"`
-	ImpactSummary               *string `json:"impact_summary"`
-	PrimarySignalDisplaySummary *string `json:"primary_signal_display_summary"`
-	DisplayOrder                int     `json:"display_order"`
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	Name              string  `json:"name"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 type wireResearchThemeDetail struct {
 	Theme  wireResearchTheme   `json:"theme"`
@@ -157,7 +156,7 @@ func (v wireResearchTheme) toBiz() biz.ResearchTheme {
 	}
 }
 func (v wireResearchThemeImpact) toBiz() biz.ResearchThemeImpact {
-	return biz.ResearchThemeImpact{ChainNodeEntityID: v.ChainNodeEntityID, Name: v.Name, RelationRole: v.RelationRole, ImpactDirection: v.ImpactDirection, ImpactSummary: v.ImpactSummary, PrimarySignalDisplaySummary: v.PrimarySignalDisplaySummary, DisplayOrder: v.DisplayOrder}
+	return biz.ResearchThemeImpact{ChainNodeEntityID: v.ChainNodeEntityID, Name: v.Name, RelationRole: v.RelationRole, ImpactDirection: v.ImpactDirection, ImpactSummary: v.ImpactSummary, DisplayOrder: v.DisplayOrder}
 }
 func (v wireResearchEvent) toBiz() biz.ResearchEvent {
 	return biz.ResearchEvent{EventID: v.EventID, Title: v.Title, Summary: v.Summary, EventTime: v.EventTime, EvidenceRole: v.EvidenceRole, SupportedClaim: v.SupportedClaim, DisplayOrder: v.DisplayOrder}

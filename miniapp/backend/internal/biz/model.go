@@ -43,7 +43,7 @@ type ResearchTheme struct {
 
 type ResearchThemeImpact struct {
 	ChainNodeEntityID, Name, RelationRole, ImpactDirection string
-	ImpactSummary, PrimarySignalDisplaySummary             *string
+	ImpactSummary                                          *string
 	DisplayOrder                                           int
 }
 

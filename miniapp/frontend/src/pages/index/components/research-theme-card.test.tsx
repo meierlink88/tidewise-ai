@@ -39,7 +39,7 @@ describe('ResearchThemeCard', () => {
     expect(nodes).toHaveLength(3);
     expect(textContent(nodes[0])).toContain('交换机');
     expect(textContent(nodes[0])).toContain('机会');
-    expect(textContent(nodes[0])).toContain('端口计划：增加 80%');
+    expect(textContent(nodes[0])).not.toContain('端口计划：增加 80%');
     expect(textContent(card)).toContain(theme.oneLineConclusion);
     expect(textContent(card)).toContain(theme.transmissionSummary);
     expect(textContent(card)).toContain(theme.investmentGuidanceSummary);
@@ -66,7 +66,6 @@ describe('ResearchThemeCard', () => {
         chainNodeEntityId: '44444444-4444-4444-8444-444444444444',
         name: '存储芯片封测',
         impactDirection: 'uncertain' as const,
-        primarySignalDisplaySummary: '订单需求：尚待确认',
         displayOrder: 3
       },
       {
@@ -74,7 +73,6 @@ describe('ResearchThemeCard', () => {
         chainNodeEntityId: '55555555-5555-4555-8555-555555555555',
         name: '服务器存储采购',
         impactDirection: 'negative' as const,
-        primarySignalDisplaySummary: '采购成本：可能上升',
         displayOrder: 4
       },
       {
@@ -82,7 +80,6 @@ describe('ResearchThemeCard', () => {
         chainNodeEntityId: '66666666-6666-4666-8666-666666666666',
         name: '手机存储采购',
         impactDirection: 'mixed' as const,
-        primarySignalDisplaySummary: '采购价格：方向分化',
         displayOrder: 5
       }
     ];
@@ -92,28 +89,23 @@ describe('ResearchThemeCard', () => {
 
     expect(nodes).toHaveLength(5);
     expect(nodes.map(textContent)).toEqual([
-      '交换机机会端口计划：增加 80%',
-      '高速光模块机会模块需求：可能增加',
-      '存储芯片封测不确定订单需求：尚待确认',
-      '服务器存储采购风险采购成本：可能上升',
-      '手机存储采购不确定采购价格：方向分化'
+      '交换机机会',
+      '高速光模块机会',
+      '存储芯片封测不确定',
+      '服务器存储采购风险',
+      '手机存储采购不确定'
     ]);
     expect(findAllByClass(card, 'theme-card__outlook--opportunity')).toHaveLength(2);
     expect(findAllByClass(card, 'theme-card__outlook--risk')).toHaveLength(1);
     expect(findAllByClass(card, 'theme-card__outlook--uncertain')).toHaveLength(2);
   });
 
-  it('does not invent a variable status for an immutable legacy impact', () => {
-    const card = ResearchThemeCard({
-      theme: {
-        ...theme,
-        impacts: [{ ...theme.impacts[0], primarySignalDisplaySummary: null }]
-      }
-    });
-
+  it('does not display Theme Impact summaries as a focus-node variable status', () => {
+    const card = ResearchThemeCard({ theme });
     expect(textContent(findByClass(card, 'theme-card__node'))).toBe('交换机机会');
+    expect(textContent(card)).not.toContain('端口计划：增加 80%');
+    expect(textContent(card)).not.toContain('端口计划增加可能提高交换机需求。');
     expect(textContent(card)).not.toContain('变量状态');
-    expect(textContent(card)).not.toContain('暂无');
   });
 
   it('shows a stable message when Taro rejects navigation', async () => {

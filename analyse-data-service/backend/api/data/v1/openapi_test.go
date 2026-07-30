@@ -290,7 +290,7 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 	assertStringSet(t, object(t, themeProperties["transmission_stage"], "transmission_stage")["enum"], "identification", "validation", "diffusion", "dampening")
 
 	impact := schema(t, document, "ResearchThemeImportImpact")
-	assertRequired(t, impact, "chain_node_entity_id", "relation_role", "impact_direction", "impact_summary", "primary_signal_display_summary", "display_order")
+	assertRequired(t, impact, "chain_node_entity_id", "relation_role", "impact_direction", "impact_summary", "display_order")
 	lowercaseUUID := schema(t, document, "LowercaseUUID")
 	assertString(t, lowercaseUUID, "pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_entity_id"], "chain_node_entity_id"), "$ref", "#/components/schemas/LowercaseUUID")

@@ -42,7 +42,7 @@ export default function ResearchReasoningTreesPage() {
             <Text className='reasoning-page__back-icon'>‹</Text>
             <Text>返回</Text>
           </Button>
-          <Text className='reasoning-page__nav-title'>影响路径</Text>
+          <Text className='reasoning-page__nav-title'>推理分析</Text>
           <View className='reasoning-page__nav-spacer' />
         </View>
       </View>
@@ -114,7 +114,7 @@ export function IndexContent({
                   scrollToReasoningTreeStart();
                 }}
               >
-                {tree.title}
+                {tree.industryChainName}
               </Button>
             ))}
           </View>

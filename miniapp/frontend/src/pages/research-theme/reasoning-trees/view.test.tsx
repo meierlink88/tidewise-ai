@@ -24,11 +24,10 @@ describe('ReasoningTreeView', () => {
     const markup = renderToStaticMarkup(<ReasoningThemeHero theme={theme} />);
 
     expect(markup).toContain('中等影响');
-    expect(markup).toContain(theme.title);
+    expect(markup).not.toContain(theme.title);
     expect(markup).toContain(theme.oneLineConclusion);
     expect(markup).toContain(theme.transmissionSummary);
-    expect(markup).toContain('主题传导摘要');
-    expect(markup).not.toContain('Theme 传导摘要');
+    expect(markup).not.toContain('主题传导摘要');
     expect(markup).toContain('07-28 08:05 发布');
   });
 
@@ -44,17 +43,22 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain(detail.reasoningTree.supportSummary);
     expect(markup).toContain(detail.reasoningTree.counterSummary);
     expect(markup).not.toContain(detail.reasoningTree.transmissionSummary);
-    expect(markup).toContain(detail.reasoningTree.impactSummary);
+    expect(markup).toContain('3 个机会 · 0 个风险 · 0 个不确定');
     expect(markup).toContain(detail.reasoningTree.conclusionBoundarySummary);
     expect(countClass(markup, 'reasoning-chain-node')).toBe(3);
     expect(countClass(markup, 'reasoning-chain-edge')).toBe(2);
     expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual([
       '节点 01',
       '节点 02',
-      '节点 03 · 结果'
+      '节点 03'
     ]);
     expect(countClass(markup, 'reasoning-chain-node__signal-slot')).toBe(3);
-    expect(countClass(markup, 'reasoning-chain-node__direction--increase')).toBe(3);
+    expect(classTextContents(markup, 'reasoning-chain-node__direction')).toEqual([
+      '端口计划 +80%',
+      '模块需求 ↑',
+      '备料需求 ↑'
+    ]);
+    expect(countClass(markup, 'reasoning-chain-node__judgment')).toBe(3);
     expect(countClass(markup, 'reasoning-chain-node__strength')).toBe(3);
     expect(classTextContents(markup, 'reasoning-chain-node__strength')).toEqual([
       '中等影响',
@@ -66,16 +70,15 @@ describe('ReasoningTreeView', () => {
     expect(markup).not.toContain(selected.reasoningBasisSummary);
     expect(markup).toContain('产业链节点传导');
     expect(markup).toContain('reasoning-chain-node--selected');
-    expect(markup).toContain('节点 03 · 结果节点');
+    expect(markup).toContain('节点 03');
     expect(markup).toContain(selected.name);
     expect(markup).toContain(selected.primarySignal.displaySummary);
     expect(markup).toContain(selected.incomingTransmissionTitle);
     expect(markup).toContain(selected.incomingTransmissionMechanism);
     expect(markup).toContain(selected.incomingConditionSummary);
-    expect(markup).toContain('节点 02 → 节点 03');
+    expect(markup).not.toContain('节点 02 → 节点 03');
     expect(markup).not.toContain(nodes[1].incomingTransmissionTitle);
     expect(markup).not.toContain('影响状态');
-    expect(markup).not.toContain('变量状态');
     expect(markup).not.toContain('变量信号');
     expect(markup).not.toContain('推导依据');
     expect(markup).not.toContain('数据缺口');
@@ -89,6 +92,63 @@ describe('ReasoningTreeView', () => {
     for (const checkpoint of detail.reasoningTree.checkpoints) {
       expect(markup).toContain(checkpoint.summary);
     }
+  });
+
+  it('shows every selected-node signal as variable state and keeps investment meaning separate', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const nodes = detail.reasoningTree.nodes.map((node, index) =>
+      index === detail.reasoningTree.nodes.length - 1
+        ? {
+            ...node,
+            impactSummary: '备料需求可能释放，DSP 芯片节点值得进一步关注。'
+          }
+        : node
+    );
+    const markup = renderToStaticMarkup(
+      <ReasoningTreeView
+        detail={{ ...detail, reasoningTree: { ...detail.reasoningTree, nodes } }}
+      />
+    );
+
+    expect(markup).toContain('变量状态');
+    expect(markup).toContain('备料需求 ↑');
+    expect(markup).toContain('模块排产待确认');
+    expect(markup).toContain('DSP 用量待确认');
+    expect(markup).toContain('投资含义');
+    expect(markup).toContain('备料需求可能释放，DSP 芯片节点值得进一步关注。');
+    expect(classTextContents(markup, 'reasoning-node-detail__signal-summary')).toEqual([
+      '备料需求 ↑',
+      '模块排产待确认',
+      'DSP 用量待确认'
+    ]);
+  });
+
+  it('renders opportunity, risk, and uncertain judgments without internal path roles', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const directions = ['positive', 'negative', 'uncertain'] as const;
+    const nodes = detail.reasoningTree.nodes.map((node, index) => ({
+      ...node,
+      impactDirection: directions[index]
+    }));
+    const markup = renderToStaticMarkup(
+      <ReasoningTreeView
+        detail={{ ...detail, reasoningTree: { ...detail.reasoningTree, nodes } }}
+      />
+    );
+
+    expect(classTextContents(markup, 'reasoning-chain-node__judgment')).toEqual([
+      '机会',
+      '风险',
+      '不确定'
+    ]);
+    expect(classTextContents(markup, 'reasoning-node-detail__judgment')).toEqual(['不确定']);
+    expect(markup).toContain('1 个机会 · 1 个风险 · 1 个不确定');
+    expect(markup).not.toContain('节点详情');
+    expect(markup).not.toContain('当前节点');
+    expect(markup).not.toContain('信号入口');
+    expect(markup).not.toContain('路径节点');
+    expect(markup).not.toContain('结果节点');
+    expect(markup).not.toContain('选择节点查看详情');
   });
 
   it('switches the selected detail and incoming transmission when a node card is clicked', () => {
@@ -113,7 +173,7 @@ describe('ReasoningTreeView', () => {
         onSelect={() => undefined}
       />
     );
-    expect(entryMarkup).toContain('节点 01 · 信号入口');
+    expect(entryMarkup).toContain('节点 01');
     expect(entryMarkup).toContain(nodes[0].primarySignal.displaySummary);
     expect(countClass(entryMarkup, 'reasoning-node-detail__mechanism')).toBe(0);
 
@@ -126,11 +186,11 @@ describe('ReasoningTreeView', () => {
         onSelect={() => undefined}
       />
     );
-    expect(downstreamMarkup).toContain('节点 02 · 路径节点');
+    expect(downstreamMarkup).toContain('节点 02');
     expect(downstreamMarkup).toContain(nodes[1].incomingTransmissionTitle);
     expect(downstreamMarkup).toContain(nodes[1].incomingTransmissionMechanism);
     expect(downstreamMarkup).toContain(nodes[1].incomingConditionSummary);
-    expect(downstreamMarkup).toContain('节点 01 → 节点 02');
+    expect(downstreamMarkup).not.toContain('节点 01 → 节点 02');
     expect(downstreamMarkup).not.toContain(nodes[2].incomingTransmissionTitle);
     expect(downstreamMarkup).not.toContain('component_of');
     expect(downstreamMarkup).not.toContain('approved');
@@ -157,7 +217,26 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain('暂无');
   });
 
-  it('shows a one-node Tree as both signal entry and result without a transmission mechanism', () => {
+  it('retains the event-fact section when the Tree has no event content', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const withoutEvents = {
+      ...detail,
+      reasoningTree: {
+        ...detail.reasoningTree,
+        factSummary: null,
+        eventCount: 0,
+        events: []
+      }
+    };
+
+    const markup = renderToStaticMarkup(<ReasoningTreeView detail={withoutEvents} />);
+
+    expect(markup).toContain('事件事实汇总');
+    expect(markup).toContain('0 条政经事件');
+    expect(markup).toContain('暂无事件事实');
+  });
+
+  it('shows a one-node Tree without fabricating a transmission mechanism or role label', () => {
     const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
     const oneNode = {
       ...detail,
@@ -169,8 +248,9 @@ describe('ReasoningTreeView', () => {
 
     const markup = renderToStaticMarkup(<ReasoningTreeView detail={oneNode} />);
 
-    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual(['节点 01 · 结果']);
-    expect(markup).toContain('信号入口 · 结果节点');
+    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual(['节点 01']);
+    expect(markup).not.toContain('信号入口');
+    expect(markup).not.toContain('结果节点');
     expect(countClass(markup, 'reasoning-node-detail__mechanism')).toBe(0);
     expect(markup).not.toContain('传导机制');
   });
@@ -198,10 +278,10 @@ function countClass(markup: string, className: string): number {
 }
 
 function classTextContents(markup: string, className: string): string[] {
-  const pattern = new RegExp(`<text class="${className}">([\\s\\S]*?)</text>`, 'g');
-  return [...markup.matchAll(pattern)].map((match) =>
-    match[1].replace(/<!--.*?-->/g, '').replace(/<[^>]+>/g, '')
-  );
+  const pattern = /<text class="([^"]*)">([\s\S]*?)<\/text>/g;
+  return [...markup.matchAll(pattern)]
+    .filter((match) => match[1].split(/\s+/).includes(className))
+    .map((match) => match[2].replace(/<!--.*?-->/g, '').replace(/<[^>]+>/g, ''));
 }
 
 interface TestElementProps {

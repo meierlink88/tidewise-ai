@@ -33,7 +33,6 @@ type ThemeRecord struct {
 
 type ImpactRecord struct {
 	ThemeID, ChainNodeEntityID, RelationRole, ImpactDirection string
-	PrimarySignalDisplaySummary                               string
 	ImpactSummary                                             *string
 	DisplayOrder                                              int
 }

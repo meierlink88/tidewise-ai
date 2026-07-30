@@ -73,13 +73,12 @@ type ResearchTheme struct {
 }
 
 type ResearchThemeImpact struct {
-	ChainNodeEntityID           string  `json:"chain_node_entity_id"`
-	Name                        string  `json:"name"`
-	RelationRole                string  `json:"relation_role"`
-	ImpactDirection             string  `json:"impact_direction"`
-	ImpactSummary               *string `json:"impact_summary"`
-	PrimarySignalDisplaySummary *string `json:"primary_signal_display_summary"`
-	DisplayOrder                int     `json:"display_order"`
+	ChainNodeEntityID string  `json:"chain_node_entity_id"`
+	Name              string  `json:"name"`
+	RelationRole      string  `json:"relation_role"`
+	ImpactDirection   string  `json:"impact_direction"`
+	ImpactSummary     *string `json:"impact_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 
 type ResearchThemeDetail struct {
@@ -267,9 +266,7 @@ func impactDTOs(values []ThemeImpactRecord) []ResearchThemeImpact {
 		result = append(result, ResearchThemeImpact{
 			ChainNodeEntityID: value.ChainNodeEntityID, Name: value.Name,
 			RelationRole: value.RelationRole, ImpactDirection: value.ImpactDirection,
-			ImpactSummary:               value.ImpactSummary,
-			PrimarySignalDisplaySummary: value.PrimarySignalDisplaySummary,
-			DisplayOrder:                value.DisplayOrder,
+			ImpactSummary: value.ImpactSummary, DisplayOrder: value.DisplayOrder,
 		})
 	}
 	return result

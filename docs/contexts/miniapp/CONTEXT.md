@@ -43,8 +43,9 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - **推理主线**：研究主题在 Miniapp 面向用户展示时使用的产品名称，不是另一种数据实体。
 - **主题卡片**：首页列表中呈现一条推理主线的界面单元，不拥有独立于研究主题的业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
-- **主题影响（Theme Impact）**：Theme 关注的 Chain Node 集合，节点之间没有主次；
-  首页按 Data 稳定顺序展示名称、机会/风险/不确定判断及正式主变量状态快照。
+- **主题影响（Theme Impact）**：Theme 关注的 Chain Node 集合，节点之间没有主次；首页按
+  Data 稳定顺序展示名称及由 `impact_direction` 机械映射的机会/风险/不确定判断，不展示
+  `relation_role`、`impact_summary` 或变量状态。
 - **影响路径页**：从首页 Theme 卡片进入的研究依据页。一个 Theme 页面可包含多棵 Reason Tree，每棵 Tree 对应一条 Industry Chain 推导链路，页面通过 Tab 切换。
 - **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。首页不依赖 Reason Tree 发布状态；零 Tree Theme 仍保留入口，由影响路径页展示“影响路径暂未生成”。
 
@@ -79,15 +80,17 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 
 ## Reasoning Tree Page Presentation
 
-- Reason Tree Tab 栏吸顶，Theme 顶部信息正常滚出屏幕；切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
-- 原子事件按 BFF 稳定顺序全部展示，不折叠；每条显示标题、摘要、可用时间与驱动/支持/反证/背景角色标签。
+- 页面视觉与交互唯一基准为 `prototype/theme-direct-impact-investment-outlook-prototype.html`；原型业务文本仅为样例，正式页面全部由 API 数据生成。
+- Reason Tree Tab 使用产业链名称；切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
+- 原子事件按 BFF 稳定顺序全部展示，不折叠；每条显示标题、摘要和可用时间，不展示内部证据角色。
 - 当前支持与当前反证是 Tree 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
-- 产业链路径使用横向 ScrollView 展示全部紧凑节点与箭头，默认选择最大 `position` 的结果节点；选择节点只更新下方单个详情面板。
-- 结果节点只由路径位置派生；Theme Impact 身份只由节点 ID 与父 Theme Impact ID 集合相交得到，不保存 primary/subject/result 标记。
-- 紧凑节点只展示节点序号/名称、primary Signal `display_summary`、影响强度和选择状态，不展示数据缺口等长文案。
-- 节点详情只展示节点序号/角色、名称、primary Signal `display_summary`；位置大于 1 时继续展示所选节点的 `incoming_*` 传导机制，首节点不展示或伪造传入关系。
+- 产业链路径使用横向 ScrollView 展示全部紧凑节点与箭头，默认选择最大 `position` 节点；选择节点只更新下方单个详情面板。
+- 紧凑节点只展示节点序号/名称、primary Signal `display_summary`、机会/风险/不确定判断和影响强度，不展示第二个 Signal、数据缺口或选择状态文案。
+- 节点详情展示节点序号/名称、机会/风险/不确定判断、影响强度、完整有序 `signals[]` 变量状态和节点 `impact_summary` 投资含义；不展示 Signal 内部角色。
+- 位置大于 1 时继续展示所选节点的真实 `incoming_*` 传导标题、机制和成立条件；首节点不展示或伪造传入关系。
+- 页面不展示“直接影响节点”“后续推导节点”“直接/间接”“信号入口”“路径节点”“结果节点”“变量信号”“推导依据”“数据缺口”或派生的节点路由标签。
 - “判断边界”只展示 `conclusion_boundary_summary`；“后续验证”按分析师顺序展示完整 `checkpoints[].summary`，不与 `invalidation_conditions` 按索引组合。
-- 所有已展示的研究文本自然换行并完整展示，不使用省略号截断；未展示的 Signal、Impact、Evidence、依据、缺口、失效条件与强血缘继续保留在现有合同中。
+- 所有已展示的研究文本自然换行并完整展示，不使用省略号截断；未展示的 Evidence、依据、缺口、失效条件与强血缘继续保留在现有合同中。
 
 ## Frontend Mock Policy
 

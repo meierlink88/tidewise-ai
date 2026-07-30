@@ -58,11 +58,6 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
                 <Text className={`theme-card__outlook theme-card__outlook--${outlook}`}>
                   {researchNodeOutlookLabel(outlook)}
                 </Text>
-                {node.primarySignalDisplaySummary ? (
-                  <Text className='theme-card__node-summary'>
-                    {node.primarySignalDisplaySummary}
-                  </Text>
-                ) : null}
               </View>
             );
           })}

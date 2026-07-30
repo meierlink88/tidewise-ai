@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,7 +13,6 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
 
 func TestResearchThemeImportMapsV1Contract(t *testing.T) {
@@ -39,8 +37,7 @@ func TestResearchThemeImportMapsV1Contract(t *testing.T) {
 			InvestmentGuidanceSummary: "Watch orders", TimeHorizonCategory: "short_term",
 			Impacts: []v1.ResearchThemeImportImpact{{
 				ChainNodeEntityID: "11111111-1111-4111-8111-111111111111",
-				RelationRole:      "beneficiary", ImpactDirection: "positive",
-				PrimarySignalDisplaySummary: "Demand: rises", DisplayOrder: 1,
+				RelationRole:      "beneficiary", ImpactDirection: "positive", DisplayOrder: 1,
 			}},
 		},
 		ReasoningTrees: []v1.ResearchReasoningTreeImportItem{{
@@ -132,62 +129,6 @@ func TestResearchThemePublicationReferenceErrorMapsToHTTP422(t *testing.T) {
 		envelope.Error.Details["path"] != referenceError.Path ||
 		envelope.Error.Details["reference"] != referenceError.Reference {
 		t.Fatalf("envelope = %#v", envelope)
-	}
-}
-
-func TestResearchThemePublicationRejectsUntrimmedPrimarySignalSummaryAsHTTP400(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-	}{
-		{name: "leading whitespace", value: " Demand: rises"},
-		{
-			name:  "trimmed value at limit but original over limit",
-			value: " " + strings.Repeat("x", 200),
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			batch := researchthemeimport.Batch{
-				AnalysisBatchID: "batch",
-				AnalysisAsOf:    "2026-07-28T00:00:00Z",
-				WindowStart:     "2026-07-27T00:00:00Z",
-				WindowEnd:       "2026-07-28T00:00:00Z",
-				Themes: []researchthemeimport.Theme{{
-					ThemeKey:                  "ai",
-					Title:                     "AI infrastructure",
-					OneLineConclusion:         "Demand rises",
-					ConclusionDirection:       "positive",
-					ImpactStrength:            "medium",
-					TransmissionStage:         "validation",
-					InvestmentGuidanceAction:  "focus",
-					InvestmentGuidanceSummary: "Watch orders",
-					TimeHorizonCategory:       "short_term",
-					Impacts: []researchthemeimport.Impact{{
-						ChainNodeEntityID:           "11111111-1111-4111-8111-111111111111",
-						RelationRole:                "beneficiary",
-						ImpactDirection:             "positive",
-						PrimarySignalDisplaySummary: test.value,
-						DisplayOrder:                1,
-					}},
-				}},
-			}
-			_, validationErr := batch.Validate()
-			var validation *researchthemeimport.ValidationError
-			if !errors.As(validationErr, &validation) {
-				t.Fatalf("Validate() error = %T %v, want Theme ValidationError", validationErr, validationErr)
-			}
-
-			mapped := researchThemeImportError(validationErr)
-			var public *v1.PublicError
-			if !errors.As(mapped, &public) {
-				t.Fatalf("mapped error = %T %v, want PublicError", mapped, mapped)
-			}
-			if public.Status != http.StatusBadRequest ||
-				public.Code != "RESEARCH_THEME_IMPORT_REJECTED" {
-				t.Fatalf("mapped error = %#v, want HTTP 400 contract rejection", public)
-			}
-		})
 	}
 }
 
