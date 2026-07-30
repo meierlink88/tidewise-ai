@@ -35,6 +35,16 @@ func (s *DataService) ListResearchAnalysisContext(
 		},
 	)
 	if err != nil {
+		if errors.Is(err, researchanalysiscontext.ErrReferenceClosureInconsistent) {
+			return nil, publicErrorWithDetails(
+				v1.StatusConflict,
+				"RESEARCH_ANALYSIS_CONTEXT_INCONSISTENT",
+				"Research Analysis Context references changed during the live query",
+				v1.ResearchAnalysisContextInconsistentDetails{
+					RetryGuidance: "restart_from_first_page",
+				},
+			)
+		}
 		if errors.Is(err, researchanalysiscontext.ErrHistoricalSemanticsUnavailable) {
 			return nil, publicError(
 				v1.StatusUnprocessableEntity,
@@ -52,10 +62,18 @@ func (s *DataService) ListResearchAnalysisContext(
 		}
 		var resourceLimit *researchanalysiscontext.ResourceLimitError
 		if errors.As(err, &resourceLimit) {
-			return nil, publicError(
+			return nil, publicErrorWithDetails(
 				v1.StatusTooManyRequests,
 				"RESEARCH_ANALYSIS_CONTEXT_RESOURCE_LIMIT",
 				resourceLimit.Reason,
+				researchResourceLimitDetails(
+					resourceLimit.Component,
+					resourceLimit.ActualRows,
+					resourceLimit.MaxRows,
+					resourceLimit.ActualBytes,
+					resourceLimit.MaxBytes,
+					resourceLimit.RetryGuidance,
+				),
 			)
 		}
 		return nil, publicError(
@@ -75,6 +93,24 @@ func (s *DataService) ListResearchAnalysisContext(
 	return &v1.Response[v1.ResearchAnalysisContext]{Status: v1.StatusOK, Result: dto}, nil
 }
 
+func researchResourceLimitDetails(
+	component string,
+	actualRows *int64,
+	maxRows *int64,
+	actualBytes *int64,
+	maxBytes *int64,
+	retryGuidance string,
+) v1.ResearchResourceLimitDetails {
+	return v1.ResearchResourceLimitDetails{
+		Component:     component,
+		ActualRows:    actualRows,
+		MaxRows:       maxRows,
+		ActualBytes:   actualBytes,
+		MaxBytes:      maxBytes,
+		RetryGuidance: retryGuidance,
+	}
+}
+
 func researchAnalysisContextDTO(
 	result researchanalysiscontext.Result,
 ) (v1.ResearchAnalysisContext, error) {
@@ -87,19 +123,21 @@ func researchAnalysisContextDTO(
 		return v1.ResearchAnalysisContext{}, err
 	}
 	return v1.ResearchAnalysisContext{
-		ContractVersion:        result.ContractVersion,
-		TemporalSemantics:      result.TemporalSemantics,
-		TemporalLimitation:     result.TemporalLimitation,
-		DictionaryFingerprint:  result.DictionaryFingerprint,
-		DiscoveryWindowStart:   result.DiscoveryWindowStart,
-		DiscoveryWindowEnd:     result.DiscoveryWindowEnd,
-		AnalysisAsOf:           result.AnalysisAsOf,
-		PredictionHorizonStart: result.PredictionHorizonStart,
-		PredictionHorizonEnd:   result.PredictionHorizonEnd,
-		EventSemanticBundles:   bundles,
-		Dictionaries:           dictionaries,
-		NextCursor:             result.NextCursor,
-		HasMore:                result.HasMore,
+		ContractVersion:             result.ContractVersion,
+		TBoxContractVersion:         result.TBoxContractVersion,
+		TemporalSemantics:           result.TemporalSemantics,
+		TemporalLimitation:          result.TemporalLimitation,
+		EventPageFingerprint:        result.EventPageFingerprint,
+		ReferenceClosureFingerprint: result.ReferenceClosureFingerprint,
+		DiscoveryWindowStart:        result.DiscoveryWindowStart,
+		DiscoveryWindowEnd:          result.DiscoveryWindowEnd,
+		AnalysisAsOf:                result.AnalysisAsOf,
+		PredictionHorizonStart:      result.PredictionHorizonStart,
+		PredictionHorizonEnd:        result.PredictionHorizonEnd,
+		EventSemanticBundles:        bundles,
+		Dictionaries:                dictionaries,
+		NextCursor:                  result.NextCursor,
+		HasMore:                     result.HasMore,
 	}, nil
 }
 

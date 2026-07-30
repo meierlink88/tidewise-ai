@@ -34,6 +34,7 @@ type DataHTTPServer interface {
 	SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*Response[EventSemanticSubmissionResult], error)
 	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error)
 	ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error)
+	SearchResearchGraph(context.Context, *ResearchGraphSearchRequest) (*Response[ResearchGraphSearchResult], error)
 }
 
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
@@ -56,6 +57,24 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.POST("/event-semantics/submissions/{submission_id}/reviews", submitEventSemanticReviewHandler(application))
 	router.GET("/events/{event_id}/semantics", getEventSemanticsHandler(application))
 	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
+	router.POST("/research-graph:search", searchResearchGraphHandler(application))
+}
+
+func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request, err := decodeEventSemanticJSON[ResearchGraphSearchRequest](ctx)
+		if err != nil {
+			return err
+		}
+		return call(
+			ctx,
+			OperationSearchResearchGraph,
+			request,
+			func(callContext context.Context) (*Response[ResearchGraphSearchResult], error) {
+				return application.SearchResearchGraph(callContext, request)
+			},
+		)
+	}
 }
 
 func listResearchAnalysisContextHandler(application DataHTTPServer) kratoshttp.HandlerFunc {

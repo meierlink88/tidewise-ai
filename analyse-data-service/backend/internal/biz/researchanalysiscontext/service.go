@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 
 const (
 	ContractVersion             = "research-analysis-context.v1"
+	TBoxContractVersion         = "event-semantics.phase-one@1"
+	StableOrderingVersion       = "knowledge-available-at-event-id.v1"
 	TemporalSemantics           = "retrospective_reconstruction"
 	TemporalLimitation          = "Event semantics are filtered by analysis_as_of; TBox and relationship dictionaries are a current-state reconstruction and do not claim strict historical replay"
 	MaxDiscoveryWindow          = 366 * 24 * time.Hour
@@ -37,19 +40,21 @@ type Request struct {
 }
 
 type Result struct {
-	ContractVersion        string                `json:"contract_version"`
-	TemporalSemantics      string                `json:"temporal_semantics"`
-	TemporalLimitation     string                `json:"temporal_limitation"`
-	DictionaryFingerprint  string                `json:"dictionary_fingerprint"`
-	DiscoveryWindowStart   string                `json:"discovery_window_start"`
-	DiscoveryWindowEnd     string                `json:"discovery_window_end"`
-	AnalysisAsOf           string                `json:"analysis_as_of"`
-	PredictionHorizonStart *string               `json:"prediction_horizon_start,omitempty"`
-	PredictionHorizonEnd   *string               `json:"prediction_horizon_end,omitempty"`
-	EventSemanticBundles   []EventSemanticBundle `json:"event_semantic_bundles"`
-	Dictionaries           Dictionaries          `json:"dictionaries"`
-	NextCursor             string                `json:"next_cursor,omitempty"`
-	HasMore                bool                  `json:"has_more"`
+	ContractVersion             string                `json:"contract_version"`
+	TBoxContractVersion         string                `json:"tbox_contract_version"`
+	TemporalSemantics           string                `json:"temporal_semantics"`
+	TemporalLimitation          string                `json:"temporal_limitation"`
+	EventPageFingerprint        string                `json:"event_page_fingerprint"`
+	ReferenceClosureFingerprint string                `json:"reference_closure_fingerprint"`
+	DiscoveryWindowStart        string                `json:"discovery_window_start"`
+	DiscoveryWindowEnd          string                `json:"discovery_window_end"`
+	AnalysisAsOf                string                `json:"analysis_as_of"`
+	PredictionHorizonStart      *string               `json:"prediction_horizon_start,omitempty"`
+	PredictionHorizonEnd        *string               `json:"prediction_horizon_end,omitempty"`
+	EventSemanticBundles        []EventSemanticBundle `json:"event_semantic_bundles"`
+	Dictionaries                Dictionaries          `json:"dictionaries"`
+	NextCursor                  string                `json:"next_cursor,omitempty"`
+	HasMore                     bool                  `json:"has_more"`
 }
 
 type ValidationError struct {
@@ -57,7 +62,13 @@ type ValidationError struct {
 }
 
 type ResourceLimitError struct {
-	Reason string
+	Reason        string
+	Component     string
+	ActualRows    *int64
+	MaxRows       *int64
+	ActualBytes   *int64
+	MaxBytes      *int64
+	RetryGuidance string
 }
 
 func (e *ResourceLimitError) Error() string {
@@ -84,14 +95,12 @@ func (s *Service) List(ctx context.Context, request Request) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	var continuation *contextCursor
 	if request.Cursor != "" {
 		decoded, err := decodeCursor(request.Cursor)
-		if err != nil || decoded.Version != 1 ||
+		if err != nil || decoded.Version != 2 ||
 			decoded.Fingerprint != fingerprint {
 			return Result{}, &ValidationError{Reason: "cursor does not match the Analysis Context query"}
 		}
-		continuation = &decoded
 		after, err := parseUTC("cursor.knowledge_available_at", decoded.KnowledgeAvailableAt)
 		if err != nil || !identity.IsUUID(decoded.EventID) {
 			return Result{}, &ValidationError{Reason: "cursor is invalid"}
@@ -99,27 +108,26 @@ func (s *Service) List(ctx context.Context, request Request) (Result, error) {
 		query.AfterKnowledgeAvailableAt = &after
 		query.AfterEventID = decoded.EventID
 	}
-	page, err := s.store.List(ctx, query)
+	page, err := s.store.ListBundles(ctx, query)
 	if err != nil {
 		return Result{}, err
 	}
-	if !hashPattern(page.DictionaryFingerprint) {
-		return Result{}, errors.New("research Analysis Context dictionary fingerprint is invalid")
+	dictionaries, err := s.store.ReferenceClosure(
+		ctx,
+		buildReferenceClosureQuery(query.AnalysisAsOf, page.Bundles),
+	)
+	if err != nil {
+		return Result{}, err
 	}
+	page.Dictionaries = normalizeDictionaries(dictionaries)
 	if !researchContextReferencesResolve(page) {
-		return Result{}, ErrHistoricalSemanticsUnavailable
-	}
-	if continuation != nil &&
-		continuation.DictionaryFingerprint != page.DictionaryFingerprint {
-		return Result{}, &ValidationError{
-			Reason: "cursor is stale because the Analysis Context dictionary changed; restart from the first page",
-		}
+		return Result{}, ErrReferenceClosureInconsistent
 	}
 	result := Result{
 		ContractVersion:        ContractVersion,
+		TBoxContractVersion:    TBoxContractVersion,
 		TemporalSemantics:      TemporalSemantics,
 		TemporalLimitation:     TemporalLimitation,
-		DictionaryFingerprint:  page.DictionaryFingerprint,
 		DiscoveryWindowStart:   normalized.DiscoveryWindowStart,
 		DiscoveryWindowEnd:     normalized.DiscoveryWindowEnd,
 		AnalysisAsOf:           normalized.AnalysisAsOf,
@@ -135,7 +143,13 @@ func (s *Service) List(ctx context.Context, request Request) (Result, error) {
 	}
 	if len(dictionaryPayload) > MaxDictionaryBytes {
 		return Result{}, &ResourceLimitError{
-			Reason: "Research Analysis Context dictionaries exceed the response budget",
+			Reason:        "Research Analysis Context reference closure exceeds the response budget",
+			Component:     "reference_closure",
+			ActualRows:    int64Reference(int64(dictionaryRows(result.Dictionaries))),
+			MaxRows:       int64Reference(MaxDictionaryRows),
+			ActualBytes:   int64Reference(int64(len(dictionaryPayload))),
+			MaxBytes:      int64Reference(MaxDictionaryBytes),
+			RetryGuidance: "reduce_page_size",
 		}
 	}
 	pageBytes := len(dictionaryPayload)
@@ -150,16 +164,32 @@ func (s *Service) List(ctx context.Context, request Request) (Result, error) {
 		}
 		if len(bundlePayload) > MaxEventSemanticBundleBytes {
 			return Result{}, &ResourceLimitError{
-				Reason: "an Event Semantic Bundle exceeds the response budget",
+				Reason:        "an Event Semantic Bundle exceeds the response budget",
+				Component:     "event_semantic_bundle",
+				ActualBytes:   int64Reference(int64(len(bundlePayload))),
+				MaxBytes:      int64Reference(MaxEventSemanticBundleBytes),
+				RetryGuidance: "event_bundle_requires_provider_remediation",
 			}
 		}
 		pageBytes += len(bundlePayload)
 		if pageBytes > MaxPageBytes {
 			return Result{}, &ResourceLimitError{
-				Reason: "Research Analysis Context page exceeds the response budget",
+				Reason:        "Research Analysis Context page exceeds the response budget",
+				Component:     "analysis_context_page",
+				ActualBytes:   int64Reference(int64(pageBytes)),
+				MaxBytes:      int64Reference(MaxPageBytes),
+				RetryGuidance: "reduce_page_size",
 			}
 		}
 		result.EventSemanticBundles = append(result.EventSemanticBundles, bundle.Bundle)
+	}
+	result.EventPageFingerprint, err = payloadFingerprint(result.EventSemanticBundles)
+	if err != nil {
+		return Result{}, errors.New("research Analysis Context Event page is invalid")
+	}
+	result.ReferenceClosureFingerprint, err = payloadFingerprint(result.Dictionaries)
+	if err != nil {
+		return Result{}, errors.New("research Analysis Context reference closure is invalid")
 	}
 	if page.HasMore {
 		if len(page.Bundles) == 0 {
@@ -167,11 +197,10 @@ func (s *Service) List(ctx context.Context, request Request) (Result, error) {
 		}
 		last := page.Bundles[len(page.Bundles)-1]
 		result.NextCursor, err = encodeCursor(contextCursor{
-			Version:               1,
-			Fingerprint:           fingerprint,
-			DictionaryFingerprint: page.DictionaryFingerprint,
-			KnowledgeAvailableAt:  last.KnowledgeAvailableAt.UTC().Format(time.RFC3339Nano),
-			EventID:               last.EventID,
+			Version:              2,
+			Fingerprint:          fingerprint,
+			KnowledgeAvailableAt: last.KnowledgeAvailableAt.UTC().Format(time.RFC3339Nano),
+			EventID:              last.EventID,
 		})
 		if err != nil {
 			return Result{}, err
@@ -180,27 +209,123 @@ func (s *Service) List(ctx context.Context, request Request) (Result, error) {
 	return result, nil
 }
 
+func buildReferenceClosureQuery(
+	analysisAsOf time.Time,
+	bundles []BundleRecord,
+) ReferenceClosureQuery {
+	entityIDs := map[string]struct{}{}
+	relationIDs := map[string]struct{}{}
+	variableDefinitions := map[string]VersionedReference{}
+	rules := map[string]VersionedReference{}
+	submissionIDs := map[string]struct{}{}
+	for _, record := range bundles {
+		for _, link := range record.Bundle.EntityLinks {
+			entityIDs[link.EntityID] = struct{}{}
+			if link.SemanticSubmissionID != "" {
+				submissionIDs[link.SemanticSubmissionID] = struct{}{}
+			}
+		}
+		for _, signal := range record.Bundle.VariableSignals {
+			entityIDs[signal.SubjectEntityID] = struct{}{}
+			variable := VersionedReference{Key: signal.VariableKey, Version: signal.VariableVersion}
+			variableDefinitions[versionedKey(variable.Key, variable.Version)] = variable
+			if signal.SemanticSubmissionID != "" {
+				submissionIDs[signal.SemanticSubmissionID] = struct{}{}
+			}
+			for _, impact := range signal.DirectImpacts {
+				entityIDs[impact.TargetEntityID] = struct{}{}
+				affected := VersionedReference{
+					Key: impact.AffectedVariableKey, Version: impact.AffectedVariableVersion,
+				}
+				variableDefinitions[versionedKey(affected.Key, affected.Version)] = affected
+				if impact.EntityRelationID != nil {
+					relationIDs[*impact.EntityRelationID] = struct{}{}
+				}
+				if impact.RuleKey != nil && impact.RuleVersion != nil {
+					rule := VersionedReference{Key: *impact.RuleKey, Version: *impact.RuleVersion}
+					rules[versionedKey(rule.Key, rule.Version)] = rule
+				}
+				if impact.SemanticSubmissionID != "" {
+					submissionIDs[impact.SemanticSubmissionID] = struct{}{}
+				}
+			}
+		}
+	}
+	return ReferenceClosureQuery{
+		AnalysisAsOf:            analysisAsOf,
+		EntityIDs:               sortedSet(entityIDs),
+		EntityRelationIDs:       sortedSet(relationIDs),
+		VariableDefinitions:     sortedVersionedReferences(variableDefinitions),
+		DirectTransmissionRules: sortedVersionedReferences(rules),
+		SemanticSubmissionIDs:   sortedSet(submissionIDs),
+	}
+}
+
+func sortedSet(values map[string]struct{}) []string {
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func sortedVersionedReferences(
+	values map[string]VersionedReference,
+) []VersionedReference {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := make([]VersionedReference, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, values[key])
+	}
+	return result
+}
+
 func researchContextReferencesResolve(page StorePage) bool {
+	entityTypes := make(map[string]struct{}, len(page.Dictionaries.EntityTypeDefinitions))
+	for _, definition := range page.Dictionaries.EntityTypeDefinitions {
+		entityTypes[definition.TypeKey] = struct{}{}
+	}
 	entities := make(map[string]struct{}, len(page.Dictionaries.Entities))
 	for _, entity := range page.Dictionaries.Entities {
+		if !containsID(entityTypes, entity.EntityType) {
+			return false
+		}
 		entities[entity.EntityID] = struct{}{}
+	}
+	relationTypes := make(map[string]struct{}, len(page.Dictionaries.RelationDefinitions))
+	for _, definition := range page.Dictionaries.RelationDefinitions {
+		relationTypes[definition.RelationType] = struct{}{}
 	}
 	relations := make(map[string]EntityRelation, len(page.Dictionaries.EntityRelations))
 	for _, relation := range page.Dictionaries.EntityRelations {
 		if !containsID(entities, relation.FromEntityID) ||
-			!containsID(entities, relation.ToEntityID) {
+			!containsID(entities, relation.ToEntityID) ||
+			!containsID(relationTypes, relation.RelationType) {
 			return false
 		}
 		relations[relation.EntityRelationID] = relation
 	}
 	variables := make(map[string]struct{}, len(page.Dictionaries.VariableDefinitions))
 	for _, definition := range page.Dictionaries.VariableDefinitions {
+		for _, entityType := range definition.ApplicableEntityTypes {
+			if !containsID(entityTypes, entityType) {
+				return false
+			}
+		}
 		variables[versionedKey(definition.Key, definition.Version)] = struct{}{}
 	}
 	rules := make(map[string]struct{}, len(page.Dictionaries.DirectTransmissionRules))
 	for _, rule := range page.Dictionaries.DirectTransmissionRules {
 		if !containsID(variables, versionedKey(rule.SourceVariableKey, rule.SourceVariableVersion)) ||
-			!containsID(variables, versionedKey(rule.AffectedVariableKey, rule.AffectedVariableVersion)) {
+			!containsID(variables, versionedKey(rule.AffectedVariableKey, rule.AffectedVariableVersion)) ||
+			!containsID(entityTypes, rule.SourceEntityType) ||
+			!containsID(entityTypes, rule.TargetEntityType) ||
+			!containsID(relationTypes, rule.RelationType) {
 			return false
 		}
 		rules[versionedKey(rule.RuleKey, rule.Version)] = struct{}{}
@@ -211,6 +336,12 @@ func researchContextReferencesResolve(page StorePage) bool {
 			return false
 		}
 		chains[chain.IndustryChainEntityID] = struct{}{}
+	}
+	for _, entity := range page.Dictionaries.Entities {
+		if entity.EntityType == "industry_chain" &&
+			!containsID(chains, entity.EntityID) {
+			return false
+		}
 	}
 	memberships := make(map[string]struct{}, len(page.Dictionaries.IndustryChainMemberships))
 	for _, membership := range page.Dictionaries.IndustryChainMemberships {
@@ -335,7 +466,9 @@ func validateRequest(
 	}
 	if end.Sub(start) > MaxDiscoveryWindow {
 		return StoreQuery{}, normalizedRequest{}, "", &ResourceLimitError{
-			Reason: "discovery window exceeds the maximum technical budget of 366 days",
+			Reason:        "discovery window exceeds the maximum technical budget of 366 days",
+			Component:     "analysis_context_query",
+			RetryGuidance: "reduce_discovery_window",
 		}
 	}
 	if end.After(asOf) {
@@ -411,24 +544,70 @@ func parseUTC(name, value string) (time.Time, error) {
 
 func queryFingerprint(request normalizedRequest, pageSize int) string {
 	payload, _ := json.Marshal(struct {
-		ContractVersion string            `json:"contract_version"`
-		Request         normalizedRequest `json:"request"`
-		PageSize        int               `json:"page_size"`
+		ContractVersion       string            `json:"contract_version"`
+		TBoxContractVersion   string            `json:"tbox_contract_version"`
+		StableOrderingVersion string            `json:"stable_ordering_version"`
+		Request               normalizedRequest `json:"request"`
+		PageSize              int               `json:"page_size"`
 	}{
-		ContractVersion: ContractVersion,
-		Request:         request,
-		PageSize:        pageSize,
+		ContractVersion:       ContractVersion,
+		TBoxContractVersion:   TBoxContractVersion,
+		StableOrderingVersion: StableOrderingVersion,
+		Request:               request,
+		PageSize:              pageSize,
 	})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
 }
 
+func payloadFingerprint(value any) (string, error) {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func normalizeDictionaries(value Dictionaries) Dictionaries {
+	if value.Entities == nil {
+		value.Entities = []Entity{}
+	}
+	if value.RelationDefinitions == nil {
+		value.RelationDefinitions = []RelationDefinition{}
+	}
+	if value.EntityRelations == nil {
+		value.EntityRelations = []EntityRelation{}
+	}
+	if value.IndustryChains == nil {
+		value.IndustryChains = []IndustryChain{}
+	}
+	if value.IndustryChainMemberships == nil {
+		value.IndustryChainMemberships = []IndustryChainMembership{}
+	}
+	if value.IndustryChainGraphEdges == nil {
+		value.IndustryChainGraphEdges = []IndustryChainGraphEdge{}
+	}
+	if value.EntityTypeDefinitions == nil {
+		value.EntityTypeDefinitions = []EntityTypeDefinition{}
+	}
+	if value.VariableDefinitions == nil {
+		value.VariableDefinitions = []VariableDefinition{}
+	}
+	if value.DirectTransmissionRules == nil {
+		value.DirectTransmissionRules = []DirectTransmissionRule{}
+	}
+	if value.AcceptancePolicies == nil {
+		value.AcceptancePolicies = []AcceptancePolicy{}
+	}
+	return value
+}
+
 type contextCursor struct {
-	Version               int    `json:"v"`
-	Fingerprint           string `json:"fingerprint"`
-	DictionaryFingerprint string `json:"dictionary_fingerprint"`
-	KnowledgeAvailableAt  string `json:"knowledge_available_at"`
-	EventID               string `json:"event_id"`
+	Version              int    `json:"v"`
+	Fingerprint          string `json:"fingerprint"`
+	KnowledgeAvailableAt string `json:"knowledge_available_at"`
+	EventID              string `json:"event_id"`
 }
 
 func encodeCursor(cursor contextCursor) (string, error) {
@@ -453,16 +632,19 @@ func decodeCursor(raw string) (contextCursor, error) {
 	return cursor, nil
 }
 
-func hashPattern(value string) bool {
-	if len(value) != 64 {
-		return false
-	}
-	for _, character := range value {
-		if character < '0' || character > '9' {
-			if character < 'a' || character > 'f' {
-				return false
-			}
-		}
-	}
-	return true
+func dictionaryRows(value Dictionaries) int {
+	return len(value.Entities) +
+		len(value.RelationDefinitions) +
+		len(value.EntityRelations) +
+		len(value.IndustryChains) +
+		len(value.IndustryChainMemberships) +
+		len(value.IndustryChainGraphEdges) +
+		len(value.EntityTypeDefinitions) +
+		len(value.VariableDefinitions) +
+		len(value.DirectTransmissionRules) +
+		len(value.AcceptancePolicies)
+}
+
+func int64Reference(value int64) *int64 {
+	return &value
 }

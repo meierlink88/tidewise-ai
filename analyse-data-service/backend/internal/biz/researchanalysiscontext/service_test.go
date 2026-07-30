@@ -3,23 +3,31 @@ package researchanalysiscontext
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
 
-const testDictionaryFingerprint = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
 type contextStoreStub struct {
-	query StoreQuery
-	page  StorePage
+	query        StoreQuery
+	page         StorePage
+	dictionaries Dictionaries
 }
 
-func (s *contextStoreStub) List(
+func (s *contextStoreStub) ListBundles(
 	_ context.Context,
 	query StoreQuery,
 ) (StorePage, error) {
 	s.query = query
 	return s.page, nil
+}
+
+func (s *contextStoreStub) ReferenceClosure(
+	_ context.Context,
+	_ ReferenceClosureQuery,
+) (Dictionaries, error) {
+	return s.dictionaries, nil
 }
 
 func TestServiceReturnsStableCursorBoundToTheResearchWindow(t *testing.T) {
@@ -40,9 +48,7 @@ func TestServiceReturnsStableCursorBoundToTheResearchWindow(t *testing.T) {
 				}},
 			},
 		},
-		HasMore:               true,
-		Dictionaries:          Dictionaries{},
-		DictionaryFingerprint: testDictionaryFingerprint,
+		HasMore: true,
 	}}
 	service := NewService(store)
 	request := Request{
@@ -60,10 +66,7 @@ func TestServiceReturnsStableCursorBoundToTheResearchWindow(t *testing.T) {
 		t.Fatalf("first page = %#v", first)
 	}
 
-	store.page = StorePage{
-		Dictionaries:          Dictionaries{},
-		DictionaryFingerprint: testDictionaryFingerprint,
-	}
+	store.page = StorePage{}
 	request.Cursor = first.NextCursor
 	second, err := service.List(context.Background(), request)
 	if err != nil {
@@ -76,6 +79,41 @@ func TestServiceReturnsStableCursorBoundToTheResearchWindow(t *testing.T) {
 	}
 	if second.EventSemanticBundles == nil || second.HasMore || second.NextCursor != "" {
 		t.Fatalf("empty continuation = %#v", second)
+	}
+}
+
+func TestServiceReturnsVersionedPageAndReferenceClosureFingerprints(t *testing.T) {
+	store := &contextStoreStub{page: StorePage{
+		Bundles: []BundleRecord{},
+	}}
+	result, err := NewService(store).List(context.Background(), Request{
+		DiscoveryWindowStart: "2026-07-28T00:00:00Z",
+		DiscoveryWindowEnd:   "2026-07-29T00:00:00Z",
+		AnalysisAsOf:         "2026-07-29T00:00:00Z",
+		PageSize:             20,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ContractVersion != "research-analysis-context.v1" ||
+		result.TBoxContractVersion != "event-semantics.phase-one@1" {
+		t.Fatalf(
+			"versions = contract %q TBox %q",
+			result.ContractVersion,
+			result.TBoxContractVersion,
+		)
+	}
+	if !testHashPattern(result.EventPageFingerprint) ||
+		!testHashPattern(result.ReferenceClosureFingerprint) {
+		t.Fatalf(
+			"fingerprints = event %q closure %q",
+			result.EventPageFingerprint,
+			result.ReferenceClosureFingerprint,
+		)
+	}
+	if result.Dictionaries.Entities == nil ||
+		result.EventSemanticBundles == nil {
+		t.Fatalf("empty page must preserve empty arrays: %#v", result)
 	}
 }
 
@@ -121,8 +159,7 @@ func TestServiceRejectsInvalidResearchTimeBoundariesAndCursorMismatch(t *testing
 		Bundle: EventSemanticBundle{Event: Event{
 			ID: "11111111-1111-4111-8111-111111111111",
 		}},
-	}}, HasMore: true, Dictionaries: Dictionaries{},
-		DictionaryFingerprint: testDictionaryFingerprint}}
+	}}, HasMore: true}}
 	service = NewService(store)
 	first, err := service.List(context.Background(), valid)
 	if err != nil {
@@ -135,7 +172,7 @@ func TestServiceRejectsInvalidResearchTimeBoundariesAndCursorMismatch(t *testing
 	}
 }
 
-func TestServiceRejectsCursorAfterDictionaryVersionChanges(t *testing.T) {
+func TestServiceKeepsCursorValidAfterUnrelatedDictionaryChanges(t *testing.T) {
 	store := &contextStoreStub{page: StorePage{
 		Bundles: []BundleRecord{{
 			KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
@@ -144,9 +181,7 @@ func TestServiceRejectsCursorAfterDictionaryVersionChanges(t *testing.T) {
 				ID: "11111111-1111-4111-8111-111111111111",
 			}},
 		}},
-		Dictionaries:          Dictionaries{},
-		DictionaryFingerprint: testDictionaryFingerprint,
-		HasMore:               true,
+		HasMore: true,
 	}}
 	service := NewService(store)
 	request := Request{
@@ -160,12 +195,39 @@ func TestServiceRejectsCursorAfterDictionaryVersionChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	request.Cursor = first.NextCursor
-	store.page = StorePage{
-		Dictionaries:          Dictionaries{},
-		DictionaryFingerprint: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	store.page = StorePage{}
+	store.dictionaries = Dictionaries{Entities: []Entity{{
+		EntityID:   "33333333-3333-4333-8333-333333333333",
+		EntityType: "company",
+	}}, EntityTypeDefinitions: []EntityTypeDefinition{{
+		TypeKey: "company",
+	}}}
+	if _, err := service.List(context.Background(), request); err != nil {
+		t.Fatalf("cursor was invalidated by an unrelated dictionary change: %v", err)
 	}
-	if _, err := service.List(context.Background(), request); err == nil {
-		t.Fatal("cursor remained valid after the dictionary fingerprint changed")
+}
+
+func TestServiceRequiresEveryEntityTypeReferenceInThePageClosure(t *testing.T) {
+	store := &contextStoreStub{
+		page: StorePage{},
+		dictionaries: Dictionaries{
+			Entities: []Entity{{
+				EntityID:   "33333333-3333-4333-8333-333333333333",
+				EntityType: "company",
+			}},
+		},
+	}
+	request := Request{
+		DiscoveryWindowStart: "2026-07-28T00:00:00Z",
+		DiscoveryWindowEnd:   "2026-07-29T00:00:00Z",
+		AnalysisAsOf:         "2026-07-29T00:00:00Z",
+		PageSize:             20,
+	}
+
+	if _, err := NewService(store).List(context.Background(), request); !errors.Is(
+		err, ErrReferenceClosureInconsistent,
+	) {
+		t.Fatalf("error = %v, want unresolved EntityTypeDefinition", err)
 	}
 }
 
@@ -181,26 +243,22 @@ func TestServiceRejectsCursorWithInvalidTerminalEventID(t *testing.T) {
 		t.Fatal(err)
 	}
 	request.Cursor, err = encodeCursor(contextCursor{
-		Version:               1,
-		Fingerprint:           fingerprint,
-		DictionaryFingerprint: testDictionaryFingerprint,
-		KnowledgeAvailableAt:  "2026-07-28T09:00:00Z",
-		EventID:               "not-a-uuid",
+		Version:              1,
+		Fingerprint:          fingerprint,
+		KnowledgeAvailableAt: "2026-07-28T09:00:00Z",
+		EventID:              "not-a-uuid",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	store := &contextStoreStub{page: StorePage{
-		Dictionaries:          Dictionaries{},
-		DictionaryFingerprint: testDictionaryFingerprint,
-	}}
+	store := &contextStoreStub{page: StorePage{}}
 	if _, err := NewService(store).List(context.Background(), request); err == nil {
 		t.Fatal("cursor with an invalid terminal Event ID was accepted")
 	}
 }
 
-func TestServiceRejectsHistoricalBundleWithUnresolvableEntityReference(t *testing.T) {
+func TestServiceRequiresRestartWhenPageReferenceClosureIsInconsistent(t *testing.T) {
 	eventID := "11111111-1111-4111-8111-111111111111"
 	store := &contextStoreStub{page: StorePage{
 		Bundles: []BundleRecord{{
@@ -214,8 +272,6 @@ func TestServiceRejectsHistoricalBundleWithUnresolvableEntityReference(t *testin
 				}},
 			},
 		}},
-		Dictionaries:          Dictionaries{},
-		DictionaryFingerprint: testDictionaryFingerprint,
 	}}
 	request := Request{
 		DiscoveryWindowStart: "2026-07-28T00:00:00Z",
@@ -225,12 +281,106 @@ func TestServiceRejectsHistoricalBundleWithUnresolvableEntityReference(t *testin
 	}
 
 	if _, err := NewService(store).List(context.Background(), request); !errors.Is(
-		err, ErrHistoricalSemanticsUnavailable,
+		err, ErrReferenceClosureInconsistent,
 	) {
-		t.Fatalf("error = %v, want historical semantics unavailable", err)
+		t.Fatalf("error = %v, want reference closure inconsistency", err)
+	}
+}
+
+func TestServiceFailsClosedForBundleClosureAndPageBudgets(t *testing.T) {
+	request := Request{
+		DiscoveryWindowStart: "2026-07-28T00:00:00Z",
+		DiscoveryWindowEnd:   "2026-07-29T00:00:00Z",
+		AnalysisAsOf:         "2026-07-29T00:00:00Z",
+		PageSize:             20,
+	}
+	tests := []struct {
+		name          string
+		store         *contextStoreStub
+		wantComponent string
+	}{
+		{
+			name: "complete Event Bundle",
+			store: &contextStoreStub{page: StorePage{Bundles: []BundleRecord{{
+				KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
+				EventID:              "11111111-1111-4111-8111-111111111111",
+				Bundle: EventSemanticBundle{Event: Event{
+					ID:      "11111111-1111-4111-8111-111111111111",
+					Summary: strings.Repeat("x", MaxEventSemanticBundleBytes),
+				}},
+			}}}},
+			wantComponent: "event_semantic_bundle",
+		},
+		{
+			name: "page reference closure",
+			store: &contextStoreStub{dictionaries: Dictionaries{
+				Entities: []Entity{{
+					EntityID:   "33333333-3333-4333-8333-333333333333",
+					EntityType: "company",
+					Name:       strings.Repeat("x", MaxDictionaryBytes),
+				}},
+				EntityTypeDefinitions: []EntityTypeDefinition{{TypeKey: "company"}},
+			}},
+			wantComponent: "reference_closure",
+		},
+		{
+			name:          "encoded Analysis Context page",
+			store:         pageBudgetStore(),
+			wantComponent: "analysis_context_page",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewService(test.store).List(context.Background(), request)
+			var resourceLimit *ResourceLimitError
+			if !errors.As(err, &resourceLimit) ||
+				resourceLimit.Component != test.wantComponent ||
+				resourceLimit.ActualBytes == nil ||
+				resourceLimit.MaxBytes == nil {
+				t.Fatalf("error = %#v", err)
+			}
+		})
+	}
+}
+
+func pageBudgetStore() *contextStoreStub {
+	bundles := make([]BundleRecord, 0, 10)
+	for index := 1; index <= 10; index++ {
+		eventID := fmt.Sprintf("40000000-0000-4000-8000-%012d", index)
+		bundles = append(bundles, BundleRecord{
+			KnowledgeAvailableAt: time.Date(2026, 7, 28, index, 0, 0, 0, time.UTC),
+			EventID:              eventID,
+			Bundle: EventSemanticBundle{Event: Event{
+				ID: eventID, Summary: strings.Repeat("x", 450*1024),
+			}},
+		})
+	}
+	return &contextStoreStub{
+		page: StorePage{Bundles: bundles},
+		dictionaries: Dictionaries{
+			Entities: []Entity{{
+				EntityID:   "33333333-3333-4333-8333-333333333333",
+				EntityType: "company",
+				Name:       strings.Repeat("x", 3900*1024),
+			}},
+			EntityTypeDefinitions: []EntityTypeDefinition{{TypeKey: "company"}},
+		},
 	}
 }
 
 func stringPointer(value string) *string {
 	return &value
+}
+
+func testHashPattern(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, character := range value {
+		if (character < '0' || character > '9') &&
+			(character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
 }

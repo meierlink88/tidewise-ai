@@ -256,7 +256,10 @@ func testRequiredScope(method, path string) (string, bool) {
 		path == Namespace+"/research-reasoning-tree-imports"):
 		return ScopeResearchImport, true
 	case method == http.MethodGet && (path == Namespace+"/research/themes" ||
-		strings.HasPrefix(path, Namespace+"/research/themes/")):
+		strings.HasPrefix(path, Namespace+"/research/themes/") ||
+		path == Namespace+"/research-analysis-context"):
+		return ScopeResearchRead, true
+	case method == http.MethodPost && path == Namespace+"/research-graph:search":
 		return ScopeResearchRead, true
 	case method == http.MethodGet && (path == Namespace+"/raw-documents" || path == Namespace+"/events"):
 		return ScopeAdminRead, true

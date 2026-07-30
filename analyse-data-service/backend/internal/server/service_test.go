@@ -322,6 +322,9 @@ func (serverTestDataService) GetEventSemantics(context.Context, *dataapi.GetEven
 func (serverTestDataService) ListResearchAnalysisContext(context.Context, *dataapi.ResearchAnalysisContextRequest) (*dataapi.Response[dataapi.ResearchAnalysisContext], error) {
 	return serverTestResponse[dataapi.ResearchAnalysisContext]()
 }
+func (serverTestDataService) SearchResearchGraph(context.Context, *dataapi.ResearchGraphSearchRequest) (*dataapi.Response[dataapi.ResearchGraphSearchResult], error) {
+	return serverTestResponse[dataapi.ResearchGraphSearchResult]()
+}
 
 type principalRecordingDataService struct {
 	serverTestDataService

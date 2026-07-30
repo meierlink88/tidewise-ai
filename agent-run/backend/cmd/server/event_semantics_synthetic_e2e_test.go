@@ -474,9 +474,13 @@ func (s syntheticDataService) assertAnalysisContext(t *testing.T, ctx context.Co
 	defer response.Body.Close()
 	var envelope struct {
 		Result struct {
-			ContractVersion   string `json:"contract_version"`
-			TemporalSemantics string `json:"temporal_semantics"`
-			Bundles           []struct {
+			ContractVersion             string  `json:"contract_version"`
+			TBoxContractVersion         string  `json:"tbox_contract_version"`
+			TemporalSemantics           string  `json:"temporal_semantics"`
+			EventPageFingerprint        string  `json:"event_page_fingerprint"`
+			ReferenceClosureFingerprint string  `json:"reference_closure_fingerprint"`
+			DictionaryFingerprint       *string `json:"dictionary_fingerprint"`
+			Bundles                     []struct {
 				Event struct {
 					ID string `json:"id"`
 				} `json:"event"`
@@ -501,8 +505,14 @@ func (s syntheticDataService) assertAnalysisContext(t *testing.T, ctx context.Co
 	}
 	if response.StatusCode != http.StatusOK ||
 		envelope.Result.ContractVersion != "research-analysis-context.v1" ||
+		envelope.Result.TBoxContractVersion == "" ||
 		envelope.Result.TemporalSemantics != "retrospective_reconstruction" {
 		t.Fatalf("Analysis Context status=%d result=%#v", response.StatusCode, envelope.Result)
+	}
+	if len(envelope.Result.EventPageFingerprint) != 64 ||
+		len(envelope.Result.ReferenceClosureFingerprint) != 64 ||
+		envelope.Result.DictionaryFingerprint != nil {
+		t.Fatalf("corrected Analysis Context v1 fingerprints = %#v", envelope.Result)
 	}
 	var acceptedFound, forecastFound bool
 	for _, bundle := range envelope.Result.Bundles {

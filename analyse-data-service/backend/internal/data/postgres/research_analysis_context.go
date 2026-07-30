@@ -3,7 +3,6 @@ package postgres
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -17,11 +16,145 @@ type ResearchAnalysisContextStore struct {
 	db *sql.DB
 }
 
+const referenceClosureCTE = `
+	WITH
+	requested_entities(id) AS (
+	    SELECT unnest($2::uuid[])
+	),
+	requested_relations(id) AS (
+	    SELECT unnest($3::uuid[])
+	),
+	requested_variables(variable_key, version) AS (
+	    SELECT *
+	    FROM unnest($4::text[], $5::integer[])
+	),
+	requested_rules(rule_key, version) AS (
+	    SELECT *
+	    FROM unnest($6::text[], $7::integer[])
+	),
+	requested_submissions(id) AS (
+	    SELECT unnest($8::uuid[])
+	),
+	selected_relations AS MATERIALIZED (
+	    SELECT relation.*
+	    FROM entity_edges relation
+	    JOIN requested_relations requested ON requested.id = relation.id
+	    WHERE relation.status = 'active'
+	      AND relation.created_at <= $1
+	      AND relation.updated_at <= $1
+	),
+	selected_rules AS MATERIALIZED (
+	    SELECT rule.*
+	    FROM direct_transmission_rules rule
+	    JOIN requested_rules requested
+	      ON requested.rule_key = rule.rule_key
+	     AND requested.version = rule.version
+	    WHERE rule.status = 'approved'
+	      AND rule.created_at <= $1
+	      AND COALESCE(rule.reviewed_at, rule.created_at) <= $1
+	),
+	selected_variable_keys(variable_key, version) AS MATERIALIZED (
+	    SELECT variable_key, version FROM requested_variables
+	    UNION
+	    SELECT source_variable_key, source_variable_version FROM selected_rules
+	    UNION
+	    SELECT affected_variable_key, affected_variable_version FROM selected_rules
+	),
+	selected_entity_ids(id) AS MATERIALIZED (
+	    SELECT id FROM requested_entities
+	    UNION
+	    SELECT from_entity_id FROM selected_relations
+	    UNION
+	    SELECT to_entity_id FROM selected_relations
+	),
+	selected_entities AS MATERIALIZED (
+	    SELECT entity.*
+	    FROM entity_nodes entity
+	    JOIN selected_entity_ids selected ON selected.id = entity.id
+	    WHERE entity.status = 'active'
+	      AND entity.created_at <= $1
+	      AND entity.updated_at <= $1
+	),
+	selected_variable_definitions AS MATERIALIZED (
+	    SELECT definition.*
+	    FROM variable_definitions definition
+	    JOIN selected_variable_keys selected
+	      ON selected.variable_key = definition.variable_key
+	     AND selected.version = definition.version
+	    WHERE definition.status = 'active'
+	      AND definition.created_at <= $1
+	),
+	selected_applicable_entity_types AS MATERIALIZED (
+	    SELECT applicable.*
+	    FROM variable_definition_entity_types applicable
+	    JOIN selected_variable_keys selected
+	      ON selected.variable_key = applicable.variable_key
+	     AND selected.version = applicable.variable_version
+	    WHERE applicable.created_at <= $1
+	),
+	selected_entity_type_keys(type_key) AS MATERIALIZED (
+	    SELECT entity_type FROM selected_entities
+	    UNION
+	    SELECT entity_type FROM selected_applicable_entity_types
+	    UNION
+	    SELECT source_entity_type FROM selected_rules
+	    UNION
+	    SELECT target_entity_type FROM selected_rules
+	),
+	selected_entity_type_definitions AS MATERIALIZED (
+	    SELECT definition.*
+	    FROM entity_type_definitions definition
+	    JOIN selected_entity_type_keys selected
+	      ON selected.type_key = definition.type_key
+	    WHERE definition.status = 'active'
+	      AND definition.created_at <= $1
+	),
+	selected_policy_keys(policy_key, version) AS MATERIALIZED (
+	    SELECT submission.acceptance_policy_key, submission.acceptance_policy_version
+	    FROM event_semantic_submissions submission
+	    JOIN requested_submissions requested ON requested.id = submission.id
+	    WHERE submission.status = 'accepted'
+	      AND COALESCE(submission.finalized_at, submission.created_at) <= $1
+	),
+	selected_policies AS MATERIALIZED (
+	    SELECT policy.*
+	    FROM event_semantic_acceptance_policies policy
+	    JOIN selected_policy_keys selected
+	      ON selected.policy_key = policy.policy_key
+	     AND selected.version = policy.version
+	    WHERE policy.status = 'active'
+	      AND policy.created_at <= $1
+	),
+	selected_industry_chains AS MATERIALIZED (
+	    SELECT definition.*
+	    FROM industry_chain_definitions definition
+	    JOIN selected_entity_ids selected ON selected.id = definition.entity_id
+	    WHERE definition.review_status = 'approved'
+	      AND definition.created_at <= $1
+	      AND definition.updated_at <= $1
+	),
+	selected_relation_types(relation_type) AS MATERIALIZED (
+	    SELECT relation_type FROM selected_relations
+	    UNION
+	    SELECT relation_type FROM selected_rules
+	)
+`
+
+type referenceClosureParameters struct {
+	entityIDs             []string
+	entityRelationIDs     []string
+	variableKeys          []string
+	variableVersions      []int32
+	ruleKeys              []string
+	ruleVersions          []int32
+	semanticSubmissionIDs []string
+}
+
 func NewResearchAnalysisContextStore(db *sql.DB) *ResearchAnalysisContextStore {
 	return &ResearchAnalysisContextStore{db: db}
 }
 
-func (s *ResearchAnalysisContextStore) List(
+func (s *ResearchAnalysisContextStore) ListBundles(
 	ctx context.Context,
 	query researchanalysiscontext.StoreQuery,
 ) (researchanalysiscontext.StorePage, error) {
@@ -47,9 +180,6 @@ func (s *ResearchAnalysisContextStore) List(
 	if historicalGap {
 		return researchanalysiscontext.StorePage{},
 			researchanalysiscontext.ErrHistoricalSemanticsUnavailable
-	}
-	if err := s.preflightDictionaryBudget(ctx, query.AnalysisAsOf); err != nil {
-		return researchanalysiscontext.StorePage{}, err
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id::text, COALESCE(knowable_at, first_seen_at)
@@ -111,80 +241,54 @@ func (s *ResearchAnalysisContextStore) List(
 			Bundle:               payload,
 		})
 	}
-	var dictionaryPayload []byte
-	page.Dictionaries, dictionaryPayload, err = s.dictionaries(ctx, query.AnalysisAsOf)
-	if err != nil {
-		return researchanalysiscontext.StorePage{}, err
-	}
-	dictionaryHash := sha256.Sum256(dictionaryPayload)
-	page.DictionaryFingerprint = fmt.Sprintf("%x", dictionaryHash)
 	return page, nil
 }
 
-func (s *ResearchAnalysisContextStore) preflightDictionaryBudget(
+func (s *ResearchAnalysisContextStore) preflightReferenceClosureBudget(
 	ctx context.Context,
-	analysisAsOf time.Time,
+	query researchanalysiscontext.ReferenceClosureQuery,
+	parameters referenceClosureParameters,
 ) error {
 	var rows, bytes int64
-	err := s.db.QueryRowContext(ctx, `
-		SELECT COALESCE(sum(item_count), 0), COALESCE(sum(item_bytes), 0)
+	err := s.db.QueryRowContext(
+		ctx,
+		referenceClosureCTE+`
+		SELECT count(*)::bigint, COALESCE(sum(pg_column_size(item)), 0)::bigint
 		FROM (
-		    SELECT count(*)::bigint item_count,
-		           COALESCE(sum(pg_column_size(entity)), 0)::bigint item_bytes
-		    FROM entity_nodes entity
-		    WHERE entity.status = 'active'
-		      AND entity.created_at <= $1 AND entity.updated_at <= $1
+		    SELECT to_jsonb(entity) item FROM selected_entities entity
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(relation)), 0)::bigint
-		    FROM entity_edges relation
-		    WHERE relation.status = 'active'
-		      AND relation.created_at <= $1 AND relation.updated_at <= $1
+		    SELECT to_jsonb(relation) FROM selected_relations relation
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(definition)), 0)::bigint
-		    FROM industry_chain_definitions definition
-		    WHERE definition.review_status = 'approved'
-		      AND definition.created_at <= $1 AND definition.updated_at <= $1
+		    SELECT to_jsonb(definition) FROM selected_industry_chains definition
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(membership)), 0)::bigint
-		    FROM industry_chain_node_memberships membership
-		    WHERE membership.review_status = 'approved' AND membership.status = 'active'
-		      AND membership.created_at <= $1 AND membership.updated_at <= $1
+		    SELECT to_jsonb(definition) FROM selected_entity_type_definitions definition
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(edge)), 0)::bigint
-		    FROM industry_chain_graph_edges edge
-		    WHERE edge.review_status = 'approved' AND edge.status = 'active'
-		      AND edge.created_at <= $1 AND edge.updated_at <= $1
+		    SELECT to_jsonb(definition) FROM selected_variable_definitions definition
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(definition)), 0)::bigint
-		    FROM entity_type_definitions definition
-		    WHERE definition.status = 'active' AND definition.created_at <= $1
+		    SELECT to_jsonb(applicable) FROM selected_applicable_entity_types applicable
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(definition)), 0)::bigint
-		    FROM variable_definitions definition
-		    WHERE definition.status = 'active' AND definition.created_at <= $1
+		    SELECT to_jsonb(rule) FROM selected_rules rule
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(applicable)), 0)::bigint
-		    FROM variable_definition_entity_types applicable
-		    WHERE applicable.created_at <= $1
+		    SELECT to_jsonb(policy) FROM selected_policies policy
 		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(rule)), 0)::bigint
-		    FROM direct_transmission_rules rule
-		    WHERE rule.status = 'approved'
-		      AND rule.created_at <= $1
-		      AND COALESCE(rule.reviewed_at, rule.created_at) <= $1
-		    UNION ALL
-		    SELECT count(*)::bigint, COALESCE(sum(pg_column_size(policy)), 0)::bigint
-		    FROM event_semantic_acceptance_policies policy
-		    WHERE policy.status = 'active' AND policy.created_at <= $1
-		) budget
-	`, analysisAsOf).Scan(&rows, &bytes)
+		    SELECT to_jsonb(relation_type) FROM selected_relation_types relation_type
+		) records
+	`,
+		referenceClosureArgs(query.AnalysisAsOf, parameters)...,
+	).Scan(&rows, &bytes)
 	if err != nil {
 		return err
 	}
 	if rows > researchanalysiscontext.MaxDictionaryRows ||
 		bytes > researchanalysiscontext.MaxDictionaryBytes {
 		return &researchanalysiscontext.ResourceLimitError{
-			Reason: "Research Analysis Context dictionaries exceed the preflight budget",
+			Reason:        "Research Analysis Context reference closure exceeds the preflight budget",
+			Component:     "reference_closure",
+			ActualRows:    int64Pointer(rows),
+			MaxRows:       int64Pointer(researchanalysiscontext.MaxDictionaryRows),
+			ActualBytes:   int64Pointer(bytes),
+			MaxBytes:      int64Pointer(researchanalysiscontext.MaxDictionaryBytes),
+			RetryGuidance: "reduce_page_size",
 		}
 	}
 	return nil
@@ -266,7 +370,13 @@ func (s *ResearchAnalysisContextStore) preflightBundleBudget(
 	if rows > researchanalysiscontext.MaxEventSemanticBundleRows ||
 		bytes > researchanalysiscontext.MaxEventSemanticBundleBytes {
 		return &researchanalysiscontext.ResourceLimitError{
-			Reason: "an Event Semantic Bundle exceeds the preflight budget",
+			Reason:        "an Event Semantic Bundle exceeds the preflight budget",
+			Component:     "event_semantic_bundle",
+			ActualRows:    int64Pointer(rows),
+			MaxRows:       int64Pointer(researchanalysiscontext.MaxEventSemanticBundleRows),
+			ActualBytes:   int64Pointer(bytes),
+			MaxBytes:      int64Pointer(researchanalysiscontext.MaxEventSemanticBundleBytes),
+			RetryGuidance: "event_bundle_requires_provider_remediation",
 		}
 	}
 	return nil
@@ -483,12 +593,42 @@ func (s *ResearchAnalysisContextStore) eventBundle(
 	return bundle, nil
 }
 
-func (s *ResearchAnalysisContextStore) dictionaries(
+func (s *ResearchAnalysisContextStore) ReferenceClosure(
 	ctx context.Context,
-	analysisAsOf time.Time,
-) (researchanalysiscontext.Dictionaries, []byte, error) {
+	query researchanalysiscontext.ReferenceClosureQuery,
+) (researchanalysiscontext.Dictionaries, error) {
+	parameters := buildReferenceClosureParameters(query)
+	historicalGap, err := s.referenceClosureHasHistoricalGap(
+		ctx,
+		query.AnalysisAsOf,
+		parameters,
+	)
+	if err != nil {
+		return researchanalysiscontext.Dictionaries{}, err
+	}
+	if historicalGap {
+		return researchanalysiscontext.Dictionaries{},
+			researchanalysiscontext.ErrHistoricalSemanticsUnavailable
+	}
+	policiesResolve, err := s.referenceClosurePoliciesResolve(
+		ctx,
+		query.AnalysisAsOf,
+		parameters.semanticSubmissionIDs,
+	)
+	if err != nil {
+		return researchanalysiscontext.Dictionaries{}, err
+	}
+	if !policiesResolve {
+		return researchanalysiscontext.Dictionaries{},
+			researchanalysiscontext.ErrReferenceClosureInconsistent
+	}
+	if err := s.preflightReferenceClosureBudget(ctx, query, parameters); err != nil {
+		return researchanalysiscontext.Dictionaries{}, err
+	}
 	var payload []byte
-	err := s.db.QueryRowContext(ctx, `
+	err = s.db.QueryRowContext(
+		ctx,
+		referenceClosureCTE+`
 		SELECT jsonb_build_object(
 		    'entities', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
@@ -499,29 +639,14 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 		            'aliases', entity.aliases,
 		            'status', entity.status
 		        ) ORDER BY entity.entity_type, entity.canonical_name, entity.id)
-		        FROM entity_nodes entity
-	        WHERE entity.status = 'active'
-	          AND entity.created_at <= $1
-	          AND entity.updated_at <= $1
+		        FROM selected_entities entity
 		    ), '[]'::jsonb),
 		    'relation_definitions', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'relation_type', definition.relation_type,
 		            'direction', 'directed'
 		        ) ORDER BY definition.relation_type)
-		        FROM (
-		            SELECT relation_type
-		            FROM entity_edges
-	            WHERE status = 'active'
-	              AND created_at <= $1
-	              AND updated_at <= $1
-	            UNION
-	            SELECT relation_type
-	            FROM industry_chain_graph_edges
-	            WHERE status = 'active' AND review_status = 'approved'
-	              AND created_at <= $1
-	              AND updated_at <= $1
-		        ) definition
+		        FROM selected_relation_types definition
 		    ), '[]'::jsonb),
 		    'entity_relations', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
@@ -531,10 +656,7 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 		            'relation_type', relation.relation_type,
 		            'status', relation.status
 		        ) ORDER BY relation.relation_type, relation.from_entity_id, relation.to_entity_id, relation.id)
-		        FROM entity_edges relation
-	        WHERE relation.status = 'active'
-	          AND relation.created_at <= $1
-	          AND relation.updated_at <= $1
+		        FROM selected_relations relation
 		    ), '[]'::jsonb),
 		    'industry_chains', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
@@ -546,44 +668,10 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 		            'as_of_date', definition.as_of_date,
 		            'review_status', definition.review_status
 		        ) ORDER BY definition.entity_id)
-		        FROM industry_chain_definitions definition
-	        WHERE definition.review_status = 'approved'
-	          AND definition.created_at <= $1
-	          AND definition.updated_at <= $1
+		        FROM selected_industry_chains definition
 		    ), '[]'::jsonb),
-		    'industry_chain_memberships', COALESCE((
-		        SELECT jsonb_agg(jsonb_build_object(
-		            'industry_chain_entity_id', membership.industry_chain_entity_id,
-		            'chain_node_entity_id', membership.chain_node_entity_id,
-		            'position', membership.position,
-		            'contextual_stage', membership.contextual_stage,
-		            'review_status', membership.review_status,
-		            'status', membership.status
-		        ) ORDER BY membership.industry_chain_entity_id, membership.position, membership.chain_node_entity_id)
-		        FROM industry_chain_node_memberships membership
-	        WHERE membership.review_status = 'approved' AND membership.status = 'active'
-	          AND membership.created_at <= $1
-	          AND membership.updated_at <= $1
-		    ), '[]'::jsonb),
-		    'industry_chain_graph_edges', COALESCE((
-		        SELECT jsonb_agg(jsonb_build_object(
-		            'industry_chain_graph_edge_id', edge.id,
-		            'industry_chain_entity_id', edge.industry_chain_entity_id,
-		            'from_chain_node_entity_id', edge.from_chain_node_entity_id,
-		            'to_chain_node_entity_id', edge.to_chain_node_entity_id,
-		            'relation_type', edge.relation_type,
-		            'mechanism', edge.mechanism,
-		            'condition_note', edge.condition_note,
-		            'segment_kind', edge.segment_kind,
-		            'omitted_step_note', edge.omitted_step_note,
-		            'review_status', edge.review_status,
-		            'status', edge.status
-		        ) ORDER BY edge.industry_chain_entity_id, edge.from_chain_node_entity_id, edge.to_chain_node_entity_id, edge.id)
-		        FROM industry_chain_graph_edges edge
-	        WHERE edge.review_status = 'approved' AND edge.status = 'active'
-	          AND edge.created_at <= $1
-	          AND edge.updated_at <= $1
-		    ), '[]'::jsonb),
+		    'industry_chain_memberships', '[]'::jsonb,
+		    'industry_chain_graph_edges', '[]'::jsonb,
 		    'entity_type_definitions', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'type_key', definition.type_key,
@@ -592,9 +680,7 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 		            'direct_target_mode', definition.direct_target_mode,
 		            'status', definition.status
 		        ) ORDER BY definition.type_key, definition.version)
-		        FROM entity_type_definitions definition
-	        WHERE definition.status = 'active'
-	          AND definition.created_at <= $1
+		        FROM selected_entity_type_definitions definition
 		    ), '[]'::jsonb),
 		    'variable_definitions', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
@@ -616,9 +702,7 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 	                  AND applicable.created_at <= $1
 	            ), '[]'::jsonb)
 		        ) ORDER BY definition.variable_key, definition.version)
-		        FROM variable_definitions definition
-	        WHERE definition.status = 'active'
-	          AND definition.created_at <= $1
+		        FROM selected_variable_definitions definition
 		    ), '[]'::jsonb),
 		    'direct_transmission_rules', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
@@ -637,10 +721,7 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 		            'mechanism_template', rule.mechanism_template,
 		            'status', rule.status
 		        ) ORDER BY rule.rule_key, rule.version)
-		        FROM direct_transmission_rules rule
-	        WHERE rule.status = 'approved'
-	          AND rule.created_at <= $1
-	          AND COALESCE(rule.reviewed_at, rule.created_at) <= $1
+		        FROM selected_rules rule
 		    ), '[]'::jsonb),
 		    'acceptance_policies', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
@@ -650,20 +731,132 @@ func (s *ResearchAnalysisContextStore) dictionaries(
 		            'status', policy.status,
 		            'policy', policy.policy
 		        ) ORDER BY policy.policy_key, policy.version)
-		        FROM event_semantic_acceptance_policies policy
-	        WHERE policy.status = 'active'
-	          AND policy.created_at <= $1
+		        FROM selected_policies policy
 		    ), '[]'::jsonb)
 		)
-	`, analysisAsOf).Scan(&payload)
+	`,
+		referenceClosureArgs(query.AnalysisAsOf, parameters)...,
+	).Scan(&payload)
 	if err != nil {
-		return researchanalysiscontext.Dictionaries{}, nil, err
+		return researchanalysiscontext.Dictionaries{}, err
 	}
 	var dictionaries researchanalysiscontext.Dictionaries
 	if err := strictDecodeResearchContext(payload, &dictionaries); err != nil {
-		return researchanalysiscontext.Dictionaries{}, nil, err
+		return researchanalysiscontext.Dictionaries{}, err
 	}
-	return dictionaries, payload, nil
+	return dictionaries, nil
+}
+
+func (s *ResearchAnalysisContextStore) referenceClosurePoliciesResolve(
+	ctx context.Context,
+	analysisAsOf time.Time,
+	submissionIDs []string,
+) (bool, error) {
+	var resolves bool
+	err := s.db.QueryRowContext(ctx, `
+		WITH requested_submissions(id) AS (
+		    SELECT unnest($2::uuid[])
+		)
+		SELECT NOT EXISTS (
+		    SELECT 1
+		    FROM requested_submissions requested
+		    LEFT JOIN event_semantic_submissions submission
+		      ON submission.id = requested.id
+		     AND submission.status = 'accepted'
+		     AND COALESCE(submission.finalized_at, submission.created_at) <= $1
+		    LEFT JOIN event_semantic_acceptance_policies policy
+		      ON policy.policy_key = submission.acceptance_policy_key
+		     AND policy.version = submission.acceptance_policy_version
+		     AND policy.status = 'active'
+		     AND policy.created_at <= $1
+		    WHERE submission.id IS NULL
+		       OR policy.policy_key IS NULL
+		)
+	`, analysisAsOf, submissionIDs).Scan(&resolves)
+	return resolves, err
+}
+
+func (s *ResearchAnalysisContextStore) referenceClosureHasHistoricalGap(
+	ctx context.Context,
+	analysisAsOf time.Time,
+	parameters referenceClosureParameters,
+) (bool, error) {
+	var historicalGap bool
+	err := s.db.QueryRowContext(ctx, `
+		WITH
+		requested_entities(id) AS (
+		    SELECT unnest($2::uuid[])
+		),
+		requested_relations(id) AS (
+		    SELECT unnest($3::uuid[])
+		)
+		SELECT
+		    EXISTS (
+		        SELECT 1
+		        FROM entity_nodes entity
+		        JOIN requested_entities requested ON requested.id = entity.id
+		        WHERE entity.created_at <= $1
+		          AND entity.updated_at > $1
+		    )
+		    OR EXISTS (
+		        SELECT 1
+		        FROM entity_edges relation
+		        JOIN requested_relations requested ON requested.id = relation.id
+		        WHERE relation.created_at <= $1
+		          AND relation.updated_at > $1
+		    )
+		    OR EXISTS (
+		        SELECT 1
+		        FROM industry_chain_definitions definition
+		        JOIN requested_entities requested ON requested.id = definition.entity_id
+		        WHERE definition.created_at <= $1
+		          AND definition.updated_at > $1
+		    )
+	`,
+		analysisAsOf,
+		parameters.entityIDs,
+		parameters.entityRelationIDs,
+	).Scan(&historicalGap)
+	return historicalGap, err
+}
+
+func buildReferenceClosureParameters(
+	query researchanalysiscontext.ReferenceClosureQuery,
+) referenceClosureParameters {
+	parameters := referenceClosureParameters{
+		entityIDs:             append([]string(nil), query.EntityIDs...),
+		entityRelationIDs:     append([]string(nil), query.EntityRelationIDs...),
+		semanticSubmissionIDs: append([]string(nil), query.SemanticSubmissionIDs...),
+		variableKeys:          make([]string, 0, len(query.VariableDefinitions)),
+		variableVersions:      make([]int32, 0, len(query.VariableDefinitions)),
+		ruleKeys:              make([]string, 0, len(query.DirectTransmissionRules)),
+		ruleVersions:          make([]int32, 0, len(query.DirectTransmissionRules)),
+	}
+	for _, reference := range query.VariableDefinitions {
+		parameters.variableKeys = append(parameters.variableKeys, reference.Key)
+		parameters.variableVersions = append(parameters.variableVersions, int32(reference.Version))
+	}
+	for _, reference := range query.DirectTransmissionRules {
+		parameters.ruleKeys = append(parameters.ruleKeys, reference.Key)
+		parameters.ruleVersions = append(parameters.ruleVersions, int32(reference.Version))
+	}
+	return parameters
+}
+
+func referenceClosureArgs(
+	analysisAsOf time.Time,
+	parameters referenceClosureParameters,
+) []any {
+	return []any{
+		analysisAsOf,
+		parameters.entityIDs,
+		parameters.entityRelationIDs,
+		parameters.variableKeys,
+		parameters.variableVersions,
+		parameters.ruleKeys,
+		parameters.ruleVersions,
+		parameters.semanticSubmissionIDs,
+	}
 }
 
 func strictDecodeResearchContext(payload []byte, target any) error {
@@ -680,4 +873,8 @@ func nullUUID(value string) any {
 		return nil
 	}
 	return value
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
 }

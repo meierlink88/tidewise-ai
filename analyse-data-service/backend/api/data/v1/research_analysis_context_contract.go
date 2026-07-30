@@ -15,20 +15,35 @@ type ResearchAnalysisContextRequest struct {
 	Cursor                 string
 }
 
+type ResearchResourceLimitDetails struct {
+	Component     string `json:"component"`
+	ActualRows    *int64 `json:"actual_rows,omitempty"`
+	MaxRows       *int64 `json:"max_rows,omitempty"`
+	ActualBytes   *int64 `json:"actual_bytes,omitempty"`
+	MaxBytes      *int64 `json:"max_bytes,omitempty"`
+	RetryGuidance string `json:"retry_guidance"`
+}
+
+type ResearchAnalysisContextInconsistentDetails struct {
+	RetryGuidance string `json:"retry_guidance"`
+}
+
 type ResearchAnalysisContext struct {
-	ContractVersion        string                                `json:"contract_version"`
-	TemporalSemantics      string                                `json:"temporal_semantics"`
-	TemporalLimitation     string                                `json:"temporal_limitation"`
-	DictionaryFingerprint  string                                `json:"dictionary_fingerprint"`
-	DiscoveryWindowStart   string                                `json:"discovery_window_start"`
-	DiscoveryWindowEnd     string                                `json:"discovery_window_end"`
-	AnalysisAsOf           string                                `json:"analysis_as_of"`
-	PredictionHorizonStart *string                               `json:"prediction_horizon_start,omitempty"`
-	PredictionHorizonEnd   *string                               `json:"prediction_horizon_end,omitempty"`
-	EventSemanticBundles   []ResearchAnalysisEventSemanticBundle `json:"event_semantic_bundles"`
-	Dictionaries           ResearchAnalysisDictionaries          `json:"dictionaries"`
-	NextCursor             string                                `json:"next_cursor,omitempty"`
-	HasMore                bool                                  `json:"has_more"`
+	ContractVersion             string                                `json:"contract_version"`
+	TBoxContractVersion         string                                `json:"tbox_contract_version"`
+	TemporalSemantics           string                                `json:"temporal_semantics"`
+	TemporalLimitation          string                                `json:"temporal_limitation"`
+	EventPageFingerprint        string                                `json:"event_page_fingerprint"`
+	ReferenceClosureFingerprint string                                `json:"reference_closure_fingerprint"`
+	DiscoveryWindowStart        string                                `json:"discovery_window_start"`
+	DiscoveryWindowEnd          string                                `json:"discovery_window_end"`
+	AnalysisAsOf                string                                `json:"analysis_as_of"`
+	PredictionHorizonStart      *string                               `json:"prediction_horizon_start,omitempty"`
+	PredictionHorizonEnd        *string                               `json:"prediction_horizon_end,omitempty"`
+	EventSemanticBundles        []ResearchAnalysisEventSemanticBundle `json:"event_semantic_bundles"`
+	Dictionaries                ResearchAnalysisDictionaries          `json:"dictionaries"`
+	NextCursor                  string                                `json:"next_cursor,omitempty"`
+	HasMore                     bool                                  `json:"has_more"`
 }
 
 type ResearchAnalysisEventSemanticBundle struct {

@@ -41,6 +41,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/event-semantics/submissions/{submission_id}/reviews":            {method: "post", operationID: "submitEventSemanticReview", driftAnchor: "data.v1.submitEventSemanticReview", scope: "data.event-semantics.write"},
 		namespace + "/events/{event_id}/semantics":                                    {method: "get", operationID: "getEventSemantics", driftAnchor: "data.v1.getEventSemantics", scope: "data.event-semantics.read"},
 		namespace + "/research-analysis-context":                                      {method: "get", operationID: "listResearchAnalysisContext", driftAnchor: "data.v1.listResearchAnalysisContext", scope: "data.research.read"},
+		namespace + "/research-graph:search":                                          {method: "post", operationID: "searchResearchGraph", driftAnchor: "data.v1.searchResearchGraph", scope: "data.research.read"},
 		namespace + "/reviewed-event-imports":                                         {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
 		namespace + "/research-theme-imports":                                         {method: "post", operationID: "publishResearchTheme", driftAnchor: "data.v1.publishResearchTheme", scope: "data.research.import"},
 	}
@@ -189,15 +190,24 @@ func TestOpenAPIContractFreezesAtomicResearchPublicationV2(t *testing.T) {
 	assertRequired(t, result, "receipt_id", "analysis_batch_id", "theme_id", "payload_hash", "reasoning_tree_ids_by_industry_chain_entity_id", "counts", "published_at", "imported_at", "replayed")
 }
 
-func TestOpenAPIContractFreezesTypedResearchAnalysisContextV1(t *testing.T) {
+func TestOpenAPIContractFreezesCorrectedResearchAnalysisContextV1(t *testing.T) {
 	document := loadContract(t)
 	contextSchema := schema(t, document, "ResearchAnalysisContext")
 	assertRequired(t, contextSchema,
-		"contract_version", "temporal_semantics", "temporal_limitation",
-		"dictionary_fingerprint", "discovery_window_start",
+		"contract_version", "tbox_contract_version", "temporal_semantics", "temporal_limitation",
+		"event_page_fingerprint", "reference_closure_fingerprint", "discovery_window_start",
 		"discovery_window_end", "analysis_as_of", "event_semantic_bundles",
 		"dictionaries", "has_more",
 	)
+	contextProperties := object(t, contextSchema["properties"], "ResearchAnalysisContext properties")
+	assertStringSet(t, object(t, contextProperties["contract_version"], "contract_version")["enum"], "research-analysis-context.v1")
+	if _, exists := contextProperties["dictionary_fingerprint"]; exists {
+		t.Fatal("corrected Research Analysis Context v1 must not expose the global dictionary fingerprint")
+	}
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/research-analysis-context"], "Analysis Context path")["get"], "Analysis Context operation")
+	responses := object(t, operation["responses"], "Analysis Context responses")
+	assertString(t, object(t, responses["409"], "Analysis Context 409"), "$ref", "#/components/responses/ResearchAnalysisContextInconsistent")
 	dictionaries := schema(t, document, "ResearchAnalysisDictionaries")
 	assertRequired(t, dictionaries,
 		"entities", "relation_definitions", "entity_relations", "industry_chains",
@@ -208,6 +218,39 @@ func TestOpenAPIContractFreezesTypedResearchAnalysisContextV1(t *testing.T) {
 	if additional, ok := dictionaries["additionalProperties"].(bool); !ok || additional {
 		t.Fatalf("ResearchAnalysisDictionaries additionalProperties = %#v, want false", dictionaries["additionalProperties"])
 	}
+}
+
+func TestOpenAPIContractFreezesControlledResearchGraphSearchV1(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/research-graph:search"], "Research Graph path")["post"], "Research Graph operation")
+	assertString(t, operation, "x-required-service-scope", "data.research.read")
+	assertString(t, operation, "x-retry-policy", "safe-idempotent-read-reduce-scope-on-resource-limit")
+	responses := object(t, operation["responses"], "Research Graph responses")
+	assertString(t, object(t, responses["413"], "Research Graph 413"), "$ref", "#/components/responses/PayloadTooLarge")
+	assertString(t, object(t, responses["429"], "Research Graph 429"), "$ref", "#/components/responses/ResearchResourceLimit")
+
+	request := schema(t, document, "ResearchGraphSearchRequest")
+	assertRequired(t, request,
+		"analysis_as_of", "seed_entity_ids", "relation_filters",
+		"max_depth", "node_budget", "edge_budget",
+	)
+	requestProperties := object(t, request["properties"], "ResearchGraphSearchRequest properties")
+	assertInt(t, object(t, requestProperties["max_depth"], "max_depth"), "maximum", 5)
+	assertInt(t, object(t, requestProperties["node_budget"], "node_budget"), "maximum", 500)
+	assertInt(t, object(t, requestProperties["edge_budget"], "edge_budget"), "maximum", 1000)
+	filter := schema(t, document, "ResearchGraphRelationFilter")
+	assertRequired(t, filter, "relation_type", "direction")
+	assertStringSet(t, object(t, object(t, filter["properties"], "filter properties")["direction"], "direction")["enum"], "outgoing", "incoming", "both")
+
+	result := schema(t, document, "ResearchGraphSearchResult")
+	assertRequired(t, result,
+		"contract_version", "analysis_as_of", "query_fingerprint", "graph_fingerprint",
+		"actual_depth", "entities", "relation_definitions", "entity_relations",
+		"industry_chains", "industry_chain_memberships", "industry_chain_graph_edges",
+	)
+	details := schema(t, document, "ResearchResourceLimitDetails")
+	assertRequired(t, details, "component", "retry_guidance")
 }
 
 func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {

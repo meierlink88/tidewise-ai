@@ -16,11 +16,18 @@ func NewRepository(db *sql.DB) Repository {
 	return Repository{store: postgres.NewResearchAnalysisContextStore(db)}
 }
 
-func (r Repository) List(
+func (r Repository) ListBundles(
 	ctx context.Context,
 	query biz.StoreQuery,
 ) (biz.StorePage, error) {
-	return r.store.List(ctx, query)
+	return r.store.ListBundles(ctx, query)
+}
+
+func (r Repository) ReferenceClosure(
+	ctx context.Context,
+	query biz.ReferenceClosureQuery,
+) (biz.Dictionaries, error) {
+	return r.store.ReferenceClosure(ctx, query)
 }
 
 var _ biz.Store = Repository{}

@@ -11,6 +11,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 )
 
@@ -63,6 +64,10 @@ type ResearchAnalysisContextService interface {
 	) (researchanalysiscontext.Result, error)
 }
 
+type ResearchGraphService interface {
+	Search(context.Context, researchgraph.Request) (researchgraph.Result, error)
+}
+
 type AdminService interface {
 	ListRawDocuments(context.Context, adminquery.RawDocumentListRequest) (adminquery.RawDocumentPage, error)
 	ListEvents(context.Context, adminquery.EventListRequest) (adminquery.EventPage, error)
@@ -75,6 +80,7 @@ type Dependencies struct {
 	ResearchThemeImports    ResearchThemeImportService
 	Research                ResearchService
 	ResearchAnalysisContext ResearchAnalysisContextService
+	ResearchGraph           ResearchGraphService
 	Admin                   AdminService
 }
 

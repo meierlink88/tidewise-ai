@@ -138,6 +138,11 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/research-analysis-context?discovery_window_start=2026-07-01T00%3A00%3A00Z&discovery_window_end=2026-07-02T00%3A00%3A00Z&analysis_as_of=2026-07-02T00%3A00%3A00Z&page_size=20",
 			operation:   "data.v1.listResearchAnalysisContext",
 		},
+		"POST " + APIPrefix + "/research-graph:search": {
+			requestPath: APIPrefix + "/research-graph:search",
+			operation:   "data.v1.searchResearchGraph",
+			body:        `{"analysis_as_of":"2026-07-02T00:00:00Z","seed_entity_ids":["11111111-1111-4111-8111-111111111111"],"relation_filters":[{"relation_type":"produces","direction":"outgoing"}],"max_depth":1,"node_budget":10,"edge_budget":10}`,
+		},
 	}
 
 	contractRoutes := make(map[string]string)
