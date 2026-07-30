@@ -1,0 +1,258 @@
+<!doctype html>
+<!-- PROTOTYPE: compact nodes show one primary Signal; node details show the complete variable set. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>观潮家 · Reason Tree 投资判断原型</title>
+  <!-- PROTOTYPE — Multiple variable states are expanded only in the selected-node detail. -->
+  <style>
+    :root {
+      --navy-950:#071a3a; --navy-900:#0b2858; --navy-800:#153d77;
+      --blue-600:#2563eb; --blue-500:#3572e8; --blue-100:#dbeafe; --blue-50:#eff6ff;
+      --slate-900:#13294e; --slate-700:#435675; --slate-500:#75849e;
+      --slate-300:#ced8e8; --slate-200:#e2e8f0; --slate-100:#f1f5f9; --slate-50:#f8fafc;
+      --red-700:#c6283f; --red-100:#ffe1e6; --red-50:#fff1f3;
+      --green-700:#137a4a; --green-100:#d9f5e5; --green-50:#eefaf3;
+      --amber-800:#96530f; --amber-100:#ffedc2; --amber-50:#fff9ec;
+      --white:#fff;
+      --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --radius-xl:12px;
+      --shadow-1:0 1px 2px rgba(15,23,42,.06),0 1px 1px rgba(15,23,42,.04);
+      --shadow-3:0 8px 24px -8px rgba(15,23,42,.18);
+    }
+    *{box-sizing:border-box}
+    html{min-height:100%;background:#dfe4eb}
+    body{
+      margin:0;min-height:100%;color:var(--slate-900);
+      font-family:"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+      background:radial-gradient(circle at 50% -10%,rgba(37,99,235,.13),transparent 40%),#dfe4eb
+    }
+    button{font:inherit}
+    .phone{width:min(100%,430px);min-height:100vh;margin:0 auto;background:#f4f7fb;box-shadow:0 0 48px rgba(7,26,58,.2)}
+    .status{height:42px;padding:13px 20px 0;display:flex;justify-content:space-between;color:#fff;background:var(--navy-900);font-size:12px;font-weight:600}
+    .nav{height:52px;padding:0 18px;display:grid;grid-template-columns:80px 1fr 80px;align-items:center;color:#fff;background:var(--navy-900);border-bottom:1px solid rgba(255,255,255,.1)}
+    .nav__back{font-size:13px;opacity:.88}.nav__title{text-align:center;font-size:16px;font-weight:600}
+    .hero{padding:18px 18px 20px;color:#fff;background:linear-gradient(150deg,var(--navy-900),#12366f)}
+    .hero__meta{display:flex;gap:7px;align-items:center;margin-bottom:10px;color:rgba(255,255,255,.72);font-size:11px}
+    .hero__badge{padding:3px 8px;border:1px solid rgba(255,255,255,.23);border-radius:var(--radius-sm);color:#ffe3a8;background:rgba(255,255,255,.07);font-weight:600}
+    .hero h1{margin:0;font-size:19px;line-height:1.55;letter-spacing:-.01em}
+    .hero__summary{margin:12px 0 0;color:rgba(255,255,255,.82);font-size:12px;line-height:1.7}
+    .content{min-width:0;display:grid;gap:14px;padding:14px 12px 28px}
+    .panel{min-width:0;overflow:hidden;border:1px solid var(--slate-200);border-radius:var(--radius-xl);background:#fff;box-shadow:var(--shadow-1)}
+    .panel__body{padding:15px}
+    .eyebrow{color:var(--blue-600);font-size:11px;font-weight:700;letter-spacing:.04em}
+    .section-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}
+    .section-title h2{margin:0;color:var(--navy-900);font-size:16px}
+    .section-title span{color:var(--slate-500);font-size:11px}
+    .tag{display:inline-flex;align-items:center;justify-content:center;height:24px;padding:0 8px;border-radius:9999px;font-size:11px;font-weight:700;white-space:nowrap}
+    .tag--opportunity{color:var(--red-700);background:var(--red-50);border:1px solid var(--red-100)}
+    .tag--risk{color:var(--green-700);background:var(--green-50);border:1px solid var(--green-100)}
+    .tag--uncertain{color:var(--amber-800);background:var(--amber-50);border:1px solid var(--amber-100)}
+    .direct-list{display:grid;gap:9px}
+    .direct-item{display:grid;grid-template-columns:1fr auto;gap:8px;padding:12px;border:1px solid var(--slate-200);border-radius:var(--radius-lg);background:var(--slate-50)}
+    .direct-item strong{font-size:14px;color:var(--navy-900)}
+    .direct-item p{grid-column:1/-1;margin:0;color:var(--slate-700);font-size:11px;line-height:1.6}
+    .tree-path-head{display:flex;justify-content:space-between;align-items:center}
+    .tree-path-head strong{color:var(--navy-900);font-size:15px}.tree-path-head span{color:var(--slate-500);font-size:11px}
+    .tree-tabs{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}.tree-tabs::-webkit-scrollbar{display:none}
+    .tree-tab{height:32px;padding:0 12px;border:1px solid var(--blue-600);border-radius:9999px;color:#fff;background:var(--blue-600);font-size:12px;font-weight:600;white-space:nowrap}
+    .tree-tab--idle{border-color:var(--slate-300);color:var(--slate-700);background:#fff}
+    .tree-head{padding:14px 15px;border-bottom:1px solid var(--slate-200)}
+    .tree-head__row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .tree-head h2{margin:0;color:var(--navy-900);font-size:16px}
+    .tree-head p{margin:8px 0 0;color:var(--slate-700);font-size:12px;line-height:1.65}
+    .event-panel{padding:14px 15px}
+    .event-panel__head{display:flex;justify-content:space-between;align-items:center;padding-bottom:11px;border-bottom:1px solid var(--slate-200)}
+    .event-panel__head strong{color:var(--navy-900);font-size:13px}.event-panel__head span{color:var(--blue-600);font-size:11px;font-weight:600}
+    .event-fact{margin:12px 0 0;color:var(--navy-900);font-size:15px;line-height:1.65;font-weight:700}
+    .event-row{display:grid;grid-template-columns:30px 1fr auto;gap:9px;margin-top:12px;padding-top:12px;border-top:1px solid var(--slate-200)}
+    .event-row__number{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);color:var(--blue-600);background:var(--blue-50);font-size:12px;font-weight:700}
+    .event-row__body span{display:block;color:var(--blue-600);font-size:10px;font-weight:700}.event-row__body strong{display:block;margin-top:5px;color:var(--navy-900);font-size:13px;line-height:1.5}.event-row time{color:var(--slate-500);font-size:10px}
+    .tree-conclusion{padding:17px 15px;border:1px solid var(--blue-600);border-radius:var(--radius-xl);color:#fff;background:linear-gradient(145deg,#285bc5,var(--navy-800));box-shadow:var(--shadow-3);text-align:center}
+    .tree-conclusion__label{color:#ffd36f;font-size:12px;font-weight:700}
+    .tree-conclusion h2{margin:10px auto 12px;max-width:360px;font-size:18px;line-height:1.65}
+    .tree-conclusion__meta{display:inline-flex;padding:6px 10px;border:1px solid rgba(255,255,255,.25);border-radius:9999px;color:rgba(255,255,255,.84);font-size:11px}
+    .support-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .support-card{padding:13px;border-top:3px solid var(--blue-600);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--shadow-1)}
+    .support-card--counter{border-top-color:#f0a62d}.support-card strong{display:block;color:var(--blue-600);font-size:12px}.support-card--counter strong{color:var(--amber-800)}
+    .support-card p{margin:7px 0 0;color:var(--slate-700);font-size:11px;line-height:1.65}
+    .flow-wrap{overflow-x:auto;padding:14px 12px 16px;scrollbar-width:none}
+    .flow-wrap::-webkit-scrollbar{display:none}
+    .flow{display:flex;align-items:stretch;min-width:760px}
+    .node{
+      width:158px;min-height:180px;padding:12px 10px 10px;display:flex;flex-direction:column;
+      border:1px solid var(--slate-200);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--shadow-1);
+      text-align:left;cursor:pointer
+    }
+    .node.is-selected{border:2px solid var(--blue-500);background:linear-gradient(180deg,var(--blue-50),#fff);box-shadow:0 0 0 3px rgba(53,114,232,.1)}
+    .node__top{display:flex;justify-content:space-between;align-items:center;color:var(--slate-500);font-size:10px;font-weight:600}
+    .node__name{margin-top:12px;min-height:42px;color:var(--navy-900);font-size:15px;line-height:1.4;font-weight:700}
+    .node__variable{margin-top:9px;color:var(--slate-700);font-size:12px;line-height:1.45;font-weight:600}
+    .node__outlook{margin-top:auto;padding-top:10px;border-top:1px solid var(--slate-200);display:flex;justify-content:space-between;align-items:center}
+    .node__confidence{color:var(--slate-500);font-size:10px}
+    .arrow{width:36px;flex:0 0 36px;display:flex;align-items:center;justify-content:center;color:var(--blue-600);font-size:24px;font-weight:400}
+    .detail{overflow:hidden}
+    .detail__head{padding:14px 15px;display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid var(--slate-200)}
+    .detail__index{color:var(--slate-500);font-size:11px;font-weight:600}
+    .detail__head h3{margin:6px 0 0;color:var(--navy-900);font-size:18px}
+    .detail__judgement{text-align:right}
+    .detail__judgement small{display:block;margin-top:5px;color:var(--slate-500);font-size:10px}
+    .detail__grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px 15px}
+    .detail__metric{padding:10px;border-radius:var(--radius-md);background:var(--slate-50)}
+    .detail__metric-label{display:block;color:var(--slate-500);font-size:10px;font-weight:600}
+    .detail__metric>strong{display:block;margin-top:8px;color:var(--navy-900);font-size:13px;line-height:1.55}
+    .detail__variables{display:grid;gap:7px;margin-top:8px}
+    .detail__variable-row{display:flex;justify-content:space-between;gap:8px;padding-bottom:6px;border-bottom:1px solid var(--slate-200)}
+    .detail__variable-row:last-child{padding-bottom:0;border-bottom:0}
+    .detail__variable-row span{color:var(--slate-500);font-size:11px}
+    .detail__variable-row strong{color:var(--navy-900);font-size:11px;text-align:right}
+    .mechanism{margin:0 15px 15px;padding:13px;border-left:4px solid var(--blue-600);border-radius:0 var(--radius-lg) var(--radius-lg) 0;background:var(--blue-50)}
+    .mechanism__top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .mechanism__top strong{color:var(--blue-600);font-size:12px}
+    .mechanism__top span{color:var(--slate-500);font-size:10px}
+    .mechanism h4{margin:9px 0 5px;color:var(--navy-900);font-size:15px}
+    .mechanism p{margin:0;color:var(--slate-700);font-size:12px;line-height:1.7}
+    .mechanism__condition{margin-top:9px!important;padding:8px;border-radius:var(--radius-md);background:#fff;color:var(--amber-800)!important}
+    .verify{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .verify-card{padding:13px;border-top:3px solid var(--blue-600);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--shadow-1)}
+    .verify-card--amber{border-top-color:#f0a62d}
+    .verify-card strong{display:block;color:var(--blue-600);font-size:12px}.verify-card--amber strong{color:var(--amber-800)}
+    .verify-card p{margin:7px 0 0;color:var(--slate-700);font-size:11px;line-height:1.65}
+    @media(max-width:370px){.detail__grid,.verify,.support-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <header class="status"><span>15:30</span><span>5G&nbsp;&nbsp;●●●</span></header>
+    <nav class="nav"><span class="nav__back">‹ 返回</span><strong class="nav__title">推理分析</strong><span></span></nav>
+
+    <section class="hero">
+      <div class="hero__meta"><span class="hero__badge">中等影响</span><span>模拟数据 · 12分钟前</span></div>
+      <h1>三星拟于年底启动泰勒第二座晶圆厂建设，晶圆厂工程与厂务配套节点存在机会；设备需求仍需等待招标确认。</h1>
+      <p class="hero__summary">企业建厂计划 → 工程需求启动 → 设备采购待确认 → 未来产能影响仍不确定</p>
+    </section>
+
+    <div class="content" style="padding-bottom:0">
+      <section>
+        <div class="tree-path-head"><strong>产业链路径</strong><span>2棵推理树</span></div>
+        <div class="tree-tabs">
+          <button class="tree-tab industry-tab">半导体建厂产业链</button>
+          <button class="tree-tab tree-tab--idle industry-tab">晶圆制造产业链</button>
+        </div>
+      </section>
+
+      <section class="panel event-panel">
+        <div class="event-panel__head"><strong>事件事实汇总</strong><span>1条政经事件</span></div>
+        <p class="event-fact">三星电子预计美国泰勒第二座晶圆厂将于年底开工。</p>
+        <div class="event-row">
+          <span class="event-row__number">01</span>
+          <div class="event-row__body"><span>企业计划</span><strong>泰勒第二座晶圆厂预计年底启动建设</strong></div>
+          <time>07-30</time>
+        </div>
+      </section>
+
+      <section class="tree-conclusion">
+        <span class="tree-conclusion__label">本树结论</span>
+        <h2>晶圆厂工程与厂务配套存在机会；设备采购仍不确定，未来代工供给可能带来竞争风险。</h2>
+        <span class="tree-conclusion__meta">2个机会 · 1个风险 · 1个不确定</span>
+      </section>
+
+      <div class="support-grid">
+        <article class="support-card"><strong>当前支持</strong><p>企业明确给出年底开工预期，直接支持工程建设需求进入启动阶段。</p></article>
+        <article class="support-card support-card--counter"><strong>当前反证</strong><p>目前没有发现会削弱开工判断的证据；设备订单与投产节奏仍待确认。</p></article>
+      </div>
+    </div>
+
+    <div>
+      <div class="content">
+        <section class="panel">
+          <header class="tree-head">
+            <div class="tree-head__row"><h2>产业链节点传导</h2></div>
+          </header>
+          <div class="flow-wrap">
+            <div class="flow" id="flow-a">
+              <button class="node is-selected" data-node="construction">
+                <span class="node__top"><span>节点 01</span><span>中置信</span></span>
+                <span class="node__name">晶圆厂建设</span>
+                <span class="node__variable">建设计划：年底启动</span>
+                <span class="node__outlook"><span class="tag tag--opportunity">机会</span><span class="node__confidence">中等影响</span></span>
+              </button>
+              <span class="arrow">→</span>
+              <button class="node" data-node="facility">
+                <span class="node__top"><span>节点 02</span><span>中置信</span></span>
+                <span class="node__name">厂务工程与洁净室</span>
+                <span class="node__variable">厂务需求：可能上升</span>
+                <span class="node__outlook"><span class="tag tag--opportunity">机会</span><span class="node__confidence">中等影响</span></span>
+              </button>
+              <span class="arrow">→</span>
+              <button class="node" data-node="equipment">
+                <span class="node__top"><span>节点 03</span><span>低置信</span></span>
+                <span class="node__name">半导体设备</span>
+                <span class="node__variable">采购需求：可能上升</span>
+                <span class="node__outlook"><span class="tag tag--uncertain">不确定</span><span class="node__confidence">影响待判断</span></span>
+              </button>
+              <span class="arrow">→</span>
+              <button class="node" data-node="foundry">
+                <span class="node__top"><span>节点 04</span><span>低置信</span></span>
+                <span class="node__name">美国晶圆代工供给</span>
+                <span class="node__variable">未来产能：可能增加</span>
+                <span class="node__outlook"><span class="tag tag--risk">风险</span><span class="node__confidence">长期影响</span></span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel detail" id="detail-a">
+          <header class="detail__head">
+            <div><span class="detail__index" id="detail-index">节点 01</span><h3 id="detail-name">晶圆厂建设</h3></div>
+            <div class="detail__judgement"><span id="detail-tag" class="tag tag--opportunity">机会</span><small id="detail-confidence">结论置信度：中等</small></div>
+          </header>
+          <div class="detail__grid">
+            <div class="detail__metric">
+              <span class="detail__metric-label">变量状态</span>
+              <div class="detail__variables" id="detail-variables">
+                <div class="detail__variable-row"><span>建设计划</span><strong>年底启动</strong></div>
+                <div class="detail__variable-row"><span>工程需求</span><strong>预计增加</strong></div>
+                <div class="detail__variable-row"><span>项目许可</span><strong>尚待确认</strong></div>
+              </div>
+            </div>
+            <div class="detail__metric"><span class="detail__metric-label">投资含义</span><strong id="detail-meaning">新增建厂需求可能释放，晶圆厂建设节点值得进一步关注。</strong></div>
+          </div>
+          <div class="mechanism">
+            <h4 id="detail-title">开工计划直接形成工程需求</h4>
+            <p id="detail-reason">第二座晶圆厂计划于年底开工，首先需要厂房建设、工程管理和现场施工资源，因此晶圆厂建设节点出现直接需求机会。</p>
+            <p class="mechanism__condition" id="detail-condition">成立条件：项目按计划取得许可并如期开工。</p>
+          </div>
+        </section>
+
+        <div class="verify">
+          <article class="verify-card"><strong>判断边界</strong><p>目前只能判断建厂相关工程需求；不能据此认定设备订单已经落地或晶圆产能已经增加。</p></article>
+          <article class="verify-card verify-card--amber"><strong>后续验证</strong><p>关注施工许可、总投资规模、总包合同、洁净室招标与设备进场时间。</p></article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const detailData={
+      construction:{index:"节点 01",name:"晶圆厂建设",tag:"机会",tagClass:"tag--opportunity",confidence:"结论置信度：中等",variables:[["建设计划","年底启动"],["工程需求","预计增加"],["项目许可","尚待确认"]],meaning:"新增建厂需求可能释放，晶圆厂建设节点值得进一步关注。",title:"开工计划直接形成工程需求",reason:"第二座晶圆厂计划于年底开工，首先需要厂房建设、工程管理和现场施工资源，因此晶圆厂建设节点出现直接需求机会。",condition:"成立条件：项目按计划取得许可并如期开工。"},
+      facility:{index:"节点 02",name:"厂务工程与洁净室",tag:"机会",tagClass:"tag--opportunity",confidence:"结论置信度：中等",variables:[["厂务需求","可能上升"],["总包合同","尚未确认"],["招标时间","尚未确定"]],meaning:"厂务配套订单可能增加，相关工程服务方向值得关注。",title:"晶圆厂开工带动厂务配套",reason:"晶圆厂建设必须配置洁净室、机电和水气化系统，建设启动会把需求传导至厂务工程节点。",condition:"成立条件：厂务工程招标按计划启动，且项目未被延期。"},
+      equipment:{index:"节点 03",name:"半导体设备",tag:"不确定",tagClass:"tag--uncertain",confidence:"结论置信度：低",variables:[["采购需求","可能上升"],["设备订单","尚未确认"],["进场时间","尚未确定"]],meaning:"需求方向偏正面，但订单尚未确认，暂不能认定为明确机会。",title:"工程推进可能进入设备采购阶段",reason:"厂务系统完成后通常进入设备采购和进场阶段，但当前事件没有提供设备清单、订单或进场时间。",condition:"成立条件：项目进入设备招标并出现正式采购订单。"},
+      foundry:{index:"节点 04",name:"美国晶圆代工供给",tag:"风险",tagClass:"tag--risk",confidence:"结论置信度：低",variables:[["未来产能","可能增加"],["投产时间","尚未确定"],["供给竞争","可能加剧"]],meaning:"未来供给增加可能加剧竞争，对现有代工供给形成潜在风险。",title:"新增产能可能改变代工竞争",reason:"若工厂完成建设、设备验证并实现量产，美国本地晶圆供给将增加，现有代工环节可能面临竞争压力。",condition:"成立条件：工厂如期完工、设备验证成功且产能实际释放。"}
+    };
+    document.querySelectorAll("#flow-a .node").forEach(node=>node.addEventListener("click",()=>{
+      document.querySelectorAll("#flow-a .node").forEach(item=>item.classList.toggle("is-selected",item===node));
+      const data=detailData[node.dataset.node];
+      document.getElementById("detail-index").textContent=data.index;
+      document.getElementById("detail-name").textContent=data.name;
+      const tag=document.getElementById("detail-tag");tag.textContent=data.tag;tag.className=`tag ${data.tagClass}`;
+      document.getElementById("detail-confidence").textContent=data.confidence;
+      document.getElementById("detail-variables").innerHTML=data.variables.map(([label,value])=>`<div class="detail__variable-row"><span>${label}</span><strong>${value}</strong></div>`).join("");
+      document.getElementById("detail-meaning").textContent=data.meaning;
+      document.getElementById("detail-title").textContent=data.title;
+      document.getElementById("detail-reason").textContent=data.reason;
+      document.getElementById("detail-condition").textContent=data.condition;
+    }));
+  </script>
+</body>
+</html>
