@@ -83,9 +83,7 @@ export function ReasoningTreeView({ detail }: { detail: ResearchReasoningTreeDet
         />
         <View className='reasoning-action reasoning-action--boundary'>
           <Text className='reasoning-action__label'>判断边界</Text>
-          <Text className='reasoning-action__text'>
-            {tree.conclusionBoundarySummary || '暂无'}
-          </Text>
+          <Text className='reasoning-action__text'>{tree.conclusionBoundarySummary || '暂无'}</Text>
         </View>
         <View className='reasoning-action reasoning-action--verification'>
           <Text className='reasoning-action__label'>后续验证</Text>

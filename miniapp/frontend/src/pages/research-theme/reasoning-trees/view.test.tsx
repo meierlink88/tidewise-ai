@@ -7,11 +7,7 @@ import {
   parseResearchReasoningTreeDetail,
   parseResearchReasoningTreeIndex
 } from '../../../features/research-reasoning-trees/wire-contract';
-import {
-  ReasoningThemeHero,
-  ReasoningTreeTransmission,
-  ReasoningTreeView
-} from './view';
+import { ReasoningThemeHero, ReasoningTreeTransmission, ReasoningTreeView } from './view';
 
 vi.mock('@tarojs/components', () => ({
   ScrollView: 'scroll-view',
@@ -173,9 +169,7 @@ describe('ReasoningTreeView', () => {
 
     const markup = renderToStaticMarkup(<ReasoningTreeView detail={oneNode} />);
 
-    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual([
-      '节点 01 · 结果'
-    ]);
+    expect(classTextContents(markup, 'reasoning-chain-node__index')).toEqual(['节点 01 · 结果']);
     expect(markup).toContain('信号入口 · 结果节点');
     expect(countClass(markup, 'reasoning-node-detail__mechanism')).toBe(0);
     expect(markup).not.toContain('传导机制');
