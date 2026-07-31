@@ -115,7 +115,21 @@ _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草�
 Entity 走受控精确解析，ChainNode 按固定次数执行路由/分区选择、正式 Anchor ID 选择、
 Data 候选召回与正式 Target ID 消歧，再形成受控语义关联和直接信号。模型只能选择紧邻
 Data 响应中的正式 ID；AgentRun 只转交匹配候选携带的 Data receipt，不拥有或发明路径。
+ChainNode 候选消歧同时携带该 mention 绑定的 Variable Signal，用候选正式职责与变量适用性
+区分同一产业链中的不同节点。Direct Impact Prompt 只接收 source/target Entity Type、变量、
+方向和 relation 全部匹配的 approved Rule，AgentRun validator 使用同一条件复核。Reviewer
+必须逐字覆盖受界 `expected_candidates`；纯候选覆盖缺失可使用一次最小合同修正，不能绕过
+Evidence、Rule 或 Data 接纳校验。
 空候选是 unresolved 正常结果；网络、模型、Lease/路径漂移是可重试执行失败。
+`event-semantic-enricher.v1` 的结构化模型合同由阶段 Prompt hash 和 Workflow hash 精确
+追溯。confidence 字段必须是 `0..1` 十进制数字字符串；时间、版本、Evidence/正式实体 ID
+和 measurement 数字等机器字段由阶段 `field_contracts` 明确格式并继续经过确定性校验。
+模型成功返回且 JSON/机器合同可修正时，同一阶段最多追加一次
+`event-semantic-model-contract-repair.v1` 修正调用；第二次仍非法则稳定失败。Provider、网络、
+权限、Data、Lease 和持久化错误不进入修正调用，修正也不得重放 Submission 或其他 Data
+写入。修正请求只携带阶段/策略、稳定违规码、原输出及对应 schema/field contracts，不重复
+发送完整 Event/Evidence/候选上下文。该行为是 V1 的 conformance fix，不放宽 Data 合同，也不把 `high/medium` 在程序中
+静默映射为数字。
 _Avoid_: Event Fact Extractor Agent、在 Fact Payload 中隐藏正式语义关联
 
 **Event Semantic Work Item**:

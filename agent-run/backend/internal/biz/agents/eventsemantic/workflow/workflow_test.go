@@ -17,6 +17,41 @@ type queuedModel struct {
 	calls     [][]*schema.Message
 }
 
+type scriptedModelResult struct {
+	content string
+	err     error
+}
+
+type scriptedModel struct {
+	results []scriptedModelResult
+	calls   [][]*schema.Message
+}
+
+func (m *scriptedModel) Generate(
+	_ context.Context,
+	input []*schema.Message,
+	_ ...model.Option,
+) (*schema.Message, error) {
+	m.calls = append(m.calls, input)
+	if len(m.results) == 0 {
+		return nil, errors.New("unexpected model call")
+	}
+	result := m.results[0]
+	m.results = m.results[1:]
+	if result.err != nil {
+		return nil, result.err
+	}
+	return schema.AssistantMessage(result.content, nil), nil
+}
+
+func (*scriptedModel) Stream(
+	context.Context,
+	[]*schema.Message,
+	...model.Option,
+) (*schema.StreamReader[*schema.Message], error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *queuedModel) Generate(
 	_ context.Context,
 	input []*schema.Message,
@@ -49,8 +84,10 @@ type semanticDataStub struct {
 	routeCalls        int
 	anchorCalls       int
 	candidateCalls    int
+	submissionCalls   int
 	emptyCandidates   bool
 	resolutionMention string
+	directTargets     []eventsemantic.DirectTarget
 }
 
 func (*semanticDataStub) ListEligibleEvents(context.Context, int, string) (eventsemantic.EligibleEventPage, error) {
@@ -120,6 +157,9 @@ func (s *semanticDataStub) SearchDirectTargets(
 ) ([]eventsemantic.DirectTarget, error) {
 	s.targetSearched = true
 	s.targetSubject = subjectEntityID
+	if s.directTargets != nil {
+		return append([]eventsemantic.DirectTarget(nil), s.directTargets...), nil
+	}
 	return []eventsemantic.DirectTarget{{
 		Entity: eventsemantic.Entity{
 			EntityID:   "44444444-4444-4444-8444-444444444444",
@@ -178,6 +218,7 @@ func (s *semanticDataStub) CreateSubmission(
 	_ context.Context,
 	request eventsemantic.SubmissionRequest,
 ) (eventsemantic.SubmissionResult, error) {
+	s.submissionCalls++
 	s.runRequest = request
 	if s.rejectEmpty &&
 		len(request.EntityLinks) == 0 &&
@@ -198,6 +239,365 @@ func (s *semanticDataStub) CreateSubmission(
 			DirectImpacts: request.DirectImpacts,
 		},
 	}, nil
+}
+
+func TestWorkflowRepairsCorrectableGeneratorConfidenceOnce(t *testing.T) {
+	invalid := `{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"high"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"medium"}]}`
+	corrected := `{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.87"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"0.74"}]}`
+	generator := &queuedModel{responses: []string{invalid, corrected, `{"direct_impacts":[]}`}}
+	reviewer := &queuedModel{responses: []string{
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"company","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]},{"candidate_type":"variable_signal","candidate_key":"production","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]}]}`,
+	}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	contextValue.DirectTransmissionRules = nil
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "accepted" || len(generator.calls) != 3 || data.submissionCalls != 1 {
+		t.Fatalf("result=%#v generator_calls=%d submission_calls=%d", result, len(generator.calls), data.submissionCalls)
+	}
+	if got := data.runRequest.EntityLinks[0].ResolutionConfidence; got != "0.87" {
+		t.Fatalf("resolution confidence = %q", got)
+	}
+	if got := data.runRequest.VariableSignals[0].ExtractionConfidence; got != "0.74" {
+		t.Fatalf("extraction confidence = %q", got)
+	}
+	repairCall := generator.calls[1]
+	if len(repairCall) != 2 || repairCall[0].Role != schema.System ||
+		!strings.Contains(repairCall[0].Content, "original_output") ||
+		!strings.Contains(repairCall[1].Content, `"contract_version":"event-semantic-model-contract-repair-envelope.v1"`) ||
+		!strings.Contains(repairCall[1].Content, `"operation":"repair_model_contract"`) ||
+		!strings.Contains(repairCall[1].Content, `"stage":"event_native_candidates"`) ||
+		!strings.Contains(repairCall[1].Content, `"original_output":`) ||
+		!strings.Contains(repairCall[1].Content, `"output_schema":`) ||
+		!strings.Contains(repairCall[1].Content, `"field_contracts":`) ||
+		!strings.Contains(repairCall[1].Content, "resolution_confidence_invalid") ||
+		!strings.Contains(repairCall[1].Content, "extraction_confidence_invalid") ||
+		strings.Contains(repairCall[1].Content, contextValue.Event.Title) {
+		t.Fatalf("repair call = %#v", repairCall)
+	}
+	firstPrompt := generator.calls[0][1].Content
+	for _, required := range []string{
+		`"valid_examples":["0","0.73","1.0"]`,
+		`"invalid_examples":["high","medium",0.8,"-0.1","1.1",""]`,
+		"RFC3339", "positive_integer", "exact_input_id", "decimal_string",
+	} {
+		if !strings.Contains(firstPrompt, required) {
+			t.Fatalf("generator machine contract is missing %q", required)
+		}
+	}
+}
+
+func TestWorkflowFailsAfterOneModelContractRepair(t *testing.T) {
+	invalid := `{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"high"}],"variable_signals":[]}`
+	generator := &queuedModel{responses: []string{invalid, invalid}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	var remote *eventsemantic.RemoteError
+	if result != nil || !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" || remote.Retryable {
+		t.Fatalf("result=%#v error=%T %#v", result, err, err)
+	}
+	if len(generator.calls) != 2 || data.submissionCalls != 0 || data.resolved || data.targetSearched {
+		t.Fatalf("calls=%d submission=%d resolved=%v targets=%v", len(generator.calls), data.submissionCalls, data.resolved, data.targetSearched)
+	}
+}
+
+func TestWorkflowDoesNotRepairProviderFailure(t *testing.T) {
+	generator := &scriptedModel{results: []scriptedModelResult{{err: errors.New("provider unavailable")}}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	if result != nil || !errors.Is(err, eventsemantic.ErrModelUnavailable) || len(generator.calls) != 1 || data.submissionCalls != 0 {
+		t.Fatalf("result=%#v error=%v calls=%d submission=%d", result, err, len(generator.calls), data.submissionCalls)
+	}
+}
+
+func TestWorkflowDoesNotRepairUnsupportedEvidenceSemantics(t *testing.T) {
+	unsupported := `{"mentions":[{"candidate_key":"company","mention":"原证据中不存在的实体","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.81"}],"variable_signals":[]}`
+	generator := &scriptedModel{results: []scriptedModelResult{{content: unsupported}}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	var remote *eventsemantic.RemoteError
+	if result != nil || !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" ||
+		len(generator.calls) != 1 || data.submissionCalls != 0 {
+		t.Fatalf("result=%#v error=%v calls=%d submission=%d", result, err, len(generator.calls), data.submissionCalls)
+	}
+}
+
+func TestWorkflowPreservesCallerCancellationWithoutRepair(t *testing.T) {
+	generator := &scriptedModel{results: []scriptedModelResult{{err: context.Canceled}}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	if result != nil || !errors.Is(err, context.Canceled) || len(generator.calls) != 1 || data.submissionCalls != 0 {
+		t.Fatalf("result=%#v error=%v calls=%d submission=%d", result, err, len(generator.calls), data.submissionCalls)
+	}
+}
+
+func TestWorkflowPreservesRepairDeadlineWithoutThirdCall(t *testing.T) {
+	invalid := `{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"high"}],"variable_signals":[]}`
+	generator := &scriptedModel{results: []scriptedModelResult{
+		{content: invalid},
+		{err: context.DeadlineExceeded},
+	}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	if result != nil || !errors.Is(err, context.DeadlineExceeded) || len(generator.calls) != 2 || data.submissionCalls != 0 {
+		t.Fatalf("result=%#v error=%v calls=%d submission=%d", result, err, len(generator.calls), data.submissionCalls)
+	}
+}
+
+func TestRepairTraceContractIncludesOperationAndAllModelStages(t *testing.T) {
+	generatorTrace := repairContractHashMaterial(
+		modelStageEventNativeCandidates,
+		modelStageChainNodeRoute,
+		modelStageChainNodeAnchor,
+		modelStageChainNodeCandidate,
+		modelStageDirectImpacts,
+	)
+	for _, required := range []string{
+		modelContractRepairOperation,
+		modelContractRepairPolicyVersion,
+		modelContractRepairEnvelopeVersion,
+		"message_roles",
+		"system",
+		"user",
+		"original_output",
+		"output_schema",
+		"field_contracts",
+		modelStageEventNativeCandidates,
+		modelStageChainNodeRoute,
+		modelStageChainNodeAnchor,
+		modelStageChainNodeCandidate,
+		modelStageDirectImpacts,
+	} {
+		if !strings.Contains(generatorTrace, required) {
+			t.Fatalf("generator repair trace contract is missing %q: %s", required, generatorTrace)
+		}
+	}
+	if !strings.Contains(repairContractHashMaterial(modelStageReviewer), modelStageReviewer) ||
+		!strings.Contains(repairContractHashMaterial(modelStageAdjudicator), modelStageAdjudicator) {
+		t.Fatal("review repair trace contracts are missing their stage identities")
+	}
+}
+
+func TestWorkflowRepairsImpactConfidenceOnce(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.9"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"0.91"}]}`,
+		`{"direct_impacts":[{"candidate_key":"supply","source_signal_key":"production","target_entity_id":"44444444-4444-4444-8444-444444444444","affected_variable_key":"market_supply","affected_variable_version":1,"affected_direction":"decrease","derivation_type":"rule_inferred","mechanism_summary":"产量下降减少产品供给","entity_relation_id":"55555555-5555-4555-8555-555555555555","rule_key":"production_decrease_reduces_product_supply","rule_version":1,"evidence_ids":["22222222-2222-4222-8222-222222222222"],"assertion_confidence":"high"}]}`,
+		`{"direct_impacts":[{"candidate_key":"supply","source_signal_key":"production","target_entity_id":"44444444-4444-4444-8444-444444444444","affected_variable_key":"market_supply","affected_variable_version":1,"affected_direction":"decrease","derivation_type":"rule_inferred","mechanism_summary":"产量下降减少产品供给","entity_relation_id":"55555555-5555-4555-8555-555555555555","rule_key":"production_decrease_reduces_product_supply","rule_version":1,"evidence_ids":["22222222-2222-4222-8222-222222222222"],"assertion_confidence":"0.86"}]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"company","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]},{"candidate_type":"variable_signal","candidate_key":"production","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]},{"candidate_type":"direct_impact","candidate_key":"supply","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]}]}`,
+	}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "accepted" || len(generator.calls) != 3 || data.submissionCalls != 1 ||
+		data.runRequest.DirectImpacts[0].AssertionConfidence != "0.86" {
+		t.Fatalf("result=%#v calls=%d submission=%#v", result, len(generator.calls), data.runRequest)
+	}
+	if !strings.Contains(generator.calls[2][1].Content, "assertion_confidence_invalid") {
+		t.Fatalf("impact repair request = %#v", generator.calls[2])
+	}
+}
+
+func TestWorkflowRejectsMissingApplicableRuleImpact(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.9"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"0.91"}]}`,
+		`{"direct_impacts":[]}`,
+	}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	var remote *eventsemantic.RemoteError
+	if result != nil || !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" ||
+		len(generator.calls) != 2 || data.submissionCalls != 0 {
+		t.Fatalf("result=%#v error=%v calls=%d submission=%d", result, err, len(generator.calls), data.submissionCalls)
+	}
+}
+
+func TestWorkflowRejectsImpactBindingBudgetBeforeModelCall(t *testing.T) {
+	targets := make([]eventsemantic.DirectTarget, 0, 26)
+	for index := 0; index < 26; index++ {
+		suffix := string(rune('a' + index))
+		targets = append(targets, eventsemantic.DirectTarget{
+			Entity: eventsemantic.Entity{
+				EntityID: "target-" + suffix, EntityType: "product", Status: "active",
+			},
+			Relation: eventsemantic.EntityRelation{
+				EntityRelationID: "relation-" + suffix,
+				FromEntityID:     "33333333-3333-4333-8333-333333333333",
+				ToEntityID:       "target-" + suffix, RelationType: "produces", Status: "active",
+			},
+		})
+	}
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.9"}],"variable_signals":[{"candidate_key":"production-a","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"0.91"},{"candidate_key":"production-b","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"0.92"}]}`,
+	}}
+	data := &semanticDataStub{directTargets: targets}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	var remote *eventsemantic.RemoteError
+	if result != nil || !errors.As(err, &remote) ||
+		remote.Code != "event_semantic_impact_budget_exceeded" || remote.Retryable ||
+		len(generator.calls) != 1 || data.submissionCalls != 0 {
+		t.Fatalf("result=%#v error=%v calls=%d submission=%d", result, err, len(generator.calls), data.submissionCalls)
+	}
+}
+
+func TestWorkflowRepairsReviewerCandidateCoverageOnce(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.9"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["22222222-2222-4222-8222-222222222222"],"measurements":[],"extraction_confidence":"0.91"}]}`,
+		`{"direct_impacts":[{"candidate_key":"supply","source_signal_key":"production","target_entity_id":"44444444-4444-4444-8444-444444444444","affected_variable_key":"market_supply","affected_variable_version":1,"affected_direction":"decrease","derivation_type":"rule_inferred","mechanism_summary":"产量下降减少产品供给","entity_relation_id":"55555555-5555-4555-8555-555555555555","rule_key":"production_decrease_reduces_product_supply","rule_version":1,"evidence_ids":["22222222-2222-4222-8222-222222222222"],"assertion_confidence":"0.86"}]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"company","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]}]}`,
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"company","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]},{"candidate_type":"variable_signal","candidate_key":"production","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]},{"candidate_type":"direct_impact","candidate_key":"supply","decision":"pass","reason_codes":[],"evidence_ids":["22222222-2222-4222-8222-222222222222"]}]}`,
+	}}
+	data := &semanticDataStub{}
+	runnable, err := New(context.Background(), data, generator, reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "accepted" || len(reviewer.calls) != 2 || data.submissionCalls != 1 {
+		t.Fatalf("result=%#v reviewer_calls=%d submission_calls=%d", result, len(reviewer.calls), data.submissionCalls)
+	}
+	repair := reviewer.calls[1]
+	if len(repair) != 2 || !strings.Contains(repair[1].Content, "review_candidate_coverage_invalid") ||
+		!strings.Contains(repair[1].Content, `"expected_item_count":3`) ||
+		strings.Contains(repair[1].Content, contextValue.Event.Title) {
+		t.Fatalf("review repair call=%#v", repair)
+	}
 }
 
 func TestWorkflowPersistsNoCandidateSubmissionAsRejected(t *testing.T) {
@@ -329,6 +729,37 @@ func TestWorkflowResolvesDataOwnedIdentitiesAndUsesIndependentReviewer(t *testin
 		reviewer.calls[0][0].Content != reviewerProtocol {
 		t.Fatalf("generator calls=%d reviewer calls=%d", len(generator.calls), len(reviewer.calls))
 	}
+	for _, required := range []string{
+		"全部匹配时必须输出 rule_inferred 候选",
+		"不得省略已满足前提的 approved Rule",
+		"匹配结果非空时 direct_impacts 不得为空",
+		"不得要求 Evidence 直接陈述下游影响",
+	} {
+		if !strings.Contains(generator.calls[1][0].Content, required) {
+			t.Fatalf("impact prompt is missing %q", required)
+		}
+	}
+	for _, required := range []string{
+		"每个结构化候选必须且只能返回一个 review item",
+		"即使判定 fail 或 indeterminate 也不得省略",
+		"rule_inferred 不要求 Evidence 直接陈述下游影响",
+		"正式 relation 和 approved Rule",
+	} {
+		if !strings.Contains(reviewer.calls[0][0].Content, required) {
+			t.Fatalf("reviewer prompt is missing %q", required)
+		}
+	}
+	reviewerPayload := reviewer.calls[0][1].Content
+	for _, required := range []string{
+		`"expected_item_count":3`,
+		`{"candidate_type":"entity_link","candidate_key":"company","evidence_ids":`,
+		`{"candidate_type":"variable_signal","candidate_key":"production","evidence_ids":`,
+		`{"candidate_type":"direct_impact","candidate_key":"supply","evidence_ids":`,
+	} {
+		if !strings.Contains(reviewerPayload, required) {
+			t.Fatalf("reviewer payload is missing %q: %s", required, reviewerPayload)
+		}
+	}
 	nativePrompt := generator.calls[0][1].Content
 	for _, required := range []string{
 		"statement_at", "valid_from", "valid_until",
@@ -380,6 +811,12 @@ func TestWorkflowResolvesNonExactChainNodeThroughBoundedFormalAnchors(t *testing
 	}
 	if len(generator.calls) != 5 {
 		t.Fatalf("generator calls = %d, want bounded 5", len(generator.calls))
+	}
+	candidatePrompt := generator.calls[3][1].Content
+	if !strings.Contains(candidatePrompt, `"variable_signals"`) ||
+		!strings.Contains(candidatePrompt, `"variable_key":"production_volume"`) ||
+		!strings.Contains(generator.calls[3][0].Content, "候选职责能够承载该变量") {
+		t.Fatalf("candidate disambiguation is missing the mention-bound Signal: %s", candidatePrompt)
 	}
 	firstPrompt := generator.calls[0][1].Content
 	for _, forbidden := range []string{`"entities"`, `"relations"`} {
@@ -458,6 +895,35 @@ func TestNativeMentionMustBePresentInItsCitedEvidenceText(t *testing.T) {
 	}}}
 	if err := validateNativeOutput(output, contextValue); err == nil {
 		t.Fatal("mention text unsupported by the cited Evidence was accepted")
+	}
+}
+
+func TestNativeOutputRejectsInvalidTimestampAndDecimalMachineFormats(t *testing.T) {
+	contextValue := requestContext()
+	output := nativeOutput{
+		Mentions: []mentionCandidate{{
+			CandidateKey: "company", Mention: "某晶圆厂", PredictedEntityType: "company",
+			EntityRole: "event_subject", EvidenceIDs: []string{"22222222-2222-4222-8222-222222222222"},
+			ResolutionConfidence: "0.9",
+		}},
+		VariableSignals: []eventsemantic.VariableSignalCandidate{{
+			CandidateKey: "production", SubjectLinkKey: "company",
+			VariableKey: "production_volume", VariableVersion: 1,
+			Direction: "decrease", AssertionModality: "actual",
+			EvidenceIDs: []string{"22222222-2222-4222-8222-222222222222"},
+			StatementAt: stringPointer("2026/08/01"), ExtractionConfidence: "0.9",
+			Measurements: []eventsemantic.Measurement{{
+				MeasurementRole: "relative_change", ValueShape: "exact",
+				RawValue: stringPointer("ten"), CanonicalValue: stringPointer("-10"),
+				RawUnit: "%", CanonicalUnit: "percent", RawText: "产量下降10%",
+				EvidenceID: "22222222-2222-4222-8222-222222222222",
+			}},
+		}},
+	}
+	err := validateNativeOutput(output, contextValue)
+	if err == nil || !strings.Contains(err.Error(), "signal_timestamp_invalid") ||
+		!strings.Contains(err.Error(), "measurement_decimal_invalid") {
+		t.Fatalf("machine format error = %v", err)
 	}
 }
 
@@ -552,6 +1018,7 @@ func requestContext() eventsemantic.Context {
 		},
 		DirectTransmissionRules: []eventsemantic.TransmissionRule{{
 			RuleKey: "production_decrease_reduces_product_supply", Version: 1, Status: "approved",
+			SourceEntityType: "company", TargetEntityType: "product",
 			SourceVariableKey: "production_volume", SourceVariableVersion: 1,
 			SourceDirection: "decrease", RelationType: "produces",
 			AffectedVariableKey: "market_supply", AffectedVariableVersion: 1,
