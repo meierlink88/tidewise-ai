@@ -36,7 +36,7 @@ type EventTagCatalogService interface {
 }
 
 type EventSemanticsService interface {
-	ListEligibleEvents(context.Context, int) ([]eventsemantics.EligibleEvent, error)
+	ListEligibleEvents(context.Context, int, string) (eventsemantics.EligibleEventPage, error)
 	CreateContextLease(context.Context, eventsemantics.ContextLeaseRequest) (eventsemantics.ContextLease, error)
 	Context(context.Context, string) (eventsemantics.Context, error)
 	Resolve(context.Context, string, []eventsemantics.EntityMention) ([]eventsemantics.EntityResolution, error)

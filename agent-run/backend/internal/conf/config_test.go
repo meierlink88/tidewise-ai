@@ -114,6 +114,37 @@ func TestLoadUATRequiresPasswordAndEncryptedYAMLDatabaseConfiguration(t *testing
 	}
 }
 
+func TestLoadDatabaseOperationRequiresOnlyDatabaseCredentials(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "uat", configYAML("uat", 9080, "require"))
+	t.Setenv("APP_ENV", "uat")
+	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
+	t.Setenv("AGENTRUN_DB_PASSWORD", "database-secret")
+	t.Setenv("AGENTRUN_SERVICE_TOKEN", "")
+	t.Setenv("DATA_SERVICE_TOKEN", "")
+	t.Setenv("TZ", "")
+
+	cfg, err := LoadDatabaseOperation()
+	if err != nil {
+		t.Fatalf("LoadDatabaseOperation() error = %v", err)
+	}
+	if cfg.App.Env != EnvUAT ||
+		cfg.Secrets.DatabasePassword != "database-secret" ||
+		cfg.Secrets.ServiceToken != "" ||
+		cfg.Secrets.DataServiceToken != "" {
+		t.Fatalf("database operation configuration = %#v", cfg)
+	}
+
+	t.Setenv("AGENTRUN_DB_PASSWORD", "")
+	if _, err := LoadDatabaseOperation(); err == nil ||
+		!strings.Contains(err.Error(), "AGENTRUN_DB_PASSWORD") {
+		t.Fatalf(
+			"LoadDatabaseOperation() error = %v, want missing database password",
+			err,
+		)
+	}
+}
+
 func TestLoadRejectsNonStandardServicePort(t *testing.T) {
 	setRequiredRuntimeEnvironment(t)
 	dir := t.TempDir()

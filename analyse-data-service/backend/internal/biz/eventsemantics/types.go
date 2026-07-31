@@ -225,7 +225,18 @@ type ContextLeaseRequest struct {
 }
 
 type EligibleEvent struct {
-	EventID string
+	EventID     string
+	FirstSeenAt time.Time
+}
+
+type EligibleEventCursor struct {
+	FirstSeenAt time.Time
+	EventID     string
+}
+
+type EligibleEventPage struct {
+	Events     []EligibleEvent
+	NextCursor string
 }
 
 type EntityMention struct {

@@ -26,6 +26,11 @@ previous_compose="${state_dir}/previous.compose.yaml"
 previous_sha="${state_dir}/previous.sha"
 report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual}.json"
 agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GITHUB_RUN_ID:-manual}.json"
+agentrun_rollback_compatibility_required=false
+agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
+release_state_write_marker="${state_dir}/release-state-write-in-progress"
+candidate_services_started=false
+rollback_snapshot_ready=false
 industry_import_dry_run_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-dry-run-${GITHUB_RUN_ID:-manual}.json"
 industry_import_apply_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-apply-${GITHUB_RUN_ID:-manual}.json"
 industry_import_replay_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relationships-replay-${GITHUB_RUN_ID:-manual}.json"
@@ -75,12 +80,62 @@ fi
 test -d "$state_dir"
 test -w "$state_dir"
 
+write_release_state_marker() {
+  local phase="$1"
+  local temporary_marker
+  temporary_marker="$(mktemp "${state_dir}/release-state-write.XXXXXX")"
+  printf '%s\n' "$phase" > "$temporary_marker"
+  chmod 0640 "$temporary_marker"
+  sync "$temporary_marker"
+  mv -f "$temporary_marker" "$release_state_write_marker"
+  sync -f "$state_dir"
+}
+
+restore_interrupted_release_state() {
+  local recovery_mode
+  recovery_mode="$(sed -n '1p' "$release_state_write_marker")"
+  case "$recovery_mode" in
+    committed)
+      if [ ! -s "$current_runtime" ] || [ ! -s "$current_images" ] || [ ! -s "$current_compose" ] || [ ! -s "$current_sha" ]; then
+        echo "FAIL release-state-recovery: committed state is incomplete" >&2
+        return 1
+      fi
+      rm -f "$agentrun_rollback_marker"
+      ;;
+    previous)
+      if [ ! -s "$previous_runtime" ] || [ ! -s "$previous_images" ] || [ ! -s "$previous_compose" ] || [ ! -s "$previous_sha" ]; then
+        echo "FAIL release-state-recovery: previous snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$previous_runtime" "$current_runtime"
+      install -m 0640 "$previous_images" "$current_images"
+      install -m 0640 "$previous_compose" "$current_compose"
+      install -m 0640 "$previous_sha" "$current_sha"
+      ;;
+    none)
+      rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
+      ;;
+    *)
+      echo "FAIL release-state-recovery: invalid write marker" >&2
+      return 1
+      ;;
+  esac
+  sync "$current_runtime" "$current_images" "$current_compose" "$current_sha" 2>/dev/null || true
+  sync -f "$deployment_root"
+  rm -f "$release_state_write_marker"
+  sync -f "$state_dir"
+  echo "PASS recovered-interrupted-release-state"
+}
+
 exec 9>"${deployment_root}/deploy.lock"
 if ! flock -n 9; then
   echo "FAIL deployment-lock: another UAT deployment holds ${deployment_root}/deploy.lock" >&2
   exit 1
 fi
 echo "PASS deployment-lock"
+if [ -f "$release_state_write_marker" ]; then
+  restore_interrupted_release_state
+fi
 
 # Process environment variables have higher precedence than Compose --env-file.
 # The workflow exposes candidate image names at job scope, so clear them before
@@ -123,15 +178,56 @@ verify_services() {
 }
 
 rollback_current_release() {
-  if [ ! -s "$current_runtime" ] || [ ! -s "$current_images" ] || [ ! -s "$current_compose" ] || [ ! -s "$current_sha" ]; then
+  local rollback_runtime="$current_runtime"
+  local rollback_images="$current_images"
+  local rollback_compose_file="$current_compose"
+  local rollback_sha="$current_sha"
+  if [ "$rollback_snapshot_ready" = true ]; then
+    rollback_runtime="$previous_runtime"
+    rollback_images="$previous_images"
+    rollback_compose_file="$previous_compose"
+    rollback_sha="$previous_sha"
+  fi
+  if [ ! -s "$rollback_runtime" ] || [ ! -s "$rollback_images" ] || [ ! -s "$rollback_compose_file" ] || [ ! -s "$rollback_sha" ]; then
     echo "FAIL rollback: no previous repository-managed UAT release is available" >&2
     return 1
   fi
-  echo "Candidate verification failed; restoring release $(sed -n '1p' "$current_sha")" >&2
-  local -a rollback_compose=("${compose_command[@]}" --env-file "$current_runtime" --env-file "$current_images" -f "$current_compose")
+  echo "Candidate verification failed; restoring release $(sed -n '1p' "$rollback_sha")" >&2
+  if [ "$agentrun_rollback_compatibility_required" = true ] || [ -f "$agentrun_rollback_marker" ]; then
+    if ! "${candidate_compose[@]}" run --rm --no-deps \
+      --entrypoint /app/agentrun-migrate agentrun \
+      --prepare-previous-release-rollback; then
+      echo "FAIL agentrun-previous-release-database-compatibility: marker retained" >&2
+      return 1
+    fi
+    rm -f "$agentrun_rollback_marker"
+    agentrun_rollback_compatibility_required=false
+    echo "PASS agentrun-previous-release-database-compatibility" >&2
+  fi
+  local -a rollback_compose=("${compose_command[@]}" --env-file "$rollback_runtime" --env-file "$rollback_images" -f "$rollback_compose_file")
   "${rollback_compose[@]}" up -d --wait --wait-timeout 120 --remove-orphans
-  verify_services "$current_runtime" "${rollback_compose[@]}"
+  verify_services "$rollback_runtime" "${rollback_compose[@]}"
+  if [ -f "$release_state_write_marker" ]; then
+    restore_interrupted_release_state
+  fi
   echo "PASS rollback: previous complete release restored" >&2
+}
+
+cleanup_unfinished_agentrun_migration() {
+  local exit_status=$?
+  trap - EXIT
+  if [ "$exit_status" -ne 0 ]; then
+    if [ "$candidate_services_started" = true ]; then
+      rollback_current_release || true
+    elif [ -f "$agentrun_rollback_marker" ] && "${candidate_compose[@]}" run --rm --no-deps \
+      --entrypoint /app/agentrun-migrate agentrun \
+      --prepare-previous-release-rollback; then
+      rm -f "$agentrun_rollback_marker"
+    elif [ -f "$agentrun_rollback_marker" ]; then
+      echo "FAIL interrupted AgentRun migration cleanup: marker retained" >&2
+    fi
+  fi
+  exit "$exit_status"
 }
 
 "${candidate_compose[@]}" config --quiet
@@ -142,6 +238,14 @@ echo "PASS compose-contract"
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh agentrun \
   -c 'probe="$(mktemp /app/data/.uat-write-probe.XXXXXX)" && rm -f "$probe"'
 echo "PASS agentrun-artifact-write"
+
+if [ -f "$agentrun_rollback_marker" ]; then
+  "${candidate_compose[@]}" run --rm --no-deps \
+    --entrypoint /app/agentrun-migrate agentrun \
+    --prepare-previous-release-rollback
+  rm -f "$agentrun_rollback_marker"
+  echo "PASS recovered-interrupted-agentrun-migration"
+fi
 
 # Check-only dbmigrate establishes a real TLS PostgreSQL connection and reports
 # current/pending migration state without taking the migration lock or writing.
@@ -197,10 +301,12 @@ if unclassified:
     raise SystemExit("pending AgentRun migrations lack risk classification: " + ",".join(unclassified))
 print(",".join(version for version in versions if risk[version] == "high"))
 print(",".join(version for version in versions if risk[version] == "blocked"))
+print("true" if "010" in versions else "false")
 PY
 )"
 agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
 agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '2p')"
+agentrun_rollback_compatibility_required="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '3p')"
 
 database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
 
@@ -243,6 +349,13 @@ fi
 echo "PASS migration-risk-gate"
 
 "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply > "$report_file"
+if [ "$agentrun_rollback_compatibility_required" = true ]; then
+  : > "$agentrun_rollback_marker"
+  chmod 0640 "$agentrun_rollback_marker"
+  sync "$agentrun_rollback_marker"
+  sync -f "$state_dir"
+  trap cleanup_unfinished_agentrun_migration EXIT
+fi
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /app/agentrun-migrate agentrun > "$agentrun_report_file"
 {
   echo
@@ -445,18 +558,35 @@ if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
   rollback_current_release
   exit 1
 fi
+candidate_services_started=true
+trap cleanup_unfinished_agentrun_migration EXIT
 
 if [ -s "$current_runtime" ] && [ -s "$current_images" ] && [ -s "$current_compose" ] && [ -s "$current_sha" ]; then
   install -m 0600 "$current_runtime" "$previous_runtime"
   install -m 0640 "$current_images" "$previous_images"
   install -m 0640 "$current_compose" "$previous_compose"
   install -m 0640 "$current_sha" "$previous_sha"
+  rollback_snapshot_ready=true
+fi
+if [ "$rollback_snapshot_ready" = true ]; then
+  write_release_state_marker previous
+else
+  write_release_state_marker none
 fi
 install -m 0600 "$runtime_env" "$current_runtime"
 install -m 0640 "$candidate_images" "$current_images"
 install -m 0640 "$compose_file" "$current_compose"
 printf '%s\n' "$release_sha" > "$current_sha"
 chmod 0640 "$current_sha"
+sync "$current_runtime" "$current_images" "$current_compose" "$current_sha"
+sync -f "$deployment_root"
+write_release_state_marker committed
+rm -f "$agentrun_rollback_marker"
+sync -f "$state_dir"
+agentrun_rollback_compatibility_required=false
+rm -f "$release_state_write_marker"
+sync -f "$state_dir"
+trap - EXIT
 echo "PASS release-state-recorded"
 
 {

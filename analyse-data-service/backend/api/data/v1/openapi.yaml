@@ -377,6 +377,20 @@ paths:
             minimum: 1
             maximum: 100
             default: 20
+        - name: cursor
+          in: query
+          required: false
+          description: 由上一页返回的 opaque cursor。
+          schema:
+            type: string
+            maxLength: 1024
+        - name: pagination
+          in: query
+          required: false
+          description: 新消费者显式设置为 cursor 后，响应才返回 next_cursor；省略时保持旧版 only-events 响应。
+          schema:
+            type: string
+            enum: [cursor]
       responses:
         '200':
           description: Eligible Event 列表
@@ -390,6 +404,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
@@ -2184,6 +2200,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EligibleEventSemanticEvent'
+        next_cursor:
+          type: string
+          description: 下一页 opaque cursor；缺失表示已到末页。
 
     EligibleEventSemanticEventsEnvelope:
       type: object

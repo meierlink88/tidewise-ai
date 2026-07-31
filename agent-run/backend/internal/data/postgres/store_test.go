@@ -46,7 +46,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 9 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 10 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -64,8 +64,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "009" ||
-		len(report.Applied) != 9 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "010" ||
+		len(report.Applied) != 10 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -125,6 +125,142 @@ func TestMigrateSeedsCollectorAndEventFactExtractorV1(t *testing.T) {
 	}
 	if store.SchemaReady(ctx) {
 		t.Fatal("schema with a missing required column reported ready")
+	}
+}
+
+func TestPreparePreviousReleaseRollbackIsSafeAndMigrationCanReplay(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "storage_release_rollback_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	eventID := "22222222-2222-4222-8222-222222222222"
+	if _, err := database.Exec(ctx, `
+		INSERT INTO event_semantic_work_items (
+			work_item_id, event_id, trigger_source, reason, idempotency_key,
+			status, attempt_count, max_attempts, created_at, updated_at
+		) VALUES (
+			'11111111-1111-4111-8111-111111111111', $1::uuid, 'eligible_event', '',
+			'event-semantic-initial:' || $1::text, 'skipped', 0, 1, now(), now()
+		)
+	`, eventID); err != nil {
+		t.Fatal(err)
+	}
+	if err := postgres.PreparePreviousReleaseRollback(ctx, database); err == nil {
+		t.Fatal("rollback preparation accepted a historical skipped row")
+	}
+	if _, err := database.Exec(
+		ctx, `DELETE FROM event_semantic_work_items WHERE event_id = $1`, eventID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := postgres.PreparePreviousReleaseRollback(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	report, err := postgres.InspectMigrations(ctx, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Pending) != 1 || report.Pending[0].Version != "010" {
+		t.Fatalf("rollback-compatible migration report = %#v", report)
+	}
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	if !postgres.New(database).SchemaReady(ctx) {
+		t.Fatal("replayed 010 migration schema is not ready")
+	}
+}
+
+func TestHistoricalEventSemanticMaintenanceBlocksProcessingCycles(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "storage_semantic_maintenance_lock_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	maintenanceEntered := make(chan struct{})
+	releaseMaintenance := make(chan struct{})
+	maintenanceResult := make(chan error, 1)
+	go func() {
+		maintenanceResult <- store.WithHistoricalEventSemanticMaintenance(
+			ctx,
+			func() error {
+				close(maintenanceEntered)
+				select {
+				case <-releaseMaintenance:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			},
+		)
+	}()
+	select {
+	case <-maintenanceEntered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	processingEntered := make(chan struct{})
+	processingResult := make(chan error, 1)
+	go func() {
+		processingResult <- store.WithEventSemanticProcessingPermit(
+			ctx,
+			func() error {
+				close(processingEntered)
+				return nil
+			},
+		)
+	}()
+	select {
+	case <-processingEntered:
+		t.Fatal("processing cycle entered while historical maintenance held the lock")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(releaseMaintenance)
+	for label, result := range map[string]<-chan error{
+		"maintenance": maintenanceResult,
+		"processing":  processingResult,
+	} {
+		select {
+		case err := <-result:
+			if err != nil {
+				t.Fatalf("%s lock operation: %v", label, err)
+			}
+		case <-ctx.Done():
+			t.Fatalf("%s lock operation: %v", label, ctx.Err())
+		}
 	}
 }
 
@@ -509,7 +645,7 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 	store := postgres.New(database)
 	now := time.Date(2026, 7, 29, 8, 30, 0, 0, time.UTC)
 	eventID := "22222222-2222-4222-8222-222222222222"
-	if err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now); err != nil {
+	if _, err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now); err != nil {
 		t.Fatal(err)
 	}
 	attempt, found, err := store.StartNextExecution(ctx, "worker-1", strings.Repeat("a", 64), now)
@@ -521,7 +657,7 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 	}
 	if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
 		ExecutionID: attempt.ID, Status: "failed", ErrorCode: "temporary_failure",
-		ErrorSummary: "retry", CompletedAt: now.Add(time.Minute),
+		ErrorSummary: "retry", Retryable: true, CompletedAt: now.Add(time.Minute),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -546,6 +682,118 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 	)
 	if err != nil || found {
 		t.Fatalf("exhausted Work Item found=%v err=%v", found, err)
+	}
+}
+
+func TestHistoricalEventDispositionIsIdempotentAndRecoversOnlyValidFailures(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "semantic_history_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	now := time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC)
+	invalidExisting := "22222222-2222-4222-8222-222222222221"
+	invalidMissing := "22222222-2222-4222-8222-222222222222"
+	validFailed := "22222222-2222-4222-8222-222222222223"
+	for _, eventID := range []string{invalidExisting, validFailed} {
+		if _, err := store.EnsureInitialWorkItems(
+			ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now,
+		); err != nil {
+			t.Fatal(err)
+		}
+		attempt, found, err := store.StartNextExecution(
+			ctx, "history-worker", strings.Repeat("a", 64), now,
+		)
+		if err != nil || !found {
+			t.Fatalf("start %s: found=%v err=%v", eventID, found, err)
+		}
+		for attemptNumber := 0; attemptNumber < 2; attemptNumber++ {
+			if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+				ExecutionID: attempt.ID, Status: "failed", ErrorCode: "historical",
+				ErrorSummary: "historical", Retryable: true,
+				CompletedAt: now.Add(
+					time.Duration(attemptNumber*2+1) * time.Minute,
+				),
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if attemptNumber == 0 {
+				attempt, found, err = store.StartNextExecution(
+					ctx, "history-worker", strings.Repeat("a", 64), now.Add(2*time.Minute),
+				)
+				if err != nil || !found {
+					t.Fatalf("retry %s: found=%v err=%v", eventID, found, err)
+				}
+			}
+		}
+	}
+	manifest := eventsemantic.HistoricalManifest{
+		Version:     eventsemantic.HistoricalManifestVersion,
+		GeneratedAt: now.Add(4 * time.Minute),
+		InvalidEventIDs: []string{
+			invalidExisting, invalidMissing,
+		},
+		ValidEventIDs: []string{validFailed},
+	}
+
+	plan, err := store.PlanHistoricalEventDisposition(ctx, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.SkippedCreated != 1 || plan.SkippedUpdated != 1 ||
+		plan.ValidFailuresRecovered != 1 {
+		t.Fatalf("plan = %#v", plan)
+	}
+	applied, err := store.ApplyHistoricalEventDisposition(
+		ctx, manifest, now.Add(5*time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied.SkippedCreated != 1 || applied.SkippedUpdated != 1 ||
+		applied.ValidFailuresRecovered != 1 {
+		t.Fatalf("applied = %#v", applied)
+	}
+	recovery, found, err := store.StartNextExecution(
+		ctx, "history-worker", strings.Repeat("a", 64), now.Add(6*time.Minute),
+	)
+	if err != nil || !found || recovery.WorkItem.EventID != validFailed {
+		t.Fatalf("start controlled recovery: attempt=%#v found=%v err=%v", recovery, found, err)
+	}
+	if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+		ExecutionID: recovery.ID, Status: "failed", ErrorCode: "still-failed",
+		ErrorSummary: "controlled repair failed", Retryable: true,
+		CompletedAt: now.Add(7 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	repeated, err := store.ApplyHistoricalEventDisposition(
+		ctx, manifest, now.Add(8*time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repeated.AlreadySkipped != 2 ||
+		repeated.FailedAfterAuditPreserved != 1 ||
+		repeated.SkippedCreated != 0 ||
+		repeated.ValidFailuresRecovered != 0 {
+		t.Fatalf("repeated = %#v", repeated)
 	}
 }
 
@@ -1156,6 +1404,143 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	references, err = store.ListPreparedPublications(ctx)
 	if err != nil || len(references) != 0 {
 		t.Fatalf("committed references = %#v, err=%v", references, err)
+	}
+}
+
+func TestFailPublicationReconciliationAtomicallyReleasesPreparedExecution(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "publication_failure_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	now := time.Now().UTC()
+	execution, _, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "publication-failure", Prompt: "prompt", CreatedAt: now,
+		AgentVersion: "collector.v1", InvocationKeys: []string{"one"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []agentrun.ExecutionStatus{
+		agentrun.StatusPlanning, agentrun.StatusCollecting, agentrun.StatusMaterializing,
+	} {
+		if err := store.SetExecutionStatus(ctx, execution.ID, status, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reference := agentrun.PublicationReference{
+		ExecutionID: execution.ID, PlanPath: "/tmp/failed-plan.json",
+		PlanSHA256: strings.Repeat("c", 64), PreparedAt: now,
+	}
+	if err := store.PreparePublication(ctx, reference); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.FailPublicationReconciliation(ctx, agentrun.ExecutionFailure{
+		ExecutionID:       execution.ID,
+		ErrorCode:         "artifact_publication_reconciliation_exhausted",
+		ErrorSummary:      "Artifact publication reconciliation exhausted its retry budget",
+		StopReason:        "agent_or_tool_limit",
+		NotInvokedSummary: "Connector did not complete",
+		CompletedAt:       now.Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	failed, err := store.GetExecution(ctx, execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed.Status != agentrun.StatusFailed ||
+		failed.ErrorCode != "artifact_publication_reconciliation_exhausted" ||
+		failed.Artifacts["failed_publication_plan"] != reference.PlanPath ||
+		failed.Artifacts["failed_publication_sha256"] != reference.PlanSHA256 {
+		t.Fatalf("failed execution = %#v", failed)
+	}
+	references, err := store.ListPreparedPublications(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(references) != 0 {
+		t.Fatalf("prepared publications after failure = %#v", references)
+	}
+	withoutAudit, err := store.ListTerminalExecutionsWithoutArtifacts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(withoutAudit) != 1 || withoutAudit[0].ID != execution.ID {
+		t.Fatalf("terminal Executions awaiting audit = %#v", withoutAudit)
+	}
+	if err := store.AttachTerminalArtifacts(
+		ctx,
+		execution.ID,
+		map[string]string{"summary": "/tmp/terminal-audit.json"},
+		now.Add(2*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
+	withAudit, err := store.GetExecution(ctx, execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if withAudit.Artifacts["failed_publication_plan"] != reference.PlanPath ||
+		withAudit.Artifacts["failed_publication_sha256"] != reference.PlanSHA256 ||
+		withAudit.Artifacts["summary"] != "/tmp/terminal-audit.json" {
+		t.Fatalf("merged terminal Artifacts = %#v", withAudit.Artifacts)
+	}
+	if err := store.AttachTerminalArtifacts(
+		ctx,
+		execution.ID,
+		map[string]string{"summary": "/tmp/terminal-audit.json"},
+		now.Add(3*time.Minute),
+	); err != nil {
+		t.Fatalf("idempotent terminal Artifact merge: %v", err)
+	}
+
+	uncertain, _, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "publication-uncertain", Prompt: "prompt", CreatedAt: now,
+		AgentVersion: "collector.v1", InvocationKeys: []string{"one"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []agentrun.ExecutionStatus{
+		agentrun.StatusPlanning, agentrun.StatusCollecting, agentrun.StatusMaterializing,
+	} {
+		if err := store.SetExecutionStatus(ctx, uncertain.ID, status, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.FailPublicationReconciliation(ctx, agentrun.ExecutionFailure{
+		ExecutionID:       uncertain.ID,
+		ErrorCode:         "artifact_publication_reconciliation_exhausted",
+		ErrorSummary:      "Artifact publication remained non-terminal after reconciliation",
+		StopReason:        "agent_or_tool_limit",
+		NotInvokedSummary: "Connector did not complete",
+		CompletedAt:       now.Add(time.Minute),
+	}); err != nil {
+		t.Fatalf("uncertain prepare failure: %v", err)
+	}
+	failedWithoutPublication, err := store.GetExecution(ctx, uncertain.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failedWithoutPublication.Status != agentrun.StatusFailed {
+		t.Fatalf("uncertain prepare status = %q", failedWithoutPublication.Status)
 	}
 }
 

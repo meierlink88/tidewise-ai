@@ -13,15 +13,27 @@ import (
 func listEligibleEventSemanticEventsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		limit := 20
+		var limitErr error
 		if raw := ctx.Query().Get("limit"); raw != "" {
-			parsed, err := strconv.Atoi(raw)
-			if err != nil {
-				return NewPublicError(StatusBadRequest, "INVALID_REQUEST", "limit is invalid", nil)
-			}
-			limit = parsed
+			limit, limitErr = strconv.Atoi(raw)
 		}
-		request := &EligibleEventSemanticEventsRequest{Limit: limit}
+		pagination := ctx.Query().Get("pagination")
+		request := &EligibleEventSemanticEventsRequest{
+			Limit:      limit,
+			Cursor:     ctx.Query().Get("cursor"),
+			Pagination: pagination,
+		}
 		return call(ctx, OperationListEligibleEventSemanticEvents, request, func(callContext context.Context) (*Response[EligibleEventSemanticEvents], error) {
+			if limitErr != nil {
+				return nil, NewPublicError(
+					StatusBadRequest, "INVALID_REQUEST", "limit is invalid", nil,
+				)
+			}
+			if pagination != "" && pagination != "cursor" {
+				return nil, NewPublicError(
+					StatusBadRequest, "INVALID_REQUEST", "pagination is invalid", nil,
+				)
+			}
 			return application.ListEligibleEventSemanticEvents(callContext, request)
 		})
 	}

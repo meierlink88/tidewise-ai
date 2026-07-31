@@ -72,6 +72,77 @@ func (s *Store) ListPreparedPublications(ctx context.Context) ([]agentrun.Public
 	return references, nil
 }
 
+// FailPublicationReconciliation atomically disposes any prepared publication,
+// preserves its identity on the terminal Execution, and releases the active slot.
+// It also handles the uncertain-prepare case where no publication row exists.
+func (s *Store) FailPublicationReconciliation(
+	ctx context.Context,
+	failure agentrun.ExecutionFailure,
+) error {
+	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin failed Artifact publication reconciliation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	artifacts := make(map[string]string, len(failure.Artifacts)+2)
+	for key, value := range failure.Artifacts {
+		artifacts[key] = value
+	}
+	var planPath, planSHA256 string
+	err = tx.QueryRow(ctx, `
+		SELECT plan_path, plan_sha256
+		FROM collector_artifact_publications
+		WHERE execution_id = $1
+		FOR UPDATE
+	`, failure.ExecutionID).Scan(&planPath, &planSHA256)
+	switch {
+	case err == nil:
+		artifacts["failed_publication_plan"] = planPath
+		artifacts["failed_publication_sha256"] = planSHA256
+	case errors.Is(err, pgx.ErrNoRows):
+	default:
+		return fmt.Errorf("lock failed Artifact publication: %w", err)
+	}
+	artifactsJSON, err := json.Marshal(artifacts)
+	if err != nil {
+		return fmt.Errorf("encode failed Artifact publication evidence: %w", err)
+	}
+	command, err := tx.Exec(ctx, `
+		UPDATE agent_executions
+		SET status = 'failed', error_code = $2, error_summary = $3,
+		    stop_reason = $4, artifacts = $5,
+		    completed_at = $6, updated_at = $6
+		WHERE execution_id = $1 AND status = 'materializing'
+	`, failure.ExecutionID, failure.ErrorCode, failure.ErrorSummary,
+		failure.StopReason, artifactsJSON, failure.CompletedAt.UTC())
+	if err != nil {
+		return fmt.Errorf("fail Artifact publication reconciliation: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return fmt.Errorf("Execution is not awaiting Artifact publication reconciliation")
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE connector_invocations
+		SET status = CASE status WHEN 'pending' THEN 'not_invoked' ELSE 'failed' END,
+		    error_code = CASE status WHEN 'pending' THEN 'not_invoked' ELSE 'execution_interrupted' END,
+		    error_summary = CASE status WHEN 'pending' THEN $2 ELSE 'Connector did not complete because Agent Execution stopped' END,
+		    completed_at = $3
+		WHERE execution_id = $1 AND status IN ('pending', 'running')
+	`, failure.ExecutionID, failure.NotInvokedSummary, failure.CompletedAt.UTC()); err != nil {
+		return fmt.Errorf("fail incomplete connector invocations: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM collector_artifact_publications WHERE execution_id = $1
+	`, failure.ExecutionID); err != nil {
+		return fmt.Errorf("dispose failed Artifact publication: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit failed Artifact publication reconciliation: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) CommitPreparedPublication(ctx context.Context, reference agentrun.PublicationReference, completion agentrun.ExecutionCompletion) error {
 	if completion.ExecutionID != reference.ExecutionID {
 		return fmt.Errorf("Artifact publication Execution identity mismatch")
@@ -162,10 +233,23 @@ func (s *Store) AttachTerminalArtifacts(ctx context.Context, executionID string,
 	}
 	command, err := s.database.Exec(ctx, `
 		UPDATE agent_executions
-		SET artifacts = $2, updated_at = $3
+		SET artifacts = artifacts || $2::jsonb, updated_at = $3
 		WHERE execution_id = $1
 		  AND status IN ('failed', 'skipped')
-		  AND (artifacts = '{}'::jsonb OR artifacts = $2::jsonb)
+		  AND (
+		      artifacts = '{}'::jsonb
+		      OR artifacts = $2::jsonb
+		      OR (
+		          artifacts ? 'failed_publication_plan'
+		          AND artifacts ? 'failed_publication_sha256'
+		          AND NOT ($2::jsonb ? 'failed_publication_plan')
+		          AND NOT ($2::jsonb ? 'failed_publication_sha256')
+		          AND (
+		              artifacts - 'failed_publication_plan' - 'failed_publication_sha256' = '{}'::jsonb
+		              OR artifacts - 'failed_publication_plan' - 'failed_publication_sha256' = $2::jsonb
+		          )
+		      )
+		  )
 	`, executionID, encoded, now.UTC())
 	if err != nil {
 		return fmt.Errorf("attach terminal Artifact paths: %w", err)
@@ -180,7 +264,8 @@ func (s *Store) ListTerminalExecutionsWithoutArtifacts(ctx context.Context) ([]a
 	rows, err := s.database.Query(ctx, `
 		SELECT execution_id::text
 		FROM agent_executions
-		WHERE status IN ('failed', 'skipped') AND artifacts = '{}'::jsonb
+		WHERE status IN ('failed', 'skipped')
+		  AND artifacts - 'failed_publication_plan' - 'failed_publication_sha256' = '{}'::jsonb
 		ORDER BY created_at, execution_id
 	`)
 	if err != nil {

@@ -118,6 +118,9 @@ _Avoid_: Event Fact Extractor Agent、在 Fact Payload 中隐藏正式语义关�
 AgentRun 对一个 Data Event 的一次初始语义分析或显式重新分析承担的持久化处理义务。
 它拥有队列状态、幂等键、执行租约、有限尝试次数和当前 Agent Execution；初始分析按
 Event ID 幂等建立，重新分析必须明确携带被替代的 Data Submission ID。
+`skipped` 是一次性历史审计操作专用终态：它只表示历史 Event 的持久化输入不满足当前
+Event Semantic 合同。正常发现、无候选、模型失败和新数据合同异常都不得写入
+`skipped`；历史操作结束后，新 Work Item 仍只按正常状态机运行。
 _Avoid_: Data Context Lease、Data Submission、临时内存任务、无限重试
 
 **Event Semantic Reanalysis Request**:
@@ -132,6 +135,13 @@ _Avoid_: Raw Document Artifact、Candidate ledger、PostgreSQL Candidate 表
 **Skipped Agent Execution**:
 因同一 Agent Definition 已有活跃 Execution 而未启动目标 Agent Workflow 的终态 Agent Execution；它保留触发身份和阻塞来源以供审计，但不是排队任务。
 _Avoid_: Active Agent Execution、Collection Attempt、等待队列、不同 Agent 之间的全局互斥
+
+**Agent Lifecycle Log**:
+AgentRun 在 Runtime、Application/Use Case、Worker Cycle 和已提交状态迁移边界输出的
+结构化 JSON 业务事件。它只记录 Agent/Execution/Work Item 身份、安全计数、阶段、耗时
+和稳定错误码，不记录 Prompt、正文、Evidence、模型原始输入输出、Connector body 或
+凭据。日志用于核验，不参与调度、幂等、重试、对账或发布正确性。
+_Avoid_: 数据库审计事实、状态机输入、Eino node callback、日志驱动业务恢复
 
 ## Language
 

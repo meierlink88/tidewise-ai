@@ -1,18 +1,23 @@
 package eventsemantics
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Store interface {
-	ListEligibleEvents(context.Context, int) ([]EligibleEvent, error)
+	ListEligibleEvents(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
 	CreateContextLease(context.Context, ContextLeaseRequest) (ContextLease, error)
 	Context(context.Context, string) (Context, error)
 	Resolve(context.Context, string, []EntityMention) ([]EntityResolution, error)
@@ -35,6 +40,14 @@ type ValidationError struct{ Reason string }
 
 func (e *ValidationError) Error() string { return e.Reason }
 
+type NotRequiredError struct{ Reason string }
+
+func (e *NotRequiredError) Error() string { return e.Reason }
+
+type InputInvalidError struct{ Reason string }
+
+func (e *InputInvalidError) Error() string { return e.Reason }
+
 type Service struct {
 	store Store
 }
@@ -43,14 +56,89 @@ func NewService(store Store) *Service {
 	return &Service{store: store}
 }
 
-func (s *Service) ListEligibleEvents(ctx context.Context, limit int) ([]EligibleEvent, error) {
+func (s *Service) ListEligibleEvents(
+	ctx context.Context,
+	limit int,
+	cursor string,
+) (EligibleEventPage, error) {
 	if s == nil || s.store == nil {
-		return nil, errors.New("Event Semantics store is required")
+		return EligibleEventPage{}, errors.New("Event Semantics store is required")
 	}
 	if limit < 1 || limit > 100 {
-		return nil, &ValidationError{Reason: "limit must be between one and one hundred"}
+		return EligibleEventPage{}, &ValidationError{Reason: "limit must be between one and one hundred"}
 	}
-	return s.store.ListEligibleEvents(ctx, limit)
+	after, err := decodeEligibleEventCursor(cursor)
+	if err != nil {
+		return EligibleEventPage{}, &ValidationError{Reason: "cursor is invalid"}
+	}
+	items, err := s.store.ListEligibleEvents(ctx, limit+1, after)
+	if err != nil {
+		return EligibleEventPage{}, err
+	}
+	page := EligibleEventPage{Events: items}
+	if len(items) > limit {
+		page.Events = items[:limit]
+		page.NextCursor, err = encodeEligibleEventCursor(page.Events[len(page.Events)-1])
+		if err != nil {
+			return EligibleEventPage{}, err
+		}
+	}
+	return page, nil
+}
+
+type eligibleEventCursorPayload struct {
+	Version     int       `json:"v"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	EventID     string    `json:"event_id"`
+}
+
+func encodeEligibleEventCursor(item EligibleEvent) (string, error) {
+	if item.FirstSeenAt.IsZero() {
+		return "", errors.New("eligible Event cursor time is required")
+	}
+	if _, err := uuid.Parse(item.EventID); err != nil {
+		return "", errors.New("eligible Event cursor ID is invalid")
+	}
+	payload, err := json.Marshal(eligibleEventCursorPayload{
+		Version: 1, FirstSeenAt: item.FirstSeenAt.UTC(), EventID: item.EventID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("encode eligible Event cursor: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeEligibleEventCursor(value string) (*EligibleEventCursor, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if len(value) > 1024 {
+		return nil, errors.New("eligible Event cursor encoding is invalid")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil || len(payload) > 1024 {
+		return nil, errors.New("eligible Event cursor encoding is invalid")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	var decoded eligibleEventCursorPayload
+	if err := decoder.Decode(&decoded); err != nil {
+		return nil, errors.New("eligible Event cursor payload is invalid")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, errors.New("eligible Event cursor payload is invalid")
+	}
+	if decoded.Version != 1 || decoded.FirstSeenAt.IsZero() {
+		return nil, errors.New("eligible Event cursor version is invalid")
+	}
+	if _, err := uuid.Parse(decoded.EventID); err != nil {
+		return nil, errors.New("eligible Event cursor ID is invalid")
+	}
+	return &EligibleEventCursor{
+		FirstSeenAt: decoded.FirstSeenAt.UTC(),
+		EventID:     decoded.EventID,
+	}, nil
 }
 
 func (s *Service) CreateContextLease(ctx context.Context, request ContextLeaseRequest) (ContextLease, error) {

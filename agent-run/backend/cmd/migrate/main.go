@@ -13,9 +13,17 @@ import (
 
 func main() {
 	checkOnly := flag.Bool("check-only", false, "print a read-only JSON migration report")
+	preparePreviousReleaseRollback := flag.Bool(
+		"prepare-previous-release-rollback",
+		false,
+		"remove the compatibility-safe 010 ledger marker before restoring a pre-010 release",
+	)
 	flag.Parse()
+	if *checkOnly && *preparePreviousReleaseRollback {
+		fail("migration operation flags are mutually exclusive")
+	}
 
-	cfg, err := agentrunconfig.Load()
+	cfg, err := agentrunconfig.LoadDatabaseOperation()
 	if err != nil {
 		fail("could not load AgentRun configuration")
 	}
@@ -36,6 +44,15 @@ func main() {
 		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
 			fail("could not encode AgentRun migration report")
 		}
+		return
+	}
+	if *preparePreviousReleaseRollback {
+		if err := postgres.PreparePreviousReleaseRollback(
+			context.Background(), database,
+		); err != nil {
+			fail("could not prepare the previous AgentRun release rollback")
+		}
+		fmt.Println("AgentRun database is compatible with the previous release")
 		return
 	}
 	if err := postgres.Migrate(context.Background(), database); err != nil {

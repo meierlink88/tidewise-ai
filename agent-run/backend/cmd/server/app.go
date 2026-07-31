@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"regexp"
 	"time"
 
 	kratos "github.com/go-kratos/kratos/v3"
@@ -15,6 +16,7 @@ import (
 	eventworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact/workflow"
 	semanticusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/usecase"
 	semanticworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/workflow"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
 	bizschedule "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
@@ -31,6 +33,9 @@ import (
 const serviceVersion = "1.0.0"
 
 func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
+	agentLogger := slogAgentLifecycleLogger{
+		logger: logger, environment: string(config.App.Env),
+	}
 	startupContext, cancelStartup := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelStartup()
 	databaseURL, err := config.PostgresURL()
@@ -132,7 +137,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			}, nil
 		},
 		time.Duration(config.EventFact.ReconcileIntervalSeconds)*time.Second,
-		eventusecase.WithEventLogger(slogEventFactLogger{logger: logger}),
+		eventusecase.WithEventLogger(agentLogger),
 	)
 	if err != nil {
 		return nil, err
@@ -173,7 +178,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			}, nil
 		},
 		time.Duration(config.EventFact.ReconcileIntervalSeconds)*time.Second,
-		semanticusecase.WithEventLogger(slogEventSemanticLogger{logger: logger}),
+		semanticusecase.WithEventLogger(agentLogger),
 	)
 	if err != nil {
 		return nil, err
@@ -192,7 +197,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		connectors.Factory{},
 		artifactStore,
 		collectorusecase.WithEnvironment(string(config.App.Env)),
-		collectorusecase.WithEventLogger(slogEventLogger{logger: logger}),
+		collectorusecase.WithEventLogger(agentLogger),
 	)
 	if err != nil {
 		return nil, err
@@ -254,6 +259,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		kratos.Server(httpServer),
 		kratos.StopTimeout(10*time.Second),
 		kratos.BeforeStart(func(context.Context) error {
+			agentLogger.Info(agentrun.AgentLifecycleEvent{
+				Code: "agent_runtime_started", AgentKey: collector.AgentKey,
+				AgentVersion: "collector.v1", RuntimeMode: "request",
+				Status: "running",
+			})
 			eventApplication.Start(context.Background())
 			eventApplication.Notify()
 			semanticApplication.Start(context.Background())
@@ -275,6 +285,20 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			defer cancel()
 			collectorApplication.BeginShutdown()
 			collectorErr := collectorApplication.Wait(stopContext)
+			if collectorErr == nil {
+				agentLogger.Info(agentrun.AgentLifecycleEvent{
+					Code: "agent_runtime_stopped", AgentKey: collector.AgentKey,
+					AgentVersion: "collector.v1", RuntimeMode: "request",
+					Status: "stopped",
+				})
+			} else {
+				agentLogger.Error(agentrun.AgentLifecycleEvent{
+					Code: "agent_runtime_failed", AgentKey: collector.AgentKey,
+					AgentVersion: "collector.v1", RuntimeMode: "request",
+					Status: "failed", Stage: "shutdown",
+					ErrorCode: "shutdown_deadline",
+				})
+			}
 			databaseErr := closeWithin(stopContext, database.Close)
 			return errors.Join(collectorErr, databaseErr)
 		}),
@@ -327,39 +351,89 @@ func (l slogScheduleEventLogger) Error(eventCode string, scheduleID string) {
 	)
 }
 
-type slogEventLogger struct {
-	logger *slog.Logger
+type slogAgentLifecycleLogger struct {
+	logger      *slog.Logger
+	environment string
 }
 
-type slogEventFactLogger struct {
-	logger *slog.Logger
+var safeAgentLifecycleValuePattern = regexp.MustCompile(
+	`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`,
+)
+
+func (l slogAgentLifecycleLogger) Info(event agentrun.AgentLifecycleEvent) {
+	l.log(slog.LevelInfo, event)
 }
 
-type slogEventSemanticLogger struct {
-	logger *slog.Logger
+func (l slogAgentLifecycleLogger) Warn(event agentrun.AgentLifecycleEvent) {
+	l.log(slog.LevelWarn, event)
 }
 
-func (l slogEventSemanticLogger) Error(eventCode string) {
-	l.logger.Error(
-		"Event Semantic Enricher lifecycle event",
-		"service", conf.ServiceName,
-		"event_code", eventCode,
+func (l slogAgentLifecycleLogger) Error(event agentrun.AgentLifecycleEvent) {
+	l.log(slog.LevelError, event)
+}
+
+func (l slogAgentLifecycleLogger) log(
+	level slog.Level,
+	event agentrun.AgentLifecycleEvent,
+) {
+	requiredString := func(value string) string {
+		if safeAgentLifecycleValuePattern.MatchString(value) {
+			return value
+		}
+		return "invalid"
+	}
+	attributes := []slog.Attr{
+		slog.String("service", conf.ServiceName),
+		slog.String("environment", requiredString(l.environment)),
+		slog.String("event_code", requiredString(event.Code)),
+		slog.String("agent_key", requiredString(event.AgentKey)),
+		slog.String("agent_version", requiredString(event.AgentVersion)),
+		slog.String("runtime_mode", requiredString(event.RuntimeMode)),
+	}
+	appendString := func(key, value string) {
+		if safeAgentLifecycleValuePattern.MatchString(value) {
+			attributes = append(attributes, slog.String(key, value))
+		}
+	}
+	appendString("execution_id", event.ExecutionID)
+	appendString("work_item_id", event.WorkItemID)
+	appendString("trigger_source", event.TriggerSource)
+	appendString("status", event.Status)
+	appendString("outcome", event.Outcome)
+	appendString("stage", event.Stage)
+	appendString("error_code", event.ErrorCode)
+	if event.Attempt > 0 {
+		attributes = append(attributes, slog.Int("attempt", event.Attempt))
+	}
+	if event.MaxAttempts > 0 {
+		attributes = append(attributes, slog.Int("max_attempts", event.MaxAttempts))
+	}
+	if event.Duration > 0 {
+		attributes = append(
+			attributes,
+			slog.Int64("duration_ms", event.Duration.Milliseconds()),
+		)
+	}
+	if counts := safeAgentLifecycleCounts(event.Counts); len(counts) > 0 {
+		attributes = append(attributes, slog.Any("counts", counts))
+	}
+	l.logger.LogAttrs(
+		context.Background(), level, "Agent lifecycle event", attributes...,
 	)
 }
 
-func (l slogEventFactLogger) Error(eventCode string) {
-	l.logger.Error(
-		"Event Fact Extractor lifecycle event",
-		"service", conf.ServiceName,
-		"event_code", eventCode,
-	)
-}
-
-func (l slogEventLogger) Error(eventCode string, executionID string) {
-	l.logger.Error(
-		"Collector lifecycle event",
-		"service", conf.ServiceName,
-		"event_code", eventCode,
-		"execution_id", executionID,
-	)
+func safeAgentLifecycleCounts(counts map[string]int) map[string]int {
+	allowed := map[string]struct{}{
+		"raw_results": {}, "merged_results": {}, "accepted_artifacts": {},
+		"artifacts": {}, "candidate_events": {}, "published_events": {},
+		"events": {}, "submissions": {},
+		"accepted_candidates": {}, "rejected_candidates": {},
+	}
+	result := make(map[string]int, len(counts))
+	for key, value := range counts {
+		if _, exists := allowed[key]; exists && value >= 0 {
+			result[key] = value
+		}
+	}
+	return result
 }
