@@ -1,69 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { loadAgentStatuses, type AgentStatus } from '../api/agentManagement';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import DataTable, { type DataTableColumn } from '../components/ui/DataTable';
+import MetricCard from '../components/admin/metric-card';
+import QueryError from '../components/admin/query-error';
 import Icon from '../components/ui/Icon';
-import StatusBadge from '../components/ui/StatusBadge';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/Button';
+import { Card, CardContent } from '../components/ui/Card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '../components/ui/table';
 
 const refreshIntervalMs = 15_000;
 
 export default function AgentStatusMonitor({ token }: { token: string }) {
-  const [items, setItems] = useState<AgentStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      setItems(await loadAgentStatuses(token));
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Agent 状态加载失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), refreshIntervalMs);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
-
-  const columns = useMemo<DataTableColumn<AgentStatus>[]>(
-    () => [
-      {
-        key: 'agent',
-        header: 'Agent',
-        render: (item) => (
-          <div className='agent-status-identity'>
-            <strong>{item.display_name}</strong>
-            <span>{item.agent_key}</span>
-          </div>
-        )
-      },
-      { key: 'version', header: '当前版本', render: (item) => item.current_version },
-      {
-        key: 'working',
-        header: '工作状态',
-        render: (item) => (
-          <StatusBadge tone={item.is_working ? 'success' : 'neutral'}>
-            {item.is_working ? '工作中' : '空闲'}
-          </StatusBadge>
-        )
-      },
-      {
-        key: 'execution',
-        header: '执行状态',
-        render: (item) => executionStatusLabel(item.current_execution_status)
-      },
-      { key: 'updated', header: '更新时间', render: (item) => formatDateTime(item.updated_at) }
-    ],
-    []
-  );
+  const statusQuery = useQuery({
+    queryKey: ['admin', 'agent-status', token],
+    queryFn: () => loadAgentStatuses(token),
+    refetchInterval: refreshIntervalMs
+  });
+  const items = statusQuery.data ?? [];
 
   const workingCount = items.filter((item) => item.is_working).length;
+  const errorMessage =
+    statusQuery.error instanceof Error ? statusQuery.error.message : 'Agent 状态加载失败';
 
   return (
     <section className='agent-status-monitor'>
@@ -73,37 +37,78 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
           <h2>Agent 运行状态</h2>
           <p>只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。</p>
         </div>
-        <Button disabled={loading} variant='secondary' onClick={() => void refresh()}>
+        <Button
+          className='agent-status-refresh'
+          disabled={statusQuery.isFetching}
+          variant='outline'
+          onClick={() => void statusQuery.refetch()}
+        >
           <Icon name='activity' />
-          刷新状态
+          {statusQuery.isFetching && !statusQuery.isLoading ? '刷新中…' : '刷新状态'}
         </Button>
       </div>
 
       <div className='agent-status-summary' aria-label='Agent 状态概览'>
-        <Card>
-          <span>已注册</span>
-          <strong>{items.length}</strong>
-        </Card>
-        <Card>
-          <span>工作中</span>
-          <strong>{workingCount}</strong>
-        </Card>
-        <Card>
-          <span>空闲</span>
-          <strong>{items.length - workingCount}</strong>
-        </Card>
+        <MetricCard label='已注册' value={items.length} />
+        <MetricCard label='工作中' value={workingCount} />
+        <MetricCard label='空闲' value={items.length - workingCount} />
       </div>
 
-      {error ? <div className='ui-alert danger'>{error}</div> : null}
-      <Card>
-        <DataTable
-          columns={columns}
-          emptyText={loading ? '正在加载 Agent 状态' : '暂无已注册 Agent'}
-          getRowKey={(item) => item.agent_key}
-          items={items}
+      {statusQuery.isError ? (
+        <QueryError
+          message={errorMessage}
+          onRetry={() => void statusQuery.refetch()}
+          retrying={statusQuery.isFetching}
         />
+      ) : null}
+      <Card>
+        <CardContent className='p-0'>
+          {items.length === 0 ? (
+            <div className='grid min-h-32 place-items-center px-4 text-sm text-muted-foreground'>
+              {statusQuery.isLoading ? '正在加载 Agent 状态' : '暂无已注册 Agent'}
+            </div>
+          ) : (
+            <AgentStatusTable items={items} />
+          )}
+        </CardContent>
       </Card>
     </section>
+  );
+}
+
+function AgentStatusTable({ items }: { items: AgentStatus[] }) {
+  return (
+    <Table className='min-w-[760px]'>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Agent</TableHead>
+          <TableHead>当前版本</TableHead>
+          <TableHead>工作状态</TableHead>
+          <TableHead>执行状态</TableHead>
+          <TableHead>更新时间</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item) => (
+          <TableRow key={item.agent_key}>
+            <TableCell>
+              <div className='agent-status-identity'>
+                <strong>{item.display_name}</strong>
+                <span>{item.agent_key}</span>
+              </div>
+            </TableCell>
+            <TableCell>{item.current_version}</TableCell>
+            <TableCell>
+              <Badge variant={item.is_working ? 'success' : 'secondary'}>
+                {item.is_working ? '工作中' : '空闲'}
+              </Badge>
+            </TableCell>
+            <TableCell>{executionStatusLabel(item.current_execution_status)}</TableCell>
+            <TableCell className='whitespace-nowrap'>{formatDateTime(item.updated_at)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 

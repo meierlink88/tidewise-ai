@@ -3,11 +3,11 @@ import AdminShell from './layouts/AdminShell';
 import AdminLogin from './pages/AdminLogin';
 import DataIngestionCenter from './pages/DataIngestionCenter';
 import AgentStatusMonitor from './pages/AgentStatusMonitor';
-import './styles/app.css';
+import AppProviders from './providers/app-providers';
 
 const tokenStorageKey = 'tidewise_admin_token';
 
-export default function App() {
+function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem(tokenStorageKey) ?? '');
   const [currentPage, setCurrentPage] = useState<'data-ingestion' | 'agent-status'>(
     'data-ingestion'
@@ -41,5 +41,13 @@ export default function App() {
         <DataIngestionCenter token={token} />
       )}
     </AdminShell>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProviders>
+      <AdminApp />
+    </AppProviders>
   );
 }

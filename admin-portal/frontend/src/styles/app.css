@@ -1,5 +1,3 @@
-@import './tokens.css';
-
 html,
 body,
 #root {
@@ -12,7 +10,7 @@ body,
 }
 
 body {
-  background: var(--background-50);
+  background: var(--background);
   color: var(--color-text);
   font-family: var(--font-sans);
   letter-spacing: var(--tracking-normal);
@@ -68,7 +66,7 @@ select {
 }
 
 .admin-shell {
-  background: var(--background-50);
+  background: var(--background);
   display: grid;
   gap: 28px;
   grid-template-columns: 236px minmax(0, 1fr);
@@ -146,7 +144,7 @@ select {
   background: transparent;
   border: 0;
   border-radius: 10px;
-  color: var(--color-text);
+  color: var(--sidebar-foreground);
   cursor: pointer;
   display: grid;
   gap: 10px;
@@ -188,7 +186,7 @@ select {
 }
 
 .admin-sidebar-foot strong {
-  color: var(--color-text);
+  color: var(--sidebar-foreground);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -210,6 +208,17 @@ select {
   justify-content: space-between;
   min-height: 70px;
   padding: 0 20px;
+}
+
+.admin-header-leading,
+.admin-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.admin-mobile-menu-trigger {
+  display: none;
 }
 
 .admin-header-kicker {
@@ -251,11 +260,17 @@ select {
 }
 
 .agent-status-monitor {
+  align-content: start;
   display: grid;
   gap: 18px;
   height: 100%;
+  min-width: 0;
   overflow: auto;
   padding-bottom: 24px;
+}
+
+.agent-status-monitor > * {
+  min-width: 0;
 }
 
 .agent-status-toolbar {
@@ -309,7 +324,12 @@ select {
   }
 
   .agent-status-toolbar {
+    flex-direction: column;
     gap: 16px;
+  }
+
+  .agent-status-refresh {
+    width: 100%;
   }
 }
 
@@ -416,10 +436,69 @@ select {
 }
 
 .data-ingestion-tabs-bar {
-  background: var(--background-50);
+  background: var(--background);
   padding-bottom: 16px;
   position: relative;
   z-index: 10;
+}
+
+@media (max-width: 1023px) {
+  .admin-shell {
+    display: block;
+    padding: 12px;
+  }
+
+  .admin-sidebar-desktop {
+    display: none;
+  }
+
+  .admin-main {
+    height: calc(100vh - 24px);
+  }
+
+  .admin-mobile-menu-trigger {
+    display: inline-flex;
+  }
+
+  .admin-header {
+    min-height: 64px;
+    padding: 0 14px;
+  }
+
+  .admin-content {
+    padding-top: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-shell {
+    padding: 0;
+  }
+
+  .admin-main {
+    height: 100vh;
+  }
+
+  .admin-header {
+    border-left: 0;
+    border-radius: 0;
+    border-right: 0;
+    border-top: 0;
+  }
+
+  .admin-header-kicker,
+  .admin-footer,
+  .admin-logout-label {
+    display: none;
+  }
+
+  .admin-header-title {
+    font-size: 14px;
+  }
+
+  .admin-content {
+    padding: 16px 12px 0;
+  }
 }
 
 .data-ingestion-tabs-bar .ui-tabs {
