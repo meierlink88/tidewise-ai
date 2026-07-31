@@ -138,6 +138,28 @@ describe('App admin login', () => {
     expect(menuTrigger).toHaveFocus();
   });
 
+  it('collapses the desktop navigation from its trigger and keyboard shortcut', async () => {
+    storage.set('tidewise_admin_token', 'local-admin-token');
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const sidebarTrigger = screen.getByRole('button', { name: '收起侧边栏' });
+    expect(sidebarTrigger).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(sidebarTrigger);
+    expect(screen.getByRole('button', { name: '展开侧边栏' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+
+    await user.keyboard('{Control>}b{/Control}');
+    expect(screen.getByRole('button', { name: '收起侧边栏' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
   it('switches and persists the Admin color theme', async () => {
     storage.set('tidewise_admin_token', 'local-admin-token');
     const user = userEvent.setup();

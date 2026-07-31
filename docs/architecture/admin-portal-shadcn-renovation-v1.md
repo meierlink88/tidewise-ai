@@ -272,3 +272,25 @@ deployment coupling。观测继续使用现有 Admin API request/error；前端�
 
 TanStack Router、认证存储升级、额外排序字段、CRUD 生成与新业务能力均明确不属于本轮
 迁移；如以后需要，必须单独接受规格。
+
+## 11. shadcn-admin 来源与升级治理
+
+视觉架构参考固定为
+[`satnaing/shadcn-admin@e16c87f`](https://github.com/satnaing/shadcn-admin/tree/e16c87f213a5ba5e45964e9b67c792105ec74d26)
+以及官方 shadcn/ui Sidebar、Theming 和 Vite Dark Mode 文档。采用范围为 New York
+风格元数据、CSS variable token、Lucide 图标和
+`SidebarProvider → Sidebar → SidebarInset → Header/Main` 组合模式。
+
+项目不把上游作为运行时框架、Git submodule 或可自动合并的 fork。引入的组件源码归本
+仓库所有，按照以下边界维护：
+
+- `components/ui` 封装无业务语义的 project-owned primitive；
+- `components/admin` 组合观潮家导航、Header 和运营状态；
+- `layouts/AdminShell` 只暴露当前页面、导航、退出和内容四类接口，隐藏 Sidebar 状态；
+- `pages/features` 继续使用 typed `src/api`，不得直接依赖上游示例 store、router 或
+  model。
+
+上游升级只作为人工审计输入：先固定新 commit、比较目标 primitive 的可访问性与修复，
+再以独立 PR 选择性移植。禁止自动同步 Clerk、Axios、Zustand、TanStack Router、示例
+业务、React/Vite/TypeScript 主版本或任何 Backend 合同变化。每个移植 PR 记录来源
+commit、采用项、拒绝项和验证结果，因此上游后续升级不会直接改变本项目行为。

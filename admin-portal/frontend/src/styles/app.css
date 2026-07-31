@@ -530,6 +530,11 @@ select {
 .ui-tab-panel {
   display: grid;
   gap: 18px;
+  min-width: 0;
+}
+
+.ui-tab-panel > * {
+  min-width: 0;
 }
 
 .toolbar-form {
@@ -579,7 +584,7 @@ select {
 
 .ui-data-table td {
   border-bottom: 1px solid var(--color-border);
-  color: var(--text-700);
+  color: var(--color-text);
   line-height: 1.5;
   padding: 14px;
   vertical-align: top;

@@ -1,4 +1,4 @@
-import Icon from '../ui/Icon';
+import { Moon, Sun } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useTheme } from '../../providers/theme-provider';
 
@@ -13,7 +13,11 @@ export default function ThemeToggle() {
       size='icon'
       variant='ghost'
     >
-      <Icon name={isDark ? 'sun' : 'moon'} />
+      {isDark ? (
+        <Sun aria-hidden='true' className='size-4' />
+      ) : (
+        <Moon aria-hidden='true' className='size-4' />
+      )}
     </Button>
   );
 }

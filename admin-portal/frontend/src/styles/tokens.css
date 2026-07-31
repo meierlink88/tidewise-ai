@@ -153,6 +153,7 @@
   --sidebar-primary-foreground: #0f172a;
   --sidebar-accent: #172033;
   --sidebar-border: #253047;
+  --sidebar-status: #34d399;
   --radius: 0.625rem;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -184,6 +185,7 @@
   --sidebar-primary-foreground: #0f172a;
   --sidebar-accent: #172033;
   --sidebar-border: #253047;
+  --sidebar-status: #6ee7b7;
   --success-subtle: #0f2f20;
   --success-border: #166534;
   --success-text: #86efac;
