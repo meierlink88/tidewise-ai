@@ -669,14 +669,19 @@ Document ID、`occurred_at`、Evidence ID/原文片段、来源和审核状态�
 
 ## 7. AgentRun 候选工作流
 
+> 本节原始全量 Context/通用解析路径已被
+> `event-semantic-anchor-resolution-mvp-v1.md` 与 ADR-0008 收敛：新 Lease 仅保存 compact
+> manifest，ChainNode 使用有界正式锚点解析。下列流程中的“Context”不得再解释为全量 ABox。
+
 ```text
 AgentRun 以稳定 opaque cursor 分页查询 Data eligible Event
 → AgentRun 幂等建立本地 Event Semantic Work Item
 → AgentRun 租约领取 Work Item 并创建 Agent Execution
 → Data 以 Agent Execution ID 为幂等身份，为该 Event / superseded Submission 创建短时 Context Lease
-→ Data 在 Lease 创建事务中持久化固定 Event / Evidence / Ontology / EntityRelation Context
-→ 识别 Entity Mention 与角色
-→ 调 Data Service 解析规范 Entity
+→ Data 在 Lease 创建事务中持久化 compact Event / Evidence / TBox / Route manifest
+→ 识别 Entity Mention、预测类型、角色与 Signal
+→ ChainNode 依次选择正式 route/partition、正式 Anchor ID 并召回/消歧正式 Target ID
+→ 其他 Entity 调 Data Service 做受控精确解析
 → 提取 Variable Signal 候选
 → 查找 Direct Target 候选
 → 生成严格结构化候选
@@ -819,6 +824,9 @@ scope 和请求大小限制模式；不经由 AgentRun 数据库代理 Data 事�
 | `getEventSemanticContext` | `GET /event-semantics/context-leases/{context_lease_id}/context` | 返回该 Lease 对应 Event、完整可用 Evidence、受限 Ontology / Variable / approved Rule 快照。 |
 | `resolveEventSemanticEntities` | `POST /event-semantics/entity-resolutions` | 用名称、类型约束和 Event 上下文解析既有规范 Entity；不创建 Entity。 |
 | `searchEventSemanticDirectTargets` | `POST /event-semantics/direct-targets:search` | 在已批准的 EntityRelation 范围内查询一跳 Direct Target；不做图遍历。 |
+| `listEventSemanticResolutionRoutes` | `POST /event-semantics/resolution-routes:list` | 返回 ChainNode 的受控 Industry/Concept 路由与现有正式分区。 |
+| `listEventSemanticResolutionAnchors` | `POST /event-semantics/resolution-anchors:list` | 按路由/分区分页列出已批准正式锚点。 |
+| `resolveEventSemanticChainNodeCandidates` | `POST /event-semantics/chain-node-candidates:resolve` | 从正式 Anchor 穿透 approved IndustryChain/Membership 返回 ChainNode 与 Data receipt。 |
 | `createEventSemanticSubmission` | `POST /event-semantics/submissions` | 持久化一个 Context Lease/Event 的 Candidate 快照并执行确定性预检，返回 canonical Reviewer 工作包。 |
 | `submitEventSemanticReview` | `POST /event-semantics/submissions/{submission_id}/reviews` | 接收独立 Reviewer / Adjudicator 的结构化结果；由 Data 最终裁决。 |
 | `getEventSemantics` | `GET /events/{event_id}/semantics` | 重新读取完整语义结果、状态、血缘和版本快照；供验收和未来下游使用。 |
@@ -1362,6 +1370,7 @@ mutation Tool。
 | D-010D | AgentRun 持久化并领取 Event Semantic Work Item、管理执行租约和有限重试；Data Context Lease 只固定 Event/Ontology 快照和提交边界，不承担任务机制 | 用户再次确认架构边界 |
 | D-010E | 最小 API 沿用 Data v1、OpenAPI、Bearer scope、1 MiB 请求上限和有界 timeout；以 Eligible Event、Context Lease、Context、Entity Resolution、Target Search、Submission、Review、Read 八项能力闭环；显式重分析进入 AgentRun 内部 API | 用户授权，按既有工程事实冻结 |
 | D-010F | Eligible Event 改为稳定 cursor 并与 Lease 共用输入资格；AgentRun 跨页跳过既有终态 Work Item；历史不合规输入只经一次性 reviewed manifest 写 `skipped`，正常流程不写；无候选保存真实 rejected Submission；三类 Agent 使用现有 slog/Kratos stdout 输出与状态提交解耦的最小结构化生命周期日志 | Issue #153，用户确认 |
+| D-010G | Event Semantic Context 改为 compact manifest，不含全量 ABox；ChainNode 只经 Data-owned Industry/Concept 正式锚点有界解析，模型只选上一步正式 ID，Submission 事务重算并仅保存选中 binding；空候选 unresolved，路径漂移可重试 | Event Semantic Anchor Resolution MVP V1 / ADR-0008 |
 | D-011 | Golden 最小生产验收为供给冲击、政策、企业财报/订单、行业需求四条真实正向 fixture；供给冲击覆盖 rule_inferred，另需至少一条 event_explicit；每类含关键负向。当前缺口按 Golden Data Preparation 处理，不混入 Connector 开发 | 事件推理模型裁决 |
 | C-010 | Golden Scenario 优先从现有 Data/AgentRun 真实 Event 中只读发现；不限制 48 小时，不把新 Connector 混入阶段一 | 事件推理模型补充边界 |
 | C-011 | 只读发现确认现有 8 条 Data Event 血缘完整但不足以覆盖四类 Golden Scenario；语义较强但未发布的 Artifact 只能作为候选，不能冒充合格 Event | 本地 Data、AgentRun 与 Artifact 只读检查 |

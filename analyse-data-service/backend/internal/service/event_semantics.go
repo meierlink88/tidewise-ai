@@ -137,6 +137,99 @@ func (s *DataService) SearchEventSemanticDirectTargets(
 	}, nil
 }
 
+func (s *DataService) ListEventSemanticResolutionRoutes(
+	ctx context.Context,
+	request *v1.EventSemanticResolutionRouteRequest,
+) (*v1.Response[v1.EventSemanticResolutionRouteResult], error) {
+	if s == nil || s.dependencies.EventSemantics == nil {
+		return nil, eventSemanticsNotReady()
+	}
+	routes, err := s.dependencies.EventSemantics.ListResolutionRoutes(
+		ctx, request.ContextLeaseID, request.TargetEntityType,
+	)
+	if err != nil {
+		return nil, eventSemanticsError(err)
+	}
+	result := v1.EventSemanticResolutionRouteResult{Routes: make([]v1.EventSemanticResolutionRoute, 0, len(routes))}
+	for _, route := range routes {
+		result.Routes = append(result.Routes, v1.EventSemanticResolutionRoute{
+			RouteID: route.ID, RouteContractVersion: route.ContractVersion,
+			TargetEntityType: route.TargetEntityType, AnchorEntityType: route.AnchorEntityType,
+			MappingRelationType: route.MappingRelationType, Partitions: route.Partitions,
+			PartitionLabels: route.PartitionLabels, Direction: route.Direction, Purpose: route.Purpose,
+			NextOperation: route.NextOperation, OrderingContract: route.OrderingContract,
+		})
+	}
+	return &v1.Response[v1.EventSemanticResolutionRouteResult]{Status: v1.StatusOK, Result: result}, nil
+}
+
+func (s *DataService) ListEventSemanticResolutionAnchors(
+	ctx context.Context,
+	request *v1.EventSemanticResolutionAnchorRequest,
+) (*v1.Response[v1.EventSemanticResolutionAnchorResult], error) {
+	if s == nil || s.dependencies.EventSemantics == nil {
+		return nil, eventSemanticsNotReady()
+	}
+	page, err := s.dependencies.EventSemantics.ListResolutionAnchors(
+		ctx, request.ContextLeaseID, request.RouteID, request.Partition, request.ParentAnchorIDs,
+		request.PageSize, request.Cursor,
+	)
+	if err != nil {
+		return nil, eventSemanticsError(err)
+	}
+	result := v1.EventSemanticResolutionAnchorResult{NextCursor: page.NextCursor}
+	for _, anchor := range page.Anchors {
+		result.Anchors = append(result.Anchors, v1.EventSemanticResolutionAnchor{
+			Entity: eventSemanticEntityDTO(anchor.Entity), Partition: anchor.Partition,
+			Description: anchor.Description, HierarchyIdentity: anchor.HierarchyIdentity,
+		})
+	}
+	return &v1.Response[v1.EventSemanticResolutionAnchorResult]{Status: v1.StatusOK, Result: result}, nil
+}
+
+func (s *DataService) ResolveEventSemanticChainNodeCandidates(
+	ctx context.Context,
+	request *v1.EventSemanticResolutionCandidateRequest,
+) (*v1.Response[v1.EventSemanticResolutionCandidateResult], error) {
+	if s == nil || s.dependencies.EventSemantics == nil {
+		return nil, eventSemanticsNotReady()
+	}
+	if request.TargetEntityType != "chain_node" || request.MatchMode != "any" {
+		return nil, eventSemanticsError(&eventsemantics.ValidationError{
+			Reason: "target_entity_type and match_mode are unsupported",
+		})
+	}
+	page, err := s.dependencies.EventSemantics.ResolveChainNodeCandidates(
+		ctx, request.ContextLeaseID, request.RouteID, request.AnchorEntityIDs,
+		request.PageSize, request.Cursor,
+	)
+	if err != nil {
+		return nil, eventSemanticsError(err)
+	}
+	result := v1.EventSemanticResolutionCandidateResult{NextCursor: page.NextCursor}
+	for _, candidate := range page.Candidates {
+		result.Candidates = append(result.Candidates, v1.EventSemanticResolutionCandidate{
+			Entity: eventSemanticEntityDTO(candidate.Entity), Description: candidate.Description,
+			MatchedAnchorEntityIDs:  candidate.MatchedAnchorEntityIDs,
+			IndustryChainEntityName: candidate.IndustryChainEntityName,
+			ResolutionReceipt:       eventSemanticResolutionReceiptDTO(candidate.Receipt),
+		})
+	}
+	return &v1.Response[v1.EventSemanticResolutionCandidateResult]{Status: v1.StatusOK, Result: result}, nil
+}
+
+func eventSemanticResolutionReceiptDTO(
+	value eventsemantics.ResolutionReceipt,
+) v1.EventSemanticResolutionReceipt {
+	return v1.EventSemanticResolutionReceipt{
+		RouteID: value.RouteID, RouteContractVersion: value.RouteContractVersion,
+		AnchorEntityID: value.AnchorEntityID, IndustryChainEntityID: value.IndustryChainEntityID,
+		MappingRelationID: value.MappingRelationID, TargetEntityID: value.TargetEntityID,
+		MembershipPosition: value.MembershipPosition, MembershipUpdatedAt: value.MembershipUpdatedAt,
+		PathFingerprint: value.PathFingerprint,
+	}
+}
+
 func (s *DataService) CreateEventSemanticSubmission(
 	ctx context.Context,
 	request *v1.EventSemanticSubmissionRequest,
@@ -218,7 +311,10 @@ func eventSemanticsError(err error) error {
 	var conflict *eventsemantics.ConflictError
 	var notRequired *eventsemantics.NotRequiredError
 	var inputInvalid *eventsemantics.InputInvalidError
+	var contextDrift *eventsemantics.ContextDriftError
 	switch {
+	case errors.As(err, &contextDrift):
+		return publicError(v1.StatusConflict, "EVENT_SEMANTIC_CONTEXT_DRIFT", contextDrift.Reason)
 	case errors.As(err, &notRequired):
 		return publicError(v1.StatusConflict, "EVENT_SEMANTICS_NOT_REQUIRED", notRequired.Reason)
 	case errors.As(err, &inputInvalid):
@@ -244,11 +340,26 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 		OntologyVersion: request.OntologyVersion, AcceptancePolicyVersion: request.AcceptancePolicyVersion,
 	}
 	for _, link := range request.EntityLinks {
-		result.EntityLinks = append(result.EntityLinks, eventsemantics.EntityLinkCandidate{
+		candidate := eventsemantics.EntityLinkCandidate{
 			Key: link.CandidateKey, Mention: link.Mention, EntityID: link.EntityID,
 			EntityRole: link.EntityRole, EvidenceIDs: link.EvidenceIDs,
 			ResolutionMethod: link.ResolutionMethod, ResolutionConfidence: link.ResolutionConfidence,
-		})
+		}
+		if link.ResolutionReceipt != nil {
+			receipt := eventsemantics.ResolutionReceipt{
+				RouteID:               link.ResolutionReceipt.RouteID,
+				RouteContractVersion:  link.ResolutionReceipt.RouteContractVersion,
+				AnchorEntityID:        link.ResolutionReceipt.AnchorEntityID,
+				IndustryChainEntityID: link.ResolutionReceipt.IndustryChainEntityID,
+				MappingRelationID:     link.ResolutionReceipt.MappingRelationID,
+				TargetEntityID:        link.ResolutionReceipt.TargetEntityID,
+				MembershipPosition:    link.ResolutionReceipt.MembershipPosition,
+				MembershipUpdatedAt:   link.ResolutionReceipt.MembershipUpdatedAt,
+				PathFingerprint:       link.ResolutionReceipt.PathFingerprint,
+			}
+			candidate.ResolutionReceipt = &receipt
+		}
+		result.EntityLinks = append(result.EntityLinks, candidate)
 	}
 	for _, signal := range request.VariableSignals {
 		statementAt, err := eventSemanticOptionalUTC(signal.StatementAt)
@@ -317,22 +428,27 @@ func eventSemanticOptionalUTC(raw *string) (*time.Time, error) {
 
 func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticContext {
 	result := v1.EventSemanticContext{
-		ContextLeaseID: value.ContextLeaseID, OntologyVersion: value.OntologyVersion,
-		AcceptancePolicyVersion: value.PolicyVersion, Event: eventSemanticEventDTO(value.Event),
+		ContextLeaseID: value.ContextLeaseID, AgentExecutionID: value.AgentExecutionID,
+		WorkerID: value.WorkerID, LeaseExpiresAt: value.LeaseExpiresAt.UTC().Format(time.RFC3339Nano),
+		ManifestContractVersion: value.ManifestContractVersion,
+		ContextFingerprint:      value.ContextFingerprint, EventFingerprint: value.EventFingerprint,
+		EvidenceFingerprint: value.EvidenceFingerprint, OntologyVersion: value.OntologyVersion,
+		AcceptancePolicyVersion: value.PolicyVersion, RouteContractVersion: value.RouteContractVersion,
+		Event:                   eventSemanticEventDTO(value.Event),
 		Evidence:                make([]v1.EventSemanticEvidence, 0, len(value.Evidence)),
-		Entities:                make([]v1.EventSemanticEntity, 0, len(value.Entities)),
-		Relations:               make([]v1.EventSemanticEntityRelation, 0, len(value.Relations)),
+		EntityTypeDefinitions:   make([]v1.EventSemanticEntityTypeDefinition, 0, len(value.EntityTypes)),
 		VariableDefinitions:     make([]v1.EventSemanticVariableDefinition, 0, len(value.Variables)),
 		DirectTransmissionRules: make([]v1.EventSemanticTransmissionRule, 0, len(value.Rules)),
 	}
 	for _, evidence := range value.Evidence {
 		result.Evidence = append(result.Evidence, eventSemanticEvidenceDTO(evidence))
 	}
-	for _, entity := range value.Entities {
-		result.Entities = append(result.Entities, eventSemanticEntityDTO(entity))
-	}
-	for _, relation := range value.Relations {
-		result.Relations = append(result.Relations, eventSemanticRelationDTO(relation))
+	for _, definition := range value.EntityTypes {
+		result.EntityTypeDefinitions = append(result.EntityTypeDefinitions, v1.EventSemanticEntityTypeDefinition{
+			TypeKey: definition.TypeKey, Version: definition.Version,
+			SignalSubjectAllowed: definition.SignalSubjectAllowed,
+			DirectTargetMode:     definition.DirectTargetMode, Status: definition.Status,
+		})
 	}
 	for _, variable := range value.Variables {
 		result.VariableDefinitions = append(result.VariableDefinitions, v1.EventSemanticVariableDefinition{
@@ -510,11 +626,16 @@ func eventSemanticDecisionsDTO(values []eventsemantics.CandidateDecision) []v1.E
 func eventSemanticLinkCandidatesDTO(values []eventsemantics.EntityLinkCandidate) []v1.EventSemanticEntityLinkCandidate {
 	result := make([]v1.EventSemanticEntityLinkCandidate, 0, len(values))
 	for _, value := range values {
-		result = append(result, v1.EventSemanticEntityLinkCandidate{
+		item := v1.EventSemanticEntityLinkCandidate{
 			CandidateKey: value.Key, Mention: value.Mention, EntityID: value.EntityID,
 			EntityRole: value.EntityRole, EvidenceIDs: value.EvidenceIDs,
 			ResolutionMethod: value.ResolutionMethod, ResolutionConfidence: value.ResolutionConfidence,
-		})
+		}
+		if value.ResolutionReceipt != nil {
+			receipt := eventSemanticResolutionReceiptDTO(*value.ResolutionReceipt)
+			item.ResolutionReceipt = &receipt
+		}
+		result = append(result, item)
 	}
 	return result
 }

@@ -1,6 +1,7 @@
 package eventsemantics
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -107,6 +108,27 @@ func TestPrecheckRejectsEntityRoleOutsideControlledVocabulary(t *testing.T) {
 	assertCandidateStatus(
 		t, result.EntityLinks, "company", StatusRejected, "entity_role_invalid",
 	)
+}
+
+func TestPrecheckAcceptsDataOwnedAnchorReceiptWithoutExactMentionMatch(t *testing.T) {
+	context := Context{
+		Event:    Event{ID: "event", Status: "confirmed", FactStatus: "verified"},
+		Evidence: []Evidence{{ID: "evidence"}},
+		Entities: []Entity{{
+			ID: "chain-node", Type: "chain_node", Name: "Formal Node",
+			CanonicalName: "Formal Node", Status: "active",
+		}},
+	}
+	result := Precheck(context, Submission{EntityLinks: []EntityLinkCandidate{{
+		Key: "node", Mention: "non exact event phrase", EntityID: "chain-node",
+		EntityRole: "event_subject", EvidenceIDs: []string{"evidence"},
+		ResolutionMethod: "data_service_anchor_resolution",
+		ResolutionReceipt: &ResolutionReceipt{
+			TargetEntityID: "chain-node", PathFingerprint: strings.Repeat("a", 64),
+		},
+	}}})
+
+	assertCandidateStatus(t, result.EntityLinks, "node", StatusPendingReview, "")
 }
 
 func TestPrecheckPropagatesRejectedUpstreamWithoutRejectingTheWholeSnapshot(t *testing.T) {

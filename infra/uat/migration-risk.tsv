@@ -33,3 +33,4 @@
 000032	high	forward-only Event semantics TBox/ABox schema and event entity link constraint migration
 000033	high	forward-only atomic Theme publication lineage constraints and indexes
 000034	normal	additive partial index for stable Event Semantic eligible scans
+000035	normal	additive compact Event Semantic context manifest and selected anchor resolution bindings

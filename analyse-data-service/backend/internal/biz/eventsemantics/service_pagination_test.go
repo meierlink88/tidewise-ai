@@ -3,13 +3,15 @@ package eventsemantics
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"testing"
 	"time"
 )
 
 type paginationStoreStub struct {
-	after *EligibleEventCursor
-	items []EligibleEvent
+	after   *EligibleEventCursor
+	items   []EligibleEvent
+	anchors []ResolutionAnchor
 }
 
 func (s *paginationStoreStub) ListEligibleEvents(
@@ -27,10 +29,22 @@ func (*paginationStoreStub) CreateContextLease(context.Context, ContextLeaseRequ
 func (*paginationStoreStub) Context(context.Context, string) (Context, error) {
 	return Context{}, nil
 }
+func (*paginationStoreStub) SubmissionContext(context.Context, string, Submission) (Context, error) {
+	return Context{}, nil
+}
 func (*paginationStoreStub) Resolve(context.Context, string, []EntityMention) ([]EntityResolution, error) {
 	return nil, nil
 }
 func (*paginationStoreStub) SearchDirectTargets(context.Context, string, string, []string) ([]DirectTarget, error) {
+	return nil, nil
+}
+func (*paginationStoreStub) ListResolutionRoutes(context.Context, string, string) ([]ResolutionRoute, error) {
+	return nil, nil
+}
+func (s *paginationStoreStub) ListResolutionAnchors(context.Context, string, string, string, []string) ([]ResolutionAnchor, error) {
+	return append([]ResolutionAnchor(nil), s.anchors...), nil
+}
+func (*paginationStoreStub) ResolveChainNodeCandidates(context.Context, string, string, []string) ([]ResolutionCandidate, error) {
 	return nil, nil
 }
 func (*paginationStoreStub) ReplaySubmission(context.Context, string, string) (SubmissionResult, bool, error) {
@@ -98,6 +112,28 @@ func TestEligibleEventPaginationRejectsUnsupportedCursorVersion(t *testing.T) {
 
 	if err == nil || store.after != nil {
 		t.Fatalf("err = %v after = %#v", err, store.after)
+	}
+}
+
+func TestResolutionAnchorPaginationDetectsSourceDrift(t *testing.T) {
+	store := &paginationStoreStub{anchors: []ResolutionAnchor{
+		{Entity: Entity{ID: "11111111-1111-4111-8111-111111111111"}, Partition: "11111111-1111-4111-8111-111111111111"},
+		{Entity: Entity{ID: "22222222-2222-4222-8222-222222222222"}, Partition: "11111111-1111-4111-8111-111111111111"},
+	}}
+	service := NewService(store)
+	first, err := service.ListResolutionAnchors(
+		context.Background(), "lease", "chain-node-via-industry.v1", "11111111-1111-4111-8111-111111111111", nil, 1, "",
+	)
+	if err != nil || len(first.Anchors) != 1 || first.NextCursor == "" {
+		t.Fatalf("first page=%#v err=%v", first, err)
+	}
+	store.anchors[1].Entity.ID = "33333333-3333-4333-8333-333333333333"
+	_, err = service.ListResolutionAnchors(
+		context.Background(), "lease", "chain-node-via-industry.v1", "11111111-1111-4111-8111-111111111111", nil, 1, first.NextCursor,
+	)
+	var drift *ContextDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("drift error = %T %v", err, err)
 	}
 }
 

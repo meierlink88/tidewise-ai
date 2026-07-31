@@ -112,16 +112,31 @@ type TransmissionRule struct {
 	MechanismTemplate       string `json:"mechanism_template"`
 }
 
+type EntityTypeDefinition struct {
+	TypeKey              string `json:"type_key"`
+	Version              int    `json:"version"`
+	SignalSubjectAllowed bool   `json:"signal_subject_allowed"`
+	DirectTargetMode     string `json:"direct_target_mode"`
+	Status               string `json:"status"`
+}
+
 type Context struct {
-	ContextLeaseID          string               `json:"context_lease_id"`
-	OntologyVersion         string               `json:"ontology_version"`
-	AcceptancePolicyVersion string               `json:"acceptance_policy_version"`
-	Event                   Event                `json:"event"`
-	Evidence                []Evidence           `json:"evidence"`
-	Entities                []Entity             `json:"entities"`
-	Relations               []EntityRelation     `json:"relations"`
-	VariableDefinitions     []VariableDefinition `json:"variable_definitions"`
-	DirectTransmissionRules []TransmissionRule   `json:"direct_transmission_rules"`
+	ContextLeaseID          string                 `json:"context_lease_id"`
+	AgentExecutionID        string                 `json:"agent_execution_id"`
+	WorkerID                string                 `json:"worker_id"`
+	LeaseExpiresAt          string                 `json:"lease_expires_at"`
+	ManifestContractVersion string                 `json:"manifest_contract_version"`
+	ContextFingerprint      string                 `json:"context_fingerprint"`
+	EventFingerprint        string                 `json:"event_fingerprint"`
+	EvidenceFingerprint     string                 `json:"evidence_fingerprint"`
+	OntologyVersion         string                 `json:"ontology_version"`
+	AcceptancePolicyVersion string                 `json:"acceptance_policy_version"`
+	RouteContractVersion    string                 `json:"route_contract_version"`
+	Event                   Event                  `json:"event"`
+	Evidence                []Evidence             `json:"evidence"`
+	EntityTypeDefinitions   []EntityTypeDefinition `json:"entity_type_definitions"`
+	VariableDefinitions     []VariableDefinition   `json:"variable_definitions"`
+	DirectTransmissionRules []TransmissionRule     `json:"direct_transmission_rules"`
 }
 
 type EntityMention struct {
@@ -138,6 +153,57 @@ type EntityResolution struct {
 type DirectTarget struct {
 	Entity   Entity         `json:"entity"`
 	Relation EntityRelation `json:"relation"`
+}
+
+type ResolutionRoute struct {
+	RouteID              string            `json:"route_id"`
+	RouteContractVersion string            `json:"route_contract_version"`
+	TargetEntityType     string            `json:"target_entity_type"`
+	AnchorEntityType     string            `json:"anchor_entity_type"`
+	MappingRelationType  string            `json:"mapping_relation_type"`
+	Partitions           []string          `json:"partitions"`
+	PartitionLabels      map[string]string `json:"partition_labels"`
+	Direction            string            `json:"direction"`
+	Purpose              string            `json:"purpose"`
+	NextOperation        string            `json:"next_operation"`
+	OrderingContract     string            `json:"ordering_contract"`
+}
+
+type ResolutionAnchor struct {
+	Entity            Entity `json:"entity"`
+	Partition         string `json:"partition"`
+	Description       string `json:"description"`
+	HierarchyIdentity string `json:"hierarchy_identity"`
+}
+
+type ResolutionReceipt struct {
+	RouteID               string `json:"route_id"`
+	RouteContractVersion  string `json:"route_contract_version"`
+	AnchorEntityID        string `json:"anchor_entity_id"`
+	IndustryChainEntityID string `json:"industry_chain_entity_id"`
+	MappingRelationID     string `json:"mapping_relation_id"`
+	TargetEntityID        string `json:"target_entity_id"`
+	MembershipPosition    int    `json:"membership_position"`
+	MembershipUpdatedAt   string `json:"membership_updated_at"`
+	PathFingerprint       string `json:"path_fingerprint"`
+}
+
+type ResolutionCandidate struct {
+	Entity                  Entity            `json:"entity"`
+	Description             string            `json:"description"`
+	MatchedAnchorEntityIDs  []string          `json:"matched_anchor_entity_ids"`
+	IndustryChainEntityName string            `json:"industry_chain_entity_name"`
+	ResolutionReceipt       ResolutionReceipt `json:"resolution_receipt"`
+}
+
+type ResolutionAnchorPage struct {
+	Anchors    []ResolutionAnchor `json:"anchors"`
+	NextCursor string             `json:"next_cursor,omitempty"`
+}
+
+type ResolutionCandidatePage struct {
+	Candidates []ResolutionCandidate `json:"candidates"`
+	NextCursor string                `json:"next_cursor,omitempty"`
 }
 
 type Measurement struct {
@@ -161,13 +227,14 @@ type Measurement struct {
 }
 
 type EntityLinkCandidate struct {
-	CandidateKey         string   `json:"candidate_key"`
-	Mention              string   `json:"mention"`
-	EntityID             string   `json:"entity_id"`
-	EntityRole           string   `json:"entity_role"`
-	EvidenceIDs          []string `json:"evidence_ids"`
-	ResolutionMethod     string   `json:"resolution_method"`
-	ResolutionConfidence string   `json:"resolution_confidence,omitempty"`
+	CandidateKey         string             `json:"candidate_key"`
+	Mention              string             `json:"mention"`
+	EntityID             string             `json:"entity_id"`
+	EntityRole           string             `json:"entity_role"`
+	EvidenceIDs          []string           `json:"evidence_ids"`
+	ResolutionMethod     string             `json:"resolution_method"`
+	ResolutionConfidence string             `json:"resolution_confidence,omitempty"`
+	ResolutionReceipt    *ResolutionReceipt `json:"resolution_receipt,omitempty"`
 }
 
 type VariableSignalCandidate struct {
@@ -361,6 +428,9 @@ type DataClient interface {
 	Context(context.Context, string) (Context, error)
 	Resolve(context.Context, string, []EntityMention) ([]EntityResolution, error)
 	SearchDirectTargets(context.Context, string, string, []string) ([]DirectTarget, error)
+	ListResolutionRoutes(context.Context, string, string) ([]ResolutionRoute, error)
+	ListResolutionAnchors(context.Context, string, string, string, []string, int, string) (ResolutionAnchorPage, error)
+	ResolveChainNodeCandidates(context.Context, string, string, []string, int, string) (ResolutionCandidatePage, error)
 	CreateSubmission(context.Context, SubmissionRequest) (SubmissionResult, error)
 	SubmitReview(context.Context, string, ReviewRequest) (SubmissionResult, error)
 	GetEventSemantics(context.Context, string) (EventSemantics, error)

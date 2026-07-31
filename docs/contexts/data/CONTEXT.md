@@ -322,14 +322,29 @@ Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未
 
 **Event Semantic Context Lease**:
 Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。
-它固定 Event、Evidence、Ontology、Variable、Rule 和可选 superseded Submission 边界，
-并在创建事务中持久化 Entity / EntityRelation 在内的完整 Context snapshot。Lease 以
-Agent Execution ID 为唯一恢复身份；同一执行可精确续期，但只能复用原 snapshot，不能
-刷新实时数据。Eligible Event cursor 查询与首次 Lease 创建使用同一 Semantic Input
+它通过轻量 `context_manifest` 固定 Event/Evidence 指纹、Ontology/Policy、Entity Type、
+Variable、Rule、Resolution Route 版本和可选 superseded Submission 边界，不复制全量
+Entity / EntityRelation ABox。Lease 以 Agent Execution ID 为唯一恢复身份；同一执行可
+精确续期并复用原 manifest；旧 snapshot-only Lease 重放时仅为该 Lease 生成 compact
+manifest，并保留历史 snapshot。历史 `context_snapshot` 只保留审计兼容，新 Lease 不再写入
+或对外返回它。Eligible Event cursor 查询与首次 Lease 创建使用同一 Semantic Input
 Eligibility：正式 Event 必须 confirmed、verified、有 Event time，且返回的全部 Evidence
 满足当前 Context 身份、哈希、摘要、来源和时间字段合同。对应 Submission 终结后 Lease
 被消费。它不是任务、队列或 Agent 执行租约；调度、失败恢复和重试始终属于 AgentRun。
 _Avoid_: Reanalysis Task、Agent Work Item、在 Data 中调度模型调用、无限续租
+
+**Event Semantic Resolution Route**:
+Data Service 暴露的版本化、受控 Entity Resolution 路径。ChainNode MVP 只允许从正式且
+已批准的 Industry 或 Concept 锚点，经 `mapped_to_industry | mapped_to_concept` 到
+IndustryChain，再经已批准 Membership 到 ChainNode；路由、锚点和候选均稳定排序并分页。
+Industry 一级分区以正式 UUID 加显示名称提供，Route 同时声明方向、用途和下一操作。
+_Avoid_: 开放式图遍历、AgentRun 直连数据库/Neo4j、全库 Entity Catalog、模型发明路径
+
+**Event Semantic Resolution Binding**:
+一个 Submission 实际选中的正式 Anchor→IndustryChain→ChainNode 路径回执。Data 在候选
+响应中生成 receipt，Submission 事务中重新计算路径指纹；漂移返回可重试冲突，只有通过
+核验的选中 binding 才持久化。未选候选与空候选不写表。
+_Avoid_: 保存全部候选、模型生成 receipt、用日志或监控替代提交前校验
 
 **Reason Tree Event 关联（Reason Tree Event Association）**:
 Tree 可以从父 Theme Event 集合选择零个或多个正式 Event，并保存角色与稳定展示

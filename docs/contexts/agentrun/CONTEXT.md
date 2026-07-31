@@ -111,7 +111,11 @@ AgentRun 为一次待发布 Event Publication Batch 持久化的不可变请求�
 _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草稿
 
 **Event Semantic Enricher**:
-在正式 Event 已存在后，将原始 Mention 解析为 Data Entity 或 Chain Node 并形成受控语义关联和直接信号的后续 Agent Definition。
+在正式 Event 已存在后，先从 Data 的精简 Context 提取原始 Mention、类型与 Signal；普通
+Entity 走受控精确解析，ChainNode 按固定次数执行路由/分区选择、正式 Anchor ID 选择、
+Data 候选召回与正式 Target ID 消歧，再形成受控语义关联和直接信号。模型只能选择紧邻
+Data 响应中的正式 ID；AgentRun 只转交匹配候选携带的 Data receipt，不拥有或发明路径。
+空候选是 unresolved 正常结果；网络、模型、Lease/路径漂移是可重试执行失败。
 _Avoid_: Event Fact Extractor Agent、在 Fact Payload 中隐藏正式语义关联
 
 **Event Semantic Work Item**:

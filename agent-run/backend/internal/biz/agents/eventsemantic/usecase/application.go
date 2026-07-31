@@ -261,6 +261,8 @@ func (a *Application) tick(ctx context.Context) error {
 		code := "event_semantic_workflow_failed"
 		if errors.Is(err, eventsemantic.ErrModelUnavailable) {
 			code = "event_semantic_model_unavailable"
+		} else if remoteCode := semanticRemoteCode(err); remoteCode != "" {
+			code = remoteCode
 		}
 		return fail(
 			code,

@@ -1,0 +1,20 @@
+{
+  "request_id": "contract-supply-resolution-routes",
+  "result": {
+    "routes": [
+      {
+        "route_id": "chain-node-via-industry.v1",
+        "route_contract_version": "event-semantic-anchor-routes.v1",
+        "target_entity_type": "chain_node",
+        "anchor_entity_type": "industry",
+        "mapping_relation_type": "mapped_to_industry",
+        "partitions": ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+        "partition_labels": {"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa": "Fixture Industry"},
+        "direction": "industry_to_industry_chain_to_chain_node",
+        "purpose": "Resolve a formal ChainNode through an approved Industry anchor",
+        "next_operation": "list_resolution_anchors",
+        "ordering_contract": "canonical_name_entity_id.v1"
+      }
+    ]
+  }
+}

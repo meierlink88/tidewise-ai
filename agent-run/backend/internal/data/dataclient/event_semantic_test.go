@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +22,9 @@ func TestEventSemanticClientConsumesFrozenProviderFixtures(t *testing.T) {
 	contextFixture := readSemanticFixture(t, "supply-context.json")
 	resolutionFixture := readSemanticFixture(t, "supply-resolution.json")
 	targetFixture := readSemanticFixture(t, "supply-targets.json")
+	routeFixture := readSemanticFixture(t, "supply-resolution-routes.json")
+	anchorFixture := readSemanticFixture(t, "supply-resolution-anchors.json")
+	candidateFixture := readSemanticFixture(t, "supply-chain-node-candidates.json")
 	runFixture := readSemanticFixture(t, "supply-submission-accepted.json")
 	reviewFixture := readSemanticFixture(t, "supply-review-accepted.json")
 	readFixture := readSemanticFixture(t, "supply-event-semantics.json")
@@ -50,6 +54,20 @@ func TestEventSemanticClientConsumesFrozenProviderFixtures(t *testing.T) {
 		case request.Method == http.MethodPost &&
 			request.URL.Path == "/api/data/v1/event-semantics/direct-targets:search":
 			writeSemanticFixture(t, response, request, targetFixture)
+		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/resolution-routes:list":
+			writeSemanticFixture(t, response, request, routeFixture)
+		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/resolution-anchors:list":
+			writeSemanticFixture(t, response, request, anchorFixture)
+		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/chain-node-candidates:resolve":
+			var input struct {
+				TargetEntityType string `json:"target_entity_type"`
+				MatchMode        string `json:"match_mode"`
+			}
+			if err := json.NewDecoder(request.Body).Decode(&input); err != nil ||
+				input.TargetEntityType != "chain_node" || input.MatchMode != "any" {
+				t.Fatalf("candidate request contract = %#v, err=%v", input, err)
+			}
+			writeSemanticFixture(t, response, request, candidateFixture)
 		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/submissions":
 			body, _ := io.ReadAll(request.Body)
 			if len(body) == 0 {
@@ -112,6 +130,24 @@ func TestEventSemanticClientConsumesFrozenProviderFixtures(t *testing.T) {
 		targets[0].Entity.EntityID != "44444444-4444-4444-8444-444444444444" {
 		t.Fatalf("targets = %#v err=%v", targets, err)
 	}
+	routes, err := client.ListResolutionRoutes(context.Background(), contextLease.ContextLeaseID, "chain_node")
+	if err != nil || len(routes) != 1 || routes[0].RouteID != "chain-node-via-industry.v1" {
+		t.Fatalf("routes = %#v err=%v", routes, err)
+	}
+	anchors, err := client.ListResolutionAnchors(
+		context.Background(), contextLease.ContextLeaseID, routes[0].RouteID, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", nil, 50, "",
+	)
+	if err != nil || len(anchors.Anchors) != 1 {
+		t.Fatalf("anchors = %#v err=%v", anchors, err)
+	}
+	candidates, err := client.ResolveChainNodeCandidates(
+		context.Background(), contextLease.ContextLeaseID, routes[0].RouteID,
+		[]string{anchors.Anchors[0].Entity.EntityID}, 50, "",
+	)
+	if err != nil || len(candidates.Candidates) != 1 ||
+		candidates.Candidates[0].ResolutionReceipt.TargetEntityID != candidates.Candidates[0].Entity.EntityID {
+		t.Fatalf("candidates = %#v err=%v", candidates, err)
+	}
 	run, err := client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{
 		ContextLeaseID: "11111111-1111-4111-8111-111111111111",
 		EventID:        "88888888-8888-4888-8888-888888888888",
@@ -171,6 +207,61 @@ func TestEventSemanticEligibleEventsCanBeEmpty(t *testing.T) {
 	page, listErr := client.ListEligibleEvents(context.Background(), 20, "")
 	if listErr != nil || len(page.Events) != 0 || page.NextCursor != "" {
 		t.Fatalf("page=%#v err=%v", page, listErr)
+	}
+}
+
+func TestEventSemanticContextDriftIsRetryable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		requestID := request.Header.Get("X-Request-ID")
+		response.Header().Set("X-Request-ID", requestID)
+		response.WriteHeader(http.StatusConflict)
+		_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","error":{"code":"EVENT_SEMANTIC_CONTEXT_DRIFT","message":"selected path changed","details":{}}}`))
+	}))
+	defer server.Close()
+	client, err := New(Config{
+		BaseURL: server.URL, ServiceToken: "token", Timeout: time.Second, MaxResponseBytes: 4096,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{})
+	var remote *eventsemantic.RemoteError
+	if !errors.As(err, &remote) || !remote.Retryable || remote.Code != "EVENT_SEMANTIC_CONTEXT_DRIFT" {
+		t.Fatalf("error = %#v", err)
+	}
+}
+
+func TestEventSemanticResolutionValidatorsRejectInvalidRemoteIdentities(t *testing.T) {
+	route := eventsemantic.ResolutionRoute{
+		RouteID: "chain-node-via-industry.v1", RouteContractVersion: "event-semantic-anchor-routes.v1",
+		TargetEntityType: "chain_node", AnchorEntityType: "industry", MappingRelationType: "mapped_to_industry",
+		Partitions: []string{"not-a-uuid"}, PartitionLabels: map[string]string{"not-a-uuid": "Industry"},
+		Direction: "industry_to_industry_chain_to_chain_node", Purpose: "resolve",
+		NextOperation: "list_resolution_anchors", OrderingContract: "canonical_name_entity_id.v1",
+	}
+	if validSemanticRoutes([]eventsemantic.ResolutionRoute{route}, "chain_node") {
+		t.Fatal("invalid Industry partition was accepted")
+	}
+	anchorID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	if validSemanticAnchors([]eventsemantic.ResolutionAnchor{{
+		Entity:    eventsemantic.Entity{EntityID: anchorID, EntityType: "concept", CanonicalName: "Wrong", Status: "active"},
+		Partition: anchorID, Description: "description", HierarchyIdentity: "hierarchy",
+	}}, "chain-node-via-industry.v1", anchorID) {
+		t.Fatal("wrong-type anchor was accepted")
+	}
+	candidate := eventsemantic.ResolutionCandidate{
+		Entity:      eventsemantic.Entity{EntityID: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", EntityType: "chain_node", CanonicalName: "Node", Status: "active"},
+		Description: "stage", MatchedAnchorEntityIDs: []string{anchorID}, IndustryChainEntityName: "Chain",
+		ResolutionReceipt: eventsemantic.ResolutionReceipt{
+			RouteID: "chain-node-via-industry.v1", RouteContractVersion: "event-semantic-anchor-routes.v1",
+			AnchorEntityID: anchorID, IndustryChainEntityID: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+			MappingRelationID: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+			TargetEntityID:    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", MembershipPosition: 1,
+			MembershipUpdatedAt: "not-a-time", PathFingerprint: strings.Repeat("f", 64),
+		},
+	}
+	if validSemanticCandidates([]eventsemantic.ResolutionCandidate{candidate}, candidate.ResolutionReceipt.RouteID, []string{anchorID}) {
+		t.Fatal("invalid receipt timestamp was accepted")
 	}
 }
 

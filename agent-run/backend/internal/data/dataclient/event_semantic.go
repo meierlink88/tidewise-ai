@@ -3,6 +3,8 @@ package dataclient
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -21,6 +23,9 @@ type semanticEligibleEventWire eventsemantic.EligibleEvent
 type semanticContextWire eventsemantic.Context
 type semanticResolutionWire eventsemantic.EntityResolution
 type semanticTargetWire eventsemantic.DirectTarget
+type semanticRouteWire eventsemantic.ResolutionRoute
+type semanticAnchorWire eventsemantic.ResolutionAnchor
+type semanticCandidateWire eventsemantic.ResolutionCandidate
 type semanticSubmissionWire eventsemantic.SubmissionResult
 type eventSemanticsWire eventsemantic.EventSemantics
 type semanticErrorEnvelope struct {
@@ -160,6 +165,106 @@ func (c *Client) SearchDirectTargets(
 		result = append(result, eventsemantic.DirectTarget(item))
 	}
 	if err == nil && !validSemanticTargets(result, subjectEntityID) {
+		err = invalidSemanticResponse()
+	}
+	return result, err
+}
+
+func (c *Client) ListResolutionRoutes(
+	ctx context.Context,
+	contextLeaseID string,
+	targetEntityType string,
+) ([]eventsemantic.ResolutionRoute, error) {
+	payload, err := json.Marshal(map[string]any{
+		"context_lease_id": contextLeaseID, "target_entity_type": targetEntityType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		Routes []semanticRouteWire `json:"routes"`
+	}
+	_, err = c.semanticDo(
+		ctx, http.MethodPost, dataAPIPrefix+"/event-semantics/resolution-routes:list", payload, &response,
+		"data.v1.listEventSemanticResolutionRoutes", "/api/data/v1/event-semantics/resolution-routes:list",
+	)
+	result := make([]eventsemantic.ResolutionRoute, 0, len(response.Routes))
+	for _, item := range response.Routes {
+		result = append(result, eventsemantic.ResolutionRoute(item))
+	}
+	if err == nil && !validSemanticRoutes(result, targetEntityType) {
+		err = invalidSemanticResponse()
+	}
+	return result, err
+}
+
+func (c *Client) ListResolutionAnchors(
+	ctx context.Context,
+	contextLeaseID string,
+	routeID string,
+	partition string,
+	parentAnchorIDs []string,
+	pageSize int,
+	cursor string,
+) (eventsemantic.ResolutionAnchorPage, error) {
+	requestPayload := map[string]any{
+		"context_lease_id": contextLeaseID, "route_id": routeID, "partition": partition,
+		"page_size": pageSize, "cursor": cursor,
+	}
+	if len(parentAnchorIDs) > 0 {
+		requestPayload["parent_anchor_ids"] = parentAnchorIDs
+	}
+	payload, err := json.Marshal(requestPayload)
+	if err != nil {
+		return eventsemantic.ResolutionAnchorPage{}, err
+	}
+	var response struct {
+		Anchors    []semanticAnchorWire `json:"anchors"`
+		NextCursor string               `json:"next_cursor"`
+	}
+	_, err = c.semanticDo(
+		ctx, http.MethodPost, dataAPIPrefix+"/event-semantics/resolution-anchors:list", payload, &response,
+		"data.v1.listEventSemanticResolutionAnchors", "/api/data/v1/event-semantics/resolution-anchors:list",
+	)
+	result := eventsemantic.ResolutionAnchorPage{NextCursor: response.NextCursor}
+	for _, item := range response.Anchors {
+		result.Anchors = append(result.Anchors, eventsemantic.ResolutionAnchor(item))
+	}
+	if err == nil && !validSemanticAnchors(result.Anchors, routeID, partition) {
+		err = invalidSemanticResponse()
+	}
+	return result, err
+}
+
+func (c *Client) ResolveChainNodeCandidates(
+	ctx context.Context,
+	contextLeaseID string,
+	routeID string,
+	anchorEntityIDs []string,
+	pageSize int,
+	cursor string,
+) (eventsemantic.ResolutionCandidatePage, error) {
+	payload, err := json.Marshal(map[string]any{
+		"context_lease_id": contextLeaseID, "route_id": routeID,
+		"target_entity_type": "chain_node", "anchor_entity_ids": anchorEntityIDs,
+		"match_mode": "any", "page_size": pageSize, "cursor": cursor,
+	})
+	if err != nil {
+		return eventsemantic.ResolutionCandidatePage{}, err
+	}
+	var response struct {
+		Candidates []semanticCandidateWire `json:"candidates"`
+		NextCursor string                  `json:"next_cursor"`
+	}
+	_, err = c.semanticDo(
+		ctx, http.MethodPost, dataAPIPrefix+"/event-semantics/chain-node-candidates:resolve", payload, &response,
+		"data.v1.resolveEventSemanticChainNodeCandidates", "/api/data/v1/event-semantics/chain-node-candidates:resolve",
+	)
+	result := eventsemantic.ResolutionCandidatePage{NextCursor: response.NextCursor}
+	for _, item := range response.Candidates {
+		result.Candidates = append(result.Candidates, eventsemantic.ResolutionCandidate(item))
+	}
+	if err == nil && !validSemanticCandidates(result.Candidates, routeID, anchorEntityIDs) {
 		err = invalidSemanticResponse()
 	}
 	return result, err
@@ -311,7 +416,8 @@ func (c *Client) semanticDo(
 		return response.StatusCode, &eventsemantic.RemoteError{
 			Status: response.StatusCode,
 			Code:   public.Error.Code, Summary: public.Error.Message,
-			Retryable: response.StatusCode == http.StatusTooManyRequests || response.StatusCode >= 500,
+			Retryable: public.Error.Code == "EVENT_SEMANTIC_CONTEXT_DRIFT" ||
+				response.StatusCode == http.StatusTooManyRequests || response.StatusCode >= 500,
 		}
 	}
 	var envelope struct {
@@ -379,7 +485,13 @@ func validEligibleEvents(values []eventsemantic.EligibleEvent) bool {
 }
 
 func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bool {
-	if value.ContextLeaseID != contextLeaseID || value.OntologyVersion == "" ||
+	if value.ContextLeaseID != contextLeaseID || value.ManifestContractVersion != "event-semantic-context-manifest.v1" ||
+		value.RouteContractVersion != "event-semantic-anchor-routes.v1" ||
+		strings.TrimSpace(value.AgentExecutionID) == "" || strings.TrimSpace(value.WorkerID) == "" ||
+		strings.TrimSpace(value.LeaseExpiresAt) == "" ||
+		!validSemanticHash(value.ContextFingerprint) || !validSemanticHash(value.EventFingerprint) ||
+		!validSemanticHash(value.EvidenceFingerprint) ||
+		value.OntologyVersion == "" ||
 		value.AcceptancePolicyVersion == "" || !validUUID(value.Event.ID) ||
 		value.Event.EventStatus != "confirmed" || value.Event.FactStatus != "verified" ||
 		len(value.Evidence) == 0 {
@@ -399,6 +511,128 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 		}
 	}
 	return true
+}
+
+func validSemanticHash(value string) bool {
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == sha256.Size && value == strings.ToLower(value)
+}
+
+func validSemanticRoutes(values []eventsemantic.ResolutionRoute, targetEntityType string) bool {
+	seenRoutes := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value.RouteID == "" || value.RouteContractVersion != "event-semantic-anchor-routes.v1" ||
+			value.TargetEntityType != targetEntityType || len(value.Partitions) == 0 ||
+			value.NextOperation != "list_resolution_anchors" || value.OrderingContract == "" ||
+			value.Direction == "" || value.Purpose == "" || len(value.PartitionLabels) == 0 {
+			return false
+		}
+		if _, exists := seenRoutes[value.RouteID]; exists {
+			return false
+		}
+		seenRoutes[value.RouteID] = struct{}{}
+		expectedAnchorType, expectedMappingType := "", ""
+		switch value.RouteID {
+		case "chain-node-via-industry.v1":
+			expectedAnchorType, expectedMappingType = "industry", "mapped_to_industry"
+		case "chain-node-via-concept.v1":
+			expectedAnchorType, expectedMappingType = "concept", "mapped_to_concept"
+		default:
+			return false
+		}
+		if value.AnchorEntityType != expectedAnchorType || value.MappingRelationType != expectedMappingType {
+			return false
+		}
+		expectedDirection := expectedAnchorType + "_to_industry_chain_to_chain_node"
+		if value.Direction != expectedDirection {
+			return false
+		}
+		seenPartitions := make(map[string]struct{}, len(value.Partitions))
+		for _, partition := range value.Partitions {
+			if strings.TrimSpace(partition) == "" || strings.TrimSpace(value.PartitionLabels[partition]) == "" {
+				return false
+			}
+			if _, exists := seenPartitions[partition]; exists {
+				return false
+			}
+			seenPartitions[partition] = struct{}{}
+			if value.AnchorEntityType == "industry" && !validUUID(partition) {
+				return false
+			}
+			if value.AnchorEntityType == "concept" && !semanticConceptPartition(partition) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func validSemanticAnchors(values []eventsemantic.ResolutionAnchor, routeID, partition string) bool {
+	expectedEntityType := map[string]string{
+		"chain-node-via-industry.v1": "industry",
+		"chain-node-via-concept.v1":  "concept",
+	}[routeID]
+	if expectedEntityType == "" {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !validUUID(value.Entity.EntityID) || value.Entity.Status != "active" ||
+			value.Entity.EntityType != expectedEntityType || value.Entity.CanonicalName == "" ||
+			value.Partition != partition || value.Description == "" || value.HierarchyIdentity == "" {
+			return false
+		}
+		if _, exists := seen[value.Entity.EntityID]; exists {
+			return false
+		}
+		seen[value.Entity.EntityID] = struct{}{}
+	}
+	return true
+}
+
+func validSemanticCandidates(values []eventsemantic.ResolutionCandidate, routeID string, anchors []string) bool {
+	allowedAnchors := make(map[string]struct{}, len(anchors))
+	for _, anchor := range anchors {
+		if !validUUID(anchor) {
+			return false
+		}
+		allowedAnchors[anchor] = struct{}{}
+	}
+	for _, value := range values {
+		receipt := value.ResolutionReceipt
+		_, anchorAllowed := allowedAnchors[receipt.AnchorEntityID]
+		matchedReceiptAnchor := false
+		allMatchedAnchorsAllowed := len(value.MatchedAnchorEntityIDs) > 0
+		for _, anchorID := range value.MatchedAnchorEntityIDs {
+			_, allowed := allowedAnchors[anchorID]
+			allMatchedAnchorsAllowed = allMatchedAnchorsAllowed && allowed
+			matchedReceiptAnchor = matchedReceiptAnchor || anchorID == receipt.AnchorEntityID
+		}
+		if !validUUID(value.Entity.EntityID) || value.Entity.EntityType != "chain_node" ||
+			value.Entity.CanonicalName == "" ||
+			value.Entity.Status != "active" || receipt.TargetEntityID != value.Entity.EntityID ||
+			receipt.RouteID != routeID || receipt.RouteContractVersion != "event-semantic-anchor-routes.v1" ||
+			!anchorAllowed || len(receipt.PathFingerprint) != 64 || value.Description == "" ||
+			value.IndustryChainEntityName == "" || !allMatchedAnchorsAllowed || !matchedReceiptAnchor ||
+			!validUUID(receipt.AnchorEntityID) || !validUUID(receipt.IndustryChainEntityID) ||
+			!validUUID(receipt.MappingRelationID) || receipt.MembershipPosition < 1 ||
+			!validSemanticHash(receipt.PathFingerprint) {
+			return false
+		}
+		if _, err := time.Parse(time.RFC3339Nano, receipt.MembershipUpdatedAt); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func semanticConceptPartition(value string) bool {
+	_, valid := map[string]struct{}{
+		"technology": {}, "policy": {}, "application": {}, "demand": {},
+		"business_model": {}, "company_ecosystem": {}, "product_ecosystem": {},
+		"event_narrative": {}, "market_theme": {},
+	}[value]
+	return valid
 }
 
 func validSemanticResolutions(values []eventsemantic.EntityResolution) bool {

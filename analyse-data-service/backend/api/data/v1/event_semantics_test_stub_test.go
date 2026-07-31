@@ -17,6 +17,15 @@ func (testDataHTTPServer) ResolveEventSemanticEntities(context.Context, *EventSe
 func (testDataHTTPServer) SearchEventSemanticDirectTargets(context.Context, *EventSemanticDirectTargetSearchRequest) (*Response[EventSemanticDirectTargetSearchResult], error) {
 	return testResponse[EventSemanticDirectTargetSearchResult]()
 }
+func (testDataHTTPServer) ListEventSemanticResolutionRoutes(context.Context, *EventSemanticResolutionRouteRequest) (*Response[EventSemanticResolutionRouteResult], error) {
+	return testResponse[EventSemanticResolutionRouteResult]()
+}
+func (testDataHTTPServer) ListEventSemanticResolutionAnchors(context.Context, *EventSemanticResolutionAnchorRequest) (*Response[EventSemanticResolutionAnchorResult], error) {
+	return testResponse[EventSemanticResolutionAnchorResult]()
+}
+func (testDataHTTPServer) ResolveEventSemanticChainNodeCandidates(context.Context, *EventSemanticResolutionCandidateRequest) (*Response[EventSemanticResolutionCandidateResult], error) {
+	return testResponse[EventSemanticResolutionCandidateResult]()
+}
 func (testDataHTTPServer) CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*Response[EventSemanticSubmissionResult], error) {
 	return testResponse[EventSemanticSubmissionResult]()
 }

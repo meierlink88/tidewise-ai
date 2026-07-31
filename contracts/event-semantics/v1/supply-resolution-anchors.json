@@ -1,0 +1,20 @@
+{
+  "request_id": "contract-supply-resolution-anchors",
+  "result": {
+    "anchors": [
+      {
+        "entity": {
+          "entity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "entity_type": "industry",
+          "name": "Fixture Industry",
+          "canonical_name": "Fixture Industry",
+          "aliases": ["Fixture Sector"],
+          "status": "active"
+        },
+        "partition": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "description": "Controlled fixture industry definition",
+        "hierarchy_identity": "fixture:v1:fixture-industry"
+      }
+    ]
+  }
+}

@@ -56,6 +56,24 @@ func (eventSemanticsPaginationServiceStub) SearchDirectTargets(
 	return nil, nil
 }
 
+func (eventSemanticsPaginationServiceStub) ListResolutionRoutes(
+	context.Context, string, string,
+) ([]eventsemantics.ResolutionRoute, error) {
+	return nil, nil
+}
+
+func (eventSemanticsPaginationServiceStub) ListResolutionAnchors(
+	context.Context, string, string, string, []string, int, string,
+) (eventsemantics.ResolutionAnchorPage, error) {
+	return eventsemantics.ResolutionAnchorPage{}, nil
+}
+
+func (eventSemanticsPaginationServiceStub) ResolveChainNodeCandidates(
+	context.Context, string, string, []string, int, string,
+) (eventsemantics.ResolutionCandidatePage, error) {
+	return eventsemantics.ResolutionCandidatePage{}, nil
+}
+
 func (eventSemanticsPaginationServiceStub) CreateSubmission(
 	context.Context,
 	eventsemantics.Submission,

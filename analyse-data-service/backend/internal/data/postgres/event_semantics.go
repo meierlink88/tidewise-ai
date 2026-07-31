@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +18,8 @@ import (
 const (
 	eventSemanticsOntologyVersion = "event-semantics.phase-one@1"
 	eventSemanticsPolicyVersion   = "event-semantics.phase-one@1"
+	eventSemanticsManifestVersion = "event-semantic-context-manifest.v1"
+	eventSemanticsRouteVersion    = "event-semantic-anchor-routes.v1"
 )
 
 const eventSemanticInputEligibilitySQL = `
@@ -145,17 +147,18 @@ func (r repository) CreateContextLease(
 	}
 	var existing eventsemantics.ContextLease
 	var existingWorkerID, existingEventID, existingSupersedes, submissionStatus string
+	var existingManifest []byte
 	err = tx.QueryRowContext(ctx, `
 		SELECT lease.id, lease.event_id, COALESCE(lease.supersedes_submission_id::text, ''),
 		       lease.worker_id, lease.status, lease.lease_expires_at,
-		       COALESCE(submission.status, '')
+		       COALESCE(submission.status, ''), lease.context_manifest
 		FROM event_semantic_context_leases lease
 		LEFT JOIN event_semantic_submissions submission ON submission.context_lease_id = lease.id
 		WHERE lease.agent_execution_id = $1
 		FOR UPDATE OF lease
 	`, request.AgentExecutionID).Scan(
 		&existing.ID, &existingEventID, &existingSupersedes, &existingWorkerID,
-		&existing.Status, &existing.LeaseExpiresAt, &submissionStatus,
+		&existing.Status, &existing.LeaseExpiresAt, &submissionStatus, &existingManifest,
 	)
 	if err == nil {
 		if existingEventID != request.EventID || existingWorkerID != request.WorkerID ||
@@ -174,11 +177,28 @@ func (r repository) CreateContextLease(
 		existing.SupersedesSubmissionID = existingSupersedes
 		existing.Status = "active"
 		existing.LeaseExpiresAt = time.Now().UTC().Add(request.Lease)
+		if len(existingManifest) == 0 {
+			manifest, err := buildEventSemanticContext(
+				ctx, tx, existing.ID, existing.EventID, request.AgentExecutionID,
+				request.WorkerID, existing.LeaseExpiresAt,
+			)
+			if err != nil {
+				return eventsemantics.ContextLease{}, err
+			}
+			existingManifest, err = json.Marshal(manifest)
+			if err != nil {
+				return eventsemantics.ContextLease{}, err
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE event_semantic_context_leases
-			SET status = 'active', lease_expires_at = $2, consumed_at = NULL
+			SET status = 'active', lease_expires_at = $2, consumed_at = NULL,
+			    context_manifest = CASE
+			      WHEN context_manifest IS NULL THEN $3::jsonb
+			      ELSE jsonb_set(context_manifest, '{lease_expires_at}', to_jsonb($2::timestamptz), true)
+			    END
 			WHERE id = $1
-		`, existing.ID, existing.LeaseExpiresAt); err != nil {
+		`, existing.ID, existing.LeaseExpiresAt, existingManifest); err != nil {
 			return eventsemantics.ContextLease{}, err
 		}
 		if err := tx.Commit(); err != nil {
@@ -266,22 +286,25 @@ func (r repository) CreateContextLease(
 		Status:                 "active",
 		LeaseExpiresAt:         time.Now().UTC().Add(request.Lease),
 	}
-	snapshot, err := buildEventSemanticContext(ctx, tx, contextLease.ID, contextLease.EventID)
+	manifest, err := buildEventSemanticContext(
+		ctx, tx, contextLease.ID, contextLease.EventID, request.AgentExecutionID,
+		request.WorkerID, contextLease.LeaseExpiresAt,
+	)
 	if err != nil {
 		return eventsemantics.ContextLease{}, err
 	}
-	snapshotPayload, err := json.Marshal(snapshot)
+	manifestPayload, err := json.Marshal(manifest)
 	if err != nil {
 		return eventsemantics.ContextLease{}, err
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO event_semantic_context_leases(
 		    id, event_id, supersedes_submission_id, agent_execution_id, worker_id,
-		    status, lease_expires_at, context_snapshot
-		) VALUES ($1, $2, NULLIF($3, '')::uuid, $4, $5, 'active', $6, $7)
+		    status, lease_expires_at, context_snapshot, context_manifest
+		) VALUES ($1, $2, NULLIF($3, '')::uuid, $4, $5, 'active', $6, NULL, $7)
 	`, contextLease.ID, contextLease.EventID, contextLease.SupersedesSubmissionID,
 		request.AgentExecutionID, request.WorkerID, contextLease.LeaseExpiresAt,
-		snapshotPayload); err != nil {
+		manifestPayload); err != nil {
 		return eventsemantics.ContextLease{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -337,9 +360,10 @@ func classifyEventSemanticLeaseEligibility(
 func (r repository) Context(ctx context.Context, contextLeaseID string) (eventsemantics.Context, error) {
 	var payload []byte
 	err := r.db.QueryRowContext(ctx, `
-		SELECT context_snapshot
+		SELECT context_manifest
 		FROM event_semantic_context_leases
 		WHERE id = $1 AND status = 'active' AND lease_expires_at > now()
+		  AND context_manifest IS NOT NULL
 	`, contextLeaseID).Scan(&payload)
 	if errors.Is(err, sql.ErrNoRows) {
 		return eventsemantics.Context{}, &eventsemantics.NotFoundError{Resource: "active Event Semantic Context Lease"}
@@ -354,15 +378,113 @@ func (r repository) Context(ctx context.Context, contextLeaseID string) (eventse
 	return result, nil
 }
 
+func (r repository) SubmissionContext(
+	ctx context.Context,
+	contextLeaseID string,
+	submission eventsemantics.Submission,
+) (eventsemantics.Context, error) {
+	result, err := r.Context(ctx, contextLeaseID)
+	if err != nil {
+		return eventsemantics.Context{}, err
+	}
+	return hydrateEventSemanticSubmissionContext(ctx, r.db, result, submission, false)
+}
+
+func hydrateEventSemanticSubmissionContext(
+	ctx context.Context,
+	query semanticQueryer,
+	result eventsemantics.Context,
+	submission eventsemantics.Submission,
+	lockSelectedFacts bool,
+) (eventsemantics.Context, error) {
+	lockClause := ""
+	if lockSelectedFacts {
+		lockClause = " FOR SHARE"
+	}
+	entityIDs := make([]string, 0, len(submission.EntityLinks)+len(submission.DirectImpacts))
+	for _, link := range submission.EntityLinks {
+		entityIDs = append(entityIDs, link.EntityID)
+	}
+	for _, impact := range submission.DirectImpacts {
+		entityIDs = append(entityIDs, impact.TargetEntityID)
+	}
+	if len(entityIDs) > 0 {
+		rows, err := query.QueryContext(ctx, `
+			SELECT id, entity_type, name, canonical_name, array_to_json(aliases), status
+			FROM entity_nodes
+			WHERE id = ANY($1::uuid[])
+			ORDER BY entity_type, canonical_name, id
+		`+lockClause, entityIDs)
+		if err != nil {
+			return eventsemantics.Context{}, err
+		}
+		for rows.Next() {
+			var item eventsemantics.Entity
+			var aliases []byte
+			if err := rows.Scan(
+				&item.ID, &item.Type, &item.Name, &item.CanonicalName, &aliases, &item.Status,
+			); err != nil {
+				rows.Close()
+				return eventsemantics.Context{}, err
+			}
+			if err := json.Unmarshal(aliases, &item.Aliases); err != nil {
+				rows.Close()
+				return eventsemantics.Context{}, err
+			}
+			result.Entities = append(result.Entities, item)
+		}
+		if err := rows.Close(); err != nil {
+			return eventsemantics.Context{}, err
+		}
+	}
+	relationIDs := make([]string, 0, len(submission.DirectImpacts))
+	for _, impact := range submission.DirectImpacts {
+		if impact.EntityRelationID != "" {
+			relationIDs = append(relationIDs, impact.EntityRelationID)
+		}
+	}
+	if len(relationIDs) > 0 {
+		rows, err := query.QueryContext(ctx, `
+			SELECT id, from_entity_id, to_entity_id, relation_type, status
+			FROM entity_edges
+			WHERE id = ANY($1::uuid[])
+			ORDER BY relation_type, id
+		`+lockClause, relationIDs)
+		if err != nil {
+			return eventsemantics.Context{}, err
+		}
+		for rows.Next() {
+			var item eventsemantics.EntityRelation
+			if err := rows.Scan(
+				&item.ID, &item.FromEntityID, &item.ToEntityID, &item.Type, &item.Status,
+			); err != nil {
+				rows.Close()
+				return eventsemantics.Context{}, err
+			}
+			result.Relations = append(result.Relations, item)
+		}
+		if err := rows.Close(); err != nil {
+			return eventsemantics.Context{}, err
+		}
+	}
+	return result, nil
+}
+
 func buildEventSemanticContext(
 	ctx context.Context,
 	query semanticQueryer,
 	contextLeaseID string,
 	eventID string,
+	agentExecutionID string,
+	workerID string,
+	leaseExpiresAt time.Time,
 ) (eventsemantics.Context, error) {
 	result := eventsemantics.Context{
-		ContextLeaseID: contextLeaseID, OntologyVersion: eventSemanticsOntologyVersion,
-		PolicyVersion: eventSemanticsPolicyVersion,
+		ContextLeaseID: contextLeaseID, AgentExecutionID: agentExecutionID,
+		WorkerID: workerID, LeaseExpiresAt: leaseExpiresAt.UTC(),
+		ManifestContractVersion: eventSemanticsManifestVersion,
+		OntologyVersion:         eventSemanticsOntologyVersion,
+		PolicyVersion:           eventSemanticsPolicyVersion, RouteContractVersion: eventSemanticsRouteVersion,
 	}
 	err := query.QueryRowContext(ctx, `
 		SELECT id, title, summary, event_time, event_status, fact_status
@@ -377,10 +499,7 @@ func buildEventSemanticContext(
 	if result.Evidence, err = eventSemanticEvidence(ctx, query, eventID); err != nil {
 		return eventsemantics.Context{}, err
 	}
-	if result.Entities, err = eventSemanticEntities(ctx, query); err != nil {
-		return eventsemantics.Context{}, err
-	}
-	if result.Relations, err = eventSemanticRelations(ctx, query); err != nil {
+	if result.EntityTypes, err = eventSemanticEntityTypes(ctx, query); err != nil {
 		return eventsemantics.Context{}, err
 	}
 	if result.Variables, err = eventSemanticVariables(ctx, query); err != nil {
@@ -389,7 +508,58 @@ func buildEventSemanticContext(
 	if result.Rules, err = eventSemanticRules(ctx, query); err != nil {
 		return eventsemantics.Context{}, err
 	}
+	result.EventFingerprint, err = eventSemanticFingerprint(result.Event)
+	if err != nil {
+		return eventsemantics.Context{}, err
+	}
+	result.EvidenceFingerprint, err = eventSemanticFingerprint(result.Evidence)
+	if err != nil {
+		return eventsemantics.Context{}, err
+	}
+	stableContext := result
+	stableContext.LeaseExpiresAt = time.Time{}
+	stableContext.ContextFingerprint = ""
+	result.ContextFingerprint, err = eventSemanticFingerprint(stableContext)
+	if err != nil {
+		return eventsemantics.Context{}, err
+	}
 	return result, nil
+}
+
+func eventSemanticFingerprint(value any) (string, error) {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(payload)), nil
+}
+
+func eventSemanticEntityTypes(
+	ctx context.Context,
+	query semanticQueryer,
+) ([]eventsemantics.EntityTypeDefinition, error) {
+	rows, err := query.QueryContext(ctx, `
+		SELECT type_key, version, signal_subject_allowed, direct_target_mode, status
+		FROM entity_type_definitions
+		WHERE status = 'active'
+		ORDER BY type_key, version
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []eventsemantics.EntityTypeDefinition
+	for rows.Next() {
+		var item eventsemantics.EntityTypeDefinition
+		if err := rows.Scan(
+			&item.TypeKey, &item.Version, &item.SignalSubjectAllowed,
+			&item.DirectTargetMode, &item.Status,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
 }
 
 func eventSemanticEvidence(ctx context.Context, query semanticQueryer, eventID string) ([]eventsemantics.Evidence, error) {
@@ -561,32 +731,43 @@ func (r repository) Resolve(
 	contextLeaseID string,
 	mentions []eventsemantics.EntityMention,
 ) ([]eventsemantics.EntityResolution, error) {
-	snapshot, err := r.Context(ctx, contextLeaseID)
-	if err != nil {
+	if _, err := r.Context(ctx, contextLeaseID); err != nil {
 		return nil, err
 	}
 	result := make([]eventsemantics.EntityResolution, 0, len(mentions))
 	for _, mention := range mentions {
 		resolution := eventsemantics.EntityResolution{Mention: mention.Mention}
-		for _, entity := range snapshot.Entities {
-			if entity.Status == "active" && containsString(mention.AllowedEntityTypes, entity.Type) &&
-				entityMatchesMention(entity, mention.Mention) {
-				resolution.Candidates = append(resolution.Candidates, entity)
-			}
+		rows, err := r.db.QueryContext(ctx, `
+			SELECT id, entity_type, name, canonical_name, array_to_json(aliases), status
+			FROM entity_nodes
+			WHERE status = 'active'
+			  AND entity_type = ANY($1)
+			  AND (lower(name) = lower($2) OR lower(canonical_name) = lower($2)
+			       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+			ORDER BY (lower(canonical_name) = lower($2)) DESC, canonical_name, id
+			LIMIT 10
+		`, mention.AllowedEntityTypes, mention.Mention)
+		if err != nil {
+			return nil, err
 		}
-		sort.Slice(resolution.Candidates, func(i, j int) bool {
-			leftExact := strings.EqualFold(resolution.Candidates[i].CanonicalName, mention.Mention)
-			rightExact := strings.EqualFold(resolution.Candidates[j].CanonicalName, mention.Mention)
-			if leftExact != rightExact {
-				return leftExact
+		for rows.Next() {
+			var entity eventsemantics.Entity
+			var aliases []byte
+			if err := rows.Scan(
+				&entity.ID, &entity.Type, &entity.Name, &entity.CanonicalName,
+				&aliases, &entity.Status,
+			); err != nil {
+				rows.Close()
+				return nil, err
 			}
-			if resolution.Candidates[i].CanonicalName != resolution.Candidates[j].CanonicalName {
-				return resolution.Candidates[i].CanonicalName < resolution.Candidates[j].CanonicalName
+			if err := json.Unmarshal(aliases, &entity.Aliases); err != nil {
+				rows.Close()
+				return nil, err
 			}
-			return resolution.Candidates[i].ID < resolution.Candidates[j].ID
-		})
-		if len(resolution.Candidates) > 10 {
-			resolution.Candidates = resolution.Candidates[:10]
+			resolution.Candidates = append(resolution.Candidates, entity)
+		}
+		if err := rows.Close(); err != nil {
+			return nil, err
 		}
 		resolution.Ambiguous = len(resolution.Candidates) > 1
 		result = append(result, resolution)
@@ -600,56 +781,483 @@ func (r repository) SearchDirectTargets(
 	subjectEntityID string,
 	allowedTargetTypes []string,
 ) ([]eventsemantics.DirectTarget, error) {
-	snapshot, err := r.Context(ctx, contextLeaseID)
+	if _, err := r.Context(ctx, contextLeaseID); err != nil {
+		return nil, err
+	}
+	var result []eventsemantics.DirectTarget
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT target.id, target.entity_type, target.name, target.canonical_name,
+		       array_to_json(target.aliases), target.status,
+		       edge.id, edge.from_entity_id, edge.to_entity_id, edge.relation_type, edge.status
+		FROM entity_edges edge
+		JOIN entity_nodes target ON target.id = edge.to_entity_id AND target.status = 'active'
+		WHERE edge.from_entity_id = $1 AND edge.status = 'active'
+		  AND target.entity_type = ANY($2)
+		ORDER BY edge.relation_type, target.canonical_name, target.id
+		LIMIT 50
+	`, subjectEntityID, allowedTargetTypes)
 	if err != nil {
 		return nil, err
 	}
-	entities := make(map[string]eventsemantics.Entity, len(snapshot.Entities))
-	for _, entity := range snapshot.Entities {
-		entities[entity.ID] = entity
+	defer rows.Close()
+	for rows.Next() {
+		var item eventsemantics.DirectTarget
+		var aliases []byte
+		if err := rows.Scan(
+			&item.Entity.ID, &item.Entity.Type, &item.Entity.Name, &item.Entity.CanonicalName,
+			&aliases, &item.Entity.Status, &item.Relation.ID, &item.Relation.FromEntityID,
+			&item.Relation.ToEntityID, &item.Relation.Type, &item.Relation.Status,
+		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(aliases, &item.Entity.Aliases); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
 	}
-	var result []eventsemantics.DirectTarget
-	for _, relation := range snapshot.Relations {
-		target, exists := entities[relation.ToEntityID]
-		if relation.Status == "active" && relation.FromEntityID == subjectEntityID &&
-			exists && target.Status == "active" && containsString(allowedTargetTypes, target.Type) {
-			result = append(result, eventsemantics.DirectTarget{Entity: target, Relation: relation})
+	return result, rows.Err()
+}
+
+func (r repository) ListResolutionRoutes(
+	ctx context.Context,
+	contextLeaseID string,
+	targetEntityType string,
+) ([]eventsemantics.ResolutionRoute, error) {
+	if _, err := r.Context(ctx, contextLeaseID); err != nil {
+		return nil, err
+	}
+	if targetEntityType != "chain_node" {
+		return nil, &eventsemantics.ValidationError{Reason: "target Entity Type has no bounded resolution route"}
+	}
+	industryPartitions, industryLabels, err := r.eventSemanticIndustryPartitions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conceptPartitions, conceptLabels, err := r.eventSemanticConceptPartitions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var routes []eventsemantics.ResolutionRoute
+	if len(industryPartitions) > 0 {
+		routes = append(routes, eventsemantics.ResolutionRoute{
+			ID: "chain-node-via-industry.v1", ContractVersion: eventSemanticsRouteVersion,
+			TargetEntityType: "chain_node", AnchorEntityType: "industry",
+			MappingRelationType: "mapped_to_industry", Partitions: industryPartitions,
+			PartitionLabels: industryLabels,
+			Direction:       "industry_to_industry_chain_to_chain_node",
+			Purpose:         "Resolve a formal ChainNode through an approved Industry anchor",
+			NextOperation:   "list_resolution_anchors", OrderingContract: "canonical_name_entity_id.v1",
+		})
+	}
+	if len(conceptPartitions) > 0 {
+		routes = append(routes, eventsemantics.ResolutionRoute{
+			ID: "chain-node-via-concept.v1", ContractVersion: eventSemanticsRouteVersion,
+			TargetEntityType: "chain_node", AnchorEntityType: "concept",
+			MappingRelationType: "mapped_to_concept", Partitions: conceptPartitions,
+			PartitionLabels: conceptLabels,
+			Direction:       "concept_to_industry_chain_to_chain_node",
+			Purpose:         "Resolve a formal ChainNode through an approved Concept anchor",
+			NextOperation:   "list_resolution_anchors", OrderingContract: "canonical_name_entity_id.v1",
+		})
+	}
+	return routes, nil
+}
+
+func (r repository) eventSemanticIndustryPartitions(ctx context.Context) ([]string, map[string]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT profile.entity_id::text, entity.name
+		FROM industry_profiles profile
+		JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
+		WHERE profile.review_status = 'approved' AND profile.classification_level = 1
+		ORDER BY entity.canonical_name, profile.entity_id
+	`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var result []string
+	labels := make(map[string]string)
+	for rows.Next() {
+		var partition, label string
+		if err := rows.Scan(&partition, &label); err != nil {
+			return nil, nil, err
+		}
+		result = append(result, partition)
+		labels[partition] = label
+	}
+	return result, labels, rows.Err()
+}
+
+func (r repository) eventSemanticConceptPartitions(ctx context.Context) ([]string, map[string]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT DISTINCT concept_type
+		FROM concept_profiles profile
+		JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
+		WHERE profile.review_status = 'approved'
+		ORDER BY concept_type
+	`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var result []string
+	labels := make(map[string]string)
+	for rows.Next() {
+		var partition string
+		if err := rows.Scan(&partition); err != nil {
+			return nil, nil, err
+		}
+		result = append(result, partition)
+		labels[partition] = strings.ReplaceAll(partition, "_", " ")
+	}
+	return result, labels, rows.Err()
+}
+
+func (r repository) ListResolutionAnchors(
+	ctx context.Context,
+	contextLeaseID string,
+	routeID string,
+	partition string,
+	parentAnchorIDs []string,
+) ([]eventsemantics.ResolutionAnchor, error) {
+	if _, err := r.Context(ctx, contextLeaseID); err != nil {
+		return nil, err
+	}
+	if parentAnchorIDs == nil {
+		parentAnchorIDs = []string{}
+	}
+	var rows *sql.Rows
+	var err error
+	switch routeID {
+	case "chain-node-via-industry.v1":
+		var validPartition bool
+		if err := r.db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+			  SELECT 1 FROM industry_profiles profile
+			  JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
+			  WHERE profile.entity_id = $1::uuid AND profile.classification_level = 1
+			    AND profile.review_status = 'approved'
+			)
+		`, partition).Scan(&validPartition); err != nil {
+			return nil, err
+		}
+		if !validPartition {
+			return nil, &eventsemantics.ValidationError{Reason: "Industry partition is unknown, inactive or unapproved"}
+		}
+		var validParentCount int
+		if len(parentAnchorIDs) > 0 {
+			if err := r.db.QueryRowContext(ctx, `
+				SELECT count(DISTINCT child.id)
+				FROM industry_profiles root
+				JOIN industry_profiles child
+				  ON child.entity_id = ANY($2::uuid[]) AND child.review_status = 'approved'
+				JOIN entity_nodes entity ON entity.id = child.entity_id AND entity.status = 'active'
+				WHERE root.entity_id = $1::uuid AND root.classification_level = 1
+				  AND root.review_status = 'approved'
+				  AND child.hierarchy_path_codes[1] = root.industry_code
+			`, partition, parentAnchorIDs).Scan(&validParentCount); err != nil {
+				return nil, err
+			}
+			if validParentCount != len(parentAnchorIDs) {
+				return nil, &eventsemantics.ValidationError{Reason: "parent_anchor_ids contain an unknown or out-of-partition Industry"}
+			}
+		}
+		rows, err = r.db.QueryContext(ctx, `
+			SELECT entity.id, entity.entity_type, entity.name, entity.canonical_name,
+			       array_to_json(entity.aliases), entity.status, $1::text,
+			       profile.definition,
+			       profile.classification_system || ':' || profile.classification_version || ':' ||
+			         array_to_string(profile.hierarchy_path_codes, '/')
+			FROM industry_profiles profile
+			JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
+			WHERE profile.review_status = 'approved'
+			  AND (
+			    (cardinality($2::uuid[]) = 0 AND
+			      (profile.entity_id = $1::uuid OR profile.parent_industry_entity_id = $1::uuid))
+			    OR (cardinality($2::uuid[]) > 0 AND profile.parent_industry_entity_id = ANY($2::uuid[]))
+			  )
+			ORDER BY entity.canonical_name, entity.id
+		`, partition, parentAnchorIDs)
+	case "chain-node-via-concept.v1":
+		var validPartition bool
+		if err := r.db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+			  SELECT 1 FROM concept_profiles profile
+			  JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
+			  WHERE profile.concept_type = $1 AND profile.review_status = 'approved'
+			)
+		`, partition).Scan(&validPartition); err != nil {
+			return nil, err
+		}
+		if !validPartition {
+			return nil, &eventsemantics.ValidationError{Reason: "Concept partition is unknown, inactive or unapproved"}
+		}
+		rows, err = r.db.QueryContext(ctx, `
+			SELECT entity.id, entity.entity_type, entity.name, entity.canonical_name,
+			       array_to_json(entity.aliases), entity.status, profile.concept_type,
+			       profile.definition, profile.concept_type || ':' || entity.id::text
+			FROM concept_profiles profile
+			JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
+			WHERE profile.review_status = 'approved' AND profile.concept_type = $1
+			ORDER BY entity.canonical_name, entity.id
+		`, partition)
+	default:
+		return nil, &eventsemantics.ValidationError{Reason: "route_id is not supported"}
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []eventsemantics.ResolutionAnchor
+	for rows.Next() {
+		var item eventsemantics.ResolutionAnchor
+		var aliases []byte
+		if err := rows.Scan(
+			&item.Entity.ID, &item.Entity.Type, &item.Entity.Name, &item.Entity.CanonicalName,
+			&aliases, &item.Entity.Status, &item.Partition, &item.Description, &item.HierarchyIdentity,
+		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(aliases, &item.Entity.Aliases); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func (r repository) ResolveChainNodeCandidates(
+	ctx context.Context,
+	contextLeaseID string,
+	routeID string,
+	anchorEntityIDs []string,
+) ([]eventsemantics.ResolutionCandidate, error) {
+	manifest, err := r.Context(ctx, contextLeaseID)
+	if err != nil {
+		return nil, err
+	}
+	relationType, anchorEntityType := "", ""
+	switch routeID {
+	case "chain-node-via-industry.v1":
+		relationType, anchorEntityType = "mapped_to_industry", "industry"
+	case "chain-node-via-concept.v1":
+		relationType, anchorEntityType = "mapped_to_concept", "concept"
+	default:
+		return nil, &eventsemantics.ValidationError{Reason: "route_id is not supported"}
+	}
+	var validAnchorCount int
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT count(DISTINCT anchor.id)
+		FROM entity_nodes anchor
+		WHERE anchor.id = ANY($1::uuid[]) AND anchor.status = 'active' AND anchor.entity_type = $2
+		  AND (
+		    ($2 = 'industry' AND EXISTS (
+		      SELECT 1 FROM industry_profiles profile
+		      WHERE profile.entity_id = anchor.id AND profile.review_status = 'approved'
+		    ))
+		    OR ($2 = 'concept' AND EXISTS (
+		      SELECT 1 FROM concept_profiles profile
+		      WHERE profile.entity_id = anchor.id AND profile.review_status = 'approved'
+		    ))
+		  )
+	`, anchorEntityIDs, anchorEntityType).Scan(&validAnchorCount); err != nil {
+		return nil, err
+	}
+	if validAnchorCount != len(anchorEntityIDs) {
+		return nil, &eventsemantics.ValidationError{Reason: "anchor_entity_ids contain an unknown, inactive, wrong-type or unapproved anchor"}
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT anchor.id, chain.id, mapping.id, node.id, node.entity_type, node.name,
+		       node.canonical_name, array_to_json(node.aliases), node.status,
+		       membership.position, membership.updated_at, membership.contextual_stage,
+		       chain.name, anchor.updated_at, chain.updated_at, mapping.updated_at, node.updated_at
+		FROM entity_edges mapping
+		JOIN entity_nodes anchor ON anchor.id = mapping.to_entity_id AND anchor.status = 'active'
+		JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
+		JOIN industry_chain_definitions definition
+		  ON definition.entity_id = chain.id AND definition.review_status = 'approved'
+		JOIN industry_chain_node_memberships membership
+		  ON membership.industry_chain_entity_id = chain.id
+		 AND membership.status = 'active' AND membership.review_status = 'approved'
+		JOIN chain_node_profiles node_profile
+		  ON node_profile.entity_id = membership.chain_node_entity_id
+		 AND node_profile.review_status = 'approved'
+		JOIN entity_nodes node
+		  ON node.id = membership.chain_node_entity_id AND node.status = 'active'
+		WHERE mapping.relation_type = $1 AND mapping.status = 'active'
+		  AND anchor.id = ANY($2::uuid[])
+		  AND (
+		    ($1 = 'mapped_to_industry' AND EXISTS (
+		      SELECT 1 FROM industry_profiles profile
+		      WHERE profile.entity_id = anchor.id AND profile.review_status = 'approved'
+		    ))
+		    OR ($1 = 'mapped_to_concept' AND EXISTS (
+		      SELECT 1 FROM concept_profiles profile
+		      WHERE profile.entity_id = anchor.id AND profile.review_status = 'approved'
+		    ))
+		  )
+		ORDER BY anchor.id, chain.canonical_name, membership.position, node.canonical_name, node.id
+	`, relationType, anchorEntityIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []eventsemantics.ResolutionCandidate
+	seenTargets := make(map[string]int)
+	for rows.Next() {
+		var item eventsemantics.ResolutionCandidate
+		var aliases []byte
+		var membershipUpdatedAt time.Time
+		var anchorUpdatedAt, chainUpdatedAt, mappingUpdatedAt, targetUpdatedAt time.Time
+		if err := rows.Scan(
+			&item.Receipt.AnchorEntityID, &item.Receipt.IndustryChainEntityID,
+			&item.Receipt.MappingRelationID, &item.Entity.ID, &item.Entity.Type,
+			&item.Entity.Name, &item.Entity.CanonicalName, &aliases, &item.Entity.Status,
+			&item.Receipt.MembershipPosition, &membershipUpdatedAt, &item.Description,
+			&item.IndustryChainEntityName, &anchorUpdatedAt, &chainUpdatedAt, &mappingUpdatedAt,
+			&targetUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(aliases, &item.Entity.Aliases); err != nil {
+			return nil, err
+		}
+		item.Receipt.RouteID = routeID
+		item.Receipt.RouteContractVersion = manifest.RouteContractVersion
+		item.Receipt.TargetEntityID = item.Entity.ID
+		item.Receipt.MembershipUpdatedAt = membershipUpdatedAt.UTC().Format(time.RFC3339Nano)
+		item.MatchedAnchorEntityIDs = []string{item.Receipt.AnchorEntityID}
+		item.Receipt.PathFingerprint, err = eventSemanticResolutionFingerprint(item.Receipt, resolutionPathVersions{
+			AnchorUpdatedAt:  anchorUpdatedAt.UTC().Format(time.RFC3339Nano),
+			ChainUpdatedAt:   chainUpdatedAt.UTC().Format(time.RFC3339Nano),
+			MappingUpdatedAt: mappingUpdatedAt.UTC().Format(time.RFC3339Nano),
+			TargetUpdatedAt:  targetUpdatedAt.UTC().Format(time.RFC3339Nano),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if index, exists := seenTargets[item.Entity.ID]; exists {
+			matched := false
+			for _, anchorID := range result[index].MatchedAnchorEntityIDs {
+				matched = matched || anchorID == item.Receipt.AnchorEntityID
+			}
+			if !matched {
+				result[index].MatchedAnchorEntityIDs = append(
+					result[index].MatchedAnchorEntityIDs, item.Receipt.AnchorEntityID,
+				)
+			}
+			continue
+		}
+		seenTargets[item.Entity.ID] = len(result)
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func validateEventSemanticResolutionReceipts(
+	ctx context.Context,
+	query semanticQueryer,
+	manifest eventsemantics.Context,
+	submission eventsemantics.Submission,
+) error {
+	for _, link := range submission.EntityLinks {
+		if link.ResolutionReceipt == nil {
+			continue
+		}
+		receipt := *link.ResolutionReceipt
+		relationType, profileJoin := "", ""
+		switch receipt.RouteID {
+		case "chain-node-via-industry.v1":
+			relationType = "mapped_to_industry"
+			profileJoin = `JOIN industry_profiles anchor_profile
+			  ON anchor_profile.entity_id = anchor.id AND anchor_profile.review_status = 'approved'`
+		case "chain-node-via-concept.v1":
+			relationType = "mapped_to_concept"
+			profileJoin = `JOIN concept_profiles anchor_profile
+			  ON anchor_profile.entity_id = anchor.id AND anchor_profile.review_status = 'approved'`
+		default:
+			return &eventsemantics.ContextDriftError{Reason: "selected anchor route is no longer valid"}
+		}
+		if receipt.RouteContractVersion != manifest.RouteContractVersion ||
+			receipt.TargetEntityID != link.EntityID {
+			return &eventsemantics.ContextDriftError{Reason: "selected anchor route version or target changed"}
+		}
+		var position int
+		var updatedAt, anchorUpdatedAt, chainUpdatedAt, mappingUpdatedAt, targetUpdatedAt time.Time
+		err := query.QueryRowContext(ctx, fmt.Sprintf(`
+			SELECT membership.position, membership.updated_at, anchor.updated_at,
+			       chain.updated_at, mapping.updated_at, node.updated_at
+			FROM entity_edges mapping
+			JOIN entity_nodes anchor ON anchor.id = mapping.to_entity_id AND anchor.status = 'active'
+			%s
+			JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
+			JOIN industry_chain_definitions definition
+			  ON definition.entity_id = mapping.from_entity_id AND definition.review_status = 'approved'
+			JOIN industry_chain_node_memberships membership
+			  ON membership.industry_chain_entity_id = mapping.from_entity_id
+			 AND membership.status = 'active' AND membership.review_status = 'approved'
+			JOIN chain_node_profiles node_profile
+			  ON node_profile.entity_id = membership.chain_node_entity_id
+			 AND node_profile.review_status = 'approved'
+			JOIN entity_nodes node ON node.id = membership.chain_node_entity_id AND node.status = 'active'
+			WHERE mapping.id = $1 AND mapping.relation_type = $2 AND mapping.status = 'active'
+			  AND mapping.to_entity_id = $3 AND mapping.from_entity_id = $4
+			  AND membership.chain_node_entity_id = $5
+			FOR SHARE OF mapping, anchor, anchor_profile, chain, definition, membership, node_profile, node
+		`, profileJoin), receipt.MappingRelationID, relationType, receipt.AnchorEntityID,
+			receipt.IndustryChainEntityID, receipt.TargetEntityID).Scan(
+			&position, &updatedAt, &anchorUpdatedAt, &chainUpdatedAt, &mappingUpdatedAt, &targetUpdatedAt,
+		)
+		if errors.Is(err, sql.ErrNoRows) {
+			return &eventsemantics.ContextDriftError{Reason: "selected anchor path changed or disappeared"}
+		}
+		if err != nil {
+			return err
+		}
+		current := receipt
+		current.MembershipPosition = position
+		current.MembershipUpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
+		fingerprint, err := eventSemanticResolutionFingerprint(current, resolutionPathVersions{
+			AnchorUpdatedAt:  anchorUpdatedAt.UTC().Format(time.RFC3339Nano),
+			ChainUpdatedAt:   chainUpdatedAt.UTC().Format(time.RFC3339Nano),
+			MappingUpdatedAt: mappingUpdatedAt.UTC().Format(time.RFC3339Nano),
+			TargetUpdatedAt:  targetUpdatedAt.UTC().Format(time.RFC3339Nano),
+		})
+		if err != nil {
+			return err
+		}
+		if receipt.MembershipPosition != current.MembershipPosition ||
+			receipt.MembershipUpdatedAt != current.MembershipUpdatedAt ||
+			receipt.PathFingerprint != fingerprint {
+			return &eventsemantics.ContextDriftError{Reason: "selected anchor path changed after candidate resolution"}
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Relation.Type != result[j].Relation.Type {
-			return result[i].Relation.Type < result[j].Relation.Type
-		}
-		if result[i].Entity.CanonicalName != result[j].Entity.CanonicalName {
-			return result[i].Entity.CanonicalName < result[j].Entity.CanonicalName
-		}
-		return result[i].Entity.ID < result[j].Entity.ID
+	return nil
+}
+
+type resolutionPathVersions struct {
+	AnchorUpdatedAt  string
+	ChainUpdatedAt   string
+	MappingUpdatedAt string
+	TargetUpdatedAt  string
+}
+
+func eventSemanticResolutionFingerprint(
+	receipt eventsemantics.ResolutionReceipt,
+	versions resolutionPathVersions,
+) (string, error) {
+	return eventSemanticFingerprint(struct {
+		RouteID, RouteVersion, AnchorID, ChainID, MappingID, TargetID, UpdatedAt string
+		AnchorUpdatedAt, ChainUpdatedAt, MappingUpdatedAt, TargetUpdatedAt       string
+		Position                                                                 int
+	}{
+		RouteID: receipt.RouteID, RouteVersion: receipt.RouteContractVersion,
+		AnchorID: receipt.AnchorEntityID, ChainID: receipt.IndustryChainEntityID,
+		MappingID: receipt.MappingRelationID, TargetID: receipt.TargetEntityID,
+		UpdatedAt: receipt.MembershipUpdatedAt, Position: receipt.MembershipPosition,
+		AnchorUpdatedAt: versions.AnchorUpdatedAt, ChainUpdatedAt: versions.ChainUpdatedAt,
+		MappingUpdatedAt: versions.MappingUpdatedAt, TargetUpdatedAt: versions.TargetUpdatedAt,
 	})
-	if len(result) > 50 {
-		result = result[:50]
-	}
-	return result, nil
-}
-
-func containsString(values []string, expected string) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
-		}
-	}
-	return false
-}
-
-func entityMatchesMention(entity eventsemantics.Entity, mention string) bool {
-	if strings.EqualFold(entity.Name, mention) || strings.EqualFold(entity.CanonicalName, mention) {
-		return true
-	}
-	for _, alias := range entity.Aliases {
-		if strings.EqualFold(alias, mention) {
-			return true
-		}
-	}
-	return false
 }
 
 func (r repository) CreateSubmission(
@@ -675,13 +1283,14 @@ func (r repository) CreateSubmission(
 	}
 	var eventID, leaseAgentExecutionID, status string
 	var leaseSupersedesSubmissionID sql.NullString
+	var manifestPayload []byte
 	if err := tx.QueryRowContext(ctx, `
-		SELECT event_id, agent_execution_id, status, supersedes_submission_id
+		SELECT event_id, agent_execution_id, status, supersedes_submission_id, context_manifest
 		FROM event_semantic_context_leases
-		WHERE id = $1 AND lease_expires_at > now()
+		WHERE id = $1 AND lease_expires_at > now() AND context_manifest IS NOT NULL
 		FOR UPDATE
 	`, submission.ContextLeaseID).Scan(
-		&eventID, &leaseAgentExecutionID, &status, &leaseSupersedesSubmissionID,
+		&eventID, &leaseAgentExecutionID, &status, &leaseSupersedesSubmissionID, &manifestPayload,
 	); errors.Is(err, sql.ErrNoRows) {
 		return eventsemantics.SubmissionResult{}, &eventsemantics.NotFoundError{Resource: "Event Semantic Context Lease"}
 	} else if err != nil {
@@ -702,6 +1311,20 @@ func (r repository) CreateSubmission(
 			Reason: "Submission supersedes identity differs from its Context Lease",
 		}
 	}
+	var manifest eventsemantics.Context
+	if err := json.Unmarshal(manifestPayload, &manifest); err != nil {
+		return eventsemantics.SubmissionResult{}, err
+	}
+	if err := validateEventSemanticResolutionReceipts(ctx, tx, manifest, submission); err != nil {
+		return eventsemantics.SubmissionResult{}, err
+	}
+	transactionContext, err := hydrateEventSemanticSubmissionContext(
+		ctx, tx, manifest, submission, true,
+	)
+	if err != nil {
+		return eventsemantics.SubmissionResult{}, err
+	}
+	precheck = eventsemantics.Precheck(transactionContext, submission)
 	if submission.SupersedesSubmissionID != "" {
 		var supersededEventID string
 		var supersededStatus eventsemantics.ReviewStatus
@@ -752,6 +1375,27 @@ func (r repository) CreateSubmission(
 		submission.OntologyVersion, hash, submissionStatus, counts, decisionPayload,
 	); err != nil {
 		return eventsemantics.SubmissionResult{}, err
+	}
+	for _, link := range submission.EntityLinks {
+		if link.ResolutionReceipt == nil {
+			continue
+		}
+		receiptPayload, err := json.Marshal(link.ResolutionReceipt)
+		if err != nil {
+			return eventsemantics.SubmissionResult{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO event_semantic_resolution_bindings(
+			    id, semantic_submission_id, context_lease_id, candidate_key, mention,
+			    anchor_entity_id, target_entity_id, route_id, route_contract_version,
+			    path_fingerprint, resolution_receipt
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		`, uuid.NewString(), submissionID, submission.ContextLeaseID, link.Key, link.Mention,
+			link.ResolutionReceipt.AnchorEntityID, link.EntityID, link.ResolutionReceipt.RouteID,
+			link.ResolutionReceipt.RouteContractVersion, link.ResolutionReceipt.PathFingerprint,
+			receiptPayload); err != nil {
+			return eventsemantics.SubmissionResult{}, err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO event_semantic_candidate_snapshots(id, semantic_submission_id, payload, canonical_payload_hash)

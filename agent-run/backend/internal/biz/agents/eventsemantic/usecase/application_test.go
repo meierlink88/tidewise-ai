@@ -156,6 +156,15 @@ func (*applicationDataStub) Resolve(context.Context, string, []eventsemantic.Ent
 func (*applicationDataStub) SearchDirectTargets(context.Context, string, string, []string) ([]eventsemantic.DirectTarget, error) {
 	return nil, nil
 }
+func (*applicationDataStub) ListResolutionRoutes(context.Context, string, string) ([]eventsemantic.ResolutionRoute, error) {
+	return nil, nil
+}
+func (*applicationDataStub) ListResolutionAnchors(context.Context, string, string, string, []string, int, string) (eventsemantic.ResolutionAnchorPage, error) {
+	return eventsemantic.ResolutionAnchorPage{}, nil
+}
+func (*applicationDataStub) ResolveChainNodeCandidates(context.Context, string, string, []string, int, string) (eventsemantic.ResolutionCandidatePage, error) {
+	return eventsemantic.ResolutionCandidatePage{}, nil
+}
 func (s *applicationDataStub) CreateSubmission(
 	_ context.Context,
 	request eventsemantic.SubmissionRequest,
@@ -388,7 +397,7 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 		},
 	}
 	generator := &queuedSemanticModel{responses: []string{
-		`{"entity_links":[],"variable_signals":[]}`,
+		`{"mentions":[],"variable_signals":[]}`,
 		`{"direct_impacts":[]}`,
 	}}
 	reviewer := &queuedSemanticModel{}

@@ -196,7 +196,10 @@ INSERT INTO entity_nodes (
    ARRAY['Synthetic Wafer'], 'active'),
   ('23000000-0000-4000-8000-000000000001', 'industry-chain:synthetic-wafer',
    'industry_chain', 'industry_chain', 'Synthetic Wafer Chain', 'Synthetic Wafer Chain',
-   ARRAY['Synthetic Chain'], 'active')
+   ARRAY['Synthetic Chain'], 'active'),
+  ('23000000-0000-4000-8000-000000000002', 'industry:synthetic-semiconductor',
+   'industry', 'industry', 'Synthetic Semiconductor Manufacturing',
+   'Synthetic Semiconductor Manufacturing', ARRAY['Synthetic Manufacturing'], 'active')
 `); err != nil {
 		return err
 	}
@@ -204,6 +207,13 @@ INSERT INTO entity_nodes (
 INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status) VALUES
   ('22000000-0000-4000-8000-000000000001', 'Synthetic wafer producer', NULL, 'approved'),
   ('22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
+INSERT INTO industry_profiles (
+  entity_id, classification_system, classification_version, industry_code,
+  classification_level, hierarchy_path_codes, definition, boundary_note, review_status
+) VALUES (
+  '23000000-0000-4000-8000-000000000002', 'synthetic', 'v1', 'S01', 1,
+  ARRAY['S01'], 'Synthetic semiconductor manufacturing', 'Synthetic fixture only', 'approved'
+);
 INSERT INTO industry_chain_definitions (
   entity_id, scope, target_output, end_use, geography, as_of_date, review_status,
   observable_variables
@@ -242,11 +252,18 @@ INSERT INTO direct_transmission_rules (
 	_, err := database.Exec(ctx, `
 INSERT INTO entity_edges (
   id, from_entity_id, to_entity_id, relation_type, evidence_note, status
-) VALUES (
+) VALUES
+(
   '22000000-0000-4000-8000-000000000003',
   '22000000-0000-4000-8000-000000000001',
   '22000000-0000-4000-8000-000000000002',
   'produces', 'Synthetic acceptance fixture', 'active'
+),
+(
+  '23000000-0000-4000-8000-000000000003',
+  '23000000-0000-4000-8000-000000000001',
+  '23000000-0000-4000-8000-000000000002',
+  'mapped_to_industry', 'Synthetic formal anchor route', 'active'
 )
 `)
 	return err

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +38,7 @@ const (
 	syntheticProductID  = "22000000-0000-4000-8000-000000000002"
 	syntheticRelationID = "22000000-0000-4000-8000-000000000003"
 	syntheticChainID    = "23000000-0000-4000-8000-000000000001"
+	syntheticIndustryID = "23000000-0000-4000-8000-000000000002"
 
 	syntheticAcceptedRawDocumentID = "20000000-0000-4000-8000-000000000001"
 	syntheticAcceptedEventID       = "20000000-0000-4000-8000-000000000002"
@@ -79,9 +82,11 @@ func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := agentrunpostgres.New(agentRunDatabase)
+	responseRecorder := &semanticContextResponseRecorder{base: http.DefaultTransport}
 	dataClient, err := dataclient.New(dataclient.Config{
 		BaseURL: dataFixture.baseURL, ServiceToken: syntheticDataToken,
-		Timeout: 5 * time.Second, MaxResponseBytes: 4 * 1024 * 1024,
+		Timeout: 5 * time.Second, MaxResponseBytes: 1024 * 1024,
+		HTTPClient: &http.Client{Transport: responseRecorder, Timeout: 5 * time.Second},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -111,9 +116,14 @@ func TestSyntheticEventSemanticsEndToEnd(t *testing.T) {
 
 	for index := 0; index < 3; index++ {
 		if err := semanticApplication.Tick(ctx); err != nil {
-			t.Fatalf("run synthetic Event %d: %v", index+1, err)
+			diagnostics, _ := admin.New(store, admin.Registry{}, "dev")
+			executions, _ := diagnostics.ListAgentExecutions(ctx, agentrun.ExecutionListQuery{
+				AgentKey: eventsemantic.AgentKey, Page: 1, PageSize: 20, Ascending: true,
+			})
+			t.Fatalf("run synthetic Event %d: %v executions=%#v", index+1, err, executions)
 		}
 	}
+	responseRecorder.assertCompactContext(t)
 	accepted, err := dataClient.GetEventSemantics(ctx, syntheticAcceptedEventID)
 	if err != nil {
 		t.Fatal(err)
@@ -289,6 +299,24 @@ func (m *syntheticSemanticModel) Generate(
 		if strings.Contains(payload, "direct_targets_by_link_key") {
 			return schema.AssistantMessage(syntheticDirectImpact(evidenceID), nil), nil
 		}
+		if strings.Contains(payload, "ChainNode 路由选择器") {
+			return schema.AssistantMessage(
+				`{"route_id":"chain-node-via-industry.v1","partition":"`+syntheticIndustryID+`","unresolved":false}`,
+				nil,
+			), nil
+		}
+		if strings.Contains(payload, "正式锚点选择器") {
+			return schema.AssistantMessage(
+				`{"anchor_entity_id":"`+syntheticIndustryID+`","unresolved":false}`,
+				nil,
+			), nil
+		}
+		if strings.Contains(payload, "ChainNode 消歧器") {
+			return schema.AssistantMessage(
+				`{"target_entity_id":"`+syntheticCompanyID+`","unresolved":false}`,
+				nil,
+			), nil
+		}
 		return schema.AssistantMessage(syntheticNativeCandidates(evidenceID), nil), nil
 	}
 	if m.kind == "reviewer" {
@@ -315,6 +343,46 @@ type syntheticDataService struct {
 	fixtureBinary      string
 	fixtureEnvironment []string
 	repositoryRoot     string
+}
+
+type semanticContextResponseRecorder struct {
+	base  http.RoundTripper
+	mu    sync.Mutex
+	sizes []int
+}
+
+func (r *semanticContextResponseRecorder) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := r.base.RoundTrip(request)
+	if err != nil || request.Method != http.MethodGet ||
+		!strings.Contains(request.URL.Path, "/event-semantics/context-leases/") ||
+		!strings.HasSuffix(request.URL.Path, "/context") {
+		return response, err
+	}
+	payload, readErr := io.ReadAll(response.Body)
+	if readErr != nil {
+		response.Body.Close()
+		return nil, readErr
+	}
+	response.Body.Close()
+	response.Body = io.NopCloser(bytes.NewReader(payload))
+	r.mu.Lock()
+	r.sizes = append(r.sizes, len(payload))
+	r.mu.Unlock()
+	return response, nil
+}
+
+func (r *semanticContextResponseRecorder) assertCompactContext(t *testing.T) {
+	t.Helper()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.sizes) == 0 {
+		t.Fatal("cross-service E2E did not observe a Semantic Context response")
+	}
+	for _, size := range r.sizes {
+		if size >= 100_000 {
+			t.Fatalf("compact Semantic Context response bytes=%d, want <100000", size)
+		}
+	}
 }
 
 type syntheticResearchPublicationResponse struct {
@@ -953,13 +1021,13 @@ func buildSyntheticBinary(
 func syntheticNativeCandidates(evidenceID string) string {
 	if evidenceID == syntheticForecastEvidenceID {
 		return fmt.Sprintf(
-			`{"entity_links":[{"candidate_key":"company","mention":"Synthetic Wafer Fab","entity_id":"%s","entity_role":"statement_source","evidence_ids":["%s"],"resolution_method":"model_guess","resolution_confidence":"0.99"}],"variable_signals":[{"candidate_key":"forecast-demand","subject_link_key":"company","variable_key":"market_demand","variable_version":1,"direction":"increase","assertion_modality":"source_forecast","evidence_ids":["%s"],"statement_at":"2026-07-28T10:00:00Z","valid_from":"2026-08-01T00:00:00Z","valid_until":"2026-09-30T23:59:59Z","forecast_period_start":"2026-08-01T00:00:00Z","forecast_period_end":"2026-09-30T23:59:59Z","measurements":[{"measurement_role":"relative_change","value_shape":"exact","raw_value":"12","raw_unit":"%%","canonical_value":"12","canonical_unit":"percent","raw_text":"forecasts wafer demand growth of 12 percent","is_approximate":false,"evidence_id":"%s"}],"extraction_confidence":"0.97"}]}`,
-			syntheticCompanyID, evidenceID, evidenceID, evidenceID,
+			`{"mentions":[{"candidate_key":"company","mention":"upstream wafer capacity stage","predicted_entity_type":"chain_node","entity_role":"statement_source","evidence_ids":["%s"],"resolution_confidence":"0.99"}],"variable_signals":[{"candidate_key":"forecast-demand","subject_link_key":"company","variable_key":"market_demand","variable_version":1,"direction":"increase","assertion_modality":"source_forecast","evidence_ids":["%s"],"statement_at":"2026-07-28T10:00:00Z","valid_from":"2026-08-01T00:00:00Z","valid_until":"2026-09-30T23:59:59Z","forecast_period_start":"2026-08-01T00:00:00Z","forecast_period_end":"2026-09-30T23:59:59Z","measurements":[{"measurement_role":"relative_change","value_shape":"exact","raw_value":"12","raw_unit":"%%","canonical_value":"12","canonical_unit":"percent","raw_text":"forecasts wafer demand growth of 12 percent","is_approximate":false,"evidence_id":"%s"}],"extraction_confidence":"0.97"}]}`,
+			evidenceID, evidenceID, evidenceID,
 		)
 	}
 	return fmt.Sprintf(
-		`{"entity_links":[{"candidate_key":"company","mention":"Synthetic Wafer Fab","entity_id":"%s","entity_role":"event_subject","evidence_ids":["%s"],"resolution_method":"model_guess","resolution_confidence":"0.99"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["%s"],"measurements":[{"measurement_role":"relative_change","value_shape":"exact","raw_value":"-10","raw_unit":"%%","canonical_value":"-10","canonical_unit":"percent","raw_text":"production fell 10%%","is_approximate":false,"evidence_id":"%s"}],"extraction_confidence":"0.98"}]}`,
-		syntheticCompanyID, evidenceID, evidenceID, evidenceID,
+		`{"mentions":[{"candidate_key":"company","mention":"upstream wafer capacity stage","predicted_entity_type":"chain_node","entity_role":"event_subject","evidence_ids":["%s"],"resolution_confidence":"0.99"}],"variable_signals":[{"candidate_key":"production","subject_link_key":"company","variable_key":"production_volume","variable_version":1,"direction":"decrease","assertion_modality":"actual","evidence_ids":["%s"],"measurements":[{"measurement_role":"relative_change","value_shape":"exact","raw_value":"-10","raw_unit":"%%","canonical_value":"-10","canonical_unit":"percent","raw_text":"production fell 10%%","is_approximate":false,"evidence_id":"%s"}],"extraction_confidence":"0.98"}]}`,
+		evidenceID, evidenceID, evidenceID,
 	)
 }
 
@@ -1011,6 +1079,17 @@ func assertSyntheticAcceptedSemantics(t *testing.T, semantics eventsemantic.Even
 		len(submission.DirectImpacts) != 1 || submission.DirectImpacts[0].Status != "accepted" ||
 		submission.DirectImpacts[0].RecordID == "" ||
 		submission.AuditWorkPackage == nil ||
+		submission.AuditWorkPackage.EntityLinks[0].Mention != "upstream wafer capacity stage" ||
+		submission.AuditWorkPackage.EntityLinks[0].EntityID != syntheticCompanyID ||
+		len(submission.AuditWorkPackage.EntityLinks[0].EvidenceIDs) != 1 ||
+		submission.AuditWorkPackage.EntityLinks[0].EvidenceIDs[0] != syntheticAcceptedEvidenceID ||
+		submission.AuditWorkPackage.EntityLinks[0].ResolutionReceipt == nil ||
+		submission.AuditWorkPackage.EntityLinks[0].ResolutionReceipt.AnchorEntityID != syntheticIndustryID ||
+		submission.AuditWorkPackage.EntityLinks[0].ResolutionReceipt.TargetEntityID != syntheticCompanyID ||
+		submission.AuditWorkPackage.VariableSignals[0].SubjectLinkKey !=
+			submission.AuditWorkPackage.EntityLinks[0].CandidateKey ||
+		len(submission.AuditWorkPackage.VariableSignals[0].EvidenceIDs) != 1 ||
+		submission.AuditWorkPackage.VariableSignals[0].EvidenceIDs[0] != syntheticAcceptedEvidenceID ||
 		submission.AuditWorkPackage.Evidence[0].RawDocumentID != syntheticAcceptedRawDocumentID ||
 		submission.AuditWorkPackage.DirectImpacts[0].RuleKey !=
 			"synthetic_production_decrease_reduces_chain_supply" ||
