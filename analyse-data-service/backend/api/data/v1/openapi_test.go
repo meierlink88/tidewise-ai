@@ -80,11 +80,11 @@ func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.
 	paths := object(t, document["paths"], "paths")
 	operations := map[string]string{
 		namespace + "/event-semantics/context-leases/{context_lease_id}/context": "get",
-		namespace + "/event-semantics/entity-resolutions":                         "post",
-		namespace + "/event-semantics/direct-targets:search":                      "post",
-		namespace + "/event-semantics/resolution-routes:list":                     "post",
-		namespace + "/event-semantics/resolution-anchors:list":                    "post",
-		namespace + "/event-semantics/chain-node-candidates:resolve":               "post",
+		namespace + "/event-semantics/entity-resolutions":                        "post",
+		namespace + "/event-semantics/direct-targets:search":                     "post",
+		namespace + "/event-semantics/resolution-routes:list":                    "post",
+		namespace + "/event-semantics/resolution-anchors:list":                   "post",
+		namespace + "/event-semantics/chain-node-candidates:resolve":             "post",
 	}
 	for path, method := range operations {
 		operation := object(t, object(t, paths[path], path)[method], method+" "+path)
