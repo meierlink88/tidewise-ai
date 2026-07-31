@@ -129,6 +129,53 @@ func TestDataImageCarriesUATIndustryRelationshipAndGraphAssets(t *testing.T) {
 	}
 }
 
+func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T) {
+	repoRoot := repositoryRoot()
+	dataDockerfile := readContractFile(t, filepath.Join(
+		repoRoot,
+		"analyse-data-service",
+		"backend",
+		"Dockerfile",
+	))
+	agentrunDockerfile := readContractFile(t, filepath.Join(
+		repoRoot,
+		"agent-run",
+		"backend",
+		"Dockerfile",
+	))
+	uatRunbook := readContractFile(t, filepath.Join(
+		repoRoot,
+		"infra",
+		"uat",
+		"README.md",
+	))
+
+	for _, required := range []string{
+		"-o /out/event-semantic-history-audit ./analyse-data-service/backend/cmd/event-semantic-history-audit",
+		"COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit",
+	} {
+		if !strings.Contains(dataDockerfile, required) {
+			t.Fatalf("Data runtime image missing Event Semantic history contract %q", required)
+		}
+	}
+	for _, required := range []string{
+		"-o /out/agentrun-event-semantic-history ./agent-run/backend/cmd/event-semantic-history",
+		"COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-semantic-history",
+	} {
+		if !strings.Contains(agentrunDockerfile, required) {
+			t.Fatalf("AgentRun runtime image missing Event Semantic history contract %q", required)
+		}
+	}
+	for _, required := range []string{
+		"/usr/local/bin/event-semantic-history-audit",
+		"/app/agentrun-event-semantic-history",
+	} {
+		if !strings.Contains(uatRunbook, required) {
+			t.Fatalf("UAT runbook missing Event Semantic history command %q", required)
+		}
+	}
+}
+
 func TestApplicationRootsAreCanonical(t *testing.T) {
 	repoRoot := repositoryRoot()
 	for _, path := range []string{

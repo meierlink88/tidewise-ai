@@ -8,6 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./analyse-data-service/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigrate ./analyse-data-service/backend/cmd/dbmigrate
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantic-history-audit ./analyse-data-service/backend/cmd/event-semantic-history-audit
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-relationship-import ./analyse-data-service/backend/cmd/industry-relationship-import
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-graph-projector ./analyse-data-service/backend/cmd/industry-graph-projector
 
@@ -20,6 +21,7 @@ WORKDIR /app
 
 COPY --from=builder /out/data-service /usr/local/bin/data-service
 COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
+COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit
 COPY --from=builder /out/industry-relationship-import /usr/local/bin/industry-relationship-import
 COPY --from=builder /out/industry-graph-projector /usr/local/bin/industry-graph-projector
 COPY analyse-data-service/backend/configs ./configs

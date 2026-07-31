@@ -194,7 +194,7 @@ func readManifest(path string) (eventsemantic.HistoricalManifest, error) {
 }
 
 func writeExclusiveJSON(path string, value any) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
 	if err != nil {
 		return errors.New(
 			"could not create pre-change export without overwriting an existing file",
