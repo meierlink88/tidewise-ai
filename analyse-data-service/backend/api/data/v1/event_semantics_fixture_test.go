@@ -20,14 +20,17 @@ func TestEventSemanticProviderContractAcceptsFrozenConsumerFixtures(t *testing.T
 		t.Fatal(err)
 	}
 	fixtures := map[string]string{
-		"supply-eligible-events.json":     "EligibleEventSemanticEventsEnvelope",
-		"supply-context-lease.json":       "EventSemanticContextLeaseEnvelope",
-		"supply-context.json":             "EventSemanticContextEnvelope",
-		"supply-resolution.json":          "EventSemanticEntityResolutionEnvelope",
-		"supply-targets.json":             "EventSemanticDirectTargetSearchEnvelope",
-		"supply-submission-accepted.json": "EventSemanticSubmissionEnvelope",
-		"supply-review-accepted.json":     "EventSemanticSubmissionEnvelope",
-		"supply-event-semantics.json":     "EventSemanticsEnvelope",
+		"supply-eligible-events.json":       "EligibleEventSemanticEventsEnvelope",
+		"supply-context-lease.json":         "EventSemanticContextLeaseEnvelope",
+		"supply-context.json":               "EventSemanticContextEnvelope",
+		"supply-resolution.json":            "EventSemanticEntityResolutionEnvelope",
+		"supply-targets.json":               "EventSemanticDirectTargetSearchEnvelope",
+		"supply-resolution-routes.json":     "EventSemanticResolutionRouteEnvelope",
+		"supply-resolution-anchors.json":    "EventSemanticResolutionAnchorEnvelope",
+		"supply-chain-node-candidates.json": "EventSemanticResolutionCandidateEnvelope",
+		"supply-submission-accepted.json":   "EventSemanticSubmissionEnvelope",
+		"supply-review-accepted.json":       "EventSemanticSubmissionEnvelope",
+		"supply-event-semantics.json":       "EventSemanticsEnvelope",
 	}
 	for name, schemaName := range fixtures {
 		payload, err := os.ReadFile(filepath.Join(
@@ -39,6 +42,9 @@ func TestEventSemanticProviderContractAcceptsFrozenConsumerFixtures(t *testing.T
 		var value any
 		if err := json.Unmarshal(payload, &value); err != nil {
 			t.Fatalf("decode %s: %v", name, err)
+		}
+		if name == "supply-context.json" && len(payload) >= 100_000 {
+			t.Fatalf("compact context fixture = %d bytes, want < 100000", len(payload))
 		}
 		schema := document.Components.Schemas[schemaName]
 		if schema == nil || schema.Value == nil {

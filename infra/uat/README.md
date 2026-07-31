@@ -165,6 +165,17 @@ CLI 同时校验仓库固定的 UAT PostgreSQL 身份和批准的 Neo4j Bolt 目
 
 首次由本方案接管 UAT 时尚无 `current.images.env`，因此不存在可自动回退的仓库管理版本；首次发布前应另行保留当前环境恢复方案。
 
+### Event Semantic compact context rollout
+
+Migration `000035` 是 additive forward migration：新增 `context_manifest` 与 selected
+resolution binding，不修改或回写 `000032` 的历史 `context_snapshot`。该版本必须在
+Event Semantic scheduler 暂停状态下发布；先确认 Data migration 与新 Data provider
+健康，再切换同一 release unit 的 AgentRun consumer。两者版本混合、旧 active Lease
+尚未过期或回退到旧服务组合期间，不得恢复 Event Semantic scheduler，也不得回退到全量
+Context 响应。若同一 execution 重放旧 Lease，Data 会在保留历史 snapshot 的同时只为该
+Lease 生成 compact manifest，避免续期后无法读取。恢复 scheduler 后，以 synthetic E2E 或等价 UAT Event 验证 compact Context
+小于 100 KB、正式 Anchor→ChainNode receipt、Submission/Review 和可重试 drift。
+
 ## Event Semantic 历史处置
 
 历史处置使用当前成功发布镜像内的两个维护命令，不在 ECS 临时构建或复制二进制。

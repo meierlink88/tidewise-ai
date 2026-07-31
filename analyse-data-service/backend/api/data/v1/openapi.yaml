@@ -481,6 +481,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/EventSemanticContextDrift'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
@@ -518,6 +520,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/EventSemanticContextDrift'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -557,12 +561,113 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/EventSemanticContextDrift'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/event-semantics/resolution-routes:list:
+    post:
+      tags: [Event Semantics]
+      operationId: listEventSemanticResolutionRoutes
+      x-client-drift-anchor: data.v1.listEventSemanticResolutionRoutes
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-read-via-post
+      x-timeout-budget-ms: 5000
+      summary: 获取受控 ChainNode 锚点解析路由与分区
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticResolutionRouteRequest'
+      responses:
+        '200':
+          description: 解析路由
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticResolutionRouteEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/EventSemanticContextDrift' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/data/v1/event-semantics/resolution-anchors:list:
+    post:
+      tags: [Event Semantics]
+      operationId: listEventSemanticResolutionAnchors
+      x-client-drift-anchor: data.v1.listEventSemanticResolutionAnchors
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-read-via-post
+      x-timeout-budget-ms: 5000
+      summary: 分页列出已批准的 Industry 或 Concept 正式锚点
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticResolutionAnchorRequest'
+      responses:
+        '200':
+          description: 正式锚点页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticResolutionAnchorEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/EventSemanticContextDrift' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/data/v1/event-semantics/chain-node-candidates:resolve:
+    post:
+      tags: [Event Semantics]
+      operationId: resolveEventSemanticChainNodeCandidates
+      x-client-drift-anchor: data.v1.resolveEventSemanticChainNodeCandidates
+      x-required-service-scope: data.event-semantics.write
+      x-retry-policy: idempotent-read-via-post
+      x-timeout-budget-ms: 5000
+      summary: 通过正式锚点返回可达 ChainNode 候选与 Data 回执
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSemanticResolutionCandidateRequest'
+      responses:
+        '200':
+          description: 正式 ChainNode 候选页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSemanticResolutionCandidateEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/EventSemanticContextDrift' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
   /api/data/v1/event-semantics/submissions:
     post:
@@ -1058,6 +1163,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+    EventSemanticContextDrift:
+      description: Context Lease、分页请求身份或所选正式路径已漂移；调用方应以新 lease 重试
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EventSemanticContextDriftErrorEnvelope'
     PayloadTooLarge:
       description: JSON request body 超过 1048576 bytes
       headers:
@@ -2407,31 +2521,59 @@ components:
         mechanism_template:
           type: string
 
+    EventSemanticEntityTypeDefinition:
+      type: object
+      additionalProperties: false
+      required: [type_key, version, signal_subject_allowed, direct_target_mode, status]
+      properties:
+        type_key: { type: string }
+        version: { type: integer, minimum: 1 }
+        signal_subject_allowed: { type: boolean }
+        direct_target_mode: { type: string, enum: [allow, conditional, deny, context] }
+        status: { type: string, enum: [active] }
+
     EventSemanticContext:
       type: object
       additionalProperties: false
-      required: [context_lease_id, ontology_version, acceptance_policy_version, event, evidence, entities, relations, variable_definitions, direct_transmission_rules]
+      required: [context_lease_id, agent_execution_id, worker_id, lease_expires_at, manifest_contract_version, context_fingerprint, event_fingerprint, evidence_fingerprint, ontology_version, acceptance_policy_version, route_contract_version, event, evidence, entity_type_definitions, variable_definitions, direct_transmission_rules]
       properties:
         context_lease_id:
           $ref: '#/components/schemas/UUID'
+        agent_execution_id:
+          type: string
+        worker_id:
+          type: string
+        lease_expires_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        manifest_contract_version:
+          type: string
+          enum: [event-semantic-context-manifest.v1]
+        context_fingerprint:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        event_fingerprint:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        evidence_fingerprint:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
         ontology_version:
           type: string
         acceptance_policy_version:
           type: string
+        route_contract_version:
+          type: string
+          enum: [event-semantic-anchor-routes.v1]
         event:
           $ref: '#/components/schemas/EventSemanticEvent'
         evidence:
           type: array
           items:
             $ref: '#/components/schemas/EventSemanticEvidence'
-        entities:
+        entity_type_definitions:
           type: array
           items:
-            $ref: '#/components/schemas/EventSemanticEntity'
-        relations:
-          type: array
-          items:
-            $ref: '#/components/schemas/EventSemanticEntityRelation'
+            $ref: '#/components/schemas/EventSemanticEntityTypeDefinition'
         variable_definitions:
           type: array
           items:
@@ -3083,6 +3225,34 @@ components:
         result:
           $ref: '#/components/schemas/EventSemanticContext'
 
+    EventSemanticContextDriftErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          enum: [EVENT_SEMANTIC_CONTEXT_DRIFT]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        details:
+          type: object
+          additionalProperties: true
+
+    EventSemanticContextDriftErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, request_id]
+      properties:
+        error:
+          $ref: '#/components/schemas/EventSemanticContextDriftErrorDetail'
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+
     EventSemanticEntityMention:
       type: object
       additionalProperties: false
@@ -3191,6 +3361,159 @@ components:
         result:
           $ref: '#/components/schemas/EventSemanticDirectTargetSearchResult'
 
+    EventSemanticResolutionRouteRequest:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, target_entity_type]
+      properties:
+        context_lease_id: { $ref: '#/components/schemas/UUID' }
+        target_entity_type: { type: string, enum: [chain_node] }
+
+    EventSemanticResolutionRoute:
+      type: object
+      additionalProperties: false
+      required: [route_id, route_contract_version, target_entity_type, anchor_entity_type, mapping_relation_type, partitions, partition_labels, direction, purpose, next_operation, ordering_contract]
+      properties:
+        route_id: { type: string }
+        route_contract_version: { type: string, enum: [event-semantic-anchor-routes.v1] }
+        target_entity_type: { type: string, enum: [chain_node] }
+        anchor_entity_type: { type: string, enum: [industry, concept] }
+        mapping_relation_type: { type: string, enum: [mapped_to_industry, mapped_to_concept] }
+        partitions:
+          type: array
+          items: { type: string }
+        partition_labels:
+          type: object
+          additionalProperties: { type: string }
+        direction: { type: string }
+        purpose: { type: string }
+        next_operation: { type: string, enum: [list_resolution_anchors] }
+        ordering_contract: { type: string, enum: [canonical_name_entity_id.v1] }
+
+    EventSemanticResolutionRouteResult:
+      type: object
+      additionalProperties: false
+      required: [routes]
+      properties:
+        routes:
+          type: array
+          items: { $ref: '#/components/schemas/EventSemanticResolutionRoute' }
+
+    EventSemanticResolutionRouteEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/EventSemanticResolutionRouteResult' }
+
+    EventSemanticResolutionAnchorRequest:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, route_id, partition, page_size]
+      properties:
+        context_lease_id: { $ref: '#/components/schemas/UUID' }
+        route_id: { type: string }
+        partition: { type: string }
+        parent_anchor_ids:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/UUID' }
+        page_size: { type: integer, minimum: 1, maximum: 50 }
+        cursor: { type: string }
+
+    EventSemanticResolutionAnchor:
+      type: object
+      additionalProperties: false
+      required: [entity, partition, description, hierarchy_identity]
+      properties:
+        entity: { $ref: '#/components/schemas/EventSemanticEntity' }
+        partition: { type: string }
+        description: { type: string }
+        hierarchy_identity: { type: string }
+
+    EventSemanticResolutionAnchorResult:
+      type: object
+      additionalProperties: false
+      required: [anchors]
+      properties:
+        anchors:
+          type: array
+          items: { $ref: '#/components/schemas/EventSemanticResolutionAnchor' }
+        next_cursor: { type: string }
+
+    EventSemanticResolutionAnchorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/EventSemanticResolutionAnchorResult' }
+
+    EventSemanticResolutionCandidateRequest:
+      type: object
+      additionalProperties: false
+      required: [context_lease_id, route_id, target_entity_type, anchor_entity_ids, match_mode, page_size]
+      properties:
+        context_lease_id: { $ref: '#/components/schemas/UUID' }
+        route_id: { type: string }
+        target_entity_type: { type: string, enum: [chain_node] }
+        anchor_entity_ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/UUID' }
+        match_mode: { type: string, enum: [any] }
+        page_size: { type: integer, minimum: 1, maximum: 50 }
+        cursor: { type: string }
+
+    EventSemanticResolutionReceipt:
+      type: object
+      additionalProperties: false
+      required: [route_id, route_contract_version, anchor_entity_id, industry_chain_entity_id, mapping_relation_id, target_entity_id, membership_position, membership_updated_at, path_fingerprint]
+      properties:
+        route_id: { type: string }
+        route_contract_version: { type: string, enum: [event-semantic-anchor-routes.v1] }
+        anchor_entity_id: { $ref: '#/components/schemas/UUID' }
+        industry_chain_entity_id: { $ref: '#/components/schemas/UUID' }
+        mapping_relation_id: { $ref: '#/components/schemas/UUID' }
+        target_entity_id: { $ref: '#/components/schemas/UUID' }
+        membership_position: { type: integer, minimum: 1 }
+        membership_updated_at: { $ref: '#/components/schemas/UTCTimestamp' }
+        path_fingerprint: { type: string, pattern: '^[0-9a-f]{64}$' }
+
+    EventSemanticResolutionCandidate:
+      type: object
+      additionalProperties: false
+      required: [entity, description, matched_anchor_entity_ids, industry_chain_entity_name, resolution_receipt]
+      properties:
+        entity: { $ref: '#/components/schemas/EventSemanticEntity' }
+        description: { type: string }
+        matched_anchor_entity_ids:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/UUID' }
+        industry_chain_entity_name: { type: string }
+        resolution_receipt: { $ref: '#/components/schemas/EventSemanticResolutionReceipt' }
+
+    EventSemanticResolutionCandidateResult:
+      type: object
+      additionalProperties: false
+      required: [candidates]
+      properties:
+        candidates:
+          type: array
+          items: { $ref: '#/components/schemas/EventSemanticResolutionCandidate' }
+        next_cursor: { type: string }
+
+    EventSemanticResolutionCandidateEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/EventSemanticResolutionCandidateResult' }
+
     EventSemanticDirection:
       type: string
       enum: [increase, decrease, unchanged, mixed, uncertain]
@@ -3257,9 +3580,12 @@ components:
             $ref: '#/components/schemas/UUID'
         resolution_method:
           type: string
+          enum: [data_service_resolution, data_service_anchor_resolution]
         resolution_confidence:
           type: string
           pattern: '^(0(\.\d{1,5})?|1(\.0{1,5})?)$'
+        resolution_receipt:
+          $ref: '#/components/schemas/EventSemanticResolutionReceipt'
 
     EventSemanticVariableSignalCandidate:
       type: object

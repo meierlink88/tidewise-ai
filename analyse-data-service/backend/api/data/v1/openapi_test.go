@@ -37,6 +37,9 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/event-semantics/context-leases/{context_lease_id}/context":      {method: "get", operationID: "getEventSemanticContext", driftAnchor: "data.v1.getEventSemanticContext", scope: "data.event-semantics.read"},
 		namespace + "/event-semantics/entity-resolutions":                             {method: "post", operationID: "resolveEventSemanticEntities", driftAnchor: "data.v1.resolveEventSemanticEntities", scope: "data.event-semantics.write"},
 		namespace + "/event-semantics/direct-targets:search":                          {method: "post", operationID: "searchEventSemanticDirectTargets", driftAnchor: "data.v1.searchEventSemanticDirectTargets", scope: "data.event-semantics.write"},
+		namespace + "/event-semantics/resolution-routes:list":                         {method: "post", operationID: "listEventSemanticResolutionRoutes", driftAnchor: "data.v1.listEventSemanticResolutionRoutes", scope: "data.event-semantics.write"},
+		namespace + "/event-semantics/resolution-anchors:list":                        {method: "post", operationID: "listEventSemanticResolutionAnchors", driftAnchor: "data.v1.listEventSemanticResolutionAnchors", scope: "data.event-semantics.write"},
+		namespace + "/event-semantics/chain-node-candidates:resolve":                  {method: "post", operationID: "resolveEventSemanticChainNodeCandidates", driftAnchor: "data.v1.resolveEventSemanticChainNodeCandidates", scope: "data.event-semantics.write"},
 		namespace + "/event-semantics/submissions":                                    {method: "post", operationID: "createEventSemanticSubmission", driftAnchor: "data.v1.createEventSemanticSubmission", scope: "data.event-semantics.write"},
 		namespace + "/event-semantics/submissions/{submission_id}/reviews":            {method: "post", operationID: "submitEventSemanticReview", driftAnchor: "data.v1.submitEventSemanticReview", scope: "data.event-semantics.write"},
 		namespace + "/events/{event_id}/semantics":                                    {method: "get", operationID: "getEventSemantics", driftAnchor: "data.v1.getEventSemantics", scope: "data.event-semantics.read"},
@@ -70,6 +73,34 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operations := map[string]string{
+		namespace + "/event-semantics/context-leases/{context_lease_id}/context": "get",
+		namespace + "/event-semantics/entity-resolutions":                        "post",
+		namespace + "/event-semantics/direct-targets:search":                     "post",
+		namespace + "/event-semantics/resolution-routes:list":                    "post",
+		namespace + "/event-semantics/resolution-anchors:list":                   "post",
+		namespace + "/event-semantics/chain-node-candidates:resolve":             "post",
+	}
+	for path, method := range operations {
+		operation := object(t, object(t, paths[path], path)[method], method+" "+path)
+		parameters := array(t, operation["parameters"], path+" parameters")
+		if stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
+			t.Fatalf("%s %s must accept the unified X-Request-ID parameter first: %v", method, path, parameters)
+		}
+		responses := object(t, operation["responses"], path+" responses")
+		drift := object(t, responses["409"], "409 response")
+		if stringValue(t, drift["$ref"], "$ref") != "#/components/responses/EventSemanticContextDrift" {
+			t.Fatalf("%s %s 409 response = %v", method, path, drift)
+		}
+	}
+	detail := schema(t, document, "EventSemanticContextDriftErrorDetail")
+	code := object(t, object(t, detail["properties"], "drift properties")["code"], "drift code")
+	assertStringSet(t, code["enum"], "EVENT_SEMANTIC_CONTEXT_DRIFT")
 }
 
 func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {

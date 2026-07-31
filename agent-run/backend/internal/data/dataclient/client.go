@@ -24,6 +24,7 @@ type Config struct {
 	ServiceToken     string
 	Timeout          time.Duration
 	MaxResponseBytes int64
+	HTTPClient       *http.Client
 }
 
 type Client struct {
@@ -72,9 +73,13 @@ func New(config Config) (*Client, error) {
 	if config.MaxResponseBytes <= 0 {
 		return nil, errors.New("Data Service response limit must be positive")
 	}
+	httpClient := config.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: config.Timeout}
+	}
 	return &Client{
 		baseURL: parsed.String(), serviceToken: config.ServiceToken,
-		http: &http.Client{Timeout: config.Timeout}, timeout: config.Timeout,
+		http: httpClient, timeout: config.Timeout,
 		maxResponseBytes: config.MaxResponseBytes,
 	}, nil
 }

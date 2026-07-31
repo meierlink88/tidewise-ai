@@ -15,6 +15,29 @@ type eventSemanticsHTTPStub struct {
 	testDataHTTPServer
 	contextLeaseRequest *EventSemanticContextLeaseRequest
 	eligibleRequest     *EligibleEventSemanticEventsRequest
+	contextResponse     EventSemanticContext
+	routeRequest        *EventSemanticResolutionRouteRequest
+}
+
+func (s *eventSemanticsHTTPStub) GetEventSemanticContext(
+	_ context.Context,
+	_ *EventSemanticContextRequest,
+) (*Response[EventSemanticContext], error) {
+	return &Response[EventSemanticContext]{Status: StatusOK, Result: s.contextResponse}, nil
+}
+
+func (s *eventSemanticsHTTPStub) ListEventSemanticResolutionRoutes(
+	_ context.Context,
+	request *EventSemanticResolutionRouteRequest,
+) (*Response[EventSemanticResolutionRouteResult], error) {
+	s.routeRequest = request
+	return &Response[EventSemanticResolutionRouteResult]{Status: StatusOK, Result: EventSemanticResolutionRouteResult{
+		Routes: []EventSemanticResolutionRoute{{
+			RouteID: "chain-node-via-industry.v1", RouteContractVersion: "event-semantic-anchor-routes.v1",
+			TargetEntityType: "chain_node", AnchorEntityType: "industry",
+			MappingRelationType: "mapped_to_industry", Partitions: []string{"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"},
+		}},
+	}}, nil
 }
 
 func (s *eventSemanticsHTTPStub) ListEligibleEventSemanticEvents(
@@ -151,5 +174,68 @@ func TestEligibleEventSemanticsRejectsUnknownPaginationCapability(t *testing.T) 
 			"status = %d called = %v body = %s",
 			recorder.Code, stub.eligibleRequest != nil, recorder.Body.String(),
 		)
+	}
+}
+
+func TestEventSemanticContextIsCompactAndOmitsABoxCatalog(t *testing.T) {
+	stub := &eventSemanticsHTTPStub{contextResponse: EventSemanticContext{
+		ContextLeaseID:          "11111111-1111-4111-8111-111111111111",
+		OntologyVersion:         "event-ontology.v1",
+		AcceptancePolicyVersion: "event-semantic-acceptance.v1",
+	}}
+	server := kratoshttp.NewServer()
+	RegisterDataHTTPServer(server, stub)
+	request := httptest.NewRequest(
+		http.MethodGet,
+		APIPrefix+"/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+
+	server.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", recorder.Code, recorder.Body.String())
+	}
+	if recorder.Body.Len() >= 100_000 {
+		t.Fatalf("compact context response = %d bytes, want < 100000", recorder.Body.Len())
+	}
+	var response map[string]json.RawMessage
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"entities", "relations"} {
+		if _, ok := response[forbidden]; ok {
+			t.Fatalf("compact context contains forbidden %q: %s", forbidden, recorder.Body.String())
+		}
+	}
+}
+
+func TestEventSemanticResolutionRoutesUseStrictBoundedContract(t *testing.T) {
+	stub := &eventSemanticsHTTPStub{}
+	server := kratoshttp.NewServer()
+	RegisterDataHTTPServer(server, stub)
+	request := httptest.NewRequest(
+		http.MethodPost,
+		APIPrefix+"/event-semantics/resolution-routes:list",
+		bytes.NewBufferString(`{"context_lease_id":"11111111-1111-4111-8111-111111111111","target_entity_type":"chain_node"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	server.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", recorder.Code, recorder.Body.String())
+	}
+	if stub.routeRequest == nil || stub.routeRequest.TargetEntityType != "chain_node" {
+		t.Fatalf("route request = %#v", stub.routeRequest)
+	}
+	var response EventSemanticResolutionRouteResult
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Routes) != 1 || response.Routes[0].RouteID != "chain-node-via-industry.v1" {
+		t.Fatalf("route response = %#v", response)
 	}
 }

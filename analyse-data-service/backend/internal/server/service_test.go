@@ -310,6 +310,15 @@ func (serverTestDataService) ResolveEventSemanticEntities(context.Context, *data
 func (serverTestDataService) SearchEventSemanticDirectTargets(context.Context, *dataapi.EventSemanticDirectTargetSearchRequest) (*dataapi.Response[dataapi.EventSemanticDirectTargetSearchResult], error) {
 	return serverTestResponse[dataapi.EventSemanticDirectTargetSearchResult]()
 }
+func (serverTestDataService) ListEventSemanticResolutionRoutes(context.Context, *dataapi.EventSemanticResolutionRouteRequest) (*dataapi.Response[dataapi.EventSemanticResolutionRouteResult], error) {
+	return serverTestResponse[dataapi.EventSemanticResolutionRouteResult]()
+}
+func (serverTestDataService) ListEventSemanticResolutionAnchors(context.Context, *dataapi.EventSemanticResolutionAnchorRequest) (*dataapi.Response[dataapi.EventSemanticResolutionAnchorResult], error) {
+	return serverTestResponse[dataapi.EventSemanticResolutionAnchorResult]()
+}
+func (serverTestDataService) ResolveEventSemanticChainNodeCandidates(context.Context, *dataapi.EventSemanticResolutionCandidateRequest) (*dataapi.Response[dataapi.EventSemanticResolutionCandidateResult], error) {
+	return serverTestResponse[dataapi.EventSemanticResolutionCandidateResult]()
+}
 func (serverTestDataService) CreateEventSemanticSubmission(context.Context, *dataapi.EventSemanticSubmissionRequest) (*dataapi.Response[dataapi.EventSemanticSubmissionResult], error) {
 	return serverTestResponse[dataapi.EventSemanticSubmissionResult]()
 }

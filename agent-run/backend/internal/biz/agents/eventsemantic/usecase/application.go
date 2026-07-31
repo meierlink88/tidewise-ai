@@ -244,6 +244,13 @@ func (a *Application) tick(ctx context.Context) error {
 			retryableSemanticFailure(err, true),
 		)
 	}
+	if err := validateContextIdentity(attempt, contextLease, contextSnapshot, a.workerID); err != nil {
+		return fail(
+			"event_semantic_context_identity_mismatch",
+			"Data Event Semantic Context identity does not match the current Attempt, Worker and Lease",
+			true,
+		)
+	}
 	attempt.Context = contextSnapshot
 	runtime, err := a.runtime(ctx)
 	if err != nil || runtime.Run == nil || runtime.GeneratorModel == "" || runtime.ReviewerModel == "" {
@@ -261,6 +268,8 @@ func (a *Application) tick(ctx context.Context) error {
 		code := "event_semantic_workflow_failed"
 		if errors.Is(err, eventsemantic.ErrModelUnavailable) {
 			code = "event_semantic_model_unavailable"
+		} else if remoteCode := semanticRemoteCode(err); remoteCode != "" {
+			code = remoteCode
 		}
 		return fail(
 			code,
@@ -283,6 +292,26 @@ func (a *Application) tick(ctx context.Context) error {
 			"rejected_candidates": result.RejectedCandidates,
 		},
 	)
+}
+
+func validateContextIdentity(
+	attempt eventsemantic.ExecutionAttempt,
+	lease eventsemantic.ContextLease,
+	contextValue eventsemantic.Context,
+	workerID string,
+) error {
+	expiresAt, err := time.Parse(time.RFC3339Nano, contextValue.LeaseExpiresAt)
+	if err != nil {
+		return errors.New("Context lease expiry is invalid")
+	}
+	if lease.Status != "active" || contextValue.ContextLeaseID != lease.ContextLeaseID ||
+		contextValue.AgentExecutionID != attempt.ID || contextValue.WorkerID != workerID ||
+		lease.EventID != attempt.WorkItem.EventID || contextValue.Event.ID != attempt.WorkItem.EventID ||
+		lease.SupersedesSubmissionID != attempt.WorkItem.SupersedesSubmissionID ||
+		!expiresAt.Equal(lease.LeaseExpiresAt) {
+		return errors.New("Context identity mismatch")
+	}
+	return nil
 }
 
 func (a *Application) completeSuccess(

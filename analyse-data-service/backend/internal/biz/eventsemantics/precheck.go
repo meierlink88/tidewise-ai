@@ -81,7 +81,15 @@ func validateLink(context Context, candidate EntityLinkCandidate, evidence map[s
 	if !exists || entity.Status != "active" {
 		return "entity_not_found"
 	}
-	if candidate.ResolutionMethod != "data_service_resolution" ||
+	if candidate.ResolutionReceipt != nil {
+		if candidate.ResolutionMethod != "data_service_anchor_resolution" ||
+			candidate.ResolutionReceipt.TargetEntityID != candidate.EntityID ||
+			!validHash(candidate.ResolutionReceipt.PathFingerprint) {
+			return "entity_resolution_receipt_invalid"
+		}
+	} else if entity.Type == "chain_node" {
+		return "entity_resolution_receipt_required"
+	} else if candidate.ResolutionMethod != "data_service_resolution" ||
 		!entityMentionMatches(entity, candidate.Mention) ||
 		countEntityMentionMatches(context.Entities, candidate.Mention) != 1 {
 		return "entity_resolution_not_unique"
