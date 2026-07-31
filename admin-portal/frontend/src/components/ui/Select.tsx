@@ -39,25 +39,25 @@ function Select({
       >
         <SelectPrimitive.Value />
         <SelectPrimitive.Icon asChild>
-          <ChevronDown aria-hidden="true" className="size-4 opacity-50" />
+          <ChevronDown aria-hidden='true' className='size-4 opacity-50' />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
-          className="relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-md border bg-background text-foreground shadow-md"
-          position="popper"
+          className='relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-md border bg-background text-foreground shadow-md'
+          position='popper'
           sideOffset={4}
         >
-          <SelectPrimitive.Viewport className="p-1">
+          <SelectPrimitive.Viewport className='p-1'>
             {options.map((option) => (
               <SelectPrimitive.Item
-                className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                className='relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50'
                 key={option.value}
                 value={option.value}
               >
-                <span className="absolute left-2 flex size-4 items-center justify-center">
+                <span className='absolute left-2 flex size-4 items-center justify-center'>
                   <SelectPrimitive.ItemIndicator>
-                    <Check className="size-4" />
+                    <Check className='size-4' />
                   </SelectPrimitive.ItemIndicator>
                 </span>
                 <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>

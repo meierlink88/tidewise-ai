@@ -31,7 +31,7 @@ function StatusAlert({
     >
       <span>{children}</span>
       {actionLabel && onAction ? (
-        <Button disabled={actionDisabled} onClick={onAction} size="sm" variant="ghost">
+        <Button disabled={actionDisabled} onClick={onAction} size='sm' variant='ghost'>
           {actionLabel}
         </Button>
       ) : null}

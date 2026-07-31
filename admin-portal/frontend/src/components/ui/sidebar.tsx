@@ -38,10 +38,7 @@ function SidebarProvider({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleSidebar]);
 
-  const value = React.useMemo(
-    () => ({ open, setOpen, toggleSidebar }),
-    [open, toggleSidebar]
-  );
+  const value = React.useMemo(() => ({ open, setOpen, toggleSidebar }), [open, toggleSidebar]);
 
   return (
     <SidebarContext.Provider value={value}>
@@ -55,26 +52,25 @@ function SidebarProvider({
   );
 }
 
-const Sidebar = React.forwardRef<
-  HTMLElement,
-  React.ComponentPropsWithoutRef<'aside'>
->(({ className, ...props }, ref) => {
-  const { open } = useSidebar();
+const Sidebar = React.forwardRef<HTMLElement, React.ComponentPropsWithoutRef<'aside'>>(
+  ({ className, ...props }, ref) => {
+    const { open } = useSidebar();
 
-  return (
-    <aside
-      className={cn(
-        'hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear md:flex',
-        open ? 'w-64' : 'w-16',
-        className
-      )}
-      data-state={open ? 'expanded' : 'collapsed'}
-      data-slot='sidebar'
-      ref={ref}
-      {...props}
-    />
-  );
-});
+    return (
+      <aside
+        className={cn(
+          'hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear md:flex',
+          open ? 'w-64' : 'w-16',
+          className
+        )}
+        data-state={open ? 'expanded' : 'collapsed'}
+        data-slot='sidebar'
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
 Sidebar.displayName = 'Sidebar';
 
 function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>) {
@@ -108,7 +104,9 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col gap-2', className)} data-slot='sidebar-group' {...props} />;
+  return (
+    <div className={cn('flex flex-col gap-2', className)} data-slot='sidebar-group' {...props} />
+  );
 }
 
 function SidebarGroupLabel({ className, ...props }: React.ComponentProps<'div'>) {
@@ -149,7 +147,8 @@ const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonP
       <button
         className={cn(
           'flex h-10 w-full items-center gap-3 overflow-hidden rounded-md px-3 text-left text-sm outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring',
-          active && 'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90',
+          active &&
+            'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90',
           !labelsVisible && 'justify-center px-0',
           className
         )}
@@ -174,11 +173,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-function SidebarTrigger({
-  className,
-  onClick,
-  ...props
-}: React.ComponentProps<typeof Button>) {
+function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { open, toggleSidebar } = useSidebar();
 
   return (

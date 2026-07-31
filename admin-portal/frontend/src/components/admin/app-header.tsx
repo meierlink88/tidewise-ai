@@ -3,13 +3,7 @@ import { useState } from 'react';
 import ThemeToggle from './theme-toggle';
 import { AdminNavigation, type AdminPage } from './app-sidebar';
 import { Button } from '../ui/Button';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  SheetTrigger
-} from '../ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { SidebarTrigger } from '../ui/sidebar';
 
 interface AppHeaderProps {

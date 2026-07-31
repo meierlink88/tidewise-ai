@@ -5,7 +5,9 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ children, tone = 'neutral' }: StatusBadgeProps) {
   return (
-    <Badge variant={tone === 'success' ? 'success' : tone === 'danger' ? 'destructive' : 'secondary'}>
+    <Badge
+      variant={tone === 'success' ? 'success' : tone === 'danger' ? 'destructive' : 'secondary'}
+    >
       {children}
     </Badge>
   );

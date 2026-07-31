@@ -45,12 +45,7 @@ import {
   TableHeader,
   TableRow
 } from '../components/ui/table';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle
-} from '../components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../components/ui/sheet';
 
 type CollectorSection = 'schedule' | 'executions' | 'models' | 'connectors';
 type EditTarget =
@@ -207,7 +202,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
       {
         key: 'id',
         header: '执行 ID',
-        render: (item) => <span className="font-mono">{item.execution_id}</span>
+        render: (item) => <span className='font-mono'>{item.execution_id}</span>
       }
     ],
     []
@@ -281,7 +276,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
 
   if (loading) {
     return (
-      <div className="grid min-h-56 place-items-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div className='grid min-h-56 place-items-center rounded-lg border border-dashed text-sm text-muted-foreground'>
         正在加载采集器配置
       </div>
     );
@@ -289,129 +284,135 @@ export default function CollectorConfiguration({ token }: { token: string }) {
 
   return (
     <Tabs
-      className="grid gap-4"
+      className='grid gap-4'
       onValueChange={(value) => isCollectorSection(value) && setSection(value)}
       value={section}
     >
-        <header className="flex min-h-24 items-start justify-between gap-4 border-b pb-5 max-sm:flex-col">
+      <header className='flex min-h-24 items-start justify-between gap-4 border-b pb-5 max-sm:flex-col'>
+        <div>
+          <div className='text-[0.6875rem] font-semibold tracking-[0.14em] text-muted-foreground'>
+            AGENTRUN CONTROL PLANE
+          </div>
+          <div className='mt-1.5 flex items-center gap-3'>
+            <h2 className='m-0 text-2xl font-semibold tracking-tight'>综合采集 Agent</h2>
+            <StatusBadge tone={schedule?.enabled ? 'success' : 'neutral'}>
+              {schedule?.enabled ? '已启用' : '已停止'}
+            </StatusBadge>
+          </div>
+          <p className='mt-1.5 text-sm text-muted-foreground'>
+            <span className='font-mono'>collector</span>
+            <span aria-hidden='true'> · </span>
+            <span className='font-mono'>collector.v1</span>
+          </p>
+        </div>
+        {schedule?.enabled ? (
+          <Button disabled={saving} onClick={() => setStopConfirmation(true)} variant='destructive'>
+            停止定时器
+          </Button>
+        ) : (
+          <Button
+            disabled={saving || !readinessComplete || !schedule}
+            onClick={() => void changeEnabled(true)}
+          >
+            启动定时器
+          </Button>
+        )}
+      </header>
+
+      <div className='overflow-x-auto'>
+        <TabsList aria-label='采集器配置板块'>
+          {sectionItems.map((item) => (
+            <TabsTrigger key={item.id} value={item.id}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+
+      {error ? (
+        <StatusAlert actionLabel='重试' onAction={retryCurrentSection} tone='destructive'>
+          {error}
+        </StatusAlert>
+      ) : null}
+      {notice ? (
+        <StatusAlert role='status' tone='success'>
+          {notice}
+        </StatusAlert>
+      ) : null}
+
+      <TabsContent value='schedule'>
+        <SchedulePanel
+          configuredConnectors={configuredConnectors}
+          configuredModels={configuredModels}
+          connectorsTotal={connectors.length}
+          cronExpression={cronExpression}
+          dailyTimes={dailyTimes}
+          newDailyTime={newDailyTime}
+          prompt={prompt}
+          readinessComplete={readinessComplete}
+          modelsTotal={models.length}
+          saving={saving}
+          schedule={schedule}
+          scheduleType={scheduleType}
+          onAddDailyTime={addDailyTime}
+          onCronExpressionChange={setCronExpression}
+          onDailyTimeRemove={(time) =>
+            setDailyTimes((current) => current.filter((value) => value !== time))
+          }
+          onNewDailyTimeChange={setNewDailyTime}
+          onPromptChange={setPrompt}
+          onSave={() => void saveConfiguration()}
+          onScheduleTypeChange={setScheduleType}
+          onSectionChange={setSection}
+        />
+      </TabsContent>
+
+      <TabsContent aria-label='采集执行记录' className='grid gap-4' value='executions'>
+        <div className='flex items-start justify-between gap-4'>
           <div>
-            <div className="text-[0.6875rem] font-semibold tracking-[0.14em] text-muted-foreground">AGENTRUN CONTROL PLANE</div>
-            <div className="mt-1.5 flex items-center gap-3">
-              <h2 className="m-0 text-2xl font-semibold tracking-tight">综合采集 Agent</h2>
-              <StatusBadge tone={schedule?.enabled ? 'success' : 'neutral'}>
-                {schedule?.enabled ? '已启用' : '已停止'}
-              </StatusBadge>
-            </div>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              <span className="font-mono">collector</span>
-              <span aria-hidden="true"> · </span>
-              <span className="font-mono">collector.v1</span>
+            <h3 className='m-0 text-lg font-semibold'>采集执行记录</h3>
+            <p className='mt-1.5 text-sm text-muted-foreground'>
+              只展示 Collector Execution 的安全审计摘要。
             </p>
           </div>
-          {schedule?.enabled ? (
-            <Button disabled={saving} onClick={() => setStopConfirmation(true)} variant="destructive">
-              停止定时器
-            </Button>
-          ) : (
-            <Button
-              disabled={saving || !readinessComplete || !schedule}
-              onClick={() => void changeEnabled(true)}
-            >
-              启动定时器
-            </Button>
-          )}
-        </header>
-
-        <div className="overflow-x-auto">
-          <TabsList aria-label="采集器配置板块">
-            {sectionItems.map((item) => (
-              <TabsTrigger key={item.id} value={item.id}>
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <Button
+            onClick={() => setExecutionReloadVersion((value) => value + 1)}
+            variant='secondary'
+          >
+            刷新
+          </Button>
         </div>
-
-        {error ? (
-          <StatusAlert actionLabel="重试" onAction={retryCurrentSection} tone="destructive">
-            {error}
-          </StatusAlert>
-        ) : null}
-        {notice ? (
-          <StatusAlert role="status" tone="success">{notice}</StatusAlert>
-        ) : null}
-
-        <TabsContent value="schedule">
-          <SchedulePanel
-            configuredConnectors={configuredConnectors}
-            configuredModels={configuredModels}
-            connectorsTotal={connectors.length}
-            cronExpression={cronExpression}
-            dailyTimes={dailyTimes}
-            newDailyTime={newDailyTime}
-            prompt={prompt}
-            readinessComplete={readinessComplete}
-            modelsTotal={models.length}
-            saving={saving}
-            schedule={schedule}
-            scheduleType={scheduleType}
-            onAddDailyTime={addDailyTime}
-            onCronExpressionChange={setCronExpression}
-            onDailyTimeRemove={(time) =>
-              setDailyTimes((current) => current.filter((value) => value !== time))
-            }
-            onNewDailyTimeChange={setNewDailyTime}
-            onPromptChange={setPrompt}
-            onSave={() => void saveConfiguration()}
-            onScheduleTypeChange={setScheduleType}
-            onSectionChange={setSection}
+        <div className='overflow-hidden rounded-xl border bg-card p-5 shadow-sm'>
+          <DataTable
+            columns={executionColumns}
+            emptyText={executionLoading ? '正在加载执行记录' : '暂无执行记录'}
+            getRowKey={(item) => item.execution_id}
+            items={executions.items}
           />
-        </TabsContent>
-
-        <TabsContent aria-label="采集执行记录" className="grid gap-4" value="executions">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="m-0 text-lg font-semibold">采集执行记录</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">只展示 Collector Execution 的安全审计摘要。</p>
-              </div>
-              <Button
-                onClick={() => setExecutionReloadVersion((value) => value + 1)}
-                variant="secondary"
-              >
-                刷新
-              </Button>
-            </div>
-            <div className="overflow-hidden rounded-xl border bg-card p-5 shadow-sm">
-              <DataTable
-                columns={executionColumns}
-                emptyText={executionLoading ? '正在加载执行记录' : '暂无执行记录'}
-                getRowKey={(item) => item.execution_id}
-                items={executions.items}
-              />
-              <Pagination
-                page={executions.page}
-                pageSize={executions.page_size}
-                total={executions.total_items}
-                onPageChange={setExecutionPage}
-              />
-            </div>
-        </TabsContent>
-
-        <TabsContent value="models">
-          <ConfigurationTable
-            kind="model"
-            models={models}
-            onEdit={(value) => setEditTarget({ kind: 'model', value })}
+          <Pagination
+            page={executions.page}
+            pageSize={executions.page_size}
+            total={executions.total_items}
+            onPageChange={setExecutionPage}
           />
-        </TabsContent>
+        </div>
+      </TabsContent>
 
-        <TabsContent value="connectors">
-          <ConfigurationTable
-            connectors={connectors}
-            kind="connector"
-            onEdit={(value) => setEditTarget({ kind: 'connector', value })}
-          />
-        </TabsContent>
+      <TabsContent value='models'>
+        <ConfigurationTable
+          kind='model'
+          models={models}
+          onEdit={(value) => setEditTarget({ kind: 'model', value })}
+        />
+      </TabsContent>
+
+      <TabsContent value='connectors'>
+        <ConfigurationTable
+          connectors={connectors}
+          kind='connector'
+          onEdit={(value) => setEditTarget({ kind: 'connector', value })}
+        />
+      </TabsContent>
 
       {stopConfirmation ? (
         <ConfirmationDialog
@@ -476,7 +477,7 @@ interface SchedulePanelProps {
 
 function SchedulePanel(props: SchedulePanelProps) {
   return (
-    <section aria-label="定时任务配置" className="grid gap-4">
+    <section aria-label='定时任务配置' className='grid gap-4'>
       <div
         className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 max-sm:flex-col max-sm:items-stretch ${
           props.readinessComplete
@@ -484,23 +485,27 @@ function SchedulePanel(props: SchedulePanelProps) {
             : 'border-destructive-border bg-destructive-subtle text-destructive-foreground'
         }`}
       >
-        <div className="grid gap-1">
+        <div className='grid gap-1'>
           <strong>
             {props.readinessComplete
               ? `模型和 ${props.connectorsTotal} 个连接器配置完整`
               : '配置尚未完整，暂不能启动定时器'}
           </strong>
-          <span className="text-xs text-muted-foreground">最终校验由 AgentRun 执行</span>
+          <span className='text-xs text-muted-foreground'>最终校验由 AgentRun 执行</span>
         </div>
         {!props.readinessComplete ? (
-          <div className="flex flex-wrap gap-2">
+          <div className='flex flex-wrap gap-2'>
             {props.modelsTotal === 0 || props.configuredModels < props.modelsTotal ? (
-              <Button onClick={() => props.onSectionChange('models')} size="sm" variant="outline">
+              <Button onClick={() => props.onSectionChange('models')} size='sm' variant='outline'>
                 前往模型配置
               </Button>
             ) : null}
             {props.connectorsTotal === 0 || props.configuredConnectors < props.connectorsTotal ? (
-              <Button onClick={() => props.onSectionChange('connectors')} size="sm" variant="outline">
+              <Button
+                onClick={() => props.onSectionChange('connectors')}
+                size='sm'
+                variant='outline'
+              >
                 前往连接器配置
               </Button>
             ) : null}
@@ -508,84 +513,91 @@ function SchedulePanel(props: SchedulePanelProps) {
         ) : null}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(17.5rem,1fr)]">
-        <section className="overflow-hidden rounded-xl border bg-card p-5 shadow-sm">
-          <header className="mb-5 flex items-start justify-between gap-4 border-b pb-4">
+      <div className='grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(17.5rem,1fr)]'>
+        <section className='overflow-hidden rounded-xl border bg-card p-5 shadow-sm'>
+          <header className='mb-5 flex items-start justify-between gap-4 border-b pb-4'>
             <div>
-              <h3 className="m-0 text-lg font-semibold">定时配置</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">保存后影响下一次触发，不改变当前启停状态。</p>
+              <h3 className='m-0 text-lg font-semibold'>定时配置</h3>
+              <p className='mt-1.5 text-sm text-muted-foreground'>
+                保存后影响下一次触发，不改变当前启停状态。
+              </p>
             </div>
             <StatusBadge>{props.schedule ? '已保存' : '未保存'}</StatusBadge>
           </header>
 
-          <div className="grid gap-5">
-            <fieldset className="m-0 border-0 p-0">
-              <legend className="mb-2 text-sm font-medium">执行策略</legend>
+          <div className='grid gap-5'>
+            <fieldset className='m-0 border-0 p-0'>
+              <legend className='mb-2 text-sm font-medium'>执行策略</legend>
               <Tabs
-                onValueChange={(value) => props.onScheduleTypeChange(value === 'cron' ? 'cron' : 'daily')}
+                onValueChange={(value) =>
+                  props.onScheduleTypeChange(value === 'cron' ? 'cron' : 'daily')
+                }
                 value={props.scheduleType}
               >
-                <TabsList aria-label="执行策略">
-                  <TabsTrigger value="daily">每日定时</TabsTrigger>
-                  <TabsTrigger value="cron">Cron</TabsTrigger>
+                <TabsList aria-label='执行策略'>
+                  <TabsTrigger value='daily'>每日定时</TabsTrigger>
+                  <TabsTrigger value='cron'>Cron</TabsTrigger>
                 </TabsList>
               </Tabs>
             </fieldset>
 
             {props.scheduleType === 'daily' ? (
-              <div className="grid gap-2.5">
-                <div className="flex justify-between gap-3">
+              <div className='grid gap-2.5'>
+                <div className='flex justify-between gap-3'>
                   <strong>每日执行时间</strong>
-                  <span className="text-xs text-muted-foreground">使用 AgentRun 服务器时间</span>
+                  <span className='text-xs text-muted-foreground'>使用 AgentRun 服务器时间</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className='flex flex-wrap items-center gap-2'>
                   {props.dailyTimes.map((time) => (
-                    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-secondary py-0 pl-3 pr-1.5 font-mono text-sm" key={time}>
+                    <span
+                      className='inline-flex min-h-8 items-center gap-1.5 rounded-full bg-secondary py-0 pl-3 pr-1.5 font-mono text-sm'
+                      key={time}
+                    >
                       {time}
                       <Button
                         aria-label={`移除 ${time}`}
-                        className="size-6 rounded-full text-muted-foreground"
+                        className='size-6 rounded-full text-muted-foreground'
                         onClick={() => props.onDailyTimeRemove(time)}
-                        size="icon"
-                        variant="ghost"
+                        size='icon'
+                        variant='ghost'
                       >
-                        <X className="size-3" />
+                        <X className='size-3' />
                       </Button>
                     </span>
                   ))}
                   <Input
-                    aria-label="新增执行时间"
-                    className="max-w-32"
+                    aria-label='新增执行时间'
+                    className='max-w-32'
                     onChange={(event) => props.onNewDailyTimeChange(event.target.value)}
-                    type="time"
+                    type='time'
                     value={props.newDailyTime}
                   />
-                  <Button onClick={props.onAddDailyTime} variant="secondary">
+                  <Button onClick={props.onAddDailyTime} variant='secondary'>
                     添加时间
                   </Button>
                 </div>
               </div>
             ) : (
-              <Field hint="标准五段式，最小粒度为分钟" label="Cron 表达式">
+              <Field hint='标准五段式，最小粒度为分钟' label='Cron 表达式'>
                 <Input
-                  aria-label="Cron 表达式"
-                  className="font-mono"
+                  aria-label='Cron 表达式'
+                  className='font-mono'
                   onChange={(event) => props.onCronExpressionChange(event.target.value)}
                   value={props.cronExpression}
                 />
               </Field>
             )}
 
-            <Field hint="由 collector.v1 校验" label="Collection Prompt">
+            <Field hint='由 collector.v1 校验' label='Collection Prompt'>
               <Textarea
-                aria-label="Collection Prompt"
-                className="min-h-36 resize-y"
+                aria-label='Collection Prompt'
+                className='min-h-36 resize-y'
                 onChange={(event) => props.onPromptChange(event.target.value)}
                 value={props.prompt}
               />
             </Field>
           </div>
-          <footer className="mt-5 flex items-center justify-between gap-4 border-t pt-4 text-xs text-muted-foreground max-sm:flex-col max-sm:items-stretch">
+          <footer className='mt-5 flex items-center justify-between gap-4 border-t pt-4 text-xs text-muted-foreground max-sm:flex-col max-sm:items-stretch'>
             <span>
               {props.schedule
                 ? `上次保存：${formatDateTime(props.schedule.updated_at)}`
@@ -597,31 +609,31 @@ function SchedulePanel(props: SchedulePanelProps) {
           </footer>
         </section>
 
-        <aside className="overflow-hidden rounded-xl border bg-card p-5 shadow-sm">
-          <header className="mb-5 flex items-start justify-between gap-4 border-b pb-4">
+        <aside className='overflow-hidden rounded-xl border bg-card p-5 shadow-sm'>
+          <header className='mb-5 flex items-start justify-between gap-4 border-b pb-4'>
             <div>
-              <h3 className="m-0 text-lg font-semibold">运行信息</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">时间由 AgentRun 返回。</p>
+              <h3 className='m-0 text-lg font-semibold'>运行信息</h3>
+              <p className='mt-1.5 text-sm text-muted-foreground'>时间由 AgentRun 返回。</p>
             </div>
           </header>
-          <dl className="m-0 grid">
-            <DetailRow label="当前状态">
+          <dl className='m-0 grid'>
+            <DetailRow label='当前状态'>
               <StatusBadge tone={props.schedule?.enabled ? 'success' : 'neutral'}>
                 {props.schedule?.enabled ? '已启用' : '已停止'}
               </StatusBadge>
             </DetailRow>
-            <DetailRow label="调度策略">
+            <DetailRow label='调度策略'>
               {scheduleSummary(props.scheduleType, props.dailyTimes, props.cronExpression)}
             </DetailRow>
-            <DetailRow label="下次计划">
+            <DetailRow label='下次计划'>
               {props.schedule?.next_run_at ? formatDateTime(props.schedule.next_run_at) : '-'}
             </DetailRow>
-            <DetailRow label="上次触发">
+            <DetailRow label='上次触发'>
               {props.schedule?.last_triggered_at
                 ? formatDateTime(props.schedule.last_triggered_at)
                 : '-'}
             </DetailRow>
-            <DetailRow label="模型配置">
+            <DetailRow label='模型配置'>
               <StatusBadge
                 tone={
                   props.modelsTotal > 0 && props.configuredModels === props.modelsTotal
@@ -632,7 +644,7 @@ function SchedulePanel(props: SchedulePanelProps) {
                 {`${props.configuredModels} / ${props.modelsTotal} 完整`}
               </StatusBadge>
             </DetailRow>
-            <DetailRow label="连接器配置">
+            <DetailRow label='连接器配置'>
               <StatusBadge
                 tone={
                   props.connectorsTotal > 0 && props.configuredConnectors === props.connectorsTotal
@@ -652,9 +664,9 @@ function SchedulePanel(props: SchedulePanelProps) {
 
 function DetailRow({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <div className="grid grid-cols-[minmax(5.625rem,0.8fr)_minmax(0,1.2fr)] items-center gap-4 border-b py-3.5 last:border-b-0">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="m-0 text-right font-medium">{children}</dd>
+    <div className='grid grid-cols-[minmax(5.625rem,0.8fr)_minmax(0,1.2fr)] items-center gap-4 border-b py-3.5 last:border-b-0'>
+      <dt className='text-muted-foreground'>{label}</dt>
+      <dd className='m-0 text-right font-medium'>{children}</dd>
     </div>
   );
 }
@@ -674,28 +686,28 @@ type ConfigurationTableProps =
 function ConfigurationTable(props: ConfigurationTableProps) {
   const isModel = props.kind === 'model';
   return (
-    <section aria-label={isModel ? '模型配置' : '连接器配置'} className="grid gap-4">
-      <div className="flex items-start justify-between gap-4">
+    <section aria-label={isModel ? '模型配置' : '连接器配置'} className='grid gap-4'>
+      <div className='flex items-start justify-between gap-4'>
         <div>
-          <h3 className="m-0 text-lg font-semibold">{isModel ? '模型配置' : '连接器配置'}</h3>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          <h3 className='m-0 text-lg font-semibold'>{isModel ? '模型配置' : '连接器配置'}</h3>
+          <p className='mt-1.5 text-sm text-muted-foreground'>
             {isModel
               ? '只维护 AgentRun 代码已注册的模型供应商。'
               : '连接器能力由代码注册，管理页只维护当前连接信息。'}
           </p>
         </div>
       </div>
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className='overflow-hidden rounded-xl border bg-card shadow-sm'>
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
+            <TableRow className='hover:bg-transparent'>
               <TableHead>{isModel ? 'Provider' : 'Connector'}</TableHead>
               <TableHead>Base URL</TableHead>
               {isModel ? <TableHead>模型</TableHead> : null}
               <TableHead>Key</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>更新时间</TableHead>
-              <TableHead aria-label="操作" />
+              <TableHead aria-label='操作' />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -704,24 +716,24 @@ function ConfigurationTable(props: ConfigurationTableProps) {
                   <TableRow key={item.provider_key}>
                     <TableCell>
                       <strong>{providerName(item.provider_key)}</strong>
-                      <small className="mt-1 block font-mono text-muted-foreground">
+                      <small className='mt-1 block font-mono text-muted-foreground'>
                         {item.provider_key}
                       </small>
                     </TableCell>
-                    <TableCell className="font-mono">{item.base_url || '-'}</TableCell>
-                    <TableCell className="font-mono">{item.model || '-'}</TableCell>
-                    <TableCell className="font-mono">{item.masked_key || '未配置'}</TableCell>
+                    <TableCell className='font-mono'>{item.base_url || '-'}</TableCell>
+                    <TableCell className='font-mono'>{item.model || '-'}</TableCell>
+                    <TableCell className='font-mono'>{item.masked_key || '未配置'}</TableCell>
                     <TableCell>
                       <StatusBadge tone={item.configured ? 'success' : 'danger'}>
                         {item.configured ? '已配置' : '未配置'}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>{item.updated_at ? formatDateTime(item.updated_at) : '-'}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className='text-right'>
                       <Button
                         aria-label={`编辑 ${item.provider_key}`}
                         onClick={() => props.onEdit(item)}
-                        variant="secondary"
+                        variant='secondary'
                       >
                         编辑
                       </Button>
@@ -732,23 +744,23 @@ function ConfigurationTable(props: ConfigurationTableProps) {
                   <TableRow key={item.connector_key}>
                     <TableCell>
                       <strong>{connectorName(item.connector_key)}</strong>
-                      <small className="mt-1 block font-mono text-muted-foreground">
+                      <small className='mt-1 block font-mono text-muted-foreground'>
                         {item.connector_key}
                       </small>
                     </TableCell>
-                    <TableCell className="font-mono">{item.base_url || '-'}</TableCell>
-                    <TableCell className="font-mono">{item.masked_key || '未配置'}</TableCell>
+                    <TableCell className='font-mono'>{item.base_url || '-'}</TableCell>
+                    <TableCell className='font-mono'>{item.masked_key || '未配置'}</TableCell>
                     <TableCell>
                       <StatusBadge tone={item.configured ? 'success' : 'danger'}>
                         {item.configured ? '已配置' : '未配置'}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>{item.updated_at ? formatDateTime(item.updated_at) : '-'}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className='text-right'>
                       <Button
                         aria-label={`编辑 ${item.connector_key}`}
                         onClick={() => props.onEdit(item)}
-                        variant="secondary"
+                        variant='secondary'
                       >
                         编辑
                       </Button>
@@ -811,31 +823,31 @@ function ConfigurationDrawer(props: ConfigurationDrawerProps) {
     <Sheet open onOpenChange={(open) => !open && props.onClose()}>
       <SheetContent
         aria-label={isModel ? `编辑模型 ${key}` : `编辑连接器 ${key}`}
-        className="grid grid-rows-[auto_minmax(0,1fr)_auto] gap-0"
-        closeLabel="关闭"
-        side="right"
+        className='grid grid-rows-[auto_minmax(0,1fr)_auto] gap-0'
+        closeLabel='关闭'
+        side='right'
       >
-        <header className="border-b pb-5 pr-10">
+        <header className='border-b pb-5 pr-10'>
           <div>
             <SheetTitle>{isModel ? '编辑模型配置' : '编辑连接器配置'}</SheetTitle>
-            <SheetDescription className="sr-only">
+            <SheetDescription className='sr-only'>
               {isModel ? '更新已注册模型供应商配置' : '更新已注册连接器配置'}
             </SheetDescription>
-            <p className="mt-1.5 font-mono text-sm text-muted-foreground">{key}</p>
+            <p className='mt-1.5 font-mono text-sm text-muted-foreground'>{key}</p>
           </div>
         </header>
-        <div className="grid min-h-0 content-start gap-5 overflow-y-auto py-6">
-          <Field label="Base URL">
+        <div className='grid min-h-0 content-start gap-5 overflow-y-auto py-6'>
+          <Field label='Base URL'>
             <Input
-              aria-label="Base URL"
+              aria-label='Base URL'
               onChange={(event) => setBaseURL(event.target.value)}
               value={baseURL}
             />
           </Field>
           {isModel ? (
-            <Field label="模型">
+            <Field label='模型'>
               <Input
-                aria-label="模型"
+                aria-label='模型'
                 onChange={(event) => setModel(event.target.value)}
                 value={model}
               />
@@ -847,20 +859,20 @@ function ConfigurationDrawer(props: ConfigurationDrawerProps) {
                 ? '留空保持当前 Key，不提供清除操作。'
                 : '留空保持当前 Key；勾选下方选项可明确清除。'
             }
-            label="新 API Key"
+            label='新 API Key'
           >
             <Input
-              aria-label="新 API Key"
+              aria-label='新 API Key'
               disabled={clearKey}
               onChange={(event) => setAPIKey(event.target.value)}
-              type="password"
+              type='password'
               value={apiKey}
             />
           </Field>
           {!isModel ? (
-            <label className="flex items-center gap-2 text-sm text-destructive-foreground">
+            <label className='flex items-center gap-2 text-sm text-destructive-foreground'>
               <Checkbox
-                aria-label="清除当前 Key"
+                aria-label='清除当前 Key'
                 checked={clearKey}
                 onCheckedChange={(checked) => setClearKey(checked === true)}
               />
@@ -868,8 +880,8 @@ function ConfigurationDrawer(props: ConfigurationDrawerProps) {
             </label>
           ) : null}
         </div>
-        <footer className="flex justify-end gap-2 border-t pt-5">
-          <Button onClick={props.onClose} variant="outline">
+        <footer className='flex justify-end gap-2 border-t pt-5'>
+          <Button onClick={props.onClose} variant='outline'>
             取消
           </Button>
           <Button disabled={saving} onClick={() => void save()}>
@@ -884,7 +896,7 @@ function ConfigurationDrawer(props: ConfigurationDrawerProps) {
 function ConfirmationDialog(props: { busy: boolean; onCancel: () => void; onConfirm: () => void }) {
   return (
     <AlertDialog open onOpenChange={(open) => !open && props.onCancel()}>
-      <AlertDialogContent aria-label="停止定时器">
+      <AlertDialogContent aria-label='停止定时器'>
         <AlertDialogHeader>
           <AlertDialogTitle>停止定时器</AlertDialogTitle>
           <AlertDialogDescription>
@@ -893,10 +905,10 @@ function ConfirmationDialog(props: { busy: boolean; onCancel: () => void; onConf
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
-            <Button variant="outline">取消</Button>
+            <Button variant='outline'>取消</Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button disabled={props.busy} onClick={props.onConfirm} variant="destructive">
+            <Button disabled={props.busy} onClick={props.onConfirm} variant='destructive'>
               确认停止
             </Button>
           </AlertDialogAction>

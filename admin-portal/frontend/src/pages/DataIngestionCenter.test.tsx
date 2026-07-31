@@ -34,7 +34,7 @@ describe('DataIngestionCenter', () => {
       page_size: 50
     });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
 
     const rawTab = await screen.findByRole('tab', { name: '原始数据' });
     expect(rawTab).toBeInTheDocument();
@@ -56,10 +56,7 @@ describe('DataIngestionCenter', () => {
       await Promise.resolve();
     });
     await waitFor(() =>
-      expect(screen.getByRole('tab', { name: '全球事件' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      )
+      expect(screen.getByRole('tab', { name: '全球事件' })).toHaveAttribute('aria-selected', 'true')
     );
   });
 
@@ -82,7 +79,7 @@ describe('DataIngestionCenter', () => {
       page_size: 50
     });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
 
     await screen.findByRole('tab', { name: '原始数据' });
     await user.type(screen.getByLabelText('原始数据标题搜索'), '央行');
@@ -143,7 +140,7 @@ describe('DataIngestionCenter', () => {
       .spyOn(agentManagementAPI, 'setAgentScheduleEnabled')
       .mockResolvedValue({ ...schedule, enabled: false });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
 
     expect(await screen.findByRole('tab', { name: '定时任务' })).toBeInTheDocument();
@@ -199,7 +196,7 @@ describe('DataIngestionCenter', () => {
       .spyOn(agentManagementAPI, 'setAgentScheduleEnabled')
       .mockResolvedValue({ ...schedule, enabled: true });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
     await user.click(screen.getByRole('tab', { name: 'Cron' }));
     await user.clear(screen.getByLabelText('Cron 表达式'));
@@ -244,7 +241,7 @@ describe('DataIngestionCenter', () => {
       total_pages: 2
     });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
     await user.click(await screen.findByRole('tab', { name: '执行记录' }));
 
@@ -269,7 +266,7 @@ describe('DataIngestionCenter', () => {
         })
     );
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
     await user.click(await screen.findByRole('tab', { name: '执行记录' }));
     expect(await screen.findByText('正在加载执行记录')).toBeInTheDocument();
@@ -323,7 +320,7 @@ describe('DataIngestionCenter', () => {
         total_pages: 0
       });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
 
     expect(await screen.findByText('1 / 2 完整')).toBeInTheDocument();
@@ -357,7 +354,7 @@ describe('DataIngestionCenter', () => {
       key_configured: false
     });
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
     await user.click(await screen.findByRole('tab', { name: '模型配置' }));
     await user.click(await screen.findByRole('button', { name: '编辑 deepseek' }));
@@ -425,7 +422,7 @@ describe('DataIngestionCenter', () => {
       new Error('AgentRun 暂时不可用')
     );
 
-    render(<DataIngestionCenter token="secret-token" />);
+    render(<DataIngestionCenter token='secret-token' />);
     expect(await screen.findByText('Data 仍可用')).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: '采集器配置' }));
     expect(await screen.findByText('AgentRun 暂时不可用')).toBeInTheDocument();

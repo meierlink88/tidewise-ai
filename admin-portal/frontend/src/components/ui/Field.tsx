@@ -20,11 +20,13 @@ export function Field({ children, controlId, hint, label }: FieldProps) {
       : children;
 
   return (
-    <div className="grid gap-2 text-sm">
-      <label className="font-medium" htmlFor={resolvedControlId}>{label}</label>
+    <div className='grid gap-2 text-sm'>
+      <label className='font-medium' htmlFor={resolvedControlId}>
+        {label}
+      </label>
       {control}
       {hint ? (
-        <span className="text-xs font-normal text-muted-foreground" id={hintId}>
+        <span className='text-xs font-normal text-muted-foreground' id={hintId}>
           {hint}
         </span>
       ) : null}

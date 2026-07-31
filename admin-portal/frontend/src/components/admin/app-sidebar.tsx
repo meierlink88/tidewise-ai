@@ -40,11 +40,7 @@ const navigationItems = [
   icon: typeof Database;
 }>;
 
-export function AdminNavigation({
-  currentPage,
-  onNavigate,
-  showLabels
-}: AdminNavigationProps) {
+export function AdminNavigation({ currentPage, onNavigate, showLabels }: AdminNavigationProps) {
   const { open } = useSidebar();
   const labelsVisible = showLabels ?? open;
 
