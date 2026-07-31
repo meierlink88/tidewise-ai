@@ -14,7 +14,7 @@ case "$scope" in
     pattern='^(miniapp/|analyse-data-service/backend/api/|go\.mod$|go\.sum$|package\.json$|package-lock\.json$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/miniapp/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
     ;;
   adminportal)
-    pattern='^(admin-portal/|analyse-data-service/backend/api/|agent-run/backend/api/|go\.mod$|go\.sum$|package\.json$|package-lock\.json$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/admin-portal/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
+    pattern='^(admin-portal/|analyse-data-service/backend/api/|agent-run/backend/api/|go\.mod$|go\.sum$|package\.json$|package-lock\.json$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/adminportal/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
     ;;
   agentrun)
     pattern='^(agent-run/|admin-portal/backend/|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/agentrun/|architecture/agentrun/|research/agentrun/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
