@@ -322,8 +322,9 @@ Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未
 
 **Event Semantic Context Lease**:
 Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。
-它通过轻量 `context_manifest` 固定 Event/Evidence 指纹、Ontology/Policy、Entity Type、
-Variable、Rule、Resolution Route 版本和可选 superseded Submission 边界，不复制全量
+它通过轻量 `context_manifest` 固定 Event/Evidence 身份与指纹、Ontology/Policy、Entity Type、
+Variable、Rule、Resolution Route 版本引用和可选 superseded Submission 边界；Evidence 摘录和
+完整 TBox 对象由 Context API 按这些 pinned identities 读取，不复制进 manifest，也不复制全量
 Entity / EntityRelation ABox。Lease 以 Agent Execution ID 为唯一恢复身份；同一执行可
 精确续期并复用原 manifest；旧 snapshot-only Lease 重放时仅为该 Lease 生成 compact
 manifest，并保留历史 snapshot。历史 `context_snapshot` 只保留审计兼容，新 Lease 不再写入
@@ -338,6 +339,9 @@ Data Service 暴露的版本化、受控 Entity Resolution 路径。ChainNode MV
 已批准的 Industry 或 Concept 锚点，经 `mapped_to_industry | mapped_to_concept` 到
 IndustryChain，再经已批准 Membership 到 ChainNode；路由、锚点和候选均稳定排序并分页。
 Industry 一级分区以正式 UUID 加显示名称提供，Route 同时声明方向、用途和下一操作。
+Industry anchor 页只返回分区内存在正式映射且可到达 approved ChainNode 的后代叶级锚点，
+因此 L3 mapping 无需模型递归即可到达。Anchor/Candidate 均在 PostgreSQL 使用
+`canonical_name + entity_id` keyset 和 `LIMIT page_size + 1`，不得先物化全量结果再切页。
 _Avoid_: 开放式图遍历、AgentRun 直连数据库/Neo4j、全库 Entity Catalog、模型发明路径
 
 **Event Semantic Resolution Binding**:

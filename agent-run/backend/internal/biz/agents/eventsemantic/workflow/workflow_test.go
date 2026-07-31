@@ -415,6 +415,18 @@ func TestStrictModelOutputRejectsDuplicateKeysAndUnboundedCandidates(t *testing.
 	}
 }
 
+func TestNativeMentionMustBePresentInItsCitedEvidenceText(t *testing.T) {
+	contextValue := requestContext()
+	output := nativeOutput{Mentions: []mentionCandidate{{
+		CandidateKey: "node", Mention: "invented upstream stage", PredictedEntityType: "chain_node",
+		EntityRole: "event_subject", EvidenceIDs: []string{"22222222-2222-4222-8222-222222222222"},
+		ResolutionConfidence: "0.8",
+	}}}
+	if err := validateNativeOutput(output, contextValue); err == nil {
+		t.Fatal("mention text unsupported by the cited Evidence was accepted")
+	}
+}
+
 func TestModelContractErrorIsDeterministicAndNonRetryable(t *testing.T) {
 	err := modelContractError("safe summary")
 	var remote *eventsemantic.RemoteError
@@ -487,7 +499,7 @@ func requestContext() eventsemantic.Context {
 		},
 		Evidence: []eventsemantic.Evidence{{
 			EvidenceID:           "22222222-2222-4222-8222-222222222222",
-			Excerpt:              "某晶圆厂预计下半年8英寸晶圆产量下降10%",
+			Excerpt:              "某晶圆厂预计下半年8英寸晶圆产量下降10%，影响上游关键制造环节；unsupported stage 暂无候选。",
 			RawDocumentID:        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
 			SourceName:           "某晶圆厂",
 			SourceType:           "company_announcement",

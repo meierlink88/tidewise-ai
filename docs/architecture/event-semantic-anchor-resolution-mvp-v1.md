@@ -180,9 +180,21 @@ Input supports one bounded branch at a time:
 ```
 
 Output contains formal anchor ID, Entity Type, canonical name, concise description, hierarchy
-identity and stable cursor. It may return the next Industry hierarchy level or bounded Concept
-candidates. AgentRun must choose an ID from this response; it must not query by a model-invented
+identity and stable cursor. For the Industry route, an omitted `parent_anchor_ids` returns only
+approved descendant Industry anchors inside the selected level-1 partition that have a direct,
+active `mapped_to_industry` path to an approved IndustryChain with an approved ChainNode membership.
+This bounded leaf-anchor view intentionally makes level-3 mappings reachable without returning the
+complete hierarchy or introducing a model-controlled hierarchy loop. Supplying
+`parent_anchor_ids` narrows the same reachable-anchor view to those approved subtrees. The Concept
+route returns only approved Concepts in the selected controlled type that have the corresponding
+formal path. AgentRun must choose an ID from this response; it must not query by a model-invented
 canonical name.
+
+Both anchor and candidate pages use database-level keyset pagination ordered by canonical name and
+formal Entity ID. The repository query applies `LIMIT page_size + 1`; an opaque cursor carries the
+last ordering key plus the lease/request snapshot identity. Data must not load or fingerprint the
+complete matching ABox before slicing a page. A cursor whose lease/request snapshot identity no
+longer matches returns `409 EVENT_SEMANTIC_CONTEXT_DRIFT`.
 
 ### 7.3 Resolve candidates by anchors
 
@@ -239,6 +251,8 @@ Do not persist in the manifest:
 - every EntityRelation;
 - complete Industry, Concept, IndustryChain or ChainNode catalogs;
 - the complete industry graph;
+- Evidence excerpts or other Evidence content;
+- complete Entity Type, Variable Definition or Direct Transmission Rule objects;
 - data that the attempt never queried.
 
 The compact Context API response is generated from this manifest and its pinned Event/Evidence/TBox
@@ -434,10 +448,28 @@ the outcome or non-goals.
   `parent_anchor_ids`, and candidates require `target_entity_type=chain_node` plus `match_mode=any`.
   Route responses declare the next operation and stable ordering contract; candidate responses name
   all matched anchors and the traversed IndustryChain while retaining one deterministic receipt path.
-- The ChainNode MVP permits at most one route lookup, one bounded anchor page and one bounded candidate
-  page per mention. Empty pages resolve the mention as `unresolved`.
+- The ChainNode MVP permits at most one route lookup, one bounded reachable-leaf anchor page and one
+  bounded candidate page per mention. The Industry leaf page is restricted to the selected level-1
+  partition and may therefore contain formally mapped level-2 or level-3 Industries without an
+  intermediate model-driven descent. AgentRun does not follow pagination cursors or hierarchy links;
+  empty pages resolve the mention as `unresolved`.
 - Existing exact-name resolution may remain for non-ChainNode compatibility, but the ChainNode
   acceptance path must use formal anchor routing and cannot fall back to the complete catalog.
+
+### 14.4 Migration and rollout risk checklist
+
+- `000035` is immutable once observed in local/UAT history; all later schema corrections use a new
+  forward migration. This remediation changes application behavior and tests, not that migration.
+- A pre-`000035` row with only `context_snapshot` remains readable as historical JSON after migration.
+  Idempotent replay upgrades only that lease to a reference-only manifest and preserves the legacy
+  snapshot; the executed migration test covers old-row preservation, replay and a new manifest write.
+- Data provider and AgentRun consumer are deployed together while Event Semantic processing is
+  paused. Processing resumes only after both report the same Context/route contract versions; this
+  avoids an old consumer interpreting the compact response as the retired full catalog.
+- Rollback is application-first and schema-additive: the nullable legacy column remains, and neither
+  historical snapshots nor accepted bindings are deleted. No Down migration is run in UAT/prod.
+- Formal path changes during a lease are not hidden by pagination. Submission recomputes the selected
+  receipt and returns retryable `EVENT_SEMANTIC_CONTEXT_DRIFT` before writing semantic facts.
 
 ## 15. Eino reference-first audit
 

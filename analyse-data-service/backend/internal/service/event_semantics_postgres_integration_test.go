@@ -45,18 +45,27 @@ func TestPostgresEventSemanticsReanalysisSupersedesPriorSubmissionAndReadsComple
 		t.Fatalf("context snapshot = %#v", contextSnapshot)
 	}
 	var snapshotIsNull, manifestHasEntities, manifestHasRelations bool
+	var manifestHasEvent, manifestHasEvidence, manifestHasEntityTypes, manifestHasVariables, manifestHasRules bool
 	var manifestBytes int
 	if err := db.QueryRow(`
 		SELECT context_snapshot IS NULL,
 		       context_manifest ? 'entities', context_manifest ? 'relations',
+		       context_manifest ? 'event', context_manifest ? 'evidence',
+		       context_manifest ? 'entity_type_definitions',
+		       context_manifest ? 'variable_definitions',
+		       context_manifest ? 'direct_transmission_rules',
 		       octet_length(context_manifest::text)
 		FROM event_semantic_context_leases WHERE id = $1
 	`, firstLease.ID).Scan(
-		&snapshotIsNull, &manifestHasEntities, &manifestHasRelations, &manifestBytes,
+		&snapshotIsNull, &manifestHasEntities, &manifestHasRelations,
+		&manifestHasEvent, &manifestHasEvidence, &manifestHasEntityTypes,
+		&manifestHasVariables, &manifestHasRules, &manifestBytes,
 	); err != nil {
 		t.Fatal(err)
 	}
-	if !snapshotIsNull || manifestHasEntities || manifestHasRelations || manifestBytes >= 100_000 {
+	if !snapshotIsNull || manifestHasEntities || manifestHasRelations || manifestHasEvent ||
+		manifestHasEvidence || manifestHasEntityTypes || manifestHasVariables || manifestHasRules ||
+		manifestBytes >= 100_000 {
 		t.Fatalf(
 			"compact manifest snapshotNull=%v entities=%v relations=%v bytes=%d",
 			snapshotIsNull, manifestHasEntities, manifestHasRelations, manifestBytes,
@@ -239,6 +248,63 @@ func TestPostgresEventSemanticsReanalysisSupersedesPriorSubmissionAndReadsComple
 		if count != 1 {
 			t.Fatalf("%s superseded count = %d", table, count)
 		}
+	}
+}
+
+func TestPostgresMigration000035PreservesLegacyLeaseAndSupportsMixedVersionReplay(t *testing.T) {
+	db := openEventPublicationTestDatabaseAt(t, 34)
+	seedEventSemanticScenario(t, db)
+	legacyLeaseID := "10000000-0000-4000-8000-000000000035"
+	request := eventsemantics.ContextLeaseRequest{
+		EventID: semanticEventID, AgentExecutionID: "semantic-pre-000035-execution",
+		WorkerID: "semantic-pre-000035-worker", Lease: 15 * time.Minute,
+	}
+	if _, err := db.Exec(`
+		INSERT INTO event_semantic_context_leases(
+		  id, event_id, agent_execution_id, worker_id, status, lease_expires_at, context_snapshot
+		) VALUES ($1, $2, $3, $4, 'active', now() + interval '15 minutes', '{"legacy":"snapshot"}'::jsonb)
+	`, legacyLeaseID, request.EventID, request.AgentExecutionID, request.WorkerID); err != nil {
+		t.Fatal(err)
+	}
+	applyEventPublicationMigration(t, db, 35)
+	var legacySnapshotPresent, legacyManifestAbsent bool
+	if err := db.QueryRow(`
+		SELECT context_snapshot = '{"legacy":"snapshot"}'::jsonb, context_manifest IS NULL
+		FROM event_semantic_context_leases WHERE id = $1
+	`, legacyLeaseID).Scan(&legacySnapshotPresent, &legacyManifestAbsent); err != nil {
+		t.Fatal(err)
+	}
+	if !legacySnapshotPresent || !legacyManifestAbsent {
+		t.Fatalf("legacy row after migration snapshot=%v manifestAbsent=%v", legacySnapshotPresent, legacyManifestAbsent)
+	}
+	semanticService := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
+	replayed, err := semanticService.CreateContextLease(context.Background(), request)
+	if err != nil || replayed.ID != legacyLeaseID {
+		t.Fatalf("mixed-version replay=%#v err=%v", replayed, err)
+	}
+	contextValue, err := semanticService.Context(context.Background(), replayed.ID)
+	if err != nil || contextValue.Event.ID != semanticEventID || len(contextValue.Evidence) != 1 {
+		t.Fatalf("replayed Context=%#v err=%v", contextValue, err)
+	}
+	if _, err := db.Exec(`UPDATE event_semantic_context_leases SET status='consumed', consumed_at=now() WHERE id=$1`, replayed.ID); err != nil {
+		t.Fatal(err)
+	}
+	newLease, err := semanticService.CreateContextLease(context.Background(), eventsemantics.ContextLeaseRequest{
+		EventID: semanticEventID, AgentExecutionID: "semantic-post-000035-execution",
+		WorkerID: "semantic-post-000035-worker", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snapshotIsNull, manifestIsObject bool
+	if err := db.QueryRow(`
+		SELECT context_snapshot IS NULL, jsonb_typeof(context_manifest) = 'object'
+		FROM event_semantic_context_leases WHERE id = $1
+	`, newLease.ID).Scan(&snapshotIsNull, &manifestIsObject); err != nil {
+		t.Fatal(err)
+	}
+	if !snapshotIsNull || !manifestIsObject {
+		t.Fatalf("new lease snapshotIsNull=%v manifestIsObject=%v", snapshotIsNull, manifestIsObject)
 	}
 }
 
@@ -462,7 +528,7 @@ func TestPostgresEventSemanticAnchorResolutionPersistsOnlySelectedBindingAndDete
 		t.Fatalf("unknown partition error = %T %v", err, err)
 	}
 	anchors, err := semanticService.ListResolutionAnchors(
-		ctx, lease.ID, "chain-node-via-industry.v1", semanticIndustryID, nil, 50, "",
+		ctx, lease.ID, "chain-node-via-industry.v1", semanticIndustryRootID, nil, 50, "",
 	)
 	if err != nil || len(anchors.Anchors) != 1 || anchors.Anchors[0].Entity.ID != semanticIndustryID {
 		t.Fatalf("anchors=%#v err=%v", anchors, err)
@@ -532,6 +598,53 @@ func TestPostgresEventSemanticAnchorResolutionPersistsOnlySelectedBindingAndDete
 	}
 }
 
+func TestPostgresEventSemanticResolutionUsesKeysetPagesForL3AnchorsAndCandidates(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	seedEventSemanticScenario(t, db)
+	seedEventSemanticAnchorScenario(t, db)
+	for _, statement := range []string{
+		`INSERT INTO entity_nodes(id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status)
+		 VALUES ('10000000-0000-4000-8000-000000000019', 'industry:semantic-fixture-l3-z', 'industry', 'industry', 'Z Fixture Industry', 'Z Fixture Industry', '{}', 'active'),
+		        ('10000000-0000-4000-8000-000000000020', 'chain-node:semantic-fixture-z', 'chain_node', 'chain_node', 'Z Formal Node', 'Z Formal Node', '{}', 'active')`,
+		`INSERT INTO industry_profiles(entity_id, classification_system, classification_version, industry_code, classification_level, parent_industry_entity_id, hierarchy_path_codes, definition, boundary_note, review_status)
+		 VALUES ('10000000-0000-4000-8000-000000000019', 'fixture', 'v1', 'F010102', 3, '` + semanticIndustryL2ID + `', ARRAY['F01','F0101','F010102'], 'Z fixture', 'Z fixture', 'approved')`,
+		`INSERT INTO chain_node_profiles(entity_id, definition, boundary_note, review_status)
+		 VALUES ('10000000-0000-4000-8000-000000000020', 'Z formal node', NULL, 'approved')`,
+		`INSERT INTO industry_chain_node_memberships(industry_chain_entity_id, chain_node_entity_id, position, contextual_stage, review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at)
+		 VALUES ('` + semanticIndustryChainID + `', '10000000-0000-4000-8000-000000000020', 2, 'midstream', 'approved', 'active', 'Z fixture', ARRAY['fixture:z'], 'integration', 'artifact://event-semantic-anchor/z', now())`,
+		`INSERT INTO entity_edges(id, from_entity_id, to_entity_id, relation_type, evidence_note, status)
+		 VALUES ('10000000-0000-4000-8000-000000000021', '` + semanticIndustryChainID + `', '10000000-0000-4000-8000-000000000019', 'mapped_to_industry', 'Z fixture mapping', 'active')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	service := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
+	lease, err := service.CreateContextLease(context.Background(), eventsemantics.ContextLeaseRequest{
+		EventID: semanticEventID, AgentExecutionID: "semantic-keyset-execution",
+		WorkerID: "semantic-keyset-worker", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstAnchors, err := service.ListResolutionAnchors(context.Background(), lease.ID, "chain-node-via-industry.v1", semanticIndustryRootID, nil, 1, "")
+	if err != nil || len(firstAnchors.Anchors) != 1 || firstAnchors.NextCursor == "" || firstAnchors.Anchors[0].Entity.ID != semanticIndustryID {
+		t.Fatalf("first anchor page=%#v err=%v", firstAnchors, err)
+	}
+	secondAnchors, err := service.ListResolutionAnchors(context.Background(), lease.ID, "chain-node-via-industry.v1", semanticIndustryRootID, nil, 1, firstAnchors.NextCursor)
+	if err != nil || len(secondAnchors.Anchors) != 1 || secondAnchors.NextCursor != "" || secondAnchors.Anchors[0].Entity.ID == firstAnchors.Anchors[0].Entity.ID {
+		t.Fatalf("second anchor page=%#v err=%v", secondAnchors, err)
+	}
+	firstCandidates, err := service.ResolveChainNodeCandidates(context.Background(), lease.ID, "chain-node-via-industry.v1", []string{semanticIndustryID}, 1, "")
+	if err != nil || len(firstCandidates.Candidates) != 1 || firstCandidates.NextCursor == "" || firstCandidates.Candidates[0].Entity.ID != semanticChainNodeID {
+		t.Fatalf("first candidate page=%#v err=%v", firstCandidates, err)
+	}
+	secondCandidates, err := service.ResolveChainNodeCandidates(context.Background(), lease.ID, "chain-node-via-industry.v1", []string{semanticIndustryID}, 1, firstCandidates.NextCursor)
+	if err != nil || len(secondCandidates.Candidates) != 1 || secondCandidates.NextCursor != "" || secondCandidates.Candidates[0].Entity.ID == firstCandidates.Candidates[0].Entity.ID {
+		t.Fatalf("second candidate page=%#v err=%v", secondCandidates, err)
+	}
+}
+
 func containsID(values []string, expected string) bool {
 	for _, value := range values {
 		if value == expected {
@@ -548,7 +661,9 @@ const (
 	semanticCompanyID       = "10000000-0000-4000-8000-000000000004"
 	semanticProductID       = "10000000-0000-4000-8000-000000000005"
 	semanticRelationID      = "10000000-0000-4000-8000-000000000006"
-	semanticIndustryID      = "10000000-0000-4000-8000-000000000007"
+	semanticIndustryRootID  = "10000000-0000-4000-8000-000000000007"
+	semanticIndustryL2ID    = "10000000-0000-4000-8000-000000000017"
+	semanticIndustryID      = "10000000-0000-4000-8000-000000000018"
 	semanticIndustryChainID = "10000000-0000-4000-8000-000000000008"
 	semanticChainNodeID     = "10000000-0000-4000-8000-000000000009"
 	semanticMappingID       = "10000000-0000-4000-8000-000000000010"
@@ -664,14 +779,22 @@ func seedEventSemanticAnchorScenario(t *testing.T, db *sql.DB) {
 		`INSERT INTO entity_nodes (
 		    id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
 		) VALUES
-		    ('` + semanticIndustryID + `', 'industry:semantic-fixture', 'industry', 'industry', 'Fixture Industry', 'Fixture Industry', ARRAY['Fixture Sector'], 'active'),
+		    ('` + semanticIndustryRootID + `', 'industry:semantic-fixture-root', 'industry', 'industry', 'Fixture Industry', 'Fixture Industry', ARRAY['Fixture Sector'], 'active'),
+		    ('` + semanticIndustryL2ID + `', 'industry:semantic-fixture-l2', 'industry', 'industry', 'Fixture Components', 'Fixture Components', ARRAY['Fixture Component Sector'], 'active'),
+		    ('` + semanticIndustryID + `', 'industry:semantic-fixture-l3', 'industry', 'industry', 'Fixture Wafer Capacity', 'Fixture Wafer Capacity', ARRAY['Fixture Wafer'], 'active'),
 		    ('` + semanticIndustryChainID + `', 'industry-chain:semantic-fixture', 'industry_chain', 'industry_chain', 'Fixture Chain', 'Fixture Chain', '{}', 'active'),
 		    ('` + semanticChainNodeID + `', 'chain-node:semantic-fixture', 'chain_node', 'chain_node', 'Formal Manufacturing Node', 'Formal Manufacturing Node', ARRAY['critical manufacturing stage'], 'active')`,
 		`INSERT INTO industry_profiles (
 		    entity_id, classification_system, classification_version, industry_code,
-		    classification_level, hierarchy_path_codes, definition, boundary_note, review_status
-		) VALUES ('` + semanticIndustryID + `', 'fixture', 'v1', 'F01', 1,
-		    ARRAY['F01'], 'Fixture Industry definition', 'Fixture Industry boundary', 'approved')`,
+		    classification_level, parent_industry_entity_id, hierarchy_path_codes,
+		    definition, boundary_note, review_status
+		) VALUES
+		    ('` + semanticIndustryRootID + `', 'fixture', 'v1', 'F01', 1, NULL,
+		     ARRAY['F01'], 'Fixture Industry definition', 'Fixture Industry boundary', 'approved'),
+		    ('` + semanticIndustryL2ID + `', 'fixture', 'v1', 'F0101', 2, '` + semanticIndustryRootID + `',
+		     ARRAY['F01','F0101'], 'Fixture Components definition', 'Fixture Components boundary', 'approved'),
+		    ('` + semanticIndustryID + `', 'fixture', 'v1', 'F010101', 3, '` + semanticIndustryL2ID + `',
+		     ARRAY['F01','F0101','F010101'], 'Fixture Wafer definition', 'Fixture Wafer boundary', 'approved')`,
 		`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status)
 		 VALUES ('` + semanticChainNodeID + `', 'Formal node definition', 'Formal node boundary', 'approved')`,
 		`INSERT INTO industry_chain_definitions (

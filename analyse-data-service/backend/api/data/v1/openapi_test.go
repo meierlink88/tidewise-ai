@@ -75,6 +75,29 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	}
 }
 
+func TestEventSemanticResolutionPagesDeclareRequestIDAndContextDrift(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	for _, path := range []string{
+		namespace + "/event-semantics/resolution-anchors:list",
+		namespace + "/event-semantics/chain-node-candidates:resolve",
+	} {
+		operation := object(t, object(t, paths[path], path)["post"], "POST "+path)
+		parameters := array(t, operation["parameters"], path+" parameters")
+		if len(parameters) != 1 || stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
+			t.Fatalf("POST %s must accept exactly the unified X-Request-ID parameter: %v", path, parameters)
+		}
+		responses := object(t, operation["responses"], path+" responses")
+		drift := object(t, responses["409"], "409 response")
+		if stringValue(t, drift["$ref"], "$ref") != "#/components/responses/EventSemanticContextDrift" {
+			t.Fatalf("POST %s 409 response = %v", path, drift)
+		}
+	}
+	detail := schema(t, document, "EventSemanticContextDriftErrorDetail")
+	code := object(t, object(t, detail["properties"], "drift properties")["code"], "drift code")
+	assertStringSet(t, code["enum"], "EVENT_SEMANTIC_CONTEXT_DRIFT")
+}
+
 func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")

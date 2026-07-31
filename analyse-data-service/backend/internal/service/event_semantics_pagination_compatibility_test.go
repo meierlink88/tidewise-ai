@@ -138,4 +138,32 @@ func TestEligiblePaginationIsOptInForPreviousAgentRunCompatibility(t *testing.T)
 	}
 }
 
+func TestResolutionEmptyPagesEncodeCollectionsAsArrays(t *testing.T) {
+	service := NewDataService(Dependencies{EventSemantics: eventSemanticsPaginationServiceStub{}})
+	anchors, err := service.ListEventSemanticResolutionAnchors(context.Background(), &v1.EventSemanticResolutionAnchorRequest{
+		ContextLeaseID: "lease", RouteID: "chain-node-via-industry.v1",
+		Partition: "11111111-1111-4111-8111-111111111111", PageSize: 50,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := service.ResolveEventSemanticChainNodeCandidates(context.Background(), &v1.EventSemanticResolutionCandidateRequest{
+		ContextLeaseID: "lease", RouteID: "chain-node-via-industry.v1",
+		TargetEntityType: "chain_node", MatchMode: "any",
+		AnchorEntityIDs: []string{"11111111-1111-4111-8111-111111111111"}, PageSize: 50,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, value := range map[string]any{"anchors": anchors.Result, "candidates": candidates.Result} {
+		payload, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(payload, []byte("null")) || !bytes.Contains(payload, []byte("[]")) {
+			t.Fatalf("%s empty page = %s, want JSON array", name, payload)
+		}
+	}
+}
+
 var _ EventSemanticsService = eventSemanticsPaginationServiceStub{}

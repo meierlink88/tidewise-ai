@@ -145,6 +145,7 @@ func (s *applicationDataStub) CreateContextLease(
 	}
 	return eventsemantic.ContextLease{
 		ContextLeaseID: "lease-1", EventID: request.EventID, Status: "active",
+		LeaseExpiresAt: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
 	}, nil
 }
 func (s *applicationDataStub) Context(context.Context, string) (eventsemantic.Context, error) {
@@ -231,6 +232,29 @@ func TestTickPersistsFailureAndStillReturnsAnError(t *testing.T) {
 		completion.ErrorCode != "event_semantic_context_unavailable" ||
 		completion.ErrorSummary != "Data Event Semantic Context is unavailable" {
 		t.Fatalf("completion = %#v", completion)
+	}
+}
+
+func TestTickRejectsContextOwnedByAnotherWorkerBeforeLoadingRuntime(t *testing.T) {
+	repository := &applicationRepositoryStub{}
+	data := &applicationDataStub{contextSnapshot: eventsemantic.Context{
+		ContextLeaseID: "lease-1", AgentExecutionID: "execution-1", WorkerID: "other-worker",
+		LeaseExpiresAt: "2026-08-01T00:00:00Z", Event: eventsemantic.Event{ID: "event-1"},
+	}}
+	application, err := New(repository, data, func(context.Context) (Runtime, error) {
+		t.Fatal("runtime must not be loaded for a mismatched Context identity")
+		return Runtime{}, nil
+	}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := application.Tick(context.Background()); err == nil {
+		t.Fatal("expected mismatched Context identity to fail the execution")
+	}
+	if len(repository.completions) != 1 ||
+		repository.completions[0].ErrorCode != "event_semantic_context_identity_mismatch" ||
+		!repository.completions[0].Retryable {
+		t.Fatalf("completions = %#v", repository.completions)
 	}
 }
 
@@ -378,8 +402,9 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 	}
 	data := &applicationDataStub{
 		contextSnapshot: eventsemantic.Context{
-			ContextLeaseID: "lease-1",
-			Event:          eventsemantic.Event{ID: "event-later"},
+			ContextLeaseID: "lease-1", AgentExecutionID: "execution-1",
+			WorkerID: "event-semantic-enricher", LeaseExpiresAt: "2026-08-01T00:00:00Z",
+			Event: eventsemantic.Event{ID: "event-later"},
 		},
 		submissionResult: eventsemantic.SubmissionResult{
 			SubmissionID: "submission-later",

@@ -24,8 +24,8 @@ type Store interface {
 	Resolve(context.Context, string, []EntityMention) ([]EntityResolution, error)
 	SearchDirectTargets(context.Context, string, string, []string) ([]DirectTarget, error)
 	ListResolutionRoutes(context.Context, string, string) ([]ResolutionRoute, error)
-	ListResolutionAnchors(context.Context, string, string, string, []string) ([]ResolutionAnchor, error)
-	ResolveChainNodeCandidates(context.Context, string, string, []string) ([]ResolutionCandidate, error)
+	ListResolutionAnchors(context.Context, string, string, string, []string, int, *ResolutionKeyset) ([]ResolutionAnchor, error)
+	ResolveChainNodeCandidates(context.Context, string, string, []string, int, *ResolutionKeyset) ([]ResolutionCandidate, error)
 	ReplaySubmission(context.Context, string, string) (SubmissionResult, bool, error)
 	CreateSubmission(context.Context, Submission, PrecheckResult, []byte, string) (SubmissionResult, error)
 	SubmitReview(context.Context, ReviewSubmission, []byte, string) (SubmissionResult, error)
@@ -239,23 +239,27 @@ func (s *Service) ListResolutionAnchors(
 		}
 		seenParents[id] = struct{}{}
 	}
-	items, err := s.store.ListResolutionAnchors(ctx, contextLeaseID, routeID, partition, parentAnchorIDs)
-	if err != nil {
-		return ResolutionAnchorPage{}, err
-	}
-	fingerprint, err := resolutionPageFingerprint(items)
-	if err != nil {
-		return ResolutionAnchorPage{}, err
-	}
-	identity := routeID + "\x00" + partition + "\x00" + strings.Join(parentAnchorIDs, ",")
-	start, err := decodeResolutionCursor(cursor, identity, fingerprint, len(items))
+	identity := contextLeaseID + "\x00" + routeID + "\x00" + partition + "\x00" + strings.Join(parentAnchorIDs, ",")
+	after, err := decodeResolutionCursor(cursor, identity)
 	if err != nil {
 		if errors.Is(err, errResolutionCursorDrift) {
-			return ResolutionAnchorPage{}, &ContextDriftError{Reason: "resolution anchor page changed; restart from the first page"}
+			return ResolutionAnchorPage{}, &ContextDriftError{Reason: "resolution anchor cursor belongs to a different lease or request; restart from the first page"}
 		}
 		return ResolutionAnchorPage{}, &ValidationError{Reason: "cursor is invalid"}
 	}
-	return paginateResolutionAnchors(items, start, pageSize, identity, fingerprint)
+	items, err := s.store.ListResolutionAnchors(ctx, contextLeaseID, routeID, partition, parentAnchorIDs, pageSize+1, after)
+	if err != nil {
+		return ResolutionAnchorPage{}, err
+	}
+	page := ResolutionAnchorPage{Anchors: make([]ResolutionAnchor, 0)}
+	if len(items) <= pageSize {
+		page.Anchors = append(page.Anchors, items...)
+		return page, nil
+	}
+	page.Anchors = append(page.Anchors, items[:pageSize]...)
+	last := page.Anchors[len(page.Anchors)-1].Entity
+	page.NextCursor, err = encodeResolutionCursor(identity, ResolutionKeyset{CanonicalName: last.CanonicalName, EntityID: last.ID})
+	return page, err
 }
 
 func (s *Service) ResolveChainNodeCandidates(
@@ -280,120 +284,74 @@ func (s *Service) ResolveChainNodeCandidates(
 		}
 		seenAnchorIDs[id] = struct{}{}
 	}
-	identity := routeID + "\x00" + strings.Join(anchorEntityIDs, ",")
-	items, err := s.store.ResolveChainNodeCandidates(ctx, contextLeaseID, routeID, anchorEntityIDs)
-	if err != nil {
-		return ResolutionCandidatePage{}, err
-	}
-	fingerprint, err := resolutionPageFingerprint(items)
-	if err != nil {
-		return ResolutionCandidatePage{}, err
-	}
-	start, err := decodeResolutionCursor(cursor, identity, fingerprint, len(items))
+	identity := contextLeaseID + "\x00" + routeID + "\x00" + strings.Join(anchorEntityIDs, ",")
+	after, err := decodeResolutionCursor(cursor, identity)
 	if err != nil {
 		if errors.Is(err, errResolutionCursorDrift) {
-			return ResolutionCandidatePage{}, &ContextDriftError{Reason: "resolution candidate page changed; restart from the first page"}
+			return ResolutionCandidatePage{}, &ContextDriftError{Reason: "resolution candidate cursor belongs to a different lease or request; restart from the first page"}
 		}
 		return ResolutionCandidatePage{}, &ValidationError{Reason: "cursor is invalid"}
 	}
-	return paginateResolutionCandidates(items, start, pageSize, identity, fingerprint)
+	items, err := s.store.ResolveChainNodeCandidates(ctx, contextLeaseID, routeID, anchorEntityIDs, pageSize+1, after)
+	if err != nil {
+		return ResolutionCandidatePage{}, err
+	}
+	page := ResolutionCandidatePage{Candidates: make([]ResolutionCandidate, 0)}
+	if len(items) <= pageSize {
+		page.Candidates = append(page.Candidates, items...)
+		return page, nil
+	}
+	page.Candidates = append(page.Candidates, items[:pageSize]...)
+	last := page.Candidates[len(page.Candidates)-1].Entity
+	page.NextCursor, err = encodeResolutionCursor(identity, ResolutionKeyset{CanonicalName: last.CanonicalName, EntityID: last.ID})
+	return page, err
 }
 
 type resolutionCursorPayload struct {
-	Version     int    `json:"v"`
-	Identity    string `json:"identity"`
-	Fingerprint string `json:"fingerprint"`
-	Offset      int    `json:"offset"`
+	Version       int    `json:"v"`
+	Identity      string `json:"identity"`
+	CanonicalName string `json:"canonical_name"`
+	EntityID      string `json:"entity_id"`
 }
 
 var errResolutionCursorDrift = errors.New("resolution cursor source changed")
 
-func decodeResolutionCursor(value, identity, fingerprint string, maximum int) (int, error) {
+func decodeResolutionCursor(value, identity string) (*ResolutionKeyset, error) {
 	if value == "" {
-		return 0, nil
+		return nil, nil
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil || len(payload) > 2048 {
-		return 0, errors.New("cursor encoding is invalid")
+		return nil, errors.New("cursor encoding is invalid")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	var decoded resolutionCursorPayload
-	if err := decoder.Decode(&decoded); err != nil || decoded.Version != 1 ||
-		decoded.Identity != identity || decoded.Offset < 0 || decoded.Offset > maximum {
-		return 0, errors.New("cursor payload is invalid")
+	if err := decoder.Decode(&decoded); err != nil || decoded.Version != 2 ||
+		strings.TrimSpace(decoded.CanonicalName) == "" {
+		return nil, errors.New("cursor payload is invalid")
 	}
-	if decoded.Fingerprint != fingerprint {
-		return 0, errResolutionCursorDrift
+	if decoded.Identity != identity {
+		return nil, errResolutionCursorDrift
+	}
+	if _, err := uuid.Parse(decoded.EntityID); err != nil {
+		return nil, errors.New("cursor entity ID is invalid")
 	}
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
-		return 0, errors.New("cursor payload is invalid")
+		return nil, errors.New("cursor payload is invalid")
 	}
-	return decoded.Offset, nil
+	return &ResolutionKeyset{CanonicalName: decoded.CanonicalName, EntityID: decoded.EntityID}, nil
 }
 
-func encodeResolutionCursor(identity, fingerprint string, offset int) (string, error) {
+func encodeResolutionCursor(identity string, after ResolutionKeyset) (string, error) {
 	payload, err := json.Marshal(resolutionCursorPayload{
-		Version: 1, Identity: identity, Fingerprint: fingerprint, Offset: offset,
+		Version: 2, Identity: identity, CanonicalName: after.CanonicalName, EntityID: after.EntityID,
 	})
 	if err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(payload), nil
-}
-
-func paginateResolutionAnchors(
-	items []ResolutionAnchor,
-	start int,
-	pageSize int,
-	identity string,
-	fingerprint string,
-) (ResolutionAnchorPage, error) {
-	end := start + pageSize
-	if end > len(items) {
-		end = len(items)
-	}
-	page := ResolutionAnchorPage{Anchors: append([]ResolutionAnchor(nil), items[start:end]...)}
-	if end < len(items) {
-		var err error
-		page.NextCursor, err = encodeResolutionCursor(identity, fingerprint, end)
-		if err != nil {
-			return ResolutionAnchorPage{}, err
-		}
-	}
-	return page, nil
-}
-
-func paginateResolutionCandidates(
-	items []ResolutionCandidate,
-	start int,
-	pageSize int,
-	identity string,
-	fingerprint string,
-) (ResolutionCandidatePage, error) {
-	end := start + pageSize
-	if end > len(items) {
-		end = len(items)
-	}
-	page := ResolutionCandidatePage{Candidates: append([]ResolutionCandidate(nil), items[start:end]...)}
-	if end < len(items) {
-		var err error
-		page.NextCursor, err = encodeResolutionCursor(identity, fingerprint, end)
-		if err != nil {
-			return ResolutionCandidatePage{}, err
-		}
-	}
-	return page, nil
-}
-
-func resolutionPageFingerprint(value any) (string, error) {
-	payload, err := json.Marshal(value)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(payload)
-	return hex.EncodeToString(sum[:]), nil
 }
 
 func (s *Service) CreateSubmission(ctx context.Context, submission Submission) (SubmissionResult, error) {

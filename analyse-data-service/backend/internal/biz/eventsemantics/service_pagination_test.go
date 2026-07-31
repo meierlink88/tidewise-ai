@@ -9,9 +9,11 @@ import (
 )
 
 type paginationStoreStub struct {
-	after   *EligibleEventCursor
-	items   []EligibleEvent
-	anchors []ResolutionAnchor
+	after           *EligibleEventCursor
+	items           []EligibleEvent
+	anchors         []ResolutionAnchor
+	resolutionAfter *ResolutionKeyset
+	resolutionLimit int
 }
 
 func (s *paginationStoreStub) ListEligibleEvents(
@@ -41,10 +43,12 @@ func (*paginationStoreStub) SearchDirectTargets(context.Context, string, string,
 func (*paginationStoreStub) ListResolutionRoutes(context.Context, string, string) ([]ResolutionRoute, error) {
 	return nil, nil
 }
-func (s *paginationStoreStub) ListResolutionAnchors(context.Context, string, string, string, []string) ([]ResolutionAnchor, error) {
+func (s *paginationStoreStub) ListResolutionAnchors(_ context.Context, _ string, _ string, _ string, _ []string, limit int, after *ResolutionKeyset) ([]ResolutionAnchor, error) {
+	s.resolutionLimit = limit
+	s.resolutionAfter = after
 	return append([]ResolutionAnchor(nil), s.anchors...), nil
 }
-func (*paginationStoreStub) ResolveChainNodeCandidates(context.Context, string, string, []string) ([]ResolutionCandidate, error) {
+func (*paginationStoreStub) ResolveChainNodeCandidates(context.Context, string, string, []string, int, *ResolutionKeyset) ([]ResolutionCandidate, error) {
 	return nil, nil
 }
 func (*paginationStoreStub) ReplaySubmission(context.Context, string, string) (SubmissionResult, bool, error) {
@@ -115,10 +119,10 @@ func TestEligibleEventPaginationRejectsUnsupportedCursorVersion(t *testing.T) {
 	}
 }
 
-func TestResolutionAnchorPaginationDetectsSourceDrift(t *testing.T) {
+func TestResolutionAnchorPaginationPassesStableKeysetAndDatabaseLimit(t *testing.T) {
 	store := &paginationStoreStub{anchors: []ResolutionAnchor{
-		{Entity: Entity{ID: "11111111-1111-4111-8111-111111111111"}, Partition: "11111111-1111-4111-8111-111111111111"},
-		{Entity: Entity{ID: "22222222-2222-4222-8222-222222222222"}, Partition: "11111111-1111-4111-8111-111111111111"},
+		{Entity: Entity{ID: "11111111-1111-4111-8111-111111111111", CanonicalName: "Alpha"}, Partition: "11111111-1111-4111-8111-111111111111"},
+		{Entity: Entity{ID: "22222222-2222-4222-8222-222222222222", CanonicalName: "Beta"}, Partition: "11111111-1111-4111-8111-111111111111"},
 	}}
 	service := NewService(store)
 	first, err := service.ListResolutionAnchors(
@@ -127,10 +131,33 @@ func TestResolutionAnchorPaginationDetectsSourceDrift(t *testing.T) {
 	if err != nil || len(first.Anchors) != 1 || first.NextCursor == "" {
 		t.Fatalf("first page=%#v err=%v", first, err)
 	}
-	store.anchors[1].Entity.ID = "33333333-3333-4333-8333-333333333333"
+	if store.resolutionLimit != 2 || store.resolutionAfter != nil {
+		t.Fatalf("first query budget=%d after=%#v", store.resolutionLimit, store.resolutionAfter)
+	}
+	store.anchors = nil
 	_, err = service.ListResolutionAnchors(
 		context.Background(), "lease", "chain-node-via-industry.v1", "11111111-1111-4111-8111-111111111111", nil, 1, first.NextCursor,
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.resolutionAfter == nil || store.resolutionAfter.CanonicalName != "Alpha" ||
+		store.resolutionAfter.EntityID != "11111111-1111-4111-8111-111111111111" {
+		t.Fatalf("decoded keyset = %#v", store.resolutionAfter)
+	}
+}
+
+func TestResolutionAnchorPaginationRejectsCursorFromAnotherLeaseAsDrift(t *testing.T) {
+	store := &paginationStoreStub{anchors: []ResolutionAnchor{
+		{Entity: Entity{ID: "11111111-1111-4111-8111-111111111111", CanonicalName: "Alpha"}},
+		{Entity: Entity{ID: "22222222-2222-4222-8222-222222222222", CanonicalName: "Beta"}},
+	}}
+	service := NewService(store)
+	first, err := service.ListResolutionAnchors(context.Background(), "lease-a", "chain-node-via-industry.v1", "11111111-1111-4111-8111-111111111111", nil, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.ListResolutionAnchors(context.Background(), "lease-b", "chain-node-via-industry.v1", "11111111-1111-4111-8111-111111111111", nil, 1, first.NextCursor)
 	var drift *ContextDriftError
 	if !errors.As(err, &drift) {
 		t.Fatalf("drift error = %T %v", err, err)

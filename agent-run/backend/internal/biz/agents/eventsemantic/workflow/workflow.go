@@ -562,8 +562,10 @@ func validateNativeOutput(output nativeOutput, semanticContext eventsemantic.Con
 	allowedMeasurementRoles := stringSet("absolute_level", "absolute_change", "relative_change", "percentage_point_change")
 	allowedValueShapes := stringSet("exact", "range", "lower_bound", "upper_bound")
 	evidence := make(map[string]struct{}, len(semanticContext.Evidence))
+	evidenceByID := make(map[string]eventsemantic.Evidence, len(semanticContext.Evidence))
 	for _, item := range semanticContext.Evidence {
 		evidence[item.EvidenceID] = struct{}{}
+		evidenceByID[item.EvidenceID] = item
 	}
 	keys := make(map[string]struct{}, len(output.Mentions)+len(output.VariableSignals))
 	mentionKeys := make(map[string]struct{}, len(output.Mentions))
@@ -575,7 +577,9 @@ func validateNativeOutput(output nativeOutput, semanticContext eventsemantic.Con
 	for _, mention := range output.Mentions {
 		if strings.TrimSpace(mention.CandidateKey) == "" || strings.TrimSpace(mention.Mention) == "" ||
 			!allowedTypes[mention.PredictedEntityType] || !allowedRoles[mention.EntityRole] ||
-			!validModelEvidenceIDs(mention.EvidenceIDs, evidence) || !validModelConfidence(mention.ResolutionConfidence) {
+			!validModelEvidenceIDs(mention.EvidenceIDs, evidence) ||
+			!mentionSupportedByEvidence(mention.Mention, mention.EvidenceIDs, evidenceByID) ||
+			!validModelConfidence(mention.ResolutionConfidence) {
 			return errors.New("mention candidate is invalid")
 		}
 		if _, exists := keys[mention.CandidateKey]; exists {
@@ -611,6 +615,28 @@ func validateNativeOutput(output nativeOutput, semanticContext eventsemantic.Con
 		}
 	}
 	return nil
+}
+
+func mentionSupportedByEvidence(
+	mention string,
+	evidenceIDs []string,
+	evidenceByID map[string]eventsemantic.Evidence,
+) bool {
+	normalizedMention := strings.ToLower(strings.Join(strings.Fields(mention), " "))
+	if normalizedMention == "" {
+		return false
+	}
+	for _, evidenceID := range evidenceIDs {
+		evidence, exists := evidenceByID[evidenceID]
+		if !exists {
+			continue
+		}
+		normalizedExcerpt := strings.ToLower(strings.Join(strings.Fields(evidence.Excerpt), " "))
+		if strings.Contains(normalizedExcerpt, normalizedMention) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateImpactOutput(output impactOutput, current *state) error {

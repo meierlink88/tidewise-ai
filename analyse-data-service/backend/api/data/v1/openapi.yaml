@@ -573,6 +573,8 @@ paths:
       x-retry-policy: idempotent-read-via-post
       x-timeout-budget-ms: 5000
       summary: 获取受控 ChainNode 锚点解析路由与分区
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
       requestBody:
         required: true
         content:
@@ -603,6 +605,8 @@ paths:
       x-retry-policy: idempotent-read-via-post
       x-timeout-budget-ms: 5000
       summary: 分页列出已批准的 Industry 或 Concept 正式锚点
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
       requestBody:
         required: true
         content:
@@ -620,6 +624,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/EventSemanticContextDrift' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
@@ -633,6 +638,8 @@ paths:
       x-retry-policy: idempotent-read-via-post
       x-timeout-budget-ms: 5000
       summary: 通过正式锚点返回可达 ChainNode 候选与 Data 回执
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
       requestBody:
         required: true
         content:
@@ -650,6 +657,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/EventSemanticContextDrift' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
@@ -1148,6 +1156,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+    EventSemanticContextDrift:
+      description: Context Lease、分页请求身份或所选正式路径已漂移；调用方应以新 lease 重试
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EventSemanticContextDriftErrorEnvelope'
     PayloadTooLarge:
       description: JSON request body 超过 1048576 bytes
       headers:
@@ -3200,6 +3217,34 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/EventSemanticContext'
+
+    EventSemanticContextDriftErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          enum: [EVENT_SEMANTIC_CONTEXT_DRIFT]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        details:
+          type: object
+          additionalProperties: true
+
+    EventSemanticContextDriftErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, request_id]
+      properties:
+        error:
+          $ref: '#/components/schemas/EventSemanticContextDriftErrorDetail'
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 128
 
     EventSemanticEntityMention:
       type: object

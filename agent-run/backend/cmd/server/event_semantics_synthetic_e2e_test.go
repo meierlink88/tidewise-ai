@@ -34,11 +34,13 @@ import (
 const (
 	syntheticDataToken = "synthetic-event-semantics-token"
 
-	syntheticCompanyID  = "22000000-0000-4000-8000-000000000001"
-	syntheticProductID  = "22000000-0000-4000-8000-000000000002"
-	syntheticRelationID = "22000000-0000-4000-8000-000000000003"
-	syntheticChainID    = "23000000-0000-4000-8000-000000000001"
-	syntheticIndustryID = "23000000-0000-4000-8000-000000000002"
+	syntheticCompanyID      = "22000000-0000-4000-8000-000000000001"
+	syntheticProductID      = "22000000-0000-4000-8000-000000000002"
+	syntheticRelationID     = "22000000-0000-4000-8000-000000000003"
+	syntheticChainID        = "23000000-0000-4000-8000-000000000001"
+	syntheticIndustryRootID = "23000000-0000-4000-8000-000000000002"
+	syntheticIndustryL2ID   = "23000000-0000-4000-8000-000000000004"
+	syntheticIndustryID     = "23000000-0000-4000-8000-000000000005"
 
 	syntheticAcceptedRawDocumentID = "20000000-0000-4000-8000-000000000001"
 	syntheticAcceptedEventID       = "20000000-0000-4000-8000-000000000002"
@@ -301,7 +303,7 @@ func (m *syntheticSemanticModel) Generate(
 		}
 		if strings.Contains(payload, "ChainNode 路由选择器") {
 			return schema.AssistantMessage(
-				`{"route_id":"chain-node-via-industry.v1","partition":"`+syntheticIndustryID+`","unresolved":false}`,
+				`{"route_id":"chain-node-via-industry.v1","partition":"`+syntheticIndustryRootID+`","unresolved":false}`,
 				nil,
 			), nil
 		}
@@ -1091,6 +1093,7 @@ func assertSyntheticAcceptedSemantics(t *testing.T, semantics eventsemantic.Even
 		len(submission.AuditWorkPackage.VariableSignals[0].EvidenceIDs) != 1 ||
 		submission.AuditWorkPackage.VariableSignals[0].EvidenceIDs[0] != syntheticAcceptedEvidenceID ||
 		submission.AuditWorkPackage.Evidence[0].RawDocumentID != syntheticAcceptedRawDocumentID ||
+		!strings.Contains(submission.AuditWorkPackage.Evidence[0].Excerpt, submission.AuditWorkPackage.EntityLinks[0].Mention) ||
 		submission.AuditWorkPackage.DirectImpacts[0].RuleKey !=
 			"synthetic_production_decrease_reduces_chain_supply" ||
 		submission.AuditWorkPackage.DirectImpacts[0].RuleVersion != 1 ||

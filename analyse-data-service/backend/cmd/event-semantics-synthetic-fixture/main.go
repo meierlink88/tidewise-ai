@@ -165,18 +165,18 @@ func seed(ctx context.Context) error {
 	_, err = database.Exec(ctx, `
 UPDATE raw_documents
 SET title = 'Synthetic demand forecast',
-    content_text = 'Synthetic Wafer Fab forecasts wafer demand growth of 12 percent'
+    content_text = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent'
 WHERE id = '24000000-0000-4000-8000-000000000001';
 UPDATE events
 SET title = 'Synthetic Wafer Fab forecasts demand growth',
-    summary = 'Synthetic Wafer Fab forecasts wafer demand growth of 12 percent.',
+    summary = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent.',
     fact_payload = jsonb_build_object(
         'statement_source', 'Synthetic Wafer Fab',
         'forecast_demand_change_percent', 12
     )
 WHERE id = '24000000-0000-4000-8000-000000000002';
 UPDATE event_sources
-SET evidence_excerpt = 'Synthetic Wafer Fab forecasts wafer demand growth of 12 percent',
+SET evidence_excerpt = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent',
     supports_fields = ARRAY['title','factual_summary','occurred_at','fact_payload']
 WHERE id = '24000000-0000-4000-8000-000000000003'
 `)
@@ -199,7 +199,13 @@ INSERT INTO entity_nodes (
    ARRAY['Synthetic Chain'], 'active'),
   ('23000000-0000-4000-8000-000000000002', 'industry:synthetic-semiconductor',
    'industry', 'industry', 'Synthetic Semiconductor Manufacturing',
-   'Synthetic Semiconductor Manufacturing', ARRAY['Synthetic Manufacturing'], 'active')
+   'Synthetic Semiconductor Manufacturing', ARRAY['Synthetic Manufacturing'], 'active'),
+  ('23000000-0000-4000-8000-000000000004', 'industry:synthetic-semiconductor-components',
+   'industry', 'industry', 'Synthetic Semiconductor Components',
+   'Synthetic Semiconductor Components', ARRAY['Synthetic Components'], 'active'),
+  ('23000000-0000-4000-8000-000000000005', 'industry:synthetic-wafer-capacity',
+   'industry', 'industry', 'Synthetic Wafer Capacity',
+   'Synthetic Wafer Capacity', ARRAY['Synthetic Capacity'], 'active')
 `); err != nil {
 		return err
 	}
@@ -209,11 +215,17 @@ INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_st
   ('22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
 INSERT INTO industry_profiles (
   entity_id, classification_system, classification_version, industry_code,
-  classification_level, hierarchy_path_codes, definition, boundary_note, review_status
-) VALUES (
-  '23000000-0000-4000-8000-000000000002', 'synthetic', 'v1', 'S01', 1,
-  ARRAY['S01'], 'Synthetic semiconductor manufacturing', 'Synthetic fixture only', 'approved'
-);
+  classification_level, parent_industry_entity_id, hierarchy_path_codes,
+  definition, boundary_note, review_status
+) VALUES
+  ('23000000-0000-4000-8000-000000000002', 'synthetic', 'v1', 'S01', 1,
+   NULL, ARRAY['S01'], 'Synthetic semiconductor manufacturing', 'Synthetic fixture only', 'approved'),
+  ('23000000-0000-4000-8000-000000000004', 'synthetic', 'v1', 'S0101', 2,
+   '23000000-0000-4000-8000-000000000002', ARRAY['S01','S0101'],
+   'Synthetic semiconductor components', 'Synthetic fixture only', 'approved'),
+  ('23000000-0000-4000-8000-000000000005', 'synthetic', 'v1', 'S010101', 3,
+   '23000000-0000-4000-8000-000000000004', ARRAY['S01','S0101','S010101'],
+   'Synthetic wafer capacity', 'Synthetic fixture only', 'approved');
 INSERT INTO industry_chain_definitions (
   entity_id, scope, target_output, end_use, geography, as_of_date, review_status,
   observable_variables
@@ -262,7 +274,7 @@ INSERT INTO entity_edges (
 (
   '23000000-0000-4000-8000-000000000003',
   '23000000-0000-4000-8000-000000000001',
-  '23000000-0000-4000-8000-000000000002',
+  '23000000-0000-4000-8000-000000000005',
   'mapped_to_industry', 'Synthetic formal anchor route', 'active'
 )
 `)
@@ -287,7 +299,7 @@ INSERT INTO raw_documents (
 ) VALUES (
   $1, 'synthetic_acceptance', 'news', 'Synthetic Primary Source',
   'https://synthetic.invalid/wafer', 'Synthetic wafer production update',
-  'Synthetic Wafer Fab production fell 10%', 'text/plain', 'en',
+  'The upstream wafer capacity stage reported production fell 10%', 'text/plain', 'en',
   $2, $2::timestamptz + interval '1 minute', $3, 'collected'
 )
 `, rawDocumentID, occurredAt, contentHash); err != nil {
@@ -298,8 +310,8 @@ INSERT INTO events (
   id, title, summary, event_time, first_seen_at, knowable_at,
   event_status, fact_status, dedupe_key, fact_payload
 ) VALUES (
-  $1, 'Synthetic Wafer Fab production fell 10%',
-  'Synthetic Wafer Fab confirmed a 10% production decline.',
+  $1, 'Upstream wafer capacity production fell 10%',
+  'The upstream wafer capacity stage confirmed a 10% production decline.',
   $3, $3::timestamptz + interval '1 minute', $3::timestamptz + interval '1 minute',
   'confirmed', 'verified', $2, '{"production_change_percent":-10}'::jsonb
 )
@@ -311,7 +323,7 @@ INSERT INTO event_sources (
   id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
   evidence_relation, supports_fields, is_primary
 ) VALUES (
-  $1, $2, $3, 'primary', 'Synthetic Wafer Fab production fell 10%',
+  $1, $2, $3, 'primary', 'The upstream wafer capacity stage reported production fell 10%',
   $4, 'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], true
 )
 `, evidenceID, eventID, rawDocumentID, evidenceHash); err != nil {

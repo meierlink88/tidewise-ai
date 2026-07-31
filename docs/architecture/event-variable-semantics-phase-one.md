@@ -678,7 +678,7 @@ AgentRun 以稳定 opaque cursor 分页查询 Data eligible Event
 → AgentRun 幂等建立本地 Event Semantic Work Item
 → AgentRun 租约领取 Work Item 并创建 Agent Execution
 → Data 以 Agent Execution ID 为幂等身份，为该 Event / superseded Submission 创建短时 Context Lease
-→ Data 在 Lease 创建事务中持久化 compact Event / Evidence / TBox / Route manifest
+→ Data 在 Lease 创建事务中只持久化 Event / Evidence 指纹与 TBox / Policy / Route 版本引用 manifest
 → 识别 Entity Mention、预测类型、角色与 Signal
 → ChainNode 依次选择正式 route/partition、正式 Anchor ID 并召回/消歧正式 Target ID
 → 其他 Entity 调 Data Service 做受控精确解析
@@ -825,7 +825,7 @@ scope 和请求大小限制模式；不经由 AgentRun 数据库代理 Data 事�
 | `resolveEventSemanticEntities` | `POST /event-semantics/entity-resolutions` | 用名称、类型约束和 Event 上下文解析既有规范 Entity；不创建 Entity。 |
 | `searchEventSemanticDirectTargets` | `POST /event-semantics/direct-targets:search` | 在已批准的 EntityRelation 范围内查询一跳 Direct Target；不做图遍历。 |
 | `listEventSemanticResolutionRoutes` | `POST /event-semantics/resolution-routes:list` | 返回 ChainNode 的受控 Industry/Concept 路由与现有正式分区。 |
-| `listEventSemanticResolutionAnchors` | `POST /event-semantics/resolution-anchors:list` | 按路由/分区分页列出已批准正式锚点。 |
+| `listEventSemanticResolutionAnchors` | `POST /event-semantics/resolution-anchors:list` | 按路由/L1 分区以数据库 keyset 分页列出有正式映射且可到达 ChainNode 的 approved 后代叶级锚点。 |
 | `resolveEventSemanticChainNodeCandidates` | `POST /event-semantics/chain-node-candidates:resolve` | 从正式 Anchor 穿透 approved IndustryChain/Membership 返回 ChainNode 与 Data receipt。 |
 | `createEventSemanticSubmission` | `POST /event-semantics/submissions` | 持久化一个 Context Lease/Event 的 Candidate 快照并执行确定性预检，返回 canonical Reviewer 工作包。 |
 | `submitEventSemanticReview` | `POST /event-semantics/submissions/{submission_id}/reviews` | 接收独立 Reviewer / Adjudicator 的结构化结果；由 Data 最终裁决。 |

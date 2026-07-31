@@ -121,6 +121,39 @@ type Context struct {
 	Relations []EntityRelation `json:"-"`
 }
 
+type EvidenceReference struct {
+	EvidenceID  string `json:"evidence_id"`
+	Fingerprint string `json:"evidence_fingerprint"`
+}
+
+type VersionReference struct {
+	Key     string `json:"key"`
+	Version int    `json:"version"`
+}
+
+// ContextManifest persists only immutable identities, version references and fingerprints.
+// The Context API hydrates the bounded Event/Evidence/TBox payload from these references.
+type ContextManifest struct {
+	ContextLeaseID          string              `json:"context_lease_id"`
+	AgentExecutionID        string              `json:"agent_execution_id"`
+	WorkerID                string              `json:"worker_id"`
+	LeaseStatus             string              `json:"lease_status"`
+	LeaseExpiresAt          time.Time           `json:"lease_expires_at"`
+	ManifestContractVersion string              `json:"manifest_contract_version"`
+	ManifestFingerprint     string              `json:"manifest_fingerprint"`
+	ContextFingerprint      string              `json:"context_fingerprint"`
+	EventID                 string              `json:"event_id"`
+	EventFingerprint        string              `json:"event_fingerprint"`
+	Evidence                []EvidenceReference `json:"evidence_references"`
+	EvidenceFingerprint     string              `json:"evidence_fingerprint"`
+	OntologyVersion         string              `json:"ontology_version"`
+	PolicyVersion           string              `json:"acceptance_policy_version"`
+	RouteContractVersion    string              `json:"route_contract_version"`
+	EntityTypes             []VersionReference  `json:"entity_type_references"`
+	Variables               []VersionReference  `json:"variable_definition_references"`
+	Rules                   []VersionReference  `json:"direct_transmission_rule_references"`
+}
+
 type MeasurementValue struct {
 	Role             string  `json:"measurement_role"`
 	Shape            string  `json:"value_shape"`
@@ -323,6 +356,12 @@ type ResolutionAnchorPage struct {
 type ResolutionCandidatePage struct {
 	Candidates []ResolutionCandidate
 	NextCursor string
+}
+
+// ResolutionKeyset is the stable database ordering boundary carried by an opaque API cursor.
+type ResolutionKeyset struct {
+	CanonicalName string
+	EntityID      string
 }
 
 type ReviewItem struct {

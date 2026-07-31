@@ -177,7 +177,9 @@ func (s *DataService) ListEventSemanticResolutionAnchors(
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	result := v1.EventSemanticResolutionAnchorResult{NextCursor: page.NextCursor}
+	result := v1.EventSemanticResolutionAnchorResult{
+		Anchors: make([]v1.EventSemanticResolutionAnchor, 0), NextCursor: page.NextCursor,
+	}
 	for _, anchor := range page.Anchors {
 		result.Anchors = append(result.Anchors, v1.EventSemanticResolutionAnchor{
 			Entity: eventSemanticEntityDTO(anchor.Entity), Partition: anchor.Partition,
@@ -206,7 +208,9 @@ func (s *DataService) ResolveEventSemanticChainNodeCandidates(
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	result := v1.EventSemanticResolutionCandidateResult{NextCursor: page.NextCursor}
+	result := v1.EventSemanticResolutionCandidateResult{
+		Candidates: make([]v1.EventSemanticResolutionCandidate, 0), NextCursor: page.NextCursor,
+	}
 	for _, candidate := range page.Candidates {
 		result.Candidates = append(result.Candidates, v1.EventSemanticResolutionCandidate{
 			Entity: eventSemanticEntityDTO(candidate.Entity), Description: candidate.Description,
