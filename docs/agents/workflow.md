@@ -12,8 +12,9 @@ When delegation is explicitly requested, use `gpt-5.6-sol` with `medium` reasoni
 
 ### 1. Explore and preserve
 
-- Read `AGENTS.md`, `CONTEXT-MAP.md`, the affected Context, relevant ADRs, authoritative specs,
-  and the affected implementation.
+- Read `AGENTS.md`, `docs/agents/engineering-standard.md`,
+  `docs/agents/coding-standard.md`, `CONTEXT-MAP.md`, the affected Context, applicable stack
+  standard, relevant ADRs, authoritative specs, and the affected implementation.
 - Inspect the current branch, HEAD, remote baseline, and dirty/untracked files before writing.
 - Treat existing changes as user-owned. Preserve them and keep unrelated files out of the task commit.
 
@@ -31,7 +32,10 @@ Any change that introduces or modifies Eino orchestration, Agent architecture, a
 
 ### 2. Grill with docs
 
-Use `$grill-with-docs` for new capabilities, architecture, domain decisions, or materially ambiguous behavior.
+For new capabilities, architecture, domain decisions, or materially ambiguous behavior, complete
+the design gate in `docs/agents/engineering-standard.md`. Use `$grill-with-docs` when it is
+available; the Skill assists the gate but is not the repository authority or a prerequisite for
+following it.
 
 - Resolve contradictions, missing ownership, state transitions, failure semantics, security boundaries, and acceptance criteria before implementation.
 - Write resolved decisions into the authoritative spec, glossary, and sparse ADRs where appropriate; chat summaries are not sufficient.
@@ -40,7 +44,9 @@ Use `$grill-with-docs` for new capabilities, architecture, domain decisions, or 
 
 ### 3. Publish with to-spec
 
-Use `$to-spec` after the design is sufficiently resolved.
+After the design is sufficiently resolved, use `$to-spec` when it is available. If it is not
+available, publish the same reviewed design and testing fields directly to the authoritative Spec
+and GitHub Issue; do not skip the gate.
 
 - Prefer one high, observable test seam. Confirm it with the user unless their frozen acceptance criteria already establish it.
 - Create or update a GitHub Issue using the repository spec template and apply only the `ready-for-agent` triage label.
@@ -51,7 +57,8 @@ Use `$to-spec` after the design is sufficiently resolved.
 
 ### 4. Implement
 
-Use `$implement` against the reviewed spec and Issue.
+Implement against the reviewed Spec and Issue. Use `$implement` when it is available; otherwise
+follow the same repository standards directly.
 
 - Work directly in the current checkout on a `codex/<issue-or-change-name>` feature branch unless the user explicitly requests another arrangement.
 - Use `$tdd` where practical at the pre-agreed seams: establish a real failing test, add the minimum implementation, then refactor.
