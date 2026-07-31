@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -221,6 +222,93 @@ func TestPostgresEventSemanticsReanalysisSupersedesPriorSubmissionAndReadsComple
 			t.Fatalf("%s superseded count = %d", table, count)
 		}
 	}
+}
+
+func TestPostgresEligibleEventPaginationAndLeaseShareTheInputContract(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	seedEventSemanticScenario(t, db)
+	secondEventID := "10000000-0000-4000-8000-000000000012"
+	secondEvidenceID := "10000000-0000-4000-8000-000000000013"
+	invalidEventID := "10000000-0000-4000-8000-000000000022"
+	invalidEvidenceID := "10000000-0000-4000-8000-000000000023"
+	for _, row := range []struct {
+		eventID, evidenceID, excerpt, firstSeen string
+	}{
+		{secondEventID, secondEvidenceID, "second valid evidence", "2026-07-28T08:02:00Z"},
+		{invalidEventID, invalidEvidenceID, "", "2026-07-28T08:03:00Z"},
+	} {
+		if _, err := db.Exec(`
+			INSERT INTO events (
+			  id, title, summary, event_time, first_seen_at, knowable_at,
+			  event_status, fact_status, dedupe_key, fact_payload
+			) VALUES (
+			  $1, 'Semantic pagination Event', 'Semantic pagination Event summary',
+			  '2026-07-28T08:00:00Z', $4, $4, 'confirmed', 'verified',
+			  'event:semantic:' || $1::text, '{}'::jsonb
+			);
+			INSERT INTO event_sources (
+			  id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
+			  evidence_relation, supports_fields, is_primary
+			) VALUES (
+			  $2, $1, $3, 'primary', $5, $6,
+			  'supports', ARRAY['title'], true
+			);
+			UPDATE events SET primary_source_id = $2 WHERE id = $1
+		`, row.eventID, row.evidenceID, semanticRawDocumentID, row.firstSeen,
+			row.excerpt, strings.Repeat("3", 64)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	semanticService := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
+
+	first, err := semanticService.ListEligibleEvents(context.Background(), 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Events) != 1 || first.NextCursor == "" {
+		t.Fatalf("first page = %#v", first)
+	}
+	second, err := semanticService.ListEligibleEvents(
+		context.Background(), 1, first.NextCursor,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Events) != 1 || second.Events[0].EventID != secondEventID ||
+		second.NextCursor != "" {
+		t.Fatalf("second page = %#v", second)
+	}
+	_, err = semanticService.CreateContextLease(
+		context.Background(),
+		eventsemantics.ContextLeaseRequest{
+			EventID: invalidEventID, AgentExecutionID: "invalid-semantic-execution",
+			WorkerID: "semantic-integration-worker", Lease: 15 * time.Minute,
+		},
+	)
+	var inputInvalid *eventsemantics.InputInvalidError
+	if !errors.As(err, &inputInvalid) {
+		t.Fatalf("invalid Event lease error = %T %v", err, err)
+	}
+	manifest, err := postgres.AuditHistoricalEventSemantics(
+		context.Background(), db, time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsID(manifest.ValidEventIDs, semanticEventID) ||
+		!containsID(manifest.ValidEventIDs, secondEventID) ||
+		!containsID(manifest.InvalidEventIDs, invalidEventID) {
+		t.Fatalf("historical manifest = %#v", manifest)
+	}
+}
+
+func containsID(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
 }
 
 const (

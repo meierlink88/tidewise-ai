@@ -88,6 +88,34 @@ CI 同时构建非 root 的 Kratos Service 镜像；本地可用
 
 Server 不自动执行 migration。Schema、DeepSeek Model Provider Configuration 或任一必需 Connector Configuration 缺失时，`/readyz` 返回 503，Collector POST 返回 `configuration_not_ready`。
 
+## Event Semantic 历史处置
+
+Event Semantic 历史处置是部署后的独立、默认关闭操作，不属于普通 migration 或服务启动。
+先用 Data 的只读命令生成不可覆盖的审计清单，再由 AgentRun dry-run；只有停用 Event
+Semantic Schedule、确认没有 running Work Item、完成 UAT 恢复点和结果审阅后，才可
+另行授权 Apply：
+
+```bash
+go run ./analyse-data-service/backend/cmd/event-semantic-history-audit \
+  -output /secure/path/event-semantic-history-audit.json
+
+go run ./agent-run/backend/cmd/event-semantic-history \
+  -dry-run -manifest /secure/path/event-semantic-history-audit.json
+
+go run ./agent-run/backend/cmd/event-semantic-history \
+  -apply -allow-env uat \
+  -manifest /secure/path/event-semantic-history-audit.json \
+  -export /secure/path/event-semantic-work-items-before.json
+```
+
+审计命令只读取 Data 数据库；dry-run 只读取 AgentRun 数据库。Apply 只更新 AgentRun
+初始 Work Item：历史不合规项进入 `skipped`，合法且已失败的旧项获得一次恢复机会；
+running、succeeded 和显式 reanalysis 项不被覆盖。重复 Apply 不会创建重复任务。
+
+三类 Agent 的 Runtime、Cycle 和 Execution 生命周期事件使用现有 JSON stdout 日志，
+统一以 `event_code` 区分；日志只包含身份、状态、阶段、尝试次数、时长和有界计数，
+不包含 Prompt、Evidence、正文、模型原文、连接器响应或凭据。
+
 ## Collector HTTP Interface
 
 AgentRun 提供一份随服务二进制发布的 OpenAPI 3.0.4 合同和 Swagger UI：

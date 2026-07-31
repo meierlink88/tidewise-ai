@@ -46,13 +46,7 @@ type Application struct {
 
 type Option func(*Application)
 
-type EventLogger interface {
-	Error(eventCode string, executionID string)
-}
-
-type discardEventLogger struct{}
-
-func (discardEventLogger) Error(string, string) {}
+type EventLogger = agentrun.AgentLifecycleLogger
 
 func WithEventLogger(logger EventLogger) Option {
 	return func(application *Application) {
@@ -99,7 +93,7 @@ func New(
 		environment:  "dev",
 		executionTTL: executionTimeout,
 		now:          time.Now,
-		events:       discardEventLogger{},
+		events:       agentrun.DiscardAgentLifecycleLogger{},
 	}
 	application.lifecycleCtx, application.cancel = context.WithCancel(context.Background())
 	application.runtimeBuilder = runtimeFactory{
@@ -201,6 +195,7 @@ func (a *Application) createCollectorRun(
 		}
 		if disposition == agentrun.ExecutionSkipped || execution.Status == agentrun.StatusSkipped {
 			a.attachTerminalAudit(execution)
+			a.logSkipped(execution)
 			return execution, disposition, &agentrun.ActiveExecutionError{
 				ActiveExecutionID: execution.BlockedByExecutionID, SkippedExecutionID: execution.ID,
 			}
@@ -213,6 +208,7 @@ func (a *Application) createCollectorRun(
 	}
 	if disposition == agentrun.ExecutionSkipped {
 		a.attachTerminalAudit(execution)
+		a.logSkipped(execution)
 		return execution, disposition, &agentrun.ActiveExecutionError{
 			ActiveExecutionID: execution.BlockedByExecutionID, SkippedExecutionID: execution.ID,
 		}
@@ -324,6 +320,13 @@ func (a *Application) run(execution agentrun.Execution, runtimeConfig collector.
 		a.fail(execution.ID, "state_transition_failed", "Could not start Agent Execution")
 		return
 	}
+	startedAt := a.now().UTC()
+	a.events.Info(agentrun.AgentLifecycleEvent{
+		Code: "agent_execution_started", AgentKey: collector.AgentKey,
+		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+		ExecutionID: execution.ID, TriggerSource: string(execution.TriggerSource),
+		Status: "running",
+	})
 
 	workflow, err := a.runtimeBuilder.Build(ctx, execution.ID, runtimeConfig)
 	if err != nil {
@@ -336,7 +339,14 @@ func (a *Application) run(execution agentrun.Execution, runtimeConfig collector.
 	})
 	if err != nil {
 		if errors.Is(err, ErrPublicationPending) {
-			a.events.Error("artifact_publication_pending", execution.ID)
+			a.events.Warn(agentrun.AgentLifecycleEvent{
+				Code: "agent_execution_retry_scheduled", AgentKey: collector.AgentKey,
+				AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+				ExecutionID: execution.ID, Status: "failed",
+				Outcome: "publication_reconciliation_pending",
+				Stage:   "artifact_publication", ErrorCode: "artifact_publication_pending",
+				Duration: nonNegativeDuration(a.now().UTC().Sub(startedAt)),
+			})
 			return
 		}
 		code := "execution_failed"
@@ -364,6 +374,18 @@ func (a *Application) run(execution agentrun.Execution, runtimeConfig collector.
 		a.fail(execution.ID, "execution_failed", "Collector execution returned no result")
 		return
 	}
+	a.events.Info(agentrun.AgentLifecycleEvent{
+		Code: "agent_execution_completed", AgentKey: collector.AgentKey,
+		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+		ExecutionID: execution.ID, TriggerSource: string(execution.TriggerSource),
+		Status: "succeeded", Outcome: "processed",
+		Duration: nonNegativeDuration(a.now().UTC().Sub(startedAt)),
+		Counts: map[string]int{
+			"raw_results":        result.Stats.RawResults,
+			"merged_results":     result.Stats.MergedResults,
+			"accepted_artifacts": len(result.AcceptedDocuments),
+		},
+	})
 }
 
 func (a *Application) fail(executionID, code, summary string) {
@@ -379,39 +401,71 @@ func (a *Application) fail(executionID, code, summary string) {
 			NotInvokedSummary: notInvokedSummary, CompletedAt: completedAt,
 		})
 	}); err != nil {
-		a.events.Error("terminal_failure_persistence_failed", executionID)
+		a.logCycleError(
+			"terminal_failure_persistence_failed", executionID, "state_transition",
+		)
 		return
 	}
+	a.events.Error(agentrun.AgentLifecycleEvent{
+		Code: "agent_execution_failed", AgentKey: collector.AgentKey,
+		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+		ExecutionID: executionID, Status: "failed",
+		Outcome: "terminal_failure", Stage: "execution", ErrorCode: code,
+	})
 	readCtx, readCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	execution, err := a.store.GetExecution(readCtx, executionID)
 	readCancel()
 	if err != nil {
-		a.events.Error("terminal_failure_read_failed", executionID)
+		a.logCycleError("terminal_failure_read_failed", executionID, "terminal_audit")
 		return
 	}
 	paths, err := a.artifacts.WriteTerminalAudit(execution)
 	if err != nil {
-		a.events.Error("terminal_audit_publication_failed", execution.ID)
+		a.logCycleError("terminal_audit_publication_failed", execution.ID, "terminal_audit")
 		return
 	}
 	if err := retryStateWrite(func(ctx context.Context) error {
 		return a.store.AttachTerminalArtifacts(ctx, execution.ID, paths, a.now())
 	}); err != nil {
-		a.events.Error("terminal_audit_attachment_failed", execution.ID)
+		a.logCycleError("terminal_audit_attachment_failed", execution.ID, "terminal_audit")
 	}
 }
 
 func (a *Application) attachTerminalAudit(execution agentrun.Execution) {
 	paths, err := a.artifacts.WriteTerminalAudit(execution)
 	if err != nil {
-		a.events.Error("terminal_audit_publication_failed", execution.ID)
+		a.logCycleError("terminal_audit_publication_failed", execution.ID, "terminal_audit")
 		return
 	}
 	if err := retryStateWrite(func(ctx context.Context) error {
 		return a.store.AttachTerminalArtifacts(ctx, execution.ID, paths, a.now())
 	}); err != nil {
-		a.events.Error("terminal_audit_attachment_failed", execution.ID)
+		a.logCycleError("terminal_audit_attachment_failed", execution.ID, "terminal_audit")
 	}
+}
+
+func (a *Application) logSkipped(execution agentrun.Execution) {
+	a.events.Info(agentrun.AgentLifecycleEvent{
+		Code: "agent_execution_skipped", AgentKey: collector.AgentKey,
+		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+		ExecutionID: execution.ID, TriggerSource: string(execution.TriggerSource),
+		Status: "skipped", Outcome: "active_execution",
+	})
+}
+
+func (a *Application) logCycleError(code, executionID, stage string) {
+	a.events.Error(agentrun.AgentLifecycleEvent{
+		Code: "agent_cycle_failed", AgentKey: collector.AgentKey,
+		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+		ExecutionID: executionID, Status: "failed", Stage: stage, ErrorCode: code,
+	})
+}
+
+func nonNegativeDuration(value time.Duration) time.Duration {
+	if value < 0 {
+		return 0
+	}
+	return value
 }
 
 func retryStateWrite(write func(context.Context) error) error {

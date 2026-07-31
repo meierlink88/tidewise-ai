@@ -47,8 +47,8 @@ type semanticDataStub struct {
 	reviewRequest  eventsemantic.ReviewRequest
 }
 
-func (*semanticDataStub) ListEligibleEvents(context.Context, int) ([]eventsemantic.EligibleEvent, error) {
-	return nil, nil
+func (*semanticDataStub) ListEligibleEvents(context.Context, int, string) (eventsemantic.EligibleEventPage, error) {
+	return eventsemantic.EligibleEventPage{}, nil
 }
 func (*semanticDataStub) CreateContextLease(
 	context.Context,
@@ -115,7 +115,23 @@ func (s *semanticDataStub) SubmitReview(
 	request eventsemantic.ReviewRequest,
 ) (eventsemantic.SubmissionResult, error) {
 	s.reviewRequest = request
-	return eventsemantic.SubmissionResult{SubmissionID: runID, Status: "accepted"}, nil
+	result := eventsemantic.SubmissionResult{
+		SubmissionID: runID, Status: "accepted",
+	}
+	for _, item := range request.Items {
+		decision := eventsemantic.CandidateDecision{
+			CandidateKey: item.CandidateKey, Status: "accepted",
+		}
+		switch item.CandidateType {
+		case "entity_link":
+			result.EntityLinks = append(result.EntityLinks, decision)
+		case "variable_signal":
+			result.VariableSignals = append(result.VariableSignals, decision)
+		case "direct_impact":
+			result.DirectImpacts = append(result.DirectImpacts, decision)
+		}
+	}
+	return result, nil
 }
 func (*semanticDataStub) GetEventSemantics(
 	context.Context,
@@ -154,7 +170,10 @@ func TestWorkflowResolvesDataOwnedIdentitiesAndUsesIndependentReviewer(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Status != "accepted" || !data.resolved || !data.targetSearched {
+	if result.Status != "accepted" ||
+		result.AcceptedCandidates != 3 ||
+		result.RejectedCandidates != 0 ||
+		!data.resolved || !data.targetSearched {
 		t.Fatalf("result=%#v resolved=%v targetSearched=%v", result, data.resolved, data.targetSearched)
 	}
 	if data.runRequest.AgentKey != eventsemantic.AgentKey ||

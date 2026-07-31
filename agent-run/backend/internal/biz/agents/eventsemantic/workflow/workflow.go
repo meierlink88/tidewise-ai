@@ -228,9 +228,12 @@ func New(
 	graph.AddLambdaNode("review_candidates", compose.InvokableLambda(
 		func(ctx context.Context, current *state) (*state, error) {
 			if current.submission.ReviewerWorkPackage == nil {
+				accepted, rejected := current.submission.CandidateOutcomeCounts()
 				current.result = eventsemantic.Result{
-					SubmissionID: current.submission.SubmissionID,
-					Status:       current.submission.Status,
+					SubmissionID:       current.submission.SubmissionID,
+					Status:             current.submission.Status,
+					AcceptedCandidates: accepted,
+					RejectedCandidates: rejected,
 				}
 				return current, nil
 			}
@@ -256,7 +259,13 @@ func New(
 				}
 			}
 			current.submission = reviewed
-			current.result = eventsemantic.Result{SubmissionID: reviewed.SubmissionID, Status: reviewed.Status}
+			accepted, rejected := reviewed.CandidateOutcomeCounts()
+			current.result = eventsemantic.Result{
+				SubmissionID:       reviewed.SubmissionID,
+				Status:             reviewed.Status,
+				AcceptedCandidates: accepted,
+				RejectedCandidates: rejected,
+			}
 			return current, nil
 		},
 	)).AddInput("submit_candidates")

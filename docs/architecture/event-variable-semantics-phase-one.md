@@ -670,7 +670,7 @@ Document ID、`occurred_at`、Evidence ID/原文片段、来源和审核状态�
 ## 7. AgentRun 候选工作流
 
 ```text
-AgentRun 查询 Data eligible Event
+AgentRun 以稳定 opaque cursor 分页查询 Data eligible Event
 → AgentRun 幂等建立本地 Event Semantic Work Item
 → AgentRun 租约领取 Work Item 并创建 Agent Execution
 → Data 以 Agent Execution ID 为幂等身份，为该 Event / superseded Submission 创建短时 Context Lease
@@ -695,7 +695,7 @@ AgentRun 查询 Data eligible Event
 
 | 候选能力 | 当前评估 | 待确认事项 |
 | --- | --- | --- |
-| `list_eligible_events` | 新建只读查询 | confirmed + verified、有时间和 Evidence，排除已有活动 Submission / Context Lease |
+| `list_eligible_events` | 新建只读查询 | confirmed + verified、有时间且完整满足 Context 合同的 Evidence，排除已有活动 Submission / Context Lease；按 first_seen_at + Event ID 稳定 cursor 分页 |
 | `get_event_with_evidence` | 可能扩展现有 Event read | Evidence 完整度、正文边界、批量读取 |
 | `get_ontology_context` | 新能力候选 | Lease 创建时持久化的 TBox、Entity、EntityRelation 完整一致快照 |
 | `search_entities` | 新能力候选 | 搜索策略、候选上限、类型过滤 |
@@ -774,9 +774,16 @@ Submission；旧 Submission 继续保留完整审计记录。显式重新分析�
 用户授权阶段一的常规执行机制按项目开发规范、可恢复性与不过度设计原则自行冻结，只有
 架构边界或阶段目标变化才再次逐项确认。任务闭环完全属于 AgentRun：
 
-- AgentRun 持久化 `event_semantic_work_items`，拥有 pending/running/succeeded/failed、
+- AgentRun 持久化 `event_semantic_work_items`，拥有 pending/running/succeeded/failed/
+  skipped、
   执行租约、尝试次数、最多两次重试、幂等键和当前 Agent Execution；
+- `skipped` 仅供 Issue #153 的一次性历史处置：Data 只读审计产出 reviewed manifest，
+  AgentRun dry-run 后在显式 Apply 中创建或更新历史初始 Work Item。正常运行机制不得产生
+  新 `skipped`，不得修改 Event/Evidence 事实，也不得覆盖 running、succeeded 或显式
+  reanalysis Work Item；
 - Eligible Event 以 `event-semantic-initial:{event_id}` 幂等建初始 Work Item；
+- Eligible Event 使用 `first_seen_at + Event ID` 的 opaque keyset cursor。AgentRun 在一页
+  全部命中既有幂等 Work Item 时继续读取下一页，直到建立新任务或到达末页；
 - 显式重分析通过 AgentRun
   `POST /api/agentrun/v1/event-semantic-reanalysis` 创建 Work Item，必须携带目标 Event、
   被替代 Submission 和 Idempotency-Key；
@@ -792,6 +799,11 @@ Submission；旧 Submission 继续保留完整审计记录。显式重新分析�
   也不是任务队列；
 - Data 校验 initial/reanalysis 边界和 `supersedes_submission_id`，Context Lease 消费后
   不可复用；
+- Eligible discovery 与首次 Context Lease 在 Data 内复用同一 Semantic Input
+  Eligibility。Event 已不再需要处理时 AgentRun 成功对账；新输入合同异常直接终态失败，
+  不伪装为历史 `skipped`；瞬时错误才进入有限重试；
+- 合法 Event 即使没有可接受语义候选，也创建真实 `rejected` Submission，AgentRun Work
+  Item 以 succeeded 结束，避免再次发现；
 - 不建设分布式协调器、长事务、全局锁或第二套 Data 任务机制。
 
 ### 8.5 D-010E 最小版本化 API 合同（授权按既有模式冻结）
@@ -802,7 +814,7 @@ scope 和请求大小限制模式；不经由 AgentRun 数据库代理 Data 事�
 
 | Operation | Route | 主责与边界 |
 | --- | --- | --- |
-| `listEligibleEventSemanticEvents` | `GET /event-semantics/eligible-events` | 只读返回可创建初始 Work Item 的 Event；任务去重和领取由 AgentRun 完成。 |
+| `listEligibleEventSemanticEvents` | `GET /event-semantics/eligible-events` | 以 `limit + opaque cursor` 稳定分页返回可创建初始 Work Item 的 Event，并可返回 `next_cursor`；任务去重和领取由 AgentRun 完成。 |
 | `createEventSemanticContextLease` | `POST /event-semantics/context-leases` | 以 `agent_execution_id` 为幂等身份，为已领取的 Event / superseded Submission 创建或精确续期短时数据快照租约；不创建任务。 |
 | `getEventSemanticContext` | `GET /event-semantics/context-leases/{context_lease_id}/context` | 返回该 Lease 对应 Event、完整可用 Evidence、受限 Ontology / Variable / approved Rule 快照。 |
 | `resolveEventSemanticEntities` | `POST /event-semantics/entity-resolutions` | 用名称、类型约束和 Event 上下文解析既有规范 Entity；不创建 Entity。 |
@@ -818,8 +830,9 @@ scope 和请求大小限制模式；不经由 AgentRun 数据库代理 Data 事�
 
 沿用当前 Data API 默认 1 MiB 请求上限；Context / Read 采用短时读取预算，写操作采用
 与既有 import 相同的有界 15 秒总预算。稳定错误语义为：认证/授权 `401/403`、不存在或
-过期 Context Lease `404`、幂等或 Lease/Submission 冲突 `409`、不可解析 DTO `400`、有效 DTO 的领域校验
-失败 `422`、过大 `413`，暂时不可用 `503`。这些参数不是业务 Policy，不需要新增配置
+过期 Context Lease `404`、幂等或 Lease/Submission 冲突 `409`、Event 已不再需要处理
+`409 EVENT_SEMANTICS_NOT_REQUIRED`、不可解析 DTO `400`、有效 DTO 的领域校验或新的
+Semantic Input 合同失败 `422`、过大 `413`，暂时不可用 `503`。这些参数不是业务 Policy，不需要新增配置
 平台；如 Golden Fixture 证明不足，再以兼容版本调整。
 
 ## 9. 确定性校验候选
@@ -1348,6 +1361,7 @@ mutation Tool。
 | D-010C | `agent_execution_id` 是创建 Data Submission 的唯一幂等身份；相同 canonical payload 可安全重放，不同 payload 返回 409；重新分析必须创建新 Work Item、Execution 和 Submission 并 supersede 旧 Submission | 用户确认 |
 | D-010D | AgentRun 持久化并领取 Event Semantic Work Item、管理执行租约和有限重试；Data Context Lease 只固定 Event/Ontology 快照和提交边界，不承担任务机制 | 用户再次确认架构边界 |
 | D-010E | 最小 API 沿用 Data v1、OpenAPI、Bearer scope、1 MiB 请求上限和有界 timeout；以 Eligible Event、Context Lease、Context、Entity Resolution、Target Search、Submission、Review、Read 八项能力闭环；显式重分析进入 AgentRun 内部 API | 用户授权，按既有工程事实冻结 |
+| D-010F | Eligible Event 改为稳定 cursor 并与 Lease 共用输入资格；AgentRun 跨页跳过既有终态 Work Item；历史不合规输入只经一次性 reviewed manifest 写 `skipped`，正常流程不写；无候选保存真实 rejected Submission；三类 Agent 使用现有 slog/Kratos stdout 输出与状态提交解耦的最小结构化生命周期日志 | Issue #153，用户确认 |
 | D-011 | Golden 最小生产验收为供给冲击、政策、企业财报/订单、行业需求四条真实正向 fixture；供给冲击覆盖 rule_inferred，另需至少一条 event_explicit；每类含关键负向。当前缺口按 Golden Data Preparation 处理，不混入 Connector 开发 | 事件推理模型裁决 |
 | C-010 | Golden Scenario 优先从现有 Data/AgentRun 真实 Event 中只读发现；不限制 48 小时，不把新 Connector 混入阶段一 | 事件推理模型补充边界 |
 | C-011 | 只读发现确认现有 8 条 Data Event 血缘完整但不足以覆盖四类 Golden Scenario；语义较强但未发布的 Artifact 只能作为候选，不能冒充合格 Event | 本地 Data、AgentRun 与 Artifact 只读检查 |

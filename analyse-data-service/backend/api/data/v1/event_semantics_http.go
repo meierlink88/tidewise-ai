@@ -20,7 +20,10 @@ func listEligibleEventSemanticEventsHandler(application DataHTTPServer) kratosht
 			}
 			limit = parsed
 		}
-		request := &EligibleEventSemanticEventsRequest{Limit: limit}
+		request := &EligibleEventSemanticEventsRequest{
+			Limit:  limit,
+			Cursor: ctx.Query().Get("cursor"),
+		}
 		return call(ctx, OperationListEligibleEventSemanticEvents, request, func(callContext context.Context) (*Response[EligibleEventSemanticEvents], error) {
 			return application.ListEligibleEventSemanticEvents(callContext, request)
 		})

@@ -19,7 +19,8 @@ type EventSemanticContextLease struct {
 }
 
 type EligibleEventSemanticEventsRequest struct {
-	Limit int
+	Limit  int
+	Cursor string
 }
 
 type EligibleEventSemanticEvent struct {
@@ -27,7 +28,8 @@ type EligibleEventSemanticEvent struct {
 }
 
 type EligibleEventSemanticEvents struct {
-	Events []EligibleEventSemanticEvent `json:"events"`
+	Events     []EligibleEventSemanticEvent `json:"events"`
+	NextCursor string                       `json:"next_cursor,omitempty"`
 }
 
 type EventSemanticContextRequest struct {

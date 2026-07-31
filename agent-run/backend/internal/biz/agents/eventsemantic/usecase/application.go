@@ -3,12 +3,19 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	semanticworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/workflow"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
+)
+
+const (
+	eligibleEventPageSize = 20
+	maxEligibleEventPages = 100
 )
 
 type Runtime struct {
@@ -19,9 +26,7 @@ type Runtime struct {
 
 type RuntimeProvider func(context.Context) (Runtime, error)
 
-type EventLogger interface {
-	Error(string)
-}
+type EventLogger = agentrun.AgentLifecycleLogger
 
 type Application struct {
 	repository eventsemantic.Repository
@@ -61,7 +66,7 @@ func New(
 	application := &Application{
 		repository: repository, data: data, runtime: runtime, interval: interval,
 		now: time.Now, workerID: "event-semantic-enricher", notify: make(chan struct{}, 1),
-		done: make(chan struct{}), logger: discardLogger{},
+		done: make(chan struct{}), logger: agentrun.DiscardAgentLifecycleLogger{},
 	}
 	for _, option := range options {
 		if option != nil {
@@ -75,6 +80,11 @@ func (a *Application) Start(parent context.Context) {
 	a.startOnce.Do(func() {
 		ctx, cancel := context.WithCancel(parent)
 		a.cancel = cancel
+		a.logger.Info(agentrun.AgentLifecycleEvent{
+			Code: "agent_runtime_started", AgentKey: eventsemantic.AgentKey,
+			AgentVersion: eventsemantic.AgentVersion, RuntimeMode: "worker",
+			Status: "running",
+		})
 		go a.loop(ctx)
 	})
 }
@@ -94,8 +104,18 @@ func (a *Application) Shutdown(ctx context.Context) error {
 	})
 	select {
 	case <-a.done:
+		a.logger.Info(agentrun.AgentLifecycleEvent{
+			Code: "agent_runtime_stopped", AgentKey: eventsemantic.AgentKey,
+			AgentVersion: eventsemantic.AgentVersion, RuntimeMode: "worker",
+			Status: "stopped",
+		})
 		return nil
 	case <-ctx.Done():
+		a.logger.Error(agentrun.AgentLifecycleEvent{
+			Code: "agent_runtime_failed", AgentKey: eventsemantic.AgentKey,
+			AgentVersion: eventsemantic.AgentVersion, RuntimeMode: "worker",
+			Status: "failed", Stage: "shutdown", ErrorCode: "shutdown_deadline",
+		})
 		return ctx.Err()
 	}
 }
@@ -105,7 +125,7 @@ func (a *Application) loop(ctx context.Context) {
 	ticker := time.NewTicker(a.interval)
 	defer ticker.Stop()
 	if err := a.Tick(ctx); err != nil {
-		a.logger.Error("event_semantic_tick_failed")
+		a.logCycleFailure()
 	}
 	for {
 		select {
@@ -115,18 +135,14 @@ func (a *Application) loop(ctx context.Context) {
 		case <-a.notify:
 		}
 		if err := a.Tick(ctx); err != nil {
-			a.logger.Error("event_semantic_tick_failed")
+			a.logCycleFailure()
 		}
 	}
 }
 
 func (a *Application) Tick(ctx context.Context) error {
-	eligible, err := a.data.ListEligibleEvents(ctx, 20)
-	if err != nil {
-		return err
-	}
 	now := a.now().UTC()
-	if err := a.repository.EnsureInitialWorkItems(ctx, eligible, now); err != nil {
+	if err := a.discoverInitialWork(ctx, now); err != nil {
 		return err
 	}
 	attempt, found, err := a.repository.StartNextExecution(
@@ -135,12 +151,31 @@ func (a *Application) Tick(ctx context.Context) error {
 	if err != nil || !found {
 		return err
 	}
-	fail := func(code, summary string) error {
+	startedAt := a.now().UTC()
+	a.logger.Info(a.lifecycleEvent(
+		"agent_execution_started", attempt, startedAt, "running", "", "", "",
+	))
+	fail := func(code, summary string, retryable bool) error {
 		failure := errors.New(code)
 		completionErr := a.repository.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
 			ExecutionID: attempt.ID, Status: "failed", ErrorCode: code,
-			ErrorSummary: summary, CompletedAt: a.now().UTC(),
+			ErrorSummary: summary, Retryable: retryable, CompletedAt: a.now().UTC(),
 		})
+		if completionErr == nil {
+			eventCode := "agent_execution_failed"
+			if retryable && attempt.WorkItem.AttemptCount < attempt.WorkItem.MaxAttempts {
+				eventCode = "agent_execution_retry_scheduled"
+				a.logger.Warn(a.lifecycleEvent(
+					eventCode, attempt, startedAt, "failed", "retry_scheduled",
+					code, "execution",
+				))
+			} else {
+				a.logger.Error(a.lifecycleEvent(
+					eventCode, attempt, startedAt, "failed", "terminal_failure",
+					code, "execution",
+				))
+			}
+		}
 		return errors.Join(failure, completionErr)
 	}
 	existing, err := a.data.GetEventSemantics(ctx, attempt.WorkItem.EventID)
@@ -148,6 +183,7 @@ func (a *Application) Tick(ctx context.Context) error {
 		return fail(
 			"event_semantic_reconciliation_unavailable",
 			"Data Event Semantic reconciliation is unavailable",
+			retryableSemanticFailure(err, true),
 		)
 	}
 	var resumableSubmission *eventsemantic.SubmissionResult
@@ -155,9 +191,10 @@ func (a *Application) Tick(ctx context.Context) error {
 		submission := existing.Submissions[index]
 		if submission.AgentExecutionID == attempt.ID &&
 			isTerminalSubmissionStatus(submission.Status) {
-			return a.repository.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
-				ExecutionID: attempt.ID, Status: "succeeded", CompletedAt: a.now().UTC(),
-			})
+			return a.completeSuccess(
+				ctx, attempt, startedAt, "submission_reconciled", submission.Status,
+				semanticSubmissionCounts(submission),
+			)
 		}
 		if submission.AgentExecutionID == attempt.ID &&
 			(submission.Status == "pending_review" || submission.Status == "needs_reanalysis") &&
@@ -173,17 +210,38 @@ func (a *Application) Tick(ctx context.Context) error {
 		WorkerID:               a.workerID, LeaseSeconds: 15 * 60,
 	})
 	if err != nil {
-		return fail("event_semantic_context_lease_unavailable", "Data Event Semantic Context Lease is unavailable")
+		if semanticRemoteCode(err) == "EVENT_SEMANTICS_NOT_REQUIRED" {
+			return a.completeSuccess(
+				ctx, attempt, startedAt, "not_required", "succeeded",
+				map[string]int{
+					"events": 1, "submissions": 0,
+					"accepted_candidates": 0, "rejected_candidates": 0,
+				},
+			)
+		}
+		return fail(
+			"event_semantic_context_lease_unavailable",
+			"Data Event Semantic Context Lease is unavailable",
+			retryableSemanticFailure(err, true),
+		)
 	}
 	attempt.ContextLease = contextLease
 	contextSnapshot, err := a.data.Context(ctx, contextLease.ContextLeaseID)
 	if err != nil {
-		return fail("event_semantic_context_unavailable", "Data Event Semantic Context is unavailable")
+		return fail(
+			"event_semantic_context_unavailable",
+			"Data Event Semantic Context is unavailable",
+			retryableSemanticFailure(err, true),
+		)
 	}
 	attempt.Context = contextSnapshot
 	runtime, err := a.runtime(ctx)
 	if err != nil || runtime.Run == nil || runtime.GeneratorModel == "" || runtime.ReviewerModel == "" {
-		return fail("event_semantic_runtime_unavailable", "Event Semantic runtime is unavailable")
+		return fail(
+			"event_semantic_runtime_unavailable",
+			"Event Semantic runtime is unavailable",
+			true,
+		)
 	}
 	result, err := runtime.Run.Invoke(ctx, &semanticworkflow.Input{
 		Attempt: attempt, Context: contextSnapshot, ExistingSubmission: resumableSubmission,
@@ -194,14 +252,132 @@ func (a *Application) Tick(ctx context.Context) error {
 		if errors.Is(err, eventsemantic.ErrModelUnavailable) {
 			code = "event_semantic_model_unavailable"
 		}
-		return fail(code, "Event Semantic workflow did not complete")
+		return fail(
+			code,
+			"Event Semantic workflow did not complete",
+			retryableSemanticFailure(err, true),
+		)
 	}
 	if result == nil || result.SubmissionID == "" {
-		return fail("event_semantic_result_invalid", "Event Semantic workflow returned an invalid result")
+		return fail(
+			"event_semantic_result_invalid",
+			"Event Semantic workflow returned an invalid result",
+			false,
+		)
 	}
-	return a.repository.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+	return a.completeSuccess(
+		ctx, attempt, startedAt, "processed", result.Status,
+		map[string]int{
+			"events": 1, "submissions": 1,
+			"accepted_candidates": result.AcceptedCandidates,
+			"rejected_candidates": result.RejectedCandidates,
+		},
+	)
+}
+
+func (a *Application) completeSuccess(
+	ctx context.Context,
+	attempt eventsemantic.ExecutionAttempt,
+	startedAt time.Time,
+	outcome string,
+	status string,
+	counts map[string]int,
+) error {
+	err := a.repository.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
 		ExecutionID: attempt.ID, Status: "succeeded", CompletedAt: a.now().UTC(),
 	})
+	if err == nil {
+		a.logger.Info(a.lifecycleEvent(
+			"agent_execution_completed", attempt, startedAt, status, outcome, "", "",
+			counts,
+		))
+	}
+	return err
+}
+
+func (a *Application) lifecycleEvent(
+	code string,
+	attempt eventsemantic.ExecutionAttempt,
+	startedAt time.Time,
+	status string,
+	outcome string,
+	errorCode string,
+	stage string,
+	counts ...map[string]int,
+) agentrun.AgentLifecycleEvent {
+	duration := a.now().UTC().Sub(startedAt)
+	if duration < 0 {
+		duration = 0
+	}
+	event := agentrun.AgentLifecycleEvent{
+		Code: code, AgentKey: eventsemantic.AgentKey,
+		AgentVersion: eventsemantic.AgentVersion, RuntimeMode: "worker",
+		ExecutionID: attempt.ID, WorkItemID: attempt.WorkItem.ID,
+		TriggerSource: attempt.WorkItem.TriggerSource,
+		Status:        status, Outcome: outcome, Stage: stage, ErrorCode: errorCode,
+		Attempt:     attempt.WorkItem.AttemptCount,
+		MaxAttempts: attempt.WorkItem.MaxAttempts, Duration: duration,
+	}
+	if len(counts) > 0 {
+		event.Counts = counts[0]
+	}
+	return event
+}
+
+func (a *Application) logCycleFailure() {
+	a.logger.Error(agentrun.AgentLifecycleEvent{
+		Code: "agent_cycle_failed", AgentKey: eventsemantic.AgentKey,
+		AgentVersion: eventsemantic.AgentVersion, RuntimeMode: "worker",
+		Status: "failed", Stage: "tick", ErrorCode: "event_semantic_tick_failed",
+	})
+}
+
+func semanticRemoteCode(err error) string {
+	var remote *eventsemantic.RemoteError
+	if errors.As(err, &remote) {
+		return remote.Code
+	}
+	return ""
+}
+
+func retryableSemanticFailure(err error, defaultValue bool) bool {
+	var remote *eventsemantic.RemoteError
+	if errors.As(err, &remote) {
+		return remote.Retryable
+	}
+	return defaultValue
+}
+
+func (a *Application) discoverInitialWork(ctx context.Context, now time.Time) error {
+	cursor := ""
+	seen := make(map[string]struct{}, maxEligibleEventPages)
+	for pageNumber := 0; pageNumber < maxEligibleEventPages; pageNumber++ {
+		page, err := a.data.ListEligibleEvents(
+			ctx, eligibleEventPageSize, cursor,
+		)
+		if err != nil {
+			return err
+		}
+		created, err := a.repository.EnsureInitialWorkItems(ctx, page.Events, now)
+		if err != nil {
+			return err
+		}
+		if created > 0 || page.NextCursor == "" {
+			return nil
+		}
+		if page.NextCursor == cursor {
+			return errors.New("eligible Event pagination did not advance")
+		}
+		if _, exists := seen[page.NextCursor]; exists {
+			return errors.New("eligible Event pagination repeated a cursor")
+		}
+		seen[page.NextCursor] = struct{}{}
+		cursor = page.NextCursor
+	}
+	return fmt.Errorf(
+		"eligible Event discovery exceeded %d pages",
+		maxEligibleEventPages,
+	)
 }
 
 func isTerminalSubmissionStatus(status string) bool {
@@ -210,6 +386,16 @@ func isTerminalSubmissionStatus(status string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func semanticSubmissionCounts(
+	submission eventsemantic.SubmissionResult,
+) map[string]int {
+	accepted, rejected := submission.CandidateOutcomeCounts()
+	return map[string]int{
+		"events": 1, "submissions": 1,
+		"accepted_candidates": accepted, "rejected_candidates": rejected,
 	}
 }
 
@@ -223,7 +409,3 @@ func (a *Application) RequestReanalysis(
 	}
 	return item, replayed, err
 }
-
-type discardLogger struct{}
-
-func (discardLogger) Error(string) {}

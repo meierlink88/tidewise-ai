@@ -73,9 +73,9 @@ func TestEventSemanticClientConsumesFrozenProviderFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eligible, err := client.ListEligibleEvents(context.Background(), 20)
-	if err != nil || len(eligible) != 1 ||
-		eligible[0].EventID != "88888888-8888-4888-8888-888888888888" {
+	eligible, err := client.ListEligibleEvents(context.Background(), 20, "")
+	if err != nil || len(eligible.Events) != 1 ||
+		eligible.Events[0].EventID != "88888888-8888-4888-8888-888888888888" {
 		t.Fatalf("eligible=%#v err=%v", eligible, err)
 	}
 	contextLease, err := client.CreateContextLease(context.Background(), eventsemantic.ContextLeaseRequest{
@@ -165,9 +165,39 @@ func TestEventSemanticEligibleEventsCanBeEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	events, listErr := client.ListEligibleEvents(context.Background(), 20)
-	if listErr != nil || len(events) != 0 {
-		t.Fatalf("events=%#v err=%v", events, listErr)
+	page, listErr := client.ListEligibleEvents(context.Background(), 20, "")
+	if listErr != nil || len(page.Events) != 0 || page.NextCursor != "" {
+		t.Fatalf("page=%#v err=%v", page, listErr)
+	}
+}
+
+func TestEventSemanticEligibleEventsCarriesOpaqueCursorAcrossTheContract(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Query().Get("limit") != "20" ||
+			request.URL.Query().Get("cursor") != "opaque-current-page" {
+			t.Fatalf("query = %q", request.URL.RawQuery)
+		}
+		requestID := request.Header.Get("X-Request-ID")
+		response.Header().Set("X-Request-ID", requestID)
+		_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","result":{"events":[{"event_id":"88888888-8888-4888-8888-888888888888"}],"next_cursor":"opaque-next-page"}}`))
+	}))
+	defer server.Close()
+	client, err := New(Config{
+		BaseURL: server.URL, ServiceToken: "token",
+		Timeout: time.Second, MaxResponseBytes: 4096,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	page, listErr := client.ListEligibleEvents(
+		context.Background(), 20, "opaque-current-page",
+	)
+
+	if listErr != nil || len(page.Events) != 1 ||
+		page.Events[0].EventID != "88888888-8888-4888-8888-888888888888" ||
+		page.NextCursor != "opaque-next-page" {
+		t.Fatalf("page=%#v err=%v", page, listErr)
 	}
 }
 

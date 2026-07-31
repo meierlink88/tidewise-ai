@@ -46,7 +46,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 9 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 10 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -64,8 +64,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "009" ||
-		len(report.Applied) != 9 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "010" ||
+		len(report.Applied) != 10 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -509,7 +509,7 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 	store := postgres.New(database)
 	now := time.Date(2026, 7, 29, 8, 30, 0, 0, time.UTC)
 	eventID := "22222222-2222-4222-8222-222222222222"
-	if err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now); err != nil {
+	if _, err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now); err != nil {
 		t.Fatal(err)
 	}
 	attempt, found, err := store.StartNextExecution(ctx, "worker-1", strings.Repeat("a", 64), now)
@@ -521,7 +521,7 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 	}
 	if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
 		ExecutionID: attempt.ID, Status: "failed", ErrorCode: "temporary_failure",
-		ErrorSummary: "retry", CompletedAt: now.Add(time.Minute),
+		ErrorSummary: "retry", Retryable: true, CompletedAt: now.Add(time.Minute),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -546,6 +546,100 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 	)
 	if err != nil || found {
 		t.Fatalf("exhausted Work Item found=%v err=%v", found, err)
+	}
+}
+
+func TestHistoricalEventDispositionIsIdempotentAndRecoversOnlyValidFailures(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "semantic_history_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	now := time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC)
+	invalidExisting := "22222222-2222-4222-8222-222222222221"
+	invalidMissing := "22222222-2222-4222-8222-222222222222"
+	validFailed := "22222222-2222-4222-8222-222222222223"
+	for _, eventID := range []string{invalidExisting, validFailed} {
+		if _, err := store.EnsureInitialWorkItems(
+			ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now,
+		); err != nil {
+			t.Fatal(err)
+		}
+		attempt, found, err := store.StartNextExecution(
+			ctx, "history-worker", strings.Repeat("a", 64), now,
+		)
+		if err != nil || !found {
+			t.Fatalf("start %s: found=%v err=%v", eventID, found, err)
+		}
+		for attemptNumber := 0; attemptNumber < 2; attemptNumber++ {
+			if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+				ExecutionID: attempt.ID, Status: "failed", ErrorCode: "historical",
+				ErrorSummary: "historical", Retryable: true, CompletedAt: now.Add(time.Minute),
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if attemptNumber == 0 {
+				attempt, found, err = store.StartNextExecution(
+					ctx, "history-worker", strings.Repeat("a", 64), now.Add(2*time.Minute),
+				)
+				if err != nil || !found {
+					t.Fatalf("retry %s: found=%v err=%v", eventID, found, err)
+				}
+			}
+		}
+	}
+	manifest := eventsemantic.HistoricalManifest{
+		Version:     eventsemantic.HistoricalManifestVersion,
+		GeneratedAt: now,
+		InvalidEventIDs: []string{
+			invalidExisting, invalidMissing,
+		},
+		ValidEventIDs: []string{validFailed},
+	}
+
+	plan, err := store.PlanHistoricalEventDisposition(ctx, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.SkippedCreated != 1 || plan.SkippedUpdated != 1 ||
+		plan.ValidFailuresRecovered != 1 {
+		t.Fatalf("plan = %#v", plan)
+	}
+	applied, err := store.ApplyHistoricalEventDisposition(
+		ctx, manifest, now.Add(3*time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied.SkippedCreated != 1 || applied.SkippedUpdated != 1 ||
+		applied.ValidFailuresRecovered != 1 {
+		t.Fatalf("applied = %#v", applied)
+	}
+	repeated, err := store.ApplyHistoricalEventDisposition(
+		ctx, manifest, now.Add(4*time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repeated.AlreadySkipped != 2 || repeated.PendingPreserved != 1 ||
+		repeated.SkippedCreated != 0 || repeated.ValidFailuresRecovered != 0 {
+		t.Fatalf("repeated = %#v", repeated)
 	}
 }
 
