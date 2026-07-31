@@ -117,7 +117,7 @@ func TestHistoricalApplyLocksPlanExportAndApplyAsOneOperation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if info.Mode().Perm() != 0o640 {
 		t.Fatalf("export mode = %o", info.Mode().Perm())
 	}
 }

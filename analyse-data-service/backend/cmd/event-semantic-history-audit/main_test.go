@@ -25,7 +25,7 @@ func TestAuditOutputNeverOverwritesAnExistingManifest(t *testing.T) {
 	}
 }
 
-func TestAuditOutputCreatesPrivateManifestFile(t *testing.T) {
+func TestAuditOutputCreatesOperatorReadablePrivateManifestFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "audit.json")
 	writer, closeWriter, err := outputWriter(path)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestAuditOutputCreatesPrivateManifestFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if info.Mode().Perm() != 0o640 {
 		t.Fatalf("mode = %o", info.Mode().Perm())
 	}
 }
