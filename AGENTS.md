@@ -49,18 +49,22 @@ Lifecycle 和 Architecture 仅在对应风险被本次修改触及时启用。�
 
 ### 观潮家开发规范
 
-讨论、设计、实现、调试、迁移或审查任何观潮家工程需求前，必须先使用全局 Skill
-`$ganchaojia-development-standard`，不得以熟悉现有代码为由跳过。
+讨论、设计、实现、调试、迁移或审查任何观潮家工程需求前，运行环境提供全局 Skill
+`$ganchaojia-development-standard` 时必须先使用，不得以熟悉现有代码为由跳过。
+若该 Skill 不可用，必须直接读取 `docs/agents/engineering-standard.md`、
+`docs/agents/coding-standard.md`、`docs/agents/workflow.md` 和
+`docs/agents/testing.md`，再按 behavior owner 进入下述技术栈规范；Skill 缺失不得成为
+跳过设计、编码或验证门禁的理由。
 
-- Miniapp 前端工作执行其中的 Taro reference-first 分支，并继续读取本项目现有
+- Miniapp 前端工作执行 Taro reference-first，读取本项目现有
   `$taro-reference-first` 规则、来源目录和 `docs/agents/miniapp-frontend.md`。
-- Admin Portal 前端工作执行其中的 shadcn 分支，并继续读取
+- Admin Portal 前端工作执行 shadcn 分支，并读取
   `docs/agents/admin-portal-frontend.md`。当前选型固定为 React 18、Vite 6、
   TypeScript、shadcn-admin/shadcn/ui、TanStack Query/Table、React Hook Form 与
   Zod；不得为适配前端框架改造 Admin Backend API。
-- Backend Service 工作执行其中的 Kratos 分支，并继续读取
+- Backend Service 工作执行 Kratos 分支，并读取
   `docs/architecture/kratos-backend-development-standard-v1.md`。
-- Eino/Agent 工作执行其中的 Eino reference-first 分支，并遵守
+- Eino/Agent 工作执行 Eino reference-first，并遵守
   `docs/agents/agentrun-eino.md` 与 `docs/agents/workflow.md` 的 Eino
   reference-first gate。
 - 跨前端、Service 与 Agent 的需求同时执行所有适用分支，并先冻结 API、数据和所有权边界。
