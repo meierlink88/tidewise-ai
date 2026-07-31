@@ -4,18 +4,20 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-transparent px-4 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        destructive: 'bg-destructive text-white hover:bg-destructive/90',
-        outline: 'border-border bg-background text-foreground hover:bg-accent',
+        default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
+        destructive:
+          'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20',
+        outline:
+          'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'text-foreground hover:bg-accent'
+        ghost: 'hover:bg-accent hover:text-accent-foreground'
       },
       size: {
-        default: 'h-10',
+        default: 'h-9 px-4 py-2',
         sm: 'h-9 px-3',
         icon: 'size-9 p-0'
       }
@@ -47,20 +49,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = 'Button';
 
-interface LegacyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-}
-
-function LegacyButton({
-  className,
-  type = 'button',
-  variant = 'primary',
-  ...props
-}: LegacyButtonProps) {
-  return (
-    <button className={cn('ui-button', `ui-button-${variant}`, className)} type={type} {...props} />
-  );
-}
-
-export default LegacyButton;
 export { Button, buttonVariants };

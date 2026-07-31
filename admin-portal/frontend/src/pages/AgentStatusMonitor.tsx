@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { Activity } from 'lucide-react';
 import { loadAgentStatuses, type AgentStatus } from '../api/agentManagement';
 import MetricCard from '../components/admin/metric-card';
 import QueryError from '../components/admin/query-error';
-import Icon from '../components/ui/Icon';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
@@ -30,25 +30,29 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
     statusQuery.error instanceof Error ? statusQuery.error.message : 'Agent 状态加载失败';
 
   return (
-    <section className='agent-status-monitor'>
-      <div className='agent-status-toolbar'>
+    <section className='grid h-full min-w-0 content-start gap-5 overflow-auto pb-6'>
+      <div className='flex items-start justify-between gap-4 max-sm:flex-col'>
         <div>
-          <span className='eyebrow'>Runtime monitor</span>
-          <h2>Agent 运行状态</h2>
-          <p>只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。</p>
+          <span className='text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground'>
+            Runtime monitor
+          </span>
+          <h2 className='my-1.5 text-2xl font-semibold tracking-tight'>Agent 运行状态</h2>
+          <p className='m-0 text-sm text-muted-foreground'>
+            只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。
+          </p>
         </div>
         <Button
-          className='agent-status-refresh'
+          className='max-sm:w-full'
           disabled={statusQuery.isFetching}
           variant='outline'
           onClick={() => void statusQuery.refetch()}
         >
-          <Icon name='activity' />
+          <Activity aria-hidden='true' className='size-4' />
           {statusQuery.isFetching && !statusQuery.isLoading ? '刷新中…' : '刷新状态'}
         </Button>
       </div>
 
-      <div className='agent-status-summary' aria-label='Agent 状态概览'>
+      <div className='grid grid-cols-3 gap-3.5 max-sm:grid-cols-1' aria-label='Agent 状态概览'>
         <MetricCard label='已注册' value={items.length} />
         <MetricCard label='工作中' value={workingCount} />
         <MetricCard label='空闲' value={items.length - workingCount} />
@@ -94,9 +98,9 @@ function AgentStatusTable({ items }: { items: AgentStatus[] }) {
         {items.map((item) => (
           <TableRow key={item.agent_key}>
             <TableCell>
-              <div className='agent-status-identity'>
+              <div className='grid gap-1'>
                 <strong>{item.display_name}</strong>
-                <span>{item.agent_key}</span>
+                <span className='text-xs text-muted-foreground'>{item.agent_key}</span>
               </div>
             </TableCell>
             <TableCell>{item.current_version}</TableCell>

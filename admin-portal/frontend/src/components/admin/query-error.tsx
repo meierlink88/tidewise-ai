@@ -1,4 +1,4 @@
-import { Button } from '../ui/Button';
+import StatusAlert from './status-alert';
 
 interface QueryErrorProps {
   message: string;
@@ -8,14 +8,13 @@ interface QueryErrorProps {
 
 export default function QueryError({ message, onRetry, retrying = false }: QueryErrorProps) {
   return (
-    <div
-      className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive-border bg-destructive-subtle p-4 text-sm text-destructive-foreground'
-      role='alert'
+    <StatusAlert
+      actionLabel={retrying ? '重试中…' : '重试'}
+      actionDisabled={retrying}
+      onAction={onRetry}
+      tone='destructive'
     >
-      <span>{message}</span>
-      <Button disabled={retrying} onClick={onRetry} size='sm' variant='outline'>
-        {retrying ? '重试中…' : '重试'}
-      </Button>
-    </div>
+      {message}
+    </StatusAlert>
   );
 }

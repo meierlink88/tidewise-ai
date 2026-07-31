@@ -6,7 +6,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-border bg-card text-card-foreground shadow-sm',
+        'flex flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm',
         className
       )}
       {...props}
@@ -17,7 +17,7 @@ Card.displayName = 'Card';
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('flex flex-col gap-1.5 p-6', className)} {...props} />
+    <div ref={ref} className={cn('grid gap-1.5 px-6', className)} {...props} />
   )
 );
 CardHeader.displayName = 'CardHeader';
@@ -39,18 +39,9 @@ CardDescription.displayName = 'CardDescription';
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
+    <div ref={ref} className={cn('px-6', className)} {...props} />
   )
 );
 CardContent.displayName = 'CardContent';
 
-interface LegacyCardProps extends React.HTMLAttributes<HTMLElement> {
-  muted?: boolean;
-}
-
-function LegacyCard({ className, muted = false, ...props }: LegacyCardProps) {
-  return <article className={cn('ui-card', muted && 'ui-card-muted', className)} {...props} />;
-}
-
-export default LegacyCard;
 export { Card, CardContent, CardDescription, CardHeader, CardTitle };

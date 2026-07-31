@@ -28,6 +28,7 @@ describe('App admin login', () => {
 
   beforeEach(() => {
     storage.clear();
+    document.documentElement.classList.remove('dark');
     const localStorageMock = {
       getItem: vi.fn((key: string) => storage.get(key) ?? null),
       setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
@@ -170,5 +171,26 @@ describe('App admin login', () => {
     expect(document.documentElement).toHaveClass('dark');
     expect(storage.get('tidewise_admin_theme')).toBe('dark');
     expect(screen.getByRole('button', { name: '切换到浅色主题' })).toBeInTheDocument();
+  });
+
+  it('uses the light shadcn-admin theme by default even when the OS prefers dark', async () => {
+    storage.set('tidewise_admin_token', 'local-admin-token');
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+
+    render(<App />);
+
+    await screen.findByText('暂无原始数据');
+    expect(document.documentElement).not.toHaveClass('dark');
+    expect(storage.get('tidewise_admin_theme')).toBe('light');
+    expect(screen.getByRole('button', { name: '切换到深色主题' })).toBeInTheDocument();
   });
 });

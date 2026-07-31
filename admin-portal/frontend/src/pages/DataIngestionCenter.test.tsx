@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as agentManagementAPI from '../api/agentManagement';
@@ -36,7 +36,8 @@ describe('DataIngestionCenter', () => {
 
     render(<DataIngestionCenter token="secret-token" />);
 
-    expect(await screen.findByRole('tab', { name: '原始数据' })).toBeInTheDocument();
+    const rawTab = await screen.findByRole('tab', { name: '原始数据' });
+    expect(rawTab).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '全球事件' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '采集器配置' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: '搜索通道' })).not.toBeInTheDocument();
@@ -48,6 +49,18 @@ describe('DataIngestionCenter', () => {
       page: 1,
       title: ''
     });
+
+    await act(async () => {
+      rawTab.focus();
+      fireEvent.keyDown(rawTab, { key: 'ArrowRight' });
+      await Promise.resolve();
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: '全球事件' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
+    );
   });
 
   it('applies raw title search and event filters', async () => {
@@ -82,8 +95,10 @@ describe('DataIngestionCenter', () => {
 
     await user.click(screen.getByRole('tab', { name: '全球事件' }));
     await user.type(screen.getByLabelText('事件标题搜索'), '美联储');
-    await user.selectOptions(screen.getByLabelText('事件状态'), 'confirmed');
-    await user.selectOptions(screen.getByLabelText('事实状态'), 'verified');
+    await user.click(screen.getByLabelText('事件状态'));
+    await user.click(screen.getByRole('option', { name: '已确认' }));
+    await user.click(screen.getByLabelText('事实状态'));
+    await user.click(screen.getByRole('option', { name: '已核验' }));
     await user.type(screen.getByLabelText('事件时间开始'), eventTimeFrom);
     await user.type(screen.getByLabelText('事件时间结束'), eventTimeTo);
     await user.type(screen.getByLabelText('首次发现开始'), firstSeenFrom);
@@ -152,7 +167,7 @@ describe('DataIngestionCenter', () => {
     expect(setEnabled).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: '停止定时器' }));
-    expect(screen.getByRole('dialog', { name: '停止定时器' })).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog', { name: '停止定时器' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '取消' }));
     expect(setEnabled).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: '停止定时器' }));
@@ -186,7 +201,7 @@ describe('DataIngestionCenter', () => {
 
     render(<DataIngestionCenter token="secret-token" />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
-    await user.click(screen.getByRole('button', { name: 'Cron' }));
+    await user.click(screen.getByRole('tab', { name: 'Cron' }));
     await user.clear(screen.getByLabelText('Cron 表达式'));
     await user.type(screen.getByLabelText('Cron 表达式'), '15 * * * *');
     await user.click(screen.getByRole('button', { name: '保存配置' }));

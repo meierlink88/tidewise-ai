@@ -7,16 +7,17 @@ import {
   type RawDocumentItem,
   type RawDocumentQuery
 } from '../api/dataIngestion';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import DataTable, { type DataTableColumn } from '../components/ui/DataTable';
-import Field from '../components/ui/Field';
-import Icon from '../components/ui/Icon';
-import Input from '../components/ui/Input';
-import Pagination from '../components/ui/Pagination';
-import Select from '../components/ui/Select';
-import StatusBadge from '../components/ui/StatusBadge';
-import Tabs, { TabPanel } from '../components/ui/Tabs';
+import { Search } from 'lucide-react';
+import StatusAlert from '../components/admin/status-alert';
+import { Button } from '../components/ui/Button';
+import { Card, CardContent } from '../components/ui/Card';
+import { DataTable, type DataTableColumn } from '../components/admin/data-table';
+import { Field } from '../components/ui/Field';
+import { Input } from '../components/ui/Input';
+import { Pagination } from '../components/admin/pagination';
+import { Select } from '../components/ui/Select';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import CollectorConfiguration from './CollectorConfiguration';
 
 type ActiveTab = 'raw' | 'events' | 'collector';
@@ -175,22 +176,34 @@ export default function DataIngestionCenter({ token }: { token: string }) {
   };
 
   return (
-    <section className="data-ingestion-center">
-      <div className="data-ingestion-tabs-bar">
-        <Tabs active={activeTab} items={tabItems} onChange={setActiveTab} />
+    <Tabs
+      className="grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)]"
+      onValueChange={(value) => isActiveTab(value) && setActiveTab(value)}
+      value={activeTab}
+    >
+      <div className="bg-background pb-4">
+        <TabsList aria-label="数据采集中心标签">
+          {tabItems.map((item) => (
+            <TabsTrigger key={item.id} value={item.id}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
       </div>
-      <div className="data-ingestion-scroll-area">
-        {error ? <div className="ui-alert danger">{error}</div> : null}
+      <div className="min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
+        {error ? <StatusAlert tone="destructive">{error}</StatusAlert> : null}
 
-        {activeTab === 'raw' ? (
-          <TabPanel label="全球政经原始数据列表">
-            <Card>
-              <form className="toolbar-form" onSubmit={submitRawSearch}>
-                <Field label="原始数据标题搜索">
-                  <div className="search-input-row">
-                    <Icon name="search" />
+        <TabsContent aria-label="全球政经原始数据列表" className="grid gap-4" value="raw">
+            <Card className="gap-4">
+              <CardContent className="grid gap-4">
+              <form className="grid items-end gap-3.5 sm:grid-cols-[minmax(13.75rem,1fr)_auto]" onSubmit={submitRawSearch}>
+                <Field controlId="raw-title-search" label="原始数据标题搜索">
+                  <div className="relative">
+                    <Search aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       aria-label="原始数据标题搜索"
+                      className="pl-9"
+                      id="raw-title-search"
                       onChange={(event) => setRawTitle(event.target.value)}
                       value={rawTitle}
                     />
@@ -210,14 +223,14 @@ export default function DataIngestionCenter({ token }: { token: string }) {
                 total={rawPage.total}
                 onPageChange={(page) => setRawQuery((current) => ({ ...current, page }))}
               />
+              </CardContent>
             </Card>
-          </TabPanel>
-        ) : null}
+        </TabsContent>
 
-        {activeTab === 'events' ? (
-          <TabPanel label="全球事件列表">
-            <Card>
-              <form className="toolbar-form event-filter-form" onSubmit={submitEventSearch}>
+        <TabsContent aria-label="全球事件列表" className="grid gap-4" value="events">
+            <Card className="gap-4">
+              <CardContent className="grid gap-4">
+              <form className="grid items-end gap-3.5 xl:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]" onSubmit={submitEventSearch}>
                 <Field label="事件标题搜索">
                   <Input
                     aria-label="事件标题搜索"
@@ -227,27 +240,29 @@ export default function DataIngestionCenter({ token }: { token: string }) {
                 </Field>
                 <Field label="事件状态">
                   <Select
-                    aria-label="事件状态"
-                    onChange={(event) => setEventStatus(event.target.value)}
-                    value={eventStatus}
-                  >
-                    <option value="">全部</option>
-                    <option value="candidate">候选</option>
-                    <option value="confirmed">已确认</option>
-                    <option value="archived">已归档</option>
-                  </Select>
+                    ariaLabel="事件状态"
+                    onValueChange={(value) => setEventStatus(value === 'all' ? '' : value)}
+                    options={[
+                      { label: '全部', value: 'all' },
+                      { label: '候选', value: 'candidate' },
+                      { label: '已确认', value: 'confirmed' },
+                      { label: '已归档', value: 'archived' }
+                    ]}
+                    value={eventStatus || 'all'}
+                  />
                 </Field>
                 <Field label="事实状态">
                   <Select
-                    aria-label="事实状态"
-                    onChange={(event) => setFactStatus(event.target.value)}
-                    value={factStatus}
-                  >
-                    <option value="">全部</option>
-                    <option value="unverified">未核验</option>
-                    <option value="verified">已核验</option>
-                    <option value="disputed">有争议</option>
-                  </Select>
+                    ariaLabel="事实状态"
+                    onValueChange={(value) => setFactStatus(value === 'all' ? '' : value)}
+                    options={[
+                      { label: '全部', value: 'all' },
+                      { label: '未核验', value: 'unverified' },
+                      { label: '已核验', value: 'verified' },
+                      { label: '有争议', value: 'disputed' }
+                    ]}
+                    value={factStatus || 'all'}
+                  />
                 </Field>
                 <Field label="事件时间开始">
                   <Input
@@ -295,13 +310,15 @@ export default function DataIngestionCenter({ token }: { token: string }) {
                 total={eventPage.total}
                 onPageChange={(page) => setEventQuery((current) => ({ ...current, page }))}
               />
+              </CardContent>
             </Card>
-          </TabPanel>
-        ) : null}
+        </TabsContent>
 
-        {activeTab === 'collector' ? <CollectorConfiguration token={token} /> : null}
+        <TabsContent aria-label="采集器配置" value="collector">
+          {activeTab === 'collector' ? <CollectorConfiguration token={token} /> : null}
+        </TabsContent>
       </div>
-    </section>
+    </Tabs>
   );
 }
 
@@ -341,4 +358,8 @@ function toRFC3339(value: string): string | undefined {
     return undefined;
   }
   return date.toISOString();
+}
+
+function isActiveTab(value: string): value is ActiveTab {
+  return tabItems.some((item) => item.id === value);
 }
