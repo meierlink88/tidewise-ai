@@ -66,6 +66,10 @@ Miniapp Frontend 与 Admin Portal Frontend 默认只保留：
 CSS 细节、构建配置源码、简单 presentation mapping 和重复 Mock fixture 不单独测试；
 平台差异或安全失败逻辑确有独立行为时除外。
 
+Admin Portal Frontend 的 shadcn、TanStack Query/Table、React Hook Form 与 Zod 条件
+验证继续遵守 `docs/agents/admin-portal-frontend.md`；不测试上游框架内部实现，也不以
+前端校验替代 Admin Backend 合同测试。
+
 AgentRun 的 Eino Workflow、调度和 Agent 能力中会改变可观察结果的行为归入 Biz seam。
 测试使用真实编译的 Eino 编排和 fake model、Tool、Connector、Provider；Provider
 协议、Artifact 持久化和 PostgreSQL 事务归入条件 Data/Adapter seam。

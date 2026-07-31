@@ -46,6 +46,10 @@ Lifecycle 和 Architecture 仅在对应风险被本次修改触及时启用。�
 
 - Miniapp 前端工作执行其中的 Taro reference-first 分支，并继续读取本项目现有
   `$taro-reference-first` 规则和来源目录。
+- Admin Portal 前端工作执行其中的 shadcn 分支，并继续读取
+  `docs/agents/admin-portal-frontend.md`。当前选型固定为 React 18、Vite 6、
+  TypeScript、shadcn-admin/shadcn/ui、TanStack Query/Table、React Hook Form 与
+  Zod；不得为适配前端框架改造 Admin Backend API。
 - Backend Service 工作执行其中的 Kratos 分支。
 - Eino/Agent 工作执行其中的 Eino reference-first 分支，并遵守
   `docs/agents/workflow.md` 的 Eino reference-first gate。
