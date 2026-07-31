@@ -75,22 +75,27 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	}
 }
 
-func TestEventSemanticResolutionPagesDeclareRequestIDAndContextDrift(t *testing.T) {
+func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	for _, path := range []string{
-		namespace + "/event-semantics/resolution-anchors:list",
-		namespace + "/event-semantics/chain-node-candidates:resolve",
-	} {
-		operation := object(t, object(t, paths[path], path)["post"], "POST "+path)
+	operations := map[string]string{
+		namespace + "/event-semantics/context-leases/{context_lease_id}/context": "get",
+		namespace + "/event-semantics/entity-resolutions":                         "post",
+		namespace + "/event-semantics/direct-targets:search":                      "post",
+		namespace + "/event-semantics/resolution-routes:list":                     "post",
+		namespace + "/event-semantics/resolution-anchors:list":                    "post",
+		namespace + "/event-semantics/chain-node-candidates:resolve":               "post",
+	}
+	for path, method := range operations {
+		operation := object(t, object(t, paths[path], path)[method], method+" "+path)
 		parameters := array(t, operation["parameters"], path+" parameters")
-		if len(parameters) != 1 || stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
-			t.Fatalf("POST %s must accept exactly the unified X-Request-ID parameter: %v", path, parameters)
+		if stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
+			t.Fatalf("%s %s must accept the unified X-Request-ID parameter first: %v", method, path, parameters)
 		}
 		responses := object(t, operation["responses"], path+" responses")
 		drift := object(t, responses["409"], "409 response")
 		if stringValue(t, drift["$ref"], "$ref") != "#/components/responses/EventSemanticContextDrift" {
-			t.Fatalf("POST %s 409 response = %v", path, drift)
+			t.Fatalf("%s %s 409 response = %v", method, path, drift)
 		}
 	}
 	detail := schema(t, document, "EventSemanticContextDriftErrorDetail")

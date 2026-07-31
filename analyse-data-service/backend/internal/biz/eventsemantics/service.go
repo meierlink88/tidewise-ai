@@ -219,7 +219,7 @@ func (s *Service) ListResolutionAnchors(
 	cursor string,
 ) (ResolutionAnchorPage, error) {
 	if strings.TrimSpace(contextLeaseID) == "" || strings.TrimSpace(routeID) == "" ||
-		strings.TrimSpace(partition) == "" || pageSize < 1 || pageSize > 50 {
+		strings.TrimSpace(partition) == "" || len(parentAnchorIDs) > 20 || pageSize < 1 || pageSize > 50 {
 		return ResolutionAnchorPage{}, &ValidationError{Reason: "anchor request identity and page_size are invalid"}
 	}
 	if routeID == "chain-node-via-industry.v1" {

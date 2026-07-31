@@ -163,6 +163,10 @@ Output contains:
 - permitted next operation and stable ordering contract.
 
 The response does not contain every Industry, Concept, IndustryChain or ChainNode.
+Each route exposes at most 50 partitions, ordered by canonical name and formal identity. Partitions
+beyond that deterministic Data-owned budget are outside the current resolution window and therefore
+produce an unresolved semantic outcome; AgentRun must not bypass the budget with another catalog
+query or a model-controlled loop.
 
 ### 7.2 List formal anchors
 
@@ -244,6 +248,10 @@ Persist only the bounded material required to identify and validate the attempt:
 - Entity Resolution route contract version;
 - Agent Execution ID, worker identity, lease status and expiry;
 - manifest contract version and canonical manifest fingerprint.
+
+The canonical manifest fingerprint covers every persisted manifest field except the fingerprint
+field itself, including lease status and expiry. Renewing a lease rewrites the expiry and recomputes
+the fingerprint atomically with the lease row update.
 
 Do not persist in the manifest:
 

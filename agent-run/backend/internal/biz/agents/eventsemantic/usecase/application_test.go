@@ -258,6 +258,65 @@ func TestTickRejectsContextOwnedByAnotherWorkerBeforeLoadingRuntime(t *testing.T
 	}
 }
 
+func TestValidateContextIdentityRejectsEveryMismatchedIdentity(t *testing.T) {
+	expiresAt := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	attempt := eventsemantic.ExecutionAttempt{ID: "execution-1", WorkItem: eventsemantic.WorkItem{
+		EventID: "event-1", SupersedesSubmissionID: "submission-1",
+	}}
+	lease := eventsemantic.ContextLease{
+		ContextLeaseID: "lease-1", EventID: "event-1", SupersedesSubmissionID: "submission-1",
+		Status: "active", LeaseExpiresAt: expiresAt,
+	}
+	contextValue := eventsemantic.Context{
+		ContextLeaseID: "lease-1", AgentExecutionID: "execution-1", WorkerID: "worker-1",
+		LeaseExpiresAt: expiresAt.Format(time.RFC3339Nano), Event: eventsemantic.Event{ID: "event-1"},
+	}
+	tests := []struct {
+		name   string
+		mutate func(*eventsemantic.ExecutionAttempt, *eventsemantic.ContextLease, *eventsemantic.Context)
+	}{
+		{name: "lease status", mutate: func(_ *eventsemantic.ExecutionAttempt, lease *eventsemantic.ContextLease, _ *eventsemantic.Context) {
+			lease.Status = "expired"
+		}},
+		{name: "lease id", mutate: func(_ *eventsemantic.ExecutionAttempt, _ *eventsemantic.ContextLease, value *eventsemantic.Context) {
+			value.ContextLeaseID = "lease-2"
+		}},
+		{name: "agent execution", mutate: func(_ *eventsemantic.ExecutionAttempt, _ *eventsemantic.ContextLease, value *eventsemantic.Context) {
+			value.AgentExecutionID = "execution-2"
+		}},
+		{name: "worker", mutate: func(_ *eventsemantic.ExecutionAttempt, _ *eventsemantic.ContextLease, value *eventsemantic.Context) {
+			value.WorkerID = "worker-2"
+		}},
+		{name: "lease event", mutate: func(_ *eventsemantic.ExecutionAttempt, lease *eventsemantic.ContextLease, _ *eventsemantic.Context) {
+			lease.EventID = "event-2"
+		}},
+		{name: "context event", mutate: func(_ *eventsemantic.ExecutionAttempt, _ *eventsemantic.ContextLease, value *eventsemantic.Context) {
+			value.Event.ID = "event-2"
+		}},
+		{name: "supersedes", mutate: func(_ *eventsemantic.ExecutionAttempt, lease *eventsemantic.ContextLease, _ *eventsemantic.Context) {
+			lease.SupersedesSubmissionID = "submission-2"
+		}},
+		{name: "expiry", mutate: func(_ *eventsemantic.ExecutionAttempt, _ *eventsemantic.ContextLease, value *eventsemantic.Context) {
+			value.LeaseExpiresAt = expiresAt.Add(time.Second).Format(time.RFC3339Nano)
+		}},
+		{name: "malformed expiry", mutate: func(_ *eventsemantic.ExecutionAttempt, _ *eventsemantic.ContextLease, value *eventsemantic.Context) {
+			value.LeaseExpiresAt = "invalid"
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotAttempt, gotLease, gotContext := attempt, lease, contextValue
+			test.mutate(&gotAttempt, &gotLease, &gotContext)
+			if err := validateContextIdentity(gotAttempt, gotLease, gotContext, "worker-1"); err == nil {
+				t.Fatal("expected identity mismatch")
+			}
+		})
+	}
+	if err := validateContextIdentity(attempt, lease, contextValue, "worker-1"); err != nil {
+		t.Fatalf("valid identity rejected: %v", err)
+	}
+}
+
 func TestTickCompletesWithoutRetryWhenEventNoLongerRequiresSemantics(t *testing.T) {
 	repository := &applicationRepositoryStub{}
 	data := &applicationDataStub{leaseErr: &eventsemantic.RemoteError{

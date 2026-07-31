@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -161,6 +162,25 @@ func TestResolutionAnchorPaginationRejectsCursorFromAnotherLeaseAsDrift(t *testi
 	var drift *ContextDriftError
 	if !errors.As(err, &drift) {
 		t.Fatalf("drift error = %T %v", err, err)
+	}
+}
+
+func TestResolutionAnchorPaginationRejectsOversizedParentBudgetBeforeStoreAccess(t *testing.T) {
+	store := &paginationStoreStub{}
+	service := NewService(store)
+	parents := make([]string, 21)
+	for index := range parents {
+		parents[index] = "11111111-1111-4111-8111-" + fmt.Sprintf("%012d", index)
+	}
+
+	_, err := service.ListResolutionAnchors(
+		context.Background(), "lease", "chain-node-via-industry.v1",
+		"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", parents, 20, "",
+	)
+
+	var validation *ValidationError
+	if !errors.As(err, &validation) || store.resolutionLimit != 0 {
+		t.Fatalf("err = %T %v resolution_limit = %d", err, err, store.resolutionLimit)
 	}
 }
 

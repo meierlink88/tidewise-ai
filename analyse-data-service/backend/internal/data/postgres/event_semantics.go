@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	eventSemanticsOntologyVersion = "event-semantics.phase-one@1"
-	eventSemanticsPolicyVersion   = "event-semantics.phase-one@1"
-	eventSemanticsManifestVersion = "event-semantic-context-manifest.v1"
-	eventSemanticsRouteVersion    = "event-semantic-anchor-routes.v1"
+	eventSemanticsOntologyVersion     = "event-semantics.phase-one@1"
+	eventSemanticsPolicyVersion       = "event-semantics.phase-one@1"
+	eventSemanticsManifestVersion     = "event-semantic-context-manifest.v1"
+	eventSemanticsRouteVersion        = "event-semantic-anchor-routes.v1"
+	eventSemanticsRoutePartitionLimit = 50
 )
 
 const eventSemanticInputEligibilitySQL = `
@@ -177,26 +178,34 @@ func (r repository) CreateContextLease(
 		existing.SupersedesSubmissionID = existingSupersedes
 		existing.Status = "active"
 		existing.LeaseExpiresAt = time.Now().UTC().Add(request.Lease)
+		var manifest eventsemantics.ContextManifest
 		if len(existingManifest) == 0 {
-			manifest, err := buildEventSemanticManifest(
+			manifest, err = buildEventSemanticManifest(
 				ctx, tx, existing.ID, existing.EventID, request.AgentExecutionID,
 				request.WorkerID, existing.LeaseExpiresAt,
 			)
 			if err != nil {
 				return eventsemantics.ContextLease{}, err
 			}
-			existingManifest, err = json.Marshal(manifest)
-			if err != nil {
-				return eventsemantics.ContextLease{}, err
-			}
+		} else if err := json.Unmarshal(existingManifest, &manifest); err != nil {
+			return eventsemantics.ContextLease{}, err
+		} else if err := validateEventSemanticManifestFingerprint(manifest); err != nil {
+			return eventsemantics.ContextLease{}, err
+		}
+		manifest.LeaseStatus = "active"
+		manifest.LeaseExpiresAt = existing.LeaseExpiresAt
+		manifest.ManifestFingerprint, err = eventSemanticManifestFingerprint(manifest)
+		if err != nil {
+			return eventsemantics.ContextLease{}, err
+		}
+		existingManifest, err = json.Marshal(manifest)
+		if err != nil {
+			return eventsemantics.ContextLease{}, err
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE event_semantic_context_leases
 			SET status = 'active', lease_expires_at = $2, consumed_at = NULL,
-			    context_manifest = CASE
-			      WHEN context_manifest IS NULL THEN $3::jsonb
-			      ELSE jsonb_set(context_manifest, '{lease_expires_at}', to_jsonb($2::timestamptz), true)
-			    END
+			    context_manifest = $3::jsonb
 			WHERE id = $1
 		`, existing.ID, existing.LeaseExpiresAt, existingManifest); err != nil {
 			return eventsemantics.ContextLease{}, err
@@ -573,10 +582,7 @@ func buildEventSemanticManifest(
 	for _, rule := range contextValue.Rules {
 		manifest.Rules = append(manifest.Rules, eventsemantics.VersionReference{Key: rule.Key, Version: rule.Version})
 	}
-	stable := manifest
-	stable.LeaseExpiresAt = time.Time{}
-	stable.ManifestFingerprint = ""
-	manifest.ManifestFingerprint, err = eventSemanticFingerprint(stable)
+	manifest.ManifestFingerprint, err = eventSemanticManifestFingerprint(manifest)
 	if err != nil {
 		return eventsemantics.ContextManifest{}, err
 	}
@@ -588,16 +594,8 @@ func eventSemanticContextFromManifest(
 	query semanticQueryer,
 	manifest eventsemantics.ContextManifest,
 ) (eventsemantics.Context, error) {
-	stable := manifest
-	stable.LeaseExpiresAt = time.Time{}
-	stable.ManifestFingerprint = ""
-	fingerprint, err := eventSemanticFingerprint(stable)
-	if err != nil {
+	if err := validateEventSemanticManifestFingerprint(manifest); err != nil {
 		return eventsemantics.Context{}, err
-	}
-	if manifest.ManifestContractVersion != eventSemanticsManifestVersion ||
-		manifest.ManifestFingerprint == "" || fingerprint != manifest.ManifestFingerprint {
-		return eventsemantics.Context{}, &eventsemantics.ContextDriftError{Reason: "Event Semantic Context Manifest identity changed"}
 	}
 	result := eventsemantics.Context{
 		ContextLeaseID: manifest.ContextLeaseID, AgentExecutionID: manifest.AgentExecutionID,
@@ -684,6 +682,23 @@ func eventSemanticContextFromManifest(
 		return eventsemantics.Context{}, &eventsemantics.ContextDriftError{Reason: "pinned Event Semantic Context changed"}
 	}
 	return result, nil
+}
+
+func eventSemanticManifestFingerprint(manifest eventsemantics.ContextManifest) (string, error) {
+	manifest.ManifestFingerprint = ""
+	return eventSemanticFingerprint(manifest)
+}
+
+func validateEventSemanticManifestFingerprint(manifest eventsemantics.ContextManifest) error {
+	fingerprint, err := eventSemanticManifestFingerprint(manifest)
+	if err != nil {
+		return err
+	}
+	if manifest.ManifestContractVersion != eventSemanticsManifestVersion ||
+		manifest.ManifestFingerprint == "" || fingerprint != manifest.ManifestFingerprint {
+		return &eventsemantics.ContextDriftError{Reason: "Event Semantic Context Manifest identity changed"}
+	}
+	return nil
 }
 
 func selectEntityTypeReferences(values []eventsemantics.EntityTypeDefinition, references []eventsemantics.VersionReference) ([]eventsemantics.EntityTypeDefinition, error) {
@@ -1129,7 +1144,8 @@ func (r repository) eventSemanticIndustryPartitions(ctx context.Context) ([]stri
 		JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
 		WHERE profile.review_status = 'approved' AND profile.classification_level = 1
 		ORDER BY entity.canonical_name, profile.entity_id
-	`)
+		LIMIT $1
+	`, eventSemanticsRoutePartitionLimit)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1154,7 +1170,8 @@ func (r repository) eventSemanticConceptPartitions(ctx context.Context) ([]strin
 		JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
 		WHERE profile.review_status = 'approved'
 		ORDER BY concept_type
-	`)
+		LIMIT $1
+	`, eventSemanticsRoutePartitionLimit)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1384,7 +1401,7 @@ func (r repository) ResolveChainNodeCandidates(
 	}
 	rows, err := r.db.QueryContext(ctx, `
 		WITH target_page AS (
-		  SELECT node.id AS target_id, node.canonical_name
+		  SELECT node.id AS target_id, node.canonical_name, node_profile.definition
 		  FROM entity_edges mapping
 		  JOIN entity_nodes anchor ON anchor.id = mapping.to_entity_id AND anchor.status = 'active'
 		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
@@ -1400,13 +1417,13 @@ func (r repository) ResolveChainNodeCandidates(
 		  WHERE mapping.relation_type = $1 AND mapping.status = 'active'
 		    AND anchor.id = ANY($2::uuid[])
 		    AND ($3::text IS NULL OR (node.canonical_name, node.id) > ($3::text, $4::uuid))
-		  GROUP BY node.id, node.canonical_name
+		  GROUP BY node.id, node.canonical_name, node_profile.definition
 		  ORDER BY node.canonical_name, node.id
 		  LIMIT $5
 		)
 		SELECT path.anchor_id, path.chain_id, path.mapping_id, node.id, node.entity_type,
 		       node.name, node.canonical_name, array_to_json(node.aliases), node.status,
-		       path.position, path.membership_updated_at, path.contextual_stage,
+		       path.position, path.membership_updated_at, page.definition,
 		       path.chain_name, path.anchor_updated_at, path.chain_updated_at,
 		       path.mapping_updated_at, node.updated_at, array_to_json(matched.anchor_ids)
 		FROM target_page page

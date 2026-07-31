@@ -1,10 +1,61 @@
 package postgres
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 )
+
+func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository := newRepository(db)
+
+	mock.ExpectQuery("(?s)SELECT profile.entity_id::text, entity.name.*LIMIT \\$1").
+		WithArgs(eventSemanticsRoutePartitionLimit).
+		WillReturnRows(sqlmock.NewRows([]string{"entity_id", "name"}).
+			AddRow("11111111-1111-4111-8111-111111111111", "Industry"))
+	if partitions, _, err := repository.eventSemanticIndustryPartitions(context.Background()); err != nil || len(partitions) != 1 {
+		t.Fatalf("industry partitions = %v err = %v", partitions, err)
+	}
+
+	mock.ExpectQuery("(?s)SELECT DISTINCT concept_type.*LIMIT \\$1").
+		WithArgs(eventSemanticsRoutePartitionLimit).
+		WillReturnRows(sqlmock.NewRows([]string{"concept_type"}).AddRow("technology"))
+	if partitions, _, err := repository.eventSemanticConceptPartitions(context.Background()); err != nil || len(partitions) != 1 {
+		t.Fatalf("concept partitions = %v err = %v", partitions, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEventSemanticManifestFingerprintCoversLeaseExpiry(t *testing.T) {
+	manifest := eventsemantics.ContextManifest{
+		ContextLeaseID: "lease-1", AgentExecutionID: "execution-1", WorkerID: "worker-1",
+		LeaseStatus: "active", LeaseExpiresAt: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		ManifestContractVersion: eventSemanticsManifestVersion,
+	}
+	fingerprint, err := eventSemanticManifestFingerprint(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.ManifestFingerprint = fingerprint
+	manifest.LeaseExpiresAt = manifest.LeaseExpiresAt.Add(time.Minute)
+
+	_, err = eventSemanticContextFromManifest(context.Background(), nil, manifest)
+	var drift *eventsemantics.ContextDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("mutated expiry error = %T %v", err, err)
+	}
+}
 
 func TestSemanticReviewIdentityAndEvidenceAreBoundToFrozenRun(t *testing.T) {
 	identity := semanticReviewIdentity{

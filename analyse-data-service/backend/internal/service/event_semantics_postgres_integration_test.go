@@ -546,6 +546,9 @@ func TestPostgresEventSemanticAnchorResolutionPersistsOnlySelectedBindingAndDete
 	if err != nil || len(candidates.Candidates) != 1 || candidates.Candidates[0].Entity.ID != semanticChainNodeID {
 		t.Fatalf("candidates=%#v err=%v", candidates, err)
 	}
+	if candidates.Candidates[0].Description != "Formal node definition" {
+		t.Fatalf("candidate description = %q", candidates.Candidates[0].Description)
+	}
 	receipt := candidates.Candidates[0].Receipt
 	request := semanticAnchorSubmission(lease.ID, receipt)
 	if _, err := db.Exec(`
