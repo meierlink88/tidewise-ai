@@ -3,6 +3,13 @@ interface StatusBadgeProps {
   tone?: 'success' | 'danger' | 'neutral';
 }
 
-export default function StatusBadge({ children, tone = 'neutral' }: StatusBadgeProps) {
-  return <span className={`ui-status ui-status-${tone}`}>{children}</span>;
+export function StatusBadge({ children, tone = 'neutral' }: StatusBadgeProps) {
+  return (
+    <Badge
+      variant={tone === 'success' ? 'success' : tone === 'danger' ? 'destructive' : 'secondary'}
+    >
+      {children}
+    </Badge>
+  );
 }
+import { Badge } from './badge';

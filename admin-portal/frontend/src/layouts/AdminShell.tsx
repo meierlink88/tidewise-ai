@@ -1,12 +1,14 @@
-import type { ReactNode } from 'react';
-import Button from '../components/ui/Button';
-import Icon from '../components/ui/Icon';
+import { type ReactNode } from 'react';
+import AppHeader from '../components/admin/app-header';
+import AppSidebar, { type AdminPage } from '../components/admin/app-sidebar';
+import SkipToMain from '../components/admin/skip-to-main';
+import { SidebarInset, SidebarProvider } from '../components/ui/sidebar';
 
 interface AdminShellProps {
   children: ReactNode;
-  currentPage: 'data-ingestion' | 'agent-status';
+  currentPage: AdminPage;
   currentTitle: string;
-  onNavigate: (page: 'data-ingestion' | 'agent-status') => void;
+  onNavigate: (page: AdminPage) => void;
   onLogout: () => void;
 }
 
@@ -18,62 +20,24 @@ export default function AdminShell({
   onLogout
 }: AdminShellProps) {
   return (
-    <div className='admin-shell'>
-      <aside className='admin-sidebar'>
-        <div className='admin-brand'>
-          <span className='admin-brand-mark'>M</span>
-          <div>
-            <strong>观潮家 Admin</strong>
-            <span>Market intelligence ops</span>
-          </div>
-        </div>
-        <div className='admin-section'>WORKSPACE</div>
-        <nav className='admin-nav' aria-label='管理后台菜单'>
-          <button
-            className={`admin-nav-item ${currentPage === 'data-ingestion' ? 'active' : ''}`}
-            onClick={() => onNavigate('data-ingestion')}
-            type='button'
-          >
-            <span className='admin-nav-icon-slot'>
-              <Icon name='database' />
-            </span>
-            <span>数据采集中心</span>
-            <small>Today</small>
-          </button>
-          <button
-            className={`admin-nav-item ${currentPage === 'agent-status' ? 'active' : ''}`}
-            onClick={() => onNavigate('agent-status')}
-            type='button'
-          >
-            <span className='admin-nav-icon-slot'>
-              <Icon name='activity' />
-            </span>
-            <span>Agent 状态</span>
-            <small>Live</small>
-          </button>
-        </nav>
-        <div className='admin-sidebar-foot'>
-          <span>SYSTEM NOTE</span>
-          <strong>Flat surfaces, precise rhythm</strong>
-        </div>
-      </aside>
-      <div className='admin-main'>
-        <header className='admin-header'>
-          <div>
-            <span className='admin-header-kicker'>Admin Console</span>
-            <h1 className='admin-header-title'>{currentTitle}</h1>
-          </div>
-          <Button variant='secondary' onClick={onLogout}>
-            <Icon name='log-out' />
-            退出登录
-          </Button>
-        </header>
-        <main className='admin-content'>{children}</main>
-        <footer className='admin-footer'>
-          <span>LOCAL ADMIN</span>
-          <strong>{currentTitle}</strong>
-        </footer>
-      </div>
-    </div>
+    <SidebarProvider>
+      <SkipToMain />
+      <AppSidebar currentPage={currentPage} onNavigate={onNavigate} />
+      <SidebarInset>
+        <AppHeader
+          currentPage={currentPage}
+          currentTitle={currentTitle}
+          onLogout={onLogout}
+          onNavigate={onNavigate}
+        />
+        <main
+          className='min-h-0 flex-1 overflow-hidden p-4 pt-5 md:p-6 md:pt-6'
+          id='admin-main-content'
+          tabIndex={-1}
+        >
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

@@ -1,50 +1,49 @@
-import type { ReactNode } from 'react';
+import * as TabsPrimitive from '@radix-ui/react-tabs';
+import * as React from 'react';
+import { cn } from '../../lib/utils';
 
-interface TabItem<T extends string> {
-  id: T;
-  label: string;
-}
+const Tabs = TabsPrimitive.Root;
 
-interface TabsProps<T extends string> {
-  active: T;
-  ariaLabel?: string;
-  items: TabItem<T>[];
-  onChange: (id: T) => void;
-}
+const TabsList = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.List
+    ref={ref}
+    className={cn(
+      'inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground',
+      className
+    )}
+    {...props}
+  />
+));
+TabsList.displayName = TabsPrimitive.List.displayName;
 
-export default function Tabs<T extends string>({
-  active,
-  ariaLabel = '数据采集中心标签',
-  items,
-  onChange
-}: TabsProps<T>) {
-  return (
-    <div className="ui-tabs" role="tablist" aria-label={ariaLabel}>
-      {items.map((item) => (
-        <button
-          aria-selected={active === item.id}
-          className={`ui-tab ${active === item.id ? 'active' : ''}`}
-          key={item.id}
-          onClick={() => onChange(item.id)}
-          role="tab"
-          type="button"
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+const TabsTrigger = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-input data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+      className
+    )}
+    {...props}
+  />
+));
+TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
-interface TabPanelProps {
-  children: ReactNode;
-  label: string;
-}
+const TabsContent = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Content
+    ref={ref}
+    className={cn('min-w-0 flex-1 outline-none', className)}
+    {...props}
+  />
+));
+TabsContent.displayName = TabsPrimitive.Content.displayName;
 
-export function TabPanel({ children, label }: TabPanelProps) {
-  return (
-    <section aria-label={label} className="ui-tab-panel" role="tabpanel">
-      {children}
-    </section>
-  );
-}
+export { Tabs, TabsContent, TabsList, TabsTrigger };
