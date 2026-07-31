@@ -40,16 +40,17 @@ func (*queuedModel) Stream(
 }
 
 type semanticDataStub struct {
-	resolved        bool
-	targetSearched  bool
-	targetSubject   string
-	runRequest      eventsemantic.SubmissionRequest
-	reviewRequest   eventsemantic.ReviewRequest
-	rejectEmpty     bool
-	routeCalls      int
-	anchorCalls     int
-	candidateCalls  int
-	emptyCandidates bool
+	resolved          bool
+	targetSearched    bool
+	targetSubject     string
+	runRequest        eventsemantic.SubmissionRequest
+	reviewRequest     eventsemantic.ReviewRequest
+	rejectEmpty       bool
+	routeCalls        int
+	anchorCalls       int
+	candidateCalls    int
+	emptyCandidates   bool
+	resolutionMention string
 }
 
 func (*semanticDataStub) ListEligibleEvents(context.Context, int, string) (eventsemantic.EligibleEventPage, error) {
@@ -70,13 +71,46 @@ func (s *semanticDataStub) Resolve(
 	mentions []eventsemantic.EntityMention,
 ) ([]eventsemantic.EntityResolution, error) {
 	s.resolved = true
+	resolvedMention := mentions[0].Mention
+	if s.resolutionMention != "" {
+		resolvedMention = s.resolutionMention
+	}
 	return []eventsemantic.EntityResolution{{
-		Mention: mentions[0].Mention,
+		Mention: resolvedMention,
 		Candidates: []eventsemantic.Entity{{
 			EntityID:   "33333333-3333-4333-8333-333333333333",
 			EntityType: "company", Status: "active",
 		}},
 	}}, nil
+}
+
+func TestWorkflowRejectsEntityResolutionForAnotherMention(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"company","mention":"某晶圆厂","predicted_entity_type":"company","entity_role":"statement_source","evidence_ids":["22222222-2222-4222-8222-222222222222"],"resolution_confidence":"0.9"}],"variable_signals":[]}`,
+	}}
+	data := &semanticDataStub{resolutionMention: "另一家公司"}
+	runnable, err := New(context.Background(), data, generator, &queuedModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextValue := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID,
+			},
+		},
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+	})
+
+	var remote *eventsemantic.RemoteError
+	if result != nil || !errors.As(err, &remote) || remote.Code != "data_response_invalid" || remote.Retryable {
+		t.Fatalf("result=%#v error=%T %#v", result, err, err)
+	}
+	if data.runRequest.EventID != "" || data.targetSearched {
+		t.Fatalf("invalid resolution was consumed: submission=%#v target_searched=%v", data.runRequest, data.targetSearched)
+	}
 }
 func (s *semanticDataStub) SearchDirectTargets(
 	_ context.Context,

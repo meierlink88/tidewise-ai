@@ -329,6 +329,9 @@ func resolveExactMention(
 	if err != nil {
 		return eventsemantic.EntityLinkCandidate{}, false, err
 	}
+	if len(resolutions) == 1 && resolutions[0].Mention != mention.Mention {
+		return eventsemantic.EntityLinkCandidate{}, false, dataResponseContractError()
+	}
 	if len(resolutions) != 1 || resolutions[0].Ambiguous || len(resolutions[0].Candidates) != 1 {
 		return eventsemantic.EntityLinkCandidate{}, false, nil
 	}
@@ -545,6 +548,12 @@ func WorkflowHash() string {
 func modelContractError(summary string) error {
 	return &eventsemantic.RemoteError{
 		Code: "event_semantic_model_contract_invalid", Summary: summary, Retryable: false,
+	}
+}
+
+func dataResponseContractError() error {
+	return &eventsemantic.RemoteError{
+		Code: "data_response_invalid", Summary: "Data Service response contract is invalid", Retryable: false,
 	}
 }
 
