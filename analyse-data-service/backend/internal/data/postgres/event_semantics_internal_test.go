@@ -37,3 +37,10 @@ func TestSemanticReviewIdentityAndEvidenceAreBoundToFrozenRun(t *testing.T) {
 		t.Fatal("invented review Evidence was accepted")
 	}
 }
+
+func TestNoSemanticCandidatesProduceARealRejectedSubmissionOutcome(t *testing.T) {
+	status := summarizeSemanticSubmission(eventsemantics.PrecheckResult{})
+	if status != eventsemantics.StatusRejected {
+		t.Fatalf("status = %q, want rejected", status)
+	}
+}

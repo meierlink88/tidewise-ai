@@ -18,33 +18,36 @@ func (s *Store) EnsureInitialWorkItems(
 	ctx context.Context,
 	events []eventsemantic.EligibleEvent,
 	now time.Time,
-) error {
+) (int, error) {
 	if len(events) == 0 {
-		return nil
+		return 0, nil
 	}
 	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return fmt.Errorf("begin initial Event Semantic Work Item dispatch: %w", err)
+		return 0, fmt.Errorf("begin initial Event Semantic Work Item dispatch: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	created := 0
 	for _, event := range events {
 		if _, err := uuid.Parse(event.EventID); err != nil {
-			return errors.New("eligible Event has an invalid ID")
+			return 0, errors.New("eligible Event has an invalid ID")
 		}
-		if _, err := tx.Exec(ctx, `
+		command, err := tx.Exec(ctx, `
 			INSERT INTO event_semantic_work_items (
 			    work_item_id, event_id, trigger_source, reason, idempotency_key,
 			    status, attempt_count, max_attempts, created_at, updated_at
 			) VALUES ($1, $2, 'eligible_event', '', $3, 'pending', 0, 2, $4, $4)
 			ON CONFLICT (idempotency_key) DO NOTHING
-		`, uuid.NewString(), event.EventID, "event-semantic-initial:"+event.EventID, now.UTC()); err != nil {
-			return fmt.Errorf("enqueue initial Event Semantic Work Item: %w", err)
+		`, uuid.NewString(), event.EventID, "event-semantic-initial:"+event.EventID, now.UTC())
+		if err != nil {
+			return 0, fmt.Errorf("enqueue initial Event Semantic Work Item: %w", err)
 		}
+		created += int(command.RowsAffected())
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit initial Event Semantic Work Item dispatch: %w", err)
+		return 0, fmt.Errorf("commit initial Event Semantic Work Item dispatch: %w", err)
 	}
-	return nil
+	return created, nil
 }
 
 func (s *Store) EnqueueReanalysis(
@@ -262,7 +265,7 @@ func (s *Store) CompleteExecution(
 	stopReason := ""
 	workStatus := "succeeded"
 	if completion.Status == "failed" {
-		if item.AttemptCount < item.MaxAttempts {
+		if completion.Retryable && item.AttemptCount < item.MaxAttempts {
 			workStatus = "pending"
 			stopReason = "retry_wait"
 		} else {

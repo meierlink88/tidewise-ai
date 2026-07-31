@@ -16,14 +16,19 @@ func (s *DataService) ListEligibleEventSemanticEvents(
 	if s == nil || s.dependencies.EventSemantics == nil {
 		return nil, eventSemanticsNotReady()
 	}
-	items, err := s.dependencies.EventSemantics.ListEligibleEvents(ctx, request.Limit)
+	page, err := s.dependencies.EventSemantics.ListEligibleEvents(
+		ctx, request.Limit, request.Cursor,
+	)
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
 	result := v1.EligibleEventSemanticEvents{
-		Events: make([]v1.EligibleEventSemanticEvent, 0, len(items)),
+		Events: make([]v1.EligibleEventSemanticEvent, 0, len(page.Events)),
 	}
-	for _, item := range items {
+	if request.Pagination == "cursor" {
+		result.NextCursor = page.NextCursor
+	}
+	for _, item := range page.Events {
 		result.Events = append(result.Events, v1.EligibleEventSemanticEvent{EventID: item.EventID})
 	}
 	return &v1.Response[v1.EligibleEventSemanticEvents]{Status: v1.StatusOK, Result: result}, nil
@@ -211,7 +216,13 @@ func eventSemanticsError(err error) error {
 	var validation *eventsemantics.ValidationError
 	var notFound *eventsemantics.NotFoundError
 	var conflict *eventsemantics.ConflictError
+	var notRequired *eventsemantics.NotRequiredError
+	var inputInvalid *eventsemantics.InputInvalidError
 	switch {
+	case errors.As(err, &notRequired):
+		return publicError(v1.StatusConflict, "EVENT_SEMANTICS_NOT_REQUIRED", notRequired.Reason)
+	case errors.As(err, &inputInvalid):
+		return publicError(v1.StatusUnprocessableEntity, "EVENT_SEMANTICS_INPUT_INVALID", inputInvalid.Reason)
 	case errors.As(err, &validation):
 		return publicError(v1.StatusUnprocessableEntity, "EVENT_SEMANTICS_INVALID", validation.Reason)
 	case errors.As(err, &notFound):

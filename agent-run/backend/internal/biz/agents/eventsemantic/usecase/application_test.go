@@ -3,24 +3,49 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
+	semanticworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/workflow"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 type applicationRepositoryStub struct {
 	completions []eventsemantic.ExecutionCompletion
 	noWork      bool
 	reanalysis  eventsemantic.ReanalysisRequest
+	ensured     [][]eventsemantic.EligibleEvent
+	insertLater bool
+	completeErr error
 }
 
-func (*applicationRepositoryStub) EnsureInitialWorkItems(
+type permittedApplicationRepositoryStub struct {
+	*applicationRepositoryStub
+	permitCalls int
+}
+
+func (s *permittedApplicationRepositoryStub) WithEventSemanticProcessingPermit(
 	_ context.Context,
-	_ []eventsemantic.EligibleEvent,
-	_ time.Time,
+	operation func() error,
 ) error {
-	return nil
+	s.permitCalls++
+	return operation()
+}
+
+func (s *applicationRepositoryStub) EnsureInitialWorkItems(
+	_ context.Context,
+	events []eventsemantic.EligibleEvent,
+	_ time.Time,
+) (int, error) {
+	s.ensured = append(s.ensured, append([]eventsemantic.EligibleEvent(nil), events...))
+	if s.insertLater && len(events) == 1 && events[0].EventID == "event-later" {
+		return 1, nil
+	}
+	return 0, nil
 }
 
 func (s *applicationRepositoryStub) EnqueueReanalysis(
@@ -45,10 +70,14 @@ func (s *applicationRepositoryStub) StartNextExecution(
 	if s.noWork {
 		return eventsemantic.ExecutionAttempt{}, false, nil
 	}
+	eventID := "event-1"
+	if s.insertLater {
+		eventID = "event-later"
+	}
 	return eventsemantic.ExecutionAttempt{
 		ID: "execution-1",
 		WorkItem: eventsemantic.WorkItem{
-			ID: "work-item-1", EventID: "event-1", Status: "running",
+			ID: "work-item-1", EventID: eventID, Status: "running",
 		},
 	}, true, nil
 }
@@ -58,33 +87,68 @@ func (s *applicationRepositoryStub) CompleteExecution(
 	completion eventsemantic.ExecutionCompletion,
 ) error {
 	s.completions = append(s.completions, completion)
-	return nil
+	return s.completeErr
+}
+
+type lifecycleLoggerStub struct {
+	info  []agentrun.AgentLifecycleEvent
+	warn  []agentrun.AgentLifecycleEvent
+	error []agentrun.AgentLifecycleEvent
+}
+
+func (l *lifecycleLoggerStub) Info(event agentrun.AgentLifecycleEvent) {
+	l.info = append(l.info, event)
+}
+func (l *lifecycleLoggerStub) Warn(event agentrun.AgentLifecycleEvent) {
+	l.warn = append(l.warn, event)
+}
+func (l *lifecycleLoggerStub) Error(event agentrun.AgentLifecycleEvent) {
+	l.error = append(l.error, event)
 }
 
 type applicationDataStub struct {
-	contextErr error
-	noWork     bool
-	semantics  eventsemantic.EventSemantics
-	leaseCalls int
+	contextErr        error
+	noWork            bool
+	semantics         eventsemantic.EventSemantics
+	leaseCalls        int
+	leaseErr          error
+	pages             map[string]eventsemantic.EligibleEventPage
+	cursors           []string
+	contextSnapshot   eventsemantic.Context
+	submissionResult  eventsemantic.SubmissionResult
+	submissionRequest eventsemantic.SubmissionRequest
 }
 
-func (s *applicationDataStub) ListEligibleEvents(context.Context, int) ([]eventsemantic.EligibleEvent, error) {
-	if s.noWork {
-		return nil, nil
+func (s *applicationDataStub) ListEligibleEvents(
+	_ context.Context,
+	_ int,
+	cursor string,
+) (eventsemantic.EligibleEventPage, error) {
+	s.cursors = append(s.cursors, cursor)
+	if s.pages != nil {
+		return s.pages[cursor], nil
 	}
-	return []eventsemantic.EligibleEvent{{EventID: "event-1"}}, nil
+	if s.noWork {
+		return eventsemantic.EligibleEventPage{}, nil
+	}
+	return eventsemantic.EligibleEventPage{
+		Events: []eventsemantic.EligibleEvent{{EventID: "event-1"}},
+	}, nil
 }
 func (s *applicationDataStub) CreateContextLease(
 	_ context.Context,
 	request eventsemantic.ContextLeaseRequest,
 ) (eventsemantic.ContextLease, error) {
 	s.leaseCalls++
+	if s.leaseErr != nil {
+		return eventsemantic.ContextLease{}, s.leaseErr
+	}
 	return eventsemantic.ContextLease{
 		ContextLeaseID: "lease-1", EventID: request.EventID, Status: "active",
 	}, nil
 }
 func (s *applicationDataStub) Context(context.Context, string) (eventsemantic.Context, error) {
-	return eventsemantic.Context{}, s.contextErr
+	return s.contextSnapshot, s.contextErr
 }
 func (*applicationDataStub) Resolve(context.Context, string, []eventsemantic.EntityMention) ([]eventsemantic.EntityResolution, error) {
 	return nil, nil
@@ -92,8 +156,37 @@ func (*applicationDataStub) Resolve(context.Context, string, []eventsemantic.Ent
 func (*applicationDataStub) SearchDirectTargets(context.Context, string, string, []string) ([]eventsemantic.DirectTarget, error) {
 	return nil, nil
 }
-func (*applicationDataStub) CreateSubmission(context.Context, eventsemantic.SubmissionRequest) (eventsemantic.SubmissionResult, error) {
-	return eventsemantic.SubmissionResult{}, nil
+func (s *applicationDataStub) CreateSubmission(
+	_ context.Context,
+	request eventsemantic.SubmissionRequest,
+) (eventsemantic.SubmissionResult, error) {
+	s.submissionRequest = request
+	return s.submissionResult, nil
+}
+
+type queuedSemanticModel struct {
+	responses []string
+}
+
+func (m *queuedSemanticModel) Generate(
+	context.Context,
+	[]*schema.Message,
+	...model.Option,
+) (*schema.Message, error) {
+	if len(m.responses) == 0 {
+		return nil, errors.New("unexpected semantic model call")
+	}
+	response := m.responses[0]
+	m.responses = m.responses[1:]
+	return schema.AssistantMessage(response, nil), nil
+}
+
+func (*queuedSemanticModel) Stream(
+	context.Context,
+	[]*schema.Message,
+	...model.Option,
+) (*schema.StreamReader[*schema.Message], error) {
+	return nil, errors.New("stream is not used")
 }
 func (s *applicationDataStub) GetEventSemantics(context.Context, string) (eventsemantic.EventSemantics, error) {
 	return s.semantics, nil
@@ -125,9 +218,64 @@ func TestTickPersistsFailureAndStillReturnsAnError(t *testing.T) {
 	}
 	completion := repository.completions[0]
 	if completion.Status != "failed" ||
+		!completion.Retryable ||
 		completion.ErrorCode != "event_semantic_context_unavailable" ||
 		completion.ErrorSummary != "Data Event Semantic Context is unavailable" {
 		t.Fatalf("completion = %#v", completion)
+	}
+}
+
+func TestTickCompletesWithoutRetryWhenEventNoLongerRequiresSemantics(t *testing.T) {
+	repository := &applicationRepositoryStub{}
+	data := &applicationDataStub{leaseErr: &eventsemantic.RemoteError{
+		Status: 409, Code: "EVENT_SEMANTICS_NOT_REQUIRED",
+		Summary: "Event no longer requires semantics",
+	}}
+	application, err := New(
+		repository,
+		data,
+		func(context.Context) (Runtime, error) {
+			t.Fatal("runtime must not load when the Event no longer requires semantics")
+			return Runtime{}, nil
+		},
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(repository.completions) != 1 ||
+		repository.completions[0].Status != "succeeded" {
+		t.Fatalf("completions = %#v", repository.completions)
+	}
+}
+
+func TestTickDoesNotRetryNewSemanticInputInvariantFailure(t *testing.T) {
+	repository := &applicationRepositoryStub{}
+	data := &applicationDataStub{leaseErr: &eventsemantic.RemoteError{
+		Status: 422, Code: "EVENT_SEMANTICS_INPUT_INVALID",
+		Summary: "Event Semantic input is invalid",
+	}}
+	application, err := New(
+		repository,
+		data,
+		func(context.Context) (Runtime, error) { return Runtime{}, nil },
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := application.Tick(context.Background()); err == nil {
+		t.Fatal("input invariant failure was hidden")
+	}
+	if len(repository.completions) != 1 ||
+		repository.completions[0].Status != "failed" ||
+		repository.completions[0].Retryable {
+		t.Fatalf("completions = %#v", repository.completions)
 	}
 }
 
@@ -212,5 +360,205 @@ func TestRequestReanalysisCreatesAnAgentRunOwnedWorkItem(t *testing.T) {
 	}
 }
 
+func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
+	repository := &applicationRepositoryStub{insertLater: true}
+	logger := &lifecycleLoggerStub{}
+	known := make([]eventsemantic.EligibleEvent, eligibleEventPageSize)
+	for index := range known {
+		known[index].EventID = "event-known-" + strconv.Itoa(index)
+	}
+	data := &applicationDataStub{
+		contextSnapshot: eventsemantic.Context{
+			ContextLeaseID: "lease-1",
+			Event:          eventsemantic.Event{ID: "event-later"},
+		},
+		submissionResult: eventsemantic.SubmissionResult{
+			SubmissionID: "submission-later",
+			EventID:      "event-later",
+			Status:       "rejected",
+		},
+		pages: map[string]eventsemantic.EligibleEventPage{
+			"": {
+				Events:     known,
+				NextCursor: "next-page",
+			},
+			"next-page": {
+				Events: []eventsemantic.EligibleEvent{{EventID: "event-later"}},
+			},
+		},
+	}
+	generator := &queuedSemanticModel{responses: []string{
+		`{"entity_links":[],"variable_signals":[]}`,
+		`{"direct_impacts":[]}`,
+	}}
+	reviewer := &queuedSemanticModel{}
+	run, err := semanticworkflow.New(context.Background(), data, generator, reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	application, err := New(
+		repository,
+		data,
+		func(context.Context) (Runtime, error) {
+			return Runtime{
+				GeneratorModel: "generator", ReviewerModel: "reviewer", Run: run,
+			}, nil
+		},
+		time.Hour,
+		WithEventLogger(logger),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data.cursors) != 2 || data.cursors[0] != "" || data.cursors[1] != "next-page" {
+		t.Fatalf("cursors = %#v", data.cursors)
+	}
+	if len(repository.ensured) != 2 ||
+		repository.ensured[1][0].EventID != "event-later" {
+		t.Fatalf("ensured = %#v", repository.ensured)
+	}
+	if len(repository.completions) != 1 ||
+		repository.completions[0].Status != "succeeded" {
+		t.Fatalf("completions = %#v", repository.completions)
+	}
+	if data.submissionRequest.EventID != "event-later" ||
+		len(data.submissionRequest.EntityLinks) != 0 ||
+		len(generator.responses) != 0 {
+		t.Fatalf(
+			"submission=%#v remainingGeneratorResponses=%d",
+			data.submissionRequest, len(generator.responses),
+		)
+	}
+	if len(logger.info) != 2 ||
+		logger.info[1].Code != "agent_execution_completed" ||
+		logger.info[1].Counts["events"] != 1 ||
+		logger.info[1].Counts["submissions"] != 1 {
+		t.Fatalf("lifecycle events = %#v", logger.info)
+	}
+}
+
+func TestTickResumesBoundedDiscoveryCursorAcrossCycles(t *testing.T) {
+	repository := &applicationRepositoryStub{
+		insertLater: true,
+		noWork:      true,
+	}
+	data := &applicationDataStub{
+		pages: make(map[string]eventsemantic.EligibleEventPage),
+	}
+	cursor := ""
+	for page := 0; page < maxEligibleEventPages; page++ {
+		next := "page-" + strconv.Itoa(page+1)
+		data.pages[cursor] = eventsemantic.EligibleEventPage{
+			Events: []eventsemantic.EligibleEvent{{
+				EventID: "event-known-" + strconv.Itoa(page),
+			}},
+			NextCursor: next,
+		}
+		cursor = next
+	}
+	data.pages[cursor] = eventsemantic.EligibleEventPage{
+		Events: []eventsemantic.EligibleEvent{{EventID: "event-later"}},
+	}
+	application, err := New(
+		repository,
+		data,
+		func(context.Context) (Runtime, error) {
+			return Runtime{}, nil
+		},
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(data.cursors) != maxEligibleEventPages ||
+		data.cursors[0] != "" ||
+		data.cursors[len(data.cursors)-1] != "page-99" {
+		t.Fatalf("first bounded scan cursors = %#v", data.cursors)
+	}
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if data.cursors[len(data.cursors)-1] != "page-100" ||
+		len(repository.ensured) != maxEligibleEventPages+1 ||
+		repository.ensured[len(repository.ensured)-1][0].EventID != "event-later" {
+		t.Fatalf(
+			"resumed cursors=%#v ensured=%#v",
+			data.cursors, repository.ensured,
+		)
+	}
+}
+
+func TestTickUsesRepositoryProcessingPermit(t *testing.T) {
+	repository := &permittedApplicationRepositoryStub{
+		applicationRepositoryStub: &applicationRepositoryStub{noWork: true},
+	}
+	application, err := New(
+		repository,
+		&applicationDataStub{noWork: true},
+		func(context.Context) (Runtime, error) { return Runtime{}, nil },
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if repository.permitCalls != 1 {
+		t.Fatalf("processing permit calls = %d", repository.permitCalls)
+	}
+}
+
+func TestTickDoesNotLogCompletionBeforeDurableStateTransition(t *testing.T) {
+	repository := &applicationRepositoryStub{
+		completeErr: errors.New("database unavailable"),
+	}
+	data := &applicationDataStub{
+		semantics: eventsemantic.EventSemantics{
+			EventID: "event-1",
+			Submissions: []eventsemantic.SubmissionResult{{
+				SubmissionID: "submission-1", AgentExecutionID: "execution-1",
+				Status: "accepted",
+			}},
+		},
+	}
+	logger := &lifecycleLoggerStub{}
+	application, err := New(
+		repository,
+		data,
+		func(context.Context) (Runtime, error) {
+			t.Fatal("runtime must not load after terminal reconciliation")
+			return Runtime{}, nil
+		},
+		time.Hour,
+		WithEventLogger(logger),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := application.Tick(context.Background()); err == nil {
+		t.Fatal("durable completion failure was hidden")
+	}
+
+	if len(logger.info) != 1 ||
+		logger.info[0].Code != "agent_execution_started" {
+		t.Fatalf("info events = %#v", logger.info)
+	}
+	if len(logger.warn) != 0 || len(logger.error) != 0 {
+		t.Fatalf("warn=%#v error=%#v", logger.warn, logger.error)
+	}
+}
+
 var _ eventsemantic.Repository = (*applicationRepositoryStub)(nil)
+var _ eventsemantic.ProcessingPermit = (*permittedApplicationRepositoryStub)(nil)
 var _ eventsemantic.DataClient = (*applicationDataStub)(nil)

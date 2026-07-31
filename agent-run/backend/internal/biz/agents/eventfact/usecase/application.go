@@ -10,6 +10,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact/publication"
 	eventworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact/workflow"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
 
 type RunWorkflow func(context.Context, *eventworkflow.Input) (*eventfact.Result, error)
@@ -24,9 +25,7 @@ type Runtime struct {
 
 type RuntimeProvider func(context.Context) (Runtime, error)
 
-type EventLogger interface {
-	Error(string)
-}
+type EventLogger = agentrun.AgentLifecycleLogger
 
 type Option func(*Application)
 
@@ -60,7 +59,7 @@ func New(
 	application := &Application{
 		repository: repository, data: data, runtime: runtime,
 		interval: interval, now: time.Now, notify: make(chan struct{}, 1), done: make(chan struct{}),
-		logger: discardEventLogger{},
+		logger: agentrun.DiscardAgentLifecycleLogger{},
 	}
 	for _, option := range options {
 		if option != nil {
@@ -82,6 +81,11 @@ func (a *Application) Start(parent context.Context) {
 	a.startOnce.Do(func() {
 		ctx, cancel := context.WithCancel(parent)
 		a.cancel = cancel
+		a.logger.Info(agentrun.AgentLifecycleEvent{
+			Code: "agent_runtime_started", AgentKey: eventfact.AgentKey,
+			AgentVersion: eventfact.AgentVersion, RuntimeMode: "worker",
+			Status: "running",
+		})
 		go a.loop(ctx)
 	})
 }
@@ -114,8 +118,18 @@ func (a *Application) Shutdown(ctx context.Context) error {
 	})
 	select {
 	case <-a.done:
+		a.logger.Info(agentrun.AgentLifecycleEvent{
+			Code: "agent_runtime_stopped", AgentKey: eventfact.AgentKey,
+			AgentVersion: eventfact.AgentVersion, RuntimeMode: "worker",
+			Status: "stopped",
+		})
 		return nil
 	case <-ctx.Done():
+		a.logger.Error(agentrun.AgentLifecycleEvent{
+			Code: "agent_runtime_failed", AgentKey: eventfact.AgentKey,
+			AgentVersion: eventfact.AgentVersion, RuntimeMode: "worker",
+			Status: "failed", Stage: "shutdown", ErrorCode: "shutdown_deadline",
+		})
 		return ctx.Err()
 	}
 }
@@ -125,7 +139,7 @@ func (a *Application) loop(ctx context.Context) {
 	ticker := time.NewTicker(a.interval)
 	defer ticker.Stop()
 	if err := a.Tick(ctx); err != nil {
-		a.logger.Error("event_fact_tick_failed")
+		a.logCycleFailure("event_fact_tick_failed", "tick")
 	}
 	for {
 		select {
@@ -135,14 +149,10 @@ func (a *Application) loop(ctx context.Context) {
 		case <-a.notify:
 		}
 		if err := a.Tick(ctx); err != nil {
-			a.logger.Error("event_fact_tick_failed")
+			a.logCycleFailure("event_fact_tick_failed", "tick")
 		}
 	}
 }
-
-type discardEventLogger struct{}
-
-func (discardEventLogger) Error(string) {}
 
 func (a *Application) Tick(ctx context.Context) error {
 	now := a.now().UTC()
@@ -190,7 +200,14 @@ func (a *Application) Tick(ctx context.Context) error {
 		return err
 	}
 	if exists {
-		unitAdvanced, err := a.extract(ctx, attempt, runtime.Run, runtime.ExtractFacts)
+		startedAt := a.now().UTC()
+		a.logger.Info(a.lifecycleEvent(
+			"agent_execution_started", attempt, startedAt,
+			"running", "", "", nil,
+		))
+		unitAdvanced, err := a.extract(
+			ctx, attempt, runtime.Run, runtime.ExtractFacts, startedAt,
+		)
 		if err != nil {
 			return err
 		}
@@ -211,13 +228,26 @@ func (a *Application) extract(
 	attempt eventfact.ExecutionAttempt,
 	run RunWorkflow,
 	extractFacts ExtractFacts,
+	startedAt time.Time,
 ) (bool, error) {
 	catalog, err := a.data.ActiveEventTags(ctx)
 	if err != nil {
 		partial := decodePersistedResult(attempt)
 		if len(partial.Candidates) == 0 && len(partial.NoEventReason) == 0 {
 			if extractFacts == nil {
-				return false, errors.New("Event Fact-only extraction runtime is invalid")
+				retryErr := a.repository.RetryExtraction(
+					ctx, attempt,
+					eventfact.Result{ExecutionID: attempt.ID},
+					"Event Fact-only extraction runtime is unavailable",
+					a.now().UTC(),
+				)
+				if retryErr == nil {
+					a.logRetry(
+						attempt, startedAt, "runtime",
+						"event_fact_extraction_runtime_unavailable",
+					)
+				}
+				return false, retryErr
 			}
 			extracted, extractionErr := extractFacts(ctx, &attempt)
 			if extractionErr != nil {
@@ -225,13 +255,17 @@ func (a *Application) extract(
 				if errors.Is(extractionErr, eventworkflow.ErrExtractionModel) {
 					callCount = 1
 				}
-				return false, a.repository.RetryExtraction(
+				retryErr := a.repository.RetryExtraction(
 					ctx, attempt,
 					eventfact.Result{
 						ExecutionID: attempt.ID, ExtractionModelCalls: callCount,
 					},
 					"Event Fact model is unavailable", a.now().UTC(),
 				)
+				if retryErr == nil {
+					a.logRetry(attempt, startedAt, "model", "extractor_model_unavailable")
+				}
+				return false, retryErr
 			}
 			partial = *extracted
 		}
@@ -239,16 +273,36 @@ func (a *Application) extract(
 			err := a.repository.CompleteWithoutPublication(
 				ctx, attempt, partial, status, a.now().UTC(),
 			)
+			if err == nil {
+				a.logEventFactTerminal(attempt, partial, status, startedAt, "")
+			}
 			return err == nil, err
 		}
-		return false, a.repository.SetAwaitingTagCatalog(
+		waitErr := a.repository.SetAwaitingTagCatalog(
 			ctx, attempt, partial, "Data Event Tag Catalog is unavailable", a.now().UTC(),
 		)
+		if waitErr == nil {
+			a.logRetry(attempt, startedAt, "tag_catalog", "tag_catalog_unavailable")
+		}
+		return false, waitErr
 	}
 	if err := a.repository.SetExecutionCatalog(
 		ctx, attempt.ID, catalog.Revision, catalog.Hash, a.now().UTC(),
 	); err != nil {
-		return false, err
+		retryErr := a.repository.RetryExtraction(
+			ctx, attempt,
+			eventfact.Result{ExecutionID: attempt.ID},
+			"Event Fact Catalog snapshot could not be persisted",
+			a.now().UTC(),
+		)
+		if retryErr == nil {
+			a.logRetry(
+				attempt, startedAt, "state_transition",
+				"event_fact_catalog_persistence_failed",
+			)
+			return false, nil
+		}
+		return false, errors.Join(err, retryErr)
 	}
 	var resume *eventfact.Result
 	if attempt.Unit.Status == eventfact.WorkAwaitingTagCatalog {
@@ -265,18 +319,28 @@ func (a *Application) extract(
 		if errors.Is(err, eventworkflow.ErrExtractionModel) ||
 			errors.Is(err, eventworkflow.ErrReviewModel) ||
 			errors.Is(err, context.DeadlineExceeded) {
-			return false, a.repository.RetryExtraction(
+			retryErr := a.repository.RetryExtraction(
 				ctx, attempt,
 				eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
 				"Event Fact model is unavailable", a.now().UTC(),
 			)
+			if retryErr == nil {
+				a.logRetry(attempt, startedAt, "model", "extractor_model_unavailable")
+			}
+			return false, retryErr
 		}
-		a.logger.Error(eventworkflow.FailureCode(err))
 		completeErr := a.repository.CompleteWithoutPublication(
 			ctx, attempt,
 			eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
 			eventfact.WorkRejected, a.now().UTC(),
 		)
+		if completeErr == nil {
+			a.logEventFactTerminal(
+				attempt,
+				eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
+				eventfact.WorkRejected, startedAt, eventworkflow.FailureCode(err),
+			)
+		}
 		return completeErr == nil, completeErr
 	}
 	for index := range result.Candidates {
@@ -297,10 +361,24 @@ func (a *Application) extract(
 		completeErr := a.repository.CompleteWithoutPublication(
 			ctx, attempt, *result, eventfact.WorkRejected, a.now().UTC(),
 		)
+		if completeErr == nil {
+			a.logEventFactTerminal(
+				attempt, *result, eventfact.WorkRejected, startedAt,
+				"event_publication_payload_invalid",
+			)
+		}
 		return completeErr == nil, completeErr
 	}
 	if len(journals) > 0 {
-		return false, a.repository.CompleteExtraction(ctx, attempt, *result, journals, a.now().UTC())
+		completeErr := a.repository.CompleteExtraction(
+			ctx, attempt, *result, journals, a.now().UTC(),
+		)
+		if completeErr == nil {
+			a.logEventFactTerminal(
+				attempt, *result, eventfact.WorkReadyToPublish, startedAt, "",
+			)
+		}
+		return false, completeErr
 	}
 	status := eventfact.WorkNoEvents
 	for _, candidate := range result.Candidates {
@@ -311,7 +389,83 @@ func (a *Application) extract(
 	completeErr := a.repository.CompleteWithoutPublication(
 		ctx, attempt, *result, status, a.now().UTC(),
 	)
+	if completeErr == nil {
+		a.logEventFactTerminal(attempt, *result, status, startedAt, "")
+	}
 	return completeErr == nil, completeErr
+}
+
+func (a *Application) logEventFactTerminal(
+	attempt eventfact.ExecutionAttempt,
+	result eventfact.Result,
+	status eventfact.WorkStatus,
+	startedAt time.Time,
+	errorCode string,
+) {
+	code := "agent_execution_completed"
+	if status == eventfact.WorkRejected {
+		code = "agent_execution_failed"
+		if errorCode == "" {
+			errorCode = "event_fact_rejected"
+		}
+		a.logger.Error(a.lifecycleEvent(
+			code, attempt, startedAt, "failed", string(status), errorCode,
+			map[string]int{
+				"artifacts": len(result.Artifacts), "candidate_events": len(result.Candidates),
+			},
+		))
+		return
+	}
+	a.logger.Info(a.lifecycleEvent(
+		code, attempt, startedAt, "succeeded", string(status), "",
+		map[string]int{
+			"artifacts": len(result.Artifacts), "candidate_events": len(result.Candidates),
+		},
+	))
+}
+
+func (a *Application) logRetry(
+	attempt eventfact.ExecutionAttempt,
+	startedAt time.Time,
+	stage string,
+	errorCode string,
+) {
+	event := a.lifecycleEvent(
+		"agent_execution_retry_scheduled", attempt, startedAt,
+		"failed", "retry_scheduled", errorCode, nil,
+	)
+	event.Stage = stage
+	a.logger.Warn(event)
+}
+
+func (a *Application) lifecycleEvent(
+	code string,
+	attempt eventfact.ExecutionAttempt,
+	startedAt time.Time,
+	status string,
+	outcome string,
+	errorCode string,
+	counts map[string]int,
+) agentrun.AgentLifecycleEvent {
+	duration := a.now().UTC().Sub(startedAt)
+	if duration < 0 {
+		duration = 0
+	}
+	return agentrun.AgentLifecycleEvent{
+		Code: code, AgentKey: eventfact.AgentKey,
+		AgentVersion: eventfact.AgentVersion, RuntimeMode: "worker",
+		ExecutionID: attempt.ID, WorkItemID: attempt.WorkItem.Key,
+		TriggerSource: "dependent", Status: status, Outcome: outcome,
+		ErrorCode: errorCode, Duration: duration, Counts: counts,
+	}
+}
+
+func (a *Application) logCycleFailure(errorCode, stage string) {
+	a.logger.Error(agentrun.AgentLifecycleEvent{
+		Code: "agent_cycle_failed", AgentKey: eventfact.AgentKey,
+		AgentVersion: eventfact.AgentVersion, RuntimeMode: "worker",
+		Status: "failed", Stage: stage, ErrorCode: errorCode,
+	})
 }
 
 func preCatalogTerminalStatus(result eventfact.Result) (eventfact.WorkStatus, bool) {

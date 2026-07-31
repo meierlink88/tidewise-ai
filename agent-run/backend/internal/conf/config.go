@@ -78,6 +78,39 @@ type SecretConfig struct {
 }
 
 func Load() (Config, error) {
+	cfg, err := loadConfiguration(true)
+	if err != nil {
+		return Config{}, err
+	}
+	if err := cfg.validateRuntimeSecrets(); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+// LoadDatabaseOperation loads AgentRun-owned database configuration without
+// requiring service identity tokens or the long-running process timezone.
+func LoadDatabaseOperation() (Config, error) {
+	cfg, err := loadConfiguration(false)
+	if err != nil {
+		return Config{}, err
+	}
+	if strings.TrimSpace(cfg.Secrets.DatabasePassword) == "" {
+		return Config{}, fmt.Errorf(
+			"AGENTRUN_DB_PASSWORD is required for database operations",
+		)
+	}
+	if cfg.App.Env == EnvUAT && cfg.Database.SSLMode != "require" {
+		return Config{}, fmt.Errorf(
+			"uat database configuration must use ssl_mode=require",
+		)
+	}
+	cfg.Secrets.ServiceToken = ""
+	cfg.Secrets.DataServiceToken = ""
+	return cfg, nil
+}
+
+func loadConfiguration(requireTimezone bool) (Config, error) {
 	environment, err := resolveEnvironment(os.Getenv("APP_ENV"))
 	if err != nil {
 		return Config{}, err
@@ -108,18 +141,17 @@ func Load() (Config, error) {
 	if baseURL := strings.TrimSpace(os.Getenv("AGENTRUN_DATA_BASE_URL")); baseURL != "" {
 		cfg.Data.BaseURL = baseURL
 	}
-	timezone := strings.TrimSpace(os.Getenv("TZ"))
-	if timezone == "" || timezone == "Local" {
-		return Config{}, fmt.Errorf("TZ is required")
-	}
-	cfg.Location, err = time.LoadLocation(timezone)
-	if err != nil {
-		return Config{}, fmt.Errorf("TZ must name a valid IANA timezone")
+	if requireTimezone {
+		timezone := strings.TrimSpace(os.Getenv("TZ"))
+		if timezone == "" || timezone == "Local" {
+			return Config{}, fmt.Errorf("TZ is required")
+		}
+		cfg.Location, err = time.LoadLocation(timezone)
+		if err != nil {
+			return Config{}, fmt.Errorf("TZ must name a valid IANA timezone")
+		}
 	}
 	if err := cfg.Validate(); err != nil {
-		return Config{}, err
-	}
-	if err := cfg.validateRuntimeSecrets(); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil

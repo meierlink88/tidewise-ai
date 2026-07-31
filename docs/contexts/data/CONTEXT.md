@@ -325,8 +325,10 @@ Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的�
 它固定 Event、Evidence、Ontology、Variable、Rule 和可选 superseded Submission 边界，
 并在创建事务中持久化 Entity / EntityRelation 在内的完整 Context snapshot。Lease 以
 Agent Execution ID 为唯一恢复身份；同一执行可精确续期，但只能复用原 snapshot，不能
-刷新实时数据。对应 Submission 终结后 Lease 被消费。它不是任务、队列或 Agent 执行租约；
-调度、失败恢复和重试始终属于 AgentRun。
+刷新实时数据。Eligible Event cursor 查询与首次 Lease 创建使用同一 Semantic Input
+Eligibility：正式 Event 必须 confirmed、verified、有 Event time，且返回的全部 Evidence
+满足当前 Context 身份、哈希、摘要、来源和时间字段合同。对应 Submission 终结后 Lease
+被消费。它不是任务、队列或 Agent 执行租约；调度、失败恢复和重试始终属于 AgentRun。
 _Avoid_: Reanalysis Task、Agent Work Item、在 Data 中调度模型调用、无限续租
 
 **Reason Tree Event 关联（Reason Tree Event Association）**:

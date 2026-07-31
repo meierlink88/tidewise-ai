@@ -20,6 +20,60 @@ const (
 	eventSemanticsPolicyVersion   = "event-semantics.phase-one@1"
 )
 
+const eventSemanticInputEligibilitySQL = `
+	e.event_status = 'confirmed'
+	AND e.fact_status = 'verified'
+	AND e.event_time IS NOT NULL
+	AND EXISTS (
+	    SELECT 1
+	    FROM event_sources evidence
+	    JOIN raw_documents document ON document.id = evidence.raw_document_id
+	    WHERE evidence.event_id = e.id
+	      AND COALESCE(evidence.evidence_hash, '') ~ '^[0-9a-f]{64}$'
+	      AND COALESCE(btrim(evidence.evidence_excerpt), '') <> ''
+	      AND evidence.source_level IN ('primary', 'secondary')
+	      AND evidence.evidence_relation IN ('supports', 'contradicts', 'context')
+	      AND COALESCE(evidence.supports_fields, ARRAY[]::text[])
+	          <@ ARRAY['title', 'factual_summary', 'occurred_at', 'fact_payload']::text[]
+	      AND array_position(evidence.supports_fields, NULL::text) IS NULL
+	      AND (
+	          evidence.evidence_relation = 'context'
+	          OR COALESCE(cardinality(evidence.supports_fields), 0) > 0
+	      )
+	      AND COALESCE(btrim(document.source_name), '') <> ''
+	      AND COALESCE(btrim(document.source_type), '') <> ''
+	      AND COALESCE(btrim(document.title), '') <> ''
+	      AND document.collected_at IS NOT NULL
+	      AND evidence.created_at IS NOT NULL
+	)
+	AND NOT EXISTS (
+	    SELECT 1
+	    FROM event_sources evidence
+	    JOIN raw_documents document ON document.id = evidence.raw_document_id
+	    WHERE evidence.event_id = e.id
+	      AND (
+	          COALESCE(evidence.evidence_hash, '') !~ '^[0-9a-f]{64}$'
+	          OR COALESCE(btrim(evidence.evidence_excerpt), '') = ''
+	          OR COALESCE(evidence.source_level, '') NOT IN ('primary', 'secondary')
+	          OR COALESCE(evidence.evidence_relation, '') NOT IN ('supports', 'contradicts', 'context')
+	          OR NOT (
+	              COALESCE(evidence.supports_fields, ARRAY[]::text[])
+	              <@ ARRAY['title', 'factual_summary', 'occurred_at', 'fact_payload']::text[]
+	          )
+	          OR array_position(evidence.supports_fields, NULL::text) IS NOT NULL
+	          OR (
+	              evidence.evidence_relation <> 'context'
+	              AND COALESCE(cardinality(evidence.supports_fields), 0) = 0
+	          )
+	          OR COALESCE(btrim(document.source_name), '') = ''
+	          OR COALESCE(btrim(document.source_type), '') = ''
+	          OR COALESCE(btrim(document.title), '') = ''
+	          OR document.collected_at IS NULL
+	          OR evidence.created_at IS NULL
+	      )
+	)
+`
+
 type semanticQueryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -28,13 +82,18 @@ type semanticQueryer interface {
 func (r repository) ListEligibleEvents(
 	ctx context.Context,
 	limit int,
+	after *eventsemantics.EligibleEventCursor,
 ) ([]eventsemantics.EligibleEvent, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT e.id
+	var afterTime any
+	var afterEventID any
+	if after != nil {
+		afterTime = after.FirstSeenAt.UTC()
+		afterEventID = after.EventID
+	}
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
+		SELECT e.id, e.first_seen_at
 		FROM events e
-		WHERE e.event_status = 'confirmed'
-		  AND e.fact_status = 'verified'
-		  AND e.event_time IS NOT NULL
+		WHERE %s
 		  AND NOT EXISTS (
 		      SELECT 1 FROM event_semantic_context_leases lease
 		      WHERE lease.event_id = e.id
@@ -46,9 +105,13 @@ func (r repository) ListEligibleEvents(
 		      WHERE submission.event_id = e.id
 		        AND submission.status <> 'superseded'
 		  )
+		  AND (
+		      $1::timestamptz IS NULL
+		      OR (e.first_seen_at, e.id) > ($1::timestamptz, $2::uuid)
+		  )
 		ORDER BY e.first_seen_at, e.id
-		LIMIT $1
-	`, limit)
+		LIMIT $3
+	`, eventSemanticInputEligibilitySQL), afterTime, afterEventID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +119,7 @@ func (r repository) ListEligibleEvents(
 	result := make([]eventsemantics.EligibleEvent, 0)
 	for rows.Next() {
 		var item eventsemantics.EligibleEvent
-		if err := rows.Scan(&item.EventID); err != nil {
+		if err := rows.Scan(&item.EventID, &item.FirstSeenAt); err != nil {
 			return nil, err
 		}
 		result = append(result, item)
@@ -141,21 +204,21 @@ func (r repository) CreateContextLease(
 		}
 	}
 	var eventID string
-	err = tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, fmt.Sprintf(`
 		SELECT e.id
 		FROM events e
 		WHERE e.id = $1
-		  AND e.event_status = 'confirmed'
-		  AND e.fact_status = 'verified'
-		  AND e.event_time IS NOT NULL
+		  AND %s
 		  AND NOT EXISTS (
 		      SELECT 1 FROM event_semantic_context_leases lease
 		      WHERE lease.event_id = e.id AND lease.status = 'active'
 		  )
 		FOR UPDATE
-	`, request.EventID).Scan(&eventID)
+	`, eventSemanticInputEligibilitySQL), request.EventID).Scan(&eventID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.ContextLease{}, &eventsemantics.NotFoundError{Resource: "eligible Event"}
+		return eventsemantics.ContextLease{}, classifyEventSemanticLeaseEligibility(
+			ctx, tx, request.EventID,
+		)
 	}
 	if err != nil {
 		return eventsemantics.ContextLease{}, err
@@ -225,6 +288,50 @@ func (r repository) CreateContextLease(
 		return eventsemantics.ContextLease{}, err
 	}
 	return contextLease, nil
+}
+
+func classifyEventSemanticLeaseEligibility(
+	ctx context.Context,
+	tx *sql.Tx,
+	eventID string,
+) error {
+	var status, factStatus string
+	var hasEventTime, inputValid, activeLease bool
+	err := tx.QueryRowContext(ctx, fmt.Sprintf(`
+		SELECT e.event_status, e.fact_status, e.event_time IS NOT NULL,
+		       (%s),
+		       EXISTS (
+		           SELECT 1
+		           FROM event_semantic_context_leases lease
+		           WHERE lease.event_id = e.id AND lease.status = 'active'
+		       )
+		FROM events e
+		WHERE e.id = $1
+	`, eventSemanticInputEligibilitySQL), eventID).Scan(
+		&status, &factStatus, &hasEventTime, &inputValid, &activeLease,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return &eventsemantics.NotFoundError{Resource: "Event"}
+	}
+	if err != nil {
+		return err
+	}
+	if status != "confirmed" || factStatus != "verified" || !hasEventTime {
+		return &eventsemantics.NotRequiredError{
+			Reason: "Event no longer requires initial Semantic processing",
+		}
+	}
+	if !inputValid {
+		return &eventsemantics.InputInvalidError{
+			Reason: "Event does not satisfy the Event Semantic input contract",
+		}
+	}
+	if activeLease {
+		return &eventsemantics.ConflictError{
+			Reason: "Event already has an active Context Lease",
+		}
+	}
+	return &eventsemantics.NotFoundError{Resource: "eligible Event"}
 }
 
 func (r repository) Context(ctx context.Context, contextLeaseID string) (eventsemantics.Context, error) {

@@ -35,13 +35,21 @@ type semanticErrorEnvelope struct {
 func (c *Client) ListEligibleEvents(
 	ctx context.Context,
 	limit int,
-) ([]eventsemantic.EligibleEvent, error) {
+	cursor string,
+) (eventsemantic.EligibleEventPage, error) {
 	var response struct {
-		Events []semanticEligibleEventWire `json:"events"`
+		Events     []semanticEligibleEventWire `json:"events"`
+		NextCursor string                      `json:"next_cursor"`
+	}
+	query := url.Values{}
+	query.Set("limit", strconv.Itoa(limit))
+	query.Set("pagination", "cursor")
+	if cursor != "" {
+		query.Set("cursor", cursor)
 	}
 	_, err := c.semanticDo(
 		ctx, http.MethodGet,
-		dataAPIPrefix+"/event-semantics/eligible-events?limit="+strconv.Itoa(limit),
+		dataAPIPrefix+"/event-semantics/eligible-events?"+query.Encode(),
 		nil, &response,
 		"data.v1.listEligibleEventSemanticEvents",
 		"/api/data/v1/event-semantics/eligible-events",
@@ -53,7 +61,9 @@ func (c *Client) ListEligibleEvents(
 	if err == nil && !validEligibleEvents(result) {
 		err = invalidSemanticResponse()
 	}
-	return result, err
+	return eventsemantic.EligibleEventPage{
+		Events: result, NextCursor: response.NextCursor,
+	}, err
 }
 
 func (c *Client) CreateContextLease(

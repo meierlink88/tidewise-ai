@@ -32,6 +32,11 @@ type EligibleEvent struct {
 	EventID string `json:"event_id"`
 }
 
+type EligibleEventPage struct {
+	Events     []EligibleEvent
+	NextCursor string
+}
+
 type Event struct {
 	ID          string  `json:"id"`
 	Title       string  `json:"title"`
@@ -276,6 +281,26 @@ type SubmissionResult struct {
 	FinalizedAt             *string              `json:"finalized_at,omitempty"`
 }
 
+func (s SubmissionResult) CandidateOutcomeCounts() (int, int) {
+	accepted := 0
+	rejected := 0
+	for _, decisions := range [][]CandidateDecision{
+		s.EntityLinks,
+		s.VariableSignals,
+		s.DirectImpacts,
+	} {
+		for _, decision := range decisions {
+			switch decision.Status {
+			case "accepted":
+				accepted++
+			case "rejected":
+				rejected++
+			}
+		}
+	}
+	return accepted, rejected
+}
+
 type ReviewItem struct {
 	CandidateType string   `json:"candidate_type"`
 	CandidateKey  string   `json:"candidate_key"`
@@ -324,13 +349,14 @@ type ReanalysisRequest struct {
 type ExecutionCompletion struct {
 	ExecutionID  string
 	Status       string
+	Retryable    bool
 	ErrorCode    string
 	ErrorSummary string
 	CompletedAt  time.Time
 }
 
 type DataClient interface {
-	ListEligibleEvents(context.Context, int) ([]EligibleEvent, error)
+	ListEligibleEvents(context.Context, int, string) (EligibleEventPage, error)
 	CreateContextLease(context.Context, ContextLeaseRequest) (ContextLease, error)
 	Context(context.Context, string) (Context, error)
 	Resolve(context.Context, string, []EntityMention) ([]EntityResolution, error)
@@ -341,15 +367,24 @@ type DataClient interface {
 }
 
 type Repository interface {
-	EnsureInitialWorkItems(context.Context, []EligibleEvent, time.Time) error
+	EnsureInitialWorkItems(context.Context, []EligibleEvent, time.Time) (int, error)
 	EnqueueReanalysis(context.Context, ReanalysisRequest, time.Time) (WorkItem, bool, error)
 	StartNextExecution(context.Context, string, string, time.Time) (ExecutionAttempt, bool, error)
 	CompleteExecution(context.Context, ExecutionCompletion) error
 }
 
+// ProcessingPermit prevents historical maintenance from racing a normal
+// Event Semantic processing cycle. Production repositories must implement it;
+// the separate interface keeps in-memory domain tests lightweight.
+type ProcessingPermit interface {
+	WithEventSemanticProcessingPermit(context.Context, func() error) error
+}
+
 type Result struct {
-	SubmissionID string
-	Status       string
+	SubmissionID       string
+	Status             string
+	AcceptedCandidates int
+	RejectedCandidates int
 }
 
 type EventSemantics struct {
