@@ -32,6 +32,14 @@ branch 中完成，并由用户控制 PR 合并。
 `agent-run/`；AgentRun 共仓后仍保持独立 Context、数据库、Artifact 与 API 边界。
 详见 `docs/agents/domain.md`。
 
+### Engineering standards
+
+任何会改变系统行为、项目事实、API、数据、配置、运行时、部署或测试合同的任务，都
+必须先读取 `docs/agents/engineering-standard.md` 和
+`docs/agents/coding-standard.md`，再按 behavior owner 进入对应技术栈规范。全局 Skill
+和外部参考提供工作流与证据，仓库内规范、Context、ADR、OpenAPI 和已评审 Spec 才是
+项目权威。
+
 ### Testing
 
 Backend Service 采用按风险边界测试，不要求每个源码文件或 Kratos 层级都拥有测试。
@@ -45,9 +53,15 @@ Lifecycle 和 Architecture 仅在对应风险被本次修改触及时启用。�
 `$ganchaojia-development-standard`，不得以熟悉现有代码为由跳过。
 
 - Miniapp 前端工作执行其中的 Taro reference-first 分支，并继续读取本项目现有
-  `$taro-reference-first` 规则和来源目录。
-- Backend Service 工作执行其中的 Kratos 分支。
+  `$taro-reference-first` 规则、来源目录和 `docs/agents/miniapp-frontend.md`。
+- Admin Portal 前端工作执行其中的 shadcn 分支，并继续读取
+  `docs/agents/admin-portal-frontend.md`。当前选型固定为 React 18、Vite 6、
+  TypeScript、shadcn-admin/shadcn/ui、TanStack Query/Table、React Hook Form 与
+  Zod；不得为适配前端框架改造 Admin Backend API。
+- Backend Service 工作执行其中的 Kratos 分支，并继续读取
+  `docs/architecture/kratos-backend-development-standard-v1.md`。
 - Eino/Agent 工作执行其中的 Eino reference-first 分支，并遵守
-  `docs/agents/workflow.md` 的 Eino reference-first gate。
+  `docs/agents/agentrun-eino.md` 与 `docs/agents/workflow.md` 的 Eino
+  reference-first gate。
 - 跨前端、Service 与 Agent 的需求同时执行所有适用分支，并先冻结 API、数据和所有权边界。
 - 仅不改变系统行为或项目事实的纯解释、纯文案工作可以不触发。

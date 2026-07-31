@@ -25,6 +25,11 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true, "agentrun": true},
 		},
 		{
+			name: "Admin Portal Context",
+			path: "docs/contexts/adminportal/CONTEXT.md",
+			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true, "agentrun": false},
+		},
+		{
 			name: "Data API",
 			path: "analyse-data-service/backend/api/data/v1/research.go",
 			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true, "agentrun": false},
