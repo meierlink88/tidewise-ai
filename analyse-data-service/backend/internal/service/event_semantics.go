@@ -23,8 +23,10 @@ func (s *DataService) ListEligibleEventSemanticEvents(
 		return nil, eventSemanticsError(err)
 	}
 	result := v1.EligibleEventSemanticEvents{
-		Events:     make([]v1.EligibleEventSemanticEvent, 0, len(page.Events)),
-		NextCursor: page.NextCursor,
+		Events: make([]v1.EligibleEventSemanticEvent, 0, len(page.Events)),
+	}
+	if request.Pagination == "cursor" {
+		result.NextCursor = page.NextCursor
 	}
 	for _, item := range page.Events {
 		result.Events = append(result.Events, v1.EligibleEventSemanticEvent{EventID: item.EventID})

@@ -10,7 +10,24 @@ import (
 
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 	eventworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact/workflow"
+	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
+
+type lifecycleLoggerStub struct {
+	info  []agentrun.AgentLifecycleEvent
+	warn  []agentrun.AgentLifecycleEvent
+	error []agentrun.AgentLifecycleEvent
+}
+
+func (l *lifecycleLoggerStub) Info(event agentrun.AgentLifecycleEvent) {
+	l.info = append(l.info, event)
+}
+func (l *lifecycleLoggerStub) Warn(event agentrun.AgentLifecycleEvent) {
+	l.warn = append(l.warn, event)
+}
+func (l *lifecycleLoggerStub) Error(event agentrun.AgentLifecycleEvent) {
+	l.error = append(l.error, event)
+}
 
 type memoryRepository struct {
 	attempt         eventfact.ExecutionAttempt
@@ -142,6 +159,7 @@ func TestTagCatalogRecoveryResumesPersistedFactsWithoutFactExtractionRerun(t *te
 		},
 	}
 	data := &lossThenSuccessData{catalogFailures: 1}
+	logger := &lifecycleLoggerStub{}
 	factCalls := 0
 	resumeCalls := 0
 	runtime := func(context.Context) (Runtime, error) {
@@ -173,7 +191,9 @@ func TestTagCatalogRecoveryResumesPersistedFactsWithoutFactExtractionRerun(t *te
 			},
 		}, nil
 	}
-	application, err := New(repository, data, runtime, time.Minute)
+	application, err := New(
+		repository, data, runtime, time.Minute, WithEventLogger(logger),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,11 +207,29 @@ func TestTagCatalogRecoveryResumesPersistedFactsWithoutFactExtractionRerun(t *te
 			repository.attempt.WorkItem.Status, factCalls, resumeCalls,
 		)
 	}
+	if len(logger.info) != 1 ||
+		logger.info[0].Code != "agent_execution_started" ||
+		len(logger.warn) != 1 ||
+		logger.warn[0].Code != "agent_execution_retry_scheduled" ||
+		logger.warn[0].Stage != "tag_catalog" {
+		t.Fatalf("first lifecycle info=%#v warn=%#v", logger.info, logger.warn)
+	}
 	if err := application.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if factCalls != 1 || resumeCalls != 1 {
 		t.Fatalf("Catalog recovery factCalls=%d resumeCalls=%d", factCalls, resumeCalls)
+	}
+	if len(logger.info) != 3 ||
+		logger.info[1].Code != "agent_execution_started" ||
+		logger.info[2].Code != "agent_execution_completed" ||
+		logger.info[2].Status != "succeeded" ||
+		logger.info[2].Counts["candidate_events"] != 1 ||
+		len(logger.error) != 0 {
+		t.Fatalf(
+			"terminal lifecycle info=%#v warn=%#v error=%#v",
+			logger.info, logger.warn, logger.error,
+		)
 	}
 }
 func (d *lossThenSuccessData) PublishReviewedEvents(_ context.Context, payload []byte) (string, error) {

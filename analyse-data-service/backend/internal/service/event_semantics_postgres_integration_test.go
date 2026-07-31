@@ -231,33 +231,83 @@ func TestPostgresEligibleEventPaginationAndLeaseShareTheInputContract(t *testing
 	secondEvidenceID := "10000000-0000-4000-8000-000000000013"
 	invalidEventID := "10000000-0000-4000-8000-000000000022"
 	invalidEvidenceID := "10000000-0000-4000-8000-000000000023"
+	legacyNullableEventID := "10000000-0000-4000-8000-000000000032"
+	legacyNullableEvidenceID := "10000000-0000-4000-8000-000000000033"
 	for _, row := range []struct {
-		eventID, evidenceID, excerpt, firstSeen string
+		eventID, evidenceID, excerpt, firstSeen, relation string
+		supportsFields                                    []string
 	}{
-		{secondEventID, secondEvidenceID, "second valid evidence", "2026-07-28T08:02:00Z"},
-		{invalidEventID, invalidEvidenceID, "", "2026-07-28T08:03:00Z"},
+		{
+			secondEventID, secondEvidenceID, "second valid context evidence",
+			"2026-07-28T08:02:00Z", "context", []string{},
+		},
+		{
+			invalidEventID, invalidEvidenceID, "",
+			"2026-07-28T08:03:00Z", "supports", []string{"title"},
+		},
 	} {
 		if _, err := db.Exec(`
 			INSERT INTO events (
 			  id, title, summary, event_time, first_seen_at, knowable_at,
 			  event_status, fact_status, dedupe_key, fact_payload
 			) VALUES (
-			  $1, 'Semantic pagination Event', 'Semantic pagination Event summary',
-			  '2026-07-28T08:00:00Z', $4, $4, 'confirmed', 'verified',
+			  $1::uuid, 'Semantic pagination Event', 'Semantic pagination Event summary',
+			  '2026-07-28T08:00:00Z', $2, $2, 'confirmed', 'verified',
 			  'event:semantic:' || $1::text, '{}'::jsonb
-			);
+			)
+		`, row.eventID, row.firstSeen); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`
 			INSERT INTO event_sources (
 			  id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
 			  evidence_relation, supports_fields, is_primary
 			) VALUES (
-			  $2, $1, $3, 'primary', $5, $6,
-			  'supports', ARRAY['title'], true
-			);
-			UPDATE events SET primary_source_id = $2 WHERE id = $1
-		`, row.eventID, row.evidenceID, semanticRawDocumentID, row.firstSeen,
-			row.excerpt, strings.Repeat("3", 64)); err != nil {
+			  $2, $1, $3, 'primary', $4, $5,
+			  $6, $7, true
+			)
+		`, row.eventID, row.evidenceID, semanticRawDocumentID,
+			row.excerpt, strings.Repeat("3", 64), row.relation,
+			row.supportsFields); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := db.Exec(
+			`UPDATE events SET primary_source_id = $2 WHERE id = $1`,
+			row.eventID, row.evidenceID,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`
+		INSERT INTO events (
+		  id, title, summary, event_time, first_seen_at, knowable_at,
+		  event_status, fact_status, dedupe_key, fact_payload
+		) VALUES (
+		  $1::uuid, 'Legacy nullable Evidence Event', 'Legacy nullable Evidence summary',
+		  '2026-07-28T08:00:00Z', '2026-07-28T08:04:00Z',
+		  '2026-07-28T08:04:00Z', 'confirmed', 'verified',
+		  'event:semantic:' || $1::text, '{}'::jsonb
+		)
+	`, legacyNullableEventID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO event_sources (
+		  id, event_id, raw_document_id, source_level, evidence_excerpt,
+		  evidence_hash, is_primary
+		) VALUES (
+		  $2, $1, $3, 'primary', 'legacy evidence without relation',
+		  $4, true
+		)
+	`, legacyNullableEventID, legacyNullableEvidenceID, semanticRawDocumentID,
+		strings.Repeat("4", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(
+		`UPDATE events SET primary_source_id = $2 WHERE id = $1`,
+		legacyNullableEventID, legacyNullableEvidenceID,
+	); err != nil {
+		t.Fatal(err)
 	}
 	semanticService := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
 
@@ -278,6 +328,14 @@ func TestPostgresEligibleEventPaginationAndLeaseShareTheInputContract(t *testing
 		second.NextCursor != "" {
 		t.Fatalf("second page = %#v", second)
 	}
+	for _, page := range []eventsemantics.EligibleEventPage{first, second} {
+		for _, item := range page.Events {
+			if item.EventID == invalidEventID ||
+				item.EventID == legacyNullableEventID {
+				t.Fatalf("invalid historical Event appeared in eligible page: %#v", page)
+			}
+		}
+	}
 	_, err = semanticService.CreateContextLease(
 		context.Background(),
 		eventsemantics.ContextLeaseRequest{
@@ -289,6 +347,18 @@ func TestPostgresEligibleEventPaginationAndLeaseShareTheInputContract(t *testing
 	if !errors.As(err, &inputInvalid) {
 		t.Fatalf("invalid Event lease error = %T %v", err, err)
 	}
+	_, err = semanticService.CreateContextLease(
+		context.Background(),
+		eventsemantics.ContextLeaseRequest{
+			EventID:          legacyNullableEventID,
+			AgentExecutionID: "legacy-nullable-semantic-execution",
+			WorkerID:         "semantic-integration-worker",
+			Lease:            15 * time.Minute,
+		},
+	)
+	if !errors.As(err, &inputInvalid) {
+		t.Fatalf("legacy nullable Event lease error = %T %v", err, err)
+	}
 	manifest, err := postgres.AuditHistoricalEventSemantics(
 		context.Background(), db, time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC),
 	)
@@ -297,7 +367,8 @@ func TestPostgresEligibleEventPaginationAndLeaseShareTheInputContract(t *testing
 	}
 	if !containsID(manifest.ValidEventIDs, semanticEventID) ||
 		!containsID(manifest.ValidEventIDs, secondEventID) ||
-		!containsID(manifest.InvalidEventIDs, invalidEventID) {
+		!containsID(manifest.InvalidEventIDs, invalidEventID) ||
+		!containsID(manifest.InvalidEventIDs, legacyNullableEventID) {
 		t.Fatalf("historical manifest = %#v", manifest)
 	}
 }

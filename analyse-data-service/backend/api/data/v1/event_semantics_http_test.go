@@ -100,7 +100,7 @@ func TestEligibleEventSemanticsBindsOpaqueCursorAndReturnsNextCursor(t *testing.
 	RegisterDataHTTPServer(server, stub)
 	request := httptest.NewRequest(
 		http.MethodGet,
-		APIPrefix+"/event-semantics/eligible-events?limit=20&cursor=opaque-current-page",
+		APIPrefix+"/event-semantics/eligible-events?limit=20&cursor=opaque-current-page&pagination=cursor",
 		nil,
 	)
 	recorder := httptest.NewRecorder()
@@ -112,7 +112,8 @@ func TestEligibleEventSemanticsBindsOpaqueCursorAndReturnsNextCursor(t *testing.
 	}
 	if stub.eligibleRequest == nil ||
 		stub.eligibleRequest.Limit != 20 ||
-		stub.eligibleRequest.Cursor != "opaque-current-page" {
+		stub.eligibleRequest.Cursor != "opaque-current-page" ||
+		stub.eligibleRequest.Pagination != "cursor" {
 		t.Fatalf("eligible request = %#v", stub.eligibleRequest)
 	}
 	var response EligibleEventSemanticEvents
@@ -121,5 +122,34 @@ func TestEligibleEventSemanticsBindsOpaqueCursorAndReturnsNextCursor(t *testing.
 	}
 	if response.NextCursor != "opaque-next-page" || len(response.Events) != 1 {
 		t.Fatalf("response = %#v", response)
+	}
+}
+
+func TestEligibleEventSemanticsRejectsUnknownPaginationCapability(t *testing.T) {
+	stub := &eventSemanticsHTTPStub{}
+	server := kratoshttp.NewServer(
+		kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
+			public, ok := err.(*PublicError)
+			if !ok {
+				t.Fatalf("error = %T %v", err, err)
+			}
+			response.WriteHeader(public.Status)
+		}),
+	)
+	RegisterDataHTTPServer(server, stub)
+	request := httptest.NewRequest(
+		http.MethodGet,
+		APIPrefix+"/event-semantics/eligible-events?pagination=offset",
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+
+	server.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest || stub.eligibleRequest != nil {
+		t.Fatalf(
+			"status = %d called = %v body = %s",
+			recorder.Code, stub.eligibleRequest != nil, recorder.Body.String(),
+		)
 	}
 }

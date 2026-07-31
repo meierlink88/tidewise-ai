@@ -233,6 +233,60 @@ func (s *Store) SchemaReady(ctx context.Context) bool {
 	return s.schemaShapeReady(ctx)
 }
 
+// PreparePreviousReleaseRollback removes only the 010 ledger marker so a
+// pre-010 binary's strict migration readiness check can start again. The
+// expanded constraint is intentionally left in place: it is backward
+// compatible. Rollback is refused after any history-only skipped row exists.
+func PreparePreviousReleaseRollback(
+	ctx context.Context,
+	database *pgxpool.Pool,
+) error {
+	if database == nil {
+		return errors.New("AgentRun database is required")
+	}
+	tx, err := database.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin AgentRun previous-release rollback preparation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(
+		ctx,
+		`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+		"agentrun:migration",
+	); err != nil {
+		return fmt.Errorf("lock AgentRun previous-release rollback preparation: %w", err)
+	}
+	var skippedExists bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM event_semantic_work_items
+			WHERE status = 'skipped'
+		)
+	`).Scan(&skippedExists); err != nil {
+		return fmt.Errorf("inspect Event Semantic rollback compatibility: %w", err)
+	}
+	if skippedExists {
+		return errors.New(
+			"previous AgentRun release rollback is unsafe after historical skipped rows exist",
+		)
+	}
+	command, err := tx.Exec(ctx, `
+		DELETE FROM schema_migrations
+		WHERE version = 'migrations/010_event_semantic_history_skip.sql'
+	`)
+	if err != nil {
+		return fmt.Errorf("remove AgentRun 010 migration ledger marker: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return errors.New("AgentRun 010 migration is not applied")
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit AgentRun previous-release rollback preparation: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) schemaShapeReady(ctx context.Context) bool {
 	rows, err := s.database.Query(ctx, `
 		SELECT table_name, column_name, udt_name, is_nullable

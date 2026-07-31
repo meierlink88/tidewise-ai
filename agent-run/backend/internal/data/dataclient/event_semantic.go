@@ -43,6 +43,7 @@ func (c *Client) ListEligibleEvents(
 	}
 	query := url.Values{}
 	query.Set("limit", strconv.Itoa(limit))
+	query.Set("pagination", "cursor")
 	if cursor != "" {
 		query.Set("cursor", cursor)
 	}

@@ -45,6 +45,7 @@ type semanticDataStub struct {
 	targetSubject  string
 	runRequest     eventsemantic.SubmissionRequest
 	reviewRequest  eventsemantic.ReviewRequest
+	rejectEmpty    bool
 }
 
 func (*semanticDataStub) ListEligibleEvents(context.Context, int, string) (eventsemantic.EligibleEventPage, error) {
@@ -99,6 +100,16 @@ func (s *semanticDataStub) CreateSubmission(
 	request eventsemantic.SubmissionRequest,
 ) (eventsemantic.SubmissionResult, error) {
 	s.runRequest = request
+	if s.rejectEmpty &&
+		len(request.EntityLinks) == 0 &&
+		len(request.VariableSignals) == 0 &&
+		len(request.DirectImpacts) == 0 {
+		return eventsemantic.SubmissionResult{
+			SubmissionID: "66666666-6666-4666-8666-666666666666",
+			EventID:      request.EventID,
+			Status:       "rejected",
+		}, nil
+	}
 	return eventsemantic.SubmissionResult{
 		SubmissionID: "66666666-6666-4666-8666-666666666666",
 		EventID:      request.EventID, Status: "pending_review",
@@ -108,6 +119,51 @@ func (s *semanticDataStub) CreateSubmission(
 			DirectImpacts: request.DirectImpacts,
 		},
 	}, nil
+}
+
+func TestWorkflowPersistsNoCandidateSubmissionAsRejected(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"entity_links":[],"variable_signals":[]}`,
+		`{"direct_impacts":[]}`,
+	}}
+	reviewer := &queuedModel{}
+	data := &semanticDataStub{rejectEmpty: true}
+	runnable, err := New(context.Background(), data, generator, reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contextSnapshot := requestContext()
+	result, err := runnable.Invoke(context.Background(), &Input{
+		Attempt: eventsemantic.ExecutionAttempt{
+			ID: "77777777-7777-4777-8777-777777777777",
+			ContextLease: eventsemantic.ContextLease{
+				ContextLeaseID: contextSnapshot.ContextLeaseID,
+				EventID:        contextSnapshot.Event.ID,
+			},
+		},
+		Context:        contextSnapshot,
+		GeneratorModel: "deepseek",
+		ReviewerModel:  "deepseek",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "rejected" ||
+		result.SubmissionID == "" ||
+		result.AcceptedCandidates != 0 ||
+		result.RejectedCandidates != 0 {
+		t.Fatalf("result = %#v", result)
+	}
+	if len(data.runRequest.EntityLinks) != 0 ||
+		len(data.runRequest.VariableSignals) != 0 ||
+		len(data.runRequest.DirectImpacts) != 0 ||
+		len(generator.calls) != 2 ||
+		len(reviewer.calls) != 0 {
+		t.Fatalf(
+			"request=%#v generatorCalls=%d reviewerCalls=%d",
+			data.runRequest, len(generator.calls), len(reviewer.calls),
+		)
+	}
 }
 func (s *semanticDataStub) SubmitReview(
 	_ context.Context,

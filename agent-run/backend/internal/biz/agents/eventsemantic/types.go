@@ -373,6 +373,13 @@ type Repository interface {
 	CompleteExecution(context.Context, ExecutionCompletion) error
 }
 
+// ProcessingPermit prevents historical maintenance from racing a normal
+// Event Semantic processing cycle. Production repositories must implement it;
+// the separate interface keeps in-memory domain tests lightweight.
+type ProcessingPermit interface {
+	WithEventSemanticProcessingPermit(context.Context, func() error) error
+}
+
 type Result struct {
 	SubmissionID       string
 	Status             string

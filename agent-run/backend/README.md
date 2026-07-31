@@ -91,9 +91,10 @@ Server 不自动执行 migration。Schema、DeepSeek Model Provider Configuratio
 ## Event Semantic 历史处置
 
 Event Semantic 历史处置是部署后的独立、默认关闭操作，不属于普通 migration 或服务启动。
-先用 Data 的只读命令生成不可覆盖的审计清单，再由 AgentRun dry-run；只有停用 Event
-Semantic Schedule、确认没有 running Work Item、完成 UAT 恢复点和结果审阅后，才可
-另行授权 Apply：
+先用 Data 的只读命令生成不可覆盖的审计清单，再由 AgentRun dry-run；只有确认没有
+running Work Item、完成 UAT 恢复点和结果审阅后，才可另行授权 Apply。Event Semantic
+没有独立 Schedule；历史命令会取得数据库独占维护锁，自动等待正在执行的语义周期结束，
+并在计划、导出和 Apply 全程阻止新的语义周期：
 
 ```bash
 go run ./analyse-data-service/backend/cmd/event-semantic-history-audit \
@@ -111,6 +112,13 @@ go run ./agent-run/backend/cmd/event-semantic-history \
 审计命令只读取 Data 数据库；dry-run 只读取 AgentRun 数据库。Apply 只更新 AgentRun
 初始 Work Item：历史不合规项进入 `skipped`，合法且已失败的旧项获得一次恢复机会；
 running、succeeded 和显式 reanalysis 项不被覆盖。重复 Apply 不会创建重复任务。
+同一清单只允许给审计时已经 failed 的合法旧项增加一次机会；该机会再次失败后，重复
+使用旧清单不会重开任务。Apply 前的 Work Item 导出以 `0600` 创建、拒绝覆盖已有文件，
+并在数据库写入前完成文件及父目录同步。
+
+迁移 `010` 只放宽既有状态约束。若候选版本验证失败且本次刚应用 `010`，UAT 部署脚本
+会在确认尚无 `skipped` 行后只撤销 `010` ledger 标记，再恢复旧镜像，数据库约束保持
+向后兼容。历史 Apply 一旦产生 `skipped`，不得再回滚到不认识该状态的旧 AgentRun。
 
 三类 Agent 的 Runtime、Cycle 和 Execution 生命周期事件使用现有 JSON stdout 日志，
 统一以 `event_code` 区分；日志只包含身份、状态、阶段、尝试次数、时长和有界计数，

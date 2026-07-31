@@ -32,7 +32,8 @@ func (m HistoricalManifest) Validate() error {
 		{ids: m.InvalidEventIDs, invalid: true},
 	} {
 		for _, eventID := range group.ids {
-			if _, err := uuid.Parse(eventID); err != nil {
+			parsed, err := uuid.Parse(eventID)
+			if err != nil || parsed.String() != eventID {
 				return errors.New("historical Event manifest contains an invalid Event ID")
 			}
 			if _, exists := seen[eventID]; exists {
@@ -79,6 +80,8 @@ type HistoricalDispositionReport struct {
 	PendingPreservedEventIDs       []string                     `json:"pending_preserved_event_ids"`
 	MissingValidWorkItems          int                          `json:"missing_valid_work_items"`
 	MissingValidWorkItemEventIDs   []string                     `json:"missing_valid_work_item_event_ids"`
+	FailedAfterAuditPreserved      int                          `json:"failed_after_audit_preserved"`
+	FailedAfterAuditEventIDs       []string                     `json:"failed_after_audit_event_ids"`
 	BlockingRunningEventIDs        []string                     `json:"blocking_running_event_ids"`
 	Before                         []HistoricalWorkItemSnapshot `json:"before"`
 }

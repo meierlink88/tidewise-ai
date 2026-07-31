@@ -84,7 +84,8 @@ func (s *Store) ApplyHistoricalEventDisposition(
 	}
 	for _, eventID := range manifest.ValidEventIDs {
 		item, exists := byEventID[eventID]
-		if !exists || item.Status != "failed" {
+		if !exists || item.Status != "failed" ||
+			item.UpdatedAt.After(manifest.GeneratedAt) {
 			continue
 		}
 		if _, err := tx.Exec(ctx, `
@@ -93,8 +94,10 @@ func (s *Store) ApplyHistoricalEventDisposition(
 			    max_attempts = attempt_count + 1,
 			    lease_expires_at = NULL,
 			    updated_at = $2
-			WHERE work_item_id = $1 AND status = 'failed'
-		`, item.ID, now.UTC()); err != nil {
+			WHERE work_item_id = $1
+			  AND status = 'failed'
+			  AND updated_at <= $3
+		`, item.ID, now.UTC(), manifest.GeneratedAt.UTC()); err != nil {
 			return eventsemantic.HistoricalDispositionReport{}, fmt.Errorf(
 				"recover historical Event Semantic Work Item: %w", err,
 			)
@@ -241,10 +244,17 @@ func classifyHistoricalDisposition(
 		}
 		switch item.Status {
 		case "failed":
-			report.ValidFailuresRecovered++
-			report.ValidFailuresRecoveredEventIDs = append(
-				report.ValidFailuresRecoveredEventIDs, eventID,
-			)
+			if item.UpdatedAt.After(manifest.GeneratedAt) {
+				report.FailedAfterAuditPreserved++
+				report.FailedAfterAuditEventIDs = append(
+					report.FailedAfterAuditEventIDs, eventID,
+				)
+			} else {
+				report.ValidFailuresRecovered++
+				report.ValidFailuresRecoveredEventIDs = append(
+					report.ValidFailuresRecoveredEventIDs, eventID,
+				)
+			}
 		case "pending":
 			report.PendingPreserved++
 			report.PendingPreservedEventIDs = append(
@@ -276,6 +286,7 @@ func classifyHistoricalDisposition(
 		report.SucceededPreservedEventIDs,
 		report.PendingPreservedEventIDs,
 		report.MissingValidWorkItemEventIDs,
+		report.FailedAfterAuditEventIDs,
 		report.BlockingRunningEventIDs,
 	} {
 		sort.Strings(eventIDs)

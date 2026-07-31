@@ -95,3 +95,42 @@ func TestAgentLifecycleLoggerEmitsStableSafeJSONFields(t *testing.T) {
 		t.Fatalf("safe counts = %#v", event["counts"])
 	}
 }
+
+func TestAgentLifecycleLoggerDropsRawSecretPromptURLAndErrorText(t *testing.T) {
+	const sentinel = "SENTINEL_SECRET_PROMPT_AUTHORIZATION"
+	var output bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&output, nil))
+	adapter := slogAgentLifecycleLogger{logger: logger, environment: "uat"}
+	adapter.Error(agentrun.AgentLifecycleEvent{
+		Code: "agent_execution_failed", AgentKey: "event-fact-extractor",
+		AgentVersion: "event-fact-extractor.v1", RuntimeMode: "worker",
+		ExecutionID:   "https://example.invalid/private?token=" + sentinel,
+		WorkItemID:    "raw prompt body " + sentinel,
+		TriggerSource: "Authorization: Bearer " + sentinel,
+		Status:        "failed",
+		Stage:         "model",
+		ErrorCode:     "upstream said credential=" + sentinel,
+		Counts: map[string]int{
+			"prompt_" + sentinel: 1,
+			"events":             1,
+		},
+	})
+
+	if strings.Contains(output.String(), sentinel) ||
+		strings.Contains(output.String(), "https://") ||
+		strings.Contains(output.String(), "Authorization") ||
+		strings.Contains(output.String(), "credential") {
+		t.Fatalf("unsafe lifecycle value leaked: %s", output.String())
+	}
+	var event map[string]any
+	if err := json.Unmarshal(output.Bytes(), &event); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := event["execution_id"]; exists {
+		t.Fatalf("unsafe execution identity was emitted: %#v", event)
+	}
+	counts := event["counts"].(map[string]any)
+	if len(counts) != 1 || counts["events"] != float64(1) {
+		t.Fatalf("safe counts = %#v", counts)
+	}
+}

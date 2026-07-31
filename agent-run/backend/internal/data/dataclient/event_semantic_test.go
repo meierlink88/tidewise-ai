@@ -33,6 +33,9 @@ func TestEventSemanticClientConsumesFrozenProviderFixtures(t *testing.T) {
 		switch {
 		case request.Method == http.MethodGet &&
 			request.URL.Path == "/api/data/v1/event-semantics/eligible-events":
+			if request.URL.Query().Get("pagination") != "cursor" {
+				t.Fatalf("eligible pagination capability = %q", request.URL.RawQuery)
+			}
 			writeSemanticFixture(t, response, request, eligibleFixture)
 		case request.Method == http.MethodPost &&
 			request.URL.Path == "/api/data/v1/event-semantics/context-leases":
@@ -174,7 +177,8 @@ func TestEventSemanticEligibleEventsCanBeEmpty(t *testing.T) {
 func TestEventSemanticEligibleEventsCarriesOpaqueCursorAcrossTheContract(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Query().Get("limit") != "20" ||
-			request.URL.Query().Get("cursor") != "opaque-current-page" {
+			request.URL.Query().Get("cursor") != "opaque-current-page" ||
+			request.URL.Query().Get("pagination") != "cursor" {
 			t.Fatalf("query = %q", request.URL.RawQuery)
 		}
 		requestID := request.Header.Get("X-Request-ID")

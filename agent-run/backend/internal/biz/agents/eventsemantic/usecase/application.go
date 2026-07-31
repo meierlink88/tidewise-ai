@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -29,18 +28,20 @@ type RuntimeProvider func(context.Context) (Runtime, error)
 type EventLogger = agentrun.AgentLifecycleLogger
 
 type Application struct {
-	repository eventsemantic.Repository
-	data       eventsemantic.DataClient
-	runtime    RuntimeProvider
-	interval   time.Duration
-	now        func() time.Time
-	workerID   string
-	notify     chan struct{}
-	cancel     context.CancelFunc
-	done       chan struct{}
-	startOnce  sync.Once
-	stopOnce   sync.Once
-	logger     EventLogger
+	repository      eventsemantic.Repository
+	data            eventsemantic.DataClient
+	runtime         RuntimeProvider
+	interval        time.Duration
+	now             func() time.Time
+	workerID        string
+	notify          chan struct{}
+	cancel          context.CancelFunc
+	done            chan struct{}
+	startOnce       sync.Once
+	stopOnce        sync.Once
+	discoveryMu     sync.Mutex
+	discoveryCursor string
+	logger          EventLogger
 }
 
 type Option func(*Application)
@@ -141,6 +142,15 @@ func (a *Application) loop(ctx context.Context) {
 }
 
 func (a *Application) Tick(ctx context.Context) error {
+	if permit, ok := a.repository.(eventsemantic.ProcessingPermit); ok {
+		return permit.WithEventSemanticProcessingPermit(ctx, func() error {
+			return a.tick(ctx)
+		})
+	}
+	return a.tick(ctx)
+}
+
+func (a *Application) tick(ctx context.Context) error {
 	now := a.now().UTC()
 	if err := a.discoverInitialWork(ctx, now); err != nil {
 		return err
@@ -349,7 +359,9 @@ func retryableSemanticFailure(err error, defaultValue bool) bool {
 }
 
 func (a *Application) discoverInitialWork(ctx context.Context, now time.Time) error {
-	cursor := ""
+	a.discoveryMu.Lock()
+	defer a.discoveryMu.Unlock()
+	cursor := a.discoveryCursor
 	seen := make(map[string]struct{}, maxEligibleEventPages)
 	for pageNumber := 0; pageNumber < maxEligibleEventPages; pageNumber++ {
 		page, err := a.data.ListEligibleEvents(
@@ -363,6 +375,7 @@ func (a *Application) discoverInitialWork(ctx context.Context, now time.Time) er
 			return err
 		}
 		if created > 0 || page.NextCursor == "" {
+			a.discoveryCursor = ""
 			return nil
 		}
 		if page.NextCursor == cursor {
@@ -373,11 +386,9 @@ func (a *Application) discoverInitialWork(ctx context.Context, now time.Time) er
 		}
 		seen[page.NextCursor] = struct{}{}
 		cursor = page.NextCursor
+		a.discoveryCursor = cursor
 	}
-	return fmt.Errorf(
-		"eligible Event discovery exceeded %d pages",
-		maxEligibleEventPages,
-	)
+	return nil
 }
 
 func isTerminalSubmissionStatus(status string) bool {

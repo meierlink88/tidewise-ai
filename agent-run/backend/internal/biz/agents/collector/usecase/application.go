@@ -14,12 +14,14 @@ import (
 )
 
 const (
-	collectorAgentVersion = "collector.v1"
-	plannerTimeout        = 30 * time.Second
-	connectorTimeout      = 30 * time.Second
-	executionTimeout      = 5 * time.Minute
-	maxParallel           = 3
-	candidateLimit        = 10
+	collectorAgentVersion        = "collector.v1"
+	plannerTimeout               = 30 * time.Second
+	connectorTimeout             = 30 * time.Second
+	executionTimeout             = 5 * time.Minute
+	maxParallel                  = 3
+	candidateLimit               = 10
+	publicationReconcileInterval = time.Second
+	publicationReconcileAttempts = 3
 )
 
 var collectorConnectorKeys = collector.ConnectorKeys()
@@ -42,6 +44,8 @@ type Application struct {
 	closing        bool
 	active         sync.WaitGroup
 	events         EventLogger
+	reconcileEvery time.Duration
+	reconcileLimit int
 }
 
 type Option func(*Application)
@@ -88,12 +92,14 @@ func New(
 		return nil, errors.New("Artifact Store is required")
 	}
 	application := &Application{
-		store:        store,
-		artifacts:    artifactStore,
-		environment:  "dev",
-		executionTTL: executionTimeout,
-		now:          time.Now,
-		events:       agentrun.DiscardAgentLifecycleLogger{},
+		store:          store,
+		artifacts:      artifactStore,
+		environment:    "dev",
+		executionTTL:   executionTimeout,
+		now:            time.Now,
+		events:         agentrun.DiscardAgentLifecycleLogger{},
+		reconcileEvery: publicationReconcileInterval,
+		reconcileLimit: publicationReconcileAttempts,
 	}
 	application.lifecycleCtx, application.cancel = context.WithCancel(context.Background())
 	application.runtimeBuilder = runtimeFactory{
@@ -339,14 +345,15 @@ func (a *Application) run(execution agentrun.Execution, runtimeConfig collector.
 	})
 	if err != nil {
 		if errors.Is(err, ErrPublicationPending) {
-			a.events.Warn(agentrun.AgentLifecycleEvent{
-				Code: "agent_execution_retry_scheduled", AgentKey: collector.AgentKey,
-				AgentVersion: collectorAgentVersion, RuntimeMode: "request",
-				ExecutionID: execution.ID, Status: "failed",
-				Outcome: "publication_reconciliation_pending",
-				Stage:   "artifact_publication", ErrorCode: "artifact_publication_pending",
-				Duration: nonNegativeDuration(a.now().UTC().Sub(startedAt)),
-			})
+			if a.schedulePublicationReconciliation(execution, startedAt) {
+				a.logPublicationPending(execution, startedAt)
+			} else {
+				a.fail(
+					execution.ID,
+					"service_stopping",
+					"AgentRun stopped before Artifact publication reconciliation",
+				)
+			}
 			return
 		}
 		code := "execution_failed"
@@ -388,35 +395,160 @@ func (a *Application) run(execution agentrun.Execution, runtimeConfig collector.
 	})
 }
 
+func (a *Application) schedulePublicationReconciliation(
+	execution agentrun.Execution,
+	startedAt time.Time,
+) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.closing {
+		return false
+	}
+	a.active.Add(1)
+	go func() {
+		defer a.active.Done()
+		a.reconcilePublication(execution, startedAt)
+	}()
+	return true
+}
+
+func (a *Application) reconcilePublication(
+	execution agentrun.Execution,
+	startedAt time.Time,
+) {
+	interval := a.reconcileEvery
+	if interval <= 0 {
+		interval = publicationReconcileInterval
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	attemptLimit := a.reconcileLimit
+	if attemptLimit <= 0 {
+		attemptLimit = publicationReconcileAttempts
+	}
+	attempts := 0
+	for {
+		select {
+		case <-a.lifecycleCtx.Done():
+			return
+		case <-ticker.C:
+		}
+		ctx, cancel := context.WithTimeout(a.lifecycleCtx, 5*time.Second)
+		reconcileErr := a.ReconcilePreparedPublications(ctx)
+		current, readErr := a.store.GetExecution(ctx, execution.ID)
+		cancel()
+		attempts++
+		if reconcileErr != nil || readErr != nil {
+			if attempts >= attemptLimit {
+				a.failPublicationReconciliation(
+					execution.ID,
+					"artifact_publication_reconciliation_exhausted",
+					"Artifact publication reconciliation exhausted its retry budget",
+				)
+				return
+			}
+			continue
+		}
+		switch current.Status {
+		case agentrun.StatusSucceeded,
+			agentrun.StatusSucceededNoChange,
+			agentrun.StatusPartiallySucceeded:
+			a.events.Info(agentrun.AgentLifecycleEvent{
+				Code: "agent_execution_completed", AgentKey: collector.AgentKey,
+				AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+				ExecutionID: current.ID, TriggerSource: string(current.TriggerSource),
+				Status: string(current.Status), Outcome: "publication_reconciled",
+				Duration: nonNegativeDuration(a.now().UTC().Sub(startedAt)),
+				Counts:   current.CandidateCounts,
+			})
+			return
+		case agentrun.StatusFailed:
+			a.events.Error(agentrun.AgentLifecycleEvent{
+				Code: "agent_execution_failed", AgentKey: collector.AgentKey,
+				AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+				ExecutionID: current.ID, TriggerSource: string(current.TriggerSource),
+				Status: "failed", Outcome: "terminal_failure",
+				Stage: "artifact_publication", ErrorCode: current.ErrorCode,
+				Duration: nonNegativeDuration(a.now().UTC().Sub(startedAt)),
+			})
+			return
+		}
+		if attempts >= attemptLimit {
+			a.failPublicationReconciliation(
+				execution.ID,
+				"artifact_publication_reconciliation_exhausted",
+				"Artifact publication remained non-terminal after reconciliation",
+			)
+			return
+		}
+	}
+}
+
+func (a *Application) logPublicationPending(
+	execution agentrun.Execution,
+	startedAt time.Time,
+) {
+	a.events.Warn(agentrun.AgentLifecycleEvent{
+		Code: "agent_execution_retry_scheduled", AgentKey: collector.AgentKey,
+		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
+		ExecutionID: execution.ID, TriggerSource: string(execution.TriggerSource),
+		Status: "materializing", Outcome: "publication_reconciliation_pending",
+		Stage: "artifact_publication", ErrorCode: "artifact_publication_pending",
+		Duration: nonNegativeDuration(a.now().UTC().Sub(startedAt)),
+	})
+}
+
 func (a *Application) fail(executionID, code, summary string) {
 	notInvokedSummary := "Connector was not invoked because Agent Execution stopped"
 	if code == "planning_failed" || code == "planner_initialization_failed" {
 		notInvokedSummary = "Connector was not invoked because query planning failed"
 	}
-	completedAt := a.now().UTC()
+	failure := agentrun.ExecutionFailure{
+		ExecutionID: executionID, ErrorCode: code, ErrorSummary: summary,
+		StopReason:        "agent_or_tool_limit",
+		NotInvokedSummary: notInvokedSummary, CompletedAt: a.now().UTC(),
+	}
+	a.persistFailure(failure, a.store.FailExecutionAndIncompleteInvocations)
+}
+
+func (a *Application) failPublicationReconciliation(
+	executionID, code, summary string,
+) {
+	failure := agentrun.ExecutionFailure{
+		ExecutionID: executionID, ErrorCode: code, ErrorSummary: summary,
+		StopReason: "agent_or_tool_limit",
+		NotInvokedSummary: "Connector did not complete because Artifact publication " +
+			"reconciliation exhausted its retry budget",
+		CompletedAt: a.now().UTC(),
+	}
+	a.persistFailure(failure, a.store.FailPublicationReconciliation)
+}
+
+func (a *Application) persistFailure(
+	failure agentrun.ExecutionFailure,
+	persist func(context.Context, agentrun.ExecutionFailure) error,
+) {
 	if err := retryStateWrite(func(ctx context.Context) error {
-		return a.store.FailExecutionAndIncompleteInvocations(ctx, agentrun.ExecutionFailure{
-			ExecutionID: executionID, ErrorCode: code, ErrorSummary: summary,
-			StopReason:        "agent_or_tool_limit",
-			NotInvokedSummary: notInvokedSummary, CompletedAt: completedAt,
-		})
+		return persist(ctx, failure)
 	}); err != nil {
 		a.logCycleError(
-			"terminal_failure_persistence_failed", executionID, "state_transition",
+			"terminal_failure_persistence_failed", failure.ExecutionID, "state_transition",
 		)
 		return
 	}
 	a.events.Error(agentrun.AgentLifecycleEvent{
 		Code: "agent_execution_failed", AgentKey: collector.AgentKey,
 		AgentVersion: collectorAgentVersion, RuntimeMode: "request",
-		ExecutionID: executionID, Status: "failed",
-		Outcome: "terminal_failure", Stage: "execution", ErrorCode: code,
+		ExecutionID: failure.ExecutionID, Status: "failed",
+		Outcome: "terminal_failure", Stage: "execution", ErrorCode: failure.ErrorCode,
 	})
 	readCtx, readCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	execution, err := a.store.GetExecution(readCtx, executionID)
+	execution, err := a.store.GetExecution(readCtx, failure.ExecutionID)
 	readCancel()
 	if err != nil {
-		a.logCycleError("terminal_failure_read_failed", executionID, "terminal_audit")
+		a.logCycleError(
+			"terminal_failure_read_failed", failure.ExecutionID, "terminal_audit",
+		)
 		return
 	}
 	paths, err := a.artifacts.WriteTerminalAudit(execution)

@@ -108,8 +108,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -386,6 +384,13 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: pagination
+          in: query
+          required: false
+          description: 新消费者显式设置为 cursor 后，响应才返回 next_cursor；省略时保持旧版 only-events 响应。
+          schema:
+            type: string
+            enum: [cursor]
       responses:
         '200':
           description: Eligible Event 列表
@@ -399,6 +404,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':

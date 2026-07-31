@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"regexp"
 	"time"
 
 	kratos "github.com/go-kratos/kratos/v3"
@@ -355,6 +356,10 @@ type slogAgentLifecycleLogger struct {
 	environment string
 }
 
+var safeAgentLifecycleValuePattern = regexp.MustCompile(
+	`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`,
+)
+
 func (l slogAgentLifecycleLogger) Info(event agentrun.AgentLifecycleEvent) {
 	l.log(slog.LevelInfo, event)
 }
@@ -371,16 +376,22 @@ func (l slogAgentLifecycleLogger) log(
 	level slog.Level,
 	event agentrun.AgentLifecycleEvent,
 ) {
+	requiredString := func(value string) string {
+		if safeAgentLifecycleValuePattern.MatchString(value) {
+			return value
+		}
+		return "invalid"
+	}
 	attributes := []slog.Attr{
 		slog.String("service", conf.ServiceName),
-		slog.String("environment", l.environment),
-		slog.String("event_code", event.Code),
-		slog.String("agent_key", event.AgentKey),
-		slog.String("agent_version", event.AgentVersion),
-		slog.String("runtime_mode", event.RuntimeMode),
+		slog.String("environment", requiredString(l.environment)),
+		slog.String("event_code", requiredString(event.Code)),
+		slog.String("agent_key", requiredString(event.AgentKey)),
+		slog.String("agent_version", requiredString(event.AgentVersion)),
+		slog.String("runtime_mode", requiredString(event.RuntimeMode)),
 	}
 	appendString := func(key, value string) {
-		if value != "" {
+		if safeAgentLifecycleValuePattern.MatchString(value) {
 			attributes = append(attributes, slog.String(key, value))
 		}
 	}

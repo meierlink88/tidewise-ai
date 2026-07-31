@@ -29,11 +29,20 @@ const eventSemanticInputEligibilitySQL = `
 	    FROM event_sources evidence
 	    JOIN raw_documents document ON document.id = evidence.raw_document_id
 	    WHERE evidence.event_id = e.id
-	      AND evidence.evidence_hash ~ '^[0-9a-f]{64}$'
-	      AND btrim(evidence.evidence_excerpt) <> ''
-	      AND btrim(document.source_name) <> ''
-	      AND btrim(document.source_type) <> ''
-	      AND btrim(document.title) <> ''
+	      AND COALESCE(evidence.evidence_hash, '') ~ '^[0-9a-f]{64}$'
+	      AND COALESCE(btrim(evidence.evidence_excerpt), '') <> ''
+	      AND evidence.source_level IN ('primary', 'secondary')
+	      AND evidence.evidence_relation IN ('supports', 'contradicts', 'context')
+	      AND COALESCE(evidence.supports_fields, ARRAY[]::text[])
+	          <@ ARRAY['title', 'factual_summary', 'occurred_at', 'fact_payload']::text[]
+	      AND array_position(evidence.supports_fields, NULL::text) IS NULL
+	      AND (
+	          evidence.evidence_relation = 'context'
+	          OR COALESCE(cardinality(evidence.supports_fields), 0) > 0
+	      )
+	      AND COALESCE(btrim(document.source_name), '') <> ''
+	      AND COALESCE(btrim(document.source_type), '') <> ''
+	      AND COALESCE(btrim(document.title), '') <> ''
 	      AND document.collected_at IS NOT NULL
 	      AND evidence.created_at IS NOT NULL
 	)
@@ -43,11 +52,22 @@ const eventSemanticInputEligibilitySQL = `
 	    JOIN raw_documents document ON document.id = evidence.raw_document_id
 	    WHERE evidence.event_id = e.id
 	      AND (
-	          evidence.evidence_hash !~ '^[0-9a-f]{64}$'
-	          OR btrim(evidence.evidence_excerpt) = ''
-	          OR btrim(document.source_name) = ''
-	          OR btrim(document.source_type) = ''
-	          OR btrim(document.title) = ''
+	          COALESCE(evidence.evidence_hash, '') !~ '^[0-9a-f]{64}$'
+	          OR COALESCE(btrim(evidence.evidence_excerpt), '') = ''
+	          OR COALESCE(evidence.source_level, '') NOT IN ('primary', 'secondary')
+	          OR COALESCE(evidence.evidence_relation, '') NOT IN ('supports', 'contradicts', 'context')
+	          OR NOT (
+	              COALESCE(evidence.supports_fields, ARRAY[]::text[])
+	              <@ ARRAY['title', 'factual_summary', 'occurred_at', 'fact_payload']::text[]
+	          )
+	          OR array_position(evidence.supports_fields, NULL::text) IS NOT NULL
+	          OR (
+	              evidence.evidence_relation <> 'context'
+	              AND COALESCE(cardinality(evidence.supports_fields), 0) = 0
+	          )
+	          OR COALESCE(btrim(document.source_name), '') = ''
+	          OR COALESCE(btrim(document.source_type), '') = ''
+	          OR COALESCE(btrim(document.title), '') = ''
 	          OR document.collected_at IS NULL
 	          OR evidence.created_at IS NULL
 	      )

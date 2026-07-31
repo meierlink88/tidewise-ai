@@ -19,8 +19,9 @@ type EventSemanticContextLease struct {
 }
 
 type EligibleEventSemanticEventsRequest struct {
-	Limit  int
-	Cursor string
+	Limit      int
+	Cursor     string
+	Pagination string
 }
 
 type EligibleEventSemanticEvent struct {

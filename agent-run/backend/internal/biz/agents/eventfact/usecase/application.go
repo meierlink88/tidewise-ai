@@ -235,7 +235,19 @@ func (a *Application) extract(
 		partial := decodePersistedResult(attempt)
 		if len(partial.Candidates) == 0 && len(partial.NoEventReason) == 0 {
 			if extractFacts == nil {
-				return false, errors.New("Event Fact-only extraction runtime is invalid")
+				retryErr := a.repository.RetryExtraction(
+					ctx, attempt,
+					eventfact.Result{ExecutionID: attempt.ID},
+					"Event Fact-only extraction runtime is unavailable",
+					a.now().UTC(),
+				)
+				if retryErr == nil {
+					a.logRetry(
+						attempt, startedAt, "runtime",
+						"event_fact_extraction_runtime_unavailable",
+					)
+				}
+				return false, retryErr
 			}
 			extracted, extractionErr := extractFacts(ctx, &attempt)
 			if extractionErr != nil {
@@ -277,7 +289,20 @@ func (a *Application) extract(
 	if err := a.repository.SetExecutionCatalog(
 		ctx, attempt.ID, catalog.Revision, catalog.Hash, a.now().UTC(),
 	); err != nil {
-		return false, err
+		retryErr := a.repository.RetryExtraction(
+			ctx, attempt,
+			eventfact.Result{ExecutionID: attempt.ID},
+			"Event Fact Catalog snapshot could not be persisted",
+			a.now().UTC(),
+		)
+		if retryErr == nil {
+			a.logRetry(
+				attempt, startedAt, "state_transition",
+				"event_fact_catalog_persistence_failed",
+			)
+			return false, nil
+		}
+		return false, errors.Join(err, retryErr)
 	}
 	var resume *eventfact.Result
 	if attempt.Unit.Status == eventfact.WorkAwaitingTagCatalog {

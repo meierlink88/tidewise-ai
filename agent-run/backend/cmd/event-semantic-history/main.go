@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,31 +54,61 @@ func main() {
 	}
 	defer database.Close()
 	store := postgres.New(database)
-	plan, err := store.PlanHistoricalEventDisposition(ctx, manifest)
-	if err != nil {
-		fail("could not plan historical Event disposition")
-	}
-	if options.DryRun {
-		if err := encodeJSON(os.Stdout, plan); err != nil {
-			fail("could not encode historical Event disposition plan")
-		}
-		return
-	}
-	if len(plan.BlockingRunningEventIDs) > 0 {
-		fail("historical Event disposition is blocked by running Work Items")
-	}
-	if err := writeExclusiveJSON(options.ExportPath, plan); err != nil {
+	if err := runHistoricalDisposition(ctx, store, manifest, options, os.Stdout); err != nil {
 		fail(err.Error())
 	}
-	report, err := store.ApplyHistoricalEventDisposition(
-		ctx, manifest, time.Now(),
-	)
-	if err != nil {
-		fail("could not apply historical Event disposition")
-	}
-	if err := encodeJSON(os.Stdout, report); err != nil {
-		fail("could not encode historical Event disposition report")
-	}
+}
+
+type historicalDispositionStore interface {
+	WithHistoricalEventSemanticMaintenance(context.Context, func() error) error
+	PlanHistoricalEventDisposition(
+		context.Context,
+		eventsemantic.HistoricalManifest,
+	) (eventsemantic.HistoricalDispositionReport, error)
+	ApplyHistoricalEventDisposition(
+		context.Context,
+		eventsemantic.HistoricalManifest,
+		time.Time,
+	) (eventsemantic.HistoricalDispositionReport, error)
+}
+
+func runHistoricalDisposition(
+	ctx context.Context,
+	store historicalDispositionStore,
+	manifest eventsemantic.HistoricalManifest,
+	options options,
+	output io.Writer,
+) error {
+	return store.WithHistoricalEventSemanticMaintenance(ctx, func() error {
+		plan, err := store.PlanHistoricalEventDisposition(ctx, manifest)
+		if err != nil {
+			return errors.New("could not plan historical Event disposition")
+		}
+		if options.DryRun {
+			if err := encodeJSON(output, plan); err != nil {
+				return errors.New("could not encode historical Event disposition plan")
+			}
+			return nil
+		}
+		if len(plan.BlockingRunningEventIDs) > 0 {
+			return errors.New(
+				"historical Event disposition is blocked by running Work Items",
+			)
+		}
+		if err := writeExclusiveJSON(options.ExportPath, plan); err != nil {
+			return err
+		}
+		report, err := store.ApplyHistoricalEventDisposition(
+			ctx, manifest, time.Now(),
+		)
+		if err != nil {
+			return errors.New("could not apply historical Event disposition")
+		}
+		if err := encodeJSON(output, report); err != nil {
+			return errors.New("could not encode historical Event disposition report")
+		}
+		return nil
+	})
 }
 
 func parseOptions(arguments []string) (options, error) {
@@ -169,9 +200,24 @@ func writeExclusiveJSON(path string, value any) error {
 			"could not create pre-change export without overwriting an existing file",
 		)
 	}
-	defer file.Close()
 	if err := encodeJSON(file, value); err != nil {
+		_ = file.Close()
 		return errors.New("could not encode pre-change Work Item export")
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return errors.New("could not sync pre-change Work Item export")
+	}
+	if err := file.Close(); err != nil {
+		return errors.New("could not close pre-change Work Item export")
+	}
+	directory, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return errors.New("could not open pre-change export directory")
+	}
+	defer directory.Close()
+	if err := directory.Sync(); err != nil {
+		return errors.New("could not sync pre-change export directory")
 	}
 	return nil
 }
