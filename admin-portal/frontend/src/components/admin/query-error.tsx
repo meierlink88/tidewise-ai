@@ -9,7 +9,7 @@ interface QueryErrorProps {
 export default function QueryError({ message, onRetry, retrying = false }: QueryErrorProps) {
   return (
     <div
-      className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200'
+      className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive-border bg-destructive-subtle p-4 text-sm text-destructive-foreground'
       role='alert'
     >
       <span>{message}</span>

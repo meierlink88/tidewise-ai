@@ -125,10 +125,13 @@ describe('App admin login', () => {
     render(<App />);
 
     const menuTrigger = screen.getByRole('button', { name: '打开导航菜单' });
-    await user.click(menuTrigger);
+    menuTrigger.focus();
+    await user.keyboard('{Enter}');
 
     const navigation = screen.getByRole('dialog', { name: '管理后台导航' });
-    await user.click(within(navigation).getByRole('button', { name: /Agent 状态/ }));
+    const agentStatusNavigation = within(navigation).getByRole('button', { name: /Agent 状态/ });
+    agentStatusNavigation.focus();
+    await user.keyboard('{Enter}');
 
     expect(await screen.findByRole('heading', { name: 'Agent 运行状态' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: '管理后台导航' })).not.toBeInTheDocument();

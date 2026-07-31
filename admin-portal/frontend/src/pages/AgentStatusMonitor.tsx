@@ -61,17 +61,19 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
           retrying={statusQuery.isFetching}
         />
       ) : null}
-      <Card>
-        <CardContent className='p-0'>
-          {items.length === 0 ? (
-            <div className='grid min-h-32 place-items-center px-4 text-sm text-muted-foreground'>
-              {statusQuery.isLoading ? '正在加载 Agent 状态' : '暂无已注册 Agent'}
-            </div>
-          ) : (
-            <AgentStatusTable items={items} />
-          )}
-        </CardContent>
-      </Card>
+      {!statusQuery.isError || items.length > 0 ? (
+        <Card>
+          <CardContent className='p-0'>
+            {items.length === 0 ? (
+              <div className='grid min-h-32 place-items-center px-4 text-sm text-muted-foreground'>
+                {statusQuery.isLoading ? '正在加载 Agent 状态' : '暂无已注册 Agent'}
+              </div>
+            ) : (
+              <AgentStatusTable items={items} />
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </section>
   );
 }

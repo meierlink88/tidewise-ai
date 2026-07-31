@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadAgentStatuses } from '../api/agentManagement';
+import { loadAgentStatuses, type AgentStatus } from '../api/agentManagement';
 import { createQueryClient } from '../lib/query-client';
 import AgentStatusMonitor from './AgentStatusMonitor';
 
@@ -58,10 +58,31 @@ describe('AgentStatusMonitor', () => {
     renderStatusMonitor();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Agent 状态服务暂不可用');
+    expect(screen.queryByText('暂无已注册 Agent')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '重试' }));
 
     expect(await screen.findByText('Collector')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('distinguishes initial loading from a successful empty result', async () => {
+    let resolveRequest: ((items: AgentStatus[]) => void) | undefined;
+    vi.mocked(loadAgentStatuses).mockImplementationOnce(
+      () =>
+        new Promise<AgentStatus[]>((resolve) => {
+          resolveRequest = resolve;
+        })
+    );
+
+    renderStatusMonitor();
+
+    expect(screen.getByText('正在加载 Agent 状态')).toBeInTheDocument();
+    await act(async () => {
+      resolveRequest?.([]);
+    });
+
+    expect(await screen.findByText('暂无已注册 Agent')).toBeInTheDocument();
+    expect(screen.queryByText('正在加载 Agent 状态')).not.toBeInTheDocument();
   });
 
   it('polls the status projection every 15 seconds', async () => {

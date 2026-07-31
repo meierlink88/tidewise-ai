@@ -18,6 +18,13 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-border: var(--destructive-border);
+  --color-destructive-foreground: var(--destructive-text);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-success: var(--success);
+  --color-success-border: var(--success-border);
+  --color-success-foreground: var(--success-text);
+  --color-success-subtle: var(--success-subtle);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
