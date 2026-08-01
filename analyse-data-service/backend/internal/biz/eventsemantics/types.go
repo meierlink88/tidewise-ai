@@ -63,11 +63,11 @@ type EntityRelation struct {
 }
 
 type EntityTypeDefinition struct {
-	TypeKey              string `json:"type_key"`
-	Version              int    `json:"version"`
-	SignalSubjectAllowed bool   `json:"signal_subject_allowed"`
-	DirectTargetMode     string `json:"direct_target_mode"`
-	Status               string `json:"status"`
+	TypeKey              string   `json:"type_key"`
+	Version              int      `json:"version"`
+	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
+	AllowedEventRoles    []string `json:"allowed_event_roles"`
+	Status               string   `json:"status"`
 }
 
 type VariableDefinition struct {
@@ -76,9 +76,11 @@ type VariableDefinition struct {
 	NameZH                string   `json:"name_zh"`
 	NameEN                string   `json:"name_en"`
 	Domain                string   `json:"domain"`
+	BusinessDefinition    string   `json:"business_definition"`
 	ValueType             string   `json:"value_type"`
 	Status                string   `json:"status"`
 	AllowedDirections     []string `json:"allowed_directions"`
+	AllowedUnits          []string `json:"allowed_units"`
 	ApplicableEntityTypes []string `json:"applicable_entity_types"`
 }
 
@@ -110,15 +112,25 @@ type Context struct {
 	EvidenceFingerprint     string                   `json:"evidence_fingerprint"`
 	OntologyVersion         string                   `json:"ontology_version"`
 	PolicyVersion           string                   `json:"acceptance_policy_version"`
-	RouteContractVersion    string                   `json:"route_contract_version"`
+	RouteContractVersion    string                   `json:"-"`
 	Event                   Event                    `json:"event"`
 	Evidence                []Evidence               `json:"evidence"`
 	EntityTypes             []EntityTypeDefinition   `json:"entity_type_definitions"`
 	Variables               []VariableDefinition     `json:"variable_definitions"`
-	Rules                   []DirectTransmissionRule `json:"direct_transmission_rules"`
+	AssertionModalities     []string                 `json:"assertion_modalities"`
+	MeasurementContract     MeasurementContract      `json:"measurement_contract"`
+	Rules                   []DirectTransmissionRule `json:"-"`
 	// Legacy in-memory compatibility only. Compact manifests never persist these ABox collections.
 	Entities  []Entity         `json:"-"`
 	Relations []EntityRelation `json:"-"`
+}
+
+type MeasurementContract struct {
+	Representation      string `json:"representation"`
+	MaxItemsPerSignal   int    `json:"max_items_per_signal"`
+	MaxTextCharacters   int    `json:"max_text_characters"`
+	RequiresEvidenceIDs bool   `json:"requires_evidence_ids"`
+	NumericValidation   bool   `json:"numeric_validation"`
 }
 
 type EvidenceReference struct {
@@ -148,30 +160,33 @@ type ContextManifest struct {
 	EvidenceFingerprint     string              `json:"evidence_fingerprint"`
 	OntologyVersion         string              `json:"ontology_version"`
 	PolicyVersion           string              `json:"acceptance_policy_version"`
-	RouteContractVersion    string              `json:"route_contract_version"`
+	RouteContractVersion    string              `json:"-"`
 	EntityTypes             []VersionReference  `json:"entity_type_references"`
 	Variables               []VersionReference  `json:"variable_definition_references"`
-	Rules                   []VersionReference  `json:"direct_transmission_rule_references"`
+	Rules                   []VersionReference  `json:"-"`
 }
 
 type MeasurementValue struct {
-	Role             string  `json:"measurement_role"`
-	Shape            string  `json:"value_shape"`
-	RawValue         *string `json:"raw_value,omitempty"`
-	RawLower         *string `json:"raw_lower,omitempty"`
-	RawUpper         *string `json:"raw_upper,omitempty"`
-	RawUnit          string  `json:"raw_unit,omitempty"`
-	CanonicalValue   *string `json:"canonical_value,omitempty"`
-	CanonicalLower   *string `json:"canonical_lower,omitempty"`
-	CanonicalUpper   *string `json:"canonical_upper,omitempty"`
-	CanonicalUnit    string  `json:"canonical_unit,omitempty"`
-	Currency         string  `json:"currency,omitempty"`
-	Scale            string  `json:"scale,omitempty"`
-	ComparisonBasis  string  `json:"comparison_basis,omitempty"`
-	ComparisonPeriod string  `json:"comparison_period,omitempty"`
-	RawText          string  `json:"raw_text"`
-	IsApproximate    bool    `json:"is_approximate"`
-	EvidenceID       string  `json:"evidence_id"`
+	Text        string   `json:"measurement_text"`
+	EvidenceIDs []string `json:"evidence_ids"`
+	// Legacy fields remain readable for historical snapshots only and are never part of V2 writes.
+	Role             string  `json:"-"`
+	Shape            string  `json:"-"`
+	RawValue         *string `json:"-"`
+	RawLower         *string `json:"-"`
+	RawUpper         *string `json:"-"`
+	RawUnit          string  `json:"-"`
+	CanonicalValue   *string `json:"-"`
+	CanonicalLower   *string `json:"-"`
+	CanonicalUpper   *string `json:"-"`
+	CanonicalUnit    string  `json:"-"`
+	Currency         string  `json:"-"`
+	Scale            string  `json:"-"`
+	ComparisonBasis  string  `json:"-"`
+	ComparisonPeriod string  `json:"-"`
+	RawText          string  `json:"-"`
+	IsApproximate    bool    `json:"-"`
+	EvidenceID       string  `json:"-"`
 }
 
 type EntityLinkCandidate struct {
@@ -182,7 +197,7 @@ type EntityLinkCandidate struct {
 	EvidenceIDs          []string           `json:"evidence_ids"`
 	ResolutionMethod     string             `json:"resolution_method"`
 	ResolutionConfidence string             `json:"resolution_confidence,omitempty"`
-	ResolutionReceipt    *ResolutionReceipt `json:"resolution_receipt,omitempty"`
+	ResolutionReceipt    *ResolutionReceipt `json:"-"`
 }
 
 type VariableSignalCandidate struct {
@@ -235,7 +250,8 @@ type Submission struct {
 	AcceptancePolicyVersion string                    `json:"acceptance_policy_version"`
 	EntityLinks             []EntityLinkCandidate     `json:"entity_links"`
 	VariableSignals         []VariableSignalCandidate `json:"variable_signals"`
-	DirectImpacts           []DirectImpactCandidate   `json:"direct_impacts"`
+	// Historical persistence compatibility only. V2 never accepts or emits DirectImpact candidates.
+	DirectImpacts []DirectImpactCandidate `json:"-"`
 }
 
 type CandidateDecision struct {
@@ -246,17 +262,18 @@ type CandidateDecision struct {
 }
 
 type ReviewerWorkPackage struct {
-	Event           Event                     `json:"event"`
-	Evidence        []Evidence                `json:"evidence"`
-	EntityLinks     []EntityLinkCandidate     `json:"entity_links"`
-	VariableSignals []VariableSignalCandidate `json:"variable_signals"`
-	DirectImpacts   []DirectImpactCandidate   `json:"direct_impacts"`
+	Event            Event                     `json:"event"`
+	Evidence         []Evidence                `json:"evidence"`
+	ResolvedEntities []Entity                  `json:"resolved_entities"`
+	EntityLinks      []EntityLinkCandidate     `json:"entity_links"`
+	VariableSignals  []VariableSignalCandidate `json:"variable_signals"`
+	DirectImpacts    []DirectImpactCandidate   `json:"-"`
 }
 
 type PrecheckResult struct {
 	EntityLinks         []CandidateDecision `json:"entity_links"`
 	VariableSignals     []CandidateDecision `json:"variable_signals"`
-	DirectImpacts       []CandidateDecision `json:"direct_impacts"`
+	DirectImpacts       []CandidateDecision `json:"-"`
 	ReviewerWorkPackage ReviewerWorkPackage `json:"reviewer_work_package"`
 }
 

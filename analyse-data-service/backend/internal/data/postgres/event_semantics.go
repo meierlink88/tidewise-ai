@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	eventSemanticsOntologyVersion     = "event-semantics.phase-one@1"
-	eventSemanticsPolicyVersion       = "event-semantics.phase-one@1"
-	eventSemanticsManifestVersion     = "event-semantic-context-manifest.v1"
+	eventSemanticsOntologyVersion     = "event-semantics.objective-v2@1"
+	eventSemanticsPolicyVersion       = "event-semantics.objective-v2@1"
+	eventSemanticsManifestVersion     = "event-semantic-context-manifest.v2"
 	eventSemanticsRouteVersion        = "event-semantic-anchor-routes.v1"
 	eventSemanticsRoutePartitionLimit = 50
 )
@@ -410,12 +410,9 @@ func hydrateEventSemanticSubmissionContext(
 	if lockSelectedFacts {
 		lockClause = " FOR SHARE"
 	}
-	entityIDs := make([]string, 0, len(submission.EntityLinks)+len(submission.DirectImpacts))
+	entityIDs := make([]string, 0, len(submission.EntityLinks))
 	for _, link := range submission.EntityLinks {
 		entityIDs = append(entityIDs, link.EntityID)
-	}
-	for _, impact := range submission.DirectImpacts {
-		entityIDs = append(entityIDs, impact.TargetEntityID)
 	}
 	if len(entityIDs) > 0 {
 		rows, err := query.QueryContext(ctx, `
@@ -446,36 +443,6 @@ func hydrateEventSemanticSubmissionContext(
 			return eventsemantics.Context{}, err
 		}
 	}
-	relationIDs := make([]string, 0, len(submission.DirectImpacts))
-	for _, impact := range submission.DirectImpacts {
-		if impact.EntityRelationID != "" {
-			relationIDs = append(relationIDs, impact.EntityRelationID)
-		}
-	}
-	if len(relationIDs) > 0 {
-		rows, err := query.QueryContext(ctx, `
-			SELECT id, from_entity_id, to_entity_id, relation_type, status
-			FROM entity_edges
-			WHERE id = ANY($1::uuid[])
-			ORDER BY relation_type, id
-		`+lockClause, relationIDs)
-		if err != nil {
-			return eventsemantics.Context{}, err
-		}
-		for rows.Next() {
-			var item eventsemantics.EntityRelation
-			if err := rows.Scan(
-				&item.ID, &item.FromEntityID, &item.ToEntityID, &item.Type, &item.Status,
-			); err != nil {
-				rows.Close()
-				return eventsemantics.Context{}, err
-			}
-			result.Relations = append(result.Relations, item)
-		}
-		if err := rows.Close(); err != nil {
-			return eventsemantics.Context{}, err
-		}
-	}
 	return result, nil
 }
 
@@ -493,7 +460,7 @@ func buildEventSemanticContext(
 		WorkerID: workerID, LeaseExpiresAt: leaseExpiresAt.UTC(),
 		ManifestContractVersion: eventSemanticsManifestVersion,
 		OntologyVersion:         eventSemanticsOntologyVersion,
-		PolicyVersion:           eventSemanticsPolicyVersion, RouteContractVersion: eventSemanticsRouteVersion,
+		PolicyVersion:           eventSemanticsPolicyVersion,
 	}
 	err := query.QueryRowContext(ctx, `
 		SELECT id, title, summary, event_time, event_status, fact_status
@@ -514,7 +481,7 @@ func buildEventSemanticContext(
 	if result.Variables, err = eventSemanticVariables(ctx, query, true, nil); err != nil {
 		return eventsemantics.Context{}, err
 	}
-	if result.Rules, err = eventSemanticRules(ctx, query, true, nil); err != nil {
+	if err := hydrateEventSemanticPolicy(ctx, query, &result); err != nil {
 		return eventsemantics.Context{}, err
 	}
 	result.EventFingerprint, err = eventSemanticFingerprint(result.Event)
@@ -558,11 +525,9 @@ func buildEventSemanticManifest(
 		EventID:                 eventID, EventFingerprint: contextValue.EventFingerprint,
 		EvidenceFingerprint: contextValue.EvidenceFingerprint,
 		OntologyVersion:     contextValue.OntologyVersion, PolicyVersion: contextValue.PolicyVersion,
-		RouteContractVersion: contextValue.RouteContractVersion,
-		Evidence:             make([]eventsemantics.EvidenceReference, 0, len(contextValue.Evidence)),
-		EntityTypes:          make([]eventsemantics.VersionReference, 0, len(contextValue.EntityTypes)),
-		Variables:            make([]eventsemantics.VersionReference, 0, len(contextValue.Variables)),
-		Rules:                make([]eventsemantics.VersionReference, 0, len(contextValue.Rules)),
+		Evidence:    make([]eventsemantics.EvidenceReference, 0, len(contextValue.Evidence)),
+		EntityTypes: make([]eventsemantics.VersionReference, 0, len(contextValue.EntityTypes)),
+		Variables:   make([]eventsemantics.VersionReference, 0, len(contextValue.Variables)),
 	}
 	for _, evidence := range contextValue.Evidence {
 		fingerprint, err := eventSemanticFingerprint(evidence)
@@ -578,9 +543,6 @@ func buildEventSemanticManifest(
 	}
 	for _, definition := range contextValue.Variables {
 		manifest.Variables = append(manifest.Variables, eventsemantics.VersionReference{Key: definition.Key, Version: definition.Version})
-	}
-	for _, rule := range contextValue.Rules {
-		manifest.Rules = append(manifest.Rules, eventsemantics.VersionReference{Key: rule.Key, Version: rule.Version})
 	}
 	manifest.ManifestFingerprint, err = eventSemanticManifestFingerprint(manifest)
 	if err != nil {
@@ -603,7 +565,7 @@ func eventSemanticContextFromManifest(
 		ManifestContractVersion: manifest.ManifestContractVersion,
 		ContextFingerprint:      manifest.ContextFingerprint, EventFingerprint: manifest.EventFingerprint,
 		EvidenceFingerprint: manifest.EvidenceFingerprint, OntologyVersion: manifest.OntologyVersion,
-		PolicyVersion: manifest.PolicyVersion, RouteContractVersion: manifest.RouteContractVersion,
+		PolicyVersion: manifest.PolicyVersion,
 	}
 	if err := query.QueryRowContext(ctx, `
 		SELECT id, title, summary, event_time, event_status, fact_status
@@ -655,11 +617,7 @@ func eventSemanticContextFromManifest(
 	if err != nil {
 		return eventsemantics.Context{}, err
 	}
-	if result.Rules, err = eventSemanticRules(ctx, query, false, manifest.Rules); err != nil {
-		return eventsemantics.Context{}, err
-	}
-	result.Rules, err = selectRuleReferences(result.Rules, manifest.Rules)
-	if err != nil {
+	if err := hydrateEventSemanticPolicy(ctx, query, &result); err != nil {
 		return eventsemantics.Context{}, err
 	}
 	eventFingerprint, err := eventSemanticFingerprint(result.Event)
@@ -771,7 +729,8 @@ func eventSemanticEntityTypes(
 ) ([]eventsemantics.EntityTypeDefinition, error) {
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
-		SELECT type_key, version, signal_subject_allowed, direct_target_mode, status
+		SELECT type_key, version, signal_subject_allowed,
+		       array_to_json(allowed_event_roles), status
 		FROM entity_type_definitions
 		WHERE status = 'active'
 		  AND ($1 OR EXISTS (
@@ -787,10 +746,14 @@ func eventSemanticEntityTypes(
 	var result []eventsemantics.EntityTypeDefinition
 	for rows.Next() {
 		var item eventsemantics.EntityTypeDefinition
+		var allowedRoles []byte
 		if err := rows.Scan(
 			&item.TypeKey, &item.Version, &item.SignalSubjectAllowed,
-			&item.DirectTargetMode, &item.Status,
+			&allowedRoles, &item.Status,
 		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(allowedRoles, &item.AllowedEventRoles); err != nil {
 			return nil, err
 		}
 		result = append(result, item)
@@ -908,8 +871,9 @@ func eventSemanticVariables(
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
 		SELECT definition.variable_key, definition.version, definition.name_zh, definition.name_en,
-		       definition.domain, definition.value_type, definition.status,
+		       definition.domain, definition.business_definition, definition.value_type, definition.status,
 		       array_to_json(definition.allowed_directions),
+		       array_to_json(definition.allowed_units),
 		       array_to_json(array_agg(applicable.entity_type ORDER BY applicable.entity_type))
 		FROM variable_definitions definition
 		JOIN variable_definition_entity_types applicable
@@ -930,14 +894,17 @@ func eventSemanticVariables(
 	var result []eventsemantics.VariableDefinition
 	for rows.Next() {
 		var item eventsemantics.VariableDefinition
-		var directions, applicable []byte
+		var directions, units, applicable []byte
 		if err := rows.Scan(
-			&item.Key, &item.Version, &item.NameZH, &item.NameEN, &item.Domain, &item.ValueType,
-			&item.Status, &directions, &applicable,
+			&item.Key, &item.Version, &item.NameZH, &item.NameEN, &item.Domain,
+			&item.BusinessDefinition, &item.ValueType, &item.Status, &directions, &units, &applicable,
 		); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(directions, &item.AllowedDirections); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(units, &item.AllowedUnits); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(applicable, &item.ApplicableEntityTypes); err != nil {
@@ -946,6 +913,41 @@ func eventSemanticVariables(
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+func hydrateEventSemanticPolicy(
+	ctx context.Context,
+	query semanticQueryer,
+	result *eventsemantics.Context,
+) error {
+	var payload []byte
+	if err := query.QueryRowContext(ctx, `
+		SELECT policy
+		FROM event_semantic_acceptance_policies
+		WHERE policy_key = 'event-semantics.objective-v2'
+		  AND version = 1
+		  AND status = 'active'
+	`).Scan(&payload); err != nil {
+		return err
+	}
+	var policy struct {
+		AssertionModalities []string                           `json:"assertion_modalities"`
+		MeasurementContract eventsemantics.MeasurementContract `json:"measurement_contract"`
+	}
+	if err := json.Unmarshal(payload, &policy); err != nil {
+		return err
+	}
+	if len(policy.AssertionModalities) == 0 ||
+		policy.MeasurementContract.Representation != "evidence_grounded_narrative" ||
+		policy.MeasurementContract.MaxItemsPerSignal <= 0 ||
+		policy.MeasurementContract.MaxTextCharacters <= 0 ||
+		!policy.MeasurementContract.RequiresEvidenceIDs ||
+		policy.MeasurementContract.NumericValidation {
+		return errors.New("Event Semantic V2 acceptance policy is invalid")
+	}
+	result.AssertionModalities = policy.AssertionModalities
+	result.MeasurementContract = policy.MeasurementContract
+	return nil
 }
 
 func eventSemanticRules(
@@ -1673,9 +1675,6 @@ func (r repository) CreateSubmission(
 	if err != nil {
 		return eventsemantics.SubmissionResult{}, err
 	}
-	if err := validateEventSemanticResolutionReceipts(ctx, tx, manifest, submission); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
 	transactionContext, err := hydrateEventSemanticSubmissionContext(
 		ctx, tx, manifest, submission, true,
 	)
@@ -1710,7 +1709,6 @@ func (r repository) CreateSubmission(
 	counts, _ := json.Marshal(map[string]int{
 		"entity_links":     len(submission.EntityLinks),
 		"variable_signals": len(submission.VariableSignals),
-		"direct_impacts":   len(submission.DirectImpacts),
 	})
 	submissionStatus := summarizeSemanticSubmission(precheck)
 	if _, err := tx.ExecContext(ctx, `
@@ -1723,7 +1721,7 @@ func (r repository) CreateSubmission(
 		    candidate_counts, decision_summary
 		) VALUES (
 		    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
-		    'event-semantics.phase-one',1,$15,$16,$17,$18
+		    'event-semantics.objective-v2',1,$15,$16,$17,$18
 	    )
 	`, submissionID, submission.ContextLeaseID, submission.EventID, submission.AgentExecutionID,
 		submission.AgentKey, submission.AgentVersion, nullString(submission.SupersedesSubmissionID),
@@ -1733,27 +1731,6 @@ func (r repository) CreateSubmission(
 		submission.OntologyVersion, hash, submissionStatus, counts, decisionPayload,
 	); err != nil {
 		return eventsemantics.SubmissionResult{}, err
-	}
-	for _, link := range submission.EntityLinks {
-		if link.ResolutionReceipt == nil {
-			continue
-		}
-		receiptPayload, err := json.Marshal(link.ResolutionReceipt)
-		if err != nil {
-			return eventsemantics.SubmissionResult{}, err
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO event_semantic_resolution_bindings(
-			    id, semantic_submission_id, context_lease_id, candidate_key, mention,
-			    anchor_entity_id, target_entity_id, route_id, route_contract_version,
-			    path_fingerprint, resolution_receipt
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-		`, uuid.NewString(), submissionID, submission.ContextLeaseID, link.Key, link.Mention,
-			link.ResolutionReceipt.AnchorEntityID, link.EntityID, link.ResolutionReceipt.RouteID,
-			link.ResolutionReceipt.RouteContractVersion, link.ResolutionReceipt.PathFingerprint,
-			receiptPayload); err != nil {
-			return eventsemantics.SubmissionResult{}, err
-		}
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO event_semantic_candidate_snapshots(id, semantic_submission_id, payload, canonical_payload_hash)
@@ -1835,7 +1812,6 @@ func insertReviewableSemanticCandidates(
 		}
 	}
 	signalDecisions := decisionsByKey(precheck.VariableSignals)
-	signalIDs := make(map[string]string)
 	for _, candidate := range submission.VariableSignals {
 		decision := signalDecisions[candidate.Key]
 		linkID := linkIDs[candidate.SubjectLinkKey]
@@ -1843,7 +1819,6 @@ func insertReviewableSemanticCandidates(
 			continue
 		}
 		id := uuid.NewString()
-		signalIDs[candidate.Key] = id
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO variable_signals(
 			    id,semantic_submission_id,candidate_key,source_event_id,subject_event_entity_link_id,
@@ -1860,47 +1835,17 @@ func insertReviewableSemanticCandidates(
 			return err
 		}
 		for _, measurement := range candidate.Measurements {
+			primaryEvidenceID := measurement.EvidenceIDs[0]
 			if _, err := tx.ExecContext(ctx, `
 				INSERT INTO variable_signal_measurements(
 				    id,variable_signal_id,measurement_role,value_shape,raw_value,raw_lower,raw_upper,
 				    raw_unit,canonical_value,canonical_lower,canonical_upper,canonical_unit,currency,
-				    scale,comparison_basis,comparison_period,raw_text,is_approximate,evidence_id
-				) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-			`, uuid.NewString(), id, measurement.Role, measurement.Shape,
-				nullableDecimal(measurement.RawValue), nullableDecimal(measurement.RawLower),
-				nullableDecimal(measurement.RawUpper), nullString(measurement.RawUnit),
-				nullableDecimal(measurement.CanonicalValue), nullableDecimal(measurement.CanonicalLower),
-				nullableDecimal(measurement.CanonicalUpper), nullString(measurement.CanonicalUnit),
-				nullString(measurement.Currency), nullString(measurement.Scale),
-				nullString(measurement.ComparisonBasis), nullString(measurement.ComparisonPeriod),
-				measurement.RawText, measurement.IsApproximate, measurement.EvidenceID,
+				    scale,comparison_basis,comparison_period,raw_text,is_approximate,evidence_id,evidence_ids
+				) VALUES ($1,$2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,$3,false,$4,$5)
+			`, uuid.NewString(), id, measurement.Text, primaryEvidenceID, measurement.EvidenceIDs,
 			); err != nil {
 				return err
 			}
-		}
-	}
-	impactDecisions := decisionsByKey(precheck.DirectImpacts)
-	for _, candidate := range submission.DirectImpacts {
-		decision := impactDecisions[candidate.Key]
-		signalID := signalIDs[candidate.SourceSignalKey]
-		if decision.Status == eventsemantics.StatusRejected || signalID == "" {
-			continue
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO direct_impact_assertions(
-			    id,semantic_submission_id,candidate_key,source_variable_signal_id,target_entity_id,
-			    affected_variable_key,affected_variable_version,affected_direction,derivation_type,
-			    mechanism_summary,evidence_ids,entity_relation_id,rule_key,rule_version,
-			    assertion_confidence,review_status,reason_code
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-		`, uuid.NewString(), submissionID, candidate.Key, signalID, candidate.TargetEntityID,
-			candidate.AffectedVariableKey, candidate.AffectedVariableVersion,
-			candidate.AffectedDirection, candidate.DerivationType, candidate.MechanismSummary,
-			candidate.EvidenceIDs, nullString(candidate.EntityRelationID), nullString(candidate.RuleKey),
-			nullablePositiveInt(candidate.RuleVersion), nullString(candidate.AssertionConfidence),
-			decision.Status, nullString(decision.ReasonCode),
-		); err != nil {
-			return err
 		}
 	}
 	return nil
@@ -2099,32 +2044,42 @@ func applySemanticReview(
 }
 
 func supersedePriorSemanticSubmission(ctx context.Context, tx *sql.Tx, runID string) error {
-	var priorSubmissionID sql.NullString
-	if err := tx.QueryRowContext(ctx, `
-		SELECT supersedes_submission_id::text
-		FROM event_semantic_submissions
-		WHERE id = $1
-	`, runID).Scan(&priorSubmissionID); err != nil {
-		return err
-	}
-	if !priorSubmissionID.Valid {
-		return nil
-	}
 	for _, table := range []string{"event_entity_links", "variable_signals", "direct_impact_assertions"} {
 		query := fmt.Sprintf(`
+			WITH RECURSIVE ancestors(id) AS (
+			    SELECT supersedes_submission_id
+			    FROM event_semantic_submissions
+			    WHERE id = $1 AND supersedes_submission_id IS NOT NULL
+			    UNION ALL
+			    SELECT run.supersedes_submission_id
+			    FROM event_semantic_submissions run
+			    JOIN ancestors ON run.id = ancestors.id
+			    WHERE run.supersedes_submission_id IS NOT NULL
+			)
 			UPDATE %s
 			SET review_status = 'superseded', reason_code = 'superseded_by_reanalysis', updated_at = now()
-			WHERE semantic_submission_id = $1 AND review_status <> 'superseded'
+			WHERE semantic_submission_id IN (SELECT id FROM ancestors)
+			  AND review_status <> 'superseded'
 		`, table)
-		if _, err := tx.ExecContext(ctx, query, priorSubmissionID.String); err != nil {
+		if _, err := tx.ExecContext(ctx, query, runID); err != nil {
 			return err
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `
+		WITH RECURSIVE ancestors(id) AS (
+		    SELECT supersedes_submission_id
+		    FROM event_semantic_submissions
+		    WHERE id = $1 AND supersedes_submission_id IS NOT NULL
+		    UNION ALL
+		    SELECT run.supersedes_submission_id
+		    FROM event_semantic_submissions run
+		    JOIN ancestors ON run.id = ancestors.id
+		    WHERE run.supersedes_submission_id IS NOT NULL
+		)
 		UPDATE event_semantic_submissions
 		SET status = 'superseded', finalized_at = now()
-		WHERE id = $1 AND status <> 'superseded'
-	`, priorSubmissionID.String); err != nil {
+		WHERE id IN (SELECT id FROM ancestors) AND status <> 'superseded'
+	`, runID); err != nil {
 		return err
 	}
 	return nil

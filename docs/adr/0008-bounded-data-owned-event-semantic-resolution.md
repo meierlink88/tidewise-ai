@@ -1,9 +1,13 @@
 ---
-status: accepted
+status: superseded
 date: 2026-07-31
+superseded_by: 0009-event-semantic-qdrant-projection-and-agentrun-retrieval.md
 ---
 
 # Event Semantic 使用 Data-owned 有界锚点解析
+
+> 2026-08-01：本决策已被 ADR-0009 整体取代。历史表和旧 Submission 保留，
+> 新 Event Semantic V2 不再调用路由、锚点、Direct Target 或 Transmission Rule。
 
 ## 背景
 

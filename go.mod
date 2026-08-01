@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/cloudwego/eino v0.9.12
+	github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260724103301-c9a5dc923462
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
 	github.com/getkin/kin-openapi v0.144.0
 	github.com/go-co-op/gocron/v2 v2.22.0
@@ -43,8 +44,8 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
+	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/meguminnnnnnnnn/go-openai v0.1.2 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -52,7 +53,7 @@ require (
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
 	github.com/oasdiff/yaml v0.1.1 // indirect
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
@@ -64,7 +65,7 @@ require (
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/arch v0.11.0 // indirect
+	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

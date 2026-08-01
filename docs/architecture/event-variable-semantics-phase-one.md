@@ -1,5 +1,9 @@
 # 阶段一：变量本体与 Event 语义落地
 
+> 2026-08-01 权威更新：`event-semantic-qdrant-retrieval-v2.md` 和 ADR-0009 已取代本文中
+> 对新 Event Semantic 强制 DirectImpact、Direct Target/Rule、锚点路由和数值结构化
+> Measurement 的要求。历史表、数据与 V1 决策记录保留。
+
 ## 状态
 
 - 文档状态：Frozen

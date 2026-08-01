@@ -232,5 +232,14 @@ data:
 event_fact:
   reconcile_interval_seconds: 60
   model_timeout_seconds: 180
+semantic_retrieval:
+  qdrant_url: http://127.0.0.1:6333
+  embedding_base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  embedding_model: text-embedding-v4
+  entity_collection: entity_semantic_v1
+  variable_collection: variable_definition_semantic_v1
+  vector_size: 1024
+  timeout_seconds: 10
+  max_response_bytes: 8388608
 `
 }

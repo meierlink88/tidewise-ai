@@ -16,7 +16,7 @@ cp infra/local/.env.example infra/local/.env.local
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml config
 ```
 
-统一编排使用四个 backend service-owned Dockerfile；默认端口为 Data `9011`、Miniapp `9012`、Admin `9013`、AgentRun `9080`、PostgreSQL `5432`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin 只获得各自下游 Service identity token，不携带 Data 或 AgentRun 的数据库凭据。
+统一编排使用四个 backend service-owned Dockerfile；默认端口为 Data `9011`、Miniapp `9012`、Admin `9013`、AgentRun `9080`、PostgreSQL `5432`、Qdrant `6333/6334`、Neo4j Browser `7474`、Neo4j Bolt `7687`。Miniapp/Admin 只获得各自下游 Service identity token，不携带 Data 或 AgentRun 的数据库凭据。
 
 ## 本地 PostgreSQL
 
@@ -167,6 +167,26 @@ go run ./agent-run/backend/cmd/migrate
 ```
 
 完整的配置和 Artifact 运维命令见 `agent-run/backend/README.md`。
+
+### Event Semantic Qdrant 投影
+
+PostgreSQL 是唯一事实源；Qdrant 只保存 Data-owned 可重建语义投影。先应用 Data
+migration，再从 Data Service 所有的 CLI 显式全量重建：
+
+```bash
+APP_ENV=local TIDEWISE_CONFIG_DIR=configs \
+TIDEWISW_DB_PASSWORD=<local-postgres-password> \
+QDRANT_URL=http://127.0.0.1:6333 \
+EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1 \
+EMBEDDING_API_KEY=<runtime-dashscope-key> \
+go run ./cmd/event-semantic-projector -apply -allow-env local
+```
+
+该命令在 `analyse-data-service/backend/` 中执行，固定重建
+`entity_semantic_v1` 和 `variable_definition_semantic_v1`，使用
+`text-embedding-v4 / 1024 / cosine`。AgentRun 仅通过 Eino Embedder 生成查询向量并直接批量
+查 Qdrant；它不读 Data PostgreSQL，Data 也不代理查询。真实 Key 只写入未提交的
+`.env.local` 或当前进程环境。
 
 ## 采集运行边界
 

@@ -2,6 +2,10 @@
 
 Status: frozen implementation spec
 
+> Superseded 2026-08-01 by `event-semantic-qdrant-retrieval-v2.md` and ADR-0009.
+> New Event Semantic executions do not use route/anchor/candidate APIs or resolution bindings;
+> this document remains only as the V1 historical record.
+
 Date: 2026-07-31
 
 Owners: Data Service (formal facts and resolution interface), AgentRun (Event Semantic workflow)

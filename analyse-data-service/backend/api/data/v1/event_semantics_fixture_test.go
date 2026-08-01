@@ -20,21 +20,16 @@ func TestEventSemanticProviderContractAcceptsFrozenConsumerFixtures(t *testing.T
 		t.Fatal(err)
 	}
 	fixtures := map[string]string{
-		"supply-eligible-events.json":       "EligibleEventSemanticEventsEnvelope",
-		"supply-context-lease.json":         "EventSemanticContextLeaseEnvelope",
-		"supply-context.json":               "EventSemanticContextEnvelope",
-		"supply-resolution.json":            "EventSemanticEntityResolutionEnvelope",
-		"supply-targets.json":               "EventSemanticDirectTargetSearchEnvelope",
-		"supply-resolution-routes.json":     "EventSemanticResolutionRouteEnvelope",
-		"supply-resolution-anchors.json":    "EventSemanticResolutionAnchorEnvelope",
-		"supply-chain-node-candidates.json": "EventSemanticResolutionCandidateEnvelope",
-		"supply-submission-accepted.json":   "EventSemanticSubmissionEnvelope",
-		"supply-review-accepted.json":       "EventSemanticSubmissionEnvelope",
-		"supply-event-semantics.json":       "EventSemanticsEnvelope",
+		"supply-eligible-events.json":     "EligibleEventSemanticEventsEnvelope",
+		"supply-context-lease.json":       "EventSemanticContextLeaseEnvelope",
+		"supply-context.json":             "EventSemanticContextEnvelope",
+		"supply-submission-accepted.json": "EventSemanticSubmissionEnvelope",
+		"supply-review-accepted.json":     "EventSemanticSubmissionEnvelope",
+		"supply-event-semantics.json":     "EventSemanticsEnvelope",
 	}
 	for name, schemaName := range fixtures {
 		payload, err := os.ReadFile(filepath.Join(
-			"..", "..", "..", "..", "..", "contracts", "event-semantics", "v1", name,
+			"..", "..", "..", "..", "..", "contracts", "event-semantics", "v2", name,
 		))
 		if err != nil {
 			t.Fatal(err)

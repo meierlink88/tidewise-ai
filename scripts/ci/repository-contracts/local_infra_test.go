@@ -33,6 +33,8 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"agentrun-migrate:",
 		"postgres:",
 		"neo4j:",
+		"qdrant:",
+		"qdrant/qdrant:v1.15.5",
 		"NEO4J_AUTH",
 		"${NEO4J_USERNAME",
 		"${NEO4J_PASSWORD",
@@ -53,6 +55,7 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"AGENTRUN_DB_PASSWORD",
 		"DATA_SERVICE_TOKEN",
 		"AGENTRUN_SERVICE_TOKEN",
+		"EMBEDDING_API_KEY",
 		"ADMIN_SERVICE_TOKEN",
 	} {
 		if !strings.Contains(readmeText, want) {

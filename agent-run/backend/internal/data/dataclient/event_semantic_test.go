@@ -3,12 +3,8 @@ package dataclient
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -16,462 +12,100 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 )
 
-func TestEventSemanticClientConsumesFrozenProviderFixtures(t *testing.T) {
-	eligibleFixture := readSemanticFixture(t, "supply-eligible-events.json")
-	contextLeaseFixture := readSemanticFixture(t, "supply-context-lease.json")
-	contextFixture := readSemanticFixture(t, "supply-context.json")
-	resolutionFixture := readSemanticFixture(t, "supply-resolution.json")
-	targetFixture := readSemanticFixture(t, "supply-targets.json")
-	routeFixture := readSemanticFixture(t, "supply-resolution-routes.json")
-	anchorFixture := readSemanticFixture(t, "supply-resolution-anchors.json")
-	candidateFixture := readSemanticFixture(t, "supply-chain-node-candidates.json")
-	runFixture := readSemanticFixture(t, "supply-submission-accepted.json")
-	reviewFixture := readSemanticFixture(t, "supply-review-accepted.json")
-	readFixture := readSemanticFixture(t, "supply-event-semantics.json")
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.Header.Get("Authorization") != "Bearer semantic-token" {
-			t.Fatalf("Authorization = %q", request.Header.Get("Authorization"))
-		}
-		response.Header().Set("Content-Type", "application/json")
-		response.Header().Set("X-Request-ID", request.Header.Get("X-Request-ID"))
-		switch {
-		case request.Method == http.MethodGet &&
-			request.URL.Path == "/api/data/v1/event-semantics/eligible-events":
-			if request.URL.Query().Get("pagination") != "cursor" {
-				t.Fatalf("eligible pagination capability = %q", request.URL.RawQuery)
-			}
-			writeSemanticFixture(t, response, request, eligibleFixture)
-		case request.Method == http.MethodPost &&
-			request.URL.Path == "/api/data/v1/event-semantics/context-leases":
-			response.WriteHeader(http.StatusCreated)
-			writeSemanticFixture(t, response, request, contextLeaseFixture)
-		case request.Method == http.MethodGet &&
-			request.URL.Path == "/api/data/v1/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context":
-			writeSemanticFixture(t, response, request, contextFixture)
-		case request.Method == http.MethodPost &&
-			request.URL.Path == "/api/data/v1/event-semantics/entity-resolutions":
-			writeSemanticFixture(t, response, request, resolutionFixture)
-		case request.Method == http.MethodPost &&
-			request.URL.Path == "/api/data/v1/event-semantics/direct-targets:search":
-			writeSemanticFixture(t, response, request, targetFixture)
-		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/resolution-routes:list":
-			writeSemanticFixture(t, response, request, routeFixture)
-		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/resolution-anchors:list":
-			writeSemanticFixture(t, response, request, anchorFixture)
-		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/chain-node-candidates:resolve":
-			var input struct {
-				TargetEntityType string `json:"target_entity_type"`
-				MatchMode        string `json:"match_mode"`
-			}
-			if err := json.NewDecoder(request.Body).Decode(&input); err != nil ||
-				input.TargetEntityType != "chain_node" || input.MatchMode != "any" {
-				t.Fatalf("candidate request contract = %#v, err=%v", input, err)
-			}
-			writeSemanticFixture(t, response, request, candidateFixture)
-		case request.Method == http.MethodPost && request.URL.Path == "/api/data/v1/event-semantics/submissions":
-			body, _ := io.ReadAll(request.Body)
-			if len(body) == 0 {
-				t.Fatal("run request body is empty")
-			}
-			response.WriteHeader(http.StatusCreated)
-			writeSemanticFixture(t, response, request, runFixture)
-		case request.Method == http.MethodPost &&
-			request.URL.Path == "/api/data/v1/event-semantics/submissions/66666666-6666-4666-8666-666666666666/reviews":
-			writeSemanticFixture(t, response, request, reviewFixture)
-		case request.Method == http.MethodGet &&
-			request.URL.Path == "/api/data/v1/events/88888888-8888-4888-8888-888888888888/semantics":
-			writeSemanticFixture(t, response, request, readFixture)
-		default:
-			http.NotFound(response, request)
-		}
-	}))
-	defer server.Close()
-	client, err := New(Config{
-		BaseURL: server.URL, ServiceToken: "semantic-token",
-		Timeout: time.Second, MaxResponseBytes: 1024 * 1024,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	eligible, err := client.ListEligibleEvents(context.Background(), 20, "")
-	if err != nil || len(eligible.Events) != 1 ||
-		eligible.Events[0].EventID != "88888888-8888-4888-8888-888888888888" {
-		t.Fatalf("eligible=%#v err=%v", eligible, err)
-	}
-	contextLease, err := client.CreateContextLease(context.Background(), eventsemantic.ContextLeaseRequest{
-		EventID:          "88888888-8888-4888-8888-888888888888",
-		AgentExecutionID: "semantic-execution-1", WorkerID: "contract-worker", LeaseSeconds: 300,
-	})
-	if err != nil || contextLease.ContextLeaseID != "11111111-1111-4111-8111-111111111111" {
-		t.Fatalf("context lease=%#v err=%v", contextLease, err)
-	}
-	contextSnapshot, err := client.Context(context.Background(), "11111111-1111-4111-8111-111111111111")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if contextSnapshot.Event.ID != "88888888-8888-4888-8888-888888888888" ||
-		len(contextSnapshot.VariableDefinitions) != 2 ||
-		contextSnapshot.DirectTransmissionRules[0].RuleKey != "production_decrease_reduces_product_supply" {
-		t.Fatalf("context = %#v", contextSnapshot)
-	}
-	resolutions, err := client.Resolve(context.Background(), contextLease.ContextLeaseID, []eventsemantic.EntityMention{{
-		Mention: "某晶圆厂", AllowedEntityTypes: []string{"company"},
-	}})
-	if err != nil || len(resolutions) != 1 ||
-		resolutions[0].Candidates[0].EntityID != "33333333-3333-4333-8333-333333333333" {
-		t.Fatalf("resolutions = %#v err=%v", resolutions, err)
-	}
-	targets, err := client.SearchDirectTargets(
-		context.Background(), contextLease.ContextLeaseID,
-		"33333333-3333-4333-8333-333333333333", []string{"product"},
-	)
-	if err != nil || len(targets) != 1 ||
-		targets[0].Entity.EntityID != "44444444-4444-4444-8444-444444444444" {
-		t.Fatalf("targets = %#v err=%v", targets, err)
-	}
-	routes, err := client.ListResolutionRoutes(context.Background(), contextLease.ContextLeaseID, "chain_node")
-	if err != nil || len(routes) != 1 || routes[0].RouteID != "chain-node-via-industry.v1" {
-		t.Fatalf("routes = %#v err=%v", routes, err)
-	}
-	anchors, err := client.ListResolutionAnchors(
-		context.Background(), contextLease.ContextLeaseID, routes[0].RouteID, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", nil, 50, "",
-	)
-	if err != nil || len(anchors.Anchors) != 1 {
-		t.Fatalf("anchors = %#v err=%v", anchors, err)
-	}
-	candidates, err := client.ResolveChainNodeCandidates(
-		context.Background(), contextLease.ContextLeaseID, routes[0].RouteID,
-		[]string{anchors.Anchors[0].Entity.EntityID}, 50, "",
-	)
-	if err != nil || len(candidates.Candidates) != 1 ||
-		candidates.Candidates[0].ResolutionReceipt.TargetEntityID != candidates.Candidates[0].Entity.EntityID {
-		t.Fatalf("candidates = %#v err=%v", candidates, err)
-	}
-	run, err := client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{
-		ContextLeaseID: "11111111-1111-4111-8111-111111111111",
-		EventID:        "88888888-8888-4888-8888-888888888888",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run.Status != "accepted" || run.DirectImpacts[0].CandidateKey != "supply" {
-		t.Fatalf("run = %#v", run)
-	}
-	reviewed, err := client.SubmitReview(
-		context.Background(), run.SubmissionID, eventsemantic.ReviewRequest{
-			ReviewerExecutionKey: "execution-supply-001:reviewer",
-			PromptHash:           "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-			Model:                "fixture-reviewer",
-			Items: []eventsemantic.ReviewItem{{
-				CandidateType: "variable_signal", CandidateKey: "production",
-				Decision: "pass", EvidenceIDs: []string{"22222222-2222-4222-8222-222222222222"},
-			}},
-		},
-	)
-	if err != nil || reviewed.Status != "accepted" {
-		t.Fatalf("reviewed = %#v err=%v", reviewed, err)
-	}
-	semantics, err := client.GetEventSemantics(context.Background(), "88888888-8888-4888-8888-888888888888")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if semantics.EventID != contextSnapshot.Event.ID || len(semantics.Submissions) != 1 ||
-		semantics.Submissions[0].SubmissionID != run.SubmissionID {
-		t.Fatalf("semantics = %#v", semantics)
-	}
-	readRun := semantics.Submissions[0]
-	if readRun.AuditWorkPackage == nil ||
-		readRun.AuditWorkPackage.Evidence[0].RawDocumentID != "99999999-9999-4999-8999-999999999999" ||
-		readRun.VariableSignals[0].RecordID == "" ||
-		len(readRun.ReviewSnapshots) != 1 ||
-		readRun.GeneratorPromptHash == "" {
-		t.Fatalf("complete semantics audit = %#v", readRun)
-	}
-}
-
-func TestEventSemanticEligibleEventsCanBeEmpty(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		requestID := request.Header.Get("X-Request-ID")
-		response.Header().Set("X-Request-ID", requestID)
-		_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","result":{"events":[]}}`))
-	}))
-	defer server.Close()
-	client, err := New(Config{
-		BaseURL: server.URL, ServiceToken: "token",
-		Timeout: time.Second, MaxResponseBytes: 4096,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	page, listErr := client.ListEligibleEvents(context.Background(), 20, "")
-	if listErr != nil || len(page.Events) != 0 || page.NextCursor != "" {
-		t.Fatalf("page=%#v err=%v", page, listErr)
-	}
-}
-
-func TestEventSemanticContextDriftIsRetryable(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		requestID := request.Header.Get("X-Request-ID")
-		response.Header().Set("X-Request-ID", requestID)
-		response.WriteHeader(http.StatusConflict)
-		_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","error":{"code":"EVENT_SEMANTIC_CONTEXT_DRIFT","message":"selected path changed","details":{}}}`))
-	}))
-	defer server.Close()
-	client, err := New(Config{
-		BaseURL: server.URL, ServiceToken: "token", Timeout: time.Second, MaxResponseBytes: 4096,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{})
-	var remote *eventsemantic.RemoteError
-	if !errors.As(err, &remote) || !remote.Retryable || remote.Code != "EVENT_SEMANTIC_CONTEXT_DRIFT" {
-		t.Fatalf("error = %#v", err)
-	}
-}
-
-func TestEventSemanticResolutionValidatorsRejectInvalidRemoteIdentities(t *testing.T) {
-	route := eventsemantic.ResolutionRoute{
-		RouteID: "chain-node-via-industry.v1", RouteContractVersion: "event-semantic-anchor-routes.v1",
-		TargetEntityType: "chain_node", AnchorEntityType: "industry", MappingRelationType: "mapped_to_industry",
-		Partitions: []string{"not-a-uuid"}, PartitionLabels: map[string]string{"not-a-uuid": "Industry"},
-		Direction: "industry_to_industry_chain_to_chain_node", Purpose: "resolve",
-		NextOperation: "list_resolution_anchors", OrderingContract: "canonical_name_entity_id.v1",
-	}
-	if validSemanticRoutes([]eventsemantic.ResolutionRoute{route}, "chain_node") {
-		t.Fatal("invalid Industry partition was accepted")
-	}
-	anchorID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	if validSemanticAnchors([]eventsemantic.ResolutionAnchor{{
-		Entity:    eventsemantic.Entity{EntityID: anchorID, EntityType: "concept", CanonicalName: "Wrong", Status: "active"},
-		Partition: anchorID, Description: "description", HierarchyIdentity: "hierarchy",
-	}}, "chain-node-via-industry.v1", anchorID) {
-		t.Fatal("wrong-type anchor was accepted")
-	}
-	candidate := eventsemantic.ResolutionCandidate{
-		Entity:      eventsemantic.Entity{EntityID: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", EntityType: "chain_node", CanonicalName: "Node", Status: "active"},
-		Description: "stage", MatchedAnchorEntityIDs: []string{anchorID}, IndustryChainEntityName: "Chain",
-		ResolutionReceipt: eventsemantic.ResolutionReceipt{
-			RouteID: "chain-node-via-industry.v1", RouteContractVersion: "event-semantic-anchor-routes.v1",
-			AnchorEntityID: anchorID, IndustryChainEntityID: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-			MappingRelationID: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-			TargetEntityID:    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", MembershipPosition: 1,
-			MembershipUpdatedAt: "not-a-time", PathFingerprint: strings.Repeat("f", 64),
-		},
-	}
-	if validSemanticCandidates([]eventsemantic.ResolutionCandidate{candidate}, candidate.ResolutionReceipt.RouteID, []string{anchorID}) {
-		t.Fatal("invalid receipt timestamp was accepted")
-	}
-}
-
-func TestEventSemanticEligibleEventsCarriesOpaqueCursorAcrossTheContract(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.URL.Query().Get("limit") != "20" ||
-			request.URL.Query().Get("cursor") != "opaque-current-page" ||
-			request.URL.Query().Get("pagination") != "cursor" {
-			t.Fatalf("query = %q", request.URL.RawQuery)
+func TestEventSemanticClientConsumesV2ContextWithoutSearchContracts(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/data/v1/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context" {
+			t.Fatalf("unexpected Data path %s", request.URL.Path)
 		}
 		requestID := request.Header.Get("X-Request-ID")
-		response.Header().Set("X-Request-ID", requestID)
-		_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","result":{"events":[{"event_id":"88888888-8888-4888-8888-888888888888"}],"next_cursor":"opaque-next-page"}}`))
-	}))
-	defer server.Close()
-	client, err := New(Config{
-		BaseURL: server.URL, ServiceToken: "token",
-		Timeout: time.Second, MaxResponseBytes: 4096,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	page, listErr := client.ListEligibleEvents(
-		context.Background(), 20, "opaque-current-page",
-	)
-
-	if listErr != nil || len(page.Events) != 1 ||
-		page.Events[0].EventID != "88888888-8888-4888-8888-888888888888" ||
-		page.NextCursor != "opaque-next-page" {
-		t.Fatalf("page=%#v err=%v", page, listErr)
-	}
-}
-
-func TestEventSemanticClientReplaysIdempotentRunWriteAfterUnknownResult(t *testing.T) {
-	calls := 0
-	fixture := readSemanticFixture(t, "supply-submission-accepted.json")
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		calls++
-		if request.URL.Path != "/api/data/v1/event-semantics/submissions" {
-			http.NotFound(response, request)
-			return
-		}
-		if calls == 1 {
-			requestID := request.Header.Get("X-Request-ID")
-			response.Header().Set("X-Request-ID", requestID)
-			response.WriteHeader(http.StatusBadGateway)
-			_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","error":{"code":"UNKNOWN_RESULT","message":"unknown result","details":{}}}`))
-			return
-		}
-		response.Header().Set("X-Request-ID", request.Header.Get("X-Request-ID"))
-		response.WriteHeader(http.StatusCreated)
-		writeSemanticFixture(t, response, request, fixture)
-	}))
-	defer server.Close()
-	client, err := New(Config{
-		BaseURL: server.URL, ServiceToken: "token",
-		Timeout: time.Second, MaxResponseBytes: 4096,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, callErr := client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{
-		ContextLeaseID: "11111111-1111-4111-8111-111111111111",
-		EventID:        "88888888-8888-4888-8888-888888888888",
-	})
-	if callErr != nil {
-		t.Fatal(callErr)
-	}
-	if calls != 2 || result.SubmissionID == "" {
-		t.Fatalf("calls=%d result=%#v", calls, result)
-	}
-}
-
-func TestEventSemanticClientBoundsReplaySafeWriteAttempts(t *testing.T) {
-	tests := []struct {
-		name      string
-		status    int
-		wantCalls int
-	}{
-		{name: "conflict is not retried", status: http.StatusConflict, wantCalls: 1},
-		{name: "service unavailable exhausts one replay", status: http.StatusServiceUnavailable, wantCalls: 2},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			calls := 0
-			server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-				calls++
-				if request.URL.Path != "/api/data/v1/event-semantics/submissions" {
-					http.NotFound(response, request)
-					return
-				}
-				requestID := request.Header.Get("X-Request-ID")
-				response.Header().Set("X-Request-ID", requestID)
-				response.WriteHeader(test.status)
-				_, _ = response.Write([]byte(`{"request_id":"` + requestID + `","error":{"code":"semantic_write_failed","message":"write failed","details":{}}}`))
-			}))
-			defer server.Close()
-			client, err := New(Config{
-				BaseURL: server.URL, ServiceToken: "token",
-				Timeout: time.Second, MaxResponseBytes: 4096,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, callErr := client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{
-				ContextLeaseID: "11111111-1111-4111-8111-111111111111",
-				EventID:        "88888888-8888-4888-8888-888888888888",
-			})
-			if callErr == nil {
-				t.Fatal("expected write failure")
-			}
-			if calls != test.wantCalls {
-				t.Fatalf("calls = %d, want %d", calls, test.wantCalls)
-			}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("X-Request-ID", requestID)
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"request_id": requestID,
+			"result": map[string]any{
+				"context_lease_id":   "11111111-1111-4111-8111-111111111111",
+				"agent_execution_id": "execution", "worker_id": "worker",
+				"lease_expires_at":          "2026-08-01T10:00:00Z",
+				"manifest_contract_version": "event-semantic-context-manifest.v2",
+				"context_fingerprint":       strings.Repeat("a", 64), "event_fingerprint": strings.Repeat("b", 64), "evidence_fingerprint": strings.Repeat("c", 64),
+				"ontology_version":          "event-semantics.objective-v2@1",
+				"acceptance_policy_version": "event-semantics.objective-v2@1",
+				"event":                     map[string]any{"id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "title": "title", "summary": "summary", "occurred_at": nil, "event_status": "confirmed", "fact_status": "verified"},
+				"evidence": []any{map[string]any{
+					"evidence_id": "22222222-2222-4222-8222-222222222222", "evidence_hash": strings.Repeat("d", 64),
+					"excerpt": "title", "source_level": "primary", "relation": "supports", "supports_fields": []string{"title"}, "is_primary": true,
+					"raw_document_id": "33333333-3333-4333-8333-333333333333", "source_name": "fixture", "source_type": "news", "title": "title",
+					"first_seen_at": "2026-08-01T09:00:00Z", "knowledge_available_at": "2026-08-01T09:00:00Z", "accepted_at": "2026-08-01T09:00:00Z", "statement_source": "",
+				}},
+				"entity_type_definitions": []any{map[string]any{"type_key": "company", "version": 1, "signal_subject_allowed": true, "allowed_event_roles": []string{"actor"}, "status": "active"}},
+				"variable_definitions":    []any{map[string]any{"key": "revenue", "version": 1, "name_zh": "收入", "name_en": "Revenue", "domain": "finance", "business_definition": "正式收入", "value_type": "narrative", "status": "active", "allowed_directions": []string{"increase"}, "allowed_units": []string{}, "applicable_entity_types": []string{"company"}}},
+				"assertion_modalities":    []string{"actual"},
+				"measurement_contract":    map[string]any{"representation": "evidence_grounded_narrative", "max_items_per_signal": 8, "max_text_characters": 2000, "requires_evidence_ids": true, "numeric_validation": false},
+			},
 		})
-	}
-}
-
-func TestEventSemanticClientRejectsInvalidErrorEnvelopeRequestIDContract(t *testing.T) {
-	tests := []struct {
-		name         string
-		headerID     func(string) string
-		responseJSON func(string) string
-	}{
-		{
-			name:     "missing response header",
-			headerID: func(string) string { return "" },
-			responseJSON: func(requestID string) string {
-				return `{"request_id":"` + requestID + `","error":{"code":"FAILED","message":"failed","details":{}}}`
-			},
-		},
-		{
-			name:     "mismatched body request id",
-			headerID: func(requestID string) string { return requestID },
-			responseJSON: func(string) string {
-				return `{"request_id":"different","error":{"code":"FAILED","message":"failed","details":{}}}`
-			},
-		},
-		{
-			name:     "malformed error envelope",
-			headerID: func(requestID string) string { return requestID },
-			responseJSON: func(requestID string) string {
-				return `{"request_id":"` + requestID + `","error":{"code":"FAILED","message":"failed"}}`
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-				requestID := request.Header.Get("X-Request-ID")
-				if responseID := test.headerID(requestID); responseID != "" {
-					response.Header().Set("X-Request-ID", responseID)
-				}
-				response.WriteHeader(http.StatusConflict)
-				_, _ = response.Write([]byte(test.responseJSON(requestID)))
-			}))
-			defer server.Close()
-			client, err := New(Config{
-				BaseURL: server.URL, ServiceToken: "token",
-				Timeout: time.Second, MaxResponseBytes: 4096,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, callErr := client.CreateSubmission(context.Background(), eventsemantic.SubmissionRequest{
-				ContextLeaseID: "11111111-1111-4111-8111-111111111111",
-				EventID:        "88888888-8888-4888-8888-888888888888",
-			})
-			var remote *eventsemantic.RemoteError
-			if !errors.As(callErr, &remote) || remote.Code != "data_response_invalid" {
-				t.Fatalf("error = %#v, want data_response_invalid", callErr)
-			}
-		})
-	}
-}
-
-func readSemanticFixture(t *testing.T, name string) []byte {
-	t.Helper()
-	payload, err := os.ReadFile(filepath.Join(
-		"..", "..", "..", "..", "..", "contracts", "event-semantics", "v1", name,
-	))
+	}))
+	defer server.Close()
+	client, err := New(Config{BaseURL: server.URL, ServiceToken: "token", Timeout: time.Second, MaxResponseBytes: 1 << 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return payload
-}
-
-func writeSemanticFixture(
-	t *testing.T,
-	response http.ResponseWriter,
-	request *http.Request,
-	fixture []byte,
-) {
-	t.Helper()
-	requestID := request.Header.Get("X-Request-ID")
-	if requestID == "" || request.Header.Get("X-Tidewise-Operation") == "" ||
-		request.Header.Get("X-Tidewise-Path-Template") == "" {
-		t.Fatalf("semantic request metadata is incomplete: %#v", request.Header)
-	}
-	response.Header().Set("X-Request-ID", requestID)
-	var envelope map[string]any
-	if err := json.Unmarshal(fixture, &envelope); err != nil {
-		t.Fatal(err)
-	}
-	envelope["request_id"] = requestID
-	payload, err := json.Marshal(envelope)
+	contextValue, err := client.Context(context.Background(), "11111111-1111-4111-8111-111111111111")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = response.Write(payload)
+	if contextValue.ManifestContractVersion != "event-semantic-context-manifest.v2" || contextValue.MeasurementContract.NumericValidation {
+		t.Fatalf("context = %#v", contextValue)
+	}
+	invalid := contextValue
+	invalid.ContextFingerprint = "not-a-sha256"
+	if validSemanticContext(invalid, contextValue.ContextLeaseID) {
+		t.Fatal("consumer accepted invalid Context fingerprint")
+	}
+	invalid = contextValue
+	invalid.Evidence = nil
+	if validSemanticContext(invalid, contextValue.ContextLeaseID) {
+		t.Fatal("consumer accepted Context without Evidence")
+	}
+	var _ eventsemantic.DataClient = client
+}
+
+func TestEventSemanticSubmissionWireContainsNoDirectImpact(t *testing.T) {
+	payload, err := json.Marshal(eventsemantic.SubmissionRequest{
+		AgentKey: eventsemantic.AgentKey, AgentVersion: eventsemantic.AgentVersion,
+		EntityLinks: []eventsemantic.EntityLinkCandidate{}, VariableSignals: []eventsemantic.VariableSignalCandidate{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(payload) == "" || json.Valid(payload) == false {
+		t.Fatalf("payload = %s", payload)
+	}
+	var value map[string]any
+	_ = json.Unmarshal(payload, &value)
+	if _, exists := value["direct_impacts"]; exists {
+		t.Fatalf("V2 payload unexpectedly contains direct_impacts: %s", payload)
+	}
+}
+
+func TestHistoricalAuditWorkPackageMayLackResolvedEntitiesButResumableReviewMayNot(t *testing.T) {
+	work := &eventsemantic.ReviewerWorkPackage{EntityLinks: []eventsemantic.EntityLinkCandidate{{
+		CandidateKey: "company", Mention: "公司", EntityID: "33333333-3333-4333-8333-333333333333",
+		EvidenceIDs: []string{"22222222-2222-4222-8222-222222222222"},
+	}}}
+	base := eventsemantic.SubmissionResult{
+		SubmissionID:         "11111111-1111-4111-8111-111111111111",
+		EventID:              "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+		Status:               "accepted",
+		CanonicalPayloadHash: strings.Repeat("a", 64),
+		AuditWorkPackage:     work,
+	}
+	if !validSemanticSubmission(base) {
+		t.Fatal("historical terminal audit package without resolved_entities was rejected")
+	}
+	base.AuditWorkPackage = nil
+	base.ReviewerWorkPackage = work
+	base.Status = "pending_review"
+	if validSemanticSubmission(base) {
+		t.Fatal("resumable reviewer work package without resolved_entities was accepted")
+	}
 }

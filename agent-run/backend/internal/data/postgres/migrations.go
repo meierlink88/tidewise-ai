@@ -233,10 +233,10 @@ func (s *Store) SchemaReady(ctx context.Context) bool {
 	return s.schemaShapeReady(ctx)
 }
 
-// PreparePreviousReleaseRollback removes only the 010 ledger marker so a
-// pre-010 binary's strict migration readiness check can start again. The
-// expanded constraint is intentionally left in place: it is backward
-// compatible. Rollback is refused after any history-only skipped row exists.
+// PreparePreviousReleaseRollback removes only the additive V2 registry
+// migration marker so the previous release's strict migration readiness check
+// can start again. The registered row is intentionally retained because it is
+// inert for the previous V1 runtime and preserves historical FK references.
 func PreparePreviousReleaseRollback(
 	ctx context.Context,
 	database *pgxpool.Pool,
@@ -256,30 +256,15 @@ func PreparePreviousReleaseRollback(
 	); err != nil {
 		return fmt.Errorf("lock AgentRun previous-release rollback preparation: %w", err)
 	}
-	var skippedExists bool
-	if err := tx.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM event_semantic_work_items
-			WHERE status = 'skipped'
-		)
-	`).Scan(&skippedExists); err != nil {
-		return fmt.Errorf("inspect Event Semantic rollback compatibility: %w", err)
-	}
-	if skippedExists {
-		return errors.New(
-			"previous AgentRun release rollback is unsafe after historical skipped rows exist",
-		)
-	}
 	command, err := tx.Exec(ctx, `
 		DELETE FROM schema_migrations
-		WHERE version = 'migrations/010_event_semantic_history_skip.sql'
+		WHERE version = 'migrations/011_event_semantic_enricher_v2.sql'
 	`)
 	if err != nil {
-		return fmt.Errorf("remove AgentRun 010 migration ledger marker: %w", err)
+		return fmt.Errorf("remove AgentRun 011 migration ledger marker: %w", err)
 	}
 	if command.RowsAffected() != 1 {
-		return errors.New("AgentRun 010 migration is not applied")
+		return errors.New("AgentRun 011 migration is not applied")
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit AgentRun previous-release rollback preparation: %w", err)

@@ -263,13 +263,13 @@ _Avoid_: Entity Relation 实例、Direct Impact Assertion、把 Golden Entity ID
 AgentRun 私有规则、完整多跳 Transmission Rule 引擎
 
 **语义候选审核状态（Semantic Candidate Review Status）**:
-Event Entity Link、Variable Signal 和 Direct Impact Assertion 各自拥有的领域审核
+Event Entity Link 和 Variable Signal 各自拥有的领域审核
 状态：`accepted` 可供下游使用；`pending_review` 正在等待自动 AI 复核或可恢复处理；
 `needs_reanalysis` 需要补充 Evidence、重新提取或解析；`quarantined` 表示自动重试
 预算耗尽后长期隔离；`rejected` 保留稳定拒绝原因；`superseded` 表示已有新候选替代但
 旧记录继续审计。上游未 accepted 时，下游不得 accepted。
 _Avoid_: 用 Submission 单一状态覆盖全部候选、把 Pending 当正式 ABox、等待人工 UI、
-重试耗尽后自动接受、删除拒绝记录
+重试耗尽后自动接受、删除拒绝记录、为 V2 新增 DirectImpact
 
 **Acceptance Policy**:
 Data Service 用于把已通过基本合同校验的语义候选路由到审核状态的版本化策略。它组合
@@ -281,12 +281,17 @@ _Avoid_: 全局永久阈值、未经校准的置信常量、Grade A 自动接受
 Candidate Generator 之后的独立 AI 调用，使用独立 Prompt/版本，仅接收候选、Event
 Evidence、Ontology Context 和校验清单，结构化输出 `pass | fail | indeterminate`。
 它可以与 Generator 使用同一基础 LLM，但不读取 Generator 的自由推理过程，也不能直接
-写 accepted；最终状态始终由 Data Service 的确定性门禁和 Acceptance Policy 决定。
+写 accepted；Submission 冻结 Reviewer 与 Adjudicator 的 Prompt/模型身份，Data 持久化
+每轮 Review Snapshot。首次 `indeterminate` 进入 `needs_reanalysis`，冻结的第二轮再次
+`indeterminate` 时进入 `quarantined`；未知结果恢复必须沿用已持久化的下一轮身份。最终状态始终由 Data Service 的确定性门禁和 Acceptance Policy 决定。
 _Avoid_: Generator 自我确认、Reviewer 直接改领域状态、开放式多 Agent 辩论
 
 **Event Semantic Submission**:
 Data Service 对一个正式 Event 的一次语义提交、确定性校验、独立 AI Review Result、
 Acceptance Policy 裁决和产物血缘记录，与 AgentRun 的一个 Agent Execution 一对一。
+新 V2 Submission 仅包含 EventEntityLink 和 VariableSignal（其可选包含自然语言
+Measurement），不接受、生成或要求 DirectImpact。Data 在写事务内以 PostgreSQL 正式
+Entity/TBox/Evidence 重新校验 Qdrant 候选中被选中的 ID。
 它保存外部执行身份及 Agent/Ontology/Rule/Prompt/Model 版本快照，但不复制 AgentRun 的
 runtime 状态、调度重试或执行错误；重新分析创建新 Submission 并 supersede 旧
 Submission。
@@ -322,8 +327,8 @@ Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未
 
 **Event Semantic Context Lease**:
 Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。
-它通过轻量 `context_manifest` 固定 Event/Evidence 身份与指纹、Ontology/Policy、Entity Type、
-Variable、Rule、Resolution Route 版本引用和可选 superseded Submission 边界；Evidence 摘录和
+它通过轻量 `context_manifest` 固定 Event/Evidence 身份与指纹、Ontology/Policy、Entity Type 与
+Variable Definition 版本引用和可选 superseded Submission 边界；Evidence 摘录和
 完整 TBox 对象由 Context API 按这些 pinned identities 读取，不复制进 manifest，也不复制全量
 Entity / EntityRelation ABox。Lease 以 Agent Execution ID 为唯一恢复身份；同一执行可
 精确续期并复用原 manifest；旧 snapshot-only Lease 重放时仅为该 Lease 生成 compact
@@ -334,7 +339,23 @@ Eligibility：正式 Event 必须 confirmed、verified、有 Event time，且返
 被消费。它不是任务、队列或 Agent 执行租约；调度、失败恢复和重试始终属于 AgentRun。
 _Avoid_: Reanalysis Task、Agent Work Item、在 Data 中调度模型调用、无限续租
 
+**Event Semantic Measurement**:
+VariableSignal 的可选一对多、Evidence-grounded 自然语言量化附注。V2 wire 只包含
+`measurement_text + evidence_ids`；Data 校验非空、长度、数量、Evidence 归属和引用
+完整性，不解析或校验数值、单位、范围、百分比/百分点或时间归一化。
+它仅供下游 Theme Analyst 阅读和推理，不用于数据库计算。
+_Avoid_: Observation、伪造数值、任意无 Evidence 自由文本、恢复数值归一化强校验
+
+**Event Semantic Qdrant Projection**:
+Data Service 从 active/current 正式 PostgreSQL Entity 和 Variable Definition 构建的两个可重建
+语义召回 collection。Data 拥有一次性全量 projector、普通批量 embedding Port、
+OpenAI-compatible HTTP adapter 和 Qdrant 写入；它不拥有 accepted 状态，也不替代
+PostgreSQL 事实校验。Data 代码不使用 Eino/eino-ext，AgentRun 也不通过 Data API
+获取 embedding 或语义候选。
+_Avoid_: Qdrant 作为事实源、Data 执行 Agent Workflow、实时/CDC 同步、Data 代理 AgentRun 搜索
+
 **Event Semantic Resolution Route**:
+历史 V1 术语；已被 Event Semantic V2 Qdrant Projection 取代，不再对新 AgentRun 流程提供。
 Data Service 暴露的版本化、受控 Entity Resolution 路径。ChainNode MVP 只允许从正式且
 已批准的 Industry 或 Concept 锚点，经 `mapped_to_industry | mapped_to_concept` 到
 IndustryChain，再经已批准 Membership 到 ChainNode；路由、锚点和候选均稳定排序并分页。
@@ -345,6 +366,7 @@ Industry anchor 页只返回分区内存在正式映射且可到达 approved Cha
 _Avoid_: 开放式图遍历、AgentRun 直连数据库/Neo4j、全库 Entity Catalog、模型发明路径
 
 **Event Semantic Resolution Binding**:
+历史 V1 术语；V2 不再生成或校验该 binding。
 一个 Submission 实际选中的正式 Anchor→IndustryChain→ChainNode 路径回执。Data 在候选
 响应中生成 receipt，Submission 事务中重新计算路径指纹；漂移返回可重试冲突，只有通过
 核验的选中 binding 才持久化。未选候选与空候选不写表。

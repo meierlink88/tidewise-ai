@@ -16,7 +16,6 @@ type eventSemanticsHTTPStub struct {
 	contextLeaseRequest *EventSemanticContextLeaseRequest
 	eligibleRequest     *EligibleEventSemanticEventsRequest
 	contextResponse     EventSemanticContext
-	routeRequest        *EventSemanticResolutionRouteRequest
 }
 
 func (s *eventSemanticsHTTPStub) GetEventSemanticContext(
@@ -24,20 +23,6 @@ func (s *eventSemanticsHTTPStub) GetEventSemanticContext(
 	_ *EventSemanticContextRequest,
 ) (*Response[EventSemanticContext], error) {
 	return &Response[EventSemanticContext]{Status: StatusOK, Result: s.contextResponse}, nil
-}
-
-func (s *eventSemanticsHTTPStub) ListEventSemanticResolutionRoutes(
-	_ context.Context,
-	request *EventSemanticResolutionRouteRequest,
-) (*Response[EventSemanticResolutionRouteResult], error) {
-	s.routeRequest = request
-	return &Response[EventSemanticResolutionRouteResult]{Status: StatusOK, Result: EventSemanticResolutionRouteResult{
-		Routes: []EventSemanticResolutionRoute{{
-			RouteID: "chain-node-via-industry.v1", RouteContractVersion: "event-semantic-anchor-routes.v1",
-			TargetEntityType: "chain_node", AnchorEntityType: "industry",
-			MappingRelationType: "mapped_to_industry", Partitions: []string{"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"},
-		}},
-	}}, nil
 }
 
 func (s *eventSemanticsHTTPStub) ListEligibleEventSemanticEvents(
@@ -211,7 +196,7 @@ func TestEventSemanticContextIsCompactAndOmitsABoxCatalog(t *testing.T) {
 	}
 }
 
-func TestEventSemanticResolutionRoutesUseStrictBoundedContract(t *testing.T) {
+func TestEventSemanticV2DoesNotRegisterLegacyResolutionRoutes(t *testing.T) {
 	stub := &eventSemanticsHTTPStub{}
 	server := kratoshttp.NewServer()
 	RegisterDataHTTPServer(server, stub)
@@ -225,17 +210,7 @@ func TestEventSemanticResolutionRoutesUseStrictBoundedContract(t *testing.T) {
 
 	server.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d body = %s", recorder.Code, recorder.Body.String())
-	}
-	if stub.routeRequest == nil || stub.routeRequest.TargetEntityType != "chain_node" {
-		t.Fatalf("route request = %#v", stub.routeRequest)
-	}
-	var response EventSemanticResolutionRouteResult
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Routes) != 1 || response.Routes[0].RouteID != "chain-node-via-industry.v1" {
-		t.Fatalf("route response = %#v", response)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", recorder.Code)
 	}
 }

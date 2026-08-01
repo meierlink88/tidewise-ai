@@ -112,31 +112,6 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
 			operation:   "data.v1.getEventSemanticContext",
 		},
-		"POST " + APIPrefix + "/event-semantics/entity-resolutions": {
-			requestPath: APIPrefix + "/event-semantics/entity-resolutions",
-			operation:   "data.v1.resolveEventSemanticEntities",
-			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","mentions":[]}`,
-		},
-		"POST " + APIPrefix + "/event-semantics/direct-targets:search": {
-			requestPath: APIPrefix + "/event-semantics/direct-targets:search",
-			operation:   "data.v1.searchEventSemanticDirectTargets",
-			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","subject_entity_id":"22222222-2222-4222-8222-222222222222","allowed_target_types":["product"]}`,
-		},
-		"POST " + APIPrefix + "/event-semantics/resolution-routes:list": {
-			requestPath: APIPrefix + "/event-semantics/resolution-routes:list",
-			operation:   "data.v1.listEventSemanticResolutionRoutes",
-			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","target_entity_type":"chain_node"}`,
-		},
-		"POST " + APIPrefix + "/event-semantics/resolution-anchors:list": {
-			requestPath: APIPrefix + "/event-semantics/resolution-anchors:list",
-			operation:   "data.v1.listEventSemanticResolutionAnchors",
-			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","route_id":"chain-node-via-industry.v1","partition":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","page_size":20}`,
-		},
-		"POST " + APIPrefix + "/event-semantics/chain-node-candidates:resolve": {
-			requestPath: APIPrefix + "/event-semantics/chain-node-candidates:resolve",
-			operation:   "data.v1.resolveEventSemanticChainNodeCandidates",
-			body:        `{"context_lease_id":"11111111-1111-4111-8111-111111111111","route_id":"chain-node-via-industry.v1","target_entity_type":"chain_node","anchor_entity_ids":["22222222-2222-4222-8222-222222222222"],"match_mode":"any","page_size":20}`,
-		},
 		"POST " + APIPrefix + "/event-semantics/submissions": {
 			requestPath: APIPrefix + "/event-semantics/submissions",
 			operation:   "data.v1.createEventSemanticSubmission",

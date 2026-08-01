@@ -76,164 +76,6 @@ func (s *DataService) GetEventSemanticContext(
 	}, nil
 }
 
-func (s *DataService) ResolveEventSemanticEntities(
-	ctx context.Context,
-	request *v1.EventSemanticEntityResolutionRequest,
-) (*v1.Response[v1.EventSemanticEntityResolutionResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
-		return nil, eventSemanticsNotReady()
-	}
-	mentions := make([]eventsemantics.EntityMention, 0, len(request.Mentions))
-	for _, mention := range request.Mentions {
-		mentions = append(mentions, eventsemantics.EntityMention{
-			Mention: mention.Mention, AllowedEntityTypes: mention.AllowedEntityTypes,
-		})
-	}
-	result, err := s.dependencies.EventSemantics.Resolve(ctx, request.ContextLeaseID, mentions)
-	if err != nil {
-		return nil, eventSemanticsError(err)
-	}
-	resolutions := make([]v1.EventSemanticEntityResolution, 0, len(result))
-	for _, resolution := range result {
-		candidates := make([]v1.EventSemanticEntity, 0, len(resolution.Candidates))
-		for _, candidate := range resolution.Candidates {
-			candidates = append(candidates, eventSemanticEntityDTO(candidate))
-		}
-		resolutions = append(resolutions, v1.EventSemanticEntityResolution{
-			Mention: resolution.Mention, Candidates: candidates, Ambiguous: resolution.Ambiguous,
-		})
-	}
-	return &v1.Response[v1.EventSemanticEntityResolutionResult]{
-		Status: v1.StatusOK,
-		Result: v1.EventSemanticEntityResolutionResult{Resolutions: resolutions},
-	}, nil
-}
-
-func (s *DataService) SearchEventSemanticDirectTargets(
-	ctx context.Context,
-	request *v1.EventSemanticDirectTargetSearchRequest,
-) (*v1.Response[v1.EventSemanticDirectTargetSearchResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
-		return nil, eventSemanticsNotReady()
-	}
-	result, err := s.dependencies.EventSemantics.SearchDirectTargets(
-		ctx,
-		request.ContextLeaseID,
-		request.SubjectEntityID,
-		request.AllowedTargetTypes,
-	)
-	if err != nil {
-		return nil, eventSemanticsError(err)
-	}
-	targets := make([]v1.EventSemanticDirectTarget, 0, len(result))
-	for _, target := range result {
-		targets = append(targets, v1.EventSemanticDirectTarget{
-			Entity: eventSemanticEntityDTO(target.Entity), Relation: eventSemanticRelationDTO(target.Relation),
-		})
-	}
-	return &v1.Response[v1.EventSemanticDirectTargetSearchResult]{
-		Status: v1.StatusOK,
-		Result: v1.EventSemanticDirectTargetSearchResult{Targets: targets},
-	}, nil
-}
-
-func (s *DataService) ListEventSemanticResolutionRoutes(
-	ctx context.Context,
-	request *v1.EventSemanticResolutionRouteRequest,
-) (*v1.Response[v1.EventSemanticResolutionRouteResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
-		return nil, eventSemanticsNotReady()
-	}
-	routes, err := s.dependencies.EventSemantics.ListResolutionRoutes(
-		ctx, request.ContextLeaseID, request.TargetEntityType,
-	)
-	if err != nil {
-		return nil, eventSemanticsError(err)
-	}
-	result := v1.EventSemanticResolutionRouteResult{Routes: make([]v1.EventSemanticResolutionRoute, 0, len(routes))}
-	for _, route := range routes {
-		result.Routes = append(result.Routes, v1.EventSemanticResolutionRoute{
-			RouteID: route.ID, RouteContractVersion: route.ContractVersion,
-			TargetEntityType: route.TargetEntityType, AnchorEntityType: route.AnchorEntityType,
-			MappingRelationType: route.MappingRelationType, Partitions: route.Partitions,
-			PartitionLabels: route.PartitionLabels, Direction: route.Direction, Purpose: route.Purpose,
-			NextOperation: route.NextOperation, OrderingContract: route.OrderingContract,
-		})
-	}
-	return &v1.Response[v1.EventSemanticResolutionRouteResult]{Status: v1.StatusOK, Result: result}, nil
-}
-
-func (s *DataService) ListEventSemanticResolutionAnchors(
-	ctx context.Context,
-	request *v1.EventSemanticResolutionAnchorRequest,
-) (*v1.Response[v1.EventSemanticResolutionAnchorResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
-		return nil, eventSemanticsNotReady()
-	}
-	page, err := s.dependencies.EventSemantics.ListResolutionAnchors(
-		ctx, request.ContextLeaseID, request.RouteID, request.Partition, request.ParentAnchorIDs,
-		request.PageSize, request.Cursor,
-	)
-	if err != nil {
-		return nil, eventSemanticsError(err)
-	}
-	result := v1.EventSemanticResolutionAnchorResult{
-		Anchors: make([]v1.EventSemanticResolutionAnchor, 0), NextCursor: page.NextCursor,
-	}
-	for _, anchor := range page.Anchors {
-		result.Anchors = append(result.Anchors, v1.EventSemanticResolutionAnchor{
-			Entity: eventSemanticEntityDTO(anchor.Entity), Partition: anchor.Partition,
-			Description: anchor.Description, HierarchyIdentity: anchor.HierarchyIdentity,
-		})
-	}
-	return &v1.Response[v1.EventSemanticResolutionAnchorResult]{Status: v1.StatusOK, Result: result}, nil
-}
-
-func (s *DataService) ResolveEventSemanticChainNodeCandidates(
-	ctx context.Context,
-	request *v1.EventSemanticResolutionCandidateRequest,
-) (*v1.Response[v1.EventSemanticResolutionCandidateResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
-		return nil, eventSemanticsNotReady()
-	}
-	if request.TargetEntityType != "chain_node" || request.MatchMode != "any" {
-		return nil, eventSemanticsError(&eventsemantics.ValidationError{
-			Reason: "target_entity_type and match_mode are unsupported",
-		})
-	}
-	page, err := s.dependencies.EventSemantics.ResolveChainNodeCandidates(
-		ctx, request.ContextLeaseID, request.RouteID, request.AnchorEntityIDs,
-		request.PageSize, request.Cursor,
-	)
-	if err != nil {
-		return nil, eventSemanticsError(err)
-	}
-	result := v1.EventSemanticResolutionCandidateResult{
-		Candidates: make([]v1.EventSemanticResolutionCandidate, 0), NextCursor: page.NextCursor,
-	}
-	for _, candidate := range page.Candidates {
-		result.Candidates = append(result.Candidates, v1.EventSemanticResolutionCandidate{
-			Entity: eventSemanticEntityDTO(candidate.Entity), Description: candidate.Description,
-			MatchedAnchorEntityIDs:  candidate.MatchedAnchorEntityIDs,
-			IndustryChainEntityName: candidate.IndustryChainEntityName,
-			ResolutionReceipt:       eventSemanticResolutionReceiptDTO(candidate.Receipt),
-		})
-	}
-	return &v1.Response[v1.EventSemanticResolutionCandidateResult]{Status: v1.StatusOK, Result: result}, nil
-}
-
-func eventSemanticResolutionReceiptDTO(
-	value eventsemantics.ResolutionReceipt,
-) v1.EventSemanticResolutionReceipt {
-	return v1.EventSemanticResolutionReceipt{
-		RouteID: value.RouteID, RouteContractVersion: value.RouteContractVersion,
-		AnchorEntityID: value.AnchorEntityID, IndustryChainEntityID: value.IndustryChainEntityID,
-		MappingRelationID: value.MappingRelationID, TargetEntityID: value.TargetEntityID,
-		MembershipPosition: value.MembershipPosition, MembershipUpdatedAt: value.MembershipUpdatedAt,
-		PathFingerprint: value.PathFingerprint,
-	}
-}
-
 func (s *DataService) CreateEventSemanticSubmission(
 	ctx context.Context,
 	request *v1.EventSemanticSubmissionRequest,
@@ -349,20 +191,6 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 			EntityRole: link.EntityRole, EvidenceIDs: link.EvidenceIDs,
 			ResolutionMethod: link.ResolutionMethod, ResolutionConfidence: link.ResolutionConfidence,
 		}
-		if link.ResolutionReceipt != nil {
-			receipt := eventsemantics.ResolutionReceipt{
-				RouteID:               link.ResolutionReceipt.RouteID,
-				RouteContractVersion:  link.ResolutionReceipt.RouteContractVersion,
-				AnchorEntityID:        link.ResolutionReceipt.AnchorEntityID,
-				IndustryChainEntityID: link.ResolutionReceipt.IndustryChainEntityID,
-				MappingRelationID:     link.ResolutionReceipt.MappingRelationID,
-				TargetEntityID:        link.ResolutionReceipt.TargetEntityID,
-				MembershipPosition:    link.ResolutionReceipt.MembershipPosition,
-				MembershipUpdatedAt:   link.ResolutionReceipt.MembershipUpdatedAt,
-				PathFingerprint:       link.ResolutionReceipt.PathFingerprint,
-			}
-			candidate.ResolutionReceipt = &receipt
-		}
 		result.EntityLinks = append(result.EntityLinks, candidate)
 	}
 	for _, signal := range request.VariableSignals {
@@ -389,14 +217,7 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 		measurements := make([]eventsemantics.MeasurementValue, 0, len(signal.Measurements))
 		for _, measurement := range signal.Measurements {
 			measurements = append(measurements, eventsemantics.MeasurementValue{
-				Role: measurement.MeasurementRole, Shape: measurement.ValueShape,
-				RawValue: measurement.RawValue, RawLower: measurement.RawLower, RawUpper: measurement.RawUpper,
-				RawUnit: measurement.RawUnit, CanonicalValue: measurement.CanonicalValue,
-				CanonicalLower: measurement.CanonicalLower, CanonicalUpper: measurement.CanonicalUpper,
-				CanonicalUnit: measurement.CanonicalUnit, Currency: measurement.Currency, Scale: measurement.Scale,
-				ComparisonBasis: measurement.ComparisonBasis, ComparisonPeriod: measurement.ComparisonPeriod,
-				RawText: measurement.RawText, IsApproximate: measurement.IsApproximate,
-				EvidenceID: measurement.EvidenceID,
+				Text: measurement.MeasurementText, EvidenceIDs: measurement.EvidenceIDs,
 			})
 		}
 		result.VariableSignals = append(result.VariableSignals, eventsemantics.VariableSignalCandidate{
@@ -407,17 +228,6 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 			StatementAt: statementAt, ValidFrom: validFrom, ValidUntil: validUntil,
 			ForecastPeriodStart: forecastStart, ForecastPeriodEnd: forecastEnd,
 			ExtractionConfidence: signal.ExtractionConfidence,
-		})
-	}
-	for _, impact := range request.DirectImpacts {
-		result.DirectImpacts = append(result.DirectImpacts, eventsemantics.DirectImpactCandidate{
-			Key: impact.CandidateKey, SourceSignalKey: impact.SourceSignalKey,
-			TargetEntityID: impact.TargetEntityID, AffectedVariableKey: impact.AffectedVariableKey,
-			AffectedVariableVersion: impact.AffectedVariableVersion,
-			AffectedDirection:       impact.AffectedDirection, DerivationType: impact.DerivationType,
-			MechanismSummary: impact.MechanismSummary, EntityRelationID: impact.EntityRelationID,
-			RuleKey: impact.RuleKey, RuleVersion: impact.RuleVersion, EvidenceIDs: impact.EvidenceIDs,
-			AssertionConfidence: impact.AssertionConfidence,
 		})
 	}
 	return result, nil
@@ -437,12 +247,19 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 		ManifestContractVersion: value.ManifestContractVersion,
 		ContextFingerprint:      value.ContextFingerprint, EventFingerprint: value.EventFingerprint,
 		EvidenceFingerprint: value.EvidenceFingerprint, OntologyVersion: value.OntologyVersion,
-		AcceptancePolicyVersion: value.PolicyVersion, RouteContractVersion: value.RouteContractVersion,
+		AcceptancePolicyVersion: value.PolicyVersion,
 		Event:                   eventSemanticEventDTO(value.Event),
 		Evidence:                make([]v1.EventSemanticEvidence, 0, len(value.Evidence)),
 		EntityTypeDefinitions:   make([]v1.EventSemanticEntityTypeDefinition, 0, len(value.EntityTypes)),
 		VariableDefinitions:     make([]v1.EventSemanticVariableDefinition, 0, len(value.Variables)),
-		DirectTransmissionRules: make([]v1.EventSemanticTransmissionRule, 0, len(value.Rules)),
+		AssertionModalities:     value.AssertionModalities,
+		MeasurementContract: v1.EventSemanticMeasurementContract{
+			Representation:      value.MeasurementContract.Representation,
+			MaxItemsPerSignal:   value.MeasurementContract.MaxItemsPerSignal,
+			MaxTextCharacters:   value.MeasurementContract.MaxTextCharacters,
+			RequiresEvidenceIDs: value.MeasurementContract.RequiresEvidenceIDs,
+			NumericValidation:   value.MeasurementContract.NumericValidation,
+		},
 	}
 	for _, evidence := range value.Evidence {
 		result.Evidence = append(result.Evidence, eventSemanticEvidenceDTO(evidence))
@@ -451,27 +268,17 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 		result.EntityTypeDefinitions = append(result.EntityTypeDefinitions, v1.EventSemanticEntityTypeDefinition{
 			TypeKey: definition.TypeKey, Version: definition.Version,
 			SignalSubjectAllowed: definition.SignalSubjectAllowed,
-			DirectTargetMode:     definition.DirectTargetMode, Status: definition.Status,
+			AllowedEventRoles:    definition.AllowedEventRoles, Status: definition.Status,
 		})
 	}
 	for _, variable := range value.Variables {
 		result.VariableDefinitions = append(result.VariableDefinitions, v1.EventSemanticVariableDefinition{
 			Key: variable.Key, Version: variable.Version, NameZH: variable.NameZH, NameEN: variable.NameEN,
-			Domain: variable.Domain, ValueType: variable.ValueType, Status: variable.Status,
+			Domain: variable.Domain, BusinessDefinition: variable.BusinessDefinition,
+			ValueType: variable.ValueType, Status: variable.Status,
 			AllowedDirections:     variable.AllowedDirections,
+			AllowedUnits:          variable.AllowedUnits,
 			ApplicableEntityTypes: variable.ApplicableEntityTypes,
-		})
-	}
-	for _, rule := range value.Rules {
-		result.DirectTransmissionRules = append(result.DirectTransmissionRules, v1.EventSemanticTransmissionRule{
-			RuleKey: rule.Key, Version: rule.Version, Status: rule.Status,
-			SourceEntityType: rule.SourceEntityType, SourceVariableKey: rule.SourceVariableKey,
-			SourceVariableVersion: rule.SourceVariableVersion,
-			SourceDirection:       rule.SourceDirection, RelationType: rule.RelationType,
-			TargetEntityType: rule.TargetEntityType, AffectedVariableKey: rule.AffectedVariableKey,
-			AffectedVariableVersion: rule.AffectedVariableVersion,
-			AffectedDirection:       rule.AffectedDirection, ConditionSummary: rule.ConditionSummary,
-			MechanismTemplate: rule.MechanismTemplate,
 		})
 	}
 	return result
@@ -483,7 +290,6 @@ func eventSemanticSubmissionResultDTO(value eventsemantics.SubmissionResult) v1.
 		CanonicalPayloadHash: value.CanonicalPayloadHash, Replayed: value.Replayed,
 		EntityLinks:     eventSemanticDecisionsDTO(value.Precheck.EntityLinks),
 		VariableSignals: eventSemanticDecisionsDTO(value.Precheck.VariableSignals),
-		DirectImpacts:   eventSemanticDecisionsDTO(value.Precheck.DirectImpacts),
 		ContextLeaseID:  value.ContextLeaseID, AgentExecutionID: value.AgentExecutionID,
 		AgentKey: value.AgentKey, AgentVersion: value.AgentVersion,
 		SupersedesSubmissionID: value.SupersedesSubmissionID,
@@ -507,7 +313,7 @@ func eventSemanticSubmissionResultDTO(value eventsemantics.SubmissionResult) v1.
 		result.AuditWorkPackage = eventSemanticReviewerWorkPackageDTO(value.Precheck.ReviewerWorkPackage)
 	}
 	work := reviewableEventSemanticWorkPackage(value.Precheck)
-	if len(work.EntityLinks)+len(work.VariableSignals)+len(work.DirectImpacts) > 0 {
+	if len(work.EntityLinks)+len(work.VariableSignals) > 0 {
 		result.ReviewerWorkPackage = eventSemanticReviewerWorkPackageDTO(work)
 	}
 	return result
@@ -520,7 +326,12 @@ func eventSemanticReviewerWorkPackageDTO(
 		Event:           eventSemanticEventDTO(work.Event),
 		EntityLinks:     eventSemanticLinkCandidatesDTO(work.EntityLinks),
 		VariableSignals: eventSemanticSignalCandidatesDTO(work.VariableSignals),
-		DirectImpacts:   eventSemanticImpactCandidatesDTO(work.DirectImpacts),
+	}
+	for _, entity := range work.ResolvedEntities {
+		result.ResolvedEntities = append(result.ResolvedEntities, v1.EventSemanticEntity{
+			EntityID: entity.ID, EntityType: entity.Type, Name: entity.Name,
+			CanonicalName: entity.CanonicalName, Aliases: entity.Aliases, Status: entity.Status,
+		})
 	}
 	for _, evidence := range work.Evidence {
 		result.Evidence = append(result.Evidence, eventSemanticEvidenceDTO(evidence))
@@ -563,10 +374,6 @@ func reviewableEventSemanticWorkPackage(
 	for _, item := range precheck.VariableSignals {
 		signalStatus[item.CandidateKey] = item.Status
 	}
-	impactStatus := make(map[string]eventsemantics.ReviewStatus, len(precheck.DirectImpacts))
-	for _, item := range precheck.DirectImpacts {
-		impactStatus[item.CandidateKey] = item.Status
-	}
 	work.EntityLinks = filterEventSemanticCandidates(
 		work.EntityLinks, func(item eventsemantics.EntityLinkCandidate) bool {
 			return reviewable(linkStatus[item.Key])
@@ -577,11 +384,7 @@ func reviewableEventSemanticWorkPackage(
 			return reviewable(signalStatus[item.Key])
 		},
 	)
-	work.DirectImpacts = filterEventSemanticCandidates(
-		work.DirectImpacts, func(item eventsemantics.DirectImpactCandidate) bool {
-			return reviewable(impactStatus[item.Key])
-		},
-	)
+	work.DirectImpacts = nil
 	return work
 }
 
@@ -609,13 +412,6 @@ func eventSemanticEntityDTO(value eventsemantics.Entity) v1.EventSemanticEntity 
 	}
 }
 
-func eventSemanticRelationDTO(value eventsemantics.EntityRelation) v1.EventSemanticEntityRelation {
-	return v1.EventSemanticEntityRelation{
-		EntityRelationID: value.ID, FromEntityID: value.FromEntityID, ToEntityID: value.ToEntityID,
-		RelationType: value.Type, Status: value.Status,
-	}
-}
-
 func eventSemanticDecisionsDTO(values []eventsemantics.CandidateDecision) []v1.EventSemanticCandidateDecision {
 	result := make([]v1.EventSemanticCandidateDecision, 0, len(values))
 	for _, value := range values {
@@ -634,10 +430,6 @@ func eventSemanticLinkCandidatesDTO(values []eventsemantics.EntityLinkCandidate)
 			CandidateKey: value.Key, Mention: value.Mention, EntityID: value.EntityID,
 			EntityRole: value.EntityRole, EvidenceIDs: value.EvidenceIDs,
 			ResolutionMethod: value.ResolutionMethod, ResolutionConfidence: value.ResolutionConfidence,
-		}
-		if value.ResolutionReceipt != nil {
-			receipt := eventSemanticResolutionReceiptDTO(*value.ResolutionReceipt)
-			item.ResolutionReceipt = &receipt
 		}
 		result = append(result, item)
 	}
@@ -659,33 +451,11 @@ func eventSemanticSignalCandidatesDTO(values []eventsemantics.VariableSignalCand
 		}
 		for _, measurement := range value.Measurements {
 			item.Measurements = append(item.Measurements, v1.EventSemanticMeasurement{
-				MeasurementRole: measurement.Role, ValueShape: measurement.Shape,
-				RawValue: measurement.RawValue, RawLower: measurement.RawLower, RawUpper: measurement.RawUpper,
-				RawUnit: measurement.RawUnit, CanonicalValue: measurement.CanonicalValue,
-				CanonicalLower: measurement.CanonicalLower, CanonicalUpper: measurement.CanonicalUpper,
-				CanonicalUnit: measurement.CanonicalUnit, Currency: measurement.Currency, Scale: measurement.Scale,
-				ComparisonBasis: measurement.ComparisonBasis, ComparisonPeriod: measurement.ComparisonPeriod,
-				RawText: measurement.RawText, IsApproximate: measurement.IsApproximate,
-				EvidenceID: measurement.EvidenceID,
+				MeasurementText: measurement.Text,
+				EvidenceIDs:     measurement.EvidenceIDs,
 			})
 		}
 		result = append(result, item)
-	}
-	return result
-}
-
-func eventSemanticImpactCandidatesDTO(values []eventsemantics.DirectImpactCandidate) []v1.EventSemanticDirectImpactCandidate {
-	result := make([]v1.EventSemanticDirectImpactCandidate, 0, len(values))
-	for _, value := range values {
-		result = append(result, v1.EventSemanticDirectImpactCandidate{
-			CandidateKey: value.Key, SourceSignalKey: value.SourceSignalKey,
-			TargetEntityID: value.TargetEntityID, AffectedVariableKey: value.AffectedVariableKey,
-			AffectedVariableVersion: value.AffectedVariableVersion,
-			AffectedDirection:       value.AffectedDirection, DerivationType: value.DerivationType,
-			MechanismSummary: value.MechanismSummary, EntityRelationID: value.EntityRelationID,
-			RuleKey: value.RuleKey, RuleVersion: value.RuleVersion, EvidenceIDs: value.EvidenceIDs,
-			AssertionConfidence: value.AssertionConfidence,
-		})
 	}
 	return result
 }

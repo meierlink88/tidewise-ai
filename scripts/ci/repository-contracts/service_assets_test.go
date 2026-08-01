@@ -289,7 +289,7 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 	}
 	text := string(contents)
 	for _, required := range []string{
-		"  data:", "  miniapp:", "  adminportal:", "  agentrun:", "  agentrun-db-init:", "  agentrun-migrate:", "  postgres:", "  neo4j:",
+		"  data:", "  miniapp:", "  adminportal:", "  agentrun:", "  agentrun-db-init:", "  agentrun-migrate:", "  postgres:", "  neo4j:", "  qdrant:",
 		"context: ../..",
 		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile", "admin-portal/backend/Dockerfile", "agent-run/backend/Dockerfile",
 		"tidewise-local", "/healthz", "/readyz",
@@ -318,7 +318,7 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 		}
 	}
 	agentrun := composeServiceSection(t, text, "agentrun")
-	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs/compose", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "agentrun_artifacts"} {
+	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs/compose", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "agentrun_artifacts"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun compose service missing %q", required)
 		}

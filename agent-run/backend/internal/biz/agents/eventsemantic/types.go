@@ -9,7 +9,7 @@ import (
 
 const (
 	AgentKey     = "event-semantic-enricher"
-	AgentVersion = "event-semantic-enricher.v1"
+	AgentVersion = "event-semantic-enricher.v2"
 )
 
 type ContextLease struct {
@@ -72,15 +72,8 @@ type Entity struct {
 	Name          string   `json:"name"`
 	CanonicalName string   `json:"canonical_name"`
 	Aliases       []string `json:"aliases"`
+	Description   string   `json:"description,omitempty"`
 	Status        string   `json:"status"`
-}
-
-type EntityRelation struct {
-	EntityRelationID string `json:"entity_relation_id"`
-	FromEntityID     string `json:"from_entity_id"`
-	ToEntityID       string `json:"to_entity_id"`
-	RelationType     string `json:"relation_type"`
-	Status           string `json:"status"`
 }
 
 type VariableDefinition struct {
@@ -89,35 +82,28 @@ type VariableDefinition struct {
 	NameZH                string   `json:"name_zh"`
 	NameEN                string   `json:"name_en"`
 	Domain                string   `json:"domain"`
+	BusinessDefinition    string   `json:"business_definition"`
 	ValueType             string   `json:"value_type"`
 	Status                string   `json:"status"`
 	AllowedDirections     []string `json:"allowed_directions"`
+	AllowedUnits          []string `json:"allowed_units"`
 	ApplicableEntityTypes []string `json:"applicable_entity_types"`
 }
 
-type TransmissionRule struct {
-	RuleKey                 string `json:"rule_key"`
-	Version                 int    `json:"version"`
-	Status                  string `json:"status"`
-	SourceEntityType        string `json:"source_entity_type"`
-	SourceVariableKey       string `json:"source_variable_key"`
-	SourceVariableVersion   int    `json:"source_variable_version"`
-	SourceDirection         string `json:"source_direction"`
-	RelationType            string `json:"relation_type"`
-	TargetEntityType        string `json:"target_entity_type"`
-	AffectedVariableKey     string `json:"affected_variable_key"`
-	AffectedVariableVersion int    `json:"affected_variable_version"`
-	AffectedDirection       string `json:"affected_direction"`
-	ConditionSummary        string `json:"condition_summary"`
-	MechanismTemplate       string `json:"mechanism_template"`
+type EntityTypeDefinition struct {
+	TypeKey              string   `json:"type_key"`
+	Version              int      `json:"version"`
+	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
+	AllowedEventRoles    []string `json:"allowed_event_roles"`
+	Status               string   `json:"status"`
 }
 
-type EntityTypeDefinition struct {
-	TypeKey              string `json:"type_key"`
-	Version              int    `json:"version"`
-	SignalSubjectAllowed bool   `json:"signal_subject_allowed"`
-	DirectTargetMode     string `json:"direct_target_mode"`
-	Status               string `json:"status"`
+type MeasurementContract struct {
+	Representation      string `json:"representation"`
+	MaxItemsPerSignal   int    `json:"max_items_per_signal"`
+	MaxTextCharacters   int    `json:"max_text_characters"`
+	RequiresEvidenceIDs bool   `json:"requires_evidence_ids"`
+	NumericValidation   bool   `json:"numeric_validation"`
 }
 
 type Context struct {
@@ -131,110 +117,27 @@ type Context struct {
 	EvidenceFingerprint     string                 `json:"evidence_fingerprint"`
 	OntologyVersion         string                 `json:"ontology_version"`
 	AcceptancePolicyVersion string                 `json:"acceptance_policy_version"`
-	RouteContractVersion    string                 `json:"route_contract_version"`
 	Event                   Event                  `json:"event"`
 	Evidence                []Evidence             `json:"evidence"`
 	EntityTypeDefinitions   []EntityTypeDefinition `json:"entity_type_definitions"`
 	VariableDefinitions     []VariableDefinition   `json:"variable_definitions"`
-	DirectTransmissionRules []TransmissionRule     `json:"direct_transmission_rules"`
-}
-
-type EntityMention struct {
-	Mention            string   `json:"mention"`
-	AllowedEntityTypes []string `json:"allowed_entity_types"`
-}
-
-type EntityResolution struct {
-	Mention    string   `json:"mention"`
-	Candidates []Entity `json:"candidates"`
-	Ambiguous  bool     `json:"ambiguous"`
-}
-
-type DirectTarget struct {
-	Entity   Entity         `json:"entity"`
-	Relation EntityRelation `json:"relation"`
-}
-
-type ResolutionRoute struct {
-	RouteID              string            `json:"route_id"`
-	RouteContractVersion string            `json:"route_contract_version"`
-	TargetEntityType     string            `json:"target_entity_type"`
-	AnchorEntityType     string            `json:"anchor_entity_type"`
-	MappingRelationType  string            `json:"mapping_relation_type"`
-	Partitions           []string          `json:"partitions"`
-	PartitionLabels      map[string]string `json:"partition_labels"`
-	Direction            string            `json:"direction"`
-	Purpose              string            `json:"purpose"`
-	NextOperation        string            `json:"next_operation"`
-	OrderingContract     string            `json:"ordering_contract"`
-}
-
-type ResolutionAnchor struct {
-	Entity            Entity `json:"entity"`
-	Partition         string `json:"partition"`
-	Description       string `json:"description"`
-	HierarchyIdentity string `json:"hierarchy_identity"`
-}
-
-type ResolutionReceipt struct {
-	RouteID               string `json:"route_id"`
-	RouteContractVersion  string `json:"route_contract_version"`
-	AnchorEntityID        string `json:"anchor_entity_id"`
-	IndustryChainEntityID string `json:"industry_chain_entity_id"`
-	MappingRelationID     string `json:"mapping_relation_id"`
-	TargetEntityID        string `json:"target_entity_id"`
-	MembershipPosition    int    `json:"membership_position"`
-	MembershipUpdatedAt   string `json:"membership_updated_at"`
-	PathFingerprint       string `json:"path_fingerprint"`
-}
-
-type ResolutionCandidate struct {
-	Entity                  Entity            `json:"entity"`
-	Description             string            `json:"description"`
-	MatchedAnchorEntityIDs  []string          `json:"matched_anchor_entity_ids"`
-	IndustryChainEntityName string            `json:"industry_chain_entity_name"`
-	ResolutionReceipt       ResolutionReceipt `json:"resolution_receipt"`
-}
-
-type ResolutionAnchorPage struct {
-	Anchors    []ResolutionAnchor `json:"anchors"`
-	NextCursor string             `json:"next_cursor,omitempty"`
-}
-
-type ResolutionCandidatePage struct {
-	Candidates []ResolutionCandidate `json:"candidates"`
-	NextCursor string                `json:"next_cursor,omitempty"`
+	AssertionModalities     []string               `json:"assertion_modalities"`
+	MeasurementContract     MeasurementContract    `json:"measurement_contract"`
 }
 
 type Measurement struct {
-	MeasurementRole  string  `json:"measurement_role"`
-	ValueShape       string  `json:"value_shape"`
-	RawValue         *string `json:"raw_value,omitempty"`
-	RawLower         *string `json:"raw_lower,omitempty"`
-	RawUpper         *string `json:"raw_upper,omitempty"`
-	RawUnit          string  `json:"raw_unit,omitempty"`
-	CanonicalValue   *string `json:"canonical_value,omitempty"`
-	CanonicalLower   *string `json:"canonical_lower,omitempty"`
-	CanonicalUpper   *string `json:"canonical_upper,omitempty"`
-	CanonicalUnit    string  `json:"canonical_unit,omitempty"`
-	Currency         string  `json:"currency,omitempty"`
-	Scale            string  `json:"scale,omitempty"`
-	ComparisonBasis  string  `json:"comparison_basis,omitempty"`
-	ComparisonPeriod string  `json:"comparison_period,omitempty"`
-	RawText          string  `json:"raw_text"`
-	IsApproximate    bool    `json:"is_approximate"`
-	EvidenceID       string  `json:"evidence_id"`
+	MeasurementText string   `json:"measurement_text"`
+	EvidenceIDs     []string `json:"evidence_ids"`
 }
 
 type EntityLinkCandidate struct {
-	CandidateKey         string             `json:"candidate_key"`
-	Mention              string             `json:"mention"`
-	EntityID             string             `json:"entity_id"`
-	EntityRole           string             `json:"entity_role"`
-	EvidenceIDs          []string           `json:"evidence_ids"`
-	ResolutionMethod     string             `json:"resolution_method"`
-	ResolutionConfidence string             `json:"resolution_confidence,omitempty"`
-	ResolutionReceipt    *ResolutionReceipt `json:"resolution_receipt,omitempty"`
+	CandidateKey         string   `json:"candidate_key"`
+	Mention              string   `json:"mention"`
+	EntityID             string   `json:"entity_id"`
+	EntityRole           string   `json:"entity_role"`
+	EvidenceIDs          []string `json:"evidence_ids"`
+	ResolutionMethod     string   `json:"resolution_method"`
+	ResolutionConfidence string   `json:"resolution_confidence,omitempty"`
 }
 
 type VariableSignalCandidate struct {
@@ -254,26 +157,9 @@ type VariableSignalCandidate struct {
 	ExtractionConfidence string        `json:"extraction_confidence,omitempty"`
 }
 
-type DirectImpactCandidate struct {
-	CandidateKey            string   `json:"candidate_key"`
-	SourceSignalKey         string   `json:"source_signal_key"`
-	TargetEntityID          string   `json:"target_entity_id"`
-	AffectedVariableKey     string   `json:"affected_variable_key"`
-	AffectedVariableVersion int      `json:"affected_variable_version"`
-	AffectedDirection       string   `json:"affected_direction"`
-	DerivationType          string   `json:"derivation_type"`
-	MechanismSummary        string   `json:"mechanism_summary"`
-	EntityRelationID        string   `json:"entity_relation_id,omitempty"`
-	RuleKey                 string   `json:"rule_key,omitempty"`
-	RuleVersion             int      `json:"rule_version,omitempty"`
-	EvidenceIDs             []string `json:"evidence_ids"`
-	AssertionConfidence     string   `json:"assertion_confidence,omitempty"`
-}
-
 type CandidateSet struct {
 	EntityLinks     []EntityLinkCandidate     `json:"entity_links"`
 	VariableSignals []VariableSignalCandidate `json:"variable_signals"`
-	DirectImpacts   []DirectImpactCandidate   `json:"direct_impacts"`
 }
 
 type SubmissionRequest struct {
@@ -287,13 +173,12 @@ type SubmissionRequest struct {
 	GeneratorModel          string                    `json:"generator_model"`
 	ReviewerPromptHash      string                    `json:"reviewer_prompt_hash"`
 	ReviewerModel           string                    `json:"reviewer_model"`
-	AdjudicatorPromptHash   string                    `json:"adjudicator_prompt_hash,omitempty"`
-	AdjudicatorModel        string                    `json:"adjudicator_model,omitempty"`
+	AdjudicatorPromptHash   string                    `json:"adjudicator_prompt_hash"`
+	AdjudicatorModel        string                    `json:"adjudicator_model"`
 	OntologyVersion         string                    `json:"ontology_version"`
 	AcceptancePolicyVersion string                    `json:"acceptance_policy_version"`
 	EntityLinks             []EntityLinkCandidate     `json:"entity_links"`
 	VariableSignals         []VariableSignalCandidate `json:"variable_signals"`
-	DirectImpacts           []DirectImpactCandidate   `json:"direct_impacts"`
 }
 
 type CandidateDecision struct {
@@ -311,11 +196,11 @@ type ReviewSnapshot struct {
 }
 
 type ReviewerWorkPackage struct {
-	Event           Event                     `json:"event"`
-	Evidence        []Evidence                `json:"evidence"`
-	EntityLinks     []EntityLinkCandidate     `json:"entity_links"`
-	VariableSignals []VariableSignalCandidate `json:"variable_signals"`
-	DirectImpacts   []DirectImpactCandidate   `json:"direct_impacts"`
+	Event            Event                     `json:"event"`
+	Evidence         []Evidence                `json:"evidence"`
+	ResolvedEntities []Entity                  `json:"resolved_entities"`
+	EntityLinks      []EntityLinkCandidate     `json:"entity_links"`
+	VariableSignals  []VariableSignalCandidate `json:"variable_signals"`
 }
 
 type SubmissionResult struct {
@@ -326,7 +211,6 @@ type SubmissionResult struct {
 	Replayed                bool                 `json:"replayed"`
 	EntityLinks             []CandidateDecision  `json:"entity_links"`
 	VariableSignals         []CandidateDecision  `json:"variable_signals"`
-	DirectImpacts           []CandidateDecision  `json:"direct_impacts"`
 	ReviewerWorkPackage     *ReviewerWorkPackage `json:"reviewer_work_package,omitempty"`
 	AuditWorkPackage        *ReviewerWorkPackage `json:"audit_work_package,omitempty"`
 	ContextLeaseID          string               `json:"context_lease_id,omitempty"`
@@ -348,14 +232,8 @@ type SubmissionResult struct {
 	FinalizedAt             *string              `json:"finalized_at,omitempty"`
 }
 
-func (s SubmissionResult) CandidateOutcomeCounts() (int, int) {
-	accepted := 0
-	rejected := 0
-	for _, decisions := range [][]CandidateDecision{
-		s.EntityLinks,
-		s.VariableSignals,
-		s.DirectImpacts,
-	} {
+func (s SubmissionResult) CandidateOutcomeCounts() (accepted, rejected int) {
+	for _, decisions := range [][]CandidateDecision{s.EntityLinks, s.VariableSignals} {
 		for _, decision := range decisions {
 			switch decision.Status {
 			case "accepted":
@@ -381,6 +259,49 @@ type ReviewRequest struct {
 	PromptHash           string       `json:"prompt_hash"`
 	Model                string       `json:"model"`
 	Items                []ReviewItem `json:"items"`
+}
+
+type EntityLookup struct {
+	CandidateKey        string `json:"candidate_key"`
+	Mention             string `json:"mention"`
+	PredictedEntityType string `json:"predicted_entity_type"`
+}
+
+type EntityCandidate struct {
+	Entity Entity  `json:"entity"`
+	Score  float64 `json:"score"`
+}
+
+type EntityCandidateSet struct {
+	CandidateKey string            `json:"candidate_key"`
+	Candidates   []EntityCandidate `json:"candidates"`
+}
+
+// SemanticRetriever is an AgentRun-owned Qdrant consumer port. Implementations
+// must execute each method in one Event-batched request, never mention-by-mention.
+type SemanticRetriever interface {
+	ExactEntities(context.Context, []EntityLookup) ([]EntityCandidateSet, error)
+	SearchEntities(context.Context, []EntityLookup, int) ([]EntityCandidateSet, error)
+}
+
+type DataClient interface {
+	ListEligibleEvents(context.Context, int, string) (EligibleEventPage, error)
+	CreateContextLease(context.Context, ContextLeaseRequest) (ContextLease, error)
+	Context(context.Context, string) (Context, error)
+	CreateSubmission(context.Context, SubmissionRequest) (SubmissionResult, error)
+	SubmitReview(context.Context, string, ReviewRequest) (SubmissionResult, error)
+	GetEventSemantics(context.Context, string) (EventSemantics, error)
+}
+
+type Repository interface {
+	EnsureInitialWorkItems(context.Context, []EligibleEvent, time.Time) (int, error)
+	EnqueueReanalysis(context.Context, ReanalysisRequest, time.Time) (WorkItem, bool, error)
+	StartNextExecution(context.Context, string, string, time.Time) (ExecutionAttempt, bool, error)
+	CompleteExecution(context.Context, ExecutionCompletion) error
+}
+
+type ProcessingPermit interface {
+	WithEventSemanticProcessingPermit(context.Context, func() error) error
 }
 
 type ExecutionAttempt struct {
@@ -420,34 +341,6 @@ type ExecutionCompletion struct {
 	ErrorCode    string
 	ErrorSummary string
 	CompletedAt  time.Time
-}
-
-type DataClient interface {
-	ListEligibleEvents(context.Context, int, string) (EligibleEventPage, error)
-	CreateContextLease(context.Context, ContextLeaseRequest) (ContextLease, error)
-	Context(context.Context, string) (Context, error)
-	Resolve(context.Context, string, []EntityMention) ([]EntityResolution, error)
-	SearchDirectTargets(context.Context, string, string, []string) ([]DirectTarget, error)
-	ListResolutionRoutes(context.Context, string, string) ([]ResolutionRoute, error)
-	ListResolutionAnchors(context.Context, string, string, string, []string, int, string) (ResolutionAnchorPage, error)
-	ResolveChainNodeCandidates(context.Context, string, string, []string, int, string) (ResolutionCandidatePage, error)
-	CreateSubmission(context.Context, SubmissionRequest) (SubmissionResult, error)
-	SubmitReview(context.Context, string, ReviewRequest) (SubmissionResult, error)
-	GetEventSemantics(context.Context, string) (EventSemantics, error)
-}
-
-type Repository interface {
-	EnsureInitialWorkItems(context.Context, []EligibleEvent, time.Time) (int, error)
-	EnqueueReanalysis(context.Context, ReanalysisRequest, time.Time) (WorkItem, bool, error)
-	StartNextExecution(context.Context, string, string, time.Time) (ExecutionAttempt, bool, error)
-	CompleteExecution(context.Context, ExecutionCompletion) error
-}
-
-// ProcessingPermit prevents historical maintenance from racing a normal
-// Event Semantic processing cycle. Production repositories must implement it;
-// the separate interface keeps in-memory domain tests lightweight.
-type ProcessingPermit interface {
-	WithEventSemanticProcessingPermit(context.Context, func() error) error
 }
 
 type Result struct {
