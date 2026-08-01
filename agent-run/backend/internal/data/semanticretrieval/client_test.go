@@ -73,9 +73,9 @@ func TestClientUsesOneExactAndOneVectorBatchPerEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	lookups := []eventsemantic.EntityLookup{
-		{CandidateKey: "nvidia", Mention: "英伟达", PredictedEntityType: "company"},
-		{CandidateKey: "amkor", Mention: "安靠科技", PredictedEntityType: "company"},
-		{CandidateKey: "capacity", Mention: "第三方封测产能", PredictedEntityType: "product"},
+		{CandidateKey: "nvidia", Mention: "英伟达"},
+		{CandidateKey: "amkor", Mention: "安靠科技"},
+		{CandidateKey: "capacity", Mention: "第三方封测产能"},
 	}
 	exact, err := client.ExactEntities(context.Background(), lookups)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestClientRejectsMalformedQdrantCandidateIdentity(t *testing.T) {
 				"id": "33333333-3333-4333-8333-333333333333", "score": 0.9,
 				"payload": entityPayload("garbage", "英伟达", []string{"英伟达"}),
 			},
-			lookup: eventsemantic.EntityLookup{CandidateKey: "nvidia", Mention: "英伟达", PredictedEntityType: "company"},
+			lookup: eventsemantic.EntityLookup{CandidateKey: "nvidia", Mention: "英伟达"},
 		},
 		{
 			name:  "point and payload IDs differ",
@@ -131,7 +131,7 @@ func TestClientRejectsMalformedQdrantCandidateIdentity(t *testing.T) {
 				"id":      "33333333-3333-4333-8333-333333333333",
 				"payload": entityPayload("44444444-4444-4444-8444-444444444444", "英伟达", []string{"英伟达"}),
 			},
-			lookup: eventsemantic.EntityLookup{CandidateKey: "nvidia", Mention: "英伟达", PredictedEntityType: "company"},
+			lookup: eventsemantic.EntityLookup{CandidateKey: "nvidia", Mention: "英伟达"},
 		},
 	}
 	for _, test := range tests {
@@ -187,7 +187,7 @@ func TestClientRejectsMalformedSuccessfulQdrantEnvelope(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err = client.ExactEntities(context.Background(), []eventsemantic.EntityLookup{{
-				CandidateKey: "nvidia", Mention: "英伟达", PredictedEntityType: "company",
+				CandidateKey: "nvidia", Mention: "英伟达",
 			}})
 			var remote *eventsemantic.RemoteError
 			if !errors.As(err, &remote) || remote.Code != test.code || remote.Retryable {

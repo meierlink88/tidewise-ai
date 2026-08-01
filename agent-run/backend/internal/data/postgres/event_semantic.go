@@ -305,6 +305,52 @@ func (s *Store) CompleteExecution(
 	return nil
 }
 
+func (s *Store) SaveStageAudit(
+	ctx context.Context,
+	executionID string,
+	audit eventsemantic.StageAudit,
+) error {
+	if _, err := uuid.Parse(executionID); err != nil ||
+		audit.ContractVersion != "event-semantic-stage-audit.v1" ||
+		audit.EventID == "" {
+		return errors.New("Event Semantic stage audit identity is invalid")
+	}
+	payload, err := json.Marshal(audit)
+	if err != nil || len(payload) > 512*1024 {
+		return errors.New("Event Semantic stage audit payload is invalid")
+	}
+	command, err := s.database.Exec(ctx, `
+		INSERT INTO event_semantic_stage_audits(
+		    execution_id, event_id, contract_version, summary, created_at, updated_at
+		)
+		SELECT e.execution_id, w.event_id, $2, jsonb_strip_nulls($3::jsonb), now(), now()
+		FROM agent_executions e
+		JOIN event_semantic_work_items w ON w.current_execution_id = e.execution_id
+		WHERE e.execution_id = $1
+		  AND e.agent_key = 'event-semantic-enricher'
+		  AND w.event_id = $4
+		ON CONFLICT (execution_id) DO UPDATE
+		SET event_id = EXCLUDED.event_id,
+		    contract_version = EXCLUDED.contract_version,
+		    summary = event_semantic_stage_audits.summary || jsonb_strip_nulls(EXCLUDED.summary) || jsonb_build_object(
+		        'mentions', COALESCE(event_semantic_stage_audits.summary->'mentions', '[]'::jsonb) || COALESCE(jsonb_strip_nulls(EXCLUDED.summary)->'mentions', '[]'::jsonb),
+		        'candidate_sets', COALESCE(event_semantic_stage_audits.summary->'candidate_sets', '[]'::jsonb) || COALESCE(jsonb_strip_nulls(EXCLUDED.summary)->'candidate_sets', '[]'::jsonb),
+		        'selections', COALESCE(event_semantic_stage_audits.summary->'selections', '[]'::jsonb) || COALESCE(jsonb_strip_nulls(EXCLUDED.summary)->'selections', '[]'::jsonb),
+		        'applicable_variables', COALESCE(event_semantic_stage_audits.summary->'applicable_variables', '[]'::jsonb) || COALESCE(jsonb_strip_nulls(EXCLUDED.summary)->'applicable_variables', '[]'::jsonb),
+		        'violations', COALESCE(event_semantic_stage_audits.summary->'violations', '[]'::jsonb) || COALESCE(jsonb_strip_nulls(EXCLUDED.summary)->'violations', '[]'::jsonb),
+		        'isolations', COALESCE(event_semantic_stage_audits.summary->'isolations', '[]'::jsonb) || COALESCE(jsonb_strip_nulls(EXCLUDED.summary)->'isolations', '[]'::jsonb)
+		    ),
+		    updated_at = now()
+	`, executionID, audit.ContractVersion, payload, audit.EventID)
+	if err != nil {
+		return fmt.Errorf("save Event Semantic stage audit: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return errors.New("Event Semantic stage audit Execution is unavailable")
+	}
+	return nil
+}
+
 func (s *Store) readEventSemanticWorkItemByIdempotencyKey(
 	ctx context.Context,
 	idempotencyKey string,

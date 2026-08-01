@@ -240,7 +240,7 @@ func invalidSemanticResponse() *eventsemantic.RemoteError {
 }
 
 func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bool {
-	if value.ContextLeaseID != contextLeaseID || value.ManifestContractVersion != "event-semantic-context-manifest.v2" ||
+	if value.ContextLeaseID != contextLeaseID || value.ManifestContractVersion != "event-semantic-context-manifest.v3" ||
 		!validUUID(value.ContextLeaseID) || strings.TrimSpace(value.AgentExecutionID) == "" ||
 		strings.TrimSpace(value.WorkerID) == "" || !validRFC3339(value.LeaseExpiresAt) ||
 		!validSemanticHash(value.ContextFingerprint) || !validSemanticHash(value.EventFingerprint) ||
@@ -268,6 +268,10 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 	entityTypes := make(map[string]struct{}, len(value.EntityTypeDefinitions))
 	for _, definition := range value.EntityTypeDefinitions {
 		if strings.TrimSpace(definition.TypeKey) == "" || definition.Version < 1 ||
+			strings.TrimSpace(definition.NameZH) == "" || strings.TrimSpace(definition.NameEN) == "" ||
+			strings.TrimSpace(definition.BusinessDefinition) == "" ||
+			!validNonblankSet(definition.InclusionCriteria) ||
+			!validNonblankSet(definition.ExclusionCriteria) ||
 			definition.Status != "active" || !validNonblankSet(definition.AllowedEventRoles) ||
 			duplicateString(entityTypes, definition.TypeKey) {
 			return false

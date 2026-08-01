@@ -239,6 +239,7 @@ semantic_retrieval:
   entity_collection: entity_semantic_v1
   variable_collection: variable_definition_semantic_v1
   vector_size: 1024
+  entity_top_k: 10
   timeout_seconds: 10
   max_response_bytes: 8388608
 `

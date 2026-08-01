@@ -189,7 +189,9 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			if err != nil {
 				return semanticusecase.Runtime{}, errors.New("Event Semantic Reviewer is unavailable")
 			}
-			runnable, err := semanticworkflow.New(ctx, dataClient, semanticRetriever, generator, reviewer)
+			runnable, err := semanticworkflow.New(
+				ctx, dataClient, semanticRetriever, generator, reviewer, config.SemanticRetrieval.EntityTopK,
+			)
 			if err != nil {
 				return semanticusecase.Runtime{}, errors.New("Event Semantic workflow could not compile")
 			}

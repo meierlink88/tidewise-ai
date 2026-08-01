@@ -165,6 +165,17 @@ func TestPostgresAppliesTheCompleteForwardMigrationChain(t *testing.T) {
 			t.Fatalf("critical index %q is missing after the forward chain", index)
 		}
 	}
+	if _, err := db.Exec(`
+		UPDATE entity_type_definitions
+		SET inclusion_criteria = ARRAY['valid boundary', '   ']::text[]
+		WHERE status = 'active'
+		  AND (type_key, version) = (
+		      SELECT type_key, version FROM entity_type_definitions
+		      WHERE status = 'active' ORDER BY type_key, version LIMIT 1
+		  )
+	`); err == nil {
+		t.Fatal("V3 Entity Type boundary constraint accepted a whitespace-only criterion")
+	}
 }
 
 func migrationVersions(migrations []Migration) []string {

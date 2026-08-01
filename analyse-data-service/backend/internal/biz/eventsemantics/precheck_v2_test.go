@@ -24,7 +24,7 @@ func TestPrecheckAcceptsNarrativeMeasurementsWithoutDirectImpact(t *testing.T) {
 			AllowedDirections: []string{"increase"}, ApplicableEntityTypes: []string{"company"},
 		}},
 		EntityTypes: []EntityTypeDefinition{{
-			TypeKey: "company", Version: 1, Status: "active",
+			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, SignalSubjectAllowed: true,
 			AllowedEventRoles: []string{"event_subject"},
 		}},
 		AssertionModalities: []string{"actual", "stated_intent", "source_forecast"},
@@ -38,11 +38,13 @@ func TestPrecheckAcceptsNarrativeMeasurementsWithoutDirectImpact(t *testing.T) {
 		EventID: semanticContext.Event.ID,
 		EntityLinks: []EntityLinkCandidate{{
 			Key: "company", Mention: "某公司", EntityID: semanticContext.Entities[0].ID,
-			EntityRole: "event_subject", EvidenceIDs: []string{semanticContext.Evidence[0].ID},
+			ProjectedEntityType: "company",
+			EntityRole:          "event_subject", EvidenceIDs: []string{semanticContext.Evidence[0].ID},
 			ResolutionMethod: "qdrant_exact",
 		}, {
 			Key: "company-duplicate", Mention: "某公司", EntityID: semanticContext.Entities[0].ID,
-			EntityRole: "event_subject", EvidenceIDs: []string{semanticContext.Evidence[0].ID},
+			ProjectedEntityType: "company",
+			EntityRole:          "event_subject", EvidenceIDs: []string{semanticContext.Evidence[0].ID},
 			ResolutionMethod: "qdrant_vector",
 		}},
 		VariableSignals: []VariableSignalCandidate{{
@@ -82,7 +84,7 @@ func TestPrecheckRejectsNarrativeMeasurementWithoutEventEvidence(t *testing.T) {
 			ApplicableEntityTypes: []string{"company"},
 		}},
 		EntityTypes: []EntityTypeDefinition{{
-			TypeKey: "company", Version: 1, Status: "active",
+			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, SignalSubjectAllowed: true,
 			AllowedEventRoles: []string{"event_subject"},
 		}},
 		AssertionModalities: []string{"actual", "stated_intent", "source_forecast"},
@@ -94,7 +96,8 @@ func TestPrecheckRejectsNarrativeMeasurementWithoutEventEvidence(t *testing.T) {
 	result := Precheck(semanticContext, Submission{
 		EntityLinks: []EntityLinkCandidate{{
 			Key: "company", Mention: "公司", EntityID: "company", EntityRole: "event_subject",
-			EvidenceIDs: []string{"event-evidence"}, ResolutionMethod: "qdrant_vector",
+			ProjectedEntityType: "company",
+			EvidenceIDs:         []string{"event-evidence"}, ResolutionMethod: "qdrant_vector",
 		}},
 		VariableSignals: []VariableSignalCandidate{{
 			Key: "revenue", SubjectLinkKey: "company", VariableKey: "revenue", VariableVersion: 1,
@@ -106,7 +109,16 @@ func TestPrecheckRejectsNarrativeMeasurementWithoutEventEvidence(t *testing.T) {
 	assertCandidateStatus(t, result.VariableSignals, "revenue", StatusRejected, "evidence_not_in_event")
 }
 
-func TestPrecheckRejectsEntityMentionGroundedOnlyInEventSummary(t *testing.T) {
+func TestPrecheckRejectsDuplicateEvidenceLineage(t *testing.T) {
+	semanticContext := validPrecheckContext()
+	result := Precheck(semanticContext, Submission{EntityLinks: []EntityLinkCandidate{{
+		Key: "company", Mention: "某公司", EntityID: "company", ProjectedEntityType: "company",
+		EntityRole: "event_subject", EvidenceIDs: []string{"event-evidence", "event-evidence"}, ResolutionMethod: "qdrant_exact",
+	}}})
+	assertCandidateStatus(t, result.EntityLinks, "company", StatusRejected, "evidence_not_in_event")
+}
+
+func TestPrecheckRejectsEventOnlyMentionWithoutPrimarySupportingLineage(t *testing.T) {
 	semanticContext := Context{
 		Event: Event{
 			ID: "event", Summary: "摘要专有词", Status: "confirmed", FactStatus: "verified",
@@ -116,15 +128,81 @@ func TestPrecheckRejectsEntityMentionGroundedOnlyInEventSummary(t *testing.T) {
 			ID: "company", Type: "company", Name: "摘要专有词", CanonicalName: "摘要专有词", Status: "active",
 		}},
 		EntityTypes: []EntityTypeDefinition{{
-			TypeKey: "company", Version: 1, Status: "active", AllowedEventRoles: []string{"event_subject"},
+			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, AllowedEventRoles: []string{"event_subject"},
 		}},
 	}
 	result := Precheck(semanticContext, Submission{EntityLinks: []EntityLinkCandidate{{
 		Key: "company", Mention: "摘要专有词", EntityID: "company", EntityRole: "event_subject",
-		EvidenceIDs: []string{"event-evidence"}, ResolutionMethod: "qdrant_exact",
+		ProjectedEntityType: "company",
+		EvidenceIDs:         []string{"event-evidence"}, ResolutionMethod: "qdrant_exact",
 	}}})
 
 	assertCandidateStatus(t, result.EntityLinks, "company", StatusRejected, "entity_mention_not_in_evidence")
+}
+
+func TestPrecheckAcceptsEventOnlyMentionWithPrimarySupportingLineage(t *testing.T) {
+	semanticContext := Context{
+		Event:    Event{ID: "event", Summary: "摘要专有词", Status: "confirmed", FactStatus: "verified"},
+		Evidence: []Evidence{{ID: "event-evidence", Excerpt: "证据没有该实体称谓", IsPrimary: true, Relation: "supports"}},
+		Entities: []Entity{{ID: "company", Type: "company", Name: "摘要专有词", CanonicalName: "摘要专有词", Status: "active"}},
+		EntityTypes: []EntityTypeDefinition{{
+			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, AllowedEventRoles: []string{"event_subject"},
+		}},
+	}
+	result := Precheck(semanticContext, Submission{EntityLinks: []EntityLinkCandidate{{
+		Key: "company", Mention: "摘要专有词", EntityID: "company", EntityRole: "event_subject",
+		ProjectedEntityType: "company",
+		EvidenceIDs:         []string{"event-evidence"}, ResolutionMethod: "qdrant_exact",
+	}}})
+
+	assertCandidateStatus(t, result.EntityLinks, "company", StatusPendingReview, "")
+}
+
+func TestPrecheckRejectsProjectedEntityTypeDrift(t *testing.T) {
+	semanticContext := validPrecheckContext()
+	result := Precheck(semanticContext, Submission{EntityLinks: []EntityLinkCandidate{{
+		Key: "company", Mention: "某公司", EntityID: "company", ProjectedEntityType: "product",
+		EntityRole: "event_subject", EvidenceIDs: []string{"event-evidence"}, ResolutionMethod: "qdrant_exact",
+	}}})
+	assertCandidateStatus(t, result.EntityLinks, "company", StatusRejected, "entity_projection_type_mismatch")
+}
+
+func TestPrecheckRejectsSignalWhenFormalEntityTypeCannotBeSignalSubject(t *testing.T) {
+	semanticContext := validPrecheckContext()
+	semanticContext.EntityTypes[0].SignalSubjectAllowed = false
+	result := Precheck(semanticContext, Submission{
+		EntityLinks: []EntityLinkCandidate{{
+			Key: "company", Mention: "某公司", EntityID: "company", ProjectedEntityType: "company",
+			EntityRole: "event_subject", EvidenceIDs: []string{"event-evidence"}, ResolutionMethod: "qdrant_exact",
+		}},
+		VariableSignals: []VariableSignalCandidate{{
+			Key: "revenue", SubjectLinkKey: "company", VariableKey: "revenue", VariableVersion: 1,
+			Direction: "increase", AssertionModality: "actual", EvidenceIDs: []string{"event-evidence"},
+		}},
+	})
+	assertCandidateStatus(t, result.EntityLinks, "company", StatusPendingReview, "")
+	assertCandidateStatus(t, result.VariableSignals, "revenue", StatusRejected, "signal_subject_not_allowed")
+}
+
+func validPrecheckContext() Context {
+	return Context{
+		Event:    Event{ID: "event", Title: "某公司收入上升", Status: "confirmed", FactStatus: "verified"},
+		Evidence: []Evidence{{ID: "event-evidence", Excerpt: "某公司收入上升"}},
+		Entities: []Entity{{ID: "company", Type: "company", Name: "某公司", CanonicalName: "某公司", Status: "active"}},
+		Variables: []VariableDefinition{{
+			Key: "revenue", Version: 1, Status: "active", AllowedDirections: []string{"increase"},
+			ApplicableEntityTypes: []string{"company"},
+		}},
+		EntityTypes: []EntityTypeDefinition{{
+			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, SignalSubjectAllowed: true,
+			AllowedEventRoles: []string{"event_subject"},
+		}},
+		AssertionModalities: []string{"actual"},
+		MeasurementContract: MeasurementContract{
+			Representation: "evidence_grounded_narrative", MaxItemsPerSignal: 8, MaxTextCharacters: 2000,
+			RequiresEvidenceIDs: true,
+		},
+	}
 }
 
 func assertCandidateStatus(

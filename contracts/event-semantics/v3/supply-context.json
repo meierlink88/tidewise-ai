@@ -1,0 +1,76 @@
+{
+  "request_id": "contract-supply-context-v3",
+  "result": {
+    "context_lease_id": "11111111-1111-4111-8111-111111111111",
+    "agent_execution_id": "semantic-execution-v3-1",
+    "worker_id": "contract-worker",
+    "lease_expires_at": "2026-08-01T09:05:00Z",
+    "manifest_contract_version": "event-semantic-context-manifest.v3",
+    "context_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "event_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "evidence_fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "ontology_version": "event-semantics.objective-v3@1",
+    "acceptance_policy_version": "event-semantics.objective-v2@1",
+    "event": {
+      "id": "88888888-8888-4888-8888-888888888888",
+      "title": "英伟达与安靠科技达成15亿美元战略合作",
+      "summary": "首次将预付款锁定产能模式延伸至第三方封测厂。",
+      "occurred_at": "2026-07-01T00:00:00Z",
+      "event_status": "confirmed",
+      "fact_status": "verified"
+    },
+    "evidence": [{
+      "evidence_id": "22222222-2222-4222-8222-222222222222",
+      "evidence_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "excerpt": "英伟达与安靠科技达成价值15亿美元战略合作。",
+      "source_level": "primary",
+      "relation": "supports",
+      "supports_fields": ["title", "factual_summary"],
+      "is_primary": true,
+      "raw_document_id": "99999999-9999-4999-8999-999999999999",
+      "source_name": "正式公告",
+      "source_type": "company_announcement",
+      "source_url": "https://example.com/cooperation",
+      "title": "战略合作公告",
+      "published_at": "2026-07-01T00:00:00Z",
+      "first_seen_at": "2026-07-01T00:05:00Z",
+      "knowledge_available_at": "2026-07-01T00:05:00Z",
+      "accepted_at": "2026-07-01T00:10:00Z",
+      "statement_source": "英伟达"
+    }],
+    "entity_type_definitions": [{
+      "type_key": "company",
+      "version": 1,
+      "name_zh": "企业",
+      "name_en": "Company",
+      "business_definition": "依法设立并以组织身份参与经营活动的企业主体。",
+      "inclusion_criteria": ["公司、集团及其他正式企业法人"],
+      "exclusion_criteria": ["证券、产品、品牌或产业链环节"],
+      "event_link_allowed": true,
+      "signal_subject_allowed": true,
+      "allowed_event_roles": ["event_subject", "actor", "affected_entity", "statement_source"],
+      "status": "active"
+    }],
+    "variable_definitions": [{
+      "key": "capacity_commitment",
+      "version": 1,
+      "name_zh": "产能承诺",
+      "name_en": "Capacity Commitment",
+      "domain": "operations",
+      "business_definition": "主体对未来产能占用或供应作出的客观承诺。",
+      "value_type": "narrative",
+      "status": "active",
+      "allowed_directions": ["increase", "decrease", "unchanged", "mixed", "uncertain"],
+      "allowed_units": ["USD"],
+      "applicable_entity_types": ["company"]
+    }],
+    "assertion_modalities": ["actual", "stated_intent", "source_forecast"],
+    "measurement_contract": {
+      "representation": "evidence_grounded_narrative",
+      "max_items_per_signal": 8,
+      "max_text_characters": 2000,
+      "requires_evidence_ids": true,
+      "numeric_validation": false
+    }
+  }
+}

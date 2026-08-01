@@ -30,8 +30,15 @@ func (s *PostgresSource) Current(ctx context.Context) (projection.Snapshot, erro
 	result := projection.Snapshot{}
 	rows, err := s.database.QueryContext(ctx, `
 		SELECT id, entity_type, layer_code, name, canonical_name, array_to_json(aliases)::text, status
-		FROM entity_nodes
-		WHERE status = 'active'
+		FROM entity_nodes entity
+		WHERE entity.status = 'active'
+		  AND EXISTS (
+		      SELECT 1
+		      FROM entity_type_definitions definition
+		      WHERE definition.type_key = entity.entity_type
+		        AND definition.status = 'active'
+		        AND definition.event_link_allowed
+		  )
 		ORDER BY id
 	`)
 	if err != nil {

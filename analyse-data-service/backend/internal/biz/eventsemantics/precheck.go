@@ -73,8 +73,11 @@ func validateLink(context Context, candidate EntityLinkCandidate, evidence map[s
 	if !exists || entity.Status != "active" {
 		return "entity_not_found"
 	}
+	if strings.TrimSpace(candidate.ProjectedEntityType) == "" || candidate.ProjectedEntityType != entity.Type {
+		return "entity_projection_type_mismatch"
+	}
 	entityType, exists := activeEntityType(context.EntityTypes, entity.Type)
-	if !exists || !contains(entityType.AllowedEventRoles, candidate.EntityRole) {
+	if !exists || !entityType.EventLinkAllowed || !contains(entityType.AllowedEventRoles, candidate.EntityRole) {
 		return "entity_role_invalid"
 	}
 	if !allEvidenceExists(candidate.EvidenceIDs, evidence) {
@@ -109,6 +112,10 @@ func validateSignal(
 		return "upstream_rejected"
 	}
 	entity := entities[link.EntityID]
+	entityType, exists := activeEntityType(context.EntityTypes, entity.Type)
+	if !exists || !entityType.SignalSubjectAllowed {
+		return "signal_subject_not_allowed"
+	}
 	variable, exists := variables[definitionIdentity(candidate.VariableKey, candidate.VariableVersion)]
 	if !exists || variable.Status != "active" {
 		return "variable_not_found"
@@ -161,15 +168,28 @@ func mentionGrounded(context Context, candidate EntityLinkCandidate) bool {
 	if mention == "" || len(candidate.EvidenceIDs) == 0 {
 		return false
 	}
+	eventContainsMention := strings.Contains(strings.ToLower(context.Event.Title), mention) ||
+		strings.Contains(strings.ToLower(context.Event.Summary), mention)
 	evidenceByID := indexEvidence(context.Evidence)
+	mentionedInEvidence := false
+	hasPrimarySupportingLineage := false
 	for _, evidenceID := range candidate.EvidenceIDs {
 		item, ok := evidenceByID[evidenceID]
-		if !ok || (!strings.Contains(strings.ToLower(item.Excerpt), mention) &&
-			!strings.Contains(strings.ToLower(item.Title), mention)) {
+		if !ok {
 			return false
 		}
+		if strings.Contains(strings.ToLower(item.Excerpt), mention) ||
+			strings.Contains(strings.ToLower(item.Title), mention) {
+			mentionedInEvidence = true
+		}
+		if item.IsPrimary && item.Relation == "supports" {
+			hasPrimarySupportingLineage = true
+		}
 	}
-	return true
+	if mentionedInEvidence {
+		return true
+	}
+	return eventContainsMention && hasPrimarySupportingLineage
 }
 
 func indexEvidence(items []Evidence) map[string]Evidence {
@@ -200,10 +220,15 @@ func allEvidenceExists(ids []string, evidence map[string]Evidence) bool {
 	if len(ids) == 0 {
 		return false
 	}
+	seen := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
 		if _, exists := evidence[id]; !exists {
 			return false
 		}
+		if _, duplicate := seen[id]; duplicate {
+			return false
+		}
+		seen[id] = struct{}{}
 	}
 	return true
 }

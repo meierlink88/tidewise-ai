@@ -65,6 +65,12 @@ type EntityRelation struct {
 type EntityTypeDefinition struct {
 	TypeKey              string   `json:"type_key"`
 	Version              int      `json:"version"`
+	NameZH               string   `json:"name_zh"`
+	NameEN               string   `json:"name_en"`
+	BusinessDefinition   string   `json:"business_definition"`
+	InclusionCriteria    []string `json:"inclusion_criteria"`
+	ExclusionCriteria    []string `json:"exclusion_criteria"`
+	EventLinkAllowed     bool     `json:"event_link_allowed"`
 	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
 	AllowedEventRoles    []string `json:"allowed_event_roles"`
 	Status               string   `json:"status"`
@@ -193,6 +199,7 @@ type EntityLinkCandidate struct {
 	Key                  string             `json:"candidate_key"`
 	Mention              string             `json:"mention"`
 	EntityID             string             `json:"entity_id"`
+	ProjectedEntityType  string             `json:"projected_entity_type"`
 	EntityRole           string             `json:"entity_role"`
 	EvidenceIDs          []string           `json:"evidence_ids"`
 	ResolutionMethod     string             `json:"resolution_method"`

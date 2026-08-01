@@ -63,6 +63,7 @@ type runReport struct {
 	DataLatenciesMS                                 []int64
 	EntityRejectionReasons                          map[string]int
 	SignalRejectionReasons                          map[string]int
+	StageAudit                                      eventsemantic.StageAudit
 }
 
 func main() {
@@ -154,7 +155,7 @@ func run(args []string, output io.Writer) error {
 			for index := range jobs {
 				runs[index] = executeEvent(
 					ids[index], ids[index] == opts.fixedEventID, opts.timeout,
-					data, retriever, modelConfig,
+					data, retriever, modelConfig, cfg.SemanticRetrieval.EntityTopK,
 				)
 			}
 		}()
@@ -188,6 +189,7 @@ func executeEvent(
 	baseData eventsemantic.DataClient,
 	baseRetriever eventsemantic.SemanticRetriever,
 	modelConfig agentrun.ModelProviderConfig,
+	entityTopK int,
 ) (result runReport) {
 	started := time.Now()
 	result = runReport{
@@ -228,7 +230,7 @@ func executeEvent(
 	}
 	generator := &metricsModel{delegate: generatorBase, report: &result}
 	reviewer := &metricsModel{delegate: reviewerBase, report: &result}
-	runnable, err := semanticworkflow.New(ctx, data, retriever, generator, reviewer)
+	runnable, err := semanticworkflow.New(ctx, data, retriever, generator, reviewer, entityTopK)
 	if err != nil {
 		return failRun(result, err)
 	}
@@ -236,12 +238,17 @@ func executeEvent(
 		ID: uuid.NewString(), EventID: eventID, SupersedesSubmissionID: supersedes,
 		TriggerSource: "acceptance", Status: "running", AttemptCount: 1, MaxAttempts: 1,
 	}
+	audit := eventsemantic.StageAudit{
+		ContractVersion: "event-semantic-stage-audit.v1", EventID: semanticContext.Event.ID,
+	}
 	workflowResult, err := runnable.Invoke(ctx, &semanticworkflow.Input{
 		Attempt: eventsemantic.ExecutionAttempt{
 			ID: executionID, WorkItem: workItem, ContextLease: lease, Context: semanticContext,
 		},
 		Context: semanticContext, GeneratorModel: modelConfig.Model, ReviewerModel: modelConfig.Model,
+		Audit: &audit,
 	})
+	result.StageAudit = audit
 	if err != nil {
 		return failRun(result, err)
 	}

@@ -112,19 +112,26 @@ _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草�
 
 **Event Semantic Enricher**:
 在正式 Event 已存在后，从 Data 的精简、pinned Context 动态取得 Entity Type/角色、
-Variable Definition、适用 Entity Type、方向、modality 和 Measurement 合同，只提取
-Event 原生的 raw mention、EventEntityLink、VariableSignal 和自然语言 Measurement。
-`event-semantic-enricher.v2` 先对整个 Event 在 Qdrant 投影中批量执行正规名/别名精确
-匹配，再对未命中 mention 按 predicted Entity Type 执行一次 batch vector recall。
-模型只能选择紧邻 Qdrant 响应的正式 ID 或 `no_match`；Data 在 Submission 中按正式
-PostgreSQL/TBox 重新确定性校验。Variable Definition 的完整小目录每次都由 Data Context 提供，
-不允许向量 Top-K 隐藏可用定义。
+Variable Definition、适用 Entity Type、方向、modality 和 Measurement 合同。
+`event-semantic-enricher.v3` 的 Stage A 只提取 Event 原文 raw mention 与 Evidence 血缘；
+不预测 Entity Type、不预先分配角色，也不生成 Signal。AgentRun 先对整个 Event 批量执行
+跨 Entity Type 正规名/别名精确匹配，再对未唯一命中 mention 执行一次跨类型 batch vector
+recall。Selector 只能从当前 mention 的 Qdrant 候选选择正式 ID 或 `no_match`，并按候选携带
+的正式 Entity Type Definition 分配允许角色；Entity Type 不由模型输出。Data 在 Submission
+中比对 `projected_entity_type` 与 PostgreSQL Entity ID/type/status/TBox。Vector Top-K 由
+`semantic_retrieval.entity_top_k` 配置，范围 1..20，当前校准值为 10。
+Entity Resolution 完成后，AgentRun 才按正式 Entity Type 从 pinned complete Variable
+Definition directory 确定性筛选适用目录，并以独立 Signal Stage 生成 Event-native
+VariableSignal 与可选自然语言 Measurement。EventEntityLink 可以没有 Signal；单个 Mention、
+Selection、Signal 或 Review item 非法时只隔离该候选，不撤销同 Event 的其他合法事实。
 AgentRun 的 embedding 调用必须经 Eino `embedding.Embedder`与 eino-ext 官方
 OpenAI-compatible adapter；自定义 Qdrant adapter 只弥补官方单 query Retriever 无法提供的
-Event-batch、typed filter 和候选白名单能力。每批未命中 mention 只发生一次
+Event-batch、跨类型召回和候选白名单能力。每批未命中 mention 只发生一次
 `EmbedStrings` 和一次 Qdrant query batch。
-Reviewer 必须完整覆盖受界 `expected_candidates`；模型合同非法最多修正一次，第二次
-仍非法则终止。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/模型身份；首次
+模型只有在严格 JSON envelope 一次修复后仍不可解析时才终止整个 Event；候选内容错误进入
+per-stage audit/isolation，并为 `no_match`、TBox 排除、retrieval/transport failure 记录 owner
+classification。Reviewer 的缺失或非法 item 会被隔离并使用该候选自身 Evidence 形成 fail，不扩大为
+Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/模型身份；首次
 `indeterminate` 后只允许以冻结的 Adjudicator 身份执行第二轮，未知结果按 Data 已持久化
 的 Review Snapshot 恢复，第二次 `indeterminate` 进入 quarantine。Measurement 只携带 `measurement_text + evidence_ids`，完整语义由 AI
 审核对照 Evidence，不进行数值解析或归一化。

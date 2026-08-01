@@ -676,6 +676,12 @@ func (s *ResearchAnalysisContextStore) ReferenceClosure(
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'type_key', definition.type_key,
 		            'version', definition.version,
+		            'name_zh', definition.name_zh,
+		            'name_en', definition.name_en,
+		            'business_definition', definition.business_definition,
+		            'inclusion_criteria', definition.inclusion_criteria,
+		            'exclusion_criteria', definition.exclusion_criteria,
+		            'event_link_allowed', definition.event_link_allowed,
 		            'signal_subject_allowed', definition.signal_subject_allowed,
 		            'direct_target_mode', definition.direct_target_mode,
 		            'status', definition.status

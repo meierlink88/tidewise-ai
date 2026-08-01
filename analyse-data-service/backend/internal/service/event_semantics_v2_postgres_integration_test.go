@@ -339,15 +339,16 @@ INSERT INTO entity_edges (
 func semanticSubmission(leaseID, executionID, supersedesSubmissionID string) eventsemantics.Submission {
 	return eventsemantics.Submission{
 		ContextLeaseID: leaseID, EventID: semanticEventID, AgentExecutionID: executionID,
-		AgentKey: "event-semantic-enricher", AgentVersion: "event-semantic-enricher.v2",
+		AgentKey: "event-semantic-enricher", AgentVersion: "event-semantic-enricher.v3",
 		SupersedesSubmissionID: supersedesSubmissionID,
 		GeneratorPromptHash:    strings.Repeat("a", 64), GeneratorModel: "fixture-generator",
 		ReviewerPromptHash: strings.Repeat("b", 64), ReviewerModel: "fixture-reviewer",
 		AdjudicatorPromptHash: strings.Repeat("b", 64), AdjudicatorModel: "fixture-reviewer",
-		OntologyVersion: "event-semantics.objective-v2@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
+		OntologyVersion: "event-semantics.objective-v3@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
 		EntityLinks: []eventsemantics.EntityLinkCandidate{{
 			Key: "company", Mention: "Integration Wafer Fab", EntityID: semanticCompanyID,
-			EntityRole: "event_subject", EvidenceIDs: []string{semanticEvidenceID},
+			ProjectedEntityType: "company",
+			EntityRole:          "event_subject", EvidenceIDs: []string{semanticEvidenceID},
 			ResolutionMethod: "qdrant_exact", ResolutionConfidence: "1.00000",
 		}},
 		VariableSignals: []eventsemantics.VariableSignalCandidate{{

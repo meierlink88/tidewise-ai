@@ -9,7 +9,7 @@ import (
 
 const (
 	AgentKey     = "event-semantic-enricher"
-	AgentVersion = "event-semantic-enricher.v2"
+	AgentVersion = "event-semantic-enricher.v3"
 )
 
 type ContextLease struct {
@@ -93,6 +93,12 @@ type VariableDefinition struct {
 type EntityTypeDefinition struct {
 	TypeKey              string   `json:"type_key"`
 	Version              int      `json:"version"`
+	NameZH               string   `json:"name_zh"`
+	NameEN               string   `json:"name_en"`
+	BusinessDefinition   string   `json:"business_definition"`
+	InclusionCriteria    []string `json:"inclusion_criteria"`
+	ExclusionCriteria    []string `json:"exclusion_criteria"`
+	EventLinkAllowed     bool     `json:"event_link_allowed"`
 	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
 	AllowedEventRoles    []string `json:"allowed_event_roles"`
 	Status               string   `json:"status"`
@@ -134,6 +140,7 @@ type EntityLinkCandidate struct {
 	CandidateKey         string   `json:"candidate_key"`
 	Mention              string   `json:"mention"`
 	EntityID             string   `json:"entity_id"`
+	ProjectedEntityType  string   `json:"projected_entity_type"`
 	EntityRole           string   `json:"entity_role"`
 	EvidenceIDs          []string `json:"evidence_ids"`
 	ResolutionMethod     string   `json:"resolution_method"`
@@ -262,9 +269,8 @@ type ReviewRequest struct {
 }
 
 type EntityLookup struct {
-	CandidateKey        string `json:"candidate_key"`
-	Mention             string `json:"mention"`
-	PredictedEntityType string `json:"predicted_entity_type"`
+	CandidateKey string `json:"candidate_key"`
+	Mention      string `json:"mention"`
 }
 
 type EntityCandidate struct {
@@ -297,6 +303,7 @@ type Repository interface {
 	EnsureInitialWorkItems(context.Context, []EligibleEvent, time.Time) (int, error)
 	EnqueueReanalysis(context.Context, ReanalysisRequest, time.Time) (WorkItem, bool, error)
 	StartNextExecution(context.Context, string, string, time.Time) (ExecutionAttempt, bool, error)
+	SaveStageAudit(context.Context, string, StageAudit) error
 	CompleteExecution(context.Context, ExecutionCompletion) error
 }
 
@@ -348,6 +355,71 @@ type Result struct {
 	Status             string
 	AcceptedCandidates int
 	RejectedCandidates int
+	Audit              StageAudit
+}
+
+type StageAudit struct {
+	ContractVersion     string                    `json:"contract_version"`
+	EventID             string                    `json:"event_id"`
+	Mentions            []MentionAudit            `json:"mentions"`
+	CandidateSets       []CandidateSetAudit       `json:"candidate_sets"`
+	Selections          []SelectionAudit          `json:"selections"`
+	ApplicableVariables []ApplicableVariableAudit `json:"applicable_variables"`
+	Violations          []StageViolationAudit     `json:"violations"`
+	Isolations          []CandidateIsolationAudit `json:"isolations"`
+	ExecutionFailure    *ExecutionFailureAudit    `json:"execution_failure,omitempty"`
+}
+
+type MentionAudit struct {
+	CandidateKey string   `json:"candidate_key"`
+	Mention      string   `json:"mention"`
+	EvidenceIDs  []string `json:"evidence_ids"`
+}
+
+type CandidateAudit struct {
+	EntityID      string  `json:"entity_id"`
+	EntityType    string  `json:"entity_type"`
+	CanonicalName string  `json:"canonical_name"`
+	Score         float64 `json:"score"`
+}
+
+type CandidateSetAudit struct {
+	CandidateKey string           `json:"candidate_key"`
+	Method       string           `json:"method"`
+	Candidates   []CandidateAudit `json:"candidates"`
+}
+
+type SelectionAudit struct {
+	CandidateKey string `json:"candidate_key"`
+	EntityID     string `json:"entity_id,omitempty"`
+	EntityType   string `json:"entity_type,omitempty"`
+	EntityRole   string `json:"entity_role,omitempty"`
+	NoMatch      bool   `json:"no_match"`
+	ReasonCode   string `json:"reason_code,omitempty"`
+	Owner        string `json:"owner,omitempty"`
+}
+
+type ApplicableVariableAudit struct {
+	SubjectLinkKey string   `json:"subject_link_key"`
+	Definitions    []string `json:"definitions"`
+}
+
+type StageViolationAudit struct {
+	Stage   string   `json:"stage"`
+	Attempt string   `json:"attempt"`
+	Codes   []string `json:"codes"`
+}
+
+type CandidateIsolationAudit struct {
+	Stage        string `json:"stage"`
+	CandidateKey string `json:"candidate_key,omitempty"`
+	ReasonCode   string `json:"reason_code"`
+	Owner        string `json:"owner"`
+}
+
+type ExecutionFailureAudit struct {
+	ReasonCode string `json:"reason_code"`
+	Owner      string `json:"owner"`
 }
 
 type EventSemantics struct {

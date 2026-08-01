@@ -232,6 +232,15 @@ _Avoid_: 实现状态、审核状态、Agent 预测置信度
 方向和适用 Entity Type。它不是一次观测、一个 Metric Entity 或自由 Prompt 词汇。
 _Avoid_: Observation、Event-native Variable Signal、Metric Entity、模型自由变量名
 
+**Entity Type Definition**:
+Data PostgreSQL 中对规范 Entity Type 的受控 TBox 定义。除稳定 `type_key/version`、Signal
+Subject 能力与允许 Event 角色外，V3 还持久化中英文名称、业务定义、纳入标准、排除标准和
+`event_link_allowed`。这些字段由既有领域与 Data layer 读取、Context API 和 Research
+Analysis Context 暴露，并约束 Event Semantic 投影与提交预检。首批既有 active 类型的内容
+由本次 forward migration 一次性人工编写回填；这不表示存在运行时生成器、Curator、管理 UI
+或持续同步功能。
+_Avoid_: Prompt 内写死类型清单、模型预测类型作为事实、单独 TBox 生成系统、只改数据库而不改领域读取合同
+
 **Measurement Value**:
 Variable Signal 或未来 Observation 复用的结构化数值对象。它以受控角色区分绝对水平、
 绝对变化、相对变化和百分点变化，保留 exact/range/单边界、原始与规范值、单位、币种、
@@ -289,9 +298,11 @@ _Avoid_: Generator 自我确认、Reviewer 直接改领域状态、开放式多 
 **Event Semantic Submission**:
 Data Service 对一个正式 Event 的一次语义提交、确定性校验、独立 AI Review Result、
 Acceptance Policy 裁决和产物血缘记录，与 AgentRun 的一个 Agent Execution 一对一。
-新 V2 Submission 仅包含 EventEntityLink 和 VariableSignal（其可选包含自然语言
+新 V3 Submission 仅包含 EventEntityLink 和 VariableSignal（其可选包含自然语言
 Measurement），不接受、生成或要求 DirectImpact。Data 在写事务内以 PostgreSQL 正式
-Entity/TBox/Evidence 重新校验 Qdrant 候选中被选中的 ID。
+Entity/TBox/Evidence 重新校验 Qdrant 候选中被选中的 ID，并要求 Submission 的
+`projected_entity_type` 与 PG Entity Type 完全一致；Signal 还必须满足该正式类型的
+`signal_subject_allowed`。
 它保存外部执行身份及 Agent/Ontology/Rule/Prompt/Model 版本快照，但不复制 AgentRun 的
 runtime 状态、调度重试或执行错误；重新分析创建新 Submission 并 supersede 旧
 Submission。
@@ -340,7 +351,7 @@ Eligibility：正式 Event 必须 confirmed、verified、有 Event time，且返
 _Avoid_: Reanalysis Task、Agent Work Item、在 Data 中调度模型调用、无限续租
 
 **Event Semantic Measurement**:
-VariableSignal 的可选一对多、Evidence-grounded 自然语言量化附注。V2 wire 只包含
+VariableSignal 的可选一对多、Evidence-grounded 自然语言量化附注。V3 wire 只包含
 `measurement_text + evidence_ids`；Data 校验非空、长度、数量、Evidence 归属和引用
 完整性，不解析或校验数值、单位、范围、百分比/百分点或时间归一化。
 它仅供下游 Theme Analyst 阅读和推理，不用于数据库计算。
@@ -352,6 +363,9 @@ Data Service 从 active/current 正式 PostgreSQL Entity 和 Variable Definition
 OpenAI-compatible HTTP adapter 和 Qdrant 写入；它不拥有 accepted 状态，也不替代
 PostgreSQL 事实校验。Data 代码不使用 Eino/eino-ext，AgentRun 也不通过 Data API
 获取 embedding 或语义候选。
+Entity projection 只读取 active 且其 active Entity Type Definition 明确
+`event_link_allowed=true` 的正式 Entity；Qdrant payload 携带正式 Entity Type，AgentRun
+exact/vector 均跨类型召回，再由候选级 Selector 消歧。
 _Avoid_: Qdrant 作为事实源、Data 执行 Agent Workflow、实时/CDC 同步、Data 代理 AgentRun 搜索
 
 **Event Semantic Resolution Route**:

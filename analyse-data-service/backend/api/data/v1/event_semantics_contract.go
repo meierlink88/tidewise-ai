@@ -117,6 +117,12 @@ type EventSemanticTransmissionRule struct {
 type EventSemanticEntityTypeDefinition struct {
 	TypeKey              string   `json:"type_key"`
 	Version              int      `json:"version"`
+	NameZH               string   `json:"name_zh"`
+	NameEN               string   `json:"name_en"`
+	BusinessDefinition   string   `json:"business_definition"`
+	InclusionCriteria    []string `json:"inclusion_criteria"`
+	ExclusionCriteria    []string `json:"exclusion_criteria"`
+	EventLinkAllowed     bool     `json:"event_link_allowed"`
 	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
 	AllowedEventRoles    []string `json:"allowed_event_roles"`
 	Status               string   `json:"status"`
@@ -158,6 +164,18 @@ type EventSemanticEntityLinkCandidate struct {
 	CandidateKey         string   `json:"candidate_key"`
 	Mention              string   `json:"mention"`
 	EntityID             string   `json:"entity_id"`
+	ProjectedEntityType  string   `json:"projected_entity_type,omitempty"`
+	EntityRole           string   `json:"entity_role"`
+	EvidenceIDs          []string `json:"evidence_ids"`
+	ResolutionMethod     string   `json:"resolution_method"`
+	ResolutionConfidence string   `json:"resolution_confidence,omitempty"`
+}
+
+type EventSemanticV3EntityLinkCandidate struct {
+	CandidateKey         string   `json:"candidate_key"`
+	Mention              string   `json:"mention"`
+	EntityID             string   `json:"entity_id"`
+	ProjectedEntityType  string   `json:"projected_entity_type"`
 	EntityRole           string   `json:"entity_role"`
 	EvidenceIDs          []string `json:"evidence_ids"`
 	ResolutionMethod     string   `json:"resolution_method"`
@@ -196,7 +214,7 @@ type EventSemanticSubmissionRequest struct {
 	AdjudicatorModel        string                                 `json:"adjudicator_model"`
 	OntologyVersion         string                                 `json:"ontology_version"`
 	AcceptancePolicyVersion string                                 `json:"acceptance_policy_version"`
-	EntityLinks             []EventSemanticEntityLinkCandidate     `json:"entity_links"`
+	EntityLinks             []EventSemanticV3EntityLinkCandidate   `json:"entity_links"`
 	VariableSignals         []EventSemanticVariableSignalCandidate `json:"variable_signals"`
 }
 

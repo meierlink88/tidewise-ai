@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	eventSemanticsOntologyVersion     = "event-semantics.objective-v2@1"
+	eventSemanticsOntologyVersion     = "event-semantics.objective-v3@1"
 	eventSemanticsPolicyVersion       = "event-semantics.objective-v2@1"
-	eventSemanticsManifestVersion     = "event-semantic-context-manifest.v2"
+	eventSemanticsManifestVersion     = "event-semantic-context-manifest.v3"
 	eventSemanticsRouteVersion        = "event-semantic-anchor-routes.v1"
 	eventSemanticsRoutePartitionLimit = 50
 )
@@ -729,7 +729,9 @@ func eventSemanticEntityTypes(
 ) ([]eventsemantics.EntityTypeDefinition, error) {
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
-		SELECT type_key, version, signal_subject_allowed,
+		SELECT type_key, version, name_zh, name_en, business_definition,
+		       array_to_json(inclusion_criteria), array_to_json(exclusion_criteria),
+		       event_link_allowed, signal_subject_allowed,
 		       array_to_json(allowed_event_roles), status
 		FROM entity_type_definitions
 		WHERE status = 'active'
@@ -746,19 +748,48 @@ func eventSemanticEntityTypes(
 	var result []eventsemantics.EntityTypeDefinition
 	for rows.Next() {
 		var item eventsemantics.EntityTypeDefinition
-		var allowedRoles []byte
+		var inclusionCriteria, exclusionCriteria, allowedRoles []byte
 		if err := rows.Scan(
-			&item.TypeKey, &item.Version, &item.SignalSubjectAllowed,
+			&item.TypeKey, &item.Version, &item.NameZH, &item.NameEN,
+			&item.BusinessDefinition, &inclusionCriteria, &exclusionCriteria,
+			&item.EventLinkAllowed, &item.SignalSubjectAllowed,
 			&allowedRoles, &item.Status,
 		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(inclusionCriteria, &item.InclusionCriteria); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(exclusionCriteria, &item.ExclusionCriteria); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(allowedRoles, &item.AllowedEventRoles); err != nil {
 			return nil, err
 		}
+		if !validEventSemanticEntityTypeDefinition(item) {
+			return nil, errors.New("Event Semantic Entity Type Definition is invalid")
+		}
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+func validEventSemanticEntityTypeDefinition(item eventsemantics.EntityTypeDefinition) bool {
+	if strings.TrimSpace(item.TypeKey) == "" || item.Version <= 0 ||
+		strings.TrimSpace(item.NameZH) == "" || strings.TrimSpace(item.NameEN) == "" ||
+		strings.TrimSpace(item.BusinessDefinition) == "" || item.Status != "active" ||
+		len(item.InclusionCriteria) == 0 || len(item.ExclusionCriteria) == 0 ||
+		len(item.AllowedEventRoles) == 0 {
+		return false
+	}
+	for _, values := range [][]string{item.InclusionCriteria, item.ExclusionCriteria, item.AllowedEventRoles} {
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func eventSemanticEvidence(
@@ -815,7 +846,7 @@ func eventSemanticEntities(ctx context.Context, query semanticQueryer) ([]events
 		WHERE status = 'active'
 		  AND entity_type IN (
 		      SELECT type_key FROM entity_type_definitions
-		      WHERE version = 1 AND status = 'active'
+		      WHERE status = 'active' AND event_link_allowed
 		  )
 		ORDER BY entity_type, canonical_name, id
 	`)

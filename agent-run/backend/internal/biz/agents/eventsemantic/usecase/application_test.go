@@ -16,11 +16,21 @@ import (
 
 type applicationRepositoryStub struct {
 	completions []eventsemantic.ExecutionCompletion
+	audits      []eventsemantic.StageAudit
 	noWork      bool
 	reanalysis  eventsemantic.ReanalysisRequest
 	ensured     [][]eventsemantic.EligibleEvent
 	insertLater bool
 	completeErr error
+}
+
+func (s *applicationRepositoryStub) SaveStageAudit(
+	_ context.Context,
+	_ string,
+	audit eventsemantic.StageAudit,
+) error {
+	s.audits = append(s.audits, audit)
+	return nil
 }
 
 type permittedApplicationRepositoryStub struct {
@@ -466,11 +476,14 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 		contextSnapshot: eventsemantic.Context{
 			ContextLeaseID: "lease-1", AgentExecutionID: "execution-1",
 			WorkerID: "event-semantic-enricher", LeaseExpiresAt: "2026-08-01T00:00:00Z",
-			ManifestContractVersion: "event-semantic-context-manifest.v2",
+			ManifestContractVersion: "event-semantic-context-manifest.v3",
 			Event:                   eventsemantic.Event{ID: "event-later"},
-			EntityTypeDefinitions:   []eventsemantic.EntityTypeDefinition{{TypeKey: "company", Status: "active"}},
-			VariableDefinitions:     []eventsemantic.VariableDefinition{{Key: "revenue", Version: 1, Status: "active"}},
-			MeasurementContract:     eventsemantic.MeasurementContract{Representation: "evidence_grounded_narrative"},
+			EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{{
+				TypeKey: "company", NameZH: "企业", NameEN: "Company", BusinessDefinition: "企业主体",
+				InclusionCriteria: []string{"公司"}, ExclusionCriteria: []string{"产品"}, EventLinkAllowed: true, Status: "active",
+			}},
+			VariableDefinitions: []eventsemantic.VariableDefinition{{Key: "revenue", Version: 1, Status: "active"}},
+			MeasurementContract: eventsemantic.MeasurementContract{Representation: "evidence_grounded_narrative"},
 		},
 		submissionResult: eventsemantic.SubmissionResult{
 			SubmissionID: "submission-later",
@@ -487,9 +500,9 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 			},
 		},
 	}
-	generator := &queuedSemanticModel{responses: []string{`{"mentions":[],"variable_signals":[]}`}}
+	generator := &queuedSemanticModel{responses: []string{`{"mentions":[]}`}}
 	reviewer := &queuedSemanticModel{}
-	run, err := semanticworkflow.New(context.Background(), data, applicationRetrieverStub{}, generator, reviewer)
+	run, err := semanticworkflow.New(context.Background(), data, applicationRetrieverStub{}, generator, reviewer, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

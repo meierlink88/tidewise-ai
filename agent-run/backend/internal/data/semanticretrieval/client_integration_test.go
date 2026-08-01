@@ -37,9 +37,9 @@ func TestDashScopeQdrantFixedEventRetrieval(t *testing.T) {
 		t.Fatal(err)
 	}
 	lookups := []eventsemantic.EntityLookup{
-		{CandidateKey: "nvidia", Mention: "英伟达", PredictedEntityType: "company"},
-		{CandidateKey: "amkor", Mention: "安靠科技", PredictedEntityType: "company"},
-		{CandidateKey: "packaging", Mention: "第三方封测产能", PredictedEntityType: "chain_node"},
+		{CandidateKey: "nvidia", Mention: "英伟达"},
+		{CandidateKey: "amkor", Mention: "安靠科技"},
+		{CandidateKey: "packaging", Mention: "第三方封测产能"},
 	}
 	exact, err := client.ExactEntities(context.Background(), lookups)
 	if err != nil {

@@ -2349,10 +2349,22 @@ components:
     EventSemanticEntityTypeDefinition:
       type: object
       additionalProperties: false
-      required: [type_key, version, signal_subject_allowed, allowed_event_roles, status]
+      required: [type_key, version, name_zh, name_en, business_definition, inclusion_criteria, exclusion_criteria, event_link_allowed, signal_subject_allowed, allowed_event_roles, status]
       properties:
         type_key: { type: string }
         version: { type: integer, minimum: 1 }
+        name_zh: { type: string, minLength: 1 }
+        name_en: { type: string, minLength: 1 }
+        business_definition: { type: string, minLength: 1 }
+        inclusion_criteria:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        exclusion_criteria:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        event_link_allowed: { type: boolean }
         signal_subject_allowed: { type: boolean }
         allowed_event_roles:
           type: array
@@ -2375,7 +2387,7 @@ components:
           $ref: '#/components/schemas/UTCTimestamp'
         manifest_contract_version:
           type: string
-          enum: [event-semantic-context-manifest.v2]
+          enum: [event-semantic-context-manifest.v3]
         context_fingerprint:
           type: string
           pattern: '^[0-9a-f]{64}$'
@@ -2727,10 +2739,22 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [type_key, version, signal_subject_allowed, direct_target_mode, status]
+            required: [type_key, version, name_zh, name_en, business_definition, inclusion_criteria, exclusion_criteria, event_link_allowed, signal_subject_allowed, direct_target_mode, status]
             properties:
               type_key: {type: string}
               version: {type: integer, minimum: 1}
+              name_zh: {type: string, minLength: 1}
+              name_en: {type: string, minLength: 1}
+              business_definition: {type: string, minLength: 1}
+              inclusion_criteria:
+                type: array
+                minItems: 1
+                items: {type: string, minLength: 1}
+              exclusion_criteria:
+                type: array
+                minItems: 1
+                items: {type: string, minLength: 1}
+              event_link_allowed: {type: boolean}
               signal_subject_allowed: {type: boolean}
               direct_target_mode: {type: string, enum: [allow, conditional, deny, context]}
               status: {type: string, enum: [active]}
@@ -3107,6 +3131,7 @@ components:
         evidence_ids:
           type: array
           minItems: 1
+          uniqueItems: true
           items:
             $ref: '#/components/schemas/UUID'
 
@@ -3121,11 +3146,15 @@ components:
           type: string
         entity_id:
           $ref: '#/components/schemas/UUID'
+        projected_entity_type:
+          type: string
+          minLength: 1
         entity_role:
           type: string
         evidence_ids:
           type: array
           minItems: 1
+          uniqueItems: true
           items:
             $ref: '#/components/schemas/UUID'
         resolution_method:
@@ -3134,6 +3163,12 @@ components:
         resolution_confidence:
           type: string
           pattern: '^(0(\.\d{1,5})?|1(\.0{1,5})?)$'
+
+    EventSemanticV3EntityLinkCandidate:
+      allOf:
+        - $ref: '#/components/schemas/EventSemanticEntityLinkCandidate'
+        - type: object
+          required: [projected_entity_type]
 
     EventSemanticVariableSignalCandidate:
       type: object
@@ -3157,6 +3192,7 @@ components:
         evidence_ids:
           type: array
           minItems: 1
+          uniqueItems: true
           items:
             $ref: '#/components/schemas/UUID'
         measurements:
@@ -3194,7 +3230,7 @@ components:
           enum: [event-semantic-enricher]
         agent_version:
           type: string
-          enum: [event-semantic-enricher.v2]
+          enum: [event-semantic-enricher.v3]
         supersedes_submission_id:
           $ref: '#/components/schemas/UUID'
         generator_prompt_hash:
@@ -3219,7 +3255,7 @@ components:
         entity_links:
           type: array
           items:
-            $ref: '#/components/schemas/EventSemanticEntityLinkCandidate'
+            $ref: '#/components/schemas/EventSemanticV3EntityLinkCandidate'
         variable_signals:
           type: array
           items:
@@ -3319,7 +3355,7 @@ components:
           enum: [event-semantic-enricher]
         agent_version:
           type: string
-          enum: [event-semantic-enricher.v2]
+          enum: [event-semantic-enricher.v2, event-semantic-enricher.v3]
         supersedes_submission_id:
           $ref: '#/components/schemas/UUID'
         generator_prompt_hash:

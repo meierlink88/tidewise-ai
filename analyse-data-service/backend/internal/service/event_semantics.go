@@ -188,7 +188,7 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 	for _, link := range request.EntityLinks {
 		candidate := eventsemantics.EntityLinkCandidate{
 			Key: link.CandidateKey, Mention: link.Mention, EntityID: link.EntityID,
-			EntityRole: link.EntityRole, EvidenceIDs: link.EvidenceIDs,
+			ProjectedEntityType: link.ProjectedEntityType, EntityRole: link.EntityRole, EvidenceIDs: link.EvidenceIDs,
 			ResolutionMethod: link.ResolutionMethod, ResolutionConfidence: link.ResolutionConfidence,
 		}
 		result.EntityLinks = append(result.EntityLinks, candidate)
@@ -267,6 +267,11 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 	for _, definition := range value.EntityTypes {
 		result.EntityTypeDefinitions = append(result.EntityTypeDefinitions, v1.EventSemanticEntityTypeDefinition{
 			TypeKey: definition.TypeKey, Version: definition.Version,
+			NameZH: definition.NameZH, NameEN: definition.NameEN,
+			BusinessDefinition:   definition.BusinessDefinition,
+			InclusionCriteria:    definition.InclusionCriteria,
+			ExclusionCriteria:    definition.ExclusionCriteria,
+			EventLinkAllowed:     definition.EventLinkAllowed,
 			SignalSubjectAllowed: definition.SignalSubjectAllowed,
 			AllowedEventRoles:    definition.AllowedEventRoles, Status: definition.Status,
 		})
@@ -428,7 +433,7 @@ func eventSemanticLinkCandidatesDTO(values []eventsemantics.EntityLinkCandidate)
 	for _, value := range values {
 		item := v1.EventSemanticEntityLinkCandidate{
 			CandidateKey: value.Key, Mention: value.Mention, EntityID: value.EntityID,
-			EntityRole: value.EntityRole, EvidenceIDs: value.EvidenceIDs,
+			ProjectedEntityType: value.ProjectedEntityType, EntityRole: value.EntityRole, EvidenceIDs: value.EvidenceIDs,
 			ResolutionMethod: value.ResolutionMethod, ResolutionConfidence: value.ResolutionConfidence,
 		}
 		result = append(result, item)

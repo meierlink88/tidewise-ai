@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/cloudwego/eino/components/model"
@@ -32,14 +33,15 @@ func (*queuedModel) Stream(context.Context, []*schema.Message, ...model.Option) 
 }
 
 type retrieverStub struct {
-	exactCalls  int
-	searchCalls int
-	exact       []eventsemantic.EntityCandidateSet
-	search      []eventsemantic.EntityCandidateSet
+	exactCalls, searchCalls int
+	exact, search           []eventsemantic.EntityCandidateSet
+	lookups                 [][]eventsemantic.EntityLookup
+	topK                    int
 }
 
 func (s *retrieverStub) ExactEntities(_ context.Context, lookups []eventsemantic.EntityLookup) ([]eventsemantic.EntityCandidateSet, error) {
 	s.exactCalls++
+	s.lookups = append(s.lookups, append([]eventsemantic.EntityLookup(nil), lookups...))
 	if s.exact != nil {
 		return s.exact, nil
 	}
@@ -52,7 +54,8 @@ func (s *retrieverStub) ExactEntities(_ context.Context, lookups []eventsemantic
 
 func (s *retrieverStub) SearchEntities(_ context.Context, lookups []eventsemantic.EntityLookup, topK int) ([]eventsemantic.EntityCandidateSet, error) {
 	s.searchCalls++
-	if topK != entityTopK {
+	s.lookups = append(s.lookups, append([]eventsemantic.EntityLookup(nil), lookups...))
+	if topK != s.topK {
 		return nil, errors.New("unexpected topK")
 	}
 	if s.search != nil {
@@ -67,9 +70,8 @@ func (s *retrieverStub) SearchEntities(_ context.Context, lookups []eventsemanti
 
 type dataStub struct {
 	submission eventsemantic.SubmissionRequest
-	review     eventsemantic.ReviewRequest
 	reviewKeys []string
-	submitted  bool
+	reviews    []eventsemantic.ReviewRequest
 }
 
 func (*dataStub) ListEligibleEvents(context.Context, int, string) (eventsemantic.EligibleEventPage, error) {
@@ -82,7 +84,6 @@ func (*dataStub) Context(context.Context, string) (eventsemantic.Context, error)
 	return eventsemantic.Context{}, nil
 }
 func (s *dataStub) CreateSubmission(_ context.Context, request eventsemantic.SubmissionRequest) (eventsemantic.SubmissionResult, error) {
-	s.submitted = true
 	s.submission = request
 	return eventsemantic.SubmissionResult{
 		SubmissionID: "66666666-6666-4666-8666-666666666666", EventID: request.EventID,
@@ -94,8 +95,8 @@ func (s *dataStub) CreateSubmission(_ context.Context, request eventsemantic.Sub
 	}, nil
 }
 func (s *dataStub) SubmitReview(_ context.Context, _ string, request eventsemantic.ReviewRequest) (eventsemantic.SubmissionResult, error) {
-	s.review = request
 	s.reviewKeys = append(s.reviewKeys, request.ReviewerExecutionKey)
+	s.reviews = append(s.reviews, request)
 	for _, item := range request.Items {
 		if item.Decision == "indeterminate" {
 			return eventsemantic.SubmissionResult{
@@ -125,199 +126,201 @@ func (*dataStub) GetEventSemantics(context.Context, string) (eventsemantic.Event
 	return eventsemantic.EventSemantics{}, nil
 }
 
-func TestWorkflowUsesEventBatchedQdrantAndPublishesOnlyObjectiveV2Facts(t *testing.T) {
+func TestWorkflowUsesCrossTypeEventBatchAndGeneratesSignalsAfterResolution(t *testing.T) {
 	generator := &queuedModel{responses: []string{
-		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"amkor","mention":"安靠科技","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[{"candidate_key":"nvidia-capacity","subject_link_key":"nvidia","variable_key":"capacity_commitment","variable_version":1,"direction":"increase","assertion_modality":"stated_intent","evidence_ids":["` + testEvidenceID + `"],"measurements":[{"measurement_text":"合作价值15亿美元","evidence_ids":["` + testEvidenceID + `"]},{"measurement_text":"首次把预付款锁定产能延伸至第三方封测厂","evidence_ids":["` + testEvidenceID + `"]}]}]}`,
-		`{"selections":[{"candidate_key":"amkor","entity_id":"44444444-4444-4444-8444-444444444444","no_match":false}]}`,
+		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"packaging","mention":"第三方封测厂","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"packaging","entity_id":"44444444-4444-4444-8444-444444444444","entity_role":"event_subject","no_match":false}]}`,
+		`{"variable_signals":[{"candidate_key":"nvidia-capacity","subject_link_key":"nvidia","variable_key":"capacity_commitment","variable_version":1,"direction":"increase","assertion_modality":"stated_intent","evidence_ids":["` + testEvidenceID + `"],"measurements":[{"measurement_text":"价值15亿美元","evidence_ids":["` + testEvidenceID + `"]}]}]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
-		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]},{"candidate_type":"entity_link","candidate_key":"amkor","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]},{"candidate_type":"variable_signal","candidate_key":"nvidia-capacity","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]},{"candidate_type":"entity_link","candidate_key":"packaging","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]},{"candidate_type":"variable_signal","candidate_key":"nvidia-capacity","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
 	}}
 	retriever := &retrieverStub{
 		exact: []eventsemantic.EntityCandidateSet{
-			{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{EntityID: "33333333-3333-4333-8333-333333333333", EntityType: "company", CanonicalName: "英伟达", Status: "active"}}}},
-			{CandidateKey: "amkor"},
+			{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}}},
+			{CandidateKey: "packaging"},
 		},
-		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{
-			Entity: eventsemantic.Entity{EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "company", CanonicalName: "安靠科技", Status: "active"}, Score: 0.81,
+		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "packaging", Candidates: []eventsemantic.EntityCandidate{{
+			Entity: eventsemantic.Entity{EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "第三方封测", Status: "active"}, Score: 0.81,
 		}}}},
 	}
 	data := &dataStub{}
-	runnable, err := New(context.Background(), data, retriever, generator, reviewer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := runnable.Invoke(context.Background(), testInput())
-	if err != nil {
-		t.Fatal(err)
-	}
+	result := invoke(t, data, retriever, generator, reviewer, testInput())
 	if result.Status != "accepted" || result.AcceptedCandidates != 3 {
 		t.Fatalf("result = %#v", result)
 	}
-	if retriever.exactCalls != 1 || retriever.searchCalls != 1 {
-		t.Fatalf("Qdrant calls exact=%d search=%d", retriever.exactCalls, retriever.searchCalls)
+	if retriever.exactCalls != 1 || retriever.searchCalls != 1 || len(retriever.lookups[0]) != 2 || len(retriever.lookups[1]) != 1 {
+		t.Fatalf("retrieval calls=%d/%d lookups=%#v", retriever.exactCalls, retriever.searchCalls, retriever.lookups)
 	}
-	if data.submission.AgentVersion != eventsemantic.AgentVersion || len(data.submission.EntityLinks) != 2 ||
-		len(data.submission.VariableSignals) != 1 || len(data.submission.VariableSignals[0].Measurements) != 2 {
+	if len(data.submission.EntityLinks) != 2 || len(data.submission.VariableSignals) != 1 ||
+		data.submission.EntityLinks[0].ProjectedEntityType != "company" ||
+		data.submission.VariableSignals[0].Measurements[0].MeasurementText != "价值15亿美元" {
 		t.Fatalf("submission = %#v", data.submission)
 	}
+	if strings.Contains(mentionSchema, "predicted_entity_type") || strings.Contains(mentionSchema, "entity_role") || strings.Contains(mentionSchema, "variable_signals") {
+		t.Fatalf("Stage A schema leaked V2 fields: %s", mentionSchema)
+	}
 }
 
-func TestWorkflowPublishesOneEntityLinkWhenTwoMentionsResolveToSameEntity(t *testing.T) {
+func TestWorkflowIsolatesInvalidSelectionWithoutDeletingValidLink(t *testing.T) {
 	generator := &queuedModel{responses: []string{
-		`{"mentions":[{"candidate_key":"nvidia-name","mention":"英伟达","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"nvidia-alias","mention":"英伟达","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[]}`,
+		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"amkor","mention":"安靠科技","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"amkor","entity_id":"99999999-9999-4999-8999-999999999999","entity_role":"actor","no_match":false}]}`,
+		`{"variable_signals":[]}`,
 	}}
-	reviewer := &queuedModel{responses: []string{
-		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia-name","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
-	}}
-	entity := eventsemantic.Entity{
-		EntityID: "33333333-3333-4333-8333-333333333333", EntityType: "company",
-		CanonicalName: "英伟达", Status: "active",
-	}
+	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
 	retriever := &retrieverStub{exact: []eventsemantic.EntityCandidateSet{
-		{CandidateKey: "nvidia-name", Candidates: []eventsemantic.EntityCandidate{{Entity: entity}}},
-		{CandidateKey: "nvidia-alias", Candidates: []eventsemantic.EntityCandidate{{Entity: entity}}},
+		{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}}},
+		{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{EntityID: "55555555-5555-4555-8555-555555555555", EntityType: "company", CanonicalName: "安靠科技", Status: "active"}}}},
 	}}
 	data := &dataStub{}
-	runnable, err := New(context.Background(), data, retriever, generator, reviewer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := runnable.Invoke(context.Background(), testInput())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 ||
-		data.submission.EntityLinks[0].CandidateKey != "nvidia-name" {
+	input := testInput()
+	result := invoke(t, data, retriever, generator, reviewer, input)
+	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 || data.submission.EntityLinks[0].CandidateKey != "nvidia" {
 		t.Fatalf("result=%#v links=%#v", result, data.submission.EntityLinks)
 	}
-}
-
-func TestWorkflowRejectsOmittedSelectionAfterOneRepair(t *testing.T) {
-	generator := &queuedModel{responses: []string{
-		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"amkor","mention":"安靠科技","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","no_match":false}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","no_match":false}]}`,
-	}}
-	retriever := &retrieverStub{search: []eventsemantic.EntityCandidateSet{
-		{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{
-			EntityID: "33333333-3333-4333-8333-333333333333", EntityType: "company", Status: "active",
-		}}}},
-		{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{
-			EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "company", Status: "active",
-		}}}},
-	}}
-	data := &dataStub{}
-	runnable, err := New(context.Background(), data, retriever, generator, &queuedModel{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := runnable.Invoke(context.Background(), testInput())
-	var remote *eventsemantic.RemoteError
-	if result != nil || !errors.As(err, &remote) ||
-		remote.Code != "event_semantic_model_contract_invalid" || generator.calls != 3 || data.submitted {
-		t.Fatalf("result=%#v err=%v calls=%d submitted=%t", result, err, generator.calls, data.submitted)
+	if !hasIsolation(result.Audit, "amkor", "selection_outside_qdrant_response") {
+		t.Fatalf("audit = %#v", result.Audit)
 	}
 }
 
-func TestWorkflowRejectsInventedQdrantIDAfterOneRepair(t *testing.T) {
-	generator := &queuedModel{responses: []string{
-		`{"mentions":[{"candidate_key":"amkor","mention":"安靠科技","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[]}`,
-		`{"selections":[{"candidate_key":"amkor","entity_id":"99999999-9999-4999-8999-999999999999","no_match":false}]}`,
-		`{"selections":[{"candidate_key":"amkor","entity_id":"88888888-8888-4888-8888-888888888888","no_match":false}]}`,
-	}}
-	retriever := &retrieverStub{search: []eventsemantic.EntityCandidateSet{{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{
-		Entity: eventsemantic.Entity{EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "company", Status: "active"},
-	}}}}}
-	data := &dataStub{}
-	runnable, err := New(context.Background(), data, retriever, generator, &queuedModel{})
-	if err != nil {
-		t.Fatal(err)
+func TestRecordSelectionClassifiesNoMatchByExactCandidateAvailability(t *testing.T) {
+	tests := []struct {
+		name          string
+		noMatchReason string
+		hasExact      bool
+		wantReason    string
+		wantOwner     string
+	}{
+		{name: "Stage A non-entity", noMatchReason: "mention_not_entity", wantReason: "stage_a_non_entity_mention", wantOwner: "model_extraction"},
+		{name: "identity projection gap", noMatchReason: "no_candidate_same_entity", wantReason: "identity_projection_gap", wantOwner: "abox_or_retrieval"},
+		{name: "model rejects exact identity", noMatchReason: "no_candidate_same_entity", hasExact: true, wantReason: "selector_rejected_exact_candidates", wantOwner: "model_selection"},
+		{name: "model lacks context", noMatchReason: "insufficient_context", wantReason: "selector_insufficient_context", wantOwner: "model_selection"},
 	}
-	result, err := runnable.Invoke(context.Background(), testInput())
-	var remote *eventsemantic.RemoteError
-	if result != nil || !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" || data.submitted {
-		t.Fatalf("result=%#v err=%#v submitted=%v", result, err, data.submitted)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			audit := &eventsemantic.StageAudit{}
+			recordSelection(audit, entitySelection{CandidateKey: "entity", NoMatch: true, NoMatchReason: test.noMatchReason}, eventsemantic.Entity{}, test.hasExact)
+			if len(audit.Selections) != 1 || audit.Selections[0].ReasonCode != test.wantReason || audit.Selections[0].Owner != test.wantOwner {
+				t.Fatalf("selection audit = %#v", audit.Selections)
+			}
+		})
 	}
 }
 
-func TestWorkflowRejectsMentionGroundedOnlyInEventSummaryAfterOneRepair(t *testing.T) {
-	generator := &queuedModel{responses: []string{
-		`{"mentions":[{"candidate_key":"summary-only","mention":"摘要专有词","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[]}`,
-		`{"mentions":[{"candidate_key":"summary-only","mention":"摘要专有词","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[]}`,
-	}}
+func TestWorkflowAcceptsEventOnlyMentionWithPrimarySupportingLineageAndNoSignal(t *testing.T) {
 	input := testInput()
-	input.Context.Event.Summary += "摘要专有词"
+	input.Context.Event.Summary += " 摘要专有词"
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"summary","mention":"摘要专有词","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"summary","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"event_subject","no_match":false}]}`,
+		`{"variable_signals":[]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"summary","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
 	data := &dataStub{}
-	runnable, err := New(context.Background(), data, &retrieverStub{}, generator, &queuedModel{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := runnable.Invoke(context.Background(), input)
-	var remote *eventsemantic.RemoteError
-	if result != nil || !errors.As(err, &remote) ||
-		remote.Code != "event_semantic_model_contract_invalid" || generator.calls != 2 || data.submitted {
-		t.Fatalf("result=%#v err=%#v calls=%d submitted=%v", result, err, generator.calls, data.submitted)
+	result := invoke(t, data, &retrieverStub{exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "summary", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}}}}}, generator, reviewer, input)
+	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 || len(data.submission.VariableSignals) != 0 {
+		t.Fatalf("result=%#v submission=%#v", result, data.submission)
 	}
 }
 
-func TestWorkflowRunsFrozenAdjudicatorAfterIndeterminateReview(t *testing.T) {
+func TestWorkflowVectorRecallsAndMergesNonUniqueExactCandidates(t *testing.T) {
+	input := testInput()
+	input.Context.EntityTypeDefinitions = append(input.Context.EntityTypeDefinitions, eventsemantic.EntityTypeDefinition{
+		TypeKey: "concept", Version: 1, NameZH: "概念", NameEN: "Concept", BusinessDefinition: "受控概念",
+		InclusionCriteria: []string{"正式概念"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true,
+		SignalSubjectAllowed: true, AllowedEventRoles: []string{"event_subject"}, Status: "active",
+	})
 	generator := &queuedModel{responses: []string{
-		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","predicted_entity_type":"company","entity_role":"actor","evidence_ids":["` + testEvidenceID + `"]}],"variable_signals":[]}`,
+		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
+		`{"variable_signals":[]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
+	retriever := &retrieverStub{
+		exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{
+			{Entity: companyEntity()},
+			{Entity: eventsemantic.Entity{EntityID: "55555555-5555-4555-8555-555555555555", EntityType: "concept", CanonicalName: "英伟达生态", Status: "active"}},
+		}}},
+		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{
+			{Entity: companyEntity(), Score: 0.93},
+			{Entity: eventsemantic.Entity{EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "GPU", Status: "active"}, Score: 0.72},
+		}}},
+	}
+	data := &dataStub{}
+	result := invoke(t, data, retriever, generator, reviewer, input)
+	if result.Status != "accepted" || retriever.searchCalls != 1 || len(retriever.lookups[1]) != 1 {
+		t.Fatalf("result=%#v calls=%d lookups=%#v", result, retriever.searchCalls, retriever.lookups)
+	}
+	if len(data.submission.EntityLinks) != 1 || data.submission.EntityLinks[0].ResolutionMethod != "qdrant_exact" {
+		t.Fatalf("submission=%#v", data.submission)
+	}
+	if len(result.Audit.CandidateSets) != 2 || result.Audit.CandidateSets[0].Method != "qdrant_exact" ||
+		result.Audit.CandidateSets[1].Method != "qdrant_vector" {
+		t.Fatalf("candidate audit=%#v", result.Audit.CandidateSets)
+	}
+}
+
+func TestMissingReviewItemUsesThatCandidatesEvidence(t *testing.T) {
+	otherEvidenceID := "99999999-9999-4999-8999-999999999999"
+	work := eventsemantic.ReviewerWorkPackage{
+		Evidence: []eventsemantic.Evidence{{EvidenceID: testEvidenceID}, {EvidenceID: otherEvidenceID}},
+		EntityLinks: []eventsemantic.EntityLinkCandidate{
+			{CandidateKey: "first", EvidenceIDs: []string{testEvidenceID}},
+			{CandidateKey: "second", EvidenceIDs: []string{otherEvidenceID}},
+		},
+	}
+	expected := expectedReviewCandidates(work)
+	items := isolateReview([]eventsemantic.ReviewItem{{
+		CandidateType: "entity_link", CandidateKey: "first", Decision: "pass", EvidenceIDs: []string{testEvidenceID},
+	}}, expected, work, &eventsemantic.StageAudit{})
+	if len(items) != 2 || len(items[1].EvidenceIDs) != 1 || items[1].EvidenceIDs[0] != otherEvidenceID ||
+		items[1].Decision != "fail" {
+		t.Fatalf("review items=%#v", items)
+	}
+}
+
+func TestWorkflowRunsAdjudicatorAfterIndeterminateReview(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
+		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
 		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"indeterminate","reason_codes":["ambiguous"],"evidence_ids":["` + testEvidenceID + `"]}]}`,
 		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
 	}}
-	entity := eventsemantic.Entity{
-		EntityID: "33333333-3333-4333-8333-333333333333", EntityType: "company",
-		CanonicalName: "英伟达", Status: "active",
-	}
 	data := &dataStub{}
-	runnable, err := New(context.Background(), data, &retrieverStub{exact: []eventsemantic.EntityCandidateSet{{
-		CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: entity}},
-	}}}, generator, reviewer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := runnable.Invoke(context.Background(), testInput())
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantReviewer := testInput().Attempt.ID + ":reviewer"
-	wantAdjudicator := testInput().Attempt.ID + ":adjudicator"
+	result := invoke(t, data, &retrieverStub{exact: []eventsemantic.EntityCandidateSet{{
+		CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}},
+	}}}, generator, reviewer, testInput())
 	if result.Status != "accepted" || reviewer.calls != 2 || len(data.reviewKeys) != 2 ||
-		data.reviewKeys[0] != wantReviewer || data.reviewKeys[1] != wantAdjudicator ||
-		data.submission.AdjudicatorPromptHash != ReviewerPromptHash() ||
-		data.submission.AdjudicatorModel != testInput().ReviewerModel {
-		t.Fatalf("result=%#v calls=%d keys=%#v submission=%#v", result, reviewer.calls, data.reviewKeys, data.submission)
+		data.reviewKeys[0] != testInput().Attempt.ID+":reviewer" ||
+		data.reviewKeys[1] != testInput().Attempt.ID+":adjudicator" {
+		t.Fatalf("result=%#v calls=%d keys=%#v", result, reviewer.calls, data.reviewKeys)
 	}
 }
 
 func TestWorkflowResumesUnknownReviewerOutcomeAtAdjudicator(t *testing.T) {
 	input := testInput()
+	link := eventsemantic.EntityLinkCandidate{
+		CandidateKey: "nvidia", Mention: "英伟达", EntityID: companyEntity().EntityID,
+		ProjectedEntityType: "company", EntityRole: "actor", EvidenceIDs: []string{testEvidenceID}, ResolutionMethod: "qdrant_exact",
+	}
 	input.ExistingSubmission = &eventsemantic.SubmissionResult{
 		SubmissionID: "66666666-6666-4666-8666-666666666666", EventID: input.Context.Event.ID,
 		Status: "needs_reanalysis", AgentExecutionID: input.Attempt.ID,
 		ReviewerWorkPackage: &eventsemantic.ReviewerWorkPackage{
-			Event: input.Context.Event, Evidence: input.Context.Evidence,
-			EntityLinks: []eventsemantic.EntityLinkCandidate{{
-				CandidateKey: "nvidia", Mention: "英伟达",
-				EntityID: "33333333-3333-4333-8333-333333333333", EntityRole: "actor",
-				EvidenceIDs: []string{testEvidenceID}, ResolutionMethod: "qdrant_exact",
-			}},
+			Event: input.Context.Event, Evidence: input.Context.Evidence, EntityLinks: []eventsemantic.EntityLinkCandidate{link},
 		},
 		ReviewSnapshots: []eventsemantic.ReviewSnapshot{{ReviewerExecutionKey: input.Attempt.ID + ":reviewer"}},
 	}
-	reviewer := &queuedModel{responses: []string{
-		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
-	}}
+	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
 	data := &dataStub{submission: eventsemantic.SubmissionRequest{
-		EventID: input.Context.Event.ID, AgentExecutionID: input.Attempt.ID,
-		EntityLinks: input.ExistingSubmission.ReviewerWorkPackage.EntityLinks,
+		EventID: input.Context.Event.ID, AgentExecutionID: input.Attempt.ID, EntityLinks: []eventsemantic.EntityLinkCandidate{link},
 	}}
 	generator := &queuedModel{}
-	runnable, err := New(context.Background(), data, &retrieverStub{}, generator, reviewer)
+	runnable, err := New(context.Background(), data, &retrieverStub{topK: 10}, generator, reviewer, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,43 +334,76 @@ func TestWorkflowResumesUnknownReviewerOutcomeAtAdjudicator(t *testing.T) {
 	}
 }
 
+func TestWorkflowOnlyTerminatesAfterJSONEnvelopeRepairStillFails(t *testing.T) {
+	generator := &queuedModel{responses: []string{`not-json`, `{"mentions":{}}`}}
+	runnable, err := New(context.Background(), &dataStub{}, &retrieverStub{topK: 10}, generator, &queuedModel{}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := runnable.Invoke(context.Background(), testInput())
+	var remote *eventsemantic.RemoteError
+	if result != nil || !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" || generator.calls != 2 {
+		t.Fatalf("result=%#v err=%#v calls=%d", result, err, generator.calls)
+	}
+}
+
+func invoke(t *testing.T, data *dataStub, retriever *retrieverStub, generator, reviewer *queuedModel, input *Input) *eventsemantic.Result {
+	t.Helper()
+	retriever.topK = 10
+	runnable, err := New(context.Background(), data, retriever, generator, reviewer, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := runnable.Invoke(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func hasIsolation(audit eventsemantic.StageAudit, key, reason string) bool {
+	for _, item := range audit.Isolations {
+		if item.CandidateKey == key && item.ReasonCode == reason {
+			return true
+		}
+	}
+	return false
+}
+
+func companyEntity() eventsemantic.Entity {
+	return eventsemantic.Entity{EntityID: "33333333-3333-4333-8333-333333333333", EntityType: "company", CanonicalName: "英伟达", Status: "active"}
+}
+
 func testInput() *Input {
 	contextValue := testContext()
+	audit := &eventsemantic.StageAudit{}
 	return &Input{
 		Attempt: eventsemantic.ExecutionAttempt{
 			ID:           "77777777-7777-4777-8777-777777777777",
 			ContextLease: eventsemantic.ContextLease{ContextLeaseID: contextValue.ContextLeaseID, EventID: contextValue.Event.ID},
 		},
-		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek",
+		Context: contextValue, GeneratorModel: "deepseek", ReviewerModel: "deepseek", Audit: audit,
 	}
 }
 
 func testContext() eventsemantic.Context {
 	return eventsemantic.Context{
-		ContextLeaseID:          "11111111-1111-4111-8111-111111111111",
-		ManifestContractVersion: "event-semantic-context-manifest.v2",
-		OntologyVersion:         "event-semantics.objective-v2@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
-		Event: eventsemantic.Event{
-			ID:      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-			Title:   "英伟达与安靠科技达成15亿美元战略合作",
-			Summary: "首次把预付款锁定产能延伸至第三方封测厂。",
-		},
+		ContextLeaseID: "11111111-1111-4111-8111-111111111111", ManifestContractVersion: "event-semantic-context-manifest.v3",
+		OntologyVersion: "event-semantics.objective-v3@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
+		Event: eventsemantic.Event{ID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", Title: "英伟达与安靠科技达成15亿美元战略合作", Summary: "首次把预付款锁定产能延伸至第三方封测厂。"},
 		Evidence: []eventsemantic.Evidence{{
-			EvidenceID: testEvidenceID,
-			Excerpt:    "英伟达与安靠科技达成价值15亿美元战略合作，首次把预付款锁定产能延伸至第三方封测厂。",
+			EvidenceID: testEvidenceID, Excerpt: "英伟达与安靠科技达成价值15亿美元战略合作，首次把预付款锁定产能延伸至第三方封测厂。",
+			IsPrimary: true, Relation: "supports",
 		}},
-		EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{{
-			TypeKey: "company", Version: 1, Status: "active", SignalSubjectAllowed: true,
-			AllowedEventRoles: []string{"actor", "event_subject", "affected_entity"},
-		}},
+		EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{
+			{TypeKey: "company", Version: 1, NameZH: "企业", NameEN: "Company", BusinessDefinition: "依法设立的企业主体", InclusionCriteria: []string{"公司"}, ExclusionCriteria: []string{"产品"}, EventLinkAllowed: true, SignalSubjectAllowed: true, AllowedEventRoles: []string{"actor", "event_subject", "affected_entity"}, Status: "active"},
+			{TypeKey: "chain_node", Version: 1, NameZH: "产业链环节", NameEN: "Chain node", BusinessDefinition: "产业链中的正式环节", InclusionCriteria: []string{"工艺环节"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true, SignalSubjectAllowed: true, AllowedEventRoles: []string{"event_subject", "affected_entity"}, Status: "active"},
+		},
 		VariableDefinitions: []eventsemantic.VariableDefinition{{
-			Key: "capacity_commitment", Version: 1, Status: "active",
+			Key: "capacity_commitment", Version: 1, NameZH: "产能承诺", NameEN: "Capacity commitment", Domain: "operations", BusinessDefinition: "正式产能承诺", ValueType: "narrative", Status: "active",
 			AllowedDirections: []string{"increase"}, ApplicableEntityTypes: []string{"company"},
 		}},
 		AssertionModalities: []string{"actual", "stated_intent", "source_forecast"},
-		MeasurementContract: eventsemantic.MeasurementContract{
-			Representation: "evidence_grounded_narrative", MaxItemsPerSignal: 8,
-			MaxTextCharacters: 2000, RequiresEvidenceIDs: true, NumericValidation: false,
-		},
+		MeasurementContract: eventsemantic.MeasurementContract{Representation: "evidence_grounded_narrative", MaxItemsPerSignal: 8, MaxTextCharacters: 2000, RequiresEvidenceIDs: true, NumericValidation: false},
 	}
 }

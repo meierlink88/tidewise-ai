@@ -260,10 +260,24 @@ func (a *Application) tick(ctx context.Context) error {
 			true,
 		)
 	}
+	audit := eventsemantic.StageAudit{
+		ContractVersion: "event-semantic-stage-audit.v1",
+		EventID:         contextSnapshot.Event.ID,
+	}
 	result, err := runtime.Run.Invoke(ctx, &semanticworkflow.Input{
 		Attempt: attempt, Context: contextSnapshot, ExistingSubmission: resumableSubmission,
-		GeneratorModel: runtime.GeneratorModel, ReviewerModel: runtime.ReviewerModel,
+		GeneratorModel: runtime.GeneratorModel, ReviewerModel: runtime.ReviewerModel, Audit: &audit,
 	})
+	if err != nil {
+		audit.ExecutionFailure = executionFailureAudit(err)
+	}
+	if auditErr := a.repository.SaveStageAudit(ctx, attempt.ID, audit); auditErr != nil {
+		return fail(
+			"event_semantic_audit_persistence_failed",
+			"Event Semantic stage audit could not be persisted",
+			true,
+		)
+	}
 	if err != nil {
 		code := "event_semantic_workflow_failed"
 		if errors.Is(err, eventsemantic.ErrModelUnavailable) {
@@ -292,6 +306,25 @@ func (a *Application) tick(ctx context.Context) error {
 			"rejected_candidates": result.RejectedCandidates,
 		},
 	)
+}
+
+func executionFailureAudit(err error) *eventsemantic.ExecutionFailureAudit {
+	if err == nil {
+		return nil
+	}
+	code := semanticRemoteCode(err)
+	owner := "transport"
+	if errors.Is(err, eventsemantic.ErrModelUnavailable) || code == "event_semantic_model_contract_invalid" {
+		owner = "model"
+	} else if code == "qdrant_response_invalid" {
+		owner = "retrieval_contract"
+	} else if code != "" {
+		owner = "data_contract"
+	}
+	if code == "" {
+		code = "event_semantic_workflow_failed"
+	}
+	return &eventsemantic.ExecutionFailureAudit{ReasonCode: code, Owner: owner}
 }
 
 func validateContextIdentity(

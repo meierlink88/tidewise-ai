@@ -1,6 +1,6 @@
 # Event Semantic 客观语义与 Qdrant 召回投影 V2
 
-状态：Frozen（已通过 Codex“事件推理模型”会话复核）
+状态：Superseded by `event-semantic-entity-first-resolution-v3.md`（保留为 V2 历史基线）
 
 日期：2026-08-01
 

@@ -109,7 +109,7 @@ func (c *Client) ExactEntities(ctx context.Context, lookups []eventsemantic.Enti
 	for _, lookup := range lookups {
 		key := NormalizeName(lookup.Mention)
 		for _, point := range *response.Result.Points {
-			if point.Payload.EntityType == lookup.PredictedEntityType && contains(point.Payload.NormalizedNames, key) {
+			if contains(point.Payload.NormalizedNames, key) {
 				resultSet(result, lookup.CandidateKey, point.candidate())
 			}
 		}
@@ -145,11 +145,10 @@ func (c *Client) SearchEntities(ctx context.Context, lookups []eventsemantic.Ent
 		}
 	}
 	searches := make([]any, 0, len(lookups))
-	for index, lookup := range lookups {
+	for index := range lookups {
 		searches = append(searches, map[string]any{
 			"query": vectors[index],
 			"filter": map[string]any{"must": []any{
-				map[string]any{"key": "entity_type", "match": map[string]any{"value": lookup.PredictedEntityType}},
 				map[string]any{"key": "status", "match": map[string]any{"value": "active"}},
 			}},
 			"limit": topK, "with_payload": true, "with_vector": false,
@@ -172,7 +171,7 @@ func (c *Client) SearchEntities(ctx context.Context, lookups []eventsemantic.Ent
 			return nil, retrievalError("qdrant_response_invalid", false)
 		}
 		for _, point := range *search.Points {
-			if !point.valid(lookups[index].PredictedEntityType) {
+			if !point.valid("") {
 				return nil, retrievalError("qdrant_response_invalid", false)
 			}
 			result[index].Candidates = append(result[index].Candidates, point.candidate())

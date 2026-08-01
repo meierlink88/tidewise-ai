@@ -79,6 +79,7 @@ type SemanticRetrievalConfig struct {
 	EntityCollection   string `yaml:"entity_collection"`
 	VariableCollection string `yaml:"variable_collection"`
 	VectorSize         int    `yaml:"vector_size"`
+	EntityTopK         int    `yaml:"entity_top_k"`
 	TimeoutSeconds     int    `yaml:"timeout_seconds"`
 	MaxResponseBytes   int64  `yaml:"max_response_bytes"`
 }
@@ -253,6 +254,9 @@ func (c SemanticRetrievalConfig) Validate() error {
 	if c.EmbeddingModel != "text-embedding-v4" || c.EntityCollection != "entity_semantic_v1" ||
 		c.VariableCollection != "variable_definition_semantic_v1" || c.VectorSize != 1024 {
 		return fmt.Errorf("semantic_retrieval fixed projection contract is invalid")
+	}
+	if c.EntityTopK <= 0 || c.EntityTopK > 20 {
+		return fmt.Errorf("semantic_retrieval.entity_top_k must be between 1 and 20")
 	}
 	if c.TimeoutSeconds <= 0 || c.MaxResponseBytes <= 0 {
 		return fmt.Errorf("semantic_retrieval timeout and response limit must be positive")
