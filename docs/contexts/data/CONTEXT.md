@@ -366,6 +366,11 @@ PostgreSQL 事实校验。Data 代码不使用 Eino/eino-ext，AgentRun 也不�
 Entity projection 只读取 active 且其 active Entity Type Definition 明确
 `event_link_allowed=true` 的正式 Entity；Qdrant payload 携带正式 Entity Type，AgentRun
 exact/vector 均跨类型召回，再由候选级 Selector 消歧。
+Entity 外层 point ID 必须等于 payload `entity_id`；payload 不重复保存 `point_id`。payload 还必须
+携带用于投影来源审计的 `source_identity`、固定
+`projection_version`、`embedding_model` 和基于冻结 projection document 的 SHA-256
+`content_fingerprint`。AgentRun 对缺失、异源、旧版本或错误模型的 point fail closed；Data 仍以
+PostgreSQL 正式 Entity ID/type/status 完成 Submission 最终复核。
 _Avoid_: Qdrant 作为事实源、Data 执行 Agent Workflow、实时/CDC 同步、Data 代理 AgentRun 搜索
 
 **Event Semantic Resolution Route**:

@@ -3408,7 +3408,7 @@ components:
       properties:
         candidate_type:
           type: string
-          enum: [entity_link, variable_signal, direct_impact]
+          enum: [entity_link, variable_signal]
         candidate_key:
           type: string
         decision:

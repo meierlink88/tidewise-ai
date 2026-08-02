@@ -45,25 +45,38 @@ type report struct {
 }
 
 type runReport struct {
-	EventID, Title, Status, ErrorCode, ErrorSummary string
-	FixedEvent                                      bool
-	DurationMS, ContextBytes                        int64
-	PromptBytes, ModelLatencyMS                     int64
-	ModelCalls                                      int
-	Mentions, ExactHits, Fallbacks                  int
-	NoMatch, EntityAccepted                         int
-	EntityRejected, SignalAccepted                  int
-	SignalRejected, Measurements                    int
-	MeasurementAccepted                             int
-	MeasurementRejected                             int
-	QdrantExactCalls, QdrantBatchCalls              int
-	QdrantCandidates                                int
-	QdrantLatenciesMS                               []int64
-	DataCalls, DataRequestBytes                     int
-	DataLatenciesMS                                 []int64
-	EntityRejectionReasons                          map[string]int
-	SignalRejectionReasons                          map[string]int
-	StageAudit                                      eventsemantic.StageAudit
+	EventID, Title, SubmissionID, Status, ErrorCode, ErrorSummary string
+	FixedEvent                                                    bool
+	DurationMS, ContextBytes                                      int64
+	PromptBytes, ModelLatencyMS                                   int64
+	ModelCalls                                                    int
+	Mentions, ExactHits, Fallbacks                                int
+	NoMatch, EntityAccepted                                       int
+	EntityRejected, SignalAccepted                                int
+	SignalRejected, Measurements                                  int
+	MeasurementAccepted                                           int
+	MeasurementRejected                                           int
+	QdrantExactCalls, QdrantBatchCalls                            int
+	QdrantCandidates                                              int
+	QdrantLatenciesMS                                             []int64
+	DataCalls, DataRequestBytes                                   int
+	DataLatenciesMS                                               []int64
+	EntityRejectionReasons                                        map[string]int
+	SignalRejectionReasons                                        map[string]int
+	EntityDecisions                                               []eventsemantic.CandidateDecision
+	SignalDecisions                                               []eventsemantic.CandidateDecision
+	StageAudit                                                    eventsemantic.StageAudit
+	BoundaryAudit                                                 boundaryAudit
+}
+
+type boundaryAudit struct {
+	DirectImpactCandidates int      `json:"direct_impact_candidates"`
+	DirectTargetCalls      int      `json:"direct_target_calls"`
+	TransmissionRuleCalls  int      `json:"transmission_rule_calls"`
+	ThemePayloads          int      `json:"theme_payloads"`
+	ReasonTreePayloads     int      `json:"reason_tree_payloads"`
+	Verified               bool     `json:"verified"`
+	DeterministicEvidence  []string `json:"deterministic_evidence"`
 }
 
 func main() {
@@ -195,8 +208,18 @@ func executeEvent(
 	result = runReport{
 		EventID: eventID, FixedEvent: fixed,
 		EntityRejectionReasons: make(map[string]int), SignalRejectionReasons: make(map[string]int),
+		BoundaryAudit: boundaryAudit{DeterministicEvidence: []string{
+			"eventsemantic.DataClient exposes no Direct Target or Transmission Rule operation",
+			"V3 SubmissionRequest contains only entity_links and variable_signals",
+			"generated model envelopes are scanned recursively for prohibited DirectImpact, Theme and Reason Tree keys",
+		}},
 	}
-	defer func() { result.DurationMS = time.Since(started).Milliseconds() }()
+	defer func() {
+		result.DurationMS = time.Since(started).Milliseconds()
+		result.BoundaryAudit.Verified = result.BoundaryAudit.DirectImpactCandidates == 0 &&
+			result.BoundaryAudit.DirectTargetCalls == 0 && result.BoundaryAudit.TransmissionRuleCalls == 0 &&
+			result.BoundaryAudit.ThemePayloads == 0 && result.BoundaryAudit.ReasonTreePayloads == 0
+	}()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	data := &metricsData{delegate: baseData, report: &result, measurementBySignal: make(map[string]int)}
@@ -253,6 +276,7 @@ func executeEvent(
 		return failRun(result, err)
 	}
 	result.Status = workflowResult.Status
+	result.SubmissionID = workflowResult.SubmissionID
 	finalizeCandidateMetrics(&result, data.last, data.measurementBySignal)
 	return result
 }
@@ -295,6 +319,8 @@ func errorCode(err error) string {
 }
 
 func finalizeCandidateMetrics(result *runReport, submission eventsemantic.SubmissionResult, measurements map[string]int) {
+	result.EntityDecisions = append([]eventsemantic.CandidateDecision(nil), submission.EntityLinks...)
+	result.SignalDecisions = append([]eventsemantic.CandidateDecision(nil), submission.VariableSignals...)
 	for _, decision := range submission.EntityLinks {
 		switch decision.Status {
 		case "accepted":
@@ -436,6 +462,11 @@ func (m *metricsData) Context(ctx context.Context, leaseID string) (result event
 }
 
 func (m *metricsData) CreateSubmission(ctx context.Context, request eventsemantic.SubmissionRequest) (result eventsemantic.SubmissionResult, err error) {
+	payload, _ := json.Marshal(request)
+	counts := prohibitedJSONKeys(payload)
+	m.report.BoundaryAudit.DirectImpactCandidates += counts.directImpact
+	m.report.BoundaryAudit.ThemePayloads += counts.theme
+	m.report.BoundaryAudit.ReasonTreePayloads += counts.reasonTree
 	err = m.measured(request, func() error { result, err = m.delegate.CreateSubmission(ctx, request); return err })
 	if err == nil {
 		m.last = result
@@ -510,6 +541,12 @@ func (m *metricsModel) Generate(ctx context.Context, input []*schema.Message, op
 	result, err := m.delegate.Generate(ctx, input, opts...)
 	m.report.ModelCalls++
 	m.report.ModelLatencyMS += time.Since(started).Milliseconds()
+	if result != nil {
+		counts := prohibitedJSONKeys([]byte(result.Content))
+		m.report.BoundaryAudit.DirectImpactCandidates += counts.directImpact
+		m.report.BoundaryAudit.ThemePayloads += counts.theme
+		m.report.BoundaryAudit.ReasonTreePayloads += counts.reasonTree
+	}
 	return result, err
 }
 
@@ -525,4 +562,48 @@ func percentile(values []int64, quantile float64) int64 {
 	sort.Slice(copyValues, func(i, j int) bool { return copyValues[i] < copyValues[j] })
 	index := int(float64(len(copyValues)-1) * quantile)
 	return copyValues[index]
+}
+
+type prohibitedCounts struct {
+	directImpact int
+	theme        int
+	reasonTree   int
+}
+
+func prohibitedJSONKeys(payload []byte) prohibitedCounts {
+	var value any
+	decoder := json.NewDecoder(strings.NewReader(strings.TrimSpace(string(payload))))
+	if err := decoder.Decode(&value); err != nil {
+		return prohibitedCounts{}
+	}
+	var result prohibitedCounts
+	var visit func(any)
+	visit = func(current any) {
+		switch typed := current.(type) {
+		case map[string]any:
+			for key, child := range typed {
+				normalized := strings.ToLower(strings.ReplaceAll(key, "-", "_"))
+				switch normalized {
+				case "direct_impact", "direct_impacts", "direct_impact_assertion", "direct_impact_assertions":
+					result.directImpact++
+				case "theme", "themes", "research_theme", "research_themes":
+					result.theme++
+				case "reason_tree", "reason_trees", "reasoning_tree", "reasoning_trees":
+					result.reasonTree++
+				}
+				if normalized == "candidate_type" {
+					if candidateType, ok := child.(string); ok && strings.Contains(strings.ToLower(candidateType), "direct_impact") {
+						result.directImpact++
+					}
+				}
+				visit(child)
+			}
+		case []any:
+			for _, child := range typed {
+				visit(child)
+			}
+		}
+	}
+	visit(value)
+	return result
 }

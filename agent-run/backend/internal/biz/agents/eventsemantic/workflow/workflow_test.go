@@ -168,7 +168,10 @@ func TestWorkflowIsolatesInvalidSelectionWithoutDeletingValidLink(t *testing.T) 
 		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"amkor","entity_id":"99999999-9999-4999-8999-999999999999","entity_role":"actor","no_match":false}]}`,
 		`{"variable_signals":[]}`,
 	}}
-	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
+	reviewer := &queuedModel{responses: []string{
+		`{"selections":[{"candidate_key":"amkor","entity_id":"","entity_role":"","no_match":true,"no_match_reason":"no_candidate_same_entity"}]}`,
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
+	}}
 	retriever := &retrieverStub{exact: []eventsemantic.EntityCandidateSet{
 		{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}}},
 		{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{EntityID: "55555555-5555-4555-8555-555555555555", EntityType: "company", CanonicalName: "安靠科技", Status: "active"}}}},
@@ -200,7 +203,7 @@ func TestRecordSelectionClassifiesNoMatchByExactCandidateAvailability(t *testing
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			audit := &eventsemantic.StageAudit{}
-			recordSelection(audit, entitySelection{CandidateKey: "entity", NoMatch: true, NoMatchReason: test.noMatchReason}, eventsemantic.Entity{}, test.hasExact)
+			recordSelection(audit, entitySelection{CandidateKey: "entity", NoMatch: true, NoMatchReason: test.noMatchReason}, eventsemantic.Entity{}, test.hasExact, "primary_selector")
 			if len(audit.Selections) != 1 || audit.Selections[0].ReasonCode != test.wantReason || audit.Selections[0].Owner != test.wantOwner {
 				t.Fatalf("selection audit = %#v", audit.Selections)
 			}
@@ -258,6 +261,90 @@ func TestWorkflowVectorRecallsAndMergesNonUniqueExactCandidates(t *testing.T) {
 	if len(result.Audit.CandidateSets) != 2 || result.Audit.CandidateSets[0].Method != "qdrant_exact" ||
 		result.Audit.CandidateSets[1].Method != "qdrant_vector" {
 		t.Fatalf("candidate audit=%#v", result.Audit.CandidateSets)
+	}
+}
+
+func TestWorkflowRechecksUniqueExactCandidateRejectedByPrimarySelector(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"","entity_role":"","no_match":true,"no_match_reason":"mention_not_entity"}]}`,
+		`{"variable_signals":[]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false,"no_match_reason":""}]}`,
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
+	}}
+	data := &dataStub{}
+	result := invoke(t, data, &retrieverStub{exact: []eventsemantic.EntityCandidateSet{{
+		CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}},
+	}}}, generator, reviewer, testInput())
+	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 || reviewer.calls != 2 {
+		t.Fatalf("result=%#v links=%#v reviewer_calls=%d", result, data.submission.EntityLinks, reviewer.calls)
+	}
+	if len(result.Audit.Selections) != 2 || result.Audit.Selections[0].ResolutionRoute != "primary_selector" ||
+		!result.Audit.Selections[0].NoMatch || result.Audit.Selections[1].ResolutionRoute != "secondary_review" ||
+		result.Audit.Selections[1].NoMatch {
+		t.Fatalf("selection audit=%#v", result.Audit.Selections)
+	}
+}
+
+func TestWorkflowRechecksObviousNormalizedVectorCandidate(t *testing.T) {
+	input := testInput()
+	input.Context.Event.Title = "非侵入式脑机接口取得进展"
+	input.Context.Event.Summary = "非侵入式脑机接口已完成新一轮验证。"
+	input.Context.Evidence[0].Excerpt = "非侵入式脑机接口已完成新一轮验证。"
+	input.Context.EntityTypeDefinitions = append(input.Context.EntityTypeDefinitions, eventsemantic.EntityTypeDefinition{
+		TypeKey: "technology", Version: 1, NameZH: "技术", NameEN: "Technology", BusinessDefinition: "可识别技术体系",
+		InclusionCriteria: []string{"技术与技术系统"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true,
+		SignalSubjectAllowed: false, AllowedEventRoles: []string{"event_subject", "context"}, Status: "active",
+	})
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"bci","mention":"非侵入式脑机接口","evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"bci","entity_id":"","entity_role":"","no_match":true,"no_match_reason":"no_candidate_same_entity"}]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{
+		`{"selections":[{"candidate_key":"bci","entity_id":"88888888-8888-4888-8888-888888888888","entity_role":"event_subject","no_match":false,"no_match_reason":""}]}`,
+		`{"items":[{"candidate_type":"entity_link","candidate_key":"bci","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
+	}}
+	retriever := &retrieverStub{
+		exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "bci"}},
+		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "bci", Candidates: []eventsemantic.EntityCandidate{{
+			Entity: eventsemantic.Entity{EntityID: "88888888-8888-4888-8888-888888888888", EntityType: "technology", Name: "非侵入式脑机接口系统", CanonicalName: "非侵入式脑机接口系统", Status: "active"}, Score: 0.91,
+		}}}},
+	}
+	data := &dataStub{}
+	result := invoke(t, data, retriever, generator, reviewer, input)
+	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 || data.submission.EntityLinks[0].ResolutionMethod != "qdrant_vector" {
+		t.Fatalf("result=%#v links=%#v", result, data.submission.EntityLinks)
+	}
+}
+
+func TestSelectorProtocolUsesRecallFirstReviewFallback(t *testing.T) {
+	for _, forbidden := range []string{"存在任何对象或类型边界疑问时优先 no_match", "产品/品牌、复合短语"} {
+		if strings.Contains(selectorProtocol, forbidden) {
+			t.Fatalf("selector protocol retained over-conservative rule %q", forbidden)
+		}
+	}
+	for _, required := range []string{"召回优先", "identity_locked_candidate_keys", "系统、服务、设备、产品", "statement_source", "context", "真实公司、产品、技术、指数", "国新办"} {
+		if !strings.Contains(selectorProtocol, required) {
+			t.Fatalf("selector protocol is missing %q", required)
+		}
+	}
+	if !strings.Contains(reviewerProtocol, "国新办") || !strings.Contains(reviewerProtocol, "国务院") {
+		t.Fatal("reviewer protocol must reject related-but-distinct institutions")
+	}
+}
+
+func TestMentionProtocolExtractsEntitySpanFromCompoundStatement(t *testing.T) {
+	for _, required := range []string{"日本央行", "美联储", "央行报告", "只输出其中的机构 Mention"} {
+		if !strings.Contains(mentionProtocol, required) {
+			t.Fatalf("mention protocol is missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"predicted_entity_type", "entity_role", "variable_signals"} {
+		if strings.Contains(mentionProtocol, forbidden) {
+			t.Fatalf("mention protocol leaked Stage A forbidden field %q", forbidden)
+		}
 	}
 }
 
@@ -344,6 +431,61 @@ func TestWorkflowOnlyTerminatesAfterJSONEnvelopeRepairStillFails(t *testing.T) {
 	var remote *eventsemantic.RemoteError
 	if result != nil || !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" || generator.calls != 2 {
 		t.Fatalf("result=%#v err=%#v calls=%d", result, err, generator.calls)
+	}
+}
+
+func TestStageEnvelopeRequiresExplicitTopLevelArray(t *testing.T) {
+	tests := []struct {
+		name, stage, schema, invalid, valid string
+	}{
+		{name: "mention null", stage: "mention_extraction", schema: mentionSchema, invalid: `null`, valid: `{"mentions":[]}`},
+		{name: "mention empty object", stage: "mention_extraction", schema: mentionSchema, invalid: `{}`, valid: `{"mentions":[]}`},
+		{name: "mention missing field", stage: "mention_extraction", schema: mentionSchema, invalid: `{"other":[]}`, valid: `{"mentions":[]}`},
+		{name: "mention wrong type", stage: "mention_extraction", schema: mentionSchema, invalid: `{"mentions":{}}`, valid: `{"mentions":[]}`},
+		{name: "mention null array", stage: "mention_extraction", schema: mentionSchema, invalid: `{"mentions":null}`, valid: `{"mentions":[]}`},
+		{name: "mention unknown field", stage: "mention_extraction", schema: mentionSchema, invalid: `{"mentions":[],"extra":true}`, valid: `{"mentions":[]}`},
+		{name: "mention duplicate field", stage: "mention_extraction", schema: mentionSchema, invalid: `{"mentions":[],"mentions":[]}`, valid: `{"mentions":[]}`},
+		{name: "mention trailing value", stage: "mention_extraction", schema: mentionSchema, invalid: `{"mentions":[]} {}`, valid: `{"mentions":[]}`},
+		{name: "selection missing field", stage: "entity_selection", schema: selectorSchema, invalid: `{}`, valid: `{"selections":[]}`},
+		{name: "signal missing field", stage: "signal_extraction", schema: signalSchema, invalid: `{}`, valid: `{"variable_signals":[]}`},
+		{name: "review missing field", stage: "independent_review", schema: reviewSchema, invalid: `{}`, valid: `{"items":[]}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name+" fails after repair", func(t *testing.T) {
+			model := &queuedModel{responses: []string{test.invalid, test.invalid}}
+			var err error
+			switch test.stage {
+			case "mention_extraction":
+				_, err = generateEnvelope[mentionOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			case "entity_selection":
+				_, err = generateEnvelope[selectionOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			case "signal_extraction":
+				_, err = generateEnvelope[signalOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			case "independent_review":
+				_, err = generateEnvelope[reviewOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			}
+			var remote *eventsemantic.RemoteError
+			if !errors.As(err, &remote) || remote.Code != "event_semantic_model_contract_invalid" || model.calls != 2 {
+				t.Fatalf("err=%#v calls=%d", err, model.calls)
+			}
+		})
+		t.Run(test.name+" accepts explicit empty array", func(t *testing.T) {
+			model := &queuedModel{responses: []string{test.valid}}
+			var err error
+			switch test.stage {
+			case "mention_extraction":
+				_, err = generateEnvelope[mentionOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			case "entity_selection":
+				_, err = generateEnvelope[selectionOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			case "signal_extraction":
+				_, err = generateEnvelope[signalOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			case "independent_review":
+				_, err = generateEnvelope[reviewOutput](context.Background(), model, test.stage, "system", `{}`, test.schema, &eventsemantic.StageAudit{})
+			}
+			if err != nil || model.calls != 1 {
+				t.Fatalf("err=%v calls=%d", err, model.calls)
+			}
+		})
 	}
 }
 

@@ -72,6 +72,12 @@ func TestRebuildCreatesDeterministicSeparateEntityAndVariableCollections(t *test
 		firstVariable.ID == "" || firstVariable.ID == firstEntity.ID {
 		t.Fatalf("stable identities entity=%q variable=%q", firstEntity.ID, firstVariable.ID)
 	}
+	if _, exists := firstEntity.Payload["point_id"]; exists {
+		t.Fatal("entity payload must not duplicate the outer point ID")
+	}
+	if _, exists := firstVariable.Payload["point_id"]; exists {
+		t.Fatal("Variable Definition payload must not duplicate the outer point ID")
+	}
 	if got := firstEntity.Payload["normalized_names"]; !reflect.DeepEqual(got, []string{"33333333333343338333333333333333", "nvidia", "英伟达"}) {
 		t.Fatalf("normalized_names = %#v", got)
 	}

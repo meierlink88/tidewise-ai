@@ -271,6 +271,9 @@ func (c Config) validateRuntimeSecrets() error {
 	if strings.TrimSpace(c.Secrets.DataServiceToken) == "" {
 		return fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
+	if strings.TrimSpace(c.Secrets.EmbeddingAPIKey) == "" {
+		return fmt.Errorf("EMBEDDING_API_KEY is required")
+	}
 	if c.App.Env != EnvUAT {
 		return nil
 	}

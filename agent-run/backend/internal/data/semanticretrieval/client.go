@@ -3,6 +3,7 @@ package semanticretrieval
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,10 +20,12 @@ import (
 )
 
 const (
-	EntityCollection   = "entity_semantic_v1"
-	VariableCollection = "variable_definition_semantic_v1"
-	EmbeddingModel     = "text-embedding-v4"
-	VectorSize         = 1024
+	EntityCollection    = "entity_semantic_v1"
+	VariableCollection  = "variable_definition_semantic_v1"
+	ProjectionVersion   = "event-semantic-projection.v1"
+	EmbeddingModel      = "text-embedding-v4"
+	VectorSize          = 1024
+	sha256HexCharacters = 64
 )
 
 type Config struct {
@@ -184,14 +187,18 @@ type qdrantPoint struct {
 	ID      any     `json:"id"`
 	Score   float64 `json:"score"`
 	Payload struct {
-		EntityID        string   `json:"entity_id"`
-		EntityType      string   `json:"entity_type"`
-		Name            string   `json:"name"`
-		CanonicalName   string   `json:"canonical_name"`
-		Aliases         []string `json:"aliases"`
-		NormalizedNames []string `json:"normalized_names"`
-		Description     string   `json:"description"`
-		Status          string   `json:"status"`
+		EntityID           string   `json:"entity_id"`
+		EntityType         string   `json:"entity_type"`
+		Name               string   `json:"name"`
+		CanonicalName      string   `json:"canonical_name"`
+		Aliases            []string `json:"aliases"`
+		NormalizedNames    []string `json:"normalized_names"`
+		Description        string   `json:"description"`
+		Status             string   `json:"status"`
+		SourceIdentity     string   `json:"source_identity"`
+		ProjectionVersion  string   `json:"projection_version"`
+		EmbeddingModel     string   `json:"embedding_model"`
+		ContentFingerprint string   `json:"content_fingerprint"`
 	} `json:"payload"`
 }
 
@@ -202,6 +209,8 @@ func (p qdrantPoint) valid(expectedEntityType string) bool {
 	}
 	parsed, err := uuid.Parse(pointID)
 	if err != nil || parsed.String() != pointID || p.Payload.EntityID != pointID ||
+		p.Payload.SourceIdentity != pointID || p.Payload.ProjectionVersion != ProjectionVersion ||
+		p.Payload.EmbeddingModel != EmbeddingModel || !validFingerprint(p.Payload.ContentFingerprint) ||
 		strings.TrimSpace(p.Payload.EntityType) == "" || strings.TrimSpace(p.Payload.Name) == "" ||
 		strings.TrimSpace(p.Payload.CanonicalName) == "" || p.Payload.Status != "active" ||
 		len(p.Payload.NormalizedNames) == 0 ||
@@ -214,6 +223,14 @@ func (p qdrantPoint) valid(expectedEntityType string) bool {
 		}
 	}
 	return true
+}
+
+func validFingerprint(value string) bool {
+	if len(value) != sha256HexCharacters || strings.ToLower(value) != value {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func (p qdrantPoint) candidate() eventsemantic.EntityCandidate {

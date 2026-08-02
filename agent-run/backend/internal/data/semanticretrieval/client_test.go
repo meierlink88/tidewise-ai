@@ -100,6 +100,8 @@ func entityPayload(id, name string, normalized []string) map[string]any {
 	return map[string]any{
 		"entity_id": id, "entity_type": "company", "name": name, "canonical_name": name,
 		"aliases": []string{name}, "normalized_names": normalized, "description": "", "status": "active",
+		"source_identity": id, "projection_version": ProjectionVersion, "embedding_model": EmbeddingModel,
+		"content_fingerprint": strings.Repeat("a", 64),
 	}
 }
 
@@ -157,6 +159,47 @@ func TestClientRejectsMalformedQdrantCandidateIdentity(t *testing.T) {
 			} else {
 				_, err = client.SearchEntities(context.Background(), []eventsemantic.EntityLookup{test.lookup}, 5)
 			}
+			var remote *eventsemantic.RemoteError
+			if !errors.As(err, &remote) || remote.Code != "qdrant_response_invalid" || remote.Retryable {
+				t.Fatalf("err = %#v", err)
+			}
+		})
+	}
+}
+
+func TestClientRejectsQdrantPointWithInvalidProjectionProvenance(t *testing.T) {
+	entityID := "33333333-3333-4333-8333-333333333333"
+	tests := []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{name: "missing source identity", mutate: func(payload map[string]any) { delete(payload, "source_identity") }},
+		{name: "foreign source identity", mutate: func(payload map[string]any) { payload["source_identity"] = "44444444-4444-4444-8444-444444444444" }},
+		{name: "missing projection version", mutate: func(payload map[string]any) { delete(payload, "projection_version") }},
+		{name: "stale projection version", mutate: func(payload map[string]any) { payload["projection_version"] = "event-semantic-projection.v0" }},
+		{name: "wrong embedding model", mutate: func(payload map[string]any) { payload["embedding_model"] = "other-model" }},
+		{name: "missing fingerprint", mutate: func(payload map[string]any) { delete(payload, "content_fingerprint") }},
+		{name: "invalid fingerprint", mutate: func(payload map[string]any) { payload["content_fingerprint"] = strings.Repeat("G", 64) }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := entityPayload(entityID, "英伟达", []string{"英伟达"})
+			test.mutate(payload)
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				writer.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(writer).Encode(map[string]any{"result": map[string]any{"points": []any{
+					map[string]any{"id": entityID, "payload": payload},
+				}}})
+			}))
+			defer server.Close()
+			client, err := New(Config{
+				QdrantURL: server.URL, Embedder: &recordingEmbedder{}, EntityCollection: EntityCollection,
+				VectorSize: VectorSize, Timeout: time.Second, MaxResponseBytes: 1 << 20,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = client.ExactEntities(context.Background(), []eventsemantic.EntityLookup{{CandidateKey: "nvidia", Mention: "英伟达"}})
 			var remote *eventsemantic.RemoteError
 			if !errors.As(err, &remote) || remote.Code != "qdrant_response_invalid" || remote.Retryable {
 				t.Fatalf("err = %#v", err)

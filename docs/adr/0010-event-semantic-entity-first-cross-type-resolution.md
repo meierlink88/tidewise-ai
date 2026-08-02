@@ -37,6 +37,17 @@ Mention、Selection 或 Signal 失败可能删除同 Event 的其他合法事实
   出现时必须保留 primary supporting Evidence lineage；Evidence ID 仍必须属于该 Event。
 - AgentRun 持久化有界 per-stage mention/candidates/selection/variable/violation/isolation audit，
   供同批约 100 Event 验收和错误归因。
+- 模型 Stage 顶层数组是严格必填 envelope；`null`、`{}`、缺字段、`null` 数组或错误类型不得被
+  Go 零值解释为空结果，一次 repair 后仍非法才构成 terminal model-contract failure。
+- Selector 采用召回优先、独立 Review 兜底；合理名称后缀规范化可作为待审核候选，vector Top-1
+  不自动接受。唯一 exact identity 被拒或明显规范化候选被 `no_match` 时执行一次独立二次复核。
+- AgentRun 不维护手写简称/全称 identity guard；唯一 canonical/alias exact identity 来自正式
+  投影，其他候选由 Selector 与独立 AI Reviewer 判断是否同一业务对象。
+- AgentRun 对每个 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、
+  embedding model 与 content fingerprint fail closed；payload 不重复保存 `point_id`。缺少 Embedding
+  Secret 时必须在进程启动配置阶段失败。
+- `mention_not_entity` 只表示真正的日期、数值、状态、行为、报告或会议；ABox 缺失、TBox 未开放
+  与 retrieval/model miss 必须在验收中分别归因。
 
 ## 影响
 

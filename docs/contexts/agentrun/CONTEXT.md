@@ -120,10 +120,17 @@ recall。Selector 只能从当前 mention 的 Qdrant 候选选择正式 ID 或 `
 的正式 Entity Type Definition 分配允许角色；Entity Type 不由模型输出。Data 在 Submission
 中比对 `projected_entity_type` 与 PostgreSQL Entity ID/type/status/TBox。Vector Top-K 由
 `semantic_retrieval.entity_top_k` 配置，范围 1..20，当前校准值为 10。
+Selector 采用召回优先、独立 Review 兜底：合理的“系统/服务/设备/产品”等名称后缀规范化可
+选择为待审核 Candidate，vector Top-1 不自动接受；唯一 exact identity 或明显规范化候选被主
+Selector 拒绝时，由独立 Reviewer 做一次有界选择复核。`mention_not_entity` 只用于日期、数值、
+状态、行为、报告、会议等真正非实体，真实公司、产品、技术、指数不得用它掩盖 ABox/TBox gap。
 Entity Resolution 完成后，AgentRun 才按正式 Entity Type 从 pinned complete Variable
 Definition directory 确定性筛选适用目录，并以独立 Signal Stage 生成 Event-native
 VariableSignal 与可选自然语言 Measurement。EventEntityLink 可以没有 Signal；单个 Mention、
 Selection、Signal 或 Review item 非法时只隔离该候选，不撤销同 Event 的其他合法事实。
+对象同一性不使用 AgentRun 手写简称、职衔、国别前缀或证券后缀规则。唯一 canonical/alias exact
+identity 来自正式投影；其他候选由 Selector 提议并由独立 AI Reviewer 判断是否同一业务对象。
+合法简称缺口归正式 alias 数据治理，不在 Workflow 中建设第二套字符串 TBox。
 AgentRun 的 embedding 调用必须经 Eino `embedding.Embedder`与 eino-ext 官方
 OpenAI-compatible adapter；自定义 Qdrant adapter 只弥补官方单 query Retriever 无法提供的
 Event-batch、跨类型召回和候选白名单能力。每批未命中 mention 只发生一次
@@ -135,6 +142,11 @@ Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/�
 `indeterminate` 后只允许以冻结的 Adjudicator 身份执行第二轮，未知结果按 Data 已持久化
 的 Review Snapshot 恢复，第二次 `indeterminate` 进入 quarantine。Measurement 只携带 `measurement_text + evidence_ids`，完整语义由 AI
 审核对照 Evidence，不进行数值解析或归一化。
+严格 envelope 要求 mention/selection/signal/review 分别显式携带 `mentions`、`selections`、
+`variable_signals`、`items` 数组；`null`、`{}`、缺字段、`null` 数组或错误类型不能解释为空结果。
+AgentRun 对 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、
+embedding model 和 content fingerprint fail closed；payload 不要求重复 `point_id`。
+`EMBEDDING_API_KEY` 在进程启动配置阶段校验，不允许领取 Work Item 后才暴露缺失。
 _Avoid_: Event Fact Extractor Agent、DirectImpact、Direct Target/Rule、产业链传导、Theme/机会/风险结论、AgentRun 自研 embedding HTTP 协议
 
 **Event Semantic Work Item**:

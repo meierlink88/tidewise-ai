@@ -132,8 +132,8 @@ V3 Event Semantic。
 - `event_link_allowed` 与 `signal_subject_allowed` 分开：允许与 Event 建链不代表允许产生 Signal；
 - Allowed Event Role 必须来自正式 Role 词汇；
 - Context Lease 固定具体 Type key/version；AgentRun 不允许自行补充、改写或创造类型；
-- “国家是否建立独立 `country` 类型，还是映射到其他现有类型”属于单独的 TBox catalog 决策；
-  V3 Workflow 不得把国家默认映射成 `economy`。
+- “国家是否建立独立 `country` 类型，还是使用正式目录中现有 `economy` 类型”由 TBox catalog
+  决定；V3 Workflow 只使用被选正式候选携带的类型，不自行推断或改写。
 
 ### 5.3 Example boundaries
 
@@ -225,6 +225,9 @@ AgentRun，但 AgentRun 必须按 Workflow 阶段选择 Prompt 输入；“Conte
 ```
 
 Stage A 不输出 `predicted_entity_type`、`entity_role`、Entity ID、VariableSignal 或 Measurement。
+明确实体专名即使位于将来时、公告、报告或状态陈述中仍应提取，但必须收窄为原文中的实体 span：
+“日本央行将公布决议”提取“日本央行”，“多数美联储委员”提取“美联储”，“央行报告”提取
+“央行”；不得把整段陈述、报告名或状态当成 Mention。
 
 ### 6.4 Stage B — Cross-type Qdrant retrieval
 
@@ -269,8 +272,22 @@ Resolved Entity；同名跨类型或多个 exact 候选必须进入 Stage C。
 ```
 
 模型不输出 Entity Type。Workflow 从被选候选读取 projected Entity Type，并在 Submission 时由
-Data 以 PostgreSQL 复核。无法从当前上下文确定同一对象时必须 `no_match`；相似名称、同类型、
-同行业、同产业链或背景知识不能替代对象同一性。
+Data 以 PostgreSQL 复核。Selector 采用“召回优先、Review 兜底”：只要 vector 候选中存在与
+Mention 合理表示同一业务对象的候选，就选择最合理候选进入独立 Review；只有全部候选明显不是
+同一对象时才 `no_match`。省略“系统、服务、设备、产品”等通用后缀属于允许审核的规范化差异，
+例如“非侵入式脑机接口”可以选择“非侵入式脑机接口系统”。相似名称、同类型、同行业、同产业链
+或背景知识仍不能替代对象同一性。
+
+唯一 canonical name/alias exact 候选继续作为确定性 identity 解析结果，不允许 Selector 以
+`no_match` 静默删除；模型只需为其分配允许 Role，最终仍进入独立 Review。Vector Top-1 不能绕过
+Review 直接成为正式事实。对于 exact identity 被模型拒绝，或明显规范化等价候选仍被 primary
+Selector 判为 `no_match` 的情况，Workflow 必须使用独立 Reviewer 执行一次有界二次选择复核并
+记录初次与复核结论，避免单点误杀。
+
+`mention_not_entity` 仅允许日期、数值、状态、行为、报告、会议等真正非实体 Mention。真实公司、
+产品、技术、指数或其他实体指称即使 ABox 缺失或当前 TBox out of scope，也必须使用对应的
+ABox/TBox/identity gap 分类，不得伪装成 Stage A 非实体错误。Role 必须区分 `statement_source`、
+`actor` 与 `context`；“某人称……”中的发言主体不能与被谈论对象机械地都标为 `actor`。
 
 ### 6.6 Stage D — Filter Variable Definitions
 
@@ -300,6 +317,13 @@ PostgreSQL Entity/TBox/Evidence 做确定性 precheck；AI Reviewer 按候选独
 Event-native Signal 和 Measurement Evidence fidelity。accepted/latest/non-superseded 结果才供下游
 Theme Analyst 使用。
 
+对象同一性不在 AgentRun 代码中维护手写简称、职衔、国别前缀或证券后缀规则。唯一正式
+canonical/alias exact identity 由投影确定性解析；其他候选由 Selector 提议并由独立 AI Reviewer
+仅审核“是否为同一个业务对象”。相似、上下级、隶属或业务相关不能替代 identity，例如
+“巴西总统卢拉→冯德莱恩”“欧元区→欧盟”“中国国际进口博览局→商务部”以及
+“Robotaxi→自动驾驶系统”必须 fail。合法简称应进入正式 Entity alias 数据治理；不得为无法穷举
+的语言现象在 Workflow 中建设第二套 TBox 或字符串启发式门禁。
+
 ## 7. Validation Policy
 
 ### 7.1 Mention grounding
@@ -320,6 +344,10 @@ Entity 别名、简称、跨语言名称和类别规范化由 Stage C 的对象�
 - 被选 `entity_id` 必须属于该 Mention 紧邻的 exact/vector candidate set；
 - 不得使用其他 Mention、之前 retry 或其他 Event 的候选；
 - candidate 必须具有合法 Entity ID、Entity Type、active status 和 projection identity；
+- AgentRun 必须逐 point 校验 Qdrant 外层 `point id == payload.entity_id`，并校验审计元数据
+  `source_identity`、`projection_version`、`embedding_model` 与非空 SHA-256
+  `content_fingerprint`；旧版本、错误模型、异源、不完整或身份不一致 payload 一律以 retrieval
+  contract failure fail closed，不得进入 Selector。payload 不重复保存 `point_id`；
 - candidate Entity Type 必须在 pinned TBox 中 active 且 `event_link_allowed=true`；
 - `entity_role` 必须被被选 Entity Type 的 Allowed Event Roles 接受；
 - Data 必须验证 Qdrant projected Entity ID/type 与 PostgreSQL 正式 Entity ID/type 一致；
@@ -343,6 +371,13 @@ Entity 别名、简称、跨语言名称和类别规范化由 Stage C 的对象�
 - 单个非法 Signal 只拒绝该 Signal；
 - Measurement 失败只拒绝父 Signal；
 - EventEntityLink 不依赖 VariableSignal 存在；一个只有合法 EntityLink 的 Submission 是有效结果。
+
+每个模型阶段的顶层 JSON envelope 是 Execution 级合同。`mention_extraction` 必须显式包含
+`mentions` 数组、`entity_selection` 必须显式包含 `selections` 数组、`signal_extraction` 必须显式
+包含 `variable_signals` 数组、Review 必须显式包含 `items` 数组。数组可以合法为空，但顶层
+`null`、`{}`、缺字段、字段为 `null` 或错误类型均不合法；不得因 Go 零值把这些输出静默解释为
+零 Mention、no_match、空 Signal 或全拒绝。首次非法只允许一次 bounded repair，repair 后仍非法
+才以 terminal `model-contract failure` 结束。
 
 只有以下情形可以终止整个 Execution：
 
@@ -374,6 +409,8 @@ Entity 别名、简称、跨语言名称和类别规范化由 Stage C 的对象�
 - Signal Stage 在 Entity Resolution 后运行，只接收 applicable Variable Definitions；
 - 原生候选与 selector 校验改为 candidate-level isolation；
 - 保留 typed、acyclic Eino Workflow，不引入开放式 Tool loop 或 Data PG 访问。
+- 进程启动配置必须在 worker 领取 Work Item、创建 Lease/Context 前验证非空
+  `EMBEDDING_API_KEY`；运行到 Semantic Runtime 构造时才暴露缺密钥不符合启动合同。
 
 ### Qdrant projection
 
@@ -416,6 +453,13 @@ Entity 缺失”和“正式 Entity 存在但 alias/retrieval 未覆盖”；Age
 Data PostgreSQL。非法字段、Evidence 或 candidate selection 继续归 validation/model isolation，
 transport failure 记录为 Execution failure。
 
+固定样本验收报告不得继续输出合并后的 `abox_or_retrieval` 或把真实实体归为
+`stage_a_non_entity`。报告层必须以 PostgreSQL、pinned TBox、Qdrant 候选与 Stage audit 交叉核验，
+最终使用 `correct_reject`、`abox_missing`、`tbox_out_of_scope`、`mention_extraction_miss`、
+`retrieval_miss`、`selector_false_reject`、`review_reject`、`model_contract_failure` 八类。AgentRun
+运行时不能访问 PostgreSQL，因此运行时保留安全的原始原因，验收工具/报告在 Service 边界外完成
+最终 owner 拆分。
+
 ## 10. Acceptance
 
 ### Deterministic contract fixtures
@@ -430,6 +474,14 @@ transport failure 记录为 Execution failure。
 - Signal prompt 只包含 resolved Entity Type applicable definitions；
 - 没有 Signal 的合法 EventEntityLink 可以提交、审核并 accepted；
 - 一个非法 Mention/Signal 不阻止同一 Event 的其他合法候选发布；
+- exact identity 只来自正式 canonical/alias；其他候选必须经过独立 AI Review，AgentRun 不维护
+  无法穷举的简称/全称字符串规则；
+- `null`、`{}`、缺少必填顶层数组和数组错误类型经过一次 repair 后仍会 terminal；显式合法空数组
+  保持成功；
+- 外层 point ID 与 payload Entity ID 不一致、错 projection version、embedding model、source
+  identity 或缺少
+  content fingerprint 的 Qdrant point 均不得进入 Selector；
+- AgentRun 缺少 `EMBEDDING_API_KEY` 时在启动配置阶段失败；
 - Event title/summary 中的 Mention 可以通过 primary Evidence lineage 建链；不再要求所有 Evidence
   都逐字包含 Mention；
 - Event Semantic V3 仍产生零 DirectImpact、零 Theme、零投资结论。
@@ -445,6 +497,9 @@ transport failure 记录为 Execution failure。
 - ABox/TBox gap、retrieval miss、model selection、validation 与 transport 分类；
 - Prompt/context bytes、模型调用次数/延迟、Qdrant batch 数与 p50/p95；
 - 与 V2 的 16 accepted / 57 rejected / 27 model-contract failed 基线逐项对比。
+- 对每个 rejected Event 给出八类最终归因，并单独给出 accepted EventEntityLink 的对象精度与
+  Role 问题；显式核验 DirectImpact=0、Direct Target/Transmission Rule 调用=0，并以 V3 DTO、
+  Prompt、Workflow/调用审计中不存在 Theme/Reason Tree 路径作为确定性越界审计证据。
 
 验收必须证明：正式候选不会再因错误 predicted type 被搜索前排除；一个候选错误不会删除同一
 Event 中可接受的其他 EventEntityLink；错误绑定率不能因跨类型 recall 而上升。
@@ -458,6 +513,10 @@ Event 中可接受的其他 EventEntityLink；错误绑定率不能因跨类型 
 - AgentRun compiled Workflow 测试覆盖三阶段 Prompt、跨类型 exact/vector recall、selector、按类型变量过滤；
 - candidate isolation 测试覆盖非法 Mention、缺失 selection、非法 Signal 和 Measurement fail；
 - Qdrant adapter 使用真实 Qdrant 验证无类型过滤的一次 Event-batched exact + vector query；
+- Stage envelope 合同测试覆盖 `null`、`{}`、缺字段、错误类型、合法空数组与 repair exhaustion；
+- Qdrant adapter 合同测试覆盖 projection identity/version/model/fingerprint fail closed；
+- AgentRun configuration 测试覆盖缺少 Embedding 密钥时的启动拒绝；
+- Data confidence 校验与 OpenAPI decimal string pattern 保持同一合同，拒绝 `.5`、`1e-3` 等格式；
 - provider-consumer、OpenAPI、configuration、architecture、cross-service E2E 与固定样本验收全部通过；
 - 最终运行 gofmt、go vet、受影响 Go suites、binary build、migration chain、Standards/Spec code review。
 
@@ -499,3 +558,21 @@ Semantic，回退 AgentRun/Data binaries；forward Schema 与历史数据保留�
 6. 是否接受 candidate-level isolation 与 EventEntityLink 可独立于 VariableSignal 发布；
 7. 是否接受 Mention 出现在 Event 或至少一条 Evidence，并保留 primary Evidence lineage；
 8. `country` 是否在后续独立 TBox catalog 任务中决定，而不是本次顺带创建。
+
+## 15. Corrective Eino reference-first audit
+
+本轮在以下只读固定参考上重新完成 reference-first gate：
+
+| Reference | Commit | Inspected | Decision |
+| --- | --- | --- | --- |
+| `cloudwego/eino` | `922b6a8a233b5233fe47eecee6cd2c005e8c39cd` | `compose/workflow.go`、`components/embedding/interface.go` | 继续使用 typed、acyclic、显式 Compile 的 Workflow 和批量 `EmbedStrings`；Stage envelope 的业务必填数组校验仍由 AgentRun Lambda 边界负责。 |
+| `cloudwego/eino-ext` | `9137edd89e72b72735ede69db1c5ae29178a6e41` | `components/embedding/openai/embedding.go`、`components/retriever/qdrant/retriever.go` | 继续使用官方 OpenAI-compatible Embedder；标准 Retriever 仅支持单 query/单次 embedding 与单次 Qdrant query，无法表达 Event 多 Mention 批量和候选白名单，因此不采用。 |
+| `cloudwego/eino-examples` | `171220631fb7068ead50b7cd964b8c471647117d` | `compose/workflow/1_simple/main.go` | 采用 composition root 显式构造/Compile 的结构；拒绝示例中的全局 callback 与调用期 `context.Background()`。 |
+
+本轮没有发现可替代严格 JSON envelope、projection provenance 门禁、candidate whitelist 或
+Data PostgreSQL authority 的 Eino/Eino Ext 组件；这些保持为 Tidewise AgentRun/Data 合同。
+
+用户最新决议允许本次验收使用现有 active/current TBox 中的 `economy`、`index`、`market`、
+`instrument` 等新增定义。Workflow 不在代码中维护类型 denylist，仍完全服从 pinned TBox 的
+`event_link_allowed`；只有正式定义未启用的类型才归为 `tbox_out_of_scope`。本次整改不额外生成、
+删除或改写这些 catalog row，也不以扩大目录掩盖 Workflow 质量问题。

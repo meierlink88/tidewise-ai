@@ -1,181 +1,145 @@
-# Event Semantic V3 local acceptance report
+# Event Semantic V3 local corrective acceptance report
 
 Date: 2026-08-02
+
 Issue: #164
+
+PR: #165
+
 Environment: local only; no UAT deployment
 
 ## Outcome
 
-The Entity-first V3 workflow completed the fixed 100 Event sample with 20 accepted submissions, 80
-terminal rejected submissions and zero execution failures. A rejected submission is an auditable
-abstention: after candidate-level isolation, the Event retained no acceptable EventEntityLink. It is not
-a model-contract or transport failure.
+The effective fixed 100 Event sample completed with **41 accepted, 59 rejected and 0 execution
+failures**. It extracted 237 grounded mentions and produced 54 accepted EventEntityLinks. The accepted
+links were independently checked: 47 were canonical/alias identities and seven were defensible short-name
+or normal-form matches. No accepted wrong-object binding was found in the sample.
 
-The sample extracted 237 grounded raw mentions, accepted 23 EventEntityLinks and rejected one unsafe
-binding. Nineteen accepted sample Events were valid link-only Events; one accepted Event also produced
-one VariableSignal and one natural-language Measurement. The separately executed fixed NVIDIA/Amkor
-Event accepted one EntityLink, one VariableSignal and one natural-language Measurement. No run produced
-DirectImpact.
+The separately executed NVIDIA/Amkor Event was accepted with one NVIDIA EventEntityLink, one
+VariableSignal and one natural-language Measurement. Amkor remained `no_match`; it was not incorrectly
+bound to Onsemi. DirectImpact and all prohibited downstream reasoning remained zero.
 
-Compared with V2's 16 accepted, 57 rejected and 27 model-contract failures, V3 raised completed workflow
-coverage from 73 to 100 Events while preserving conservative `no_match` behavior.
+## Corrective scope
 
-## Frozen architecture and projection
+- Stage envelopes now require their named top-level arrays. `null`, `{}`, missing/null/wrong-type fields,
+  duplicate keys, unknown fields and trailing JSON receive one bounded repair and then fail as a model
+  contract error.
+- Stage A extracts only grounded raw mentions and Evidence IDs. Entity Type, role, Signal and Measurement
+  are no longer generated there.
+- Exact and vector recall run across active, event-link-allowed Entity Types. A model-predicted type can no
+  longer exclude the correct candidate before search.
+- The Selector chooses only a supplied formal candidate or `no_match`; an independent Reviewer checks
+  same-object identity. Unique canonical/alias exact matches remain deterministic.
+- No hand-written abbreviation or substring identity rules were added. Legitimate alias gaps belong in
+  formal alias data; related-but-different objects remain rejected.
+- Role whitelists remain strict. A role failure is not automatically classified as a Selector false reject.
+- Signal extraction runs only after entity resolution. Signal or Measurement rejection does not revoke an
+  accepted EventEntityLink.
+- AgentRun validates Qdrant outer point ID against payload `entity_id` and checks projection provenance.
+  Payload does not duplicate `point_id`; Data still validates formal ID, active status and type against PG.
+- `EMBEDDING_API_KEY` is validated at startup, before a Work Item or Context Lease is acquired.
+- OpenAPI review candidate types and decimal confidence validation now match runtime behavior.
 
-- PostgreSQL remains the only fact authority. Qdrant is a rebuildable retrieval projection and owns no
-  accepted state.
-- Data owns PostgreSQL-to-Qdrant projection and uses an ordinary OpenAI-compatible HTTP adapter. Data's
-  module has no Eino/eino-ext dependency.
-- AgentRun owns Qdrant lookup. Its Event-batch adapter receives an injected official Eino
-  `embedding.Embedder`, embeds unresolved mentions once, and performs one Qdrant query batch.
-- Qdrant version is v1.15.5. Embedding is DashScope `text-embedding-v4`, 1024 dimensions, cosine.
-- `entity_semantic_v1`: green, 4,788 active/event-link-allowed Entity points.
-- `variable_definition_semantic_v1`: green, 12 active/current VariableDefinition points.
-- Points record `projection_version=event-semantic-projection.v1` and
-  `embedding_model=text-embedding-v4`; full rebuild uses idempotent upsert.
+## Ownership and dependency boundaries
 
-Only formal Entity identity/retrieval text and VariableDefinition contract data are vectorized. Events,
-Evidence, accepted facts, DirectImpact and the relationship graph are not vectorized.
+- PostgreSQL is the fact authority; Qdrant is a rebuildable recall projection and owns no accepted state.
+- Data owns PG-to-Qdrant projection, uses a plain OpenAI-compatible HTTP embedding adapter and has no
+  Eino/eino-ext dependency.
+- AgentRun owns direct Qdrant lookup. Its thin Event-batch adapter receives an injected official Eino
+  `embedding.Embedder`, performs one batch embedding and one Qdrant query batch for unresolved mentions.
+- Both sides use DashScope `text-embedding-v4`, 1024 dimensions and cosine distance.
+- Entity and active/current VariableDefinition data are vectorized. Event, Evidence, accepted facts,
+  DirectImpact and relationship graphs are not vectorized.
 
-## Data TBox migration
+## Effective 100 Event metrics
 
-Migration `000037_event_semantic_entity_first_v3.sql` extends the existing
-`entity_type_definitions` table with `name_zh`, `name_en`, `business_definition`,
-`inclusion_criteria`, `exclusion_criteria` and `event_link_allowed`. Data domain models, PostgreSQL
-repositories, API/OpenAPI contracts, Context manifests, Research Analysis consumers and the projector
-all read and preserve the fields.
-
-The migration contains a one-time, manually authored backfill for all 12 active definitions and validates
-content before adding non-null/content constraints. No Curator, generation Agent, management UI or
-continuous TBox synchronization was added.
-
-## Final 100 Event result
-
-The run reused the fixed sample whose ID CSV SHA-256 is
+The fixed sample ID CSV SHA-256 is
 `820a9a280a86808a1df481273140f40fbd0963a641d7f29a4e8db06ae85044b6`.
-The authoritative full-batch report is
-`/private/tmp/event-semantic-v3-acceptance-final-v3.json`, SHA-256
-`7fdfb44774b3bf9db464e6f049bfcc28795e6c69262ae9b3675eb697db28044d`.
-It contains 100 comparison records plus the separately marked fixed Event. One record initially returned
-`EVENT_SEMANTICS_CONFLICT` because a prior diagnostic embedding failure still owned an unexpired Context
-Lease. After that lease expired, the same Event was rerun from
-`/private/tmp/event-semantic-v3-acceptance-retry.json`, SHA-256
-`ba5b8099f751161c18c02d1d61892fe04fe2e9692ab041e9a9e3cf9c5c6abf2f`, and terminated `rejected`
-without an execution error. All effective 100-Event metrics below replace the conflict record with this
-retry; the transient and retry remain separately auditable.
 
 | Metric | Result |
 | --- | ---: |
-| Accepted / rejected / failed Events | 20 / 80 / 0 |
+| Accepted / rejected / failed Events | 41 / 59 / 0 |
 | Raw mentions | 237 |
-| Exact-hit mentions | 19 |
-| Vector fallbacks | 221 |
-| `no_match` | 213 |
-| EventEntityLink accepted / rejected | 23 / 1 |
-| VariableSignal accepted / rejected | 1 / 0 |
-| Measurement emitted / accepted / rejected | 1 / 1 / 0 |
-| Accepted link-only Events | 19 |
-| Projected type / PG type mismatches | 0 |
-| DirectImpact rows | 0 |
-| Direct Target / transmission-rule calls | 0 / 0 |
-| Data entity-search calls | 0 |
+| Exact hits / vector fallbacks / no_match | 53 / 186 / 154 |
+| EventEntityLink accepted / rejected | 54 / 29 |
+| VariableSignal accepted / rejected | 0 / 2 |
+| Measurement emitted / accepted / rejected | 1 / 0 / 1 |
+| Primary / secondary selection decisions | 233 / 3 |
+| Stage violations / model-contract failures | 0 / 0 |
+| DirectImpact / Direct Target / transmission-rule calls | 0 / 0 / 0 |
+| Theme / Reason Tree outputs | 0 / 0 |
 
-The accepted Measurement remained natural-language `measurement_text` plus Evidence lineage; no
-numeric/value-shape interpretation gate was involved.
+The full run initially had seven 10-second embedding/Qdrant deadline failures. With explicit user
+authorization, only those seven local acceptance leases were expired and rerun at concurrency one. No
+rows were deleted. The final effective result replaces those records and later targeted regressions in
+the original 100 records; it does not count retries as additional Events.
 
-## Retrieval coverage and candidate isolation
+Artifacts:
 
-Across 93 Event-level exact batches, 237 Mention lookups produced 218 empty, 16 unique and three
-ambiguous candidate sets. Ambiguous exact mentions were still sent through the single Event-level vector
-batch; exact and vector results were merged before selection. This prevents a non-unique alias from
-silently becoming a binding.
+- Base run: `/private/tmp/event-semantic-v3-corrective-final.json`, SHA-256
+  `77b7a3655e1fee22f48b68061eed8c5e9d3dcf0f6fc969d617ec32adeaa51e7a`.
+- Timeout retry: `/private/tmp/event-semantic-v3-corrective-retry.json`, SHA-256
+  `a4742448851c947f1874c4b9601c29e306877ff252b31cc388ff1db06e663155`.
+- Final no-handwritten-guard overrides:
+  `/private/tmp/event-semantic-v3-corrective-final-noguard.json`, SHA-256
+  `58d90d0d8e6bf5fdfed695f586b672c3d2beb163d2f462c0bec22fc3b6546ddf`.
+- Related-institution regression:
+  `/private/tmp/event-semantic-v3-related-institution-regression.json`, SHA-256
+  `422d051d0caa79b27c564a69d376b8ac0ffccc97dc8633370961cde789bc7dea`.
+- Effective independent audit:
+  `/private/tmp/event-semantic-v3-corrective-final-effective-audit.json`, SHA-256
+  `1c17c1ac4f5698101e1418400fff5fd9545f9378cb3121a3eb82260702a6da9c`.
 
-Cross-type vector retrieval returned 2,210 audited candidates across ten formal types:
+## Rejection classification
 
-| Entity Type | Candidates |
-| --- | ---: |
-| `alliance_org` | 252 |
-| `chain_node` | 1,031 |
-| `commodity` | 12 |
-| `company` | 119 |
-| `concept` | 53 |
-| `industry` | 90 |
-| `industry_chain` | 31 |
-| `person` | 297 |
-| `policy_body` | 210 |
-| `security` | 115 |
+The effective audit cross-checked Stage output, Qdrant candidates, active TBox and formal PG identity.
+It does not collapse missing formal data and retrieval failures, and does not treat every role rejection
+as a Selector error.
 
-There were 188 multi-type candidate sets. Retrieval no longer excludes a correct candidate using an LLM
-predicted type. The selected candidate's projected type is submitted to Data and deterministically
-compared with the PG Entity type; this batch recorded zero mismatches.
+| Required category | Events | Meaning in this sample |
+| --- | ---: | --- |
+| `correct_reject` | 0 | No Event was placed in this residual bucket |
+| `abox_missing` | 41 | Entity-like mentions lacked a canonical/alias identity in formal PG data |
+| `tbox_out_of_scope` | 0 | Newly available active types were included in this run |
+| `mention_extraction_miss` | 0 | No audited whole-Event miss remained |
+| `retrieval_miss` | 0 | No formal exact identity was absent from the audited candidate path |
+| `selector_false_reject` | 0 | No confirmed same-object candidate remained wrongly rejected |
+| `review_reject` | 18 | Candidate proposed, then rejected by deterministic or AI same-object/role review |
+| `model_contract_failure` | 0 | All strict stage envelopes parsed after at most one repair |
 
-Two candidates were isolated without terminating their Events: one
-`mention_evidence_support_invalid / model` and one `duplicate_entity_link / agentrun`. Among selector
-`no_match` decisions, 44 were classified as `stage_a_non_entity_mention / model_extraction`, 166 as
-`identity_projection_gap / abox_or_retrieval`, and two as
-`selector_rejected_exact_candidates / model_selection`. The candidate lists plus later PG audit allow the
-combined ABox/retrieval category to be split without giving AgentRun PG access. Final JSON-envelope,
-Context, transport and unknown-outcome failures were all zero after the one lease-expiry retry.
+`review_reject` includes safety decisions such as rejecting `菲律宾警方 -> 菲律宾` and rejecting the
+withdrawal action phrase as an Israel Entity. These are related concepts, not the same formal object, so
+loosening the role whitelist would be incorrect.
 
-## Manual EntityLink audit
+## Accepted link quality
 
-All 24 persisted sample EventEntityLink decisions were inspected against mention text, selected PG Entity,
-formal type and Event context.
+All 54 accepted links were inspected. Forty-seven were formal canonical/alias matches. Seven required
+manual semantic confirmation and were accepted as the same object:
 
-- The 23 accepted links were direct identities or defensible normal forms in this sample. Examples include
-  `央行` -> `中国人民银行`, `欧洲央行` -> `欧洲中央银行`, `福特` -> `福特汽车`, and direct
-  people/company/policy-body matches. No accepted wrong-object or wrong-type binding was observed.
-- The compound mention `中国人民银行副行长邹澜` was proposed as the institution
-  `中国人民银行`; independent review rejected it as an object mismatch.
+- `福特 -> 福特汽车`
+- `丰田 -> 丰田汽车`
+- `乌克兰总统泽连斯基 -> 泽连斯基`
+- `欧洲央行 -> 欧洲中央银行` in two Events
+- `拉加德 -> 克里斯蒂娜·拉加德`
+- `人民银行 -> 中国人民银行`
 
-This is a bounded audit of the fixed sample, not a global precision claim. Cross-type recall increased the
-candidate surface without increasing observed accepted wrong bindings in this run.
+Previously observed wrong bindings are absent: Lula was not bound to von der Leyen, eurozone was not
+bound to the EU, CIEB was not bound to MOFCOM, Robotaxi was not bound to an autonomous-driving system,
+Amkor was not bound to Onsemi, and `国新办` was not bound to `国务院`.
 
-## Mention completeness proxy
+Role review also confirmed that statement sources and discussed objects are no longer mechanically both
+labelled `actor`. The remaining role risk is model variability on context versus event-subject roles, not
+an observed wrong-object acceptance in this sample.
 
-The earlier system-external DeepSeek analysis is not gold truth: it includes amounts, periods, metrics and
-other objects outside Stage A's frozen formal-Entity scope. After per-Event normalization and de-duplication,
-it contains 261 mentions. V3 produced 236 normalized unique mentions (237 raw Stage A items):
+## Signal and Measurement
 
-- exact text overlap: 155 / 261 (59.4% reference-side proxy);
-- lexical containment overlap: 203 / 261 (77.8% reference-side proxy);
-- exact overlap over V3 unique mentions: 155 / 236 (65.7% precision-like proxy).
+The 100 comparison Events emitted two Signals, both rejected because their parent entity candidates were
+rejected. One natural-language Measurement was emitted and rejected with its parent Signal. This confirms
+candidate-level isolation: Signal/Measurement failure did not remove other valid links.
 
-These are taxonomy-sensitive lexical proxies, not semantic precision/recall measurements. Remaining gaps
-must be classified by ABox/TBox coverage and manual relevance before being treated as model omissions.
-
-## VariableSignal and Measurement quality
-
-The 100 comparison Events accepted one Signal for the formal `汽车` industry:
-`production_volume / decrease / actual`, with narrative Measurement
-`2026年1-6月汽车生产1510万台，同比降4%`. The Signal was grounded in the Event's Evidence even though
-the title foregrounded industry profit rate. No Signal or Measurement was rejected in the effective run.
-
-The fixed NVIDIA/Amkor Event accepted `order_value / increase / actual` and natural-language Measurement
-`15亿美元`. The result demonstrates that the post-resolution Signal stage can use the chosen Entity's
-formal type and pinned complete VariableDefinition directory without numeric parsing. Direction-only
-Signals and link-only Events remain legal.
-
-## Size and latency
-
-| Metric | Result |
-| --- | ---: |
-| Prompt bytes total / average / min / max | 1,607,593 / 16,075 / 2,021 / 40,773 |
-| Prompt bytes p50 / p95 | 14,734 / 30,188 |
-| Context bytes total / average / min / max | 1,511,027 / 15,110 / 14,867 / 15,779 |
-| Context bytes p50 / p95 | 15,067 / 15,421 |
-| Model calls / total model latency | 220 / 308,594 ms |
-| Event latency p50 / p95 | 3,112 / 6,202 ms |
-| Qdrant exact Event-batch calls | 93 |
-| Qdrant vector Event-batch calls | 88 |
-| Qdrant candidates returned | 2,232 |
-| Qdrant latency samples / p50 / p95 | 181 / 5 / 337 ms |
-| Data API calls / request bytes | 421 / 135,603 |
-| Data latency p50 / p95 | 8 / 15 ms |
-
-Events with no extracted Mention make no Qdrant call. Every Event with mentions performs one exact batch;
-every Event with a non-unique or unresolved exact result performs one Eino `EmbedStrings` batch and one
-Qdrant query batch, regardless of mention count. There is no mention-level N+1.
+Measurement remains analyst-readable natural language with Evidence lineage; no numeric-shape database
+gate was reintroduced. The fixed NVIDIA Event separately accepted `order_value / increase / actual` with
+Measurement `15亿美元`.
 
 ## Fixed NVIDIA / Amkor Event
 
@@ -183,76 +147,64 @@ Event:
 
 > 2026年7月，英伟达与全球第二大半导体封测厂商安靠科技达成了一项价值15亿美元的战略合作，并首次将“预付款锁定产能”的模式延伸至第三方封测厂。
 
-The dedicated run was accepted in 6,679 ms with four model calls:
+Result:
 
-- Stage A extracted only `英伟达` and `安靠科技`, both with Evidence lineage; the amount was not emitted
-  as an Entity Mention.
-- Exact lookup for `英伟达` returned both the company and `英伟达生态` concept. The ambiguous result also
-  entered vector retrieval; the selector chose the formal NVIDIA company.
-- `安靠科技` has no formal ABox Entity. Its ten cross-type vector candidates were unrelated, so the
-  selector returned `no_match` instead of substituting Onsemi or another similar-name company.
-- NVIDIA received `order_value / increase / actual` with narrative Measurement `15亿美元`.
-- Accepted EventEntityLink / VariableSignal / Measurement counts were `1 / 1 / 1`.
-- No packaging-chain Entity, DirectImpact, cross-Entity propagation, Theme or investment conclusion was
-  emitted.
+- Stage A extracted `英伟达` and `安靠科技` with Evidence lineage.
+- NVIDIA resolved to the formal company and produced one accepted EventEntityLink.
+- Amkor had no formal same-object candidate and remained `no_match`.
+- One `order_value` VariableSignal and natural-language Measurement `15亿美元` were accepted.
+- No packaging-chain propagation, DirectImpact, Theme or investment conclusion was emitted.
 
-## Comparison with V2
+## Size and latency
 
-| Metric | V2 | V3 |
-| --- | ---: | ---: |
-| Accepted / rejected / failed Events | 16 / 57 / 27 | 20 / 80 / 0 |
-| Mentions | 212 | 237 |
-| Exact / fallback / `no_match` | 15 / 197 / 153 | 19 / 221 / 213 |
-| EventEntityLink accepted / rejected | 18 / 0 | 23 / 1 |
-| Signal accepted / rejected | 1 / 0 | 1 / 0 |
-| Prompt bytes total / average | 1,839,781 / 18,398 | 1,607,593 / 16,075 |
-| Event latency p50 / p95 | 3,844 / 8,133 ms | 3,112 / 6,202 ms |
-| Qdrant candidates | 830 | 2,232 |
-| Data calls / request bytes | 389 / 107,595 | 421 / 135,603 |
+| Metric | Result |
+| --- | ---: |
+| Prompt bytes total / average | 1,897,567 / 18,975 |
+| Prompt bytes min / p50 / p95 / max | 9,606 / 17,290 / 31,015 / 38,363 |
+| Context bytes total / average | 1,793,129 / 17,931 |
+| Context bytes min / p50 / p95 / max | 17,688 / 17,888 / 18,242 / 18,600 |
+| Model calls / total latency | 274 / 589,141 ms |
+| Event latency p50 / p95 | 5,329 / 21,887 ms |
+| Qdrant exact / vector Event-batch calls | 100 / 84 |
+| Qdrant candidates / latency p50 / p95 | 1,915 / 3 / 2,366 ms |
+| Data API calls / request bytes | 459 / 168,761 |
+| Data API latency p50 / p95 | 8 / 17 ms |
 
-V3 Context is larger because it dynamically includes authored Entity Type boundaries and cross-type
-candidates. Total prompt size and Event latency nevertheless fell. Candidate count rose as expected after
-removing predicted-type hard filtering; the audited sample did not show an accepted wrong-type increase.
+There is no mention-level embedding/query N+1. The seven initial deadline failures show that the local
+embedding path is sensitive to high concurrent acceptance load; this is a performance risk, not a final
+workflow failure.
 
-## Remaining differences by owner
+## Comparison
 
-### ABox gaps
+| Run | Accepted | Rejected | Failed |
+| --- | ---: | ---: | ---: |
+| V2 baseline | 16 | 57 | 27 |
+| Earlier V3 acceptance | 20 | 80 | 0 |
+| Corrective V3 effective result | 41 | 59 | 0 |
 
-- Amkor and other mentioned organizations/products remain absent and correctly end as `no_match`.
-- V3 never creates a missing Entity or VariableDefinition.
+The correction kept V3's elimination of whole-Event model-contract failures while recovering valid links
+previously lost to Stage A misses, type-filtered retrieval and over-conservative selection. Cross-type
+recall did not introduce an observed accepted wrong-object binding in the manually audited sample.
 
-### TBox gaps
+## Remaining risks
 
-- Only 12 active VariableDefinitions exist, explaining the low Signal yield.
-- Some formal entities have Entity Types that are not active/event-link-allowed for this workflow and are
-  intentionally excluded from the projection.
-- Instrument-versus-commodity and product-versus-company boundaries now prefer safe rejection until the
-  correct formal object exists.
-
-### Model errors
-
-- One Mention/Evidence grounding violation and one duplicate Entity selection were isolated.
-- One unsafe compound-person-to-institution selection was rejected by review.
-- These errors no longer terminate unrelated candidates in the same Event.
-
-### Workflow result
-
-- Stage A emits only raw grounded Mention plus Evidence IDs.
-- Entity Type no longer comes from model prediction or filters retrieval before candidate selection.
-- Selector chooses only a supplied formal Entity ID or `no_match` and assigns role; Data revalidates the
-  selected ID, status, projected type and evidence lineage against PG.
-- Signal generation is a separate post-resolution stage and cannot revoke an accepted EventEntityLink.
-- The 27 V2 whole-Event model-contract failures became zero V3 execution failures.
+- The largest gap is formal ABox coverage: 41 rejected Events contain entity-like mentions without a
+  formal canonical/alias identity.
+- Eighteen Events ended after candidate review; these require future per-case data/model review, not a
+  blanket relaxation of identity or role constraints.
+- Alias governance should add confirmed short names to formal Entity aliases instead of accumulating code
+  heuristics.
+- The fixed sample is an auditable regression set, not a global precision/recall guarantee.
+- Local concurrent embedding showed a long-tail latency issue; production resilience is outside this
+  one-time local acceptance scope.
 
 ## Verification
 
-- Data migrations 000001 through 000037 on a fresh PostgreSQL database: pass.
-- AgentRun migrations 001 through 012 on a fresh PostgreSQL database: pass.
-- Data TBox migration contract and active-definition completeness: pass.
-- Data Event Semantic and AgentRun stage-audit PostgreSQL integration seams: pass.
-- Data-owned real PostgreSQL-to-Qdrant full rebuild: pass, 4,788 Entity and 12 VariableDefinition points.
-- AgentRun cross-type exact/vector batching and injected Eino Embedder tests: pass.
-- Data and AgentRun `go test ./...` and `go vet ./...`: pass.
-- Repository architecture/contract tests: pass.
-- DirectImpact rows and prohibited dependency/call audit: zero.
-- No UAT or production deployment was performed.
+- AgentRun `go test ./...` and `go vet ./...`: pass.
+- Data `go test ./...` and `go vet ./...`: pass.
+- Repository contract `go test ./...`: pass.
+- Strict stage-envelope, startup config, Qdrant provenance, batch retrieval, OpenAPI confidence and Data
+  precheck tests: pass.
+- Data projector test confirms stable outer Point IDs and no duplicate payload `point_id`: pass.
+- `git diff --check`: pass.
+- No UAT/production deployment and no PR merge were performed.

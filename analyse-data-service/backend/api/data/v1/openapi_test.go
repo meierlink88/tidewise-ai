@@ -93,6 +93,14 @@ func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.
 	assertStringSet(t, code["enum"], "EVENT_SEMANTIC_CONTEXT_DRIFT")
 }
 
+func TestEventSemanticV3ReviewCandidateTypesExcludeDirectImpact(t *testing.T) {
+	document := loadContract(t)
+	reviewItem := schema(t, document, "EventSemanticReviewItem")
+	properties := object(t, reviewItem["properties"], "EventSemanticReviewItem properties")
+	candidateType := object(t, properties["candidate_type"], "candidate_type")
+	assertStringSet(t, candidateType["enum"], "entity_link", "variable_signal")
+}
+
 func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")

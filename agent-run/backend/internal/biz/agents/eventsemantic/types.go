@@ -390,13 +390,14 @@ type CandidateSetAudit struct {
 }
 
 type SelectionAudit struct {
-	CandidateKey string `json:"candidate_key"`
-	EntityID     string `json:"entity_id,omitempty"`
-	EntityType   string `json:"entity_type,omitempty"`
-	EntityRole   string `json:"entity_role,omitempty"`
-	NoMatch      bool   `json:"no_match"`
-	ReasonCode   string `json:"reason_code,omitempty"`
-	Owner        string `json:"owner,omitempty"`
+	CandidateKey    string `json:"candidate_key"`
+	EntityID        string `json:"entity_id,omitempty"`
+	EntityType      string `json:"entity_type,omitempty"`
+	EntityRole      string `json:"entity_role,omitempty"`
+	NoMatch         bool   `json:"no_match"`
+	ResolutionRoute string `json:"resolution_route"`
+	ReasonCode      string `json:"reason_code,omitempty"`
+	Owner           string `json:"owner,omitempty"`
 }
 
 type ApplicableVariableAudit struct {

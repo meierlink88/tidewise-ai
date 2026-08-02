@@ -2,6 +2,19 @@ package eventsemantics
 
 import "testing"
 
+func TestValidConfidenceMatchesOpenAPIDecimalStringContract(t *testing.T) {
+	for _, value := range []string{"", "0", "1", "0.5", "0.00001", "1.0", "1.00000"} {
+		if !validConfidence(value) {
+			t.Errorf("validConfidence(%q) = false, want true", value)
+		}
+	}
+	for _, value := range []string{".5", "1e-3", "+0.5", "00.5", "0.", "0.000001", "1.00001", " 0.5 ", "-0.1", "2"} {
+		if validConfidence(value) {
+			t.Errorf("validConfidence(%q) = true, want false", value)
+		}
+	}
+}
+
 func TestPrecheckAcceptsNarrativeMeasurementsWithoutDirectImpact(t *testing.T) {
 	semanticContext := Context{
 		Event: Event{

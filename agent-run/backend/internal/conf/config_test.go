@@ -51,6 +51,7 @@ func TestLoadRequiresServiceTokensAndDeploymentTimezone(t *testing.T) {
 	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
 	t.Setenv("AGENTRUN_SERVICE_TOKEN", "")
 	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
+	t.Setenv("EMBEDDING_API_KEY", "embedding-key")
 	t.Setenv("TZ", "Asia/Shanghai")
 
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENTRUN_SERVICE_TOKEN") {
@@ -86,6 +87,19 @@ func TestLoadRequiresServiceTokensAndDeploymentTimezone(t *testing.T) {
 	}
 	if cfg.Location == nil || cfg.Location.String() != "Asia/Shanghai" {
 		t.Fatalf("deployment location = %v, want Asia/Shanghai", cfg.Location)
+	}
+}
+
+func TestLoadRequiresEmbeddingAPIKeyBeforeStartup(t *testing.T) {
+	setRequiredRuntimeEnvironment(t)
+	dir := t.TempDir()
+	writeConfig(t, dir, "dev", configYAML("dev", 9080, "disable"))
+	t.Setenv("APP_ENV", "dev")
+	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
+	t.Setenv("EMBEDDING_API_KEY", "")
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "EMBEDDING_API_KEY") {
+		t.Fatalf("Load() error = %v, want missing Embedding API key rejection", err)
 	}
 }
 
@@ -199,6 +213,7 @@ func setRequiredRuntimeEnvironment(t *testing.T) {
 	t.Helper()
 	t.Setenv("AGENTRUN_SERVICE_TOKEN", "service-token")
 	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
+	t.Setenv("EMBEDDING_API_KEY", "embedding-key")
 	t.Setenv("TZ", "Asia/Shanghai")
 }
 

@@ -31,3 +31,29 @@ func TestLatestSubmissionIgnoresSupersededHistory(t *testing.T) {
 		t.Fatalf("latest = %q", got)
 	}
 }
+
+func TestProhibitedJSONKeysAuditsNestedV3BoundaryViolations(t *testing.T) {
+	counts := prohibitedJSONKeys([]byte(`{
+		"entity_links": [],
+		"nested": {"direct_impacts": [], "theme": {}, "reasoning_trees": [], "candidate_type": "direct_impact"}
+	}`))
+	if counts.directImpact != 2 || counts.theme != 1 || counts.reasonTree != 1 {
+		t.Fatalf("prohibited counts = %#v", counts)
+	}
+	clean := prohibitedJSONKeys([]byte(`{"entity_links":[],"variable_signals":[]}`))
+	if clean != (prohibitedCounts{}) {
+		t.Fatalf("clean V3 payload counts = %#v", clean)
+	}
+}
+
+func TestFinalizeCandidateMetricsPreservesPerCandidateDecisions(t *testing.T) {
+	report := runReport{EntityRejectionReasons: map[string]int{}, SignalRejectionReasons: map[string]int{}}
+	finalizeCandidateMetrics(&report, eventsemantic.SubmissionResult{
+		EntityLinks:     []eventsemantic.CandidateDecision{{CandidateKey: "entity", Status: "accepted"}},
+		VariableSignals: []eventsemantic.CandidateDecision{{CandidateKey: "signal", Status: "rejected", ReasonCode: "upstream_rejected"}},
+	}, map[string]int{"signal": 1})
+	if len(report.EntityDecisions) != 1 || report.EntityDecisions[0].CandidateKey != "entity" ||
+		len(report.SignalDecisions) != 1 || report.SignalDecisions[0].ReasonCode != "upstream_rejected" {
+		t.Fatalf("decisions were not preserved: entities=%#v signals=%#v", report.EntityDecisions, report.SignalDecisions)
+	}
+}

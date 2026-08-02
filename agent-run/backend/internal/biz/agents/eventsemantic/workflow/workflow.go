@@ -17,10 +17,11 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 )
 
-const mentionProtocol = `你是 Event Semantic V3 原文 Mention 提取器。只返回严格 JSON，不返回 Markdown。只提取 Event title、summary 或 Evidence title/excerpt 中逐字连续出现、可能指向正式实体的 raw mention，并引用属于本 Event 的 evidence_ids。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。Mention 若只出现在 Event 中，必须保留至少一条 primary supporting Evidence 作为血缘。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
-const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。每个 selection 只能处理输入 candidate_sets 中的 candidate_key；entity_id 只能逐字取自同一 candidate_key 的 candidates，无法确认时 no_match=true。entity_role 必须取自所选正式 Entity Type Definition 的 allowed_event_roles；no_match 时 entity_id 和 entity_role 均为空，并必须把 no_match_reason 设为 mention_not_entity、no_candidate_same_entity 或 insufficient_context 之一；命中时 no_match_reason 为空。mention_not_entity 表示 Stage A 把日期、数值、报告、动作、状态等非正式实体误当 Mention；no_candidate_same_entity 表示 Mention 是实体指称但当前候选没有同一对象；insufficient_context 表示候选中可能存在同一对象但上下文不足以安全选择。该原因仅用于审计分类，不是 PG 事实。类型由正式候选携带，不得输出或改写 Entity Type。必须逐条应用 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。Mention 本身必须指称该正式对象或是其直接规范化等价表达；文档名、报告名、职位、期间、数值、事件、行为、状态、产品/品牌、复合短语，仅仅包含、隶属、由该候选发布或在上下文中涉及候选，都不能绑定候选。例如“央行报告”不是央行机构，“腾讯QQ”不是腾讯公司，“美联储静默期”不是美联储机构；“WTI原油期货”是合约/金融工具，不是 commodity 类型的“WTI原油”；“ChatGPT”不是“ChatGPT生态”概念，“特斯拉”不是“特斯拉生态”概念。正式目录把“白宫”作为机构候选时，原文“白宫”可视为该机构的约定指称，不应仅按建筑物拒绝。仅字面相似、同类型、背景相关或向量分高必须 no_match。存在任何对象或类型边界疑问时优先 no_match。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
+const mentionProtocol = `你是 Event Semantic V3 原文 Mention 提取器。只返回严格 JSON，不返回 Markdown。只提取 Event title、summary 或 Evidence title/excerpt 中逐字连续出现、可能指向正式实体的 raw mention，并引用属于本 Event 的 evidence_ids。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。Mention 若只出现在 Event 中，必须保留至少一条 primary supporting Evidence 作为血缘。公司、人物、机构、国家/地区、产品、技术、指数等明确专名即使出现在将来时、公告、报告或状态陈述中仍必须提取；复合短语只输出其中的机构 Mention，例如“日本央行将公布决议”输出“日本央行”，“多数美联储委员”输出“美联储”，“央行报告”输出“央行”，不得把整段状态或报告短语当成 Mention。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。采用召回优先、独立 Review 兜底：每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他 key 只要候选中存在与 Mention 合理表示同一业务对象的候选，就选择最合理者作为待审核 Candidate，只有全部候选明显不是同一对象时才 no_match=true。省略“系统、服务、设备、产品”等通用后缀属于允许的规范化差异，例如“非侵入式脑机接口”可以选择“非侵入式脑机接口系统”；但仅字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高不能替代对象同一性，例如“国新办”不是“国务院”。entity_role 必须取自所选正式 Entity Type Definition 的 allowed_event_roles，并根据事件语义区分 statement_source、actor、event_subject、affected_entity 与 context；“某人称……”中的发言主体优先考虑 statement_source，被谈论对象按实际关系使用 context 或其他允许角色，不能机械地都标 actor。no_match 时 entity_id 和 entity_role 均为空，并必须把 no_match_reason 设为 mention_not_entity、no_candidate_same_entity 或 insufficient_context 之一；命中时 no_match_reason 为空。mention_not_entity 只允许 Stage A 误抽取的日期、数值、状态、行为、报告、会议等真正非实体；真实公司、产品、技术、指数等即使 ABox 缺失或当前 TBox out of scope，也不得标为 mention_not_entity。no_candidate_same_entity 表示 Mention 是实体指称但当前候选没有同一对象；insufficient_context 表示候选中可能存在同一对象但上下文不足。类型由正式候选携带，不得输出或改写 Entity Type。必须应用候选实际类型的 business_definition、inclusion_criteria 和 exclusion_criteria。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属、由候选发布或背景相关而绑定候选。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”是合约/金融工具，不是 commodity 类型的“WTI原油”；“ChatGPT”不是“ChatGPT生态”概念，“特斯拉”不是“特斯拉生态”概念。正式目录把“白宫”作为机构候选时，原文“白宫”可视为该机构的约定指称。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectionRecheckProtocol = `你是独立 Event Semantic V3 实体选择复核器。只返回严格 JSON。输入只包含 primary Selector 拒绝、但具有唯一 exact identity 或明显名称规范化等价候选的 disputed_candidate_sets。逐项重新判断 Mention 与候选是否为同一个业务对象，并分配该正式类型允许的准确角色。省略“系统、服务、设备、产品”等通用后缀可以是同一对象；真实公司、产品、技术、指数不得归为 mention_not_entity。选择仍必须限定在当前 candidate_key 的候选白名单，不能创造或改写 Entity ID/Type。若全部候选确实不同才 no_match。角色必须区分 statement_source、actor 与 context。此复核只产生待审核 Candidate，后续独立事实 Review 仍会校验对象同一性。不得生成 DirectImpact、跨实体传导、Theme 或投资判断。`
 const signalProtocol = `你是 Event Semantic V3 客观 Signal 提取器。只返回严格 JSON。输入已经包含解析完成的 EventEntityLink，以及按其正式 Entity Type 确定性筛选出的完整适用 Variable Definition 目录。VariableSignal 只能引用已有 subject_link_key，并只能使用该 link 的 applicable_variable_definitions 中的 key/version、allowed direction 和运行时 assertion modality。EventEntityLink 可以没有 Signal；不要为了覆盖率伪造 Signal。Measurement 是可选的自然语言量化片段，只保留原文完整 measurement_text 与 evidence_ids，不做数值归一化或结构化计算；不得伪造数值。若原文明示 resolved company 的合作/订单价值，且其完整适用目录包含 order_value，可以生成 Event-native order_value Signal 并保留原文金额 Measurement；融资额、市值或分析师目标价不得冒充 order_value。不得把 Evidence.published_at 当 statement_at，不得把 Event.occurred_at 当 measurement/report/forecast period。不得生成 DirectImpact、跨实体传导、Theme、机会或风险判断。`
-const reviewerProtocol = `你是独立 Event Semantic V3 审核器。只返回严格 JSON。逐项审核 expected_candidates。EventEntityLink 的 mention 必须由 Event 或引用 Evidence 支持，并与 resolved entity 表示同一对象，同时满足正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。文档名、报告名、职位、期间、数值、事件、行为、状态、产品/品牌或复合短语，不能仅因包含、隶属、由候选发布、背景相关或向量相似而成为该候选；例如“央行报告”不是央行机构，“腾讯QQ”不是腾讯公司，“美联储静默期”不是美联储机构；“WTI原油期货”必须按 commodity 对期货合约的 exclusion 判为 fail，“ChatGPT”不能接受为“ChatGPT生态”概念，“特斯拉”不能接受为“特斯拉生态”概念。正式目录中的“白宫”机构可接受原文“白宫”的约定指称。对象或类型边界不成立必须 fail。VariableSignal 必须是 Event 对其已解析 Entity 的原生客观陈述。Measurement 的完整自然语言含义必须由引用 Evidence 支持。不得审核或生成 DirectImpact、跨实体传导、Theme 或投资结论。`
+const reviewerProtocol = `你是独立 Event Semantic V3 审核器。只返回严格 JSON。逐项审核 expected_candidates。EventEntityLink 只审核 Mention 与 resolved entity 是否表示同一个业务对象、Evidence 是否支持以及角色是否符合事件语义；pass 必须能说明 exact canonical/alias、广为确认的正式简称/全称，或允许的名称规范化之一，不能因为候选“最相关”就 pass。省略“系统、服务、设备、产品”等通用后缀可以是合理规范化，但仅字面相似、同行业、上下级/隶属关系、背景相关或向量相似必须 fail；“国新办”与“国务院”是不同机构，必须 fail。Stage A 若把包含状态或陈述的复合短语当成 Mention，必须 fail，而不是把其中出现的实体词绑定出去；例如“美联储内部分歧”不是 raw Mention“美联储”，“美国6月通胀降温”不是 raw Mention“美国”。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria，并区分 statement_source、actor 与 context。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”必须按 commodity 对期货合约的 exclusion 判为 fail，“ChatGPT”不能接受为“ChatGPT生态”概念，“特斯拉”不能接受为“特斯拉生态”概念；“安靠科技”不能接受为“安森美”，“华润新能源”不能接受为“燃煤发电服务”，“长鑫科技”不能接受为“LED外延生长服务”，“巴西总统卢拉”不能接受为“冯德莱恩”，“欧元区”不能接受为“欧盟”，“中国国际进口博览局”不能接受为“中华人民共和国商务部”，“Robotaxi”不能仅因相关而接受为“自动驾驶系统”。正式目录中的“白宫”机构可接受原文“白宫”的约定指称。VariableSignal 必须是 Event 对其已解析 Entity 的原生客观陈述。Measurement 的完整自然语言含义必须由引用 Evidence 支持。不得审核或生成 DirectImpact、跨实体传导、Theme 或投资结论。`
 const repairProtocol = `original_output 无法解析为请求的严格 JSON envelope。仅修复 JSON 语法、字段类型、缺失的顶层数组或额外字段，使其满足 output_schema；不得改变事实、补造 ID、Evidence、Variable、Measurement 或候选。只返回完整严格 JSON，不解释。`
 
 const mentionSchema = `{"mentions":[{"candidate_key":"","mention":"","evidence_ids":[""]}]}`
@@ -200,14 +201,16 @@ func New(
 				return current, nil
 			}
 			selectorTypes := definitionsForCandidateSets(selectable, types)
+			identityLockedKeys := uniqueExactCandidateKeys(selectable, exactByKey)
 			payload, err := json.Marshal(struct {
 				Event                 eventsemantic.Event                  `json:"event"`
 				Evidence              []eventsemantic.Evidence             `json:"evidence"`
 				Mentions              map[string]mentionCandidate          `json:"mentions"`
 				CandidateSets         []eventsemantic.EntityCandidateSet   `json:"candidate_sets"`
+				IdentityLockedKeys    []string                             `json:"identity_locked_candidate_keys"`
 				EntityTypeDefinitions []eventsemantic.EntityTypeDefinition `json:"entity_type_definitions"`
 				OutputSchema          json.RawMessage                      `json:"output_schema"`
-			}{current.input.Context.Event, current.input.Context.Evidence, mentions, selectable, selectorTypes, json.RawMessage(selectorSchema)})
+			}{current.input.Context.Event, current.input.Context.Evidence, mentions, selectable, identityLockedKeys, selectorTypes, json.RawMessage(selectorSchema)})
 			if err != nil {
 				return nil, err
 			}
@@ -216,17 +219,57 @@ func New(
 				return nil, err
 			}
 			selections := isolateSelections(output.Selections, selectable, types, current.input.Audit)
+			rechecked := make(map[string]bool)
+			disputed := make([]eventsemantic.EntityCandidateSet, 0)
+			for _, set := range selectable {
+				selection, exists := selections[set.CandidateKey]
+				if exists && !selection.NoMatch {
+					continue
+				}
+				if len(exactByKey[set.CandidateKey].Candidates) == 1 ||
+					hasNormalizedIdentityCandidate(mentions[set.CandidateKey].Mention, set.Candidates) {
+					if exists {
+						recordSelection(current.input.Audit, selection, eventsemantic.Entity{}, len(exactByKey[set.CandidateKey].Candidates) > 0, "primary_selector")
+					} else {
+						recordMissingSelection(current.input.Audit, set.CandidateKey, "primary_selector")
+					}
+					disputed = append(disputed, set)
+					isolate(current.input.Audit, "entity_selection", set.CandidateKey, "selector_primary_recheck_required", "model_selection")
+				}
+			}
+			if len(disputed) > 0 {
+				recheckPayload, marshalErr := json.Marshal(struct {
+					Event                 eventsemantic.Event                  `json:"event"`
+					Evidence              []eventsemantic.Evidence             `json:"evidence"`
+					Mentions              map[string]mentionCandidate          `json:"mentions"`
+					DisputedCandidateSets []eventsemantic.EntityCandidateSet   `json:"disputed_candidate_sets"`
+					EntityTypeDefinitions []eventsemantic.EntityTypeDefinition `json:"entity_type_definitions"`
+					OutputSchema          json.RawMessage                      `json:"output_schema"`
+				}{current.input.Context.Event, current.input.Context.Evidence, mentions, disputed,
+					definitionsForCandidateSets(disputed, types), json.RawMessage(selectorSchema)})
+				if marshalErr != nil {
+					return nil, marshalErr
+				}
+				recheckOutput, recheckErr := generateEnvelope[selectionOutput](ctx, reviewer, "entity_selection_recheck", selectionRecheckProtocol, string(recheckPayload), selectorSchema, current.input.Audit)
+				if recheckErr != nil {
+					return nil, recheckErr
+				}
+				for key, selection := range isolateSelectionsAt(recheckOutput.Selections, disputed, types, current.input.Audit, "entity_selection_recheck") {
+					selections[key] = selection
+					rechecked[key] = true
+				}
+			}
 			selectedByEntity := make(map[string]string)
 			for _, set := range selectable {
 				selection, ok := selections[set.CandidateKey]
 				if !ok || selection.NoMatch {
 					if ok {
-						recordSelection(current.input.Audit, selection, eventsemantic.Entity{}, len(exactByKey[set.CandidateKey].Candidates) > 0)
+						recordSelection(current.input.Audit, selection, eventsemantic.Entity{}, len(exactByKey[set.CandidateKey].Candidates) > 0, selectionRoute(rechecked[set.CandidateKey]))
 					}
 					continue
 				}
 				entity := candidateMap([]eventsemantic.EntityCandidateSet{set})[set.CandidateKey][selection.EntityID]
-				recordSelection(current.input.Audit, selection, entity, len(exactByKey[set.CandidateKey].Candidates) > 0)
+				recordSelection(current.input.Audit, selection, entity, len(exactByKey[set.CandidateKey].Candidates) > 0, selectionRoute(rechecked[set.CandidateKey]))
 				if representative, duplicate := selectedByEntity[entity.EntityID]; duplicate {
 					isolate(current.input.Audit, "entity_selection", set.CandidateKey, "duplicate_entity_link", "agentrun")
 					_ = representative
@@ -479,7 +522,21 @@ func definitionsForResolvedEntities(entities []eventsemantic.Entity, definitions
 	return result
 }
 
+func uniqueExactCandidateKeys(selectable []eventsemantic.EntityCandidateSet, exactByKey map[string]eventsemantic.EntityCandidateSet) []string {
+	result := make([]string, 0)
+	for _, set := range selectable {
+		if len(exactByKey[set.CandidateKey].Candidates) == 1 {
+			result = append(result, set.CandidateKey)
+		}
+	}
+	return result
+}
+
 func isolateSelections(items []entitySelection, sets []eventsemantic.EntityCandidateSet, types map[string]eventsemantic.EntityTypeDefinition, audit *eventsemantic.StageAudit) map[string]entitySelection {
+	return isolateSelectionsAt(items, sets, types, audit, "entity_selection")
+}
+
+func isolateSelectionsAt(items []entitySelection, sets []eventsemantic.EntityCandidateSet, types map[string]eventsemantic.EntityTypeDefinition, audit *eventsemantic.StageAudit, stage string) map[string]entitySelection {
 	allowed := candidateMap(sets)
 	result := make(map[string]entitySelection)
 	for _, item := range items {
@@ -502,17 +559,52 @@ func isolateSelections(items []entitySelection, sets []eventsemantic.EntityCandi
 			reason = "selection_role_invalid"
 		}
 		if reason != "" {
-			isolate(audit, "entity_selection", item.CandidateKey, reason, "model")
+			isolate(audit, stage, item.CandidateKey, reason, "model")
 			continue
 		}
 		result[item.CandidateKey] = item
 	}
 	for _, set := range sets {
 		if result[set.CandidateKey].CandidateKey == "" {
-			isolate(audit, "entity_selection", set.CandidateKey, "selection_missing", "model")
+			isolate(audit, stage, set.CandidateKey, "selection_missing", "model")
 		}
 	}
 	return result
+}
+
+func hasNormalizedIdentityCandidate(mention string, candidates []eventsemantic.EntityCandidate) bool {
+	want := normalizeIdentityName(mention)
+	if want == "" {
+		return false
+	}
+	for _, candidate := range candidates {
+		names := append([]string{candidate.Entity.Name, candidate.Entity.CanonicalName}, candidate.Entity.Aliases...)
+		for _, name := range names {
+			if normalizeIdentityName(name) == want {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func normalizeIdentityName(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	for _, separator := range []string{" ", "\t", "\n", "（", "）", "(", ")", "-", "_", "·", ".", "，", ","} {
+		normalized = strings.ReplaceAll(normalized, separator, "")
+	}
+	for {
+		before := normalized
+		for _, suffix := range []string{"系统", "服务", "设备", "产品"} {
+			if strings.HasSuffix(normalized, suffix) && len([]rune(normalized)) > len([]rune(suffix))+1 {
+				normalized = strings.TrimSuffix(normalized, suffix)
+				break
+			}
+		}
+		if normalized == before {
+			return normalized
+		}
+	}
 }
 
 func applicableVariables(items []eventsemantic.VariableDefinition, entityType string, subjectAllowed bool) []eventsemantic.VariableDefinition {
@@ -656,7 +748,7 @@ func generateEnvelope[T any](ctx context.Context, chatModel model.BaseChatModel,
 		return zero, eventsemantic.ErrModelUnavailable
 	}
 	var value T
-	if decodeStrict(message.Content, &value) == nil {
+	if decodeStageEnvelope(message.Content, stage, &value) == nil {
 		return value, nil
 	}
 	recordViolation(audit, stage, "initial", []string{"json_typed_contract_invalid"})
@@ -677,7 +769,7 @@ func generateEnvelope[T any](ctx context.Context, chatModel model.BaseChatModel,
 		}
 		return zero, eventsemantic.ErrModelUnavailable
 	}
-	if decodeStrict(repaired.Content, &value) != nil {
+	if decodeStageEnvelope(repaired.Content, stage, &value) != nil {
 		recordViolation(audit, stage, "repair", []string{"json_typed_contract_invalid"})
 		return zero, &eventsemantic.RemoteError{
 			Code: "event_semantic_model_contract_invalid", Summary: "Event Semantic model violated the V3 JSON envelope contract", Retryable: false,
@@ -768,6 +860,44 @@ func decodeStrict(content string, target any) error {
 	return nil
 }
 
+func decodeStageEnvelope(content, stage string, target any) error {
+	requiredField, ok := map[string]string{
+		"mention_extraction":       "mentions",
+		"entity_selection":         "selections",
+		"entity_selection_recheck": "selections",
+		"signal_extraction":        "variable_signals",
+		"independent_review":       "items",
+	}[stage]
+	if !ok {
+		return errors.New("Event Semantic model stage is invalid")
+	}
+	trimmed := strings.TrimSpace(content)
+	if err := rejectDuplicateJSONKeys(trimmed); err != nil {
+		return err
+	}
+	var envelope map[string]json.RawMessage
+	decoder := json.NewDecoder(bytes.NewBufferString(trimmed))
+	if err := decoder.Decode(&envelope); err != nil || envelope == nil {
+		return errors.New("Event Semantic stage envelope must be a JSON object")
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("trailing JSON")
+	}
+	raw, exists := envelope[requiredField]
+	if !exists || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return errors.New("Event Semantic stage envelope required array is missing")
+	}
+	var values []json.RawMessage
+	arrayDecoder := json.NewDecoder(bytes.NewReader(raw))
+	if err := arrayDecoder.Decode(&values); err != nil || values == nil {
+		return errors.New("Event Semantic stage envelope required field must be an array")
+	}
+	if err := arrayDecoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("Event Semantic stage envelope array has trailing JSON")
+	}
+	return decodeStrict(trimmed, target)
+}
+
 func rejectDuplicateJSONKeys(content string) error {
 	decoder := json.NewDecoder(strings.NewReader(content))
 	if err := consumeUniqueJSONValue(decoder); err != nil {
@@ -855,13 +985,13 @@ func recordCandidateSet(audit *eventsemantic.StageAudit, set eventsemantic.Entit
 	audit.CandidateSets = append(audit.CandidateSets, entry)
 }
 
-func recordSelection(audit *eventsemantic.StageAudit, selection entitySelection, entity eventsemantic.Entity, hasExactCandidate bool) {
+func recordSelection(audit *eventsemantic.StageAudit, selection entitySelection, entity eventsemantic.Entity, hasExactCandidate bool, route string) {
 	if audit == nil {
 		return
 	}
 	entry := eventsemantic.SelectionAudit{
 		CandidateKey: selection.CandidateKey, EntityID: selection.EntityID, EntityType: entity.EntityType,
-		EntityRole: selection.EntityRole, NoMatch: selection.NoMatch,
+		EntityRole: selection.EntityRole, NoMatch: selection.NoMatch, ResolutionRoute: route,
 	}
 	if selection.NoMatch {
 		switch selection.NoMatchReason {
@@ -885,6 +1015,23 @@ func recordSelection(audit *eventsemantic.StageAudit, selection entitySelection,
 		}
 	}
 	audit.Selections = append(audit.Selections, entry)
+}
+
+func recordMissingSelection(audit *eventsemantic.StageAudit, candidateKey, route string) {
+	if audit == nil {
+		return
+	}
+	audit.Selections = append(audit.Selections, eventsemantic.SelectionAudit{
+		CandidateKey: candidateKey, NoMatch: true, ResolutionRoute: route,
+		ReasonCode: "selector_output_missing", Owner: "model_selection",
+	})
+}
+
+func selectionRoute(rechecked bool) string {
+	if rechecked {
+		return "secondary_review"
+	}
+	return "primary_selector"
 }
 
 func recordApplicableVariables(audit *eventsemantic.StageAudit, linkKey string, items []eventsemantic.VariableDefinition) {
@@ -972,7 +1119,9 @@ func retrievalContractError() error {
 func GeneratorPromptHash() string {
 	return hash(mentionProtocol + selectorProtocol + signalProtocol + mentionSchema + selectorSchema + signalSchema + repairProtocol)
 }
-func ReviewerPromptHash() string { return hash(reviewerProtocol + reviewSchema + repairProtocol) }
+func ReviewerPromptHash() string {
+	return hash(selectionRecheckProtocol + reviewerProtocol + selectorSchema + reviewSchema + repairProtocol)
+}
 func WorkflowHash() string {
 	return hash(GeneratorPromptHash() + ReviewerPromptHash() + eventsemantic.AgentVersion)
 }

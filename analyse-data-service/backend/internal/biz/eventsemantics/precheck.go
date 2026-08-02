@@ -1,10 +1,13 @@
 package eventsemantics
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var confidencePattern = regexp.MustCompile(`^(0(\.\d{1,5})?|1(\.0{1,5})?)$`)
 
 func Precheck(context Context, submission Submission) PrecheckResult {
 	result := PrecheckResult{
@@ -247,11 +250,10 @@ func definitionIdentity(key string, version int) string {
 }
 
 func validConfidence(value string) bool {
-	if strings.TrimSpace(value) == "" {
+	if value == "" {
 		return true
 	}
-	parsed, err := strconv.ParseFloat(value, 64)
-	return err == nil && parsed >= 0 && parsed <= 1
+	return confidencePattern.MatchString(value)
 }
 
 func invalidTimeRange(start, end *time.Time) bool {

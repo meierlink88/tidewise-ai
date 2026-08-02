@@ -96,11 +96,11 @@ func (s *Service) Rebuild(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	entityDocuments, entityPayloads, err := entityProjection(snapshot.Entities)
+	entityIDs, entityDocuments, entityPayloads, err := entityProjection(snapshot.Entities)
 	if err != nil {
 		return Result{}, err
 	}
-	variableDocuments, variablePayloads, err := variableProjection(snapshot.Variables)
+	variableIDs, variableDocuments, variablePayloads, err := variableProjection(snapshot.Variables)
 	if err != nil {
 		return Result{}, err
 	}
@@ -112,11 +112,11 @@ func (s *Service) Rebuild(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	entityPoints, err := buildPoints(entityPayloads, entityVectors)
+	entityPoints, err := buildPoints(entityIDs, entityPayloads, entityVectors)
 	if err != nil {
 		return Result{}, err
 	}
-	variablePoints, err := buildPoints(variablePayloads, variableVectors)
+	variablePoints, err := buildPoints(variableIDs, variablePayloads, variableVectors)
 	if err != nil {
 		return Result{}, err
 	}
@@ -132,7 +132,8 @@ func (s *Service) Rebuild(ctx context.Context) (Result, error) {
 	}, nil
 }
 
-func entityProjection(values []EntitySource) ([]string, []map[string]any, error) {
+func entityProjection(values []EntitySource) ([]string, []string, []map[string]any, error) {
+	pointIDs := make([]string, 0, len(values))
 	documents := make([]string, 0, len(values))
 	payloads := make([]map[string]any, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
@@ -140,10 +141,10 @@ func entityProjection(values []EntitySource) ([]string, []map[string]any, error)
 		if item.Status != "active" || uuid.Validate(item.ID) != nil || strings.TrimSpace(item.EntityType) == "" ||
 			strings.TrimSpace(item.LayerCode) == "" ||
 			strings.TrimSpace(item.CanonicalName) == "" {
-			return nil, nil, errors.New("entity projection source is invalid")
+			return nil, nil, nil, errors.New("entity projection source is invalid")
 		}
 		if _, exists := seen[item.ID]; exists {
-			return nil, nil, errors.New("entity projection identity is duplicated")
+			return nil, nil, nil, errors.New("entity projection identity is duplicated")
 		}
 		seen[item.ID] = struct{}{}
 		aliases := cleanSorted(item.Aliases)
@@ -158,15 +159,17 @@ func entityProjection(values []EntitySource) ([]string, []map[string]any, error)
 			"name": item.Name, "canonical_name": item.CanonicalName, "aliases": aliases,
 			"normalized_names": normalizedNames, "description": description, "status": item.Status,
 			"projection_version": ProjectionVersion, "embedding_model": EmbeddingModel,
-			"content_fingerprint": fingerprint(document), "point_id": item.ID,
+			"content_fingerprint": fingerprint(document),
 		}
+		pointIDs = append(pointIDs, item.ID)
 		documents = append(documents, document)
 		payloads = append(payloads, payload)
 	}
-	return documents, payloads, nil
+	return pointIDs, documents, payloads, nil
 }
 
-func variableProjection(values []VariableSource) ([]string, []map[string]any, error) {
+func variableProjection(values []VariableSource) ([]string, []string, []map[string]any, error) {
+	pointIDs := make([]string, 0, len(values))
 	documents := make([]string, 0, len(values))
 	payloads := make([]map[string]any, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
@@ -174,10 +177,10 @@ func variableProjection(values []VariableSource) ([]string, []map[string]any, er
 		identity := item.Key + "@" + strconv.Itoa(item.Version)
 		if item.Status != "active" || strings.TrimSpace(item.Key) == "" || item.Version <= 0 ||
 			strings.TrimSpace(item.BusinessDefinition) == "" {
-			return nil, nil, errors.New("Variable Definition projection source is invalid")
+			return nil, nil, nil, errors.New("Variable Definition projection source is invalid")
 		}
 		if _, exists := seen[identity]; exists {
-			return nil, nil, errors.New("Variable Definition projection identity is duplicated")
+			return nil, nil, nil, errors.New("Variable Definition projection identity is duplicated")
 		}
 		seen[identity] = struct{}{}
 		applicable := cleanSorted(item.ApplicableEntityTypes)
@@ -196,16 +199,17 @@ func variableProjection(values []VariableSource) ([]string, []map[string]any, er
 			"domain": item.Domain, "applicable_entity_types": applicable, "value_type": item.ValueType,
 			"allowed_units": units, "allowed_directions": directions, "status": item.Status,
 			"projection_version": ProjectionVersion, "embedding_model": EmbeddingModel,
-			"content_fingerprint": fingerprint(document), "point_id": pointID,
+			"content_fingerprint": fingerprint(document),
 		}
+		pointIDs = append(pointIDs, pointID)
 		documents = append(documents, document)
 		payloads = append(payloads, payload)
 	}
-	return documents, payloads, nil
+	return pointIDs, documents, payloads, nil
 }
 
-func buildPoints(payloads []map[string]any, vectors [][]float32) ([]Point, error) {
-	if len(payloads) != len(vectors) {
+func buildPoints(pointIDs []string, payloads []map[string]any, vectors [][]float32) ([]Point, error) {
+	if len(pointIDs) != len(payloads) || len(payloads) != len(vectors) {
 		return nil, errors.New("embedding response count differs from projection documents")
 	}
 	result := make([]Point, 0, len(payloads))
@@ -213,9 +217,7 @@ func buildPoints(payloads []map[string]any, vectors [][]float32) ([]Point, error
 		if len(vectors[index]) != VectorSize {
 			return nil, errors.New("embedding vector size differs from projection contract")
 		}
-		pointID, _ := payload["point_id"].(string)
-		delete(payload, "point_id")
-		result = append(result, Point{ID: pointID, Vector: vectors[index], Payload: payload})
+		result = append(result, Point{ID: pointIDs[index], Vector: vectors[index], Payload: payload})
 	}
 	return result, nil
 }
