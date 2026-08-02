@@ -14,6 +14,10 @@ import (
 	projection "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/semanticprojection"
 )
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
 func TestPostgresSourceRejectsMidStreamIterationFailure(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	if err != nil {
@@ -87,5 +91,35 @@ func TestDecodePostgresProjectionArraysFromJSON(t *testing.T) {
 		if err := decodeStringArray(invalid, &values); err == nil {
 			t.Fatalf("decodeStringArray accepted %q", invalid)
 		}
+	}
+}
+
+func TestProjectionHTTPPreservesContextCancellationAndDeadline(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  func() (context.Context, context.CancelFunc)
+		want error
+	}{
+		{name: "canceled", ctx: func() (context.Context, context.CancelFunc) {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			return ctx, func() {}
+		}, want: context.Canceled},
+		{name: "deadline", ctx: func() (context.Context, context.CancelFunc) {
+			return context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		}, want: context.DeadlineExceeded},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				return nil, request.Context().Err()
+			})}
+			ctx, cancel := test.ctx()
+			defer cancel()
+			err := requestJSON(ctx, client, http.MethodPost, "http://projection.invalid", "", 1024, []byte(`{}`), nil)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("err=%#v want=%v", err, test.want)
+			}
+		})
 	}
 }

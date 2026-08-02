@@ -18,10 +18,10 @@ import (
 )
 
 const mentionProtocol = `你是 Event Semantic V3 原文 Mention 提取器。只返回严格 JSON，不返回 Markdown。只提取 Event title、summary 或 Evidence title/excerpt 中逐字连续出现、可能指向正式实体的 raw mention，并引用属于本 Event 的 evidence_ids。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。Mention 若只出现在 Event 中，必须保留至少一条 primary supporting Evidence 作为血缘。公司、人物、机构、国家/地区、产品、技术、指数等明确专名即使出现在将来时、公告、报告或状态陈述中仍必须提取；复合短语只输出其中的机构 Mention，例如“日本央行将公布决议”输出“日本央行”，“多数美联储委员”输出“美联储”，“央行报告”输出“央行”，不得把整段状态或报告短语当成 Mention。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
-const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。采用召回优先、独立 Review 兜底：每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他 key 只要候选中存在与 Mention 合理表示同一业务对象的候选，就选择最合理者作为待审核 Candidate，只有全部候选明显不是同一对象时才 no_match=true。省略“系统、服务、设备、产品”等通用后缀属于允许的规范化差异，例如“非侵入式脑机接口”可以选择“非侵入式脑机接口系统”；但仅字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高不能替代对象同一性，例如“国新办”不是“国务院”。entity_role 必须取自所选正式 Entity Type Definition 的 allowed_event_roles，并根据事件语义区分 statement_source、actor、event_subject、affected_entity 与 context；“某人称……”中的发言主体优先考虑 statement_source，被谈论对象按实际关系使用 context 或其他允许角色，不能机械地都标 actor。no_match 时 entity_id 和 entity_role 均为空，并必须把 no_match_reason 设为 mention_not_entity、no_candidate_same_entity 或 insufficient_context 之一；命中时 no_match_reason 为空。mention_not_entity 只允许 Stage A 误抽取的日期、数值、状态、行为、报告、会议等真正非实体；真实公司、产品、技术、指数等即使 ABox 缺失或当前 TBox out of scope，也不得标为 mention_not_entity。no_candidate_same_entity 表示 Mention 是实体指称但当前候选没有同一对象；insufficient_context 表示候选中可能存在同一对象但上下文不足。类型由正式候选携带，不得输出或改写 Entity Type。必须应用候选实际类型的 business_definition、inclusion_criteria 和 exclusion_criteria。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属、由候选发布或背景相关而绑定候选。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”是合约/金融工具，不是 commodity 类型的“WTI原油”；“ChatGPT”不是“ChatGPT生态”概念，“特斯拉”不是“特斯拉生态”概念。正式目录把“白宫”作为机构候选时，原文“白宫”可视为该机构的约定指称。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
-const selectionRecheckProtocol = `你是独立 Event Semantic V3 实体选择复核器。只返回严格 JSON。输入只包含 primary Selector 拒绝、但具有唯一 exact identity 或明显名称规范化等价候选的 disputed_candidate_sets。逐项重新判断 Mention 与候选是否为同一个业务对象，并分配该正式类型允许的准确角色。省略“系统、服务、设备、产品”等通用后缀可以是同一对象；真实公司、产品、技术、指数不得归为 mention_not_entity。选择仍必须限定在当前 candidate_key 的候选白名单，不能创造或改写 Entity ID/Type。若全部候选确实不同才 no_match。角色必须区分 statement_source、actor 与 context。此复核只产生待审核 Candidate，后续独立事实 Review 仍会校验对象同一性。不得生成 DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他候选只有在 Mention 与候选的 canonical_name、name 或正式 aliases 能确认同一业务对象时才选择；不得根据手写简称、删除后缀、字符串包含、字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高推定对象同一性，没有正式身份依据就安全 no_match。entity_role 必须取自所选正式 Entity Type Definition 的 allowed_event_roles：statement_source 是发表声明、发布报告或提供消息的来源；actor 是主动实施事件动作的主体；event_subject 只用于其自身状态、指标、价格或行动构成事件核心的实体；event_object 是他方行动直接指向的对象；affected_entity 是直接承受结果或影响的实体；context 只表示背景。被通牒、被调查、被暂停打击或作为措施对象的国家不是 event_subject，例如“特朗普发布对伊朗48小时通牒”和“美国暂停对伊朗军事打击”中的伊朗应为 event_object 或 affected_entity，“巴西对原产于中国的钢瓶发起调查”中的中国应为 event_object 或 affected_entity。“某人称……”中的发言主体优先考虑 statement_source，被谈论对象不能机械标为 actor。no_match 时 entity_id 和 entity_role 均为空，并必须把 no_match_reason 设为 mention_not_entity、no_candidate_same_entity 或 insufficient_context 之一；命中时 no_match_reason 为空。mention_not_entity 只允许 Stage A 误抽取的日期、数值、状态、行为、报告、会议等真正非实体；真实公司、产品、技术、指数等即使 ABox 缺失或当前 TBox out of scope，也不得标为 mention_not_entity。no_candidate_same_entity 表示 Mention 是实体指称但当前候选没有正式同一对象；insufficient_context 表示候选中可能存在同一对象但上下文不足。类型由正式候选携带，不得输出或改写 Entity Type。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属、由候选发布或背景相关而绑定候选。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”是合约/金融工具，不是 commodity 类型的“WTI原油”；“ChatGPT”不是“ChatGPT生态”概念，“特斯拉”不是“特斯拉生态”概念，“国新办”不是“国务院”。正式目录把“白宫”作为机构候选时，原文“白宫”可视为该机构的约定指称。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectionRecheckProtocol = `你是独立 Event Semantic V3 实体选择复核器。只返回严格 JSON。输入只包含 primary Selector 拒绝、但 Qdrant exact lookup 已通过正式 canonical name 或 alias 唯一确定 identity 的 disputed_candidate_sets。对这些唯一正式 exact identity 必须选择候选并分配该正式类型允许的准确角色；不得用删除后缀、字符串包含或其他手写简称规则扩展 identity。角色定义与主 Selector 相同：statement_source 是声明来源，actor 是主动行动者，event_subject 仅表示自身状态或行动构成事件核心的实体，event_object 是行动对象，affected_entity 是直接受影响实体，context 是背景。真实公司、产品、技术、指数不得归为 mention_not_entity。选择仍必须限定在当前 candidate_key 的候选白名单，不能创造或改写 Entity ID/Type。此复核只产生待审核 Candidate，后续独立事实 Review 仍会校验对象同一性与角色。不得生成 DirectImpact、跨实体传导、Theme 或投资判断。`
 const signalProtocol = `你是 Event Semantic V3 客观 Signal 提取器。只返回严格 JSON。输入已经包含解析完成的 EventEntityLink，以及按其正式 Entity Type 确定性筛选出的完整适用 Variable Definition 目录。VariableSignal 只能引用已有 subject_link_key，并只能使用该 link 的 applicable_variable_definitions 中的 key/version、allowed direction 和运行时 assertion modality。EventEntityLink 可以没有 Signal；不要为了覆盖率伪造 Signal。Measurement 是可选的自然语言量化片段，只保留原文完整 measurement_text 与 evidence_ids，不做数值归一化或结构化计算；不得伪造数值。若原文明示 resolved company 的合作/订单价值，且其完整适用目录包含 order_value，可以生成 Event-native order_value Signal 并保留原文金额 Measurement；融资额、市值或分析师目标价不得冒充 order_value。不得把 Evidence.published_at 当 statement_at，不得把 Event.occurred_at 当 measurement/report/forecast period。不得生成 DirectImpact、跨实体传导、Theme、机会或风险判断。`
-const reviewerProtocol = `你是独立 Event Semantic V3 审核器。只返回严格 JSON。逐项审核 expected_candidates。EventEntityLink 只审核 Mention 与 resolved entity 是否表示同一个业务对象、Evidence 是否支持以及角色是否符合事件语义；pass 必须能说明 exact canonical/alias、广为确认的正式简称/全称，或允许的名称规范化之一，不能因为候选“最相关”就 pass。省略“系统、服务、设备、产品”等通用后缀可以是合理规范化，但仅字面相似、同行业、上下级/隶属关系、背景相关或向量相似必须 fail；“国新办”与“国务院”是不同机构，必须 fail。Stage A 若把包含状态或陈述的复合短语当成 Mention，必须 fail，而不是把其中出现的实体词绑定出去；例如“美联储内部分歧”不是 raw Mention“美联储”，“美国6月通胀降温”不是 raw Mention“美国”。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria，并区分 statement_source、actor 与 context。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”必须按 commodity 对期货合约的 exclusion 判为 fail，“ChatGPT”不能接受为“ChatGPT生态”概念，“特斯拉”不能接受为“特斯拉生态”概念；“安靠科技”不能接受为“安森美”，“华润新能源”不能接受为“燃煤发电服务”，“长鑫科技”不能接受为“LED外延生长服务”，“巴西总统卢拉”不能接受为“冯德莱恩”，“欧元区”不能接受为“欧盟”，“中国国际进口博览局”不能接受为“中华人民共和国商务部”，“Robotaxi”不能仅因相关而接受为“自动驾驶系统”。正式目录中的“白宫”机构可接受原文“白宫”的约定指称。VariableSignal 必须是 Event 对其已解析 Entity 的原生客观陈述。Measurement 的完整自然语言含义必须由引用 Evidence 支持。不得审核或生成 DirectImpact、跨实体传导、Theme 或投资结论。`
+const reviewerProtocol = `你是独立 Event Semantic V3 审核器。只返回严格 JSON。逐项审核 expected_candidates。EventEntityLink 只审核 Mention 与 resolved entity 是否由候选 canonical_name、name 或正式 aliases 确认为同一个业务对象、Evidence 是否支持以及角色是否符合事件语义；不得用删除“系统/服务/设备/产品”等后缀、字符串包含、广为使用的简称或其他手写规则补足正式 identity。仅字面相似、同行业、上下级/隶属关系、背景相关或向量相似必须 fail；“国新办”与“国务院”是不同机构，必须 fail。角色审核必须使用以下边界：statement_source 是声明/报告来源；actor 是主动实施动作的主体；event_subject 只用于其自身状态、指标、价格或行动构成事件核心的实体；event_object 是他方行动直接指向的对象；affected_entity 是直接承受结果或影响的实体；context 只表示背景。被通牒、被调查、被暂停打击或作为措施对象的实体不能标为 event_subject；“特朗普发布对伊朗48小时通牒”和“美国暂停对伊朗军事打击”中的伊朗，以及“巴西对原产于中国的钢瓶发起调查”中的中国，必须审核为 event_object 或 affected_entity。Stage A 若把包含状态或陈述的复合短语当成 Mention，必须 fail，而不是把其中出现的实体词绑定出去；例如“美联储内部分歧”不是 raw Mention“美联储”，“美国6月通胀降温”不是 raw Mention“美国”。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”必须按 commodity 对期货合约的 exclusion 判为 fail，“ChatGPT”不能接受为“ChatGPT生态”概念，“特斯拉”不能接受为“特斯拉生态”概念；“安靠科技”不能接受为“安森美”，“华润新能源”不能接受为“燃煤发电服务”，“长鑫科技”不能接受为“LED外延生长服务”，“巴西总统卢拉”不能接受为“冯德莱恩”，“欧元区”不能接受为“欧盟”，“中国国际进口博览局”不能接受为“中华人民共和国商务部”，“Robotaxi”不能仅因相关而接受为“自动驾驶系统”。正式目录中的“白宫”机构可接受原文“白宫”的约定指称。VariableSignal 必须是 Event 对其已解析 Entity 的原生客观陈述。Measurement 的完整自然语言含义必须由引用 Evidence 支持。不得审核或生成 DirectImpact、跨实体传导、Theme 或投资结论。`
 const repairProtocol = `original_output 无法解析为请求的严格 JSON envelope。仅修复 JSON 语法、字段类型、缺失的顶层数组或额外字段，使其满足 output_schema；不得改变事实、补造 ID、Evidence、Variable、Measurement 或候选。只返回完整严格 JSON，不解释。`
 
 const mentionSchema = `{"mentions":[{"candidate_key":"","mention":"","evidence_ids":[""]}]}`
@@ -48,7 +48,7 @@ type mentionCandidate struct {
 }
 
 type mentionOutput struct {
-	Mentions []mentionCandidate `json:"mentions"`
+	Mentions []json.RawMessage `json:"mentions"`
 }
 
 type entitySelection struct {
@@ -60,15 +60,15 @@ type entitySelection struct {
 }
 
 type selectionOutput struct {
-	Selections []entitySelection `json:"selections"`
+	Selections []json.RawMessage `json:"selections"`
 }
 
 type signalOutput struct {
-	VariableSignals []eventsemantic.VariableSignalCandidate `json:"variable_signals"`
+	VariableSignals []json.RawMessage `json:"variable_signals"`
 }
 
 type reviewOutput struct {
-	Items []eventsemantic.ReviewItem `json:"items"`
+	Items []json.RawMessage `json:"items"`
 }
 
 type resolvedLink struct {
@@ -127,7 +127,7 @@ func New(
 			if err != nil {
 				return nil, err
 			}
-			current.mentions = isolateMentions(output.Mentions, input.Context, input.Audit)
+			current.mentions = isolateMentions(decodeMentionItems(output.Mentions, input.Audit), input.Context, input.Audit)
 			return current, nil
 		},
 	)).AddInput(compose.START)
@@ -218,7 +218,7 @@ func New(
 			if err != nil {
 				return nil, err
 			}
-			selections := isolateSelections(output.Selections, selectable, types, current.input.Audit)
+			selections := isolateSelections(decodeSelectionItems(output.Selections, "entity_selection", current.input.Audit), selectable, types, current.input.Audit)
 			rechecked := make(map[string]bool)
 			disputed := make([]eventsemantic.EntityCandidateSet, 0)
 			for _, set := range selectable {
@@ -226,8 +226,7 @@ func New(
 				if exists && !selection.NoMatch {
 					continue
 				}
-				if len(exactByKey[set.CandidateKey].Candidates) == 1 ||
-					hasNormalizedIdentityCandidate(mentions[set.CandidateKey].Mention, set.Candidates) {
+				if len(exactByKey[set.CandidateKey].Candidates) == 1 {
 					if exists {
 						recordSelection(current.input.Audit, selection, eventsemantic.Entity{}, len(exactByKey[set.CandidateKey].Candidates) > 0, "primary_selector")
 					} else {
@@ -254,7 +253,7 @@ func New(
 				if recheckErr != nil {
 					return nil, recheckErr
 				}
-				for key, selection := range isolateSelectionsAt(recheckOutput.Selections, disputed, types, current.input.Audit, "entity_selection_recheck") {
+				for key, selection := range isolateSelectionsAt(decodeSelectionItems(recheckOutput.Selections, "entity_selection_recheck", current.input.Audit), disputed, types, current.input.Audit, "entity_selection_recheck") {
 					selections[key] = selection
 					rechecked[key] = true
 				}
@@ -312,7 +311,7 @@ func New(
 			if err != nil {
 				return nil, err
 			}
-			current.candidates.VariableSignals = isolateSignals(output.VariableSignals, current.resolved, current.input.Context, current.input.Audit)
+			current.candidates.VariableSignals = isolateSignals(decodeSignalItems(output.VariableSignals, current.input.Audit), current.resolved, current.input.Context, current.input.Audit)
 			return current, nil
 		},
 	)).AddInput("resolve_entities")
@@ -362,7 +361,7 @@ func New(
 				if generateErr != nil {
 					return nil, generateErr
 				}
-				items := isolateReview(review.Items, expected, *work, current.input.Audit)
+				items := isolateReview(decodeReviewItems(review.Items, current.input.Audit), expected, *work, current.input.Audit)
 				current.submission, err = data.SubmitReview(ctx, current.submission.SubmissionID, eventsemantic.ReviewRequest{
 					ReviewerExecutionKey: current.input.Attempt.ID + reviewExecutionSuffix(pass),
 					PromptHash:           ReviewerPromptHash(), Model: current.input.ReviewerModel, Items: items,
@@ -572,41 +571,6 @@ func isolateSelectionsAt(items []entitySelection, sets []eventsemantic.EntityCan
 	return result
 }
 
-func hasNormalizedIdentityCandidate(mention string, candidates []eventsemantic.EntityCandidate) bool {
-	want := normalizeIdentityName(mention)
-	if want == "" {
-		return false
-	}
-	for _, candidate := range candidates {
-		names := append([]string{candidate.Entity.Name, candidate.Entity.CanonicalName}, candidate.Entity.Aliases...)
-		for _, name := range names {
-			if normalizeIdentityName(name) == want {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func normalizeIdentityName(value string) string {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	for _, separator := range []string{" ", "\t", "\n", "（", "）", "(", ")", "-", "_", "·", ".", "，", ","} {
-		normalized = strings.ReplaceAll(normalized, separator, "")
-	}
-	for {
-		before := normalized
-		for _, suffix := range []string{"系统", "服务", "设备", "产品"} {
-			if strings.HasSuffix(normalized, suffix) && len([]rune(normalized)) > len([]rune(suffix))+1 {
-				normalized = strings.TrimSuffix(normalized, suffix)
-				break
-			}
-		}
-		if normalized == before {
-			return normalized
-		}
-	}
-}
-
 func applicableVariables(items []eventsemantic.VariableDefinition, entityType string, subjectAllowed bool) []eventsemantic.VariableDefinition {
 	if !subjectAllowed {
 		return nil
@@ -736,6 +700,69 @@ func reviewCandidateEvidence(work eventsemantic.ReviewerWorkPackage, identity re
 		}
 	}
 	return nil
+}
+
+func decodeMentionItems(rawItems []json.RawMessage, audit *eventsemantic.StageAudit) []mentionCandidate {
+	result := make([]mentionCandidate, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item mentionCandidate
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, "mention_extraction", rawCandidateKey(raw, index), "mention_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func decodeSelectionItems(rawItems []json.RawMessage, stage string, audit *eventsemantic.StageAudit) []entitySelection {
+	result := make([]entitySelection, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item entitySelection
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, stage, rawCandidateKey(raw, index), "selection_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func decodeSignalItems(rawItems []json.RawMessage, audit *eventsemantic.StageAudit) []eventsemantic.VariableSignalCandidate {
+	result := make([]eventsemantic.VariableSignalCandidate, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item eventsemantic.VariableSignalCandidate
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, "signal_extraction", rawCandidateKey(raw, index), "signal_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func decodeReviewItems(rawItems []json.RawMessage, audit *eventsemantic.StageAudit) []eventsemantic.ReviewItem {
+	result := make([]eventsemantic.ReviewItem, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item eventsemantic.ReviewItem
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, "independent_review", rawCandidateKey(raw, index), "review_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func rawCandidateKey(raw json.RawMessage, index int) string {
+	var object map[string]json.RawMessage
+	if json.Unmarshal(raw, &object) == nil {
+		var key string
+		if json.Unmarshal(object["candidate_key"], &key) == nil && strings.TrimSpace(key) != "" {
+			return key
+		}
+	}
+	return "item_" + strconv.Itoa(index+1)
 }
 
 func generateEnvelope[T any](ctx context.Context, chatModel model.BaseChatModel, stage, systemPrompt, userPayload, outputSchema string, audit *eventsemantic.StageAudit) (T, error) {
@@ -871,31 +898,51 @@ func decodeStageEnvelope(content, stage string, target any) error {
 	if !ok {
 		return errors.New("Event Semantic model stage is invalid")
 	}
-	trimmed := strings.TrimSpace(content)
-	if err := rejectDuplicateJSONKeys(trimmed); err != nil {
-		return err
-	}
-	var envelope map[string]json.RawMessage
-	decoder := json.NewDecoder(bytes.NewBufferString(trimmed))
-	if err := decoder.Decode(&envelope); err != nil || envelope == nil {
+	decoder := json.NewDecoder(strings.NewReader(strings.TrimSpace(content)))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
 		return errors.New("Event Semantic stage envelope must be a JSON object")
+	}
+	var raw json.RawMessage
+	found := false
+	for decoder.More() {
+		keyToken, tokenErr := decoder.Token()
+		key, keyOK := keyToken.(string)
+		if tokenErr != nil || !keyOK || key != requiredField || found {
+			return errors.New("Event Semantic stage envelope contains an unknown or duplicate field")
+		}
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		found = true
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return errors.New("Event Semantic stage envelope is invalid")
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return errors.New("trailing JSON")
 	}
-	raw, exists := envelope[requiredField]
-	if !exists || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+	if !found || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return errors.New("Event Semantic stage envelope required array is missing")
 	}
 	var values []json.RawMessage
-	arrayDecoder := json.NewDecoder(bytes.NewReader(raw))
-	if err := arrayDecoder.Decode(&values); err != nil || values == nil {
+	if err := json.Unmarshal(raw, &values); err != nil || values == nil {
 		return errors.New("Event Semantic stage envelope required field must be an array")
 	}
-	if err := arrayDecoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return errors.New("Event Semantic stage envelope array has trailing JSON")
+	switch output := target.(type) {
+	case *mentionOutput:
+		output.Mentions = values
+	case *selectionOutput:
+		output.Selections = values
+	case *signalOutput:
+		output.VariableSignals = values
+	case *reviewOutput:
+		output.Items = values
+	default:
+		return errors.New("Event Semantic stage output type is invalid")
 	}
-	return decodeStrict(trimmed, target)
+	return nil
 }
 
 func rejectDuplicateJSONKeys(content string) error {

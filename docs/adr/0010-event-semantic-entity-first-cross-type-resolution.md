@@ -39,8 +39,15 @@ Mention、Selection 或 Signal 失败可能删除同 Event 的其他合法事实
   供同批约 100 Event 验收和错误归因。
 - 模型 Stage 顶层数组是严格必填 envelope；`null`、`{}`、缺字段、`null` 数组或错误类型不得被
   Go 零值解释为空结果，一次 repair 后仍非法才构成 terminal model-contract failure。
-- Selector 采用召回优先、独立 Review 兜底；合理名称后缀规范化可作为待审核候选，vector Top-1
-  不自动接受。唯一 exact identity 被拒或明显规范化候选被 `no_match` 时执行一次独立二次复核。
+- Selector 与独立 Review 只接受正式 canonical name、name 或 aliases 提供的 identity；不通过
+  删除名称后缀、字符串包含或其他手写简称规则扩展 identity。只有唯一 exact identity 被主
+  Selector 拒绝时执行一次独立二次复核，vector Top-1 不自动接受。
+- Role 明确区分声明来源、行动主体、自身状态主题、行动对象、直接受影响实体与背景；被通牒、
+  被调查或作为措施对象的实体不得误标为 `event_subject`。
+- 顶层 Stage envelope 继续严格；数组 item 独立按固定 DTO 解析，单个非法 item 只记录并隔离，
+  不触发 whole-Event repair 或删除同数组合法候选。
+- AgentRun retrieval 与 Data projection HTTP Adapter 保留 `context.Canceled` 和
+  `context.DeadlineExceeded`，不将取消或超时包装成普通可重试 RemoteError。
 - AgentRun 不维护手写简称/全称 identity guard；唯一 canonical/alias exact identity 来自正式
   投影，其他候选由 Selector 与独立 AI Reviewer 判断是否同一业务对象。
 - AgentRun 对每个 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、

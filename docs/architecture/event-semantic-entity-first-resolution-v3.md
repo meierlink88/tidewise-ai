@@ -272,22 +272,25 @@ Resolved Entity；同名跨类型或多个 exact 候选必须进入 Stage C。
 ```
 
 模型不输出 Entity Type。Workflow 从被选候选读取 projected Entity Type，并在 Submission 时由
-Data 以 PostgreSQL 复核。Selector 采用“召回优先、Review 兜底”：只要 vector 候选中存在与
-Mention 合理表示同一业务对象的候选，就选择最合理候选进入独立 Review；只有全部候选明显不是
-同一对象时才 `no_match`。省略“系统、服务、设备、产品”等通用后缀属于允许审核的规范化差异，
-例如“非侵入式脑机接口”可以选择“非侵入式脑机接口系统”。相似名称、同类型、同行业、同产业链
-或背景知识仍不能替代对象同一性。
+Data 以 PostgreSQL 复核。唯一 canonical name/alias exact 候选是确定性 identity；其他 vector
+候选只有在候选携带的 canonical name、name 或正式 aliases 能确认同一业务对象时才可进入独立
+Review。AgentRun 和 Prompt 均不得通过删除“系统/服务/设备/产品”等后缀、字符串包含或其他
+手写简称规则补足 identity；没有正式身份依据就安全 `no_match`。相似名称、同类型、同行业、
+同产业链或背景知识不能替代对象同一性。
 
 唯一 canonical name/alias exact 候选继续作为确定性 identity 解析结果，不允许 Selector 以
 `no_match` 静默删除；模型只需为其分配允许 Role，最终仍进入独立 Review。Vector Top-1 不能绕过
-Review 直接成为正式事实。对于 exact identity 被模型拒绝，或明显规范化等价候选仍被 primary
-Selector 判为 `no_match` 的情况，Workflow 必须使用独立 Reviewer 执行一次有界二次选择复核并
-记录初次与复核结论，避免单点误杀。
+Review 直接成为正式事实。只有唯一 exact identity 被模型拒绝时，Workflow 使用独立 Reviewer
+执行一次有界二次选择复核并记录初次与复核结论；vector 名称相似或代码推导出的“规范化等价”
+不得触发 identity 升级。
 
 `mention_not_entity` 仅允许日期、数值、状态、行为、报告、会议等真正非实体 Mention。真实公司、
 产品、技术、指数或其他实体指称即使 ABox 缺失或当前 TBox out of scope，也必须使用对应的
-ABox/TBox/identity gap 分类，不得伪装成 Stage A 非实体错误。Role 必须区分 `statement_source`、
-`actor` 与 `context`；“某人称……”中的发言主体不能与被谈论对象机械地都标为 `actor`。
+ABox/TBox/identity gap 分类，不得伪装成 Stage A 非实体错误。Role 语义固定为：
+`statement_source` 是声明或报告来源，`actor` 是主动行动者，`event_subject` 只表示自身状态、
+指标、价格或行动构成事件核心的实体，`event_object` 是行动直接指向的对象，`affected_entity`
+是直接承受结果的实体，`context` 仅为背景。被通牒、被调查或作为措施对象的实体不得误标为
+`event_subject`。
 
 ### 6.6 Stage D — Filter Variable Definitions
 
@@ -336,8 +339,8 @@ canonical/alias exact identity 由投影确定性解析；其他候选由 Select
 - 如果 Mention 只出现在 Event title/summary，至少引用一条该 Event 的 primary supporting Evidence；
 - 不要求每一条所引 Evidence 都逐字包含 Mention。
 
-Entity 别名、简称、跨语言名称和类别规范化由 Stage C 的对象同一性判断负责；它们不能被用来
-伪造一个原文中不存在的 Raw Mention。
+Entity 别名、简称和跨语言名称只来自正式 Entity identity/alias 数据；它们不能被用来伪造一个
+原文中不存在的 Raw Mention，也不能由 Workflow 字符串规则临时补足。
 
 ### 7.2 Entity selection
 
@@ -372,6 +375,11 @@ Entity 别名、简称、跨语言名称和类别规范化由 Stage C 的对象�
 - Measurement 失败只拒绝父 Signal；
 - EventEntityLink 不依赖 VariableSignal 存在；一个只有合法 EntityLink 的 Submission 是有效结果。
 
+顶层 envelope 与数组 item 分层解析：顶层对象、唯一必填数组字段及数组类型保持严格；数组内
+每个 item 再独立执行 fixed DTO 的 unknown/duplicate/type 校验。单个 item 无法解析时记录该
+item 的 candidate key（无法取得时记录稳定数组位置）并隔离，不触发整个 envelope repair，也不
+删除同数组其他合法 item。本规则仅用于本 V3 四个固定数组，不建设通用容错 JSON 框架。
+
 每个模型阶段的顶层 JSON envelope 是 Execution 级合同。`mention_extraction` 必须显式包含
 `mentions` 数组、`entity_selection` 必须显式包含 `selections` 数组、`signal_extraction` 必须显式
 包含 `variable_signals` 数组、Review 必须显式包含 `items` 数组。数组可以合法为空，但顶层
@@ -385,6 +393,9 @@ Entity 别名、简称、跨语言名称和类别规范化由 Stage C 的对象�
 - Context Lease/Context contract 无效或发生不可恢复 drift；
 - Qdrant、Embedding 或 Data 调用发生不可恢复的 transport/contract failure；
 - Submission 未知结果无法通过既有 reconciliation 恢复。
+
+所有 AgentRun semantic retrieval 与 Data semantic projection HTTP 调用必须原样保留可由
+`errors.Is` 判断的 `context.Canceled` / `context.DeadlineExceeded`；不得包装为普通可重试远端错误。
 
 ## 8. Contract And Persistence Changes
 
@@ -458,7 +469,9 @@ transport failure 记录为 Execution failure。
 最终使用 `correct_reject`、`abox_missing`、`tbox_out_of_scope`、`mention_extraction_miss`、
 `retrieval_miss`、`selector_false_reject`、`review_reject`、`model_contract_failure` 八类。AgentRun
 运行时不能访问 PostgreSQL，因此运行时保留安全的原始原因，验收工具/报告在 Service 边界外完成
-最终 owner 拆分。
+最终 owner 拆分。固定样本使用 Data-owned、只读本地验收命令按同一优先级和正式 PG
+canonical/alias 数据逐 Event 生成八类结果；分类输入文件哈希、分类合同版本和每 Event 依据写入
+审计输出，不新增线上 API、持久化对象或运行时状态。
 
 ## 10. Acceptance
 

@@ -120,9 +120,10 @@ recall。Selector 只能从当前 mention 的 Qdrant 候选选择正式 ID 或 `
 的正式 Entity Type Definition 分配允许角色；Entity Type 不由模型输出。Data 在 Submission
 中比对 `projected_entity_type` 与 PostgreSQL Entity ID/type/status/TBox。Vector Top-K 由
 `semantic_retrieval.entity_top_k` 配置，范围 1..20，当前校准值为 10。
-Selector 采用召回优先、独立 Review 兜底：合理的“系统/服务/设备/产品”等名称后缀规范化可
-选择为待审核 Candidate，vector Top-1 不自动接受；唯一 exact identity 或明显规范化候选被主
-Selector 拒绝时，由独立 Reviewer 做一次有界选择复核。`mention_not_entity` 只用于日期、数值、
+Selector 与独立 Review 只使用候选 canonical name、name 和正式 aliases 确认 identity；不删除
+“系统/服务/设备/产品”等后缀，不使用字符串包含或其他手写简称规则。vector Top-1 不自动接受；
+只有唯一 exact identity 被主 Selector 拒绝时，由独立 Reviewer 做一次有界选择复核。
+`mention_not_entity` 只用于日期、数值、
 状态、行为、报告、会议等真正非实体，真实公司、产品、技术、指数不得用它掩盖 ABox/TBox gap。
 Entity Resolution 完成后，AgentRun 才按正式 Entity Type 从 pinned complete Variable
 Definition directory 确定性筛选适用目录，并以独立 Signal Stage 生成 Event-native
@@ -144,6 +145,9 @@ Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/�
 审核对照 Evidence，不进行数值解析或归一化。
 严格 envelope 要求 mention/selection/signal/review 分别显式携带 `mentions`、`selections`、
 `variable_signals`、`items` 数组；`null`、`{}`、缺字段、`null` 数组或错误类型不能解释为空结果。
+顶层 envelope 严格解析后，数组 item 按本 V3 固定 DTO 独立解析；单个 item 字段/类型非法只隔离
+该 item，不触发整个 envelope repair。Semantic retrieval 的取消与 deadline 原样向 Execution 传播，
+不包装为可重试远端错误。
 AgentRun 对 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、
 embedding model 和 content fingerprint fail closed；payload 不要求重复 `point_id`。
 `EMBEDDING_API_KEY` 在进程启动配置阶段校验，不允许领取 Work Item 后才暴露缺失。

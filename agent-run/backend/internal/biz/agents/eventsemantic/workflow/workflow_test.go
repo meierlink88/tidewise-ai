@@ -288,7 +288,7 @@ func TestWorkflowRechecksUniqueExactCandidateRejectedByPrimarySelector(t *testin
 	}
 }
 
-func TestWorkflowRechecksObviousNormalizedVectorCandidate(t *testing.T) {
+func TestWorkflowDoesNotRecheckVectorCandidateWithoutFormalAliasIdentity(t *testing.T) {
 	input := testInput()
 	input.Context.Event.Title = "非侵入式脑机接口取得进展"
 	input.Context.Event.Summary = "非侵入式脑机接口已完成新一轮验证。"
@@ -302,10 +302,7 @@ func TestWorkflowRechecksObviousNormalizedVectorCandidate(t *testing.T) {
 		`{"mentions":[{"candidate_key":"bci","mention":"非侵入式脑机接口","evidence_ids":["` + testEvidenceID + `"]}]}`,
 		`{"selections":[{"candidate_key":"bci","entity_id":"","entity_role":"","no_match":true,"no_match_reason":"no_candidate_same_entity"}]}`,
 	}}
-	reviewer := &queuedModel{responses: []string{
-		`{"selections":[{"candidate_key":"bci","entity_id":"88888888-8888-4888-8888-888888888888","entity_role":"event_subject","no_match":false,"no_match_reason":""}]}`,
-		`{"items":[{"candidate_type":"entity_link","candidate_key":"bci","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
-	}}
+	reviewer := &queuedModel{responses: []string{`{"items":[]}`}}
 	retriever := &retrieverStub{
 		exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "bci"}},
 		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "bci", Candidates: []eventsemantic.EntityCandidate{{
@@ -314,24 +311,56 @@ func TestWorkflowRechecksObviousNormalizedVectorCandidate(t *testing.T) {
 	}
 	data := &dataStub{}
 	result := invoke(t, data, retriever, generator, reviewer, input)
-	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 || data.submission.EntityLinks[0].ResolutionMethod != "qdrant_vector" {
+	if result.Status != "accepted" || len(data.submission.EntityLinks) != 0 || reviewer.calls != 1 {
 		t.Fatalf("result=%#v links=%#v", result, data.submission.EntityLinks)
 	}
 }
 
 func TestSelectorProtocolUsesRecallFirstReviewFallback(t *testing.T) {
-	for _, forbidden := range []string{"存在任何对象或类型边界疑问时优先 no_match", "产品/品牌、复合短语"} {
+	for _, forbidden := range []string{"省略“系统、服务、设备、产品”", "允许的名称规范化", "广为确认的正式简称"} {
 		if strings.Contains(selectorProtocol, forbidden) {
-			t.Fatalf("selector protocol retained over-conservative rule %q", forbidden)
+			t.Fatalf("selector protocol retained handwritten identity rule %q", forbidden)
 		}
 	}
-	for _, required := range []string{"召回优先", "identity_locked_candidate_keys", "系统、服务、设备、产品", "statement_source", "context", "真实公司、产品、技术、指数", "国新办"} {
+	for _, required := range []string{"identity_locked_candidate_keys", "canonical_name、name 或正式 aliases", "不得根据手写简称", "statement_source", "event_object", "affected_entity", "国新办"} {
 		if !strings.Contains(selectorProtocol, required) {
 			t.Fatalf("selector protocol is missing %q", required)
 		}
 	}
 	if !strings.Contains(reviewerProtocol, "国新办") || !strings.Contains(reviewerProtocol, "国务院") {
 		t.Fatal("reviewer protocol must reject related-but-distinct institutions")
+	}
+}
+
+func TestRoleProtocolsCoverActionTargetGoldenCases(t *testing.T) {
+	for _, protocol := range []string{selectorProtocol, reviewerProtocol} {
+		for _, required := range []string{
+			"特朗普发布对伊朗48小时通牒", "美国暂停对伊朗军事打击",
+			"巴西对原产于中国的钢瓶发起调查", "event_object", "affected_entity", "event_subject",
+		} {
+			if !strings.Contains(protocol, required) {
+				t.Fatalf("role protocol is missing golden guidance %q", required)
+			}
+		}
+	}
+}
+
+func TestWorkflowIsolatesInvalidMentionItemWithoutRepairingWholeEnvelope(t *testing.T) {
+	generator := &queuedModel{responses: []string{
+		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"broken","mention":42,"evidence_ids":["` + testEvidenceID + `"]}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
+		`{"variable_signals":[]}`,
+	}}
+	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
+	data := &dataStub{}
+	result := invoke(t, data, &retrieverStub{exact: []eventsemantic.EntityCandidateSet{{
+		CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}},
+	}}}, generator, reviewer, testInput())
+	if result.Status != "accepted" || len(data.submission.EntityLinks) != 1 || generator.calls != 3 {
+		t.Fatalf("result=%#v links=%#v generator_calls=%d", result, data.submission.EntityLinks, generator.calls)
+	}
+	if !hasIsolation(result.Audit, "broken", "mention_item_invalid") {
+		t.Fatalf("audit=%#v", result.Audit)
 	}
 }
 

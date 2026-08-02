@@ -371,6 +371,8 @@ Entity 外层 point ID 必须等于 payload `entity_id`；payload 不重复保�
 `projection_version`、`embedding_model` 和基于冻结 projection document 的 SHA-256
 `content_fingerprint`。AgentRun 对缺失、异源、旧版本或错误模型的 point fail closed；Data 仍以
 PostgreSQL 正式 Entity ID/type/status 完成 Submission 最终复核。
+Data semantic projection 的 Embedding/Qdrant HTTP Adapter 原样保留 `context.Canceled` 与
+`context.DeadlineExceeded`，不把调用方取消或 deadline 包装为普通 endpoint unavailable。
 _Avoid_: Qdrant 作为事实源、Data 执行 Agent Workflow、实时/CDC 同步、Data 代理 AgentRun 搜索
 
 **Event Semantic Resolution Route**:

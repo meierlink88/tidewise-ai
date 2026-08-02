@@ -86,13 +86,16 @@ func (c *Client) ExactEntities(ctx context.Context, lookups []eventsemantic.Enti
 	for _, lookup := range lookups {
 		normalized = append(normalized, NormalizeName(lookup.Mention))
 	}
-	payload, _ := json.Marshal(map[string]any{
+	payload, err := json.Marshal(map[string]any{
 		"filter": map[string]any{"must": []any{
 			map[string]any{"key": "status", "match": map[string]any{"value": "active"}},
 			map[string]any{"key": "normalized_names", "match": map[string]any{"any": normalized}},
 		}},
 		"limit": 10000, "with_payload": true, "with_vector": false,
 	})
+	if err != nil {
+		return nil, retrievalError("semantic_retrieval_request_invalid", false)
+	}
 	var response struct {
 		Result *struct {
 			Points *[]qdrantPoint `json:"points"`
@@ -157,7 +160,10 @@ func (c *Client) SearchEntities(ctx context.Context, lookups []eventsemantic.Ent
 			"limit": topK, "with_payload": true, "with_vector": false,
 		})
 	}
-	payload, _ := json.Marshal(map[string]any{"searches": searches})
+	payload, err := json.Marshal(map[string]any{"searches": searches})
+	if err != nil {
+		return nil, retrievalError("semantic_retrieval_request_invalid", false)
+	}
 	var response struct {
 		Result *[]struct {
 			Points *[]qdrantPoint `json:"points"`
@@ -257,11 +263,23 @@ func (c *Client) do(ctx context.Context, endpoint, apiKey string, payload []byte
 	}
 	response, err := c.http.Do(request)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
 		return retrievalError("semantic_retrieval_unavailable", true)
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, c.maxResponseBytes+1))
-	if err != nil || int64(len(body)) > c.maxResponseBytes || response.StatusCode < 200 || response.StatusCode >= 300 {
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return ctx.Err()
+		}
+		return retrievalError("semantic_retrieval_unavailable", true)
+	}
+	if int64(len(body)) > c.maxResponseBytes || response.StatusCode < 200 || response.StatusCode >= 300 {
 		return retrievalError("semantic_retrieval_unavailable", response.StatusCode >= 500 || response.StatusCode == http.StatusTooManyRequests)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(body))

@@ -160,10 +160,13 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, documents []string) ([][]flo
 	result := make([][]float32, 0, len(documents))
 	for start := 0; start < len(documents); start += e.batchSize {
 		end := min(start+e.batchSize, len(documents))
-		payload, _ := json.Marshal(map[string]any{
+		payload, err := json.Marshal(map[string]any{
 			"model": projection.EmbeddingModel, "input": documents[start:end],
 			"dimensions": projection.VectorSize, "encoding_format": "float",
 		})
+		if err != nil {
+			return nil, errors.New("embedding projection request is invalid")
+		}
 		var response struct {
 			Data []struct {
 				Index     int       `json:"index"`
@@ -225,7 +228,10 @@ func (s *QdrantStore) Replace(ctx context.Context, collection string, vectorSize
 	if err := requestJSON(ctx, s.http, http.MethodDelete, collectionURL, s.apiKey, s.maxResponseBytes, nil, nil, http.StatusNotFound); err != nil {
 		return err
 	}
-	createPayload, _ := json.Marshal(map[string]any{"vectors": map[string]any{"size": vectorSize, "distance": "Cosine"}})
+	createPayload, err := json.Marshal(map[string]any{"vectors": map[string]any{"size": vectorSize, "distance": "Cosine"}})
+	if err != nil {
+		return errors.New("Qdrant collection request is invalid")
+	}
 	if err := requestJSON(ctx, s.http, http.MethodPut, collectionURL, s.apiKey, s.maxResponseBytes, createPayload, nil); err != nil {
 		return err
 	}
@@ -236,14 +242,20 @@ func (s *QdrantStore) Replace(ctx context.Context, collection string, vectorSize
 		indexes = append(indexes, "applicable_entity_types", "variable_key")
 	}
 	for _, field := range indexes {
-		payload, _ := json.Marshal(map[string]any{"field_name": field, "field_schema": "keyword"})
+		payload, err := json.Marshal(map[string]any{"field_name": field, "field_schema": "keyword"})
+		if err != nil {
+			return errors.New("Qdrant index request is invalid")
+		}
 		if err := requestJSON(ctx, s.http, http.MethodPut, collectionURL+"/index", s.apiKey, s.maxResponseBytes, payload, nil); err != nil {
 			return err
 		}
 	}
 	for start := 0; start < len(points); start += s.batchSize {
 		end := min(start+s.batchSize, len(points))
-		payload, _ := json.Marshal(map[string]any{"points": points[start:end]})
+		payload, err := json.Marshal(map[string]any{"points": points[start:end]})
+		if err != nil {
+			return errors.New("Qdrant points request is invalid")
+		}
 		if err := requestJSON(ctx, s.http, http.MethodPut, collectionURL+"/points?wait=true", s.apiKey, s.maxResponseBytes, payload, nil); err != nil {
 			return err
 		}
@@ -287,11 +299,23 @@ func requestJSON(
 	}
 	response, err := client.Do(request)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
 		return errors.New("semantic projection endpoint is unavailable")
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
-	if err != nil || int64(len(body)) > maxBytes {
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return ctx.Err()
+		}
+		return errors.New("semantic projection response is unavailable")
+	}
+	if int64(len(body)) > maxBytes {
 		return errors.New("semantic projection response is unavailable")
 	}
 	allowed := response.StatusCode >= 200 && response.StatusCode < 300

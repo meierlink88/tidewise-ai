@@ -19,6 +19,10 @@ type recordingEmbedder struct {
 	texts [][]string
 }
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
 func (e *recordingEmbedder) EmbedStrings(_ context.Context, texts []string, _ ...embedding.Option) ([][]float64, error) {
 	e.calls++
 	e.texts = append(e.texts, append([]string(nil), texts...))
@@ -235,6 +239,47 @@ func TestClientRejectsMalformedSuccessfulQdrantEnvelope(t *testing.T) {
 			var remote *eventsemantic.RemoteError
 			if !errors.As(err, &remote) || remote.Code != test.code || remote.Retryable {
 				t.Fatalf("err = %#v", err)
+			}
+		})
+	}
+}
+
+func TestClientPreservesHTTPContextCancellationAndDeadline(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  func() (context.Context, context.CancelFunc)
+		want error
+	}{
+		{name: "canceled", ctx: func() (context.Context, context.CancelFunc) {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			return ctx, func() {}
+		}, want: context.Canceled},
+		{name: "deadline", ctx: func() (context.Context, context.CancelFunc) {
+			return context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		}, want: context.DeadlineExceeded},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client, err := New(Config{
+				QdrantURL: "http://qdrant.invalid", Embedder: &recordingEmbedder{}, EntityCollection: EntityCollection,
+				VectorSize: VectorSize, Timeout: time.Second, MaxResponseBytes: 1 << 20,
+				HTTPClient: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+					return nil, request.Context().Err()
+				})},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := test.ctx()
+			defer cancel()
+			_, err = client.ExactEntities(ctx, []eventsemantic.EntityLookup{{CandidateKey: "entity", Mention: "实体"}})
+			if !errors.Is(err, test.want) {
+				t.Fatalf("err=%#v want=%v", err, test.want)
+			}
+			var remote *eventsemantic.RemoteError
+			if errors.As(err, &remote) {
+				t.Fatalf("context error was wrapped as RemoteError: %#v", remote)
 			}
 		})
 	}
