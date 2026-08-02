@@ -205,15 +205,19 @@ Tree 的有序 Chain Node 快照。`position` 从 1 连续排列并且是唯一�
 成员。首节点全部 `incoming_*` 为空；后续节点必须保存传导标题、机制和成立条件。
 可空正式 Graph Edge 必须 active/approved、属于同一链且端点匹配；为空表示分析推断。
 `formal_direct_impact` 的 source VariableSignal subject 必须等于前一节点、target
-必须等于当前节点；`analyst_inference` 必须引用上游正式事实与实际使用的关系。
+必须等于当前节点；`analyst_inference` 必须引用上游正式事实作为整棵 Tree 的 Event
+血缘锚点，并引用实际使用的 Relation/Graph Edge。Data 忽略该关系的存储方向，只要求
+它连接前一节点与当前节点；不要求根事实实体直接连接所有下游节点，允许多个连续
+`analyst_inference` step 复用同一 accepted 根事实。
 _Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写正式图谱
 
 **Variable Signal 展示快照（Variable Signal Display Snapshot）**:
 每个 Tree 节点拥有 1..5 个按 `display_order` 排列的不可变显示快照，恰好一个
 `primary`。`formal_signal` 同时固定 VariableSignal UUID、Semantic Submission、
 Evidence ID/hash，并验证节点 Entity、变量和方向一致；`analyst_inference` 不得冒充
-正式 Signal，必须引用一个正式上游 Signal/Impact 和实际关系。读取时只返回发布时显示
-快照，不用当前正式事实动态重写文案。
+正式 Signal，必须引用一个正式上游 Signal/Impact 作为事实/Event 血缘锚点，以及连接
+相邻 Tree Node 的实际 Relation/Graph Edge；关系端点方向可与 Tree 传播顺序相反。
+读取时只返回发布时显示快照，不用当前正式事实动态重写文案。
 _Avoid_: 只有字符串 key 的弱引用、从显示文本反推正式事实、Inference 伪造 Signal ID
 
 **Event 原生 Variable Signal（Event-native Variable Signal）**:

@@ -778,8 +778,10 @@ Reason Tree 必须区分三种语义：
    `direct_impact_assertion_id` 及其 `semantic_submission_id`；若不新增独立 Edge 表，
    可存于下游节点 incoming transmission；
 3. **Codex analyst inference**：没有正式 Signal/Impact 的多跳分析师推导，必须明确标记
-   为 inference，引用上游正式 Signal/Impact 和实际使用的 Entity/IndustryChain
-   Relation，不得伪造正式 ID。
+   为 inference，引用一个 accepted 上游正式 Signal/Impact 作为整棵 Tree 的事实与 Event
+   血缘锚点，并引用实际连接相邻 Tree Node 的 Entity/IndustryChain Relation，不得伪造
+   正式 ID。Relation 的存储方向不限制分析师传播方向；连续多跳可以复用同一根事实，
+   Data 不要求根事实实体直接连接每个下游节点。
 
 强引用与显示快照同时保留：
 
@@ -831,6 +833,8 @@ Data 发布 Service 必须确定性校验并在发布回执/强关联中证明�
   来源 Event，仅出现在 Theme Event 集合中不构成该 Tree 的有效血缘；
 - 正式引用不晚于 `analysis_as_of`；
 - analyst inference 没有冒充正式 Signal 或 DirectImpact。
+- analyst inference 使用的 Relation/Graph Edge 在忽略存储方向后连接前一个 Tree Node 与
+  当前 Tree Node；连续多跳不要求根 Signal/Impact 实体直接连接所有下游节点。
 - 校验与 Aggregate 写入处于同一事务边界；发布记录保留引用 UUID、
   `semantic_submission_id` 以及发布时通过 accepted/latest/non-superseded 门禁的事实。
 

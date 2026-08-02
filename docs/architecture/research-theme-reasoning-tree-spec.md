@@ -9,6 +9,12 @@
 原子发布、正式 Signal/DirectImpact 强血缘及逐 Tree Event 覆盖要求，取代此前的
 Theme/Tree 独立发布和弱 Signal 引用决定。
 
+2026-08-02 补充冻结：Theme Analyst 拥有推理方向、正式关系的正向或反向使用和多跳
+传播语义。Data 只校验每个下游节点引用的正式 Relation/Graph Edge 有效，并在忽略存储
+方向后连接前一个 Tree Node 与当前 Tree Node。整棵 Tree 可以继续引用同一个 accepted
+根 Signal/Impact 作为正式事实与 Event 血缘来源；Data 不要求该根事实实体直接连接每个
+下游节点，也不把连续 `analyst_inference` 误判为新的正式 Signal/DirectImpact。
+
 ## Problem Statement
 
 当前 Research Theme 与 Research Anchor 合同把 Theme 的整体投资结论、受影响对象、
@@ -360,15 +366,19 @@ correct value.
   - `incoming_lineage` is required and is either `formal_direct_impact` or
     `analyst_inference`.
 - A non-null formal Graph Edge reference must exist, be active and approved, belong to the same
-  Industry Chain, and have endpoints equal to the previous and current node in the referenced
-  direction.
+  Industry Chain, and have endpoints equal to the previous and current node in either stored
+  direction. Its stored predicate direction remains unchanged; Reason Tree order records the
+  analyst-owned propagation direction.
 - A `formal_direct_impact` must resolve to an accepted/latest/non-superseded
   DirectImpactAssertion whose source VariableSignal subject equals the previous Node and whose
   target equals the current Node. Submission, affected-variable snapshot, direction, Evidence and
   source Event must match the formal fact.
 - An `analyst_inference` cannot claim a formal DirectImpact. It must cite exactly one accepted
-  upstream Signal/Impact and an active Entity Relation or the formal incoming Graph Edge used for
-  the step.
+  upstream Signal/Impact as the Tree's formal fact and Event lineage anchor, plus an active Entity
+  Relation or the formal incoming Graph Edge used for the step. That Relation/Graph Edge must
+  connect the previous and current Tree Node in either endpoint order. The formal fact's Entity is
+  not required to be an endpoint of every downstream step, so multiple consecutive
+  `analyst_inference` steps may retain the same accepted root fact.
 - A null formal Graph Edge means analyst inference. It does not create, approve or update an
   Industry Chain Graph Edge.
 - No independent Reason Tree Edge table is introduced. Incoming transmission belongs to the
@@ -386,8 +396,10 @@ correct value.
   `variable_signal_id`, owning `semantic_submission_id`, matching Evidence ID/hash and matching
   Node subject, variable key and direction.
 - `source_kind=analyst_inference` must not provide formal Signal/Evidence fields. It cites exactly
-  one accepted upstream Signal/Impact plus the active Entity Relation or Industry Chain Graph Edge
-  used to infer the node-level display state.
+  one accepted upstream Signal/Impact as the Tree's formal fact and Event lineage anchor, plus the
+  active Entity Relation or Industry Chain Graph Edge connecting the previous and current Tree
+  Node in either endpoint order. The same root fact may anchor multiple consecutive inferred node
+  snapshots; Data does not require the root fact Entity to connect directly to every node.
 - `variable_signal_key` is the immutable display snapshot key and must match
   `^[a-z0-9][a-z0-9._:-]{0,127}$`; it does not replace the formal UUID lineage.
 - The same key may be referenced by multiple nodes in one Theme Aggregate. Within that Aggregate,
@@ -472,7 +484,8 @@ Data validates:
 - accepted/latest/non-superseded Signal and DirectImpact existence at `analysis_as_of`;
 - Signal subject-to-Node and DirectImpact previous-Node-to-current-Node alignment;
 - Submission ownership, Evidence ID/hash/Event lineage and per-Tree Event coverage;
-- analyst inference references to one formal upstream fact and the actual active Relation;
+- analyst inference references to one formal upstream fact for Event lineage and the actual active
+  Relation/Graph Edge connecting the adjacent Tree Nodes in either endpoint order;
 - canonical hash, receipt identity, publisher ownership and immutable replay;
 - transaction atomicity and receipt-to-row consistency.
 
@@ -863,6 +876,8 @@ Cover:
 - Tree Impact intersection and complete union coverage;
 - one-node and multi-node paths;
 - formal Signal/DirectImpact/Submission/Evidence validation and analyst-inferred null Graph Edge;
+- forward and reverse one-hop Relation/Graph Edge use plus multiple consecutive
+  `analyst_inference` steps anchored by one accepted root fact;
 - DirectImpact source Signal subject equals the previous Node and target equals the current Node;
 - every Tree covers the source Events of every formal fact it references;
 - Variable Signal count, primary role, order, key format and same-Aggregate snapshot consistency;
@@ -992,8 +1007,9 @@ Industry Chain Tab changes the active Tree.
   best available formal fact.
 - Supporting Theme Impact targets other than Chain Node, including Company, Security, Concept,
   Industry and Index.
-- Arbitrary graph Reason Trees, branching, multiple parents, cycles, reverse formal-edge traversal
-  or independent Tree Edge records.
+- Arbitrary graph Reason Trees, branching, multiple parents, cycles or independent Tree Edge
+  records. Reverse use of a formal Relation/Graph Edge between two adjacent ordered Tree Nodes is
+  supported; it does not reverse or mutate the stored relation predicate.
 - A cross-Aggregate Research Thesis identity or longitudinal Theme mutation.
 - Updating, deleting, withdrawing or partially replacing a published Theme or Tree set.
 - Cross-service distributed transactions, async publication jobs or publication orchestration
