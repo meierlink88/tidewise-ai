@@ -347,6 +347,13 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 		}
 		for nodeIndex, node := range tree.Nodes {
 			nodePath := fmt.Sprintf("%s.nodes[%d]", treePath, nodeIndex)
+			step := inferenceStep{
+				CurrentNodeEntityID:   node.ChainNodeEntityID,
+				IndustryChainEntityID: tree.IndustryChainEntityID,
+			}
+			if nodeIndex > 0 {
+				step.PreviousNodeEntityID = &tree.Nodes[nodeIndex-1].ChainNodeEntityID
+			}
 			membership, ok := facts.Memberships[tree.IndustryChainEntityID][node.ChainNodeEntityID]
 			if !ok || !temporalFactAvailableAt(membership, asOf) {
 				return invalidReference(nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "Node is not an active approved member of the Industry Chain")
@@ -355,17 +362,21 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 				edge, ok := facts.GraphEdges[*node.IncomingIndustryChainGraphEdgeID]
 				if !ok || !temporalFactAvailableAt(edge.TemporalFact, asOf) ||
 					nodeIndex == 0 || edge.IndustryChainEntityID != tree.IndustryChainEntityID ||
-					edge.FromChainNodeEntityID != tree.Nodes[nodeIndex-1].ChainNodeEntityID ||
-					edge.ToChainNodeEntityID != node.ChainNodeEntityID {
-					return invalidReference(nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "Graph Edge does not match the ordered path")
+					!connectsEntities(
+						edge.FromChainNodeEntityID,
+						edge.ToChainNodeEntityID,
+						tree.Nodes[nodeIndex-1].ChainNodeEntityID,
+						node.ChainNodeEntityID,
+					) {
+					return invalidReference(nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "Graph Edge does not connect the adjacent Tree Nodes")
 				}
 			}
 			if node.IncomingLineage != nil {
 				if err := validateIncomingLineage(
 					nodePath+".incoming_lineage",
 					*node.IncomingLineage,
-					tree.Nodes[nodeIndex-1].ChainNodeEntityID,
-					node.ChainNodeEntityID,
+					step,
+					node.IncomingIndustryChainGraphEdgeID,
 					treeEvents,
 					asOf,
 					facts,
@@ -376,7 +387,11 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 			for signalIndex, signal := range node.Signals {
 				if err := validateSignalLineage(
 					fmt.Sprintf("%s.signals[%d].lineage", nodePath, signalIndex),
-					signal, node.ChainNodeEntityID, treeEvents, asOf, facts,
+					signal,
+					step,
+					treeEvents,
+					asOf,
+					facts,
 				); err != nil {
 					return err
 				}
@@ -386,7 +401,20 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 	return nil
 }
 
-func validateSignalLineage(path string, input Signal, nodeEntityID string, treeEvents map[string]struct{}, asOf time.Time, facts ReferenceFacts) error {
+type inferenceStep struct {
+	PreviousNodeEntityID  *string
+	CurrentNodeEntityID   string
+	IndustryChainEntityID string
+}
+
+func validateSignalLineage(
+	path string,
+	input Signal,
+	step inferenceStep,
+	treeEvents map[string]struct{},
+	asOf time.Time,
+	facts ReferenceFacts,
+) error {
 	l := input.Lineage
 	if l.SourceKind == "formal_signal" {
 		fact, ok := facts.Signals[*l.VariableSignalID]
@@ -396,7 +424,7 @@ func validateSignalLineage(path string, input Signal, nodeEntityID string, treeE
 		if fact.SemanticSubmissionID != *l.SemanticSubmissionID {
 			return invalidReference(path+".semantic_submission_id", *l.SemanticSubmissionID, "does not own the Signal")
 		}
-		if fact.SubjectEntityID != nodeEntityID {
+		if fact.SubjectEntityID != step.CurrentNodeEntityID {
 			return invalidReference(path+".variable_signal_id", fact.ID, "Signal subject must equal the Node entity")
 		}
 		if fact.VariableKey != input.VariableSignalKey || fact.Direction != input.SignalDirection {
@@ -415,7 +443,8 @@ func validateSignalLineage(path string, input Signal, nodeEntityID string, treeE
 	}
 	return validateInference(
 		path, l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID,
-		l.EntityRelationID, l.IndustryChainGraphEdgeID, nodeEntityID,
+		l.EntityRelationID, l.IndustryChainGraphEdgeID,
+		step,
 		treeEvents, asOf, facts,
 	)
 }
@@ -423,7 +452,8 @@ func validateSignalLineage(path string, input Signal, nodeEntityID string, treeE
 func validateIncomingLineage(
 	path string,
 	l IncomingLineage,
-	sourceEntityID, targetEntityID string,
+	step inferenceStep,
+	graphEdgeID *string,
 	treeEvents map[string]struct{},
 	asOf time.Time,
 	facts ReferenceFacts,
@@ -436,10 +466,10 @@ func validateIncomingLineage(
 		if fact.SemanticSubmissionID != *l.SemanticSubmissionID {
 			return invalidReference(path+".semantic_submission_id", *l.SemanticSubmissionID, "does not own the Direct Impact")
 		}
-		if fact.TargetEntityID != targetEntityID {
+		if fact.TargetEntityID != step.CurrentNodeEntityID {
 			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "Direct Impact target must equal the downstream Node")
 		}
-		if fact.SourceEntityID != sourceEntityID {
+		if step.PreviousNodeEntityID == nil || fact.SourceEntityID != *step.PreviousNodeEntityID {
 			return invalidReference(path+".direct_impact_assertion_id", fact.ID, "Direct Impact source Signal subject must equal the previous Node")
 		}
 		if fact.AffectedVariableKey != *l.AffectedVariableKey || fact.AffectedDirection != *l.AffectedDirection {
@@ -458,14 +488,16 @@ func validateIncomingLineage(
 	}
 	return validateInference(
 		path, l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID,
-		l.EntityRelationID, nil, targetEntityID, treeEvents, asOf, facts,
+		l.EntityRelationID, graphEdgeID,
+		step,
+		treeEvents, asOf, facts,
 	)
 }
 
 func validateInference(
 	path string,
 	signalID, impactID, entityRelationID, graphEdgeID *string,
-	targetEntityID string,
+	step inferenceStep,
 	treeEvents map[string]struct{},
 	asOf time.Time,
 	facts ReferenceFacts,
@@ -494,21 +526,52 @@ func validateInference(
 	}
 	if entityRelationID != nil {
 		relation, ok := facts.EntityRelations[*entityRelationID]
-		_, connectsUpstream := upstreamEntityIDs[relation.FromEntityID]
+		connectsStep := relationConnectsInferenceStep(
+			relation.FromEntityID,
+			relation.ToEntityID,
+			step,
+			upstreamEntityIDs,
+		)
 		if !ok || !temporalFactAvailableAt(relation.TemporalFact, asOf) ||
-			!connectsUpstream || relation.ToEntityID != targetEntityID {
-			return invalidReference(path+".entity_relation_id", *entityRelationID, "active Entity Relation does not connect the upstream fact to the inferred target")
+			!connectsStep {
+			return invalidReference(path+".entity_relation_id", *entityRelationID, "active Entity Relation does not connect the adjacent Tree Nodes")
 		}
 	}
 	if graphEdgeID != nil {
 		edge, ok := facts.GraphEdges[*graphEdgeID]
-		_, connectsUpstream := upstreamEntityIDs[edge.FromChainNodeEntityID]
+		connectsStep := relationConnectsInferenceStep(
+			edge.FromChainNodeEntityID,
+			edge.ToChainNodeEntityID,
+			step,
+			upstreamEntityIDs,
+		)
 		if !ok || !temporalFactAvailableAt(edge.TemporalFact, asOf) ||
-			!connectsUpstream || edge.ToChainNodeEntityID != targetEntityID {
-			return invalidReference(path+".industry_chain_graph_edge_id", *graphEdgeID, "active approved Industry Chain Graph Edge does not connect the upstream fact to the inferred target")
+			edge.IndustryChainEntityID != step.IndustryChainEntityID || !connectsStep {
+			return invalidReference(path+".industry_chain_graph_edge_id", *graphEdgeID, "active approved Industry Chain Graph Edge does not connect the adjacent Tree Nodes")
 		}
 	}
 	return nil
+}
+
+func relationConnectsInferenceStep(
+	fromEntityID, toEntityID string,
+	step inferenceStep,
+	upstreamEntityIDs map[string]struct{},
+) bool {
+	if step.PreviousNodeEntityID != nil {
+		return connectsEntities(fromEntityID, toEntityID, *step.PreviousNodeEntityID, step.CurrentNodeEntityID)
+	}
+	for upstreamEntityID := range upstreamEntityIDs {
+		if connectsEntities(fromEntityID, toEntityID, upstreamEntityID, step.CurrentNodeEntityID) {
+			return true
+		}
+	}
+	return false
+}
+
+func connectsEntities(fromEntityID, toEntityID, firstEntityID, secondEntityID string) bool {
+	return fromEntityID == firstEntityID && toEntityID == secondEntityID ||
+		fromEntityID == secondEntityID && toEntityID == firstEntityID
 }
 
 func temporalFactAvailableAt(fact TemporalFact, asOf time.Time) bool {

@@ -25,6 +25,12 @@ const (
 	testImpactEvidenceID     = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 	testTargetSignalID       = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	testImpactSourceSignalID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	testBCIChainID           = "822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
+	testBCISystemNodeID      = "c38d2f7b-9900-5e81-af06-76393bcc2617"
+	testBCITerminalNodeID    = "96336148-76c0-504e-b82e-ac395f8fe268"
+	testBCIElectrodeNodeID   = "d3882237-d639-5660-b7d8-aa3563706113"
+	testBCITerminalEdgeID    = "300188b0-d01c-5987-ad8a-646067edc7cd"
+	testBCIElectrodeEdgeID   = "dc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
 )
 
 func TestAggregateRequiresFormalLineageAndOneAtomicTheme(t *testing.T) {
@@ -112,6 +118,219 @@ func TestPublishRejectsStructuralFactCreatedAfterAnalysisAsOf(t *testing.T) {
 	}
 	if tx.writes != 0 {
 		t.Fatalf("writes = %d, want no writes for future structural fact", tx.writes)
+	}
+}
+
+func TestPublishAcceptsReverseMultiHopAnalystInference(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	result, err := service.Publish(context.Background(), "codex", aggregate)
+	if err != nil {
+		t.Fatalf("publish reverse multi-hop analyst inference: %v", err)
+	}
+	if result.Counts.Nodes != 3 || result.Counts.SignalAssociations != 3 {
+		t.Fatalf("publication counts = %#v, want three-node BCI Tree", result.Counts)
+	}
+	if tx.writes == 0 {
+		t.Fatal("reverse multi-hop publication completed without atomic writes")
+	}
+}
+
+func TestPublishKeepsForwardOneHopAnalystInference(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(false, 2)
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	result, err := service.Publish(context.Background(), "codex", aggregate)
+	if err != nil {
+		t.Fatalf("publish forward one-hop analyst inference: %v", err)
+	}
+	if result.Counts.Nodes != 2 {
+		t.Fatalf("publication counts = %#v, want forward two-node Tree", result.Counts)
+	}
+}
+
+func TestPublishRejectsExistingReceiptIdentityConflictsBeforeAnyWrite(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	_, themeID, err := aggregate.Validate()
+	if err != nil {
+		t.Fatalf("validate fixture: %v", err)
+	}
+	payloadHash, err := CanonicalHash(aggregate)
+	if err != nil {
+		t.Fatalf("hash fixture: %v", err)
+	}
+	receipt := publicationPlan(aggregate, themeID, payloadHash)
+	receipt.PublisherSubject = "codex"
+
+	tests := []struct {
+		name      string
+		publisher string
+		aggregate Aggregate
+		want      error
+	}{
+		{
+			name:      "payload conflict",
+			publisher: "codex",
+			aggregate: func() Aggregate {
+				changed := aggregate
+				changed.Theme.Title = "Changed BCI demand"
+				return changed
+			}(),
+			want: ErrPayloadConflict,
+		},
+		{
+			name:      "publisher mismatch",
+			publisher: "another-analyst",
+			aggregate: aggregate,
+			want:      ErrPublisherConflict,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tx := &fakeTransaction{facts: facts, receipt: &receipt}
+			service := NewService(fakeStore{tx: tx})
+
+			_, err := service.Publish(context.Background(), test.publisher, test.aggregate)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("error = %T %v, want %v", err, err, test.want)
+			}
+			if tx.writes != 0 {
+				t.Fatalf("writes = %d, want no writes for receipt identity conflict", tx.writes)
+			}
+		})
+	}
+}
+
+func TestPublishAcceptsReverseEntityRelationBetweenAdjacentNodes(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 2)
+	relationID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	node := &aggregate.ReasoningTrees[0].Nodes[1]
+	node.IncomingIndustryChainGraphEdgeID = nil
+	node.IncomingLineage.EntityRelationID = &relationID
+	node.Signals[0].Lineage.IndustryChainGraphEdgeID = nil
+	node.Signals[0].Lineage.EntityRelationID = &relationID
+	facts.EntityRelations[relationID] = EntityRelationFact{
+		ID: relationID, FromEntityID: testBCITerminalNodeID, ToEntityID: testBCISystemNodeID,
+		TemporalFact: testTemporalFact(),
+	}
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	if _, err := service.Publish(context.Background(), "codex", aggregate); err != nil {
+		t.Fatalf("publish reverse adjacent Entity Relation inference: %v", err)
+	}
+}
+
+func TestPublishRejectsAnalystInferenceRelationOutsideAdjacentNodes(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	edge := facts.GraphEdges[testBCIElectrodeEdgeID]
+	edge.FromChainNodeEntityID = testBCISystemNodeID
+	facts.GraphEdges[testBCIElectrodeEdgeID] = edge
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	_, err := service.Publish(context.Background(), "codex", aggregate)
+	var reference *ReferenceError
+	if !errors.As(err, &reference) || reference.Reference != testBCIElectrodeEdgeID {
+		t.Fatalf("error = %T %v, want non-adjacent Graph Edge ReferenceError", err, err)
+	}
+	if tx.writes != 0 {
+		t.Fatalf("writes = %d, want no writes for a non-adjacent relation", tx.writes)
+	}
+}
+
+func TestPublishRejectsAnalystInferenceGraphEdgeFromAnotherIndustryChain(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	edge := facts.GraphEdges[testBCITerminalEdgeID]
+	edge.IndustryChainEntityID = testChainID
+	facts.GraphEdges[testBCITerminalEdgeID] = edge
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	_, err := service.Publish(context.Background(), "codex", aggregate)
+	var reference *ReferenceError
+	if !errors.As(err, &reference) || reference.Reference != testBCITerminalEdgeID {
+		t.Fatalf("error = %T %v, want wrong-chain Graph Edge ReferenceError", err, err)
+	}
+	if tx.writes != 0 {
+		t.Fatalf("writes = %d, want no writes for a wrong-chain Graph Edge", tx.writes)
+	}
+}
+
+func TestPublishRejectsInactiveAnalystInferenceGraphEdge(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	edge := facts.GraphEdges[testBCITerminalEdgeID]
+	edge.UpdatedAt = time.Date(2026, 7, 29, 11, 0, 0, 0, time.UTC)
+	facts.GraphEdges[testBCITerminalEdgeID] = edge
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	_, err := service.Publish(context.Background(), "codex", aggregate)
+	var reference *ReferenceError
+	if !errors.As(err, &reference) || reference.Reference != testBCITerminalEdgeID {
+		t.Fatalf("error = %T %v, want inactive Graph Edge ReferenceError", err, err)
+	}
+	if tx.writes != 0 {
+		t.Fatalf("writes = %d, want no writes for an inactive Graph Edge", tx.writes)
+	}
+}
+
+func TestPublishRejectsInvalidBCIIndustryChainMembership(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(ReferenceFacts)
+	}{
+		{
+			name: "missing inactive or unapproved membership is absent from active approved facts",
+			setup: func(facts ReferenceFacts) {
+				delete(facts.Memberships[testBCIChainID], testBCITerminalNodeID)
+			},
+		},
+		{
+			name: "membership belongs to another Industry Chain",
+			setup: func(facts ReferenceFacts) {
+				delete(facts.Memberships[testBCIChainID], testBCITerminalNodeID)
+				facts.Memberships[testChainID] = map[string]TemporalFact{
+					testBCITerminalNodeID: testTemporalFact(),
+				}
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+			test.setup(facts)
+			tx := &fakeTransaction{facts: facts}
+			service := NewService(fakeStore{tx: tx})
+
+			_, err := service.Publish(context.Background(), "codex", aggregate)
+			var reference *ReferenceError
+			if !errors.As(err, &reference) || reference.Reference != testBCITerminalNodeID {
+				t.Fatalf("error = %T %v, want invalid BCI membership ReferenceError", err, err)
+			}
+			if tx.writes != 0 {
+				t.Fatalf("writes = %d, want no writes for invalid BCI membership", tx.writes)
+			}
+		})
+	}
+}
+
+func TestPublishRejectsMissingAcceptedRootSignal(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	delete(facts.Signals, testSignalID)
+	tx := &fakeTransaction{facts: facts}
+	service := NewService(fakeStore{tx: tx})
+
+	_, err := service.Publish(context.Background(), "codex", aggregate)
+	var reference *ReferenceError
+	if !errors.As(err, &reference) || reference.Reference != testSignalID {
+		t.Fatalf("error = %T %v, want missing root Signal ReferenceError", err, err)
+	}
+	if tx.writes != 0 {
+		t.Fatalf("writes = %d, want no writes for a missing root Signal", tx.writes)
 	}
 }
 
@@ -372,6 +591,99 @@ func validAggregateWithDirectImpact() Aggregate {
 	return aggregate
 }
 
+func validBCIAnalystInferenceAggregate(reverseEdges bool, nodeCount int) (Aggregate, ReferenceFacts) {
+	if nodeCount < 2 || nodeCount > 3 {
+		panic("BCI analyst inference fixture requires two or three nodes")
+	}
+	aggregate := validAggregate()
+	aggregate.AnalysisBatchID = "bci-reverse-multi-hop"
+	aggregate.Theme.ThemeKey = "bci-demand"
+	aggregate.Theme.Title = "BCI demand"
+	aggregate.Theme.Impacts = nil
+	aggregate.ReasoningTrees[0].IndustryChainEntityID = testBCIChainID
+	aggregate.ReasoningTrees[0].Title = "BCI system chain"
+	aggregate.ReasoningTrees[0].Nodes = nil
+
+	nodeIDs := []string{testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID}
+	edgeIDs := []string{testBCITerminalEdgeID, testBCIElectrodeEdgeID}
+	signalKeys := []string{"market_demand", "terminal_market_demand", "electrode_market_demand"}
+	for position, nodeID := range nodeIDs[:nodeCount] {
+		aggregate.Theme.Impacts = append(aggregate.Theme.Impacts, researchthemeimport.Impact{
+			ChainNodeEntityID: nodeID,
+			RelationRole:      "exposure",
+			ImpactDirection:   "uncertain",
+			DisplayOrder:      position + 1,
+		})
+		node := Node{
+			Position:          position + 1,
+			ChainNodeEntityID: nodeID,
+			ImpactDirection:   "uncertain",
+			ImpactStrength:    "unknown",
+		}
+		if position == 0 {
+			node.Signals = []Signal{validAggregate().ReasoningTrees[0].Nodes[0].Signals[0]}
+			node.Signals[0].VariableSignalKey = "market_demand"
+			node.Signals[0].SignalDirection = "increase"
+			node.Signals[0].DisplaySummary = "System market demand increases"
+		} else {
+			edgeID := edgeIDs[position-1]
+			title := "Demand propagates to the adjacent component"
+			mechanism := "The adjacent component is required by the previous BCI node"
+			condition := "The previous-node demand is realized"
+			node.IncomingIndustryChainGraphEdgeID = &edgeID
+			node.IncomingTransmissionTitle = &title
+			node.IncomingTransmissionMechanism = &mechanism
+			node.IncomingConditionSummary = &condition
+			node.IncomingLineage = &IncomingLineage{
+				SourceKind:               "analyst_inference",
+				UpstreamVariableSignalID: stringPointer(testSignalID),
+			}
+			node.Signals = []Signal{{
+				VariableSignalKey: signalKeys[position],
+				SignalRole:        "primary",
+				SignalDirection:   "increase",
+				DisplaySummary:    "Adjacent component market demand increases",
+				DisplayOrder:      1,
+				Lineage: SignalLineage{
+					SourceKind:               "analyst_inference",
+					UpstreamVariableSignalID: stringPointer(testSignalID),
+					IndustryChainGraphEdgeID: &edgeID,
+				},
+			}}
+		}
+		aggregate.ReasoningTrees[0].Nodes = append(aggregate.ReasoningTrees[0].Nodes, node)
+	}
+
+	facts := validFacts()
+	facts.ChainNodeIDs = map[string]TemporalFact{}
+	facts.IndustryChainIDs = map[string]TemporalFact{testBCIChainID: testTemporalFact()}
+	facts.Memberships = map[string]map[string]TemporalFact{testBCIChainID: {}}
+	for _, nodeID := range nodeIDs[:nodeCount] {
+		facts.ChainNodeIDs[nodeID] = testTemporalFact()
+		facts.Memberships[testBCIChainID][nodeID] = testTemporalFact()
+	}
+	rootSignal := facts.Signals[testSignalID]
+	rootSignal.SubjectEntityID = testBCISystemNodeID
+	rootSignal.VariableKey = "market_demand"
+	rootSignal.Direction = "increase"
+	facts.Signals[testSignalID] = rootSignal
+	facts.GraphEdges = map[string]GraphEdgeFact{}
+	for index, edgeID := range edgeIDs[:nodeCount-1] {
+		fromNodeID, toNodeID := nodeIDs[index], nodeIDs[index+1]
+		if reverseEdges {
+			fromNodeID, toNodeID = toNodeID, fromNodeID
+		}
+		facts.GraphEdges[edgeID] = GraphEdgeFact{
+			GraphEdgeReference: researchreasoningtreeimport.GraphEdgeReference{
+				ID: edgeID, IndustryChainEntityID: testBCIChainID,
+				FromChainNodeEntityID: fromNodeID, ToChainNodeEntityID: toNodeID,
+			},
+			TemporalFact: testTemporalFact(),
+		}
+	}
+	return aggregate, facts
+}
+
 func validFacts() ReferenceFacts {
 	accepted := time.Date(2026, 7, 29, 9, 0, 0, 0, time.UTC)
 	return ReferenceFacts{
@@ -451,12 +763,15 @@ func (s fakeStore) InResearchPublicationTransaction(ctx context.Context, fn func
 }
 
 type fakeTransaction struct {
-	facts  ReferenceFacts
-	writes int
+	facts   ReferenceFacts
+	receipt *Receipt
+	writes  int
 }
 
-func (*fakeTransaction) Lock(context.Context, string) error                { return nil }
-func (*fakeTransaction) Receipt(context.Context, string) (*Receipt, error) { return nil, nil }
+func (*fakeTransaction) Lock(context.Context, string) error { return nil }
+func (f *fakeTransaction) Receipt(context.Context, string) (*Receipt, error) {
+	return f.receipt, nil
+}
 func (f *fakeTransaction) ReferenceFacts(context.Context, ReferenceQuery) (ReferenceFacts, error) {
 	return f.facts, nil
 }

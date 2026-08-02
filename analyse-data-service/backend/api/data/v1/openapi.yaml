@@ -1328,13 +1328,21 @@ components:
         reasoning_basis_summary: {type: string, nullable: true}
         evidence_gap_summary: {type: string, nullable: true}
         incoming_industry_chain_graph_edge_id:
+          description: >-
+            Optional active approved Graph Edge whose endpoints are the previous and current Tree
+            Node in either stored direction. Tree order, not the stored predicate direction,
+            records analyst-owned propagation.
           allOf: [{$ref: '#/components/schemas/LowercaseUUID'}]
           nullable: true
         incoming_transmission_title: {type: string, nullable: true}
         incoming_transmission_mechanism: {type: string, nullable: true}
         incoming_condition_summary: {type: string, nullable: true}
         incoming_lineage:
-          description: Null for the first Node and required for every later Node. A formal DirectImpact source Signal subject must equal the previous Node and its target must equal this Node.
+          description: >-
+            Null for the first Node and required for every later Node. A formal DirectImpact source
+            Signal subject must equal the previous Node and its target must equal this Node. An
+            analyst inference anchors formal Event lineage with one accepted upstream fact while
+            its Relation/Graph Edge connects the previous and current Node in either endpoint order.
           nullable: true
           allOf: [{$ref: '#/components/schemas/ResearchReasoningTreeIncomingLineage'}]
         signals:
@@ -1356,6 +1364,10 @@ components:
     ResearchReasoningTreeSignalLineage:
       type: object
       additionalProperties: false
+      description: >-
+        For analyst_inference, the accepted upstream Signal/Impact anchors formal fact and Event
+        lineage; the referenced Relation/Graph Edge must connect the previous and current Tree Node
+        in either endpoint order. Consecutive inference steps may reuse the same root fact.
       required: [source_kind, variable_signal_id, semantic_submission_id, evidence_id, evidence_hash, upstream_variable_signal_id, upstream_direct_impact_assertion_id, entity_relation_id, industry_chain_graph_edge_id]
       properties:
         source_kind: {type: string, enum: [formal_signal, analyst_inference]}
@@ -1370,6 +1382,10 @@ components:
     ResearchReasoningTreeIncomingLineage:
       type: object
       additionalProperties: false
+      description: >-
+        For analyst_inference, the accepted upstream Signal/Impact anchors formal fact and Event
+        lineage; the actual Relation or the Node's incoming Graph Edge connects the previous and
+        current Tree Node in either endpoint order.
       required: [source_kind, direct_impact_assertion_id, semantic_submission_id, evidence_id, evidence_hash, affected_variable_key, affected_direction, upstream_variable_signal_id, upstream_direct_impact_assertion_id, entity_relation_id]
       properties:
         source_kind: {type: string, enum: [formal_direct_impact, analyst_inference]}
