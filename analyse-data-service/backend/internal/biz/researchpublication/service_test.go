@@ -152,6 +152,58 @@ func TestPublishKeepsForwardOneHopAnalystInference(t *testing.T) {
 	}
 }
 
+func TestPublishRejectsExistingReceiptIdentityConflictsBeforeAnyWrite(t *testing.T) {
+	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+	_, themeID, err := aggregate.Validate()
+	if err != nil {
+		t.Fatalf("validate fixture: %v", err)
+	}
+	payloadHash, err := CanonicalHash(aggregate)
+	if err != nil {
+		t.Fatalf("hash fixture: %v", err)
+	}
+	receipt := publicationPlan(aggregate, themeID, payloadHash)
+	receipt.PublisherSubject = "codex"
+
+	tests := []struct {
+		name      string
+		publisher string
+		aggregate Aggregate
+		want      error
+	}{
+		{
+			name:      "payload conflict",
+			publisher: "codex",
+			aggregate: func() Aggregate {
+				changed := aggregate
+				changed.Theme.Title = "Changed BCI demand"
+				return changed
+			}(),
+			want: ErrPayloadConflict,
+		},
+		{
+			name:      "publisher mismatch",
+			publisher: "another-analyst",
+			aggregate: aggregate,
+			want:      ErrPublisherConflict,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tx := &fakeTransaction{facts: facts, receipt: &receipt}
+			service := NewService(fakeStore{tx: tx})
+
+			_, err := service.Publish(context.Background(), test.publisher, test.aggregate)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("error = %T %v, want %v", err, err, test.want)
+			}
+			if tx.writes != 0 {
+				t.Fatalf("writes = %d, want no writes for receipt identity conflict", tx.writes)
+			}
+		})
+	}
+}
+
 func TestPublishAcceptsReverseEntityRelationBetweenAdjacentNodes(t *testing.T) {
 	aggregate, facts := validBCIAnalystInferenceAggregate(true, 2)
 	relationID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
@@ -223,6 +275,46 @@ func TestPublishRejectsInactiveAnalystInferenceGraphEdge(t *testing.T) {
 	}
 	if tx.writes != 0 {
 		t.Fatalf("writes = %d, want no writes for an inactive Graph Edge", tx.writes)
+	}
+}
+
+func TestPublishRejectsInvalidBCIIndustryChainMembership(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(ReferenceFacts)
+	}{
+		{
+			name: "missing inactive or unapproved membership is absent from active approved facts",
+			setup: func(facts ReferenceFacts) {
+				delete(facts.Memberships[testBCIChainID], testBCITerminalNodeID)
+			},
+		},
+		{
+			name: "membership belongs to another Industry Chain",
+			setup: func(facts ReferenceFacts) {
+				delete(facts.Memberships[testBCIChainID], testBCITerminalNodeID)
+				facts.Memberships[testChainID] = map[string]TemporalFact{
+					testBCITerminalNodeID: testTemporalFact(),
+				}
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
+			test.setup(facts)
+			tx := &fakeTransaction{facts: facts}
+			service := NewService(fakeStore{tx: tx})
+
+			_, err := service.Publish(context.Background(), "codex", aggregate)
+			var reference *ReferenceError
+			if !errors.As(err, &reference) || reference.Reference != testBCITerminalNodeID {
+				t.Fatalf("error = %T %v, want invalid BCI membership ReferenceError", err, err)
+			}
+			if tx.writes != 0 {
+				t.Fatalf("writes = %d, want no writes for invalid BCI membership", tx.writes)
+			}
+		})
 	}
 }
 
@@ -671,12 +763,15 @@ func (s fakeStore) InResearchPublicationTransaction(ctx context.Context, fn func
 }
 
 type fakeTransaction struct {
-	facts  ReferenceFacts
-	writes int
+	facts   ReferenceFacts
+	receipt *Receipt
+	writes  int
 }
 
-func (*fakeTransaction) Lock(context.Context, string) error                { return nil }
-func (*fakeTransaction) Receipt(context.Context, string) (*Receipt, error) { return nil, nil }
+func (*fakeTransaction) Lock(context.Context, string) error { return nil }
+func (f *fakeTransaction) Receipt(context.Context, string) (*Receipt, error) {
+	return f.receipt, nil
+}
 func (f *fakeTransaction) ReferenceFacts(context.Context, ReferenceQuery) (ReferenceFacts, error) {
 	return f.facts, nil
 }
