@@ -6,6 +6,7 @@ const researchSource = process.env.TARO_APP_RESEARCH_SOURCE;
 const miniappApiBaseUrl = process.env.TARO_APP_MINIAPP_API_BASE_URL ?? '';
 const researchWindowHours = process.env.TARO_APP_RESEARCH_WINDOW_HOURS ?? '24';
 const h5ApiProxyTarget = process.env.TARO_APP_H5_API_PROXY_TARGET ?? 'http://127.0.0.1:9012';
+const fixedPixelSelectorBlackList = ['reasoning-'];
 
 if (researchSource !== 'mock' && researchSource !== 'api') {
   throw new Error('TARO_APP_RESEARCH_SOURCE must explicitly be mock or api');
@@ -54,7 +55,7 @@ const config = defineConfig({
       pxtransform: {
         enable: true,
         config: {
-          selectorBlackList: ['reasoning-']
+          selectorBlackList: fixedPixelSelectorBlackList
         }
       },
       cssModules: {
@@ -67,6 +68,14 @@ const config = defineConfig({
     }
   },
   h5: {
+    postcss: {
+      pxtransform: {
+        enable: true,
+        config: {
+          selectorBlackList: fixedPixelSelectorBlackList
+        }
+      }
+    },
     webpack: {
       watchOptions: {
         ignored: /node_modules/,
