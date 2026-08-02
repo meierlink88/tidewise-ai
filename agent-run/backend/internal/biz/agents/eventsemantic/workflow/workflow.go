@@ -8,10 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
@@ -19,47 +17,20 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 )
 
-var modelDecimalPattern = regexp.MustCompile(`^[+-]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$`)
+const mentionProtocol = `你是 Event Semantic V3 原文 Mention 提取器。只返回严格 JSON，不返回 Markdown。只提取 Event title、summary 或 Evidence title/excerpt 中逐字连续出现、可能指向正式实体的 raw mention，并引用属于本 Event 的 evidence_ids。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。Mention 若只出现在 Event 中，必须保留至少一条 primary supporting Evidence 作为血缘。公司、人物、机构、国家/地区、产品、技术、指数等明确专名即使出现在将来时、公告、报告或状态陈述中仍必须提取；复合短语只输出其中的机构 Mention，例如“日本央行将公布决议”输出“日本央行”，“多数美联储委员”输出“美联储”，“央行报告”输出“央行”，不得把整段状态或报告短语当成 Mention。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他候选只有在 Mention 与候选的 canonical_name、name 或正式 aliases 能确认同一业务对象时才选择；不得根据手写简称、删除后缀、字符串包含、字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高推定对象同一性，没有正式身份依据就安全 no_match。entity_role 必须取自所选正式 Entity Type Definition 的 allowed_event_roles：statement_source 是发表声明、发布报告或提供消息的来源；actor 是主动实施事件动作的主体；event_subject 只用于其自身状态、指标、价格或行动构成事件核心的实体；event_object 是他方行动直接指向的对象；affected_entity 是直接承受结果或影响的实体；context 只表示背景。被通牒、被调查、被暂停打击或作为措施对象的国家不是 event_subject，例如“特朗普发布对伊朗48小时通牒”和“美国暂停对伊朗军事打击”中的伊朗应为 event_object 或 affected_entity，“巴西对原产于中国的钢瓶发起调查”中的中国应为 event_object 或 affected_entity。“某人称……”中的发言主体优先考虑 statement_source，被谈论对象不能机械标为 actor。no_match 时 entity_id 和 entity_role 均为空，并必须把 no_match_reason 设为 mention_not_entity、no_candidate_same_entity 或 insufficient_context 之一；命中时 no_match_reason 为空。mention_not_entity 只允许 Stage A 误抽取的日期、数值、状态、行为、报告、会议等真正非实体；真实公司、产品、技术、指数等即使 ABox 缺失或当前 TBox out of scope，也不得标为 mention_not_entity。no_candidate_same_entity 表示 Mention 是实体指称但当前候选没有正式同一对象；insufficient_context 表示候选中可能存在同一对象但上下文不足。类型由正式候选携带，不得输出或改写 Entity Type。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属、由候选发布或背景相关而绑定候选。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”是合约/金融工具，不是 commodity 类型的“WTI原油”；“ChatGPT”不是“ChatGPT生态”概念，“特斯拉”不是“特斯拉生态”概念，“国新办”不是“国务院”。正式目录把“白宫”作为机构候选时，原文“白宫”可视为该机构的约定指称。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectionRecheckProtocol = `你是独立 Event Semantic V3 实体选择复核器。只返回严格 JSON。输入只包含 primary Selector 拒绝、但 Qdrant exact lookup 已通过正式 canonical name 或 alias 唯一确定 identity 的 disputed_candidate_sets。对这些唯一正式 exact identity 必须选择候选并分配该正式类型允许的准确角色；不得用删除后缀、字符串包含或其他手写简称规则扩展 identity。角色定义与主 Selector 相同：statement_source 是声明来源，actor 是主动行动者，event_subject 仅表示自身状态或行动构成事件核心的实体，event_object 是行动对象，affected_entity 是直接受影响实体，context 是背景。真实公司、产品、技术、指数不得归为 mention_not_entity。选择仍必须限定在当前 candidate_key 的候选白名单，不能创造或改写 Entity ID/Type。此复核只产生待审核 Candidate，后续独立事实 Review 仍会校验对象同一性与角色。不得生成 DirectImpact、跨实体传导、Theme 或投资判断。`
+const signalProtocol = `你是 Event Semantic V3 客观 Signal 提取器。只返回严格 JSON。输入已经包含解析完成的 EventEntityLink，以及按其正式 Entity Type 确定性筛选出的完整适用 Variable Definition 目录。VariableSignal 只能引用已有 subject_link_key，并只能使用该 link 的 applicable_variable_definitions 中的 key/version、allowed direction 和运行时 assertion modality。EventEntityLink 可以没有 Signal；不要为了覆盖率伪造 Signal。Measurement 是可选的自然语言量化片段，只保留原文完整 measurement_text 与 evidence_ids，不做数值归一化或结构化计算；不得伪造数值。若原文明示 resolved company 的合作/订单价值，且其完整适用目录包含 order_value，可以生成 Event-native order_value Signal 并保留原文金额 Measurement；融资额、市值或分析师目标价不得冒充 order_value。不得把 Evidence.published_at 当 statement_at，不得把 Event.occurred_at 当 measurement/report/forecast period。不得生成 DirectImpact、跨实体传导、Theme、机会或风险判断。`
+const reviewerProtocol = `你是独立 Event Semantic V3 审核器。只返回严格 JSON。逐项审核 expected_candidates。EventEntityLink 只审核 Mention 与 resolved entity 是否由候选 canonical_name、name 或正式 aliases 确认为同一个业务对象、Evidence 是否支持以及角色是否符合事件语义；不得用删除“系统/服务/设备/产品”等后缀、字符串包含、广为使用的简称或其他手写规则补足正式 identity。仅字面相似、同行业、上下级/隶属关系、背景相关或向量相似必须 fail；“国新办”与“国务院”是不同机构，必须 fail。角色审核必须使用以下边界：statement_source 是声明/报告来源；actor 是主动实施动作的主体；event_subject 只用于其自身状态、指标、价格或行动构成事件核心的实体；event_object 是他方行动直接指向的对象；affected_entity 是直接承受结果或影响的实体；context 只表示背景。被通牒、被调查、被暂停打击或作为措施对象的实体不能标为 event_subject；“特朗普发布对伊朗48小时通牒”和“美国暂停对伊朗军事打击”中的伊朗，以及“巴西对原产于中国的钢瓶发起调查”中的中国，必须审核为 event_object 或 affected_entity。Stage A 若把包含状态或陈述的复合短语当成 Mention，必须 fail，而不是把其中出现的实体词绑定出去；例如“美联储内部分歧”不是 raw Mention“美联储”，“美国6月通胀降温”不是 raw Mention“美国”。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”必须按 commodity 对期货合约的 exclusion 判为 fail，“ChatGPT”不能接受为“ChatGPT生态”概念，“特斯拉”不能接受为“特斯拉生态”概念；“安靠科技”不能接受为“安森美”，“华润新能源”不能接受为“燃煤发电服务”，“长鑫科技”不能接受为“LED外延生长服务”，“巴西总统卢拉”不能接受为“冯德莱恩”，“欧元区”不能接受为“欧盟”，“中国国际进口博览局”不能接受为“中华人民共和国商务部”，“Robotaxi”不能仅因相关而接受为“自动驾驶系统”。正式目录中的“白宫”机构可接受原文“白宫”的约定指称。VariableSignal 必须是 Event 对其已解析 Entity 的原生客观陈述。Measurement 的完整自然语言含义必须由引用 Evidence 支持。不得审核或生成 DirectImpact、跨实体传导、Theme 或投资结论。`
+const repairProtocol = `original_output 无法解析为请求的严格 JSON envelope。仅修复 JSON 语法、字段类型、缺失的顶层数组或额外字段，使其满足 output_schema；不得改变事实、补造 ID、Evidence、Variable、Measurement 或候选。只返回完整严格 JSON，不解释。`
 
-const maxDirectImpactCandidates = 50
+const mentionSchema = `{"mentions":[{"candidate_key":"","mention":"","evidence_ids":[""]}]}`
+const selectorSchema = `{"selections":[{"candidate_key":"","entity_id":"","entity_role":"","no_match":false,"no_match_reason":""}]}`
+const signalSchema = `{"variable_signals":[{"candidate_key":"","subject_link_key":"","variable_key":"","variable_version":1,"direction":"","assertion_modality":"","evidence_ids":[""],"measurements":[{"measurement_text":"","evidence_ids":[""]}],"statement_at":null,"valid_from":null,"valid_until":null,"forecast_period_start":null,"forecast_period_end":null}]}`
+const reviewSchema = `{"items":[{"candidate_type":"entity_link|variable_signal","candidate_key":"","decision":"pass|fail|indeterminate","reason_codes":[""],"evidence_ids":[""]}]}`
 
-const generatorProtocol = `你是 Event Variable Semantic Candidate Generator。只返回严格 JSON，不返回 Markdown 或自由推理。输入只包含精简 Event/Evidence/TBox Context，不含实体目录。第一步只提取原始 mention、预测 Entity Type、Entity Role 与 Variable Signal；不得生成 Entity ID、Alias、Relation 或路径。保持 actual、stated_intent、source_forecast 模态，不推测未来影响。每个候选使用稳定且批次内唯一的 candidate_key。resolution_confidence 和 extraction_confidence 是必填字符串，必须使用 0..1 十进制数字，例如 "0.73"；不得返回 high、medium、low、JSON number 或百分数。所有机器字段严格遵守输入中的 field_contracts。`
-const routeProtocol = `你是受控 ChainNode 路由选择器。只返回严格 JSON。route_id 和 partition 必须逐字取自输入 Data 路由响应；没有合适项时返回 unresolved=true，禁止发明值。`
-const anchorProtocol = `你是受控正式锚点选择器。只返回严格 JSON。anchor_entity_id 必须逐字取自输入 Data 锚点页；没有证据支持时返回 unresolved=true，禁止发明 ID。`
-const candidateProtocol = `你是受控 ChainNode 消歧器。只返回严格 JSON。target_entity_id 必须逐字取自输入 Data 候选页。结合原始 mention、Evidence、该 mention 绑定的 variable_signals，以及 Data 候选的正式名称、定义、产业链职责和位置进行选择；候选职责能够承载该变量和方向才可选择，不能仅因处于同一产业链而选择功能冲突的节点。没有证据支持时返回 unresolved=true，禁止发明 ID、关系或路径。`
-const impactProtocol = `你是同一个 Candidate Generator 的一跳影响阶段。只返回严格 JSON。只能使用输入中 Data Service 返回的 Direct Target、active Variable Definition 和 approved DirectTransmissionRule。对每个正式 Variable Signal，逐项检查 Direct Target 的 relation、目标 Entity Type 与 approved Rule 的 source variable/version/direction、relation、target type、affected variable/version/direction；全部匹配时必须输出 rule_inferred 候选，不得省略已满足前提的 approved Rule；匹配结果非空时 direct_impacts 不得为空。rule_inferred 的 Evidence 证明 source signal，正式 relation 和 approved Rule 证明一跳推导，不得要求 Evidence 直接陈述下游影响。signal_direction 与 affected_direction 必须分开。rule_inferred 必须完整引用具体 relation ID 和 rule key/version；event_explicit 必须有 Evidence 直接表达目标、变量、方向和因果。assertion_confidence 是必填字符串，必须使用 0..1 十进制数字，例如 "0.73"；不得返回 high、medium、low、JSON number 或百分数。所有机器字段严格遵守输入中的 field_contracts。不得多跳、递归、生成强弱或投资结论。`
-const reviewerProtocol = `你是独立 Event Semantic Reviewer。你看不到 Generator 的自由推理，只接收候选、Event Evidence、Ontology Context 与检查清单。只返回严格 JSON。每个结构化候选必须且只能返回一个 review item，不得遗漏、重复或增加候选；输出数量必须等于 expected_item_count，并逐字覆盖 expected_candidates，即使判定 fail 或 indeterminate 也不得省略。逐个候选输出 pass、fail 或 indeterminate，逐项引用 Evidence ID，并检查 Entity、Variable、direction 与 assertion_modality。event_explicit 必须由 Evidence 直接支持目标影响；rule_inferred 不要求 Evidence 直接陈述下游影响：Evidence 支持 source signal，且候选完整引用输入中的正式 relation 和 approved Rule、规则前提全部匹配时应判定 pass。candidate_type、candidate_key、decision 和 evidence_ids 必须严格遵守输入中的 field_contracts。不得直接决定数据库 accepted 状态。`
-const adjudicatorProtocol = `你是一次性独立 Event Semantic Adjudicator。只审查仍为 indeterminate 的结构化候选；只返回严格 JSON。证据充分则 pass，明确冲突则 fail，仍无法确定则 indeterminate。所有机器字段严格遵守输入中的 field_contracts。不得补造 Evidence、Entity、Variable 或关系。`
-
-const modelContractRepairOperation = "repair_model_contract"
-const modelContractRepairPolicyVersion = "event-semantic-model-contract-repair.v1"
-const modelContractRepairEnvelopeVersion = "event-semantic-model-contract-repair-envelope.v1"
-const modelContractRepairInstruction = `修正 user JSON 中 original_output 字段的模型输出，使其满足同一请求中的 output_schema、field_contracts 和 violation_codes。只返回完整、严格、修正后的 JSON；保留有证据支持的语义、原始 mention、Evidence 引用和候选身份；不得添加输入中不存在的正式 ID、事实或候选。不得解释修正过程。`
-const modelContractRepairMessageContract = `{"message_roles":["system","user"],"user_fields":["contract_version","operation","stage","policy_version","violation_codes","original_output","output_schema","field_contracts","repair_directive"]}`
-
-const (
-	modelStageEventNativeCandidates = "event_native_candidates"
-	modelStageChainNodeRoute        = "chain_node_route"
-	modelStageChainNodeAnchor       = "chain_node_anchor"
-	modelStageChainNodeCandidate    = "chain_node_candidate"
-	modelStageDirectImpacts         = "direct_impacts"
-	modelStageReviewer              = "reviewer"
-	modelStageAdjudicator           = "adjudicator"
-)
-
-const generatorSchema = `{"mentions":[{"candidate_key":"","mention":"","predicted_entity_type":"chain_node|commodity|product|industry_chain|industry|company|security|sector|concept|policy_body|person|alliance_org","entity_role":"event_subject|actor|affected_entity|statement_source|event_object|context","evidence_ids":[""],"resolution_confidence":"0.73"}],"variable_signals":[{"candidate_key":"","subject_link_key":"","variable_key":"","variable_version":1,"direction":"increase|decrease|unchanged|mixed|uncertain","assertion_modality":"actual|stated_intent|source_forecast","evidence_ids":[""],"measurements":[{"measurement_role":"absolute_level|absolute_change|relative_change|percentage_point_change","value_shape":"exact|range|lower_bound|upper_bound","raw_value":"0","raw_lower":null,"raw_upper":null,"raw_unit":"","canonical_value":"0","canonical_lower":null,"canonical_upper":null,"canonical_unit":"","currency":"","scale":"","comparison_basis":"","comparison_period":"","raw_text":"","is_approximate":false,"evidence_id":""}],"statement_at":null,"valid_from":null,"valid_until":null,"forecast_period_start":null,"forecast_period_end":null,"extraction_confidence":"0.73"}]}`
-const routeSchema = `{"route_id":"","partition":"","unresolved":false}`
-const anchorSchema = `{"anchor_entity_id":"","unresolved":false}`
-const candidateSchema = `{"target_entity_id":"","unresolved":false}`
-const impactSchema = `{"direct_impacts":[{"candidate_key":"","source_signal_key":"","target_entity_id":"","affected_variable_key":"","affected_variable_version":1,"affected_direction":"increase|decrease|unchanged|mixed|uncertain","derivation_type":"event_explicit|rule_inferred","mechanism_summary":"","entity_relation_id":"","rule_key":"","rule_version":1,"evidence_ids":[""],"assertion_confidence":"0.73"}]}`
-const reviewSchema = `{"items":[{"candidate_type":"entity_link|variable_signal|direct_impact","candidate_key":"","decision":"pass|fail|indeterminate","reason_codes":[""],"evidence_ids":[""]}]}`
-
-const generatorFieldContracts = `{"resolution_confidence":{"required":true,"type":"string","format":"decimal_string_0_to_1","valid_examples":["0","0.73","1.0"],"invalid_examples":["high","medium",0.8,"-0.1","1.1",""]},"extraction_confidence":{"required":true,"type":"string","format":"decimal_string_0_to_1","valid_examples":["0","0.73","1.0"],"invalid_examples":["high","medium",0.8,"-0.1","1.1",""]},"candidate_key":{"format":"non_empty_batch_unique_string"},"mention":{"format":"verbatim_evidence_substring"},"evidence_ids":{"format":"exact_input_id","items":"unique_non_empty"},"subject_link_key":{"format":"exact_generated_candidate_key"},"variable_key":{"format":"exact_input_key"},"variable_version":{"type":"integer","format":"positive_integer","source":"exact_input_version"},"statement_at":{"type":["string","null"],"format":"RFC3339","absent":"omit_or_null"},"valid_from":{"type":["string","null"],"format":"RFC3339","absent":"omit_or_null"},"valid_until":{"type":["string","null"],"format":"RFC3339","absent":"omit_or_null"},"forecast_period_start":{"type":["string","null"],"format":"RFC3339","absent":"omit_or_null"},"forecast_period_end":{"type":["string","null"],"format":"RFC3339","absent":"omit_or_null"},"measurement_values":{"type":["string","null"],"format":"decimal_string","examples":["-10","12.5"]},"is_approximate":{"type":"boolean"}}`
-const routeFieldContracts = `{"route_id":{"format":"exact_input_value"},"partition":{"format":"exact_input_value"},"unresolved":{"type":"boolean","rule":"when true route_id and partition must be empty"}}`
-const anchorFieldContracts = `{"anchor_entity_id":{"format":"exact_input_id"},"unresolved":{"type":"boolean","rule":"when true anchor_entity_id must be empty"}}`
-const candidateFieldContracts = `{"target_entity_id":{"format":"exact_input_id"},"unresolved":{"type":"boolean","rule":"when true target_entity_id must be empty"}}`
-const impactFieldContracts = `{"assertion_confidence":{"required":true,"type":"string","format":"decimal_string_0_to_1","valid_examples":["0","0.73","1.0"],"invalid_examples":["high","medium",0.8,"-0.1","1.1",""]},"candidate_key":{"format":"non_empty_batch_unique_string"},"source_signal_key":{"format":"exact_generated_candidate_key"},"target_entity_id":{"format":"exact_input_id"},"entity_relation_id":{"format":"exact_input_id"},"evidence_ids":{"format":"exact_input_id","items":"unique_non_empty"},"affected_variable_key":{"format":"exact_input_key"},"affected_variable_version":{"type":"integer","format":"positive_integer","source":"exact_input_version"},"rule_key":{"format":"exact_input_key"},"rule_version":{"type":"integer","format":"positive_integer","source":"exact_input_version"}}`
-const reviewFieldContracts = `{"expected_item_count":{"type":"integer","format":"exact_input_count"},"expected_candidates":{"type":"array","format":"exact_input_candidate_identity_set"},"candidate_type":{"format":"enum","values":["entity_link","variable_signal","direct_impact"]},"candidate_key":{"format":"exact_input_candidate_key"},"decision":{"format":"enum","values":["pass","fail","indeterminate"]},"evidence_ids":{"format":"exact_input_id","items":"unique_non_empty"},"reason_codes":{"type":"array_of_strings"}}`
+const maxMentions = 30
+const maxSignals = 60
 
 type Input struct {
 	Attempt            eventsemantic.ExecutionAttempt
@@ -67,273 +38,284 @@ type Input struct {
 	ExistingSubmission *eventsemantic.SubmissionResult
 	GeneratorModel     string
 	ReviewerModel      string
-}
-
-type state struct {
-	input          *Input
-	mentions       []mentionCandidate
-	candidates     eventsemantic.CandidateSet
-	targets        map[string][]eventsemantic.DirectTarget
-	impactBindings []applicableImpactBinding
-	submission     eventsemantic.SubmissionResult
-	resuming       bool
-	result         eventsemantic.Result
-}
-
-type nativeOutput struct {
-	Mentions        []mentionCandidate                      `json:"mentions"`
-	VariableSignals []eventsemantic.VariableSignalCandidate `json:"variable_signals"`
+	Audit              *eventsemantic.StageAudit
 }
 
 type mentionCandidate struct {
-	CandidateKey         string   `json:"candidate_key"`
-	Mention              string   `json:"mention"`
-	PredictedEntityType  string   `json:"predicted_entity_type"`
-	EntityRole           string   `json:"entity_role"`
-	EvidenceIDs          []string `json:"evidence_ids"`
-	ResolutionConfidence string   `json:"resolution_confidence,omitempty"`
+	CandidateKey string   `json:"candidate_key"`
+	Mention      string   `json:"mention"`
+	EvidenceIDs  []string `json:"evidence_ids"`
 }
 
-type routeSelection struct {
-	RouteID    string `json:"route_id"`
-	Partition  string `json:"partition"`
-	Unresolved bool   `json:"unresolved"`
+type mentionOutput struct {
+	Mentions []json.RawMessage `json:"mentions"`
 }
 
-type anchorSelection struct {
-	AnchorEntityID string `json:"anchor_entity_id"`
-	Unresolved     bool   `json:"unresolved"`
+type entitySelection struct {
+	CandidateKey  string `json:"candidate_key"`
+	EntityID      string `json:"entity_id"`
+	EntityRole    string `json:"entity_role"`
+	NoMatch       bool   `json:"no_match"`
+	NoMatchReason string `json:"no_match_reason"`
 }
 
-type candidateSelection struct {
-	TargetEntityID string `json:"target_entity_id"`
-	Unresolved     bool   `json:"unresolved"`
+type selectionOutput struct {
+	Selections []json.RawMessage `json:"selections"`
 }
 
-type impactOutput struct {
-	DirectImpacts []eventsemantic.DirectImpactCandidate `json:"direct_impacts"`
-}
-
-type applicableImpactBinding struct {
-	SourceSignalKey  string
-	TargetEntityID   string
-	EntityRelationID string
-	RuleKey          string
-	RuleVersion      int
-	Rule             eventsemantic.TransmissionRule
+type signalOutput struct {
+	VariableSignals []json.RawMessage `json:"variable_signals"`
 }
 
 type reviewOutput struct {
-	Items []eventsemantic.ReviewItem `json:"items"`
+	Items []json.RawMessage `json:"items"`
 }
 
-type reviewCandidateIdentity struct {
-	CandidateType string   `json:"candidate_type"`
-	CandidateKey  string   `json:"candidate_key"`
-	EvidenceIDs   []string `json:"evidence_ids"`
+type resolvedLink struct {
+	Candidate eventsemantic.EntityLinkCandidate  `json:"link"`
+	Entity    eventsemantic.Entity               `json:"entity"`
+	Variables []eventsemantic.VariableDefinition `json:"applicable_variable_definitions"`
 }
 
-type modelContractRepairRequest struct {
-	ContractVersion string          `json:"contract_version"`
-	Operation       string          `json:"operation"`
-	Stage           string          `json:"stage"`
-	PolicyVersion   string          `json:"policy_version"`
-	ViolationCodes  []string        `json:"violation_codes"`
-	OriginalOutput  string          `json:"original_output"`
-	OutputSchema    json.RawMessage `json:"output_schema"`
-	FieldContracts  json.RawMessage `json:"field_contracts"`
-	RepairDirective string          `json:"repair_directive"`
-}
-
-type modelOutputViolation struct {
-	codes []string
-}
-
-func (e *modelOutputViolation) Error() string {
-	return strings.Join(e.codes, ",")
-}
-
-func newModelOutputViolation(codes ...string) error {
-	seen := make(map[string]struct{}, len(codes))
-	stable := make([]string, 0, len(codes))
-	for _, code := range codes {
-		if strings.TrimSpace(code) == "" {
-			continue
-		}
-		if _, exists := seen[code]; exists {
-			continue
-		}
-		seen[code] = struct{}{}
-		stable = append(stable, code)
-	}
-	return &modelOutputViolation{codes: stable}
+type state struct {
+	input      *Input
+	mentions   []mentionCandidate
+	resolved   []resolvedLink
+	candidates eventsemantic.CandidateSet
+	submission eventsemantic.SubmissionResult
+	result     eventsemantic.Result
+	resuming   bool
 }
 
 func New(
 	ctx context.Context,
 	data eventsemantic.DataClient,
+	retriever eventsemantic.SemanticRetriever,
 	generator model.BaseChatModel,
 	reviewer model.BaseChatModel,
+	entityTopK int,
 ) (compose.Runnable[*Input, *eventsemantic.Result], error) {
-	if data == nil || generator == nil || reviewer == nil {
-		return nil, errors.New("Event Semantic workflow dependencies are required")
+	if data == nil || retriever == nil || generator == nil || reviewer == nil || entityTopK <= 0 || entityTopK > 20 {
+		return nil, errors.New("Event Semantic V3 workflow dependencies are required")
 	}
 	graph := compose.NewWorkflow[*Input, *eventsemantic.Result]()
-	graph.AddLambdaNode("generate_event_native_candidates", compose.InvokableLambda(
+	graph.AddLambdaNode("extract_mentions", compose.InvokableLambda(
 		func(ctx context.Context, input *Input) (*state, error) {
-			if input == nil || input.Attempt.ID == "" || input.Context.ContextLeaseID == "" ||
-				input.Context.Event.ID != input.Attempt.ContextLease.EventID {
-				return nil, errors.New("Event Semantic workflow input is invalid")
+			if err := validateInput(input); err != nil {
+				return nil, err
 			}
+			current := &state{input: input}
 			if input.ExistingSubmission != nil {
 				if input.ExistingSubmission.AgentExecutionID != input.Attempt.ID ||
 					input.ExistingSubmission.EventID != input.Context.Event.ID ||
 					input.ExistingSubmission.ReviewerWorkPackage == nil {
 					return nil, errors.New("Event Semantic resumable Submission is invalid")
 				}
-				return &state{
-					input: input, submission: *input.ExistingSubmission, resuming: true,
-					targets: make(map[string][]eventsemantic.DirectTarget),
-				}, nil
+				current.submission = *input.ExistingSubmission
+				current.resuming = true
+				return current, nil
 			}
 			payload, err := json.Marshal(struct {
-				Context        eventsemantic.Context `json:"context"`
-				Schema         json.RawMessage       `json:"output_schema"`
-				FieldContracts json.RawMessage       `json:"field_contracts"`
-			}{
-				Context: input.Context, Schema: json.RawMessage(generatorSchema),
-				FieldContracts: json.RawMessage(generatorFieldContracts),
-			})
+				Event        eventsemantic.Event      `json:"event"`
+				Evidence     []eventsemantic.Evidence `json:"evidence"`
+				OutputSchema json.RawMessage          `json:"output_schema"`
+			}{input.Context.Event, input.Context.Evidence, json.RawMessage(mentionSchema)})
 			if err != nil {
 				return nil, err
 			}
-			output, err := generateValidatedModelOutput[nativeOutput](
-				ctx, generator, modelStageEventNativeCandidates,
-				[]*schema.Message{
-					schema.SystemMessage(generatorProtocol), schema.UserMessage(string(payload)),
-				},
-				generatorSchema, generatorFieldContracts,
-				func(output nativeOutput) error { return validateNativeOutput(output, input.Context) },
-				"Event Semantic generator response violates the bounded candidate contract",
-			)
+			output, err := generateEnvelope[mentionOutput](ctx, generator, "mention_extraction", mentionProtocol, string(payload), mentionSchema, input.Audit)
 			if err != nil {
 				return nil, err
 			}
-			return &state{
-				input:    input,
-				mentions: output.Mentions,
-				candidates: eventsemantic.CandidateSet{
-					VariableSignals: output.VariableSignals,
-				},
-				targets: make(map[string][]eventsemantic.DirectTarget),
-			}, nil
+			current.mentions = isolateMentions(decodeMentionItems(output.Mentions, input.Audit), input.Context, input.Audit)
+			return current, nil
 		},
 	)).AddInput(compose.START)
-	graph.AddLambdaNode("resolve_entities_and_targets", compose.InvokableLambda(
+
+	graph.AddLambdaNode("resolve_entities", compose.InvokableLambda(
 		func(ctx context.Context, current *state) (*state, error) {
-			if current.resuming {
+			if current.resuming || len(current.mentions) == 0 {
 				return current, nil
 			}
+			lookups := make([]eventsemantic.EntityLookup, 0, len(current.mentions))
+			mentions := make(map[string]mentionCandidate, len(current.mentions))
 			for _, mention := range current.mentions {
-				var link eventsemantic.EntityLinkCandidate
-				var resolved bool
-				var err error
-				if mention.PredictedEntityType == "chain_node" {
-					link, resolved, err = resolveChainNodeMention(
-						ctx, data, generator, current.input, mention,
-						current.candidates.VariableSignals,
-					)
-				} else {
-					link, resolved, err = resolveExactMention(ctx, data, current.input, mention)
-				}
-				if err != nil {
-					return nil, err
-				}
-				if resolved {
-					current.candidates.EntityLinks = append(current.candidates.EntityLinks, link)
-				}
+				lookups = append(lookups, eventsemantic.EntityLookup{CandidateKey: mention.CandidateKey, Mention: mention.Mention})
+				mentions[mention.CandidateKey] = mention
 			}
-			resolvedKeys := make(map[string]struct{}, len(current.candidates.EntityLinks))
-			for _, link := range current.candidates.EntityLinks {
-				resolvedKeys[link.CandidateKey] = struct{}{}
+			exact, err := retriever.ExactEntities(ctx, lookups)
+			if err != nil {
+				return nil, err
 			}
-			resolvedSignals := current.candidates.VariableSignals[:0]
-			for _, signal := range current.candidates.VariableSignals {
-				if _, ok := resolvedKeys[signal.SubjectLinkKey]; ok {
-					resolvedSignals = append(resolvedSignals, signal)
-				}
+			if !candidateSetsCover(exact, lookups) {
+				return nil, retrievalContractError()
 			}
-			current.candidates.VariableSignals = resolvedSignals
-			signalLinkKeys := make(map[string]struct{}, len(current.candidates.VariableSignals))
-			for _, signal := range current.candidates.VariableSignals {
-				signalLinkKeys[signal.SubjectLinkKey] = struct{}{}
-			}
-			for _, link := range current.candidates.EntityLinks {
-				if _, needed := signalLinkKeys[link.CandidateKey]; !needed {
+			types := activeEventLinkTypes(current.input.Context.EntityTypeDefinitions)
+			selectable := make([]eventsemantic.EntityCandidateSet, 0, len(exact))
+			exactByKey := make(map[string]eventsemantic.EntityCandidateSet, len(exact))
+			methods := make(map[string]map[string]string, len(exact))
+			excludedByTBox := make(map[string]bool, len(exact))
+			unresolved := make([]eventsemantic.EntityLookup, 0, len(exact))
+			for _, set := range exact {
+				excludedByTBox[set.CandidateKey] = hasTBoxExcludedCandidate(set.Candidates, types)
+				recordCandidateSet(current.input.Audit, set, "qdrant_exact")
+				set.Candidates = filterRetrievedCandidates(set.Candidates, types)
+				exactByKey[set.CandidateKey] = set
+				methods[set.CandidateKey] = candidateResolutionMethods(set.Candidates, "qdrant_exact")
+				if len(set.Candidates) != 1 {
+					unresolved = append(unresolved, eventsemantic.EntityLookup{CandidateKey: set.CandidateKey, Mention: mentions[set.CandidateKey].Mention})
 					continue
 				}
-				targets, err := data.SearchDirectTargets(
-					ctx,
-					current.input.Context.ContextLeaseID,
-					link.EntityID,
-					[]string{"commodity", "product", "chain_node", "company", "industry"},
-				)
-				if err != nil {
-					return nil, err
-				}
-				current.targets[link.CandidateKey] = targets
+				selectable = append(selectable, set)
 			}
-			return current, nil
-		},
-	)).AddInput("generate_event_native_candidates")
-	graph.AddLambdaNode("generate_direct_impacts", compose.InvokableLambda(
-		func(ctx context.Context, current *state) (*state, error) {
-			if current.resuming {
+			if len(unresolved) > 0 {
+				vectorSets, searchErr := retriever.SearchEntities(ctx, unresolved, entityTopK)
+				if searchErr != nil {
+					return nil, searchErr
+				}
+				if !candidateSetsCover(vectorSets, unresolved) {
+					return nil, retrievalContractError()
+				}
+				for _, set := range vectorSets {
+					excludedByTBox[set.CandidateKey] = excludedByTBox[set.CandidateKey] || hasTBoxExcludedCandidate(set.Candidates, types)
+					recordCandidateSet(current.input.Audit, set, "qdrant_vector")
+					set.Candidates = filterRetrievedCandidates(set.Candidates, types)
+					for entityID, method := range candidateResolutionMethods(set.Candidates, "qdrant_vector") {
+						if methods[set.CandidateKey][entityID] == "" {
+							methods[set.CandidateKey][entityID] = method
+						}
+					}
+					set.Candidates = mergeCandidates(exactByKey[set.CandidateKey].Candidates, set.Candidates, entityTopK)
+					if len(set.Candidates) == 0 {
+						reason, owner := "entity_no_candidates", "qdrant_projection"
+						if excludedByTBox[set.CandidateKey] {
+							reason, owner = "entity_candidates_not_event_link_allowed", "tbox"
+						}
+						isolate(current.input.Audit, "entity_resolution", set.CandidateKey, reason, owner)
+						continue
+					}
+					selectable = append(selectable, set)
+				}
+			}
+			if len(selectable) == 0 {
 				return current, nil
 			}
-			impactBindings, budgetExceeded := applicableImpactBindings(
-				current, maxDirectImpactCandidates,
-			)
-			if budgetExceeded {
-				return nil, impactBindingBudgetError()
-			}
-			current.impactBindings = impactBindings
+			selectorTypes := definitionsForCandidateSets(selectable, types)
+			identityLockedKeys := uniqueExactCandidateKeys(selectable, exactByKey)
 			payload, err := json.Marshal(struct {
-				Event          eventsemantic.Event                     `json:"event"`
-				Evidence       []eventsemantic.Evidence                `json:"evidence"`
-				Links          []eventsemantic.EntityLinkCandidate     `json:"entity_links"`
-				Signals        []eventsemantic.VariableSignalCandidate `json:"variable_signals"`
-				Targets        map[string][]eventsemantic.DirectTarget `json:"direct_targets_by_link_key"`
-				Variables      []eventsemantic.VariableDefinition      `json:"variable_definitions"`
-				Rules          []eventsemantic.TransmissionRule        `json:"approved_rules"`
-				OutputShape    json.RawMessage                         `json:"output_schema"`
-				FieldContracts json.RawMessage                         `json:"field_contracts"`
-			}{
-				Event: current.input.Context.Event, Evidence: current.input.Context.Evidence,
-				Links: current.candidates.EntityLinks, Signals: current.candidates.VariableSignals,
-				Targets: current.targets, Variables: current.input.Context.VariableDefinitions,
-				Rules:       applicableImpactRules(impactBindings),
-				OutputShape: json.RawMessage(impactSchema), FieldContracts: json.RawMessage(impactFieldContracts),
-			})
+				Event                 eventsemantic.Event                  `json:"event"`
+				Evidence              []eventsemantic.Evidence             `json:"evidence"`
+				Mentions              map[string]mentionCandidate          `json:"mentions"`
+				CandidateSets         []eventsemantic.EntityCandidateSet   `json:"candidate_sets"`
+				IdentityLockedKeys    []string                             `json:"identity_locked_candidate_keys"`
+				EntityTypeDefinitions []eventsemantic.EntityTypeDefinition `json:"entity_type_definitions"`
+				OutputSchema          json.RawMessage                      `json:"output_schema"`
+			}{current.input.Context.Event, current.input.Context.Evidence, mentions, selectable, identityLockedKeys, selectorTypes, json.RawMessage(selectorSchema)})
 			if err != nil {
 				return nil, err
 			}
-			output, err := generateValidatedModelOutput[impactOutput](
-				ctx, generator, modelStageDirectImpacts,
-				[]*schema.Message{
-					schema.SystemMessage(impactProtocol), schema.UserMessage(string(payload)),
-				},
-				impactSchema, impactFieldContracts,
-				func(output impactOutput) error { return validateImpactOutput(output, current) },
-				"Event Semantic impact response violates the bounded candidate contract",
-			)
+			output, err := generateEnvelope[selectionOutput](ctx, generator, "entity_selection", selectorProtocol, string(payload), selectorSchema, current.input.Audit)
 			if err != nil {
 				return nil, err
 			}
-			current.candidates.DirectImpacts = output.DirectImpacts
+			selections := isolateSelections(decodeSelectionItems(output.Selections, "entity_selection", current.input.Audit), selectable, types, current.input.Audit)
+			rechecked := make(map[string]bool)
+			disputed := make([]eventsemantic.EntityCandidateSet, 0)
+			for _, set := range selectable {
+				selection, exists := selections[set.CandidateKey]
+				if exists && !selection.NoMatch {
+					continue
+				}
+				if len(exactByKey[set.CandidateKey].Candidates) == 1 {
+					if exists {
+						recordSelection(current.input.Audit, selection, eventsemantic.Entity{}, len(exactByKey[set.CandidateKey].Candidates) > 0, "primary_selector")
+					} else {
+						recordMissingSelection(current.input.Audit, set.CandidateKey, "primary_selector")
+					}
+					disputed = append(disputed, set)
+					isolate(current.input.Audit, "entity_selection", set.CandidateKey, "selector_primary_recheck_required", "model_selection")
+				}
+			}
+			if len(disputed) > 0 {
+				recheckPayload, marshalErr := json.Marshal(struct {
+					Event                 eventsemantic.Event                  `json:"event"`
+					Evidence              []eventsemantic.Evidence             `json:"evidence"`
+					Mentions              map[string]mentionCandidate          `json:"mentions"`
+					DisputedCandidateSets []eventsemantic.EntityCandidateSet   `json:"disputed_candidate_sets"`
+					EntityTypeDefinitions []eventsemantic.EntityTypeDefinition `json:"entity_type_definitions"`
+					OutputSchema          json.RawMessage                      `json:"output_schema"`
+				}{current.input.Context.Event, current.input.Context.Evidence, mentions, disputed,
+					definitionsForCandidateSets(disputed, types), json.RawMessage(selectorSchema)})
+				if marshalErr != nil {
+					return nil, marshalErr
+				}
+				recheckOutput, recheckErr := generateEnvelope[selectionOutput](ctx, reviewer, "entity_selection_recheck", selectionRecheckProtocol, string(recheckPayload), selectorSchema, current.input.Audit)
+				if recheckErr != nil {
+					return nil, recheckErr
+				}
+				for key, selection := range isolateSelectionsAt(decodeSelectionItems(recheckOutput.Selections, "entity_selection_recheck", current.input.Audit), disputed, types, current.input.Audit, "entity_selection_recheck") {
+					selections[key] = selection
+					rechecked[key] = true
+				}
+			}
+			selectedByEntity := make(map[string]string)
+			for _, set := range selectable {
+				selection, ok := selections[set.CandidateKey]
+				if !ok || selection.NoMatch {
+					if ok {
+						recordSelection(current.input.Audit, selection, eventsemantic.Entity{}, len(exactByKey[set.CandidateKey].Candidates) > 0, selectionRoute(rechecked[set.CandidateKey]))
+					}
+					continue
+				}
+				entity := candidateMap([]eventsemantic.EntityCandidateSet{set})[set.CandidateKey][selection.EntityID]
+				recordSelection(current.input.Audit, selection, entity, len(exactByKey[set.CandidateKey].Candidates) > 0, selectionRoute(rechecked[set.CandidateKey]))
+				if representative, duplicate := selectedByEntity[entity.EntityID]; duplicate {
+					isolate(current.input.Audit, "entity_selection", set.CandidateKey, "duplicate_entity_link", "agentrun")
+					_ = representative
+					continue
+				}
+				selectedByEntity[entity.EntityID] = set.CandidateKey
+				mention := mentions[set.CandidateKey]
+				link := eventsemantic.EntityLinkCandidate{
+					CandidateKey: set.CandidateKey, Mention: mention.Mention, EntityID: entity.EntityID,
+					ProjectedEntityType: entity.EntityType, EntityRole: selection.EntityRole, EvidenceIDs: mention.EvidenceIDs,
+					ResolutionMethod: methods[set.CandidateKey][entity.EntityID],
+				}
+				variables := applicableVariables(current.input.Context.VariableDefinitions, entity.EntityType, types[entity.EntityType].SignalSubjectAllowed)
+				current.resolved = append(current.resolved, resolvedLink{Candidate: link, Entity: entity, Variables: variables})
+				current.candidates.EntityLinks = append(current.candidates.EntityLinks, link)
+				recordApplicableVariables(current.input.Audit, link.CandidateKey, variables)
+			}
 			return current, nil
 		},
-	)).AddInput("resolve_entities_and_targets")
+	)).AddInput("extract_mentions")
+
+	graph.AddLambdaNode("generate_signals", compose.InvokableLambda(
+		func(ctx context.Context, current *state) (*state, error) {
+			if current.resuming || !hasApplicableVariables(current.resolved) {
+				return current, nil
+			}
+			payload, err := json.Marshal(struct {
+				Event               eventsemantic.Event               `json:"event"`
+				Evidence            []eventsemantic.Evidence          `json:"evidence"`
+				ResolvedLinks       []resolvedLink                    `json:"resolved_links"`
+				Modalities          []string                          `json:"assertion_modalities"`
+				MeasurementContract eventsemantic.MeasurementContract `json:"measurement_contract"`
+				OutputSchema        json.RawMessage                   `json:"output_schema"`
+			}{current.input.Context.Event, current.input.Context.Evidence, current.resolved,
+				current.input.Context.AssertionModalities, current.input.Context.MeasurementContract, json.RawMessage(signalSchema)})
+			if err != nil {
+				return nil, err
+			}
+			output, err := generateEnvelope[signalOutput](ctx, generator, "signal_extraction", signalProtocol, string(payload), signalSchema, current.input.Audit)
+			if err != nil {
+				return nil, err
+			}
+			current.candidates.VariableSignals = isolateSignals(decodeSignalItems(output.VariableSignals, current.input.Audit), current.resolved, current.input.Context, current.input.Audit)
+			return current, nil
+		},
+	)).AddInput("resolve_entities")
+
 	graph.AddLambdaNode("submit_candidates", compose.InvokableLambda(
 		func(ctx context.Context, current *state) (*state, error) {
 			if current.resuming {
@@ -341,16 +323,13 @@ func New(
 			}
 			submission, err := data.CreateSubmission(ctx, eventsemantic.SubmissionRequest{
 				ContextLeaseID: current.input.Context.ContextLeaseID, EventID: current.input.Context.Event.ID,
-				AgentExecutionID: current.input.Attempt.ID,
-				AgentKey:         eventsemantic.AgentKey, AgentVersion: eventsemantic.AgentVersion,
-				SupersedesSubmissionID: current.input.Attempt.WorkItem.SupersedesSubmissionID,
-				GeneratorPromptHash:    GeneratorPromptHash(), GeneratorModel: current.input.GeneratorModel,
+				AgentExecutionID: current.input.Attempt.ID, AgentKey: eventsemantic.AgentKey,
+				AgentVersion: eventsemantic.AgentVersion, SupersedesSubmissionID: current.input.Attempt.WorkItem.SupersedesSubmissionID,
+				GeneratorPromptHash: GeneratorPromptHash(), GeneratorModel: current.input.GeneratorModel,
 				ReviewerPromptHash: ReviewerPromptHash(), ReviewerModel: current.input.ReviewerModel,
-				AdjudicatorPromptHash: AdjudicatorPromptHash(), AdjudicatorModel: current.input.ReviewerModel,
-				OntologyVersion:         current.input.Context.OntologyVersion,
-				AcceptancePolicyVersion: current.input.Context.AcceptancePolicyVersion,
-				EntityLinks:             current.candidates.EntityLinks, VariableSignals: current.candidates.VariableSignals,
-				DirectImpacts: current.candidates.DirectImpacts,
+				AdjudicatorPromptHash: ReviewerPromptHash(), AdjudicatorModel: current.input.ReviewerModel,
+				OntologyVersion: current.input.Context.OntologyVersion, AcceptancePolicyVersion: current.input.Context.AcceptancePolicyVersion,
+				EntityLinks: current.candidates.EntityLinks, VariableSignals: current.candidates.VariableSignals,
 			})
 			if err != nil {
 				return nil, err
@@ -358,932 +337,538 @@ func New(
 			current.submission = submission
 			return current, nil
 		},
-	)).AddInput("generate_direct_impacts")
-	graph.AddLambdaNode("review_candidates", compose.InvokableLambda(
+	)).AddInput("generate_signals")
+
+	graph.AddLambdaNode("review_and_finalize", compose.InvokableLambda(
 		func(ctx context.Context, current *state) (*state, error) {
-			if current.submission.ReviewerWorkPackage == nil {
-				accepted, rejected := current.submission.CandidateOutcomeCounts()
-				current.result = eventsemantic.Result{
-					SubmissionID:       current.submission.SubmissionID,
-					Status:             current.submission.Status,
-					AcceptedCandidates: accepted,
-					RejectedCandidates: rejected,
-				}
-				return current, nil
-			}
-			protocol, promptHash, stage := reviewerProtocol, ReviewerPromptHash(), modelStageReviewer
-			if current.resuming && len(current.submission.ReviewSnapshots) > 0 {
-				protocol, promptHash, stage = adjudicatorProtocol, AdjudicatorPromptHash(), modelStageAdjudicator
-			}
-			reviewed, err := reviewAndSubmit(
-				ctx, data, reviewer, current, protocol, promptHash, stage,
-			)
+			startPass, err := reviewStartPass(current.submission, current.input.Attempt.ID)
 			if err != nil {
 				return nil, err
 			}
-			if stage == modelStageReviewer &&
-				reviewed.Status == "needs_reanalysis" &&
-				reviewed.ReviewerWorkPackage != nil {
-				current.submission = reviewed
-				reviewed, err = reviewAndSubmit(
-					ctx, data, reviewer, current, adjudicatorProtocol, AdjudicatorPromptHash(), modelStageAdjudicator,
-				)
+			for pass := startPass; pass < 2 && current.submission.ReviewerWorkPackage != nil; pass++ {
+				work := current.submission.ReviewerWorkPackage
+				expected := expectedReviewCandidates(*work)
+				payload, marshalErr := json.Marshal(struct {
+					Work                  eventsemantic.ReviewerWorkPackage    `json:"work_package"`
+					EntityTypeDefinitions []eventsemantic.EntityTypeDefinition `json:"entity_type_definitions"`
+					ExpectedCandidates    []reviewIdentity                     `json:"expected_candidates"`
+					OutputSchema          json.RawMessage                      `json:"output_schema"`
+				}{*work, definitionsForResolvedEntities(work.ResolvedEntities, current.input.Context.EntityTypeDefinitions), expected, json.RawMessage(reviewSchema)})
+				if marshalErr != nil {
+					return nil, marshalErr
+				}
+				review, generateErr := generateEnvelope[reviewOutput](ctx, reviewer, "independent_review", reviewerProtocol, string(payload), reviewSchema, current.input.Audit)
+				if generateErr != nil {
+					return nil, generateErr
+				}
+				items := isolateReview(decodeReviewItems(review.Items, current.input.Audit), expected, *work, current.input.Audit)
+				current.submission, err = data.SubmitReview(ctx, current.submission.SubmissionID, eventsemantic.ReviewRequest{
+					ReviewerExecutionKey: current.input.Attempt.ID + reviewExecutionSuffix(pass),
+					PromptHash:           ReviewerPromptHash(), Model: current.input.ReviewerModel, Items: items,
+				})
 				if err != nil {
 					return nil, err
 				}
 			}
-			current.submission = reviewed
-			accepted, rejected := reviewed.CandidateOutcomeCounts()
+			accepted, rejected := current.submission.CandidateOutcomeCounts()
 			current.result = eventsemantic.Result{
-				SubmissionID:       reviewed.SubmissionID,
-				Status:             reviewed.Status,
-				AcceptedCandidates: accepted,
-				RejectedCandidates: rejected,
+				SubmissionID: current.submission.SubmissionID, Status: current.submission.Status,
+				AcceptedCandidates: accepted, RejectedCandidates: rejected, Audit: auditValue(current.input.Audit),
 			}
 			return current, nil
 		},
 	)).AddInput("submit_candidates")
+
 	graph.AddLambdaNode("build_result", compose.InvokableLambda(
-		func(_ context.Context, current *state) (*eventsemantic.Result, error) {
-			return &current.result, nil
-		},
-	)).AddInput("review_candidates")
+		func(_ context.Context, current *state) (*eventsemantic.Result, error) { return &current.result, nil },
+	)).AddInput("review_and_finalize")
 	graph.End().AddInput("build_result")
 	return graph.Compile(ctx)
 }
 
-func resolveExactMention(
-	ctx context.Context,
-	data eventsemantic.DataClient,
-	input *Input,
-	mention mentionCandidate,
-) (eventsemantic.EntityLinkCandidate, bool, error) {
-	resolutions, err := data.Resolve(ctx, input.Context.ContextLeaseID, []eventsemantic.EntityMention{{
-		Mention: mention.Mention, AllowedEntityTypes: []string{mention.PredictedEntityType},
-	}})
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
-	}
-	if len(resolutions) == 1 && resolutions[0].Mention != mention.Mention {
-		return eventsemantic.EntityLinkCandidate{}, false, dataResponseContractError()
-	}
-	if len(resolutions) != 1 || resolutions[0].Ambiguous || len(resolutions[0].Candidates) != 1 {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	return eventsemantic.EntityLinkCandidate{
-		CandidateKey: mention.CandidateKey, Mention: mention.Mention,
-		EntityID: resolutions[0].Candidates[0].EntityID, EntityRole: mention.EntityRole,
-		EvidenceIDs: mention.EvidenceIDs, ResolutionMethod: "data_service_resolution",
-		ResolutionConfidence: mention.ResolutionConfidence,
-	}, true, nil
+type reviewIdentity struct {
+	CandidateType string `json:"candidate_type"`
+	CandidateKey  string `json:"candidate_key"`
 }
 
-func resolveChainNodeMention(
-	ctx context.Context,
-	data eventsemantic.DataClient,
-	generator model.BaseChatModel,
-	input *Input,
-	mention mentionCandidate,
-	signals []eventsemantic.VariableSignalCandidate,
-) (eventsemantic.EntityLinkCandidate, bool, error) {
-	routes, err := data.ListResolutionRoutes(ctx, input.Context.ContextLeaseID, "chain_node")
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
+func validateInput(input *Input) error {
+	if input == nil || input.Attempt.ID == "" || input.Context.ContextLeaseID == "" ||
+		input.Context.Event.ID != input.Attempt.ContextLease.EventID ||
+		input.Context.ManifestContractVersion != "event-semantic-context-manifest.v3" ||
+		len(input.Context.EntityTypeDefinitions) == 0 || len(input.Context.VariableDefinitions) == 0 ||
+		input.Context.MeasurementContract.Representation != "evidence_grounded_narrative" ||
+		input.Context.MeasurementContract.NumericValidation {
+		return errors.New("Event Semantic V3 workflow input is invalid")
 	}
-	if len(routes) == 0 {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	selectedRoute, err := generateSelection(ctx, generator, modelStageChainNodeRoute, routeProtocol, routeSchema, routeFieldContracts, struct {
-		Event          eventsemantic.Event             `json:"event"`
-		Evidence       []eventsemantic.Evidence        `json:"evidence"`
-		Mention        mentionCandidate                `json:"mention"`
-		Routes         []eventsemantic.ResolutionRoute `json:"routes"`
-		Schema         json.RawMessage                 `json:"output_schema"`
-		FieldContracts json.RawMessage                 `json:"field_contracts"`
-	}{
-		input.Context.Event, input.Context.Evidence, mention, routes,
-		json.RawMessage(routeSchema), json.RawMessage(routeFieldContracts),
-	}, func(selected routeSelection) error {
-		if selected.Unresolved {
-			if selected.RouteID != "" || selected.Partition != "" {
-				return newModelOutputViolation("unresolved_selection_contains_ids")
-			}
-			return nil
-		}
-		if !routeSelectionAllowed(routes, selected) {
-			return newModelOutputViolation("route_selection_outside_data_response")
-		}
-		return nil
-	})
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
-	}
-	if selectedRoute.Unresolved {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	anchorPage, err := data.ListResolutionAnchors(
-		ctx, input.Context.ContextLeaseID, selectedRoute.RouteID, selectedRoute.Partition, nil, 50, "",
-	)
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
-	}
-	if len(anchorPage.Anchors) == 0 {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	selectedAnchor, err := generateSelection(ctx, generator, modelStageChainNodeAnchor, anchorProtocol, anchorSchema, anchorFieldContracts, struct {
-		Event          eventsemantic.Event              `json:"event"`
-		Evidence       []eventsemantic.Evidence         `json:"evidence"`
-		Mention        mentionCandidate                 `json:"mention"`
-		Anchors        []eventsemantic.ResolutionAnchor `json:"anchors"`
-		Schema         json.RawMessage                  `json:"output_schema"`
-		FieldContracts json.RawMessage                  `json:"field_contracts"`
-	}{
-		input.Context.Event, input.Context.Evidence, mention, anchorPage.Anchors,
-		json.RawMessage(anchorSchema), json.RawMessage(anchorFieldContracts),
-	}, func(selected anchorSelection) error {
-		if selected.Unresolved {
-			if selected.AnchorEntityID != "" {
-				return newModelOutputViolation("unresolved_selection_contains_ids")
-			}
-			return nil
-		}
-		if !anchorSelectionAllowed(anchorPage.Anchors, selected.AnchorEntityID) {
-			return newModelOutputViolation("anchor_selection_outside_data_response")
-		}
-		return nil
-	})
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
-	}
-	if selectedAnchor.Unresolved {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	candidatePage, err := data.ResolveChainNodeCandidates(
-		ctx, input.Context.ContextLeaseID, selectedRoute.RouteID,
-		[]string{selectedAnchor.AnchorEntityID}, 50, "",
-	)
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
-	}
-	if len(candidatePage.Candidates) == 0 {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	mentionSignals := make([]eventsemantic.VariableSignalCandidate, 0, len(signals))
-	for _, signal := range signals {
-		if signal.SubjectLinkKey == mention.CandidateKey {
-			mentionSignals = append(mentionSignals, signal)
-		}
-	}
-	selectedCandidate, err := generateSelection(ctx, generator, modelStageChainNodeCandidate, candidateProtocol, candidateSchema, candidateFieldContracts, struct {
-		Event           eventsemantic.Event                     `json:"event"`
-		Evidence        []eventsemantic.Evidence                `json:"evidence"`
-		Mention         mentionCandidate                        `json:"mention"`
-		VariableSignals []eventsemantic.VariableSignalCandidate `json:"variable_signals"`
-		Candidates      []eventsemantic.ResolutionCandidate     `json:"candidates"`
-		Schema          json.RawMessage                         `json:"output_schema"`
-		FieldContracts  json.RawMessage                         `json:"field_contracts"`
-	}{
-		input.Context.Event, input.Context.Evidence, mention, mentionSignals, candidatePage.Candidates,
-		json.RawMessage(candidateSchema), json.RawMessage(candidateFieldContracts),
-	}, func(selected candidateSelection) error {
-		if selected.Unresolved {
-			if selected.TargetEntityID != "" {
-				return newModelOutputViolation("unresolved_selection_contains_ids")
-			}
-			return nil
-		}
-		for _, candidate := range candidatePage.Candidates {
-			if candidate.Entity.EntityID == selected.TargetEntityID {
-				return nil
-			}
-		}
-		return newModelOutputViolation("candidate_selection_outside_data_response")
-	})
-	if err != nil {
-		return eventsemantic.EntityLinkCandidate{}, false, err
-	}
-	if selectedCandidate.Unresolved {
-		return eventsemantic.EntityLinkCandidate{}, false, nil
-	}
-	for _, candidate := range candidatePage.Candidates {
-		if candidate.Entity.EntityID != selectedCandidate.TargetEntityID {
-			continue
-		}
-		receipt := candidate.ResolutionReceipt
-		return eventsemantic.EntityLinkCandidate{
-			CandidateKey: mention.CandidateKey, Mention: mention.Mention,
-			EntityID: candidate.Entity.EntityID, EntityRole: mention.EntityRole,
-			EvidenceIDs: mention.EvidenceIDs, ResolutionMethod: "data_service_anchor_resolution",
-			ResolutionConfidence: mention.ResolutionConfidence, ResolutionReceipt: &receipt,
-		}, true, nil
-	}
-	return eventsemantic.EntityLinkCandidate{}, false, dataResponseContractError()
-}
-
-func generateSelection[T any](
-	ctx context.Context,
-	generator model.BaseChatModel,
-	stage string,
-	protocol string,
-	outputSchema string,
-	fieldContracts string,
-	input any,
-	validate func(T) error,
-) (T, error) {
-	payload, err := json.Marshal(input)
-	if err != nil {
-		var zero T
-		return zero, err
-	}
-	return generateValidatedModelOutput[T](
-		ctx, generator, stage,
-		[]*schema.Message{schema.SystemMessage(protocol), schema.UserMessage(string(payload))},
-		outputSchema, fieldContracts,
-		validate,
-		"Event Semantic bounded selection response violates the Data-owned selection contract",
-	)
-}
-
-func routeSelectionAllowed(routes []eventsemantic.ResolutionRoute, selected routeSelection) bool {
-	for _, route := range routes {
-		if route.RouteID != selected.RouteID {
-			continue
-		}
-		for _, partition := range route.Partitions {
-			if partition == selected.Partition {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func anchorSelectionAllowed(anchors []eventsemantic.ResolutionAnchor, selected string) bool {
-	for _, anchor := range anchors {
-		if anchor.Entity.EntityID == selected {
-			return true
-		}
-	}
-	return false
-}
-
-func reviewAndSubmit(
-	ctx context.Context,
-	data eventsemantic.DataClient,
-	reviewer model.BaseChatModel,
-	current *state,
-	protocol string,
-	promptHash string,
-	stage string,
-) (eventsemantic.SubmissionResult, error) {
-	expectedCandidates := expectedReviewCandidates(*current.submission.ReviewerWorkPackage)
-	repairFieldContracts, err := json.Marshal(struct {
-		Contract           json.RawMessage           `json:"contract"`
-		ExpectedItemCount  int                       `json:"expected_item_count"`
-		ExpectedCandidates []reviewCandidateIdentity `json:"expected_candidates"`
-	}{
-		Contract: json.RawMessage(reviewFieldContracts), ExpectedItemCount: len(expectedCandidates),
-		ExpectedCandidates: expectedCandidates,
-	})
-	if err != nil {
-		return eventsemantic.SubmissionResult{}, err
-	}
-	payload, err := json.Marshal(struct {
-		WorkPackage        eventsemantic.ReviewerWorkPackage  `json:"work_package"`
-		Variables          []eventsemantic.VariableDefinition `json:"variable_definitions"`
-		Rules              []eventsemantic.TransmissionRule   `json:"approved_rules"`
-		ExpectedItemCount  int                                `json:"expected_item_count"`
-		ExpectedCandidates []reviewCandidateIdentity          `json:"expected_candidates"`
-		Schema             json.RawMessage                    `json:"output_schema"`
-		FieldContracts     json.RawMessage                    `json:"field_contracts"`
-	}{
-		WorkPackage:        *current.submission.ReviewerWorkPackage,
-		Variables:          current.input.Context.VariableDefinitions,
-		Rules:              current.input.Context.DirectTransmissionRules,
-		ExpectedItemCount:  len(expectedReviewCandidates(*current.submission.ReviewerWorkPackage)),
-		ExpectedCandidates: expectedCandidates,
-		Schema:             json.RawMessage(reviewSchema),
-		FieldContracts:     repairFieldContracts,
-	})
-	if err != nil {
-		return eventsemantic.SubmissionResult{}, err
-	}
-	output, err := generateValidatedModelOutput[reviewOutput](
-		ctx, reviewer, stage,
-		[]*schema.Message{schema.SystemMessage(protocol), schema.UserMessage(string(payload))},
-		reviewSchema, string(repairFieldContracts),
-		func(output reviewOutput) error {
-			return validateReviewOutput(output, *current.submission.ReviewerWorkPackage)
-		},
-		"Event Semantic reviewer response violates the work package contract",
-	)
-	if err != nil {
-		return eventsemantic.SubmissionResult{}, err
-	}
-	return data.SubmitReview(ctx, current.submission.SubmissionID, eventsemantic.ReviewRequest{
-		ReviewerExecutionKey: current.input.Attempt.ID + ":" + stage,
-		PromptHash:           promptHash, Model: current.input.ReviewerModel, Items: output.Items,
-	})
-}
-
-func expectedReviewCandidates(workPackage eventsemantic.ReviewerWorkPackage) []reviewCandidateIdentity {
-	identities := make([]reviewCandidateIdentity, 0,
-		len(workPackage.EntityLinks)+len(workPackage.VariableSignals)+len(workPackage.DirectImpacts))
-	for _, candidate := range workPackage.EntityLinks {
-		identities = append(identities, reviewCandidateIdentity{
-			CandidateType: "entity_link", CandidateKey: candidate.CandidateKey,
-			EvidenceIDs: append([]string(nil), candidate.EvidenceIDs...),
-		})
-	}
-	for _, candidate := range workPackage.VariableSignals {
-		identities = append(identities, reviewCandidateIdentity{
-			CandidateType: "variable_signal", CandidateKey: candidate.CandidateKey,
-			EvidenceIDs: append([]string(nil), candidate.EvidenceIDs...),
-		})
-	}
-	for _, candidate := range workPackage.DirectImpacts {
-		identities = append(identities, reviewCandidateIdentity{
-			CandidateType: "direct_impact", CandidateKey: candidate.CandidateKey,
-			EvidenceIDs: append([]string(nil), candidate.EvidenceIDs...),
-		})
-	}
-	return identities
-}
-
-func generateValidatedModelOutput[T any](
-	ctx context.Context,
-	chatModel model.BaseChatModel,
-	stage string,
-	messages []*schema.Message,
-	outputSchema string,
-	fieldContracts string,
-	validate func(T) error,
-	invalidSummary string,
-) (T, error) {
-	var zero T
-	message, err := chatModel.Generate(ctx, messages)
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return zero, err
-		}
-		return zero, eventsemantic.ErrModelUnavailable
-	}
-	if message == nil {
-		return zero, eventsemantic.ErrModelUnavailable
-	}
-	output, violation, correctable := decodeAndValidateModelOutput(message.Content, validate)
-	if violation == nil {
-		return output, nil
-	}
-	if !correctable {
-		return zero, modelContractError(invalidSummary)
-	}
-	repairRequest, err := json.Marshal(modelContractRepairRequest{
-		ContractVersion: modelContractRepairEnvelopeVersion,
-		Operation:       modelContractRepairOperation,
-		Stage:           stage,
-		PolicyVersion:   modelContractRepairPolicyVersion,
-		ViolationCodes:  modelOutputViolationCodes(violation),
-		OriginalOutput:  message.Content,
-		OutputSchema:    json.RawMessage(outputSchema),
-		FieldContracts:  json.RawMessage(fieldContracts),
-		RepairDirective: modelContractRepairInstruction,
-	})
-	if err != nil {
-		return zero, err
-	}
-	repairMessages := []*schema.Message{
-		schema.SystemMessage(modelContractRepairInstruction),
-		schema.UserMessage(string(repairRequest)),
-	}
-	corrected, err := chatModel.Generate(ctx, repairMessages)
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return zero, err
-		}
-		return zero, eventsemantic.ErrModelUnavailable
-	}
-	if corrected == nil {
-		return zero, eventsemantic.ErrModelUnavailable
-	}
-	output, violation, _ = decodeAndValidateModelOutput(corrected.Content, validate)
-	if violation != nil {
-		return zero, modelContractError(invalidSummary)
-	}
-	return output, nil
-}
-
-func decodeAndValidateModelOutput[T any](
-	content string,
-	validate func(T) error,
-) (T, error, bool) {
-	var output T
-	if err := decodeStrict(content, &output); err != nil {
-		return output, newModelOutputViolation("json_typed_contract_invalid"), isCorrectableModelJSON(content)
-	}
-	if err := validate(output); err != nil {
-		return output, err, isCorrectableModelViolation(err)
-	}
-	return output, nil, false
-}
-
-func isCorrectableModelViolation(err error) bool {
-	var violation *modelOutputViolation
-	if !errors.As(err, &violation) || len(violation.codes) == 0 {
-		return false
-	}
-	allowed := stringSet(
-		"json_typed_contract_invalid",
-		"resolution_confidence_invalid",
-		"extraction_confidence_invalid",
-		"assertion_confidence_invalid",
-		"signal_timestamp_invalid",
-		"measurement_decimal_invalid",
-		"unresolved_selection_contains_ids",
-		"review_candidate_coverage_invalid",
-	)
-	for _, code := range violation.codes {
-		if !allowed[code] {
-			return false
-		}
-	}
-	return true
-}
-
-func isCorrectableModelJSON(content string) bool {
-	trimmed := strings.TrimSpace(content)
-	return json.Valid([]byte(trimmed)) && rejectDuplicateJSONKeys(trimmed) == nil
-}
-
-func modelOutputViolationCodes(err error) []string {
-	var violation *modelOutputViolation
-	if errors.As(err, &violation) && len(violation.codes) > 0 {
-		return append([]string(nil), violation.codes...)
-	}
-	return []string{"stage_contract_invalid"}
-}
-
-func GeneratorPromptHash() string {
-	return hash(
-		generatorProtocol + routeProtocol + anchorProtocol + candidateProtocol + impactProtocol +
-			generatorSchema + routeSchema + anchorSchema + candidateSchema + impactSchema +
-			generatorFieldContracts + routeFieldContracts + anchorFieldContracts +
-			candidateFieldContracts + impactFieldContracts +
-			repairContractHashMaterial(
-				modelStageEventNativeCandidates,
-				modelStageChainNodeRoute,
-				modelStageChainNodeAnchor,
-				modelStageChainNodeCandidate,
-				modelStageDirectImpacts,
-			),
-	)
-}
-func ReviewerPromptHash() string {
-	return hash(
-		reviewerProtocol + reviewSchema + reviewFieldContracts +
-			repairContractHashMaterial(modelStageReviewer),
-	)
-}
-func AdjudicatorPromptHash() string {
-	return hash(
-		adjudicatorProtocol + reviewSchema + reviewFieldContracts +
-			repairContractHashMaterial(modelStageAdjudicator),
-	)
-}
-func WorkflowHash() string {
-	return hash(GeneratorPromptHash() + ReviewerPromptHash() + AdjudicatorPromptHash())
-}
-
-func repairContractHashMaterial(stages ...string) string {
-	return strings.Join([]string{
-		modelContractRepairEnvelopeVersion,
-		modelContractRepairMessageContract,
-		modelContractRepairOperation,
-		strings.Join(stages, "\x00"),
-		modelContractRepairPolicyVersion,
-		modelContractRepairInstruction,
-	}, "\x00")
-}
-
-func modelContractError(summary string) error {
-	return &eventsemantic.RemoteError{
-		Code: "event_semantic_model_contract_invalid", Summary: summary, Retryable: false,
-	}
-}
-
-func dataResponseContractError() error {
-	return &eventsemantic.RemoteError{
-		Code: "data_response_invalid", Summary: "Data Service response contract is invalid", Retryable: false,
-	}
-}
-
-func validateNativeOutput(output nativeOutput, semanticContext eventsemantic.Context) error {
-	if len(output.Mentions) > 20 || len(output.VariableSignals) > 50 {
-		return errors.New("candidate count exceeds the bounded contract")
-	}
-	allowedTypes := stringSet(
-		"chain_node", "commodity", "product", "industry_chain", "industry", "company",
-		"security", "sector", "concept", "policy_body", "person", "alliance_org",
-	)
-	allowedRoles := stringSet("event_subject", "actor", "affected_entity", "statement_source", "event_object", "context")
-	allowedDirections := stringSet("increase", "decrease", "unchanged", "mixed", "uncertain")
-	allowedModalities := stringSet("actual", "stated_intent", "source_forecast")
-	allowedMeasurementRoles := stringSet("absolute_level", "absolute_change", "relative_change", "percentage_point_change")
-	allowedValueShapes := stringSet("exact", "range", "lower_bound", "upper_bound")
-	evidence := make(map[string]struct{}, len(semanticContext.Evidence))
-	evidenceByID := make(map[string]eventsemantic.Evidence, len(semanticContext.Evidence))
-	for _, item := range semanticContext.Evidence {
-		evidence[item.EvidenceID] = struct{}{}
-		evidenceByID[item.EvidenceID] = item
-	}
-	keys := make(map[string]struct{}, len(output.Mentions)+len(output.VariableSignals))
-	mentionKeys := make(map[string]struct{}, len(output.Mentions))
-	mentionTypes := make(map[string]string, len(output.Mentions))
-	variables := make(map[string]eventsemantic.VariableDefinition, len(semanticContext.VariableDefinitions))
-	for _, variable := range semanticContext.VariableDefinitions {
-		variables[variable.Key+"\x00"+strconv.Itoa(variable.Version)] = variable
-	}
-	machineViolations := make([]string, 0, 4)
-	for _, mention := range output.Mentions {
-		if !validModelConfidence(mention.ResolutionConfidence) {
-			machineViolations = append(machineViolations, "resolution_confidence_invalid")
-			break
-		}
-	}
-	for _, signal := range output.VariableSignals {
-		if !validModelConfidence(signal.ExtractionConfidence) {
-			machineViolations = append(machineViolations, "extraction_confidence_invalid")
-		}
-		if !validOptionalModelTimestamp(signal.StatementAt) ||
-			!validOptionalModelTimestamp(signal.ValidFrom) ||
-			!validOptionalModelTimestamp(signal.ValidUntil) ||
-			!validOptionalModelTimestamp(signal.ForecastPeriodStart) ||
-			!validOptionalModelTimestamp(signal.ForecastPeriodEnd) {
-			machineViolations = append(machineViolations, "signal_timestamp_invalid")
-		}
-		for _, measurement := range signal.Measurements {
-			if !validOptionalModelDecimal(measurement.RawValue) ||
-				!validOptionalModelDecimal(measurement.RawLower) ||
-				!validOptionalModelDecimal(measurement.RawUpper) ||
-				!validOptionalModelDecimal(measurement.CanonicalValue) ||
-				!validOptionalModelDecimal(measurement.CanonicalLower) ||
-				!validOptionalModelDecimal(measurement.CanonicalUpper) {
-				machineViolations = append(machineViolations, "measurement_decimal_invalid")
-				break
-			}
-		}
-	}
-	if len(machineViolations) > 0 {
-		return newModelOutputViolation(machineViolations...)
-	}
-	for _, mention := range output.Mentions {
-		if strings.TrimSpace(mention.CandidateKey) == "" || strings.TrimSpace(mention.Mention) == "" ||
-			!allowedTypes[mention.PredictedEntityType] || !allowedRoles[mention.EntityRole] ||
-			!validModelEvidenceIDs(mention.EvidenceIDs, evidence) ||
-			!mentionSupportedByEvidence(mention.Mention, mention.EvidenceIDs, evidenceByID) {
-			return errors.New("mention candidate is invalid")
-		}
-		if _, exists := keys[mention.CandidateKey]; exists {
-			return errors.New("candidate_key is duplicated")
-		}
-		keys[mention.CandidateKey], mentionKeys[mention.CandidateKey] = struct{}{}, struct{}{}
-		mentionTypes[mention.CandidateKey] = mention.PredictedEntityType
-	}
-	for _, signal := range output.VariableSignals {
-		if strings.TrimSpace(signal.CandidateKey) == "" || strings.TrimSpace(signal.VariableKey) == "" ||
-			signal.VariableVersion < 1 || !allowedDirections[signal.Direction] ||
-			!allowedModalities[signal.AssertionModality] || !validModelEvidenceIDs(signal.EvidenceIDs, evidence) ||
-			len(signal.Measurements) > 20 {
-			return errors.New("Variable Signal candidate is invalid")
-		}
-		if _, exists := mentionKeys[signal.SubjectLinkKey]; !exists {
-			return errors.New("Variable Signal subject_link_key is invalid")
-		}
-		variable, exists := variables[signal.VariableKey+"\x00"+strconv.Itoa(signal.VariableVersion)]
-		if !exists || variable.Status != "active" || !containsString(variable.AllowedDirections, signal.Direction) ||
-			!containsString(variable.ApplicableEntityTypes, mentionTypes[signal.SubjectLinkKey]) {
-			return errors.New("Variable Signal definition is invalid")
-		}
-		if _, exists := keys[signal.CandidateKey]; exists {
-			return errors.New("candidate_key is duplicated")
-		}
-		keys[signal.CandidateKey] = struct{}{}
-		for _, measurement := range signal.Measurements {
-			if _, exists := evidence[measurement.EvidenceID]; !exists || strings.TrimSpace(measurement.RawText) == "" ||
-				!allowedMeasurementRoles[measurement.MeasurementRole] || !allowedValueShapes[measurement.ValueShape] {
-				return errors.New("measurement Evidence is invalid")
-			}
-		}
+	if input.Audit != nil {
+		input.Audit.ContractVersion = "event-semantic-stage-audit.v1"
+		input.Audit.EventID = input.Context.Event.ID
 	}
 	return nil
 }
 
-func mentionSupportedByEvidence(
-	mention string,
-	evidenceIDs []string,
-	evidenceByID map[string]eventsemantic.Evidence,
-) bool {
-	normalizedMention := strings.ToLower(strings.Join(strings.Fields(mention), " "))
-	if normalizedMention == "" {
-		return false
-	}
-	for _, evidenceID := range evidenceIDs {
-		evidence, exists := evidenceByID[evidenceID]
-		if !exists {
-			continue
-		}
-		normalizedExcerpt := strings.ToLower(strings.Join(strings.Fields(evidence.Excerpt), " "))
-		if strings.Contains(normalizedExcerpt, normalizedMention) {
-			return true
-		}
-	}
-	return false
-}
-
-func validateImpactOutput(output impactOutput, current *state) error {
-	if current == nil || len(output.DirectImpacts) > maxDirectImpactCandidates {
-		return errors.New("Direct Impact count exceeds the bounded contract")
-	}
-	for _, impact := range output.DirectImpacts {
-		if !validModelConfidence(impact.AssertionConfidence) {
-			return newModelOutputViolation("assertion_confidence_invalid")
-		}
-	}
-	signalByKey := make(map[string]eventsemantic.VariableSignalCandidate, len(current.candidates.VariableSignals))
-	for _, signal := range current.candidates.VariableSignals {
-		signalByKey[signal.CandidateKey] = signal
-	}
-	variables := make(map[string]eventsemantic.VariableDefinition, len(current.input.Context.VariableDefinitions))
-	for _, variable := range current.input.Context.VariableDefinitions {
-		variables[variable.Key+"\x00"+strconv.Itoa(variable.Version)] = variable
-	}
-	evidence := make(map[string]struct{}, len(current.input.Context.Evidence))
-	for _, item := range current.input.Context.Evidence {
-		evidence[item.EvidenceID] = struct{}{}
-	}
-	seen := make(map[string]struct{}, len(output.DirectImpacts))
-	expectedBindings := make(map[string]struct{})
-	for _, binding := range current.impactBindings {
-		expectedBindings[impactBindingIdentity(
-			binding.SourceSignalKey, binding.TargetEntityID, binding.EntityRelationID,
-			binding.RuleKey, binding.RuleVersion,
-		)] = struct{}{}
-	}
-	coveredBindings := make(map[string]struct{}, len(expectedBindings))
-	for _, impact := range output.DirectImpacts {
-		signal, signalExists := signalByKey[impact.SourceSignalKey]
-		variable, variableExists := variables[impact.AffectedVariableKey+"\x00"+strconv.Itoa(impact.AffectedVariableVersion)]
-		if strings.TrimSpace(impact.CandidateKey) == "" || !signalExists || !variableExists ||
-			variable.Status != "active" || !containsString(variable.AllowedDirections, impact.AffectedDirection) ||
-			!stringSet("event_explicit", "rule_inferred")[impact.DerivationType] ||
-			strings.TrimSpace(impact.MechanismSummary) == "" || !validModelEvidenceIDs(impact.EvidenceIDs, evidence) ||
-			!validModelConfidence(impact.AssertionConfidence) {
-			return errors.New("Direct Impact candidate is invalid")
-		}
-		if _, exists := seen[impact.CandidateKey]; exists {
-			return errors.New("Direct Impact candidate_key is duplicated")
-		}
-		seen[impact.CandidateKey] = struct{}{}
-		targetAllowed, matchedRelationType, matchedTargetType := false, "", ""
-		for _, target := range current.targets[signal.SubjectLinkKey] {
-			if target.Entity.EntityID == impact.TargetEntityID &&
-				(impact.EntityRelationID == "" || target.Relation.EntityRelationID == impact.EntityRelationID) {
-				targetAllowed = true
-				matchedRelationType = target.Relation.RelationType
-				matchedTargetType = target.Entity.EntityType
-			}
-		}
-		if !targetAllowed {
-			return errors.New("Direct Impact target is outside the Data response")
-		}
-		if impact.DerivationType == "rule_inferred" &&
-			(strings.TrimSpace(impact.EntityRelationID) == "" || strings.TrimSpace(impact.RuleKey) == "" || impact.RuleVersion < 1) {
-			return errors.New("rule-inferred Direct Impact is incomplete")
-		}
-		if impact.DerivationType == "rule_inferred" {
-			sourceEntityType := mentionEntityType(current.mentions, signal.SubjectLinkKey)
-			ruleAllowed := false
-			for _, rule := range current.input.Context.DirectTransmissionRules {
-				if rule.Status == "approved" && rule.RuleKey == impact.RuleKey && rule.Version == impact.RuleVersion &&
-					rule.SourceEntityType == sourceEntityType && rule.TargetEntityType == matchedTargetType &&
-					rule.SourceVariableKey == signal.VariableKey && rule.SourceVariableVersion == signal.VariableVersion &&
-					rule.SourceDirection == signal.Direction && rule.RelationType == matchedRelationType &&
-					rule.AffectedVariableKey == impact.AffectedVariableKey &&
-					rule.AffectedVariableVersion == impact.AffectedVariableVersion &&
-					rule.AffectedDirection == impact.AffectedDirection {
-					ruleAllowed = true
-				}
-			}
-			if !ruleAllowed {
-				return errors.New("Direct Impact rule is outside the approved Context")
-			}
-			bindingIdentity := impactBindingIdentity(
-				impact.SourceSignalKey, impact.TargetEntityID, impact.EntityRelationID,
-				impact.RuleKey, impact.RuleVersion,
-			)
-			if _, exists := expectedBindings[bindingIdentity]; !exists {
-				return errors.New("Direct Impact does not match an applicable rule binding")
-			}
-			if _, duplicate := coveredBindings[bindingIdentity]; duplicate {
-				return errors.New("applicable Direct Impact rule binding is duplicated")
-			}
-			coveredBindings[bindingIdentity] = struct{}{}
-		}
-	}
-	if len(coveredBindings) != len(expectedBindings) {
-		return errors.New("applicable Direct Impact rule binding is missing")
-	}
-	return nil
-}
-
-func applicableImpactRules(bindings []applicableImpactBinding) []eventsemantic.TransmissionRule {
+func isolateMentions(items []mentionCandidate, semanticContext eventsemantic.Context, audit *eventsemantic.StageAudit) []mentionCandidate {
+	evidence := evidenceIndex(semanticContext.Evidence)
 	seen := make(map[string]struct{})
-	matched := make([]eventsemantic.TransmissionRule, 0)
-	for _, binding := range bindings {
-		identity := binding.RuleKey + "\x00" + strconv.Itoa(binding.RuleVersion)
-		if _, exists := seen[identity]; exists {
+	result := make([]mentionCandidate, 0, len(items))
+	for index, mention := range items {
+		reason := ""
+		switch {
+		case index >= maxMentions:
+			reason = "mention_budget_exceeded"
+		case strings.TrimSpace(mention.CandidateKey) == "" || duplicate(seen, mention.CandidateKey):
+			reason = "mention_key_invalid"
+		case strings.TrimSpace(mention.Mention) == "":
+			reason = "mention_text_invalid"
+		case !validEvidenceIDs(mention.EvidenceIDs, evidence):
+			reason = "mention_evidence_ids_invalid"
+		case !mentionSupported(mention, semanticContext, evidence):
+			reason = "mention_evidence_support_invalid"
+		}
+		if reason != "" {
+			isolate(audit, "mention_extraction", mention.CandidateKey, reason, "model")
 			continue
 		}
-		seen[identity] = struct{}{}
-		matched = append(matched, binding.Rule)
-	}
-	return matched
-}
-
-func applicableImpactBindings(current *state, limit int) ([]applicableImpactBinding, bool) {
-	if current == nil || current.input == nil {
-		return nil, false
-	}
-	linkByKey := make(map[string]eventsemantic.EntityLinkCandidate, len(current.candidates.EntityLinks))
-	for _, link := range current.candidates.EntityLinks {
-		linkByKey[link.CandidateKey] = link
-	}
-	variables := make(map[string]eventsemantic.VariableDefinition, len(current.input.Context.VariableDefinitions))
-	for _, variable := range current.input.Context.VariableDefinitions {
-		variables[variable.Key+"\x00"+strconv.Itoa(variable.Version)] = variable
-	}
-	bindings := make([]applicableImpactBinding, 0)
-	for _, signal := range current.candidates.VariableSignals {
-		sourceEntityType := mentionEntityType(current.mentions, signal.SubjectLinkKey)
-		sourceLink, sourceExists := linkByKey[signal.SubjectLinkKey]
-		if !sourceExists {
-			continue
+		result = append(result, mention)
+		if audit != nil {
+			audit.Mentions = append(audit.Mentions, eventsemantic.MentionAudit{
+				CandidateKey: mention.CandidateKey, Mention: mention.Mention, EvidenceIDs: append([]string(nil), mention.EvidenceIDs...),
+			})
 		}
-		for _, target := range current.targets[signal.SubjectLinkKey] {
-			if target.Entity.Status != "active" || target.Relation.Status != "active" ||
-				target.Relation.FromEntityID != sourceLink.EntityID ||
-				target.Relation.ToEntityID != target.Entity.EntityID {
-				continue
-			}
-			for _, rule := range current.input.Context.DirectTransmissionRules {
-				affected, affectedExists := variables[rule.AffectedVariableKey+"\x00"+strconv.Itoa(rule.AffectedVariableVersion)]
-				if rule.Status != "approved" || rule.SourceEntityType != sourceEntityType ||
-					rule.SourceVariableKey != signal.VariableKey ||
-					rule.SourceVariableVersion != signal.VariableVersion ||
-					rule.SourceDirection != signal.Direction ||
-					rule.RelationType != target.Relation.RelationType ||
-					rule.TargetEntityType != target.Entity.EntityType || !affectedExists ||
-					affected.Status != "active" ||
-					!containsString(affected.ApplicableEntityTypes, target.Entity.EntityType) ||
-					!containsString(affected.AllowedDirections, rule.AffectedDirection) {
-					continue
-				}
-				if len(bindings) >= limit {
-					return bindings, true
-				}
-				bindings = append(bindings, applicableImpactBinding{
-					SourceSignalKey: signal.CandidateKey, TargetEntityID: target.Entity.EntityID,
-					EntityRelationID: target.Relation.EntityRelationID,
-					RuleKey:          rule.RuleKey, RuleVersion: rule.Version, Rule: rule,
-				})
-			}
-		}
-	}
-	return bindings, false
-}
-
-func impactBindingIdentity(sourceSignalKey, targetEntityID, relationID, ruleKey string, ruleVersion int) string {
-	return strings.Join([]string{
-		sourceSignalKey, targetEntityID, relationID, ruleKey, strconv.Itoa(ruleVersion),
-	}, "\x00")
-}
-
-func impactBindingBudgetError() error {
-	return &eventsemantic.RemoteError{
-		Code:      "event_semantic_impact_budget_exceeded",
-		Summary:   "Event Semantic applicable Direct Impact bindings exceed the bounded contract",
-		Retryable: false,
-	}
-}
-
-func mentionEntityType(mentions []mentionCandidate, candidateKey string) string {
-	for _, mention := range mentions {
-		if mention.CandidateKey == candidateKey {
-			return mention.PredictedEntityType
-		}
-	}
-	return ""
-}
-
-func validateReviewOutput(output reviewOutput, workPackage eventsemantic.ReviewerWorkPackage) error {
-	expected := make(map[string]struct{})
-	for _, candidate := range workPackage.EntityLinks {
-		expected["entity_link\x00"+candidate.CandidateKey] = struct{}{}
-	}
-	for _, candidate := range workPackage.VariableSignals {
-		expected["variable_signal\x00"+candidate.CandidateKey] = struct{}{}
-	}
-	for _, candidate := range workPackage.DirectImpacts {
-		expected["direct_impact\x00"+candidate.CandidateKey] = struct{}{}
-	}
-	if len(output.Items) != len(expected) || len(output.Items) > 100 {
-		return newModelOutputViolation("review_candidate_coverage_invalid")
-	}
-	evidence := make(map[string]struct{}, len(workPackage.Evidence))
-	for _, item := range workPackage.Evidence {
-		evidence[item.EvidenceID] = struct{}{}
-	}
-	seen := make(map[string]struct{}, len(output.Items))
-	for _, item := range output.Items {
-		identity := item.CandidateType + "\x00" + item.CandidateKey
-		_, exists := expected[identity]
-		_, duplicate := seen[identity]
-		if !exists || duplicate {
-			return newModelOutputViolation("review_candidate_coverage_invalid")
-		}
-		if !stringSet("pass", "fail", "indeterminate")[item.Decision] ||
-			!validModelEvidenceIDs(item.EvidenceIDs, evidence) {
-			return errors.New("review item is invalid")
-		}
-		seen[identity] = struct{}{}
-	}
-	return nil
-}
-
-func containsString(values []string, expected string) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
-		}
-	}
-	return false
-}
-
-func stringSet(values ...string) map[string]bool {
-	result := make(map[string]bool, len(values))
-	for _, value := range values {
-		result[value] = true
 	}
 	return result
 }
 
-func validModelEvidenceIDs(values []string, allowed map[string]struct{}) bool {
-	if len(values) == 0 || len(values) > 20 {
+func mentionSupported(mention mentionCandidate, semanticContext eventsemantic.Context, evidence map[string]eventsemantic.Evidence) bool {
+	needle := strings.ToLower(strings.TrimSpace(mention.Mention))
+	if needle == "" || len(mention.EvidenceIDs) == 0 {
 		return false
 	}
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		if _, exists := allowed[value]; !exists {
+	if strings.Contains(strings.ToLower(semanticContext.Event.Title+" "+semanticContext.Event.Summary), needle) {
+		for _, id := range mention.EvidenceIDs {
+			item := evidence[id]
+			if item.IsPrimary && item.Relation == "supports" {
+				return true
+			}
+		}
+	}
+	for _, id := range mention.EvidenceIDs {
+		item := evidence[id]
+		if strings.Contains(strings.ToLower(item.Title+" "+item.Excerpt), needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func activeEventLinkTypes(items []eventsemantic.EntityTypeDefinition) map[string]eventsemantic.EntityTypeDefinition {
+	result := make(map[string]eventsemantic.EntityTypeDefinition)
+	for _, item := range items {
+		if item.Status == "active" && item.EventLinkAllowed {
+			result[item.TypeKey] = item
+		}
+	}
+	return result
+}
+
+func filterRetrievedCandidates(items []eventsemantic.EntityCandidate, types map[string]eventsemantic.EntityTypeDefinition) []eventsemantic.EntityCandidate {
+	result := make([]eventsemantic.EntityCandidate, 0, len(items))
+	seen := make(map[string]struct{})
+	for _, item := range items {
+		if item.Entity.EntityID == "" || item.Entity.Status != "active" || types[item.Entity.EntityType].TypeKey == "" || duplicate(seen, item.Entity.EntityID) {
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func hasTBoxExcludedCandidate(items []eventsemantic.EntityCandidate, types map[string]eventsemantic.EntityTypeDefinition) bool {
+	for _, item := range items {
+		if item.Entity.EntityID != "" && item.Entity.Status == "active" && types[item.Entity.EntityType].TypeKey == "" {
+			return true
+		}
+	}
+	return false
+}
+
+func definitionsForCandidateSets(sets []eventsemantic.EntityCandidateSet, types map[string]eventsemantic.EntityTypeDefinition) []eventsemantic.EntityTypeDefinition {
+	keys := make(map[string]struct{})
+	result := make([]eventsemantic.EntityTypeDefinition, 0)
+	for _, set := range sets {
+		for _, candidate := range set.Candidates {
+			if _, ok := keys[candidate.Entity.EntityType]; ok {
+				continue
+			}
+			keys[candidate.Entity.EntityType] = struct{}{}
+			result = append(result, types[candidate.Entity.EntityType])
+		}
+	}
+	return result
+}
+
+func definitionsForResolvedEntities(entities []eventsemantic.Entity, definitions []eventsemantic.EntityTypeDefinition) []eventsemantic.EntityTypeDefinition {
+	types := activeEventLinkTypes(definitions)
+	seen := make(map[string]struct{})
+	result := make([]eventsemantic.EntityTypeDefinition, 0)
+	for _, entity := range entities {
+		if _, exists := seen[entity.EntityType]; exists || types[entity.EntityType].TypeKey == "" {
+			continue
+		}
+		seen[entity.EntityType] = struct{}{}
+		result = append(result, types[entity.EntityType])
+	}
+	return result
+}
+
+func uniqueExactCandidateKeys(selectable []eventsemantic.EntityCandidateSet, exactByKey map[string]eventsemantic.EntityCandidateSet) []string {
+	result := make([]string, 0)
+	for _, set := range selectable {
+		if len(exactByKey[set.CandidateKey].Candidates) == 1 {
+			result = append(result, set.CandidateKey)
+		}
+	}
+	return result
+}
+
+func isolateSelections(items []entitySelection, sets []eventsemantic.EntityCandidateSet, types map[string]eventsemantic.EntityTypeDefinition, audit *eventsemantic.StageAudit) map[string]entitySelection {
+	return isolateSelectionsAt(items, sets, types, audit, "entity_selection")
+}
+
+func isolateSelectionsAt(items []entitySelection, sets []eventsemantic.EntityCandidateSet, types map[string]eventsemantic.EntityTypeDefinition, audit *eventsemantic.StageAudit, stage string) map[string]entitySelection {
+	allowed := candidateMap(sets)
+	result := make(map[string]entitySelection)
+	for _, item := range items {
+		reason := ""
+		candidates, exists := allowed[item.CandidateKey]
+		switch {
+		case !exists:
+			reason = "selection_candidate_key_invalid"
+		case result[item.CandidateKey].CandidateKey != "":
+			reason = "selection_duplicate"
+		case item.NoMatch && (item.EntityID != "" || item.EntityRole != ""):
+			reason = "selection_no_match_invalid"
+		case item.NoMatch && !contains([]string{"mention_not_entity", "no_candidate_same_entity", "insufficient_context"}, item.NoMatchReason):
+			reason = "selection_no_match_reason_invalid"
+		case !item.NoMatch && item.NoMatchReason != "":
+			reason = "selection_no_match_reason_invalid"
+		case !item.NoMatch && candidates[item.EntityID].EntityID == "":
+			reason = "selection_outside_qdrant_response"
+		case !item.NoMatch && !contains(types[candidates[item.EntityID].EntityType].AllowedEventRoles, item.EntityRole):
+			reason = "selection_role_invalid"
+		}
+		if reason != "" {
+			isolate(audit, stage, item.CandidateKey, reason, "model")
+			continue
+		}
+		result[item.CandidateKey] = item
+	}
+	for _, set := range sets {
+		if result[set.CandidateKey].CandidateKey == "" {
+			isolate(audit, stage, set.CandidateKey, "selection_missing", "model")
+		}
+	}
+	return result
+}
+
+func applicableVariables(items []eventsemantic.VariableDefinition, entityType string, subjectAllowed bool) []eventsemantic.VariableDefinition {
+	if !subjectAllowed {
+		return nil
+	}
+	result := make([]eventsemantic.VariableDefinition, 0)
+	for _, item := range items {
+		if item.Status == "active" && contains(item.ApplicableEntityTypes, entityType) {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func hasApplicableVariables(items []resolvedLink) bool {
+	for _, item := range items {
+		if len(item.Variables) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func isolateSignals(items []eventsemantic.VariableSignalCandidate, links []resolvedLink, semanticContext eventsemantic.Context, audit *eventsemantic.StageAudit) []eventsemantic.VariableSignalCandidate {
+	evidence := evidenceIndex(semanticContext.Evidence)
+	byLink := make(map[string]resolvedLink, len(links))
+	for _, item := range links {
+		byLink[item.Candidate.CandidateKey] = item
+	}
+	seen := make(map[string]struct{})
+	result := make([]eventsemantic.VariableSignalCandidate, 0, len(items))
+	for index, signal := range items {
+		reason := ""
+		link, linkOK := byLink[signal.SubjectLinkKey]
+		definition, variableOK := findVariable(link.Variables, signal.VariableKey, signal.VariableVersion)
+		switch {
+		case index >= maxSignals:
+			reason = "signal_budget_exceeded"
+		case strings.TrimSpace(signal.CandidateKey) == "" || duplicate(seen, signal.CandidateKey):
+			reason = "signal_key_invalid"
+		case !linkOK:
+			reason = "signal_subject_invalid"
+		case !variableOK:
+			reason = "signal_variable_not_applicable"
+		case !contains(definition.AllowedDirections, signal.Direction):
+			reason = "signal_direction_invalid"
+		case !contains(semanticContext.AssertionModalities, signal.AssertionModality):
+			reason = "signal_modality_invalid"
+		case !validEvidenceIDs(signal.EvidenceIDs, evidence):
+			reason = "signal_evidence_ids_invalid"
+		case len(signal.Measurements) > semanticContext.MeasurementContract.MaxItemsPerSignal:
+			reason = "measurement_budget_invalid"
+		default:
+			for _, measurement := range signal.Measurements {
+				if strings.TrimSpace(measurement.MeasurementText) == "" ||
+					len([]rune(measurement.MeasurementText)) > semanticContext.MeasurementContract.MaxTextCharacters ||
+					!validEvidenceIDs(measurement.EvidenceIDs, evidence) {
+					reason = "measurement_contract_invalid"
+					break
+				}
+			}
+		}
+		if reason != "" {
+			isolate(audit, "signal_extraction", signal.CandidateKey, reason, "model")
+			continue
+		}
+		result = append(result, signal)
+	}
+	return result
+}
+
+func findVariable(items []eventsemantic.VariableDefinition, key string, version int) (eventsemantic.VariableDefinition, bool) {
+	for _, item := range items {
+		if item.Key == key && item.Version == version {
+			return item, true
+		}
+	}
+	return eventsemantic.VariableDefinition{}, false
+}
+
+func isolateReview(items []eventsemantic.ReviewItem, expected []reviewIdentity, work eventsemantic.ReviewerWorkPackage, audit *eventsemantic.StageAudit) []eventsemantic.ReviewItem {
+	evidence := evidenceIndex(work.Evidence)
+	allowed := make(map[string]reviewIdentity, len(expected))
+	for _, item := range expected {
+		allowed[item.CandidateType+"\x00"+item.CandidateKey] = item
+	}
+	valid := make(map[string]eventsemantic.ReviewItem)
+	for _, item := range items {
+		identity := item.CandidateType + "\x00" + item.CandidateKey
+		_, expectedItem := allowed[identity]
+		if !expectedItem || valid[identity].CandidateKey != "" ||
+			!contains([]string{"pass", "fail", "indeterminate"}, item.Decision) ||
+			!validEvidenceIDs(item.EvidenceIDs, evidence) {
+			isolate(audit, "independent_review", item.CandidateKey, "review_item_invalid", "model")
+			continue
+		}
+		valid[identity] = item
+	}
+	result := make([]eventsemantic.ReviewItem, 0, len(expected))
+	for _, item := range expected {
+		identity := item.CandidateType + "\x00" + item.CandidateKey
+		if review := valid[identity]; review.CandidateKey != "" {
+			result = append(result, review)
+			continue
+		}
+		isolate(audit, "independent_review", item.CandidateKey, "review_item_missing", "model")
+		result = append(result, eventsemantic.ReviewItem{
+			CandidateType: item.CandidateType, CandidateKey: item.CandidateKey, Decision: "fail",
+			ReasonCodes: []string{"review_item_missing"}, EvidenceIDs: reviewCandidateEvidence(work, item),
+		})
+	}
+	return result
+}
+
+func reviewCandidateEvidence(work eventsemantic.ReviewerWorkPackage, identity reviewIdentity) []string {
+	if identity.CandidateType == "entity_link" {
+		for _, item := range work.EntityLinks {
+			if item.CandidateKey == identity.CandidateKey {
+				return append([]string(nil), item.EvidenceIDs...)
+			}
+		}
+	}
+	if identity.CandidateType == "variable_signal" {
+		for _, item := range work.VariableSignals {
+			if item.CandidateKey == identity.CandidateKey {
+				return append([]string(nil), item.EvidenceIDs...)
+			}
+		}
+	}
+	return nil
+}
+
+func decodeMentionItems(rawItems []json.RawMessage, audit *eventsemantic.StageAudit) []mentionCandidate {
+	result := make([]mentionCandidate, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item mentionCandidate
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, "mention_extraction", rawCandidateKey(raw, index), "mention_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func decodeSelectionItems(rawItems []json.RawMessage, stage string, audit *eventsemantic.StageAudit) []entitySelection {
+	result := make([]entitySelection, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item entitySelection
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, stage, rawCandidateKey(raw, index), "selection_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func decodeSignalItems(rawItems []json.RawMessage, audit *eventsemantic.StageAudit) []eventsemantic.VariableSignalCandidate {
+	result := make([]eventsemantic.VariableSignalCandidate, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item eventsemantic.VariableSignalCandidate
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, "signal_extraction", rawCandidateKey(raw, index), "signal_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func decodeReviewItems(rawItems []json.RawMessage, audit *eventsemantic.StageAudit) []eventsemantic.ReviewItem {
+	result := make([]eventsemantic.ReviewItem, 0, len(rawItems))
+	for index, raw := range rawItems {
+		var item eventsemantic.ReviewItem
+		if err := decodeStrict(string(raw), &item); err != nil {
+			isolate(audit, "independent_review", rawCandidateKey(raw, index), "review_item_invalid", "model")
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func rawCandidateKey(raw json.RawMessage, index int) string {
+	var object map[string]json.RawMessage
+	if json.Unmarshal(raw, &object) == nil {
+		var key string
+		if json.Unmarshal(object["candidate_key"], &key) == nil && strings.TrimSpace(key) != "" {
+			return key
+		}
+	}
+	return "item_" + strconv.Itoa(index+1)
+}
+
+func generateEnvelope[T any](ctx context.Context, chatModel model.BaseChatModel, stage, systemPrompt, userPayload, outputSchema string, audit *eventsemantic.StageAudit) (T, error) {
+	var zero T
+	message, err := chatModel.Generate(ctx, []*schema.Message{schema.SystemMessage(systemPrompt), schema.UserMessage(userPayload)})
+	if err != nil || message == nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return zero, err
+		}
+		return zero, eventsemantic.ErrModelUnavailable
+	}
+	var value T
+	if decodeStageEnvelope(message.Content, stage, &value) == nil {
+		return value, nil
+	}
+	recordViolation(audit, stage, "initial", []string{"json_typed_contract_invalid"})
+	repairPayload, err := json.Marshal(struct {
+		Stage          string          `json:"stage"`
+		ViolationCodes []string        `json:"violation_codes"`
+		OriginalOutput string          `json:"original_output"`
+		OutputSchema   json.RawMessage `json:"output_schema"`
+		OriginalInput  json.RawMessage `json:"original_input"`
+	}{stage, []string{"json_typed_contract_invalid"}, message.Content, json.RawMessage(outputSchema), json.RawMessage(userPayload)})
+	if err != nil {
+		return zero, err
+	}
+	repaired, err := chatModel.Generate(ctx, []*schema.Message{schema.SystemMessage(repairProtocol), schema.UserMessage(string(repairPayload))})
+	if err != nil || repaired == nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return zero, err
+		}
+		return zero, eventsemantic.ErrModelUnavailable
+	}
+	if decodeStageEnvelope(repaired.Content, stage, &value) != nil {
+		recordViolation(audit, stage, "repair", []string{"json_typed_contract_invalid"})
+		return zero, &eventsemantic.RemoteError{
+			Code: "event_semantic_model_contract_invalid", Summary: "Event Semantic model violated the V3 JSON envelope contract", Retryable: false,
+		}
+	}
+	return value, nil
+}
+
+func candidateSetsCover(sets []eventsemantic.EntityCandidateSet, lookups []eventsemantic.EntityLookup) bool {
+	if len(sets) != len(lookups) {
+		return false
+	}
+	expected := make(map[string]struct{}, len(lookups))
+	for _, item := range lookups {
+		if item.CandidateKey == "" || duplicate(expected, item.CandidateKey) {
 			return false
 		}
-		if _, exists := seen[value]; exists {
+	}
+	for _, set := range sets {
+		if _, ok := expected[set.CandidateKey]; !ok {
 			return false
 		}
-		seen[value] = struct{}{}
+		delete(expected, set.CandidateKey)
 	}
-	return true
+	return len(expected) == 0
 }
 
-func validModelConfidence(value string) bool {
-	if !validModelDecimal(value) || strings.HasPrefix(value, "+") || strings.HasPrefix(value, "-") {
-		return false
+func candidateMap(sets []eventsemantic.EntityCandidateSet) map[string]map[string]eventsemantic.Entity {
+	result := make(map[string]map[string]eventsemantic.Entity, len(sets))
+	for _, set := range sets {
+		result[set.CandidateKey] = make(map[string]eventsemantic.Entity, len(set.Candidates))
+		for _, candidate := range set.Candidates {
+			result[set.CandidateKey][candidate.Entity.EntityID] = candidate.Entity
+		}
 	}
-	parsed, err := strconv.ParseFloat(value, 64)
-	return err == nil && parsed >= 0 && parsed <= 1
+	return result
 }
 
-func validOptionalModelTimestamp(value *string) bool {
-	if value == nil {
-		return true
+func candidateResolutionMethods(items []eventsemantic.EntityCandidate, method string) map[string]string {
+	result := make(map[string]string, len(items))
+	for _, item := range items {
+		result[item.Entity.EntityID] = method
 	}
-	if strings.TrimSpace(*value) != *value || *value == "" {
-		return false
+	return result
+}
+
+func mergeCandidates(exact, vector []eventsemantic.EntityCandidate, limit int) []eventsemantic.EntityCandidate {
+	result := make([]eventsemantic.EntityCandidate, 0, min(limit, len(exact)+len(vector)))
+	seen := make(map[string]struct{}, len(exact)+len(vector))
+	for _, group := range [][]eventsemantic.EntityCandidate{exact, vector} {
+		for _, item := range group {
+			if len(result) == limit {
+				return result
+			}
+			if duplicate(seen, item.Entity.EntityID) {
+				continue
+			}
+			result = append(result, item)
+		}
 	}
-	_, err := time.Parse(time.RFC3339Nano, *value)
-	return err == nil
+	return result
 }
 
-func validOptionalModelDecimal(value *string) bool {
-	return value == nil || validModelDecimal(*value)
-}
-
-func validModelDecimal(value string) bool {
-	return value != "" && strings.TrimSpace(value) == value && modelDecimalPattern.MatchString(value)
-}
-
-func hash(value string) string {
-	sum := sha256.Sum256([]byte(value))
-	return hex.EncodeToString(sum[:])
+func expectedReviewCandidates(work eventsemantic.ReviewerWorkPackage) []reviewIdentity {
+	result := make([]reviewIdentity, 0, len(work.EntityLinks)+len(work.VariableSignals))
+	for _, item := range work.EntityLinks {
+		result = append(result, reviewIdentity{"entity_link", item.CandidateKey})
+	}
+	for _, item := range work.VariableSignals {
+		result = append(result, reviewIdentity{"variable_signal", item.CandidateKey})
+	}
+	return result
 }
 
 func decodeStrict(content string, target any) error {
@@ -1298,6 +883,64 @@ func decodeStrict(content string, target any) error {
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return errors.New("trailing JSON")
+	}
+	return nil
+}
+
+func decodeStageEnvelope(content, stage string, target any) error {
+	requiredField, ok := map[string]string{
+		"mention_extraction":       "mentions",
+		"entity_selection":         "selections",
+		"entity_selection_recheck": "selections",
+		"signal_extraction":        "variable_signals",
+		"independent_review":       "items",
+	}[stage]
+	if !ok {
+		return errors.New("Event Semantic model stage is invalid")
+	}
+	decoder := json.NewDecoder(strings.NewReader(strings.TrimSpace(content)))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return errors.New("Event Semantic stage envelope must be a JSON object")
+	}
+	var raw json.RawMessage
+	found := false
+	for decoder.More() {
+		keyToken, tokenErr := decoder.Token()
+		key, keyOK := keyToken.(string)
+		if tokenErr != nil || !keyOK || key != requiredField || found {
+			return errors.New("Event Semantic stage envelope contains an unknown or duplicate field")
+		}
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		found = true
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return errors.New("Event Semantic stage envelope is invalid")
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("trailing JSON")
+	}
+	if !found || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return errors.New("Event Semantic stage envelope required array is missing")
+	}
+	var values []json.RawMessage
+	if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+		return errors.New("Event Semantic stage envelope required field must be an array")
+	}
+	switch output := target.(type) {
+	case *mentionOutput:
+		output.Mentions = values
+	case *selectionOutput:
+		output.Selections = values
+	case *signalOutput:
+		output.VariableSignals = values
+	case *reviewOutput:
+		output.Items = values
+	default:
+		return errors.New("Event Semantic stage output type is invalid")
 	}
 	return nil
 }
@@ -1331,13 +974,9 @@ func consumeUniqueJSONValue(decoder *json.Decoder) error {
 				return err
 			}
 			key, ok := keyToken.(string)
-			if !ok {
-				return errors.New("object key is invalid")
+			if !ok || duplicate(seen, key) {
+				return errors.New("duplicate or invalid JSON object key")
 			}
-			if _, exists := seen[key]; exists {
-				return errors.New("duplicate JSON object key")
-			}
-			seen[key] = struct{}{}
 			if err := consumeUniqueJSONValue(decoder); err != nil {
 				return err
 			}
@@ -1356,4 +995,185 @@ func consumeUniqueJSONValue(decoder *json.Decoder) error {
 		return errors.New("JSON container is invalid")
 	}
 	return nil
+}
+
+func evidenceIndex(items []eventsemantic.Evidence) map[string]eventsemantic.Evidence {
+	result := make(map[string]eventsemantic.Evidence, len(items))
+	for _, item := range items {
+		result[item.EvidenceID] = item
+	}
+	return result
+}
+
+func validEvidenceIDs(values []string, allowed map[string]eventsemantic.Evidence) bool {
+	if len(values) == 0 || len(values) > 20 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if _, ok := allowed[value]; !ok || duplicate(seen, value) {
+			return false
+		}
+	}
+	return true
+}
+
+func recordCandidateSet(audit *eventsemantic.StageAudit, set eventsemantic.EntityCandidateSet, method string) {
+	if audit == nil {
+		return
+	}
+	entry := eventsemantic.CandidateSetAudit{CandidateKey: set.CandidateKey, Method: method}
+	for _, item := range set.Candidates {
+		entry.Candidates = append(entry.Candidates, eventsemantic.CandidateAudit{
+			EntityID: item.Entity.EntityID, EntityType: item.Entity.EntityType,
+			CanonicalName: item.Entity.CanonicalName, Score: item.Score,
+		})
+	}
+	audit.CandidateSets = append(audit.CandidateSets, entry)
+}
+
+func recordSelection(audit *eventsemantic.StageAudit, selection entitySelection, entity eventsemantic.Entity, hasExactCandidate bool, route string) {
+	if audit == nil {
+		return
+	}
+	entry := eventsemantic.SelectionAudit{
+		CandidateKey: selection.CandidateKey, EntityID: selection.EntityID, EntityType: entity.EntityType,
+		EntityRole: selection.EntityRole, NoMatch: selection.NoMatch, ResolutionRoute: route,
+	}
+	if selection.NoMatch {
+		switch selection.NoMatchReason {
+		case "mention_not_entity":
+			entry.ReasonCode = "stage_a_non_entity_mention"
+			entry.Owner = "model_extraction"
+		case "insufficient_context":
+			entry.ReasonCode = "selector_insufficient_context"
+			entry.Owner = "model_selection"
+		case "no_candidate_same_entity":
+			if hasExactCandidate {
+				entry.ReasonCode = "selector_rejected_exact_candidates"
+				entry.Owner = "model_selection"
+			} else {
+				entry.ReasonCode = "identity_projection_gap"
+				entry.Owner = "abox_or_retrieval"
+			}
+		default:
+			entry.ReasonCode = "selector_no_match_unclassified"
+			entry.Owner = "model_selection"
+		}
+	}
+	audit.Selections = append(audit.Selections, entry)
+}
+
+func recordMissingSelection(audit *eventsemantic.StageAudit, candidateKey, route string) {
+	if audit == nil {
+		return
+	}
+	audit.Selections = append(audit.Selections, eventsemantic.SelectionAudit{
+		CandidateKey: candidateKey, NoMatch: true, ResolutionRoute: route,
+		ReasonCode: "selector_output_missing", Owner: "model_selection",
+	})
+}
+
+func selectionRoute(rechecked bool) string {
+	if rechecked {
+		return "secondary_review"
+	}
+	return "primary_selector"
+}
+
+func recordApplicableVariables(audit *eventsemantic.StageAudit, linkKey string, items []eventsemantic.VariableDefinition) {
+	if audit == nil {
+		return
+	}
+	entry := eventsemantic.ApplicableVariableAudit{SubjectLinkKey: linkKey}
+	for _, item := range items {
+		entry.Definitions = append(entry.Definitions, variableIdentity(item.Key, item.Version))
+	}
+	audit.ApplicableVariables = append(audit.ApplicableVariables, entry)
+}
+
+func recordViolation(audit *eventsemantic.StageAudit, stage, attempt string, codes []string) {
+	if audit != nil {
+		audit.Violations = append(audit.Violations, eventsemantic.StageViolationAudit{Stage: stage, Attempt: attempt, Codes: codes})
+	}
+}
+
+func isolate(audit *eventsemantic.StageAudit, stage, key, reason, owner string) {
+	if audit != nil {
+		audit.Isolations = append(audit.Isolations, eventsemantic.CandidateIsolationAudit{
+			Stage: stage, CandidateKey: key, ReasonCode: reason, Owner: owner,
+		})
+	}
+}
+
+func auditValue(audit *eventsemantic.StageAudit) eventsemantic.StageAudit {
+	if audit == nil {
+		return eventsemantic.StageAudit{}
+	}
+	return *audit
+}
+
+func contains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func duplicate(values map[string]struct{}, key string) bool {
+	if _, ok := values[key]; ok {
+		return true
+	}
+	values[key] = struct{}{}
+	return false
+}
+
+func variableIdentity(key string, version int) string { return key + "@" + strconv.Itoa(version) }
+
+func reviewExecutionSuffix(pass int) string {
+	if pass == 0 {
+		return ":reviewer"
+	}
+	return ":adjudicator"
+}
+
+func reviewStartPass(submission eventsemantic.SubmissionResult, executionID string) (int, error) {
+	if len(submission.ReviewSnapshots) == 0 {
+		if submission.Status == "pending_review" {
+			return 0, nil
+		}
+		switch submission.Status {
+		case "accepted", "rejected", "quarantined", "superseded":
+			if submission.ReviewerWorkPackage == nil {
+				return 2, nil
+			}
+		}
+		return 0, errors.New("Event Semantic resumable review state is invalid")
+	}
+	if len(submission.ReviewSnapshots) == 1 && submission.Status == "needs_reanalysis" &&
+		submission.ReviewSnapshots[0].ReviewerExecutionKey == executionID+":reviewer" {
+		return 1, nil
+	}
+	return 0, errors.New("Event Semantic resumable review history is invalid")
+}
+
+func retrievalContractError() error {
+	return &eventsemantic.RemoteError{Code: "qdrant_response_invalid", Summary: "Qdrant response contract is invalid", Retryable: false}
+}
+
+func GeneratorPromptHash() string {
+	return hash(mentionProtocol + selectorProtocol + signalProtocol + mentionSchema + selectorSchema + signalSchema + repairProtocol)
+}
+func ReviewerPromptHash() string {
+	return hash(selectionRecheckProtocol + reviewerProtocol + selectorSchema + reviewSchema + repairProtocol)
+}
+func WorkflowHash() string {
+	return hash(GeneratorPromptHash() + ReviewerPromptHash() + eventsemantic.AgentVersion)
+}
+
+func hash(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }

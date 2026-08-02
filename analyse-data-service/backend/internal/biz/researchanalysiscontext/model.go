@@ -187,11 +187,17 @@ type IndustryChainGraphEdge struct {
 }
 
 type EntityTypeDefinition struct {
-	TypeKey              string `json:"type_key"`
-	Version              int    `json:"version"`
-	SignalSubjectAllowed bool   `json:"signal_subject_allowed"`
-	DirectTargetMode     string `json:"direct_target_mode"`
-	Status               string `json:"status"`
+	TypeKey              string   `json:"type_key"`
+	Version              int      `json:"version"`
+	NameZH               string   `json:"name_zh"`
+	NameEN               string   `json:"name_en"`
+	BusinessDefinition   string   `json:"business_definition"`
+	InclusionCriteria    []string `json:"inclusion_criteria"`
+	ExclusionCriteria    []string `json:"exclusion_criteria"`
+	EventLinkAllowed     bool     `json:"event_link_allowed"`
+	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
+	DirectTargetMode     string   `json:"direct_target_mode"`
+	Status               string   `json:"status"`
 }
 
 type VariableDefinition struct {

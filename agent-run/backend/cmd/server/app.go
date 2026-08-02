@@ -24,8 +24,10 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/connectors"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/dataclient"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/modelprovider/deepseek"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/modelprovider/embeddingopenai"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
 	scheduler "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/scheduler"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/semanticretrieval"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/service"
 )
@@ -146,6 +148,26 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		store,
 		dataClient,
 		func(ctx context.Context) (semanticusecase.Runtime, error) {
+			semanticEmbedder, err := embeddingopenai.New(ctx, embeddingopenai.Config{
+				BaseURL: config.SemanticRetrieval.EmbeddingBaseURL, APIKey: config.Secrets.EmbeddingAPIKey,
+				Model: config.SemanticRetrieval.EmbeddingModel, Dimensions: config.SemanticRetrieval.VectorSize,
+				Timeout: time.Duration(config.SemanticRetrieval.TimeoutSeconds) * time.Second,
+			})
+			if err != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic embedding client is unavailable")
+			}
+			semanticRetriever, err := semanticretrieval.New(semanticretrieval.Config{
+				QdrantURL:        config.SemanticRetrieval.QdrantURL,
+				QdrantAPIKey:     config.Secrets.QdrantAPIKey,
+				Embedder:         semanticEmbedder,
+				EntityCollection: config.SemanticRetrieval.EntityCollection,
+				VectorSize:       config.SemanticRetrieval.VectorSize,
+				Timeout:          time.Duration(config.SemanticRetrieval.TimeoutSeconds) * time.Second,
+				MaxResponseBytes: config.SemanticRetrieval.MaxResponseBytes,
+			})
+			if err != nil {
+				return semanticusecase.Runtime{}, errors.New("Event Semantic retrieval client is unavailable")
+			}
 			modelConfigurations, err := store.LoadModelProviderConfigs(ctx)
 			if err != nil {
 				return semanticusecase.Runtime{}, errors.New("Event Semantic model configuration is unavailable")
@@ -167,7 +189,9 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			if err != nil {
 				return semanticusecase.Runtime{}, errors.New("Event Semantic Reviewer is unavailable")
 			}
-			runnable, err := semanticworkflow.New(ctx, dataClient, generator, reviewer)
+			runnable, err := semanticworkflow.New(
+				ctx, dataClient, semanticRetriever, generator, reviewer, config.SemanticRetrieval.EntityTopK,
+			)
 			if err != nil {
 				return semanticusecase.Runtime{}, errors.New("Event Semantic workflow could not compile")
 			}

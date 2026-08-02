@@ -9,3 +9,5 @@
 008	normal	Add Artifact Unit extraction state and nullable Unit lineage without rewriting existing Event Fact rows.
 009	normal	Add Event Semantic Agent registration and durable Work Item state without rewriting existing Executions.
 010	normal	Extend the Event Semantic Work Item status constraint with the history-only skipped terminal state.
+011	normal	Register the immutable Event Semantic V2 Agent Version without rewriting existing Executions.
+012	normal	Register the immutable Event Semantic V3 Agent Version and add bounded per-stage audit persistence.

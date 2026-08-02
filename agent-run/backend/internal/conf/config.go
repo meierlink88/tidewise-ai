@@ -27,14 +27,15 @@ const (
 )
 
 type Config struct {
-	App       AppConfig       `yaml:"app"`
-	Server    ServerConfig    `yaml:"server"`
-	Database  DatabaseConfig  `yaml:"database"`
-	Artifact  ArtifactConfig  `yaml:"artifact"`
-	Data      DataConfig      `yaml:"data"`
-	EventFact EventFactConfig `yaml:"event_fact"`
-	Secrets   SecretConfig    `yaml:"-"`
-	Location  *time.Location  `yaml:"-"`
+	App               AppConfig               `yaml:"app"`
+	Server            ServerConfig            `yaml:"server"`
+	Database          DatabaseConfig          `yaml:"database"`
+	Artifact          ArtifactConfig          `yaml:"artifact"`
+	Data              DataConfig              `yaml:"data"`
+	EventFact         EventFactConfig         `yaml:"event_fact"`
+	SemanticRetrieval SemanticRetrievalConfig `yaml:"semantic_retrieval"`
+	Secrets           SecretConfig            `yaml:"-"`
+	Location          *time.Location          `yaml:"-"`
 }
 
 type AppConfig struct {
@@ -71,10 +72,24 @@ type EventFactConfig struct {
 	ModelTimeoutSeconds      int `yaml:"model_timeout_seconds"`
 }
 
+type SemanticRetrievalConfig struct {
+	QdrantURL          string `yaml:"qdrant_url"`
+	EmbeddingBaseURL   string `yaml:"embedding_base_url"`
+	EmbeddingModel     string `yaml:"embedding_model"`
+	EntityCollection   string `yaml:"entity_collection"`
+	VariableCollection string `yaml:"variable_collection"`
+	VectorSize         int    `yaml:"vector_size"`
+	EntityTopK         int    `yaml:"entity_top_k"`
+	TimeoutSeconds     int    `yaml:"timeout_seconds"`
+	MaxResponseBytes   int64  `yaml:"max_response_bytes"`
+}
+
 type SecretConfig struct {
 	DatabasePassword string
 	ServiceToken     string
 	DataServiceToken string
+	QdrantAPIKey     string
+	EmbeddingAPIKey  string
 }
 
 func Load() (Config, error) {
@@ -137,6 +152,8 @@ func loadConfiguration(requireTimezone bool) (Config, error) {
 		DatabasePassword: os.Getenv("AGENTRUN_DB_PASSWORD"),
 		ServiceToken:     os.Getenv("AGENTRUN_SERVICE_TOKEN"),
 		DataServiceToken: os.Getenv("DATA_SERVICE_TOKEN"),
+		QdrantAPIKey:     os.Getenv("QDRANT_API_KEY"),
+		EmbeddingAPIKey:  os.Getenv("EMBEDDING_API_KEY"),
 	}
 	if baseURL := strings.TrimSpace(os.Getenv("AGENTRUN_DATA_BASE_URL")); baseURL != "" {
 		cfg.Data.BaseURL = baseURL
@@ -220,6 +237,30 @@ func (c Config) Validate() error {
 	if c.EventFact.ModelTimeoutSeconds <= 0 {
 		return fmt.Errorf("event_fact.model_timeout_seconds must be positive")
 	}
+	if err := c.SemanticRetrieval.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c SemanticRetrievalConfig) Validate() error {
+	for label, raw := range map[string]string{"qdrant_url": c.QdrantURL, "embedding_base_url": c.EmbeddingBaseURL} {
+		parsed, err := url.Parse(raw)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil ||
+			(parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return fmt.Errorf("semantic_retrieval.%s must be an absolute HTTP URL without credentials", label)
+		}
+	}
+	if c.EmbeddingModel != "text-embedding-v4" || c.EntityCollection != "entity_semantic_v1" ||
+		c.VariableCollection != "variable_definition_semantic_v1" || c.VectorSize != 1024 {
+		return fmt.Errorf("semantic_retrieval fixed projection contract is invalid")
+	}
+	if c.EntityTopK <= 0 || c.EntityTopK > 20 {
+		return fmt.Errorf("semantic_retrieval.entity_top_k must be between 1 and 20")
+	}
+	if c.TimeoutSeconds <= 0 || c.MaxResponseBytes <= 0 {
+		return fmt.Errorf("semantic_retrieval timeout and response limit must be positive")
+	}
 	return nil
 }
 
@@ -229,6 +270,9 @@ func (c Config) validateRuntimeSecrets() error {
 	}
 	if strings.TrimSpace(c.Secrets.DataServiceToken) == "" {
 		return fmt.Errorf("DATA_SERVICE_TOKEN is required")
+	}
+	if strings.TrimSpace(c.Secrets.EmbeddingAPIKey) == "" {
+		return fmt.Errorf("EMBEDDING_API_KEY is required")
 	}
 	if c.App.Env != EnvUAT {
 		return nil

@@ -35,11 +35,6 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/event-semantics/eligible-events":                                {method: "get", operationID: "listEligibleEventSemanticEvents", driftAnchor: "data.v1.listEligibleEventSemanticEvents", scope: "data.event-semantics.read"},
 		namespace + "/event-semantics/context-leases":                                 {method: "post", operationID: "createEventSemanticContextLease", driftAnchor: "data.v1.createEventSemanticContextLease", scope: "data.event-semantics.write"},
 		namespace + "/event-semantics/context-leases/{context_lease_id}/context":      {method: "get", operationID: "getEventSemanticContext", driftAnchor: "data.v1.getEventSemanticContext", scope: "data.event-semantics.read"},
-		namespace + "/event-semantics/entity-resolutions":                             {method: "post", operationID: "resolveEventSemanticEntities", driftAnchor: "data.v1.resolveEventSemanticEntities", scope: "data.event-semantics.write"},
-		namespace + "/event-semantics/direct-targets:search":                          {method: "post", operationID: "searchEventSemanticDirectTargets", driftAnchor: "data.v1.searchEventSemanticDirectTargets", scope: "data.event-semantics.write"},
-		namespace + "/event-semantics/resolution-routes:list":                         {method: "post", operationID: "listEventSemanticResolutionRoutes", driftAnchor: "data.v1.listEventSemanticResolutionRoutes", scope: "data.event-semantics.write"},
-		namespace + "/event-semantics/resolution-anchors:list":                        {method: "post", operationID: "listEventSemanticResolutionAnchors", driftAnchor: "data.v1.listEventSemanticResolutionAnchors", scope: "data.event-semantics.write"},
-		namespace + "/event-semantics/chain-node-candidates:resolve":                  {method: "post", operationID: "resolveEventSemanticChainNodeCandidates", driftAnchor: "data.v1.resolveEventSemanticChainNodeCandidates", scope: "data.event-semantics.write"},
 		namespace + "/event-semantics/submissions":                                    {method: "post", operationID: "createEventSemanticSubmission", driftAnchor: "data.v1.createEventSemanticSubmission", scope: "data.event-semantics.write"},
 		namespace + "/event-semantics/submissions/{submission_id}/reviews":            {method: "post", operationID: "submitEventSemanticReview", driftAnchor: "data.v1.submitEventSemanticReview", scope: "data.event-semantics.write"},
 		namespace + "/events/{event_id}/semantics":                                    {method: "get", operationID: "getEventSemantics", driftAnchor: "data.v1.getEventSemantics", scope: "data.event-semantics.read"},
@@ -80,11 +75,6 @@ func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.
 	paths := object(t, document["paths"], "paths")
 	operations := map[string]string{
 		namespace + "/event-semantics/context-leases/{context_lease_id}/context": "get",
-		namespace + "/event-semantics/entity-resolutions":                        "post",
-		namespace + "/event-semantics/direct-targets:search":                     "post",
-		namespace + "/event-semantics/resolution-routes:list":                    "post",
-		namespace + "/event-semantics/resolution-anchors:list":                   "post",
-		namespace + "/event-semantics/chain-node-candidates:resolve":             "post",
 	}
 	for path, method := range operations {
 		operation := object(t, object(t, paths[path], path)[method], method+" "+path)
@@ -101,6 +91,14 @@ func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.
 	detail := schema(t, document, "EventSemanticContextDriftErrorDetail")
 	code := object(t, object(t, detail["properties"], "drift properties")["code"], "drift code")
 	assertStringSet(t, code["enum"], "EVENT_SEMANTIC_CONTEXT_DRIFT")
+}
+
+func TestEventSemanticV3ReviewCandidateTypesExcludeDirectImpact(t *testing.T) {
+	document := loadContract(t)
+	reviewItem := schema(t, document, "EventSemanticReviewItem")
+	properties := object(t, reviewItem["properties"], "EventSemanticReviewItem properties")
+	candidateType := object(t, properties["candidate_type"], "candidate_type")
+	assertStringSet(t, candidateType["enum"], "entity_link", "variable_signal")
 }
 
 func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {

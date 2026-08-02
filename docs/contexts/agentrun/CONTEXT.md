@@ -111,26 +111,47 @@ AgentRun 为一次待发布 Event Publication Batch 持久化的不可变请求�
 _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草稿
 
 **Event Semantic Enricher**:
-在正式 Event 已存在后，先从 Data 的精简 Context 提取原始 Mention、类型与 Signal；普通
-Entity 走受控精确解析，ChainNode 按固定次数执行路由/分区选择、正式 Anchor ID 选择、
-Data 候选召回与正式 Target ID 消歧，再形成受控语义关联和直接信号。模型只能选择紧邻
-Data 响应中的正式 ID；AgentRun 只转交匹配候选携带的 Data receipt，不拥有或发明路径。
-ChainNode 候选消歧同时携带该 mention 绑定的 Variable Signal，用候选正式职责与变量适用性
-区分同一产业链中的不同节点。Direct Impact Prompt 只接收 source/target Entity Type、变量、
-方向和 relation 全部匹配的 approved Rule，AgentRun validator 使用同一条件复核。Reviewer
-必须逐字覆盖受界 `expected_candidates`；纯候选覆盖缺失可使用一次最小合同修正，不能绕过
-Evidence、Rule 或 Data 接纳校验。
-空候选是 unresolved 正常结果；网络、模型、Lease/路径漂移是可重试执行失败。
-`event-semantic-enricher.v1` 的结构化模型合同由阶段 Prompt hash 和 Workflow hash 精确
-追溯。confidence 字段必须是 `0..1` 十进制数字字符串；时间、版本、Evidence/正式实体 ID
-和 measurement 数字等机器字段由阶段 `field_contracts` 明确格式并继续经过确定性校验。
-模型成功返回且 JSON/机器合同可修正时，同一阶段最多追加一次
-`event-semantic-model-contract-repair.v1` 修正调用；第二次仍非法则稳定失败。Provider、网络、
-权限、Data、Lease 和持久化错误不进入修正调用，修正也不得重放 Submission 或其他 Data
-写入。修正请求只携带阶段/策略、稳定违规码、原输出及对应 schema/field contracts，不重复
-发送完整 Event/Evidence/候选上下文。该行为是 V1 的 conformance fix，不放宽 Data 合同，也不把 `high/medium` 在程序中
-静默映射为数字。
-_Avoid_: Event Fact Extractor Agent、在 Fact Payload 中隐藏正式语义关联
+在正式 Event 已存在后，从 Data 的精简、pinned Context 动态取得 Entity Type/角色、
+Variable Definition、适用 Entity Type、方向、modality 和 Measurement 合同。
+`event-semantic-enricher.v3` 的 Stage A 只提取 Event 原文 raw mention 与 Evidence 血缘；
+不预测 Entity Type、不预先分配角色，也不生成 Signal。AgentRun 先对整个 Event 批量执行
+跨 Entity Type 正规名/别名精确匹配，再对未唯一命中 mention 执行一次跨类型 batch vector
+recall。Selector 只能从当前 mention 的 Qdrant 候选选择正式 ID 或 `no_match`，并按候选携带
+的正式 Entity Type Definition 分配允许角色；Entity Type 不由模型输出。Data 在 Submission
+中比对 `projected_entity_type` 与 PostgreSQL Entity ID/type/status/TBox。Vector Top-K 由
+`semantic_retrieval.entity_top_k` 配置，范围 1..20，当前校准值为 10。
+Selector 与独立 Review 只使用候选 canonical name、name 和正式 aliases 确认 identity；不删除
+“系统/服务/设备/产品”等后缀，不使用字符串包含或其他手写简称规则。vector Top-1 不自动接受；
+只有唯一 exact identity 被主 Selector 拒绝时，由独立 Reviewer 做一次有界选择复核。
+`mention_not_entity` 只用于日期、数值、
+状态、行为、报告、会议等真正非实体，真实公司、产品、技术、指数不得用它掩盖 ABox/TBox gap。
+Entity Resolution 完成后，AgentRun 才按正式 Entity Type 从 pinned complete Variable
+Definition directory 确定性筛选适用目录，并以独立 Signal Stage 生成 Event-native
+VariableSignal 与可选自然语言 Measurement。EventEntityLink 可以没有 Signal；单个 Mention、
+Selection、Signal 或 Review item 非法时只隔离该候选，不撤销同 Event 的其他合法事实。
+对象同一性不使用 AgentRun 手写简称、职衔、国别前缀或证券后缀规则。唯一 canonical/alias exact
+identity 来自正式投影；其他候选由 Selector 提议并由独立 AI Reviewer 判断是否同一业务对象。
+合法简称缺口归正式 alias 数据治理，不在 Workflow 中建设第二套字符串 TBox。
+AgentRun 的 embedding 调用必须经 Eino `embedding.Embedder`与 eino-ext 官方
+OpenAI-compatible adapter；自定义 Qdrant adapter 只弥补官方单 query Retriever 无法提供的
+Event-batch、跨类型召回和候选白名单能力。每批未命中 mention 只发生一次
+`EmbedStrings` 和一次 Qdrant query batch。
+模型只有在严格 JSON envelope 一次修复后仍不可解析时才终止整个 Event；候选内容错误进入
+per-stage audit/isolation，并为 `no_match`、TBox 排除、retrieval/transport failure 记录 owner
+classification。Reviewer 的缺失或非法 item 会被隔离并使用该候选自身 Evidence 形成 fail，不扩大为
+Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/模型身份；首次
+`indeterminate` 后只允许以冻结的 Adjudicator 身份执行第二轮，未知结果按 Data 已持久化
+的 Review Snapshot 恢复，第二次 `indeterminate` 进入 quarantine。Measurement 只携带 `measurement_text + evidence_ids`，完整语义由 AI
+审核对照 Evidence，不进行数值解析或归一化。
+严格 envelope 要求 mention/selection/signal/review 分别显式携带 `mentions`、`selections`、
+`variable_signals`、`items` 数组；`null`、`{}`、缺字段、`null` 数组或错误类型不能解释为空结果。
+顶层 envelope 严格解析后，数组 item 按本 V3 固定 DTO 独立解析；单个 item 字段/类型非法只隔离
+该 item，不触发整个 envelope repair。Semantic retrieval 的取消与 deadline 原样向 Execution 传播，
+不包装为可重试远端错误。
+AgentRun 对 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、
+embedding model 和 content fingerprint fail closed；payload 不要求重复 `point_id`。
+`EMBEDDING_API_KEY` 在进程启动配置阶段校验，不允许领取 Work Item 后才暴露缺失。
+_Avoid_: Event Fact Extractor Agent、DirectImpact、Direct Target/Rule、产业链传导、Theme/机会/风险结论、AgentRun 自研 embedding HTTP 协议
 
 **Event Semantic Work Item**:
 AgentRun 对一个 Data Event 的一次初始语义分析或显式重新分析承担的持久化处理义务。

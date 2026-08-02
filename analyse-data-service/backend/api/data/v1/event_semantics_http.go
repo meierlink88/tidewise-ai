@@ -60,66 +60,6 @@ func getEventSemanticContextHandler(application DataHTTPServer) kratoshttp.Handl
 	}
 }
 
-func resolveEventSemanticEntitiesHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[EventSemanticEntityResolutionRequest](ctx)
-		if err != nil {
-			return err
-		}
-		return call(ctx, OperationResolveEventSemanticEntities, request, func(callContext context.Context) (*Response[EventSemanticEntityResolutionResult], error) {
-			return application.ResolveEventSemanticEntities(callContext, request)
-		})
-	}
-}
-
-func searchEventSemanticDirectTargetsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[EventSemanticDirectTargetSearchRequest](ctx)
-		if err != nil {
-			return err
-		}
-		return call(ctx, OperationSearchEventSemanticDirectTargets, request, func(callContext context.Context) (*Response[EventSemanticDirectTargetSearchResult], error) {
-			return application.SearchEventSemanticDirectTargets(callContext, request)
-		})
-	}
-}
-
-func listEventSemanticResolutionRoutesHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[EventSemanticResolutionRouteRequest](ctx)
-		if err != nil {
-			return err
-		}
-		return call(ctx, OperationListEventSemanticResolutionRoutes, request, func(callContext context.Context) (*Response[EventSemanticResolutionRouteResult], error) {
-			return application.ListEventSemanticResolutionRoutes(callContext, request)
-		})
-	}
-}
-
-func listEventSemanticResolutionAnchorsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[EventSemanticResolutionAnchorRequest](ctx)
-		if err != nil {
-			return err
-		}
-		return call(ctx, OperationListEventSemanticResolutionAnchors, request, func(callContext context.Context) (*Response[EventSemanticResolutionAnchorResult], error) {
-			return application.ListEventSemanticResolutionAnchors(callContext, request)
-		})
-	}
-}
-
-func resolveEventSemanticChainNodeCandidatesHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[EventSemanticResolutionCandidateRequest](ctx)
-		if err != nil {
-			return err
-		}
-		return call(ctx, OperationResolveEventSemanticChainNodeCandidates, request, func(callContext context.Context) (*Response[EventSemanticResolutionCandidateResult], error) {
-			return application.ResolveEventSemanticChainNodeCandidates(callContext, request)
-		})
-	}
-}
-
 func createEventSemanticSubmissionHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request, err := decodeEventSemanticJSON[EventSemanticSubmissionRequest](ctx)

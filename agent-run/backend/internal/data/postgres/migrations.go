@@ -76,6 +76,9 @@ var expectedSchemaColumns = map[string]string{
 	"event_publication_journal.created_at": "timestamptz:NO", "event_publication_journal.updated_at": "timestamptz:NO",
 	"event_fact_canonical_events.dedupe_key": "text:NO", "event_fact_canonical_events.identity_hash": "bpchar:NO",
 	"event_fact_canonical_events.core_facts": "jsonb:NO", "event_fact_canonical_events.published_at": "timestamptz:NO",
+	"event_semantic_stage_audits.execution_id": "uuid:NO", "event_semantic_stage_audits.event_id": "uuid:NO",
+	"event_semantic_stage_audits.contract_version": "text:NO", "event_semantic_stage_audits.summary": "jsonb:NO",
+	"event_semantic_stage_audits.created_at": "timestamptz:NO", "event_semantic_stage_audits.updated_at": "timestamptz:NO",
 }
 
 var expectedSchemaConstraints = map[string]struct{}{
@@ -118,6 +121,8 @@ var expectedSchemaConstraints = map[string]struct{}{
 	"event_publication_journal_attempt_check": {}, "event_publication_journal_receipt_check": {},
 	"event_fact_canonical_events_pkey": {}, "event_fact_canonical_events_identity_hash_key": {},
 	"event_fact_canonical_events_identity_check": {}, "event_fact_canonical_events_core_check": {},
+	"event_semantic_stage_audits_pkey": {}, "event_semantic_stage_audits_execution_id_fkey": {},
+	"event_semantic_stage_audits_contract_check": {}, "event_semantic_stage_audits_summary_check": {},
 }
 
 type MigrationReport struct {
@@ -233,10 +238,10 @@ func (s *Store) SchemaReady(ctx context.Context) bool {
 	return s.schemaShapeReady(ctx)
 }
 
-// PreparePreviousReleaseRollback removes only the 010 ledger marker so a
-// pre-010 binary's strict migration readiness check can start again. The
-// expanded constraint is intentionally left in place: it is backward
-// compatible. Rollback is refused after any history-only skipped row exists.
+// PreparePreviousReleaseRollback removes only the additive V3 migration marker
+// so the previous V2 release's strict migration readiness check can start
+// again. The V3 registry row and audit table are intentionally retained because
+// they are inert for the previous runtime and preserve audit history.
 func PreparePreviousReleaseRollback(
 	ctx context.Context,
 	database *pgxpool.Pool,
@@ -256,30 +261,15 @@ func PreparePreviousReleaseRollback(
 	); err != nil {
 		return fmt.Errorf("lock AgentRun previous-release rollback preparation: %w", err)
 	}
-	var skippedExists bool
-	if err := tx.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM event_semantic_work_items
-			WHERE status = 'skipped'
-		)
-	`).Scan(&skippedExists); err != nil {
-		return fmt.Errorf("inspect Event Semantic rollback compatibility: %w", err)
-	}
-	if skippedExists {
-		return errors.New(
-			"previous AgentRun release rollback is unsafe after historical skipped rows exist",
-		)
-	}
 	command, err := tx.Exec(ctx, `
 		DELETE FROM schema_migrations
-		WHERE version = 'migrations/010_event_semantic_history_skip.sql'
+		WHERE version = 'migrations/012_event_semantic_entity_first_v3.sql'
 	`)
 	if err != nil {
-		return fmt.Errorf("remove AgentRun 010 migration ledger marker: %w", err)
+		return fmt.Errorf("remove AgentRun 012 migration ledger marker: %w", err)
 	}
 	if command.RowsAffected() != 1 {
-		return errors.New("AgentRun 010 migration is not applied")
+		return errors.New("AgentRun 012 migration is not applied")
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit AgentRun previous-release rollback preparation: %w", err)
@@ -299,6 +289,7 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		"collector_artifact_publications", "artifact_ready_signals", "event_extraction_work_items",
 		"event_artifact_extraction_units", "event_extractor_executions",
 		"event_publication_journal", "event_fact_canonical_events",
+		"event_semantic_stage_audits",
 	})
 	if err != nil {
 		return false
@@ -337,6 +328,7 @@ func (s *Store) schemaShapeReady(ctx context.Context) bool {
 		"collector_artifact_publications", "artifact_ready_signals", "event_extraction_work_items",
 		"event_artifact_extraction_units", "event_extractor_executions",
 		"event_publication_journal", "event_fact_canonical_events",
+		"event_semantic_stage_audits",
 	})
 	if err != nil {
 		return false

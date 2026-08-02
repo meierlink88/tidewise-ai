@@ -16,11 +16,21 @@ import (
 
 type applicationRepositoryStub struct {
 	completions []eventsemantic.ExecutionCompletion
+	audits      []eventsemantic.StageAudit
 	noWork      bool
 	reanalysis  eventsemantic.ReanalysisRequest
 	ensured     [][]eventsemantic.EligibleEvent
 	insertLater bool
 	completeErr error
+}
+
+func (s *applicationRepositoryStub) SaveStageAudit(
+	_ context.Context,
+	_ string,
+	audit eventsemantic.StageAudit,
+) error {
+	s.audits = append(s.audits, audit)
+	return nil
 }
 
 type permittedApplicationRepositoryStub struct {
@@ -151,21 +161,6 @@ func (s *applicationDataStub) CreateContextLease(
 func (s *applicationDataStub) Context(context.Context, string) (eventsemantic.Context, error) {
 	return s.contextSnapshot, s.contextErr
 }
-func (*applicationDataStub) Resolve(context.Context, string, []eventsemantic.EntityMention) ([]eventsemantic.EntityResolution, error) {
-	return nil, nil
-}
-func (*applicationDataStub) SearchDirectTargets(context.Context, string, string, []string) ([]eventsemantic.DirectTarget, error) {
-	return nil, nil
-}
-func (*applicationDataStub) ListResolutionRoutes(context.Context, string, string) ([]eventsemantic.ResolutionRoute, error) {
-	return nil, nil
-}
-func (*applicationDataStub) ListResolutionAnchors(context.Context, string, string, string, []string, int, string) (eventsemantic.ResolutionAnchorPage, error) {
-	return eventsemantic.ResolutionAnchorPage{}, nil
-}
-func (*applicationDataStub) ResolveChainNodeCandidates(context.Context, string, string, []string, int, string) (eventsemantic.ResolutionCandidatePage, error) {
-	return eventsemantic.ResolutionCandidatePage{}, nil
-}
 func (s *applicationDataStub) CreateSubmission(
 	_ context.Context,
 	request eventsemantic.SubmissionRequest,
@@ -176,6 +171,24 @@ func (s *applicationDataStub) CreateSubmission(
 
 type queuedSemanticModel struct {
 	responses []string
+}
+
+type applicationRetrieverStub struct{}
+
+func (applicationRetrieverStub) ExactEntities(_ context.Context, lookups []eventsemantic.EntityLookup) ([]eventsemantic.EntityCandidateSet, error) {
+	result := make([]eventsemantic.EntityCandidateSet, 0, len(lookups))
+	for _, lookup := range lookups {
+		result = append(result, eventsemantic.EntityCandidateSet{CandidateKey: lookup.CandidateKey})
+	}
+	return result, nil
+}
+
+func (applicationRetrieverStub) SearchEntities(_ context.Context, lookups []eventsemantic.EntityLookup, _ int) ([]eventsemantic.EntityCandidateSet, error) {
+	result := make([]eventsemantic.EntityCandidateSet, 0, len(lookups))
+	for _, lookup := range lookups {
+		result = append(result, eventsemantic.EntityCandidateSet{CandidateKey: lookup.CandidateKey})
+	}
+	return result, nil
 }
 
 func (m *queuedSemanticModel) Generate(
@@ -463,7 +476,14 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 		contextSnapshot: eventsemantic.Context{
 			ContextLeaseID: "lease-1", AgentExecutionID: "execution-1",
 			WorkerID: "event-semantic-enricher", LeaseExpiresAt: "2026-08-01T00:00:00Z",
-			Event: eventsemantic.Event{ID: "event-later"},
+			ManifestContractVersion: "event-semantic-context-manifest.v3",
+			Event:                   eventsemantic.Event{ID: "event-later"},
+			EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{{
+				TypeKey: "company", NameZH: "企业", NameEN: "Company", BusinessDefinition: "企业主体",
+				InclusionCriteria: []string{"公司"}, ExclusionCriteria: []string{"产品"}, EventLinkAllowed: true, Status: "active",
+			}},
+			VariableDefinitions: []eventsemantic.VariableDefinition{{Key: "revenue", Version: 1, Status: "active"}},
+			MeasurementContract: eventsemantic.MeasurementContract{Representation: "evidence_grounded_narrative"},
 		},
 		submissionResult: eventsemantic.SubmissionResult{
 			SubmissionID: "submission-later",
@@ -480,12 +500,9 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 			},
 		},
 	}
-	generator := &queuedSemanticModel{responses: []string{
-		`{"mentions":[],"variable_signals":[]}`,
-		`{"direct_impacts":[]}`,
-	}}
+	generator := &queuedSemanticModel{responses: []string{`{"mentions":[]}`}}
 	reviewer := &queuedSemanticModel{}
-	run, err := semanticworkflow.New(context.Background(), data, generator, reviewer)
+	run, err := semanticworkflow.New(context.Background(), data, applicationRetrieverStub{}, generator, reviewer, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

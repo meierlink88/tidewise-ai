@@ -114,9 +114,7 @@ func requiredScope(operation string) (string, bool) {
 	case v1.OperationListEligibleEventSemanticEvents,
 		v1.OperationGetEventSemanticContext, v1.OperationGetEventSemantics:
 		return ScopeEventSemanticsRead, true
-	case v1.OperationCreateEventSemanticContextLease, v1.OperationResolveEventSemanticEntities,
-		v1.OperationSearchEventSemanticDirectTargets, v1.OperationListEventSemanticResolutionRoutes,
-		v1.OperationListEventSemanticResolutionAnchors, v1.OperationResolveEventSemanticChainNodeCandidates,
+	case v1.OperationCreateEventSemanticContextLease,
 		v1.OperationCreateEventSemanticSubmission,
 		v1.OperationSubmitEventSemanticReview:
 		return ScopeEventSemanticsWrite, true

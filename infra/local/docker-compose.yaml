@@ -57,6 +57,15 @@ services:
       retries: 12
     networks: [tidewise-local]
 
+  qdrant:
+    image: qdrant/qdrant:v1.15.5
+    ports:
+      - '${QDRANT_HTTP_PORT:-6333}:6333'
+      - '${QDRANT_GRPC_PORT:-6334}:6334'
+    volumes:
+      - tidewise_qdrant_data:/qdrant/storage
+    networks: [tidewise-local]
+
   data:
     build:
       context: ../..
@@ -98,6 +107,7 @@ services:
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
       AGENTRUN_DATA_BASE_URL: http://data:9011
+      EMBEDDING_API_KEY: '${EMBEDDING_API_KEY:?set EMBEDDING_API_KEY in infra/local/.env.local}'
     volumes:
       - agentrun_artifacts:/app/data
     depends_on:
@@ -105,6 +115,8 @@ services:
         condition: service_completed_successfully
       data:
         condition: service_healthy
+      qdrant:
+        condition: service_started
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9080/healthz']
       interval: 10s
@@ -197,4 +209,5 @@ volumes:
   tidewise_postgres_data:
   tidewise_neo4j_data:
   tidewise_neo4j_logs:
+  tidewise_qdrant_data:
   agentrun_artifacts:

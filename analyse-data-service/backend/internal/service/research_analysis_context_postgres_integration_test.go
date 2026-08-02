@@ -219,20 +219,20 @@ func TestPostgresResearchAnalysisContextReturnsCompleteReferencedSemantics(t *te
 		len(result.EventSemanticBundles[0].EntityLinks) != 1 ||
 		len(result.EventSemanticBundles[0].VariableSignals) != 1 ||
 		len(result.EventSemanticBundles[0].VariableSignals[0].Measurements) != 1 ||
-		len(result.EventSemanticBundles[0].VariableSignals[0].DirectImpacts) != 1 {
+		len(result.EventSemanticBundles[0].VariableSignals[0].DirectImpacts) != 0 {
 		t.Fatalf("incomplete Event semantics = %#v", result.EventSemanticBundles)
 	}
-	if got := len(result.Dictionaries.Entities); got != 2 {
-		t.Fatalf("entities = %d, want source and target", got)
+	if got := len(result.Dictionaries.Entities); got != 1 {
+		t.Fatalf("entities = %d, want the Event-linked Entity", got)
 	}
-	if got := len(result.Dictionaries.EntityRelations); got != 1 {
-		t.Fatalf("entity relations = %d, want referenced relation", got)
+	if got := len(result.Dictionaries.EntityRelations); got != 0 {
+		t.Fatalf("entity relations = %d, want no Event Semantic transmission relation", got)
 	}
-	if got := len(result.Dictionaries.VariableDefinitions); got != 2 {
-		t.Fatalf("variable definitions = %d, want source and affected variables", got)
+	if got := len(result.Dictionaries.VariableDefinitions); got != 1 {
+		t.Fatalf("variable definitions = %d, want the Signal definition", got)
 	}
-	if got := len(result.Dictionaries.DirectTransmissionRules); got != 1 {
-		t.Fatalf("rules = %d, want referenced rule", got)
+	if got := len(result.Dictionaries.DirectTransmissionRules); got != 0 {
+		t.Fatalf("rules = %d, want no Event Semantic transmission rule", got)
 	}
 	if got := len(result.Dictionaries.AcceptancePolicies); got != 1 {
 		t.Fatalf("acceptance policies = %d, want submission policy", got)

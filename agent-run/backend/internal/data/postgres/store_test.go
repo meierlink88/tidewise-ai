@@ -46,7 +46,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 10 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 12 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -64,13 +64,13 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "010" ||
-		len(report.Applied) != 10 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "012" ||
+		len(report.Applied) != 12 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
 
-func TestMigrateSeedsCollectorAndEventFactExtractorV1(t *testing.T) {
+func TestMigrateSeedsCurrentAgentVersions(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
@@ -120,11 +120,133 @@ func TestMigrateSeedsCollectorAndEventFactExtractorV1(t *testing.T) {
 	if semanticVersion.AgentKey != "event-semantic-enricher" {
 		t.Fatalf("Event Semantic Enricher agent key = %q", semanticVersion.AgentKey)
 	}
+	semanticV3, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion)
+	if err != nil {
+		t.Fatalf("get seeded Event Semantic V3 version: %v", err)
+	}
+	if semanticV3.AgentKey != eventsemantic.AgentKey {
+		t.Fatalf("Event Semantic V3 agent key = %q", semanticV3.AgentKey)
+	}
+	execution, disposition, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
+		IdempotencyKey: "event-semantic-v3-registry-test",
+		InputPayload:   json.RawMessage(`{"work_item_id":"11111111-1111-4111-8111-111111111111"}`),
+		CreatedAt:      time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		AgentVersion:   eventsemantic.AgentVersion,
+	})
+	if err != nil || disposition != agentrun.ExecutionCreated || execution.AgentKey != eventsemantic.AgentKey {
+		t.Fatalf("create Event Semantic V3 execution = %#v, %q, %v", execution, disposition, err)
+	}
 	if _, err := database.Exec(ctx, `ALTER TABLE connector_configs DROP COLUMN updated_at`); err != nil {
 		t.Fatal(err)
 	}
 	if store.SchemaReady(ctx) {
 		t.Fatal("schema with a missing required column reported ready")
+	}
+}
+
+func TestSaveEventSemanticStageAuditIsIdempotent(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "event_semantic_stage_audit_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	eventID := "22222222-2222-4222-8222-222222222222"
+	workID := "11111111-1111-4111-8111-111111111111"
+	executionID := "33333333-3333-4333-8333-333333333333"
+	if _, err := database.Exec(ctx, `
+		INSERT INTO agent_executions(
+			execution_id,agent_key,agent_version,idempotency_key,input_payload,
+			trigger_source,triggered_at,status,created_at,updated_at
+		) VALUES ($1,'event-semantic-enricher','event-semantic-enricher.v3',
+			'stage-audit-execution','{}'::jsonb,'dependent',now(),'running',now(),now())
+	`, executionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(ctx, `
+		INSERT INTO event_semantic_work_items(
+			work_item_id,event_id,trigger_source,reason,idempotency_key,status,
+			attempt_count,max_attempts,lease_expires_at,current_execution_id,created_at,updated_at
+		) VALUES ($1,$2,'eligible_event','','stage-audit-test','running',1,2,now()+interval '5 minutes',$3,now(),now())
+	`, workID, eventID, executionID); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	audit := eventsemantic.StageAudit{
+		ContractVersion: "event-semantic-stage-audit.v1", EventID: eventID,
+		Mentions:   []eventsemantic.MentionAudit{{CandidateKey: "company", Mention: "某公司", EvidenceIDs: []string{"evidence"}}},
+		Violations: []eventsemantic.StageViolationAudit{{Stage: "mention_extraction", Attempt: "initial", Codes: []string{"mention_key_invalid"}}},
+		Isolations: []eventsemantic.CandidateIsolationAudit{{
+			Stage: "mention_extraction", CandidateKey: "bad-mention", ReasonCode: "mention_key_invalid", Owner: "model",
+		}},
+	}
+	if err := store.SaveStageAudit(ctx, executionID, audit); err != nil {
+		t.Fatal(err)
+	}
+	resumeAudit := eventsemantic.StageAudit{
+		ContractVersion: audit.ContractVersion, EventID: eventID,
+		Violations: []eventsemantic.StageViolationAudit{{Stage: "entity_selection", Attempt: "repair", Codes: []string{"selection_missing"}}},
+		Isolations: []eventsemantic.CandidateIsolationAudit{{
+			Stage: "entity_selection", CandidateKey: "company", ReasonCode: "selection_missing", Owner: "model",
+		}},
+	}
+	if err := store.SaveStageAudit(ctx, executionID, resumeAudit); err != nil {
+		t.Fatal(err)
+	}
+	var contract string
+	var mentionCount, violationCount, isolationCount int
+	if err := database.QueryRow(ctx, `
+		SELECT contract_version, jsonb_array_length(summary->'mentions'),
+		       jsonb_array_length(summary->'violations'), jsonb_array_length(summary->'isolations')
+		FROM event_semantic_stage_audits WHERE execution_id=$1
+	`, executionID).Scan(&contract, &mentionCount, &violationCount, &isolationCount); err != nil {
+		t.Fatal(err)
+	}
+	if contract != audit.ContractVersion || mentionCount != 1 || violationCount != 2 || isolationCount != 2 {
+		t.Fatalf("contract=%q mentions=%d violations=%d isolations=%d", contract, mentionCount, violationCount, isolationCount)
+	}
+}
+
+func TestSchemaReadyRequiresEventSemanticStageAuditShape(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(ctx, databaseURL, "event_semantic_stage_audit_readiness_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.New(database)
+	if !store.SchemaReady(ctx) {
+		t.Fatal("fresh AgentRun schema is not ready")
+	}
+	if _, err := database.Exec(ctx, `ALTER TABLE event_semantic_stage_audits DROP COLUMN summary`); err != nil {
+		t.Fatal(err)
+	}
+	if store.SchemaReady(ctx) {
+		t.Fatal("schema without Event Semantic stage audit summary reported ready")
 	}
 }
 
@@ -161,14 +283,6 @@ func TestPreparePreviousReleaseRollbackIsSafeAndMigrationCanReplay(t *testing.T)
 	`, eventID); err != nil {
 		t.Fatal(err)
 	}
-	if err := postgres.PreparePreviousReleaseRollback(ctx, database); err == nil {
-		t.Fatal("rollback preparation accepted a historical skipped row")
-	}
-	if _, err := database.Exec(
-		ctx, `DELETE FROM event_semantic_work_items WHERE event_id = $1`, eventID,
-	); err != nil {
-		t.Fatal(err)
-	}
 	if err := postgres.PreparePreviousReleaseRollback(ctx, database); err != nil {
 		t.Fatal(err)
 	}
@@ -176,14 +290,14 @@ func TestPreparePreviousReleaseRollbackIsSafeAndMigrationCanReplay(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Pending) != 1 || report.Pending[0].Version != "010" {
+	if len(report.Pending) != 1 || report.Pending[0].Version != "012" {
 		t.Fatalf("rollback-compatible migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
 		t.Fatal(err)
 	}
 	if !postgres.New(database).SchemaReady(ctx) {
-		t.Fatal("replayed 010 migration schema is not ready")
+		t.Fatal("replayed 012 migration schema is not ready")
 	}
 }
 

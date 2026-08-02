@@ -82,9 +82,10 @@ func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 
 func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	commands := map[string]string{
-		"data":         "./analyse-data-service/backend/cmd/server",
-		"miniapp":      "./miniapp/backend/cmd/server",
-		"admin-portal": "./admin-portal/backend/cmd/server",
+		"data":                    "./analyse-data-service/backend/cmd/server",
+		"data-semantic-projector": "./analyse-data-service/backend/cmd/event-semantic-projector",
+		"miniapp":                 "./miniapp/backend/cmd/server",
+		"admin-portal":            "./admin-portal/backend/cmd/server",
 	}
 	for name, command := range commands {
 		dependencies := listCommandDependencies(t, command)
@@ -101,6 +102,7 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	agentRunDependencies := listCommandDependencies(t, "./agent-run/backend/cmd/server")
 	for _, required := range []string{
 		"github.com/cloudwego/eino",
+		"github.com/cloudwego/eino-ext/components/embedding/openai",
 		"github.com/cloudwego/eino-ext/components/model/openai",
 	} {
 		found := false
@@ -124,6 +126,32 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 				t.Fatalf("AgentRun binary unexpectedly includes vulnerable dependency %q", dependency)
 			}
 		}
+	}
+}
+
+func TestEventSemanticEmbeddingOwnership(t *testing.T) {
+	root := repositoryRoot()
+	agentAdapter := string(readContractFile(t, filepath.Join(
+		root, "agent-run", "backend", "internal", "data", "semanticretrieval", "client.go",
+	)))
+	for _, forbidden := range []string{"/embeddings", "encoding_format", `json:"embedding"`} {
+		if strings.Contains(agentAdapter, forbidden) {
+			t.Fatalf("AgentRun Qdrant adapter reimplements embedding wire contract %q", forbidden)
+		}
+	}
+	if !strings.Contains(agentAdapter, "embedding.Embedder") ||
+		!strings.Contains(agentAdapter, ".EmbedStrings(ctx, texts)") {
+		t.Fatal("AgentRun Qdrant adapter must batch through an injected Eino embedding.Embedder")
+	}
+
+	dataAdapter := string(readContractFile(t, filepath.Join(
+		root, "analyse-data-service", "backend", "internal", "data", "semanticprojection", "adapters.go",
+	)))
+	if !strings.Contains(dataAdapter, `e.endpoint+"/embeddings"`) {
+		t.Fatal("Data projector must own the OpenAI-compatible embedding HTTP adapter")
+	}
+	if strings.Contains(dataAdapter, "github.com/cloudwego/eino") {
+		t.Fatal("Data projector must not import Eino")
 	}
 }
 
