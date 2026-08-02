@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createMockResearchThemeFeedPort } from '../../mocks/research-themes/mock-port';
+import { createMockResearchThemeHomepagePort } from '../../mocks/research-themes/mock-port';
 import { filterHomeResearchThemes } from './feed';
 
 describe('research theme homepage feed', () => {
   it('provides the V1 Theme card content', async () => {
-    const feed = await createMockResearchThemeFeedPort().list();
+    const feed = await createMockResearchThemeHomepagePort().list();
 
     expect(feed).toMatchObject({ themeCount: 1, eventCount: 2 });
     expect(feed).not.toHaveProperty('trackingCount');
@@ -24,7 +24,7 @@ describe('research theme homepage feed', () => {
   });
 
   it('searches Theme, summary, guidance, and impact nodes without static categories', async () => {
-    const { items } = await createMockResearchThemeFeedPort().list();
+    const { items } = await createMockResearchThemeHomepagePort().list();
 
     expect(filterHomeResearchThemes(items, 'DSP 芯片')).toHaveLength(1);
     expect(filterHomeResearchThemes(items, '采购订单')).toHaveLength(1);

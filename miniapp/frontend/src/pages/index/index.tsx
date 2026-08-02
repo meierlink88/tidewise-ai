@@ -1,8 +1,8 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
-import { Text, View } from '@tarojs/components';
+import { Button, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useState } from 'react';
 import { filterHomeResearchThemes } from '../../features/research-themes/feed';
-import { createResearchThemeFeedPort } from '../../features/research-themes/port';
+import { createResearchThemeHomepagePort } from '../../features/research-themes/port';
 import {
   ResearchThemeHomeSession,
   type ResearchThemeHomeSessionState
@@ -19,7 +19,10 @@ interface HomeRefreshAPI {
 }
 
 export default function IndexPage() {
-  const session = useMemo(() => new ResearchThemeHomeSession(createResearchThemeFeedPort()), []);
+  const session = useMemo(
+    () => new ResearchThemeHomeSession(createResearchThemeHomepagePort()),
+    []
+  );
   const [state, setState] = useState<ResearchThemeHomeSessionState>(() => session.getState());
   const [query, setQuery] = useState('');
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
@@ -43,6 +46,7 @@ export default function IndexPage() {
       query={query}
       chrome={chrome}
       onQueryChange={setQuery}
+      onRetryFeed={() => void session.retryFeed()}
       onOpenEvents={(themeId) => session.openThemeEvents(themeId)}
       onCloseEvents={() => session.closeThemeEvents()}
       onRetryEvents={() => session.retryThemeEvents()}
@@ -55,6 +59,7 @@ export function IndexView({
   query,
   chrome,
   onQueryChange,
+  onRetryFeed,
   onOpenEvents,
   onCloseEvents,
   onRetryEvents
@@ -63,6 +68,7 @@ export function IndexView({
   query: string;
   chrome: HomeChromeMetrics;
   onQueryChange: (query: string) => void;
+  onRetryFeed: () => void;
   onOpenEvents: (themeId: string) => void;
   onCloseEvents: () => void;
   onRetryEvents: () => void;
@@ -84,7 +90,16 @@ export function IndexView({
         </View>
 
         {state.feed.status === 'error' ? (
-          <View className='home-state'>主线数据暂时不可用</View>
+          <View className='home-state'>
+            <Text>主线数据暂时不可用</Text>
+            <Button
+              className='tidewise-button home-state__retry'
+              hoverClass='none'
+              onClick={onRetryFeed}
+            >
+              重新加载
+            </Button>
+          </View>
         ) : state.feed.status === 'idle' || state.feed.status === 'loading' ? (
           <View className='home-state'>正在整理今日主线</View>
         ) : visibleThemes.length === 0 ? (

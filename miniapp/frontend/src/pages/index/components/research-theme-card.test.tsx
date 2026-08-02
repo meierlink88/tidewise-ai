@@ -33,6 +33,7 @@ describe('ResearchThemeCard', () => {
     const root = card as TestElement;
     const detailButton = findByClass(card, 'theme-card__detail-button');
     const eventButton = findByClass(card, 'theme-card__event-button');
+    const eventAction = findByClass(card, 'theme-card__event-action');
     const industryLabel = findByClass(card, 'theme-card__industry-label');
     const nodes = findAllByClass(card, 'theme-card__node');
 
@@ -48,6 +49,7 @@ describe('ResearchThemeCard', () => {
     expect(textContent(card)).toContain('2 条政经事件');
     expect(textContent(card)).toContain('2 条产业链路径');
     expect(textContent(detailButton)).toBe('推导详情');
+    expect(eventAction.props.catchMove).toBe(true);
     expect(flattenElements(card).filter((element) => element.props.onClick)).toHaveLength(2);
 
     const eventTap = tapEvent();
@@ -164,6 +166,7 @@ describe('ResearchThemeCard', () => {
 interface TestElementProps {
   className?: string;
   children?: ReactNode;
+  catchMove?: boolean;
   onClick?: (event: ReturnType<typeof tapEvent>) => void;
 }
 

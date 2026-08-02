@@ -192,7 +192,19 @@
   align-items: center;
   justify-content: center;
   color: $color-text-muted;
+  flex-direction: column;
   font-size: 27rpx;
+}
+
+.home-state__retry {
+  min-width: 190rpx;
+  height: 68rpx;
+  margin-top: 24rpx;
+  border-radius: $radius-pill;
+  background: $color-navy-900;
+  color: $color-card;
+  font-size: 25rpx;
+  line-height: 68rpx;
 }
 
 @media screen and (max-width: 350px) {

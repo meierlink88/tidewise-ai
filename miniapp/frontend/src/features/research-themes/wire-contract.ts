@@ -9,7 +9,7 @@ import type {
   ResearchInvestmentGuidanceAction,
   ResearchTransmissionStage
 } from './contract';
-import { formatResearchUpdateLabel } from './presentation';
+import { formatResearchThemeEventTime, formatResearchUpdateLabel } from './presentation';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
@@ -166,7 +166,9 @@ function parseResearchThemeEvent(value: unknown, index: number): ResearchThemeEv
     eventId: uuid(event.event_id),
     title: text(event.title),
     summary: text(event.summary),
-    eventTime: event.event_time === null ? null : timestamp(event.event_time)
+    eventTime: formatResearchThemeEventTime(
+      event.event_time === null ? null : timestamp(event.event_time)
+    )
   };
 }
 

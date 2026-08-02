@@ -97,13 +97,13 @@ function ThemeEventsContent({
     >
       <View className='theme-events-timeline'>
         {state.value.events.map((event) => {
-          const time = formatEventTime(event.eventTime);
+          const time = event.eventTime;
           return (
             <View key={event.eventId} className='theme-events-item'>
               <View
-                className={`theme-events-item__time${time.pending ? ' theme-events-item__time--pending' : ''}`}
+                className={`theme-events-item__time${time.status === 'pending' ? ' theme-events-item__time--pending' : ''}`}
               >
-                {time.pending ? (
+                {time.status === 'pending' ? (
                   <Text>时间待确认</Text>
                 ) : (
                   <>
@@ -123,16 +123,4 @@ function ThemeEventsContent({
       </View>
     </ScrollView>
   );
-}
-
-function formatEventTime(
-  value: string | null
-): { pending: true } | { pending: false; date: string; time: string } {
-  if (value === null) return { pending: true };
-  const date = new Date(value);
-  return {
-    pending: false,
-    date: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
-    time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  };
 }

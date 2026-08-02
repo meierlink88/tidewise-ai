@@ -1,7 +1,7 @@
 import {
   ResearchThemeDetailError,
   type HomeResearchThemeFeed,
-  type ResearchThemeFeedPort
+  type ResearchThemeHomepagePort
 } from './contract';
 import {
   normalizeMiniappAPIBaseURL,
@@ -16,6 +16,7 @@ export interface ResearchThemeRequestOptions {
   method: 'GET';
   data: { window_hours: number; limit?: number };
   dataType: 'json';
+  timeout: number;
 }
 export interface ResearchThemeRequestResult<T> {
   statusCode: number;
@@ -38,23 +39,28 @@ interface APIOptions {
   baseUrl: string;
   request: ResearchThemeRequest;
   windowHours?: number;
+  requestTimeoutMs?: number;
 }
 
 export function createResearchThemeApiPort({
   baseUrl,
   request,
-  windowHours = 24
-}: APIOptions): ResearchThemeFeedPort {
+  windowHours = 24,
+  requestTimeoutMs = 10_000
+}: APIOptions): ResearchThemeHomepagePort {
   const base = normalizeMiniappAPIBaseURL(baseUrl);
   if (!Number.isInteger(windowHours) || windowHours < 1 || windowHours > 168)
     throw new Error('Research Theme window hours must be an integer between 1 and 168');
+  if (!Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 1)
+    throw new Error('Research Theme request timeout must be a positive integer');
   return {
     async list() {
       const response = await request<MiniappAPIEnvelope<APIFeed>>({
         url: base + themesPath,
         method: 'GET',
         data: { window_hours: windowHours, limit: 20 },
-        dataType: 'json'
+        dataType: 'json',
+        timeout: requestTimeoutMs
       });
       if (response.statusCode < 200 || response.statusCode >= 300)
         throw new Error(`Miniapp research API returned HTTP ${response.statusCode}`);
@@ -69,7 +75,8 @@ export function createResearchThemeApiPort({
           url: `${base}${themesPath}/${encodeURIComponent(themeId)}`,
           method: 'GET',
           data: { window_hours: windowHours },
-          dataType: 'json'
+          dataType: 'json',
+          timeout: requestTimeoutMs
         });
       } catch {
         throw new ResearchThemeDetailError('serviceUnavailable');

@@ -238,6 +238,11 @@
   white-space: nowrap;
 }
 
+.theme-card__event-action {
+  display: flex;
+  flex: 0 0 auto;
+}
+
 .theme-card__event-button {
   min-height: 30px;
   padding: 0 3px;

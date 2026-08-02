@@ -65,7 +65,8 @@ describe('research theme BFF adapter', () => {
       url: 'https://miniapp.example.test/api/miniapp/v1/research/themes',
       method: 'GET',
       data: { window_hours: 24, limit: 20 },
-      dataType: 'json'
+      dataType: 'json',
+      timeout: 10_000
     });
     expect(feed).toMatchObject({ themeCount: 1, eventCount: 2, nextCursor: null });
     expect(feed.items[0]).toMatchObject({
@@ -113,7 +114,8 @@ describe('research theme BFF adapter', () => {
       url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}`,
       method: 'GET',
       data: { window_hours: 24 },
-      dataType: 'json'
+      dataType: 'json',
+      timeout: 10_000
     });
     expect(detail).toEqual({
       id: themeId,
@@ -123,13 +125,13 @@ describe('research theme BFF adapter', () => {
           eventId: '99999999-9999-4999-8999-999999999999',
           title: '端口计划上调',
           summary: '云厂商端口计划上调 80%。',
-          eventTime: '2026-07-28T06:00:00Z'
+          eventTime: expect.objectContaining({ status: 'confirmed' })
         },
         {
           eventId: 'aaaaaaaa-1111-4111-8111-111111111111',
           title: '采购尚未发生',
           summary: '当前尚未观察到正式采购。',
-          eventTime: null
+          eventTime: { status: 'pending' }
         }
       ]
     });

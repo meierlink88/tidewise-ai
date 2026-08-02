@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatResearchThemeEventTime,
   formatResearchUpdateLabel,
   researchImpactStrengthLabel,
   researchInvestmentGuidanceActionLabel,
@@ -54,5 +55,12 @@ describe('research theme presentation', () => {
     expect(formatResearchUpdateLabel('2026-07-17T09:00:00Z', '2026-07-18T10:00:00Z')).toBe(
       '07-17 09:00'
     );
+  });
+
+  it('maps event timestamps into the timeline presentation model before the page', () => {
+    expect(formatResearchThemeEventTime(null)).toEqual({ status: 'pending' });
+    expect(formatResearchThemeEventTime('2026-07-28T06:00:00Z')).toMatchObject({
+      status: 'confirmed'
+    });
   });
 });

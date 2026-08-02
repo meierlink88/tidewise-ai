@@ -74,17 +74,19 @@ export function ResearchThemeCard({ theme, onOpenEvents }: ResearchThemeCardProp
 
       <View className='theme-card__footer'>
         {theme.evidenceEventCount > 0 ? (
-          <Button
-            className='tidewise-button theme-card__event-count theme-card__event-button'
-            hoverClass='none'
-            ariaLabel={`查看${theme.title}关联的${theme.evidenceEventCount}条政经事件`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenEvents(theme.id);
-            }}
-          >
-            {theme.evidenceEventCount} 条政经事件
-          </Button>
+          <View className='theme-card__event-action' catchMove>
+            <Button
+              className='tidewise-button theme-card__event-count theme-card__event-button'
+              hoverClass='none'
+              ariaLabel={`查看${theme.title}关联的${theme.evidenceEventCount}条政经事件`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenEvents(theme.id);
+              }}
+            >
+              {theme.evidenceEventCount} 条政经事件
+            </Button>
+          </View>
         ) : (
           <Text className='theme-card__event-count'>0 条政经事件</Text>
         )}

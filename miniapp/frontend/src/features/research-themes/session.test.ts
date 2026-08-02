@@ -3,12 +3,12 @@ import {
   mockResearchThemeDetail,
   mockResearchThemeFeed
 } from '../../mocks/research-themes/mock-port';
-import { ResearchThemeDetailError, type ResearchThemeFeedPort } from './contract';
+import { ResearchThemeDetailError, type ResearchThemeHomepagePort } from './contract';
 import { ResearchThemeHomeSession } from './session';
 
 describe('research theme homepage session', () => {
   it('loads the initial Theme feed into a ready page state', async () => {
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
       getDetail: vi.fn()
     };
@@ -24,10 +24,26 @@ describe('research theme homepage session', () => {
     expect(port.list).toHaveBeenCalledOnce();
   });
 
+  it('retries an initial feed failure from the visible error state', async () => {
+    const port: ResearchThemeHomepagePort = {
+      list: vi.fn().mockRejectedValueOnce(new Error()).mockResolvedValueOnce(mockResearchThemeFeed),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port);
+
+    await session.start();
+    expect(session.getState().feed).toEqual({ status: 'error' });
+
+    await session.retryFeed();
+
+    expect(session.getState().feed).toEqual({ status: 'ready', value: mockResearchThemeFeed });
+    expect(port.list).toHaveBeenCalledTimes(2);
+  });
+
   it('deduplicates overlapping pull-down refresh requests', async () => {
     const refresh = deferred<typeof mockResearchThemeFeed>();
     const refreshedFeed = { ...mockResearchThemeFeed, asOf: '2026-07-28T09:00:00Z' };
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi
         .fn()
         .mockResolvedValueOnce(mockResearchThemeFeed)
@@ -48,7 +64,7 @@ describe('research theme homepage session', () => {
   });
 
   it('opens and caches the selected Theme event timeline for the page session', async () => {
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
       getDetail: vi.fn().mockResolvedValue(mockResearchThemeDetail)
     };
@@ -70,7 +86,7 @@ describe('research theme homepage session', () => {
   });
 
   it('keeps a detail failure inside the sheet and retries only that Theme', async () => {
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
       getDetail: vi
         .fn()
@@ -102,7 +118,7 @@ describe('research theme homepage session', () => {
       ...mockResearchThemeFeed,
       items: [{ ...mockResearchThemeFeed.items[0], evidenceEventCount: 0 }]
     };
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(feed),
       getDetail: vi.fn()
     };
@@ -116,7 +132,7 @@ describe('research theme homepage session', () => {
   });
 
   it('invalidates the detail cache after a successful feed refresh', async () => {
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
       getDetail: vi.fn().mockResolvedValue(mockResearchThemeDetail)
     };
@@ -145,7 +161,7 @@ describe('research theme homepage session', () => {
       ]
     };
     const refreshedDetail = deferred<typeof nextDetail>();
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
       getDetail: vi
         .fn()
@@ -185,7 +201,7 @@ describe('research theme homepage session', () => {
     };
     const firstRequest = deferred<typeof mockResearchThemeDetail>();
     const secondRequest = deferred<typeof otherDetail>();
-    const port: ResearchThemeFeedPort = {
+    const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue({
         ...mockResearchThemeFeed,
         themeCount: 2,

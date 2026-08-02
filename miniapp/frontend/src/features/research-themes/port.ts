@@ -1,16 +1,16 @@
 import Taro from '@tarojs/taro';
-import type { ResearchThemeFeedPort } from './contract';
+import type { ResearchThemeHomepagePort } from './contract';
 import {
   createResearchThemeApiPort,
   type ResearchThemeRequestOptions,
   type ResearchThemeRequestResult
 } from './api-port';
-import { createMockResearchThemeFeedPort } from '../../mocks/research-themes/mock-port';
+import { createMockResearchThemeHomepagePort } from '../../mocks/research-themes/mock-port';
 
-export function createResearchThemeFeedPort(): ResearchThemeFeedPort {
+export function createResearchThemeHomepagePort(): ResearchThemeHomepagePort {
   const source = process.env.TARO_APP_RESEARCH_SOURCE;
   if (source === 'mock') {
-    return createMockResearchThemeFeedPort();
+    return createMockResearchThemeHomepagePort();
   }
   if (source === 'api') {
     return createResearchThemeApiPort({

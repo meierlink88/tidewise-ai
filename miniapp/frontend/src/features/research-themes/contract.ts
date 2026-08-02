@@ -55,7 +55,9 @@ export interface ResearchThemeEvent {
   eventId: string;
   title: string;
   summary: string;
-  eventTime: string | null;
+  eventTime:
+    | { status: 'pending' }
+    | { status: 'confirmed'; date: string; time: string };
 }
 
 export interface ResearchThemeDetail {
@@ -73,7 +75,7 @@ export class ResearchThemeDetailError extends Error {
   }
 }
 
-export interface ResearchThemeFeedPort {
+export interface ResearchThemeHomepagePort {
   list(): Promise<HomeResearchThemeFeed>;
   getDetail(themeId: string): Promise<ResearchThemeDetail>;
 }

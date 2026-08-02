@@ -3,7 +3,7 @@ import {
   type HomeResearchThemeFeed,
   type ResearchThemeDetail,
   type ResearchThemeDetailErrorKind,
-  type ResearchThemeFeedPort
+  type ResearchThemeHomepagePort
 } from './contract';
 
 export type ResearchThemeFeedState =
@@ -37,7 +37,7 @@ export class ResearchThemeHomeSession {
   private detailGeneration = 0;
   private readonly detailRequests = new Set<string>();
 
-  constructor(private readonly port: ResearchThemeFeedPort) {}
+  constructor(private readonly port: ResearchThemeHomepagePort) {}
 
   getState(): ResearchThemeHomeSessionState {
     return this.state;
@@ -51,6 +51,19 @@ export class ResearchThemeHomeSession {
 
   async start(): Promise<void> {
     if (this.state.feed.status !== 'idle') return;
+    this.update({ ...this.state, feed: { status: 'loading' } });
+    try {
+      const value = await this.port.list();
+      if (this.disposed) return;
+      this.update({ ...this.state, feed: { status: 'ready', value } });
+    } catch {
+      if (this.disposed) return;
+      this.update({ ...this.state, feed: { status: 'error' } });
+    }
+  }
+
+  async retryFeed(): Promise<void> {
+    if (this.disposed || this.state.feed.status !== 'error') return;
     this.update({ ...this.state, feed: { status: 'loading' } });
     try {
       const value = await this.port.list();

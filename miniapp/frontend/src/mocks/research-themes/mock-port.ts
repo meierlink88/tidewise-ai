@@ -2,7 +2,7 @@ import {
   ResearchThemeDetailError,
   type HomeResearchThemeFeed,
   type ResearchThemeDetail,
-  type ResearchThemeFeedPort
+  type ResearchThemeHomepagePort
 } from '../../features/research-themes/contract';
 
 export const mockResearchThemeFeed: HomeResearchThemeFeed = {
@@ -76,18 +76,18 @@ export const mockResearchThemeDetail: ResearchThemeDetail = {
       eventId: '99999999-9999-4999-8999-999999999999',
       title: '端口计划上调',
       summary: '云厂商端口计划上调 80%。',
-      eventTime: '2026-07-28T06:00:00Z'
+      eventTime: { status: 'confirmed', date: '07-28', time: '14:00' }
     },
     {
       eventId: 'aaaaaaaa-1111-4111-8111-111111111111',
       title: '采购尚未发生',
       summary: '当前尚未观察到正式采购。',
-      eventTime: null
+      eventTime: { status: 'pending' }
     }
   ]
 };
 
-export function createMockResearchThemeFeedPort(): ResearchThemeFeedPort {
+export function createMockResearchThemeHomepagePort(): ResearchThemeHomepagePort {
   return {
     async list() {
       return mockResearchThemeFeed;
