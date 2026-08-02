@@ -55,9 +55,7 @@ export interface ResearchThemeEvent {
   eventId: string;
   title: string;
   summary: string;
-  eventTime:
-    | { status: 'pending' }
-    | { status: 'confirmed'; date: string; time: string };
+  eventTime: { status: 'pending' } | { status: 'confirmed'; date: string; time: string };
 }
 
 export interface ResearchThemeDetail {

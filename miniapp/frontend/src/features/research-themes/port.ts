@@ -22,7 +22,9 @@ export function createResearchThemeHomepagePort(): ResearchThemeHomepagePort {
   throw new Error(`Unsupported TARO_APP_RESEARCH_SOURCE: ${source}`);
 }
 
-async function taroRequest<T>(options: ResearchThemeRequestOptions): Promise<ResearchThemeRequestResult<T>> {
+async function taroRequest<T>(
+  options: ResearchThemeRequestOptions
+): Promise<ResearchThemeRequestResult<T>> {
   const response = await Taro.request<T, typeof options.data>(options);
   return { statusCode: response.statusCode, data: response.data };
 }
