@@ -262,7 +262,6 @@ func inspectExisting(
 		}
 		if existing != nil {
 			plan.record.ID = existing.ID
-			plan.record.PrimarySourceID = existing.PrimarySourceID
 			plan.disposition = DispositionReused
 			if !sameEventCore(*existing, plan.record) {
 				conflicts = append(conflicts, ConflictIssue{
@@ -277,11 +276,10 @@ func inspectExisting(
 			record := PublicationEventSource{
 				ID:      identity.NormalizeUUID("event_source_v2", plan.record.ID, rawPlan.record.ID),
 				EventID: plan.record.ID, RawDocumentID: rawPlan.record.ID,
-				SourceLevel: evidence.SourceLevel, EvidenceExcerpt: evidence.EvidenceExcerpt,
-				EvidenceHash:     hashExcerpt(evidence.EvidenceExcerpt),
+				SourceLevel: evidence.SourceLevel, EvidenceStatement: evidence.EvidenceStatement,
+				EvidenceHash:     hashEvidenceStatement(evidence.EvidenceStatement),
 				EvidenceRelation: model.EvidenceRelation(evidence.EvidenceRelation),
 				SupportsFields:   append([]string{}, evidence.SupportsFields...),
-				IsPrimary:        evidence.IsPrimary,
 			}
 			sourcePlan := sourcePlan{record: record, disposition: DispositionCreated}
 			stored, err := tx.PublicationEventSource(ctx, record.EventID, record.RawDocumentID)
@@ -298,13 +296,6 @@ func inspectExisting(
 						Message: "Event and artifact are already bound to different evidence semantics",
 					})
 				}
-			}
-			if evidence.IsPrimary && plan.record.PrimarySourceID != "" && plan.record.PrimarySourceID != sourcePlan.record.ID {
-				conflicts = append(conflicts, ConflictIssue{
-					Path:    fmt.Sprintf("events[%d].evidence[%d].is_primary", eventIndex, evidenceIndex),
-					Code:    "PRIMARY_EVIDENCE_CONFLICT",
-					Message: "Event already has a different primary evidence link",
-				})
 			}
 			plan.sources = append(plan.sources, sourcePlan)
 		}
@@ -379,11 +370,6 @@ func writePublication(ctx context.Context, tx Transaction, rawPlans []*rawPlan, 
 		for _, source := range plan.sources {
 			if source.disposition == DispositionCreated {
 				if err := tx.InsertPublicationEventSource(ctx, source.record); err != nil {
-					return err
-				}
-			}
-			if source.record.IsPrimary {
-				if err := tx.SetPublicationEventPrimarySource(ctx, plan.record.ID, source.record.ID); err != nil {
 					return err
 				}
 			}
@@ -529,11 +515,10 @@ func sameEventCore(left, right PublicationEvent) bool {
 
 func sameEventSource(left, right PublicationEventSource) bool {
 	return left.SourceLevel == right.SourceLevel &&
-		left.EvidenceExcerpt == right.EvidenceExcerpt &&
+		left.EvidenceStatement == right.EvidenceStatement &&
 		left.EvidenceHash == right.EvidenceHash &&
 		left.EvidenceRelation == right.EvidenceRelation &&
-		sameStrings(left.SupportsFields, right.SupportsFields) &&
-		left.IsPrimary == right.IsPrimary
+		sameStrings(left.SupportsFields, right.SupportsFields)
 }
 
 func sameEventTag(left, right PublicationEventTag) bool {
@@ -573,7 +558,7 @@ func sameNumber(left, right string) bool {
 	return leftOK && rightOK && leftRat.Cmp(rightRat) == 0
 }
 
-func hashExcerpt(value string) string {
+func hashEvidenceStatement(value string) string {
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:])
 }

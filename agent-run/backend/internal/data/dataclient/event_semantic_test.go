@@ -33,7 +33,7 @@ func TestEventSemanticClientConsumesV3ContextWithoutSearchContracts(t *testing.T
 				"event":                     map[string]any{"id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "title": "title", "summary": "summary", "occurred_at": nil, "event_status": "confirmed", "fact_status": "verified"},
 				"evidence": []any{map[string]any{
 					"evidence_id": "22222222-2222-4222-8222-222222222222", "evidence_hash": strings.Repeat("d", 64),
-					"excerpt": "title", "source_level": "primary", "relation": "supports", "supports_fields": []string{"title"}, "is_primary": true,
+					"evidence_statement": "title", "source_level": "primary", "relation": "supports", "supports_fields": []string{"title"},
 					"raw_document_id": "33333333-3333-4333-8333-333333333333", "source_name": "fixture", "source_type": "news", "title": "title",
 					"first_seen_at": "2026-08-01T09:00:00Z", "knowledge_available_at": "2026-08-01T09:00:00Z", "accepted_at": "2026-08-01T09:00:00Z", "statement_source": "",
 				}},

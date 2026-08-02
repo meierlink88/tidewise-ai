@@ -251,6 +251,17 @@ func (a *Application) extract(
 			}
 			extracted, extractionErr := extractFacts(ctx, &attempt)
 			if extractionErr != nil {
+				if rejected, ok := modelContractRejection(attempt.ID, extractionErr); ok {
+					completeErr := a.repository.CompleteWithoutPublication(
+						ctx, attempt, rejected, eventfact.WorkRejected, a.now().UTC(),
+					)
+					if completeErr == nil {
+						a.logEventFactTerminal(
+							attempt, rejected, eventfact.WorkRejected, startedAt, rejected.FailureCode,
+						)
+					}
+					return completeErr == nil, completeErr
+				}
 				callCount := 1
 				if errors.Is(extractionErr, eventworkflow.ErrExtractionModel) {
 					callCount = 1
@@ -316,6 +327,17 @@ func (a *Application) extract(
 		Catalog: catalog, ResumeResult: resume,
 	})
 	if err != nil {
+		if rejected, ok := modelContractRejection(attempt.ID, err); ok {
+			completeErr := a.repository.CompleteWithoutPublication(
+				ctx, attempt, rejected, eventfact.WorkRejected, a.now().UTC(),
+			)
+			if completeErr == nil {
+				a.logEventFactTerminal(
+					attempt, rejected, eventfact.WorkRejected, startedAt, rejected.FailureCode,
+				)
+			}
+			return completeErr == nil, completeErr
+		}
 		if errors.Is(err, eventworkflow.ErrExtractionModel) ||
 			errors.Is(err, eventworkflow.ErrReviewModel) ||
 			errors.Is(err, context.DeadlineExceeded) {
@@ -393,6 +415,34 @@ func (a *Application) extract(
 		a.logEventFactTerminal(attempt, *result, status, startedAt, "")
 	}
 	return completeErr == nil, completeErr
+}
+
+func modelContractRejection(executionID string, err error) (eventfact.Result, bool) {
+	var failure *eventworkflow.ModelContractFailure
+	if !errors.As(err, &failure) {
+		return eventfact.Result{}, false
+	}
+	result := eventfact.Result{
+		ExecutionID: executionID, FailureCode: eventworkflow.FailureCode(err),
+		FailureStage: failure.Stage, FailureViolation: failure.Violation,
+		FunctionCalls: append([]eventfact.FunctionCallObservation(nil), failure.Observations...),
+	}
+	for _, observation := range result.FunctionCalls {
+		switch observation.Stage {
+		case "extraction", "tag_assignment":
+			result.ExtractionModelCalls += observation.CallCount
+		case "duplicate_judgment", "review":
+			result.ReviewModelCalls += observation.CallCount
+		}
+	}
+	if len(result.FunctionCalls) == 0 {
+		if failure.Stage == "duplicate_judgment" || failure.Stage == "review" {
+			result.ReviewModelCalls = 2
+		} else {
+			result.ExtractionModelCalls = 2
+		}
+	}
+	return result, true
 }
 
 func (a *Application) logEventFactTerminal(

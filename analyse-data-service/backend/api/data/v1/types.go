@@ -138,14 +138,13 @@ type AdminRawDocument struct {
 }
 
 type AdminEvent struct {
-	ID              string  `json:"id"`
-	Title           string  `json:"title"`
-	Summary         string  `json:"summary"`
-	EventTime       *string `json:"event_time"`
-	FirstSeenAt     string  `json:"first_seen_at"`
-	KnowableAt      *string `json:"knowable_at"`
-	EventStatus     string  `json:"event_status"`
-	FactStatus      string  `json:"fact_status"`
-	DedupeKey       string  `json:"dedupe_key"`
-	PrimarySourceID *string `json:"primary_source_id"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Summary     string  `json:"summary"`
+	EventTime   *string `json:"event_time"`
+	FirstSeenAt string  `json:"first_seen_at"`
+	KnowableAt  *string `json:"knowable_at"`
+	EventStatus string  `json:"event_status"`
+	FactStatus  string  `json:"fact_status"`
+	DedupeKey   string  `json:"dedupe_key"`
 }

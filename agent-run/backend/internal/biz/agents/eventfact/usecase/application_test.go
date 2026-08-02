@@ -36,7 +36,9 @@ type memoryRepository struct {
 	journals        []eventfact.JournalEntry
 	status          string
 	completedStatus eventfact.WorkStatus
+	completedResult eventfact.Result
 	completionCalls int
+	retryCalls      int
 }
 
 func (*memoryRepository) DispatchPendingSignals(context.Context, string, time.Time) (int, error) {
@@ -84,7 +86,8 @@ func (r *memoryRepository) SetAwaitingTagCatalog(
 	}
 	return nil
 }
-func (*memoryRepository) RetryExtraction(context.Context, eventfact.ExecutionAttempt, eventfact.Result, string, time.Time) error {
+func (r *memoryRepository) RetryExtraction(context.Context, eventfact.ExecutionAttempt, eventfact.Result, string, time.Time) error {
+	r.retryCalls++
 	return nil
 }
 func (*memoryRepository) SetExecutionCatalog(context.Context, string, string, string, time.Time) error {
@@ -97,11 +100,12 @@ func (r *memoryRepository) CompleteExtraction(_ context.Context, _ eventfact.Exe
 func (r *memoryRepository) CompleteWithoutPublication(
 	_ context.Context,
 	_ eventfact.ExecutionAttempt,
-	_ eventfact.Result,
+	result eventfact.Result,
 	status eventfact.WorkStatus,
 	_ time.Time,
 ) error {
 	r.completedStatus = status
+	r.completedResult = result
 	r.completionCalls++
 	return nil
 }
@@ -327,6 +331,58 @@ func TestManualReviewResultIsRejectedInsteadOfWaitingForHuman(t *testing.T) {
 	}
 }
 
+func TestFunctionCallContractExhaustionIsTerminalAndStageClassified(t *testing.T) {
+	repository := &memoryRepository{attempt: eventfact.ExecutionAttempt{
+		ID: "22222222-2222-4222-8222-222222222222",
+		WorkItem: eventfact.WorkItem{
+			Key: strings.Repeat("b", 64), ExtractorAgentVersion: eventfact.AgentVersion,
+			CollectorExecutionIDs: []string{"11111111-1111-4111-8111-111111111111"},
+		},
+	}}
+	data := &lossThenSuccessData{}
+	runtime := func(context.Context) (Runtime, error) {
+		return Runtime{
+			Snapshot:      eventFactTestSnapshot(),
+			ReadArtifacts: testReadArtifacts,
+			Run: func(context.Context, *eventworkflow.Input) (*eventfact.Result, error) {
+				return nil, errors.Join(
+					eventworkflow.ErrReviewModel,
+					&eventworkflow.ModelContractFailure{
+						Stage: "review", Violation: "missing_tool_call",
+						Observations: []eventfact.FunctionCallObservation{
+							{Stage: "extraction", CallCount: 1, FinishReason: "tool_calls", ArgumentBytes: 256},
+							{Stage: "tag_assignment", CallCount: 1, FinishReason: "tool_calls", ArgumentBytes: 128},
+							{Stage: "review", CallCount: 2, FinishReason: "stop", Violation: "missing_tool_call"},
+						},
+					},
+				)
+			},
+		}, nil
+	}
+	application, err := New(repository, data, runtime, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := application.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if repository.retryCalls != 0 || repository.completionCalls != 1 ||
+		repository.completedStatus != eventfact.WorkRejected {
+		t.Fatalf(
+			"retry=%d completion=%d status=%q",
+			repository.retryCalls, repository.completionCalls, repository.completedStatus,
+		)
+	}
+	if repository.completedResult.FailureCode != "event_fact_review_contract_missing_tool_call" ||
+		repository.completedResult.FailureStage != "review" ||
+		repository.completedResult.FailureViolation != "missing_tool_call" ||
+		repository.completedResult.ExtractionModelCalls != 2 ||
+		repository.completedResult.ReviewModelCalls != 2 ||
+		len(repository.completedResult.FunctionCalls) != 3 {
+		t.Fatalf("terminal result = %#v", repository.completedResult)
+	}
+}
+
 func approvedResult() *eventfact.Result {
 	artifact := eventfact.Artifact{
 		ArtifactID: "sha256:artifact", DocumentID: "sha256:artifact",
@@ -342,7 +398,7 @@ func approvedResult() *eventfact.Result {
 		Candidates: []eventfact.Candidate{{
 			CandidateID: "candidate:1", ArtifactID: artifact.ArtifactID,
 			Title: "某公司宣布扩产", FactualSummary: "某公司宣布扩产。",
-			FactPayload: map[string]any{"action": "扩产"}, EvidenceExcerpt: "某公司宣布扩产",
+			FactPayload: map[string]any{"action": "扩产"}, EvidenceStatement: "某公司宣布扩产",
 			SupportsFields: []string{"title", "factual_summary"}, SourceLevel: "primary",
 			DedupeKey: "event-fact:" + strings.Repeat("f", 64), IdentityHash: strings.Repeat("f", 64),
 			Tags: []eventfact.AssignedTag{{

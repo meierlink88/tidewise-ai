@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,13 +16,14 @@ import (
 )
 
 type applicationRepositoryStub struct {
-	completions []eventsemantic.ExecutionCompletion
-	audits      []eventsemantic.StageAudit
-	noWork      bool
-	reanalysis  eventsemantic.ReanalysisRequest
-	ensured     [][]eventsemantic.EligibleEvent
-	insertLater bool
-	completeErr error
+	completions   []eventsemantic.ExecutionCompletion
+	audits        []eventsemantic.StageAudit
+	noWork        bool
+	reanalysis    eventsemantic.ReanalysisRequest
+	ensured       [][]eventsemantic.EligibleEvent
+	insertLater   bool
+	workAvailable bool
+	completeErr   error
 }
 
 func (s *applicationRepositoryStub) SaveStageAudit(
@@ -53,6 +55,7 @@ func (s *applicationRepositoryStub) EnsureInitialWorkItems(
 ) (int, error) {
 	s.ensured = append(s.ensured, append([]eventsemantic.EligibleEvent(nil), events...))
 	if s.insertLater && len(events) == 1 && events[0].EventID == "event-later" {
+		s.workAvailable = true
 		return 1, nil
 	}
 	return 0, nil
@@ -77,7 +80,7 @@ func (s *applicationRepositoryStub) StartNextExecution(
 	_ string,
 	_ time.Time,
 ) (eventsemantic.ExecutionAttempt, bool, error) {
-	if s.noWork {
+	if s.noWork || (s.insertLater && !s.workAvailable) {
 		return eventsemantic.ExecutionAttempt{}, false, nil
 	}
 	eventID := "event-1"
@@ -120,6 +123,7 @@ type applicationDataStub struct {
 	contextErr        error
 	noWork            bool
 	semantics         eventsemantic.EventSemantics
+	semanticsByEvent  map[string]eventsemantic.EventSemantics
 	leaseCalls        int
 	leaseErr          error
 	pages             map[string]eventsemantic.EligibleEventPage
@@ -211,7 +215,10 @@ func (*queuedSemanticModel) Stream(
 ) (*schema.StreamReader[*schema.Message], error) {
 	return nil, errors.New("stream is not used")
 }
-func (s *applicationDataStub) GetEventSemantics(context.Context, string) (eventsemantic.EventSemantics, error) {
+func (s *applicationDataStub) GetEventSemantics(_ context.Context, eventID string) (eventsemantic.EventSemantics, error) {
+	if s.semanticsByEvent != nil {
+		return s.semanticsByEvent[eventID], nil
+	}
 	return s.semantics, nil
 }
 func (*applicationDataStub) SubmitReview(context.Context, string, eventsemantic.ReviewRequest) (eventsemantic.SubmissionResult, error) {
@@ -404,6 +411,83 @@ func TestApplicationStartAndShutdownOwnTheWorkerLifecycle(t *testing.T) {
 	defer cancel()
 	if err := application.Shutdown(shutdownContext); err != nil {
 		t.Fatalf("shutdown worker: %v", err)
+	}
+}
+
+type drainingRepositoryStub struct {
+	*applicationRepositoryStub
+	mu        sync.Mutex
+	attempts  []eventsemantic.ExecutionAttempt
+	completed chan struct{}
+}
+
+func (s *drainingRepositoryStub) StartNextExecution(
+	context.Context, string, string, time.Time,
+) (eventsemantic.ExecutionAttempt, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.attempts) == 0 {
+		return eventsemantic.ExecutionAttempt{}, false, nil
+	}
+	attempt := s.attempts[0]
+	s.attempts = s.attempts[1:]
+	return attempt, true, nil
+}
+
+func (s *drainingRepositoryStub) CompleteExecution(
+	_ context.Context,
+	completion eventsemantic.ExecutionCompletion,
+) error {
+	s.mu.Lock()
+	s.completions = append(s.completions, completion)
+	s.mu.Unlock()
+	s.completed <- struct{}{}
+	return nil
+}
+
+func TestWorkerDrainsReadyItemsWithoutWaitingForWatchdog(t *testing.T) {
+	repository := &drainingRepositoryStub{
+		applicationRepositoryStub: &applicationRepositoryStub{},
+		attempts: []eventsemantic.ExecutionAttempt{
+			{ID: "execution-1", WorkItem: eventsemantic.WorkItem{ID: "work-1", EventID: "event-1"}},
+			{ID: "execution-2", WorkItem: eventsemantic.WorkItem{ID: "work-2", EventID: "event-2"}},
+		},
+		completed: make(chan struct{}, 2),
+	}
+	data := &applicationDataStub{
+		noWork: true,
+		semanticsByEvent: map[string]eventsemantic.EventSemantics{
+			"event-1": {Submissions: []eventsemantic.SubmissionResult{{AgentExecutionID: "execution-1", Status: "accepted"}}},
+			"event-2": {Submissions: []eventsemantic.SubmissionResult{{AgentExecutionID: "execution-2", Status: "accepted"}}},
+		},
+	}
+	application, err := New(
+		repository,
+		data,
+		func(context.Context) (Runtime, error) {
+			t.Fatal("reconciled work must not load a model runtime")
+			return Runtime{}, nil
+		},
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	application.Start(context.Background())
+	for completed := 0; completed < 2; completed++ {
+		select {
+		case <-repository.completed:
+		case <-time.After(time.Second):
+			t.Fatal("ready work waited for the watchdog interval")
+		}
+	}
+	shutdownContext, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := application.Shutdown(shutdownContext); err != nil {
+		t.Fatal(err)
+	}
+	if len(data.cursors) != 1 {
+		t.Fatalf("discovery calls = %d, want one after local backlog drained", len(data.cursors))
 	}
 }
 

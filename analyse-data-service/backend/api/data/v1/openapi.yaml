@@ -1736,10 +1736,6 @@ components:
           $ref: '#/components/schemas/FactStatus'
         dedupe_key:
           type: string
-        primary_source_id:
-          allOf:
-            - $ref: '#/components/schemas/UUID'
-          nullable: true
     AdminEventPage:
       type: object
       additionalProperties: false
@@ -1914,10 +1910,9 @@ components:
         [
           artifact_id,
           evidence_relation,
-          evidence_excerpt,
+          evidence_statement,
           supports_fields,
-          source_level,
-          is_primary
+          source_level
         ]
       properties:
         artifact_id:
@@ -1926,7 +1921,7 @@ components:
           maxLength: 256
         evidence_relation:
           $ref: '#/components/schemas/EvidenceRelation'
-        evidence_excerpt:
+        evidence_statement:
           type: string
           minLength: 1
         supports_fields:
@@ -1938,8 +1933,6 @@ components:
         source_level:
           type: string
           enum: [primary, secondary]
-        is_primary:
-          type: boolean
 
     EventPublicationTag:
       type: object
@@ -2191,11 +2184,10 @@ components:
       required:
         - evidence_id
         - evidence_hash
-        - excerpt
+        - evidence_statement
         - source_level
         - relation
         - supports_fields
-        - is_primary
         - raw_document_id
         - source_name
         - source_type
@@ -2210,7 +2202,7 @@ components:
         evidence_hash:
           type: string
           pattern: '^[0-9a-f]{64}$'
-        excerpt:
+        evidence_statement:
           type: string
           minLength: 1
         source_level:
@@ -2225,8 +2217,6 @@ components:
             type: string
         raw_document_id:
           $ref: '#/components/schemas/UUID'
-        is_primary:
-          type: boolean
         source_name:
           type: string
           minLength: 1

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
@@ -61,6 +62,78 @@ func TestFactoryGenerateExplicitlyDisablesThinking(t *testing.T) {
 	}
 	if thinking["type"] != "disabled" {
 		t.Fatalf("provider request thinking.type = %#v, want disabled", thinking["type"])
+	}
+}
+
+func TestToolCallingFactoryUsesOfficialForcedFunctionProtocolWithoutJSONObjectMode(t *testing.T) {
+	requestBody := make(chan map[string]any, 1)
+	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			t.Errorf("decode provider request: %v", err)
+			response.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		requestBody <- body
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{
+			"id":"chatcmpl-tool-call",
+			"object":"chat.completion",
+			"created":1720000000,
+			"model":"deepseek-chat",
+			"choices":[{
+				"index":0,
+				"message":{"role":"assistant","content":null,"tool_calls":[{
+					"id":"call-1","type":"function",
+					"function":{"name":"submit_event_candidates","arguments":"{\"documents\":[]}"}
+				}]},
+				"finish_reason":"tool_calls"
+			}],
+			"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}
+		}`))
+	}))
+	defer provider.Close()
+
+	base, err := (Factory{Timeout: time.Second}).NewToolCalling(
+		context.Background(),
+		agentrun.ModelProviderConfig{
+			ProviderKey: "deepseek", BaseURL: provider.URL,
+			Model: "deepseek-chat", APIKey: "test-key",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := base.WithTools([]*schema.ToolInfo{{
+		Name: "submit_event_candidates", Desc: "submit results",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"documents": {Type: schema.Array, Required: true},
+		}),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := bound.Generate(
+		context.Background(),
+		[]*schema.Message{schema.UserMessage("extract")},
+		model.WithToolChoice(schema.ToolChoiceForced, "submit_event_candidates"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.ToolCalls) != 1 || result.ToolCalls[0].Function.Name != "submit_event_candidates" ||
+		result.ToolCalls[0].Function.Arguments != `{"documents":[]}` {
+		t.Fatalf("tool response = %#v", result.ToolCalls)
+	}
+	body := <-requestBody
+	if _, exists := body["response_format"]; exists {
+		t.Fatalf("Function Calling request also set response_format: %#v", body["response_format"])
+	}
+	if tools, ok := body["tools"].([]any); !ok || len(tools) != 1 {
+		t.Fatalf("provider tools = %#v", body["tools"])
+	}
+	if _, exists := body["tool_choice"]; !exists {
+		t.Fatalf("provider tool_choice = %#v", body["tool_choice"])
 	}
 }
 

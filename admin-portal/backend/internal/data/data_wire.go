@@ -98,16 +98,15 @@ func (w eventPageWire) toBiz() (biz.EventPage, error) {
 }
 
 type eventWire struct {
-	ID              string          `json:"id"`
-	Title           string          `json:"title"`
-	Summary         string          `json:"summary"`
-	EventTime       *time.Time      `json:"event_time,omitempty"`
-	FirstSeenAt     time.Time       `json:"first_seen_at"`
-	KnowableAt      *time.Time      `json:"knowable_at,omitempty"`
-	EventStatus     biz.EventStatus `json:"event_status"`
-	FactStatus      biz.FactStatus  `json:"fact_status"`
-	DedupeKey       string          `json:"dedupe_key"`
-	PrimarySourceID *string         `json:"primary_source_id,omitempty"`
+	ID          string          `json:"id"`
+	Title       string          `json:"title"`
+	Summary     string          `json:"summary"`
+	EventTime   *time.Time      `json:"event_time,omitempty"`
+	FirstSeenAt time.Time       `json:"first_seen_at"`
+	KnowableAt  *time.Time      `json:"knowable_at,omitempty"`
+	EventStatus biz.EventStatus `json:"event_status"`
+	FactStatus  biz.FactStatus  `json:"fact_status"`
+	DedupeKey   string          `json:"dedupe_key"`
 }
 
 func (w eventWire) toBiz() (biz.Event, error) {
@@ -117,7 +116,7 @@ func (w eventWire) toBiz() (biz.Event, error) {
 	return biz.Event{
 		ID: w.ID, Title: w.Title, Summary: w.Summary, EventTime: w.EventTime,
 		FirstSeenAt: w.FirstSeenAt, KnowableAt: w.KnowableAt, EventStatus: w.EventStatus,
-		FactStatus: w.FactStatus, DedupeKey: w.DedupeKey, PrimarySourceID: w.PrimarySourceID,
+		FactStatus: w.FactStatus, DedupeKey: w.DedupeKey,
 	}, nil
 }
 

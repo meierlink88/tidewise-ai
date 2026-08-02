@@ -95,16 +95,15 @@ type EventPage struct {
 }
 
 type Event struct {
-	ID              string
-	Title           string
-	Summary         string
-	EventTime       *time.Time
-	FirstSeenAt     time.Time
-	KnowableAt      *time.Time
-	EventStatus     EventStatus
-	FactStatus      FactStatus
-	DedupeKey       string
-	PrimarySourceID *string
+	ID          string
+	Title       string
+	Summary     string
+	EventTime   *time.Time
+	FirstSeenAt time.Time
+	KnowableAt  *time.Time
+	EventStatus EventStatus
+	FactStatus  FactStatus
+	DedupeKey   string
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")

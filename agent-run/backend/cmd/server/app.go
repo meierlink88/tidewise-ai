@@ -98,7 +98,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 					modelFactory := deepseek.Factory{
 						Timeout: time.Duration(config.EventFact.ModelTimeoutSeconds) * time.Second,
 					}
-					extractionModel, err := modelFactory.New(runContext, modelConfiguration)
+					extractionModel, err := modelFactory.NewToolCalling(runContext, modelConfiguration)
 					if err != nil {
 						return nil, eventworkflow.ErrExtractionModel
 					}
@@ -116,11 +116,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 					modelFactory := deepseek.Factory{
 						Timeout: time.Duration(config.EventFact.ModelTimeoutSeconds) * time.Second,
 					}
-					extractionModel, err := modelFactory.New(runContext, modelConfiguration)
+					extractionModel, err := modelFactory.NewToolCalling(runContext, modelConfiguration)
 					if err != nil {
 						return nil, eventworkflow.ErrExtractionModel
 					}
-					reviewModel, err := modelFactory.New(runContext, modelConfiguration)
+					reviewModel, err := modelFactory.NewToolCalling(runContext, modelConfiguration)
 					if err != nil {
 						return nil, eventworkflow.ErrReviewModel
 					}

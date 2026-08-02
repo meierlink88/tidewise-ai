@@ -7,7 +7,7 @@ import (
 
 const (
 	AgentKey     = "event-fact-extractor"
-	AgentVersion = "event-fact-extractor.v1"
+	AgentVersion = "event-fact-extractor.v2"
 )
 
 type WorkStatus string
@@ -109,30 +109,30 @@ type Artifact struct {
 }
 
 type Candidate struct {
-	CandidateID      string         `json:"candidate_id"`
-	ArtifactID       string         `json:"artifact_id"`
-	Title            string         `json:"title"`
-	FactualSummary   string         `json:"factual_summary"`
-	OccurredAt       *time.Time     `json:"occurred_at,omitempty"`
-	FactPayload      map[string]any `json:"fact_payload"`
-	EvidenceExcerpt  string         `json:"evidence_excerpt"`
-	SupportsFields   []string       `json:"supports_fields"`
-	SourceLevel      string         `json:"source_level"`
-	ActorMentions    []string       `json:"actor_mentions"`
-	Action           string         `json:"action"`
-	ObjectMentions   []string       `json:"object_mentions"`
-	Change           map[string]any `json:"change"`
-	LifecycleStatus  string         `json:"lifecycle_status"`
-	TimePrecision    string         `json:"time_precision"`
-	LocationMentions []string       `json:"location_mentions"`
-	ReferencePeriod  string         `json:"reference_period"`
-	Quantities       []string       `json:"quantities"`
-	TagCodes         []string       `json:"tag_codes"`
-	DedupeKey        string         `json:"dedupe_key"`
-	IdentityHash     string         `json:"identity_hash"`
-	Tags             []AssignedTag  `json:"tags"`
-	Review           Review         `json:"review"`
-	ReviewState      ReviewState    `json:"review_state"`
+	CandidateID       string         `json:"candidate_id"`
+	ArtifactID        string         `json:"artifact_id"`
+	Title             string         `json:"title"`
+	FactualSummary    string         `json:"factual_summary"`
+	OccurredAt        *time.Time     `json:"occurred_at,omitempty"`
+	FactPayload       map[string]any `json:"fact_payload"`
+	EvidenceStatement string         `json:"evidence_statement"`
+	SupportsFields    []string       `json:"supports_fields"`
+	SourceLevel       string         `json:"source_level"`
+	ActorMentions     []string       `json:"actor_mentions"`
+	Action            string         `json:"action"`
+	ObjectMentions    []string       `json:"object_mentions"`
+	Change            map[string]any `json:"change"`
+	LifecycleStatus   string         `json:"lifecycle_status"`
+	TimePrecision     string         `json:"time_precision"`
+	LocationMentions  []string       `json:"location_mentions"`
+	ReferencePeriod   string         `json:"reference_period"`
+	Quantities        []string       `json:"quantities"`
+	TagCodes          []string       `json:"tag_codes"`
+	DedupeKey         string         `json:"dedupe_key"`
+	IdentityHash      string         `json:"identity_hash"`
+	Tags              []AssignedTag  `json:"tags"`
+	Review            Review         `json:"review"`
+	ReviewState       ReviewState    `json:"review_state"`
 }
 
 type AssignedTag struct {
@@ -151,13 +151,25 @@ type Review struct {
 }
 
 type Result struct {
-	ExecutionID          string            `json:"execution_id"`
-	Artifacts            []ArtifactSummary `json:"artifacts"`
-	Candidates           []Candidate       `json:"candidates"`
-	NoEventReason        map[string]string `json:"no_event_reasons"`
-	ExtractionModelCalls int               `json:"extraction_model_calls"`
-	ReviewModelCalls     int               `json:"review_model_calls"`
-	PublicationArtifacts []Artifact        `json:"-"`
+	ExecutionID          string                    `json:"execution_id"`
+	Artifacts            []ArtifactSummary         `json:"artifacts"`
+	Candidates           []Candidate               `json:"candidates"`
+	NoEventReason        map[string]string         `json:"no_event_reasons"`
+	ExtractionModelCalls int                       `json:"extraction_model_calls"`
+	ReviewModelCalls     int                       `json:"review_model_calls"`
+	FailureCode          string                    `json:"failure_code,omitempty"`
+	FailureStage         string                    `json:"failure_stage,omitempty"`
+	FailureViolation     string                    `json:"failure_violation,omitempty"`
+	FunctionCalls        []FunctionCallObservation `json:"function_calls,omitempty"`
+	PublicationArtifacts []Artifact                `json:"-"`
+}
+
+type FunctionCallObservation struct {
+	Stage         string `json:"stage"`
+	CallCount     int    `json:"call_count"`
+	FinishReason  string `json:"finish_reason,omitempty"`
+	ArgumentBytes int    `json:"argument_bytes"`
+	Violation     string `json:"violation,omitempty"`
 }
 
 type ArtifactSummary struct {

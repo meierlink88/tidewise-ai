@@ -346,10 +346,10 @@ func eventSemanticReviewerWorkPackageDTO(
 
 func eventSemanticEvidenceDTO(value eventsemantics.Evidence) v1.EventSemanticEvidence {
 	result := v1.EventSemanticEvidence{
-		EvidenceID: value.ID, EvidenceHash: value.Hash, Excerpt: value.Excerpt,
+		EvidenceID: value.ID, EvidenceHash: value.Hash, Statement: value.Statement,
 		SourceLevel: value.SourceLevel, Relation: value.Relation,
-		SupportsFields: value.SupportsFields, IsPrimary: value.IsPrimary,
-		RawDocumentID: value.RawDocumentID, SourceName: value.SourceName,
+		SupportsFields: value.SupportsFields,
+		RawDocumentID:  value.RawDocumentID, SourceName: value.SourceName,
 		SourceType: value.SourceType, SourceURL: value.SourceURL, Title: value.Title,
 		FirstSeenAt:          value.FirstSeenAt.UTC().Format(time.RFC3339Nano),
 		KnowledgeAvailableAt: value.KnowledgeAvailableAt.UTC().Format(time.RFC3339Nano),

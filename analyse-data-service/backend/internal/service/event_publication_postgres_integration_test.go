@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,13 +69,12 @@ func TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineag
 	        {
 	          "artifact_id": "artifact-001",
 	          "evidence_relation": "supports",
-	          "evidence_excerpt": "A short excerpt supporting the event.",
+	          "evidence_statement": "A short excerpt supporting the event.",
 	          "supports_fields": [
 	            "title",
 	            "factual_summary"
 	          ],
-	          "source_level": "primary",
-	          "is_primary": true
+	          "source_level": "primary"
 	        }
 	      ],
 	      "tags": [
@@ -161,6 +161,35 @@ WHERE package_id = 'agentrun:event-publication:20260723:001'`).Scan(
 func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
 	handler, service := newEventPublicationTestHandler(t, db)
+	t.Run("repeated Event accumulates equal Evidence across publication batches", func(t *testing.T) {
+		first := eventPublicationFixture("multi-source-event")
+		firstResponse := postEventPublication(t, handler, marshalPublication(t, first))
+		if firstResponse.StatusCode != http.StatusCreated {
+			t.Fatalf("first status = %d, body = %s", firstResponse.StatusCode, firstResponse.Body)
+		}
+
+		second := eventPublicationFixture("multi-source-event")
+		second.PackageID += ":second-source"
+		second.RawDocuments[0].ArtifactID += ":second"
+		second.RawDocuments[0].ContentSHA256 = strings.Repeat("d", 64)
+		second.RawDocuments[0].SourceRef += ":second"
+		second.RawDocuments[0].SourceURL += "/second"
+		second.RawDocuments[0].Title = "Independent second source"
+		second.Provenance.ExtractorExecutionID += ":second"
+		second.Provenance.CollectorExecutions[0].ArtifactID = second.RawDocuments[0].ArtifactID
+		second.Provenance.CollectorExecutions[0].CollectorExecutionID += ":second"
+		second.Events[0].Evidence[0].ArtifactID = second.RawDocuments[0].ArtifactID
+		second.Events[0].Evidence[0].EvidenceStatement = "An independent source supports the same Event."
+		secondResponse := postEventPublication(t, handler, marshalPublication(t, second))
+		if secondResponse.StatusCode != http.StatusCreated {
+			t.Fatalf("second status = %d, body = %s", secondResponse.StatusCode, secondResponse.Body)
+		}
+		if secondResponse.Result.Counts.EventsReused != 1 ||
+			secondResponse.Result.Counts.EventSourcesCreated != 1 ||
+			secondResponse.Result.Counts.RawDocumentsCreated != 1 {
+			t.Fatalf("second counts = %#v", secondResponse.Result.Counts)
+		}
+	})
 
 	t.Run("one artifact supports multiple Events and one Event uses multiple artifacts", func(t *testing.T) {
 		publication := eventPublicationFixture("relationships")
@@ -182,12 +211,11 @@ func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 		secondEvent := clonePublicationEvent(publication.Events[0], "relationships-2")
 		thirdEvent := clonePublicationEvent(publication.Events[0], "relationships-3")
 		thirdEvent.Evidence = append(thirdEvent.Evidence, publicationdomain.Evidence{
-			ArtifactID:       secondDocument.ArtifactID,
-			EvidenceRelation: "context",
-			EvidenceExcerpt:  "A second document provides relevant context.",
-			SupportsFields:   []string{},
-			SourceLevel:      "secondary",
-			IsPrimary:        false,
+			ArtifactID:        secondDocument.ArtifactID,
+			EvidenceRelation:  "context",
+			EvidenceStatement: "A second document provides relevant context.",
+			SupportsFields:    []string{},
+			SourceLevel:       "secondary",
 		})
 		publication.Events = append(publication.Events, secondEvent, thirdEvent)
 
@@ -200,23 +228,13 @@ func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 			counts.EventSourcesCreated != 4 || counts.EventTagsCreated != 3 {
 			t.Fatalf("counts = %#v", counts)
 		}
-		var primarySources, eventsWithPrimary int
+		var sourceLinks int
 		if err := db.QueryRow(`
-SELECT
-  (SELECT count(*) FROM event_sources WHERE contract_version = 2 AND is_primary),
-  (SELECT count(*) FROM events e
-    WHERE e.dedupe_key LIKE 'event:relationships%'
-      AND EXISTS (
-        SELECT 1 FROM event_sources es
-         WHERE es.id = e.primary_source_id
-           AND es.event_id = e.id
-           AND es.contract_version = 2
-           AND es.is_primary
-      ))`).Scan(&primarySources, &eventsWithPrimary); err != nil {
+SELECT count(*) FROM event_sources WHERE contract_version = 3`).Scan(&sourceLinks); err != nil {
 			t.Fatal(err)
 		}
-		if primarySources != 3 || eventsWithPrimary != 3 {
-			t.Fatalf("primary sources = %d, Events with valid primary FK = %d", primarySources, eventsWithPrimary)
+		if sourceLinks != 4 {
+			t.Fatalf("source links = %d, want 4", sourceLinks)
 		}
 		var lightweightDocuments int
 		if err := db.QueryRow(`
@@ -401,18 +419,10 @@ WHERE contract_version = 2
 	t.Run("Evidence Review and Tag dimension failures leave no partial writes", func(t *testing.T) {
 		before := readPublicationDBCounts(t, db)
 
-		invalidPrimary := eventPublicationFixture("invalid-primary")
-		invalidPrimary.Events[0].Evidence[0].IsPrimary = false
-		response := postEventPublication(t, handler, marshalPublication(t, invalidPrimary))
-		if response.StatusCode != http.StatusUnprocessableEntity {
-			t.Fatalf("primary status = %d, body = %s", response.StatusCode, response.Body)
-		}
-		assertPublicationDBCounts(t, db, before)
-
 		invalidReview := eventPublicationFixture("invalid-review")
 		invalidReview.Events[0].Review.Reasons = nil
-		response = postEventPublication(t, handler, marshalPublication(t, invalidReview))
-		if response.StatusCode != http.StatusUnprocessableEntity {
+		response := postEventPublication(t, handler, marshalPublication(t, invalidReview))
+		if response.StatusCode != http.StatusBadRequest || response.Error.Code != "INVALID_REQUEST" {
 			t.Fatalf("review status = %d, body = %s", response.StatusCode, response.Body)
 		}
 		assertPublicationDBCounts(t, db, before)
@@ -730,6 +740,76 @@ SELECT
 	}
 }
 
+func TestEventPublicationV3MigrationPreservesEvidenceAndRemovesPrimarySemantics(t *testing.T) {
+	db := openEventPublicationTestDatabaseAt(t, 37)
+	const (
+		rawID    = "a1000000-0000-4000-8000-000000000001"
+		eventID  = "a1000000-0000-4000-8000-000000000002"
+		sourceID = "a1000000-0000-4000-8000-000000000003"
+	)
+	if _, err := db.Exec(`
+INSERT INTO raw_documents (
+  id, contract_version, artifact_id, source_ref, source_type,
+  source_name, source_url, title, content_text, raw_mime_type, language,
+  collected_at, content_hash, ingest_status
+) VALUES (
+  $1, 2, 'artifact:migration-v3', 'source:migration-v3', 'news',
+  'Migration Source', 'https://example.test/migration-v3', 'Migration V3 source',
+  '', 'text/markdown', 'en', '2026-08-02T00:00:00Z', $2, 'collected'
+)`, rawID, strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+INSERT INTO events (
+  id, title, summary, first_seen_at, event_status, fact_status, dedupe_key, fact_payload
+) VALUES (
+  $1, 'Migration V3 Event', 'Migration V3 summary', '2026-08-02T00:00:00Z',
+  'confirmed', 'verified', 'event:migration-v3', '{}'::jsonb
+)`, eventID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+INSERT INTO event_sources (
+  id, contract_version, event_id, raw_document_id, source_level,
+  evidence_excerpt, evidence_hash, evidence_relation, supports_fields, is_primary
+) VALUES (
+  $1, 2, $2, $3, 'primary', 'Preserved evidence statement', $4,
+  'supports', ARRAY['title'], true
+)`, sourceID, eventID, rawID, strings.Repeat("b", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(
+		`UPDATE events SET primary_source_id = $2 WHERE id = $1`, eventID, sourceID,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	applyEventPublicationMigration(t, db, 38)
+
+	var statement string
+	var contractVersion int
+	if err := db.QueryRow(`
+SELECT evidence_statement, contract_version FROM event_sources WHERE id = $1
+`, sourceID).Scan(&statement, &contractVersion); err != nil {
+		t.Fatal(err)
+	}
+	if statement != "Preserved evidence statement" || contractVersion != 3 {
+		t.Fatalf("migrated evidence = %q, version = %d", statement, contractVersion)
+	}
+	var retiredColumns int
+	if err := db.QueryRow(`
+SELECT count(*) FROM information_schema.columns
+WHERE table_schema = current_schema()
+  AND ((table_name = 'events' AND column_name = 'primary_source_id')
+    OR (table_name = 'event_sources' AND column_name = 'is_primary'))
+`).Scan(&retiredColumns); err != nil {
+		t.Fatal(err)
+	}
+	if retiredColumns != 0 {
+		t.Fatalf("retired primary Evidence columns remaining = %d", retiredColumns)
+	}
+}
+
 type capturingEventPublicationService struct {
 	delegate  *eventpublicationapp.Service
 	lastError error
@@ -947,9 +1027,9 @@ func eventPublicationFixture(suffix string) publicationdomain.Publication {
 			FactPayload:    map[string]any{"fixture": suffix},
 			Evidence: []publicationdomain.Evidence{{
 				ArtifactID: artifactID, EvidenceRelation: "supports",
-				EvidenceExcerpt: "Evidence for " + suffix,
-				SupportsFields:  []string{"title", "factual_summary"},
-				SourceLevel:     "primary", IsPrimary: true,
+				EvidenceStatement: "Evidence for " + suffix,
+				SupportsFields:    []string{"title", "factual_summary"},
+				SourceLevel:       "primary",
 			}},
 			Tags: []publicationdomain.Tag{{
 				TagID:   "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
@@ -1007,7 +1087,7 @@ func readPublicationDBCounts(t *testing.T, db *sql.DB) publicationDBCounts {
 SELECT
   (SELECT count(*) FROM raw_documents WHERE contract_version = 2),
   (SELECT count(*) FROM events),
-  (SELECT count(*) FROM event_sources WHERE contract_version = 2),
+  (SELECT count(*) FROM event_sources WHERE contract_version = 3),
   (SELECT count(*) FROM event_tag_maps),
   (SELECT count(*) FROM event_publication_receipts)`).Scan(
 		&counts.RawDocuments,

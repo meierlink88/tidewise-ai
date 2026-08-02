@@ -24,11 +24,10 @@
       {
         "evidence_id": "22222222-2222-4222-8222-222222222222",
         "evidence_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "excerpt": "某晶圆厂8英寸晶圆产量下降10%",
+        "evidence_statement": "某晶圆厂8英寸晶圆产量下降10%",
         "source_level": "primary",
         "relation": "supports",
         "supports_fields": ["subject", "variable", "direction", "measurement"],
-        "is_primary": true,
         "raw_document_id": "99999999-9999-4999-8999-999999999999",
         "source_name": "某晶圆厂",
         "source_type": "company_announcement",

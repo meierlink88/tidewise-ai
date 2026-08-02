@@ -253,8 +253,8 @@ func eventPublicationShape() *bindingShape {
 		"language": scalarShape, "mime_type": scalarShape,
 	})
 	evidence := objectShape(map[string]*bindingShape{
-		"artifact_id": scalarShape, "evidence_relation": scalarShape, "evidence_excerpt": scalarShape,
-		"supports_fields": arrayShape(scalarShape), "source_level": scalarShape, "is_primary": scalarShape,
+		"artifact_id": scalarShape, "evidence_relation": scalarShape, "evidence_statement": scalarShape,
+		"supports_fields": arrayShape(scalarShape), "source_level": scalarShape,
 	})
 	tag := objectShape(map[string]*bindingShape{
 		"tag_id": scalarShape, "tag_kind": scalarShape, "tag_code": scalarShape, "confidence": scalarShape,

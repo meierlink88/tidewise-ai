@@ -232,7 +232,7 @@ func loadEventText(ctx context.Context, database *sql.DB, eventID string) (event
 	err := database.QueryRowContext(ctx, `
 		SELECT event.title,
 		       concat_ws(' ', event.title, event.summary,
-		           COALESCE(string_agg(concat_ws(' ', document.title, evidence.evidence_excerpt), ' '), ''))
+		           COALESCE(string_agg(concat_ws(' ', document.title, evidence.evidence_statement), ' '), ''))
 		FROM events event
 		LEFT JOIN event_sources evidence ON evidence.event_id = event.id
 		LEFT JOIN raw_documents document ON document.id = evidence.raw_document_id

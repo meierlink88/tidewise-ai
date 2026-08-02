@@ -1,0 +1,1 @@
+DROP INDEX event_publication_journal_unit_key_unique;

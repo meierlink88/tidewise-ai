@@ -70,12 +70,11 @@ type Event struct {
 }
 
 type Evidence struct {
-	ArtifactID       string   `json:"artifact_id"`
-	EvidenceRelation string   `json:"evidence_relation"`
-	EvidenceExcerpt  string   `json:"evidence_excerpt"`
-	SupportsFields   []string `json:"supports_fields"`
-	SourceLevel      string   `json:"source_level"`
-	IsPrimary        bool     `json:"is_primary"`
+	ArtifactID        string   `json:"artifact_id"`
+	EvidenceRelation  string   `json:"evidence_relation"`
+	EvidenceStatement string   `json:"evidence_statement"`
+	SupportsFields    []string `json:"supports_fields"`
+	SourceLevel       string   `json:"source_level"`
 }
 
 type Tag struct {
@@ -252,7 +251,6 @@ func validateEvidence(issues *[]ValidationIssue, eventPath string, evidence []Ev
 		return
 	}
 	seen := make(map[string]struct{}, len(evidence))
-	primaryCount := 0
 	allowedFields := map[string]struct{}{
 		"title": {}, "factual_summary": {}, "occurred_at": {}, "fact_payload": {},
 	}
@@ -272,12 +270,9 @@ func validateEvidence(issues *[]ValidationIssue, eventPath string, evidence []Ev
 		if item.EvidenceRelation != "supports" && item.EvidenceRelation != "contradicts" && item.EvidenceRelation != "context" {
 			addIssue(issues, path+".evidence_relation", "INVALID_ENUM", "evidence_relation must be supports, contradicts, or context")
 		}
-		addRequired(issues, path+".evidence_excerpt", item.EvidenceExcerpt)
+		addRequired(issues, path+".evidence_statement", item.EvidenceStatement)
 		if item.SourceLevel != "primary" && item.SourceLevel != "secondary" {
 			addIssue(issues, path+".source_level", "INVALID_ENUM", "source_level must be primary or secondary")
-		}
-		if item.IsPrimary {
-			primaryCount++
 		}
 		if (item.EvidenceRelation == "supports" || item.EvidenceRelation == "contradicts") && len(item.SupportsFields) == 0 {
 			addIssue(issues, path+".supports_fields", "INVALID_COUNT", "supports_fields must be non-empty for supports or contradicts evidence")
@@ -293,9 +288,6 @@ func validateEvidence(issues *[]ValidationIssue, eventPath string, evidence []Ev
 			}
 			seenFields[field] = struct{}{}
 		}
-	}
-	if primaryCount != 1 {
-		addIssue(issues, eventPath+".evidence", "INVALID_PRIMARY_EVIDENCE", "each Event must contain exactly one primary evidence item")
 	}
 }
 

@@ -20,12 +20,13 @@ type factState struct {
 	artifacts      []eventfact.Artifact
 	candidates     []eventfact.Candidate
 	noEventReasons map[string]string
+	functionCalls  []eventfact.FunctionCallObservation
 }
 
 func NewFactExtraction(
 	ctx context.Context,
 	reader eventfact.ArtifactReader,
-	extractor model.BaseChatModel,
+	extractor model.ToolCallingChatModel,
 ) (compose.Runnable[*eventfact.ExecutionAttempt, *eventfact.Result], error) {
 	if reader == nil || extractor == nil {
 		return nil, errors.New("Event Fact extraction dependencies are required")
@@ -70,16 +71,17 @@ func NewFactExtraction(
 			if err != nil {
 				return nil, errors.New("encode Event Fact-only model input")
 			}
-			response, err := extractor.Generate(ctx, []*schema.Message{
-				schema.SystemMessage(factOnlyProtocol), schema.UserMessage(string(payload)),
-			})
-			if err != nil || response == nil {
-				return nil, ErrExtractionModel
-			}
 			var output extractionOutput
-			if err := decodeStrict(response.Content, &output); err != nil {
-				return nil, errors.New("Event Fact-only extraction response is invalid")
+			observation, err := generateToolResult(ctx, extractor, extractionFunctionName, "提交每个 Artifact 的 Event 候选或无事件原因", []*schema.Message{
+				schema.SystemMessage(factOnlyProtocol), schema.UserMessage(string(payload)),
+			}, &output, func(candidateOutput *extractionOutput) error {
+				_, _, validationErr := convertExtraction(current.artifacts, *candidateOutput)
+				return validationErr
+			})
+			if err != nil {
+				return nil, errors.Join(ErrExtractionModel, err)
 			}
+			current.functionCalls = append(current.functionCalls, observation)
 			candidates, reasons, err := convertExtraction(current.artifacts, output)
 			if err != nil {
 				return nil, err
@@ -103,9 +105,10 @@ func NewFactExtraction(
 				ExecutionID:          current.attempt.ID,
 				Candidates:           current.candidates,
 				NoEventReason:        current.noEventReasons,
-				ExtractionModelCalls: 1,
+				FunctionCalls:        append([]eventfact.FunctionCallObservation(nil), current.functionCalls...),
 				PublicationArtifacts: append([]eventfact.Artifact(nil), current.artifacts...),
 			}
+			result.ExtractionModelCalls, result.ReviewModelCalls = modelCallCounts(result.FunctionCalls)
 			for _, artifact := range current.artifacts {
 				result.Artifacts = append(result.Artifacts, eventfact.ArtifactSummary{
 					ArtifactID: artifact.ArtifactID, CollectorExecutionID: artifact.CollectorExecutionID,

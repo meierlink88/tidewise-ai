@@ -404,11 +404,10 @@ func (s *ResearchAnalysisContextStore) eventBundle(
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'evidence_id', source.id,
 		            'evidence_hash', source.evidence_hash,
-		            'excerpt', source.evidence_excerpt,
+		            'evidence_statement', source.evidence_statement,
 		            'source_level', source.source_level,
 		            'relation', source.evidence_relation,
 		            'supports_fields', source.supports_fields,
-		            'is_primary', COALESCE(source.is_primary, false),
 		            'raw_document_id', document.id,
 		            'source_name', document.source_name,
 		            'source_type', document.source_type,
@@ -425,7 +424,7 @@ func (s *ResearchAnalysisContextStore) eventBundle(
 		                NULLIF(event.fact_payload ->> 'statement_source', ''),
 		                ''
 		            )
-		        ) ORDER BY COALESCE(source.is_primary, false) DESC, source.id)
+		        ) ORDER BY source.created_at, source.id)
 		        FROM event_sources source
 		        JOIN raw_documents document ON document.id = source.raw_document_id
 		        WHERE source.event_id = event.id

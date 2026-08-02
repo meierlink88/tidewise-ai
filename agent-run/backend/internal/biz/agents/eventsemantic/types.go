@@ -49,11 +49,10 @@ type Event struct {
 type Evidence struct {
 	EvidenceID           string   `json:"evidence_id"`
 	EvidenceHash         string   `json:"evidence_hash"`
-	Excerpt              string   `json:"excerpt"`
+	Statement            string   `json:"evidence_statement"`
 	SourceLevel          string   `json:"source_level"`
 	Relation             string   `json:"relation"`
 	SupportsFields       []string `json:"supports_fields"`
-	IsPrimary            bool     `json:"is_primary"`
 	RawDocumentID        string   `json:"raw_document_id"`
 	SourceName           string   `json:"source_name"`
 	SourceType           string   `json:"source_type"`

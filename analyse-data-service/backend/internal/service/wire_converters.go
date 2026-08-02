@@ -27,8 +27,8 @@ func eventPublicationInput(request *v1.EventPublicationRequest) eventpublication
 		for _, item := range event.Evidence {
 			evidence = append(evidence, eventpublication.Evidence{
 				ArtifactID: item.ArtifactID, EvidenceRelation: item.EvidenceRelation,
-				EvidenceExcerpt: item.EvidenceExcerpt, SupportsFields: item.SupportsFields,
-				SourceLevel: item.SourceLevel, IsPrimary: item.IsPrimary,
+				EvidenceStatement: item.EvidenceStatement, SupportsFields: item.SupportsFields,
+				SourceLevel: item.SourceLevel,
 			})
 		}
 		tags := make([]eventpublication.Tag, 0, len(event.Tags))

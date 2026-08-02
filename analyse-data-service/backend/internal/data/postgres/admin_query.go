@@ -273,7 +273,7 @@ WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
 
 	rows, err := r.db.QueryContext(ctx, `
 SELECT id, title, summary, event_time, first_seen_at, knowable_at,
-       event_status, fact_status, dedupe_key, primary_source_id
+       event_status, fact_status, dedupe_key
 FROM events
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
   AND ($2 = '' OR event_status = $2)
@@ -308,7 +308,6 @@ func scanEvent(scanner rawDocumentScanner) (model.Event, error) {
 	var event model.Event
 	var eventTime sql.NullTime
 	var knowableAt sql.NullTime
-	var primarySourceID sql.NullString
 	if err := scanner.Scan(
 		&event.ID,
 		&event.Title,
@@ -319,7 +318,6 @@ func scanEvent(scanner rawDocumentScanner) (model.Event, error) {
 		&event.EventStatus,
 		&event.FactStatus,
 		&event.DedupeKey,
-		&primarySourceID,
 	); err != nil {
 		return model.Event{}, fmt.Errorf("scan event: %w", err)
 	}
@@ -328,9 +326,6 @@ func scanEvent(scanner rawDocumentScanner) (model.Event, error) {
 	}
 	if knowableAt.Valid {
 		event.KnowableAt = &knowableAt.Time
-	}
-	if primarySourceID.Valid {
-		event.PrimarySourceID = primarySourceID.String
 	}
 	return event, nil
 }

@@ -17,7 +17,7 @@ import (
 
 func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBudget(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
-	seedEventSemanticScenario(t, db)
+	seedEventSemanticScenario(t, db, true)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const downstreamID = "10000000-0000-4000-8000-000000000007"

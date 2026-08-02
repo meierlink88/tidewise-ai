@@ -141,8 +141,8 @@ func validPublication() Publication {
 			OccurredAt: &occurredAt, FactPayload: map[string]any{"metric": "example"},
 			Evidence: []Evidence{{
 				ArtifactID: "artifact-1", EvidenceRelation: "supports",
-				EvidenceExcerpt: "Evidence excerpt", SupportsFields: []string{"title"},
-				SourceLevel: "primary", IsPrimary: true,
+				EvidenceStatement: "Evidence statement", SupportsFields: []string{"title"},
+				SourceLevel: "primary",
 			}},
 			Tags: []Tag{{
 				TagID:   "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",

@@ -17,7 +17,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 )
 
-const mentionProtocol = `你是 Event Semantic V3 原文 Mention 提取器。只返回严格 JSON，不返回 Markdown。只提取 Event title、summary 或 Evidence title/excerpt 中逐字连续出现、可能指向正式实体的 raw mention，并引用属于本 Event 的 evidence_ids。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。Mention 若只出现在 Event 中，必须保留至少一条 primary supporting Evidence 作为血缘。公司、人物、机构、国家/地区、产品、技术、指数等明确专名即使出现在将来时、公告、报告或状态陈述中仍必须提取；复合短语只输出其中的机构 Mention，例如“日本央行将公布决议”输出“日本央行”，“多数美联储委员”输出“美联储”，“央行报告”输出“央行”，不得把整段状态或报告短语当成 Mention。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
+const mentionProtocol = `你是 Event Semantic V3 实体 Mention 提取器。只返回严格 JSON，不返回 Markdown。根据 Event title、summary 和 Evidence title/evidence_statement 的完整语义识别可能指向正式实体的 mention，并引用属于本 Event 的 evidence_ids；可做必要的简称还原或规范化表达，不要求输出字符串逐字存在于输入。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。每个 Mention 必须保留至少一条属于当前 Event 的 Evidence 作为正式血缘。公司、人物、机构、国家/地区、产品、技术、指数等明确专名即使出现在将来时、公告、报告或状态陈述中仍必须提取；复合短语只输出其中的机构 Mention，例如“日本央行将公布决议”输出“日本央行”，“多数美联储委员”输出“美联储”，“央行报告”输出“央行”，不得把整段状态或报告短语当成 Mention。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
 const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他候选只有在 Mention 与候选的 canonical_name、name 或正式 aliases 能确认同一业务对象时才选择；不得根据手写简称、删除后缀、字符串包含、字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高推定对象同一性，没有正式身份依据就安全 no_match。entity_role 必须取自所选正式 Entity Type Definition 的 allowed_event_roles：statement_source 是发表声明、发布报告或提供消息的来源；actor 是主动实施事件动作的主体；event_subject 只用于其自身状态、指标、价格或行动构成事件核心的实体；event_object 是他方行动直接指向的对象；affected_entity 是直接承受结果或影响的实体；context 只表示背景。被通牒、被调查、被暂停打击或作为措施对象的国家不是 event_subject，例如“特朗普发布对伊朗48小时通牒”和“美国暂停对伊朗军事打击”中的伊朗应为 event_object 或 affected_entity，“巴西对原产于中国的钢瓶发起调查”中的中国应为 event_object 或 affected_entity。“某人称……”中的发言主体优先考虑 statement_source，被谈论对象不能机械标为 actor。no_match 时 entity_id 和 entity_role 均为空，并必须把 no_match_reason 设为 mention_not_entity、no_candidate_same_entity 或 insufficient_context 之一；命中时 no_match_reason 为空。mention_not_entity 只允许 Stage A 误抽取的日期、数值、状态、行为、报告、会议等真正非实体；真实公司、产品、技术、指数等即使 ABox 缺失或当前 TBox out of scope，也不得标为 mention_not_entity。no_candidate_same_entity 表示 Mention 是实体指称但当前候选没有正式同一对象；insufficient_context 表示候选中可能存在同一对象但上下文不足。类型由正式候选携带，不得输出或改写 Entity Type。必须应用正式 Entity Type Definition 的 business_definition、inclusion_criteria 和 exclusion_criteria。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属、由候选发布或背景相关而绑定候选。例如“央行报告”不是央行机构，“美联储静默期”不是美联储机构；“WTI原油期货”是合约/金融工具，不是 commodity 类型的“WTI原油”；“ChatGPT”不是“ChatGPT生态”概念，“特斯拉”不是“特斯拉生态”概念，“国新办”不是“国务院”。正式目录把“白宫”作为机构候选时，原文“白宫”可视为该机构的约定指称。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
 const selectionRecheckProtocol = `你是独立 Event Semantic V3 实体选择复核器。只返回严格 JSON。输入只包含 primary Selector 拒绝、但 Qdrant exact lookup 已通过正式 canonical name 或 alias 唯一确定 identity 的 disputed_candidate_sets。对这些唯一正式 exact identity 必须选择候选并分配该正式类型允许的准确角色；不得用删除后缀、字符串包含或其他手写简称规则扩展 identity。角色定义与主 Selector 相同：statement_source 是声明来源，actor 是主动行动者，event_subject 仅表示自身状态或行动构成事件核心的实体，event_object 是行动对象，affected_entity 是直接受影响实体，context 是背景。真实公司、产品、技术、指数不得归为 mention_not_entity。选择仍必须限定在当前 candidate_key 的候选白名单，不能创造或改写 Entity ID/Type。此复核只产生待审核 Candidate，后续独立事实 Review 仍会校验对象同一性与角色。不得生成 DirectImpact、跨实体传导、Theme 或投资判断。`
 const signalProtocol = `你是 Event Semantic V3 客观 Signal 提取器。只返回严格 JSON。输入已经包含解析完成的 EventEntityLink，以及按其正式 Entity Type 确定性筛选出的完整适用 Variable Definition 目录。VariableSignal 只能引用已有 subject_link_key，并只能使用该 link 的 applicable_variable_definitions 中的 key/version、allowed direction 和运行时 assertion modality。EventEntityLink 可以没有 Signal；不要为了覆盖率伪造 Signal。Measurement 是可选的自然语言量化片段，只保留原文完整 measurement_text 与 evidence_ids，不做数值归一化或结构化计算；不得伪造数值。若原文明示 resolved company 的合作/订单价值，且其完整适用目录包含 order_value，可以生成 Event-native order_value Signal 并保留原文金额 Measurement；融资额、市值或分析师目标价不得冒充 order_value。不得把 Evidence.published_at 当 statement_at，不得把 Event.occurred_at 当 measurement/report/forecast period。不得生成 DirectImpact、跨实体传导、Theme、机会或风险判断。`
@@ -422,8 +422,6 @@ func isolateMentions(items []mentionCandidate, semanticContext eventsemantic.Con
 			reason = "mention_text_invalid"
 		case !validEvidenceIDs(mention.EvidenceIDs, evidence):
 			reason = "mention_evidence_ids_invalid"
-		case !mentionSupported(mention, semanticContext, evidence):
-			reason = "mention_evidence_support_invalid"
 		}
 		if reason != "" {
 			isolate(audit, "mention_extraction", mention.CandidateKey, reason, "model")
@@ -437,28 +435,6 @@ func isolateMentions(items []mentionCandidate, semanticContext eventsemantic.Con
 		}
 	}
 	return result
-}
-
-func mentionSupported(mention mentionCandidate, semanticContext eventsemantic.Context, evidence map[string]eventsemantic.Evidence) bool {
-	needle := strings.ToLower(strings.TrimSpace(mention.Mention))
-	if needle == "" || len(mention.EvidenceIDs) == 0 {
-		return false
-	}
-	if strings.Contains(strings.ToLower(semanticContext.Event.Title+" "+semanticContext.Event.Summary), needle) {
-		for _, id := range mention.EvidenceIDs {
-			item := evidence[id]
-			if item.IsPrimary && item.Relation == "supports" {
-				return true
-			}
-		}
-	}
-	for _, id := range mention.EvidenceIDs {
-		item := evidence[id]
-		if strings.Contains(strings.ToLower(item.Title+" "+item.Excerpt), needle) {
-			return true
-		}
-	}
-	return false
 }
 
 func activeEventLinkTypes(items []eventsemantic.EntityTypeDefinition) map[string]eventsemantic.EntityTypeDefinition {

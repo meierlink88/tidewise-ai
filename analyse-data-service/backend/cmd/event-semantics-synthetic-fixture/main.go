@@ -176,7 +176,7 @@ SET title = 'Synthetic Wafer Fab forecasts demand growth',
     )
 WHERE id = '24000000-0000-4000-8000-000000000002';
 UPDATE event_sources
-SET evidence_excerpt = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent',
+SET evidence_statement = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent',
     supports_fields = ARRAY['title','factual_summary','occurred_at','fact_payload']
 WHERE id = '24000000-0000-4000-8000-000000000003'
 `)
@@ -320,19 +320,16 @@ INSERT INTO events (
 	}
 	if _, err := database.Exec(ctx, `
 INSERT INTO event_sources (
-  id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
-  evidence_relation, supports_fields, is_primary
+  id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
+  evidence_relation, supports_fields, contract_version
 ) VALUES (
   $1, $2, $3, 'primary', 'The upstream wafer capacity stage reported production fell 10%',
-  $4, 'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], true
+  $4, 'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], 3
 )
 `, evidenceID, eventID, rawDocumentID, evidenceHash); err != nil {
 		return err
 	}
-	_, err := database.Exec(
-		ctx, `UPDATE events SET primary_source_id = $2 WHERE id = $1`, eventID, evidenceID,
-	)
-	return err
+	return nil
 }
 
 func assertEmptyResearch(ctx context.Context) error {

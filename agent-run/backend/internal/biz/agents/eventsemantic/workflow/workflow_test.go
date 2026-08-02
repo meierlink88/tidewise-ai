@@ -292,7 +292,7 @@ func TestWorkflowDoesNotRecheckVectorCandidateWithoutFormalAliasIdentity(t *test
 	input := testInput()
 	input.Context.Event.Title = "非侵入式脑机接口取得进展"
 	input.Context.Event.Summary = "非侵入式脑机接口已完成新一轮验证。"
-	input.Context.Evidence[0].Excerpt = "非侵入式脑机接口已完成新一轮验证。"
+	input.Context.Evidence[0].Statement = "非侵入式脑机接口已完成新一轮验证。"
 	input.Context.EntityTypeDefinitions = append(input.Context.EntityTypeDefinitions, eventsemantic.EntityTypeDefinition{
 		TypeKey: "technology", Version: 1, NameZH: "技术", NameEN: "Technology", BusinessDefinition: "可识别技术体系",
 		InclusionCriteria: []string{"技术与技术系统"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true,
@@ -563,8 +563,8 @@ func testContext() eventsemantic.Context {
 		OntologyVersion: "event-semantics.objective-v3@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
 		Event: eventsemantic.Event{ID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", Title: "英伟达与安靠科技达成15亿美元战略合作", Summary: "首次把预付款锁定产能延伸至第三方封测厂。"},
 		Evidence: []eventsemantic.Evidence{{
-			EvidenceID: testEvidenceID, Excerpt: "英伟达与安靠科技达成价值15亿美元战略合作，首次把预付款锁定产能延伸至第三方封测厂。",
-			IsPrimary: true, Relation: "supports",
+			EvidenceID: testEvidenceID, Statement: "英伟达与安靠科技达成价值15亿美元战略合作，首次把预付款锁定产能延伸至第三方封测厂。",
+			Relation: "supports",
 		}},
 		EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{
 			{TypeKey: "company", Version: 1, NameZH: "企业", NameEN: "Company", BusinessDefinition: "依法设立的企业主体", InclusionCriteria: []string{"公司"}, ExclusionCriteria: []string{"产品"}, EventLinkAllowed: true, SignalSubjectAllowed: true, AllowedEventRoles: []string{"actor", "event_subject", "affected_entity"}, Status: "active"},

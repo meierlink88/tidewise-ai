@@ -44,7 +44,7 @@ func TestEventSemanticV2MigrationBackfillsDeprecatedEntityTypeRoles(t *testing.T
 
 func TestEventSemanticV2MigrationBackfillsAndKeepsLegacyMeasurementWritesSafe(t *testing.T) {
 	db := openEventPublicationTestDatabaseAt(t, 35)
-	seedEventSemanticScenario(t, db)
+	seedEventSemanticScenario(t, db, false)
 	const (
 		leaseID       = "40000000-0000-4000-8000-000000000001"
 		submissionID  = "40000000-0000-4000-8000-000000000002"
@@ -126,7 +126,7 @@ func assertMeasurementEvidenceIDs(t *testing.T, db *sql.DB, measurementID, evide
 
 func TestPostgresEventSemanticV2PersistsNarrativeMeasurementWithoutDirectImpact(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
-	seedEventSemanticScenario(t, db)
+	seedEventSemanticScenario(t, db, true)
 	service := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
 	lease, err := service.CreateContextLease(context.Background(), eventsemantics.ContextLeaseRequest{
 		EventID: semanticEventID, AgentExecutionID: "semantic-v2-persistence",
@@ -278,7 +278,7 @@ func TestPostgresEventSemanticV2PersistsNarrativeMeasurementWithoutDirectImpact(
 	}
 }
 
-func seedEventSemanticScenario(t *testing.T, db *sql.DB) {
+func seedEventSemanticScenario(t *testing.T, db *sql.DB, currentEvidenceContract bool) {
 	t.Helper()
 	if _, err := db.Exec(`
 INSERT INTO raw_documents (
@@ -303,18 +303,35 @@ INSERT INTO events (
 )`, semanticEventID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`
+	if currentEvidenceContract {
+		if _, err := db.Exec(`
 INSERT INTO event_sources (
-  id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
-  evidence_relation, supports_fields, is_primary
+  id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
+  evidence_relation, supports_fields, contract_version
 ) VALUES (
   $1, $2, $3, 'primary', 'Integration Wafer Fab production fell 10%', $4,
-  'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], true
+  'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], 3
 )`, semanticEvidenceID, semanticEventID, semanticRawDocumentID, strings.Repeat("2", 64)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`UPDATE events SET primary_source_id = $2 WHERE id = $1`, semanticEventID, semanticEvidenceID); err != nil {
-		t.Fatal(err)
+			t.Fatal(err)
+		}
+	} else {
+		if _, err := db.Exec(`
+INSERT INTO event_sources (
+  id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
+  evidence_relation, supports_fields, is_primary, contract_version
+) VALUES (
+  $1, $2, $3, 'primary', 'Integration Wafer Fab production fell 10%', $4,
+  'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], true, 2
+)`, semanticEvidenceID, semanticEventID, semanticRawDocumentID, strings.Repeat("2", 64)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(
+			`UPDATE events SET primary_source_id = $2 WHERE id = $1`,
+			semanticEventID,
+			semanticEvidenceID,
+		); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if _, err := db.Exec(`
 INSERT INTO entity_nodes (

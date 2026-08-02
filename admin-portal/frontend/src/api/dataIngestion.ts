@@ -36,7 +36,6 @@ export interface EventItem {
   event_status: string;
   fact_status: string;
   dedupe_key?: string;
-  primary_source_id?: string;
 }
 
 export interface RawDocumentQuery {

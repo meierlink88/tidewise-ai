@@ -46,7 +46,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 12 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 14 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -64,8 +64,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "012" ||
-		len(report.Applied) != 12 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "014" ||
+		len(report.Applied) != 14 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -112,6 +112,13 @@ func TestMigrateSeedsCurrentAgentVersions(t *testing.T) {
 	}
 	if extractorVersion.AgentKey != "event-fact-extractor" {
 		t.Fatalf("Event Fact Extractor agent key = %q", extractorVersion.AgentKey)
+	}
+	extractorV2, err := store.GetAgentVersion(ctx, eventfact.AgentVersion)
+	if err != nil {
+		t.Fatalf("get seeded Event Fact Extractor V2 version: %v", err)
+	}
+	if extractorV2.AgentKey != eventfact.AgentKey {
+		t.Fatalf("Event Fact Extractor V2 agent key = %q", extractorV2.AgentKey)
 	}
 	semanticVersion, err := store.GetAgentVersion(ctx, "event-semantic-enricher.v1")
 	if err != nil {
@@ -1319,7 +1326,7 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		t.Fatalf("idempotent commit: %v", err)
 	}
 	if dispatched, err := store.DispatchPendingSignals(
-		ctx, "event-fact-extractor.v1", now.Add(2*time.Minute),
+		ctx, eventfact.AgentVersion, now.Add(2*time.Minute),
 	); err != nil || dispatched != 1 {
 		t.Fatalf("dispatch Artifact signal = %d, err=%v", dispatched, err)
 	}
@@ -1328,8 +1335,8 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		SELECT count(*)
 		FROM event_extraction_work_items
 		WHERE collector_execution_ids = ARRAY[$1::uuid]
-		  AND extractor_agent_version = 'event-fact-extractor.v1'
-	`, execution.ID).Scan(&workCount); err != nil {
+		  AND extractor_agent_version = $2
+	`, execution.ID, eventfact.AgentVersion).Scan(&workCount); err != nil {
 		t.Fatal(err)
 	}
 	if workCount != 1 {
@@ -1391,10 +1398,17 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		PackageID: "immutable-package", Payload: journalPayload,
 		PayloadHash: hex.EncodeToString(journalSum[:]),
 	}
+	secondJournalPayload := []byte(`{"package_id":"immutable-package-2"}`)
+	secondJournalSum := sha256.Sum256(secondJournalPayload)
+	secondJournal := eventfact.JournalEntry{
+		WorkItemKey: attempt.WorkItem.Key, UnitKey: attempt.Unit.Key, BatchOrdinal: 2,
+		PackageID: "immutable-package-2", Payload: secondJournalPayload,
+		PayloadHash: hex.EncodeToString(secondJournalSum[:]),
+	}
 	if err := store.CompleteExtraction(
 		ctx, attempt,
 		eventfact.Result{ExecutionID: attempt.ID, ExtractionModelCalls: 1},
-		[]eventfact.JournalEntry{journal}, now.Add(5*time.Minute),
+		[]eventfact.JournalEntry{journal, secondJournal}, now.Add(5*time.Minute),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -1406,7 +1420,7 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		t.Fatal("Publication Journal allowed payload mutation")
 	}
 	deliverable, err := store.ListDeliverableJournals(ctx, now.Add(6*time.Minute))
-	if err != nil || len(deliverable) != 1 ||
+	if err != nil || len(deliverable) != 2 ||
 		string(deliverable[0].Payload) != string(journalPayload) {
 		t.Fatalf("deliverable Publication Journal = %#v, err=%v", deliverable, err)
 	}
@@ -1434,12 +1448,23 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		t.Fatalf("Publication retry was reclaimed for extraction: claimed=%v err=%v", claimed, err)
 	}
 	replayed, err := store.ListDeliverableJournals(ctx, now.Add(8*time.Minute))
-	if err != nil || len(replayed) != 1 ||
-		string(replayed[0].Payload) != string(journalPayload) {
+	if err != nil || len(replayed) != 2 {
 		t.Fatalf("replayed Publication Journal = %#v, err=%v", replayed, err)
 	}
+	var replayedFirst, replayedSecond eventfact.JournalEntry
+	for _, entry := range replayed {
+		switch entry.PackageID {
+		case journal.PackageID:
+			replayedFirst = entry
+		case secondJournal.PackageID:
+			replayedSecond = entry
+		}
+	}
+	if replayedFirst.PackageID == "" || replayedSecond.PackageID == "" {
+		t.Fatalf("replayed journals did not preserve package identity: %#v", replayed)
+	}
 	if claimed, err := store.MarkJournalSending(
-		ctx, replayed[0], now.Add(8*time.Minute),
+		ctx, replayedFirst, now.Add(8*time.Minute),
 	); err != nil || !claimed {
 		t.Fatalf("claim replayed Publication Journal: claimed=%v err=%v", claimed, err)
 	}
@@ -1449,13 +1474,32 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		CoreFacts:    json.RawMessage(`{"title":"事件","factual_summary":"事实摘要","occurred_at":null,"fact_payload":{"action":"test"}}`),
 	}
 	if err := store.AcknowledgeJournal(
-		ctx, replayed[0], "receipt-1", []eventfact.CanonicalEvent{canonical},
+		ctx, replayedFirst, "receipt-1", []eventfact.CanonicalEvent{canonical},
 		now.Add(9*time.Minute),
 	); err != nil {
 		t.Fatal(err)
 	}
+	var unitStatus string
+	if err := database.QueryRow(ctx, `
+		SELECT status FROM event_artifact_extraction_units WHERE unit_key = $1
+	`, attempt.Unit.Key).Scan(&unitStatus); err != nil {
+		t.Fatal(err)
+	}
+	if unitStatus != "publishing" {
+		t.Fatalf("unit status after first of two acknowledgements = %q", unitStatus)
+	}
+	if claimed, err := store.MarkJournalSending(
+		ctx, replayedSecond, now.Add(9*time.Minute),
+	); err != nil || !claimed {
+		t.Fatalf("claim second Publication Journal: claimed=%v err=%v", claimed, err)
+	}
+	if err := store.AcknowledgeJournal(
+		ctx, replayedSecond, "receipt-2", nil, now.Add(10*time.Minute),
+	); err != nil {
+		t.Fatal(err)
+	}
 	if err := store.MarkJournalRetry(
-		ctx, deliverable[0], "late_transport_error", "stale worker result", now.Add(10*time.Minute),
+		ctx, deliverable[0], "late_transport_error", "stale worker result", now.Add(11*time.Minute),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -1489,22 +1533,44 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	if err := store.CompleteWithoutPublication(
 		ctx,
 		secondAttempt,
-		eventfact.Result{ExecutionID: secondAttempt.ID, ExtractionModelCalls: 1, ReviewModelCalls: 1},
+		eventfact.Result{
+			ExecutionID: secondAttempt.ID, ExtractionModelCalls: 1, ReviewModelCalls: 2,
+			FailureCode:  "event_fact_review_contract_missing_tool_call",
+			FailureStage: "review", FailureViolation: "missing_tool_call",
+			FunctionCalls: []eventfact.FunctionCallObservation{
+				{Stage: "extraction", CallCount: 1, FinishReason: "tool_calls", ArgumentBytes: 128},
+				{Stage: "review", CallCount: 2, FinishReason: "stop", Violation: "missing_tool_call"},
+			},
+		},
 		eventfact.WorkRejected,
 		now.Add(12*time.Minute),
 	); err != nil {
 		t.Fatal(err)
 	}
-	var finalWorkStatus string
+	var finalWorkStatus, persistedStage, persistedFinishReason string
+	var persistedArgumentBytes int
 	if err := database.QueryRow(ctx, `
-		SELECT status
-		FROM event_extraction_work_items
-		WHERE work_item_key = $1
-	`, attempt.WorkItem.Key).Scan(&finalWorkStatus); err != nil {
+		SELECT w.status,
+		       u.extraction_result->>'failure_stage',
+		       u.extraction_result->'function_calls'->0->>'finish_reason',
+		       (u.extraction_result->'function_calls'->0->>'argument_bytes')::int
+		FROM event_extraction_work_items w
+		JOIN event_artifact_extraction_units u USING (work_item_key)
+		WHERE w.work_item_key = $1 AND u.unit_key = $2
+	`, attempt.WorkItem.Key, secondAttempt.Unit.Key).Scan(
+		&finalWorkStatus, &persistedStage, &persistedFinishReason, &persistedArgumentBytes,
+	); err != nil {
 		t.Fatal(err)
 	}
 	if finalWorkStatus != "partially_published" {
 		t.Fatalf("mixed Artifact Unit outcomes produced Work status %q", finalWorkStatus)
+	}
+	if persistedStage != "review" || persistedFinishReason != "tool_calls" ||
+		persistedArgumentBytes != 128 {
+		t.Fatalf(
+			"persisted Function observation stage=%q finish=%q argument_bytes=%d",
+			persistedStage, persistedFinishReason, persistedArgumentBytes,
+		)
 	}
 	committed, err := store.GetExecution(ctx, execution.ID)
 	if err != nil {

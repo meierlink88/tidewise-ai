@@ -189,10 +189,36 @@ func TestDeepSeekQueryPlannerStrictJSONValidation(t *testing.T) {
 			if content != "" && strings.Contains(err.Error(), content) || strings.Contains(err.Error(), "system-prompt-secret") {
 				t.Fatalf("error leaked raw content or prompt: %v", err)
 			}
-			if modelCalls != 1 {
-				t.Fatalf("model calls = %d, want 1 for non-repairable schema error", modelCalls)
+			if modelCalls != 2 {
+				t.Fatalf("model calls = %d, want one initial call and one bounded repair", modelCalls)
 			}
 		})
+	}
+}
+
+func TestDeepSeekQueryPlannerRepairsMalformedSchemaOnce(t *testing.T) {
+	modelCalls := 0
+	var repairMessages []*schema.Message
+	planner, err := NewDeepSeekQueryPlanner(fakeChatModel{generate: func(_ context.Context, messages []*schema.Message) (*schema.Message, error) {
+		modelCalls++
+		if modelCalls == 1 {
+			return schema.AssistantMessage(`{"queries":"macro","combined_query":"macro"}`, nil), nil
+		}
+		repairMessages = messages
+		return schema.AssistantMessage(`{"queries":["macro"],"combined_query":"macro"}`, nil), nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := planner.Plan(context.Background(), &Request{Prompt: "macro news"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if modelCalls != 2 || !reflect.DeepEqual(output.SearchQueries, []string{"macro"}) {
+		t.Fatalf("calls=%d output=%#v", modelCalls, output)
+	}
+	if len(repairMessages) != 2 || !strings.Contains(repairMessages[1].Content, `"violation":"schema_invalid"`) {
+		t.Fatalf("repair messages = %#v", repairMessages)
 	}
 }
 

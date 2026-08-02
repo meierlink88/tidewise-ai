@@ -92,6 +92,12 @@ _Avoid_: Agent Schedule、轮询文件目录、Collector Workflow 内的 Event �
 
 **Event Fact Extractor Agent**:
 读取一个或多个已完成 Collector Execution 的 accepted Raw Document Artifact，提取、校验并发布原子 Event 核心事实的 Agent Definition；它不建立 Event 到 Entity、Chain Node 或影响信号的正式语义关联。
+当前 `event-fact-extractor.v2` 保留确定性 Eino Workflow，但四个模型阶段分别通过
+`submit_event_candidates`、`submit_duplicate_judgments`、`submit_tag_assignments` 和
+`submit_event_reviews` 强制 Function Call 提交固定 DTO。每阶段只绑定一个无副作用结果
+Function，错误调用最多修正一次；Data Publication 仍由 Application/Journal 执行。
+Evidence 使用模型生成、独立审核的 `evidence_statement`，程序不再通过 Artifact 正文
+字符串包含或日期文本搜索裁决 Event 语义。
 _Avoid_: Collector Agent、Event Semantic Enricher、把采集与提取合成一个 Agent
 
 **Event Extraction Work Item**:
@@ -108,6 +114,8 @@ _Avoid_: Data Event Status、模型自行选择数据库状态
 
 **Event Publication Journal**:
 AgentRun 为一次待发布 Event Publication Batch 持久化的不可变请求正文、内容哈希和投递结果；未知调用结果只能重发同一正文，不重新运行 Event 提取。
+Data 单个 Batch 最多十个 Event，但一个 Artifact Unit 可以拥有多个稳定 Journal；只有该 Unit
+全部 Journal 获得 Data 回执后 Unit 才是 `published`，不得因候选超过十个截断或拒绝整个 Unit。
 _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草稿
 
 **Event Semantic Enricher**:
@@ -136,7 +144,9 @@ AgentRun 的 embedding 调用必须经 Eino `embedding.Embedder`与 eino-ext 官
 OpenAI-compatible adapter；自定义 Qdrant adapter 只弥补官方单 query Retriever 无法提供的
 Event-batch、跨类型召回和候选白名单能力。每批未命中 mention 只发生一次
 `EmbedStrings` 和一次 Qdrant query batch。
-模型只有在严格 JSON envelope 一次修复后仍不可解析时才终止整个 Event；候选内容错误进入
+模型只有在严格 JSON envelope 一次修复后仍不可解析时才终止整个 Event；Candidate 只需
+引用属于当前 Event 的 Evidence ID，AgentRun 不再要求 Mention 字符串逐字出现在 Event 或
+Evidence 文本中。候选内容错误进入
 per-stage audit/isolation，并为 `no_match`、TBox 排除、retrieval/transport failure 记录 owner
 classification。Reviewer 的缺失或非法 item 会被隔离并使用该候选自身 Evidence 形成 fail，不扩大为
 Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/模型身份；首次
@@ -151,6 +161,10 @@ Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/�
 AgentRun 对 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、
 embedding model 和 content fingerprint fail closed；payload 不要求重复 `point_id`。
 `EMBEDDING_API_KEY` 在进程启动配置阶段校验，不允许领取 Work Item 后才暴露缺失。
+Worker 每次先领取本地 ready work；只有本地为空时才向 Data 发现新 Event。Execution 已
+持久化进入 succeeded、terminal failed 或 retry scheduled 后立即合并一次进程内通知，
+继续领取下一项。60 秒 ticker 仅用于启动发现、漏通知、重启、retry maturity 和未知结果
+对账，不再作为逐任务节拍；仍保持单 processing permit，不并行执行模型。
 _Avoid_: Event Fact Extractor Agent、DirectImpact、Direct Target/Rule、产业链传导、Theme/机会/风险结论、AgentRun 自研 embedding HTTP 协议
 
 **Event Semantic Work Item**:
@@ -160,6 +174,8 @@ Event ID 幂等建立，重新分析必须明确携带被替代的 Data Submissi
 `skipped` 是一次性历史审计操作专用终态：它只表示历史 Event 的持久化输入不满足当前
 Event Semantic 合同。正常发现、无候选、模型失败和新数据合同异常都不得写入
 `skipped`；历史操作结束后，新 Work Item 仍只按正常状态机运行。
+正式 Event 的 `occurred_at` 可以为空；这不影响 Work Item 发现、领取或 Context 水合，且不得
+用发布、采集或首次发现时间替代未知发生时间。
 _Avoid_: Data Context Lease、Data Submission、临时内存任务、无限重试
 
 **Event Semantic Reanalysis Request**:
