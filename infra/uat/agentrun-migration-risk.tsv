@@ -12,3 +12,4 @@
 011	normal	Register the immutable Event Semantic V2 Agent Version without rewriting existing Executions.
 012	normal	Register the immutable Event Semantic V3 Agent Version and add bounded per-stage audit persistence.
 013	normal	Register the immutable Event Fact V2 Function Calling Agent Version.
+014	normal	Allow one Event Artifact Unit to own multiple bounded Publication Journals.

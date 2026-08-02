@@ -199,13 +199,9 @@ func BuildArtifactUnit(
 	if err != nil {
 		return nil, err
 	}
-	if len(journals) > 1 {
-		return nil, errors.New("Event Artifact Unit produced more than ten publishable Events")
-	}
 	for index := range journals {
 		journals[index].WorkItemKey = workItemKey
 		journals[index].UnitKey = unitKey
-		journals[index].BatchOrdinal = artifactOrdinal
 	}
 	return journals, nil
 }

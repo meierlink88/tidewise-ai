@@ -76,7 +76,7 @@ func TestBuildExcludesManualReviewCandidates(t *testing.T) {
 	}
 }
 
-func TestBuildArtifactUnitCreatesOneStableImmediatePublication(t *testing.T) {
+func TestBuildArtifactUnitCreatesStableImmediatePublications(t *testing.T) {
 	result := eventfact.Result{
 		ExecutionID: "22222222-2222-4222-8222-222222222222",
 		PublicationArtifacts: []eventfact.Artifact{{
@@ -103,15 +103,33 @@ func TestBuildArtifactUnitCreatesOneStableImmediatePublication(t *testing.T) {
 			ReviewState: eventfact.ReviewAutoApproved,
 		}},
 	}
+	base := result.Candidates[0]
+	for index := 1; index < 17; index++ {
+		candidate := base
+		candidate.CandidateID = fmt.Sprintf("candidate:%d", index+1)
+		candidate.DedupeKey = fmt.Sprintf("event-fact:%064x", index+1)
+		candidate.IdentityHash = fmt.Sprintf("%064x", index+1)
+		result.Candidates = append(result.Candidates, candidate)
+	}
 	workKey := strings.Repeat("b", 64)
 	unitKey := strings.Repeat("c", 64)
 	journals, err := BuildArtifactUnit(workKey, unitKey, 7, eventfact.AgentVersion, result)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(journals) != 1 || journals[0].WorkItemKey != workKey ||
-		journals[0].UnitKey != unitKey || journals[0].BatchOrdinal != 7 ||
-		!strings.Contains(journals[0].PackageID, unitKey) {
+	if len(journals) != 2 || journals[0].WorkItemKey != workKey ||
+		journals[0].UnitKey != unitKey || journals[0].BatchOrdinal != 1 ||
+		journals[1].BatchOrdinal != 2 || !strings.Contains(journals[0].PackageID, unitKey) {
 		t.Fatalf("Artifact Unit journals = %#v", journals)
+	}
+	var first, second request
+	if err := json.Unmarshal(journals[0].Payload, &first); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(journals[1].Payload, &second); err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Events) != 10 || len(second.Events) != 7 {
+		t.Fatalf("Event batch sizes = %d + %d", len(first.Events), len(second.Events))
 	}
 }

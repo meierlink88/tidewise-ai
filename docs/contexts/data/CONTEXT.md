@@ -98,6 +98,8 @@ _Avoid_: Event UUID、Import Idempotency Key、可覆盖的事件名称
 
 **Event 事实收敛（Event Fact Convergence）**:
 相同 Event Dedupe Key 的 `title`、`factual_summary`、可空 `occurred_at` 和按 JSONB 语义比较的 `fact_payload` 必须完全一致，Data 复用已有 Event；任一核心字段修订必须使用新的 Dedupe Key。`first_seen_at` 与 `knowable_at` 不由调用方提交，由 Data 根据全部关联证据计算，并且后续只能随新增的更早证据向更早时间收敛。后续 Publication Batch 可以为该 Event 新增证据或 Tag 关联；已有且语义一致的关联直接复用，已有关系不得被静默改写或删除，冲突时整批失败。每次成功调用仍生成独立 Import Receipt。
+`occurred_at = null` 表示证据不足以确定事件发生时间，不影响已确认、已验证且 Evidence 合同
+有效的 Event 进入 Event Semantic；Data 不用发布时间、采集时间或首次发现时间补写该字段。
 _Avoid_: 覆盖 Event 核心事实、删除旧证据、用新 Receipt 表示新 Event
 
 **研究主题（Research Theme）**:

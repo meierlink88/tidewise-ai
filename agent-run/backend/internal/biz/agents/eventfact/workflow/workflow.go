@@ -32,6 +32,7 @@ const (
 	duplicateFunctionName      = "submit_duplicate_judgments"
 	classificationFunctionName = "submit_tag_assignments"
 	reviewFunctionName         = "submit_event_reviews"
+	maxDuplicatePairsPerCall   = 20
 )
 
 const extractionSchema = `{
@@ -307,29 +308,13 @@ func New(
 			if len(current.duplicatePairs) == 0 {
 				return current, nil
 			}
-			payload, err := json.Marshal(struct {
-				Pairs  []duplicatePair `json:"pairs"`
-				Schema string          `json:"output_schema"`
-			}{Pairs: current.duplicatePairs, Schema: duplicateJudgeSchema})
-			if err != nil {
-				return nil, errors.New("encode Event duplicate judgment input")
-			}
-			var output duplicateJudgmentOutput
-			observation, err := generateToolResult(ctx, reviewer, duplicateFunctionName, "提交召回候选的同一事件判断", []*schema.Message{
-				schema.SystemMessage(duplicateJudgeProtocol), schema.UserMessage(string(payload)),
-			}, &output, func(candidateOutput *duplicateJudgmentOutput) error {
-				cloned := append([]eventfact.Candidate(nil), current.candidates...)
-				return applyDuplicateJudgments(cloned, current.duplicatePairs, *candidateOutput)
-			})
+			observations, err := judgeDuplicatePairs(
+				ctx, reviewer, current.candidates, current.duplicatePairs,
+			)
 			if err != nil {
 				return nil, errors.Join(ErrReviewModel, attachPriorFunctionCalls(err, current.functionCalls))
 			}
-			current.functionCalls = append(current.functionCalls, observation)
-			if err := applyDuplicateJudgments(
-				current.candidates, current.duplicatePairs, output,
-			); err != nil {
-				return nil, err
-			}
+			current.functionCalls = append(current.functionCalls, observations...)
 			current.candidates = dedupeExactUnitCandidates(current.candidates)
 			return current, nil
 		},
@@ -424,6 +409,51 @@ func New(
 	)).AddInput("evaluate_semantic_fidelity")
 	workflow.End().AddInput("build_validated_result")
 	return workflow.Compile(ctx)
+}
+
+func judgeDuplicatePairs(
+	ctx context.Context,
+	reviewer model.ToolCallingChatModel,
+	candidates []eventfact.Candidate,
+	pairs []duplicatePair,
+) ([]eventfact.FunctionCallObservation, error) {
+	observations := make([]eventfact.FunctionCallObservation, 0, (len(pairs)+maxDuplicatePairsPerCall-1)/maxDuplicatePairsPerCall)
+	combined := duplicateJudgmentOutput{Judgments: make([]duplicateJudgment, 0, len(pairs))}
+	for start := 0; start < len(pairs); start += maxDuplicatePairsPerCall {
+		end := start + maxDuplicatePairsPerCall
+		if end > len(pairs) {
+			end = len(pairs)
+		}
+		batch := pairs[start:end]
+		payload, err := json.Marshal(struct {
+			Pairs  []duplicatePair `json:"pairs"`
+			Schema string          `json:"output_schema"`
+		}{Pairs: batch, Schema: duplicateJudgeSchema})
+		if err != nil {
+			return observations, errors.New("encode Event duplicate judgment input")
+		}
+		var output duplicateJudgmentOutput
+		observation, err := generateToolResult(
+			ctx, reviewer, duplicateFunctionName, "提交召回候选的同一事件判断",
+			[]*schema.Message{
+				schema.SystemMessage(duplicateJudgeProtocol), schema.UserMessage(string(payload)),
+			},
+			&output,
+			func(candidateOutput *duplicateJudgmentOutput) error {
+				cloned := append([]eventfact.Candidate(nil), candidates...)
+				return applyDuplicateJudgments(cloned, batch, *candidateOutput)
+			},
+		)
+		if err != nil {
+			return observations, attachPriorFunctionCalls(err, observations)
+		}
+		observations = append(observations, observation)
+		combined.Judgments = append(combined.Judgments, output.Judgments...)
+	}
+	if err := applyDuplicateJudgments(candidates, pairs, combined); err != nil {
+		return observations, err
+	}
+	return observations, nil
 }
 
 func applyCanonicalFacts(
@@ -998,6 +1028,7 @@ func generateToolResult[T any](
 	}
 	requestMessages := append([]*schema.Message(nil), messages...)
 	violation := "missing_tool_call"
+	correctionReason := "missing_tool_call"
 	for attempt := 0; attempt < 2; attempt++ {
 		observation.CallCount++
 		response, callErr := bound.Generate(
@@ -1016,44 +1047,79 @@ func generateToolResult[T any](
 		switch {
 		case response == nil || len(response.ToolCalls) == 0:
 			violation = "missing_tool_call"
+			correctionReason = violation
 		case len(response.ToolCalls) != 1:
 			violation = "multiple_tool_calls"
+			correctionReason = violation
 		case response.ToolCalls[0].Function.Name != functionName:
 			violation = "wrong_function"
+			correctionReason = violation
 		default:
 			arguments := response.ToolCalls[0].Function.Arguments
 			observation.ArgumentBytes = len(arguments)
 			if err := validateFunctionEnvelope(arguments, functionName); err != nil {
 				violation = "invalid_envelope"
+				correctionReason = "missing_or_invalid_" + functionResultField(functionName) + "_array"
 				break
 			}
 			var zero T
 			*target = zero
 			if err := decodeStrict(arguments, target); err != nil {
 				violation = argumentDecodeViolation(err)
+				correctionReason = violation
 				break
 			}
 			if err := validateFunctionResult(functionName, target); err != nil {
 				violation = "arguments_contract_invalid"
+				correctionReason = functionCorrectionReason(functionName, err)
 				break
 			}
 			if validate != nil {
 				if err := validate(target); err != nil {
 					violation = "arguments_contract_invalid"
+					correctionReason = functionCorrectionReason(functionName, err)
 					break
 				}
 			}
 			return observation, nil
 		}
-		requestMessages = append(requestMessages, schema.SystemMessage(
-			"上一次结果函数调用不符合冻结合同。只调用一次指定函数，并提交完整且类型正确的参数。",
-		))
+		requestMessages = append(requestMessages, schema.SystemMessage(fmt.Sprintf(
+			"上一次结果函数调用不符合冻结合同（%s）。只调用一次指定函数；修正该问题，并提交完整且类型正确的参数。不要省略输入对象的覆盖项。",
+			correctionReason,
+		)))
 	}
 	observation.Violation = violation
 	return observation, &ModelContractFailure{
 		Stage:        functionStage(functionName),
 		Violation:    violation,
 		Observations: []eventfact.FunctionCallObservation{observation},
+	}
+}
+
+func functionCorrectionReason(functionName string, err error) string {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "every Artifact"):
+		return "missing_artifact_coverage"
+	case strings.Contains(message, "unknown Artifact"):
+		return "unknown_artifact_reference"
+	case strings.Contains(message, "every recalled pair"):
+		return "missing_pair_coverage"
+	case strings.Contains(message, "unknown pair"):
+		return "unknown_pair_reference"
+	case strings.Contains(message, "every Candidate"):
+		if functionName == reviewFunctionName {
+			return "missing_review_coverage"
+		}
+		return "missing_candidate_coverage"
+	case strings.Contains(message, "outside the Catalog"):
+		return "unknown_tag_code"
+	case strings.Contains(message, "Tag assignments"):
+		return "invalid_tag_assignment"
+	case strings.Contains(message, "review reason"):
+		return "invalid_review_reason"
+	default:
+		return "invalid_result_item"
 	}
 }
 
@@ -1176,12 +1242,7 @@ func validateFunctionResult(functionName string, value any) error {
 }
 
 func validateFunctionEnvelope(arguments, functionName string) error {
-	requiredField := map[string]string{
-		extractionFunctionName:     "documents",
-		duplicateFunctionName:      "judgments",
-		classificationFunctionName: "assignments",
-		reviewFunctionName:         "reviews",
-	}[functionName]
+	requiredField := functionResultField(functionName)
 	if requiredField == "" {
 		return errors.New("unknown Event Fact Function")
 	}
@@ -1198,6 +1259,15 @@ func validateFunctionEnvelope(arguments, functionName string) error {
 		return errors.New("Event Fact Function result field must be an array")
 	}
 	return nil
+}
+
+func functionResultField(functionName string) string {
+	return map[string]string{
+		extractionFunctionName:     "documents",
+		duplicateFunctionName:      "judgments",
+		classificationFunctionName: "assignments",
+		reviewFunctionName:         "reviews",
+	}[functionName]
 }
 
 func normalizeStrings(values []string) []string {

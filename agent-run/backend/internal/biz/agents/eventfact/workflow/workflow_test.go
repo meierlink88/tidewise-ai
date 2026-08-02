@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -22,11 +24,13 @@ type scriptedToolModel struct {
 	responses []*schema.Message
 	errors    []error
 	calls     int
+	requests  [][]*schema.Message
 }
 
 func (m *scriptedToolModel) Generate(
-	context.Context, []*schema.Message, ...model.Option,
+	_ context.Context, messages []*schema.Message, _ ...model.Option,
 ) (*schema.Message, error) {
+	m.requests = append(m.requests, append([]*schema.Message(nil), messages...))
 	if m.calls >= len(m.responses) {
 		if m.calls < len(m.errors) {
 			err := m.errors[m.calls]
@@ -147,6 +151,78 @@ func TestForcedFunctionCallRepairsInputCoverageViolation(t *testing.T) {
 	}
 	if chatModel.calls != 2 || observation.CallCount != 2 || len(output.Documents) != 1 {
 		t.Fatalf("calls = %d, observation = %#v, output = %#v", chatModel.calls, observation, output)
+	}
+	if len(chatModel.requests) != 2 ||
+		!strings.Contains(chatModel.requests[1][len(chatModel.requests[1])-1].Content, "missing_artifact_coverage") {
+		t.Fatalf("correction did not identify missing Artifact coverage: %#v", chatModel.requests)
+	}
+}
+
+func TestForcedFunctionCallNamesTheMissingResultArray(t *testing.T) {
+	chatModel := &scriptedToolModel{responses: []*schema.Message{
+		functionResponse(reviewFunctionName, `{"items":[]}`),
+		functionResponse(reviewFunctionName, `{"reviews":[]}`),
+	}}
+	var output reviewOutput
+	if _, err := generateToolResult(
+		context.Background(), chatModel, reviewFunctionName, "test",
+		[]*schema.Message{schema.UserMessage("input")}, &output, nil,
+	); err != nil {
+		t.Fatal(err)
+	}
+	correction := chatModel.requests[1][len(chatModel.requests[1])-1].Content
+	if !strings.Contains(correction, "missing_or_invalid_reviews_array") {
+		t.Fatalf("review correction = %q", correction)
+	}
+}
+
+func TestDuplicateJudgmentChunksLargePairSets(t *testing.T) {
+	candidate := eventfact.Candidate{CandidateID: "candidate:1"}
+	pairs := make([]duplicatePair, 41)
+	responses := make([]*schema.Message, 0, 3)
+	for start := 0; start < len(pairs); start += maxDuplicatePairsPerCall {
+		end := start + maxDuplicatePairsPerCall
+		if end > len(pairs) {
+			end = len(pairs)
+		}
+		judgments := make([]duplicateJudgment, 0, end-start)
+		for index := start; index < end; index++ {
+			key := fmt.Sprintf("canonical:%02d", index)
+			pairs[index] = duplicatePair{
+				CandidateID: candidate.CandidateID,
+				Candidate:   candidate,
+				Canonical:   eventfact.CanonicalEvent{DedupeKey: key},
+			}
+			judgments = append(judgments, duplicateJudgment{
+				CandidateID: candidate.CandidateID, DedupeKey: key, SameEvent: false,
+			})
+		}
+		arguments, err := json.Marshal(duplicateJudgmentOutput{Judgments: judgments})
+		if err != nil {
+			t.Fatal(err)
+		}
+		responses = append(responses, functionResponse(duplicateFunctionName, string(arguments)))
+	}
+	chatModel := &scriptedToolModel{responses: responses}
+	observations, err := judgeDuplicatePairs(
+		context.Background(), chatModel, []eventfact.Candidate{candidate}, pairs,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chatModel.calls != 3 || len(observations) != 3 {
+		t.Fatalf("calls=%d observations=%#v", chatModel.calls, observations)
+	}
+	for _, request := range chatModel.requests {
+		var payload struct {
+			Pairs []duplicatePair `json:"pairs"`
+		}
+		if err := json.Unmarshal([]byte(request[1].Content), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if len(payload.Pairs) == 0 || len(payload.Pairs) > maxDuplicatePairsPerCall {
+			t.Fatalf("duplicate pair batch size = %d", len(payload.Pairs))
+		}
 	}
 }
 

@@ -26,7 +26,6 @@ const (
 const eventSemanticInputEligibilitySQL = `
 	e.event_status = 'confirmed'
 	AND e.fact_status = 'verified'
-	AND e.event_time IS NOT NULL
 	AND EXISTS (
 	    SELECT 1
 	    FROM event_sources evidence
@@ -328,10 +327,9 @@ func classifyEventSemanticLeaseEligibility(
 	eventID string,
 ) error {
 	var status, factStatus string
-	var hasEventTime, inputValid, activeLease bool
+	var inputValid, activeLease bool
 	err := tx.QueryRowContext(ctx, fmt.Sprintf(`
-		SELECT e.event_status, e.fact_status, e.event_time IS NOT NULL,
-		       (%s),
+		SELECT e.event_status, e.fact_status, (%s),
 		       EXISTS (
 		           SELECT 1
 		           FROM event_semantic_context_leases lease
@@ -340,7 +338,7 @@ func classifyEventSemanticLeaseEligibility(
 		FROM events e
 		WHERE e.id = $1
 	`, eventSemanticInputEligibilitySQL), eventID).Scan(
-		&status, &factStatus, &hasEventTime, &inputValid, &activeLease,
+		&status, &factStatus, &inputValid, &activeLease,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &eventsemantics.NotFoundError{Resource: "Event"}
@@ -348,7 +346,7 @@ func classifyEventSemanticLeaseEligibility(
 	if err != nil {
 		return err
 	}
-	if status != "confirmed" || factStatus != "verified" || !hasEventTime {
+	if status != "confirmed" || factStatus != "verified" {
 		return &eventsemantics.NotRequiredError{
 			Reason: "Event no longer requires initial Semantic processing",
 		}

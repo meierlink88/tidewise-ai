@@ -114,6 +114,8 @@ _Avoid_: Data Event Status、模型自行选择数据库状态
 
 **Event Publication Journal**:
 AgentRun 为一次待发布 Event Publication Batch 持久化的不可变请求正文、内容哈希和投递结果；未知调用结果只能重发同一正文，不重新运行 Event 提取。
+Data 单个 Batch 最多十个 Event，但一个 Artifact Unit 可以拥有多个稳定 Journal；只有该 Unit
+全部 Journal 获得 Data 回执后 Unit 才是 `published`，不得因候选超过十个截断或拒绝整个 Unit。
 _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草稿
 
 **Event Semantic Enricher**:
@@ -172,6 +174,8 @@ Event ID 幂等建立，重新分析必须明确携带被替代的 Data Submissi
 `skipped` 是一次性历史审计操作专用终态：它只表示历史 Event 的持久化输入不满足当前
 Event Semantic 合同。正常发现、无候选、模型失败和新数据合同异常都不得写入
 `skipped`；历史操作结束后，新 Work Item 仍只按正常状态机运行。
+正式 Event 的 `occurred_at` 可以为空；这不影响 Work Item 发现、领取或 Context 水合，且不得
+用发布、采集或首次发现时间替代未知发生时间。
 _Avoid_: Data Context Lease、Data Submission、临时内存任务、无限重试
 
 **Event Semantic Reanalysis Request**:

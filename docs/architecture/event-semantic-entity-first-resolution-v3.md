@@ -187,6 +187,10 @@ AgentRun 继续通过 Data eligible scan 发现待处理 Event，并在 AgentRun
 Work Item。generation、disposition、keyset pagination、retry 与 terminal isolation 继续使用现有
 所有权边界，本 Spec 不把任务队列迁移到 Data。
 
+`occurred_at` 不再是 eligible scan 或 Context Lease 的必要条件。已确认、已验证且 Evidence
+合同有效的 Event 即使事件发生时间无法从证据中可靠确定，也必须进入 Semantic；Context 中
+保持 `occurred_at = null`，不得用 `published_at`、`collected_at` 或 `first_seen_at` 代填。
+
 ### 6.2 Create Context Lease and hydrate Context
 
 Context Lease 继续固定：

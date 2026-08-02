@@ -38,6 +38,13 @@ Function Call 路径不同时要求 `json_object` response format。
 argument byte count 和安全 violation 分类；Provider/Model 来自既有不可变 Execution snapshot。
 这些元数据可以按批次审计，但不保存 Prompt、Artifact 正文或原始 Function arguments。失败
 会携带此前已经完成阶段的 observations，因此修正耗尽时的累计模型调用数不会被重建为空。
+一次修正指令必须包含安全、稳定且可执行的错误类别，例如缺少 Artifact/Candidate/Pair/Review
+覆盖、未知 Tag 或无效 item；不得只重复“格式错误”，也不得回显原始 arguments、Provider
+响应或业务正文。
+非精确去重阶段按最多二十个 recalled pair 分批调用同一个
+`submit_duplicate_judgments` Function，并在程序内合并后对完整 pair 集合执行一次确定性
+覆盖与歧义校验。分批只控制模型输入/输出上限，不改变召回范围、same-event 判断合同或
+模型调用所有权；单批仍只允许一次修正。
 
 ## 语义与程序校验边界
 
@@ -49,6 +56,14 @@ Artifact 语义确定，但不能把 `published_at` 或 `collected_at` 冒充事
 子串匹配裁决模型语义。非精确重复召回只保留结构化时间、生命周期、reference period
 等边界，最终 same-event 由模型判断。程序继续校验 DTO、必填字段、枚举、禁止字段、
 Artifact membership、正式 Tag、哈希、身份、状态、权限、Journal 和发布事务。
+
+## Artifact Unit 多批发布
+
+Data 的单次 Event Publication Batch 继续限制为一至十个 Event。一个 Artifact Unit 若产生
+超过十个已审核 Candidate，AgentRun 必须按稳定顺序生成多个不可变 Publication Journal，
+不得截断或把合法结果整体拒绝。Journal 仍以 `(work_item_key, batch_ordinal)` 作为投递身份；
+同一 Unit 的所有 Journal 均 acknowledged 后 Unit 才进入 `published`，任一 Journal blocked
+则 Unit blocked，中间状态保持 `publishing` 或 `ready_to_publish`。
 
 ## Version 与 rollout
 

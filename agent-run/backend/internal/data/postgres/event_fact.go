@@ -549,17 +549,35 @@ func (s *Store) CompleteExtraction(
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	var lockedWorkItemKey string
+	if err := tx.QueryRow(ctx, `
+		SELECT work_item_key
+		FROM event_extraction_work_items
+		WHERE work_item_key = $1
+		FOR UPDATE
+	`, attempt.WorkItem.Key).Scan(&lockedWorkItemKey); err != nil {
+		return fmt.Errorf("allocate Event publication journal ordinals: %w", err)
+	}
+	var nextBatchOrdinal int
+	if err := tx.QueryRow(ctx, `
+		SELECT COALESCE(max(batch_ordinal), 0)
+		FROM event_publication_journal
+		WHERE work_item_key = $1
+	`, lockedWorkItemKey).Scan(&nextBatchOrdinal); err != nil {
+		return fmt.Errorf("read Event publication journal ordinal: %w", err)
+	}
 	if err := completeEventExtractorExecution(ctx, tx, attempt, result, "succeeded", "ready_to_publish", now); err != nil {
 		return err
 	}
-	for _, entry := range journals {
+	for index, entry := range journals {
+		batchOrdinal := nextBatchOrdinal + index + 1
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO event_publication_journal (
 				work_item_key, unit_key, batch_ordinal, package_id, payload_bytes, payload_sha256,
 				status, created_at, updated_at
 			) VALUES ($1, $2, $3, $4, $5, $6, 'prepared', $7, $7)
 			ON CONFLICT (work_item_key, batch_ordinal) DO NOTHING
-		`, attempt.WorkItem.Key, attempt.Unit.Key, entry.BatchOrdinal, entry.PackageID, entry.Payload,
+		`, attempt.WorkItem.Key, attempt.Unit.Key, batchOrdinal, entry.PackageID, entry.Payload,
 			entry.PayloadHash, now.UTC()); err != nil {
 			return fmt.Errorf("persist Event publication journal: %w", err)
 		}
@@ -892,29 +910,11 @@ func (s *Store) updateJournalFailure(
 	if command.RowsAffected() == 0 {
 		return tx.Commit(ctx)
 	}
-	workStatus := eventfact.WorkReadyToPublish
-	if status == "blocked" {
-		workStatus = eventfact.WorkBlocked
+	if err := refreshEventArtifactUnitPublicationStatus(ctx, tx, entry.UnitKey, now); err != nil {
+		return err
 	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE event_artifact_extraction_units
-		SET status = $2, error_code = $3, error_summary = $4, updated_at = $5
-		WHERE unit_key = $1
-	`, entry.UnitKey, workStatus, code, summary, now.UTC()); err != nil {
-		return fmt.Errorf("record Event Artifact Unit publication failure: %w", err)
-	}
-	if status == "blocked" {
-		if err := refreshEventExtractionWorkStatus(ctx, tx, entry.WorkItemKey, now); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
-	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE event_extraction_work_items
-		SET status = $2, error_code = $3, error_summary = $4, updated_at = $5
-		WHERE work_item_key = $1
-	`, entry.WorkItemKey, workStatus, code, summary, now.UTC()); err != nil {
-		return fmt.Errorf("record Event publication Work failure: %w", err)
+	if err := refreshEventExtractionWorkStatus(ctx, tx, entry.WorkItemKey, now); err != nil {
+		return err
 	}
 	return tx.Commit(ctx)
 }
@@ -955,15 +955,70 @@ func (s *Store) AcknowledgeJournal(
 			return fmt.Errorf("record canonical Event fact: %w", err)
 		}
 	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE event_artifact_extraction_units
-		SET status = 'published', error_code = NULL, error_summary = NULL, updated_at = $2
-		WHERE unit_key = $1
-	`, entry.UnitKey, now.UTC()); err != nil {
-		return fmt.Errorf("complete Event Artifact Unit publication: %w", err)
+	if err := refreshEventArtifactUnitPublicationStatus(ctx, tx, entry.UnitKey, now); err != nil {
+		return err
 	}
 	if err := refreshEventExtractionWorkStatus(ctx, tx, entry.WorkItemKey, now); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+func refreshEventArtifactUnitPublicationStatus(
+	ctx context.Context,
+	tx pgx.Tx,
+	unitKey string,
+	now time.Time,
+) error {
+	var total, acknowledged, blocked, active int
+	var errorCode, errorSummary string
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*),
+		       count(*) FILTER (WHERE status = 'acknowledged'),
+		       count(*) FILTER (WHERE status = 'blocked'),
+		       count(*) FILTER (WHERE status = 'sending'),
+		       COALESCE((
+		           SELECT error_code
+		           FROM event_publication_journal failed
+		           WHERE failed.unit_key = $1
+		             AND failed.status IN ('blocked', 'retry_wait')
+		           ORDER BY failed.updated_at DESC, failed.batch_ordinal
+		           LIMIT 1
+		       ), ''),
+		       COALESCE((
+		           SELECT error_summary
+		           FROM event_publication_journal failed
+		           WHERE failed.unit_key = $1
+		             AND failed.status IN ('blocked', 'retry_wait')
+		           ORDER BY failed.updated_at DESC, failed.batch_ordinal
+		           LIMIT 1
+		       ), '')
+		FROM event_publication_journal
+		WHERE unit_key = $1
+	`, unitKey).Scan(
+		&total, &acknowledged, &blocked, &active, &errorCode, &errorSummary,
+	); err != nil {
+		return fmt.Errorf("summarize Event Artifact Unit journals: %w", err)
+	}
+	status := eventfact.WorkReadyToPublish
+	switch {
+	case total > 0 && acknowledged == total:
+		status = eventfact.WorkPublished
+	case blocked > 0:
+		status = eventfact.WorkBlocked
+	case active > 0 || acknowledged > 0:
+		status = eventfact.WorkPublishing
+	}
+	if status == eventfact.WorkPublished {
+		errorCode, errorSummary = "", ""
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE event_artifact_extraction_units
+		SET status = $2, error_code = NULLIF($3, ''), error_summary = NULLIF($4, ''),
+		    updated_at = $5
+		WHERE unit_key = $1
+	`, unitKey, status, errorCode, errorSummary, now.UTC()); err != nil {
+		return fmt.Errorf("refresh Event Artifact Unit publication status: %w", err)
+	}
+	return nil
 }

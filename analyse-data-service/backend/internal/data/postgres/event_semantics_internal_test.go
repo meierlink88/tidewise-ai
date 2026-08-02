@@ -3,12 +3,19 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 )
+
+func TestEventSemanticEligibilityAllowsUnknownOccurredAt(t *testing.T) {
+	if strings.Contains(strings.ToLower(eventSemanticInputEligibilitySQL), "event_time is not null") {
+		t.Fatal("Event Semantic eligibility still excludes Events with unknown occurred_at")
+	}
+}
 
 func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 	db, mock, err := sqlmock.New()

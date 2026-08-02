@@ -112,6 +112,52 @@ Event Fact must produce a semantically justified time or a later change must exp
 Events into Event Semantic. This issue does not invent a fallback time or copy publication time into the
 event-time field.
 
+## Follow-up repair and 30-minute live watch
+
+The product decision was subsequently frozen in Issue #168: a confirmed, verified Event with valid
+Evidence remains eligible when `occurred_at` is unknown. Data migration `000039` removes the time
+predicate from the eligible partial index and the repository contract; Context continues to carry null
+and does not substitute publication, collection or first-seen time.
+
+The local services were rebuilt and observed from 22:08 through 22:40 CST with the five-minute Collector
+schedule active. Results before the final no-work restart were:
+
+| Stage | Result |
+| --- | --- |
+| Collector | 5 succeeded / 0 failed; latency p50 11,328 ms, p95 13,813 ms |
+| Event Fact | 30 succeeded; latency p50 12,156 ms, p95 38,227 ms |
+| Artifact Units | 20 published / 10 no-event / 5 rejected |
+| Publication | 21 acknowledged Journals, max attempt 1 |
+| Multi-Journal proof | one 11-Candidate Unit produced two acknowledged Journals (10 + 1) and reached `published` |
+| Event Semantic | 213 succeeded / 0 failed; latency p50 3,282 ms, p95 7,557 ms |
+| Semantic submissions | 213 total: 76 accepted / 137 rejected; 181 had `occurred_at = null` |
+| Resource snapshot | Data 14.8 MiB, AgentRun 8.1 MiB, Qdrant 601 MiB; service CPU below 1%, PostgreSQL transiently 5.8% |
+
+The watch exposed four pre-fix duplicate-judgment failures. All had `finish_reason=length` and roughly
+18 KiB truncated Function arguments: the problem was an unbounded recalled-pair result, not random JSON
+parsing. Duplicate judgments are now split into deterministic batches of at most 20 pairs, merged, and
+then validated once against the full pair set. After deploying that change, nine queued Event Fact Units
+completed and the duplicate failure count did not increase. One independent Review call still returned
+the wrong top-level envelope after its bounded retry; its correction instruction now names the exact
+required `reviews` array instead of a generic result-array error.
+
+One execution was intentionally recovered as `extractor_interrupted` during the controlled AgentRun
+image switch; its Unit was requeued by the existing 15-minute watchdog path and subsequently completed.
+This is deployment evidence, not a model or business failure. Five old synthetic/fixed-sample Event IDs
+remain visible to Data eligible scan because their July AgentRun Work Items are already terminal failures;
+no new production Event is blocked. A separate historical-failure replay policy remains out of scope.
+
+The Collector schedule was restored to enabled `*/5 * * * *` after the queue drained.
+
+A final post-deployment batch started at 22:45. Collector succeeded in 12.7 seconds. Its 18 Event Fact
+Units ended as 14 published, three no-event and one safely rejected; 17 Agent Executions succeeded and
+one Review Function exhausted its single bounded envelope correction. Duplicate-judgment truncation was
+zero. The 14 published Units produced 15 acknowledged Journals, including one two-Journal Unit, proving
+the multi-batch state transition again under live load. The remaining Review failure had
+`finish_reason=tool_calls`, not `length`; strict fail-closed behavior prevented malformed model output
+from reaching Data. This residual stochastic model-contract failure is not a throughput or publication
+blocker and does not justify unbounded retries or a relaxed envelope.
+
 ## Verification
 
 - AgentRun, Data and Admin Backend `go test ./...`: pass.
@@ -119,5 +165,5 @@ event-time field.
 - Repository architecture/contract suite: pass.
 - Admin Portal TypeScript typecheck: pass.
 - Event Fact real-provider smoke exercised all four forced Function Call stages: pass.
-- Data migration chain through `000038` and AgentRun migration `013`: pass against local PostgreSQL.
+- Data migration chain through `000039` and AgentRun migration `014`: pass against local PostgreSQL.
 - `git diff --check`: pass.

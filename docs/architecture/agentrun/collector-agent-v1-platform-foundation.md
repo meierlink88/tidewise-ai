@@ -152,6 +152,7 @@ remains authoritative; only its engineering ownership was migrated.
 - V1 does not use AgenticModel or tool calling. The LLM never chooses, skips, or directly calls a Connector.
 - DeepSeek receives the exact Collection Prompt and request timestamp. Its only task is semantic query planning.
 - The strict Planner output is one JSON object containing non-empty `queries`, non-empty `combined_query`, and optional integer `time_window_hours`. Unknown fields, trailing JSON/content, wrong types, blank values, or malformed JSON are rejected.
+- 严格 Planner 输出第一次违反 Schema 时，使用同一模型和原始采集意图执行一次有边界的格式修正；修正仍非法才以稳定 `planning response is invalid` 终止。Provider、鉴权、取消或 deadline 错误不进入该修正，原始模型正文不写入错误、日志或 Execution。
 - The Planner may return at most 12 stable, trimmed, exact-deduplicated queries; each query and `combined_query` is at most 256 Unicode code points.
 - When the Prompt explicitly expresses a time window, DeepSeek may return `time_window_hours`. The program accepts only 1 through 8760 hours. If it is absent, the program uses 48 hours.
 - The program computes the cutoff from the AgentRun request timestamp in UTC. It does not maintain a natural-language time parser.
