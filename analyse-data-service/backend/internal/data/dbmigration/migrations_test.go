@@ -155,7 +155,7 @@ func TestPostgresAppliesTheCompleteForwardMigrationChain(t *testing.T) {
 	}
 	for _, index := range []string{
 		"ux_raw_documents_artifact_id",
-		"ux_event_sources_v2_primary",
+		"ux_event_sources_v3_event_document",
 	} {
 		var relation string
 		if err := db.QueryRow(`SELECT COALESCE(to_regclass($1)::text, '')`, index).Scan(&relation); err != nil {
@@ -164,6 +164,15 @@ func TestPostgresAppliesTheCompleteForwardMigrationChain(t *testing.T) {
 		if relation == "" {
 			t.Fatalf("critical index %q is missing after the forward chain", index)
 		}
+	}
+	var removedPrimaryIndex string
+	if err := db.QueryRow(
+		`SELECT COALESCE(to_regclass('ux_event_sources_v2_primary')::text, '')`,
+	).Scan(&removedPrimaryIndex); err != nil {
+		t.Fatal(err)
+	}
+	if removedPrimaryIndex != "" {
+		t.Fatal("V2 primary Event Evidence index still exists after the V3 forward chain")
 	}
 	if _, err := db.Exec(`
 		UPDATE entity_type_definitions

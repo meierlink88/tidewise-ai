@@ -46,7 +46,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 12 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 13 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -64,8 +64,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "012" ||
-		len(report.Applied) != 12 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "013" ||
+		len(report.Applied) != 13 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
