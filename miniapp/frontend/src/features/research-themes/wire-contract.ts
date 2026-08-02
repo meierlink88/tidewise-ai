@@ -1,5 +1,7 @@
 import type {
   HomeResearchThemeItem,
+  ResearchThemeDetail,
+  ResearchThemeEvent,
   ResearchAttentionLevel,
   ResearchConclusionStatus,
   ResearchDirection,
@@ -81,7 +83,6 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
     windowEnd: timestamp(theme.window_end),
     publishedAt,
     updateLabel: asOf ? formatResearchUpdateLabel(publishedAt, asOf) : '',
-    categories: categoriesForTheme(title),
     impacts: array(theme.impacts).map((item, index) => {
       const impact = record(item);
       onlyKeys(impact, [
@@ -105,6 +106,67 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
     }),
     evidenceEventCount: nonNegativeInteger(theme.evidence_event_count),
     reasoningTreeCount: nonNegativeInteger(theme.reasoning_tree_count)
+  };
+}
+
+export function parseResearchThemeDetailWire(
+  value: unknown,
+  requestedThemeId: string
+): ResearchThemeDetail {
+  const root = record(value);
+  onlyKeys(root, [
+    'id',
+    'analysis_batch_id',
+    'title',
+    'one_line_conclusion',
+    'conclusion_direction',
+    'impact_strength',
+    'attention_level',
+    'conclusion_status',
+    'transmission_stage',
+    'investment_guidance_action',
+    'investment_guidance_summary',
+    'time_horizon_category',
+    'time_horizon_summary',
+    'transmission_summary',
+    'checkpoint_summary',
+    'risk_summary',
+    'analysis_as_of',
+    'window_start',
+    'window_end',
+    'published_at',
+    'impacts',
+    'evidence_event_count',
+    'reasoning_tree_count',
+    'events'
+  ]);
+  const { events: eventValues, ...themeValues } = root;
+  const theme = parseResearchThemeWire(themeValues);
+  if (theme.id !== requestedThemeId) invalid();
+  const events = array(eventValues).map((item, index) => parseResearchThemeEvent(item, index));
+  if (theme.evidenceEventCount !== events.length) invalid();
+  return { id: theme.id, title: theme.title, events };
+}
+
+function parseResearchThemeEvent(value: unknown, index: number): ResearchThemeEvent {
+  const event = record(value);
+  onlyKeys(event, [
+    'event_id',
+    'title',
+    'summary',
+    'event_time',
+    'evidence_role',
+    'supported_claim',
+    'display_order'
+  ]);
+  if (positiveInteger(event.display_order) !== index + 1) invalid();
+  text(event.evidence_role);
+  nullableText(event.supported_claim);
+  return {
+    eventId: uuid(event.event_id),
+    title: text(event.title),
+    summary: text(event.summary),
+    eventTime: event.event_time === null ? null : timestamp(event.event_time)
   };
 }
 
@@ -159,12 +221,6 @@ function enumValue<T extends string>(value: unknown, allowed: readonly T[]): T {
 }
 function nullableEnum<T extends string>(value: unknown, allowed: readonly T[]): T | null {
   return value === null ? null : enumValue(value, allowed);
-}
-function categoriesForTheme(title: string): string[] {
-  if (title.includes('中东') || title.includes('冲突')) return ['地缘政治'];
-  if (title.includes('AI') || title.includes('光模块') || title.includes('半导体'))
-    return ['算力基建'];
-  return ['货币政策'];
 }
 function invalid(): never {
   throw new Error('invalid Research Theme wire contract');

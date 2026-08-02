@@ -27,10 +27,12 @@ describe('ResearchThemeCard', () => {
     vi.mocked(Taro.showToast).mockResolvedValue({ errMsg: 'showToast:ok' });
   });
 
-  it('renders the approved investment-outlook content and binds only the detail button', () => {
-    const card = ResearchThemeCard({ theme });
+  it('renders the approved investment-outlook content and binds event and detail actions', () => {
+    const onOpenEvents = vi.fn();
+    const card = ResearchThemeCard({ theme, onOpenEvents });
     const root = card as TestElement;
     const detailButton = findByClass(card, 'theme-card__detail-button');
+    const eventButton = findByClass(card, 'theme-card__event-button');
     const industryLabel = findByClass(card, 'theme-card__industry-label');
     const nodes = findAllByClass(card, 'theme-card__node');
 
@@ -46,7 +48,12 @@ describe('ResearchThemeCard', () => {
     expect(textContent(card)).toContain('2 条政经事件');
     expect(textContent(card)).toContain('2 条产业链路径');
     expect(textContent(detailButton)).toBe('推导详情');
-    expect(flattenElements(card).filter((element) => element.props.onClick)).toHaveLength(1);
+    expect(flattenElements(card).filter((element) => element.props.onClick)).toHaveLength(2);
+
+    const eventTap = tapEvent();
+    eventButton.props.onClick?.(eventTap);
+    expect(eventTap.stopPropagation).toHaveBeenCalledOnce();
+    expect(onOpenEvents).toHaveBeenCalledWith(theme.id);
 
     const event = tapEvent();
     detailButton.props.onClick?.(event);
@@ -56,6 +63,18 @@ describe('ResearchThemeCard', () => {
     expect(Taro.navigateTo).toHaveBeenCalledWith({
       url: `/pages/research-theme/reasoning-trees/index?theme_id=${theme.id}`
     });
+  });
+
+  it('does not make a zero event count interactive', () => {
+    const onOpenEvents = vi.fn();
+    const card = ResearchThemeCard({
+      theme: { ...theme, evidenceEventCount: 0 },
+      onOpenEvents
+    });
+
+    expect(findAllByClass(card, 'theme-card__event-button')).toEqual([]);
+    expect(textContent(card)).toContain('0 条政经事件');
+    expect(onOpenEvents).not.toHaveBeenCalled();
   });
 
   it('shows all five nodes in display order and maps all outlook directions', () => {
@@ -84,7 +103,7 @@ describe('ResearchThemeCard', () => {
       }
     ];
 
-    const card = ResearchThemeCard({ theme: { ...theme, impacts } });
+    const card = ResearchThemeCard({ theme: { ...theme, impacts }, onOpenEvents: vi.fn() });
     const nodes = findAllByClass(card, 'theme-card__node');
 
     expect(nodes).toHaveLength(5);
@@ -101,7 +120,7 @@ describe('ResearchThemeCard', () => {
   });
 
   it('does not display Theme Impact summaries as a focus-node variable status', () => {
-    const card = ResearchThemeCard({ theme });
+    const card = ResearchThemeCard({ theme, onOpenEvents: vi.fn() });
     expect(textContent(findByClass(card, 'theme-card__node'))).toBe('交换机机会');
     expect(textContent(card)).not.toContain('端口计划：增加 80%');
     expect(textContent(card)).not.toContain('端口计划增加可能提高交换机需求。');
@@ -110,7 +129,10 @@ describe('ResearchThemeCard', () => {
 
   it('shows a stable message when Taro rejects navigation', async () => {
     vi.mocked(Taro.navigateTo).mockRejectedValueOnce(new Error('hidden platform error'));
-    const detailButton = findByClass(ResearchThemeCard({ theme }), 'theme-card__detail-button');
+    const detailButton = findByClass(
+      ResearchThemeCard({ theme, onOpenEvents: vi.fn() }),
+      'theme-card__detail-button'
+    );
 
     detailButton.props.onClick?.(tapEvent());
 
@@ -125,7 +147,10 @@ describe('ResearchThemeCard', () => {
 
   it('opens the page when no Reason Tree receipt exists so the page can show its empty state', () => {
     const detailButton = findByClass(
-      ResearchThemeCard({ theme: { ...theme, reasoningTreeCount: 0 } }),
+      ResearchThemeCard({
+        theme: { ...theme, reasoningTreeCount: 0 },
+        onOpenEvents: vi.fn()
+      }),
       'theme-card__detail-button'
     );
 
