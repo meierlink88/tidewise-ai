@@ -352,9 +352,6 @@ func event(value biz.Event) v1.Event {
 	if value.KnowableAt != nil {
 		response.KnowableAt = value.KnowableAt.Format(time.RFC3339)
 	}
-	if value.PrimarySourceID != nil {
-		response.PrimarySourceID = *value.PrimarySourceID
-	}
 	return response
 }
 

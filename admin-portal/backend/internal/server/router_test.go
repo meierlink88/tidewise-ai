@@ -158,7 +158,6 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	eventTime := testTime()
 	firstSeenAt := eventTime.Add(30 * time.Minute)
 	knowableAt := firstSeenAt.Add(time.Minute)
-	primarySourceID := "source-1"
 	calls := 0
 	var gotQuery biz.EventListQuery
 	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(ctx context.Context, query biz.EventListQuery) (biz.EventPage, error) {
@@ -170,7 +169,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 		return biz.EventPage{Items: []biz.Event{{
 			ID: "event-1", Title: "美联储维持利率不变", Summary: "摘要", EventTime: &eventTime,
 			FirstSeenAt: firstSeenAt, KnowableAt: &knowableAt, EventStatus: biz.EventStatusConfirmed,
-			FactStatus: biz.FactStatusVerified, DedupeKey: "fed-rate-hold", PrimarySourceID: &primarySourceID,
+			FactStatus: biz.FactStatusVerified, DedupeKey: "fed-rate-hold",
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
 	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
@@ -194,7 +193,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	if envelope.RequestID != "admin-request-event" || response.Header().Get(data.RequestIDHeader) != envelope.RequestID {
 		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(data.RequestIDHeader))
 	}
-	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].ID != "event-1" || body.Items[0].PrimarySourceID != primarySourceID || body.Items[0].KnowableAt != knowableAt.Format(time.RFC3339) {
+	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].ID != "event-1" || body.Items[0].KnowableAt != knowableAt.Format(time.RFC3339) {
 		t.Fatalf("response = %#v", body)
 	}
 }

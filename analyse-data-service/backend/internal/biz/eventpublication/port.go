@@ -20,7 +20,6 @@ type Transaction interface {
 	AdvancePublicationEventObservationTimes(context.Context, string, time.Time, time.Time) error
 	PublicationEventSource(context.Context, string, string) (*PublicationEventSource, error)
 	InsertPublicationEventSource(context.Context, PublicationEventSource) error
-	SetPublicationEventPrimarySource(context.Context, string, string) error
 	PublicationTag(context.Context, string) (*model.EventTagDef, error)
 	PublicationEventTag(context.Context, string, string) (*PublicationEventTag, error)
 	InsertPublicationEventTag(context.Context, PublicationEventTag) error
@@ -41,14 +40,12 @@ type PublicationEvent struct {
 	FirstSeenAt, KnowableAt              time.Time
 	EventStatus                          model.EventStatus
 	FactStatus                           model.FactStatus
-	PrimarySourceID                      string
 }
 
 type PublicationEventSource struct {
-	ID, EventID, RawDocumentID, SourceLevel, EvidenceExcerpt, EvidenceHash string
-	EvidenceRelation                                                       model.EvidenceRelation
-	SupportsFields                                                         []string
-	IsPrimary                                                              bool
+	ID, EventID, RawDocumentID, SourceLevel, EvidenceStatement, EvidenceHash string
+	EvidenceRelation                                                         model.EvidenceRelation
+	SupportsFields                                                           []string
 }
 
 type PublicationEventTag struct {

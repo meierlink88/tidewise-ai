@@ -152,14 +152,22 @@ func (a *Application) Tick(ctx context.Context) error {
 
 func (a *Application) tick(ctx context.Context) error {
 	now := a.now().UTC()
-	if err := a.discoverInitialWork(ctx, now); err != nil {
-		return err
-	}
 	attempt, found, err := a.repository.StartNextExecution(
 		ctx, a.workerID, semanticworkflow.WorkflowHash(), now,
 	)
-	if err != nil || !found {
+	if err != nil {
 		return err
+	}
+	if !found {
+		if err := a.discoverInitialWork(ctx, now); err != nil {
+			return err
+		}
+		attempt, found, err = a.repository.StartNextExecution(
+			ctx, a.workerID, semanticworkflow.WorkflowHash(), now,
+		)
+		if err != nil || !found {
+			return err
+		}
 	}
 	startedAt := a.now().UTC()
 	a.logger.Info(a.lifecycleEvent(
@@ -185,6 +193,7 @@ func (a *Application) tick(ctx context.Context) error {
 					code, "execution",
 				))
 			}
+			a.Notify()
 		}
 		return errors.Join(failure, completionErr)
 	}
@@ -363,6 +372,7 @@ func (a *Application) completeSuccess(
 			"agent_execution_completed", attempt, startedAt, status, outcome, "", "",
 			counts,
 		))
+		a.Notify()
 	}
 	return err
 }

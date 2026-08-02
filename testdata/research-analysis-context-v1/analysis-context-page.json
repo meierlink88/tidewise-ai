@@ -26,11 +26,10 @@
           {
             "evidence_id": "10000000-0000-4000-8000-000000000002",
             "evidence_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-            "excerpt": "八英寸晶圆产量同比下降10%。",
+            "evidence_statement": "八英寸晶圆产量同比下降10%。",
             "source_level": "primary",
             "relation": "supports",
             "supports_fields": ["summary", "fact_payload"],
-            "is_primary": true,
             "raw_document_id": "10000000-0000-4000-8000-000000000003",
             "source_name": "Fixture Disclosure",
             "source_type": "company_disclosure",

@@ -58,12 +58,11 @@ type event struct {
 }
 
 type evidence struct {
-	ArtifactID       string   `json:"artifact_id"`
-	EvidenceRelation string   `json:"evidence_relation"`
-	EvidenceExcerpt  string   `json:"evidence_excerpt"`
-	SupportsFields   []string `json:"supports_fields"`
-	SourceLevel      string   `json:"source_level"`
-	IsPrimary        bool     `json:"is_primary"`
+	ArtifactID        string   `json:"artifact_id"`
+	EvidenceRelation  string   `json:"evidence_relation"`
+	EvidenceStatement string   `json:"evidence_statement"`
+	SupportsFields    []string `json:"supports_fields"`
+	SourceLevel       string   `json:"source_level"`
 }
 
 type tag struct {
@@ -149,8 +148,8 @@ func Build(
 				FactPayload: candidate.FactPayload,
 				Evidence: []evidence{{
 					ArtifactID: candidate.ArtifactID, EvidenceRelation: "supports",
-					EvidenceExcerpt: candidate.EvidenceExcerpt, SupportsFields: candidate.SupportsFields,
-					SourceLevel: candidate.SourceLevel, IsPrimary: true,
+					EvidenceStatement: candidate.EvidenceStatement, SupportsFields: candidate.SupportsFields,
+					SourceLevel: candidate.SourceLevel,
 				}},
 				Review: review{
 					ReviewID:      "event-fact-review:" + candidate.IdentityHash,

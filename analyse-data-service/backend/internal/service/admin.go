@@ -103,15 +103,9 @@ func rawDocumentDTO(document model.RawDocument) v1.AdminRawDocument {
 }
 
 func eventDTO(event model.Event) v1.AdminEvent {
-	var primary *string
-	if event.PrimarySourceID != "" {
-		value := event.PrimarySourceID
-		primary = &value
-	}
 	return v1.AdminEvent{
 		ID: event.ID, Title: event.Title, Summary: event.Summary, EventTime: formatOptionalTime(event.EventTime),
 		FirstSeenAt: event.FirstSeenAt.UTC().Format(time.RFC3339Nano), KnowableAt: formatOptionalTime(event.KnowableAt),
 		EventStatus: string(event.EventStatus), FactStatus: string(event.FactStatus), DedupeKey: event.DedupeKey,
-		PrimarySourceID: primary,
 	}
 }

@@ -85,15 +85,14 @@ func (t *postgresEventPublicationTx) PublicationEvent(ctx context.Context, dedup
 	var record PublicationEvent
 	var factPayload []byte
 	var knowableAt *time.Time
-	var primarySourceID *string
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, dedupe_key, title, summary, event_time, fact_payload, first_seen_at, knowable_at,
-       event_status, fact_status, primary_source_id
+	   event_status, fact_status
 FROM events
 WHERE dedupe_key = $1`, dedupeKey).Scan(
 		&record.ID, &record.DedupeKey, &record.Title, &record.FactualSummary,
 		&record.OccurredAt, &factPayload, &record.FirstSeenAt, &knowableAt,
-		&record.EventStatus, &record.FactStatus, &primarySourceID,
+		&record.EventStatus, &record.FactStatus,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -108,9 +107,6 @@ WHERE dedupe_key = $1`, dedupeKey).Scan(
 	}
 	if knowableAt != nil {
 		record.KnowableAt = *knowableAt
-	}
-	if primarySourceID != nil {
-		record.PrimarySourceID = *primarySourceID
 	}
 	return &record, nil
 }
@@ -152,15 +148,15 @@ func (t *postgresEventPublicationTx) PublicationEventSource(ctx context.Context,
 	var record PublicationEventSource
 	var supportsFieldsJSON []byte
 	err := t.tx.QueryRowContext(ctx, `
-SELECT id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
-       evidence_relation, array_to_json(supports_fields), is_primary
+SELECT id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
+	   evidence_relation, array_to_json(supports_fields)
 FROM event_sources
-WHERE contract_version = 2 AND event_id = $1 AND raw_document_id = $2`,
+WHERE contract_version = 3 AND event_id = $1 AND raw_document_id = $2`,
 		eventID, rawDocumentID,
 	).Scan(
 		&record.ID, &record.EventID, &record.RawDocumentID, &record.SourceLevel,
-		&record.EvidenceExcerpt, &record.EvidenceHash, &record.EvidenceRelation,
-		&supportsFieldsJSON, &record.IsPrimary,
+		&record.EvidenceStatement, &record.EvidenceHash, &record.EvidenceRelation,
+		&supportsFieldsJSON,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -177,33 +173,15 @@ WHERE contract_version = 2 AND event_id = $1 AND raw_document_id = $2`,
 func (t *postgresEventPublicationTx) InsertPublicationEventSource(ctx context.Context, record PublicationEventSource) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO event_sources (
-    id, contract_version, event_id, raw_document_id, source_level, evidence_excerpt,
-    evidence_hash, evidence_relation, supports_fields, is_primary
-) VALUES ($1,2,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    id, contract_version, event_id, raw_document_id, source_level, evidence_statement,
+	 evidence_hash, evidence_relation, supports_fields
+) VALUES ($1,3,$2,$3,$4,$5,$6,$7,$8)`,
 		record.ID, record.EventID, record.RawDocumentID, record.SourceLevel,
-		record.EvidenceExcerpt, record.EvidenceHash, record.EvidenceRelation,
-		record.SupportsFields, record.IsPrimary,
+		record.EvidenceStatement, record.EvidenceHash, record.EvidenceRelation,
+		record.SupportsFields,
 	)
 	if err != nil {
 		return fmt.Errorf("insert publication Event Source %q/%q: %w", record.EventID, record.RawDocumentID, err)
-	}
-	return nil
-}
-
-func (t *postgresEventPublicationTx) SetPublicationEventPrimarySource(ctx context.Context, eventID, sourceID string) error {
-	result, err := t.tx.ExecContext(ctx, `
-UPDATE events
-SET primary_source_id = $2, updated_at = now()
-WHERE id = $1 AND (primary_source_id IS NULL OR primary_source_id = $2)`, eventID, sourceID)
-	if err != nil {
-		return fmt.Errorf("set publication Event primary source: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("read publication Event primary source result: %w", err)
-	}
-	if rows != 1 {
-		return fmt.Errorf("publication Event %q already has another primary source", eventID)
 	}
 	return nil
 }

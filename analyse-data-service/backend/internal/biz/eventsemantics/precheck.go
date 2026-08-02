@@ -90,7 +90,7 @@ func validateLink(context Context, candidate EntityLinkCandidate, evidence map[s
 		return "entity_resolution_method_invalid"
 	}
 	if !mentionGrounded(context, candidate) {
-		return "entity_mention_not_in_evidence"
+		return "entity_evidence_lineage_invalid"
 	}
 	if !validConfidence(candidate.ResolutionConfidence) {
 		return "confidence_invalid"
@@ -167,32 +167,16 @@ func activeEntityType(items []EntityTypeDefinition, typeKey string) (EntityTypeD
 }
 
 func mentionGrounded(context Context, candidate EntityLinkCandidate) bool {
-	mention := strings.ToLower(strings.TrimSpace(candidate.Mention))
-	if mention == "" || len(candidate.EvidenceIDs) == 0 {
+	if strings.TrimSpace(candidate.Mention) == "" || len(candidate.EvidenceIDs) == 0 {
 		return false
 	}
-	eventContainsMention := strings.Contains(strings.ToLower(context.Event.Title), mention) ||
-		strings.Contains(strings.ToLower(context.Event.Summary), mention)
 	evidenceByID := indexEvidence(context.Evidence)
-	mentionedInEvidence := false
-	hasPrimarySupportingLineage := false
 	for _, evidenceID := range candidate.EvidenceIDs {
-		item, ok := evidenceByID[evidenceID]
-		if !ok {
+		if _, ok := evidenceByID[evidenceID]; !ok {
 			return false
 		}
-		if strings.Contains(strings.ToLower(item.Excerpt), mention) ||
-			strings.Contains(strings.ToLower(item.Title), mention) {
-			mentionedInEvidence = true
-		}
-		if item.IsPrimary && item.Relation == "supports" {
-			hasPrimarySupportingLineage = true
-		}
 	}
-	if mentionedInEvidence {
-		return true
-	}
-	return eventContainsMention && hasPrimarySupportingLineage
+	return true
 }
 
 func indexEvidence(items []Evidence) map[string]Evidence {

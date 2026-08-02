@@ -535,18 +535,14 @@ WHERE id = $2`,
 		},
 		{
 			`INSERT INTO event_sources (
-    id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
-    evidence_relation, supports_fields, is_primary, created_at
+    id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
+    evidence_relation, supports_fields, contract_version, created_at
 ) VALUES (
     $1, $2, '11000000-0000-4000-8000-000000000001', 'primary',
     'Market supply decreased 10 percent.', $3, 'supports',
-    ARRAY['summary','fact_payload'], true, $4
+    ARRAY['factual_summary','fact_payload'], 3, $4
 )`,
 			[]any{testTypedEvidenceID, testTypedEventID, strings.Repeat("c", 64), acceptedAt},
-		},
-		{
-			`UPDATE events SET primary_source_id = $1 WHERE id = $2`,
-			[]any{testTypedEvidenceID, testTypedEventID},
 		},
 		{
 			`INSERT INTO event_semantic_context_leases (
@@ -662,21 +658,17 @@ WHERE id = $2`,
 		},
 		{
 			`INSERT INTO event_sources (
-    id, event_id, raw_document_id, source_level, evidence_excerpt, evidence_hash,
-    evidence_relation, supports_fields, is_primary, created_at
+    id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
+    evidence_relation, supports_fields, contract_version, created_at
 ) VALUES (
     $1, $2, '12000000-0000-4000-8000-000000000001', 'primary',
     'The company forecasts demand growth of 15 percent.', $3, 'supports',
-    ARRAY['summary','fact_payload'], true, $4
+    ARRAY['factual_summary','fact_payload'], 3, $4
 )`,
 			[]any{
 				testTypedForwardEvidenceID, testTypedForwardEventID,
 				strings.Repeat("f", 64), acceptedAt,
 			},
-		},
-		{
-			`UPDATE events SET primary_source_id = $1 WHERE id = $2`,
-			[]any{testTypedForwardEvidenceID, testTypedForwardEventID},
 		},
 		{
 			`INSERT INTO event_semantic_context_leases (

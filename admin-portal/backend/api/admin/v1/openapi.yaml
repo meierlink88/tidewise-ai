@@ -848,8 +848,6 @@ components:
           $ref: '#/components/schemas/FactStatus'
         dedupe_key:
           type: string
-        primary_source_id:
-          type: string
     AgentSchedule:
       type: object
       additionalProperties: false

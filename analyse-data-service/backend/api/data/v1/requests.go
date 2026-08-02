@@ -49,12 +49,11 @@ type EventPublicationEvent struct {
 }
 
 type EventPublicationEvidence struct {
-	ArtifactID       string   `json:"artifact_id"`
-	EvidenceRelation string   `json:"evidence_relation"`
-	EvidenceExcerpt  string   `json:"evidence_excerpt"`
-	SupportsFields   []string `json:"supports_fields"`
-	SourceLevel      string   `json:"source_level"`
-	IsPrimary        bool     `json:"is_primary"`
+	ArtifactID        string   `json:"artifact_id"`
+	EvidenceRelation  string   `json:"evidence_relation"`
+	EvidenceStatement string   `json:"evidence_statement"`
+	SupportsFields    []string `json:"supports_fields"`
+	SourceLevel       string   `json:"source_level"`
 }
 
 type EventPublicationTag struct {

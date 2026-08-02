@@ -640,6 +640,13 @@ func completeEventExtractorExecution(
 	errorCode, errorSummary := "", ""
 	if status == "failed" {
 		errorCode, errorSummary = "event_fact_rejected", "Event facts failed deterministic validation"
+		if result.FailureCode != "" {
+			errorCode = result.FailureCode
+			errorSummary = fmt.Sprintf(
+				"Event Fact model contract failed at %s: %s",
+				result.FailureStage, result.FailureViolation,
+			)
+		}
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE agent_executions

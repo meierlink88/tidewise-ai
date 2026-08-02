@@ -257,7 +257,7 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 	evidenceIDs := make(map[string]struct{}, len(value.Evidence))
 	for _, evidence := range value.Evidence {
 		if !validUUID(evidence.EvidenceID) || !validUUID(evidence.RawDocumentID) ||
-			!validSemanticHash(evidence.EvidenceHash) || strings.TrimSpace(evidence.Excerpt) == "" ||
+			!validSemanticHash(evidence.EvidenceHash) || strings.TrimSpace(evidence.Statement) == "" ||
 			strings.TrimSpace(evidence.SourceName) == "" || strings.TrimSpace(evidence.SourceType) == "" ||
 			strings.TrimSpace(evidence.Title) == "" || !validRFC3339(evidence.FirstSeenAt) ||
 			!validRFC3339(evidence.KnowledgeAvailableAt) || !validRFC3339(evidence.AcceptedAt) ||

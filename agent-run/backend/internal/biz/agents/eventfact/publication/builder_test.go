@@ -26,7 +26,7 @@ func TestBuildBatchesStableReviewedEventsWithoutSemanticRelations(t *testing.T) 
 		result.Candidates = append(result.Candidates, eventfact.Candidate{
 			CandidateID: fmt.Sprintf("candidate:%d", index), ArtifactID: artifact.ArtifactID,
 			Title: fmt.Sprintf("事件%d", index), FactualSummary: "事实摘要",
-			FactPayload: map[string]any{"action": "扩产"}, EvidenceExcerpt: "逐字证据",
+			FactPayload: map[string]any{"action": "扩产"}, EvidenceStatement: "逐字证据",
 			SupportsFields: []string{"factual_summary"}, SourceLevel: "primary",
 			ActorMentions: []string{"不得发布的原始 Mention"}, DedupeKey: fmt.Sprintf("event:%02d", index),
 			IdentityHash: strings.Repeat(fmt.Sprintf("%x", index%16), 64),
@@ -89,7 +89,7 @@ func TestBuildArtifactUnitCreatesOneStableImmediatePublication(t *testing.T) {
 		Candidates: []eventfact.Candidate{{
 			CandidateID: "candidate:1", ArtifactID: "sha256:artifact",
 			Title: "某公司宣布扩产", FactualSummary: "某公司宣布扩产。",
-			FactPayload: map[string]any{"action": "扩产"}, EvidenceExcerpt: "逐字证据",
+			FactPayload: map[string]any{"action": "扩产"}, EvidenceStatement: "逐字证据",
 			SupportsFields: []string{"factual_summary"}, SourceLevel: "primary",
 			DedupeKey:    "event-fact:" + strings.Repeat("f", 64),
 			IdentityHash: strings.Repeat("f", 64),

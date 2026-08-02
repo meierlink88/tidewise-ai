@@ -25,8 +25,8 @@ func TestPrecheckAcceptsNarrativeMeasurementsWithoutDirectImpact(t *testing.T) {
 			FactStatus: "verified",
 		},
 		Evidence: []Evidence{{
-			ID:      "22222222-2222-4222-8222-222222222222",
-			Excerpt: "某公司公布净利润为17至18.3亿元，同比增长41.5%至52.32%",
+			ID:        "22222222-2222-4222-8222-222222222222",
+			Statement: "某公司公布净利润为17至18.3亿元，同比增长41.5%至52.32%",
 		}},
 		Entities: []Entity{{
 			ID: "33333333-3333-4333-8333-333333333333", Type: "company",
@@ -90,7 +90,7 @@ func TestPrecheckAcceptsNarrativeMeasurementsWithoutDirectImpact(t *testing.T) {
 func TestPrecheckRejectsNarrativeMeasurementWithoutEventEvidence(t *testing.T) {
 	semanticContext := Context{
 		Event:    Event{ID: "event", Title: "公司收入上升", Status: "confirmed", FactStatus: "verified"},
-		Evidence: []Evidence{{ID: "event-evidence", Excerpt: "公司收入上升"}},
+		Evidence: []Evidence{{ID: "event-evidence", Statement: "公司收入上升"}},
 		Entities: []Entity{{ID: "company", Type: "company", Name: "公司", CanonicalName: "公司", Status: "active"}},
 		Variables: []VariableDefinition{{
 			Key: "revenue", Version: 1, Status: "active", AllowedDirections: []string{"increase"},
@@ -131,12 +131,12 @@ func TestPrecheckRejectsDuplicateEvidenceLineage(t *testing.T) {
 	assertCandidateStatus(t, result.EntityLinks, "company", StatusRejected, "evidence_not_in_event")
 }
 
-func TestPrecheckRejectsEventOnlyMentionWithoutPrimarySupportingLineage(t *testing.T) {
+func TestPrecheckAcceptsMentionWithValidEventEvidenceMembership(t *testing.T) {
 	semanticContext := Context{
 		Event: Event{
 			ID: "event", Summary: "摘要专有词", Status: "confirmed", FactStatus: "verified",
 		},
-		Evidence: []Evidence{{ID: "event-evidence", Excerpt: "证据没有该实体称谓"}},
+		Evidence: []Evidence{{ID: "event-evidence", Statement: "证据没有该实体称谓"}},
 		Entities: []Entity{{
 			ID: "company", Type: "company", Name: "摘要专有词", CanonicalName: "摘要专有词", Status: "active",
 		}},
@@ -150,13 +150,13 @@ func TestPrecheckRejectsEventOnlyMentionWithoutPrimarySupportingLineage(t *testi
 		EvidenceIDs:         []string{"event-evidence"}, ResolutionMethod: "qdrant_exact",
 	}}})
 
-	assertCandidateStatus(t, result.EntityLinks, "company", StatusRejected, "entity_mention_not_in_evidence")
+	assertCandidateStatus(t, result.EntityLinks, "company", StatusPendingReview, "")
 }
 
-func TestPrecheckAcceptsEventOnlyMentionWithPrimarySupportingLineage(t *testing.T) {
+func TestPrecheckDoesNotRequirePrimaryEvidenceDesignation(t *testing.T) {
 	semanticContext := Context{
 		Event:    Event{ID: "event", Summary: "摘要专有词", Status: "confirmed", FactStatus: "verified"},
-		Evidence: []Evidence{{ID: "event-evidence", Excerpt: "证据没有该实体称谓", IsPrimary: true, Relation: "supports"}},
+		Evidence: []Evidence{{ID: "event-evidence", Statement: "证据没有该实体称谓", Relation: "supports"}},
 		Entities: []Entity{{ID: "company", Type: "company", Name: "摘要专有词", CanonicalName: "摘要专有词", Status: "active"}},
 		EntityTypes: []EntityTypeDefinition{{
 			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, AllowedEventRoles: []string{"event_subject"},
@@ -200,7 +200,7 @@ func TestPrecheckRejectsSignalWhenFormalEntityTypeCannotBeSignalSubject(t *testi
 func validPrecheckContext() Context {
 	return Context{
 		Event:    Event{ID: "event", Title: "某公司收入上升", Status: "confirmed", FactStatus: "verified"},
-		Evidence: []Evidence{{ID: "event-evidence", Excerpt: "某公司收入上升"}},
+		Evidence: []Evidence{{ID: "event-evidence", Statement: "某公司收入上升"}},
 		Entities: []Entity{{ID: "company", Type: "company", Name: "某公司", CanonicalName: "某公司", Status: "active"}},
 		Variables: []VariableDefinition{{
 			Key: "revenue", Version: 1, Status: "active", AllowedDirections: []string{"increase"},

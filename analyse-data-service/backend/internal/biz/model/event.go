@@ -81,17 +81,16 @@ func ValidateFactPayload(payload any) error {
 }
 
 type Event struct {
-	ID              string
-	Title           string
-	Summary         string
-	EventTime       *time.Time
-	FirstSeenAt     time.Time
-	KnowableAt      *time.Time
-	EventStatus     EventStatus
-	FactStatus      FactStatus
-	DedupeKey       string
-	PrimarySourceID string
-	FactPayload     FactPayload
+	ID          string
+	Title       string
+	Summary     string
+	EventTime   *time.Time
+	FirstSeenAt time.Time
+	KnowableAt  *time.Time
+	EventStatus EventStatus
+	FactStatus  FactStatus
+	DedupeKey   string
+	FactPayload FactPayload
 }
 
 func (e Event) Validate() error {
@@ -128,14 +127,14 @@ const (
 )
 
 type EventSource struct {
-	ID               string
-	EventID          string
-	RawDocumentID    string
-	SourceLevel      string
-	EvidenceExcerpt  string
-	EvidenceHash     string
-	EvidenceRelation EvidenceRelation
-	SupportsFields   []string
+	ID                string
+	EventID           string
+	RawDocumentID     string
+	SourceLevel       string
+	EvidenceStatement string
+	EvidenceHash      string
+	EvidenceRelation  EvidenceRelation
+	SupportsFields    []string
 }
 
 func (s EventSource) Validate() error {

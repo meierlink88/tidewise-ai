@@ -33,7 +33,7 @@ const eventSemanticInputEligibilitySQL = `
 	    JOIN raw_documents document ON document.id = evidence.raw_document_id
 	    WHERE evidence.event_id = e.id
 	      AND COALESCE(evidence.evidence_hash, '') ~ '^[0-9a-f]{64}$'
-	      AND COALESCE(btrim(evidence.evidence_excerpt), '') <> ''
+	      AND COALESCE(btrim(evidence.evidence_statement), '') <> ''
 	      AND evidence.source_level IN ('primary', 'secondary')
 	      AND evidence.evidence_relation IN ('supports', 'contradicts', 'context')
 	      AND COALESCE(evidence.supports_fields, ARRAY[]::text[])
@@ -56,7 +56,7 @@ const eventSemanticInputEligibilitySQL = `
 	    WHERE evidence.event_id = e.id
 	      AND (
 	          COALESCE(evidence.evidence_hash, '') !~ '^[0-9a-f]{64}$'
-	          OR COALESCE(btrim(evidence.evidence_excerpt), '') = ''
+	          OR COALESCE(btrim(evidence.evidence_statement), '') = ''
 	          OR COALESCE(evidence.source_level, '') NOT IN ('primary', 'secondary')
 	          OR COALESCE(evidence.evidence_relation, '') NOT IN ('supports', 'contradicts', 'context')
 	          OR NOT (
@@ -800,9 +800,8 @@ func eventSemanticEvidence(
 	evidenceIDs []string,
 ) ([]eventsemantics.Evidence, error) {
 	rows, err := query.QueryContext(ctx, `
-		SELECT es.id, es.evidence_hash, es.evidence_excerpt, es.source_level,
-		       es.evidence_relation, array_to_json(es.supports_fields),
-		       COALESCE(es.is_primary, false), es.raw_document_id,
+		SELECT es.id, es.evidence_hash, es.evidence_statement, es.source_level,
+		       es.evidence_relation, array_to_json(es.supports_fields), es.raw_document_id,
 		       rd.source_name, rd.source_type, rd.source_url, rd.title,
 		       rd.published_at, rd.collected_at,
 		       GREATEST(COALESCE(rd.published_at, rd.collected_at), rd.collected_at),
@@ -812,7 +811,7 @@ func eventSemanticEvidence(
 		JOIN raw_documents rd ON rd.id = es.raw_document_id
 		JOIN events event ON event.id = es.event_id
 		WHERE es.event_id = $1 AND ($2 OR es.id = ANY($3::uuid[]))
-		ORDER BY COALESCE(es.is_primary, false) DESC, es.id
+		ORDER BY es.created_at, es.id
 	`, eventID, includeAll, evidenceIDs)
 	if err != nil {
 		return nil, err
@@ -823,8 +822,8 @@ func eventSemanticEvidence(
 		var item eventsemantics.Evidence
 		var supported []byte
 		if err := rows.Scan(
-			&item.ID, &item.Hash, &item.Excerpt, &item.SourceLevel, &item.Relation,
-			&supported, &item.IsPrimary, &item.RawDocumentID, &item.SourceName,
+			&item.ID, &item.Hash, &item.Statement, &item.SourceLevel, &item.Relation,
+			&supported, &item.RawDocumentID, &item.SourceName,
 			&item.SourceType, &item.SourceURL, &item.Title, &item.PublishedAt,
 			&item.FirstSeenAt, &item.KnowledgeAvailableAt, &item.AcceptedAt,
 			&item.StatementSource,

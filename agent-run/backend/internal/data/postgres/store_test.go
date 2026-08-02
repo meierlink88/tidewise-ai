@@ -113,6 +113,13 @@ func TestMigrateSeedsCurrentAgentVersions(t *testing.T) {
 	if extractorVersion.AgentKey != "event-fact-extractor" {
 		t.Fatalf("Event Fact Extractor agent key = %q", extractorVersion.AgentKey)
 	}
+	extractorV2, err := store.GetAgentVersion(ctx, eventfact.AgentVersion)
+	if err != nil {
+		t.Fatalf("get seeded Event Fact Extractor V2 version: %v", err)
+	}
+	if extractorV2.AgentKey != eventfact.AgentKey {
+		t.Fatalf("Event Fact Extractor V2 agent key = %q", extractorV2.AgentKey)
+	}
 	semanticVersion, err := store.GetAgentVersion(ctx, "event-semantic-enricher.v1")
 	if err != nil {
 		t.Fatalf("get seeded Event Semantic Enricher version: %v", err)
@@ -1319,7 +1326,7 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		t.Fatalf("idempotent commit: %v", err)
 	}
 	if dispatched, err := store.DispatchPendingSignals(
-		ctx, "event-fact-extractor.v1", now.Add(2*time.Minute),
+		ctx, eventfact.AgentVersion, now.Add(2*time.Minute),
 	); err != nil || dispatched != 1 {
 		t.Fatalf("dispatch Artifact signal = %d, err=%v", dispatched, err)
 	}
@@ -1328,8 +1335,8 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		SELECT count(*)
 		FROM event_extraction_work_items
 		WHERE collector_execution_ids = ARRAY[$1::uuid]
-		  AND extractor_agent_version = 'event-fact-extractor.v1'
-	`, execution.ID).Scan(&workCount); err != nil {
+		  AND extractor_agent_version = $2
+	`, execution.ID, eventfact.AgentVersion).Scan(&workCount); err != nil {
 		t.Fatal(err)
 	}
 	if workCount != 1 {
@@ -1489,22 +1496,44 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 	if err := store.CompleteWithoutPublication(
 		ctx,
 		secondAttempt,
-		eventfact.Result{ExecutionID: secondAttempt.ID, ExtractionModelCalls: 1, ReviewModelCalls: 1},
+		eventfact.Result{
+			ExecutionID: secondAttempt.ID, ExtractionModelCalls: 1, ReviewModelCalls: 2,
+			FailureCode:  "event_fact_review_contract_missing_tool_call",
+			FailureStage: "review", FailureViolation: "missing_tool_call",
+			FunctionCalls: []eventfact.FunctionCallObservation{
+				{Stage: "extraction", CallCount: 1, FinishReason: "tool_calls", ArgumentBytes: 128},
+				{Stage: "review", CallCount: 2, FinishReason: "stop", Violation: "missing_tool_call"},
+			},
+		},
 		eventfact.WorkRejected,
 		now.Add(12*time.Minute),
 	); err != nil {
 		t.Fatal(err)
 	}
-	var finalWorkStatus string
+	var finalWorkStatus, persistedStage, persistedFinishReason string
+	var persistedArgumentBytes int
 	if err := database.QueryRow(ctx, `
-		SELECT status
-		FROM event_extraction_work_items
-		WHERE work_item_key = $1
-	`, attempt.WorkItem.Key).Scan(&finalWorkStatus); err != nil {
+		SELECT w.status,
+		       u.extraction_result->>'failure_stage',
+		       u.extraction_result->'function_calls'->0->>'finish_reason',
+		       (u.extraction_result->'function_calls'->0->>'argument_bytes')::int
+		FROM event_extraction_work_items w
+		JOIN event_artifact_extraction_units u USING (work_item_key)
+		WHERE w.work_item_key = $1 AND u.unit_key = $2
+	`, attempt.WorkItem.Key, secondAttempt.Unit.Key).Scan(
+		&finalWorkStatus, &persistedStage, &persistedFinishReason, &persistedArgumentBytes,
+	); err != nil {
 		t.Fatal(err)
 	}
 	if finalWorkStatus != "partially_published" {
 		t.Fatalf("mixed Artifact Unit outcomes produced Work status %q", finalWorkStatus)
+	}
+	if persistedStage != "review" || persistedFinishReason != "tool_calls" ||
+		persistedArgumentBytes != 128 {
+		t.Fatalf(
+			"persisted Function observation stage=%q finish=%q argument_bytes=%d",
+			persistedStage, persistedFinishReason, persistedArgumentBytes,
+		)
 	}
 	committed, err := store.GetExecution(ctx, execution.ID)
 	if err != nil {

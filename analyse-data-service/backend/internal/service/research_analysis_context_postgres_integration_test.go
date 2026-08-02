@@ -143,7 +143,7 @@ func TestPostgresResearchAnalysisContextSelectsEventsBeforeReferenceClosure(t *t
 
 func TestPostgresResearchAnalysisContextReturnsCompleteReferencedSemantics(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
-	seedEventSemanticScenario(t, db)
+	seedEventSemanticScenario(t, db, true)
 	semanticService := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
 	ctx := context.Background()
 	lease, err := semanticService.CreateContextLease(ctx, eventsemantics.ContextLeaseRequest{

@@ -23,6 +23,32 @@ type Factory struct {
 }
 
 func (f Factory) New(ctx context.Context, config agentrun.ModelProviderConfig) (model.BaseChatModel, error) {
+	return f.new(ctx, config, true)
+}
+
+// NewToolCalling creates the official Eino OpenAI-compatible model without a
+// competing json_object response-format requirement. Event Fact binds one
+// immutable result Function per deterministic workflow stage.
+func (f Factory) NewToolCalling(
+	ctx context.Context,
+	config agentrun.ModelProviderConfig,
+) (model.ToolCallingChatModel, error) {
+	chatModel, err := f.new(ctx, config, false)
+	if err != nil {
+		return nil, err
+	}
+	toolModel, ok := chatModel.(model.ToolCallingChatModel)
+	if !ok {
+		return nil, errors.New("model provider does not support Function Calling")
+	}
+	return toolModel, nil
+}
+
+func (f Factory) new(
+	ctx context.Context,
+	config agentrun.ModelProviderConfig,
+	jsonObject bool,
+) (model.BaseChatModel, error) {
 	timeout := f.Timeout
 	if timeout == 0 {
 		timeout = defaultTimeout
@@ -30,19 +56,22 @@ func (f Factory) New(ctx context.Context, config agentrun.ModelProviderConfig) (
 	if timeout < 0 {
 		return nil, errors.New("model timeout must be positive")
 	}
-	return einoopenai.NewChatModel(ctx, &einoopenai.ChatModelConfig{
+	modelConfig := &einoopenai.ChatModelConfig{
 		APIKey:     config.APIKey,
 		Model:      config.Model,
 		BaseURL:    config.BaseURL,
 		Timeout:    timeout,
 		HTTPClient: executionBoundClient(ctx, timeout, f.Transport),
-		ResponseFormat: &einoopenai.ChatCompletionResponseFormat{
-			Type: einoopenai.ChatCompletionResponseFormatTypeJSONObject,
-		},
 		ExtraFields: map[string]any{
 			"thinking": map[string]string{"type": "disabled"},
 		},
-	})
+	}
+	if jsonObject {
+		modelConfig.ResponseFormat = &einoopenai.ChatCompletionResponseFormat{
+			Type: einoopenai.ChatCompletionResponseFormatTypeJSONObject,
+		}
+	}
+	return einoopenai.NewChatModel(ctx, modelConfig)
 }
 
 func executionBoundClient(executionContext context.Context, timeout time.Duration, transport http.RoundTripper) *http.Client {
