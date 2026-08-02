@@ -49,6 +49,22 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - **影响路径页**：从首页 Theme 卡片进入的研究依据页。一个 Theme 页面可包含多棵 Reason Tree，每棵 Tree 对应一条 Industry Chain 推导链路，页面通过 Tab 切换。
 - **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。首页不依赖 Reason Tree 发布状态；零 Tree Theme 仍保留入口，由影响路径页展示“影响路径暂未生成”。
 
+## Theme Homepage
+
+- 首页不展示没有真实用户数据合同的分类栏或“跟踪中”数量；Theme 搜索继续只在当前
+  feed 内生效。
+- 首页使用 Taro 页面级原生下拉刷新重新读取 Theme feed；刷新失败时保留最近一次成功
+  数据，并在所有结果路径结束原生刷新状态。
+- Theme 卡片的非零“政经事件”数量只打开当前页面内的关联事件底部面板；它不触发
+  Reason Tree 导航，零事件数量保持只读。
+- 关联事件面板按 Theme 详情 API 的稳定顺序纵向展示完整事件列表，每条只展示
+  `event_time`、`title` 和 `summary`；空时间显示“时间待确认”，不展示
+  `evidence_role`、`supported_claim`、来源、事件分类或额外详情入口。
+- Theme 详情按 `theme_id` 缓存在当前首页会话，feed 刷新成功后失效并重新读取当前已
+  打开的 Theme；旧请求晚到不得覆盖刷新后或新选中的 Theme。
+- 事件面板使用页面局部状态和基础 Taro 组件覆盖微信、抖音小程序；面板滚动与触控不得
+  传递到底层页面或触发页面下拉刷新。
+
 ## Reasoning Trees API
 
 - Miniapp Frontend 先调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees` 获取 Theme 与全部 Reason Tree Tab 摘要。

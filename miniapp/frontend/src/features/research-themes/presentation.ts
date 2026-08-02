@@ -52,3 +52,15 @@ export function formatResearchUpdateLabel(publishedAt: string, asOf: string): st
   const date = new Date(published);
   return `${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
 }
+
+export function formatResearchThemeEventTime(
+  value: string | null
+): { status: 'pending' } | { status: 'confirmed'; date: string; time: string } {
+  if (value === null) return { status: 'pending' };
+  const date = new Date(value);
+  return {
+    status: 'confirmed',
+    date: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+    time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  };
+}

@@ -1,0 +1,209 @@
+@use '../../../styles/tokens' as *;
+
+.theme-events-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: $layer-overlay;
+  display: flex;
+  align-items: flex-end;
+  background: $color-overlay-scrim;
+}
+
+.theme-events-sheet {
+  display: flex;
+  width: 100%;
+  height: 73vh;
+  max-height: 1100rpx;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: $radius-sheet $radius-sheet 0 0;
+  background: $color-card;
+  box-shadow: $shadow-sheet;
+}
+
+.theme-events-sheet__handle {
+  width: 76rpx;
+  height: 8rpx;
+  flex: 0 0 auto;
+  margin: 18rpx auto 8rpx;
+  border-radius: $radius-handle;
+  background: $color-border;
+}
+
+.theme-events-sheet__header {
+  flex: 0 0 auto;
+  padding: 0 $spacing-page 24rpx;
+  border-bottom: 2rpx solid $color-border;
+}
+
+.theme-events-sheet__topline,
+.theme-events-sheet__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.theme-events-sheet__eyebrow {
+  color: $color-blue-600;
+  font-size: 24rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.theme-events-sheet__close {
+  display: flex;
+  width: 64rpx;
+  height: 64rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-pill;
+  background: $color-ivory-100;
+  color: $color-navy-900;
+  font-size: 42rpx;
+  line-height: 1;
+}
+
+.theme-events-sheet__title {
+  display: block;
+  margin: 4rpx 0 20rpx;
+  color: $color-navy-900;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.42;
+}
+
+.theme-events-sheet__meta {
+  color: $color-text-muted;
+  font-size: 23rpx;
+}
+
+.theme-events-scroll {
+  min-height: 0;
+  flex: 1;
+}
+
+.theme-events-timeline {
+  padding: 28rpx $spacing-page calc(42rpx + env(safe-area-inset-bottom));
+}
+
+.theme-events-item {
+  position: relative;
+  display: grid;
+  min-height: 150rpx;
+  grid-template-columns: 92rpx 24rpx 1fr;
+  column-gap: 12rpx;
+}
+
+.theme-events-item:not(:last-child)::after {
+  position: absolute;
+  top: 28rpx;
+  bottom: -2rpx;
+  left: 116rpx;
+  width: 2rpx;
+  background: $color-border;
+  content: '';
+}
+
+.theme-events-item__time {
+  display: flex;
+  align-items: flex-end;
+  padding-top: 2rpx;
+  color: $color-text-muted;
+  flex-direction: column;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.theme-events-item__time--pending {
+  font-size: 20rpx;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.theme-events-item__dot {
+  z-index: $layer-timeline-dot;
+  width: 20rpx;
+  height: 20rpx;
+  margin-top: 8rpx;
+  border: 5rpx solid $color-ivory-100;
+  border-radius: $radius-pill;
+  background: $color-blue-600;
+  box-sizing: border-box;
+}
+
+.theme-events-item__content {
+  min-width: 0;
+  padding: 0 0 34rpx 4rpx;
+}
+
+.theme-events-item__title,
+.theme-events-item__summary {
+  display: block;
+}
+
+.theme-events-item__title {
+  color: $color-navy-900;
+  font-size: 29rpx;
+  font-weight: 750;
+  line-height: 1.48;
+}
+
+.theme-events-item__summary {
+  margin-top: 10rpx;
+  color: $color-text-secondary;
+  font-size: 25rpx;
+  line-height: 1.65;
+}
+
+.theme-events-state {
+  display: flex;
+  min-height: 360rpx;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-page;
+  color: $color-text-muted;
+  flex-direction: column;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.theme-events-state__pulse {
+  width: 28rpx;
+  height: 28rpx;
+  margin-bottom: 20rpx;
+  border: 5rpx solid $color-border;
+  border-top-color: $color-blue-600;
+  border-radius: $radius-pill;
+  animation: theme-events-spin 0.8s linear infinite;
+}
+
+.theme-events-state__title {
+  color: $color-navy-900;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.theme-events-state__description {
+  margin-top: 12rpx;
+}
+
+.theme-events-state__retry {
+  min-width: 190rpx;
+  height: 68rpx;
+  margin-top: 26rpx;
+  border-radius: $radius-pill;
+  background: $color-navy-900;
+  color: $color-card;
+  font-size: 25rpx;
+  line-height: 68rpx;
+}
+
+@keyframes theme-events-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

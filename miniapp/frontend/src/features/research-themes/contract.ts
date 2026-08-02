@@ -36,7 +36,6 @@ export interface HomeResearchThemeItem {
   windowEnd: string;
   publishedAt: string;
   updateLabel: string;
-  categories: string[];
   impacts: HomeResearchThemeImpact[];
   evidenceEventCount: number;
   reasoningTreeCount: number;
@@ -48,10 +47,33 @@ export interface HomeResearchThemeFeed {
   asOf: string;
   themeCount: number;
   eventCount: number;
-  trackingCount: number;
   items: HomeResearchThemeItem[];
   nextCursor: string | null;
 }
-export interface ResearchThemeFeedPort {
+
+export interface ResearchThemeEvent {
+  eventId: string;
+  title: string;
+  summary: string;
+  eventTime: { status: 'pending' } | { status: 'confirmed'; date: string; time: string };
+}
+
+export interface ResearchThemeDetail {
+  id: string;
+  title: string;
+  events: ResearchThemeEvent[];
+}
+
+export type ResearchThemeDetailErrorKind = 'themeUnavailable' | 'serviceUnavailable';
+
+export class ResearchThemeDetailError extends Error {
+  constructor(public readonly kind: ResearchThemeDetailErrorKind) {
+    super(kind);
+    this.name = 'ResearchThemeDetailError';
+  }
+}
+
+export interface ResearchThemeHomepagePort {
   list(): Promise<HomeResearchThemeFeed>;
+  getDetail(themeId: string): Promise<ResearchThemeDetail>;
 }

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import reasoningTreeListFixture from '../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
+import reasoningTreeDetailFixture from '../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
 import { createResearchThemeApiPort } from './api-port';
 
 describe('research theme BFF adapter', () => {
@@ -63,7 +65,8 @@ describe('research theme BFF adapter', () => {
       url: 'https://miniapp.example.test/api/miniapp/v1/research/themes',
       method: 'GET',
       data: { window_hours: 24, limit: 20 },
-      dataType: 'json'
+      dataType: 'json',
+      timeout: 10_000
     });
     expect(feed).toMatchObject({ themeCount: 1, eventCount: 2, nextCursor: null });
     expect(feed.items[0]).toMatchObject({
@@ -87,5 +90,82 @@ describe('research theme BFF adapter', () => {
         request
       }).list()
     ).rejects.toThrow('503');
+  });
+
+  it('loads one Theme event timeline through the published detail contract', async () => {
+    const request = vi.fn().mockResolvedValue({
+      statusCode: 200,
+      data: {
+        request_id: 'miniapp-theme-detail-test',
+        result: {
+          ...reasoningTreeListFixture.result.theme,
+          events: reasoningTreeDetailFixture.result.reasoning_tree.events
+        }
+      }
+    });
+    const themeId = reasoningTreeListFixture.result.theme.id;
+
+    const detail = await createResearchThemeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request
+    }).getDetail(themeId);
+
+    expect(request).toHaveBeenCalledWith({
+      url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}`,
+      method: 'GET',
+      data: { window_hours: 24 },
+      dataType: 'json',
+      timeout: 10_000
+    });
+    expect(detail).toEqual({
+      id: themeId,
+      title: '高速光模块需求验证',
+      events: [
+        {
+          eventId: '99999999-9999-4999-8999-999999999999',
+          title: '端口计划上调',
+          summary: '云厂商端口计划上调 80%。',
+          eventTime: expect.objectContaining({ status: 'confirmed' })
+        },
+        {
+          eventId: 'aaaaaaaa-1111-4111-8111-111111111111',
+          title: '采购尚未发生',
+          summary: '当前尚未观察到正式采购。',
+          eventTime: { status: 'pending' }
+        }
+      ]
+    });
+  });
+
+  it('maps an expired Theme detail to a stable unavailable error', async () => {
+    const request = vi.fn().mockResolvedValue({
+      statusCode: 404,
+      data: {
+        request_id: 'miniapp-theme-detail-missing',
+        error: {
+          code: 'RESEARCH_THEME_NOT_FOUND',
+          message: 'not found',
+          details: {}
+        }
+      }
+    });
+
+    await expect(
+      createResearchThemeApiPort({
+        baseUrl: 'https://miniapp.example.test',
+        request
+      }).getDetail(reasoningTreeListFixture.result.theme.id)
+    ).rejects.toMatchObject({ kind: 'themeUnavailable' });
+  });
+
+  it('cleans a detail transport failure into a stable service error', async () => {
+    const request = vi.fn().mockRejectedValue(new Error('private upstream URL'));
+
+    await expect(
+      createResearchThemeApiPort({
+        baseUrl: 'https://miniapp.example.test',
+        request
+      }).getDetail(reasoningTreeListFixture.result.theme.id)
+    ).rejects.toMatchObject({ kind: 'serviceUnavailable', message: 'serviceUnavailable' });
   });
 });

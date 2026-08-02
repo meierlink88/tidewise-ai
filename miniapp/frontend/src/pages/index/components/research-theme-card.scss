@@ -238,6 +238,18 @@
   white-space: nowrap;
 }
 
+.theme-card__event-action {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.theme-card__event-button {
+  min-height: 30px;
+  padding: 0 3px;
+  background: transparent;
+  line-height: 30px;
+}
+
 .theme-card__path-count {
   color: #75849e;
   font-size: 10px;

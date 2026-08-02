@@ -1,6 +1,8 @@
-import type {
-  HomeResearchThemeFeed,
-  ResearchThemeFeedPort
+import {
+  ResearchThemeDetailError,
+  type HomeResearchThemeFeed,
+  type ResearchThemeDetail,
+  type ResearchThemeHomepagePort
 } from '../../features/research-themes/contract';
 
 export const mockResearchThemeFeed: HomeResearchThemeFeed = {
@@ -9,7 +11,6 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
   asOf: '2026-07-28T08:00:00Z',
   themeCount: 1,
   eventCount: 2,
-  trackingCount: 3,
   nextCursor: null,
   items: [
     {
@@ -35,7 +36,6 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
       windowEnd: '2026-07-28T08:00:00Z',
       publishedAt: '2026-07-28T08:05:00Z',
       updateLabel: '刚刚更新',
-      categories: [],
       impacts: [
         {
           chainNodeEntityId: '22222222-2222-4222-8222-222222222222',
@@ -68,10 +68,35 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
   ]
 };
 
-export function createMockResearchThemeFeedPort(): ResearchThemeFeedPort {
+export const mockResearchThemeDetail: ResearchThemeDetail = {
+  id: mockResearchThemeFeed.items[0].id,
+  title: mockResearchThemeFeed.items[0].title,
+  events: [
+    {
+      eventId: '99999999-9999-4999-8999-999999999999',
+      title: '端口计划上调',
+      summary: '云厂商端口计划上调 80%。',
+      eventTime: { status: 'confirmed', date: '07-28', time: '14:00' }
+    },
+    {
+      eventId: 'aaaaaaaa-1111-4111-8111-111111111111',
+      title: '采购尚未发生',
+      summary: '当前尚未观察到正式采购。',
+      eventTime: { status: 'pending' }
+    }
+  ]
+};
+
+export function createMockResearchThemeHomepagePort(): ResearchThemeHomepagePort {
   return {
     async list() {
       return mockResearchThemeFeed;
+    },
+    async getDetail(themeId) {
+      if (themeId !== mockResearchThemeDetail.id) {
+        throw new ResearchThemeDetailError('themeUnavailable');
+      }
+      return mockResearchThemeDetail;
     }
   };
 }

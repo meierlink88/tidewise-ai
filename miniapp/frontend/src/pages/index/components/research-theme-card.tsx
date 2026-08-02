@@ -13,13 +13,14 @@ import './research-theme-card.scss';
 
 interface ResearchThemeCardProps {
   theme: HomeResearchThemeItem;
+  onOpenEvents: (themeId: string) => void;
 }
 
 function showUnavailable(title: string) {
   void Taro.showToast({ title, icon: 'none', duration: 1600 });
 }
 
-export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
+export function ResearchThemeCard({ theme, onOpenEvents }: ResearchThemeCardProps) {
   return (
     <View className={`theme-card theme-card--${theme.impactStrength}`}>
       <View className='theme-card__rail' />
@@ -72,7 +73,23 @@ export function ResearchThemeCard({ theme }: ResearchThemeCardProps) {
       </View>
 
       <View className='theme-card__footer'>
-        <Text className='theme-card__event-count'>{theme.evidenceEventCount} 条政经事件</Text>
+        {theme.evidenceEventCount > 0 ? (
+          <View className='theme-card__event-action' catchMove>
+            <Button
+              className='tidewise-button theme-card__event-count theme-card__event-button'
+              hoverClass='none'
+              ariaLabel={`查看${theme.title}关联的${theme.evidenceEventCount}条政经事件`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenEvents(theme.id);
+              }}
+            >
+              {theme.evidenceEventCount} 条政经事件
+            </Button>
+          </View>
+        ) : (
+          <Text className='theme-card__event-count'>0 条政经事件</Text>
+        )}
         <Text className='theme-card__path-count'>{theme.reasoningTreeCount} 条产业链路径</Text>
         <Button
           className='tidewise-button theme-card__detail-button'
