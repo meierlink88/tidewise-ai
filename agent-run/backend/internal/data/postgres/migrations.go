@@ -238,16 +238,40 @@ func (s *Store) SchemaReady(ctx context.Context) bool {
 	return s.schemaShapeReady(ctx)
 }
 
-// PreparePreviousReleaseRollback removes only the additive V3 migration marker
-// so the previous V2 release's strict migration readiness check can start
-// again. The V3 registry row and audit table are intentionally retained because
-// they are inert for the previous runtime and preserve audit history.
+// PreparePreviousReleaseRollback restores the migration ledger and journal-unit
+// uniqueness expected by the specified previous release. Additive registry rows
+// and the stage-audit table remain because they are inert for older runtimes.
 func PreparePreviousReleaseRollback(
 	ctx context.Context,
 	database *pgxpool.Pool,
+	previousReleaseVersion string,
 ) error {
 	if database == nil {
 		return errors.New("AgentRun database is required")
+	}
+	rollbackMigrationsByPreviousVersion := map[string][]string{
+		"010": {
+			"migrations/011_event_semantic_enricher_v2.sql",
+			"migrations/012_event_semantic_entity_first_v3.sql",
+			"migrations/013_event_fact_function_call_v2.sql",
+			"migrations/014_event_artifact_unit_multi_journal.sql",
+		},
+		"011": {
+			"migrations/012_event_semantic_entity_first_v3.sql",
+			"migrations/013_event_fact_function_call_v2.sql",
+			"migrations/014_event_artifact_unit_multi_journal.sql",
+		},
+		"012": {
+			"migrations/013_event_fact_function_call_v2.sql",
+			"migrations/014_event_artifact_unit_multi_journal.sql",
+		},
+		"013": {
+			"migrations/014_event_artifact_unit_multi_journal.sql",
+		},
+	}
+	rollbackMigrations, ok := rollbackMigrationsByPreviousVersion[previousReleaseVersion]
+	if !ok {
+		return fmt.Errorf("unsupported previous AgentRun release migration version %q", previousReleaseVersion)
 	}
 	tx, err := database.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -261,15 +285,33 @@ func PreparePreviousReleaseRollback(
 	); err != nil {
 		return fmt.Errorf("lock AgentRun previous-release rollback preparation: %w", err)
 	}
-	command, err := tx.Exec(ctx, `
-		DELETE FROM schema_migrations
-		WHERE version = 'migrations/012_event_semantic_entity_first_v3.sql'
-	`)
-	if err != nil {
-		return fmt.Errorf("remove AgentRun 012 migration ledger marker: %w", err)
+	var duplicateJournalUnitExists bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT unit_key
+			FROM event_publication_journal
+			WHERE unit_key IS NOT NULL
+			GROUP BY unit_key
+			HAVING count(*) > 1
+		)
+	`).Scan(&duplicateJournalUnitExists); err != nil {
+		return fmt.Errorf("inspect AgentRun previous-release journal compatibility: %w", err)
 	}
-	if command.RowsAffected() != 1 {
-		return errors.New("AgentRun 012 migration is not applied")
+	if duplicateJournalUnitExists {
+		return errors.New("previous AgentRun release rollback is unsafe after multiple journals per artifact unit exist")
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE UNIQUE INDEX IF NOT EXISTS event_publication_journal_unit_key_unique
+		ON event_publication_journal (unit_key)
+		WHERE unit_key IS NOT NULL
+	`); err != nil {
+		return fmt.Errorf("restore AgentRun previous-release journal uniqueness: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM schema_migrations
+		WHERE version = ANY($1)
+	`, rollbackMigrations); err != nil {
+		return fmt.Errorf("remove AgentRun migrations not owned by the previous release: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit AgentRun previous-release rollback preparation: %w", err)

@@ -16,11 +16,19 @@ func main() {
 	preparePreviousReleaseRollback := flag.Bool(
 		"prepare-previous-release-rollback",
 		false,
-		"remove the compatibility-safe 010 ledger marker before restoring a pre-010 release",
+		"restore the schema contract recorded for the previous AgentRun release",
+	)
+	previousReleaseVersion := flag.String(
+		"previous-release-version",
+		"",
+		"migration version embedded by the previous AgentRun release",
 	)
 	flag.Parse()
-	if *checkOnly && *preparePreviousReleaseRollback {
+	if *checkOnly && (*preparePreviousReleaseRollback || *previousReleaseVersion != "") {
 		fail("migration operation flags are mutually exclusive")
+	}
+	if *preparePreviousReleaseRollback != (*previousReleaseVersion != "") {
+		fail("rollback preparation requires both rollback flags")
 	}
 
 	cfg, err := agentrunconfig.LoadDatabaseOperation()
@@ -48,7 +56,7 @@ func main() {
 	}
 	if *preparePreviousReleaseRollback {
 		if err := postgres.PreparePreviousReleaseRollback(
-			context.Background(), database,
+			context.Background(), database, *previousReleaseVersion,
 		); err != nil {
 			fail("could not prepare the previous AgentRun release rollback")
 		}

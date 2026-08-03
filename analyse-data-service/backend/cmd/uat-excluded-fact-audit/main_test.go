@@ -39,6 +39,9 @@ func TestRunAuditsEveryExcludedFactTableDeterministically(t *testing.T) {
 	if report.ContractVersion != contractVersion || len(report.Tables) != len(auditedTables) {
 		t.Fatalf("audit report = %#v", report)
 	}
+	if _, exists := report.Tables["event_semantic_acceptance_policies"]; exists {
+		t.Fatal("audit report included migration-owned acceptance policy master data")
+	}
 	for _, table := range auditedTables {
 		value := report.Tables[table]
 		if value.RowCount != 3 || value.Fingerprint != "0123456789abcdef0123456789abcdef" {

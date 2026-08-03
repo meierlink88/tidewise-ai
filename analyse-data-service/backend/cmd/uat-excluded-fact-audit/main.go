@@ -21,7 +21,6 @@ const emptyTableFingerprint = "d41d8cd98f00b204e9800998ecf8427e"
 var auditedTables = []string{
 	"event_entity_links",
 	"event_publication_receipts",
-	"event_semantic_acceptance_policies",
 	"event_semantic_candidate_snapshots",
 	"event_semantic_context_leases",
 	"event_semantic_resolution_bindings",
