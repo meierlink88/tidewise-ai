@@ -21,6 +21,8 @@ type ResearchReasoningTreeList struct {
 }
 
 type ResearchReasoningTreeSummary struct {
+	TreeKey               string    `json:"tree_key"`
+	DisplayName           string    `json:"display_name"`
 	ReasoningTreeID       string    `json:"reasoning_tree_id"`
 	IndustryChainEntityID string    `json:"industry_chain_entity_id"`
 	IndustryChainName     string    `json:"industry_chain_name"`
@@ -39,14 +41,19 @@ type ResearchGraphEdge struct {
 }
 
 type ResearchSignal struct {
-	VariableSignalKey string `json:"variable_signal_key"`
-	SignalRole        string `json:"signal_role"`
-	SignalDirection   string `json:"signal_direction"`
-	DisplaySummary    string `json:"display_summary"`
-	DisplayOrder      int    `json:"display_order"`
+	SignalKey         string  `json:"signal_key"`
+	VariableName      *string `json:"variable_name"`
+	Direction         *string `json:"direction"`
+	VariableSignalKey string  `json:"variable_signal_key"`
+	SignalRole        string  `json:"signal_role"`
+	SignalDirection   string  `json:"signal_direction"`
+	DisplaySummary    string  `json:"display_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 
 type ResearchReasoningTreeNode struct {
+	NodeKey                          string             `json:"node_key"`
+	DisplayName                      string             `json:"display_name"`
 	ID                               string             `json:"id"`
 	Position                         int                `json:"position"`
 	ChainNodeEntityID                string             `json:"chain_node_entity_id"`
@@ -69,6 +76,7 @@ type ResearchReasoningTreeNode struct {
 
 type ResearchReasoningTree struct {
 	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
+	TreeKey, DisplayName                                               string
 	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
 	DisplayOrder, EventCount                                           int
 	FactSummary, TransmissionSummary, ImpactSummary                    *string
@@ -81,9 +89,10 @@ type ResearchReasoningTree struct {
 }
 
 type ResearchReasoningTreeDetail struct {
-	ThemeID       string
-	ImpactNodeIDs []string
-	ReasoningTree ResearchReasoningTree
+	ThemeID, ThemeKey, PublicationMode string
+	PublicationContractVersion         int
+	ImpactNodeIDs                      []string
+	ReasoningTree                      ResearchReasoningTree
 }
 
 func (s *Service) ListReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
@@ -98,6 +107,7 @@ func (s *Service) ListReasoningTrees(ctx context.Context, themeID string) (Resea
 	summaries := make([]ResearchReasoningTreeSummary, 0, len(result.ReasoningTrees))
 	for _, value := range result.ReasoningTrees {
 		summaries = append(summaries, ResearchReasoningTreeSummary{
+			TreeKey: value.TreeKey, DisplayName: value.DisplayName,
 			ReasoningTreeID:       value.ReasoningTreeID,
 			IndustryChainEntityID: value.IndustryChainEntityID,
 			IndustryChainName:     value.IndustryChainName, Title: value.Title,
@@ -129,6 +139,7 @@ func (s *Service) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID
 		secondary := make([]string, 0, len(node.Signals)-1)
 		for _, signal := range node.Signals {
 			item := ResearchSignal{
+				SignalKey: signal.SignalKey, VariableName: signal.VariableName, Direction: signal.Direction,
 				VariableSignalKey: signal.VariableSignalKey, SignalRole: signal.SignalRole,
 				SignalDirection: signal.SignalDirection, DisplaySummary: signal.DisplaySummary,
 				DisplayOrder: signal.DisplayOrder,
@@ -148,6 +159,7 @@ func (s *Service) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID
 			}
 		}
 		nodes = append(nodes, ResearchReasoningTreeNode{
+			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
 			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID,
 			Name: node.Name, StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 			ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
@@ -164,8 +176,11 @@ func (s *Service) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID
 		checkpoints = append(checkpoints, ResearchCheckpoint{Type: checkpoint.Type, Summary: checkpoint.Summary})
 	}
 	return ResearchReasoningTreeDetail{
-		ThemeID: result.ThemeID, ImpactNodeIDs: append([]string(nil), result.ImpactNodeIDs...),
+		ThemeID: result.ThemeID, ThemeKey: result.ThemeKey, PublicationMode: result.PublicationMode,
+		PublicationContractVersion: result.PublicationContractVersion,
+		ImpactNodeIDs:              append([]string(nil), result.ImpactNodeIDs...),
 		ReasoningTree: ResearchReasoningTree{
+			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, ThemeID: tree.ThemeID,
 			IndustryChainEntityID: tree.IndustryChainEntityID, IndustryChainName: tree.IndustryChainName,
 			Title: tree.Title, DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,

@@ -38,6 +38,8 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
       updateLabel: '刚刚更新',
       impacts: [
         {
+          nodeKey: '22222222-2222-4222-8222-222222222222',
+          displayName: '交换机',
           chainNodeEntityId: '22222222-2222-4222-8222-222222222222',
           name: '交换机',
           relationRole: 'beneficiary',
@@ -46,6 +48,8 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
           displayOrder: 1
         },
         {
+          nodeKey: '33333333-3333-4333-8333-333333333333',
+          displayName: '高速光模块',
           chainNodeEntityId: '33333333-3333-4333-8333-333333333333',
           name: '高速光模块',
           relationRole: 'beneficiary',
@@ -54,6 +58,8 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
           displayOrder: 2
         },
         {
+          nodeKey: '44444444-4444-4444-8444-444444444444',
+          displayName: 'DSP 芯片',
           chainNodeEntityId: '44444444-4444-4444-8444-444444444444',
           name: 'DSP 芯片',
           relationRole: 'beneficiary',

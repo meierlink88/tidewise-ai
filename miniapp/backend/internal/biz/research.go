@@ -51,6 +51,7 @@ type ResearchThemeItem struct {
 	EvidenceEventCount, ReasoningTreeCount                 int
 }
 type ResearchThemeImpactDTO struct {
+	NodeKey, DisplayName                                   string
 	ChainNodeEntityID, Name, RelationRole, ImpactDirection string
 	ImpactSummary                                          *string
 	DisplayOrder                                           int
@@ -61,6 +62,7 @@ type ResearchThemeDetailResponse struct {
 }
 type ResearchEventDTO struct {
 	EventID, Title, Summary, EvidenceRole string
+	EvidenceIDs                           []string
 	EventTime                             *string
 	SupportedClaim                        *string
 	DisplayOrder                          int
@@ -142,6 +144,7 @@ func themeItemDTO(value ResearchTheme) ResearchThemeItem {
 	impacts := make([]ResearchThemeImpactDTO, 0, len(value.Impacts))
 	for _, impact := range value.Impacts {
 		impacts = append(impacts, ResearchThemeImpactDTO{
+			NodeKey: impact.NodeKey, DisplayName: impact.DisplayName,
 			ChainNodeEntityID: impact.ChainNodeEntityID, Name: impact.Name, RelationRole: impact.RelationRole,
 			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
 		})
@@ -171,6 +174,7 @@ func eventDTOs(values []ResearchEvent) []ResearchEventDTO {
 		}
 		result = append(result, ResearchEventDTO{
 			EventID: value.EventID, Title: value.Title, Summary: value.Summary, EventTime: eventTime,
+			EvidenceIDs:  append([]string(nil), value.EvidenceIDs...),
 			EvidenceRole: value.EvidenceRole, SupportedClaim: value.SupportedClaim, DisplayOrder: value.DisplayOrder,
 		})
 	}

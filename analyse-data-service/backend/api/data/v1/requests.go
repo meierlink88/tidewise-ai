@@ -72,12 +72,116 @@ type EventPublicationReview struct {
 }
 
 type ResearchThemeImportRequest struct {
-	AnalysisBatchID      string                            `json:"analysis_batch_id"`
-	AnalysisAsOf         string                            `json:"analysis_as_of"`
-	DiscoveryWindowStart string                            `json:"discovery_window_start"`
-	DiscoveryWindowEnd   string                            `json:"discovery_window_end"`
-	Theme                ResearchThemeImportItem           `json:"theme"`
-	ReasoningTrees       []ResearchReasoningTreeImportItem `json:"reasoning_trees"`
+	AnalysisBatchID      string                              `json:"analysis_batch_id"`
+	AnalysisAsOf         string                              `json:"analysis_as_of"`
+	DiscoveryWindowStart string                              `json:"discovery_window_start"`
+	DiscoveryWindowEnd   string                              `json:"discovery_window_end"`
+	Theme                ResearchThemeImportItem             `json:"theme"`
+	ReasoningTrees       []ResearchReasoningTreeImportItem   `json:"reasoning_trees"`
+	PublicationMode      string                              `json:"-"`
+	Snapshot             *ResearchThemeSnapshotImportRequest `json:"-"`
+}
+
+type ResearchThemeSnapshotImportRequest struct {
+	PublicationMode      string                                    `json:"publication_mode"`
+	AnalysisBatchID      string                                    `json:"analysis_batch_id"`
+	AnalysisAsOf         string                                    `json:"analysis_as_of"`
+	DiscoveryWindowStart string                                    `json:"discovery_window_start"`
+	DiscoveryWindowEnd   string                                    `json:"discovery_window_end"`
+	Theme                ResearchThemeSnapshotItem                 `json:"theme"`
+	ReasoningTrees       []ResearchReasoningTreeSnapshotImportItem `json:"reasoning_trees"`
+}
+
+type ResearchThemeSnapshotItem struct {
+	ThemeKey                  string                        `json:"theme_key"`
+	Title                     string                        `json:"title"`
+	OneLineConclusion         string                        `json:"one_line_conclusion"`
+	ConclusionDirection       string                        `json:"conclusion_direction"`
+	ImpactStrength            string                        `json:"impact_strength"`
+	AttentionLevel            *string                       `json:"attention_level"`
+	ConclusionStatus          *string                       `json:"conclusion_status"`
+	TransmissionStage         string                        `json:"transmission_stage"`
+	InvestmentGuidanceAction  string                        `json:"investment_guidance_action"`
+	InvestmentGuidanceSummary string                        `json:"investment_guidance_summary"`
+	TimeHorizonCategory       string                        `json:"time_horizon_category"`
+	TimeHorizonSummary        *string                       `json:"time_horizon_summary"`
+	TransmissionSummary       *string                       `json:"transmission_summary"`
+	CheckpointSummary         *string                       `json:"checkpoint_summary"`
+	RiskSummary               *string                       `json:"risk_summary"`
+	Impacts                   []ResearchThemeSnapshotImpact `json:"impacts"`
+	Events                    []ResearchThemeSnapshotEvent  `json:"events"`
+}
+
+type ResearchThemeSnapshotImpact struct {
+	NodeKey         string  `json:"node_key"`
+	DisplayName     string  `json:"display_name"`
+	RelationRole    string  `json:"relation_role"`
+	ImpactDirection string  `json:"impact_direction"`
+	ImpactSummary   *string `json:"impact_summary"`
+	DisplayOrder    int     `json:"display_order"`
+}
+
+type ResearchThemeSnapshotEvent struct {
+	EventID        string   `json:"event_id"`
+	EvidenceIDs    []string `json:"evidence_ids,omitempty"`
+	EvidenceRole   string   `json:"evidence_role"`
+	SupportedClaim *string  `json:"supported_claim"`
+}
+
+type ResearchReasoningTreeSnapshotImportItem struct {
+	TreeKey                   string                                  `json:"tree_key"`
+	DisplayName               string                                  `json:"display_name"`
+	Title                     string                                  `json:"title"`
+	DisplayOrder              int                                     `json:"display_order"`
+	OneLineConclusion         string                                  `json:"one_line_conclusion"`
+	FactSummary               *string                                 `json:"fact_summary"`
+	TransmissionSummary       *string                                 `json:"transmission_summary"`
+	ImpactDirection           string                                  `json:"impact_direction"`
+	ImpactStrength            string                                  `json:"impact_strength"`
+	ImpactSummary             *string                                 `json:"impact_summary"`
+	ConclusionBoundarySummary *string                                 `json:"conclusion_boundary_summary"`
+	SupportSummary            *string                                 `json:"support_summary"`
+	CounterSummary            *string                                 `json:"counter_summary"`
+	InvalidationConditions    []string                                `json:"invalidation_conditions"`
+	Checkpoints               []ResearchReasoningTreeImportCheckpoint `json:"checkpoints"`
+	Events                    []ResearchReasoningTreeSnapshotEvent    `json:"events"`
+	Nodes                     []ResearchReasoningTreeSnapshotNode     `json:"nodes"`
+}
+
+type ResearchReasoningTreeSnapshotEvent struct {
+	EventID      string   `json:"event_id"`
+	EvidenceIDs  []string `json:"evidence_ids,omitempty"`
+	EvidenceRole string   `json:"evidence_role"`
+	DisplayOrder int      `json:"display_order"`
+}
+
+type ResearchReasoningTreeSnapshotNode struct {
+	NodeKey               string                                `json:"node_key"`
+	DisplayName           string                                `json:"display_name"`
+	Position              int                                   `json:"position"`
+	StateSummary          *string                               `json:"state_summary"`
+	ImpactDirection       string                                `json:"impact_direction"`
+	ImpactStrength        string                                `json:"impact_strength"`
+	ImpactSummary         *string                               `json:"impact_summary"`
+	ReasoningBasisSummary *string                               `json:"reasoning_basis_summary"`
+	EvidenceGapSummary    *string                               `json:"evidence_gap_summary"`
+	IncomingTransmission  *ResearchSnapshotIncomingTransmission `json:"incoming_transmission"`
+	Signals               []ResearchReasoningTreeSnapshotSignal `json:"signals"`
+}
+
+type ResearchSnapshotIncomingTransmission struct {
+	Title            *string `json:"title"`
+	Mechanism        string  `json:"mechanism"`
+	ConditionSummary *string `json:"condition_summary"`
+}
+
+type ResearchReasoningTreeSnapshotSignal struct {
+	SignalKey      string  `json:"signal_key"`
+	DisplaySummary string  `json:"display_summary"`
+	Role           string  `json:"role"`
+	DisplayOrder   int     `json:"display_order"`
+	VariableName   *string `json:"variable_name"`
+	Direction      *string `json:"direction"`
 }
 
 type ResearchThemeImportItem struct {

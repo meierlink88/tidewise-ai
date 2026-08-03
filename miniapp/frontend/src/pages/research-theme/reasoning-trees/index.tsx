@@ -114,7 +114,7 @@ export function IndexContent({
                   scrollToReasoningTreeStart();
                 }}
               >
-                {tree.industryChainName}
+                {tree.displayName}
               </Button>
             ))}
           </View>

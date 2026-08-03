@@ -763,16 +763,18 @@ func (s fakeStore) InResearchPublicationTransaction(ctx context.Context, fn func
 }
 
 type fakeTransaction struct {
-	facts   ReferenceFacts
-	receipt *Receipt
-	writes  int
+	facts              ReferenceFacts
+	receipt            *Receipt
+	lastReferenceQuery ReferenceQuery
+	writes             int
 }
 
 func (*fakeTransaction) Lock(context.Context, string) error { return nil }
 func (f *fakeTransaction) Receipt(context.Context, string) (*Receipt, error) {
 	return f.receipt, nil
 }
-func (f *fakeTransaction) ReferenceFacts(context.Context, ReferenceQuery) (ReferenceFacts, error) {
+func (f *fakeTransaction) ReferenceFacts(_ context.Context, query ReferenceQuery) (ReferenceFacts, error) {
+	f.lastReferenceQuery = query
 	return f.facts, nil
 }
 func (f *fakeTransaction) InsertThemeReceipt(context.Context, Receipt) error { f.writes++; return nil }
@@ -784,6 +786,10 @@ func (f *fakeTransaction) InsertThemeImpact(context.Context, researchthemeimport
 	f.writes++
 	return nil
 }
+func (f *fakeTransaction) InsertSnapshotThemeImpact(context.Context, SnapshotImpactRecord) error {
+	f.writes++
+	return nil
+}
 func (f *fakeTransaction) InsertThemeEvent(context.Context, researchthemeimport.EventRecord) error {
 	f.writes++
 	return nil
@@ -792,7 +798,15 @@ func (f *fakeTransaction) InsertTreeReceipt(context.Context, researchreasoningtr
 	f.writes++
 	return nil
 }
+func (f *fakeTransaction) InsertSnapshotTreeReceipt(context.Context, SnapshotTreeReceipt) error {
+	f.writes++
+	return nil
+}
 func (f *fakeTransaction) InsertTree(context.Context, researchreasoningtreeimport.ReasoningTreeRecord) error {
+	f.writes++
+	return nil
+}
+func (f *fakeTransaction) InsertSnapshotTree(context.Context, SnapshotTreeRecord) error {
 	f.writes++
 	return nil
 }
@@ -800,8 +814,16 @@ func (f *fakeTransaction) InsertTreeEvent(context.Context, researchreasoningtree
 	f.writes++
 	return nil
 }
-func (f *fakeTransaction) InsertNode(context.Context, NodeRecord) error     { f.writes++; return nil }
+func (f *fakeTransaction) InsertNode(context.Context, NodeRecord) error { f.writes++; return nil }
+func (f *fakeTransaction) InsertSnapshotNode(context.Context, SnapshotNodeRecord) error {
+	f.writes++
+	return nil
+}
 func (f *fakeTransaction) InsertSignal(context.Context, SignalRecord) error { f.writes++; return nil }
-func (*fakeTransaction) Verify(context.Context, Receipt) error              { return nil }
+func (f *fakeTransaction) InsertSnapshotSignal(context.Context, SnapshotSignalRecord) error {
+	f.writes++
+	return nil
+}
+func (*fakeTransaction) Verify(context.Context, Receipt) error { return nil }
 
 func stringPointer(value string) *string { return &value }

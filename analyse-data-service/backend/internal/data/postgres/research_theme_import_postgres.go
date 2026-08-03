@@ -151,8 +151,8 @@ func (t *postgresResearchThemeImportTx) InsertResearchThemeImpact(ctx context.Co
 
 func (t *postgresResearchThemeImportTx) InsertResearchThemeEvent(ctx context.Context, event ResearchThemeImportEvent) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_events (
-    theme_id, event_id, evidence_role, supported_claim
-) VALUES ($1,$2,$3,$4)`, event.ThemeID, event.EventID, event.EvidenceRole, event.SupportedClaim)
+    theme_id, event_id, evidence_role, supported_claim, evidence_ids
+) VALUES ($1,$2,$3,$4,COALESCE($5::uuid[], '{}'::uuid[]))`, event.ThemeID, event.EventID, event.EvidenceRole, event.SupportedClaim, event.EvidenceIDs)
 	return err
 }
 

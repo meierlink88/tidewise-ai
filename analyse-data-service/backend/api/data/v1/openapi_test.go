@@ -162,6 +162,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 
 	tree := schema(t, document, "ResearchReasoningTree")
 	assertRequired(t, tree,
+		"tree_key", "display_name",
 		"reasoning_tree_id", "theme_id", "industry_chain_entity_id", "industry_chain_name", "title",
 		"display_order", "one_line_conclusion", "fact_summary", "transmission_summary",
 		"impact_direction", "impact_strength", "impact_summary", "conclusion_boundary_summary",
@@ -170,6 +171,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	)
 	node := schema(t, document, "ResearchReasoningTreeNode")
 	assertRequired(t, node,
+		"node_key", "display_name",
 		"id", "position", "chain_node_entity_id", "name", "state_summary", "impact_direction",
 		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
 		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
@@ -177,7 +179,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 		"signals", "primary_signal", "signal_display_summary",
 	)
 	detail := schema(t, document, "ResearchReasoningTreeDetail")
-	assertRequired(t, detail, "theme_id", "impact_node_ids", "reasoning_tree")
+	assertRequired(t, detail, "theme_id", "theme_key", "publication_mode", "publication_contract_version", "impact_node_ids", "reasoning_tree")
 }
 
 func TestOpenAPIContractFreezesAtomicResearchPublicationV2(t *testing.T) {
@@ -216,7 +218,26 @@ func TestOpenAPIContractFreezesAtomicResearchPublicationV2(t *testing.T) {
 		"industry_chain_graph_edge_id",
 	)
 	result := schema(t, document, "ResearchThemeImportResult")
-	assertRequired(t, result, "receipt_id", "analysis_batch_id", "theme_id", "payload_hash", "reasoning_tree_ids_by_industry_chain_entity_id", "counts", "published_at", "imported_at", "replayed")
+	assertRequired(t, result, "receipt_id", "analysis_batch_id", "theme_id", "payload_hash", "publication_mode", "reasoning_tree_ids_by_industry_chain_entity_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
+}
+
+func TestOpenAPIContractFreezesAnalystSnapshotPublicationV3(t *testing.T) {
+	document := loadContract(t)
+	snapshot := schema(t, document, "ResearchThemeSnapshotImportRequest")
+	assertRequired(t, snapshot, "publication_mode", "analysis_batch_id", "analysis_as_of", "discovery_window_start", "discovery_window_end", "theme", "reasoning_trees")
+	impact := schema(t, document, "ResearchThemeSnapshotImpact")
+	assertRequired(t, impact, "node_key", "display_name", "relation_role", "impact_direction", "impact_summary", "display_order")
+	properties := object(t, impact["properties"], "snapshot impact properties")
+	if _, exists := properties["chain_node_entity_id"]; exists {
+		t.Fatal("analyst_snapshot impact must not expose a formal Entity ID")
+	}
+	node := schema(t, document, "ResearchReasoningTreeSnapshotNode")
+	assertRequired(t, node, "node_key", "display_name", "position", "state_summary", "impact_direction", "impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary", "incoming_transmission", "signals")
+	signal := schema(t, document, "ResearchReasoningTreeSnapshotSignal")
+	assertRequired(t, signal, "signal_key", "display_summary", "role", "display_order", "variable_name", "direction")
+	if _, exists := object(t, signal["properties"], "snapshot signal properties")["variable_signal_id"]; exists {
+		t.Fatal("analyst_snapshot signal must not expose a formal VariableSignal ID")
+	}
 }
 
 func TestOpenAPIContractFreezesCorrectedResearchAnalysisContextV1(t *testing.T) {
@@ -330,7 +351,7 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 	assertStringSet(t, object(t, object(t, event["properties"], "event properties")["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
 
 	result := schema(t, document, "ResearchThemeImportResult")
-	assertRequired(t, result, "receipt_id", "analysis_batch_id", "payload_hash", "theme_id", "reasoning_tree_ids_by_industry_chain_entity_id", "counts", "published_at", "imported_at", "replayed")
+	assertRequired(t, result, "receipt_id", "analysis_batch_id", "payload_hash", "theme_id", "publication_mode", "reasoning_tree_ids_by_industry_chain_entity_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
 	resultProperties := object(t, result["properties"], "ResearchThemeImportResult properties")
 	if value := object(t, resultProperties["reasoning_tree_ids_by_industry_chain_entity_id"], "reasoning tree IDs")["additionalProperties"]; value == nil {
 		t.Fatal("reasoning_tree_ids_by_industry_chain_entity_id must define UUID map values")

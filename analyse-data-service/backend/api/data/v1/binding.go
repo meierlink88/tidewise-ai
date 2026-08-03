@@ -45,6 +45,20 @@ func decodeEventPublication(payload []byte) (*EventPublicationRequest, error) {
 }
 
 func decodeResearchThemeImport(payload []byte) (*ResearchThemeImportRequest, error) {
+	var discriminator struct {
+		PublicationMode string `json:"publication_mode"`
+	}
+	_ = json.Unmarshal(payload, &discriminator)
+	if discriminator.PublicationMode == "analyst_snapshot" {
+		snapshot := new(ResearchThemeSnapshotImportRequest)
+		if err := decodeStrictBinding(payload, researchThemeSnapshotImportShape(), snapshot); err != nil {
+			return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Research Theme Aggregate V3 analyst_snapshot contract", map[string]any{
+				"theme_key": researchThemeKeyAtPath(payload, bindingErrorPath(err)),
+				"path":      bindingErrorPath(err),
+			})
+		}
+		return &ResearchThemeImportRequest{PublicationMode: discriminator.PublicationMode, Snapshot: snapshot}, nil
+	}
 	request := new(ResearchThemeImportRequest)
 	if err := decodeStrictBinding(payload, researchThemeImportShape(), request); err != nil {
 		path := bindingErrorPath(err)
@@ -54,6 +68,83 @@ func decodeResearchThemeImport(payload []byte) (*ResearchThemeImportRequest, err
 		})
 	}
 	return request, nil
+}
+
+func researchThemeSnapshotImportShape() *bindingShape {
+	evidenceIDs := arrayShape(stringShape)
+	impact := requiredObjectShape([]string{
+		"node_key", "display_name", "relation_role", "impact_direction", "impact_summary", "display_order",
+	}, map[string]*bindingShape{
+		"node_key": stringShape, "display_name": stringShape, "relation_role": stringShape,
+		"impact_direction": stringShape, "impact_summary": nullableStringShape, "display_order": scalarShape,
+	})
+	themeEvent := requiredObjectShape([]string{"event_id", "evidence_role", "supported_claim"}, map[string]*bindingShape{
+		"event_id": stringShape, "evidence_ids": evidenceIDs, "evidence_role": stringShape,
+		"supported_claim": nullableStringShape,
+	})
+	theme := requiredObjectShape([]string{
+		"theme_key", "title", "one_line_conclusion", "conclusion_direction", "impact_strength",
+		"attention_level", "conclusion_status", "transmission_stage", "investment_guidance_action",
+		"investment_guidance_summary", "time_horizon_category", "time_horizon_summary",
+		"transmission_summary", "checkpoint_summary", "risk_summary", "impacts", "events",
+	}, map[string]*bindingShape{
+		"theme_key": stringShape, "title": stringShape, "one_line_conclusion": stringShape,
+		"conclusion_direction": stringShape, "impact_strength": stringShape,
+		"attention_level": nullableStringShape, "conclusion_status": nullableStringShape,
+		"transmission_stage": stringShape, "investment_guidance_action": stringShape,
+		"investment_guidance_summary": stringShape, "time_horizon_category": stringShape,
+		"time_horizon_summary": nullableStringShape, "transmission_summary": nullableStringShape,
+		"checkpoint_summary": nullableStringShape, "risk_summary": nullableStringShape,
+		"impacts": arrayShape(impact), "events": arrayShape(themeEvent),
+	})
+	checkpoint := requiredObjectShape([]string{"type", "summary"}, map[string]*bindingShape{
+		"type": stringShape, "summary": stringShape,
+	})
+	treeEvent := requiredObjectShape([]string{"event_id", "evidence_role", "display_order"}, map[string]*bindingShape{
+		"event_id": stringShape, "evidence_ids": evidenceIDs, "evidence_role": stringShape, "display_order": scalarShape,
+	})
+	signal := requiredObjectShape([]string{
+		"signal_key", "display_summary", "role", "display_order", "variable_name", "direction",
+	}, map[string]*bindingShape{
+		"signal_key": stringShape, "display_summary": stringShape, "role": stringShape,
+		"display_order": scalarShape, "variable_name": nullableStringShape, "direction": nullableStringShape,
+	})
+	incoming := requiredObjectShape([]string{"title", "mechanism", "condition_summary"}, map[string]*bindingShape{
+		"title": nullableStringShape, "mechanism": stringShape, "condition_summary": nullableStringShape,
+	})
+	node := requiredObjectShape([]string{
+		"node_key", "display_name", "position", "state_summary", "impact_direction", "impact_strength",
+		"impact_summary", "reasoning_basis_summary", "evidence_gap_summary", "incoming_transmission", "signals",
+	}, map[string]*bindingShape{
+		"node_key": stringShape, "display_name": stringShape, "position": scalarShape,
+		"state_summary": nullableStringShape, "impact_direction": stringShape, "impact_strength": stringShape,
+		"impact_summary": nullableStringShape, "reasoning_basis_summary": nullableStringShape,
+		"evidence_gap_summary":  nullableStringShape,
+		"incoming_transmission": &bindingShape{fields: incoming.fields, required: incoming.required, null: true},
+		"signals":               arrayShape(signal),
+	})
+	tree := requiredObjectShape([]string{
+		"tree_key", "display_name", "title", "display_order", "one_line_conclusion", "fact_summary",
+		"transmission_summary", "impact_direction", "impact_strength", "impact_summary",
+		"conclusion_boundary_summary", "support_summary", "counter_summary", "invalidation_conditions",
+		"checkpoints", "events", "nodes",
+	}, map[string]*bindingShape{
+		"tree_key": stringShape, "display_name": stringShape, "title": stringShape, "display_order": scalarShape,
+		"one_line_conclusion": stringShape, "fact_summary": nullableStringShape,
+		"transmission_summary": nullableStringShape, "impact_direction": stringShape,
+		"impact_strength": stringShape, "impact_summary": nullableStringShape,
+		"conclusion_boundary_summary": nullableStringShape, "support_summary": nullableStringShape,
+		"counter_summary": nullableStringShape, "invalidation_conditions": arrayShape(stringShape),
+		"checkpoints": arrayShape(checkpoint), "events": arrayShape(treeEvent), "nodes": arrayShape(node),
+	})
+	return requiredObjectShape([]string{
+		"publication_mode", "analysis_batch_id", "analysis_as_of", "discovery_window_start",
+		"discovery_window_end", "theme", "reasoning_trees",
+	}, map[string]*bindingShape{
+		"publication_mode": stringShape, "analysis_batch_id": stringShape, "analysis_as_of": stringShape,
+		"discovery_window_start": stringShape, "discovery_window_end": stringShape,
+		"theme": theme, "reasoning_trees": arrayShape(tree),
+	})
 }
 
 type bindingError struct {

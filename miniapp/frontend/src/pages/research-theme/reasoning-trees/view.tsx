@@ -140,7 +140,7 @@ export function ReasoningTreeTransmission({
                       节点 {String(node.position).padStart(2, '0')}
                     </Text>
                     <View className='reasoning-chain-node__name-slot'>
-                      <Text className='reasoning-chain-node__name'>{node.name}</Text>
+                      <Text className='reasoning-chain-node__name'>{node.displayName}</Text>
                     </View>
                     <View className='reasoning-chain-node__signal-slot'>
                       <Text className='reasoning-chain-node__direction'>
@@ -187,7 +187,7 @@ function ReasoningNodeDetail({ node }: { node: ResearchReasoningTreeNode }) {
           <Text className='reasoning-node-detail__eyebrow'>
             节点 {String(node.position).padStart(2, '0')}
           </Text>
-          <Text className='reasoning-node-detail__title'>{node.name}</Text>
+          <Text className='reasoning-node-detail__title'>{node.displayName}</Text>
         </View>
         <View className='reasoning-node-detail__judgment-wrap'>
           <Text
@@ -206,7 +206,7 @@ function ReasoningNodeDetail({ node }: { node: ResearchReasoningTreeNode }) {
           <View className='reasoning-node-detail__signals'>
             {node.signals.map((signal) => (
               <Text
-                key={`${signal.variableSignalKey}-${signal.displayOrder}`}
+                key={`${signal.signalKey}-${signal.displayOrder}`}
                 className='reasoning-node-detail__signal-summary'
               >
                 {signal.displaySummary}
@@ -221,10 +221,10 @@ function ReasoningNodeDetail({ node }: { node: ResearchReasoningTreeNode }) {
           </Text>
         </View>
       </View>
-      {node.position > 1 && node.incomingTransmissionTitle && node.incomingTransmissionMechanism ? (
+      {node.position > 1 && node.incomingTransmissionMechanism ? (
         <View className='reasoning-node-detail__mechanism'>
           <Text className='reasoning-node-detail__section-title'>
-            {node.incomingTransmissionTitle}
+            {node.incomingTransmissionTitle || '传导机制'}
           </Text>
           <Text>{node.incomingTransmissionMechanism}</Text>
           {node.incomingConditionSummary ? (

@@ -73,6 +73,8 @@ type ResearchTheme struct {
 }
 
 type ResearchThemeImpact struct {
+	NodeKey           string  `json:"node_key"`
+	DisplayName       string  `json:"display_name"`
 	ChainNodeEntityID string  `json:"chain_node_entity_id"`
 	Name              string  `json:"name"`
 	RelationRole      string  `json:"relation_role"`
@@ -82,12 +84,16 @@ type ResearchThemeImpact struct {
 }
 
 type ResearchThemeDetail struct {
-	Theme  ResearchTheme   `json:"theme"`
-	Events []ResearchEvent `json:"events"`
+	ThemeKey                   string          `json:"theme_key"`
+	PublicationMode            string          `json:"publication_mode"`
+	PublicationContractVersion int             `json:"publication_contract_version"`
+	Theme                      ResearchTheme   `json:"theme"`
+	Events                     []ResearchEvent `json:"events"`
 }
 
 type ResearchEvent struct {
 	EventID        string     `json:"event_id"`
+	EvidenceIDs    []string   `json:"evidence_ids"`
 	Title          string     `json:"title"`
 	Summary        string     `json:"summary"`
 	EventTime      *time.Time `json:"event_time"`
@@ -161,7 +167,11 @@ func (s *Service) GetTheme(ctx context.Context, id string, request ResearchDetai
 	if err != nil {
 		return ResearchThemeDetail{}, mapRepositoryError(err)
 	}
-	return ResearchThemeDetail{Theme: themeDTO(item.ThemeSummaryRecord), Events: eventDTOs(item.Events)}, nil
+	return ResearchThemeDetail{
+		ThemeKey: item.ThemeKey, PublicationMode: item.PublicationMode,
+		PublicationContractVersion: item.PublicationContractVersion,
+		Theme:                      themeDTO(item.ThemeSummaryRecord), Events: eventDTOs(item.Events),
+	}, nil
 }
 
 func normalizeListRequest(request ResearchListRequest) (int, int, error) {
@@ -264,6 +274,7 @@ func impactDTOs(values []ThemeImpactRecord) []ResearchThemeImpact {
 	result := make([]ResearchThemeImpact, 0, len(values))
 	for _, value := range values {
 		result = append(result, ResearchThemeImpact{
+			NodeKey: value.NodeKey, DisplayName: value.DisplayName,
 			ChainNodeEntityID: value.ChainNodeEntityID, Name: value.Name,
 			RelationRole: value.RelationRole, ImpactDirection: value.ImpactDirection,
 			ImpactSummary: value.ImpactSummary, DisplayOrder: value.DisplayOrder,
@@ -285,7 +296,8 @@ func eventDTOs(values []EventRecord) []ResearchEvent {
 			displayOrder = index + 1
 		}
 		result = append(result, ResearchEvent{
-			EventID: value.EventID, Title: value.Title, Summary: value.Summary,
+			EvidenceIDs: append([]string(nil), value.EvidenceIDs...),
+			EventID:     value.EventID, Title: value.Title, Summary: value.Summary,
 			EventTime: eventTime, EvidenceRole: value.EvidenceRole,
 			SupportedClaim: value.SupportedClaim, DisplayOrder: displayOrder,
 		})

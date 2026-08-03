@@ -54,7 +54,7 @@ export function ResearchThemeCard({ theme, onOpenEvents }: ResearchThemeCardProp
           {theme.impacts.map((node) => {
             const outlook = researchNodeOutlook(node.impactDirection);
             return (
-              <View key={node.chainNodeEntityId} className='theme-card__node'>
+              <View key={node.nodeKey} className='theme-card__node'>
                 <Text className='theme-card__node-name'>{node.name}</Text>
                 <Text className={`theme-card__outlook theme-card__outlook--${outlook}`}>
                   {researchNodeOutlookLabel(outlook)}

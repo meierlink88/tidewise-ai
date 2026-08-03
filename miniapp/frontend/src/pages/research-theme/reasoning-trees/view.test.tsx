@@ -123,6 +123,23 @@ describe('ReasoningTreeView', () => {
     ]);
   });
 
+  it('shows analyst transmission mechanism when its optional title is absent', () => {
+    const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
+    const nodes = detail.reasoningTree.nodes.map((node, index) =>
+      index === detail.reasoningTree.nodes.length - 1
+        ? { ...node, incomingTransmissionTitle: null }
+        : node
+    );
+    const markup = renderToStaticMarkup(
+      <ReasoningTreeView
+        detail={{ ...detail, reasoningTree: { ...detail.reasoningTree, nodes } }}
+      />
+    );
+
+    expect(markup).toContain('传导机制');
+    expect(markup).toContain(nodes.at(-1)?.incomingTransmissionMechanism);
+  });
+
   it('renders opportunity, risk, and uncertain judgments without internal path roles', () => {
     const detail = parseResearchReasoningTreeDetail(detailFixture.result, themeId, treeId);
     const directions = ['positive', 'negative', 'uncertain'] as const;

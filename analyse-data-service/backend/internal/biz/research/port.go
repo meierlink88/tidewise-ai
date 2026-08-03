@@ -15,6 +15,8 @@ var (
 )
 
 type ThemeImpactRecord struct {
+	NodeKey           string  `json:"node_key"`
+	DisplayName       string  `json:"display_name"`
 	ChainNodeEntityID string  `json:"chain_node_entity_id"`
 	Name              string  `json:"name"`
 	RelationRole      string  `json:"relation_role"`
@@ -25,6 +27,7 @@ type ThemeImpactRecord struct {
 
 type EventRecord struct {
 	EventID        string     `json:"event_id"`
+	EvidenceIDs    []string   `json:"evidence_ids"`
 	Title          string     `json:"title"`
 	Summary        string     `json:"summary"`
 	EventTime      *time.Time `json:"event_time"`
@@ -48,7 +51,9 @@ type ThemeSummaryRecord struct {
 
 type ThemeDetailRecord struct {
 	ThemeSummaryRecord
-	Events []EventRecord
+	ThemeKey, PublicationMode  string
+	PublicationContractVersion int
+	Events                     []EventRecord
 }
 
 type ThemeListFilter struct {
@@ -71,6 +76,7 @@ type ThemeStorePage struct {
 
 type ReasoningTreeSummaryRecord struct {
 	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
+	TreeKey, DisplayName                                             string
 	DisplayOrder, EventCount                                         int
 	PublishedAt                                                      time.Time
 }
@@ -90,11 +96,14 @@ type GraphEdgeRecord struct {
 
 type SignalRecord struct {
 	VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
+	SignalKey                                                      string
+	VariableName, Direction                                        *string
 	DisplayOrder                                                   int
 }
 
 type ReasoningTreeNodeRecord struct {
 	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
+	NodeKey, DisplayName                                         string
 	Position                                                     int
 	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
 	EvidenceGapSummary                                           *string
@@ -106,6 +115,7 @@ type ReasoningTreeNodeRecord struct {
 
 type ReasoningTreeRecord struct {
 	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
+	TreeKey, DisplayName                                               string
 	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
 	DisplayOrder, EventCount                                           int
 	FactSummary, TransmissionSummary, ImpactSummary                    *string
@@ -118,9 +128,10 @@ type ReasoningTreeRecord struct {
 }
 
 type ReasoningTreeDetailRecord struct {
-	ThemeID       string
-	ImpactNodeIDs []string
-	ReasoningTree ReasoningTreeRecord
+	ThemeID, ThemeKey, PublicationMode string
+	PublicationContractVersion         int
+	ImpactNodeIDs                      []string
+	ReasoningTree                      ReasoningTreeRecord
 }
 
 type Repository interface {

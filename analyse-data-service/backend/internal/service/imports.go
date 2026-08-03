@@ -36,8 +36,13 @@ func (s *DataService) PublishResearchTheme(ctx context.Context, request *v1.Rese
 	if s == nil || s.dependencies.ResearchThemeImports == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Theme import service is unavailable")
 	}
-	batch := researchThemeImportInput(request)
-	result, err := s.dependencies.ResearchThemeImports.Publish(ctx, principalIdentity(ctx), batch)
+	var result researchpublication.Result
+	var err error
+	if request.PublicationMode == researchpublication.SnapshotPublicationMode && request.Snapshot != nil {
+		result, err = s.dependencies.ResearchThemeImports.PublishSnapshot(ctx, principalIdentity(ctx), researchThemeSnapshotImportInput(request.Snapshot))
+	} else {
+		result, err = s.dependencies.ResearchThemeImports.Publish(ctx, principalIdentity(ctx), researchThemeImportInput(request))
+	}
 	if err != nil {
 		return nil, researchThemeImportError(err)
 	}
@@ -69,7 +74,7 @@ func researchThemeImportError(err error) error {
 	}
 	var reference *researchpublication.ReferenceError
 	if errors.As(err, &reference) {
-		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_REFERENCE_INVALID", "research Theme aggregate references unavailable or inconsistent formal data", map[string]any{
+		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_REFERENCE_INVALID", "research Theme aggregate references unavailable or inconsistent Data records", map[string]any{
 			"path": reference.Path, "reference": reference.Reference,
 		})
 	}

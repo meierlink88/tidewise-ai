@@ -85,19 +85,28 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
     updateLabel: asOf ? formatResearchUpdateLabel(publishedAt, asOf) : '',
     impacts: array(theme.impacts).map((item, index) => {
       const impact = record(item);
-      onlyKeys(impact, [
+      const snapshot = 'node_key' in impact;
+      onlyKeys(impact, snapshot ? [
+        'node_key', 'display_name',
         'chain_node_entity_id',
         'name',
         'relation_role',
         'impact_direction',
         'impact_summary',
         'display_order'
+      ] : [
+        'chain_node_entity_id', 'name', 'relation_role', 'impact_direction',
+        'impact_summary', 'display_order'
       ]);
       const displayOrder = positiveInteger(impact.display_order);
       if (displayOrder !== index + 1) invalid();
       return {
-        chainNodeEntityId: uuid(impact.chain_node_entity_id),
-        name: text(impact.name),
+        nodeKey: snapshot ? localKey(impact.node_key) : uuid(impact.chain_node_entity_id),
+        displayName: text(snapshot ? impact.display_name : impact.name),
+        chainNodeEntityId: snapshot
+          ? nullableUUIDString(impact.chain_node_entity_id)
+          : uuid(impact.chain_node_entity_id),
+        name: text(snapshot ? impact.display_name : impact.name),
         relationRole: enumValue(impact.relation_role, relationRoleValues),
         impactDirection: enumValue<ResearchDirection>(impact.impact_direction, directionValues),
         impactSummary: nullableText(impact.impact_summary),
@@ -150,8 +159,10 @@ export function parseResearchThemeDetailWire(
 
 function parseResearchThemeEvent(value: unknown, index: number): ResearchThemeEvent {
   const event = record(value);
+  const withEvidence = 'evidence_ids' in event;
   onlyKeys(event, [
     'event_id',
+    ...(withEvidence ? ['evidence_ids'] : []),
     'title',
     'summary',
     'event_time',
@@ -160,6 +171,7 @@ function parseResearchThemeEvent(value: unknown, index: number): ResearchThemeEv
     'display_order'
   ]);
   if (positiveInteger(event.display_order) !== index + 1) invalid();
+  if (withEvidence) array(event.evidence_ids).forEach(uuid);
   text(event.evidence_role);
   nullableText(event.supported_claim);
   return {
@@ -202,6 +214,14 @@ function uuid(value: unknown): string {
   const result = text(value);
   if (!uuidPattern.test(result)) invalid();
   return result;
+}
+function localKey(value: unknown): string {
+  const result = text(value);
+  if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/.test(result)) invalid();
+  return result;
+}
+function nullableUUIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : uuid(value);
 }
 function timestamp(value: unknown): string {
   const result = text(value);

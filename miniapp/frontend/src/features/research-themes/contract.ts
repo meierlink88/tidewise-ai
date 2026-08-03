@@ -6,7 +6,9 @@ export type ResearchConclusionStatus = 'supported' | 'partial' | 'conflicted';
 export type ResearchInvestmentGuidanceAction = 'focus' | 'avoid' | 'observe' | 'differentiate';
 
 export interface HomeResearchThemeImpact {
-  chainNodeEntityId: string;
+  nodeKey: string;
+  displayName: string;
+  chainNodeEntityId: string | null;
   name: string;
   relationRole: 'driver' | 'beneficiary' | 'constraint' | 'exposure';
   impactDirection: ResearchDirection;

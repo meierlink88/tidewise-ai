@@ -42,6 +42,7 @@ type ResearchTheme struct {
 }
 
 type ResearchThemeImpact struct {
+	NodeKey, DisplayName                                   string
 	ChainNodeEntityID, Name, RelationRole, ImpactDirection string
 	ImpactSummary                                          *string
 	DisplayOrder                                           int
@@ -54,12 +55,14 @@ type ResearchThemeDetail struct {
 
 type ResearchEvent struct {
 	EventID, Title, Summary, EvidenceRole string
+	EvidenceIDs                           []string
 	EventTime                             *time.Time
 	SupportedClaim                        *string
 	DisplayOrder                          int
 }
 
 type ResearchReasoningTreeSummary struct {
+	TreeKey, DisplayName                                             string
 	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
 	DisplayOrder, EventCount                                         int
 	PublishedAt                                                      time.Time
@@ -73,11 +76,14 @@ type ResearchReasoningTreeList struct {
 type ResearchCheckpoint struct{ Type, Summary string }
 type ResearchGraphEdge struct{ ID, RelationType, ReviewStatus, Status string }
 type ResearchSignal struct {
+	SignalKey                                                      string
+	VariableName, Direction                                        *string
 	VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
 	DisplayOrder                                                   int
 }
 
 type ResearchReasoningTreeNode struct {
+	NodeKey, DisplayName                                         string
 	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
 	Position                                                     int
 	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
@@ -91,6 +97,7 @@ type ResearchReasoningTreeNode struct {
 }
 
 type ResearchReasoningTree struct {
+	TreeKey, DisplayName                                               string
 	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
 	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
 	DisplayOrder, EventCount                                           int
