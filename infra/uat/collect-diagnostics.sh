@@ -12,4 +12,4 @@ compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 } | sed -E \
   -e 's#(postgres(ql)?://[^:/[:space:]]+:)[^@[:space:]]+@#\1***@#g' \
   -e 's#(Authorization:[[:space:]]*(Bearer|Basic)[[:space:]]+)[^[:space:]]+#\1***#Ig' \
-  -e 's#((TOKEN|PASSWORD|SECRET|DATABASE_URL)[=:][[:space:]]*)[^,[:space:]]+#\1***#Ig'
+  -e 's#((TOKEN|PASSWORD|SECRET|API_KEY|DATABASE_URL)[=:][[:space:]]*)[^,[:space:]]+#\1***#Ig'

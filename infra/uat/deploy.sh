@@ -11,6 +11,7 @@ industry_import_enabled="${INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:-false}"
 industry_package_sha="${INDUSTRY_RELATIONSHIP_PACKAGE_SHA:-}"
 industry_graph_projection_enabled="${INDUSTRY_GRAPH_PROJECTION_ENABLED:-false}"
 industry_graph_package_sha="${INDUSTRY_GRAPH_PACKAGE_SHA:-}"
+event_semantic_projection_enabled="${EVENT_SEMANTIC_PROJECTION_ENABLED:-false}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
 agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
@@ -37,8 +38,15 @@ industry_import_replay_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-relati
 industry_graph_dry_run_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-graph-dry-run-${GITHUB_RUN_ID:-manual}.json"
 industry_graph_apply_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-graph-apply-${GITHUB_RUN_ID:-manual}.json"
 industry_graph_replay_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-industry-graph-replay-${GITHUB_RUN_ID:-manual}.json"
+event_semantic_projection_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-event-semantic-projection-${GITHUB_RUN_ID:-manual}.json"
+event_semantic_entity_collection_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-event-semantic-entity-collection-${GITHUB_RUN_ID:-manual}.json"
+event_semantic_variable_collection_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-event-semantic-variable-collection-${GITHUB_RUN_ID:-manual}.json"
+excluded_fact_before_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-excluded-facts-before-${GITHUB_RUN_ID:-manual}.json"
+excluded_fact_after_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-excluded-facts-after-${GITHUB_RUN_ID:-manual}.json"
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 industry_package_path="/app/data/industry_relationships/2026-07-27-v1"
+event_semantic_qdrant_url="http://qdrant:6333"
+event_semantic_embedding_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 if [ "$industry_import_enabled" != true ] && [ "$industry_import_enabled" != false ]; then
   echo "FAIL industry-relationship-import-gate: enable flag must be true or false" >&2
@@ -74,6 +82,14 @@ if [ "$industry_graph_projection_enabled" = true ]; then
   done
 elif [ -n "$industry_graph_package_sha" ]; then
   echo "FAIL industry-graph-projection-gate: package SHA was supplied while projection is disabled" >&2
+  exit 1
+fi
+if [ "$event_semantic_projection_enabled" != true ] && [ "$event_semantic_projection_enabled" != false ]; then
+  echo "FAIL event-semantic-projection-gate: enable flag must be true or false" >&2
+  exit 1
+fi
+if [ "$event_semantic_projection_enabled" = true ] && [ -z "${EMBEDDING_API_KEY:-}" ]; then
+  echo "FAIL event-semantic-projection-gate: EMBEDDING_API_KEY is required" >&2
   exit 1
 fi
 
@@ -140,7 +156,7 @@ fi
 # Process environment variables have higher precedence than Compose --env-file.
 # The workflow exposes candidate image names at job scope, so clear them before
 # every Compose invocation and let the selected release image file be authoritative.
-compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE -u AGENTRUN_IMAGE docker compose)
+compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE -u AGENTRUN_IMAGE -u QDRANT_IMAGE docker compose)
 candidate_compose=("${compose_command[@]}" --env-file "$runtime_env" --env-file "$candidate_images" -f "$compose_file")
 
 runtime_value() {
@@ -156,6 +172,9 @@ verify_services() {
   local verification_admin_token
   verification_admin_token="$(runtime_value "$verification_runtime" ADMIN_SERVICE_TOKEN)"
 
+  if "${compose_command[@]}" config --services | grep -qx qdrant; then
+    "${compose_command[@]}" exec -T qdrant bash -ec 'exec 3<>/dev/tcp/127.0.0.1/6333' || return 1
+  fi
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/healthz >/dev/null || return 1
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/readyz >/dev/null || return 1
   "${compose_command[@]}" exec -T agentrun wget -qO- http://127.0.0.1:9080/readyz >/dev/null || return 1
@@ -238,6 +257,11 @@ echo "PASS compose-contract"
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh agentrun \
   -c 'probe="$(mktemp /app/data/.uat-write-probe.XXXXXX)" && rm -f "$probe"'
 echo "PASS agentrun-artifact-write"
+
+"${candidate_compose[@]}" run --rm --no-deps \
+  --entrypoint /usr/local/bin/uat-excluded-fact-audit data \
+  > "$excluded_fact_before_report"
+echo "PASS excluded-fact-audit-before"
 
 if [ -f "$agentrun_rollback_marker" ]; then
   "${candidate_compose[@]}" run --rm --no-deps \
@@ -550,12 +574,124 @@ PY
   } >> "$summary_file"
 fi
 
+if [ "$event_semantic_projection_enabled" = true ]; then
+  if ! "${candidate_compose[@]}" stop agentrun; then
+    echo "FAIL event-semantic-projection-pause: AgentRun could not be stopped" >&2
+    exit 1
+  fi
+  candidate_services_started=true
+  trap cleanup_unfinished_agentrun_migration EXIT
+
+  if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120 qdrant; then
+    exit 1
+  fi
+  echo "PASS event-semantic-projection-qdrant-ready"
+
+  event_semantic_projection_environment=(
+    -e "QDRANT_URL=${event_semantic_qdrant_url}"
+    -e "EMBEDDING_BASE_URL=${event_semantic_embedding_base_url}"
+    -e EMBEDDING_API_KEY
+  )
+  if ! "${candidate_compose[@]}" run --rm --no-deps \
+    "${event_semantic_projection_environment[@]}" data \
+    /usr/local/bin/event-semantic-projector -apply -allow-env uat > "$event_semantic_projection_report"; then
+    exit 1
+  fi
+  echo "PASS event-semantic-projection-apply"
+
+  "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh data \
+    -ec "wget -qO- ${event_semantic_qdrant_url}/collections/entity_semantic_v1" \
+    > "$event_semantic_entity_collection_report"
+  "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh data \
+    -ec "wget -qO- ${event_semantic_qdrant_url}/collections/variable_definition_semantic_v1" \
+    > "$event_semantic_variable_collection_report"
+
+  python3 - \
+    "$event_semantic_projection_report" \
+    "$event_semantic_entity_collection_report" \
+    "$event_semantic_variable_collection_report" <<'PY'
+import json
+import pathlib
+import sys
+
+projection = json.loads(pathlib.Path(sys.argv[1]).read_text())
+entity = json.loads(pathlib.Path(sys.argv[2]).read_text()).get("result") or {}
+variable = json.loads(pathlib.Path(sys.argv[3]).read_text()).get("result") or {}
+
+if projection.get("projection_version") != "event-semantic-projection.v1":
+    raise SystemExit("Event Semantic projection version does not match the frozen contract")
+if projection.get("embedding_model") != "text-embedding-v4":
+    raise SystemExit("Event Semantic embedding model does not match the frozen contract")
+if projection.get("entity_count") != 4973:
+    raise SystemExit("Event Semantic Entity projection count does not match the UAT production baseline")
+if projection.get("variable_definition_count") != 12:
+    raise SystemExit("Event Semantic Variable Definition projection count does not match the UAT production baseline")
+
+def verify_collection(label, value, expected_count):
+    if value.get("status") != "green":
+        raise SystemExit(f"{label} collection is not green")
+    if value.get("points_count") != expected_count:
+        raise SystemExit(f"{label} collection point count does not match the UAT production baseline")
+    vectors = (((value.get("config") or {}).get("params") or {}).get("vectors") or {})
+    if vectors.get("size") != 1024 or vectors.get("distance") != "Cosine":
+        raise SystemExit(f"{label} collection vector contract does not match 1024/Cosine")
+
+verify_collection("Entity", entity, 4973)
+verify_collection("Variable Definition", variable, 12)
+PY
+  echo "PASS event-semantic-projection-verify"
+  {
+    echo
+    echo "### UAT Event Semantic Qdrant projection"
+    echo
+    echo "- Projection: \`event-semantic-projection.v1\`"
+    echo "- Embedding model: \`text-embedding-v4\`"
+    echo "- Entity points: \`4973\`"
+    echo "- Variable Definition points: \`12\`"
+    echo "- Vector contract: \`1024 / Cosine\`"
+  } >> "$summary_file"
+fi
+
+"${candidate_compose[@]}" run --rm --no-deps \
+  --entrypoint /usr/local/bin/uat-excluded-fact-audit data \
+  > "$excluded_fact_after_report"
+python3 - "$excluded_fact_before_report" "$excluded_fact_after_report" <<'PY'
+import json
+import pathlib
+import sys
+
+before = json.loads(pathlib.Path(sys.argv[1]).read_text())
+after = json.loads(pathlib.Path(sys.argv[2]).read_text())
+expected_contract = "uat-excluded-fact-audit.v1"
+if before.get("contract_version") != expected_contract or after.get("contract_version") != expected_contract:
+    raise SystemExit("excluded fact audit contract version does not match")
+if before.get("tables") != after.get("tables"):
+    before_tables = before.get("tables") or {}
+    after_tables = after.get("tables") or {}
+    changed = sorted(
+        table for table in set(before_tables) | set(after_tables)
+        if before_tables.get(table) != after_tables.get(table)
+    )
+    raise SystemExit("excluded PostgreSQL facts changed during deployment: " + ",".join(changed))
+PY
+echo "PASS excluded-fact-audit-unchanged"
+{
+  echo
+  echo "### UAT excluded PostgreSQL fact audit"
+  echo
+  echo "Event, RawDocument, Theme, and Reason Tree table counts and schema-normalized content fingerprints are unchanged."
+} >> "$summary_file"
+
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120 --remove-orphans; then
-  rollback_current_release
+  if [ "$candidate_services_started" != true ]; then
+    rollback_current_release
+  fi
   exit 1
 fi
 if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
-  rollback_current_release
+  if [ "$candidate_services_started" != true ]; then
+    rollback_current_release
+  fi
   exit 1
 fi
 candidate_services_started=true
@@ -593,7 +729,7 @@ echo "PASS release-state-recorded"
   echo
   echo "### UAT deployment"
   echo
-  echo "Deployed \`${release_sha}\` as one five-image release unit."
+  echo "Deployed \`${release_sha}\` as one five-business-image release unit with an immutable Qdrant dependency."
   if [ -s "$previous_sha" ]; then
     echo "Previous successful release: \`$(sed -n '1p' "$previous_sha")\`."
   fi

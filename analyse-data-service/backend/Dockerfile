@@ -12,6 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-s
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-relationship-import ./analyse-data-service/backend/cmd/industry-relationship-import
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-graph-projector ./analyse-data-service/backend/cmd/industry-graph-projector
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantic-projector ./analyse-data-service/backend/cmd/event-semantic-projector
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/uat-excluded-fact-audit ./analyse-data-service/backend/cmd/uat-excluded-fact-audit
 
 FROM alpine:3.20
 
@@ -26,6 +27,7 @@ COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-seman
 COPY --from=builder /out/industry-relationship-import /usr/local/bin/industry-relationship-import
 COPY --from=builder /out/industry-graph-projector /usr/local/bin/industry-graph-projector
 COPY --from=builder /out/event-semantic-projector /usr/local/bin/event-semantic-projector
+COPY --from=builder /out/uat-excluded-fact-audit /usr/local/bin/uat-excluded-fact-audit
 COPY analyse-data-service/backend/configs ./configs
 COPY analyse-data-service/backend/migrations ./migrations
 COPY analyse-data-service/backend/data/industry_relationships/2026-07-27-v1 ./data/industry_relationships/2026-07-27-v1
