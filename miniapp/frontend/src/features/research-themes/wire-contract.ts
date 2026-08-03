@@ -86,18 +86,28 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
     impacts: array(theme.impacts).map((item, index) => {
       const impact = record(item);
       const snapshot = 'node_key' in impact;
-      onlyKeys(impact, snapshot ? [
-        'node_key', 'display_name',
-        'chain_node_entity_id',
-        'name',
-        'relation_role',
-        'impact_direction',
-        'impact_summary',
-        'display_order'
-      ] : [
-        'chain_node_entity_id', 'name', 'relation_role', 'impact_direction',
-        'impact_summary', 'display_order'
-      ]);
+      onlyKeys(
+        impact,
+        snapshot
+          ? [
+              'node_key',
+              'display_name',
+              'chain_node_entity_id',
+              'name',
+              'relation_role',
+              'impact_direction',
+              'impact_summary',
+              'display_order'
+            ]
+          : [
+              'chain_node_entity_id',
+              'name',
+              'relation_role',
+              'impact_direction',
+              'impact_summary',
+              'display_order'
+            ]
+      );
       const displayOrder = positiveInteger(impact.display_order);
       if (displayOrder !== index + 1) invalid();
       return {
