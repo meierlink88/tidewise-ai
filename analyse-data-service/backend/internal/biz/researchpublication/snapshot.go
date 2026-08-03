@@ -3,6 +3,7 @@ package researchpublication
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -263,14 +264,16 @@ func (t SnapshotTheme) validate() error {
 	if len(t.Events) == 0 {
 		return invalid("theme.events", "", "must contain at least one Event")
 	}
+	seenEvents := make(map[string]struct{}, len(t.Events))
 	for index, event := range t.Events {
 		path := fmt.Sprintf("theme.events[%d]", index)
 		if err := validateSnapshotEvent(path, event.EventID, event.EvidenceIDs, event.EvidenceRole); err != nil {
 			return err
 		}
-		if index > 0 && event.EventID <= t.Events[index-1].EventID {
-			return invalid(path+".event_id", event.EventID, "must be unique and sorted by event_id")
+		if _, duplicate := seenEvents[event.EventID]; duplicate {
+			return invalid(path+".event_id", event.EventID, "must be unique within the Theme")
 		}
+		seenEvents[event.EventID] = struct{}{}
 		if err := snapshotOptionalText(path+".supported_claim", event.SupportedClaim, 2000); err != nil {
 			return err
 		}
@@ -469,7 +472,17 @@ func SnapshotNodeID(treeID, nodeKey string) string {
 }
 
 func CanonicalSnapshotHash(value SnapshotAggregate) (string, error) {
-	return researchthemeimport.CanonicalHashValue(value, "research Theme analyst snapshot V3")
+	return researchthemeimport.CanonicalHashValue(canonicalSnapshotAggregate(value), "research Theme analyst snapshot V3")
+}
+
+func canonicalSnapshotAggregate(value SnapshotAggregate) SnapshotAggregate {
+	canonical := value
+	canonical.Theme = value.Theme
+	canonical.Theme.Events = append([]SnapshotEvent(nil), value.Theme.Events...)
+	sort.Slice(canonical.Theme.Events, func(i, j int) bool {
+		return canonical.Theme.Events[i].EventID < canonical.Theme.Events[j].EventID
+	})
+	return canonical
 }
 
 func snapshotUTCTime(path, value string) (time.Time, error) {

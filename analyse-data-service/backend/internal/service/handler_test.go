@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -96,6 +98,57 @@ func TestResearchThemeImportRoutesAnalystSnapshotToIsolatedPublicationBranch(t *
 	if importer.snapshot.Theme.ThemeKey != "theme:a" || importer.aggregate.AnalysisBatchID != "" ||
 		response.Result.PublicationMode != researchpublication.SnapshotPublicationMode {
 		t.Fatalf("snapshot route = importer %#v response %#v", importer, response.Result)
+	}
+}
+
+func TestResearchThemeImportHTTPPreservesThreeUnorderedSnapshotEventAssociations(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "testdata", "research-theme-analyst-snapshot-v3", "01-uat-at01-prepared-request.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request v1.ResearchThemeSnapshotImportRequest
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	request.AnalysisBatchID = "snapshot-three-unordered-events"
+	request.Theme.Events = []v1.ResearchThemeSnapshotEvent{
+		{EventID: "71000000-0000-5000-8000-000000000001", EvidenceRole: "driver"},
+		{EventID: "71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting"},
+		{EventID: "71000000-0000-5000-8000-000000000002", EvidenceRole: "context"},
+	}
+	request.ReasoningTrees[0].Events = []v1.ResearchReasoningTreeSnapshotEvent{
+		{EventID: "71000000-0000-5000-8000-000000000001", EvidenceRole: "driver", DisplayOrder: 1},
+		{EventID: "71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting", DisplayOrder: 2},
+		{EventID: "71000000-0000-5000-8000-000000000002", EvidenceRole: "context", DisplayOrder: 3},
+	}
+	payload, err = json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	importer := &fakeThemeImporter{result: researchpublication.Result{
+		ReceiptID: "receipt", AnalysisBatchID: request.AnalysisBatchID, ThemeID: "theme",
+		PublicationMode:           researchpublication.SnapshotPublicationMode,
+		ReasoningTreeIDsByTreeKey: map[string]string{"tree:a": "tree"},
+	}}
+	handler := dataServiceTestHandler(
+		Dependencies{ResearchThemeImports: importer},
+		map[string]v1.Principal{"research-publisher": {Identity: "analyst", Scopes: []string{ScopeResearchImport}}},
+		"generated-request-id",
+	)
+	httpRequest := httptest.NewRequest(http.MethodPost, Namespace+"/research-theme-imports", bytes.NewReader(payload))
+	httpRequest.Header.Set("Authorization", "Bearer research-publisher")
+	httpRequest.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, httpRequest)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body=%s", response.Code, response.Body)
+	}
+	if len(importer.snapshot.Theme.Events) != 3 ||
+		importer.snapshot.Theme.Events[1].EventID != "71000000-0000-5000-8000-000000000003" ||
+		importer.snapshot.Theme.Events[2].EventID != "71000000-0000-5000-8000-000000000002" {
+		t.Fatalf("snapshot Theme Events = %#v, want all three associations without API truncation", importer.snapshot.Theme.Events)
 	}
 }
 
