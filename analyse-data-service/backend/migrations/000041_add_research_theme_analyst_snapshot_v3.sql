@@ -108,7 +108,14 @@ ALTER TABLE research_reasoning_tree_node_signals
     ADD CONSTRAINT chk_research_reasoning_tree_signal_source
         CHECK (source_kind IN ('legacy_snapshot','formal_signal','analyst_inference','analyst_snapshot')),
     ADD CONSTRAINT chk_research_reasoning_tree_signal_identity CHECK (
-        (variable_signal_key IS NOT NULL)::integer + (signal_key IS NOT NULL)::integer = 1),
+        (source_kind = 'analyst_snapshot'
+            AND variable_signal_key IS NULL
+            AND signal_key IS NOT NULL)
+        OR (source_kind <> 'analyst_snapshot'
+            AND variable_signal_key IS NOT NULL
+            AND signal_key IS NULL)),
+    ADD CONSTRAINT chk_research_reasoning_tree_signal_formal_direction CHECK (
+        source_kind = 'analyst_snapshot' OR signal_direction IS NOT NULL),
     ADD CONSTRAINT chk_research_reasoning_tree_signal_snapshot CHECK (
         source_kind <> 'analyst_snapshot' OR (
             signal_key ~ '^[a-z0-9][a-z0-9._:-]{0,127}$'

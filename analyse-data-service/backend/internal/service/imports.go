@@ -56,19 +56,19 @@ func (s *DataService) PublishResearchTheme(ctx context.Context, request *v1.Rese
 func researchThemeImportError(err error) error {
 	var validation *researchpublication.ValidationError
 	if errors.As(err, &validation) {
-		return publicErrorWithDetails(v1.StatusBadRequest, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
+		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
 			"path": validation.Path, "reference": validation.Reference,
 		})
 	}
 	var themeValidation *researchthemeimport.ValidationError
 	if errors.As(err, &themeValidation) {
-		return publicErrorWithDetails(v1.StatusBadRequest, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
+		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
 			"path": themeValidation.Path, "reference": themeValidation.Reference,
 		})
 	}
 	var treeValidation *researchreasoningtreeimport.ValidationError
 	if errors.As(err, &treeValidation) {
-		return publicErrorWithDetails(v1.StatusBadRequest, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
+		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
 			"path": treeValidation.Path, "reference": treeValidation.Reference,
 		})
 	}

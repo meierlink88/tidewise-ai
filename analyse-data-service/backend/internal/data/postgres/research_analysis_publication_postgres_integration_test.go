@@ -230,6 +230,13 @@ INSERT INTO variable_definitions (
 		snapshotDetail.ReasoningTree.Events[0].EvidenceIDs[0] != testTypedEvidenceID {
 		t.Fatalf("snapshot readback lost display contract: %#v", snapshotDetail)
 	}
+	assertAnalystSnapshotSignalConstraintsDoNotRelaxFormalRows(
+		t,
+		ctx,
+		db,
+		published.ReasoningTreeIDsByIndustryChainEntityID[testTypedChainID],
+		snapshotTreeID,
+	)
 
 	seedBCIReverseGraph(t, ctx, db)
 	if _, err := db.ExecContext(
@@ -337,6 +344,51 @@ INSERT INTO variable_definitions (
 	}
 	if receiptCount != 0 {
 		t.Fatalf("failed transaction persisted %d aggregate receipts", receiptCount)
+	}
+}
+
+func assertAnalystSnapshotSignalConstraintsDoNotRelaxFormalRows(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	formalTreeID string,
+	snapshotTreeID string,
+) {
+	t.Helper()
+	var formalNodeID, snapshotNodeID string
+	for treeID, target := range map[string]*string{
+		formalTreeID:   &formalNodeID,
+		snapshotTreeID: &snapshotNodeID,
+	} {
+		if err := db.QueryRowContext(ctx, `SELECT id::text
+FROM research_reasoning_tree_nodes
+WHERE reasoning_tree_id = $1::uuid
+ORDER BY position
+LIMIT 1`, treeID).Scan(target); err != nil {
+			t.Fatalf("read Reason Tree node for signal constraint test: %v", err)
+		}
+	}
+
+	if _, err := db.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
+    reasoning_tree_node_id, signal_key, signal_role, signal_direction,
+    display_summary, display_order, source_kind
+) VALUES ($1::uuid, 'signal:formal-bypass', 'supporting', 'increase',
+    'must be rejected', 2, 'legacy_snapshot')`, formalNodeID); err == nil {
+		t.Fatal("formal/legacy signal row accepted analyst snapshot signal_key identity")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
+    reasoning_tree_node_id, variable_signal_key, signal_role, signal_direction,
+    display_summary, display_order, source_kind
+) VALUES ($1::uuid, 'formal_direction_required', 'supporting', NULL,
+    'must be rejected', 2, 'legacy_snapshot')`, formalNodeID); err == nil {
+		t.Fatal("formal/legacy signal row accepted nullable signal_direction")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
+    reasoning_tree_node_id, variable_signal_key, signal_role, signal_direction,
+    display_summary, display_order, source_kind
+) VALUES ($1::uuid, 'snapshot-formal-bypass', 'supporting', 'increase',
+    'must be rejected', 2, 'analyst_snapshot')`, snapshotNodeID); err == nil {
+		t.Fatal("analyst snapshot signal row accepted formal variable_signal_key identity")
 	}
 }
 

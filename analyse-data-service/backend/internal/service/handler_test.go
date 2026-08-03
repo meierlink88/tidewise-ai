@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -156,6 +157,22 @@ func TestResearchThemePublicationReferenceErrorMapsToHTTP422(t *testing.T) {
 		envelope.Error.Details["path"] != referenceError.Path ||
 		envelope.Error.Details["reference"] != referenceError.Reference {
 		t.Fatalf("envelope = %#v", envelope)
+	}
+}
+
+func TestResearchThemeStructuralValidationErrorsMapToHTTP422(t *testing.T) {
+	validation := &researchpublication.ValidationError{
+		Path:      "theme.impacts",
+		Reference: "node:missing",
+		Message:   "must be covered by at least one Reason Tree",
+	}
+	mapped := researchThemeImportError(validation)
+	var public *v1.PublicError
+	if !errors.As(mapped, &public) {
+		t.Fatalf("researchThemeImportError() = %T, want *v1.PublicError", mapped)
+	}
+	if public.Status != http.StatusUnprocessableEntity || public.Code != "RESEARCH_THEME_IMPORT_REJECTED" {
+		t.Fatalf("public error = %#v, want 422 RESEARCH_THEME_IMPORT_REJECTED", public)
 	}
 }
 
