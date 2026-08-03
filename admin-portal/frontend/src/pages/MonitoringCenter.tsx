@@ -90,7 +90,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
     setPage(1);
   };
   return (
-    <section className='grid h-full min-w-0 content-start gap-5 overflow-auto pb-6'>
+    <section className='grid h-full min-w-0 auto-rows-max content-start gap-5 overflow-auto pb-6'>
       <div className='flex items-start justify-between gap-4 max-lg:flex-col'>
         <div>
           <span className='page-eyebrow'>Pipeline execution monitor</span>
