@@ -20,8 +20,10 @@ export class ResearchReasoningTreeError extends Error {
 }
 export type ResearchReasoningTreeTheme = HomeResearchThemeItem;
 export interface ResearchReasoningTreeSummary {
+  treeKey: string;
+  displayName: string;
   reasoningTreeId: string;
-  industryChainEntityId: string;
+  industryChainEntityId: string | null;
   industryChainName: string;
   title: string;
   displayOrder: number;
@@ -52,16 +54,21 @@ export interface ResearchReasoningTreeGraphEdge {
   status: string;
 }
 export interface ResearchReasoningTreeSignal {
-  variableSignalKey: string;
+  signalKey: string;
+  variableName: string | null;
+  direction: ResearchSignalDirection | null;
+  variableSignalKey: string | null;
   signalRole: 'primary' | 'supporting' | 'contradicting';
-  signalDirection: ResearchSignalDirection;
+  signalDirection: ResearchSignalDirection | null;
   displaySummary: string;
   displayOrder: number;
 }
 export interface ResearchReasoningTreeNode {
+  nodeKey: string;
+  displayName: string;
   id: string;
   position: number;
-  chainNodeEntityId: string;
+  chainNodeEntityId: string | null;
   name: string;
   stateSummary: string | null;
   impactDirection: ResearchDirection;
@@ -79,9 +86,11 @@ export interface ResearchReasoningTreeNode {
   signalDisplaySummary: string;
 }
 export interface ResearchReasoningTree {
+  treeKey: string;
+  displayName: string;
   reasoningTreeId: string;
   themeId: string;
-  industryChainEntityId: string;
+  industryChainEntityId: string | null;
   industryChainName: string;
   title: string;
   displayOrder: number;

@@ -51,14 +51,16 @@ export function parseResearchReasoningTreeDetail(
     }
     return {
       themeId,
-      impactNodeIds: array(root.impact_node_ids).map(uuid),
+      impactNodeIds: array(root.impact_node_ids).map(localKey),
       reasoningTree
     };
   });
 }
 
 function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
+  const snapshot = 'tree_key' in value;
   onlyKeys(value, [
+    ...(snapshot ? ['tree_key', 'display_name'] : []),
     'reasoning_tree_id',
     'industry_chain_entity_id',
     'industry_chain_name',
@@ -68,9 +70,13 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
     'published_at'
   ]);
   return {
+    treeKey: snapshot ? localKey(value.tree_key) : uuid(value.industry_chain_entity_id),
+    displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
-    industryChainEntityId: uuid(value.industry_chain_entity_id),
-    industryChainName: text(value.industry_chain_name),
+    industryChainEntityId: snapshot
+      ? nullableUUIDString(value.industry_chain_entity_id)
+      : uuid(value.industry_chain_entity_id),
+    industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
     eventCount: nonNegativeInteger(value.event_count),
@@ -79,7 +85,9 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
 }
 
 function mapTree(value: RecordValue): ResearchReasoningTree {
+  const snapshot = 'tree_key' in value;
   onlyKeys(value, [
+    ...(snapshot ? ['tree_key', 'display_name'] : []),
     'reasoning_tree_id',
     'theme_id',
     'industry_chain_entity_id',
@@ -106,10 +114,14 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
   const nodes = array(value.nodes).map((item, index) => mapNode(record(item), index));
   if (nodes.length === 0 || nonNegativeInteger(value.event_count) !== events.length) invalid();
   return {
+    treeKey: snapshot ? localKey(value.tree_key) : uuid(value.industry_chain_entity_id),
+    displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
     themeId: uuid(value.theme_id),
-    industryChainEntityId: uuid(value.industry_chain_entity_id),
-    industryChainName: text(value.industry_chain_name),
+    industryChainEntityId: snapshot
+      ? nullableUUIDString(value.industry_chain_entity_id)
+      : uuid(value.industry_chain_entity_id),
+    industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
     oneLineConclusion: text(value.one_line_conclusion),
@@ -138,8 +150,10 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
 }
 
 function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent {
+  const withEvidence = 'evidence_ids' in value;
   onlyKeys(value, [
     'event_id',
+    ...(withEvidence ? ['evidence_ids'] : []),
     'title',
     'summary',
     'event_time',
@@ -149,6 +163,7 @@ function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent
   ]);
   const displayOrder = positiveInteger(value.display_order);
   if (displayOrder !== index + 1) invalid();
+  if (withEvidence) array(value.evidence_ids).forEach(uuid);
   return {
     eventId: uuid(value.event_id),
     title: text(value.title),
@@ -161,7 +176,9 @@ function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent
 }
 
 function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
+  const snapshot = 'node_key' in value;
   onlyKeys(value, [
+    ...(snapshot ? ['node_key', 'display_name'] : []),
     'id',
     'position',
     'chain_node_entity_id',
@@ -203,10 +220,14 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
   const incomingGraphEdge =
     value.incoming_graph_edge === null ? null : mapGraphEdge(record(value.incoming_graph_edge));
   return {
+    nodeKey: snapshot ? localKey(value.node_key) : uuid(value.chain_node_entity_id),
+    displayName: text(snapshot ? value.display_name : value.name),
     id: uuid(value.id),
     position,
-    chainNodeEntityId: uuid(value.chain_node_entity_id),
-    name: text(value.name),
+    chainNodeEntityId: snapshot
+      ? nullableUUIDString(value.chain_node_entity_id)
+      : uuid(value.chain_node_entity_id),
+    name: text(snapshot ? value.display_name : value.name),
     stateSummary: nullableText(value.state_summary),
     impactDirection: enumValue<ResearchDirection>(value.impact_direction, directionValues),
     impactStrength: enumValue<ResearchImpactStrength>(value.impact_strength, strengthValues),
@@ -225,7 +246,9 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
 }
 
 function mapSignal(value: RecordValue, index: number): ResearchReasoningTreeSignal {
+  const snapshot = 'signal_key' in value;
   onlyKeys(value, [
+    ...(snapshot ? ['signal_key', 'variable_name', 'direction'] : []),
     'variable_signal_key',
     'signal_role',
     'signal_direction',
@@ -235,12 +258,18 @@ function mapSignal(value: RecordValue, index: number): ResearchReasoningTreeSign
   const displayOrder = positiveInteger(value.display_order);
   if (displayOrder !== index + 1) invalid();
   return {
-    variableSignalKey: text(value.variable_signal_key),
+    signalKey: snapshot ? localKey(value.signal_key) : text(value.variable_signal_key),
+    variableName: snapshot ? nullableText(value.variable_name) : null,
+    direction: snapshot
+      ? nullableEnum<ResearchSignalDirection>(value.direction, signalDirectionValues)
+      : enumValue<ResearchSignalDirection>(value.signal_direction, signalDirectionValues),
+    variableSignalKey: snapshot
+      ? nullableTextAllowEmpty(value.variable_signal_key)
+      : text(value.variable_signal_key),
     signalRole: enumValue(value.signal_role, signalRoleValues),
-    signalDirection: enumValue<ResearchSignalDirection>(
-      value.signal_direction,
-      signalDirectionValues
-    ),
+    signalDirection: snapshot
+      ? nullableEnum<ResearchSignalDirection>(value.direction, signalDirectionValues)
+      : enumValue<ResearchSignalDirection>(value.signal_direction, signalDirectionValues),
     displaySummary: text(value.display_summary),
     displayOrder
   };
@@ -258,12 +287,26 @@ function mapGraphEdge(value: RecordValue) {
 
 function sameSignal(left: ResearchReasoningTreeSignal, right: ResearchReasoningTreeSignal) {
   return (
-    left.variableSignalKey === right.variableSignalKey &&
+    left.signalKey === right.signalKey &&
     left.signalRole === right.signalRole &&
     left.signalDirection === right.signalDirection &&
     left.displaySummary === right.displaySummary &&
     left.displayOrder === right.displayOrder
   );
+}
+
+function localKey(value: unknown): string {
+  const result = text(value);
+  if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/.test(result)) invalid();
+  return result;
+}
+
+function nullableUUIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : uuid(value);
+}
+
+function nullableTextAllowEmpty(value: unknown): string | null {
+  return value === '' || value === null ? null : text(value);
 }
 
 function failClosed<T>(operation: () => T): T {
@@ -337,6 +380,10 @@ function nonNegativeInteger(value: unknown): number {
 function enumValue<T extends string>(value: unknown, allowed: readonly T[]): T {
   if (typeof value !== 'string' || !allowed.includes(value as T)) invalid();
   return value as T;
+}
+
+function nullableEnum<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  return value === null ? null : enumValue(value, allowed);
 }
 
 export function isLowercaseUUID(value: string): boolean {

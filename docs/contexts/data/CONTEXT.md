@@ -103,7 +103,11 @@ _Avoid_: Event UUID、Import Idempotency Key、可覆盖的事件名称
 _Avoid_: 覆盖 Event 核心事实、删除旧证据、用新 Receipt 表示新 Event
 
 **研究主题（Research Theme）**:
-一次完成分析侧校验并由授权发布主体提交的单 Theme Aggregate 内，对一组 Event 及其产业链影响形成的不可变、可发布研究判断快照，包含一句话结论、传导路径和结论演进阶段。同一现实议题在不同 Aggregate 中生成不同 Research Theme；首页展示查询时间范围内全部成功发布的 Theme Aggregate，并按发布时间稳定分页。
+一次完成分析侧校验并由授权发布主体提交的单 Theme Aggregate 内，对一组 Event 及其
+分析对象影响形成的不可变、可发布研究判断快照，包含一句话结论、传导路径和结论演进
+阶段。V2 formal 可以绑定正式产业链事实；V3 `analyst_snapshot` 的对象、变量和传导是
+分析师报告快照，不是本体事实。同一现实议题在不同 Aggregate 中生成不同 Research
+Theme；首页展示查询时间范围内全部成功发布的 Theme Aggregate，并按发布时间稳定分页。
 已发布内容的纠错必须由分析侧使用新的 `analysis_batch_id` 发布完整修正 Aggregate，旧 Aggregate 保留审计。本期不提供更新、删除或撤回 Theme/Aggregate 的 API。
 _Avoid_: 覆盖或删除历史 Theme、把 `theme_key` 当作跨 Aggregate 稳定身份、原地修订已发布 Aggregate
 
@@ -117,8 +121,10 @@ _Avoid_: 调用方提交 Theme UUID、把 Theme Key 当作长期主题身份
 **研究主题发布聚合（Research Theme Publication Aggregate）**:
 一次同步请求只发布一条 Theme 及其 1..N 棵完整 Reason Tree；二者是最小事务聚合，
 要么全部可见，要么全部回滚。一次 Codex 分析产生多个 Theme 时分别提交，彼此不共享
-事务。零 Theme 是 Codex 合法结果，不向 Data 提交占位对象。Data 只校验 DTO、正式
-引用、状态、结构和 Evidence 血缘，不判断投研结论是否正确。
+事务。零 Theme 是 Codex 合法结果，不向 Data 提交占位对象。Data 按 publication variant
+校验 DTO、结构、来源引用和事务：V2 formal 分支继续校验正式本体与 Signal/Impact 血缘；
+V3 `analyst_snapshot` 分支只校验 local key 闭包、路径、正式 Event 及调用方可选提交的
+Evidence 归属。Data 不判断投研结论是否正确，也不把分析师快照晋升为正式本体事实。
 _Avoid_: Theme 先可见再补 Tree、独立 Tree 写入口、部分入库、零 Theme 占位
 
 **主题聚合发布时间（Theme Aggregate Published At）**:
@@ -148,8 +154,10 @@ _Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份�
 
 **Theme 发布回执（Theme Publication Receipt）**:
 一个成功 Theme Aggregate 的不可变技术回执，持久化 Analysis Batch ID、发布主体、
-payload hash、唯一 Theme ID、Industry Chain 到 Tree ID 的映射、首次发布时间及整棵
-聚合的写入计数。Theme、全部 Trees、强血缘和两类既有回执在同一事务内提交。
+payload hash、唯一 Theme ID、publication contract/mode、Tree identity 到 Tree ID 的映射、
+首次发布时间及整棵聚合的写入计数。V2 formal 使用 Industry Chain ID 映射；V3
+`analyst_snapshot` 使用 aggregate-local `tree_key` 映射。Theme、全部 Trees、来源关联和
+两类既有回执在同一事务内提交。
 首次成功返回 `201 + replayed:false`，相同主体和载荷重放返回
 `200 + replayed:true`；重放不得刷新结果。
 _Avoid_: 在单条 Theme 上设置批次 ID 唯一约束、业务数据失败后保留回执、修改成功回执
@@ -171,21 +179,37 @@ _Avoid_: 大小写混合 UUID、重复关联、服务端静默重排、同一语
 _Avoid_: `subject_entity_id`、Theme `name`、`impact_level`、`trading_direction`、
 `transmission_path`、`next_checkpoint`、`market_confirmation_summary`
 
+**Theme Aggregate Analyst Snapshot 发布 V3（Theme Aggregate Analyst Snapshot Publication V3）**:
+沿用 `POST /api/data/v1/research-theme-imports` 的隔离 request variant，顶层以
+`publication_mode=analyst_snapshot` 明确判别。它发布分析师拥有的不可变报告快照：Theme
+Impact、Tree、Node 和 Signal 使用 aggregate-local key 与 publication-time display snapshot，
+不提交也不依赖 Entity、IndustryChain、VariableDefinition、VariableSignal、DirectImpact、
+Relation 或 GraphEdge formal ID。每个 Theme 与每棵 Tree 至少关联一个正式 Event；
+Evidence ID 可选，提供时才校验存在且属于所声明 Event。JSON/schema 错误返回 `400`，
+local-key closure、路径、Event/Evidence 等业务结构或引用错误返回 `422`。
+_Avoid_: 根据 formal ID 是否存在猜测分支、将本体覆盖作为发布门禁、从 display 文案反推
+formal identity、发布时晋升本体事实
+
 **主题影响（Theme Impact）**:
-Research Theme 与受影响 Chain Node 的不可变关系，保存角色、方向、可空摘要和稳定
-展示顺序。所有 Impact 平等，不存在 subject、primary 或主要影响节点；当前目标类型
-只允许有效 Chain Node。一个 Theme 至少有一个 Impact。
-_Avoid_: Company/Concept 等其他目标类型、`is_primary`、把展示顺序解释为影响优先级
+Research Theme 的不可变关注对象快照，保存角色、方向、可空摘要和稳定展示顺序。所有
+Impact 平等，不存在 subject、primary 或主要影响节点；一个 Theme 至少有一个 Impact。
+V2 formal Impact 引用有效 Chain Node；V3 `analyst_snapshot` Impact 使用 aggregate-local
+`node_key + display_name`，只要求该 key 在至少一棵 Tree 中被覆盖。Theme 卡片短名称与
+Tree Node 具体名称是独立 presentation snapshot，Data 不比较二者文案。
+_Avoid_: `is_primary`、把展示顺序解释为影响优先级、要求 V3 分析对象先成为正式 Entity
 
 **产品可见 Theme（Product-visible Research Theme）**:
 属于一次成功 Theme Aggregate 事务且满足读取窗口的 Theme。新 V2 Theme 必然同时拥有
-至少一棵完整 Tree；既有 V1 历史数据保持可读，但不构成新发布兼容约束。
+至少一棵完整 Tree；新 V3 `analyst_snapshot` 同样必然包含至少一棵完整 Tree。既有 V1
+历史数据保持可读，但不构成新发布兼容约束。
 _Avoid_: 新 Theme 无 Tree 可见、读取时动态补写 Tree
 
 **推理树（Reason Tree）**:
-一个 Theme 在一条 Industry Chain 内的不可变线性推导链路。同一 Theme 与同一
-Industry Chain 最多一棵 Tree；一棵 Tree 可以解释该链内一个或多个 Theme Impact，
-也可以包含只承担传导上下文的 Chain Node。Tree 没有中心节点或主要影响节点。
+一个 Theme 的不可变线性推导链路。V2 formal Tree 属于一条 Industry Chain，同一 Theme
+与同一 Industry Chain 最多一棵；V3 `analyst_snapshot` Tree 使用 aggregate-local
+`tree_key + display_name`，display name 可以是产业链、宏观、估值或商业模式传导路径，
+不要求正式 Industry Chain。两种分支都可以解释一个或多个 Theme Impact，也可以包含
+只承担传导上下文的节点。Tree 没有中心节点或主要影响节点。
 _Avoid_: Research Anchor、中心节点、任意图、分叉、循环、用 Tree `display_order`
 表达影响优先级
 
@@ -196,17 +220,20 @@ Aggregate 同步发布，不存在独立写入口。请求至少包含一棵 Tre
 _Avoid_: `research-reasoning-tree-imports` 写入口、先 Theme 后 Tree、第二套幂等键
 
 **Reason Tree 身份与回执（Reason Tree Identity and Receipt）**:
-Tree 身份由 `theme_id + NUL + industry_chain_entity_id` 确定性生成。每个 Theme
-最多一条 Tree 集合回执，保存发布主体、payload hash、Industry Chain 到 Tree ID
-映射、写入计数和首次发布时间；回执与全部 Tree 子记录同事务提交。
+V2 formal Tree 身份由 `theme_id + NUL + industry_chain_entity_id` 确定性生成；V3
+`analyst_snapshot` Tree 身份由 `theme_id + NUL + tree_key` 确定性生成。每个 Theme
+最多一条 Tree 集合回执，保存发布主体、payload hash、对应分支的 Tree identity 映射、
+写入计数和首次发布时间；回执与全部 Tree 子记录同事务提交。
 _Avoid_: 调用方提交 Tree ID、原地覆盖、每棵 Tree 单独回执
 
 **Reason Tree 节点（Reason Tree Node）**:
-Tree 的有序 Chain Node 快照。`position` 从 1 连续排列并且是唯一路径顺序；一个
-节点在 Tree 内唯一。每个节点必须是该 Tree Industry Chain 的 active/approved
-成员。首节点全部 `incoming_*` 为空；后续节点必须保存传导标题、机制和成立条件。
-可空正式 Graph Edge 必须 active/approved、属于同一链且端点匹配；为空表示分析推断。
-`formal_direct_impact` 的 source VariableSignal subject 必须等于前一节点、target
+Tree 的有序分析对象快照。`position` 从 1 连续排列并且是唯一路径顺序；一个节点在
+Tree 内唯一。V2 formal Node 必须是该 Tree Industry Chain 的 active/approved 成员；V3
+`analyst_snapshot` Node 使用 Tree-local `node_key + display_name`，不要求正式 Entity、
+ChainNode 或 membership。首节点全部 `incoming_*` 为空；后续节点必须保存传导机制，V3
+允许标题和成立条件为空。
+V2 可空正式 Graph Edge 必须 active/approved、属于同一链且端点匹配；为空表示分析推断。
+V2 `formal_direct_impact` 的 source VariableSignal subject 必须等于前一节点、target
 必须等于当前节点；`analyst_inference` 必须引用上游正式事实作为整棵 Tree 的 Event
 血缘锚点，并引用实际使用的 Relation/Graph Edge。Data 忽略该关系的存储方向，只要求
 它连接前一节点与当前节点；不要求根事实实体直接连接所有下游节点，允许多个连续
@@ -215,12 +242,14 @@ _Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写�
 
 **Variable Signal 展示快照（Variable Signal Display Snapshot）**:
 每个 Tree 节点拥有 1..5 个按 `display_order` 排列的不可变显示快照，恰好一个
-`primary`。`formal_signal` 同时固定 VariableSignal UUID、Semantic Submission、
+`primary`。V2 `formal_signal` 同时固定 VariableSignal UUID、Semantic Submission、
 Evidence ID/hash，并验证节点 Entity、变量和方向一致；`analyst_inference` 不得冒充
 正式 Signal，必须引用一个正式上游 Signal/Impact 作为事实/Event 血缘锚点，以及连接
 相邻 Tree Node 的实际 Relation/Graph Edge；关系端点方向可与 Tree 传播顺序相反。
-读取时只返回发布时显示快照，不用当前正式事实动态重写文案。
-_Avoid_: 只有字符串 key 的弱引用、从显示文本反推正式事实、Inference 伪造 Signal ID
+V3 `analyst_snapshot` Signal 使用 Node-local `signal_key` 和必填 `display_summary`，变量名与
+方向可空，不提交或依赖正式 Variable/Signal/Lineage ID。读取时只返回发布时显示快照，
+不用当前正式事实动态重写文案。
+_Avoid_: 从显示文本反推正式事实、Inference 伪造 Signal ID、要求 V3 Signal 绑定本体
 
 **Event 原生 Variable Signal（Event-native Variable Signal）**:
 由正式 Event 的明确陈述与 Evidence 直接支持、描述规范 Entity 上受控变量状态或变化的
@@ -400,11 +429,12 @@ _Avoid_: 开放式图遍历、AgentRun 直连数据库/Neo4j、全库 Entity Cat
 _Avoid_: 保存全部候选、模型生成 receipt、用日志或监控替代提交前校验
 
 **Reason Tree Event 关联（Reason Tree Event Association）**:
-Tree 可以从父 Theme Event 集合选择零个或多个正式 Event，并保存角色与稳定展示
-顺序；不复制 Event 正文或证据摘要。Theme Event 与 Tree Event 都只接受
-`confirmed + verified` 的正式 Event 事实。结构上数组可为空，但发布引用校验要求每棵
-Tree 覆盖自身引用的全部正式 Signal/DirectImpact 及上游正式事实的来源 Event；仅在
-Theme Event 集合中出现不构成该 Tree 的完整血缘。
+Tree 从父 Theme Event 集合选择正式 Event，并保存角色与稳定展示顺序；不复制 Event
+正文或证据摘要。Theme Event 与 Tree Event 都只接受
+`confirmed + verified` 的正式 Event 事实。V2 formal 结构上数组可为空，但发布引用校验
+要求每棵 Tree 覆盖自身引用的全部正式 Signal/DirectImpact 及上游正式事实的来源 Event；
+V3 `analyst_snapshot` 每棵 Tree 至少关联一个正式 Event，Evidence IDs 可选并仅在提供时
+校验归属。仅在 Theme Event 集合中出现不能替代 Tree 自身的来源关联。
 _Avoid_: Tree 扩展父 Theme Event 边界、遗漏所用事实的来源 Event、要求特定角色组合、
 复制 Event 文本
 
@@ -413,7 +443,8 @@ _Avoid_: Tree 扩展父 Theme Event 边界、遗漏所用事实的来源 Event�
 `GET /api/data/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}`。
 Theme 缺失、无 Tree 回执、Tree 缺失分别返回稳定 `404`；回执存在但投影无法完整
 重建返回 `500 RESEARCH_REASONING_TREE_INVARIANT_VIOLATION`。读取按服务端顺序返回
-Theme Impact IDs，消费者仅通过 ID 相交判断节点是否为 Theme Impact。
+Theme Impact identity；V2 消费者通过 formal Chain Node ID 相交，V3 消费者通过
+aggregate-local `node_key` 相交判断节点是否为 Theme Impact。
 _Avoid_: `anchor_id`、独立 Anchor API、`is_theme_impact`、BFF 扇出查询
 
 **Theme 与 Tree 摘要（Theme and Tree Summaries）**:

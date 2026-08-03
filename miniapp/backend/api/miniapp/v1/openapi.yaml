@@ -244,6 +244,9 @@ components:
     UUID:
       type: string
       format: uuid
+    ResearchLocalKey:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9._:-]{0,127}$'
     UTCTimestamp:
       type: string
       format: date-time
@@ -383,9 +386,11 @@ components:
     ResearchThemeImpact:
       type: object
       additionalProperties: false
-      required: [chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
+      required: [node_key, display_name, chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
       properties:
-        chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
+        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
         relation_role: {type: string}
         impact_direction: {type: string}
@@ -394,9 +399,10 @@ components:
     ResearchEvent:
       type: object
       additionalProperties: false
-      required: [event_id, title, summary, event_time, evidence_role, supported_claim, display_order]
+      required: [event_id, evidence_ids, title, summary, event_time, evidence_role, supported_claim, display_order]
       properties:
         event_id: {$ref: '#/components/schemas/UUID'}
+        evidence_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
         title: {type: string}
         summary: {type: string}
         event_time:
@@ -415,10 +421,12 @@ components:
     ReasoningTreeSummary:
       type: object
       additionalProperties: false
-      required: [reasoning_tree_id, industry_chain_entity_id, industry_chain_name, title, display_order, event_count, published_at]
+      required: [tree_key, display_name, reasoning_tree_id, industry_chain_entity_id, industry_chain_name, title, display_order, event_count, published_at]
       properties:
+        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer}
@@ -430,16 +438,19 @@ components:
       required: [theme_id, impact_node_ids, reasoning_tree]
       properties:
         theme_id: {$ref: '#/components/schemas/UUID'}
-        impact_node_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+        impact_node_ids: {type: array, items: {$ref: '#/components/schemas/ResearchLocalKey'}}
         reasoning_tree: {$ref: '#/components/schemas/ReasoningTree'}
     ReasoningTreeSignal:
       type: object
       additionalProperties: false
-      required: [variable_signal_key, signal_role, signal_direction, display_summary, display_order]
+      required: [signal_key, variable_name, direction, variable_signal_key, signal_role, signal_direction, display_summary, display_order]
       properties:
+        signal_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        variable_name: {type: string, nullable: true}
+        direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain], nullable: true}
         variable_signal_key: {type: string}
         signal_role: {type: string, enum: [primary, supporting, contradicting]}
-        signal_direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain]}
+        signal_direction: {type: string, description: Empty for analyst_snapshot publications; use direction instead.}
         display_summary: {type: string}
         display_order: {type: integer}
     ReasoningTreeGraphEdge:
@@ -462,6 +473,8 @@ components:
       type: object
       additionalProperties: false
       required:
+        - node_key
+        - display_name
         - id
         - position
         - chain_node_entity_id
@@ -481,9 +494,11 @@ components:
         - primary_signal
         - signal_display_summary
       properties:
+        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
         id: {$ref: '#/components/schemas/UUID'}
         position: {type: integer}
-        chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
         state_summary: {type: string, nullable: true}
         impact_direction: {type: string, enum: [positive, negative, mixed, neutral, uncertain]}
@@ -507,6 +522,8 @@ components:
       type: object
       additionalProperties: false
       required:
+        - tree_key
+        - display_name
         - reasoning_tree_id
         - theme_id
         - industry_chain_entity_id
@@ -529,9 +546,11 @@ components:
         - events
         - nodes
       properties:
+        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
         theme_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer}

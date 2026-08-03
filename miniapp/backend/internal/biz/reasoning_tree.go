@@ -19,6 +19,7 @@ type ResearchReasoningTreeListResponse struct {
 	ReasoningTrees []ResearchReasoningTreeSummaryDTO
 }
 type ResearchReasoningTreeSummaryDTO struct {
+	TreeKey, DisplayName                                             string
 	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
 	DisplayOrder, EventCount                                         int
 	PublishedAt                                                      string
@@ -31,10 +32,13 @@ type ResearchReasoningTreeDetailResponse struct {
 type ResearchCheckpointDTO struct{ Type, Summary string }
 type ResearchGraphEdgeDTO struct{ ID, RelationType, ReviewStatus, Status string }
 type ResearchSignalDTO struct {
+	SignalKey                                                      string
+	VariableName, Direction                                        *string
 	VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
 	DisplayOrder                                                   int
 }
 type ResearchReasoningTreeNodeDTO struct {
+	NodeKey, DisplayName                                         string
 	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
 	Position                                                     int
 	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
@@ -47,6 +51,7 @@ type ResearchReasoningTreeNodeDTO struct {
 	SignalDisplaySummary                                         string
 }
 type ResearchReasoningTreeDTO struct {
+	TreeKey, DisplayName                                               string
 	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
 	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
 	DisplayOrder, EventCount                                           int
@@ -74,6 +79,7 @@ func (s *ResearchService) ListReasoningTrees(ctx context.Context, themeID string
 	trees := make([]ResearchReasoningTreeSummaryDTO, 0, len(value.ReasoningTrees))
 	for _, tree := range value.ReasoningTrees {
 		trees = append(trees, ResearchReasoningTreeSummaryDTO{
+			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainEntityID: tree.IndustryChainEntityID,
 			IndustryChainName: tree.IndustryChainName, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 			EventCount: tree.EventCount, PublishedAt: formatTime(tree.PublishedAt),
@@ -116,6 +122,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 			edge = &ResearchGraphEdgeDTO{ID: node.IncomingGraphEdge.ID, RelationType: node.IncomingGraphEdge.RelationType, ReviewStatus: node.IncomingGraphEdge.ReviewStatus, Status: node.IncomingGraphEdge.Status}
 		}
 		nodes = append(nodes, ResearchReasoningTreeNodeDTO{
+			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
 			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID, Name: node.Name,
 			StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection, ImpactStrength: node.ImpactStrength,
 			ImpactSummary: node.ImpactSummary, ReasoningBasisSummary: node.ReasoningBasisSummary,
@@ -126,6 +133,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 		})
 	}
 	return ResearchReasoningTreeDTO{
+		TreeKey: value.TreeKey, DisplayName: value.DisplayName,
 		ReasoningTreeID: value.ReasoningTreeID, ThemeID: value.ThemeID,
 		IndustryChainEntityID: value.IndustryChainEntityID, IndustryChainName: value.IndustryChainName,
 		Title: value.Title, DisplayOrder: value.DisplayOrder, OneLineConclusion: value.OneLineConclusion,
@@ -138,7 +146,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 	}
 }
 func signalDTO(value ResearchSignal) ResearchSignalDTO {
-	return ResearchSignalDTO{VariableSignalKey: value.VariableSignalKey, SignalRole: value.SignalRole, SignalDirection: value.SignalDirection, DisplaySummary: value.DisplaySummary, DisplayOrder: value.DisplayOrder}
+	return ResearchSignalDTO{SignalKey: value.SignalKey, VariableName: value.VariableName, Direction: value.Direction, VariableSignalKey: value.VariableSignalKey, SignalRole: value.SignalRole, SignalDirection: value.SignalDirection, DisplaySummary: value.DisplaySummary, DisplayOrder: value.DisplayOrder}
 }
 func normalizeReasoningTreeRepoError(err error) error {
 	switch {

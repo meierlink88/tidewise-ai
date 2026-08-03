@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,6 +72,33 @@ func TestResearchThemeImportMapsV1Contract(t *testing.T) {
 	}
 }
 
+func TestResearchThemeImportRoutesAnalystSnapshotToIsolatedPublicationBranch(t *testing.T) {
+	importer := &fakeThemeImporter{result: researchpublication.Result{
+		ReceiptID: "receipt", AnalysisBatchID: "snapshot-batch", ThemeID: "theme",
+		PublicationMode:           researchpublication.SnapshotPublicationMode,
+		ReasoningTreeIDsByTreeKey: map[string]string{"tree:a": "tree"},
+		Counts:                    researchpublication.Counts{Themes: 1, Impacts: 1, ReasoningTrees: 1, Nodes: 1, SignalAssociations: 1, Receipts: 2},
+	}}
+	handler := NewDataService(Dependencies{ResearchThemeImports: importer})
+	snapshot := &v1.ResearchThemeSnapshotImportRequest{
+		PublicationMode: researchpublication.SnapshotPublicationMode,
+		AnalysisBatchID: "snapshot-batch", AnalysisAsOf: "2026-08-03T11:00:00Z",
+		DiscoveryWindowStart: "2026-08-03T03:00:00Z", DiscoveryWindowEnd: "2026-08-03T07:00:00Z",
+		Theme: v1.ResearchThemeSnapshotItem{ThemeKey: "theme:a", Title: "Theme"},
+	}
+	response, err := handler.PublishResearchTheme(
+		v1.WithPrincipal(context.Background(), v1.Principal{Identity: "analyst"}),
+		&v1.ResearchThemeImportRequest{PublicationMode: researchpublication.SnapshotPublicationMode, Snapshot: snapshot},
+	)
+	if err != nil {
+		t.Fatalf("PublishResearchTheme() error = %v", err)
+	}
+	if importer.snapshot.Theme.ThemeKey != "theme:a" || importer.aggregate.AnalysisBatchID != "" ||
+		response.Result.PublicationMode != researchpublication.SnapshotPublicationMode {
+		t.Fatalf("snapshot route = importer %#v response %#v", importer, response.Result)
+	}
+}
+
 func TestResearchThemePublicationReferenceErrorMapsToHTTP422(t *testing.T) {
 	referenceError := &researchpublication.ReferenceError{
 		Path:      "reasoning_trees[0].nodes[1].incoming_lineage.direct_impact_assertion_id",
@@ -132,6 +160,22 @@ func TestResearchThemePublicationReferenceErrorMapsToHTTP422(t *testing.T) {
 	}
 }
 
+func TestResearchThemeStructuralValidationErrorsMapToHTTP422(t *testing.T) {
+	validation := &researchpublication.ValidationError{
+		Path:      "theme.impacts",
+		Reference: "node:missing",
+		Message:   "must be covered by at least one Reason Tree",
+	}
+	mapped := researchThemeImportError(validation)
+	var public *v1.PublicError
+	if !errors.As(mapped, &public) {
+		t.Fatalf("researchThemeImportError() = %T, want *v1.PublicError", mapped)
+	}
+	if public.Status != http.StatusUnprocessableEntity || public.Code != "RESEARCH_THEME_IMPORT_REJECTED" {
+		t.Fatalf("public error = %#v, want 422 RESEARCH_THEME_IMPORT_REJECTED", public)
+	}
+}
+
 func TestReasoningTreeDetailExposesImpactIntersectionAndSignals(t *testing.T) {
 	treeID := "22222222-2222-4222-8222-222222222222"
 	researchService := &fakeResearchService{detail: research.ResearchReasoningTreeDetail{
@@ -162,12 +206,20 @@ func TestReasoningTreeDetailExposesImpactIntersectionAndSignals(t *testing.T) {
 type fakeThemeImporter struct {
 	result    researchpublication.Result
 	aggregate researchpublication.Aggregate
+	snapshot  researchpublication.SnapshotAggregate
 	publisher string
 	err       error
 }
 
 func (f *fakeThemeImporter) Publish(_ context.Context, publisher string, aggregate researchpublication.Aggregate) (researchpublication.Result, error) {
 	f.publisher, f.aggregate = publisher, aggregate
+	return f.result, f.err
+}
+
+func (f *fakeThemeImporter) PublishSnapshot(_ context.Context, publisher string, aggregate researchpublication.SnapshotAggregate) (researchpublication.Result, error) {
+	f.publisher = publisher
+	f.snapshot = aggregate
+	f.result.PublicationMode = aggregate.PublicationMode
 	return f.result, f.err
 }
 

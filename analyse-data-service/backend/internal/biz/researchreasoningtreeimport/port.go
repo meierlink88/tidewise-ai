@@ -48,6 +48,7 @@ type ReasoningTreeRecord struct {
 type EventRecord struct {
 	ReasoningTreeID, EventID, EvidenceRole string
 	DisplayOrder                           int
+	EvidenceIDs                            []string
 }
 
 type NodeRecord struct {

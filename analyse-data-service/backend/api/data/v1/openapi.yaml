@@ -803,9 +803,11 @@ paths:
       x-transaction-membership: research-theme-import-receipt,research-theme,research-theme-impact,research-theme-event,research-reasoning-tree-import-receipt,research-reasoning-tree,research-reasoning-tree-event,research-reasoning-tree-node,research-reasoning-tree-node-signal
       summary: 原子发布一条不可变 Theme 及其全部 Reason Trees
       description: >-
-        analysis_batch_id 是本次单 Theme Aggregate 的幂等身份。Data Service 只校验
-        结构、正式引用、accepted/latest/non-superseded 状态与 Evidence 血缘，不判断投研
-        结论是否正确。Theme 与 1..N Reason Trees 在同一事务内全部发布或全部回滚。
+        analysis_batch_id 是本次单 Theme Aggregate 的幂等身份。V2 formal
+        分支保持正式本体引用与血缘校验；V3 analyst_snapshot 分支是分析师提交的
+        不可变展示报告，只要求 Event 存在，Evidence 仅在提交时校验归属，不要求
+        Entity、IndustryChain、VariableSignal 或 Graph Relation。Theme 与 1..N
+        Reason Trees 在同一事务内全部发布或全部回滚。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -815,8 +817,9 @@ paths:
             schema:
               maxLength: 1048576
               x-max-body-bytes: 1048576
-              allOf:
+              oneOf:
                 - $ref: '#/components/schemas/ResearchThemeImportRequest'
+                - $ref: '#/components/schemas/ResearchThemeSnapshotImportRequest'
       responses:
         '200':
           description: 相同发布主体、analysis_batch_id 与 payload 的首次结果重放
@@ -1187,6 +1190,61 @@ components:
           type: array
           minItems: 1
           items: {$ref: '#/components/schemas/ResearchReasoningTreeImportItem'}
+    ResearchThemeSnapshotImportRequest:
+      type: object
+      additionalProperties: false
+      description: Analyst-owned immutable display snapshot; formal ontology IDs are intentionally absent.
+      required: [publication_mode, analysis_batch_id, analysis_as_of, discovery_window_start, discovery_window_end, theme, reasoning_trees]
+      properties:
+        publication_mode: {type: string, enum: [analyst_snapshot]}
+        analysis_batch_id: {type: string, minLength: 1, maxLength: 200}
+        analysis_as_of: {$ref: '#/components/schemas/UTCTimestamp'}
+        discovery_window_start: {$ref: '#/components/schemas/UTCTimestamp'}
+        discovery_window_end: {$ref: '#/components/schemas/UTCTimestamp'}
+        theme: {$ref: '#/components/schemas/ResearchThemeSnapshotItem'}
+        reasoning_trees: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchReasoningTreeSnapshotImportItem'}}
+    ResearchThemeSnapshotItem:
+      type: object
+      additionalProperties: false
+      required: [theme_key, title, one_line_conclusion, conclusion_direction, impact_strength, attention_level, conclusion_status, transmission_stage, investment_guidance_action, investment_guidance_summary, time_horizon_category, time_horizon_summary, transmission_summary, checkpoint_summary, risk_summary, impacts, events]
+      properties:
+        theme_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        title: {type: string, minLength: 1}
+        one_line_conclusion: {type: string, minLength: 1}
+        conclusion_direction: {$ref: '#/components/schemas/ResearchDirection'}
+        impact_strength: {$ref: '#/components/schemas/ResearchImpactStrength'}
+        attention_level: {type: string, enum: [high, medium, low], nullable: true}
+        conclusion_status: {type: string, enum: [supported, partial, conflicted], nullable: true}
+        transmission_stage: {type: string, enum: [identification, validation, diffusion, dampening]}
+        investment_guidance_action: {type: string, enum: [focus, avoid, observe, differentiate]}
+        investment_guidance_summary: {type: string, minLength: 1}
+        time_horizon_category: {type: string, enum: [short_term, medium_term, long_term, custom]}
+        time_horizon_summary: {type: string, nullable: true}
+        transmission_summary: {type: string, nullable: true}
+        checkpoint_summary: {type: string, nullable: true}
+        risk_summary: {type: string, nullable: true}
+        impacts: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchThemeSnapshotImpact'}}
+        events: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchThemeSnapshotEvent'}}
+    ResearchThemeSnapshotImpact:
+      type: object
+      additionalProperties: false
+      required: [node_key, display_name, relation_role, impact_direction, impact_summary, display_order]
+      properties:
+        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string, minLength: 1}
+        relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
+        impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
+        impact_summary: {type: string, nullable: true}
+        display_order: {type: integer, minimum: 1}
+    ResearchThemeSnapshotEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, evidence_role, supported_claim]
+      properties:
+        event_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        evidence_ids: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/LowercaseUUID'}}
+        evidence_role: {type: string, enum: [driver, supporting, contradicting, context]}
+        supported_claim: {type: string, nullable: true}
     ResearchThemeImportItem:
       type: object
       additionalProperties: false
@@ -1249,13 +1307,17 @@ components:
       type: object
       additionalProperties: false
       x-client-drift-anchor: data.v1.schema.ResearchThemeImportResult
-      required: [receipt_id, analysis_batch_id, payload_hash, theme_id, reasoning_tree_ids_by_industry_chain_entity_id, counts, published_at, imported_at, replayed]
+      required: [receipt_id, analysis_batch_id, payload_hash, theme_id, publication_mode, reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key, counts, published_at, imported_at, replayed]
       properties:
         receipt_id: {$ref: '#/components/schemas/LowercaseUUID'}
         analysis_batch_id: {type: string}
         payload_hash: {$ref: '#/components/schemas/PayloadHash'}
         theme_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        publication_mode: {type: string, enum: [formal, analyst_snapshot]}
         reasoning_tree_ids_by_industry_chain_entity_id:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/LowercaseUUID'}
+        reasoning_tree_ids_by_tree_key:
           type: object
           additionalProperties: {$ref: '#/components/schemas/LowercaseUUID'}
         counts: {$ref: '#/components/schemas/ResearchThemeImportCounts'}
@@ -1269,6 +1331,75 @@ components:
       properties:
         request_id: {type: string}
         result: {$ref: '#/components/schemas/ResearchThemeImportResult'}
+
+    ResearchReasoningTreeSnapshotImportItem:
+      type: object
+      additionalProperties: false
+      required: [tree_key, display_name, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, events, nodes]
+      properties:
+        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string, minLength: 1}
+        title: {type: string, minLength: 1}
+        display_order: {type: integer, minimum: 1}
+        one_line_conclusion: {type: string, minLength: 1}
+        fact_summary: {type: string, nullable: true}
+        transmission_summary: {type: string, nullable: true}
+        impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
+        impact_strength: {$ref: '#/components/schemas/ResearchImpactStrength'}
+        impact_summary: {type: string, nullable: true}
+        conclusion_boundary_summary: {type: string, nullable: true}
+        support_summary: {type: string, nullable: true}
+        counter_summary: {type: string, nullable: true}
+        invalidation_conditions: {type: array, items: {type: string}}
+        checkpoints: {type: array, items: {$ref: '#/components/schemas/ResearchReasoningTreeImportCheckpoint'}}
+        events: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchReasoningTreeSnapshotEvent'}}
+        nodes: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchReasoningTreeSnapshotNode'}}
+    ResearchReasoningTreeSnapshotEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, evidence_role, display_order]
+      properties:
+        event_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        evidence_ids: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/LowercaseUUID'}}
+        evidence_role: {type: string, enum: [driver, supporting, contradicting, context]}
+        display_order: {type: integer, minimum: 1}
+    ResearchReasoningTreeSnapshotNode:
+      type: object
+      additionalProperties: false
+      required: [node_key, display_name, position, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_transmission, signals]
+      properties:
+        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string, minLength: 1}
+        position: {type: integer, minimum: 1}
+        state_summary: {type: string, nullable: true}
+        impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
+        impact_strength: {$ref: '#/components/schemas/ResearchImpactStrength'}
+        impact_summary: {type: string, nullable: true}
+        reasoning_basis_summary: {type: string, nullable: true}
+        evidence_gap_summary: {type: string, nullable: true}
+        incoming_transmission:
+          nullable: true
+          allOf: [{$ref: '#/components/schemas/ResearchSnapshotIncomingTransmission'}]
+        signals: {type: array, minItems: 1, maxItems: 5, items: {$ref: '#/components/schemas/ResearchReasoningTreeSnapshotSignal'}}
+    ResearchSnapshotIncomingTransmission:
+      type: object
+      additionalProperties: false
+      required: [title, mechanism, condition_summary]
+      properties:
+        title: {type: string, nullable: true}
+        mechanism: {type: string, minLength: 1}
+        condition_summary: {type: string, nullable: true}
+    ResearchReasoningTreeSnapshotSignal:
+      type: object
+      additionalProperties: false
+      required: [signal_key, display_summary, role, display_order, variable_name, direction]
+      properties:
+        signal_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_summary: {type: string, minLength: 1, maxLength: 200}
+        role: {type: string, enum: [primary, supporting, contradicting]}
+        display_order: {type: integer, minimum: 1, maximum: 5}
+        variable_name: {type: string, nullable: true}
+        direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain], nullable: true}
 
     ResearchReasoningTreeImportItem:
       type: object
@@ -1401,25 +1532,33 @@ components:
     ResearchDirection:
       type: string
       enum: [positive, negative, mixed, neutral, uncertain]
+    ResearchLocalKey:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9._:-]{0,127}$'
     ResearchImpactStrength:
       type: string
       enum: [strong, medium, weak, unknown]
     ResearchReasoningTreeSignal:
       type: object
       additionalProperties: false
-      required: [variable_signal_key, signal_role, signal_direction, display_summary, display_order]
+      required: [signal_key, variable_name, direction, variable_signal_key, signal_role, signal_direction, display_summary, display_order]
       properties:
+        signal_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        variable_name: {type: string, nullable: true}
+        direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain], nullable: true}
         variable_signal_key: {type: string}
         signal_role: {type: string, enum: [primary, supporting, contradicting]}
-        signal_direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain]}
+        signal_direction: {type: string, description: Empty for analyst_snapshot publications; use direction instead.}
         display_summary: {type: string}
         display_order: {type: integer, minimum: 0}
     ResearchThemeImpact:
       type: object
       additionalProperties: false
-      required: [chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
+      required: [node_key, display_name, chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
       properties:
-        chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
+        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
@@ -1428,9 +1567,10 @@ components:
     ResearchEvent:
       type: object
       additionalProperties: false
-      required: [event_id, title, summary, event_time, evidence_role, supported_claim, display_order]
+      required: [event_id, evidence_ids, title, summary, event_time, evidence_role, supported_claim, display_order]
       properties:
         event_id: {$ref: '#/components/schemas/UUID'}
+        evidence_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
         title: {type: string}
         summary: {type: string}
         event_time:
@@ -1484,8 +1624,11 @@ components:
       type: object
       additionalProperties: false
       x-client-drift-anchor: data.v1.schema.ResearchThemeDetail
-      required: [theme, events]
+      required: [theme_key, publication_mode, publication_contract_version, theme, events]
       properties:
+        theme_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        publication_mode: {type: string, enum: [formal, analyst_snapshot]}
+        publication_contract_version: {type: integer, enum: [1, 2, 3]}
         theme: {$ref: '#/components/schemas/ResearchThemeSummary'}
         events: {type: array, items: {$ref: '#/components/schemas/ResearchEvent'}}
     ResearchThemeListEnvelope:
@@ -1506,10 +1649,12 @@ components:
     ResearchReasoningTreeSummary:
       type: object
       additionalProperties: false
-      required: [reasoning_tree_id, industry_chain_entity_id, industry_chain_name, title, display_order, event_count, published_at]
+      required: [tree_key, display_name, reasoning_tree_id, industry_chain_entity_id, industry_chain_name, title, display_order, event_count, published_at]
       properties:
+        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer, minimum: 1}
@@ -1542,11 +1687,13 @@ components:
     ResearchReasoningTreeNode:
       type: object
       additionalProperties: false
-      required: [id, position, chain_node_entity_id, name, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_graph_edge, signals, primary_signal, signal_display_summary]
+      required: [node_key, display_name, id, position, chain_node_entity_id, name, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_graph_edge, signals, primary_signal, signal_display_summary]
       properties:
+        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
         id: {$ref: '#/components/schemas/UUID'}
         position: {type: integer, minimum: 1}
-        chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
         state_summary: {type: string, nullable: true}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
@@ -1569,11 +1716,13 @@ components:
     ResearchReasoningTree:
       type: object
       additionalProperties: false
-      required: [reasoning_tree_id, theme_id, industry_chain_entity_id, industry_chain_name, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, published_at, event_count, events, nodes]
+      required: [tree_key, display_name, reasoning_tree_id, theme_id, industry_chain_entity_id, industry_chain_name, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, published_at, event_count, events, nodes]
       properties:
+        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
         theme_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer, minimum: 1}
@@ -1596,10 +1745,13 @@ components:
       type: object
       additionalProperties: false
       x-client-drift-anchor: data.v1.schema.ResearchReasoningTreeDetail
-      required: [theme_id, impact_node_ids, reasoning_tree]
+      required: [theme_id, theme_key, publication_mode, publication_contract_version, impact_node_ids, reasoning_tree]
       properties:
         theme_id: {$ref: '#/components/schemas/UUID'}
-        impact_node_ids: {type: array, minItems: 1, items: {$ref: '#/components/schemas/UUID'}}
+        theme_key: {$ref: '#/components/schemas/ResearchLocalKey'}
+        publication_mode: {type: string, enum: [formal, analyst_snapshot]}
+        publication_contract_version: {type: integer, enum: [1, 2, 3]}
+        impact_node_ids: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchLocalKey'}}
         reasoning_tree: {$ref: '#/components/schemas/ResearchReasoningTree'}
     ResearchReasoningTreeListEnvelope:
       type: object

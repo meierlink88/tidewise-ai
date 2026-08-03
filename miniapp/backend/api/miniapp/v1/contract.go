@@ -62,6 +62,8 @@ type ResearchThemeItem struct {
 	ReasoningTreeCount        int                   `json:"reasoning_tree_count"`
 }
 type ResearchThemeImpact struct {
+	NodeKey           string  `json:"node_key"`
+	DisplayName       string  `json:"display_name"`
 	ChainNodeEntityID string  `json:"chain_node_entity_id"`
 	Name              string  `json:"name"`
 	RelationRole      string  `json:"relation_role"`
@@ -74,13 +76,14 @@ type ResearchThemeDetailResponse struct {
 	Events []ResearchEvent `json:"events"`
 }
 type ResearchEvent struct {
-	EventID        string  `json:"event_id"`
-	Title          string  `json:"title"`
-	Summary        string  `json:"summary"`
-	EventTime      *string `json:"event_time"`
-	EvidenceRole   string  `json:"evidence_role"`
-	SupportedClaim *string `json:"supported_claim"`
-	DisplayOrder   int     `json:"display_order"`
+	EventID        string   `json:"event_id"`
+	EvidenceIDs    []string `json:"evidence_ids"`
+	Title          string   `json:"title"`
+	Summary        string   `json:"summary"`
+	EventTime      *string  `json:"event_time"`
+	EvidenceRole   string   `json:"evidence_role"`
+	SupportedClaim *string  `json:"supported_claim"`
+	DisplayOrder   int      `json:"display_order"`
 }
 
 type ResearchReasoningTreeListResponse struct {
@@ -88,6 +91,8 @@ type ResearchReasoningTreeListResponse struct {
 	ReasoningTrees []ResearchReasoningTreeSummary `json:"reasoning_trees"`
 }
 type ResearchReasoningTreeSummary struct {
+	TreeKey               string `json:"tree_key"`
+	DisplayName           string `json:"display_name"`
 	ReasoningTreeID       string `json:"reasoning_tree_id"`
 	IndustryChainEntityID string `json:"industry_chain_entity_id"`
 	IndustryChainName     string `json:"industry_chain_name"`
@@ -112,13 +117,18 @@ type ResearchReasoningTreeGraphEdge struct {
 	Status       string `json:"status"`
 }
 type ResearchReasoningTreeSignal struct {
-	VariableSignalKey string `json:"variable_signal_key"`
-	SignalRole        string `json:"signal_role"`
-	SignalDirection   string `json:"signal_direction"`
-	DisplaySummary    string `json:"display_summary"`
-	DisplayOrder      int    `json:"display_order"`
+	SignalKey         string  `json:"signal_key"`
+	VariableName      *string `json:"variable_name"`
+	Direction         *string `json:"direction"`
+	VariableSignalKey string  `json:"variable_signal_key"`
+	SignalRole        string  `json:"signal_role"`
+	SignalDirection   string  `json:"signal_direction"`
+	DisplaySummary    string  `json:"display_summary"`
+	DisplayOrder      int     `json:"display_order"`
 }
 type ResearchReasoningTreeNode struct {
+	NodeKey                          string                          `json:"node_key"`
+	DisplayName                      string                          `json:"display_name"`
 	ID                               string                          `json:"id"`
 	Position                         int                             `json:"position"`
 	ChainNodeEntityID                string                          `json:"chain_node_entity_id"`
@@ -139,6 +149,8 @@ type ResearchReasoningTreeNode struct {
 	SignalDisplaySummary             string                          `json:"signal_display_summary"`
 }
 type ResearchReasoningTree struct {
+	TreeKey                   string                            `json:"tree_key"`
+	DisplayName               string                            `json:"display_name"`
 	ReasoningTreeID           string                            `json:"reasoning_tree_id"`
 	ThemeID                   string                            `json:"theme_id"`
 	IndustryChainEntityID     string                            `json:"industry_chain_entity_id"`

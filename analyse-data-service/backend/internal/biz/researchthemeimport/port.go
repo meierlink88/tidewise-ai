@@ -40,6 +40,7 @@ type ImpactRecord struct {
 type EventRecord struct {
 	ThemeID, EventID, EvidenceRole string
 	SupportedClaim                 *string
+	EvidenceIDs                    []string
 }
 
 type Counts struct {

@@ -31,15 +31,17 @@ t.checkpoint_summary, t.risk_summary, t.analysis_as_of, t.window_start, t.window
 t.published_at,
 COALESCE((
     SELECT jsonb_agg(jsonb_build_object(
-        'chain_node_entity_id', impact.chain_node_entity_id,
-        'name', node.name,
+		'node_key', COALESCE(impact.node_key, impact.chain_node_entity_id::text),
+		'display_name', COALESCE(impact.display_name, node.name),
+		'chain_node_entity_id', COALESCE(impact.chain_node_entity_id::text, ''),
+		'name', COALESCE(node.name, impact.display_name),
         'relation_role', impact.relation_role,
         'impact_direction', impact.impact_direction,
         'impact_summary', impact.impact_summary,
         'display_order', impact.display_order
     ) ORDER BY impact.display_order)
     FROM research_theme_impacts impact
-    JOIN entity_nodes node ON node.id = impact.chain_node_entity_id
+	LEFT JOIN entity_nodes node ON node.id = impact.chain_node_entity_id
     WHERE impact.theme_id = t.id
 ), '[]'::jsonb),
 (SELECT count(*) FROM research_theme_events event WHERE event.theme_id = t.id),
@@ -72,6 +74,7 @@ SELECT ` + researchThemeSummaryColumns + `,
 COALESCE((
     SELECT jsonb_agg(jsonb_build_object(
         'event_id', event.id,
+		'evidence_ids', association.evidence_ids,
         'title', event.title,
         'summary', event.summary,
         'event_time', event.event_time,
@@ -81,7 +84,10 @@ COALESCE((
     FROM research_theme_events association
     JOIN events event ON event.id = association.event_id
     WHERE association.theme_id = t.id
-), '[]'::jsonb)
+), '[]'::jsonb),
+t.theme_key,
+(SELECT receipt.publication_mode FROM research_theme_import_receipts receipt WHERE receipt.id = t.import_receipt_id),
+(SELECT receipt.publication_contract_version FROM research_theme_import_receipts receipt WHERE receipt.id = t.import_receipt_id)
 FROM research_themes t
 WHERE t.id = $1 AND t.published_at >= $2 AND t.published_at <= $3`
 
@@ -172,6 +178,7 @@ func scanResearchThemeDetail(row researchRow) (ResearchThemeDetail, error) {
 		&item.TransmissionSummary, &item.CheckpointSummary, &item.RiskSummary,
 		&item.AnalysisAsOf, &item.WindowStart, &item.WindowEnd, &item.PublishedAt,
 		&impacts, &item.EvidenceEventCount, &item.ReasoningTreeCount, &events,
+		&item.ThemeKey, &item.PublicationMode, &item.PublicationContractVersion,
 	); err != nil {
 		return ResearchThemeDetail{}, err
 	}

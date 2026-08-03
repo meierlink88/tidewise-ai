@@ -46,6 +46,7 @@ type EventSemanticsService interface {
 
 type ResearchThemeImportService interface {
 	Publish(context.Context, string, researchpublication.Aggregate) (researchpublication.Result, error)
+	PublishSnapshot(context.Context, string, researchpublication.SnapshotAggregate) (researchpublication.Result, error)
 }
 
 type ResearchService interface {

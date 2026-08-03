@@ -251,8 +251,8 @@ func (t *postgresResearchReasoningTreeImportTx) InsertResearchReasoningTree(ctx 
 
 func (t *postgresResearchReasoningTreeImportTx) InsertResearchReasoningTreeEvent(ctx context.Context, event ResearchReasoningTreeImportEvent) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_events (
-    reasoning_tree_id, event_id, evidence_role, display_order
-) VALUES ($1,$2,$3,$4)`, event.ReasoningTreeID, event.EventID, event.EvidenceRole, event.DisplayOrder)
+    reasoning_tree_id, event_id, evidence_role, display_order, evidence_ids
+) VALUES ($1,$2,$3,$4,COALESCE($5::uuid[], '{}'::uuid[]))`, event.ReasoningTreeID, event.EventID, event.EvidenceRole, event.DisplayOrder, event.EvidenceIDs)
 	return err
 }
 

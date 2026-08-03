@@ -39,3 +39,4 @@
 000038	high	remove primary Event Evidence columns and rename the preserved evidence statement contract
 000039	normal	rebuild the Event Semantic eligible scan index without requiring event_time
 000040	high	forward-only completion of the active Event Semantic Entity Type catalog
+000041	high	forward-only Analyst snapshot publication identity constraints and nullable formal-reference columns

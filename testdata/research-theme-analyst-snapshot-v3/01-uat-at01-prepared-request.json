@@ -1,0 +1,72 @@
+{
+  "publication_mode": "analyst_snapshot",
+  "analysis_batch_id": "uat-at01-analyst-snapshot-v3",
+  "analysis_as_of": "2026-08-03T11:01:16Z",
+  "discovery_window_start": "2026-07-30T03:00:00Z",
+  "discovery_window_end": "2026-08-03T07:00:00Z",
+  "theme": {
+    "theme_key": "theme:at-01",
+    "title": "美国高利率约束开始向长期融资条件扩散",
+    "one_line_conclusion": "住房融资与长久期资产偏风险：美联储维持高利率、长债收益率突破和房贷利率升至6.58%共同指向融资约束加深。",
+    "conclusion_direction": "negative",
+    "impact_strength": "medium",
+    "attention_level": "high",
+    "conclusion_status": "partial",
+    "transmission_stage": "validation",
+    "investment_guidance_action": "observe",
+    "investment_guidance_summary": "观察长债收益率、房贷利率与长久期资产估值反应，暂不把单日利率变化解读为确定交易方向。",
+    "time_horizon_category": "medium_term",
+    "time_horizon_summary": "未来一至两个季度",
+    "transmission_summary": "政策利率高位→长端收益率上行→住房融资成本和长久期资产贴现率承压。",
+    "checkpoint_summary": "PCE与就业、10年和30年期收益率、30年期房贷利率、盈利预期修正。",
+    "risk_summary": "若通胀回落促使政策预期转鸽，或长债上行未传导至房贷利率，结论需下调。",
+    "impacts": [
+      {"node_key":"an-us-housing-finance","display_name":"美国住房融资","relation_role":"constraint","impact_direction":"negative","impact_summary":"房贷成本上升压低可负担性。","display_order":1},
+      {"node_key":"an-us-duration-assets","display_name":"美国长久期风险资产","relation_role":"exposure","impact_direction":"negative","impact_summary":"贴现率上行可能压低远期现金流现值。","display_order":2}
+    ],
+    "events": [
+      {"event_id":"94bb6b65-f762-59e7-8e23-3f1fc1e19e03","evidence_ids":["a4d7f8ce-d0f9-595d-a897-a666072d7950"],"evidence_role":"driver","supported_claim":"美国30年期国债收益率突破5.20%。"},
+      {"event_id":"c51d4ece-2852-5822-a974-3bc9c0203342","evidence_ids":["e5cd9b8d-1ff9-511b-ae43-8d3a85d4c075"],"evidence_role":"driver","supported_claim":"美国30年期固定房贷平均利率升至6.58%。"},
+      {"event_id":"f4dee00c-d4ad-507f-8ded-c60b111f16e9","evidence_ids":["329e7ff4-b01c-54f6-aec1-ab04ec1bb5a6"],"evidence_role":"context","supported_claim":"美联储维持利率不变。"}
+    ]
+  },
+  "reasoning_trees": [
+    {
+      "tree_key": "tree-at01-housing",
+      "display_name": "美国利率—住房融资传导链",
+      "title": "住房融资压力",
+      "display_order": 1,
+      "one_line_conclusion": "长端基准和房贷成本同步上行，住房融资偏风险。",
+      "fact_summary": "美联储维持利率不变，30年期国债收益率突破5.20%，30年期房贷利率升至6.58%。",
+      "transmission_summary": "政策宽松预期后移或期限溢价上升，长期国债收益率通过抵押贷款定价传导至居民融资成本。",
+      "impact_direction": "negative",
+      "impact_strength": "medium",
+      "impact_summary": "可负担性和住房需求可能受压。",
+      "conclusion_boundary_summary": "收益率回落且房贷利率未继续上升时停止传播。",
+      "support_summary": "长端收益率与房贷利率在同一分析窗口上行。",
+      "counter_summary": "长债上行可能仅是短期供给冲击，且通胀回落可改变政策预期。",
+      "invalidation_conditions": ["通胀连续回落促使政策预期明显转鸽", "房贷利率不跟随长债收益率上行"],
+      "checkpoints": [{"type":"metric","summary":"PCE与就业数据"},{"type":"metric","summary":"10年和30年期收益率"},{"type":"metric","summary":"30年期房贷利率"}],
+      "events": [
+        {"event_id":"94bb6b65-f762-59e7-8e23-3f1fc1e19e03","evidence_ids":["a4d7f8ce-d0f9-595d-a897-a666072d7950"],"evidence_role":"driver","display_order":1},
+        {"event_id":"c51d4ece-2852-5822-a974-3bc9c0203342","evidence_ids":["e5cd9b8d-1ff9-511b-ae43-8d3a85d4c075"],"evidence_role":"driver","display_order":2},
+        {"event_id":"f4dee00c-d4ad-507f-8ded-c60b111f16e9","evidence_ids":["329e7ff4-b01c-54f6-aec1-ab04ec1bb5a6"],"evidence_role":"context","display_order":3}
+      ],
+      "nodes": [
+        {"node_key":"an-fed-policy","display_name":"美联储政策约束","position":1,"state_summary":"维持不变且通胀高于目标使快速宽松难度增加。","impact_direction":"uncertain","impact_strength":"medium","impact_summary":null,"reasoning_basis_summary":"政策利率维持高位。","evidence_gap_summary":"政策路径仍受后续数据影响。","incoming_transmission":null,"signals":[{"signal_key":"signal:fed-policy-state","display_summary":"政策利率维持高位","role":"primary","display_order":1,"variable_name":"政策利率状态","direction":null}]},
+        {"node_key":"an-us-long-yield","display_name":"美国长期国债收益率","position":2,"state_summary":"较高无风险利率提高长期融资基准。","impact_direction":"negative","impact_strength":"medium","impact_summary":"上升并突破关键水平。","reasoning_basis_summary":"宽松预期后移或期限溢价上升。","evidence_gap_summary":"需确认收益率维持高位而非日内波动。","incoming_transmission":{"title":null,"mechanism":"宽松预期后移或期限溢价上升，推动长端收益率抬升","condition_summary":"长端收益率需维持高位而非日内波动"},"signals":[{"signal_key":"signal:long-yield-state","display_summary":"上升并突破关键水平","role":"primary","display_order":1,"variable_name":"长期国债收益率","direction":"increase"}]},
+        {"node_key":"an-us-housing-finance","display_name":"美国住房融资条件","position":3,"state_summary":"房贷成本上升压低可负担性。","impact_direction":"negative","impact_strength":"medium","impact_summary":"30年期房贷利率升至6.58%","reasoning_basis_summary":"长期国债收益率通过抵押贷款定价传导。","evidence_gap_summary":"利差和住房成交响应待验证。","incoming_transmission":{"title":null,"mechanism":"长期国债收益率通过抵押贷款定价传导至居民融资成本","condition_summary":"利差不显著收窄且房贷利率继续跟随"},"signals":[{"signal_key":"signal:mortgage-rate-state","display_summary":"30年期房贷利率升至6.58%","role":"primary","display_order":1,"variable_name":"30年期固定房贷利率","direction":"increase"}]}
+      ]
+    },
+    {
+      "tree_key":"tree-at01-duration","display_name":"美国利率—长久期资产估值链","title":"长久期资产估值压力","display_order":2,
+      "one_line_conclusion":"长久期风险资产偏风险，但盈利上修可能抵消贴现率压力。","fact_summary":"美国长期国债收益率上升。","transmission_summary":"无风险利率上升抬高权益资本成本，并压低远期现金流现值。","impact_direction":"negative","impact_strength":"medium","impact_summary":"高估值资产对贴现率上行更敏感。","conclusion_boundary_summary":"若盈利预期显著上修或收益率快速回落，风险判断需重估。","support_summary":"更高无风险收益率提高资本成本和机会成本。","counter_summary":"盈利上修可能抵消估值压缩。","invalidation_conditions":["收益率快速回落","盈利预期显著上修"],"checkpoints":[{"type":"metric","summary":"实际利率"},{"type":"metric","summary":"盈利预期修正"},{"type":"metric","summary":"风险溢价"}],
+      "events":[{"event_id":"94bb6b65-f762-59e7-8e23-3f1fc1e19e03","evidence_ids":["a4d7f8ce-d0f9-595d-a897-a666072d7950"],"evidence_role":"driver","display_order":1},{"event_id":"f4dee00c-d4ad-507f-8ded-c60b111f16e9","evidence_ids":["329e7ff4-b01c-54f6-aec1-ab04ec1bb5a6"],"evidence_role":"context","display_order":2}],
+      "nodes":[
+        {"node_key":"an-us-long-yield","display_name":"美国长期国债收益率","position":1,"state_summary":"更高无风险收益率提高资本成本。","impact_direction":"negative","impact_strength":"medium","impact_summary":"上升","reasoning_basis_summary":"无风险利率上升。","evidence_gap_summary":null,"incoming_transmission":null,"signals":[{"signal_key":"signal:duration-root","display_summary":"长期国债收益率上升","role":"primary","display_order":1,"variable_name":"长期国债收益率","direction":"increase"}]},
+        {"node_key":"an-us-discount-rate","display_name":"权益贴现率","position":2,"state_summary":"现金流越远，对贴现率越敏感。","impact_direction":"negative","impact_strength":"medium","impact_summary":"上升","reasoning_basis_summary":"无风险利率上升抬高权益资本成本。","evidence_gap_summary":"风险溢价和盈利预期仍会影响结果。","incoming_transmission":{"title":null,"mechanism":"无风险利率上升抬高权益资本成本","condition_summary":"风险溢价和盈利预期未同步改善"},"signals":[{"signal_key":"signal:discount-rate","display_summary":"权益贴现率上升","role":"primary","display_order":1,"variable_name":"权益贴现率","direction":"increase"}]},
+        {"node_key":"an-us-duration-assets","display_name":"美国长久期风险资产估值","position":3,"state_summary":"高估值、远期现金流占比较高的资产对贴现率上行更敏感。","impact_direction":"negative","impact_strength":"medium","impact_summary":"估值承压","reasoning_basis_summary":"贴现率上升压低远期现金流现值。","evidence_gap_summary":"盈利上修能否抵消估值压缩待验证。","incoming_transmission":{"title":null,"mechanism":"贴现率上升压低远期现金流现值","condition_summary":"盈利上修不足以抵消估值压缩"},"signals":[{"signal_key":"signal:duration-assets","display_summary":"估值承压","role":"primary","display_order":1,"variable_name":"长久期资产估值状态","direction":null}]}
+      ]
+    }
+  ]
+}

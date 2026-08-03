@@ -116,11 +116,95 @@ func researchThemeImportInput(request *v1.ResearchThemeImportRequest) researchpu
 	}
 }
 
+func researchThemeSnapshotImportInput(request *v1.ResearchThemeSnapshotImportRequest) researchpublication.SnapshotAggregate {
+	theme := request.Theme
+	impacts := make([]researchpublication.SnapshotImpact, 0, len(theme.Impacts))
+	for _, impact := range theme.Impacts {
+		impacts = append(impacts, researchpublication.SnapshotImpact{
+			NodeKey: impact.NodeKey, DisplayName: impact.DisplayName, RelationRole: impact.RelationRole,
+			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
+		})
+	}
+	themeEvents := make([]researchpublication.SnapshotEvent, 0, len(theme.Events))
+	for _, event := range theme.Events {
+		themeEvents = append(themeEvents, researchpublication.SnapshotEvent{
+			EventID: event.EventID, EvidenceIDs: append([]string(nil), event.EvidenceIDs...),
+			EvidenceRole: event.EvidenceRole, SupportedClaim: event.SupportedClaim,
+		})
+	}
+	trees := make([]researchpublication.SnapshotReasoningTree, 0, len(request.ReasoningTrees))
+	for _, tree := range request.ReasoningTrees {
+		checkpoints := make([]researchreasoningtreeimport.Checkpoint, 0, len(tree.Checkpoints))
+		for _, checkpoint := range tree.Checkpoints {
+			checkpoints = append(checkpoints, researchreasoningtreeimport.Checkpoint{Type: checkpoint.Type, Summary: checkpoint.Summary})
+		}
+		events := make([]researchpublication.SnapshotTreeEvent, 0, len(tree.Events))
+		for _, event := range tree.Events {
+			events = append(events, researchpublication.SnapshotTreeEvent{
+				EventID: event.EventID, EvidenceIDs: append([]string(nil), event.EvidenceIDs...),
+				EvidenceRole: event.EvidenceRole, DisplayOrder: event.DisplayOrder,
+			})
+		}
+		nodes := make([]researchpublication.SnapshotNode, 0, len(tree.Nodes))
+		for _, node := range tree.Nodes {
+			signals := make([]researchpublication.SnapshotSignal, 0, len(node.Signals))
+			for _, signal := range node.Signals {
+				signals = append(signals, researchpublication.SnapshotSignal{
+					SignalKey: signal.SignalKey, DisplaySummary: signal.DisplaySummary, Role: signal.Role,
+					DisplayOrder: signal.DisplayOrder, VariableName: signal.VariableName, Direction: signal.Direction,
+				})
+			}
+			var incoming *researchpublication.SnapshotIncomingTransmission
+			if node.IncomingTransmission != nil {
+				incoming = &researchpublication.SnapshotIncomingTransmission{
+					Title: node.IncomingTransmission.Title, Mechanism: node.IncomingTransmission.Mechanism,
+					ConditionSummary: node.IncomingTransmission.ConditionSummary,
+				}
+			}
+			nodes = append(nodes, researchpublication.SnapshotNode{
+				NodeKey: node.NodeKey, DisplayName: node.DisplayName, Position: node.Position,
+				StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
+				ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
+				ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
+				IncomingTransmission: incoming, Signals: signals,
+			})
+		}
+		trees = append(trees, researchpublication.SnapshotReasoningTree{
+			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName, Title: tree.Title,
+			DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
+			FactSummary: tree.FactSummary, TransmissionSummary: tree.TransmissionSummary,
+			ImpactDirection: tree.ImpactDirection, ImpactStrength: tree.ImpactStrength,
+			ImpactSummary: tree.ImpactSummary, ConclusionBoundarySummary: tree.ConclusionBoundarySummary,
+			SupportSummary: tree.SupportSummary, CounterSummary: tree.CounterSummary,
+			InvalidationConditions: append([]string(nil), tree.InvalidationConditions...),
+			Checkpoints:            checkpoints, Events: events, Nodes: nodes,
+		})
+	}
+	return researchpublication.SnapshotAggregate{
+		PublicationMode: request.PublicationMode, AnalysisBatchID: request.AnalysisBatchID,
+		AnalysisAsOf: request.AnalysisAsOf, DiscoveryWindowStart: request.DiscoveryWindowStart,
+		DiscoveryWindowEnd: request.DiscoveryWindowEnd,
+		Theme: researchpublication.SnapshotTheme{
+			ThemeKey: theme.ThemeKey, Title: theme.Title, OneLineConclusion: theme.OneLineConclusion,
+			ConclusionDirection: theme.ConclusionDirection, ImpactStrength: theme.ImpactStrength,
+			AttentionLevel: theme.AttentionLevel, ConclusionStatus: theme.ConclusionStatus,
+			TransmissionStage: theme.TransmissionStage, InvestmentGuidanceAction: theme.InvestmentGuidanceAction,
+			InvestmentGuidanceSummary: theme.InvestmentGuidanceSummary,
+			TimeHorizonCategory:       theme.TimeHorizonCategory, TimeHorizonSummary: theme.TimeHorizonSummary,
+			TransmissionSummary: theme.TransmissionSummary, CheckpointSummary: theme.CheckpointSummary,
+			RiskSummary: theme.RiskSummary, Impacts: impacts, Events: themeEvents,
+		},
+		ReasoningTrees: trees,
+	}
+}
+
 func researchThemeImportDTO(result researchpublication.Result) v1.ResearchThemeImportResult {
 	return v1.ResearchThemeImportResult{
 		ReceiptID: result.ReceiptID, AnalysisBatchID: result.AnalysisBatchID, PayloadHash: result.PayloadHash,
 		ThemeID:                                 result.ThemeID,
+		PublicationMode:                         result.PublicationMode,
 		ReasoningTreeIDsByIndustryChainEntityID: result.ReasoningTreeIDsByIndustryChainEntityID,
+		ReasoningTreeIDsByTreeKey:               result.ReasoningTreeIDsByTreeKey,
 		Counts: v1.ResearchThemeImportCounts{
 			Themes: result.Counts.Themes, Impacts: result.Counts.Impacts,
 			ThemeEventAssociations: result.Counts.ThemeEventAssociations,
@@ -136,6 +220,7 @@ func researchThemeDTO(value research.ResearchTheme) v1.ResearchTheme {
 	impacts := make([]v1.ResearchThemeImpact, 0, len(value.Impacts))
 	for _, impact := range value.Impacts {
 		impacts = append(impacts, v1.ResearchThemeImpact{
+			NodeKey: impact.NodeKey, DisplayName: impact.DisplayName,
 			ChainNodeEntityID: impact.ChainNodeEntityID, Name: impact.Name,
 			RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
 			ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
@@ -160,7 +245,8 @@ func researchEventsDTO(values []research.ResearchEvent) []v1.ResearchEvent {
 	result := make([]v1.ResearchEvent, 0, len(values))
 	for _, event := range values {
 		result = append(result, v1.ResearchEvent{
-			EventID: event.EventID, Title: event.Title, Summary: event.Summary, EventTime: event.EventTime,
+			EvidenceIDs: append([]string(nil), event.EvidenceIDs...),
+			EventID:     event.EventID, Title: event.Title, Summary: event.Summary, EventTime: event.EventTime,
 			EvidenceRole: event.EvidenceRole, SupportedClaim: event.SupportedClaim, DisplayOrder: event.DisplayOrder,
 		})
 	}
@@ -179,13 +265,18 @@ func researchThemePageDTO(value research.ResearchThemePage) v1.ResearchThemePage
 }
 
 func researchThemeDetailDTO(value research.ResearchThemeDetail) v1.ResearchThemeDetail {
-	return v1.ResearchThemeDetail{Theme: researchThemeDTO(value.Theme), Events: researchEventsDTO(value.Events)}
+	return v1.ResearchThemeDetail{
+		ThemeKey: value.ThemeKey, PublicationMode: value.PublicationMode,
+		PublicationContractVersion: value.PublicationContractVersion,
+		Theme:                      researchThemeDTO(value.Theme), Events: researchEventsDTO(value.Events),
+	}
 }
 
 func reasoningTreeListDTO(value research.ResearchReasoningTreeList) v1.ResearchReasoningTreeList {
 	trees := make([]v1.ResearchReasoningTreeSummary, 0, len(value.ReasoningTrees))
 	for _, tree := range value.ReasoningTrees {
 		trees = append(trees, v1.ResearchReasoningTreeSummary{
+			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainEntityID: tree.IndustryChainEntityID,
 			IndustryChainName: tree.IndustryChainName, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 			EventCount: tree.EventCount, PublishedAt: tree.PublishedAt,
@@ -214,6 +305,7 @@ func reasoningTreeDetailDTO(value research.ResearchReasoningTreeDetail) v1.Resea
 			}
 		}
 		nodes = append(nodes, v1.ResearchReasoningTreeNode{
+			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
 			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID, Name: node.Name,
 			StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 			ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
@@ -227,8 +319,11 @@ func reasoningTreeDetailDTO(value research.ResearchReasoningTreeDetail) v1.Resea
 		})
 	}
 	return v1.ResearchReasoningTreeDetail{
-		ThemeID: value.ThemeID, ImpactNodeIDs: append([]string(nil), value.ImpactNodeIDs...),
+		ThemeID: value.ThemeID, ThemeKey: value.ThemeKey, PublicationMode: value.PublicationMode,
+		PublicationContractVersion: value.PublicationContractVersion,
+		ImpactNodeIDs:              append([]string(nil), value.ImpactNodeIDs...),
 		ReasoningTree: v1.ResearchReasoningTree{
+			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, ThemeID: tree.ThemeID,
 			IndustryChainEntityID: tree.IndustryChainEntityID, IndustryChainName: tree.IndustryChainName,
 			Title: tree.Title, DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
@@ -245,6 +340,7 @@ func reasoningTreeDetailDTO(value research.ResearchReasoningTreeDetail) v1.Resea
 
 func researchSignalDTO(signal research.ResearchSignal) v1.ResearchReasoningTreeSignal {
 	return v1.ResearchReasoningTreeSignal{
+		SignalKey: signal.SignalKey, VariableName: signal.VariableName, Direction: signal.Direction,
 		VariableSignalKey: signal.VariableSignalKey, SignalRole: signal.SignalRole,
 		SignalDirection: signal.SignalDirection, DisplaySummary: signal.DisplaySummary,
 		DisplayOrder: signal.DisplayOrder,

@@ -43,16 +43,16 @@ func (t *postgresResearchPublicationTx) Lock(ctx context.Context, analysisBatchI
 
 func (t *postgresResearchPublicationTx) Receipt(ctx context.Context, analysisBatchID string) (*researchpublication.Receipt, error) {
 	var receipt researchpublication.Receipt
-	var treeIDsJSON, countsJSON []byte
+	var treeIDsJSON, treeKeyIDsJSON, countsJSON []byte
 	err := t.tx.QueryRowContext(ctx, `SELECT
     id::text, analysis_batch_id, publisher_subject, payload_hash,
-    publication_contract_version, COALESCE(aggregate_theme_id::text, ''),
-    reasoning_tree_ids_by_industry_chain_entity_id, aggregate_write_counts,
+    publication_contract_version, publication_mode, COALESCE(aggregate_theme_id::text, ''),
+    reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key, aggregate_write_counts,
     published_at, imported_at
 FROM research_theme_import_receipts
 WHERE analysis_batch_id = $1`, analysisBatchID).Scan(
 		&receipt.ID, &receipt.AnalysisBatchID, &receipt.PublisherSubject, &receipt.PayloadHash,
-		&receipt.ContractVersion, &receipt.ThemeID, &treeIDsJSON, &countsJSON,
+		&receipt.ContractVersion, &receipt.PublicationMode, &receipt.ThemeID, &treeIDsJSON, &treeKeyIDsJSON, &countsJSON,
 		&receipt.PublishedAt, &receipt.ImportedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -64,7 +64,10 @@ WHERE analysis_batch_id = $1`, analysisBatchID).Scan(
 	if err := json.Unmarshal(treeIDsJSON, &receipt.ReasoningTreeIDsByIndustryChainEntityID); err != nil {
 		return nil, err
 	}
-	if receipt.ContractVersion == 2 {
+	if err := json.Unmarshal(treeKeyIDsJSON, &receipt.ReasoningTreeIDsByTreeKey); err != nil {
+		return nil, err
+	}
+	if receipt.ContractVersion >= 2 {
 		if err := json.Unmarshal(countsJSON, &receipt.Counts); err != nil {
 			return nil, err
 		}
@@ -93,7 +96,7 @@ WHERE profile.entity_id = ANY($1::uuid[])
 	if err != nil {
 		return facts, err
 	}
-	facts.Events, err = t.events(ctx, query.EventIDs)
+	facts.Events, err = t.events(ctx, query.EventIDs, query.SnapshotEventExistenceOnly)
 	if err != nil {
 		return facts, err
 	}
@@ -158,13 +161,19 @@ func queryResearchPublicationTemporalFacts(
 func (t *postgresResearchPublicationTx) events(
 	ctx context.Context,
 	ids []string,
+	existenceOnly bool,
 ) (map[string]researchpublication.EventFact, error) {
-	rows, err := t.tx.QueryContext(ctx, `SELECT id::text,
+	statement := `SELECT id::text,
        COALESCE(knowable_at, first_seen_at)
 FROM events
 WHERE id = ANY($1::uuid[])
   AND event_status = 'confirmed'
-  AND fact_status = 'verified'`, ids)
+	  AND fact_status = 'verified'`
+	if existenceOnly {
+		statement = `SELECT id::text, COALESCE(knowable_at, first_seen_at)
+FROM events WHERE id = ANY($1::uuid[])`
+	}
+	rows, err := t.tx.QueryContext(ctx, statement, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -396,6 +405,7 @@ func decodeIDSet(raw []byte) (map[string]struct{}, error) {
 func (t *postgresResearchPublicationTx) InsertThemeReceipt(ctx context.Context, receipt researchpublication.Receipt) error {
 	themeIDs, _ := json.Marshal(map[string]string{receipt.ThemeKey: receipt.ThemeID})
 	treeIDs, _ := json.Marshal(receipt.ReasoningTreeIDsByIndustryChainEntityID)
+	treeKeyIDs, _ := json.Marshal(cloneStringMapOrEmpty(receipt.ReasoningTreeIDsByTreeKey))
 	legacyCounts, _ := json.Marshal(researchthemeimport.Counts{
 		Themes: 1, Impacts: receipt.Counts.Impacts,
 		EventAssociations: receipt.Counts.ThemeEventAssociations, Receipts: 1,
@@ -404,13 +414,22 @@ func (t *postgresResearchPublicationTx) InsertThemeReceipt(ctx context.Context, 
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_import_receipts (
     id, analysis_batch_id, publisher_subject, payload_hash, theme_ids_by_key,
     write_counts, published_at, imported_at, publication_contract_version,
-    aggregate_theme_id, reasoning_tree_ids_by_industry_chain_entity_id, aggregate_write_counts
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,2,$9,$10,$11)`,
+    aggregate_theme_id, reasoning_tree_ids_by_industry_chain_entity_id,
+    reasoning_tree_ids_by_tree_key, aggregate_write_counts, publication_mode
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 		receipt.ID, receipt.AnalysisBatchID, receipt.PublisherSubject, receipt.PayloadHash,
 		themeIDs, legacyCounts, receipt.PublishedAt, receipt.ImportedAt,
-		receipt.ThemeID, treeIDs, aggregateCounts,
+		receipt.ContractVersion, receipt.ThemeID, treeIDs, treeKeyIDs, aggregateCounts, receipt.PublicationMode,
 	)
 	return err
+}
+
+func cloneStringMapOrEmpty(values map[string]string) map[string]string {
+	result := make(map[string]string, len(values))
+	for key, value := range values {
+		result[key] = value
+	}
+	return result
 }
 
 func (t *postgresResearchPublicationTx) InsertTheme(ctx context.Context, record researchthemeimport.ThemeRecord) error {
@@ -419,14 +438,61 @@ func (t *postgresResearchPublicationTx) InsertTheme(ctx context.Context, record 
 func (t *postgresResearchPublicationTx) InsertThemeImpact(ctx context.Context, record researchthemeimport.ImpactRecord) error {
 	return (&postgresResearchThemeImportTx{tx: t.tx}).InsertResearchThemeImpact(ctx, record)
 }
+func (t *postgresResearchPublicationTx) InsertSnapshotThemeImpact(ctx context.Context, record researchpublication.SnapshotImpactRecord) error {
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_impacts (
+    theme_id, node_key, display_name, relation_role, impact_direction, impact_summary, display_order
+) VALUES ($1,$2,$3,$4,$5,$6,$7)`, record.ThemeID, record.NodeKey, record.DisplayName,
+		record.RelationRole, record.ImpactDirection, record.ImpactSummary, record.DisplayOrder)
+	return err
+}
 func (t *postgresResearchPublicationTx) InsertThemeEvent(ctx context.Context, record researchthemeimport.EventRecord) error {
 	return (&postgresResearchThemeImportTx{tx: t.tx}).InsertResearchThemeEvent(ctx, record)
 }
 func (t *postgresResearchPublicationTx) InsertTreeReceipt(ctx context.Context, record researchreasoningtreeimport.Receipt) error {
 	return (&postgresResearchReasoningTreeImportTx{tx: t.tx}).InsertResearchReasoningTreeImportReceipt(ctx, record)
 }
+func (t *postgresResearchPublicationTx) InsertSnapshotTreeReceipt(ctx context.Context, record researchpublication.SnapshotTreeReceipt) error {
+	treeIDs, _ := json.Marshal(record.ReasoningTreeIDsByTreeKey)
+	counts, _ := json.Marshal(record.Counts)
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_import_receipts (
+    id, theme_id, publisher_subject, payload_hash,
+    reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key,
+    write_counts, published_at, imported_at, publication_contract_version, publication_mode
+) VALUES ($1,$2,$3,$4,'{}'::jsonb,$5,$6,$7,$8,3,'analyst_snapshot')`,
+		record.ID, record.ThemeID, record.PublisherSubject, record.PayloadHash,
+		treeIDs, counts, record.PublishedAt, record.ImportedAt)
+	return err
+}
 func (t *postgresResearchPublicationTx) InsertTree(ctx context.Context, record researchreasoningtreeimport.ReasoningTreeRecord) error {
 	return (&postgresResearchReasoningTreeImportTx{tx: t.tx}).InsertResearchReasoningTree(ctx, record)
+}
+func (t *postgresResearchPublicationTx) InsertSnapshotTree(ctx context.Context, record researchpublication.SnapshotTreeRecord) error {
+	if record.InvalidationConditions == nil {
+		record.InvalidationConditions = []string{}
+	}
+	if record.Checkpoints == nil {
+		record.Checkpoints = []researchreasoningtreeimport.Checkpoint{}
+	}
+	conditions, err := json.Marshal(record.InvalidationConditions)
+	if err != nil {
+		return err
+	}
+	checkpoints, err := json.Marshal(record.Checkpoints)
+	if err != nil {
+		return err
+	}
+	_, err = t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_trees (
+    id, theme_id, import_receipt_id, tree_key, display_name, title, display_order,
+    one_line_conclusion, fact_summary, transmission_summary, impact_direction,
+    impact_strength, impact_summary, conclusion_boundary_summary, support_summary,
+    counter_summary, invalidation_conditions, checkpoints
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+		record.ID, record.ThemeID, record.ImportReceiptID, record.TreeKey, record.DisplayName,
+		record.Title, record.DisplayOrder, record.OneLineConclusion, record.FactSummary,
+		record.TransmissionSummary, record.ImpactDirection, record.ImpactStrength,
+		record.ImpactSummary, record.ConclusionBoundarySummary, record.SupportSummary,
+		record.CounterSummary, conditions, checkpoints)
+	return err
 }
 func (t *postgresResearchPublicationTx) InsertTreeEvent(ctx context.Context, record researchreasoningtreeimport.EventRecord) error {
 	return (&postgresResearchReasoningTreeImportTx{tx: t.tx}).InsertResearchReasoningTreeEvent(ctx, record)
@@ -458,6 +524,20 @@ func (t *postgresResearchPublicationTx) InsertNode(ctx context.Context, record r
 	return err
 }
 
+func (t *postgresResearchPublicationTx) InsertSnapshotNode(ctx context.Context, record researchpublication.SnapshotNodeRecord) error {
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_nodes (
+    id, reasoning_tree_id, position, node_key, display_name, state_summary,
+    impact_direction, impact_strength, impact_summary, reasoning_basis_summary,
+    evidence_gap_summary, incoming_transmission_title,
+    incoming_transmission_mechanism, incoming_condition_summary
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+		record.ID, record.ReasoningTreeID, record.Position, record.NodeKey, record.DisplayName,
+		record.StateSummary, record.ImpactDirection, record.ImpactStrength, record.ImpactSummary,
+		record.ReasoningBasisSummary, record.EvidenceGapSummary, record.IncomingTransmissionTitle,
+		record.IncomingTransmissionMechanism, record.IncomingConditionSummary)
+	return err
+}
+
 func (t *postgresResearchPublicationTx) InsertSignal(ctx context.Context, record researchpublication.SignalRecord) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
     reasoning_tree_node_id, variable_signal_key, signal_role, signal_direction,
@@ -472,6 +552,16 @@ func (t *postgresResearchPublicationTx) InsertSignal(ctx context.Context, record
 		record.UpstreamDirectImpactAssertionID, record.EntityRelationID,
 		record.IndustryChainGraphEdgeID,
 	)
+	return err
+}
+
+func (t *postgresResearchPublicationTx) InsertSnapshotSignal(ctx context.Context, record researchpublication.SnapshotSignalRecord) error {
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
+    reasoning_tree_node_id, signal_key, variable_name, signal_role, signal_direction,
+    display_summary, display_order, source_kind
+) VALUES ($1,$2,$3,$4,$5,$6,$7,'analyst_snapshot')`,
+		record.ReasoningTreeNodeID, record.SignalKey, record.VariableName, record.SignalRole,
+		record.SignalDirection, record.DisplaySummary, record.DisplayOrder)
 	return err
 }
 
@@ -499,20 +589,26 @@ func (t *postgresResearchPublicationTx) Verify(ctx context.Context, receipt rese
 	if counts != receipt.Counts {
 		return fmt.Errorf("aggregate write counts do not match persisted rows")
 	}
+	identityColumn := "industry_chain_entity_id::text"
+	expected := receipt.ReasoningTreeIDsByIndustryChainEntityID
+	if receipt.PublicationMode == researchpublication.SnapshotPublicationMode {
+		identityColumn = "tree_key"
+		expected = receipt.ReasoningTreeIDsByTreeKey
+	}
 	var treeIDsJSON []byte
-	if err := t.tx.QueryRowContext(ctx, `SELECT COALESCE(
-    jsonb_object_agg(industry_chain_entity_id::text, id::text), '{}'::jsonb)
-FROM research_reasoning_trees WHERE theme_id = $1`, receipt.ThemeID).Scan(&treeIDsJSON); err != nil {
+	query := fmt.Sprintf(`SELECT COALESCE(jsonb_object_agg(%s, id::text), '{}'::jsonb)
+FROM research_reasoning_trees WHERE theme_id = $1`, identityColumn)
+	if err := t.tx.QueryRowContext(ctx, query, receipt.ThemeID).Scan(&treeIDsJSON); err != nil {
 		return err
 	}
 	var treeIDs map[string]string
 	if err := json.Unmarshal(treeIDsJSON, &treeIDs); err != nil {
 		return err
 	}
-	if len(treeIDs) != len(receipt.ReasoningTreeIDsByIndustryChainEntityID) {
+	if len(treeIDs) != len(expected) {
 		return fmt.Errorf("aggregate Reason Tree identities do not match persisted rows")
 	}
-	for key, id := range receipt.ReasoningTreeIDsByIndustryChainEntityID {
+	for key, id := range expected {
 		if treeIDs[key] != id {
 			return fmt.Errorf("aggregate Reason Tree identity mismatch")
 		}

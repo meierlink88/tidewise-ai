@@ -20,11 +20,16 @@ type Transaction interface {
 	InsertTheme(context.Context, researchthemeimport.ThemeRecord) error
 	InsertThemeImpact(context.Context, researchthemeimport.ImpactRecord) error
 	InsertThemeEvent(context.Context, researchthemeimport.EventRecord) error
+	InsertSnapshotThemeImpact(context.Context, SnapshotImpactRecord) error
 	InsertTreeReceipt(context.Context, researchreasoningtreeimport.Receipt) error
+	InsertSnapshotTreeReceipt(context.Context, SnapshotTreeReceipt) error
 	InsertTree(context.Context, researchreasoningtreeimport.ReasoningTreeRecord) error
+	InsertSnapshotTree(context.Context, SnapshotTreeRecord) error
 	InsertTreeEvent(context.Context, researchreasoningtreeimport.EventRecord) error
 	InsertNode(context.Context, NodeRecord) error
+	InsertSnapshotNode(context.Context, SnapshotNodeRecord) error
 	InsertSignal(context.Context, SignalRecord) error
+	InsertSnapshotSignal(context.Context, SnapshotSignalRecord) error
 	Verify(context.Context, Receipt) error
 }
 
@@ -32,7 +37,9 @@ type Receipt struct {
 	ID, AnalysisBatchID, PublisherSubject, PayloadHash, ThemeID string
 	ThemeKey                                                    string
 	ContractVersion                                             int
+	PublicationMode                                             string
 	ReasoningTreeIDsByIndustryChainEntityID                     map[string]string
+	ReasoningTreeIDsByTreeKey                                   map[string]string
 	Counts                                                      Counts
 	PublishedAt, ImportedAt                                     time.Time
 }
@@ -51,6 +58,7 @@ type Counts struct {
 type ReferenceQuery struct {
 	ChainNodeIDs, EventIDs, IndustryChainIDs, GraphEdgeIDs, SignalIDs []string
 	ImpactIDs, EvidenceIDs, EntityRelationIDs                         []string
+	SnapshotEventExistenceOnly                                        bool
 }
 
 type ReferenceFacts struct {
@@ -118,4 +126,41 @@ type SignalRecord struct {
 	VariableSignalID, SemanticSubmissionID, EvidenceID, EvidenceHash *string
 	UpstreamVariableSignalID, UpstreamDirectImpactAssertionID        *string
 	EntityRelationID, IndustryChainGraphEdgeID                       *string
+}
+
+type SnapshotImpactRecord struct {
+	ThemeID, NodeKey, DisplayName, RelationRole, ImpactDirection string
+	ImpactSummary                                                *string
+	DisplayOrder                                                 int
+}
+
+type SnapshotTreeReceipt struct {
+	ID, ThemeID, PublisherSubject, PayloadHash string
+	ReasoningTreeIDsByTreeKey                  map[string]string
+	Counts                                     researchreasoningtreeimport.Counts
+	PublishedAt, ImportedAt                    time.Time
+}
+
+type SnapshotTreeRecord struct {
+	ID, ThemeID, ImportReceiptID, TreeKey, DisplayName, Title, OneLineConclusion string
+	DisplayOrder                                                                 int
+	FactSummary, TransmissionSummary, ImpactSummary                              *string
+	ImpactDirection, ImpactStrength                                              string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary                    *string
+	InvalidationConditions                                                       []string
+	Checkpoints                                                                  []researchreasoningtreeimport.Checkpoint
+}
+
+type SnapshotNodeRecord struct {
+	ID, ReasoningTreeID, NodeKey, DisplayName, ImpactDirection, ImpactStrength string
+	Position                                                                   int
+	StateSummary, ImpactSummary, ReasoningBasisSummary, EvidenceGapSummary     *string
+	IncomingTransmissionTitle, IncomingConditionSummary                        *string
+	IncomingTransmissionMechanism                                              *string
+}
+
+type SnapshotSignalRecord struct {
+	ReasoningTreeNodeID, SignalKey, SignalRole, DisplaySummary string
+	VariableName, SignalDirection                              *string
+	DisplayOrder                                               int
 }

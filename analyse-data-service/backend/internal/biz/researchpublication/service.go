@@ -20,7 +20,9 @@ var (
 
 type Result struct {
 	ReceiptID, AnalysisBatchID, PayloadHash, ThemeID string
+	PublicationMode                                  string
 	ReasoningTreeIDsByIndustryChainEntityID          map[string]string
+	ReasoningTreeIDsByTreeKey                        map[string]string
 	Counts                                           Counts
 	PublishedAt, ImportedAt                          time.Time
 	Replayed                                         bool
@@ -249,7 +251,7 @@ func publicationPlan(a Aggregate, themeID, payloadHash string) Receipt {
 	return Receipt{
 		ID:              identity.NormalizeUUID("research_theme_import_receipt", a.AnalysisBatchID),
 		AnalysisBatchID: a.AnalysisBatchID, PayloadHash: payloadHash, ThemeID: themeID,
-		ThemeKey: a.Theme.ThemeKey, ContractVersion: 2,
+		ThemeKey: a.Theme.ThemeKey, ContractVersion: 2, PublicationMode: "formal",
 		ReasoningTreeIDsByIndustryChainEntityID: treeIDs, Counts: counts,
 	}
 }
@@ -598,8 +600,10 @@ func validateEvidence(path, evidenceID, hash, eventID string, allowed map[string
 func resultFromReceipt(r Receipt, replayed bool) Result {
 	return Result{
 		ReceiptID: r.ID, AnalysisBatchID: r.AnalysisBatchID, PayloadHash: r.PayloadHash,
-		ThemeID: r.ThemeID, ReasoningTreeIDsByIndustryChainEntityID: cloneMap(r.ReasoningTreeIDsByIndustryChainEntityID),
-		Counts: r.Counts, PublishedAt: r.PublishedAt, ImportedAt: r.ImportedAt, Replayed: replayed,
+		ThemeID: r.ThemeID, PublicationMode: r.PublicationMode,
+		ReasoningTreeIDsByIndustryChainEntityID: cloneMap(r.ReasoningTreeIDsByIndustryChainEntityID),
+		ReasoningTreeIDsByTreeKey:               cloneMap(r.ReasoningTreeIDsByTreeKey),
+		Counts:                                  r.Counts, PublishedAt: r.PublishedAt, ImportedAt: r.ImportedAt, Replayed: replayed,
 	}
 }
 
