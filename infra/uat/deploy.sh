@@ -156,13 +156,46 @@ fi
 # Process environment variables have higher precedence than Compose --env-file.
 # The workflow exposes candidate image names at job scope, so clear them before
 # every Compose invocation and let the selected release image file be authoritative.
-compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE -u AGENTRUN_IMAGE -u QDRANT_IMAGE docker compose)
+compose_command=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE -u AGENTRUN_IMAGE docker compose)
 candidate_compose=("${compose_command[@]}" --env-file "$runtime_env" --env-file "$candidate_images" -f "$compose_file")
 
 runtime_value() {
   local file="$1"
   local key="$2"
   sed -n "s/^${key}=//p" "$file" | tail -n 1
+}
+
+verify_external_qdrant() {
+  local -a verification_compose=("$@")
+  "${verification_compose[@]}" run --rm --no-deps --entrypoint /bin/sh data \
+    -ec "wget -q -T 10 -t 2 -O- ${event_semantic_qdrant_url}/collections >/dev/null"
+}
+
+validate_application_only_release() {
+  local validation_runtime="$1"
+  local validation_images="$2"
+  local validation_compose_file="$3"
+  local validation_label="$4"
+  local validation_services
+  local -a validation_compose=(
+    "${compose_command[@]}"
+    --env-file "$validation_runtime"
+    --env-file "$validation_images"
+    -f "$validation_compose_file"
+  )
+
+  if grep -q '^QDRANT_IMAGE=' "$validation_images"; then
+    echo "FAIL ${validation_label}-qdrant-ownership: application release state must not manage Qdrant" >&2
+    return 1
+  fi
+  if ! validation_services="$("${validation_compose[@]}" config --services)"; then
+    echo "FAIL ${validation_label}-compose-contract: application release state is invalid" >&2
+    return 1
+  fi
+  if printf '%s\n' "$validation_services" | grep -qx qdrant; then
+    echo "FAIL ${validation_label}-qdrant-ownership: application release state must not manage Qdrant" >&2
+    return 1
+  fi
 }
 
 verify_services() {
@@ -172,9 +205,7 @@ verify_services() {
   local verification_admin_token
   verification_admin_token="$(runtime_value "$verification_runtime" ADMIN_SERVICE_TOKEN)"
 
-  if "${compose_command[@]}" config --services | grep -qx qdrant; then
-    "${compose_command[@]}" exec -T qdrant bash -ec 'exec 3<>/dev/tcp/127.0.0.1/6333' || return 1
-  fi
+  verify_external_qdrant "${compose_command[@]}" || return 1
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/healthz >/dev/null || return 1
   "${compose_command[@]}" exec -T data wget -qO- http://127.0.0.1:9011/readyz >/dev/null || return 1
   "${compose_command[@]}" exec -T agentrun wget -qO- http://127.0.0.1:9080/readyz >/dev/null || return 1
@@ -212,6 +243,8 @@ rollback_current_release() {
     return 1
   fi
   echo "Candidate verification failed; restoring release $(sed -n '1p' "$rollback_sha")" >&2
+  validate_application_only_release \
+    "$rollback_runtime" "$rollback_images" "$rollback_compose_file" rollback || return 1
   if [ "$agentrun_rollback_compatibility_required" = true ] || [ -f "$agentrun_rollback_marker" ]; then
     if ! "${candidate_compose[@]}" run --rm --no-deps \
       --entrypoint /app/agentrun-migrate agentrun \
@@ -224,7 +257,7 @@ rollback_current_release() {
     echo "PASS agentrun-previous-release-database-compatibility" >&2
   fi
   local -a rollback_compose=("${compose_command[@]}" --env-file "$rollback_runtime" --env-file "$rollback_images" -f "$rollback_compose_file")
-  "${rollback_compose[@]}" up -d --wait --wait-timeout 120 --remove-orphans
+  "${rollback_compose[@]}" up -d --wait --wait-timeout 120
   verify_services "$rollback_runtime" "${rollback_compose[@]}"
   if [ -f "$release_state_write_marker" ]; then
     restore_interrupted_release_state
@@ -249,8 +282,16 @@ cleanup_unfinished_agentrun_migration() {
   exit "$exit_status"
 }
 
+validate_application_only_release "$runtime_env" "$candidate_images" "$compose_file" candidate
+if [ -s "$current_runtime" ] && [ -s "$current_images" ] && [ -s "$current_compose" ] && [ -s "$current_sha" ]; then
+  validate_application_only_release \
+    "$current_runtime" "$current_images" "$current_compose" rollback
+fi
 "${candidate_compose[@]}" config --quiet
 echo "PASS compose-contract"
+
+verify_external_qdrant "${candidate_compose[@]}"
+echo "PASS external-qdrant-ready"
 
 # The host runner owning the bind-mount directory is not enough: the
 # unprivileged AgentRun image user must be able to create durable Artifacts.
@@ -582,7 +623,7 @@ if [ "$event_semantic_projection_enabled" = true ]; then
   candidate_services_started=true
   trap cleanup_unfinished_agentrun_migration EXIT
 
-  if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120 qdrant; then
+  if ! verify_external_qdrant "${candidate_compose[@]}"; then
     exit 1
   fi
   echo "PASS event-semantic-projection-qdrant-ready"
@@ -600,10 +641,10 @@ if [ "$event_semantic_projection_enabled" = true ]; then
   echo "PASS event-semantic-projection-apply"
 
   "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh data \
-    -ec "wget -qO- ${event_semantic_qdrant_url}/collections/entity_semantic_v1" \
+    -ec "wget -q -T 10 -t 2 -O- ${event_semantic_qdrant_url}/collections/entity_semantic_v1" \
     > "$event_semantic_entity_collection_report"
   "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh data \
-    -ec "wget -qO- ${event_semantic_qdrant_url}/collections/variable_definition_semantic_v1" \
+    -ec "wget -q -T 10 -t 2 -O- ${event_semantic_qdrant_url}/collections/variable_definition_semantic_v1" \
     > "$event_semantic_variable_collection_report"
 
   python3 - \
@@ -682,7 +723,7 @@ echo "PASS excluded-fact-audit-unchanged"
   echo "Event, RawDocument, Theme, and Reason Tree table counts and schema-normalized content fingerprints are unchanged."
 } >> "$summary_file"
 
-if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120 --remove-orphans; then
+if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120; then
   if [ "$candidate_services_started" != true ]; then
     rollback_current_release
   fi
@@ -729,7 +770,7 @@ echo "PASS release-state-recorded"
   echo
   echo "### UAT deployment"
   echo
-  echo "Deployed \`${release_sha}\` as one five-business-image release unit with an immutable Qdrant dependency."
+  echo "Deployed \`${release_sha}\` as one five-business-image release unit; Qdrant remains independently operated."
   if [ -s "$previous_sha" ]; then
     echo "Previous successful release: \`$(sed -n '1p' "$previous_sha")\`."
   fi

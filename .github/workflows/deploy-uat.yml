@@ -117,7 +117,6 @@ jobs:
       adminportal_image: ${{ steps.images.outputs.adminportal_image }}
       admin_image: ${{ steps.images.outputs.admin_image }}
       agentrun_image: ${{ steps.images.outputs.agentrun_image }}
-      qdrant_image: ${{ steps.images.outputs.qdrant_image }}
       deploy_bundle_image: ${{ steps.deploy-bundle-ref.outputs.deploy_bundle_image }}
     env:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
@@ -128,7 +127,6 @@ jobs:
       SWR_ADMIN_REPOSITORY: ${{ vars.SWR_ADMIN_REPOSITORY }}
       SWR_AGENTRUN_REPOSITORY: ${{ vars.SWR_AGENTRUN_REPOSITORY }}
       SWR_DEPLOY_REPOSITORY: ${{ vars.SWR_DEPLOY_REPOSITORY }}
-      SWR_QDRANT_IMAGE: ${{ vars.SWR_QDRANT_IMAGE }}
     steps:
       - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -158,25 +156,12 @@ jobs:
           : "${SWR_ADMIN_REPOSITORY:?Set the SWR_ADMIN_REPOSITORY uat Environment variable}"
           : "${SWR_AGENTRUN_REPOSITORY:?Set the SWR_AGENTRUN_REPOSITORY uat Environment variable}"
           : "${SWR_DEPLOY_REPOSITORY:?Set the SWR_DEPLOY_REPOSITORY uat Environment variable}"
-          : "${SWR_QDRANT_IMAGE:?Set the SWR_QDRANT_IMAGE uat Environment variable}"
           prefix="${SWR_REGISTRY}/${SWR_NAMESPACE}"
-          case "$SWR_QDRANT_IMAGE" in
-            "${prefix}/"*) ;;
-            *)
-              echo "SWR_QDRANT_IMAGE must belong to the configured SWR namespace" >&2
-              exit 1
-              ;;
-          esac
-          if ! [[ "$SWR_QDRANT_IMAGE" =~ :v1\.15\.5@sha256:[0-9a-f]{64}$ ]]; then
-            echo "SWR_QDRANT_IMAGE must pin Qdrant v1.15.5 by digest" >&2
-            exit 1
-          fi
           echo "data_image=${prefix}/${SWR_DATA_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "miniapp_image=${prefix}/${SWR_MINIAPP_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "adminportal_image=${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "admin_image=${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           echo "agentrun_image=${prefix}/${SWR_AGENTRUN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "qdrant_image=${SWR_QDRANT_IMAGE}" >> "$GITHUB_OUTPUT"
           echo "deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}-${CONTROL_PLANE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -301,7 +286,6 @@ jobs:
       ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
       ADMIN_IMAGE: ${{ needs.build-and-push.outputs.admin_image }}
       AGENTRUN_IMAGE: ${{ needs.build-and-push.outputs.agentrun_image }}
-      QDRANT_IMAGE: ${{ needs.build-and-push.outputs.qdrant_image }}
       DEPLOY_BUNDLE_IMAGE: ${{ needs.build-and-push.outputs.deploy_bundle_image }}
       TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
       AGENTRUN_DB_PASSWORD: ${{ secrets.AGENTRUN_DB_PASSWORD }}
@@ -409,8 +393,7 @@ jobs:
             "MINIAPP_IMAGE=${MINIAPP_IMAGE}" \
             "ADMINPORTAL_IMAGE=${ADMINPORTAL_IMAGE}" \
             "ADMIN_IMAGE=${ADMIN_IMAGE}" \
-            "AGENTRUN_IMAGE=${AGENTRUN_IMAGE}" \
-            "QDRANT_IMAGE=${QDRANT_IMAGE}" > "$images_env"
+            "AGENTRUN_IMAGE=${AGENTRUN_IMAGE}" > "$images_env"
           echo "runtime_env=$runtime_env" >> "$GITHUB_OUTPUT"
           echo "images_env=$images_env" >> "$GITHUB_OUTPUT"
           docker compose --env-file "$runtime_env" --env-file "$images_env" -f "${{ steps.bundle.outputs.compose_file }}" config --quiet

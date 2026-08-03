@@ -7,23 +7,6 @@ x-logging: &default-logging
     max-file: "5"
 
 services:
-  qdrant:
-    image: ${QDRANT_IMAGE:?QDRANT_IMAGE is required}
-    restart: unless-stopped
-    expose:
-      - "6333"
-      - "6334"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
-    logging: *default-logging
-    networks: [tidewise-uat]
-
   data:
     image: ${DATA_IMAGE:?DATA_IMAGE is required}
     restart: unless-stopped
@@ -62,8 +45,6 @@ services:
       - "9080"
     depends_on:
       data:
-        condition: service_healthy
-      qdrant:
         condition: service_healthy
     healthcheck:
       # UAT is releasable only after its database, execution configuration,
@@ -148,7 +129,3 @@ services:
 networks:
   tidewise-uat:
     name: tidewise-uat
-
-volumes:
-  qdrant-data:
-    name: tidewise-uat-qdrant-data

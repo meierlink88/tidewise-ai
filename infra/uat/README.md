@@ -9,8 +9,7 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 目标提交必须属于 `main`，且同一 SHA 的 `CI` workflow 必须成功。
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
 - GitHub-hosted runner 构建五个 `linux/amd64` 业务镜像和一个 UAT deployment
-  bundle image 并推送到 SWR，tag 固定为 Git commit SHA；Qdrant 使用预先镜像到
-  SWR、版本与 digest 都固定的第三方镜像。
+  bundle image 并推送到 SWR，tag 固定为 Git commit SHA。
 - Deployment bundle 包含 release Compose/UAT 配置和受信 control-plane
   脚本/风险清单；ECS 使用 build job 返回的 image digest 拉取，并在 migration 前
   校验 release SHA、control-plane SHA 和逐文件 SHA-256。Bundle tag 使用
@@ -48,8 +47,8 @@ ACTIONS_RUNNER_ARCHIVE_SHA256=<official-sha256> \
 Workflow 在成功后持久保存：
 
 - `/opt/tidewise/uat/runtime.env`：当前运行版本需要的 Secrets，权限 `0600`。
-- `/opt/tidewise/uat/state/current.*`：当前成功版本的 SHA、五个业务镜像、Qdrant 镜像与 Compose。
-- `/opt/tidewise/uat/state/previous.*`：上一成功版本的 SHA、五个业务镜像、Qdrant 镜像与 Compose。
+- `/opt/tidewise/uat/state/current.*`：当前成功版本的 SHA、五个业务镜像与 Compose。
+- `/opt/tidewise/uat/state/previous.*`：上一成功版本的 SHA、五个业务镜像与 Compose。
 - `/opt/tidewise/uat/agentrun-artifacts`：AgentRun 持久化 Artifact，owner 为
   `tidewise-deploy`、group 为固定 GID `10001` 的 `tidewise-agentrun`，权限
   `2770`；AgentRun 镜像使用同一固定 GID，以非 root 用户读写。
@@ -73,7 +72,6 @@ Variables：
 | `SWR_ADMIN_REPOSITORY` | Admin Portal Frontend 镜像仓库名 |
 | `SWR_AGENTRUN_REPOSITORY` | AgentRun 镜像仓库名 |
 | `SWR_DEPLOY_REPOSITORY` | UAT deployment bundle 镜像仓库名 |
-| `SWR_QDRANT_IMAGE` | SWR 中 Qdrant v1.15.5 的完整不可变引用，必须包含 `@sha256:` digest |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
 | `NEO4J_URI` | 固定为 `bolt://host.docker.internal:7687`，通过 Data 容器的 Docker host-gateway 访问宿主机 Neo4j |
@@ -112,7 +110,7 @@ RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、
 | Admin Portal Backend Service | `9013` | 开发联调按需开放 |
 | Admin Portal Frontend | `9014` | 开发联调按需开放 |
 | AgentRun | `9080` | Admin Portal 联调按需开放 |
-| Qdrant HTTP/gRPC | `6333`/`6334` | 不映射到 ECS host，仅供内部 Compose 网络调用 |
+| Qdrant HTTP/gRPC | `6333`/`6334` | 独立运维；不映射到 ECS host，仅供 `tidewise-uat` 网络调用 |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
@@ -126,29 +124,11 @@ Token、模型与连接器配置以及 Artifact 持久化目录全部就绪，�
 可发布。Local Compose 为了允许首次进入 Admin Portal 配置，容器启动检查仍使用
 `/healthz`；配置完成后用 `/readyz` 判断采集执行能力。
 
-Qdrant 固定使用 `v1.15.5`，Compose 服务名为 `qdrant`，只在 `tidewise-uat` 网络内
-暴露 `6333/6334`，并复用命名卷 `tidewise-uat-qdrant-data`。首次由 Compose 接管前，
-需要停止并删除旧的手工 `tidewise-uat-qdrant` 容器，但不得删除该命名卷。
-
-Qdrant mirror 只需准备一次。先登录目标 SWR，再复制已审核的上游镜像并记录 SWR 返回的
-digest；GitHub Variable 必须保存 SWR 完整引用，不能只保存 tag：
-
-```bash
-docker pull --platform linux/amd64 \
-  qdrant/qdrant@sha256:0fb8897412abc81d1c0430a899b9a81eb8328aa634e7242d1bc804c1fe8fe863
-docker tag \
-  qdrant/qdrant@sha256:0fb8897412abc81d1c0430a899b9a81eb8328aa634e7242d1bc804c1fe8fe863 \
-  <swr-registry>/<namespace>/<qdrant-repository>:v1.15.5
-docker push <swr-registry>/<namespace>/<qdrant-repository>:v1.15.5
-docker buildx imagetools inspect \
-  <swr-registry>/<namespace>/<qdrant-repository>:v1.15.5
-```
-
-将输出的 manifest digest 写为：
-
-```text
-SWR_QDRANT_IMAGE=<swr-registry>/<namespace>/<qdrant-repository>:v1.15.5@sha256:<digest>
-```
+Qdrant、Neo4j 和 PostgreSQL 均由独立运维动作维护，不属于应用 Compose/CD 发布单元。
+Qdrant 运维需保证容器连接外部 Docker 网络 `tidewise-uat`、网络别名为 `qdrant`，并且
+`http://qdrant:6333` 可从业务容器访问；镜像版本、命名卷、重启策略和升级回退均不写入
+应用 release state。Deploy 只在任何数据库写入前做只读连通性检查，不安装、升级、
+重启、删除或回滚 Qdrant，也不要求 Qdrant SWR mirror。
 
 ## Migration、备份门禁与回退
 
@@ -160,7 +140,7 @@ SWR_QDRANT_IMAGE=<swr-registry>/<namespace>/<qdrant-repository>:v1.15.5@sha256:<
 仍 pending 这些受控 migration，普通 UAT Deploy 应失败；必须先按对应 migration 的
 Review、备份和零行校验要求执行独立、可审计的受控迁移，不能用通用备份勾选替代。
 
-Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose、五个业务镜像与 Qdrant 镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试。Schema migration 必须兼容至少前一个应用版本。首次接管前的旧 Compose 没有 Qdrant，回退健康检查会按旧 Compose 的服务集合验证，不会把新增依赖反向强加给旧版本。
+Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 与五个业务镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试，也不改变 Qdrant、Neo4j 或 PostgreSQL 基础设施运行时。Schema migration 必须兼容至少前一个应用版本。
 
 本轮 TBox/Qdrant rollout 还在 migration 前后各运行一次只读
 `uat-excluded-fact-audit`。该命令对 Event、RawDocument、Theme 和 Reason Tree 全部受保护表
@@ -192,8 +172,8 @@ CLI 同时校验仓库固定的 UAT PostgreSQL 身份和批准的 Neo4j Bolt 目
 ## Event Semantic Qdrant 投影
 
 普通发布不会自动重建语义 collection。只有手工勾选
-`apply_event_semantic_projection` 时，部署脚本才会在 AgentRun 和公网服务启动前先启动
-候选 Qdrant，并使用候选 Data 镜像运行一次
+`apply_event_semantic_projection` 时，部署脚本才会在 AgentRun 和公网服务启动前检查
+独立运维的 Qdrant，并使用候选 Data 镜像运行一次
 `event-semantic-projector -apply -allow-env uat`。
 
 `EMBEDDING_API_KEY` 会持久注入 AgentRun，因为 AgentRun 启动和语义检索需要该 Secret；
@@ -338,9 +318,9 @@ pre-change export 同样以 `0640` 独占创建，执行报告受 `noclobber` �
 
 1. 确认 RDS 自动备份和 PITR 已启用，并确认 ECS 可通过私网访问 RDS。
 2. 创建 RDS 数据库与最小权限用户，并配置 VPC 私网访问。
-3. 创建五个业务镜像 SWR 私有仓库、一个 Qdrant mirror 仓库和一个 deployment bundle
-   SWR 私有仓库，并配置相互独立的 push/pull 凭据。
+3. 创建五个业务镜像 SWR 私有仓库和一个 deployment bundle SWR 私有仓库，并配置
+   相互独立的 push/pull 凭据。
 4. 配置 GitHub `uat` Environment Variables 与 Secrets。
 5. 将 ECS runner 迁移到 `tidewise-deploy`，添加专属标签，并创建固定部署目录。
 6. 从 `main` 手工运行 `Deploy UAT`。如 check-only 报告包含高风险 migration，核验恢复点后重新勾选确认项执行。
-7. 检查 Actions summary、五个业务镜像与 Qdrant 服务单元、代表性 BFF→Data/AgentRun 读取以及 `state/current.sha`、`state/previous.sha`。
+7. 检查 Actions summary、五个业务镜像、独立 Qdrant 端点健康、代表性 BFF→Data/AgentRun 读取以及 `state/current.sha`、`state/previous.sha`。
