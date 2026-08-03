@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import StatusAlert from '../components/admin/status-alert';
 import {
   AdminAgentRunAPIError,
@@ -371,10 +371,8 @@ export default function CollectorConfiguration({ token }: { token: string }) {
             <h3 className='m-0 text-lg font-semibold'>采集执行记录</h3>
             <p className='mt-1.5 text-sm text-muted-foreground'>只展示采集执行的安全审计摘要。</p>
           </div>
-          <Button
-            onClick={() => setExecutionReloadVersion((value) => value + 1)}
-            variant='secondary'
-          >
+          <Button onClick={() => setExecutionReloadVersion((value) => value + 1)} variant='outline'>
+            <RefreshCw aria-hidden='true' className='size-4' />
             刷新
           </Button>
         </div>

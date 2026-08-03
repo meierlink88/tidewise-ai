@@ -175,13 +175,27 @@ export default function DataIngestionCenter({ token }: { token: string }) {
     });
   };
 
+  const retryCurrentData = () => {
+    setError('');
+    if (activeTab === 'events') {
+      setEventQuery((current) => ({ ...current }));
+      return;
+    }
+    setRawQuery((current) => ({ ...current }));
+  };
+
   return (
     <Tabs
-      className='grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)]'
+      className='grid h-full min-h-0 w-full grid-rows-[auto_auto_minmax(0,1fr)]'
       onValueChange={(value) => isActiveTab(value) && setActiveTab(value)}
       value={activeTab}
     >
-      <div className='bg-background pb-4'>
+      <div className='pb-5'>
+        <span className='page-eyebrow'>Data operations</span>
+        <h2 className='page-title'>数据采集中心</h2>
+        <p className='page-description'>查询原始数据和全球事件，并管理采集 Agent 配置。</p>
+      </div>
+      <div className='pb-4'>
         <TabsList aria-label='数据采集中心标签'>
           {tabItems.map((item) => (
             <TabsTrigger key={item.id} value={item.id}>
@@ -190,8 +204,17 @@ export default function DataIngestionCenter({ token }: { token: string }) {
           ))}
         </TabsList>
       </div>
-      <div className='min-h-0 overflow-y-auto [scrollbar-gutter:stable]'>
-        {error ? <StatusAlert tone='destructive'>{error}</StatusAlert> : null}
+      <div className='grid min-h-0 content-start gap-4 overflow-y-auto [scrollbar-gutter:stable]'>
+        {error && activeTab !== 'collector' ? (
+          <StatusAlert
+            actionDisabled={loading}
+            actionLabel={loading ? '重试中…' : '重试'}
+            onAction={retryCurrentData}
+            tone='destructive'
+          >
+            {error}
+          </StatusAlert>
+        ) : null}
 
         <TabsContent aria-label='全球政经原始数据列表' className='grid gap-4' value='raw'>
           <Card className='gap-4'>
@@ -332,7 +355,14 @@ export default function DataIngestionCenter({ token }: { token: string }) {
 }
 
 function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : '加载失败';
+  const message = error instanceof Error ? error.message.trim() : '';
+  if (
+    !message ||
+    /internal server error|admin api returned|request failed with status/i.test(message)
+  ) {
+    return '数据加载失败，请稍后重试。';
+  }
+  return message;
 }
 
 function formatDateTime(value: string): string {

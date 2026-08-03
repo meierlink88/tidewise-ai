@@ -109,8 +109,11 @@ describe('App admin login', () => {
       await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })
     ).toBeInTheDocument();
     expect(
-      within(screen.getByRole('main')).queryByRole('heading', { name: '数据采集中心' })
-    ).not.toBeInTheDocument();
+      within(screen.getByRole('main')).getByRole('heading', { name: '数据采集中心' })
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('main')).getByText('查询原始数据和全球事件，并管理采集 Agent 配置。')
+    ).toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByText('Data Ingestion')).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('main')).queryByText(

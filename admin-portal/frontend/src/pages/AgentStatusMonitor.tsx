@@ -62,7 +62,7 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
         />
       ) : null}
       {!statusQuery.isError || items.length > 0 ? (
-        <Card>
+        <Card className='gap-0 overflow-hidden py-0'>
           <CardContent className='p-0'>
             {items.length === 0 ? (
               <div className='grid min-h-32 place-items-center px-4 text-sm text-muted-foreground'>
@@ -105,7 +105,11 @@ function AgentStatusTable({ items }: { items: AgentStatus[] }) {
                 {item.is_working ? '工作中' : '空闲'}
               </Badge>
             </TableCell>
-            <TableCell>{executionStatusLabel(item.current_execution_status)}</TableCell>
+            <TableCell>
+              <Badge variant={executionStatusVariant(item.current_execution_status)}>
+                {executionStatusLabel(item.current_execution_status)}
+              </Badge>
+            </TableCell>
             <TableCell className='whitespace-nowrap'>{formatDateTime(item.updated_at)}</TableCell>
           </TableRow>
         ))}
@@ -127,6 +131,17 @@ function executionStatusLabel(status: string): string {
     cancelled: '已取消'
   };
   return labels[status] ?? status;
+}
+
+function executionStatusVariant(
+  status: string
+): 'success' | 'running' | 'destructive' | 'secondary' {
+  if (status === 'succeeded') return 'success';
+  if (status === 'failed') return 'destructive';
+  if (['queued', 'planning', 'collecting', 'materializing', 'running'].includes(status)) {
+    return 'running';
+  }
+  return 'secondary';
 }
 
 function formatDateTime(value: string): string {
