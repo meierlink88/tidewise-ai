@@ -129,6 +129,36 @@ func TestDataImageCarriesUATIndustryRelationshipAndGraphAssets(t *testing.T) {
 	}
 }
 
+func TestDataImageCarriesUATEventSemanticProjectionAssets(t *testing.T) {
+	repoRoot := repositoryRoot()
+	dockerfile := readContractFile(t, filepath.Join(
+		repoRoot,
+		"analyse-data-service",
+		"backend",
+		"Dockerfile",
+	))
+	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
+
+	for _, required := range []string{
+		"-o /out/event-semantic-projector ./analyse-data-service/backend/cmd/event-semantic-projector",
+		"-o /out/uat-excluded-fact-audit ./analyse-data-service/backend/cmd/uat-excluded-fact-audit",
+		"COPY --from=builder /out/event-semantic-projector /usr/local/bin/event-semantic-projector",
+		"COPY --from=builder /out/uat-excluded-fact-audit /usr/local/bin/uat-excluded-fact-audit",
+	} {
+		if !strings.Contains(dockerfile, required) {
+			t.Fatalf("Data image missing UAT Event Semantic asset %q", required)
+		}
+	}
+	for _, required := range []string{
+		"/usr/local/bin/event-semantic-projector",
+		"/usr/local/bin/uat-excluded-fact-audit",
+	} {
+		if !strings.Contains(deploy, required) {
+			t.Fatalf("UAT deploy contract missing Data maintenance command %q", required)
+		}
+	}
+}
+
 func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T) {
 	repoRoot := repositoryRoot()
 	dataDockerfile := readContractFile(t, filepath.Join(

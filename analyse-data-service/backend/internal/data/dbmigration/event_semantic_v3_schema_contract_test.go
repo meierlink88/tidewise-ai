@@ -45,3 +45,31 @@ func TestEventSemanticV3MigrationExtendsExistingEntityTypeDefinitions(t *testing
 		}
 	}
 }
+
+func TestEventSemanticV3CatalogCompletionAuthorsMissingTypes(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "migrations", "000040_complete_event_semantic_entity_type_catalog.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := strings.ToLower(string(payload))
+	for _, fragment := range []string{
+		"insert into entity_type_definitions",
+		"on conflict (type_key, version) do update",
+		"event semantic entity type catalog completion failed",
+		"migration 000040 is forward-only",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("Event Semantic catalog completion migration missing %q", fragment)
+		}
+	}
+	for _, typeKey := range []string{"economy", "index", "instrument", "market"} {
+		if !strings.Contains(sql, "'"+typeKey+"'") {
+			t.Fatalf("Event Semantic catalog completion migration does not author %q", typeKey)
+		}
+	}
+	for _, forbidden := range []string{"delete from entity_type_definitions", "drop table", "truncate"} {
+		if strings.Contains(sql, forbidden) {
+			t.Fatalf("Event Semantic catalog completion migration contains forbidden fragment %q", forbidden)
+		}
+	}
+}
