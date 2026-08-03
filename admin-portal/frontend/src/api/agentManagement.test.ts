@@ -81,8 +81,8 @@ describe('AgentRun management Admin API client', () => {
   it('loads monitoring only through versioned Admin BFF resources', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(successResponse({ window: '6h' }))
-      .mockResolvedValueOnce(successResponse({ items: [] }));
+      .mockResolvedValueOnce(successResponse(monitoringSummaryResult('6h')))
+      .mockResolvedValueOnce(successResponse(monitoringPageResult('6h')));
     vi.stubGlobal('fetch', fetchMock);
 
     await loadMonitoringSummary('browser-token', '6h');
@@ -93,6 +93,14 @@ describe('AgentRun management Admin API client', () => {
       '/api/admin/v1/monitoring/collector-executions?window=6h&state=failure&page=1&page_size=20'
     );
     expect(String(fetchMock.mock.calls[0][0])).not.toContain('agentrun');
+  });
+
+  it('rejects malformed successful monitoring responses at the API boundary', async () => {
+    vi.stubGlobal('fetch', successFetch({ ...monitoringSummaryResult('1h'), collector: null }));
+
+    await expect(loadMonitoringSummary('browser-token', '1h')).rejects.toThrow(
+      'Admin API returned invalid monitoring data'
+    );
   });
 
   it('preserves model keys when omitted and explicitly clears connector keys', async () => {
@@ -182,6 +190,37 @@ function scheduleResult() {
     enabled: false,
     created_at: '2026-07-24T00:00:00Z',
     updated_at: '2026-07-24T00:00:00Z'
+  };
+}
+
+function monitoringSummaryResult(window: '1h' | '6h' | '12h' | '24h') {
+  return {
+    window,
+    generated_at: '2026-08-03T08:30:00Z',
+    collector: { success: 1, running: 0, failure: 0 },
+    artifact_extraction: { success: 1, running: 0, failure: 0 },
+    semantic: { success: 1, running: 0, failure: 0 },
+    collector_raw_results: 2,
+    collector_merged_results: 1,
+    collector_accepted_artifacts: 1,
+    artifact_published: 1,
+    artifact_no_events: 0,
+    artifact_formal_events: 1,
+    semantic_submissions: 1,
+    semantic_accepted_candidates: 1,
+    semantic_rejected_candidates: 0
+  };
+}
+
+function monitoringPageResult(window: '1h' | '6h' | '12h' | '24h') {
+  return {
+    items: [],
+    window,
+    generated_at: '2026-08-03T08:30:00Z',
+    page: 1,
+    page_size: 20,
+    total_items: 0,
+    total_pages: 0
   };
 }
 

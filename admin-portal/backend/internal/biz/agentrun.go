@@ -118,7 +118,11 @@ type MonitoringSummary struct {
 	ArtifactPublished, ArtifactNoEvents, ArtifactFormalEvents                   int
 	SemanticSubmissions, SemanticAcceptedCandidates, SemanticRejectedCandidates int
 }
-type MonitoringPage struct{ Page, PageSize, TotalItems, TotalPages int }
+type MonitoringPage struct {
+	Window                                 string
+	GeneratedAt                            time.Time
+	Page, PageSize, TotalItems, TotalPages int
+}
 type CollectorMonitoringPage struct {
 	Items []CollectorMonitoringItem
 	MonitoringPage
@@ -126,6 +130,7 @@ type CollectorMonitoringPage struct {
 type CollectorMonitoringItem struct {
 	ExecutionID, State, RawStatus, TriggerSource, ErrorCode string
 	StartedAt, CompletedAt                                  *time.Time
+	DurationMs                                              *int64
 	RawResults, MergedResults, AcceptedArtifacts            int
 }
 type ArtifactMonitoringPage struct {
@@ -136,6 +141,7 @@ type ArtifactMonitoringItem struct {
 	ExtractionKey, ArtifactID, CollectorExecutionID, State, RawStatus, ErrorCode string
 	UpdatedAt                                                                    time.Time
 	StartedAt, CompletedAt                                                       *time.Time
+	DurationMs                                                                   *int64
 	EventCandidates, AcknowledgedJournals, TotalJournals                         int
 }
 type SemanticMonitoringPage struct {
@@ -146,6 +152,7 @@ type SemanticMonitoringItem struct {
 	WorkItemID, EventID, TriggerSource, State, RawStatus, ErrorCode   string
 	UpdatedAt                                                         time.Time
 	StartedAt, CompletedAt                                            *time.Time
+	DurationMs                                                        *int64
 	AttemptCount, MaxAttempts, AcceptedCandidates, RejectedCandidates int
 }
 

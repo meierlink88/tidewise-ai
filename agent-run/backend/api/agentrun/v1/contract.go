@@ -303,10 +303,12 @@ type MonitoringSummary struct {
 }
 
 type MonitoringPage struct {
-	Page       int `json:"page"`
-	PageSize   int `json:"page_size"`
-	TotalItems int `json:"total_items"`
-	TotalPages int `json:"total_pages"`
+	Window      string    `json:"window"`
+	GeneratedAt time.Time `json:"generated_at"`
+	Page        int       `json:"page"`
+	PageSize    int       `json:"page_size"`
+	TotalItems  int       `json:"total_items"`
+	TotalPages  int       `json:"total_pages"`
 }
 
 type CollectorMonitoringPage struct {
@@ -321,6 +323,7 @@ type CollectorMonitoringItem struct {
 	TriggerSource     string     `json:"trigger_source"`
 	StartedAt         *time.Time `json:"started_at,omitempty"`
 	CompletedAt       *time.Time `json:"completed_at,omitempty"`
+	DurationMs        *int64     `json:"duration_ms,omitempty"`
 	RawResults        int        `json:"raw_results"`
 	MergedResults     int        `json:"merged_results"`
 	AcceptedArtifacts int        `json:"accepted_artifacts"`
@@ -341,6 +344,7 @@ type ArtifactMonitoringItem struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 	StartedAt            *time.Time `json:"started_at,omitempty"`
 	CompletedAt          *time.Time `json:"completed_at,omitempty"`
+	DurationMs           *int64     `json:"duration_ms,omitempty"`
 	EventCandidates      int        `json:"event_candidates"`
 	AcknowledgedJournals int        `json:"acknowledged_journals"`
 	TotalJournals        int        `json:"total_journals"`
@@ -361,6 +365,7 @@ type SemanticMonitoringItem struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 	StartedAt          *time.Time `json:"started_at,omitempty"`
 	CompletedAt        *time.Time `json:"completed_at,omitempty"`
+	DurationMs         *int64     `json:"duration_ms,omitempty"`
 	AttemptCount       int        `json:"attempt_count"`
 	MaxAttempts        int        `json:"max_attempts"`
 	AcceptedCandidates int        `json:"accepted_candidates"`

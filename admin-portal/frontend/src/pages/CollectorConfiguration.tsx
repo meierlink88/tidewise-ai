@@ -369,9 +369,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
         <div className='flex items-start justify-between gap-4'>
           <div>
             <h3 className='m-0 text-lg font-semibold'>采集执行记录</h3>
-            <p className='mt-1.5 text-sm text-muted-foreground'>
-              只展示 Collector Execution 的安全审计摘要。
-            </p>
+            <p className='mt-1.5 text-sm text-muted-foreground'>只展示采集执行的安全审计摘要。</p>
           </div>
           <Button
             onClick={() => setExecutionReloadVersion((value) => value + 1)}

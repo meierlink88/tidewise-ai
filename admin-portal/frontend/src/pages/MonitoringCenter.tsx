@@ -209,7 +209,7 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
   const cards = [
     {
       title: '事件采集',
-      subtitle: '执行对象：Collector Execution',
+      subtitle: '执行对象：每次采集执行',
       counts: summary.collector,
       primaryLabel: 'Accepted Artifact',
       primary: summary.collector_accepted_artifacts,
@@ -217,11 +217,11 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
       first: summary.collector_raw_results,
       secondLabel: 'Merged Results',
       second: summary.collector_merged_results,
-      source: 'executions + candidate_counts'
+      source: '采集执行与业务结果统计'
     },
     {
       title: 'Event 提取',
-      subtitle: '执行对象：Accepted Artifact',
+      subtitle: '执行对象：每个已接收内容',
       counts: summary.artifact_extraction,
       primaryLabel: 'Published',
       primary: summary.artifact_published,
@@ -229,11 +229,11 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
       first: summary.artifact_formal_events,
       secondLabel: 'No Events',
       second: summary.artifact_no_events,
-      source: 'extraction_units + extraction_result + journal'
+      source: '提取执行、Event 结果与发布记录'
     },
     {
       title: '事件语义',
-      subtitle: '执行对象：Semantic Work Item / Event',
+      subtitle: '执行对象：每个 Event 的语义处理',
       counts: summary.semantic,
       primaryLabel: 'Submission',
       primary: summary.semantic_submissions,
@@ -241,7 +241,7 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
       first: summary.semantic_accepted_candidates,
       secondLabel: 'Rejected',
       second: summary.semantic_rejected_candidates,
-      source: 'work_items + executions'
+      source: '语义处理与候选结果统计'
     }
   ];
   return (
@@ -320,7 +320,7 @@ function CollectorTable({ items }: { items: CollectorMonitoringItem[] }) {
     <Table className='min-w-[920px]'>
       <TableHeader>
         <TableRow>
-          <TableHead>Execution ID</TableHead>
+          <TableHead>采集执行 ID</TableHead>
           <TableHead>状态 / 原始枚举</TableHead>
           <TableHead>触发来源</TableHead>
           <TableHead>开始</TableHead>
@@ -342,7 +342,7 @@ function CollectorTable({ items }: { items: CollectorMonitoringItem[] }) {
             <TableCell>{item.trigger_source}</TableCell>
             <TableCell>{formatTime(item.started_at)}</TableCell>
             <TableCell>{formatTime(item.completed_at)}</TableCell>
-            <TableCell>{formatDuration(item.started_at, item.completed_at)}</TableCell>
+            <TableCell>{formatDuration(item.duration_ms)}</TableCell>
             <TableCell>{item.raw_results}</TableCell>
             <TableCell>{item.merged_results}</TableCell>
             <TableCell>{item.accepted_artifacts}</TableCell>
@@ -358,14 +358,14 @@ function ArtifactTable({ items }: { items: ArtifactMonitoringItem[] }) {
     <Table className='min-w-[980px]'>
       <TableHeader>
         <TableRow>
-          <TableHead>Extraction Key</TableHead>
-          <TableHead>Artifact ID</TableHead>
-          <TableHead>Collector Execution</TableHead>
+          <TableHead>提取记录 ID</TableHead>
+          <TableHead>内容 ID</TableHead>
+          <TableHead>采集执行 ID</TableHead>
           <TableHead>状态 / 原始枚举</TableHead>
           <TableHead>更新时间</TableHead>
           <TableHead>耗时</TableHead>
-          <TableHead>Event Candidate</TableHead>
-          <TableHead>Journal 回执</TableHead>
+          <TableHead>Event 候选</TableHead>
+          <TableHead>发布回执</TableHead>
           <TableHead>错误码</TableHead>
         </TableRow>
       </TableHeader>
@@ -381,7 +381,7 @@ function ArtifactTable({ items }: { items: ArtifactMonitoringItem[] }) {
               <StateCell raw={item.raw_status} state={item.state} />
             </TableCell>
             <TableCell>{formatTime(item.updated_at)}</TableCell>
-            <TableCell>{formatDuration(item.started_at, item.completed_at)}</TableCell>
+            <TableCell>{formatDuration(item.duration_ms)}</TableCell>
             <TableCell>{item.event_candidates}</TableCell>
             <TableCell>
               {item.acknowledged_journals} / {item.total_journals}
@@ -398,7 +398,7 @@ function SemanticTable({ items }: { items: SemanticMonitoringItem[] }) {
     <Table className='min-w-[980px]'>
       <TableHeader>
         <TableRow>
-          <TableHead>Work Item ID</TableHead>
+          <TableHead>语义处理 ID</TableHead>
           <TableHead>Event ID</TableHead>
           <TableHead>触发来源</TableHead>
           <TableHead>状态 / 原始枚举</TableHead>
@@ -420,7 +420,7 @@ function SemanticTable({ items }: { items: SemanticMonitoringItem[] }) {
               <StateCell raw={item.raw_status} state={item.state} />
             </TableCell>
             <TableCell>{formatTime(item.updated_at)}</TableCell>
-            <TableCell>{formatDuration(item.started_at, item.completed_at)}</TableCell>
+            <TableCell>{formatDuration(item.duration_ms)}</TableCell>
             <TableCell>
               {item.attempt_count} / {item.max_attempts}
             </TableCell>
@@ -442,12 +442,9 @@ function short(value: string) {
   return value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
 }
 
-function formatDuration(startedAt?: string, completedAt?: string): string {
-  if (!startedAt) return '—';
-  const started = new Date(startedAt).getTime();
-  const completed = completedAt ? new Date(completedAt).getTime() : Date.now();
-  if (!Number.isFinite(started) || !Number.isFinite(completed) || completed < started) return '—';
-  const seconds = Math.floor((completed - started) / 1000);
+function formatDuration(durationMs?: number): string {
+  if (durationMs === undefined) return '—';
+  const seconds = Math.floor(durationMs / 1000);
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ${seconds % 60}s`;

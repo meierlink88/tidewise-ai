@@ -20,6 +20,8 @@ func TestMonitoringStateForStatusUsesExistingRuntimeEnums(t *testing.T) {
 		{MonitoringArtifactExtraction, "no_events", MonitoringStateSuccess, true},
 		{MonitoringArtifactExtraction, "retry_wait", MonitoringStateRunning, true},
 		{MonitoringArtifactExtraction, "blocked", MonitoringStateFailure, true},
+		{MonitoringArtifactExtraction, "awaiting_review", "", false},
+		{MonitoringArtifactExtraction, "partially_published", "", false},
 		{MonitoringSemantic, "succeeded", MonitoringStateSuccess, true},
 		{MonitoringSemantic, "pending", MonitoringStateRunning, true},
 		{MonitoringSemantic, "failed", MonitoringStateFailure, true},

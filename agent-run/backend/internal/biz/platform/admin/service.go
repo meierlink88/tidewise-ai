@@ -150,7 +150,15 @@ func (s *Service) ListCollectorMonitoring(ctx context.Context, window agentrun.M
 	if !ok {
 		return agentrun.CollectorMonitoringPage{}, errors.New("Monitoring query is invalid")
 	}
-	return s.store.ListCollectorMonitoring(ctx, query)
+	result, err := s.store.ListCollectorMonitoring(ctx, query)
+	if err != nil {
+		return agentrun.CollectorMonitoringPage{}, err
+	}
+	result.Window, result.GeneratedAt = query.Window, query.GeneratedAt
+	for index := range result.Items {
+		result.Items[index].DurationMs = monitoringDurationMs(result.Items[index].StartedAt, result.Items[index].CompletedAt, query.GeneratedAt)
+	}
+	return result, nil
 }
 
 func (s *Service) ListArtifactExtractionMonitoring(ctx context.Context, window agentrun.MonitoringWindow, state agentrun.MonitoringState, page, pageSize int) (agentrun.ArtifactExtractionMonitoringPage, error) {
@@ -158,7 +166,15 @@ func (s *Service) ListArtifactExtractionMonitoring(ctx context.Context, window a
 	if !ok {
 		return agentrun.ArtifactExtractionMonitoringPage{}, errors.New("Monitoring query is invalid")
 	}
-	return s.store.ListArtifactExtractionMonitoring(ctx, query)
+	result, err := s.store.ListArtifactExtractionMonitoring(ctx, query)
+	if err != nil {
+		return agentrun.ArtifactExtractionMonitoringPage{}, err
+	}
+	result.Window, result.GeneratedAt = query.Window, query.GeneratedAt
+	for index := range result.Items {
+		result.Items[index].DurationMs = monitoringDurationMs(result.Items[index].StartedAt, result.Items[index].CompletedAt, query.GeneratedAt)
+	}
+	return result, nil
 }
 
 func (s *Service) ListSemanticMonitoring(ctx context.Context, window agentrun.MonitoringWindow, state agentrun.MonitoringState, page, pageSize int) (agentrun.SemanticMonitoringPage, error) {
@@ -166,16 +182,39 @@ func (s *Service) ListSemanticMonitoring(ctx context.Context, window agentrun.Mo
 	if !ok {
 		return agentrun.SemanticMonitoringPage{}, errors.New("Monitoring query is invalid")
 	}
-	return s.store.ListSemanticMonitoring(ctx, query)
+	result, err := s.store.ListSemanticMonitoring(ctx, query)
+	if err != nil {
+		return agentrun.SemanticMonitoringPage{}, err
+	}
+	result.Window, result.GeneratedAt = query.Window, query.GeneratedAt
+	for index := range result.Items {
+		result.Items[index].DurationMs = monitoringDurationMs(result.Items[index].StartedAt, result.Items[index].CompletedAt, query.GeneratedAt)
+	}
+	return result, nil
 }
 
 func (s *Service) monitoringQuery(window agentrun.MonitoringWindow, state agentrun.MonitoringState, kind agentrun.MonitoringKind, page, pageSize int) (agentrun.MonitoringListQuery, bool) {
-	since, _, ok := s.monitoringSince(window)
+	since, generatedAt, ok := s.monitoringSince(window)
 	statuses, statusOK := agentrun.MonitoringStatuses(kind, state)
 	if !ok || !statusOK || page < 1 || pageSize < 1 || pageSize > 100 {
 		return agentrun.MonitoringListQuery{}, false
 	}
-	return agentrun.MonitoringListQuery{Since: since, Statuses: statuses, Page: page, PageSize: pageSize}, true
+	return agentrun.MonitoringListQuery{Window: window, Since: since, GeneratedAt: generatedAt, Statuses: statuses, Page: page, PageSize: pageSize}, true
+}
+
+func monitoringDurationMs(startedAt, completedAt *time.Time, generatedAt time.Time) *int64 {
+	if startedAt == nil {
+		return nil
+	}
+	end := generatedAt
+	if completedAt != nil {
+		end = *completedAt
+	}
+	duration := end.Sub(*startedAt).Milliseconds()
+	if duration < 0 {
+		duration = 0
+	}
+	return &duration
 }
 
 func (s *Service) monitoringSince(window agentrun.MonitoringWindow) (time.Time, time.Time, bool) {

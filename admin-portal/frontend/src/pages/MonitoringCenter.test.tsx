@@ -23,7 +23,15 @@ vi.mock('../api/agentManagement', async () => {
   };
 });
 
-const emptyPage = { items: [], page: 1, page_size: 20, total_items: 0, total_pages: 0 };
+const emptyPage = {
+  items: [],
+  window: '1h' as const,
+  generated_at: '2026-08-03T08:30:00Z',
+  page: 1,
+  page_size: 20,
+  total_items: 0,
+  total_pages: 0
+};
 
 describe('MonitoringCenter', () => {
   beforeEach(() => {
@@ -56,6 +64,7 @@ describe('MonitoringCenter', () => {
           trigger_source: 'schedule',
           started_at: '2026-08-03T08:00:00Z',
           completed_at: '2026-08-03T08:01:00Z',
+          duration_ms: 60_000,
           raw_results: 18,
           merged_results: 12,
           accepted_artifacts: 10
@@ -86,20 +95,68 @@ describe('MonitoringCenter', () => {
     );
   });
 
-  it('forwards the selected state and each supported time range', async () => {
+  it('forwards every supported state and time range', async () => {
     const user = userEvent.setup();
     renderCenter();
     await screen.findByText('collector-execution-1');
 
-    await user.click(screen.getByRole('tab', { name: '失败' }));
-    await waitFor(() =>
-      expect(loadCollectorMonitoring).toHaveBeenLastCalledWith('token', '1h', 'failure', 1, 20)
-    );
+    for (const [label, state] of [
+      ['成功', 'success'],
+      ['执行中', 'running'],
+      ['失败', 'failure'],
+      ['全部', 'all']
+    ] as const) {
+      await user.click(screen.getByRole('tab', { name: label }));
+      await waitFor(() =>
+        expect(loadCollectorMonitoring).toHaveBeenLastCalledWith('token', '1h', state, 1, 20)
+      );
+    }
 
-    await user.click(screen.getByRole('combobox', { name: '监控时间范围' }));
-    await user.click(screen.getByRole('option', { name: '最近 12 小时' }));
-    await waitFor(() => expect(loadMonitoringSummary).toHaveBeenLastCalledWith('token', '12h'));
-    expect(loadCollectorMonitoring).toHaveBeenLastCalledWith('token', '12h', 'failure', 1, 20);
+    for (const [label, window] of [
+      ['最近 6 小时', '6h'],
+      ['最近 12 小时', '12h'],
+      ['最近 1 天', '24h'],
+      ['最近 1 小时', '1h']
+    ] as const) {
+      await user.click(screen.getByRole('combobox', { name: '监控时间范围' }));
+      await user.click(screen.getByRole('option', { name: label }));
+      await waitFor(() => expect(loadMonitoringSummary).toHaveBeenLastCalledWith('token', window));
+      expect(loadCollectorMonitoring).toHaveBeenLastCalledWith('token', window, 'all', 1, 20);
+    }
+  });
+
+  it('shows loading feedback and manually refreshes both projections', async () => {
+    let resolveSummary!: (value: Awaited<ReturnType<typeof loadMonitoringSummary>>) => void;
+    vi.mocked(loadMonitoringSummary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSummary = resolve;
+      })
+    );
+    const user = userEvent.setup();
+    renderCenter();
+
+    expect(screen.getByText('正在加载监控摘要')).toBeInTheDocument();
+    resolveSummary({
+      window: '1h',
+      generated_at: '2026-08-03T08:30:00Z',
+      collector: { success: 0, running: 0, failure: 0 },
+      artifact_extraction: { success: 0, running: 0, failure: 0 },
+      semantic: { success: 0, running: 0, failure: 0 },
+      collector_raw_results: 0,
+      collector_merged_results: 0,
+      collector_accepted_artifacts: 0,
+      artifact_published: 0,
+      artifact_no_events: 0,
+      artifact_formal_events: 0,
+      semantic_submissions: 0,
+      semantic_accepted_candidates: 0,
+      semantic_rejected_candidates: 0
+    });
+    expect(await screen.findAllByText('成功执行的业务结果')).toHaveLength(3);
+
+    await user.click(screen.getByRole('button', { name: '刷新状态' }));
+    await waitFor(() => expect(loadMonitoringSummary).toHaveBeenCalledTimes(2));
+    expect(loadCollectorMonitoring).toHaveBeenCalledTimes(2);
   });
 
   it('shows downstream errors and retries both projections', async () => {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	v1 "github.com/meierlink88/tidewise-ai/agent-run/backend/api/agentrun/v1"
@@ -387,9 +388,9 @@ func (s *AgentRunService) ListCollectorMonitoring(ctx context.Context, request *
 		if !known {
 			return nil, internalError("Collector monitoring contained an unknown status")
 		}
-		items = append(items, v1.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: string(state), RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
+		items = append(items, v1.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: string(state), RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
 	}
-	return &v1.CollectorMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
+	return &v1.CollectorMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Window, page.GeneratedAt, page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
 }
 
 func (s *AgentRunService) ListArtifactMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.ArtifactMonitoringPage, error) {
@@ -403,9 +404,9 @@ func (s *AgentRunService) ListArtifactMonitoring(ctx context.Context, request *v
 		if !known {
 			return nil, internalError("Artifact monitoring contained an unknown status")
 		}
-		items = append(items, v1.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: string(state), RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
+		items = append(items, v1.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: string(state), RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
 	}
-	return &v1.ArtifactMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
+	return &v1.ArtifactMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Window, page.GeneratedAt, page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
 }
 
 func (s *AgentRunService) ListSemanticMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.SemanticMonitoringPage, error) {
@@ -419,17 +420,17 @@ func (s *AgentRunService) ListSemanticMonitoring(ctx context.Context, request *v
 		if !known {
 			return nil, internalError("Semantic monitoring contained an unknown status")
 		}
-		items = append(items, v1.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: string(state), RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
+		items = append(items, v1.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: string(state), RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
 	}
-	return &v1.SemanticMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
+	return &v1.SemanticMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Window, page.GeneratedAt, page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
 }
 
 func monitoringCounts(value agentrun.MonitoringStateCounts) v1.MonitoringCounts {
 	return v1.MonitoringCounts{Success: value.Success, Running: value.Running, Failure: value.Failure}
 }
 
-func monitoringPage(page, pageSize, totalItems, totalPages int) v1.MonitoringPage {
-	return v1.MonitoringPage{Page: page, PageSize: pageSize, TotalItems: totalItems, TotalPages: totalPages}
+func monitoringPage(window agentrun.MonitoringWindow, generatedAt time.Time, page, pageSize, totalItems, totalPages int) v1.MonitoringPage {
+	return v1.MonitoringPage{Window: string(window), GeneratedAt: generatedAt, Page: page, PageSize: pageSize, TotalItems: totalItems, TotalPages: totalPages}
 }
 
 func collectorError(err error) error {

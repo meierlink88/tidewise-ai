@@ -136,8 +136,9 @@ func TestAgentRunHTTPClientForwardsMonitoringQueryAndDecodesSafePage(t *testing.
 			"result":{"items":[{
 				"execution_id":"execution-1","state":"failure","raw_status":"failed",
 				"trigger_source":"schedule","raw_results":4,"merged_results":3,
-				"accepted_artifacts":2,"error_code":"CONNECTOR_TIMEOUT"
-			}],"page":2,"page_size":25,"total_items":26,"total_pages":2}
+				"accepted_artifacts":2,"duration_ms":45000,"error_code":"CONNECTOR_TIMEOUT"
+			}],"window":"12h","generated_at":"2026-08-03T08:30:00Z",
+			"page":2,"page_size":25,"total_items":26,"total_pages":2}
 		}`))
 	}))
 	defer server.Close()
@@ -163,8 +164,9 @@ func TestAgentRunHTTPClientForwardsMonitoringQueryAndDecodesSafePage(t *testing.
 		request.URL.Query().Get("page") != "2" || request.URL.Query().Get("page_size") != "25" {
 		t.Fatalf("monitoring request URL = %s", request.URL.String())
 	}
-	if page.TotalItems != 26 || len(page.Items) != 1 || page.Items[0].State != "failure" ||
-		page.Items[0].ErrorCode != "CONNECTOR_TIMEOUT" {
+	if page.Window != "12h" || page.GeneratedAt.IsZero() || page.TotalItems != 26 ||
+		len(page.Items) != 1 || page.Items[0].State != "failure" || page.Items[0].DurationMs == nil ||
+		*page.Items[0].DurationMs != 45_000 || page.Items[0].ErrorCode != "CONNECTOR_TIMEOUT" {
 		t.Fatalf("monitoring page = %+v", page)
 	}
 }

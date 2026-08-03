@@ -176,14 +176,16 @@ func (w monitoringCountsWire) valid() bool {
 }
 
 type monitoringPageWire struct {
-	Page       int `json:"page"`
-	PageSize   int `json:"page_size"`
-	TotalItems int `json:"total_items"`
-	TotalPages int `json:"total_pages"`
+	Window      string    `json:"window"`
+	GeneratedAt time.Time `json:"generated_at"`
+	Page        int       `json:"page"`
+	PageSize    int       `json:"page_size"`
+	TotalItems  int       `json:"total_items"`
+	TotalPages  int       `json:"total_pages"`
 }
 
 func (w monitoringPageWire) valid() bool {
-	return w.Page >= 1 && w.PageSize >= 1 && w.PageSize <= 100 && w.TotalItems >= 0 && w.TotalPages >= 0
+	return validMonitoringWindow(w.Window) && !w.GeneratedAt.IsZero() && w.Page >= 1 && w.PageSize >= 1 && w.PageSize <= 100 && w.TotalItems >= 0 && w.TotalPages >= 0
 }
 
 func validMonitoringWindow(value string) bool {
@@ -201,6 +203,7 @@ type collectorMonitoringItemWire struct {
 	TriggerSource     string     `json:"trigger_source"`
 	StartedAt         *time.Time `json:"started_at"`
 	CompletedAt       *time.Time `json:"completed_at"`
+	DurationMs        *int64     `json:"duration_ms"`
 	RawResults        int        `json:"raw_results"`
 	MergedResults     int        `json:"merged_results"`
 	AcceptedArtifacts int        `json:"accepted_artifacts"`
@@ -219,6 +222,7 @@ type artifactMonitoringItemWire struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 	StartedAt            *time.Time `json:"started_at"`
 	CompletedAt          *time.Time `json:"completed_at"`
+	DurationMs           *int64     `json:"duration_ms"`
 	EventCandidates      int        `json:"event_candidates"`
 	AcknowledgedJournals int        `json:"acknowledged_journals"`
 	TotalJournals        int        `json:"total_journals"`
@@ -237,6 +241,7 @@ type semanticMonitoringItemWire struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 	StartedAt          *time.Time `json:"started_at"`
 	CompletedAt        *time.Time `json:"completed_at"`
+	DurationMs         *int64     `json:"duration_ms"`
 	AttemptCount       int        `json:"attempt_count"`
 	MaxAttempts        int        `json:"max_attempts"`
 	AcceptedCandidates int        `json:"accepted_candidates"`

@@ -131,4 +131,33 @@ func TestMonitoringProjectionUsesExistingAgentRunFacts(t *testing.T) {
 	if err != nil || len(semantic.Items) != 1 || semantic.Items[0].AcceptedCandidates != 4 {
 		t.Fatalf("semantic page = %+v, err = %v", semantic, err)
 	}
+
+	secondCollectorID := "66666666-6666-4666-8666-666666666666"
+	_, err = database.Exec(ctx, `
+		INSERT INTO agent_executions (
+			execution_id, agent_version, idempotency_key, prompt, prompt_sha256, prompt_bytes,
+			status, candidate_counts, artifacts, created_at, started_at, completed_at, updated_at,
+			agent_key, input_payload, trigger_source, triggered_at
+		) VALUES ($1,'collector.v1','monitoring-collector-2','monitoring',$2,10,
+			'succeeded','{}'::jsonb,'{}'::jsonb,$3,$3,$4,$4,
+			'collector','{}'::jsonb,'api',$3)`,
+		secondCollectorID, "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+		now.Add(-2*time.Minute), now.Add(-time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstPage, err := store.ListCollectorMonitoring(ctx, agentrun.MonitoringListQuery{
+		Since: now.Add(-time.Hour), Statuses: []string{"succeeded"}, Page: 1, PageSize: 1,
+	})
+	if err != nil || firstPage.TotalItems != 2 || firstPage.TotalPages != 2 ||
+		len(firstPage.Items) != 1 || firstPage.Items[0].ExecutionID != secondCollectorID {
+		t.Fatalf("stable first page = %+v, err = %v", firstPage, err)
+	}
+	secondPage, err := store.ListCollectorMonitoring(ctx, agentrun.MonitoringListQuery{
+		Since: now.Add(-time.Hour), Statuses: []string{"succeeded"}, Page: 2, PageSize: 1,
+	})
+	if err != nil || len(secondPage.Items) != 1 || secondPage.Items[0].ExecutionID != collectorID {
+		t.Fatalf("stable second page = %+v, err = %v", secondPage, err)
+	}
 }

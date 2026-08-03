@@ -67,6 +67,8 @@ describe('App admin login', () => {
     });
     vi.mocked(loadCollectorMonitoring).mockResolvedValue({
       items: [],
+      window: '1h',
+      generated_at: '2026-08-03T08:30:00Z',
       page: 1,
       page_size: 20,
       total_items: 0,

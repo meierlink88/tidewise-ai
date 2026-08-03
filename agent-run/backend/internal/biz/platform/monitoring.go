@@ -82,10 +82,12 @@ type MonitoringSummary struct {
 }
 
 type MonitoringListQuery struct {
-	Since    time.Time
-	Statuses []string
-	Page     int
-	PageSize int
+	Window      MonitoringWindow
+	Since       time.Time
+	GeneratedAt time.Time
+	Statuses    []string
+	Page        int
+	PageSize    int
 }
 
 type CollectorMonitoringRecord struct {
@@ -94,6 +96,7 @@ type CollectorMonitoringRecord struct {
 	TriggerSource     string
 	StartedAt         *time.Time
 	CompletedAt       *time.Time
+	DurationMs        *int64
 	RawResults        int
 	MergedResults     int
 	AcceptedArtifacts int
@@ -101,11 +104,13 @@ type CollectorMonitoringRecord struct {
 }
 
 type CollectorMonitoringPage struct {
-	Items      []CollectorMonitoringRecord
-	Page       int
-	PageSize   int
-	TotalItems int
-	TotalPages int
+	Items       []CollectorMonitoringRecord
+	Window      MonitoringWindow
+	GeneratedAt time.Time
+	Page        int
+	PageSize    int
+	TotalItems  int
+	TotalPages  int
 }
 
 type ArtifactExtractionMonitoringRecord struct {
@@ -116,6 +121,7 @@ type ArtifactExtractionMonitoringRecord struct {
 	UpdatedAt            time.Time
 	StartedAt            *time.Time
 	CompletedAt          *time.Time
+	DurationMs           *int64
 	EventCandidates      int
 	AcknowledgedJournals int
 	TotalJournals        int
@@ -123,11 +129,13 @@ type ArtifactExtractionMonitoringRecord struct {
 }
 
 type ArtifactExtractionMonitoringPage struct {
-	Items      []ArtifactExtractionMonitoringRecord
-	Page       int
-	PageSize   int
-	TotalItems int
-	TotalPages int
+	Items       []ArtifactExtractionMonitoringRecord
+	Window      MonitoringWindow
+	GeneratedAt time.Time
+	Page        int
+	PageSize    int
+	TotalItems  int
+	TotalPages  int
 }
 
 type SemanticMonitoringRecord struct {
@@ -138,6 +146,7 @@ type SemanticMonitoringRecord struct {
 	UpdatedAt          time.Time
 	StartedAt          *time.Time
 	CompletedAt        *time.Time
+	DurationMs         *int64
 	AttemptCount       int
 	MaxAttempts        int
 	AcceptedCandidates int
@@ -146,11 +155,13 @@ type SemanticMonitoringRecord struct {
 }
 
 type SemanticMonitoringPage struct {
-	Items      []SemanticMonitoringRecord
-	Page       int
-	PageSize   int
-	TotalItems int
-	TotalPages int
+	Items       []SemanticMonitoringRecord
+	Window      MonitoringWindow
+	GeneratedAt time.Time
+	Page        int
+	PageSize    int
+	TotalItems  int
+	TotalPages  int
 }
 
 func MonitoringStatuses(kind MonitoringKind, state MonitoringState) ([]string, bool) {

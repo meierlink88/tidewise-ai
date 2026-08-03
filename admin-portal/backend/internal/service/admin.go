@@ -179,7 +179,7 @@ func (s *AdminService) ListCollectorMonitoring(ctx context.Context, request *v1.
 	}
 	items := make([]v1.CollectorMonitoringItem, 0, len(page.Items))
 	for _, item := range page.Items {
-		items = append(items, v1.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: item.State, RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
+		items = append(items, v1.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: item.State, RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
 	}
 	return &v1.CollectorMonitoringPage{Items: items, MonitoringPage: v1.MonitoringPage(page.MonitoringPage)}, nil
 }
@@ -193,7 +193,7 @@ func (s *AdminService) ListArtifactMonitoring(ctx context.Context, request *v1.M
 	}
 	items := make([]v1.ArtifactMonitoringItem, 0, len(page.Items))
 	for _, item := range page.Items {
-		items = append(items, v1.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
+		items = append(items, v1.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
 	}
 	return &v1.ArtifactMonitoringPage{Items: items, MonitoringPage: v1.MonitoringPage(page.MonitoringPage)}, nil
 }
@@ -207,7 +207,7 @@ func (s *AdminService) ListSemanticMonitoring(ctx context.Context, request *v1.M
 	}
 	items := make([]v1.SemanticMonitoringItem, 0, len(page.Items))
 	for _, item := range page.Items {
-		items = append(items, v1.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
+		items = append(items, v1.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
 	}
 	return &v1.SemanticMonitoringPage{Items: items, MonitoringPage: v1.MonitoringPage(page.MonitoringPage)}, nil
 }

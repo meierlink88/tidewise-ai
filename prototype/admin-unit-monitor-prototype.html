@@ -463,7 +463,7 @@
         display: block;
       }
 
-      /* Variant A — Unit result overview */
+      /* Variant A — execution result overview */
       .unit-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1487,7 +1487,7 @@
                     <span class="node-number">01</span>
                     <div>
                       <h2>事件采集</h2>
-                      <div class="unit-name">执行对象：Collector Execution</div>
+                      <div class="unit-name">执行对象：每次采集执行</div>
                     </div>
                   </div>
                   <span class="badge neutral">4 次执行</span>
@@ -1504,7 +1504,7 @@
                   <div class="result-line"><span>Raw / Merged</span><strong>115 / 113</strong></div>
                   <div class="result-line"><span>Accepted Artifact</span><strong>87</strong></div>
                   <div class="health-explanation">
-                    数据来源：agent_executions.candidate_counts
+                    数据来源：采集执行与业务结果统计
                   </div>
                 </div>
               </article>
@@ -1532,7 +1532,7 @@
                   <div class="result-line"><span>正式 Event</span><strong>27</strong></div>
                   <div class="result-line"><span>No Events</span><strong>3</strong></div>
                   <div class="health-explanation">
-                    数据来源：extraction_units + extraction_result + journal
+                    数据来源：提取执行、Event 结果与发布记录
                   </div>
                 </div>
               </article>
@@ -1543,7 +1543,7 @@
                     <span class="node-number">03</span>
                     <div>
                       <h2>事件语义</h2>
-                      <div class="unit-name">执行对象：Semantic Work Item / Event</div>
+                      <div class="unit-name">执行对象：每个 Event 的语义处理</div>
                     </div>
                   </div>
                   <span class="badge neutral">71 个 Work Item</span>
@@ -1560,7 +1560,7 @@
                   <div class="result-line"><span>Accepted Candidates</span><strong>14</strong></div>
                   <div class="result-line"><span>Rejected Candidates</span><strong>34</strong></div>
                   <div class="health-explanation">
-                    数据来源：semantic_work_items + execution candidate_counts
+                    数据来源：语义处理与候选结果统计
                   </div>
                 </div>
               </article>
@@ -1604,7 +1604,7 @@
 
               <div class="unit-table-view" data-unit-table="artifact">
                 <div class="table-scroll"><table>
-                  <thead><tr><th>Extraction Key</th><th>Artifact ID</th><th>Collector Execution</th><th>状态 / 原始枚举</th><th>更新时间</th><th>Event Candidate</th><th>Journal 回执</th><th>错误码</th></tr></thead>
+                  <thead><tr><th>提取记录 ID</th><th>内容 ID</th><th>采集执行 ID</th><th>状态 / 原始枚举</th><th>更新时间</th><th>Event 候选</th><th>发布回执</th><th>错误码</th></tr></thead>
                   <tbody>
                     <tr data-group="running"><td class="unit-id">9f31…b82a</td><td>ART-4A82</td><td class="muted">COL-144021</td><td><span class="badge running">执行中</span><div class="result-secondary">running</div></td><td>14:43:32</td><td>2</td><td>0 / 0</td><td class="muted">—</td></tr>
                     <tr data-group="success"><td class="unit-id">9f30…7d61</td><td>ART-4A81</td><td class="muted">COL-144021</td><td><span class="badge success">成功</span><div class="result-secondary">published</div></td><td>14:41:50</td><td><strong>2</strong></td><td>1 / 1</td><td class="muted">—</td></tr>
@@ -1617,7 +1617,7 @@
 
               <div class="unit-table-view" data-unit-table="semantic">
                 <div class="table-scroll"><table>
-                  <thead><tr><th>Work Item ID</th><th>Event ID</th><th>触发来源</th><th>状态 / 原始枚举</th><th>更新时间</th><th>尝试</th><th>Accepted Candidates</th><th>Rejected Candidates</th><th>错误码</th></tr></thead>
+                  <thead><tr><th>语义处理 ID</th><th>Event ID</th><th>触发来源</th><th>状态 / 原始枚举</th><th>更新时间</th><th>尝试</th><th>Accepted Candidates</th><th>Rejected Candidates</th><th>错误码</th></tr></thead>
                   <tbody>
                     <tr data-group="running"><td class="unit-id">7d91…38ca</td><td>EVT-2931</td><td>eligible_event</td><td><span class="badge running">执行中</span><div class="result-secondary">running</div></td><td>14:43:36</td><td>1 / 2</td><td>—</td><td>—</td><td class="muted">—</td></tr>
                     <tr data-group="running"><td class="unit-id">7d92…10e4</td><td>EVT-2932</td><td>eligible_event</td><td><span class="badge running">执行中</span><div class="result-secondary">pending</div></td><td>14:43:20</td><td>0 / 2</td><td>—</td><td>—</td><td class="muted">—</td></tr>
@@ -1638,7 +1638,7 @@
                 <div class="section-title">
                   <div>
                     <h2>三个节点是否持续推进</h2>
-                    <p>用 Unit 状态分布和最新完成记录判断运行健康度。</p>
+                    <p>用执行状态分布和最新完成记录判断运行健康度。</p>
                   </div>
                   <span class="badge failed">存在 2 项阻碍</span>
                 </div>
@@ -1647,10 +1647,10 @@
                     <span class="flow-stage-number">01</span>
                     <div>
                       <h3>事件采集</h3>
-                      <p>Collector Execution</p>
+                      <p>采集执行</p>
                     </div>
                     <div class="flow-progress">
-                      <div class="flow-bar-labels"><span>近 1 小时 Unit</span><strong>4 / 4 成功</strong></div>
+                      <div class="flow-bar-labels"><span>近 1 小时执行记录</span><strong>4 / 4 成功</strong></div>
                       <div class="segmented-bar"><span style="width: 100%"></span></div>
                       <div class="flow-legend"><span><b>4</b> 成功</span><span><b>0</b> 失败</span><span><b>0</b> 进行中</span></div>
                     </div>
@@ -1660,10 +1660,10 @@
                     <span class="flow-stage-number">02</span>
                     <div>
                       <h3>Event 提取</h3>
-                      <p>Artifact Unit</p>
+                      <p>内容提取</p>
                     </div>
                     <div class="flow-progress">
-                      <div class="flow-bar-labels"><span>51 个 Unit</span><strong>24 已完成 · 1 处理中</strong></div>
+                      <div class="flow-bar-labels"><span>51 条执行记录</span><strong>24 已完成 · 1 处理中</strong></div>
                       <div class="segmented-bar"><span style="width: 47%"></span><span style="width: 2%"></span><span style="width: 51%"></span></div>
                       <div class="flow-legend"><span><b>24</b> 成功</span><span><b>0</b> 失败</span><span><b>26</b> 等待</span></div>
                     </div>
@@ -1673,10 +1673,10 @@
                     <span class="flow-stage-number">03</span>
                     <div>
                       <h3>事件语义</h3>
-                      <p>Semantic Work Item</p>
+                      <p>事件语义处理</p>
                     </div>
                     <div class="flow-progress">
-                      <div class="flow-bar-labels"><span>27 个 Unit</span><strong>19 已完成 · 1 处理中</strong></div>
+                      <div class="flow-bar-labels"><span>27 条执行记录</span><strong>19 已完成 · 1 处理中</strong></div>
                       <div class="segmented-bar"><span style="width: 70%"></span><span style="width: 4%"></span><span style="width: 26%"></span></div>
                       <div class="flow-legend"><span><b>19</b> 成功</span><span><b>1</b> 失败</span><span><b>7</b> 等待</span></div>
                     </div>
@@ -1687,7 +1687,7 @@
 
               <aside class="panel activity-panel">
                 <div class="activity-head section-title">
-                  <div><h2>实时 Unit 动态</h2><p>只显示安全摘要，不展示正文或模型输出。</p></div>
+                  <div><h2>实时执行动态</h2><p>只显示安全摘要，不展示正文或模型输出。</p></div>
                 </div>
                 <div class="activity-list">
                   <div class="activity-item">
@@ -1718,8 +1718,8 @@
               </aside>
             </div>
             <div class="flow-metrics">
-              <div class="metric-box"><span>技术失败 Unit</span><strong style="color: var(--danger)">1</strong></div>
-              <div class="metric-box"><span>超时 Unit</span><strong style="color: var(--warning)">1</strong></div>
+              <div class="metric-box"><span>技术失败记录</span><strong style="color: var(--danger)">1</strong></div>
+              <div class="metric-box"><span>超时记录</span><strong style="color: var(--warning)">1</strong></div>
               <div class="metric-box"><span>交接缺口</span><strong>0</strong></div>
               <div class="metric-box"><span>端到端最新进展</span><strong>3s</strong></div>
             </div>
@@ -1730,7 +1730,7 @@
             <section class="panel incident-layout">
               <div class="incident-list">
                 <div class="incident-list-head section-title">
-                  <div><h2>需要处理的 Unit</h2><p>失败、超时和交接缺口集中排查。</p></div>
+                  <div><h2>需要处理的执行记录</h2><p>失败、超时和交接缺口集中排查。</p></div>
                   <span class="badge failed">2 项</span>
                 </div>
                 <article class="incident-row selected">
@@ -1751,13 +1751,13 @@
               </div>
               <div class="incident-detail">
                 <div class="incident-detail-head section-title">
-                  <div><h2>Unit 诊断摘要</h2><p>SEM-7D76 · EVT-2916</p></div>
+                  <div><h2>执行诊断摘要</h2><p>SEM-7D76 · EVT-2916</p></div>
                   <button class="btn">查看同类失败</button>
                 </div>
                 <div class="incident-detail-body">
                   <div class="detail-callout">
                     <svg class="icon"><use href="#i-alert"></use></svg>
-                    <div><strong>Embedding 请求超时，Unit 已终态失败</strong><p>没有创建 Data Submission；业务事实未发生部分写入。</p></div>
+                    <div><strong>Embedding 请求超时，执行记录已终态失败</strong><p>没有创建 Data Submission；业务事实未发生部分写入。</p></div>
                   </div>
                   <div class="detail-grid">
                     <div class="detail-cell"><span>节点</span><strong>事件语义</strong></div>
@@ -1769,10 +1769,10 @@
                   </div>
                   <div class="timeline">
                     <h3>执行时间线</h3>
-                    <div class="timeline-row"><time>13:58:27</time><span class="timeline-marker"></span><div><strong>Unit 被领取</strong><p>创建 Agent Execution，开始 Context 水合。</p></div></div>
+                    <div class="timeline-row"><time>13:58:27</time><span class="timeline-marker"></span><div><strong>任务被领取</strong><p>创建 Agent Execution，开始 Context 水合。</p></div></div>
                     <div class="timeline-row"><time>13:58:42</time><span class="timeline-marker"></span><div><strong>Context Lease 创建成功</strong><p>Event、Evidence 与正式投影版本已固定。</p></div></div>
                     <div class="timeline-row"><time>13:59:06</time><span class="timeline-marker"></span><div><strong>Embedding 请求超时</strong><p>进入有限重试，保持同一 Work Item。</p></div></div>
-                    <div class="timeline-row"><time>14:00:31</time><span class="timeline-marker"></span><div><strong>重试预算耗尽</strong><p>Unit 终态失败；无 Submission、无业务结果。</p></div></div>
+                    <div class="timeline-row"><time>14:00:31</time><span class="timeline-marker"></span><div><strong>重试预算耗尽</strong><p>执行记录终态失败；无 Submission、无业务结果。</p></div></div>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import AdminShell from './layouts/AdminShell';
 import AdminLogin from './pages/AdminLogin';
 import DataIngestionCenter from './pages/DataIngestionCenter';
@@ -10,15 +11,18 @@ import type { AdminPage } from './components/admin/app-sidebar';
 const tokenStorageKey = 'tidewise_admin_token';
 
 function AdminApp() {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState(() => localStorage.getItem(tokenStorageKey) ?? '');
   const [currentPage, setCurrentPage] = useState<AdminPage>('data-ingestion');
 
   const handleLogin = (nextToken: string) => {
+    queryClient.clear();
     localStorage.setItem(tokenStorageKey, nextToken);
     setToken(nextToken);
   };
 
   const handleLogout = () => {
+    queryClient.clear();
     localStorage.removeItem(tokenStorageKey);
     setToken('');
     setCurrentPage('data-ingestion');
