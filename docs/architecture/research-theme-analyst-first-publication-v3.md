@@ -231,7 +231,7 @@ Theme 与 Tree 继续保存 Event association；V3 每个 association 增加正�
 | `evidence_ids` | optional；提供时为 1..N 个唯一 Data Evidence UUID |
 | `evidence_role` | existing enum |
 | `supported_claim` | Theme association 沿用；Tree 可 nullable |
-| `display_order` | Tree association required；Theme 沿用当前顺序规则 |
+| `display_order` | Tree association required；Theme Event 没有展示顺序字段 |
 
 V3 Theme 和每棵 Tree 都至少包含一个正式 Data Event association。Data 验证 Event 存在；
 只有 caller 提供 `evidence_ids` 时，Data 才验证 Evidence 存在且属于所声明 Event。Evidence
@@ -239,6 +239,11 @@ V3 Theme 和每棵 Tree 都至少包含一个正式 Data Event association。Dat
 Evidence。Data 不读取 AgentRun 原文，不判断 Evidence 是否足够或 claim 是否正确。一个
 Tree 使用的来源 Event 必须出现在该 Tree association 中；Theme-level association 不能替代
 Tree association。
+
+V3 `Theme.events` 是无展示顺序的关联集合：caller 可以按任意顺序提交，Data 仍校验
+`event_id` 唯一，并在 canonical hash 内按 `event_id` 规范化。因此同一组 Theme Event 的
+不同数组顺序属于幂等重放，不得仅因第 3 条或后续 UUID 小于前一条而返回 `422`。Tree
+Event 仍按显式 `display_order` 保存和展示，不能用 Theme Event 的规范化顺序覆盖。
 
 这只是报告来源引用，不是新的事实 registry，也不建立 fact-to-node 或 inference grounding。
 
@@ -316,9 +321,13 @@ direction 不是 `422`。
 | Impact closure | 每个 Theme impact node_key 至少存在于一棵 Tree |
 | Path | Node position 连续；root incoming null；每个非 root incoming required |
 | Signal | `1..5`、恰好一条 primary 且为第一条、display order；optional direction 有值时才校验 enum |
-| Event/Evidence | Event ID 存在；optional Evidence 有值时验证存在且属于 Event；Tree 来源 Event 在 Tree association 中 |
+| Event/Evidence | Event ID 存在；optional Evidence 有值时验证存在且属于 Event；Theme Event 集合顺序不作门禁并在 hash 内规范化；Tree 来源 Event 在 Tree association 中 |
 | Transaction | receipt、Theme、Trees、events/evidence、impacts、nodes、signals 全部同事务 |
 | Readback | local keys、display snapshot、Event/Evidence、null 和顺序逐字段稳定返回 |
+
+验收必须覆盖 3 条以上、按 UUID 非升序提交的 Theme Event association：有效引用首次发布
+返回 `201`，仅调整 Theme Event 数组顺序的同批次重放返回 `200` 且 hash 不变；错误 Event
+或错误 Evidence 仍返回 `422`，并且整个 publication aggregate 零写入。
 
 ### 9.2 Data SHALL NOT validate for `analyst_snapshot`
 

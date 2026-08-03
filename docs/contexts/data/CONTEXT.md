@@ -164,12 +164,16 @@ _Avoid_: 在单条 Theme 上设置批次 ID 唯一约束、业务数据失败后
 
 **Theme 发布载荷哈希（Theme Publication Payload Hash）**:
 对完整 Theme 发布请求体按 RFC 8785 规范化后计算的小写十六进制 SHA-256，用于批次幂等重放和内容冲突检测。哈希只覆盖调用方提交的批次身份、分析窗口和 Theme 内容，不包含认证信息、请求 ID、服务端发布时间或响应字段；由 Data 计算并返回，调用方不提交。
+V3 `analyst_snapshot` 计算前仅将无展示顺序的 `Theme.events` 按 `event_id` 规范化；
+其余数组顺序仍属于载荷内容。
 
 **Theme 发布规范数组顺序（Theme Publication Canonical Array Order）**:
-Theme 发布请求只有一个 `theme`；其 Impact/Event、Reason Trees、Tree Event、Node 和
-Signal 数组均使用合同规定的唯一稳定顺序。UUID 必须使用标准小写字符串，同一作用域
-不得重复键或 ID。Data 校验但不静默重排，通过结构与顺序校验后计算 canonical hash。
-_Avoid_: 大小写混合 UUID、重复关联、服务端静默重排、同一语义存在多种合法数组顺序
+Theme 发布请求只有一个 `theme`。V2 formal 的 Impact/Event、Reason Trees、Tree Event、
+Node 和 Signal 数组，以及 V3 `analyst_snapshot` 除 `Theme.events` 外的数组，均使用合同
+规定的唯一稳定顺序。V3 `Theme.events` 是无展示顺序的唯一关联集合，调用方数组顺序不
+构成发布门禁；Data 只在计算 hash 的副本中按 `event_id` 规范化，不改变请求、持久化或
+Tree Event 展示顺序。UUID 必须使用标准小写字符串，同一作用域不得重复键或 ID。
+_Avoid_: 大小写混合 UUID、重复关联、重排有展示语义的数组、将 V3 Theme Event 的 caller 顺序误作校验门禁
 
 **Theme Aggregate 发布 V2（Theme Aggregate Publication V2）**:
 顶层字段为 `analysis_batch_id`、`analysis_as_of`、`discovery_window_start`、
@@ -434,7 +438,9 @@ Tree 从父 Theme Event 集合选择正式 Event，并保存角色与稳定展�
 `confirmed + verified` 的正式 Event 事实。V2 formal 结构上数组可为空，但发布引用校验
 要求每棵 Tree 覆盖自身引用的全部正式 Signal/DirectImpact 及上游正式事实的来源 Event；
 V3 `analyst_snapshot` 每棵 Tree 至少关联一个正式 Event，Evidence IDs 可选并仅在提供时
-校验归属。仅在 Theme Event 集合中出现不能替代 Tree 自身的来源关联。
+校验归属。V3 Theme Event 是无展示顺序的唯一集合，caller 顺序不构成发布门禁，canonical
+hash 按 `event_id` 规范化；Tree Event 仍使用显式 `display_order`。仅在 Theme Event 集合中
+出现不能替代 Tree 自身的来源关联。
 _Avoid_: Tree 扩展父 Theme Event 边界、遗漏所用事实的来源 Event、要求特定角色组合、
 复制 Event 文本
 

@@ -73,6 +73,56 @@ func TestPublishSnapshotUsesOnlyEventReferencesAndReplays(t *testing.T) {
 	}
 }
 
+func TestPublishSnapshotCanonicalizesUnorderedThemeEventSetForReplay(t *testing.T) {
+	aggregate := snapshotAggregateWithThreeEvents()
+	tx := &fakeTransaction{facts: ReferenceFacts{Events: map[string]EventFact{
+		"71000000-0000-5000-8000-000000000001": {ID: "71000000-0000-5000-8000-000000000001"},
+		"71000000-0000-5000-8000-000000000002": {ID: "71000000-0000-5000-8000-000000000002"},
+		"71000000-0000-5000-8000-000000000003": {ID: "71000000-0000-5000-8000-000000000003"},
+	}}}
+	service := NewService(fakeStore{tx: tx})
+
+	result, err := service.PublishSnapshot(context.Background(), "theme-analyst", aggregate)
+	if err != nil {
+		t.Fatalf("PublishSnapshot() unordered Theme Events error = %v", err)
+	}
+	receipt := snapshotPublicationPlan(aggregate, result.ThemeID, result.PayloadHash)
+	receipt.PublisherSubject = "theme-analyst"
+	receipt.PublishedAt, receipt.ImportedAt = result.PublishedAt, result.ImportedAt
+	tx.receipt = &receipt
+	writes := tx.writes
+
+	reordered := aggregate
+	reordered.Theme.Events = []SnapshotEvent{
+		aggregate.Theme.Events[2], aggregate.Theme.Events[0], aggregate.Theme.Events[1],
+	}
+	replayed, err := service.PublishSnapshot(context.Background(), "theme-analyst", reordered)
+	if err != nil {
+		t.Fatalf("PublishSnapshot() reordered replay error = %v", err)
+	}
+	if !replayed.Replayed || replayed.PayloadHash != result.PayloadHash || tx.writes != writes {
+		t.Fatalf("replay = %#v writes = %d, want same hash and %d writes", replayed, tx.writes, writes)
+	}
+}
+
+func TestPublishSnapshotRejectsMissingThirdEventWithoutWrites(t *testing.T) {
+	aggregate := snapshotAggregateWithThreeEvents()
+	tx := &fakeTransaction{facts: ReferenceFacts{Events: map[string]EventFact{
+		"71000000-0000-5000-8000-000000000001": {ID: "71000000-0000-5000-8000-000000000001"},
+		"71000000-0000-5000-8000-000000000003": {ID: "71000000-0000-5000-8000-000000000003"},
+	}}}
+
+	_, err := NewService(fakeStore{tx: tx}).PublishSnapshot(context.Background(), "theme-analyst", aggregate)
+	var reference *ReferenceError
+	if !errors.As(err, &reference) || reference.Path != "theme.events[2].event_id" ||
+		reference.Reference != "71000000-0000-5000-8000-000000000002" {
+		t.Fatalf("PublishSnapshot() error = %T %v, want missing third Event ReferenceError", err, err)
+	}
+	if tx.writes != 0 {
+		t.Fatalf("writes = %d, want 0", tx.writes)
+	}
+}
+
 func TestPublishSnapshotRejectsChangedPayloadForExistingBatch(t *testing.T) {
 	aggregate := validSnapshotAggregate()
 	tx := &fakeTransaction{facts: ReferenceFacts{
@@ -163,4 +213,20 @@ func validSnapshotAggregate() SnapshotAggregate {
 			}},
 		}},
 	}
+}
+
+func snapshotAggregateWithThreeEvents() SnapshotAggregate {
+	aggregate := validSnapshotAggregate()
+	aggregate.AnalysisBatchID = "uat-analyst-snapshot-three-events"
+	aggregate.Theme.Events = []SnapshotEvent{
+		{EventID: "71000000-0000-5000-8000-000000000001", EvidenceRole: "driver"},
+		{EventID: "71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting"},
+		{EventID: "71000000-0000-5000-8000-000000000002", EvidenceRole: "context"},
+	}
+	aggregate.ReasoningTrees[0].Events = []SnapshotTreeEvent{
+		{EventID: "71000000-0000-5000-8000-000000000001", EvidenceRole: "driver", DisplayOrder: 1},
+		{EventID: "71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting", DisplayOrder: 2},
+		{EventID: "71000000-0000-5000-8000-000000000002", EvidenceRole: "context", DisplayOrder: 3},
+	}
+	return aggregate
 }

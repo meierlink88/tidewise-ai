@@ -1224,7 +1224,11 @@ components:
         checkpoint_summary: {type: string, nullable: true}
         risk_summary: {type: string, nullable: true}
         impacts: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchThemeSnapshotImpact'}}
-        events: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResearchThemeSnapshotEvent'}}
+        events:
+          type: array
+          minItems: 1
+          description: 无展示顺序的 Event association 集合；caller 顺序不构成校验门禁，服务端 canonical hash 按 event_id 规范化，同一 event_id 不得重复。
+          items: {$ref: '#/components/schemas/ResearchThemeSnapshotEvent'}
     ResearchThemeSnapshotImpact:
       type: object
       additionalProperties: false
