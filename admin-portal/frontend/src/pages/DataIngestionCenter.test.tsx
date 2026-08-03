@@ -37,6 +37,7 @@ describe('DataIngestionCenter', () => {
     render(<DataIngestionCenter token='secret-token' />);
 
     const rawTab = await screen.findByRole('tab', { name: '原始数据' });
+    expect(screen.getByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
     expect(rawTab).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '全球事件' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '采集器配置' })).toBeInTheDocument();
@@ -58,6 +59,34 @@ describe('DataIngestionCenter', () => {
     await waitFor(() =>
       expect(screen.getByRole('tab', { name: '全球事件' })).toHaveAttribute('aria-selected', 'true')
     );
+  });
+
+  it('presents a safe data error and retries the current tab', async () => {
+    const user = userEvent.setup();
+    const loadRawDocuments = vi
+      .spyOn(dataIngestionAPI, 'loadRawDocuments')
+      .mockRejectedValueOnce(new Error('internal server error'))
+      .mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50
+      });
+    vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 50
+    });
+
+    render(<DataIngestionCenter token='secret-token' />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('数据加载失败，请稍后重试。');
+    expect(screen.queryByText('internal server error')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '重试' }));
+
+    await waitFor(() => expect(loadRawDocuments).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('applies raw title search and event filters', async () => {

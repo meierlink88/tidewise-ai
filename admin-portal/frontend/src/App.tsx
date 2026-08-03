@@ -1,24 +1,28 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import AdminShell from './layouts/AdminShell';
 import AdminLogin from './pages/AdminLogin';
 import DataIngestionCenter from './pages/DataIngestionCenter';
 import AgentStatusMonitor from './pages/AgentStatusMonitor';
+import MonitoringCenter from './pages/MonitoringCenter';
 import AppProviders from './providers/app-providers';
+import type { AdminPage } from './components/admin/app-sidebar';
 
 const tokenStorageKey = 'tidewise_admin_token';
 
 function AdminApp() {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState(() => localStorage.getItem(tokenStorageKey) ?? '');
-  const [currentPage, setCurrentPage] = useState<'data-ingestion' | 'agent-status'>(
-    'data-ingestion'
-  );
+  const [currentPage, setCurrentPage] = useState<AdminPage>('data-ingestion');
 
   const handleLogin = (nextToken: string) => {
+    queryClient.clear();
     localStorage.setItem(tokenStorageKey, nextToken);
     setToken(nextToken);
   };
 
   const handleLogout = () => {
+    queryClient.clear();
     localStorage.removeItem(tokenStorageKey);
     setToken('');
     setCurrentPage('data-ingestion');
@@ -31,17 +35,25 @@ function AdminApp() {
   return (
     <AdminShell
       currentPage={currentPage}
-      currentTitle={currentPage === 'agent-status' ? 'Agent 状态监控' : '数据采集中心'}
+      currentTitle={pageTitle(currentPage)}
       onNavigate={setCurrentPage}
       onLogout={handleLogout}
     >
-      {currentPage === 'agent-status' ? (
+      {currentPage === 'monitoring' ? (
+        <MonitoringCenter token={token} />
+      ) : currentPage === 'agent-status' ? (
         <AgentStatusMonitor token={token} />
       ) : (
         <DataIngestionCenter token={token} />
       )}
     </AdminShell>
   );
+}
+
+function pageTitle(page: AdminPage): string {
+  if (page === 'monitoring') return '监控中心';
+  if (page === 'agent-status') return 'Agent 状态';
+  return '数据采集中心';
 }
 
 export default function App() {

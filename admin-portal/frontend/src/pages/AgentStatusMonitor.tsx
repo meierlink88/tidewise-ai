@@ -33,13 +33,9 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
     <section className='grid h-full min-w-0 content-start gap-5 overflow-auto pb-6'>
       <div className='flex items-start justify-between gap-4 max-sm:flex-col'>
         <div>
-          <span className='text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground'>
-            Runtime monitor
-          </span>
-          <h2 className='my-1.5 text-2xl font-semibold tracking-tight'>Agent 运行状态</h2>
-          <p className='m-0 text-sm text-muted-foreground'>
-            只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。
-          </p>
+          <span className='page-eyebrow'>Runtime monitor</span>
+          <h2 className='page-title'>Agent 运行状态</h2>
+          <p className='page-description'>只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。</p>
         </div>
         <Button
           className='max-sm:w-full'
@@ -66,7 +62,7 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
         />
       ) : null}
       {!statusQuery.isError || items.length > 0 ? (
-        <Card>
+        <Card className='gap-0 overflow-hidden py-0'>
           <CardContent className='p-0'>
             {items.length === 0 ? (
               <div className='grid min-h-32 place-items-center px-4 text-sm text-muted-foreground'>
@@ -109,7 +105,11 @@ function AgentStatusTable({ items }: { items: AgentStatus[] }) {
                 {item.is_working ? '工作中' : '空闲'}
               </Badge>
             </TableCell>
-            <TableCell>{executionStatusLabel(item.current_execution_status)}</TableCell>
+            <TableCell>
+              <Badge variant={executionStatusVariant(item.current_execution_status)}>
+                {executionStatusLabel(item.current_execution_status)}
+              </Badge>
+            </TableCell>
             <TableCell className='whitespace-nowrap'>{formatDateTime(item.updated_at)}</TableCell>
           </TableRow>
         ))}
@@ -131,6 +131,17 @@ function executionStatusLabel(status: string): string {
     cancelled: '已取消'
   };
   return labels[status] ?? status;
+}
+
+function executionStatusVariant(
+  status: string
+): 'success' | 'running' | 'destructive' | 'secondary' {
+  if (status === 'succeeded') return 'success';
+  if (status === 'failed') return 'destructive';
+  if (['queued', 'planning', 'collecting', 'materializing', 'running'].includes(status)) {
+    return 'running';
+  }
+  return 'secondary';
 }
 
 function formatDateTime(value: string): string {

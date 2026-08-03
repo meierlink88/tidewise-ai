@@ -245,7 +245,7 @@ verify_services() {
 prepare_previous_release_agentrun_rollback() {
   local previous_release_version
   previous_release_version="$(sed -n '1p' "$agentrun_rollback_marker")"
-  if ! [[ "$previous_release_version" =~ ^01[0-3]$ ]]; then
+  if ! [[ "$previous_release_version" =~ ^01[0-4]$ ]]; then
     echo "FAIL agentrun-previous-release-database-compatibility: invalid rollback target marker" >&2
     return 1
   fi
@@ -409,7 +409,7 @@ if unclassified:
     raise SystemExit("pending AgentRun migrations lack risk classification: " + ",".join(unclassified))
 print(",".join(version for version in versions if risk[version] == "high"))
 print(",".join(version for version in versions if risk[version] == "blocked"))
-rollback_versions = {"011", "012", "013", "014"}
+rollback_versions = {"011", "012", "013", "014", "015"}
 print("true" if rollback_versions.intersection(versions) else "false")
 print(str(report.get("current_version") or "").zfill(3))
 PY
@@ -459,7 +459,7 @@ if { [ -n "$high_risk_pending" ] || [ -n "$agentrun_high_risk_pending" ]; } && [
 fi
 echo "PASS migration-risk-gate"
 
-if [ "$agentrun_rollback_compatibility_required" = true ] && ! [[ "$agentrun_rollback_target_version" =~ ^01[0-3]$ ]]; then
+if [ "$agentrun_rollback_compatibility_required" = true ] && ! [[ "$agentrun_rollback_target_version" =~ ^01[0-4]$ ]]; then
   echo "FAIL agentrun-rollback-target-gate: unsupported previous migration version ${agentrun_rollback_target_version:-none}" >&2
   exit 1
 fi

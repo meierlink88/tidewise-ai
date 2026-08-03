@@ -1,4 +1,4 @@
-import { Activity, Database, Radio } from 'lucide-react';
+import { Activity, Database, Radio, ScanLine } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +12,7 @@ import {
   useSidebar
 } from '../ui/sidebar';
 
-export type AdminPage = 'data-ingestion' | 'agent-status';
+export type AdminPage = 'data-ingestion' | 'monitoring' | 'agent-status';
 
 interface AdminNavigationProps {
   currentPage: AdminPage;
@@ -28,9 +28,15 @@ const navigationItems = [
     icon: Database
   },
   {
+    key: 'monitoring',
+    label: '监控中心',
+    meta: 'Live',
+    icon: ScanLine
+  },
+  {
     key: 'agent-status',
     label: 'Agent 状态',
-    meta: 'Live',
+    meta: 'Agents',
     icon: Activity
   }
 ] satisfies Array<{
@@ -84,7 +90,7 @@ export default function AppSidebar({ currentPage, onNavigate }: AppSidebarProps)
     <Sidebar aria-label='管理后台侧边栏'>
       <SidebarHeader>
         <div className='flex min-w-0 items-center gap-3'>
-          <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg font-semibold text-sidebar-primary-foreground'>
+          <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg font-semibold text-sidebar-primary-foreground shadow-sm'>
             潮
           </span>
           {open ? (

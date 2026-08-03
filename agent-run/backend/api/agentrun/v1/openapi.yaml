@@ -30,12 +30,12 @@ paths:
       summary: Check process liveness
       security: []
       responses:
-        "200":
+        '200':
           description: AgentRun process is alive.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthResponse"
+                $ref: '#/components/schemas/HealthResponse'
   /readyz:
     get:
       tags:
@@ -48,18 +48,18 @@ paths:
         Configuration, and all required Connector Configurations.
       security: []
       responses:
-        "200":
+        '200':
           description: AgentRun is ready to accept Collector executions.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReadyResponse"
-        "503":
+                $ref: '#/components/schemas/ReadyResponse'
+        '503':
           description: AgentRun is not ready.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReadyResponse"
+                $ref: '#/components/schemas/ReadyResponse'
   /api/v1/collector/runs:
     post:
       tags:
@@ -86,52 +86,52 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CollectorSubmissionRequest"
+              $ref: '#/components/schemas/CollectorSubmissionRequest'
       responses:
-        "202":
+        '202':
           description: Execution created or an exact idempotent replay returned.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CollectorRunEnvelope"
-        "400":
+                $ref: '#/components/schemas/CollectorRunEnvelope'
+        '400':
           description: Request, Idempotency-Key, or Prompt is invalid.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
           description: Bearer authentication is missing or invalid.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: |
             The Idempotency-Key belongs to another Prompt, or another Collector
             Execution is active.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "413":
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
           description: Collection Prompt exceeds 64 KiB in UTF-8 bytes.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
           description: AgentRun could not create the Execution.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "503":
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
           description: Collector configuration or service dependencies are not ready.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/collector/runs/{execution_id}:
     get:
       tags:
@@ -150,30 +150,30 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Collector Agent Execution found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CollectorRunEnvelope"
-        "401":
+                $ref: '#/components/schemas/CollectorRunEnvelope'
+        '401':
           description: Bearer authentication is missing or invalid.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
           description: Agent Execution was not found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
           description: AgentRun could not read the Execution.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /api/agentrun/v1/event-semantic-reanalysis:
     post:
       tags:
@@ -198,26 +198,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/EventSemanticReanalysisRequest"
+              $ref: '#/components/schemas/EventSemanticReanalysisRequest'
       responses:
-        "202":
+        '202':
           description: Work Item created or exact idempotent replay returned.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EventSemanticWorkItemEnvelope"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "409":
+                $ref: '#/components/schemas/EventSemanticWorkItemEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
           description: The Idempotency-Key belongs to a different reanalysis request.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/model-providers:
     get:
       tags:
@@ -227,19 +227,19 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: Registered Model Provider targets, including unconfigured targets.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ModelProviderListEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ModelProviderListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/model-providers/{provider_key}:
     parameters:
-      - $ref: "#/components/parameters/ProviderKey"
+      - $ref: '#/components/parameters/ProviderKey'
     get:
       tags:
         - Admin
@@ -248,18 +248,18 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: Current redacted Model Provider configuration.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ModelProviderConfigurationEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ModelProviderConfigurationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       tags:
         - Admin
@@ -272,22 +272,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ModelProviderPatch"
+              $ref: '#/components/schemas/ModelProviderPatch'
       responses:
-        "200":
+        '200':
           description: Updated redacted Model Provider configuration.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ModelProviderConfigurationEnvelope"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ModelProviderConfigurationEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/connectors:
     get:
       tags:
@@ -297,19 +297,19 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: Registered Connector targets, including unconfigured targets.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConnectorListEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ConnectorListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/connectors/{connector_key}:
     parameters:
-      - $ref: "#/components/parameters/ConnectorKey"
+      - $ref: '#/components/parameters/ConnectorKey'
     get:
       tags:
         - Admin
@@ -318,18 +318,18 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: Current redacted Connector configuration.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConnectorConfigurationEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ConnectorConfigurationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       tags:
         - Admin
@@ -342,22 +342,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ConnectorPatch"
+              $ref: '#/components/schemas/ConnectorPatch'
       responses:
-        "200":
+        '200':
           description: Updated redacted Connector configuration.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConnectorConfigurationEnvelope"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/ConnectorConfigurationEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/agent-schedules:
     get:
       tags:
@@ -367,19 +367,19 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: All configured Agent Schedules.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentScheduleListEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/AgentScheduleListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/agent-schedules/{agent_key}:
     parameters:
-      - $ref: "#/components/parameters/AgentKey"
+      - $ref: '#/components/parameters/AgentKey'
     get:
       tags:
         - Admin
@@ -388,18 +388,18 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: Agent Schedule found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentScheduleEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/AgentScheduleEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
       tags:
         - Admin
@@ -412,24 +412,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AgentSchedulePut"
+              $ref: '#/components/schemas/AgentSchedulePut'
       responses:
-        "200":
+        '200':
           description: Saved Agent Schedule.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentScheduleEnvelope"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
+                $ref: '#/components/schemas/AgentScheduleEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
     patch:
       tags:
         - Admin
@@ -442,24 +442,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AgentSchedulePatch"
+              $ref: '#/components/schemas/AgentSchedulePatch'
       responses:
-        "200":
+        '200':
           description: Updated Agent Schedule.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentScheduleEnvelope"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
+                $ref: '#/components/schemas/AgentScheduleEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/admin/v1/agent-executions:
     get:
       tags:
@@ -496,18 +496,18 @@ paths:
               - desc
             default: desc
       responses:
-        "200":
+        '200':
           description: Paginated Agent Execution audit metadata.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentExecutionPageEnvelope"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/AgentExecutionPageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/agent-statuses:
     get:
       tags:
@@ -518,16 +518,113 @@ paths:
       security:
         - adminBearerAuth: []
       responses:
-        "200":
+        '200':
           description: Current registered Agent statuses.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentStatusListEnvelope"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalError"
+                $ref: '#/components/schemas/AgentStatusListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/admin/v1/monitoring/summary:
+    get:
+      tags: [Admin]
+      operationId: getMonitoringSummary
+      summary: Get execution health and successful business-output totals
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MonitoringWindow'
+      responses:
+        '200':
+          description: Monitoring summary for all three processing kinds.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitoringSummaryEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/admin/v1/monitoring/collector-executions:
+    get:
+      tags: [Admin]
+      operationId: listCollectorMonitoring
+      summary: List safe Collector execution monitoring records
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MonitoringWindow'
+        - $ref: '#/components/parameters/MonitoringState'
+        - $ref: '#/components/parameters/MonitoringPage'
+        - $ref: '#/components/parameters/MonitoringPageSize'
+      responses:
+        '200':
+          description: Collector execution monitoring page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectorMonitoringPageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/admin/v1/monitoring/artifact-extractions:
+    get:
+      tags: [Admin]
+      operationId: listArtifactMonitoring
+      summary: List safe Artifact extraction monitoring records
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MonitoringWindow'
+        - $ref: '#/components/parameters/MonitoringState'
+        - $ref: '#/components/parameters/MonitoringPage'
+        - $ref: '#/components/parameters/MonitoringPageSize'
+      responses:
+        '200':
+          description: Artifact extraction monitoring page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactMonitoringPageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/admin/v1/monitoring/semantic-work-items:
+    get:
+      tags: [Admin]
+      operationId: listSemanticMonitoring
+      summary: List safe Event Semantic work item monitoring records
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MonitoringWindow'
+        - $ref: '#/components/parameters/MonitoringState'
+        - $ref: '#/components/parameters/MonitoringPage'
+        - $ref: '#/components/parameters/MonitoringPageSize'
+      responses:
+        '200':
+          description: Event Semantic work item monitoring page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticMonitoringPageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /openapi.yaml:
     get:
       tags:
@@ -536,7 +633,7 @@ paths:
       summary: Download the AgentRun OpenAPI document
       security: []
       responses:
-        "200":
+        '200':
           description: Embedded OpenAPI 3.0.4 YAML document.
           content:
             application/yaml:
@@ -551,7 +648,7 @@ paths:
       description: Swagger UI loads this service's `/openapi.yaml` document.
       security: []
       responses:
-        "200":
+        '200':
           description: Embedded Swagger UI HTML.
           content:
             text/html:
@@ -565,7 +662,7 @@ paths:
       summary: Redirect to the canonical Swagger UI path
       security: []
       responses:
-        "301":
+        '301':
           description: Redirects to `/docs/`.
 components:
   securitySchemes:
@@ -596,37 +693,66 @@ components:
       required: true
       schema:
         type: string
+    MonitoringWindow:
+      name: window
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/MonitoringWindow'
+    MonitoringState:
+      name: state
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/MonitoringStateFilter'
+    MonitoringPage:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    MonitoringPageSize:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
   responses:
     BadRequest:
       description: Request is invalid.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
       description: Admin Bearer authentication is missing or invalid.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     NotFound:
       description: Registered target or Agent Schedule was not found.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     InternalError:
       description: AgentRun could not complete the operation.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     ServiceUnavailable:
       description: The saved Schedule could not be synchronized to the runtime scheduler.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
     CollectorSubmissionRequest:
       type: object
@@ -716,7 +842,7 @@ components:
               type: object
               additionalProperties: true
     CollectorRunEnvelope:
-      $ref: "#/components/schemas/CollectorRunSuccessEnvelope"
+      $ref: '#/components/schemas/CollectorRunSuccessEnvelope'
     CollectorRunSuccessEnvelope:
       type: object
       additionalProperties: false
@@ -727,7 +853,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/CollectorRunResponse"
+          $ref: '#/components/schemas/CollectorRunResponse'
     EventSemanticWorkItemEnvelope:
       type: object
       additionalProperties: false
@@ -736,7 +862,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/EventSemanticWorkItem"
+          $ref: '#/components/schemas/EventSemanticWorkItem'
     ModelProviderListEnvelope:
       type: object
       additionalProperties: false
@@ -745,7 +871,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/ModelProviderList"
+          $ref: '#/components/schemas/ModelProviderList'
     ModelProviderConfigurationEnvelope:
       type: object
       additionalProperties: false
@@ -754,7 +880,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/ModelProviderConfiguration"
+          $ref: '#/components/schemas/ModelProviderConfiguration'
     ConnectorListEnvelope:
       type: object
       additionalProperties: false
@@ -763,7 +889,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/ConnectorList"
+          $ref: '#/components/schemas/ConnectorList'
     ConnectorConfigurationEnvelope:
       type: object
       additionalProperties: false
@@ -772,7 +898,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/ConnectorConfiguration"
+          $ref: '#/components/schemas/ConnectorConfiguration'
     AgentScheduleListEnvelope:
       type: object
       additionalProperties: false
@@ -781,7 +907,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/AgentScheduleList"
+          $ref: '#/components/schemas/AgentScheduleList'
     AgentScheduleEnvelope:
       type: object
       additionalProperties: false
@@ -790,7 +916,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/AgentSchedule"
+          $ref: '#/components/schemas/AgentSchedule'
     AgentExecutionPageEnvelope:
       type: object
       additionalProperties: false
@@ -799,7 +925,7 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/AgentExecutionPage"
+          $ref: '#/components/schemas/AgentExecutionPage'
     AgentStatusListEnvelope:
       type: object
       additionalProperties: false
@@ -810,7 +936,43 @@ components:
         request_id:
           type: string
         result:
-          $ref: "#/components/schemas/AgentStatusList"
+          $ref: '#/components/schemas/AgentStatusList'
+    MonitoringSummaryEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/MonitoringSummary'
+    CollectorMonitoringPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/CollectorMonitoringPage'
+    ArtifactMonitoringPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/ArtifactMonitoringPage'
+    SemanticMonitoringPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/SemanticMonitoringPage'
     EventSemanticWorkItem:
       type: object
       additionalProperties: false
@@ -848,7 +1010,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/ModelProviderConfiguration"
+            $ref: '#/components/schemas/ModelProviderConfiguration'
     ModelProviderConfiguration:
       type: object
       additionalProperties: false
@@ -899,7 +1061,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/ConnectorConfiguration"
+            $ref: '#/components/schemas/ConnectorConfiguration'
     ConnectorConfiguration:
       type: object
       additionalProperties: false
@@ -949,7 +1111,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AgentSchedule"
+            $ref: '#/components/schemas/AgentSchedule'
     AgentSchedule:
       type: object
       additionalProperties: false
@@ -971,16 +1133,16 @@ components:
         agent_version:
           type: string
         schedule_type:
-          $ref: "#/components/schemas/ScheduleType"
+          $ref: '#/components/schemas/ScheduleType'
         cron_expression:
           type: string
         daily_times:
           type: array
           items:
             type: string
-            pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
         input:
-          $ref: "#/components/schemas/AgentInput"
+          $ref: '#/components/schemas/AgentInput'
         enabled:
           type: boolean
         last_triggered_at:
@@ -1008,7 +1170,7 @@ components:
           type: string
           minLength: 1
         schedule_type:
-          $ref: "#/components/schemas/ScheduleType"
+          $ref: '#/components/schemas/ScheduleType'
         cron_expression:
           type: string
           description: Required for cron and limited to standard five-field syntax.
@@ -1017,9 +1179,9 @@ components:
           minItems: 1
           items:
             type: string
-            pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
         input:
-          $ref: "#/components/schemas/AgentInput"
+          $ref: '#/components/schemas/AgentInput'
         enabled:
           type: boolean
     AgentSchedulePatch:
@@ -1031,7 +1193,7 @@ components:
           type: string
           minLength: 1
         schedule_type:
-          $ref: "#/components/schemas/ScheduleType"
+          $ref: '#/components/schemas/ScheduleType'
         cron_expression:
           type: string
         daily_times:
@@ -1039,9 +1201,9 @@ components:
           minItems: 1
           items:
             type: string
-            pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
         input:
-          $ref: "#/components/schemas/AgentInput"
+          $ref: '#/components/schemas/AgentInput'
         enabled:
           type: boolean
     ScheduleType:
@@ -1062,7 +1224,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AgentExecutionListItem"
+            $ref: '#/components/schemas/AgentExecutionListItem'
         page:
           type: integer
           minimum: 1
@@ -1105,7 +1267,7 @@ components:
           type: string
           format: uuid
         status:
-          $ref: "#/components/schemas/ExecutionStatus"
+          $ref: '#/components/schemas/ExecutionStatus'
         error_code:
           type: string
         error_summary:
@@ -1136,7 +1298,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AgentStatus"
+            $ref: '#/components/schemas/AgentStatus'
     AgentStatus:
       type: object
       additionalProperties: false
@@ -1171,6 +1333,181 @@ components:
         updated_at:
           type: string
           format: date-time
+    MonitoringWindow:
+      type: string
+      enum: [1h, 6h, 12h, 24h]
+    MonitoringStateFilter:
+      type: string
+      default: all
+      enum: [all, success, running, failure]
+    MonitoringState:
+      type: string
+      enum: [success, running, failure]
+    MonitoringCounts:
+      type: object
+      additionalProperties: false
+      required: [success, running, failure]
+      properties:
+        success: { type: integer, minimum: 0 }
+        running: { type: integer, minimum: 0 }
+        failure: { type: integer, minimum: 0 }
+    MonitoringSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          window,
+          generated_at,
+          collector,
+          artifact_extraction,
+          semantic,
+          collector_raw_results,
+          collector_merged_results,
+          collector_accepted_artifacts,
+          artifact_published,
+          artifact_no_events,
+          artifact_formal_events,
+          semantic_submissions,
+          semantic_accepted_candidates,
+          semantic_rejected_candidates
+        ]
+      properties:
+        window: { $ref: '#/components/schemas/MonitoringWindow' }
+        generated_at: { type: string, format: date-time }
+        collector: { $ref: '#/components/schemas/MonitoringCounts' }
+        artifact_extraction: { $ref: '#/components/schemas/MonitoringCounts' }
+        semantic: { $ref: '#/components/schemas/MonitoringCounts' }
+        collector_raw_results: { type: integer, minimum: 0 }
+        collector_merged_results: { type: integer, minimum: 0 }
+        collector_accepted_artifacts: { type: integer, minimum: 0 }
+        artifact_published: { type: integer, minimum: 0 }
+        artifact_no_events: { type: integer, minimum: 0 }
+        artifact_formal_events: { type: integer, minimum: 0 }
+        semantic_submissions: { type: integer, minimum: 0 }
+        semantic_accepted_candidates: { type: integer, minimum: 0 }
+        semantic_rejected_candidates: { type: integer, minimum: 0 }
+    MonitoringPage:
+      type: object
+      required: [window, generated_at, page, page_size, total_items, total_pages]
+      properties:
+        window: { $ref: '#/components/schemas/MonitoringWindow' }
+        generated_at: { type: string, format: date-time }
+        page: { type: integer, minimum: 1 }
+        page_size: { type: integer, minimum: 1, maximum: 100 }
+        total_items: { type: integer, minimum: 0 }
+        total_pages: { type: integer, minimum: 0 }
+    CollectorMonitoringPage:
+      allOf:
+        - $ref: '#/components/schemas/MonitoringPage'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CollectorMonitoringItem' }
+    ArtifactMonitoringPage:
+      allOf:
+        - $ref: '#/components/schemas/MonitoringPage'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ArtifactMonitoringItem' }
+    SemanticMonitoringPage:
+      allOf:
+        - $ref: '#/components/schemas/MonitoringPage'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SemanticMonitoringItem' }
+    CollectorMonitoringItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          execution_id,
+          state,
+          raw_status,
+          trigger_source,
+          raw_results,
+          merged_results,
+          accepted_artifacts
+        ]
+      properties:
+        execution_id: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/MonitoringState' }
+        raw_status: { type: string }
+        trigger_source: { type: string }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        duration_ms: { type: integer, format: int64, minimum: 0 }
+        raw_results: { type: integer, minimum: 0 }
+        merged_results: { type: integer, minimum: 0 }
+        accepted_artifacts: { type: integer, minimum: 0 }
+        error_code: { type: string }
+    ArtifactMonitoringItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          extraction_key,
+          artifact_id,
+          collector_execution_id,
+          state,
+          raw_status,
+          updated_at,
+          event_candidates,
+          acknowledged_journals,
+          total_journals
+        ]
+      properties:
+        extraction_key: { type: string }
+        artifact_id: { type: string }
+        collector_execution_id: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/MonitoringState' }
+        raw_status: { type: string }
+        updated_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        duration_ms: { type: integer, format: int64, minimum: 0 }
+        event_candidates: { type: integer, minimum: 0 }
+        acknowledged_journals: { type: integer, minimum: 0 }
+        total_journals: { type: integer, minimum: 0 }
+        error_code: { type: string }
+    SemanticMonitoringItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          work_item_id,
+          event_id,
+          trigger_source,
+          state,
+          raw_status,
+          updated_at,
+          attempt_count,
+          max_attempts,
+          accepted_candidates,
+          rejected_candidates
+        ]
+      properties:
+        work_item_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        trigger_source: { type: string }
+        state: { $ref: '#/components/schemas/MonitoringState' }
+        raw_status: { type: string }
+        updated_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        duration_ms: { type: integer, format: int64, minimum: 0 }
+        attempt_count: { type: integer, minimum: 0 }
+        max_attempts: { type: integer, minimum: 0 }
+        accepted_candidates: { type: integer, minimum: 0 }
+        rejected_candidates: { type: integer, minimum: 0 }
+        error_code: { type: string }
     ActiveExecutionConflict:
       type: object
       additionalProperties: false
@@ -1229,13 +1566,13 @@ components:
           type: string
           format: uuid
         status:
-          $ref: "#/components/schemas/ExecutionStatus"
+          $ref: '#/components/schemas/ExecutionStatus'
         status_url:
           type: string
           description: Relative URL for this Agent Execution.
         prompt_sha256:
           type: string
-          pattern: "^[0-9a-f]{64}$"
+          pattern: '^[0-9a-f]{64}$'
           description: SHA-256 of the exact accepted Collection Prompt.
         prompt_bytes:
           type: integer
@@ -1244,11 +1581,11 @@ components:
         invocations:
           type: array
           items:
-            $ref: "#/components/schemas/ConnectorInvocation"
+            $ref: '#/components/schemas/ConnectorInvocation'
         candidate_counts:
-          $ref: "#/components/schemas/CandidateCounts"
+          $ref: '#/components/schemas/CandidateCounts'
         artifacts:
-          $ref: "#/components/schemas/ArtifactReferences"
+          $ref: '#/components/schemas/ArtifactReferences'
         created_at:
           type: string
           format: date-time
@@ -1293,7 +1630,7 @@ components:
         connector_key:
           type: string
         status:
-          $ref: "#/components/schemas/InvocationStatus"
+          $ref: '#/components/schemas/InvocationStatus'
         result_count:
           type: integer
           minimum: 0

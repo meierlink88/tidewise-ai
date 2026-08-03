@@ -31,7 +31,7 @@ export default function AdminShell({
           onNavigate={onNavigate}
         />
         <main
-          className='min-h-0 flex-1 overflow-hidden p-4 pt-5 md:p-6 md:pt-6'
+          className='min-h-0 flex-1 overflow-hidden bg-background p-4 pt-5 md:p-6 md:pt-6'
           id='admin-main-content'
           tabIndex={-1}
         >

@@ -55,6 +55,18 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 		"/api/admin/v1/agent-statuses": {
 			{method: "get", operationID: "listAdminPortalAgentStatuses", envelope: "AgentStatusListEnvelope", statuses: []string{"401", "403", "500", "503"}},
 		},
+		"/api/admin/v1/monitoring/summary": {
+			{method: "get", operationID: "getAdminPortalMonitoringSummary", envelope: "MonitoringSummaryEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/monitoring/collector-executions": {
+			{method: "get", operationID: "listAdminPortalCollectorMonitoring", envelope: "CollectorMonitoringPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/monitoring/artifact-extractions": {
+			{method: "get", operationID: "listAdminPortalArtifactMonitoring", envelope: "ArtifactMonitoringPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/monitoring/semantic-work-items": {
+			{method: "get", operationID: "listAdminPortalSemanticMonitoring", envelope: "SemanticMonitoringPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
 		"/api/admin/v1/model-providers": {
 			{method: "get", operationID: "listAdminPortalModelProviders", envelope: "ModelProviderListEnvelope", statuses: []string{"401", "403", "500", "503"}},
 		},

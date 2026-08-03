@@ -1,4 +1,5 @@
 import { adminAPIURL } from './dataIngestion';
+import { z } from 'zod';
 
 export type ScheduleType = 'daily' | 'cron';
 
@@ -59,6 +60,84 @@ export interface AgentStatus {
   is_working: boolean;
   current_execution_status: string;
   updated_at: string;
+}
+
+export type MonitoringWindow = '1h' | '6h' | '12h' | '24h';
+export type MonitoringState = 'all' | 'success' | 'running' | 'failure';
+export type MonitoringKind = 'collector' | 'artifact' | 'semantic';
+export interface MonitoringCounts {
+  success: number;
+  running: number;
+  failure: number;
+}
+export interface MonitoringSummary {
+  window: MonitoringWindow;
+  generated_at: string;
+  collector: MonitoringCounts;
+  artifact_extraction: MonitoringCounts;
+  semantic: MonitoringCounts;
+  collector_raw_results: number;
+  collector_merged_results: number;
+  collector_accepted_artifacts: number;
+  artifact_published: number;
+  artifact_no_events: number;
+  artifact_formal_events: number;
+  semantic_submissions: number;
+  semantic_accepted_candidates: number;
+  semantic_rejected_candidates: number;
+}
+export interface MonitoringPage<T> {
+  items: T[];
+  window: MonitoringWindow;
+  generated_at: string;
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+}
+export interface CollectorMonitoringItem {
+  execution_id: string;
+  state: Exclude<MonitoringState, 'all'>;
+  raw_status: string;
+  trigger_source: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  raw_results: number;
+  merged_results: number;
+  accepted_artifacts: number;
+  error_code?: string;
+}
+export interface ArtifactMonitoringItem {
+  extraction_key: string;
+  artifact_id: string;
+  collector_execution_id: string;
+  state: Exclude<MonitoringState, 'all'>;
+  raw_status: string;
+  updated_at: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  event_candidates: number;
+  acknowledged_journals: number;
+  total_journals: number;
+  error_code?: string;
+}
+export interface SemanticMonitoringItem {
+  work_item_id: string;
+  event_id: string;
+  trigger_source: string;
+  state: Exclude<MonitoringState, 'all'>;
+  raw_status: string;
+  updated_at: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  attempt_count: number;
+  max_attempts: number;
+  accepted_candidates: number;
+  rejected_candidates: number;
+  error_code?: string;
 }
 
 export interface ModelProviderConfiguration {
@@ -148,6 +227,182 @@ export function loadAgentExecutions(token: string, page: number): Promise<AgentE
 export async function loadAgentStatuses(token: string): Promise<AgentStatus[]> {
   const result = await request<{ items: AgentStatus[] }>(token, '/api/admin/v1/agent-statuses');
   return result.items;
+}
+
+const monitoringWindowSchema = z.enum(['1h', '6h', '12h', '24h']);
+const monitoringStateSchema = z.enum(['success', 'running', 'failure']);
+const timestampSchema = z.iso.datetime({ offset: true });
+const nonNegativeIntegerSchema = z.number().int().nonnegative();
+const monitoringCountsSchema = z.strictObject({
+  success: nonNegativeIntegerSchema,
+  running: nonNegativeIntegerSchema,
+  failure: nonNegativeIntegerSchema
+});
+const monitoringSummarySchema: z.ZodType<MonitoringSummary> = z.strictObject({
+  window: monitoringWindowSchema,
+  generated_at: timestampSchema,
+  collector: monitoringCountsSchema,
+  artifact_extraction: monitoringCountsSchema,
+  semantic: monitoringCountsSchema,
+  collector_raw_results: nonNegativeIntegerSchema,
+  collector_merged_results: nonNegativeIntegerSchema,
+  collector_accepted_artifacts: nonNegativeIntegerSchema,
+  artifact_published: nonNegativeIntegerSchema,
+  artifact_no_events: nonNegativeIntegerSchema,
+  artifact_formal_events: nonNegativeIntegerSchema,
+  semantic_submissions: nonNegativeIntegerSchema,
+  semantic_accepted_candidates: nonNegativeIntegerSchema,
+  semantic_rejected_candidates: nonNegativeIntegerSchema
+});
+const monitoringPageFields = {
+  window: monitoringWindowSchema,
+  generated_at: timestampSchema,
+  page: z.number().int().positive(),
+  page_size: z.number().int().min(1).max(100),
+  total_items: nonNegativeIntegerSchema,
+  total_pages: nonNegativeIntegerSchema
+};
+const collectorMonitoringItemSchema: z.ZodType<CollectorMonitoringItem> = z.strictObject({
+  execution_id: z.string().min(1),
+  state: monitoringStateSchema,
+  raw_status: z.string().min(1),
+  trigger_source: z.string().min(1),
+  started_at: timestampSchema.optional(),
+  completed_at: timestampSchema.optional(),
+  duration_ms: nonNegativeIntegerSchema.optional(),
+  raw_results: nonNegativeIntegerSchema,
+  merged_results: nonNegativeIntegerSchema,
+  accepted_artifacts: nonNegativeIntegerSchema,
+  error_code: z.string().optional()
+});
+const artifactMonitoringItemSchema: z.ZodType<ArtifactMonitoringItem> = z.strictObject({
+  extraction_key: z.string().min(1),
+  artifact_id: z.string().min(1),
+  collector_execution_id: z.string().min(1),
+  state: monitoringStateSchema,
+  raw_status: z.string().min(1),
+  updated_at: timestampSchema,
+  started_at: timestampSchema.optional(),
+  completed_at: timestampSchema.optional(),
+  duration_ms: nonNegativeIntegerSchema.optional(),
+  event_candidates: nonNegativeIntegerSchema,
+  acknowledged_journals: nonNegativeIntegerSchema,
+  total_journals: nonNegativeIntegerSchema,
+  error_code: z.string().optional()
+});
+const semanticMonitoringItemSchema: z.ZodType<SemanticMonitoringItem> = z.strictObject({
+  work_item_id: z.string().min(1),
+  event_id: z.string().min(1),
+  trigger_source: z.string().min(1),
+  state: monitoringStateSchema,
+  raw_status: z.string().min(1),
+  updated_at: timestampSchema,
+  started_at: timestampSchema.optional(),
+  completed_at: timestampSchema.optional(),
+  duration_ms: nonNegativeIntegerSchema.optional(),
+  attempt_count: nonNegativeIntegerSchema,
+  max_attempts: z.number().int().positive(),
+  accepted_candidates: nonNegativeIntegerSchema,
+  rejected_candidates: nonNegativeIntegerSchema,
+  error_code: z.string().optional()
+});
+const collectorMonitoringPageSchema: z.ZodType<MonitoringPage<CollectorMonitoringItem>> =
+  z.strictObject({ ...monitoringPageFields, items: z.array(collectorMonitoringItemSchema) });
+const artifactMonitoringPageSchema: z.ZodType<MonitoringPage<ArtifactMonitoringItem>> =
+  z.strictObject({ ...monitoringPageFields, items: z.array(artifactMonitoringItemSchema) });
+const semanticMonitoringPageSchema: z.ZodType<MonitoringPage<SemanticMonitoringItem>> =
+  z.strictObject({ ...monitoringPageFields, items: z.array(semanticMonitoringItemSchema) });
+
+export async function loadMonitoringSummary(
+  token: string,
+  window: MonitoringWindow
+): Promise<MonitoringSummary> {
+  const result = parseMonitoringResponse(
+    monitoringSummarySchema,
+    await request<unknown>(token, `/api/admin/v1/monitoring/summary?window=${window}`)
+  );
+  return requireMonitoringWindow(result, window);
+}
+export async function loadCollectorMonitoring(
+  token: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page = 1,
+  pageSize = 20
+): Promise<MonitoringPage<CollectorMonitoringItem>> {
+  const result = parseMonitoringResponse(
+    collectorMonitoringPageSchema,
+    await request<unknown>(
+      token,
+      monitoringPath('collector-executions', window, state, page, pageSize)
+    )
+  );
+  return requireMonitoringWindow(result, window);
+}
+export async function loadArtifactMonitoring(
+  token: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page = 1,
+  pageSize = 20
+): Promise<MonitoringPage<ArtifactMonitoringItem>> {
+  const result = parseMonitoringResponse(
+    artifactMonitoringPageSchema,
+    await request<unknown>(
+      token,
+      monitoringPath('artifact-extractions', window, state, page, pageSize)
+    )
+  );
+  return requireMonitoringWindow(result, window);
+}
+export async function loadSemanticMonitoring(
+  token: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page = 1,
+  pageSize = 20
+): Promise<MonitoringPage<SemanticMonitoringItem>> {
+  const result = parseMonitoringResponse(
+    semanticMonitoringPageSchema,
+    await request<unknown>(
+      token,
+      monitoringPath('semantic-work-items', window, state, page, pageSize)
+    )
+  );
+  return requireMonitoringWindow(result, window);
+}
+
+function parseMonitoringResponse<T>(schema: z.ZodType<T>, value: unknown): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error('Admin API returned invalid monitoring data');
+  }
+  return parsed.data;
+}
+
+function requireMonitoringWindow<T extends { window: MonitoringWindow }>(
+  value: T,
+  expected: MonitoringWindow
+): T {
+  if (value.window !== expected) {
+    throw new Error('Admin API returned monitoring data for a different time range');
+  }
+  return value;
+}
+function monitoringPath(
+  resource: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page: number,
+  pageSize: number
+): string {
+  const params = new URLSearchParams({
+    window,
+    state,
+    page: String(page),
+    page_size: String(pageSize)
+  });
+  return `/api/admin/v1/monitoring/${resource}?${params}`;
 }
 
 export async function loadModelProviders(token: string): Promise<ModelProviderConfiguration[]> {

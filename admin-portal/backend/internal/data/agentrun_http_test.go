@@ -126,6 +126,51 @@ func TestAgentRunHTTPClientDecodesSafeAgentStatusList(t *testing.T) {
 	}
 }
 
+func TestAgentRunHTTPClientForwardsMonitoringQueryAndDecodesSafePage(t *testing.T) {
+	requests := make(chan *http.Request, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		requests <- request.Clone(request.Context())
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{
+			"request_id":"monitoring-test",
+			"result":{"items":[{
+				"execution_id":"execution-1","state":"failure","raw_status":"failed",
+				"trigger_source":"schedule","raw_results":4,"merged_results":3,
+				"accepted_artifacts":2,"duration_ms":45000,"error_code":"CONNECTOR_TIMEOUT"
+			}],"window":"12h","generated_at":"2026-08-03T08:30:00Z",
+			"page":2,"page_size":25,"total_items":26,"total_pages":2}
+		}`))
+	}))
+	defer server.Close()
+
+	client, err := NewAgentRunHTTPClient(AgentRunHTTPConfig{
+		BaseURL: server.URL, ServiceToken: "agentrun-admin-token",
+		Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	page, callErr := client.ListCollectorMonitoring(context.Background(), biz.MonitoringQuery{
+		Window: "12h", State: "failure", Page: 2, PageSize: 25,
+	})
+	request := <-requests
+	if callErr != nil {
+		t.Fatal(callErr)
+	}
+	if request.URL.Path != "/api/admin/v1/monitoring/collector-executions" ||
+		request.URL.Query().Get("window") != "12h" || request.URL.Query().Get("state") != "failure" ||
+		request.URL.Query().Get("page") != "2" || request.URL.Query().Get("page_size") != "25" {
+		t.Fatalf("monitoring request URL = %s", request.URL.String())
+	}
+	if page.Window != "12h" || page.GeneratedAt.IsZero() || page.TotalItems != 26 ||
+		len(page.Items) != 1 || page.Items[0].State != "failure" || page.Items[0].DurationMs == nil ||
+		*page.Items[0].DurationMs != 45_000 || page.Items[0].ErrorCode != "CONNECTOR_TIMEOUT" {
+		t.Fatalf("monitoring page = %+v", page)
+	}
+}
+
 func TestAgentRunHTTPClientRejectsInconsistentAgentStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.Header().Set("Content-Type", "application/json")

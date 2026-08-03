@@ -22,7 +22,7 @@ export default function AppHeader({
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
 
   return (
-    <header className='flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur md:px-6'>
+    <header className='flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card/95 px-4 shadow-[0_1px_2px_rgb(15_23_42/0.03)] backdrop-blur md:px-6'>
       <div className='flex min-w-0 items-center gap-2'>
         <SidebarTrigger className='hidden md:inline-flex' />
         <Sheet open={mobileNavigationOpen} onOpenChange={setMobileNavigationOpen}>
@@ -35,7 +35,7 @@ export default function AppHeader({
             <SheetTitle className='sr-only'>管理后台导航</SheetTitle>
             <SheetDescription className='sr-only'>选择管理后台页面</SheetDescription>
             <div className='flex items-center gap-3 border-b border-sidebar-border pb-5'>
-              <span className='flex size-9 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg font-semibold text-sidebar-primary-foreground'>
+              <span className='flex size-9 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg font-semibold text-sidebar-primary-foreground shadow-sm'>
                 潮
               </span>
               <div>

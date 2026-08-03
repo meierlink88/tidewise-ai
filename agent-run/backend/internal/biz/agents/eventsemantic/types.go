@@ -341,12 +341,13 @@ type ReanalysisRequest struct {
 }
 
 type ExecutionCompletion struct {
-	ExecutionID  string
-	Status       string
-	Retryable    bool
-	ErrorCode    string
-	ErrorSummary string
-	CompletedAt  time.Time
+	ExecutionID     string
+	Status          string
+	Retryable       bool
+	ErrorCode       string
+	ErrorSummary    string
+	CandidateCounts map[string]int
+	CompletedAt     time.Time
 }
 
 type Result struct {

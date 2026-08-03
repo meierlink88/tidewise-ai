@@ -26,6 +26,14 @@ Execution 时状态为 `idle`。AgentRun 拥有该状态事实，Admin Portal �
 _Avoid_: 单次执行详情、阶段/耗时/重试/候选统计、人工审核 UI、Admin Portal 自建运行状态、
 泄露业务载荷
 
+**Execution Monitoring Projection**:
+AgentRun 从已有 Collector Execution、Event Artifact Extraction Unit 和 Event Semantic
+Work Item 事实即时派生的只读运行视图。它提供固定时间窗口、稳定分页、安全计数，
+并把既有原始状态确定性归类为 `success`、`running` 或 `failure`；`skipped`
+不表示实际执行，因此不进入监控聚合。该投影与 Agent Status Monitor 的“当前 Agent
+快照”是两个不同合同，不新增持久化状态或监控表。
+_Avoid_: 新建监控事实副本、把读取投影当作状态机、返回 Prompt/正文/模型输出、把 `skipped` 当失败
+
 **Agent Input**:
 提交给某个明确 Agent Version 的业务输入；其结构由该版本定义，Schedule 中保存的输入会在每次触发时复制为新的 Agent Execution 快照。
 _Avoid_: 把所有 Agent Input 都称为 Prompt、模型或 Connector 配置

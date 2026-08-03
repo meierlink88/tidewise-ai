@@ -372,3 +372,19 @@ func (stubAPI) ListAgentExecutions(context.Context, *v1.ListAgentExecutionsReque
 func (stubAPI) ListAgentStatuses(context.Context, *v1.ListAgentStatusesRequest) (*v1.AgentStatusList, error) {
 	return &v1.AgentStatusList{}, nil
 }
+
+func (stubAPI) GetMonitoringSummary(context.Context, *v1.MonitoringSummaryRequest) (*v1.MonitoringSummary, error) {
+	return &v1.MonitoringSummary{}, nil
+}
+
+func (stubAPI) ListCollectorMonitoring(context.Context, *v1.MonitoringListRequest) (*v1.CollectorMonitoringPage, error) {
+	return &v1.CollectorMonitoringPage{}, nil
+}
+
+func (stubAPI) ListArtifactMonitoring(context.Context, *v1.MonitoringListRequest) (*v1.ArtifactMonitoringPage, error) {
+	return &v1.ArtifactMonitoringPage{}, nil
+}
+
+func (stubAPI) ListSemanticMonitoring(context.Context, *v1.MonitoringListRequest) (*v1.SemanticMonitoringPage, error) {
+	return &v1.SemanticMonitoringPage{}, nil
+}

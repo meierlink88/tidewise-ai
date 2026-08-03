@@ -161,6 +161,92 @@ func (c *AgentRunHTTPClient) ListAgentStatuses(ctx context.Context) ([]biz.Agent
 	return items, nil
 }
 
+func (c *AgentRunHTTPClient) GetMonitoringSummary(ctx context.Context, window string) (biz.MonitoringSummary, error) {
+	values := url.Values{"window": []string{window}}
+	var wire monitoringSummaryWire
+	err := c.doJSON(ctx, http.MethodGet, "AgentRun.GetMonitoringSummary", agentRunAdminPrefix+"/monitoring/summary", agentRunAdminPrefix+"/monitoring/summary?"+values.Encode(), nil, &wire)
+	if err != nil {
+		return biz.MonitoringSummary{}, err
+	}
+	return wire.toBiz()
+}
+
+func (c *AgentRunHTTPClient) ListCollectorMonitoring(ctx context.Context, query biz.MonitoringQuery) (biz.CollectorMonitoringPage, error) {
+	var wire collectorMonitoringPageWire
+	if err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListCollectorMonitoring", agentRunAdminPrefix+"/monitoring/collector-executions", monitoringURL("collector-executions", query), nil, &wire); err != nil {
+		return biz.CollectorMonitoringPage{}, err
+	}
+	if !wire.monitoringPageWire.valid() || wire.Window != query.Window {
+		return biz.CollectorMonitoringPage{}, biz.ErrAgentRunUnavailable
+	}
+	items := make([]biz.CollectorMonitoringItem, 0, len(wire.Items))
+	for _, item := range wire.Items {
+		if strings.TrimSpace(item.ExecutionID) == "" || !validMonitoringState(item.State) ||
+			strings.TrimSpace(item.RawStatus) == "" || strings.TrimSpace(item.TriggerSource) == "" ||
+			item.RawResults < 0 || item.MergedResults < 0 || item.AcceptedArtifacts < 0 || invalidDuration(item.DurationMs) {
+			return biz.CollectorMonitoringPage{}, biz.ErrAgentRunUnavailable
+		}
+		items = append(items, biz.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: item.State, RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
+	}
+	return biz.CollectorMonitoringPage{Items: items, MonitoringPage: biz.MonitoringPage(wire.monitoringPageWire)}, nil
+}
+
+func (c *AgentRunHTTPClient) ListArtifactMonitoring(ctx context.Context, query biz.MonitoringQuery) (biz.ArtifactMonitoringPage, error) {
+	var wire artifactMonitoringPageWire
+	if err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListArtifactMonitoring", agentRunAdminPrefix+"/monitoring/artifact-extractions", monitoringURL("artifact-extractions", query), nil, &wire); err != nil {
+		return biz.ArtifactMonitoringPage{}, err
+	}
+	if !wire.monitoringPageWire.valid() || wire.Window != query.Window {
+		return biz.ArtifactMonitoringPage{}, biz.ErrAgentRunUnavailable
+	}
+	items := make([]biz.ArtifactMonitoringItem, 0, len(wire.Items))
+	for _, item := range wire.Items {
+		if strings.TrimSpace(item.ExtractionKey) == "" || strings.TrimSpace(item.ArtifactID) == "" ||
+			strings.TrimSpace(item.CollectorExecutionID) == "" || !validMonitoringState(item.State) ||
+			strings.TrimSpace(item.RawStatus) == "" || item.UpdatedAt.IsZero() || item.EventCandidates < 0 ||
+			item.AcknowledgedJournals < 0 || item.TotalJournals < 0 || item.AcknowledgedJournals > item.TotalJournals || invalidDuration(item.DurationMs) {
+			return biz.ArtifactMonitoringPage{}, biz.ErrAgentRunUnavailable
+		}
+		items = append(items, biz.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
+	}
+	return biz.ArtifactMonitoringPage{Items: items, MonitoringPage: biz.MonitoringPage(wire.monitoringPageWire)}, nil
+}
+
+func (c *AgentRunHTTPClient) ListSemanticMonitoring(ctx context.Context, query biz.MonitoringQuery) (biz.SemanticMonitoringPage, error) {
+	var wire semanticMonitoringPageWire
+	if err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListSemanticMonitoring", agentRunAdminPrefix+"/monitoring/semantic-work-items", monitoringURL("semantic-work-items", query), nil, &wire); err != nil {
+		return biz.SemanticMonitoringPage{}, err
+	}
+	if !wire.monitoringPageWire.valid() || wire.Window != query.Window {
+		return biz.SemanticMonitoringPage{}, biz.ErrAgentRunUnavailable
+	}
+	items := make([]biz.SemanticMonitoringItem, 0, len(wire.Items))
+	for _, item := range wire.Items {
+		if strings.TrimSpace(item.WorkItemID) == "" || strings.TrimSpace(item.EventID) == "" ||
+			strings.TrimSpace(item.TriggerSource) == "" || !validMonitoringState(item.State) ||
+			strings.TrimSpace(item.RawStatus) == "" || item.UpdatedAt.IsZero() || item.AttemptCount < 0 ||
+			item.MaxAttempts < 1 || item.AttemptCount > item.MaxAttempts || item.AcceptedCandidates < 0 ||
+			item.RejectedCandidates < 0 || invalidDuration(item.DurationMs) {
+			return biz.SemanticMonitoringPage{}, biz.ErrAgentRunUnavailable
+		}
+		items = append(items, biz.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, DurationMs: item.DurationMs, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
+	}
+	return biz.SemanticMonitoringPage{Items: items, MonitoringPage: biz.MonitoringPage(wire.monitoringPageWire)}, nil
+}
+
+func invalidDuration(value *int64) bool {
+	return value != nil && *value < 0
+}
+
+func monitoringURL(resource string, query biz.MonitoringQuery) string {
+	values := url.Values{}
+	values.Set("window", query.Window)
+	values.Set("state", query.State)
+	values.Set("page", strconv.Itoa(query.Page))
+	values.Set("page_size", strconv.Itoa(query.PageSize))
+	return agentRunAdminPrefix + "/monitoring/" + resource + "?" + values.Encode()
+}
+
 func (c *AgentRunHTTPClient) ListModelProviders(ctx context.Context) ([]biz.ModelProviderConfiguration, error) {
 	var wire modelProviderListWire
 	err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListModelProviders", agentRunAdminPrefix+"/model-providers",

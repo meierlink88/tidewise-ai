@@ -13,6 +13,10 @@ type AgentRunRepo interface {
 	PatchAgentSchedule(context.Context, string, PatchAgentScheduleInput) (AgentSchedule, error)
 	ListAgentExecutions(context.Context, AgentExecutionQuery) (AgentExecutionPage, error)
 	ListAgentStatuses(context.Context) ([]AgentStatus, error)
+	GetMonitoringSummary(context.Context, string) (MonitoringSummary, error)
+	ListCollectorMonitoring(context.Context, MonitoringQuery) (CollectorMonitoringPage, error)
+	ListArtifactMonitoring(context.Context, MonitoringQuery) (ArtifactMonitoringPage, error)
+	ListSemanticMonitoring(context.Context, MonitoringQuery) (SemanticMonitoringPage, error)
 	ListModelProviders(context.Context) ([]ModelProviderConfiguration, error)
 	GetModelProvider(context.Context, string) (ModelProviderConfiguration, error)
 	PatchModelProvider(context.Context, string, ModelProviderPatch) (ModelProviderConfiguration, error)
@@ -99,6 +103,57 @@ type AgentStatus struct {
 	IsWorking              bool
 	CurrentExecutionStatus string
 	UpdatedAt              time.Time
+}
+
+type MonitoringQuery struct {
+	Window, State  string
+	Page, PageSize int
+}
+type MonitoringCounts struct{ Success, Running, Failure int }
+type MonitoringSummary struct {
+	Window                                                                      string
+	GeneratedAt                                                                 time.Time
+	Collector, ArtifactExtraction, Semantic                                     MonitoringCounts
+	CollectorRawResults, CollectorMergedResults, CollectorAcceptedArtifacts     int
+	ArtifactPublished, ArtifactNoEvents, ArtifactFormalEvents                   int
+	SemanticSubmissions, SemanticAcceptedCandidates, SemanticRejectedCandidates int
+}
+type MonitoringPage struct {
+	Window                                 string
+	GeneratedAt                            time.Time
+	Page, PageSize, TotalItems, TotalPages int
+}
+type CollectorMonitoringPage struct {
+	Items []CollectorMonitoringItem
+	MonitoringPage
+}
+type CollectorMonitoringItem struct {
+	ExecutionID, State, RawStatus, TriggerSource, ErrorCode string
+	StartedAt, CompletedAt                                  *time.Time
+	DurationMs                                              *int64
+	RawResults, MergedResults, AcceptedArtifacts            int
+}
+type ArtifactMonitoringPage struct {
+	Items []ArtifactMonitoringItem
+	MonitoringPage
+}
+type ArtifactMonitoringItem struct {
+	ExtractionKey, ArtifactID, CollectorExecutionID, State, RawStatus, ErrorCode string
+	UpdatedAt                                                                    time.Time
+	StartedAt, CompletedAt                                                       *time.Time
+	DurationMs                                                                   *int64
+	EventCandidates, AcknowledgedJournals, TotalJournals                         int
+}
+type SemanticMonitoringPage struct {
+	Items []SemanticMonitoringItem
+	MonitoringPage
+}
+type SemanticMonitoringItem struct {
+	WorkItemID, EventID, TriggerSource, State, RawStatus, ErrorCode   string
+	UpdatedAt                                                         time.Time
+	StartedAt, CompletedAt                                            *time.Time
+	DurationMs                                                        *int64
+	AttemptCount, MaxAttempts, AcceptedCandidates, RejectedCandidates int
 }
 
 type ModelProviderConfiguration struct {
