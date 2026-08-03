@@ -239,6 +239,19 @@ func (s *Store) CompleteExecution(
 	if completion.Status != "succeeded" && completion.Status != "failed" {
 		return errors.New("Event Semantic completion status is invalid")
 	}
+	counts := completion.CandidateCounts
+	if counts == nil {
+		counts = map[string]int{}
+	}
+	for _, count := range counts {
+		if count < 0 {
+			return errors.New("Event Semantic completion candidate count is invalid")
+		}
+	}
+	countsJSON, err := json.Marshal(counts)
+	if err != nil {
+		return fmt.Errorf("marshal Event Semantic completion candidate counts: %w", err)
+	}
 	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin Event Semantic completion: %w", err)
@@ -279,11 +292,12 @@ func (s *Store) CompleteExecution(
 		    error_code = NULLIF($3, ''),
 		    error_summary = NULLIF($4, ''),
 		    stop_reason = NULLIF($5, ''),
-		    completed_at = $6,
-		    updated_at = $6
+		    candidate_counts = $6::jsonb,
+		    completed_at = $7,
+		    updated_at = $7
 		WHERE execution_id = $1 AND status = 'running'
 	`, completion.ExecutionID, completion.Status, completion.ErrorCode,
-		completion.ErrorSummary, stopReason, completion.CompletedAt.UTC())
+		completion.ErrorSummary, stopReason, countsJSON, completion.CompletedAt.UTC())
 	if err != nil {
 		return fmt.Errorf("complete Event Semantic Execution: %w", err)
 	}

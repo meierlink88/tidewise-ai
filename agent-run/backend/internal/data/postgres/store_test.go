@@ -47,7 +47,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 14 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 15 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -65,8 +65,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "014" ||
-		len(report.Applied) != 14 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "015" ||
+		len(report.Applied) != 15 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -149,6 +149,47 @@ func TestMigrateSeedsCurrentAgentVersions(t *testing.T) {
 	}
 	if store.SchemaReady(ctx) {
 		t.Fatal("schema with a missing required column reported ready")
+	}
+}
+
+func TestMigrateCreatesMonitoringWindowIndexes(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "monitoring_window_indexes_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]string{
+		"agent_executions_monitoring_window_idx":                "(agent_key, triggered_at DESC, execution_id DESC)",
+		"event_artifact_extraction_units_monitoring_window_idx": "(updated_at DESC, unit_key DESC)",
+		"event_semantic_work_items_monitoring_window_idx":       "(updated_at DESC, work_item_id DESC)",
+	}
+	for indexName, columns := range want {
+		var definition string
+		if err := database.QueryRow(ctx, `
+			SELECT indexdef FROM pg_indexes
+			WHERE schemaname = current_schema() AND indexname = $1
+		`, indexName).Scan(&definition); err != nil {
+			t.Fatalf("read %s: %v", indexName, err)
+		}
+		if !strings.Contains(definition, columns) {
+			t.Fatalf("index %s = %q, want columns %q", indexName, definition, columns)
+		}
 	}
 }
 
@@ -315,7 +356,7 @@ func TestPreparePreviousReleaseRollbackRestoresPre011InvariantAndMigrationsRepla
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014"}) {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014", "015"}) {
 		t.Fatalf("rollback-compatible migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
@@ -354,14 +395,14 @@ func TestPreparePreviousReleaseRollbackPreservesMigrationsOwnedByPreviousRelease
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014"}) {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014", "015"}) {
 		t.Fatalf("partial rollback migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
 		t.Fatal(err)
 	}
 	if !postgres.New(database).SchemaReady(ctx) {
-		t.Fatal("replayed migration 014 schema is not ready")
+		t.Fatal("replayed migrations 014-015 schema is not ready")
 	}
 }
 

@@ -363,6 +363,11 @@ func TestTickCompletesWithoutRetryWhenEventNoLongerRequiresSemantics(t *testing.
 		repository.completions[0].Status != "succeeded" {
 		t.Fatalf("completions = %#v", repository.completions)
 	}
+	counts := repository.completions[0].CandidateCounts
+	if counts["events"] != 1 || counts["submissions"] != 0 ||
+		counts["accepted_candidates"] != 0 || counts["rejected_candidates"] != 0 {
+		t.Fatalf("completion counts = %#v", counts)
+	}
 }
 
 func TestTickDoesNotRetryNewSemanticInputInvariantFailure(t *testing.T) {
@@ -500,6 +505,12 @@ func TestTickReconcilesTerminalDataSubmissionWithoutRerunningModels(t *testing.T
 				SubmissionID:     "submission-1",
 				AgentExecutionID: "execution-1",
 				Status:           "accepted",
+				EntityLinks: []eventsemantic.CandidateDecision{{
+					CandidateKey: "entity-link-1", Status: "accepted",
+				}},
+				VariableSignals: []eventsemantic.CandidateDecision{{
+					CandidateKey: "signal-1", Status: "rejected",
+				}},
 			}},
 		},
 	}
@@ -521,6 +532,11 @@ func TestTickReconcilesTerminalDataSubmissionWithoutRerunningModels(t *testing.T
 	if data.leaseCalls != 0 || len(repository.completions) != 1 ||
 		repository.completions[0].Status != "succeeded" {
 		t.Fatalf("leaseCalls=%d completions=%#v", data.leaseCalls, repository.completions)
+	}
+	counts := repository.completions[0].CandidateCounts
+	if counts["submissions"] != 1 || counts["accepted_candidates"] != 1 ||
+		counts["rejected_candidates"] != 1 {
+		t.Fatalf("completion counts = %#v", counts)
 	}
 }
 
@@ -619,6 +635,10 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 	if len(repository.completions) != 1 ||
 		repository.completions[0].Status != "succeeded" {
 		t.Fatalf("completions = %#v", repository.completions)
+	}
+	counts := repository.completions[0].CandidateCounts
+	if counts["events"] != 1 || counts["submissions"] != 1 {
+		t.Fatalf("completion counts = %#v", counts)
 	}
 	if data.submissionRequest.EventID != "event-later" ||
 		len(data.submissionRequest.EntityLinks) != 0 ||

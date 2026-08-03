@@ -365,7 +365,8 @@ func (a *Application) completeSuccess(
 	counts map[string]int,
 ) error {
 	err := a.repository.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
-		ExecutionID: attempt.ID, Status: "succeeded", CompletedAt: a.now().UTC(),
+		ExecutionID: attempt.ID, Status: "succeeded", CandidateCounts: counts,
+		CompletedAt: a.now().UTC(),
 	})
 	if err == nil {
 		a.logger.Info(a.lifecycleEvent(

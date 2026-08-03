@@ -3,13 +3,78 @@ package postgres_test
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/testsupport"
 )
+
+func TestEventSemanticCompletionFeedsMonitoringProjection(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "semantic_monitoring_completion_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+
+	store := postgres.New(database)
+	now := time.Now().UTC().Truncate(time.Second)
+	if _, err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{
+		EventID: "11111111-1111-4111-8111-111111111111",
+	}}, now); err != nil {
+		t.Fatal(err)
+	}
+	attempt, found, err := store.StartNextExecution(
+		ctx, "semantic-worker", strings.Repeat("a", 64), now,
+	)
+	if err != nil || !found {
+		t.Fatalf("start execution found=%v err=%v", found, err)
+	}
+	if err := store.CompleteExecution(ctx, eventsemantic.ExecutionCompletion{
+		ExecutionID: attempt.ID, Status: "succeeded",
+		CandidateCounts: map[string]int{
+			"events": 1, "submissions": 1,
+			"accepted_candidates": 2, "rejected_candidates": 1,
+		},
+		CompletedAt: now.Add(time.Second),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	totals, err := store.GetMonitoringBusinessTotals(ctx, now.Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totals.SemanticSubmissions != 1 || totals.SemanticAcceptedCandidates != 2 ||
+		totals.SemanticRejectedCandidates != 1 {
+		t.Fatalf("semantic monitoring totals = %+v", totals)
+	}
+	page, err := store.ListSemanticMonitoring(ctx, agentrun.MonitoringListQuery{
+		Since: now.Add(-time.Hour), Statuses: []string{"succeeded"}, Page: 1, PageSize: 20,
+	})
+	if err != nil || len(page.Items) != 1 || page.Items[0].AcceptedCandidates != 2 ||
+		page.Items[0].RejectedCandidates != 1 {
+		t.Fatalf("semantic monitoring page = %+v err=%v", page, err)
+	}
+}
 
 func TestMonitoringProjectionUsesExistingAgentRunFacts(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
