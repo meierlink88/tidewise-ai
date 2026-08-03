@@ -178,6 +178,25 @@ func TestUATDeployExecutorPreservesPreviousPartialAgentRunMigrationVersion(t *te
 	}
 }
 
+func TestUATDeployExecutorPreservesPreviousAgentRunMigrationVersion014(t *testing.T) {
+	report := `{"current_version":"014","pending":[{"version":"015"}],"applied":[]}`
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:          true,
+		failFirstUp:             true,
+		agentrunMigrationReport: report,
+	})
+	if result.err == nil {
+		t.Fatal("candidate failure fixture unexpectedly succeeded")
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "--prepare-previous-release-rollback --previous-release-version 014") {
+		t.Fatalf("rollback did not preserve AgentRun migration target 014: %s", dockerLog)
+	}
+}
+
 func TestUATDeployExecutorRecoversExplicitLegacyAgentRunMigrationTarget(t *testing.T) {
 	report := `{"current_version":"010","pending":[{"version":"011"},{"version":"012"},{"version":"013"},{"version":"014"}],"applied":[]}`
 	result := runDeployFixture(t, deployFixtureOptions{
@@ -626,7 +645,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationRisk = "high"
 	}
 	writeFixture(t, manifest, "000025\t"+migrationRisk+"\tfixture migration risk\n000024\thigh\tfixture high risk\n")
-	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n007\tnormal\tfixture AgentRun migration\n008\tnormal\tfixture AgentRun migration\n009\tnormal\tfixture AgentRun migration\n010\tnormal\tfixture AgentRun migration\n011\tnormal\tfixture AgentRun migration\n012\tnormal\tfixture AgentRun migration\n013\tnormal\tfixture AgentRun migration\n014\tnormal\tfixture AgentRun migration\n")
+	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n007\tnormal\tfixture AgentRun migration\n008\tnormal\tfixture AgentRun migration\n009\tnormal\tfixture AgentRun migration\n010\tnormal\tfixture AgentRun migration\n011\tnormal\tfixture AgentRun migration\n012\tnormal\tfixture AgentRun migration\n013\tnormal\tfixture AgentRun migration\n014\tnormal\tfixture AgentRun migration\n015\tnormal\tfixture AgentRun migration\n")
 
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
@@ -647,7 +666,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	writeFixture(t, filepath.Join(temp, "migration.json"), report+"\n")
 	agentrunReport := options.agentrunMigrationReport
 	if agentrunReport == "" {
-		agentrunReport = `{"current_version":"014","pending":[],"applied":[]}`
+		agentrunReport = `{"current_version":"015","pending":[],"applied":[]}`
 	}
 	writeFixture(t, filepath.Join(temp, "agentrun-migration.json"), agentrunReport+"\n")
 	writeExecutable(t, filepath.Join(bin, "curl"), `#!/bin/sh
