@@ -41,6 +41,8 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"INDUSTRY_GRAPH_PACKAGE_SHA:",
 		"apply_event_semantic_projection:",
 		"EVENT_SEMANTIC_PROJECTION_ENABLED:",
+		"recover_agentrun_previous_release_version:",
+		"AGENTRUN_RECOVERY_TARGET_VERSION:",
 		"NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}",
 		"NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}",
 		"infra/uat/preflight.sh",

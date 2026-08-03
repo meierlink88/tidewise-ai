@@ -136,6 +136,119 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *t
 	}
 }
 
+func TestUATDeployExecutorPreparesPost010AgentRunRollback(t *testing.T) {
+	report := `{"current_version":"010","pending":[{"version":"011"},{"version":"012"},{"version":"013"},{"version":"014"}],"applied":[]}`
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:          true,
+		failFirstUp:             true,
+		agentrunMigrationReport: report,
+	})
+	if result.err == nil {
+		t.Fatal("candidate failure fixture unexpectedly succeeded")
+	}
+	if !strings.Contains(result.output, "PASS agentrun-previous-release-database-compatibility") ||
+		!strings.Contains(result.output, "PASS rollback: previous complete release restored") {
+		t.Fatalf("AgentRun rollback compatibility was not prepared: %s", result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "--prepare-previous-release-rollback --previous-release-version 010") {
+		t.Fatalf("rollback did not invoke AgentRun compatibility preparation: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorPreservesPreviousPartialAgentRunMigrationVersion(t *testing.T) {
+	report := `{"current_version":"013","pending":[{"version":"014"}],"applied":[]}`
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:          true,
+		failFirstUp:             true,
+		agentrunMigrationReport: report,
+	})
+	if result.err == nil {
+		t.Fatal("candidate failure fixture unexpectedly succeeded")
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "--prepare-previous-release-rollback --previous-release-version 013") {
+		t.Fatalf("rollback did not preserve the previous migration target: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorRecoversExplicitLegacyAgentRunMigrationTarget(t *testing.T) {
+	report := `{"current_version":"010","pending":[{"version":"011"},{"version":"012"},{"version":"013"},{"version":"014"}],"applied":[]}`
+	result := runDeployFixture(t, deployFixtureOptions{
+		backupConfirmed:         true,
+		agentrunMigrationReport: report,
+		agentrunRecoveryTarget:  "010",
+	})
+	if result.err != nil {
+		t.Fatalf("explicit legacy recovery failed: %v\n%s", result.err, result.output)
+	}
+	if !strings.Contains(result.output, "PASS recovered-explicit-agentrun-migration-target") {
+		t.Fatalf("explicit legacy recovery was not reported: %s", result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	recovery := strings.Index(logText, "--prepare-previous-release-rollback --previous-release-version 010")
+	preflight := strings.Index(logText, "--check-only")
+	if recovery < 0 || preflight < 0 || recovery > preflight {
+		t.Fatalf("explicit recovery did not run before migration preflight: %s", logText)
+	}
+}
+
+func TestUATDeployExecutorRejectsLegacyRecoveryWithoutBackupBeforeProtectedWork(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{agentrunRecoveryTarget: "010"})
+	if result.err == nil || !strings.Contains(result.output, "confirm_high_risk_backup=true is required") {
+		t.Fatalf("unconfirmed legacy recovery was not rejected: err=%v output=%s", result.err, result.output)
+	}
+	if _, err := os.Stat(result.dockerLog); !os.IsNotExist(err) {
+		logContent, readErr := os.ReadFile(result.dockerLog)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if len(logContent) != 0 {
+			t.Fatalf("unconfirmed recovery reached protected work: %s", logContent)
+		}
+	}
+}
+
+func TestUATDeployExecutorDoesNotReportPassWhenRollbackStartFails(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failEveryUp: true})
+	if result.err == nil {
+		t.Fatal("failed candidate and rollback fixture unexpectedly succeeded")
+	}
+	if !strings.Contains(result.output, "FAIL rollback-start") {
+		t.Fatalf("rollback start failure was not reported: %s", result.output)
+	}
+	if strings.Contains(result.output, "PASS rollback:") {
+		t.Fatalf("failed rollback reported success: %s", result.output)
+	}
+}
+
+func TestUATDeployExecutorDoesNotReportPassWhenRollbackHealthFails(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease: true,
+		failFirstUp:    true,
+		failEveryCurl:  true,
+	})
+	if result.err == nil {
+		t.Fatal("unhealthy rollback fixture unexpectedly succeeded")
+	}
+	if !strings.Contains(result.output, "FAIL rollback-health") {
+		t.Fatalf("rollback health failure was not reported: %s", result.output)
+	}
+	if strings.Contains(result.output, "PASS rollback:") {
+		t.Fatalf("unhealthy rollback reported success: %s", result.output)
+	}
+}
+
 func TestUATDeployExecutorRejectsQdrantOwningRollbackSnapshotBeforeDatabaseWork(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{
 		currentRelease:       true,
@@ -451,8 +564,12 @@ const (
 type deployFixtureOptions struct {
 	currentRelease          bool
 	failFirstUp             bool
+	failEveryUp             bool
 	failFirstCurl           bool
+	failEveryCurl           bool
 	migrationReport         string
+	agentrunMigrationReport string
+	agentrunRecoveryTarget  string
 	migrationRisk           string
 	backupConfirmed         bool
 	failArtifactProbe       bool
@@ -509,7 +626,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationRisk = "high"
 	}
 	writeFixture(t, manifest, "000025\t"+migrationRisk+"\tfixture migration risk\n000024\thigh\tfixture high risk\n")
-	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n")
+	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n007\tnormal\tfixture AgentRun migration\n008\tnormal\tfixture AgentRun migration\n009\tnormal\tfixture AgentRun migration\n010\tnormal\tfixture AgentRun migration\n011\tnormal\tfixture AgentRun migration\n012\tnormal\tfixture AgentRun migration\n013\tnormal\tfixture AgentRun migration\n014\tnormal\tfixture AgentRun migration\n")
 
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
@@ -528,7 +645,11 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		report = `{"current_version":"24","pending":[],"applied":[],"remaining":[]}`
 	}
 	writeFixture(t, filepath.Join(temp, "migration.json"), report+"\n")
-	writeFixture(t, filepath.Join(temp, "agentrun-migration.json"), `{"current_version":"006","pending":[],"applied":[]}`+"\n")
+	agentrunReport := options.agentrunMigrationReport
+	if agentrunReport == "" {
+		agentrunReport = `{"current_version":"014","pending":[],"applied":[]}`
+	}
+	writeFixture(t, filepath.Join(temp, "agentrun-migration.json"), agentrunReport+"\n")
 	writeExecutable(t, filepath.Join(bin, "curl"), `#!/bin/sh
 set -eu
 echo " $* " >> "$FAKE_CURL_LOG"
@@ -536,6 +657,7 @@ count=0
 if [ -f "$FAKE_CURL_COUNT" ]; then count="$(cat "$FAKE_CURL_COUNT")"; fi
 count=$((count + 1))
 echo "$count" > "$FAKE_CURL_COUNT"
+if [ "${FAKE_FAIL_EVERY_CURL:-false}" = true ]; then exit 1; fi
 if [ "${FAKE_FAIL_FIRST_CURL:-false}" = true ] && [ "$count" -eq 1 ]; then exit 1; fi
 exit 0
 `)
@@ -632,12 +754,13 @@ case " $* " in
     printf '{"contract_version":"uat-excluded-fact-audit.v1","tables":{"events":{"row_count":3,"fingerprint":"%s"}}}\n' "$fingerprint"
     ;;
   *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
-  *" up "*)
+	  *" up "*)
     count=0
     if [ -f "$FAKE_UP_COUNT" ]; then count="$(cat "$FAKE_UP_COUNT")"; fi
     count=$((count + 1))
     echo "$count" > "$FAKE_UP_COUNT"
-    if [ "${FAKE_FAIL_FIRST_UP:-false}" = true ] && [ "$count" -eq 1 ]; then exit 1; fi
+	    if [ "${FAKE_FAIL_EVERY_UP:-false}" = true ]; then exit 1; fi
+	    if [ "${FAKE_FAIL_FIRST_UP:-false}" = true ] && [ "$count" -eq 1 ]; then exit 1; fi
     ;;
 esac
 exit 0
@@ -657,6 +780,7 @@ exit 0
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
 		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,
+		"AGENTRUN_RECOVERY_TARGET_VERSION="+options.agentrunRecoveryTarget,
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
 		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED="+boolText(options.industryImport),
 		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA="+conditionalValue(options.industryImport, fixtureRelationshipPkgSHA),
@@ -684,9 +808,11 @@ exit 0
 		"FAKE_SEMANTIC_PROJECTION_DRIFT="+boolText(options.semanticProjectionDrift),
 		"FAKE_EXCLUDED_FACT_DRIFT="+boolText(options.excludedFactDrift),
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
+		"FAKE_FAIL_EVERY_UP="+boolText(options.failEveryUp),
 		"FAKE_CURL_COUNT="+curlCount,
 		"FAKE_CURL_LOG="+curlLog,
 		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
+		"FAKE_FAIL_EVERY_CURL="+boolText(options.failEveryCurl),
 		"FAKE_FAIL_ARTIFACT_PROBE="+boolText(options.failArtifactProbe),
 		"FAKE_FAIL_EXTERNAL_QDRANT="+boolText(options.failExternalQdrant),
 		"DATA_IMAGE=fixture/data:"+fixtureSHA,

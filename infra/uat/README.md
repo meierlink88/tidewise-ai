@@ -136,6 +136,11 @@ Qdrant 运维需保证容器连接外部 Docker 网络 `tidewise-uat`、网络�
 
 所有 migration 的风险分类维护在 `migration-risk.tsv`。未分类的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容，只要 pending 就禁止发布且不能用备份确认绕过；存在 `high` migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选 `confirm_high_risk_backup`，否则发布失败。
 
+`recover_agentrun_previous_release_version` 只用于恢复被旧版发布器中断的 AgentRun
+迁移，值必须是已确认上一成功发布所拥有的 `010`–`013`，并同时勾选
+`confirm_high_risk_backup`。正常发布必须留空；该输入会在其他数据库工作之前显式恢复迁移
+ledger 与旧版约束，不从已中断的 ledger 状态猜测回滚目标。
+
 部署脚本不会自动注入历史 migration 内部要求的人工 Review session 参数。若全新数据库
 仍 pending 这些受控 migration，普通 UAT Deploy 应失败；必须先按对应 migration 的
 Review、备份和零行校验要求执行独立、可审计的受控迁移，不能用通用备份勾选替代。

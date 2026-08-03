@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -257,7 +258,7 @@ func TestSchemaReadyRequiresEventSemanticStageAuditShape(t *testing.T) {
 	}
 }
 
-func TestPreparePreviousReleaseRollbackIsSafeAndMigrationCanReplay(t *testing.T) {
+func TestPreparePreviousReleaseRollbackRestoresPre011InvariantAndMigrationsReplay(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
@@ -278,6 +279,14 @@ func TestPreparePreviousReleaseRollbackIsSafeAndMigrationCanReplay(t *testing.T)
 	if err := postgres.Migrate(ctx, database); err != nil {
 		t.Fatal(err)
 	}
+	// Reproduce the interrupted legacy rollback observed in UAT: the old helper
+	// removed only 012 while 011, 013, and 014 remained in the ledger.
+	if _, err := database.Exec(ctx, `
+		DELETE FROM schema_migrations
+		WHERE version = 'migrations/012_event_semantic_entity_first_v3.sql'
+	`); err != nil {
+		t.Fatal(err)
+	}
 	eventID := "22222222-2222-4222-8222-222222222222"
 	if _, err := database.Exec(ctx, `
 		INSERT INTO event_semantic_work_items (
@@ -290,22 +299,78 @@ func TestPreparePreviousReleaseRollbackIsSafeAndMigrationCanReplay(t *testing.T)
 	`, eventID); err != nil {
 		t.Fatal(err)
 	}
-	if err := postgres.PreparePreviousReleaseRollback(ctx, database); err != nil {
+	if err := postgres.PreparePreviousReleaseRollback(ctx, database, "010"); err != nil {
 		t.Fatal(err)
+	}
+	var journalUnitIndexExists bool
+	if err := database.QueryRow(ctx, `
+		SELECT to_regclass('event_publication_journal_unit_key_unique') IS NOT NULL
+	`).Scan(&journalUnitIndexExists); err != nil {
+		t.Fatal(err)
+	}
+	if !journalUnitIndexExists {
+		t.Fatal("previous-release journal unit uniqueness was not restored")
 	}
 	report, err := postgres.InspectMigrations(ctx, database)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Pending) != 1 || report.Pending[0].Version != "012" {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014"}) {
 		t.Fatalf("rollback-compatible migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
 		t.Fatal(err)
 	}
 	if !postgres.New(database).SchemaReady(ctx) {
-		t.Fatal("replayed 012 migration schema is not ready")
+		t.Fatal("replayed post-010 migrations schema is not ready")
 	}
+}
+
+func TestPreparePreviousReleaseRollbackPreservesMigrationsOwnedByPreviousRelease(t *testing.T) {
+	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
+	}
+	ctx := context.Background()
+	databaseURL, cleanup, err := testsupport.IsolatedPostgresDatabase(
+		ctx, databaseURL, "storage_partial_release_rollback_test",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	database, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	if err := postgres.PreparePreviousReleaseRollback(ctx, database, "013"); err != nil {
+		t.Fatal(err)
+	}
+	report, err := postgres.InspectMigrations(ctx, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014"}) {
+		t.Fatalf("partial rollback migration report = %#v", report)
+	}
+	if err := postgres.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	if !postgres.New(database).SchemaReady(ctx) {
+		t.Fatal("replayed migration 014 schema is not ready")
+	}
+}
+
+func migrationVersions(migrations []postgres.Migration) []string {
+	versions := make([]string, 0, len(migrations))
+	for _, migration := range migrations {
+		versions = append(versions, migration.Version)
+	}
+	return versions
 }
 
 func TestHistoricalEventSemanticMaintenanceBlocksProcessingCycles(t *testing.T) {

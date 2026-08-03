@@ -12,6 +12,7 @@ industry_package_sha="${INDUSTRY_RELATIONSHIP_PACKAGE_SHA:-}"
 industry_graph_projection_enabled="${INDUSTRY_GRAPH_PROJECTION_ENABLED:-false}"
 industry_graph_package_sha="${INDUSTRY_GRAPH_PACKAGE_SHA:-}"
 event_semantic_projection_enabled="${EVENT_SEMANTIC_PROJECTION_ENABLED:-false}"
+agentrun_recovery_target_version="${AGENTRUN_RECOVERY_TARGET_VERSION:-}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
 agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
@@ -28,6 +29,9 @@ previous_sha="${state_dir}/previous.sha"
 report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual}.json"
 agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GITHUB_RUN_ID:-manual}.json"
 agentrun_rollback_compatibility_required=false
+agentrun_rollback_target_version=""
+# Retain the legacy filename so an interrupted zero-byte 010-era marker can be
+# recovered by the explicit operator-supplied target instead of being orphaned.
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 release_state_write_marker="${state_dir}/release-state-write-in-progress"
 candidate_services_started=false
@@ -47,6 +51,17 @@ host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 industry_package_path="/app/data/industry_relationships/2026-07-27-v1"
 event_semantic_qdrant_url="http://qdrant:6333"
 event_semantic_embedding_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+if [ -n "$agentrun_recovery_target_version" ]; then
+  if ! [[ "$agentrun_recovery_target_version" =~ ^01[0-3]$ ]]; then
+    echo "FAIL agentrun-recovery-gate: recovery target must be 010 through 013" >&2
+    exit 1
+  fi
+  if [ "$backup_confirmed" != true ]; then
+    echo "FAIL agentrun-recovery-gate: confirm_high_risk_backup=true is required" >&2
+    exit 1
+  fi
+fi
 
 if [ "$industry_import_enabled" != true ] && [ "$industry_import_enabled" != false ]; then
   echo "FAIL industry-relationship-import-gate: enable flag must be true or false" >&2
@@ -227,6 +242,19 @@ verify_services() {
   echo "PASS bff-to-service-read-paths"
 }
 
+prepare_previous_release_agentrun_rollback() {
+  local previous_release_version
+  previous_release_version="$(sed -n '1p' "$agentrun_rollback_marker")"
+  if ! [[ "$previous_release_version" =~ ^01[0-3]$ ]]; then
+    echo "FAIL agentrun-previous-release-database-compatibility: invalid rollback target marker" >&2
+    return 1
+  fi
+  "${candidate_compose[@]}" run --rm --no-deps \
+    --entrypoint /app/agentrun-migrate agentrun \
+    --prepare-previous-release-rollback \
+    --previous-release-version "$previous_release_version"
+}
+
 rollback_current_release() {
   local rollback_runtime="$current_runtime"
   local rollback_images="$current_images"
@@ -246,9 +274,7 @@ rollback_current_release() {
   validate_application_only_release \
     "$rollback_runtime" "$rollback_images" "$rollback_compose_file" rollback || return 1
   if [ "$agentrun_rollback_compatibility_required" = true ] || [ -f "$agentrun_rollback_marker" ]; then
-    if ! "${candidate_compose[@]}" run --rm --no-deps \
-      --entrypoint /app/agentrun-migrate agentrun \
-      --prepare-previous-release-rollback; then
+    if ! prepare_previous_release_agentrun_rollback; then
       echo "FAIL agentrun-previous-release-database-compatibility: marker retained" >&2
       return 1
     fi
@@ -257,8 +283,14 @@ rollback_current_release() {
     echo "PASS agentrun-previous-release-database-compatibility" >&2
   fi
   local -a rollback_compose=("${compose_command[@]}" --env-file "$rollback_runtime" --env-file "$rollback_images" -f "$rollback_compose_file")
-  "${rollback_compose[@]}" up -d --wait --wait-timeout 120
-  verify_services "$rollback_runtime" "${rollback_compose[@]}"
+  if ! "${rollback_compose[@]}" up -d --wait --wait-timeout 120; then
+    echo "FAIL rollback-start: previous application release did not start" >&2
+    return 1
+  fi
+  if ! verify_services "$rollback_runtime" "${rollback_compose[@]}"; then
+    echo "FAIL rollback-health: previous application release is not healthy" >&2
+    return 1
+  fi
   if [ -f "$release_state_write_marker" ]; then
     restore_interrupted_release_state
   fi
@@ -271,9 +303,7 @@ cleanup_unfinished_agentrun_migration() {
   if [ "$exit_status" -ne 0 ]; then
     if [ "$candidate_services_started" = true ]; then
       rollback_current_release || true
-    elif [ -f "$agentrun_rollback_marker" ] && "${candidate_compose[@]}" run --rm --no-deps \
-      --entrypoint /app/agentrun-migrate agentrun \
-      --prepare-previous-release-rollback; then
+    elif [ -f "$agentrun_rollback_marker" ] && prepare_previous_release_agentrun_rollback; then
       rm -f "$agentrun_rollback_marker"
     elif [ -f "$agentrun_rollback_marker" ]; then
       echo "FAIL interrupted AgentRun migration cleanup: marker retained" >&2
@@ -290,6 +320,21 @@ fi
 "${candidate_compose[@]}" config --quiet
 echo "PASS compose-contract"
 
+if [ -n "$agentrun_recovery_target_version" ]; then
+  if [ -s "$agentrun_rollback_marker" ] && [ "$(sed -n '1p' "$agentrun_rollback_marker")" != "$agentrun_recovery_target_version" ]; then
+    echo "FAIL agentrun-recovery-gate: recovery input conflicts with persisted rollback target" >&2
+    exit 1
+  fi
+  printf '%s\n' "$agentrun_recovery_target_version" > "$agentrun_rollback_marker"
+  chmod 0640 "$agentrun_rollback_marker"
+  sync "$agentrun_rollback_marker"
+  sync -f "$state_dir"
+  prepare_previous_release_agentrun_rollback
+  rm -f "$agentrun_rollback_marker"
+  sync -f "$state_dir"
+  echo "PASS recovered-explicit-agentrun-migration-target"
+fi
+
 verify_external_qdrant "${candidate_compose[@]}"
 echo "PASS external-qdrant-ready"
 
@@ -305,9 +350,7 @@ echo "PASS agentrun-artifact-write"
 echo "PASS excluded-fact-audit-before"
 
 if [ -f "$agentrun_rollback_marker" ]; then
-  "${candidate_compose[@]}" run --rm --no-deps \
-    --entrypoint /app/agentrun-migrate agentrun \
-    --prepare-previous-release-rollback
+  prepare_previous_release_agentrun_rollback
   rm -f "$agentrun_rollback_marker"
   echo "PASS recovered-interrupted-agentrun-migration"
 fi
@@ -366,12 +409,15 @@ if unclassified:
     raise SystemExit("pending AgentRun migrations lack risk classification: " + ",".join(unclassified))
 print(",".join(version for version in versions if risk[version] == "high"))
 print(",".join(version for version in versions if risk[version] == "blocked"))
-print("true" if "010" in versions else "false")
+rollback_versions = {"011", "012", "013", "014"}
+print("true" if rollback_versions.intersection(versions) else "false")
+print(str(report.get("current_version") or "").zfill(3))
 PY
 )"
 agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
 agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '2p')"
 agentrun_rollback_compatibility_required="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '3p')"
+agentrun_rollback_target_version="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '4p')"
 
 database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
 
@@ -413,9 +459,14 @@ if { [ -n "$high_risk_pending" ] || [ -n "$agentrun_high_risk_pending" ]; } && [
 fi
 echo "PASS migration-risk-gate"
 
+if [ "$agentrun_rollback_compatibility_required" = true ] && ! [[ "$agentrun_rollback_target_version" =~ ^01[0-3]$ ]]; then
+  echo "FAIL agentrun-rollback-target-gate: unsupported previous migration version ${agentrun_rollback_target_version:-none}" >&2
+  exit 1
+fi
+
 "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply > "$report_file"
 if [ "$agentrun_rollback_compatibility_required" = true ]; then
-  : > "$agentrun_rollback_marker"
+  printf '%s\n' "$agentrun_rollback_target_version" > "$agentrun_rollback_marker"
   chmod 0640 "$agentrun_rollback_marker"
   sync "$agentrun_rollback_marker"
   sync -f "$state_dir"
