@@ -119,6 +119,18 @@ func (f *fakeAgentRunRepo) ListAgentExecutions(ctx context.Context, query AgentE
 func (f *fakeAgentRunRepo) ListAgentStatuses(ctx context.Context) ([]AgentStatus, error) {
 	return f.listStatuses(ctx)
 }
+func (*fakeAgentRunRepo) GetMonitoringSummary(context.Context, string) (MonitoringSummary, error) {
+	return MonitoringSummary{}, nil
+}
+func (*fakeAgentRunRepo) ListCollectorMonitoring(context.Context, MonitoringQuery) (CollectorMonitoringPage, error) {
+	return CollectorMonitoringPage{}, nil
+}
+func (*fakeAgentRunRepo) ListArtifactMonitoring(context.Context, MonitoringQuery) (ArtifactMonitoringPage, error) {
+	return ArtifactMonitoringPage{}, nil
+}
+func (*fakeAgentRunRepo) ListSemanticMonitoring(context.Context, MonitoringQuery) (SemanticMonitoringPage, error) {
+	return SemanticMonitoringPage{}, nil
+}
 func (*fakeAgentRunRepo) ListModelProviders(context.Context) ([]ModelProviderConfiguration, error) {
 	return nil, nil
 }

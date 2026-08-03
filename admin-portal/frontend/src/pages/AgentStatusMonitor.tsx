@@ -33,13 +33,9 @@ export default function AgentStatusMonitor({ token }: { token: string }) {
     <section className='grid h-full min-w-0 content-start gap-5 overflow-auto pb-6'>
       <div className='flex items-start justify-between gap-4 max-sm:flex-col'>
         <div>
-          <span className='text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground'>
-            Runtime monitor
-          </span>
-          <h2 className='my-1.5 text-2xl font-semibold tracking-tight'>Agent 运行状态</h2>
-          <p className='m-0 text-sm text-muted-foreground'>
-            只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。
-          </p>
+          <span className='page-eyebrow'>Runtime monitor</span>
+          <h2 className='page-title'>Agent 运行状态</h2>
+          <p className='page-description'>只读展示当前 Agent、版本和执行状态；每 15 秒自动刷新。</p>
         </div>
         <Button
           className='max-sm:w-full'

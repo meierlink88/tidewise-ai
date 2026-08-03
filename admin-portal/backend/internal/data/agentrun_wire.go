@@ -128,6 +128,126 @@ type agentStatusWire struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+type monitoringCountsWire struct {
+	Success int `json:"success"`
+	Running int `json:"running"`
+	Failure int `json:"failure"`
+}
+type monitoringSummaryWire struct {
+	Window                     string               `json:"window"`
+	GeneratedAt                time.Time            `json:"generated_at"`
+	Collector                  monitoringCountsWire `json:"collector"`
+	ArtifactExtraction         monitoringCountsWire `json:"artifact_extraction"`
+	Semantic                   monitoringCountsWire `json:"semantic"`
+	CollectorRawResults        int                  `json:"collector_raw_results"`
+	CollectorMergedResults     int                  `json:"collector_merged_results"`
+	CollectorAcceptedArtifacts int                  `json:"collector_accepted_artifacts"`
+	ArtifactPublished          int                  `json:"artifact_published"`
+	ArtifactNoEvents           int                  `json:"artifact_no_events"`
+	ArtifactFormalEvents       int                  `json:"artifact_formal_events"`
+	SemanticSubmissions        int                  `json:"semantic_submissions"`
+	SemanticAcceptedCandidates int                  `json:"semantic_accepted_candidates"`
+	SemanticRejectedCandidates int                  `json:"semantic_rejected_candidates"`
+}
+
+func (w monitoringSummaryWire) toBiz() (biz.MonitoringSummary, error) {
+	if !validMonitoringWindow(w.Window) || w.GeneratedAt.IsZero() ||
+		!w.Collector.valid() || !w.ArtifactExtraction.valid() || !w.Semantic.valid() ||
+		w.CollectorRawResults < 0 || w.CollectorMergedResults < 0 ||
+		w.CollectorAcceptedArtifacts < 0 || w.ArtifactPublished < 0 || w.ArtifactNoEvents < 0 ||
+		w.ArtifactFormalEvents < 0 || w.SemanticSubmissions < 0 ||
+		w.SemanticAcceptedCandidates < 0 || w.SemanticRejectedCandidates < 0 {
+		return biz.MonitoringSummary{}, biz.ErrAgentRunUnavailable
+	}
+	return biz.MonitoringSummary{
+		Window: w.Window, GeneratedAt: w.GeneratedAt,
+		Collector: biz.MonitoringCounts(w.Collector), ArtifactExtraction: biz.MonitoringCounts(w.ArtifactExtraction),
+		Semantic: biz.MonitoringCounts(w.Semantic), CollectorRawResults: w.CollectorRawResults,
+		CollectorMergedResults: w.CollectorMergedResults, CollectorAcceptedArtifacts: w.CollectorAcceptedArtifacts,
+		ArtifactPublished: w.ArtifactPublished, ArtifactNoEvents: w.ArtifactNoEvents,
+		ArtifactFormalEvents: w.ArtifactFormalEvents, SemanticSubmissions: w.SemanticSubmissions,
+		SemanticAcceptedCandidates: w.SemanticAcceptedCandidates,
+		SemanticRejectedCandidates: w.SemanticRejectedCandidates,
+	}, nil
+}
+
+func (w monitoringCountsWire) valid() bool {
+	return w.Success >= 0 && w.Running >= 0 && w.Failure >= 0
+}
+
+type monitoringPageWire struct {
+	Page       int `json:"page"`
+	PageSize   int `json:"page_size"`
+	TotalItems int `json:"total_items"`
+	TotalPages int `json:"total_pages"`
+}
+
+func (w monitoringPageWire) valid() bool {
+	return w.Page >= 1 && w.PageSize >= 1 && w.PageSize <= 100 && w.TotalItems >= 0 && w.TotalPages >= 0
+}
+
+func validMonitoringWindow(value string) bool {
+	return value == "1h" || value == "6h" || value == "12h" || value == "24h"
+}
+
+func validMonitoringState(value string) bool {
+	return value == "success" || value == "running" || value == "failure"
+}
+
+type collectorMonitoringItemWire struct {
+	ExecutionID       string     `json:"execution_id"`
+	State             string     `json:"state"`
+	RawStatus         string     `json:"raw_status"`
+	TriggerSource     string     `json:"trigger_source"`
+	StartedAt         *time.Time `json:"started_at"`
+	CompletedAt       *time.Time `json:"completed_at"`
+	RawResults        int        `json:"raw_results"`
+	MergedResults     int        `json:"merged_results"`
+	AcceptedArtifacts int        `json:"accepted_artifacts"`
+	ErrorCode         string     `json:"error_code"`
+}
+type collectorMonitoringPageWire struct {
+	Items []collectorMonitoringItemWire `json:"items"`
+	monitoringPageWire
+}
+type artifactMonitoringItemWire struct {
+	ExtractionKey        string     `json:"extraction_key"`
+	ArtifactID           string     `json:"artifact_id"`
+	CollectorExecutionID string     `json:"collector_execution_id"`
+	State                string     `json:"state"`
+	RawStatus            string     `json:"raw_status"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+	StartedAt            *time.Time `json:"started_at"`
+	CompletedAt          *time.Time `json:"completed_at"`
+	EventCandidates      int        `json:"event_candidates"`
+	AcknowledgedJournals int        `json:"acknowledged_journals"`
+	TotalJournals        int        `json:"total_journals"`
+	ErrorCode            string     `json:"error_code"`
+}
+type artifactMonitoringPageWire struct {
+	Items []artifactMonitoringItemWire `json:"items"`
+	monitoringPageWire
+}
+type semanticMonitoringItemWire struct {
+	WorkItemID         string     `json:"work_item_id"`
+	EventID            string     `json:"event_id"`
+	TriggerSource      string     `json:"trigger_source"`
+	State              string     `json:"state"`
+	RawStatus          string     `json:"raw_status"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	StartedAt          *time.Time `json:"started_at"`
+	CompletedAt        *time.Time `json:"completed_at"`
+	AttemptCount       int        `json:"attempt_count"`
+	MaxAttempts        int        `json:"max_attempts"`
+	AcceptedCandidates int        `json:"accepted_candidates"`
+	RejectedCandidates int        `json:"rejected_candidates"`
+	ErrorCode          string     `json:"error_code"`
+}
+type semanticMonitoringPageWire struct {
+	Items []semanticMonitoringItemWire `json:"items"`
+	monitoringPageWire
+}
+
 func (w agentStatusWire) toBiz() (biz.AgentStatus, error) {
 	status := strings.TrimSpace(w.CurrentExecutionStatus)
 	if strings.TrimSpace(w.AgentKey) == "" || strings.TrimSpace(w.DisplayName) == "" ||

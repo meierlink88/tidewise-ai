@@ -158,6 +158,63 @@ func (s *AdminService) ListAgentStatuses(
 	return &v1.AgentStatusListResponse{Items: items}, nil
 }
 
+func (s *AdminService) GetMonitoringSummary(ctx context.Context, request *v1.MonitoringSummaryRequest) (*v1.MonitoringSummary, error) {
+	if s == nil || s.admin == nil || request == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	value, err := s.admin.GetMonitoringSummary(ctx, request.Window)
+	if err != nil {
+		return nil, mapAgentRunError(err)
+	}
+	return &v1.MonitoringSummary{Window: value.Window, GeneratedAt: value.GeneratedAt, Collector: v1.MonitoringCounts(value.Collector), ArtifactExtraction: v1.MonitoringCounts(value.ArtifactExtraction), Semantic: v1.MonitoringCounts(value.Semantic), CollectorRawResults: value.CollectorRawResults, CollectorMergedResults: value.CollectorMergedResults, CollectorAcceptedArtifacts: value.CollectorAcceptedArtifacts, ArtifactPublished: value.ArtifactPublished, ArtifactNoEvents: value.ArtifactNoEvents, ArtifactFormalEvents: value.ArtifactFormalEvents, SemanticSubmissions: value.SemanticSubmissions, SemanticAcceptedCandidates: value.SemanticAcceptedCandidates, SemanticRejectedCandidates: value.SemanticRejectedCandidates}, nil
+}
+
+func (s *AdminService) ListCollectorMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.CollectorMonitoringPage, error) {
+	if s == nil || s.admin == nil || request == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	page, err := s.admin.ListCollectorMonitoring(ctx, monitoringQuery(request))
+	if err != nil {
+		return nil, mapAgentRunError(err)
+	}
+	items := make([]v1.CollectorMonitoringItem, 0, len(page.Items))
+	for _, item := range page.Items {
+		items = append(items, v1.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: item.State, RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
+	}
+	return &v1.CollectorMonitoringPage{Items: items, MonitoringPage: v1.MonitoringPage(page.MonitoringPage)}, nil
+}
+func (s *AdminService) ListArtifactMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.ArtifactMonitoringPage, error) {
+	if s == nil || s.admin == nil || request == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	page, err := s.admin.ListArtifactMonitoring(ctx, monitoringQuery(request))
+	if err != nil {
+		return nil, mapAgentRunError(err)
+	}
+	items := make([]v1.ArtifactMonitoringItem, 0, len(page.Items))
+	for _, item := range page.Items {
+		items = append(items, v1.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
+	}
+	return &v1.ArtifactMonitoringPage{Items: items, MonitoringPage: v1.MonitoringPage(page.MonitoringPage)}, nil
+}
+func (s *AdminService) ListSemanticMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.SemanticMonitoringPage, error) {
+	if s == nil || s.admin == nil || request == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	page, err := s.admin.ListSemanticMonitoring(ctx, monitoringQuery(request))
+	if err != nil {
+		return nil, mapAgentRunError(err)
+	}
+	items := make([]v1.SemanticMonitoringItem, 0, len(page.Items))
+	for _, item := range page.Items {
+		items = append(items, v1.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: item.State, RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
+	}
+	return &v1.SemanticMonitoringPage{Items: items, MonitoringPage: v1.MonitoringPage(page.MonitoringPage)}, nil
+}
+func monitoringQuery(request *v1.MonitoringListRequest) biz.MonitoringQuery {
+	return biz.MonitoringQuery{Window: request.Window, State: request.State, Page: request.Page, PageSize: request.PageSize}
+}
+
 func (s *AdminService) ListModelProviders(
 	ctx context.Context,
 	_ *v1.EmptyRequest,

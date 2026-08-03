@@ -34,6 +34,10 @@ func TestOpenAPIParsesWithLocalReferencesAndFreezesTidewiseEnvelopes(t *testing.
 		"AgentScheduleEnvelope",
 		"AgentExecutionPageEnvelope",
 		"AgentStatusListEnvelope",
+		"MonitoringSummaryEnvelope",
+		"CollectorMonitoringPageEnvelope",
+		"ArtifactMonitoringPageEnvelope",
+		"SemanticMonitoringPageEnvelope",
 		"EventSemanticWorkItemEnvelope",
 	} {
 		schema := document.Components.Schemas[schemaName]

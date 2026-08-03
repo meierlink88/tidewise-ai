@@ -290,11 +290,9 @@ export default function CollectorConfiguration({ token }: { token: string }) {
     >
       <header className='flex min-h-24 items-start justify-between gap-4 border-b pb-5 max-sm:flex-col'>
         <div>
-          <div className='text-[0.6875rem] font-semibold tracking-[0.14em] text-muted-foreground'>
-            AGENTRUN CONTROL PLANE
-          </div>
+          <span className='page-eyebrow'>Agentrun control plane</span>
           <div className='mt-1.5 flex items-center gap-3'>
-            <h2 className='m-0 text-2xl font-semibold tracking-tight'>综合采集 Agent</h2>
+            <h2 className='page-title my-0'>综合采集 Agent</h2>
             <StatusBadge tone={schedule?.enabled ? 'success' : 'neutral'}>
               {schedule?.enabled ? '已启用' : '已停止'}
             </StatusBadge>
@@ -382,7 +380,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
             刷新
           </Button>
         </div>
-        <div className='overflow-hidden rounded-xl border bg-card p-5 shadow-sm'>
+        <div className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
           <DataTable
             columns={executionColumns}
             emptyText={executionLoading ? '正在加载执行记录' : '暂无执行记录'}
@@ -514,7 +512,7 @@ function SchedulePanel(props: SchedulePanelProps) {
       </div>
 
       <div className='grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(17.5rem,1fr)]'>
-        <section className='overflow-hidden rounded-xl border bg-card p-5 shadow-sm'>
+        <section className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
           <header className='mb-5 flex items-start justify-between gap-4 border-b pb-4'>
             <div>
               <h3 className='m-0 text-lg font-semibold'>定时配置</h3>
@@ -609,7 +607,7 @@ function SchedulePanel(props: SchedulePanelProps) {
           </footer>
         </section>
 
-        <aside className='overflow-hidden rounded-xl border bg-card p-5 shadow-sm'>
+        <aside className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
           <header className='mb-5 flex items-start justify-between gap-4 border-b pb-4'>
             <div>
               <h3 className='m-0 text-lg font-semibold'>运行信息</h3>
@@ -697,7 +695,7 @@ function ConfigurationTable(props: ConfigurationTableProps) {
           </p>
         </div>
       </div>
-      <div className='overflow-hidden rounded-xl border bg-card shadow-sm'>
+      <div className='overflow-hidden rounded-lg border bg-card shadow-xs'>
         <Table>
           <TableHeader>
             <TableRow className='hover:bg-transparent'>

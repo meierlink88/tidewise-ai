@@ -104,6 +104,34 @@ func (s *Service) ListAgentStatuses(ctx context.Context) ([]AgentStatus, error) 
 	return s.agentRunClient.ListAgentStatuses(ctx)
 }
 
+func (s *Service) GetMonitoringSummary(ctx context.Context, window string) (MonitoringSummary, error) {
+	if s == nil || s.agentRunClient == nil {
+		return MonitoringSummary{}, ErrAgentRunUnavailable
+	}
+	return s.agentRunClient.GetMonitoringSummary(ctx, window)
+}
+
+func (s *Service) ListCollectorMonitoring(ctx context.Context, query MonitoringQuery) (CollectorMonitoringPage, error) {
+	if s == nil || s.agentRunClient == nil {
+		return CollectorMonitoringPage{}, ErrAgentRunUnavailable
+	}
+	return s.agentRunClient.ListCollectorMonitoring(ctx, query)
+}
+
+func (s *Service) ListArtifactMonitoring(ctx context.Context, query MonitoringQuery) (ArtifactMonitoringPage, error) {
+	if s == nil || s.agentRunClient == nil {
+		return ArtifactMonitoringPage{}, ErrAgentRunUnavailable
+	}
+	return s.agentRunClient.ListArtifactMonitoring(ctx, query)
+}
+
+func (s *Service) ListSemanticMonitoring(ctx context.Context, query MonitoringQuery) (SemanticMonitoringPage, error) {
+	if s == nil || s.agentRunClient == nil {
+		return SemanticMonitoringPage{}, ErrAgentRunUnavailable
+	}
+	return s.agentRunClient.ListSemanticMonitoring(ctx, query)
+}
+
 func (s *Service) ListModelProviders(ctx context.Context) ([]ModelProviderConfiguration, error) {
 	if s == nil || s.agentRunClient == nil {
 		return nil, ErrAgentRunUnavailable

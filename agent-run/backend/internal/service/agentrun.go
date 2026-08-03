@@ -34,6 +34,10 @@ type AdminUseCase interface {
 	PatchAgentSchedule(context.Context, string, agentrun.PatchAgentScheduleInput) (agentrun.AgentSchedule, error)
 	ListAgentExecutions(context.Context, agentrun.ExecutionListQuery) (agentrun.ExecutionPage, error)
 	ListAgentStatuses(context.Context) ([]agentrun.AgentStatus, error)
+	MonitoringSummary(context.Context, agentrun.MonitoringWindow) (agentrun.MonitoringSummary, error)
+	ListCollectorMonitoring(context.Context, agentrun.MonitoringWindow, agentrun.MonitoringState, int, int) (agentrun.CollectorMonitoringPage, error)
+	ListArtifactExtractionMonitoring(context.Context, agentrun.MonitoringWindow, agentrun.MonitoringState, int, int) (agentrun.ArtifactExtractionMonitoringPage, error)
+	ListSemanticMonitoring(context.Context, agentrun.MonitoringWindow, agentrun.MonitoringState, int, int) (agentrun.SemanticMonitoringPage, error)
 }
 
 type EventSemanticUseCase interface {
@@ -354,6 +358,78 @@ func (s *AgentRunService) ListAgentStatuses(
 		})
 	}
 	return result, nil
+}
+
+func (s *AgentRunService) GetMonitoringSummary(ctx context.Context, request *v1.MonitoringSummaryRequest) (*v1.MonitoringSummary, error) {
+	value, err := s.admin.MonitoringSummary(ctx, agentrun.MonitoringWindow(request.Window))
+	if err != nil {
+		return nil, internalError("Could not load monitoring summary")
+	}
+	return &v1.MonitoringSummary{
+		Window: string(value.Window), GeneratedAt: value.GeneratedAt,
+		Collector: monitoringCounts(value.Collector.Counts), ArtifactExtraction: monitoringCounts(value.Artifact.Counts), Semantic: monitoringCounts(value.Semantic.Counts),
+		CollectorRawResults: value.Business.CollectorRawResults, CollectorMergedResults: value.Business.CollectorMergedResults,
+		CollectorAcceptedArtifacts: value.Business.CollectorAcceptedArtifacts, ArtifactPublished: value.Business.ArtifactPublished,
+		ArtifactNoEvents: value.Business.ArtifactNoEvents, ArtifactFormalEvents: value.Business.ArtifactFormalEvents,
+		SemanticSubmissions: value.Business.SemanticSubmissions, SemanticAcceptedCandidates: value.Business.SemanticAcceptedCandidates,
+		SemanticRejectedCandidates: value.Business.SemanticRejectedCandidates,
+	}, nil
+}
+
+func (s *AgentRunService) ListCollectorMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.CollectorMonitoringPage, error) {
+	page, err := s.admin.ListCollectorMonitoring(ctx, agentrun.MonitoringWindow(request.Window), agentrun.MonitoringState(request.State), request.Page, request.PageSize)
+	if err != nil {
+		return nil, internalError("Could not list collector monitoring")
+	}
+	items := make([]v1.CollectorMonitoringItem, 0, len(page.Items))
+	for _, item := range page.Items {
+		state, known := agentrun.MonitoringStateForStatus(agentrun.MonitoringCollector, item.RawStatus)
+		if !known {
+			return nil, internalError("Collector monitoring contained an unknown status")
+		}
+		items = append(items, v1.CollectorMonitoringItem{ExecutionID: item.ExecutionID, State: string(state), RawStatus: item.RawStatus, TriggerSource: item.TriggerSource, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, RawResults: item.RawResults, MergedResults: item.MergedResults, AcceptedArtifacts: item.AcceptedArtifacts, ErrorCode: item.ErrorCode})
+	}
+	return &v1.CollectorMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
+}
+
+func (s *AgentRunService) ListArtifactMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.ArtifactMonitoringPage, error) {
+	page, err := s.admin.ListArtifactExtractionMonitoring(ctx, agentrun.MonitoringWindow(request.Window), agentrun.MonitoringState(request.State), request.Page, request.PageSize)
+	if err != nil {
+		return nil, internalError("Could not list artifact monitoring")
+	}
+	items := make([]v1.ArtifactMonitoringItem, 0, len(page.Items))
+	for _, item := range page.Items {
+		state, known := agentrun.MonitoringStateForStatus(agentrun.MonitoringArtifactExtraction, item.RawStatus)
+		if !known {
+			return nil, internalError("Artifact monitoring contained an unknown status")
+		}
+		items = append(items, v1.ArtifactMonitoringItem{ExtractionKey: item.ExtractionKey, ArtifactID: item.ArtifactID, CollectorExecutionID: item.CollectorExecutionID, State: string(state), RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, EventCandidates: item.EventCandidates, AcknowledgedJournals: item.AcknowledgedJournals, TotalJournals: item.TotalJournals, ErrorCode: item.ErrorCode})
+	}
+	return &v1.ArtifactMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
+}
+
+func (s *AgentRunService) ListSemanticMonitoring(ctx context.Context, request *v1.MonitoringListRequest) (*v1.SemanticMonitoringPage, error) {
+	page, err := s.admin.ListSemanticMonitoring(ctx, agentrun.MonitoringWindow(request.Window), agentrun.MonitoringState(request.State), request.Page, request.PageSize)
+	if err != nil {
+		return nil, internalError("Could not list semantic monitoring")
+	}
+	items := make([]v1.SemanticMonitoringItem, 0, len(page.Items))
+	for _, item := range page.Items {
+		state, known := agentrun.MonitoringStateForStatus(agentrun.MonitoringSemantic, item.RawStatus)
+		if !known {
+			return nil, internalError("Semantic monitoring contained an unknown status")
+		}
+		items = append(items, v1.SemanticMonitoringItem{WorkItemID: item.WorkItemID, EventID: item.EventID, TriggerSource: item.TriggerSource, State: string(state), RawStatus: item.RawStatus, UpdatedAt: item.UpdatedAt, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt, AttemptCount: item.AttemptCount, MaxAttempts: item.MaxAttempts, AcceptedCandidates: item.AcceptedCandidates, RejectedCandidates: item.RejectedCandidates, ErrorCode: item.ErrorCode})
+	}
+	return &v1.SemanticMonitoringPage{Items: items, MonitoringPage: monitoringPage(page.Page, page.PageSize, page.TotalItems, page.TotalPages)}, nil
+}
+
+func monitoringCounts(value agentrun.MonitoringStateCounts) v1.MonitoringCounts {
+	return v1.MonitoringCounts{Success: value.Success, Running: value.Running, Failure: value.Failure}
+}
+
+func monitoringPage(page, pageSize, totalItems, totalPages int) v1.MonitoringPage {
+	return v1.MonitoringPage{Page: page, PageSize: pageSize, TotalItems: totalItems, TotalPages: totalPages}
 }
 
 func collectorError(err error) error {

@@ -24,6 +24,10 @@ const (
 	OperationPatchAgentSchedule            = "/agentrun.v1.AgentRun/PatchAgentSchedule"
 	OperationListAgentExecutions           = "/agentrun.v1.AgentRun/ListAgentExecutions"
 	OperationListAgentStatuses             = "/agentrun.v1.AgentRun/ListAgentStatuses"
+	OperationGetMonitoringSummary          = "/agentrun.v1.AgentRun/GetMonitoringSummary"
+	OperationListCollectorMonitoring       = "/agentrun.v1.AgentRun/ListCollectorMonitoring"
+	OperationListArtifactMonitoring        = "/agentrun.v1.AgentRun/ListArtifactMonitoring"
+	OperationListSemanticMonitoring        = "/agentrun.v1.AgentRun/ListSemanticMonitoring"
 )
 
 const (
@@ -54,6 +58,10 @@ type AgentRunHTTPServer interface {
 	PatchAgentSchedule(context.Context, *PatchAgentScheduleRequest) (*AgentSchedule, error)
 	ListAgentExecutions(context.Context, *ListAgentExecutionsRequest) (*AgentExecutionPage, error)
 	ListAgentStatuses(context.Context, *ListAgentStatusesRequest) (*AgentStatusList, error)
+	GetMonitoringSummary(context.Context, *MonitoringSummaryRequest) (*MonitoringSummary, error)
+	ListCollectorMonitoring(context.Context, *MonitoringListRequest) (*CollectorMonitoringPage, error)
+	ListArtifactMonitoring(context.Context, *MonitoringListRequest) (*ArtifactMonitoringPage, error)
+	ListSemanticMonitoring(context.Context, *MonitoringListRequest) (*SemanticMonitoringPage, error)
 }
 
 type PublicError struct {
@@ -153,6 +161,15 @@ type ListAgentExecutionsRequest struct {
 }
 
 type ListAgentStatusesRequest struct{}
+
+type MonitoringSummaryRequest struct{ Window string }
+
+type MonitoringListRequest struct {
+	Window   string
+	State    string
+	Page     int
+	PageSize int
+}
 
 type OptionalString struct {
 	Set   bool
@@ -260,6 +277,95 @@ type AgentStatus struct {
 	IsWorking              bool      `json:"is_working"`
 	CurrentExecutionStatus string    `json:"current_execution_status"`
 	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+type MonitoringCounts struct {
+	Success int `json:"success"`
+	Running int `json:"running"`
+	Failure int `json:"failure"`
+}
+
+type MonitoringSummary struct {
+	Window                     string           `json:"window"`
+	GeneratedAt                time.Time        `json:"generated_at"`
+	Collector                  MonitoringCounts `json:"collector"`
+	ArtifactExtraction         MonitoringCounts `json:"artifact_extraction"`
+	Semantic                   MonitoringCounts `json:"semantic"`
+	CollectorRawResults        int              `json:"collector_raw_results"`
+	CollectorMergedResults     int              `json:"collector_merged_results"`
+	CollectorAcceptedArtifacts int              `json:"collector_accepted_artifacts"`
+	ArtifactPublished          int              `json:"artifact_published"`
+	ArtifactNoEvents           int              `json:"artifact_no_events"`
+	ArtifactFormalEvents       int              `json:"artifact_formal_events"`
+	SemanticSubmissions        int              `json:"semantic_submissions"`
+	SemanticAcceptedCandidates int              `json:"semantic_accepted_candidates"`
+	SemanticRejectedCandidates int              `json:"semantic_rejected_candidates"`
+}
+
+type MonitoringPage struct {
+	Page       int `json:"page"`
+	PageSize   int `json:"page_size"`
+	TotalItems int `json:"total_items"`
+	TotalPages int `json:"total_pages"`
+}
+
+type CollectorMonitoringPage struct {
+	Items []CollectorMonitoringItem `json:"items"`
+	MonitoringPage
+}
+
+type CollectorMonitoringItem struct {
+	ExecutionID       string     `json:"execution_id"`
+	State             string     `json:"state"`
+	RawStatus         string     `json:"raw_status"`
+	TriggerSource     string     `json:"trigger_source"`
+	StartedAt         *time.Time `json:"started_at,omitempty"`
+	CompletedAt       *time.Time `json:"completed_at,omitempty"`
+	RawResults        int        `json:"raw_results"`
+	MergedResults     int        `json:"merged_results"`
+	AcceptedArtifacts int        `json:"accepted_artifacts"`
+	ErrorCode         string     `json:"error_code,omitempty"`
+}
+
+type ArtifactMonitoringPage struct {
+	Items []ArtifactMonitoringItem `json:"items"`
+	MonitoringPage
+}
+
+type ArtifactMonitoringItem struct {
+	ExtractionKey        string     `json:"extraction_key"`
+	ArtifactID           string     `json:"artifact_id"`
+	CollectorExecutionID string     `json:"collector_execution_id"`
+	State                string     `json:"state"`
+	RawStatus            string     `json:"raw_status"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+	StartedAt            *time.Time `json:"started_at,omitempty"`
+	CompletedAt          *time.Time `json:"completed_at,omitempty"`
+	EventCandidates      int        `json:"event_candidates"`
+	AcknowledgedJournals int        `json:"acknowledged_journals"`
+	TotalJournals        int        `json:"total_journals"`
+	ErrorCode            string     `json:"error_code,omitempty"`
+}
+
+type SemanticMonitoringPage struct {
+	Items []SemanticMonitoringItem `json:"items"`
+	MonitoringPage
+}
+
+type SemanticMonitoringItem struct {
+	WorkItemID         string     `json:"work_item_id"`
+	EventID            string     `json:"event_id"`
+	TriggerSource      string     `json:"trigger_source"`
+	State              string     `json:"state"`
+	RawStatus          string     `json:"raw_status"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	StartedAt          *time.Time `json:"started_at,omitempty"`
+	CompletedAt        *time.Time `json:"completed_at,omitempty"`
+	AttemptCount       int        `json:"attempt_count"`
+	MaxAttempts        int        `json:"max_attempts"`
+	AcceptedCandidates int        `json:"accepted_candidates"`
+	RejectedCandidates int        `json:"rejected_candidates"`
+	ErrorCode          string     `json:"error_code,omitempty"`
 }
 
 type EventSemanticWorkItem struct {

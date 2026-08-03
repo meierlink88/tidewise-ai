@@ -25,6 +25,13 @@ AgentRun 是事实 Owner；Admin Portal 不允许从监控页接受/拒绝候选
 状态，也不显示执行详情、Prompt、自由推理、Evidence/Artifact 正文、Connector 响应或凭据。
 _Avoid_: 人工审核工作台、浏览器直连 AgentRun、Admin 自建监控状态、执行详情页
 
+**监控中心（Execution Monitoring Center）**：
+Admin Portal 对事件采集、Event 提取和事件语义三类执行对象的只读运行投影。
+它把 AgentRun 已有原始状态确定性分组为成功、执行中和失败，同时保留原始枚举；
+摘要只统计成功执行的安全业务产出。监控事实、时间窗口和状态分组由 AgentRun 拥有，
+Admin Application Backend Service 只通过 AgentRun Admin API 代理，不读取任何下游数据库。
+_Avoid_: 浏览器直连 AgentRun、Admin 复制状态分组、展示 Prompt/正文/模型输出、从监控页发起重试或审批
+
 **采集 Agent 定时配置（Collector Agent Schedule Configuration）**：
 采集 Agent 唯一综合采集任务的周期触发配置。管理员可以维护其中的 Collection Prompt，并在“多个每日固定时间”或“标准五段式 Cron”两种策略中选择一种执行；Cron 支持分钟级和每小时等重复周期。Prompt 与调度策略的合法性仍由 AgentRun 负责。当前只有 `collector.v1` 生效，Admin Portal 不提供版本选择。配置保存与运行状态相互独立，管理员通过“开始”或“停止”即时改变现有 Schedule 的运行状态。停止只阻止后续触发，配置变化也只影响后续 Execution；两者都不取消在途 Execution。
 _Avoid_: 同时启用多种调度策略、把多个 Prompt 建模成多条 Collector Schedule、为尚不存在的多版本能力增加选择流程、删除 Schedule、把编辑配置误当作开始运行、通过管理页立即执行一次、在 Admin Portal 配置调度时区、把停止 Schedule 表述为取消当前执行
@@ -57,5 +64,6 @@ _Avoid_: 回显完整 Key、用空输入意外清除 Key、动态新增或删除
 - Data、Miniapp、User 或 Payment 的数据库与 repository。
 - 被管理领域的事实数据和领域规则。
 - 已迁移到 AgentRun 的采集调度、执行历史、模型和 Connector 配置事实。
+- AgentRun 拥有的执行监控事实、时间窗口语义和原始状态分组。
 
 Admin 当前可以没有独立业务数据库。未来确需 Admin-owned 审计或管理数据时，必须明确其数据 owner 和 API 边界。

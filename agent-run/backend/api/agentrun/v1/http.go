@@ -34,6 +34,10 @@ func RegisterAgentRunHTTPServer(server *kratoshttp.Server, service AgentRunHTTPS
 	admin.PATCH("/agent-schedules/{agent_key}", patchAgentScheduleHandler(service))
 	admin.GET("/agent-executions", listAgentExecutionsHandler(service))
 	admin.GET("/agent-statuses", listAgentStatusesHandler(service))
+	admin.GET("/monitoring/summary", getMonitoringSummaryHandler(service))
+	admin.GET("/monitoring/collector-executions", listCollectorMonitoringHandler(service))
+	admin.GET("/monitoring/artifact-extractions", listArtifactMonitoringHandler(service))
+	admin.GET("/monitoring/semantic-work-items", listSemanticMonitoringHandler(service))
 }
 
 func createEventSemanticReanalysisHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
@@ -235,6 +239,72 @@ func listAgentStatusesHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc
 			return service.ListAgentStatuses(callContext, request)
 		})
 	}
+}
+
+func getMonitoringSummaryHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &MonitoringSummaryRequest{Window: monitoringWindow(ctx.Query().Get("window"))}
+		if request.Window == "" {
+			return InvalidRequest("INVALID_MONITORING_WINDOW", "Monitoring window is invalid")
+		}
+		return call(ctx, OperationGetMonitoringSummary, request, http.StatusOK, func(callContext context.Context) (any, error) {
+			return service.GetMonitoringSummary(callContext, request)
+		})
+	}
+}
+
+func listCollectorMonitoringHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return monitoringListHandler(OperationListCollectorMonitoring, func(ctx context.Context, request *MonitoringListRequest) (any, error) {
+		return service.ListCollectorMonitoring(ctx, request)
+	})
+}
+
+func listArtifactMonitoringHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return monitoringListHandler(OperationListArtifactMonitoring, func(ctx context.Context, request *MonitoringListRequest) (any, error) {
+		return service.ListArtifactMonitoring(ctx, request)
+	})
+}
+
+func listSemanticMonitoringHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return monitoringListHandler(OperationListSemanticMonitoring, func(ctx context.Context, request *MonitoringListRequest) (any, error) {
+		return service.ListSemanticMonitoring(ctx, request)
+	})
+}
+
+func monitoringListHandler(operation string, list func(context.Context, *MonitoringListRequest) (any, error)) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		page, err := positiveInt(ctx.Query().Get("page"), 1)
+		if err != nil {
+			return InvalidRequest("INVALID_PAGINATION", "Monitoring pagination is invalid")
+		}
+		pageSize, err := positiveInt(ctx.Query().Get("page_size"), 20)
+		if err != nil || pageSize > 100 {
+			return InvalidRequest("INVALID_PAGINATION", "Monitoring pagination is invalid")
+		}
+		window := monitoringWindow(ctx.Query().Get("window"))
+		state := strings.TrimSpace(ctx.Query().Get("state"))
+		if state == "" {
+			state = "all"
+		}
+		if window == "" || (state != "all" && state != "success" && state != "running" && state != "failure") {
+			return InvalidRequest("INVALID_MONITORING_FILTER", "Monitoring filter is invalid")
+		}
+		request := &MonitoringListRequest{Window: window, State: state, Page: page, PageSize: pageSize}
+		return call(ctx, operation, request, http.StatusOK, func(callContext context.Context) (any, error) {
+			return list(callContext, request)
+		})
+	}
+}
+
+func monitoringWindow(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "1h"
+	}
+	if value == "1h" || value == "6h" || value == "12h" || value == "24h" {
+		return value
+	}
+	return ""
 }
 
 func call(

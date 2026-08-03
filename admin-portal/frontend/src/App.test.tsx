@@ -3,7 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { loadEvents, loadRawDocuments } from './api/dataIngestion';
-import { loadAgentStatuses } from './api/agentManagement';
+import {
+  loadAgentStatuses,
+  loadCollectorMonitoring,
+  loadMonitoringSummary
+} from './api/agentManagement';
 
 vi.mock('./api/dataIngestion', async () => {
   const actual = await vi.importActual<typeof import('./api/dataIngestion')>('./api/dataIngestion');
@@ -19,7 +23,9 @@ vi.mock('./api/agentManagement', async () => {
     await vi.importActual<typeof import('./api/agentManagement')>('./api/agentManagement');
   return {
     ...actual,
-    loadAgentStatuses: vi.fn()
+    loadAgentStatuses: vi.fn(),
+    loadMonitoringSummary: vi.fn(),
+    loadCollectorMonitoring: vi.fn()
   };
 });
 
@@ -43,6 +49,29 @@ describe('App admin login', () => {
     vi.mocked(loadRawDocuments).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     vi.mocked(loadAgentStatuses).mockResolvedValue([]);
+    vi.mocked(loadMonitoringSummary).mockResolvedValue({
+      window: '1h',
+      generated_at: '2026-08-03T08:30:00Z',
+      collector: { success: 0, running: 0, failure: 0 },
+      artifact_extraction: { success: 0, running: 0, failure: 0 },
+      semantic: { success: 0, running: 0, failure: 0 },
+      collector_raw_results: 0,
+      collector_merged_results: 0,
+      collector_accepted_artifacts: 0,
+      artifact_published: 0,
+      artifact_no_events: 0,
+      artifact_formal_events: 0,
+      semantic_submissions: 0,
+      semantic_accepted_candidates: 0,
+      semantic_rejected_candidates: 0
+    });
+    vi.mocked(loadCollectorMonitoring).mockResolvedValue({
+      items: [],
+      page: 1,
+      page_size: 20,
+      total_items: 0,
+      total_pages: 0
+    });
   });
 
   it('shows a login page with the local admin token hint before entering the admin shell', () => {
@@ -117,6 +146,21 @@ describe('App admin login', () => {
     expect(await screen.findByRole('heading', { name: 'Agent 运行状态' })).toBeInTheDocument();
     expect(screen.getByText('Event Semantic Enricher')).toBeInTheDocument();
     expect(loadAgentStatuses).toHaveBeenCalledWith('local-admin-token');
+  });
+
+  it('navigates to 监控中心 without exposing implementation or environment labels', async () => {
+    storage.set('tidewise_admin_token', 'local-admin-token');
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /^监控中心/ }));
+
+    expect(await screen.findByRole('heading', { name: '监控中心', level: 2 })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('main')).queryByText(/\bUnit\b|UAT|演示数据/i)
+    ).not.toBeInTheDocument();
+    expect(loadMonitoringSummary).toHaveBeenCalledWith('local-admin-token', '1h');
+    expect(loadCollectorMonitoring).toHaveBeenCalledWith('local-admin-token', '1h', 'all', 1, 20);
   });
 
   it('opens the navigation on narrow screens and returns focus after choosing a page', async () => {

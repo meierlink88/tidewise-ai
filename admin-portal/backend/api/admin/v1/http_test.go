@@ -39,6 +39,10 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		{http.MethodPatch, APIPrefix + "/agent-schedules/collector", `{"enabled":true}`, OperationSetScheduleEnabled},
 		{http.MethodGet, APIPrefix + "/agent-executions", "", OperationListAgentExecutions},
 		{http.MethodGet, APIPrefix + "/agent-statuses", "", OperationListAgentStatuses},
+		{http.MethodGet, APIPrefix + "/monitoring/summary", "", OperationGetMonitoringSummary},
+		{http.MethodGet, APIPrefix + "/monitoring/collector-executions", "", OperationListCollectorMonitoring},
+		{http.MethodGet, APIPrefix + "/monitoring/artifact-extractions", "", OperationListArtifactMonitoring},
+		{http.MethodGet, APIPrefix + "/monitoring/semantic-work-items", "", OperationListSemanticMonitoring},
 		{http.MethodGet, APIPrefix + "/model-providers", "", OperationListModelProviders},
 		{http.MethodGet, APIPrefix + "/model-providers/deepseek", "", OperationGetModelProvider},
 		{http.MethodPatch, APIPrefix + "/model-providers/deepseek", `{"model":"deepseek-chat"}`, OperationPatchModelProvider},
@@ -57,6 +61,53 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		}
 		if seen[request.operation] != 1 {
 			t.Fatalf("%s %s middleware calls for %q = %d, want 1", request.method, request.path, request.operation, seen[request.operation])
+		}
+	}
+}
+
+type monitoringAdminHTTPStub struct {
+	AdminHTTPServer
+	request *MonitoringListRequest
+}
+
+func (stub *monitoringAdminHTTPStub) ListCollectorMonitoring(_ context.Context, request *MonitoringListRequest) (*CollectorMonitoringPage, error) {
+	stub.request = request
+	return &CollectorMonitoringPage{}, nil
+}
+
+func TestMonitoringEndpointForwardsOnlyFrozenQueryParameters(t *testing.T) {
+	stub := &monitoringAdminHTTPStub{}
+	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
+		if public, ok := PublicError(err); ok {
+			response.WriteHeader(public.Status())
+			return
+		}
+		response.WriteHeader(http.StatusInternalServerError)
+	}))
+	RegisterAdminHTTPServer(server, stub)
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(
+		http.MethodGet,
+		APIPrefix+"/monitoring/collector-executions?window=6h&state=running&page=2&page_size=25",
+		nil,
+	))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if stub.request == nil || stub.request.Window != "6h" || stub.request.State != "running" ||
+		stub.request.Page != 2 || stub.request.PageSize != 25 {
+		t.Fatalf("request = %+v", stub.request)
+	}
+
+	for _, query := range []string{"window=2h", "window=1h&state=cancelled", "window=1h&page=0"} {
+		response = httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequest(
+			http.MethodGet,
+			APIPrefix+"/monitoring/collector-executions?"+query,
+			nil,
+		))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("query %q status = %d, want 400", query, response.Code)
 		}
 	}
 }
@@ -83,6 +134,18 @@ func (stubAdminHTTPServer) ListAgentExecutions(context.Context, *ListAgentExecut
 }
 func (stubAdminHTTPServer) ListAgentStatuses(context.Context, *EmptyRequest) (*AgentStatusListResponse, error) {
 	return &AgentStatusListResponse{}, nil
+}
+func (stubAdminHTTPServer) GetMonitoringSummary(context.Context, *MonitoringSummaryRequest) (*MonitoringSummary, error) {
+	return &MonitoringSummary{}, nil
+}
+func (stubAdminHTTPServer) ListCollectorMonitoring(context.Context, *MonitoringListRequest) (*CollectorMonitoringPage, error) {
+	return &CollectorMonitoringPage{}, nil
+}
+func (stubAdminHTTPServer) ListArtifactMonitoring(context.Context, *MonitoringListRequest) (*ArtifactMonitoringPage, error) {
+	return &ArtifactMonitoringPage{}, nil
+}
+func (stubAdminHTTPServer) ListSemanticMonitoring(context.Context, *MonitoringListRequest) (*SemanticMonitoringPage, error) {
+	return &SemanticMonitoringPage{}, nil
 }
 func (stubAdminHTTPServer) ListModelProviders(context.Context, *EmptyRequest) (*ModelProviderListResponse, error) {
 	return &ModelProviderListResponse{}, nil

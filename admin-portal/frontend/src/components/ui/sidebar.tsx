@@ -147,8 +147,7 @@ const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonP
       <button
         className={cn(
           'flex h-10 w-full items-center gap-3 overflow-hidden rounded-md px-3 text-left text-sm outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring',
-          active &&
-            'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90',
+          active && 'bg-sidebar-accent font-semibold text-sidebar-foreground',
           !labelsVisible && 'justify-center px-0',
           className
         )}

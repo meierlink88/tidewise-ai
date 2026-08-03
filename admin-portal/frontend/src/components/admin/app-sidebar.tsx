@@ -1,4 +1,4 @@
-import { Activity, Database, Radio } from 'lucide-react';
+import { Activity, Database, Radio, ScanLine } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +12,7 @@ import {
   useSidebar
 } from '../ui/sidebar';
 
-export type AdminPage = 'data-ingestion' | 'agent-status';
+export type AdminPage = 'data-ingestion' | 'monitoring' | 'agent-status';
 
 interface AdminNavigationProps {
   currentPage: AdminPage;
@@ -28,9 +28,15 @@ const navigationItems = [
     icon: Database
   },
   {
+    key: 'monitoring',
+    label: '监控中心',
+    meta: 'Live',
+    icon: ScanLine
+  },
+  {
     key: 'agent-status',
     label: 'Agent 状态',
-    meta: 'Live',
+    meta: 'Agents',
     icon: Activity
   }
 ] satisfies Array<{

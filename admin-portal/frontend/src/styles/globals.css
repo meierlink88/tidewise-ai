@@ -25,6 +25,10 @@
   --color-success-border: var(--success-border);
   --color-success-foreground: var(--success-text);
   --color-success-subtle: var(--success-subtle);
+  --color-running: var(--running);
+  --color-running-border: var(--running-border);
+  --color-running-foreground: var(--running-text);
+  --color-running-subtle: var(--running-subtle);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

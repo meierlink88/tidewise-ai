@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
@@ -29,6 +30,11 @@ type Store interface {
 	UpsertConnectorConfig(context.Context, agentrun.ConnectorConfig) error
 	ListAgentExecutions(context.Context, agentrun.ExecutionListQuery) (agentrun.ExecutionPage, error)
 	ListAgentStatuses(context.Context) ([]agentrun.AgentStatus, error)
+	ListMonitoringStatusCounts(context.Context, time.Time) ([]agentrun.MonitoringStatusCount, error)
+	GetMonitoringBusinessTotals(context.Context, time.Time) (agentrun.MonitoringBusinessTotals, error)
+	ListCollectorMonitoring(context.Context, agentrun.MonitoringListQuery) (agentrun.CollectorMonitoringPage, error)
+	ListArtifactExtractionMonitoring(context.Context, agentrun.MonitoringListQuery) (agentrun.ArtifactExtractionMonitoringPage, error)
+	ListSemanticMonitoring(context.Context, agentrun.MonitoringListQuery) (agentrun.SemanticMonitoringPage, error)
 }
 
 type Service struct {
@@ -39,6 +45,7 @@ type Service struct {
 	connectorSet  map[string]struct{}
 	environment   string
 	schedules     ScheduleManager
+	now           func() time.Time
 }
 
 type ScheduleManager interface {
@@ -53,6 +60,14 @@ type Option func(*Service)
 func WithScheduleManager(manager ScheduleManager) Option {
 	return func(service *Service) {
 		service.schedules = manager
+	}
+}
+
+func WithNow(now func() time.Time) Option {
+	return func(service *Service) {
+		if now != nil {
+			service.now = now
+		}
 	}
 }
 
@@ -85,11 +100,102 @@ func New(store Store, registry Registry, environment string, options ...Option) 
 	service := &Service{
 		store: store, modelKeys: modelKeys, modelSet: modelSet,
 		connectorKeys: connectorKeys, connectorSet: connectorSet, environment: environment,
+		now: time.Now,
 	}
 	for _, option := range options {
 		option(service)
 	}
 	return service, nil
+}
+
+func (s *Service) MonitoringSummary(ctx context.Context, window agentrun.MonitoringWindow) (agentrun.MonitoringSummary, error) {
+	since, generatedAt, ok := s.monitoringSince(window)
+	if !ok {
+		return agentrun.MonitoringSummary{}, errors.New("Monitoring window is invalid")
+	}
+	rawCounts, err := s.store.ListMonitoringStatusCounts(ctx, since)
+	if err != nil {
+		return agentrun.MonitoringSummary{}, err
+	}
+	business, err := s.store.GetMonitoringBusinessTotals(ctx, since)
+	if err != nil {
+		return agentrun.MonitoringSummary{}, err
+	}
+	result := agentrun.MonitoringSummary{
+		Window: window, GeneratedAt: generatedAt, Business: business,
+		Collector: agentrun.MonitoringStageSummary{Kind: agentrun.MonitoringCollector},
+		Artifact:  agentrun.MonitoringStageSummary{Kind: agentrun.MonitoringArtifactExtraction},
+		Semantic:  agentrun.MonitoringStageSummary{Kind: agentrun.MonitoringSemantic},
+	}
+	for _, raw := range rawCounts {
+		state, known := agentrun.MonitoringStateForStatus(raw.Kind, raw.Status)
+		if !known {
+			continue
+		}
+		stage := monitoringStage(&result, raw.Kind)
+		switch state {
+		case agentrun.MonitoringStateSuccess:
+			stage.Counts.Success += raw.Count
+		case agentrun.MonitoringStateRunning:
+			stage.Counts.Running += raw.Count
+		case agentrun.MonitoringStateFailure:
+			stage.Counts.Failure += raw.Count
+		}
+	}
+	return result, nil
+}
+
+func (s *Service) ListCollectorMonitoring(ctx context.Context, window agentrun.MonitoringWindow, state agentrun.MonitoringState, page, pageSize int) (agentrun.CollectorMonitoringPage, error) {
+	query, ok := s.monitoringQuery(window, state, agentrun.MonitoringCollector, page, pageSize)
+	if !ok {
+		return agentrun.CollectorMonitoringPage{}, errors.New("Monitoring query is invalid")
+	}
+	return s.store.ListCollectorMonitoring(ctx, query)
+}
+
+func (s *Service) ListArtifactExtractionMonitoring(ctx context.Context, window agentrun.MonitoringWindow, state agentrun.MonitoringState, page, pageSize int) (agentrun.ArtifactExtractionMonitoringPage, error) {
+	query, ok := s.monitoringQuery(window, state, agentrun.MonitoringArtifactExtraction, page, pageSize)
+	if !ok {
+		return agentrun.ArtifactExtractionMonitoringPage{}, errors.New("Monitoring query is invalid")
+	}
+	return s.store.ListArtifactExtractionMonitoring(ctx, query)
+}
+
+func (s *Service) ListSemanticMonitoring(ctx context.Context, window agentrun.MonitoringWindow, state agentrun.MonitoringState, page, pageSize int) (agentrun.SemanticMonitoringPage, error) {
+	query, ok := s.monitoringQuery(window, state, agentrun.MonitoringSemantic, page, pageSize)
+	if !ok {
+		return agentrun.SemanticMonitoringPage{}, errors.New("Monitoring query is invalid")
+	}
+	return s.store.ListSemanticMonitoring(ctx, query)
+}
+
+func (s *Service) monitoringQuery(window agentrun.MonitoringWindow, state agentrun.MonitoringState, kind agentrun.MonitoringKind, page, pageSize int) (agentrun.MonitoringListQuery, bool) {
+	since, _, ok := s.monitoringSince(window)
+	statuses, statusOK := agentrun.MonitoringStatuses(kind, state)
+	if !ok || !statusOK || page < 1 || pageSize < 1 || pageSize > 100 {
+		return agentrun.MonitoringListQuery{}, false
+	}
+	return agentrun.MonitoringListQuery{Since: since, Statuses: statuses, Page: page, PageSize: pageSize}, true
+}
+
+func (s *Service) monitoringSince(window agentrun.MonitoringWindow) (time.Time, time.Time, bool) {
+	duration, ok := window.Duration()
+	if !ok {
+		return time.Time{}, time.Time{}, false
+	}
+	now := s.now().UTC()
+	return now.Add(-duration), now, true
+}
+
+func monitoringStage(summary *agentrun.MonitoringSummary, kind agentrun.MonitoringKind) *agentrun.MonitoringStageSummary {
+	switch kind {
+	case agentrun.MonitoringArtifactExtraction:
+		return &summary.Artifact
+	case agentrun.MonitoringSemantic:
+		return &summary.Semantic
+	default:
+		return &summary.Collector
+	}
 }
 
 func (s *Service) ListAgentSchedules(ctx context.Context) ([]agentrun.AgentSchedule, error) {

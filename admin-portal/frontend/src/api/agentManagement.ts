@@ -61,6 +61,79 @@ export interface AgentStatus {
   updated_at: string;
 }
 
+export type MonitoringWindow = '1h' | '6h' | '12h' | '24h';
+export type MonitoringState = 'all' | 'success' | 'running' | 'failure';
+export type MonitoringKind = 'collector' | 'artifact' | 'semantic';
+export interface MonitoringCounts {
+  success: number;
+  running: number;
+  failure: number;
+}
+export interface MonitoringSummary {
+  window: MonitoringWindow;
+  generated_at: string;
+  collector: MonitoringCounts;
+  artifact_extraction: MonitoringCounts;
+  semantic: MonitoringCounts;
+  collector_raw_results: number;
+  collector_merged_results: number;
+  collector_accepted_artifacts: number;
+  artifact_published: number;
+  artifact_no_events: number;
+  artifact_formal_events: number;
+  semantic_submissions: number;
+  semantic_accepted_candidates: number;
+  semantic_rejected_candidates: number;
+}
+export interface MonitoringPage<T> {
+  items: T[];
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+}
+export interface CollectorMonitoringItem {
+  execution_id: string;
+  state: Exclude<MonitoringState, 'all'>;
+  raw_status: string;
+  trigger_source: string;
+  started_at?: string;
+  completed_at?: string;
+  raw_results: number;
+  merged_results: number;
+  accepted_artifacts: number;
+  error_code?: string;
+}
+export interface ArtifactMonitoringItem {
+  extraction_key: string;
+  artifact_id: string;
+  collector_execution_id: string;
+  state: Exclude<MonitoringState, 'all'>;
+  raw_status: string;
+  updated_at: string;
+  started_at?: string;
+  completed_at?: string;
+  event_candidates: number;
+  acknowledged_journals: number;
+  total_journals: number;
+  error_code?: string;
+}
+export interface SemanticMonitoringItem {
+  work_item_id: string;
+  event_id: string;
+  trigger_source: string;
+  state: Exclude<MonitoringState, 'all'>;
+  raw_status: string;
+  updated_at: string;
+  started_at?: string;
+  completed_at?: string;
+  attempt_count: number;
+  max_attempts: number;
+  accepted_candidates: number;
+  rejected_candidates: number;
+  error_code?: string;
+}
+
 export interface ModelProviderConfiguration {
   provider_key: string;
   base_url: string;
@@ -148,6 +221,55 @@ export function loadAgentExecutions(token: string, page: number): Promise<AgentE
 export async function loadAgentStatuses(token: string): Promise<AgentStatus[]> {
   const result = await request<{ items: AgentStatus[] }>(token, '/api/admin/v1/agent-statuses');
   return result.items;
+}
+
+export function loadMonitoringSummary(
+  token: string,
+  window: MonitoringWindow
+): Promise<MonitoringSummary> {
+  return request(token, `/api/admin/v1/monitoring/summary?window=${window}`);
+}
+export function loadCollectorMonitoring(
+  token: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page = 1,
+  pageSize = 20
+): Promise<MonitoringPage<CollectorMonitoringItem>> {
+  return request(token, monitoringPath('collector-executions', window, state, page, pageSize));
+}
+export function loadArtifactMonitoring(
+  token: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page = 1,
+  pageSize = 20
+): Promise<MonitoringPage<ArtifactMonitoringItem>> {
+  return request(token, monitoringPath('artifact-extractions', window, state, page, pageSize));
+}
+export function loadSemanticMonitoring(
+  token: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page = 1,
+  pageSize = 20
+): Promise<MonitoringPage<SemanticMonitoringItem>> {
+  return request(token, monitoringPath('semantic-work-items', window, state, page, pageSize));
+}
+function monitoringPath(
+  resource: string,
+  window: MonitoringWindow,
+  state: MonitoringState,
+  page: number,
+  pageSize: number
+): string {
+  const params = new URLSearchParams({
+    window,
+    state,
+    page: String(page),
+    page_size: String(pageSize)
+  });
+  return `/api/admin/v1/monitoring/${resource}?${params}`;
 }
 
 export async function loadModelProviders(token: string): Promise<ModelProviderConfiguration[]> {

@@ -3,6 +3,8 @@ import {
   AdminAgentRunAPIError,
   loadAgentExecutions,
   loadAgentStatuses,
+  loadCollectorMonitoring,
+  loadMonitoringSummary,
   loadConnector,
   loadModelProvider,
   saveAgentSchedule,
@@ -74,6 +76,23 @@ describe('AgentRun management Admin API client', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/agent-statuses');
     expect(result).toHaveLength(1);
     expect(result[0].current_execution_status).toBe('running');
+  });
+
+  it('loads monitoring only through versioned Admin BFF resources', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(successResponse({ window: '6h' }))
+      .mockResolvedValueOnce(successResponse({ items: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await loadMonitoringSummary('browser-token', '6h');
+    await loadCollectorMonitoring('browser-token', '6h', 'failure');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/monitoring/summary?window=6h');
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      '/api/admin/v1/monitoring/collector-executions?window=6h&state=failure&page=1&page_size=20'
+    );
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('agentrun');
   });
 
   it('preserves model keys when omitted and explicitly clears connector keys', async () => {
