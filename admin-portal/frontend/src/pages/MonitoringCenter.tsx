@@ -83,6 +83,12 @@ export default function MonitoringCenter({ token }: { token: string }) {
         semantic: totalExecutions(summary.data.semantic)
       }
     : undefined;
+  const selectedCounts = summary.data ? monitoringCountsForKind(summary.data, kind) : undefined;
+  const selectDetail = (nextKind: MonitoringKind, nextState: Exclude<MonitoringState, 'all'>) => {
+    setKind(nextKind);
+    setState(nextState);
+    setPage(1);
+  };
   return (
     <section className='grid h-full min-w-0 content-start gap-5 overflow-auto pb-6'>
       <div className='flex items-start justify-between gap-4 max-lg:flex-col'>
@@ -123,7 +129,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
         />
       ) : null}
       {summary.data ? (
-        <SummaryCards summary={summary.data} />
+        <SummaryCards onSelectDetail={selectDetail} summary={summary.data} />
       ) : summary.isLoading ? (
         <div className='grid min-h-40 place-items-center text-sm text-muted-foreground'>
           正在加载监控摘要
@@ -134,7 +140,9 @@ export default function MonitoringCenter({ token }: { token: string }) {
           <div>
             <h3 className='text-sm font-semibold'>执行明细</h3>
             <p className='mt-1 text-xs text-muted-foreground'>
-              三类执行对象分开展示；主状态统一，原始枚举保留。
+              {list.data
+                ? `${monitoringWindowLabel(window)} · ${monitoringKindLabel(kind)} · ${monitoringStateLabel(state)} · 共 ${list.data.total_items} 条`
+                : '三类执行对象分开展示；主状态统一，原始枚举保留。'}
             </p>
           </div>
           <Tabs
@@ -146,8 +154,16 @@ export default function MonitoringCenter({ token }: { token: string }) {
           >
             <TabsList>
               {states.map((item) => (
-                <TabsTrigger key={item.id} value={item.id}>
+                <TabsTrigger aria-label={item.label} key={item.id} value={item.id}>
                   {item.label}
+                  {selectedCounts ? (
+                    <span
+                      aria-hidden='true'
+                      className='rounded-full bg-muted-foreground/10 px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none tabular-nums'
+                    >
+                      {monitoringStateCount(selectedCounts, item.id)}
+                    </span>
+                  ) : null}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -218,9 +234,16 @@ async function loadMonitoringList(
   return loadSemanticMonitoring(token, window, state, page, pageSize);
 }
 
-function SummaryCards({ summary }: { summary: MonitoringSummary }) {
+function SummaryCards({
+  onSelectDetail,
+  summary
+}: {
+  onSelectDetail: (kind: MonitoringKind, state: Exclude<MonitoringState, 'all'>) => void;
+  summary: MonitoringSummary;
+}) {
   const cards = [
     {
+      kind: 'collector' as const,
       title: '事件采集',
       subtitle: '执行对象：每次采集执行',
       counts: summary.collector,
@@ -233,6 +256,7 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
       source: '采集执行与业务结果统计'
     },
     {
+      kind: 'artifact' as const,
       title: 'Event 提取',
       subtitle: '执行对象：每个已接收内容',
       counts: summary.artifact_extraction,
@@ -245,6 +269,7 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
       source: '提取执行、Event 结果与发布记录'
     },
     {
+      kind: 'semantic' as const,
       title: '事件语义',
       subtitle: '执行对象：每个 Event 的语义处理',
       counts: summary.semantic,
@@ -282,10 +307,14 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
           </div>
           <div className='grid grid-cols-3 border-y border-border bg-muted/20'>
             {(['success', 'running', 'failure'] as const).map((key) => (
-              <div className='border-r border-border px-4 py-3 last:border-r-0' key={key}>
-                <span className='text-xs text-muted-foreground'>
-                  {key === 'success' ? '成功' : key === 'running' ? '执行中' : '失败'}
-                </span>
+              <button
+                aria-label={`查看 ${card.title}${monitoringStateLabel(key)}明细，共 ${card.counts[key]} 条`}
+                className='border-r border-border px-4 py-3 text-left outline-none transition-colors last:border-r-0 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
+                key={key}
+                onClick={() => onSelectDetail(card.kind, key)}
+                type='button'
+              >
+                <span className='text-xs text-muted-foreground'>{monitoringStateLabel(key)}</span>
                 <strong
                   className={`mt-1 block text-xl tabular-nums ${
                     key === 'success'
@@ -297,7 +326,7 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
                 >
                   {card.counts[key]}
                 </strong>
-              </div>
+              </button>
             ))}
           </div>
           <div className='grid gap-2.5 px-4 py-4 text-xs'>
@@ -345,10 +374,7 @@ function StateCell({ state, raw }: { state: string; raw: string }) {
 
 function Identifier({ value }: { value: string }) {
   return (
-    <span
-      className='block max-w-56 truncate font-mono text-xs text-foreground'
-      title={value}
-    >
+    <span className='block max-w-56 truncate font-mono text-xs text-foreground' title={value}>
       {value}
     </span>
   );
@@ -499,6 +525,31 @@ function formatTime(value?: string) {
 }
 function totalExecutions(counts: { success: number; running: number; failure: number }) {
   return counts.success + counts.running + counts.failure;
+}
+
+function monitoringCountsForKind(summary: MonitoringSummary, kind: MonitoringKind) {
+  if (kind === 'artifact') return summary.artifact_extraction;
+  if (kind === 'semantic') return summary.semantic;
+  return summary.collector;
+}
+
+function monitoringStateCount(
+  counts: { success: number; running: number; failure: number },
+  state: MonitoringState
+) {
+  return state === 'all' ? totalExecutions(counts) : counts[state];
+}
+
+function monitoringWindowLabel(window: MonitoringWindow) {
+  return windows.find((item) => item.value === window)?.label ?? window;
+}
+
+function monitoringKindLabel(kind: MonitoringKind) {
+  return kinds.find((item) => item.id === kind)?.label ?? kind;
+}
+
+function monitoringStateLabel(state: MonitoringState) {
+  return states.find((item) => item.id === state)?.label ?? state;
 }
 
 function formatDuration(durationMs?: number): string {

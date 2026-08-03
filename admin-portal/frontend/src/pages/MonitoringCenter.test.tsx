@@ -125,6 +125,49 @@ describe('MonitoringCenter', () => {
     }
   });
 
+  it('opens card status totals as the matching detail slice in the same time window', async () => {
+    vi.mocked(loadArtifactMonitoring).mockResolvedValue({
+      ...emptyPage,
+      total_items: 2,
+      total_pages: 1,
+      items: [
+        {
+          extraction_key: 'artifact-extraction-1',
+          artifact_id: 'artifact-1',
+          collector_execution_id: 'collector-execution-1',
+          state: 'success',
+          raw_status: 'published',
+          updated_at: '2026-08-03T08:10:00Z',
+          started_at: '2026-08-03T08:09:00Z',
+          completed_at: '2026-08-03T08:10:00Z',
+          duration_ms: 60_000,
+          event_candidates: 2,
+          acknowledged_journals: 1,
+          total_journals: 1
+        }
+      ]
+    });
+    const user = userEvent.setup();
+    renderCenter();
+    await screen.findByText('collector-execution-1');
+
+    await user.click(screen.getByRole('button', { name: '查看 Event 提取成功明细，共 2 条' }));
+
+    await waitFor(() =>
+      expect(loadArtifactMonitoring).toHaveBeenLastCalledWith('token', '1h', 'success', 1, 20)
+    );
+    expect(await screen.findByText('artifact-extraction-1')).toBeInTheDocument();
+    expect(screen.getByText('最近 1 小时 · Event 提取 · 成功 · 共 2 条')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: '监控时间范围' }));
+    await user.click(screen.getByRole('option', { name: '最近 6 小时' }));
+
+    await waitFor(() =>
+      expect(loadArtifactMonitoring).toHaveBeenLastCalledWith('token', '6h', 'success', 1, 20)
+    );
+    expect(screen.getByText('最近 6 小时 · Event 提取 · 成功 · 共 2 条')).toBeInTheDocument();
+  });
+
   it('shows loading feedback and manually refreshes both projections', async () => {
     let resolveSummary!: (value: Awaited<ReturnType<typeof loadMonitoringSummary>>) => void;
     vi.mocked(loadMonitoringSummary).mockReturnValueOnce(
