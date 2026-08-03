@@ -13,7 +13,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS agentrun-artifact-write", "PASS excluded-fact-audit-before", "PASS migration-apply", "PASS excluded-fact-audit-unchanged", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS excluded-fact-audit-before", "PASS migration-apply", "PASS excluded-fact-audit-unchanged", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -24,7 +24,13 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
 	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/data:"+fixtureSHA)
 	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/agentrun:"+fixtureSHA)
-	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/qdrant:v1.15.5@sha256:")
+	images, err := os.ReadFile(filepath.Join(result.root, "state", "current.images.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(images), "QDRANT_IMAGE") {
+		t.Fatalf("application release state owns Qdrant image: %s", images)
+	}
 	curlLog, err := os.ReadFile(result.curlLog)
 	if err != nil {
 		t.Fatal(err)
@@ -49,11 +55,31 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 		t.Fatalf("deployment did not enforce AgentRun readiness: %s", dockerLog)
 	}
 	artifactProbe := strings.Index(string(dockerLog), "/app/data/.uat-write-probe")
+	externalQdrantProbe := strings.Index(string(dockerLog), "http://qdrant:6333/collections")
 	excludedFactAudit := strings.Index(string(dockerLog), "/usr/local/bin/uat-excluded-fact-audit")
 	migrationPreflight := strings.Index(string(dockerLog), "/usr/local/bin/dbmigrate")
-	if artifactProbe < 0 || excludedFactAudit < 0 || migrationPreflight < 0 ||
-		artifactProbe > excludedFactAudit || excludedFactAudit > migrationPreflight {
-		t.Fatalf("AgentRun Artifact write probe must run before migrations: %s", dockerLog)
+	if externalQdrantProbe < 0 || artifactProbe < 0 || excludedFactAudit < 0 || migrationPreflight < 0 ||
+		externalQdrantProbe > artifactProbe || artifactProbe > excludedFactAudit || excludedFactAudit > migrationPreflight {
+		t.Fatalf("external Qdrant and AgentRun Artifact probes must run before migrations: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorStopsBeforeDatabaseWorkWhenExternalQdrantIsUnavailable(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{failExternalQdrant: true})
+	if result.err == nil {
+		t.Fatal("unavailable external Qdrant fixture unexpectedly succeeded")
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	if !strings.Contains(logText, "http://qdrant:6333/collections") {
+		t.Fatalf("deployment did not probe external Qdrant: %s", logText)
+	}
+	if strings.Contains(logText, "/app/data/.uat-write-probe") ||
+		strings.Contains(logText, "/usr/local/bin/dbmigrate") {
+		t.Fatalf("deployment performed protected work after external Qdrant probe failed: %s", logText)
 	}
 }
 
@@ -104,8 +130,35 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(dockerLog), "exec -T qdrant") {
-		t.Fatalf("rollback required Qdrant from the previous Compose that predates Qdrant ownership: %s", dockerLog)
+	if strings.Contains(string(dockerLog), "exec -T qdrant") ||
+		strings.Contains(string(dockerLog), " up -d --wait --wait-timeout 120 qdrant ") {
+		t.Fatalf("rollback attempted to manage independently operated Qdrant: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorRejectsQdrantOwningRollbackSnapshotBeforeDatabaseWork(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		legacyQdrantSnapshot: true,
+	})
+	if result.err == nil {
+		t.Fatal("legacy Qdrant-owning rollback snapshot unexpectedly succeeded")
+	}
+	if !strings.Contains(result.output, "FAIL rollback-qdrant-ownership") {
+		t.Fatalf("rollback did not reject Qdrant ownership: %s", result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	if strings.Contains(logText, "/usr/local/bin/dbmigrate") {
+		t.Fatalf("deployment reached database work without an application-only rollback snapshot: %s", logText)
+	}
+	if strings.Contains(logText, " exec -T qdrant ") ||
+		strings.Contains(logText, " up -d --wait --wait-timeout 120 qdrant ") ||
+		strings.Contains(logText, " --remove-orphans ") {
+		t.Fatalf("rollback attempted to manage Qdrant: %s", logText)
 	}
 }
 
@@ -296,13 +349,17 @@ func TestUATDeployExecutorProjectsEventSemanticsBeforeAgentRunStarts(t *testing.
 	}
 	logText := string(dockerLog)
 	projector := strings.Index(logText, "/usr/local/bin/event-semantic-projector -apply -allow-env uat")
-	fullStart := strings.LastIndex(logText, " up -d --wait --wait-timeout 120 --remove-orphans ")
+	fullStart := strings.LastIndex(logText, " up -d --wait --wait-timeout 120 ")
 	if projector < 0 || fullStart < 0 || projector > fullStart {
 		t.Fatalf("Event Semantic projection must complete before the complete release starts: %s", logText)
 	}
 	if !strings.Contains(logText, " stop agentrun ") || !strings.Contains(logText, "-e EMBEDDING_API_KEY") ||
 		strings.Contains(logText, fixtureEmbeddingCredential()) {
 		t.Fatalf("Event Semantic projection did not pause AgentRun or scope the secret by name: %s", logText)
+	}
+	if strings.Contains(logText, " up -d --wait --wait-timeout 120 qdrant ") ||
+		strings.Contains(logText, " exec -T qdrant ") {
+		t.Fatalf("Event Semantic projection attempted to manage independently operated Qdrant: %s", logText)
 	}
 }
 
@@ -347,7 +404,7 @@ func TestUATDeployExecutorRejectsExcludedPostgreSQLFactDrift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(dockerLog), " up -d --wait --wait-timeout 120 --remove-orphans ") {
+	if strings.Contains(string(dockerLog), " up -d --wait --wait-timeout 120 ") {
 		t.Fatalf("excluded fact drift allowed the complete release to start: %s", dockerLog)
 	}
 }
@@ -399,6 +456,8 @@ type deployFixtureOptions struct {
 	migrationRisk           string
 	backupConfirmed         bool
 	failArtifactProbe       bool
+	failExternalQdrant      bool
+	legacyQdrantSnapshot    bool
 	industryImport          bool
 	graphProjection         bool
 	omitNeo4jPassword       bool
@@ -443,8 +502,8 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
 	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\nEMBEDDING_API_KEY="+fixtureEmbeddingCredential()+"\n")
-	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA+"\nQDRANT_IMAGE=fixture/qdrant:v1.15.5@sha256:"+fixtureRelationshipPkgSHA+"\n")
-	writeFixture(t, compose, "name: tidewise-uat\nservices:\n  qdrant: {}\n")
+	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA+"\n")
+	writeFixture(t, compose, "name: tidewise-uat\nservices: {}\n")
 	migrationRisk := options.migrationRisk
 	if migrationRisk == "" {
 		migrationRisk = "high"
@@ -454,8 +513,13 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
-		writeFixture(t, filepath.Join(state, "current.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nQDRANT_IMAGE=fixture/qdrant:v1.15.5@sha256:"+fixtureRelationshipPkgSHA+"\n")
-		writeFixture(t, filepath.Join(state, "current.compose.yaml"), "name: tidewise-uat\nservices: {}\n")
+		currentImages := "DATA_IMAGE=fixture/data:" + previousFixtureSHA + "\n"
+		currentCompose := "name: tidewise-uat\nservices: {}\n"
+		if options.legacyQdrantSnapshot {
+			currentCompose = "name: tidewise-uat\nservices:\n  qdrant: {}\n"
+		}
+		writeFixture(t, filepath.Join(state, "current.images.env"), currentImages)
+		writeFixture(t, filepath.Join(state, "current.compose.yaml"), currentCompose)
 		writeFixture(t, filepath.Join(state, "current.sha"), previousFixtureSHA+"\n")
 	}
 
@@ -492,15 +556,15 @@ if [ -z "$resolved_data_image" ]; then
 fi
 echo "resolved-data-image=${resolved_data_image:-unset} $* " >> "$FAKE_DOCKER_LOG"
 case " $* " in
-  *" config --services "*)
-    compose_file=""
-    previous=""
-    for argument in "$@"; do
-      if [ "$previous" = "-f" ]; then compose_file="$argument"; fi
-      previous="$argument"
-    done
-    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
-    printf 'data\nagentrun\nminiapp\nadminportal\nadmin\n'
+	  *" config --services "*)
+	    compose_file=""
+	    previous=""
+	    for argument in "$@"; do
+	      if [ "$previous" = "-f" ]; then compose_file="$argument"; fi
+	      previous="$argument"
+	    done
+	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
+	    printf 'data\nagentrun\nminiapp\nadminportal\nadmin\n'
     ;;
   *"/app/data/.uat-write-probe."*)
     if [ "${FAKE_FAIL_ARTIFACT_PROBE:-false}" = true ]; then exit 1; fi
@@ -549,9 +613,13 @@ case " $* " in
   *"http://qdrant:6333/collections/entity_semantic_v1"*)
     printf '{"result":{"status":"green","points_count":4973,"config":{"params":{"vectors":{"size":1024,"distance":"Cosine"}}}}}\n'
     ;;
-  *"http://qdrant:6333/collections/variable_definition_semantic_v1"*)
-    printf '{"result":{"status":"green","points_count":12,"config":{"params":{"vectors":{"size":1024,"distance":"Cosine"}}}}}\n'
-    ;;
+	  *"http://qdrant:6333/collections/variable_definition_semantic_v1"*)
+	    printf '{"result":{"status":"green","points_count":12,"config":{"params":{"vectors":{"size":1024,"distance":"Cosine"}}}}}\n'
+	    ;;
+	  *"http://qdrant:6333/collections "*)
+	    if [ "${FAKE_FAIL_EXTERNAL_QDRANT:-false}" = true ]; then exit 1; fi
+	    printf '{"result":{"collections":[]}}\n'
+	    ;;
   *" /usr/local/bin/uat-excluded-fact-audit "*)
     count=0
     if [ -f "$FAKE_EXCLUDED_FACT_AUDIT_COUNT" ]; then count="$(cat "$FAKE_EXCLUDED_FACT_AUDIT_COUNT")"; fi
@@ -620,12 +688,12 @@ exit 0
 		"FAKE_CURL_LOG="+curlLog,
 		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
 		"FAKE_FAIL_ARTIFACT_PROBE="+boolText(options.failArtifactProbe),
+		"FAKE_FAIL_EXTERNAL_QDRANT="+boolText(options.failExternalQdrant),
 		"DATA_IMAGE=fixture/data:"+fixtureSHA,
 		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
 		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,
 		"ADMIN_IMAGE=fixture/admin:"+fixtureSHA,
 		"AGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA,
-		"QDRANT_IMAGE=fixture/qdrant:v1.15.5@sha256:"+fixtureRelationshipPkgSHA,
 	)
 	output, err := cmd.CombinedOutput()
 	return deployFixtureResult{root: root, dockerLog: dockerLog, curlLog: curlLog, output: string(output), err: err}

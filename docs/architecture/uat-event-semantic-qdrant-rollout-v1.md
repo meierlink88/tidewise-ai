@@ -11,7 +11,8 @@ Owners: Data context, AgentRun context, UAT deployment control plane
 Bring the UAT Event Semantic runtime to the repository-managed contract by:
 
 - completing the active Entity Type TBox required by the accepted V3 contract;
-- running Qdrant `v1.15.5` as an internal-only UAT Compose service from an immutable SWR image;
+- using the independently operated, internal-only UAT Qdrant runtime without making it part of the
+  application release lifecycle;
 - rebuilding the two Data-owned semantic collections through an explicit, default-off deployment gate;
 - replaying the already approved Industry PostgreSQL package into the UAT Neo4j projection without
   importing or changing the PostgreSQL package again.
@@ -24,6 +25,7 @@ PostgreSQL remains the fact owner. Neo4j and Qdrant remain rebuildable projectio
 - Copying local Event Semantic synthetic acceptance fixtures into UAT.
 - Mutating Event, RawDocument, Theme, Reason Tree, or Industry relationship package facts.
 - Incremental Qdrant synchronization, CDC, scheduled rebuilds, public Qdrant ports, HA, or backups.
+- Installing, upgrading, restarting, removing, mirroring, or rolling back PostgreSQL, Neo4j, or Qdrant.
 - Giving AgentRun access to the Data PostgreSQL database or giving the long-running Data Service
   access to the embedding secret.
 - Automatically merging the implementation PR or bypassing the RDS recovery-point gate.
@@ -54,19 +56,20 @@ performs checksum/count verification only; it does not run a local-to-UAT data c
 
 ## Qdrant runtime contract
 
-- Image: SWR mirror of `qdrant/qdrant:v1.15.5`, consumed as
-  `repository:v1.15.5@sha256:<digest>`.
-- Upstream image digest audited for the rollout:
-  `sha256:0fb8897412abc81d1c0430a899b9a81eb8328aa634e7242d1bc804c1fe8fe863`.
-- Network: `tidewise-uat`, service identity `qdrant`.
-- Ports: `6333` and `6334` are exposed only to the internal Docker network; no host port is published.
-- Storage: external-name-compatible Docker volume `tidewise-uat-qdrant-data` mounted at
-  `/qdrant/storage`.
-- Lifecycle: `restart: unless-stopped`, bounded health check, and the existing UAT log rotation policy.
+Qdrant is independently operated infrastructure, matching the ownership model of RDS PostgreSQL and
+host-managed Neo4j. The application Compose/CD contract does not own its image, container, version,
+restart policy, volume, installation, upgrade, rollback, or removal.
 
-The first repository-managed release reuses the existing named volume. Immediately before that release,
-the manually created `tidewise-uat-qdrant` container must be stopped and removed without deleting the
-volume. This is a one-time handoff, not a recurring CD operation.
+The separately maintained UAT runtime must provide:
+
+- Docker network: `tidewise-uat`, stable network alias `qdrant`;
+- internal endpoint: `http://qdrant:6333`;
+- no host-published HTTP or gRPC port;
+- persistent storage and lifecycle managed by the infrastructure operator.
+
+The currently audited runtime is `qdrant/qdrant:v1.15.5` with container
+`tidewise-uat-qdrant` and named volume `tidewise-uat-qdrant-data`. Those identities are operational
+evidence, not application release inputs. A Qdrant version change is a separate maintenance action.
 
 ## Projection invocation and failure contract
 
@@ -76,7 +79,8 @@ When enabled:
 
 1. Data and AgentRun migrations complete successfully.
 2. Any requested Industry graph projection completes and verifies replay.
-3. Compose starts only the candidate Qdrant service and waits for health.
+3. The candidate Data image proves the independently operated Qdrant endpoint is reachable from the
+   `tidewise-uat` network.
 4. The candidate Data image runs `/usr/local/bin/event-semantic-projector -apply -allow-env uat` with:
    - `QDRANT_URL=http://qdrant:6333`;
    - the frozen DashScope-compatible embedding base URL;
@@ -98,8 +102,9 @@ The current projector replaces each formal collection. AgentRun must therefore r
 the rebuild. A failed rebuild blocks the candidate release; it is never treated as degraded success. The
 Qdrant volume is retained so an operator can correct the failure and rerun the explicit projection.
 
-When projection is disabled, the deployment still starts repository-managed Qdrant but does not mutate
-collections. This mode is only valid after a successful initial projection.
+Every deployment requires the external Qdrant endpoint to be healthy before database writes. When
+projection is disabled, CD does not mutate collections or the Qdrant runtime. This mode is only valid
+after a successful initial projection.
 
 ## Secrets and configuration
 
@@ -108,8 +113,7 @@ collections. This mode is only valid after a successful initial projection.
 - The one-shot Data projector receives it only through `docker compose run -e EMBEDDING_API_KEY`.
 - The long-running Data Service and other containers do not receive it.
 - Qdrant has no host exposure and does not use an API key in this UAT topology.
-- `SWR_QDRANT_IMAGE` is a GitHub `uat` Environment Variable containing the full immutable SWR image
-  reference; the workflow rejects a tag-only value.
+- No Qdrant image or infrastructure credential is stored in the application release Environment.
 
 Secrets must not appear in Compose, repository configuration, command output, deployment summaries,
 diagnostics, or projection payloads.
@@ -119,7 +123,7 @@ diagnostics, or projection payloads.
 Rollout order:
 
 1. Confirm an RDS recovery point/PITR and pause Event Semantic scheduling.
-2. Remove only the legacy manual Qdrant container, retaining `tidewise-uat-qdrant-data`.
+2. Verify the independently operated Qdrant endpoint and leave its container and volume unchanged.
 3. Dispatch the merged `main` release with high-risk backup confirmation, Industry graph projection, and
    Event Semantic projection enabled.
 4. Apply Data migrations through `000040` and the target AgentRun migration chain.
@@ -133,13 +137,14 @@ Rollout order:
 Application rollback restores the previous repository-managed application release and does not run down
 migrations. Migration `000040` is compatible with the previous application because it only adds complete
 catalog rows to an existing table. Qdrant projection failure occurs before AgentRun/public candidate
-services start. The named volume is never deleted by deployment rollback.
+services start. Application rollback does not restart, replace, remove, or otherwise mutate the Qdrant
+runtime or storage.
 
 ## Acceptance seams
 
 - Migration/schema test proves the four definitions and authored fields after the full forward chain.
-- Repository contract test proves immutable Qdrant image handling, internal-only ports, scoped secret
-  injection, explicit projection input, and release-state coverage.
+- Repository contract test proves Qdrant is absent from Compose/release state while external dependency
+  probing, scoped secret injection, and the explicit projection input remain enforced.
 - Deployment executor fixture proves the semantic projector runs only when enabled, before AgentRun starts,
   rejects missing secrets and result drift, and does not print the embedding key.
 - Compose config validation proves the release file resolves with the documented environment contract.

@@ -31,8 +31,6 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"ADMIN_SERVICE_TOKEN",
 		"AGENTRUN_SERVICE_TOKEN",
 		"EMBEDDING_API_KEY",
-		"SWR_QDRANT_IMAGE",
-		"qdrant_image:",
 		"apply_industry_relationship_package:",
 		"industry_relationship_package_sha:",
 		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:",
@@ -65,11 +63,10 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 			t.Fatalf("UAT workflow missing complete release image %q", image)
 		}
 	}
-	if !strings.Contains(workflow, "qdrant_image=${SWR_QDRANT_IMAGE}") ||
-		!strings.Contains(workflow, ":v1\\.15\\.5@sha256:[0-9a-f]{64}") {
-		t.Fatal("UAT workflow does not validate and publish the immutable SWR Qdrant image contract")
-	}
-	for _, forbidden := range []string{"\n  push:\n", "\n  pull_request:\n", "ghcr.io", ":latest"} {
+	for _, forbidden := range []string{
+		"\n  push:\n", "\n  pull_request:\n", "ghcr.io", ":latest",
+		"SWR_QDRANT_IMAGE", "QDRANT_IMAGE", "qdrant_image",
+	} {
 		if strings.Contains(workflow, forbidden) {
 			t.Fatalf("UAT workflow contains forbidden release contract %q", forbidden)
 		}
@@ -100,7 +97,7 @@ func TestUATWorkflowScopesNeo4jCredentialsToEnabledProjectionStep(t *testing.T) 
 	}
 }
 
-func TestUATWorkflowPersistsEmbeddingSecretAndImmutableQdrantImage(t *testing.T) {
+func TestUATWorkflowPersistsEmbeddingSecret(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
 	prepareStart := strings.Index(workflow, "- name: Prepare deployment environment")
@@ -109,10 +106,7 @@ func TestUATWorkflowPersistsEmbeddingSecretAndImmutableQdrantImage(t *testing.T)
 		t.Fatal("UAT workflow is missing the deployment environment preparation boundary")
 	}
 	prepare := workflow[prepareStart:pullStart]
-	for _, required := range []string{
-		"EMBEDDING_API_KEY=${EMBEDDING_API_KEY}",
-		"QDRANT_IMAGE=${QDRANT_IMAGE}",
-	} {
+	for _, required := range []string{"EMBEDDING_API_KEY=${EMBEDDING_API_KEY}"} {
 		if !strings.Contains(prepare, required) {
 			t.Fatalf("UAT runtime preparation missing %q", required)
 		}
@@ -333,7 +327,7 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	root := repositoryRoot()
 	compose := readContractFile(t, filepath.Join(root, "infra", "uat", "docker-compose.yaml"))
 	for _, required := range []string{
-		"  data:", "  miniapp:", "  adminportal:", "  admin:", "  agentrun:", "  qdrant:",
+		"  data:", "  miniapp:", "  adminportal:", "  admin:", "  agentrun:",
 		"http://data:9011", "http://agentrun:9080", "9012:9012", "9013:9013", "9014:9014", "\"9080\"",
 		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD",
 		"DATA_SERVICE_TOKEN", "ADMIN_SERVICE_TOKEN", "AGENTRUN_SERVICE_TOKEN",
@@ -359,22 +353,15 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 		}
 	}
 	agentrun := composeServiceSection(t, compose, "agentrun")
-	for _, required := range []string{"AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz", "qdrant:", "condition: service_healthy"} {
+	for _, required := range []string{"AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun UAT service missing %q", required)
 		}
 	}
-	qdrant := composeServiceSection(t, compose, "qdrant")
-	for _, required := range []string{"QDRANT_IMAGE", "\"6333\"", "\"6334\"", "qdrant-data:/qdrant/storage", "exec 3<>/dev/tcp/127.0.0.1/6333"} {
-		if !strings.Contains(qdrant, required) {
-			t.Fatalf("Qdrant UAT service missing %q", required)
+	for _, forbidden := range []string{"\n  qdrant:", "QDRANT_IMAGE", "qdrant-data:/qdrant/storage", "tidewise-uat-qdrant-data"} {
+		if strings.Contains(compose, forbidden) {
+			t.Fatalf("application Compose must not own Qdrant runtime value %q", forbidden)
 		}
-	}
-	if strings.Contains(qdrant, "ports:") {
-		t.Fatal("Qdrant must not publish HTTP or gRPC ports to the ECS host")
-	}
-	if !strings.Contains(compose, "name: tidewise-uat-qdrant-data") {
-		t.Fatal("Qdrant does not reuse the audited UAT named volume")
 	}
 }
 
@@ -443,6 +430,9 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		"PASS industry-graph-projection-apply",
 		"PASS industry-graph-projection-replay",
 		"FAIL event-semantic-projection-gate",
+		"PASS external-qdrant-ready",
+		"qdrant-ownership: application release state must not manage Qdrant",
+		"wget -q -T 10 -t 2 -O-",
 		"PASS event-semantic-projection-qdrant-ready",
 		"PASS event-semantic-projection-apply",
 		"PASS event-semantic-projection-verify",
@@ -464,7 +454,10 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		strings.Contains(deploy, "reviewed_local_cleanup_verified") {
 		t.Fatal("UAT deploy must not auto-grant historical migration review authorization")
 	}
-	for _, forbidden := range []string{"dbmigrate -down", "pg_restore", "compose down", ":latest"} {
+	for _, forbidden := range []string{
+		"dbmigrate -down", "pg_restore", "compose down", ":latest",
+		"up -d --wait --wait-timeout 120 qdrant", "exec -T qdrant", "--remove-orphans",
+	} {
 		if strings.Contains(deploy, forbidden) {
 			t.Fatalf("UAT deploy executor contains forbidden behavior %q", forbidden)
 		}

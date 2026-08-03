@@ -15,7 +15,10 @@ ECS 运行以下组件：
 - Admin Portal Application Backend Service
 - Admin Portal Frontend
 - AgentRun Backend Service
-- Qdrant `v1.15.5`（Compose 内部服务，不发布宿主机端口）
+
+Qdrant、Neo4j 和 PostgreSQL 均为独立运维的 UAT 基础设施，不属于应用 Compose
+发布单元。Qdrant 只连接 `tidewise-uat` Docker 网络并提供内部别名 `qdrant`，不发布
+宿主机端口。
 
 Miniapp Frontend 不部署到 ECS。当前仅允许微信开发者工具调用 ECS 上的 Miniapp Backend Service；体验版与真机正式验收不在本期范围内。
 
@@ -23,8 +26,9 @@ RDS for PostgreSQL 使用相互隔离的 Data 和 AgentRun database/role。只�
 
 UAT 的 Neo4j 由 ECS systemd 独立管理，只供显式 one-shot Industry graph projector 通过
 Docker host-gateway 访问；Data 长驻服务仍不持有 Neo4j 凭据或依赖 Neo4j readiness。
-Qdrant 由 Compose/CD 管理，是 AgentRun Event Semantic retrieval 的内部运行依赖；
-PostgreSQL 仍是其投影事实源。
+Qdrant 由独立运维动作管理，是 AgentRun Event Semantic retrieval 的内部运行依赖；
+应用 CD 只检查 `http://qdrant:6333` 可用性，并在显式选择时运行 one-shot projector，
+不得安装、升级、重启、删除或回滚 Qdrant。PostgreSQL 仍是投影事实源。
 
 ## Deployment Trigger
 
@@ -74,10 +78,10 @@ control plane 打包到 SWR，ECS 只消费 digest 固定的部署制品。镜�
 
 ## Repository Implementation
 
-仓库现已按应用边界构建五个业务镜像，并由 `infra/uat/` 统一编排，同时消费 SWR 中
-digest 固定的 Qdrant 第三方镜像。Data 与 AgentRun
+仓库现已按应用边界构建五个业务镜像，并由 `infra/uat/` 统一编排。Data 与 AgentRun
 分别使用自己的 migration command、RDS database/role 和运行配置；Miniapp 与
-Admin Portal 不持有数据库凭据。
+Admin Portal 不持有数据库凭据。Qdrant、Neo4j 和 PostgreSQL 的运行时及版本由独立
+运维动作维护，不进入应用发布状态。
 
 ## Container Registry
 
@@ -86,8 +90,7 @@ UAT 使用华为云 SWR 私有镜像仓库，不使用 GHCR 作为正式部署�
 - GitHub-hosted runner 构建并向 SWR 推送五个可独立部署的业务镜像：Data Service、
   Miniapp Backend Service、Admin Portal Backend Service、Admin Portal Frontend、
   AgentRun。
-- Qdrant 不从本仓库重新构建；UAT Environment 提供 SWR mirror 的完整
-  `v1.15.5@sha256:<digest>` 引用，部署状态和回退快照必须记录该引用。
+- Qdrant 不从本仓库构建或镜像到 SWR；其镜像、版本、存储和生命周期由独立运维维护。
 - 同一 build job 额外生成一个 UAT deployment bundle image。Bundle 包含目标 release
   的 Compose 和 UAT 配置、当前 workflow SHA 对应的受信 preflight/deploy/diagnostics
   脚本及 migration 风险清单。
@@ -157,8 +160,8 @@ Migration 遵循项目 forward-only 原则。是否允许应用镜像自动回�
 
 新版本服务启动后必须执行健康检查。任一必要服务未通过时：
 
-1. 自动将五个业务组件恢复到本次发布前记录的镜像 SHA，并恢复上一成功版本记录的
-   Qdrant 不可变镜像引用；Qdrant 命名卷不删除。
+1. 自动将五个业务组件恢复到本次发布前记录的镜像 SHA；不改变 Qdrant、Neo4j 或
+   PostgreSQL 基础设施运行时。
 2. 数据库 migration 不执行自动 down migration 或数据恢复。
 3. 所有 schema migration 必须兼容至少前一个应用版本，确保旧镜像能够在新 schema 上继续运行。
 4. 回退后重新检查全部服务；回退成功则将本次发布标记为失败并报告原因。
@@ -168,25 +171,23 @@ Workflow 必须在发布前记录当前运行镜像身份，不能依赖可变�
 
 ## Release Unit
 
-UAT 将一个 Git commit SHA 对应的五个业务组件与一个 digest 固定的 Qdrant 运行依赖作为
-不可拆分的完整发布单元：
+UAT 将一个 Git commit SHA 对应的五个业务组件作为不可拆分的完整发布单元：
 
 - Data Domain Service
 - Miniapp Application Backend Service
 - Admin Portal Application Backend Service
 - Admin Portal Frontend
 - AgentRun Backend Service
-- Qdrant `v1.15.5` SWR mirror
 
 每次手工发布均构建并部署五个相同 SHA 标签的业务镜像，即使该提交只修改其中一个组件；
-Qdrant 使用独立的版本与 digest 身份。发布成功、版本记录和失败回退均按整套执行，不允许
-把不同 Git SHA 的业务组件或未固定 digest 的 Qdrant 混合成一个 UAT 版本。
+发布成功、版本记录和失败回退均按整套执行，不允许把不同 Git SHA 的业务组件混合成一个
+UAT 版本。Qdrant 健康是发布前置依赖，但不属于该发布单元。
 
 ## Health Verification
 
 发布成功必须同时通过两层健康验证：
 
-1. 容器内部验证：Qdrant `6333` 可连接；Data、Miniapp、Admin Portal 均通过 `/healthz` 和 `/readyz`；AgentRun 通过 `/healthz`，其 `/readyz` 独立表示采集配置完整；Admin Portal Frontend 通过 `/healthz`。
+1. 内部依赖与容器验证：独立运维的 Qdrant `6333` 可连接；Data、Miniapp、Admin Portal 均通过 `/healthz` 和 `/readyz`；AgentRun 通过 `/healthz`，其 `/readyz` 独立表示采集配置完整；Admin Portal Frontend 通过 `/healthz`。Qdrant 检查只读，不改变其运行时。
 2. ECS 实际访问验证：Miniapp Backend `9012`、Admin Portal Backend `9013`、Admin Portal Frontend `9014` 均可访问，并验证 BFF 能够通过内部 `9011`/`9080` 调用 Data/AgentRun。
 
 健康检查使用有限次数和固定超时，不得无限重试。任一必要检查失败，整套发布失败并触发已确认的应用镜像回退流程。
@@ -245,7 +246,7 @@ ECS 使用专用 Linux 用户 `tidewise-deploy` 运行 GitHub Actions Runner 和
 
 ## Host Restart Recovery
 
-- 五个业务应用容器和 Qdrant 使用 `restart: unless-stopped`。
+- 五个业务应用容器使用 `restart: unless-stopped`；Qdrant 的重启策略由独立运维配置维护。
 - Docker Engine 和 GitHub Actions Runner systemd service 均设置开机自启。
 - Compose 文件、受限环境文件、当前成功 Git SHA 和上一可回退 Git SHA 保存在 `/opt/tidewise/uat`。
 - ECS 重启后只恢复上一次成功发布的容器，不重新运行 migration，也不触发新的 GitHub Actions 发布。
@@ -304,7 +305,7 @@ UAT 数据库连接强制启用 TLS：
 
 以下参数不改变已确认设计，但在实际接通 UAT 前必须提供并写入 GitHub `uat` Environment Variables/Secrets：
 
-- SWR 区域、组织、五个业务镜像仓库、一个 Qdrant mirror、一个 deployment bundle 仓库、推送凭据和 ECS
+- SWR 区域、组织、五个业务镜像仓库、一个 deployment bundle 仓库、推送凭据和 ECS
   只读拉取凭据。
 - Data 与 AgentRun 各自的 RDS 私网 database、最小权限用户和密码。
 - ECS 私网 IP、华为云安全组实际规则，以及 Miniapp/Admin Portal 开发联调来源。
