@@ -90,7 +90,7 @@ export default function AppSidebar({ currentPage, onNavigate }: AppSidebarProps)
     <Sidebar aria-label='管理后台侧边栏'>
       <SidebarHeader>
         <div className='flex min-w-0 items-center gap-3'>
-          <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg font-semibold text-sidebar-primary-foreground'>
+          <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg font-semibold text-sidebar-primary-foreground shadow-sm'>
             潮
           </span>
           {open ? (

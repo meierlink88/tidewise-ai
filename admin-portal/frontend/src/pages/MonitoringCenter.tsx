@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { Database, RefreshCw } from 'lucide-react';
 import {
   loadArtifactMonitoring,
   loadCollectorMonitoring,
@@ -76,6 +76,13 @@ export default function MonitoringCenter({ token }: { token: string }) {
     void summary.refetch();
     void list.refetch();
   };
+  const kindTotals = summary.data
+    ? {
+        collector: totalExecutions(summary.data.collector),
+        artifact: totalExecutions(summary.data.artifact_extraction),
+        semantic: totalExecutions(summary.data.semantic)
+      }
+    : undefined;
   return (
     <section className='grid h-full min-w-0 content-start gap-5 overflow-auto pb-6'>
       <div className='flex items-start justify-between gap-4 max-lg:flex-col'>
@@ -123,7 +130,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
         </div>
       ) : null}
       <Card className='overflow-hidden py-0'>
-        <div className='flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5'>
+        <div className='flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4'>
           <div>
             <h3 className='text-sm font-semibold'>执行明细</h3>
             <p className='mt-1 text-xs text-muted-foreground'>
@@ -153,14 +160,20 @@ export default function MonitoringCenter({ token }: { token: string }) {
           }}
           value={kind}
         >
-          <TabsList className='h-auto w-full justify-start rounded-none border-b bg-transparent px-4 py-0'>
+          <TabsList className='h-auto w-full justify-start rounded-none border-b border-border bg-transparent px-5 py-0'>
             {kinds.map((item) => (
               <TabsTrigger
-                className='rounded-none border-0 border-b-2 border-transparent px-4 py-3 shadow-none data-[state=active]:border-foreground data-[state=active]:shadow-none'
+                aria-label={item.label}
+                className='h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-4 py-3 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
                 key={item.id}
                 value={item.id}
               >
                 {item.label}
+                {kindTotals ? (
+                  <span className='rounded-full bg-muted px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none text-muted-foreground tabular-nums'>
+                    {kindTotals[item.id]}
+                  </span>
+                ) : null}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -177,7 +190,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
           )}
         </CardContent>
         {list.data && list.data.total_items > 0 ? (
-          <div className='border-t px-4 pb-4'>
+          <div className='border-t border-border px-4 pb-4'>
             <Pagination
               onPageChange={setPage}
               page={list.data.page}
@@ -245,34 +258,52 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
     }
   ];
   return (
-    <div className='grid grid-cols-3 gap-3.5 max-xl:grid-cols-1'>
+    <div className='grid grid-cols-3 gap-4 max-xl:grid-cols-1'>
       {cards.map((card, index) => (
-        <Card className='gap-0 overflow-hidden py-0' key={card.title}>
-          <div className='flex items-start gap-3 px-4 py-4'>
-            <span className='flex size-7 items-center justify-center rounded-md bg-muted text-[0.65rem] font-bold'>
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <div>
-              <h3 className='text-sm font-semibold'>{card.title}</h3>
-              <p className='mt-0.5 font-mono text-[0.65rem] text-muted-foreground'>
-                {card.subtitle}
-              </p>
+        <Card
+          className='gap-0 overflow-hidden py-0 transition-shadow duration-150 hover:shadow-md'
+          key={card.title}
+        >
+          <div className='flex items-start justify-between gap-3 px-4 py-4'>
+            <div className='flex min-w-0 items-start gap-3'>
+              <span className='flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[0.65rem] font-bold text-primary'>
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <div className='min-w-0'>
+                <h3 className='text-sm font-semibold'>{card.title}</h3>
+                <p className='mt-0.5 truncate text-[0.7rem] text-muted-foreground'>
+                  {card.subtitle}
+                </p>
+              </div>
             </div>
+            <span className='shrink-0 rounded-md border border-border bg-muted/65 px-2 py-1 text-[0.65rem] font-semibold text-muted-foreground tabular-nums'>
+              {totalExecutions(card.counts)} 次执行
+            </span>
           </div>
-          <div className='grid grid-cols-3 border-y'>
+          <div className='grid grid-cols-3 border-y border-border bg-muted/20'>
             {(['success', 'running', 'failure'] as const).map((key) => (
-              <div className='border-r px-4 py-3 last:border-r-0' key={key}>
+              <div className='border-r border-border px-4 py-3 last:border-r-0' key={key}>
                 <span className='text-xs text-muted-foreground'>
                   {key === 'success' ? '成功' : key === 'running' ? '执行中' : '失败'}
                 </span>
-                <strong className='mt-1 block text-xl tabular-nums'>{card.counts[key]}</strong>
+                <strong
+                  className={`mt-1 block text-xl tabular-nums ${
+                    key === 'success'
+                      ? 'text-success-foreground'
+                      : key === 'running'
+                        ? 'text-running-foreground'
+                        : 'text-destructive-foreground'
+                  }`}
+                >
+                  {card.counts[key]}
+                </strong>
               </div>
             ))}
           </div>
-          <div className='grid gap-2 px-4 py-4 text-xs'>
+          <div className='grid gap-2.5 px-4 py-4 text-xs'>
             <div className='flex justify-between'>
               <span className='font-medium text-foreground'>成功执行的业务结果</span>
-              <strong>
+              <strong className='tabular-nums'>
                 {card.primaryLabel} {card.primary}
               </strong>
             </div>
@@ -284,8 +315,9 @@ function SummaryCards({ summary }: { summary: MonitoringSummary }) {
               <span className='text-muted-foreground'>{card.secondLabel}</span>
               <strong>{card.second}</strong>
             </div>
-            <p className='m-0 border-t pt-2 font-mono text-[0.65rem] text-muted-foreground'>
-              数据来源：{card.source}
+            <p className='m-0 flex items-center gap-1.5 border-t border-dashed border-border pt-2.5 text-[0.68rem] text-muted-foreground'>
+              <Database aria-hidden='true' className='size-3' />
+              <span>数据来源：{card.source}</span>
             </p>
           </div>
         </Card>
@@ -308,6 +340,17 @@ function StateCell({ state, raw }: { state: string; raw: string }) {
       </StatusBadge>
       <span className='font-mono text-[0.68rem] text-muted-foreground'>{raw}</span>
     </div>
+  );
+}
+
+function Identifier({ value }: { value: string }) {
+  return (
+    <span
+      className='block max-w-56 truncate font-mono text-xs text-foreground'
+      title={value}
+    >
+      {value}
+    </span>
   );
 }
 function MonitoringTable({ kind, items }: { kind: MonitoringKind; items: MonitoringItem[] }) {
@@ -335,7 +378,9 @@ function CollectorTable({ items }: { items: CollectorMonitoringItem[] }) {
       <TableBody>
         {items.map((item) => (
           <TableRow key={item.execution_id}>
-            <TableCell className='font-mono text-xs'>{item.execution_id}</TableCell>
+            <TableCell>
+              <Identifier value={item.execution_id} />
+            </TableCell>
             <TableCell>
               <StateCell raw={item.raw_status} state={item.state} />
             </TableCell>
@@ -346,7 +391,9 @@ function CollectorTable({ items }: { items: CollectorMonitoringItem[] }) {
             <TableCell>{item.raw_results}</TableCell>
             <TableCell>{item.merged_results}</TableCell>
             <TableCell>{item.accepted_artifacts}</TableCell>
-            <TableCell className='font-mono text-xs'>{item.error_code || '—'}</TableCell>
+            <TableCell>
+              <Identifier value={item.error_code || '—'} />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -372,10 +419,14 @@ function ArtifactTable({ items }: { items: ArtifactMonitoringItem[] }) {
       <TableBody>
         {items.map((item) => (
           <TableRow key={item.extraction_key}>
-            <TableCell className='font-mono text-xs'>{short(item.extraction_key)}</TableCell>
-            <TableCell>{item.artifact_id}</TableCell>
-            <TableCell className='font-mono text-xs'>
-              {short(item.collector_execution_id)}
+            <TableCell>
+              <Identifier value={item.extraction_key} />
+            </TableCell>
+            <TableCell>
+              <Identifier value={item.artifact_id} />
+            </TableCell>
+            <TableCell>
+              <Identifier value={item.collector_execution_id} />
             </TableCell>
             <TableCell>
               <StateCell raw={item.raw_status} state={item.state} />
@@ -386,7 +437,9 @@ function ArtifactTable({ items }: { items: ArtifactMonitoringItem[] }) {
             <TableCell>
               {item.acknowledged_journals} / {item.total_journals}
             </TableCell>
-            <TableCell className='font-mono text-xs'>{item.error_code || '—'}</TableCell>
+            <TableCell>
+              <Identifier value={item.error_code || '—'} />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -413,8 +466,12 @@ function SemanticTable({ items }: { items: SemanticMonitoringItem[] }) {
       <TableBody>
         {items.map((item) => (
           <TableRow key={item.work_item_id}>
-            <TableCell className='font-mono text-xs'>{short(item.work_item_id)}</TableCell>
-            <TableCell className='font-mono text-xs'>{short(item.event_id)}</TableCell>
+            <TableCell>
+              <Identifier value={item.work_item_id} />
+            </TableCell>
+            <TableCell>
+              <Identifier value={item.event_id} />
+            </TableCell>
             <TableCell>{item.trigger_source}</TableCell>
             <TableCell>
               <StateCell raw={item.raw_status} state={item.state} />
@@ -426,7 +483,9 @@ function SemanticTable({ items }: { items: SemanticMonitoringItem[] }) {
             </TableCell>
             <TableCell>{item.accepted_candidates}</TableCell>
             <TableCell>{item.rejected_candidates}</TableCell>
-            <TableCell className='font-mono text-xs'>{item.error_code || '—'}</TableCell>
+            <TableCell>
+              <Identifier value={item.error_code || '—'} />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -438,8 +497,8 @@ function formatTime(value?: string) {
     ? new Date(value).toLocaleString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' })
     : '—';
 }
-function short(value: string) {
-  return value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
+function totalExecutions(counts: { success: number; running: number; failure: number }) {
+  return counts.success + counts.running + counts.failure;
 }
 
 function formatDuration(durationMs?: number): string {
