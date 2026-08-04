@@ -4,19 +4,11 @@ import path from 'node:path';
 const buildTarget = process.env.TARO_ENV ?? 'weapp';
 const researchSource = process.env.TARO_APP_RESEARCH_SOURCE;
 const miniappApiBaseUrl = process.env.TARO_APP_MINIAPP_API_BASE_URL ?? '';
-const researchWindowHours = process.env.TARO_APP_RESEARCH_WINDOW_HOURS ?? '24';
 const h5ApiProxyTarget = process.env.TARO_APP_H5_API_PROXY_TARGET ?? 'http://127.0.0.1:9012';
 const fixedPixelSelectorBlackList = ['reasoning-'];
 
 if (researchSource !== 'mock' && researchSource !== 'api') {
   throw new Error('TARO_APP_RESEARCH_SOURCE must explicitly be mock or api');
-}
-if (
-  !/^\d+$/.test(researchWindowHours) ||
-  Number(researchWindowHours) < 1 ||
-  Number(researchWindowHours) > 168
-) {
-  throw new Error('TARO_APP_RESEARCH_WINDOW_HOURS must be an integer between 1 and 168');
 }
 
 const config = defineConfig({
@@ -35,8 +27,7 @@ const config = defineConfig({
   },
   env: {
     TARO_APP_RESEARCH_SOURCE: JSON.stringify(researchSource),
-    TARO_APP_MINIAPP_API_BASE_URL: JSON.stringify(miniappApiBaseUrl),
-    TARO_APP_RESEARCH_WINDOW_HOURS: JSON.stringify(researchWindowHours)
+    TARO_APP_MINIAPP_API_BASE_URL: JSON.stringify(miniappApiBaseUrl)
   },
   plugins: [
     '@tarojs/plugin-platform-weapp',

@@ -57,14 +57,10 @@ type ThemeDetailRecord struct {
 }
 
 type ThemeListFilter struct {
-	WindowStart, AsOf time.Time
-	Limit             int
-	CursorPublishedAt *time.Time
-	CursorID          string
-}
-
-type DetailFilter struct {
-	WindowStart, AsOf time.Time
+	WindowStart, WindowEnd, AsOf time.Time
+	Limit                        int
+	CursorPublishedAt            *time.Time
+	CursorID                     string
 }
 
 type ThemeStorePage struct {
@@ -136,7 +132,7 @@ type ReasoningTreeDetailRecord struct {
 
 type Repository interface {
 	ListResearchThemes(context.Context, ThemeListFilter) (ThemeStorePage, error)
-	GetResearchTheme(context.Context, string, DetailFilter) (ThemeDetailRecord, error)
+	GetResearchTheme(context.Context, string) (ThemeDetailRecord, error)
 	ListResearchThemeReasoningTrees(context.Context, string) (ReasoningTreeListRecord, error)
 	GetResearchThemeReasoningTree(context.Context, string, string) (ReasoningTreeDetailRecord, error)
 }

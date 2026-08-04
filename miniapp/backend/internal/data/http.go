@@ -117,9 +117,9 @@ func (c *HTTPClient) ListResearchThemes(ctx context.Context, query biz.ResearchL
 	return value.toBiz(), nil
 }
 
-func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query biz.ResearchDetailQuery) (biz.ResearchThemeDetail, error) {
+func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string) (biz.ResearchThemeDetail, error) {
 	var envelope responseEnvelope[wireResearchThemeDetail]
-	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id, query), nil, &envelope)
+	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
 		return biz.ResearchThemeDetail{}, mapThemeDataError(err)
@@ -168,6 +168,12 @@ func researchListPath(path string, query biz.ResearchListQuery) string {
 	if query.WindowHours != 0 {
 		values.Set("window_hours", strconv.Itoa(query.WindowHours))
 	}
+	if query.PublishedFrom != nil {
+		values.Set("published_from", query.PublishedFrom.UTC().Format(time.RFC3339Nano))
+	}
+	if query.PublishedTo != nil {
+		values.Set("published_to", query.PublishedTo.UTC().Format(time.RFC3339Nano))
+	}
 	if query.Limit != 0 {
 		values.Set("limit", strconv.Itoa(query.Limit))
 	}
@@ -177,12 +183,8 @@ func researchListPath(path string, query biz.ResearchListQuery) string {
 	return appendQuery(path, values)
 }
 
-func researchDetailPath(path string, id string, query biz.ResearchDetailQuery) string {
-	values := url.Values{}
-	if query.WindowHours != 0 {
-		values.Set("window_hours", strconv.Itoa(query.WindowHours))
-	}
-	return appendQuery(path+"/"+url.PathEscape(id), values)
+func researchDetailPath(path string, id string) string {
+	return path + "/" + url.PathEscape(id)
 }
 
 func researchReasoningTreeListPath(themeID string) string {

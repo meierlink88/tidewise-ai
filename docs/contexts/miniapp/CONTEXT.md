@@ -40,8 +40,9 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 ## Product Language
 
 - **研究主题（Research Theme）**：Data Context 拥有的研究结果事实，是 Miniapp 首页主线内容的数据来源。
-- **推理主线**：研究主题在 Miniapp 面向用户展示时使用的产品名称，不是另一种数据实体。
-- **主题卡片**：首页列表中呈现一条推理主线的界面单元，不拥有独立于研究主题的业务事实。
+- **今日主题**：上海时区当日 `00:00` 至次日 `00:00` 的已发布研究主题。
+- **历史主题**：今日之前 30 个完整上海自然日的已发布研究主题，不包含今日。
+- **主题卡片**：主题列表中呈现一条研究主题的界面单元，不拥有独立业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
 - **主题影响（Theme Impact）**：Theme 的有序关注对象集合，节点之间没有主次。V2 formal
   数据可用正式 Chain Node ID；V3 `analyst_snapshot` 使用 aggregate-local `node_key` 与
@@ -56,6 +57,14 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 
 ## Theme Homepage
 
+- 首页标题固定为“今日主题”；列表由 Miniapp BFF 以 `period=today` 查询，时间边界由
+  BFF 时钟统一计算并以 UTC 半开区间传给 Data API。
+- 右上角日历历史图标使用 `Taro.navigateTo` 打开非 Tab 历史页
+  `pages/research-theme/history/index`；历史页提供返回今日主题的明确图标操作。
+- 历史页以 `period=history&limit=5` 首次读取，触底时使用不透明 cursor 追加下一页；
+  cursor 冻结 period 和发布区间，页面展示加载中、续页失败可重试和全部加载完成状态。
+- 今日与历史页复用同一列表会话和呈现组件；搜索仅过滤已加载主题。按 theme_id
+  读取详情不受列表时间窗口限制。
 - 首页不展示没有真实用户数据合同的分类栏或“跟踪中”数量；Theme 搜索继续只在当前
   feed 内生效。
 - 首页使用 Taro 页面级原生下拉刷新重新读取 Theme feed；刷新失败时保留最近一次成功

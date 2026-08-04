@@ -17,6 +17,7 @@ type ResearchHTTPServer interface {
 	GetResearchThemeReasoningTree(context.Context, *GetResearchThemeReasoningTreeRequest) (*ResearchReasoningTreeDetailResponse, error)
 }
 type ListResearchThemesRequest struct {
+	Period             string
 	WindowHours, Limit int
 	Cursor             string
 }

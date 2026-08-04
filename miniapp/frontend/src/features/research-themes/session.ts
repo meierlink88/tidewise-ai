@@ -3,7 +3,8 @@ import {
   type HomeResearchThemeFeed,
   type ResearchThemeDetail,
   type ResearchThemeDetailErrorKind,
-  type ResearchThemeHomepagePort
+  type ResearchThemeHomepagePort,
+  type ResearchThemePeriod
 } from './contract';
 
 export type ResearchThemeFeedState =
@@ -19,6 +20,7 @@ export type ResearchThemeDetailState =
 
 export interface ResearchThemeHomeSessionState {
   feed: ResearchThemeFeedState;
+  pagination: 'idle' | 'loading' | 'error' | 'exhausted';
   selectedThemeId: string | null;
   detailsByThemeId: Record<string, ResearchThemeDetailState>;
 }
@@ -28,16 +30,28 @@ type Listener = (state: ResearchThemeHomeSessionState) => void;
 export class ResearchThemeHomeSession {
   private state: ResearchThemeHomeSessionState = {
     feed: { status: 'idle' },
+    pagination: 'idle',
     selectedThemeId: null,
     detailsByThemeId: {}
   };
   private readonly listeners = new Set<Listener>();
   private disposed = false;
   private refreshInFlight = false;
+  private loadMoreInFlight = false;
+  private feedGeneration = 0;
   private detailGeneration = 0;
   private readonly detailRequests = new Set<string>();
 
-  constructor(private readonly port: ResearchThemeHomepagePort) {}
+  private readonly period: ResearchThemePeriod;
+  private readonly pageSize: number;
+
+  constructor(
+    private readonly port: ResearchThemeHomepagePort,
+    options: { period?: ResearchThemePeriod; pageSize?: number } = {}
+  ) {
+    this.period = options.period ?? 'today';
+    this.pageSize = options.pageSize ?? (this.period === 'history' ? 5 : 20);
+  }
 
   getState(): ResearchThemeHomeSessionState {
     return this.state;
@@ -53,9 +67,13 @@ export class ResearchThemeHomeSession {
     if (this.state.feed.status !== 'idle') return;
     this.update({ ...this.state, feed: { status: 'loading' } });
     try {
-      const value = await this.port.list();
+      const value = await this.port.list({ period: this.period, limit: this.pageSize });
       if (this.disposed) return;
-      this.update({ ...this.state, feed: { status: 'ready', value } });
+      this.update({
+        ...this.state,
+        feed: { status: 'ready', value },
+        pagination: value.nextCursor === null ? 'exhausted' : 'idle'
+      });
     } catch {
       if (this.disposed) return;
       this.update({ ...this.state, feed: { status: 'error' } });
@@ -66,9 +84,13 @@ export class ResearchThemeHomeSession {
     if (this.disposed || this.state.feed.status !== 'error') return;
     this.update({ ...this.state, feed: { status: 'loading' } });
     try {
-      const value = await this.port.list();
+      const value = await this.port.list({ period: this.period, limit: this.pageSize });
       if (this.disposed) return;
-      this.update({ ...this.state, feed: { status: 'ready', value } });
+      this.update({
+        ...this.state,
+        feed: { status: 'ready', value },
+        pagination: value.nextCursor === null ? 'exhausted' : 'idle'
+      });
     } catch {
       if (this.disposed) return;
       this.update({ ...this.state, feed: { status: 'error' } });
@@ -81,28 +103,67 @@ export class ResearchThemeHomeSession {
     }
     this.refreshInFlight = true;
     try {
-      const value = await this.port.list();
+      const value = await this.port.list({ period: this.period, limit: this.pageSize });
       if (this.disposed) return 'ignored';
-      const selectedThemeId =
-        this.state.selectedThemeId !== null &&
-        value.items.some(
-          (theme) => theme.id === this.state.selectedThemeId && theme.evidenceEventCount > 0
-        )
-          ? this.state.selectedThemeId
-          : null;
+      this.feedGeneration += 1;
       this.detailGeneration += 1;
       this.update({
         ...this.state,
         feed: { status: 'ready', value },
-        selectedThemeId,
+        pagination: value.nextCursor === null ? 'exhausted' : 'idle',
+        selectedThemeId: null,
         detailsByThemeId: {}
       });
-      if (selectedThemeId !== null) void this.ensureDetail(selectedThemeId);
       return 'updated';
     } catch {
       return this.disposed ? 'ignored' : 'failed';
     } finally {
       this.refreshInFlight = false;
+    }
+  }
+
+  async loadMore(): Promise<'updated' | 'failed' | 'ignored' | 'exhausted'> {
+    if (
+      this.disposed ||
+      this.state.feed.status !== 'ready' ||
+      this.loadMoreInFlight ||
+      this.state.pagination === 'exhausted'
+    ) {
+      return this.state.pagination === 'exhausted' ? 'exhausted' : 'ignored';
+    }
+    const cursor = this.state.feed.value.nextCursor;
+    if (cursor === null) {
+      this.update({ ...this.state, pagination: 'exhausted' });
+      return 'exhausted';
+    }
+    this.loadMoreInFlight = true;
+    const generation = this.feedGeneration;
+    this.update({ ...this.state, pagination: 'loading' });
+    try {
+      const page = await this.port.list({
+        period: this.period,
+        limit: this.pageSize,
+        cursor
+      });
+      if (this.disposed || generation !== this.feedGeneration || this.state.feed.status !== 'ready')
+        return 'ignored';
+      const existingIds = new Set(this.state.feed.value.items.map((item) => item.id));
+      const items = [
+        ...this.state.feed.value.items,
+        ...page.items.filter((item) => !existingIds.has(item.id))
+      ];
+      this.update({
+        ...this.state,
+        feed: { status: 'ready', value: { ...page, items } },
+        pagination: page.nextCursor === null ? 'exhausted' : 'idle'
+      });
+      return 'updated';
+    } catch {
+      if (this.disposed || generation !== this.feedGeneration) return 'ignored';
+      this.update({ ...this.state, pagination: 'error' });
+      return 'failed';
+    } finally {
+      this.loadMoreInFlight = false;
     }
   }
 

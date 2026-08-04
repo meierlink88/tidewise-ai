@@ -19,7 +19,7 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 		response    string
 		parameters  []string
 	}{
-		{ResearchThemesPath, "listResearchThemes", "ResearchThemeListEnvelope", []string{"Cursor", "Limit", "RequestID", "WindowHours"}},
+		{ResearchThemesPath, "listResearchThemes", "ResearchThemeListEnvelope", []string{"Cursor", "Limit", "PublishedFrom", "PublishedTo", "RequestID", "WindowHours"}},
 		{ResearchThemesPath + "/{theme_id}", "getResearchTheme", "ResearchThemeDetailEnvelope", []string{"RequestID", "WindowHours"}},
 		{ResearchThemesPath + "/{theme_id}/reasoning-trees", "listResearchThemeReasoningTrees", "ResearchReasoningTreeListEnvelope", []string{"RequestID"}},
 		{ResearchThemesPath + "/{theme_id}/reasoning-trees/{reasoning_tree_id}", "getResearchThemeReasoningTree", "ResearchReasoningTreeDetailEnvelope", []string{"RequestID"}},

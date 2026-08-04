@@ -107,7 +107,7 @@ func TestResearchRoutesPreserve400404And500WithoutUpstreamLeak(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
-			client := &usecase.Fake{GetResearchThemeFunc: func(context.Context, string, usecase.ResearchDetailQuery) (usecase.ResearchThemeDetail, error) {
+			client := &usecase.Fake{GetResearchThemeFunc: func(context.Context, string) (usecase.ResearchThemeDetail, error) {
 				calls++
 				return usecase.ResearchThemeDetail{}, test.upstream
 			}}

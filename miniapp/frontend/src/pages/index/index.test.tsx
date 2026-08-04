@@ -9,7 +9,12 @@ import {
   ResearchThemeHomeSession,
   type ResearchThemeHomeSessionState
 } from '../../features/research-themes/session';
-import { IndexView, refreshHomeFeed } from './index';
+import {
+  IndexView,
+  loadMoreAtPageBottom,
+  navigateThemePeriod,
+  refreshHomeFeed
+} from './theme-list-page';
 
 vi.mock('@tarojs/taro', () => ({
   default: {
@@ -19,7 +24,8 @@ vi.mock('@tarojs/taro', () => ({
     showToast: vi.fn(),
     stopPullDownRefresh: vi.fn()
   },
-  usePullDownRefresh: vi.fn()
+  usePullDownRefresh: vi.fn(),
+  useReachBottom: vi.fn()
 }));
 
 vi.mock('@tarojs/components', () => ({
@@ -32,9 +38,25 @@ vi.mock('@tarojs/components', () => ({
 }));
 
 describe('Theme homepage', () => {
+  it('wires today/history navigation and history-only bottom loading', () => {
+    const api = { navigateTo: vi.fn(), navigateBack: vi.fn() };
+    const session = { loadMore: vi.fn().mockResolvedValue('updated') };
+
+    navigateThemePeriod('today', api);
+    navigateThemePeriod('history', api);
+    loadMoreAtPageBottom('today', session as Pick<ResearchThemeHomeSession, 'loadMore'>);
+    loadMoreAtPageBottom('history', session as Pick<ResearchThemeHomeSession, 'loadMore'>);
+
+    expect(api.navigateTo).toHaveBeenCalledWith({
+      url: '/pages/research-theme/history/index'
+    });
+    expect(api.navigateBack).toHaveBeenCalledOnce();
+    expect(session.loadMore).toHaveBeenCalledOnce();
+  });
   it('renders the Theme feed without the removed static category and tracking bar', () => {
     const state: ResearchThemeHomeSessionState = {
       feed: { status: 'ready', value: mockResearchThemeFeed },
+      pagination: 'exhausted',
       selectedThemeId: null,
       detailsByThemeId: {}
     };
@@ -52,8 +74,11 @@ describe('Theme homepage', () => {
 
     expect(findAllByClass(page, 'category-bar')).toEqual([]);
     expect(textContent(page)).not.toContain('跟踪中');
-    expect(textContent(page)).toContain('今日推理主线');
+    expect(textContent(page)).toContain('今日主题');
     expect(textContent(page)).toContain(mockResearchThemeFeed.items[0].oneLineConclusion);
+    const periodAction = findByClass(page, 'home-history-button');
+    expect(periodAction.props.ariaLabel).toBe('查看历史主题');
+    expect(textContent(periodAction)).toBe('');
   });
 
   it('preserves the last feed and always stops native refresh when refresh fails', async () => {
@@ -77,6 +102,43 @@ describe('Theme homepage', () => {
       duration: 1600
     });
     expect(api.stopPullDownRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('includes newly appended history items in the active search', async () => {
+    const appendedTheme = {
+      ...mockResearchThemeFeed.items[0],
+      id: 'bbbbbbbb-1111-4111-8111-111111111111',
+      title: '历史独有主题'
+    };
+    const port: ResearchThemeHomepagePort = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({ ...mockResearchThemeFeed, nextCursor: 'next-page' })
+        .mockResolvedValueOnce({
+          ...mockResearchThemeFeed,
+          items: [appendedTheme],
+          nextCursor: null
+        }),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+    await session.loadMore();
+
+    const page = IndexView({
+      state: session.getState(),
+      period: 'history',
+      query: '历史独有',
+      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
+      onQueryChange: vi.fn(),
+      onRetryFeed: vi.fn(),
+      onOpenEvents: vi.fn(),
+      onCloseEvents: vi.fn(),
+      onRetryEvents: vi.fn()
+    });
+
+    expect(textContent(page)).toContain('历史独有主题');
+    expect(textContent(page)).not.toContain(mockResearchThemeFeed.items[0].title);
   });
 
   it('opens the event timeline through the page interaction and closes it independently', async () => {
@@ -118,7 +180,12 @@ describe('Theme homepage', () => {
   it('exposes a visible retry action for an initial feed error', () => {
     const onRetryFeed = vi.fn();
     const page = IndexView({
-      state: { feed: { status: 'error' }, selectedThemeId: null, detailsByThemeId: {} },
+      state: {
+        feed: { status: 'error' },
+        pagination: 'idle',
+        selectedThemeId: null,
+        detailsByThemeId: {}
+      },
       query: '',
       chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
       onQueryChange: vi.fn(),
@@ -130,9 +197,38 @@ describe('Theme homepage', () => {
 
     findByClass(page, 'home-state__retry').props.onClick?.(tapEvent());
 
-    expect(textContent(page)).toContain('主线数据暂时不可用');
+    expect(textContent(page)).toContain('主题数据暂时不可用');
     expect(textContent(page)).toContain('重新加载');
     expect(onRetryFeed).toHaveBeenCalledOnce();
+  });
+
+  it('labels the history action and provides an explicit return-to-today action', () => {
+    const onPeriodAction = vi.fn();
+    const page = IndexView({
+      state: {
+        feed: { status: 'ready', value: mockResearchThemeFeed },
+        pagination: 'exhausted',
+        selectedThemeId: null,
+        detailsByThemeId: {}
+      },
+      period: 'history',
+      query: '',
+      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
+      onQueryChange: vi.fn(),
+      onRetryFeed: vi.fn(),
+      onOpenEvents: vi.fn(),
+      onCloseEvents: vi.fn(),
+      onRetryEvents: vi.fn(),
+      onPeriodAction
+    });
+
+    const action = findByClass(page, 'home-history-button');
+    action.props.onClick?.(tapEvent());
+
+    expect(textContent(page)).toContain('历史主题');
+    expect(action.props.ariaLabel).toBe('返回今日主题');
+    expect(textContent(action)).toBe('');
+    expect(onPeriodAction).toHaveBeenCalledOnce();
   });
 });
 
@@ -140,6 +236,7 @@ interface TestElementProps {
   className?: string;
   children?: ReactNode;
   catchMove?: boolean;
+  ariaLabel?: string;
   onClick?: (event: ReturnType<typeof tapEvent>) => void;
 }
 

@@ -196,9 +196,11 @@ func readImportPayload(ctx kratoshttp.Context) ([]byte, error) {
 func listResearchThemesHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &ListResearchThemesRequest{
-			WindowHours: ctx.Query().Get("window_hours"),
-			Limit:       ctx.Query().Get("limit"),
-			Cursor:      ctx.Query().Get("cursor"),
+			WindowHours:   ctx.Query().Get("window_hours"),
+			PublishedFrom: ctx.Query().Get("published_from"),
+			PublishedTo:   ctx.Query().Get("published_to"),
+			Limit:         ctx.Query().Get("limit"),
+			Cursor:        ctx.Query().Get("cursor"),
 		}
 		return call(ctx, OperationListResearchThemes, request, func(callContext context.Context) (*Response[ResearchThemePage], error) {
 			return application.ListResearchThemes(callContext, request)

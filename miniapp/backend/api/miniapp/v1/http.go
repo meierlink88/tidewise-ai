@@ -19,6 +19,7 @@ func RegisterResearchHTTPServer(server *kratoshttp.Server, service ResearchHTTPS
 func listResearchThemesHandler(service ResearchHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &ListResearchThemesRequest{
+			Period:      ctx.Query().Get("period"),
 			WindowHours: parseIntQuery(ctx, "window_hours"),
 			Limit:       parseIntQuery(ctx, "limit"),
 			Cursor:      ctx.Query().Get("cursor"),

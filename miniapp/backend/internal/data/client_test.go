@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,12 +64,28 @@ func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	result, err := client.GetResearchTheme(context.Background(), "theme/id", biz.ResearchDetailQuery{WindowHours: 48})
+	result, err := client.GetResearchTheme(context.Background(), "theme/id")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != ResearchThemesPath+"/theme%2Fid" || gotQuery != "window_hours=48" || gotRequestID == "" || result.Theme.Title != "detail" {
+	if gotPath != ResearchThemesPath+"/theme%2Fid" || gotQuery != "" || gotRequestID == "" || result.Theme.Title != "detail" {
 		t.Fatalf("path/query/request ID/result = %q/%q/%q/%#v", gotPath, gotQuery, gotRequestID, result)
+	}
+}
+
+func TestResearchListPathForwardsExplicitPublicationRange(t *testing.T) {
+	publishedFrom := time.Date(2026, 7, 4, 16, 0, 0, 0, time.UTC)
+	publishedTo := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
+	path := researchListPath(ResearchThemesPath, biz.ResearchListQuery{
+		PublishedFrom: &publishedFrom, PublishedTo: &publishedTo, Limit: 5, Cursor: "data-cursor",
+	})
+	parsed, err := url.Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := parsed.Query()
+	if query.Get("published_from") != "2026-07-04T16:00:00Z" || query.Get("published_to") != "2026-08-03T16:00:00Z" || query.Get("limit") != "5" || query.Get("cursor") != "data-cursor" || query.Has("window_hours") {
+		t.Fatalf("query = %q", parsed.RawQuery)
 	}
 }
 

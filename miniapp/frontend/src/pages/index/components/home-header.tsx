@@ -1,28 +1,41 @@
 import Taro from '@tarojs/taro';
 import { Button, Image, Input, View } from '@tarojs/components';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
+import type { ResearchThemePeriod } from '../../../features/research-themes/contract';
 import avatarImage from '../../../assets/nav-avatar.png';
-import historyIcon from '../../../assets/icons/history.svg';
+import themeHistoryIcon from '../../../assets/icons/theme-history.svg';
+import todayThemeIcon from '../../../assets/icons/today-theme.svg';
 import searchIcon from '../../../assets/icons/search.svg';
 import sendIcon from '../../../assets/icons/send.svg';
 
 interface HomeHeaderProps {
   chrome: HomeChromeMetrics;
   query: string;
+  period: ResearchThemePeriod;
   onQueryChange: (query: string) => void;
+  onPeriodAction: () => void;
 }
 
 function showUnavailable(title: string) {
   void Taro.showToast({ title, icon: 'none', duration: 1600 });
 }
 
-export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
+export function HomeHeader({
+  chrome,
+  query,
+  period,
+  onQueryChange,
+  onPeriodAction
+}: HomeHeaderProps) {
   return (
     <View className='home-hero'>
       <View style={{ height: `${chrome.statusBarHeight}px` }} />
       <View
         className='home-nav'
-        style={{ height: `${chrome.navigationBarHeight}px`, paddingRight: `${chrome.rightReservedWidth}px` }}
+        style={{
+          height: `${chrome.navigationBarHeight}px`,
+          paddingRight: `${chrome.rightReservedWidth}px`
+        }}
       >
         <Button
           className='tidewise-button home-nav__avatar-button'
@@ -57,9 +70,14 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
         <Button
           className='tidewise-button home-history-button'
           hoverClass='none'
-          onClick={() => showUnavailable('历史记录即将开放')}
+          ariaLabel={period === 'today' ? '查看历史主题' : '返回今日主题'}
+          onClick={onPeriodAction}
         >
-          <Image className='home-history-button__icon' src={historyIcon} mode='scaleToFill' />
+          <Image
+            className='home-history-button__icon'
+            src={period === 'today' ? themeHistoryIcon : todayThemeIcon}
+            mode='scaleToFill'
+          />
         </Button>
       </View>
     </View>

@@ -182,6 +182,22 @@
   width: 100%;
 }
 
+.home-pagination-state {
+  display: flex;
+  min-height: 88rpx;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-muted;
+  font-size: 24rpx;
+}
+
+.home-pagination-state__retry {
+  padding: 0 24rpx;
+  color: $color-navy-900;
+  font-size: 24rpx;
+  line-height: 64rpx;
+}
+
 .theme-card {
   margin-bottom: 24rpx;
 }
