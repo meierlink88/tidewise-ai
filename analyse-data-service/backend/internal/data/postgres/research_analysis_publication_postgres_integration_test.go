@@ -25,7 +25,7 @@ func TestResearchAnalysisContextAndAtomicPublicationPostgres(t *testing.T) {
 	seedResearchV1MasterData(t, db)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	now := time.Now().UTC().Add(time.Second).Truncate(time.Second)
+	now := time.Now().UTC().Add(time.Minute).Truncate(time.Second)
 	seedTypedResearchSemanticFact(t, ctx, db, now)
 	seedTypedForwardSemanticFact(t, ctx, db, now)
 	if _, err := db.ExecContext(ctx, `
