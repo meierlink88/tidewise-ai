@@ -30,7 +30,13 @@ const tabItems: { id: ActiveTab; label: string }[] = [
   { id: 'collector', label: '采集器配置' }
 ];
 
-export default function DataIngestionCenter({ token }: { token: string }) {
+export default function DataIngestionCenter({
+  token,
+  onOpenMonitoring
+}: {
+  token: string;
+  onOpenMonitoring?: () => void;
+}) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('raw');
   const [rawTitle, setRawTitle] = useState('');
   const [rawQuery, setRawQuery] = useState<RawDocumentQuery>({ page: 1, title: '' });
@@ -347,7 +353,12 @@ export default function DataIngestionCenter({ token }: { token: string }) {
         </TabsContent>
 
         <TabsContent aria-label='采集器配置' value='collector'>
-          {activeTab === 'collector' ? <CollectorConfiguration token={token} /> : null}
+          {activeTab === 'collector' ? (
+            <CollectorConfiguration
+              onOpenMonitoring={onOpenMonitoring ?? (() => undefined)}
+              token={token}
+            />
+          ) : null}
         </TabsContent>
       </div>
     </Tabs>

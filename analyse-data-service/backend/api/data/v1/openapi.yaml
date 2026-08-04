@@ -364,6 +364,35 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/data/v1/runtime-health:
+    get:
+      tags: [Operations]
+      operationId: getDataRuntimeHealth
+      x-client-drift-anchor: data.v1.getRuntimeHealth
+      x-required-service-scope: data.admin.read
+      x-retry-policy: none
+      x-timeout-budget-ms: 1500
+      summary: 获取 Data Service 与 Neo4j 的安全运行状态
+      description: 仅返回状态、检查时间、可选延迟和安全原因码；不返回凭据、地址、查询或图数据。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Data Provider 运行状态
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeHealthEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/data/v1/event-semantics/eligible-events:
     get:
       tags: [Event Semantics]
@@ -1943,6 +1972,60 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/AdminEventPage'
+
+    RuntimeHealthStatus:
+      type: string
+      enum: [ready, degraded, down, unknown]
+    RuntimeHealthReasonCode:
+      type: string
+      enum: [timeout, unreachable, not_ready, authentication_failed]
+    RuntimeHealthService:
+      type: object
+      additionalProperties: false
+      required: [key, display_name, status, checked_at]
+      properties:
+        key:
+          type: string
+          enum: [data, neo4j]
+        display_name:
+          type: string
+          enum: [Data Service, Neo4j]
+        status:
+          $ref: '#/components/schemas/RuntimeHealthStatus'
+        checked_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        latency_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        reason_code:
+          allOf:
+            - $ref: '#/components/schemas/RuntimeHealthReasonCode'
+          nullable: true
+    RuntimeHealth:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.RuntimeHealth
+      required: [checked_at, services]
+      properties:
+        checked_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        services:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/RuntimeHealthService'
+    RuntimeHealthEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/RuntimeHealth'
 
     EventPublicationRequest:
       type: object

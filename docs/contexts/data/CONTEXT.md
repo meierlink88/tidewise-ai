@@ -12,6 +12,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - PostgreSQL schema、migration、repository 和 Neo4j 可重建投影。
 - AgentRun 使用的 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
+- Data Service 与其 Neo4j 投影存储的只读运行健康投影；Neo4j 探测使用独立、最小权限凭据。
 
 ## Does Not Own
 
@@ -32,6 +33,12 @@ Tidewise 中遗留的 Source Catalog、采集调度与采集运行控制面通�
 Data 的 AgentRun Source Metadata、Admin Source Catalog 查询，以及 Admin Portal 对应代理接口、Client、Repository、Seed 和专属测试一并移除，不保留静态兼容路由；AgentRun 仅使用自身 Source Catalog。
 
 ## Language
+
+**Data Runtime Health Projection**:
+Data Service 对自身既有 readiness 语义和 Neo4j 投影存储连接性的只读即时状态。
+Neo4j 探针使用独立最小权限身份，只对配置的 database 执行无业务数据的 `RETURN 1`，
+不读取节点、关系、投影数量或新鲜度，也不改变既有 `/readyz` 合同。
+_Avoid_: 复用投影写入身份、读取业务图谱、把健康检查结果持久化或用于自动修复
 
 **产业链（Industry Chain）**:
 围绕明确目标产出与终端用途，由多个独立经济节点通过投入、组成、技术支撑或依赖形成的有边界、有方向研究子图。

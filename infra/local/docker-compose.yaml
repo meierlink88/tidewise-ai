@@ -78,8 +78,13 @@ services:
       TIDEWISE_CONFIG_DIR: /app/configs/compose
       TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+      DATA_NEO4J_HEALTH_URI: bolt://neo4j:7687
+      DATA_NEO4J_HEALTH_USERNAME: '${DATA_NEO4J_HEALTH_USERNAME:?set DATA_NEO4J_HEALTH_USERNAME in infra/local/.env.local}'
+      DATA_NEO4J_HEALTH_PASSWORD: '${DATA_NEO4J_HEALTH_PASSWORD:?set DATA_NEO4J_HEALTH_PASSWORD in infra/local/.env.local}'
     depends_on:
       postgres:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
     healthcheck:
       test:
@@ -108,6 +113,7 @@ services:
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
       AGENTRUN_DATA_BASE_URL: http://data:9011
       EMBEDDING_API_KEY: '${EMBEDDING_API_KEY:?set EMBEDDING_API_KEY in infra/local/.env.local}'
+      QDRANT_API_KEY: '${QDRANT_API_KEY:-}'
     volumes:
       - agentrun_artifacts:/app/data
     depends_on:

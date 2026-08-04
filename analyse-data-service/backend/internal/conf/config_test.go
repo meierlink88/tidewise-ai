@@ -15,6 +15,9 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	t.Setenv("APP_ENV", "local")
 	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
 	t.Setenv("DATA_SERVICE_TOKEN", "service-token")
+	t.Setenv("DATA_NEO4J_HEALTH_URI", "bolt://neo4j.internal:7687")
+	t.Setenv("DATA_NEO4J_HEALTH_USERNAME", "health-reader")
+	t.Setenv("DATA_NEO4J_HEALTH_PASSWORD", "health-secret")
 	t.Setenv("AGENT_PLATFORM_API_KEY", "must-not-be-loaded")
 	t.Setenv("JWT_SECRET", "must-not-be-loaded")
 
@@ -30,6 +33,12 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	}
 	if cfg.Secrets.DatabasePassword != "database-secret" || cfg.Secrets.ServiceToken != "service-token" {
 		t.Fatalf("Data secrets were not loaded: %#v", cfg.Secrets)
+	}
+	if cfg.Secrets.Neo4jHealthUsername != "health-reader" || cfg.Secrets.Neo4jHealthPassword != "health-secret" {
+		t.Fatalf("Neo4j health credentials were not loaded: %#v", cfg.Secrets)
+	}
+	if cfg.Neo4jHealth.URI != "bolt://neo4j.internal:7687" || cfg.Neo4jHealth.Database != "neo4j" || cfg.Neo4jHealth.TimeoutSeconds != 1 {
+		t.Fatalf("Neo4j health target = %#v", cfg.Neo4jHealth)
 	}
 }
 
@@ -84,14 +93,15 @@ func TestLoadRejectsMissingDataConfiguration(t *testing.T) {
 
 func TestSecretsAreNotSerialized(t *testing.T) {
 	cfg := Config{Secrets: SecretConfig{
-		DatabasePassword: "database-secret",
-		ServiceToken:     "service-token",
+		DatabasePassword:    "database-secret",
+		ServiceToken:        "service-token",
+		Neo4jHealthPassword: strings.Repeat("n", 24),
 	}}
 	content, err := yaml.Marshal(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"database-secret", "service-token"} {
+	for _, secret := range []string{"database-secret", "service-token", "neo4j-health-secret"} {
 		if strings.Contains(string(content), secret) {
 			t.Fatalf("serialized configuration leaked %q", secret)
 		}
@@ -129,6 +139,9 @@ func TestLoadUATRequiresPasswordAndEncryptedYAMLDatabaseConfiguration(t *testing
 		t.Fatalf("Load() error = %v, want missing database password rejection", err)
 	}
 	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
+	t.Setenv("DATA_NEO4J_HEALTH_URI", "bolt://neo4j.internal:7687")
+	t.Setenv("DATA_NEO4J_HEALTH_USERNAME", "health-reader")
+	t.Setenv("DATA_NEO4J_HEALTH_PASSWORD", "health-secret")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() rejected valid UAT database configuration: %v", err)
@@ -136,6 +149,18 @@ func TestLoadUATRequiresPasswordAndEncryptedYAMLDatabaseConfiguration(t *testing
 	dsn, err := cfg.PostgresURL()
 	if err != nil || !strings.Contains(dsn, "database-secret") || !strings.Contains(dsn, "sslmode=require") {
 		t.Fatalf("PostgresURL() = %q, %v", dsn, err)
+	}
+}
+
+func TestLoadRejectsPartialNeo4jHealthCredentials(t *testing.T) {
+	dir := writeTestConfig(t, fullConfigYAML())
+	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("DATA_SERVICE_TOKEN", "service-token")
+	t.Setenv("DATA_NEO4J_HEALTH_USERNAME", "health-reader")
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "must be configured together") {
+		t.Fatalf("Load() error = %v, want partial Neo4j health configuration rejection", err)
 	}
 }
 
@@ -168,6 +193,10 @@ database:
   max_idle_conns: 5
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 5
+neo4j_health:
+  uri: bolt://127.0.0.1:7687
+  database: neo4j
+  timeout_seconds: 1
 migration:
   directory: migrations
   auto_apply: false

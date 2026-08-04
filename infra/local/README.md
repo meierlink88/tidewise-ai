@@ -42,10 +42,11 @@ Data、AgentRun 和 Admin Portal Backend 分别只使用一个服务身份令牌
 
 ## 本地 Neo4j
 
-Neo4j 是 PostgreSQL 事实未来可重建的图谱查询库。local Compose 保留独立 Neo4j
-服务和持久化卷，但 Data Server 不连接它、不等待其健康，也不接收其凭据。Neo4j
-用户名和密码只用于 Neo4j 容器本身，通过本地 `NEO4J_USERNAME` 和
-`NEO4J_PASSWORD` 环境变量注入。
+Neo4j 是 PostgreSQL 事实的可重建图谱查询库。local Compose 保留独立 Neo4j
+服务和持久化卷；Data Server 只通过 `DATA_NEO4J_HEALTH_*` 身份执行 `RETURN 1`
+连通性探测，不读取节点、关系、投影数量或业务内容，也不获得投影写入能力。
+Neo4j 容器身份由本地 `NEO4J_USERNAME` 和 `NEO4J_PASSWORD` 注入；Community
+开发环境可让健康探针复用同一身份，UAT 必须配置独立最小权限身份。
 
 Neo4j Browser 默认访问：
 

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import StatusAlert from '../components/admin/status-alert';
 import {
   AdminAgentRunAPIError,
-  loadAgentExecutions,
   loadAgentSchedule,
   loadConnectors,
   loadModelProviders,
@@ -11,8 +10,6 @@ import {
   setAgentScheduleEnabled,
   updateConnector,
   updateModelProvider,
-  type AgentExecution,
-  type AgentExecutionPage,
   type AgentSchedule,
   type ConnectorConfiguration,
   type ModelProviderConfiguration,
@@ -30,10 +27,8 @@ import {
 } from '../components/ui/AlertDialog';
 import { Button } from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
-import { DataTable, type DataTableColumn } from '../components/admin/data-table';
 import { Field } from '../components/ui/Field';
 import { Input } from '../components/ui/Input';
-import { Pagination } from '../components/admin/pagination';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Textarea } from '../components/ui/Textarea';
@@ -47,7 +42,7 @@ import {
 } from '../components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../components/ui/sheet';
 
-type CollectorSection = 'schedule' | 'executions' | 'models' | 'connectors';
+type CollectorSection = 'schedule' | 'models' | 'connectors';
 type EditTarget =
   | { kind: 'model'; value: ModelProviderConfiguration }
   | { kind: 'connector'; value: ConnectorConfiguration };
@@ -56,12 +51,17 @@ const agentKey = 'collector';
 const agentVersion = 'collector.v1';
 const sectionItems: { id: CollectorSection; label: string }[] = [
   { id: 'schedule', label: '定时任务' },
-  { id: 'executions', label: '执行记录' },
   { id: 'models', label: '模型配置' },
   { id: 'connectors', label: '连接器配置' }
 ];
 
-export default function CollectorConfiguration({ token }: { token: string }) {
+export default function CollectorConfiguration({
+  token,
+  onOpenMonitoring
+}: {
+  token: string;
+  onOpenMonitoring: () => void;
+}) {
   const [section, setSection] = useState<CollectorSection>('schedule');
   const [schedule, setSchedule] = useState<AgentSchedule | null>(null);
   const [models, setModels] = useState<ModelProviderConfiguration[]>([]);
@@ -71,17 +71,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
   const [newDailyTime, setNewDailyTime] = useState('08:30');
   const [cronExpression, setCronExpression] = useState('0 * * * *');
   const [prompt, setPrompt] = useState('');
-  const [executions, setExecutions] = useState<AgentExecutionPage>({
-    items: [],
-    page: 1,
-    page_size: 20,
-    total_items: 0,
-    total_pages: 0
-  });
-  const [executionPage, setExecutionPage] = useState(1);
-  const [executionReloadVersion, setExecutionReloadVersion] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [executionLoading, setExecutionLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -132,34 +122,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
     };
   }, [reloadVersion, token]);
 
-  useEffect(() => {
-    if (section !== 'executions') {
-      return;
-    }
-    let active = true;
-    setExecutionLoading(true);
-    setError('');
-    loadAgentExecutions(token, executionPage)
-      .then((page) => {
-        if (active) {
-          setExecutions(page);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(errorText(loadError));
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setExecutionLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [executionPage, executionReloadVersion, section, token]);
-
   const configuredModels = models.filter((model) => model.configured).length;
   const configuredConnectors = connectors.filter((connector) => connector.configured).length;
   const readinessComplete =
@@ -167,46 +129,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
     configuredModels === models.length &&
     connectors.length > 0 &&
     configuredConnectors === connectors.length;
-
-  const executionColumns = useMemo<DataTableColumn<AgentExecution>[]>(
-    () => [
-      {
-        key: 'triggered',
-        header: '执行时间',
-        render: (item) => formatDateTime(item.triggered_at)
-      },
-      {
-        key: 'trigger',
-        header: '触发方式',
-        render: (item) => triggerSourceLabel(item.trigger_source)
-      },
-      {
-        key: 'status',
-        header: '状态',
-        render: (item) => (
-          <StatusBadge tone={executionStatusTone(item.status)}>
-            {executionStatusLabel(item.status)}
-          </StatusBadge>
-        )
-      },
-      {
-        key: 'duration',
-        header: '耗时',
-        render: (item) => executionDuration(item)
-      },
-      {
-        key: 'reason',
-        header: '停止或失败原因',
-        render: (item) => item.stop_reason || item.error_summary || '-'
-      },
-      {
-        key: 'id',
-        header: '执行 ID',
-        render: (item) => <span className='font-mono'>{item.execution_id}</span>
-      }
-    ],
-    []
-  );
 
   const saveConfiguration = async () => {
     const normalizedPrompt = prompt.trim();
@@ -267,10 +189,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
   };
 
   const retryCurrentSection = () => {
-    if (section === 'executions') {
-      setExecutionReloadVersion((value) => value + 1);
-      return;
-    }
     setReloadVersion((value) => value + 1);
   };
 
@@ -327,6 +245,15 @@ export default function CollectorConfiguration({ token }: { token: string }) {
         </TabsList>
       </div>
 
+      <div className='flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/35 px-4 py-3 text-sm'>
+        <span className='text-muted-foreground'>
+          执行记录已统一迁移至监控中心，可按采集、提取和语义阶段查看。
+        </span>
+        <Button onClick={onOpenMonitoring} size='sm' variant='outline'>
+          前往监控中心
+        </Button>
+      </div>
+
       {error ? (
         <StatusAlert actionLabel='重试' onAction={retryCurrentSection} tone='destructive'>
           {error}
@@ -363,33 +290,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
           onScheduleTypeChange={setScheduleType}
           onSectionChange={setSection}
         />
-      </TabsContent>
-
-      <TabsContent aria-label='采集执行记录' className='grid gap-4' value='executions'>
-        <div className='flex items-start justify-between gap-4'>
-          <div>
-            <h3 className='m-0 text-lg font-semibold'>采集执行记录</h3>
-            <p className='mt-1.5 text-sm text-muted-foreground'>只展示采集执行的安全审计摘要。</p>
-          </div>
-          <Button onClick={() => setExecutionReloadVersion((value) => value + 1)} variant='outline'>
-            <RefreshCw aria-hidden='true' className='size-4' />
-            刷新
-          </Button>
-        </div>
-        <div className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
-          <DataTable
-            columns={executionColumns}
-            emptyText={executionLoading ? '正在加载执行记录' : '暂无执行记录'}
-            getRowKey={(item) => item.execution_id}
-            items={executions.items}
-          />
-          <Pagination
-            page={executions.page}
-            pageSize={executions.page_size}
-            total={executions.total_items}
-            onPageChange={setExecutionPage}
-          />
-        </div>
       </TabsContent>
 
       <TabsContent value='models'>
@@ -929,51 +829,6 @@ function formatDateTime(value: string): string {
     hour12: false,
     timeZone: 'Asia/Shanghai'
   });
-}
-
-function executionDuration(execution: AgentExecution): string {
-  if (!execution.started_at || !execution.completed_at) {
-    return '-';
-  }
-  const duration = Math.max(
-    0,
-    new Date(execution.completed_at).getTime() - new Date(execution.started_at).getTime()
-  );
-  const seconds = Math.floor(duration / 1000);
-  const minutes = Math.floor(seconds / 60);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-function triggerSourceLabel(value: string): string {
-  if (value === 'schedule') {
-    return '定时';
-  }
-  if (value === 'api') {
-    return 'API';
-  }
-  return value || '-';
-}
-
-function executionStatusLabel(value: string): string {
-  const labels: Record<string, string> = {
-    queued: '排队中',
-    running: '执行中',
-    succeeded: '已完成',
-    failed: '失败',
-    skipped: '已跳过',
-    cancelled: '已取消'
-  };
-  return labels[value] ?? value;
-}
-
-function executionStatusTone(value: string): 'success' | 'danger' | 'neutral' {
-  if (value === 'succeeded') {
-    return 'success';
-  }
-  if (value === 'failed' || value === 'cancelled') {
-    return 'danger';
-  }
-  return 'neutral';
 }
 
 function providerName(key: string): string {

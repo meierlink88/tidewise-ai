@@ -1,0 +1,24 @@
+{
+  "request_id": "request-data-runtime-health-1",
+  "result": {
+    "checked_at": "2026-08-04T10:00:00Z",
+    "services": [
+      {
+        "key": "data",
+        "display_name": "Data Service",
+        "status": "ready",
+        "checked_at": "2026-08-04T10:00:00Z",
+        "latency_ms": null,
+        "reason_code": null
+      },
+      {
+        "key": "neo4j",
+        "display_name": "Neo4j",
+        "status": "down",
+        "checked_at": "2026-08-04T10:00:00Z",
+        "latency_ms": 23,
+        "reason_code": "authentication_failed"
+      }
+    ]
+  }
+}

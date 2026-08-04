@@ -74,6 +74,22 @@ type EventTagCatalogRequest struct {
 	Active bool
 }
 
+type RuntimeHealthRequest struct{}
+
+type RuntimeHealth struct {
+	CheckedAt string                 `json:"checked_at"`
+	Services  []RuntimeHealthService `json:"services"`
+}
+
+type RuntimeHealthService struct {
+	Key         string `json:"key"`
+	DisplayName string `json:"display_name"`
+	Status      string `json:"status"`
+	CheckedAt   string `json:"checked_at"`
+	LatencyMS   *int64 `json:"latency_ms,omitempty"`
+	ReasonCode  string `json:"reason_code,omitempty"`
+}
+
 type PublicError struct {
 	Status  int
 	Code    string

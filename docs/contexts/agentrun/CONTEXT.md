@@ -34,6 +34,12 @@ Work Item 事实即时派生的只读运行视图。它提供固定时间窗口�
 快照”是两个不同合同，不新增持久化状态或监控表。
 _Avoid_: 新建监控事实副本、把读取投影当作状态机、返回 Prompt/正文/模型输出、把 `skipped` 当失败
 
+**AgentRun Runtime Health Projection**:
+AgentRun 对自身进程就绪状态及其语义检索依赖 Qdrant 的只读即时健康投影。Qdrant 检查只验证
+`entity_semantic_v1` 与 `variable_definition_semantic_v1` 两个固定 Collection 的健康状态，
+不得读取 points、payload 或业务向量；该投影不改变既有 `/readyz` 启动合同。
+_Avoid_: 健康检查驱动重试或修复、扫描业务向量、复制 Qdrant 状态到数据库
+
 **Agent Input**:
 提交给某个明确 Agent Version 的业务输入；其结构由该版本定义，Schedule 中保存的输入会在每次触发时复制为新的 Agent Execution 快照。
 _Avoid_: 把所有 Agent Input 都称为 Prompt、模型或 Connector 配置

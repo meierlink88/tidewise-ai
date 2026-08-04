@@ -148,6 +148,7 @@ describe('DataIngestionCenter', () => {
 
   it('loads collector readiness and keeps schedule configuration separate from enable state', async () => {
     const user = userEvent.setup();
+    const onOpenMonitoring = vi.fn();
     mockRawDocuments();
     const schedule = collectorSchedule();
     vi.spyOn(agentManagementAPI, 'loadAgentSchedule').mockResolvedValue(schedule);
@@ -169,13 +170,16 @@ describe('DataIngestionCenter', () => {
       .spyOn(agentManagementAPI, 'setAgentScheduleEnabled')
       .mockResolvedValue({ ...schedule, enabled: false });
 
-    render(<DataIngestionCenter token='secret-token' />);
+    render(<DataIngestionCenter token='secret-token' onOpenMonitoring={onOpenMonitoring} />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
 
     expect(await screen.findByRole('tab', { name: '定时任务' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: '执行记录' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '执行记录' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '模型配置' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '连接器配置' })).toBeInTheDocument();
+    expect(screen.getByText(/执行记录已统一迁移至监控中心/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '前往监控中心' }));
+    expect(onOpenMonitoring).toHaveBeenCalledOnce();
     expect(await screen.findByText('模型和 7 个连接器配置完整')).toBeInTheDocument();
     expect(screen.getAllByText('已启用').length).toBeGreaterThan(0);
 
@@ -245,73 +249,7 @@ describe('DataIngestionCenter', () => {
     expect(await screen.findByText('定时器已启动')).toBeInTheDocument();
   });
 
-  it('loads collector execution records in fixed twenty-item pages', async () => {
-    const user = userEvent.setup();
-    mockRawDocuments();
-    mockCollectorConfiguration();
-    const loadExecutions = vi.spyOn(agentManagementAPI, 'loadAgentExecutions').mockResolvedValue({
-      items: [
-        {
-          execution_id: 'execution-1',
-          agent_key: 'collector',
-          agent_version: 'collector.v1',
-          trigger_source: 'schedule',
-          status: 'failed',
-          error_summary: '上游响应不可用',
-          created_at: '2026-07-24T04:30:00Z',
-          triggered_at: '2026-07-24T04:30:00Z',
-          started_at: '2026-07-24T04:30:01Z',
-          completed_at: '2026-07-24T04:31:20Z'
-        }
-      ],
-      page: 1,
-      page_size: 20,
-      total_items: 21,
-      total_pages: 2
-    });
-
-    render(<DataIngestionCenter token='secret-token' />);
-    await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
-    await user.click(await screen.findByRole('tab', { name: '执行记录' }));
-
-    expect(await screen.findByText('execution-1')).toBeInTheDocument();
-    expect(screen.getByText('上游响应不可用')).toBeInTheDocument();
-    expect(loadExecutions).toHaveBeenCalledWith('secret-token', 1);
-    await user.click(screen.getByRole('button', { name: '下一页' }));
-    expect(loadExecutions).toHaveBeenLastCalledWith('secret-token', 2);
-  });
-
-  it('shows an execution loading state before rendering the empty state', async () => {
-    const user = userEvent.setup();
-    mockRawDocuments();
-    mockCollectorConfiguration();
-    let resolveExecutions:
-      | ((value: Awaited<ReturnType<typeof agentManagementAPI.loadAgentExecutions>>) => void)
-      | undefined;
-    vi.spyOn(agentManagementAPI, 'loadAgentExecutions').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveExecutions = resolve;
-        })
-    );
-
-    render(<DataIngestionCenter token='secret-token' />);
-    await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
-    await user.click(await screen.findByRole('tab', { name: '执行记录' }));
-    expect(await screen.findByText('正在加载执行记录')).toBeInTheDocument();
-    await act(async () => {
-      resolveExecutions?.({
-        items: [],
-        page: 1,
-        page_size: 20,
-        total_items: 0,
-        total_pages: 0
-      });
-    });
-    expect(await screen.findByText('暂无执行记录')).toBeInTheDocument();
-  });
-
-  it('retries execution loading and links incomplete readiness to the affected configuration', async () => {
+  it('links incomplete readiness to the affected configuration', async () => {
     const user = userEvent.setup();
     mockRawDocuments();
     vi.spyOn(agentManagementAPI, 'loadAgentSchedule').mockResolvedValue(collectorSchedule());
@@ -338,17 +276,6 @@ describe('DataIngestionCenter', () => {
         key_configured: false
       }
     ]);
-    const loadExecutions = vi
-      .spyOn(agentManagementAPI, 'loadAgentExecutions')
-      .mockRejectedValueOnce(new Error('AgentRun 暂时不可用'))
-      .mockResolvedValue({
-        items: [],
-        page: 1,
-        page_size: 20,
-        total_items: 0,
-        total_pages: 0
-      });
-
     render(<DataIngestionCenter token='secret-token' />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
 
@@ -358,10 +285,6 @@ describe('DataIngestionCenter', () => {
       'aria-selected',
       'true'
     );
-
-    await user.click(screen.getByRole('tab', { name: '执行记录' }));
-    await user.click(await screen.findByRole('button', { name: '重试' }));
-    await waitFor(() => expect(loadExecutions).toHaveBeenCalledTimes(2));
   });
 
   it('keeps a blank model key and supports explicit connector key clearing', async () => {

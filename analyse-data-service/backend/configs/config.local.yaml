@@ -18,6 +18,10 @@ database:
   max_idle_conns: 5
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 5
+neo4j_health:
+  uri: bolt://127.0.0.1:7687
+  database: neo4j
+  timeout_seconds: 1
 migration:
   directory: migrations
   auto_apply: false

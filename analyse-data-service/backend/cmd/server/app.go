@@ -19,10 +19,12 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 	eventpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventpublication"
+	neo4jdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/neo4j"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
 	researchanalysiscontextdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchanalysiscontext"
@@ -57,6 +59,19 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 		return nil, nil, fmt.Errorf("check read-only migration readiness: %w", err)
 	}
 
+	var neo4jHealth *neo4jdata.HealthProbe
+	if config.Secrets.Neo4jHealthUsername != "" {
+		neo4jHealth, err = neo4jdata.NewHealthProbe(neo4jdata.HealthConfig{
+			URI: config.Neo4jHealth.URI, Database: config.Neo4jHealth.Database,
+			Username: config.Secrets.Neo4jHealthUsername, Password: config.Secrets.Neo4jHealthPassword,
+			Timeout: time.Duration(config.Neo4jHealth.TimeoutSeconds) * time.Second,
+		})
+		if err != nil {
+			_ = db.Close()
+			return nil, nil, fmt.Errorf("configure Data Neo4j health probe: %w", err)
+		}
+	}
+
 	application := service.NewDataService(service.Dependencies{
 		EventPublications:       eventpublication.NewService(eventpublicationdata.NewRepository(db)),
 		EventTagCatalog:         eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
@@ -66,11 +81,16 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 		ResearchAnalysisContext: researchanalysiscontext.NewService(researchanalysiscontextdata.NewRepository(db)),
 		ResearchGraph:           researchgraph.NewService(researchgraphdata.NewRepository(db)),
 		Admin:                   adminquery.NewService(adminquerydata.NewRepository(db)),
+		RuntimeHealth:           runtimehealth.New(neo4jHealth, time.Now),
 	})
 	httpServer := server.NewHTTPServer(config, application, authenticator, logger)
 
-	return newApp(httpServer, logger), func(context.Context) error {
-		return db.Close()
+	return newApp(httpServer, logger), func(ctx context.Context) error {
+		var neo4jErr error
+		if neo4jHealth != nil {
+			neo4jErr = neo4jHealth.Close(ctx)
+		}
+		return errors.Join(neo4jErr, db.Close())
 	}, nil
 }
 

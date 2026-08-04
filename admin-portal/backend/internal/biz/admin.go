@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 var ErrDataServiceUnavailable = errors.New("data service unavailable")
@@ -12,10 +13,28 @@ var ErrDataServiceUnavailable = errors.New("data service unavailable")
 type Service struct {
 	dataClient     DataServiceRepo
 	agentRunClient AgentRunRepo
+	dataHealth     RuntimeHealthProvider
+	agentRunHealth RuntimeHealthProvider
+	now            func() time.Time
 }
 
-func NewService(dataClient DataServiceRepo, agentRunClient AgentRunRepo) *Service {
-	return &Service{dataClient: dataClient, agentRunClient: agentRunClient}
+type Option func(*Service)
+
+func WithRuntimeHealthProviders(dataProvider, agentRunProvider RuntimeHealthProvider) Option {
+	return func(service *Service) {
+		service.dataHealth = dataProvider
+		service.agentRunHealth = agentRunProvider
+	}
+}
+
+func NewService(dataClient DataServiceRepo, agentRunClient AgentRunRepo, options ...Option) *Service {
+	service := &Service{dataClient: dataClient, agentRunClient: agentRunClient, now: time.Now}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	return service
 }
 
 func (s *Service) ListRawDocuments(ctx context.Context, query RawDocumentListQuery) (RawDocumentPage, error) {
@@ -86,15 +105,6 @@ func (s *Service) SetAgentScheduleEnabled(
 		return AgentSchedule{}, ErrAgentRunUnavailable
 	}
 	return s.agentRunClient.PatchAgentSchedule(ctx, agentKey, PatchAgentScheduleInput{Enabled: &enabled})
-}
-
-func (s *Service) ListCollectorExecutions(ctx context.Context, page int) (AgentExecutionPage, error) {
-	if s == nil || s.agentRunClient == nil {
-		return AgentExecutionPage{}, ErrAgentRunUnavailable
-	}
-	return s.agentRunClient.ListAgentExecutions(ctx, AgentExecutionQuery{
-		AgentKey: "collector", Page: page, PageSize: 20,
-	})
 }
 
 func (s *Service) ListAgentStatuses(ctx context.Context) ([]AgentStatus, error) {

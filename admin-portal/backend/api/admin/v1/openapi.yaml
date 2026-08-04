@@ -12,6 +12,7 @@ tags:
   - name: Operations
   - name: Admin data
   - name: AgentRun management
+  - name: Monitoring
 paths:
   /healthz:
     get:
@@ -209,27 +210,6 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/agent-executions:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalCollectorExecutions
-      summary: 获取 collector Agent 执行记录
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/Page'
-      responses:
-        '200':
-          $ref: '#/components/responses/AgentExecutionPageSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
   /api/admin/v1/agent-statuses:
     get:
       tags: [AgentRun management]
@@ -249,6 +229,23 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/admin/v1/runtime-health:
+    get:
+      tags: [Monitoring]
+      operationId: getAdminPortalRuntimeHealth
+      summary: 获取统一运行环境健康状态
+      description: 并发聚合 Data 与 AgentRun Provider；下游部分失败仍返回 200 和安全的服务级状态。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          $ref: '#/components/responses/RuntimeHealthSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/admin/v1/monitoring/summary:
     get:
       tags: [AgentRun management]
@@ -594,15 +591,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AgentScheduleEnvelope'
-    AgentExecutionPageSuccess:
-      description: collector Agent 执行记录分页
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/AgentExecutionPageEnvelope'
     AgentStatusListSuccess:
       description: 已注册 Agent 的当前运行状态列表
       headers:
@@ -612,6 +600,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AgentStatusListEnvelope'
+    RuntimeHealthSuccess:
+      description: 统一运行环境健康状态；部分失败由 result.status=degraded 表达
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RuntimeHealthEnvelope'
     MonitoringSummarySuccess:
       description: AgentRun 执行监控摘要
       headers:
@@ -828,15 +825,6 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/AgentSchedule'
-    AgentExecutionPageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/AgentExecutionPage'
     AgentStatusListEnvelope:
       type: object
       additionalProperties: false
@@ -846,6 +834,15 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/AgentStatusList'
+    RuntimeHealthEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/RuntimeHealth'
     MonitoringSummaryEnvelope:
       type: object
       additionalProperties: false
@@ -1110,67 +1107,52 @@ components:
     ScheduleType:
       type: string
       enum: [daily, cron]
-    AgentExecutionPage:
+    RuntimeHealthStatus:
+      type: string
+      enum: [ready, degraded, down, unknown]
+    RuntimeHealthReasonCode:
+      type: string
+      enum: [timeout, unreachable, not_ready, collection_unhealthy, authentication_failed, invalid_response]
+    RuntimeHealthService:
       type: object
       additionalProperties: false
-      required: [items, page, page_size, total_items, total_pages]
+      required: [key, display_name, status, checked_at]
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AgentExecution'
-        page:
+        key:
+          type: string
+          enum: [data, agentrun, qdrant, neo4j]
+        display_name:
+          type: string
+          enum: [Data Service, AgentRun, Qdrant, Neo4j]
+        status:
+          $ref: '#/components/schemas/RuntimeHealthStatus'
+        checked_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        latency_ms:
           type: integer
-          minimum: 1
-        page_size:
-          type: integer
-          enum: [20]
-        total_items:
-          type: integer
+          format: int64
           minimum: 0
-        total_pages:
-          type: integer
-          minimum: 0
-    AgentExecution:
+          nullable: true
+        reason_code:
+          allOf:
+            - $ref: '#/components/schemas/RuntimeHealthReasonCode'
+          nullable: true
+    RuntimeHealth:
       type: object
       additionalProperties: false
-      required:
-        - execution_id
-        - agent_key
-        - agent_version
-        - trigger_source
-        - status
-        - created_at
-        - triggered_at
+      required: [status, checked_at, services]
       properties:
-        execution_id:
-          type: string
-        agent_key:
-          type: string
-        agent_version:
-          type: string
-        trigger_source:
-          type: string
-        schedule_id:
-          type: string
         status:
           type: string
-        error_code:
-          type: string
-        error_summary:
-          type: string
-        stop_reason:
-          type: string
-        blocked_by_execution_id:
-          type: string
-        created_at:
+          enum: [ready, degraded]
+        checked_at:
           $ref: '#/components/schemas/UTCTimestamp'
-        triggered_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        started_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        completed_at:
-          $ref: '#/components/schemas/UTCTimestamp'
+        services:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/RuntimeHealthService'
     AgentStatusList:
       type: object
       additionalProperties: false

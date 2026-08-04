@@ -319,6 +319,9 @@ func (serverTestDataService) ListResearchAnalysisContext(context.Context, *dataa
 func (serverTestDataService) SearchResearchGraph(context.Context, *dataapi.ResearchGraphSearchRequest) (*dataapi.Response[dataapi.ResearchGraphSearchResult], error) {
 	return serverTestResponse[dataapi.ResearchGraphSearchResult]()
 }
+func (serverTestDataService) GetRuntimeHealth(context.Context, *dataapi.RuntimeHealthRequest) (*dataapi.Response[dataapi.RuntimeHealth], error) {
+	return serverTestResponse[dataapi.RuntimeHealth]()
+}
 
 type principalRecordingDataService struct {
 	serverTestDataService

@@ -129,20 +129,6 @@ func (c *AgentRunHTTPClient) PatchAgentSchedule(ctx context.Context, agentKey st
 	return wire.toBiz()
 }
 
-func (c *AgentRunHTTPClient) ListAgentExecutions(ctx context.Context, query biz.AgentExecutionQuery) (biz.AgentExecutionPage, error) {
-	values := url.Values{}
-	values.Set("agent_key", query.AgentKey)
-	values.Set("page", strconv.Itoa(query.Page))
-	values.Set("page_size", strconv.Itoa(query.PageSize))
-	var wire agentExecutionPageWire
-	err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListAgentExecutions", agentRunAdminPrefix+"/agent-executions",
-		agentRunAdminPrefix+"/agent-executions?"+values.Encode(), nil, &wire)
-	if err != nil {
-		return biz.AgentExecutionPage{}, err
-	}
-	return wire.toBiz()
-}
-
 func (c *AgentRunHTTPClient) ListAgentStatuses(ctx context.Context) ([]biz.AgentStatus, error) {
 	var wire agentStatusListWire
 	err := c.doJSON(ctx, http.MethodGet, "AgentRun.ListAgentStatuses",

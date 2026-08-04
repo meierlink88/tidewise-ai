@@ -11,7 +11,6 @@ type AgentRunRepo interface {
 	GetAgentSchedule(context.Context, string) (AgentSchedule, error)
 	PutAgentSchedule(context.Context, string, PutAgentScheduleInput) (AgentSchedule, error)
 	PatchAgentSchedule(context.Context, string, PatchAgentScheduleInput) (AgentSchedule, error)
-	ListAgentExecutions(context.Context, AgentExecutionQuery) (AgentExecutionPage, error)
 	ListAgentStatuses(context.Context) ([]AgentStatus, error)
 	GetMonitoringSummary(context.Context, string) (MonitoringSummary, error)
 	ListCollectorMonitoring(context.Context, MonitoringQuery) (CollectorMonitoringPage, error)
@@ -63,37 +62,6 @@ type PatchAgentScheduleInput struct {
 	DailyTimes     *[]string
 	Input          *json.RawMessage
 	Enabled        *bool
-}
-
-type AgentExecutionQuery struct {
-	AgentKey string
-	Page     int
-	PageSize int
-}
-
-type AgentExecutionPage struct {
-	Items      []AgentExecution
-	Page       int
-	PageSize   int
-	TotalItems int
-	TotalPages int
-}
-
-type AgentExecution struct {
-	ID                   string
-	AgentKey             string
-	AgentVersion         string
-	TriggerSource        string
-	ScheduleID           string
-	Status               string
-	ErrorCode            string
-	ErrorSummary         string
-	StopReason           string
-	BlockedByExecutionID string
-	CreatedAt            time.Time
-	TriggeredAt          time.Time
-	StartedAt            *time.Time
-	CompletedAt          *time.Time
 }
 
 type AgentStatus struct {

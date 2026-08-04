@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadArtifactMonitoring,
+  loadAgentStatuses,
   loadCollectorMonitoring,
   loadMonitoringSummary,
+  loadRuntimeHealth,
   loadSemanticMonitoring
 } from '../api/agentManagement';
 import { createQueryClient } from '../lib/query-client';
@@ -19,7 +21,9 @@ vi.mock('../api/agentManagement', async () => {
     loadMonitoringSummary: vi.fn(),
     loadCollectorMonitoring: vi.fn(),
     loadArtifactMonitoring: vi.fn(),
-    loadSemanticMonitoring: vi.fn()
+    loadSemanticMonitoring: vi.fn(),
+    loadAgentStatuses: vi.fn(),
+    loadRuntimeHealth: vi.fn()
   };
 });
 
@@ -73,23 +77,48 @@ describe('MonitoringCenter', () => {
     });
     vi.mocked(loadArtifactMonitoring).mockResolvedValue(emptyPage);
     vi.mocked(loadSemanticMonitoring).mockResolvedValue(emptyPage);
+    vi.mocked(loadAgentStatuses).mockResolvedValue([
+      {
+        agent_key: 'collector',
+        display_name: '综合采集 Agent',
+        current_version: 'collector.v1',
+        is_working: false,
+        current_execution_status: 'idle',
+        updated_at: '2026-08-03T08:30:00Z'
+      }
+    ]);
+    vi.mocked(loadRuntimeHealth).mockResolvedValue(runtimeHealth());
   });
 
-  it('shows the three execution kinds separately and preserves raw status evidence', async () => {
+  it('shows a one-screen overview and opens independent execution detail', async () => {
     const user = userEvent.setup();
     renderCenter();
 
-    expect(await screen.findByText('collector-execution-1')).toBeInTheDocument();
-    expect(screen.getByText('succeeded')).toBeInTheDocument();
+    expect(await screen.findByText('Data Service')).toBeInTheDocument();
+    expect(screen.getByText('Neo4j')).toBeInTheDocument();
+    expect(await screen.findAllByText('Ready')).toHaveLength(2);
+    expect(screen.getByText('Green')).toBeInTheDocument();
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(await screen.findByText('综合采集 Agent')).toBeInTheDocument();
+    expect(screen.getByText(/idle ·/)).toBeInTheDocument();
     expect(screen.getByText('Raw Results')).toBeInTheDocument();
     expect(screen.getByText('Merged Results')).toBeInTheDocument();
     expect(screen.getByText(/Accepted Artifact 10/)).toBeInTheDocument();
+    expect(loadCollectorMonitoring).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('tab', { name: 'Event 提取' }));
+    await user.click(screen.getByRole('button', { name: '查看事件采集执行明细' }));
+    expect(await screen.findByText('collector-execution-1')).toBeInTheDocument();
+    expect(screen.getByText('succeeded')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '事件采集执行明细' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '面包屑' })).toHaveTextContent(
+      '监控中心 / 事件采集执行明细'
+    );
+
+    await user.click(screen.getByRole('tab', { name: /^Event 提取/ }));
     expect(await screen.findByText('当前范围暂无执行记录')).toBeInTheDocument();
     expect(loadArtifactMonitoring).toHaveBeenCalledWith('token', '1h', 'all', 1, 20);
 
-    await user.click(screen.getByRole('tab', { name: '事件语义' }));
+    await user.click(screen.getByRole('tab', { name: /^事件语义/ }));
     await waitFor(() =>
       expect(loadSemanticMonitoring).toHaveBeenCalledWith('token', '1h', 'all', 1, 20)
     );
@@ -98,6 +127,7 @@ describe('MonitoringCenter', () => {
   it('forwards every supported state and time range', async () => {
     const user = userEvent.setup();
     renderCenter();
+    await user.click(await screen.findByRole('button', { name: '查看事件采集执行明细' }));
     await screen.findByText('collector-execution-1');
 
     for (const [label, state] of [
@@ -149,7 +179,7 @@ describe('MonitoringCenter', () => {
     });
     const user = userEvent.setup();
     renderCenter();
-    await screen.findByText('collector-execution-1');
+    await screen.findByRole('button', { name: '查看Event 提取执行明细' });
 
     await user.click(screen.getByRole('button', { name: '查看 Event 提取成功明细，共 2 条' }));
 
@@ -166,6 +196,12 @@ describe('MonitoringCenter', () => {
       expect(loadArtifactMonitoring).toHaveBeenLastCalledWith('token', '6h', 'success', 1, 20)
     );
     expect(screen.getByText('最近 6 小时 · Event 提取 · 成功 · 共 2 条')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '返回监控中心' }));
+    await user.click(screen.getByRole('button', { name: '查看Event 提取执行明细' }));
+    await waitFor(() =>
+      expect(loadArtifactMonitoring).toHaveBeenLastCalledWith('token', '6h', 'all', 1, 20)
+    );
   });
 
   it('shows loading feedback and manually refreshes both projections', async () => {
@@ -199,15 +235,17 @@ describe('MonitoringCenter', () => {
 
     await user.click(screen.getByRole('button', { name: '刷新状态' }));
     await waitFor(() => expect(loadMonitoringSummary).toHaveBeenCalledTimes(2));
-    expect(loadCollectorMonitoring).toHaveBeenCalledTimes(2);
+    expect(loadRuntimeHealth).toHaveBeenCalledTimes(2);
+    expect(loadAgentStatuses).toHaveBeenCalledTimes(2);
   });
 
-  it('shows downstream errors and retries both projections', async () => {
+  it('shows detail errors and retries the selected projection', async () => {
     vi.mocked(loadCollectorMonitoring)
       .mockRejectedValueOnce(new Error('AgentRun 暂不可用'))
       .mockResolvedValueOnce(emptyPage);
     const user = userEvent.setup();
     renderCenter();
+    await user.click(await screen.findByRole('button', { name: '查看事件采集执行明细' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('AgentRun 暂不可用');
     await user.click(screen.getByRole('button', { name: '重试' }));
@@ -215,7 +253,63 @@ describe('MonitoringCenter', () => {
     await waitFor(() => expect(loadCollectorMonitoring).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('keeps partial runtime failures visible without hiding monitoring summaries', async () => {
+    vi.mocked(loadRuntimeHealth).mockResolvedValue({
+      ...runtimeHealth(),
+      status: 'degraded',
+      services: runtimeHealth().services.map((service) =>
+        service.key === 'neo4j'
+          ? {
+              ...service,
+              status: 'down' as const,
+              latency_ms: 17,
+              reason_code: 'unreachable' as const
+            }
+          : service
+      )
+    });
+
+    renderCenter();
+
+    expect(await screen.findByText('无法连接')).toBeInTheDocument();
+    expect(screen.getByText('Raw Results')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '查看事件采集执行明细' })).toBeInTheDocument();
+  });
 });
+
+function runtimeHealth() {
+  return {
+    status: 'ready' as const,
+    checked_at: '2026-08-03T08:30:00Z',
+    services: [
+      {
+        key: 'data' as const,
+        display_name: 'Data Service' as const,
+        status: 'ready' as const,
+        checked_at: '2026-08-03T08:30:00Z'
+      },
+      {
+        key: 'agentrun' as const,
+        display_name: 'AgentRun' as const,
+        status: 'ready' as const,
+        checked_at: '2026-08-03T08:30:00Z'
+      },
+      {
+        key: 'qdrant' as const,
+        display_name: 'Qdrant' as const,
+        status: 'ready' as const,
+        checked_at: '2026-08-03T08:30:00Z'
+      },
+      {
+        key: 'neo4j' as const,
+        display_name: 'Neo4j' as const,
+        status: 'ready' as const,
+        checked_at: '2026-08-03T08:30:00Z'
+      }
+    ]
+  };
+}
 
 function renderCenter() {
   return render(

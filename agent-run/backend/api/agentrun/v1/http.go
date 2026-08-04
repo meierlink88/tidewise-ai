@@ -38,6 +38,16 @@ func RegisterAgentRunHTTPServer(server *kratoshttp.Server, service AgentRunHTTPS
 	admin.GET("/monitoring/collector-executions", listCollectorMonitoringHandler(service))
 	admin.GET("/monitoring/artifact-extractions", listArtifactMonitoringHandler(service))
 	admin.GET("/monitoring/semantic-work-items", listSemanticMonitoringHandler(service))
+	admin.GET("/runtime-health", getRuntimeHealthHandler(service))
+}
+
+func getRuntimeHealthHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &RuntimeHealthRequest{}
+		return call(ctx, OperationGetRuntimeHealth, request, http.StatusOK, func(callContext context.Context) (any, error) {
+			return service.GetRuntimeHealth(callContext, request)
+		})
+	}
 }
 
 func createEventSemanticReanalysisHandler(service AgentRunHTTPServer) kratoshttp.HandlerFunc {

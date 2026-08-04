@@ -257,8 +257,6 @@ func operationForRequest(request *http.Request) string {
 		return v1.OperationListRawDocuments
 	case v1.APIPrefix + "/events":
 		return v1.OperationListEvents
-	case v1.APIPrefix + "/agent-executions":
-		return v1.OperationListAgentExecutions
 	case v1.APIPrefix + "/agent-statuses":
 		return v1.OperationListAgentStatuses
 	case v1.APIPrefix + "/monitoring/summary":
@@ -269,6 +267,8 @@ func operationForRequest(request *http.Request) string {
 		return v1.OperationListArtifactMonitoring
 	case v1.APIPrefix + "/monitoring/semantic-work-items":
 		return v1.OperationListSemanticMonitoring
+	case v1.APIPrefix + "/runtime-health":
+		return v1.OperationGetRuntimeHealth
 	case v1.APIPrefix + "/model-providers":
 		return v1.OperationListModelProviders
 	case v1.APIPrefix + "/connectors":

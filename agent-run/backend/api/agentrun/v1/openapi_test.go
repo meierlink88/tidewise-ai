@@ -34,6 +34,7 @@ func TestOpenAPIParsesWithLocalReferencesAndFreezesTidewiseEnvelopes(t *testing.
 		"AgentScheduleEnvelope",
 		"AgentExecutionPageEnvelope",
 		"AgentStatusListEnvelope",
+		"RuntimeHealthEnvelope",
 		"MonitoringSummaryEnvelope",
 		"CollectorMonitoringPageEnvelope",
 		"ArtifactMonitoringPageEnvelope",
@@ -58,6 +59,7 @@ func TestOpenAPIParsesWithLocalReferencesAndFreezesTidewiseEnvelopes(t *testing.
 	for fixture, schemaName := range map[string]string{
 		"testdata/collector-run-success.json":     "CollectorRunEnvelope",
 		"testdata/admin-model-provider-list.json": "ModelProviderListEnvelope",
+		"testdata/runtime-health.json":            "RuntimeHealthEnvelope",
 		"testdata/error-response.json":            "ErrorResponse",
 	} {
 		payload, err := os.ReadFile(fixture)

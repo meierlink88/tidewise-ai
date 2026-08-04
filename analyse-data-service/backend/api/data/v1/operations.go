@@ -18,6 +18,7 @@ const (
 	OperationGetEventSemantics               = "data.v1.getEventSemantics"
 	OperationListResearchAnalysisContext     = "data.v1.listResearchAnalysisContext"
 	OperationSearchResearchGraph             = "data.v1.searchResearchGraph"
+	OperationGetRuntimeHealth                = "data.v1.getRuntimeHealth"
 )
 
 var BusinessOperations = []string{
@@ -38,4 +39,5 @@ var BusinessOperations = []string{
 	OperationGetEventSemantics,
 	OperationListResearchAnalysisContext,
 	OperationSearchResearchGraph,
+	OperationGetRuntimeHealth,
 }

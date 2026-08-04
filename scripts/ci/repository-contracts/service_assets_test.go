@@ -342,13 +342,18 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 		}
 	}
 	data := composeServiceSection(t, text, "data")
-	for _, forbidden := range []string{"NEO4J_USERNAME", "NEO4J_PASSWORD", "\n      neo4j:"} {
+	for _, required := range []string{"DATA_NEO4J_HEALTH_USERNAME", "DATA_NEO4J_HEALTH_PASSWORD", "DATA_NEO4J_HEALTH_URI"} {
+		if !strings.Contains(data, required) {
+			t.Fatalf("Data compose service is missing runtime health dependency %q", required)
+		}
+	}
+	for _, forbidden := range []string{"\n      NEO4J_USERNAME:", "\n      NEO4J_PASSWORD:"} {
 		if strings.Contains(data, forbidden) {
 			t.Fatalf("Data compose service retains retired graph projection dependency %q", forbidden)
 		}
 	}
 	agentrun := composeServiceSection(t, text, "agentrun")
-	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs/compose", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "agentrun_artifacts"} {
+	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs/compose", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "QDRANT_API_KEY", "agentrun_artifacts"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun compose service missing %q", required)
 		}

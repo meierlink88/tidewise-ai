@@ -49,11 +49,11 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 			{method: "put", operationID: "saveAdminPortalAgentSchedule", envelope: "AgentScheduleEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
 			{method: "patch", operationID: "setAdminPortalAgentScheduleEnabled", envelope: "AgentScheduleEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
 		},
-		"/api/admin/v1/agent-executions": {
-			{method: "get", operationID: "listAdminPortalCollectorExecutions", envelope: "AgentExecutionPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
-		},
 		"/api/admin/v1/agent-statuses": {
 			{method: "get", operationID: "listAdminPortalAgentStatuses", envelope: "AgentStatusListEnvelope", statuses: []string{"401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/runtime-health": {
+			{method: "get", operationID: "getAdminPortalRuntimeHealth", envelope: "RuntimeHealthEnvelope", statuses: []string{"401", "403", "500"}},
 		},
 		"/api/admin/v1/monitoring/summary": {
 			{method: "get", operationID: "getAdminPortalMonitoringSummary", envelope: "MonitoringSummaryEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},

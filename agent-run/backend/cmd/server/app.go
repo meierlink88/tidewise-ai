@@ -18,6 +18,7 @@ import (
 	semanticworkflow "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic/workflow"
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/runtimehealth"
 	bizschedule "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/scheduling"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/conf"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/artifacts"
@@ -26,6 +27,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/modelprovider/deepseek"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/modelprovider/embeddingopenai"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/postgres"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/qdranthealth"
 	scheduler "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/scheduler"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/data/semanticretrieval"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/server"
@@ -263,11 +265,23 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		_ = scheduleService.Shutdown()
 		return nil, err
 	}
+	qdrantHealth, err := qdranthealth.New(qdranthealth.Config{
+		BaseURL: config.SemanticRetrieval.QdrantURL, APIKey: config.Secrets.QdrantAPIKey,
+		Timeout:          time.Duration(config.SemanticRetrieval.TimeoutSeconds) * time.Second,
+		MaxResponseBytes: config.SemanticRetrieval.MaxResponseBytes,
+	})
+	if err != nil {
+		_ = scheduleService.Shutdown()
+		return nil, errors.New("Qdrant health configuration is invalid")
+	}
 	apiService, err := service.NewAgentRunService(
 		collectorApplication,
 		adminService,
 		semanticApplication,
 		scheduleService,
+		service.WithRuntimeHealth(runtimehealth.New(
+			readinessGroup{collectorApplication, scheduleService}, qdrantHealth, time.Now,
+		)),
 	)
 	if err != nil {
 		_ = scheduleService.Shutdown()
@@ -327,6 +341,20 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			return errors.Join(collectorErr, databaseErr)
 		}),
 	), nil
+}
+
+type readinessGroup []interface{ Ready(context.Context) error }
+
+func (group readinessGroup) Ready(ctx context.Context) error {
+	for _, readiness := range group {
+		if readiness == nil {
+			return errors.New("readiness dependency is unavailable")
+		}
+		if err := readiness.Ready(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func shutdownWithinEach(

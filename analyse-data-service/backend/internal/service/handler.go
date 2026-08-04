@@ -13,6 +13,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 )
 
 const (
@@ -72,6 +73,10 @@ type AdminService interface {
 	ListEvents(context.Context, adminquery.EventListRequest) (adminquery.EventPage, error)
 }
 
+type RuntimeHealthService interface {
+	Get(context.Context) runtimehealth.Result
+}
+
 type Dependencies struct {
 	EventPublications       EventPublicationService
 	EventTagCatalog         EventTagCatalogService
@@ -81,6 +86,7 @@ type Dependencies struct {
 	ResearchAnalysisContext ResearchAnalysisContextService
 	ResearchGraph           ResearchGraphService
 	Admin                   AdminService
+	RuntimeHealth           RuntimeHealthService
 }
 
 type DataService struct {
