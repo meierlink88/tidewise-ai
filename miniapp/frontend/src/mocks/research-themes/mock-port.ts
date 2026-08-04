@@ -4,6 +4,7 @@ import {
   type ResearchThemeDetail,
   type ResearchThemeHomepagePort
 } from '../../features/research-themes/contract';
+import { formatResearchUpdateLabel } from '../../features/research-themes/presentation';
 
 const shanghaiOffsetMilliseconds = 8 * 60 * 60 * 1000;
 const dayMilliseconds = 24 * 60 * 60 * 1000;
@@ -14,11 +15,16 @@ const todayStartMilliseconds =
   shanghaiOffsetMilliseconds;
 const todayEndMilliseconds = todayStartMilliseconds + dayMilliseconds;
 const historyStartMilliseconds = todayStartMilliseconds - 30 * dayMilliseconds;
+const mockAsOf = mockNow.toISOString();
+const todayPublishedAt = new Date(
+  Math.max(todayStartMilliseconds, mockNow.getTime() - 30 * 1000)
+).toISOString();
+const historyPublishedAt = new Date(todayStartMilliseconds - 22 * 60 * 60 * 1000).toISOString();
 
 export const mockResearchThemeFeed: HomeResearchThemeFeed = {
   windowStart: new Date(todayStartMilliseconds).toISOString(),
   windowEnd: new Date(todayEndMilliseconds).toISOString(),
-  asOf: mockNow.toISOString(),
+  asOf: mockAsOf,
   themeCount: 1,
   eventCount: 2,
   nextCursor: null,
@@ -41,13 +47,11 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
       transmissionSummary: '端口计划 +80% → 数据中心交换机 → 高速光模块 → DSP 芯片',
       checkpointSummary: '采购数量、单端口模块用量、光模块排产与 DSP 渗透率。',
       riskSummary: '采购未落地或替代技术路线可能削弱传导。',
-      analysisAsOf: mockNow.toISOString(),
+      analysisAsOf: mockAsOf,
       windowStart: new Date(todayStartMilliseconds).toISOString(),
       windowEnd: new Date(todayEndMilliseconds).toISOString(),
-      publishedAt: new Date(
-        Math.max(todayStartMilliseconds, mockNow.getTime() - 60 * 60 * 1000)
-      ).toISOString(),
-      updateLabel: '刚刚更新',
+      publishedAt: todayPublishedAt,
+      updateLabel: formatResearchUpdateLabel(todayPublishedAt, mockAsOf),
       impacts: [
         {
           nodeKey: '22222222-2222-4222-8222-222222222222',
@@ -89,7 +93,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
 export const mockHistoricalResearchThemeFeed: HomeResearchThemeFeed = {
   windowStart: new Date(historyStartMilliseconds).toISOString(),
   windowEnd: new Date(todayStartMilliseconds).toISOString(),
-  asOf: mockNow.toISOString(),
+  asOf: mockAsOf,
   themeCount: 1,
   eventCount: 1,
   nextCursor: null,
@@ -114,8 +118,8 @@ export const mockHistoricalResearchThemeFeed: HomeResearchThemeFeed = {
       analysisAsOf: new Date(todayStartMilliseconds - 23 * 60 * 60 * 1000).toISOString(),
       windowStart: new Date(historyStartMilliseconds).toISOString(),
       windowEnd: new Date(todayStartMilliseconds).toISOString(),
-      publishedAt: new Date(todayStartMilliseconds - 22 * 60 * 60 * 1000).toISOString(),
-      updateLabel: '历史发布',
+      publishedAt: historyPublishedAt,
+      updateLabel: formatResearchUpdateLabel(historyPublishedAt, mockAsOf),
       impacts: [
         {
           nodeKey: '66666666-6666-4666-8666-666666666666',

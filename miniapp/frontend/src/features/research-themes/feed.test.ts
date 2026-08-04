@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createMockResearchThemeHomepagePort } from '../../mocks/research-themes/mock-port';
 import { filterHomeResearchThemes } from './feed';
+import { formatResearchUpdateLabel } from './presentation';
 
 describe('research theme homepage feed', () => {
   it('provides the V1 Theme card content', async () => {
@@ -61,5 +62,12 @@ describe('research theme homepage feed', () => {
     ).toBe(true);
     expect(history.items.map((theme) => theme.id)).not.toContain(today.items[0].id);
     expect(filterHomeResearchThemes(history.items, today.items[0].title)).toEqual([]);
+    expect(today.items[0].updateLabel).toBe(
+      formatResearchUpdateLabel(today.items[0].publishedAt, today.asOf)
+    );
+    expect(history.items[0].updateLabel).toBe(
+      formatResearchUpdateLabel(history.items[0].publishedAt, history.asOf)
+    );
+    expect(history.items[0].updateLabel).not.toBe('历史发布');
   });
 });
