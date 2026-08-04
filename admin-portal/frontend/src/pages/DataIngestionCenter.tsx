@@ -15,6 +15,7 @@ import { DataTable, type DataTableColumn } from '../components/admin/data-table'
 import { Field } from '../components/ui/Field';
 import { Input } from '../components/ui/Input';
 import { Pagination } from '../components/admin/pagination';
+import { OverflowTooltip } from '../components/admin/overflow-tooltip';
 import { Select } from '../components/ui/Select';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
@@ -118,42 +119,81 @@ export default function DataIngestionCenter({
 
   const rawColumns = useMemo<DataTableColumn<RawDocumentItem>[]>(
     () => [
-      { key: 'title', header: '标题', render: (item) => <strong>{item.title || '-'}</strong> },
-      { key: 'source', header: '来源', render: (item) => item.source_name || '-' },
       {
-        key: 'reference',
-        header: '证据引用',
-        render: (item) => item.source_ref || item.ingest_channel || '-'
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[30%]',
+        key: 'title',
+        header: '标题',
+        render: (item) => (
+          <OverflowTooltip className='font-semibold' value={item.title || '-'} />
+        )
       },
       {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[14%]',
+        key: 'source',
+        header: '来源',
+        render: (item) => <OverflowTooltip value={item.source_name || '-'} />
+      },
+      {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[28%]',
+        key: 'reference',
+        header: '证据引用',
+        render: (item) => {
+          const reference = item.source_ref || item.ingest_channel || '-';
+          return <OverflowTooltip className='font-mono text-xs' value={reference} />;
+        }
+      },
+      {
+        headerClassName: 'w-[12%]',
         key: 'status',
         header: '状态',
         render: (item) => (
           <StatusBadge tone={statusTone(item.ingest_status)}>{item.ingest_status}</StatusBadge>
         )
       },
-      { key: 'collected', header: '采集时间', render: (item) => formatDateTime(item.collected_at) }
+      {
+        headerClassName: 'w-[16%]',
+        key: 'collected',
+        header: '采集时间',
+        render: (item) => formatDateTime(item.collected_at)
+      }
     ],
     []
   );
 
   const eventColumns = useMemo<DataTableColumn<EventItem>[]>(
     () => [
-      { key: 'title', header: '事件标题', render: (item) => <strong>{item.title}</strong> },
       {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[34%]',
+        key: 'title',
+        header: '事件标题',
+        render: (item) => <OverflowTooltip className='font-semibold' value={item.title} />
+      },
+      {
+        headerClassName: 'w-[12%]',
         key: 'status',
         header: '事件状态',
         render: (item) => (
           <StatusBadge tone={statusTone(item.event_status)}>{item.event_status}</StatusBadge>
         )
       },
-      { key: 'fact', header: '事实状态', render: (item) => item.fact_status },
       {
+        headerClassName: 'w-[12%]',
+        key: 'fact',
+        header: '事实状态',
+        render: (item) => item.fact_status
+      },
+      {
+        headerClassName: 'w-[21%]',
         key: 'event_time',
         header: '事件时间',
         render: (item) => (item.event_time ? formatDateTime(item.event_time) : '-')
       },
       {
+        headerClassName: 'w-[21%]',
         key: 'first_seen',
         header: '首次发现',
         render: (item) => formatDateTime(item.first_seen_at)
@@ -210,7 +250,7 @@ export default function DataIngestionCenter({
           ))}
         </TabsList>
       </div>
-      <div className='grid min-h-0 content-start gap-4 overflow-y-auto [scrollbar-gutter:stable]'>
+      <div className='flex min-h-0 flex-col gap-4 overflow-hidden'>
         {error && activeTab !== 'collector' ? (
           <StatusAlert
             actionDisabled={loading}
@@ -222,9 +262,13 @@ export default function DataIngestionCenter({
           </StatusAlert>
         ) : null}
 
-        <TabsContent aria-label='全球政经原始数据列表' className='grid gap-4' value='raw'>
-          <Card className='gap-4'>
-            <CardContent className='grid gap-4'>
+        <TabsContent
+          aria-label='全球政经原始数据列表'
+          className='min-h-0 flex-1'
+          value='raw'
+        >
+          <Card className='h-full min-h-0 gap-0 overflow-hidden py-0'>
+            <CardContent className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 py-5'>
               <form
                 className='grid items-end gap-3.5 sm:grid-cols-[minmax(13.75rem,1fr)_auto]'
                 onSubmit={submitRawSearch}
@@ -247,10 +291,13 @@ export default function DataIngestionCenter({
                 <Button type='submit'>搜索原始数据</Button>
               </form>
               <DataTable
+                className='h-full'
                 columns={rawColumns}
                 emptyText={loading ? '正在加载原始数据' : '暂无原始数据'}
                 getRowKey={(item) => item.id}
                 items={rawPage.items}
+                scrollAreaLabel='原始数据表格滚动区域'
+                tableClassName='min-w-[720px] table-fixed'
               />
               <Pagination
                 page={rawPage.page}
@@ -262,9 +309,9 @@ export default function DataIngestionCenter({
           </Card>
         </TabsContent>
 
-        <TabsContent aria-label='全球事件列表' className='grid gap-4' value='events'>
-          <Card className='gap-4'>
-            <CardContent className='grid gap-4'>
+        <TabsContent aria-label='全球事件列表' className='min-h-0 flex-1' value='events'>
+          <Card className='h-full min-h-0 gap-0 overflow-hidden py-0'>
+            <CardContent className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 py-5'>
               <form
                 className='grid items-end gap-3.5 xl:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]'
                 onSubmit={submitEventSearch}
@@ -337,10 +384,13 @@ export default function DataIngestionCenter({
                 <Button type='submit'>搜索事件</Button>
               </form>
               <DataTable
+                className='h-full'
                 columns={eventColumns}
                 emptyText={loading ? '正在加载全球事件' : '暂无全球事件'}
                 getRowKey={(item) => item.id}
                 items={eventPage.items}
+                scrollAreaLabel='全球事件表格滚动区域'
+                tableClassName='min-w-[720px] table-fixed'
               />
               <Pagination
                 page={eventPage.page}
@@ -352,7 +402,11 @@ export default function DataIngestionCenter({
           </Card>
         </TabsContent>
 
-        <TabsContent aria-label='采集器配置' value='collector'>
+        <TabsContent
+          aria-label='采集器配置'
+          className='min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]'
+          value='collector'
+        >
           {activeTab === 'collector' ? (
             <CollectorConfiguration
               onOpenMonitoring={onOpenMonitoring ?? (() => undefined)}

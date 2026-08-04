@@ -23,7 +23,7 @@ interface AdminNavigationProps {
 const navigationItems = [
   {
     key: 'data-ingestion',
-    label: '数据采集中心',
+    label: '采集中心',
     meta: 'Today',
     icon: Database
   },

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as agentManagementAPI from '../api/agentManagement';
@@ -28,8 +28,18 @@ describe('DataIngestionCenter', () => {
       page_size: 50
     });
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
-      items: [],
-      total: 0,
+      items: [
+        {
+          id: 'event-1',
+          title: '全球市场事件',
+          summary: '摘要',
+          event_time: '2026-07-09T08:00:00Z',
+          first_seen_at: '2026-07-09T09:00:00Z',
+          event_status: 'confirmed',
+          fact_status: 'verified'
+        }
+      ],
+      total: 1,
       page: 1,
       page_size: 50
     });
@@ -50,6 +60,15 @@ describe('DataIngestionCenter', () => {
       page: 1,
       title: ''
     });
+    const rawTableRegion = screen.getByRole('region', { name: '原始数据表格滚动区域' });
+    expect(within(rawTableRegion).getByRole('table')).toBeInTheDocument();
+    expect(
+      within(rawTableRegion).queryByRole('textbox', { name: '原始数据标题搜索' })
+    ).not.toBeInTheDocument();
+    expect(within(rawTableRegion).queryByRole('button', { name: '下一页' })).not.toBeInTheDocument();
+    await userEvent.hover(screen.getByText('央行公布金融数据'));
+    expect(await screen.findByRole('tooltip')).toHaveClass('text-sm');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('央行公布金融数据');
 
     await act(async () => {
       rawTab.focus();
@@ -59,6 +78,15 @@ describe('DataIngestionCenter', () => {
     await waitFor(() =>
       expect(screen.getByRole('tab', { name: '全球事件' })).toHaveAttribute('aria-selected', 'true')
     );
+    expect(await screen.findByText('全球市场事件')).toBeInTheDocument();
+    const eventTableRegion = screen.getByRole('region', { name: '全球事件表格滚动区域' });
+    expect(within(eventTableRegion).getByRole('table')).toBeInTheDocument();
+    expect(
+      within(eventTableRegion).queryByRole('textbox', { name: '事件标题搜索' })
+    ).not.toBeInTheDocument();
+    expect(
+      within(eventTableRegion).queryByRole('button', { name: '下一页' })
+    ).not.toBeInTheDocument();
   });
 
   it('presents a safe data error and retries the current tab', async () => {

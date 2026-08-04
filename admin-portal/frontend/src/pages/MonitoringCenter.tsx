@@ -20,6 +20,7 @@ import {
   type SemanticMonitoringItem
 } from '../api/agentManagement';
 import QueryError from '../components/admin/query-error';
+import { OverflowTooltip } from '../components/admin/overflow-tooltip';
 import { Pagination } from '../components/admin/pagination';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
@@ -107,8 +108,8 @@ export default function MonitoringCenter({ token }: { token: string }) {
 
   if (view === 'detail') {
     return (
-      <section className='grid h-full min-w-0 auto-rows-max content-start gap-4 overflow-auto pb-6'>
-        <div className='flex items-start justify-between gap-4 max-lg:flex-col'>
+      <section className='flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden pb-2'>
+        <div className='flex flex-none items-start justify-between gap-4 max-lg:flex-col'>
           <div>
             <Button className='mb-3 -ml-2' onClick={() => setView('overview')} variant='ghost'>
               <ChevronLeft className='size-4' />
@@ -153,8 +154,8 @@ export default function MonitoringCenter({ token }: { token: string }) {
             retrying={list.isFetching}
           />
         ) : null}
-        <Card className='overflow-hidden py-0'>
-          <div className='flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4'>
+        <Card className='min-h-0 flex-1 gap-0 overflow-hidden py-0'>
+          <div className='flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4'>
             <div>
               <h3 className='text-sm font-semibold'>执行明细</h3>
               <p className='mt-1 text-xs text-muted-foreground'>
@@ -185,6 +186,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
             </Tabs>
           </div>
           <Tabs
+            className='shrink-0'
             onValueChange={(value) => {
               setKind(value as MonitoringKind);
               setPage(1);
@@ -208,7 +210,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
               ))}
             </TabsList>
           </Tabs>
-          <CardContent className='p-0'>
+          <CardContent className='min-h-0 flex-1 overflow-hidden p-0'>
             {list.isLoading ? (
               <Empty text='正在加载执行明细' />
             ) : list.data?.items.length === 0 ? (
@@ -218,7 +220,7 @@ export default function MonitoringCenter({ token }: { token: string }) {
             )}
           </CardContent>
           {list.data && list.data.total_items > 0 ? (
-            <div className='border-t border-border px-4 pb-4'>
+            <div className='shrink-0 border-t border-border px-4 pb-4'>
               <Pagination
                 onPageChange={setPage}
                 page={list.data.page}
@@ -575,11 +577,7 @@ function StateCell({ state, raw }: { state: string; raw: string }) {
 }
 
 function Identifier({ value }: { value: string }) {
-  return (
-    <span className='block max-w-56 truncate font-mono text-xs text-foreground' title={value}>
-      {value}
-    </span>
-  );
+  return <OverflowTooltip className='max-w-56 font-mono text-xs text-foreground' value={value} />;
 }
 function MonitoringTable({ kind, items }: { kind: MonitoringKind; items: MonitoringItem[] }) {
   if (kind === 'collector') return <CollectorTable items={items as CollectorMonitoringItem[]} />;
@@ -588,8 +586,12 @@ function MonitoringTable({ kind, items }: { kind: MonitoringKind; items: Monitor
 }
 function CollectorTable({ items }: { items: CollectorMonitoringItem[] }) {
   return (
-    <Table className='min-w-[920px]'>
-      <TableHeader>
+    <Table
+      className='min-w-[920px]'
+      containerClassName='h-full min-h-0 overflow-auto'
+      scrollAreaLabel='事件采集执行明细表格滚动区域'
+    >
+      <TableHeader className='sticky top-0 z-20 bg-muted [&_th]:bg-muted'>
         <TableRow>
           <TableHead>采集执行 ID</TableHead>
           <TableHead>状态 / 原始枚举</TableHead>
@@ -630,8 +632,12 @@ function CollectorTable({ items }: { items: CollectorMonitoringItem[] }) {
 }
 function ArtifactTable({ items }: { items: ArtifactMonitoringItem[] }) {
   return (
-    <Table className='min-w-[980px]'>
-      <TableHeader>
+    <Table
+      className='min-w-[980px]'
+      containerClassName='h-full min-h-0 overflow-auto'
+      scrollAreaLabel='Event 提取执行明细表格滚动区域'
+    >
+      <TableHeader className='sticky top-0 z-20 bg-muted [&_th]:bg-muted'>
         <TableRow>
           <TableHead>提取记录 ID</TableHead>
           <TableHead>内容 ID</TableHead>
@@ -676,8 +682,12 @@ function ArtifactTable({ items }: { items: ArtifactMonitoringItem[] }) {
 }
 function SemanticTable({ items }: { items: SemanticMonitoringItem[] }) {
   return (
-    <Table className='min-w-[980px]'>
-      <TableHeader>
+    <Table
+      className='min-w-[980px]'
+      containerClassName='h-full min-h-0 overflow-auto'
+      scrollAreaLabel='事件语义执行明细表格滚动区域'
+    >
+      <TableHeader className='sticky top-0 z-20 bg-muted [&_th]:bg-muted'>
         <TableRow>
           <TableHead>语义处理 ID</TableHead>
           <TableHead>Event ID</TableHead>

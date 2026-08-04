@@ -138,6 +138,11 @@ describe('App admin login', () => {
     expect(
       within(screen.getByRole('main')).getByRole('heading', { name: '数据采集中心' })
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^采集中心/ })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(screen.queryByRole('button', { name: /^数据采集中心/ })).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('main')).getByText('查询原始数据和全球事件，并管理采集 Agent 配置。')
     ).toBeInTheDocument();

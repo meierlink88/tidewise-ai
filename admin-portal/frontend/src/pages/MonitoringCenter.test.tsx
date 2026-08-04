@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -113,6 +113,17 @@ describe('MonitoringCenter', () => {
     expect(screen.getByRole('navigation', { name: '面包屑' })).toHaveTextContent(
       '监控中心 / 事件采集执行明细'
     );
+    const detailTableRegion = screen.getByRole('region', {
+      name: '事件采集执行明细表格滚动区域'
+    });
+    expect(within(detailTableRegion).getByRole('table')).toBeInTheDocument();
+    expect(
+      within(detailTableRegion).getByRole('columnheader', { name: '采集执行 ID' })
+    ).toBeVisible();
+    expect(
+      within(detailTableRegion).queryByRole('button', { name: '下一页' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '下一页' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /^Event 提取/ }));
     expect(await screen.findByText('当前范围暂无执行记录')).toBeInTheDocument();
