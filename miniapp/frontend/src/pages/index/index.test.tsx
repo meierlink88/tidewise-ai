@@ -78,7 +78,7 @@ describe('Theme homepage', () => {
     expect(textContent(page)).toContain(mockResearchThemeFeed.items[0].oneLineConclusion);
     const periodAction = findByClass(page, 'home-history-button');
     expect(periodAction.props.ariaLabel).toBe('查看历史主题');
-    expect(textContent(periodAction)).toBe('历史');
+    expect(textContent(periodAction)).toBe('');
   });
 
   it('preserves the last feed and always stops native refresh when refresh fails', async () => {
@@ -227,7 +227,7 @@ describe('Theme homepage', () => {
 
     expect(textContent(page)).toContain('历史主题');
     expect(action.props.ariaLabel).toBe('返回今日主题');
-    expect(textContent(action)).toBe('今日');
+    expect(textContent(action)).toBe('');
     expect(onPeriodAction).toHaveBeenCalledOnce();
   });
 });

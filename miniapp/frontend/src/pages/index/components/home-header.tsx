@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { Button, Image, Input, Text, View } from '@tarojs/components';
+import { Button, Image, Input, View } from '@tarojs/components';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
 import type { ResearchThemePeriod } from '../../../features/research-themes/contract';
 import avatarImage from '../../../assets/nav-avatar.png';
@@ -68,9 +68,7 @@ export function HomeHeader({
           </Button>
         </View>
         <Button
-          className={`tidewise-button home-history-button home-history-button--${
-            period === 'today' ? 'history' : 'today'
-          }`}
+          className='tidewise-button home-history-button'
           hoverClass='none'
           ariaLabel={period === 'today' ? '查看历史主题' : '返回今日主题'}
           onClick={onPeriodAction}
@@ -80,7 +78,6 @@ export function HomeHeader({
             src={period === 'today' ? themeHistoryIcon : todayThemeIcon}
             mode='scaleToFill'
           />
-          <Text className='home-history-button__label'>{period === 'today' ? '历史' : '今日'}</Text>
         </Button>
       </View>
     </View>
