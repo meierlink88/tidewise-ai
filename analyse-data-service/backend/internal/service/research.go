@@ -9,9 +9,22 @@ import (
 )
 
 func (s *DataService) ListResearchThemes(ctx context.Context, request *v1.ListResearchThemesRequest) (*v1.Response[v1.ResearchThemePage], error) {
-	window, err := v1.ParseBoundedInt(request.WindowHours, research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
+	publishedFrom, err := optionalUTC(request.PublishedFrom)
 	if err != nil {
-		return nil, err
+		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "published_from must be an RFC3339 UTC timestamp")
+	}
+	publishedTo, err := optionalUTC(request.PublishedTo)
+	if err != nil {
+		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "published_to must be an RFC3339 UTC timestamp")
+	}
+	window := 0
+	if publishedFrom == nil && publishedTo == nil {
+		window, err = v1.ParseBoundedInt(request.WindowHours, research.DefaultResearchWindowHours, research.MinResearchWindowHours, research.MaxResearchWindowHours, "window_hours")
+		if err != nil {
+			return nil, err
+		}
+	} else if request.WindowHours != "" {
+		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "window_hours cannot be combined with published_from and published_to")
 	}
 	limit, err := v1.ParseBoundedInt(request.Limit, research.DefaultResearchLimit, 1, research.MaxResearchLimit, "limit")
 	if err != nil {
@@ -20,7 +33,10 @@ func (s *DataService) ListResearchThemes(ctx context.Context, request *v1.ListRe
 	if s == nil || s.dependencies.Research == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research service is unavailable")
 	}
-	result, err := s.dependencies.Research.ListThemes(ctx, research.ResearchListRequest{WindowHours: window, Limit: limit, Cursor: request.Cursor})
+	result, err := s.dependencies.Research.ListThemes(ctx, research.ResearchListRequest{
+		WindowHours: window, PublishedFrom: publishedFrom, PublishedTo: publishedTo,
+		Limit: limit, Cursor: request.Cursor,
+	})
 	if err != nil {
 		return nil, researchError(err)
 	}

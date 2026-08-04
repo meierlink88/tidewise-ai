@@ -7,7 +7,7 @@ const appConfig = JSON.parse(await readFile(resolve(outputRoot, 'app.json'), 'ut
 const projectConfig = JSON.parse(
   await readFile(resolve(outputRoot, 'project.config.json'), 'utf8')
 );
-const stylesheet = resolve(outputRoot, 'pages/index/index.wxss');
+const stylesheet = resolve(outputRoot, 'common.wxss');
 const reasoningTreeStylesheet = resolve(
   outputRoot,
   'pages/research-theme/reasoning-trees/index.wxss'
@@ -17,9 +17,13 @@ const legacySeaImage = resolve(outputRoot, 'assets/home-header-sea.jpg');
 
 if (
   JSON.stringify(appConfig.pages) !==
-  JSON.stringify(['pages/index/index', 'pages/research-theme/reasoning-trees/index'])
+  JSON.stringify([
+    'pages/index/index',
+    'pages/research-theme/history/index',
+    'pages/research-theme/reasoning-trees/index'
+  ])
 ) {
-  throw new Error('微信构建必须注册首页与推理树页');
+  throw new Error('微信构建必须注册今日主题、历史主题与推理树页');
 }
 if ('tabBar' in appConfig) throw new Error('微信首页 shell 不得包含 tabBar');
 if (appConfig.window?.navigationStyle !== 'custom')

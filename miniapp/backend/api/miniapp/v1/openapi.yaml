@@ -39,8 +39,12 @@ paths:
       tags: [Research]
       operationId: listMiniappResearchThemes
       summary: 获取首页 Research Theme 列表
+      description: >-
+        period=today 返回上海时区今日自然日主题；period=history 返回今日之前 30
+        个完整自然日的主题。period 与兼容参数 window_hours 互斥，cursor 为不透明分页游标。
       parameters:
         - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/Period'
         - $ref: '#/components/parameters/WindowHours'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
@@ -58,6 +62,7 @@ paths:
       tags: [Research]
       operationId: getMiniappResearchTheme
       summary: 获取一个 Research Theme 详情
+      description: 按 theme_id 读取已发布主题，不受列表时间窗口限制。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/ThemeID'
@@ -137,11 +142,21 @@ components:
       name: window_hours
       in: query
       required: false
+      deprecated: true
+      description: 兼容旧列表客户端；不得与 period 同时传入。详情路由仅校验该参数，不用于限制主题可读性。
       schema:
         type: integer
         minimum: 1
         maximum: 168
         default: 24
+    Period:
+      name: period
+      in: query
+      required: false
+      description: 新版列表的时间范围；新客户端必须传入。
+      schema:
+        type: string
+        enum: [today, history]
     Limit:
       name: limit
       in: query
@@ -150,7 +165,7 @@ components:
         type: integer
         minimum: 1
         maximum: 50
-        default: 20
+      description: history 默认 5，today 和兼容模式默认 20。
     Cursor:
       name: cursor
       in: query

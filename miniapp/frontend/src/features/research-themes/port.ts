@@ -15,8 +15,7 @@ export function createResearchThemeHomepagePort(): ResearchThemeHomepagePort {
   if (source === 'api') {
     return createResearchThemeApiPort({
       baseUrl: process.env.TARO_APP_MINIAPP_API_BASE_URL ?? '',
-      request: taroRequest,
-      windowHours: Number(process.env.TARO_APP_RESEARCH_WINDOW_HOURS ?? '24')
+      request: taroRequest
     });
   }
   throw new Error(`Unsupported TARO_APP_RESEARCH_SOURCE: ${source}`);

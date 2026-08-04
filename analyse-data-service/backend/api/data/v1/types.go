@@ -27,9 +27,11 @@ type Response[T any] struct {
 }
 
 type ListResearchThemesRequest struct {
-	WindowHours string
-	Limit       string
-	Cursor      string
+	WindowHours   string
+	PublishedFrom string
+	PublishedTo   string
+	Limit         string
+	Cursor        string
 }
 
 type GetResearchThemeRequest struct {

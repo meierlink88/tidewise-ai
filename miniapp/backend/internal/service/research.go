@@ -20,7 +20,7 @@ func (s *ResearchService) ListResearchThemes(ctx context.Context, request *v1.Li
 	if s == nil || s.research == nil || request == nil {
 		return nil, v1.ErrInvalidRequest
 	}
-	value, err := s.research.ListThemes(ctx, biz.ResearchListRequest{WindowHours: request.WindowHours, Limit: request.Limit, Cursor: request.Cursor})
+	value, err := s.research.ListThemes(ctx, biz.ResearchListRequest{Period: request.Period, WindowHours: request.WindowHours, Limit: request.Limit, Cursor: request.Cursor})
 	if err != nil {
 		return nil, mapBizError(err)
 	}

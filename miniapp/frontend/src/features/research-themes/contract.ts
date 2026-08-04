@@ -4,6 +4,13 @@ export type ResearchTransmissionStage = 'identification' | 'validation' | 'diffu
 export type ResearchAttentionLevel = 'high' | 'medium' | 'low';
 export type ResearchConclusionStatus = 'supported' | 'partial' | 'conflicted';
 export type ResearchInvestmentGuidanceAction = 'focus' | 'avoid' | 'observe' | 'differentiate';
+export type ResearchThemePeriod = 'today' | 'history';
+
+export interface ResearchThemeListRequest {
+  period: ResearchThemePeriod;
+  limit: number;
+  cursor?: string;
+}
 
 export interface HomeResearchThemeImpact {
   nodeKey: string;
@@ -76,6 +83,6 @@ export class ResearchThemeDetailError extends Error {
 }
 
 export interface ResearchThemeHomepagePort {
-  list(): Promise<HomeResearchThemeFeed>;
+  list(request: ResearchThemeListRequest): Promise<HomeResearchThemeFeed>;
   getDetail(themeId: string): Promise<ResearchThemeDetail>;
 }

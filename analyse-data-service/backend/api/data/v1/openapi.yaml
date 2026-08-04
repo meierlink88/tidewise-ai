@@ -86,10 +86,15 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       summary: 获取 Miniapp Research theme 页面聚合
-      description: 返回固定查询时间范围内全部成功发布的单 Theme Aggregate，按 published_at DESC、id ASC 稳定排序并通过 cursor 分页。
+      description: >-
+        返回半开区间 [published_from, published_to) 内成功发布的 Theme Aggregate，按
+        published_at DESC、id ASC 稳定排序并通过 cursor 分页。published_from 和
+        published_to 必须成对传入，与兼容参数 window_hours 互斥。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/WindowHours'
+        - $ref: '#/components/parameters/PublishedFrom'
+        - $ref: '#/components/parameters/PublishedTo'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
@@ -122,6 +127,7 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       summary: 获取一个 Research theme 及其证据聚合
+      description: 按 theme_id 读取已发布主题，不受列表时间窗口限制。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/WindowHours'
@@ -878,11 +884,27 @@ components:
       name: window_hours
       in: query
       required: false
+      deprecated: true
+      description: 兼容旧列表调用；不得与 published_from/published_to 同时传入。详情路由仅校验参数。
       schema:
         type: integer
         minimum: 1
         maximum: 168
         default: 24
+    PublishedFrom:
+      name: published_from
+      in: query
+      required: false
+      description: 发布时间半开区间下界，必须为 UTC RFC3339，与 published_to 成对传入。
+      schema:
+        $ref: '#/components/schemas/UTCTimestamp'
+    PublishedTo:
+      name: published_to
+      in: query
+      required: false
+      description: 发布时间半开区间上界，必须为 UTC RFC3339，与 published_from 成对传入。
+      schema:
+        $ref: '#/components/schemas/UTCTimestamp'
     Limit:
       name: limit
       in: query

@@ -18,7 +18,6 @@ type ResearchEvent = research.EventRecord
 type ResearchThemeSummary = research.ThemeSummaryRecord
 type ResearchThemeDetail = research.ThemeDetailRecord
 type ResearchThemeListFilter = research.ThemeListFilter
-type ResearchDetailFilter = research.DetailFilter
 type ResearchThemePage = research.ThemeStorePage
 type ResearchReadRepository = research.Repository
 
@@ -52,7 +51,7 @@ WITH page AS (
     SELECT theme.*
     FROM research_themes theme
     WHERE theme.published_at >= $1
-      AND theme.published_at <= $2
+      AND theme.published_at < $2
       AND ($3::timestamptz IS NULL
         OR theme.published_at < $3
         OR (theme.published_at = $3 AND theme.id > $4))
@@ -67,7 +66,7 @@ const countResearchThemesQuery = `
 SELECT count(DISTINCT theme.id), count(DISTINCT event.event_id)
 FROM research_themes theme
 LEFT JOIN research_theme_events event ON event.theme_id = theme.id
-WHERE theme.published_at >= $1 AND theme.published_at <= $2`
+WHERE theme.published_at >= $1 AND theme.published_at < $2`
 
 const getResearchThemeQuery = `
 SELECT ` + researchThemeSummaryColumns + `,
@@ -89,7 +88,7 @@ t.theme_key,
 (SELECT receipt.publication_mode FROM research_theme_import_receipts receipt WHERE receipt.id = t.import_receipt_id),
 (SELECT receipt.publication_contract_version FROM research_theme_import_receipts receipt WHERE receipt.id = t.import_receipt_id)
 FROM research_themes t
-WHERE t.id = $1 AND t.published_at >= $2 AND t.published_at <= $3`
+WHERE t.id = $1`
 
 const getResearchThemeByIDQuery = `
 SELECT ` + researchThemeSummaryColumns + `
@@ -98,7 +97,7 @@ WHERE t.id = $1`
 
 func (r repository) ListResearchThemes(ctx context.Context, filter ResearchThemeListFilter) (ResearchThemePage, error) {
 	rows, err := r.db.QueryContext(ctx, listResearchThemesQuery,
-		filter.WindowStart, filter.AsOf, nullableTime(filter.CursorPublishedAt),
+		filter.WindowStart, filter.WindowEnd, nullableTime(filter.CursorPublishedAt),
 		nullableString(filter.CursorID), filter.Limit+1)
 	if err != nil {
 		return ResearchThemePage{}, fmt.Errorf("list research themes: %w", err)
@@ -117,7 +116,7 @@ func (r repository) ListResearchThemes(ctx context.Context, filter ResearchTheme
 	}
 	var themeCount, eventCount int
 	if err := r.db.QueryRowContext(ctx, countResearchThemesQuery,
-		filter.WindowStart, filter.AsOf).Scan(&themeCount, &eventCount); err != nil {
+		filter.WindowStart, filter.WindowEnd).Scan(&themeCount, &eventCount); err != nil {
 		return ResearchThemePage{}, fmt.Errorf("count research themes: %w", err)
 	}
 	hasMore := len(items) > filter.Limit
@@ -125,14 +124,13 @@ func (r repository) ListResearchThemes(ctx context.Context, filter ResearchTheme
 		items = items[:filter.Limit]
 	}
 	return ResearchThemePage{
-		AsOf: filter.AsOf, WindowStart: filter.WindowStart, WindowEnd: filter.AsOf,
+		AsOf: filter.AsOf, WindowStart: filter.WindowStart, WindowEnd: filter.WindowEnd,
 		ThemeCount: themeCount, EventCount: eventCount, Items: items, HasMore: hasMore,
 	}, nil
 }
 
-func (r repository) GetResearchTheme(ctx context.Context, id string, filter ResearchDetailFilter) (ResearchThemeDetail, error) {
-	item, err := scanResearchThemeDetail(r.db.QueryRowContext(ctx,
-		getResearchThemeQuery, id, filter.WindowStart, filter.AsOf))
+func (r repository) GetResearchTheme(ctx context.Context, id string) (ResearchThemeDetail, error) {
+	item, err := scanResearchThemeDetail(r.db.QueryRowContext(ctx, getResearchThemeQuery, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return ResearchThemeDetail{}, ErrResearchNotFound
 	}

@@ -22,7 +22,7 @@ func (f *fakeRepository) ListResearchThemes(_ context.Context, filter ThemeListF
 	f.themeFilter = filter
 	return f.themePage, f.err
 }
-func (f *fakeRepository) GetResearchTheme(context.Context, string, DetailFilter) (ThemeDetailRecord, error) {
+func (f *fakeRepository) GetResearchTheme(context.Context, string) (ThemeDetailRecord, error) {
 	return f.themeDetail, f.err
 }
 func (f *fakeRepository) ListResearchThemeReasoningTrees(_ context.Context, themeID string) (ReasoningTreeListRecord, error) {
@@ -63,6 +63,46 @@ func TestServiceUsesPublishedAtCursorForThemeOrdering(t *testing.T) {
 	}
 	if cursor.Kind != "themes" || cursor.ID != page.Items[0].ID || !cursor.PublishedAt.Equal(now) {
 		t.Fatalf("cursor = %#v", cursor)
+	}
+}
+
+func TestServiceUsesExplicitPublicationRangeForThemeListing(t *testing.T) {
+	now := time.Date(2026, 8, 4, 8, 30, 0, 0, time.UTC)
+	publishedFrom := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
+	publishedTo := time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC)
+	repository := &fakeRepository{themePage: ThemeStorePage{
+		AsOf: now, WindowStart: publishedFrom, WindowEnd: publishedTo,
+	}}
+	service := NewService(repository, func() time.Time { return now })
+
+	page, err := service.ListThemes(context.Background(), ResearchListRequest{
+		PublishedFrom: &publishedFrom,
+		PublishedTo:   &publishedTo,
+		Limit:         5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !repository.themeFilter.WindowStart.Equal(publishedFrom) || !repository.themeFilter.WindowEnd.Equal(publishedTo) {
+		t.Fatalf("repository range = [%s, %s), want [%s, %s)", repository.themeFilter.WindowStart, repository.themeFilter.WindowEnd, publishedFrom, publishedTo)
+	}
+	if !page.WindowStart.Equal(publishedFrom) || !page.WindowEnd.Equal(publishedTo) {
+		t.Fatalf("response range = [%s, %s), want [%s, %s)", page.WindowStart, page.WindowEnd, publishedFrom, publishedTo)
+	}
+}
+
+func TestServiceRejectsMixedLegacyAndExplicitPublicationRange(t *testing.T) {
+	publishedFrom := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
+	publishedTo := time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC)
+	service := NewService(&fakeRepository{}, time.Now)
+
+	_, err := service.ListThemes(context.Background(), ResearchListRequest{
+		WindowHours:   24,
+		PublishedFrom: &publishedFrom,
+		PublishedTo:   &publishedTo,
+	})
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("error = %v, want %v", err, ErrInvalidRequest)
 	}
 }
 

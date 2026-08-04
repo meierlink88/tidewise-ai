@@ -9,7 +9,7 @@ import {
   ResearchThemeHomeSession,
   type ResearchThemeHomeSessionState
 } from '../../features/research-themes/session';
-import { IndexView, refreshHomeFeed } from './index';
+import { IndexView, refreshHomeFeed } from './theme-list-page';
 
 vi.mock('@tarojs/taro', () => ({
   default: {
@@ -19,7 +19,8 @@ vi.mock('@tarojs/taro', () => ({
     showToast: vi.fn(),
     stopPullDownRefresh: vi.fn()
   },
-  usePullDownRefresh: vi.fn()
+  usePullDownRefresh: vi.fn(),
+  useReachBottom: vi.fn()
 }));
 
 vi.mock('@tarojs/components', () => ({
@@ -35,6 +36,7 @@ describe('Theme homepage', () => {
   it('renders the Theme feed without the removed static category and tracking bar', () => {
     const state: ResearchThemeHomeSessionState = {
       feed: { status: 'ready', value: mockResearchThemeFeed },
+      pagination: 'exhausted',
       selectedThemeId: null,
       detailsByThemeId: {}
     };
@@ -52,7 +54,7 @@ describe('Theme homepage', () => {
 
     expect(findAllByClass(page, 'category-bar')).toEqual([]);
     expect(textContent(page)).not.toContain('跟踪中');
-    expect(textContent(page)).toContain('今日推理主线');
+    expect(textContent(page)).toContain('今日主题');
     expect(textContent(page)).toContain(mockResearchThemeFeed.items[0].oneLineConclusion);
   });
 
@@ -118,7 +120,12 @@ describe('Theme homepage', () => {
   it('exposes a visible retry action for an initial feed error', () => {
     const onRetryFeed = vi.fn();
     const page = IndexView({
-      state: { feed: { status: 'error' }, selectedThemeId: null, detailsByThemeId: {} },
+      state: {
+        feed: { status: 'error' },
+        pagination: 'idle',
+        selectedThemeId: null,
+        detailsByThemeId: {}
+      },
       query: '',
       chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
       onQueryChange: vi.fn(),
@@ -130,7 +137,7 @@ describe('Theme homepage', () => {
 
     findByClass(page, 'home-state__retry').props.onClick?.(tapEvent());
 
-    expect(textContent(page)).toContain('主线数据暂时不可用');
+    expect(textContent(page)).toContain('主题数据暂时不可用');
     expect(textContent(page)).toContain('重新加载');
     expect(onRetryFeed).toHaveBeenCalledOnce();
   });

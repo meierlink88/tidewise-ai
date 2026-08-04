@@ -29,9 +29,11 @@ var (
 var researchUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
 
 type ResearchListRequest struct {
-	WindowHours int
-	Limit       int
-	Cursor      string
+	WindowHours   int
+	PublishedFrom *time.Time
+	PublishedTo   *time.Time
+	Limit         int
+	Cursor        string
 }
 
 type ResearchDetailRequest struct{ WindowHours int }
@@ -115,16 +117,16 @@ func NewService(repository Repository, now func() time.Time) *Service {
 }
 
 func (s *Service) ListThemes(ctx context.Context, request ResearchListRequest) (ResearchThemePage, error) {
-	windowHours, limit, err := normalizeListRequest(request)
+	windowHours, limit, explicitRange, err := normalizeListRequest(request)
 	if err != nil {
 		return ResearchThemePage{}, err
 	}
-	asOf, windowStart, cursor, err := s.prepareCursor("themes", windowHours, request.Cursor)
+	asOf, windowStart, windowEnd, cursor, err := s.prepareCursor("themes", request, windowHours, explicitRange)
 	if err != nil {
 		return ResearchThemePage{}, err
 	}
 	page, err := s.repository.ListResearchThemes(ctx, ThemeListFilter{
-		WindowStart: windowStart, AsOf: asOf, Limit: limit,
+		WindowStart: windowStart, WindowEnd: windowEnd, AsOf: asOf, Limit: limit,
 		CursorPublishedAt: cursor.PublishedAtPtr(), CursorID: cursor.ID,
 	})
 	if err != nil {
@@ -140,10 +142,16 @@ func (s *Service) ListThemes(ctx context.Context, request ResearchListRequest) (
 	}
 	if page.HasMore && len(page.Items) > 0 {
 		last := page.Items[len(page.Items)-1]
-		next, err := encodeResearchCursor(researchCursor{
+		nextCursor := researchCursor{
 			Version: 1, Kind: "themes", WindowHours: windowHours, AsOf: asOf,
 			PublishedAt: last.PublishedAt, ID: last.ID,
-		})
+		}
+		if explicitRange {
+			nextCursor.Version = 2
+			nextCursor.WindowStart = windowStart
+			nextCursor.WindowEnd = windowEnd
+		}
+		next, err := encodeResearchCursor(nextCursor)
 		if err != nil {
 			return ResearchThemePage{}, fmt.Errorf("encode research cursor: %w", err)
 		}
@@ -153,17 +161,13 @@ func (s *Service) ListThemes(ctx context.Context, request ResearchListRequest) (
 }
 
 func (s *Service) GetTheme(ctx context.Context, id string, request ResearchDetailRequest) (ResearchThemeDetail, error) {
-	windowHours, err := normalizeDetailRequest(request)
-	if err != nil {
+	if _, err := normalizeDetailRequest(request); err != nil {
 		return ResearchThemeDetail{}, err
 	}
 	if !researchUUIDPattern.MatchString(strings.TrimSpace(id)) {
 		return ResearchThemeDetail{}, fmt.Errorf("%w: theme id must be a UUID", ErrInvalidRequest)
 	}
-	asOf := s.now().UTC()
-	item, err := s.repository.GetResearchTheme(ctx, id, DetailFilter{
-		WindowStart: asOf.Add(-time.Duration(windowHours) * time.Hour), AsOf: asOf,
-	})
+	item, err := s.repository.GetResearchTheme(ctx, id)
 	if err != nil {
 		return ResearchThemeDetail{}, mapRepositoryError(err)
 	}
@@ -174,22 +178,32 @@ func (s *Service) GetTheme(ctx context.Context, id string, request ResearchDetai
 	}, nil
 }
 
-func normalizeListRequest(request ResearchListRequest) (int, int, error) {
+func normalizeListRequest(request ResearchListRequest) (int, int, bool, error) {
+	explicitRange := request.PublishedFrom != nil || request.PublishedTo != nil
+	if explicitRange && (request.PublishedFrom == nil || request.PublishedTo == nil) {
+		return 0, 0, false, fmt.Errorf("%w: published_from and published_to must be provided together", ErrInvalidRequest)
+	}
+	if explicitRange && request.WindowHours != 0 {
+		return 0, 0, false, fmt.Errorf("%w: window_hours cannot be combined with published_from and published_to", ErrInvalidRequest)
+	}
 	windowHours := request.WindowHours
-	if windowHours == 0 {
+	if windowHours == 0 && !explicitRange {
 		windowHours = DefaultResearchWindowHours
 	}
-	if windowHours < MinResearchWindowHours || windowHours > MaxResearchWindowHours {
-		return 0, 0, fmt.Errorf("%w: window_hours must be between %d and %d", ErrInvalidRequest, MinResearchWindowHours, MaxResearchWindowHours)
+	if !explicitRange && (windowHours < MinResearchWindowHours || windowHours > MaxResearchWindowHours) {
+		return 0, 0, false, fmt.Errorf("%w: window_hours must be between %d and %d", ErrInvalidRequest, MinResearchWindowHours, MaxResearchWindowHours)
+	}
+	if explicitRange && !request.PublishedFrom.Before(*request.PublishedTo) {
+		return 0, 0, false, fmt.Errorf("%w: published_from must be before published_to", ErrInvalidRequest)
 	}
 	limit := request.Limit
 	if limit == 0 {
 		limit = DefaultResearchLimit
 	}
 	if limit < 1 || limit > MaxResearchLimit {
-		return 0, 0, fmt.Errorf("%w: limit must be between 1 and %d", ErrInvalidRequest, MaxResearchLimit)
+		return 0, 0, false, fmt.Errorf("%w: limit must be between 1 and %d", ErrInvalidRequest, MaxResearchLimit)
 	}
-	return windowHours, limit, nil
+	return windowHours, limit, explicitRange, nil
 }
 
 func normalizeDetailRequest(request ResearchDetailRequest) (int, error) {
@@ -208,6 +222,8 @@ type researchCursor struct {
 	Kind        string    `json:"kind"`
 	WindowHours int       `json:"window_hours"`
 	AsOf        time.Time `json:"as_of"`
+	WindowStart time.Time `json:"window_start,omitempty"`
+	WindowEnd   time.Time `json:"window_end,omitempty"`
 	PublishedAt time.Time `json:"published_at"`
 	ID          string    `json:"id"`
 }
@@ -220,17 +236,29 @@ func (c researchCursor) PublishedAtPtr() *time.Time {
 	return &value
 }
 
-func (s *Service) prepareCursor(kind string, windowHours int, encoded string) (time.Time, time.Time, researchCursor, error) {
-	if strings.TrimSpace(encoded) == "" {
+func (s *Service) prepareCursor(kind string, request ResearchListRequest, windowHours int, explicitRange bool) (time.Time, time.Time, time.Time, researchCursor, error) {
+	if strings.TrimSpace(request.Cursor) == "" {
 		asOf := s.now().UTC()
-		return asOf, asOf.Add(-time.Duration(windowHours) * time.Hour), researchCursor{}, nil
+		if explicitRange {
+			return asOf, request.PublishedFrom.UTC(), request.PublishedTo.UTC(), researchCursor{}, nil
+		}
+		return asOf, asOf.Add(-time.Duration(windowHours) * time.Hour), asOf, researchCursor{}, nil
 	}
-	cursor, err := decodeResearchCursor(encoded)
-	if err != nil || cursor.Kind != kind || cursor.WindowHours != windowHours || cursor.Version != 1 || cursor.ID == "" {
-		return time.Time{}, time.Time{}, researchCursor{}, fmt.Errorf("%w: invalid cursor", ErrInvalidRequest)
+	cursor, err := decodeResearchCursor(request.Cursor)
+	if err != nil || cursor.Kind != kind || cursor.ID == "" {
+		return time.Time{}, time.Time{}, time.Time{}, researchCursor{}, fmt.Errorf("%w: invalid cursor", ErrInvalidRequest)
+	}
+	if explicitRange {
+		if cursor.Version != 2 || !cursor.WindowStart.Equal(request.PublishedFrom.UTC()) || !cursor.WindowEnd.Equal(request.PublishedTo.UTC()) {
+			return time.Time{}, time.Time{}, time.Time{}, researchCursor{}, fmt.Errorf("%w: invalid cursor", ErrInvalidRequest)
+		}
+		return cursor.AsOf.UTC(), cursor.WindowStart.UTC(), cursor.WindowEnd.UTC(), cursor, nil
+	}
+	if cursor.Version != 1 || cursor.WindowHours != windowHours {
+		return time.Time{}, time.Time{}, time.Time{}, researchCursor{}, fmt.Errorf("%w: invalid cursor", ErrInvalidRequest)
 	}
 	asOf := cursor.AsOf.UTC()
-	return asOf, asOf.Add(-time.Duration(windowHours) * time.Hour), cursor, nil
+	return asOf, asOf.Add(-time.Duration(windowHours) * time.Hour), asOf, cursor, nil
 }
 
 func encodeResearchCursor(cursor researchCursor) (string, error) {

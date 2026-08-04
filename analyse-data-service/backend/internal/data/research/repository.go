@@ -20,8 +20,8 @@ func (r Repository) ListResearchThemes(ctx context.Context, filter biz.ThemeList
 	return r.store.ListResearchThemes(ctx, filter)
 }
 
-func (r Repository) GetResearchTheme(ctx context.Context, id string, filter biz.DetailFilter) (biz.ThemeDetailRecord, error) {
-	return r.store.GetResearchTheme(ctx, id, filter)
+func (r Repository) GetResearchTheme(ctx context.Context, id string) (biz.ThemeDetailRecord, error) {
+	return r.store.GetResearchTheme(ctx, id)
 }
 
 func (r Repository) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (biz.ReasoningTreeListRecord, error) {

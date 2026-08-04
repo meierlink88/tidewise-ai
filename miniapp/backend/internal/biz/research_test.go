@@ -26,6 +26,76 @@ func TestResearchServiceMapsThemeV1WithOneAggregateCall(t *testing.T) {
 	}
 }
 
+func TestResearchServiceUsesShanghaiNaturalDayForTodayThemes(t *testing.T) {
+	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
+	repo := &Fake{ListResearchThemesFunc: func(_ context.Context, query ResearchListQuery) (ResearchThemePage, error) {
+		wantFrom := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
+		wantTo := time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC)
+		if query.PublishedFrom == nil || query.PublishedTo == nil || !query.PublishedFrom.Equal(wantFrom) || !query.PublishedTo.Equal(wantTo) {
+			t.Fatalf("publication range = [%v, %v), want [%s, %s)", query.PublishedFrom, query.PublishedTo, wantFrom, wantTo)
+		}
+		if query.WindowHours != 0 || query.Limit != 20 {
+			t.Fatalf("query = %#v", query)
+		}
+		return ResearchThemePage{WindowStart: wantFrom, WindowEnd: wantTo, AsOf: now}, nil
+	}}
+
+	_, err := NewResearchServiceWithClock(repo, func() time.Time { return now }).ListThemes(
+		context.Background(), ResearchListRequest{Period: ResearchPeriodToday},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResearchServiceUsesPreviousThirtyCalendarDaysAndFiveItemPagesForHistory(t *testing.T) {
+	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
+	repo := &Fake{ListResearchThemesFunc: func(_ context.Context, query ResearchListQuery) (ResearchThemePage, error) {
+		wantFrom := time.Date(2026, 7, 4, 16, 0, 0, 0, time.UTC)
+		wantTo := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
+		if query.PublishedFrom == nil || query.PublishedTo == nil || !query.PublishedFrom.Equal(wantFrom) || !query.PublishedTo.Equal(wantTo) || query.Limit != 5 {
+			t.Fatalf("query = %#v", query)
+		}
+		return ResearchThemePage{WindowStart: wantFrom, WindowEnd: wantTo, AsOf: now}, nil
+	}}
+
+	_, err := NewResearchServiceWithClock(repo, func() time.Time { return now }).ListThemes(
+		context.Background(), ResearchListRequest{Period: ResearchPeriodHistory},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResearchServiceCursorFreezesHistoryPublicationRange(t *testing.T) {
+	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
+	dataCursor := "data-page-two"
+	var queries []ResearchListQuery
+	repo := &Fake{ListResearchThemesFunc: func(_ context.Context, query ResearchListQuery) (ResearchThemePage, error) {
+		queries = append(queries, query)
+		if len(queries) == 1 {
+			return ResearchThemePage{NextCursor: &dataCursor}, nil
+		}
+		return ResearchThemePage{}, nil
+	}}
+	service := NewResearchServiceWithClock(repo, func() time.Time { return now })
+
+	first, err := service.ListThemes(context.Background(), ResearchListRequest{Period: ResearchPeriodHistory})
+	if err != nil || first.NextCursor == nil {
+		t.Fatalf("first page cursor/error = %v/%v", first.NextCursor, err)
+	}
+	now = now.Add(48 * time.Hour)
+	_, err = service.ListThemes(context.Background(), ResearchListRequest{
+		Period: ResearchPeriodHistory, Cursor: *first.NextCursor,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(queries) != 2 || queries[1].Cursor != dataCursor || !queries[1].PublishedFrom.Equal(*queries[0].PublishedFrom) || !queries[1].PublishedTo.Equal(*queries[0].PublishedTo) {
+		t.Fatalf("queries = %#v", queries)
+	}
+}
+
 func TestResearchServiceRejectsInvalidInputAndMapsRepoErrors(t *testing.T) {
 	service := NewResearchService(&Fake{GetResearchThemeFunc: func(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error) {
 		return ResearchThemeDetail{}, ErrResearchNotFound

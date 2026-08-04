@@ -1,5 +1,9 @@
 export default defineAppConfig({
-  pages: ['pages/index/index', 'pages/research-theme/reasoning-trees/index'],
+  pages: [
+    'pages/index/index',
+    'pages/research-theme/history/index',
+    'pages/research-theme/reasoning-trees/index'
+  ],
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#071735',

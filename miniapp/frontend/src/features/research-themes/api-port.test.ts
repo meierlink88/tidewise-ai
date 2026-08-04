@@ -59,12 +59,12 @@ describe('research theme BFF adapter', () => {
     const feed = await createResearchThemeApiPort({
       baseUrl: 'https://miniapp.example.test',
       request
-    }).list();
+    }).list({ period: 'today', limit: 20 });
 
     expect(request).toHaveBeenCalledWith({
       url: 'https://miniapp.example.test/api/miniapp/v1/research/themes',
       method: 'GET',
-      data: { window_hours: 24, limit: 20 },
+      data: { period: 'today', limit: 20 },
       dataType: 'json',
       timeout: 10_000
     });
@@ -88,7 +88,7 @@ describe('research theme BFF adapter', () => {
       createResearchThemeApiPort({
         baseUrl: 'https://miniapp.example.test/',
         request
-      }).list()
+      }).list({ period: 'today', limit: 20 })
     ).rejects.toThrow('503');
   });
 
@@ -113,7 +113,7 @@ describe('research theme BFF adapter', () => {
     expect(request).toHaveBeenCalledWith({
       url: `https://miniapp.example.test/api/miniapp/v1/research/themes/${themeId}`,
       method: 'GET',
-      data: { window_hours: 24 },
+      data: {},
       dataType: 'json',
       timeout: 10_000
     });

@@ -2,6 +2,8 @@ package biz
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -10,11 +12,14 @@ import (
 )
 
 const (
-	DefaultResearchWindowHours = 24
-	MinResearchWindowHours     = 1
-	MaxResearchWindowHours     = 168
-	DefaultResearchLimit       = 20
-	MaxResearchLimit           = 50
+	DefaultResearchWindowHours  = 24
+	MinResearchWindowHours      = 1
+	MaxResearchWindowHours      = 168
+	DefaultResearchLimit        = 20
+	DefaultHistoryResearchLimit = 5
+	MaxResearchLimit            = 50
+	ResearchPeriodToday         = "today"
+	ResearchPeriodHistory       = "history"
 )
 
 var (
@@ -25,6 +30,7 @@ var (
 )
 
 type ResearchListRequest struct {
+	Period      string
 	WindowHours int
 	Limit       int
 	Cursor      string
@@ -68,9 +74,21 @@ type ResearchEventDTO struct {
 	DisplayOrder                          int
 }
 
-type ResearchService struct{ repo ResearchRepo }
+type ResearchService struct {
+	repo ResearchRepo
+	now  func() time.Time
+}
 
-func NewResearchService(repo ResearchRepo) *ResearchService { return &ResearchService{repo: repo} }
+func NewResearchService(repo ResearchRepo) *ResearchService {
+	return NewResearchServiceWithClock(repo, time.Now)
+}
+
+func NewResearchServiceWithClock(repo ResearchRepo, now func() time.Time) *ResearchService {
+	if now == nil {
+		now = time.Now
+	}
+	return &ResearchService{repo: repo, now: now}
+}
 
 func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRequest) (ResearchThemeListResponse, error) {
 	window, limit, err := normalizeResearchListRequest(request)
@@ -80,7 +98,18 @@ func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRe
 	if s == nil || s.repo == nil {
 		return ResearchThemeListResponse{}, ErrResearchDataService
 	}
-	page, err := s.repo.ListResearchThemes(ctx, ResearchListQuery{WindowHours: window, Limit: limit, Cursor: request.Cursor})
+	query := ResearchListQuery{WindowHours: window, Limit: limit, Cursor: request.Cursor}
+	if request.Period != "" {
+		bounds, dataCursor, err := s.resolvePeriodQuery(request.Period, request.Cursor)
+		if err != nil {
+			return ResearchThemeListResponse{}, err
+		}
+		query.WindowHours = 0
+		query.PublishedFrom = &bounds.from
+		query.PublishedTo = &bounds.to
+		query.Cursor = dataCursor
+	}
+	page, err := s.repo.ListResearchThemes(ctx, query)
 	if err != nil {
 		return ResearchThemeListResponse{}, normalizeResearchRepoError(err)
 	}
@@ -88,10 +117,21 @@ func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRe
 	for _, item := range page.Items {
 		items = append(items, themeItemDTO(item))
 	}
-	return ResearchThemeListResponse{
+	response := ResearchThemeListResponse{
 		WindowStart: formatTime(page.WindowStart), WindowEnd: formatTime(page.WindowEnd), AsOf: formatTime(page.AsOf),
 		ThemeCount: page.ThemeCount, EventCount: page.EventCount, Items: items, NextCursor: page.NextCursor,
-	}, nil
+	}
+	if request.Period != "" && page.NextCursor != nil {
+		wrapped, err := encodePeriodCursor(periodCursor{
+			Version: 1, Period: request.Period, PublishedFrom: query.PublishedFrom.UTC(),
+			PublishedTo: query.PublishedTo.UTC(), DataCursor: *page.NextCursor,
+		})
+		if err != nil {
+			return ResearchThemeListResponse{}, ErrResearchDataService
+		}
+		response.NextCursor = &wrapped
+	}
+	return response, nil
 }
 
 func (s *ResearchService) GetTheme(ctx context.Context, id string, request ResearchDetailRequest) (ResearchThemeDetailResponse, error) {
@@ -114,20 +154,75 @@ func (s *ResearchService) GetTheme(ctx context.Context, id string, request Resea
 }
 
 func normalizeResearchListRequest(request ResearchListRequest) (int, int, error) {
+	if request.Period != "" && request.Period != ResearchPeriodToday && request.Period != ResearchPeriodHistory {
+		return 0, 0, fmt.Errorf("%w: period must be today or history", ErrInvalidResearchRequest)
+	}
+	if request.Period != "" && request.WindowHours != 0 {
+		return 0, 0, fmt.Errorf("%w: period cannot be combined with window_hours", ErrInvalidResearchRequest)
+	}
 	window, limit := request.WindowHours, request.Limit
-	if window == 0 {
+	if window == 0 && request.Period == "" {
 		window = DefaultResearchWindowHours
 	}
 	if limit == 0 {
-		limit = DefaultResearchLimit
+		if request.Period == ResearchPeriodHistory {
+			limit = DefaultHistoryResearchLimit
+		} else {
+			limit = DefaultResearchLimit
+		}
 	}
-	if window < MinResearchWindowHours || window > MaxResearchWindowHours {
+	if request.Period == "" && (window < MinResearchWindowHours || window > MaxResearchWindowHours) {
 		return 0, 0, fmt.Errorf("%w: window_hours out of range", ErrInvalidResearchRequest)
 	}
 	if limit < 1 || limit > MaxResearchLimit {
 		return 0, 0, fmt.Errorf("%w: limit out of range", ErrInvalidResearchRequest)
 	}
 	return window, limit, nil
+}
+
+type publicationBounds struct{ from, to time.Time }
+
+type periodCursor struct {
+	Version       int       `json:"v"`
+	Period        string    `json:"period"`
+	PublishedFrom time.Time `json:"published_from"`
+	PublishedTo   time.Time `json:"published_to"`
+	DataCursor    string    `json:"data_cursor"`
+}
+
+func (s *ResearchService) resolvePeriodQuery(period, encoded string) (publicationBounds, string, error) {
+	if strings.TrimSpace(encoded) != "" {
+		cursor, err := decodePeriodCursor(encoded)
+		if err != nil || cursor.Version != 1 || cursor.Period != period || cursor.DataCursor == "" || !cursor.PublishedFrom.Before(cursor.PublishedTo) {
+			return publicationBounds{}, "", fmt.Errorf("%w: invalid cursor", ErrInvalidResearchRequest)
+		}
+		return publicationBounds{from: cursor.PublishedFrom.UTC(), to: cursor.PublishedTo.UTC()}, cursor.DataCursor, nil
+	}
+	shanghai := time.FixedZone("Asia/Shanghai", 8*60*60)
+	localNow := s.now().In(shanghai)
+	today := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, shanghai)
+	if period == ResearchPeriodToday {
+		return publicationBounds{from: today.UTC(), to: today.AddDate(0, 0, 1).UTC()}, "", nil
+	}
+	return publicationBounds{from: today.AddDate(0, 0, -30).UTC(), to: today.UTC()}, "", nil
+}
+
+func encodePeriodCursor(cursor periodCursor) (string, error) {
+	payload, err := json.Marshal(cursor)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodePeriodCursor(value string) (periodCursor, error) {
+	payload, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return periodCursor{}, err
+	}
+	var cursor periodCursor
+	err = json.Unmarshal(payload, &cursor)
+	return cursor, err
 }
 func normalizeResearchDetailRequest(request ResearchDetailRequest) (int, error) {
 	window := request.WindowHours

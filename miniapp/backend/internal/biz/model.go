@@ -14,9 +14,11 @@ type ResearchRepo interface {
 }
 
 type ResearchListQuery struct {
-	WindowHours int
-	Limit       int
-	Cursor      string
+	WindowHours   int
+	PublishedFrom *time.Time
+	PublishedTo   *time.Time
+	Limit         int
+	Cursor        string
 }
 
 type ResearchDetailQuery struct{ WindowHours int }

@@ -1,7 +1,8 @@
 import {
   ResearchThemeDetailError,
   type HomeResearchThemeFeed,
-  type ResearchThemeHomepagePort
+  type ResearchThemeHomepagePort,
+  type ResearchThemePeriod
 } from './contract';
 import {
   normalizeMiniappAPIBaseURL,
@@ -14,7 +15,7 @@ const themesPath = '/api/miniapp/v1/research/themes';
 export interface ResearchThemeRequestOptions {
   url: string;
   method: 'GET';
-  data: { window_hours: number; limit?: number };
+  data: { period?: ResearchThemePeriod; limit?: number; cursor?: string };
   dataType: 'json';
   timeout: number;
 }
@@ -38,27 +39,27 @@ interface APIFeed {
 interface APIOptions {
   baseUrl: string;
   request: ResearchThemeRequest;
-  windowHours?: number;
   requestTimeoutMs?: number;
 }
 
 export function createResearchThemeApiPort({
   baseUrl,
   request,
-  windowHours = 24,
   requestTimeoutMs = 10_000
 }: APIOptions): ResearchThemeHomepagePort {
   const base = normalizeMiniappAPIBaseURL(baseUrl);
-  if (!Number.isInteger(windowHours) || windowHours < 1 || windowHours > 168)
-    throw new Error('Research Theme window hours must be an integer between 1 and 168');
   if (!Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 1)
     throw new Error('Research Theme request timeout must be a positive integer');
   return {
-    async list() {
+    async list(listRequest) {
       const response = await request<MiniappAPIEnvelope<APIFeed>>({
         url: base + themesPath,
         method: 'GET',
-        data: { window_hours: windowHours, limit: 20 },
+        data: {
+          period: listRequest.period,
+          limit: listRequest.limit,
+          ...(listRequest.cursor ? { cursor: listRequest.cursor } : {})
+        },
         dataType: 'json',
         timeout: requestTimeoutMs
       });
@@ -74,7 +75,7 @@ export function createResearchThemeApiPort({
         response = await request<MiniappAPIEnvelope<unknown>>({
           url: `${base}${themesPath}/${encodeURIComponent(themeId)}`,
           method: 'GET',
-          data: { window_hours: windowHours },
+          data: {},
           dataType: 'json',
           timeout: requestTimeoutMs
         });

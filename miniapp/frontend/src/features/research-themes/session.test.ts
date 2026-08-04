@@ -22,6 +22,37 @@ describe('research theme homepage session', () => {
       detailsByThemeId: {}
     });
     expect(port.list).toHaveBeenCalledOnce();
+    expect(port.list).toHaveBeenCalledWith({ period: 'today', limit: 20 });
+  });
+
+  it('loads history in five-item pages and appends the next cursor page', async () => {
+    const first = { ...mockResearchThemeFeed, nextCursor: 'history-cursor' };
+    const secondItem = {
+      ...mockResearchThemeFeed.items[0],
+      id: 'bbbbbbbb-1111-4111-8111-111111111111',
+      title: '历史主题'
+    };
+    const second = { ...mockResearchThemeFeed, items: [secondItem], nextCursor: null };
+    const port: ResearchThemeHomepagePort = {
+      list: vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(second),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+
+    await expect(session.loadMore()).resolves.toBe('updated');
+
+    expect(port.list).toHaveBeenNthCalledWith(1, { period: 'history', limit: 5 });
+    expect(port.list).toHaveBeenNthCalledWith(2, {
+      period: 'history',
+      limit: 5,
+      cursor: 'history-cursor'
+    });
+    expect(session.getState().feed).toMatchObject({
+      status: 'ready',
+      value: { items: [mockResearchThemeFeed.items[0], secondItem], nextCursor: null }
+    });
+    expect(session.getState().pagination).toBe('exhausted');
   });
 
   it('retries an initial feed failure from the visible error state', async () => {
