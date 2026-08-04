@@ -203,14 +203,14 @@ describe('DataIngestionCenter', () => {
     render(<DataIngestionCenter token='secret-token' onOpenMonitoring={onOpenMonitoring} />);
     await user.click(await screen.findByRole('tab', { name: '采集器配置' }));
 
-    expect(await screen.findByRole('tab', { name: '定时任务' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: '定时配置' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: '执行记录' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '模型配置' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '连接器配置' })).toBeInTheDocument();
-    expect(screen.getByText(/执行记录已统一迁移至监控中心/)).toBeInTheDocument();
+    expect(screen.getByText(/执行记录已统一到监控中心/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '前往监控中心' }));
     expect(onOpenMonitoring).toHaveBeenCalledOnce();
-    expect(await screen.findByText('模型和 7 个连接器配置完整')).toBeInTheDocument();
+    expect(await screen.findByText('配置就绪')).toBeInTheDocument();
     expect(screen.getAllByText('已启用').length).toBeGreaterThan(0);
 
     const prompt = screen.getByLabelText('Collection Prompt');

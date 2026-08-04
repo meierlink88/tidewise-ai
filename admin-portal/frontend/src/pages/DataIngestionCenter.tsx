@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Search } from 'lucide-react';
 import {
   loadEvents,
   loadRawDocuments,
@@ -7,15 +8,14 @@ import {
   type RawDocumentItem,
   type RawDocumentQuery
 } from '../api/dataIngestion';
-import { Search } from 'lucide-react';
+import { DataTable, type DataTableColumn } from '../components/admin/data-table';
+import { OverflowTooltip } from '../components/admin/overflow-tooltip';
+import { Pagination } from '../components/admin/pagination';
 import StatusAlert from '../components/admin/status-alert';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent } from '../components/ui/Card';
-import { DataTable, type DataTableColumn } from '../components/admin/data-table';
+import { Card } from '../components/ui/Card';
 import { Field } from '../components/ui/Field';
 import { Input } from '../components/ui/Input';
-import { Pagination } from '../components/admin/pagination';
-import { OverflowTooltip } from '../components/admin/overflow-tooltip';
 import { Select } from '../components/ui/Select';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
@@ -30,6 +30,11 @@ const tabItems: { id: ActiveTab; label: string }[] = [
   { id: 'events', label: '全球事件' },
   { id: 'collector', label: '采集器配置' }
 ];
+
+const primaryTabsListClassName =
+  'h-11 w-full shrink-0 justify-start rounded-none border-b bg-transparent p-0';
+const primaryTabClassName =
+  'relative h-full flex-none rounded-none border-0 px-4 py-0 text-xs font-medium shadow-none after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent data-[state=active]:border-0 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:after:bg-primary';
 
 export default function DataIngestionCenter({
   token,
@@ -230,185 +235,214 @@ export default function DataIngestionCenter({
 
   return (
     <Tabs
-      className='grid h-full min-h-0 w-full grid-rows-[auto_auto_minmax(0,1fr)]'
+      className='grid h-full min-h-0 w-full grid-rows-[auto_auto_minmax(0,1fr)] gap-3'
       onValueChange={(value) => isActiveTab(value) && setActiveTab(value)}
       value={activeTab}
     >
-      <div className='pb-5'>
+      <div>
         <span className='page-eyebrow'>Data operations</span>
         <h2 className='page-title'>数据采集中心</h2>
         <p className='page-description'>查询原始数据和全球事件，并管理采集 Agent 配置。</p>
       </div>
-      <div className='pb-4'>
-        <TabsList aria-label='数据采集中心标签'>
+
+      <div className='flex items-center justify-between gap-4 rounded-lg border border-running-border bg-running-subtle px-4 py-3 max-sm:items-start'>
+        <div className='min-w-0'>
+          <strong className='block text-xs font-semibold text-running-foreground'>
+            执行记录已统一到监控中心
+          </strong>
+          <span className='mt-1 block text-[0.6875rem] leading-4 text-running-foreground/90'>
+            采集器配置只保留调度、模型和连接器配置，避免同一执行事实出现两个入口。
+          </span>
+        </div>
+        {onOpenMonitoring ? (
+          <Button
+            className='shrink-0 bg-card max-sm:size-8 max-sm:px-0'
+            onClick={onOpenMonitoring}
+            size='sm'
+            variant='outline'
+          >
+            <span className='max-sm:sr-only'>前往监控中心</span>
+            <ArrowRight aria-hidden='true' className='size-3.5' />
+          </Button>
+        ) : null}
+      </div>
+
+      <Card className='flex h-full min-h-0 flex-col gap-0 overflow-hidden py-0 shadow-xs'>
+        <TabsList aria-label='数据采集中心标签' className={primaryTabsListClassName}>
           {tabItems.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
+            <TabsTrigger className={primaryTabClassName} key={item.id} value={item.id}>
               {item.label}
             </TabsTrigger>
           ))}
         </TabsList>
-      </div>
-      <div className='flex min-h-0 flex-col gap-4 overflow-hidden'>
-        {error && activeTab !== 'collector' ? (
-          <StatusAlert
-            actionDisabled={loading}
-            actionLabel={loading ? '重试中…' : '重试'}
-            onAction={retryCurrentData}
-            tone='destructive'
-          >
-            {error}
-          </StatusAlert>
-        ) : null}
 
-        <TabsContent aria-label='全球政经原始数据列表' className='min-h-0 flex-1' value='raw'>
-          <Card className='h-full min-h-0 gap-0 overflow-hidden py-0'>
-            <CardContent className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 py-5'>
-              <form
-                className='grid items-end gap-3.5 sm:grid-cols-[minmax(13.75rem,1fr)_auto]'
-                onSubmit={submitRawSearch}
+        <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+          {error && activeTab !== 'collector' ? (
+            <div className='px-4 pt-4'>
+              <StatusAlert
+                actionDisabled={loading}
+                actionLabel={loading ? '重试中…' : '重试'}
+                onAction={retryCurrentData}
+                tone='destructive'
               >
-                <Field controlId='raw-title-search' label='原始数据标题搜索'>
-                  <div className='relative'>
-                    <Search
-                      aria-hidden='true'
-                      className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground'
-                    />
-                    <Input
-                      aria-label='原始数据标题搜索'
-                      className='pl-9'
-                      id='raw-title-search'
-                      onChange={(event) => setRawTitle(event.target.value)}
-                      value={rawTitle}
-                    />
-                  </div>
-                </Field>
-                <Button type='submit'>搜索原始数据</Button>
-              </form>
-              <DataTable
-                className='h-full'
-                columns={rawColumns}
-                emptyText={loading ? '正在加载原始数据' : '暂无原始数据'}
-                getRowKey={(item) => item.id}
-                items={rawPage.items}
-                scrollAreaLabel='原始数据表格滚动区域'
-                tableClassName='min-w-[720px] table-fixed'
-              />
+                {error}
+              </StatusAlert>
+            </div>
+          ) : null}
+
+          <TabsContent
+            aria-label='全球政经原始数据列表'
+            className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-y-auto p-4 [scrollbar-gutter:stable]'
+            value='raw'
+          >
+            <form
+              className='grid items-end gap-3 [&>div]:gap-1.5 [&_input]:text-xs [&_label]:text-xs [&_label]:text-muted-foreground sm:grid-cols-[minmax(13.75rem,1fr)_auto]'
+              onSubmit={submitRawSearch}
+            >
+              <Field controlId='raw-title-search' label='原始数据标题搜索'>
+                <div className='relative'>
+                  <Search
+                    aria-hidden='true'
+                    className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground'
+                  />
+                  <Input
+                    aria-label='原始数据标题搜索'
+                    className='pl-9'
+                    id='raw-title-search'
+                    onChange={(event) => setRawTitle(event.target.value)}
+                    value={rawTitle}
+                  />
+                </div>
+              </Field>
+              <Button className='text-xs' size='sm' type='submit'>
+                搜索原始数据
+              </Button>
+            </form>
+            <DataTable
+              className='h-full'
+              columns={rawColumns}
+              emptyText={loading ? '正在加载原始数据' : '暂无原始数据'}
+              getRowKey={(item) => item.id}
+              items={rawPage.items}
+              scrollAreaLabel='原始数据表格滚动区域'
+              tableClassName='min-w-[720px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+            />
+            <div className='[&>div]:pt-1 [&>div]:text-xs [&_button]:h-8 [&_button]:text-xs'>
               <Pagination
                 page={rawPage.page}
                 pageSize={rawPage.page_size}
                 total={rawPage.total}
                 onPageChange={(page) => setRawQuery((current) => ({ ...current, page }))}
               />
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </TabsContent>
 
-        <TabsContent aria-label='全球事件列表' className='min-h-0 flex-1' value='events'>
-          <Card className='h-full min-h-0 gap-0 overflow-hidden py-0'>
-            <CardContent className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 py-5'>
-              <form
-                className='grid items-end gap-3.5 xl:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]'
-                onSubmit={submitEventSearch}
-              >
-                <Field label='事件标题搜索'>
-                  <Input
-                    aria-label='事件标题搜索'
-                    onChange={(event) => setEventTitle(event.target.value)}
-                    value={eventTitle}
-                  />
-                </Field>
-                <Field label='事件状态'>
-                  <Select
-                    ariaLabel='事件状态'
-                    onValueChange={(value) => setEventStatus(value === 'all' ? '' : value)}
-                    options={[
-                      { label: '全部', value: 'all' },
-                      { label: '候选', value: 'candidate' },
-                      { label: '已确认', value: 'confirmed' },
-                      { label: '已归档', value: 'archived' }
-                    ]}
-                    value={eventStatus || 'all'}
-                  />
-                </Field>
-                <Field label='事实状态'>
-                  <Select
-                    ariaLabel='事实状态'
-                    onValueChange={(value) => setFactStatus(value === 'all' ? '' : value)}
-                    options={[
-                      { label: '全部', value: 'all' },
-                      { label: '未核验', value: 'unverified' },
-                      { label: '已核验', value: 'verified' },
-                      { label: '有争议', value: 'disputed' }
-                    ]}
-                    value={factStatus || 'all'}
-                  />
-                </Field>
-                <Field label='事件时间开始'>
-                  <Input
-                    aria-label='事件时间开始'
-                    onChange={(event) => setEventTimeFrom(event.target.value)}
-                    type='datetime-local'
-                    value={eventTimeFrom}
-                  />
-                </Field>
-                <Field label='事件时间结束'>
-                  <Input
-                    aria-label='事件时间结束'
-                    onChange={(event) => setEventTimeTo(event.target.value)}
-                    type='datetime-local'
-                    value={eventTimeTo}
-                  />
-                </Field>
-                <Field label='首次发现开始'>
-                  <Input
-                    aria-label='首次发现开始'
-                    onChange={(event) => setFirstSeenFrom(event.target.value)}
-                    type='datetime-local'
-                    value={firstSeenFrom}
-                  />
-                </Field>
-                <Field label='首次发现结束'>
-                  <Input
-                    aria-label='首次发现结束'
-                    onChange={(event) => setFirstSeenTo(event.target.value)}
-                    type='datetime-local'
-                    value={firstSeenTo}
-                  />
-                </Field>
-                <Button type='submit'>搜索事件</Button>
-              </form>
-              <DataTable
-                className='h-full'
-                columns={eventColumns}
-                emptyText={loading ? '正在加载全球事件' : '暂无全球事件'}
-                getRowKey={(item) => item.id}
-                items={eventPage.items}
-                scrollAreaLabel='全球事件表格滚动区域'
-                tableClassName='min-w-[720px] table-fixed'
-              />
+          <TabsContent
+            aria-label='全球事件列表'
+            className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-y-auto p-4 [scrollbar-gutter:stable]'
+            value='events'
+          >
+            <form
+              className='grid items-end gap-3 [&>div]:gap-1.5 [&_input]:text-xs [&_label]:text-xs [&_label]:text-muted-foreground [&_[role=combobox]]:text-xs sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]'
+              onSubmit={submitEventSearch}
+            >
+              <Field label='事件标题搜索'>
+                <Input
+                  aria-label='事件标题搜索'
+                  onChange={(event) => setEventTitle(event.target.value)}
+                  value={eventTitle}
+                />
+              </Field>
+              <Field label='事件状态'>
+                <Select
+                  ariaLabel='事件状态'
+                  onValueChange={(value) => setEventStatus(value === 'all' ? '' : value)}
+                  options={[
+                    { label: '全部', value: 'all' },
+                    { label: '候选', value: 'candidate' },
+                    { label: '已确认', value: 'confirmed' },
+                    { label: '已归档', value: 'archived' }
+                  ]}
+                  value={eventStatus || 'all'}
+                />
+              </Field>
+              <Field label='事实状态'>
+                <Select
+                  ariaLabel='事实状态'
+                  onValueChange={(value) => setFactStatus(value === 'all' ? '' : value)}
+                  options={[
+                    { label: '全部', value: 'all' },
+                    { label: '未核验', value: 'unverified' },
+                    { label: '已核验', value: 'verified' },
+                    { label: '有争议', value: 'disputed' }
+                  ]}
+                  value={factStatus || 'all'}
+                />
+              </Field>
+              <Field label='事件时间开始'>
+                <Input
+                  aria-label='事件时间开始'
+                  onChange={(event) => setEventTimeFrom(event.target.value)}
+                  type='datetime-local'
+                  value={eventTimeFrom}
+                />
+              </Field>
+              <Field label='事件时间结束'>
+                <Input
+                  aria-label='事件时间结束'
+                  onChange={(event) => setEventTimeTo(event.target.value)}
+                  type='datetime-local'
+                  value={eventTimeTo}
+                />
+              </Field>
+              <Field label='首次发现开始'>
+                <Input
+                  aria-label='首次发现开始'
+                  onChange={(event) => setFirstSeenFrom(event.target.value)}
+                  type='datetime-local'
+                  value={firstSeenFrom}
+                />
+              </Field>
+              <Field label='首次发现结束'>
+                <Input
+                  aria-label='首次发现结束'
+                  onChange={(event) => setFirstSeenTo(event.target.value)}
+                  type='datetime-local'
+                  value={firstSeenTo}
+                />
+              </Field>
+              <Button className='text-xs' size='sm' type='submit'>
+                搜索事件
+              </Button>
+            </form>
+            <DataTable
+              className='h-full'
+              columns={eventColumns}
+              emptyText={loading ? '正在加载全球事件' : '暂无全球事件'}
+              getRowKey={(item) => item.id}
+              items={eventPage.items}
+              scrollAreaLabel='全球事件表格滚动区域'
+              tableClassName='min-w-[720px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+            />
+            <div className='[&>div]:pt-1 [&>div]:text-xs [&_button]:h-8 [&_button]:text-xs'>
               <Pagination
                 page={eventPage.page}
                 pageSize={eventPage.page_size}
                 total={eventPage.total}
                 onPageChange={(page) => setEventQuery((current) => ({ ...current, page }))}
               />
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </TabsContent>
 
-        <TabsContent
-          aria-label='采集器配置'
-          className='min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]'
-          value='collector'
-        >
-          {activeTab === 'collector' ? (
-            <CollectorConfiguration
-              onOpenMonitoring={onOpenMonitoring ?? (() => undefined)}
-              token={token}
-            />
-          ) : null}
-        </TabsContent>
-      </div>
+          <TabsContent
+            aria-label='采集器配置'
+            className='min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]'
+            value='collector'
+          >
+            {activeTab === 'collector' ? <CollectorConfiguration token={token} /> : null}
+          </TabsContent>
+        </div>
+      </Card>
     </Tabs>
   );
 }
