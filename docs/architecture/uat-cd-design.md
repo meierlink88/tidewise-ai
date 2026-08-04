@@ -24,8 +24,12 @@ Miniapp Frontend 不部署到 ECS。当前仅允许微信开发者工具调用 E
 
 RDS for PostgreSQL 使用相互隔离的 Data 和 AgentRun database/role。只有 Data Domain Service 与 AgentRun Backend Service 分别访问自己的数据库；禁止跨库 SQL。Miniapp 和 Admin Portal Backend Service 只能通过 REST API 使用下游能力，不持有数据库凭据。
 
-UAT 的 Neo4j 由 ECS systemd 独立管理，只供显式 one-shot Industry graph projector 通过
-Docker host-gateway 访问；Data 长驻服务仍不持有 Neo4j 凭据或依赖 Neo4j readiness。
+UAT 的 Neo4j 由 ECS systemd 独立管理。显式 one-shot Industry graph projector 使用
+独立写入身份；Data 长驻服务通过 Docker host-gateway 使用另一组最小权限健康身份，
+仅对配置 database 执行无业务数据的 `RETURN 1`。该探针只提供运行环境监控状态，
+不参与 Data 业务查询，也不把 Neo4j 可用性提升为 Data `/readyz` 或应用发布门禁。
+健康身份随应用 `runtime.env` 持久注入；应用回退恢复上一版 runtime 配置，但不会创建、
+修改、重启或回退 Neo4j 账号与基础设施。
 Qdrant 由独立运维动作管理，是 AgentRun Event Semantic retrieval 的内部运行依赖；
 应用 CD 只检查 `http://qdrant:6333` 可用性，并在显式选择时运行 one-shot projector，
 不得安装、升级、重启、删除或回滚 Qdrant。PostgreSQL 仍是投影事实源。

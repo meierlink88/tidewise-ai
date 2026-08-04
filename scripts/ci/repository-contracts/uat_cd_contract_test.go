@@ -76,16 +76,11 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 }
 
 func TestUATWorkflowScopesNeo4jCredentialsToEnabledProjectionStep(t *testing.T) {
-	root := repositoryRoot()
-	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
-	prepareStart := strings.Index(workflow, "- name: Prepare deployment environment")
-	pullStart := strings.Index(workflow, "- name: Pull immutable release images")
-	if prepareStart < 0 || pullStart <= prepareStart {
-		t.Fatal("UAT workflow is missing the deployment environment preparation boundary")
-	}
-	prepare := workflow[prepareStart:pullStart]
-	if strings.Contains(prepare, "NEO4J_") {
-		t.Fatal("UAT runtime environment must not persist Neo4j configuration or credentials")
+	workflow, prepare := uatWorkflowAndPrepareStep(t)
+	for _, forbidden := range []string{"\"NEO4J_URI=", "\"NEO4J_USERNAME=", "\"NEO4J_PASSWORD=", "\"NEO4J_DATABASE="} {
+		if strings.Contains(prepare, forbidden) {
+			t.Fatalf("UAT runtime environment must not persist graph projection configuration %q", forbidden)
+		}
 	}
 	for _, required := range []string{
 		"NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}",
@@ -99,15 +94,38 @@ func TestUATWorkflowScopesNeo4jCredentialsToEnabledProjectionStep(t *testing.T) 
 	}
 }
 
-func TestUATWorkflowPersistsEmbeddingSecret(t *testing.T) {
-	root := repositoryRoot()
-	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
-	prepareStart := strings.Index(workflow, "- name: Prepare deployment environment")
-	pullStart := strings.Index(workflow, "- name: Pull immutable release images")
-	if prepareStart < 0 || pullStart <= prepareStart {
-		t.Fatal("UAT workflow is missing the deployment environment preparation boundary")
+func TestUATWorkflowPersistsDedicatedNeo4jHealthCredentials(t *testing.T) {
+	workflow, prepare := uatWorkflowAndPrepareStep(t)
+	composeValidation := strings.Index(prepare, "config --quiet")
+	if composeValidation < 0 {
+		t.Fatal("UAT runtime preparation is missing Compose configuration validation")
 	}
-	prepare := workflow[prepareStart:pullStart]
+	for _, required := range []string{
+		"DATA_NEO4J_HEALTH_URI=${DATA_NEO4J_HEALTH_URI}",
+		"DATA_NEO4J_HEALTH_USERNAME=${DATA_NEO4J_HEALTH_USERNAME}",
+		"DATA_NEO4J_HEALTH_PASSWORD=${DATA_NEO4J_HEALTH_PASSWORD}",
+	} {
+		assignment := strings.Index(prepare, required)
+		if assignment < 0 {
+			t.Fatalf("UAT runtime preparation missing %q", required)
+		}
+		if assignment > composeValidation {
+			t.Fatalf("UAT runtime preparation writes %q after Compose validation", required)
+		}
+	}
+	for _, required := range []string{
+		"DATA_NEO4J_HEALTH_URI: ${{ vars.DATA_NEO4J_HEALTH_URI }}",
+		"DATA_NEO4J_HEALTH_USERNAME: ${{ vars.DATA_NEO4J_HEALTH_USERNAME }}",
+		"DATA_NEO4J_HEALTH_PASSWORD: ${{ secrets.DATA_NEO4J_HEALTH_PASSWORD }}",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT workflow does not source dedicated Neo4j health value %q", required)
+		}
+	}
+}
+
+func TestUATWorkflowPersistsEmbeddingSecret(t *testing.T) {
+	workflow, prepare := uatWorkflowAndPrepareStep(t)
 	for _, required := range []string{"EMBEDDING_API_KEY=${EMBEDDING_API_KEY}"} {
 		if !strings.Contains(prepare, required) {
 			t.Fatalf("UAT runtime preparation missing %q", required)
@@ -116,6 +134,18 @@ func TestUATWorkflowPersistsEmbeddingSecret(t *testing.T) {
 	if !strings.Contains(workflow, "EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}") {
 		t.Fatal("UAT workflow does not source the embedding key from the uat Environment Secret")
 	}
+}
+
+func uatWorkflowAndPrepareStep(t *testing.T) (string, string) {
+	t.Helper()
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	prepareStart := strings.Index(workflow, "- name: Prepare deployment environment")
+	pullStart := strings.Index(workflow, "- name: Pull immutable release images")
+	if prepareStart < 0 || pullStart <= prepareStart {
+		t.Fatal("UAT workflow is missing the deployment environment preparation boundary")
+	}
+	return workflow, workflow[prepareStart:pullStart]
 }
 
 func TestUATDeployJobConsumesSWRBundleWithoutGitHubCheckout(t *testing.T) {
