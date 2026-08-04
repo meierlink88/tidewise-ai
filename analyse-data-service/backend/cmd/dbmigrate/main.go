@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
@@ -25,11 +24,11 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	timeout := time.Duration(cfg.Database.ConnectTimeoutSeconds) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	report, err := dbmigration.CheckPostgresWithOptions(ctx, cfg, options)
+	// The database connect timeout belongs to individual connection attempts in
+	// the PostgreSQL DSN. A complete forward migration chain can legitimately
+	// take longer, especially on a fresh database, so it must not reuse that
+	// value as an end-to-end deadline.
+	report, err := dbmigration.CheckPostgresWithOptions(context.Background(), cfg, options)
 	if err != nil {
 		log.Fatalf("run migrations: %v", err)
 	}
