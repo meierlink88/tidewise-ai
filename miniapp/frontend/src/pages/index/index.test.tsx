@@ -9,7 +9,12 @@ import {
   ResearchThemeHomeSession,
   type ResearchThemeHomeSessionState
 } from '../../features/research-themes/session';
-import { IndexView, refreshHomeFeed } from './theme-list-page';
+import {
+  IndexView,
+  loadMoreAtPageBottom,
+  navigateThemePeriod,
+  refreshHomeFeed
+} from './theme-list-page';
 
 vi.mock('@tarojs/taro', () => ({
   default: {
@@ -33,6 +38,21 @@ vi.mock('@tarojs/components', () => ({
 }));
 
 describe('Theme homepage', () => {
+  it('wires today/history navigation and history-only bottom loading', () => {
+    const api = { navigateTo: vi.fn(), navigateBack: vi.fn() };
+    const session = { loadMore: vi.fn().mockResolvedValue('updated') };
+
+    navigateThemePeriod('today', api);
+    navigateThemePeriod('history', api);
+    loadMoreAtPageBottom('today', session as Pick<ResearchThemeHomeSession, 'loadMore'>);
+    loadMoreAtPageBottom('history', session as Pick<ResearchThemeHomeSession, 'loadMore'>);
+
+    expect(api.navigateTo).toHaveBeenCalledWith({
+      url: '/pages/research-theme/history/index'
+    });
+    expect(api.navigateBack).toHaveBeenCalledOnce();
+    expect(session.loadMore).toHaveBeenCalledOnce();
+  });
   it('renders the Theme feed without the removed static category and tracking bar', () => {
     const state: ResearchThemeHomeSessionState = {
       feed: { status: 'ready', value: mockResearchThemeFeed },
@@ -79,6 +99,43 @@ describe('Theme homepage', () => {
       duration: 1600
     });
     expect(api.stopPullDownRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('includes newly appended history items in the active search', async () => {
+    const appendedTheme = {
+      ...mockResearchThemeFeed.items[0],
+      id: 'bbbbbbbb-1111-4111-8111-111111111111',
+      title: '历史独有主题'
+    };
+    const port: ResearchThemeHomepagePort = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({ ...mockResearchThemeFeed, nextCursor: 'next-page' })
+        .mockResolvedValueOnce({
+          ...mockResearchThemeFeed,
+          items: [appendedTheme],
+          nextCursor: null
+        }),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+    await session.loadMore();
+
+    const page = IndexView({
+      state: session.getState(),
+      period: 'history',
+      query: '历史独有',
+      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
+      onQueryChange: vi.fn(),
+      onRetryFeed: vi.fn(),
+      onOpenEvents: vi.fn(),
+      onCloseEvents: vi.fn(),
+      onRetryEvents: vi.fn()
+    });
+
+    expect(textContent(page)).toContain('历史独有主题');
+    expect(textContent(page)).not.toContain(mockResearchThemeFeed.items[0].title);
   });
 
   it('opens the event timeline through the page interaction and closes it independently', async () => {

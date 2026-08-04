@@ -29,7 +29,7 @@ func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func
 	if err != nil {
 		return nil, nil, err
 	}
-	useCase := biz.NewResearchService(repository)
+	useCase := biz.NewResearchServiceWithCursorKey(repository, config.DataService.IdentityToken)
 	applicationService := service.NewResearchService(useCase)
 	httpServer := server.NewHTTPServer(config, applicationService, logger)
 

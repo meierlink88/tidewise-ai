@@ -32,7 +32,11 @@ describe('research theme homepage session', () => {
       id: 'bbbbbbbb-1111-4111-8111-111111111111',
       title: '历史主题'
     };
-    const second = { ...mockResearchThemeFeed, items: [secondItem], nextCursor: null };
+    const second = {
+      ...mockResearchThemeFeed,
+      items: [mockResearchThemeFeed.items[0], secondItem],
+      nextCursor: null
+    };
     const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(second),
       getDetail: vi.fn()
@@ -53,6 +57,24 @@ describe('research theme homepage session', () => {
       value: { items: [mockResearchThemeFeed.items[0], secondItem], nextCursor: null }
     });
     expect(session.getState().pagination).toBe('exhausted');
+  });
+
+  it('coalesces concurrent history bottom events into one cursor request', async () => {
+    const nextPage = deferred<typeof mockResearchThemeFeed>();
+    const first = { ...mockResearchThemeFeed, nextCursor: 'one-cursor' };
+    const port: ResearchThemeHomepagePort = {
+      list: vi.fn().mockResolvedValueOnce(first).mockReturnValueOnce(nextPage.promise),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+
+    const firstBottom = session.loadMore();
+    await expect(session.loadMore()).resolves.toBe('ignored');
+    nextPage.resolve({ ...mockResearchThemeFeed, items: [], nextCursor: null });
+
+    await expect(firstBottom).resolves.toBe('updated');
+    expect(port.list).toHaveBeenCalledTimes(2);
   });
 
   it('preserves loaded history and retries a failed next page from the same cursor', async () => {
@@ -254,6 +276,29 @@ describe('research theme homepage session', () => {
     expect(session.getState().feed).toEqual({ status: 'ready', value: refreshed });
   });
 
+  it('ignores an old load-more failure after pull-to-refresh restarts page one', async () => {
+    const oldPage = deferred<typeof mockResearchThemeFeed>();
+    const first = { ...mockResearchThemeFeed, nextCursor: 'old-cursor' };
+    const refreshed = { ...mockResearchThemeFeed, asOf: '2026-08-04T03:00:00Z' };
+    const port: ResearchThemeHomepagePort = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce(first)
+        .mockReturnValueOnce(oldPage.promise)
+        .mockResolvedValueOnce(refreshed),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+    const loadingMore = session.loadMore();
+
+    await session.refreshFeed();
+    oldPage.reject(new Error('stale failure'));
+
+    await expect(loadingMore).resolves.toBe('ignored');
+    expect(session.getState().pagination).toBe('exhausted');
+  });
+
   it('keeps a late response keyed to its Theme when the user opens another Theme', async () => {
     const otherTheme = {
       ...mockResearchThemeFeed.items[0],
@@ -300,10 +345,12 @@ describe('research theme homepage session', () => {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((next) => {
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((next, fail) => {
     resolve = next;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 async function flushPromises() {

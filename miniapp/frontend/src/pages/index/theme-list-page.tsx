@@ -19,6 +19,11 @@ interface HomeRefreshAPI {
   showToast: (options: { title: string; icon: 'none' | 'success'; duration: number }) => unknown;
 }
 
+interface ThemePeriodNavigationAPI {
+  navigateTo: (options: { url: string }) => unknown;
+  navigateBack: () => unknown;
+}
+
 export function ThemeListPage({ period }: { period: ResearchThemePeriod }) {
   const session = useMemo(
     () => new ResearchThemeHomeSession(createResearchThemeHomepagePort(), { period }),
@@ -42,15 +47,11 @@ export function ThemeListPage({ period }: { period: ResearchThemePeriod }) {
   });
 
   useReachBottom(() => {
-    if (period === 'history') void session.loadMore();
+    loadMoreAtPageBottom(period, session);
   });
 
   const handlePeriodAction = () => {
-    if (period === 'today') {
-      void Taro.navigateTo({ url: '/pages/research-theme/history/index' });
-    } else {
-      void Taro.navigateBack();
-    }
+    navigateThemePeriod(period, Taro);
   };
 
   return (
@@ -68,6 +69,24 @@ export function ThemeListPage({ period }: { period: ResearchThemePeriod }) {
       onLoadMore={() => void session.loadMore()}
     />
   );
+}
+
+export function navigateThemePeriod(
+  period: ResearchThemePeriod,
+  api: ThemePeriodNavigationAPI
+): void {
+  if (period === 'today') {
+    void api.navigateTo({ url: '/pages/research-theme/history/index' });
+  } else {
+    void api.navigateBack();
+  }
+}
+
+export function loadMoreAtPageBottom(
+  period: ResearchThemePeriod,
+  session: Pick<ResearchThemeHomeSession, 'loadMore'>
+): void {
+  if (period === 'history') void session.loadMore();
 }
 
 export function IndexView({

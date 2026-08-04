@@ -2,6 +2,8 @@ package biz
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -75,19 +77,31 @@ type ResearchEventDTO struct {
 }
 
 type ResearchService struct {
-	repo ResearchRepo
-	now  func() time.Time
+	repo      ResearchRepo
+	now       func() time.Time
+	cursorKey []byte
 }
 
+const defaultResearchCursorKey = "tidewise-research-cursor-test-key"
+
 func NewResearchService(repo ResearchRepo) *ResearchService {
-	return NewResearchServiceWithClock(repo, time.Now)
+	return NewResearchServiceWithClockAndCursorKey(repo, time.Now, defaultResearchCursorKey)
 }
 
 func NewResearchServiceWithClock(repo ResearchRepo, now func() time.Time) *ResearchService {
+	return NewResearchServiceWithClockAndCursorKey(repo, now, defaultResearchCursorKey)
+}
+
+func NewResearchServiceWithCursorKey(repo ResearchRepo, cursorKey string) *ResearchService {
+	return NewResearchServiceWithClockAndCursorKey(repo, time.Now, cursorKey)
+}
+
+func NewResearchServiceWithClockAndCursorKey(repo ResearchRepo, now func() time.Time, cursorKey string) *ResearchService {
 	if now == nil {
 		now = time.Now
 	}
-	return &ResearchService{repo: repo, now: now}
+	derivedKey := sha256.Sum256([]byte("tidewise:miniapp:research-cursor:" + cursorKey))
+	return &ResearchService{repo: repo, now: now, cursorKey: derivedKey[:]}
 }
 
 func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRequest) (ResearchThemeListResponse, error) {
@@ -122,7 +136,7 @@ func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRe
 		ThemeCount: page.ThemeCount, EventCount: page.EventCount, Items: items, NextCursor: page.NextCursor,
 	}
 	if request.Period != "" && page.NextCursor != nil {
-		wrapped, err := encodePeriodCursor(periodCursor{
+		wrapped, err := s.encodePeriodCursor(periodCursor{
 			Version: 1, Period: request.Period, PublishedFrom: query.PublishedFrom.UTC(),
 			PublishedTo: query.PublishedTo.UTC(), DataCursor: *page.NextCursor,
 		})
@@ -190,19 +204,16 @@ type periodCursor struct {
 }
 
 func (s *ResearchService) resolvePeriodQuery(period, encoded string) (publicationBounds, string, error) {
-	now := s.now()
 	if strings.TrimSpace(encoded) != "" {
-		cursor, err := decodePeriodCursor(encoded)
+		cursor, err := s.decodePeriodCursor(encoded)
 		bounds := publicationBounds{from: cursor.PublishedFrom.UTC(), to: cursor.PublishedTo.UTC()}
-		currentBounds := periodPublicationBounds(period, now)
-		previousBounds := periodPublicationBounds(period, now.Add(-24*time.Hour))
 		if err != nil || cursor.Version != 1 || cursor.Period != period || cursor.DataCursor == "" ||
-			(!bounds.equal(currentBounds) && !bounds.equal(previousBounds)) {
+			!bounds.from.Before(bounds.to) {
 			return publicationBounds{}, "", fmt.Errorf("%w: invalid cursor", ErrInvalidResearchRequest)
 		}
 		return bounds, cursor.DataCursor, nil
 	}
-	return periodPublicationBounds(period, now), "", nil
+	return periodPublicationBounds(period, s.now()), "", nil
 }
 
 func periodPublicationBounds(period string, now time.Time) publicationBounds {
@@ -215,20 +226,32 @@ func periodPublicationBounds(period string, now time.Time) publicationBounds {
 	return publicationBounds{from: today.AddDate(0, 0, -30).UTC(), to: today.UTC()}
 }
 
-func (bounds publicationBounds) equal(other publicationBounds) bool {
-	return bounds.from.Equal(other.from) && bounds.to.Equal(other.to)
-}
-
-func encodePeriodCursor(cursor periodCursor) (string, error) {
+func (s *ResearchService) encodePeriodCursor(cursor periodCursor) (string, error) {
 	payload, err := json.Marshal(cursor)
 	if err != nil {
 		return "", err
 	}
-	return base64.RawURLEncoding.EncodeToString(payload), nil
+	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
+	mac := hmac.New(sha256.New, s.cursorKey)
+	_, _ = mac.Write([]byte(encodedPayload))
+	return encodedPayload + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
-func decodePeriodCursor(value string) (periodCursor, error) {
-	payload, err := base64.RawURLEncoding.DecodeString(value)
+func (s *ResearchService) decodePeriodCursor(value string) (periodCursor, error) {
+	parts := strings.Split(value, ".")
+	if len(parts) != 2 {
+		return periodCursor{}, errors.New("invalid cursor encoding")
+	}
+	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return periodCursor{}, err
+	}
+	mac := hmac.New(sha256.New, s.cursorKey)
+	_, _ = mac.Write([]byte(parts[0]))
+	if !hmac.Equal(signature, mac.Sum(nil)) {
+		return periodCursor{}, errors.New("invalid cursor signature")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
 		return periodCursor{}, err
 	}

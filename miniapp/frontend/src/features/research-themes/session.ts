@@ -163,7 +163,7 @@ export class ResearchThemeHomeSession {
       });
       return 'updated';
     } catch {
-      if (this.disposed) return 'ignored';
+      if (this.disposed || generation !== this.feedGeneration) return 'ignored';
       this.update({ ...this.state, pagination: 'error' });
       return 'failed';
     } finally {

@@ -84,7 +84,7 @@ func TestResearchServiceCursorFreezesHistoryPublicationRange(t *testing.T) {
 	if err != nil || first.NextCursor == nil {
 		t.Fatalf("first page cursor/error = %v/%v", first.NextCursor, err)
 	}
-	now = now.Add(2 * time.Hour)
+	now = now.Add(48 * time.Hour)
 	_, err = service.ListThemes(context.Background(), ResearchListRequest{
 		Period: ResearchPeriodHistory, Cursor: *first.NextCursor,
 	})
@@ -98,7 +98,8 @@ func TestResearchServiceCursorFreezesHistoryPublicationRange(t *testing.T) {
 
 func TestResearchServiceRejectsCursorWithClientChosenPublicationRange(t *testing.T) {
 	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
-	forged, err := encodePeriodCursor(periodCursor{
+	attackerService := NewResearchServiceWithClockAndCursorKey(&Fake{}, func() time.Time { return now }, "attacker-key")
+	forged, err := attackerService.encodePeriodCursor(periodCursor{
 		Version: 1, Period: ResearchPeriodHistory,
 		PublishedFrom: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		PublishedTo:   time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
@@ -107,7 +108,7 @@ func TestResearchServiceRejectsCursorWithClientChosenPublicationRange(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewResearchServiceWithClock(&Fake{}, func() time.Time { return now })
+	service := NewResearchServiceWithClockAndCursorKey(&Fake{}, func() time.Time { return now }, "server-key")
 
 	_, err = service.ListThemes(context.Background(), ResearchListRequest{
 		Period: ResearchPeriodHistory, Cursor: forged,
