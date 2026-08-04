@@ -5,10 +5,20 @@ import {
   type ResearchThemeHomepagePort
 } from '../../features/research-themes/contract';
 
+const shanghaiOffsetMilliseconds = 8 * 60 * 60 * 1000;
+const dayMilliseconds = 24 * 60 * 60 * 1000;
+const mockNow = new Date();
+const shiftedNow = new Date(mockNow.getTime() + shanghaiOffsetMilliseconds);
+const todayStartMilliseconds =
+  Date.UTC(shiftedNow.getUTCFullYear(), shiftedNow.getUTCMonth(), shiftedNow.getUTCDate()) -
+  shanghaiOffsetMilliseconds;
+const todayEndMilliseconds = todayStartMilliseconds + dayMilliseconds;
+const historyStartMilliseconds = todayStartMilliseconds - 30 * dayMilliseconds;
+
 export const mockResearchThemeFeed: HomeResearchThemeFeed = {
-  windowStart: '2026-07-27T08:00:00Z',
-  windowEnd: '2026-07-28T08:00:00Z',
-  asOf: '2026-07-28T08:00:00Z',
+  windowStart: new Date(todayStartMilliseconds).toISOString(),
+  windowEnd: new Date(todayEndMilliseconds).toISOString(),
+  asOf: mockNow.toISOString(),
   themeCount: 1,
   eventCount: 2,
   nextCursor: null,
@@ -31,10 +41,12 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
       transmissionSummary: '端口计划 +80% → 数据中心交换机 → 高速光模块 → DSP 芯片',
       checkpointSummary: '采购数量、单端口模块用量、光模块排产与 DSP 渗透率。',
       riskSummary: '采购未落地或替代技术路线可能削弱传导。',
-      analysisAsOf: '2026-07-28T08:00:00Z',
-      windowStart: '2026-07-27T08:00:00Z',
-      windowEnd: '2026-07-28T08:00:00Z',
-      publishedAt: '2026-07-28T08:05:00Z',
+      analysisAsOf: mockNow.toISOString(),
+      windowStart: new Date(todayStartMilliseconds).toISOString(),
+      windowEnd: new Date(todayEndMilliseconds).toISOString(),
+      publishedAt: new Date(
+        Math.max(todayStartMilliseconds, mockNow.getTime() - 60 * 60 * 1000)
+      ).toISOString(),
       updateLabel: '刚刚更新',
       impacts: [
         {
@@ -74,6 +86,54 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
   ]
 };
 
+export const mockHistoricalResearchThemeFeed: HomeResearchThemeFeed = {
+  windowStart: new Date(historyStartMilliseconds).toISOString(),
+  windowEnd: new Date(todayStartMilliseconds).toISOString(),
+  asOf: mockNow.toISOString(),
+  themeCount: 1,
+  eventCount: 1,
+  nextCursor: null,
+  items: [
+    {
+      id: '55555555-5555-4555-8555-555555555555',
+      analysisBatchId: 'history-theme-memory-v1',
+      title: '存储芯片价格修复观察',
+      oneLineConclusion: '渠道报价回升，但库存去化与终端补库仍需继续验证',
+      conclusionDirection: 'mixed',
+      impactStrength: 'medium',
+      attentionLevel: 'medium',
+      conclusionStatus: 'partial',
+      transmissionStage: 'validation',
+      investmentGuidanceAction: 'observe',
+      investmentGuidanceSummary: '观察存储原厂报价、渠道库存和终端补库节奏。',
+      timeHorizonCategory: 'short_term',
+      timeHorizonSummary: '未来一个季度',
+      transmissionSummary: '报价回升 → 渠道库存去化 → 原厂稼动率修复',
+      checkpointSummary: '合约价、渠道库存周转天数与终端订单。',
+      riskSummary: '终端需求不足可能令价格修复持续性低于预期。',
+      analysisAsOf: new Date(todayStartMilliseconds - 23 * 60 * 60 * 1000).toISOString(),
+      windowStart: new Date(historyStartMilliseconds).toISOString(),
+      windowEnd: new Date(todayStartMilliseconds).toISOString(),
+      publishedAt: new Date(todayStartMilliseconds - 22 * 60 * 60 * 1000).toISOString(),
+      updateLabel: '历史发布',
+      impacts: [
+        {
+          nodeKey: '66666666-6666-4666-8666-666666666666',
+          displayName: '存储芯片',
+          chainNodeEntityId: '66666666-6666-4666-8666-666666666666',
+          name: '存储芯片',
+          relationRole: 'beneficiary',
+          impactDirection: 'mixed',
+          impactSummary: '报价改善利好盈利修复，但补库强度尚不确定。',
+          displayOrder: 1
+        }
+      ],
+      evidenceEventCount: 1,
+      reasoningTreeCount: 1
+    }
+  ]
+};
+
 export const mockResearchThemeDetail: ResearchThemeDetail = {
   id: mockResearchThemeFeed.items[0].id,
   title: mockResearchThemeFeed.items[0].title,
@@ -93,16 +153,29 @@ export const mockResearchThemeDetail: ResearchThemeDetail = {
   ]
 };
 
+export const mockHistoricalResearchThemeDetail: ResearchThemeDetail = {
+  id: mockHistoricalResearchThemeFeed.items[0].id,
+  title: mockHistoricalResearchThemeFeed.items[0].title,
+  events: [
+    {
+      eventId: '77777777-7777-4777-8777-777777777777',
+      title: '渠道报价回升',
+      summary: '部分存储产品渠道报价较前期低点回升。',
+      eventTime: { status: 'confirmed', date: '08-03', time: '10:00' }
+    }
+  ]
+};
+
 export function createMockResearchThemeHomepagePort(): ResearchThemeHomepagePort {
   return {
-    async list() {
-      return mockResearchThemeFeed;
+    async list(request) {
+      return request.period === 'history' ? mockHistoricalResearchThemeFeed : mockResearchThemeFeed;
     },
     async getDetail(themeId) {
-      if (themeId !== mockResearchThemeDetail.id) {
-        throw new ResearchThemeDetailError('themeUnavailable');
-      }
-      return mockResearchThemeDetail;
+      if (themeId === mockResearchThemeDetail.id) return mockResearchThemeDetail;
+      if (themeId === mockHistoricalResearchThemeDetail.id)
+        return mockHistoricalResearchThemeDetail;
+      throw new ResearchThemeDetailError('themeUnavailable');
     }
   };
 }

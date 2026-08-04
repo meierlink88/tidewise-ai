@@ -33,4 +33,33 @@ describe('research theme homepage feed', () => {
     expect(filterHomeResearchThemes(items, '采购订单')).toHaveLength(1);
     expect(filterHomeResearchThemes(items, '不存在')).toEqual([]);
   });
+
+  it('keeps today themes out of history search results', async () => {
+    const port = createMockResearchThemeHomepagePort();
+    const today = await port.list({ period: 'today', limit: 20 });
+    const history = await port.list({ period: 'history', limit: 5 });
+    const todayStart = Date.parse(today.windowStart);
+    const todayEnd = Date.parse(today.windowEnd);
+    const historyStart = Date.parse(history.windowStart);
+    const historyEnd = Date.parse(history.windowEnd);
+
+    expect(todayEnd - todayStart).toBe(24 * 60 * 60 * 1000);
+    expect(historyEnd).toBe(todayStart);
+    expect(historyEnd - historyStart).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(
+      today.items.every(
+        (theme) =>
+          Date.parse(theme.publishedAt) >= todayStart && Date.parse(theme.publishedAt) < todayEnd
+      )
+    ).toBe(true);
+    expect(
+      history.items.every(
+        (theme) =>
+          Date.parse(theme.publishedAt) >= historyStart &&
+          Date.parse(theme.publishedAt) < historyEnd
+      )
+    ).toBe(true);
+    expect(history.items.map((theme) => theme.id)).not.toContain(today.items[0].id);
+    expect(filterHomeResearchThemes(history.items, today.items[0].title)).toEqual([]);
+  });
 });

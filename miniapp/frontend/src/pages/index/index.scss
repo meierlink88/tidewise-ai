@@ -129,21 +129,39 @@
 
 .home-history-button {
   display: flex;
-  width: 76rpx;
+  width: 116rpx;
   height: 76rpx;
-  flex: 0 0 76rpx;
+  flex: 0 0 116rpx;
   align-items: center;
   justify-content: center;
+  gap: 7rpx;
   margin-left: 18rpx;
+  padding: 0 14rpx;
   border: 2rpx solid $color-champagne-300;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.98);
+  border-radius: 38rpx;
   box-shadow: 0 12rpx 30rpx rgba(3, 12, 34, 0.22);
 }
 
+.home-history-button--history {
+  color: $color-navy-900;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.home-history-button--today {
+  color: $color-card;
+  background: $color-navy-900;
+}
+
 .home-history-button__icon {
-  width: 38rpx;
-  height: 38rpx;
+  width: 32rpx;
+  height: 32rpx;
+  flex: 0 0 32rpx;
+}
+
+.home-history-button__label {
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .home-content {
