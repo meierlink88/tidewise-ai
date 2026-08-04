@@ -145,11 +145,7 @@ export class ResearchThemeHomeSession {
         limit: this.pageSize,
         cursor
       });
-      if (
-        this.disposed ||
-        generation !== this.feedGeneration ||
-        this.state.feed.status !== 'ready'
-      )
+      if (this.disposed || generation !== this.feedGeneration || this.state.feed.status !== 'ready')
         return 'ignored';
       const existingIds = new Set(this.state.feed.value.items.map((item) => item.id));
       const items = [

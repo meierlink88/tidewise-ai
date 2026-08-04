@@ -20,13 +20,22 @@ function showUnavailable(title: string) {
   void Taro.showToast({ title, icon: 'none', duration: 1600 });
 }
 
-export function HomeHeader({ chrome, query, period, onQueryChange, onPeriodAction }: HomeHeaderProps) {
+export function HomeHeader({
+  chrome,
+  query,
+  period,
+  onQueryChange,
+  onPeriodAction
+}: HomeHeaderProps) {
   return (
     <View className='home-hero'>
       <View style={{ height: `${chrome.statusBarHeight}px` }} />
       <View
         className='home-nav'
-        style={{ height: `${chrome.navigationBarHeight}px`, paddingRight: `${chrome.rightReservedWidth}px` }}
+        style={{
+          height: `${chrome.navigationBarHeight}px`,
+          paddingRight: `${chrome.rightReservedWidth}px`
+        }}
       >
         <Button
           className='tidewise-button home-nav__avatar-button'
