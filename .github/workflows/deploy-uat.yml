@@ -297,6 +297,9 @@ jobs:
       ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}
+      DATA_NEO4J_HEALTH_URI: ${{ vars.DATA_NEO4J_HEALTH_URI }}
+      DATA_NEO4J_HEALTH_USERNAME: ${{ vars.DATA_NEO4J_HEALTH_USERNAME }}
+      DATA_NEO4J_HEALTH_PASSWORD: ${{ secrets.DATA_NEO4J_HEALTH_PASSWORD }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
       INDUSTRY_RELATIONSHIP_IMPORT_ENABLED: ${{ inputs.apply_industry_relationship_package }}
       INDUSTRY_RELATIONSHIP_PACKAGE_SHA: ${{ inputs.industry_relationship_package_sha }}
@@ -391,6 +394,9 @@ jobs:
             "AGENTRUN_ARTIFACT_DIR=${DEPLOY_ROOT}/agentrun-artifacts" \
             "AGENTRUN_SERVICE_TOKEN=${AGENTRUN_SERVICE_TOKEN}" \
             "EMBEDDING_API_KEY=${EMBEDDING_API_KEY}" \
+            "DATA_NEO4J_HEALTH_URI=${DATA_NEO4J_HEALTH_URI}" \
+            "DATA_NEO4J_HEALTH_USERNAME=${DATA_NEO4J_HEALTH_USERNAME}" \
+            "DATA_NEO4J_HEALTH_PASSWORD=${DATA_NEO4J_HEALTH_PASSWORD}" \
             "DATA_SERVICE_TOKEN=${DATA_SERVICE_TOKEN}" \
             "ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN}" > "$runtime_env"
           printf '%s\n' \

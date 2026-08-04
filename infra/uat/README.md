@@ -74,6 +74,8 @@ Variables：
 | `SWR_DEPLOY_REPOSITORY` | UAT deployment bundle 镜像仓库名 |
 | `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
 | `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| `DATA_NEO4J_HEALTH_URI` | Data 长驻服务健康探针使用的 Neo4j URI，固定为 `bolt://host.docker.internal:7687` |
+| `DATA_NEO4J_HEALTH_USERNAME` | Data 长驻服务健康探针使用的独立只读 Neo4j 用户名 |
 | `NEO4J_URI` | 固定为 `bolt://host.docker.internal:7687`，通过 Data 容器的 Docker host-gateway 访问宿主机 Neo4j |
 | `NEO4J_USERNAME` | UAT Neo4j 用户名 |
 | `NEO4J_DATABASE` | 固定为 `neo4j` |
@@ -89,12 +91,17 @@ Secrets：
 | `DATA_SERVICE_TOKEN` | 所有受信服务调用 Data Service 的统一身份 |
 | `ADMIN_SERVICE_TOKEN` | Admin Portal Backend 的浏览器/API 鉴权 |
 | `AGENTRUN_SERVICE_TOKEN` | 所有受信服务调用 AgentRun 的统一身份 |
+| `DATA_NEO4J_HEALTH_PASSWORD` | Data 长驻服务健康探针使用的独立只读 Neo4j 密码 |
 | `NEO4J_PASSWORD` | 一次性 Industry graph projector 使用的 Neo4j 密码 |
 | `EMBEDDING_API_KEY` | AgentRun 语义检索和显式 one-shot Data projector 使用的 Embedding API Key |
 
 RDS 的 host、port、database、user 与 `sslmode=require` 固定保存在两个服务各自的
 `config.uat.yaml`；GitHub Environment 只保存上述密码。两套配置必须指向相互独立的
 database/role，且不得通过完整数据库 URL 覆盖。
+
+`DATA_NEO4J_HEALTH_*` 是 Data 长驻服务的运行时依赖，只允许使用独立的最小权限
+Neo4j 身份执行 `RETURN 1`。不得复用一次性 Industry graph projector 的 `NEO4J_*`
+写入身份；两组配置分别持久注入和按需注入，生命周期与权限边界不同。
 
 AgentRun 的 database 名固定为 `tidewise_ai_server`；环境隔离由 UAT RDS instance/database
 边界和独立 role 保证，不能使用任意名称绕过 AgentRun 的数据库身份保护。
