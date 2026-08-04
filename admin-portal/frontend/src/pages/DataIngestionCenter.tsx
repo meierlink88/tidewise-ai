@@ -124,9 +124,7 @@ export default function DataIngestionCenter({
         headerClassName: 'w-[30%]',
         key: 'title',
         header: '标题',
-        render: (item) => (
-          <OverflowTooltip className='font-semibold' value={item.title || '-'} />
-        )
+        render: (item) => <OverflowTooltip className='font-semibold' value={item.title || '-'} />
       },
       {
         cellClassName: 'max-w-0',
@@ -262,11 +260,7 @@ export default function DataIngestionCenter({
           </StatusAlert>
         ) : null}
 
-        <TabsContent
-          aria-label='全球政经原始数据列表'
-          className='min-h-0 flex-1'
-          value='raw'
-        >
+        <TabsContent aria-label='全球政经原始数据列表' className='min-h-0 flex-1' value='raw'>
           <Card className='h-full min-h-0 gap-0 overflow-hidden py-0'>
             <CardContent className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 py-5'>
               <form

@@ -65,7 +65,9 @@ describe('DataIngestionCenter', () => {
     expect(
       within(rawTableRegion).queryByRole('textbox', { name: '原始数据标题搜索' })
     ).not.toBeInTheDocument();
-    expect(within(rawTableRegion).queryByRole('button', { name: '下一页' })).not.toBeInTheDocument();
+    expect(
+      within(rawTableRegion).queryByRole('button', { name: '下一页' })
+    ).not.toBeInTheDocument();
     await userEvent.hover(screen.getByText('央行公布金融数据'));
     expect(await screen.findByRole('tooltip')).toHaveClass('text-sm');
     expect(screen.getByRole('tooltip')).toHaveTextContent('央行公布金融数据');
