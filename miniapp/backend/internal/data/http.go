@@ -117,9 +117,9 @@ func (c *HTTPClient) ListResearchThemes(ctx context.Context, query biz.ResearchL
 	return value.toBiz(), nil
 }
 
-func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string, query biz.ResearchDetailQuery) (biz.ResearchThemeDetail, error) {
+func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string) (biz.ResearchThemeDetail, error) {
 	var envelope responseEnvelope[wireResearchThemeDetail]
-	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id, query), nil, &envelope)
+	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id), nil, &envelope)
 	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
 		return biz.ResearchThemeDetail{}, mapThemeDataError(err)
@@ -183,7 +183,7 @@ func researchListPath(path string, query biz.ResearchListQuery) string {
 	return appendQuery(path, values)
 }
 
-func researchDetailPath(path string, id string, _ biz.ResearchDetailQuery) string {
+func researchDetailPath(path string, id string) string {
 	return path + "/" + url.PathEscape(id)
 }
 

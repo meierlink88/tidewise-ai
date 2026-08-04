@@ -92,6 +92,36 @@ describe('research theme BFF adapter', () => {
     ).rejects.toThrow('503');
   });
 
+  it('requests a history cursor page without the legacy rolling window', async () => {
+    const request = vi.fn().mockResolvedValue({
+      statusCode: 200,
+      data: {
+        request_id: 'history-page',
+        result: {
+          window_start: '2026-07-04T16:00:00Z',
+          window_end: '2026-08-03T16:00:00Z',
+          as_of: '2026-08-04T03:00:00Z',
+          theme_count: 0,
+          event_count: 0,
+          items: [],
+          next_cursor: null
+        }
+      }
+    });
+
+    await createResearchThemeApiPort({
+      baseUrl: 'https://miniapp.example.test',
+      request
+    }).list({ period: 'history', limit: 5, cursor: 'opaque-cursor' });
+
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { period: 'history', limit: 5, cursor: 'opaque-cursor' }
+      })
+    );
+    expect(request.mock.calls[0][0].data).not.toHaveProperty('window_hours');
+  });
+
   it('loads one Theme event timeline through the published detail contract', async () => {
     const request = vi.fn().mockResolvedValue({
       statusCode: 200,

@@ -8,7 +8,7 @@ import (
 
 type ResearchRepo interface {
 	ListResearchThemes(context.Context, ResearchListQuery) (ResearchThemePage, error)
-	GetResearchTheme(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
+	GetResearchTheme(context.Context, string) (ResearchThemeDetail, error)
 	ListResearchThemeReasoningTrees(context.Context, string) (ResearchReasoningTreeList, error)
 	GetResearchThemeReasoningTree(context.Context, string, string) (ResearchReasoningTreeDetail, error)
 }
@@ -20,8 +20,6 @@ type ResearchListQuery struct {
 	Limit         int
 	Cursor        string
 }
-
-type ResearchDetailQuery struct{ WindowHours int }
 
 type ResearchThemePage struct {
 	WindowStart, WindowEnd, AsOf time.Time
@@ -122,7 +120,7 @@ var ErrFakeMethodNotConfigured = errors.New("data service fake method is not con
 
 type Fake struct {
 	ListResearchThemesFunc              func(context.Context, ResearchListQuery) (ResearchThemePage, error)
-	GetResearchThemeFunc                func(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error)
+	GetResearchThemeFunc                func(context.Context, string) (ResearchThemeDetail, error)
 	ListResearchThemeReasoningTreesFunc func(context.Context, string) (ResearchReasoningTreeList, error)
 	GetResearchThemeReasoningTreeFunc   func(context.Context, string, string) (ResearchReasoningTreeDetail, error)
 }
@@ -133,11 +131,11 @@ func (f *Fake) ListResearchThemes(ctx context.Context, query ResearchListQuery) 
 	}
 	return f.ListResearchThemesFunc(ctx, query)
 }
-func (f *Fake) GetResearchTheme(ctx context.Context, id string, query ResearchDetailQuery) (ResearchThemeDetail, error) {
+func (f *Fake) GetResearchTheme(ctx context.Context, id string) (ResearchThemeDetail, error) {
 	if f == nil || f.GetResearchThemeFunc == nil {
 		return ResearchThemeDetail{}, ErrFakeMethodNotConfigured
 	}
-	return f.GetResearchThemeFunc(ctx, id, query)
+	return f.GetResearchThemeFunc(ctx, id)
 }
 func (f *Fake) ListResearchThemeReasoningTrees(ctx context.Context, id string) (ResearchReasoningTreeList, error) {
 	if f == nil || f.ListResearchThemeReasoningTreesFunc == nil {

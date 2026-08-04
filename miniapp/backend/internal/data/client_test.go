@@ -64,7 +64,7 @@ func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	result, err := client.GetResearchTheme(context.Background(), "theme/id", biz.ResearchDetailQuery{WindowHours: 48})
+	result, err := client.GetResearchTheme(context.Background(), "theme/id")
 	if err != nil {
 		t.Fatal(err)
 	}

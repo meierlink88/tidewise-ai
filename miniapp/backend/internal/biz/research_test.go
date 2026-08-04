@@ -27,7 +27,7 @@ func TestResearchServiceMapsThemeV1WithOneAggregateCall(t *testing.T) {
 }
 
 func TestResearchServiceUsesShanghaiNaturalDayForTodayThemes(t *testing.T) {
-	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 8, 4, 15, 30, 0, 0, time.UTC)
 	repo := &Fake{ListResearchThemesFunc: func(_ context.Context, query ResearchListQuery) (ResearchThemePage, error) {
 		wantFrom := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
 		wantTo := time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC)
@@ -68,7 +68,7 @@ func TestResearchServiceUsesPreviousThirtyCalendarDaysAndFiveItemPagesForHistory
 }
 
 func TestResearchServiceCursorFreezesHistoryPublicationRange(t *testing.T) {
-	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 8, 4, 15, 30, 0, 0, time.UTC)
 	dataCursor := "data-page-two"
 	var queries []ResearchListQuery
 	repo := &Fake{ListResearchThemesFunc: func(_ context.Context, query ResearchListQuery) (ResearchThemePage, error) {
@@ -84,7 +84,7 @@ func TestResearchServiceCursorFreezesHistoryPublicationRange(t *testing.T) {
 	if err != nil || first.NextCursor == nil {
 		t.Fatalf("first page cursor/error = %v/%v", first.NextCursor, err)
 	}
-	now = now.Add(48 * time.Hour)
+	now = now.Add(2 * time.Hour)
 	_, err = service.ListThemes(context.Background(), ResearchListRequest{
 		Period: ResearchPeriodHistory, Cursor: *first.NextCursor,
 	})
@@ -96,8 +96,29 @@ func TestResearchServiceCursorFreezesHistoryPublicationRange(t *testing.T) {
 	}
 }
 
+func TestResearchServiceRejectsCursorWithClientChosenPublicationRange(t *testing.T) {
+	now := time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC)
+	forged, err := encodePeriodCursor(periodCursor{
+		Version: 1, Period: ResearchPeriodHistory,
+		PublishedFrom: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		PublishedTo:   time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
+		DataCursor:    "forged-data-cursor",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewResearchServiceWithClock(&Fake{}, func() time.Time { return now })
+
+	_, err = service.ListThemes(context.Background(), ResearchListRequest{
+		Period: ResearchPeriodHistory, Cursor: forged,
+	})
+	if !errors.Is(err, ErrInvalidResearchRequest) {
+		t.Fatalf("error = %v, want %v", err, ErrInvalidResearchRequest)
+	}
+}
+
 func TestResearchServiceRejectsInvalidInputAndMapsRepoErrors(t *testing.T) {
-	service := NewResearchService(&Fake{GetResearchThemeFunc: func(context.Context, string, ResearchDetailQuery) (ResearchThemeDetail, error) {
+	service := NewResearchService(&Fake{GetResearchThemeFunc: func(context.Context, string) (ResearchThemeDetail, error) {
 		return ResearchThemeDetail{}, ErrResearchNotFound
 	}})
 	if _, err := service.GetTheme(context.Background(), "bad", ResearchDetailRequest{}); !errors.Is(err, ErrInvalidResearchRequest) {

@@ -135,8 +135,7 @@ func (s *ResearchService) ListThemes(ctx context.Context, request ResearchListRe
 }
 
 func (s *ResearchService) GetTheme(ctx context.Context, id string, request ResearchDetailRequest) (ResearchThemeDetailResponse, error) {
-	window, err := normalizeResearchDetailRequest(request)
-	if err != nil {
+	if _, err := normalizeResearchDetailRequest(request); err != nil {
 		return ResearchThemeDetailResponse{}, err
 	}
 	id = strings.TrimSpace(id)
@@ -146,7 +145,7 @@ func (s *ResearchService) GetTheme(ctx context.Context, id string, request Resea
 	if s == nil || s.repo == nil {
 		return ResearchThemeDetailResponse{}, ErrResearchDataService
 	}
-	detail, err := s.repo.GetResearchTheme(ctx, id, ResearchDetailQuery{WindowHours: window})
+	detail, err := s.repo.GetResearchTheme(ctx, id)
 	if err != nil {
 		return ResearchThemeDetailResponse{}, normalizeResearchRepoError(err)
 	}
@@ -191,20 +190,33 @@ type periodCursor struct {
 }
 
 func (s *ResearchService) resolvePeriodQuery(period, encoded string) (publicationBounds, string, error) {
+	now := s.now()
 	if strings.TrimSpace(encoded) != "" {
 		cursor, err := decodePeriodCursor(encoded)
-		if err != nil || cursor.Version != 1 || cursor.Period != period || cursor.DataCursor == "" || !cursor.PublishedFrom.Before(cursor.PublishedTo) {
+		bounds := publicationBounds{from: cursor.PublishedFrom.UTC(), to: cursor.PublishedTo.UTC()}
+		currentBounds := periodPublicationBounds(period, now)
+		previousBounds := periodPublicationBounds(period, now.Add(-24*time.Hour))
+		if err != nil || cursor.Version != 1 || cursor.Period != period || cursor.DataCursor == "" ||
+			(!bounds.equal(currentBounds) && !bounds.equal(previousBounds)) {
 			return publicationBounds{}, "", fmt.Errorf("%w: invalid cursor", ErrInvalidResearchRequest)
 		}
-		return publicationBounds{from: cursor.PublishedFrom.UTC(), to: cursor.PublishedTo.UTC()}, cursor.DataCursor, nil
+		return bounds, cursor.DataCursor, nil
 	}
+	return periodPublicationBounds(period, now), "", nil
+}
+
+func periodPublicationBounds(period string, now time.Time) publicationBounds {
 	shanghai := time.FixedZone("Asia/Shanghai", 8*60*60)
-	localNow := s.now().In(shanghai)
+	localNow := now.In(shanghai)
 	today := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, shanghai)
 	if period == ResearchPeriodToday {
-		return publicationBounds{from: today.UTC(), to: today.AddDate(0, 0, 1).UTC()}, "", nil
+		return publicationBounds{from: today.UTC(), to: today.AddDate(0, 0, 1).UTC()}
 	}
-	return publicationBounds{from: today.AddDate(0, 0, -30).UTC(), to: today.UTC()}, "", nil
+	return publicationBounds{from: today.AddDate(0, 0, -30).UTC(), to: today.UTC()}
+}
+
+func (bounds publicationBounds) equal(other publicationBounds) bool {
+	return bounds.from.Equal(other.from) && bounds.to.Equal(other.to)
 }
 
 func encodePeriodCursor(cursor periodCursor) (string, error) {

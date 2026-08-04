@@ -141,12 +141,41 @@ describe('Theme homepage', () => {
     expect(textContent(page)).toContain('重新加载');
     expect(onRetryFeed).toHaveBeenCalledOnce();
   });
+
+  it('labels the history action and provides an explicit return-to-today action', () => {
+    const onPeriodAction = vi.fn();
+    const page = IndexView({
+      state: {
+        feed: { status: 'ready', value: mockResearchThemeFeed },
+        pagination: 'exhausted',
+        selectedThemeId: null,
+        detailsByThemeId: {}
+      },
+      period: 'history',
+      query: '',
+      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
+      onQueryChange: vi.fn(),
+      onRetryFeed: vi.fn(),
+      onOpenEvents: vi.fn(),
+      onCloseEvents: vi.fn(),
+      onRetryEvents: vi.fn(),
+      onPeriodAction
+    });
+
+    const action = findByClass(page, 'home-history-button');
+    action.props.onClick?.(tapEvent());
+
+    expect(textContent(page)).toContain('历史主题');
+    expect(action.props.ariaLabel).toBe('返回今日主题');
+    expect(onPeriodAction).toHaveBeenCalledOnce();
+  });
 });
 
 interface TestElementProps {
   className?: string;
   children?: ReactNode;
   catchMove?: boolean;
+  ariaLabel?: string;
   onClick?: (event: ReturnType<typeof tapEvent>) => void;
 }
 

@@ -45,7 +45,37 @@ func TestEveryResearchEndpointExecutesKratosMiddleware(t *testing.T) {
 	}
 }
 
+func TestResearchThemeListBindsPeriodPaginationQuery(t *testing.T) {
+	application := &capturingResearchHTTPServer{}
+	server := kratoshttp.NewServer()
+	RegisterResearchHTTPServer(server, application)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet,
+		"/api/miniapp/v1/research/themes?period=history&limit=5&cursor=opaque-cursor", nil)
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if application.request == nil || application.request.Period != "history" ||
+		application.request.Limit != 5 || application.request.Cursor != "opaque-cursor" ||
+		application.request.WindowHours != 0 {
+		t.Fatalf("request = %#v", application.request)
+	}
+}
+
 type stubResearchHTTPServer struct{}
+
+type capturingResearchHTTPServer struct {
+	stubResearchHTTPServer
+	request *ListResearchThemesRequest
+}
+
+func (server *capturingResearchHTTPServer) ListResearchThemes(_ context.Context, request *ListResearchThemesRequest) (*ResearchThemeListResponse, error) {
+	server.request = request
+	return &ResearchThemeListResponse{}, nil
+}
 
 func (stubResearchHTTPServer) ListResearchThemes(context.Context, *ListResearchThemesRequest) (*ResearchThemeListResponse, error) {
 	return &ResearchThemeListResponse{}, nil

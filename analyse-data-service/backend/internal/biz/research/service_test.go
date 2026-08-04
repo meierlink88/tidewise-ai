@@ -106,6 +106,50 @@ func TestServiceRejectsMixedLegacyAndExplicitPublicationRange(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsExplicitRangeCursorWithDifferentBounds(t *testing.T) {
+	now := time.Date(2026, 8, 4, 8, 30, 0, 0, time.UTC)
+	publishedFrom := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
+	publishedTo := time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC)
+	repository := &fakeRepository{themePage: ThemeStorePage{
+		AsOf: now, WindowStart: publishedFrom, WindowEnd: publishedTo, HasMore: true,
+		Items: []ThemeSummaryRecord{{ID: "11111111-1111-4111-8111-111111111111", PublishedAt: now}},
+	}}
+	service := NewService(repository, func() time.Time { return now })
+	first, err := service.ListThemes(context.Background(), ResearchListRequest{
+		PublishedFrom: &publishedFrom, PublishedTo: &publishedTo, Limit: 5,
+	})
+	if err != nil || first.NextCursor == nil {
+		t.Fatalf("cursor/error = %v/%v", first.NextCursor, err)
+	}
+	differentTo := publishedTo.Add(time.Hour)
+
+	_, err = service.ListThemes(context.Background(), ResearchListRequest{
+		PublishedFrom: &publishedFrom, PublishedTo: &differentTo, Limit: 5, Cursor: *first.NextCursor,
+	})
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("error = %v, want %v", err, ErrInvalidRequest)
+	}
+}
+
+func TestServiceReadsHistoricalThemeDetailWithoutListWindowMembership(t *testing.T) {
+	themeID := "11111111-1111-4111-8111-111111111111"
+	oldPublication := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	repository := &fakeRepository{themeDetail: ThemeDetailRecord{ThemeSummaryRecord: ThemeSummaryRecord{
+		ID: themeID, PublishedAt: oldPublication,
+	}}}
+	service := NewService(repository, func() time.Time {
+		return time.Date(2026, 8, 4, 0, 0, 0, 0, time.UTC)
+	})
+
+	detail, err := service.GetTheme(context.Background(), themeID, ResearchDetailRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Theme.ID != themeID || !detail.Theme.PublishedAt.Equal(oldPublication) {
+		t.Fatalf("detail = %#v", detail)
+	}
+}
+
 func TestServiceMapsReasoningTreeSignalsWithoutChoosingImpactPriority(t *testing.T) {
 	themeID := "11111111-1111-4111-8111-111111111111"
 	treeID := "22222222-2222-4222-8222-222222222222"

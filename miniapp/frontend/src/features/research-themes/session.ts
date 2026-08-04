@@ -38,6 +38,7 @@ export class ResearchThemeHomeSession {
   private disposed = false;
   private refreshInFlight = false;
   private loadMoreInFlight = false;
+  private feedGeneration = 0;
   private detailGeneration = 0;
   private readonly detailRequests = new Set<string>();
 
@@ -104,22 +105,15 @@ export class ResearchThemeHomeSession {
     try {
       const value = await this.port.list({ period: this.period, limit: this.pageSize });
       if (this.disposed) return 'ignored';
-      const selectedThemeId =
-        this.state.selectedThemeId !== null &&
-        value.items.some(
-          (theme) => theme.id === this.state.selectedThemeId && theme.evidenceEventCount > 0
-        )
-          ? this.state.selectedThemeId
-          : null;
+      this.feedGeneration += 1;
       this.detailGeneration += 1;
       this.update({
         ...this.state,
         feed: { status: 'ready', value },
         pagination: value.nextCursor === null ? 'exhausted' : 'idle',
-        selectedThemeId,
+        selectedThemeId: null,
         detailsByThemeId: {}
       });
-      if (selectedThemeId !== null) void this.ensureDetail(selectedThemeId);
       return 'updated';
     } catch {
       return this.disposed ? 'ignored' : 'failed';
@@ -143,6 +137,7 @@ export class ResearchThemeHomeSession {
       return 'exhausted';
     }
     this.loadMoreInFlight = true;
+    const generation = this.feedGeneration;
     this.update({ ...this.state, pagination: 'loading' });
     try {
       const page = await this.port.list({
@@ -150,7 +145,12 @@ export class ResearchThemeHomeSession {
         limit: this.pageSize,
         cursor
       });
-      if (this.disposed || this.state.feed.status !== 'ready') return 'ignored';
+      if (
+        this.disposed ||
+        generation !== this.feedGeneration ||
+        this.state.feed.status !== 'ready'
+      )
+        return 'ignored';
       const existingIds = new Set(this.state.feed.value.items.map((item) => item.id));
       const items = [
         ...this.state.feed.value.items,

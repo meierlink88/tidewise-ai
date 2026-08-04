@@ -55,6 +55,36 @@ describe('research theme homepage session', () => {
     expect(session.getState().pagination).toBe('exhausted');
   });
 
+  it('preserves loaded history and retries a failed next page from the same cursor', async () => {
+    const first = { ...mockResearchThemeFeed, nextCursor: 'retry-cursor' };
+    const port: ResearchThemeHomepagePort = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce(first)
+        .mockRejectedValueOnce(new Error('temporary'))
+        .mockResolvedValueOnce({ ...mockResearchThemeFeed, items: [], nextCursor: null }),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+
+    await expect(session.loadMore()).resolves.toBe('failed');
+    expect(session.getState().feed).toEqual({ status: 'ready', value: first });
+    expect(session.getState().pagination).toBe('error');
+    await expect(session.loadMore()).resolves.toBe('updated');
+
+    expect(port.list).toHaveBeenNthCalledWith(2, {
+      period: 'history',
+      limit: 5,
+      cursor: 'retry-cursor'
+    });
+    expect(port.list).toHaveBeenNthCalledWith(3, {
+      period: 'history',
+      limit: 5,
+      cursor: 'retry-cursor'
+    });
+  });
+
   it('retries an initial feed failure from the visible error state', async () => {
     const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockRejectedValueOnce(new Error()).mockResolvedValueOnce(mockResearchThemeFeed),
@@ -180,24 +210,10 @@ describe('research theme homepage session', () => {
     expect(port.getDetail).toHaveBeenCalledTimes(2);
   });
 
-  it('reloads an open event sheet after feed refresh invalidates its detail', async () => {
-    const nextDetail = {
-      ...mockResearchThemeDetail,
-      events: [
-        {
-          ...mockResearchThemeDetail.events[0],
-          summary: '刷新后的事件摘要。'
-        },
-        mockResearchThemeDetail.events[1]
-      ]
-    };
-    const refreshedDetail = deferred<typeof nextDetail>();
+  it('closes an open event sheet and clears its detail cache after feed refresh', async () => {
     const port: ResearchThemeHomepagePort = {
       list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
-      getDetail: vi
-        .fn()
-        .mockResolvedValueOnce(mockResearchThemeDetail)
-        .mockReturnValueOnce(refreshedDetail.promise)
+      getDetail: vi.fn().mockResolvedValue(mockResearchThemeDetail)
     };
     const session = new ResearchThemeHomeSession(port);
     await session.start();
@@ -206,16 +222,36 @@ describe('research theme homepage session', () => {
 
     await session.refreshFeed();
 
-    expect(port.getDetail).toHaveBeenCalledTimes(2);
-    expect(session.getState().detailsByThemeId[mockResearchThemeDetail.id]).toEqual({
-      status: 'loading'
+    expect(session.getState().selectedThemeId).toBeNull();
+    expect(session.getState().detailsByThemeId).toEqual({});
+    expect(port.getDetail).toHaveBeenCalledOnce();
+  });
+
+  it('ignores an old load-more response after pull-to-refresh restarts page one', async () => {
+    const oldPage = deferred<typeof mockResearchThemeFeed>();
+    const first = { ...mockResearchThemeFeed, nextCursor: 'old-cursor' };
+    const refreshed = { ...mockResearchThemeFeed, asOf: '2026-08-04T03:00:00Z' };
+    const port: ResearchThemeHomepagePort = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce(first)
+        .mockReturnValueOnce(oldPage.promise)
+        .mockResolvedValueOnce(refreshed),
+      getDetail: vi.fn()
+    };
+    const session = new ResearchThemeHomeSession(port, { period: 'history' });
+    await session.start();
+    const loadingMore = session.loadMore();
+
+    await expect(session.refreshFeed()).resolves.toBe('updated');
+    oldPage.resolve({
+      ...mockResearchThemeFeed,
+      items: [{ ...mockResearchThemeFeed.items[0], id: 'stale-theme' }],
+      nextCursor: null
     });
-    refreshedDetail.resolve(nextDetail);
-    await flushPromises();
-    expect(session.getState().detailsByThemeId[mockResearchThemeDetail.id]).toEqual({
-      status: 'ready',
-      value: nextDetail
-    });
+
+    await expect(loadingMore).resolves.toBe('ignored');
+    expect(session.getState().feed).toEqual({ status: 'ready', value: refreshed });
   });
 
   it('keeps a late response keyed to its Theme when the user opens another Theme', async () => {

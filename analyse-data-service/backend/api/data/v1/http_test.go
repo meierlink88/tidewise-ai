@@ -38,6 +38,27 @@ func TestDataBindingRunsKratosMiddlewareWithStableOperation(t *testing.T) {
 	}
 }
 
+func TestResearchThemeListBindsExplicitPublicationRange(t *testing.T) {
+	application := &capturingDataHTTPServer{}
+	server := kratoshttp.NewServer()
+	RegisterDataHTTPServer(server, application)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet,
+		APIPrefix+"/research/themes?published_from=2026-07-04T16%3A00%3A00Z&published_to=2026-08-03T16%3A00%3A00Z&limit=5&cursor=data-cursor", nil)
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if application.request == nil || application.request.PublishedFrom != "2026-07-04T16:00:00Z" ||
+		application.request.PublishedTo != "2026-08-03T16:00:00Z" ||
+		application.request.Limit != "5" || application.request.Cursor != "data-cursor" ||
+		application.request.WindowHours != "" {
+		t.Fatalf("request = %#v", application.request)
+	}
+}
+
 func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 	routes := map[string]struct {
 		requestPath string
@@ -215,6 +236,16 @@ func httpContractString(t *testing.T, value any, label string) string {
 }
 
 type testDataHTTPServer struct{}
+
+type capturingDataHTTPServer struct {
+	testDataHTTPServer
+	request *ListResearchThemesRequest
+}
+
+func (server *capturingDataHTTPServer) ListResearchThemes(_ context.Context, request *ListResearchThemesRequest) (*Response[ResearchThemePage], error) {
+	server.request = request
+	return testResponse[ResearchThemePage]()
+}
 
 func testResponse[T any]() (*Response[T], error) {
 	return &Response[T]{Status: http.StatusNoContent}, nil
