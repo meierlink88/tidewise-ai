@@ -355,9 +355,14 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 		}
 	}
 	agentrun := composeServiceSection(t, compose, "agentrun")
-	for _, required := range []string{"AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
+	for _, required := range []string{"AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "QDRANT_API_KEY", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun UAT service missing %q", required)
+		}
+	}
+	for _, required := range []string{"DATA_NEO4J_HEALTH_URI", "DATA_NEO4J_HEALTH_USERNAME", "DATA_NEO4J_HEALTH_PASSWORD"} {
+		if !strings.Contains(data, required) {
+			t.Fatalf("Data UAT service missing runtime health dependency %q", required)
 		}
 	}
 	for _, forbidden := range []string{"\n  qdrant:", "QDRANT_IMAGE", "qdrant-data:/qdrant/storage", "tidewise-uat-qdrant-data"} {

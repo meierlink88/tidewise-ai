@@ -625,6 +625,25 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/admin/v1/runtime-health:
+    get:
+      tags: [Admin]
+      operationId: getAgentRunRuntimeHealth
+      summary: Get sanitized AgentRun and Qdrant runtime dependency health
+      description: Checks the two required semantic collections without returning points, payloads, credentials, or endpoints.
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: AgentRun Provider runtime health.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeHealthEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /openapi.yaml:
     get:
       tags:
@@ -937,6 +956,15 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/AgentStatusList'
+    RuntimeHealthEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/RuntimeHealth'
     MonitoringSummaryEnvelope:
       type: object
       additionalProperties: false
@@ -1333,6 +1361,51 @@ components:
         updated_at:
           type: string
           format: date-time
+    RuntimeHealthStatus:
+      type: string
+      enum: [ready, degraded, down, unknown]
+    RuntimeHealthReasonCode:
+      type: string
+      enum: [timeout, unreachable, not_ready, collection_unhealthy, authentication_failed, invalid_response]
+    RuntimeHealthService:
+      type: object
+      additionalProperties: false
+      required: [key, display_name, status, checked_at]
+      properties:
+        key:
+          type: string
+          enum: [agentrun, qdrant]
+        display_name:
+          type: string
+          enum: [AgentRun, Qdrant]
+        status:
+          $ref: '#/components/schemas/RuntimeHealthStatus'
+        checked_at:
+          type: string
+          format: date-time
+        latency_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        reason_code:
+          allOf:
+            - $ref: '#/components/schemas/RuntimeHealthReasonCode'
+          nullable: true
+    RuntimeHealth:
+      type: object
+      additionalProperties: false
+      required: [checked_at, services]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+        services:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/RuntimeHealthService'
     MonitoringWindow:
       type: string
       enum: [1h, 6h, 12h, 24h]

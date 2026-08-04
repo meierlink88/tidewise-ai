@@ -30,6 +30,9 @@ Admin Portal 对事件采集、Event 提取和事件语义三类执行对象的�
 它把 AgentRun 已有原始状态确定性分组为成功、执行中和失败，同时保留原始枚举；
 摘要只统计成功执行的安全业务产出。监控事实、时间窗口和状态分组由 AgentRun 拥有，
 Admin Application Backend Service 只通过 AgentRun Admin API 代理，不读取任何下游数据库。
+监控首页同时聚合 Data Service、AgentRun、Qdrant、Neo4j 四项运行健康状态与 Agent 当前状态；
+Data 和 AgentRun 各自拥有依赖探测，Admin BFF 只做有界并发聚合。单个 Provider 失败时仍返回
+安全的部分结果，不把下游错误文本或凭据暴露给浏览器。三类执行明细只在独立子页面按需加载。
 _Avoid_: 浏览器直连 AgentRun、Admin 复制状态分组、展示 Prompt/正文/模型输出、从监控页发起重试或审批
 
 **采集 Agent 定时配置（Collector Agent Schedule Configuration）**：
@@ -41,8 +44,10 @@ _Avoid_: 同时启用多种调度策略、把多个 Prompt 建模成多条 Colle
 _Avoid_: 由 Admin Portal 复制 AgentRun 的完整配置规则、绕过 AgentRun 强制开始
 
 **采集执行记录（Collector Execution Record）**：
-采集 Agent 一次 Execution 的安全审计摘要，用于分页查看触发方式、状态、时间和停止或失败原因。它不是执行详情，也不包含 Prompt、采集正文、Artifact 或 Connector 调用内容。
-_Avoid_: 从记录列表读取业务载荷、把列表行当作可重放或可编辑任务
+采集 Agent 一次 Execution 的安全审计摘要，统一通过监控中心的“事件采集”明细子页面查看。
+采集器配置不再提供独立执行记录 Tab，Admin BFF 也不保留仅服务该旧 Tab 的专用代理 API。
+它不是可重放任务，也不包含 Prompt、采集正文、Artifact 或 Connector 调用内容。
+_Avoid_: 在采集器配置复制执行历史、从记录列表读取业务载荷、把列表行当作可重放或可编辑任务
 
 **模型配置视图（Model Provider Configuration View）**：
 AgentRun 代码已注册模型供应商的可管理安全视图。它展示 Provider、Base URL、模型、配置状态和脱敏 Key；完整旧 Key 永不返回，管理员只能保留或用新 Key 覆盖。Provider 能力与代码紧密绑定，管理面永远不负责新增或删除。

@@ -55,25 +55,6 @@ func TestFirstAgentScheduleSaveCreatesDisabledSchedule(t *testing.T) {
 	}
 }
 
-func TestCollectorExecutionsUseFixedAgentAndPageSize(t *testing.T) {
-	var query AgentExecutionQuery
-	repo := &fakeAgentRunRepo{
-		listExecutions: func(_ context.Context, input AgentExecutionQuery) (AgentExecutionPage, error) {
-			query = input
-			return AgentExecutionPage{Page: input.Page, PageSize: input.PageSize}, nil
-		},
-	}
-
-	result, err := NewService(nil, repo).ListCollectorExecutions(context.Background(), 3)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if query.AgentKey != "collector" || query.Page != 3 || query.PageSize != 20 ||
-		result.Page != 3 || result.PageSize != 20 {
-		t.Fatalf("query/result = %#v/%#v", query, result)
-	}
-}
-
 func TestListAgentStatusesDelegatesWithoutExpandingExecutionDetails(t *testing.T) {
 	now := time.Date(2026, 7, 29, 8, 30, 0, 0, time.UTC)
 	repo := &fakeAgentRunRepo{
@@ -97,11 +78,10 @@ func TestListAgentStatusesDelegatesWithoutExpandingExecutionDetails(t *testing.T
 }
 
 type fakeAgentRunRepo struct {
-	getSchedule    func(context.Context, string) (AgentSchedule, error)
-	putSchedule    func(context.Context, string, PutAgentScheduleInput) (AgentSchedule, error)
-	patchSchedule  func(context.Context, string, PatchAgentScheduleInput) (AgentSchedule, error)
-	listExecutions func(context.Context, AgentExecutionQuery) (AgentExecutionPage, error)
-	listStatuses   func(context.Context) ([]AgentStatus, error)
+	getSchedule   func(context.Context, string) (AgentSchedule, error)
+	putSchedule   func(context.Context, string, PutAgentScheduleInput) (AgentSchedule, error)
+	patchSchedule func(context.Context, string, PatchAgentScheduleInput) (AgentSchedule, error)
+	listStatuses  func(context.Context) ([]AgentStatus, error)
 }
 
 func (f *fakeAgentRunRepo) GetAgentSchedule(ctx context.Context, key string) (AgentSchedule, error) {
@@ -112,9 +92,6 @@ func (f *fakeAgentRunRepo) PutAgentSchedule(ctx context.Context, key string, inp
 }
 func (f *fakeAgentRunRepo) PatchAgentSchedule(ctx context.Context, key string, input PatchAgentScheduleInput) (AgentSchedule, error) {
 	return f.patchSchedule(ctx, key, input)
-}
-func (f *fakeAgentRunRepo) ListAgentExecutions(ctx context.Context, query AgentExecutionQuery) (AgentExecutionPage, error) {
-	return f.listExecutions(ctx, query)
 }
 func (f *fakeAgentRunRepo) ListAgentStatuses(ctx context.Context) ([]AgentStatus, error) {
 	return f.listStatuses(ctx)

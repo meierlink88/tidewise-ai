@@ -120,6 +120,10 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/events",
 			operation:   "data.v1.listAdminEvents",
 		},
+		"GET " + APIPrefix + "/runtime-health": {
+			requestPath: APIPrefix + "/runtime-health",
+			operation:   "data.v1.getRuntimeHealth",
+		},
 		"GET " + APIPrefix + "/event-semantics/eligible-events": {
 			requestPath: APIPrefix + "/event-semantics/eligible-events?limit=20",
 			operation:   "data.v1.listEligibleEventSemanticEvents",
@@ -276,4 +280,7 @@ func (testDataHTTPServer) ListRawDocuments(context.Context, *RawDocumentListRequ
 }
 func (testDataHTTPServer) ListEvents(context.Context, *EventListRequest) (*Response[AdminEventPage], error) {
 	return testResponse[AdminEventPage]()
+}
+func (testDataHTTPServer) GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error) {
+	return testResponse[RuntimeHealth]()
 }

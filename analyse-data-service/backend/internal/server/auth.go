@@ -109,7 +109,7 @@ func requiredScope(operation string) (string, bool) {
 		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree,
 		v1.OperationListResearchAnalysisContext, v1.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
-	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents:
+	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents, v1.OperationGetRuntimeHealth:
 		return ScopeAdminRead, true
 	case v1.OperationListEligibleEventSemanticEvents,
 		v1.OperationGetEventSemanticContext, v1.OperationGetEventSemantics:

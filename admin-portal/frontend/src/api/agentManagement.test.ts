@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AdminAgentRunAPIError,
-  loadAgentExecutions,
   loadAgentStatuses,
   loadCollectorMonitoring,
   loadMonitoringSummary,
   loadConnector,
   loadModelProvider,
+  loadRuntimeHealth,
   saveAgentSchedule,
   updateConnector,
   updateModelProvider
@@ -41,19 +41,19 @@ describe('AgentRun management Admin API client', () => {
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer browser-token');
   });
 
-  it('uses fixed BFF execution pagination without exposing an AgentRun URL', async () => {
-    const fetchMock = successFetch({
-      items: [],
-      page: 2,
-      page_size: 20,
-      total_items: 0,
-      total_pages: 0
-    });
+  it('strictly loads the four runtime services through the Admin BFF', async () => {
+    const fetchMock = successFetch(runtimeHealthResult());
     vi.stubGlobal('fetch', fetchMock);
 
-    await loadAgentExecutions('browser-token', 2);
+    const result = await loadRuntimeHealth('browser-token');
 
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/agent-executions?page=2');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/runtime-health');
+    expect(result.services.map((service) => service.key)).toEqual([
+      'data',
+      'agentrun',
+      'qdrant',
+      'neo4j'
+    ]);
   });
 
   it('loads the safe Agent status projection through the Admin BFF', async () => {
@@ -154,7 +154,7 @@ describe('AgentRun management Admin API client', () => {
       })
     );
 
-    await expect(loadAgentExecutions('browser-token', 1)).rejects.toEqual(
+    await expect(loadRuntimeHealth('browser-token')).rejects.toEqual(
       expect.objectContaining<Partial<AdminAgentRunAPIError>>({
         status: 503,
         code: 'AGENTRUN_UNAVAILABLE',
@@ -166,6 +166,47 @@ describe('AgentRun management Admin API client', () => {
 
 function successFetch(result: unknown) {
   return vi.fn().mockResolvedValue(successResponse(result));
+}
+
+function runtimeHealthResult() {
+  return {
+    status: 'ready',
+    checked_at: '2026-08-04T10:00:00Z',
+    services: [
+      {
+        key: 'data',
+        display_name: 'Data Service',
+        status: 'ready',
+        checked_at: '2026-08-04T10:00:00Z',
+        latency_ms: null,
+        reason_code: null
+      },
+      {
+        key: 'agentrun',
+        display_name: 'AgentRun',
+        status: 'ready',
+        checked_at: '2026-08-04T10:00:00Z',
+        latency_ms: null,
+        reason_code: null
+      },
+      {
+        key: 'qdrant',
+        display_name: 'Qdrant',
+        status: 'ready',
+        checked_at: '2026-08-04T10:00:00Z',
+        latency_ms: null,
+        reason_code: null
+      },
+      {
+        key: 'neo4j',
+        display_name: 'Neo4j',
+        status: 'ready',
+        checked_at: '2026-08-04T10:00:00Z',
+        latency_ms: null,
+        reason_code: null
+      }
+    ]
+  };
 }
 
 function successResponse(result: unknown) {

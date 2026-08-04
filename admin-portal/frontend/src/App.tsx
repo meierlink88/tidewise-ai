@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import AdminShell from './layouts/AdminShell';
 import AdminLogin from './pages/AdminLogin';
 import DataIngestionCenter from './pages/DataIngestionCenter';
-import AgentStatusMonitor from './pages/AgentStatusMonitor';
 import MonitoringCenter from './pages/MonitoringCenter';
 import AppProviders from './providers/app-providers';
 import type { AdminPage } from './components/admin/app-sidebar';
@@ -41,10 +40,8 @@ function AdminApp() {
     >
       {currentPage === 'monitoring' ? (
         <MonitoringCenter token={token} />
-      ) : currentPage === 'agent-status' ? (
-        <AgentStatusMonitor token={token} />
       ) : (
-        <DataIngestionCenter token={token} />
+        <DataIngestionCenter onOpenMonitoring={() => setCurrentPage('monitoring')} token={token} />
       )}
     </AdminShell>
   );
@@ -52,7 +49,6 @@ function AdminApp() {
 
 function pageTitle(page: AdminPage): string {
   if (page === 'monitoring') return '监控中心';
-  if (page === 'agent-status') return 'Agent 状态';
   return '数据采集中心';
 }
 

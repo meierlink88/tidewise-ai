@@ -33,6 +33,7 @@ type DataHTTPServer interface {
 	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error)
 	ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error)
 	SearchResearchGraph(context.Context, *ResearchGraphSearchRequest) (*Response[ResearchGraphSearchResult], error)
+	GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error)
 }
 
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
@@ -54,6 +55,16 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.GET("/events/{event_id}/semantics", getEventSemanticsHandler(application))
 	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
 	router.POST("/research-graph:search", searchResearchGraphHandler(application))
+	router.GET("/runtime-health", runtimeHealthHandler(application))
+}
+
+func runtimeHealthHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &RuntimeHealthRequest{}
+		return call(ctx, OperationGetRuntimeHealth, request, func(callContext context.Context) (*Response[RuntimeHealth], error) {
+			return application.GetRuntimeHealth(callContext, request)
+		})
+	}
 }
 
 func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFunc {

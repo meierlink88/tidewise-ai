@@ -6,7 +6,8 @@ import { loadEvents, loadRawDocuments } from './api/dataIngestion';
 import {
   loadAgentStatuses,
   loadCollectorMonitoring,
-  loadMonitoringSummary
+  loadMonitoringSummary,
+  loadRuntimeHealth
 } from './api/agentManagement';
 
 vi.mock('./api/dataIngestion', async () => {
@@ -25,7 +26,8 @@ vi.mock('./api/agentManagement', async () => {
     ...actual,
     loadAgentStatuses: vi.fn(),
     loadMonitoringSummary: vi.fn(),
-    loadCollectorMonitoring: vi.fn()
+    loadCollectorMonitoring: vi.fn(),
+    loadRuntimeHealth: vi.fn()
   };
 });
 
@@ -74,6 +76,31 @@ describe('App admin login', () => {
       total_items: 0,
       total_pages: 0
     });
+    vi.mocked(loadRuntimeHealth).mockResolvedValue({
+      status: 'ready',
+      checked_at: '2026-08-03T08:30:00Z',
+      services: [
+        {
+          key: 'data',
+          display_name: 'Data Service',
+          status: 'ready',
+          checked_at: '2026-08-03T08:30:00Z'
+        },
+        {
+          key: 'agentrun',
+          display_name: 'AgentRun',
+          status: 'ready',
+          checked_at: '2026-08-03T08:30:00Z'
+        },
+        {
+          key: 'qdrant',
+          display_name: 'Qdrant',
+          status: 'ready',
+          checked_at: '2026-08-03T08:30:00Z'
+        },
+        { key: 'neo4j', display_name: 'Neo4j', status: 'ready', checked_at: '2026-08-03T08:30:00Z' }
+      ]
+    });
   });
 
   it('shows a login page with the local admin token hint before entering the admin shell', () => {
@@ -111,6 +138,11 @@ describe('App admin login', () => {
     expect(
       within(screen.getByRole('main')).getByRole('heading', { name: '数据采集中心' })
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^采集中心/ })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(screen.queryByRole('button', { name: /^数据采集中心/ })).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('main')).getByText('查询原始数据和全球事件，并管理采集 Agent 配置。')
     ).toBeInTheDocument();
@@ -131,7 +163,7 @@ describe('App admin login', () => {
     expect(storage.has('tidewise_admin_token')).toBe(false);
   });
 
-  it('navigates to the read-only Agent status monitor', async () => {
+  it('consolidates the read-only Agent status inside Monitoring Center', async () => {
     storage.set('tidewise_admin_token', 'local-admin-token');
     const user = userEvent.setup();
     vi.mocked(loadAgentStatuses).mockResolvedValue([
@@ -146,11 +178,12 @@ describe('App admin login', () => {
     ]);
 
     render(<App />);
-    await user.click(screen.getByRole('button', { name: /Agent 状态/ }));
+    await user.click(screen.getByRole('button', { name: /^监控中心/ }));
 
     expect(await screen.findByRole('heading', { name: 'Agent 运行状态' })).toBeInTheDocument();
     expect(screen.getByText('Event Semantic Enricher')).toBeInTheDocument();
     expect(loadAgentStatuses).toHaveBeenCalledWith('local-admin-token');
+    expect(screen.queryByRole('button', { name: /Agent 状态/ })).not.toBeInTheDocument();
   });
 
   it('navigates to 监控中心 without exposing implementation or environment labels', async () => {
@@ -165,7 +198,8 @@ describe('App admin login', () => {
       within(screen.getByRole('main')).queryByText(/\bUnit\b|UAT|演示数据/i)
     ).not.toBeInTheDocument();
     expect(loadMonitoringSummary).toHaveBeenCalledWith('local-admin-token', '1h');
-    expect(loadCollectorMonitoring).toHaveBeenCalledWith('local-admin-token', '1h', 'all', 1, 20);
+    expect(loadRuntimeHealth).toHaveBeenCalledWith('local-admin-token');
+    expect(loadCollectorMonitoring).not.toHaveBeenCalled();
   });
 
   it('opens the navigation on narrow screens and returns focus after choosing a page', async () => {
@@ -179,11 +213,11 @@ describe('App admin login', () => {
     await user.keyboard('{Enter}');
 
     const navigation = screen.getByRole('dialog', { name: '管理后台导航' });
-    const agentStatusNavigation = within(navigation).getByRole('button', { name: /Agent 状态/ });
-    agentStatusNavigation.focus();
+    const monitoringNavigation = within(navigation).getByRole('button', { name: /^监控中心/ });
+    monitoringNavigation.focus();
     await user.keyboard('{Enter}');
 
-    expect(await screen.findByRole('heading', { name: 'Agent 运行状态' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '监控中心', level: 2 })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: '管理后台导航' })).not.toBeInTheDocument();
     expect(menuTrigger).toHaveFocus();
   });

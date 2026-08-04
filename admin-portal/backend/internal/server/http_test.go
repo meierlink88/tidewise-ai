@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -77,6 +76,40 @@ func TestNewHandlerComposesAdminBFFWithOneDataServiceCall(t *testing.T) {
 	handler.ServeHTTP(legacy, httptest.NewRequest(http.MethodGet, "/admin/raw-documents", nil))
 	if legacy.Code != http.StatusNotFound {
 		t.Fatalf("legacy path status = %d, want %d", legacy.Code, http.StatusNotFound)
+	}
+}
+
+func TestRuntimeHealthRequiresAdminAuthAndReturnsSafePartialHTTP200(t *testing.T) {
+	handler := newHandler(testConfig(), nil, nil, "browser-admin-token")
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/api/admin/v1/runtime-health", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d, want 401", unauthorized.Code)
+	}
+
+	response := performAdminRequest(t, handler, http.MethodGet, "/api/admin/v1/runtime-health", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("partial runtime health status = %d, want 200: %s", response.Code, response.Body.String())
+	}
+	var envelope struct {
+		Result v1.RuntimeHealth `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"data", "agentrun", "qdrant", "neo4j"}
+	if envelope.Result.Status != "degraded" || len(envelope.Result.Services) != len(want) {
+		t.Fatalf("runtime health = %#v", envelope.Result)
+	}
+	for index, key := range want {
+		item := envelope.Result.Services[index]
+		if item.Key != key || item.Status != "unknown" || item.ReasonCode != "not_ready" {
+			t.Fatalf("runtime service[%d] = %#v", index, item)
+		}
+	}
+	if strings.Contains(strings.ToLower(response.Body.String()), "token") || strings.Contains(strings.ToLower(response.Body.String()), "http://") {
+		t.Fatalf("runtime response leaked internal detail: %s", response.Body.String())
 	}
 }
 
@@ -356,57 +389,6 @@ func TestAdminAgentRunErrorsAreMappedWithoutUpstreamMessageLeak(t *testing.T) {
 				t.Fatalf("response leaked upstream detail: %s", response.Body.String())
 			}
 		})
-	}
-}
-
-func TestAdminExecutionListPinsCollectorAndTwentyItemPagination(t *testing.T) {
-	var gotQuery string
-	upstream := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodGet || request.URL.Path != "/api/admin/v1/agent-executions" {
-			t.Fatalf("upstream request = %s %s", request.Method, request.URL.Path)
-		}
-		gotQuery = request.URL.RawQuery
-		response.Header().Set("Content-Type", "application/json")
-		writeAgentRunSuccess(response, `{
-			"items":[{
-				"execution_id":"22222222-2222-4222-8222-222222222222",
-				"agent_key":"collector",
-				"agent_version":"collector.v1",
-				"trigger_source":"schedule",
-				"status":"succeeded",
-				"created_at":"2026-07-24T04:30:00Z",
-				"triggered_at":"2026-07-24T04:30:00Z",
-				"started_at":"2026-07-24T04:30:01Z",
-				"completed_at":"2026-07-24T04:31:20Z"
-			}],
-			"page":2,
-			"page_size":20,
-			"total_items":21,
-			"total_pages":2
-		}`)
-	}))
-	defer upstream.Close()
-	agentClient, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
-		BaseURL: upstream.URL, ServiceToken: "agentrun-service-token", Timeout: time.Second,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	handler := newHandler(testConfig(), nil, agentClient, "browser-admin-token")
-	response := performAdminRequest(t, handler, http.MethodGet, "/api/admin/v1/agent-executions?page=2", nil)
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
-	}
-	query, err := url.ParseQuery(gotQuery)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if query.Get("agent_key") != "collector" || query.Get("page") != "2" || query.Get("page_size") != "20" {
-		t.Fatalf("upstream query = %q", gotQuery)
-	}
-	if !strings.Contains(response.Body.String(), `"total_items":21`) || !strings.Contains(response.Body.String(), `"execution_id":"22222222-2222-4222-8222-222222222222"`) {
-		t.Fatalf("response = %s", response.Body.String())
 	}
 }
 

@@ -28,31 +28,6 @@ export interface AgentScheduleSaveInput {
   };
 }
 
-export interface AgentExecution {
-  execution_id: string;
-  agent_key: string;
-  agent_version: string;
-  trigger_source: string;
-  schedule_id?: string;
-  status: string;
-  error_code?: string;
-  error_summary?: string;
-  stop_reason?: string;
-  blocked_by_execution_id?: string;
-  created_at: string;
-  triggered_at: string;
-  started_at?: string;
-  completed_at?: string;
-}
-
-export interface AgentExecutionPage {
-  items: AgentExecution[];
-  page: number;
-  page_size: 20;
-  total_items: number;
-  total_pages: number;
-}
-
 export interface AgentStatus {
   agent_key: string;
   display_name: string;
@@ -60,6 +35,28 @@ export interface AgentStatus {
   is_working: boolean;
   current_execution_status: string;
   updated_at: string;
+}
+
+export type RuntimeHealthStatus = 'ready' | 'degraded' | 'down' | 'unknown';
+export type RuntimeHealthReasonCode =
+  | 'timeout'
+  | 'unreachable'
+  | 'not_ready'
+  | 'collection_unhealthy'
+  | 'authentication_failed'
+  | 'invalid_response';
+export interface RuntimeHealthService {
+  key: 'data' | 'agentrun' | 'qdrant' | 'neo4j';
+  display_name: 'Data Service' | 'AgentRun' | 'Qdrant' | 'Neo4j';
+  status: RuntimeHealthStatus;
+  checked_at: string;
+  latency_ms?: number | null;
+  reason_code?: RuntimeHealthReasonCode | null;
+}
+export interface RuntimeHealth {
+  status: 'ready' | 'degraded';
+  checked_at: string;
+  services: RuntimeHealthService[];
 }
 
 export type MonitoringWindow = '1h' | '6h' | '12h' | '24h';
@@ -219,11 +216,6 @@ export function setAgentScheduleEnabled(
   );
 }
 
-export function loadAgentExecutions(token: string, page: number): Promise<AgentExecutionPage> {
-  const params = new URLSearchParams({ page: String(page) });
-  return request<AgentExecutionPage>(token, `/api/admin/v1/agent-executions?${params.toString()}`);
-}
-
 export async function loadAgentStatuses(token: string): Promise<AgentStatus[]> {
   const result = await request<{ items: AgentStatus[] }>(token, '/api/admin/v1/agent-statuses');
   return result.items;
@@ -233,6 +225,42 @@ const monitoringWindowSchema = z.enum(['1h', '6h', '12h', '24h']);
 const monitoringStateSchema = z.enum(['success', 'running', 'failure']);
 const timestampSchema = z.iso.datetime({ offset: true });
 const nonNegativeIntegerSchema = z.number().int().nonnegative();
+const runtimeHealthStatusSchema = z.enum(['ready', 'degraded', 'down', 'unknown']);
+const runtimeHealthReasonSchema = z.enum([
+  'timeout',
+  'unreachable',
+  'not_ready',
+  'collection_unhealthy',
+  'authentication_failed',
+  'invalid_response'
+]);
+const runtimeHealthServiceSchema: z.ZodType<RuntimeHealthService> = z
+  .strictObject({
+    key: z.enum(['data', 'agentrun', 'qdrant', 'neo4j']),
+    display_name: z.enum(['Data Service', 'AgentRun', 'Qdrant', 'Neo4j']),
+    status: runtimeHealthStatusSchema,
+    checked_at: timestampSchema,
+    latency_ms: nonNegativeIntegerSchema.nullish(),
+    reason_code: runtimeHealthReasonSchema.nullish()
+  })
+  .refine(
+    (service) =>
+      (service.status === 'ready' && service.reason_code == null) ||
+      (service.status !== 'ready' && service.reason_code != null)
+  );
+const runtimeHealthSchema: z.ZodType<RuntimeHealth> = z
+  .strictObject({
+    status: z.enum(['ready', 'degraded']),
+    checked_at: timestampSchema,
+    services: z.array(runtimeHealthServiceSchema).length(4)
+  })
+  .refine(
+    (health) =>
+      health.services.map((service) => service.key).join(',') === 'data,agentrun,qdrant,neo4j' &&
+      (health.status === 'ready'
+        ? health.services.every((service) => service.status === 'ready')
+        : health.services.some((service) => service.status !== 'ready'))
+  );
 const monitoringCountsSchema = z.strictObject({
   success: nonNegativeIntegerSchema,
   running: nonNegativeIntegerSchema,
@@ -322,6 +350,16 @@ export async function loadMonitoringSummary(
     await request<unknown>(token, `/api/admin/v1/monitoring/summary?window=${window}`)
   );
   return requireMonitoringWindow(result, window);
+}
+
+export async function loadRuntimeHealth(token: string): Promise<RuntimeHealth> {
+  const parsed = runtimeHealthSchema.safeParse(
+    await request<unknown>(token, '/api/admin/v1/runtime-health')
+  );
+  if (!parsed.success) {
+    throw new Error('Admin API returned invalid runtime health data');
+  }
+  return parsed.data;
 }
 export async function loadCollectorMonitoring(
   token: string,

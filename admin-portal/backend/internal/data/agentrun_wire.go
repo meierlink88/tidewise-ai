@@ -72,49 +72,6 @@ func newPatchAgentScheduleWire(input biz.PatchAgentScheduleInput) patchAgentSche
 	return patchAgentScheduleWire(input)
 }
 
-type agentExecutionPageWire struct {
-	Items      []agentExecutionWire `json:"items"`
-	Page       int                  `json:"page"`
-	PageSize   int                  `json:"page_size"`
-	TotalItems int                  `json:"total_items"`
-	TotalPages int                  `json:"total_pages"`
-}
-
-func (w agentExecutionPageWire) toBiz() (biz.AgentExecutionPage, error) {
-	if w.Page < 1 || w.PageSize != 20 || w.TotalItems < 0 || w.TotalPages < 0 {
-		return biz.AgentExecutionPage{}, biz.ErrAgentRunUnavailable
-	}
-	items := make([]biz.AgentExecution, 0, len(w.Items))
-	for _, item := range w.Items {
-		mapped, err := item.toBiz()
-		if err != nil {
-			return biz.AgentExecutionPage{}, err
-		}
-		items = append(items, mapped)
-	}
-	return biz.AgentExecutionPage{
-		Items: items, Page: w.Page, PageSize: w.PageSize,
-		TotalItems: w.TotalItems, TotalPages: w.TotalPages,
-	}, nil
-}
-
-type agentExecutionWire struct {
-	ID                   string     `json:"execution_id"`
-	AgentKey             string     `json:"agent_key"`
-	AgentVersion         string     `json:"agent_version"`
-	TriggerSource        string     `json:"trigger_source"`
-	ScheduleID           string     `json:"schedule_id,omitempty"`
-	Status               string     `json:"status"`
-	ErrorCode            string     `json:"error_code,omitempty"`
-	ErrorSummary         string     `json:"error_summary,omitempty"`
-	StopReason           string     `json:"stop_reason,omitempty"`
-	BlockedByExecutionID string     `json:"blocked_by_execution_id,omitempty"`
-	CreatedAt            time.Time  `json:"created_at"`
-	TriggeredAt          time.Time  `json:"triggered_at"`
-	StartedAt            *time.Time `json:"started_at,omitempty"`
-	CompletedAt          *time.Time `json:"completed_at,omitempty"`
-}
-
 type agentStatusListWire struct {
 	Items []agentStatusWire `json:"items"`
 }
@@ -263,21 +220,6 @@ func (w agentStatusWire) toBiz() (biz.AgentStatus, error) {
 	return biz.AgentStatus{
 		AgentKey: w.AgentKey, DisplayName: w.DisplayName, CurrentVersion: w.CurrentVersion,
 		IsWorking: w.IsWorking, CurrentExecutionStatus: status, UpdatedAt: w.UpdatedAt,
-	}, nil
-}
-
-func (w agentExecutionWire) toBiz() (biz.AgentExecution, error) {
-	if strings.TrimSpace(w.ID) == "" || strings.TrimSpace(w.AgentKey) == "" ||
-		strings.TrimSpace(w.AgentVersion) == "" || strings.TrimSpace(w.TriggerSource) == "" ||
-		strings.TrimSpace(w.Status) == "" || w.CreatedAt.IsZero() || w.TriggeredAt.IsZero() {
-		return biz.AgentExecution{}, biz.ErrAgentRunUnavailable
-	}
-	return biz.AgentExecution{
-		ID: w.ID, AgentKey: w.AgentKey, AgentVersion: w.AgentVersion,
-		TriggerSource: w.TriggerSource, ScheduleID: w.ScheduleID, Status: w.Status,
-		ErrorCode: w.ErrorCode, ErrorSummary: w.ErrorSummary, StopReason: w.StopReason,
-		BlockedByExecutionID: w.BlockedByExecutionID, CreatedAt: w.CreatedAt,
-		TriggeredAt: w.TriggeredAt, StartedAt: w.StartedAt, CompletedAt: w.CompletedAt,
 	}, nil
 }
 

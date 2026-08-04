@@ -115,27 +115,6 @@ func (s *AdminService) SetAgentScheduleEnabled(
 	return &response, nil
 }
 
-func (s *AdminService) ListAgentExecutions(
-	ctx context.Context,
-	request *v1.ListAgentExecutionsRequest,
-) (*v1.AgentExecutionPage, error) {
-	if s == nil || s.admin == nil || request == nil {
-		return nil, v1.ErrInvalidRequest
-	}
-	result, err := s.admin.ListCollectorExecutions(ctx, request.Page)
-	if err != nil {
-		return nil, mapAgentRunError(err)
-	}
-	items := make([]v1.AgentExecution, 0, len(result.Items))
-	for _, value := range result.Items {
-		items = append(items, agentExecution(value))
-	}
-	return &v1.AgentExecutionPage{
-		Items: items, Page: result.Page, PageSize: result.PageSize,
-		TotalItems: result.TotalItems, TotalPages: result.TotalPages,
-	}, nil
-}
-
 func (s *AdminService) ListAgentStatuses(
 	ctx context.Context,
 	_ *v1.EmptyRequest,
@@ -419,16 +398,6 @@ func agentSchedule(value biz.AgentSchedule) v1.AgentSchedule {
 		DailyTimes: value.DailyTimes, Input: value.Input, Enabled: value.Enabled,
 		LastTriggered: value.LastTriggered, NextRun: value.NextRun,
 		CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt,
-	}
-}
-
-func agentExecution(value biz.AgentExecution) v1.AgentExecution {
-	return v1.AgentExecution{
-		ID: value.ID, AgentKey: value.AgentKey, AgentVersion: value.AgentVersion,
-		TriggerSource: value.TriggerSource, ScheduleID: value.ScheduleID, Status: value.Status,
-		ErrorCode: value.ErrorCode, ErrorSummary: value.ErrorSummary, StopReason: value.StopReason,
-		BlockedByExecutionID: value.BlockedByExecutionID, CreatedAt: value.CreatedAt,
-		TriggeredAt: value.TriggeredAt, StartedAt: value.StartedAt, CompletedAt: value.CompletedAt,
 	}
 }
 

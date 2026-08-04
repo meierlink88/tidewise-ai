@@ -22,7 +22,6 @@ func RegisterAdminHTTPServer(server *kratoshttp.Server, service AdminHTTPServer)
 	router.GET("/agent-schedules/{agent_key}", getAgentScheduleHandler(service))
 	router.PUT("/agent-schedules/{agent_key}", saveAgentScheduleHandler(service))
 	router.PATCH("/agent-schedules/{agent_key}", setAgentScheduleEnabledHandler(service))
-	router.GET("/agent-executions", listAgentExecutionsHandler(service))
 	router.GET("/agent-statuses", listAgentStatusesHandler(service))
 	router.GET("/monitoring/summary", getMonitoringSummaryHandler(service))
 	router.GET("/monitoring/collector-executions", listCollectorMonitoringHandler(service))
@@ -34,6 +33,16 @@ func RegisterAdminHTTPServer(server *kratoshttp.Server, service AdminHTTPServer)
 	router.GET("/connectors", listConnectorsHandler(service))
 	router.GET("/connectors/{connector_key}", getConnectorHandler(service))
 	router.PATCH("/connectors/{connector_key}", patchConnectorHandler(service))
+	router.GET("/runtime-health", getRuntimeHealthHandler(service))
+}
+
+func getRuntimeHealthHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &EmptyRequest{}
+		return call(ctx, OperationGetRuntimeHealth, request, func(callContext context.Context) (any, error) {
+			return service.GetRuntimeHealth(callContext, request)
+		})
+	}
 }
 
 func listRawDocumentsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
@@ -99,19 +108,6 @@ func setAgentScheduleEnabledHandler(service AdminHTTPServer) kratoshttp.HandlerF
 		}
 		return call(ctx, OperationSetScheduleEnabled, request, func(callContext context.Context) (any, error) {
 			return service.SetAgentScheduleEnabled(callContext, request)
-		})
-	}
-}
-
-func listAgentExecutionsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		page, err := parsePositiveInt(ctx.Query().Get("page"), 1, "page must be positive")
-		if err != nil {
-			return err
-		}
-		request := &ListAgentExecutionsRequest{Page: page}
-		return call(ctx, OperationListAgentExecutions, request, func(callContext context.Context) (any, error) {
-			return service.ListAgentExecutions(callContext, request)
 		})
 	}
 }

@@ -1,0 +1,41 @@
+{
+  "request_id": "request-admin-runtime-health-1",
+  "result": {
+    "status": "degraded",
+    "checked_at": "2026-08-04T10:00:00Z",
+    "services": [
+      {
+        "key": "data",
+        "display_name": "Data Service",
+        "status": "ready",
+        "checked_at": "2026-08-04T10:00:00Z",
+        "latency_ms": null,
+        "reason_code": null
+      },
+      {
+        "key": "agentrun",
+        "display_name": "AgentRun",
+        "status": "ready",
+        "checked_at": "2026-08-04T10:00:00Z",
+        "latency_ms": null,
+        "reason_code": null
+      },
+      {
+        "key": "qdrant",
+        "display_name": "Qdrant",
+        "status": "degraded",
+        "checked_at": "2026-08-04T10:00:00Z",
+        "latency_ms": 17,
+        "reason_code": "collection_unhealthy"
+      },
+      {
+        "key": "neo4j",
+        "display_name": "Neo4j",
+        "status": "down",
+        "checked_at": "2026-08-04T10:00:00Z",
+        "latency_ms": 23,
+        "reason_code": "authentication_failed"
+      }
+    ]
+  }
+}

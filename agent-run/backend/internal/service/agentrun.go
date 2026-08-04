@@ -14,6 +14,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/admin"
+	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform/runtimehealth"
 )
 
 type CollectorUseCase interface {
@@ -53,6 +54,23 @@ type AgentRunService struct {
 	admin             AdminUseCase
 	eventSemantic     EventSemanticUseCase
 	scheduleReadiness Readiness
+	runtimeHealth     RuntimeHealthUseCase
+}
+
+type RuntimeHealthUseCase interface {
+	Get(context.Context) runtimehealth.Result
+}
+
+type Option func(*AgentRunService) error
+
+func WithRuntimeHealth(useCase RuntimeHealthUseCase) Option {
+	return func(service *AgentRunService) error {
+		if useCase == nil {
+			return errors.New("Runtime Health Use Case is required")
+		}
+		service.runtimeHealth = useCase
+		return nil
+	}
 }
 
 type Readiness interface {
@@ -64,6 +82,7 @@ func NewAgentRunService(
 	adminUseCase AdminUseCase,
 	eventSemanticUseCase EventSemanticUseCase,
 	scheduleReadiness Readiness,
+	options ...Option,
 ) (*AgentRunService, error) {
 	if collector == nil {
 		return nil, errors.New("Collector Use Case is required")
@@ -77,10 +96,19 @@ func NewAgentRunService(
 	if scheduleReadiness == nil {
 		return nil, errors.New("Agent Schedule Readiness is required")
 	}
-	return &AgentRunService{
+	service := &AgentRunService{
 		collector: collector, admin: adminUseCase, eventSemantic: eventSemanticUseCase,
 		scheduleReadiness: scheduleReadiness,
-	}, nil
+	}
+	for _, option := range options {
+		if option == nil {
+			return nil, errors.New("AgentRun Service option is required")
+		}
+		if err := option(service); err != nil {
+			return nil, err
+		}
+	}
+	return service, nil
 }
 
 func (s *AgentRunService) Ready(ctx context.Context) error {

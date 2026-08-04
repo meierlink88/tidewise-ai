@@ -388,3 +388,6 @@ func (stubAPI) ListArtifactMonitoring(context.Context, *v1.MonitoringListRequest
 func (stubAPI) ListSemanticMonitoring(context.Context, *v1.MonitoringListRequest) (*v1.SemanticMonitoringPage, error) {
 	return &v1.SemanticMonitoringPage{}, nil
 }
+func (stubAPI) GetRuntimeHealth(context.Context, *v1.RuntimeHealthRequest) (*v1.RuntimeHealth, error) {
+	return &v1.RuntimeHealth{}, nil
+}

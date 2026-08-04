@@ -34,12 +34,13 @@ type ServerConfig struct {
 }
 
 type Config struct {
-	App       AppConfig       `yaml:"app"`
-	Server    ServerConfig    `yaml:"server"`
-	Log       LogConfig       `yaml:"log"`
-	Database  DatabaseConfig  `yaml:"database"`
-	Migration MigrationConfig `yaml:"migration"`
-	Secrets   SecretConfig    `yaml:"-"`
+	App         AppConfig         `yaml:"app"`
+	Server      ServerConfig      `yaml:"server"`
+	Log         LogConfig         `yaml:"log"`
+	Database    DatabaseConfig    `yaml:"database"`
+	Neo4jHealth Neo4jHealthConfig `yaml:"neo4j_health"`
+	Migration   MigrationConfig   `yaml:"migration"`
+	Secrets     SecretConfig      `yaml:"-"`
 }
 
 type LogConfig struct {
@@ -64,9 +65,17 @@ type MigrationConfig struct {
 	LockKey   string `yaml:"lock_key"`
 }
 
+type Neo4jHealthConfig struct {
+	URI            string `yaml:"uri"`
+	Database       string `yaml:"database"`
+	TimeoutSeconds int    `yaml:"timeout_seconds"`
+}
+
 type SecretConfig struct {
-	DatabasePassword string
-	ServiceToken     string
+	DatabasePassword    string
+	ServiceToken        string
+	Neo4jHealthUsername string
+	Neo4jHealthPassword string
 }
 
 func Load() (Config, error) {
@@ -116,8 +125,13 @@ func loadConfiguration() (Config, error) {
 	cfg.App.Name = ServiceName
 	cfg.App.Env = env
 	cfg.Secrets = SecretConfig{
-		DatabasePassword: os.Getenv("TIDEWISW_DB_PASSWORD"),
-		ServiceToken:     os.Getenv("DATA_SERVICE_TOKEN"),
+		DatabasePassword:    os.Getenv("TIDEWISW_DB_PASSWORD"),
+		ServiceToken:        os.Getenv("DATA_SERVICE_TOKEN"),
+		Neo4jHealthUsername: os.Getenv("DATA_NEO4J_HEALTH_USERNAME"),
+		Neo4jHealthPassword: os.Getenv("DATA_NEO4J_HEALTH_PASSWORD"),
+	}
+	if uri := os.Getenv("DATA_NEO4J_HEALTH_URI"); uri != "" {
+		cfg.Neo4jHealth.URI = uri
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -130,6 +144,15 @@ func (c Config) validateRuntimeSecrets() error {
 	if c.Secrets.ServiceToken == "" {
 		return fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
+	configuredNeo4jFields := 0
+	for _, value := range []string{c.Secrets.Neo4jHealthUsername, c.Secrets.Neo4jHealthPassword} {
+		if value != "" {
+			configuredNeo4jFields++
+		}
+	}
+	if configuredNeo4jFields != 0 && configuredNeo4jFields != 2 {
+		return fmt.Errorf("DATA_NEO4J_HEALTH_USERNAME and DATA_NEO4J_HEALTH_PASSWORD must be configured together")
+	}
 	if c.App.Env != EnvUAT {
 		return nil
 	}
@@ -138,6 +161,9 @@ func (c Config) validateRuntimeSecrets() error {
 	}
 	if c.Database.SSLMode != "require" {
 		return fmt.Errorf("uat database configuration must use ssl_mode=require")
+	}
+	if configuredNeo4jFields != 2 {
+		return fmt.Errorf("separate Data Neo4j health probe credentials are required in uat")
 	}
 	return nil
 }
@@ -182,6 +208,11 @@ func (c Config) Validate() error {
 	if c.Database.ConnectTimeoutSeconds <= 0 {
 		return fmt.Errorf("postgres.connect_timeout_seconds must be positive")
 	}
+	neo4jURI, neo4jErr := url.Parse(c.Neo4jHealth.URI)
+	if neo4jErr != nil || neo4jURI.Host == "" || neo4jURI.User != nil ||
+		!validNeo4jScheme(neo4jURI.Scheme) || c.Neo4jHealth.Database == "" || c.Neo4jHealth.TimeoutSeconds <= 0 {
+		return fmt.Errorf("neo4j_health uri, database and positive timeout_seconds are required")
+	}
 	if c.Migration.Directory == "" {
 		return fmt.Errorf("migration.directory is required")
 	}
@@ -189,6 +220,15 @@ func (c Config) Validate() error {
 		return fmt.Errorf("migration.lock_key is required")
 	}
 	return nil
+}
+
+func validNeo4jScheme(scheme string) bool {
+	switch scheme {
+	case "bolt", "bolt+s", "bolt+ssc", "neo4j", "neo4j+s", "neo4j+ssc":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveEnvironment(value string) (Environment, error) {

@@ -28,6 +28,7 @@ const (
 	OperationListCollectorMonitoring       = "/agentrun.v1.AgentRun/ListCollectorMonitoring"
 	OperationListArtifactMonitoring        = "/agentrun.v1.AgentRun/ListArtifactMonitoring"
 	OperationListSemanticMonitoring        = "/agentrun.v1.AgentRun/ListSemanticMonitoring"
+	OperationGetRuntimeHealth              = "/agentrun.v1.AgentRun/GetRuntimeHealth"
 )
 
 const (
@@ -62,6 +63,7 @@ type AgentRunHTTPServer interface {
 	ListCollectorMonitoring(context.Context, *MonitoringListRequest) (*CollectorMonitoringPage, error)
 	ListArtifactMonitoring(context.Context, *MonitoringListRequest) (*ArtifactMonitoringPage, error)
 	ListSemanticMonitoring(context.Context, *MonitoringListRequest) (*SemanticMonitoringPage, error)
+	GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*RuntimeHealth, error)
 }
 
 type PublicError struct {
@@ -128,6 +130,8 @@ type PatchConnectorRequest struct {
 }
 
 type ListAgentSchedulesRequest struct{}
+
+type RuntimeHealthRequest struct{}
 
 type GetAgentScheduleRequest struct {
 	AgentKey string
@@ -277,6 +281,20 @@ type AgentStatus struct {
 	IsWorking              bool      `json:"is_working"`
 	CurrentExecutionStatus string    `json:"current_execution_status"`
 	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+type RuntimeHealth struct {
+	CheckedAt string                 `json:"checked_at"`
+	Services  []RuntimeHealthService `json:"services"`
+}
+
+type RuntimeHealthService struct {
+	Key         string `json:"key"`
+	DisplayName string `json:"display_name"`
+	Status      string `json:"status"`
+	CheckedAt   string `json:"checked_at"`
+	LatencyMS   *int64 `json:"latency_ms,omitempty"`
+	ReasonCode  string `json:"reason_code,omitempty"`
 }
 
 type MonitoringCounts struct {

@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
-import StatusAlert from '../components/admin/status-alert';
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import {
   AdminAgentRunAPIError,
-  loadAgentExecutions,
   loadAgentSchedule,
   loadConnectors,
   loadModelProviders,
@@ -11,13 +9,13 @@ import {
   setAgentScheduleEnabled,
   updateConnector,
   updateModelProvider,
-  type AgentExecution,
-  type AgentExecutionPage,
   type AgentSchedule,
   type ConnectorConfiguration,
   type ModelProviderConfiguration,
   type ScheduleType
 } from '../api/agentManagement';
+import { OverflowTooltip } from '../components/admin/overflow-tooltip';
+import StatusAlert from '../components/admin/status-alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,10 +28,8 @@ import {
 } from '../components/ui/AlertDialog';
 import { Button } from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
-import { DataTable, type DataTableColumn } from '../components/admin/data-table';
 import { Field } from '../components/ui/Field';
 import { Input } from '../components/ui/Input';
-import { Pagination } from '../components/admin/pagination';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Textarea } from '../components/ui/Textarea';
@@ -47,7 +43,7 @@ import {
 } from '../components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../components/ui/sheet';
 
-type CollectorSection = 'schedule' | 'executions' | 'models' | 'connectors';
+type CollectorSection = 'schedule' | 'models' | 'connectors';
 type EditTarget =
   | { kind: 'model'; value: ModelProviderConfiguration }
   | { kind: 'connector'; value: ConnectorConfiguration };
@@ -55,11 +51,15 @@ type EditTarget =
 const agentKey = 'collector';
 const agentVersion = 'collector.v1';
 const sectionItems: { id: CollectorSection; label: string }[] = [
-  { id: 'schedule', label: '定时任务' },
-  { id: 'executions', label: '执行记录' },
+  { id: 'schedule', label: '定时配置' },
   { id: 'models', label: '模型配置' },
   { id: 'connectors', label: '连接器配置' }
 ];
+
+const sectionTabsListClassName =
+  'h-11 w-full justify-start rounded-none border-y bg-transparent px-4 py-0';
+const sectionTabClassName =
+  'relative h-full flex-none rounded-none border-0 px-3.5 py-0 text-xs font-medium shadow-none after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent data-[state=active]:border-0 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:after:bg-primary';
 
 export default function CollectorConfiguration({ token }: { token: string }) {
   const [section, setSection] = useState<CollectorSection>('schedule');
@@ -71,17 +71,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
   const [newDailyTime, setNewDailyTime] = useState('08:30');
   const [cronExpression, setCronExpression] = useState('0 * * * *');
   const [prompt, setPrompt] = useState('');
-  const [executions, setExecutions] = useState<AgentExecutionPage>({
-    items: [],
-    page: 1,
-    page_size: 20,
-    total_items: 0,
-    total_pages: 0
-  });
-  const [executionPage, setExecutionPage] = useState(1);
-  const [executionReloadVersion, setExecutionReloadVersion] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [executionLoading, setExecutionLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -132,34 +122,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
     };
   }, [reloadVersion, token]);
 
-  useEffect(() => {
-    if (section !== 'executions') {
-      return;
-    }
-    let active = true;
-    setExecutionLoading(true);
-    setError('');
-    loadAgentExecutions(token, executionPage)
-      .then((page) => {
-        if (active) {
-          setExecutions(page);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(errorText(loadError));
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setExecutionLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [executionPage, executionReloadVersion, section, token]);
-
   const configuredModels = models.filter((model) => model.configured).length;
   const configuredConnectors = connectors.filter((connector) => connector.configured).length;
   const readinessComplete =
@@ -167,46 +129,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
     configuredModels === models.length &&
     connectors.length > 0 &&
     configuredConnectors === connectors.length;
-
-  const executionColumns = useMemo<DataTableColumn<AgentExecution>[]>(
-    () => [
-      {
-        key: 'triggered',
-        header: '执行时间',
-        render: (item) => formatDateTime(item.triggered_at)
-      },
-      {
-        key: 'trigger',
-        header: '触发方式',
-        render: (item) => triggerSourceLabel(item.trigger_source)
-      },
-      {
-        key: 'status',
-        header: '状态',
-        render: (item) => (
-          <StatusBadge tone={executionStatusTone(item.status)}>
-            {executionStatusLabel(item.status)}
-          </StatusBadge>
-        )
-      },
-      {
-        key: 'duration',
-        header: '耗时',
-        render: (item) => executionDuration(item)
-      },
-      {
-        key: 'reason',
-        header: '停止或失败原因',
-        render: (item) => item.stop_reason || item.error_summary || '-'
-      },
-      {
-        key: 'id',
-        header: '执行 ID',
-        render: (item) => <span className='font-mono'>{item.execution_id}</span>
-      }
-    ],
-    []
-  );
 
   const saveConfiguration = async () => {
     const normalizedPrompt = prompt.trim();
@@ -267,10 +189,6 @@ export default function CollectorConfiguration({ token }: { token: string }) {
   };
 
   const retryCurrentSection = () => {
-    if (section === 'executions') {
-      setExecutionReloadVersion((value) => value + 1);
-      return;
-    }
     setReloadVersion((value) => value + 1);
   };
 
@@ -284,20 +202,19 @@ export default function CollectorConfiguration({ token }: { token: string }) {
 
   return (
     <Tabs
-      className='grid gap-4'
+      className='grid min-h-full content-start'
       onValueChange={(value) => isCollectorSection(value) && setSection(value)}
       value={section}
     >
-      <header className='flex min-h-24 items-start justify-between gap-4 border-b pb-5 max-sm:flex-col'>
+      <div className='flex items-center justify-between gap-4 px-5 py-4 max-sm:items-start'>
         <div>
-          <span className='page-eyebrow'>Agentrun control plane</span>
-          <div className='mt-1.5 flex items-center gap-3'>
-            <h2 className='page-title my-0'>综合采集 Agent</h2>
+          <div className='flex items-center gap-2.5'>
+            <h2 className='m-0 text-lg font-semibold tracking-[-0.015em]'>综合采集 Agent</h2>
             <StatusBadge tone={schedule?.enabled ? 'success' : 'neutral'}>
               {schedule?.enabled ? '已启用' : '已停止'}
             </StatusBadge>
           </div>
-          <p className='mt-1.5 text-sm text-muted-foreground'>
+          <p className='mb-0 mt-1 font-mono text-xs text-muted-foreground'>
             <span className='font-mono'>collector</span>
             <span aria-hidden='true'> · </span>
             <span className='font-mono'>collector.v1</span>
@@ -315,12 +232,12 @@ export default function CollectorConfiguration({ token }: { token: string }) {
             启动定时器
           </Button>
         )}
-      </header>
+      </div>
 
       <div className='overflow-x-auto'>
-        <TabsList aria-label='采集器配置板块'>
+        <TabsList aria-label='采集器配置板块' className={sectionTabsListClassName}>
           {sectionItems.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
+            <TabsTrigger className={sectionTabClassName} key={item.id} value={item.id}>
               {item.label}
             </TabsTrigger>
           ))}
@@ -328,17 +245,21 @@ export default function CollectorConfiguration({ token }: { token: string }) {
       </div>
 
       {error ? (
-        <StatusAlert actionLabel='重试' onAction={retryCurrentSection} tone='destructive'>
-          {error}
-        </StatusAlert>
+        <div className='px-4 pt-4'>
+          <StatusAlert actionLabel='重试' onAction={retryCurrentSection} tone='destructive'>
+            {error}
+          </StatusAlert>
+        </div>
       ) : null}
       {notice ? (
-        <StatusAlert role='status' tone='success'>
-          {notice}
-        </StatusAlert>
+        <div className='px-4 pt-4'>
+          <StatusAlert role='status' tone='success'>
+            {notice}
+          </StatusAlert>
+        </div>
       ) : null}
 
-      <TabsContent value='schedule'>
+      <TabsContent className='p-4' value='schedule'>
         <SchedulePanel
           configuredConnectors={configuredConnectors}
           configuredModels={configuredModels}
@@ -365,34 +286,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
         />
       </TabsContent>
 
-      <TabsContent aria-label='采集执行记录' className='grid gap-4' value='executions'>
-        <div className='flex items-start justify-between gap-4'>
-          <div>
-            <h3 className='m-0 text-lg font-semibold'>采集执行记录</h3>
-            <p className='mt-1.5 text-sm text-muted-foreground'>只展示采集执行的安全审计摘要。</p>
-          </div>
-          <Button onClick={() => setExecutionReloadVersion((value) => value + 1)} variant='outline'>
-            <RefreshCw aria-hidden='true' className='size-4' />
-            刷新
-          </Button>
-        </div>
-        <div className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
-          <DataTable
-            columns={executionColumns}
-            emptyText={executionLoading ? '正在加载执行记录' : '暂无执行记录'}
-            getRowKey={(item) => item.execution_id}
-            items={executions.items}
-          />
-          <Pagination
-            page={executions.page}
-            pageSize={executions.page_size}
-            total={executions.total_items}
-            onPageChange={setExecutionPage}
-          />
-        </div>
-      </TabsContent>
-
-      <TabsContent value='models'>
+      <TabsContent className='p-4' value='models'>
         <ConfigurationTable
           kind='model'
           models={models}
@@ -400,7 +294,7 @@ export default function CollectorConfiguration({ token }: { token: string }) {
         />
       </TabsContent>
 
-      <TabsContent value='connectors'>
+      <TabsContent className='p-4' value='connectors'>
         <ConfigurationTable
           connectors={connectors}
           kind='connector'
@@ -471,23 +365,13 @@ interface SchedulePanelProps {
 
 function SchedulePanel(props: SchedulePanelProps) {
   return (
-    <section aria-label='定时任务配置' className='grid gap-4'>
-      <div
-        className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 max-sm:flex-col max-sm:items-stretch ${
-          props.readinessComplete
-            ? 'border-success-border bg-success-subtle text-success-foreground'
-            : 'border-destructive-border bg-destructive-subtle text-destructive-foreground'
-        }`}
-      >
-        <div className='grid gap-1'>
-          <strong>
-            {props.readinessComplete
-              ? `模型和 ${props.connectorsTotal} 个连接器配置完整`
-              : '配置尚未完整，暂不能启动定时器'}
-          </strong>
-          <span className='text-xs text-muted-foreground'>最终校验由 AgentRun 执行</span>
-        </div>
-        {!props.readinessComplete ? (
+    <section aria-label='定时任务配置' className='grid gap-3.5'>
+      {!props.readinessComplete ? (
+        <div className='flex items-center justify-between gap-4 rounded-lg border border-destructive-border bg-destructive-subtle px-4 py-3 text-destructive-foreground max-sm:flex-col max-sm:items-stretch'>
+          <div className='grid gap-1'>
+            <strong className='text-sm'>配置尚未完整，暂不能启动定时器</strong>
+            <span className='text-xs text-muted-foreground'>最终校验由 AgentRun 执行</span>
+          </div>
           <div className='flex flex-wrap gap-2'>
             {props.modelsTotal === 0 || props.configuredModels < props.modelsTotal ? (
               <Button onClick={() => props.onSectionChange('models')} size='sm' variant='outline'>
@@ -504,47 +388,53 @@ function SchedulePanel(props: SchedulePanelProps) {
               </Button>
             ) : null}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      <div className='grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(17.5rem,1fr)]'>
-        <section className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
-          <header className='mb-5 flex items-start justify-between gap-4 border-b pb-4'>
+      <div className='grid gap-3.5 xl:grid-cols-[minmax(0,1.4fr)_minmax(17.5rem,1fr)]'>
+        <section className='overflow-hidden rounded-lg border bg-card p-4'>
+          <header className='mb-4 flex items-start justify-between gap-4'>
             <div>
-              <h3 className='m-0 text-lg font-semibold'>定时配置</h3>
-              <p className='mt-1.5 text-sm text-muted-foreground'>
+              <h3 className='m-0 text-sm font-semibold'>执行计划</h3>
+              <p className='mb-0 mt-1 text-xs leading-5 text-muted-foreground'>
                 保存后影响下一次触发，不改变当前启停状态。
               </p>
             </div>
             <StatusBadge>{props.schedule ? '已保存' : '未保存'}</StatusBadge>
           </header>
 
-          <div className='grid gap-5'>
+          <div className='grid gap-4 [&>div]:gap-1.5 [&_input]:text-xs [&_label]:text-xs [&_label]:text-muted-foreground [&_textarea]:text-xs'>
             <fieldset className='m-0 border-0 p-0'>
-              <legend className='mb-2 text-sm font-medium'>执行策略</legend>
+              <legend className='mb-1.5 text-xs font-medium text-muted-foreground'>执行策略</legend>
               <Tabs
                 onValueChange={(value) =>
                   props.onScheduleTypeChange(value === 'cron' ? 'cron' : 'daily')
                 }
                 value={props.scheduleType}
               >
-                <TabsList aria-label='执行策略'>
-                  <TabsTrigger value='daily'>每日定时</TabsTrigger>
-                  <TabsTrigger value='cron'>Cron</TabsTrigger>
+                <TabsList aria-label='执行策略' className='h-8'>
+                  <TabsTrigger className='text-xs' value='daily'>
+                    每日定时
+                  </TabsTrigger>
+                  <TabsTrigger className='text-xs' value='cron'>
+                    Cron
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </fieldset>
 
             {props.scheduleType === 'daily' ? (
-              <div className='grid gap-2.5'>
+              <div className='grid gap-2'>
                 <div className='flex justify-between gap-3'>
-                  <strong>每日执行时间</strong>
+                  <strong className='text-xs font-medium text-muted-foreground'>
+                    每日执行时间
+                  </strong>
                   <span className='text-xs text-muted-foreground'>使用 AgentRun 服务器时间</span>
                 </div>
                 <div className='flex flex-wrap items-center gap-2'>
                   {props.dailyTimes.map((time) => (
                     <span
-                      className='inline-flex min-h-8 items-center gap-1.5 rounded-full bg-secondary py-0 pl-3 pr-1.5 font-mono text-sm'
+                      className='inline-flex min-h-8 items-center gap-1.5 rounded-full bg-secondary py-0 pl-3 pr-1.5 font-mono text-xs'
                       key={time}
                     >
                       {time}
@@ -585,13 +475,13 @@ function SchedulePanel(props: SchedulePanelProps) {
             <Field hint='由 collector.v1 校验' label='Collection Prompt'>
               <Textarea
                 aria-label='Collection Prompt'
-                className='min-h-36 resize-y'
+                className='min-h-24 resize-y text-sm leading-5'
                 onChange={(event) => props.onPromptChange(event.target.value)}
                 value={props.prompt}
               />
             </Field>
           </div>
-          <footer className='mt-5 flex items-center justify-between gap-4 border-t pt-4 text-xs text-muted-foreground max-sm:flex-col max-sm:items-stretch'>
+          <footer className='mt-4 flex items-center justify-between gap-4 border-t pt-3.5 text-xs text-muted-foreground max-sm:flex-col max-sm:items-stretch'>
             <span>
               {props.schedule
                 ? `上次保存：${formatDateTime(props.schedule.updated_at)}`
@@ -603,11 +493,13 @@ function SchedulePanel(props: SchedulePanelProps) {
           </footer>
         </section>
 
-        <aside className='overflow-hidden rounded-lg border bg-card p-5 shadow-xs'>
-          <header className='mb-5 flex items-start justify-between gap-4 border-b pb-4'>
+        <aside className='overflow-hidden rounded-lg border bg-card p-4'>
+          <header className='mb-2 flex items-start justify-between gap-4'>
             <div>
-              <h3 className='m-0 text-lg font-semibold'>运行信息</h3>
-              <p className='mt-1.5 text-sm text-muted-foreground'>时间由 AgentRun 返回。</p>
+              <h3 className='m-0 text-sm font-semibold'>配置就绪</h3>
+              <p className='mb-0 mt-1 text-xs leading-5 text-muted-foreground'>
+                配置与运行时间由 AgentRun 返回。
+              </p>
             </div>
           </header>
           <dl className='m-0 grid'>
@@ -658,9 +550,9 @@ function SchedulePanel(props: SchedulePanelProps) {
 
 function DetailRow({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <div className='grid grid-cols-[minmax(5.625rem,0.8fr)_minmax(0,1.2fr)] items-center gap-4 border-b py-3.5 last:border-b-0'>
+    <div className='grid grid-cols-[minmax(5.625rem,0.8fr)_minmax(0,1.2fr)] items-center gap-4 border-b py-2.5 text-xs last:border-b-0'>
       <dt className='text-muted-foreground'>{label}</dt>
-      <dd className='m-0 text-right font-medium'>{children}</dd>
+      <dd className='m-0 text-right font-medium leading-5'>{children}</dd>
     </div>
   );
 }
@@ -680,53 +572,67 @@ type ConfigurationTableProps =
 function ConfigurationTable(props: ConfigurationTableProps) {
   const isModel = props.kind === 'model';
   return (
-    <section aria-label={isModel ? '模型配置' : '连接器配置'} className='grid gap-4'>
+    <section aria-label={isModel ? '模型配置' : '连接器配置'} className='grid gap-3.5'>
       <div className='flex items-start justify-between gap-4'>
         <div>
-          <h3 className='m-0 text-lg font-semibold'>{isModel ? '模型配置' : '连接器配置'}</h3>
-          <p className='mt-1.5 text-sm text-muted-foreground'>
+          <h3 className='m-0 text-sm font-semibold'>{isModel ? '模型配置' : '连接器配置'}</h3>
+          <p className='mb-0 mt-1 text-xs leading-5 text-muted-foreground'>
             {isModel
               ? '只维护 AgentRun 代码已注册的模型供应商。'
               : '连接器能力由代码注册，管理页只维护当前连接信息。'}
           </p>
         </div>
       </div>
-      <div className='overflow-hidden rounded-lg border bg-card shadow-xs'>
-        <Table>
+      <div className='overflow-hidden rounded-lg border bg-card'>
+        <Table className='table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'>
           <TableHeader>
             <TableRow className='hover:bg-transparent'>
-              <TableHead>{isModel ? 'Provider' : 'Connector'}</TableHead>
-              <TableHead>Base URL</TableHead>
-              {isModel ? <TableHead>模型</TableHead> : null}
-              <TableHead>Key</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead>更新时间</TableHead>
-              <TableHead aria-label='操作' />
+              <TableHead className={isModel ? 'w-[18%]' : 'w-[20%]'}>
+                {isModel ? 'Provider' : 'Connector'}
+              </TableHead>
+              <TableHead className={isModel ? 'w-[23%]' : 'w-[34%]'}>Base URL</TableHead>
+              {isModel ? <TableHead className='w-[15%]'>模型</TableHead> : null}
+              <TableHead className='w-[12%]'>Key</TableHead>
+              <TableHead className='w-[10%]'>状态</TableHead>
+              <TableHead className={isModel ? 'w-[15%]' : 'w-[16%]'}>更新时间</TableHead>
+              <TableHead aria-label='操作' className={isModel ? 'w-[7%]' : 'w-[8%]'} />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isModel
               ? props.models.map((item) => (
                   <TableRow key={item.provider_key}>
-                    <TableCell>
-                      <strong>{providerName(item.provider_key)}</strong>
-                      <small className='mt-1 block font-mono text-muted-foreground'>
+                    <TableCell className='max-w-0'>
+                      <strong className='block truncate'>{providerName(item.provider_key)}</strong>
+                      <small className='mt-1 block truncate font-mono text-muted-foreground'>
                         {item.provider_key}
                       </small>
                     </TableCell>
-                    <TableCell className='font-mono'>{item.base_url || '-'}</TableCell>
-                    <TableCell className='font-mono'>{item.model || '-'}</TableCell>
-                    <TableCell className='font-mono'>{item.masked_key || '未配置'}</TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip className='font-mono' value={item.base_url || '-'} />
+                    </TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip className='font-mono' value={item.model || '-'} />
+                    </TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip className='font-mono' value={item.masked_key || '未配置'} />
+                    </TableCell>
                     <TableCell>
                       <StatusBadge tone={item.configured ? 'success' : 'danger'}>
                         {item.configured ? '已配置' : '未配置'}
                       </StatusBadge>
                     </TableCell>
-                    <TableCell>{item.updated_at ? formatDateTime(item.updated_at) : '-'}</TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip
+                        value={item.updated_at ? formatDateTime(item.updated_at) : '-'}
+                      />
+                    </TableCell>
                     <TableCell className='text-right'>
                       <Button
                         aria-label={`编辑 ${item.provider_key}`}
+                        className='text-xs'
                         onClick={() => props.onEdit(item)}
+                        size='sm'
                         variant='secondary'
                       >
                         编辑
@@ -736,24 +642,36 @@ function ConfigurationTable(props: ConfigurationTableProps) {
                 ))
               : props.connectors.map((item) => (
                   <TableRow key={item.connector_key}>
-                    <TableCell>
-                      <strong>{connectorName(item.connector_key)}</strong>
-                      <small className='mt-1 block font-mono text-muted-foreground'>
+                    <TableCell className='max-w-0'>
+                      <strong className='block truncate'>
+                        {connectorName(item.connector_key)}
+                      </strong>
+                      <small className='mt-1 block truncate font-mono text-muted-foreground'>
                         {item.connector_key}
                       </small>
                     </TableCell>
-                    <TableCell className='font-mono'>{item.base_url || '-'}</TableCell>
-                    <TableCell className='font-mono'>{item.masked_key || '未配置'}</TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip className='font-mono' value={item.base_url || '-'} />
+                    </TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip className='font-mono' value={item.masked_key || '未配置'} />
+                    </TableCell>
                     <TableCell>
                       <StatusBadge tone={item.configured ? 'success' : 'danger'}>
                         {item.configured ? '已配置' : '未配置'}
                       </StatusBadge>
                     </TableCell>
-                    <TableCell>{item.updated_at ? formatDateTime(item.updated_at) : '-'}</TableCell>
+                    <TableCell className='max-w-0'>
+                      <OverflowTooltip
+                        value={item.updated_at ? formatDateTime(item.updated_at) : '-'}
+                      />
+                    </TableCell>
                     <TableCell className='text-right'>
                       <Button
                         aria-label={`编辑 ${item.connector_key}`}
+                        className='text-xs'
                         onClick={() => props.onEdit(item)}
+                        size='sm'
                         variant='secondary'
                       >
                         编辑
@@ -929,51 +847,6 @@ function formatDateTime(value: string): string {
     hour12: false,
     timeZone: 'Asia/Shanghai'
   });
-}
-
-function executionDuration(execution: AgentExecution): string {
-  if (!execution.started_at || !execution.completed_at) {
-    return '-';
-  }
-  const duration = Math.max(
-    0,
-    new Date(execution.completed_at).getTime() - new Date(execution.started_at).getTime()
-  );
-  const seconds = Math.floor(duration / 1000);
-  const minutes = Math.floor(seconds / 60);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-function triggerSourceLabel(value: string): string {
-  if (value === 'schedule') {
-    return '定时';
-  }
-  if (value === 'api') {
-    return 'API';
-  }
-  return value || '-';
-}
-
-function executionStatusLabel(value: string): string {
-  const labels: Record<string, string> = {
-    queued: '排队中',
-    running: '执行中',
-    succeeded: '已完成',
-    failed: '失败',
-    skipped: '已跳过',
-    cancelled: '已取消'
-  };
-  return labels[value] ?? value;
-}
-
-function executionStatusTone(value: string): 'success' | 'danger' | 'neutral' {
-  if (value === 'succeeded') {
-    return 'success';
-  }
-  if (value === 'failed' || value === 'cancelled') {
-    return 'danger';
-  }
-  return 'neutral';
 }
 
 function providerName(key: string): string {

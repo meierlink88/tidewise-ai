@@ -37,7 +37,6 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		{http.MethodGet, APIPrefix + "/agent-schedules/collector", "", OperationGetAgentSchedule},
 		{http.MethodPut, APIPrefix + "/agent-schedules/collector", `{"agent_version":"collector.v1","schedule_type":"daily","daily_times":["08:00"],"input":{}}`, OperationSaveAgentSchedule},
 		{http.MethodPatch, APIPrefix + "/agent-schedules/collector", `{"enabled":true}`, OperationSetScheduleEnabled},
-		{http.MethodGet, APIPrefix + "/agent-executions", "", OperationListAgentExecutions},
 		{http.MethodGet, APIPrefix + "/agent-statuses", "", OperationListAgentStatuses},
 		{http.MethodGet, APIPrefix + "/monitoring/summary", "", OperationGetMonitoringSummary},
 		{http.MethodGet, APIPrefix + "/monitoring/collector-executions", "", OperationListCollectorMonitoring},
@@ -49,6 +48,7 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		{http.MethodGet, APIPrefix + "/connectors", "", OperationListConnectors},
 		{http.MethodGet, APIPrefix + "/connectors/tavily", "", OperationGetConnector},
 		{http.MethodPatch, APIPrefix + "/connectors/tavily", `{"base_url":"https://api.tavily.com"}`, OperationPatchConnector},
+		{http.MethodGet, APIPrefix + "/runtime-health", "", OperationGetRuntimeHealth},
 	} {
 		response := httptest.NewRecorder()
 		httpRequest := httptest.NewRequest(request.method, request.path, strings.NewReader(request.body))
@@ -129,9 +129,6 @@ func (stubAdminHTTPServer) SaveAgentSchedule(context.Context, *SaveAgentSchedule
 func (stubAdminHTTPServer) SetAgentScheduleEnabled(context.Context, *SetAgentScheduleEnabledRequest) (*AgentSchedule, error) {
 	return &AgentSchedule{}, nil
 }
-func (stubAdminHTTPServer) ListAgentExecutions(context.Context, *ListAgentExecutionsRequest) (*AgentExecutionPage, error) {
-	return &AgentExecutionPage{}, nil
-}
 func (stubAdminHTTPServer) ListAgentStatuses(context.Context, *EmptyRequest) (*AgentStatusListResponse, error) {
 	return &AgentStatusListResponse{}, nil
 }
@@ -164,4 +161,7 @@ func (stubAdminHTTPServer) GetConnector(context.Context, *ConnectorKeyRequest) (
 }
 func (stubAdminHTTPServer) PatchConnector(context.Context, *PatchConnectorRequest) (*ConnectorConfiguration, error) {
 	return &ConnectorConfiguration{}, nil
+}
+func (stubAdminHTTPServer) GetRuntimeHealth(context.Context, *EmptyRequest) (*RuntimeHealth, error) {
+	return &RuntimeHealth{}, nil
 }
