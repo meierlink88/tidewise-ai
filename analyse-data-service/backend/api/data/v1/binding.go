@@ -40,14 +40,6 @@ func arrayShape(item *bindingShape) *bindingShape {
 	return &bindingShape{item: item}
 }
 
-func decodeEventPublication(payload []byte) (*EventPublicationRequest, error) {
-	request := new(EventPublicationRequest)
-	if err := decodeStrictBinding(payload, eventPublicationShape(), request); err != nil {
-		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
-	}
-	return request, nil
-}
-
 func decodeResearchThemeImport(payload []byte) (*ResearchThemeImportRequest, error) {
 	var discriminator struct {
 		PublicationMode string `json:"publication_mode"`
@@ -349,40 +341,6 @@ func indexedBindingPath(path, field string) (int, bool) {
 	}
 	index, err := strconv.Atoi(path[len(prefix) : len(prefix)+end])
 	return index, err == nil
-}
-
-func eventPublicationShape() *bindingShape {
-	collector := objectShape(map[string]*bindingShape{"artifact_id": scalarShape, "collector_execution_id": scalarShape})
-	provenance := objectShape(map[string]*bindingShape{
-		"extractor_execution_id": scalarShape, "extractor_agent_version": scalarShape,
-		"collector_executions": arrayShape(collector),
-	})
-	rawDocument := objectShape(map[string]*bindingShape{
-		"artifact_id": scalarShape, "content_sha256": scalarShape, "source_ref": scalarShape,
-		"source_name": scalarShape, "source_type": scalarShape, "source_url": scalarShape,
-		"title": scalarShape, "published_at": scalarShape, "collected_at": scalarShape,
-		"language": scalarShape, "mime_type": scalarShape,
-	})
-	evidence := objectShape(map[string]*bindingShape{
-		"artifact_id": scalarShape, "evidence_relation": scalarShape, "evidence_statement": scalarShape,
-		"supports_fields": arrayShape(scalarShape), "source_level": scalarShape,
-	})
-	tag := objectShape(map[string]*bindingShape{
-		"tag_id": scalarShape, "tag_kind": scalarShape, "tag_code": scalarShape, "confidence": scalarShape,
-		"assignment_reason": scalarShape, "assign_source": scalarShape,
-	})
-	review := objectShape(map[string]*bindingShape{
-		"review_id": scalarShape, "evidence_grade": scalarShape, "reasons": arrayShape(scalarShape),
-	})
-	event := objectShape(map[string]*bindingShape{
-		"dedupe_key": scalarShape, "title": scalarShape, "factual_summary": scalarShape,
-		"occurred_at": scalarShape, "fact_payload": anyShape,
-		"evidence": arrayShape(evidence), "tags": arrayShape(tag), "review": review,
-	})
-	return objectShape(map[string]*bindingShape{
-		"package_id": scalarShape, "provenance": provenance,
-		"raw_documents": arrayShape(rawDocument), "events": arrayShape(event),
-	})
 }
 
 func researchThemeImportShape() *bindingShape {

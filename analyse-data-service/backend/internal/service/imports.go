@@ -5,32 +5,10 @@ import (
 	"errors"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
 )
-
-func (s *DataService) ImportReviewedEvents(ctx context.Context, request *v1.EventPublicationRequest) (*v1.Response[v1.EventPublicationResult], error) {
-	if s == nil || s.dependencies.EventPublications == nil {
-		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Event Publication service is unavailable")
-	}
-	publication := eventPublicationInput(request)
-	result, err := s.dependencies.EventPublications.Import(ctx, principalIdentity(ctx), publication)
-	if err == nil {
-		return &v1.Response[v1.EventPublicationResult]{Status: v1.StatusCreated, Result: eventPublicationDTO(result)}, nil
-	}
-	var validation *publicationdomain.ValidationError
-	if errors.As(err, &validation) {
-		return nil, publicErrorWithDetails(v1.StatusUnprocessableEntity, "EVENT_PUBLICATION_INVALID", "Event Publication failed validation", map[string]any{"issues": validation.Issues})
-	}
-	var conflict *eventpublicationapp.ConflictError
-	if errors.As(err, &conflict) {
-		return nil, publicErrorWithDetails(v1.StatusConflict, "EVENT_PUBLICATION_CONFLICT", "Event Publication conflicts with stored data", map[string]any{"issues": conflict.Issues})
-	}
-	return nil, publicError(v1.StatusInternalServerError, "EVENT_PUBLICATION_FAILED", "Event Publication failed")
-}
 
 func (s *DataService) PublishResearchTheme(ctx context.Context, request *v1.ResearchThemeImportRequest) (*v1.Response[v1.ResearchThemeImportResult], error) {
 	if s == nil || s.dependencies.ResearchThemeImports == nil {

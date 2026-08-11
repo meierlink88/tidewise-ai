@@ -40,7 +40,7 @@ type researchAnalysisContextInconsistentFixtureEnvelope struct {
 
 type researchAnalysisFixtureConsumerState struct {
 	eventIDs       map[string]struct{}
-	mergedEntities map[string]EventSemanticEntity
+	mergedEntities map[string]ResearchAnalysisEntity
 	nextCursor     string
 	pagesRead      int
 }
@@ -48,7 +48,7 @@ type researchAnalysisFixtureConsumerState struct {
 func newResearchAnalysisFixtureConsumerState() *researchAnalysisFixtureConsumerState {
 	return &researchAnalysisFixtureConsumerState{
 		eventIDs:       map[string]struct{}{},
-		mergedEntities: map[string]EventSemanticEntity{},
+		mergedEntities: map[string]ResearchAnalysisEntity{},
 	}
 }
 

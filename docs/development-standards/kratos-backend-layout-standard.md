@@ -85,12 +85,27 @@ HTTP/OpenAPI、数据库、配置、认证、中间件、部署或测试技术�
 - 生成文件遵守生成器命名，但必须标明来源，且不得与手写固定文件重复拥有合同。
 - Eino Agent capability 的内部编排遵守其专项规范，不是 HTTP Use Case 分包先例。
 
+## 事务职责
+
+事务调用固定为 `Service → Biz UseCase → Biz Transaction Port ← Data Adapter`：
+
+- Service 只做 wire/Biz 转换和错误映射，不决定事务范围，也不创建
+  `service/<domain>/transaction.go`；业务名恰为 Transaction 不构成分层先例。
+- Biz 决定原子操作的范围、顺序及 replay、conflict、状态迁移、supersession 等业务结果；
+  `biz/<domain>/transaction.go` 只声明事务 Port、事务内状态和写入命令，不依赖 driver。
+- Data 实现 begin、lock、read、write、commit、rollback 和取消传播，并在读取后按 Data
+  边界 fail closed；领域专属实现位于 `data/<domain>/transaction.go`。
+- Data 不根据数据库现状替 Biz 作业务裁决；它只返回已校验、足以裁决的事务状态，并执行 Biz
+  给出的持久化命令。
+- 只有确有跨多步原子性、锁或一致性读取 seam 时才创建两层 `transaction.go`；普通单次读写仍在
+  `biz.go` Port 与 `data.go` Adapter 中。
+
 ## 测试命名
 
 测试按风险创建并跟随职责命名：`api_test.go`、`http_test.go`、`biz_test.go`、
-`transaction_test.go`、`data_test.go`、`data_integration_test.go`、
-`transaction_integration_test.go`、`service_test.go`。业务场景写入测试函数和 table case；
-fixture、golden file 与 migration contract 可以按稳定 Artifact 身份命名。
+`transaction_test.go`、`data_test.go`、`service_test.go`。`unit`、`integration`、数据库类型和
+业务场景不得进入职责测试文件名，改由测试函数、table case、环境与 CI seam 表达；fixture、
+golden file 与 migration contract 可以按稳定 Artifact 身份命名。
 
 ## 迁移规则
 

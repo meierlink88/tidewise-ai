@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -18,9 +20,11 @@ const (
 type StrictJSONShape = bindingShape
 
 func StrictJSONString() *StrictJSONShape         { return stringShape }
+func StrictJSONScalar() *StrictJSONShape         { return scalarShape }
 func StrictJSONBoolean() *StrictJSONShape        { return booleanShape }
 func StrictJSONInteger() *StrictJSONShape        { return integerShape }
 func StrictJSONNullableString() *StrictJSONShape { return nullableStringShape }
+func StrictJSONAny() *StrictJSONShape            { return anyShape }
 func StrictJSONArray(item *StrictJSONShape) *StrictJSONShape {
 	return arrayShape(item)
 }
@@ -32,21 +36,12 @@ func DecodeStrictJSON(payload []byte, shape *StrictJSONShape, target any) error 
 }
 
 type DataHTTPServer interface {
-	ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error)
-	ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error)
 	PublishResearchTheme(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error)
 	ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error)
 	GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response[ResearchThemeDetail], error)
 	ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response[ResearchReasoningTreeList], error)
 	GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response[ResearchReasoningTreeDetail], error)
 	ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error)
-	ListEvents(context.Context, *EventListRequest) (*Response[AdminEventPage], error)
-	ListEligibleEventSemanticEvents(context.Context, *EligibleEventSemanticEventsRequest) (*Response[EligibleEventSemanticEvents], error)
-	CreateEventSemanticContextLease(context.Context, *EventSemanticContextLeaseRequest) (*Response[EventSemanticContextLease], error)
-	GetEventSemanticContext(context.Context, *EventSemanticContextRequest) (*Response[EventSemanticContext], error)
-	CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*Response[EventSemanticSubmissionResult], error)
-	SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*Response[EventSemanticSubmissionResult], error)
-	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error)
 	ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error)
 	SearchResearchGraph(context.Context, *ResearchGraphSearchRequest) (*Response[ResearchGraphSearchResult], error)
 	GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error)
@@ -54,21 +49,12 @@ type DataHTTPServer interface {
 
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
 	router := server.Route(APIPrefix)
-	router.POST("/reviewed-event-imports", eventPublicationImportHandler(application))
-	router.GET("/event-tags", listActiveEventTagsHandler(application))
 	router.POST("/research-theme-imports", researchThemeImportHandler(application))
 	router.GET("/research/themes", listResearchThemesHandler(application))
 	router.GET("/research/themes/{theme_id}", getResearchThemeHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees", listReasoningTreesHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}", getReasoningTreeHandler(application))
 	router.GET("/raw-documents", listRawDocumentsHandler(application))
-	router.GET("/events", listEventsHandler(application))
-	router.GET("/event-semantics/eligible-events", listEligibleEventSemanticEventsHandler(application))
-	router.POST("/event-semantics/context-leases", createEventSemanticContextLeaseHandler(application))
-	router.GET("/event-semantics/context-leases/{context_lease_id}/context", getEventSemanticContextHandler(application))
-	router.POST("/event-semantics/submissions", createEventSemanticSubmissionHandler(application))
-	router.POST("/event-semantics/submissions/{submission_id}/reviews", submitEventSemanticReviewHandler(application))
-	router.GET("/events/{event_id}/semantics", getEventSemanticsHandler(application))
 	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
 	router.POST("/research-graph:search", searchResearchGraphHandler(application))
 	router.GET("/runtime-health", runtimeHealthHandler(application))
@@ -85,7 +71,7 @@ func runtimeHealthHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 
 func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[ResearchGraphSearchRequest](ctx)
+		request, err := DecodeStrictJSONBody[ResearchGraphSearchRequest](ctx)
 		if err != nil {
 			return err
 		}
@@ -98,6 +84,27 @@ func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFu
 			},
 		)
 	}
+}
+
+func DecodeStrictJSONBody[T any](ctx kratoshttp.Context) (*T, error) {
+	payload, err := io.ReadAll(io.LimitReader(ctx.Request().Body, MaxRequestBodySize+1))
+	if err != nil {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
+	}
+	if len(payload) > MaxRequestBodySize {
+		return nil, NewPublicError(StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body exceeds 1048576 bytes", nil)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	var request T
+	if err := decoder.Decode(&request); err != nil {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
+	}
+	return &request, nil
 }
 
 func listResearchAnalysisContextHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
@@ -161,36 +168,6 @@ func optionalQueryValue(query map[string][]string, key string) *string {
 	}
 	value := query[key][0]
 	return &value
-}
-
-func listActiveEventTagsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		query := ctx.Request().URL.Query()
-		values, exists := query["active"]
-		if !exists || len(query) != 1 || len(values) != 1 || values[0] != "true" {
-			return NewPublicError(StatusBadRequest, "INVALID_REQUEST", "active must be exactly true", nil)
-		}
-		request := &EventTagCatalogRequest{Active: true}
-		return Call(ctx, OperationListActiveEventTags, request, func(callContext context.Context) (*Response[EventTagCatalog], error) {
-			return application.ListActiveEventTags(callContext, request)
-		})
-	}
-}
-
-func eventPublicationImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		payload, err := ReadImportPayload(ctx)
-		if err != nil {
-			return err
-		}
-		request, err := decodeEventPublication(payload)
-		if err != nil {
-			return err
-		}
-		return Call(ctx, OperationPublishReviewedEvents, request, func(callContext context.Context) (*Response[EventPublicationResult], error) {
-			return application.ImportReviewedEvents(callContext, request)
-		})
-	}
 }
 
 func researchThemeImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
@@ -272,21 +249,6 @@ func listRawDocumentsHandler(application DataHTTPServer) kratoshttp.HandlerFunc 
 		}
 		return Call(ctx, OperationListAdminRawDocuments, request, func(callContext context.Context) (*Response[AdminRawDocumentPage], error) {
 			return application.ListRawDocuments(callContext, request)
-		})
-	}
-}
-
-func listEventsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		query := ctx.Query()
-		request := &EventListRequest{
-			Title: query.Get("title"), EventStatus: query.Get("event_status"), FactStatus: query.Get("fact_status"),
-			EventTimeFrom: query.Get("event_time_from"), EventTimeTo: query.Get("event_time_to"),
-			FirstSeenFrom: query.Get("first_seen_from"), FirstSeenTo: query.Get("first_seen_to"),
-			Page: query.Get("page"), PageSize: query.Get("page_size"),
-		}
-		return Call(ctx, OperationListAdminEvents, request, func(callContext context.Context) (*Response[AdminEventPage], error) {
-			return application.ListEvents(callContext, request)
 		})
 	}
 }

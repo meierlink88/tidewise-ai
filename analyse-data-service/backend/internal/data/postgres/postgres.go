@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/industryrelationshipimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
@@ -20,14 +18,6 @@ type repository struct {
 
 func newRepository(db *sql.DB) repository {
 	return repository{db: db}
-}
-
-func NewEventPublicationStore(db *sql.DB) eventpublication.Store {
-	return newRepository(db)
-}
-
-func NewEventSemanticsStore(db *sql.DB) eventsemantics.Store {
-	return newRepository(db)
 }
 
 func NewResearchThemeImportStore(db *sql.DB) researchthemeimport.Store {

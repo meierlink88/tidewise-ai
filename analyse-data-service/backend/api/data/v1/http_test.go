@@ -28,13 +28,13 @@ func TestDataBindingRunsKratosMiddlewareWithStableOperation(t *testing.T) {
 	RegisterDataHTTPServer(server, testDataHTTPServer{})
 
 	response := httptest.NewRecorder()
-	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/events", nil))
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/raw-documents", nil))
 
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204", response.Code)
 	}
-	if operation != "data.v1.listAdminEvents" {
-		t.Fatalf("operation = %q, want data.v1.listAdminEvents", operation)
+	if operation != "data.v1.listAdminRawDocuments" {
+		t.Fatalf("operation = %q, want data.v1.listAdminRawDocuments", operation)
 	}
 }
 
@@ -65,10 +65,6 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		operation   string
 		body        string
 	}{
-		"POST " + APIPrefix + "/reviewed-event-imports": {
-			requestPath: APIPrefix + "/reviewed-event-imports",
-			operation:   "data.v1.publishReviewedEvents",
-		},
 		"POST " + APIPrefix + "/research-theme-imports": {
 			requestPath: APIPrefix + "/research-theme-imports",
 			operation:   "data.v1.publishResearchTheme",
@@ -92,10 +88,6 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 				}]
 			}`,
 		},
-		"GET " + APIPrefix + "/event-tags": {
-			requestPath: APIPrefix + "/event-tags?active=true",
-			operation:   "data.v1.listActiveEventTags",
-		},
 		"GET " + APIPrefix + "/research/themes": {
 			requestPath: APIPrefix + "/research/themes",
 			operation:   "data.v1.listResearchThemes",
@@ -116,38 +108,9 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/raw-documents",
 			operation:   "data.v1.listAdminRawDocuments",
 		},
-		"GET " + APIPrefix + "/events": {
-			requestPath: APIPrefix + "/events",
-			operation:   "data.v1.listAdminEvents",
-		},
 		"GET " + APIPrefix + "/runtime-health": {
 			requestPath: APIPrefix + "/runtime-health",
 			operation:   "data.v1.getRuntimeHealth",
-		},
-		"GET " + APIPrefix + "/event-semantics/eligible-events": {
-			requestPath: APIPrefix + "/event-semantics/eligible-events?limit=20",
-			operation:   "data.v1.listEligibleEventSemanticEvents",
-		},
-		"POST " + APIPrefix + "/event-semantics/context-leases": {
-			requestPath: APIPrefix + "/event-semantics/context-leases",
-			operation:   "data.v1.createEventSemanticContextLease",
-			body:        `{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`,
-		},
-		"GET " + APIPrefix + "/event-semantics/context-leases/{context_lease_id}/context": {
-			requestPath: APIPrefix + "/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
-			operation:   "data.v1.getEventSemanticContext",
-		},
-		"POST " + APIPrefix + "/event-semantics/submissions": {
-			requestPath: APIPrefix + "/event-semantics/submissions",
-			operation:   "data.v1.createEventSemanticSubmission",
-		},
-		"POST " + APIPrefix + "/event-semantics/submissions/{submission_id}/reviews": {
-			requestPath: APIPrefix + "/event-semantics/submissions/11111111-1111-4111-8111-111111111111/reviews",
-			operation:   "data.v1.submitEventSemanticReview",
-		},
-		"GET " + APIPrefix + "/events/{event_id}/semantics": {
-			requestPath: APIPrefix + "/events/22222222-2222-4222-8222-222222222222/semantics",
-			operation:   "data.v1.getEventSemantics",
 		},
 		"GET " + APIPrefix + "/research-analysis-context": {
 			requestPath: APIPrefix + "/research-analysis-context?discovery_window_start=2026-07-01T00%3A00%3A00Z&discovery_window_end=2026-07-02T00%3A00%3A00Z&analysis_as_of=2026-07-02T00%3A00%3A00Z&page_size=20",
@@ -165,7 +128,9 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		if !strings.HasPrefix(path, APIPrefix) {
 			continue
 		}
-		if path == APIPrefix+"/raw-evidence-publications" || path == APIPrefix+"/evidence-publications" {
+		if path == APIPrefix+"/raw-evidence-publications" || path == APIPrefix+"/evidence-publications" ||
+			path == APIPrefix+"/reviewed-event-imports" || path == APIPrefix+"/event-tags" || path == APIPrefix+"/events" ||
+			strings.HasPrefix(path, APIPrefix+"/event-semantics/") || path == APIPrefix+"/events/{event_id}/semantics" {
 			continue
 		}
 		pathItem := httpContractObject(t, pathItemValue, "path "+path)
@@ -257,12 +222,6 @@ func (server *capturingDataHTTPServer) ListResearchThemes(_ context.Context, req
 func testResponse[T any]() (*Response[T], error) {
 	return &Response[T]{Status: http.StatusNoContent}, nil
 }
-func (testDataHTTPServer) ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error) {
-	return testResponse[EventPublicationResult]()
-}
-func (testDataHTTPServer) ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error) {
-	return testResponse[EventTagCatalog]()
-}
 func (testDataHTTPServer) PublishResearchTheme(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error) {
 	return testResponse[ResearchThemeImportResult]()
 }
@@ -280,9 +239,6 @@ func (testDataHTTPServer) GetResearchReasoningTree(context.Context, *ReasoningTr
 }
 func (testDataHTTPServer) ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error) {
 	return testResponse[AdminRawDocumentPage]()
-}
-func (testDataHTTPServer) ListEvents(context.Context, *EventListRequest) (*Response[AdminEventPage], error) {
-	return testResponse[AdminEventPage]()
 }
 func (testDataHTTPServer) GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error) {
 	return testResponse[RuntimeHealth]()

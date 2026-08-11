@@ -20,8 +20,4 @@ func (r Repository) ListRawDocuments(ctx context.Context, filter biz.RawDocument
 	return r.store.ListRawDocuments(ctx, filter)
 }
 
-func (r Repository) ListEvents(ctx context.Context, filter biz.EventListFilter) (biz.EventStorePage, error) {
-	return r.store.ListEvents(ctx, filter)
-}
-
 var _ biz.Repository = Repository{}

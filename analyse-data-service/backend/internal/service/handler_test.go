@@ -353,10 +353,6 @@ func writeTestError(response http.ResponseWriter, requestID string, status int, 
 
 func testRequiredScope(method, path string) (string, bool) {
 	switch {
-	case method == http.MethodPost && path == Namespace+"/reviewed-event-imports":
-		return ScopeReviewedEventImport, true
-	case method == http.MethodGet && path == Namespace+"/event-tags":
-		return ScopeEventTagRead, true
 	case method == http.MethodPost && (path == Namespace+"/research-theme-imports" ||
 		path == Namespace+"/research-reasoning-tree-imports"):
 		return ScopeResearchImport, true
@@ -366,7 +362,7 @@ func testRequiredScope(method, path string) (string, bool) {
 		return ScopeResearchRead, true
 	case method == http.MethodPost && path == Namespace+"/research-graph:search":
 		return ScopeResearchRead, true
-	case method == http.MethodGet && (path == Namespace+"/raw-documents" || path == Namespace+"/events"):
+	case method == http.MethodGet && path == Namespace+"/raw-documents":
 		return ScopeAdminRead, true
 	default:
 		return "", false

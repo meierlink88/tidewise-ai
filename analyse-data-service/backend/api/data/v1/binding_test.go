@@ -128,15 +128,3 @@ func TestResearchThemeBindingAcceptsAtomicAggregateShape(t *testing.T) {
 		t.Fatalf("decode atomic aggregate: %#v", err)
 	}
 }
-
-func TestEventPublicationBindingAllowsArbitraryFactPayloadButRejectsUnknownWireFields(t *testing.T) {
-	valid := `{"package_id":"package","provenance":{"extractor_execution_id":"execution","extractor_agent_version":"v1","collector_executions":[]},"raw_documents":[],"events":[{"dedupe_key":"event","title":"title","factual_summary":"summary","fact_payload":{"nested":{"value":[1,true,null]}},"evidence":[],"tags":[],"review":{"review_id":"review","evidence_grade":"A","reasons":[]}}]}`
-	if _, err := decodeEventPublication([]byte(valid)); err != nil {
-		t.Fatalf("decode valid publication: %v", err)
-	}
-
-	unknown := `{"package_id":"package","unexpected":true}`
-	if _, err := decodeEventPublication([]byte(unknown)); err == nil {
-		t.Fatal("unknown top-level field was accepted")
-	}
-}

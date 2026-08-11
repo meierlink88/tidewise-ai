@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 )
 
@@ -29,7 +30,7 @@ func main() {
 		fail("could not open Data database")
 	}
 	defer db.Close()
-	manifest, err := postgres.AuditHistoricalEventSemantics(ctx, db, time.Now())
+	manifest, err := eventsemanticdata.AuditHistoricalEventSemantics(ctx, db, time.Now())
 	if err != nil {
 		fail("could not audit historical Event Semantic inputs")
 	}

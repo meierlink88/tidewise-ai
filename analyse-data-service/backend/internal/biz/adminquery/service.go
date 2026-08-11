@@ -3,7 +3,6 @@ package adminquery
 
 import (
 	"context"
-	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
@@ -18,25 +17,6 @@ type RawDocumentListRequest struct {
 
 type RawDocumentPage struct {
 	Items    []model.RawDocument
-	Total    int
-	Page     int
-	PageSize int
-}
-
-type EventListRequest struct {
-	Title         string
-	EventStatus   model.EventStatus
-	FactStatus    model.FactStatus
-	EventTimeFrom *time.Time
-	EventTimeTo   *time.Time
-	FirstSeenFrom *time.Time
-	FirstSeenTo   *time.Time
-	Page          int
-	PageSize      int
-}
-
-type EventPage struct {
-	Items    []model.Event
 	Total    int
 	Page     int
 	PageSize int
@@ -58,17 +38,4 @@ func (s *Service) ListRawDocuments(ctx context.Context, request RawDocumentListR
 		return RawDocumentPage{}, err
 	}
 	return RawDocumentPage{Items: page.Items, Total: page.Total, Page: page.Page, PageSize: page.PageSize}, nil
-}
-
-func (s *Service) ListEvents(ctx context.Context, request EventListRequest) (EventPage, error) {
-	page, err := s.repository.ListEvents(ctx, EventListFilter{
-		Title: request.Title, EventStatus: request.EventStatus, FactStatus: request.FactStatus,
-		EventTimeFrom: request.EventTimeFrom, EventTimeTo: request.EventTimeTo,
-		FirstSeenFrom: request.FirstSeenFrom, FirstSeenTo: request.FirstSeenTo,
-		Page: request.Page, PageSize: request.PageSize,
-	})
-	if err != nil {
-		return EventPage{}, err
-	}
-	return EventPage{Items: page.Items, Total: page.Total, Page: page.Page, PageSize: page.PageSize}, nil
 }

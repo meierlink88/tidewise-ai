@@ -48,9 +48,62 @@ type ResearchAnalysisContext struct {
 
 type ResearchAnalysisEventSemanticBundle struct {
 	Event           ResearchAnalysisEvent            `json:"event"`
-	Evidence        []EventSemanticEvidence          `json:"evidence"`
+	Evidence        []ResearchAnalysisEvidence       `json:"evidence"`
 	EntityLinks     []ResearchAnalysisEntityLink     `json:"entity_links"`
 	VariableSignals []ResearchAnalysisVariableSignal `json:"variable_signals"`
+}
+
+type ResearchAnalysisEvidence struct {
+	EvidenceID           string   `json:"evidence_id"`
+	EvidenceHash         string   `json:"evidence_hash"`
+	Statement            string   `json:"evidence_statement"`
+	SourceLevel          string   `json:"source_level"`
+	Relation             string   `json:"relation"`
+	SupportsFields       []string `json:"supports_fields"`
+	RawDocumentID        string   `json:"raw_document_id"`
+	SourceName           string   `json:"source_name"`
+	SourceType           string   `json:"source_type"`
+	SourceURL            string   `json:"source_url,omitempty"`
+	Title                string   `json:"title"`
+	PublishedAt          *string  `json:"published_at,omitempty"`
+	FirstSeenAt          string   `json:"first_seen_at"`
+	KnowledgeAvailableAt string   `json:"knowledge_available_at"`
+	AcceptedAt           string   `json:"accepted_at"`
+	StatementSource      string   `json:"statement_source"`
+}
+
+type ResearchAnalysisEntity struct {
+	EntityID      string   `json:"entity_id"`
+	EntityType    string   `json:"entity_type"`
+	Name          string   `json:"name"`
+	CanonicalName string   `json:"canonical_name"`
+	Aliases       []string `json:"aliases"`
+	Status        string   `json:"status"`
+}
+
+type ResearchAnalysisEntityRelation struct {
+	EntityRelationID string `json:"entity_relation_id"`
+	FromEntityID     string `json:"from_entity_id"`
+	ToEntityID       string `json:"to_entity_id"`
+	RelationType     string `json:"relation_type"`
+	Status           string `json:"status"`
+}
+
+type ResearchAnalysisTransmissionRule struct {
+	RuleKey                 string `json:"rule_key"`
+	Version                 int    `json:"version"`
+	Status                  string `json:"status"`
+	SourceEntityType        string `json:"source_entity_type"`
+	SourceVariableKey       string `json:"source_variable_key"`
+	SourceVariableVersion   int    `json:"source_variable_version"`
+	SourceDirection         string `json:"source_direction"`
+	RelationType            string `json:"relation_type"`
+	TargetEntityType        string `json:"target_entity_type"`
+	AffectedVariableKey     string `json:"affected_variable_key"`
+	AffectedVariableVersion int    `json:"affected_variable_version"`
+	AffectedDirection       string `json:"affected_direction"`
+	ConditionSummary        string `json:"condition_summary"`
+	MechanismTemplate       string `json:"mechanism_template"`
 }
 
 type ResearchAnalysisEvent struct {
@@ -140,15 +193,15 @@ type ResearchAnalysisDirectImpact struct {
 }
 
 type ResearchAnalysisDictionaries struct {
-	Entities                 []EventSemanticEntity                     `json:"entities"`
+	Entities                 []ResearchAnalysisEntity                  `json:"entities"`
 	RelationDefinitions      []ResearchAnalysisRelationDefinition      `json:"relation_definitions"`
-	EntityRelations          []EventSemanticEntityRelation             `json:"entity_relations"`
+	EntityRelations          []ResearchAnalysisEntityRelation          `json:"entity_relations"`
 	IndustryChains           []ResearchAnalysisIndustryChain           `json:"industry_chains"`
 	IndustryChainMemberships []ResearchAnalysisIndustryChainMembership `json:"industry_chain_memberships"`
 	IndustryChainGraphEdges  []ResearchAnalysisIndustryChainGraphEdge  `json:"industry_chain_graph_edges"`
 	EntityTypeDefinitions    []ResearchAnalysisEntityTypeDefinition    `json:"entity_type_definitions"`
 	VariableDefinitions      []ResearchAnalysisVariableDefinition      `json:"variable_definitions"`
-	DirectTransmissionRules  []EventSemanticTransmissionRule           `json:"direct_transmission_rules"`
+	DirectTransmissionRules  []ResearchAnalysisTransmissionRule        `json:"direct_transmission_rules"`
 	AcceptancePolicies       []ResearchAnalysisAcceptancePolicy        `json:"acceptance_policies"`
 }
 
