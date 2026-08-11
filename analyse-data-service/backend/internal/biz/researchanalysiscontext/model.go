@@ -196,21 +196,7 @@ type EntityTypeContext struct {
 	EventLinkAllowed     bool     `json:"event_link_allowed"`
 	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
 	DirectTargetMode     string   `json:"direct_target_mode"`
-	AllowedEventRoles    []string `json:"-"`
 	Status               string   `json:"status"`
-}
-
-func (c *EntityTypeContext) UnmarshalJSON(data []byte) error {
-	type contextAlias EntityTypeContext
-	decoded := struct {
-		*contextAlias
-		AllowedEventRoles []string `json:"allowed_event_roles"`
-	}{contextAlias: (*contextAlias)(c)}
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	c.AllowedEventRoles = decoded.AllowedEventRoles
-	return nil
 }
 
 type VariableDefinition struct {

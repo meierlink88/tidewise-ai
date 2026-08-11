@@ -9,11 +9,40 @@ import (
 	"fmt"
 	"time"
 
+	entitybiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entity"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 )
 
 type ResearchAnalysisContextStore struct {
 	db *sql.DB
+}
+
+type persistedResearchDictionaries struct {
+	Entities                 []researchanalysiscontext.Entity                  `json:"entities"`
+	RelationDefinitions      []researchanalysiscontext.RelationDefinition      `json:"relation_definitions"`
+	EntityRelations          []researchanalysiscontext.EntityRelation          `json:"entity_relations"`
+	IndustryChains           []researchanalysiscontext.IndustryChain           `json:"industry_chains"`
+	IndustryChainMemberships []researchanalysiscontext.IndustryChainMembership `json:"industry_chain_memberships"`
+	IndustryChainGraphEdges  []researchanalysiscontext.IndustryChainGraphEdge  `json:"industry_chain_graph_edges"`
+	EntityTypeDefinitions    []persistedEntityTypeContext                      `json:"entity_type_definitions"`
+	VariableDefinitions      []researchanalysiscontext.VariableDefinition      `json:"variable_definitions"`
+	DirectTransmissionRules  []researchanalysiscontext.DirectTransmissionRule  `json:"direct_transmission_rules"`
+	AcceptancePolicies       []researchanalysiscontext.AcceptancePolicy        `json:"acceptance_policies"`
+}
+
+type persistedEntityTypeContext struct {
+	TypeKey              string   `json:"type_key"`
+	Version              int      `json:"version"`
+	NameZH               string   `json:"name_zh"`
+	NameEN               string   `json:"name_en"`
+	BusinessDefinition   string   `json:"business_definition"`
+	InclusionCriteria    []string `json:"inclusion_criteria"`
+	ExclusionCriteria    []string `json:"exclusion_criteria"`
+	EventLinkAllowed     bool     `json:"event_link_allowed"`
+	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
+	DirectTargetMode     string   `json:"direct_target_mode"`
+	AllowedEventRoles    []string `json:"allowed_event_roles"`
+	Status               string   `json:"status"`
 }
 
 const referenceClosureCTE = `
@@ -746,9 +775,46 @@ func (s *ResearchAnalysisContextStore) ReferenceClosure(
 	if err != nil {
 		return researchanalysiscontext.Dictionaries{}, err
 	}
-	var dictionaries researchanalysiscontext.Dictionaries
-	if err := strictDecodeResearchContext(payload, &dictionaries); err != nil {
+	return decodeResearchDictionaries(payload)
+}
+
+func decodeResearchDictionaries(payload []byte) (researchanalysiscontext.Dictionaries, error) {
+	var persisted persistedResearchDictionaries
+	if err := strictDecodeResearchContext(payload, &persisted); err != nil {
 		return researchanalysiscontext.Dictionaries{}, err
+	}
+	dictionaries := researchanalysiscontext.Dictionaries{
+		Entities: persisted.Entities, RelationDefinitions: persisted.RelationDefinitions,
+		EntityRelations: persisted.EntityRelations, IndustryChains: persisted.IndustryChains,
+		IndustryChainMemberships: persisted.IndustryChainMemberships,
+		IndustryChainGraphEdges:  persisted.IndustryChainGraphEdges,
+		EntityTypeDefinitions:    make([]researchanalysiscontext.EntityTypeContext, 0, len(persisted.EntityTypeDefinitions)),
+		VariableDefinitions:      persisted.VariableDefinitions,
+		DirectTransmissionRules:  persisted.DirectTransmissionRules,
+		AcceptancePolicies:       persisted.AcceptancePolicies,
+	}
+	for _, item := range persisted.EntityTypeDefinitions {
+		definition := entitybiz.EntityTypeDefinition{
+			TypeKey: item.TypeKey, Version: item.Version, NameZH: item.NameZH, NameEN: item.NameEN,
+			BusinessDefinition: item.BusinessDefinition, InclusionCriteria: item.InclusionCriteria,
+			ExclusionCriteria: item.ExclusionCriteria, EventLinkAllowed: item.EventLinkAllowed,
+			SignalSubjectAllowed: item.SignalSubjectAllowed, DirectTargetMode: item.DirectTargetMode,
+			AllowedEventRoles: item.AllowedEventRoles,
+			Status:            entitybiz.EntityTypeDefinitionStatus(item.Status),
+		}
+		if err := definition.Validate(); err != nil {
+			return researchanalysiscontext.Dictionaries{}, fmt.Errorf("validate persisted Research Entity Type Definition %q version %d: %w", item.TypeKey, item.Version, err)
+		}
+		if definition.Status != entitybiz.EntityTypeDefinitionActive {
+			return researchanalysiscontext.Dictionaries{}, fmt.Errorf("validate persisted Research Entity Type Definition %q version %d: status is not active", item.TypeKey, item.Version)
+		}
+		dictionaries.EntityTypeDefinitions = append(dictionaries.EntityTypeDefinitions, researchanalysiscontext.EntityTypeContext{
+			TypeKey: item.TypeKey, Version: item.Version, NameZH: item.NameZH, NameEN: item.NameEN,
+			BusinessDefinition: item.BusinessDefinition, InclusionCriteria: item.InclusionCriteria,
+			ExclusionCriteria: item.ExclusionCriteria, EventLinkAllowed: item.EventLinkAllowed,
+			SignalSubjectAllowed: item.SignalSubjectAllowed, DirectTargetMode: item.DirectTargetMode,
+			Status: item.Status,
+		})
 	}
 	return dictionaries, nil
 }

@@ -311,7 +311,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		kratos.BeforeStop(func(context.Context) error {
 			return errors.Join(
 				scheduleService.Shutdown(),
-				shutdownWithinEach(10*time.Second, eventApplication.Shutdown),
+				shutdownWithinEach(
+					10*time.Second,
+					eventApplication.Shutdown,
+					semanticApplication.Shutdown,
+				),
 			)
 		}),
 		kratos.AfterStop(func(context.Context) error {
