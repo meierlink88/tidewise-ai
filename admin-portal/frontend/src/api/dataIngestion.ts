@@ -56,14 +56,6 @@ export interface EventQuery {
 
 const defaultPageSize = 50;
 
-declare global {
-  interface Window {
-    __TIDEWISE_RUNTIME_CONFIG__?: {
-      adminApiBaseUrl?: string;
-    };
-  }
-}
-
 export async function loadRawDocuments(
   token: string,
   query: RawDocumentQuery
@@ -74,7 +66,7 @@ export async function loadRawDocuments(
   if (query.title.trim()) {
     params.set('title', query.title.trim());
   }
-  const response = await fetch(adminAPIURL(`/api/admin/v1/raw-documents?${params.toString()}`), {
+  const response = await fetch(`/api/admin/v1/raw-documents?${params.toString()}`, {
     headers: authHeaders(token)
   });
   return readJSON(response);
@@ -94,16 +86,10 @@ export async function loadEvents(
   appendParam(params, 'event_time_to', query.event_time_to);
   appendParam(params, 'first_seen_from', query.first_seen_from);
   appendParam(params, 'first_seen_to', query.first_seen_to);
-  const response = await fetch(adminAPIURL(`/api/admin/v1/events?${params.toString()}`), {
+  const response = await fetch(`/api/admin/v1/events?${params.toString()}`, {
     headers: authHeaders(token)
   });
   return readJSON(response);
-}
-
-export function adminAPIURL(path: string): string {
-  const baseURL =
-    window.__TIDEWISE_RUNTIME_CONFIG__?.adminApiBaseUrl?.trim().replace(/\/$/, '') ?? '';
-  return `${baseURL}${path}`;
 }
 
 function appendParam(params: URLSearchParams, key: string, value?: string) {

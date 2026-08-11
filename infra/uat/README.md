@@ -114,14 +114,17 @@ RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、
 | --- | ---: | --- |
 | Data Domain Service | `9011` | 不映射到 ECS host |
 | Miniapp Backend Service | `9012` | 开发联调按需开放 |
-| Admin Portal Backend Service | `9013` | 开发联调按需开放 |
-| Admin Portal Frontend | `9014` | 开发联调按需开放 |
+| Admin Portal Backend Service | `9013` | 仅 Compose 内网，不映射到 ECS host |
+| Admin Portal Frontend | `9014` | Admin 浏览器唯一入口，开发联调按需开放 |
 | AgentRun | `9080` | Admin Portal 联调按需开放 |
 | Qdrant HTTP/gRPC | `6333`/`6334` | 独立运维；不映射到 ECS host，仅供 `tidewise-uat` 网络调用 |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
-Admin Frontend 启动时从 `UAT_PUBLIC_BASE_URL` 生成运行时 API 地址，不把公网 IP 烧录进镜像。Admin Backend 只允许 `${UAT_PUBLIC_BASE_URL}:9014` Origin。Miniapp 开发者工具另行把 `TARO_APP_MINIAPP_API_BASE_URL` 设置为 `${UAT_PUBLIC_BASE_URL}:9012`。
+Admin 浏览器始终请求同源相对路径 `/api/admin/*`，Frontend nginx 在 Compose 内转发到
+`http://adminportal:9013`，不向浏览器发布独立 Backend 地址。Admin Backend 只允许
+`${UAT_PUBLIC_BASE_URL}:9014` Origin。Miniapp 开发者工具另行把
+`TARO_APP_MINIAPP_API_BASE_URL` 设置为 `${UAT_PUBLIC_BASE_URL}:9012`。
 
 Admin Portal Backend 在 Compose 网络中固定通过 `http://agentrun:9080` 调用 AgentRun Admin API，并使用仅注入后端容器的 `AGENTRUN_SERVICE_TOKEN`。浏览器不得直接访问 AgentRun，也不得获得该令牌。
 
@@ -200,7 +203,10 @@ Data 长驻服务不会获得该 Secret。投影步骤只按环境变量名把 S
 用户在 `/app/data` 创建并删除临时探针。宿主机目录存在但容器用户无权写入时，发布
 会在修改数据库前失败。
 
-部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012`、`9013`、`9014`。这会验证容器端口已正确发布到 ECS，同时避免云厂商不支持公网 IP NAT 回环造成误判；`UAT_PUBLIC_BASE_URL` 仍只用于客户端运行时地址和 CORS 配置。发布完成后应从 ECS 外部检查公网健康端点。
+部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012` 和 `9014`，并通过 `9014`
+验证 Admin API 代理链路。Admin Backend `9013` 只在容器内检查，不发布到 ECS。这样既验证
+入口端口，也避免云厂商不支持公网 IP NAT 回环造成误判；`UAT_PUBLIC_BASE_URL` 仍用于
+Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部检查公网健康端点。
 
 每个容器使用 Docker `json-file` 日志，单文件最多 20 MB、保留 5 个。失败诊断经过数据库密码、Authorization 和常见 Secret 模式过滤后，以保留 7 天的 Actions artifact 上传。
 

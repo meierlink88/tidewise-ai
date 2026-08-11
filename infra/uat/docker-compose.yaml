@@ -95,8 +95,6 @@ services:
       DATA_SERVICE_TOKEN: ${DATA_SERVICE_TOKEN:?DATA_SERVICE_TOKEN is required}
       AGENTRUN_BASE_URL: http://agentrun:9080
       AGENTRUN_SERVICE_TOKEN: ${AGENTRUN_SERVICE_TOKEN:?AGENTRUN_SERVICE_TOKEN is required}
-    ports:
-      - "9013:9013"
     depends_on:
       data:
         condition: service_healthy
@@ -115,7 +113,7 @@ services:
     image: ${ADMIN_IMAGE:?ADMIN_IMAGE is required}
     restart: unless-stopped
     environment:
-      ADMIN_API_BASE_URL: ${ADMIN_API_BASE_URL:?ADMIN_API_BASE_URL is required}
+      ADMIN_BACKEND_URL: http://adminportal:9013
     ports:
       - "9014:9014"
     depends_on:

@@ -131,19 +131,20 @@ UAT 当前没有域名，且 Miniapp 尚未进入上架阶段。本期允许开�
 - 微信开发者工具联调时关闭“合法域名、web-view、TLS 版本以及 HTTPS 证书检查”。
 - 该方式仅用于开发态 UAT 联调，不作为体验版、真机正式测试或上线方案。
 - Data Service 可以使用独立服务端口，但该端口不得通过 ECS 安全组向公网开放，只供同机 Backend Service 和受控运维检查访问。
-- Miniapp Backend Service、Admin Portal Backend Service 和 Admin Portal Frontend 分别使用独立端口；只开放开发联调实际需要的公网端口。
+- Miniapp Backend Service 和 Admin Portal Frontend 使用独立公网端口；Admin Portal Backend
+  只在 Compose 内网监听，由 Frontend nginx 代理同源 API 请求。
 - RDS 不得因 IP 联调方案对公网开放，仍只允许 Data Service 从受控网络访问。
 - 进入体验版、真机验收或发布准备阶段前，必须另行配置已备案域名、HTTPS 证书和微信小程序服务器域名白名单。
 
 固定端口合同如下：
 
-| Component | Port | Public access |
-| --- | ---: | --- |
-| Data Domain Service | `9011` | 不开放，仅供 ECS 内部服务调用 |
-| Miniapp Application Backend Service | `9012` | 开放，用于 Miniapp 开发联调 |
-| Admin Portal Application Backend Service | `9013` | 开放，用于 Admin Portal API 联调 |
-| Admin Portal Frontend | `9014` | 开放，用于浏览器访问 |
-| AgentRun Backend Service | `9080` | 不开放，仅供 Admin Portal Backend 与受控运维调用 |
+| Component                                |   Port | Public access                                    |
+| ---------------------------------------- | -----: | ------------------------------------------------ |
+| Data Domain Service                      | `9011` | 不开放，仅供 ECS 内部服务调用                    |
+| Miniapp Application Backend Service      | `9012` | 开放，用于 Miniapp 开发联调                      |
+| Admin Portal Application Backend Service | `9013` | 不开放，仅供 Frontend nginx 和受控容器内检查     |
+| Admin Portal Frontend                    | `9014` | 开放，作为浏览器和 Admin API 的唯一入口          |
+| AgentRun Backend Service                 | `9080` | 不开放，仅供 Admin Portal Backend 与受控运维调用 |
 
 以上端口在 local 与 UAT 保持一致。Backend Service 配置、Docker 暴露端口、Compose 健康检查、前端开发代理和服务间 Base URL 必须统一使用该合同。正式部署 preflight 必须检查 ECS 端口占用；不得占用 `9000/9001` 等常见中间件端口。
 
@@ -192,7 +193,9 @@ UAT 版本。Qdrant 健康是发布前置依赖，但不属于该发布单元。
 发布成功必须同时通过两层健康验证：
 
 1. 内部依赖与容器验证：独立运维的 Qdrant `6333` 可连接；Data、Miniapp、Admin Portal 均通过 `/healthz` 和 `/readyz`；AgentRun 通过 `/healthz`，其 `/readyz` 独立表示采集配置完整；Admin Portal Frontend 通过 `/healthz`。Qdrant 检查只读，不改变其运行时。
-2. ECS 实际访问验证：Miniapp Backend `9012`、Admin Portal Backend `9013`、Admin Portal Frontend `9014` 均可访问，并验证 BFF 能够通过内部 `9011`/`9080` 调用 Data/AgentRun。
+2. ECS 实际访问验证：Miniapp Backend `9012` 和 Admin Portal Frontend `9014` 可访问；Admin
+   API 必须通过 `9014/api/admin/*` 验证，证明 Frontend nginx 能够转发到内网 Backend，且
+   BFF 能够通过内部 `9011`/`9080` 调用 Data/AgentRun。`9013` 只执行容器内健康检查。
 
 健康检查使用有限次数和固定超时，不得无限重试。任一必要检查失败，整套发布失败并触发已确认的应用镜像回退流程。
 
@@ -259,7 +262,8 @@ ECS 使用专用 Linux 用户 `tidewise-deploy` 运行 GitHub Actions Runner 和
 ## Frontend Runtime Endpoint Configuration
 
 - Admin Portal Frontend 镜像保持环境无关，不在构建产物中硬编码 ECS 公网 IP。
-- Admin Portal Frontend 容器启动时根据 GitHub `uat` Environment Variable 生成运行时配置，UAT API 地址为 `http://<uat-public-ip>:9013`。
+- 浏览器固定使用相对 `/api/admin/*`；Admin Portal Frontend nginx 在 Compose 内转发到
+  `http://adminportal:9013`，不生成或公开独立 Backend URL。
 - Admin Portal Backend 只允许来自 UAT Admin Portal Frontend `9014` origin 的受控 CORS 请求，不使用通配来源。
 - Miniapp Frontend 不属于 ECS 发布单元，其开发态 UAT API 地址独立配置为 `http://<uat-public-ip>:9012`。
 - 公网 IP、端口和 API Base URL 均不得硬编码进业务源码。

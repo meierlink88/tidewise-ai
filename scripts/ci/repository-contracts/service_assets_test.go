@@ -412,16 +412,13 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
 		"-f analyse-data-service/backend/Dockerfile",
 		"-f miniapp/backend/Dockerfile",
-		"-f miniapp/frontend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",
 		"-f agent-run/backend/Dockerfile",
 		"Test AgentRun Biz, API and Eino seams",
 		"Test AgentRun Data, migration and provider boundaries",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
-		"docker compose --env-file infra/local/.env.example -f infra/local/miniapp-builder.compose.yaml --profile miniapp-h5 --profile miniapp-weapp --profile miniapp-tt config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
-		"bash scripts/ci/smoke-miniapp-builder.sh",
 		"cache-dependency-path: package-lock.json",
 		"npm run test:miniapp",
 		"npm run test:admin",
@@ -481,7 +478,10 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
 		"AGENTRUN_SERVICE_IMAGE=\"tidewise-agentrun:ci\"",
 		"ADMIN_SERVICE_IMAGE=\"tidewise-adminportal:ci\"",
+		"ADMIN_WEB_IMAGE=\"tidewise-admin:ci\"",
 		"TIDEWISE_SMOKE_AGENTRUN_DATA_PORT",
+		"TIDEWISE_SMOKE_ADMIN_WEB_PORT",
+		"http://127.0.0.1:${ADMIN_WEB_PORT}/api/admin/v1/model-providers",
 	} {
 		if !strings.Contains(agentRunSmoke, required) {
 			t.Fatalf("Admin Portal to AgentRun Compose smoke script missing %q", required)

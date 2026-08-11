@@ -141,6 +141,6 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 ## Runtime
 
 Miniapp Application Backend 只通过其 Docker image 和 Compose 运行。Miniapp Frontend 不是
-常驻 Service；Taro H5/weapp/tt watch/build 进程在 Node builder container 中运行，并把
-`dist/<platform>` 写回宿主机供微信或抖音开发者工具读取。该运行方式不改变页面、Adapter、
-平台或 Backend 边界。
+常驻 Service，也不进入 Docker runtime；Taro H5/weapp/tt watch/build 使用仓库锁定的
+Node/Taro 依赖直接运行，并把 `dist/<platform>` 写入宿主机供微信或抖音开发者工具读取。
+该运行方式不改变页面、Adapter、平台或 Backend 边界。

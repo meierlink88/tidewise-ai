@@ -15,7 +15,7 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY admin-portal/frontend/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /workspace/admin-portal/frontend/dist /usr/share/nginx/html
 
-ENV ADMIN_API_BASE_URL=http://127.0.0.1:9013
+ENV ADMIN_BACKEND_URL=http://adminportal:9013
 EXPOSE 9014
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
