@@ -48,6 +48,14 @@ func validIngestStatus(value IngestStatus) bool {
 	return value == IngestStatusCollected || value == IngestStatusDuplicate || value == IngestStatusFailed || value == IngestStatusPendingExtract
 }
 
+func ParseOptionalIngestStatus(value string) (IngestStatus, error) {
+	status := IngestStatus(value)
+	if status != "" && !validIngestStatus(status) {
+		return "", fmt.Errorf("unsupported ingest status %q", value)
+	}
+	return status, nil
+}
+
 type ListFilter struct {
 	Title, SourceRef string
 	IngestStatus     IngestStatus
@@ -57,7 +65,6 @@ type StorePage struct {
 	Items                 []Document
 	Total, Page, PageSize int
 }
-type Page = StorePage
 
 type Store interface {
 	List(context.Context, ListFilter) (StorePage, error)
@@ -72,6 +79,6 @@ func NewUseCase(store Store) (*UseCase, error) {
 	return &UseCase{store: store}, nil
 }
 
-func (u *UseCase) List(ctx context.Context, filter ListFilter) (Page, error) {
+func (u *UseCase) List(ctx context.Context, filter ListFilter) (StorePage, error) {
 	return u.store.List(ctx, filter)
 }

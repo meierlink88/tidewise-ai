@@ -273,6 +273,21 @@ func TestEntityValidateRejectsUnsupportedEntityType(t *testing.T) {
 	}
 }
 
+func TestProductEntityAndProfileValidate(t *testing.T) {
+	entity := Entity{ID: "product-id", EntityType: EntityTypeProduct, LayerCode: "product", Name: "AI芯片", CanonicalName: "AI芯片", Status: StatusActive}
+	if err := entity.Validate(); err != nil {
+		t.Fatalf("product Entity.Validate() error = %v", err)
+	}
+	profile := ProductProfile{EntityID: entity.ID, ProductCategory: "semiconductor", Specification: "accelerator", ReviewStatus: ReviewStatusApproved}
+	if err := profile.Validate(); err != nil {
+		t.Fatalf("ProductProfile.Validate() error = %v", err)
+	}
+	profile.ReviewStatus = ReviewStatusRejected
+	if err := profile.Validate(); err == nil {
+		t.Fatal("ProductProfile.Validate() expected unsupported review status")
+	}
+}
+
 func TestBenchmarkEntityTypeAndProfileValidate(t *testing.T) {
 	node := Entity{
 		ID:            "benchmark-1",
@@ -364,7 +379,7 @@ func TestSectorProfileAndSourceMappingValidateSemanticBoundaries(t *testing.T) {
 }
 
 func TestEntityTypeDefinitionValidate(t *testing.T) {
-	valid := EntityTypeDefinition{TypeKey: "company", Version: 1, NameZH: "公司", NameEN: "Company", BusinessDefinition: "A legal business entity", InclusionCriteria: []string{"registered identity"}, ExclusionCriteria: []string{"a security"}, AllowedEventRoles: []string{"issuer"}, Status: EntityTypeDefinitionActive}
+	valid := EntityTypeDefinition{TypeKey: "company", Version: 1, NameZH: "公司", NameEN: "Company", BusinessDefinition: "A legal business entity", InclusionCriteria: []string{"registered identity"}, ExclusionCriteria: []string{"a security"}, DirectTargetMode: EntityTypeDirectTargetAllow, AllowedEventRoles: []string{EntityTypeEventRoleActor}, Status: EntityTypeDefinitionActive}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid definition: %v", err)
 	}
@@ -372,5 +387,20 @@ func TestEntityTypeDefinitionValidate(t *testing.T) {
 	invalid.InclusionCriteria = []string{"same", "same"}
 	if err := invalid.Validate(); err == nil {
 		t.Fatal("expected duplicate criteria to fail")
+	}
+	invalid = valid
+	invalid.DirectTargetMode = "unsupported"
+	if err := invalid.Validate(); err == nil {
+		t.Fatal("expected unsupported direct target mode to fail")
+	}
+	invalid = valid
+	invalid.AllowedEventRoles = nil
+	if err := invalid.Validate(); err == nil {
+		t.Fatal("expected empty allowed event roles to fail")
+	}
+	invalid = valid
+	invalid.AllowedEventRoles = []string{"issuer"}
+	if err := invalid.Validate(); err == nil {
+		t.Fatal("expected unsupported allowed event role to fail")
 	}
 }

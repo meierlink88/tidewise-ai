@@ -64,6 +64,7 @@ Data Domain Service
 - `docs/adr/0007-app-oriented-monorepo.md`
 - `docs/adr/0011-data-owns-raw-evidence-and-evidence-publication.md`
 - `docs/adr/0012-docker-only-service-runtime.md`
+- `docs/adr/0013-data-entity-domain-and-projection-retirement.md`
 
 ## Runtime
 

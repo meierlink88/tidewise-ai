@@ -18,21 +18,20 @@ ECS 运行以下组件：
 
 Qdrant、Neo4j 和 PostgreSQL 均为独立运维的 UAT 基础设施，不属于应用 Compose
 发布单元。Qdrant 只连接 `tidewise-uat` Docker 网络并提供内部别名 `qdrant`，不发布
-宿主机端口。
+宿主机端口。Neo4j 不再是 Data 或 Admin 应用运行依赖，应用 CD 不探测、配置或操作它。
 
 Miniapp Frontend 不部署到 ECS。当前仅允许微信开发者工具调用 ECS 上的 Miniapp Backend Service；体验版与真机正式验收不在本期范围内。
 
 RDS for PostgreSQL 使用相互隔离的 Data 和 AgentRun database/role。只有 Data Domain Service 与 AgentRun Backend Service 分别访问自己的数据库；禁止跨库 SQL。Miniapp 和 Admin Portal Backend Service 只能通过 REST API 使用下游能力，不持有数据库凭据。
 
-UAT 的 Neo4j 由 ECS systemd 独立管理。显式 one-shot Industry graph projector 使用
-独立写入身份；Data 长驻服务通过 Docker host-gateway 使用另一组最小权限健康身份，
-仅对配置 database 执行无业务数据的 `RETURN 1`。该探针只提供运行环境监控状态，
-不参与 Data 业务查询，也不把 Neo4j 可用性提升为 Data `/readyz` 或应用发布门禁。
-健康身份随应用 `runtime.env` 持久注入；应用回退恢复上一版 runtime 配置，但不会创建、
-修改、重启或回退 Neo4j 账号与基础设施。
+UAT 的 Neo4j 可继续由 ECS systemd 独立管理，但 Data 不再拥有 Industry graph projector、
+健康身份或连接配置，Admin 也不再展示 Neo4j 健康。应用发布与回退不会创建、修改、重启
+或回退 Neo4j 账号、运行时和数据。
+
 Qdrant 由独立运维动作管理，是 AgentRun Event Semantic retrieval 的内部运行依赖；
-应用 CD 只检查 `http://qdrant:6333` 可用性，并在显式选择时运行 one-shot projector，
-不得安装、升级、重启、删除或回滚 Qdrant。PostgreSQL 仍是投影事实源。
+应用 CD 只读检查 `http://qdrant:6333` 可用性，不再运行 Data-owned one-shot projector，
+也不得安装、升级、重启、删除或回滚 Qdrant。依赖 collection freshness 的 Event Semantic
+执行保持暂停，直到新的 projection owner 与 rollout 合同获批。
 
 ## Deployment Trigger
 
@@ -85,7 +84,8 @@ control plane 打包到 SWR，ECS 只消费 digest 固定的部署制品。镜�
 仓库现已按应用边界构建五个业务镜像，并由 `infra/uat/` 统一编排。Data 与 AgentRun
 分别使用自己的 migration command、RDS database/role 和运行配置；Miniapp 与
 Admin Portal 不持有数据库凭据。Qdrant、Neo4j 和 PostgreSQL 的运行时及版本由独立
-运维动作维护，不进入应用发布状态。
+运维动作维护，不进入应用发布状态；其中应用只把 Qdrant 作为 AgentRun 的只读运行依赖
+进行连通性检查。
 
 ## Container Registry
 

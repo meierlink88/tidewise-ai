@@ -1,5 +1,8 @@
 # Data Event Domains Layout Refactor
 
+> ADR-0013 已取代本文关于 `semanticprojection` 继续由 Data 维护的过渡性边界；Event 与
+> Event Semantic 的领域布局和外部合同仍然有效。
+
 ## Status And Authority
 
 - Status: Frozen; user confirmed on 2026-08-11.

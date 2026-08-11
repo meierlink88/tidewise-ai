@@ -9,12 +9,6 @@ import (
 	biz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/rawdocument"
 )
 
-func TestStoreRejectsMissingDatabase(t *testing.T) {
-	if _, err := NewStore(nil); err == nil {
-		t.Fatal("NewStore(nil) error = nil")
-	}
-}
-
 func TestStoreRejectsMalformedPersistedDocument(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

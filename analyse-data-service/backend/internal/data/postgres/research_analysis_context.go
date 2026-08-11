@@ -683,6 +683,7 @@ func (s *ResearchAnalysisContextStore) ReferenceClosure(
 		            'event_link_allowed', definition.event_link_allowed,
 		            'signal_subject_allowed', definition.signal_subject_allowed,
 		            'direct_target_mode', definition.direct_target_mode,
+		            'allowed_event_roles', definition.allowed_event_roles,
 		            'status', definition.status
 		        ) ORDER BY definition.type_key, definition.version)
 		        FROM selected_entity_type_definitions definition

@@ -29,8 +29,8 @@ func (s *Service) List(ctx context.Context, request *api.ListRequest) (*v1.Respo
 	if err != nil {
 		return nil, err
 	}
-	status := biz.IngestStatus(request.IngestStatus)
-	if status != "" && status != biz.IngestStatusCollected && status != biz.IngestStatusDuplicate && status != biz.IngestStatusFailed && status != biz.IngestStatusPendingExtract {
+	status, err := biz.ParseOptionalIngestStatus(request.IngestStatus)
+	if err != nil {
 		return nil, v1.NewPublicError(v1.StatusBadRequest, "INVALID_REQUEST", "unsupported ingest_status", nil)
 	}
 	result, err := s.useCase.List(ctx, biz.ListFilter{Title: strings.TrimSpace(request.Title), SourceRef: strings.TrimSpace(request.SourceRef), IngestStatus: status, Page: page, PageSize: pageSize})

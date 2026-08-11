@@ -35,6 +35,7 @@ const (
 	EntityTypeInstrument    EntityType = "instrument"
 	EntityTypeMetric        EntityType = "metric"
 	EntityTypeCommodity     EntityType = "commodity"
+	EntityTypeProduct       EntityType = "product"
 	EntityTypePerson        EntityType = "person"
 )
 
@@ -690,6 +691,23 @@ type PersonProfile struct {
 	EconomyEntityID      string
 }
 
+type ProductProfile struct {
+	EntityID        string
+	ProductCategory string
+	Specification   string
+	ReviewStatus    ReviewStatus
+}
+
+func (p ProductProfile) Validate() error {
+	if strings.TrimSpace(p.EntityID) == "" {
+		return fmt.Errorf("product entity id is required")
+	}
+	if !validStatus(p.ReviewStatus, ReviewStatusCandidate, ReviewStatusApproved) {
+		return fmt.Errorf("unsupported product review status %q", p.ReviewStatus)
+	}
+	return nil
+}
+
 type ReviewStatus string
 
 const (
@@ -729,6 +747,7 @@ func validEntityType(value EntityType) bool {
 		EntityTypeInstrument,
 		EntityTypeMetric,
 		EntityTypeCommodity,
+		EntityTypeProduct,
 		EntityTypePerson,
 	)
 }
@@ -752,8 +771,18 @@ type EntityTypeDefinition struct {
 type EntityTypeDefinitionStatus string
 
 const (
-	EntityTypeDefinitionActive     EntityTypeDefinitionStatus = "active"
-	EntityTypeDefinitionDeprecated EntityTypeDefinitionStatus = "deprecated"
+	EntityTypeDefinitionActive         EntityTypeDefinitionStatus = "active"
+	EntityTypeDefinitionDeprecated     EntityTypeDefinitionStatus = "deprecated"
+	EntityTypeDirectTargetAllow                                   = "allow"
+	EntityTypeDirectTargetConditional                             = "conditional"
+	EntityTypeDirectTargetDeny                                    = "deny"
+	EntityTypeDirectTargetContext                                 = "context"
+	EntityTypeEventRoleSubject                                    = "event_subject"
+	EntityTypeEventRoleActor                                      = "actor"
+	EntityTypeEventRoleAffectedEntity                             = "affected_entity"
+	EntityTypeEventRoleStatementSource                            = "statement_source"
+	EntityTypeEventRoleObject                                     = "event_object"
+	EntityTypeEventRoleContext                                    = "context"
 )
 
 func (d EntityTypeDefinition) Validate() error {
@@ -762,6 +791,9 @@ func (d EntityTypeDefinition) Validate() error {
 	}
 	if !validStatus(d.Status, EntityTypeDefinitionActive, EntityTypeDefinitionDeprecated) {
 		return fmt.Errorf("unsupported entity type definition status %q", d.Status)
+	}
+	if !validStatus(d.DirectTargetMode, EntityTypeDirectTargetAllow, EntityTypeDirectTargetConditional, EntityTypeDirectTargetDeny, EntityTypeDirectTargetContext) {
+		return fmt.Errorf("unsupported entity type direct target mode %q", d.DirectTargetMode)
 	}
 	if len(d.InclusionCriteria) == 0 || len(d.ExclusionCriteria) == 0 {
 		return fmt.Errorf("entity type definition inclusion and exclusion criteria are required")
@@ -772,7 +804,18 @@ func (d EntityTypeDefinition) Validate() error {
 	if err := validateStringSet("exclusion criteria", d.ExclusionCriteria); err != nil {
 		return err
 	}
-	return validateStringSet("allowed event roles", d.AllowedEventRoles)
+	if len(d.AllowedEventRoles) == 0 {
+		return fmt.Errorf("entity type definition allowed event roles are required")
+	}
+	if err := validateStringSet("allowed event roles", d.AllowedEventRoles); err != nil {
+		return err
+	}
+	for _, role := range d.AllowedEventRoles {
+		if !validStatus(role, EntityTypeEventRoleSubject, EntityTypeEventRoleActor, EntityTypeEventRoleAffectedEntity, EntityTypeEventRoleStatementSource, EntityTypeEventRoleObject, EntityTypeEventRoleContext) {
+			return fmt.Errorf("unsupported entity type event role %q", role)
+		}
+	}
+	return nil
 }
 
 func validateStringSet(name string, values []string) error {

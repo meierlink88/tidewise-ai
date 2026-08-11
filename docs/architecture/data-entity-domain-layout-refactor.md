@@ -114,7 +114,7 @@ starts, closes or reports Neo4j.
 Admin Portal continues to combine Data and AgentRun provider health. Its stable ordered service list is
 Data Service, AgentRun and Qdrant. Neo4j is removed from the Admin provider DTO, validation, aggregate
 logic and monitoring UI. AgentRun Qdrant health remains unchanged; this task does not modify AgentRun's
-Qdrant reader.
+Qdrant reader contract.
 
 ## Historical data, schema and artifacts
 
@@ -137,9 +137,10 @@ Data Server loses its Neo4j driver/configuration lifecycle. PostgreSQL readiness
 non-runtime-health APIs remain unchanged. Application rollback restores the previous image and code but
 does not run down migrations or mutate external Neo4j/Qdrant state.
 
-The accepted Event Semantic Qdrant design is paused at its consumer boundary: AgentRun code is not
-changed here, but no Data-owned process refreshes its collections. Event Semantic execution that relies
-on collection freshness remains disabled until a new projection owner and rollout contract are approved.
+The accepted Event Semantic Qdrant design is paused at its consumer boundary: AgentRun retains its
+Qdrant reader and health contracts but does not start or notify the Event Semantic worker. No Data-owned
+process refreshes the collections. Worker activation remains disabled until a new projection owner and
+rollout contract are approved.
 
 ## Testing decisions
 

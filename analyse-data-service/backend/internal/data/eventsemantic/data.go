@@ -726,7 +726,7 @@ func eventSemanticEntityTypes(
 	rows, err := query.QueryContext(ctx, `
 		SELECT type_key, version, name_zh, name_en, business_definition,
 		       array_to_json(inclusion_criteria), array_to_json(exclusion_criteria),
-		       event_link_allowed, signal_subject_allowed,
+		       event_link_allowed, signal_subject_allowed, direct_target_mode,
 		       array_to_json(allowed_event_roles), status
 		FROM entity_type_definitions
 		WHERE status = 'active'
@@ -743,11 +743,12 @@ func eventSemanticEntityTypes(
 	var result []eventbiz.EntityTypeContext
 	for rows.Next() {
 		var item eventbiz.EntityTypeContext
+		var directTargetMode string
 		var inclusionCriteria, exclusionCriteria, allowedRoles []byte
 		if err := rows.Scan(
 			&item.TypeKey, &item.Version, &item.NameZH, &item.NameEN,
 			&item.BusinessDefinition, &inclusionCriteria, &exclusionCriteria,
-			&item.EventLinkAllowed, &item.SignalSubjectAllowed,
+			&item.EventLinkAllowed, &item.SignalSubjectAllowed, &directTargetMode,
 			&allowedRoles, &item.Status,
 		); err != nil {
 			return nil, err
@@ -761,7 +762,7 @@ func eventSemanticEntityTypes(
 		if err := json.Unmarshal(allowedRoles, &item.AllowedEventRoles); err != nil {
 			return nil, err
 		}
-		if !validEventSemanticEntityTypeContext(item) {
+		if !validEventSemanticEntityTypeContext(item, directTargetMode) {
 			return nil, errors.New("Event Semantic Entity Type Definition is invalid")
 		}
 		result = append(result, item)
@@ -769,13 +770,14 @@ func eventSemanticEntityTypes(
 	return result, rows.Err()
 }
 
-func validEventSemanticEntityTypeContext(item eventbiz.EntityTypeContext) bool {
+func validEventSemanticEntityTypeContext(item eventbiz.EntityTypeContext, directTargetMode string) bool {
 	definition := entitybiz.EntityTypeDefinition{
 		TypeKey: item.TypeKey, Version: item.Version, NameZH: item.NameZH, NameEN: item.NameEN,
 		BusinessDefinition: item.BusinessDefinition, InclusionCriteria: item.InclusionCriteria,
 		ExclusionCriteria: item.ExclusionCriteria, EventLinkAllowed: item.EventLinkAllowed,
-		SignalSubjectAllowed: item.SignalSubjectAllowed, AllowedEventRoles: item.AllowedEventRoles,
-		Status: entitybiz.EntityTypeDefinitionStatus(item.Status),
+		SignalSubjectAllowed: item.SignalSubjectAllowed, DirectTargetMode: directTargetMode,
+		AllowedEventRoles: item.AllowedEventRoles,
+		Status:            entitybiz.EntityTypeDefinitionStatus(item.Status),
 	}
 	return definition.Validate() == nil
 }
