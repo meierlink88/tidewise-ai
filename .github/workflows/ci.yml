@@ -157,7 +157,7 @@ jobs:
             -count=1
           go test \
             ./analyse-data-service/backend/internal/data/postgres \
-            -run '^(TestVerifyPersistedIndustryRelationshipContentDecodesTextArrays|TestResearchAnalysisContextAndAtomicPublicationPostgres)$' \
+            -run '^(TestVerifyPersistedIndustryRelationshipContentDecodesTextArrays|TestResearchAnalysisContextAndAtomicPublicationPostgres|TestResearchDictionariesRejectMalformedPersistedEntityTypeDefinition)$' \
             -count=1
 
       - name: Test Data migration framework
