@@ -1,69 +1,69 @@
 name: tidewise-local
 
 services:
-  postgres:
-    image: postgres:16
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+  data-migrate:
+    build:
+      context: ../..
+      dockerfile: analyse-data-service/backend/Dockerfile
+    image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
+    entrypoint: ['/usr/local/bin/dbmigrate']
+    command: ['-apply']
     environment:
-      POSTGRES_USER: '${POSTGRES_USER:-tidewise}'
-      POSTGRES_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
-      POSTGRES_DB: '${POSTGRES_DB:-tidewise_local}'
-    volumes:
-      - tidewise_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-tidewise} -d ${POSTGRES_DB:-tidewise_local}']
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks: [tidewise-local]
-
-  agentrun-db-init:
-    image: postgres:16
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: '${POSTGRES_USER:-tidewise}'
-      POSTGRES_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
-      POSTGRES_DB: '${POSTGRES_DB:-tidewise_local}'
-      AGENTRUN_DATABASE_USER: '${AGENTRUN_DATABASE_USER:-agentrun}'
-      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
-      AGENTRUN_DATABASE_NAME: '${AGENTRUN_DATABASE_NAME:-tidewise_ai_server}'
-    volumes:
-      - ./bootstrap-agentrun-db.sh:/usr/local/bin/bootstrap-agentrun-db:ro
-    entrypoint: ['/usr/local/bin/bootstrap-agentrun-db']
-    depends_on:
-      postgres:
-        condition: service_healthy
+      APP_ENV: local
+      TIDEWISE_CONFIG_DIR: /app/configs
+      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
+      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     restart: 'no'
     networks: [tidewise-local]
 
-  neo4j:
-    image: neo4j:5-community
-    ports:
-      - '${NEO4J_HTTP_PORT:-7474}:7474'
-      - '${NEO4J_BOLT_PORT:-7687}:7687'
+  data-industry-projector:
+    profiles: [tools]
+    build:
+      context: ../..
+      dockerfile: analyse-data-service/backend/Dockerfile
+    image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
+    entrypoint: ['/usr/local/bin/industry-graph-projector']
     environment:
-      NEO4J_AUTH: '${NEO4J_USERNAME:?set NEO4J_USERNAME in infra/local/.env.local}/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in infra/local/.env.local}'
-      NEO4J_server_memory_heap_initial__size: '${NEO4J_HEAP_INITIAL_SIZE:-512m}'
-      NEO4J_server_memory_heap_max__size: '${NEO4J_HEAP_MAX_SIZE:-1G}'
-    volumes:
-      - tidewise_neo4j_data:/data
-      - tidewise_neo4j_logs:/logs
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -q --spider http://localhost:7474 || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 12
+      APP_ENV: local
+      TIDEWISE_CONFIG_DIR: /app/configs
+      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
+      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
+      NEO4J_URI: '${NEO4J_URI:-bolt://host.docker.internal:7687}'
+      NEO4J_DATABASE: neo4j
+      NEO4J_USERNAME: '${NEO4J_USERNAME:?set NEO4J_USERNAME in infra/local/.env.local}'
+      NEO4J_PASSWORD: '${NEO4J_PASSWORD:?set NEO4J_PASSWORD in infra/local/.env.local}'
+    depends_on:
+      data-migrate:
+        condition: service_completed_successfully
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: 'no'
     networks: [tidewise-local]
 
-  qdrant:
-    image: qdrant/qdrant:v1.15.5
-    ports:
-      - '${QDRANT_HTTP_PORT:-6333}:6333'
-      - '${QDRANT_GRPC_PORT:-6334}:6334'
-    volumes:
-      - tidewise_qdrant_data:/qdrant/storage
+  data-semantic-projector:
+    profiles: [tools]
+    build:
+      context: ../..
+      dockerfile: analyse-data-service/backend/Dockerfile
+    image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
+    entrypoint: ['/usr/local/bin/event-semantic-projector']
+    environment:
+      APP_ENV: local
+      TIDEWISE_CONFIG_DIR: /app/configs
+      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
+      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
+      QDRANT_URL: '${QDRANT_URL:-http://host.docker.internal:6333}'
+      QDRANT_API_KEY: '${QDRANT_API_KEY:-}'
+      EMBEDDING_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+      EMBEDDING_API_KEY: '${EMBEDDING_API_KEY:?set EMBEDDING_API_KEY in infra/local/.env.local}'
+    depends_on:
+      data-migrate:
+        condition: service_completed_successfully
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: 'no'
     networks: [tidewise-local]
 
   data:
@@ -75,17 +75,18 @@ services:
       - '${DATA_SERVICE_PORT:-9011}:9011'
     environment:
       APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/configs/compose
+      TIDEWISE_CONFIG_DIR: /app/configs
+      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
       TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
-      DATA_NEO4J_HEALTH_URI: bolt://neo4j:7687
+      DATA_NEO4J_HEALTH_URI: '${DATA_NEO4J_HEALTH_URI:-bolt://host.docker.internal:7687}'
       DATA_NEO4J_HEALTH_USERNAME: '${DATA_NEO4J_HEALTH_USERNAME:?set DATA_NEO4J_HEALTH_USERNAME in infra/local/.env.local}'
       DATA_NEO4J_HEALTH_PASSWORD: '${DATA_NEO4J_HEALTH_PASSWORD:?set DATA_NEO4J_HEALTH_PASSWORD in infra/local/.env.local}'
     depends_on:
-      postgres:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
+      data-migrate:
+        condition: service_completed_successfully
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     healthcheck:
       test:
         [
@@ -106,12 +107,13 @@ services:
       - '${AGENTRUN_SERVICE_PORT:-9080}:9080'
     environment:
       APP_ENV: dev
-      AGENTRUN_CONFIG_DIR: /app/configs/compose
+      AGENTRUN_CONFIG_DIR: /app/configs
+      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-host.docker.internal}'
+      AGENTRUN_QDRANT_URL: '${AGENTRUN_QDRANT_URL:-http://host.docker.internal:6333}'
       TZ: Asia/Shanghai
       AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
-      AGENTRUN_DATA_BASE_URL: http://data:9011
       EMBEDDING_API_KEY: '${EMBEDDING_API_KEY:?set EMBEDDING_API_KEY in infra/local/.env.local}'
       QDRANT_API_KEY: '${QDRANT_API_KEY:-}'
     volumes:
@@ -121,8 +123,8 @@ services:
         condition: service_completed_successfully
       data:
         condition: service_healthy
-      qdrant:
-        condition: service_started
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9080/healthz']
       interval: 10s
@@ -138,14 +140,14 @@ services:
     entrypoint: ['/app/agentrun-migrate']
     environment:
       APP_ENV: dev
-      AGENTRUN_CONFIG_DIR: /app/configs/compose
+      AGENTRUN_CONFIG_DIR: /app/configs
+      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-host.docker.internal}'
       TZ: Asia/Shanghai
       AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
-    depends_on:
-      agentrun-db-init:
-        condition: service_completed_successfully
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     restart: 'no'
     networks: [tidewise-local]
 
@@ -158,7 +160,7 @@ services:
       - '${MINIAPP_SERVICE_PORT:-9012}:9012'
     environment:
       APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/config
+      TIDEWISE_CONFIG_DIR: /app/configs
       DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:
@@ -184,9 +186,9 @@ services:
       - '${ADMIN_SERVICE_PORT:-9013}:9013'
     environment:
       APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/config
+      TIDEWISE_CONFIG_DIR: /app/configs
       ADMIN_SERVICE_TOKEN: '${ADMIN_SERVICE_TOKEN:?set ADMIN_SERVICE_TOKEN in infra/local/.env.local}'
-      ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:5174}'
+      ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:9014}'
       DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
       AGENTRUN_BASE_URL: http://agentrun:9080
@@ -207,13 +209,82 @@ services:
       retries: 12
     networks: [tidewise-local]
 
+  admin:
+    build:
+      context: ../..
+      dockerfile: admin-portal/frontend/Dockerfile
+    image: '${ADMIN_WEB_IMAGE:-tidewise-admin:local}'
+    ports:
+      - '${ADMIN_WEB_PORT:-9014}:9014'
+    environment:
+      ADMIN_API_BASE_URL: 'http://127.0.0.1:${ADMIN_SERVICE_PORT:-9013}'
+    depends_on:
+      adminportal:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9014/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [tidewise-local]
+
+  miniapp-h5:
+    profiles: [miniapp-h5]
+    build:
+      context: ../..
+      dockerfile: miniapp/frontend/Dockerfile
+    image: '${MINIAPP_FRONTEND_IMAGE:-tidewise-miniapp-frontend:local}'
+    command: ['npm', '--workspace', '@tidewise/miniapp', 'run', 'dev:h5']
+    ports:
+      - '${MINIAPP_H5_PORT:-10086}:10086'
+    environment:
+      TARO_APP_RESEARCH_SOURCE: '${TARO_APP_RESEARCH_SOURCE:-api}'
+      TARO_APP_MINIAPP_API_BASE_URL: ''
+      TARO_APP_H5_API_PROXY_TARGET: http://miniapp:9012
+    volumes:
+      - ../../miniapp/frontend:/workspace/miniapp/frontend
+    depends_on:
+      miniapp:
+        condition: service_healthy
+    networks: [tidewise-local]
+
+  miniapp-weapp:
+    profiles: [miniapp-weapp]
+    build:
+      context: ../..
+      dockerfile: miniapp/frontend/Dockerfile
+    image: '${MINIAPP_FRONTEND_IMAGE:-tidewise-miniapp-frontend:local}'
+    command: ['npm', '--workspace', '@tidewise/miniapp', 'run', 'dev:weapp']
+    environment:
+      TARO_APP_RESEARCH_SOURCE: '${TARO_APP_RESEARCH_SOURCE:-api}'
+      TARO_APP_MINIAPP_API_BASE_URL: 'http://127.0.0.1:${MINIAPP_SERVICE_PORT:-9012}'
+    volumes:
+      - ../../miniapp/frontend:/workspace/miniapp/frontend
+    depends_on:
+      miniapp:
+        condition: service_healthy
+    networks: [tidewise-local]
+
+  miniapp-tt:
+    profiles: [miniapp-tt]
+    build:
+      context: ../..
+      dockerfile: miniapp/frontend/Dockerfile
+    image: '${MINIAPP_FRONTEND_IMAGE:-tidewise-miniapp-frontend:local}'
+    command: ['npm', '--workspace', '@tidewise/miniapp', 'run', 'dev:tt']
+    environment:
+      TARO_APP_RESEARCH_SOURCE: '${TARO_APP_RESEARCH_SOURCE:-api}'
+      TARO_APP_MINIAPP_API_BASE_URL: 'http://127.0.0.1:${MINIAPP_SERVICE_PORT:-9012}'
+    volumes:
+      - ../../miniapp/frontend:/workspace/miniapp/frontend
+    depends_on:
+      miniapp:
+        condition: service_healthy
+    networks: [tidewise-local]
+
 networks:
   tidewise-local:
     name: '${COMPOSE_NETWORK_NAME:-tidewise-local}'
 
 volumes:
-  tidewise_postgres_data:
-  tidewise_neo4j_data:
-  tidewise_neo4j_logs:
-  tidewise_qdrant_data:
   agentrun_artifacts:

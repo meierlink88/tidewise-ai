@@ -85,10 +85,5 @@ func validateLocalTarget(cfg conf.Config) error {
 }
 
 func isLocalDatabaseHost(host string) bool {
-	switch strings.ToLower(strings.TrimSpace(host)) {
-	case "localhost", "127.0.0.1", "::1", "postgres":
-		return true
-	default:
-		return false
-	}
+	return strings.EqualFold(strings.TrimSpace(host), "host.docker.internal")
 }

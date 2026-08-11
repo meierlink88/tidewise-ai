@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	defaultPackagePath = "analyse-data-service/backend/data/industry_relationships/2026-07-27-v1"
+	defaultPackagePath = "/app/data/industry_relationships/2026-07-27-v1"
 	defaultCaller      = "codex-industry-relationship-build-v1"
 )
 
@@ -121,7 +121,7 @@ func validateTarget(cfg conf.Config, options cliOptions) error {
 			return fmt.Errorf("local target requires a local PostgreSQL host and tidewise_local")
 		}
 	case conf.EnvUAT:
-		if isLocalDatabaseHost(cfg.Database.Host) ||
+		if isLocalDatabaseHost(cfg.Database.Host) || isLoopbackDatabaseHost(cfg.Database.Host) ||
 			cfg.Database.Name != "tidewise_uat" ||
 			cfg.Database.SSLMode != "require" {
 			return fmt.Errorf("uat target requires the non-local tidewise_uat database with ssl_mode=require")
@@ -139,8 +139,12 @@ func validateTarget(cfg conf.Config, options cliOptions) error {
 }
 
 func isLocalDatabaseHost(host string) bool {
+	return strings.EqualFold(strings.TrimSpace(host), "host.docker.internal")
+}
+
+func isLoopbackDatabaseHost(host string) bool {
 	switch strings.ToLower(strings.TrimSpace(host)) {
-	case "localhost", "127.0.0.1", "::1", "postgres":
+	case "localhost", "127.0.0.1", "::1":
 		return true
 	default:
 		return false

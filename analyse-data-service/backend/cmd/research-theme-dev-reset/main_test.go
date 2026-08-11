@@ -14,14 +14,14 @@ import (
 func TestValidateResetSafetyGates(t *testing.T) {
 	valid := conf.Config{
 		App:      conf.AppConfig{Env: conf.EnvLocal},
-		Database: conf.DatabaseConfig{Host: "127.0.0.1", Name: localDatabaseName},
+		Database: conf.DatabaseConfig{Host: "host.docker.internal", Name: localDatabaseName},
 	}
 	if err := validateResetTarget(valid); err != nil {
 		t.Fatal(err)
 	}
 	valid.Database.Host = "db.internal"
 	if err := validateResetTarget(valid); err == nil {
-		t.Fatal("non-loopback target was accepted")
+		t.Fatal("unapproved infrastructure target was accepted")
 	}
 	if err := validateExecutionGate(resetOptions{Execute: true}); err == nil {
 		t.Fatal("execute without exact database confirmation was accepted")

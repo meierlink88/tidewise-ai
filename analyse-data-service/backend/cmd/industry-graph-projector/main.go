@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	defaultPackagePath = "analyse-data-service/backend/data/industry_relationships/2026-07-27-v1"
-	defaultNeo4jURI    = "bolt://localhost:7687"
+	defaultPackagePath = "/app/data/industry_relationships/2026-07-27-v1"
+	defaultNeo4jURI    = "bolt://host.docker.internal:7687"
 	defaultNeo4jDB     = "neo4j"
 	uatPostgreSQLHost  = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
 	uatNeo4jHost       = "host.docker.internal"
@@ -216,10 +216,10 @@ func validateTarget(cfg conf.Config, options cliOptions) error {
 	}
 	switch cfg.App.Env {
 	case conf.EnvLocal:
-		if !isLoopbackHost(cfg.Database.Host) ||
+		if !isApprovedLocalHost(cfg.Database.Host, "host.docker.internal") ||
 			cfg.Database.Name != "tidewise_local" ||
 			cfg.Database.SSLMode != "disable" {
-			return errors.New("Industry graph projector requires loopback tidewise_local PostgreSQL with ssl_mode=disable")
+			return errors.New("Industry graph projector requires the approved external local PostgreSQL tidewise_local with ssl_mode=disable")
 		}
 	case conf.EnvUAT:
 		if cfg.Database.Host != uatPostgreSQLHost ||
@@ -276,8 +276,8 @@ func validateNeo4jTarget(environment conf.Environment, config neo4jdata.Config) 
 	}
 	switch environment {
 	case conf.EnvLocal:
-		if !isLoopbackHost(target.Hostname()) {
-			return errors.New("Industry graph projector local target requires a loopback bolt URI")
+		if !isApprovedLocalHost(target.Hostname(), "host.docker.internal") {
+			return errors.New("Industry graph projector local target requires the external local Neo4j bolt URI")
 		}
 	case conf.EnvUAT:
 		if target.Hostname() != uatNeo4jHost || target.Port() != "7687" {
@@ -289,11 +289,6 @@ func validateNeo4jTarget(environment conf.Environment, config neo4jdata.Config) 
 	return nil
 }
 
-func isLoopbackHost(host string) bool {
-	switch strings.ToLower(strings.TrimSpace(host)) {
-	case "localhost", "127.0.0.1", "::1":
-		return true
-	default:
-		return false
-	}
+func isApprovedLocalHost(host, expected string) bool {
+	return strings.EqualFold(strings.TrimSpace(host), expected)
 }

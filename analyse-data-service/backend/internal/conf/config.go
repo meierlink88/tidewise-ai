@@ -99,6 +99,9 @@ func LoadDatabaseOperation() (Config, error) {
 	if cfg.Secrets.DatabasePassword == "" {
 		return Config{}, fmt.Errorf("TIDEWISW_DB_PASSWORD is required for database operations")
 	}
+	if cfg.App.Env == EnvUAT && cfg.Database.SSLMode != "require" {
+		return Config{}, fmt.Errorf("uat database configuration must use ssl_mode=require")
+	}
 	cfg.Secrets.ServiceToken = ""
 	return cfg, nil
 }
@@ -129,6 +132,9 @@ func loadConfiguration() (Config, error) {
 		ServiceToken:        os.Getenv("DATA_SERVICE_TOKEN"),
 		Neo4jHealthUsername: os.Getenv("DATA_NEO4J_HEALTH_USERNAME"),
 		Neo4jHealthPassword: os.Getenv("DATA_NEO4J_HEALTH_PASSWORD"),
+	}
+	if host := os.Getenv("TIDEWISE_DB_HOST"); host != "" {
+		cfg.Database.Host = host
 	}
 	if uri := os.Getenv("DATA_NEO4J_HEALTH_URI"); uri != "" {
 		cfg.Neo4jHealth.URI = uri
@@ -248,7 +254,7 @@ func resolveConfigDir(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	return "analyse-data-service/backend/configs"
+	return "/app/configs"
 }
 
 func (c ServerConfig) Validate() error {

@@ -320,6 +320,7 @@ jobs:
         run: |
           docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
           docker build -f miniapp/backend/Dockerfile -t tidewise-miniapp:ci .
+          docker build -f miniapp/frontend/Dockerfile -t tidewise-miniapp-frontend:ci .
 
       - name: Smoke Miniapp to Data Service
         if: steps.risks.outputs.provider_consumer == 'true'

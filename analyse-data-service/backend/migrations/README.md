@@ -12,11 +12,11 @@
 
 初始 schema 的 down 段不自动删除业务表。需要回滚初始 schema 时，应通过已审阅的前向修复 migration 或数据库备份恢复执行，避免在有数据环境中误删事实基础。
 
-本地执行 migration 时，优先使用后端命令入口：
+本地 migration 只从 Data image 运行。正常 Local Compose 启动会先自动执行同一 one-shot
+service；也可以显式运行：
 
 ```bash
-cd /path/to/tidewise-ai
-APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm data-migrate
 ```
 
 只检查 pending migration 时不加 `-apply`。
@@ -43,9 +43,9 @@ analyse-data-service/backend/data/entity_foundation/
 本地执行实体 seed 前，应先执行 migration：
 
 ```bash
-cd /path/to/tidewise-ai
-APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/dbmigrate -apply
-APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-service/backend/cmd/entity-seed
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm data-migrate
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm \
+  --entrypoint /usr/local/bin/entity-seed data
 ```
 
 `analyse-data-service/backend/cmd/entity-seed` 默认读取 `data/entity_foundation` 下的实体 seed 文件，并输出 JSON report。重复执行同一组 seed 应保持幂等，report 中应主要体现为 `unchanged`，不应新增重复实体、重复 profile 或重复关系。

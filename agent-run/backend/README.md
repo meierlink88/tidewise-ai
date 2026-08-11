@@ -49,36 +49,33 @@ cp infra/local/.env.example infra/local/.env.local
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d agentrun
 ```
 
-宿主机直接运行使用 `configs/config.dev.yaml` 中的 `localhost`；Local Compose 显式选择
-`configs/compose/config.dev.yaml`，并通过 Docker DNS 使用 `postgres`。两者都只从
-`AGENTRUN_DB_PASSWORD` 注入密码。
-
-直接运行 Go 命令时，需先显式注入 `APP_ENV=dev`、`AGENTRUN_DB_PASSWORD`、
-`AGENTRUN_SERVICE_TOKEN`、`DATA_SERVICE_TOKEN` 和 `TZ`，然后先执行
-`go run ./agent-run/backend/cmd/migrate`，再启动服务。
+`configs/config.dev.yaml` 是唯一 dev YAML；AgentRun 通过外部 endpoint 访问 PostgreSQL 和
+Qdrant，通过 Docker DNS 访问 `data`。AgentRun Server 与全部 AgentRun-owned CLI 只从镜像
+运行；不维护宿主机 Go 运行入口。基础设施 owner 预先创建数据库身份，Compose 只应用
+AgentRun-owned migration，再启动 AgentRun。
 
 Model Provider Configuration 和 Connector Configuration 分别保存在 `tidewise_ai_server`，不读取 DeepSeek、Parallel、Tavily 或 Bocha 环境变量。使用 Bootstrap CLI 写入当前配置：
 
 ```bash
-printf '%s' "$DEEPSEEK_API_KEY" | go run ./agent-run/backend/cmd/config model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
-printf '%s' "$PARALLEL_API_KEY" | go run ./agent-run/backend/cmd/config connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
-printf '%s' "$TAVILY_API_KEY" | go run ./agent-run/backend/cmd/config connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
-printf '%s' "$BOCHA_API_KEY" | go run ./agent-run/backend/cmd/config connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
-go run ./agent-run/backend/cmd/config connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
-go run ./agent-run/backend/cmd/config connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
-go run ./agent-run/backend/cmd/config connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
-go run ./agent-run/backend/cmd/config connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
-go run ./agent-run/backend/cmd/config check
-go run ./agent-run/backend/cmd/config model list
-go run ./agent-run/backend/cmd/config connector list
+printf '%s' "$DEEPSEEK_API_KEY" | docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps -T --entrypoint /app/agentrun-config agentrun model set --provider deepseek --base-url https://api.deepseek.com --model deepseek-chat --api-key-stdin
+printf '%s' "$PARALLEL_API_KEY" | docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps -T --entrypoint /app/agentrun-config agentrun connector set --connector parallel_search --base-url https://api.parallel.ai/v1/search --api-key-stdin
+printf '%s' "$TAVILY_API_KEY" | docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps -T --entrypoint /app/agentrun-config agentrun connector set --connector tavily --base-url https://api.tavily.com/search --api-key-stdin
+printf '%s' "$BOCHA_API_KEY" | docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps -T --entrypoint /app/agentrun-config agentrun connector set --connector bocha --base-url https://api.bochaai.com/v1/web-search --api-key-stdin
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun connector set --connector cls_telegraph --base-url https://www.cls.cn/v1/roll/get_roll_list
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun connector set --connector eastmoney_fastnews --base-url https://np-weblist.eastmoney.com/comm/web/getFastNewsList
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun connector set --connector eastmoney_stock_news --base-url https://search-api-web.eastmoney.com/search/jsonp
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun connector set --connector stcn_quicknews --base-url https://www.stcn.com/article/list.html
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun check
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun model list
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-config agentrun connector list
 ```
 
 Model Provider Key 必填；所有 Connector Key 统一可空，缺少 Connector Key 不阻止 readiness，外部端点拒绝匿名请求时记录为该 Connector Invocation 失败。`list` 只显示 Key 是否已配置及脱敏尾号。CLI 或 Admin API 修改配置后，下一次 Execution 无需重启即可读取新值；已经启动的 Execution 继续使用其启动快照。V1 的 dev/UAT 环境暂时以明文保存 Key；HTTP、日志、Artifact 和 CLI 读取不会返回完整 Key。
 
-启动服务：
+启动或重建服务：
 
 ```bash
-go run ./agent-run/backend/cmd/server
+npm run backend:dev:agentrun
 ```
 
 CI 同时构建非 root 的 Kratos Service 镜像；本地可用
@@ -97,16 +94,22 @@ running Work Item、完成 UAT 恢复点和结果审阅后，才可另行授权 
 并在计划、导出和 Apply 全程阻止新的语义周期：
 
 ```bash
-go run ./analyse-data-service/backend/cmd/event-semantic-history-audit \
-  -output /secure/path/event-semantic-history-audit.json
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
+  run --rm --no-deps -v "$PWD/.runtime-audit:/work" \
+  --entrypoint /usr/local/bin/event-semantic-history-audit data \
+  -output /work/event-semantic-history-audit.json
 
-go run ./agent-run/backend/cmd/event-semantic-history \
-  -dry-run -manifest /secure/path/event-semantic-history-audit.json
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
+  run --rm --no-deps -v "$PWD/.runtime-audit:/work" \
+  --entrypoint /app/agentrun-event-semantic-history agentrun \
+  -dry-run -manifest /work/event-semantic-history-audit.json
 
-go run ./agent-run/backend/cmd/event-semantic-history \
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
+  run --rm --no-deps -v "$PWD/.runtime-audit:/work" \
+  --entrypoint /app/agentrun-event-semantic-history agentrun \
   -apply -allow-env uat \
-  -manifest /secure/path/event-semantic-history-audit.json \
-  -export /secure/path/event-semantic-work-items-before.json
+  -manifest /work/event-semantic-history-audit.json \
+  -export /work/event-semantic-work-items-before.json
 ```
 
 审计命令只读取 Data 数据库；dry-run 只读取 AgentRun 数据库。Apply 只更新 AgentRun
@@ -215,10 +218,10 @@ Provider/Connector PATCH 使用严格 JSON。Model Key 不可清空；Connector 
 本次 Kratos 切换不改变路径、HTTP method 或 Bearer Token 的职责，但业务响应 body
 不再直接返回资源：
 
-| 调用方 | 路径 | 认证 | 新响应读取方式 |
-|---|---|---|---|
-| Tidewise Data | `/api/v1/collector/runs...` | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
-| Admin Portal Service | `/api/admin/v1/...` | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
+| 调用方               | 路径                        | 认证                     | 新响应读取方式                      |
+| -------------------- | --------------------------- | ------------------------ | ----------------------------------- |
+| Tidewise Data        | `/api/v1/collector/runs...` | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
+| Admin Portal Service | `/api/admin/v1/...`         | `AGENTRUN_SERVICE_TOKEN` | 成功读取 `result`，失败读取 `error` |
 
 所有业务响应同时读取顶层 `request_id`，并与 `X-Request-ID` 对照。旧的
 `error_code`、`message` 顶层错误结构不再兼容。冻结示例位于
@@ -257,9 +260,9 @@ Artifact 发布使用最小 `prepare -> publish -> commit` 协议。成功类终
 dedup index 是 accepted Markdown 的派生缓存。运维 CLI 支持只读校验、显式重建和污染盘点：
 
 ```bash
-go run ./agent-run/backend/cmd/artifacts verify-index --root data
-go run ./agent-run/backend/cmd/artifacts rebuild-index --root data
-go run ./agent-run/backend/cmd/artifacts audit-pollution --root data
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-artifacts agentrun verify-index --root /app/data
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-artifacts agentrun rebuild-index --root /app/data
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /app/agentrun-artifacts agentrun audit-pollution --root /app/data
 ```
 
 `audit-pollution` 只报告文件路径、SHA-256 和检测原因，不修改历史 Artifact；`rebuild-index` 是显式写操作，运行时应停止 AgentRun 服务。

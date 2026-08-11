@@ -16,10 +16,10 @@ RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 
 COPY --from=builder /out/adminportal-service /usr/local/bin/adminportal-service
-COPY admin-portal/backend/configs ./config
+COPY admin-portal/backend/configs ./configs
 
 ENV APP_ENV=local
-ENV TIDEWISE_CONFIG_DIR=/app/config
+ENV TIDEWISE_CONFIG_DIR=/app/configs
 EXPOSE 9013
 
 USER tidewise

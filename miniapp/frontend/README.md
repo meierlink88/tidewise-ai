@@ -4,29 +4,26 @@
 
 ## 本地开发
 
-在仓库根目录安装依赖后运行。首页通过 `features/research-themes` 下的统一端口读取数据，页面组件不直接读取 Mock 或调用 HTTP。每次开发或构建都必须显式选择数据源。独立视觉开发使用 Mock：
+Taro watch/build 通过 Local Compose 的 Miniapp frontend builder image 运行。首页通过
+`features/research-themes` 下的统一端口读取数据，页面组件不直接读取 Mock 或调用 HTTP。
+每次开发或构建都必须显式选择数据源；在 `infra/local/.env.local` 中设置
+`TARO_APP_RESEARCH_SOURCE=mock` 后运行：
 
 ```bash
-TARO_APP_RESEARCH_SOURCE=mock \
-npm --workspace @tidewise/miniapp run dev:weapp
-
-TARO_APP_RESEARCH_SOURCE=mock \
-npm --workspace @tidewise/miniapp run dev:tt
+npm run dev:weapp
+npm run dev:tt
 ```
 
-接入本地 Miniapp Backend 时选择 API：
+接入本地 Miniapp Backend 时，在 `infra/local/.env.local` 中设置
+`TARO_APP_RESEARCH_SOURCE=api` 后运行：
 
 ```bash
-TARO_APP_RESEARCH_SOURCE=api \
-TARO_APP_MINIAPP_API_BASE_URL=http://127.0.0.1:9012 \
-npm --workspace @tidewise/miniapp run dev:weapp
+npm run dev:weapp
 ```
 
 浏览器快速预览真实 API 数据时运行 H5 开发服务：
 
 ```bash
-TARO_APP_RESEARCH_SOURCE=api \
-TARO_APP_MINIAPP_API_BASE_URL=http://localhost:10086 \
 npm run dev:h5
 ```
 
@@ -54,7 +51,9 @@ TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run build:h5
 TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run preview:weapp
 ```
 
-微信开发者工具直接导入仓库内的 `miniapp/frontend/dist/weapp`。后续运行 `dev:weapp` 会持续编译到该目录，开发者工具可直接刷新。目标视觉基线为 375×812。
+微信开发者工具直接导入仓库内的 `miniapp/frontend/dist/weapp`。容器只运行 Taro 编译器，
+通过 bind mount 持续写入相同目录；微信发布仍由微信开发者工具或既有平台发布流程完成，
+不是 Docker 部署。目标视觉基线为 375×812。
 
 构建目录自带 `project.config.json` 和微信测试 AppID，无需手工创建项目配置。
 

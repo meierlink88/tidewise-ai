@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("parse migration options: %v", err)
 	}
 
-	cfg, err := conf.Load()
+	cfg, err := conf.LoadDatabaseOperation()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}

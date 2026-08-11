@@ -125,7 +125,7 @@ func TestValidateTargetAcceptsOnlyApprovedLocalAndUATPostgreSQL(t *testing.T) {
 	local := conf.Config{
 		App: conf.AppConfig{Env: conf.EnvLocal},
 		Database: conf.DatabaseConfig{
-			Host: "localhost", Name: "tidewise_local", SSLMode: "disable",
+			Host: "host.docker.internal", Name: "tidewise_local", SSLMode: "disable",
 		},
 	}
 	if err := validateTarget(local, cliOptions{Apply: true, AllowEnv: "local"}); err != nil {
@@ -174,7 +174,7 @@ func TestValidateTargetAcceptsOnlyApprovedLocalAndUATPostgreSQL(t *testing.T) {
 			config: conf.Config{
 				App: conf.AppConfig{Env: conf.EnvLocal},
 				Database: conf.DatabaseConfig{
-					Host: "postgres", Name: "tidewise_local", SSLMode: "disable",
+					Host: "localhost", Name: "tidewise_local", SSLMode: "disable",
 				},
 			},
 			options: cliOptions{DryRun: true},
@@ -198,7 +198,7 @@ func TestValidateTargetAcceptsOnlyApprovedLocalAndUATPostgreSQL(t *testing.T) {
 
 func TestValidateNeo4jTargetAcceptsOnlyEnvironmentSpecificTarget(t *testing.T) {
 	valid := neo4jdata.Config{
-		URI: "bolt://localhost:7687", Username: "neo4j",
+		URI: "bolt://host.docker.internal:7687", Username: "neo4j",
 		Password: "secret", Database: "neo4j",
 	}
 	if err := validateNeo4jTarget(conf.EnvLocal, valid); err != nil {

@@ -41,7 +41,7 @@ func TestValidateTargetRejectsProdAndMismatchedOrUnsafeApply(t *testing.T) {
 	local := conf.Config{
 		App: conf.AppConfig{Env: conf.EnvLocal},
 		Database: conf.DatabaseConfig{
-			Host: "localhost", Name: "tidewise_local", SSLMode: "disable",
+			Host: "host.docker.internal", Name: "tidewise_local", SSLMode: "disable",
 		},
 	}
 	uat := conf.Config{
