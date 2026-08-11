@@ -24,13 +24,6 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/identity"
 )
 
-// canonicalThemeHash applies the V1 RFC 8785-compatible representation to the
-// validated, typed request. V1 object keys are an ASCII-only fixed contract;
-// array order remains significant and is validated before this function runs.
-func canonicalThemeHash(batch ThemeBatch) (string, error) {
-	return canonicalPublicationHashValue(batch, "research theme publication batch")
-}
-
 func canonicalPublicationHashValue(value any, label string) (string, error) {
 	payload, err := json.Marshal(value)
 	if err != nil {
@@ -169,19 +162,12 @@ var publicationThemeNamespace = [16]byte{
 }
 
 func publicationThemeID(analysisBatchID, themeKey string) string {
-	hash := sha1.New()
-	_, _ = hash.Write(publicationThemeNamespace[:])
-	_, _ = hash.Write([]byte(analysisBatchID + "\x00" + themeKey))
-	identifier := hash.Sum(nil)[:16]
-	identifier[6] = (identifier[6] & 0x0f) | 0x50
-	identifier[8] = (identifier[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		identifier[0:4], identifier[4:6], identifier[6:8], identifier[8:10], identifier[10:16])
+	return publicationUUIDV5(publicationThemeNamespace, analysisBatchID+"\x00"+themeKey)
 }
 
 var (
-	publicationThemeKeyPattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,127}$`)
-	publicationThemeUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	researchKeyPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,127}$`)
+	lowercaseUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
 
 type ThemeBatch struct {
@@ -278,7 +264,7 @@ func (b ThemeBatch) Validate() (ThemeWindow, error) {
 	for index := range b.Themes {
 		theme := &b.Themes[index]
 		path := fmt.Sprintf("themes[%d]", index)
-		if !publicationThemeKeyPattern.MatchString(theme.ThemeKey) {
+		if !researchKeyPattern.MatchString(theme.ThemeKey) {
 			return ThemeWindow{}, invalidTheme(theme.ThemeKey, path+".theme_key", theme.ThemeKey, "must match ^[a-z0-9][a-z0-9._:-]{0,127}$")
 		}
 		if index > 0 && theme.ThemeKey <= b.Themes[index-1].ThemeKey {
@@ -310,25 +296,25 @@ func (t ThemeInput) validate(path string) error {
 			return err
 		}
 	}
-	if !themeOneOf(t.ConclusionDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+	if !isAllowedValue(t.ConclusionDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 		return invalidTheme(t.ThemeKey, path+".conclusion_direction", t.ConclusionDirection, "has an unsupported value")
 	}
-	if !themeOneOf(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
+	if !isAllowedValue(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
 		return invalidTheme(t.ThemeKey, path+".impact_strength", t.ImpactStrength, "has an unsupported value")
 	}
-	if t.AttentionLevel != nil && !themeOneOf(*t.AttentionLevel, "high", "medium", "low") {
+	if t.AttentionLevel != nil && !isAllowedValue(*t.AttentionLevel, "high", "medium", "low") {
 		return invalidTheme(t.ThemeKey, path+".attention_level", *t.AttentionLevel, "has an unsupported value")
 	}
-	if t.ConclusionStatus != nil && !themeOneOf(*t.ConclusionStatus, "supported", "partial", "conflicted") {
+	if t.ConclusionStatus != nil && !isAllowedValue(*t.ConclusionStatus, "supported", "partial", "conflicted") {
 		return invalidTheme(t.ThemeKey, path+".conclusion_status", *t.ConclusionStatus, "has an unsupported value")
 	}
-	if !themeOneOf(t.TransmissionStage, "identification", "validation", "diffusion", "dampening") {
+	if !isAllowedValue(t.TransmissionStage, "identification", "validation", "diffusion", "dampening") {
 		return invalidTheme(t.ThemeKey, path+".transmission_stage", t.TransmissionStage, "has an unsupported value")
 	}
-	if !themeOneOf(t.InvestmentGuidanceAction, "focus", "avoid", "observe", "differentiate") {
+	if !isAllowedValue(t.InvestmentGuidanceAction, "focus", "avoid", "observe", "differentiate") {
 		return invalidTheme(t.ThemeKey, path+".investment_guidance_action", t.InvestmentGuidanceAction, "has an unsupported value")
 	}
-	if !themeOneOf(t.TimeHorizonCategory, "short_term", "medium_term", "long_term", "custom") {
+	if !isAllowedValue(t.TimeHorizonCategory, "short_term", "medium_term", "long_term", "custom") {
 		return invalidTheme(t.ThemeKey, path+".time_horizon_category", t.TimeHorizonCategory, "has an unsupported value")
 	}
 	for _, field := range []struct {
@@ -354,17 +340,17 @@ func (t ThemeInput) validate(path string) error {
 		if impact.DisplayOrder != index+1 {
 			return invalidTheme(t.ThemeKey, impactPath+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
 		}
-		if !publicationThemeUUIDPattern.MatchString(impact.ChainNodeEntityID) {
+		if !lowercaseUUIDPattern.MatchString(impact.ChainNodeEntityID) {
 			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be a standard lowercase UUID")
 		}
 		if _, duplicate := seenImpacts[impact.ChainNodeEntityID]; duplicate {
 			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be unique within the ThemeInput")
 		}
 		seenImpacts[impact.ChainNodeEntityID] = struct{}{}
-		if !themeOneOf(impact.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
+		if !isAllowedValue(impact.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
 			return invalidTheme(t.ThemeKey, impactPath+".relation_role", impact.RelationRole, "has an unsupported value")
 		}
-		if !themeOneOf(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+		if !isAllowedValue(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 			return invalidTheme(t.ThemeKey, impactPath+".impact_direction", impact.ImpactDirection, "has an unsupported value")
 		}
 		if err := validateThemeOptionalText(t.ThemeKey, impactPath+".impact_summary", impact.ImpactSummary, 2000); err != nil {
@@ -373,7 +359,7 @@ func (t ThemeInput) validate(path string) error {
 	}
 	for index, event := range t.Events {
 		eventPath := fmt.Sprintf("%s.events[%d]", path, index)
-		if !publicationThemeUUIDPattern.MatchString(event.EventID) {
+		if !lowercaseUUIDPattern.MatchString(event.EventID) {
 			return invalidTheme(t.ThemeKey, eventPath+".event_id", event.EventID, "must be a standard lowercase UUID")
 		}
 		if index > 0 && event.EventID <= t.Events[index-1].EventID {
@@ -383,7 +369,7 @@ func (t ThemeInput) validate(path string) error {
 			}
 			return invalidTheme(t.ThemeKey, eventPath+".event_id", event.EventID, message)
 		}
-		if !themeOneOf(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
+		if !isAllowedValue(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
 			return invalidTheme(t.ThemeKey, eventPath+".evidence_role", event.EvidenceRole, "has an unsupported value")
 		}
 		if err := validateThemeOptionalText(t.ThemeKey, eventPath+".supported_claim", event.SupportedClaim, 2000); err != nil {
@@ -427,7 +413,7 @@ func invalidTheme(themeKey, path, reference, message string) *ThemeValidationErr
 	return &ThemeValidationError{ThemeKey: themeKey, Path: path, Reference: reference, Message: message}
 }
 
-func themeOneOf(value string, allowed ...string) bool {
+func isAllowedValue(value string, allowed ...string) bool {
 	for _, candidate := range allowed {
 		if value == candidate {
 			return true
@@ -435,11 +421,6 @@ func themeOneOf(value string, allowed ...string) bool {
 	}
 	return false
 }
-
-var (
-	reasonTreeUUIDPattern      = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	reasonTreeSignalKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,127}$`)
-)
 
 type ReasonTreePublication struct {
 	ThemeID        string            `json:"theme_id"`
@@ -522,7 +503,7 @@ func (e *ReasonTreeValidationError) Error() string {
 }
 
 func (p ReasonTreePublication) Validate() error {
-	if !reasonTreeUUIDPattern.MatchString(p.ThemeID) {
+	if !lowercaseUUIDPattern.MatchString(p.ThemeID) {
 		return invalidReasonTree("", "theme_id", p.ThemeID, "must be a standard lowercase UUID")
 	}
 	if len(p.ReasoningTrees) == 0 {
@@ -535,7 +516,7 @@ func (p ReasonTreePublication) Validate() error {
 		if tree.DisplayOrder != index+1 {
 			return invalidReasonTree(tree.IndustryChainEntityID, path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
 		}
-		if !reasonTreeUUIDPattern.MatchString(tree.IndustryChainEntityID) {
+		if !lowercaseUUIDPattern.MatchString(tree.IndustryChainEntityID) {
 			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be a standard lowercase UUID")
 		}
 		if _, duplicate := seenChains[tree.IndustryChainEntityID]; duplicate {
@@ -556,10 +537,10 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 	if err := requiredReasonTreeText(t.IndustryChainEntityID, path+".one_line_conclusion", t.OneLineConclusion, 1000); err != nil {
 		return err
 	}
-	if !reasonTreeOneOf(t.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+	if !isAllowedValue(t.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 		return invalidReasonTree(t.IndustryChainEntityID, path+".impact_direction", t.ImpactDirection, "has an unsupported value")
 	}
-	if !reasonTreeOneOf(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
+	if !isAllowedValue(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
 		return invalidReasonTree(t.IndustryChainEntityID, path+".impact_strength", t.ImpactStrength, "has an unsupported value")
 	}
 	for _, field := range []struct {
@@ -585,7 +566,7 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 	}
 	for index, checkpoint := range t.Checkpoints {
 		checkpointPath := fmt.Sprintf("%s.checkpoints[%d]", path, index)
-		if !reasonTreeOneOf(checkpoint.Type, "event", "relationship", "metric") {
+		if !isAllowedValue(checkpoint.Type, "event", "relationship", "metric") {
 			return invalidReasonTree(t.IndustryChainEntityID, checkpointPath+".type", checkpoint.Type, "has an unsupported value")
 		}
 		if err := requiredReasonTreeText(t.IndustryChainEntityID, checkpointPath+".summary", checkpoint.Summary, 2000); err != nil {
@@ -598,14 +579,14 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		if event.DisplayOrder != index+1 {
 			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".display_order", fmt.Sprint(event.DisplayOrder), "must be contiguous from 1")
 		}
-		if !reasonTreeUUIDPattern.MatchString(event.EventID) {
+		if !lowercaseUUIDPattern.MatchString(event.EventID) {
 			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be a standard lowercase UUID")
 		}
 		if _, duplicate := seenEvents[event.EventID]; duplicate {
 			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be unique within the Tree")
 		}
 		seenEvents[event.EventID] = struct{}{}
-		if !reasonTreeOneOf(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
+		if !isAllowedValue(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
 			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".evidence_role", event.EvidenceRole, "has an unsupported value")
 		}
 	}
@@ -618,17 +599,17 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		if node.Position != index+1 {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
 		}
-		if !reasonTreeUUIDPattern.MatchString(node.ChainNodeEntityID) {
+		if !lowercaseUUIDPattern.MatchString(node.ChainNodeEntityID) {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be a standard lowercase UUID")
 		}
 		if _, duplicate := seenNodes[node.ChainNodeEntityID]; duplicate {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be unique within the Tree")
 		}
 		seenNodes[node.ChainNodeEntityID] = struct{}{}
-		if !reasonTreeOneOf(node.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+		if !isAllowedValue(node.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".impact_direction", node.ImpactDirection, "has an unsupported value")
 		}
-		if !reasonTreeOneOf(node.ImpactStrength, "strong", "medium", "weak", "unknown") {
+		if !isAllowedValue(node.ImpactStrength, "strong", "medium", "weak", "unknown") {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".impact_strength", node.ImpactStrength, "has an unsupported value")
 		}
 		for _, field := range []struct {
@@ -651,7 +632,7 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_*", "", "must all be null for the first ReasonTreeNodeInput")
 			}
 		} else {
-			if node.IncomingIndustryChainGraphEdgeID != nil && !reasonTreeUUIDPattern.MatchString(*node.IncomingIndustryChainGraphEdgeID) {
+			if node.IncomingIndustryChainGraphEdgeID != nil && !lowercaseUUIDPattern.MatchString(*node.IncomingIndustryChainGraphEdgeID) {
 				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "must be a standard lowercase UUID")
 			}
 			for _, field := range []struct {
@@ -688,14 +669,14 @@ func validateReasonTreeSignals(chainID, nodePath string, signals []ReasonTreeSig
 		if signal.DisplayOrder != index+1 {
 			return invalidReasonTree(chainID, path+".display_order", fmt.Sprint(signal.DisplayOrder), "must be contiguous from 1")
 		}
-		if !reasonTreeSignalKeyPattern.MatchString(signal.VariableSignalKey) {
+		if !researchKeyPattern.MatchString(signal.VariableSignalKey) {
 			return invalidReasonTree(chainID, path+".variable_signal_key", signal.VariableSignalKey, "must match ^[a-z0-9][a-z0-9._:-]{0,127}$")
 		}
 		if _, duplicate := seen[signal.VariableSignalKey]; duplicate {
 			return invalidReasonTree(chainID, path+".variable_signal_key", signal.VariableSignalKey, "must be unique within the ReasonTreeNodeInput")
 		}
 		seen[signal.VariableSignalKey] = struct{}{}
-		if !reasonTreeOneOf(signal.SignalRole, "primary", "supporting", "contradicting") {
+		if !isAllowedValue(signal.SignalRole, "primary", "supporting", "contradicting") {
 			return invalidReasonTree(chainID, path+".signal_role", signal.SignalRole, "has an unsupported value")
 		}
 		if signal.SignalRole == "primary" {
@@ -704,7 +685,7 @@ func validateReasonTreeSignals(chainID, nodePath string, signals []ReasonTreeSig
 				return invalidReasonTree(chainID, path+".display_order", fmt.Sprint(signal.DisplayOrder), "primary ReasonTreeSignalInput must have display_order 1")
 			}
 		}
-		if !reasonTreeOneOf(signal.SignalDirection, "increase", "decrease", "mixed", "unchanged", "uncertain") {
+		if !isAllowedValue(signal.SignalDirection, "increase", "decrease", "mixed", "unchanged", "uncertain") {
 			return invalidReasonTree(chainID, path+".signal_direction", signal.SignalDirection, "has an unsupported value")
 		}
 		trimmed := strings.TrimSpace(signal.DisplaySummary)
@@ -745,15 +726,6 @@ func optionalReasonTreeText(chainID, path string, value *string, max int) error 
 
 func invalidReasonTree(chainID, path, reference, message string) *ReasonTreeValidationError {
 	return &ReasonTreeValidationError{IndustryChainEntityID: chainID, Path: path, Reference: reference, Message: message}
-}
-
-func reasonTreeOneOf(value string, allowed ...string) bool {
-	for _, candidate := range allowed {
-		if value == candidate {
-			return true
-		}
-	}
-	return false
 }
 
 type EventSemanticBundle struct {
@@ -1609,7 +1581,7 @@ type contextCursor struct {
 	EventID              string `json:"event_id"`
 }
 
-func encodeCursor(cursor contextCursor) (string, error) {
+func encodeCursor[T contextCursor | researchCursor](cursor T) (string, error) {
 	payload, err := json.Marshal(cursor)
 	if err != nil {
 		return "", err
@@ -2155,7 +2127,7 @@ func (s *UseCase) ListThemes(ctx context.Context, request ResearchListRequest) (
 			nextCursor.WindowStart = windowStart
 			nextCursor.WindowEnd = windowEnd
 		}
-		next, err := encodeResearchCursor(nextCursor)
+		next, err := encodeCursor(nextCursor)
 		if err != nil {
 			return ResearchThemePage{}, fmt.Errorf("encode research cursor: %w", err)
 		}
@@ -2263,14 +2235,6 @@ func (s *UseCase) prepareCursor(kind string, request ResearchListRequest, window
 	}
 	asOf := cursor.AsOf.UTC()
 	return asOf, asOf.Add(-time.Duration(windowHours) * time.Hour), asOf, cursor, nil
-}
-
-func encodeResearchCursor(cursor researchCursor) (string, error) {
-	payload, err := json.Marshal(cursor)
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(payload), nil
 }
 
 func decodeResearchCursor(value string) (researchCursor, error) {
@@ -3213,7 +3177,7 @@ func oneUUID(values ...*string) bool {
 }
 
 func validUUID(value *string) bool {
-	return value != nil && regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(*value)
+	return value != nil && lowercaseUUIDPattern.MatchString(*value)
 }
 
 func anySet(values ...*string) bool {
@@ -3470,11 +3434,6 @@ func validateSnapshotReferences(a SnapshotAggregate, facts ReferenceFacts) error
 
 const SnapshotPublicationMode = "analyst_snapshot"
 
-var (
-	snapshotKeyPattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,127}$`)
-	snapshotUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-)
-
 type SnapshotAggregate struct {
 	PublicationMode      string                  `json:"publication_mode"`
 	AnalysisBatchID      string                  `json:"analysis_batch_id"`
@@ -3602,7 +3561,7 @@ func (a SnapshotAggregate) Validate() (time.Time, string, error) {
 	if windowEnd.After(asOf) {
 		return time.Time{}, "", invalid("discovery_window_end", a.DiscoveryWindowEnd, "must not be later than analysis_as_of")
 	}
-	if !snapshotKeyPattern.MatchString(a.Theme.ThemeKey) {
+	if !researchKeyPattern.MatchString(a.Theme.ThemeKey) {
 		return time.Time{}, "", invalid("theme.theme_key", a.Theme.ThemeKey, "must match the local key pattern")
 	}
 	if err := a.Theme.validate(); err != nil {
@@ -3622,7 +3581,7 @@ func (a SnapshotAggregate) Validate() (time.Time, string, error) {
 		if tree.DisplayOrder != treeIndex+1 {
 			return time.Time{}, "", invalid(path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
 		}
-		if !snapshotKeyPattern.MatchString(tree.TreeKey) {
+		if !researchKeyPattern.MatchString(tree.TreeKey) {
 			return time.Time{}, "", invalid(path+".tree_key", tree.TreeKey, "must match the local key pattern")
 		}
 		if _, duplicate := treeKeys[tree.TreeKey]; duplicate {
@@ -3657,25 +3616,25 @@ func (t SnapshotTheme) validate() error {
 			return err
 		}
 	}
-	if !snapshotOneOf(t.ConclusionDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+	if !isAllowedValue(t.ConclusionDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 		return invalid("theme.conclusion_direction", t.ConclusionDirection, "has an unsupported value")
 	}
-	if !snapshotOneOf(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
+	if !isAllowedValue(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
 		return invalid("theme.impact_strength", t.ImpactStrength, "has an unsupported value")
 	}
-	if t.AttentionLevel != nil && !snapshotOneOf(*t.AttentionLevel, "high", "medium", "low") {
+	if t.AttentionLevel != nil && !isAllowedValue(*t.AttentionLevel, "high", "medium", "low") {
 		return invalid("theme.attention_level", *t.AttentionLevel, "has an unsupported value")
 	}
-	if t.ConclusionStatus != nil && !snapshotOneOf(*t.ConclusionStatus, "supported", "partial", "conflicted") {
+	if t.ConclusionStatus != nil && !isAllowedValue(*t.ConclusionStatus, "supported", "partial", "conflicted") {
 		return invalid("theme.conclusion_status", *t.ConclusionStatus, "has an unsupported value")
 	}
-	if !snapshotOneOf(t.TransmissionStage, "identification", "validation", "diffusion", "dampening") {
+	if !isAllowedValue(t.TransmissionStage, "identification", "validation", "diffusion", "dampening") {
 		return invalid("theme.transmission_stage", t.TransmissionStage, "has an unsupported value")
 	}
-	if !snapshotOneOf(t.InvestmentGuidanceAction, "focus", "avoid", "observe", "differentiate") {
+	if !isAllowedValue(t.InvestmentGuidanceAction, "focus", "avoid", "observe", "differentiate") {
 		return invalid("theme.investment_guidance_action", t.InvestmentGuidanceAction, "has an unsupported value")
 	}
-	if !snapshotOneOf(t.TimeHorizonCategory, "short_term", "medium_term", "long_term", "custom") {
+	if !isAllowedValue(t.TimeHorizonCategory, "short_term", "medium_term", "long_term", "custom") {
 		return invalid("theme.time_horizon_category", t.TimeHorizonCategory, "has an unsupported value")
 	}
 	for _, field := range []struct {
@@ -3696,7 +3655,7 @@ func (t SnapshotTheme) validate() error {
 		if impact.DisplayOrder != index+1 {
 			return invalid(path+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
 		}
-		if !snapshotKeyPattern.MatchString(impact.NodeKey) {
+		if !researchKeyPattern.MatchString(impact.NodeKey) {
 			return invalid(path+".node_key", impact.NodeKey, "must match the local key pattern")
 		}
 		if _, duplicate := impactKeys[impact.NodeKey]; duplicate {
@@ -3706,10 +3665,10 @@ func (t SnapshotTheme) validate() error {
 		if err := snapshotRequiredText(path+".display_name", impact.DisplayName, 300); err != nil {
 			return err
 		}
-		if !snapshotOneOf(impact.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
+		if !isAllowedValue(impact.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
 			return invalid(path+".relation_role", impact.RelationRole, "has an unsupported value")
 		}
-		if !snapshotOneOf(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+		if !isAllowedValue(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 			return invalid(path+".impact_direction", impact.ImpactDirection, "has an unsupported value")
 		}
 		if err := snapshotOptionalText(path+".impact_summary", impact.ImpactSummary, 2000); err != nil {
@@ -3746,10 +3705,10 @@ func (t SnapshotReasoningTree) validate(path string, themeEvents map[string]stru
 	if err := snapshotRequiredText(path+".one_line_conclusion", t.OneLineConclusion, 1000); err != nil {
 		return nil, err
 	}
-	if !snapshotOneOf(t.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+	if !isAllowedValue(t.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 		return nil, invalid(path+".impact_direction", t.ImpactDirection, "has an unsupported value")
 	}
-	if !snapshotOneOf(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
+	if !isAllowedValue(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
 		return nil, invalid(path+".impact_strength", t.ImpactStrength, "has an unsupported value")
 	}
 	for _, field := range []struct {
@@ -3768,7 +3727,7 @@ func (t SnapshotReasoningTree) validate(path string, themeEvents map[string]stru
 	}
 	for index, checkpoint := range t.Checkpoints {
 		checkpointPath := fmt.Sprintf("%s.checkpoints[%d]", path, index)
-		if !snapshotOneOf(checkpoint.Type, "event", "relationship", "metric") {
+		if !isAllowedValue(checkpoint.Type, "event", "relationship", "metric") {
 			return nil, invalid(checkpointPath+".type", checkpoint.Type, "has an unsupported value")
 		}
 		if err := snapshotRequiredText(checkpointPath+".summary", checkpoint.Summary, 2000); err != nil {
@@ -3804,7 +3763,7 @@ func (t SnapshotReasoningTree) validate(path string, themeEvents map[string]stru
 		if node.Position != index+1 {
 			return nil, invalid(nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
 		}
-		if !snapshotKeyPattern.MatchString(node.NodeKey) {
+		if !researchKeyPattern.MatchString(node.NodeKey) {
 			return nil, invalid(nodePath+".node_key", node.NodeKey, "must match the local key pattern")
 		}
 		if _, duplicate := nodeKeys[node.NodeKey]; duplicate {
@@ -3822,10 +3781,10 @@ func (n SnapshotNode) validate(path string, root bool) error {
 	if err := snapshotRequiredText(path+".display_name", n.DisplayName, 300); err != nil {
 		return err
 	}
-	if !snapshotOneOf(n.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
+	if !isAllowedValue(n.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 		return invalid(path+".impact_direction", n.ImpactDirection, "has an unsupported value")
 	}
-	if !snapshotOneOf(n.ImpactStrength, "strong", "medium", "weak", "unknown") {
+	if !isAllowedValue(n.ImpactStrength, "strong", "medium", "weak", "unknown") {
 		return invalid(path+".impact_strength", n.ImpactStrength, "has an unsupported value")
 	}
 	for _, field := range []struct {
@@ -3868,7 +3827,7 @@ func validateSnapshotSignals(nodePath string, signals []SnapshotSignal) error {
 		if signal.DisplayOrder != index+1 {
 			return invalid(path+".display_order", fmt.Sprint(signal.DisplayOrder), "must be contiguous from 1")
 		}
-		if !snapshotKeyPattern.MatchString(signal.SignalKey) {
+		if !researchKeyPattern.MatchString(signal.SignalKey) {
 			return invalid(path+".signal_key", signal.SignalKey, "must match the local key pattern")
 		}
 		if _, duplicate := seen[signal.SignalKey]; duplicate {
@@ -3878,7 +3837,7 @@ func validateSnapshotSignals(nodePath string, signals []SnapshotSignal) error {
 		if err := snapshotRequiredText(path+".display_summary", signal.DisplaySummary, 200); err != nil {
 			return err
 		}
-		if !snapshotOneOf(signal.Role, "primary", "supporting", "contradicting") {
+		if !isAllowedValue(signal.Role, "primary", "supporting", "contradicting") {
 			return invalid(path+".role", signal.Role, "has an unsupported value")
 		}
 		if signal.Role == "primary" {
@@ -3890,7 +3849,7 @@ func validateSnapshotSignals(nodePath string, signals []SnapshotSignal) error {
 		if err := snapshotOptionalText(path+".variable_name", signal.VariableName, 200); err != nil {
 			return err
 		}
-		if signal.Direction != nil && !snapshotOneOf(*signal.Direction, "increase", "decrease", "mixed", "unchanged", "uncertain") {
+		if signal.Direction != nil && !isAllowedValue(*signal.Direction, "increase", "decrease", "mixed", "unchanged", "uncertain") {
 			return invalid(path+".direction", *signal.Direction, "has an unsupported value")
 		}
 	}
@@ -3901,14 +3860,14 @@ func validateSnapshotSignals(nodePath string, signals []SnapshotSignal) error {
 }
 
 func validateSnapshotEvent(path, eventID string, evidenceIDs []string, role string) error {
-	if !snapshotUUIDPattern.MatchString(eventID) {
+	if !lowercaseUUIDPattern.MatchString(eventID) {
 		return invalid(path+".event_id", eventID, "must be a standard lowercase UUID")
 	}
-	if !snapshotOneOf(role, "driver", "supporting", "contradicting", "context") {
+	if !isAllowedValue(role, "driver", "supporting", "contradicting", "context") {
 		return invalid(path+".evidence_role", role, "has an unsupported value")
 	}
 	for index, evidenceID := range evidenceIDs {
-		if !snapshotUUIDPattern.MatchString(evidenceID) {
+		if !lowercaseUUIDPattern.MatchString(evidenceID) {
 			return invalid(fmt.Sprintf("%s.evidence_ids[%d]", path, index), evidenceID, "must be a standard lowercase UUID")
 		}
 		if index > 0 && evidenceID <= evidenceIDs[index-1] {
@@ -3973,15 +3932,6 @@ func snapshotOptionalText(path string, value *string, max int) error {
 	return nil
 }
 
-func snapshotOneOf(value string, allowed ...string) bool {
-	for _, candidate := range allowed {
-		if value == candidate {
-			return true
-		}
-	}
-	return false
-}
-
 type GraphSubgraph = entitybiz.ResearchGraphSubgraph
 type GraphEntity = entitybiz.ResearchGraphEntity
 type GraphRelationDefinition = entitybiz.ResearchGraphRelation
@@ -3995,7 +3945,6 @@ type GraphStore interface {
 }
 
 type GraphQuery = entitybiz.ResearchGraphQuery
-type GraphFactEligibilityPolicy = entitybiz.ResearchGraphFactPolicy
 
 const (
 	GraphContractVersion       = "research-graph-search.v1"
@@ -4043,10 +3992,6 @@ type GraphSearchResult struct {
 }
 
 type GraphValidationError = entitybiz.ResearchGraphValidationError
-
-func ApprovedActiveFactPolicy() GraphFactEligibilityPolicy {
-	return entitybiz.ApprovedActiveResearchGraphFactPolicy()
-}
 
 func (s *UseCase) Search(
 	ctx context.Context,
@@ -4110,11 +4055,11 @@ func (s *UseCase) Search(
 			RetryGuidance: "reduce_depth_relation_types_or_chain_scope",
 		}
 	}
-	queryFingerprint, err := fingerprint(normalized)
+	queryFingerprint, err := payloadFingerprint(normalized)
 	if err != nil {
 		return GraphSearchResult{}, err
 	}
-	graphFingerprint, err := fingerprint(graph)
+	graphFingerprint, err := payloadFingerprint(graph)
 	if err != nil {
 		return GraphSearchResult{}, err
 	}
@@ -4173,7 +4118,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 		}
 		seedSet[id] = struct{}{}
 	}
-	seeds := sortedStrings(seedSet)
+	seeds := sortedSet(seedSet)
 	if len(request.RelationFilters) < 1 || len(request.RelationFilters) > GraphMaxRelationFilters {
 		return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{
 			Reason: fmt.Sprintf("relation_filters must contain between 1 and %d filters", GraphMaxRelationFilters),
@@ -4241,7 +4186,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 		IndustryChainEntityID: request.IndustryChainEntityID,
 		NodeBudget:            request.NodeBudget,
 		EdgeBudget:            request.EdgeBudget,
-		FactPolicy:            ApprovedActiveFactPolicy(),
+		FactPolicy:            entitybiz.ApprovedActiveResearchGraphFactPolicy(),
 	}, normalized, nil
 }
 
@@ -4316,22 +4261,4 @@ func normalizeSubgraph(graph GraphSubgraph) GraphSubgraph {
 		graph.IndustryChainGraphEdges = []entitybiz.ResearchGraphIndustryEdge{}
 	}
 	return graph
-}
-
-func sortedStrings(values map[string]struct{}) []string {
-	result := make([]string, 0, len(values))
-	for value := range values {
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
-}
-
-func fingerprint(value any) (string, error) {
-	payload, err := json.Marshal(value)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(payload)
-	return hex.EncodeToString(sum[:]), nil
 }
