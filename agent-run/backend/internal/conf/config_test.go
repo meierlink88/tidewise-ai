@@ -15,6 +15,8 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	t.Setenv("AGENTRUN_CONFIG_DIR", dir)
 	t.Setenv("AGENTRUN_DB_PASSWORD", "dev-password")
+	t.Setenv("AGENTRUN_DB_HOST", "postgres.infrastructure.internal")
+	t.Setenv("AGENTRUN_QDRANT_URL", "http://qdrant.infrastructure.internal:6333")
 	t.Setenv("AGENTRUN_SERVICE_TOKEN", "dev-token")
 
 	cfg, err := Load()
@@ -37,10 +39,13 @@ func TestLoadDefaultsToDevAndUsesFixedServicePort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"postgres://agentrun:dev-password@localhost:5432/tidewise_ai_server", "connect_timeout=5", "sslmode=disable"} {
+	for _, want := range []string{"postgres://agentrun:dev-password@postgres.infrastructure.internal:5432/tidewise_ai_server", "connect_timeout=5", "sslmode=disable"} {
 		if !strings.Contains(databaseURL, want) {
 			t.Fatalf("PostgresURL() = %q, want %q", databaseURL, want)
 		}
+	}
+	if cfg.SemanticRetrieval.QdrantURL != "http://qdrant.infrastructure.internal:6333" {
+		t.Fatalf("Qdrant URL = %q", cfg.SemanticRetrieval.QdrantURL)
 	}
 }
 

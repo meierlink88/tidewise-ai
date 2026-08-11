@@ -181,6 +181,7 @@ jobs:
         if: steps.risks.outputs.container == 'true'
         run: |
           docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet
+          docker compose --env-file infra/local/.env.example -f infra/local/miniapp-builder.compose.yaml --profile miniapp-h5 --profile miniapp-weapp --profile miniapp-tt config --quiet
           docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet
 
   miniapp:
@@ -320,6 +321,19 @@ jobs:
         run: |
           docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
           docker build -f miniapp/backend/Dockerfile -t tidewise-miniapp:ci .
+
+      - name: Build Miniapp frontend builder image
+        if: >-
+          steps.risks.outputs.frontend == 'true' ||
+          steps.risks.outputs.container == 'true'
+        run: |
+          docker build -f miniapp/frontend/Dockerfile -t tidewise-miniapp-frontend:ci .
+
+      - name: Smoke containerized Miniapp platform builds
+        if: >-
+          steps.risks.outputs.frontend == 'true' ||
+          steps.risks.outputs.container == 'true'
+        run: bash scripts/ci/smoke-miniapp-builder.sh
 
       - name: Smoke Miniapp to Data Service
         if: steps.risks.outputs.provider_consumer == 'true'

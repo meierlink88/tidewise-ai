@@ -528,3 +528,10 @@ internal/conf/ Data-only runtime configuration
 ```
 
 `analyse-data-service/backend/migrations/` 与 `analyse-data-service/backend/data/` 是 Data 的统一事实资产，可以保留为 Backend 根资产，但不得被 BFF 直接读取。
+
+## Runtime
+
+Data Server、migration、seed、projector 与审计命令只通过 Data Docker image 和 Compose
+运行。每个环境只保留一份 `configs/config.<environment>.yaml`；local 使用容器可访问的外部
+基础设施 endpoint，不维护宿主机直跑配置。PostgreSQL、Neo4j、Qdrant 不由 Data
+application Compose 创建或持有。这不改变 Data 的 API、数据库或事实 ownership。

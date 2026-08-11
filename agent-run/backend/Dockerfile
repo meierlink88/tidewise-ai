@@ -26,6 +26,7 @@ COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-seman
 COPY --chown=agentrun:agentrun agent-run/backend/configs /app/configs
 
 ENV AGENTRUN_CONFIG_DIR=/app/configs
+ENV APP_ENV=dev
 EXPOSE 9080
 USER agentrun
 ENTRYPOINT ["/app/agentrun"]

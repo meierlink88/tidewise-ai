@@ -121,7 +121,7 @@ func TestDataImageCarriesUATIndustryRelationshipAndGraphAssets(t *testing.T) {
 	for _, required := range []string{
 		"COPY --from=builder /out/industry-relationship-import " + importerBinary,
 		"COPY --from=builder /out/industry-graph-projector " + projectorBinary,
-		"COPY analyse-data-service/backend/data/industry_relationships/2026-07-27-v1 ./data/industry_relationships/2026-07-27-v1",
+		"COPY analyse-data-service/backend/data ./data",
 	} {
 		if !strings.Contains(runtimeStage, required) {
 			t.Fatalf("Data runtime image missing %q", required)
@@ -311,7 +311,7 @@ func TestAgentRunMigrationManifestAccountsForEveryFrozenTrackedFile(t *testing.T
 	}
 }
 
-func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
+func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	repoRoot := repositoryRoot()
 	contents, err := os.ReadFile(filepath.Join(repoRoot, "infra", "local", "docker-compose.yaml"))
 	if err != nil {
@@ -319,13 +319,20 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 	}
 	text := string(contents)
 	for _, required := range []string{
-		"  data:", "  miniapp:", "  adminportal:", "  agentrun:", "  agentrun-db-init:", "  agentrun-migrate:", "  postgres:", "  neo4j:", "  qdrant:",
+		"  data:", "  data-migrate:", "  miniapp:",
+		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:",
 		"context: ../..",
-		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile", "admin-portal/backend/Dockerfile", "agent-run/backend/Dockerfile",
+		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
+		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile", "agent-run/backend/Dockerfile",
 		"tidewise-local", "/healthz", "/readyz",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("local compose missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"\n  postgres:", "\n  neo4j:", "\n  qdrant:", "agentrun-db-init:", "image: postgres:", "image: neo4j:", "image: qdrant/"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("local application Compose owns infrastructure middleware %q", forbidden)
 		}
 	}
 	for _, forbidden := range []string{"ingestion-scheduler", "source-ingest", "ingest-smoke"} {
@@ -342,7 +349,7 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 		}
 	}
 	data := composeServiceSection(t, text, "data")
-	for _, required := range []string{"DATA_NEO4J_HEALTH_USERNAME", "DATA_NEO4J_HEALTH_PASSWORD", "DATA_NEO4J_HEALTH_URI"} {
+	for _, required := range []string{"DATA_NEO4J_HEALTH_USERNAME", "DATA_NEO4J_HEALTH_PASSWORD"} {
 		if !strings.Contains(data, required) {
 			t.Fatalf("Data compose service is missing runtime health dependency %q", required)
 		}
@@ -353,20 +360,36 @@ func TestLocalComposeOwnsApplicationServicesAndDataStores(t *testing.T) {
 		}
 	}
 	agentrun := composeServiceSection(t, text, "agentrun")
-	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs/compose", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "QDRANT_API_KEY", "agentrun_artifacts"} {
+	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs", "AGENTRUN_DB_HOST", "AGENTRUN_QDRANT_URL", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "QDRANT_API_KEY", "agentrun_artifacts"} {
 		if !strings.Contains(agentrun, required) {
 			t.Fatalf("AgentRun compose service missing %q", required)
 		}
 	}
-	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "configs", "compose", "config.local.yaml"))
-	agentRunComposeConfig := readContractFile(t, filepath.Join(repoRoot, "agent-run", "backend", "configs", "compose", "config.dev.yaml"))
+	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "configs", "config.local.yaml"))
+	agentRunComposeConfig := readContractFile(t, filepath.Join(repoRoot, "agent-run", "backend", "configs", "config.dev.yaml"))
 	for service, config := range map[string]string{"Data": dataComposeConfig, "AgentRun": agentRunComposeConfig} {
-		if !strings.Contains(config, "host: postgres") {
-			t.Fatalf("%s local Compose config must use Docker DNS host postgres", service)
+		if !strings.Contains(config, "host: host.docker.internal") {
+			t.Fatalf("%s local config must use a container-reachable external infrastructure host", service)
 		}
 	}
-	if !strings.Contains(data, "TIDEWISE_CONFIG_DIR: /app/configs/compose") {
-		t.Fatal("Data local Compose service must select its Docker-specific YAML configuration")
+	if !strings.Contains(dataComposeConfig, "uri: bolt://host.docker.internal:7687") {
+		t.Fatal("Data local config must use a container-reachable external Neo4j host")
+	}
+	for _, required := range []string{"base_url: http://data:9011", "qdrant_url: http://host.docker.internal:6333"} {
+		if !strings.Contains(agentRunComposeConfig, required) {
+			t.Fatalf("AgentRun local config missing %q", required)
+		}
+	}
+	if !strings.Contains(data, "TIDEWISE_CONFIG_DIR: /app/configs") {
+		t.Fatal("Data local Compose service must use the canonical image config directory")
+	}
+	for _, path := range []string{
+		"analyse-data-service/backend/configs/compose",
+		"agent-run/backend/configs/compose",
+	} {
+		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(path))); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("Docker-only runtime retains duplicate config tree %q", path)
+		}
 	}
 }
 
@@ -389,13 +412,16 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
 		"-f analyse-data-service/backend/Dockerfile",
 		"-f miniapp/backend/Dockerfile",
+		"-f miniapp/frontend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",
 		"-f agent-run/backend/Dockerfile",
 		"Test AgentRun Biz, API and Eino seams",
 		"Test AgentRun Data, migration and provider boundaries",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
+		"docker compose --env-file infra/local/.env.example -f infra/local/miniapp-builder.compose.yaml --profile miniapp-h5 --profile miniapp-weapp --profile miniapp-tt config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
+		"bash scripts/ci/smoke-miniapp-builder.sh",
 		"cache-dependency-path: package-lock.json",
 		"npm run test:miniapp",
 		"npm run test:admin",
@@ -450,7 +476,8 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	}
 	agentRunSmoke := string(agentRunSmokeContents)
 	for _, required := range []string{
-		"dbmigrate -apply",
+		"data-migrate",
+		"agentrun-migrate",
 		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
 		"AGENTRUN_SERVICE_IMAGE=\"tidewise-agentrun:ci\"",
 		"ADMIN_SERVICE_IMAGE=\"tidewise-adminportal:ci\"",
@@ -467,7 +494,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	}
 	smoke := string(smokeContents)
 	for _, required := range []string{
-		"dbmigrate -apply",
+		"data-migrate",
 		"PGOPTIONS",
 		"tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified",
 		"tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified",

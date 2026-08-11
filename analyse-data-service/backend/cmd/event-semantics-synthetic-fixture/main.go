@@ -23,7 +23,7 @@ const syntheticDatabasePrefix = "tw_semantic_acceptance_"
 
 func main() {
 	action := flag.String("action", "", "create-database, drop-database, seed, assert-empty-research, or assert-research-publication")
-	baseURL := flag.String("base-url", "", "loopback PostgreSQL URL for database lifecycle actions")
+	baseURL := flag.String("base-url", "", "external local PostgreSQL URL for database lifecycle actions")
 	targetDatabase := flag.String("target-database", "", "isolated database name for drop-database")
 	flag.Parse()
 
@@ -53,7 +53,7 @@ func main() {
 }
 
 func createDatabase(ctx context.Context, baseURL string) error {
-	parsed, err := validateLoopbackDatabaseURL(baseURL)
+	parsed, err := validateLocalDatabaseURL(baseURL)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func createDatabase(ctx context.Context, baseURL string) error {
 }
 
 func dropDatabase(ctx context.Context, baseURL string, databaseName string) error {
-	parsed, err := validateLoopbackDatabaseURL(baseURL)
+	parsed, err := validateLocalDatabaseURL(baseURL)
 	if err != nil {
 		return err
 	}
@@ -92,15 +92,13 @@ func dropDatabase(ctx context.Context, baseURL string, databaseName string) erro
 	return err
 }
 
-func validateLoopbackDatabaseURL(raw string) (*url.URL, error) {
+func validateLocalDatabaseURL(raw string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
 		return nil, errors.New("fixture database URL must be PostgreSQL")
 	}
-	switch parsed.Hostname() {
-	case "localhost", "127.0.0.1", "::1":
-	default:
-		return nil, errors.New("fixture database URL must use a loopback host")
+	if !conf.IsExternalLocalInfrastructureHost(parsed.Hostname()) {
+		return nil, errors.New("fixture database URL must use the external local PostgreSQL infrastructure host")
 	}
 	if parsed.User == nil || parsed.Path == "" || parsed.Path == "/" {
 		return nil, errors.New("fixture database URL must include credentials and database")
@@ -114,8 +112,7 @@ func openFixtureDatabase(ctx context.Context) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 	if cfg.App.Env != conf.EnvLocal ||
-		cfg.Database.Host != "localhost" && cfg.Database.Host != "127.0.0.1" &&
-			cfg.Database.Host != "::1" ||
+		!conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) ||
 		!strings.HasPrefix(cfg.Database.Name, syntheticDatabasePrefix) {
 		return nil, errors.New("fixture command requires an isolated local Data database")
 	}

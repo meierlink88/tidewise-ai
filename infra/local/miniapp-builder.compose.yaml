@@ -1,0 +1,46 @@
+name: tidewise-miniapp-builder
+
+services:
+  miniapp-h5:
+    profiles: [miniapp-h5]
+    build:
+      context: ../..
+      dockerfile: miniapp/frontend/Dockerfile
+    image: '${MINIAPP_FRONTEND_IMAGE:-tidewise-miniapp-frontend:local}'
+    command: ['npm', '--workspace', '@tidewise/miniapp', 'run', 'dev:h5']
+    ports:
+      - '${MINIAPP_H5_PORT:-10086}:10086'
+    environment:
+      TARO_APP_RESEARCH_SOURCE: '${TARO_APP_RESEARCH_SOURCE:-api}'
+      TARO_APP_MINIAPP_API_BASE_URL: ''
+      TARO_APP_H5_API_PROXY_TARGET: 'http://host.docker.internal:${MINIAPP_SERVICE_PORT:-9012}'
+    volumes:
+      - ../../miniapp/frontend:/workspace/miniapp/frontend
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  miniapp-weapp:
+    profiles: [miniapp-weapp]
+    build:
+      context: ../..
+      dockerfile: miniapp/frontend/Dockerfile
+    image: '${MINIAPP_FRONTEND_IMAGE:-tidewise-miniapp-frontend:local}'
+    command: ['npm', '--workspace', '@tidewise/miniapp', 'run', 'dev:weapp']
+    environment:
+      TARO_APP_RESEARCH_SOURCE: '${TARO_APP_RESEARCH_SOURCE:-api}'
+      TARO_APP_MINIAPP_API_BASE_URL: 'http://127.0.0.1:${MINIAPP_SERVICE_PORT:-9012}'
+    volumes:
+      - ../../miniapp/frontend:/workspace/miniapp/frontend
+
+  miniapp-tt:
+    profiles: [miniapp-tt]
+    build:
+      context: ../..
+      dockerfile: miniapp/frontend/Dockerfile
+    image: '${MINIAPP_FRONTEND_IMAGE:-tidewise-miniapp-frontend:local}'
+    command: ['npm', '--workspace', '@tidewise/miniapp', 'run', 'dev:tt']
+    environment:
+      TARO_APP_RESEARCH_SOURCE: '${TARO_APP_RESEARCH_SOURCE:-api}'
+      TARO_APP_MINIAPP_API_BASE_URL: 'http://127.0.0.1:${MINIAPP_SERVICE_PORT:-9012}'
+    volumes:
+      - ../../miniapp/frontend:/workspace/miniapp/frontend

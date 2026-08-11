@@ -132,7 +132,7 @@ func loadConfiguration(requireTimezone bool) (Config, error) {
 	}
 	configDir := os.Getenv("AGENTRUN_CONFIG_DIR")
 	if configDir == "" {
-		configDir = "configs"
+		configDir = "/app/configs"
 	}
 	configPath := filepath.Join(configDir, fmt.Sprintf("config.%s.yaml", environment))
 	content, err := os.ReadFile(configPath)
@@ -155,8 +155,14 @@ func loadConfiguration(requireTimezone bool) (Config, error) {
 		QdrantAPIKey:     os.Getenv("QDRANT_API_KEY"),
 		EmbeddingAPIKey:  os.Getenv("EMBEDDING_API_KEY"),
 	}
+	if host := strings.TrimSpace(os.Getenv("AGENTRUN_DB_HOST")); host != "" {
+		cfg.Database.Host = host
+	}
 	if baseURL := strings.TrimSpace(os.Getenv("AGENTRUN_DATA_BASE_URL")); baseURL != "" {
 		cfg.Data.BaseURL = baseURL
+	}
+	if qdrantURL := strings.TrimSpace(os.Getenv("AGENTRUN_QDRANT_URL")); qdrantURL != "" {
+		cfg.SemanticRetrieval.QdrantURL = qdrantURL
 	}
 	if requireTimezone {
 		timezone := strings.TrimSpace(os.Getenv("TZ"))

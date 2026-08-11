@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
+func TestLocalApplicationComposeExcludesInfrastructureMiddleware(t *testing.T) {
 	root := repositoryRoot()
 	composePath := filepath.Join(root, "infra", "local", "docker-compose.yaml")
 	readmePath := filepath.Join(root, "infra", "local", "README.md")
@@ -26,24 +26,30 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 
 	for _, want := range []string{
 		"data:",
+		"data-migrate:",
 		"miniapp:",
 		"adminportal:",
+		"admin:",
 		"agentrun:",
-		"agentrun-db-init:",
 		"agentrun-migrate:",
-		"postgres:",
-		"neo4j:",
-		"qdrant:",
-		"qdrant/qdrant:v1.15.5",
-		"NEO4J_AUTH",
+		"host.docker.internal:host-gateway",
 		"${NEO4J_USERNAME",
 		"${NEO4J_PASSWORD",
-		"7474",
 		"7687",
 		"9080",
 	} {
 		if !strings.Contains(composeText, want) {
-			t.Fatalf("neo4j compose missing %q", want)
+			t.Fatalf("application compose missing %q", want)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"\n  postgres:", "\n  neo4j:", "\n  qdrant:", "image: postgres:",
+		"image: neo4j:", "image: qdrant/", "tidewise_postgres_data", "tidewise_neo4j_data",
+		"tidewise_qdrant_data", "agentrun-db-init:",
+	} {
+		if strings.Contains(composeText, forbidden) {
+			t.Fatalf("application Compose packages infrastructure middleware %q", forbidden)
 		}
 	}
 
@@ -57,6 +63,8 @@ func TestLocalInfraDoesNotContainSecrets(t *testing.T) {
 		"AGENTRUN_SERVICE_TOKEN",
 		"EMBEDDING_API_KEY",
 		"ADMIN_SERVICE_TOKEN",
+		"run --rm",
+		"externally provisioned infrastructure",
 	} {
 		if !strings.Contains(readmeText, want) {
 			t.Fatalf("local README missing %q", want)

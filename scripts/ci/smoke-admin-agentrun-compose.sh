@@ -6,26 +6,32 @@ run_suffix="${GITHUB_RUN_ID:-$$}"
 project_name="tidewise-agentrun-smoke-${run_suffix}"
 success_body="/tmp/${project_name}-success.json"
 failure_body="/tmp/${project_name}-unavailable.json"
+data_postgres_fixture="${project_name}-data-postgres-fixture"
+agentrun_postgres_fixture="${project_name}-agentrun-postgres-fixture"
+neo4j_fixture="${project_name}-neo4j-fixture"
+qdrant_fixture="${project_name}-qdrant-fixture"
 
 export COMPOSE_NETWORK_NAME="${project_name}-network"
-export POSTGRES_PORT="${TIDEWISE_SMOKE_POSTGRES_PORT:-55433}"
 export DATA_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_DATA_PORT:-19015}"
 export ADMIN_SERVICE_PORT="${TIDEWISE_SMOKE_ADMIN_PORT:-19013}"
 export AGENTRUN_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_PORT:-19080}"
+qdrant_fixture_port="${TIDEWISE_SMOKE_QDRANT_PORT:-56333}"
 export DATA_SERVICE_IMAGE="tidewise-data:ci"
 export ADMIN_SERVICE_IMAGE="tidewise-adminportal:ci"
 export AGENTRUN_SERVICE_IMAGE="tidewise-agentrun:ci"
-export POSTGRES_USER="tidewise"
 export TIDEWISW_DB_PASSWORD="compose-smoke-postgres-password"
-export POSTGRES_DB="tidewise_local"
-export AGENTRUN_DATABASE_USER="agentrun"
+export TIDEWISE_DB_HOST="$data_postgres_fixture"
 export AGENTRUN_DB_PASSWORD="compose-smoke-agentrun-database-password"
-export AGENTRUN_DATABASE_NAME="tidewise_ai_server"
+export AGENTRUN_DB_HOST="$agentrun_postgres_fixture"
+export AGENTRUN_QDRANT_URL="http://${qdrant_fixture}:6333"
 export AGENTRUN_SERVICE_TOKEN="compose-smoke-agentrun-service-token"
 export ADMIN_SERVICE_TOKEN="compose-smoke-admin-browser-token"
 export DATA_SERVICE_TOKEN="compose-smoke-data-service-token"
 export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="compose-smoke-neo4j-password"
+export DATA_NEO4J_HEALTH_URI="bolt://${neo4j_fixture}:7687"
+export DATA_NEO4J_HEALTH_USERNAME="neo4j"
+export DATA_NEO4J_HEALTH_PASSWORD="$NEO4J_PASSWORD"
 
 compose=(
   docker compose
@@ -38,13 +44,51 @@ cleanup() {
   set +e
   rm -f -- "$success_body" "$failure_body"
   "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1
+  docker rm -f \
+    "$data_postgres_fixture" "$agentrun_postgres_fixture" \
+    "$neo4j_fixture" "$qdrant_fixture" >/dev/null 2>&1
+  docker network rm "$COMPOSE_NETWORK_NAME" >/dev/null 2>&1
 }
 trap cleanup EXIT
 
-"${compose[@]}" up -d --wait postgres
+"${compose[@]}" create --no-build data-migrate >/dev/null
+docker run -d --name "$data_postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
+  -e POSTGRES_USER=tidewise \
+  -e "POSTGRES_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
+  -e POSTGRES_DB=tidewise_local \
+  postgres:16 >/dev/null
+docker run -d --name "$agentrun_postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
+  -e POSTGRES_USER=agentrun \
+  -e "POSTGRES_PASSWORD=${AGENTRUN_DB_PASSWORD}" \
+  -e POSTGRES_DB=tidewise_ai_server \
+  postgres:16 >/dev/null
+docker run -d --name "$neo4j_fixture" --network "$COMPOSE_NETWORK_NAME" \
+  -e "NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}" \
+  neo4j:5-community >/dev/null
+docker run -d --name "$qdrant_fixture" --network "$COMPOSE_NETWORK_NAME" \
+  -p "127.0.0.1:${qdrant_fixture_port}:6333" \
+  qdrant/qdrant:v1.15.5 >/dev/null
+for _ in $(seq 1 60); do
+  if docker exec "$data_postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null &&
+    docker exec "$agentrun_postgres_fixture" pg_isready -U agentrun -d tidewise_ai_server >/dev/null &&
+    docker exec "$neo4j_fixture" wget -q --spider http://127.0.0.1:7474 &&
+    curl --fail --silent "http://127.0.0.1:${qdrant_fixture_port}/readyz" >/dev/null; then
+    break
+  fi
+  sleep 1
+done
+docker exec "$data_postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null
+docker exec "$agentrun_postgres_fixture" pg_isready -U agentrun -d tidewise_ai_server >/dev/null
+docker exec "$neo4j_fixture" wget -q --spider http://127.0.0.1:7474
+curl --fail --silent "http://127.0.0.1:${qdrant_fixture_port}/readyz" >/dev/null
 "${compose[@]}" run --rm --no-deps \
   -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
-  data /usr/local/bin/dbmigrate -apply >/dev/null
+  data-migrate >/dev/null
+"${compose[@]}" run --rm --no-deps agentrun-migrate >/dev/null
+printf '%s' 'compose-smoke-deepseek-key' | "${compose[@]}" run --rm --no-deps -T \
+  --entrypoint /app/agentrun-config agentrun \
+  model set --provider deepseek --base-url https://api.deepseek.com \
+  --model deepseek-chat --api-key-stdin >/dev/null
 "${compose[@]}" up -d --wait --no-build agentrun
 "${compose[@]}" up -d --wait --no-build --no-deps adminportal
 

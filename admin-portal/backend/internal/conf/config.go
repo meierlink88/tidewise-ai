@@ -137,7 +137,7 @@ func resolveConfigDir(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	return "admin-portal/backend/configs"
+	return "/app/configs"
 }
 
 func (c ServerConfig) Validate() error {

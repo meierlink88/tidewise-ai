@@ -72,3 +72,9 @@ _Avoid_: 回显完整 Key、用空输入意外清除 Key、动态新增或删除
 - AgentRun 拥有的执行监控事实、时间窗口语义和原始状态分组。
 
 Admin 当前可以没有独立业务数据库。未来确需 Admin-owned 审计或管理数据时，必须明确其数据 owner 和 API 边界。
+
+## Runtime
+
+Admin Application Backend 与 Admin Portal Frontend 只通过各自 Docker image 和 Compose
+运行。Frontend local/UAT 均使用 unprivileged nginx image，并只获得公开 Admin Backend
+URL；浏览器和 Frontend container 不获得下游 Service Token 或数据库凭据。

@@ -14,6 +14,7 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
 	t.Setenv("APP_ENV", "local")
 	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
+	t.Setenv("TIDEWISE_DB_HOST", "postgres.infrastructure.internal")
 	t.Setenv("DATA_SERVICE_TOKEN", "service-token")
 	t.Setenv("DATA_NEO4J_HEALTH_URI", "bolt://neo4j.internal:7687")
 	t.Setenv("DATA_NEO4J_HEALTH_USERNAME", "health-reader")
@@ -28,7 +29,7 @@ func TestLoadReadsOnlyDataServiceConfiguration(t *testing.T) {
 	if cfg.App.Name != ServiceName || cfg.App.Env != EnvLocal {
 		t.Fatalf("app = %#v", cfg.App)
 	}
-	if cfg.Database.Name != "tidewise_local" || cfg.Migration.Directory != "migrations" {
+	if cfg.Database.Host != "postgres.infrastructure.internal" || cfg.Database.Name != "tidewise_local" || cfg.Migration.Directory != "migrations" {
 		t.Fatalf("Data configuration = %#v/%#v", cfg.Database, cfg.Migration)
 	}
 	if cfg.Secrets.DatabasePassword != "database-secret" || cfg.Secrets.ServiceToken != "service-token" {
@@ -61,6 +62,21 @@ func TestLoadDatabaseOperationRequiresOnlyDatabasePassword(t *testing.T) {
 	if _, err := LoadDatabaseOperation(); err == nil ||
 		!strings.Contains(err.Error(), "TIDEWISW_DB_PASSWORD") {
 		t.Fatalf("LoadDatabaseOperation() error = %v, want missing database password", err)
+	}
+}
+
+func TestLoadDatabaseOperationRequiresEncryptedUATDatabase(t *testing.T) {
+	uatConfig := strings.Replace(fullConfigYAML(), "env: local", "env: uat", 1)
+	dir := writeTestConfig(t, uatConfig)
+	if err := os.Rename(filepath.Join(dir, "config.local.yaml"), filepath.Join(dir, "config.uat.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TIDEWISE_CONFIG_DIR", dir)
+	t.Setenv("APP_ENV", "uat")
+	t.Setenv("TIDEWISW_DB_PASSWORD", "database-secret")
+
+	if _, err := LoadDatabaseOperation(); err == nil || !strings.Contains(err.Error(), "ssl_mode=require") {
+		t.Fatalf("LoadDatabaseOperation() error = %v, want encrypted UAT rejection", err)
 	}
 }
 

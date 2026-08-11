@@ -137,3 +137,10 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 本次源码治理不把 Miniapp Frontend 接入真实 BFF；该行为变更单独实施。
 
 推理树前端与首页 Theme 列表共用构建期变量 `TARO_APP_RESEARCH_SOURCE`。`mock` 模式下两者都使用匹配的 Mock Adapter，`api` 模式下两者都调用真实 Miniapp BFF；不增加推理树专属开关，也不允许 API 失败后静默回退到 mock。TW-06 使用共享 fixture 验收页面状态，并实现 API Adapter 及合同测试；真实 Data、BFF 与小程序全链路验收留给 TW-08。
+
+## Runtime
+
+Miniapp Application Backend 只通过其 Docker image 和 Compose 运行。Miniapp Frontend 不是
+常驻 Service；Taro H5/weapp/tt watch/build 进程在 Node builder container 中运行，并把
+`dist/<platform>` 写回宿主机供微信或抖音开发者工具读取。该运行方式不改变页面、Adapter、
+平台或 Backend 边界。

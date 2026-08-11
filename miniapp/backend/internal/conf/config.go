@@ -102,7 +102,7 @@ func resolveConfigDir(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	return "miniapp/backend/configs"
+	return "/app/configs"
 }
 
 func (c ServerConfig) Validate() error {

@@ -7,9 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
@@ -168,22 +166,13 @@ func validateResetTarget(cfg conf.Config) error {
 	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research publication development reset is local-only, got %q", cfg.App.Env)
 	}
-	if !isLoopbackHost(cfg.Database.Host) {
-		return fmt.Errorf("research publication development reset requires a loopback PostgreSQL host")
+	if !conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) {
+		return fmt.Errorf("research publication development reset requires the external local PostgreSQL infrastructure host")
 	}
 	if cfg.Database.Name != localDatabaseName {
 		return fmt.Errorf("research publication development reset requires database tidewise_local")
 	}
 	return nil
-}
-
-func isLoopbackHost(host string) bool {
-	host = strings.TrimSpace(host)
-	if strings.EqualFold(host, "localhost") {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }
 
 func runReset(ctx context.Context, db *sql.DB, options resetOptions) (resetReport, error) {

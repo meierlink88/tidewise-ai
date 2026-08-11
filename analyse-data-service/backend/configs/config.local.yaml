@@ -9,7 +9,7 @@ server:
 log:
   level: debug
 database:
-  host: localhost
+  host: host.docker.internal
   port: 5432
   name: tidewise_local
   user: tidewise
@@ -19,7 +19,7 @@ database:
   conn_max_lifetime_seconds: 300
   connect_timeout_seconds: 5
 neo4j_health:
-  uri: bolt://127.0.0.1:7687
+  uri: bolt://host.docker.internal:7687
   database: neo4j
   timeout_seconds: 1
 migration:

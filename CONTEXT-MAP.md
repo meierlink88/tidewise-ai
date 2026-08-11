@@ -6,12 +6,12 @@ API 协作的边界。
 
 ## Contexts
 
-| Context      | 类型     | 主要职责                                                 | 详细说明                               |
-| ------------ | -------- | -------------------------------------------------------- | -------------------------------------- |
-| Miniapp      | 产品系统 | `miniapp/frontend` 与 `miniapp/backend`                  | `docs/contexts/miniapp/CONTEXT.md`     |
-| Admin Portal | 产品系统 | `admin-portal/frontend` 与 `admin-portal/backend`        | `docs/contexts/adminportal/CONTEXT.md` |
-| Data         | 领域系统 | `analyse-data-service/backend`、数据事实、导入和查询能力 | `docs/contexts/data/CONTEXT.md`        |
-| AgentRun     | 遗留 Agent 平台 | `agent-run/backend`、待独立退役的执行与 Artifact 能力 | `docs/contexts/agentrun/CONTEXT.md`    |
+| Context      | 类型            | 主要职责                                                 | 详细说明                               |
+| ------------ | --------------- | -------------------------------------------------------- | -------------------------------------- |
+| Miniapp      | 产品系统        | `miniapp/frontend` 与 `miniapp/backend`                  | `docs/contexts/miniapp/CONTEXT.md`     |
+| Admin Portal | 产品系统        | `admin-portal/frontend` 与 `admin-portal/backend`        | `docs/contexts/adminportal/CONTEXT.md` |
+| Data         | 领域系统        | `analyse-data-service/backend`、数据事实、导入和查询能力 | `docs/contexts/data/CONTEXT.md`        |
+| AgentRun     | 遗留 Agent 平台 | `agent-run/backend`、待独立退役的执行与 Artifact 能力    | `docs/contexts/agentrun/CONTEXT.md`    |
 
 `analyse-data-service` 是工程应用名，领域术语仍为 Data Domain Service。AgentRun 的既有
 运行时、PostgreSQL、migration ledger 与 Artifact 在退役前继续物理隔离，但新的完整
@@ -63,3 +63,14 @@ Data Domain Service
 - `docs/adr/0006-kratos-official-service-layout.md`
 - `docs/adr/0007-app-oriented-monorepo.md`
 - `docs/adr/0011-data-owns-raw-evidence-and-evidence-publication.md`
+- `docs/adr/0012-docker-only-service-runtime.md`
+
+## Runtime
+
+All deployable application services and service-owned operational processes run through their
+Docker images and Docker Compose. Backend services keep one YAML per application environment;
+local/development YAML uses container-reachable external infrastructure endpoints and no
+host-runtime configuration tree is maintained. PostgreSQL、Neo4j、Qdrant 不属于 Tidewise
+application Compose/release artifact。Tidewise 服务之间仍使用 Compose DNS。
+Miniapp Frontend is a containerized Taro build/watch process rather than an HTTP service; platform
+developer tools remain host applications reading the generated `dist` output.

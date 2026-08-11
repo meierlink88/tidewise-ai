@@ -212,6 +212,14 @@ AgentRun 在 Runtime、Application/Use Case、Worker Cycle 和已提交状态迁
 凭据。日志用于核验，不参与调度、幂等、重试、对账或发布正确性。
 _Avoid_: 数据库审计事实、状态机输入、Eino node callback、日志驱动业务恢复
 
+## Runtime
+
+AgentRun Server、migration、configuration、Artifact 与审计命令只通过 AgentRun Docker
+image 和 Compose 运行。每个环境只保留一份 `configs/config.<environment>.yaml`；dev 使用
+容器可访问的外部基础设施 endpoint，不维护宿主机直跑配置。PostgreSQL、Qdrant 不进入
+AgentRun application Compose/release artifact。Docker 化不改变 AgentRun 的独立数据库、
+Artifact volume、API 或待退役 ownership。
+
 ## Language
 
 **瓶颈假设（Bottleneck Thesis）**:

@@ -16,10 +16,10 @@ RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 
 COPY --from=builder /out/miniapp-service /usr/local/bin/miniapp-service
-COPY miniapp/backend/configs ./config
+COPY miniapp/backend/configs ./configs
 
 ENV APP_ENV=local
-ENV TIDEWISE_CONFIG_DIR=/app/config
+ENV TIDEWISE_CONFIG_DIR=/app/configs
 EXPOSE 9012
 
 USER tidewise
