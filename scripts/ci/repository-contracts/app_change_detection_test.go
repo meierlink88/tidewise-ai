@@ -111,16 +111,28 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			want:  map[string]bool{"default": true},
 		},
 		{
-			name:  "Data migration change selects real Data and migration boundaries",
+			name:  "Data API change does not select migration seams",
 			scope: "data",
-			path:  "analyse-data-service/backend/migrations/000099_example.sql",
-			want:  map[string]bool{"default": true, "data": true, "migration": true},
+			path:  "analyse-data-service/backend/api/data/v1/event/http.go",
+			want:  map[string]bool{"default": true, "provider_consumer": true},
 		},
 		{
-			name:  "Data migration implementation selects the migration suite",
+			name:  "Data adapter change does not select migration seams",
+			scope: "data",
+			path:  "analyse-data-service/backend/internal/data/evidence/data.go",
+			want:  map[string]bool{"default": true, "data": true},
+		},
+		{
+			name:  "Data migration SQL selects only the forward smoke",
+			scope: "data",
+			path:  "analyse-data-service/backend/migrations/000099_example.sql",
+			want:  map[string]bool{"migration": true, "migration_smoke": true},
+		},
+		{
+			name:  "Data migration framework selects unit tests and forward smoke",
 			scope: "data",
 			path:  "analyse-data-service/backend/internal/data/dbmigration/executor.go",
-			want:  map[string]bool{"default": true, "data": true, "migration": true},
+			want:  map[string]bool{"migration": true, "migration_smoke": true, "migration_framework": true},
 		},
 		{
 			name:  "Miniapp frontend change does not select Backend suites",
@@ -176,6 +188,7 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			path:  "go.mod",
 			want: map[string]bool{
 				"default": true, "data": true, "migration": true,
+				"migration_smoke": true, "migration_framework": true,
 				"conf_lifecycle": true, "provider_consumer": true,
 			},
 		},
@@ -255,7 +268,7 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			}
 			got := parseRiskOutputs(string(result))
 			for _, risk := range []string{
-				"default", "frontend", "data", "migration", "conf_lifecycle",
+				"default", "frontend", "data", "migration", "migration_smoke", "migration_framework", "conf_lifecycle",
 				"provider_consumer", "container", "architecture",
 			} {
 				if got[risk] != tt.want[risk] {

@@ -41,7 +41,9 @@ Frontend 与 Agent/Eino 的默认 seam、命令和平台条件分别由对应技
 | 变更风险                                   | 必要验证                  |
 | ------------------------------------------ | ------------------------- |
 | SQL、事务、Repository、缓存或远程 Client   | Data 集成或 Adapter 合同  |
-| Schema、约束、索引或 forward migration     | Migration/Schema          |
+| 领域依赖的 Schema、约束或索引行为          | Data 真实持久化边界        |
+| 新增 forward migration SQL                 | 单一全账本 forward smoke   |
+| 自研 migration 控制层                      | 框架单测与 forward smoke   |
 | 配置默认值、必填项、环境覆盖或 Secret 校验 | Conf                      |
 | 启动失败、信号、优雅停机或资源释放         | Lifecycle                 |
 | 运行时依赖方向或边界                       | Architecture/import       |
@@ -49,6 +51,18 @@ Frontend 与 Agent/Eino 的默认 seam、命令和平台条件分别由对应技
 | Binary、Docker 或部署入口                  | Build/container smoke     |
 
 未触及对应风险时，不因一次普通业务变更运行或新增该 seam。
+
+### Migration
+
+版本化 migration 是由 Goose 按账本顺序执行的一次性 forward artifact。新增 migration
+只提交 SQL 和既有发布门禁要求的风险元数据，不为版本号、文件内容或单次业务场景新增 Go
+测试。CI 通过一个稳定的临时 PostgreSQL smoke 调用正式 migration 入口应用完整账本；新增
+SQL 只触发该 smoke。
+
+`internal/data/dbmigration` 只测试仓库自研的 source、readiness、lock、apply orchestration
+等控制层行为，并使用合成 fixture，不枚举真实 migration 文件。只有控制层源码变化才运行
+这些框架测试，并同时运行完整账本 smoke。Schema 约束对领域读写的可观察影响归属对应 Data
+边界测试，不复制为 migration 文件合同测试。
 
 ## Do Not Test By Default
 
@@ -74,5 +88,5 @@ Frontend 与 Agent/Eino 的默认 seam、命令和平台条件分别由对应技
 ## Existing Test Cleanup
 
 删除或合并既有测试时，记录为 `duplicated-by-stronger-seam`、`implementation-only`、
-`obsolete` 或 `consolidated`。SQL、事务、constraint、复杂查询、migration、远程协议与错误清洗
-只保留最少的真实边界用例。
+`obsolete` 或 `consolidated`。SQL、事务、constraint、复杂查询、远程协议与错误清洗只保留
+最少的真实边界用例；migration 版本专属测试由通用 forward smoke 取代。

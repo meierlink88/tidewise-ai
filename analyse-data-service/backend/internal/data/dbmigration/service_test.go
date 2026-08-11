@@ -8,6 +8,14 @@ import (
 	"testing"
 )
 
+func migrationVersions(migrations []Migration) []string {
+	versions := make([]string, 0, len(migrations))
+	for _, migration := range migrations {
+		versions = append(versions, migration.Version)
+	}
+	return versions
+}
+
 func TestServiceCheckOnlyReportsPending(t *testing.T) {
 	executor := &fakeExecutor{
 		version: "0",

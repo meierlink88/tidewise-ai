@@ -24,10 +24,16 @@ matches() {
   grep -Eq "$1" <<<"$changed_paths"
 }
 
+matches_excluding() {
+  grep -E "$1" <<<"$changed_paths" | grep -Ev "$2" >/dev/null
+}
+
 default=false
 frontend=false
 data=false
 migration=false
+migration_smoke=false
+migration_framework=false
 conf_lifecycle=false
 provider_consumer=false
 container=false
@@ -39,14 +45,18 @@ container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|ua
 
 case "$scope" in
   data)
-    if matches '^analyse-data-service/backend/(api/|cmd/|configs/|internal/|migrations/)' || matches "$shared_go"; then
+    if matches_excluding '^analyse-data-service/backend/(api/|cmd/|configs/|internal/)' '^analyse-data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then
       default=true
     fi
-    if matches '^analyse-data-service/backend/(internal/data/|migrations/)' || matches "$shared_go"; then
+    if matches_excluding '^analyse-data-service/backend/internal/data/' '^analyse-data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^analyse-data-service/backend/(migrations/|internal/data/dbmigration/)' || matches "$shared_go"; then
+    if matches '^analyse-data-service/backend/(migrations/.*\.sql$|internal/data/dbmigration/.*\.go$)' || matches "$shared_go"; then
       migration=true
+      migration_smoke=true
+    fi
+    if matches '^analyse-data-service/backend/internal/data/dbmigration/.*\.go$' || matches "$shared_go"; then
+      migration_framework=true
     fi
     if matches '^analyse-data-service/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
       conf_lifecycle=true
@@ -130,6 +140,8 @@ esac
   echo "frontend=$frontend"
   echo "data=$data"
   echo "migration=$migration"
+  echo "migration_smoke=$migration_smoke"
+  echo "migration_framework=$migration_framework"
   echo "conf_lifecycle=$conf_lifecycle"
   echo "provider_consumer=$provider_consumer"
   echo "container=$container"
