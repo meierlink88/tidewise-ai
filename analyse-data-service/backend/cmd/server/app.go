@@ -73,10 +73,22 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 			return nil, nil, fmt.Errorf("configure Data Neo4j health probe: %w", err)
 		}
 	}
+	evidencePublications, err := evidencepublication.NewService(evidencepublicationdata.NewRepository(db))
+	if err != nil {
+		var neo4jCloseErr error
+		if neo4jHealth != nil {
+			neo4jCloseErr = neo4jHealth.Close(context.Background())
+		}
+		return nil, nil, errors.Join(
+			fmt.Errorf("configure Evidence Publication service: %w", err),
+			neo4jCloseErr,
+			db.Close(),
+		)
+	}
 
 	application := service.NewDataService(service.Dependencies{
 		EventPublications:       eventpublication.NewService(eventpublicationdata.NewRepository(db)),
-		EvidencePublications:    evidencepublication.NewService(evidencepublicationdata.NewRepository(db)),
+		EvidencePublications:    evidencePublications,
 		EventTagCatalog:         eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
 		EventSemantics:          eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
 		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),

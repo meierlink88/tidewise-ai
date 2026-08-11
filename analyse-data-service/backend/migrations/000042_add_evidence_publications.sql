@@ -25,9 +25,15 @@ CREATE TABLE raw_evidences (
     CONSTRAINT chk_raw_evidences_source_url CHECK (btrim(source_url) <> ''),
     CONSTRAINT chk_raw_evidences_title CHECK (title IS NULL OR btrim(title) <> ''),
     CONSTRAINT chk_raw_evidences_raw_text CHECK (btrim(raw_text) <> ''),
+    CONSTRAINT chk_raw_evidences_quoted_source_id CHECK (
+        quoted_source_id IS NULL OR btrim(quoted_source_id) <> ''
+    ),
+    CONSTRAINT chk_raw_evidences_quoted_source_name CHECK (
+        quoted_source_name IS NULL OR btrim(quoted_source_name) <> ''
+    ),
     CONSTRAINT chk_raw_evidences_origin CHECK (
         (is_original AND quoted_source_id IS NULL AND quoted_source_name IS NULL)
-        OR (NOT is_original AND quoted_source_name IS NOT NULL AND btrim(quoted_source_name) <> '')
+        OR (NOT is_original AND quoted_source_name IS NOT NULL)
     ),
     CONSTRAINT chk_raw_evidences_keywords_one_dimension CHECK (
         COALESCE(array_ndims(keywords), 1) = 1
@@ -35,25 +41,25 @@ CREATE TABLE raw_evidences (
 );
 
 COMMENT ON TABLE raw_evidences IS '完整原始文章或原始证据；由采集发布方提交，Data Service 权威保存。';
-COMMENT ON COLUMN raw_evidences.raw_evidence_id IS '发布方提供的 Raw Evidence 稳定自然身份。';
-COMMENT ON COLUMN raw_evidences.source_id IS '原始材料的信源 ID。';
-COMMENT ON COLUMN raw_evidences.source_name IS '原始材料的信源名称。';
-COMMENT ON COLUMN raw_evidences.source_level IS '信源等级：L1_OFFICIAL/L2_WIRE/L3_MEDIA/L4_SOCIAL。';
-COMMENT ON COLUMN raw_evidences.source_url IS '原始材料链接。';
-COMMENT ON COLUMN raw_evidences.is_original IS '当前信源是否为原创来源。';
-COMMENT ON COLUMN raw_evidences.quoted_source_id IS '转载材料的上游信源 ID。';
-COMMENT ON COLUMN raw_evidences.quoted_source_name IS '转载材料的上游信源名称。';
-COMMENT ON COLUMN raw_evidences.title IS '原始材料标题。';
-COMMENT ON COLUMN raw_evidences.raw_text IS '完整原文正文。';
-COMMENT ON COLUMN raw_evidences.published_at IS '文章发布时间；不得替代 Evidence 事实发生时间。';
-COMMENT ON COLUMN raw_evidences.collected_at IS '采集完成时间。';
-COMMENT ON COLUMN raw_evidences.content_hash IS 'Data 从 raw_text 生成的 SHA-256。';
+COMMENT ON COLUMN raw_evidences.raw_evidence_id IS '原始证据唯一标识。';
+COMMENT ON COLUMN raw_evidences.source_id IS '采集信源ID。';
+COMMENT ON COLUMN raw_evidences.source_name IS '采集信源名称，如东财、同花顺、BBC。';
+COMMENT ON COLUMN raw_evidences.source_level IS '采集信源固定等级：L1_OFFICIAL、L2_WIRE、L3_MEDIA、L4_SOCIAL。';
+COMMENT ON COLUMN raw_evidences.source_url IS '当前信源发布文章的原始链接。';
+COMMENT ON COLUMN raw_evidences.is_original IS '是否由当前source原创发布；FALSE表示转载其他信源内容。';
+COMMENT ON COLUMN raw_evidences.quoted_source_id IS '转载上游信源ID；原创内容为空。';
+COMMENT ON COLUMN raw_evidences.quoted_source_name IS '转载上游信源名称；原创内容为空。';
+COMMENT ON COLUMN raw_evidences.title IS '原始文章标题。';
+COMMENT ON COLUMN raw_evidences.raw_text IS '原始文章完整正文。';
+COMMENT ON COLUMN raw_evidences.published_at IS '原始文章发布时间；无法确定时为空。';
+COMMENT ON COLUMN raw_evidences.collected_at IS '系统采集时间，默认NOW()。';
+COMMENT ON COLUMN raw_evidences.content_hash IS '根据raw_text逐字自动计算的SHA-256内容哈希。';
 COMMENT ON COLUMN raw_evidences.keywords IS '发布方生成的阅读辅助关键词；Data 原样有序保存。';
 
 CREATE TABLE evidences (
     evidence_id VARCHAR(32) PRIMARY KEY,
-    raw_evidence_id VARCHAR(32) NOT NULL REFERENCES raw_evidences(raw_evidence_id),
-    split_order INTEGER NOT NULL,
+    raw_evidence_id VARCHAR(32) NOT NULL REFERENCES raw_evidences(raw_evidence_id) ON DELETE RESTRICT,
+    split_order INTEGER NOT NULL DEFAULT 0,
     is_split BOOLEAN NOT NULL,
     layer_type VARCHAR(10) NOT NULL,
     source_who TEXT,
@@ -100,25 +106,25 @@ CREATE INDEX idx_evidences_expression_key ON evidences (expression_key);
 CREATE INDEX idx_evidences_raw_evidence_id ON evidences (raw_evidence_id);
 
 COMMENT ON TABLE evidences IS '从 Raw Evidence 清洗得到的、可直接消费的原子 Evidence。';
-COMMENT ON COLUMN evidences.evidence_id IS '发布方提供的 Evidence 稳定身份。';
-COMMENT ON COLUMN evidences.raw_evidence_id IS '父 Raw Evidence 身份。';
-COMMENT ON COLUMN evidences.split_order IS '同一 Raw Evidence 内从 0 连续的拆分顺序。';
+COMMENT ON COLUMN evidences.evidence_id IS '原子证据唯一标识。';
+COMMENT ON COLUMN evidences.raw_evidence_id IS '所属原始证据ID。';
+COMMENT ON COLUMN evidences.split_order IS '在原始证据中的主题拆分顺序，从0开始。';
 COMMENT ON COLUMN evidences.is_split IS 'Data 根据完整发布集合基数派生；一对一为 false，一对多为 true。';
-COMMENT ON COLUMN evidences.layer_type IS '5W1H 层级：SINGLE 或 DOUBLE。';
-COMMENT ON COLUMN evidences.source_who IS '第一层 5W1H：谁。';
-COMMENT ON COLUMN evidences.source_what IS '第一层 5W1H：发生了什么。';
-COMMENT ON COLUMN evidences.source_when IS '第一层结构化事实发生时间。';
-COMMENT ON COLUMN evidences.source_when_raw IS '第一层原始时间表达。';
-COMMENT ON COLUMN evidences.source_where IS '第一层 5W1H：何地。';
-COMMENT ON COLUMN evidences.source_why IS '第一层 5W1H：为何。';
-COMMENT ON COLUMN evidences.source_how IS '第一层 5W1H：如何、程度或数量。';
-COMMENT ON COLUMN evidences.source_who_core IS '第二层核心 5W1H：谁。';
-COMMENT ON COLUMN evidences.source_what_core IS '第二层核心 5W1H：发生了什么。';
-COMMENT ON COLUMN evidences.source_when_core IS '第二层核心结构化事实发生时间。';
-COMMENT ON COLUMN evidences.source_when_raw_core IS '第二层核心原始时间表达。';
-COMMENT ON COLUMN evidences.source_where_core IS '第二层核心 5W1H：何地。';
-COMMENT ON COLUMN evidences.source_why_core IS '第二层核心 5W1H：为何。';
-COMMENT ON COLUMN evidences.source_how_core IS '第二层核心 5W1H：如何、程度或数量。';
+COMMENT ON COLUMN evidences.layer_type IS '语义层数：SINGLE表示仅第一层，DOUBLE表示同时包含第二层核心语义。';
+COMMENT ON COLUMN evidences.source_who IS '第一层5W1H：谁。';
+COMMENT ON COLUMN evidences.source_what IS '第一层5W1H：发生了什么。';
+COMMENT ON COLUMN evidences.source_when IS '第一层5W1H：结构化发生时间。';
+COMMENT ON COLUMN evidences.source_when_raw IS '第一层5W1H：原始时间表达。';
+COMMENT ON COLUMN evidences.source_where IS '第一层5W1H：何地。';
+COMMENT ON COLUMN evidences.source_why IS '第一层5W1H：为何。';
+COMMENT ON COLUMN evidences.source_how IS '第一层5W1H：如何、程度或数量。';
+COMMENT ON COLUMN evidences.source_who_core IS '第二层核心5W1H：谁。';
+COMMENT ON COLUMN evidences.source_what_core IS '第二层核心5W1H：发生了什么。';
+COMMENT ON COLUMN evidences.source_when_core IS '第二层核心5W1H：结构化发生时间。';
+COMMENT ON COLUMN evidences.source_when_raw_core IS '第二层核心5W1H：原始时间表达。';
+COMMENT ON COLUMN evidences.source_where_core IS '第二层核心5W1H：何地。';
+COMMENT ON COLUMN evidences.source_why_core IS '第二层核心5W1H：为何。';
+COMMENT ON COLUMN evidences.source_how_core IS '第二层核心5W1H：如何、程度或数量。';
 COMMENT ON COLUMN evidences.expression_fingerprint IS '确定性规范化后的可读原子事实表达。';
 COMMENT ON COLUMN evidences.expression_key IS '发布方提供的稳定机器去重键；允许多条 Evidence 共享。';
 COMMENT ON COLUMN evidences.fingerprint_version IS '表达规范化或哈希算法版本。';

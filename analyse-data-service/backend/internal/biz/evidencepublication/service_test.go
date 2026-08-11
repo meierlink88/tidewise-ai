@@ -7,9 +7,15 @@ import (
 	"time"
 )
 
+func TestNewServiceRejectsMissingStore(t *testing.T) {
+	if _, err := NewService(nil); err == nil {
+		t.Fatal("NewService(nil) error = nil")
+	}
+}
+
 func TestPublishRawEvidenceCreatesThenReusesAndPreservesKeywords(t *testing.T) {
 	store := newMemoryStore()
-	service := NewService(store)
+	service := mustNewService(t, store)
 	ids := []string{
 		"11111111-1111-4111-8111-111111111111",
 		"22222222-2222-4222-8222-222222222222",
@@ -51,11 +57,34 @@ func TestPublishRawEvidenceCreatesThenReusesAndPreservesKeywords(t *testing.T) {
 	}
 }
 
+func TestPublishRawEvidenceRejectsIdentityDriftAndInvalidOrigin(t *testing.T) {
+	service := mustNewService(t, newMemoryStore())
+	raw := validRawEvidence()
+	if _, err := service.PublishRawEvidence(context.Background(), "publisher", raw); err != nil {
+		t.Fatal(err)
+	}
+	drift := raw
+	drift.RawText = "different full article"
+	_, err := service.PublishRawEvidence(context.Background(), "publisher", drift)
+	var conflict *ConflictError
+	if !errors.As(err, &conflict) || !hasIssueCode(conflict.Issues, IssueRawEvidenceConflict) {
+		t.Fatalf("drift error = %#v", err)
+	}
+
+	invalidOrigin := validRawEvidence()
+	invalidOrigin.QuotedSourceName = stringPointer("Upstream Wire")
+	_, err = service.PublishRawEvidence(context.Background(), "publisher", invalidOrigin)
+	var validation *ValidationError
+	if !errors.As(err, &validation) || !hasIssueCode(validation.Issues, IssueInvalidOrigin) {
+		t.Fatalf("invalid origin error = %#v", err)
+	}
+}
+
 func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	store := newMemoryStore()
 	raw := validRawEvidence()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	service := NewService(store)
+	service := mustNewService(t, store)
 	ids := []string{
 		"33333333-3333-4333-8333-333333333333",
 		"44444444-4444-4444-8444-444444444444",
@@ -107,7 +136,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 	store := newMemoryStore()
 	raw := validRawEvidence()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	service := NewService(store)
+	service := mustNewService(t, store)
 
 	single := validEvidence("EVD_example_00000000000000000000", 0)
 	result, err := service.PublishEvidence(context.Background(), "tidewise-internal-service", raw.RawEvidenceID, []Evidence{single})
@@ -121,10 +150,65 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 	otherStore := newMemoryStore()
 	otherStore.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	nonContinuous := []Evidence{validEvidence("EVD_example_00000000000000000001", 0), validEvidence("EVD_example_00000000000000000002", 2)}
-	_, err = NewService(otherStore).PublishEvidence(context.Background(), "tidewise-internal-service", raw.RawEvidenceID, nonContinuous)
+	_, err = mustNewService(t, otherStore).PublishEvidence(context.Background(), "tidewise-internal-service", raw.RawEvidenceID, nonContinuous)
 	var validation *ValidationError
 	if !errors.As(err, &validation) {
 		t.Fatalf("non-continuous error = %v, want ValidationError", err)
+	}
+}
+
+func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *testing.T) {
+	raw := validRawEvidence()
+	store := newMemoryStore()
+	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
+	service := mustNewService(t, store)
+
+	tests := []struct {
+		name  string
+		items []Evidence
+		code  IssueCode
+	}{
+		{name: "zero", items: nil, code: IssueRequired},
+		{name: "duplicate identity", items: []Evidence{
+			validEvidence("EVD_example_00000000000000000000", 0),
+			validEvidence("EVD_example_00000000000000000000", 1),
+		}, code: IssueDuplicate},
+		{name: "duplicate split order", items: []Evidence{
+			validEvidence("EVD_example_00000000000000000000", 0),
+			validEvidence("EVD_example_00000000000000000001", 0),
+		}, code: IssueDuplicate},
+		{name: "single with core", items: func() []Evidence {
+			item := validEvidence("EVD_example_00000000000000000000", 0)
+			item.SourceWhatCore = stringPointer("core fact")
+			return []Evidence{item}
+		}(), code: IssueInvalidLayer},
+		{name: "double without core what", items: func() []Evidence {
+			item := validEvidence("EVD_example_00000000000000000000", 0)
+			item.LayerType = LayerTypeDouble
+			return []Evidence{item}
+		}(), code: IssueRequired},
+		{name: "missing expression identity", items: func() []Evidence {
+			item := validEvidence("EVD_example_00000000000000000000", 0)
+			item.ExpressionKey = ""
+			return []Evidence{item}
+		}(), code: IssueRequired},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := service.PublishEvidence(context.Background(), "publisher", raw.RawEvidenceID, test.items)
+			var validation *ValidationError
+			if !errors.As(err, &validation) || !hasIssueCode(validation.Issues, test.code) {
+				t.Fatalf("error = %#v, issues = %#v", err, validation)
+			}
+		})
+	}
+
+	_, err := service.PublishEvidence(context.Background(), "publisher", "RAW_missing_00000000000000000000", []Evidence{
+		validEvidence("EVD_example_00000000000000000000", 0),
+	})
+	var reference *ReferenceError
+	if !errors.As(err, &reference) || !hasIssueCode(reference.Issues, IssueRawEvidenceNotFound) {
+		t.Fatalf("missing Raw Evidence error = %#v", err)
 	}
 }
 
@@ -159,6 +243,15 @@ func validRawEvidence() RawEvidence {
 
 func stringPointer(value string) *string { return &value }
 
+func mustNewService(t *testing.T, store Store) *Service {
+	t.Helper()
+	service, err := NewService(store)
+	if err != nil {
+		t.Fatalf("construct Evidence Publication service: %v", err)
+	}
+	return service
+}
+
 func equalStrings(left, right []string) bool {
 	if len(left) != len(right) {
 		return false
@@ -169,6 +262,15 @@ func equalStrings(left, right []string) bool {
 		}
 	}
 	return true
+}
+
+func hasIssueCode(issues []Issue, code IssueCode) bool {
+	for _, issue := range issues {
+		if issue.Code == code {
+			return true
+		}
+	}
+	return false
 }
 
 type memoryStore struct {

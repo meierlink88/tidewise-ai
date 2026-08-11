@@ -355,6 +355,10 @@ func testRequiredScope(method, path string) (string, bool) {
 	switch {
 	case method == http.MethodPost && path == Namespace+"/reviewed-event-imports":
 		return ScopeReviewedEventImport, true
+	case method == http.MethodPost && path == Namespace+"/raw-evidence-publications":
+		return ScopeRawEvidenceImport, true
+	case method == http.MethodPost && path == Namespace+"/evidence-publications":
+		return ScopeEvidenceImport, true
 	case method == http.MethodGet && path == Namespace+"/event-tags":
 		return ScopeEventTagRead, true
 	case method == http.MethodPost && (path == Namespace+"/research-theme-imports" ||

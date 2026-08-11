@@ -50,7 +50,7 @@ Keywords 是阅读辅助元数据，发布方负责数量、长度、内容和�
 | --- | --- | --- |
 | `evidence_id` | `VARCHAR(32)` | PK、调用方稳定身份 |
 | `raw_evidence_id` | `VARCHAR(32)` | FK 到 `raw_evidences`；原 `raw_document_id` |
-| `split_order` | `INTEGER` | 非负；同 Raw 唯一；从 0 连续 |
+| `split_order` | `INTEGER` | 默认 0；非负；同 Raw 唯一；从 0 连续 |
 | `is_split` | `BOOLEAN` | Data 根据整包基数派生 |
 | `layer_type` | `VARCHAR(10)` | `SINGLE \| DOUBLE` |
 | `source_who` | `TEXT` | 第一层 5W1H：谁 |

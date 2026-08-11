@@ -11,19 +11,39 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
 )
 
-func (r repository) InTransaction(ctx context.Context, fn func(evidencepublication.Transaction) error) error {
+func (r repository) InTransaction(ctx context.Context, fn func(evidencepublication.Transaction) error) (resultErr error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin Evidence Publication transaction: %w", err)
 	}
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		failure := recover()
+		rollbackErr := tx.Rollback()
+		if errors.Is(rollbackErr, sql.ErrTxDone) {
+			rollbackErr = nil
+		}
+		if failure != nil {
+			if rollbackErr != nil {
+				panic(fmt.Errorf("Evidence Publication panic (%v) and rollback failed: %w", failure, rollbackErr))
+			}
+			panic(failure)
+		}
+		if rollbackErr != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("roll back Evidence Publication transaction: %w", rollbackErr))
+		}
+	}()
 	wrapper := &postgresEvidencePublicationTx{tx: tx}
 	if err := fn(wrapper); err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit Evidence Publication transaction: %w", err)
 	}
+	committed = true
 	return nil
 }
 

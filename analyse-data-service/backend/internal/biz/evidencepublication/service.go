@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-var allowedSourceLevels = map[string]struct{}{
-	"L1_OFFICIAL": {},
-	"L2_WIRE":     {},
-	"L3_MEDIA":    {},
-	"L4_SOCIAL":   {},
+var allowedSourceLevels = map[SourceLevel]struct{}{
+	SourceLevelOfficial: {},
+	SourceLevelWire:     {},
+	SourceLevelMedia:    {},
+	SourceLevelSocial:   {},
 }
 
 type Service struct {
@@ -26,12 +26,15 @@ type Service struct {
 	newUUID func() (string, error)
 }
 
-func NewService(store Store) *Service {
+func NewService(store Store) (*Service, error) {
+	if store == nil {
+		return nil, errors.New("Evidence Publication store is required")
+	}
 	return &Service{
 		store:   store,
 		now:     func() time.Time { return time.Now().UTC() },
 		newUUID: randomUUID,
-	}
+	}, nil
 }
 
 func (s *Service) PublishRawEvidence(ctx context.Context, callerSubject string, input RawEvidence) (RawEvidenceResult, error) {
@@ -59,7 +62,7 @@ func (s *Service) PublishRawEvidence(ctx context.Context, callerSubject string, 
 		if existing != nil {
 			if !sameRawEvidence(*existing, record) {
 				return &ConflictError{Issues: []Issue{{
-					Path: "raw_evidence.raw_evidence_id", Code: "RAW_EVIDENCE_CONFLICT",
+					Path: "raw_evidence.raw_evidence_id", Code: IssueRawEvidenceConflict,
 					Message: "raw_evidence_id conflicts with stored content",
 				}}}
 			}
@@ -130,7 +133,7 @@ func (s *Service) PublishEvidence(ctx context.Context, callerSubject, rawEvidenc
 		}
 		if raw == nil {
 			return &ReferenceError{Issues: []Issue{{
-				Path: "raw_evidence_id", Code: "RAW_EVIDENCE_NOT_FOUND",
+				Path: "raw_evidence_id", Code: IssueRawEvidenceNotFound,
 				Message: "raw_evidence_id does not reference a published Raw Evidence",
 			}}}
 		}
@@ -152,7 +155,7 @@ func (s *Service) PublishEvidence(ctx context.Context, callerSubject, rawEvidenc
 			}
 			if len(collisions) > 0 {
 				return &ConflictError{Issues: []Issue{{
-					Path: "evidences", Code: "EVIDENCE_ID_CONFLICT",
+					Path: "evidences", Code: IssueEvidenceIDConflict,
 					Message: "an evidence_id is already assigned to different content",
 				}}}
 			}
@@ -200,7 +203,7 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 	var issues []Issue
 	required(&issues, "raw_evidence_id", rawEvidenceID, 32)
 	if len(input) == 0 {
-		issues = append(issues, Issue{Path: "evidences", Code: "REQUIRED", Message: "at least one Evidence is required"})
+		issues = append(issues, Issue{Path: "evidences", Code: IssueRequired, Message: "at least one Evidence is required"})
 	}
 	seenIDs := make(map[string]struct{}, len(input))
 	seenOrders := make(map[int]struct{}, len(input))
@@ -208,14 +211,14 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 		prefix := fmt.Sprintf("evidences[%d]", index)
 		required(&issues, prefix+".evidence_id", item.EvidenceID, 32)
 		if _, ok := seenIDs[item.EvidenceID]; ok {
-			issues = append(issues, Issue{Path: prefix + ".evidence_id", Code: "DUPLICATE", Message: "evidence_id must be unique within the publication"})
+			issues = append(issues, Issue{Path: prefix + ".evidence_id", Code: IssueDuplicate, Message: "evidence_id must be unique within the publication"})
 		}
 		seenIDs[item.EvidenceID] = struct{}{}
 		if item.SplitOrder < 0 {
-			issues = append(issues, Issue{Path: prefix + ".split_order", Code: "OUT_OF_RANGE", Message: "split_order must be non-negative"})
+			issues = append(issues, Issue{Path: prefix + ".split_order", Code: IssueOutOfRange, Message: "split_order must be non-negative"})
 		}
 		if _, ok := seenOrders[item.SplitOrder]; ok {
-			issues = append(issues, Issue{Path: prefix + ".split_order", Code: "DUPLICATE", Message: "split_order must be unique within the publication"})
+			issues = append(issues, Issue{Path: prefix + ".split_order", Code: IssueDuplicate, Message: "split_order must be unique within the publication"})
 		}
 		seenOrders[item.SplitOrder] = struct{}{}
 		required(&issues, prefix+".source_what", item.SourceWhat, 0)
@@ -224,21 +227,21 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 		required(&issues, prefix+".fingerprint_version", item.FingerprintVersion, 64)
 		validateOptionalEvidenceFields(&issues, prefix, item)
 		switch item.LayerType {
-		case "SINGLE":
+		case LayerTypeSingle:
 			if hasCoreFields(item) {
-				issues = append(issues, Issue{Path: prefix + ".layer_type", Code: "INVALID_LAYER", Message: "SINGLE Evidence cannot declare core fields"})
+				issues = append(issues, Issue{Path: prefix + ".layer_type", Code: IssueInvalidLayer, Message: "SINGLE Evidence cannot declare core fields"})
 			}
-		case "DOUBLE":
+		case LayerTypeDouble:
 			if item.SourceWhatCore == nil || strings.TrimSpace(*item.SourceWhatCore) == "" {
-				issues = append(issues, Issue{Path: prefix + ".source_what_core", Code: "REQUIRED", Message: "DOUBLE Evidence requires source_what_core"})
+				issues = append(issues, Issue{Path: prefix + ".source_what_core", Code: IssueRequired, Message: "DOUBLE Evidence requires source_what_core"})
 			}
 		default:
-			issues = append(issues, Issue{Path: prefix + ".layer_type", Code: "INVALID_ENUM", Message: "layer_type is invalid"})
+			issues = append(issues, Issue{Path: prefix + ".layer_type", Code: IssueInvalidEnum, Message: "layer_type is invalid"})
 		}
 	}
 	for expected := 0; expected < len(input); expected++ {
 		if _, ok := seenOrders[expected]; !ok {
-			issues = append(issues, Issue{Path: "evidences", Code: "NON_CONTINUOUS_SPLIT_ORDER", Message: "split_order must be continuous from zero"})
+			issues = append(issues, Issue{Path: "evidences", Code: IssueNonContinuousSplitOrder, Message: "split_order must be continuous from zero"})
 			break
 		}
 	}
@@ -251,10 +254,10 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 
 func validateOptionalEvidenceFields(issues *[]Issue, prefix string, item Evidence) {
 	if item.SourceWhen != nil && !isUTC(*item.SourceWhen) {
-		*issues = append(*issues, Issue{Path: prefix + ".source_when", Code: "INVALID_TIMESTAMP", Message: "source_when must use UTC"})
+		*issues = append(*issues, Issue{Path: prefix + ".source_when", Code: IssueInvalidTimestamp, Message: "source_when must use UTC"})
 	}
 	if item.SourceWhenCore != nil && !isUTC(*item.SourceWhenCore) {
-		*issues = append(*issues, Issue{Path: prefix + ".source_when_core", Code: "INVALID_TIMESTAMP", Message: "source_when_core must use UTC"})
+		*issues = append(*issues, Issue{Path: prefix + ".source_when_core", Code: IssueInvalidTimestamp, Message: "source_when_core must use UTC"})
 	}
 }
 
@@ -265,7 +268,7 @@ func hasCoreFields(item Evidence) bool {
 
 func evidenceSetConflict() error {
 	return &ConflictError{Issues: []Issue{{
-		Path: "evidences", Code: "EVIDENCE_SET_CONFLICT",
+		Path: "evidences", Code: IssueEvidenceSetConflict,
 		Message: "Raw Evidence already has a different immutable Evidence set",
 	}}}
 }
@@ -278,25 +281,25 @@ func validateRawEvidence(input RawEvidence) error {
 	required(&issues, "raw_evidence.source_url", input.SourceURL, 0)
 	required(&issues, "raw_evidence.raw_text", input.RawText, 0)
 	if _, ok := allowedSourceLevels[input.SourceLevel]; !ok {
-		issues = append(issues, Issue{Path: "raw_evidence.source_level", Code: "INVALID_ENUM", Message: "source_level is invalid"})
+		issues = append(issues, Issue{Path: "raw_evidence.source_level", Code: IssueInvalidEnum, Message: "source_level is invalid"})
 	}
 	if parsed, err := url.Parse(input.SourceURL); err != nil || parsed.Scheme == "" || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		issues = append(issues, Issue{Path: "raw_evidence.source_url", Code: "INVALID_URL", Message: "source_url must be an absolute HTTP(S) URL"})
+		issues = append(issues, Issue{Path: "raw_evidence.source_url", Code: IssueInvalidURL, Message: "source_url must be an absolute HTTP(S) URL"})
 	}
 	optional(&issues, "raw_evidence.quoted_source_id", input.QuotedSourceID, 32)
 	optional(&issues, "raw_evidence.quoted_source_name", input.QuotedSourceName, 100)
 	optional(&issues, "raw_evidence.title", input.Title, 500)
 	if input.IsOriginal && (input.QuotedSourceID != nil || input.QuotedSourceName != nil) {
-		issues = append(issues, Issue{Path: "raw_evidence.is_original", Code: "INVALID_ORIGIN", Message: "original content cannot declare a quoted source"})
+		issues = append(issues, Issue{Path: "raw_evidence.is_original", Code: IssueInvalidOrigin, Message: "original content cannot declare a quoted source"})
 	}
 	if !input.IsOriginal && (input.QuotedSourceName == nil || strings.TrimSpace(*input.QuotedSourceName) == "") {
-		issues = append(issues, Issue{Path: "raw_evidence.quoted_source_name", Code: "REQUIRED", Message: "reposted content requires quoted_source_name"})
+		issues = append(issues, Issue{Path: "raw_evidence.quoted_source_name", Code: IssueRequired, Message: "reposted content requires quoted_source_name"})
 	}
 	if input.CollectedAt.IsZero() || !isUTC(input.CollectedAt) {
-		issues = append(issues, Issue{Path: "raw_evidence.collected_at", Code: "INVALID_TIMESTAMP", Message: "collected_at must be a UTC timestamp"})
+		issues = append(issues, Issue{Path: "raw_evidence.collected_at", Code: IssueInvalidTimestamp, Message: "collected_at must be a UTC timestamp"})
 	}
 	if input.PublishedAt != nil && !isUTC(*input.PublishedAt) {
-		issues = append(issues, Issue{Path: "raw_evidence.published_at", Code: "INVALID_TIMESTAMP", Message: "published_at must use UTC"})
+		issues = append(issues, Issue{Path: "raw_evidence.published_at", Code: IssueInvalidTimestamp, Message: "published_at must use UTC"})
 	}
 	if len(issues) == 0 {
 		return nil
@@ -308,11 +311,11 @@ func validateRawEvidence(input RawEvidence) error {
 func required(issues *[]Issue, path, value string, max int) {
 	length := len([]rune(value))
 	if strings.TrimSpace(value) == "" {
-		*issues = append(*issues, Issue{Path: path, Code: "REQUIRED", Message: "value is required"})
+		*issues = append(*issues, Issue{Path: path, Code: IssueRequired, Message: "value is required"})
 		return
 	}
 	if max > 0 && length > max {
-		*issues = append(*issues, Issue{Path: path, Code: "TOO_LONG", Message: fmt.Sprintf("value must contain at most %d characters", max)})
+		*issues = append(*issues, Issue{Path: path, Code: IssueTooLong, Message: fmt.Sprintf("value must contain at most %d characters", max)})
 	}
 }
 
