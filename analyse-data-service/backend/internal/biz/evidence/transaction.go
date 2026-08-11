@@ -1,4 +1,4 @@
-package evidencepublication
+package evidence
 
 import "context"
 

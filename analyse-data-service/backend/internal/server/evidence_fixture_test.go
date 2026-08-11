@@ -1,4 +1,4 @@
-package service
+package server
 
 import (
 	"bytes"
@@ -10,31 +10,46 @@ import (
 	"testing"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
+	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
+	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
+	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
 )
 
 func TestEvidencePublicationNeutralFixturesExerciseTwoPhaseRetryAndSafeFailure(t *testing.T) {
 	store := newFixtureEvidenceStore()
-	publication, err := evidencepublication.NewService(store)
+	publication, err := evidencebiz.NewUseCase(store)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := dataServiceTestHandler(Dependencies{EvidencePublications: publication}, map[string]v1.Principal{
-		"publisher-token": {
+	evidenceApplication, err := evidenceservice.NewService(publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "publisher-token",
+		Principal: v1.Principal{
 			Identity: "neutral-publisher",
 			Scopes:   []string{ScopeRawEvidenceImport, ScopeEvidenceImport},
 		},
-	}, "request-evidence-fixture")
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	httpServer, err := NewHTTPServer(testConfig(), serverTestDataService{}, evidenceApplication, authenticator, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := httpServer.Server.Handler
 	rawPayload := readEvidenceFixture(t, "raw-evidence-publication.json")
 	evidencePayload := readEvidenceFixture(t, "evidence-publication.json")
 
-	firstRaw := postEvidenceFixture(t, handler, Namespace+"/raw-evidence-publications", rawPayload)
-	secondRaw := postEvidenceFixture(t, handler, Namespace+"/raw-evidence-publications", rawPayload)
+	firstRaw := postEvidenceFixture(t, handler, v1.APIPrefix+"/raw-evidence-publications", rawPayload)
+	secondRaw := postEvidenceFixture(t, handler, v1.APIPrefix+"/raw-evidence-publications", rawPayload)
 	if firstRaw.Status != http.StatusCreated || secondRaw.Status != http.StatusCreated ||
 		firstRaw.RequestID != "request-evidence-fixture" || secondRaw.RequestID != "request-evidence-fixture" {
 		t.Fatalf("Raw fixture responses first=%#v second=%#v", firstRaw, secondRaw)
 	}
-	var createdRaw, reusedRaw v1.RawEvidencePublicationResult
+	var createdRaw, reusedRaw evidenceapi.RawEvidencePublicationResult
 	decodeFixtureResult(t, firstRaw, &createdRaw)
 	decodeFixtureResult(t, secondRaw, &reusedRaw)
 	if createdRaw.RawEvidence.Disposition != "created" || reusedRaw.RawEvidence.Disposition != "reused" ||
@@ -42,9 +57,9 @@ func TestEvidencePublicationNeutralFixturesExerciseTwoPhaseRetryAndSafeFailure(t
 		t.Fatalf("Raw fixture dispositions created=%#v reused=%#v", createdRaw, reusedRaw)
 	}
 
-	firstEvidence := postEvidenceFixture(t, handler, Namespace+"/evidence-publications", evidencePayload)
-	secondEvidence := postEvidenceFixture(t, handler, Namespace+"/evidence-publications", evidencePayload)
-	var createdEvidence, reusedEvidence v1.EvidencePublicationResult
+	firstEvidence := postEvidenceFixture(t, handler, v1.APIPrefix+"/evidence-publications", evidencePayload)
+	secondEvidence := postEvidenceFixture(t, handler, v1.APIPrefix+"/evidence-publications", evidencePayload)
+	var createdEvidence, reusedEvidence evidenceapi.EvidencePublicationResult
 	decodeFixtureResult(t, firstEvidence, &createdEvidence)
 	decodeFixtureResult(t, secondEvidence, &reusedEvidence)
 	if firstEvidence.Status != http.StatusCreated || secondEvidence.Status != http.StatusCreated ||
@@ -57,15 +72,15 @@ func TestEvidencePublicationNeutralFixturesExerciseTwoPhaseRetryAndSafeFailure(t
 	}
 
 	driftPayload := bytes.Replace(evidencePayload, []byte("Example Corp expanded production."), []byte("Drifted fact."), 1)
-	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, Namespace+"/evidence-publications", driftPayload), http.StatusConflict, "EVIDENCE_PUBLICATION_CONFLICT")
+	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, v1.APIPrefix+"/evidence-publications", driftPayload), http.StatusConflict, evidenceapi.ErrorEvidencePublicationConflict)
 	invalidLayer := bytes.Replace(evidencePayload, []byte(`"layer_type": "SINGLE"`), []byte(`"layer_type": "INVALID"`), 1)
-	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, Namespace+"/evidence-publications", invalidLayer), http.StatusBadRequest, "INVALID_REQUEST")
+	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, v1.APIPrefix+"/evidence-publications", invalidLayer), http.StatusBadRequest, evidenceapi.ErrorInvalidRequest)
 	invalidRaw := bytes.Replace(rawPayload, []byte(`"source_level": "L2_WIRE"`), []byte(`"source_level": "INVALID"`), 1)
-	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, Namespace+"/raw-evidence-publications", invalidRaw), http.StatusBadRequest, "INVALID_REQUEST")
+	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, v1.APIPrefix+"/raw-evidence-publications", invalidRaw), http.StatusBadRequest, evidenceapi.ErrorInvalidRequest)
 	emptySet := []byte(`{"raw_evidence_id":"RAW_fixture_00000000000000000000","evidences":[]}`)
-	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, Namespace+"/evidence-publications", emptySet), http.StatusUnprocessableEntity, "EVIDENCE_PUBLICATION_INVALID")
+	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, v1.APIPrefix+"/evidence-publications", emptySet), http.StatusUnprocessableEntity, evidenceapi.ErrorEvidencePublicationInvalid)
 	missingRaw := bytes.Replace(evidencePayload, []byte("RAW_fixture_00000000000000000000"), []byte("RAW_missing_00000000000000000000"), 1)
-	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, Namespace+"/evidence-publications", missingRaw), http.StatusUnprocessableEntity, "EVIDENCE_PUBLICATION_REFERENCE_INVALID")
+	assertEvidenceFixtureError(t, postEvidenceFixture(t, handler, v1.APIPrefix+"/evidence-publications", missingRaw), http.StatusUnprocessableEntity, evidenceapi.ErrorEvidencePublicationReferenceInvalid)
 
 	if len(store.raw) != 1 || len(store.evidences) != 2 || len(store.rawReceipts) != 2 || len(store.evidenceReceipts) != 2 {
 		t.Fatalf("failed calls produced partial facts: raw=%d Evidence=%d Raw receipts=%d Evidence receipts=%d",
@@ -84,6 +99,7 @@ func postEvidenceFixture(t *testing.T, handler http.Handler, path string, payloa
 	t.Helper()
 	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(payload))
 	request.Header.Set("Authorization", "Bearer publisher-token")
+	request.Header.Set("X-Request-ID", "request-evidence-fixture")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	var envelope struct {
@@ -115,7 +131,7 @@ func assertEvidenceFixtureError(t *testing.T, response evidenceFixtureHTTPResult
 
 func readEvidenceFixture(t *testing.T, name string) []byte {
 	t.Helper()
-	payload, err := os.ReadFile("../../api/data/v1/testdata/" + name)
+	payload, err := os.ReadFile("../../api/data/v1/evidence/testdata/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,25 +139,25 @@ func readEvidenceFixture(t *testing.T, name string) []byte {
 }
 
 type fixtureEvidenceStore struct {
-	raw              map[string]evidencepublication.StoredRawEvidence
-	evidences        map[string]evidencepublication.StoredEvidence
-	rawReceipts      []evidencepublication.RawEvidencePublicationReceipt
-	evidenceReceipts []evidencepublication.EvidencePublicationReceipt
+	raw              map[string]evidencebiz.StoredRawEvidence
+	evidences        map[string]evidencebiz.StoredEvidence
+	rawReceipts      []evidencebiz.RawEvidencePublicationReceipt
+	evidenceReceipts []evidencebiz.EvidencePublicationReceipt
 }
 
 func newFixtureEvidenceStore() *fixtureEvidenceStore {
 	return &fixtureEvidenceStore{
-		raw:       make(map[string]evidencepublication.StoredRawEvidence),
-		evidences: make(map[string]evidencepublication.StoredEvidence),
+		raw:       make(map[string]evidencebiz.StoredRawEvidence),
+		evidences: make(map[string]evidencebiz.StoredEvidence),
 	}
 }
 
-func (s *fixtureEvidenceStore) InTransaction(ctx context.Context, fn func(evidencepublication.Transaction) error) error {
+func (s *fixtureEvidenceStore) InTransaction(ctx context.Context, fn func(evidencebiz.Transaction) error) error {
 	copyStore := &fixtureEvidenceStore{
 		raw:              copyRawEvidenceMap(s.raw),
 		evidences:        copyEvidenceMap(s.evidences),
-		rawReceipts:      append([]evidencepublication.RawEvidencePublicationReceipt(nil), s.rawReceipts...),
-		evidenceReceipts: append([]evidencepublication.EvidencePublicationReceipt(nil), s.evidenceReceipts...),
+		rawReceipts:      append([]evidencebiz.RawEvidencePublicationReceipt(nil), s.rawReceipts...),
+		evidenceReceipts: append([]evidencebiz.EvidencePublicationReceipt(nil), s.evidenceReceipts...),
 	}
 	if err := fn((*fixtureEvidenceTransaction)(copyStore)); err != nil {
 		return err
@@ -154,19 +170,19 @@ func (s *fixtureEvidenceStore) InTransaction(ctx context.Context, fn func(eviden
 type fixtureEvidenceTransaction fixtureEvidenceStore
 
 func (*fixtureEvidenceTransaction) LockIdentities(context.Context, []string) error { return nil }
-func (t *fixtureEvidenceTransaction) RawEvidence(_ context.Context, id string) (*evidencepublication.StoredRawEvidence, error) {
+func (t *fixtureEvidenceTransaction) RawEvidence(_ context.Context, id string) (*evidencebiz.StoredRawEvidence, error) {
 	record, ok := t.raw[id]
 	if !ok {
 		return nil, nil
 	}
 	return &record, nil
 }
-func (t *fixtureEvidenceTransaction) InsertRawEvidence(_ context.Context, record evidencepublication.StoredRawEvidence) error {
+func (t *fixtureEvidenceTransaction) InsertRawEvidence(_ context.Context, record evidencebiz.StoredRawEvidence) error {
 	t.raw[record.RawEvidenceID] = record
 	return nil
 }
-func (t *fixtureEvidenceTransaction) EvidencesByRawEvidence(_ context.Context, rawID string) ([]evidencepublication.StoredEvidence, error) {
-	result := make([]evidencepublication.StoredEvidence, 0)
+func (t *fixtureEvidenceTransaction) EvidencesByRawEvidence(_ context.Context, rawID string) ([]evidencebiz.StoredEvidence, error) {
+	result := make([]evidencebiz.StoredEvidence, 0)
 	for _, record := range t.evidences {
 		if record.RawEvidenceID == rawID {
 			result = append(result, record)
@@ -174,8 +190,8 @@ func (t *fixtureEvidenceTransaction) EvidencesByRawEvidence(_ context.Context, r
 	}
 	return result, nil
 }
-func (t *fixtureEvidenceTransaction) EvidencesByIDs(_ context.Context, ids []string) ([]evidencepublication.StoredEvidence, error) {
-	result := make([]evidencepublication.StoredEvidence, 0, len(ids))
+func (t *fixtureEvidenceTransaction) EvidencesByIDs(_ context.Context, ids []string) ([]evidencebiz.StoredEvidence, error) {
+	result := make([]evidencebiz.StoredEvidence, 0, len(ids))
 	for _, id := range ids {
 		if record, ok := t.evidences[id]; ok {
 			result = append(result, record)
@@ -183,33 +199,33 @@ func (t *fixtureEvidenceTransaction) EvidencesByIDs(_ context.Context, ids []str
 	}
 	return result, nil
 }
-func (t *fixtureEvidenceTransaction) InsertEvidence(_ context.Context, record evidencepublication.StoredEvidence) error {
+func (t *fixtureEvidenceTransaction) InsertEvidence(_ context.Context, record evidencebiz.StoredEvidence) error {
 	t.evidences[record.EvidenceID] = record
 	return nil
 }
-func (t *fixtureEvidenceTransaction) InsertRawEvidenceReceipt(_ context.Context, receipt evidencepublication.RawEvidencePublicationReceipt) error {
+func (t *fixtureEvidenceTransaction) InsertRawEvidenceReceipt(_ context.Context, receipt evidencebiz.RawEvidencePublicationReceipt) error {
 	t.rawReceipts = append(t.rawReceipts, receipt)
 	return nil
 }
-func (t *fixtureEvidenceTransaction) InsertEvidenceReceipt(_ context.Context, receipt evidencepublication.EvidencePublicationReceipt) error {
+func (t *fixtureEvidenceTransaction) InsertEvidenceReceipt(_ context.Context, receipt evidencebiz.EvidencePublicationReceipt) error {
 	t.evidenceReceipts = append(t.evidenceReceipts, receipt)
 	return nil
 }
 
-func copyRawEvidenceMap(source map[string]evidencepublication.StoredRawEvidence) map[string]evidencepublication.StoredRawEvidence {
-	result := make(map[string]evidencepublication.StoredRawEvidence, len(source))
+func copyRawEvidenceMap(source map[string]evidencebiz.StoredRawEvidence) map[string]evidencebiz.StoredRawEvidence {
+	result := make(map[string]evidencebiz.StoredRawEvidence, len(source))
 	for key, value := range source {
 		result[key] = value
 	}
 	return result
 }
 
-func copyEvidenceMap(source map[string]evidencepublication.StoredEvidence) map[string]evidencepublication.StoredEvidence {
-	result := make(map[string]evidencepublication.StoredEvidence, len(source))
+func copyEvidenceMap(source map[string]evidencebiz.StoredEvidence) map[string]evidencebiz.StoredEvidence {
+	result := make(map[string]evidencebiz.StoredEvidence, len(source))
 	for key, value := range source {
 		result[key] = value
 	}
 	return result
 }
 
-var _ evidencepublication.Store = (*fixtureEvidenceStore)(nil)
+var _ evidencebiz.Store = (*fixtureEvidenceStore)(nil)

@@ -1,6 +1,32 @@
-package v1
+package evidence
 
-import "time"
+import (
+	"context"
+	"time"
+
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+)
+
+const (
+	OperationPublishRawEvidence = "data.v1.publishRawEvidence"
+	OperationPublishEvidence    = "data.v1.publishEvidence"
+
+	ErrorInvalidRequest                      = "INVALID_REQUEST"
+	ErrorEvidencePublicationInvalid          = "EVIDENCE_PUBLICATION_INVALID"
+	ErrorEvidencePublicationReferenceInvalid = "EVIDENCE_PUBLICATION_REFERENCE_INVALID"
+	ErrorEvidencePublicationConflict         = "EVIDENCE_PUBLICATION_CONFLICT"
+	ErrorEvidencePublicationTimeout          = "EVIDENCE_PUBLICATION_TIMEOUT"
+	ErrorEvidencePublicationFailed           = "EVIDENCE_PUBLICATION_FAILED"
+)
+
+func BusinessOperations() []string {
+	return []string{OperationPublishRawEvidence, OperationPublishEvidence}
+}
+
+type Service interface {
+	PublishRawEvidence(context.Context, *RawEvidencePublicationRequest) (*v1.Response[RawEvidencePublicationResult], error)
+	PublishEvidence(context.Context, *EvidencePublicationRequest) (*v1.Response[EvidencePublicationResult], error)
+}
 
 type RawEvidencePublicationRequest struct {
 	RawEvidence RawEvidence `json:"raw_evidence"`

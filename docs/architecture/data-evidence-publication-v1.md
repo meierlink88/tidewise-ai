@@ -95,7 +95,8 @@ Group 表、Group API、状态、合并、redirect、embedding 或 Data 语义�
 ## API 合同
 
 两个入口均使用 Data Service 现有 Bearer service token、严格 JSON、未知/重复字段拒绝、
-1 MiB request body、15 秒预算和标准 Error Envelope。V1 不使用 `Idempotency-Key`。
+1 MiB request body、Data Service 内部强制执行的 3 秒预算和标准 Error Envelope。发布方不提交
+timeout Header 或请求字段，V1 不使用 `Idempotency-Key`。
 
 ### Raw Evidence Publication
 
@@ -179,7 +180,8 @@ Receipt 分别存入 `raw_evidence_publication_receipts` 与
 - `409 CONFLICT`：自然身份对应已存在但内容不一致，或并发调用收敛后发现漂移。
 - `413 PAYLOAD_TOO_LARGE`：请求超过 1,048,576 bytes；不得截断原文。
 - `422 UNPROCESSABLE_ENTITY`：Raw 不存在、Evidence 集合/连续顺序/跨引用业务约束失败。
-- `500/503`：安全内部错误或依赖暂不可用；不返回 SQL、表名、正文或内部错误。
+- `500/503`：安全内部错误、依赖暂不可用或 3 秒执行预算耗尽；超时取消 SQL 并回滚事务，
+  不返回 SQL、表名、正文或内部错误。
 
 未知调用结果只能用相同自然身份和完全相同正文重试。并发写以自然身份锁/唯一约束收敛；
 同内容得到一个正式业务对象和多个成功 Receipt，内容漂移得到冲突。
@@ -198,6 +200,13 @@ Data migration ledger 新增 forward-only `000042`：
 应用回滚使用上一版已知良好镜像；数据库只允许 reviewed forward repair，不提供 destructive
 down migration。
 
+## 实现模块边界
+
+实现按统一 Kratos 结构在 API、Biz、Data、Service 四层使用单数 `evidence` 领域目录；
+publication 只作为公开方法和 operation，不作为 package 或手写源码文件名。Biz 与 Data 的
+`transaction.go` 分别拥有事务 Port 与 PostgreSQL Adapter，Evidence SQL 不再留在共享
+`internal/data/postgres` 包。
+
 ## 测试 seam 与验收
 
 ### Biz
@@ -213,6 +222,8 @@ down migration。
 
 - 两条路径、Bearer scope、严格 JSON、未知/重复字段、1 MiB/413、标准错误、201 Receipt、
   created/reused 响应和 `is_split` 只出现在 response。
+- 两条发布路径均由 Data Service 内部施加 3 秒 deadline；预算耗尽返回安全 503，取消 SQL
+  并回滚完整事务，不接受调用方 timeout Header 或请求字段。
 - Keywords 为 string list，原样响应；content hash 只读；无 Group 资源或 API。
 
 ### PostgreSQL

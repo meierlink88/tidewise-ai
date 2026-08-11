@@ -1,4 +1,4 @@
-package postgres
+package evidence
 
 import (
 	"context"
@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
+	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
 )
 
-func (r repository) InTransaction(ctx context.Context, fn func(evidencepublication.Transaction) error) (resultErr error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+func (s Store) InTransaction(ctx context.Context, fn func(evidencebiz.Transaction) error) (resultErr error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin Evidence Publication transaction: %w", err)
 	}
@@ -36,7 +36,7 @@ func (r repository) InTransaction(ctx context.Context, fn func(evidencepublicati
 			resultErr = errors.Join(resultErr, fmt.Errorf("roll back Evidence Publication transaction: %w", rollbackErr))
 		}
 	}()
-	wrapper := &postgresEvidencePublicationTx{tx: tx}
+	wrapper := &transaction{tx: tx}
 	if err := fn(wrapper); err != nil {
 		return err
 	}
@@ -47,9 +47,9 @@ func (r repository) InTransaction(ctx context.Context, fn func(evidencepublicati
 	return nil
 }
 
-type postgresEvidencePublicationTx struct{ tx *sql.Tx }
+type transaction struct{ tx *sql.Tx }
 
-func (t *postgresEvidencePublicationTx) LockIdentities(ctx context.Context, identities []string) error {
+func (t *transaction) LockIdentities(ctx context.Context, identities []string) error {
 	keys := append([]string(nil), identities...)
 	sort.Strings(keys)
 	for _, key := range keys {
@@ -60,8 +60,8 @@ func (t *postgresEvidencePublicationTx) LockIdentities(ctx context.Context, iden
 	return nil
 }
 
-func (t *postgresEvidencePublicationTx) RawEvidence(ctx context.Context, id string) (*evidencepublication.StoredRawEvidence, error) {
-	var record evidencepublication.StoredRawEvidence
+func (t *transaction) RawEvidence(ctx context.Context, id string) (*evidencebiz.StoredRawEvidence, error) {
+	var record evidencebiz.StoredRawEvidence
 	var keywordsJSON []byte
 	err := t.tx.QueryRowContext(ctx, `
 SELECT raw_evidence_id, source_id, source_name, source_level, source_url, is_original,
@@ -86,7 +86,7 @@ WHERE raw_evidence_id = $1`, id).Scan(
 	return &record, nil
 }
 
-func (t *postgresEvidencePublicationTx) InsertRawEvidence(ctx context.Context, record evidencepublication.StoredRawEvidence) error {
+func (t *transaction) InsertRawEvidence(ctx context.Context, record evidencebiz.StoredRawEvidence) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO raw_evidences (
     raw_evidence_id, source_id, source_name, source_level, source_url, is_original,
@@ -102,7 +102,7 @@ INSERT INTO raw_evidences (
 	return nil
 }
 
-func (t *postgresEvidencePublicationTx) EvidencesByRawEvidence(ctx context.Context, rawEvidenceID string) ([]evidencepublication.StoredEvidence, error) {
+func (t *transaction) EvidencesByRawEvidence(ctx context.Context, rawEvidenceID string) ([]evidencebiz.StoredEvidence, error) {
 	rows, err := t.tx.QueryContext(ctx, evidenceSelect+` WHERE raw_evidence_id = $1 ORDER BY split_order`, rawEvidenceID)
 	if err != nil {
 		return nil, fmt.Errorf("read Evidence set: %w", err)
@@ -111,7 +111,7 @@ func (t *postgresEvidencePublicationTx) EvidencesByRawEvidence(ctx context.Conte
 	return scanEvidences(rows)
 }
 
-func (t *postgresEvidencePublicationTx) EvidencesByIDs(ctx context.Context, ids []string) ([]evidencepublication.StoredEvidence, error) {
+func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evidencebiz.StoredEvidence, error) {
 	rows, err := t.tx.QueryContext(ctx, evidenceSelect+` WHERE evidence_id = ANY($1) ORDER BY evidence_id`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("read Evidence identities: %w", err)
@@ -134,10 +134,10 @@ type evidenceRows interface {
 	Err() error
 }
 
-func scanEvidences(rows evidenceRows) ([]evidencepublication.StoredEvidence, error) {
-	result := make([]evidencepublication.StoredEvidence, 0)
+func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
+	result := make([]evidencebiz.StoredEvidence, 0)
 	for rows.Next() {
-		var record evidencepublication.StoredEvidence
+		var record evidencebiz.StoredEvidence
 		if err := rows.Scan(
 			&record.EvidenceID, &record.RawEvidenceID, &record.SplitOrder, &record.IsSplit, &record.LayerType,
 			&record.SourceWho, &record.SourceWhat, &record.SourceWhen, &record.SourceWhenRaw,
@@ -156,7 +156,7 @@ func scanEvidences(rows evidenceRows) ([]evidencepublication.StoredEvidence, err
 	return result, nil
 }
 
-func (t *postgresEvidencePublicationTx) InsertEvidence(ctx context.Context, record evidencepublication.StoredEvidence) error {
+func (t *transaction) InsertEvidence(ctx context.Context, record evidencebiz.StoredEvidence) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO evidences (
     evidence_id, raw_evidence_id, split_order, is_split, layer_type,
@@ -178,7 +178,7 @@ INSERT INTO evidences (
 	return nil
 }
 
-func (t *postgresEvidencePublicationTx) InsertRawEvidenceReceipt(ctx context.Context, receipt evidencepublication.RawEvidencePublicationReceipt) error {
+func (t *transaction) InsertRawEvidenceReceipt(ctx context.Context, receipt evidencebiz.RawEvidencePublicationReceipt) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO raw_evidence_publication_receipts (
     id, contract_version, caller_subject, raw_evidence_id, disposition, imported_at
@@ -189,7 +189,7 @@ INSERT INTO raw_evidence_publication_receipts (
 	return nil
 }
 
-func (t *postgresEvidencePublicationTx) InsertEvidenceReceipt(ctx context.Context, receipt evidencepublication.EvidencePublicationReceipt) error {
+func (t *transaction) InsertEvidenceReceipt(ctx context.Context, receipt evidencebiz.EvidencePublicationReceipt) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO evidence_publication_receipts (
     id, contract_version, caller_subject, raw_evidence_id, evidence_ids,
@@ -204,4 +204,4 @@ INSERT INTO evidence_publication_receipts (
 	return nil
 }
 
-var _ evidencepublication.Transaction = (*postgresEvidencePublicationTx)(nil)
+var _ evidencebiz.Transaction = (*transaction)(nil)

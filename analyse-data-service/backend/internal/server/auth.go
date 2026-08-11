@@ -11,6 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 )
 
 const (
@@ -103,9 +104,9 @@ func requiredScope(operation string) (string, bool) {
 	switch operation {
 	case v1.OperationPublishReviewedEvents:
 		return ScopeReviewedEventImport, true
-	case v1.OperationPublishRawEvidence:
+	case evidenceapi.OperationPublishRawEvidence:
 		return ScopeRawEvidenceImport, true
-	case v1.OperationPublishEvidence:
+	case evidenceapi.OperationPublishEvidence:
 		return ScopeEvidenceImport, true
 	case v1.OperationListActiveEventTags:
 		return ScopeEventTagRead, true

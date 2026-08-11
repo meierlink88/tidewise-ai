@@ -15,7 +15,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
+	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
@@ -25,7 +25,7 @@ import (
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 	eventpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventpublication"
-	evidencepublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidencepublication"
+	evidencedata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidence"
 	neo4jdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/neo4j"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
@@ -34,6 +34,7 @@ import (
 	researchpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
+	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
 )
 
 const applicationStopTimeout = 10 * time.Second
@@ -73,22 +74,24 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 			return nil, nil, fmt.Errorf("configure Data Neo4j health probe: %w", err)
 		}
 	}
-	evidencePublications, err := evidencepublication.NewService(evidencepublicationdata.NewRepository(db))
-	if err != nil {
+	closeBuildResources := func(buildErr error) error {
 		var neo4jCloseErr error
 		if neo4jHealth != nil {
 			neo4jCloseErr = neo4jHealth.Close(context.Background())
 		}
-		return nil, nil, errors.Join(
-			fmt.Errorf("configure Evidence Publication service: %w", err),
-			neo4jCloseErr,
-			db.Close(),
-		)
+		return errors.Join(buildErr, neo4jCloseErr, db.Close())
+	}
+	evidenceStore, err := evidencedata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Evidence store: %w", err))
+	}
+	evidenceUseCase, err := evidencebiz.NewUseCase(evidenceStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Evidence use case: %w", err))
 	}
 
 	application := service.NewDataService(service.Dependencies{
 		EventPublications:       eventpublication.NewService(eventpublicationdata.NewRepository(db)),
-		EvidencePublications:    evidencePublications,
 		EventTagCatalog:         eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
 		EventSemantics:          eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
 		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
@@ -98,7 +101,14 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 		Admin:                   adminquery.NewService(adminquerydata.NewRepository(db)),
 		RuntimeHealth:           runtimehealth.New(neo4jHealth, time.Now),
 	})
-	httpServer := server.NewHTTPServer(config, application, authenticator, logger)
+	evidenceApplication, err := evidenceservice.NewService(evidenceUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Evidence API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, application, evidenceApplication, authenticator, logger)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
+	}
 
 	return newApp(httpServer, logger), func(ctx context.Context) error {
 		var neo4jErr error

@@ -23,7 +23,7 @@ func listEligibleEventSemanticEventsHandler(application DataHTTPServer) kratosht
 			Cursor:     ctx.Query().Get("cursor"),
 			Pagination: pagination,
 		}
-		return call(ctx, OperationListEligibleEventSemanticEvents, request, func(callContext context.Context) (*Response[EligibleEventSemanticEvents], error) {
+		return Call(ctx, OperationListEligibleEventSemanticEvents, request, func(callContext context.Context) (*Response[EligibleEventSemanticEvents], error) {
 			if limitErr != nil {
 				return nil, NewPublicError(
 					StatusBadRequest, "INVALID_REQUEST", "limit is invalid", nil,
@@ -45,7 +45,7 @@ func createEventSemanticContextLeaseHandler(application DataHTTPServer) kratosht
 		if err != nil {
 			return err
 		}
-		return call(ctx, OperationCreateEventSemanticContextLease, request, func(callContext context.Context) (*Response[EventSemanticContextLease], error) {
+		return Call(ctx, OperationCreateEventSemanticContextLease, request, func(callContext context.Context) (*Response[EventSemanticContextLease], error) {
 			return application.CreateEventSemanticContextLease(callContext, request)
 		})
 	}
@@ -54,7 +54,7 @@ func createEventSemanticContextLeaseHandler(application DataHTTPServer) kratosht
 func getEventSemanticContextHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &EventSemanticContextRequest{ContextLeaseID: ctx.Vars().Get("context_lease_id")}
-		return call(ctx, OperationGetEventSemanticContext, request, func(callContext context.Context) (*Response[EventSemanticContext], error) {
+		return Call(ctx, OperationGetEventSemanticContext, request, func(callContext context.Context) (*Response[EventSemanticContext], error) {
 			return application.GetEventSemanticContext(callContext, request)
 		})
 	}
@@ -66,7 +66,7 @@ func createEventSemanticSubmissionHandler(application DataHTTPServer) kratoshttp
 		if err != nil {
 			return err
 		}
-		return call(ctx, OperationCreateEventSemanticSubmission, request, func(callContext context.Context) (*Response[EventSemanticSubmissionResult], error) {
+		return Call(ctx, OperationCreateEventSemanticSubmission, request, func(callContext context.Context) (*Response[EventSemanticSubmissionResult], error) {
 			return application.CreateEventSemanticSubmission(callContext, request)
 		})
 	}
@@ -79,7 +79,7 @@ func submitEventSemanticReviewHandler(application DataHTTPServer) kratoshttp.Han
 			return err
 		}
 		request.SubmissionID = ctx.Vars().Get("submission_id")
-		return call(ctx, OperationSubmitEventSemanticReview, request, func(callContext context.Context) (*Response[EventSemanticSubmissionResult], error) {
+		return Call(ctx, OperationSubmitEventSemanticReview, request, func(callContext context.Context) (*Response[EventSemanticSubmissionResult], error) {
 			return application.SubmitEventSemanticReview(callContext, request)
 		})
 	}
@@ -88,7 +88,7 @@ func submitEventSemanticReviewHandler(application DataHTTPServer) kratoshttp.Han
 func getEventSemanticsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &GetEventSemanticsRequest{EventID: ctx.Vars().Get("event_id")}
-		return call(ctx, OperationGetEventSemantics, request, func(callContext context.Context) (*Response[EventSemanticsResult], error) {
+		return Call(ctx, OperationGetEventSemantics, request, func(callContext context.Context) (*Response[EventSemanticsResult], error) {
 			return application.GetEventSemantics(callContext, request)
 		})
 	}

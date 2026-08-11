@@ -1,4 +1,4 @@
-package postgres
+package evidence
 
 import (
 	"context"
@@ -15,14 +15,17 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
+	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
 	"github.com/pressly/goose/v3"
 )
 
 func TestPostgresEvidencePublicationNaturalIdentityTransactionsAndSchema(t *testing.T) {
 	db := openEvidencePublicationTestDatabase(t)
-	store := NewEvidencePublicationStore(db)
-	publication, err := evidencepublication.NewService(store)
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication, err := evidencebiz.NewUseCase(store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,13 +40,13 @@ func TestPostgresEvidencePublicationNaturalIdentityTransactionsAndSchema(t *test
 	if err != nil {
 		t.Fatalf("replay Raw Evidence: %v", err)
 	}
-	if created.RawEvidence.Disposition != evidencepublication.DispositionCreated ||
-		replayed.RawEvidence.Disposition != evidencepublication.DispositionReused ||
+	if created.RawEvidence.Disposition != evidencebiz.DispositionCreated ||
+		replayed.RawEvidence.Disposition != evidencebiz.DispositionReused ||
 		created.ReceiptID == replayed.ReceiptID {
 		t.Fatalf("Raw Evidence results created=%#v replayed=%#v", created, replayed)
 	}
 
-	items := []evidencepublication.Evidence{
+	items := []evidencebiz.Evidence{
 		postgresEvidence("EVD_postgres_0000000000000000000", 0),
 		postgresEvidence("EVD_postgres_0000000000000000001", 1),
 	}
@@ -90,10 +93,10 @@ WHERE c.relname = 'idx_evidences_expression_key'`).Scan(&expressionIndexCount, &
 	}
 	assertEvidenceReplicatedSchema(t, db)
 
-	drift := append([]evidencepublication.Evidence(nil), items...)
+	drift := append([]evidencebiz.Evidence(nil), items...)
 	drift[0].SourceWhat = "drifted"
 	_, err = publication.PublishEvidence(ctx, "neutral-publisher", raw.RawEvidenceID, drift)
-	var conflict *evidencepublication.ConflictError
+	var conflict *evidencebiz.ConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("drift error = %v, want ConflictError", err)
 	}
@@ -102,6 +105,7 @@ WHERE c.relname = 'idx_evidences_expression_key'`).Scan(&expressionIndexCount, &
 	assertConcurrentRawEvidenceConflict(t, publication, db)
 	assertConcurrentEvidenceConvergenceAndConflict(t, publication, db)
 	assertEvidenceTransactionRollback(t, publication, store, db)
+	assertEvidenceDeadlineCancelsQueryAndRollsBack(t, store, db)
 	assertEvidenceReceiptsImmutable(t, db, created.ReceiptID, published.ReceiptID)
 }
 
@@ -137,15 +141,15 @@ WHERE conrelid = 'raw_evidences'::regclass
 	}
 }
 
-func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencepublication.Service, db *sql.DB) {
+func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
 	left := postgresEvidenceRaw("RAW_race_drift_00000000000000000")
 	right := left
 	right.RawText = "A different concurrent article."
 	start := make(chan struct{})
 	errorsChannel := make(chan error, 2)
-	for _, input := range []evidencepublication.RawEvidence{left, right} {
-		go func(raw evidencepublication.RawEvidence) {
+	for _, input := range []evidencebiz.RawEvidence{left, right} {
+		go func(raw evidencebiz.RawEvidence) {
 			<-start
 			_, err := publication.PublishRawEvidence(context.Background(), "neutral-publisher", raw)
 			errorsChannel <- err
@@ -159,7 +163,7 @@ func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencepubl
 			succeeded++
 			continue
 		}
-		var conflict *evidencepublication.ConflictError
+		var conflict *evidencebiz.ConflictError
 		if errors.As(err, &conflict) {
 			conflicted++
 			continue
@@ -178,7 +182,7 @@ func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencepubl
 	}
 }
 
-func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *evidencepublication.Service, db *sql.DB) {
+func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
 	for _, test := range []struct {
 		rawID         string
@@ -196,19 +200,19 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		if _, err := publication.PublishRawEvidence(context.Background(), "neutral-publisher", raw); err != nil {
 			t.Fatal(err)
 		}
-		left := []evidencepublication.Evidence{postgresEvidence(test.evidenceID, 0)}
-		right := []evidencepublication.Evidence{postgresEvidence(test.evidenceID, 0)}
+		left := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
+		right := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
 		if test.drift {
 			right[0].SourceWhat = "Concurrent semantic drift."
 		}
 		start := make(chan struct{})
 		type outcome struct {
-			result evidencepublication.EvidenceResult
+			result evidencebiz.EvidenceResult
 			err    error
 		}
 		outcomes := make(chan outcome, 2)
-		for _, input := range [][]evidencepublication.Evidence{left, right} {
-			go func(items []evidencepublication.Evidence) {
+		for _, input := range [][]evidencebiz.Evidence{left, right} {
+			go func(items []evidencebiz.Evidence) {
 				<-start
 				result, err := publication.PublishEvidence(context.Background(), "neutral-publisher", raw.RawEvidenceID, items)
 				outcomes <- outcome{result: result, err: err}
@@ -223,7 +227,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 				reused += completed.result.Counts.Reused
 				continue
 			}
-			var conflict *evidencepublication.ConflictError
+			var conflict *evidencebiz.ConflictError
 			if errors.As(completed.err, &conflict) {
 				conflicted++
 				continue
@@ -243,11 +247,11 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 	}
 }
 
-func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidencepublication.Service, db *sql.DB) {
+func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
 	raw := postgresEvidenceRaw("RAW_concurrent_00000000000000000")
 	start := make(chan struct{})
-	results := make(chan evidencepublication.RawEvidenceResult, 2)
+	results := make(chan evidencebiz.RawEvidenceResult, 2)
 	errorsChannel := make(chan error, 2)
 	var workers sync.WaitGroup
 	for index := 0; index < 2; index++ {
@@ -272,9 +276,9 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidencep
 	created, reused := 0, 0
 	for result := range results {
 		switch result.RawEvidence.Disposition {
-		case evidencepublication.DispositionCreated:
+		case evidencebiz.DispositionCreated:
 			created++
-		case evidencepublication.DispositionReused:
+		case evidencebiz.DispositionReused:
 			reused++
 		}
 	}
@@ -290,18 +294,18 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidencep
 	}
 }
 
-func assertEvidenceTransactionRollback(t *testing.T, publication *evidencepublication.Service, store evidencepublication.Store, db *sql.DB) {
+func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.UseCase, store evidencebiz.Store, db *sql.DB) {
 	t.Helper()
 	raw := postgresEvidenceRaw("RAW_rollback_0000000000000000000")
-	err := store.InTransaction(context.Background(), func(tx evidencepublication.Transaction) error {
-		if err := tx.InsertRawEvidence(context.Background(), evidencepublication.StoredRawEvidence{
+	err := store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
+		if err := tx.InsertRawEvidence(context.Background(), evidencebiz.StoredRawEvidence{
 			RawEvidence: raw, ContentHash: "unused-generated-column-value",
 		}); err != nil {
 			return err
 		}
-		return tx.InsertRawEvidenceReceipt(context.Background(), evidencepublication.RawEvidencePublicationReceipt{
+		return tx.InsertRawEvidenceReceipt(context.Background(), evidencebiz.RawEvidencePublicationReceipt{
 			ID: "not-a-uuid", CallerSubject: "neutral-publisher", RawEvidenceID: raw.RawEvidenceID,
-			Disposition: evidencepublication.DispositionCreated, ImportedAt: time.Now().UTC(),
+			Disposition: evidencebiz.DispositionCreated, ImportedAt: time.Now().UTC(),
 		})
 	})
 	if err == nil {
@@ -320,15 +324,15 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencepublic
 		t.Fatal(err)
 	}
 	evidence := postgresEvidence("EVD_evrollback_00000000000000000", 0)
-	err = store.InTransaction(context.Background(), func(tx evidencepublication.Transaction) error {
-		if err := tx.InsertEvidence(context.Background(), evidencepublication.StoredEvidence{
+	err = store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
+		if err := tx.InsertEvidence(context.Background(), evidencebiz.StoredEvidence{
 			Evidence: evidence, RawEvidenceID: evidenceRaw.RawEvidenceID, IsSplit: false,
 		}); err != nil {
 			return err
 		}
-		return tx.InsertEvidenceReceipt(context.Background(), evidencepublication.EvidencePublicationReceipt{
+		return tx.InsertEvidenceReceipt(context.Background(), evidencebiz.EvidencePublicationReceipt{
 			ID: "not-a-uuid", CallerSubject: "neutral-publisher", RawEvidenceID: evidenceRaw.RawEvidenceID,
-			EvidenceIDs: []string{evidence.EvidenceID}, Counts: evidencepublication.EvidenceCounts{Created: 1},
+			EvidenceIDs: []string{evidence.EvidenceID}, Counts: evidencebiz.EvidenceCounts{Created: 1},
 			ImportedAt: time.Now().UTC(),
 		})
 	})
@@ -343,6 +347,53 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencepublic
 	}
 }
 
+func assertEvidenceDeadlineCancelsQueryAndRollsBack(t *testing.T, store Store, db *sql.DB) {
+	t.Helper()
+	lockKey := "raw-evidence:deadline-rollback"
+	lockHolder, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := lockHolder.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			t.Errorf("release Evidence deadline test lock: %v", err)
+		}
+	}()
+	if _, err := lockHolder.Exec(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+		t.Fatal(err)
+	}
+
+	raw := postgresEvidenceRaw("RAW_deadline_0000000000000000000")
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	err = store.InTransaction(ctx, func(tx evidencebiz.Transaction) error {
+		if err := tx.InsertRawEvidence(ctx, evidencebiz.StoredRawEvidence{RawEvidence: raw}); err != nil {
+			return err
+		}
+		if err := tx.InsertRawEvidenceReceipt(ctx, evidencebiz.RawEvidencePublicationReceipt{
+			ID: "33333333-3333-4333-8333-333333333333", CallerSubject: "neutral-publisher",
+			RawEvidenceID: raw.RawEvidenceID, Disposition: evidencebiz.DispositionCreated,
+			ImportedAt: time.Now().UTC(),
+		}); err != nil {
+			return err
+		}
+		return tx.LockIdentities(ctx, []string{lockKey})
+	})
+	if err == nil || !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("deadline transaction error=%v context=%v", err, ctx.Err())
+	}
+	var rawCount, receiptCount int
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rawCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_publication_receipts WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&receiptCount); err != nil {
+		t.Fatal(err)
+	}
+	if rawCount != 0 || receiptCount != 0 {
+		t.Fatalf("deadline rollback left raw=%d receipts=%d", rawCount, receiptCount)
+	}
+}
+
 func assertEvidenceReceiptsImmutable(t *testing.T, db *sql.DB, rawReceiptID, evidenceReceiptID string) {
 	t.Helper()
 	if _, err := db.Exec(`UPDATE raw_evidence_publication_receipts SET caller_subject = 'mutated' WHERE id = $1`, rawReceiptID); err == nil {
@@ -353,9 +404,9 @@ func assertEvidenceReceiptsImmutable(t *testing.T, db *sql.DB, rawReceiptID, evi
 	}
 }
 
-func postgresEvidenceRaw(id string) evidencepublication.RawEvidence {
+func postgresEvidenceRaw(id string) evidencebiz.RawEvidence {
 	publishedAt := time.Date(2026, 8, 11, 1, 0, 0, 123456789, time.UTC)
-	return evidencepublication.RawEvidence{
+	return evidencebiz.RawEvidence{
 		RawEvidenceID: id, SourceID: "SRC_postgres_0000000000000000000", SourceName: "Example Wire",
 		SourceLevel: "L2_WIRE", SourceURL: "https://example.test/evidence", IsOriginal: true,
 		RawText: "Complete PostgreSQL Evidence Publication article.", PublishedAt: &publishedAt,
@@ -364,8 +415,8 @@ func postgresEvidenceRaw(id string) evidencepublication.RawEvidence {
 	}
 }
 
-func postgresEvidence(id string, order int) evidencepublication.Evidence {
-	return evidencepublication.Evidence{
+func postgresEvidence(id string, order int) evidencebiz.Evidence {
+	return evidencebiz.Evidence{
 		EvidenceID: id, SplitOrder: order, LayerType: "SINGLE",
 		SourceWhat:            "Example Corp expanded production.",
 		ExpressionFingerprint: "Example Corp expands production",

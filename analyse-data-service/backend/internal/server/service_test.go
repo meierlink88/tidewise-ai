@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	dataapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	"gopkg.in/yaml.v3"
 )
@@ -101,7 +103,7 @@ func TestServerOwnsAuthenticationAuthorizationAndPrincipalInjection(t *testing.T
 		t.Fatal(err)
 	}
 	application := &principalRecordingDataService{}
-	handler := NewHTTPServer(testConfig(), application, authenticator, nil).Server.Handler
+	handler := newTestHTTPServer(testConfig(), application, serverTestEvidenceService{}, authenticator).Server.Handler
 
 	for _, test := range []struct {
 		name       string
@@ -172,6 +174,32 @@ func TestAuthenticatorRejectsInvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret:    "admin-token",
+		Principal: dataapi.Principal{Identity: "admin", Scopes: []string{ScopeAdminRead}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name        string
+		application dataapi.DataHTTPServer
+		evidence    evidenceapi.Service
+		auth        *Authenticator
+	}{
+		{name: "Data API", evidence: serverTestEvidenceService{}, auth: authenticator},
+		{name: "Evidence API", application: serverTestDataService{}, auth: authenticator},
+		{name: "authenticator", application: serverTestDataService{}, evidence: serverTestEvidenceService{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := NewHTTPServer(testConfig(), test.application, test.evidence, test.auth, nil); err == nil {
+				t.Fatal("NewHTTPServer() error = nil")
+			}
+		})
+	}
+}
+
 func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	var document map[string]any
 	if err := yaml.Unmarshal(dataapi.Document(), &document); err != nil {
@@ -202,7 +230,8 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 			openAPIOperations[anchor] = struct{}{}
 		}
 	}
-	for _, operation := range dataapi.BusinessOperations {
+	businessOperations := append(append([]string(nil), dataapi.BusinessOperations...), evidenceapi.BusinessOperations()...)
+	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
 			t.Errorf("business operation %q is absent from OpenAPI", operation)
 		}
@@ -230,7 +259,7 @@ func TestServerRecoveryPreservesStableErrorEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHTTPServer(testConfig(), panickingDataService{}, authenticator, nil).Server.Handler
+	handler := newTestHTTPServer(testConfig(), panickingDataService{}, serverTestEvidenceService{}, authenticator).Server.Handler
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, dataapi.APIPrefix+"/events", nil)
 	request.Header.Set("Authorization", "Bearer admin-token")
@@ -248,7 +277,7 @@ func TestServerRecoveryPreservesStableErrorEnvelope(t *testing.T) {
 
 func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) http.Handler {
 	if application == nil {
-		return NewHTTPServer(config, nil, nil, nil).Server.Handler
+		application = serverTestDataService{}
 	}
 	authenticator, err := NewAuthenticator([]Credential{{
 		Secret: "admin-token",
@@ -260,22 +289,34 @@ func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) htt
 	if err != nil {
 		panic(err)
 	}
-	return NewHTTPServer(config, application, authenticator, nil).Server.Handler
+	return newTestHTTPServer(config, application, serverTestEvidenceService{}, authenticator).Server.Handler
+}
+
+func newTestHTTPServer(config conf.Config, application dataapi.DataHTTPServer, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
+	server, err := NewHTTPServer(config, application, evidenceApplication, authenticator, nil)
+	if err != nil {
+		panic(err)
+	}
+	return server
 }
 
 type serverTestDataService struct{}
+
+type serverTestEvidenceService struct{}
+
+func (serverTestEvidenceService) PublishRawEvidence(context.Context, *evidenceapi.RawEvidencePublicationRequest) (*dataapi.Response[evidenceapi.RawEvidencePublicationResult], error) {
+	return serverTestResponse[evidenceapi.RawEvidencePublicationResult]()
+}
+
+func (serverTestEvidenceService) PublishEvidence(context.Context, *evidenceapi.EvidencePublicationRequest) (*dataapi.Response[evidenceapi.EvidencePublicationResult], error) {
+	return serverTestResponse[evidenceapi.EvidencePublicationResult]()
+}
 
 func serverTestResponse[T any]() (*dataapi.Response[T], error) {
 	return &dataapi.Response[T]{Status: http.StatusNoContent}, nil
 }
 func (serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.EventPublicationRequest) (*dataapi.Response[dataapi.EventPublicationResult], error) {
 	return serverTestResponse[dataapi.EventPublicationResult]()
-}
-func (serverTestDataService) PublishRawEvidence(context.Context, *dataapi.RawEvidencePublicationRequest) (*dataapi.Response[dataapi.RawEvidencePublicationResult], error) {
-	return serverTestResponse[dataapi.RawEvidencePublicationResult]()
-}
-func (serverTestDataService) PublishEvidence(context.Context, *dataapi.EvidencePublicationRequest) (*dataapi.Response[dataapi.EvidencePublicationResult], error) {
-	return serverTestResponse[dataapi.EvidencePublicationResult]()
 }
 func (serverTestDataService) ListActiveEventTags(context.Context, *dataapi.EventTagCatalogRequest) (*dataapi.Response[dataapi.EventTagCatalog], error) {
 	return serverTestResponse[dataapi.EventTagCatalog]()

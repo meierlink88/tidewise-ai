@@ -9,7 +9,6 @@ import (
 	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
@@ -24,8 +23,6 @@ const (
 	ScopeResearchImport      = "data.research.import"
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
-	ScopeRawEvidenceImport   = "data.raw-evidences.import"
-	ScopeEvidenceImport      = "data.evidences.import"
 	ScopeEventTagRead        = "data.event-tags.read"
 	ScopeEventSemanticsRead  = "data.event-semantics.read"
 	ScopeEventSemanticsWrite = "data.event-semantics.write"
@@ -33,11 +30,6 @@ const (
 
 type EventPublicationService interface {
 	Import(context.Context, string, publicationdomain.Publication) (eventpublicationapp.Result, error)
-}
-
-type EvidencePublicationService interface {
-	PublishRawEvidence(context.Context, string, evidencepublication.RawEvidence) (evidencepublication.RawEvidenceResult, error)
-	PublishEvidence(context.Context, string, string, []evidencepublication.Evidence) (evidencepublication.EvidenceResult, error)
 }
 
 type EventTagCatalogService interface {
@@ -87,7 +79,6 @@ type RuntimeHealthService interface {
 
 type Dependencies struct {
 	EventPublications       EventPublicationService
-	EvidencePublications    EvidencePublicationService
 	EventTagCatalog         EventTagCatalogService
 	EventSemantics          EventSemanticsService
 	ResearchThemeImports    ResearchThemeImportService

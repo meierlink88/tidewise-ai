@@ -1,4 +1,4 @@
-package evidencepublication
+package evidence
 
 import (
 	"context"
@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-func TestNewServiceRejectsMissingStore(t *testing.T) {
-	if _, err := NewService(nil); err == nil {
-		t.Fatal("NewService(nil) error = nil")
+func TestNewUseCaseRejectsMissingStore(t *testing.T) {
+	if _, err := NewUseCase(nil); err == nil {
+		t.Fatal("NewUseCase(nil) error = nil")
 	}
 }
 
 func TestPublishRawEvidenceCreatesThenReusesAndPreservesKeywords(t *testing.T) {
 	store := newMemoryStore()
-	service := mustNewService(t, store)
+	service := mustNewUseCase(t, store)
 	ids := []string{
 		"11111111-1111-4111-8111-111111111111",
 		"22222222-2222-4222-8222-222222222222",
@@ -58,7 +58,7 @@ func TestPublishRawEvidenceCreatesThenReusesAndPreservesKeywords(t *testing.T) {
 }
 
 func TestPublishRawEvidenceRejectsIdentityDriftAndInvalidOrigin(t *testing.T) {
-	service := mustNewService(t, newMemoryStore())
+	service := mustNewUseCase(t, newMemoryStore())
 	raw := validRawEvidence()
 	if _, err := service.PublishRawEvidence(context.Background(), "publisher", raw); err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	store := newMemoryStore()
 	raw := validRawEvidence()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	service := mustNewService(t, store)
+	service := mustNewUseCase(t, store)
 	ids := []string{
 		"33333333-3333-4333-8333-333333333333",
 		"44444444-4444-4444-8444-444444444444",
@@ -136,7 +136,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 	store := newMemoryStore()
 	raw := validRawEvidence()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	service := mustNewService(t, store)
+	service := mustNewUseCase(t, store)
 
 	single := validEvidence("EVD_example_00000000000000000000", 0)
 	result, err := service.PublishEvidence(context.Background(), "tidewise-internal-service", raw.RawEvidenceID, []Evidence{single})
@@ -150,7 +150,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 	otherStore := newMemoryStore()
 	otherStore.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	nonContinuous := []Evidence{validEvidence("EVD_example_00000000000000000001", 0), validEvidence("EVD_example_00000000000000000002", 2)}
-	_, err = mustNewService(t, otherStore).PublishEvidence(context.Background(), "tidewise-internal-service", raw.RawEvidenceID, nonContinuous)
+	_, err = mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), "tidewise-internal-service", raw.RawEvidenceID, nonContinuous)
 	var validation *ValidationError
 	if !errors.As(err, &validation) {
 		t.Fatalf("non-continuous error = %v, want ValidationError", err)
@@ -161,7 +161,7 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 	raw := validRawEvidence()
 	store := newMemoryStore()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	service := mustNewService(t, store)
+	service := mustNewUseCase(t, store)
 
 	tests := []struct {
 		name  string
@@ -243,9 +243,9 @@ func validRawEvidence() RawEvidence {
 
 func stringPointer(value string) *string { return &value }
 
-func mustNewService(t *testing.T, store Store) *Service {
+func mustNewUseCase(t *testing.T, store Store) *UseCase {
 	t.Helper()
-	service, err := NewService(store)
+	service, err := NewUseCase(store)
 	if err != nil {
 		t.Fatalf("construct Evidence Publication service: %v", err)
 	}

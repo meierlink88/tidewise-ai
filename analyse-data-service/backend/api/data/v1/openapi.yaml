@@ -780,7 +780,7 @@ paths:
       x-client-drift-anchor: data.v1.publishRawEvidence
       x-required-service-scope: data.raw-evidences.import
       x-retry-policy: retry-failed-call-with-natural-identities
-      x-timeout-budget-ms: 15000
+      x-timeout-budget-ms: 3000
       x-atomicity: raw-evidence-and-receipt-single-postgresql-transaction
       x-receipt-schema: raw_evidence_publication_receipts
       x-transaction-membership: raw-evidence,raw-evidence-publication-receipt
@@ -834,7 +834,7 @@ paths:
       x-client-drift-anchor: data.v1.publishEvidence
       x-required-service-scope: data.evidences.import
       x-retry-policy: retry-failed-call-with-natural-identities
-      x-timeout-budget-ms: 15000
+      x-timeout-budget-ms: 3000
       x-atomicity: complete-evidence-set-and-receipt-single-postgresql-transaction
       x-receipt-schema: evidence_publication_receipts
       x-transaction-membership: evidence,evidence-publication-receipt
