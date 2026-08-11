@@ -2,7 +2,9 @@
 
 ## 状态
 
-已实施。
+已实施。本文保留迁移时的实现与验收记录；其中具体 package 和文件名已由后续
+`kratos-backend-layout-standard.md` 的 domain-first package 与固定职责文件
+规范取代，不再作为新增或重构源码的命名权威。
 
 ## 目标
 
@@ -102,7 +104,7 @@ Miniapp Service
 - 当前 `miniapp/backend/api/openapi.yaml`；
 - 目标 `miniapp/backend/api/miniapp/v1/openapi.yaml`；
 - `testdata/reasoning-tree-v1/`；
-- [Kratos Backend Service 开发规范 V1](kratos-backend-development-standard-v1.md)。
+- [Kratos Backend 工程结构规范](../development-standards/kratos-backend-layout-standard.md)。
 
 旧设计文档如与当前 OpenAPI 成功/错误 envelope 冲突，以当前 OpenAPI 为准。
 
@@ -261,7 +263,9 @@ miniapp/backend/
             └── docs.go                # Miniapp 独立拥有嵌入式文档交付
 ```
 
-文件名是实施建议；目录、职责、依赖方向和禁止旧层回流是强制要求。
+以上文件名仅记录试点实施结果，不是当前命名建议。新增和重构源码必须使用
+`kratos-backend-layout-standard.md` 的领域目录与固定职责文件；本文件冻结的
+业务合同、依赖方向和禁止旧层回流要求继续有效。
 
 ## 各层设计
 
@@ -671,5 +675,6 @@ Local/UAT 保持：
 8. 全部合同、共享 fixture、race、binary、Docker、Compose 测试通过；
 9. 服务可用固定 URL 和本地 YAML/env 独立运行；
 10. 没有引入 Kubernetes、registry、config center 或其他控制面。
+
 > **Research contract note:** 本文件的 Miniapp Kratos 边界仍有效；其中 Anchor 路径、
 > 参数与 DTO 已由 `research-theme-reasoning-tree-spec.md` 原地替换。

@@ -17,9 +17,10 @@
 
 ## 2. Naming And Files
 
-- package、目录、类型和函数使用业务责任命名，不使用 `common`、`utils`、`helper`、
-  `manager`、`misc` 等无法表达 owner 的泛化名称；
-- 文件围绕稳定责任组织；文件变大本身不是拆分理由，出现多个独立变化原因时才拆分；
+- package、目录、类型和函数不得使用 `common`、`utils`、`helper`、`manager`、`misc`
+  等无法表达 owner 的泛化名称；
+- 目录、package 和文件命名遵守所属技术栈规范；Backend 的固定结构和职责文件只由
+  `kratos-backend-layout-standard.md` 定义，本文不重复。
 - boolean 使用能读出真假语义的名称，如 `isReady`、`hasNext`、`enabled`；
 - 时间、金额、比例、数量和单位必须在类型或名称中明确，禁止无单位的模糊数字；
 - ID、状态、枚举和错误 code 使用稳定类型或受控常量，不散落 magic string；
@@ -36,7 +37,7 @@
 
 ### Packages And Dependencies
 
-- package 保持单一 owner 和职责；依赖方向遵守 Kratos 与 AgentRun 规范；
+- package 保持单一 owner 和职责；依赖方向遵守适用的工程结构与技术栈规范；
 - interface 定义在 consumer 侧，并只包含 consumer 真正使用的方法；
 - 构造函数返回可立即使用的对象；必需依赖缺失时明确失败，不延迟到第一次请求；
 - 不使用 `init` 完成业务注册、环境读取、数据库连接或网络调用；
@@ -113,7 +114,7 @@
 - 大数据 backfill 与在线 contract change 分离，具有批次、幂等、观测和恢复策略；
 - 新 constraint 应先处理历史兼容，再验证并收紧；
 - index 必须对应查询或约束责任，不因推测增加；
-- 每个 Data/AgentRun migration 都必须加入 UAT migration risk manifest；
+- 数据库 owner 的 migration 按仓库部署规则加入对应 UAT risk manifest；
 - rollback 默认回退应用版本并使用向前兼容 Schema；不得假设数据库 down migration 安全。
 
 ## 6. Configuration, Logging And Secrets
@@ -121,7 +122,7 @@
 - 非敏感默认配置可以进入 YAML；密码、Token、API Key 只从环境变量或批准的 Secret
   Provider 注入；
 - 业务代码不散落读取环境变量，配置在 composition root 加载、校验并 typed 传入；
-- 日志记录 service/capability、operation、request/execution ID、状态和必要耗时；
+- 日志记录 service/domain、operation、request/execution ID、状态和必要耗时；
 - 不记录 Authorization、Cookie、DSN、Prompt、模型原始响应、Connector body、完整用户
   内容或未脱敏配置；
 - callback、审计记录与技术日志用途不同，不得互相替代；
@@ -147,3 +148,4 @@
 - 架构：目录、import、Adapter、Service 和 framework placement 门禁。
 
 项目当前工具未自动覆盖的规则仍然是 review 必查项，不因缺少 lint rule 而失效。
+纯开发规范内容变更不运行上述产品验证或 CI 门禁。

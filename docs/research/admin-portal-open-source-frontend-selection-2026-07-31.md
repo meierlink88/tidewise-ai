@@ -21,7 +21,7 @@
   的唯一边界。
 
 具体开发规范见
-[`docs/agents/admin-portal-frontend.md`](../agents/admin-portal-frontend.md)。
+[`docs/development-standards/admin-portal-frontend.md`](../development-standards/admin-portal-frontend.md)。
 
 ## Why
 

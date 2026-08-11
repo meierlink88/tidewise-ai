@@ -32,7 +32,7 @@ docs/adr/0002-use-kratos-as-service-shell-and-eino-inside-agent-capabilities.md	
 docs/agents/domain.md	superseded-as-duplicate	docs/agents/domain.md
 docs/agents/issue-tracker.md	superseded-as-duplicate	docs/agents/issue-tracker.md
 docs/agents/triage-labels.md	superseded-as-duplicate	docs/agents/triage-labels.md
-docs/agents/workflow.md	merged	docs/agents/workflow.md
+docs/agents/workflow.md	merged	docs/development-standards/workflow.md
 docs/research/agent-schedule-go-library-options.md	moved	docs/research/agentrun/agent-schedule-go-library-options.md
 docs/specs/agent-scheduling-admin-api.md	moved	docs/architecture/agentrun/agent-scheduling-admin-api.md
 docs/specs/bottleneck-thesis-research-workflow-v1.md	moved	docs/architecture/agentrun/bottleneck-thesis-research-workflow-v1.md

@@ -4,7 +4,9 @@
 
 已实施。功能范围由 GitHub Issue #97 冻结，工程基线采用 `origin/main@8127814`，
 其中 Issue #100 / PR #101 已完成按应用根目录重组，Miniapp Kratos 试点由
-`44191c6` 落地。
+`44191c6` 落地。本文保留迁移时的实现与验收记录；其中具体 package 和文件名已由后续
+`kratos-backend-layout-standard.md` 的 domain-first package 与固定职责文件
+规范取代，不再作为新增或重构源码的命名权威。
 
 ## 1. 结果与非目标
 
@@ -31,15 +33,15 @@ admin-portal/backend/
 
 ## 2. Owner Map
 
-| 责任 | Owner |
-| --- | --- |
-| 管理员界面 | `admin-portal/frontend` |
-| 浏览器 API、认证、前端 DTO、错误映射 | Admin Application Backend Service |
-| AgentRun consumer port 与页面编排 | `admin-portal/backend/internal/biz` |
-| Data/AgentRun HTTP adapter | `admin-portal/backend/internal/data` |
-| Schedule、Execution、Provider、Connector 事实 | AgentRun |
-| Raw Document、Event 事实 | Data Domain Service |
-| 调用方 | Admin Frontend 只调用 Admin Backend |
+| 责任                                          | Owner                                |
+| --------------------------------------------- | ------------------------------------ |
+| 管理员界面                                    | `admin-portal/frontend`              |
+| 浏览器 API、认证、前端 DTO、错误映射          | Admin Application Backend Service    |
+| AgentRun consumer port 与页面编排             | `admin-portal/backend/internal/biz`  |
+| Data/AgentRun HTTP adapter                    | `admin-portal/backend/internal/data` |
+| Schedule、Execution、Provider、Connector 事实 | AgentRun                             |
+| Raw Document、Event 事实                      | Data Domain Service                  |
+| 调用方                                        | Admin Frontend 只调用 Admin Backend  |
 
 不同 Backend 继续只通过版本化 REST API 协作；Admin Backend 不获得 Data 或 AgentRun
 数据库凭据，也不 import 其实现。
@@ -64,7 +66,7 @@ OpenAPI 3.0.4 与现有 HTTP/Frontend 测试是迁移期间的线协议冻结依
 ## 4. 采用的参考
 
 - `docs/adr/0006-kratos-official-service-layout.md`
-- `docs/architecture/kratos-backend-development-standard-v1.md`
+- `docs/development-standards/kratos-backend-layout-standard.md`
 - `docs/architecture/miniapp-kratos-pilot-v1.md`
 - `miniapp/backend` 在 `origin/main@8127814` 的已实施结构
 - `github.com/go-kratos/kratos/v3 v3.0.0`

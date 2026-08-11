@@ -70,8 +70,7 @@ Miniapp 使用三层组件：
 
 ### Platform and UI primitives
 
-薄封装 Taro 基础组件、系统安全区、状态栏、图片或平台差异。它们不包含 Research Theme、
-Reason Tree 等领域语义。
+薄封装 Taro 基础组件、系统安全区、状态栏、图片或平台差异。它们不包含具体领域语义。
 
 ### Product compositions
 
@@ -80,8 +79,8 @@ Reason Tree 等领域语义。
 
 ### Feature and page components
 
-拥有 Theme、Reason Tree、Tracking 等具体产品语义。不得为复用外观把业务状态转换、
-API 调用或导航规则下沉进通用组件。
+拥有具体产品与领域语义。不得为复用外观把业务状态转换、API 调用或导航规则下沉进
+通用组件。
 
 禁止：
 
@@ -115,7 +114,7 @@ API 调用或导航规则下沉进通用组件。
 ## 6. Data And Backend Boundary
 
 - Miniapp Frontend 只调用 Miniapp Backend 的版本化 API；
-- 不直连 Data、AgentRun、PostgreSQL、Neo4j、外部模型或信息 Provider；
+- 不直连下游 Domain Service、Agent runtime、数据库、外部模型或信息 Provider；
 - API Adapter 拥有 URL、header、wire DTO、timeout、response/error mapping；
 - Feature Port 使用产品语言，不暴露 HTTP status、Backend envelope 或 Taro response；
 - Backend Request ID 可以用于安全诊断，但不得向用户展示内部错误、URL 或 Token；

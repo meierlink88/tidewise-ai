@@ -32,6 +32,7 @@ APP_ENV=local TIDEWISW_DB_PASSWORD=<local-password> go run ./analyse-data-servic
 - `000015_refactor_industry_chain_node_phase_a.sql`：以人工授权门禁执行旧产业结构受控 cleanup，并收敛最小 chain_node/theme profile。
 - `000016_add_entity_external_identifiers.sql`：新增通用实体外部标识表、外部 identity 唯一约束与实体侧查询索引；不包含任何 mapping 数据。
 - `000029_add_event_publication_v2.sql`：保留历史 Event/证据正文与关联，把新 `raw_documents` 收敛为轻量 Event 证据记录，新增 V2 Receipt，并退出 Data 内旧 Source、采集运行及 V1 Import Receipt 结构。
+- `000042_add_evidence_publications.sql`：新增与 Event Publication 隔离的 `raw_evidences`、原子 `evidences` 和两类不可变 Receipt；完整原文与 Keywords 先发布，清洗后的完整 `1..N` Evidence 集合后发布。
 
 实体基础库 seed 使用 repo 内版本化 JSON 文件：
 
@@ -101,10 +102,11 @@ ORDER BY relation_type;
 任一层数量不一致时，不得手工修改 Neo4j；应先修正 repo seed 或 PostgreSQL
 事实。旧通用投影器保持退役。
 
-Source Catalog、采集调度和完整原始 Artifact 已归 AgentRun。Data 不再提供
-`source-seed` 或维护 `source_catalogs`；新 Event 只能通过
-`POST /api/data/v1/reviewed-event-imports` 连同轻量证据原子接纳。历史
-`raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。
+Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
+`POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史
+`raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。ADR-0011 另行建立与该旧链路
+隔离的 Evidence 体系：完整材料进入 `raw_evidences`，不复用 `raw_documents` 或
+`event_sources`。
 
 ## Neo4j 图谱投影
 
