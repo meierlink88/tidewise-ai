@@ -217,7 +217,7 @@ services:
     ports:
       - '${ADMIN_WEB_PORT:-9014}:9014'
     environment:
-      ADMIN_API_BASE_URL: 'http://127.0.0.1:${ADMIN_SERVICE_PORT:-9013}'
+      ADMIN_BACKEND_URL: http://adminportal:9013
     depends_on:
       adminportal:
         condition: service_healthy

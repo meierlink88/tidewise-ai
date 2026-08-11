@@ -76,5 +76,7 @@ Admin 当前可以没有独立业务数据库。未来确需 Admin-owned 审计�
 ## Runtime
 
 Admin Application Backend 与 Admin Portal Frontend 只通过各自 Docker image 和 Compose
-运行。Frontend local/UAT 均使用 unprivileged nginx image，并只获得公开 Admin Backend
-URL；浏览器和 Frontend container 不获得下游 Service Token 或数据库凭据。
+运行。Frontend local/UAT 均使用 unprivileged nginx image；浏览器只使用相对
+`/api/admin/*`，由 nginx 转发到 Compose 内部的 `adminportal:9013`。UAT 只公开 Admin Web
+`9014`，不公开 Backend `9013`；浏览器和 Frontend container 不获得下游 Service Token
+或数据库凭据。
