@@ -83,6 +83,9 @@ WHERE raw_evidence_id = $1`, id).Scan(
 	if err := json.Unmarshal(keywordsJSON, &record.Keywords); err != nil {
 		return nil, fmt.Errorf("decode Raw Evidence keywords: %w", err)
 	}
+	if err := validateStoredRawEvidence(&record, id); err != nil {
+		return nil, fmt.Errorf("read Raw Evidence invariant: %w", err)
+	}
 	return &record, nil
 }
 
@@ -108,7 +111,14 @@ func (t *transaction) EvidencesByRawEvidence(ctx context.Context, rawEvidenceID 
 		return nil, fmt.Errorf("read Evidence set: %w", err)
 	}
 	defer rows.Close()
-	return scanEvidences(rows)
+	records, err := scanEvidences(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateStoredEvidenceSet(rawEvidenceID, records); err != nil {
+		return nil, fmt.Errorf("read Evidence set invariant: %w", err)
+	}
+	return records, nil
 }
 
 func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evidencebiz.StoredEvidence, error) {
@@ -117,7 +127,14 @@ func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evide
 		return nil, fmt.Errorf("read Evidence identities: %w", err)
 	}
 	defer rows.Close()
-	return scanEvidences(rows)
+	records, err := scanEvidences(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateStoredEvidenceIdentities(ids, records); err != nil {
+		return nil, fmt.Errorf("read Evidence identities invariant: %w", err)
+	}
+	return records, nil
 }
 
 const evidenceSelect = `
@@ -147,6 +164,9 @@ func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
 			&record.ExpressionFingerprint, &record.ExpressionKey, &record.FingerprintVersion,
 		); err != nil {
 			return nil, fmt.Errorf("scan Evidence: %w", err)
+		}
+		if err := validateStoredEvidence(&record); err != nil {
+			return nil, fmt.Errorf("read Evidence row invariant: %w", err)
 		}
 		result = append(result, record)
 	}
