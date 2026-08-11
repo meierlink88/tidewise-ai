@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	appimport "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchthemeimport"
@@ -78,12 +77,8 @@ func validateLocalTarget(cfg conf.Config) error {
 	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research theme development seed is local-only, got %q", cfg.App.Env)
 	}
-	if !isLocalDatabaseHost(cfg.Database.Host) || cfg.Database.Name != "tidewise_local" {
+	if !conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) || cfg.Database.Name != "tidewise_local" {
 		return fmt.Errorf("research theme development seed requires a local PostgreSQL host and database tidewise_local")
 	}
 	return nil
-}
-
-func isLocalDatabaseHost(host string) bool {
-	return strings.EqualFold(strings.TrimSpace(host), "host.docker.internal")
 }

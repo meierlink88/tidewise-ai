@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:22.23.2-bookworm-slim
 
 WORKDIR /workspace
 
@@ -8,6 +8,7 @@ COPY admin-portal/frontend/package.json ./admin-portal/frontend/package.json
 RUN npm ci --workspace @tidewise/miniapp --include-workspace-root=false
 
 COPY miniapp/frontend ./miniapp/frontend
+COPY testdata ./testdata
 
 ENV TARO_APP_RESEARCH_SOURCE=api
 ENV TARO_APP_MINIAPP_API_BASE_URL=http://127.0.0.1:9012

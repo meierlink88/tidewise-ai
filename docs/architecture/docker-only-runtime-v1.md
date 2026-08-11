@@ -8,17 +8,17 @@ image entrypoints and container network semantics.
 
 ## Scope
 
-| Process                                  | Docker contract                                                                                |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Data Domain Service                      | `data` image and Compose service                                                               |
-| Data migrations and tools                | binaries in the Data image, invoked with `docker compose run --rm`                             |
-| AgentRun                                 | `agentrun` image and Compose service                                                           |
-| AgentRun migration/config/Artifact tools | binaries in the AgentRun image, invoked with Compose run/exec                                  |
-| Miniapp Application Backend              | `miniapp` image and Compose service                                                            |
-| Admin Application Backend                | `adminportal` image and Compose service                                                        |
-| Admin Portal Frontend                    | unprivileged nginx `admin` image and Compose service                                           |
-| Miniapp Frontend                         | non-deployable Node/Taro builder image; Compose profiles for H5, WeChat and Douyin watch/build |
-| PostgreSQL, Neo4j and Qdrant             | external infrastructure endpoints; excluded from application Compose/release artifacts         |
+| Process                                  | Docker contract                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Data Domain Service                      | `data` image and Compose service                                                             |
+| Data migrations and tools                | binaries in the Data image, invoked with `docker compose run --rm`                           |
+| AgentRun                                 | `agentrun` image and Compose service                                                         |
+| AgentRun migration/config/Artifact tools | binaries in the AgentRun image, invoked with Compose run/exec                                |
+| Miniapp Application Backend              | `miniapp` image and Compose service                                                          |
+| Admin Application Backend                | `adminportal` image and Compose service                                                      |
+| Admin Portal Frontend                    | unprivileged nginx `admin` image and Compose service                                         |
+| Miniapp Frontend                         | non-deployable Node/Taro builder image; dedicated Compose profiles for H5, WeChat and Douyin |
+| PostgreSQL, Neo4j and Qdrant             | external infrastructure endpoints; excluded from application Compose/release artifacts       |
 
 Tests, lint, typecheck and source compilation may still execute directly in CI or a developer tool.
 They are verification mechanisms, not supported application runtime entrypoints.
@@ -65,6 +65,8 @@ They are verification mechanisms, not supported application runtime entrypoints.
 - Miniapp H5/weapp/tt development uses the repository-pinned Node and Taro dependencies inside a
   builder container. Source and `dist` are bind-mounted; platform developer tools read the host
   output.
+- Builder profiles live in a dedicated Compose file without Backend dependencies. Mock mode runs
+  independently; API mode expects the Miniapp Backend to be started separately.
 - Taro `outputRoot=dist/<platform>` and current API/mock selection remain unchanged.
 
 ### Operational commands
@@ -116,7 +118,17 @@ mixed-version compatibility window.
 ## Reference evidence
 
 - Taro version: repository Taro `4.2.0` platform plugins with React 18.
-- Reference: Taro official Installation and Usage and compile configuration documentation.
-- Adopted: `taro build --type <platform> --watch` and configured `outputRoot` remain the build and
-  developer-tool handoff contract.
-- Rejected: changing page behavior, platform APIs, project structure or dependencies for Docker.
+- Selected references: Taro 4.x [Installation and Usage](https://docs.taro.zone/docs/GETTING-STARTED),
+  [Compile Configuration](https://docs.taro.zone/docs/config/) and
+  [`outputRoot`](https://docs.taro.zone/docs/config-detail/#outputroot) contracts.
+- Adopted: the documented `taro build --type <platform> [--watch]` flow and configured
+  `outputRoot` remain the build and developer-tool handoff contract. The container runs the
+  repository's existing scripts and bind-mounts the generated `dist` directory.
+- Version/platform limits: the repository pins Taro/plugin `4.2.0` and React 18; both `weapp` and
+  `tt` are built independently and keep their existing `dist/weapp` and `dist/tt` output. Docker
+  does not replace either platform's developer tools, preview, upload, review or publishing.
+- Rejected: copying an example project, changing page behavior, platform APIs, project structure,
+  dependencies, or moving platform publishing into Docker.
+- Project landing: one pinned Node builder image provides identical finite builds and watch modes;
+  mock-source builds can run without any Backend, while API-source use expects the separately
+  started Miniapp Backend.

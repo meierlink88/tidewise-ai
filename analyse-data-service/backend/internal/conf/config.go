@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,6 +21,14 @@ const (
 
 const ServiceName = "data"
 const ServiceVersion = "1.0.0"
+
+const externalLocalInfrastructureHost = "host.docker.internal"
+
+// IsExternalLocalInfrastructureHost reports whether a target is the only local
+// infrastructure endpoint approved for commands running in service containers.
+func IsExternalLocalInfrastructureHost(host string) bool {
+	return strings.EqualFold(strings.TrimSpace(host), externalLocalInfrastructureHost)
+}
 
 type AppConfig struct {
 	Name string      `yaml:"name"`

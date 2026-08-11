@@ -113,7 +113,9 @@ npm run dev:h5
 
 `TARO_APP_RESEARCH_SOURCE` in `.env.local` selects `api` or `mock`. WeChat and Douyin developer
 tools remain host applications and open `miniapp/frontend/dist/weapp` or `dist/tt`; they do not run
-inside Docker.
+inside Docker. The builder uses its own Compose file, so `mock` mode starts without Backend
+services, Backend secrets, PostgreSQL, Neo4j or Qdrant. In `api` mode, start the Miniapp Backend
+separately with `npm run backend:dev:miniapp`.
 
 ## Data operations
 

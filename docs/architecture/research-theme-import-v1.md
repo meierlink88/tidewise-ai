@@ -106,9 +106,9 @@ Content-Type: application/json
 在仓库根目录执行本地开发 seed。该命令严格读取同一 V1 合同，并调用正式 application service，不直接写表：
 
 ```bash
-APP_ENV=local \
-TIDEWISW_DB_PASSWORD='<local-password>' \
-go run ./analyse-data-service/backend/cmd/research-theme-dev-seed
+docker compose --env-file infra/local/.env.local \
+  -f infra/local/docker-compose.yaml \
+  run --rm data /usr/local/bin/research-theme-dev-seed
 ```
 
 默认请求文件是 `analyse-data-service/backend/data/research_themes/local_homepage.json`。重复执行应返回相同结果且 `replayed: true`。

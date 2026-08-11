@@ -7,9 +7,9 @@
     "admin-portal/frontend"
   ],
   "scripts": {
-    "dev:h5": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml --profile miniapp-h5 up --build miniapp-h5",
-    "dev:weapp": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml --profile miniapp-weapp up --build miniapp-weapp",
-    "dev:tt": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml --profile miniapp-tt up --build miniapp-tt",
+    "dev:h5": "docker compose --env-file infra/local/.env.local -f infra/local/miniapp-builder.compose.yaml --profile miniapp-h5 up --build miniapp-h5",
+    "dev:weapp": "docker compose --env-file infra/local/.env.local -f infra/local/miniapp-builder.compose.yaml --profile miniapp-weapp up --build miniapp-weapp",
+    "dev:tt": "docker compose --env-file infra/local/.env.local -f infra/local/miniapp-builder.compose.yaml --profile miniapp-tt up --build miniapp-tt",
     "dev:admin": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d --build admin",
     "build:h5": "npm --workspace @tidewise/miniapp run build:h5",
     "build:weapp": "npm --workspace @tidewise/miniapp run build:weapp",

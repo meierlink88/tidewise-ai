@@ -97,7 +97,7 @@ func validateLocalDatabaseURL(raw string) (*url.URL, error) {
 	if err != nil || parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
 		return nil, errors.New("fixture database URL must be PostgreSQL")
 	}
-	if parsed.Hostname() != "host.docker.internal" {
+	if !conf.IsExternalLocalInfrastructureHost(parsed.Hostname()) {
 		return nil, errors.New("fixture database URL must use the external local PostgreSQL infrastructure host")
 	}
 	if parsed.User == nil || parsed.Path == "" || parsed.Path == "/" {
@@ -112,7 +112,7 @@ func openFixtureDatabase(ctx context.Context) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 	if cfg.App.Env != conf.EnvLocal ||
-		cfg.Database.Host != "host.docker.internal" ||
+		!conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) ||
 		!strings.HasPrefix(cfg.Database.Name, syntheticDatabasePrefix) {
 		return nil, errors.New("fixture command requires an isolated local Data database")
 	}

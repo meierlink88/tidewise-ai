@@ -117,11 +117,11 @@ func validateTarget(cfg conf.Config, options cliOptions) error {
 	}
 	switch cfg.App.Env {
 	case conf.EnvLocal:
-		if !isLocalDatabaseHost(cfg.Database.Host) || cfg.Database.Name != "tidewise_local" {
+		if !conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) || cfg.Database.Name != "tidewise_local" {
 			return fmt.Errorf("local target requires a local PostgreSQL host and tidewise_local")
 		}
 	case conf.EnvUAT:
-		if isLocalDatabaseHost(cfg.Database.Host) || isLoopbackDatabaseHost(cfg.Database.Host) ||
+		if conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) || isLoopbackDatabaseHost(cfg.Database.Host) ||
 			cfg.Database.Name != "tidewise_uat" ||
 			cfg.Database.SSLMode != "require" {
 			return fmt.Errorf("uat target requires the non-local tidewise_uat database with ssl_mode=require")
@@ -136,10 +136,6 @@ func validateTarget(cfg conf.Config, options cliOptions) error {
 		return fmt.Errorf("configured APP_ENV %q does not match -allow-env %q", cfg.App.Env, options.AllowEnv)
 	}
 	return nil
-}
-
-func isLocalDatabaseHost(host string) bool {
-	return strings.EqualFold(strings.TrimSpace(host), "host.docker.internal")
 }
 
 func isLoopbackDatabaseHost(host string) bool {

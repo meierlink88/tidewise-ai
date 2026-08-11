@@ -319,10 +319,10 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	}
 	text := string(contents)
 	for _, required := range []string{
-		"  data:", "  data-migrate:", "  miniapp:", "  miniapp-h5:", "  miniapp-weapp:", "  miniapp-tt:",
+		"  data:", "  data-migrate:", "  miniapp:",
 		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:",
 		"context: ../..",
-		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile", "miniapp/frontend/Dockerfile",
+		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
 		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile", "agent-run/backend/Dockerfile",
 		"tidewise-local", "/healthz", "/readyz",
 	} {
@@ -418,8 +418,10 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"Test AgentRun Biz, API and Eino seams",
 		"Test AgentRun Data, migration and provider boundaries",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
+		"docker compose --env-file infra/local/.env.example -f infra/local/miniapp-builder.compose.yaml --profile miniapp-h5 --profile miniapp-weapp --profile miniapp-tt config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
+		"bash scripts/ci/smoke-miniapp-builder.sh",
 		"cache-dependency-path: package-lock.json",
 		"npm run test:miniapp",
 		"npm run test:admin",

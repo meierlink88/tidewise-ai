@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
@@ -167,7 +166,7 @@ func validateResetTarget(cfg conf.Config) error {
 	if cfg.App.Env != conf.EnvLocal {
 		return fmt.Errorf("research publication development reset is local-only, got %q", cfg.App.Env)
 	}
-	if !strings.EqualFold(strings.TrimSpace(cfg.Database.Host), "host.docker.internal") {
+	if !conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) {
 		return fmt.Errorf("research publication development reset requires the external local PostgreSQL infrastructure host")
 	}
 	if cfg.Database.Name != localDatabaseName {

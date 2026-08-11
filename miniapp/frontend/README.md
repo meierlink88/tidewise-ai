@@ -14,10 +14,13 @@ npm run dev:weapp
 npm run dev:tt
 ```
 
+Mock 模式只启动独立 builder Compose，不依赖 Backend 服务或基础设施。
+
 接入本地 Miniapp Backend 时，在 `infra/local/.env.local` 中设置
-`TARO_APP_RESEARCH_SOURCE=api` 后运行：
+`TARO_APP_RESEARCH_SOURCE=api`，先启动 Backend，再运行 builder：
 
 ```bash
+npm run backend:dev:miniapp
 npm run dev:weapp
 ```
 

@@ -216,7 +216,7 @@ func validateTarget(cfg conf.Config, options cliOptions) error {
 	}
 	switch cfg.App.Env {
 	case conf.EnvLocal:
-		if !isApprovedLocalHost(cfg.Database.Host, "host.docker.internal") ||
+		if !conf.IsExternalLocalInfrastructureHost(cfg.Database.Host) ||
 			cfg.Database.Name != "tidewise_local" ||
 			cfg.Database.SSLMode != "disable" {
 			return errors.New("Industry graph projector requires the approved external local PostgreSQL tidewise_local with ssl_mode=disable")
@@ -276,7 +276,7 @@ func validateNeo4jTarget(environment conf.Environment, config neo4jdata.Config) 
 	}
 	switch environment {
 	case conf.EnvLocal:
-		if !isApprovedLocalHost(target.Hostname(), "host.docker.internal") {
+		if !conf.IsExternalLocalInfrastructureHost(target.Hostname()) {
 			return errors.New("Industry graph projector local target requires the external local Neo4j bolt URI")
 		}
 	case conf.EnvUAT:
@@ -287,8 +287,4 @@ func validateNeo4jTarget(environment conf.Environment, config neo4jdata.Config) 
 		return errors.New("Industry graph projector Neo4j target only accepts local or uat")
 	}
 	return nil
-}
-
-func isApprovedLocalHost(host, expected string) bool {
-	return strings.EqualFold(strings.TrimSpace(host), expected)
 }
