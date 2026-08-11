@@ -16,6 +16,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
@@ -29,12 +30,15 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, evidenceApplication evidenceapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if application == nil {
 		return nil, errors.New("Data API service is required")
 	}
 	if evidenceApplication == nil {
 		return nil, errors.New("Evidence API service is required")
+	}
+	if eventApplication == nil {
+		return nil, errors.New("Event API service is required")
 	}
 	if authenticator == nil {
 		return nil, errors.New("Data API authenticator is required")
@@ -60,6 +64,7 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, evidenceAp
 
 	registerHealthRoutes(server, config.App)
 	v1.RegisterDataHTTPServer(server, application)
+	eventapi.RegisterHTTPServer(server, eventApplication)
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{

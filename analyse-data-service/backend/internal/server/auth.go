@@ -11,6 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 )
 
@@ -102,13 +103,13 @@ func authenticationMiddleware(authenticator *Authenticator) middleware.Middlewar
 
 func requiredScope(operation string) (string, bool) {
 	switch operation {
-	case v1.OperationPublishReviewedEvents:
+	case eventapi.OperationPublishReviewedEvents:
 		return ScopeReviewedEventImport, true
 	case evidenceapi.OperationPublishRawEvidence:
 		return ScopeRawEvidenceImport, true
 	case evidenceapi.OperationPublishEvidence:
 		return ScopeEvidenceImport, true
-	case v1.OperationListActiveEventTags:
+	case eventapi.OperationListActiveEventTags:
 		return ScopeEventTagRead, true
 	case v1.OperationPublishResearchTheme:
 		return ScopeResearchImport, true
@@ -116,7 +117,7 @@ func requiredScope(operation string) (string, bool) {
 		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree,
 		v1.OperationListResearchAnalysisContext, v1.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
-	case v1.OperationListAdminRawDocuments, v1.OperationListAdminEvents, v1.OperationGetRuntimeHealth:
+	case v1.OperationListAdminRawDocuments, eventapi.OperationListAdminEvents, v1.OperationGetRuntimeHealth:
 		return ScopeAdminRead, true
 	case v1.OperationListEligibleEventSemanticEvents,
 		v1.OperationGetEventSemanticContext, v1.OperationGetEventSemantics:

@@ -1,4 +1,4 @@
-package service
+package event_test
 
 import (
 	"bytes"
@@ -9,20 +9,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	eventpublicationapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	publicationdomain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
-	"github.com/pressly/goose/v3"
+	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
+	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
+	serverpkg "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
+	parentservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
+	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
+	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
 )
 
 func TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineage(t *testing.T) {
@@ -158,6 +158,31 @@ WHERE package_id = 'agentrun:event-publication:20260723:001'`).Scan(
 	}
 }
 
+func TestPostgresEventAdapterRejectsCorruptedEvidenceHash(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	handler, _ := newEventPublicationTestHandler(t, db)
+	response := postEventPublication(t, handler, marshalPublication(t, eventPublicationFixture("corrupted-hash")))
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("publication status = %d: %s", response.StatusCode, response.Body)
+	}
+	eventID := response.Result.Events[0].EventID
+	rawDocumentID := response.Result.RawDocuments[0].RawDocumentID
+	if _, err := db.Exec(`UPDATE event_sources SET evidence_hash = $1 WHERE event_id = $2 AND raw_document_id = $3`, strings.Repeat("f", 64), eventID, rawDocumentID); err != nil {
+		t.Fatal(err)
+	}
+	store, err := eventdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.InTransaction(context.Background(), func(tx eventbiz.Transaction) error {
+		_, readErr := tx.StoredEventEvidenceLink(context.Background(), eventID, rawDocumentID)
+		return readErr
+	})
+	if err == nil || !strings.Contains(err.Error(), "hash does not match") {
+		t.Fatalf("read corrupted Evidence Link error = %v", err)
+	}
+}
+
 func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
 	handler, service := newEventPublicationTestHandler(t, db)
@@ -192,6 +217,7 @@ func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 	})
 
 	t.Run("one artifact supports multiple Events and one Event uses multiple artifacts", func(t *testing.T) {
+		before := readPublicationDBCounts(t, db)
 		publication := eventPublicationFixture("relationships")
 		secondDocument := publication.RawDocuments[0]
 		secondDocument.ArtifactID = "artifact-relationships-2"
@@ -202,7 +228,7 @@ func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 		publication.RawDocuments = append(publication.RawDocuments, secondDocument)
 		publication.Provenance.CollectorExecutions = append(
 			publication.Provenance.CollectorExecutions,
-			publicationdomain.CollectorExecution{
+			eventbiz.CollectorExecution{
 				ArtifactID:           secondDocument.ArtifactID,
 				CollectorExecutionID: "collector-relationships-2",
 			},
@@ -210,7 +236,7 @@ func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 
 		secondEvent := clonePublicationEvent(publication.Events[0], "relationships-2")
 		thirdEvent := clonePublicationEvent(publication.Events[0], "relationships-3")
-		thirdEvent.Evidence = append(thirdEvent.Evidence, publicationdomain.Evidence{
+		thirdEvent.Evidence = append(thirdEvent.Evidence, eventbiz.EventEvidenceLinkInput{
 			ArtifactID:        secondDocument.ArtifactID,
 			EvidenceRelation:  "context",
 			EvidenceStatement: "A second document provides relevant context.",
@@ -233,8 +259,8 @@ func TestPostgresEventPublicationContractScenarios(t *testing.T) {
 SELECT count(*) FROM event_sources WHERE contract_version = 3`).Scan(&sourceLinks); err != nil {
 			t.Fatal(err)
 		}
-		if sourceLinks != 4 {
-			t.Fatalf("source links = %d, want 4", sourceLinks)
+		if sourceLinks-before.EventSources != 4 {
+			t.Fatalf("new source links = %d, want 4", sourceLinks-before.EventSources)
 		}
 		var lightweightDocuments int
 		if err := db.QueryRow(`
@@ -247,8 +273,8 @@ WHERE contract_version = 2
   AND source_external_id IS NULL`).Scan(&lightweightDocuments); err != nil {
 			t.Fatal(err)
 		}
-		if lightweightDocuments != 2 {
-			t.Fatalf("lightweight publication documents = %d, want 2", lightweightDocuments)
+		if lightweightDocuments-before.RawDocuments != 2 {
+			t.Fatalf("new lightweight publication documents = %d, want 2", lightweightDocuments-before.RawDocuments)
 		}
 	})
 
@@ -262,7 +288,7 @@ WHERE contract_version = 2
 		unreferenced.RawDocuments = append(unreferenced.RawDocuments, extra)
 		unreferenced.Provenance.CollectorExecutions = append(
 			unreferenced.Provenance.CollectorExecutions,
-			publicationdomain.CollectorExecution{
+			eventbiz.CollectorExecution{
 				ArtifactID: extra.ArtifactID, CollectorExecutionID: "collector-unreferenced-extra",
 			},
 		)
@@ -309,7 +335,7 @@ WHERE contract_version = 2
 		before := readPublicationDBCounts(t, db)
 		conflict := base
 		conflict.PackageID = "package-event-conflict-second"
-		conflict.Events = append([]publicationdomain.Event(nil), base.Events...)
+		conflict.Events = append([]eventbiz.PublicationEvent(nil), base.Events...)
 		conflict.Events[0].Title = "A different immutable title"
 		response := postEventPublication(t, handler, marshalPublication(t, conflict))
 		if response.StatusCode != http.StatusConflict || response.Error.Code != "EVENT_PUBLICATION_CONFLICT" {
@@ -331,7 +357,7 @@ WHERE contract_version = 2
 
 		conflict := base
 		conflict.PackageID = "package-large-number-conflict-second"
-		conflict.Events = append([]publicationdomain.Event(nil), base.Events...)
+		conflict.Events = append([]eventbiz.PublicationEvent(nil), base.Events...)
 		conflict.Events[0].FactPayload = map[string]any{
 			"count": json.Number("9007199254740993"),
 		}
@@ -352,9 +378,9 @@ WHERE contract_version = 2
 
 		reordered := base
 		reordered.PackageID = "package-supports-fields-order-second"
-		reordered.Events = append([]publicationdomain.Event(nil), base.Events...)
+		reordered.Events = append([]eventbiz.PublicationEvent(nil), base.Events...)
 		reordered.Events[0].Evidence = append(
-			[]publicationdomain.Evidence(nil),
+			[]eventbiz.EventEvidenceLinkInput(nil),
 			base.Events[0].Evidence...,
 		)
 		reordered.Events[0].Evidence[0].SupportsFields = []string{"fact_payload", "title"}
@@ -370,18 +396,18 @@ WHERE contract_version = 2
 	t.Run("unknown inactive and mismatched Tags are rejected atomically", func(t *testing.T) {
 		tests := []struct {
 			name    string
-			prepare func(*publicationdomain.Publication)
+			prepare func(*eventbiz.PublicationBatch)
 			cleanup func()
 		}{
 			{
 				name: "unknown",
-				prepare: func(publication *publicationdomain.Publication) {
+				prepare: func(publication *eventbiz.PublicationBatch) {
 					publication.Events[0].Tags[0].TagID = "11111111-1111-4111-8111-111111111111"
 				},
 			},
 			{
 				name: "inactive",
-				prepare: func(_ *publicationdomain.Publication) {
+				prepare: func(_ *eventbiz.PublicationBatch) {
 					if _, err := db.Exec(`UPDATE event_tag_defs SET is_active = false WHERE id = '22a5afc5-20ed-55ce-bf77-54c26bbcc6ea'`); err != nil {
 						t.Fatal(err)
 					}
@@ -394,7 +420,7 @@ WHERE contract_version = 2
 			},
 			{
 				name: "identity mismatch",
-				prepare: func(publication *publicationdomain.Publication) {
+				prepare: func(publication *eventbiz.PublicationBatch) {
 					publication.Events[0].Tags[0].TagCode = "macroeconomy"
 				},
 			},
@@ -430,12 +456,12 @@ WHERE contract_version = 2
 		tooManyNewsTags := eventPublicationFixture("too-many-news-tags")
 		tooManyNewsTags.Events[0].Tags = append(
 			tooManyNewsTags.Events[0].Tags,
-			publicationdomain.Tag{
+			eventbiz.EventTagInput{
 				TagID: "b0fe1994-0db2-526c-a57f-97fa73c1b595", TagKind: "news_category",
 				TagCode: "geopolitics", Confidence: json.Number("0.8"),
 				AssignmentReason: "Geopolitical context", AssignSource: "ai",
 			},
-			publicationdomain.Tag{
+			eventbiz.EventTagInput{
 				TagID: "b1a5438f-6e81-55e7-8ecb-33230b9ae965", TagKind: "news_category",
 				TagCode: "macroeconomy", Confidence: json.Number("0.8"),
 				AssignmentReason: "Macroeconomic context", AssignSource: "rule",
@@ -811,18 +837,26 @@ WHERE table_schema = current_schema()
 }
 
 type capturingEventPublicationService struct {
-	delegate  *eventpublicationapp.Service
+	delegate  *eventbiz.UseCase
 	lastError error
 }
 
 func (s *capturingEventPublicationService) Import(
 	ctx context.Context,
 	callerSubject string,
-	publication publicationdomain.Publication,
-) (eventpublicationapp.Result, error) {
+	publication eventbiz.PublicationBatch,
+) (eventbiz.Result, error) {
 	result, err := s.delegate.Import(ctx, callerSubject, publication)
 	s.lastError = err
 	return result, err
+}
+
+func (s *capturingEventPublicationService) ActiveTags(ctx context.Context) (eventbiz.EventTagCatalog, error) {
+	return s.delegate.ActiveTags(ctx)
+}
+
+func (s *capturingEventPublicationService) ListEvents(ctx context.Context, request eventbiz.EventListRequest) (eventbiz.EventPage, error) {
+	return s.delegate.ListEvents(ctx, request)
 }
 
 type eventPublicationHTTPResult struct {
@@ -882,7 +916,7 @@ func postEventPublication(t *testing.T, handler http.Handler, body []byte) event
 
 func postEventPublicationAs(t *testing.T, handler http.Handler, body []byte, token string) eventPublicationHTTPResult {
 	t.Helper()
-	request := httptest.NewRequest(http.MethodPost, Namespace+"/reviewed-event-imports", bytes.NewReader(body))
+	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/reviewed-event-imports", bytes.NewReader(body))
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -903,162 +937,139 @@ func openEventPublicationTestDatabase(t *testing.T) *sql.DB {
 
 func openEventPublicationTestDatabaseAt(t *testing.T, version int64) *sql.DB {
 	t.Helper()
-	databaseURL := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run Event Publication integration tests")
-	}
-	parsed, err := url.Parse(databaseURL)
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	host := parsed.Hostname()
-	if host != "localhost" && host != "127.0.0.1" && host != "::1" {
-		t.Fatalf("Event Publication integration database must use a loopback host, got %q", host)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	t.Cleanup(cancel)
-	admin, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	schema := fmt.Sprintf("tw_event_publication_%d", time.Now().UnixNano())
-	if _, err := admin.ExecContext(ctx, `CREATE SCHEMA `+schema); err != nil {
-		admin.Close()
-		t.Fatal(err)
-	}
-
-	config, err := pgx.ParseConfig(databaseURL)
-	if err != nil {
-		admin.Close()
-		t.Fatal(err)
-	}
-	config.RuntimeParams["search_path"] = schema
-	config.RuntimeParams["tidewise.phase_a_cleanup_write_authorized"] = "reviewed_backup_verified"
-	config.RuntimeParams["tidewise.external_identifier_schema_write_authorized"] = "reviewed_backup_verified"
-	config.RuntimeParams["tidewise.alliance_economy_schema_write_authorized"] = "reviewed_local_cleanup_verified"
-	db := stdlib.OpenDB(*config)
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		admin.Close()
-		t.Fatal(err)
-	}
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatal(err)
-	}
-	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var migrateErr error
-	if version == 0 {
-		migrateErr = goose.UpContext(ctx, db, migrationDir)
-	} else {
-		migrateErr = goose.UpToContext(ctx, db, migrationDir, version)
-	}
-	if migrateErr != nil {
-		t.Fatalf("apply migrations in isolated schema: %v", migrateErr)
-	}
-
-	t.Cleanup(func() {
-		db.Close()
-		_, _ = admin.ExecContext(context.Background(), `DROP SCHEMA IF EXISTS `+schema+` CASCADE`)
-		admin.Close()
-	})
-	return db
+	return postgresfixture.OpenIsolated(t, "tw_event_publication", migrationDir, version)
 }
 
 func applyEventPublicationMigration(t *testing.T, db *sql.DB, version int64) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := goose.UpToContext(ctx, db, migrationDir, version); err != nil {
-		t.Fatalf("apply migration %d: %v", version, err)
-	}
+	postgresfixture.ApplyMigration(t, db, migrationDir, version)
 }
 
 func newEventPublicationTestHandler(t *testing.T, db *sql.DB) (http.Handler, *capturingEventPublicationService) {
 	t.Helper()
-	repository := postgres.NewEventPublicationStore(db)
-	service := &capturingEventPublicationService{delegate: eventpublicationapp.NewService(repository)}
+	store, err := eventdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &capturingEventPublicationService{delegate: useCase}
+	application, err := eventservice.NewService(service)
+	if err != nil {
+		t.Fatal(err)
+	}
 	credentials := map[string]v1.Principal{
 		"agent-token": {
 			Identity: "agent-run",
-			Scopes:   []string{ScopeReviewedEventImport},
+			Scopes:   []string{serverpkg.ScopeReviewedEventImport},
 		},
 		"read-only-token": {
 			Identity: "read-only-client",
-			Scopes:   []string{ScopeResearchRead},
+			Scopes:   []string{serverpkg.ScopeResearchRead},
 		},
 	}
-	return dataServiceTestHandler(Dependencies{
-		EventPublications: service,
-	}, credentials, "request-event-publication"), service
+	return newEventHTTPHandler(t, application, credentials), service
 }
 
-func eventPublicationFixture(suffix string) publicationdomain.Publication {
+func newEventHTTPHandler(t *testing.T, application *eventservice.Service, credentials map[string]v1.Principal) http.Handler {
+	t.Helper()
+	configured := make([]serverpkg.Credential, 0, len(credentials))
+	for secret, principal := range credentials {
+		configured = append(configured, serverpkg.Credential{Secret: secret, Principal: principal})
+	}
+	authenticator, err := serverpkg.NewAuthenticator(configured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
+		App:    conf.AppConfig{Env: conf.EnvLocal},
+		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
+	}, parentservice.NewDataService(parentservice.Dependencies{}), application, testEvidenceService{}, authenticator, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return httpServer.Server.Handler
+}
+
+type testEvidenceService struct{}
+
+func (testEvidenceService) PublishRawEvidence(context.Context, *evidenceapi.RawEvidencePublicationRequest) (*v1.Response[evidenceapi.RawEvidencePublicationResult], error) {
+	return &v1.Response[evidenceapi.RawEvidencePublicationResult]{Status: http.StatusNoContent}, nil
+}
+
+func (testEvidenceService) PublishEvidence(context.Context, *evidenceapi.EvidencePublicationRequest) (*v1.Response[evidenceapi.EvidencePublicationResult], error) {
+	return &v1.Response[evidenceapi.EvidencePublicationResult]{Status: http.StatusNoContent}, nil
+}
+
+func eventPublicationFixture(suffix string) eventbiz.PublicationBatch {
 	publishedAt := time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)
 	collectedAt := time.Date(2026, 7, 23, 1, 5, 0, 0, time.UTC)
 	occurredAt := time.Date(2026, 7, 23, 0, 30, 0, 0, time.UTC)
 	artifactID := "artifact-" + suffix
-	return publicationdomain.Publication{
+	return eventbiz.PublicationBatch{
 		PackageID: "package-" + suffix,
-		Provenance: publicationdomain.Provenance{
+		Provenance: eventbiz.Provenance{
 			ExtractorExecutionID:  "extractor-" + suffix,
 			ExtractorAgentVersion: "event-extractor-v2",
-			CollectorExecutions: []publicationdomain.CollectorExecution{{
+			CollectorExecutions: []eventbiz.CollectorExecution{{
 				ArtifactID: artifactID, CollectorExecutionID: "collector-" + suffix,
 			}},
 		},
-		RawDocuments: []publicationdomain.RawDocument{{
+		RawDocuments: []eventbiz.EventEvidenceRecord{{
 			ArtifactID: artifactID, ContentSHA256: fmt.Sprintf("%064x", len(suffix)+10),
 			SourceRef: "source:" + suffix, SourceName: "Source " + suffix, SourceType: "news",
 			SourceURL: "https://example.test/" + url.PathEscape(suffix), Title: "Source " + suffix,
 			PublishedAt: &publishedAt, CollectedAt: collectedAt, Language: "en", MIMEType: "text/markdown",
 		}},
-		Events: []publicationdomain.Event{{
+		Events: []eventbiz.PublicationEvent{{
 			DedupeKey: "event:" + suffix + ":1", Title: "Event " + suffix,
 			FactualSummary: "A verifiable state change occurred for " + suffix + ".",
 			OccurredAt:     &occurredAt,
 			FactPayload:    map[string]any{"fixture": suffix},
-			Evidence: []publicationdomain.Evidence{{
+			Evidence: []eventbiz.EventEvidenceLinkInput{{
 				ArtifactID: artifactID, EvidenceRelation: "supports",
 				EvidenceStatement: "Evidence for " + suffix,
 				SupportsFields:    []string{"title", "factual_summary"},
 				SourceLevel:       "primary",
 			}},
-			Tags: []publicationdomain.Tag{{
+			Tags: []eventbiz.EventTagInput{{
 				TagID:   "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
 				TagKind: "news_category", TagCode: "technology_industry",
 				Confidence: json.Number("0.94"), AssignmentReason: "Technology event",
 				AssignSource: "ai",
 			}},
-			Review: publicationdomain.Review{
+			Review: eventbiz.Review{
 				ReviewID: "review-" + suffix, EvidenceGrade: "A", Reasons: []string{"Reviewed"},
 			},
 		}},
 	}
 }
 
-func clonePublicationEvent(input publicationdomain.Event, suffix string) publicationdomain.Event {
+func clonePublicationEvent(input eventbiz.PublicationEvent, suffix string) eventbiz.PublicationEvent {
 	cloned := input
 	cloned.DedupeKey = "event:" + suffix + ":1"
 	cloned.Title = "Event " + suffix
 	cloned.FactualSummary = "A verifiable state change occurred for " + suffix + "."
 	cloned.FactPayload = map[string]any{"fixture": suffix}
-	cloned.Evidence = append([]publicationdomain.Evidence(nil), input.Evidence...)
-	cloned.Tags = append([]publicationdomain.Tag(nil), input.Tags...)
-	cloned.Review = publicationdomain.Review{
+	cloned.Evidence = append([]eventbiz.EventEvidenceLinkInput(nil), input.Evidence...)
+	cloned.Tags = append([]eventbiz.EventTagInput(nil), input.Tags...)
+	cloned.Review = eventbiz.Review{
 		ReviewID: "review-" + suffix, EvidenceGrade: "A", Reasons: []string{"Reviewed"},
 	}
 	return cloned
 }
 
-func marshalPublication(t *testing.T, publication publicationdomain.Publication) []byte {
+func marshalPublication(t *testing.T, publication eventbiz.PublicationBatch) []byte {
 	t.Helper()
 	return mustJSON(t, publication)
 }

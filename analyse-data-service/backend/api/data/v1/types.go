@@ -58,22 +58,6 @@ type RawDocumentListRequest struct {
 	PageSize     string
 }
 
-type EventListRequest struct {
-	Title         string
-	EventStatus   string
-	FactStatus    string
-	EventTimeFrom string
-	EventTimeTo   string
-	FirstSeenFrom string
-	FirstSeenTo   string
-	Page          string
-	PageSize      string
-}
-
-type EventTagCatalogRequest struct {
-	Active bool
-}
-
 type RuntimeHealthRequest struct{}
 
 type RuntimeHealth struct {
@@ -153,16 +137,4 @@ type AdminRawDocument struct {
 	CollectedAt      string  `json:"collected_at"`
 	IngestStatus     string  `json:"ingest_status"`
 	ContentSHA256    string  `json:"content_sha256"`
-}
-
-type AdminEvent struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Summary     string  `json:"summary"`
-	EventTime   *string `json:"event_time"`
-	FirstSeenAt string  `json:"first_seen_at"`
-	KnowableAt  *string `json:"knowable_at"`
-	EventStatus string  `json:"event_status"`
-	FactStatus  string  `json:"fact_status"`
-	DedupeKey   string  `json:"dedupe_key"`
 }

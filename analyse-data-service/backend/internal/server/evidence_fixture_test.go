@@ -35,7 +35,7 @@ func TestEvidencePublicationNeutralFixturesExerciseTwoPhaseRetryAndSafeFailure(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	httpServer, err := NewHTTPServer(testConfig(), serverTestDataService{}, evidenceApplication, authenticator, nil)
+	httpServer, err := NewHTTPServer(testConfig(), serverTestDataService{}, serverTestEventService{}, evidenceApplication, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

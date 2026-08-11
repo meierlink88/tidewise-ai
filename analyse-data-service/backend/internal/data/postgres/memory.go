@@ -9,10 +9,6 @@ import (
 type InMemoryRepository struct {
 	mu                  sync.Mutex
 	documents           map[string]model.RawDocument
-	events              map[string]model.Event
-	eventSources        map[string]model.EventSource
-	eventTagDefs        map[string]model.EventTagDef
-	eventTagMaps        map[string]model.EventTagMap
 	entityTypes         map[string]model.EntityType
 	observations        map[string]model.BenchmarkObservation
 	physicalConstraints map[string]model.IndustryChainPhysicalConstraint
@@ -21,10 +17,6 @@ type InMemoryRepository struct {
 func NewInMemoryRepository() *InMemoryRepository {
 	return &InMemoryRepository{
 		documents:           map[string]model.RawDocument{},
-		events:              map[string]model.Event{},
-		eventSources:        map[string]model.EventSource{},
-		eventTagDefs:        map[string]model.EventTagDef{},
-		eventTagMaps:        map[string]model.EventTagMap{},
 		entityTypes:         map[string]model.EntityType{},
 		observations:        map[string]model.BenchmarkObservation{},
 		physicalConstraints: map[string]model.IndustryChainPhysicalConstraint{},

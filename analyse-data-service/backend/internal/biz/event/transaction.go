@@ -1,56 +1,54 @@
-package eventpublication
+package event
 
 import (
 	"context"
 	"time"
-
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
 )
 
-type Store interface {
-	InEventPublicationTransaction(context.Context, func(Transaction) error) error
+type TransactionStore interface {
+	InTransaction(context.Context, func(Transaction) error) error
 }
 
 type Transaction interface {
-	LockEventPublicationIdentities(context.Context, []string) error
-	PublicationRawDocument(context.Context, string) (*PublicationRawDocument, error)
-	InsertPublicationRawDocument(context.Context, PublicationRawDocument) error
-	PublicationEvent(context.Context, string) (*PublicationEvent, error)
-	InsertPublicationEvent(context.Context, PublicationEvent) error
-	AdvancePublicationEventObservationTimes(context.Context, string, time.Time, time.Time) error
-	PublicationEventSource(context.Context, string, string) (*PublicationEventSource, error)
-	InsertPublicationEventSource(context.Context, PublicationEventSource) error
-	PublicationTag(context.Context, string) (*model.EventTagDef, error)
-	PublicationEventTag(context.Context, string, string) (*PublicationEventTag, error)
-	InsertPublicationEventTag(context.Context, PublicationEventTag) error
+	LockIdentities(context.Context, []string) error
+	StoredEventEvidenceRecord(context.Context, string) (*StoredEventEvidenceRecord, error)
+	InsertStoredEventEvidenceRecord(context.Context, StoredEventEvidenceRecord) error
+	StoredEvent(context.Context, string) (*StoredEvent, error)
+	InsertStoredEvent(context.Context, StoredEvent) error
+	AdvanceStoredEventObservationTimes(context.Context, string, time.Time, time.Time) error
+	StoredEventEvidenceLink(context.Context, string, string) (*StoredEventEvidenceLink, error)
+	InsertStoredEventEvidenceLink(context.Context, StoredEventEvidenceLink) error
+	PublicationTag(context.Context, string) (*EventTag, error)
+	StoredEventTagAssignment(context.Context, string, string) (*StoredEventTagAssignment, error)
+	InsertStoredEventTagAssignment(context.Context, StoredEventTagAssignment) error
 	InsertEventPublicationReceipt(context.Context, EventPublicationReceipt) error
 }
 
-type PublicationRawDocument struct {
+type StoredEventEvidenceRecord struct {
 	ID, ArtifactID, ContentSHA256, SourceRef, SourceName, SourceType, SourceURL, Title string
 	PublishedAt                                                                        *time.Time
 	CollectedAt                                                                        time.Time
 	Language, MIMEType                                                                 string
 }
 
-type PublicationEvent struct {
+type StoredEvent struct {
 	ID, DedupeKey, Title, FactualSummary string
 	OccurredAt                           *time.Time
-	FactPayload                          model.FactPayload
+	FactPayload                          FactPayload
 	FirstSeenAt, KnowableAt              time.Time
-	EventStatus                          model.EventStatus
-	FactStatus                           model.FactStatus
+	EventStatus                          EventStatus
+	FactStatus                           FactStatus
 }
 
-type PublicationEventSource struct {
+type StoredEventEvidenceLink struct {
 	ID, EventID, RawDocumentID, SourceLevel, EvidenceStatement, EvidenceHash string
-	EvidenceRelation                                                         model.EvidenceRelation
+	EvidenceRelation                                                         EvidenceRelation
 	SupportsFields                                                           []string
 }
 
-type PublicationEventTag struct {
+type StoredEventTagAssignment struct {
 	ID, EventID, TagID, AssignSource string
-	ReviewStatus                     model.ReviewStatus
+	ReviewStatus                     ReviewStatus
 	Confidence, AssignmentReason     string
 }
 

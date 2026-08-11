@@ -1,6 +1,7 @@
-package eventpublication
+package event
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -23,33 +24,33 @@ func TestPublicationValidateAcceptsFrozenContract(t *testing.T) {
 func TestPublicationValidateRejectsStorageBoundaryOverflow(t *testing.T) {
 	tests := []struct {
 		name string
-		edit func(*Publication)
+		edit func(*PublicationBatch)
 		path string
 	}{
 		{
 			name: "package id",
-			edit: func(publication *Publication) {
+			edit: func(publication *PublicationBatch) {
 				publication.PackageID = strings.Repeat("p", 257)
 			},
 			path: "package_id",
 		},
 		{
 			name: "source type",
-			edit: func(publication *Publication) {
+			edit: func(publication *PublicationBatch) {
 				publication.RawDocuments[0].SourceType = strings.Repeat("s", 65)
 			},
 			path: "raw_documents[0].source_type",
 		},
 		{
 			name: "language",
-			edit: func(publication *Publication) {
+			edit: func(publication *PublicationBatch) {
 				publication.RawDocuments[0].Language = strings.Repeat("l", 17)
 			},
 			path: "raw_documents[0].language",
 		},
 		{
 			name: "mime type",
-			edit: func(publication *Publication) {
+			edit: func(publication *PublicationBatch) {
 				publication.RawDocuments[0].MIMEType = strings.Repeat("m", 129)
 			},
 			path: "raw_documents[0].mime_type",
@@ -74,6 +75,37 @@ func TestPublicationValidateRejectsStorageBoundaryOverflow(t *testing.T) {
 			}
 			if !found {
 				t.Fatalf("issues = %#v, want MAX_LENGTH at %s", validation.Issues, test.path)
+			}
+		})
+	}
+}
+
+func TestPublicationValidatePreservesFactEvidenceAndTagBoundaries(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		edit func(*PublicationBatch)
+	}{
+		{name: "forbidden fact prediction", edit: func(publication *PublicationBatch) {
+			publication.Events[0].FactPayload = map[string]any{"price_prediction": "上涨"}
+		}},
+		{name: "supports without fields", edit: func(publication *PublicationBatch) {
+			publication.Events[0].Evidence[0].SupportsFields = nil
+		}},
+		{name: "unsupported evidence relation", edit: func(publication *PublicationBatch) {
+			publication.Events[0].Evidence[0].EvidenceRelation = "irrelevant"
+		}},
+		{name: "assignment without reason", edit: func(publication *PublicationBatch) {
+			publication.Events[0].Tags[0].AssignmentReason = ""
+		}},
+		{name: "confidence over one", edit: func(publication *PublicationBatch) {
+			publication.Events[0].Tags[0].Confidence = json.Number("1.0001")
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			publication := validPublication()
+			test.edit(&publication)
+			if err := publication.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want rejection")
 			}
 		})
 	}
@@ -108,6 +140,81 @@ func TestSemanticJSONEqualPreservesNumberPrecision(t *testing.T) {
 	}
 }
 
+func TestActiveTagsSortsAndHashesStableCatalog(t *testing.T) {
+	tags := []EventTag{
+		{ID: "b1a5438f-6e81-55e7-8ecb-33230b9ae965", Kind: "news_category", Code: "macroeconomy", Name: "宏观经济", Active: true},
+		{ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category", Code: "technology_industry", Name: "科技产业", Active: true},
+	}
+	first, err := NewUseCase(fakeStore{tags: tags})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstCatalog, err := first.ActiveTags(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := NewUseCase(fakeStore{tags: []EventTag{tags[1], tags[0]}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondCatalog, err := second.ActiveTags(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstCatalog.Hash == "" || firstCatalog.Hash != secondCatalog.Hash || firstCatalog.Revision != "event-tags:"+firstCatalog.Hash {
+		t.Fatalf("unstable catalogs: first=%#v second=%#v", firstCatalog, secondCatalog)
+	}
+	if firstCatalog.Tags[0].Code != "macroeconomy" || firstCatalog.Tags[1].Code != "technology_industry" {
+		t.Fatalf("catalog order = %#v", firstCatalog.Tags)
+	}
+}
+
+func TestActiveTagsRejectsInvalidCatalogRows(t *testing.T) {
+	useCase, err := NewUseCase(fakeStore{tags: []EventTag{{
+		ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category",
+		Code: "technology_industry", Name: "科技产业", Active: false,
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := useCase.ActiveTags(context.Background()); err == nil {
+		t.Fatal("inactive persisted Tag was accepted")
+	}
+}
+
+func TestListEventsMapsReadProjection(t *testing.T) {
+	now := time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC)
+	useCase, err := NewUseCase(fakeStore{events: EventStorePage{
+		Items: []EventListItem{{
+			ID: "event-1", Title: "Event", FirstSeenAt: now, EventStatus: EventStatusConfirmed,
+			FactStatus: FactStatusVerified, DedupeKey: "event:key",
+		}}, Total: 1, Page: 2, PageSize: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := useCase.ListEvents(context.Background(), EventListRequest{Page: 2, PageSize: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || page.Items[0].ID != "event-1" || page.Page != 2 || page.PageSize != 10 {
+		t.Fatalf("page = %#v", page)
+	}
+}
+
+type fakeStore struct {
+	tags   []EventTag
+	events EventStorePage
+}
+
+func (fakeStore) InTransaction(context.Context, func(Transaction) error) error { return nil }
+func (store fakeStore) ListActiveTags(context.Context) ([]EventTag, error) {
+	return append([]EventTag(nil), store.tags...), nil
+}
+func (store fakeStore) ListEvents(context.Context, EventListFilter) (EventStorePage, error) {
+	return store.events, nil
+}
+
 func asValidationError(err error, target **ValidationError) bool {
 	validation, ok := err.(*ValidationError)
 	if ok {
@@ -116,11 +223,11 @@ func asValidationError(err error, target **ValidationError) bool {
 	return ok
 }
 
-func validPublication() Publication {
+func validPublication() PublicationBatch {
 	publishedAt := time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)
 	collectedAt := time.Date(2026, 7, 23, 1, 5, 0, 0, time.UTC)
 	occurredAt := time.Date(2026, 7, 23, 0, 30, 0, 0, time.UTC)
-	return Publication{
+	return PublicationBatch{
 		PackageID: "package-1",
 		Provenance: Provenance{
 			ExtractorExecutionID:  "extractor-1",
@@ -129,22 +236,22 @@ func validPublication() Publication {
 				ArtifactID: "artifact-1", CollectorExecutionID: "collector-1",
 			}},
 		},
-		RawDocuments: []RawDocument{{
+		RawDocuments: []EventEvidenceRecord{{
 			ArtifactID: "artifact-1", ContentSHA256: strings.Repeat("a", 64),
 			SourceRef: "source:1", SourceName: "Source", SourceType: "news",
 			SourceURL: "https://example.test/1", Title: "Source title",
 			PublishedAt: &publishedAt, CollectedAt: collectedAt,
 			Language: "en", MIMEType: "text/markdown",
 		}},
-		Events: []Event{{
+		Events: []PublicationEvent{{
 			DedupeKey: "event-1", Title: "Event title", FactualSummary: "Event summary",
 			OccurredAt: &occurredAt, FactPayload: map[string]any{"metric": "example"},
-			Evidence: []Evidence{{
+			Evidence: []EventEvidenceLinkInput{{
 				ArtifactID: "artifact-1", EvidenceRelation: "supports",
 				EvidenceStatement: "Evidence statement", SupportsFields: []string{"title"},
 				SourceLevel: "primary",
 			}},
-			Tags: []Tag{{
+			Tags: []EventTagInput{{
 				TagID:   "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
 				TagKind: "news_category", TagCode: "technology_industry",
 				Confidence: json.Number("0.9"), AssignmentReason: "Technology event",

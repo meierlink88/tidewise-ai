@@ -1,4 +1,4 @@
-package postgres
+package event
 
 import (
 	"bytes"
@@ -10,30 +10,50 @@ import (
 	"sort"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/model"
+	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 )
 
-func (r repository) InEventPublicationTransaction(ctx context.Context, fn func(EventPublicationTransaction) error) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+func (s Store) InTransaction(ctx context.Context, fn func(eventbiz.Transaction) error) (resultErr error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin Event Publication transaction: %w", err)
 	}
-	wrapper := &postgresEventPublicationTx{tx: tx}
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		failure := recover()
+		rollbackErr := tx.Rollback()
+		if errors.Is(rollbackErr, sql.ErrTxDone) {
+			rollbackErr = nil
+		}
+		if failure != nil {
+			if rollbackErr != nil {
+				panic(fmt.Errorf("Event Publication panic (%v) and rollback failed: %w", failure, rollbackErr))
+			}
+			panic(failure)
+		}
+		if rollbackErr != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("roll back Event Publication transaction: %w", rollbackErr))
+		}
+	}()
+	wrapper := &transaction{tx: tx}
 	if err := fn(wrapper); err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit Event Publication transaction: %w", err)
 	}
+	committed = true
 	return nil
 }
 
-type postgresEventPublicationTx struct {
+type transaction struct {
 	tx *sql.Tx
 }
 
-func (t *postgresEventPublicationTx) LockEventPublicationIdentities(ctx context.Context, identities []string) error {
+func (t *transaction) LockIdentities(ctx context.Context, identities []string) error {
 	keys := append([]string(nil), identities...)
 	sort.Strings(keys)
 	for _, key := range keys {
@@ -44,8 +64,8 @@ func (t *postgresEventPublicationTx) LockEventPublicationIdentities(ctx context.
 	return nil
 }
 
-func (t *postgresEventPublicationTx) PublicationRawDocument(ctx context.Context, artifactID string) (*PublicationRawDocument, error) {
-	var record PublicationRawDocument
+func (t *transaction) StoredEventEvidenceRecord(ctx context.Context, artifactID string) (*eventbiz.StoredEventEvidenceRecord, error) {
+	var record eventbiz.StoredEventEvidenceRecord
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, artifact_id, content_hash, source_ref, source_name, source_type, source_url,
        title, published_at, collected_at, language, raw_mime_type
@@ -61,10 +81,13 @@ WHERE contract_version = 2 AND artifact_id = $1`, artifactID).Scan(
 	if err != nil {
 		return nil, fmt.Errorf("read publication raw document %q: %w", artifactID, err)
 	}
+	if err := validateStoredEvidenceRecord(record, artifactID); err != nil {
+		return nil, fmt.Errorf("read Event Evidence Record invariant: %w", err)
+	}
 	return &record, nil
 }
 
-func (t *postgresEventPublicationTx) InsertPublicationRawDocument(ctx context.Context, record PublicationRawDocument) error {
+func (t *transaction) InsertStoredEventEvidenceRecord(ctx context.Context, record eventbiz.StoredEventEvidenceRecord) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO raw_documents (
     id, contract_version, artifact_id, source_ref, ingest_channel, source_type, source_name,
@@ -73,7 +96,7 @@ INSERT INTO raw_documents (
 ) VALUES ($1,2,$2,$3,'',$4,$5,$6,NULL,$7,'','', '',$8,$9,$10,$11,$12,'collected')`,
 		record.ID, record.ArtifactID, record.SourceRef, record.SourceType, record.SourceName,
 		record.SourceURL, record.Title, record.MIMEType, record.Language,
-		nullTime(record.PublishedAt), record.CollectedAt, record.ContentSHA256,
+		nullableTime(record.PublishedAt), record.CollectedAt, record.ContentSHA256,
 	)
 	if err != nil {
 		return fmt.Errorf("insert publication raw document %q: %w", record.ArtifactID, err)
@@ -81,8 +104,8 @@ INSERT INTO raw_documents (
 	return nil
 }
 
-func (t *postgresEventPublicationTx) PublicationEvent(ctx context.Context, dedupeKey string) (*PublicationEvent, error) {
-	var record PublicationEvent
+func (t *transaction) StoredEvent(ctx context.Context, dedupeKey string) (*eventbiz.StoredEvent, error) {
+	var record eventbiz.StoredEvent
 	var factPayload []byte
 	var knowableAt *time.Time
 	err := t.tx.QueryRowContext(ctx, `
@@ -108,10 +131,13 @@ WHERE dedupe_key = $1`, dedupeKey).Scan(
 	if knowableAt != nil {
 		record.KnowableAt = *knowableAt
 	}
+	if err := validateStoredPublicationEvent(record, dedupeKey); err != nil {
+		return nil, fmt.Errorf("read Event invariant: %w", err)
+	}
 	return &record, nil
 }
 
-func (t *postgresEventPublicationTx) InsertPublicationEvent(ctx context.Context, record PublicationEvent) error {
+func (t *transaction) InsertStoredEvent(ctx context.Context, record eventbiz.StoredEvent) error {
 	factPayload, err := json.Marshal(record.FactPayload)
 	if err != nil {
 		return fmt.Errorf("encode publication Event %q fact payload: %w", record.DedupeKey, err)
@@ -121,7 +147,7 @@ INSERT INTO events (
     id, title, summary, event_time, first_seen_at, knowable_at,
     event_status, fact_status, dedupe_key, fact_payload
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-		record.ID, record.Title, record.FactualSummary, nullTime(record.OccurredAt),
+		record.ID, record.Title, record.FactualSummary, nullableTime(record.OccurredAt),
 		record.FirstSeenAt, record.KnowableAt, record.EventStatus, record.FactStatus,
 		record.DedupeKey, factPayload,
 	)
@@ -131,7 +157,7 @@ INSERT INTO events (
 	return nil
 }
 
-func (t *postgresEventPublicationTx) AdvancePublicationEventObservationTimes(ctx context.Context, eventID string, firstSeenAt, knowableAt time.Time) error {
+func (t *transaction) AdvanceStoredEventObservationTimes(ctx context.Context, eventID string, firstSeenAt, knowableAt time.Time) error {
 	_, err := t.tx.ExecContext(ctx, `
 UPDATE events
 SET first_seen_at = LEAST(first_seen_at, $2),
@@ -144,8 +170,8 @@ WHERE id = $1`, eventID, firstSeenAt, knowableAt)
 	return nil
 }
 
-func (t *postgresEventPublicationTx) PublicationEventSource(ctx context.Context, eventID, rawDocumentID string) (*PublicationEventSource, error) {
-	var record PublicationEventSource
+func (t *transaction) StoredEventEvidenceLink(ctx context.Context, eventID, rawDocumentID string) (*eventbiz.StoredEventEvidenceLink, error) {
+	var record eventbiz.StoredEventEvidenceLink
 	var supportsFieldsJSON []byte
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
@@ -167,10 +193,13 @@ WHERE contract_version = 3 AND event_id = $1 AND raw_document_id = $2`,
 	if err := json.Unmarshal(supportsFieldsJSON, &record.SupportsFields); err != nil {
 		return nil, fmt.Errorf("decode publication Event Source %q/%q supports fields: %w", eventID, rawDocumentID, err)
 	}
+	if err := validateStoredEvidenceLink(record, eventID, rawDocumentID); err != nil {
+		return nil, fmt.Errorf("read Event Evidence Link invariant: %w", err)
+	}
 	return &record, nil
 }
 
-func (t *postgresEventPublicationTx) InsertPublicationEventSource(ctx context.Context, record PublicationEventSource) error {
+func (t *transaction) InsertStoredEventEvidenceLink(ctx context.Context, record eventbiz.StoredEventEvidenceLink) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO event_sources (
     id, contract_version, event_id, raw_document_id, source_level, evidence_statement,
@@ -186,23 +215,26 @@ INSERT INTO event_sources (
 	return nil
 }
 
-func (t *postgresEventPublicationTx) PublicationTag(ctx context.Context, tagID string) (*model.EventTagDef, error) {
-	var tag model.EventTagDef
+func (t *transaction) PublicationTag(ctx context.Context, tagID string) (*eventbiz.EventTag, error) {
+	var tag eventbiz.EventTag
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, tag_kind, code, name, is_active
 FROM event_tag_defs
-WHERE id = $1`, tagID).Scan(&tag.ID, &tag.TagKind, &tag.Code, &tag.Name, &tag.IsActive)
+WHERE id = $1`, tagID).Scan(&tag.ID, &tag.Kind, &tag.Code, &tag.Name, &tag.Active)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read publication Tag %q: %w", tagID, err)
 	}
+	if err := validateStoredEventTag(tag, false); err != nil {
+		return nil, fmt.Errorf("read Event Tag invariant: %w", err)
+	}
 	return &tag, nil
 }
 
-func (t *postgresEventPublicationTx) PublicationEventTag(ctx context.Context, eventID, tagID string) (*PublicationEventTag, error) {
-	var record PublicationEventTag
+func (t *transaction) StoredEventTagAssignment(ctx context.Context, eventID, tagID string) (*eventbiz.StoredEventTagAssignment, error) {
+	var record eventbiz.StoredEventTagAssignment
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, event_id, tag_id, assign_source, review_status, confidence::text, assignment_reason
 FROM event_tag_maps
@@ -216,10 +248,13 @@ WHERE event_id = $1 AND tag_id = $2`, eventID, tagID).Scan(
 	if err != nil {
 		return nil, fmt.Errorf("read publication Event Tag %q/%q: %w", eventID, tagID, err)
 	}
+	if err := validateStoredTagAssignment(record, eventID, tagID); err != nil {
+		return nil, fmt.Errorf("read Event Tag Assignment invariant: %w", err)
+	}
 	return &record, nil
 }
 
-func (t *postgresEventPublicationTx) InsertPublicationEventTag(ctx context.Context, record PublicationEventTag) error {
+func (t *transaction) InsertStoredEventTagAssignment(ctx context.Context, record eventbiz.StoredEventTagAssignment) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO event_tag_maps (
     id, event_id, tag_id, assign_source, review_status, confidence, assignment_reason
@@ -233,7 +268,7 @@ INSERT INTO event_tag_maps (
 	return nil
 }
 
-func (t *postgresEventPublicationTx) InsertEventPublicationReceipt(ctx context.Context, receipt EventPublicationReceipt) error {
+func (t *transaction) InsertEventPublicationReceipt(ctx context.Context, receipt eventbiz.EventPublicationReceipt) error {
 	collectorExecutions, err := json.Marshal(receipt.CollectorExecutions)
 	if err != nil {
 		return fmt.Errorf("encode publication collector executions: %w", err)
@@ -262,3 +297,5 @@ INSERT INTO event_publication_receipts (
 	}
 	return nil
 }
+
+var _ eventbiz.Transaction = (*transaction)(nil)

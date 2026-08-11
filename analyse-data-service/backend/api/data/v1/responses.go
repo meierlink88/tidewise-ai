@@ -2,52 +2,6 @@ package v1
 
 import "time"
 
-type EventPublicationResult struct {
-	ReceiptID    string                              `json:"receipt_id"`
-	PackageID    string                              `json:"package_id"`
-	ImportedAt   time.Time                           `json:"imported_at"`
-	Events       []EventPublicationEventResult       `json:"events"`
-	RawDocuments []EventPublicationRawDocumentResult `json:"raw_documents"`
-	Counts       EventPublicationCounts              `json:"counts"`
-}
-
-type EventPublicationEventResult struct {
-	DedupeKey   string `json:"dedupe_key"`
-	EventID     string `json:"event_id"`
-	Disposition string `json:"disposition"`
-}
-
-type EventPublicationRawDocumentResult struct {
-	ArtifactID    string `json:"artifact_id"`
-	RawDocumentID string `json:"raw_document_id"`
-	Disposition   string `json:"disposition"`
-}
-
-type EventPublicationCounts struct {
-	EventsCreated       int `json:"events_created"`
-	EventsReused        int `json:"events_reused"`
-	RawDocumentsCreated int `json:"raw_documents_created"`
-	RawDocumentsReused  int `json:"raw_documents_reused"`
-	EventSourcesCreated int `json:"event_sources_created"`
-	EventSourcesReused  int `json:"event_sources_reused"`
-	EventTagsCreated    int `json:"event_tags_created"`
-	EventTagsReused     int `json:"event_tags_reused"`
-}
-
-type EventTagCatalog struct {
-	CatalogRevision string                `json:"catalog_revision"`
-	CatalogHash     string                `json:"catalog_hash"`
-	Tags            []EventTagCatalogItem `json:"tags"`
-}
-
-type EventTagCatalogItem struct {
-	ID       string `json:"id"`
-	TagKind  string `json:"tag_kind"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	IsActive bool   `json:"is_active"`
-}
-
 type ResearchThemeImportResult struct {
 	ReceiptID                               string                    `json:"receipt_id"`
 	AnalysisBatchID                         string                    `json:"analysis_batch_id"`
@@ -242,11 +196,4 @@ type AdminRawDocumentPage struct {
 	Total    int                `json:"total"`
 	Page     int                `json:"page"`
 	PageSize int                `json:"page_size"`
-}
-
-type AdminEventPage struct {
-	Items    []AdminEvent `json:"items"`
-	Total    int          `json:"total"`
-	Page     int          `json:"page"`
-	PageSize int          `json:"page_size"`
 }

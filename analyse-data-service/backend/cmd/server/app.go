@@ -12,9 +12,8 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
+	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
 	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
@@ -24,7 +23,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
-	eventpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventpublication"
+	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
 	evidencedata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidence"
 	neo4jdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/neo4j"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
@@ -34,6 +33,7 @@ import (
 	researchpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
+	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
 	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
 )
 
@@ -89,10 +89,16 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Evidence use case: %w", err))
 	}
+	eventStore, err := eventdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Event store: %w", err))
+	}
+	eventUseCase, err := eventbiz.NewUseCase(eventStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Event use case: %w", err))
+	}
 
 	application := service.NewDataService(service.Dependencies{
-		EventPublications:       eventpublication.NewService(eventpublicationdata.NewRepository(db)),
-		EventTagCatalog:         eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
 		EventSemantics:          eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
 		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
 		Research:                research.NewService(researchdata.NewRepository(db), time.Now),
@@ -105,7 +111,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Evidence API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, application, evidenceApplication, authenticator, logger)
+	eventApplication, err := eventservice.NewService(eventUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Event API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, application, eventApplication, evidenceApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
