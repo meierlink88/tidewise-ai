@@ -4,30 +4,31 @@
 
 ## 本地开发
 
-Taro watch/build 通过 Local Compose 的 Miniapp frontend builder image 运行。首页通过
+Taro watch/build 使用仓库 lockfile 固定的 Node/Taro 依赖直接运行。首页通过
 `features/research-themes` 下的统一端口读取数据，页面组件不直接读取 Mock 或调用 HTTP。
-每次开发或构建都必须显式选择数据源；在 `infra/local/.env.local` 中设置
-`TARO_APP_RESEARCH_SOURCE=mock` 后运行：
+每次开发或构建都必须显式选择数据源：
 
 ```bash
-npm run dev:weapp
-npm run dev:tt
+TARO_APP_RESEARCH_SOURCE=mock npm run dev:weapp
+TARO_APP_RESEARCH_SOURCE=mock npm run dev:tt
 ```
 
-Mock 模式只启动独立 builder Compose，不依赖 Backend 服务或基础设施。
+Mock 模式不依赖 Backend 服务或基础设施。
 
 接入本地 Miniapp Backend 时，在 `infra/local/.env.local` 中设置
-`TARO_APP_RESEARCH_SOURCE=api`，先启动 Backend，再运行 builder：
+`TARO_APP_RESEARCH_SOURCE=api` 时先启动 Backend，再运行 Taro：
 
 ```bash
 npm run backend:dev:miniapp
-npm run dev:weapp
+TARO_APP_RESEARCH_SOURCE=api \
+  TARO_APP_MINIAPP_API_BASE_URL=http://127.0.0.1:9012 \
+  npm run dev:weapp
 ```
 
 浏览器快速预览真实 API 数据时运行 H5 开发服务：
 
 ```bash
-npm run dev:h5
+TARO_APP_RESEARCH_SOURCE=api npm run dev:h5
 ```
 
 然后打开 `http://localhost:10086/`。H5 开发服务会把同源 `/api` 请求代理到本地 Miniapp Backend `http://127.0.0.1:9012`，浏览器不会直接访问 Data Service，也不需要额外处理 CORS。可通过 `TARO_APP_H5_API_PROXY_TARGET` 覆盖代理目标。
@@ -54,9 +55,9 @@ TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run build:h5
 TARO_APP_RESEARCH_SOURCE=mock npm --workspace @tidewise/miniapp run preview:weapp
 ```
 
-微信开发者工具直接导入仓库内的 `miniapp/frontend/dist/weapp`。容器只运行 Taro 编译器，
-通过 bind mount 持续写入相同目录；微信发布仍由微信开发者工具或既有平台发布流程完成，
-不是 Docker 部署。目标视觉基线为 375×812。
+微信开发者工具直接导入仓库内的 `miniapp/frontend/dist/weapp`。Taro 直接写入该目录；
+微信发布仍由微信开发者工具或既有平台发布流程完成，不是 Docker 部署。目标视觉基线为
+375×812。
 
 构建目录自带 `project.config.json` 和微信测试 AppID，无需手工创建项目配置。
 

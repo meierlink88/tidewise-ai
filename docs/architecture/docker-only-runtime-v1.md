@@ -2,26 +2,30 @@
 
 ## Outcome
 
-All Tidewise application processes have one supported runtime: service-owned images orchestrated
-by Docker Compose. Local development, UAT deployment and one-shot operational commands use the same
-image entrypoints and container network semantics.
+All Tidewise deployable application services and service-owned operational processes have one
+supported runtime: service-owned images orchestrated by Docker Compose. Local service development,
+UAT deployment and one-shot operational commands use the same image entrypoints and container
+network semantics. Miniapp Frontend build/watch is development and publishing tooling, not a
+deployable application process.
 
 ## Scope
 
-| Process                                  | Docker contract                                                                              |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Data Domain Service                      | `data` image and Compose service                                                             |
-| Data migrations and tools                | binaries in the Data image, invoked with `docker compose run --rm`                           |
-| AgentRun                                 | `agentrun` image and Compose service                                                         |
-| AgentRun migration/config/Artifact tools | binaries in the AgentRun image, invoked with Compose run/exec                                |
-| Miniapp Application Backend              | `miniapp` image and Compose service                                                          |
-| Admin Application Backend                | `adminportal` image and Compose service                                                      |
-| Admin Portal Frontend                    | unprivileged nginx `admin` image and Compose service                                         |
-| Miniapp Frontend                         | non-deployable Node/Taro builder image; dedicated Compose profiles for H5, WeChat and Douyin |
-| PostgreSQL, Neo4j and Qdrant             | external infrastructure endpoints; excluded from application Compose/release artifacts       |
+| Process                                  | Docker contract                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------------------- |
+| Data Domain Service                      | `data` image and Compose service                                                       |
+| Data migrations and tools                | binaries in the Data image, invoked with `docker compose run --rm`                     |
+| AgentRun                                 | `agentrun` image and Compose service                                                   |
+| AgentRun migration/config/Artifact tools | binaries in the AgentRun image, invoked with Compose run/exec                          |
+| Miniapp Application Backend              | `miniapp` image and Compose service                                                    |
+| Admin Application Backend                | `adminportal` image and Compose service                                                |
+| Admin Portal Frontend                    | unprivileged nginx `admin` image and Compose service                                   |
+| Miniapp Frontend                         | non-service repository-pinned Node/Taro build; excluded from application Compose       |
+| PostgreSQL, Neo4j and Qdrant             | external infrastructure endpoints; excluded from application Compose/release artifacts |
 
 Tests, lint, typecheck and source compilation may still execute directly in CI or a developer tool.
-They are verification mechanisms, not supported application runtime entrypoints.
+Miniapp Frontend build/watch also runs directly because it produces platform artifacts rather than
+hosting a Tidewise service. These are tooling contracts, not deployable application runtime
+entrypoints.
 
 ## Non-goals
 
@@ -51,9 +55,9 @@ They are verification mechanisms, not supported application runtime entrypoints.
 ### Local Compose
 
 - A normal `up` starts migrations before long-running services and includes Admin Portal Frontend.
-- Stable application browser/host ports remain Data `9011`, Miniapp `9012`, Admin Backend `9013`,
-  Admin Web `9014`, AgentRun `9080` and Miniapp H5 `10086`. Infrastructure ports are outside this
-  contract.
+- Stable local application browser/host ports remain Data `9011`, Miniapp `9012`, Admin Backend
+  `9013`, Admin Web `9014` and AgentRun `9080`. UAT publishes Miniapp `9012` and Admin Web `9014`,
+  but keeps Admin Backend `9013` internal. Infrastructure ports are outside this contract.
 - Backend-to-backend traffic uses Compose DNS; browser and Miniapp build output use mapped host URLs.
 - Only the service-owned AgentRun Artifact volume is declared. Infrastructure data volumes are not
   part of the application package. Documentation must never recommend `docker compose down -v` as
@@ -61,12 +65,12 @@ They are verification mechanisms, not supported application runtime entrypoints.
 
 ### Frontend processes
 
-- Admin local runtime uses the same nginx image shape as UAT, with runtime Admin API configuration.
-- Miniapp H5/weapp/tt development uses the repository-pinned Node and Taro dependencies inside a
-  builder container. Source and `dist` are bind-mounted; platform developer tools read the host
-  output.
-- Builder profiles live in a dedicated Compose file without Backend dependencies. Mock mode runs
-  independently; API mode expects the Miniapp Backend to be started separately.
+- Admin local runtime uses the same nginx image shape as UAT. The browser calls relative
+  `/api/admin/*`; nginx proxies to `http://adminportal:9013` on the Compose network.
+- Miniapp H5/weapp/tt development and CI use the repository-pinned Node and Taro dependencies
+  directly. Platform developer tools read the generated host `dist` output.
+- Miniapp mock mode runs without Backend dependencies; API mode expects the Miniapp Backend to be
+  started separately.
 - Taro `outputRoot=dist/<platform>` and current API/mock selection remain unchanged.
 
 ### Operational commands
@@ -86,7 +90,8 @@ They are verification mechanisms, not supported application runtime entrypoints.
 - A missing required secret or invalid YAML fails the owning container at startup.
 - Health/readiness endpoints remain the startup and dependency gates.
 - BFF and frontend containers never receive Data/AgentRun database credentials.
-- Admin browser runtime receives only the public Admin Backend URL.
+- Admin browser runtime receives no Backend origin or downstream service token; the Admin Web
+  container owns the fixed internal Backend route.
 - Miniapp build output contains only the existing public Miniapp Backend URL, never a downstream
   service token.
 
@@ -109,11 +114,12 @@ mixed-version compatibility window.
   and root dev scripts contain no host-native service commands.
 - Compose contract: Local and UAT resolve with example env files; all application images, config
   paths, dependency gates, ports, secrets and healthchecks are present.
-- Container build: five deployable images plus the Miniapp Taro builder image build successfully.
+- Container build: the five deployable application images build successfully; no Miniapp Frontend
+  image exists.
 - Runtime smoke: Data and AgentRun migrations complete; Data, AgentRun, Miniapp, Admin Backend and
   Admin Web reach their existing health/readiness contracts.
-- Miniapp builder smoke: containerized weapp and tt builds write their existing `dist/<platform>`
-  output without changing frontend behavior.
+- Miniapp build seam: direct CI weapp and tt builds write their existing `dist/<platform>` output
+  without changing frontend behavior.
 
 ## Reference evidence
 
@@ -122,13 +128,13 @@ mixed-version compatibility window.
   [Compile Configuration](https://docs.taro.zone/docs/config/) and
   [`outputRoot`](https://docs.taro.zone/docs/config-detail/#outputroot) contracts.
 - Adopted: the documented `taro build --type <platform> [--watch]` flow and configured
-  `outputRoot` remain the build and developer-tool handoff contract. The container runs the
-  repository's existing scripts and bind-mounts the generated `dist` directory.
+  `outputRoot` remain the build and developer-tool handoff contract. The repository's pinned Node
+  dependencies run directly and generate the platform-specific `dist` directory.
 - Version/platform limits: the repository pins Taro/plugin `4.2.0` and React 18; both `weapp` and
-  `tt` are built independently and keep their existing `dist/weapp` and `dist/tt` output. Docker
-  does not replace either platform's developer tools, preview, upload, review or publishing.
+  `tt` are built independently and keep their existing `dist/weapp` and `dist/tt` output. Neither
+  Docker nor CI replaces either platform's developer tools, preview, upload, review or publishing.
 - Rejected: copying an example project, changing page behavior, platform APIs, project structure,
   dependencies, or moving platform publishing into Docker.
-- Project landing: one pinned Node builder image provides identical finite builds and watch modes;
+- Project landing: the root npm workspace commands provide finite builds and watch modes;
   mock-source builds can run without any Backend, while API-source use expects the separately
   started Miniapp Backend.

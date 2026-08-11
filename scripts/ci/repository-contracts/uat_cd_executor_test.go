@@ -38,7 +38,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	for _, want := range []string{
 		"http://127.0.0.1:9012/healthz",
 		"http://127.0.0.1:9012/api/miniapp/v1/research/themes?limit=1",
-		"http://127.0.0.1:9013/api/admin/v1/model-providers",
+		"http://127.0.0.1:9014/api/admin/v1/model-providers",
 	} {
 		if !strings.Contains(string(curlLog), want) {
 			t.Fatalf("host verification missing %q: %s", want, curlLog)

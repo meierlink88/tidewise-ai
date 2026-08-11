@@ -115,7 +115,7 @@ artifact_dir="${AGENTRUN_ARTIFACT_DIR:-${deployment_root}/agentrun-artifacts}"
 [ "$(stat -c '%a' "$artifact_dir")" = 2770 ] || fail agentrun-artifact-directory "$artifact_dir mode must be 2770"
 pass agentrun-artifact-directory
 
-for port in 9012 9013 9014; do
+for port in 9012 9014; do
   container_ids="$(docker ps --filter "publish=$port" --format '{{.ID}}')"
   while read -r container_id; do
     [ -z "$container_id" ] && continue

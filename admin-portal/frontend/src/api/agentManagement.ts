@@ -1,4 +1,3 @@
-import { adminAPIURL } from './dataIngestion';
 import { z } from 'zod';
 
 export type ScheduleType = 'daily' | 'cron';
@@ -516,7 +515,7 @@ async function request<T>(token: string, path: string, init: RequestInit = {}): 
   if (init.body) {
     headers.set('Content-Type', 'application/json');
   }
-  const response = await fetch(adminAPIURL(path), { ...init, headers });
+  const response = await fetch(path, { ...init, headers });
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = payload as {

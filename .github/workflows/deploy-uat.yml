@@ -387,7 +387,6 @@ jobs:
           images_env="${RUNNER_TEMP}/tidewise-uat-${GITHUB_RUN_ID}.images.env"
           umask 077
           printf '%s\n' \
-            "ADMIN_API_BASE_URL=${UAT_PUBLIC_BASE_URL}:9013" \
             "ADMIN_ALLOWED_ORIGIN=${UAT_PUBLIC_BASE_URL}:9014" \
             "TIDEWISW_DB_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
             "AGENTRUN_DB_PASSWORD=${AGENTRUN_DB_PASSWORD}" \

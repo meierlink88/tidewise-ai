@@ -72,5 +72,7 @@ Docker images and Docker Compose. Backend services keep one YAML per application
 local/development YAML uses container-reachable external infrastructure endpoints and no
 host-runtime configuration tree is maintained. PostgreSQL、Neo4j、Qdrant 不属于 Tidewise
 application Compose/release artifact。Tidewise 服务之间仍使用 Compose DNS。
-Miniapp Frontend is a containerized Taro build/watch process rather than an HTTP service; platform
-developer tools remain host applications reading the generated `dist` output.
+Miniapp Frontend is not an HTTP service and is excluded from the Docker runtime contract;
+repository-pinned Node/Taro build/watch commands generate `dist` for the host platform developer
+tools. Admin Web is the browser's single Admin origin and proxies relative `/api/admin/*` requests
+to the internal Admin Backend service.

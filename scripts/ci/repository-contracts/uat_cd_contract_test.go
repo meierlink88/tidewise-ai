@@ -360,8 +360,8 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	compose := readContractFile(t, filepath.Join(root, "infra", "uat", "docker-compose.yaml"))
 	for _, required := range []string{
 		"  data:", "  miniapp:", "  adminportal:", "  admin:", "  agentrun:",
-		"http://data:9011", "http://agentrun:9080", "9012:9012", "9013:9013", "9014:9014", "\"9080\"",
-		"ADMIN_API_BASE_URL", "ADMIN_ALLOWED_ORIGIN", "TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD",
+		"http://data:9011", "http://agentrun:9080", "http://adminportal:9013", "9012:9012", "9014:9014", "\"9080\"",
+		"ADMIN_BACKEND_URL", "ADMIN_ALLOWED_ORIGIN", "TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD",
 		"DATA_SERVICE_TOKEN", "ADMIN_SERVICE_TOKEN", "AGENTRUN_SERVICE_TOKEN",
 		"restart: unless-stopped", "max-size: \"20m\"", "max-file: \"5\"",
 	} {
@@ -375,6 +375,13 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	}
 	if !strings.Contains(data, "host.docker.internal:host-gateway") {
 		t.Fatal("Data Service one-shot jobs must resolve the UAT Neo4j host through Docker host-gateway")
+	}
+	adminBackend := composeServiceSection(t, compose, "adminportal")
+	if strings.Contains(adminBackend, "ports:") {
+		t.Fatal("Admin Backend must not publish port 9013 to the UAT host")
+	}
+	if strings.Contains(compose, "ADMIN_API_BASE_URL") || strings.Contains(compose, "9013:9013") {
+		t.Fatal("UAT must not expose a browser-facing Admin Backend origin")
 	}
 	for _, service := range []string{"miniapp", "adminportal", "admin"} {
 		section := composeServiceSection(t, compose, service)

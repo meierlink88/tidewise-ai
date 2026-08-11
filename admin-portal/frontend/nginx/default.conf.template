@@ -11,11 +11,12 @@ server {
         return 200 "ok\n";
     }
 
-    location = /runtime-config.js {
-        access_log off;
-        add_header Cache-Control "no-store";
-        default_type application/javascript;
-        return 200 'window.__TIDEWISE_RUNTIME_CONFIG__ = { adminApiBaseUrl: "${ADMIN_API_BASE_URL}" };';
+    location /api/admin/ {
+        proxy_pass ${ADMIN_BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location / {

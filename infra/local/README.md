@@ -1,14 +1,15 @@
 # Local Docker Runtime
 
 Local Docker Compose is the only supported runtime for Tidewise application services and
-service-owned operational commands. Host-native `go run`, Vite and Taro processes are not runtime
-entrypoints.
+service-owned operational commands. Host-native `go run` and Vite service hosting are not runtime
+entrypoints. Miniapp Frontend is not a service; its repository-pinned Taro build/watch commands run
+directly and hand platform output to the native developer tools.
 
 The application stack contains Data, AgentRun, Miniapp Backend, Admin Backend and Admin Web.
 PostgreSQL, Neo4j and Qdrant are externally provisioned infrastructure: this Compose file does not
 create, upgrade or persist them. Data and AgentRun keep independent externally provisioned
-databases; AgentRun keeps only its service-owned Artifact volume. Miniapp frontend builders are
-optional Compose profiles.
+databases; AgentRun keeps only its service-owned Artifact volume. Miniapp Frontend is not included
+in this Compose application stack.
 
 ## Start and stop
 
@@ -97,25 +98,25 @@ Admin Web runs from the same unprivileged nginx image shape used in UAT:
 npm run dev:admin
 ```
 
-The browser receives only the public Admin Backend URL. Enter `ADMIN_SERVICE_TOKEN` in the UI when
-the current Admin contract requires it; no downstream service token is embedded in frontend files.
+The browser calls relative `/api/admin/*` on the Admin Web origin. nginx proxies those requests to
+the internal `adminportal:9013` service. Enter `ADMIN_SERVICE_TOKEN` in the UI when the current
+Admin contract requires it; no downstream service token is embedded in frontend files.
 
 ## Miniapp frontend
 
-Taro and Node run inside the Miniapp frontend builder image. The source directory is bind-mounted,
-and the container writes to the existing host `miniapp/frontend/dist/<platform>` directory.
+Install the repository lockfile with Node 22, then run the repository-pinned Taro commands directly.
+They write to `miniapp/frontend/dist/<platform>`:
 
 ```bash
-npm run dev:weapp
-npm run dev:tt
-npm run dev:h5
+TARO_APP_RESEARCH_SOURCE=mock npm run dev:weapp
+TARO_APP_RESEARCH_SOURCE=mock npm run dev:tt
+TARO_APP_RESEARCH_SOURCE=mock npm run dev:h5
 ```
 
-`TARO_APP_RESEARCH_SOURCE` in `.env.local` selects `api` or `mock`. WeChat and Douyin developer
-tools remain host applications and open `miniapp/frontend/dist/weapp` or `dist/tt`; they do not run
-inside Docker. The builder uses its own Compose file, so `mock` mode starts without Backend
-services, Backend secrets, PostgreSQL, Neo4j or Qdrant. In `api` mode, start the Miniapp Backend
-separately with `npm run backend:dev:miniapp`.
+`TARO_APP_RESEARCH_SOURCE` selects `api` or `mock` for each command. WeChat and Douyin developer
+tools open `miniapp/frontend/dist/weapp` or `dist/tt`. Mock mode needs no Backend, secrets,
+PostgreSQL, Neo4j or Qdrant. In API mode, start the Miniapp Backend separately with
+`npm run backend:dev:miniapp` and provide the approved Miniapp Backend URL.
 
 ## Data operations
 

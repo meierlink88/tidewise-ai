@@ -14,10 +14,12 @@ qdrant_fixture="${project_name}-qdrant-fixture"
 export COMPOSE_NETWORK_NAME="${project_name}-network"
 export DATA_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_DATA_PORT:-19015}"
 export ADMIN_SERVICE_PORT="${TIDEWISE_SMOKE_ADMIN_PORT:-19013}"
+export ADMIN_WEB_PORT="${TIDEWISE_SMOKE_ADMIN_WEB_PORT:-19014}"
 export AGENTRUN_SERVICE_PORT="${TIDEWISE_SMOKE_AGENTRUN_PORT:-19080}"
 qdrant_fixture_port="${TIDEWISE_SMOKE_QDRANT_PORT:-56333}"
 export DATA_SERVICE_IMAGE="tidewise-data:ci"
 export ADMIN_SERVICE_IMAGE="tidewise-adminportal:ci"
+export ADMIN_WEB_IMAGE="tidewise-admin:ci"
 export AGENTRUN_SERVICE_IMAGE="tidewise-agentrun:ci"
 export TIDEWISW_DB_PASSWORD="compose-smoke-postgres-password"
 export TIDEWISE_DB_HOST="$data_postgres_fixture"
@@ -91,13 +93,14 @@ printf '%s' 'compose-smoke-deepseek-key' | "${compose[@]}" run --rm --no-deps -T
   --model deepseek-chat --api-key-stdin >/dev/null
 "${compose[@]}" up -d --wait --no-build agentrun
 "${compose[@]}" up -d --wait --no-build --no-deps adminportal
+"${compose[@]}" up -d --wait --no-build --no-deps admin
 
 success_status="$(
   curl --silent --show-error \
     --header "Authorization: Bearer ${ADMIN_SERVICE_TOKEN}" \
     --output "$success_body" \
     --write-out "%{http_code}" \
-    "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"
+    "http://127.0.0.1:${ADMIN_WEB_PORT}/api/admin/v1/model-providers"
 )"
 if [[ "$success_status" != "200" ]]; then
   echo "Admin Portal returned ${success_status}, want 200 while AgentRun is available" >&2
@@ -125,7 +128,7 @@ failure_status="$(
     --header "Authorization: Bearer ${ADMIN_SERVICE_TOKEN}" \
     --output "$failure_body" \
     --write-out "%{http_code}" \
-    "http://127.0.0.1:${ADMIN_SERVICE_PORT}/api/admin/v1/model-providers"
+    "http://127.0.0.1:${ADMIN_WEB_PORT}/api/admin/v1/model-providers"
 )"
 if [[ "$failure_status" != "503" ]]; then
   echo "Admin Portal returned ${failure_status}, want 503 while AgentRun is unavailable" >&2
