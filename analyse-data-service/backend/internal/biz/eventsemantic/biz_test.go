@@ -9,14 +9,15 @@ import (
 )
 
 type fakeStore struct {
-	listEligibleEvents func(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
-	context            func(context.Context, string) (Context, error)
-	submissionContext  func(context.Context, string, Submission) (Context, error)
-	replaySubmission   func(context.Context, string, string) (SubmissionResult, bool, error)
-	createContextLease func(context.Context, ContextLeaseRequest) (ContextLease, error)
-	createSubmission   func(context.Context, Submission, PrecheckResult, []byte, string) (SubmissionResult, error)
-	submitReview       func(context.Context, ReviewSubmission, []byte, string) (SubmissionResult, error)
-	getEventSemantics  func(context.Context, string) (EventSemanticsResult, error)
+	listEligibleEvents    func(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
+	context               func(context.Context, string) (Context, error)
+	getEventSemantics     func(context.Context, string) (EventSemanticsResult, error)
+	loadContextLeaseState func(context.Context, ContextLeaseRequest, time.Time) (ContextLeaseTransactionState, error)
+	saveContextLease      func(context.Context, ContextLeaseWrite) error
+	loadSubmissionState   func(context.Context, Submission) (SubmissionTransactionState, error)
+	saveSubmission        func(context.Context, SubmissionWrite) error
+	loadReviewState       func(context.Context, ReviewSubmission) (ReviewTransactionState, error)
+	saveReview            func(context.Context, ReviewWrite) error
 }
 
 func (f fakeStore) ListEligibleEvents(ctx context.Context, limit int, cursor *EligibleEventCursor) ([]EligibleEvent, error) {
@@ -27,39 +28,36 @@ func (f fakeStore) Context(ctx context.Context, id string) (Context, error) {
 	return f.context(ctx, id)
 }
 
-func (f fakeStore) SubmissionContext(ctx context.Context, id string, submission Submission) (Context, error) {
-	return f.submissionContext(ctx, id, submission)
-}
-
-func (f fakeStore) ReplaySubmission(ctx context.Context, executionID, hash string) (SubmissionResult, bool, error) {
-	return f.replaySubmission(ctx, executionID, hash)
-}
-
-func (f fakeStore) CreateContextLease(ctx context.Context, request ContextLeaseRequest) (ContextLease, error) {
-	return f.createContextLease(ctx, request)
-}
-
-func (f fakeStore) CreateSubmission(
-	ctx context.Context,
-	submission Submission,
-	precheck PrecheckResult,
-	payload []byte,
-	hash string,
-) (SubmissionResult, error) {
-	return f.createSubmission(ctx, submission, precheck, payload, hash)
-}
-
-func (f fakeStore) SubmitReview(
-	ctx context.Context,
-	submission ReviewSubmission,
-	payload []byte,
-	hash string,
-) (SubmissionResult, error) {
-	return f.submitReview(ctx, submission, payload, hash)
-}
-
 func (f fakeStore) GetEventSemantics(ctx context.Context, eventID string) (EventSemanticsResult, error) {
 	return f.getEventSemantics(ctx, eventID)
+}
+
+func (f fakeStore) InTransaction(ctx context.Context, fn func(Transaction) error) error {
+	return fn(f)
+}
+
+func (f fakeStore) LoadContextLeaseState(ctx context.Context, request ContextLeaseRequest, observedAt time.Time) (ContextLeaseTransactionState, error) {
+	return f.loadContextLeaseState(ctx, request, observedAt)
+}
+
+func (f fakeStore) SaveContextLease(ctx context.Context, write ContextLeaseWrite) error {
+	return f.saveContextLease(ctx, write)
+}
+
+func (f fakeStore) LoadSubmissionState(ctx context.Context, submission Submission) (SubmissionTransactionState, error) {
+	return f.loadSubmissionState(ctx, submission)
+}
+
+func (f fakeStore) SaveSubmission(ctx context.Context, write SubmissionWrite) error {
+	return f.saveSubmission(ctx, write)
+}
+
+func (f fakeStore) LoadReviewState(ctx context.Context, submission ReviewSubmission) (ReviewTransactionState, error) {
+	return f.loadReviewState(ctx, submission)
+}
+
+func (f fakeStore) SaveReview(ctx context.Context, write ReviewWrite) error {
+	return f.saveReview(ctx, write)
 }
 
 func TestUseCaseEligibilityCursorPreservesStableKeyset(t *testing.T) {
@@ -100,29 +98,31 @@ func TestUseCaseEligibilityCursorPreservesStableKeyset(t *testing.T) {
 }
 
 func TestUseCaseSubmissionReplayBypassesPinnedContextAndWrite(t *testing.T) {
+	submission := validUseCaseSubmission()
+	_, payloadHash, err := canonicalHash(submission)
+	if err != nil {
+		t.Fatal(err)
+	}
 	replayed := SubmissionResult{
-		SubmissionID: "20000000-0000-4000-8000-000000000001",
-		EventID:      "10000000-0000-4000-8000-000000000001",
-		Status:       StatusPendingReview,
+		SubmissionID:         "20000000-0000-4000-8000-000000000001",
+		EventID:              "10000000-0000-4000-8000-000000000001",
+		Status:               StatusPendingReview,
+		CanonicalPayloadHash: payloadHash,
 	}
 	store := fakeStore{
-		replaySubmission: func(context.Context, string, string) (SubmissionResult, bool, error) {
-			return replayed, true, nil
+		loadSubmissionState: func(context.Context, Submission) (SubmissionTransactionState, error) {
+			return SubmissionTransactionState{Existing: &replayed}, nil
 		},
-		submissionContext: func(context.Context, string, Submission) (Context, error) {
-			t.Fatal("replay read pinned Context")
-			return Context{}, nil
-		},
-		createSubmission: func(context.Context, Submission, PrecheckResult, []byte, string) (SubmissionResult, error) {
+		saveSubmission: func(context.Context, SubmissionWrite) error {
 			t.Fatal("replay wrote a second Submission")
-			return SubmissionResult{}, nil
+			return nil
 		},
 	}
 	useCase, err := NewUseCase(store)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := useCase.CreateSubmission(context.Background(), validUseCaseSubmission())
+	result, err := useCase.CreateSubmission(context.Background(), submission)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,23 +135,34 @@ func TestUseCaseSubmissionPinsContextAndCarriesSupersession(t *testing.T) {
 	submission := validUseCaseSubmission()
 	submission.SupersedesSubmissionID = "20000000-0000-4000-8000-000000000002"
 	store := fakeStore{
-		replaySubmission: func(context.Context, string, string) (SubmissionResult, bool, error) {
-			return SubmissionResult{}, false, nil
-		},
-		submissionContext: func(_ context.Context, leaseID string, received Submission) (Context, error) {
-			if leaseID != submission.ContextLeaseID || received.SupersedesSubmissionID != submission.SupersedesSubmissionID {
+		loadSubmissionState: func(_ context.Context, received Submission) (SubmissionTransactionState, error) {
+			if received.ContextLeaseID != submission.ContextLeaseID || received.SupersedesSubmissionID != submission.SupersedesSubmissionID {
 				t.Fatalf("pinned submission = %#v", received)
 			}
-			return Context{
-				Event: Event{ID: submission.EventID}, OntologyVersion: submission.OntologyVersion,
-				PolicyVersion: submission.AcceptancePolicyVersion,
+			return SubmissionTransactionState{
+				Lease: SubmissionLeaseState{
+					Found: true, EventID: submission.EventID, AgentExecutionID: submission.AgentExecutionID,
+					Status: "active", LeaseExpiresAt: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC),
+					SupersedesSubmissionID: submission.SupersedesSubmissionID,
+				},
+				Context: Context{
+					Event: Event{ID: submission.EventID}, OntologyVersion: submission.OntologyVersion,
+					PolicyVersion: submission.AcceptancePolicyVersion,
+				},
+				SupersededSubmission: &SubmissionReference{
+					SubmissionID: submission.SupersedesSubmissionID, EventID: submission.EventID,
+					Status: StatusAccepted,
+				},
 			}, nil
 		},
-		createSubmission: func(_ context.Context, received Submission, _ PrecheckResult, payload []byte, hash string) (SubmissionResult, error) {
-			if received.SupersedesSubmissionID != submission.SupersedesSubmissionID || len(payload) == 0 || !validHash(hash) {
-				t.Fatalf("write input = %#v hash=%q", received, hash)
+		saveSubmission: func(_ context.Context, write SubmissionWrite) error {
+			if write.Submission.SupersedesSubmissionID != submission.SupersedesSubmissionID || len(write.Payload) == 0 || !validHash(write.PayloadHash) {
+				t.Fatalf("write input = %#v hash=%q", write.Submission, write.PayloadHash)
 			}
-			return SubmissionResult{SubmissionID: "20000000-0000-4000-8000-000000000003"}, nil
+			if write.Status != StatusRejected || !write.ConsumeLease {
+				t.Fatalf("submission decision = status %q consume=%v", write.Status, write.ConsumeLease)
+			}
+			return nil
 		},
 	}
 	useCase, err := NewUseCase(store)
@@ -163,14 +174,178 @@ func TestUseCaseSubmissionPinsContextAndCarriesSupersession(t *testing.T) {
 	}
 }
 
+func TestUseCaseSubmissionDecidesExpiredLeaseAsNotFound(t *testing.T) {
+	fixedNow := time.Date(2026, 8, 12, 3, 4, 5, 0, time.UTC)
+	submission := validUseCaseSubmission()
+	saved := false
+	store := fakeStore{
+		loadSubmissionState: func(context.Context, Submission) (SubmissionTransactionState, error) {
+			return SubmissionTransactionState{Lease: SubmissionLeaseState{
+				Found: true, EventID: submission.EventID, AgentExecutionID: submission.AgentExecutionID,
+				Status: "active", LeaseExpiresAt: fixedNow,
+			}}, nil
+		},
+		saveSubmission: func(context.Context, SubmissionWrite) error {
+			saved = true
+			return nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase.now = func() time.Time { return fixedNow }
+	_, err = useCase.CreateSubmission(context.Background(), submission)
+	var notFound *NotFoundError
+	if !errors.As(err, &notFound) || notFound.Resource != "Event Semantic Context Lease" || saved {
+		t.Fatalf("expired lease error = %v saved=%v", err, saved)
+	}
+}
+
+func TestUseCaseContextLeaseOwnsTransactionDecision(t *testing.T) {
+	fixedNow := time.Date(2026, 8, 12, 1, 2, 3, 0, time.UTC)
+	request := ContextLeaseRequest{
+		EventID:          "10000000-0000-4000-8000-000000000001",
+		AgentExecutionID: "execution", WorkerID: "worker", Lease: 5 * time.Minute,
+	}
+	expiredLeaseID := "20000000-0000-4000-8000-000000000099"
+	var saved ContextLeaseWrite
+	store := fakeStore{
+		loadContextLeaseState: func(_ context.Context, _ ContextLeaseRequest, observedAt time.Time) (ContextLeaseTransactionState, error) {
+			if !observedAt.Equal(fixedNow) {
+				t.Fatalf("observed at = %s", observedAt)
+			}
+			return ContextLeaseTransactionState{
+				Event: LeaseEventState{
+					Found: true, EventID: request.EventID, EventStatus: "confirmed",
+					FactStatus: "verified", InputValid: true,
+				},
+				ExpiredLeaseIDs: []string{expiredLeaseID},
+			}, nil
+		},
+		saveContextLease: func(_ context.Context, write ContextLeaseWrite) error {
+			saved = write
+			return nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase.now = func() time.Time { return fixedNow }
+	useCase.newUUID = func() string { return "20000000-0000-4000-8000-000000000001" }
+	result, err := useCase.CreateContextLease(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ID != "20000000-0000-4000-8000-000000000001" ||
+		result.Status != "active" || !result.LeaseExpiresAt.Equal(fixedNow.Add(request.Lease)) {
+		t.Fatalf("Context Lease result = %#v", result)
+	}
+	if saved.Lease != result || saved.AgentExecutionID != request.AgentExecutionID ||
+		saved.WorkerID != request.WorkerID || !saved.TransitionedAt.Equal(fixedNow) ||
+		len(saved.ExpireLeaseIDs) != 1 || saved.ExpireLeaseIDs[0] != expiredLeaseID {
+		t.Fatalf("Context Lease write = %#v", saved)
+	}
+}
+
+func TestUseCaseContextLeaseRejectsActiveLeaseBeforePersistence(t *testing.T) {
+	saved := false
+	store := fakeStore{
+		loadContextLeaseState: func(context.Context, ContextLeaseRequest, time.Time) (ContextLeaseTransactionState, error) {
+			return ContextLeaseTransactionState{
+				Event:         LeaseEventState{Found: true, EventStatus: "confirmed", FactStatus: "verified", InputValid: true},
+				ActiveLeaseID: "20000000-0000-4000-8000-000000000099",
+			}, nil
+		},
+		saveContextLease: func(context.Context, ContextLeaseWrite) error {
+			saved = true
+			return nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = useCase.CreateContextLease(context.Background(), ContextLeaseRequest{
+		EventID:          "10000000-0000-4000-8000-000000000001",
+		AgentExecutionID: "execution", WorkerID: "worker", Lease: 5 * time.Minute,
+	})
+	var conflict *ConflictError
+	if !errors.As(err, &conflict) || conflict.Reason != "Event already has an active Context Lease" || saved {
+		t.Fatalf("Context Lease conflict = %v saved=%v", err, saved)
+	}
+}
+
+func TestUseCaseContextLeaseAuthorsSupersededLeaseConsumption(t *testing.T) {
+	const (
+		eventID       = "10000000-0000-4000-8000-000000000001"
+		priorLeaseID  = "20000000-0000-4000-8000-000000000001"
+		priorSubmitID = "30000000-0000-4000-8000-000000000001"
+	)
+	var saved ContextLeaseWrite
+	store := fakeStore{
+		loadContextLeaseState: func(context.Context, ContextLeaseRequest, time.Time) (ContextLeaseTransactionState, error) {
+			return ContextLeaseTransactionState{
+				Event: LeaseEventState{
+					Found: true, EventID: eventID, EventStatus: "confirmed", FactStatus: "verified", InputValid: true,
+				},
+				ActiveLeaseID: priorLeaseID,
+				SupersededSubmission: &SubmissionReference{
+					SubmissionID: priorSubmitID, EventID: eventID, ContextLeaseID: priorLeaseID, Status: StatusAccepted,
+				},
+			}, nil
+		},
+		saveContextLease: func(_ context.Context, write ContextLeaseWrite) error {
+			saved = write
+			return nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = useCase.CreateContextLease(context.Background(), ContextLeaseRequest{
+		EventID: eventID, SupersedesSubmissionID: priorSubmitID,
+		AgentExecutionID: "reanalysis", WorkerID: "worker", Lease: 5 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saved.ConsumeSupersededLease || saved.Lease.SupersedesSubmissionID != priorSubmitID {
+		t.Fatalf("Context Lease write = %#v", saved)
+	}
+}
+
 func TestUseCaseReviewPreservesTypedConflict(t *testing.T) {
 	want := &ConflictError{Reason: "frozen review identity changed"}
-	store := fakeStore{submitReview: func(_ context.Context, received ReviewSubmission, payload []byte, hash string) (SubmissionResult, error) {
-		if received.Items[0].CandidateType != CandidateTypeEntityLink || len(payload) == 0 || !validHash(hash) {
-			t.Fatalf("review input = %#v hash=%q", received, hash)
-		}
-		return SubmissionResult{}, want
-	}}
+	const evidenceID = "30000000-0000-4000-8000-000000000001"
+	store := fakeStore{
+		loadReviewState: func(context.Context, ReviewSubmission) (ReviewTransactionState, error) {
+			return ReviewTransactionState{
+				Found: true,
+				Identity: ReviewIdentity{
+					AgentExecutionID: "execution", ReviewerPromptHash: strings.Repeat("a", 64),
+					ReviewerModel: "reviewer",
+				},
+				Submission: &SubmissionResult{
+					Status: StatusPendingReview,
+					Precheck: PrecheckResult{
+						EntityLinks: []CandidateDecision{{CandidateKey: "company", Status: StatusPendingReview}},
+						ReviewerWorkPackage: ReviewerWorkPackage{EntityLinks: []EntityLinkCandidate{{
+							Key: "company", EvidenceIDs: []string{evidenceID},
+						}}},
+					},
+				},
+			}, nil
+		},
+		saveReview: func(_ context.Context, write ReviewWrite) error {
+			if write.Submission.Items[0].CandidateType != CandidateTypeEntityLink || len(write.Payload) == 0 || !validHash(write.PayloadHash) {
+				t.Fatalf("review input = %#v hash=%q", write.Submission, write.PayloadHash)
+			}
+			return want
+		},
+	}
 	useCase, err := NewUseCase(store)
 	if err != nil {
 		t.Fatal(err)
@@ -180,12 +355,66 @@ func TestUseCaseReviewPreservesTypedConflict(t *testing.T) {
 		PromptHash: strings.Repeat("a", 64), Model: "reviewer",
 		Items: []ReviewItem{{
 			CandidateType: CandidateTypeEntityLink, CandidateKey: "company", Decision: ReviewDecisionPass,
-			EvidenceIDs: []string{"30000000-0000-4000-8000-000000000001"},
+			EvidenceIDs: []string{evidenceID},
 		}},
 	})
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || conflict.Reason != want.Reason {
 		t.Fatalf("review error = %T %v", err, err)
+	}
+}
+
+func TestUseCaseReviewOwnsStatusAndSupersessionDecision(t *testing.T) {
+	const evidenceID = "30000000-0000-4000-8000-000000000001"
+	fixedNow := time.Date(2026, 8, 12, 2, 3, 4, 0, time.UTC)
+	var saved ReviewWrite
+	store := fakeStore{
+		loadReviewState: func(context.Context, ReviewSubmission) (ReviewTransactionState, error) {
+			return ReviewTransactionState{
+				Found: true,
+				Identity: ReviewIdentity{
+					AgentExecutionID: "execution", ReviewerPromptHash: strings.Repeat("a", 64),
+					ReviewerModel: "reviewer",
+				},
+				Submission: &SubmissionResult{
+					SubmissionID: "20000000-0000-4000-8000-000000000001",
+					Status:       StatusPendingReview,
+					Precheck: PrecheckResult{
+						EntityLinks: []CandidateDecision{{CandidateKey: "company", Status: StatusPendingReview}},
+						ReviewerWorkPackage: ReviewerWorkPackage{EntityLinks: []EntityLinkCandidate{{
+							Key: "company", EvidenceIDs: []string{evidenceID},
+						}}},
+					},
+				},
+				RetryBudget: 1,
+			}, nil
+		},
+		saveReview: func(_ context.Context, write ReviewWrite) error {
+			saved = write
+			return nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase.now = func() time.Time { return fixedNow }
+	useCase.newUUID = func() string { return "40000000-0000-4000-8000-000000000001" }
+	result, err := useCase.SubmitReview(context.Background(), ReviewSubmission{
+		SubmissionID:         "20000000-0000-4000-8000-000000000001",
+		ReviewerExecutionKey: "execution:reviewer", PromptHash: strings.Repeat("a", 64), Model: "reviewer",
+		Items: []ReviewItem{{
+			CandidateType: CandidateTypeEntityLink, CandidateKey: "company",
+			Decision: ReviewDecisionPass, EvidenceIDs: []string{evidenceID},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != StatusAccepted || saved.Status != StatusAccepted ||
+		!saved.SupersedePrior || !saved.ConsumeLease || saved.FinalizedAt == nil ||
+		!saved.FinalizedAt.Equal(fixedNow) || saved.SnapshotID == "" {
+		t.Fatalf("review result=%#v write=%#v", result, saved)
 	}
 }
 
@@ -486,5 +715,31 @@ func TestNoSemanticCandidatesProduceARealRejectedSubmissionOutcome(t *testing.T)
 	status := SummarizeSubmission(PrecheckResult{})
 	if status != StatusRejected {
 		t.Fatalf("status = %q, want rejected", status)
+	}
+}
+
+func TestSemanticReviewIdentityIsBoundToFrozenRun(t *testing.T) {
+	identity := ReviewIdentity{
+		AgentExecutionID:   "execution",
+		ReviewerPromptHash: "reviewer-hash", ReviewerModel: "reviewer-model",
+		AdjudicatorPromptHash: "adjudicator-hash", AdjudicatorModel: "adjudicator-model",
+	}
+	if !identity.Matches(ReviewSubmission{
+		ReviewerExecutionKey: "execution:reviewer",
+		PromptHash:           "reviewer-hash", Model: "reviewer-model",
+	}) {
+		t.Fatal("expected frozen reviewer identity to match")
+	}
+	if identity.Matches(ReviewSubmission{
+		ReviewerExecutionKey: "other-execution:reviewer",
+		PromptHash:           "reviewer-hash", Model: "reviewer-model",
+	}) {
+		t.Fatal("review lineage from another execution was accepted")
+	}
+	if identity.Matches(ReviewSubmission{
+		ReviewerExecutionKey: "execution:reviewer",
+		PromptHash:           "adjudicator-hash", Model: "reviewer-model",
+	}) {
+		t.Fatal("mismatched prompt hash was accepted")
 	}
 }

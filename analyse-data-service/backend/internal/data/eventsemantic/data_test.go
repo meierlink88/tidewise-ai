@@ -71,32 +71,6 @@ func TestEventSemanticManifestFingerprintCoversLeaseExpiry(t *testing.T) {
 	}
 }
 
-func TestSemanticReviewIdentityIsBoundToFrozenRun(t *testing.T) {
-	identity := semanticReviewIdentity{
-		AgentExecutionID:   "execution",
-		ReviewerPromptHash: "reviewer-hash", ReviewerModel: "reviewer-model",
-		AdjudicatorPromptHash: "adjudicator-hash", AdjudicatorModel: "adjudicator-model",
-	}
-	if !identity.matches(eventbiz.ReviewSubmission{
-		ReviewerExecutionKey: "execution:reviewer",
-		PromptHash:           "reviewer-hash", Model: "reviewer-model",
-	}) {
-		t.Fatal("expected frozen reviewer identity to match")
-	}
-	if identity.matches(eventbiz.ReviewSubmission{
-		ReviewerExecutionKey: "other-execution:reviewer",
-		PromptHash:           "reviewer-hash", Model: "reviewer-model",
-	}) {
-		t.Fatal("review lineage from another execution was accepted")
-	}
-	if identity.matches(eventbiz.ReviewSubmission{
-		ReviewerExecutionKey: "execution:reviewer",
-		PromptHash:           "adjudicator-hash", Model: "reviewer-model",
-	}) {
-		t.Fatal("mismatched prompt hash was accepted")
-	}
-}
-
 func openEventPublicationTestDatabase(t *testing.T) *sql.DB {
 	return openEventPublicationTestDatabaseAt(t, 0)
 }
@@ -392,7 +366,9 @@ func TestPostgresEventSemanticAdapterRejectsCorruptedPersistedRows(t *testing.T)
 			if _, err := store.GetEventSemantics(context.Background(), eventsemanticfixture.EventID); err == nil {
 				t.Fatal("corrupted persisted Event Semantic row reached Biz")
 			}
-			if _, _, err := store.ReplaySubmission(context.Background(), executionID, submission.CanonicalPayloadHash); err == nil {
+			if _, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+				lease.ID, executionID, "",
+			)); err == nil {
 				t.Fatal("corrupted persisted Event Semantic row was replayed")
 			}
 			if _, err := useCase.SubmitReview(context.Background(), eventbiz.ReviewSubmission{
@@ -403,6 +379,144 @@ func TestPostgresEventSemanticAdapterRejectsCorruptedPersistedRows(t *testing.T)
 				t.Fatal("review consumed a corrupted persisted Event Semantic aggregate")
 			}
 		})
+	}
+}
+
+func TestPostgresEventSemanticTransactionReadsRejectCorruptedState(t *testing.T) {
+	t.Run("Event enum", func(t *testing.T) {
+		db := openEventPublicationTestDatabase(t)
+		eventsemanticfixture.SeedScenario(t, db, true)
+		store, err := NewStore(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		useCase, err := eventbiz.NewUseCase(store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`ALTER TABLE events DROP CONSTRAINT chk_events_event_status`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`UPDATE events SET event_status = 'broken' WHERE id = $1`, eventsemanticfixture.EventID); err != nil {
+			t.Fatal(err)
+		}
+		_, err = useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+			EventID: eventsemanticfixture.EventID, AgentExecutionID: "corrupt-event-state",
+			WorkerID: "corruption-fixture", Lease: 15 * time.Minute,
+		})
+		assertPersistedEventSemanticError(t, err)
+	})
+
+	t.Run("Context Lease enum", func(t *testing.T) {
+		db := openEventPublicationTestDatabase(t)
+		eventsemanticfixture.SeedScenario(t, db, true)
+		store, err := NewStore(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		useCase, err := eventbiz.NewUseCase(store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+			EventID: eventsemanticfixture.EventID, AgentExecutionID: "corrupt-lease-state",
+			WorkerID: "corruption-fixture", Lease: 15 * time.Minute,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`ALTER TABLE event_semantic_context_leases DROP CONSTRAINT chk_event_semantic_context_lease_status`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`UPDATE event_semantic_context_leases SET status = 'broken' WHERE id = $1`, lease.ID); err != nil {
+			t.Fatal(err)
+		}
+		_, err = useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+			lease.ID, "corrupt-lease-state", "",
+		))
+		assertPersistedEventSemanticError(t, err)
+	})
+
+	t.Run("Submission reference enum", func(t *testing.T) {
+		db := openEventPublicationTestDatabase(t)
+		eventsemanticfixture.SeedScenario(t, db, true)
+		store, err := NewStore(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		useCase, err := eventbiz.NewUseCase(store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+			EventID: eventsemanticfixture.EventID, AgentExecutionID: "corrupt-reference-source",
+			WorkerID: "corruption-fixture", Lease: 15 * time.Minute,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		submission, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+			lease.ID, "corrupt-reference-source", "",
+		))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`ALTER TABLE event_semantic_submissions DROP CONSTRAINT chk_event_semantic_submission_status`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`UPDATE event_semantic_submissions SET status = 'broken' WHERE id = $1`, submission.SubmissionID); err != nil {
+			t.Fatal(err)
+		}
+		_, err = useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+			EventID: eventsemanticfixture.EventID, SupersedesSubmissionID: submission.SubmissionID,
+			AgentExecutionID: "corrupt-reference-target", WorkerID: "corruption-fixture", Lease: 15 * time.Minute,
+		})
+		assertPersistedEventSemanticError(t, err)
+	})
+
+	t.Run("Review retry range", func(t *testing.T) {
+		db := openEventPublicationTestDatabase(t)
+		eventsemanticfixture.SeedScenario(t, db, true)
+		store, err := NewStore(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		useCase, err := eventbiz.NewUseCase(store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+			EventID: eventsemanticfixture.EventID, AgentExecutionID: "corrupt-retry-state",
+			WorkerID: "corruption-fixture", Lease: 15 * time.Minute,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		submission, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+			lease.ID, "corrupt-retry-state", "",
+		))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`ALTER TABLE event_semantic_acceptance_policies DROP CONSTRAINT chk_event_semantic_policy_retry`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`UPDATE event_semantic_acceptance_policies SET retry_budget = -1`); err != nil {
+			t.Fatal(err)
+		}
+		_, err = useCase.SubmitReview(context.Background(), eventbiz.ReviewSubmission{
+			SubmissionID: submission.SubmissionID, ReviewerExecutionKey: "corrupt-retry-state:reviewer",
+			PromptHash: strings.Repeat("b", 64), Model: "fixture-reviewer",
+			Items: eventsemanticfixture.ReviewItems(eventbiz.ReviewDecisionPass),
+		})
+		assertPersistedEventSemanticError(t, err)
+	})
+}
+
+func assertPersistedEventSemanticError(t *testing.T, err error) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), "persisted Event Semantic") {
+		t.Fatalf("error = %v, want persisted Event Semantic boundary failure", err)
 	}
 }
 
@@ -441,12 +555,12 @@ func TestPostgresEventSemanticRejectedPrecheckRemainsReadableAndReplayable(t *te
 	if len(result.Submissions) != 1 || result.Submissions[0].Status != eventbiz.StatusRejected {
 		t.Fatalf("read submissions = %#v", result.Submissions)
 	}
-	replayed, found, err := store.ReplaySubmission(context.Background(), executionID, created.CanonicalPayloadHash)
+	replayed, err := useCase.CreateSubmission(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !found || !replayed.Replayed || replayed.Status != eventbiz.StatusRejected {
-		t.Fatalf("replayed = %#v found=%v", replayed, found)
+	if !replayed.Replayed || replayed.Status != eventbiz.StatusRejected {
+		t.Fatalf("replayed = %#v", replayed)
 	}
 }
 

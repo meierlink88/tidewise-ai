@@ -113,6 +113,62 @@ func validPersistedReviewStatus(status eventbiz.ReviewStatus) bool {
 	}
 }
 
+func validPersistedContextLeaseStatus(status string) bool {
+	switch status {
+	case "active", "consumed", "expired":
+		return true
+	default:
+		return false
+	}
+}
+
+func validatePersistedStoredContextLease(lease eventbiz.StoredContextLease) error {
+	if !validPersistedUUID(lease.ID) || !validPersistedUUID(lease.EventID) ||
+		(lease.SupersedesSubmissionID != "" && !validPersistedUUID(lease.SupersedesSubmissionID)) ||
+		strings.TrimSpace(lease.AgentExecutionID) == "" || strings.TrimSpace(lease.WorkerID) == "" ||
+		!validPersistedContextLeaseStatus(lease.Status) || lease.LeaseExpiresAt.IsZero() ||
+		(lease.SubmissionStatus != "" && !validPersistedReviewStatus(lease.SubmissionStatus)) {
+		return invalidPersistedEventSemantic("Context Lease")
+	}
+	return nil
+}
+
+func validatePersistedLeaseEventState(state eventbiz.LeaseEventState) error {
+	validEventStatus := state.EventStatus == "candidate" || state.EventStatus == "confirmed" || state.EventStatus == "rejected"
+	validFactStatus := state.FactStatus == "unverified" || state.FactStatus == "verified" || state.FactStatus == "disputed"
+	if !validPersistedUUID(state.EventID) || !validEventStatus || !validFactStatus {
+		return invalidPersistedEventSemantic("Event state")
+	}
+	return nil
+}
+
+func validatePersistedSubmissionLeaseState(state eventbiz.SubmissionLeaseState) error {
+	if !validPersistedUUID(state.EventID) || strings.TrimSpace(state.AgentExecutionID) == "" ||
+		!validPersistedContextLeaseStatus(state.Status) || state.LeaseExpiresAt.IsZero() ||
+		(state.SupersedesSubmissionID != "" && !validPersistedUUID(state.SupersedesSubmissionID)) {
+		return invalidPersistedEventSemantic("Submission Context Lease")
+	}
+	return nil
+}
+
+func validatePersistedSubmissionReference(reference eventbiz.SubmissionReference) error {
+	if !validPersistedUUID(reference.SubmissionID) || !validPersistedUUID(reference.EventID) ||
+		!validPersistedUUID(reference.ContextLeaseID) || !validPersistedReviewStatus(reference.Status) {
+		return invalidPersistedEventSemantic("Submission reference")
+	}
+	return nil
+}
+
+func validatePersistedReviewIdentity(identity eventbiz.ReviewIdentity) error {
+	if strings.TrimSpace(identity.AgentExecutionID) == "" ||
+		!validPersistedSHA256(identity.ReviewerPromptHash) || strings.TrimSpace(identity.ReviewerModel) == "" ||
+		(identity.AdjudicatorPromptHash == "") != (identity.AdjudicatorModel == "") ||
+		(identity.AdjudicatorPromptHash != "" && !validPersistedSHA256(identity.AdjudicatorPromptHash)) {
+		return invalidPersistedEventSemantic("Review identity")
+	}
+	return nil
+}
+
 func validPersistedStringSet(values []string, required bool) bool {
 	if required && len(values) == 0 {
 		return false
@@ -294,18 +350,6 @@ func (r Store) Context(ctx context.Context, contextLeaseID string) (eventbiz.Con
 		return eventbiz.Context{}, err
 	}
 	return eventSemanticContextFromManifest(ctx, r.db, manifest)
-}
-
-func (r Store) SubmissionContext(
-	ctx context.Context,
-	contextLeaseID string,
-	submission eventbiz.Submission,
-) (eventbiz.Context, error) {
-	result, err := r.Context(ctx, contextLeaseID)
-	if err != nil {
-		return eventbiz.Context{}, err
-	}
-	return hydrateEventSemanticSubmissionContext(ctx, r.db, result, submission, false)
 }
 
 func hydrateEventSemanticSubmissionContext(
@@ -1538,46 +1582,6 @@ func eventSemanticResolutionFingerprint(
 	})
 }
 
-func (r Store) ReplaySubmission(
-	ctx context.Context,
-	executionID string,
-	canonicalPayloadHash string,
-) (eventbiz.SubmissionResult, bool, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return eventbiz.SubmissionResult{}, false, err
-	}
-	defer func() { _ = tx.Rollback() }()
-	existing, found, err := queryEventSemanticSubmission(ctx, tx.QueryRowContext(ctx, `
-		SELECT id,event_id,status,canonical_payload_hash,decision_summary,
-		       context_lease_id::text,agent_execution_id,agent_key,agent_version,
-		       COALESCE(supersedes_submission_id::text,''),generator_prompt_hash,generator_model,
-		       reviewer_prompt_hash,reviewer_model,COALESCE(adjudicator_prompt_hash,''),
-		       COALESCE(adjudicator_model,''),ontology_version,
-		       acceptance_policy_key || '@' || acceptance_policy_version::text,
-		       created_at,finalized_at
-		FROM event_semantic_submissions
-		WHERE agent_execution_id = $1
-		FOR UPDATE
-	`, executionID))
-	if err != nil || !found {
-		return existing, found, err
-	}
-	if err := validatePersistedSubmissionAggregate(ctx, tx, &existing); err != nil {
-		return eventbiz.SubmissionResult{}, false, err
-	}
-	if existing.CanonicalPayloadHash != canonicalPayloadHash {
-		return eventbiz.SubmissionResult{}, false, &eventbiz.ConflictError{
-			Reason: "agent_execution_id is bound to a different canonical payload",
-		}
-	}
-	existing.Replayed = true
-	if err := tx.Commit(); err != nil {
-		return eventbiz.SubmissionResult{}, false, err
-	}
-	return existing, true, nil
-}
-
 func insertReviewableSemanticCandidates(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -2304,6 +2308,7 @@ func existingEventSemanticSubmission(ctx context.Context, tx *sql.Tx, executionI
 		       created_at,finalized_at
 		FROM event_semantic_submissions
 		WHERE agent_execution_id = $1
+		FOR UPDATE
 	`, executionID))
 	if err != nil || !found {
 		return result, found, err

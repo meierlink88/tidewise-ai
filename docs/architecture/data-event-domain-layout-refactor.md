@@ -140,6 +140,30 @@ The public module interfaces stay small:
   through one Event Semantic UseCase.
 - Transaction details remain behind the Biz transaction seam and are not exposed to API or Service.
 
+### Event Semantic Transaction Seam
+
+Event Semantic follows the same transaction ownership as the Event and Evidence domains:
+
+- the Biz UseCase opens the business atomicity boundary through a Biz-owned
+  `TransactionStore.InTransaction` Port;
+- the transaction callback reads validated, locked persistence state through the Biz-owned
+  `Transaction` interface, makes replay, conflict, status, review, lease-consumption and
+  supersession decisions in Biz, and submits explicit persistence commands;
+- the Data Adapter implements `sql.Tx`, row locking, queries, inserts, updates, commit, rollback and
+  persisted-row validation only;
+- Data may assemble persistence snapshots and execute a Biz-authored write command, but it must not
+  independently choose a domain status, conflict result, replay result, retry outcome or
+  supersession transition;
+- Service performs wire conversion and error mapping only and never opens or coordinates a database
+  transaction.
+
+The transaction interface uses one validated state read and one explicit persistence command per
+lease, submission or review workflow. It does not expose `sql.Tx`, driver errors or a wide collection
+of SQL-shaped methods to Biz. Workflow aggregate IDs, business transition timestamps and domain
+transition decisions are created by Biz; Data persists them unchanged. Persistence-only row IDs stay
+inside Data. This is a behavior-preserving ownership correction: existing locks, atomicity, replay,
+concurrency, status, error and rollback behavior remain unchanged.
+
 ## Current-to-target Mapping
 
 ### Event work package

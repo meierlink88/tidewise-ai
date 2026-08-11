@@ -26,8 +26,6 @@ type Store interface {
 type ReadStore interface {
 	ListEligibleEvents(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
 	Context(context.Context, string) (Context, error)
-	SubmissionContext(context.Context, string, Submission) (Context, error)
-	ReplaySubmission(context.Context, string, string) (SubmissionResult, bool, error)
 	GetEventSemantics(context.Context, string) (EventSemanticsResult, error)
 }
 
@@ -56,14 +54,20 @@ type InputInvalidError struct{ Reason string }
 func (e *InputInvalidError) Error() string { return e.Reason }
 
 type UseCase struct {
-	store Store
+	store   Store
+	now     func() time.Time
+	newUUID func() string
 }
 
 func NewUseCase(store Store) (*UseCase, error) {
 	if store == nil {
 		return nil, errors.New("Event Semantic store is required")
 	}
-	return &UseCase{store: store}, nil
+	return &UseCase{
+		store:   store,
+		now:     func() time.Time { return time.Now().UTC() },
+		newUUID: uuid.NewString,
+	}, nil
 }
 
 func (s *UseCase) ListEligibleEvents(
@@ -165,7 +169,82 @@ func (s *UseCase) CreateContextLease(ctx context.Context, request ContextLeaseRe
 	request.SupersedesSubmissionID = strings.TrimSpace(request.SupersedesSubmissionID)
 	request.AgentExecutionID = strings.TrimSpace(request.AgentExecutionID)
 	request.WorkerID = strings.TrimSpace(request.WorkerID)
-	return s.store.CreateContextLease(ctx, request)
+	var result ContextLease
+	err := s.store.InTransaction(ctx, func(tx Transaction) error {
+		now := s.now().UTC()
+		state, err := tx.LoadContextLeaseState(ctx, request, now)
+		if err != nil {
+			return err
+		}
+		if state.Existing != nil {
+			existing := state.Existing
+			if existing.EventID != request.EventID ||
+				existing.AgentExecutionID != request.AgentExecutionID ||
+				existing.WorkerID != request.WorkerID ||
+				existing.SupersedesSubmissionID != request.SupersedesSubmissionID {
+				return &ConflictError{Reason: "agent_execution_id is bound to a different Context Lease identity"}
+			}
+			if existing.SubmissionStatus != "" &&
+				existing.SubmissionStatus != StatusPendingReview &&
+				existing.SubmissionStatus != StatusNeedsReanalysis {
+				return &ConflictError{Reason: "agent_execution_id already reached a terminal Semantic Submission"}
+			}
+			result = existing.ContextLease
+			result.Status = "active"
+			result.LeaseExpiresAt = now.Add(request.Lease)
+			return tx.SaveContextLease(ctx, ContextLeaseWrite{
+				Lease: result, AgentExecutionID: request.AgentExecutionID,
+				WorkerID: request.WorkerID, ExpireLeaseIDs: state.ExpiredLeaseIDs,
+				Refresh: true, TransitionedAt: now,
+			})
+		}
+		if !state.Event.Found {
+			return &NotFoundError{Resource: "Event"}
+		}
+		if state.Event.EventStatus != "confirmed" || state.Event.FactStatus != "verified" {
+			return &NotRequiredError{Reason: "Event no longer requires initial Semantic processing"}
+		}
+		if !state.Event.InputValid {
+			return &InputInvalidError{Reason: "Event does not satisfy the Event Semantic input contract"}
+		}
+		if state.ActiveLeaseID != "" {
+			canReplacePriorLease := request.SupersedesSubmissionID != "" &&
+				state.SupersededSubmission != nil &&
+				state.ActiveLeaseID == state.SupersededSubmission.ContextLeaseID
+			if !canReplacePriorLease {
+				return &ConflictError{Reason: "Event already has an active Context Lease"}
+			}
+		}
+		if request.SupersedesSubmissionID == "" {
+			if state.HasActiveSubmission {
+				return &ConflictError{Reason: "Event already has an active Semantic Submission"}
+			}
+		} else {
+			prior := state.SupersededSubmission
+			if prior == nil {
+				return &NotFoundError{Resource: "superseded Event Semantic Submission"}
+			}
+			if prior.EventID != request.EventID ||
+				(prior.Status != StatusNeedsReanalysis && prior.Status != StatusAccepted &&
+					prior.Status != StatusRejected && prior.Status != StatusQuarantined) {
+				return &ConflictError{Reason: "supersedes_submission_id is not an active terminal Submission for this Event"}
+			}
+		}
+		result = ContextLease{
+			ID: s.newUUID(), EventID: request.EventID,
+			SupersedesSubmissionID: request.SupersedesSubmissionID,
+			Status:                 "active", LeaseExpiresAt: now.Add(request.Lease),
+		}
+		return tx.SaveContextLease(ctx, ContextLeaseWrite{
+			Lease: result, AgentExecutionID: request.AgentExecutionID,
+			WorkerID: request.WorkerID, ExpireLeaseIDs: state.ExpiredLeaseIDs,
+			ConsumeSupersededLease: request.SupersedesSubmissionID != "", TransitionedAt: now,
+		})
+	})
+	if err != nil {
+		return ContextLease{}, err
+	}
+	return result, nil
 }
 
 func (s *UseCase) Context(ctx context.Context, contextLeaseID string) (Context, error) {
@@ -189,24 +268,68 @@ func (s *UseCase) CreateSubmission(ctx context.Context, submission Submission) (
 	if err != nil {
 		return SubmissionResult{}, err
 	}
-	if existing, found, err := s.store.ReplaySubmission(ctx, submission.AgentExecutionID, hash); err != nil {
-		return SubmissionResult{}, err
-	} else if found {
-		return existing, nil
-	}
-	contextSnapshot, err := s.store.SubmissionContext(ctx, submission.ContextLeaseID, submission)
+	var result SubmissionResult
+	err = s.store.InTransaction(ctx, func(tx Transaction) error {
+		observedAt := s.now().UTC()
+		state, err := tx.LoadSubmissionState(ctx, submission)
+		if err != nil {
+			return err
+		}
+		if state.Existing != nil {
+			if state.Existing.CanonicalPayloadHash != hash {
+				return &ConflictError{Reason: "agent_execution_id is bound to a different canonical payload"}
+			}
+			result = *state.Existing
+			result.Replayed = true
+			return nil
+		}
+		if !state.Lease.Found || !state.Lease.LeaseExpiresAt.After(observedAt) {
+			return &NotFoundError{Resource: "Event Semantic Context Lease"}
+		}
+		if state.Lease.EventID != submission.EventID || state.Lease.Status != "active" {
+			return &ConflictError{Reason: "context lease is not active for this Event"}
+		}
+		if state.Lease.AgentExecutionID != submission.AgentExecutionID {
+			return &ConflictError{Reason: "Submission agent_execution_id differs from its Context Lease"}
+		}
+		if state.Lease.SupersedesSubmissionID != submission.SupersedesSubmissionID {
+			return &ConflictError{Reason: "Submission supersedes identity differs from its Context Lease"}
+		}
+		if state.Context.Event.ID != submission.EventID {
+			return &ConflictError{Reason: "context lease is bound to a different Event"}
+		}
+		if submission.OntologyVersion != state.Context.OntologyVersion ||
+			submission.AcceptancePolicyVersion != state.Context.PolicyVersion {
+			return &ConflictError{Reason: "ontology or acceptance policy snapshot changed"}
+		}
+		if submission.SupersedesSubmissionID != "" {
+			prior := state.SupersededSubmission
+			if prior == nil {
+				return &NotFoundError{Resource: "superseded Event Semantic Submission"}
+			}
+			if prior.EventID != submission.EventID || prior.Status == StatusSuperseded {
+				return &ConflictError{Reason: "supersedes_submission_id must reference the current Event's active prior Submission"}
+			}
+		}
+		precheck := Precheck(state.Context, submission)
+		status := SummarizeSubmission(precheck)
+		transitionedAt := observedAt
+		result = SubmissionResult{
+			SubmissionID: s.newUUID(), EventID: submission.EventID, Status: status,
+			CanonicalPayloadHash: hash, Precheck: precheck,
+		}
+		return tx.SaveSubmission(ctx, SubmissionWrite{
+			SubmissionID: result.SubmissionID, SnapshotID: s.newUUID(), Submission: submission,
+			Payload: append(json.RawMessage(nil), payload...), PayloadHash: hash,
+			Precheck: precheck, Status: status,
+			ConsumeLease:   status != StatusPendingReview && status != StatusNeedsReanalysis,
+			TransitionedAt: transitionedAt,
+		})
+	})
 	if err != nil {
 		return SubmissionResult{}, err
 	}
-	if contextSnapshot.Event.ID != submission.EventID {
-		return SubmissionResult{}, &ConflictError{Reason: "context lease is bound to a different Event"}
-	}
-	if submission.OntologyVersion != contextSnapshot.OntologyVersion ||
-		submission.AcceptancePolicyVersion != contextSnapshot.PolicyVersion {
-		return SubmissionResult{}, &ConflictError{Reason: "ontology or acceptance policy snapshot changed"}
-	}
-	precheck := Precheck(contextSnapshot, submission)
-	return s.store.CreateSubmission(ctx, submission, precheck, payload, hash)
+	return result, nil
 }
 
 func (s *UseCase) SubmitReview(ctx context.Context, submission ReviewSubmission) (SubmissionResult, error) {
@@ -227,7 +350,56 @@ func (s *UseCase) SubmitReview(ctx context.Context, submission ReviewSubmission)
 	if err != nil {
 		return SubmissionResult{}, err
 	}
-	return s.store.SubmitReview(ctx, submission, payload, hash)
+	var result SubmissionResult
+	err = s.store.InTransaction(ctx, func(tx Transaction) error {
+		state, err := tx.LoadReviewState(ctx, submission)
+		if err != nil {
+			return err
+		}
+		if !state.Found {
+			return &NotFoundError{Resource: "Event Semantic Submission"}
+		}
+		if !state.Identity.Matches(submission) {
+			return &ConflictError{Reason: "review prompt or model does not match the frozen Submission identity"}
+		}
+		if state.Submission == nil {
+			return &NotFoundError{Resource: "Event Semantic Submission"}
+		}
+		if state.ExistingSnapshot != nil {
+			if state.ExistingSnapshot.CanonicalPayloadHash != hash {
+				return &ConflictError{Reason: "reviewer_execution_key is bound to a different payload"}
+			}
+			result = *state.Submission
+			result.Replayed = true
+			return nil
+		}
+		result = *state.Submission
+		if result.Status != StatusPendingReview && result.Status != StatusNeedsReanalysis {
+			return &ConflictError{Reason: "Event Semantic Submission is not reviewable"}
+		}
+		if err := ApplyReview(&result.Precheck, submission, state.ReviewCount+1 > state.RetryBudget); err != nil {
+			return err
+		}
+		status := SummarizeSubmission(result.Precheck)
+		result.Status = status
+		terminal := status == StatusAccepted || status == StatusRejected || status == StatusQuarantined
+		transitionedAt := s.now().UTC()
+		var finalizedAt *time.Time
+		if terminal {
+			finalizedAt = &transitionedAt
+		}
+		return tx.SaveReview(ctx, ReviewWrite{
+			SnapshotID: s.newUUID(), Submission: submission,
+			Payload: append(json.RawMessage(nil), payload...), PayloadHash: hash,
+			Precheck: result.Precheck, Status: status,
+			SupersedePrior: status == StatusAccepted, ConsumeLease: terminal,
+			FinalizedAt: finalizedAt, TransitionedAt: transitionedAt,
+		})
+	})
+	if err != nil {
+		return SubmissionResult{}, err
+	}
+	return result, nil
 }
 
 func (s *UseCase) Get(ctx context.Context, eventID string) (EventSemanticsResult, error) {
