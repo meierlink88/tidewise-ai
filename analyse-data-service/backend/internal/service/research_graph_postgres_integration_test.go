@@ -13,11 +13,12 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	eventsemanticfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/eventsemantic"
 )
 
 func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBudget(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
-	seedEventSemanticScenario(t, db, true)
+	eventsemanticfixture.SeedScenario(t, db, true)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const downstreamID = "10000000-0000-4000-8000-000000000007"
@@ -46,7 +47,7 @@ func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBu
 		    'Integration graph fixture',
 		    'active'
 		)
-	`, downstreamID, semanticProductID); err != nil {
+	`, downstreamID, eventsemanticfixture.ProductID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `
@@ -60,12 +61,12 @@ func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBu
 		    'Inactive endpoints must never enter the reachable graph',
 		    'active'
 		)
-	`, semanticCompanyID, inactiveID); err != nil {
+	`, eventsemanticfixture.CompanyID, inactiveID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := postgres.NewResearchGraphStore(db).Search(ctx, researchgraph.Query{
 		AnalysisAsOf:  time.Date(2030, 7, 30, 0, 0, 0, 0, time.UTC),
-		SeedEntityIDs: []string{semanticCompanyID},
+		SeedEntityIDs: []string{eventsemanticfixture.CompanyID},
 		RelationFilters: []researchgraph.RelationFilter{
 			{RelationType: "produces", Direction: researchgraph.DirectionOutgoing},
 			{RelationType: "used_as_input_by", Direction: researchgraph.DirectionOutgoing},
@@ -145,7 +146,7 @@ func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBu
 	}
 	bidirectional, err := store.Search(ctx, researchgraph.Query{
 		AnalysisAsOf:  time.Date(2030, 7, 30, 0, 0, 0, 0, time.UTC),
-		SeedEntityIDs: []string{semanticCompanyID, downstreamID},
+		SeedEntityIDs: []string{eventsemanticfixture.CompanyID, downstreamID},
 		RelationFilters: []researchgraph.RelationFilter{
 			{RelationType: "produces", Direction: researchgraph.DirectionBoth},
 			{RelationType: "used_as_input_by", Direction: researchgraph.DirectionBoth},
@@ -170,12 +171,12 @@ func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBu
 		    'Alternate direct path for minimum-depth verification',
 		    'active'
 		)
-	`, semanticCompanyID, downstreamID); err != nil {
+	`, eventsemanticfixture.CompanyID, downstreamID); err != nil {
 		t.Fatal(err)
 	}
 	alternatePath, err := store.Search(ctx, researchgraph.Query{
 		AnalysisAsOf:  time.Date(2030, 7, 30, 0, 0, 0, 0, time.UTC),
-		SeedEntityIDs: []string{semanticCompanyID},
+		SeedEntityIDs: []string{eventsemanticfixture.CompanyID},
 		RelationFilters: []researchgraph.RelationFilter{
 			{RelationType: "produces", Direction: researchgraph.DirectionOutgoing},
 			{RelationType: "used_as_input_by", Direction: researchgraph.DirectionOutgoing},
@@ -219,12 +220,12 @@ func TestPostgresResearchGraphSearchTraversesDeterministicallyAndFailsClosedOnBu
 		    'Bounded fanout fixture',
 		    'active'
 		FROM generate_series(1, 100) series
-	`, semanticCompanyID); err != nil {
+	`, eventsemanticfixture.CompanyID); err != nil {
 		t.Fatal(err)
 	}
 	_, err = store.Search(ctx, researchgraph.Query{
 		AnalysisAsOf:  time.Date(2030, 7, 30, 0, 0, 0, 0, time.UTC),
-		SeedEntityIDs: []string{semanticCompanyID},
+		SeedEntityIDs: []string{eventsemanticfixture.CompanyID},
 		RelationFilters: []researchgraph.RelationFilter{{
 			RelationType: "produces",
 			Direction:    researchgraph.DirectionOutgoing,

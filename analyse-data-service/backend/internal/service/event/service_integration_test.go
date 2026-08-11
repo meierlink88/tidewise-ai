@@ -15,6 +15,7 @@ import (
 	"time"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
@@ -994,7 +995,7 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, parentservice.NewDataService(parentservice.Dependencies{}), application, testEvidenceService{}, authenticator, nil)
+	}, parentservice.NewDataService(parentservice.Dependencies{}), application, testEventSemanticService{}, testEvidenceService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1002,6 +1003,27 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 }
 
 type testEvidenceService struct{}
+
+type testEventSemanticService struct{}
+
+func (testEventSemanticService) ListEligibleEventSemanticEvents(context.Context, *eventsemanticapi.EligibleEventSemanticEventsRequest) (*v1.Response[eventsemanticapi.EligibleEventSemanticEvents], error) {
+	return &v1.Response[eventsemanticapi.EligibleEventSemanticEvents]{Status: http.StatusNoContent}, nil
+}
+func (testEventSemanticService) CreateEventSemanticContextLease(context.Context, *eventsemanticapi.EventSemanticContextLeaseRequest) (*v1.Response[eventsemanticapi.EventSemanticContextLease], error) {
+	return &v1.Response[eventsemanticapi.EventSemanticContextLease]{Status: http.StatusNoContent}, nil
+}
+func (testEventSemanticService) GetEventSemanticContext(context.Context, *eventsemanticapi.EventSemanticContextRequest) (*v1.Response[eventsemanticapi.EventSemanticContext], error) {
+	return &v1.Response[eventsemanticapi.EventSemanticContext]{Status: http.StatusNoContent}, nil
+}
+func (testEventSemanticService) CreateEventSemanticSubmission(context.Context, *eventsemanticapi.EventSemanticSubmissionRequest) (*v1.Response[eventsemanticapi.EventSemanticSubmissionResult], error) {
+	return &v1.Response[eventsemanticapi.EventSemanticSubmissionResult]{Status: http.StatusNoContent}, nil
+}
+func (testEventSemanticService) SubmitEventSemanticReview(context.Context, *eventsemanticapi.EventSemanticReviewRequest) (*v1.Response[eventsemanticapi.EventSemanticSubmissionResult], error) {
+	return &v1.Response[eventsemanticapi.EventSemanticSubmissionResult]{Status: http.StatusNoContent}, nil
+}
+func (testEventSemanticService) GetEventSemantics(context.Context, *eventsemanticapi.GetEventSemanticsRequest) (*v1.Response[eventsemanticapi.EventSemanticsResult], error) {
+	return &v1.Response[eventsemanticapi.EventSemanticsResult]{Status: http.StatusNoContent}, nil
+}
 
 func (testEvidenceService) PublishRawEvidence(context.Context, *evidenceapi.RawEvidencePublicationRequest) (*v1.Response[evidenceapi.RawEvidencePublicationResult], error) {
 	return &v1.Response[evidenceapi.RawEvidencePublicationResult]{Status: http.StatusNoContent}, nil

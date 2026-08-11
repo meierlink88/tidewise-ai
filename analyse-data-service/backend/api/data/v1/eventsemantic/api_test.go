@@ -1,4 +1,4 @@
-package v1
+package eventsemantic
 
 import (
 	"context"
@@ -8,11 +8,12 @@ import (
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 )
 
 func TestEventSemanticProviderContractAcceptsV3ConsumerFixtures(t *testing.T) {
 	loader := openapi3.NewLoader()
-	document, err := loader.LoadFromData(Document())
+	document, err := loader.LoadFromData(v1.Document())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +30,7 @@ func TestEventSemanticProviderContractAcceptsV3ConsumerFixtures(t *testing.T) {
 	}
 	for name, schemaName := range fixtures {
 		payload, err := os.ReadFile(filepath.Join(
-			"..", "..", "..", "..", "..", "contracts", "event-semantics", "v3", name,
+			"..", "..", "..", "..", "..", "..", "contracts", "event-semantics", "v3", name,
 		))
 		if err != nil {
 			t.Fatal(err)
@@ -53,12 +54,12 @@ func TestEventSemanticProviderContractAcceptsV3ConsumerFixtures(t *testing.T) {
 
 func TestEventSemanticReadContractKeepsV2HistoricalFixtureReadable(t *testing.T) {
 	loader := openapi3.NewLoader()
-	document, err := loader.LoadFromData(Document())
+	document, err := loader.LoadFromData(v1.Document())
 	if err != nil {
 		t.Fatal(err)
 	}
 	payload, err := os.ReadFile(filepath.Join(
-		"..", "..", "..", "..", "..", "contracts", "event-semantics", "v2", "supply-event-semantics.json",
+		"..", "..", "..", "..", "..", "..", "contracts", "event-semantics", "v2", "supply-event-semantics.json",
 	))
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +79,7 @@ func TestEventSemanticReadContractKeepsV2HistoricalFixtureReadable(t *testing.T)
 
 func TestEventSemanticV3SubmissionRequiresProjectedEntityType(t *testing.T) {
 	loader := openapi3.NewLoader()
-	document, err := loader.LoadFromData(Document())
+	document, err := loader.LoadFromData(v1.Document())
 	if err != nil {
 		t.Fatal(err)
 	}

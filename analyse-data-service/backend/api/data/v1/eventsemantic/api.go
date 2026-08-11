@@ -1,6 +1,51 @@
-package v1
+package eventsemantic
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+)
+
+const (
+	OperationListEligibleEvents = "data.v1.listEligibleEventSemanticEvents"
+	OperationCreateContextLease = "data.v1.createEventSemanticContextLease"
+	OperationGetContext         = "data.v1.getEventSemanticContext"
+	OperationCreateSubmission   = "data.v1.createEventSemanticSubmission"
+	OperationSubmitReview       = "data.v1.submitEventSemanticReview"
+	OperationGetSemantics       = "data.v1.getEventSemantics"
+
+	ErrorInvalidRequest  = "INVALID_REQUEST"
+	ErrorPayloadTooLarge = "PAYLOAD_TOO_LARGE"
+	ErrorNotReady        = "EVENT_SEMANTICS_NOT_READY"
+	ErrorContextDrift    = "EVENT_SEMANTIC_CONTEXT_DRIFT"
+	ErrorNotRequired     = "EVENT_SEMANTICS_NOT_REQUIRED"
+	ErrorInputInvalid    = "EVENT_SEMANTICS_INPUT_INVALID"
+	ErrorInvalid         = "EVENT_SEMANTICS_INVALID"
+	ErrorNotFound        = "EVENT_SEMANTICS_NOT_FOUND"
+	ErrorConflict        = "EVENT_SEMANTICS_CONFLICT"
+	ErrorFailed          = "EVENT_SEMANTICS_FAILED"
+)
+
+func BusinessOperations() []string {
+	return []string{
+		OperationListEligibleEvents,
+		OperationCreateContextLease,
+		OperationGetContext,
+		OperationCreateSubmission,
+		OperationSubmitReview,
+		OperationGetSemantics,
+	}
+}
+
+type Service interface {
+	ListEligibleEventSemanticEvents(context.Context, *EligibleEventSemanticEventsRequest) (*v1.Response[EligibleEventSemanticEvents], error)
+	CreateEventSemanticContextLease(context.Context, *EventSemanticContextLeaseRequest) (*v1.Response[EventSemanticContextLease], error)
+	GetEventSemanticContext(context.Context, *EventSemanticContextRequest) (*v1.Response[EventSemanticContext], error)
+	CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*v1.Response[EventSemanticSubmissionResult], error)
+	SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*v1.Response[EventSemanticSubmissionResult], error)
+	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*v1.Response[EventSemanticsResult], error)
+}
 
 type EventSemanticContextLeaseRequest struct {
 	EventID                string `json:"event_id"`

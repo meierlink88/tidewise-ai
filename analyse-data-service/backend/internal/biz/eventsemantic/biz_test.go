@@ -1,4 +1,4 @@
-package eventsemantics
+package eventsemantic
 
 import "testing"
 

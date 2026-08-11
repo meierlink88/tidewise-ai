@@ -112,31 +112,6 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/runtime-health",
 			operation:   "data.v1.getRuntimeHealth",
 		},
-		"GET " + APIPrefix + "/event-semantics/eligible-events": {
-			requestPath: APIPrefix + "/event-semantics/eligible-events?limit=20",
-			operation:   "data.v1.listEligibleEventSemanticEvents",
-		},
-		"POST " + APIPrefix + "/event-semantics/context-leases": {
-			requestPath: APIPrefix + "/event-semantics/context-leases",
-			operation:   "data.v1.createEventSemanticContextLease",
-			body:        `{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`,
-		},
-		"GET " + APIPrefix + "/event-semantics/context-leases/{context_lease_id}/context": {
-			requestPath: APIPrefix + "/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
-			operation:   "data.v1.getEventSemanticContext",
-		},
-		"POST " + APIPrefix + "/event-semantics/submissions": {
-			requestPath: APIPrefix + "/event-semantics/submissions",
-			operation:   "data.v1.createEventSemanticSubmission",
-		},
-		"POST " + APIPrefix + "/event-semantics/submissions/{submission_id}/reviews": {
-			requestPath: APIPrefix + "/event-semantics/submissions/11111111-1111-4111-8111-111111111111/reviews",
-			operation:   "data.v1.submitEventSemanticReview",
-		},
-		"GET " + APIPrefix + "/events/{event_id}/semantics": {
-			requestPath: APIPrefix + "/events/22222222-2222-4222-8222-222222222222/semantics",
-			operation:   "data.v1.getEventSemantics",
-		},
 		"GET " + APIPrefix + "/research-analysis-context": {
 			requestPath: APIPrefix + "/research-analysis-context?discovery_window_start=2026-07-01T00%3A00%3A00Z&discovery_window_end=2026-07-02T00%3A00%3A00Z&analysis_as_of=2026-07-02T00%3A00%3A00Z&page_size=20",
 			operation:   "data.v1.listResearchAnalysisContext",
@@ -154,7 +129,8 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			continue
 		}
 		if path == APIPrefix+"/raw-evidence-publications" || path == APIPrefix+"/evidence-publications" ||
-			path == APIPrefix+"/reviewed-event-imports" || path == APIPrefix+"/event-tags" || path == APIPrefix+"/events" {
+			path == APIPrefix+"/reviewed-event-imports" || path == APIPrefix+"/event-tags" || path == APIPrefix+"/events" ||
+			strings.HasPrefix(path, APIPrefix+"/event-semantics/") || path == APIPrefix+"/events/{event_id}/semantics" {
 			continue
 		}
 		pathItem := httpContractObject(t, pathItemValue, "path "+path)

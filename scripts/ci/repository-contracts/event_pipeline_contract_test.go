@@ -17,7 +17,7 @@ func TestEventPipelineDoesNotReintroduceSourceTextSemanticGates(t *testing.T) {
 		"agent-run/backend/internal/biz/agents/eventsemantic/workflow/workflow.go": {
 			"mentionSupported(", "entity_mention_not_in_evidence",
 		},
-		"analyse-data-service/backend/internal/biz/eventsemantics/precheck.go": {
+		"analyse-data-service/backend/internal/biz/eventsemantic/biz.go": {
 			"entity_mention_not_in_evidence", "strings.Contains(context.Event",
 		},
 	}

@@ -1,47 +1,69 @@
-package service
+package eventsemantic
 
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
+	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
+	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 )
 
-func (s *DataService) ListEligibleEventSemanticEvents(
+type UseCase interface {
+	ListEligibleEvents(context.Context, int, string) (eventbiz.EligibleEventPage, error)
+	CreateContextLease(context.Context, eventbiz.ContextLeaseRequest) (eventbiz.ContextLease, error)
+	Context(context.Context, string) (eventbiz.Context, error)
+	CreateSubmission(context.Context, eventbiz.Submission) (eventbiz.SubmissionResult, error)
+	SubmitReview(context.Context, eventbiz.ReviewSubmission) (eventbiz.SubmissionResult, error)
+	Get(context.Context, string) (eventbiz.EventSemanticsResult, error)
+}
+
+type Service struct{ useCase UseCase }
+
+func NewService(useCase UseCase) (*Service, error) {
+	if useCase == nil {
+		return nil, errors.New("Event Semantic use case is required")
+	}
+	return &Service{useCase: useCase}, nil
+}
+
+var _ eventsemanticapi.Service = (*Service)(nil)
+
+func (s *Service) ListEligibleEventSemanticEvents(
 	ctx context.Context,
-	request *v1.EligibleEventSemanticEventsRequest,
-) (*v1.Response[v1.EligibleEventSemanticEvents], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
+	request *eventsemanticapi.EligibleEventSemanticEventsRequest,
+) (*v1.Response[eventsemanticapi.EligibleEventSemanticEvents], error) {
+	if s == nil || s.useCase == nil {
 		return nil, eventSemanticsNotReady()
 	}
-	page, err := s.dependencies.EventSemantics.ListEligibleEvents(
+	page, err := s.useCase.ListEligibleEvents(
 		ctx, request.Limit, request.Cursor,
 	)
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	result := v1.EligibleEventSemanticEvents{
-		Events: make([]v1.EligibleEventSemanticEvent, 0, len(page.Events)),
+	result := eventsemanticapi.EligibleEventSemanticEvents{
+		Events: make([]eventsemanticapi.EligibleEventSemanticEvent, 0, len(page.Events)),
 	}
 	if request.Pagination == "cursor" {
 		result.NextCursor = page.NextCursor
 	}
 	for _, item := range page.Events {
-		result.Events = append(result.Events, v1.EligibleEventSemanticEvent{EventID: item.EventID})
+		result.Events = append(result.Events, eventsemanticapi.EligibleEventSemanticEvent{EventID: item.EventID})
 	}
-	return &v1.Response[v1.EligibleEventSemanticEvents]{Status: v1.StatusOK, Result: result}, nil
+	return &v1.Response[eventsemanticapi.EligibleEventSemanticEvents]{Status: v1.StatusOK, Result: result}, nil
 }
 
-func (s *DataService) CreateEventSemanticContextLease(
+func (s *Service) CreateEventSemanticContextLease(
 	ctx context.Context,
-	request *v1.EventSemanticContextLeaseRequest,
-) (*v1.Response[v1.EventSemanticContextLease], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
+	request *eventsemanticapi.EventSemanticContextLeaseRequest,
+) (*v1.Response[eventsemanticapi.EventSemanticContextLease], error) {
+	if s == nil || s.useCase == nil {
 		return nil, eventSemanticsNotReady()
 	}
-	result, err := s.dependencies.EventSemantics.CreateContextLease(ctx, eventsemantics.ContextLeaseRequest{
+	result, err := s.useCase.CreateContextLease(ctx, eventbiz.ContextLeaseRequest{
 		EventID: request.EventID, SupersedesSubmissionID: request.SupersedesSubmissionID,
 		AgentExecutionID: request.AgentExecutionID, WorkerID: request.WorkerID,
 		Lease: time.Duration(request.LeaseSeconds) * time.Second,
@@ -49,9 +71,9 @@ func (s *DataService) CreateEventSemanticContextLease(
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	return &v1.Response[v1.EventSemanticContextLease]{
+	return &v1.Response[eventsemanticapi.EventSemanticContextLease]{
 		Status: v1.StatusCreated,
-		Result: v1.EventSemanticContextLease{
+		Result: eventsemanticapi.EventSemanticContextLease{
 			ContextLeaseID: result.ID, EventID: result.EventID,
 			SupersedesSubmissionID: result.SupersedesSubmissionID, Status: result.Status,
 			LeaseExpiresAt: result.LeaseExpiresAt.UTC().Format(time.RFC3339Nano),
@@ -59,35 +81,35 @@ func (s *DataService) CreateEventSemanticContextLease(
 	}, nil
 }
 
-func (s *DataService) GetEventSemanticContext(
+func (s *Service) GetEventSemanticContext(
 	ctx context.Context,
-	request *v1.EventSemanticContextRequest,
-) (*v1.Response[v1.EventSemanticContext], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
+	request *eventsemanticapi.EventSemanticContextRequest,
+) (*v1.Response[eventsemanticapi.EventSemanticContext], error) {
+	if s == nil || s.useCase == nil {
 		return nil, eventSemanticsNotReady()
 	}
-	result, err := s.dependencies.EventSemantics.Context(ctx, request.ContextLeaseID)
+	result, err := s.useCase.Context(ctx, request.ContextLeaseID)
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	return &v1.Response[v1.EventSemanticContext]{
+	return &v1.Response[eventsemanticapi.EventSemanticContext]{
 		Status: v1.StatusOK,
 		Result: eventSemanticContextDTO(result),
 	}, nil
 }
 
-func (s *DataService) CreateEventSemanticSubmission(
+func (s *Service) CreateEventSemanticSubmission(
 	ctx context.Context,
-	request *v1.EventSemanticSubmissionRequest,
-) (*v1.Response[v1.EventSemanticSubmissionResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
+	request *eventsemanticapi.EventSemanticSubmissionRequest,
+) (*v1.Response[eventsemanticapi.EventSemanticSubmissionResult], error) {
+	if s == nil || s.useCase == nil {
 		return nil, eventSemanticsNotReady()
 	}
 	input, err := eventSemanticSubmissionInput(request)
 	if err != nil {
-		return nil, publicError(v1.StatusBadRequest, "INVALID_REQUEST", "Event Semantic Submission contains an invalid UTC timestamp")
+		return nil, publicError(v1.StatusBadRequest, eventsemanticapi.ErrorInvalidRequest, "Event Semantic Submission contains an invalid UTC timestamp")
 	}
-	result, err := s.dependencies.EventSemantics.CreateSubmission(ctx, input)
+	result, err := s.useCase.CreateSubmission(ctx, input)
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
@@ -95,89 +117,89 @@ func (s *DataService) CreateEventSemanticSubmission(
 	if result.Replayed {
 		status = v1.StatusOK
 	}
-	return &v1.Response[v1.EventSemanticSubmissionResult]{
+	return &v1.Response[eventsemanticapi.EventSemanticSubmissionResult]{
 		Status: status, Result: eventSemanticSubmissionResultDTO(result),
 	}, nil
 }
 
-func (s *DataService) SubmitEventSemanticReview(
+func (s *Service) SubmitEventSemanticReview(
 	ctx context.Context,
-	request *v1.EventSemanticReviewRequest,
-) (*v1.Response[v1.EventSemanticSubmissionResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
+	request *eventsemanticapi.EventSemanticReviewRequest,
+) (*v1.Response[eventsemanticapi.EventSemanticSubmissionResult], error) {
+	if s == nil || s.useCase == nil {
 		return nil, eventSemanticsNotReady()
 	}
-	items := make([]eventsemantics.ReviewItem, 0, len(request.Items))
+	items := make([]eventbiz.ReviewItem, 0, len(request.Items))
 	for _, item := range request.Items {
-		items = append(items, eventsemantics.ReviewItem{
+		items = append(items, eventbiz.ReviewItem{
 			CandidateType: item.CandidateType, CandidateKey: item.CandidateKey,
 			Decision: item.Decision, ReasonCodes: item.ReasonCodes, EvidenceIDs: item.EvidenceIDs,
 		})
 	}
-	result, err := s.dependencies.EventSemantics.SubmitReview(ctx, eventsemantics.ReviewSubmission{
+	result, err := s.useCase.SubmitReview(ctx, eventbiz.ReviewSubmission{
 		SubmissionID: request.SubmissionID, ReviewerExecutionKey: request.ReviewerExecutionKey,
 		PromptHash: request.PromptHash, Model: request.Model, Items: items,
 	})
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	return &v1.Response[v1.EventSemanticSubmissionResult]{
+	return &v1.Response[eventsemanticapi.EventSemanticSubmissionResult]{
 		Status: v1.StatusOK, Result: eventSemanticSubmissionResultDTO(result),
 	}, nil
 }
 
-func (s *DataService) GetEventSemantics(
+func (s *Service) GetEventSemantics(
 	ctx context.Context,
-	request *v1.GetEventSemanticsRequest,
-) (*v1.Response[v1.EventSemanticsResult], error) {
-	if s == nil || s.dependencies.EventSemantics == nil {
+	request *eventsemanticapi.GetEventSemanticsRequest,
+) (*v1.Response[eventsemanticapi.EventSemanticsResult], error) {
+	if s == nil || s.useCase == nil {
 		return nil, eventSemanticsNotReady()
 	}
-	result, err := s.dependencies.EventSemantics.Get(ctx, request.EventID)
+	result, err := s.useCase.Get(ctx, request.EventID)
 	if err != nil {
 		return nil, eventSemanticsError(err)
 	}
-	submissions := make([]v1.EventSemanticSubmissionResult, 0, len(result.Submissions))
+	submissions := make([]eventsemanticapi.EventSemanticSubmissionResult, 0, len(result.Submissions))
 	for _, submission := range result.Submissions {
 		submissions = append(submissions, eventSemanticSubmissionResultDTO(submission))
 	}
-	return &v1.Response[v1.EventSemanticsResult]{
+	return &v1.Response[eventsemanticapi.EventSemanticsResult]{
 		Status: v1.StatusOK,
-		Result: v1.EventSemanticsResult{EventID: result.EventID, Submissions: submissions},
+		Result: eventsemanticapi.EventSemanticsResult{EventID: result.EventID, Submissions: submissions},
 	}, nil
 }
 
 func eventSemanticsNotReady() error {
-	return publicError(v1.StatusServiceUnavailable, "EVENT_SEMANTICS_NOT_READY", "Event Semantics service is unavailable")
+	return publicError(v1.StatusServiceUnavailable, eventsemanticapi.ErrorNotReady, "Event Semantics service is unavailable")
 }
 
 func eventSemanticsError(err error) error {
-	var validation *eventsemantics.ValidationError
-	var notFound *eventsemantics.NotFoundError
-	var conflict *eventsemantics.ConflictError
-	var notRequired *eventsemantics.NotRequiredError
-	var inputInvalid *eventsemantics.InputInvalidError
-	var contextDrift *eventsemantics.ContextDriftError
+	var validation *eventbiz.ValidationError
+	var notFound *eventbiz.NotFoundError
+	var conflict *eventbiz.ConflictError
+	var notRequired *eventbiz.NotRequiredError
+	var inputInvalid *eventbiz.InputInvalidError
+	var contextDrift *eventbiz.ContextDriftError
 	switch {
 	case errors.As(err, &contextDrift):
-		return publicError(v1.StatusConflict, "EVENT_SEMANTIC_CONTEXT_DRIFT", contextDrift.Reason)
+		return publicError(v1.StatusConflict, eventsemanticapi.ErrorContextDrift, contextDrift.Reason)
 	case errors.As(err, &notRequired):
-		return publicError(v1.StatusConflict, "EVENT_SEMANTICS_NOT_REQUIRED", notRequired.Reason)
+		return publicError(v1.StatusConflict, eventsemanticapi.ErrorNotRequired, notRequired.Reason)
 	case errors.As(err, &inputInvalid):
-		return publicError(v1.StatusUnprocessableEntity, "EVENT_SEMANTICS_INPUT_INVALID", inputInvalid.Reason)
+		return publicError(v1.StatusUnprocessableEntity, eventsemanticapi.ErrorInputInvalid, inputInvalid.Reason)
 	case errors.As(err, &validation):
-		return publicError(v1.StatusUnprocessableEntity, "EVENT_SEMANTICS_INVALID", validation.Reason)
+		return publicError(v1.StatusUnprocessableEntity, eventsemanticapi.ErrorInvalid, validation.Reason)
 	case errors.As(err, &notFound):
-		return publicError(v1.StatusNotFound, "EVENT_SEMANTICS_NOT_FOUND", "Event Semantics resource was not found")
+		return publicError(v1.StatusNotFound, eventsemanticapi.ErrorNotFound, "Event Semantics resource was not found")
 	case errors.As(err, &conflict):
-		return publicError(v1.StatusConflict, "EVENT_SEMANTICS_CONFLICT", conflict.Reason)
+		return publicError(v1.StatusConflict, eventsemanticapi.ErrorConflict, conflict.Reason)
 	default:
-		return publicError(v1.StatusInternalServerError, "EVENT_SEMANTICS_FAILED", "Event Semantics operation failed")
+		return publicError(v1.StatusInternalServerError, eventsemanticapi.ErrorFailed, "Event Semantics operation failed")
 	}
 }
 
-func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (eventsemantics.Submission, error) {
-	result := eventsemantics.Submission{
+func eventSemanticSubmissionInput(request *eventsemanticapi.EventSemanticSubmissionRequest) (eventbiz.Submission, error) {
+	result := eventbiz.Submission{
 		ContextLeaseID: request.ContextLeaseID, EventID: request.EventID, AgentExecutionID: request.AgentExecutionID,
 		AgentKey: request.AgentKey, AgentVersion: request.AgentVersion, SupersedesSubmissionID: request.SupersedesSubmissionID,
 		GeneratorPromptHash: request.GeneratorPromptHash, GeneratorModel: request.GeneratorModel,
@@ -186,7 +208,7 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 		OntologyVersion: request.OntologyVersion, AcceptancePolicyVersion: request.AcceptancePolicyVersion,
 	}
 	for _, link := range request.EntityLinks {
-		candidate := eventsemantics.EntityLinkCandidate{
+		candidate := eventbiz.EntityLinkCandidate{
 			Key: link.CandidateKey, Mention: link.Mention, EntityID: link.EntityID,
 			ProjectedEntityType: link.ProjectedEntityType, EntityRole: link.EntityRole, EvidenceIDs: link.EvidenceIDs,
 			ResolutionMethod: link.ResolutionMethod, ResolutionConfidence: link.ResolutionConfidence,
@@ -196,31 +218,31 @@ func eventSemanticSubmissionInput(request *v1.EventSemanticSubmissionRequest) (e
 	for _, signal := range request.VariableSignals {
 		statementAt, err := eventSemanticOptionalUTC(signal.StatementAt)
 		if err != nil {
-			return eventsemantics.Submission{}, err
+			return eventbiz.Submission{}, err
 		}
 		validFrom, err := eventSemanticOptionalUTC(signal.ValidFrom)
 		if err != nil {
-			return eventsemantics.Submission{}, err
+			return eventbiz.Submission{}, err
 		}
 		validUntil, err := eventSemanticOptionalUTC(signal.ValidUntil)
 		if err != nil {
-			return eventsemantics.Submission{}, err
+			return eventbiz.Submission{}, err
 		}
 		forecastStart, err := eventSemanticOptionalUTC(signal.ForecastPeriodStart)
 		if err != nil {
-			return eventsemantics.Submission{}, err
+			return eventbiz.Submission{}, err
 		}
 		forecastEnd, err := eventSemanticOptionalUTC(signal.ForecastPeriodEnd)
 		if err != nil {
-			return eventsemantics.Submission{}, err
+			return eventbiz.Submission{}, err
 		}
-		measurements := make([]eventsemantics.MeasurementValue, 0, len(signal.Measurements))
+		measurements := make([]eventbiz.MeasurementValue, 0, len(signal.Measurements))
 		for _, measurement := range signal.Measurements {
-			measurements = append(measurements, eventsemantics.MeasurementValue{
+			measurements = append(measurements, eventbiz.MeasurementValue{
 				Text: measurement.MeasurementText, EvidenceIDs: measurement.EvidenceIDs,
 			})
 		}
-		result.VariableSignals = append(result.VariableSignals, eventsemantics.VariableSignalCandidate{
+		result.VariableSignals = append(result.VariableSignals, eventbiz.VariableSignalCandidate{
 			Key: signal.CandidateKey, SubjectLinkKey: signal.SubjectLinkKey,
 			VariableKey: signal.VariableKey, VariableVersion: signal.VariableVersion,
 			Direction: signal.Direction, AssertionModality: signal.AssertionModality,
@@ -240,8 +262,8 @@ func eventSemanticOptionalUTC(raw *string) (*time.Time, error) {
 	return optionalUTC(*raw)
 }
 
-func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticContext {
-	result := v1.EventSemanticContext{
+func eventSemanticContextDTO(value eventbiz.Context) eventsemanticapi.EventSemanticContext {
+	result := eventsemanticapi.EventSemanticContext{
 		ContextLeaseID: value.ContextLeaseID, AgentExecutionID: value.AgentExecutionID,
 		WorkerID: value.WorkerID, LeaseExpiresAt: value.LeaseExpiresAt.UTC().Format(time.RFC3339Nano),
 		ManifestContractVersion: value.ManifestContractVersion,
@@ -249,11 +271,11 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 		EvidenceFingerprint: value.EvidenceFingerprint, OntologyVersion: value.OntologyVersion,
 		AcceptancePolicyVersion: value.PolicyVersion,
 		Event:                   eventSemanticEventDTO(value.Event),
-		Evidence:                make([]v1.EventSemanticEvidence, 0, len(value.Evidence)),
-		EntityTypeDefinitions:   make([]v1.EventSemanticEntityTypeDefinition, 0, len(value.EntityTypes)),
-		VariableDefinitions:     make([]v1.EventSemanticVariableDefinition, 0, len(value.Variables)),
+		Evidence:                make([]eventsemanticapi.EventSemanticEvidence, 0, len(value.Evidence)),
+		EntityTypeDefinitions:   make([]eventsemanticapi.EventSemanticEntityTypeDefinition, 0, len(value.EntityTypes)),
+		VariableDefinitions:     make([]eventsemanticapi.EventSemanticVariableDefinition, 0, len(value.Variables)),
 		AssertionModalities:     value.AssertionModalities,
-		MeasurementContract: v1.EventSemanticMeasurementContract{
+		MeasurementContract: eventsemanticapi.EventSemanticMeasurementContract{
 			Representation:      value.MeasurementContract.Representation,
 			MaxItemsPerSignal:   value.MeasurementContract.MaxItemsPerSignal,
 			MaxTextCharacters:   value.MeasurementContract.MaxTextCharacters,
@@ -265,7 +287,7 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 		result.Evidence = append(result.Evidence, eventSemanticEvidenceDTO(evidence))
 	}
 	for _, definition := range value.EntityTypes {
-		result.EntityTypeDefinitions = append(result.EntityTypeDefinitions, v1.EventSemanticEntityTypeDefinition{
+		result.EntityTypeDefinitions = append(result.EntityTypeDefinitions, eventsemanticapi.EventSemanticEntityTypeDefinition{
 			TypeKey: definition.TypeKey, Version: definition.Version,
 			NameZH: definition.NameZH, NameEN: definition.NameEN,
 			BusinessDefinition:   definition.BusinessDefinition,
@@ -277,7 +299,7 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 		})
 	}
 	for _, variable := range value.Variables {
-		result.VariableDefinitions = append(result.VariableDefinitions, v1.EventSemanticVariableDefinition{
+		result.VariableDefinitions = append(result.VariableDefinitions, eventsemanticapi.EventSemanticVariableDefinition{
 			Key: variable.Key, Version: variable.Version, NameZH: variable.NameZH, NameEN: variable.NameEN,
 			Domain: variable.Domain, BusinessDefinition: variable.BusinessDefinition,
 			ValueType: variable.ValueType, Status: variable.Status,
@@ -289,8 +311,8 @@ func eventSemanticContextDTO(value eventsemantics.Context) v1.EventSemanticConte
 	return result
 }
 
-func eventSemanticSubmissionResultDTO(value eventsemantics.SubmissionResult) v1.EventSemanticSubmissionResult {
-	result := v1.EventSemanticSubmissionResult{
+func eventSemanticSubmissionResultDTO(value eventbiz.SubmissionResult) eventsemanticapi.EventSemanticSubmissionResult {
+	result := eventsemanticapi.EventSemanticSubmissionResult{
 		SubmissionID: value.SubmissionID, EventID: value.EventID, Status: string(value.Status),
 		CanonicalPayloadHash: value.CanonicalPayloadHash, Replayed: value.Replayed,
 		EntityLinks:     eventSemanticDecisionsDTO(value.Precheck.EntityLinks),
@@ -308,7 +330,7 @@ func eventSemanticSubmissionResultDTO(value eventsemantics.SubmissionResult) v1.
 		result.CreatedAt = value.CreatedAt.UTC().Format(time.RFC3339)
 	}
 	for _, review := range value.ReviewSnapshots {
-		result.ReviewSnapshots = append(result.ReviewSnapshots, v1.EventSemanticReviewSnapshot{
+		result.ReviewSnapshots = append(result.ReviewSnapshots, eventsemanticapi.EventSemanticReviewSnapshot{
 			ReviewerExecutionKey: review.ReviewerExecutionKey,
 			CanonicalPayloadHash: review.CanonicalPayloadHash,
 			Payload:              review.Payload, CreatedAt: review.CreatedAt.UTC().Format(time.RFC3339),
@@ -325,15 +347,15 @@ func eventSemanticSubmissionResultDTO(value eventsemantics.SubmissionResult) v1.
 }
 
 func eventSemanticReviewerWorkPackageDTO(
-	work eventsemantics.ReviewerWorkPackage,
-) *v1.EventSemanticReviewerWorkPackage {
-	result := &v1.EventSemanticReviewerWorkPackage{
+	work eventbiz.ReviewerWorkPackage,
+) *eventsemanticapi.EventSemanticReviewerWorkPackage {
+	result := &eventsemanticapi.EventSemanticReviewerWorkPackage{
 		Event:           eventSemanticEventDTO(work.Event),
 		EntityLinks:     eventSemanticLinkCandidatesDTO(work.EntityLinks),
 		VariableSignals: eventSemanticSignalCandidatesDTO(work.VariableSignals),
 	}
 	for _, entity := range work.ResolvedEntities {
-		result.ResolvedEntities = append(result.ResolvedEntities, v1.EventSemanticEntity{
+		result.ResolvedEntities = append(result.ResolvedEntities, eventsemanticapi.EventSemanticEntity{
 			EntityID: entity.ID, EntityType: entity.Type, Name: entity.Name,
 			CanonicalName: entity.CanonicalName, Aliases: entity.Aliases, Status: entity.Status,
 		})
@@ -344,8 +366,8 @@ func eventSemanticReviewerWorkPackageDTO(
 	return result
 }
 
-func eventSemanticEvidenceDTO(value eventsemantics.Evidence) v1.EventSemanticEvidence {
-	result := v1.EventSemanticEvidence{
+func eventSemanticEvidenceDTO(value eventbiz.Evidence) eventsemanticapi.EventSemanticEvidence {
+	result := eventsemanticapi.EventSemanticEvidence{
 		EvidenceID: value.ID, EvidenceHash: value.Hash, Statement: value.Statement,
 		SourceLevel: value.SourceLevel, Relation: value.Relation,
 		SupportsFields: value.SupportsFields,
@@ -364,28 +386,28 @@ func eventSemanticEvidenceDTO(value eventsemantics.Evidence) v1.EventSemanticEvi
 }
 
 func reviewableEventSemanticWorkPackage(
-	precheck eventsemantics.PrecheckResult,
-) eventsemantics.ReviewerWorkPackage {
+	precheck eventbiz.PrecheckResult,
+) eventbiz.ReviewerWorkPackage {
 	work := precheck.ReviewerWorkPackage
-	reviewable := func(status eventsemantics.ReviewStatus) bool {
-		return status == eventsemantics.StatusPendingReview ||
-			status == eventsemantics.StatusNeedsReanalysis
+	reviewable := func(status eventbiz.ReviewStatus) bool {
+		return status == eventbiz.StatusPendingReview ||
+			status == eventbiz.StatusNeedsReanalysis
 	}
-	linkStatus := make(map[string]eventsemantics.ReviewStatus, len(precheck.EntityLinks))
+	linkStatus := make(map[string]eventbiz.ReviewStatus, len(precheck.EntityLinks))
 	for _, item := range precheck.EntityLinks {
 		linkStatus[item.CandidateKey] = item.Status
 	}
-	signalStatus := make(map[string]eventsemantics.ReviewStatus, len(precheck.VariableSignals))
+	signalStatus := make(map[string]eventbiz.ReviewStatus, len(precheck.VariableSignals))
 	for _, item := range precheck.VariableSignals {
 		signalStatus[item.CandidateKey] = item.Status
 	}
 	work.EntityLinks = filterEventSemanticCandidates(
-		work.EntityLinks, func(item eventsemantics.EntityLinkCandidate) bool {
+		work.EntityLinks, func(item eventbiz.EntityLinkCandidate) bool {
 			return reviewable(linkStatus[item.Key])
 		},
 	)
 	work.VariableSignals = filterEventSemanticCandidates(
-		work.VariableSignals, func(item eventsemantics.VariableSignalCandidate) bool {
+		work.VariableSignals, func(item eventbiz.VariableSignalCandidate) bool {
 			return reviewable(signalStatus[item.Key])
 		},
 	)
@@ -403,24 +425,24 @@ func filterEventSemanticCandidates[T any](items []T, keep func(T) bool) []T {
 	return result
 }
 
-func eventSemanticEventDTO(value eventsemantics.Event) v1.EventSemanticEvent {
-	return v1.EventSemanticEvent{
+func eventSemanticEventDTO(value eventbiz.Event) eventsemanticapi.EventSemanticEvent {
+	return eventsemanticapi.EventSemanticEvent{
 		ID: value.ID, Title: value.Title, Summary: value.Summary,
 		OccurredAt: formatOptionalTime(value.OccurredAt), EventStatus: value.Status, FactStatus: value.FactStatus,
 	}
 }
 
-func eventSemanticEntityDTO(value eventsemantics.Entity) v1.EventSemanticEntity {
-	return v1.EventSemanticEntity{
+func eventSemanticEntityDTO(value eventbiz.Entity) eventsemanticapi.EventSemanticEntity {
+	return eventsemanticapi.EventSemanticEntity{
 		EntityID: value.ID, EntityType: value.Type, Name: value.Name,
 		CanonicalName: value.CanonicalName, Aliases: value.Aliases, Status: value.Status,
 	}
 }
 
-func eventSemanticDecisionsDTO(values []eventsemantics.CandidateDecision) []v1.EventSemanticCandidateDecision {
-	result := make([]v1.EventSemanticCandidateDecision, 0, len(values))
+func eventSemanticDecisionsDTO(values []eventbiz.CandidateDecision) []eventsemanticapi.EventSemanticCandidateDecision {
+	result := make([]eventsemanticapi.EventSemanticCandidateDecision, 0, len(values))
 	for _, value := range values {
-		result = append(result, v1.EventSemanticCandidateDecision{
+		result = append(result, eventsemanticapi.EventSemanticCandidateDecision{
 			CandidateKey: value.CandidateKey, Status: string(value.Status),
 			ReasonCode: value.ReasonCode, RecordID: value.RecordID,
 		})
@@ -428,10 +450,10 @@ func eventSemanticDecisionsDTO(values []eventsemantics.CandidateDecision) []v1.E
 	return result
 }
 
-func eventSemanticLinkCandidatesDTO(values []eventsemantics.EntityLinkCandidate) []v1.EventSemanticEntityLinkCandidate {
-	result := make([]v1.EventSemanticEntityLinkCandidate, 0, len(values))
+func eventSemanticLinkCandidatesDTO(values []eventbiz.EntityLinkCandidate) []eventsemanticapi.EventSemanticEntityLinkCandidate {
+	result := make([]eventsemanticapi.EventSemanticEntityLinkCandidate, 0, len(values))
 	for _, value := range values {
-		item := v1.EventSemanticEntityLinkCandidate{
+		item := eventsemanticapi.EventSemanticEntityLinkCandidate{
 			CandidateKey: value.Key, Mention: value.Mention, EntityID: value.EntityID,
 			ProjectedEntityType: value.ProjectedEntityType, EntityRole: value.EntityRole, EvidenceIDs: value.EvidenceIDs,
 			ResolutionMethod: value.ResolutionMethod, ResolutionConfidence: value.ResolutionConfidence,
@@ -441,10 +463,10 @@ func eventSemanticLinkCandidatesDTO(values []eventsemantics.EntityLinkCandidate)
 	return result
 }
 
-func eventSemanticSignalCandidatesDTO(values []eventsemantics.VariableSignalCandidate) []v1.EventSemanticVariableSignalCandidate {
-	result := make([]v1.EventSemanticVariableSignalCandidate, 0, len(values))
+func eventSemanticSignalCandidatesDTO(values []eventbiz.VariableSignalCandidate) []eventsemanticapi.EventSemanticVariableSignalCandidate {
+	result := make([]eventsemanticapi.EventSemanticVariableSignalCandidate, 0, len(values))
 	for _, value := range values {
-		item := v1.EventSemanticVariableSignalCandidate{
+		item := eventsemanticapi.EventSemanticVariableSignalCandidate{
 			CandidateKey: value.Key, SubjectLinkKey: value.SubjectLinkKey,
 			VariableKey: value.VariableKey, VariableVersion: value.VariableVersion,
 			Direction: value.Direction, AssertionModality: value.AssertionModality,
@@ -455,7 +477,7 @@ func eventSemanticSignalCandidatesDTO(values []eventsemantics.VariableSignalCand
 			ExtractionConfidence: value.ExtractionConfidence,
 		}
 		for _, measurement := range value.Measurements {
-			item.Measurements = append(item.Measurements, v1.EventSemanticMeasurement{
+			item.Measurements = append(item.Measurements, eventsemanticapi.EventSemanticMeasurement{
 				MeasurementText: measurement.Text,
 				EvidenceIDs:     measurement.EvidenceIDs,
 			})
@@ -463,4 +485,27 @@ func eventSemanticSignalCandidatesDTO(values []eventsemantics.VariableSignalCand
 		result = append(result, item)
 	}
 	return result
+}
+
+func optionalUTC(raw string) (*time.Time, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	value, err := time.Parse(time.RFC3339, raw)
+	if err != nil || value.Location() != time.UTC {
+		return nil, errors.New("timestamp must use UTC")
+	}
+	return &value, nil
+}
+
+func formatOptionalTime(value *time.Time) *string {
+	if value == nil {
+		return nil
+	}
+	formatted := value.UTC().Format(time.RFC3339Nano)
+	return &formatted
+}
+
+func publicError(status int, code, message string) error {
+	return v1.NewPublicError(status, code, message, nil)
 }

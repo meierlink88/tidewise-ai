@@ -12,6 +12,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	dataapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
+	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	"gopkg.in/yaml.v3"
@@ -184,19 +185,21 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range []struct {
-		name        string
-		application dataapi.DataHTTPServer
-		event       eventapi.Service
-		evidence    evidenceapi.Service
-		auth        *Authenticator
+		name          string
+		application   dataapi.DataHTTPServer
+		event         eventapi.Service
+		eventSemantic eventsemanticapi.Service
+		evidence      evidenceapi.Service
+		auth          *Authenticator
 	}{
-		{name: "Data API", event: serverTestEventService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "Event API", application: serverTestDataService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "Evidence API", application: serverTestDataService{}, event: serverTestEventService{}, auth: authenticator},
-		{name: "authenticator", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}},
+		{name: "Data API", event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
+		{name: "Event API", application: serverTestDataService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
+		{name: "Event Semantic API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
+		{name: "Evidence API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, auth: authenticator},
+		{name: "authenticator", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := NewHTTPServer(testConfig(), test.application, test.event, test.evidence, test.auth, nil); err == nil {
+			if _, err := NewHTTPServer(testConfig(), test.application, test.event, test.eventSemantic, test.evidence, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -234,6 +237,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 		}
 	}
 	businessOperations := append(dataapi.BusinessOperations(), eventapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, eventsemanticapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, evidenceapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
@@ -301,7 +305,7 @@ func newTestHTTPServer(config conf.Config, application dataapi.DataHTTPServer, e
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application dataapi.DataHTTPServer, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, eventApplication, evidenceApplication, authenticator, nil)
+	server, err := NewHTTPServer(config, application, eventApplication, serverTestEventSemanticService{}, evidenceApplication, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -311,6 +315,8 @@ func newTestHTTPServerWithEvent(config conf.Config, application dataapi.DataHTTP
 type serverTestDataService struct{}
 
 type serverTestEventService struct{}
+
+type serverTestEventSemanticService struct{}
 
 type serverTestEvidenceService struct{}
 
@@ -324,6 +330,25 @@ func (serverTestEventService) ListActiveEventTags(context.Context, *eventapi.Tag
 
 func (serverTestEventService) ListEvents(context.Context, *eventapi.ListRequest) (*dataapi.Response[eventapi.Page], error) {
 	return serverTestResponse[eventapi.Page]()
+}
+
+func (serverTestEventSemanticService) ListEligibleEventSemanticEvents(context.Context, *eventsemanticapi.EligibleEventSemanticEventsRequest) (*dataapi.Response[eventsemanticapi.EligibleEventSemanticEvents], error) {
+	return serverTestResponse[eventsemanticapi.EligibleEventSemanticEvents]()
+}
+func (serverTestEventSemanticService) CreateEventSemanticContextLease(context.Context, *eventsemanticapi.EventSemanticContextLeaseRequest) (*dataapi.Response[eventsemanticapi.EventSemanticContextLease], error) {
+	return serverTestResponse[eventsemanticapi.EventSemanticContextLease]()
+}
+func (serverTestEventSemanticService) GetEventSemanticContext(context.Context, *eventsemanticapi.EventSemanticContextRequest) (*dataapi.Response[eventsemanticapi.EventSemanticContext], error) {
+	return serverTestResponse[eventsemanticapi.EventSemanticContext]()
+}
+func (serverTestEventSemanticService) CreateEventSemanticSubmission(context.Context, *eventsemanticapi.EventSemanticSubmissionRequest) (*dataapi.Response[eventsemanticapi.EventSemanticSubmissionResult], error) {
+	return serverTestResponse[eventsemanticapi.EventSemanticSubmissionResult]()
+}
+func (serverTestEventSemanticService) SubmitEventSemanticReview(context.Context, *eventsemanticapi.EventSemanticReviewRequest) (*dataapi.Response[eventsemanticapi.EventSemanticSubmissionResult], error) {
+	return serverTestResponse[eventsemanticapi.EventSemanticSubmissionResult]()
+}
+func (serverTestEventSemanticService) GetEventSemantics(context.Context, *eventsemanticapi.GetEventSemanticsRequest) (*dataapi.Response[eventsemanticapi.EventSemanticsResult], error) {
+	return serverTestResponse[eventsemanticapi.EventSemanticsResult]()
 }
 
 func (serverTestEvidenceService) PublishRawEvidence(context.Context, *evidenceapi.RawEvidencePublicationRequest) (*dataapi.Response[evidenceapi.RawEvidencePublicationResult], error) {
@@ -354,24 +379,6 @@ func (serverTestDataService) GetResearchReasoningTree(context.Context, *dataapi.
 }
 func (serverTestDataService) ListRawDocuments(context.Context, *dataapi.RawDocumentListRequest) (*dataapi.Response[dataapi.AdminRawDocumentPage], error) {
 	return serverTestResponse[dataapi.AdminRawDocumentPage]()
-}
-func (serverTestDataService) ListEligibleEventSemanticEvents(context.Context, *dataapi.EligibleEventSemanticEventsRequest) (*dataapi.Response[dataapi.EligibleEventSemanticEvents], error) {
-	return serverTestResponse[dataapi.EligibleEventSemanticEvents]()
-}
-func (serverTestDataService) CreateEventSemanticContextLease(context.Context, *dataapi.EventSemanticContextLeaseRequest) (*dataapi.Response[dataapi.EventSemanticContextLease], error) {
-	return serverTestResponse[dataapi.EventSemanticContextLease]()
-}
-func (serverTestDataService) GetEventSemanticContext(context.Context, *dataapi.EventSemanticContextRequest) (*dataapi.Response[dataapi.EventSemanticContext], error) {
-	return serverTestResponse[dataapi.EventSemanticContext]()
-}
-func (serverTestDataService) CreateEventSemanticSubmission(context.Context, *dataapi.EventSemanticSubmissionRequest) (*dataapi.Response[dataapi.EventSemanticSubmissionResult], error) {
-	return serverTestResponse[dataapi.EventSemanticSubmissionResult]()
-}
-func (serverTestDataService) SubmitEventSemanticReview(context.Context, *dataapi.EventSemanticReviewRequest) (*dataapi.Response[dataapi.EventSemanticSubmissionResult], error) {
-	return serverTestResponse[dataapi.EventSemanticSubmissionResult]()
-}
-func (serverTestDataService) GetEventSemantics(context.Context, *dataapi.GetEventSemanticsRequest) (*dataapi.Response[dataapi.EventSemanticsResult], error) {
-	return serverTestResponse[dataapi.EventSemanticsResult]()
 }
 func (serverTestDataService) ListResearchAnalysisContext(context.Context, *dataapi.ResearchAnalysisContextRequest) (*dataapi.Response[dataapi.ResearchAnalysisContext], error) {
 	return serverTestResponse[dataapi.ResearchAnalysisContext]()

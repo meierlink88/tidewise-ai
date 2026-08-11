@@ -11,9 +11,11 @@ import (
 	"time"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 	researchanalysiscontextapp "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
+	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	eventsemanticfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/eventsemantic"
 )
 
 func TestPostgresResearchAnalysisContextSelectsEventsBeforeReferenceClosure(t *testing.T) {
@@ -143,17 +145,24 @@ func TestPostgresResearchAnalysisContextSelectsEventsBeforeReferenceClosure(t *t
 
 func TestPostgresResearchAnalysisContextReturnsCompleteReferencedSemantics(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
-	seedEventSemanticScenario(t, db, true)
-	semanticService := eventsemantics.NewService(postgres.NewEventSemanticsStore(db))
+	eventsemanticfixture.SeedScenario(t, db, true)
+	semanticStore, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticService, err := eventsemantic.NewUseCase(semanticStore)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
-	lease, err := semanticService.CreateContextLease(ctx, eventsemantics.ContextLeaseRequest{
-		EventID: semanticEventID, AgentExecutionID: "analysis-context-semantic-execution",
+	lease, err := semanticService.CreateContextLease(ctx, eventsemantic.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: "analysis-context-semantic-execution",
 		WorkerID: "analysis-context-fixture", Lease: 15 * time.Minute,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	submissionRequest := semanticSubmission(
+	submissionRequest := eventsemanticfixture.Submission(
 		lease.ID,
 		"analysis-context-semantic-execution",
 		"",
@@ -163,20 +172,20 @@ func TestPostgresResearchAnalysisContextReturnsCompleteReferencedSemantics(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if submission.Status != eventsemantics.StatusPendingReview {
+	if submission.Status != eventsemantic.StatusPendingReview {
 		t.Fatalf("submission = %#v", submission)
 	}
-	review, err := semanticService.SubmitReview(ctx, eventsemantics.ReviewSubmission{
+	review, err := semanticService.SubmitReview(ctx, eventsemantic.ReviewSubmission{
 		SubmissionID:         submission.SubmissionID,
 		ReviewerExecutionKey: "analysis-context-semantic-execution:reviewer",
 		PromptHash:           strings.Repeat("b", 64),
 		Model:                "fixture-reviewer",
-		Items:                semanticReviewItems("pass"),
+		Items:                eventsemanticfixture.ReviewItems("pass"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if review.Status != eventsemantics.StatusAccepted {
+	if review.Status != eventsemantic.StatusAccepted {
 		t.Fatalf("review status = %q", review.Status)
 	}
 

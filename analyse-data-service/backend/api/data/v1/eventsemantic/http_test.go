@@ -1,4 +1,4 @@
-package v1
+package eventsemantic
 
 import (
 	"bytes"
@@ -6,32 +6,99 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/go-kratos/kratos/v3/middleware"
+	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 )
 
+type eventSemanticHTTPStubBase struct{}
+
+func (eventSemanticHTTPStubBase) ListEligibleEventSemanticEvents(context.Context, *EligibleEventSemanticEventsRequest) (*v1.Response[EligibleEventSemanticEvents], error) {
+	return &v1.Response[EligibleEventSemanticEvents]{Status: v1.StatusOK}, nil
+}
+func (eventSemanticHTTPStubBase) CreateEventSemanticContextLease(context.Context, *EventSemanticContextLeaseRequest) (*v1.Response[EventSemanticContextLease], error) {
+	return &v1.Response[EventSemanticContextLease]{Status: v1.StatusCreated}, nil
+}
+func (eventSemanticHTTPStubBase) GetEventSemanticContext(context.Context, *EventSemanticContextRequest) (*v1.Response[EventSemanticContext], error) {
+	return &v1.Response[EventSemanticContext]{Status: v1.StatusOK}, nil
+}
+func (eventSemanticHTTPStubBase) CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*v1.Response[EventSemanticSubmissionResult], error) {
+	return &v1.Response[EventSemanticSubmissionResult]{Status: v1.StatusCreated}, nil
+}
+func (eventSemanticHTTPStubBase) SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*v1.Response[EventSemanticSubmissionResult], error) {
+	return &v1.Response[EventSemanticSubmissionResult]{Status: v1.StatusOK}, nil
+}
+func (eventSemanticHTTPStubBase) GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*v1.Response[EventSemanticsResult], error) {
+	return &v1.Response[EventSemanticsResult]{Status: v1.StatusOK}, nil
+}
+
 type eventSemanticsHTTPStub struct {
-	testDataHTTPServer
+	eventSemanticHTTPStubBase
 	contextLeaseRequest *EventSemanticContextLeaseRequest
 	eligibleRequest     *EligibleEventSemanticEventsRequest
 	contextResponse     EventSemanticContext
 }
 
+func TestEventSemanticRuntimeRoutesPreserveOperations(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		method     string
+		path       string
+		body       string
+		operation  string
+		wantStatus int
+	}{
+		{name: "eligible", method: http.MethodGet, path: "/event-semantics/eligible-events?limit=20", operation: OperationListEligibleEvents, wantStatus: http.StatusOK},
+		{name: "lease", method: http.MethodPost, path: "/event-semantics/context-leases", body: `{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`, operation: OperationCreateContextLease, wantStatus: http.StatusCreated},
+		{name: "context", method: http.MethodGet, path: "/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context", operation: OperationGetContext, wantStatus: http.StatusOK},
+		{name: "submission", method: http.MethodPost, path: "/event-semantics/submissions", body: `{}`, operation: OperationCreateSubmission, wantStatus: http.StatusCreated},
+		{name: "review", method: http.MethodPost, path: "/event-semantics/submissions/11111111-1111-4111-8111-111111111111/reviews", body: `{}`, operation: OperationSubmitReview, wantStatus: http.StatusOK},
+		{name: "result", method: http.MethodGet, path: "/events/22222222-2222-4222-8222-222222222222/semantics", operation: OperationGetSemantics, wantStatus: http.StatusOK},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var operation string
+			recorder := func(next middleware.Handler) middleware.Handler {
+				return func(ctx context.Context, request any) (any, error) {
+					if serverTransport, ok := transport.FromServerContext(ctx); ok {
+						operation = serverTransport.Operation()
+					}
+					return next(ctx, request)
+				}
+			}
+			server := kratoshttp.NewServer(kratoshttp.Middleware(recorder))
+			RegisterHTTPServer(server, eventSemanticHTTPStubBase{})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(test.method, v1.APIPrefix+test.path, strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			server.ServeHTTP(response, request)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, test.wantStatus, response.Body)
+			}
+			if operation != test.operation {
+				t.Fatalf("operation = %q, want %q", operation, test.operation)
+			}
+		})
+	}
+}
+
 func (s *eventSemanticsHTTPStub) GetEventSemanticContext(
 	_ context.Context,
 	_ *EventSemanticContextRequest,
-) (*Response[EventSemanticContext], error) {
-	return &Response[EventSemanticContext]{Status: StatusOK, Result: s.contextResponse}, nil
+) (*v1.Response[EventSemanticContext], error) {
+	return &v1.Response[EventSemanticContext]{Status: v1.StatusOK, Result: s.contextResponse}, nil
 }
 
 func (s *eventSemanticsHTTPStub) ListEligibleEventSemanticEvents(
 	_ context.Context,
 	request *EligibleEventSemanticEventsRequest,
-) (*Response[EligibleEventSemanticEvents], error) {
+) (*v1.Response[EligibleEventSemanticEvents], error) {
 	s.eligibleRequest = request
-	return &Response[EligibleEventSemanticEvents]{
-		Status: StatusOK,
+	return &v1.Response[EligibleEventSemanticEvents]{
+		Status: v1.StatusOK,
 		Result: EligibleEventSemanticEvents{
 			Events: []EligibleEventSemanticEvent{{
 				EventID: "22222222-2222-4222-8222-222222222222",
@@ -41,9 +108,9 @@ func (s *eventSemanticsHTTPStub) ListEligibleEventSemanticEvents(
 	}, nil
 }
 
-func (s *eventSemanticsHTTPStub) CreateEventSemanticContextLease(_ context.Context, request *EventSemanticContextLeaseRequest) (*Response[EventSemanticContextLease], error) {
+func (s *eventSemanticsHTTPStub) CreateEventSemanticContextLease(_ context.Context, request *EventSemanticContextLeaseRequest) (*v1.Response[EventSemanticContextLease], error) {
 	s.contextLeaseRequest = request
-	return &Response[EventSemanticContextLease]{Status: StatusCreated, Result: EventSemanticContextLease{
+	return &v1.Response[EventSemanticContextLease]{Status: v1.StatusCreated, Result: EventSemanticContextLease{
 		ContextLeaseID: "11111111-1111-4111-8111-111111111111",
 		EventID:        "22222222-2222-4222-8222-222222222222",
 		Status:         "active", LeaseExpiresAt: "2026-07-29T10:05:00Z",
@@ -53,8 +120,8 @@ func (s *eventSemanticsHTTPStub) CreateEventSemanticContextLease(_ context.Conte
 func TestEventSemanticContextLeaseUsesStrictTypedContract(t *testing.T) {
 	stub := &eventSemanticsHTTPStub{}
 	server := kratoshttp.NewServer()
-	RegisterDataHTTPServer(server, stub)
-	request := httptest.NewRequest(http.MethodPost, APIPrefix+"/event-semantics/context-leases",
+	RegisterHTTPServer(server, stub)
+	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/event-semantics/context-leases",
 		bytes.NewBufferString(`{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -83,15 +150,15 @@ func TestEventSemanticContextLeaseRejectsUnknownWireFieldsBeforeCallingService(t
 	stub := &eventSemanticsHTTPStub{}
 	server := kratoshttp.NewServer(
 		kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
-			public, ok := err.(*PublicError)
+			public, ok := err.(*v1.PublicError)
 			if !ok {
 				t.Fatalf("error = %T %v", err, err)
 			}
 			response.WriteHeader(public.Status)
 		}),
 	)
-	RegisterDataHTTPServer(server, stub)
-	request := httptest.NewRequest(http.MethodPost, APIPrefix+"/event-semantics/context-leases",
+	RegisterHTTPServer(server, stub)
+	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/event-semantics/context-leases",
 		bytes.NewBufferString(`{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300,"invented":true}`))
 	recorder := httptest.NewRecorder()
 
@@ -105,10 +172,10 @@ func TestEventSemanticContextLeaseRejectsUnknownWireFieldsBeforeCallingService(t
 func TestEligibleEventSemanticsBindsOpaqueCursorAndReturnsNextCursor(t *testing.T) {
 	stub := &eventSemanticsHTTPStub{}
 	server := kratoshttp.NewServer()
-	RegisterDataHTTPServer(server, stub)
+	RegisterHTTPServer(server, stub)
 	request := httptest.NewRequest(
 		http.MethodGet,
-		APIPrefix+"/event-semantics/eligible-events?limit=20&cursor=opaque-current-page&pagination=cursor",
+		v1.APIPrefix+"/event-semantics/eligible-events?limit=20&cursor=opaque-current-page&pagination=cursor",
 		nil,
 	)
 	recorder := httptest.NewRecorder()
@@ -137,17 +204,17 @@ func TestEligibleEventSemanticsRejectsUnknownPaginationCapability(t *testing.T) 
 	stub := &eventSemanticsHTTPStub{}
 	server := kratoshttp.NewServer(
 		kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
-			public, ok := err.(*PublicError)
+			public, ok := err.(*v1.PublicError)
 			if !ok {
 				t.Fatalf("error = %T %v", err, err)
 			}
 			response.WriteHeader(public.Status)
 		}),
 	)
-	RegisterDataHTTPServer(server, stub)
+	RegisterHTTPServer(server, stub)
 	request := httptest.NewRequest(
 		http.MethodGet,
-		APIPrefix+"/event-semantics/eligible-events?pagination=offset",
+		v1.APIPrefix+"/event-semantics/eligible-events?pagination=offset",
 		nil,
 	)
 	recorder := httptest.NewRecorder()
@@ -169,10 +236,10 @@ func TestEventSemanticContextIsCompactAndOmitsABoxCatalog(t *testing.T) {
 		AcceptancePolicyVersion: "event-semantic-acceptance.v1",
 	}}
 	server := kratoshttp.NewServer()
-	RegisterDataHTTPServer(server, stub)
+	RegisterHTTPServer(server, stub)
 	request := httptest.NewRequest(
 		http.MethodGet,
-		APIPrefix+"/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
+		v1.APIPrefix+"/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context",
 		nil,
 	)
 	recorder := httptest.NewRecorder()
@@ -199,10 +266,10 @@ func TestEventSemanticContextIsCompactAndOmitsABoxCatalog(t *testing.T) {
 func TestEventSemanticV2DoesNotRegisterLegacyResolutionRoutes(t *testing.T) {
 	stub := &eventSemanticsHTTPStub{}
 	server := kratoshttp.NewServer()
-	RegisterDataHTTPServer(server, stub)
+	RegisterHTTPServer(server, stub)
 	request := httptest.NewRequest(
 		http.MethodPost,
-		APIPrefix+"/event-semantics/resolution-routes:list",
+		v1.APIPrefix+"/event-semantics/resolution-routes:list",
 		bytes.NewBufferString(`{"context_lease_id":"11111111-1111-4111-8111-111111111111","target_entity_type":"chain_node"}`),
 	)
 	request.Header.Set("Content-Type", "application/json")

@@ -21,9 +21,9 @@ type ResearchGraphSearchResult struct {
 	QueryFingerprint         string                                    `json:"query_fingerprint"`
 	GraphFingerprint         string                                    `json:"graph_fingerprint"`
 	ActualDepth              int                                       `json:"actual_depth"`
-	Entities                 []EventSemanticEntity                     `json:"entities"`
+	Entities                 []ResearchAnalysisEntity                  `json:"entities"`
 	RelationDefinitions      []ResearchAnalysisRelationDefinition      `json:"relation_definitions"`
-	EntityRelations          []EventSemanticEntityRelation             `json:"entity_relations"`
+	EntityRelations          []ResearchAnalysisEntityRelation          `json:"entity_relations"`
 	IndustryChains           []ResearchAnalysisIndustryChain           `json:"industry_chains"`
 	IndustryChainMemberships []ResearchAnalysisIndustryChainMembership `json:"industry_chain_memberships"`
 	IndustryChainGraphEdges  []ResearchAnalysisIndustryChainGraphEdge  `json:"industry_chain_graph_edges"`

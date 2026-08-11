@@ -17,6 +17,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
+	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
@@ -30,7 +31,7 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if application == nil {
 		return nil, errors.New("Data API service is required")
 	}
@@ -39,6 +40,9 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventAppli
 	}
 	if eventApplication == nil {
 		return nil, errors.New("Event API service is required")
+	}
+	if eventSemanticApplication == nil {
+		return nil, errors.New("Event Semantic API service is required")
 	}
 	if authenticator == nil {
 		return nil, errors.New("Data API authenticator is required")
@@ -65,6 +69,7 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventAppli
 	registerHealthRoutes(server, config.App)
 	v1.RegisterDataHTTPServer(server, application)
 	eventapi.RegisterHTTPServer(server, eventApplication)
+	eventsemanticapi.RegisterHTTPServer(server, eventSemanticApplication)
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{

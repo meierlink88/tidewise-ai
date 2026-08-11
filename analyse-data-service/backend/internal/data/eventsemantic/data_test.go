@@ -1,4 +1,4 @@
-package postgres
+package eventsemantic
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
+	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 )
 
 func TestEventSemanticEligibilityAllowsUnknownOccurredAt(t *testing.T) {
@@ -23,7 +23,10 @@ func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	repository := newRepository(db)
+	repository, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	mock.ExpectQuery("(?s)SELECT profile.entity_id::text, entity.name.*LIMIT \\$1").
 		WithArgs(eventSemanticsRoutePartitionLimit).
@@ -45,7 +48,7 @@ func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 }
 
 func TestEventSemanticManifestFingerprintCoversLeaseExpiry(t *testing.T) {
-	manifest := eventsemantics.ContextManifest{
+	manifest := eventbiz.ContextManifest{
 		ContextLeaseID: "lease-1", AgentExecutionID: "execution-1", WorkerID: "worker-1",
 		LeaseStatus: "active", LeaseExpiresAt: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
 		ManifestContractVersion: eventSemanticsManifestVersion,
@@ -58,7 +61,7 @@ func TestEventSemanticManifestFingerprintCoversLeaseExpiry(t *testing.T) {
 	manifest.LeaseExpiresAt = manifest.LeaseExpiresAt.Add(time.Minute)
 
 	_, err = eventSemanticContextFromManifest(context.Background(), nil, manifest)
-	var drift *eventsemantics.ContextDriftError
+	var drift *eventbiz.ContextDriftError
 	if !errors.As(err, &drift) {
 		t.Fatalf("mutated expiry error = %T %v", err, err)
 	}
@@ -70,19 +73,19 @@ func TestSemanticReviewIdentityAndEvidenceAreBoundToFrozenRun(t *testing.T) {
 		ReviewerPromptHash: "reviewer-hash", ReviewerModel: "reviewer-model",
 		AdjudicatorPromptHash: "adjudicator-hash", AdjudicatorModel: "adjudicator-model",
 	}
-	if !identity.matches(eventsemantics.ReviewSubmission{
+	if !identity.matches(eventbiz.ReviewSubmission{
 		ReviewerExecutionKey: "execution:reviewer",
 		PromptHash:           "reviewer-hash", Model: "reviewer-model",
 	}) {
 		t.Fatal("expected frozen reviewer identity to match")
 	}
-	if identity.matches(eventsemantics.ReviewSubmission{
+	if identity.matches(eventbiz.ReviewSubmission{
 		ReviewerExecutionKey: "other-execution:reviewer",
 		PromptHash:           "reviewer-hash", Model: "reviewer-model",
 	}) {
 		t.Fatal("review lineage from another execution was accepted")
 	}
-	if identity.matches(eventsemantics.ReviewSubmission{
+	if identity.matches(eventbiz.ReviewSubmission{
 		ReviewerExecutionKey: "execution:reviewer",
 		PromptHash:           "adjudicator-hash", Model: "reviewer-model",
 	}) {
@@ -97,8 +100,8 @@ func TestSemanticReviewIdentityAndEvidenceAreBoundToFrozenRun(t *testing.T) {
 }
 
 func TestNoSemanticCandidatesProduceARealRejectedSubmissionOutcome(t *testing.T) {
-	status := summarizeSemanticSubmission(eventsemantics.PrecheckResult{})
-	if status != eventsemantics.StatusRejected {
+	status := summarizeSemanticSubmission(eventbiz.PrecheckResult{})
+	if status != eventbiz.StatusRejected {
 		t.Fatalf("status = %q, want rejected", status)
 	}
 }

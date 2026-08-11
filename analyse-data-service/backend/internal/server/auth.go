@@ -12,6 +12,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
+	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 )
 
@@ -119,12 +120,12 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeResearchRead, true
 	case v1.OperationListAdminRawDocuments, eventapi.OperationListAdminEvents, v1.OperationGetRuntimeHealth:
 		return ScopeAdminRead, true
-	case v1.OperationListEligibleEventSemanticEvents,
-		v1.OperationGetEventSemanticContext, v1.OperationGetEventSemantics:
+	case eventsemanticapi.OperationListEligibleEvents,
+		eventsemanticapi.OperationGetContext, eventsemanticapi.OperationGetSemantics:
 		return ScopeEventSemanticsRead, true
-	case v1.OperationCreateEventSemanticContextLease,
-		v1.OperationCreateEventSemanticSubmission,
-		v1.OperationSubmitEventSemanticReview:
+	case eventsemanticapi.OperationCreateContextLease,
+		eventsemanticapi.OperationCreateSubmission,
+		eventsemanticapi.OperationSubmitReview:
 		return ScopeEventSemanticsWrite, true
 	default:
 		return "", false

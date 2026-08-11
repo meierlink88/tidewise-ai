@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -40,12 +42,6 @@ type DataHTTPServer interface {
 	ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response[ResearchReasoningTreeList], error)
 	GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response[ResearchReasoningTreeDetail], error)
 	ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error)
-	ListEligibleEventSemanticEvents(context.Context, *EligibleEventSemanticEventsRequest) (*Response[EligibleEventSemanticEvents], error)
-	CreateEventSemanticContextLease(context.Context, *EventSemanticContextLeaseRequest) (*Response[EventSemanticContextLease], error)
-	GetEventSemanticContext(context.Context, *EventSemanticContextRequest) (*Response[EventSemanticContext], error)
-	CreateEventSemanticSubmission(context.Context, *EventSemanticSubmissionRequest) (*Response[EventSemanticSubmissionResult], error)
-	SubmitEventSemanticReview(context.Context, *EventSemanticReviewRequest) (*Response[EventSemanticSubmissionResult], error)
-	GetEventSemantics(context.Context, *GetEventSemanticsRequest) (*Response[EventSemanticsResult], error)
 	ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error)
 	SearchResearchGraph(context.Context, *ResearchGraphSearchRequest) (*Response[ResearchGraphSearchResult], error)
 	GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error)
@@ -59,12 +55,6 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.GET("/research/themes/{theme_id}/reasoning-trees", listReasoningTreesHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}", getReasoningTreeHandler(application))
 	router.GET("/raw-documents", listRawDocumentsHandler(application))
-	router.GET("/event-semantics/eligible-events", listEligibleEventSemanticEventsHandler(application))
-	router.POST("/event-semantics/context-leases", createEventSemanticContextLeaseHandler(application))
-	router.GET("/event-semantics/context-leases/{context_lease_id}/context", getEventSemanticContextHandler(application))
-	router.POST("/event-semantics/submissions", createEventSemanticSubmissionHandler(application))
-	router.POST("/event-semantics/submissions/{submission_id}/reviews", submitEventSemanticReviewHandler(application))
-	router.GET("/events/{event_id}/semantics", getEventSemanticsHandler(application))
 	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
 	router.POST("/research-graph:search", searchResearchGraphHandler(application))
 	router.GET("/runtime-health", runtimeHealthHandler(application))
@@ -81,7 +71,7 @@ func runtimeHealthHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 
 func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request, err := decodeEventSemanticJSON[ResearchGraphSearchRequest](ctx)
+		request, err := DecodeStrictJSONBody[ResearchGraphSearchRequest](ctx)
 		if err != nil {
 			return err
 		}
@@ -94,6 +84,27 @@ func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFu
 			},
 		)
 	}
+}
+
+func DecodeStrictJSONBody[T any](ctx kratoshttp.Context) (*T, error) {
+	payload, err := io.ReadAll(io.LimitReader(ctx.Request().Body, MaxRequestBodySize+1))
+	if err != nil {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
+	}
+	if len(payload) > MaxRequestBodySize {
+		return nil, NewPublicError(StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body exceeds 1048576 bytes", nil)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	var request T
+	if err := decoder.Decode(&request); err != nil {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
+	}
+	return &request, nil
 }
 
 func listResearchAnalysisContextHandler(application DataHTTPServer) kratoshttp.HandlerFunc {

@@ -5,7 +5,6 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
@@ -16,23 +15,10 @@ import (
 const (
 	Namespace = v1.APIPrefix
 
-	ScopeResearchRead        = "data.research.read"
-	ScopeResearchImport      = "data.research.import"
-	ScopeAdminRead           = "data.admin.read"
-	ScopeReviewedEventImport = "data.reviewed-events.import"
-	ScopeEventTagRead        = "data.event-tags.read"
-	ScopeEventSemanticsRead  = "data.event-semantics.read"
-	ScopeEventSemanticsWrite = "data.event-semantics.write"
+	ScopeResearchRead   = "data.research.read"
+	ScopeResearchImport = "data.research.import"
+	ScopeAdminRead      = "data.admin.read"
 )
-
-type EventSemanticsService interface {
-	ListEligibleEvents(context.Context, int, string) (eventsemantics.EligibleEventPage, error)
-	CreateContextLease(context.Context, eventsemantics.ContextLeaseRequest) (eventsemantics.ContextLease, error)
-	Context(context.Context, string) (eventsemantics.Context, error)
-	CreateSubmission(context.Context, eventsemantics.Submission) (eventsemantics.SubmissionResult, error)
-	SubmitReview(context.Context, eventsemantics.ReviewSubmission) (eventsemantics.SubmissionResult, error)
-	Get(context.Context, string) (eventsemantics.EventSemanticsResult, error)
-}
 
 type ResearchThemeImportService interface {
 	Publish(context.Context, string, researchpublication.Aggregate) (researchpublication.Result, error)
@@ -66,7 +52,6 @@ type RuntimeHealthService interface {
 }
 
 type Dependencies struct {
-	EventSemantics          EventSemanticsService
 	ResearchThemeImports    ResearchThemeImportService
 	Research                ResearchService
 	ResearchAnalysisContext ResearchAnalysisContextService

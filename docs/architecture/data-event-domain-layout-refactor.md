@@ -6,7 +6,8 @@
 - Owner: Data Service.
 - Governing standard:
   `docs/development-standards/kratos-backend-layout-standard.md`.
-- Delivery: two ordered, independently reviewable pull requests; neither PR changes product behavior.
+- Delivery: one behavior-preserving pull request covering both strongly coupled domains; the PR does
+  not change product behavior.
 
 This specification governs only source ownership, package convergence, dependency direction and test
 seams for the existing Event and Event Semantic capabilities. Existing Context terms, accepted ADRs,
@@ -244,14 +245,14 @@ scan, and Standards/Spec review. No migration test is triggered because no schem
 
 ## Delivery And Rollback
 
-Delivery order is fixed:
+Event and Event Semantic converge in the same PR because their composition root, Event eligibility,
+Event/Evidence snapshots, HTTP server and PostgreSQL acceptance flow are strongly coupled. They remain
+separate domain modules and may depend on each other only through the explicit interfaces and immutable
+values defined above; sharing a PR does not collapse their ownership boundary.
 
-1. Event domain convergence PR.
-2. Event Semantic domain convergence PR rebased on the merged Event PR.
-
-Each PR must be independently behavior preserving and ready for review. Neither PR may merge itself.
-Rollback is a normal binary/code rollback because wire, schema and stored data do not change. There is
-no mixed-version provider/consumer rollout requirement.
+The PR must be behavior preserving and ready for review, and must not merge itself. Rollback is a normal
+binary/code rollback because wire, schema and stored data do not change. There is no mixed-version
+provider/consumer rollout requirement.
 
 ## Resolved Decisions
 
@@ -262,6 +263,7 @@ no mixed-version provider/consumer rollout requirement.
 - Internal Event evidence terminology follows the Data Context while existing wire and table names stay
   compatible.
 - Semantic Projection is outside this delivery.
-- The work is split into two ordered PRs.
+- The two domains converge together in one PR so their shared composition and acceptance seams cannot
+  drift between deliveries; their source modules and ownership remain separate.
 
 There are no unresolved design questions blocking implementation.

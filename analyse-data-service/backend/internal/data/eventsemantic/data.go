@@ -1,4 +1,4 @@
-package postgres
+package eventsemantic
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
+	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 )
 
 const (
@@ -76,16 +76,32 @@ const eventSemanticInputEligibilitySQL = `
 	)
 `
 
+type Store struct{ db *sql.DB }
+
+func NewStore(db *sql.DB) (Store, error) {
+	if db == nil {
+		return Store{}, errors.New("Event Semantic database is required")
+	}
+	return Store{db: db}, nil
+}
+
+func nullString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
 type semanticQueryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-func (r repository) ListEligibleEvents(
+func (r Store) ListEligibleEvents(
 	ctx context.Context,
 	limit int,
-	after *eventsemantics.EligibleEventCursor,
-) ([]eventsemantics.EligibleEvent, error) {
+	after *eventbiz.EligibleEventCursor,
+) ([]eventbiz.EligibleEvent, error) {
 	var afterTime any
 	var afterEventID any
 	if after != nil {
@@ -118,9 +134,9 @@ func (r repository) ListEligibleEvents(
 		return nil, err
 	}
 	defer rows.Close()
-	result := make([]eventsemantics.EligibleEvent, 0)
+	result := make([]eventbiz.EligibleEvent, 0)
 	for rows.Next() {
-		var item eventsemantics.EligibleEvent
+		var item eventbiz.EligibleEvent
 		if err := rows.Scan(&item.EventID, &item.FirstSeenAt); err != nil {
 			return nil, err
 		}
@@ -129,242 +145,7 @@ func (r repository) ListEligibleEvents(
 	return result, rows.Err()
 }
 
-func (r repository) CreateContextLease(
-	ctx context.Context,
-	request eventsemantics.ContextLeaseRequest,
-) (eventsemantics.ContextLease, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE event_semantic_context_leases
-		SET status = 'expired'
-		WHERE status = 'active' AND lease_expires_at <= now()
-	`); err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	var existing eventsemantics.ContextLease
-	var existingWorkerID, existingEventID, existingSupersedes, submissionStatus string
-	var existingManifest []byte
-	err = tx.QueryRowContext(ctx, `
-		SELECT lease.id, lease.event_id, COALESCE(lease.supersedes_submission_id::text, ''),
-		       lease.worker_id, lease.status, lease.lease_expires_at,
-		       COALESCE(submission.status, ''), lease.context_manifest
-		FROM event_semantic_context_leases lease
-		LEFT JOIN event_semantic_submissions submission ON submission.context_lease_id = lease.id
-		WHERE lease.agent_execution_id = $1
-		FOR UPDATE OF lease
-	`, request.AgentExecutionID).Scan(
-		&existing.ID, &existingEventID, &existingSupersedes, &existingWorkerID,
-		&existing.Status, &existing.LeaseExpiresAt, &submissionStatus, &existingManifest,
-	)
-	if err == nil {
-		if existingEventID != request.EventID || existingWorkerID != request.WorkerID ||
-			existingSupersedes != request.SupersedesSubmissionID {
-			return eventsemantics.ContextLease{}, &eventsemantics.ConflictError{
-				Reason: "agent_execution_id is bound to a different Context Lease identity",
-			}
-		}
-		if submissionStatus != "" && submissionStatus != string(eventsemantics.StatusPendingReview) &&
-			submissionStatus != string(eventsemantics.StatusNeedsReanalysis) {
-			return eventsemantics.ContextLease{}, &eventsemantics.ConflictError{
-				Reason: "agent_execution_id already reached a terminal Semantic Submission",
-			}
-		}
-		existing.EventID = existingEventID
-		existing.SupersedesSubmissionID = existingSupersedes
-		existing.Status = "active"
-		existing.LeaseExpiresAt = time.Now().UTC().Add(request.Lease)
-		var manifest eventsemantics.ContextManifest
-		if len(existingManifest) == 0 {
-			manifest, err = buildEventSemanticManifest(
-				ctx, tx, existing.ID, existing.EventID, request.AgentExecutionID,
-				request.WorkerID, existing.LeaseExpiresAt,
-			)
-			if err != nil {
-				return eventsemantics.ContextLease{}, err
-			}
-		} else if err := json.Unmarshal(existingManifest, &manifest); err != nil {
-			return eventsemantics.ContextLease{}, err
-		} else if err := validateEventSemanticManifestFingerprint(manifest); err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		manifest.LeaseStatus = "active"
-		manifest.LeaseExpiresAt = existing.LeaseExpiresAt
-		manifest.ManifestFingerprint, err = eventSemanticManifestFingerprint(manifest)
-		if err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		existingManifest, err = json.Marshal(manifest)
-		if err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE event_semantic_context_leases
-			SET status = 'active', lease_expires_at = $2, consumed_at = NULL,
-			    context_manifest = $3::jsonb
-			WHERE id = $1
-		`, existing.ID, existing.LeaseExpiresAt, existingManifest); err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		if err := tx.Commit(); err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		return existing, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.ContextLease{}, err
-	}
-	if request.SupersedesSubmissionID != "" {
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE event_semantic_context_leases
-			SET status = 'consumed', consumed_at = now()
-			WHERE status = 'active'
-			  AND id = (
-			      SELECT context_lease_id
-			      FROM event_semantic_submissions
-			      WHERE id = $1
-			  )
-		`, request.SupersedesSubmissionID); err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-	}
-	var eventID string
-	err = tx.QueryRowContext(ctx, fmt.Sprintf(`
-		SELECT e.id
-		FROM events e
-		WHERE e.id = $1
-		  AND %s
-		  AND NOT EXISTS (
-		      SELECT 1 FROM event_semantic_context_leases lease
-		      WHERE lease.event_id = e.id AND lease.status = 'active'
-		  )
-		FOR UPDATE
-	`, eventSemanticInputEligibilitySQL), request.EventID).Scan(&eventID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.ContextLease{}, classifyEventSemanticLeaseEligibility(
-			ctx, tx, request.EventID,
-		)
-	}
-	if err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	if request.SupersedesSubmissionID == "" {
-		var exists bool
-		if err := tx.QueryRowContext(ctx, `
-			SELECT EXISTS (
-			    SELECT 1 FROM event_semantic_submissions
-			    WHERE event_id = $1 AND status <> 'superseded'
-			)
-		`, eventID).Scan(&exists); err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		if exists {
-			return eventsemantics.ContextLease{}, &eventsemantics.ConflictError{
-				Reason: "Event already has an active Semantic Submission",
-			}
-		}
-	} else {
-		var priorEventID, priorStatus string
-		if err := tx.QueryRowContext(ctx, `
-			SELECT event_id, status
-			FROM event_semantic_submissions
-			WHERE id = $1
-			FOR UPDATE
-		`, request.SupersedesSubmissionID).Scan(&priorEventID, &priorStatus); errors.Is(err, sql.ErrNoRows) {
-			return eventsemantics.ContextLease{}, &eventsemantics.NotFoundError{
-				Resource: "superseded Event Semantic Submission",
-			}
-		} else if err != nil {
-			return eventsemantics.ContextLease{}, err
-		}
-		if priorEventID != eventID ||
-			(priorStatus != "needs_reanalysis" && priorStatus != "accepted" &&
-				priorStatus != "rejected" && priorStatus != "quarantined") {
-			return eventsemantics.ContextLease{}, &eventsemantics.ConflictError{
-				Reason: "supersedes_submission_id is not an active terminal Submission for this Event",
-			}
-		}
-	}
-	contextLease := eventsemantics.ContextLease{
-		ID: uuid.NewString(), EventID: eventID,
-		SupersedesSubmissionID: request.SupersedesSubmissionID,
-		Status:                 "active",
-		LeaseExpiresAt:         time.Now().UTC().Add(request.Lease),
-	}
-	manifest, err := buildEventSemanticManifest(
-		ctx, tx, contextLease.ID, contextLease.EventID, request.AgentExecutionID,
-		request.WorkerID, contextLease.LeaseExpiresAt,
-	)
-	if err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	manifestPayload, err := json.Marshal(manifest)
-	if err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO event_semantic_context_leases(
-		    id, event_id, supersedes_submission_id, agent_execution_id, worker_id,
-		    status, lease_expires_at, context_snapshot, context_manifest
-		) VALUES ($1, $2, NULLIF($3, '')::uuid, $4, $5, 'active', $6, NULL, $7)
-	`, contextLease.ID, contextLease.EventID, contextLease.SupersedesSubmissionID,
-		request.AgentExecutionID, request.WorkerID, contextLease.LeaseExpiresAt,
-		manifestPayload); err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return eventsemantics.ContextLease{}, err
-	}
-	return contextLease, nil
-}
-
-func classifyEventSemanticLeaseEligibility(
-	ctx context.Context,
-	tx *sql.Tx,
-	eventID string,
-) error {
-	var status, factStatus string
-	var inputValid, activeLease bool
-	err := tx.QueryRowContext(ctx, fmt.Sprintf(`
-		SELECT e.event_status, e.fact_status, (%s),
-		       EXISTS (
-		           SELECT 1
-		           FROM event_semantic_context_leases lease
-		           WHERE lease.event_id = e.id AND lease.status = 'active'
-		       )
-		FROM events e
-		WHERE e.id = $1
-	`, eventSemanticInputEligibilitySQL), eventID).Scan(
-		&status, &factStatus, &inputValid, &activeLease,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return &eventsemantics.NotFoundError{Resource: "Event"}
-	}
-	if err != nil {
-		return err
-	}
-	if status != "confirmed" || factStatus != "verified" {
-		return &eventsemantics.NotRequiredError{
-			Reason: "Event no longer requires initial Semantic processing",
-		}
-	}
-	if !inputValid {
-		return &eventsemantics.InputInvalidError{
-			Reason: "Event does not satisfy the Event Semantic input contract",
-		}
-	}
-	if activeLease {
-		return &eventsemantics.ConflictError{
-			Reason: "Event already has an active Context Lease",
-		}
-	}
-	return &eventsemantics.NotFoundError{Resource: "eligible Event"}
-}
-
-func (r repository) Context(ctx context.Context, contextLeaseID string) (eventsemantics.Context, error) {
+func (r Store) Context(ctx context.Context, contextLeaseID string) (eventbiz.Context, error) {
 	var payload []byte
 	err := r.db.QueryRowContext(ctx, `
 		SELECT context_manifest
@@ -373,26 +154,26 @@ func (r repository) Context(ctx context.Context, contextLeaseID string) (eventse
 		  AND context_manifest IS NOT NULL
 	`, contextLeaseID).Scan(&payload)
 	if errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.Context{}, &eventsemantics.NotFoundError{Resource: "active Event Semantic Context Lease"}
+		return eventbiz.Context{}, &eventbiz.NotFoundError{Resource: "active Event Semantic Context Lease"}
 	}
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
-	var manifest eventsemantics.ContextManifest
+	var manifest eventbiz.ContextManifest
 	if err := json.Unmarshal(payload, &manifest); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	return eventSemanticContextFromManifest(ctx, r.db, manifest)
 }
 
-func (r repository) SubmissionContext(
+func (r Store) SubmissionContext(
 	ctx context.Context,
 	contextLeaseID string,
-	submission eventsemantics.Submission,
-) (eventsemantics.Context, error) {
+	submission eventbiz.Submission,
+) (eventbiz.Context, error) {
 	result, err := r.Context(ctx, contextLeaseID)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	return hydrateEventSemanticSubmissionContext(ctx, r.db, result, submission, false)
 }
@@ -400,10 +181,10 @@ func (r repository) SubmissionContext(
 func hydrateEventSemanticSubmissionContext(
 	ctx context.Context,
 	query semanticQueryer,
-	result eventsemantics.Context,
-	submission eventsemantics.Submission,
+	result eventbiz.Context,
+	submission eventbiz.Submission,
 	lockSelectedFacts bool,
-) (eventsemantics.Context, error) {
+) (eventbiz.Context, error) {
 	lockClause := ""
 	if lockSelectedFacts {
 		lockClause = " FOR SHARE"
@@ -420,25 +201,25 @@ func hydrateEventSemanticSubmissionContext(
 			ORDER BY entity_type, canonical_name, id
 		`+lockClause, entityIDs)
 		if err != nil {
-			return eventsemantics.Context{}, err
+			return eventbiz.Context{}, err
 		}
 		for rows.Next() {
-			var item eventsemantics.Entity
+			var item eventbiz.Entity
 			var aliases []byte
 			if err := rows.Scan(
 				&item.ID, &item.Type, &item.Name, &item.CanonicalName, &aliases, &item.Status,
 			); err != nil {
 				rows.Close()
-				return eventsemantics.Context{}, err
+				return eventbiz.Context{}, err
 			}
 			if err := json.Unmarshal(aliases, &item.Aliases); err != nil {
 				rows.Close()
-				return eventsemantics.Context{}, err
+				return eventbiz.Context{}, err
 			}
 			result.Entities = append(result.Entities, item)
 		}
 		if err := rows.Close(); err != nil {
-			return eventsemantics.Context{}, err
+			return eventbiz.Context{}, err
 		}
 	}
 	return result, nil
@@ -452,8 +233,8 @@ func buildEventSemanticContext(
 	agentExecutionID string,
 	workerID string,
 	leaseExpiresAt time.Time,
-) (eventsemantics.Context, error) {
-	result := eventsemantics.Context{
+) (eventbiz.Context, error) {
+	result := eventbiz.Context{
 		ContextLeaseID: contextLeaseID, AgentExecutionID: agentExecutionID,
 		WorkerID: workerID, LeaseExpiresAt: leaseExpiresAt.UTC(),
 		ManifestContractVersion: eventSemanticsManifestVersion,
@@ -468,34 +249,34 @@ func buildEventSemanticContext(
 		&result.Event.Status, &result.Event.FactStatus,
 	)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if result.Evidence, err = eventSemanticEvidence(ctx, query, eventID, true, nil); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if result.EntityTypes, err = eventSemanticEntityTypes(ctx, query, true, nil); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if result.Variables, err = eventSemanticVariables(ctx, query, true, nil); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if err := hydrateEventSemanticPolicy(ctx, query, &result); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	result.EventFingerprint, err = eventSemanticFingerprint(result.Event)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	result.EvidenceFingerprint, err = eventSemanticFingerprint(result.Evidence)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	stableContext := result
 	stableContext.LeaseExpiresAt = time.Time{}
 	stableContext.ContextFingerprint = ""
 	result.ContextFingerprint, err = eventSemanticFingerprint(stableContext)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	return result, nil
 }
@@ -508,14 +289,14 @@ func buildEventSemanticManifest(
 	agentExecutionID string,
 	workerID string,
 	leaseExpiresAt time.Time,
-) (eventsemantics.ContextManifest, error) {
+) (eventbiz.ContextManifest, error) {
 	contextValue, err := buildEventSemanticContext(
 		ctx, query, contextLeaseID, eventID, agentExecutionID, workerID, leaseExpiresAt,
 	)
 	if err != nil {
-		return eventsemantics.ContextManifest{}, err
+		return eventbiz.ContextManifest{}, err
 	}
-	manifest := eventsemantics.ContextManifest{
+	manifest := eventbiz.ContextManifest{
 		ContextLeaseID: contextLeaseID, AgentExecutionID: agentExecutionID, WorkerID: workerID,
 		LeaseStatus: "active", LeaseExpiresAt: leaseExpiresAt.UTC(),
 		ManifestContractVersion: eventSemanticsManifestVersion,
@@ -523,28 +304,28 @@ func buildEventSemanticManifest(
 		EventID:                 eventID, EventFingerprint: contextValue.EventFingerprint,
 		EvidenceFingerprint: contextValue.EvidenceFingerprint,
 		OntologyVersion:     contextValue.OntologyVersion, PolicyVersion: contextValue.PolicyVersion,
-		Evidence:    make([]eventsemantics.EvidenceReference, 0, len(contextValue.Evidence)),
-		EntityTypes: make([]eventsemantics.VersionReference, 0, len(contextValue.EntityTypes)),
-		Variables:   make([]eventsemantics.VersionReference, 0, len(contextValue.Variables)),
+		Evidence:    make([]eventbiz.EvidenceReference, 0, len(contextValue.Evidence)),
+		EntityTypes: make([]eventbiz.VersionReference, 0, len(contextValue.EntityTypes)),
+		Variables:   make([]eventbiz.VersionReference, 0, len(contextValue.Variables)),
 	}
 	for _, evidence := range contextValue.Evidence {
 		fingerprint, err := eventSemanticFingerprint(evidence)
 		if err != nil {
-			return eventsemantics.ContextManifest{}, err
+			return eventbiz.ContextManifest{}, err
 		}
-		manifest.Evidence = append(manifest.Evidence, eventsemantics.EvidenceReference{
+		manifest.Evidence = append(manifest.Evidence, eventbiz.EvidenceReference{
 			EvidenceID: evidence.ID, Fingerprint: fingerprint,
 		})
 	}
 	for _, definition := range contextValue.EntityTypes {
-		manifest.EntityTypes = append(manifest.EntityTypes, eventsemantics.VersionReference{Key: definition.TypeKey, Version: definition.Version})
+		manifest.EntityTypes = append(manifest.EntityTypes, eventbiz.VersionReference{Key: definition.TypeKey, Version: definition.Version})
 	}
 	for _, definition := range contextValue.Variables {
-		manifest.Variables = append(manifest.Variables, eventsemantics.VersionReference{Key: definition.Key, Version: definition.Version})
+		manifest.Variables = append(manifest.Variables, eventbiz.VersionReference{Key: definition.Key, Version: definition.Version})
 	}
 	manifest.ManifestFingerprint, err = eventSemanticManifestFingerprint(manifest)
 	if err != nil {
-		return eventsemantics.ContextManifest{}, err
+		return eventbiz.ContextManifest{}, err
 	}
 	return manifest, nil
 }
@@ -552,12 +333,12 @@ func buildEventSemanticManifest(
 func eventSemanticContextFromManifest(
 	ctx context.Context,
 	query semanticQueryer,
-	manifest eventsemantics.ContextManifest,
-) (eventsemantics.Context, error) {
+	manifest eventbiz.ContextManifest,
+) (eventbiz.Context, error) {
 	if err := validateEventSemanticManifestFingerprint(manifest); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
-	result := eventsemantics.Context{
+	result := eventbiz.Context{
 		ContextLeaseID: manifest.ContextLeaseID, AgentExecutionID: manifest.AgentExecutionID,
 		WorkerID: manifest.WorkerID, LeaseExpiresAt: manifest.LeaseExpiresAt,
 		ManifestContractVersion: manifest.ManifestContractVersion,
@@ -572,7 +353,7 @@ func eventSemanticContextFromManifest(
 		&result.Event.ID, &result.Event.Title, &result.Event.Summary, &result.Event.OccurredAt,
 		&result.Event.Status, &result.Event.FactStatus,
 	); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	evidenceIDs := make([]string, 0, len(manifest.Evidence))
 	for _, reference := range manifest.Evidence {
@@ -580,85 +361,85 @@ func eventSemanticContextFromManifest(
 	}
 	allEvidence, err := eventSemanticEvidence(ctx, query, manifest.EventID, false, evidenceIDs)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
-	evidenceByID := make(map[string]eventsemantics.Evidence, len(allEvidence))
+	evidenceByID := make(map[string]eventbiz.Evidence, len(allEvidence))
 	for _, evidence := range allEvidence {
 		evidenceByID[evidence.ID] = evidence
 	}
-	result.Evidence = make([]eventsemantics.Evidence, 0, len(manifest.Evidence))
+	result.Evidence = make([]eventbiz.Evidence, 0, len(manifest.Evidence))
 	for _, reference := range manifest.Evidence {
 		evidence, ok := evidenceByID[reference.EvidenceID]
 		if !ok {
-			return eventsemantics.Context{}, &eventsemantics.ContextDriftError{Reason: "pinned Event Evidence is unavailable"}
+			return eventbiz.Context{}, &eventbiz.ContextDriftError{Reason: "pinned Event Evidence is unavailable"}
 		}
 		current, err := eventSemanticFingerprint(evidence)
 		if err != nil {
-			return eventsemantics.Context{}, err
+			return eventbiz.Context{}, err
 		}
 		if current != reference.Fingerprint {
-			return eventsemantics.Context{}, &eventsemantics.ContextDriftError{Reason: "pinned Event Evidence changed"}
+			return eventbiz.Context{}, &eventbiz.ContextDriftError{Reason: "pinned Event Evidence changed"}
 		}
 		result.Evidence = append(result.Evidence, evidence)
 	}
 	if result.EntityTypes, err = eventSemanticEntityTypes(ctx, query, false, manifest.EntityTypes); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	result.EntityTypes, err = selectEntityTypeReferences(result.EntityTypes, manifest.EntityTypes)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if result.Variables, err = eventSemanticVariables(ctx, query, false, manifest.Variables); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	result.Variables, err = selectVariableReferences(result.Variables, manifest.Variables)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if err := hydrateEventSemanticPolicy(ctx, query, &result); err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	eventFingerprint, err := eventSemanticFingerprint(result.Event)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	evidenceFingerprint, err := eventSemanticFingerprint(result.Evidence)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	stableContext := result
 	stableContext.LeaseExpiresAt = time.Time{}
 	stableContext.ContextFingerprint = ""
 	contextFingerprint, err := eventSemanticFingerprint(stableContext)
 	if err != nil {
-		return eventsemantics.Context{}, err
+		return eventbiz.Context{}, err
 	}
 	if eventFingerprint != manifest.EventFingerprint || evidenceFingerprint != manifest.EvidenceFingerprint ||
 		contextFingerprint != manifest.ContextFingerprint {
-		return eventsemantics.Context{}, &eventsemantics.ContextDriftError{Reason: "pinned Event Semantic Context changed"}
+		return eventbiz.Context{}, &eventbiz.ContextDriftError{Reason: "pinned Event Semantic Context changed"}
 	}
 	return result, nil
 }
 
-func eventSemanticManifestFingerprint(manifest eventsemantics.ContextManifest) (string, error) {
+func eventSemanticManifestFingerprint(manifest eventbiz.ContextManifest) (string, error) {
 	manifest.ManifestFingerprint = ""
 	return eventSemanticFingerprint(manifest)
 }
 
-func validateEventSemanticManifestFingerprint(manifest eventsemantics.ContextManifest) error {
+func validateEventSemanticManifestFingerprint(manifest eventbiz.ContextManifest) error {
 	fingerprint, err := eventSemanticManifestFingerprint(manifest)
 	if err != nil {
 		return err
 	}
 	if manifest.ManifestContractVersion != eventSemanticsManifestVersion ||
 		manifest.ManifestFingerprint == "" || fingerprint != manifest.ManifestFingerprint {
-		return &eventsemantics.ContextDriftError{Reason: "Event Semantic Context Manifest identity changed"}
+		return &eventbiz.ContextDriftError{Reason: "Event Semantic Context Manifest identity changed"}
 	}
 	return nil
 }
 
-func selectEntityTypeReferences(values []eventsemantics.EntityTypeDefinition, references []eventsemantics.VersionReference) ([]eventsemantics.EntityTypeDefinition, error) {
-	selected := make([]eventsemantics.EntityTypeDefinition, 0, len(references))
+func selectEntityTypeReferences(values []eventbiz.EntityTypeDefinition, references []eventbiz.VersionReference) ([]eventbiz.EntityTypeDefinition, error) {
+	selected := make([]eventbiz.EntityTypeDefinition, 0, len(references))
 	for _, reference := range references {
 		found := false
 		for _, value := range values {
@@ -669,14 +450,14 @@ func selectEntityTypeReferences(values []eventsemantics.EntityTypeDefinition, re
 			}
 		}
 		if !found {
-			return nil, &eventsemantics.ContextDriftError{Reason: "pinned Entity Type Definition is unavailable"}
+			return nil, &eventbiz.ContextDriftError{Reason: "pinned Entity Type Definition is unavailable"}
 		}
 	}
 	return selected, nil
 }
 
-func selectVariableReferences(values []eventsemantics.VariableDefinition, references []eventsemantics.VersionReference) ([]eventsemantics.VariableDefinition, error) {
-	selected := make([]eventsemantics.VariableDefinition, 0, len(references))
+func selectVariableReferences(values []eventbiz.VariableDefinition, references []eventbiz.VersionReference) ([]eventbiz.VariableDefinition, error) {
+	selected := make([]eventbiz.VariableDefinition, 0, len(references))
 	for _, reference := range references {
 		found := false
 		for _, value := range values {
@@ -687,14 +468,14 @@ func selectVariableReferences(values []eventsemantics.VariableDefinition, refere
 			}
 		}
 		if !found {
-			return nil, &eventsemantics.ContextDriftError{Reason: "pinned Variable Definition is unavailable"}
+			return nil, &eventbiz.ContextDriftError{Reason: "pinned Variable Definition is unavailable"}
 		}
 	}
 	return selected, nil
 }
 
-func selectRuleReferences(values []eventsemantics.DirectTransmissionRule, references []eventsemantics.VersionReference) ([]eventsemantics.DirectTransmissionRule, error) {
-	selected := make([]eventsemantics.DirectTransmissionRule, 0, len(references))
+func selectRuleReferences(values []eventbiz.DirectTransmissionRule, references []eventbiz.VersionReference) ([]eventbiz.DirectTransmissionRule, error) {
+	selected := make([]eventbiz.DirectTransmissionRule, 0, len(references))
 	for _, reference := range references {
 		found := false
 		for _, value := range values {
@@ -705,7 +486,7 @@ func selectRuleReferences(values []eventsemantics.DirectTransmissionRule, refere
 			}
 		}
 		if !found {
-			return nil, &eventsemantics.ContextDriftError{Reason: "pinned Direct Transmission Rule is unavailable"}
+			return nil, &eventbiz.ContextDriftError{Reason: "pinned Direct Transmission Rule is unavailable"}
 		}
 	}
 	return selected, nil
@@ -723,8 +504,8 @@ func eventSemanticEntityTypes(
 	ctx context.Context,
 	query semanticQueryer,
 	includeAll bool,
-	references []eventsemantics.VersionReference,
-) ([]eventsemantics.EntityTypeDefinition, error) {
+	references []eventbiz.VersionReference,
+) ([]eventbiz.EntityTypeDefinition, error) {
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
 		SELECT type_key, version, name_zh, name_en, business_definition,
@@ -743,9 +524,9 @@ func eventSemanticEntityTypes(
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.EntityTypeDefinition
+	var result []eventbiz.EntityTypeDefinition
 	for rows.Next() {
-		var item eventsemantics.EntityTypeDefinition
+		var item eventbiz.EntityTypeDefinition
 		var inclusionCriteria, exclusionCriteria, allowedRoles []byte
 		if err := rows.Scan(
 			&item.TypeKey, &item.Version, &item.NameZH, &item.NameEN,
@@ -772,7 +553,7 @@ func eventSemanticEntityTypes(
 	return result, rows.Err()
 }
 
-func validEventSemanticEntityTypeDefinition(item eventsemantics.EntityTypeDefinition) bool {
+func validEventSemanticEntityTypeDefinition(item eventbiz.EntityTypeDefinition) bool {
 	if strings.TrimSpace(item.TypeKey) == "" || item.Version <= 0 ||
 		strings.TrimSpace(item.NameZH) == "" || strings.TrimSpace(item.NameEN) == "" ||
 		strings.TrimSpace(item.BusinessDefinition) == "" || item.Status != "active" ||
@@ -796,7 +577,7 @@ func eventSemanticEvidence(
 	eventID string,
 	includeAll bool,
 	evidenceIDs []string,
-) ([]eventsemantics.Evidence, error) {
+) ([]eventbiz.Evidence, error) {
 	rows, err := query.QueryContext(ctx, `
 		SELECT es.id, es.evidence_hash, es.evidence_statement, es.source_level,
 		       es.evidence_relation, array_to_json(es.supports_fields), es.raw_document_id,
@@ -815,9 +596,9 @@ func eventSemanticEvidence(
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.Evidence
+	var result []eventbiz.Evidence
 	for rows.Next() {
-		var item eventsemantics.Evidence
+		var item eventbiz.Evidence
 		var supported []byte
 		if err := rows.Scan(
 			&item.ID, &item.Hash, &item.Statement, &item.SourceLevel, &item.Relation,
@@ -836,7 +617,7 @@ func eventSemanticEvidence(
 	return result, rows.Err()
 }
 
-func eventSemanticEntities(ctx context.Context, query semanticQueryer) ([]eventsemantics.Entity, error) {
+func eventSemanticEntities(ctx context.Context, query semanticQueryer) ([]eventbiz.Entity, error) {
 	rows, err := query.QueryContext(ctx, `
 		SELECT id, entity_type, name, canonical_name, array_to_json(aliases), status
 		FROM entity_nodes
@@ -851,9 +632,9 @@ func eventSemanticEntities(ctx context.Context, query semanticQueryer) ([]events
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.Entity
+	var result []eventbiz.Entity
 	for rows.Next() {
-		var item eventsemantics.Entity
+		var item eventbiz.Entity
 		var aliases []byte
 		if err := rows.Scan(&item.ID, &item.Type, &item.Name, &item.CanonicalName, &aliases, &item.Status); err != nil {
 			return nil, err
@@ -866,7 +647,7 @@ func eventSemanticEntities(ctx context.Context, query semanticQueryer) ([]events
 	return result, rows.Err()
 }
 
-func eventSemanticRelations(ctx context.Context, query semanticQueryer) ([]eventsemantics.EntityRelation, error) {
+func eventSemanticRelations(ctx context.Context, query semanticQueryer) ([]eventbiz.EntityRelation, error) {
 	rows, err := query.QueryContext(ctx, `
 		SELECT edge.id, edge.from_entity_id, edge.to_entity_id, edge.relation_type, edge.status
 		FROM entity_edges edge
@@ -879,9 +660,9 @@ func eventSemanticRelations(ctx context.Context, query semanticQueryer) ([]event
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.EntityRelation
+	var result []eventbiz.EntityRelation
 	for rows.Next() {
-		var item eventsemantics.EntityRelation
+		var item eventbiz.EntityRelation
 		if err := rows.Scan(&item.ID, &item.FromEntityID, &item.ToEntityID, &item.Type, &item.Status); err != nil {
 			return nil, err
 		}
@@ -894,8 +675,8 @@ func eventSemanticVariables(
 	ctx context.Context,
 	query semanticQueryer,
 	includeAll bool,
-	references []eventsemantics.VersionReference,
-) ([]eventsemantics.VariableDefinition, error) {
+	references []eventbiz.VersionReference,
+) ([]eventbiz.VariableDefinition, error) {
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
 		SELECT definition.variable_key, definition.version, definition.name_zh, definition.name_en,
@@ -919,9 +700,9 @@ func eventSemanticVariables(
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.VariableDefinition
+	var result []eventbiz.VariableDefinition
 	for rows.Next() {
-		var item eventsemantics.VariableDefinition
+		var item eventbiz.VariableDefinition
 		var directions, units, applicable []byte
 		if err := rows.Scan(
 			&item.Key, &item.Version, &item.NameZH, &item.NameEN, &item.Domain,
@@ -946,7 +727,7 @@ func eventSemanticVariables(
 func hydrateEventSemanticPolicy(
 	ctx context.Context,
 	query semanticQueryer,
-	result *eventsemantics.Context,
+	result *eventbiz.Context,
 ) error {
 	var payload []byte
 	if err := query.QueryRowContext(ctx, `
@@ -959,8 +740,8 @@ func hydrateEventSemanticPolicy(
 		return err
 	}
 	var policy struct {
-		AssertionModalities []string                           `json:"assertion_modalities"`
-		MeasurementContract eventsemantics.MeasurementContract `json:"measurement_contract"`
+		AssertionModalities []string                     `json:"assertion_modalities"`
+		MeasurementContract eventbiz.MeasurementContract `json:"measurement_contract"`
 	}
 	if err := json.Unmarshal(payload, &policy); err != nil {
 		return err
@@ -982,8 +763,8 @@ func eventSemanticRules(
 	ctx context.Context,
 	query semanticQueryer,
 	includeAll bool,
-	references []eventsemantics.VersionReference,
-) ([]eventsemantics.DirectTransmissionRule, error) {
+	references []eventbiz.VersionReference,
+) ([]eventbiz.DirectTransmissionRule, error) {
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
 		SELECT rule_key, version, status, source_entity_type, source_variable_key,
@@ -1002,9 +783,9 @@ func eventSemanticRules(
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.DirectTransmissionRule
+	var result []eventbiz.DirectTransmissionRule
 	for rows.Next() {
-		var item eventsemantics.DirectTransmissionRule
+		var item eventbiz.DirectTransmissionRule
 		if err := rows.Scan(
 			&item.Key, &item.Version, &item.Status, &item.SourceEntityType, &item.SourceVariableKey,
 			&item.SourceVariableVersion, &item.SourceDirection, &item.RelationType,
@@ -1019,7 +800,7 @@ func eventSemanticRules(
 }
 
 func semanticVersionReferenceArrays(
-	references []eventsemantics.VersionReference,
+	references []eventbiz.VersionReference,
 ) ([]string, []int32) {
 	keys := make([]string, 0, len(references))
 	versions := make([]int32, 0, len(references))
@@ -1030,17 +811,17 @@ func semanticVersionReferenceArrays(
 	return keys, versions
 }
 
-func (r repository) Resolve(
+func (r Store) Resolve(
 	ctx context.Context,
 	contextLeaseID string,
-	mentions []eventsemantics.EntityMention,
-) ([]eventsemantics.EntityResolution, error) {
+	mentions []eventbiz.EntityMention,
+) ([]eventbiz.EntityResolution, error) {
 	if _, err := r.Context(ctx, contextLeaseID); err != nil {
 		return nil, err
 	}
-	result := make([]eventsemantics.EntityResolution, 0, len(mentions))
+	result := make([]eventbiz.EntityResolution, 0, len(mentions))
 	for _, mention := range mentions {
-		resolution := eventsemantics.EntityResolution{Mention: mention.Mention}
+		resolution := eventbiz.EntityResolution{Mention: mention.Mention}
 		rows, err := r.db.QueryContext(ctx, `
 			SELECT id, entity_type, name, canonical_name, array_to_json(aliases), status
 			FROM entity_nodes
@@ -1055,7 +836,7 @@ func (r repository) Resolve(
 			return nil, err
 		}
 		for rows.Next() {
-			var entity eventsemantics.Entity
+			var entity eventbiz.Entity
 			var aliases []byte
 			if err := rows.Scan(
 				&entity.ID, &entity.Type, &entity.Name, &entity.CanonicalName,
@@ -1079,16 +860,16 @@ func (r repository) Resolve(
 	return result, nil
 }
 
-func (r repository) SearchDirectTargets(
+func (r Store) SearchDirectTargets(
 	ctx context.Context,
 	contextLeaseID string,
 	subjectEntityID string,
 	allowedTargetTypes []string,
-) ([]eventsemantics.DirectTarget, error) {
+) ([]eventbiz.DirectTarget, error) {
 	if _, err := r.Context(ctx, contextLeaseID); err != nil {
 		return nil, err
 	}
-	var result []eventsemantics.DirectTarget
+	var result []eventbiz.DirectTarget
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT target.id, target.entity_type, target.name, target.canonical_name,
 		       array_to_json(target.aliases), target.status,
@@ -1105,7 +886,7 @@ func (r repository) SearchDirectTargets(
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var item eventsemantics.DirectTarget
+		var item eventbiz.DirectTarget
 		var aliases []byte
 		if err := rows.Scan(
 			&item.Entity.ID, &item.Entity.Type, &item.Entity.Name, &item.Entity.CanonicalName,
@@ -1122,16 +903,16 @@ func (r repository) SearchDirectTargets(
 	return result, rows.Err()
 }
 
-func (r repository) ListResolutionRoutes(
+func (r Store) ListResolutionRoutes(
 	ctx context.Context,
 	contextLeaseID string,
 	targetEntityType string,
-) ([]eventsemantics.ResolutionRoute, error) {
+) ([]eventbiz.ResolutionRoute, error) {
 	if _, err := r.Context(ctx, contextLeaseID); err != nil {
 		return nil, err
 	}
 	if targetEntityType != "chain_node" {
-		return nil, &eventsemantics.ValidationError{Reason: "target Entity Type has no bounded resolution route"}
+		return nil, &eventbiz.ValidationError{Reason: "target Entity Type has no bounded resolution route"}
 	}
 	industryPartitions, industryLabels, err := r.eventSemanticIndustryPartitions(ctx)
 	if err != nil {
@@ -1141,9 +922,9 @@ func (r repository) ListResolutionRoutes(
 	if err != nil {
 		return nil, err
 	}
-	var routes []eventsemantics.ResolutionRoute
+	var routes []eventbiz.ResolutionRoute
 	if len(industryPartitions) > 0 {
-		routes = append(routes, eventsemantics.ResolutionRoute{
+		routes = append(routes, eventbiz.ResolutionRoute{
 			ID: "chain-node-via-industry.v1", ContractVersion: eventSemanticsRouteVersion,
 			TargetEntityType: "chain_node", AnchorEntityType: "industry",
 			MappingRelationType: "mapped_to_industry", Partitions: industryPartitions,
@@ -1154,7 +935,7 @@ func (r repository) ListResolutionRoutes(
 		})
 	}
 	if len(conceptPartitions) > 0 {
-		routes = append(routes, eventsemantics.ResolutionRoute{
+		routes = append(routes, eventbiz.ResolutionRoute{
 			ID: "chain-node-via-concept.v1", ContractVersion: eventSemanticsRouteVersion,
 			TargetEntityType: "chain_node", AnchorEntityType: "concept",
 			MappingRelationType: "mapped_to_concept", Partitions: conceptPartitions,
@@ -1167,7 +948,7 @@ func (r repository) ListResolutionRoutes(
 	return routes, nil
 }
 
-func (r repository) eventSemanticIndustryPartitions(ctx context.Context) ([]string, map[string]string, error) {
+func (r Store) eventSemanticIndustryPartitions(ctx context.Context) ([]string, map[string]string, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT profile.entity_id::text, entity.name
 		FROM industry_profiles profile
@@ -1193,7 +974,7 @@ func (r repository) eventSemanticIndustryPartitions(ctx context.Context) ([]stri
 	return result, labels, rows.Err()
 }
 
-func (r repository) eventSemanticConceptPartitions(ctx context.Context) ([]string, map[string]string, error) {
+func (r Store) eventSemanticConceptPartitions(ctx context.Context) ([]string, map[string]string, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT DISTINCT concept_type
 		FROM concept_profiles profile
@@ -1219,15 +1000,15 @@ func (r repository) eventSemanticConceptPartitions(ctx context.Context) ([]strin
 	return result, labels, rows.Err()
 }
 
-func (r repository) ListResolutionAnchors(
+func (r Store) ListResolutionAnchors(
 	ctx context.Context,
 	contextLeaseID string,
 	routeID string,
 	partition string,
 	parentAnchorIDs []string,
 	limit int,
-	after *eventsemantics.ResolutionKeyset,
-) ([]eventsemantics.ResolutionAnchor, error) {
+	after *eventbiz.ResolutionKeyset,
+) ([]eventbiz.ResolutionAnchor, error) {
 	if _, err := r.Context(ctx, contextLeaseID); err != nil {
 		return nil, err
 	}
@@ -1254,7 +1035,7 @@ func (r repository) ListResolutionAnchors(
 			return nil, err
 		}
 		if !validPartition {
-			return nil, &eventsemantics.ValidationError{Reason: "Industry partition is unknown, inactive or unapproved"}
+			return nil, &eventbiz.ValidationError{Reason: "Industry partition is unknown, inactive or unapproved"}
 		}
 		var validParentCount int
 		if len(parentAnchorIDs) > 0 {
@@ -1271,7 +1052,7 @@ func (r repository) ListResolutionAnchors(
 				return nil, err
 			}
 			if validParentCount != len(parentAnchorIDs) {
-				return nil, &eventsemantics.ValidationError{Reason: "parent_anchor_ids contain an unknown or out-of-partition Industry"}
+				return nil, &eventbiz.ValidationError{Reason: "parent_anchor_ids contain an unknown or out-of-partition Industry"}
 			}
 		}
 		rows, err = r.db.QueryContext(ctx, `
@@ -1328,7 +1109,7 @@ func (r repository) ListResolutionAnchors(
 			return nil, err
 		}
 		if !validPartition {
-			return nil, &eventsemantics.ValidationError{Reason: "Concept partition is unknown, inactive or unapproved"}
+			return nil, &eventbiz.ValidationError{Reason: "Concept partition is unknown, inactive or unapproved"}
 		}
 		rows, err = r.db.QueryContext(ctx, `
 			SELECT entity.id, entity.entity_type, entity.name, entity.canonical_name,
@@ -1359,15 +1140,15 @@ func (r repository) ListResolutionAnchors(
 			LIMIT $4
 		`, partition, afterName, afterID, limit)
 	default:
-		return nil, &eventsemantics.ValidationError{Reason: "route_id is not supported"}
+		return nil, &eventbiz.ValidationError{Reason: "route_id is not supported"}
 	}
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	result := make([]eventsemantics.ResolutionAnchor, 0)
+	result := make([]eventbiz.ResolutionAnchor, 0)
 	for rows.Next() {
-		var item eventsemantics.ResolutionAnchor
+		var item eventbiz.ResolutionAnchor
 		var aliases []byte
 		if err := rows.Scan(
 			&item.Entity.ID, &item.Entity.Type, &item.Entity.Name, &item.Entity.CanonicalName,
@@ -1383,14 +1164,14 @@ func (r repository) ListResolutionAnchors(
 	return result, rows.Err()
 }
 
-func (r repository) ResolveChainNodeCandidates(
+func (r Store) ResolveChainNodeCandidates(
 	ctx context.Context,
 	contextLeaseID string,
 	routeID string,
 	anchorEntityIDs []string,
 	limit int,
-	after *eventsemantics.ResolutionKeyset,
-) ([]eventsemantics.ResolutionCandidate, error) {
+	after *eventbiz.ResolutionKeyset,
+) ([]eventbiz.ResolutionCandidate, error) {
 	manifest, err := r.Context(ctx, contextLeaseID)
 	if err != nil {
 		return nil, err
@@ -1402,7 +1183,7 @@ func (r repository) ResolveChainNodeCandidates(
 	case "chain-node-via-concept.v1":
 		relationType, anchorEntityType = "mapped_to_concept", "concept"
 	default:
-		return nil, &eventsemantics.ValidationError{Reason: "route_id is not supported"}
+		return nil, &eventbiz.ValidationError{Reason: "route_id is not supported"}
 	}
 	var validAnchorCount int
 	if err := r.db.QueryRowContext(ctx, `
@@ -1423,7 +1204,7 @@ func (r repository) ResolveChainNodeCandidates(
 		return nil, err
 	}
 	if validAnchorCount != len(anchorEntityIDs) {
-		return nil, &eventsemantics.ValidationError{Reason: "anchor_entity_ids contain an unknown, inactive, wrong-type or unapproved anchor"}
+		return nil, &eventbiz.ValidationError{Reason: "anchor_entity_ids contain an unknown, inactive, wrong-type or unapproved anchor"}
 	}
 	var afterName, afterID any
 	if after != nil {
@@ -1497,9 +1278,9 @@ func (r repository) ResolveChainNodeCandidates(
 		return nil, err
 	}
 	defer rows.Close()
-	result := make([]eventsemantics.ResolutionCandidate, 0)
+	result := make([]eventbiz.ResolutionCandidate, 0)
 	for rows.Next() {
-		var item eventsemantics.ResolutionCandidate
+		var item eventbiz.ResolutionCandidate
 		var aliases []byte
 		var matchedAnchorIDs []byte
 		var membershipUpdatedAt time.Time
@@ -1541,8 +1322,8 @@ func (r repository) ResolveChainNodeCandidates(
 func validateEventSemanticResolutionReceipts(
 	ctx context.Context,
 	query semanticQueryer,
-	manifest eventsemantics.Context,
-	submission eventsemantics.Submission,
+	manifest eventbiz.Context,
+	submission eventbiz.Submission,
 ) error {
 	for _, link := range submission.EntityLinks {
 		if link.ResolutionReceipt == nil {
@@ -1560,11 +1341,11 @@ func validateEventSemanticResolutionReceipts(
 			profileJoin = `JOIN concept_profiles anchor_profile
 			  ON anchor_profile.entity_id = anchor.id AND anchor_profile.review_status = 'approved'`
 		default:
-			return &eventsemantics.ContextDriftError{Reason: "selected anchor route is no longer valid"}
+			return &eventbiz.ContextDriftError{Reason: "selected anchor route is no longer valid"}
 		}
 		if receipt.RouteContractVersion != manifest.RouteContractVersion ||
 			receipt.TargetEntityID != link.EntityID {
-			return &eventsemantics.ContextDriftError{Reason: "selected anchor route version or target changed"}
+			return &eventbiz.ContextDriftError{Reason: "selected anchor route version or target changed"}
 		}
 		var position int
 		var updatedAt, anchorUpdatedAt, chainUpdatedAt, mappingUpdatedAt, targetUpdatedAt time.Time
@@ -1593,7 +1374,7 @@ func validateEventSemanticResolutionReceipts(
 			&position, &updatedAt, &anchorUpdatedAt, &chainUpdatedAt, &mappingUpdatedAt, &targetUpdatedAt,
 		)
 		if errors.Is(err, sql.ErrNoRows) {
-			return &eventsemantics.ContextDriftError{Reason: "selected anchor path changed or disappeared"}
+			return &eventbiz.ContextDriftError{Reason: "selected anchor path changed or disappeared"}
 		}
 		if err != nil {
 			return err
@@ -1613,7 +1394,7 @@ func validateEventSemanticResolutionReceipts(
 		if receipt.MembershipPosition != current.MembershipPosition ||
 			receipt.MembershipUpdatedAt != current.MembershipUpdatedAt ||
 			receipt.PathFingerprint != fingerprint {
-			return &eventsemantics.ContextDriftError{Reason: "selected anchor path changed after candidate resolution"}
+			return &eventbiz.ContextDriftError{Reason: "selected anchor path changed after candidate resolution"}
 		}
 	}
 	return nil
@@ -1627,7 +1408,7 @@ type resolutionPathVersions struct {
 }
 
 func eventSemanticResolutionFingerprint(
-	receipt eventsemantics.ResolutionReceipt,
+	receipt eventbiz.ResolutionReceipt,
 	versions resolutionPathVersions,
 ) (string, error) {
 	return eventSemanticFingerprint(struct {
@@ -1644,155 +1425,11 @@ func eventSemanticResolutionFingerprint(
 	})
 }
 
-func (r repository) CreateSubmission(
-	ctx context.Context,
-	submission eventsemantics.Submission,
-	precheck eventsemantics.PrecheckResult,
-	payload []byte,
-	hash string,
-) (eventsemantics.SubmissionResult, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	defer func() { _ = tx.Rollback() }()
-	if existing, found, err := existingEventSemanticSubmission(ctx, tx, submission.AgentExecutionID); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	} else if found {
-		if existing.CanonicalPayloadHash != hash {
-			return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{Reason: "agent_execution_id is bound to a different canonical payload"}
-		}
-		existing.Replayed = true
-		return existing, nil
-	}
-	var eventID, leaseAgentExecutionID, status string
-	var leaseSupersedesSubmissionID sql.NullString
-	var manifestPayload []byte
-	if err := tx.QueryRowContext(ctx, `
-		SELECT event_id, agent_execution_id, status, supersedes_submission_id, context_manifest
-		FROM event_semantic_context_leases
-		WHERE id = $1 AND lease_expires_at > now() AND context_manifest IS NOT NULL
-		FOR UPDATE
-	`, submission.ContextLeaseID).Scan(
-		&eventID, &leaseAgentExecutionID, &status, &leaseSupersedesSubmissionID, &manifestPayload,
-	); errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.NotFoundError{Resource: "Event Semantic Context Lease"}
-	} else if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if eventID != submission.EventID || status != "active" {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{
-			Reason: "context lease is not active for this Event",
-		}
-	}
-	if leaseAgentExecutionID != submission.AgentExecutionID {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{
-			Reason: "Submission agent_execution_id differs from its Context Lease",
-		}
-	}
-	if leaseSupersedesSubmissionID.String != submission.SupersedesSubmissionID {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{
-			Reason: "Submission supersedes identity differs from its Context Lease",
-		}
-	}
-	var manifestReference eventsemantics.ContextManifest
-	if err := json.Unmarshal(manifestPayload, &manifestReference); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	manifest, err := eventSemanticContextFromManifest(ctx, tx, manifestReference)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	transactionContext, err := hydrateEventSemanticSubmissionContext(
-		ctx, tx, manifest, submission, true,
-	)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	precheck = eventsemantics.Precheck(transactionContext, submission)
-	if submission.SupersedesSubmissionID != "" {
-		var supersededEventID string
-		var supersededStatus eventsemantics.ReviewStatus
-		if err := tx.QueryRowContext(ctx, `
-			SELECT event_id, status
-			FROM event_semantic_submissions
-			WHERE id = $1
-			FOR UPDATE
-		`, submission.SupersedesSubmissionID).Scan(&supersededEventID, &supersededStatus); errors.Is(err, sql.ErrNoRows) {
-			return eventsemantics.SubmissionResult{}, &eventsemantics.NotFoundError{Resource: "superseded Event Semantic Submission"}
-		} else if err != nil {
-			return eventsemantics.SubmissionResult{}, err
-		}
-		if supersededEventID != submission.EventID || supersededStatus == eventsemantics.StatusSuperseded {
-			return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{
-				Reason: "supersedes_submission_id must reference the current Event's active prior Submission",
-			}
-		}
-	}
-	submissionID, snapshotID := uuid.NewString(), uuid.NewString()
-	decisionPayload, err := json.Marshal(precheck)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	counts, _ := json.Marshal(map[string]int{
-		"entity_links":     len(submission.EntityLinks),
-		"variable_signals": len(submission.VariableSignals),
-	})
-	submissionStatus := summarizeSemanticSubmission(precheck)
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO event_semantic_submissions(
-		    id, context_lease_id, event_id, agent_execution_id, agent_key, agent_version,
-		    supersedes_submission_id, generator_prompt_hash, generator_model,
-		    reviewer_prompt_hash, reviewer_model, adjudicator_prompt_hash,
-		    adjudicator_model, ontology_version, acceptance_policy_key,
-		    acceptance_policy_version, canonical_payload_hash, status,
-		    candidate_counts, decision_summary
-		) VALUES (
-		    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
-		    'event-semantics.objective-v2',1,$15,$16,$17,$18
-	    )
-	`, submissionID, submission.ContextLeaseID, submission.EventID, submission.AgentExecutionID,
-		submission.AgentKey, submission.AgentVersion, nullString(submission.SupersedesSubmissionID),
-		submission.GeneratorPromptHash, submission.GeneratorModel,
-		submission.ReviewerPromptHash, submission.ReviewerModel,
-		nullString(submission.AdjudicatorPromptHash), nullString(submission.AdjudicatorModel),
-		submission.OntologyVersion, hash, submissionStatus, counts, decisionPayload,
-	); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO event_semantic_candidate_snapshots(id, semantic_submission_id, payload, canonical_payload_hash)
-		VALUES ($1,$2,$3,$4)
-	`, snapshotID, submissionID, payload, hash); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if err := insertReviewableSemanticCandidates(ctx, tx, submissionID, submission, precheck); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if submissionStatus != eventsemantics.StatusPendingReview &&
-		submissionStatus != eventsemantics.StatusNeedsReanalysis {
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE event_semantic_context_leases
-			SET status = 'consumed', consumed_at = now()
-			WHERE id = $1
-		`, submission.ContextLeaseID); err != nil {
-			return eventsemantics.SubmissionResult{}, err
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	return eventsemantics.SubmissionResult{
-		SubmissionID: submissionID, EventID: submission.EventID, Status: submissionStatus,
-		CanonicalPayloadHash: hash, Precheck: precheck,
-	}, nil
-}
-
-func (r repository) ReplaySubmission(
+func (r Store) ReplaySubmission(
 	ctx context.Context,
 	executionID string,
 	canonicalPayloadHash string,
-) (eventsemantics.SubmissionResult, bool, error) {
+) (eventbiz.SubmissionResult, bool, error) {
 	existing, found, err := queryEventSemanticSubmission(ctx, r.db.QueryRowContext(ctx, `
 		SELECT id,event_id,status,canonical_payload_hash,decision_summary
 		FROM event_semantic_submissions
@@ -1802,7 +1439,7 @@ func (r repository) ReplaySubmission(
 		return existing, found, err
 	}
 	if existing.CanonicalPayloadHash != canonicalPayloadHash {
-		return eventsemantics.SubmissionResult{}, false, &eventsemantics.ConflictError{
+		return eventbiz.SubmissionResult{}, false, &eventbiz.ConflictError{
 			Reason: "agent_execution_id is bound to a different canonical payload",
 		}
 	}
@@ -1814,14 +1451,14 @@ func insertReviewableSemanticCandidates(
 	ctx context.Context,
 	tx *sql.Tx,
 	submissionID string,
-	submission eventsemantics.Submission,
-	precheck eventsemantics.PrecheckResult,
+	submission eventbiz.Submission,
+	precheck eventbiz.PrecheckResult,
 ) error {
 	linkDecisions := decisionsByKey(precheck.EntityLinks)
 	linkIDs := make(map[string]string)
 	for _, candidate := range submission.EntityLinks {
 		decision := linkDecisions[candidate.Key]
-		if decision.Status == eventsemantics.StatusRejected {
+		if decision.Status == eventbiz.StatusRejected {
 			continue
 		}
 		id := uuid.NewString()
@@ -1843,7 +1480,7 @@ func insertReviewableSemanticCandidates(
 	for _, candidate := range submission.VariableSignals {
 		decision := signalDecisions[candidate.Key]
 		linkID := linkIDs[candidate.SubjectLinkKey]
-		if decision.Status == eventsemantics.StatusRejected || linkID == "" {
+		if decision.Status == eventbiz.StatusRejected || linkID == "" {
 			continue
 		}
 		id := uuid.NewString()
@@ -1879,384 +1516,13 @@ func insertReviewableSemanticCandidates(
 	return nil
 }
 
-func (r repository) SubmitReview(
-	ctx context.Context,
-	submission eventsemantics.ReviewSubmission,
-	payload []byte,
-	hash string,
-) (eventsemantics.SubmissionResult, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	defer func() { _ = tx.Rollback() }()
-	var reviewIdentity semanticReviewIdentity
-	if err := tx.QueryRowContext(ctx, `
-		SELECT agent_execution_id, reviewer_prompt_hash, reviewer_model,
-		       COALESCE(adjudicator_prompt_hash, ''), COALESCE(adjudicator_model, '')
-		FROM event_semantic_submissions
-		WHERE id = $1
-		FOR UPDATE
-	`, submission.SubmissionID).Scan(
-		&reviewIdentity.AgentExecutionID,
-		&reviewIdentity.ReviewerPromptHash, &reviewIdentity.ReviewerModel,
-		&reviewIdentity.AdjudicatorPromptHash, &reviewIdentity.AdjudicatorModel,
-	); errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.NotFoundError{Resource: "Event Semantic Submission"}
-	} else if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if !reviewIdentity.matches(submission) {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{
-			Reason: "review prompt or model does not match the frozen Submission identity",
-		}
-	}
-	var existingHash string
-	err = tx.QueryRowContext(ctx, `
-		SELECT canonical_payload_hash
-		FROM event_semantic_review_snapshots
-		WHERE semantic_submission_id = $1 AND reviewer_execution_key = $2
-	`, submission.SubmissionID, submission.ReviewerExecutionKey).Scan(&existingHash)
-	if err == nil {
-		if existingHash != hash {
-			return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{Reason: "reviewer_execution_key is bound to a different payload"}
-		}
-		result, found, err := eventSemanticSubmissionByID(ctx, tx, submission.SubmissionID)
-		if err != nil {
-			return eventsemantics.SubmissionResult{}, err
-		}
-		if !found {
-			return eventsemantics.SubmissionResult{}, &eventsemantics.NotFoundError{Resource: "Event Semantic Submission"}
-		}
-		result.Replayed = true
-		return result, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	result, found, err := eventSemanticSubmissionByID(ctx, tx, submission.SubmissionID)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if !found {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.NotFoundError{Resource: "Event Semantic Submission"}
-	}
-	if result.Status != eventsemantics.StatusPendingReview && result.Status != eventsemantics.StatusNeedsReanalysis {
-		return eventsemantics.SubmissionResult{}, &eventsemantics.ConflictError{Reason: "Event Semantic Submission is not reviewable"}
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO event_semantic_review_snapshots(
-		    id,semantic_submission_id,reviewer_execution_key,payload,canonical_payload_hash
-		) VALUES ($1,$2,$3,$4,$5)
-	`, uuid.NewString(), submission.SubmissionID, submission.ReviewerExecutionKey, payload, hash); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	var priorReviewCount, retryBudget int
-	if err := tx.QueryRowContext(ctx, `
-		SELECT
-		    (SELECT count(*) FROM event_semantic_review_snapshots WHERE semantic_submission_id = $1),
-		    policy.retry_budget
-		FROM event_semantic_submissions run
-		JOIN event_semantic_acceptance_policies policy
-		  ON policy.policy_key = run.acceptance_policy_key
-		 AND policy.version = run.acceptance_policy_version
-		WHERE run.id = $1
-	`, submission.SubmissionID).Scan(&priorReviewCount, &retryBudget); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if err := applySemanticReview(
-		ctx, tx, submission, &result.Precheck, priorReviewCount > retryBudget,
-	); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	status := summarizeSemanticSubmission(result.Precheck)
-	decisionPayload, err := json.Marshal(result.Precheck)
-	if err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE event_semantic_submissions
-		SET status = $2::varchar, decision_summary = $3,
-		    finalized_at = CASE
-		        WHEN $2::text IN ('accepted','rejected','quarantined') THEN now()
-		        ELSE NULL
-		    END
-		WHERE id = $1
-	`, submission.SubmissionID, status, decisionPayload); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	if status == eventsemantics.StatusAccepted ||
-		status == eventsemantics.StatusRejected ||
-		status == eventsemantics.StatusQuarantined {
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE event_semantic_context_leases
-			SET status = 'consumed', consumed_at = now()
-			WHERE id = (SELECT context_lease_id FROM event_semantic_submissions WHERE id = $1)
-		`, submission.SubmissionID); err != nil {
-			return eventsemantics.SubmissionResult{}, err
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return eventsemantics.SubmissionResult{}, err
-	}
-	result.Status = status
-	return result, nil
-}
-
-func applySemanticReview(
-	ctx context.Context,
-	tx *sql.Tx,
-	submission eventsemantics.ReviewSubmission,
-	precheck *eventsemantics.PrecheckResult,
-	quarantineIndeterminate bool,
-) error {
-	pending := map[string]*eventsemantics.CandidateDecision{}
-	candidateEvidence := make(map[string][]string)
-	register := func(kind string, items []eventsemantics.CandidateDecision) {
-		for index := range items {
-			if items[index].Status == eventsemantics.StatusPendingReview ||
-				items[index].Status == eventsemantics.StatusNeedsReanalysis {
-				pending[kind+":"+items[index].CandidateKey] = &items[index]
-			}
-		}
-	}
-	register("entity_link", precheck.EntityLinks)
-	register("variable_signal", precheck.VariableSignals)
-	register("direct_impact", precheck.DirectImpacts)
-	for _, candidate := range precheck.ReviewerWorkPackage.EntityLinks {
-		candidateEvidence["entity_link:"+candidate.Key] = candidate.EvidenceIDs
-	}
-	for _, candidate := range precheck.ReviewerWorkPackage.VariableSignals {
-		candidateEvidence["variable_signal:"+candidate.Key] = candidate.EvidenceIDs
-	}
-	for _, candidate := range precheck.ReviewerWorkPackage.DirectImpacts {
-		candidateEvidence["direct_impact:"+candidate.Key] = candidate.EvidenceIDs
-	}
-	if len(submission.Items) != len(pending) {
-		return &eventsemantics.ValidationError{Reason: "review must decide every reviewable candidate exactly once"}
-	}
-	seen := make(map[string]struct{}, len(submission.Items))
-	for _, item := range submission.Items {
-		identity := item.CandidateType + ":" + item.CandidateKey
-		decision, exists := pending[identity]
-		if !exists {
-			return &eventsemantics.ConflictError{Reason: "review references a non-reviewable candidate"}
-		}
-		if _, duplicate := seen[identity]; duplicate {
-			return &eventsemantics.ValidationError{Reason: "review candidate identities must be unique"}
-		}
-		if !reviewEvidenceMatchesCandidate(item.EvidenceIDs, candidateEvidence[identity]) {
-			return &eventsemantics.ValidationError{Reason: "review Evidence must cite the candidate Event Evidence"}
-		}
-		seen[identity] = struct{}{}
-		switch item.Decision {
-		case "pass":
-			decision.Status, decision.ReasonCode = eventsemantics.StatusAccepted, ""
-		case "fail":
-			decision.Status, decision.ReasonCode = eventsemantics.StatusRejected, firstReason(item.ReasonCodes, "reviewer_failed")
-		case "indeterminate":
-			if quarantineIndeterminate {
-				decision.Status, decision.ReasonCode = eventsemantics.StatusQuarantined, "unresolved_after_retry_budget"
-			} else {
-				decision.Status, decision.ReasonCode = eventsemantics.StatusNeedsReanalysis, firstReason(item.ReasonCodes, "reviewer_indeterminate")
-			}
-		}
-	}
-	propagateSemanticReview(precheck)
-	if summarizeSemanticSubmission(*precheck) == eventsemantics.StatusAccepted {
-		if err := supersedePriorSemanticSubmission(ctx, tx, submission.SubmissionID); err != nil {
-			return err
-		}
-	}
-	return persistSemanticDecisions(ctx, tx, submission.SubmissionID, *precheck)
-}
-
-func supersedePriorSemanticSubmission(ctx context.Context, tx *sql.Tx, runID string) error {
-	for _, table := range []string{"event_entity_links", "variable_signals", "direct_impact_assertions"} {
-		query := fmt.Sprintf(`
-			WITH RECURSIVE ancestors(id) AS (
-			    SELECT supersedes_submission_id
-			    FROM event_semantic_submissions
-			    WHERE id = $1 AND supersedes_submission_id IS NOT NULL
-			    UNION ALL
-			    SELECT run.supersedes_submission_id
-			    FROM event_semantic_submissions run
-			    JOIN ancestors ON run.id = ancestors.id
-			    WHERE run.supersedes_submission_id IS NOT NULL
-			)
-			UPDATE %s
-			SET review_status = 'superseded', reason_code = 'superseded_by_reanalysis', updated_at = now()
-			WHERE semantic_submission_id IN (SELECT id FROM ancestors)
-			  AND review_status <> 'superseded'
-		`, table)
-		if _, err := tx.ExecContext(ctx, query, runID); err != nil {
-			return err
-		}
-	}
-	if _, err := tx.ExecContext(ctx, `
-		WITH RECURSIVE ancestors(id) AS (
-		    SELECT supersedes_submission_id
-		    FROM event_semantic_submissions
-		    WHERE id = $1 AND supersedes_submission_id IS NOT NULL
-		    UNION ALL
-		    SELECT run.supersedes_submission_id
-		    FROM event_semantic_submissions run
-		    JOIN ancestors ON run.id = ancestors.id
-		    WHERE run.supersedes_submission_id IS NOT NULL
-		)
-		UPDATE event_semantic_submissions
-		SET status = 'superseded', finalized_at = now()
-		WHERE id IN (SELECT id FROM ancestors) AND status <> 'superseded'
-	`, runID); err != nil {
-		return err
-	}
-	return nil
-}
-
-type semanticReviewIdentity struct {
-	AgentExecutionID      string
-	ReviewerPromptHash    string
-	ReviewerModel         string
-	AdjudicatorPromptHash string
-	AdjudicatorModel      string
-}
-
-func (identity semanticReviewIdentity) matches(submission eventsemantics.ReviewSubmission) bool {
-	switch {
-	case submission.ReviewerExecutionKey == identity.AgentExecutionID+":reviewer":
-		return submission.PromptHash == identity.ReviewerPromptHash &&
-			submission.Model == identity.ReviewerModel
-	case submission.ReviewerExecutionKey == identity.AgentExecutionID+":adjudicator":
-		return identity.AdjudicatorPromptHash != "" &&
-			submission.PromptHash == identity.AdjudicatorPromptHash &&
-			submission.Model == identity.AdjudicatorModel
-	default:
-		return false
-	}
-}
-
-func reviewEvidenceMatchesCandidate(reviewed, candidate []string) bool {
-	if len(reviewed) == 0 || len(candidate) == 0 {
-		return false
-	}
-	allowed := make(map[string]struct{}, len(candidate))
-	for _, evidenceID := range candidate {
-		allowed[evidenceID] = struct{}{}
-	}
-	for _, evidenceID := range reviewed {
-		if _, exists := allowed[evidenceID]; !exists {
-			return false
-		}
-	}
-	return true
-}
-
-func propagateSemanticReview(precheck *eventsemantics.PrecheckResult) {
-	linkStatus := make(map[string]eventsemantics.CandidateDecision, len(precheck.EntityLinks))
-	for _, item := range precheck.EntityLinks {
-		linkStatus[item.CandidateKey] = item
-	}
-	signalStatus := make(map[string]eventsemantics.CandidateDecision, len(precheck.VariableSignals))
-	signalByKey := make(map[string]eventsemantics.VariableSignalCandidate, len(precheck.ReviewerWorkPackage.VariableSignals))
-	for _, item := range precheck.ReviewerWorkPackage.VariableSignals {
-		signalByKey[item.Key] = item
-	}
-	for index := range precheck.VariableSignals {
-		candidate := signalByKey[precheck.VariableSignals[index].CandidateKey]
-		upstream := linkStatus[candidate.SubjectLinkKey]
-		if upstream.Status == eventsemantics.StatusRejected {
-			precheck.VariableSignals[index].Status = eventsemantics.StatusRejected
-			precheck.VariableSignals[index].ReasonCode = "upstream_rejected"
-		} else if upstream.Status == eventsemantics.StatusQuarantined {
-			precheck.VariableSignals[index].Status = eventsemantics.StatusQuarantined
-			precheck.VariableSignals[index].ReasonCode = "upstream_quarantined"
-		} else if upstream.Status == eventsemantics.StatusNeedsReanalysis {
-			precheck.VariableSignals[index].Status = eventsemantics.StatusNeedsReanalysis
-			precheck.VariableSignals[index].ReasonCode = "upstream_pending"
-		}
-		signalStatus[precheck.VariableSignals[index].CandidateKey] = precheck.VariableSignals[index]
-	}
-	impactByKey := make(map[string]eventsemantics.DirectImpactCandidate, len(precheck.ReviewerWorkPackage.DirectImpacts))
-	for _, item := range precheck.ReviewerWorkPackage.DirectImpacts {
-		impactByKey[item.Key] = item
-	}
-	for index := range precheck.DirectImpacts {
-		candidate := impactByKey[precheck.DirectImpacts[index].CandidateKey]
-		upstream := signalStatus[candidate.SourceSignalKey]
-		if upstream.Status == eventsemantics.StatusRejected {
-			precheck.DirectImpacts[index].Status = eventsemantics.StatusRejected
-			precheck.DirectImpacts[index].ReasonCode = "upstream_rejected"
-		} else if upstream.Status == eventsemantics.StatusQuarantined {
-			precheck.DirectImpacts[index].Status = eventsemantics.StatusQuarantined
-			precheck.DirectImpacts[index].ReasonCode = "upstream_quarantined"
-		} else if upstream.Status == eventsemantics.StatusNeedsReanalysis {
-			precheck.DirectImpacts[index].Status = eventsemantics.StatusNeedsReanalysis
-			precheck.DirectImpacts[index].ReasonCode = "upstream_pending"
-		}
-	}
-}
-
-func summarizeSemanticSubmission(precheck eventsemantics.PrecheckResult) eventsemantics.ReviewStatus {
-	hasAccepted, hasPending, hasNeeds, hasQuarantined := false, false, false, false
-	for _, group := range [][]eventsemantics.CandidateDecision{
-		precheck.EntityLinks, precheck.VariableSignals, precheck.DirectImpacts,
-	} {
-		for _, item := range group {
-			hasAccepted = hasAccepted || item.Status == eventsemantics.StatusAccepted
-			hasPending = hasPending || item.Status == eventsemantics.StatusPendingReview
-			hasNeeds = hasNeeds || item.Status == eventsemantics.StatusNeedsReanalysis
-			hasQuarantined = hasQuarantined || item.Status == eventsemantics.StatusQuarantined
-		}
-	}
-	if hasPending {
-		return eventsemantics.StatusPendingReview
-	}
-	if hasNeeds {
-		return eventsemantics.StatusNeedsReanalysis
-	}
-	if hasAccepted {
-		return eventsemantics.StatusAccepted
-	}
-	if hasQuarantined {
-		return eventsemantics.StatusQuarantined
-	}
-	return eventsemantics.StatusRejected
-}
-
-func persistSemanticDecisions(
-	ctx context.Context,
-	tx *sql.Tx,
-	runID string,
-	precheck eventsemantics.PrecheckResult,
-) error {
-	for table, items := range map[string][]eventsemantics.CandidateDecision{
-		"event_entity_links":       precheck.EntityLinks,
-		"variable_signals":         precheck.VariableSignals,
-		"direct_impact_assertions": precheck.DirectImpacts,
-	} {
-		for _, item := range items {
-			query := fmt.Sprintf(`
-				UPDATE %s
-				SET review_status = $3, reason_code = $4, updated_at = now()
-				WHERE semantic_submission_id = $1 AND candidate_key = $2
-			`, table)
-			if _, err := tx.ExecContext(
-				ctx, query, runID, item.CandidateKey, item.Status, nullString(item.ReasonCode),
-			); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (r repository) GetEventSemantics(ctx context.Context, eventID string) (eventsemantics.EventSemanticsResult, error) {
+func (r Store) GetEventSemantics(ctx context.Context, eventID string) (eventbiz.EventSemanticsResult, error) {
 	var exists bool
 	if err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM events WHERE id = $1)`, eventID).Scan(&exists); err != nil {
-		return eventsemantics.EventSemanticsResult{}, err
+		return eventbiz.EventSemanticsResult{}, err
 	}
 	if !exists {
-		return eventsemantics.EventSemanticsResult{}, &eventsemantics.NotFoundError{Resource: "Event"}
+		return eventbiz.EventSemanticsResult{}, &eventbiz.NotFoundError{Resource: "Event"}
 	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT run.id, run.event_id, run.status, run.canonical_payload_hash, run.decision_summary,
@@ -2274,12 +1540,12 @@ func (r repository) GetEventSemantics(ctx context.Context, eventID string) (even
 		ORDER BY run.created_at, run.id
 	`, eventID)
 	if err != nil {
-		return eventsemantics.EventSemanticsResult{}, err
+		return eventbiz.EventSemanticsResult{}, err
 	}
 	defer rows.Close()
-	result := eventsemantics.EventSemanticsResult{EventID: eventID}
+	result := eventbiz.EventSemanticsResult{EventID: eventID}
 	for rows.Next() {
-		var run eventsemantics.SubmissionResult
+		var run eventbiz.SubmissionResult
 		var decisions []byte
 		var candidateSnapshot []byte
 		if err := rows.Scan(
@@ -2291,27 +1557,27 @@ func (r repository) GetEventSemantics(ctx context.Context, eventID string) (even
 			&run.OntologyVersion, &run.AcceptancePolicyVersion,
 			&candidateSnapshot, &run.CreatedAt, &run.FinalizedAt,
 		); err != nil {
-			return eventsemantics.EventSemanticsResult{}, err
+			return eventbiz.EventSemanticsResult{}, err
 		}
 		if err := json.Unmarshal(decisions, &run.Precheck); err != nil {
-			return eventsemantics.EventSemanticsResult{}, err
+			return eventbiz.EventSemanticsResult{}, err
 		}
 		run.CandidateSnapshot = append(json.RawMessage(nil), candidateSnapshot...)
 		if run.ReviewSnapshots, err = r.eventSemanticReviewSnapshots(ctx, run.SubmissionID); err != nil {
-			return eventsemantics.EventSemanticsResult{}, err
+			return eventbiz.EventSemanticsResult{}, err
 		}
 		if err := r.populateSemanticRecordIDs(ctx, run.SubmissionID, &run.Precheck); err != nil {
-			return eventsemantics.EventSemanticsResult{}, err
+			return eventbiz.EventSemanticsResult{}, err
 		}
 		result.Submissions = append(result.Submissions, run)
 	}
 	return result, rows.Err()
 }
 
-func (r repository) eventSemanticReviewSnapshots(
+func (r Store) eventSemanticReviewSnapshots(
 	ctx context.Context,
 	runID string,
-) ([]eventsemantics.ReviewSnapshot, error) {
+) ([]eventbiz.ReviewSnapshot, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT reviewer_execution_key, canonical_payload_hash, payload, created_at
 		FROM event_semantic_review_snapshots
@@ -2322,9 +1588,9 @@ func (r repository) eventSemanticReviewSnapshots(
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventsemantics.ReviewSnapshot
+	var result []eventbiz.ReviewSnapshot
 	for rows.Next() {
-		var item eventsemantics.ReviewSnapshot
+		var item eventbiz.ReviewSnapshot
 		var payload []byte
 		if err := rows.Scan(
 			&item.ReviewerExecutionKey, &item.CanonicalPayloadHash, &payload, &item.CreatedAt,
@@ -2337,14 +1603,14 @@ func (r repository) eventSemanticReviewSnapshots(
 	return result, rows.Err()
 }
 
-func (r repository) populateSemanticRecordIDs(
+func (r Store) populateSemanticRecordIDs(
 	ctx context.Context,
 	runID string,
-	precheck *eventsemantics.PrecheckResult,
+	precheck *eventbiz.PrecheckResult,
 ) error {
 	groups := []struct {
 		table string
-		items *[]eventsemantics.CandidateDecision
+		items *[]eventbiz.CandidateDecision
 	}{
 		{table: "event_entity_links", items: &precheck.EntityLinks},
 		{table: "variable_signals", items: &precheck.VariableSignals},
@@ -2381,7 +1647,7 @@ func (r repository) populateSemanticRecordIDs(
 	return nil
 }
 
-func existingEventSemanticSubmission(ctx context.Context, tx *sql.Tx, executionID string) (eventsemantics.SubmissionResult, bool, error) {
+func existingEventSemanticSubmission(ctx context.Context, tx *sql.Tx, executionID string) (eventbiz.SubmissionResult, bool, error) {
 	return queryEventSemanticSubmission(ctx, tx.QueryRowContext(ctx, `
 		SELECT id,event_id,status,canonical_payload_hash,decision_summary
 		FROM event_semantic_submissions
@@ -2389,7 +1655,7 @@ func existingEventSemanticSubmission(ctx context.Context, tx *sql.Tx, executionI
 	`, executionID))
 }
 
-func eventSemanticSubmissionByID(ctx context.Context, tx *sql.Tx, runID string) (eventsemantics.SubmissionResult, bool, error) {
+func eventSemanticSubmissionByID(ctx context.Context, tx *sql.Tx, runID string) (eventbiz.SubmissionResult, bool, error) {
 	return queryEventSemanticSubmission(ctx, tx.QueryRowContext(ctx, `
 		SELECT id,event_id,status,canonical_payload_hash,decision_summary
 		FROM event_semantic_submissions
@@ -2402,24 +1668,24 @@ type semanticSubmissionRow interface {
 	Scan(...any) error
 }
 
-func queryEventSemanticSubmission(_ context.Context, row semanticSubmissionRow) (eventsemantics.SubmissionResult, bool, error) {
-	var result eventsemantics.SubmissionResult
+func queryEventSemanticSubmission(_ context.Context, row semanticSubmissionRow) (eventbiz.SubmissionResult, bool, error) {
+	var result eventbiz.SubmissionResult
 	var decisions []byte
 	err := row.Scan(&result.SubmissionID, &result.EventID, &result.Status, &result.CanonicalPayloadHash, &decisions)
 	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
-		return eventsemantics.SubmissionResult{}, false, nil
+		return eventbiz.SubmissionResult{}, false, nil
 	}
 	if err != nil {
-		return eventsemantics.SubmissionResult{}, false, err
+		return eventbiz.SubmissionResult{}, false, err
 	}
 	if err := json.Unmarshal(decisions, &result.Precheck); err != nil {
-		return eventsemantics.SubmissionResult{}, false, err
+		return eventbiz.SubmissionResult{}, false, err
 	}
 	return result, true, nil
 }
 
-func decisionsByKey(items []eventsemantics.CandidateDecision) map[string]eventsemantics.CandidateDecision {
-	result := make(map[string]eventsemantics.CandidateDecision, len(items))
+func decisionsByKey(items []eventbiz.CandidateDecision) map[string]eventbiz.CandidateDecision {
+	result := make(map[string]eventbiz.CandidateDecision, len(items))
 	for _, item := range items {
 		result[item.CandidateKey] = item
 	}
@@ -2440,4 +1706,68 @@ func firstReason(reasons []string, fallback string) string {
 		}
 	}
 	return fallback
+}
+
+const HistoricalEventSemanticManifestVersion = "event-semantic-history-audit.v1"
+
+type HistoricalEventSemanticManifest struct {
+	Version         string    `json:"version"`
+	GeneratedAt     time.Time `json:"generated_at"`
+	ValidEventIDs   []string  `json:"valid_event_ids"`
+	InvalidEventIDs []string  `json:"invalid_event_ids"`
+}
+
+func AuditHistoricalEventSemantics(
+	ctx context.Context,
+	db *sql.DB,
+	generatedAt time.Time,
+) (HistoricalEventSemanticManifest, error) {
+	if db == nil {
+		return HistoricalEventSemanticManifest{}, fmt.Errorf(
+			"Data database is required",
+		)
+	}
+	rows, err := db.QueryContext(ctx, fmt.Sprintf(`
+		SELECT e.id, (%s) AS input_valid
+		FROM events e
+		WHERE EXISTS (
+		    SELECT 1
+		    FROM event_sources historical_evidence
+		    WHERE historical_evidence.event_id = e.id
+		      AND historical_evidence.contract_version = 1
+		)
+		ORDER BY e.first_seen_at, e.id
+	`, eventSemanticInputEligibilitySQL))
+	if err != nil {
+		return HistoricalEventSemanticManifest{}, fmt.Errorf(
+			"audit historical Event Semantic inputs: %w", err,
+		)
+	}
+	defer rows.Close()
+	manifest := HistoricalEventSemanticManifest{
+		Version:         HistoricalEventSemanticManifestVersion,
+		GeneratedAt:     generatedAt.UTC(),
+		ValidEventIDs:   []string{},
+		InvalidEventIDs: []string{},
+	}
+	for rows.Next() {
+		var eventID string
+		var valid bool
+		if err := rows.Scan(&eventID, &valid); err != nil {
+			return HistoricalEventSemanticManifest{}, fmt.Errorf(
+				"scan historical Event Semantic input: %w", err,
+			)
+		}
+		if valid {
+			manifest.ValidEventIDs = append(manifest.ValidEventIDs, eventID)
+		} else {
+			manifest.InvalidEventIDs = append(manifest.InvalidEventIDs, eventID)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return HistoricalEventSemanticManifest{}, fmt.Errorf(
+			"audit historical Event Semantic inputs: %w", err,
+		)
+	}
+	return manifest, nil
 }

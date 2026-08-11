@@ -1,9 +1,306 @@
-package eventsemantics
+package eventsemantic
 
 import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+type Store interface {
+	ReadStore
+	TransactionStore
+}
+
+type ReadStore interface {
+	ListEligibleEvents(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
+	Context(context.Context, string) (Context, error)
+	SubmissionContext(context.Context, string, Submission) (Context, error)
+	ReplaySubmission(context.Context, string, string) (SubmissionResult, bool, error)
+	GetEventSemantics(context.Context, string) (EventSemanticsResult, error)
+}
+
+type NotFoundError struct{ Resource string }
+
+func (e *NotFoundError) Error() string { return e.Resource + " not found" }
+
+type ConflictError struct{ Reason string }
+
+func (e *ConflictError) Error() string { return e.Reason }
+
+type ContextDriftError struct{ Reason string }
+
+func (e *ContextDriftError) Error() string { return e.Reason }
+
+type ValidationError struct{ Reason string }
+
+func (e *ValidationError) Error() string { return e.Reason }
+
+type NotRequiredError struct{ Reason string }
+
+func (e *NotRequiredError) Error() string { return e.Reason }
+
+type InputInvalidError struct{ Reason string }
+
+func (e *InputInvalidError) Error() string { return e.Reason }
+
+type UseCase struct {
+	store Store
+}
+
+func NewUseCase(store Store) (*UseCase, error) {
+	if store == nil {
+		return nil, errors.New("Event Semantic store is required")
+	}
+	return &UseCase{store: store}, nil
+}
+
+func (s *UseCase) ListEligibleEvents(
+	ctx context.Context,
+	limit int,
+	cursor string,
+) (EligibleEventPage, error) {
+	if s == nil || s.store == nil {
+		return EligibleEventPage{}, errors.New("Event Semantics store is required")
+	}
+	if limit < 1 || limit > 100 {
+		return EligibleEventPage{}, &ValidationError{Reason: "limit must be between one and one hundred"}
+	}
+	after, err := decodeEligibleEventCursor(cursor)
+	if err != nil {
+		return EligibleEventPage{}, &ValidationError{Reason: "cursor is invalid"}
+	}
+	items, err := s.store.ListEligibleEvents(ctx, limit+1, after)
+	if err != nil {
+		return EligibleEventPage{}, err
+	}
+	page := EligibleEventPage{Events: items}
+	if len(items) > limit {
+		page.Events = items[:limit]
+		page.NextCursor, err = encodeEligibleEventCursor(page.Events[len(page.Events)-1])
+		if err != nil {
+			return EligibleEventPage{}, err
+		}
+	}
+	return page, nil
+}
+
+type eligibleEventCursorPayload struct {
+	Version     int       `json:"v"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	EventID     string    `json:"event_id"`
+}
+
+func encodeEligibleEventCursor(item EligibleEvent) (string, error) {
+	if item.FirstSeenAt.IsZero() {
+		return "", errors.New("eligible Event cursor time is required")
+	}
+	if _, err := uuid.Parse(item.EventID); err != nil {
+		return "", errors.New("eligible Event cursor ID is invalid")
+	}
+	payload, err := json.Marshal(eligibleEventCursorPayload{
+		Version: 1, FirstSeenAt: item.FirstSeenAt.UTC(), EventID: item.EventID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("encode eligible Event cursor: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeEligibleEventCursor(value string) (*EligibleEventCursor, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if len(value) > 1024 {
+		return nil, errors.New("eligible Event cursor encoding is invalid")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil || len(payload) > 1024 {
+		return nil, errors.New("eligible Event cursor encoding is invalid")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	var decoded eligibleEventCursorPayload
+	if err := decoder.Decode(&decoded); err != nil {
+		return nil, errors.New("eligible Event cursor payload is invalid")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, errors.New("eligible Event cursor payload is invalid")
+	}
+	if decoded.Version != 1 || decoded.FirstSeenAt.IsZero() {
+		return nil, errors.New("eligible Event cursor version is invalid")
+	}
+	if _, err := uuid.Parse(decoded.EventID); err != nil {
+		return nil, errors.New("eligible Event cursor ID is invalid")
+	}
+	return &EligibleEventCursor{
+		FirstSeenAt: decoded.FirstSeenAt.UTC(),
+		EventID:     decoded.EventID,
+	}, nil
+}
+
+func (s *UseCase) CreateContextLease(ctx context.Context, request ContextLeaseRequest) (ContextLease, error) {
+	if s == nil || s.store == nil {
+		return ContextLease{}, errors.New("Event Semantics store is required")
+	}
+	if strings.TrimSpace(request.EventID) == "" ||
+		strings.TrimSpace(request.AgentExecutionID) == "" ||
+		strings.TrimSpace(request.WorkerID) == "" ||
+		request.Lease < time.Minute || request.Lease > 15*time.Minute {
+		return ContextLease{}, &ValidationError{Reason: "event_id, agent_execution_id, worker_id and lease_seconds are required"}
+	}
+	request.EventID = strings.TrimSpace(request.EventID)
+	request.SupersedesSubmissionID = strings.TrimSpace(request.SupersedesSubmissionID)
+	request.AgentExecutionID = strings.TrimSpace(request.AgentExecutionID)
+	request.WorkerID = strings.TrimSpace(request.WorkerID)
+	return s.store.CreateContextLease(ctx, request)
+}
+
+func (s *UseCase) Context(ctx context.Context, contextLeaseID string) (Context, error) {
+	if strings.TrimSpace(contextLeaseID) == "" {
+		return Context{}, &ValidationError{Reason: "context_lease_id is required"}
+	}
+	return s.store.Context(ctx, contextLeaseID)
+}
+
+func (s *UseCase) CreateSubmission(ctx context.Context, submission Submission) (SubmissionResult, error) {
+	if strings.TrimSpace(submission.ContextLeaseID) == "" || strings.TrimSpace(submission.EventID) == "" ||
+		strings.TrimSpace(submission.AgentExecutionID) == "" ||
+		submission.AgentKey != "event-semantic-enricher" ||
+		submission.AgentVersion != "event-semantic-enricher.v3" {
+		return SubmissionResult{}, &ValidationError{Reason: "submission identity is invalid"}
+	}
+	if err := validateSubmissionMetadata(submission); err != nil {
+		return SubmissionResult{}, err
+	}
+	payload, hash, err := canonicalHash(submission)
+	if err != nil {
+		return SubmissionResult{}, err
+	}
+	if existing, found, err := s.store.ReplaySubmission(ctx, submission.AgentExecutionID, hash); err != nil {
+		return SubmissionResult{}, err
+	} else if found {
+		return existing, nil
+	}
+	contextSnapshot, err := s.store.SubmissionContext(ctx, submission.ContextLeaseID, submission)
+	if err != nil {
+		return SubmissionResult{}, err
+	}
+	if contextSnapshot.Event.ID != submission.EventID {
+		return SubmissionResult{}, &ConflictError{Reason: "context lease is bound to a different Event"}
+	}
+	if submission.OntologyVersion != contextSnapshot.OntologyVersion ||
+		submission.AcceptancePolicyVersion != contextSnapshot.PolicyVersion {
+		return SubmissionResult{}, &ConflictError{Reason: "ontology or acceptance policy snapshot changed"}
+	}
+	precheck := Precheck(contextSnapshot, submission)
+	return s.store.CreateSubmission(ctx, submission, precheck, payload, hash)
+}
+
+func (s *UseCase) SubmitReview(ctx context.Context, submission ReviewSubmission) (SubmissionResult, error) {
+	if strings.TrimSpace(submission.SubmissionID) == "" || strings.TrimSpace(submission.ReviewerExecutionKey) == "" ||
+		!validHash(submission.PromptHash) || strings.TrimSpace(submission.Model) == "" ||
+		len(submission.Items) == 0 {
+		return SubmissionResult{}, &ValidationError{Reason: "review identity and items are invalid"}
+	}
+	for _, item := range submission.Items {
+		if !contains([]string{"entity_link", "variable_signal"}, item.CandidateType) ||
+			strings.TrimSpace(item.CandidateKey) == "" ||
+			!contains([]string{"pass", "fail", "indeterminate"}, item.Decision) ||
+			len(item.EvidenceIDs) == 0 {
+			return SubmissionResult{}, &ValidationError{Reason: "review item is invalid"}
+		}
+	}
+	payload, hash, err := canonicalHash(submission)
+	if err != nil {
+		return SubmissionResult{}, err
+	}
+	return s.store.SubmitReview(ctx, submission, payload, hash)
+}
+
+func (s *UseCase) Get(ctx context.Context, eventID string) (EventSemanticsResult, error) {
+	if strings.TrimSpace(eventID) == "" {
+		return EventSemanticsResult{}, &ValidationError{Reason: "event_id is required"}
+	}
+	return s.store.GetEventSemantics(ctx, eventID)
+}
+
+func validateSubmissionMetadata(submission Submission) error {
+	for _, hash := range []string{
+		submission.GeneratorPromptHash,
+		submission.ReviewerPromptHash,
+		submission.AdjudicatorPromptHash,
+	} {
+		if !validHash(hash) {
+			return &ValidationError{Reason: "prompt hashes must be lowercase SHA-256"}
+		}
+	}
+	if strings.TrimSpace(submission.GeneratorModel) == "" ||
+		strings.TrimSpace(submission.ReviewerModel) == "" ||
+		strings.TrimSpace(submission.AdjudicatorModel) == "" ||
+		strings.TrimSpace(submission.OntologyVersion) == "" ||
+		strings.TrimSpace(submission.AcceptancePolicyVersion) == "" {
+		return &ValidationError{Reason: "submission version snapshots are required"}
+	}
+	for _, keys := range [][]string{
+		entityLinkKeys(submission.EntityLinks),
+		variableSignalKeys(submission.VariableSignals),
+	} {
+		seen := make(map[string]struct{}, len(keys))
+		for _, key := range keys {
+			if _, exists := seen[key]; exists {
+				return &ValidationError{Reason: "candidate keys must be unique within each candidate type"}
+			}
+			seen[key] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func entityLinkKeys(items []EntityLinkCandidate) []string {
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		result = append(result, item.Key)
+	}
+	return result
+}
+
+func variableSignalKeys(items []VariableSignalCandidate) []string {
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		result = append(result, item.Key)
+	}
+	return result
+}
+
+func validHash(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil && strings.ToLower(value) == value
+}
+
+func canonicalHash(value any) ([]byte, string, error) {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return nil, "", fmt.Errorf("encode canonical Event Semantics payload: %w", err)
+	}
+	sum := sha256.Sum256(payload)
+	return payload, hex.EncodeToString(sum[:]), nil
+}
 
 type ReviewStatus string
 
@@ -439,4 +736,241 @@ type ReviewSnapshot struct {
 type EventSemanticsResult struct {
 	EventID     string
 	Submissions []SubmissionResult
+}
+
+var confidencePattern = regexp.MustCompile(`^(0(\.\d{1,5})?|1(\.0{1,5})?)$`)
+
+func Precheck(context Context, submission Submission) PrecheckResult {
+	result := PrecheckResult{
+		ReviewerWorkPackage: ReviewerWorkPackage{
+			Event: context.Event, Evidence: append([]Evidence(nil), context.Evidence...),
+		},
+	}
+	evidence := indexEvidence(context.Evidence)
+	entities := indexEntities(context.Entities)
+	variables := indexVariables(context.Variables)
+
+	linkByKey := make(map[string]EntityLinkCandidate, len(submission.EntityLinks))
+	linkStatus := make(map[string]ReviewStatus, len(submission.EntityLinks))
+	seenEntityIDs := make(map[string]struct{}, len(submission.EntityLinks))
+	reviewerEntityIDs := make(map[string]struct{}, len(submission.EntityLinks))
+	for _, candidate := range submission.EntityLinks {
+		reason := validateLink(context, candidate, evidence, entities)
+		if reason == "" {
+			if _, duplicate := seenEntityIDs[candidate.EntityID]; duplicate {
+				reason = "duplicate_entity_link"
+			} else {
+				seenEntityIDs[candidate.EntityID] = struct{}{}
+			}
+		}
+		decision := decision(candidate.Key, reason)
+		result.EntityLinks = append(result.EntityLinks, decision)
+		linkByKey[candidate.Key], linkStatus[candidate.Key] = candidate, decision.Status
+		if decision.Status == StatusPendingReview {
+			result.ReviewerWorkPackage.EntityLinks = append(result.ReviewerWorkPackage.EntityLinks, candidate)
+			if _, exists := reviewerEntityIDs[candidate.EntityID]; !exists {
+				result.ReviewerWorkPackage.ResolvedEntities = append(
+					result.ReviewerWorkPackage.ResolvedEntities, entities[candidate.EntityID],
+				)
+				reviewerEntityIDs[candidate.EntityID] = struct{}{}
+			}
+		}
+	}
+
+	for _, candidate := range submission.VariableSignals {
+		reason := validateSignal(context, candidate, evidence, entities, variables, linkByKey, linkStatus)
+		decision := decision(candidate.Key, reason)
+		result.VariableSignals = append(result.VariableSignals, decision)
+		if decision.Status == StatusPendingReview {
+			result.ReviewerWorkPackage.VariableSignals = append(result.ReviewerWorkPackage.VariableSignals, candidate)
+		}
+	}
+	return result
+}
+
+func decision(key, reason string) CandidateDecision {
+	if reason != "" {
+		return CandidateDecision{CandidateKey: key, Status: StatusRejected, ReasonCode: reason}
+	}
+	return CandidateDecision{CandidateKey: key, Status: StatusPendingReview}
+}
+
+func validateLink(context Context, candidate EntityLinkCandidate, evidence map[string]Evidence, entities map[string]Entity) string {
+	if context.Event.Status != "confirmed" || context.Event.FactStatus != "verified" {
+		return "event_not_eligible"
+	}
+	if strings.TrimSpace(candidate.Key) == "" || strings.TrimSpace(candidate.Mention) == "" ||
+		strings.TrimSpace(candidate.EntityRole) == "" || strings.TrimSpace(candidate.ResolutionMethod) == "" {
+		return "link_invalid"
+	}
+	entity, exists := entities[candidate.EntityID]
+	if !exists || entity.Status != "active" {
+		return "entity_not_found"
+	}
+	if strings.TrimSpace(candidate.ProjectedEntityType) == "" || candidate.ProjectedEntityType != entity.Type {
+		return "entity_projection_type_mismatch"
+	}
+	entityType, exists := activeEntityType(context.EntityTypes, entity.Type)
+	if !exists || !entityType.EventLinkAllowed || !contains(entityType.AllowedEventRoles, candidate.EntityRole) {
+		return "entity_role_invalid"
+	}
+	if !allEvidenceExists(candidate.EvidenceIDs, evidence) {
+		return "evidence_not_in_event"
+	}
+	if !contains([]string{"qdrant_exact", "qdrant_vector"}, candidate.ResolutionMethod) {
+		return "entity_resolution_method_invalid"
+	}
+	if !mentionGrounded(context, candidate) {
+		return "entity_evidence_lineage_invalid"
+	}
+	if !validConfidence(candidate.ResolutionConfidence) {
+		return "confidence_invalid"
+	}
+	return ""
+}
+
+func validateSignal(
+	context Context,
+	candidate VariableSignalCandidate,
+	evidence map[string]Evidence,
+	entities map[string]Entity,
+	variables map[string]VariableDefinition,
+	links map[string]EntityLinkCandidate,
+	linkStatus map[string]ReviewStatus,
+) string {
+	link, exists := links[candidate.SubjectLinkKey]
+	if !exists {
+		return "subject_link_not_found"
+	}
+	if linkStatus[candidate.SubjectLinkKey] == StatusRejected {
+		return "upstream_rejected"
+	}
+	entity := entities[link.EntityID]
+	entityType, exists := activeEntityType(context.EntityTypes, entity.Type)
+	if !exists || !entityType.SignalSubjectAllowed {
+		return "signal_subject_not_allowed"
+	}
+	variable, exists := variables[definitionIdentity(candidate.VariableKey, candidate.VariableVersion)]
+	if !exists || variable.Status != "active" {
+		return "variable_not_found"
+	}
+	if !contains(variable.ApplicableEntityTypes, entity.Type) {
+		return "variable_not_applicable"
+	}
+	if !contains(variable.AllowedDirections, candidate.Direction) {
+		return "direction_not_allowed"
+	}
+	if !contains(context.AssertionModalities, candidate.AssertionModality) {
+		return "assertion_modality_invalid"
+	}
+	if !allEvidenceExists(candidate.EvidenceIDs, evidence) {
+		return "evidence_not_in_event"
+	}
+	if !validConfidence(candidate.ExtractionConfidence) {
+		return "confidence_invalid"
+	}
+	if invalidTimeRange(candidate.ValidFrom, candidate.ValidUntil) ||
+		invalidTimeRange(candidate.ForecastPeriodStart, candidate.ForecastPeriodEnd) {
+		return "signal_time_invalid"
+	}
+	if len(candidate.Measurements) > context.MeasurementContract.MaxItemsPerSignal {
+		return "measurement_count_invalid"
+	}
+	for _, measurement := range candidate.Measurements {
+		if text := strings.TrimSpace(measurement.Text); text == "" ||
+			len([]rune(text)) > context.MeasurementContract.MaxTextCharacters {
+			return "measurement_text_invalid"
+		}
+		if !allEvidenceExists(measurement.EvidenceIDs, evidence) {
+			return "evidence_not_in_event"
+		}
+	}
+	return ""
+}
+
+func activeEntityType(items []EntityTypeDefinition, typeKey string) (EntityTypeDefinition, bool) {
+	for _, item := range items {
+		if item.TypeKey == typeKey && item.Status == "active" {
+			return item, true
+		}
+	}
+	return EntityTypeDefinition{}, false
+}
+
+func mentionGrounded(context Context, candidate EntityLinkCandidate) bool {
+	if strings.TrimSpace(candidate.Mention) == "" || len(candidate.EvidenceIDs) == 0 {
+		return false
+	}
+	evidenceByID := indexEvidence(context.Evidence)
+	for _, evidenceID := range candidate.EvidenceIDs {
+		if _, ok := evidenceByID[evidenceID]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func indexEvidence(items []Evidence) map[string]Evidence {
+	result := make(map[string]Evidence, len(items))
+	for _, item := range items {
+		result[item.ID] = item
+	}
+	return result
+}
+
+func indexEntities(items []Entity) map[string]Entity {
+	result := make(map[string]Entity, len(items))
+	for _, item := range items {
+		result[item.ID] = item
+	}
+	return result
+}
+
+func indexVariables(items []VariableDefinition) map[string]VariableDefinition {
+	result := make(map[string]VariableDefinition, len(items))
+	for _, item := range items {
+		result[definitionIdentity(item.Key, item.Version)] = item
+	}
+	return result
+}
+
+func allEvidenceExists(ids []string, evidence map[string]Evidence) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if _, exists := evidence[id]; !exists {
+			return false
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return false
+		}
+		seen[id] = struct{}{}
+	}
+	return true
+}
+
+func contains(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func definitionIdentity(key string, version int) string {
+	return key + "@" + strconv.Itoa(version)
+}
+
+func validConfidence(value string) bool {
+	if value == "" {
+		return true
+	}
+	return confidencePattern.MatchString(value)
+}
+
+func invalidTimeRange(start, end *time.Time) bool {
+	return start != nil && end != nil && end.Before(*start)
 }
