@@ -268,7 +268,7 @@ describe('MonitoringCenter', () => {
       ...runtimeHealth(),
       status: 'degraded',
       services: runtimeHealth().services.map((service) =>
-		service.key === 'qdrant'
+        service.key === 'qdrant'
           ? {
               ...service,
               status: 'down' as const,
@@ -309,7 +309,7 @@ function runtimeHealth() {
         display_name: 'Qdrant' as const,
         status: 'ready' as const,
         checked_at: '2026-08-03T08:30:00Z'
-		}
+      }
     ]
   };
 }

@@ -4,30 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
 	domain "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entity"
 	bizidentity "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/identity"
+	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
 )
 
 func TestStorePersistsBenchmarkObservations(t *testing.T) {
-	dsn := os.Getenv("TIDEWISE_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("set TIDEWISE_TEST_DATABASE_URL to run PostgreSQL benchmark observation repository integration test")
-	}
-
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("close db: %v", err)
-		}
-	})
+	db := openEntityTestDatabase(t)
 
 	ctx := context.Background()
 	repo, err := NewStore(db)
@@ -186,4 +173,13 @@ INSERT INTO entity_nodes (
 	if err == nil {
 		t.Fatal("UpsertBenchmarkObservation(index) error = nil, want non-benchmark entity rejection")
 	}
+}
+
+func openEntityTestDatabase(t *testing.T) *sql.DB {
+	t.Helper()
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return postgresfixture.OpenIsolated(t, "tw_entity", migrationDir, 0)
 }

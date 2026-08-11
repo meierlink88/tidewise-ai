@@ -41,14 +41,14 @@ describe('AgentRun management Admin API client', () => {
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer browser-token');
   });
 
-	it('strictly loads the three runtime services through the Admin BFF', async () => {
+  it('strictly loads the three runtime services through the Admin BFF', async () => {
     const fetchMock = successFetch(runtimeHealthResult());
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await loadRuntimeHealth('browser-token');
 
     expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/v1/runtime-health');
-		expect(result.services.map((service) => service.key)).toEqual(['data', 'agentrun', 'qdrant']);
+    expect(result.services.map((service) => service.key)).toEqual(['data', 'agentrun', 'qdrant']);
   });
 
   it('loads the safe Agent status projection through the Admin BFF', async () => {
@@ -191,7 +191,7 @@ function runtimeHealthResult() {
         checked_at: '2026-08-04T10:00:00Z',
         latency_ms: null,
         reason_code: null
-		}
+      }
     ]
   };
 }
