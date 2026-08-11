@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,6 +35,58 @@ func TestListEventsRejectsInvalidPersistedRows(t *testing.T) {
 	_, err = store.ListEvents(context.Background(), eventbiz.EventListFilter{})
 	if err == nil || !strings.Contains(err.Error(), "read Event invariant") {
 		t.Fatalf("ListEvents() error = %v, want persisted invariant failure", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResearchEventProviderReadsOnlyEligibleFormalFacts(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	now := time.Date(2026, 8, 12, 1, 0, 0, 0, time.UTC)
+	eventPayload := []byte(`{"id":"10000000-0000-4000-8000-000000000001","title":"Title","summary":"Summary","occurred_at":null,"first_seen_at":"2026-08-12T01:00:00Z","knowledge_available_at":"2026-08-12T01:00:00Z","event_status":"confirmed","fact_status":"verified"}`)
+	statementHash := sha256.Sum256([]byte("statement"))
+	evidencePayload, err := json.Marshal([]eventbiz.ResearchEvidenceFact{
+		{
+			EvidenceID: "20000000-0000-4000-8000-000000000001", EvidenceHash: hex.EncodeToString(statementHash[:]),
+			Statement: "statement", SourceLevel: string(eventbiz.EventSourceLevelPrimary),
+			Relation: string(eventbiz.EvidenceRelationSupports), SupportsFields: []string{eventbiz.EventFieldTitle},
+			RawDocumentID: "30000000-0000-4000-8000-000000000001", SourceName: "Source", SourceType: "news",
+			Title: "Article", FirstSeenAt: now, KnowledgeAvailableAt: now, AcceptedAt: now, StatementSource: "extractor",
+		},
+		{
+			EvidenceID: "20000000-0000-4000-8000-000000000002", EvidenceHash: hex.EncodeToString(statementHash[:]),
+			Statement: "statement", SourceLevel: string(eventbiz.EventSourceLevelPrimary),
+			Relation: string(eventbiz.EvidenceRelationSupports), SupportsFields: []string{eventbiz.EventFieldTitle},
+			RawDocumentID: "30000000-0000-4000-8000-000000000002", SourceName: "Later Source", SourceType: "news",
+			Title: "Later Article", FirstSeenAt: now.Add(time.Hour), KnowledgeAvailableAt: now.Add(time.Hour),
+			AcceptedAt: now.Add(time.Hour), StatementSource: "extractor",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery(`SELECT\s+jsonb_build_object`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), nil, nil, 2).
+		WillReturnRows(sqlmock.NewRows([]string{"event", "evidence", "available"}).AddRow(eventPayload, evidencePayload, now))
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := store.ListResearchEvents(context.Background(), eventbiz.ResearchEventQuery{
+		DiscoveryWindowStart: now.Add(-time.Hour), DiscoveryWindowEnd: now.Add(time.Hour),
+		AnalysisAsOf: now, PageSize: 1,
+	})
+	if err != nil || len(page.Events) != 1 {
+		t.Fatalf("ListResearchEvents() = %#v, %v", page, err)
+	}
+	page.Events[0].Event.Summary = ""
+	if err := validateResearchEventRecord(page.Events[0]); err == nil {
+		t.Fatal("persisted Research Event with an empty factual summary was accepted")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

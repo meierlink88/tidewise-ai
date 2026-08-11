@@ -27,6 +27,7 @@ import (
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/eventsemantic"
 	eventsemanticfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/eventsemantic"
 	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
+	researchfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/research"
 )
 
 type eventSemanticHTTPStubBase struct{}
@@ -463,7 +464,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	}
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
-		parentservice.NewDataService(parentservice.Dependencies{}), semanticTestEventService{}, application,
+		parentservice.NewDataService(parentservice.Dependencies{}), researchfixture.Service{}, semanticTestEventService{}, application,
 		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, authenticator, nil,
 	)
 	if err != nil {

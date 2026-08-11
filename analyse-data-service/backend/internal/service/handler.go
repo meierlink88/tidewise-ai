@@ -4,54 +4,21 @@ import (
 	"context"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 )
 
 const (
 	Namespace = v1.APIPrefix
 
-	ScopeResearchRead   = "data.research.read"
-	ScopeResearchImport = "data.research.import"
-	ScopeAdminRead      = "data.admin.read"
+	ScopeAdminRead = "data.admin.read"
 )
-
-type ResearchThemeImportService interface {
-	Publish(context.Context, string, researchpublication.Aggregate) (researchpublication.Result, error)
-	PublishSnapshot(context.Context, string, researchpublication.SnapshotAggregate) (researchpublication.Result, error)
-}
-
-type ResearchService interface {
-	ListThemes(context.Context, research.ResearchListRequest) (research.ResearchThemePage, error)
-	GetTheme(context.Context, string, research.ResearchDetailRequest) (research.ResearchThemeDetail, error)
-	ListReasoningTrees(context.Context, string) (research.ResearchReasoningTreeList, error)
-	GetReasoningTree(context.Context, string, string) (research.ResearchReasoningTreeDetail, error)
-}
-
-type ResearchAnalysisContextService interface {
-	List(
-		context.Context,
-		researchanalysiscontext.Request,
-	) (researchanalysiscontext.Result, error)
-}
-
-type ResearchGraphService interface {
-	Search(context.Context, researchgraph.Request) (researchgraph.Result, error)
-}
 
 type RuntimeHealthService interface {
 	Get(context.Context) runtimehealth.Result
 }
 
 type Dependencies struct {
-	ResearchThemeImports    ResearchThemeImportService
-	Research                ResearchService
-	ResearchAnalysisContext ResearchAnalysisContextService
-	ResearchGraph           ResearchGraphService
-	RuntimeHealth           RuntimeHealthService
+	RuntimeHealth RuntimeHealthService
 }
 
 type DataService struct {

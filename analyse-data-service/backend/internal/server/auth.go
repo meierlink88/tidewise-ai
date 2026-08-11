@@ -15,6 +15,7 @@ import (
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
+	researchapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/research"
 )
 
 const (
@@ -113,11 +114,11 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeEvidenceImport, true
 	case eventapi.OperationListActiveEventTags:
 		return ScopeEventTagRead, true
-	case v1.OperationPublishResearchTheme:
+	case researchapi.OperationPublishResearchTheme:
 		return ScopeResearchImport, true
-	case v1.OperationListResearchThemes, v1.OperationGetResearchTheme,
-		v1.OperationListResearchThemeReasoningTrees, v1.OperationGetResearchThemeReasoningTree,
-		v1.OperationListResearchAnalysisContext, v1.OperationSearchResearchGraph:
+	case researchapi.OperationListResearchThemes, researchapi.OperationGetResearchTheme,
+		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
+		researchapi.OperationListResearchAnalysisContext, researchapi.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
 	case rawdocumentapi.OperationList, eventapi.OperationListAdminEvents, v1.OperationGetRuntimeHealth:
 		return ScopeAdminRead, true

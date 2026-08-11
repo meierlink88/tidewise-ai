@@ -175,10 +175,10 @@ internal/service/<domain>/service.go
 - `dbmigrate` 是生产发布命令，保留现有 binary 名称、check-only、`-apply`、
   `-target-version`、报告和失败语义，并继续进入 Data 镜像供 UAT migration
   preflight、风险门禁和部署流程调用。
-- `research-theme-dev-reset` 与 `research-theme-dev-seed` 是仓库支持的本地开发
-  命令，保留现有行为，但不进入生产镜像；两者在非 local 环境继续 fail closed。
+- `research-theme-dev-reset` 是仓库支持的本地开发命令，在非 local 环境继续
+  fail closed。历史 `research-theme-dev-seed` 已随 Research 聚合发布边界收敛而退役。
 - 迁移后保留 `cmd/server`、`cmd/dbmigrate`、`cmd/entity-seed`、
-  `cmd/research-theme-dev-reset` 和 `cmd/research-theme-dev-seed`。只有长期运行的
+  `cmd/research-theme-dev-reset`。只有长期运行的
   `cmd/server` 创建 `kratos.App`；其余命令是复用 `internal/conf`、
   `internal/biz` 与 `internal/data` 的短生命周期 composition root。
 

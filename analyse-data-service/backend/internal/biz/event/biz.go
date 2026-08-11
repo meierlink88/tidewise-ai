@@ -41,6 +41,64 @@ type Store interface {
 	TransactionStore
 	ListActiveTags(context.Context) ([]EventTag, error)
 	ListEvents(context.Context, EventListFilter) (EventStorePage, error)
+	ListResearchEvents(context.Context, ResearchEventQuery) (ResearchEventPage, error)
+}
+
+func (s *UseCase) ListResearchEvents(ctx context.Context, query ResearchEventQuery) (ResearchEventPage, error) {
+	if s == nil || s.store == nil {
+		return ResearchEventPage{}, errors.New("Event store is required")
+	}
+	return s.store.ListResearchEvents(ctx, query)
+}
+
+type ResearchEventQuery struct {
+	DiscoveryWindowStart      time.Time
+	DiscoveryWindowEnd        time.Time
+	AnalysisAsOf              time.Time
+	PageSize                  int
+	AfterKnowledgeAvailableAt *time.Time
+	AfterEventID              string
+}
+
+type ResearchEventPage struct {
+	Events  []ResearchEventRecord
+	HasMore bool
+}
+
+type ResearchEventRecord struct {
+	Event                ResearchEventFact
+	Evidence             []ResearchEvidenceFact
+	KnowledgeAvailableAt time.Time
+}
+
+type ResearchEventFact struct {
+	ID                   string     `json:"id"`
+	Title                string     `json:"title"`
+	Summary              string     `json:"summary"`
+	OccurredAt           *time.Time `json:"occurred_at"`
+	FirstSeenAt          time.Time  `json:"first_seen_at"`
+	KnowledgeAvailableAt time.Time  `json:"knowledge_available_at"`
+	EventStatus          string     `json:"event_status"`
+	FactStatus           string     `json:"fact_status"`
+}
+
+type ResearchEvidenceFact struct {
+	EvidenceID           string     `json:"evidence_id"`
+	EvidenceHash         string     `json:"evidence_hash"`
+	Statement            string     `json:"evidence_statement"`
+	SourceLevel          string     `json:"source_level"`
+	Relation             string     `json:"relation"`
+	SupportsFields       []string   `json:"supports_fields"`
+	RawDocumentID        string     `json:"raw_document_id"`
+	SourceName           string     `json:"source_name"`
+	SourceType           string     `json:"source_type"`
+	SourceURL            *string    `json:"source_url"`
+	Title                string     `json:"title"`
+	PublishedAt          *time.Time `json:"published_at"`
+	FirstSeenAt          time.Time  `json:"first_seen_at"`
+	KnowledgeAvailableAt time.Time  `json:"knowledge_available_at"`
+	AcceptedAt           time.Time  `json:"accepted_at"`
+	StatementSource      string     `json:"statement_source"`
 }
 
 var (

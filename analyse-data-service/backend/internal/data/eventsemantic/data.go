@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	entitybiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entity"
@@ -2454,4 +2455,520 @@ func AuditHistoricalEventSemantics(
 		)
 	}
 	return manifest, nil
+}
+
+const researchSemanticClosureCTE = `
+WITH
+requested_variables(variable_key, version) AS (SELECT * FROM unnest($2::text[], $3::integer[])),
+requested_rules(rule_key, version) AS (SELECT * FROM unnest($4::text[], $5::integer[])),
+requested_submissions(id) AS (SELECT unnest($6::uuid[])),
+selected_rules AS MATERIALIZED (
+    SELECT rule.* FROM direct_transmission_rules rule
+    JOIN requested_rules requested ON requested.rule_key = rule.rule_key AND requested.version = rule.version
+    WHERE rule.status = 'approved' AND rule.created_at <= $1 AND COALESCE(rule.reviewed_at, rule.created_at) <= $1
+),
+selected_variable_keys(variable_key, version) AS MATERIALIZED (
+    SELECT variable_key, version FROM requested_variables
+    UNION SELECT source_variable_key, source_variable_version FROM selected_rules
+    UNION SELECT affected_variable_key, affected_variable_version FROM selected_rules
+),
+selected_variable_definitions AS MATERIALIZED (
+    SELECT definition.* FROM variable_definitions definition
+    JOIN selected_variable_keys selected ON selected.variable_key = definition.variable_key AND selected.version = definition.version
+    WHERE definition.status = 'active' AND definition.created_at <= $1
+),
+selected_applicable_entity_types AS MATERIALIZED (
+    SELECT applicable.* FROM variable_definition_entity_types applicable
+    JOIN selected_variable_keys selected ON selected.variable_key = applicable.variable_key AND selected.version = applicable.variable_version
+    WHERE applicable.created_at <= $1
+),
+selected_policy_keys(policy_key, version) AS MATERIALIZED (
+    SELECT submission.acceptance_policy_key, submission.acceptance_policy_version
+    FROM event_semantic_submissions submission JOIN requested_submissions requested ON requested.id = submission.id
+    WHERE submission.status = 'accepted' AND COALESCE(submission.finalized_at, submission.created_at) <= $1
+),
+selected_policies AS MATERIALIZED (
+    SELECT policy.* FROM event_semantic_acceptance_policies policy
+    JOIN selected_policy_keys selected ON selected.policy_key = policy.policy_key AND selected.version = policy.version
+    WHERE policy.status = 'active' AND policy.created_at <= $1
+)
+`
+
+type researchSemanticClosureParameters struct {
+	variableKeys          []string
+	variableVersions      []int32
+	ruleKeys              []string
+	ruleVersions          []int32
+	semanticSubmissionIDs []string
+}
+
+func (s Store) ListResearchSemantics(
+	ctx context.Context,
+	query eventbiz.ResearchSemanticQuery,
+) ([]eventbiz.ResearchSemanticRecord, error) {
+	if s.db == nil {
+		return nil, errors.New("Event Semantic database is required")
+	}
+	var historicalGap bool
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+		    SELECT 1
+		    FROM event_semantic_submissions submission
+		    JOIN events event ON event.id = submission.event_id
+		    WHERE submission.status = 'superseded'
+		      AND submission.created_at <= $3
+		      AND submission.finalized_at > $3
+		      AND COALESCE(event.knowable_at, event.first_seen_at) >= $1
+		      AND COALESCE(event.knowable_at, event.first_seen_at) < $2
+		      AND COALESCE(event.knowable_at, event.first_seen_at) <= $3
+		)
+	`, query.DiscoveryWindowStart, query.DiscoveryWindowEnd, query.AnalysisAsOf).Scan(&historicalGap); err != nil {
+		return nil, err
+	}
+	if historicalGap {
+		return nil, eventbiz.ErrResearchHistoricalSemanticsUnavailable
+	}
+	result := make([]eventbiz.ResearchSemanticRecord, 0, len(query.EventIDs))
+	for _, eventID := range query.EventIDs {
+		payload, err := s.researchSemanticRecord(ctx, eventID, query.AnalysisAsOf)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, payload)
+	}
+	return result, nil
+}
+
+func (s *Store) preflightReferenceClosureBudget(
+	ctx context.Context,
+	query eventbiz.ResearchSemanticClosureQuery,
+	parameters researchSemanticClosureParameters,
+) error {
+	var rows, bytes int64
+	err := s.db.QueryRowContext(
+		ctx,
+		researchSemanticClosureCTE+`
+		SELECT count(*)::bigint, COALESCE(sum(pg_column_size(item)), 0)::bigint
+		FROM (
+		    SELECT to_jsonb(definition) item FROM selected_variable_definitions definition
+		    UNION ALL
+		    SELECT to_jsonb(applicable) FROM selected_applicable_entity_types applicable
+		    UNION ALL
+		    SELECT to_jsonb(rule) FROM selected_rules rule
+		    UNION ALL
+		    SELECT to_jsonb(policy) FROM selected_policies policy
+		) records
+	`,
+		researchSemanticClosureArgs(query.AnalysisAsOf, parameters)...,
+	).Scan(&rows, &bytes)
+	if err != nil {
+		return err
+	}
+	if rows > eventbiz.ResearchMaxDictionaryRows ||
+		bytes > eventbiz.ResearchMaxDictionaryBytes {
+		return &eventbiz.ResearchResourceLimitError{
+			Reason:        "Research Analysis Context reference closure exceeds the preflight budget",
+			Component:     "reference_closure",
+			ActualRows:    int64Pointer(rows),
+			MaxRows:       int64Pointer(eventbiz.ResearchMaxDictionaryRows),
+			ActualBytes:   int64Pointer(bytes),
+			MaxBytes:      int64Pointer(eventbiz.ResearchMaxDictionaryBytes),
+			RetryGuidance: "reduce_page_size",
+		}
+	}
+	return nil
+}
+
+func (s *Store) researchSemanticRecord(
+	ctx context.Context,
+	eventID string,
+	analysisAsOf time.Time,
+) (eventbiz.ResearchSemanticRecord, error) {
+	var payload []byte
+	err := s.db.QueryRowContext(ctx, `
+		SELECT jsonb_build_object(
+		    'entity_links', COALESCE((
+		        SELECT jsonb_agg(jsonb_build_object(
+		            'event_entity_link_id', link.id,
+		            'semantic_submission_id', link.semantic_submission_id,
+		            'entity_id', link.entity_id,
+		            'entity_role', link.entity_role,
+		            'resolved_mention', link.resolved_mention,
+		            'resolution_method', link.resolution_method,
+		            'resolution_confidence', link.resolution_confidence,
+		            'evidence_ids', link.evidence_ids,
+		            'review_status', link.review_status
+		        ) ORDER BY link.entity_role, link.entity_id, link.id)
+		        FROM event_entity_links link
+		        JOIN event_semantic_submissions submission
+		          ON submission.id = link.semantic_submission_id
+		        WHERE link.event_id = $1::uuid
+		          AND link.review_status = 'accepted'
+		          AND submission.status = 'accepted'
+		          AND link.updated_at <= $2
+		          AND COALESCE(submission.finalized_at, submission.created_at) <= $2
+		    ), '[]'::jsonb),
+		    'variable_signals', COALESCE((
+		        SELECT jsonb_agg(jsonb_build_object(
+		            'variable_signal_id', signal.id,
+		            'semantic_submission_id', signal.semantic_submission_id,
+		            'source_event_id', signal.source_event_id,
+		            'subject_event_entity_link_id', signal.subject_event_entity_link_id,
+		            'subject_entity_id', subject.entity_id,
+		            'variable_key', signal.variable_key,
+		            'variable_version', signal.variable_version,
+		            'direction', signal.direction,
+		            'assertion_modality', signal.assertion_modality,
+		            'evidence_ids', signal.evidence_ids,
+		            'statement_at', signal.statement_at,
+		            'valid_from', signal.valid_from,
+		            'valid_until', signal.valid_until,
+		            'forecast_period_start', signal.forecast_period_start,
+		            'forecast_period_end', signal.forecast_period_end,
+		            'extraction_confidence', signal.extraction_confidence,
+		            'review_status', signal.review_status,
+		            'measurements', COALESCE((
+		                SELECT jsonb_agg(jsonb_build_object(
+		                    'measurement_id', measurement.id,
+		                    'measurement_role', measurement.measurement_role,
+		                    'value_shape', measurement.value_shape,
+		                    'raw_value', measurement.raw_value::text,
+		                    'raw_lower', measurement.raw_lower::text,
+		                    'raw_upper', measurement.raw_upper::text,
+		                    'raw_unit', measurement.raw_unit,
+		                    'canonical_value', measurement.canonical_value::text,
+		                    'canonical_lower', measurement.canonical_lower::text,
+		                    'canonical_upper', measurement.canonical_upper::text,
+		                    'canonical_unit', measurement.canonical_unit,
+		                    'currency', measurement.currency,
+		                    'scale', measurement.scale,
+		                    'comparison_basis', measurement.comparison_basis,
+		                    'comparison_period', measurement.comparison_period,
+		                    'raw_text', measurement.raw_text,
+		                    'is_approximate', measurement.is_approximate,
+		                    'evidence_id', measurement.evidence_id
+		                ) ORDER BY measurement.id)
+		                FROM variable_signal_measurements measurement
+		                WHERE measurement.variable_signal_id = signal.id
+		            ), '[]'::jsonb),
+		            'direct_impacts', COALESCE((
+		                SELECT jsonb_agg(jsonb_build_object(
+		                    'direct_impact_assertion_id', impact.id,
+		                    'semantic_submission_id', impact.semantic_submission_id,
+		                    'source_variable_signal_id', impact.source_variable_signal_id,
+		                    'target_entity_id', impact.target_entity_id,
+		                    'affected_variable_key', impact.affected_variable_key,
+		                    'affected_variable_version', impact.affected_variable_version,
+		                    'affected_direction', impact.affected_direction,
+		                    'derivation_type', impact.derivation_type,
+		                    'mechanism_summary', impact.mechanism_summary,
+		                    'evidence_ids', impact.evidence_ids,
+		                    'entity_relation_id', impact.entity_relation_id,
+		                    'rule_key', impact.rule_key,
+		                    'rule_version', impact.rule_version,
+		                    'assertion_confidence', impact.assertion_confidence,
+		                    'effective_from', impact.effective_from,
+		                    'effective_to', impact.effective_to,
+		                    'review_status', impact.review_status
+		                ) ORDER BY impact.target_entity_id, impact.affected_variable_key, impact.id)
+		                FROM direct_impact_assertions impact
+		                JOIN event_semantic_submissions impact_submission
+		                  ON impact_submission.id = impact.semantic_submission_id
+		                WHERE impact.source_variable_signal_id = signal.id
+		                  AND impact.review_status = 'accepted'
+		                  AND impact_submission.status = 'accepted'
+		                  AND impact.updated_at <= $2
+		                  AND COALESCE(
+		                      impact_submission.finalized_at,
+		                      impact_submission.created_at
+		                  ) <= $2
+		            ), '[]'::jsonb)
+		        ) ORDER BY signal.created_at, signal.id)
+		        FROM variable_signals signal
+		        JOIN event_entity_links subject
+		          ON subject.id = signal.subject_event_entity_link_id
+		        JOIN event_semantic_submissions submission
+		          ON submission.id = signal.semantic_submission_id
+		        WHERE signal.source_event_id = $1::uuid
+		          AND signal.review_status = 'accepted'
+		          AND submission.status = 'accepted'
+		          AND signal.updated_at <= $2
+		          AND COALESCE(submission.finalized_at, submission.created_at) <= $2
+		    ), '[]'::jsonb)
+		)
+	`, eventID, analysisAsOf).Scan(&payload)
+	if err != nil {
+		return eventbiz.ResearchSemanticRecord{}, err
+	}
+	var record eventbiz.ResearchSemanticRecord
+	if err := strictDecodeResearchContext(payload, &record); err != nil {
+		return eventbiz.ResearchSemanticRecord{}, err
+	}
+	record.EventID = eventID
+	if err := validateResearchSemanticRecord(record); err != nil {
+		return eventbiz.ResearchSemanticRecord{}, err
+	}
+	return record, nil
+}
+
+func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) error {
+	if _, err := uuid.Parse(record.EventID); err != nil {
+		return errors.New("persisted Research semantic Event reference is invalid")
+	}
+	links := make(map[string]struct{}, len(record.EntityLinks))
+	for _, link := range record.EntityLinks {
+		if !researchUUID(link.EventEntityLinkID) || !researchUUID(link.SemanticSubmissionID) ||
+			!researchUUID(link.EntityID) || strings.TrimSpace(link.EntityRole) == "" ||
+			link.ReviewStatus != "accepted" || !validResearchUUIDSet(link.EvidenceIDs) {
+			return errors.New("persisted Research Entity Link violates invariants")
+		}
+		if _, duplicate := links[link.EventEntityLinkID]; duplicate {
+			return errors.New("persisted Research Entity Link is duplicated")
+		}
+		links[link.EventEntityLinkID] = struct{}{}
+	}
+	signals := make(map[string]struct{}, len(record.VariableSignals))
+	for _, signal := range record.VariableSignals {
+		if !researchUUID(signal.VariableSignalID) || !researchUUID(signal.SemanticSubmissionID) ||
+			signal.SourceEventID != record.EventID || !researchUUID(signal.SubjectEntityID) ||
+			signal.VariableVersion < 1 || strings.TrimSpace(signal.VariableKey) == "" ||
+			!researchOneOf(signal.Direction, "increase", "decrease", "unchanged", "mixed", "uncertain") ||
+			!researchOneOf(signal.AssertionModality, "actual", "stated_intent", "source_forecast") ||
+			signal.ReviewStatus != "accepted" || !validResearchUUIDSet(signal.EvidenceIDs) {
+			return errors.New("persisted Research Variable Signal violates invariants")
+		}
+		if _, ok := links[signal.SubjectEventEntityLinkID]; !ok {
+			return errors.New("persisted Research Variable Signal subject link is unavailable")
+		}
+		if _, duplicate := signals[signal.VariableSignalID]; duplicate {
+			return errors.New("persisted Research Variable Signal is duplicated")
+		}
+		signals[signal.VariableSignalID] = struct{}{}
+		for _, measurement := range signal.Measurements {
+			if !researchUUID(measurement.MeasurementID) || measurement.EvidenceID == "" ||
+				!researchUUID(measurement.EvidenceID) || strings.TrimSpace(measurement.RawText) == "" {
+				return errors.New("persisted Research measurement violates invariants")
+			}
+			if measurement.MeasurementRole != "" && !researchOneOf(measurement.MeasurementRole, "absolute_level", "absolute_change", "relative_change", "percentage_point_change") {
+				return errors.New("persisted Research measurement role is invalid")
+			}
+			if measurement.ValueShape != "" && !researchOneOf(measurement.ValueShape, "exact", "range", "lower_bound", "upper_bound") {
+				return errors.New("persisted Research measurement shape is invalid")
+			}
+		}
+		for _, impact := range signal.DirectImpacts {
+			if !researchUUID(impact.DirectImpactAssertionID) || !researchUUID(impact.SemanticSubmissionID) ||
+				impact.SourceVariableSignalID != signal.VariableSignalID || !researchUUID(impact.TargetEntityID) ||
+				impact.AffectedVariableVersion < 1 || strings.TrimSpace(impact.AffectedVariableKey) == "" ||
+				!researchOneOf(impact.AffectedDirection, "increase", "decrease", "unchanged", "mixed", "uncertain") ||
+				!researchOneOf(impact.DerivationType, "event_explicit", "rule_inferred") ||
+				strings.TrimSpace(impact.MechanismSummary) == "" || impact.ReviewStatus != "accepted" ||
+				!validResearchUUIDSet(impact.EvidenceIDs) {
+				return errors.New("persisted Research Direct Impact violates invariants")
+			}
+		}
+	}
+	return nil
+}
+
+func researchUUID(value string) bool {
+	_, err := uuid.Parse(value)
+	return err == nil
+}
+
+func validResearchUUIDSet(values []string) bool {
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !researchUUID(value) {
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
+}
+
+func researchOneOf(value string, allowed ...string) bool {
+	for _, candidate := range allowed {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func (s Store) ResearchSemanticClosure(
+	ctx context.Context,
+	query eventbiz.ResearchSemanticClosureQuery,
+) (eventbiz.ResearchSemanticDictionaries, error) {
+	parameters := buildResearchSemanticClosureParameters(query)
+	policiesResolve, err := s.referenceClosurePoliciesResolve(ctx, query.AnalysisAsOf, parameters.semanticSubmissionIDs)
+	if err != nil {
+		return eventbiz.ResearchSemanticDictionaries{}, err
+	}
+	if !policiesResolve {
+		return eventbiz.ResearchSemanticDictionaries{}, eventbiz.ErrResearchReferenceClosureInconsistent
+	}
+	if err := s.preflightReferenceClosureBudget(ctx, query, parameters); err != nil {
+		return eventbiz.ResearchSemanticDictionaries{}, err
+	}
+	var payload []byte
+	err = s.db.QueryRowContext(ctx, researchSemanticClosureCTE+`
+SELECT jsonb_build_object(
+    'variable_definitions', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+        'key', definition.variable_key, 'version', definition.version,
+        'name_zh', definition.name_zh, 'name_en', definition.name_en,
+        'domain', definition.domain, 'business_definition', definition.business_definition,
+        'value_type', definition.value_type, 'allowed_directions', definition.allowed_directions,
+        'canonical_unit', definition.canonical_unit, 'status', definition.status,
+        'applicable_entity_types', COALESCE((SELECT jsonb_agg(applicable.entity_type ORDER BY applicable.entity_type)
+            FROM variable_definition_entity_types applicable
+            WHERE applicable.variable_key = definition.variable_key
+              AND applicable.variable_version = definition.version
+              AND applicable.created_at <= $1), '[]'::jsonb)
+    ) ORDER BY definition.variable_key, definition.version) FROM selected_variable_definitions definition), '[]'::jsonb),
+    'direct_transmission_rules', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+        'rule_key', rule.rule_key, 'version', rule.version,
+        'source_entity_type', rule.source_entity_type, 'source_variable_key', rule.source_variable_key,
+        'source_variable_version', rule.source_variable_version, 'source_direction', rule.source_direction,
+        'relation_type', rule.relation_type, 'target_entity_type', rule.target_entity_type,
+        'affected_variable_key', rule.affected_variable_key, 'affected_variable_version', rule.affected_variable_version,
+        'affected_direction', rule.affected_direction, 'condition_summary', rule.condition_summary,
+        'mechanism_template', rule.mechanism_template, 'status', rule.status
+    ) ORDER BY rule.rule_key, rule.version) FROM selected_rules rule), '[]'::jsonb),
+    'acceptance_policies', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+        'policy_key', policy.policy_key, 'version', policy.version,
+        'retry_budget', policy.retry_budget, 'status', policy.status, 'policy', policy.policy
+    ) ORDER BY policy.policy_key, policy.version) FROM selected_policies policy), '[]'::jsonb)
+)`, researchSemanticClosureArgs(query.AnalysisAsOf, parameters)...).Scan(&payload)
+	if err != nil {
+		return eventbiz.ResearchSemanticDictionaries{}, err
+	}
+	var dictionaries eventbiz.ResearchSemanticDictionaries
+	if err := strictDecodeResearchContext(payload, &dictionaries); err != nil {
+		return eventbiz.ResearchSemanticDictionaries{}, err
+	}
+	if err := validateResearchSemanticDictionaries(dictionaries); err != nil {
+		return eventbiz.ResearchSemanticDictionaries{}, err
+	}
+	return dictionaries, nil
+}
+
+func validateResearchSemanticDictionaries(value eventbiz.ResearchSemanticDictionaries) error {
+	variables := make(map[string]struct{}, len(value.VariableDefinitions))
+	for _, definition := range value.VariableDefinitions {
+		if strings.TrimSpace(definition.Key) == "" || definition.Version < 1 ||
+			strings.TrimSpace(definition.NameZH) == "" || strings.TrimSpace(definition.BusinessDefinition) == "" ||
+			definition.Status != "active" || len(definition.AllowedDirections) == 0 {
+			return errors.New("persisted Research Variable Definition violates invariants")
+		}
+		variables[fmt.Sprintf("%s\x00%d", definition.Key, definition.Version)] = struct{}{}
+	}
+	for _, rule := range value.DirectTransmissionRules {
+		if strings.TrimSpace(rule.RuleKey) == "" || rule.Version < 1 || rule.Status != "approved" ||
+			strings.TrimSpace(rule.RelationType) == "" || strings.TrimSpace(rule.SourceEntityType) == "" ||
+			strings.TrimSpace(rule.TargetEntityType) == "" || strings.TrimSpace(rule.ConditionSummary) == "" ||
+			strings.TrimSpace(rule.MechanismTemplate) == "" {
+			return errors.New("persisted Research Direct Transmission Rule violates invariants")
+		}
+		if _, ok := variables[fmt.Sprintf("%s\x00%d", rule.SourceVariableKey, rule.SourceVariableVersion)]; !ok {
+			return errors.New("persisted Research rule source variable is unavailable")
+		}
+		if _, ok := variables[fmt.Sprintf("%s\x00%d", rule.AffectedVariableKey, rule.AffectedVariableVersion)]; !ok {
+			return errors.New("persisted Research rule target variable is unavailable")
+		}
+	}
+	for _, policy := range value.AcceptancePolicies {
+		if strings.TrimSpace(policy.PolicyKey) == "" || policy.Version < 1 || policy.RetryBudget < 0 ||
+			policy.Status != "active" || len(policy.Policy) == 0 || !json.Valid(policy.Policy) {
+			return errors.New("persisted Research Acceptance Policy violates invariants")
+		}
+	}
+	return nil
+}
+
+func (s *Store) referenceClosurePoliciesResolve(
+	ctx context.Context,
+	analysisAsOf time.Time,
+	submissionIDs []string,
+) (bool, error) {
+	var resolves bool
+	err := s.db.QueryRowContext(ctx, `
+		WITH requested_submissions(id) AS (
+		    SELECT unnest($2::uuid[])
+		)
+		SELECT NOT EXISTS (
+		    SELECT 1
+		    FROM requested_submissions requested
+		    LEFT JOIN event_semantic_submissions submission
+		      ON submission.id = requested.id
+		     AND submission.status = 'accepted'
+		     AND COALESCE(submission.finalized_at, submission.created_at) <= $1
+		    LEFT JOIN event_semantic_acceptance_policies policy
+		      ON policy.policy_key = submission.acceptance_policy_key
+		     AND policy.version = submission.acceptance_policy_version
+		     AND policy.status = 'active'
+		     AND policy.created_at <= $1
+		    WHERE submission.id IS NULL
+		       OR policy.policy_key IS NULL
+		)
+	`, analysisAsOf, submissionIDs).Scan(&resolves)
+	return resolves, err
+}
+
+func buildResearchSemanticClosureParameters(
+	query eventbiz.ResearchSemanticClosureQuery,
+) researchSemanticClosureParameters {
+	parameters := researchSemanticClosureParameters{
+		semanticSubmissionIDs: append([]string(nil), query.SemanticSubmissionIDs...),
+		variableKeys:          make([]string, 0, len(query.VariableDefinitions)),
+		variableVersions:      make([]int32, 0, len(query.VariableDefinitions)),
+		ruleKeys:              make([]string, 0, len(query.DirectTransmissionRules)),
+		ruleVersions:          make([]int32, 0, len(query.DirectTransmissionRules)),
+	}
+	for _, reference := range query.VariableDefinitions {
+		parameters.variableKeys = append(parameters.variableKeys, reference.Key)
+		parameters.variableVersions = append(parameters.variableVersions, int32(reference.Version))
+	}
+	for _, reference := range query.DirectTransmissionRules {
+		parameters.ruleKeys = append(parameters.ruleKeys, reference.Key)
+		parameters.ruleVersions = append(parameters.ruleVersions, int32(reference.Version))
+	}
+	return parameters
+}
+
+func researchSemanticClosureArgs(
+	analysisAsOf time.Time,
+	parameters researchSemanticClosureParameters,
+) []any {
+	return []any{
+		analysisAsOf,
+		parameters.variableKeys,
+		parameters.variableVersions,
+		parameters.ruleKeys,
+		parameters.ruleVersions,
+		parameters.semanticSubmissionIDs,
+	}
+}
+
+func strictDecodeResearchContext(payload []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return fmt.Errorf("decode typed Research Analysis Context: %w", err)
+	}
+	return nil
+}
+
+func nullUUID(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
 }

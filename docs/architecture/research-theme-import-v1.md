@@ -103,12 +103,6 @@ Content-Type: application/json
 
 ## 本地验证
 
-在仓库根目录执行本地开发 seed。该命令严格读取同一 V1 合同，并调用正式 application service，不直接写表：
-
-```bash
-docker compose --env-file infra/local/.env.local \
-  -f infra/local/docker-compose.yaml \
-  run --rm data /usr/local/bin/research-theme-dev-seed
-```
-
-默认请求文件是 `analyse-data-service/backend/data/research_themes/local_homepage.json`。重复执行应返回相同结果且 `replayed: true`。
+历史本地 seed 已退役。所有本地发布方与生产发布方一样，通过正式
+`POST /api/data/v1/research-theme-imports` 合同验证发布、重放和冲突行为，不再从 Data
+镜像内置样例文件。

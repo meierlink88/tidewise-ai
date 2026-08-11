@@ -15,7 +15,9 @@ import (
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
+	researchapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	researchfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/research"
 	"gopkg.in/yaml.v3"
 )
 
@@ -139,6 +141,36 @@ func TestServerOwnsAuthenticationAuthorizationAndPrincipalInjection(t *testing.T
 	}
 }
 
+func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
+	authenticator, err := NewAuthenticator([]Credential{
+		{Secret: "research-token", Principal: dataapi.Principal{Identity: "reason-service", Scopes: []string{ScopeResearchRead}}},
+		{Secret: "admin-token", Principal: dataapi.Principal{Identity: "admin", Scopes: []string{ScopeAdminRead}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{}, authenticator, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := dataapi.APIPrefix + "/research-analysis-context?discovery_window_start=2026-07-28T00%3A00%3A00Z&discovery_window_end=2026-07-29T00%3A00%3A00Z&analysis_as_of=2026-07-29T00%3A00%3A00Z&page_size=20"
+	for _, test := range []struct {
+		token string
+		want  int
+	}{
+		{token: "research-token", want: http.StatusNoContent},
+		{token: "admin-token", want: http.StatusForbidden},
+	} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, target, nil)
+		request.Header.Set("Authorization", "Bearer "+test.token)
+		server.ServeHTTP(response, request)
+		if response.Code != test.want {
+			t.Fatalf("token=%s status=%d want=%d body=%s", test.token, response.Code, test.want, response.Body.String())
+		}
+	}
+}
+
 func TestAuthenticatorRejectsInvalidCredentials(t *testing.T) {
 	valid := Credential{
 		Secret: "token",
@@ -188,21 +220,23 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 	for _, test := range []struct {
 		name          string
 		application   dataapi.DataHTTPServer
+		research      researchapi.Service
 		event         eventapi.Service
 		eventSemantic eventsemanticapi.Service
 		evidence      evidenceapi.Service
 		rawDocument   rawdocumentapi.Service
 		auth          *Authenticator
 	}{
-		{name: "Data API", event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Event API", application: serverTestDataService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Event Semantic API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Evidence API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "RawDocument API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "authenticator", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}},
+		{name: "Data API", research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Event Semantic API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Evidence API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "RawDocument API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
+		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := NewHTTPServer(testConfig(), test.application, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.auth, nil); err == nil {
+			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -240,6 +274,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 		}
 	}
 	businessOperations := append(dataapi.BusinessOperations(), eventapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, researchapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, eventsemanticapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, evidenceapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, rawdocumentapi.BusinessOperations()...)
@@ -309,7 +344,7 @@ func newTestHTTPServer(config conf.Config, application dataapi.DataHTTPServer, e
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application dataapi.DataHTTPServer, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
+	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -372,26 +407,26 @@ func (serverTestEvidenceService) PublishEvidence(context.Context, *evidenceapi.E
 func serverTestResponse[T any]() (*dataapi.Response[T], error) {
 	return &dataapi.Response[T]{Status: http.StatusNoContent}, nil
 }
-func (serverTestDataService) PublishResearchTheme(context.Context, *dataapi.ResearchThemeImportRequest) (*dataapi.Response[dataapi.ResearchThemeImportResult], error) {
-	return serverTestResponse[dataapi.ResearchThemeImportResult]()
+func (serverTestDataService) PublishResearchTheme(context.Context, *researchapi.ResearchThemeImportRequest) (*dataapi.Response[researchapi.ResearchThemeImportResult], error) {
+	return serverTestResponse[researchapi.ResearchThemeImportResult]()
 }
-func (serverTestDataService) ListResearchThemes(context.Context, *dataapi.ListResearchThemesRequest) (*dataapi.Response[dataapi.ResearchThemePage], error) {
-	return serverTestResponse[dataapi.ResearchThemePage]()
+func (serverTestDataService) ListResearchThemes(context.Context, *researchapi.ListResearchThemesRequest) (*dataapi.Response[researchapi.ResearchThemePage], error) {
+	return serverTestResponse[researchapi.ResearchThemePage]()
 }
-func (serverTestDataService) GetResearchTheme(context.Context, *dataapi.GetResearchThemeRequest) (*dataapi.Response[dataapi.ResearchThemeDetail], error) {
-	return serverTestResponse[dataapi.ResearchThemeDetail]()
+func (serverTestDataService) GetResearchTheme(context.Context, *researchapi.GetResearchThemeRequest) (*dataapi.Response[researchapi.ResearchThemeDetail], error) {
+	return serverTestResponse[researchapi.ResearchThemeDetail]()
 }
-func (serverTestDataService) ListResearchReasoningTrees(context.Context, *dataapi.ReasoningTreeListRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeList], error) {
-	return serverTestResponse[dataapi.ResearchReasoningTreeList]()
+func (serverTestDataService) ListResearchReasoningTrees(context.Context, *researchapi.ReasoningTreeListRequest) (*dataapi.Response[researchapi.ResearchReasoningTreeList], error) {
+	return serverTestResponse[researchapi.ResearchReasoningTreeList]()
 }
-func (serverTestDataService) GetResearchReasoningTree(context.Context, *dataapi.ReasoningTreeDetailRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeDetail], error) {
-	return serverTestResponse[dataapi.ResearchReasoningTreeDetail]()
+func (serverTestDataService) GetResearchReasoningTree(context.Context, *researchapi.ReasoningTreeDetailRequest) (*dataapi.Response[researchapi.ResearchReasoningTreeDetail], error) {
+	return serverTestResponse[researchapi.ResearchReasoningTreeDetail]()
 }
-func (serverTestDataService) ListResearchAnalysisContext(context.Context, *dataapi.ResearchAnalysisContextRequest) (*dataapi.Response[dataapi.ResearchAnalysisContext], error) {
-	return serverTestResponse[dataapi.ResearchAnalysisContext]()
+func (serverTestDataService) ListResearchAnalysisContext(context.Context, *researchapi.ResearchAnalysisContextRequest) (*dataapi.Response[researchapi.ResearchAnalysisContext], error) {
+	return serverTestResponse[researchapi.ResearchAnalysisContext]()
 }
-func (serverTestDataService) SearchResearchGraph(context.Context, *dataapi.ResearchGraphSearchRequest) (*dataapi.Response[dataapi.ResearchGraphSearchResult], error) {
-	return serverTestResponse[dataapi.ResearchGraphSearchResult]()
+func (serverTestDataService) SearchResearchGraph(context.Context, *researchapi.ResearchGraphSearchRequest) (*dataapi.Response[researchapi.ResearchGraphSearchResult], error) {
+	return serverTestResponse[researchapi.ResearchGraphSearchResult]()
 }
 func (serverTestDataService) GetRuntimeHealth(context.Context, *dataapi.RuntimeHealthRequest) (*dataapi.Response[dataapi.RuntimeHealth], error) {
 	return serverTestResponse[dataapi.RuntimeHealth]()

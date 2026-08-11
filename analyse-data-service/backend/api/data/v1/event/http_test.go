@@ -28,6 +28,7 @@ import (
 	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
 	eventfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/event"
 	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
+	researchfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/research"
 )
 
 func TestHTTPRoutesPreserveEventContract(t *testing.T) {
@@ -762,7 +763,7 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, parentservice.NewDataService(parentservice.Dependencies{}), application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, authenticator, nil)
+	}, parentservice.NewDataService(parentservice.Dependencies{}), researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

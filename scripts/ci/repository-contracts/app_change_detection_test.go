@@ -107,7 +107,7 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 		{
 			name:  "Data Biz change uses default seams",
 			scope: "data",
-			path:  "analyse-data-service/backend/internal/biz/research/service.go",
+			path:  "analyse-data-service/backend/internal/biz/research/biz.go",
 			want:  map[string]bool{"default": true},
 		},
 		{

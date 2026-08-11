@@ -13,6 +13,7 @@ import (
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
 	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
+	researchfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/research"
 )
 
 func TestEvidencePublicationNeutralFixturesExerciseTwoPhaseRetryAndSafeFailure(t *testing.T) {
@@ -35,7 +36,7 @@ func TestEvidencePublicationNeutralFixturesExerciseTwoPhaseRetryAndSafeFailure(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	httpServer, err := NewHTTPServer(testConfig(), serverTestDataService{}, serverTestEventService{}, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
+	httpServer, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
