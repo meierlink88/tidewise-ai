@@ -19,6 +19,7 @@ import (
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
+	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
 
@@ -31,7 +32,7 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if application == nil {
 		return nil, errors.New("Data API service is required")
 	}
@@ -43,6 +44,9 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventAppli
 	}
 	if eventSemanticApplication == nil {
 		return nil, errors.New("Event Semantic API service is required")
+	}
+	if rawDocumentApplication == nil {
+		return nil, errors.New("RawDocument API service is required")
 	}
 	if authenticator == nil {
 		return nil, errors.New("Data API authenticator is required")
@@ -71,6 +75,7 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventAppli
 	eventapi.RegisterHTTPServer(server, eventApplication)
 	eventsemanticapi.RegisterHTTPServer(server, eventSemanticApplication)
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
+	rawdocumentapi.RegisterHTTPServer(server, rawDocumentApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{
 		Title:    "Tidewise Data Service API",

@@ -97,8 +97,7 @@ describe('App admin login', () => {
           display_name: 'Qdrant',
           status: 'ready',
           checked_at: '2026-08-03T08:30:00Z'
-        },
-        { key: 'neo4j', display_name: 'Neo4j', status: 'ready', checked_at: '2026-08-03T08:30:00Z' }
+        }
       ]
     });
   });

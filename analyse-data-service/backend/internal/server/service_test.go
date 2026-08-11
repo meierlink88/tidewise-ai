@@ -14,6 +14,7 @@ import (
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
+	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	"gopkg.in/yaml.v3"
 )
@@ -190,16 +191,18 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		event         eventapi.Service
 		eventSemantic eventsemanticapi.Service
 		evidence      evidenceapi.Service
+		rawDocument   rawdocumentapi.Service
 		auth          *Authenticator
 	}{
-		{name: "Data API", event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "Event API", application: serverTestDataService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "Event Semantic API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "Evidence API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, auth: authenticator},
-		{name: "authenticator", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}},
+		{name: "Data API", event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Event API", application: serverTestDataService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Event Semantic API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Evidence API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "RawDocument API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
+		{name: "authenticator", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := NewHTTPServer(testConfig(), test.application, test.event, test.eventSemantic, test.evidence, test.auth, nil); err == nil {
+			if _, err := NewHTTPServer(testConfig(), test.application, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -239,6 +242,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations := append(dataapi.BusinessOperations(), eventapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, eventsemanticapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, evidenceapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, rawdocumentapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
 			t.Errorf("business operation %q is absent from OpenAPI", operation)
@@ -305,7 +309,7 @@ func newTestHTTPServer(config conf.Config, application dataapi.DataHTTPServer, e
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application dataapi.DataHTTPServer, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, eventApplication, serverTestEventSemanticService{}, evidenceApplication, authenticator, nil)
+	server, err := NewHTTPServer(config, application, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -313,6 +317,12 @@ func newTestHTTPServerWithEvent(config conf.Config, application dataapi.DataHTTP
 }
 
 type serverTestDataService struct{}
+
+type serverTestRawDocumentService struct{}
+
+func (serverTestRawDocumentService) List(context.Context, *rawdocumentapi.ListRequest) (*dataapi.Response[rawdocumentapi.Page], error) {
+	return serverTestResponse[rawdocumentapi.Page]()
+}
 
 type serverTestEventService struct{}
 
@@ -376,9 +386,6 @@ func (serverTestDataService) ListResearchReasoningTrees(context.Context, *dataap
 }
 func (serverTestDataService) GetResearchReasoningTree(context.Context, *dataapi.ReasoningTreeDetailRequest) (*dataapi.Response[dataapi.ResearchReasoningTreeDetail], error) {
 	return serverTestResponse[dataapi.ResearchReasoningTreeDetail]()
-}
-func (serverTestDataService) ListRawDocuments(context.Context, *dataapi.RawDocumentListRequest) (*dataapi.Response[dataapi.AdminRawDocumentPage], error) {
-	return serverTestResponse[dataapi.AdminRawDocumentPage]()
 }
 func (serverTestDataService) ListResearchAnalysisContext(context.Context, *dataapi.ResearchAnalysisContextRequest) (*dataapi.Response[dataapi.ResearchAnalysisContext], error) {
 	return serverTestResponse[dataapi.ResearchAnalysisContext]()

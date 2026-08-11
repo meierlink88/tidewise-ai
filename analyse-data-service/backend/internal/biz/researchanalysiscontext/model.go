@@ -124,7 +124,7 @@ type Dictionaries struct {
 	IndustryChains           []IndustryChain           `json:"industry_chains"`
 	IndustryChainMemberships []IndustryChainMembership `json:"industry_chain_memberships"`
 	IndustryChainGraphEdges  []IndustryChainGraphEdge  `json:"industry_chain_graph_edges"`
-	EntityTypeDefinitions    []EntityTypeDefinition    `json:"entity_type_definitions"`
+	EntityTypeDefinitions    []EntityTypeContext       `json:"entity_type_definitions"`
 	VariableDefinitions      []VariableDefinition      `json:"variable_definitions"`
 	DirectTransmissionRules  []DirectTransmissionRule  `json:"direct_transmission_rules"`
 	AcceptancePolicies       []AcceptancePolicy        `json:"acceptance_policies"`
@@ -185,7 +185,7 @@ type IndustryChainGraphEdge struct {
 	Status                   string  `json:"status"`
 }
 
-type EntityTypeDefinition struct {
+type EntityTypeContext struct {
 	TypeKey              string   `json:"type_key"`
 	Version              int      `json:"version"`
 	NameZH               string   `json:"name_zh"`

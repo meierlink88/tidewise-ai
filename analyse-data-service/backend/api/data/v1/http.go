@@ -41,7 +41,6 @@ type DataHTTPServer interface {
 	GetResearchTheme(context.Context, *GetResearchThemeRequest) (*Response[ResearchThemeDetail], error)
 	ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*Response[ResearchReasoningTreeList], error)
 	GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response[ResearchReasoningTreeDetail], error)
-	ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error)
 	ListResearchAnalysisContext(context.Context, *ResearchAnalysisContextRequest) (*Response[ResearchAnalysisContext], error)
 	SearchResearchGraph(context.Context, *ResearchGraphSearchRequest) (*Response[ResearchGraphSearchResult], error)
 	GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error)
@@ -54,7 +53,6 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.GET("/research/themes/{theme_id}", getResearchThemeHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees", listReasoningTreesHandler(application))
 	router.GET("/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}", getReasoningTreeHandler(application))
-	router.GET("/raw-documents", listRawDocumentsHandler(application))
 	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
 	router.POST("/research-graph:search", searchResearchGraphHandler(application))
 	router.GET("/runtime-health", runtimeHealthHandler(application))
@@ -237,18 +235,6 @@ func getReasoningTreeHandler(application DataHTTPServer) kratoshttp.HandlerFunc 
 		}
 		return Call(ctx, OperationGetResearchThemeReasoningTree, request, func(callContext context.Context) (*Response[ResearchReasoningTreeDetail], error) {
 			return application.GetResearchReasoningTree(callContext, request)
-		})
-	}
-}
-
-func listRawDocumentsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request := &RawDocumentListRequest{
-			Title: ctx.Query().Get("title"), SourceRef: ctx.Query().Get("source_ref"),
-			IngestStatus: ctx.Query().Get("ingest_status"), Page: ctx.Query().Get("page"), PageSize: ctx.Query().Get("page_size"),
-		}
-		return Call(ctx, OperationListAdminRawDocuments, request, func(callContext context.Context) (*Response[AdminRawDocumentPage], error) {
-			return application.ListRawDocuments(callContext, request)
 		})
 	}
 }

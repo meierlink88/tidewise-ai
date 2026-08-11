@@ -31,7 +31,6 @@ func TestRuntimeHealthAggregatesProvidersConcurrentlyInCanonicalOrder(t *testing
 	service := NewService(nil, nil, WithRuntimeHealthProviders(
 		provider("data", []RuntimeHealthService{
 			{Key: "data", DisplayName: "Data Service", Status: RuntimeStatusReady, CheckedAt: now},
-			{Key: "neo4j", DisplayName: "Neo4j", Status: RuntimeStatusReady, CheckedAt: now},
 		}),
 		provider("agentrun", []RuntimeHealthService{
 			{Key: "agentrun", DisplayName: "AgentRun", Status: RuntimeStatusReady, CheckedAt: now},
@@ -45,10 +44,10 @@ func TestRuntimeHealthAggregatesProvidersConcurrentlyInCanonicalOrder(t *testing
 	once.Do(func() { close(release) })
 	result := <-resultChannel
 
-	if first == second || result.Status != RuntimeStatusReady || len(result.Services) != 4 {
+	if first == second || result.Status != RuntimeStatusReady || len(result.Services) != 3 {
 		t.Fatalf("starts=%q/%q result=%#v", first, second, result)
 	}
-	want := []RuntimeServiceKey{RuntimeServiceData, RuntimeServiceAgentRun, RuntimeServiceQdrant, RuntimeServiceNeo4j}
+	want := []RuntimeServiceKey{RuntimeServiceData, RuntimeServiceAgentRun, RuntimeServiceQdrant}
 	for index, key := range want {
 		if result.Services[index].Key != key {
 			t.Fatalf("service order = %#v", result.Services)
@@ -72,8 +71,7 @@ func TestRuntimeHealthReturnsPartialSuccessAsDegraded(t *testing.T) {
 
 	result := service.GetRuntimeHealth(context.Background())
 
-	if result.Status != RuntimeStatusDegraded || result.Services[0].ReasonCode != RuntimeReasonTimeout ||
-		result.Services[3].ReasonCode != RuntimeReasonTimeout {
+	if result.Status != RuntimeStatusDegraded || result.Services[0].ReasonCode != RuntimeReasonTimeout {
 		t.Fatalf("result = %#v", result)
 	}
 	if errors.Is(&RuntimeHealthProviderError{ReasonCode: RuntimeReasonTimeout}, context.DeadlineExceeded) {

@@ -304,8 +304,8 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 			})
 			eventApplication.Start(context.Background())
 			eventApplication.Notify()
-			semanticApplication.Start(context.Background())
-			semanticApplication.Notify()
+			// Event Semantic retrieval remains available for health and contract compatibility,
+			// but its worker is paused until a new projection owner refreshes the Qdrant catalogs.
 			return nil
 		}),
 		kratos.BeforeStop(func(context.Context) error {

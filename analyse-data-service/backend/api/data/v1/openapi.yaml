@@ -373,8 +373,8 @@ paths:
       x-required-service-scope: data.admin.read
       x-retry-policy: none
       x-timeout-budget-ms: 1500
-      summary: 获取 Data Service 与 Neo4j 的安全运行状态
-      description: 仅返回状态、检查时间、可选延迟和安全原因码；不返回凭据、地址、查询或图数据。
+      summary: 获取 Data Service 的安全运行状态
+      description: 仅返回 Data Service 自身状态、检查时间和可选延迟；不返回凭据、地址或业务数据。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       responses:
@@ -2095,10 +2095,10 @@ components:
       properties:
         key:
           type: string
-          enum: [data, neo4j]
+          enum: [data]
         display_name:
           type: string
-          enum: [Data Service, Neo4j]
+          enum: [Data Service]
         status:
           $ref: '#/components/schemas/RuntimeHealthStatus'
         checked_at:
@@ -2122,8 +2122,8 @@ components:
           $ref: '#/components/schemas/UTCTimestamp'
         services:
           type: array
-          minItems: 2
-          maxItems: 2
+          minItems: 1
+          maxItems: 1
           items:
             $ref: '#/components/schemas/RuntimeHealthService'
     RuntimeHealthEnvelope:

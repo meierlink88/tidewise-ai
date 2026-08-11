@@ -1,5 +1,8 @@
 # Data Domain Service Kratos 迁移设计 V1
 
+> 本文保留为 Kratos 迁移历史。ADR-0013 已取代其中 Entity seed 保留、Data 拥有未来
+> Neo4j 投影目标的决策；当前 Data 不再拥有 seed、关系包导入或 Neo4j/Qdrant projector。
+
 ## 状态
 
 已确认，由 GitHub Issue #105 冻结；实现基线为已合并 AgentRun 应用后的

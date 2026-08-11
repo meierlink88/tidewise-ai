@@ -98,7 +98,7 @@ func TestRuntimeHealthRequiresAdminAuthAndReturnsSafePartialHTTP200(t *testing.T
 	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"data", "agentrun", "qdrant", "neo4j"}
+	want := []string{"data", "agentrun", "qdrant"}
 	if envelope.Result.Status != "degraded" || len(envelope.Result.Services) != len(want) {
 		t.Fatalf("runtime health = %#v", envelope.Result)
 	}

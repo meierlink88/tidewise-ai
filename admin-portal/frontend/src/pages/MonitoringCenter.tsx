@@ -332,11 +332,11 @@ function RuntimeHealthStrip({
             : '15 秒自动刷新'}
         </span>
       </div>
-      <div className='grid grid-cols-4 divide-x divide-border max-lg:grid-cols-2 max-lg:divide-y'>
+      <div className='grid grid-cols-3 divide-x divide-border max-lg:grid-cols-1 max-lg:divide-y'>
         {health?.services.map((service) => (
           <RuntimeServiceCell key={service.key} service={service} />
         )) ??
-          ['Data Service', 'AgentRun', 'Qdrant', 'Neo4j'].map((name) => (
+          ['Data Service', 'AgentRun', 'Qdrant'].map((name) => (
             <div className='flex min-h-12 items-center justify-between gap-3 px-4 py-2' key={name}>
               <span className='text-sm font-medium'>{name}</span>
               <StatusBadge tone={unavailable ? 'danger' : 'neutral'}>
@@ -761,7 +761,6 @@ function runtimeStatusLabel(service: RuntimeHealthService): string {
     return { degraded: '降级', down: '故障', unknown: '未知' }[service.status];
   }
   if (service.key === 'qdrant') return 'Green';
-  if (service.key === 'neo4j') return 'Online';
   return 'Ready';
 }
 

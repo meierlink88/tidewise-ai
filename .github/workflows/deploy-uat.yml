@@ -8,30 +8,7 @@ on:
         required: false
         type: string
       confirm_high_risk_backup:
-        description: Confirm an RDS recovery point for high-risk migrations or relationship data import.
-        required: false
-        default: false
-        type: boolean
-      apply_industry_relationship_package:
-        description: Apply the approved Industry relationship package after Data migrations.
-        required: false
-        default: false
-        type: boolean
-      industry_relationship_package_sha:
-        description: Required 64-character package SHA when applying the Industry relationship package.
-        required: false
-        type: string
-      apply_industry_graph_projection:
-        description: Project the approved Industry graph from UAT PostgreSQL into Neo4j.
-        required: false
-        default: false
-        type: boolean
-      industry_graph_package_sha:
-        description: Required 64-character package SHA when projecting the Industry graph.
-        required: false
-        type: string
-      apply_event_semantic_projection:
-        description: Rebuild and verify the formal Event Semantic Qdrant collections before AgentRun starts.
+        description: Confirm an RDS recovery point for high-risk migrations.
         required: false
         default: false
         type: boolean
@@ -297,15 +274,7 @@ jobs:
       ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}
-      DATA_NEO4J_HEALTH_URI: ${{ vars.DATA_NEO4J_HEALTH_URI }}
-      DATA_NEO4J_HEALTH_USERNAME: ${{ vars.DATA_NEO4J_HEALTH_USERNAME }}
-      DATA_NEO4J_HEALTH_PASSWORD: ${{ secrets.DATA_NEO4J_HEALTH_PASSWORD }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
-      INDUSTRY_RELATIONSHIP_IMPORT_ENABLED: ${{ inputs.apply_industry_relationship_package }}
-      INDUSTRY_RELATIONSHIP_PACKAGE_SHA: ${{ inputs.industry_relationship_package_sha }}
-      INDUSTRY_GRAPH_PROJECTION_ENABLED: ${{ inputs.apply_industry_graph_projection }}
-      INDUSTRY_GRAPH_PACKAGE_SHA: ${{ inputs.industry_graph_package_sha }}
-      EVENT_SEMANTIC_PROJECTION_ENABLED: ${{ inputs.apply_event_semantic_projection }}
       AGENTRUN_RECOVERY_TARGET_VERSION: ${{ inputs.recover_agentrun_previous_release_version }}
     steps:
       - name: Login to SWR with pull credentials
@@ -393,9 +362,6 @@ jobs:
             "AGENTRUN_ARTIFACT_DIR=${DEPLOY_ROOT}/agentrun-artifacts" \
             "AGENTRUN_SERVICE_TOKEN=${AGENTRUN_SERVICE_TOKEN}" \
             "EMBEDDING_API_KEY=${EMBEDDING_API_KEY}" \
-            "DATA_NEO4J_HEALTH_URI=${DATA_NEO4J_HEALTH_URI}" \
-            "DATA_NEO4J_HEALTH_USERNAME=${DATA_NEO4J_HEALTH_USERNAME}" \
-            "DATA_NEO4J_HEALTH_PASSWORD=${DATA_NEO4J_HEALTH_PASSWORD}" \
             "DATA_SERVICE_TOKEN=${DATA_SERVICE_TOKEN}" \
             "ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN}" > "$runtime_env"
           printf '%s\n' \
@@ -422,10 +388,6 @@ jobs:
           COMPOSE_FILE: ${{ steps.bundle.outputs.compose_file }}
           MIGRATION_RISK_MANIFEST: ${{ steps.bundle.outputs.control_root }}/infra/uat/migration-risk.tsv
           AGENTRUN_MIGRATION_RISK_MANIFEST: ${{ steps.bundle.outputs.control_root }}/infra/uat/agentrun-migration-risk.tsv
-          NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}
-          NEO4J_USERNAME: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_USERNAME || '' }}
-          NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}
-          NEO4J_DATABASE: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_DATABASE || '' }}
         run: ${{ steps.bundle.outputs.control_root }}/infra/uat/deploy.sh
 
       - name: Show diagnostics on failure

@@ -50,14 +50,6 @@ type ReasoningTreeDetailRequest struct {
 	HasQuery        bool
 }
 
-type RawDocumentListRequest struct {
-	Title        string
-	SourceRef    string
-	IngestStatus string
-	Page         string
-	PageSize     string
-}
-
 type RuntimeHealthRequest struct{}
 
 type RuntimeHealth struct {
@@ -115,26 +107,4 @@ func WithPrincipal(ctx context.Context, principal Principal) context.Context {
 func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 	principal, ok := ctx.Value(principalContextKey{}).(Principal)
 	return principal, ok
-}
-
-type AdminRawDocument struct {
-	ID               string  `json:"id"`
-	ContractVersion  int     `json:"contract_version"`
-	ArtifactID       string  `json:"artifact_id,omitempty"`
-	SourceRef        string  `json:"source_ref,omitempty"`
-	IngestChannel    string  `json:"ingest_channel"`
-	SourceType       string  `json:"source_type"`
-	SourceName       string  `json:"source_name"`
-	SourceURL        string  `json:"source_url"`
-	SourceExternalID string  `json:"source_external_id,omitempty"`
-	Title            string  `json:"title"`
-	ContentText      string  `json:"content_text"`
-	ContentLevel     string  `json:"content_level"`
-	RawObjectURI     string  `json:"raw_object_uri"`
-	RawMIMEType      string  `json:"raw_mime_type"`
-	Language         string  `json:"language"`
-	PublishedAt      *string `json:"published_at"`
-	CollectedAt      string  `json:"collected_at"`
-	IngestStatus     string  `json:"ingest_status"`
-	ContentSHA256    string  `json:"content_sha256"`
 }

@@ -26,6 +26,15 @@ type applicationRepositoryStub struct {
 	completeErr   error
 }
 
+func TestShutdownBeforeStartReturnsImmediately(t *testing.T) {
+	application := &Application{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := application.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown() before Start() error = %v", err)
+	}
+}
+
 func (s *applicationRepositoryStub) SaveStageAudit(
 	_ context.Context,
 	_ string,

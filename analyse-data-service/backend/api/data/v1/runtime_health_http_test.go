@@ -20,12 +20,11 @@ func (runtimeHealthHTTPStub) GetRuntimeHealth(context.Context, *RuntimeHealthReq
 		CheckedAt: "2026-08-04T10:00:00Z",
 		Services: []RuntimeHealthService{
 			{Key: "data", DisplayName: "Data Service", Status: "ready", CheckedAt: "2026-08-04T10:00:00Z", LatencyMS: int64Pointer(4)},
-			{Key: "neo4j", DisplayName: "Neo4j", Status: "degraded", CheckedAt: "2026-08-04T10:00:00Z", ReasonCode: "authentication_failed"},
 		},
 	}}, nil
 }
 
-func TestRuntimeHealthRoutePublishesSanitizedDependencyStatus(t *testing.T) {
+func TestRuntimeHealthRoutePublishesDataStatus(t *testing.T) {
 	server := kratoshttp.NewServer()
 	RegisterDataHTTPServer(server, runtimeHealthHTTPStub{})
 
@@ -39,11 +38,8 @@ func TestRuntimeHealthRoutePublishesSanitizedDependencyStatus(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if len(body.Services) != 2 || body.Services[0].Key != "data" || body.Services[1].Key != "neo4j" {
+	if len(body.Services) != 1 || body.Services[0].Key != "data" {
 		t.Fatalf("services = %#v", body.Services)
-	}
-	if body.Services[1].ReasonCode != "authentication_failed" {
-		t.Fatalf("Neo4j reason_code = %q", body.Services[1].ReasonCode)
 	}
 	if string(response.Body.Bytes()) == "" || containsUnsafeRuntimeDetail(response.Body.String()) {
 		t.Fatalf("runtime health leaked unsafe dependency detail: %s", response.Body.String())

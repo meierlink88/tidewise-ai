@@ -30,8 +30,8 @@ Admin Portal 对事件采集、Event 提取和事件语义三类执行对象的�
 它把 AgentRun 已有原始状态确定性分组为成功、执行中和失败，同时保留原始枚举；
 摘要只统计成功执行的安全业务产出。监控事实、时间窗口和状态分组由 AgentRun 拥有，
 Admin Application Backend Service 只通过 AgentRun Admin API 代理，不读取任何下游数据库。
-监控首页同时聚合 Data Service、AgentRun、Qdrant、Neo4j 四项运行健康状态与 Agent 当前状态；
-Data 和 AgentRun 各自拥有依赖探测，Admin BFF 只做有界并发聚合。单个 Provider 失败时仍返回
+监控首页同时聚合 Data Service、AgentRun、Qdrant 三项运行健康状态与 Agent 当前状态；
+Data 只报告自身，AgentRun 负责 Qdrant 依赖探测，Admin BFF 只做有界并发聚合。单个 Provider 失败时仍返回
 安全的部分结果，不把下游错误文本或凭据暴露给浏览器。三类执行明细只在独立子页面按需加载。
 _Avoid_: 浏览器直连 AgentRun、Admin 复制状态分组、展示 Prompt/正文/模型输出、从监控页发起重试或审批
 

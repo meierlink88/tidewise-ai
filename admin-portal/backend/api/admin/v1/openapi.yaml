@@ -1120,10 +1120,10 @@ components:
       properties:
         key:
           type: string
-          enum: [data, agentrun, qdrant, neo4j]
+          enum: [data, agentrun, qdrant]
         display_name:
           type: string
-          enum: [Data Service, AgentRun, Qdrant, Neo4j]
+          enum: [Data Service, AgentRun, Qdrant]
         status:
           $ref: '#/components/schemas/RuntimeHealthStatus'
         checked_at:
@@ -1149,8 +1149,8 @@ components:
           $ref: '#/components/schemas/UTCTimestamp'
         services:
           type: array
-          minItems: 4
-          maxItems: 4
+          minItems: 3
+          maxItems: 3
           items:
             $ref: '#/components/schemas/RuntimeHealthService'
     AgentStatusList:

@@ -346,187 +346,6 @@ func TestUATDeployExecutorBlocksReleaseIncompatibleMigrationEvenWithBackup(t *te
 	}
 }
 
-func TestUATDeployExecutorBlocksIndustryRelationshipImportWithoutRecoveryPoint(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{industryImport: true})
-	if result.err == nil || !strings.Contains(result.output, "FAIL industry-relationship-import-gate") {
-		t.Fatalf("relationship import without recovery point was not blocked: err=%v output=%s", result.err, result.output)
-	}
-	logContent, err := os.ReadFile(result.dockerLog)
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(logContent), "/usr/local/bin/dbmigrate") ||
-		strings.Contains(string(logContent), "industry-relationship-import") {
-		t.Fatalf("recovery-point gate allowed database work: %s", logContent)
-	}
-}
-
-func TestUATDeployExecutorImportsIndustryRelationshipsAndVerifiesReplay(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{
-		industryImport:  true,
-		backupConfirmed: true,
-	})
-	if result.err != nil {
-		t.Fatalf("relationship import fixture failed: %v\n%s", result.err, result.output)
-	}
-	for _, want := range []string{
-		"PASS industry-relationship-import-dry-run",
-		"PASS industry-relationship-import-apply",
-		"PASS industry-relationship-import-replay",
-	} {
-		if !strings.Contains(result.output, want) {
-			t.Fatalf("relationship import output missing %q: %s", want, result.output)
-		}
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	logText := string(dockerLog)
-	if strings.Count(logText, "/usr/local/bin/industry-relationship-import") != 3 {
-		t.Fatalf("relationship import did not run dry-run/apply/replay exactly once: %s", logText)
-	}
-	replay := strings.LastIndex(logText, "/usr/local/bin/industry-relationship-import")
-	serviceStart := strings.Index(logText, " up ")
-	if replay < 0 || serviceStart < 0 || replay > serviceStart {
-		t.Fatalf("relationship replay must complete before candidate service start: %s", logText)
-	}
-}
-
-func TestUATDeployExecutorProjectsIndustryGraphAndVerifiesReplay(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{graphProjection: true})
-	if result.err != nil {
-		t.Fatalf("graph projection fixture failed: %v\n%s", result.err, result.output)
-	}
-	for _, want := range []string{
-		"PASS industry-graph-projection-dry-run",
-		"PASS industry-graph-projection-apply",
-		"PASS industry-graph-projection-replay",
-	} {
-		if !strings.Contains(result.output, want) {
-			t.Fatalf("graph projection output missing %q: %s", want, result.output)
-		}
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	logText := string(dockerLog)
-	if strings.Count(logText, "/usr/local/bin/industry-graph-projector") != 3 {
-		t.Fatalf("graph projection did not run dry-run/apply/replay exactly once: %s", logText)
-	}
-	if !strings.Contains(logText, "-e NEO4J_PASSWORD") ||
-		strings.Contains(logText, fixtureNeo4jCredential()) {
-		t.Fatalf("Neo4j secret was not passed by name only: %s", logText)
-	}
-	replay := strings.LastIndex(logText, "/usr/local/bin/industry-graph-projector")
-	serviceStart := strings.Index(logText, " up ")
-	if replay < 0 || serviceStart < 0 || replay > serviceStart {
-		t.Fatalf("graph replay must complete before candidate service start: %s", logText)
-	}
-}
-
-func TestUATDeployExecutorRejectsMissingGraphCredentialsBeforeDatabaseWork(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{
-		graphProjection:   true,
-		omitNeo4jPassword: true,
-	})
-	if result.err == nil || !strings.Contains(result.output, "FAIL industry-graph-projection-gate") {
-		t.Fatalf("missing graph credential was not blocked: err=%v output=%s", result.err, result.output)
-	}
-	logContent, err := os.ReadFile(result.dockerLog)
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(logContent), "/usr/local/bin/dbmigrate") ||
-		strings.Contains(string(logContent), "industry-graph-projector") {
-		t.Fatalf("graph credential gate allowed database work: %s", logContent)
-	}
-}
-
-func TestUATDeployExecutorRejectsFrozenGraphFingerprintDrift(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{
-		graphProjection:       true,
-		graphFingerprintDrift: true,
-	})
-	if result.err == nil || !strings.Contains(result.output, "source node fingerprint does not match") {
-		t.Fatalf("graph fingerprint drift was not blocked: err=%v output=%s", result.err, result.output)
-	}
-	logContent, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(logContent), " up ") {
-		t.Fatalf("fingerprint drift allowed candidate service start: %s", logContent)
-	}
-}
-
-func TestUATDeployExecutorProjectsEventSemanticsBeforeAgentRunStarts(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{eventSemanticProjection: true})
-	if result.err != nil {
-		t.Fatalf("Event Semantic projection fixture failed: %v\n%s", result.err, result.output)
-	}
-	for _, want := range []string{
-		"PASS event-semantic-projection-qdrant-ready",
-		"PASS event-semantic-projection-apply",
-		"PASS event-semantic-projection-verify",
-	} {
-		if !strings.Contains(result.output, want) {
-			t.Fatalf("Event Semantic projection output missing %q: %s", want, result.output)
-		}
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	logText := string(dockerLog)
-	projector := strings.Index(logText, "/usr/local/bin/event-semantic-projector -apply -allow-env uat")
-	fullStart := strings.LastIndex(logText, " up -d --wait --wait-timeout 120 ")
-	if projector < 0 || fullStart < 0 || projector > fullStart {
-		t.Fatalf("Event Semantic projection must complete before the complete release starts: %s", logText)
-	}
-	if !strings.Contains(logText, " stop agentrun ") || !strings.Contains(logText, "-e EMBEDDING_API_KEY") ||
-		strings.Contains(logText, fixtureEmbeddingCredential()) {
-		t.Fatalf("Event Semantic projection did not pause AgentRun or scope the secret by name: %s", logText)
-	}
-	if strings.Contains(logText, " up -d --wait --wait-timeout 120 qdrant ") ||
-		strings.Contains(logText, " exec -T qdrant ") {
-		t.Fatalf("Event Semantic projection attempted to manage independently operated Qdrant: %s", logText)
-	}
-}
-
-func TestUATDeployExecutorRejectsMissingEmbeddingSecretBeforeDatabaseWork(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{
-		eventSemanticProjection: true,
-		omitEmbeddingSecret:     true,
-	})
-	if result.err == nil || !strings.Contains(result.output, "FAIL event-semantic-projection-gate") {
-		t.Fatalf("missing embedding secret was not blocked: err=%v output=%s", result.err, result.output)
-	}
-	logContent, err := os.ReadFile(result.dockerLog)
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(logContent), "/usr/local/bin/dbmigrate") ||
-		strings.Contains(string(logContent), "event-semantic-projector") {
-		t.Fatalf("embedding secret gate allowed database or projection work: %s", logContent)
-	}
-}
-
-func TestUATDeployExecutorRejectsEventSemanticProjectionCountDrift(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{
-		currentRelease:          true,
-		eventSemanticProjection: true,
-		semanticProjectionDrift: true,
-	})
-	if result.err == nil || !strings.Contains(result.output, "projection count does not match") {
-		t.Fatalf("Event Semantic projection count drift was not blocked: err=%v output=%s", result.err, result.output)
-	}
-	if !strings.Contains(result.output, "PASS rollback: previous complete release restored") {
-		t.Fatalf("projection drift did not restore the previous release: %s", result.output)
-	}
-}
-
 func TestUATDeployExecutorRejectsExcludedPostgreSQLFactDrift(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{excludedFactDrift: true})
 	if result.err == nil || !strings.Contains(result.output, "excluded PostgreSQL facts changed") {
@@ -594,13 +413,6 @@ type deployFixtureOptions struct {
 	failArtifactProbe       bool
 	failExternalQdrant      bool
 	legacyQdrantSnapshot    bool
-	industryImport          bool
-	graphProjection         bool
-	omitNeo4jPassword       bool
-	graphFingerprintDrift   bool
-	eventSemanticProjection bool
-	omitEmbeddingSecret     bool
-	semanticProjectionDrift bool
 	excludedFactDrift       bool
 }
 
@@ -632,8 +444,6 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	agentrunManifest := filepath.Join(temp, "agentrun-migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
-	industryImportCount := filepath.Join(temp, "industry-import-count")
-	industryGraphCount := filepath.Join(temp, "industry-graph-count")
 	excludedFactAuditCount := filepath.Join(temp, "excluded-fact-audit-count")
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
@@ -712,51 +522,6 @@ case " $* " in
     ;;
   *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
   *" run "*" /usr/local/bin/dbmigrate "*) cat "$FAKE_MIGRATION_REPORT" ;;
-  *" /usr/local/bin/industry-relationship-import "*)
-    count=0
-    if [ -f "$FAKE_INDUSTRY_IMPORT_COUNT" ]; then count="$(cat "$FAKE_INDUSTRY_IMPORT_COUNT")"; fi
-    count=$((count + 1))
-    echo "$count" > "$FAKE_INDUSTRY_IMPORT_COUNT"
-    case " $* " in
-      *" -dry-run "*)
-        printf '{"package_sha256":"%s","package_counts":{"industry_chain":708},"dry_run":true,"unchanged":false}\n' "$FAKE_INDUSTRY_PACKAGE_SHA"
-        ;;
-      *)
-        unchanged=false
-        if [ "$count" -ge 3 ]; then unchanged=true; fi
-        printf '{"package_sha256":"%s","package_counts":{"industry_chain":708},"dry_run":false,"unchanged":%s}\n' "$FAKE_INDUSTRY_PACKAGE_SHA" "$unchanged"
-        ;;
-    esac
-    ;;
-  *" /usr/local/bin/industry-graph-projector "*)
-    count=0
-    if [ -f "$FAKE_INDUSTRY_GRAPH_COUNT" ]; then count="$(cat "$FAKE_INDUSTRY_GRAPH_COUNT")"; fi
-    count=$((count + 1))
-    echo "$count" > "$FAKE_INDUSTRY_GRAPH_COUNT"
-    unchanged=false
-    dry_run=false
-    applied=true
-    if [ "$count" -eq 1 ]; then
-      dry_run=true
-      applied=false
-    elif [ "$count" -ge 3 ]; then
-      unchanged=true
-      applied=false
-    fi
-    summary='{"node_count":4449,"relationship_count":7867,"node_fingerprint":"'"$FAKE_NODE_FINGERPRINT"'","relationship_fingerprint":"'"$FAKE_RELATIONSHIP_FINGERPRINT"'","node_type_counts":{"industry":512,"concept":180,"industry_chain":708,"chain_node":3049},"relationship_type_counts":{"MAPPED_TO_INDUSTRY":716,"MAPPED_TO_CONCEPT":521,"HAS_NODE":3350,"INPUT_TO":1537,"IS_COMPONENT_OF":704,"DEPENDS_ON":404,"IS_SUBCATEGORY_OF":635},"orphan_count":0,"duplicate_node_count":0,"duplicate_relationship_count":0,"self_loop_count":0,"missing_chain_identity_count":0}'
-    printf '{"namespace":"tidewise-industry-v1","contract_version":"industry-graph-projection-v1","package_sha256":"%s","node_count":4449,"relationship_count":7867,"source":%s,"current_neo4j":%s,"final_neo4j":%s,"current_integrity_violation_count":0,"final_integrity_violation_count":0,"dry_run":%s,"applied":%s,"unchanged":%s}\n' "$FAKE_INDUSTRY_PACKAGE_SHA" "$summary" "$summary" "$summary" "$dry_run" "$applied" "$unchanged"
-    ;;
-  *" /usr/local/bin/event-semantic-projector -apply -allow-env uat "*)
-    entity_count=4973
-    if [ "${FAKE_SEMANTIC_PROJECTION_DRIFT:-false}" = true ]; then entity_count=4974; fi
-    printf '{"projection_version":"event-semantic-projection.v1","embedding_model":"text-embedding-v4","entity_count":%s,"variable_definition_count":12}\n' "$entity_count"
-    ;;
-  *"http://qdrant:6333/collections/entity_semantic_v1"*)
-    printf '{"result":{"status":"green","points_count":4973,"config":{"params":{"vectors":{"size":1024,"distance":"Cosine"}}}}}\n'
-    ;;
-	  *"http://qdrant:6333/collections/variable_definition_semantic_v1"*)
-	    printf '{"result":{"status":"green","points_count":12,"config":{"params":{"vectors":{"size":1024,"distance":"Cosine"}}}}}\n'
-	    ;;
 	  *"http://qdrant:6333/collections "*)
 	    if [ "${FAKE_FAIL_EXTERNAL_QDRANT:-false}" = true ]; then exit 1; fi
 	    printf '{"result":{"collections":[]}}\n'
@@ -786,7 +551,6 @@ exit 0
 `)
 
 	cmd := exec.Command("bash", filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
-	neo4jPasswordEnv := strings.Join([]string{"NEO4J", "PASSWORD"}, "_")
 	cmd.Env = append(os.Environ(),
 		"PATH="+bin+":"+os.Getenv("PATH"),
 		"DEPLOY_ROOT="+root,
@@ -801,16 +565,7 @@ exit 0
 		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,
 		"AGENTRUN_RECOVERY_TARGET_VERSION="+options.agentrunRecoveryTarget,
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
-		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED="+boolText(options.industryImport),
-		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA="+conditionalValue(options.industryImport, fixtureRelationshipPkgSHA),
-		"INDUSTRY_GRAPH_PROJECTION_ENABLED="+boolText(options.graphProjection),
-		"INDUSTRY_GRAPH_PACKAGE_SHA="+conditionalValue(options.graphProjection, fixtureRelationshipPkgSHA),
-		"EVENT_SEMANTIC_PROJECTION_ENABLED="+boolText(options.eventSemanticProjection),
-		"EMBEDDING_API_KEY="+conditionalValue(!options.omitEmbeddingSecret, fixtureEmbeddingCredential()),
-		"NEO4J_URI=bolt://host.docker.internal:7687",
-		"NEO4J_USERNAME=neo4j",
-		neo4jPasswordEnv+"="+conditionalValue(!options.omitNeo4jPassword, fixtureNeo4jCredential()),
-		"NEO4J_DATABASE=neo4j",
+		"EMBEDDING_API_KEY="+fixtureEmbeddingCredential(),
 		"RUNNER_TEMP="+temp,
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
@@ -818,13 +573,7 @@ exit 0
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_AGENTRUN_MIGRATION_REPORT="+filepath.Join(temp, "agentrun-migration.json"),
 		"FAKE_UP_COUNT="+upCount,
-		"FAKE_INDUSTRY_IMPORT_COUNT="+industryImportCount,
-		"FAKE_INDUSTRY_GRAPH_COUNT="+industryGraphCount,
 		"FAKE_EXCLUDED_FACT_AUDIT_COUNT="+excludedFactAuditCount,
-		"FAKE_NODE_FINGERPRINT="+conditionalValue(!options.graphFingerprintDrift, "4229146e37ee554cd58377843743f93dc753bdfd92bbe7f2c9afac61c2003d63"),
-		"FAKE_RELATIONSHIP_FINGERPRINT=aba6be387c0dad1b93c6fd14a4f9216b77a625d206cae9e7b977854f0cacec94",
-		"FAKE_INDUSTRY_PACKAGE_SHA="+fixtureRelationshipPkgSHA,
-		"FAKE_SEMANTIC_PROJECTION_DRIFT="+boolText(options.semanticProjectionDrift),
 		"FAKE_EXCLUDED_FACT_DRIFT="+boolText(options.excludedFactDrift),
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
 		"FAKE_FAIL_EVERY_UP="+boolText(options.failEveryUp),

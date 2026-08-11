@@ -37,7 +37,6 @@ const (
 	RuntimeServiceData     RuntimeServiceKey = "data"
 	RuntimeServiceAgentRun RuntimeServiceKey = "agentrun"
 	RuntimeServiceQdrant   RuntimeServiceKey = "qdrant"
-	RuntimeServiceNeo4j    RuntimeServiceKey = "neo4j"
 )
 
 type RuntimeHealthService struct {
@@ -98,10 +97,10 @@ collect:
 	}
 
 	checkedAt := s.now().UTC()
-	serviceByKey := make(map[RuntimeServiceKey]RuntimeHealthService, 4)
-	mergeProvider(serviceByKey, providers["data"], []RuntimeServiceKey{RuntimeServiceData, RuntimeServiceNeo4j}, checkedAt)
+	serviceByKey := make(map[RuntimeServiceKey]RuntimeHealthService, 3)
+	mergeProvider(serviceByKey, providers["data"], []RuntimeServiceKey{RuntimeServiceData}, checkedAt)
 	mergeProvider(serviceByKey, providers["agentrun"], []RuntimeServiceKey{RuntimeServiceAgentRun, RuntimeServiceQdrant}, checkedAt)
-	order := []RuntimeServiceKey{RuntimeServiceData, RuntimeServiceAgentRun, RuntimeServiceQdrant, RuntimeServiceNeo4j}
+	order := []RuntimeServiceKey{RuntimeServiceData, RuntimeServiceAgentRun, RuntimeServiceQdrant}
 	services := make([]RuntimeHealthService, 0, len(order))
 	status := RuntimeStatusReady
 	for _, key := range order {
@@ -192,7 +191,7 @@ func (reason RuntimeReasonCode) Valid() bool {
 }
 
 func (key RuntimeServiceKey) Valid() bool {
-	return key == RuntimeServiceData || key == RuntimeServiceAgentRun || key == RuntimeServiceQdrant || key == RuntimeServiceNeo4j
+	return key == RuntimeServiceData || key == RuntimeServiceAgentRun || key == RuntimeServiceQdrant
 }
 
 func (key RuntimeServiceKey) DisplayName() string {
@@ -203,8 +202,6 @@ func (key RuntimeServiceKey) DisplayName() string {
 		return "AgentRun"
 	case RuntimeServiceQdrant:
 		return "Qdrant"
-	case RuntimeServiceNeo4j:
-		return "Neo4j"
 	default:
 		return ""
 	}

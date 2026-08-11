@@ -18,6 +18,7 @@ import (
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
+	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
@@ -463,7 +464,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
 		parentservice.NewDataService(parentservice.Dependencies{}), semanticTestEventService{}, application,
-		semanticTestEvidenceService{}, authenticator, nil,
+		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -472,6 +473,12 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 }
 
 type semanticTestEventService struct{}
+
+type semanticTestRawDocumentService struct{}
+
+func (semanticTestRawDocumentService) List(context.Context, *rawdocumentapi.ListRequest) (*v1.Response[rawdocumentapi.Page], error) {
+	return &v1.Response[rawdocumentapi.Page]{Status: http.StatusNoContent}, nil
+}
 
 func (semanticTestEventService) PublishReviewedEvents(context.Context, *eventapi.PublicationRequest) (*v1.Response[eventapi.PublicationResult], error) {
 	return &v1.Response[eventapi.PublicationResult]{Status: http.StatusNoContent}, nil

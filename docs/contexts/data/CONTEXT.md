@@ -6,16 +6,17 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 ## Owns
 
-- Entity、产业链节点及关系、Benchmark、Index 等主数据。
+- Entity、Entity Type Definition、产业链节点及关系、Benchmark、Benchmark Observation、
+  Index 等正式事实。
 - 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性去重身份。
 - 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
-- PostgreSQL schema、migration、repository 和 Neo4j 可重建投影。
+- PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
   receipt 和事务规则。
 - AgentRun 使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
-- Data Service 与其 Neo4j 投影存储的只读运行健康投影；Neo4j 探测使用独立、最小权限凭据。
+- Data Service 自身的只读运行健康状态。
 
 ## Does Not Own
 
@@ -23,6 +24,9 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - User、Auth、Payment、Subscription 等未来独立领域。
 - 数据采集 connector、parser、采集 prompt、采集调度执行或清洗/语义判断工作流。
 - Agent 的模型推理和工作流运行。
+- Entity seed、关系包构建/导入、历史主数据收敛批次，以及向 Neo4j 或 Qdrant
+  投影 Entity/TBox 的执行能力；这些 authoring 能力转移给 Tidewise Reason。
+- Neo4j、Qdrant、embedding Provider 的写入、同步、运行健康或生命周期管理。
 
 ## Acquisition And Agent Boundary
 
@@ -72,11 +76,10 @@ _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
 产生新的不可变 Receipt。
 _Avoid_: Raw Evidence Publication、Group Publication、部分成功、可变清洗结果
 
-**Data Runtime Health Projection**:
-Data Service 对自身既有 readiness 语义和 Neo4j 投影存储连接性的只读即时状态。
-Neo4j 探针使用独立最小权限身份，只对配置的 database 执行无业务数据的 `RETURN 1`，
-不读取节点、关系、投影数量或新鲜度，也不改变既有 `/readyz` 合同。
-_Avoid_: 复用投影写入身份、读取业务图谱、把健康检查结果持久化或用于自动修复
+**Data Runtime Health**:
+Data Service 对自身既有运行状态的只读即时投影，不探测或代理 PostgreSQL 之外的
+Entity projection storage。它不改变既有 `/healthz` 或 `/readyz` 合同。
+_Avoid_: Neo4j/Qdrant 健康代理、读取业务事实、把健康检查结果持久化或用于自动修复
 
 **产业链（Industry Chain）**:
 围绕明确目标产出与终端用途，由多个独立经济节点通过投入、组成、技术支撑或依赖形成的有边界、有方向研究子图。
@@ -321,11 +324,17 @@ _Avoid_: Observation、Event-native Variable Signal、Metric Entity、模型自�
 **Entity Type Definition**:
 Data PostgreSQL 中对规范 Entity Type 的受控 TBox 定义。除稳定 `type_key/version`、Signal
 Subject 能力与允许 Event 角色外，V3 还持久化中英文名称、业务定义、纳入标准、排除标准和
-`event_link_allowed`。这些字段由既有领域与 Data layer 读取、Context API 和 Research
-Analysis Context 暴露，并约束 Event Semantic 投影与提交预检。首批既有 active 类型的内容
+`event_link_allowed`。它属于 Entity 领域；这些字段由 Entity Data boundary 及明确消费者读取、
+Context API 和 Research Analysis Context 暴露，并约束 Event Semantic 提交预检。首批既有 active 类型的内容
 由本次 forward migration 一次性人工编写回填；这不表示存在运行时生成器、Curator、管理 UI
 或持续同步功能。
 _Avoid_: Prompt 内写死类型清单、模型预测类型作为事实、单独 TBox 生成系统、只改数据库而不改领域读取合同
+
+**Benchmark Observation**:
+挂在一个正式 Benchmark Entity 下、带观测时间、数值、单位、来源与质量状态的时序事实。
+它属于 Entity 领域事实，但不是 Entity identity、Benchmark Profile、Event Measurement 或
+Entity projection node；相同 Benchmark、观测时间和来源按既有自然身份收敛。
+_Avoid_: Benchmark Entity、Metric Entity、Event-native Measurement、Neo4j/Qdrant projection
 
 **Measurement Value**:
 Variable Signal 或未来 Observation 复用的结构化数值对象。它以受控角色区分绝对水平、
@@ -386,7 +395,7 @@ Data Service 对一个正式 Event 的一次语义提交、确定性校验、独
 Acceptance Policy 裁决和产物血缘记录，与 AgentRun 的一个 Agent Execution 一对一。
 新 V3 Submission 仅包含 EventEntityLink 和 VariableSignal（其可选包含自然语言
 Measurement），不接受、生成或要求 DirectImpact。Data 在写事务内以 PostgreSQL 正式
-Entity/TBox/Evidence 重新校验 Qdrant 候选中被选中的 ID，并要求 Submission 的
+Entity/TBox/Evidence 重新校验外部候选中被选中的 ID，并要求 Submission 的
 `projected_entity_type` 与 PG Entity Type 完全一致；Signal 还必须满足该正式类型的
 `signal_subject_allowed`。
 它保存外部执行身份及 Agent/Ontology/Rule/Prompt/Model 版本快照，但不复制 AgentRun 的
@@ -417,8 +426,8 @@ Data Service 面向 Codex 分析师提供的同步、无状态、幂等只读图
 node/edge budget；Data 只校验引用和预算，并从 PostgreSQL 返回稳定排序、引用完整的
 可达 EntityRelation 与 Industry Chain Graph 子图。`industry_chain_entity_id` 只约束
 Industry Chain Graph Edge，全局 EntityRelation 仍完全由显式 Relation filter 控制。
-第一版不分页；预算超限整次返回结构化 `429`，不静默截断。未来可在不改变 API 语义的
-前提下把 Data Adapter 切换为 Neo4j 投影。
+第一版不分页；预算超限整次返回结构化 `429`，不静默截断。Data Adapter 固定从
+PostgreSQL 正式事实构造结果，不切换为 Data-owned Neo4j 投影。
 _Avoid_: Data 自动选择 seed/主产业链/最佳路径、Theme readiness 或投资方向判断、
 Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未声明的部分子图
 
@@ -443,26 +452,16 @@ VariableSignal 的可选一对多、Evidence-grounded 自然语言量化附注�
 它仅供下游 Theme Analyst 阅读和推理，不用于数据库计算。
 _Avoid_: Observation、伪造数值、任意无 Evidence 自由文本、恢复数值归一化强校验
 
-**Event Semantic Qdrant Projection**:
-Data Service 从 active/current 正式 PostgreSQL Entity 和 Variable Definition 构建的两个可重建
-语义召回 collection。Data 拥有一次性全量 projector、普通批量 embedding Port、
-OpenAI-compatible HTTP adapter 和 Qdrant 写入；它不拥有 accepted 状态，也不替代
-PostgreSQL 事实校验。Data 代码不使用 Eino/eino-ext，AgentRun 也不通过 Data API
-获取 embedding 或语义候选。
-Entity projection 只读取 active 且其 active Entity Type Definition 明确
-`event_link_allowed=true` 的正式 Entity；Qdrant payload 携带正式 Entity Type，AgentRun
-exact/vector 均跨类型召回，再由候选级 Selector 消歧。
-Entity 外层 point ID 必须等于 payload `entity_id`；payload 不重复保存 `point_id`。payload 还必须
-携带用于投影来源审计的 `source_identity`、固定
-`projection_version`、`embedding_model` 和基于冻结 projection document 的 SHA-256
-`content_fingerprint`。AgentRun 对缺失、异源、旧版本或错误模型的 point fail closed；Data 仍以
-PostgreSQL 正式 Entity ID/type/status 完成 Submission 最终复核。
-Data semantic projection 的 Embedding/Qdrant HTTP Adapter 原样保留 `context.Canceled` 与
-`context.DeadlineExceeded`，不把调用方取消或 deadline 包装为普通 endpoint unavailable。
-_Avoid_: Qdrant 作为事实源、Data 执行 Agent Workflow、实时/CDC 同步、Data 代理 AgentRun 搜索
+**Retired Event Semantic Qdrant Projection**:
+历史 V2/V3 由 Data Service 从 PostgreSQL Entity 与 Variable Definition 构建 Qdrant
+collection 的运行能力已经退役。Data 不再拥有 projector、embedding Port、Provider HTTP
+adapter、Qdrant writer、collection rebuild 或 rollout gate。历史外部 collection 和
+AgentRun consumer 不因此成为 Data 事实；依赖 collection freshness 的执行保持暂停，直到
+新的 projection owner 与版本化协作合同获批。
+_Avoid_: Data 恢复 PG→Qdrant writer、Qdrant 作为事实源、Data 代理语义搜索、无 owner 的陈旧 collection
 
 **Event Semantic Resolution Route**:
-历史 V1 术语；已被 Event Semantic V2 Qdrant Projection 取代，不再对新 AgentRun 流程提供。
+历史 V1 术语；不再对新执行流程提供，也不因 Data Qdrant projector 退役而恢复。
 Data Service 暴露的版本化、受控 Entity Resolution 路径。ChainNode MVP 只允许从正式且
 已批准的 Industry 或 Concept 锚点，经 `mapped_to_industry | mapped_to_concept` 到
 IndustryChain，再经已批准 Membership 到 ChainNode；路由、锚点和候选均稳定排序并分页。
@@ -531,7 +530,8 @@ internal/conf/ Data-only runtime configuration
 
 ## Runtime
 
-Data Server、migration、seed、projector 与审计命令只通过 Data Docker image 和 Compose
-运行。每个环境只保留一份 `configs/config.<environment>.yaml`；local 使用容器可访问的外部
-基础设施 endpoint，不维护宿主机直跑配置。PostgreSQL、Neo4j、Qdrant 不由 Data
-application Compose 创建或持有。这不改变 Data 的 API、数据库或事实 ownership。
+Data Server、migration 与仍受支持的审计命令只通过 Data Docker image 和 Compose 运行。
+Data image 不再包含 Entity seed、Industry relationship import、Neo4j projector 或 Qdrant
+projector。每个环境只保留一份 `configs/config.<environment>.yaml`；local 使用容器可访问的
+外部 PostgreSQL endpoint，不维护宿主机直跑配置。Neo4j、Qdrant 不由 Data application
+创建、持有、探测或写入。这不改变 Data 的 PostgreSQL 事实 ownership。

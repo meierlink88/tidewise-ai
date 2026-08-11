@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cloudwego/eino/compose"
@@ -39,6 +40,7 @@ type Application struct {
 	done            chan struct{}
 	startOnce       sync.Once
 	stopOnce        sync.Once
+	started         atomic.Bool
 	discoveryMu     sync.Mutex
 	discoveryCursor string
 	logger          EventLogger
@@ -81,6 +83,7 @@ func (a *Application) Start(parent context.Context) {
 	a.startOnce.Do(func() {
 		ctx, cancel := context.WithCancel(parent)
 		a.cancel = cancel
+		a.started.Store(true)
 		a.logger.Info(agentrun.AgentLifecycleEvent{
 			Code: "agent_runtime_started", AgentKey: eventsemantic.AgentKey,
 			AgentVersion: eventsemantic.AgentVersion, RuntimeMode: "worker",
@@ -98,6 +101,9 @@ func (a *Application) Notify() {
 }
 
 func (a *Application) Shutdown(ctx context.Context) error {
+	if !a.started.Load() {
+		return nil
+	}
 	a.stopOnce.Do(func() {
 		if a.cancel != nil {
 			a.cancel()

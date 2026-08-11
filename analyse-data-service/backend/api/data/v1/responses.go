@@ -190,10 +190,3 @@ type ResearchReasoningTreeDetail struct {
 	ImpactNodeIDs              []string              `json:"impact_node_ids"`
 	ReasoningTree              ResearchReasoningTree `json:"reasoning_tree"`
 }
-
-type AdminRawDocumentPage struct {
-	Items    []AdminRawDocument `json:"items"`
-	Total    int                `json:"total"`
-	Page     int                `json:"page"`
-	PageSize int                `json:"page_size"`
-}

@@ -1,6 +1,8 @@
 # Industry Relationship Import V1
 
-Status: implemented
+> Superseded for active Data operations by ADR-0013. Retained only as historical implementation evidence.
+
+Status: retired
 Owner: Data Domain Service
 Date: 2026-07-27
 Issue: [#123](https://github.com/meierlink88/tidewise-ai/issues/123)

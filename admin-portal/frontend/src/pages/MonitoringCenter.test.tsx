@@ -95,10 +95,8 @@ describe('MonitoringCenter', () => {
     renderCenter();
 
     expect(await screen.findByText('Data Service')).toBeInTheDocument();
-    expect(screen.getByText('Neo4j')).toBeInTheDocument();
     expect(await screen.findAllByText('Ready')).toHaveLength(2);
     expect(screen.getByText('Green')).toBeInTheDocument();
-    expect(screen.getByText('Online')).toBeInTheDocument();
     expect(await screen.findByText('综合采集 Agent')).toBeInTheDocument();
     expect(screen.getByText(/idle ·/)).toBeInTheDocument();
     expect(screen.getByText('Raw Results')).toBeInTheDocument();
@@ -270,7 +268,7 @@ describe('MonitoringCenter', () => {
       ...runtimeHealth(),
       status: 'degraded',
       services: runtimeHealth().services.map((service) =>
-        service.key === 'neo4j'
+        service.key === 'qdrant'
           ? {
               ...service,
               status: 'down' as const,
@@ -309,12 +307,6 @@ function runtimeHealth() {
       {
         key: 'qdrant' as const,
         display_name: 'Qdrant' as const,
-        status: 'ready' as const,
-        checked_at: '2026-08-03T08:30:00Z'
-      },
-      {
-        key: 'neo4j' as const,
-        display_name: 'Neo4j' as const,
         status: 'ready' as const,
         checked_at: '2026-08-03T08:30:00Z'
       }

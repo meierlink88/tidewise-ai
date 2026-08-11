@@ -8,8 +8,13 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 )
 
+type contextStore interface {
+	ListBundles(context.Context, biz.StoreQuery) (biz.StorePage, error)
+	ReferenceClosure(context.Context, biz.ReferenceClosureQuery) (biz.Dictionaries, error)
+}
+
 type Repository struct {
-	store *postgres.ResearchAnalysisContextStore
+	store contextStore
 }
 
 func NewRepository(db *sql.DB) Repository {
