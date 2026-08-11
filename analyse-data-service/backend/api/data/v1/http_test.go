@@ -165,6 +165,9 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 		if !strings.HasPrefix(path, APIPrefix) {
 			continue
 		}
+		if path == APIPrefix+"/raw-evidence-publications" || path == APIPrefix+"/evidence-publications" {
+			continue
+		}
 		pathItem := httpContractObject(t, pathItemValue, "path "+path)
 		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
 			operationValue, exists := pathItem[method]

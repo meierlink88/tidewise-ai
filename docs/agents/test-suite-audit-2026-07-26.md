@@ -315,4 +315,4 @@ The cleanup was verified with:
 - formatting and diff whitespace checks.
 
 The repository testing policy and future Issue test-plan template are defined in
-`docs/agents/testing.md`.
+`docs/development-standards/testing.md`.

@@ -15,6 +15,22 @@ const (
 	MaxRequestBodySize = 1_048_576
 )
 
+type StrictJSONShape = bindingShape
+
+func StrictJSONString() *StrictJSONShape         { return stringShape }
+func StrictJSONBoolean() *StrictJSONShape        { return booleanShape }
+func StrictJSONInteger() *StrictJSONShape        { return integerShape }
+func StrictJSONNullableString() *StrictJSONShape { return nullableStringShape }
+func StrictJSONArray(item *StrictJSONShape) *StrictJSONShape {
+	return arrayShape(item)
+}
+func StrictJSONRequiredObject(required []string, fields map[string]*StrictJSONShape) *StrictJSONShape {
+	return requiredObjectShape(required, fields)
+}
+func DecodeStrictJSON(payload []byte, shape *StrictJSONShape, target any) error {
+	return decodeStrictBinding(payload, shape, target)
+}
+
 type DataHTTPServer interface {
 	ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error)
 	ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error)
@@ -61,7 +77,7 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 func runtimeHealthHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &RuntimeHealthRequest{}
-		return call(ctx, OperationGetRuntimeHealth, request, func(callContext context.Context) (*Response[RuntimeHealth], error) {
+		return Call(ctx, OperationGetRuntimeHealth, request, func(callContext context.Context) (*Response[RuntimeHealth], error) {
 			return application.GetRuntimeHealth(callContext, request)
 		})
 	}
@@ -73,7 +89,7 @@ func searchResearchGraphHandler(application DataHTTPServer) kratoshttp.HandlerFu
 		if err != nil {
 			return err
 		}
-		return call(
+		return Call(
 			ctx,
 			OperationSearchResearchGraph,
 			request,
@@ -128,7 +144,7 @@ func listResearchAnalysisContextHandler(application DataHTTPServer) kratoshttp.H
 			PageSize:               pageSize,
 			Cursor:                 query.Get("cursor"),
 		}
-		return call(
+		return Call(
 			ctx,
 			OperationListResearchAnalysisContext,
 			request,
@@ -155,7 +171,7 @@ func listActiveEventTagsHandler(application DataHTTPServer) kratoshttp.HandlerFu
 			return NewPublicError(StatusBadRequest, "INVALID_REQUEST", "active must be exactly true", nil)
 		}
 		request := &EventTagCatalogRequest{Active: true}
-		return call(ctx, OperationListActiveEventTags, request, func(callContext context.Context) (*Response[EventTagCatalog], error) {
+		return Call(ctx, OperationListActiveEventTags, request, func(callContext context.Context) (*Response[EventTagCatalog], error) {
 			return application.ListActiveEventTags(callContext, request)
 		})
 	}
@@ -163,7 +179,7 @@ func listActiveEventTagsHandler(application DataHTTPServer) kratoshttp.HandlerFu
 
 func eventPublicationImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		payload, err := readImportPayload(ctx)
+		payload, err := ReadImportPayload(ctx)
 		if err != nil {
 			return err
 		}
@@ -171,7 +187,7 @@ func eventPublicationImportHandler(application DataHTTPServer) kratoshttp.Handle
 		if err != nil {
 			return err
 		}
-		return call(ctx, OperationPublishReviewedEvents, request, func(callContext context.Context) (*Response[EventPublicationResult], error) {
+		return Call(ctx, OperationPublishReviewedEvents, request, func(callContext context.Context) (*Response[EventPublicationResult], error) {
 			return application.ImportReviewedEvents(callContext, request)
 		})
 	}
@@ -179,7 +195,7 @@ func eventPublicationImportHandler(application DataHTTPServer) kratoshttp.Handle
 
 func researchThemeImportHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		payload, err := readImportPayload(ctx)
+		payload, err := ReadImportPayload(ctx)
 		if err != nil {
 			return err
 		}
@@ -187,13 +203,13 @@ func researchThemeImportHandler(application DataHTTPServer) kratoshttp.HandlerFu
 		if err != nil {
 			return err
 		}
-		return call(ctx, OperationPublishResearchTheme, request, func(callContext context.Context) (*Response[ResearchThemeImportResult], error) {
+		return Call(ctx, OperationPublishResearchTheme, request, func(callContext context.Context) (*Response[ResearchThemeImportResult], error) {
 			return application.PublishResearchTheme(callContext, request)
 		})
 	}
 }
 
-func readImportPayload(ctx kratoshttp.Context) ([]byte, error) {
+func ReadImportPayload(ctx kratoshttp.Context) ([]byte, error) {
 	payload, err := io.ReadAll(io.LimitReader(ctx.Request().Body, MaxRequestBodySize+1))
 	if err != nil {
 		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
@@ -213,7 +229,7 @@ func listResearchThemesHandler(application DataHTTPServer) kratoshttp.HandlerFun
 			Limit:         ctx.Query().Get("limit"),
 			Cursor:        ctx.Query().Get("cursor"),
 		}
-		return call(ctx, OperationListResearchThemes, request, func(callContext context.Context) (*Response[ResearchThemePage], error) {
+		return Call(ctx, OperationListResearchThemes, request, func(callContext context.Context) (*Response[ResearchThemePage], error) {
 			return application.ListResearchThemes(callContext, request)
 		})
 	}
@@ -222,7 +238,7 @@ func listResearchThemesHandler(application DataHTTPServer) kratoshttp.HandlerFun
 func getResearchThemeHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &GetResearchThemeRequest{ThemeID: ctx.Vars().Get("theme_id"), WindowHours: ctx.Query().Get("window_hours")}
-		return call(ctx, OperationGetResearchTheme, request, func(callContext context.Context) (*Response[ResearchThemeDetail], error) {
+		return Call(ctx, OperationGetResearchTheme, request, func(callContext context.Context) (*Response[ResearchThemeDetail], error) {
 			return application.GetResearchTheme(callContext, request)
 		})
 	}
@@ -231,7 +247,7 @@ func getResearchThemeHandler(application DataHTTPServer) kratoshttp.HandlerFunc 
 func listReasoningTreesHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
 		request := &ReasoningTreeListRequest{ThemeID: ctx.Vars().Get("theme_id"), HasQuery: ctx.Request().URL.RawQuery != ""}
-		return call(ctx, OperationListResearchThemeReasoningTrees, request, func(callContext context.Context) (*Response[ResearchReasoningTreeList], error) {
+		return Call(ctx, OperationListResearchThemeReasoningTrees, request, func(callContext context.Context) (*Response[ResearchReasoningTreeList], error) {
 			return application.ListResearchReasoningTrees(callContext, request)
 		})
 	}
@@ -242,7 +258,7 @@ func getReasoningTreeHandler(application DataHTTPServer) kratoshttp.HandlerFunc 
 		request := &ReasoningTreeDetailRequest{
 			ThemeID: ctx.Vars().Get("theme_id"), ReasoningTreeID: ctx.Vars().Get("reasoning_tree_id"), HasQuery: ctx.Request().URL.RawQuery != "",
 		}
-		return call(ctx, OperationGetResearchThemeReasoningTree, request, func(callContext context.Context) (*Response[ResearchReasoningTreeDetail], error) {
+		return Call(ctx, OperationGetResearchThemeReasoningTree, request, func(callContext context.Context) (*Response[ResearchReasoningTreeDetail], error) {
 			return application.GetResearchReasoningTree(callContext, request)
 		})
 	}
@@ -254,7 +270,7 @@ func listRawDocumentsHandler(application DataHTTPServer) kratoshttp.HandlerFunc 
 			Title: ctx.Query().Get("title"), SourceRef: ctx.Query().Get("source_ref"),
 			IngestStatus: ctx.Query().Get("ingest_status"), Page: ctx.Query().Get("page"), PageSize: ctx.Query().Get("page_size"),
 		}
-		return call(ctx, OperationListAdminRawDocuments, request, func(callContext context.Context) (*Response[AdminRawDocumentPage], error) {
+		return Call(ctx, OperationListAdminRawDocuments, request, func(callContext context.Context) (*Response[AdminRawDocumentPage], error) {
 			return application.ListRawDocuments(callContext, request)
 		})
 	}
@@ -269,13 +285,13 @@ func listEventsHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
 			FirstSeenFrom: query.Get("first_seen_from"), FirstSeenTo: query.Get("first_seen_to"),
 			Page: query.Get("page"), PageSize: query.Get("page_size"),
 		}
-		return call(ctx, OperationListAdminEvents, request, func(callContext context.Context) (*Response[AdminEventPage], error) {
+		return Call(ctx, OperationListAdminEvents, request, func(callContext context.Context) (*Response[AdminEventPage], error) {
 			return application.ListEvents(callContext, request)
 		})
 	}
 }
 
-func call[T any](ctx kratoshttp.Context, operation string, request any, invoke func(context.Context) (*Response[T], error)) error {
+func Call[T any](ctx kratoshttp.Context, operation string, request any, invoke func(context.Context) (*Response[T], error)) error {
 	kratoshttp.SetOperation(ctx, operation)
 	handler := ctx.Middleware(func(callContext context.Context, _ any) (any, error) {
 		return invoke(callContext)

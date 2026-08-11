@@ -16,6 +16,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
 
@@ -28,7 +29,16 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, authenticator *Authenticator, logger *slog.Logger) *kratoshttp.Server {
+func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, evidenceApplication evidenceapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+	if application == nil {
+		return nil, errors.New("Data API service is required")
+	}
+	if evidenceApplication == nil {
+		return nil, errors.New("Evidence API service is required")
+	}
+	if authenticator == nil {
+		return nil, errors.New("Data API authenticator is required")
+	}
 	server := kratoshttp.NewServer(
 		kratoshttp.Address(config.Server.Address()),
 		kratoshttp.Timeout(0),
@@ -49,16 +59,15 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, authentica
 	server.Server.WriteTimeout = time.Duration(config.Server.WriteTimeoutSeconds) * time.Second
 
 	registerHealthRoutes(server, config.App)
-	if application != nil {
-		v1.RegisterDataHTTPServer(server, application)
-	}
+	v1.RegisterDataHTTPServer(server, application)
+	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{
 		Title:    "Tidewise Data Service API",
 		Document: v1.Document(),
 	})
 	server.Server.Handler = observabilityFilter(config.App, logger)(documented)
-	return server
+	return server, nil
 }
 
 func registerHealthRoutes(server *kratoshttp.Server, app conf.AppConfig) {

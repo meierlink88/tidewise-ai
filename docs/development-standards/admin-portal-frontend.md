@@ -3,7 +3,7 @@
 本规范是观潮家 Admin Portal Frontend 的仓库级技术权威。它适用于页面、应用壳、组件、
 路由、前端认证适配、API Adapter、表格、表单、主题、测试、构建和发布工作。
 
-## 1. Outcome And Non-goals
+## 1. Scope And Non-goals
 
 Admin Portal Frontend 采用现代、源码可控的 shadcn 技术路线，并继续消费现有 Admin
 Application Backend Service。
@@ -11,8 +11,8 @@ Application Backend Service。
 本选型不包含：
 
 - 修改 Admin Backend 路由、DTO、错误 envelope、认证或授权合同；
-- 让浏览器直连 Data Domain Service 或 AgentRun；
-- 在前端复制 AgentRun/Data 的事实、规则或持久化；
+- 让浏览器直连下游 Domain Service 或 Agent runtime；
+- 在前端复制下游领域的事实、规则或持久化；
 - 引入通用 CRUD 框架、Schema Form 引擎或后端生成协议；
 - 引入 Refine、react-admin、Ant Design、Ant Design Pro 或 ProComponents；
 - 采用 shadcn-admin 示例里的 Clerk、Next.js 或示例 Backend。
@@ -58,14 +58,12 @@ Admin Portal page / feature
   -> TanStack Query / Table or React Hook Form
     -> typed src/api adapter
       -> Admin Application Backend Service
-        -> Data / AgentRun versioned REST API
+        -> downstream versioned REST API
 ```
 
 - 用户界面 Owner：`admin-portal/frontend`。
 - 浏览器 API Owner：Admin Application Backend Service。
-- Agent Schedule、Execution、Provider、Connector 与 Agent Status 事实 Owner：
-  AgentRun。
-- Data 事实 Owner：Data Domain Service。
+- 具体业务事实与下游 owner 以当前 Context、ADR 和 API 合同为准，不在本技术规范复制。
 - TanStack Query cache 只是远端状态投影，不是事实存储。
 - Zod 只提供客户端反馈；Backend 与下游领域 Owner 仍是最终校验者。
 
@@ -98,15 +96,8 @@ Resource model。
 
 ### Feature components
 
-页面或 feature 目录拥有 Agent Status、Execution history、Collector Schedule、
-Provider 和 Connector 的领域交互语义。不得把下列规则下沉为通用 UI 猜测：
-
-- 保存 Schedule 不等于开始运行；
-- 停止 Schedule 不取消在途 Execution；
-- Provider Key 只能保留或覆盖；
-- Connector 可选 Key 的保留、覆盖和明确清除必须区分；
-- 完整旧 Key 不得返回、缓存、记录或重新提交；
-- AgentRun 是配置完整性与状态转换的最终校验者。
+页面或 feature 目录拥有具体领域交互语义。不得把状态转换、Secret 语义、权限、幂等
+或下游完整性规则下沉为通用 UI 猜测；具体规则以 owning Context 与 API 合同为准。
 
 ## 5. Reference-first Gate
 
@@ -148,24 +139,14 @@ Provider 和 Connector 的领域交互语义。不得把下列规则下沉为通
 
 - shadcn/ui 与 Tailwind token 是新页面的样式权威。
 - 主题通过项目 CSS variables 表达，避免页面内散落不可追踪的颜色、radius 和 shadow。
-- 旧 Minimal Dashboard Skill、预览、token 和组件 JSON 已退役，不再是设计或实现权威。
 - 不因采用 shadcn-admin 复制其品牌、演示文案或无关页面。
 - 交互组件必须支持键盘操作、可见 focus、正确 label/description/error 关联与合理的
   responsive behavior。
 
-## 8. Migration
+## 8. Adoption
 
-迁移按可回滚 seam 逐步进行：
-
-1. 安装并冻结 Tailwind、shadcn/ui 与前端状态依赖。
-2. 建立 theme、App providers、导航 seam 与 Admin shell。
-3. 以 Agent Status Monitor 验证只读表格和页面状态。
-4. 迁移 Execution history 的服务端分页、排序和筛选。
-5. 迁移 Schedule、Provider 和 Connector 表单与 secret 语义。
-6. 只在消费者清零且相关页面验证通过后删除旧 UI primitive 和 CSS。
-
-迁移不得与 Backend API、认证合同或领域规则修改捆绑。需要 Backend 变化时，必须作为
-独立的 mixed task 重新通过设计门禁。
+组件、页面和主题改造按可回滚的真实 feature seam 逐步进行。不与 Backend API、认证合同或
+领域规则修改捆绑；如果必须同时改变这些合同，按跨边界任务重新通过设计门禁。
 
 ## 9. Verification
 

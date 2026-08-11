@@ -6,7 +6,9 @@
 `main@3568f72`。`entity-seed` 保留，现有
 `graph-projector` 删除，Neo4j 作为未来可重建投影基础设施保留，并解除与 Data
 Server 的强启动依赖。命令生命周期、单任务/单 PR 的原子交付方式、共享集成顺序、
-capability-oriented Biz/Data 分包、失败、安全、发布和验证方案均已冻结。
+失败、安全、发布和验证方案均已冻结。迁移时采用的 capability-oriented 包名已由后续
+`kratos-backend-layout-standard.md` 的 domain-first package 与固定职责文件
+规范取代，不再作为新增或重构源码的命名先例。
 
 ## 1. 结果与非目标
 
@@ -62,16 +64,16 @@ Kratos 规范：
 
 ## 2. Owner Map
 
-| 责任 | Owner |
-| --- | --- |
-| Data HTTP API、认证与线协议 | Data Domain Service |
-| 投研领域规则与事实 | Data Domain Service |
-| PostgreSQL schema、migration、repository | Data Domain Service |
-| Neo4j 可重建投影 | Data Domain Service |
-| Event Publication 接纳合同与事务 | Data Domain Service |
-| Source、完整 Artifact、Agent 与 Execution 事实 | AgentRun |
-| Data 查询调用方 | Miniapp 与 Admin Portal Application Backend Service |
-| Event Publication 调用方 | AgentRun |
+| 责任                                           | Owner                                               |
+| ---------------------------------------------- | --------------------------------------------------- |
+| Data HTTP API、认证与线协议                    | Data Domain Service                                 |
+| 投研领域规则与事实                             | Data Domain Service                                 |
+| PostgreSQL schema、migration、repository       | Data Domain Service                                 |
+| Neo4j 可重建投影                               | Data Domain Service                                 |
+| Event Publication 接纳合同与事务               | Data Domain Service                                 |
+| Source、完整 Artifact、Agent 与 Execution 事实 | AgentRun                                            |
+| Data 查询调用方                                | Miniapp 与 Admin Portal Application Backend Service |
+| Event Publication 调用方                       | AgentRun                                            |
 
 共仓不改变所有权。不同 Backend 继续只通过版本化 REST API 协作，不共享数据库、
 Repository、Go model、Service Token 或实现 package。
@@ -103,7 +105,7 @@ fixture 与现有合同测试为准。
 - `docs/adr/0002-backend-service-architecture.md`
 - `docs/adr/0006-kratos-official-service-layout.md`
 - `docs/adr/0007-app-oriented-monorepo.md`
-- `docs/architecture/kratos-backend-development-standard-v1.md`
+- `docs/development-standards/kratos-backend-layout-standard.md`
 - `docs/architecture/miniapp-kratos-pilot-v1.md`
 - `docs/architecture/admin-portal-kratos-migration-v1.md`
 - `github.com/go-kratos/kratos/v3 v3.0.0`
@@ -119,42 +121,33 @@ api/data/v1 <- internal/service -> internal/biz <- internal/data
       └──── internal/server
 
 cmd/server -> conf + data + biz + service + server + kratos.App
-cmd/<tool> -> conf + required biz/data capabilities
+cmd/<tool> -> conf + required biz/data domains
 ```
 
-Data 不使用单一巨型 `biz` 或 `data` package 机械承接旧目录，而是在标准层内按
-capability 分包：
+Data 不使用单一巨型 `biz`、`data` 或 `service` package 机械承接全部领域，也不按
+publication、import、query 等 Use Case 分包。后续显式目录重构必须先确认稳定 domain，
+并在每个 Kratos layer 使用相同 domain 名和固定职责文件：
 
 ```text
-internal/biz/
-  eventpublication/
-  researchthemeimport/
-  researchanchorimport/
-  research/
-  adminquery/
-  entityseed/
-
-internal/data/
-  postgres/
-  dbmigration/
-  eventpublication/
-  researchthemeimport/
-  researchanchorimport/
-  research/
-  adminquery/
-  entityseed/
+api/data/v1/<domain>/{api.go,http.go}
+internal/biz/<domain>/{biz.go,transaction.go}
+internal/data/<domain>/{data.go,transaction.go}
+internal/service/<domain>/service.go
 ```
 
-- 每个 Biz capability 拥有自己的最小 Port、模型、规则、Use Case 和稳定错误。
-- `internal/data` 分别实现 Biz Port；可以在 Data 层内部复用连接池、事务创建等无
-  业务语义的 PostgreSQL 机制，但不得继续暴露覆盖全部能力的巨型 Repository。
-- `internal/service` 按 API capability 完成 wire DTO、transport 校验和 Biz
-  输入输出转换，不访问数据库或具体 Adapter。
-- `api/data/v1` 拥有 OpenAPI、wire DTO、API interface 和薄 Kratos HTTP 绑定。
+- 每个 Biz domain 的 `biz.go` 拥有自己的最小 Port、模型、规则、全部 Use Case 和稳定
+  错误；事务 seam 存在时使用 `transaction.go`。
+- `internal/data/<domain>/data.go` 实现 Biz Port；可以通过应用级 `internal/data/data.go`
+  与 `transaction.go` 复用连接池、事务创建等无业务语义的机制，但不得继续暴露覆盖
+  全部领域的巨型 Repository。
+- `internal/service/<domain>/service.go` 完成 wire DTO、transport 校验和 Biz 输入输出
+  转换，不访问数据库或具体 Adapter。
+- `api/data/v1/<domain>/api.go` 与 `http.go` 拥有 wire DTO、API interface 和薄 Kratos
+  HTTP 绑定；`api/data/v1/openapi.yaml` 继续是唯一线协议事实来源。
 - `internal/server` 拥有 Kratos HTTP Server、Filter、Middleware、认证、Request
   ID、Recovery、日志、envelope、health/readiness 和文档。
 - `internal/conf` 拥有 YAML/env 加载、默认值、Secret 注入和启动校验。
-- 每个 `cmd/<tool>` 只装配该命令需要的 capability，不获得整个 Data Service
+- 每个 `cmd/<tool>` 只装配该命令需要的 domain，不获得整个 Data Service
   依赖集合。
 
 ## 6. 已确认命令与基础设施边界
@@ -228,7 +221,7 @@ publication capability。
 - 业务错误继续映射为当前稳定 status、code、message 和 details；SQL、连接字符串、
   Token、请求正文和内部错误不得进入响应。
 - Request ID 与 panic recovery 使用最外层 Filter 覆盖完整请求链；认证、访问日志等
- 使用明确的 Kratos Middleware。手写路由必须设置稳定 Operation 并实际执行
+  使用明确的 Kratos Middleware。手写路由必须设置稳定 Operation 并实际执行
   Middleware。
 - Kratos HTTP request timeout 显式设为 `0`，避免框架默认 1 秒改变现有长事务行为；
   `net/http` read/write timeout 保留现有配置：local 为 5/15 秒，UAT 为 5/30 秒。
@@ -268,19 +261,20 @@ publication capability。
 
 本迁移触发的条件 seam：
 
-- Data：拆分后的 capability Port 与 PostgreSQL Adapter 保持现有 SQL、事务、锁、
+- Data：按 domain 收敛后的 Port 与 PostgreSQL Adapter 保持现有 SQL、事务、锁、
   顺序、null 和错误清洗语义；保留受影响的 PostgreSQL 集成测试。
 - Migration：`dbmigrate` check/apply/target-version、ledger、锁、read-only readiness
   和 UAT 风险报告保持兼容；SQL migration 文件内容和顺序不得改变。
 - Conf/Lifecycle：local/UAT 默认值、环境 Secret 校验、启动前依赖失败、Kratos
   App、信号、有界 shutdown 和 PostgreSQL cleanup。
-- Architecture：完整官方 Layout、Biz 不反向依赖 Data/Service/Server、无跨应用
-  实现 import、无 Wire/双栈/旧目录/根级运行时文件。
+- Architecture：完整官方 Layout、四个业务层使用一致稳定 domain 名与固定职责文件、
+  Biz 不反向依赖 Data/Service/Server、无 Use Case 场景包、无跨应用实现 import、无
+  Wire/双栈/旧目录/根级运行时文件。
 - Projector 退役：旧 command、graph projection Use Case、Neo4j Adapter 和失效运行
   说明不存在；Neo4j local 基础设施仍可选存在，但 Data Server 不依赖其健康或凭据。
 - Provider/Consumer：Miniapp/Admin Data client 与 Data OpenAPI/fixture 合同保持；
   Data Event Publication provider OpenAPI 与冻结 fixture 保持。当前 AgentRun 没有
-  Data publication client，本迁移不新增消费者实现。
+  Data publication client，本迁移不新增 publication consumer 实现。
 - Delivery：Data Server 与 `dbmigrate` binary、Data image、local/UAT Compose config、
   Miniapp→Data smoke 及 Data 不可用安全失败路径。
 
@@ -299,5 +293,6 @@ publication capability。
 
 无实现级开放决策。Issue #104 门禁已满足并完成合并后基线复核；实现期间如发现会
 改变已冻结合同、数据库、所有权或交付顺序的新事实，必须返回设计门禁。
+
 > **Research contract note:** 本文件的 Kratos 迁移结论仍有效；其中 Research
 > Theme/Anchor 路径与 DTO 已由 `research-theme-reasoning-tree-spec.md` 原地替换。
