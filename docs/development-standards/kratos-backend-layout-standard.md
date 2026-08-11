@@ -88,9 +88,9 @@ HTTP/OpenAPI、数据库、配置、认证、中间件、部署或测试技术�
 ## 测试命名
 
 测试按风险创建并跟随职责命名：`api_test.go`、`http_test.go`、`biz_test.go`、
-`transaction_test.go`、`data_test.go`、`data_integration_test.go`、
-`transaction_integration_test.go`、`service_test.go`。业务场景写入测试函数和 table case；
-fixture、golden file 与 migration contract 可以按稳定 Artifact 身份命名。
+`transaction_test.go`、`data_test.go`、`service_test.go`。`unit`、`integration`、数据库类型和
+业务场景不得进入职责测试文件名，改由测试函数、table case、环境与 CI seam 表达；fixture、
+golden file 与 migration contract 可以按稳定 Artifact 身份命名。
 
 ## 迁移规则
 
