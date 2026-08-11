@@ -8,6 +8,17 @@ import (
 	"strings"
 )
 
+type Migration struct {
+	Version string
+	Name    string
+	Path    string
+}
+
+type Locker interface {
+	Lock(context.Context) error
+	Unlock(context.Context) error
+}
+
 type Executor interface {
 	CurrentVersion(context.Context) (string, error)
 	Pending(context.Context) ([]Migration, error)

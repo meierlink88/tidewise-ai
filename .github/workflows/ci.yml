@@ -88,7 +88,8 @@ jobs:
         if: >-
           steps.risks.outputs.default == 'true' ||
           steps.risks.outputs.data == 'true' ||
-          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.migration_smoke == 'true' ||
+          steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -100,7 +101,7 @@ jobs:
         if: >-
           steps.risks.outputs.default == 'true' ||
           steps.risks.outputs.data == 'true' ||
-          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
         run: |
@@ -115,7 +116,7 @@ jobs:
         if: >-
           steps.risks.outputs.default == 'true' ||
           steps.risks.outputs.data == 'true' ||
-          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
         run: go vet ./analyse-data-service/backend/...
@@ -161,11 +162,25 @@ jobs:
             -run '^(TestVerifyPersistedIndustryRelationshipContentDecodesTextArrays|TestResearchAnalysisContextAndAtomicPublicationPostgres)$' \
             -count=1
 
-      - name: Test Data migration chain
-        if: steps.risks.outputs.migration == 'true'
-        env:
-          TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
+      - name: Test Data migration framework
+        if: steps.risks.outputs.migration_framework == 'true'
         run: go test ./analyse-data-service/backend/internal/data/dbmigration -count=1
+
+      - name: Smoke Data forward migration chain
+        if: steps.risks.outputs.migration_smoke == 'true'
+        working-directory: analyse-data-service/backend
+        env:
+          APP_ENV: local
+          TIDEWISE_CONFIG_DIR: configs
+          TIDEWISE_DB_HOST: localhost
+          TIDEWISW_DB_PASSWORD: tidewise-ci-password
+          PGOPTIONS: >-
+            -c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified
+            -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified
+            -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified
+        run: |
+          go run ./cmd/dbmigrate -apply
+          go run ./cmd/dbmigrate -apply
 
       - name: Test Data configuration and lifecycle
         if: steps.risks.outputs.conf_lifecycle == 'true'
@@ -181,7 +196,7 @@ jobs:
         if: >-
           steps.risks.outputs.default == 'true' ||
           steps.risks.outputs.data == 'true' ||
-          steps.risks.outputs.migration == 'true' ||
+          steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
         run: go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server
