@@ -17,6 +17,7 @@ for platform in weapp tt; do
     -f "$compose_file" \
     --profile "miniapp-${platform}" \
     run --rm --no-deps \
+    --user "$(id -u):$(id -g)" \
     --env TARO_APP_RESEARCH_SOURCE=mock \
     --volume "${output_dir}:/workspace/miniapp/frontend/dist" \
     "miniapp-${platform}" \
