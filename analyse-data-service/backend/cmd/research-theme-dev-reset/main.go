@@ -20,9 +20,12 @@ const (
 
 	currentDatabaseSQL       = `SELECT current_database()`
 	acquireResetLockSQL      = `SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))`
-	immutableTriggerStateSQL = `SELECT COUNT(*), COUNT(*) FILTER (WHERE tgenabled = 'O')
-FROM pg_trigger
-WHERE tgname IN (
+	immutableTriggerStateSQL = `SELECT COUNT(*), COUNT(*) FILTER (WHERE t.tgenabled = 'O')
+FROM pg_trigger AS t
+JOIN pg_class AS c ON c.oid = t.tgrelid
+JOIN pg_namespace AS n ON n.oid = c.relnamespace
+WHERE n.nspname = current_schema()
+  AND t.tgname IN (
     'trg_research_theme_receipts_immutable',
     'trg_research_themes_immutable',
     'trg_research_theme_impacts_immutable',
