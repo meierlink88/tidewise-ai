@@ -1,7 +1,9 @@
 package eventsemanticfixture
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,16 +11,18 @@ import (
 )
 
 const (
-	RawDocumentID = "10000000-0000-4000-8000-000000000001"
-	EventID       = "10000000-0000-4000-8000-000000000002"
-	EvidenceID    = "10000000-0000-4000-8000-000000000003"
-	CompanyID     = "10000000-0000-4000-8000-000000000004"
-	ProductID     = "10000000-0000-4000-8000-000000000005"
-	RelationID    = "10000000-0000-4000-8000-000000000006"
+	RawDocumentID     = "10000000-0000-4000-8000-000000000001"
+	EventID           = "10000000-0000-4000-8000-000000000002"
+	EvidenceID        = "10000000-0000-4000-8000-000000000003"
+	CompanyID         = "10000000-0000-4000-8000-000000000004"
+	ProductID         = "10000000-0000-4000-8000-000000000005"
+	RelationID        = "10000000-0000-4000-8000-000000000006"
+	EvidenceStatement = "Integration Wafer Fab production fell 10%"
 )
 
 func SeedScenario(t *testing.T, db *sql.DB, currentEvidenceContract bool) {
 	t.Helper()
+	evidenceHash := fmt.Sprintf("%x", sha256.Sum256([]byte(EvidenceStatement)))
 	if _, err := db.Exec(`
 INSERT INTO raw_documents (
   id, ingest_channel, source_type, source_name, source_url, title, content_text,
@@ -50,7 +54,7 @@ INSERT INTO event_sources (
 ) VALUES (
   $1, $2, $3, 'primary', 'Integration Wafer Fab production fell 10%', $4,
   'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], 3
-)`, EvidenceID, EventID, RawDocumentID, strings.Repeat("2", 64)); err != nil {
+)`, EvidenceID, EventID, RawDocumentID, evidenceHash); err != nil {
 			t.Fatal(err)
 		}
 	} else {
@@ -61,7 +65,7 @@ INSERT INTO event_sources (
 ) VALUES (
   $1, $2, $3, 'primary', 'Integration Wafer Fab production fell 10%', $4,
   'supports', ARRAY['title','factual_summary','occurred_at','fact_payload'], true, 2
-)`, EvidenceID, EventID, RawDocumentID, strings.Repeat("2", 64)); err != nil {
+)`, EvidenceID, EventID, RawDocumentID, evidenceHash); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := db.Exec(
@@ -120,7 +124,7 @@ func Submission(leaseID, executionID, supersedesSubmissionID string) eventbiz.Su
 	}
 }
 
-func ReviewItems(decision string) []eventbiz.ReviewItem {
+func ReviewItems(decision eventbiz.ReviewDecision) []eventbiz.ReviewItem {
 	return []eventbiz.ReviewItem{
 		{CandidateType: "entity_link", CandidateKey: "company", Decision: decision,
 			ReasonCodes: []string{"fixture_review"}, EvidenceIDs: []string{EvidenceID}},

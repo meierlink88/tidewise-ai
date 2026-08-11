@@ -216,9 +216,9 @@ func (s *UseCase) SubmitReview(ctx context.Context, submission ReviewSubmission)
 		return SubmissionResult{}, &ValidationError{Reason: "review identity and items are invalid"}
 	}
 	for _, item := range submission.Items {
-		if !contains([]string{"entity_link", "variable_signal"}, item.CandidateType) ||
+		if !containsCandidateType([]CandidateType{CandidateTypeEntityLink, CandidateTypeVariableSignal}, item.CandidateType) ||
 			strings.TrimSpace(item.CandidateKey) == "" ||
-			!contains([]string{"pass", "fail", "indeterminate"}, item.Decision) ||
+			!containsReviewDecision([]ReviewDecision{ReviewDecisionPass, ReviewDecisionFail, ReviewDecisionIndeterminate}, item.Decision) ||
 			len(item.EvidenceIDs) == 0 {
 			return SubmissionResult{}, &ValidationError{Reason: "review item is invalid"}
 		}
@@ -311,6 +311,22 @@ const (
 	StatusAccepted        ReviewStatus = "accepted"
 	StatusRejected        ReviewStatus = "rejected"
 	StatusSuperseded      ReviewStatus = "superseded"
+)
+
+type CandidateType string
+
+const (
+	CandidateTypeEntityLink     CandidateType = "entity_link"
+	CandidateTypeVariableSignal CandidateType = "variable_signal"
+	CandidateTypeDirectImpact   CandidateType = "direct_impact"
+)
+
+type ReviewDecision string
+
+const (
+	ReviewDecisionPass          ReviewDecision = "pass"
+	ReviewDecisionFail          ReviewDecision = "fail"
+	ReviewDecisionIndeterminate ReviewDecision = "indeterminate"
 )
 
 type Event struct {
@@ -685,11 +701,29 @@ type ResolutionKeyset struct {
 }
 
 type ReviewItem struct {
-	CandidateType string
+	CandidateType CandidateType
 	CandidateKey  string
-	Decision      string
+	Decision      ReviewDecision
 	ReasonCodes   []string
 	EvidenceIDs   []string
+}
+
+func containsCandidateType(values []CandidateType, target CandidateType) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func containsReviewDecision(values []ReviewDecision, target ReviewDecision) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 type ReviewSubmission struct {
@@ -736,6 +770,158 @@ type ReviewSnapshot struct {
 type EventSemanticsResult struct {
 	EventID     string
 	Submissions []SubmissionResult
+}
+
+func ApplyReview(precheck *PrecheckResult, submission ReviewSubmission, quarantineIndeterminate bool) error {
+	pending := map[string]*CandidateDecision{}
+	candidateEvidence := make(map[string][]string)
+	register := func(kind CandidateType, items []CandidateDecision) {
+		for index := range items {
+			if items[index].Status == StatusPendingReview || items[index].Status == StatusNeedsReanalysis {
+				pending[string(kind)+":"+items[index].CandidateKey] = &items[index]
+			}
+		}
+	}
+	register(CandidateTypeEntityLink, precheck.EntityLinks)
+	register(CandidateTypeVariableSignal, precheck.VariableSignals)
+	register(CandidateTypeDirectImpact, precheck.DirectImpacts)
+	for _, candidate := range precheck.ReviewerWorkPackage.EntityLinks {
+		candidateEvidence[string(CandidateTypeEntityLink)+":"+candidate.Key] = candidate.EvidenceIDs
+	}
+	for _, candidate := range precheck.ReviewerWorkPackage.VariableSignals {
+		candidateEvidence[string(CandidateTypeVariableSignal)+":"+candidate.Key] = candidate.EvidenceIDs
+	}
+	for _, candidate := range precheck.ReviewerWorkPackage.DirectImpacts {
+		candidateEvidence[string(CandidateTypeDirectImpact)+":"+candidate.Key] = candidate.EvidenceIDs
+	}
+	if len(submission.Items) != len(pending) {
+		return &ValidationError{Reason: "review must decide every reviewable candidate exactly once"}
+	}
+	seen := make(map[string]struct{}, len(submission.Items))
+	for _, item := range submission.Items {
+		identity := string(item.CandidateType) + ":" + item.CandidateKey
+		decision, exists := pending[identity]
+		if !exists {
+			return &ConflictError{Reason: "review references a non-reviewable candidate"}
+		}
+		if _, duplicate := seen[identity]; duplicate {
+			return &ValidationError{Reason: "review candidate identities must be unique"}
+		}
+		if !reviewEvidenceMatchesCandidate(item.EvidenceIDs, candidateEvidence[identity]) {
+			return &ValidationError{Reason: "review Evidence must cite the candidate Event Evidence"}
+		}
+		seen[identity] = struct{}{}
+		switch item.Decision {
+		case ReviewDecisionPass:
+			decision.Status, decision.ReasonCode = StatusAccepted, ""
+		case ReviewDecisionFail:
+			decision.Status, decision.ReasonCode = StatusRejected, firstReviewReason(item.ReasonCodes, "reviewer_failed")
+		case ReviewDecisionIndeterminate:
+			if quarantineIndeterminate {
+				decision.Status, decision.ReasonCode = StatusQuarantined, "unresolved_after_retry_budget"
+			} else {
+				decision.Status, decision.ReasonCode = StatusNeedsReanalysis, firstReviewReason(item.ReasonCodes, "reviewer_indeterminate")
+			}
+		}
+	}
+	propagateReview(precheck)
+	return nil
+}
+
+func reviewEvidenceMatchesCandidate(reviewed, candidate []string) bool {
+	if len(reviewed) == 0 || len(candidate) == 0 {
+		return false
+	}
+	allowed := make(map[string]struct{}, len(candidate))
+	for _, evidenceID := range candidate {
+		allowed[evidenceID] = struct{}{}
+	}
+	for _, evidenceID := range reviewed {
+		if _, exists := allowed[evidenceID]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+func firstReviewReason(reasons []string, fallback string) string {
+	for _, reason := range reasons {
+		if strings.TrimSpace(reason) != "" {
+			return strings.TrimSpace(reason)
+		}
+	}
+	return fallback
+}
+
+func propagateReview(precheck *PrecheckResult) {
+	linkStatus := make(map[string]CandidateDecision, len(precheck.EntityLinks))
+	for _, item := range precheck.EntityLinks {
+		linkStatus[item.CandidateKey] = item
+	}
+	signalStatus := make(map[string]CandidateDecision, len(precheck.VariableSignals))
+	signalByKey := make(map[string]VariableSignalCandidate, len(precheck.ReviewerWorkPackage.VariableSignals))
+	for _, item := range precheck.ReviewerWorkPackage.VariableSignals {
+		signalByKey[item.Key] = item
+	}
+	for index := range precheck.VariableSignals {
+		candidate := signalByKey[precheck.VariableSignals[index].CandidateKey]
+		upstream := linkStatus[candidate.SubjectLinkKey]
+		switch upstream.Status {
+		case StatusRejected:
+			precheck.VariableSignals[index].Status = StatusRejected
+			precheck.VariableSignals[index].ReasonCode = "upstream_rejected"
+		case StatusQuarantined:
+			precheck.VariableSignals[index].Status = StatusQuarantined
+			precheck.VariableSignals[index].ReasonCode = "upstream_quarantined"
+		case StatusNeedsReanalysis:
+			precheck.VariableSignals[index].Status = StatusNeedsReanalysis
+			precheck.VariableSignals[index].ReasonCode = "upstream_pending"
+		}
+		signalStatus[precheck.VariableSignals[index].CandidateKey] = precheck.VariableSignals[index]
+	}
+	impactByKey := make(map[string]DirectImpactCandidate, len(precheck.ReviewerWorkPackage.DirectImpacts))
+	for _, item := range precheck.ReviewerWorkPackage.DirectImpacts {
+		impactByKey[item.Key] = item
+	}
+	for index := range precheck.DirectImpacts {
+		candidate := impactByKey[precheck.DirectImpacts[index].CandidateKey]
+		upstream := signalStatus[candidate.SourceSignalKey]
+		switch upstream.Status {
+		case StatusRejected:
+			precheck.DirectImpacts[index].Status = StatusRejected
+			precheck.DirectImpacts[index].ReasonCode = "upstream_rejected"
+		case StatusQuarantined:
+			precheck.DirectImpacts[index].Status = StatusQuarantined
+			precheck.DirectImpacts[index].ReasonCode = "upstream_quarantined"
+		case StatusNeedsReanalysis:
+			precheck.DirectImpacts[index].Status = StatusNeedsReanalysis
+			precheck.DirectImpacts[index].ReasonCode = "upstream_pending"
+		}
+	}
+}
+
+func SummarizeSubmission(precheck PrecheckResult) ReviewStatus {
+	hasAccepted, hasPending, hasNeeds, hasQuarantined := false, false, false, false
+	for _, group := range [][]CandidateDecision{precheck.EntityLinks, precheck.VariableSignals, precheck.DirectImpacts} {
+		for _, item := range group {
+			hasAccepted = hasAccepted || item.Status == StatusAccepted
+			hasPending = hasPending || item.Status == StatusPendingReview
+			hasNeeds = hasNeeds || item.Status == StatusNeedsReanalysis
+			hasQuarantined = hasQuarantined || item.Status == StatusQuarantined
+		}
+	}
+	switch {
+	case hasPending:
+		return StatusPendingReview
+	case hasNeeds:
+		return StatusNeedsReanalysis
+	case hasAccepted:
+		return StatusAccepted
+	case hasQuarantined:
+		return StatusQuarantined
+	default:
+		return StatusRejected
+	}
 }
 
 var confidencePattern = regexp.MustCompile(`^(0(\.\d{1,5})?|1(\.0{1,5})?)$`)

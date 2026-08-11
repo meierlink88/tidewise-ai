@@ -1,6 +1,251 @@
 package eventsemantic
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+)
+
+type fakeStore struct {
+	listEligibleEvents func(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
+	context            func(context.Context, string) (Context, error)
+	submissionContext  func(context.Context, string, Submission) (Context, error)
+	replaySubmission   func(context.Context, string, string) (SubmissionResult, bool, error)
+	createContextLease func(context.Context, ContextLeaseRequest) (ContextLease, error)
+	createSubmission   func(context.Context, Submission, PrecheckResult, []byte, string) (SubmissionResult, error)
+	submitReview       func(context.Context, ReviewSubmission, []byte, string) (SubmissionResult, error)
+	getEventSemantics  func(context.Context, string) (EventSemanticsResult, error)
+}
+
+func (f fakeStore) ListEligibleEvents(ctx context.Context, limit int, cursor *EligibleEventCursor) ([]EligibleEvent, error) {
+	return f.listEligibleEvents(ctx, limit, cursor)
+}
+
+func (f fakeStore) Context(ctx context.Context, id string) (Context, error) {
+	return f.context(ctx, id)
+}
+
+func (f fakeStore) SubmissionContext(ctx context.Context, id string, submission Submission) (Context, error) {
+	return f.submissionContext(ctx, id, submission)
+}
+
+func (f fakeStore) ReplaySubmission(ctx context.Context, executionID, hash string) (SubmissionResult, bool, error) {
+	return f.replaySubmission(ctx, executionID, hash)
+}
+
+func (f fakeStore) CreateContextLease(ctx context.Context, request ContextLeaseRequest) (ContextLease, error) {
+	return f.createContextLease(ctx, request)
+}
+
+func (f fakeStore) CreateSubmission(
+	ctx context.Context,
+	submission Submission,
+	precheck PrecheckResult,
+	payload []byte,
+	hash string,
+) (SubmissionResult, error) {
+	return f.createSubmission(ctx, submission, precheck, payload, hash)
+}
+
+func (f fakeStore) SubmitReview(
+	ctx context.Context,
+	submission ReviewSubmission,
+	payload []byte,
+	hash string,
+) (SubmissionResult, error) {
+	return f.submitReview(ctx, submission, payload, hash)
+}
+
+func (f fakeStore) GetEventSemantics(ctx context.Context, eventID string) (EventSemanticsResult, error) {
+	return f.getEventSemantics(ctx, eventID)
+}
+
+func TestUseCaseEligibilityCursorPreservesStableKeyset(t *testing.T) {
+	firstSeen := time.Date(2026, 8, 11, 1, 2, 3, 0, time.UTC)
+	items := []EligibleEvent{
+		{EventID: "10000000-0000-4000-8000-000000000001", FirstSeenAt: firstSeen},
+		{EventID: "10000000-0000-4000-8000-000000000002", FirstSeenAt: firstSeen.Add(time.Second)},
+		{EventID: "10000000-0000-4000-8000-000000000003", FirstSeenAt: firstSeen.Add(2 * time.Second)},
+	}
+	var receivedCursor *EligibleEventCursor
+	store := fakeStore{listEligibleEvents: func(_ context.Context, limit int, cursor *EligibleEventCursor) ([]EligibleEvent, error) {
+		if limit != 3 {
+			t.Fatalf("repository limit = %d", limit)
+		}
+		receivedCursor = cursor
+		if cursor == nil {
+			return items, nil
+		}
+		return nil, nil
+	}}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := useCase.ListEligibleEvents(context.Background(), 2, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Events) != 2 || page.NextCursor == "" {
+		t.Fatalf("page = %#v", page)
+	}
+	if _, err := useCase.ListEligibleEvents(context.Background(), 2, page.NextCursor); err != nil {
+		t.Fatal(err)
+	}
+	if receivedCursor == nil || receivedCursor.EventID != items[1].EventID || !receivedCursor.FirstSeenAt.Equal(items[1].FirstSeenAt) {
+		t.Fatalf("decoded cursor = %#v", receivedCursor)
+	}
+}
+
+func TestUseCaseSubmissionReplayBypassesPinnedContextAndWrite(t *testing.T) {
+	replayed := SubmissionResult{
+		SubmissionID: "20000000-0000-4000-8000-000000000001",
+		EventID:      "10000000-0000-4000-8000-000000000001",
+		Status:       StatusPendingReview,
+	}
+	store := fakeStore{
+		replaySubmission: func(context.Context, string, string) (SubmissionResult, bool, error) {
+			return replayed, true, nil
+		},
+		submissionContext: func(context.Context, string, Submission) (Context, error) {
+			t.Fatal("replay read pinned Context")
+			return Context{}, nil
+		},
+		createSubmission: func(context.Context, Submission, PrecheckResult, []byte, string) (SubmissionResult, error) {
+			t.Fatal("replay wrote a second Submission")
+			return SubmissionResult{}, nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := useCase.CreateSubmission(context.Background(), validUseCaseSubmission())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SubmissionID != replayed.SubmissionID {
+		t.Fatalf("replay = %#v", result)
+	}
+}
+
+func TestUseCaseSubmissionPinsContextAndCarriesSupersession(t *testing.T) {
+	submission := validUseCaseSubmission()
+	submission.SupersedesSubmissionID = "20000000-0000-4000-8000-000000000002"
+	store := fakeStore{
+		replaySubmission: func(context.Context, string, string) (SubmissionResult, bool, error) {
+			return SubmissionResult{}, false, nil
+		},
+		submissionContext: func(_ context.Context, leaseID string, received Submission) (Context, error) {
+			if leaseID != submission.ContextLeaseID || received.SupersedesSubmissionID != submission.SupersedesSubmissionID {
+				t.Fatalf("pinned submission = %#v", received)
+			}
+			return Context{
+				Event: Event{ID: submission.EventID}, OntologyVersion: submission.OntologyVersion,
+				PolicyVersion: submission.AcceptancePolicyVersion,
+			}, nil
+		},
+		createSubmission: func(_ context.Context, received Submission, _ PrecheckResult, payload []byte, hash string) (SubmissionResult, error) {
+			if received.SupersedesSubmissionID != submission.SupersedesSubmissionID || len(payload) == 0 || !validHash(hash) {
+				t.Fatalf("write input = %#v hash=%q", received, hash)
+			}
+			return SubmissionResult{SubmissionID: "20000000-0000-4000-8000-000000000003"}, nil
+		},
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := useCase.CreateSubmission(context.Background(), submission); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUseCaseReviewPreservesTypedConflict(t *testing.T) {
+	want := &ConflictError{Reason: "frozen review identity changed"}
+	store := fakeStore{submitReview: func(_ context.Context, received ReviewSubmission, payload []byte, hash string) (SubmissionResult, error) {
+		if received.Items[0].CandidateType != CandidateTypeEntityLink || len(payload) == 0 || !validHash(hash) {
+			t.Fatalf("review input = %#v hash=%q", received, hash)
+		}
+		return SubmissionResult{}, want
+	}}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = useCase.SubmitReview(context.Background(), ReviewSubmission{
+		SubmissionID: "20000000-0000-4000-8000-000000000001", ReviewerExecutionKey: "execution:reviewer",
+		PromptHash: strings.Repeat("a", 64), Model: "reviewer",
+		Items: []ReviewItem{{
+			CandidateType: CandidateTypeEntityLink, CandidateKey: "company", Decision: ReviewDecisionPass,
+			EvidenceIDs: []string{"30000000-0000-4000-8000-000000000001"},
+		}},
+	})
+	var conflict *ConflictError
+	if !errors.As(err, &conflict) || conflict.Reason != want.Reason {
+		t.Fatalf("review error = %T %v", err, err)
+	}
+}
+
+func TestApplyReviewPropagatesUpstreamRejection(t *testing.T) {
+	const evidenceID = "30000000-0000-4000-8000-000000000001"
+	precheck := PrecheckResult{
+		EntityLinks:     []CandidateDecision{{CandidateKey: "company", Status: StatusPendingReview}},
+		VariableSignals: []CandidateDecision{{CandidateKey: "revenue", Status: StatusPendingReview}},
+		ReviewerWorkPackage: ReviewerWorkPackage{
+			EntityLinks: []EntityLinkCandidate{{Key: "company", EvidenceIDs: []string{evidenceID}}},
+			VariableSignals: []VariableSignalCandidate{{
+				Key: "revenue", SubjectLinkKey: "company", EvidenceIDs: []string{evidenceID},
+			}},
+		},
+	}
+	err := ApplyReview(&precheck, ReviewSubmission{Items: []ReviewItem{
+		{CandidateType: CandidateTypeEntityLink, CandidateKey: "company", Decision: ReviewDecisionFail,
+			ReasonCodes: []string{"unsupported"}, EvidenceIDs: []string{evidenceID}},
+		{CandidateType: CandidateTypeVariableSignal, CandidateKey: "revenue", Decision: ReviewDecisionPass,
+			EvidenceIDs: []string{evidenceID}},
+	}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCandidateStatus(t, precheck.EntityLinks, "company", StatusRejected, "unsupported")
+	assertCandidateStatus(t, precheck.VariableSignals, "revenue", StatusRejected, "upstream_rejected")
+	if status := SummarizeSubmission(precheck); status != StatusRejected {
+		t.Fatalf("submission status = %q", status)
+	}
+}
+
+func TestApplyReviewRejectsEvidenceOutsideFrozenCandidate(t *testing.T) {
+	precheck := PrecheckResult{
+		EntityLinks: []CandidateDecision{{CandidateKey: "company", Status: StatusPendingReview}},
+		ReviewerWorkPackage: ReviewerWorkPackage{EntityLinks: []EntityLinkCandidate{{
+			Key: "company", EvidenceIDs: []string{"30000000-0000-4000-8000-000000000001"},
+		}}},
+	}
+	err := ApplyReview(&precheck, ReviewSubmission{Items: []ReviewItem{{
+		CandidateType: CandidateTypeEntityLink, CandidateKey: "company", Decision: ReviewDecisionPass,
+		EvidenceIDs: []string{"30000000-0000-4000-8000-000000000099"},
+	}}}, false)
+	var validation *ValidationError
+	if !errors.As(err, &validation) {
+		t.Fatalf("review error = %T %v", err, err)
+	}
+}
+
+func validUseCaseSubmission() Submission {
+	return Submission{
+		ContextLeaseID:   "10000000-0000-4000-8000-000000000002",
+		EventID:          "10000000-0000-4000-8000-000000000001",
+		AgentExecutionID: "execution", AgentKey: "event-semantic-enricher",
+		AgentVersion:        "event-semantic-enricher.v3",
+		GeneratorPromptHash: strings.Repeat("a", 64), GeneratorModel: "generator",
+		ReviewerPromptHash: strings.Repeat("b", 64), ReviewerModel: "reviewer",
+		AdjudicatorPromptHash: strings.Repeat("c", 64), AdjudicatorModel: "adjudicator",
+		OntologyVersion: "event-semantics.objective-v3@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
+	}
+}
 
 func TestValidConfidenceMatchesOpenAPIDecimalStringContract(t *testing.T) {
 	for _, value := range []string{"", "0", "1", "0.5", "0.00001", "1.0", "1.00000"} {

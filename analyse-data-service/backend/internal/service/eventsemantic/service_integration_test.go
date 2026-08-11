@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -312,6 +313,392 @@ func TestPostgresEventSemanticV2PersistsNarrativeMeasurementWithoutDirectImpact(
 	}
 }
 
+func TestPostgresEventSemanticAdapterRejectsCorruptedPersistedRows(t *testing.T) {
+	tests := []struct {
+		name    string
+		corrupt func(*testing.T, *sql.DB, string)
+	}{
+		{
+			name: "submission status",
+			corrupt: func(t *testing.T, db *sql.DB, submissionID string) {
+				t.Helper()
+				if _, err := db.Exec(`ALTER TABLE event_semantic_submissions DROP CONSTRAINT chk_event_semantic_submission_status`); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := db.Exec(`UPDATE event_semantic_submissions SET status = 'corrupted' WHERE id = $1`, submissionID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "decision candidate set",
+			corrupt: func(t *testing.T, db *sql.DB, submissionID string) {
+				t.Helper()
+				if _, err := db.Exec(`
+					UPDATE event_semantic_submissions
+					SET decision_summary = jsonb_set(decision_summary, '{entity_links,0,candidate_key}', '"missing"')
+					WHERE id = $1
+				`, submissionID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "candidate record reference",
+			corrupt: func(t *testing.T, db *sql.DB, submissionID string) {
+				t.Helper()
+				if _, err := db.Exec(`
+					UPDATE event_entity_links SET candidate_key = 'drifted'
+					WHERE semantic_submission_id = $1
+				`, submissionID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "reviewer work package candidate content",
+			corrupt: func(t *testing.T, db *sql.DB, submissionID string) {
+				t.Helper()
+				if _, err := db.Exec(`
+					UPDATE event_semantic_submissions
+					SET decision_summary = jsonb_set(
+						decision_summary,
+						'{reviewer_work_package,entity_links,0,entity_role}',
+						'"drifted"'
+					)
+					WHERE id = $1
+				`, submissionID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "duplicate reviewer work package candidate",
+			corrupt: func(t *testing.T, db *sql.DB, submissionID string) {
+				t.Helper()
+				if _, err := db.Exec(`
+					UPDATE event_semantic_submissions
+					SET decision_summary = jsonb_set(
+						decision_summary,
+						'{reviewer_work_package,entity_links}',
+						(decision_summary #> '{reviewer_work_package,entity_links}') ||
+						jsonb_build_array(decision_summary #> '{reviewer_work_package,entity_links,0}')
+					)
+					WHERE id = $1
+				`, submissionID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db := openEventPublicationTestDatabase(t)
+			eventsemanticfixture.SeedScenario(t, db, true)
+			store, err := eventsemanticdata.NewStore(db)
+			if err != nil {
+				t.Fatal(err)
+			}
+			useCase, err := eventbiz.NewUseCase(store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			executionID := "corrupted-persisted-" + strings.ReplaceAll(test.name, " ", "-")
+			lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+				EventID: eventsemanticfixture.EventID, AgentExecutionID: executionID,
+				WorkerID: "corruption-fixture", Lease: 15 * time.Minute,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			submission, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+				lease.ID, executionID, "",
+			))
+			if err != nil {
+				t.Fatal(err)
+			}
+			test.corrupt(t, db, submission.SubmissionID)
+			if _, err := store.GetEventSemantics(context.Background(), eventsemanticfixture.EventID); err == nil {
+				t.Fatal("corrupted persisted Event Semantic row reached Biz")
+			}
+			if _, _, err := store.ReplaySubmission(context.Background(), executionID, submission.CanonicalPayloadHash); err == nil {
+				t.Fatal("corrupted persisted Event Semantic row was replayed")
+			}
+			if _, err := useCase.SubmitReview(context.Background(), eventbiz.ReviewSubmission{
+				SubmissionID: submission.SubmissionID, ReviewerExecutionKey: executionID + ":reviewer",
+				PromptHash: strings.Repeat("b", 64), Model: "fixture-reviewer",
+				Items: eventsemanticfixture.ReviewItems(eventbiz.ReviewDecisionPass),
+			}); err == nil {
+				t.Fatal("review consumed a corrupted persisted Event Semantic aggregate")
+			}
+		})
+	}
+}
+
+func TestPostgresEventSemanticRejectedPrecheckRemainsReadableAndReplayable(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	eventsemanticfixture.SeedScenario(t, db, true)
+	store, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const executionID = "semantic-rejected-precheck"
+	lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: executionID,
+		WorkerID: "rejected-precheck-fixture", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := eventsemanticfixture.Submission(lease.ID, executionID, "")
+	input.EntityLinks[0].EntityID = "00000000-0000-4000-8000-000000000099"
+	created, err := useCase.CreateSubmission(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Status != eventbiz.StatusRejected {
+		t.Fatalf("created status = %q, want rejected", created.Status)
+	}
+	result, err := useCase.Get(context.Background(), eventsemanticfixture.EventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Submissions) != 1 || result.Submissions[0].Status != eventbiz.StatusRejected {
+		t.Fatalf("read submissions = %#v", result.Submissions)
+	}
+	replayed, found, err := store.ReplaySubmission(context.Background(), executionID, created.CanonicalPayloadHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || !replayed.Replayed || replayed.Status != eventbiz.StatusRejected {
+		t.Fatalf("replayed = %#v found=%v", replayed, found)
+	}
+}
+
+func TestPostgresEventSemanticReplayAndReviewSerializeOnSubmission(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	eventsemanticfixture.SeedScenario(t, db, true)
+	store, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const executionID = "semantic-concurrent-replay-review"
+	lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: executionID,
+		WorkerID: "concurrency-fixture", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	submission, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+		lease.ID, executionID, "",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := make(chan struct{})
+	replayErr := make(chan error, 1)
+	reviewErr := make(chan error, 1)
+	go func() {
+		<-start
+		_, found, err := store.ReplaySubmission(context.Background(), executionID, submission.CanonicalPayloadHash)
+		if err == nil && !found {
+			err = errors.New("concurrent replay did not find Submission")
+		}
+		replayErr <- err
+	}()
+	go func() {
+		<-start
+		_, err := useCase.SubmitReview(context.Background(), eventbiz.ReviewSubmission{
+			SubmissionID: submission.SubmissionID, ReviewerExecutionKey: executionID + ":reviewer",
+			PromptHash: strings.Repeat("b", 64), Model: "fixture-reviewer",
+			Items: eventsemanticfixture.ReviewItems(eventbiz.ReviewDecisionPass),
+		})
+		reviewErr <- err
+	}()
+	close(start)
+	if err := <-replayErr; err != nil {
+		t.Fatalf("concurrent replay: %v", err)
+	}
+	if err := <-reviewErr; err != nil {
+		t.Fatalf("concurrent review: %v", err)
+	}
+}
+
+func TestPostgresEventSemanticContextRejectsEvidenceHashDrift(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	eventsemanticfixture.SeedScenario(t, db, true)
+	store, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: "semantic-evidence-hash-drift",
+		WorkerID: "hash-drift-fixture", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE event_sources SET evidence_hash = $2 WHERE id = $1`,
+		eventsemanticfixture.EvidenceID, strings.Repeat("f", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Context(context.Background(), lease.ID); err == nil {
+		t.Fatal("Evidence hash drift reached Biz")
+	}
+}
+
+func TestPostgresEventSemanticReviewReplayRejectsCorruptedSnapshot(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	eventsemanticfixture.SeedScenario(t, db, true)
+	store, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const executionID = "semantic-corrupted-review-replay"
+	lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: executionID,
+		WorkerID: "review-replay-fixture", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	submission, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+		lease.ID, executionID, "",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	review := eventbiz.ReviewSubmission{
+		SubmissionID: submission.SubmissionID, ReviewerExecutionKey: executionID + ":reviewer",
+		PromptHash: strings.Repeat("b", 64), Model: "fixture-reviewer",
+		Items: eventsemanticfixture.ReviewItems(eventbiz.ReviewDecisionPass),
+	}
+	if _, err := useCase.SubmitReview(context.Background(), review); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		UPDATE event_semantic_review_snapshots
+		SET payload = jsonb_set(payload, '{Items,0,Decision}', '"fail"')
+		WHERE semantic_submission_id = $1 AND reviewer_execution_key = $2
+	`, submission.SubmissionID, review.ReviewerExecutionKey); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := useCase.SubmitReview(context.Background(), review); err == nil {
+		t.Fatal("corrupted Review Snapshot was replayed")
+	}
+}
+
+func TestPostgresEventSemanticTransactionCancellationRollsBack(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	eventsemanticfixture.SeedScenario(t, db, true)
+	store, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockHolder, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := lockHolder.Exec(`SELECT id FROM events WHERE id = $1 FOR UPDATE`, eventsemanticfixture.EventID); err != nil {
+		_ = lockHolder.Rollback()
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	_, err = store.CreateContextLease(ctx, eventbiz.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: "semantic-cancellation",
+		WorkerID: "cancellation-fixture", Lease: 15 * time.Minute,
+	})
+	if rollbackErr := lockHolder.Rollback(); rollbackErr != nil {
+		t.Fatal(rollbackErr)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cancellation error = %T %v", err, err)
+	}
+	var count int
+	if err := db.QueryRow(`
+		SELECT count(*) FROM event_semantic_context_leases WHERE agent_execution_id = 'semantic-cancellation'
+	`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("canceled Context Lease rows = %d", count)
+	}
+}
+
+func TestPostgresEventSemanticForcedCandidateFailureRollsBackPublication(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	eventsemanticfixture.SeedScenario(t, db, true)
+	store, err := eventsemanticdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const executionID = "semantic-forced-rollback"
+	lease, err := useCase.CreateContextLease(context.Background(), eventbiz.ContextLeaseRequest{
+		EventID: eventsemanticfixture.EventID, AgentExecutionID: executionID,
+		WorkerID: "rollback-fixture", Lease: 15 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		CREATE FUNCTION reject_semantic_variable_signal() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+		  RAISE EXCEPTION 'forced variable signal failure';
+		END
+		$$;
+		CREATE TRIGGER reject_semantic_variable_signal
+		BEFORE INSERT ON variable_signals
+		FOR EACH ROW EXECUTE FUNCTION reject_semantic_variable_signal()
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := useCase.CreateSubmission(context.Background(), eventsemanticfixture.Submission(
+		lease.ID, executionID, "",
+	)); err == nil {
+		t.Fatal("forced candidate failure unexpectedly committed")
+	}
+	var submissions, snapshots, links int
+	if err := db.QueryRow(`SELECT count(*) FROM event_semantic_submissions WHERE agent_execution_id = $1`, executionID).Scan(&submissions); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM event_semantic_candidate_snapshots`).Scan(&snapshots); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM event_entity_links WHERE semantic_submission_id IS NOT NULL`).Scan(&links); err != nil {
+		t.Fatal(err)
+	}
+	var leaseStatus string
+	if err := db.QueryRow(`SELECT status FROM event_semantic_context_leases WHERE id = $1`, lease.ID).Scan(&leaseStatus); err != nil {
+		t.Fatal(err)
+	}
+	if submissions != 0 || snapshots != 0 || links != 0 || leaseStatus != "active" {
+		t.Fatalf("rollback state submissions=%d snapshots=%d links=%d lease=%q", submissions, snapshots, links, leaseStatus)
+	}
+}
+
 func TestPostgresEventSemanticHTTPFlowPreservesLeaseSubmissionReviewAndRead(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
 	eventsemanticfixture.SeedScenario(t, db, true)
@@ -366,8 +753,8 @@ func TestPostgresEventSemanticHTTPFlowPreservesLeaseSubmissionReviewAndRead(t *t
 		ReviewerExecutionKey: "semantic-http-flow:reviewer",
 		PromptHash:           strings.Repeat("b", 64), Model: "fixture-reviewer",
 		Items: []eventsemanticapi.EventSemanticReviewItem{
-			{CandidateType: reviewItems[0].CandidateType, CandidateKey: reviewItems[0].CandidateKey, Decision: reviewItems[0].Decision, ReasonCodes: reviewItems[0].ReasonCodes, EvidenceIDs: reviewItems[0].EvidenceIDs},
-			{CandidateType: reviewItems[1].CandidateType, CandidateKey: reviewItems[1].CandidateKey, Decision: reviewItems[1].Decision, ReasonCodes: reviewItems[1].ReasonCodes, EvidenceIDs: reviewItems[1].EvidenceIDs},
+			{CandidateType: string(reviewItems[0].CandidateType), CandidateKey: reviewItems[0].CandidateKey, Decision: string(reviewItems[0].Decision), ReasonCodes: reviewItems[0].ReasonCodes, EvidenceIDs: reviewItems[0].EvidenceIDs},
+			{CandidateType: string(reviewItems[1].CandidateType), CandidateKey: reviewItems[1].CandidateKey, Decision: string(reviewItems[1].Decision), ReasonCodes: reviewItems[1].ReasonCodes, EvidenceIDs: reviewItems[1].EvidenceIDs},
 		},
 	}
 	var reviewEnvelope struct {

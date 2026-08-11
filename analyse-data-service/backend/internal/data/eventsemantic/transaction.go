@@ -341,7 +341,7 @@ func (r Store) CreateSubmission(
 		"entity_links":     len(submission.EntityLinks),
 		"variable_signals": len(submission.VariableSignals),
 	})
-	submissionStatus := summarizeSemanticSubmission(precheck)
+	submissionStatus := eventbiz.SummarizeSubmission(precheck)
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO event_semantic_submissions(
 		    id, context_lease_id, event_id, agent_execution_id, agent_key, agent_version,
@@ -424,11 +424,15 @@ func (r Store) SubmitReview(
 		}
 	}
 	var existingHash string
+	var existingPayload []byte
+	var existingCreatedAt time.Time
 	err = tx.QueryRowContext(ctx, `
-		SELECT canonical_payload_hash
+		SELECT canonical_payload_hash, payload, created_at
 		FROM event_semantic_review_snapshots
 		WHERE semantic_submission_id = $1 AND reviewer_execution_key = $2
-	`, submission.SubmissionID, submission.ReviewerExecutionKey).Scan(&existingHash)
+	`, submission.SubmissionID, submission.ReviewerExecutionKey).Scan(
+		&existingHash, &existingPayload, &existingCreatedAt,
+	)
 	if err == nil {
 		if existingHash != hash {
 			return eventbiz.SubmissionResult{}, &eventbiz.ConflictError{Reason: "reviewer_execution_key is bound to a different payload"}
@@ -439,6 +443,14 @@ func (r Store) SubmitReview(
 		}
 		if !found {
 			return eventbiz.SubmissionResult{}, &eventbiz.NotFoundError{Resource: "Event Semantic Submission"}
+		}
+		if err := validatePersistedReviewSnapshot(eventbiz.ReviewSnapshot{
+			ReviewerExecutionKey: submission.ReviewerExecutionKey,
+			CanonicalPayloadHash: existingHash,
+			Payload:              append(json.RawMessage(nil), existingPayload...),
+			CreatedAt:            existingCreatedAt,
+		}, submission.SubmissionID, result.Precheck); err != nil {
+			return eventbiz.SubmissionResult{}, err
 		}
 		result.Replayed = true
 		return result, nil
@@ -481,7 +493,7 @@ func (r Store) SubmitReview(
 	); err != nil {
 		return eventbiz.SubmissionResult{}, err
 	}
-	status := summarizeSemanticSubmission(result.Precheck)
+	status := eventbiz.SummarizeSubmission(result.Precheck)
 	decisionPayload, err := json.Marshal(result.Precheck)
 	if err != nil {
 		return eventbiz.SubmissionResult{}, err
@@ -522,60 +534,10 @@ func applySemanticReview(
 	precheck *eventbiz.PrecheckResult,
 	quarantineIndeterminate bool,
 ) error {
-	pending := map[string]*eventbiz.CandidateDecision{}
-	candidateEvidence := make(map[string][]string)
-	register := func(kind string, items []eventbiz.CandidateDecision) {
-		for index := range items {
-			if items[index].Status == eventbiz.StatusPendingReview ||
-				items[index].Status == eventbiz.StatusNeedsReanalysis {
-				pending[kind+":"+items[index].CandidateKey] = &items[index]
-			}
-		}
+	if err := eventbiz.ApplyReview(precheck, submission, quarantineIndeterminate); err != nil {
+		return err
 	}
-	register("entity_link", precheck.EntityLinks)
-	register("variable_signal", precheck.VariableSignals)
-	register("direct_impact", precheck.DirectImpacts)
-	for _, candidate := range precheck.ReviewerWorkPackage.EntityLinks {
-		candidateEvidence["entity_link:"+candidate.Key] = candidate.EvidenceIDs
-	}
-	for _, candidate := range precheck.ReviewerWorkPackage.VariableSignals {
-		candidateEvidence["variable_signal:"+candidate.Key] = candidate.EvidenceIDs
-	}
-	for _, candidate := range precheck.ReviewerWorkPackage.DirectImpacts {
-		candidateEvidence["direct_impact:"+candidate.Key] = candidate.EvidenceIDs
-	}
-	if len(submission.Items) != len(pending) {
-		return &eventbiz.ValidationError{Reason: "review must decide every reviewable candidate exactly once"}
-	}
-	seen := make(map[string]struct{}, len(submission.Items))
-	for _, item := range submission.Items {
-		identity := item.CandidateType + ":" + item.CandidateKey
-		decision, exists := pending[identity]
-		if !exists {
-			return &eventbiz.ConflictError{Reason: "review references a non-reviewable candidate"}
-		}
-		if _, duplicate := seen[identity]; duplicate {
-			return &eventbiz.ValidationError{Reason: "review candidate identities must be unique"}
-		}
-		if !reviewEvidenceMatchesCandidate(item.EvidenceIDs, candidateEvidence[identity]) {
-			return &eventbiz.ValidationError{Reason: "review Evidence must cite the candidate Event Evidence"}
-		}
-		seen[identity] = struct{}{}
-		switch item.Decision {
-		case "pass":
-			decision.Status, decision.ReasonCode = eventbiz.StatusAccepted, ""
-		case "fail":
-			decision.Status, decision.ReasonCode = eventbiz.StatusRejected, firstReason(item.ReasonCodes, "reviewer_failed")
-		case "indeterminate":
-			if quarantineIndeterminate {
-				decision.Status, decision.ReasonCode = eventbiz.StatusQuarantined, "unresolved_after_retry_budget"
-			} else {
-				decision.Status, decision.ReasonCode = eventbiz.StatusNeedsReanalysis, firstReason(item.ReasonCodes, "reviewer_indeterminate")
-			}
-		}
-	}
-	propagateSemanticReview(precheck)
-	if summarizeSemanticSubmission(*precheck) == eventbiz.StatusAccepted {
+	if eventbiz.SummarizeSubmission(*precheck) == eventbiz.StatusAccepted {
 		if err := supersedePriorSemanticSubmission(ctx, tx, submission.SubmissionID); err != nil {
 			return err
 		}
@@ -645,94 +607,6 @@ func (identity semanticReviewIdentity) matches(submission eventbiz.ReviewSubmiss
 	default:
 		return false
 	}
-}
-
-func reviewEvidenceMatchesCandidate(reviewed, candidate []string) bool {
-	if len(reviewed) == 0 || len(candidate) == 0 {
-		return false
-	}
-	allowed := make(map[string]struct{}, len(candidate))
-	for _, evidenceID := range candidate {
-		allowed[evidenceID] = struct{}{}
-	}
-	for _, evidenceID := range reviewed {
-		if _, exists := allowed[evidenceID]; !exists {
-			return false
-		}
-	}
-	return true
-}
-
-func propagateSemanticReview(precheck *eventbiz.PrecheckResult) {
-	linkStatus := make(map[string]eventbiz.CandidateDecision, len(precheck.EntityLinks))
-	for _, item := range precheck.EntityLinks {
-		linkStatus[item.CandidateKey] = item
-	}
-	signalStatus := make(map[string]eventbiz.CandidateDecision, len(precheck.VariableSignals))
-	signalByKey := make(map[string]eventbiz.VariableSignalCandidate, len(precheck.ReviewerWorkPackage.VariableSignals))
-	for _, item := range precheck.ReviewerWorkPackage.VariableSignals {
-		signalByKey[item.Key] = item
-	}
-	for index := range precheck.VariableSignals {
-		candidate := signalByKey[precheck.VariableSignals[index].CandidateKey]
-		upstream := linkStatus[candidate.SubjectLinkKey]
-		if upstream.Status == eventbiz.StatusRejected {
-			precheck.VariableSignals[index].Status = eventbiz.StatusRejected
-			precheck.VariableSignals[index].ReasonCode = "upstream_rejected"
-		} else if upstream.Status == eventbiz.StatusQuarantined {
-			precheck.VariableSignals[index].Status = eventbiz.StatusQuarantined
-			precheck.VariableSignals[index].ReasonCode = "upstream_quarantined"
-		} else if upstream.Status == eventbiz.StatusNeedsReanalysis {
-			precheck.VariableSignals[index].Status = eventbiz.StatusNeedsReanalysis
-			precheck.VariableSignals[index].ReasonCode = "upstream_pending"
-		}
-		signalStatus[precheck.VariableSignals[index].CandidateKey] = precheck.VariableSignals[index]
-	}
-	impactByKey := make(map[string]eventbiz.DirectImpactCandidate, len(precheck.ReviewerWorkPackage.DirectImpacts))
-	for _, item := range precheck.ReviewerWorkPackage.DirectImpacts {
-		impactByKey[item.Key] = item
-	}
-	for index := range precheck.DirectImpacts {
-		candidate := impactByKey[precheck.DirectImpacts[index].CandidateKey]
-		upstream := signalStatus[candidate.SourceSignalKey]
-		if upstream.Status == eventbiz.StatusRejected {
-			precheck.DirectImpacts[index].Status = eventbiz.StatusRejected
-			precheck.DirectImpacts[index].ReasonCode = "upstream_rejected"
-		} else if upstream.Status == eventbiz.StatusQuarantined {
-			precheck.DirectImpacts[index].Status = eventbiz.StatusQuarantined
-			precheck.DirectImpacts[index].ReasonCode = "upstream_quarantined"
-		} else if upstream.Status == eventbiz.StatusNeedsReanalysis {
-			precheck.DirectImpacts[index].Status = eventbiz.StatusNeedsReanalysis
-			precheck.DirectImpacts[index].ReasonCode = "upstream_pending"
-		}
-	}
-}
-
-func summarizeSemanticSubmission(precheck eventbiz.PrecheckResult) eventbiz.ReviewStatus {
-	hasAccepted, hasPending, hasNeeds, hasQuarantined := false, false, false, false
-	for _, group := range [][]eventbiz.CandidateDecision{
-		precheck.EntityLinks, precheck.VariableSignals, precheck.DirectImpacts,
-	} {
-		for _, item := range group {
-			hasAccepted = hasAccepted || item.Status == eventbiz.StatusAccepted
-			hasPending = hasPending || item.Status == eventbiz.StatusPendingReview
-			hasNeeds = hasNeeds || item.Status == eventbiz.StatusNeedsReanalysis
-			hasQuarantined = hasQuarantined || item.Status == eventbiz.StatusQuarantined
-		}
-	}
-	if hasPending {
-		return eventbiz.StatusPendingReview
-	}
-	if hasNeeds {
-		return eventbiz.StatusNeedsReanalysis
-	}
-	if hasAccepted {
-		return eventbiz.StatusAccepted
-	}
-	if hasQuarantined {
-		return eventbiz.StatusQuarantined
-	}
-	return eventbiz.StatusRejected
 }
 
 func persistSemanticDecisions(

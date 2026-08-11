@@ -132,8 +132,8 @@ func (s *Service) SubmitEventSemanticReview(
 	items := make([]eventbiz.ReviewItem, 0, len(request.Items))
 	for _, item := range request.Items {
 		items = append(items, eventbiz.ReviewItem{
-			CandidateType: item.CandidateType, CandidateKey: item.CandidateKey,
-			Decision: item.Decision, ReasonCodes: item.ReasonCodes, EvidenceIDs: item.EvidenceIDs,
+			CandidateType: eventbiz.CandidateType(item.CandidateType), CandidateKey: item.CandidateKey,
+			Decision: eventbiz.ReviewDecision(item.Decision), ReasonCodes: item.ReasonCodes, EvidenceIDs: item.EvidenceIDs,
 		})
 	}
 	result, err := s.useCase.SubmitReview(ctx, eventbiz.ReviewSubmission{

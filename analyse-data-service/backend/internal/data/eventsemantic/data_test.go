@@ -2,7 +2,6 @@ package eventsemantic
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -59,15 +58,16 @@ func TestEventSemanticManifestFingerprintCoversLeaseExpiry(t *testing.T) {
 	}
 	manifest.ManifestFingerprint = fingerprint
 	manifest.LeaseExpiresAt = manifest.LeaseExpiresAt.Add(time.Minute)
-
-	_, err = eventSemanticContextFromManifest(context.Background(), nil, manifest)
-	var drift *eventbiz.ContextDriftError
-	if !errors.As(err, &drift) {
-		t.Fatalf("mutated expiry error = %T %v", err, err)
+	mutated, err := eventSemanticManifestFingerprint(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mutated == fingerprint {
+		t.Fatal("lease expiry did not affect manifest fingerprint")
 	}
 }
 
-func TestSemanticReviewIdentityAndEvidenceAreBoundToFrozenRun(t *testing.T) {
+func TestSemanticReviewIdentityIsBoundToFrozenRun(t *testing.T) {
 	identity := semanticReviewIdentity{
 		AgentExecutionID:   "execution",
 		ReviewerPromptHash: "reviewer-hash", ReviewerModel: "reviewer-model",
@@ -91,16 +91,10 @@ func TestSemanticReviewIdentityAndEvidenceAreBoundToFrozenRun(t *testing.T) {
 	}) {
 		t.Fatal("mismatched prompt hash was accepted")
 	}
-	if !reviewEvidenceMatchesCandidate([]string{"evidence-1"}, []string{"evidence-1", "evidence-2"}) {
-		t.Fatal("candidate Evidence citation should match")
-	}
-	if reviewEvidenceMatchesCandidate([]string{"invented"}, []string{"evidence-1"}) {
-		t.Fatal("invented review Evidence was accepted")
-	}
 }
 
 func TestNoSemanticCandidatesProduceARealRejectedSubmissionOutcome(t *testing.T) {
-	status := summarizeSemanticSubmission(eventbiz.PrecheckResult{})
+	status := eventbiz.SummarizeSubmission(eventbiz.PrecheckResult{})
 	if status != eventbiz.StatusRejected {
 		t.Fatalf("status = %q, want rejected", status)
 	}
