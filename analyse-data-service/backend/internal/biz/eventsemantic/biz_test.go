@@ -481,3 +481,10 @@ func assertCandidateStatus(
 	}
 	t.Fatalf("candidate %q not found in %#v", key, items)
 }
+
+func TestNoSemanticCandidatesProduceARealRejectedSubmissionOutcome(t *testing.T) {
+	status := SummarizeSubmission(PrecheckResult{})
+	if status != StatusRejected {
+		t.Fatalf("status = %q, want rejected", status)
+	}
+}

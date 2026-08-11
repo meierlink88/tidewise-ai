@@ -3,13 +3,17 @@ package event
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
+	eventfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/event"
+	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
 )
 
 func TestListEventsRejectsInvalidPersistedRows(t *testing.T) {
@@ -129,4 +133,45 @@ func TestPersistedPublicationValidatorsRejectBrokenReferencesAndEnums(t *testing
 	}, "event-1", "tag-1"); err == nil {
 		t.Fatal("out-of-range Event Tag Assignment confidence was accepted")
 	}
+}
+
+func TestPostgresEventAdapterRejectsCorruptedEvidenceHash(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := useCase.Import(context.Background(), "data-test", eventfixture.Publication("corrupted-hash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventID := result.Events[0].EventID
+	rawDocumentID := result.RawDocuments[0].RawDocumentID
+	if _, err := db.Exec(`UPDATE event_sources SET evidence_hash = $1 WHERE event_id = $2 AND raw_document_id = $3`, strings.Repeat("f", 64), eventID, rawDocumentID); err != nil {
+		t.Fatal(err)
+	}
+	err = store.InTransaction(context.Background(), func(tx eventbiz.Transaction) error {
+		_, readErr := tx.StoredEventEvidenceLink(context.Background(), eventID, rawDocumentID)
+		return readErr
+	})
+	if err == nil || !strings.Contains(err.Error(), "hash does not match") {
+		t.Fatalf("read corrupted Evidence Link error = %v", err)
+	}
+}
+
+func openEventPublicationTestDatabase(t *testing.T) *sql.DB {
+	return openEventPublicationTestDatabaseAt(t, 0)
+}
+
+func openEventPublicationTestDatabaseAt(t *testing.T, version int64) *sql.DB {
+	t.Helper()
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return postgresfixture.OpenIsolated(t, "tw_event_publication", migrationDir, version)
 }
