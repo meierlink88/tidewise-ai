@@ -9,22 +9,22 @@
 
 ## Tracked Asset Disposition
 
-| Source asset | Disposition | Monorepo destination |
-| --- | --- | --- |
-| `api/`, `cmd/`, `configs/`, `internal/` | moved | `agent-run/backend/` |
-| `Dockerfile`, `README.md` | moved | `agent-run/backend/` |
-| `CONTEXT.md` | moved | `docs/contexts/agentrun/CONTEXT.md` |
-| `docs/adr/*` | moved | `docs/contexts/agentrun/adr/` |
-| `docs/specs/*` | moved | `docs/architecture/agentrun/` |
-| `docs/research/*` | moved | `docs/research/agentrun/` |
-| `docs/agents/workflow.md` | merged | `docs/agents/workflow.md` |
-| `AGENTS.md`, `docs/agents/{domain,issue-tracker,triage-labels}.md` | superseded-as-duplicate | root governance documents |
-| `.env.example` | merged | `infra/local/.env.example`, `infra/uat/.env.example` |
-| `.gitignore`, `.dockerignore` | merged | root ignore files |
-| `.github/workflows/ci.yml` | merged | `.github/workflows/ci.yml` |
-| `.codex/rules/github.rules` | superseded-as-duplicate | `.codex/rules/github.rules` |
-| `go.mod`, `go.sum` | merged | root `go.mod`, `go.sum` |
-| package and API `testdata` | moved | remains beside its owning AgentRun packages |
+| Source asset                                                       | Disposition             | Monorepo destination                                 |
+| ------------------------------------------------------------------ | ----------------------- | ---------------------------------------------------- |
+| `api/`, `cmd/`, `configs/`, `internal/`                            | moved                   | `agent-run/backend/`                                 |
+| `Dockerfile`, `README.md`                                          | moved                   | `agent-run/backend/`                                 |
+| `CONTEXT.md`                                                       | moved                   | `docs/contexts/agentrun/CONTEXT.md`                  |
+| `docs/adr/*`                                                       | moved                   | `docs/contexts/agentrun/adr/`                        |
+| `docs/specs/*`                                                     | moved                   | `docs/architecture/agentrun/`                        |
+| `docs/research/*`                                                  | moved                   | `docs/research/agentrun/`                            |
+| `docs/agents/workflow.md`                                          | merged                  | `docs/development-standards/workflow.md`             |
+| `AGENTS.md`, `docs/agents/{domain,issue-tracker,triage-labels}.md` | superseded-as-duplicate | root governance documents                            |
+| `.env.example`                                                     | merged                  | `infra/local/.env.example`, `infra/uat/.env.example` |
+| `.gitignore`, `.dockerignore`                                      | merged                  | root ignore files                                    |
+| `.github/workflows/ci.yml`                                         | merged                  | `.github/workflows/ci.yml`                           |
+| `.codex/rules/github.rules`                                        | superseded-as-duplicate | `.codex/rules/github.rules`                          |
+| `go.mod`, `go.sum`                                                 | merged                  | root `go.mod`, `go.sum`                              |
+| package and API `testdata`                                         | moved                   | remains beside its owning AgentRun packages          |
 
 Every tracked source file from the frozen commit is listed individually in
 [`agentrun-monorepo-file-disposition.tsv`](./agentrun-monorepo-file-disposition.tsv). The inventory

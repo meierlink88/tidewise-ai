@@ -45,12 +45,12 @@ Miniapp consumer contract test 证明现有页面可展示。
 本 Spec 遵循：
 
 - `AGENTS.md`；
-- `docs/agents/engineering-standard.md`、`coding-standard.md`、`workflow.md`、
+- `docs/development-standards/engineering-standard.md`、`coding-standard.md`、`workflow.md`、
   `testing.md` 与 `domain.md`；
 - `docs/contexts/data/CONTEXT.md`、`docs/contexts/miniapp/CONTEXT.md`；
 - `docs/adr/0002-backend-service-architecture.md`、
   `docs/adr/0003-research-theme-batch-snapshots.md`；
-- `docs/architecture/kratos-backend-development-standard-v1.md`；
+- `docs/development-standards/kratos-backend-layout-standard.md`；
 - `docs/architecture/research-theme-reasoning-tree-spec.md`；
 - `analyse-data-service/backend/api/data/v1/openapi.yaml`。
 
@@ -89,28 +89,28 @@ Theme 与 Reason Tree，证明 formal Ontology 覆盖不能继续作为 Analyst-
 最新领域决议已冻结本次最小边界，无阻塞产品问题。上一轮评审提出的扩展项按最新决议
 明确降级：
 
-| 上一轮扩展 | V3 最小决议 |
-| --- | --- |
-| formal/mixed/provisional component 分类 | 不建模、不派生、不在 Miniapp 暴露 |
-| 通用 Path Scope 与 path type | 不新增领域分类；Tree 只保存 `tree_key`、`display_name` 和既有 narrative |
-| FactSignalSnapshot registry | 不建 registry；Node 下保存 Miniapp 需要的 Signal display snapshot |
-| InferenceRelation registry / grounding DAG | 不建 registry；非根 Node 保存既有 incoming transmission display snapshot |
-| Research Thread provenance / candidate fingerprint | 不进入本次 Data publication 合同 |
-| optional formal ID binding matrix | Analyst snapshot payload 不提交 formal Ontology/Signal/Graph IDs |
+| 上一轮扩展                                         | V3 最小决议                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------ |
+| formal/mixed/provisional component 分类            | 不建模、不派生、不在 Miniapp 暴露                                        |
+| 通用 Path Scope 与 path type                       | 不新增领域分类；Tree 只保存 `tree_key`、`display_name` 和既有 narrative  |
+| FactSignalSnapshot registry                        | 不建 registry；Node 下保存 Miniapp 需要的 Signal display snapshot        |
+| InferenceRelation registry / grounding DAG         | 不建 registry；非根 Node 保存既有 incoming transmission display snapshot |
+| Research Thread provenance / candidate fingerprint | 不进入本次 Data publication 合同                                         |
+| optional formal ID binding matrix                  | Analyst snapshot payload 不提交 formal Ontology/Signal/Graph IDs         |
 
 这不会放松旧 V1/V2 formal branch；它是在同一 route 增加一个明确隔离的
 `analyst_snapshot` request variant。
 
 ## 5. Owner map
 
-| 责任 | Owner | V3 边界 |
-| --- | --- | --- |
-| Event/Evidence 正式事实 | Data | 提供并验证正式 Event/Evidence 引用 |
-| Theme、Reason Tree、对象/变量/传导/投资判断 | Theme Analyst | 生成不可变 display snapshot，并决定是否发布 |
-| publication 事务、幂等、持久化、读取 | Data | 保存报告快照，不把内容升级为本体事实 |
-| Miniapp public projection | Miniapp Backend | 机械映射 Data snapshot，不复制校验或数据库 |
-| 页面展示 | Miniapp Frontend | 使用 local key/display snapshot，UI 不改版 |
-| formal master data | Data 对应 master-data workflow | V3 snapshot publication 不写入、不更新 |
+| 责任                                        | Owner                          | V3 边界                                     |
+| ------------------------------------------- | ------------------------------ | ------------------------------------------- |
+| Event/Evidence 正式事实                     | Data                           | 提供并验证正式 Event/Evidence 引用          |
+| Theme、Reason Tree、对象/变量/传导/投资判断 | Theme Analyst                  | 生成不可变 display snapshot，并决定是否发布 |
+| publication 事务、幂等、持久化、读取        | Data                           | 保存报告快照，不把内容升级为本体事实        |
+| Miniapp public projection                   | Miniapp Backend                | 机械映射 Data snapshot，不复制校验或数据库  |
+| 页面展示                                    | Miniapp Frontend               | 使用 local key/display snapshot，UI 不改版  |
+| formal master data                          | Data 对应 master-data workflow | V3 snapshot publication 不写入、不更新      |
 
 依赖方向保持 Theme Analyst -> Data REST -> Miniapp Backend REST -> Miniapp Frontend。禁止共享
 数据库、导入对方 domain model 或 Frontend 直连 Data。
@@ -207,14 +207,14 @@ checkpoint 等 narrative 字段。
 
 Theme impact 改为报告 snapshot：
 
-| Field | Rule |
-| --- | --- |
-| `node_key` | required；必须存在于至少一棵 Tree |
-| `display_name` | required；保存发布时名称 |
-| `relation_role` | existing enum |
-| `impact_direction` | existing enum |
-| `impact_summary` | existing nullable display text |
-| `display_order` | required、连续且唯一 |
+| Field              | Rule                              |
+| ------------------ | --------------------------------- |
+| `node_key`         | required；必须存在于至少一棵 Tree |
+| `display_name`     | required；保存发布时名称          |
+| `relation_role`    | existing enum                     |
+| `impact_direction` | existing enum                     |
+| `impact_summary`   | existing nullable display text    |
+| `display_order`    | required、连续且唯一              |
 
 V3 Theme impact 不接受 `chain_node_entity_id` 或其他 formal Entity ID。
 `ThemeImpact.display_name` 是 Theme 卡片的短关注对象名；匹配到的
@@ -225,13 +225,13 @@ V3 Theme impact 不接受 `chain_node_entity_id` 或其他 formal Entity ID。
 
 Theme 与 Tree 继续保存 Event association；V3 每个 association 增加正式 Evidence 引用：
 
-| Field | Rule |
-| --- | --- |
-| `event_id` | required Data Event UUID |
-| `evidence_ids` | optional；提供时为 1..N 个唯一 Data Evidence UUID |
-| `evidence_role` | existing enum |
-| `supported_claim` | Theme association 沿用；Tree 可 nullable |
-| `display_order` | Tree association required；Theme Event 没有展示顺序字段 |
+| Field             | Rule                                                    |
+| ----------------- | ------------------------------------------------------- |
+| `event_id`        | required Data Event UUID                                |
+| `evidence_ids`    | optional；提供时为 1..N 个唯一 Data Evidence UUID       |
+| `evidence_role`   | existing enum                                           |
+| `supported_claim` | Theme association 沿用；Tree 可 nullable                |
+| `display_order`   | Tree association required；Theme Event 没有展示顺序字段 |
 
 V3 Theme 和每棵 Tree 都至少包含一个正式 Data Event association。Data 验证 Event 存在；
 只有 caller 提供 `evidence_ids` 时，Data 才验证 Evidence 存在且属于所声明 Event。Evidence
@@ -249,31 +249,31 @@ Event 仍按显式 `display_order` 保存和展示，不能用 Theme Event 的�
 
 ### 8.3 Reason Tree
 
-| Field | Rule |
-| --- | --- |
-| `tree_key` | required、aggregate 内唯一 |
-| `display_name` | required；Miniapp Tab/路径显示名 |
-| `title` | existing Tree title |
-| `display_order` | required、连续且唯一 |
-| narrative fields | 保留 one-line conclusion、fact/transmission/impact/boundary/support/counter summary |
-| invalidation/checkpoints | 保留现有数组与枚举 |
-| events | 见 8.2 |
-| nodes | `1..N` |
+| Field                    | Rule                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| `tree_key`               | required、aggregate 内唯一                                                          |
+| `display_name`           | required；Miniapp Tab/路径显示名                                                    |
+| `title`                  | existing Tree title                                                                 |
+| `display_order`          | required、连续且唯一                                                                |
+| narrative fields         | 保留 one-line conclusion、fact/transmission/impact/boundary/support/counter summary |
+| invalidation/checkpoints | 保留现有数组与枚举                                                                  |
+| events                   | 见 8.2                                                                              |
+| nodes                    | `1..N`                                                                              |
 
 V3 Tree 不接受 `industry_chain_entity_id`。`display_name` 可以是产业链、宏观传导链、估值链
 或商业模式链名称；Data 不分类、不验证其是否是正式 IndustryChain。
 
 ### 8.4 Node
 
-| Field | Rule |
-| --- | --- |
-| `node_key` | required；同一 Tree 唯一 |
-| `display_name` | required；保存当前 Tree occurrence 的发布时名称 |
-| `position` | required，严格连续 `1..N` |
-| `state_summary` | existing nullable display text |
-| judgment fields | 保留 impact direction/strength/summary、reasoning basis、evidence gap |
-| `incoming_transmission` | root 必须 null；每个非 root 必填 |
-| `signals` | `1..5` display snapshots |
+| Field                   | Rule                                                                  |
+| ----------------------- | --------------------------------------------------------------------- |
+| `node_key`              | required；同一 Tree 唯一                                              |
+| `display_name`          | required；保存当前 Tree occurrence 的发布时名称                       |
+| `position`              | required，严格连续 `1..N`                                             |
+| `state_summary`         | existing nullable display text                                        |
+| judgment fields         | 保留 impact direction/strength/summary、reasoning basis、evidence gap |
+| `incoming_transmission` | root 必须 null；每个非 root 必填                                      |
+| `signals`               | `1..5` display snapshots                                              |
 
 V3 Node 不接受 formal Entity/ChainNode ID 或 entity type。路径相邻关系由 Node position 和
 非根节点的 incoming transmission 隐式表达：position `n` 的 incoming 永远表示
@@ -294,14 +294,14 @@ presentation snapshot，Data 就保存什么。
 每个 Node Signal 是 Miniapp 展示所需的分析师变量状态快照；核心字段直接对应当前页面的
 `primarySignal.displaySummary`：
 
-| Field | Rule |
-| --- | --- |
-| `signal_key` | required；Node 内唯一 |
+| Field             | Rule                                                                              |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `signal_key`      | required；Node 内唯一                                                             |
 | `display_summary` | required；直接承接 Analyst `variable_state`，如“完成流片”或“商业化改善但质量未知” |
-| `role` | required，existing `primary|supporting|contradicting`；每个 Node 恰好一条 primary，且为第一条 |
-| `display_order` | `1..5`，连续且唯一 |
-| `variable_name` | nullable；仅在 Analyst 明确给出独立变量名时保存 |
-| `direction` | nullable；提供时校验 existing `increase|decrease|mixed|unchanged|uncertain` |
+| `role`            | required，existing `primary                                                       | supporting | contradicting`；每个 Node 恰好一条 primary，且为第一条 |
+| `display_order`   | `1..5`，连续且唯一                                                                |
+| `variable_name`   | nullable；仅在 Analyst 明确给出独立变量名时保存                                   |
+| `direction`       | nullable；提供时校验 existing `increase                                           | decrease   | mixed                                                  | unchanged | uncertain` |
 
 V3 Signal 不接受 VariableDefinition、VariableSignal、Submission、DirectImpact、Relation、
 GraphEdge ID，也不要求 formal subject/variable/version/status。Data 不从 `display_summary`
@@ -312,18 +312,18 @@ direction 不是 `422`。
 
 ### 9.1 Data SHALL validate
 
-| Boundary | Validation |
-| --- | --- |
-| Request | strict JSON/schema/additionalProperties、1 MiB、length、basic enum、UTC、key pattern |
-| Idempotency | publisher + analysis_batch_id + canonical payload/hash；same replay、different conflict |
-| Aggregate | exactly one Theme、1..N Trees、unique/continuous display order |
-| Local identity | tree_key aggregate-local unique；node_key impact coverage；signal_key Node-local unique；不跨 publication 比较 |
-| Impact closure | 每个 Theme impact node_key 至少存在于一棵 Tree |
-| Path | Node position 连续；root incoming null；每个非 root incoming required |
-| Signal | `1..5`、恰好一条 primary 且为第一条、display order；optional direction 有值时才校验 enum |
+| Boundary       | Validation                                                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Request        | strict JSON/schema/additionalProperties、1 MiB、length、basic enum、UTC、key pattern                                                                |
+| Idempotency    | publisher + analysis_batch_id + canonical payload/hash；same replay、different conflict                                                             |
+| Aggregate      | exactly one Theme、1..N Trees、unique/continuous display order                                                                                      |
+| Local identity | tree_key aggregate-local unique；node_key impact coverage；signal_key Node-local unique；不跨 publication 比较                                      |
+| Impact closure | 每个 Theme impact node_key 至少存在于一棵 Tree                                                                                                      |
+| Path           | Node position 连续；root incoming null；每个非 root incoming required                                                                               |
+| Signal         | `1..5`、恰好一条 primary 且为第一条、display order；optional direction 有值时才校验 enum                                                            |
 | Event/Evidence | Event ID 存在；optional Evidence 有值时验证存在且属于 Event；Theme Event 集合顺序不作门禁并在 hash 内规范化；Tree 来源 Event 在 Tree association 中 |
-| Transaction | receipt、Theme、Trees、events/evidence、impacts、nodes、signals 全部同事务 |
-| Readback | local keys、display snapshot、Event/Evidence、null 和顺序逐字段稳定返回 |
+| Transaction    | receipt、Theme、Trees、events/evidence、impacts、nodes、signals 全部同事务                                                                          |
+| Readback       | local keys、display snapshot、Event/Evidence、null 和顺序逐字段稳定返回                                                                             |
 
 验收必须覆盖 3 条以上、按 UUID 非升序提交的 Theme Event association：有效引用首次发布
 返回 `201`，仅调整 Theme Event 数组顺序的同批次重放返回 `200` 且 hash 不变；错误 Event
@@ -446,25 +446,25 @@ V3 detail request/readback 必须逐字段对称。Data 可以为 V1/V2 继续�
 
 ## 15. Acceptance matrix
 
-| Case | Input/action | Expected |
-| --- | --- | --- |
-| Legacy read | representative V1/V2 formal + `legacy_snapshot` rows | 全部可读；现有 formal 数据/lineage 不被 V3 破坏 |
-| Snapshot publish | no Entity/Variable/Signal/Chain/Relation IDs；formal Event、optional Evidence；one Theme + multiple Trees | `201`；不查询/写入 formal master tables 作为门禁或副作用 |
-| Real UAT prepared fixture | 最新 UAT 中一个真实 Theme 经 Theme Analyst presentation preparation 生成 canonical V3 request | fixture 标注每个字段来自 UAT 原字段还是 Analyst preparation；Data 不补语义，且不因本体覆盖不足 `422` |
-| Snapshot shape | macro、industry 或 business-model display names | 同一 DTO 成功；Data 不分类 Tree/object/variable |
-| Event only | valid Event association, no Evidence IDs | success；Event 正常展示，不因缺 optional Evidence `422` |
-| Event/Evidence | optional valid Evidence belongs to Event | success；detail 对称回读 IDs/role/claim/order |
-| Bad Evidence | caller 提供的 Evidence 不存在或属于另一个 Event | `422`；零写入；省略 Evidence 合法 |
-| Missing impact node | Theme impact node_key 不在任何 Tree | `422` |
-| Bad path | position gap、root incoming non-null、non-root incoming missing | `422` |
-| Duplicate keys | duplicate tree/node/signal key in defined scope | `422` |
-| Atomicity | 最后一棵 Tree 最后一个 Node 结构错误 | Theme、所有 Trees、receipt 全部不存在 |
-| Replay | same publisher+batch+canonical payload | `200`；IDs/hash/timestamps 与首次一致，replayed=true |
-| Conflict | same publisher+batch，任一 snapshot/Event/Evidence 改变 | `409`；原 aggregate 不变 |
-| Readback | GET Theme + Tree detail | local keys、display snapshot、Event/optional Evidence、order/null 与 request 对称 |
-| Master rename | V3 publish 后同名 formal master 被修改 | V3 display 不变，因为读取 publication snapshot |
-| Miniapp | V3 Data -> BFF -> strict parser -> existing page | 正常展示且无需 formal UUID；UI 无改版 |
-| Formal regression | existing V2 formal publish fixtures | strict formal validators 与成功/失败结果保持 |
+| Case                      | Input/action                                                                                              | Expected                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Legacy read               | representative V1/V2 formal + `legacy_snapshot` rows                                                      | 全部可读；现有 formal 数据/lineage 不被 V3 破坏                                                      |
+| Snapshot publish          | no Entity/Variable/Signal/Chain/Relation IDs；formal Event、optional Evidence；one Theme + multiple Trees | `201`；不查询/写入 formal master tables 作为门禁或副作用                                             |
+| Real UAT prepared fixture | 最新 UAT 中一个真实 Theme 经 Theme Analyst presentation preparation 生成 canonical V3 request             | fixture 标注每个字段来自 UAT 原字段还是 Analyst preparation；Data 不补语义，且不因本体覆盖不足 `422` |
+| Snapshot shape            | macro、industry 或 business-model display names                                                           | 同一 DTO 成功；Data 不分类 Tree/object/variable                                                      |
+| Event only                | valid Event association, no Evidence IDs                                                                  | success；Event 正常展示，不因缺 optional Evidence `422`                                              |
+| Event/Evidence            | optional valid Evidence belongs to Event                                                                  | success；detail 对称回读 IDs/role/claim/order                                                        |
+| Bad Evidence              | caller 提供的 Evidence 不存在或属于另一个 Event                                                           | `422`；零写入；省略 Evidence 合法                                                                    |
+| Missing impact node       | Theme impact node_key 不在任何 Tree                                                                       | `422`                                                                                                |
+| Bad path                  | position gap、root incoming non-null、non-root incoming missing                                           | `422`                                                                                                |
+| Duplicate keys            | duplicate tree/node/signal key in defined scope                                                           | `422`                                                                                                |
+| Atomicity                 | 最后一棵 Tree 最后一个 Node 结构错误                                                                      | Theme、所有 Trees、receipt 全部不存在                                                                |
+| Replay                    | same publisher+batch+canonical payload                                                                    | `200`；IDs/hash/timestamps 与首次一致，replayed=true                                                 |
+| Conflict                  | same publisher+batch，任一 snapshot/Event/Evidence 改变                                                   | `409`；原 aggregate 不变                                                                             |
+| Readback                  | GET Theme + Tree detail                                                                                   | local keys、display snapshot、Event/optional Evidence、order/null 与 request 对称                    |
+| Master rename             | V3 publish 后同名 formal master 被修改                                                                    | V3 display 不变，因为读取 publication snapshot                                                       |
+| Miniapp                   | V3 Data -> BFF -> strict parser -> existing page                                                          | 正常展示且无需 formal UUID；UI 无改版                                                                |
+| Formal regression         | existing V2 formal publish fixtures                                                                       | strict formal validators 与成功/失败结果保持                                                         |
 
 默认测试 seam：
 

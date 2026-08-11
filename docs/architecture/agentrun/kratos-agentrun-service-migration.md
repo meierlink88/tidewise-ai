@@ -5,6 +5,11 @@
 涉及系统：`tidewise-ai-agentrun`
 GitHub Issue：https://github.com/meierlink88/tidewise-ai-agentrun/issues/26
 
+本文保留迁移时的实现与验收记录。Kratos API/Data/Service/Server 的具体 package 与
+文件命名以后续 `docs/development-standards/kratos-backend-layout-standard.md` 为准；
+Agent capability 的 Eino 编排继续遵守 `docs/development-standards/eino-agent.md` 的明确专项规则。
+该说明只收敛工程结构，不改变 Kratos、Eino 或任何现有运行组件。
+
 ## Outcome
 
 把 AgentRun 迁移为一个符合观潮家 Backend Service 规范的 Kratos v3 Application，
@@ -199,19 +204,19 @@ Kratos 与 Eino 没有运行时或职责冲突：
 
 ## Owner Map
 
-| Concern | Owner |
-|---|---|
-| HTTP wire contract、DTO、operation | `api/agentrun/v1` |
-| API↔Biz 转换 | `internal/service` |
-| Agent Definition/Version/Execution/Schedule | `internal/biz/platform` |
-| Provider/Connector 当前配置规则 | `internal/biz/platform` |
-| Collector 输入、执行、Candidate、确定性物化 | `internal/biz/agents/collector` |
-| Eino Workflow 和 Query Planner | `internal/biz/agents/collector` |
-| PostgreSQL、gocron、DeepSeek、Connector HTTP、Artifact 文件 | `internal/data` |
-| Kratos HTTP、Middleware、认证、编码、健康、文档 | `internal/server` |
-| 构造、Kratos App、有限清理 | `cmd/server` |
-| AgentRun 数据库与 Artifact Volume | AgentRun |
-| Admin Portal/Data Service 消费方适配 | 各自仓库的后续任务 |
+| Concern                                                     | Owner                           |
+| ----------------------------------------------------------- | ------------------------------- |
+| HTTP wire contract、DTO、operation                          | `api/agentrun/v1`               |
+| API↔Biz 转换                                                | `internal/service`              |
+| Agent Definition/Version/Execution/Schedule                 | `internal/biz/platform`         |
+| Provider/Connector 当前配置规则                             | `internal/biz/platform`         |
+| Collector 输入、执行、Candidate、确定性物化                 | `internal/biz/agents/collector` |
+| Eino Workflow 和 Query Planner                              | `internal/biz/agents/collector` |
+| PostgreSQL、gocron、DeepSeek、Connector HTTP、Artifact 文件 | `internal/data`                 |
+| Kratos HTTP、Middleware、认证、编码、健康、文档             | `internal/server`               |
+| 构造、Kratos App、有限清理                                  | `cmd/server`                    |
+| AgentRun 数据库与 Artifact Volume                           | AgentRun                        |
+| Admin Portal/Data Service 消费方适配                        | 各自仓库的后续任务              |
 
 ## Target Layout And Package Mapping
 
@@ -255,21 +260,21 @@ internal/
 
 现有文件按职责迁移：
 
-| Current | Target |
-|---|---|
-| `internal/agentrun/execution.go`、`schedule.go`、`configuration*.go` | `internal/biz/platform` |
-| `internal/agentrun/admin/service.go` | Platform Biz Use Case + `internal/service` |
-| `internal/agentrun/scheduling/service.go` | Schedule 规则进入 Biz；gocron 进入 Data |
-| `internal/agentrun/persistence/postgres` | `internal/data/postgres` |
-| `internal/collector/types.go`、`configuration.go` | `internal/biz/agents/collector` |
-| `internal/collector/planning`、`workflow` | 对应 Collector Biz 子包 |
-| `internal/collector/application` | Collector Use Case、Ports、Execution Supervisor |
-| `internal/collector/connectors` | `internal/data/connectors` |
-| `internal/collector/artifacts` | 规则进入 Biz materialization；I/O 进入 Data artifacts |
-| 两个 `httpapi` package | API binding + Service + Server |
-| `internal/agentrun/openapi` | `api/agentrun/v1` + Server 文档注册 |
-| `internal/agentrun/config` | `internal/conf` + `configs` |
-| `cmd/agentrun-*` | `cmd/server`、`cmd/migrate`、`cmd/config`、`cmd/artifacts` |
+| Current                                                              | Target                                                     |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `internal/agentrun/execution.go`、`schedule.go`、`configuration*.go` | `internal/biz/platform`                                    |
+| `internal/agentrun/admin/service.go`                                 | Platform Biz Use Case + `internal/service`                 |
+| `internal/agentrun/scheduling/service.go`                            | Schedule 规则进入 Biz；gocron 进入 Data                    |
+| `internal/agentrun/persistence/postgres`                             | `internal/data/postgres`                                   |
+| `internal/collector/types.go`、`configuration.go`                    | `internal/biz/agents/collector`                            |
+| `internal/collector/planning`、`workflow`                            | 对应 Collector Biz 子包                                    |
+| `internal/collector/application`                                     | Collector Use Case、Ports、Execution Supervisor            |
+| `internal/collector/connectors`                                      | `internal/data/connectors`                                 |
+| `internal/collector/artifacts`                                       | 规则进入 Biz materialization；I/O 进入 Data artifacts      |
+| 两个 `httpapi` package                                               | API binding + Service + Server                             |
+| `internal/agentrun/openapi`                                          | `api/agentrun/v1` + Server 文档注册                        |
+| `internal/agentrun/config`                                           | `internal/conf` + `configs`                                |
+| `cmd/agentrun-*`                                                     | `cmd/server`、`cmd/migrate`、`cmd/config`、`cmd/artifacts` |
 
 迁移完成后删除旧目录和 pass-through package，不保留同义层。
 
@@ -290,7 +295,7 @@ cmd/server -> conf + data + biz + service + server + kratos.App
 - Server import API、Service、Conf 和 Kratos，不 import PostgreSQL/Provider SDK。
 - `cmd/server` 是唯一 composition root；不得在 Handler 内构造 Agent Workflow。
 - Eino core 依赖只允许出现在具体 Agent capability；Eino Ext Provider 只允许出现在
- 对应 Data Adapter。
+  对应 Data Adapter。
 
 ## Eino Runtime Contract
 
@@ -437,9 +442,8 @@ Collection Prompt
 
 ### Kratos
 
-- Tidewise Kratos Backend Standard：
-  `/Users/meierlink/Documents/david/创业项目/观潮家/tidewise-ai/docs/architecture/kratos-backend-development-standard-v1.md`
-  ，参考仓库 commit `cdc67cdce45c373a403231343a43b6ac43eb15c1`。
+- 迁移当时使用的 Tidewise Kratos Backend Standard 已退役；历史证据保留在仓库 commit
+  `cdc67cdce45c373a403231343a43b6ac43eb15c1`，不合并进当前工程结构规范。
 - Kratos v3.0.0 module source：检查 `app.go`、`options.go`、
   `transport/http/server.go`、`transport/http/context.go`。
 - Tidewise Miniapp 已迁移样板：检查 `cmd/server/app.go`、`internal/server/http.go`、

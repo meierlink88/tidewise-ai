@@ -12,30 +12,22 @@ When delegation is explicitly requested, use `gpt-5.6-sol` with `medium` reasoni
 
 ### 1. Explore and preserve
 
-- Read `AGENTS.md`, `docs/agents/engineering-standard.md`,
-  `docs/agents/coding-standard.md`, `CONTEXT-MAP.md`, the affected Context, applicable stack
-  standard, relevant ADRs, authoritative specs, and the affected implementation.
+- Use `$ganchaojia-development-standard` to discover the applicable repository standards, then read
+  `CONTEXT-MAP.md`, the affected Context, relevant ADRs, authoritative specs, and implementation.
 - Inspect the current branch, HEAD, remote baseline, and dirty/untracked files before writing.
 - Treat existing changes as user-owned. Preserve them and keep unrelated files out of the task commit.
 
-### Eino reference-first gate
+### Stack reference gates
 
-Any change that introduces or modifies Eino orchestration, Agent architecture, a model or Provider adapter, or multi-Agent execution must complete a targeted reference audit before specification or implementation:
-
-- Inspect all available shared read-only clones at `.reference/cloudwego/eino`,
-  `.reference/cloudwego/eino-ext`, and `.reference/cloudwego/eino-examples`. These clones live at
-  the Monorepo root and are shared by AgentRun tasks; an application-local clone is not required.
-- Record each clone's exact commit, the relevant files or examples inspected, adopted patterns, rejected patterns, and project-specific gaps in the authoritative Spec or PR.
-- Audit the relevant surfaces deeply; do not mechanically read unrelated packages merely to claim full-repository coverage.
-- If a required clone is unavailable, stop before implementation and report the missing shared reference rather than silently relying on memory or remote snippets.
-- Treat the audit as design evidence, not as authority to copy example project layout or introduce Eino features outside the accepted scope.
+When the routed stack standard requires reference-first work, complete that audit before design or
+implementation and record the required evidence in the authoritative Spec or PR. The stack standard
+owns source locations and evidence fields; this workflow does not duplicate them.
 
 ### 2. Grill with docs
 
 For new capabilities, architecture, domain decisions, or materially ambiguous behavior, complete
-the design gate in `docs/agents/engineering-standard.md`. Use `$grill-with-docs` when it is
-available; the Skill assists the gate but is not the repository authority or a prerequisite for
-following it.
+the design gate in `engineering-standard.md`. Use `$grill-with-docs` when it is available; the Skill
+assists the gate but is not repository authority.
 
 - Resolve contradictions, missing ownership, state transitions, failure semantics, security boundaries, and acceptance criteria before implementation.
 - Write resolved decisions into the authoritative spec, glossary, and sparse ADRs where appropriate; chat summaries are not sufficient.
@@ -79,7 +71,10 @@ follow the same repository standards directly.
 
 ## Direct path
 
-Repository workflow files, skills, documentation-only corrections, tiny configuration adjustments, and explicit runtime verification may be changed directly without `$to-spec` when they do not add or alter product capability. They still require scope review, secret safety, and an intentional commit/PR when delivery is requested.
+Repository workflow files, skills, development standards, documentation-only corrections, tiny
+configuration adjustments, and explicit runtime verification may be changed directly without
+`$to-spec` when they do not add or alter product capability. Development-standard content changes
+require format, reference, and diff review only; they do not trigger product tests or CI gates.
 
 ## Forbidden legacy flow
 
