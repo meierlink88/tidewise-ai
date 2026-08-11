@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	entitybiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entity"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 )
 
@@ -671,8 +672,8 @@ func validPersistedVersionReferences(references []eventbiz.VersionReference, req
 	return true
 }
 
-func selectEntityTypeReferences(values []eventbiz.EntityTypeDefinition, references []eventbiz.VersionReference) ([]eventbiz.EntityTypeDefinition, error) {
-	selected := make([]eventbiz.EntityTypeDefinition, 0, len(references))
+func selectEntityTypeReferences(values []eventbiz.EntityTypeContext, references []eventbiz.VersionReference) ([]eventbiz.EntityTypeContext, error) {
+	selected := make([]eventbiz.EntityTypeContext, 0, len(references))
 	for _, reference := range references {
 		found := false
 		for _, value := range values {
@@ -720,7 +721,7 @@ func eventSemanticEntityTypes(
 	query semanticQueryer,
 	includeAll bool,
 	references []eventbiz.VersionReference,
-) ([]eventbiz.EntityTypeDefinition, error) {
+) ([]eventbiz.EntityTypeContext, error) {
 	keys, versions := semanticVersionReferenceArrays(references)
 	rows, err := query.QueryContext(ctx, `
 		SELECT type_key, version, name_zh, name_en, business_definition,
@@ -739,9 +740,9 @@ func eventSemanticEntityTypes(
 		return nil, err
 	}
 	defer rows.Close()
-	var result []eventbiz.EntityTypeDefinition
+	var result []eventbiz.EntityTypeContext
 	for rows.Next() {
-		var item eventbiz.EntityTypeDefinition
+		var item eventbiz.EntityTypeContext
 		var inclusionCriteria, exclusionCriteria, allowedRoles []byte
 		if err := rows.Scan(
 			&item.TypeKey, &item.Version, &item.NameZH, &item.NameEN,
@@ -760,7 +761,7 @@ func eventSemanticEntityTypes(
 		if err := json.Unmarshal(allowedRoles, &item.AllowedEventRoles); err != nil {
 			return nil, err
 		}
-		if !validEventSemanticEntityTypeDefinition(item) {
+		if !validEventSemanticEntityTypeContext(item) {
 			return nil, errors.New("Event Semantic Entity Type Definition is invalid")
 		}
 		result = append(result, item)
@@ -768,16 +769,15 @@ func eventSemanticEntityTypes(
 	return result, rows.Err()
 }
 
-func validEventSemanticEntityTypeDefinition(item eventbiz.EntityTypeDefinition) bool {
-	if strings.TrimSpace(item.TypeKey) == "" || item.Version <= 0 ||
-		strings.TrimSpace(item.NameZH) == "" || strings.TrimSpace(item.NameEN) == "" ||
-		strings.TrimSpace(item.BusinessDefinition) == "" || item.Status != "active" ||
-		!validPersistedStringSet(item.InclusionCriteria, true) ||
-		!validPersistedStringSet(item.ExclusionCriteria, true) ||
-		!validPersistedStringSet(item.AllowedEventRoles, true) {
-		return false
+func validEventSemanticEntityTypeContext(item eventbiz.EntityTypeContext) bool {
+	definition := entitybiz.EntityTypeDefinition{
+		TypeKey: item.TypeKey, Version: item.Version, NameZH: item.NameZH, NameEN: item.NameEN,
+		BusinessDefinition: item.BusinessDefinition, InclusionCriteria: item.InclusionCriteria,
+		ExclusionCriteria: item.ExclusionCriteria, EventLinkAllowed: item.EventLinkAllowed,
+		SignalSubjectAllowed: item.SignalSubjectAllowed, AllowedEventRoles: item.AllowedEventRoles,
+		Status: entitybiz.EntityTypeDefinitionStatus(item.Status),
 	}
-	return true
+	return definition.Validate() == nil
 }
 
 func eventSemanticEvidence(

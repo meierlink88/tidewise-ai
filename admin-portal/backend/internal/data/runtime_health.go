@@ -93,7 +93,7 @@ func (c *DataHTTPClient) GetRuntimeHealth(ctx context.Context) (biz.ProviderRunt
 	if err != nil {
 		return biz.ProviderRuntimeHealth{}, runtimeHealthProviderError(callContext, err)
 	}
-	return wire.toBiz([]biz.RuntimeServiceKey{biz.RuntimeServiceData, biz.RuntimeServiceNeo4j})
+	return wire.toBiz([]biz.RuntimeServiceKey{biz.RuntimeServiceData})
 }
 
 func (c *AgentRunHTTPClient) GetRuntimeHealth(ctx context.Context) (biz.ProviderRuntimeHealth, error) {

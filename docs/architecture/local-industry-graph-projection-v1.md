@@ -1,6 +1,8 @@
 # Local Industry Graph Projection V1
 
-Status: approved for implementation
+> Superseded by ADR-0013. Data no longer owns or runs this projection.
+
+Status: retired
 Owner: Data Domain Service
 Environment: local only
 Date: 2026-07-27

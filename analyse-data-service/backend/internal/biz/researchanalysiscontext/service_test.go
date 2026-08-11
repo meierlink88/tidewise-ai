@@ -199,7 +199,7 @@ func TestServiceKeepsCursorValidAfterUnrelatedDictionaryChanges(t *testing.T) {
 	store.dictionaries = Dictionaries{Entities: []Entity{{
 		EntityID:   "33333333-3333-4333-8333-333333333333",
 		EntityType: "company",
-	}}, EntityTypeDefinitions: []EntityTypeDefinition{{
+	}}, EntityTypeDefinitions: []EntityTypeContext{{
 		TypeKey: "company",
 	}}}
 	if _, err := service.List(context.Background(), request); err != nil {
@@ -227,7 +227,7 @@ func TestServiceRequiresEveryEntityTypeReferenceInThePageClosure(t *testing.T) {
 	if _, err := NewService(store).List(context.Background(), request); !errors.Is(
 		err, ErrReferenceClosureInconsistent,
 	) {
-		t.Fatalf("error = %v, want unresolved EntityTypeDefinition", err)
+		t.Fatalf("error = %v, want unresolved EntityTypeContext", err)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestServiceFailsClosedForBundleClosureAndPageBudgets(t *testing.T) {
 					EntityType: "company",
 					Name:       strings.Repeat("x", MaxDictionaryBytes),
 				}},
-				EntityTypeDefinitions: []EntityTypeDefinition{{TypeKey: "company"}},
+				EntityTypeDefinitions: []EntityTypeContext{{TypeKey: "company"}},
 			}},
 			wantComponent: "reference_closure",
 		},
@@ -363,7 +363,7 @@ func pageBudgetStore() *contextStoreStub {
 				EntityType: "company",
 				Name:       strings.Repeat("x", 3900*1024),
 			}},
-			EntityTypeDefinitions: []EntityTypeDefinition{{TypeKey: "company"}},
+			EntityTypeDefinitions: []EntityTypeContext{{TypeKey: "company"}},
 		},
 	}
 }

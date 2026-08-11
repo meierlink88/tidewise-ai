@@ -11,23 +11,22 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 	eventsemanticbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
+	rawdocumentbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/rawdocument"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
 	evidencedata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidence"
-	neo4jdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/neo4j"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	rawdocumentdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
 	researchanalysiscontextdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchanalysiscontext"
 	researchgraphdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchgraph"
@@ -37,6 +36,7 @@ import (
 	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/eventsemantic"
 	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
+	rawdocumentservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/rawdocument"
 )
 
 const applicationStopTimeout = 10 * time.Second
@@ -64,24 +64,8 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 		return nil, nil, fmt.Errorf("check read-only migration readiness: %w", err)
 	}
 
-	var neo4jHealth *neo4jdata.HealthProbe
-	if config.Secrets.Neo4jHealthUsername != "" {
-		neo4jHealth, err = neo4jdata.NewHealthProbe(neo4jdata.HealthConfig{
-			URI: config.Neo4jHealth.URI, Database: config.Neo4jHealth.Database,
-			Username: config.Secrets.Neo4jHealthUsername, Password: config.Secrets.Neo4jHealthPassword,
-			Timeout: time.Duration(config.Neo4jHealth.TimeoutSeconds) * time.Second,
-		})
-		if err != nil {
-			_ = db.Close()
-			return nil, nil, fmt.Errorf("configure Data Neo4j health probe: %w", err)
-		}
-	}
 	closeBuildResources := func(buildErr error) error {
-		var neo4jCloseErr error
-		if neo4jHealth != nil {
-			neo4jCloseErr = neo4jHealth.Close(context.Background())
-		}
-		return errors.Join(buildErr, neo4jCloseErr, db.Close())
+		return errors.Join(buildErr, db.Close())
 	}
 	evidenceStore, err := evidencedata.NewStore(db)
 	if err != nil {
@@ -107,14 +91,21 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Event Semantic use case: %w", err))
 	}
+	rawDocumentStore, err := rawdocumentdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument store: %w", err))
+	}
+	rawDocumentUseCase, err := rawdocumentbiz.NewUseCase(rawDocumentStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument use case: %w", err))
+	}
 
 	application := service.NewDataService(service.Dependencies{
 		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
 		Research:                research.NewService(researchdata.NewRepository(db), time.Now),
 		ResearchAnalysisContext: researchanalysiscontext.NewService(researchanalysiscontextdata.NewRepository(db)),
 		ResearchGraph:           researchgraph.NewService(researchgraphdata.NewRepository(db)),
-		Admin:                   adminquery.NewService(adminquerydata.NewRepository(db)),
-		RuntimeHealth:           runtimehealth.New(neo4jHealth, time.Now),
+		RuntimeHealth:           runtimehealth.New(time.Now),
 	})
 	evidenceApplication, err := evidenceservice.NewService(evidenceUseCase)
 	if err != nil {
@@ -128,17 +119,17 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Event Semantic API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, application, eventApplication, eventSemanticApplication, evidenceApplication, authenticator, logger)
+	rawDocumentApplication, err := rawdocumentservice.NewService(rawDocumentUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, application, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
 
 	return newApp(httpServer, logger), func(ctx context.Context) error {
-		var neo4jErr error
-		if neo4jHealth != nil {
-			neo4jErr = neo4jHealth.Close(ctx)
-		}
-		return errors.Join(neo4jErr, db.Close())
+		return db.Close()
 	}, nil
 }
 

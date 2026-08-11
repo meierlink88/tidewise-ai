@@ -2095,10 +2095,10 @@ components:
       properties:
         key:
           type: string
-          enum: [data, neo4j]
+          enum: [data]
         display_name:
           type: string
-          enum: [Data Service, Neo4j]
+          enum: [Data Service]
         status:
           $ref: '#/components/schemas/RuntimeHealthStatus'
         checked_at:
@@ -2122,8 +2122,8 @@ components:
           $ref: '#/components/schemas/UTCTimestamp'
         services:
           type: array
-          minItems: 2
-          maxItems: 2
+          minItems: 1
+          maxItems: 1
           items:
             $ref: '#/components/schemas/RuntimeHealthService'
     RuntimeHealthEnvelope:

@@ -19,6 +19,7 @@ import (
 	eventapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
+	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
@@ -761,7 +762,7 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, parentservice.NewDataService(parentservice.Dependencies{}), application, testEventSemanticService{}, testEvidenceService{}, authenticator, nil)
+	}, parentservice.NewDataService(parentservice.Dependencies{}), application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,6 +770,12 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 }
 
 type testEvidenceService struct{}
+
+type testRawDocumentService struct{}
+
+func (testRawDocumentService) List(context.Context, *rawdocumentapi.ListRequest) (*v1.Response[rawdocumentapi.Page], error) {
+	return &v1.Response[rawdocumentapi.Page]{Status: http.StatusNoContent}, nil
+}
 
 type testEventSemanticService struct{}
 

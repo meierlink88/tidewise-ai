@@ -589,7 +589,7 @@ func normalizeDictionaries(value Dictionaries) Dictionaries {
 		value.IndustryChainGraphEdges = []IndustryChainGraphEdge{}
 	}
 	if value.EntityTypeDefinitions == nil {
-		value.EntityTypeDefinitions = []EntityTypeDefinition{}
+		value.EntityTypeDefinitions = []EntityTypeContext{}
 	}
 	if value.VariableDefinitions == nil {
 		value.VariableDefinitions = []VariableDefinition{}

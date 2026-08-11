@@ -510,7 +510,7 @@ func TestPrecheckAcceptsNarrativeMeasurementsWithoutDirectImpact(t *testing.T) {
 			Key: "net_profit", Version: 1, Status: "active",
 			AllowedDirections: []string{"increase"}, ApplicableEntityTypes: []string{"company"},
 		}},
-		EntityTypes: []EntityTypeDefinition{{
+		EntityTypes: []EntityTypeContext{{
 			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, SignalSubjectAllowed: true,
 			AllowedEventRoles: []string{"event_subject"},
 		}},
@@ -570,7 +570,7 @@ func TestPrecheckRejectsNarrativeMeasurementWithoutEventEvidence(t *testing.T) {
 			Key: "revenue", Version: 1, Status: "active", AllowedDirections: []string{"increase"},
 			ApplicableEntityTypes: []string{"company"},
 		}},
-		EntityTypes: []EntityTypeDefinition{{
+		EntityTypes: []EntityTypeContext{{
 			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, SignalSubjectAllowed: true,
 			AllowedEventRoles: []string{"event_subject"},
 		}},
@@ -614,7 +614,7 @@ func TestPrecheckAcceptsMentionWithValidEventEvidenceMembership(t *testing.T) {
 		Entities: []Entity{{
 			ID: "company", Type: "company", Name: "摘要专有词", CanonicalName: "摘要专有词", Status: "active",
 		}},
-		EntityTypes: []EntityTypeDefinition{{
+		EntityTypes: []EntityTypeContext{{
 			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, AllowedEventRoles: []string{"event_subject"},
 		}},
 	}
@@ -632,7 +632,7 @@ func TestPrecheckDoesNotRequirePrimaryEvidenceDesignation(t *testing.T) {
 		Event:    Event{ID: "event", Summary: "摘要专有词", Status: "confirmed", FactStatus: "verified"},
 		Evidence: []Evidence{{ID: "event-evidence", Statement: "证据没有该实体称谓", Relation: "supports"}},
 		Entities: []Entity{{ID: "company", Type: "company", Name: "摘要专有词", CanonicalName: "摘要专有词", Status: "active"}},
-		EntityTypes: []EntityTypeDefinition{{
+		EntityTypes: []EntityTypeContext{{
 			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, AllowedEventRoles: []string{"event_subject"},
 		}},
 	}
@@ -680,7 +680,7 @@ func validPrecheckContext() Context {
 			Key: "revenue", Version: 1, Status: "active", AllowedDirections: []string{"increase"},
 			ApplicableEntityTypes: []string{"company"},
 		}},
-		EntityTypes: []EntityTypeDefinition{{
+		EntityTypes: []EntityTypeContext{{
 			TypeKey: "company", Version: 1, Status: "active", EventLinkAllowed: true, SignalSubjectAllowed: true,
 			AllowedEventRoles: []string{"event_subject"},
 		}},

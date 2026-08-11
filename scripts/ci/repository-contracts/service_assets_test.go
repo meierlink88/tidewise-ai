@@ -76,85 +76,29 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 	}
 }
 
-func TestDataImageCarriesUATIndustryRelationshipAndGraphAssets(t *testing.T) {
+func TestDataImageExcludesRetiredEntityOperations(t *testing.T) {
 	repoRoot := repositoryRoot()
-	dockerfile := readContractFile(t, filepath.Join(
-		repoRoot,
-		"analyse-data-service",
-		"backend",
-		"Dockerfile",
-	))
+	dockerfile := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "Dockerfile"))
 	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
-
-	const (
-		importerBinary  = "/usr/local/bin/industry-relationship-import"
-		projectorBinary = "/usr/local/bin/industry-graph-projector"
-		packagePath     = "/app/data/industry_relationships/2026-07-27-v1"
-	)
-	for _, required := range []string{
-		importerBinary,
-		projectorBinary,
-		`industry_package_path="` + packagePath + `"`,
-	} {
-		if !strings.Contains(deploy, required) {
-			t.Fatalf("UAT deploy contract missing %q", required)
-		}
-	}
-
-	if !strings.Contains(
-		dockerfile,
-		"-o /out/industry-relationship-import ./analyse-data-service/backend/cmd/industry-relationship-import",
-	) {
-		t.Fatal("Data Dockerfile must build the UAT Industry relationship importer")
-	}
-	if !strings.Contains(
-		dockerfile,
-		"-o /out/industry-graph-projector ./analyse-data-service/backend/cmd/industry-graph-projector",
-	) {
-		t.Fatal("Data Dockerfile must build the UAT Industry graph projector")
-	}
-	runtimeStageStart := strings.LastIndex(dockerfile, "\nFROM ")
-	if runtimeStageStart < 0 {
-		t.Fatal("Data Dockerfile must define a separate runtime stage")
-	}
-	runtimeStage := dockerfile[runtimeStageStart:]
-	for _, required := range []string{
-		"COPY --from=builder /out/industry-relationship-import " + importerBinary,
-		"COPY --from=builder /out/industry-graph-projector " + projectorBinary,
-		"COPY analyse-data-service/backend/data ./data",
-	} {
-		if !strings.Contains(runtimeStage, required) {
-			t.Fatalf("Data runtime image missing %q", required)
+	for _, forbidden := range []string{"entity-seed", "industry-relationship-import", "industry-graph-projector"} {
+		if strings.Contains(dockerfile, forbidden) || strings.Contains(deploy, forbidden) {
+			t.Fatalf("Data delivery retains retired Entity operation %q", forbidden)
 		}
 	}
 }
 
-func TestDataImageCarriesUATEventSemanticProjectionAssets(t *testing.T) {
+func TestDataImageExcludesRetiredEventSemanticProjection(t *testing.T) {
 	repoRoot := repositoryRoot()
-	dockerfile := readContractFile(t, filepath.Join(
-		repoRoot,
-		"analyse-data-service",
-		"backend",
-		"Dockerfile",
-	))
+	dockerfile := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "Dockerfile"))
 	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
-
-	for _, required := range []string{
-		"-o /out/event-semantic-projector ./analyse-data-service/backend/cmd/event-semantic-projector",
-		"-o /out/uat-excluded-fact-audit ./analyse-data-service/backend/cmd/uat-excluded-fact-audit",
-		"COPY --from=builder /out/event-semantic-projector /usr/local/bin/event-semantic-projector",
-		"COPY --from=builder /out/uat-excluded-fact-audit /usr/local/bin/uat-excluded-fact-audit",
-	} {
-		if !strings.Contains(dockerfile, required) {
-			t.Fatalf("Data image missing UAT Event Semantic asset %q", required)
+	for _, forbidden := range []string{"event-semantic-projector", "EVENT_SEMANTIC_PROJECTION_ENABLED"} {
+		if strings.Contains(dockerfile, forbidden) || strings.Contains(deploy, forbidden) {
+			t.Fatalf("Data delivery retains retired semantic projection operation %q", forbidden)
 		}
 	}
-	for _, required := range []string{
-		"/usr/local/bin/event-semantic-projector",
-		"/usr/local/bin/uat-excluded-fact-audit",
-	} {
-		if !strings.Contains(deploy, required) {
-			t.Fatalf("UAT deploy contract missing Data maintenance command %q", required)
+	for _, required := range []string{"event-semantic-acceptance-audit", "event-semantic-history-audit", "uat-excluded-fact-audit"} {
+		if !strings.Contains(dockerfile, required) {
+			t.Fatalf("Data image lost retained audit command %q", required)
 		}
 	}
 }
@@ -349,12 +293,7 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 		}
 	}
 	data := composeServiceSection(t, text, "data")
-	for _, required := range []string{"DATA_NEO4J_HEALTH_USERNAME", "DATA_NEO4J_HEALTH_PASSWORD"} {
-		if !strings.Contains(data, required) {
-			t.Fatalf("Data compose service is missing runtime health dependency %q", required)
-		}
-	}
-	for _, forbidden := range []string{"\n      NEO4J_USERNAME:", "\n      NEO4J_PASSWORD:"} {
+	for _, forbidden := range []string{"DATA_NEO4J_HEALTH", "\n      NEO4J_USERNAME:", "\n      NEO4J_PASSWORD:"} {
 		if strings.Contains(data, forbidden) {
 			t.Fatalf("Data compose service retains retired graph projection dependency %q", forbidden)
 		}
@@ -371,9 +310,6 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 		if !strings.Contains(config, "host: host.docker.internal") {
 			t.Fatalf("%s local config must use a container-reachable external infrastructure host", service)
 		}
-	}
-	if !strings.Contains(dataComposeConfig, "uri: bolt://host.docker.internal:7687") {
-		t.Fatal("Data local config must use a container-reachable external Neo4j host")
 	}
 	for _, required := range []string{"base_url: http://data:9011", "qdrant_url: http://host.docker.internal:6333"} {
 		if !strings.Contains(agentRunComposeConfig, required) {

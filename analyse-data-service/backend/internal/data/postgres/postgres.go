@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/industryrelationshipimport"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchreasoningtreeimport"
@@ -32,23 +30,7 @@ func NewResearchPublicationStore(db *sql.DB) researchpublication.Store {
 	return newRepository(db)
 }
 
-func NewIndustryRelationshipImportStore(db *sql.DB) industryrelationshipimport.Store {
-	return newRepository(db)
-}
-
 func NewResearchRepository(db *sql.DB) research.Repository {
-	return newRepository(db)
-}
-
-func NewAdminQueryRepository(db *sql.DB) adminquery.Repository {
-	return newRepository(db)
-}
-
-func NewBenchmarkObservationRepository(db *sql.DB) BenchmarkObservationRepository {
-	return newRepository(db)
-}
-
-func NewIndustryChainRepository(db *sql.DB) IndustryChainRepository {
 	return newRepository(db)
 }
 

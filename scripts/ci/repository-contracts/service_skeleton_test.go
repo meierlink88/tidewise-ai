@@ -82,10 +82,9 @@ func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 
 func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	commands := map[string]string{
-		"data":                    "./analyse-data-service/backend/cmd/server",
-		"data-semantic-projector": "./analyse-data-service/backend/cmd/event-semantic-projector",
-		"miniapp":                 "./miniapp/backend/cmd/server",
-		"admin-portal":            "./admin-portal/backend/cmd/server",
+		"data":         "./analyse-data-service/backend/cmd/server",
+		"miniapp":      "./miniapp/backend/cmd/server",
+		"admin-portal": "./admin-portal/backend/cmd/server",
 	}
 	for name, command := range commands {
 		dependencies := listCommandDependencies(t, command)
@@ -144,14 +143,8 @@ func TestEventSemanticEmbeddingOwnership(t *testing.T) {
 		t.Fatal("AgentRun Qdrant adapter must batch through an injected Eino embedding.Embedder")
 	}
 
-	dataAdapter := string(readContractFile(t, filepath.Join(
-		root, "analyse-data-service", "backend", "internal", "data", "semanticprojection", "adapters.go",
-	)))
-	if !strings.Contains(dataAdapter, `e.endpoint+"/embeddings"`) {
-		t.Fatal("Data projector must own the OpenAI-compatible embedding HTTP adapter")
-	}
-	if strings.Contains(dataAdapter, "github.com/cloudwego/eino") {
-		t.Fatal("Data projector must not import Eino")
+	if _, err := os.Stat(filepath.Join(root, "analyse-data-service", "backend", "internal", "data", "semanticprojection")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Data semantic projection adapter must be retired: %v", err)
 	}
 }
 

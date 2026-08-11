@@ -18,54 +18,6 @@ services:
     restart: 'no'
     networks: [tidewise-local]
 
-  data-industry-projector:
-    profiles: [tools]
-    build:
-      context: ../..
-      dockerfile: analyse-data-service/backend/Dockerfile
-    image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
-    entrypoint: ['/usr/local/bin/industry-graph-projector']
-    environment:
-      APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/configs
-      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
-      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
-      NEO4J_URI: '${NEO4J_URI:-bolt://host.docker.internal:7687}'
-      NEO4J_DATABASE: neo4j
-      NEO4J_USERNAME: '${NEO4J_USERNAME:?set NEO4J_USERNAME in infra/local/.env.local}'
-      NEO4J_PASSWORD: '${NEO4J_PASSWORD:?set NEO4J_PASSWORD in infra/local/.env.local}'
-    depends_on:
-      data-migrate:
-        condition: service_completed_successfully
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-    restart: 'no'
-    networks: [tidewise-local]
-
-  data-semantic-projector:
-    profiles: [tools]
-    build:
-      context: ../..
-      dockerfile: analyse-data-service/backend/Dockerfile
-    image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
-    entrypoint: ['/usr/local/bin/event-semantic-projector']
-    environment:
-      APP_ENV: local
-      TIDEWISE_CONFIG_DIR: /app/configs
-      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
-      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
-      QDRANT_URL: '${QDRANT_URL:-http://host.docker.internal:6333}'
-      QDRANT_API_KEY: '${QDRANT_API_KEY:-}'
-      EMBEDDING_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
-      EMBEDDING_API_KEY: '${EMBEDDING_API_KEY:?set EMBEDDING_API_KEY in infra/local/.env.local}'
-    depends_on:
-      data-migrate:
-        condition: service_completed_successfully
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-    restart: 'no'
-    networks: [tidewise-local]
-
   data:
     build:
       context: ../..
@@ -79,9 +31,6 @@ services:
       TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
       TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
-      DATA_NEO4J_HEALTH_URI: '${DATA_NEO4J_HEALTH_URI:-bolt://host.docker.internal:7687}'
-      DATA_NEO4J_HEALTH_USERNAME: '${DATA_NEO4J_HEALTH_USERNAME:?set DATA_NEO4J_HEALTH_USERNAME in infra/local/.env.local}'
-      DATA_NEO4J_HEALTH_PASSWORD: '${DATA_NEO4J_HEALTH_PASSWORD:?set DATA_NEO4J_HEALTH_PASSWORD in infra/local/.env.local}'
     depends_on:
       data-migrate:
         condition: service_completed_successfully

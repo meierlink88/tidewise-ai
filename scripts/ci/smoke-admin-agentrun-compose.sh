@@ -8,7 +8,6 @@ success_body="/tmp/${project_name}-success.json"
 failure_body="/tmp/${project_name}-unavailable.json"
 data_postgres_fixture="${project_name}-data-postgres-fixture"
 agentrun_postgres_fixture="${project_name}-agentrun-postgres-fixture"
-neo4j_fixture="${project_name}-neo4j-fixture"
 qdrant_fixture="${project_name}-qdrant-fixture"
 
 export COMPOSE_NETWORK_NAME="${project_name}-network"
@@ -29,11 +28,6 @@ export AGENTRUN_QDRANT_URL="http://${qdrant_fixture}:6333"
 export AGENTRUN_SERVICE_TOKEN="compose-smoke-agentrun-service-token"
 export ADMIN_SERVICE_TOKEN="compose-smoke-admin-browser-token"
 export DATA_SERVICE_TOKEN="compose-smoke-data-service-token"
-export NEO4J_USERNAME="neo4j"
-export NEO4J_PASSWORD="compose-smoke-neo4j-password"
-export DATA_NEO4J_HEALTH_URI="bolt://${neo4j_fixture}:7687"
-export DATA_NEO4J_HEALTH_USERNAME="neo4j"
-export DATA_NEO4J_HEALTH_PASSWORD="$NEO4J_PASSWORD"
 
 compose=(
   docker compose
@@ -48,7 +42,7 @@ cleanup() {
   "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1
   docker rm -f \
     "$data_postgres_fixture" "$agentrun_postgres_fixture" \
-    "$neo4j_fixture" "$qdrant_fixture" >/dev/null 2>&1
+    "$qdrant_fixture" >/dev/null 2>&1
   docker network rm "$COMPOSE_NETWORK_NAME" >/dev/null 2>&1
 }
 trap cleanup EXIT
@@ -64,16 +58,12 @@ docker run -d --name "$agentrun_postgres_fixture" --network "$COMPOSE_NETWORK_NA
   -e "POSTGRES_PASSWORD=${AGENTRUN_DB_PASSWORD}" \
   -e POSTGRES_DB=tidewise_ai_server \
   postgres:16 >/dev/null
-docker run -d --name "$neo4j_fixture" --network "$COMPOSE_NETWORK_NAME" \
-  -e "NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}" \
-  neo4j:5-community >/dev/null
 docker run -d --name "$qdrant_fixture" --network "$COMPOSE_NETWORK_NAME" \
   -p "127.0.0.1:${qdrant_fixture_port}:6333" \
   qdrant/qdrant:v1.15.5 >/dev/null
 for _ in $(seq 1 60); do
   if docker exec "$data_postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null &&
     docker exec "$agentrun_postgres_fixture" pg_isready -U agentrun -d tidewise_ai_server >/dev/null &&
-    docker exec "$neo4j_fixture" wget -q --spider http://127.0.0.1:7474 &&
     curl --fail --silent "http://127.0.0.1:${qdrant_fixture_port}/readyz" >/dev/null; then
     break
   fi
@@ -81,7 +71,6 @@ for _ in $(seq 1 60); do
 done
 docker exec "$data_postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null
 docker exec "$agentrun_postgres_fixture" pg_isready -U agentrun -d tidewise_ai_server >/dev/null
-docker exec "$neo4j_fixture" wget -q --spider http://127.0.0.1:7474
 curl --fail --silent "http://127.0.0.1:${qdrant_fixture_port}/readyz" >/dev/null
 "${compose[@]}" run --rm --no-deps \
   -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \

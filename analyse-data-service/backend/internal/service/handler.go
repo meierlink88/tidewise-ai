@@ -4,7 +4,6 @@ import (
 	"context"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
@@ -43,10 +42,6 @@ type ResearchGraphService interface {
 	Search(context.Context, researchgraph.Request) (researchgraph.Result, error)
 }
 
-type AdminService interface {
-	ListRawDocuments(context.Context, adminquery.RawDocumentListRequest) (adminquery.RawDocumentPage, error)
-}
-
 type RuntimeHealthService interface {
 	Get(context.Context) runtimehealth.Result
 }
@@ -56,7 +51,6 @@ type Dependencies struct {
 	Research                ResearchService
 	ResearchAnalysisContext ResearchAnalysisContextService
 	ResearchGraph           ResearchGraphService
-	Admin                   AdminService
 	RuntimeHealth           RuntimeHealthService
 }
 

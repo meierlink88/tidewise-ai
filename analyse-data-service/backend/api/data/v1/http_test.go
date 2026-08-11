@@ -8,35 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"gopkg.in/yaml.v3"
 )
-
-func TestDataBindingRunsKratosMiddlewareWithStableOperation(t *testing.T) {
-	var operation string
-	recorder := func(next middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, request any) (any, error) {
-			if serverTransport, ok := transport.FromServerContext(ctx); ok {
-				operation = serverTransport.Operation()
-			}
-			return next(ctx, request)
-		}
-	}
-	server := kratoshttp.NewServer(kratoshttp.Middleware(recorder))
-	RegisterDataHTTPServer(server, testDataHTTPServer{})
-
-	response := httptest.NewRecorder()
-	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/raw-documents", nil))
-
-	if response.Code != http.StatusNoContent {
-		t.Fatalf("status = %d, want 204", response.Code)
-	}
-	if operation != "data.v1.listAdminRawDocuments" {
-		t.Fatalf("operation = %q, want data.v1.listAdminRawDocuments", operation)
-	}
-}
 
 func TestResearchThemeListBindsExplicitPublicationRange(t *testing.T) {
 	application := &capturingDataHTTPServer{}
@@ -104,10 +78,6 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/research/themes/theme-1/reasoning-trees/tree-1",
 			operation:   "data.v1.getResearchThemeReasoningTree",
 		},
-		"GET " + APIPrefix + "/raw-documents": {
-			requestPath: APIPrefix + "/raw-documents",
-			operation:   "data.v1.listAdminRawDocuments",
-		},
 		"GET " + APIPrefix + "/runtime-health": {
 			requestPath: APIPrefix + "/runtime-health",
 			operation:   "data.v1.getRuntimeHealth",
@@ -129,6 +99,7 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			continue
 		}
 		if path == APIPrefix+"/raw-evidence-publications" || path == APIPrefix+"/evidence-publications" ||
+			path == APIPrefix+"/raw-documents" ||
 			path == APIPrefix+"/reviewed-event-imports" || path == APIPrefix+"/event-tags" || path == APIPrefix+"/events" ||
 			strings.HasPrefix(path, APIPrefix+"/event-semantics/") || path == APIPrefix+"/events/{event_id}/semantics" {
 			continue
@@ -236,9 +207,6 @@ func (testDataHTTPServer) ListResearchReasoningTrees(context.Context, *Reasoning
 }
 func (testDataHTTPServer) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*Response[ResearchReasoningTreeDetail], error) {
 	return testResponse[ResearchReasoningTreeDetail]()
-}
-func (testDataHTTPServer) ListRawDocuments(context.Context, *RawDocumentListRequest) (*Response[AdminRawDocumentPage], error) {
-	return testResponse[AdminRawDocumentPage]()
 }
 func (testDataHTTPServer) GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error) {
 	return testResponse[RuntimeHealth]()

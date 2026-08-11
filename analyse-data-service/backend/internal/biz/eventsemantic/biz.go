@@ -546,7 +546,7 @@ type EntityRelation struct {
 	Status       string `json:"status"`
 }
 
-type EntityTypeDefinition struct {
+type EntityTypeContext struct {
 	TypeKey              string   `json:"type_key"`
 	Version              int      `json:"version"`
 	NameZH               string   `json:"name_zh"`
@@ -605,7 +605,7 @@ type Context struct {
 	RouteContractVersion    string                   `json:"-"`
 	Event                   Event                    `json:"event"`
 	Evidence                []Evidence               `json:"evidence"`
-	EntityTypes             []EntityTypeDefinition   `json:"entity_type_definitions"`
+	EntityTypes             []EntityTypeContext      `json:"entity_type_definitions"`
 	Variables               []VariableDefinition     `json:"variable_definitions"`
 	AssertionModalities     []string                 `json:"assertion_modalities"`
 	MeasurementContract     MeasurementContract      `json:"measurement_contract"`
@@ -1246,13 +1246,13 @@ func validateSignal(
 	return ""
 }
 
-func activeEntityType(items []EntityTypeDefinition, typeKey string) (EntityTypeDefinition, bool) {
+func activeEntityType(items []EntityTypeContext, typeKey string) (EntityTypeContext, bool) {
 	for _, item := range items {
 		if item.TypeKey == typeKey && item.Status == "active" {
 			return item, true
 		}
 	}
-	return EntityTypeDefinition{}, false
+	return EntityTypeContext{}, false
 }
 
 func mentionGrounded(context Context, candidate EntityLinkCandidate) bool {

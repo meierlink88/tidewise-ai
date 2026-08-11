@@ -33,9 +33,6 @@ func TestLocalApplicationComposeExcludesInfrastructureMiddleware(t *testing.T) {
 		"agentrun:",
 		"agentrun-migrate:",
 		"host.docker.internal:host-gateway",
-		"${NEO4J_USERNAME",
-		"${NEO4J_PASSWORD",
-		"7687",
 		"9080",
 	} {
 		if !strings.Contains(composeText, want) {
@@ -54,8 +51,6 @@ func TestLocalApplicationComposeExcludesInfrastructureMiddleware(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"NEO4J_USERNAME",
-		"NEO4J_PASSWORD",
 		"agent-run/backend",
 		"TIDEWISW_DB_PASSWORD",
 		"AGENTRUN_DB_PASSWORD",

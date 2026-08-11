@@ -45,8 +45,8 @@ export type RuntimeHealthReasonCode =
   | 'authentication_failed'
   | 'invalid_response';
 export interface RuntimeHealthService {
-  key: 'data' | 'agentrun' | 'qdrant' | 'neo4j';
-  display_name: 'Data Service' | 'AgentRun' | 'Qdrant' | 'Neo4j';
+  key: 'data' | 'agentrun' | 'qdrant';
+  display_name: 'Data Service' | 'AgentRun' | 'Qdrant';
   status: RuntimeHealthStatus;
   checked_at: string;
   latency_ms?: number | null;
@@ -235,8 +235,8 @@ const runtimeHealthReasonSchema = z.enum([
 ]);
 const runtimeHealthServiceSchema: z.ZodType<RuntimeHealthService> = z
   .strictObject({
-    key: z.enum(['data', 'agentrun', 'qdrant', 'neo4j']),
-    display_name: z.enum(['Data Service', 'AgentRun', 'Qdrant', 'Neo4j']),
+    key: z.enum(['data', 'agentrun', 'qdrant']),
+    display_name: z.enum(['Data Service', 'AgentRun', 'Qdrant']),
     status: runtimeHealthStatusSchema,
     checked_at: timestampSchema,
     latency_ms: nonNegativeIntegerSchema.nullish(),
@@ -251,11 +251,11 @@ const runtimeHealthSchema: z.ZodType<RuntimeHealth> = z
   .strictObject({
     status: z.enum(['ready', 'degraded']),
     checked_at: timestampSchema,
-    services: z.array(runtimeHealthServiceSchema).length(4)
+    services: z.array(runtimeHealthServiceSchema).length(3)
   })
   .refine(
     (health) =>
-      health.services.map((service) => service.key).join(',') === 'data,agentrun,qdrant,neo4j' &&
+      health.services.map((service) => service.key).join(',') === 'data,agentrun,qdrant' &&
       (health.status === 'ready'
         ? health.services.every((service) => service.status === 'ready')
         : health.services.some((service) => service.status !== 'ready'))

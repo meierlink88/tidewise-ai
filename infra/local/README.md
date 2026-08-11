@@ -6,7 +6,7 @@ entrypoints. Miniapp Frontend is not a service; its repository-pinned Taro build
 directly and hand platform output to the native developer tools.
 
 The application stack contains Data, AgentRun, Miniapp Backend, Admin Backend and Admin Web.
-PostgreSQL, Neo4j and Qdrant are externally provisioned infrastructure: this Compose file does not
+PostgreSQL and Qdrant are externally provisioned infrastructure: this Compose file does not
 create, upgrade or persist them. Data and AgentRun keep independent externally provisioned
 databases; AgentRun keeps only its service-owned Artifact volume. Miniapp Frontend is not included
 in this Compose application stack.
@@ -25,17 +25,15 @@ Resolve the complete Compose contract without starting containers:
 npm run runtime:config
 ```
 
-Before application startup, provision the required PostgreSQL databases/users, Neo4j database and
+Before application startup, provision the required PostgreSQL databases/users and the AgentRun
 Qdrant endpoint outside the Tidewise application deployment. Their container-reachable addresses
 are configured in `.env.local`; the defaults use `host.docker.internal`.
 
-Required application inputs are explicit: Data uses `TIDEWISE_DB_HOST`,
-`TIDEWISW_DB_PASSWORD`, `DATA_NEO4J_HEALTH_URI`, `DATA_NEO4J_HEALTH_USERNAME` and
-`DATA_NEO4J_HEALTH_PASSWORD`; AgentRun uses `AGENTRUN_DB_HOST`, `AGENTRUN_DB_PASSWORD`,
+Required application inputs are explicit: Data uses `TIDEWISE_DB_HOST` and
+`TIDEWISW_DB_PASSWORD`; AgentRun uses `AGENTRUN_DB_HOST`, `AGENTRUN_DB_PASSWORD`,
 `AGENTRUN_QDRANT_URL`, `QDRANT_API_KEY` and `EMBEDDING_API_KEY`. Service identities use
 `DATA_SERVICE_TOKEN`, `AGENTRUN_SERVICE_TOKEN` and `ADMIN_SERVICE_TOKEN`. The AgentRun image is
 built from `agent-run/backend`; none of these inputs cause Compose to provision the middleware.
-The isolated graph projection tool additionally receives `NEO4J_USERNAME` and `NEO4J_PASSWORD`.
 
 Build and start the application stack:
 
@@ -129,7 +127,6 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 Run Data-owned commands from the Data image:
 
 ```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --entrypoint /usr/local/bin/entity-seed data
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --entrypoint /usr/local/bin/research-theme-dev-seed data
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --entrypoint /usr/local/bin/research-theme-dev-reset data
 ```
@@ -142,29 +139,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
   --execute --confirm-database tidewise_local
 ```
 
-Industry graph projection uses a separate one-shot service so the long-running Data container does
-not receive projection credentials:
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  --profile tools run --rm data-industry-projector \
-  -expected-sha256 7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608 \
-  -dry-run
-
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  --profile tools run --rm data-industry-projector \
-  -expected-sha256 7c737410ac6af562af19f8b9dad9e8e1c802f8f782625bd360bb2e8f20768608 \
-  -apply -allow-env local
-```
-
-Event Semantic Qdrant projection is also isolated:
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  --profile tools run --rm data-semantic-projector -apply -allow-env local
-```
-
-PostgreSQL remains the fact source. Neo4j and Qdrant are rebuildable projections.
+PostgreSQL remains the Data fact source. Data no longer seeds Entity packages or writes Neo4j/Qdrant
+projections. AgentRun's existing Qdrant reader remains configured, but its projection-dependent
+workflow stays paused until a new projection owner is approved.
 
 ## AgentRun operations
 

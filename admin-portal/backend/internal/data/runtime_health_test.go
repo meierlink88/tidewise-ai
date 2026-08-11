@@ -21,7 +21,7 @@ func TestDataRuntimeHealthUsesSingleStrictProviderRequest(t *testing.T) {
 			t.Fatalf("request = %s %s auth=%q", request.Method, request.URL.Path, request.Header.Get("Authorization"))
 		}
 		response.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprint(response, `{"request_id":"req-data","result":{"checked_at":"2026-08-04T10:00:00Z","services":[{"key":"data","display_name":"Data Service","status":"ready","checked_at":"2026-08-04T10:00:00Z"},{"key":"neo4j","display_name":"Neo4j","status":"down","checked_at":"2026-08-04T10:00:00Z","reason_code":"authentication_failed"}]}}`)
+		_, _ = fmt.Fprint(response, `{"request_id":"req-data","result":{"checked_at":"2026-08-04T10:00:00Z","services":[{"key":"data","display_name":"Data Service","status":"ready","checked_at":"2026-08-04T10:00:00Z"}]}}`)
 	}))
 	defer server.Close()
 	client, err := NewDataHTTPClient(DataHTTPConfig{BaseURL: server.URL, ServiceToken: "data-token", Timeout: time.Second, MaxReadAttempts: 3})
@@ -31,7 +31,7 @@ func TestDataRuntimeHealthUsesSingleStrictProviderRequest(t *testing.T) {
 
 	result, err := client.GetRuntimeHealth(context.Background())
 
-	if err != nil || calls.Load() != 1 || len(result.Services) != 2 || result.Services[1].ReasonCode != biz.RuntimeReasonAuthenticationFailed {
+	if err != nil || calls.Load() != 1 || len(result.Services) != 1 || result.Services[0].Key != biz.RuntimeServiceData {
 		t.Fatalf("calls=%d result=%#v err=%v", calls.Load(), result, err)
 	}
 }

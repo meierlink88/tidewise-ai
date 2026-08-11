@@ -31,20 +31,8 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"ADMIN_SERVICE_TOKEN",
 		"AGENTRUN_SERVICE_TOKEN",
 		"EMBEDDING_API_KEY",
-		"apply_industry_relationship_package:",
-		"industry_relationship_package_sha:",
-		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED:",
-		"INDUSTRY_RELATIONSHIP_PACKAGE_SHA:",
-		"apply_industry_graph_projection:",
-		"industry_graph_package_sha:",
-		"INDUSTRY_GRAPH_PROJECTION_ENABLED:",
-		"INDUSTRY_GRAPH_PACKAGE_SHA:",
-		"apply_event_semantic_projection:",
-		"EVENT_SEMANTIC_PROJECTION_ENABLED:",
 		"recover_agentrun_previous_release_version:",
 		"AGENTRUN_RECOVERY_TARGET_VERSION:",
-		"NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}",
-		"NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -75,51 +63,15 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 	}
 }
 
-func TestUATWorkflowScopesNeo4jCredentialsToEnabledProjectionStep(t *testing.T) {
+func TestUATWorkflowExcludesRetiredDataProjectionInputs(t *testing.T) {
 	workflow, prepare := uatWorkflowAndPrepareStep(t)
-	for _, forbidden := range []string{"\"NEO4J_URI=", "\"NEO4J_USERNAME=", "\"NEO4J_PASSWORD=", "\"NEO4J_DATABASE="} {
-		if strings.Contains(prepare, forbidden) {
-			t.Fatalf("UAT runtime environment must not persist graph projection configuration %q", forbidden)
-		}
-	}
-	for _, required := range []string{
-		"NEO4J_URI: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_URI || '' }}",
-		"NEO4J_USERNAME: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_USERNAME || '' }}",
-		"NEO4J_PASSWORD: ${{ inputs.apply_industry_graph_projection && secrets.NEO4J_PASSWORD || '' }}",
-		"NEO4J_DATABASE: ${{ inputs.apply_industry_graph_projection && vars.NEO4J_DATABASE || '' }}",
+	for _, forbidden := range []string{
+		"apply_industry_relationship_package", "industry_relationship_package_sha",
+		"apply_industry_graph_projection", "industry_graph_package_sha",
+		"apply_event_semantic_projection", "DATA_NEO4J_HEALTH", "NEO4J_URI", "NEO4J_PASSWORD",
 	} {
-		if !strings.Contains(workflow, required) {
-			t.Fatalf("UAT workflow does not conditionally scope graph projection value %q", required)
-		}
-	}
-}
-
-func TestUATWorkflowPersistsDedicatedNeo4jHealthCredentials(t *testing.T) {
-	workflow, prepare := uatWorkflowAndPrepareStep(t)
-	composeValidation := strings.Index(prepare, "config --quiet")
-	if composeValidation < 0 {
-		t.Fatal("UAT runtime preparation is missing Compose configuration validation")
-	}
-	for _, required := range []string{
-		"DATA_NEO4J_HEALTH_URI=${DATA_NEO4J_HEALTH_URI}",
-		"DATA_NEO4J_HEALTH_USERNAME=${DATA_NEO4J_HEALTH_USERNAME}",
-		"DATA_NEO4J_HEALTH_PASSWORD=${DATA_NEO4J_HEALTH_PASSWORD}",
-	} {
-		assignment := strings.Index(prepare, required)
-		if assignment < 0 {
-			t.Fatalf("UAT runtime preparation missing %q", required)
-		}
-		if assignment > composeValidation {
-			t.Fatalf("UAT runtime preparation writes %q after Compose validation", required)
-		}
-	}
-	for _, required := range []string{
-		"DATA_NEO4J_HEALTH_URI: ${{ vars.DATA_NEO4J_HEALTH_URI }}",
-		"DATA_NEO4J_HEALTH_USERNAME: ${{ vars.DATA_NEO4J_HEALTH_USERNAME }}",
-		"DATA_NEO4J_HEALTH_PASSWORD: ${{ secrets.DATA_NEO4J_HEALTH_PASSWORD }}",
-	} {
-		if !strings.Contains(workflow, required) {
-			t.Fatalf("UAT workflow does not source dedicated Neo4j health value %q", required)
+		if strings.Contains(workflow, forbidden) || strings.Contains(prepare, forbidden) {
+			t.Fatalf("UAT workflow retains retired Data projection input %q", forbidden)
 		}
 	}
 }
@@ -397,9 +349,9 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 			t.Fatalf("AgentRun UAT service missing %q", required)
 		}
 	}
-	for _, required := range []string{"DATA_NEO4J_HEALTH_URI", "DATA_NEO4J_HEALTH_USERNAME", "DATA_NEO4J_HEALTH_PASSWORD"} {
-		if !strings.Contains(data, required) {
-			t.Fatalf("Data UAT service missing runtime health dependency %q", required)
+	for _, forbidden := range []string{"DATA_NEO4J_HEALTH", "NEO4J_URI", "NEO4J_PASSWORD"} {
+		if strings.Contains(data, forbidden) {
+			t.Fatalf("Data UAT service retains retired projection dependency %q", forbidden)
 		}
 	}
 	for _, forbidden := range []string{"\n  qdrant:", "QDRANT_IMAGE", "qdrant-data:/qdrant/storage", "tidewise-uat-qdrant-data"} {
@@ -465,30 +417,12 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		"/api/admin/v1/model-providers",
 		"http://127.0.0.1:9080/readyz",
 		"FAIL migration-release-gate", "PASS migration-release-gate",
-		"FAIL industry-relationship-import-gate",
-		"PASS industry-relationship-import-dry-run",
-		"PASS industry-relationship-import-apply",
-		"PASS industry-relationship-import-replay",
-		"FAIL industry-graph-projection-gate",
-		"PASS industry-graph-projection-dry-run",
-		"PASS industry-graph-projection-apply",
-		"PASS industry-graph-projection-replay",
-		"FAIL event-semantic-projection-gate",
 		"PASS external-qdrant-ready",
 		"qdrant-ownership: application release state must not manage Qdrant",
 		"wget -q -T 10 -t 2 -O-",
-		"PASS event-semantic-projection-qdrant-ready",
-		"PASS event-semantic-projection-apply",
-		"PASS event-semantic-projection-verify",
-		"/usr/local/bin/event-semantic-projector",
-		"entity_semantic_v1",
-		"variable_definition_semantic_v1",
 		"/usr/local/bin/uat-excluded-fact-audit",
 		"PASS excluded-fact-audit-before",
 		"PASS excluded-fact-audit-unchanged",
-		"/usr/local/bin/industry-graph-projector",
-		"-expected-sha256",
-		"-apply -allow-env uat",
 	} {
 		if !strings.Contains(deploy, required) {
 			t.Fatalf("UAT deploy executor missing %q", required)
@@ -501,6 +435,8 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	for _, forbidden := range []string{
 		"dbmigrate -down", "pg_restore", "compose down", ":latest",
 		"up -d --wait --wait-timeout 120 qdrant", "exec -T qdrant", "--remove-orphans",
+		"industry-relationship-import", "industry-graph-projector", "event-semantic-projector",
+		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED", "INDUSTRY_GRAPH_PROJECTION_ENABLED", "EVENT_SEMANTIC_PROJECTION_ENABLED",
 	} {
 		if strings.Contains(deploy, forbidden) {
 			t.Fatalf("UAT deploy executor contains forbidden behavior %q", forbidden)

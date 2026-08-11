@@ -1,6 +1,8 @@
 # UAT Industry Graph Projection V1
 
-Status: approved for implementation
+> Superseded by ADR-0013. Retained only as historical rollout evidence.
+
+Status: retired
 
 Date: 2026-07-28
 

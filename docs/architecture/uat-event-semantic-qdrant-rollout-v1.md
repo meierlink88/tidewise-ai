@@ -1,6 +1,8 @@
 # UAT Event Semantic Qdrant Rollout V1
 
-Status: approved for implementation
+> Data-owned projection steps are superseded by ADR-0013; AgentRun retrieval remains paused until a new projection owner is approved.
+
+Status: partially retired
 
 Date: 2026-08-03
 

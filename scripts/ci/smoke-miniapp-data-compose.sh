@@ -6,7 +6,6 @@ run_suffix="${GITHUB_RUN_ID:-$$}"
 project_name="tidewise-kratos-smoke-${run_suffix}"
 prod_container=""
 postgres_fixture="${project_name}-postgres-fixture"
-neo4j_fixture="${project_name}-neo4j-fixture"
 failure_body="/tmp/${project_name}-miniapp-data-unavailable.json"
 
 export COMPOSE_NETWORK_NAME="${project_name}-network"
@@ -17,9 +16,6 @@ export MINIAPP_SERVICE_IMAGE="tidewise-miniapp:ci"
 export TIDEWISW_DB_PASSWORD="tidewise-compose-smoke-password"
 export TIDEWISE_DB_HOST="$postgres_fixture"
 export DATA_SERVICE_TOKEN="compose-smoke-data-service-token"
-export DATA_NEO4J_HEALTH_URI="bolt://${neo4j_fixture}:7687"
-export DATA_NEO4J_HEALTH_USERNAME="neo4j"
-export DATA_NEO4J_HEALTH_PASSWORD="compose-smoke-neo4j-password"
 
 compose=(
   docker compose
@@ -35,7 +31,7 @@ cleanup() {
     docker rm -f "$prod_container" >/dev/null 2>&1
   fi
   "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1
-  docker rm -f "$postgres_fixture" "$neo4j_fixture" >/dev/null 2>&1
+  docker rm -f "$postgres_fixture" >/dev/null 2>&1
   docker network rm "$COMPOSE_NETWORK_NAME" >/dev/null 2>&1
 }
 trap cleanup EXIT
@@ -46,18 +42,13 @@ docker run -d --name "$postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
   -e "POSTGRES_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
   -e POSTGRES_DB=tidewise_local \
   postgres:16 >/dev/null
-docker run -d --name "$neo4j_fixture" --network "$COMPOSE_NETWORK_NAME" \
-  -e "NEO4J_AUTH=neo4j/${DATA_NEO4J_HEALTH_PASSWORD}" \
-  neo4j:5-community >/dev/null
 for _ in $(seq 1 60); do
-  if docker exec "$postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null &&
-    docker exec "$neo4j_fixture" wget -q --spider http://127.0.0.1:7474; then
+  if docker exec "$postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null; then
     break
   fi
   sleep 1
 done
 docker exec "$postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null
-docker exec "$neo4j_fixture" wget -q --spider http://127.0.0.1:7474
 "${compose[@]}" run --rm --no-deps \
   -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
   data-migrate >/dev/null

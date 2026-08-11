@@ -8,13 +8,9 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./analyse-data-service/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigrate ./analyse-data-service/backend/cmd/dbmigrate
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/entity-seed ./analyse-data-service/backend/cmd/entity-seed
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantic-acceptance-audit ./analyse-data-service/backend/cmd/event-semantic-acceptance-audit
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantic-history-audit ./analyse-data-service/backend/cmd/event-semantic-history-audit
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantics-synthetic-fixture ./analyse-data-service/backend/cmd/event-semantics-synthetic-fixture
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-relationship-import ./analyse-data-service/backend/cmd/industry-relationship-import
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/industry-graph-projector ./analyse-data-service/backend/cmd/industry-graph-projector
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantic-projector ./analyse-data-service/backend/cmd/event-semantic-projector
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/research-theme-dev-reset ./analyse-data-service/backend/cmd/research-theme-dev-reset
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/research-theme-dev-seed ./analyse-data-service/backend/cmd/research-theme-dev-seed
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/uat-excluded-fact-audit ./analyse-data-service/backend/cmd/uat-excluded-fact-audit
@@ -28,13 +24,9 @@ WORKDIR /app
 
 COPY --from=builder /out/data-service /usr/local/bin/data-service
 COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
-COPY --from=builder /out/entity-seed /usr/local/bin/entity-seed
 COPY --from=builder /out/event-semantic-acceptance-audit /usr/local/bin/event-semantic-acceptance-audit
 COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit
 COPY --from=builder /out/event-semantics-synthetic-fixture /usr/local/bin/event-semantics-synthetic-fixture
-COPY --from=builder /out/industry-relationship-import /usr/local/bin/industry-relationship-import
-COPY --from=builder /out/industry-graph-projector /usr/local/bin/industry-graph-projector
-COPY --from=builder /out/event-semantic-projector /usr/local/bin/event-semantic-projector
 COPY --from=builder /out/research-theme-dev-reset /usr/local/bin/research-theme-dev-reset
 COPY --from=builder /out/research-theme-dev-seed /usr/local/bin/research-theme-dev-seed
 COPY --from=builder /out/uat-excluded-fact-audit /usr/local/bin/uat-excluded-fact-audit
