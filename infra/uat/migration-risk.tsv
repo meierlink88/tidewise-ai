@@ -40,3 +40,4 @@
 000039	normal	rebuild the Event Semantic eligible scan index without requiring event_time
 000040	high	forward-only completion of the active Event Semantic Entity Type catalog
 000041	high	forward-only Analyst snapshot publication identity constraints and nullable formal-reference columns
+000042	high	forward-only Raw Evidence and immutable atomic Evidence publication contracts

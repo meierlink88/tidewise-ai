@@ -16,6 +16,7 @@ tags:
   - name: Operations
   - name: Research
   - name: Admin aggregates
+  - name: Evidence publication
   - name: Event publication
   - name: Event Tag Catalog
   - name: Event Semantics
@@ -772,6 +773,114 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /api/data/v1/raw-evidence-publications:
+    post:
+      tags: [Evidence publication]
+      operationId: publishRawEvidence
+      x-client-drift-anchor: data.v1.publishRawEvidence
+      x-required-service-scope: data.raw-evidences.import
+      x-retry-policy: retry-failed-call-with-natural-identities
+      x-timeout-budget-ms: 15000
+      x-atomicity: raw-evidence-and-receipt-single-postgresql-transaction
+      x-receipt-schema: raw_evidence_publication_receipts
+      x-transaction-membership: raw-evidence,raw-evidence-publication-receipt
+      summary: 发布一份完整 Raw Evidence
+      description: >-
+        采集完成后同步发布完整 Raw Evidence 及有序 Keywords。接口不使用
+        Idempotency-Key；相同 raw_evidence_id 仅在全部业务字段一致时复用，每次成功调用
+        都创建新的 immutable receipt。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              maxLength: 1048576
+              x-max-body-bytes: 1048576
+              allOf:
+                - $ref: '#/components/schemas/RawEvidencePublicationRequest'
+      responses:
+        '201':
+          description: Raw Evidence 与新 receipt 已原子提交
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawEvidencePublicationEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/data/v1/evidence-publications:
+    post:
+      tags: [Evidence publication]
+      operationId: publishEvidence
+      x-client-drift-anchor: data.v1.publishEvidence
+      x-required-service-scope: data.evidences.import
+      x-retry-policy: retry-failed-call-with-natural-identities
+      x-timeout-budget-ms: 15000
+      x-atomicity: complete-evidence-set-and-receipt-single-postgresql-transaction
+      x-receipt-schema: evidence_publication_receipts
+      x-transaction-membership: evidence,evidence-publication-receipt
+      summary: 为既有 Raw Evidence 发布完整原子 Evidence 集合
+      description: >-
+        清洗完成后一次提交一个既有 Raw Evidence 的完整 1..N Evidence 集合。Data 根据
+        集合基数派生 is_split；零项、部分成功、追加、覆盖和删除均不允许。接口不使用
+        Idempotency-Key，每次成功调用都创建新的 immutable receipt。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              maxLength: 1048576
+              x-max-body-bytes: 1048576
+              allOf:
+                - $ref: '#/components/schemas/EvidencePublicationRequest'
+      responses:
+        '201':
+          description: 完整 Evidence 集合与新 receipt 已原子提交
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidencePublicationEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/data/v1/reviewed-event-imports:
     post:
       tags: [Event publication]
@@ -1028,7 +1137,7 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
     Conflict:
-      description: 幂等 key 与 payload hash 冲突或 raw identity 冲突；零 mutation
+      description: 幂等合同或自然身份对应内容冲突；零 mutation
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestID'
@@ -2026,6 +2135,286 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/RuntimeHealth'
+
+    EvidencePublicationDisposition:
+      type: string
+      enum: [created, reused]
+
+    RawEvidence:
+      type: object
+      additionalProperties: false
+      required:
+        - raw_evidence_id
+        - source_id
+        - source_name
+        - source_level
+        - source_url
+        - is_original
+        - raw_text
+        - collected_at
+        - keywords
+      properties:
+        raw_evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        source_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        source_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        source_level:
+          type: string
+          enum: [L1_OFFICIAL, L2_WIRE, L3_MEDIA, L4_SOCIAL]
+        source_url:
+          type: string
+          minLength: 1
+        is_original:
+          type: boolean
+        quoted_source_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+          nullable: true
+        quoted_source_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          nullable: true
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+          nullable: true
+        raw_text:
+          type: string
+          minLength: 1
+        published_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        collected_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        keywords:
+          type: array
+          description: 发布方治理内容；Data 按给定字符串和顺序原样保存。
+          items:
+            type: string
+
+    RawEvidencePublicationRequest:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.RawEvidencePublicationRequest
+      required: [raw_evidence]
+      properties:
+        raw_evidence:
+          $ref: '#/components/schemas/RawEvidence'
+
+    RawEvidencePublicationItemResult:
+      type: object
+      additionalProperties: false
+      required: [raw_evidence_id, content_hash, keywords, disposition]
+      properties:
+        raw_evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        content_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          readOnly: true
+        keywords:
+          type: array
+          items:
+            type: string
+        disposition:
+          $ref: '#/components/schemas/EvidencePublicationDisposition'
+
+    RawEvidencePublicationResult:
+      type: object
+      additionalProperties: false
+      required: [receipt_id, imported_at, raw_evidence]
+      properties:
+        receipt_id:
+          $ref: '#/components/schemas/UUID'
+        imported_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        raw_evidence:
+          $ref: '#/components/schemas/RawEvidencePublicationItemResult'
+
+    RawEvidencePublicationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+        result:
+          $ref: '#/components/schemas/RawEvidencePublicationResult'
+
+    EvidenceLayerType:
+      type: string
+      enum: [SINGLE, DOUBLE]
+
+    AtomicEvidence:
+      type: object
+      additionalProperties: false
+      required:
+        - evidence_id
+        - split_order
+        - layer_type
+        - source_what
+        - expression_fingerprint
+        - expression_key
+        - fingerprint_version
+      properties:
+        evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        split_order:
+          type: integer
+          minimum: 0
+        layer_type:
+          $ref: '#/components/schemas/EvidenceLayerType'
+        source_who:
+          type: string
+          nullable: true
+        source_what:
+          type: string
+          minLength: 1
+        source_when:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        source_when_raw:
+          type: string
+          nullable: true
+        source_where:
+          type: string
+          nullable: true
+        source_why:
+          type: string
+          nullable: true
+        source_how:
+          type: string
+          nullable: true
+        source_who_core:
+          type: string
+          nullable: true
+        source_what_core:
+          type: string
+          nullable: true
+        source_when_core:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        source_when_raw_core:
+          type: string
+          nullable: true
+        source_where_core:
+          type: string
+          nullable: true
+        source_why_core:
+          type: string
+          nullable: true
+        source_how_core:
+          type: string
+          nullable: true
+        expression_fingerprint:
+          type: string
+          minLength: 1
+          maxLength: 200
+        expression_key:
+          type: string
+          minLength: 1
+          maxLength: 64
+        fingerprint_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+
+    EvidencePublicationRequest:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.EvidencePublicationRequest
+      required: [raw_evidence_id, evidences]
+      properties:
+        raw_evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        evidences:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AtomicEvidence'
+
+    EvidencePublicationItemResult:
+      type: object
+      additionalProperties: false
+      required: [evidence_id, split_order, is_split, disposition]
+      properties:
+        evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        split_order:
+          type: integer
+          minimum: 0
+        is_split:
+          type: boolean
+          readOnly: true
+        disposition:
+          $ref: '#/components/schemas/EvidencePublicationDisposition'
+
+    EvidencePublicationCounts:
+      type: object
+      additionalProperties: false
+      required: [evidences_created, evidences_reused]
+      properties:
+        evidences_created:
+          type: integer
+          minimum: 0
+        evidences_reused:
+          type: integer
+          minimum: 0
+
+    EvidencePublicationResult:
+      type: object
+      additionalProperties: false
+      required: [receipt_id, raw_evidence_id, imported_at, evidences, counts]
+      properties:
+        receipt_id:
+          $ref: '#/components/schemas/UUID'
+        raw_evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        imported_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        evidences:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/EvidencePublicationItemResult'
+        counts:
+          $ref: '#/components/schemas/EvidencePublicationCounts'
+
+    EvidencePublicationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+        result:
+          $ref: '#/components/schemas/EvidencePublicationResult'
 
     EventPublicationRequest:
       type: object

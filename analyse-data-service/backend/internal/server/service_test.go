@@ -271,6 +271,12 @@ func serverTestResponse[T any]() (*dataapi.Response[T], error) {
 func (serverTestDataService) ImportReviewedEvents(context.Context, *dataapi.EventPublicationRequest) (*dataapi.Response[dataapi.EventPublicationResult], error) {
 	return serverTestResponse[dataapi.EventPublicationResult]()
 }
+func (serverTestDataService) PublishRawEvidence(context.Context, *dataapi.RawEvidencePublicationRequest) (*dataapi.Response[dataapi.RawEvidencePublicationResult], error) {
+	return serverTestResponse[dataapi.RawEvidencePublicationResult]()
+}
+func (serverTestDataService) PublishEvidence(context.Context, *dataapi.EvidencePublicationRequest) (*dataapi.Response[dataapi.EvidencePublicationResult], error) {
+	return serverTestResponse[dataapi.EvidencePublicationResult]()
+}
 func (serverTestDataService) ListActiveEventTags(context.Context, *dataapi.EventTagCatalogRequest) (*dataapi.Response[dataapi.EventTagCatalog], error) {
 	return serverTestResponse[dataapi.EventTagCatalog]()
 }

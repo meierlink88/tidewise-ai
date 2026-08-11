@@ -1,0 +1,49 @@
+{
+  "raw_evidence_id": "RAW_fixture_00000000000000000000",
+  "evidences": [
+    {
+      "evidence_id": "EVD_fixture_00000000000000000000",
+      "split_order": 0,
+      "layer_type": "SINGLE",
+      "source_who": "Example Corp",
+      "source_what": "Example Corp expanded production.",
+      "source_when": "2026-08-10T00:00:00Z",
+      "source_when_raw": "August 10",
+      "source_where": null,
+      "source_why": null,
+      "source_how": null,
+      "source_who_core": null,
+      "source_what_core": null,
+      "source_when_core": null,
+      "source_when_raw_core": null,
+      "source_where_core": null,
+      "source_why_core": null,
+      "source_how_core": null,
+      "expression_fingerprint": "Example Corp expands production",
+      "expression_key": "example-corp-expands-production-v1",
+      "fingerprint_version": "evidence-expression.v1"
+    },
+    {
+      "evidence_id": "EVD_fixture_00000000000000000001",
+      "split_order": 1,
+      "layer_type": "SINGLE",
+      "source_who": "Example Corp",
+      "source_what": "A second statement supports the same normalized fact.",
+      "source_when": "2026-08-10T00:00:00Z",
+      "source_when_raw": "August 10",
+      "source_where": null,
+      "source_why": null,
+      "source_how": null,
+      "source_who_core": null,
+      "source_what_core": null,
+      "source_when_core": null,
+      "source_when_raw_core": null,
+      "source_where_core": null,
+      "source_why_core": null,
+      "source_how_core": null,
+      "expression_fingerprint": "Example Corp expands production",
+      "expression_key": "example-corp-expands-production-v1",
+      "fingerprint_version": "evidence-expression.v1"
+    }
+  ]
+}

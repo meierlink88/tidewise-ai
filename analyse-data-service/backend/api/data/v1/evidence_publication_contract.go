@@ -1,0 +1,84 @@
+package v1
+
+import "time"
+
+type RawEvidencePublicationRequest struct {
+	RawEvidence RawEvidence `json:"raw_evidence"`
+}
+
+type RawEvidence struct {
+	RawEvidenceID    string     `json:"raw_evidence_id"`
+	SourceID         string     `json:"source_id"`
+	SourceName       string     `json:"source_name"`
+	SourceLevel      string     `json:"source_level"`
+	SourceURL        string     `json:"source_url"`
+	IsOriginal       bool       `json:"is_original"`
+	QuotedSourceID   *string    `json:"quoted_source_id"`
+	QuotedSourceName *string    `json:"quoted_source_name"`
+	Title            *string    `json:"title"`
+	RawText          string     `json:"raw_text"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CollectedAt      time.Time  `json:"collected_at"`
+	Keywords         []string   `json:"keywords"`
+}
+
+type EvidencePublicationRequest struct {
+	RawEvidenceID string           `json:"raw_evidence_id"`
+	Evidences     []AtomicEvidence `json:"evidences"`
+}
+
+type AtomicEvidence struct {
+	EvidenceID            string     `json:"evidence_id"`
+	SplitOrder            int        `json:"split_order"`
+	LayerType             string     `json:"layer_type"`
+	SourceWho             *string    `json:"source_who"`
+	SourceWhat            string     `json:"source_what"`
+	SourceWhen            *time.Time `json:"source_when"`
+	SourceWhenRaw         *string    `json:"source_when_raw"`
+	SourceWhere           *string    `json:"source_where"`
+	SourceWhy             *string    `json:"source_why"`
+	SourceHow             *string    `json:"source_how"`
+	SourceWhoCore         *string    `json:"source_who_core"`
+	SourceWhatCore        *string    `json:"source_what_core"`
+	SourceWhenCore        *time.Time `json:"source_when_core"`
+	SourceWhenRawCore     *string    `json:"source_when_raw_core"`
+	SourceWhereCore       *string    `json:"source_where_core"`
+	SourceWhyCore         *string    `json:"source_why_core"`
+	SourceHowCore         *string    `json:"source_how_core"`
+	ExpressionFingerprint string     `json:"expression_fingerprint"`
+	ExpressionKey         string     `json:"expression_key"`
+	FingerprintVersion    string     `json:"fingerprint_version"`
+}
+
+type RawEvidencePublicationResult struct {
+	ReceiptID   string                           `json:"receipt_id"`
+	ImportedAt  time.Time                        `json:"imported_at"`
+	RawEvidence RawEvidencePublicationItemResult `json:"raw_evidence"`
+}
+
+type RawEvidencePublicationItemResult struct {
+	RawEvidenceID string   `json:"raw_evidence_id"`
+	ContentHash   string   `json:"content_hash"`
+	Keywords      []string `json:"keywords"`
+	Disposition   string   `json:"disposition"`
+}
+
+type EvidencePublicationResult struct {
+	ReceiptID     string                          `json:"receipt_id"`
+	RawEvidenceID string                          `json:"raw_evidence_id"`
+	ImportedAt    time.Time                       `json:"imported_at"`
+	Evidences     []EvidencePublicationItemResult `json:"evidences"`
+	Counts        EvidencePublicationCounts       `json:"counts"`
+}
+
+type EvidencePublicationItemResult struct {
+	EvidenceID  string `json:"evidence_id"`
+	SplitOrder  int    `json:"split_order"`
+	IsSplit     bool   `json:"is_split"`
+	Disposition string `json:"disposition"`
+}
+
+type EvidencePublicationCounts struct {
+	EvidencesCreated int `json:"evidences_created"`
+	EvidencesReused  int `json:"evidences_reused"`
+}

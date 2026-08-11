@@ -15,6 +15,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantics"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventtagcatalog"
+	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidencepublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
@@ -24,6 +25,7 @@ import (
 	adminquerydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/adminquery"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 	eventpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventpublication"
+	evidencepublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidencepublication"
 	neo4jdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/neo4j"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
@@ -74,6 +76,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 
 	application := service.NewDataService(service.Dependencies{
 		EventPublications:       eventpublication.NewService(eventpublicationdata.NewRepository(db)),
+		EvidencePublications:    evidencepublication.NewService(evidencepublicationdata.NewRepository(db)),
 		EventTagCatalog:         eventtagcatalog.NewService(postgres.NewEventTagCatalogRepository(db)),
 		EventSemantics:          eventsemantics.NewService(postgres.NewEventSemanticsStore(db)),
 		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
@@ -100,6 +103,8 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 			Secret: config.Secrets.ServiceToken,
 			Principal: v1.Principal{Identity: "tidewise-internal-service", Scopes: []string{
 				server.ScopeReviewedEventImport,
+				server.ScopeRawEvidenceImport,
+				server.ScopeEvidenceImport,
 				server.ScopeEventTagRead,
 				server.ScopeEventSemanticsRead,
 				server.ScopeEventSemanticsWrite,

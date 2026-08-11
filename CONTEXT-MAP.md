@@ -11,11 +11,12 @@ API 协作的边界。
 | Miniapp      | 产品系统 | `miniapp/frontend` 与 `miniapp/backend`                  | `docs/contexts/miniapp/CONTEXT.md`     |
 | Admin Portal | 产品系统 | `admin-portal/frontend` 与 `admin-portal/backend`        | `docs/contexts/adminportal/CONTEXT.md` |
 | Data         | 领域系统 | `analyse-data-service/backend`、数据事实、导入和查询能力 | `docs/contexts/data/CONTEXT.md`        |
-| AgentRun     | Agent 平台 | `agent-run/backend`、Agent 执行、调度、配置与 Artifact | `docs/contexts/agentrun/CONTEXT.md`    |
+| AgentRun     | 遗留 Agent 平台 | `agent-run/backend`、待独立退役的执行与 Artifact 能力 | `docs/contexts/agentrun/CONTEXT.md`    |
 
-`analyse-data-service` 是工程应用名，领域术语仍为 Data Domain Service。AgentRun
-虽已纳入本仓库，仍拥有独立事实、PostgreSQL 数据库、migration ledger 与 Artifact
-持久化边界；也可以新增 User、Payment 等 Domain Service，但不得把领域能力放回没有
+`analyse-data-service` 是工程应用名，领域术语仍为 Data Domain Service。AgentRun 的既有
+运行时、PostgreSQL、migration ledger 与 Artifact 在退役前继续物理隔离，但新的完整
+Raw Evidence 与原子 Evidence 已由 Data 拥有；旧 AgentRun 数据的搬迁和运行时下架属于
+独立 rollout。也可以新增 User、Payment 等 Domain Service，但不得把领域能力放回没有
 owner 的共享业务目录。
 
 ## Allowed Dependencies
@@ -32,8 +33,11 @@ Admin Portal Frontend
       -> AgentRun Admin REST API
       -> future User/Payment Domain Service REST API
 
-Tidewise Data Domain Service
-  <-> AgentRun versioned execution/publication REST APIs
+AgentOS or legacy AgentRun
+  -> Data Domain Service versioned publication/read REST APIs
+
+Data Domain Service
+  -> no AgentOS/AgentRun runtime, database, Artifact, or code dependency
 ```
 
 禁止依赖：
@@ -58,3 +62,4 @@ Tidewise Data Domain Service
 - `docs/adr/0002-backend-service-architecture.md`
 - `docs/adr/0006-kratos-official-service-layout.md`
 - `docs/adr/0007-app-oriented-monorepo.md`
+- `docs/adr/0011-data-owns-raw-evidence-and-evidence-publication.md`

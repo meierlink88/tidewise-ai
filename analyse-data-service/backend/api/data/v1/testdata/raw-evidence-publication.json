@@ -1,0 +1,17 @@
+{
+  "raw_evidence": {
+    "raw_evidence_id": "RAW_fixture_00000000000000000000",
+    "source_id": "SRC_fixture_00000000000000000000",
+    "source_name": "Example Wire",
+    "source_level": "L2_WIRE",
+    "source_url": "https://example.test/articles/evidence-fixture",
+    "is_original": true,
+    "quoted_source_id": null,
+    "quoted_source_name": null,
+    "title": "Neutral provider fixture",
+    "raw_text": "A complete original article used by a contract-neutral publication fixture.",
+    "published_at": "2026-08-11T01:00:00Z",
+    "collected_at": "2026-08-11T01:05:00Z",
+    "keywords": [" AI芯片 ", "供应链", "AI芯片"]
+  }
+}

@@ -2,6 +2,8 @@ package v1
 
 const (
 	OperationPublishReviewedEvents           = "data.v1.publishReviewedEvents"
+	OperationPublishRawEvidence              = "data.v1.publishRawEvidence"
+	OperationPublishEvidence                 = "data.v1.publishEvidence"
 	OperationListActiveEventTags             = "data.v1.listActiveEventTags"
 	OperationPublishResearchTheme            = "data.v1.publishResearchTheme"
 	OperationListResearchThemes              = "data.v1.listResearchThemes"
@@ -23,6 +25,8 @@ const (
 
 var BusinessOperations = []string{
 	OperationPublishReviewedEvents,
+	OperationPublishRawEvidence,
+	OperationPublishEvidence,
 	OperationListActiveEventTags,
 	OperationPublishResearchTheme,
 	OperationListResearchThemes,

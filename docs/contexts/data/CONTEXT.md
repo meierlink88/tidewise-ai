@@ -7,10 +7,13 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 ## Owns
 
 - Entity、产业链节点及关系、Benchmark、Index 等主数据。
+- 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性去重身份。
 - 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration、repository 和 Neo4j 可重建投影。
-- AgentRun 使用的 Event Publication API、自然身份收敛、receipt 和事务规则。
+- 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
+  receipt 和事务规则。
+- AgentRun 使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
 - Data Service 与其 Neo4j 投影存储的只读运行健康投影；Neo4j 探测使用独立、最小权限凭据。
 
@@ -18,21 +21,56 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 - Miniapp 或 Admin Portal 的页面 DTO、交互状态和展示逻辑。
 - User、Auth、Payment、Subscription 等未来独立领域。
-- Source 主数据、完整原始 Artifact、数据采集 connector、parser、采集 prompt 或采集调度执行。
+- 数据采集 connector、parser、采集 prompt、采集调度执行或清洗/语义判断工作流。
 - Agent 的模型推理和工作流运行。
 
-## AgentRun Boundary
+## Acquisition And Agent Boundary
 
-位于本仓库 `agent-run/backend/` 的 AgentRun 拥有 Source 主数据、采集调度、采集
-执行、完整原始 Artifact 和 Event 提取工作流。物理共仓不改变 ownership：AgentRun
-只能按照 Data 定义的版本化 Event Publication 合同提交已提取 Event 及其证据引用，
-不直接访问 Data 数据库；Data 不维护 Source Catalog，也不接纳未产生正式 Event 的
-采集 Artifact。
+Data 拥有正式 Raw Evidence、Evidence 及发布合同；AgentOS 或退役前的 AgentRun 只拥有
+采集、关键词生成、清洗和语义提取执行。执行方必须通过 Data 的版本化 API 发布，不直接
+访问 Data 数据库。Data 不反向调用、不 import、也不读取 AgentOS/AgentRun 数据库或本地
+Artifact。Source Catalog 和采集控制面是否迁入 Data 属于独立需求，不由本次 Evidence
+Publication 恢复。
 
-Tidewise 中遗留的 Source Catalog、采集调度与采集运行控制面通过保留 `raw_documents` 来源快照的 forward migration 物理移除；该收敛不得删除历史 Event、Evidence Record 或既有证据关联。
-Data 的 AgentRun Source Metadata、Admin Source Catalog 查询，以及 Admin Portal 对应代理接口、Client、Repository、Seed 和专属测试一并移除，不保留静态兼容路由；AgentRun 仅使用自身 Source Catalog。
+既有 Event Publication 的轻量 `raw_documents` 与 `event_sources` 继续服务现有 Event
+业务；它们不是 Raw Evidence 或原子 Evidence，不与新表共享身份、外键或发布事务。
+AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 行回填不在本次范围。
 
 ## Language
+
+**Raw Evidence**:
+Data 正式保存的一份完整原始采集材料，包含来源与转载快照、完整正文、文章发布时间、
+采集时间、正文哈希和有序 Keywords。它可以在清洗完成前暂时没有 Evidence，但不能以
+零 Evidence 作为正式清洗结果。
+_Avoid_: Event Evidence Record、AgentRun Artifact、Raw Document、只含摘录的证据链接
+
+**Raw Evidence Keywords**:
+发布方随 Raw Evidence 提交的有序阅读辅助字符串列表，顺序表达重要性。其内容规则由
+发布方治理；Data 原样保存，不生成、不规范化，也不将它用于 Evidence 拆分或去重。
+_Avoid_: Evidence、Tag、Expression Key、Data 生成关键词
+
+**Atomic Evidence**:
+清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子 5W1H 事实表达。一个 Raw
+Evidence 正式清洗后必须拥有一至多条 Atomic Evidence；`1:1` 表示未拆分，`1:N` 表示
+各子项由拆分产生。
+_Avoid_: Event Evidence Link、完整 Raw Evidence、Evidence Group、Event
+
+**Evidence Deduplication Identity**:
+发布方为 Atomic Evidence 提交的 `expression_fingerprint`、可重复的稳定
+`expression_key` 与 `fingerprint_version`。共享同一 key 的多来源 Evidence 必须全部
+保留；Data 只校验格式与不可变一致性，不判断两个表达是否语义相同。
+_Avoid_: Evidence Group 实体、唯一 expression_key、Data 语义召回、embedding
+
+**Raw Evidence Publication**:
+采集完成后把一份完整 Raw Evidence 及其 Keywords 原子接纳为正式 Data 事实的同步发布。
+相同身份内容一致时复用，内容漂移时冲突；每次成功调用产生新的不可变 Receipt。
+_Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
+
+**Evidence Publication**:
+清洗完成后，为一个既有 Raw Evidence 一次提交完整 `1..N` Atomic Evidence 集合的同步
+发布。整包只能创建或逐字段一致地复用，不能覆盖、追加、删除或发布零项；每次成功调用
+产生新的不可变 Receipt。
+_Avoid_: Raw Evidence Publication、Group Publication、部分成功、可变清洗结果
 
 **Data Runtime Health Projection**:
 Data Service 对自身既有 readiness 语义和 Neo4j 投影存储连接性的只读即时状态。
@@ -61,8 +99,10 @@ _Avoid_: AI 自由关系字符串、无语义的 related_to
 活动的 Chain Node，也不等同于标准化可交易的 Commodity。
 _Avoid_: Chain Node、Commodity、Technology、产品名称 Mention
 
-**AgentRun Artifact**:
-AgentRun 在采集执行中生成并长期保存的不可变原始文档对象，包含完整 Markdown 正文和全局唯一 Artifact 身份。它只属于 AgentRun；Data 不保存其存储位置，不读取或校验原文。
+**Legacy AgentRun Artifact**:
+既有 Event Publication 链路中由 AgentRun 采集执行生成的不可变原始文档对象。Data 不读取
+该遗留执行方的数据库或 Artifact 存储位置；新的完整原始材料通过 Raw Evidence
+Publication 进入 Data，并不复用该遗留对象。
 _Avoid_: Data Raw Document、Event Evidence Record、Data 原始语料
 
 **Event Evidence Record**:

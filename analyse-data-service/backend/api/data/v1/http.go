@@ -17,6 +17,8 @@ const (
 
 type DataHTTPServer interface {
 	ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error)
+	PublishRawEvidence(context.Context, *RawEvidencePublicationRequest) (*Response[RawEvidencePublicationResult], error)
+	PublishEvidence(context.Context, *EvidencePublicationRequest) (*Response[EvidencePublicationResult], error)
 	ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error)
 	PublishResearchTheme(context.Context, *ResearchThemeImportRequest) (*Response[ResearchThemeImportResult], error)
 	ListResearchThemes(context.Context, *ListResearchThemesRequest) (*Response[ResearchThemePage], error)
@@ -39,6 +41,8 @@ type DataHTTPServer interface {
 func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
 	router := server.Route(APIPrefix)
 	router.POST("/reviewed-event-imports", eventPublicationImportHandler(application))
+	router.POST("/raw-evidence-publications", rawEvidencePublicationHandler(application))
+	router.POST("/evidence-publications", evidencePublicationHandler(application))
 	router.GET("/event-tags", listActiveEventTagsHandler(application))
 	router.POST("/research-theme-imports", researchThemeImportHandler(application))
 	router.GET("/research/themes", listResearchThemesHandler(application))
@@ -56,6 +60,38 @@ func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServe
 	router.GET("/research-analysis-context", listResearchAnalysisContextHandler(application))
 	router.POST("/research-graph:search", searchResearchGraphHandler(application))
 	router.GET("/runtime-health", runtimeHealthHandler(application))
+}
+
+func rawEvidencePublicationHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		payload, err := readImportPayload(ctx)
+		if err != nil {
+			return err
+		}
+		request, err := decodeRawEvidencePublication(payload)
+		if err != nil {
+			return err
+		}
+		return call(ctx, OperationPublishRawEvidence, request, func(callContext context.Context) (*Response[RawEvidencePublicationResult], error) {
+			return application.PublishRawEvidence(callContext, request)
+		})
+	}
+}
+
+func evidencePublicationHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		payload, err := readImportPayload(ctx)
+		if err != nil {
+			return err
+		}
+		request, err := decodeEvidencePublication(payload)
+		if err != nil {
+			return err
+		}
+		return call(ctx, OperationPublishEvidence, request, func(callContext context.Context) (*Response[EvidencePublicationResult], error) {
+			return application.PublishEvidence(callContext, request)
+		})
+	}
 }
 
 func runtimeHealthHandler(application DataHTTPServer) kratoshttp.HandlerFunc {

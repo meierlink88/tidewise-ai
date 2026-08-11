@@ -69,6 +69,16 @@ func TestDataRuntimeRoutesMatchOpenAPIContract(t *testing.T) {
 			requestPath: APIPrefix + "/reviewed-event-imports",
 			operation:   "data.v1.publishReviewedEvents",
 		},
+		"POST " + APIPrefix + "/raw-evidence-publications": {
+			requestPath: APIPrefix + "/raw-evidence-publications",
+			operation:   "data.v1.publishRawEvidence",
+			body:        `{"raw_evidence":{"raw_evidence_id":"RAW_example_00000000000000000000","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"Complete original article.","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+		},
+		"POST " + APIPrefix + "/evidence-publications": {
+			requestPath: APIPrefix + "/evidence-publications",
+			operation:   "data.v1.publishEvidence",
+			body:        `{"raw_evidence_id":"RAW_example_00000000000000000000","evidences":[{"evidence_id":"EVD_example_00000000000000000000","split_order":0,"layer_type":"SINGLE","source_what":"Example Corp expanded production.","expression_fingerprint":"Example Corp expands production","expression_key":"example-corp-expands-production-v1","fingerprint_version":"evidence-expression.v1"}]}`,
+		},
 		"POST " + APIPrefix + "/research-theme-imports": {
 			requestPath: APIPrefix + "/research-theme-imports",
 			operation:   "data.v1.publishResearchTheme",
@@ -256,6 +266,12 @@ func testResponse[T any]() (*Response[T], error) {
 }
 func (testDataHTTPServer) ImportReviewedEvents(context.Context, *EventPublicationRequest) (*Response[EventPublicationResult], error) {
 	return testResponse[EventPublicationResult]()
+}
+func (testDataHTTPServer) PublishRawEvidence(context.Context, *RawEvidencePublicationRequest) (*Response[RawEvidencePublicationResult], error) {
+	return testResponse[RawEvidencePublicationResult]()
+}
+func (testDataHTTPServer) PublishEvidence(context.Context, *EvidencePublicationRequest) (*Response[EvidencePublicationResult], error) {
+	return testResponse[EvidencePublicationResult]()
 }
 func (testDataHTTPServer) ListActiveEventTags(context.Context, *EventTagCatalogRequest) (*Response[EventTagCatalog], error) {
 	return testResponse[EventTagCatalog]()

@@ -1,5 +1,6 @@
 ---
 status: accepted
+superseded_in_part: 0011-data-owns-raw-evidence-and-evidence-publication.md
 ---
 
 # AgentRun 拥有 Source 与原始 Artifact，Data 只接纳 Event 证据

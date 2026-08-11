@@ -15,6 +15,8 @@ type bindingShape struct {
 	item     *bindingShape
 	any      bool
 	string   bool
+	boolean  bool
+	integer  bool
 	null     bool
 	required []string
 }
@@ -22,6 +24,8 @@ type bindingShape struct {
 var scalarShape = &bindingShape{}
 var anyShape = &bindingShape{any: true}
 var stringShape = &bindingShape{string: true}
+var booleanShape = &bindingShape{boolean: true}
+var integerShape = &bindingShape{integer: true}
 var nullableStringShape = &bindingShape{string: true, null: true}
 
 func objectShape(fields map[string]*bindingShape) *bindingShape {
@@ -42,6 +46,56 @@ func decodeEventPublication(payload []byte) (*EventPublicationRequest, error) {
 		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for this contract", nil)
 	}
 	return request, nil
+}
+
+func decodeRawEvidencePublication(payload []byte) (*RawEvidencePublicationRequest, error) {
+	request := new(RawEvidencePublicationRequest)
+	if err := decodeStrictBinding(payload, rawEvidencePublicationShape(), request); err != nil {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Raw Evidence Publication contract", nil)
+	}
+	return request, nil
+}
+
+func decodeEvidencePublication(payload []byte) (*EvidencePublicationRequest, error) {
+	request := new(EvidencePublicationRequest)
+	if err := decodeStrictBinding(payload, evidencePublicationShape(), request); err != nil {
+		return nil, NewPublicError(StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Evidence Publication contract", nil)
+	}
+	return request, nil
+}
+
+func rawEvidencePublicationShape() *bindingShape {
+	raw := requiredObjectShape([]string{
+		"raw_evidence_id", "source_id", "source_name", "source_level", "source_url",
+		"is_original", "raw_text", "collected_at", "keywords",
+	}, map[string]*bindingShape{
+		"raw_evidence_id": stringShape, "source_id": stringShape, "source_name": stringShape,
+		"source_level": stringShape, "source_url": stringShape, "is_original": booleanShape,
+		"quoted_source_id": nullableStringShape, "quoted_source_name": nullableStringShape,
+		"title": nullableStringShape, "raw_text": stringShape, "published_at": nullableStringShape,
+		"collected_at": stringShape, "keywords": arrayShape(stringShape),
+	})
+	return requiredObjectShape([]string{"raw_evidence"}, map[string]*bindingShape{"raw_evidence": raw})
+}
+
+func evidencePublicationShape() *bindingShape {
+	evidence := requiredObjectShape([]string{
+		"evidence_id", "split_order", "layer_type", "source_what",
+		"expression_fingerprint", "expression_key", "fingerprint_version",
+	}, map[string]*bindingShape{
+		"evidence_id": stringShape, "split_order": integerShape, "layer_type": stringShape,
+		"source_who": nullableStringShape, "source_what": stringShape, "source_when": nullableStringShape,
+		"source_when_raw": nullableStringShape, "source_where": nullableStringShape,
+		"source_why": nullableStringShape, "source_how": nullableStringShape,
+		"source_who_core": nullableStringShape, "source_what_core": nullableStringShape,
+		"source_when_core": nullableStringShape, "source_when_raw_core": nullableStringShape,
+		"source_where_core": nullableStringShape, "source_why_core": nullableStringShape,
+		"source_how_core": nullableStringShape, "expression_fingerprint": stringShape,
+		"expression_key": stringShape, "fingerprint_version": stringShape,
+	})
+	return requiredObjectShape([]string{"raw_evidence_id", "evidences"}, map[string]*bindingShape{
+		"raw_evidence_id": stringShape, "evidences": arrayShape(evidence),
+	})
 }
 
 func decodeResearchThemeImport(payload []byte) (*ResearchThemeImportRequest, error) {
@@ -253,6 +307,22 @@ func validateBindingValue(decoder *json.Decoder, shape *bindingShape, path strin
 	if shape.string {
 		if _, ok := token.(string); !ok {
 			return &bindingError{path: path, err: fmt.Errorf("must be a JSON string")}
+		}
+		return nil
+	}
+	if shape.boolean {
+		if _, ok := token.(bool); !ok {
+			return &bindingError{path: path, err: fmt.Errorf("must be a JSON boolean")}
+		}
+		return nil
+	}
+	if shape.integer {
+		number, ok := token.(json.Number)
+		if !ok {
+			return &bindingError{path: path, err: fmt.Errorf("must be a JSON integer")}
+		}
+		if _, err := strconv.ParseInt(number.String(), 10, 64); err != nil {
+			return &bindingError{path: path, err: fmt.Errorf("must be a JSON integer")}
 		}
 		return nil
 	}
