@@ -101,7 +101,8 @@ func (c *Client) ActiveEventTags(ctx context.Context) (eventfact.TagCatalog, err
 	seenIDs := make(map[string]struct{}, len(response.Result.Tags))
 	seenIdentities := make(map[string]struct{}, len(response.Result.Tags))
 	for position, tag := range response.Result.Tags {
-		if _, err := uuid.Parse(tag.ID); err != nil ||
+		parsedID, idErr := uuid.Parse(tag.ID)
+		if idErr != nil || parsedID.String() != tag.ID ||
 			tag.ID != strings.TrimSpace(tag.ID) ||
 			tag.Kind != strings.TrimSpace(tag.Kind) ||
 			tag.Code != strings.TrimSpace(tag.Code) || tag.Code == "" || utf8.RuneCountInString(tag.Code) > 100 ||

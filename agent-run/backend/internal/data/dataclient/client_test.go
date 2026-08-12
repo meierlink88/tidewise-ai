@@ -90,6 +90,8 @@ func TestClientRejectsMalformedCurrentTagCollections(t *testing.T) {
 		{name: "empty", result: `{"tags":[]}`},
 		{name: "inactive", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"technology","name":"科技","is_active":false}]}`},
 		{name: "invalid UUID", result: `{"tags":[{"id":"not-a-uuid","tag_kind":"news_category","code":"technology","name":"科技","is_active":true}]}`},
+		{name: "raw hex UUID", result: `{"tags":[{"id":"11111111111141118111111111111111","tag_kind":"news_category","code":"technology","name":"科技","is_active":true}]}`},
+		{name: "braced UUID", result: `{"tags":[{"id":"{11111111-1111-4111-8111-111111111111}","tag_kind":"news_category","code":"technology","name":"科技","is_active":true}]}`},
 		{name: "whitespace-only code", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":" ","name":"科技","is_active":true}]}`},
 		{name: "code too long", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"` + strings.Repeat("a", 101) + `","name":"科技","is_active":true}]}`},
 		{name: "name too long", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"technology","name":"` + strings.Repeat("科", 201) + `","is_active":true}]}`},
