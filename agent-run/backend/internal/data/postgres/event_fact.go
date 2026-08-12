@@ -162,14 +162,13 @@ func (s *Store) EnqueueWork(
 	err = s.database.QueryRow(ctx, `
 		SELECT work_item_key, collector_execution_ids::text[], extractor_agent_version,
 		       status, COALESCE(current_execution_id::text, ''), extraction_result,
-		       COALESCE(tag_catalog_revision, ''), COALESCE(tag_catalog_hash, ''),
 		       created_at, updated_at
 		FROM event_extraction_work_items
 		WHERE work_item_key = $1
 	`, key).Scan(
 		&work.Key, &work.CollectorExecutionIDs, &work.ExtractorAgentVersion,
 		&work.Status, &work.CurrentExecutionID, &result,
-		&work.TagCatalogRevision, &work.TagCatalogHash, &work.CreatedAt, &work.UpdatedAt,
+		&work.CreatedAt, &work.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return eventfact.WorkItem{}, false, errors.New("Collector Executions are not eligible for Event extraction")
@@ -187,7 +186,6 @@ func (s *Store) NextUnplannedWork(ctx context.Context) (eventfact.WorkItem, bool
 	err := s.database.QueryRow(ctx, `
 		SELECT work_item_key, collector_execution_ids::text[], extractor_agent_version,
 		       status, COALESCE(current_execution_id::text, ''), extraction_result,
-		       COALESCE(tag_catalog_revision, ''), COALESCE(tag_catalog_hash, ''),
 		       created_at, updated_at
 		FROM event_extraction_work_items w
 		WHERE w.status = 'pending'
@@ -201,7 +199,7 @@ func (s *Store) NextUnplannedWork(ctx context.Context) (eventfact.WorkItem, bool
 	`).Scan(
 		&work.Key, &work.CollectorExecutionIDs, &work.ExtractorAgentVersion,
 		&work.Status, &work.CurrentExecutionID, &result,
-		&work.TagCatalogRevision, &work.TagCatalogHash, &work.CreatedAt, &work.UpdatedAt,
+		&work.CreatedAt, &work.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return eventfact.WorkItem{}, false, nil
@@ -297,12 +295,10 @@ func (s *Store) ClaimNextWork(
 	err = tx.QueryRow(ctx, `
 		SELECT w.work_item_key, w.collector_execution_ids::text[], w.extractor_agent_version,
 		       w.status, COALESCE(w.current_execution_id::text, ''), w.extraction_result,
-		       COALESCE(w.tag_catalog_revision, ''), COALESCE(w.tag_catalog_hash, ''),
 		       w.created_at, w.updated_at,
 		       u.unit_key, u.work_item_key, u.artifact_ordinal, u.artifact_id,
 		       u.collector_execution_id::text, u.content_sha256, u.status,
 		       COALESCE(u.current_execution_id::text, ''), u.extraction_result,
-		       COALESCE(u.tag_catalog_revision, ''), COALESCE(u.tag_catalog_hash, ''),
 		       u.created_at, u.updated_at
 		FROM event_artifact_extraction_units u
 		JOIN event_extraction_work_items w ON w.work_item_key = u.work_item_key
@@ -320,11 +316,11 @@ func (s *Store) ClaimNextWork(
 	`).Scan(
 		&work.Key, &work.CollectorExecutionIDs, &work.ExtractorAgentVersion,
 		&work.Status, &work.CurrentExecutionID, &result,
-		&work.TagCatalogRevision, &work.TagCatalogHash, &work.CreatedAt, &work.UpdatedAt,
+		&work.CreatedAt, &work.UpdatedAt,
 		&unit.Key, &unit.WorkItemKey, &unit.ArtifactOrdinal, &unit.ArtifactID,
 		&unit.CollectorExecutionID, &unit.ContentSHA256, &unit.Status,
 		&unit.CurrentExecutionID, &unit.ExtractionResult,
-		&unit.TagCatalogRevision, &unit.TagCatalogHash, &unit.CreatedAt, &unit.UpdatedAt,
+		&unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(ctx); err != nil {
@@ -495,40 +491,6 @@ func (s *Store) SetAwaitingTagCatalog(
 		WHERE execution_id = $1 AND status = 'running'
 	`, attempt.ID, errorSummary, now.UTC()); err != nil {
 		return fmt.Errorf("complete awaiting Catalog Execution: %w", err)
-	}
-	return tx.Commit(ctx)
-}
-
-func (s *Store) SetExecutionCatalog(
-	ctx context.Context,
-	executionID, revision, hash string,
-	now time.Time,
-) error {
-	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `
-		UPDATE event_extractor_executions
-		SET tag_catalog_revision = $2, tag_catalog_hash = $3
-		WHERE execution_id = $1
-	`, executionID, revision, hash); err != nil {
-		return fmt.Errorf("snapshot Event Tag Catalog: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE event_artifact_extraction_units u
-		SET tag_catalog_revision = $2, tag_catalog_hash = $3, updated_at = $4
-		WHERE current_execution_id = $1
-	`, executionID, revision, hash, now.UTC()); err != nil {
-		return fmt.Errorf("snapshot Artifact Unit Tag Catalog: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE event_extraction_work_items w
-		SET tag_catalog_revision = $2, tag_catalog_hash = $3, updated_at = $4
-		WHERE current_execution_id = $1
-	`, executionID, revision, hash, now.UTC()); err != nil {
-		return fmt.Errorf("snapshot Work Item Tag Catalog: %w", err)
 	}
 	return tx.Commit(ctx)
 }

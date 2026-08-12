@@ -4,6 +4,10 @@ status: accepted
 
 # AgentRun Event Fact Extractor V1
 
+> `event-fact-extractor.v1` 的 Tag Catalog revision/hash 快照属于历史合同。当前
+> `event-fact-extractor.v2` 由 Issue #211 修订为 Data PostgreSQL 唯一当前 Catalog；新执行不再
+> 接收、重算或持久化 Catalog revision/hash。V1 其余历史执行语义保持不变。
+
 ## 1. Outcome
 
 `event-fact-extractor.v1` 是独立于 Collector 的 Agent Definition。它读取明确

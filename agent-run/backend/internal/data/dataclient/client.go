@@ -3,8 +3,6 @@ package dataclient
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +11,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventfact"
 )
 
@@ -47,6 +47,12 @@ type publicationResult struct {
 	Events       json.RawMessage `json:"events"`
 	RawDocuments json.RawMessage `json:"raw_documents"`
 	Counts       json.RawMessage `json:"counts"`
+}
+
+type tagCatalogWire struct {
+	CatalogRevision string          `json:"catalog_revision,omitempty"`
+	CatalogHash     string          `json:"catalog_hash,omitempty"`
+	Tags            []eventfact.Tag `json:"tags"`
 }
 
 type errorEnvelope struct {
@@ -85,46 +91,49 @@ func New(config Config) (*Client, error) {
 }
 
 func (c *Client) ActiveEventTags(ctx context.Context) (eventfact.TagCatalog, error) {
-	var response envelope[eventfact.TagCatalog]
+	var response envelope[tagCatalogWire]
 	if err := c.do(ctx, http.MethodGet, dataAPIPrefix+"/event-tags?active=true", nil, &response); err != nil {
 		return eventfact.TagCatalog{}, err
 	}
-	if response.Result.Revision == "" || len(response.Result.Hash) != 64 || len(response.Result.Tags) == 0 {
-		return eventfact.TagCatalog{}, &eventfact.RemoteError{
-			Code: "invalid_tag_catalog", Summary: "Data Service returned an invalid Tag Catalog",
-		}
+	if len(response.Result.Tags) == 0 {
+		return eventfact.TagCatalog{}, invalidTagCatalog("Data Service returned an invalid Tag Catalog")
 	}
+	seenIDs := make(map[string]struct{}, len(response.Result.Tags))
+	seenIdentities := make(map[string]struct{}, len(response.Result.Tags))
 	for position, tag := range response.Result.Tags {
-		if tag.ID == "" || tag.Kind == "" || tag.Code == "" || tag.Name == "" || !tag.IsActive {
-			return eventfact.TagCatalog{}, &eventfact.RemoteError{
-				Code: "invalid_tag_catalog", Summary: "Data Service returned an invalid Tag Catalog",
-			}
+		parsedID, idErr := uuid.Parse(tag.ID)
+		if idErr != nil || parsedID.String() != tag.ID ||
+			tag.ID != strings.TrimSpace(tag.ID) ||
+			tag.Kind != strings.TrimSpace(tag.Kind) ||
+			tag.Code != strings.TrimSpace(tag.Code) || tag.Code == "" || utf8.RuneCountInString(tag.Code) > 100 ||
+			tag.Name != strings.TrimSpace(tag.Name) || tag.Name == "" || utf8.RuneCountInString(tag.Name) > 200 ||
+			!tag.IsActive ||
+			(tag.Kind != eventfact.TagKindNewsCategory && tag.Kind != eventfact.TagKindIndexCategory) {
+			return eventfact.TagCatalog{}, invalidTagCatalog("Data Service returned an invalid Tag Catalog")
 		}
+		identity := tag.Kind + "\x00" + tag.Code
+		if _, exists := seenIDs[tag.ID]; exists {
+			return eventfact.TagCatalog{}, invalidTagCatalog("Data Service returned duplicate Event Tags")
+		}
+		if _, exists := seenIdentities[identity]; exists {
+			return eventfact.TagCatalog{}, invalidTagCatalog("Data Service returned duplicate Event Tags")
+		}
+		seenIDs[tag.ID] = struct{}{}
+		seenIdentities[identity] = struct{}{}
 		if position > 0 {
 			previous := response.Result.Tags[position-1]
 			if previous.Kind > tag.Kind ||
 				(previous.Kind == tag.Kind && previous.Code > tag.Code) ||
 				(previous.Kind == tag.Kind && previous.Code == tag.Code && previous.ID >= tag.ID) {
-				return eventfact.TagCatalog{}, &eventfact.RemoteError{
-					Code: "invalid_tag_catalog", Summary: "Data Service returned an unstable Tag Catalog",
-				}
+				return eventfact.TagCatalog{}, invalidTagCatalog("Data Service returned an unstable Tag Catalog")
 			}
 		}
 	}
-	encoded, err := json.Marshal(response.Result.Tags)
-	if err != nil {
-		return eventfact.TagCatalog{}, &eventfact.RemoteError{
-			Code: "invalid_tag_catalog", Summary: "Data Service returned an invalid Tag Catalog",
-		}
-	}
-	sum := sha256.Sum256(encoded)
-	hash := hex.EncodeToString(sum[:])
-	if response.Result.Hash != hash || response.Result.Revision != "event-tags:"+hash {
-		return eventfact.TagCatalog{}, &eventfact.RemoteError{
-			Code: "invalid_tag_catalog", Summary: "Data Service returned an invalid Tag Catalog identity",
-		}
-	}
-	return response.Result, nil
+	return eventfact.TagCatalog{Tags: response.Result.Tags}, nil
+}
+
+func invalidTagCatalog(summary string) *eventfact.RemoteError {
+	return &eventfact.RemoteError{Code: "invalid_tag_catalog", Summary: summary}
 }
 
 func (c *Client) PublishReviewedEvents(ctx context.Context, payload []byte) (string, error) {

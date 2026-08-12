@@ -297,24 +297,6 @@ func (a *Application) extract(
 		}
 		return false, waitErr
 	}
-	if err := a.repository.SetExecutionCatalog(
-		ctx, attempt.ID, catalog.Revision, catalog.Hash, a.now().UTC(),
-	); err != nil {
-		retryErr := a.repository.RetryExtraction(
-			ctx, attempt,
-			eventfact.Result{ExecutionID: attempt.ID},
-			"Event Fact Catalog snapshot could not be persisted",
-			a.now().UTC(),
-		)
-		if retryErr == nil {
-			a.logRetry(
-				attempt, startedAt, "state_transition",
-				"event_fact_catalog_persistence_failed",
-			)
-			return false, nil
-		}
-		return false, errors.Join(err, retryErr)
-	}
 	var resume *eventfact.Result
 	if attempt.Unit.Status == eventfact.WorkAwaitingTagCatalog {
 		persisted := decodePersistedResult(attempt)

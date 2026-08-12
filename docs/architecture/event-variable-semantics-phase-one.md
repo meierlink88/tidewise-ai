@@ -494,8 +494,8 @@ AgentRun 的完整执行状态机。候选设计需要区分：
 - AgentRun 通用 `agent_executions` 已拥有 `execution_id`、Agent key/version、
   idempotency key、trigger、运行状态、错误、开始/完成时间和产物摘要；
 - 现有 Event Extractor 采用专用 `event_extractor_executions`，以同一个 execution UUID
-  作为主键和外键，一对一补充 Prompt/Schema hash、Provider/Model、Tag Catalog 版本及
-  Generator/Reviewer 调用计数；
+  作为主键和外键，一对一补充 Prompt/Schema hash、Provider/Model 及 Generator/Reviewer
+  调用计数；历史 Tag Catalog revision/hash 列保留兼容，但新执行不再写入或依赖；
 - Data 的 Event Publication Receipt 只保存外部 `extractor_execution_id` 和 Agent
   version 等不可变发布血缘，不对 AgentRun 建外键，也不复制运行状态；
 - Data 已有 Research Theme `analysis_batch_id`，其语义是 Theme 发布批次和幂等身份，

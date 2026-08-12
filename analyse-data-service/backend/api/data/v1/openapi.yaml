@@ -1280,14 +1280,8 @@ components:
     EventTagCatalog:
       type: object
       additionalProperties: false
-      required: [catalog_revision, catalog_hash, tags]
+      required: [tags]
       properties:
-        catalog_revision:
-          type: string
-          minLength: 1
-          maxLength: 128
-        catalog_hash:
-          $ref: '#/components/schemas/PayloadHash'
         tags:
           type: array
           minItems: 1

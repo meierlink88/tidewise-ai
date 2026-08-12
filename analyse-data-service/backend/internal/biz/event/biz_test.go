@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -140,7 +141,7 @@ func TestSemanticJSONEqualPreservesNumberPrecision(t *testing.T) {
 	}
 }
 
-func TestActiveTagsSortsAndHashesStableCatalog(t *testing.T) {
+func TestActiveTagsSortsStableCurrentCollection(t *testing.T) {
 	tags := []EventTag{
 		{ID: "b1a5438f-6e81-55e7-8ecb-33230b9ae965", Kind: "news_category", Code: "macroeconomy", Name: "宏观经济", Active: true},
 		{ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category", Code: "technology_industry", Name: "科技产业", Active: true},
@@ -161,8 +162,8 @@ func TestActiveTagsSortsAndHashesStableCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if firstCatalog.Hash == "" || firstCatalog.Hash != secondCatalog.Hash || firstCatalog.Revision != "event-tags:"+firstCatalog.Hash {
-		t.Fatalf("unstable catalogs: first=%#v second=%#v", firstCatalog, secondCatalog)
+	if !reflect.DeepEqual(firstCatalog.Tags, secondCatalog.Tags) {
+		t.Fatalf("unstable collections: first=%#v second=%#v", firstCatalog, secondCatalog)
 	}
 	if firstCatalog.Tags[0].Code != "macroeconomy" || firstCatalog.Tags[1].Code != "technology_industry" {
 		t.Fatalf("catalog order = %#v", firstCatalog.Tags)
