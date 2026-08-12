@@ -456,9 +456,10 @@ _Avoid_: Observation、伪造数值、任意无 Evidence 自由文本、恢复�
 历史 V2/V3 由 Data Service 从 PostgreSQL Entity 与 Variable Definition 构建 Qdrant
 collection 的运行能力已经退役。Data 不再拥有 projector、embedding Port、Provider HTTP
 adapter、Qdrant writer、collection rebuild 或 rollout gate。历史外部 collection 和
-AgentRun consumer 不因此成为 Data 事实；依赖 collection freshness 的执行保持暂停，直到
-新的 projection owner 与版本化协作合同获批。
-_Avoid_: Data 恢复 PG→Qdrant writer、Qdrant 作为事实源、Data 代理语义搜索、无 owner 的陈旧 collection
+AgentRun consumer 不因此成为 Data 事实；AgentRun 可按 ADR-0014 只读消费已保留快照，但
+retained snapshot 之后的 Entity 变化不保证进入召回目录。新的 projection owner 与版本化
+协作合同仍需独立批准。
+_Avoid_: Data 恢复 PG→Qdrant writer、Qdrant 作为事实源、Data 代理语义搜索、把 retained snapshot 当作持续更新事实
 
 **Event Semantic Resolution Route**:
 历史 V1 术语；不再对新执行流程提供，也不因 Data Qdrant projector 退役而恢复。

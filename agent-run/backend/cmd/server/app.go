@@ -8,6 +8,7 @@ import (
 	"time"
 
 	kratos "github.com/go-kratos/kratos/v3"
+	"github.com/go-kratos/kratos/v3/transport"
 
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector"
 	collectorusecase "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/collector/usecase"
@@ -290,27 +291,56 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 	httpServer := server.NewHTTPServer(config, apiService, apiService, logger)
 
 	cleanupDatabase = false
+	return newAgentRunApp(
+		httpServer,
+		logger,
+		agentLogger,
+		eventApplication,
+		semanticApplication,
+		scheduleService.Shutdown,
+		collectorApplication.BeginShutdown,
+		collectorApplication.Wait,
+		database.Close,
+	), nil
+}
+
+type agentWorker interface {
+	Start(context.Context)
+	Notify()
+	Shutdown(context.Context) error
+}
+
+func newAgentRunApp(
+	httpServer transport.Server,
+	logger *slog.Logger,
+	agentLogger agentrun.AgentLifecycleLogger,
+	eventApplication, semanticApplication agentWorker,
+	shutdownSchedule func() error,
+	beginCollectorShutdown func(),
+	waitCollector func(context.Context) error,
+	closeDatabase func(),
+) *kratos.App {
 	return kratos.New(
 		kratos.Name(conf.ServiceName),
 		kratos.Version(serviceVersion),
 		kratos.Logger(logger),
 		kratos.Server(httpServer),
 		kratos.StopTimeout(10*time.Second),
-		kratos.BeforeStart(func(context.Context) error {
+		kratos.BeforeStart(func(ctx context.Context) error {
 			agentLogger.Info(agentrun.AgentLifecycleEvent{
 				Code: "agent_runtime_started", AgentKey: collector.AgentKey,
 				AgentVersion: "collector.v1", RuntimeMode: "request",
 				Status: "running",
 			})
-			eventApplication.Start(context.Background())
+			eventApplication.Start(ctx)
 			eventApplication.Notify()
-			// Event Semantic retrieval remains available for health and contract compatibility,
-			// but its worker is paused until a new projection owner refreshes the Qdrant catalogs.
+			semanticApplication.Start(ctx)
+			semanticApplication.Notify()
 			return nil
 		}),
 		kratos.BeforeStop(func(context.Context) error {
 			return errors.Join(
-				scheduleService.Shutdown(),
+				shutdownSchedule(),
 				shutdownWithinEach(
 					10*time.Second,
 					eventApplication.Shutdown,
@@ -321,8 +351,8 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 		kratos.AfterStop(func(context.Context) error {
 			stopContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			collectorApplication.BeginShutdown()
-			collectorErr := collectorApplication.Wait(stopContext)
+			beginCollectorShutdown()
+			collectorErr := waitCollector(stopContext)
 			if collectorErr == nil {
 				agentLogger.Info(agentrun.AgentLifecycleEvent{
 					Code: "agent_runtime_stopped", AgentKey: collector.AgentKey,
@@ -337,10 +367,10 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, error) {
 					ErrorCode: "shutdown_deadline",
 				})
 			}
-			databaseErr := closeWithin(stopContext, database.Close)
+			databaseErr := closeWithin(stopContext, closeDatabase)
 			return errors.Join(collectorErr, databaseErr)
 		}),
-	), nil
+	)
 }
 
 type readinessGroup []interface{ Ready(context.Context) error }

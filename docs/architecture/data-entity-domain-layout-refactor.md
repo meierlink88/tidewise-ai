@@ -8,6 +8,10 @@ Date: 2026-08-12
 
 Issue: [#205](https://github.com/meierlink88/tidewise-ai/issues/205)
 
+> 2026-08-12 authority update: ADR-0014 supersedes this Spec's consumer pause. Data-owned
+> projectors remain retired, while AgentRun resumes Event Semantic execution against the retained
+> read-only Qdrant Entity snapshot.
+
 ## Outcome
 
 Converge Data-owned Entity code on the repository Kratos domain layout, remove the historical shared
@@ -137,10 +141,10 @@ Data Server loses its Neo4j driver/configuration lifecycle. PostgreSQL readiness
 non-runtime-health APIs remain unchanged. Application rollback restores the previous image and code but
 does not run down migrations or mutate external Neo4j/Qdrant state.
 
-The accepted Event Semantic Qdrant design is paused at its consumer boundary: AgentRun retains its
-Qdrant reader and health contracts but does not start or notify the Event Semantic worker. No Data-owned
-process refreshes the collections. Worker activation remains disabled until a new projection owner and
-rollout contract are approved.
+The accepted Event Semantic Qdrant reader remains active at its consumer boundary: AgentRun starts and
+initially notifies the Event Semantic worker and consumes the retained read-only Entity snapshot. No
+Data-owned process refreshes the collections, so Entity changes after the snapshot are not guaranteed to
+be available until a new projection owner and rollout contract are approved.
 
 ## Testing decisions
 
@@ -171,8 +175,8 @@ Tests observe behavior rather than package moves or file lists.
 - No AgentRun Qdrant retrieval rewrite.
 - No semantic change to Entity, Relation, Industry Chain, Entity Type Definition or Benchmark Observation
   vocabularies.
-- No change to Event, Event Semantic, Evidence or Research business behavior beyond their type ownership
-  imports and the explicitly paused projection freshness assumption.
+- No change to Event, Evidence or Research business behavior beyond their type ownership imports. Event
+  Semantic resumes its existing workflow against the retained Qdrant snapshot under ADR-0014.
 
 ## Acceptance
 

@@ -6,11 +6,92 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/go-kratos/kratos/v3/transport"
+
 	agentrun "github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/platform"
 )
+
+type agentWorkerLifecycleProbe struct {
+	started, notified chan struct{}
+	startOnce         sync.Once
+	notifyOnce        sync.Once
+}
+
+func (p *agentWorkerLifecycleProbe) Start(context.Context) {
+	p.startOnce.Do(func() { close(p.started) })
+}
+
+func (p *agentWorkerLifecycleProbe) Notify() {
+	p.notifyOnce.Do(func() { close(p.notified) })
+}
+
+func (*agentWorkerLifecycleProbe) Shutdown(context.Context) error { return nil }
+
+type agentLifecycleServer struct {
+	started  chan struct{}
+	stopped  chan struct{}
+	stopOnce sync.Once
+}
+
+func (s *agentLifecycleServer) Start(context.Context) error {
+	close(s.started)
+	<-s.stopped
+	return nil
+}
+
+func (s *agentLifecycleServer) Stop(context.Context) error {
+	s.stopOnce.Do(func() { close(s.stopped) })
+	return nil
+}
+
+func TestAgentRunApplicationStartupStartsAndNotifiesEventAndSemanticWorkers(t *testing.T) {
+	eventWorker := &agentWorkerLifecycleProbe{started: make(chan struct{}), notified: make(chan struct{})}
+	semanticWorker := &agentWorkerLifecycleProbe{started: make(chan struct{}), notified: make(chan struct{})}
+	serverStarted := make(chan struct{})
+	lifecycleServer := &agentLifecycleServer{started: serverStarted, stopped: make(chan struct{})}
+	application := newAgentRunApp(
+		lifecycleServer,
+		slog.New(slog.NewTextHandler(&strings.Builder{}, nil)),
+		agentrun.DiscardAgentLifecycleLogger{},
+		eventWorker,
+		semanticWorker,
+		func() error { return nil },
+		func() {},
+		func(context.Context) error { return nil },
+		func() {},
+	)
+	runResult := make(chan error, 1)
+	go func() { runResult <- application.Run() }()
+
+	for name, signal := range map[string]<-chan struct{}{
+		"event start": eventWorker.started, "event notify": eventWorker.notified,
+		"semantic start": semanticWorker.started, "semantic notify": semanticWorker.notified,
+		"server start": serverStarted,
+	} {
+		select {
+		case <-signal:
+		case <-time.After(time.Second):
+			t.Fatalf("application startup did not observe %s", name)
+		}
+	}
+	if err := application.Stop(); err != nil {
+		t.Fatalf("stop application: %v", err)
+	}
+	select {
+	case err := <-runResult:
+		if err != nil {
+			t.Fatalf("run application: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("application did not stop")
+	}
+}
+
+var _ transport.Server = (*agentLifecycleServer)(nil)
 
 func TestCloseWithinHonorsShutdownDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
