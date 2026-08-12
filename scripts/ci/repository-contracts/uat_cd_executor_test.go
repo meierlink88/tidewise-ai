@@ -1,6 +1,8 @@
 package architecture
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,12 +10,114 @@ import (
 	"testing"
 )
 
+func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
+	repository := t.TempDir()
+	runGitFixture(t, repository, "init")
+	runGitFixture(t, repository, "config", "user.email", "uat-planner@example.test")
+	runGitFixture(t, repository, "config", "user.name", "UAT Planner")
+	for _, directory := range []string{
+		"analyse-data-service", "agent-run", "miniapp/backend",
+		"admin-portal/backend", "admin-portal/frontend", "docs",
+	} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeFixture(t, filepath.Join(repository, "analyse-data-service", "service.go"), "data-v1\n")
+	writeFixture(t, filepath.Join(repository, "agent-run", "service.go"), "agentrun-v1\n")
+	writeFixture(t, filepath.Join(repository, "miniapp", "backend", "service.go"), "miniapp-v1\n")
+	writeFixture(t, filepath.Join(repository, "admin-portal", "backend", "service.go"), "admin-backend-v1\n")
+	writeFixture(t, filepath.Join(repository, "admin-portal", "frontend", "app.ts"), "admin-frontend-v1\n")
+	writeFixture(t, filepath.Join(repository, "docs", "architecture.md"), "docs-v1\n")
+	base := commitGitFixture(t, repository, "initial")
+
+	writeFixture(t, filepath.Join(repository, "analyse-data-service", "service.go"), "data-v2\n")
+	dataCommit := commitGitFixture(t, repository, "data")
+	assertServicePlan(t, repository, base, dataCommit, map[string]string{
+		"deploy_all": "false", "deploy_data": "true", "deploy_agentrun": "false",
+		"deploy_miniapp": "false", "deploy_adminportal": "false", "deploy_admin": "false",
+	})
+
+	writeFixture(t, filepath.Join(repository, "agent-run", "service.go"), "agentrun-v2\n")
+	writeFixture(t, filepath.Join(repository, "admin-portal", "frontend", "app.ts"), "admin-frontend-v2\n")
+	multipleCommit := commitGitFixture(t, repository, "agentrun and admin frontend")
+	assertServicePlan(t, repository, dataCommit, multipleCommit, map[string]string{
+		"deploy_all": "false", "deploy_data": "false", "deploy_agentrun": "true",
+		"deploy_miniapp": "false", "deploy_adminportal": "false", "deploy_admin": "true",
+	})
+
+	writeFixture(t, filepath.Join(repository, "docs", "architecture.md"), "docs-v2\n")
+	outsideCommit := commitGitFixture(t, repository, "outside application directories")
+	assertFullServicePlan(t, repository, multipleCommit, outsideCommit)
+	assertFullServicePlan(t, repository, outsideCommit, outsideCommit)
+	assertFullServicePlan(t, repository, "", outsideCommit)
+
+	runGitFixture(t, repository, "checkout", "-b", "divergent", base)
+	writeFixture(t, filepath.Join(repository, "miniapp", "backend", "service.go"), "miniapp-divergent\n")
+	divergentCommit := commitGitFixture(t, repository, "divergent")
+	assertFullServicePlan(t, repository, outsideCommit, divergentCommit)
+}
+
+func assertFullServicePlan(t *testing.T, repository, base, target string) {
+	t.Helper()
+	assertServicePlan(t, repository, base, target, map[string]string{
+		"deploy_all": "true", "deploy_data": "true", "deploy_agentrun": "true",
+		"deploy_miniapp": "true", "deploy_adminportal": "true", "deploy_admin": "true",
+	})
+}
+
+func assertServicePlan(t *testing.T, repository, base, target string, expected map[string]string) {
+	t.Helper()
+	root := repositoryRoot()
+	planner, err := filepath.Abs(filepath.Join(root, "infra", "uat", "plan-service-release.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("bash", planner, base, target)
+	command.Dir = repository
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("plan service release: %v\n%s", err, output)
+	}
+	actual := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			actual[key] = value
+		}
+	}
+	for key, value := range expected {
+		if actual[key] != value {
+			t.Fatalf("service plan %s = %q, want %q; output=%s", key, actual[key], value, output)
+		}
+	}
+}
+
+func commitGitFixture(t *testing.T, repository, message string) string {
+	t.Helper()
+	runGitFixture(t, repository, "add", ".")
+	runGitFixture(t, repository, "commit", "-m", message)
+	return strings.TrimSpace(runGitFixture(t, repository, "rev-parse", "HEAD"))
+}
+
+func runGitFixture(t *testing.T, repository string, arguments ...string) string {
+	t.Helper()
+	command := exec.Command("git", arguments...)
+	command.Dir = repository
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(arguments, " "), err, output)
+	}
+	return string(output)
+}
+
 func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{})
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS excluded-fact-audit-before", "PASS migration-apply", "PASS excluded-fact-audit-unchanged", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS excluded-fact-audit-before", "PASS migration-scope-gate", "PASS migration-apply", "PASS excluded-fact-audit-unchanged", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -80,6 +184,73 @@ func TestUATDeployExecutorStopsBeforeDatabaseWorkWhenExternalQdrantIsUnavailable
 	if strings.Contains(logText, "/app/data/.uat-write-probe") ||
 		strings.Contains(logText, "/usr/local/bin/dbmigrate") {
 		t.Fatalf("deployment performed protected work after external Qdrant probe failed: %s", logText)
+	}
+}
+
+func TestUATDeployExecutorStopsBeforeDatabaseWorkWhenPlannedReleaseStateDrifts(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:     true,
+		expectedCurrentSHA: fixtureSHA,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL release-state-plan-gate") {
+		t.Fatalf("drifted current release state did not fail closed: %v\n%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dockerLog), "http://qdrant:6333/collections") ||
+		strings.Contains(string(dockerLog), "/usr/local/bin/dbmigrate") {
+		t.Fatalf("deployment performed protected work after release-state drift: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorRequiresReplanAfterInterruptedReleaseStateRecovery(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:         true,
+		releaseStateWritePhase: "committed",
+		expectedCurrentMissing: true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL release-state-plan-gate") {
+		t.Fatalf("recovered state did not require a fresh deployment plan: %v\n%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dockerLog), "/usr/local/bin/dbmigrate") {
+		t.Fatalf("deployment started migration after interrupted-state recovery: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorReplacesUnchangedInvalidCurrentReleaseWithFullDeployment(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:         true,
+		invalidCurrentRelease:  true,
+		expectedCurrentMissing: true,
+	})
+	if result.err != nil {
+		t.Fatalf("unchanged invalid current release did not allow full replacement: %v\n%s", result.err, result.output)
+	}
+	if !strings.Contains(result.output, "PASS release-state-plan-gate") ||
+		!strings.Contains(result.output, "PASS release-state-recorded") {
+		t.Fatalf("invalid state replacement missed release-state evidence: %s", result.output)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
+}
+
+func TestUATDeployExecutorDoesNotRollbackToUnavailableInvalidRelease(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:         true,
+		invalidCurrentRelease:  true,
+		expectedCurrentMissing: true,
+		failFirstUp:            true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL rollback: no trusted previous") {
+		t.Fatalf("candidate failure did not reject invalid rollback state: %v\n%s", result.err, result.output)
+	}
+	if strings.Contains(result.output, "PASS rollback: previous complete release restored") {
+		t.Fatalf("invalid unavailable state was reported as restored: %s", result.output)
 	}
 }
 
@@ -327,6 +498,30 @@ func TestUATDeployExecutorBlocksUnconfirmedHighRiskMigration(t *testing.T) {
 	}
 }
 
+func TestUATDeployExecutorAppliesConfirmedHighRiskSchemaMigration(t *testing.T) {
+	report := `{"current_version":"23","pending":[{"Version":"24","Name":"add schema contract"}],"applied":[],"remaining":[]}`
+	result := runDeployFixture(t, deployFixtureOptions{
+		migrationReport: report,
+		migrationScope:  "schema",
+		backupConfirmed: true,
+	})
+	if result.err != nil {
+		t.Fatalf("confirmed high-risk schema migration failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{"PASS migration-scope-gate", "PASS migration-risk-gate", "PASS migration-apply"} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("schema migration output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), "dbmigrate -apply") {
+		t.Fatalf("confirmed schema migration was not applied: %s", dockerLog)
+	}
+}
+
 func TestUATDeployExecutorBlocksReleaseIncompatibleMigrationEvenWithBackup(t *testing.T) {
 	report := `{"current_version":"24","pending":[{"Version":"25","Name":"rebuild research anchors"}],"applied":[],"remaining":[]}`
 	result := runDeployFixture(t, deployFixtureOptions{
@@ -343,6 +538,56 @@ func TestUATDeployExecutorBlocksReleaseIncompatibleMigrationEvenWithBackup(t *te
 	}
 	if strings.Contains(string(logContent), " up ") {
 		t.Fatalf("release gate started services: %s", logContent)
+	}
+}
+
+func TestUATDeployExecutorBlocksDataPublicationMigrationsBeforeApply(t *testing.T) {
+	tests := []struct {
+		name    string
+		options deployFixtureOptions
+	}{
+		{
+			name: "Data data-only migration",
+			options: deployFixtureOptions{
+				migrationReport: `{"current_version":"23","pending":[{"Version":"24","Name":"publish research data"}],"applied":[],"remaining":[]}`,
+				migrationScope:  "data",
+				backupConfirmed: true,
+			},
+		},
+		{
+			name: "Data mixed migration",
+			options: deployFixtureOptions{
+				migrationReport: `{"current_version":"23","pending":[{"Version":"24","Name":"schema and data backfill"}],"applied":[],"remaining":[]}`,
+				migrationScope:  "mixed",
+				backupConfirmed: true,
+			},
+		},
+		{
+			name: "AgentRun data migration",
+			options: deployFixtureOptions{
+				agentrunMigrationReport: `{"current_version":"014","pending":[{"version":"015"}],"applied":[]}`,
+				agentrunMigrationScope:  "data",
+				backupConfirmed:         true,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := runDeployFixture(t, test.options)
+			if result.err == nil || !strings.Contains(result.output, "FAIL migration-scope-gate") {
+				t.Fatalf("data publication migration was not blocked: err=%v output=%s", result.err, result.output)
+			}
+			dockerLog, err := os.ReadFile(result.dockerLog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(dockerLog), "dbmigrate -apply") {
+				t.Fatalf("scope gate allowed migration apply: %s", dockerLog)
+			}
+			if strings.Contains(string(dockerLog), " up ") {
+				t.Fatalf("scope gate started application services: %s", dockerLog)
+			}
+		})
 	}
 }
 
@@ -401,6 +646,10 @@ const (
 
 type deployFixtureOptions struct {
 	currentRelease          bool
+	expectedCurrentSHA      string
+	expectedCurrentMissing  bool
+	releaseStateWritePhase  string
+	invalidCurrentRelease   bool
 	failFirstUp             bool
 	failEveryUp             bool
 	failFirstCurl           bool
@@ -409,6 +658,8 @@ type deployFixtureOptions struct {
 	agentrunMigrationReport string
 	agentrunRecoveryTarget  string
 	migrationRisk           string
+	migrationScope          string
+	agentrunMigrationScope  string
 	backupConfirmed         bool
 	failArtifactProbe       bool
 	failExternalQdrant      bool
@@ -454,19 +705,38 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	if migrationRisk == "" {
 		migrationRisk = "high"
 	}
-	writeFixture(t, manifest, "000025\t"+migrationRisk+"\tfixture migration risk\n000024\thigh\tfixture high risk\n")
-	writeFixture(t, agentrunManifest, "001\tnormal\tfixture AgentRun migration\n002\tnormal\tfixture AgentRun migration\n003\tnormal\tfixture AgentRun migration\n004\tnormal\tfixture AgentRun migration\n005\tnormal\tfixture AgentRun migration\n006\tnormal\tfixture AgentRun migration\n007\tnormal\tfixture AgentRun migration\n008\tnormal\tfixture AgentRun migration\n009\tnormal\tfixture AgentRun migration\n010\tnormal\tfixture AgentRun migration\n011\tnormal\tfixture AgentRun migration\n012\tnormal\tfixture AgentRun migration\n013\tnormal\tfixture AgentRun migration\n014\tnormal\tfixture AgentRun migration\n015\tnormal\tfixture AgentRun migration\n")
+	migrationScope := options.migrationScope
+	if migrationScope == "" {
+		migrationScope = "schema"
+	}
+	agentrunMigrationScope := options.agentrunMigrationScope
+	if agentrunMigrationScope == "" {
+		agentrunMigrationScope = "schema"
+	}
+	writeFixture(t, manifest, "000025\t"+migrationRisk+"\t"+migrationScope+"\tfixture migration risk\n000024\thigh\t"+migrationScope+"\tfixture high risk\n")
+	writeFixture(t, agentrunManifest, "001\tnormal\tschema\tfixture AgentRun migration\n002\tnormal\tschema\tfixture AgentRun migration\n003\tnormal\tschema\tfixture AgentRun migration\n004\tnormal\tschema\tfixture AgentRun migration\n005\tnormal\tschema\tfixture AgentRun migration\n006\tnormal\tschema\tfixture AgentRun migration\n007\tnormal\tschema\tfixture AgentRun migration\n008\tnormal\tschema\tfixture AgentRun migration\n009\tnormal\tschema\tfixture AgentRun migration\n010\tnormal\tschema\tfixture AgentRun migration\n011\tnormal\tschema\tfixture AgentRun migration\n012\tnormal\tschema\tfixture AgentRun migration\n013\tnormal\tschema\tfixture AgentRun migration\n014\tnormal\tschema\tfixture AgentRun migration\n015\tnormal\t"+agentrunMigrationScope+"\tfixture AgentRun migration\n")
 
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
-		currentImages := "DATA_IMAGE=fixture/data:" + previousFixtureSHA + "\n"
+		currentImages := "DATA_IMAGE=fixture/data:" + previousFixtureSHA + "\n" +
+			"MINIAPP_IMAGE=fixture/miniapp:" + previousFixtureSHA + "\n" +
+			"ADMINPORTAL_IMAGE=fixture/adminportal:" + previousFixtureSHA + "\n" +
+			"ADMIN_IMAGE=fixture/admin:" + previousFixtureSHA + "\n" +
+			"AGENTRUN_IMAGE=fixture/agentrun:" + previousFixtureSHA + "\n"
 		currentCompose := "name: tidewise-uat\nservices: {}\n"
 		if options.legacyQdrantSnapshot {
 			currentCompose = "name: tidewise-uat\nservices:\n  qdrant: {}\n"
 		}
 		writeFixture(t, filepath.Join(state, "current.images.env"), currentImages)
 		writeFixture(t, filepath.Join(state, "current.compose.yaml"), currentCompose)
-		writeFixture(t, filepath.Join(state, "current.sha"), previousFixtureSHA+"\n")
+		currentSHA := previousFixtureSHA
+		if options.invalidCurrentRelease {
+			currentSHA = "not-a-release-sha"
+		}
+		writeFixture(t, filepath.Join(state, "current.sha"), currentSHA+"\n")
+	}
+	if options.releaseStateWritePhase != "" {
+		writeFixture(t, filepath.Join(state, "release-state-write-in-progress"), options.releaseStateWritePhase+"\n")
 	}
 
 	report := options.migrationReport
@@ -551,12 +821,38 @@ exit 0
 `)
 
 	cmd := exec.Command("bash", filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
+	expectedAvailable := options.currentRelease && !options.expectedCurrentMissing
+	expectedSHA := options.expectedCurrentSHA
+	if expectedSHA == "" && expectedAvailable {
+		expectedSHA = previousFixtureSHA
+	}
+	expectedStateFingerprint := releaseStateFingerprint(t, root)
+	expectedDataImage := ""
+	expectedMiniappImage := ""
+	expectedAdminportalImage := ""
+	expectedAdminImage := ""
+	expectedAgentrunImage := ""
+	if expectedAvailable {
+		expectedDataImage = "fixture/data:" + previousFixtureSHA
+		expectedMiniappImage = "fixture/miniapp:" + previousFixtureSHA
+		expectedAdminportalImage = "fixture/adminportal:" + previousFixtureSHA
+		expectedAdminImage = "fixture/admin:" + previousFixtureSHA
+		expectedAgentrunImage = "fixture/agentrun:" + previousFixtureSHA
+	}
 	cmd.Env = append(os.Environ(),
 		"PATH="+bin+":"+os.Getenv("PATH"),
 		"DEPLOY_ROOT="+root,
 		"RUNTIME_ENV="+runtimeEnv,
 		"CANDIDATE_IMAGES="+imagesEnv,
 		"COMMIT_SHA="+fixtureSHA,
+		"EXPECTED_CURRENT_RELEASE_AVAILABLE="+boolText(expectedAvailable),
+		"EXPECTED_CURRENT_RELEASE_STATE_FINGERPRINT="+expectedStateFingerprint,
+		"EXPECTED_CURRENT_RELEASE_SHA="+expectedSHA,
+		"EXPECTED_CURRENT_DATA_IMAGE="+expectedDataImage,
+		"EXPECTED_CURRENT_MINIAPP_IMAGE="+expectedMiniappImage,
+		"EXPECTED_CURRENT_ADMINPORTAL_IMAGE="+expectedAdminportalImage,
+		"EXPECTED_CURRENT_ADMIN_IMAGE="+expectedAdminImage,
+		"EXPECTED_CURRENT_AGENTRUN_IMAGE="+expectedAgentrunImage,
 		"UAT_PUBLIC_BASE_URL=http://uat.example.test",
 		"TIDEWISW_DB_PASSWORD=fixture-db-secret",
 		"AGENTRUN_DB_PASSWORD=fixture-agentrun-db-secret",
@@ -591,6 +887,31 @@ exit 0
 	)
 	output, err := cmd.CombinedOutput()
 	return deployFixtureResult{root: root, dockerLog: dockerLog, curlLog: curlLog, output: string(output), err: err}
+}
+
+func releaseStateFingerprint(t *testing.T, root string) string {
+	t.Helper()
+	paths := []string{
+		filepath.Join(root, "runtime.env"),
+		filepath.Join(root, "state", "current.sha"),
+		filepath.Join(root, "state", "current.images.env"),
+		filepath.Join(root, "state", "current.compose.yaml"),
+		filepath.Join(root, "state", "release-state-write-in-progress"),
+	}
+	records := ""
+	for _, path := range paths {
+		content, err := os.ReadFile(path)
+		if err == nil {
+			digest := sha256.Sum256(content)
+			records += fmt.Sprintf("%x  %s\n", digest, path)
+		} else if os.IsNotExist(err) {
+			records += "missing  " + path + "\n"
+		} else {
+			t.Fatal(err)
+		}
+	}
+	digest := sha256.Sum256([]byte(records))
+	return fmt.Sprintf("%x", digest)
 }
 
 func writeFixture(t *testing.T, path, content string) {

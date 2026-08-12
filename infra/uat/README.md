@@ -8,8 +8,9 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 默认发布 `main` 最新提交；回滚或复验可填写 `main` 历史提交的完整 40 位 SHA。
 - 目标提交必须属于 `main`，且同一 SHA 的 `CI` workflow 必须成功。
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
-- GitHub-hosted runner 构建五个 `linux/amd64` 业务镜像和一个 UAT deployment
-  bundle image 并推送到 SWR，tag 固定为 Git commit SHA。
+- Workflow 比较 ECS 上次成功 release SHA 与目标 SHA；变更只位于五个应用目录时，
+  GitHub-hosted runner 只构建受影响的 `linux/amd64` 业务镜像，任一目录外变更或状态异常
+  则构建全部五个。新镜像和 deployment bundle 推送到 SWR，tag 固定为 Git commit SHA。
 - Deployment bundle 包含 release Compose/UAT 配置和受信 control-plane
   脚本/风险清单；ECS 使用 build job 返回的 image digest 拉取，并在 migration 前
   校验 release SHA、control-plane SHA 和逐文件 SHA-256。Bundle tag 使用
@@ -17,6 +18,22 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - ECS runner 不 checkout Git repository，只负责 SWR 制品拉取、preflight、
   AgentRun Artifact 写入探针、Data/AgentRun migration、Compose 启动、两层健康
   检查和失败时的整套镜像回退。
+
+服务目录与部署映射固定为：
+
+- `analyse-data-service/` → Data Service；
+- `agent-run/` → AgentRun；
+- `miniapp/backend/` → Miniapp Backend；
+- `admin-portal/backend/` → Admin Portal Backend；
+- `admin-portal/frontend/` → Admin Portal Frontend。
+
+只要 diff 中出现其他路径，就全量部署。未变化服务复用 `current.images.env` 中的不可变镜像；
+Compose 仍加载完整五服务集合，只重建镜像或配置发生变化的容器。首次发布、当前状态不完整、
+历史分叉或相同 SHA 重发均安全回退为全量部署。
+
+规划只把 runtime、Compose、SHA、五镜像记录完整且没有中断写入标记的状态作为比较基线。
+部署取得 ECS 本机锁并恢复中断状态后，会再次核对基线 SHA 与五镜像；若镜像构建期间发生了
+其他发布或状态漂移，本次发布在 migration 前停止，操作员重新运行 workflow 即可。
 
 ## ECS runner 与目录
 
@@ -62,31 +79,31 @@ Workflow 在成功后持久保存：
 
 Variables：
 
-| Name | Purpose |
-| --- | --- |
-| `SWR_REGISTRY` | `swr.<region>.myhuaweicloud.com` |
-| `SWR_NAMESPACE` | SWR 组织名 |
-| `SWR_DATA_REPOSITORY` | Data Service 镜像仓库名 |
-| `SWR_MINIAPP_REPOSITORY` | Miniapp Backend 镜像仓库名 |
-| `SWR_ADMINPORTAL_REPOSITORY` | Admin Portal Backend 镜像仓库名 |
-| `SWR_ADMIN_REPOSITORY` | Admin Portal Frontend 镜像仓库名 |
-| `SWR_AGENTRUN_REPOSITORY` | AgentRun 镜像仓库名 |
-| `SWR_DEPLOY_REPOSITORY` | UAT deployment bundle 镜像仓库名 |
-| `UAT_RUNNER_NAME` | ECS runner 的准确名称 |
-| `UAT_PUBLIC_BASE_URL` | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| Name                         | Purpose                                                  |
+| ---------------------------- | -------------------------------------------------------- |
+| `SWR_REGISTRY`               | `swr.<region>.myhuaweicloud.com`                         |
+| `SWR_NAMESPACE`              | SWR 组织名                                               |
+| `SWR_DATA_REPOSITORY`        | Data Service 镜像仓库名                                  |
+| `SWR_MINIAPP_REPOSITORY`     | Miniapp Backend 镜像仓库名                               |
+| `SWR_ADMINPORTAL_REPOSITORY` | Admin Portal Backend 镜像仓库名                          |
+| `SWR_ADMIN_REPOSITORY`       | Admin Portal Frontend 镜像仓库名                         |
+| `SWR_AGENTRUN_REPOSITORY`    | AgentRun 镜像仓库名                                      |
+| `SWR_DEPLOY_REPOSITORY`      | UAT deployment bundle 镜像仓库名                         |
+| `UAT_RUNNER_NAME`            | ECS runner 的准确名称                                    |
+| `UAT_PUBLIC_BASE_URL`        | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
 
 Secrets：
 
-| Name | Consumer |
-| --- | --- |
-| `SWR_USERNAME`, `SWR_PASSWORD` | GitHub-hosted build runner，仅推送 |
-| `SWR_PULL_USERNAME`, `SWR_PULL_PASSWORD` | UAT ECS，仅拉取 |
-| `TIDEWISW_DB_PASSWORD` | Data Service 与 Data migration 的数据库密码 |
-| `AGENTRUN_DB_PASSWORD` | AgentRun 独立 database 的密码 |
-| `DATA_SERVICE_TOKEN` | 所有受信服务调用 Data Service 的统一身份 |
-| `ADMIN_SERVICE_TOKEN` | Admin Portal Backend 的浏览器/API 鉴权 |
-| `AGENTRUN_SERVICE_TOKEN` | 所有受信服务调用 AgentRun 的统一身份 |
-| `EMBEDDING_API_KEY` | AgentRun 语义检索使用的 Embedding API Key |
+| Name                                     | Consumer                                    |
+| ---------------------------------------- | ------------------------------------------- |
+| `SWR_USERNAME`, `SWR_PASSWORD`           | GitHub-hosted build runner，仅推送          |
+| `SWR_PULL_USERNAME`, `SWR_PULL_PASSWORD` | UAT ECS，仅拉取                             |
+| `TIDEWISW_DB_PASSWORD`                   | Data Service 与 Data migration 的数据库密码 |
+| `AGENTRUN_DB_PASSWORD`                   | AgentRun 独立 database 的密码               |
+| `DATA_SERVICE_TOKEN`                     | 所有受信服务调用 Data Service 的统一身份    |
+| `ADMIN_SERVICE_TOKEN`                    | Admin Portal Backend 的浏览器/API 鉴权      |
+| `AGENTRUN_SERVICE_TOKEN`                 | 所有受信服务调用 AgentRun 的统一身份        |
+| `EMBEDDING_API_KEY`                      | AgentRun 语义检索使用的 Embedding API Key   |
 
 RDS 的 host、port、database、user 与 `sslmode=require` 固定保存在两个服务各自的
 `config.uat.yaml`；GitHub Environment 只保存上述密码。两套配置必须指向相互独立的
@@ -99,14 +116,14 @@ RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、
 
 ## 端口
 
-| Component | Port | Public access |
-| --- | ---: | --- |
-| Data Domain Service | `9011` | 不映射到 ECS host |
-| Miniapp Backend Service | `9012` | 开发联调按需开放 |
-| Admin Portal Backend Service | `9013` | 仅 Compose 内网，不映射到 ECS host |
-| Admin Portal Frontend | `9014` | Admin 浏览器唯一入口，开发联调按需开放 |
-| AgentRun | `9080` | Admin Portal 联调按需开放 |
-| Qdrant HTTP/gRPC | `6333`/`6334` | 独立运维；不映射到 ECS host，仅供 `tidewise-uat` 网络调用 |
+| Component                    |          Port | Public access                                             |
+| ---------------------------- | ------------: | --------------------------------------------------------- |
+| Data Domain Service          |        `9011` | 不映射到 ECS host                                         |
+| Miniapp Backend Service      |        `9012` | 开发联调按需开放                                          |
+| Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host                        |
+| Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放                    |
+| AgentRun                     |        `9080` | Admin Portal 联调按需开放                                 |
+| Qdrant HTTP/gRPC             | `6333`/`6334` | 独立运维；不映射到 ECS host，仅供 `tidewise-uat` 网络调用 |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
@@ -129,11 +146,22 @@ Qdrant 运维需保证容器连接外部 Docker 网络 `tidewise-uat`、网络�
 应用 release state。Deploy 只在任何数据库写入前做只读连通性检查，不安装、升级、
 重启、删除或回滚 Qdrant，也不要求 Qdrant SWR mirror。
 
-## Migration、备份门禁与回退
+## Schema Migration、备份门禁与回退
 
 部署脚本先用目标 Data 镜像执行 check-only `dbmigrate`。这会建立真实的 `sslmode=require` TLS 数据库连接、校验账号并读取当前 migration 状态，但不写数据库。报告进入 Actions job summary。
 
-所有 migration 的风险分类维护在 `migration-risk.tsv`。未分类的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容，只要 pending 就禁止发布且不能用备份确认绕过；存在 `high` migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选 `confirm_high_risk_backup`，否则发布失败。
+所有 migration 的风险与 scope 维护在 `migration-risk.tsv`。每行固定为
+`version<TAB>risk<TAB>scope<TAB>reason`，scope 只能是 `schema`、`data` 或 `mixed`。
+未登记的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容；
+`data`/`mixed` 表示该版本包含数据发布、转换、清理或事实破坏，系统部署不得执行，也不能
+通过备份确认绕过。只有 pending 版本全部是 `schema` 时才进入风险门禁；存在 `high` Schema
+migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选
+`confirm_high_risk_backup`，否则发布失败。
+
+UAT 目录、Seed、Agent 注册数据、配置、事实回填和清理使用独立数据发布机制，数据来源不
+默认采用开发环境。系统部署不拥有其 Artifact、review、幂等、Receipt 或恢复过程。历史
+migration 文件及已执行 ledger 不改写；若全新环境仍 pending 历史 `data`/`mixed` 版本，
+普通 UAT Deploy 必须失败并等待独立、可审计的 bootstrap/data publication 方案。
 
 `recover_agentrun_previous_release_version` 只用于恢复被旧版发布器中断的 AgentRun
 迁移，值必须是已确认上一成功发布所拥有的 `010`–`013`，并同时勾选
@@ -300,4 +328,4 @@ pre-change export 同样以 `0640` 独占创建，执行报告受 `noclobber` �
 4. 配置 GitHub `uat` Environment Variables 与 Secrets。
 5. 将 ECS runner 迁移到 `tidewise-deploy`，添加专属标签，并创建固定部署目录。
 6. 从 `main` 手工运行 `Deploy UAT`。如 check-only 报告包含高风险 migration，核验恢复点后重新勾选确认项执行。
-7. 检查 Actions summary、五个业务镜像、独立 Qdrant 端点健康、代表性 BFF→Data/AgentRun 读取以及 `state/current.sha`、`state/previous.sha`。
+7. 检查 Actions deployment plan、受影响业务镜像、完整五服务 release state、独立 Qdrant 端点健康、代表性 BFF→Data/AgentRun 读取以及 `state/current.sha`、`state/previous.sha`。

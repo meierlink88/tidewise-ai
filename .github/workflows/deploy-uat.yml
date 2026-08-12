@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       confirm_high_risk_backup:
-        description: Confirm an RDS recovery point for high-risk migrations.
+        description: Confirm an RDS recovery point for high-risk schema migrations; data publication is never allowed here.
         required: false
         default: false
         type: boolean
@@ -87,10 +87,134 @@ jobs:
               core.setFailed(`No successful CI run exists for ${process.env.TARGET_SHA}`);
             }
 
+  current-release:
+    name: Read current UAT release
+    runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
+    needs: resolve-release
+    outputs:
+      available: ${{ steps.current.outputs.available }}
+      state_fingerprint: ${{ steps.current.outputs.state_fingerprint }}
+      commit_sha: ${{ steps.current.outputs.commit_sha }}
+      data_image: ${{ steps.current.outputs.data_image }}
+      miniapp_image: ${{ steps.current.outputs.miniapp_image }}
+      adminportal_image: ${{ steps.current.outputs.adminportal_image }}
+      admin_image: ${{ steps.current.outputs.admin_image }}
+      agentrun_image: ${{ steps.current.outputs.agentrun_image }}
+    steps:
+      - name: Read repository-managed release state
+        id: current
+        env:
+          DEPLOY_ROOT: /opt/tidewise/uat
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_dir="${DEPLOY_ROOT}/state"
+          runtime_file="${DEPLOY_ROOT}/runtime.env"
+          sha_file="${state_dir}/current.sha"
+          images_file="${state_dir}/current.images.env"
+          compose_file="${state_dir}/current.compose.yaml"
+          write_marker="${state_dir}/release-state-write-in-progress"
+          state_fingerprint() {
+            for path in "$runtime_file" "$sha_file" "$images_file" "$compose_file" "$write_marker"; do
+              if [ -e "$path" ]; then
+                sha256sum "$path"
+              else
+                printf 'missing  %s\n' "$path"
+              fi
+            done | sha256sum | cut -d ' ' -f 1
+          }
+          echo "available=false" >> "$GITHUB_OUTPUT"
+          echo "state_fingerprint=$(state_fingerprint)" >> "$GITHUB_OUTPUT"
+          if [ -e "$write_marker" ]; then
+            echo "Previous UAT release has an interrupted state write; full deployment required."
+            exit 0
+          fi
+          if [ ! -s "$runtime_file" ] || [ ! -s "$sha_file" ] || [ ! -s "$images_file" ] || [ ! -s "$compose_file" ]; then
+            echo "No complete previous UAT release state; full deployment required."
+            exit 0
+          fi
+
+          current_sha="$(sed -n '1p' "$sha_file")"
+          image_value() {
+            sed -n "s/^$1=//p" "$images_file" | tail -n 1
+          }
+          data_image="$(image_value DATA_IMAGE)"
+          miniapp_image="$(image_value MINIAPP_IMAGE)"
+          adminportal_image="$(image_value ADMINPORTAL_IMAGE)"
+          admin_image="$(image_value ADMIN_IMAGE)"
+          agentrun_image="$(image_value AGENTRUN_IMAGE)"
+          if ! [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Previous UAT release SHA is invalid; full deployment required."
+            exit 0
+          fi
+          for image in "$data_image" "$miniapp_image" "$adminportal_image" "$admin_image" "$agentrun_image"; do
+            if ! [[ "$image" =~ ^[^[:space:]]+:[0-9a-f]{40}$ ]]; then
+              echo "Previous UAT image state is incomplete; full deployment required."
+              exit 0
+            fi
+          done
+          if ! env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE -u AGENTRUN_IMAGE \
+            docker compose --env-file "$runtime_file" --env-file "$images_file" -f "$compose_file" config --quiet; then
+            echo "Previous UAT Compose state is invalid; full deployment required."
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$current_sha" >> "$GITHUB_OUTPUT"
+          echo "data_image=$data_image" >> "$GITHUB_OUTPUT"
+          echo "miniapp_image=$miniapp_image" >> "$GITHUB_OUTPUT"
+          echo "adminportal_image=$adminportal_image" >> "$GITHUB_OUTPUT"
+          echo "admin_image=$admin_image" >> "$GITHUB_OUTPUT"
+          echo "agentrun_image=$agentrun_image" >> "$GITHUB_OUTPUT"
+
+  plan-release:
+    name: Plan UAT service deployment
+    runs-on: ubuntu-latest
+    needs: [resolve-release, current-release]
+    outputs:
+      deploy_all: ${{ steps.plan.outputs.deploy_all }}
+      deploy_data: ${{ steps.plan.outputs.deploy_data }}
+      deploy_agentrun: ${{ steps.plan.outputs.deploy_agentrun }}
+      deploy_miniapp: ${{ steps.plan.outputs.deploy_miniapp }}
+      deploy_adminportal: ${{ steps.plan.outputs.deploy_adminportal }}
+      deploy_admin: ${{ steps.plan.outputs.deploy_admin }}
+      scope_reason: ${{ steps.plan.outputs.scope_reason }}
+    steps:
+      - name: Checkout release history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve-release.outputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Checkout trusted UAT planner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: .uat-control
+          sparse-checkout: infra/uat
+
+      - name: Resolve changed application services
+        id: plan
+        env:
+          CURRENT_RELEASE_SHA: ${{ needs.current-release.outputs.commit_sha }}
+          TARGET_RELEASE_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          plan="$(.uat-control/infra/uat/plan-service-release.sh "$CURRENT_RELEASE_SHA" "$TARGET_RELEASE_SHA")"
+          printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
+          {
+            echo "### UAT service deployment plan"
+            echo
+            echo '```text'
+            printf '%s\n' "$plan"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build-and-push:
     name: Build and publish SWR images
     runs-on: ubuntu-latest
-    needs: resolve-release
+    needs: [resolve-release, current-release, plan-release]
     environment: uat
     outputs:
       data_image: ${{ steps.images.outputs.data_image }}
@@ -126,6 +250,16 @@ jobs:
         env:
           COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
           CONTROL_PLANE_SHA: ${{ github.sha }}
+          DEPLOY_DATA: ${{ needs.plan-release.outputs.deploy_data }}
+          DEPLOY_MINIAPP: ${{ needs.plan-release.outputs.deploy_miniapp }}
+          DEPLOY_ADMINPORTAL: ${{ needs.plan-release.outputs.deploy_adminportal }}
+          DEPLOY_ADMIN: ${{ needs.plan-release.outputs.deploy_admin }}
+          DEPLOY_AGENTRUN: ${{ needs.plan-release.outputs.deploy_agentrun }}
+          CURRENT_DATA_IMAGE: ${{ needs.current-release.outputs.data_image }}
+          CURRENT_MINIAPP_IMAGE: ${{ needs.current-release.outputs.miniapp_image }}
+          CURRENT_ADMINPORTAL_IMAGE: ${{ needs.current-release.outputs.adminportal_image }}
+          CURRENT_ADMIN_IMAGE: ${{ needs.current-release.outputs.admin_image }}
+          CURRENT_AGENTRUN_IMAGE: ${{ needs.current-release.outputs.agentrun_image }}
         shell: bash
         run: |
           set -euo pipefail
@@ -138,11 +272,35 @@ jobs:
           : "${SWR_AGENTRUN_REPOSITORY:?Set the SWR_AGENTRUN_REPOSITORY uat Environment variable}"
           : "${SWR_DEPLOY_REPOSITORY:?Set the SWR_DEPLOY_REPOSITORY uat Environment variable}"
           prefix="${SWR_REGISTRY}/${SWR_NAMESPACE}"
-          echo "data_image=${prefix}/${SWR_DATA_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "miniapp_image=${prefix}/${SWR_MINIAPP_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "adminportal_image=${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "admin_image=${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "agentrun_image=${prefix}/${SWR_AGENTRUN_REPOSITORY}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          data_build_image="${prefix}/${SWR_DATA_REPOSITORY}:${COMMIT_SHA}"
+          miniapp_build_image="${prefix}/${SWR_MINIAPP_REPOSITORY}:${COMMIT_SHA}"
+          adminportal_build_image="${prefix}/${SWR_ADMINPORTAL_REPOSITORY}:${COMMIT_SHA}"
+          admin_build_image="${prefix}/${SWR_ADMIN_REPOSITORY}:${COMMIT_SHA}"
+          agentrun_build_image="${prefix}/${SWR_AGENTRUN_REPOSITORY}:${COMMIT_SHA}"
+          select_image() {
+            local deploy="$1"
+            local candidate="$2"
+            local current="$3"
+            if [ "$deploy" = true ]; then
+              printf '%s\n' "$candidate"
+              return
+            fi
+            if [ -z "$current" ]; then
+              echo "unchanged service is missing its current immutable image" >&2
+              exit 1
+            fi
+            printf '%s\n' "$current"
+          }
+          echo "data_build_image=$data_build_image" >> "$GITHUB_OUTPUT"
+          echo "miniapp_build_image=$miniapp_build_image" >> "$GITHUB_OUTPUT"
+          echo "adminportal_build_image=$adminportal_build_image" >> "$GITHUB_OUTPUT"
+          echo "admin_build_image=$admin_build_image" >> "$GITHUB_OUTPUT"
+          echo "agentrun_build_image=$agentrun_build_image" >> "$GITHUB_OUTPUT"
+          echo "data_image=$(select_image "$DEPLOY_DATA" "$data_build_image" "$CURRENT_DATA_IMAGE")" >> "$GITHUB_OUTPUT"
+          echo "miniapp_image=$(select_image "$DEPLOY_MINIAPP" "$miniapp_build_image" "$CURRENT_MINIAPP_IMAGE")" >> "$GITHUB_OUTPUT"
+          echo "adminportal_image=$(select_image "$DEPLOY_ADMINPORTAL" "$adminportal_build_image" "$CURRENT_ADMINPORTAL_IMAGE")" >> "$GITHUB_OUTPUT"
+          echo "admin_image=$(select_image "$DEPLOY_ADMIN" "$admin_build_image" "$CURRENT_ADMIN_IMAGE")" >> "$GITHUB_OUTPUT"
+          echo "agentrun_image=$(select_image "$DEPLOY_AGENTRUN" "$agentrun_build_image" "$CURRENT_AGENTRUN_IMAGE")" >> "$GITHUB_OUTPUT"
           echo "deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}-${CONTROL_PLANE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -174,6 +332,7 @@ jobs:
           echo "context=$bundle_context" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Data Service
+        if: needs.plan-release.outputs.deploy_data == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -181,9 +340,10 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.images.outputs.data_image }}
+          tags: ${{ steps.images.outputs.data_build_image }}
 
       - name: Build and push Miniapp Backend Service
+        if: needs.plan-release.outputs.deploy_miniapp == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -191,9 +351,10 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.images.outputs.miniapp_image }}
+          tags: ${{ steps.images.outputs.miniapp_build_image }}
 
       - name: Build and push Admin Portal Backend Service
+        if: needs.plan-release.outputs.deploy_adminportal == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -201,9 +362,10 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.images.outputs.adminportal_image }}
+          tags: ${{ steps.images.outputs.adminportal_build_image }}
 
       - name: Build and push Admin Portal Frontend
+        if: needs.plan-release.outputs.deploy_admin == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -211,9 +373,10 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.images.outputs.admin_image }}
+          tags: ${{ steps.images.outputs.admin_build_image }}
 
       - name: Build and push AgentRun
+        if: needs.plan-release.outputs.deploy_agentrun == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -221,7 +384,7 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.images.outputs.agentrun_image }}
+          tags: ${{ steps.images.outputs.agentrun_build_image }}
 
       - name: Build and push immutable UAT deployment bundle
         id: deploy-bundle-image
@@ -254,7 +417,7 @@ jobs:
   deploy:
     name: Deploy to UAT ECS
     runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
-    needs: [resolve-release, build-and-push]
+    needs: [resolve-release, current-release, build-and-push]
     environment: uat
     env:
       DEPLOY_ROOT: /opt/tidewise/uat
@@ -262,6 +425,14 @@ jobs:
       UAT_RUNNER_NAME: ${{ vars.UAT_RUNNER_NAME }}
       UAT_PUBLIC_BASE_URL: ${{ vars.UAT_PUBLIC_BASE_URL }}
       COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+      EXPECTED_CURRENT_RELEASE_AVAILABLE: ${{ needs.current-release.outputs.available }}
+      EXPECTED_CURRENT_RELEASE_STATE_FINGERPRINT: ${{ needs.current-release.outputs.state_fingerprint }}
+      EXPECTED_CURRENT_RELEASE_SHA: ${{ needs.current-release.outputs.commit_sha }}
+      EXPECTED_CURRENT_DATA_IMAGE: ${{ needs.current-release.outputs.data_image }}
+      EXPECTED_CURRENT_MINIAPP_IMAGE: ${{ needs.current-release.outputs.miniapp_image }}
+      EXPECTED_CURRENT_ADMINPORTAL_IMAGE: ${{ needs.current-release.outputs.adminportal_image }}
+      EXPECTED_CURRENT_ADMIN_IMAGE: ${{ needs.current-release.outputs.admin_image }}
+      EXPECTED_CURRENT_AGENTRUN_IMAGE: ${{ needs.current-release.outputs.agentrun_image }}
       DATA_IMAGE: ${{ needs.build-and-push.outputs.data_image }}
       MINIAPP_IMAGE: ${{ needs.build-and-push.outputs.miniapp_image }}
       ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
@@ -380,7 +551,7 @@ jobs:
           docker compose --env-file "${{ steps.runtime.outputs.runtime_env }}" --env-file "${{ steps.runtime.outputs.images_env }}" -f "${{ steps.bundle.outputs.compose_file }}" pull
           echo "PASS swr-login-and-image-pull"
 
-      - name: Migrate and deploy the complete release unit
+      - name: Apply schema migrations and deploy the complete release unit
         shell: bash
         env:
           RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}
