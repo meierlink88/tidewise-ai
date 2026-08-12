@@ -163,6 +163,12 @@ UAT 目录、Seed、Agent 注册数据、配置、事实回填和清理使用独
 migration 文件及已执行 ledger 不改写；若全新环境仍 pending 历史 `data`/`mixed` 版本，
 普通 UAT Deploy 必须失败并等待独立、可审计的 bootstrap/data publication 方案。
 
+`000044` 是专门退役 Evidence Receipt 的 `high/mixed` 版本，只能通过 GitHub Actions
+`UAT Evidence Receipt Cleanup` 手工执行。操作员必须先确认 RDS 自动备份/PITR 或手工恢复点
+当前可用，再勾选 `confirm_recovery_point`。该操作使用 main 最新成功 CI commit 的 immutable
+Data image，只允许 `000043 -> 000044` 或已完成后的 verified no-op；不会更新或重启任何服务，
+也不写 `/opt/tidewise/uat/state/current.*`。完成后普通 `Deploy UAT` 只会读取到已应用的 ledger。
+
 `recover_agentrun_previous_release_version` 只用于恢复被旧版发布器中断的 AgentRun
 迁移，值必须是已确认上一成功发布所拥有的 `010`–`013`，并同时勾选
 `confirm_high_risk_backup`。正常发布必须留空；该输入会在其他数据库工作之前显式恢复迁移

@@ -228,6 +228,18 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			path:  ".github/workflows/ci.yml",
 			want:  map[string]bool{"architecture": true},
 		},
+		{
+			name:  "Repository governance follows UAT controlled executors",
+			scope: "repository",
+			path:  "infra/uat/run-evidence-receipt-cleanup.sh",
+			want:  map[string]bool{"architecture": true},
+		},
+		{
+			name:  "Repository governance follows UAT control images",
+			scope: "repository",
+			path:  "infra/uat/evidence-receipt-cleanup-control.Dockerfile",
+			want:  map[string]bool{"architecture": true},
+		},
 	}
 
 	script, err := filepath.Abs(filepath.Join(repositoryRoot(), "scripts", "ci", "detect-test-risk.sh"))

@@ -208,7 +208,9 @@ forward-only `000044` 物理删除 `raw_evidence_publication_receipts`、
 Evidence/Evidence 行、身份、约束或内部 `created_at`。由于表删除同时销毁历史回执行，
 `000044` 的 scope 为 `mixed`，只能在确认数据库恢复点后通过独立、可审计的受控 migration
 执行，普通系统部署不得执行或通过备份勾选绕过。旧写入方不得再作为 `000044` 之后的应用
-回滚目标；受控 migration 成功后，后续系统部署只会观察到该版本已经应用。
+回滚目标；受控 migration 由专用 `UAT Evidence Receipt Cleanup` workflow 固定到 main 成功
+CI commit、唯一 pending version 与 immutable Data image，且不更新或重启应用服务。成功后
+后续系统部署只会观察到该版本已经应用。
 
 应用回滚使用上一版已知良好镜像；数据库只允许 reviewed forward repair，不提供 destructive
 down migration。

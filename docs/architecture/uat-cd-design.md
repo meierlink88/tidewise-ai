@@ -177,6 +177,18 @@ UAT 数据来源不默认绑定开发环境。目录、Seed、Agent 注册数据
 恢复和失败处理，不得借系统部署或 Schema migration 隐式发布。若新约束依赖历史数据处理，
 应分为兼容 Schema、独立数据发布、验证、后续约束收紧四个阶段。
 
+Evidence Receipt 的一次性退役由独立 `UAT Evidence Receipt Cleanup` workflow 执行。该
+workflow 只接受当前 `main` 的成功 CI commit，只构建按 digest 固定的 Data migration image
+和受控 executor，使用与系统部署相同的 Actions concurrency、ECS runner、SWR Secret 边界、
+本机 deployment lock 与 PostgreSQL migration lock。执行前必须显式确认 RDS 恢复点，并证明
+ledger 为 `000043` 且唯一 pending 为 `000044`；执行后必须证明 ledger 为 `000044`、退役对象
+消失且正式 Raw Evidence/Evidence identity 未发生删除或原地漂移。已经成功执行后的重复触发
+只允许 verified no-op。该 workflow 不启动、停止、替换容器，也不修改 release state；它不是
+任意 SQL 或任意 mixed migration 的通用入口。
+执行 job 的总预算为 15 分钟，每个 migration/audit one-shot 容器预算为 5 分钟；超时、取消
+或失败时 executor 按本次 GitHub run 的确定性容器名清理精确目标，并始终把最终阶段、结果和
+ledger 验证状态写入 Actions summary，不输出 Secret 或业务正文。
+
 ## Failure Rollback
 
 新版本服务启动后必须执行健康检查。任一必要服务未通过时：
