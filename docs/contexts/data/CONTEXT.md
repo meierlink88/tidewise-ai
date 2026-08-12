@@ -46,6 +46,8 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 Data 正式保存的一份完整原始采集材料，包含来源与转载快照、完整正文、文章发布时间、
 采集时间、正文哈希和有序 Keywords。它可以在清洗完成前暂时没有 Evidence，但不能以
 零 Evidence 作为正式清洗结果。
+Data 还为新建 Raw Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
+不返回，历史行不回填。
 _Avoid_: Event Evidence Record、AgentRun Artifact、Raw Document、只含摘录的证据链接
 
 **Raw Evidence Keywords**:
@@ -57,6 +59,8 @@ _Avoid_: Evidence、Tag、Expression Key、Data 生成关键词
 清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子 5W1H 事实表达。一个 Raw
 Evidence 正式清洗后必须拥有一至多条 Atomic Evidence；`1:1` 表示未拆分，`1:N` 表示
 各子项由拆分产生。
+Data 为新建 Atomic Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
+不返回，历史行不回填。Evidence 不可变，因此没有 `updated_at`。
 _Avoid_: Event Evidence Link、完整 Raw Evidence、Evidence Group、Event
 
 **Evidence Deduplication Identity**:

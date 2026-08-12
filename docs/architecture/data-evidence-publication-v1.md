@@ -36,6 +36,7 @@ Artifact；执行方不得直写 Data PostgreSQL。
 | `collected_at` | `TIMESTAMPTZ` | 必填，数据库默认 `now()` |
 | `content_hash` | `VARCHAR(64)` | `raw_text` 的 generated stored SHA-256 |
 | `keywords` | `TEXT[]` | 非空，默认空数组，原样有序保存 |
+| `created_at` | `TIMESTAMPTZ` | Data 数据库生成的新行创建时间；历史行可空 |
 
 `is_original=true` 时两个 quoted 字段必须为空；`false` 时 `quoted_source_name` 必填。
 Keywords 是阅读辅助元数据，发布方负责数量、长度、内容和去重规则。Data 只要求 JSON
@@ -70,6 +71,7 @@ Keywords 是阅读辅助元数据，发布方负责数量、长度、内容和�
 | `expression_fingerprint` | `VARCHAR(200)` | 必填非空白、确定性规范化后的可读表达 |
 | `expression_key` | `VARCHAR(64)` | 必填非空白、发布方稳定机器去重键 |
 | `fingerprint_version` | `VARCHAR(64)` | 必填非空白、规范化/哈希算法版本 |
+| `created_at` | `TIMESTAMPTZ` | Data 数据库生成的新行创建时间；历史行可空 |
 
 `SINGLE` 要求全部 core 字段为空；`DOUBLE` 要求 `source_what_core` 非空白。文章的
 `published_at` 不能替代 Evidence 的 `source_when`。
@@ -77,6 +79,11 @@ Keywords 是阅读辅助元数据，发布方负责数量、长度、内容和�
 `expression_key` 只有普通非唯一 B-tree 索引。多个来源对同一逻辑事实的 Evidence 可以
 共享 key，且每一行都必须保留。所谓 Group 只是按该 key 查询得到的派生集合；V1 没有
 Group 表、Group API、状态、合并、redirect、embedding 或 Data 语义召回。
+
+两张领域表的 `created_at` 都是 Data 内部持久化元数据。发布方不得提交该字段，发布 API
+也不返回它。新行由 PostgreSQL `transaction_timestamp()` 生成；自然身份复用时保留首次
+创建时间。历史行不回填，保持 `NULL`，不得使用 migration 执行时间冒充历史创建时间。
+领域事实发布后不可变，因此不增加 `updated_at`。
 
 ## 两阶段状态与不可变性
 
@@ -197,6 +204,10 @@ Data migration ledger 新增 forward-only `000042`：
 - 不读取 AgentRun `tidewise_ai_server`，不迁移本地旧 8/19 行；
 - 更新 UAT migration risk manifest，保护所有既有 Data 表和行数。
 
+后续 forward-only `000043` 先为两张领域表增加无默认值的 nullable `created_at`，确保历史
+行不发生回填；随后仅为未来 INSERT 设置 `transaction_timestamp()` 默认值，并使用
+`NOT VALID CHECK` 约束新写入非空。该约束不扫描或改写历史行，部署 scope 为 schema-only。
+
 应用回滚使用上一版已知良好镜像；数据库只允许 reviewed forward repair，不提供 destructive
 down migration。
 
@@ -229,6 +240,8 @@ publication 只作为公开方法和 operation，不作为 package 或手写源�
 ### PostgreSQL
 
 - 两阶段事务、回滚、并发 create/reuse/conflict、Receipt 最后写入与不可变 trigger。
+- 新建 Raw Evidence 与 Atomic Evidence 由数据库生成非空 `created_at`；完全相同的重试
+  复用原行且时间不变；历史行不由 migration 回填。
 - FK、唯一 split order、非唯一 expression key 索引、generated content hash、Keywords
   `TEXT[] DEFAULT '{}'`、schema comments 和 migration ledger/risk manifest。
 - migration 前后既有 Data 表/行保持不变，异常同名表 fail closed。

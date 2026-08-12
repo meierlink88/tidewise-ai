@@ -37,9 +37,13 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
 	}
+	rawCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", raw.RawEvidenceID)
 	replayed, err := publication.PublishRawEvidence(ctx, "neutral-publisher", raw)
 	if err != nil {
 		t.Fatalf("replay Raw Evidence: %v", err)
+	}
+	if replayedCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", raw.RawEvidenceID); !replayedCreatedAt.Equal(rawCreatedAt) {
+		t.Fatalf("replayed Raw Evidence created_at = %s, want %s", replayedCreatedAt, rawCreatedAt)
 	}
 	if created.RawEvidence.Disposition != evidencebiz.DispositionCreated ||
 		replayed.RawEvidence.Disposition != evidencebiz.DispositionReused ||
@@ -56,9 +60,18 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if err != nil {
 		t.Fatalf("publish Evidence set: %v", err)
 	}
+	evidenceCreatedAt := make(map[string]time.Time, len(items))
+	for _, item := range items {
+		evidenceCreatedAt[item.EvidenceID] = storedCreationTime(t, db, "evidences", "evidence_id", item.EvidenceID)
+	}
 	reused, err := publication.PublishEvidence(ctx, "neutral-publisher", raw.RawEvidenceID, items)
 	if err != nil {
 		t.Fatalf("replay Evidence set: %v", err)
+	}
+	for _, item := range items {
+		if replayedCreatedAt := storedCreationTime(t, db, "evidences", "evidence_id", item.EvidenceID); !replayedCreatedAt.Equal(evidenceCreatedAt[item.EvidenceID]) {
+			t.Fatalf("replayed Evidence %q created_at = %s, want %s", item.EvidenceID, replayedCreatedAt, evidenceCreatedAt[item.EvidenceID])
+		}
 	}
 	if published.Counts.Created != 2 || reused.Counts.Reused != 2 || published.ReceiptID == reused.ReceiptID {
 		t.Fatalf("Evidence results published=%#v reused=%#v", published, reused)
@@ -92,6 +105,19 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	}
 
 	assertEvidenceReceiptsImmutable(t, db, created.ReceiptID, published.ReceiptID)
+}
+
+func storedCreationTime(t *testing.T, db *sql.DB, table, identityColumn, identity string) time.Time {
+	t.Helper()
+	var createdAt time.Time
+	query := fmt.Sprintf(`SELECT created_at FROM %s WHERE %s = $1`, table, identityColumn)
+	if err := db.QueryRow(query, identity).Scan(&createdAt); err != nil {
+		t.Fatalf("read %s created_at: %v", table, err)
+	}
+	if createdAt.IsZero() {
+		t.Fatalf("%s created_at is zero", table)
+	}
+	return createdAt
 }
 
 func TestEvidenceTransactionRejectsInvalidPersistedRawEvidence(t *testing.T) {
