@@ -2,7 +2,6 @@ package evidence
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -13,16 +12,11 @@ import (
 	"time"
 )
 
-type Disposition string
-
 type SourceLevel string
 type LayerType string
 type IssueCode string
 
 const (
-	DispositionCreated Disposition = "created"
-	DispositionReused  Disposition = "reused"
-
 	SourceLevelOfficial SourceLevel = "L1_OFFICIAL"
 	SourceLevelWire     SourceLevel = "L2_WIRE"
 	SourceLevelMedia    SourceLevel = "L3_MEDIA"
@@ -98,53 +92,12 @@ type StoredEvidence struct {
 }
 
 type RawEvidenceResult struct {
-	ReceiptID   string
-	ImportedAt  time.Time
-	RawEvidence RawEvidenceItemResult
-}
-
-type RawEvidenceItemResult struct {
 	RawEvidenceID string
-	ContentHash   string
-	Keywords      []string
-	Disposition   Disposition
 }
 
 type EvidenceResult struct {
-	ReceiptID     string
-	RawEvidenceID string
-	ImportedAt    time.Time
-	Evidences     []EvidenceItemResult
-	Counts        EvidenceCounts
-}
-
-type EvidenceItemResult struct {
-	EvidenceID  string
-	SplitOrder  int
-	IsSplit     bool
-	Disposition Disposition
-}
-
-type EvidenceCounts struct {
-	Created int
-	Reused  int
-}
-
-type RawEvidencePublicationReceipt struct {
-	ID            string
-	CallerSubject string
-	RawEvidenceID string
-	Disposition   Disposition
-	ImportedAt    time.Time
-}
-
-type EvidencePublicationReceipt struct {
-	ID            string
-	CallerSubject string
 	RawEvidenceID string
 	EvidenceIDs   []string
-	Counts        EvidenceCounts
-	ImportedAt    time.Time
 }
 
 type Issue struct {
@@ -188,28 +141,19 @@ var allowedSourceLevels = map[SourceLevel]struct{}{
 }
 
 type UseCase struct {
-	store   Store
-	now     func() time.Time
-	newUUID func() (string, error)
+	store Store
 }
 
 func NewUseCase(store Store) (*UseCase, error) {
 	if store == nil {
 		return nil, errors.New("Evidence Publication store is required")
 	}
-	return &UseCase{
-		store:   store,
-		now:     func() time.Time { return time.Now().UTC() },
-		newUUID: randomUUID,
-	}, nil
+	return &UseCase{store: store}, nil
 }
 
-func (s *UseCase) PublishRawEvidence(ctx context.Context, callerSubject string, input RawEvidence) (RawEvidenceResult, error) {
+func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (RawEvidenceResult, error) {
 	if s == nil || s.store == nil {
 		return RawEvidenceResult{}, errors.New("Evidence Publication store is required")
-	}
-	if strings.TrimSpace(callerSubject) == "" {
-		return RawEvidenceResult{}, errors.New("Evidence Publication caller subject is required")
 	}
 	if err := validateRawEvidence(input); err != nil {
 		return RawEvidenceResult{}, err
@@ -221,7 +165,6 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, callerSubject string, 
 		if err := tx.LockIdentities(ctx, []string{"raw-evidence:" + input.RawEvidenceID}); err != nil {
 			return err
 		}
-		disposition := DispositionCreated
 		existing, err := tx.RawEvidence(ctx, input.RawEvidenceID)
 		if err != nil {
 			return err
@@ -233,27 +176,11 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, callerSubject string, 
 					Message: "raw_evidence_id conflicts with stored content",
 				}}}
 			}
-			disposition = DispositionReused
 		} else if err := tx.InsertRawEvidence(ctx, record); err != nil {
 			return err
 		}
-
-		receiptID, err := s.newUUID()
-		if err != nil {
-			return fmt.Errorf("generate Raw Evidence receipt ID: %w", err)
-		}
-		importedAt := s.now().UTC()
-		result = RawEvidenceResult{
-			ReceiptID: receiptID, ImportedAt: importedAt,
-			RawEvidence: RawEvidenceItemResult{
-				RawEvidenceID: record.RawEvidenceID, ContentHash: record.ContentHash,
-				Keywords: append([]string(nil), record.Keywords...), Disposition: disposition,
-			},
-		}
-		return tx.InsertRawEvidenceReceipt(ctx, RawEvidencePublicationReceipt{
-			ID: receiptID, CallerSubject: callerSubject, RawEvidenceID: record.RawEvidenceID,
-			Disposition: disposition, ImportedAt: importedAt,
-		})
+		result = RawEvidenceResult{RawEvidenceID: record.RawEvidenceID}
+		return nil
 	})
 	if err != nil {
 		return RawEvidenceResult{}, err
@@ -261,12 +188,9 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, callerSubject string, 
 	return result, nil
 }
 
-func (s *UseCase) PublishEvidence(ctx context.Context, callerSubject, rawEvidenceID string, input []Evidence) (EvidenceResult, error) {
+func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, input []Evidence) (EvidenceResult, error) {
 	if s == nil || s.store == nil {
 		return EvidenceResult{}, errors.New("Evidence Publication store is required")
-	}
-	if strings.TrimSpace(callerSubject) == "" {
-		return EvidenceResult{}, errors.New("Evidence Publication caller subject is required")
 	}
 	if err := validateEvidencePublication(rawEvidenceID, input); err != nil {
 		return EvidenceResult{}, err
@@ -309,12 +233,10 @@ func (s *UseCase) PublishEvidence(ctx context.Context, callerSubject, rawEvidenc
 		if err != nil {
 			return err
 		}
-		disposition := DispositionCreated
 		if len(existing) > 0 {
 			if !sameEvidenceSet(existing, records) {
 				return evidenceSetConflict()
 			}
-			disposition = DispositionReused
 		} else {
 			collisions, err := tx.EvidencesByIDs(ctx, ids)
 			if err != nil {
@@ -333,32 +255,8 @@ func (s *UseCase) PublishEvidence(ctx context.Context, callerSubject, rawEvidenc
 			}
 		}
 
-		receiptID, err := s.newUUID()
-		if err != nil {
-			return fmt.Errorf("generate Evidence receipt ID: %w", err)
-		}
-		importedAt := s.now().UTC()
-		counts := EvidenceCounts{}
-		if disposition == DispositionCreated {
-			counts.Created = len(records)
-		} else {
-			counts.Reused = len(records)
-		}
-		items := make([]EvidenceItemResult, len(records))
-		for index, record := range records {
-			items[index] = EvidenceItemResult{
-				EvidenceID: record.EvidenceID, SplitOrder: record.SplitOrder,
-				IsSplit: record.IsSplit, Disposition: disposition,
-			}
-		}
-		result = EvidenceResult{
-			ReceiptID: receiptID, RawEvidenceID: rawEvidenceID,
-			ImportedAt: importedAt, Evidences: items, Counts: counts,
-		}
-		return tx.InsertEvidenceReceipt(ctx, EvidencePublicationReceipt{
-			ID: receiptID, CallerSubject: callerSubject, RawEvidenceID: rawEvidenceID,
-			EvidenceIDs: append([]string(nil), ids...), Counts: counts, ImportedAt: importedAt,
-		})
+		result = EvidenceResult{RawEvidenceID: rawEvidenceID, EvidenceIDs: append([]string(nil), ids...)}
+		return nil
 	})
 	if err != nil {
 		return EvidenceResult{}, err
@@ -628,15 +526,4 @@ func equalStringSlice(left, right []string) bool {
 		}
 	}
 	return true
-}
-
-func randomUUID() (string, error) {
-	var value [16]byte
-	if _, err := rand.Read(value[:]); err != nil {
-		return "", err
-	}
-	value[6] = value[6]&0x0f | 0x40
-	value[8] = value[8]&0x3f | 0x80
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		value[0:4], value[4:6], value[6:8], value[8:10], value[10:16]), nil
 }

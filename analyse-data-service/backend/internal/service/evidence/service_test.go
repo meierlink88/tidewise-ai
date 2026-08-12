@@ -61,10 +61,10 @@ func TestServiceClassifiesDeadlineAndPreservesCancellation(t *testing.T) {
 
 type failingUseCase struct{ err error }
 
-func (failingUseCase) PublishRawEvidence(context.Context, string, evidencebiz.RawEvidence) (evidencebiz.RawEvidenceResult, error) {
+func (failingUseCase) PublishRawEvidence(context.Context, evidencebiz.RawEvidence) (evidencebiz.RawEvidenceResult, error) {
 	return evidencebiz.RawEvidenceResult{}, context.Canceled
 }
 
-func (u failingUseCase) PublishEvidence(context.Context, string, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error) {
+func (u failingUseCase) PublishEvidence(context.Context, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error) {
 	return evidencebiz.EvidenceResult{}, u.err
 }

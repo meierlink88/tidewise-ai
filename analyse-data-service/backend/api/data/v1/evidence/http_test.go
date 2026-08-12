@@ -66,12 +66,7 @@ func (s *evidencePublicationHTTPStub) PublishRawEvidence(ctx context.Context, re
 		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorEvidencePublicationTimeout, "Evidence Publication execution budget exceeded", nil)
 	}
 	return &v1.Response[RawEvidencePublicationResult]{Status: v1.StatusCreated, Result: RawEvidencePublicationResult{
-		ReceiptID: "11111111-1111-4111-8111-111111111111", ImportedAt: time.Date(2026, 8, 11, 8, 0, 0, 0, time.UTC),
-		RawEvidence: RawEvidencePublicationItemResult{
-			RawEvidenceID: request.RawEvidence.RawEvidenceID,
-			ContentHash:   "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33",
-			Keywords:      append([]string(nil), request.RawEvidence.Keywords...), Disposition: "created",
-		},
+		RawEvidenceID: request.RawEvidence.RawEvidenceID,
 	}}, nil
 }
 
@@ -83,11 +78,8 @@ func (s *evidencePublicationHTTPStub) PublishEvidence(ctx context.Context, reque
 		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorEvidencePublicationTimeout, "Evidence Publication execution budget exceeded", nil)
 	}
 	return &v1.Response[EvidencePublicationResult]{Status: v1.StatusCreated, Result: EvidencePublicationResult{
-		ReceiptID: "22222222-2222-4222-8222-222222222222", RawEvidenceID: request.RawEvidenceID,
-		ImportedAt: time.Date(2026, 8, 11, 8, 1, 0, 0, time.UTC),
-		Evidences: []EvidencePublicationItemResult{{
-			EvidenceID: request.Evidences[0].EvidenceID, SplitOrder: 0, IsSplit: false, Disposition: "created",
-		}}, Counts: EvidencePublicationCounts{EvidencesCreated: 1},
+		RawEvidenceID: request.RawEvidenceID,
+		EvidenceIDs:   []string{request.Evidences[0].EvidenceID},
 	}}, nil
 }
 
@@ -109,8 +101,8 @@ func TestRawEvidencePublicationHTTPPreservesPublisherKeywords(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if !equalStrings(result.RawEvidence.Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}) {
-		t.Fatalf("response keywords = %#v", result.RawEvidence.Keywords)
+	if result.RawEvidenceID != "RAW_example_00000000000000000000" {
+		t.Fatalf("response Raw Evidence ID = %q", result.RawEvidenceID)
 	}
 }
 

@@ -77,34 +77,10 @@ type AtomicEvidence struct {
 }
 
 type RawEvidencePublicationResult struct {
-	ReceiptID   string                           `json:"receipt_id"`
-	ImportedAt  time.Time                        `json:"imported_at"`
-	RawEvidence RawEvidencePublicationItemResult `json:"raw_evidence"`
-}
-
-type RawEvidencePublicationItemResult struct {
-	RawEvidenceID string   `json:"raw_evidence_id"`
-	ContentHash   string   `json:"content_hash"`
-	Keywords      []string `json:"keywords"`
-	Disposition   string   `json:"disposition"`
+	RawEvidenceID string `json:"raw_evidence_id"`
 }
 
 type EvidencePublicationResult struct {
-	ReceiptID     string                          `json:"receipt_id"`
-	RawEvidenceID string                          `json:"raw_evidence_id"`
-	ImportedAt    time.Time                       `json:"imported_at"`
-	Evidences     []EvidencePublicationItemResult `json:"evidences"`
-	Counts        EvidencePublicationCounts       `json:"counts"`
-}
-
-type EvidencePublicationItemResult struct {
-	EvidenceID  string `json:"evidence_id"`
-	SplitOrder  int    `json:"split_order"`
-	IsSplit     bool   `json:"is_split"`
-	Disposition string `json:"disposition"`
-}
-
-type EvidencePublicationCounts struct {
-	EvidencesCreated int `json:"evidences_created"`
-	EvidencesReused  int `json:"evidences_reused"`
+	RawEvidenceID string   `json:"raw_evidence_id"`
+	EvidenceIDs   []string `json:"evidence_ids"`
 }

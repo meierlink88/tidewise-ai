@@ -10,8 +10,8 @@ import (
 )
 
 type UseCase interface {
-	PublishRawEvidence(context.Context, string, evidencebiz.RawEvidence) (evidencebiz.RawEvidenceResult, error)
-	PublishEvidence(context.Context, string, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error)
+	PublishRawEvidence(context.Context, evidencebiz.RawEvidence) (evidencebiz.RawEvidenceResult, error)
+	PublishEvidence(context.Context, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error)
 }
 
 type Service struct{ useCase UseCase }
@@ -27,7 +27,7 @@ func (s *Service) PublishRawEvidence(ctx context.Context, request *evidenceapi.R
 	if s == nil || s.useCase == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Evidence Publication service is unavailable")
 	}
-	result, err := s.useCase.PublishRawEvidence(ctx, principalIdentity(ctx), rawEvidenceInput(request.RawEvidence))
+	result, err := s.useCase.PublishRawEvidence(ctx, rawEvidenceInput(request.RawEvidence))
 	if err != nil {
 		return nil, rawEvidencePublicationError(err)
 	}
@@ -42,7 +42,7 @@ func (s *Service) PublishEvidence(ctx context.Context, request *evidenceapi.Evid
 	for index, item := range request.Evidences {
 		items[index] = evidenceInput(item)
 	}
-	result, err := s.useCase.PublishEvidence(ctx, principalIdentity(ctx), request.RawEvidenceID, items)
+	result, err := s.useCase.PublishEvidence(ctx, request.RawEvidenceID, items)
 	if err != nil {
 		return nil, evidencePublicationError(err)
 	}
@@ -118,28 +118,13 @@ func evidenceInput(input evidenceapi.AtomicEvidence) evidencebiz.Evidence {
 }
 
 func rawEvidenceResultDTO(result evidencebiz.RawEvidenceResult) evidenceapi.RawEvidencePublicationResult {
-	return evidenceapi.RawEvidencePublicationResult{
-		ReceiptID: result.ReceiptID, ImportedAt: result.ImportedAt,
-		RawEvidence: evidenceapi.RawEvidencePublicationItemResult{
-			RawEvidenceID: result.RawEvidence.RawEvidenceID, ContentHash: result.RawEvidence.ContentHash,
-			Keywords: append([]string(nil), result.RawEvidence.Keywords...), Disposition: string(result.RawEvidence.Disposition),
-		},
-	}
+	return evidenceapi.RawEvidencePublicationResult{RawEvidenceID: result.RawEvidenceID}
 }
 
 func evidenceResultDTO(result evidencebiz.EvidenceResult) evidenceapi.EvidencePublicationResult {
-	items := make([]evidenceapi.EvidencePublicationItemResult, len(result.Evidences))
-	for index, item := range result.Evidences {
-		items[index] = evidenceapi.EvidencePublicationItemResult{
-			EvidenceID: item.EvidenceID, SplitOrder: item.SplitOrder,
-			IsSplit: item.IsSplit, Disposition: string(item.Disposition),
-		}
-	}
 	return evidenceapi.EvidencePublicationResult{
-		ReceiptID: result.ReceiptID, RawEvidenceID: result.RawEvidenceID, ImportedAt: result.ImportedAt,
-		Evidences: items, Counts: evidenceapi.EvidencePublicationCounts{
-			EvidencesCreated: result.Counts.Created, EvidencesReused: result.Counts.Reused,
-		},
+		RawEvidenceID: result.RawEvidenceID,
+		EvidenceIDs:   append([]string(nil), result.EvidenceIDs...),
 	}
 }
 
@@ -149,13 +134,6 @@ func publicError(status int, code, message string) error {
 
 func publicErrorWithDetails(status int, code, message string, details any) error {
 	return v1.NewPublicError(status, code, message, details)
-}
-
-func principalIdentity(ctx context.Context) string {
-	if principal, ok := v1.PrincipalFromContext(ctx); ok {
-		return principal.Identity
-	}
-	return ""
 }
 
 var _ evidenceapi.Service = (*Service)(nil)

@@ -164,21 +164,15 @@ timeout Header 或请求字段，V1 不使用 `Idempotency-Key`。
 ```
 
 `is_split` 由 Data 计算，不属于 request DTO。请求引用的 Raw Evidence 必须已经存在；不存在
-返回安全的 `422`。全部 Evidence、Receipt 和冲突校验使用一个 PostgreSQL transaction，
+返回安全的 `422`。全部 Evidence 写入和冲突校验使用一个 PostgreSQL transaction，
 任一失败整包回滚。
 
-### 成功响应与 Receipt
+### 成功响应
 
-每次成功调用均创建新的 immutable Receipt 并返回 `201 Created`，即使业务记录全部复用。
-Raw 响应返回 receipt、导入时间、Raw ID、Data 生成的 content hash、Keywords 和
-`created|reused`；Evidence 响应返回 receipt、Raw ID、每个 Evidence ID/split order/
-Data 派生 is_split/disposition 及 created/reused 计数。
-
-Receipt 分别存入 `raw_evidence_publication_receipts` 与
-`evidence_publication_receipts`，记录 contract version、Data trust-domain
-`caller_subject`、正式事实身份、写入结果和 `imported_at`。Receipt 不保存完整正文、完整
-5W1H payload、Bearer token、失败占位、异步状态、payload hash 或 replay 状态；失败事务不
-生成 Receipt。Receipt 使用与现有 Event Publication 相同的数据库不可变 trigger。
+成功调用返回 `201 Created`。Raw 响应只返回正式 `raw_evidence_id`；Evidence 响应返回
+`raw_evidence_id` 与按 `split_order` 排序的 `evidence_ids`。成功/失败由 HTTP 状态和标准
+Envelope 表达，不增加布尔状态，不返回 `receipt_id`、`imported_at`、`content_hash`、
+Keywords、`is_split`、`created|reused` 或计数，也不保存独立发布审计记录。
 
 ### 错误与重试
 
@@ -191,7 +185,7 @@ Receipt 分别存入 `raw_evidence_publication_receipts` 与
   不返回 SQL、表名、正文或内部错误。
 
 未知调用结果只能用相同自然身份和完全相同正文重试。并发写以自然身份锁/唯一约束收敛；
-同内容得到一个正式业务对象和多个成功 Receipt，内容漂移得到冲突。
+同内容重试得到同一正式业务对象和相同正式 ID，内容漂移得到冲突。
 
 ## Migration 与兼容
 
@@ -208,6 +202,11 @@ Data migration ledger 新增 forward-only `000042`：
 行不发生回填；随后仅为未来 INSERT 设置 `transaction_timestamp()` 默认值，并使用
 `NOT VALID CHECK` 约束新写入非空。该约束不扫描或改写历史行，部署 scope 为 schema-only。
 
+本版本停止读写 `raw_evidence_publication_receipts`、`evidence_publication_receipts`，但在
+上一版应用镜像仍处于可回滚窗口时保留这两张兼容空表及其专用 trigger function。待本版本
+完成部署且不再回滚到旧写入方后，另以独立 forward-only migration 物理删除；清理不得修改
+正式 Raw Evidence/Evidence 行、身份、约束或内部 `created_at`。
+
 应用回滚使用上一版已知良好镜像；数据库只允许 reviewed forward repair，不提供 destructive
 down migration。
 
@@ -222,7 +221,7 @@ publication 只作为公开方法和 operation，不作为 package 或手写源�
 
 ### Biz
 
-- Raw 自然身份 create/reuse/conflict，Keywords 空/非空、顺序和原样保存；Data 不执行发布方
+- Raw 自然身份首次创建/一致重试/conflict，Keywords 空/非空、顺序和原样保存；Data 不执行发布方
   的数量、长度、trim 或去重规则。
 - Evidence `1:1` 派生 `is_split=false`；`1:N` 全部 true；拒绝零项、缺号、重复号、混合或
   非零起点。
@@ -231,15 +230,16 @@ publication 只作为公开方法和 operation，不作为 package 或手写源�
 
 ### HTTP/OpenAPI
 
-- 两条路径、Bearer scope、严格 JSON、未知/重复字段、1 MiB/413、标准错误、201 Receipt、
-  created/reused 响应和 `is_split` 只出现在 response。
+- 两条路径、Bearer scope、严格 JSON、未知/重复字段、1 MiB/413、标准错误、201 与仅含正式
+  ID 的成功响应。
 - 两条发布路径均由 Data Service 内部施加 3 秒 deadline；预算耗尽返回安全 503，取消 SQL
   并回滚完整事务，不接受调用方 timeout Header 或请求字段。
-- Keywords 为 string list，原样响应；content hash 只读；无 Group 资源或 API。
+- Keywords 为 string list 并原样保存；content hash 为数据库只读事实；二者不在发布成功响应
+  重复返回；无 Group 资源或 API。
 
 ### PostgreSQL
 
-- 两阶段事务、回滚、并发 create/reuse/conflict、Receipt 最后写入与不可变 trigger。
+- 两阶段事务、回滚、并发首次创建/一致重试/conflict，且发布不产生独立 Receipt 写入。
 - 新建 Raw Evidence 与 Atomic Evidence 由数据库生成非空 `created_at`；完全相同的重试
   复用原行且时间不变；历史行不由 migration 回填。
 - FK、唯一 split order、非唯一 expression key 索引、generated content hash、Keywords

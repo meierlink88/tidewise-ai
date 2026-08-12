@@ -13,7 +13,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
-  receipt 和事务规则。
+  正式身份响应和事务规则。
 - AgentRun 使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
 - Data Service 自身的只读运行健康状态。
@@ -71,13 +71,15 @@ _Avoid_: Evidence Group 实体、唯一 expression_key、Data 语义召回、emb
 
 **Raw Evidence Publication**:
 采集完成后把一份完整 Raw Evidence 及其 Keywords 原子接纳为正式 Data 事实的同步发布。
-相同身份内容一致时复用，内容漂移时冲突；每次成功调用产生新的不可变 Receipt。
+相同身份内容一致时允许安全重试，内容漂移时冲突；成功响应只返回正式 Raw Evidence ID，
+不创建发布回执或返回创建/复用分类。
 _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
 
 **Evidence Publication**:
 清洗完成后，为一个既有 Raw Evidence 一次提交完整 `1..N` Atomic Evidence 集合的同步
-发布。整包只能创建或逐字段一致地复用，不能覆盖、追加、删除或发布零项；每次成功调用
-产生新的不可变 Receipt。
+发布。整包只能首次创建或以完全一致内容安全重试，不能覆盖、追加、删除或发布零项；成功
+响应只返回 Raw Evidence ID 和按 `split_order` 排序的 Evidence IDs，不创建发布回执或返回
+创建/复用分类。
 _Avoid_: Raw Evidence Publication、Group Publication、部分成功、可变清洗结果
 
 **Data Runtime Health**:
