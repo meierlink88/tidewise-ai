@@ -59,3 +59,29 @@ func TestEvidencePublicationOpenAPIUsesInternalThreeSecondBudget(t *testing.T) {
 		}
 	}
 }
+
+func TestEvidencePublicationOpenAPISuccessResultsContainOnlyFormalIdentities(t *testing.T) {
+	var document map[string]any
+	if err := yaml.Unmarshal(v1.Document(), &document); err != nil {
+		t.Fatal(err)
+	}
+	components := document["components"].(map[string]any)["schemas"].(map[string]any)
+	for name, expected := range map[string][]string{
+		"RawEvidencePublicationResult": {"raw_evidence_id"},
+		"EvidencePublicationResult":    {"raw_evidence_id", "evidence_ids"},
+	} {
+		schema := components[name].(map[string]any)
+		properties := schema["properties"].(map[string]any)
+		if len(properties) != len(expected) {
+			t.Fatalf("%s properties = %#v, want only %#v", name, properties, expected)
+		}
+		for _, field := range expected {
+			if _, ok := properties[field]; !ok {
+				t.Fatalf("%s is missing %q", name, field)
+			}
+		}
+		if schema["additionalProperties"] != false {
+			t.Fatalf("%s must reject additional response properties", name)
+		}
+	}
+}

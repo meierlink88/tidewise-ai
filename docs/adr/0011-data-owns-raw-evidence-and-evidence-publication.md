@@ -15,7 +15,8 @@ ADR-0005 将完整原始 Artifact 排他地交给 AgentRun，并禁止 Data 保�
 ## 决策
 
 - Data Domain Service 拥有完整 `Raw Evidence`、从其清洗得到的原子 `Evidence`、自然
-  身份、结构校验、不可变发布、Receipt 和 PostgreSQL 事务。
+  身份、结构校验、不可变发布和 PostgreSQL 事务。发布成功只返回正式事实 ID，不创建
+  独立发布回执或审计记录。
 - 采集与清洗执行方只通过 Data 的版本化 REST API 发布，不得直写 Data PostgreSQL；
   Data 不反向调用或依赖 AgentRun/AgentOS 的代码、数据库、Artifact 或运行状态。
 - Raw Evidence 与 Evidence 分两阶段发布。采集完成先发布 Raw Evidence；清洗完成后再

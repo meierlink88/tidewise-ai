@@ -33,21 +33,19 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	ctx := context.Background()
 
 	raw := postgresEvidenceRaw("RAW_postgres_0000000000000000000")
-	created, err := publication.PublishRawEvidence(ctx, "neutral-publisher", raw)
+	created, err := publication.PublishRawEvidence(ctx, raw)
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
 	}
 	rawCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", raw.RawEvidenceID)
-	replayed, err := publication.PublishRawEvidence(ctx, "neutral-publisher", raw)
+	replayed, err := publication.PublishRawEvidence(ctx, raw)
 	if err != nil {
 		t.Fatalf("replay Raw Evidence: %v", err)
 	}
 	if replayedCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", raw.RawEvidenceID); !replayedCreatedAt.Equal(rawCreatedAt) {
 		t.Fatalf("replayed Raw Evidence created_at = %s, want %s", replayedCreatedAt, rawCreatedAt)
 	}
-	if created.RawEvidence.Disposition != evidencebiz.DispositionCreated ||
-		replayed.RawEvidence.Disposition != evidencebiz.DispositionReused ||
-		created.ReceiptID == replayed.ReceiptID {
+	if created.RawEvidenceID != raw.RawEvidenceID || replayed != created {
 		t.Fatalf("Raw Evidence results created=%#v replayed=%#v", created, replayed)
 	}
 
@@ -56,7 +54,7 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		postgresEvidence("EVD_postgres_0000000000000000001", 1),
 	}
 	items[1].SourceWhat = "A second source statement supports the same normalized fact."
-	published, err := publication.PublishEvidence(ctx, "neutral-publisher", raw.RawEvidenceID, items)
+	published, err := publication.PublishEvidence(ctx, raw.RawEvidenceID, items)
 	if err != nil {
 		t.Fatalf("publish Evidence set: %v", err)
 	}
@@ -64,7 +62,7 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	for _, item := range items {
 		evidenceCreatedAt[item.EvidenceID] = storedCreationTime(t, db, "evidences", "evidence_id", item.EvidenceID)
 	}
-	reused, err := publication.PublishEvidence(ctx, "neutral-publisher", raw.RawEvidenceID, items)
+	reused, err := publication.PublishEvidence(ctx, raw.RawEvidenceID, items)
 	if err != nil {
 		t.Fatalf("replay Evidence set: %v", err)
 	}
@@ -73,7 +71,7 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 			t.Fatalf("replayed Evidence %q created_at = %s, want %s", item.EvidenceID, replayedCreatedAt, evidenceCreatedAt[item.EvidenceID])
 		}
 	}
-	if published.Counts.Created != 2 || reused.Counts.Reused != 2 || published.ReceiptID == reused.ReceiptID {
+	if published.RawEvidenceID != raw.RawEvidenceID || !sameTestStrings(published.EvidenceIDs, reused.EvidenceIDs) || len(published.EvidenceIDs) != 2 {
 		t.Fatalf("Evidence results published=%#v reused=%#v", published, reused)
 	}
 
@@ -98,13 +96,12 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 
 	drift := append([]evidencebiz.Evidence(nil), items...)
 	drift[0].SourceWhat = "drifted"
-	_, err = publication.PublishEvidence(ctx, "neutral-publisher", raw.RawEvidenceID, drift)
+	_, err = publication.PublishEvidence(ctx, raw.RawEvidenceID, drift)
 	var conflict *evidencebiz.ConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("drift error = %v, want ConflictError", err)
 	}
 
-	assertEvidenceReceiptsImmutable(t, db, created.ReceiptID, published.ReceiptID)
 }
 
 func storedCreationTime(t *testing.T, db *sql.DB, table, identityColumn, identity string) time.Time {
@@ -214,16 +211,6 @@ func persistedEvidenceRow(id, rawEvidenceID string, splitOrder int, sourceWhat s
 		nil, sourceWhat, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil, nil, nil,
 		sourceWhat + " normalized", id + "-key", "v1",
-	}
-}
-
-func assertEvidenceReceiptsImmutable(t *testing.T, db *sql.DB, rawReceiptID, evidenceReceiptID string) {
-	t.Helper()
-	if _, err := db.Exec(`UPDATE raw_evidence_publication_receipts SET caller_subject = 'mutated' WHERE id = $1`, rawReceiptID); err == nil {
-		t.Fatal("Raw Evidence receipt update unexpectedly succeeded")
-	}
-	if _, err := db.Exec(`DELETE FROM evidence_publication_receipts WHERE id = $1`, evidenceReceiptID); err == nil {
-		t.Fatal("Evidence receipt delete unexpectedly succeeded")
 	}
 }
 

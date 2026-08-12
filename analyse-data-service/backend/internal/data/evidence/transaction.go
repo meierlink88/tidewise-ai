@@ -198,30 +198,4 @@ INSERT INTO evidences (
 	return nil
 }
 
-func (t *transaction) InsertRawEvidenceReceipt(ctx context.Context, receipt evidencebiz.RawEvidencePublicationReceipt) error {
-	_, err := t.tx.ExecContext(ctx, `
-INSERT INTO raw_evidence_publication_receipts (
-    id, contract_version, caller_subject, raw_evidence_id, disposition, imported_at
-) VALUES ($1,1,$2,$3,$4,$5)`, receipt.ID, receipt.CallerSubject, receipt.RawEvidenceID, receipt.Disposition, receipt.ImportedAt)
-	if err != nil {
-		return fmt.Errorf("insert Raw Evidence Publication receipt: %w", err)
-	}
-	return nil
-}
-
-func (t *transaction) InsertEvidenceReceipt(ctx context.Context, receipt evidencebiz.EvidencePublicationReceipt) error {
-	_, err := t.tx.ExecContext(ctx, `
-INSERT INTO evidence_publication_receipts (
-    id, contract_version, caller_subject, raw_evidence_id, evidence_ids,
-    created_count, reused_count, imported_at
-) VALUES ($1,1,$2,$3,$4,$5,$6,$7)`,
-		receipt.ID, receipt.CallerSubject, receipt.RawEvidenceID, receipt.EvidenceIDs,
-		receipt.Counts.Created, receipt.Counts.Reused, receipt.ImportedAt,
-	)
-	if err != nil {
-		return fmt.Errorf("insert Evidence Publication receipt: %w", err)
-	}
-	return nil
-}
-
 var _ evidencebiz.Transaction = (*transaction)(nil)

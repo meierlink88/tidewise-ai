@@ -97,7 +97,7 @@ func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.
 	for _, input := range []evidencebiz.RawEvidence{left, right} {
 		go func(raw evidencebiz.RawEvidence) {
 			<-start
-			_, err := publication.PublishRawEvidence(context.Background(), "neutral-publisher", raw)
+			_, err := publication.PublishRawEvidence(context.Background(), raw)
 			errorsChannel <- err
 		}(input)
 	}
@@ -116,15 +116,12 @@ func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.
 		}
 		t.Fatalf("concurrent Raw drift error = %v", err)
 	}
-	var rows, receipts int
+	var rows int
 	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, left.RawEvidenceID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_publication_receipts WHERE raw_evidence_id = $1`, left.RawEvidenceID).Scan(&receipts); err != nil {
-		t.Fatal(err)
-	}
-	if succeeded != 1 || conflicted != 1 || rows != 1 || receipts != 1 {
-		t.Fatalf("Raw drift convergence succeeded=%d conflicted=%d rows=%d receipts=%d", succeeded, conflicted, rows, receipts)
+	if succeeded != 1 || conflicted != 1 || rows != 1 {
+		t.Fatalf("Raw drift convergence succeeded=%d conflicted=%d rows=%d", succeeded, conflicted, rows)
 	}
 }
 
@@ -134,16 +131,14 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		rawID         string
 		evidenceID    string
 		drift         bool
-		wantCreated   int
-		wantReused    int
+		wantSucceeded int
 		wantConflicts int
-		wantReceipts  int
 	}{
-		{rawID: "RAW_evrace_ok_000000000000000000", evidenceID: "EVD_evrace_ok_000000000000000000", wantCreated: 1, wantReused: 1, wantReceipts: 2},
-		{rawID: "RAW_evrace_no_000000000000000000", evidenceID: "EVD_evrace_no_000000000000000000", drift: true, wantCreated: 1, wantConflicts: 1, wantReceipts: 1},
+		{rawID: "RAW_evrace_ok_000000000000000000", evidenceID: "EVD_evrace_ok_000000000000000000", wantSucceeded: 2},
+		{rawID: "RAW_evrace_no_000000000000000000", evidenceID: "EVD_evrace_no_000000000000000000", drift: true, wantSucceeded: 1, wantConflicts: 1},
 	} {
 		raw := postgresEvidenceRaw(test.rawID)
-		if _, err := publication.PublishRawEvidence(context.Background(), "neutral-publisher", raw); err != nil {
+		if _, err := publication.PublishRawEvidence(context.Background(), raw); err != nil {
 			t.Fatal(err)
 		}
 		left := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
@@ -160,17 +155,19 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		for _, input := range [][]evidencebiz.Evidence{left, right} {
 			go func(items []evidencebiz.Evidence) {
 				<-start
-				result, err := publication.PublishEvidence(context.Background(), "neutral-publisher", raw.RawEvidenceID, items)
+				result, err := publication.PublishEvidence(context.Background(), raw.RawEvidenceID, items)
 				outcomes <- outcome{result: result, err: err}
 			}(input)
 		}
 		close(start)
-		created, reused, conflicted := 0, 0, 0
+		succeeded, conflicted := 0, 0
 		for count := 0; count < 2; count++ {
 			completed := <-outcomes
 			if completed.err == nil {
-				created += completed.result.Counts.Created
-				reused += completed.result.Counts.Reused
+				if len(completed.result.EvidenceIDs) != 1 || completed.result.EvidenceIDs[0] != test.evidenceID {
+					t.Fatalf("concurrent Evidence result = %#v", completed.result)
+				}
+				succeeded++
 				continue
 			}
 			var conflict *evidencebiz.ConflictError
@@ -180,15 +177,12 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 			}
 			t.Fatalf("concurrent Evidence error = %v", completed.err)
 		}
-		var rows, receipts int
+		var rows int
 		if err := db.QueryRow(`SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rows); err != nil {
 			t.Fatal(err)
 		}
-		if err := db.QueryRow(`SELECT count(*) FROM evidence_publication_receipts WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&receipts); err != nil {
-			t.Fatal(err)
-		}
-		if created != test.wantCreated || reused != test.wantReused || conflicted != test.wantConflicts || rows != 1 || receipts != test.wantReceipts {
-			t.Fatalf("Evidence convergence created=%d reused=%d conflicts=%d rows=%d receipts=%d", created, reused, conflicted, rows, receipts)
+		if succeeded != test.wantSucceeded || conflicted != test.wantConflicts || rows != 1 {
+			t.Fatalf("Evidence convergence succeeded=%d conflicts=%d rows=%d", succeeded, conflicted, rows)
 		}
 	}
 }
@@ -205,7 +199,7 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidenceb
 		go func() {
 			defer workers.Done()
 			<-start
-			result, err := publication.PublishRawEvidence(context.Background(), "neutral-publisher", raw)
+			result, err := publication.PublishRawEvidence(context.Background(), raw)
 			results <- result
 			errorsChannel <- err
 		}()
@@ -219,29 +213,23 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidenceb
 			t.Fatalf("concurrent publication: %v", err)
 		}
 	}
-	created, reused := 0, 0
 	for result := range results {
-		switch result.RawEvidence.Disposition {
-		case evidencebiz.DispositionCreated:
-			created++
-		case evidencebiz.DispositionReused:
-			reused++
+		if result.RawEvidenceID != raw.RawEvidenceID {
+			t.Fatalf("concurrent publication result = %#v", result)
 		}
 	}
-	var rows, receipts int
+	var rows int
 	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_publication_receipts WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&receipts); err != nil {
-		t.Fatal(err)
-	}
-	if created != 1 || reused != 1 || rows != 1 || receipts != 2 {
-		t.Fatalf("convergence created=%d reused=%d rows=%d receipts=%d", created, reused, rows, receipts)
+	if rows != 1 {
+		t.Fatalf("convergence rows=%d", rows)
 	}
 }
 
 func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.UseCase, store evidencebiz.Store, db *sql.DB) {
 	t.Helper()
+	forcedFailure := errors.New("force transaction rollback")
 	raw := postgresEvidenceRaw("RAW_rollback_0000000000000000000")
 	err := store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertRawEvidence(context.Background(), evidencebiz.StoredRawEvidence{
@@ -249,13 +237,10 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 		}); err != nil {
 			return err
 		}
-		return tx.InsertRawEvidenceReceipt(context.Background(), evidencebiz.RawEvidencePublicationReceipt{
-			ID: "not-a-uuid", CallerSubject: "neutral-publisher", RawEvidenceID: raw.RawEvidenceID,
-			Disposition: evidencebiz.DispositionCreated, ImportedAt: time.Now().UTC(),
-		})
+		return forcedFailure
 	})
-	if err == nil {
-		t.Fatal("transaction with invalid receipt ID unexpectedly succeeded")
+	if !errors.Is(err, forcedFailure) {
+		t.Fatalf("Raw Evidence forced rollback error = %v", err)
 	}
 	var count int
 	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&count); err != nil {
@@ -266,7 +251,7 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 	}
 
 	evidenceRaw := postgresEvidenceRaw("RAW_evrollback_00000000000000000")
-	if _, err := publication.PublishRawEvidence(context.Background(), "neutral-publisher", evidenceRaw); err != nil {
+	if _, err := publication.PublishRawEvidence(context.Background(), evidenceRaw); err != nil {
 		t.Fatal(err)
 	}
 	evidence := postgresEvidence("EVD_evrollback_00000000000000000", 0)
@@ -276,14 +261,10 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 		}); err != nil {
 			return err
 		}
-		return tx.InsertEvidenceReceipt(context.Background(), evidencebiz.EvidencePublicationReceipt{
-			ID: "not-a-uuid", CallerSubject: "neutral-publisher", RawEvidenceID: evidenceRaw.RawEvidenceID,
-			EvidenceIDs: []string{evidence.EvidenceID}, Counts: evidencebiz.EvidenceCounts{Created: 1},
-			ImportedAt: time.Now().UTC(),
-		})
+		return forcedFailure
 	})
-	if err == nil {
-		t.Fatal("partial Evidence transaction unexpectedly succeeded")
+	if !errors.Is(err, forcedFailure) {
+		t.Fatalf("Evidence forced rollback error = %v", err)
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, evidenceRaw.RawEvidenceID).Scan(&count); err != nil {
 		t.Fatal(err)
@@ -316,26 +297,16 @@ func assertEvidenceDeadlineCancelsQueryAndRollsBack(t *testing.T, store Store, d
 		if err := tx.InsertRawEvidence(ctx, evidencebiz.StoredRawEvidence{RawEvidence: raw}); err != nil {
 			return err
 		}
-		if err := tx.InsertRawEvidenceReceipt(ctx, evidencebiz.RawEvidencePublicationReceipt{
-			ID: "33333333-3333-4333-8333-333333333333", CallerSubject: "neutral-publisher",
-			RawEvidenceID: raw.RawEvidenceID, Disposition: evidencebiz.DispositionCreated,
-			ImportedAt: time.Now().UTC(),
-		}); err != nil {
-			return err
-		}
 		return tx.LockIdentities(ctx, []string{lockKey})
 	})
 	if err == nil || !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		t.Fatalf("deadline transaction error=%v context=%v", err, ctx.Err())
 	}
-	var rawCount, receiptCount int
+	var rawCount int
 	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rawCount); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_publication_receipts WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&receiptCount); err != nil {
-		t.Fatal(err)
-	}
-	if rawCount != 0 || receiptCount != 0 {
-		t.Fatalf("deadline rollback left raw=%d receipts=%d", rawCount, receiptCount)
+	if rawCount != 0 {
+		t.Fatalf("deadline rollback left raw=%d", rawCount)
 	}
 }
