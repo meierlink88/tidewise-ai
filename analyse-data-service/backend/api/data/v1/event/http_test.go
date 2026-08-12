@@ -63,6 +63,32 @@ func TestHTTPRoutesPreserveEventContract(t *testing.T) {
 	}
 }
 
+func TestHTTPEventTagCatalogReturnsOnlyCurrentTags(t *testing.T) {
+	server := kratoshttp.NewServer()
+	eventapi.RegisterHTTPServer(server, currentTagCatalogService{testService: testService{}})
+	response := httptest.NewRecorder()
+	server.ServeHTTP(
+		response,
+		httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/event-tags?active=true", nil),
+	)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", response.Code, response.Body.String())
+	}
+	var result map[string]json.RawMessage
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := result["catalog_revision"]; exists {
+		t.Fatalf("response contains catalog_revision: %s", response.Body.String())
+	}
+	if _, exists := result["catalog_hash"]; exists {
+		t.Fatalf("response contains catalog_hash: %s", response.Body.String())
+	}
+	if _, exists := result["tags"]; !exists || len(result) != 1 {
+		t.Fatalf("result = %s", response.Body.String())
+	}
+}
+
 func TestPublicationBindingAllowsArbitraryFactPayloadButRejectsUnknownFields(t *testing.T) {
 	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
 		if public, ok := err.(*v1.PublicError); ok {
@@ -92,6 +118,21 @@ func TestPublicationBindingAllowsArbitraryFactPayloadButRejectsUnknownFields(t *
 }
 
 type testService struct{}
+
+type currentTagCatalogService struct{ testService }
+
+func (currentTagCatalogService) ListActiveEventTags(
+	context.Context,
+	*eventapi.TagCatalogRequest,
+) (*v1.Response[eventapi.TagCatalog], error) {
+	return &v1.Response[eventapi.TagCatalog]{
+		Status: http.StatusOK,
+		Result: eventapi.TagCatalog{Tags: []eventapi.TagCatalogItem{{
+			ID: "11111111-1111-4111-8111-111111111111", TagKind: "news_category",
+			Code: "technology_industry", Name: "科技产业", IsActive: true,
+		}}},
+	}, nil
+}
 
 func (testService) PublishReviewedEvents(context.Context, *eventapi.PublicationRequest) (*v1.Response[eventapi.PublicationResult], error) {
 	return testResponse[eventapi.PublicationResult]()

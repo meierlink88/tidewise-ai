@@ -120,9 +120,14 @@ func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
 	assertStringSet(t, object(t, active["schema"], "active schema")["enum"], "true")
 
 	catalog := schema(t, document, "EventTagCatalog")
-	assertRequired(t, catalog, "catalog_revision", "catalog_hash", "tags")
+	assertRequired(t, catalog, "tags")
 	properties := object(t, catalog["properties"], "EventTagCatalog properties")
-	assertString(t, object(t, properties["catalog_hash"], "catalog_hash"), "$ref", "#/components/schemas/PayloadHash")
+	if _, exists := properties["catalog_revision"]; exists {
+		t.Fatal("EventTagCatalog exposes catalog_revision")
+	}
+	if _, exists := properties["catalog_hash"]; exists {
+		t.Fatal("EventTagCatalog exposes catalog_hash")
+	}
 	tags := object(t, properties["tags"], "tags")
 	assertInt(t, tags, "minItems", 1)
 

@@ -14,7 +14,6 @@ type Repository interface {
 	ClaimNextWork(context.Context, ExtractionSnapshot, time.Time) (ExecutionAttempt, bool, error)
 	SetAwaitingTagCatalog(context.Context, ExecutionAttempt, Result, string, time.Time) error
 	RetryExtraction(context.Context, ExecutionAttempt, Result, string, time.Time) error
-	SetExecutionCatalog(context.Context, string, string, string, time.Time) error
 	CompleteExtraction(context.Context, ExecutionAttempt, Result, []JournalEntry, time.Time) error
 	CompleteWithoutPublication(context.Context, ExecutionAttempt, Result, WorkStatus, time.Time) error
 	ListDeliverableJournals(context.Context, time.Time) ([]JournalEntry, error)

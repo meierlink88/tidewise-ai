@@ -8,6 +8,9 @@ import (
 const (
 	AgentKey     = "event-fact-extractor"
 	AgentVersion = "event-fact-extractor.v2"
+
+	TagKindNewsCategory  = "news_category"
+	TagKindIndexCategory = "index_category"
 )
 
 type WorkStatus string
@@ -42,8 +45,6 @@ type WorkItem struct {
 	Status                WorkStatus
 	CurrentExecutionID    string
 	ExtractionResult      json.RawMessage
-	TagCatalogRevision    string
-	TagCatalogHash        string
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
 }
@@ -65,8 +66,6 @@ type ArtifactUnit struct {
 	Status               WorkStatus
 	CurrentExecutionID   string
 	ExtractionResult     json.RawMessage
-	TagCatalogRevision   string
-	TagCatalogHash       string
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
@@ -87,9 +86,7 @@ type Tag struct {
 }
 
 type TagCatalog struct {
-	Revision string `json:"catalog_revision"`
-	Hash     string `json:"catalog_hash"`
-	Tags     []Tag  `json:"tags"`
+	Tags []Tag `json:"tags"`
 }
 
 type Artifact struct {

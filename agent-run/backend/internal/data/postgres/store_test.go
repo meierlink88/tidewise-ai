@@ -1492,11 +1492,6 @@ func TestPreparedPublicationProtectsAndIdempotentlyCommitsExecution(t *testing.T
 		extractorExecution.Status != agentrun.StatusRunning {
 		t.Fatalf("Extractor Agent Execution = %#v", extractorExecution)
 	}
-	if err := store.SetExecutionCatalog(
-		ctx, attempt.ID, "event-tags:catalog", strings.Repeat("e", 64), now.Add(4*time.Minute),
-	); err != nil {
-		t.Fatal(err)
-	}
 	journalPayload := []byte(`{"package_id":"immutable-package"}`)
 	journalSum := sha256.Sum256(journalPayload)
 	journal := eventfact.JournalEntry{

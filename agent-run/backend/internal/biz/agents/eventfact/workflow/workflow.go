@@ -224,8 +224,7 @@ func New(
 	)).AddInput(compose.START)
 	workflow.AddLambdaNode("prepare_extraction_input", compose.InvokableLambda(
 		func(_ context.Context, current *state) (*state, error) {
-			if current.input.Catalog.Revision == "" || len(current.input.Catalog.Hash) != 64 ||
-				len(current.input.Catalog.Tags) == 0 {
+			if len(current.input.Catalog.Tags) == 0 {
 				return nil, errors.New("Event Tag Catalog is invalid")
 			}
 			return current, nil
