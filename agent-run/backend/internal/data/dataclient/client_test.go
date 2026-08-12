@@ -59,6 +59,29 @@ func TestClientReadsTagCatalogAndPublishesExactBytes(t *testing.T) {
 	}
 }
 
+func TestClientIgnoresLegacyCatalogIdentityDuringRollout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{"request_id":"data-1","result":{"catalog_revision":"event-tags:legacy","catalog_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"technology","name":"科技","is_active":true}]}}`))
+	}))
+	defer server.Close()
+
+	client, err := New(Config{
+		BaseURL: server.URL, ServiceToken: "service-token",
+		Timeout: time.Second, MaxResponseBytes: 64 * 1024,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := client.ActiveEventTags(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Tags) != 1 || catalog.Tags[0].Code != "technology" {
+		t.Fatalf("catalog = %#v", catalog)
+	}
+}
+
 func TestClientRejectsMalformedCurrentTagCollections(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -66,6 +89,10 @@ func TestClientRejectsMalformedCurrentTagCollections(t *testing.T) {
 	}{
 		{name: "empty", result: `{"tags":[]}`},
 		{name: "inactive", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"technology","name":"科技","is_active":false}]}`},
+		{name: "invalid UUID", result: `{"tags":[{"id":"not-a-uuid","tag_kind":"news_category","code":"technology","name":"科技","is_active":true}]}`},
+		{name: "whitespace-only code", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":" ","name":"科技","is_active":true}]}`},
+		{name: "code too long", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"` + strings.Repeat("a", 101) + `","name":"科技","is_active":true}]}`},
+		{name: "name too long", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"technology","name":"` + strings.Repeat("科", 201) + `","is_active":true}]}`},
 		{name: "unknown kind", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"other","code":"technology","name":"科技","is_active":true}]}`},
 		{name: "unstable order", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"z","name":"Z","is_active":true},{"id":"22222222-2222-4222-8222-222222222222","tag_kind":"news_category","code":"a","name":"A","is_active":true}]}`},
 		{name: "duplicate identity", result: `{"tags":[{"id":"11111111-1111-4111-8111-111111111111","tag_kind":"news_category","code":"technology","name":"科技","is_active":true},{"id":"22222222-2222-4222-8222-222222222222","tag_kind":"news_category","code":"technology","name":"科技产业","is_active":true}]}`},

@@ -23,6 +23,19 @@ Workflow 只能选择本次读取到的 code。Event Publication 时 Data 继续
 校验 ID、kind、code 和 active 状态，因此取消 Catalog identity 不放宽正式 Tag 门禁。Tag API
 不可用时仍沿用 `awaiting_tag_catalog` 与有限重试，不重新运行已完成的提取阶段。
 
+这是 `event-fact-extractor.v2` 的受限 conformance exception，而不是新 Agent Version。原合同
+在 Provider 与 Consumer 对不同 DTO 字节计算 hash 时必然失败；同时已有 V2 Work Item 的身份
+包含 Agent Version，改成 V3 会使在途 Artifact Unit 无法按原 Work Item 续跑。修正不改变模型
+Prompt、Function Call DTO、候选审核、Publication Journal 或 Event Publication 合同，只移除
+不可执行的 Catalog identity 前置条件和新执行的对应快照写入。
+
+Rollout 必须先部署新 AgentRun Consumer：它可读取旧 Data 响应中的可选 legacy
+`catalog_revision`/`catalog_hash`，但忽略其值且不持久化；验证旧 Provider 下 Tag 校验与一次
+Publication 后，才能部署只返回 `tags[]` 的新 Data Provider。不得让旧 AgentRun Consumer 与
+新 Data Provider 共存。回滚按相反顺序，先恢复旧 Data 响应，再回滚 AgentRun；旧数据库列和
+历史值未删除，能够承载该回滚。回滚会恢复已知的 Catalog identity 阻断，因此同时暂停 Event
+Fact worker，不能将其描述为可继续处理新工作的健康状态。
+
 ## Eino Function Call 合同
 
 四个模型阶段分别绑定并强制调用一个结果函数：
