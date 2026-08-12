@@ -1,4 +1,4 @@
-package postgres
+package data
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
 
-func Open(ctx context.Context, cfg conf.Config) (*sql.DB, error) {
+func OpenPostgres(ctx context.Context, cfg conf.Config) (*sql.DB, error) {
 	dsn, err := cfg.PostgresURL()
 	if err != nil {
 		return nil, err

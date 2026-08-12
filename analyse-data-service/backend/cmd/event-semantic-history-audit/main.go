@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	data "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	db, err := postgres.Open(ctx, cfg)
+	db, err := data.OpenPostgres(ctx, cfg)
 	if err != nil {
 		fail("could not open Data database")
 	}

@@ -1,16 +1,19 @@
-package service
+package runtimehealth
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
+	runtimehealthbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 )
 
 func TestGetRuntimeHealthConvertsOnlySafeProviderFields(t *testing.T) {
 	now := time.Date(2026, 8, 4, 10, 0, 0, 0, time.UTC)
-	handler := NewDataService(Dependencies{RuntimeHealth: runtimehealth.New(func() time.Time { return now })})
+	handler, err := NewService(runtimehealthbiz.New(func() time.Time { return now }))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	response, err := handler.GetRuntimeHealth(context.Background(), nil)
 

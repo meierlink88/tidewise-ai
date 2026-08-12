@@ -16,7 +16,7 @@ import (
 	"unicode"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	data "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data"
 )
 
 var categories = []string{
@@ -142,7 +142,7 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	database, err := postgres.Open(ctx, config)
+	database, err := data.OpenPostgres(ctx, config)
 	if err != nil {
 		fail(errors.New("could not open Data database"))
 	}

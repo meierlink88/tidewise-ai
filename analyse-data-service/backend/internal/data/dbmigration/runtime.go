@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	data "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data"
 )
 
 func CheckPostgres(ctx context.Context, cfg conf.Config, autoApply bool) (ServiceReport, error) {
@@ -12,7 +12,7 @@ func CheckPostgres(ctx context.Context, cfg conf.Config, autoApply bool) (Servic
 }
 
 func CheckPostgresWithOptions(ctx context.Context, cfg conf.Config, options ServiceOptions) (ServiceReport, error) {
-	db, err := postgres.Open(ctx, cfg)
+	db, err := data.OpenPostgres(ctx, cfg)
 	if err != nil {
 		return ServiceReport{}, err
 	}

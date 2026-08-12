@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	data "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data"
 )
 
 const contractVersion = "uat-excluded-fact-audit.v1"
@@ -66,7 +66,7 @@ func execute(output io.Writer) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	database, err := postgres.Open(ctx, cfg)
+	database, err := data.OpenPostgres(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL for excluded fact audit: %w", err)
 	}

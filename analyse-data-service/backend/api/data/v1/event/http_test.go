@@ -20,11 +20,11 @@ import (
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
+	runtimehealthapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/runtimehealth"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
 	serverpkg "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
-	parentservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
 	eventfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/event"
 	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
@@ -804,11 +804,17 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, parentservice.NewDataService(parentservice.Dependencies{}), researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, authenticator, nil)
+	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return httpServer.Server.Handler
+}
+
+type testRuntimeHealthService struct{}
+
+func (testRuntimeHealthService) GetRuntimeHealth(context.Context, *runtimehealthapi.Request) (*v1.Response[runtimehealthapi.Result], error) {
+	return &v1.Response[runtimehealthapi.Result]{Status: http.StatusNoContent}, nil
 }
 
 type testEvidenceService struct{}

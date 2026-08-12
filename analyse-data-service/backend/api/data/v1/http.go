@@ -47,24 +47,6 @@ func DecodeStrictJSON(payload []byte, shape *StrictJSONShape, target any) error 
 }
 func StrictJSONErrorPath(err error) string { return bindingErrorPath(err) }
 
-type DataHTTPServer interface {
-	GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error)
-}
-
-func RegisterDataHTTPServer(server *kratoshttp.Server, application DataHTTPServer) {
-	router := server.Route(APIPrefix)
-	router.GET("/runtime-health", runtimeHealthHandler(application))
-}
-
-func runtimeHealthHandler(application DataHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		request := &RuntimeHealthRequest{}
-		return Call(ctx, OperationGetRuntimeHealth, request, func(callContext context.Context) (*Response[RuntimeHealth], error) {
-			return application.GetRuntimeHealth(callContext, request)
-		})
-	}
-}
-
 func DecodeStrictJSONBody[T any](ctx kratoshttp.Context) (*T, error) {
 	payload, err := io.ReadAll(io.LimitReader(ctx.Request().Body, MaxRequestBodySize+1))
 	if err != nil {
