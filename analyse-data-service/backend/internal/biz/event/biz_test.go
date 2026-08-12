@@ -203,8 +203,9 @@ func TestListEventsMapsReadProjection(t *testing.T) {
 }
 
 type fakeStore struct {
-	tags   []EventTag
-	events EventStorePage
+	tags           []EventTag
+	events         EventStorePage
+	researchEvents ResearchEventPage
 }
 
 func (fakeStore) InTransaction(context.Context, func(Transaction) error) error { return nil }
@@ -213,6 +214,22 @@ func (store fakeStore) ListActiveTags(context.Context) ([]EventTag, error) {
 }
 func (store fakeStore) ListEvents(context.Context, EventListFilter) (EventStorePage, error) {
 	return store.events, nil
+}
+
+func (store fakeStore) ListResearchEvents(context.Context, ResearchEventQuery) (ResearchEventPage, error) {
+	return store.researchEvents, nil
+}
+
+func TestResearchEventProviderReturnsFormalFacts(t *testing.T) {
+	want := ResearchEventPage{Events: []ResearchEventRecord{{Event: ResearchEventFact{ID: "10000000-0000-4000-8000-000000000001"}}}}
+	useCase, err := NewUseCase(fakeStore{researchEvents: want})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := useCase.ListResearchEvents(context.Background(), ResearchEventQuery{PageSize: 1})
+	if err != nil || len(got.Events) != 1 || got.Events[0].Event.ID != want.Events[0].Event.ID {
+		t.Fatalf("ListResearchEvents() = %#v, %v", got, err)
+	}
 }
 
 func asValidationError(err error, target **ValidationError) bool {

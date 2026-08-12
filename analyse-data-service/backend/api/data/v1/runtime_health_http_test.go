@@ -12,7 +12,6 @@ import (
 )
 
 type runtimeHealthHTTPStub struct {
-	testDataHTTPServer
 }
 
 func (runtimeHealthHTTPStub) GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error) {

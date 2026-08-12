@@ -1,11 +1,205 @@
 package entity
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
+
+var ErrResearchHistoricalReferencesUnavailable = errors.New("strict historical Entity references are unavailable because selected facts changed after analysis_as_of")
+
+// ResearchGraphRepository exposes persisted Entity graph facts to the Entity domain.
+type ResearchGraphRepository interface {
+	SearchResearchGraph(context.Context, ResearchGraphQuery) (ResearchGraphSubgraph, error)
+	ResearchReferenceClosure(context.Context, ResearchReferenceQuery) (ResearchReferenceDictionaries, error)
+}
+
+// UseCase owns Entity-domain behavior used by other Data Service domains.
+type UseCase struct{ graph ResearchGraphRepository }
+
+func NewUseCase(graph ResearchGraphRepository) (*UseCase, error) {
+	if graph == nil {
+		return nil, fmt.Errorf("Entity graph repository is required")
+	}
+	return &UseCase{graph: graph}, nil
+}
+
+// SearchResearchGraph exposes bounded Entity graph facts to the Research domain.
+func (s *UseCase) SearchResearchGraph(ctx context.Context, query ResearchGraphQuery) (ResearchGraphSubgraph, error) {
+	if s == nil || s.graph == nil {
+		return ResearchGraphSubgraph{}, fmt.Errorf("Entity graph repository is required")
+	}
+	return s.graph.SearchResearchGraph(ctx, query)
+}
+
+func (s *UseCase) ResearchReferenceClosure(ctx context.Context, query ResearchReferenceQuery) (ResearchReferenceDictionaries, error) {
+	if s == nil || s.graph == nil {
+		return ResearchReferenceDictionaries{}, fmt.Errorf("Entity repository is required")
+	}
+	return s.graph.ResearchReferenceClosure(ctx, query)
+}
+
+type ResearchReferenceQuery struct {
+	AnalysisAsOf      time.Time
+	EntityIDs         []string
+	EntityRelationIDs []string
+	RelationTypes     []string
+	EntityTypes       []string
+}
+
+type ResearchReferenceDictionaries struct {
+	Entities                 []ResearchGraphEntity         `json:"entities"`
+	RelationDefinitions      []ResearchGraphRelation       `json:"relation_definitions"`
+	EntityRelations          []ResearchGraphEntityRelation `json:"entity_relations"`
+	IndustryChains           []ResearchGraphIndustryChain  `json:"industry_chains"`
+	IndustryChainMemberships []ResearchGraphMembership     `json:"industry_chain_memberships"`
+	IndustryChainGraphEdges  []ResearchGraphIndustryEdge   `json:"industry_chain_graph_edges"`
+	EntityTypeDefinitions    []ResearchEntityTypeContext   `json:"entity_type_definitions"`
+}
+
+type ResearchEntityTypeContext struct {
+	TypeKey              string   `json:"type_key"`
+	Version              int      `json:"version"`
+	NameZH               string   `json:"name_zh"`
+	NameEN               string   `json:"name_en"`
+	BusinessDefinition   string   `json:"business_definition"`
+	InclusionCriteria    []string `json:"inclusion_criteria"`
+	ExclusionCriteria    []string `json:"exclusion_criteria"`
+	EventLinkAllowed     bool     `json:"event_link_allowed"`
+	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
+	DirectTargetMode     string   `json:"direct_target_mode"`
+	Status               string   `json:"status"`
+}
+
+type ResearchGraphDirection string
+
+const (
+	ResearchGraphDirectionOutgoing ResearchGraphDirection = "outgoing"
+	ResearchGraphDirectionIncoming ResearchGraphDirection = "incoming"
+	ResearchGraphDirectionBoth     ResearchGraphDirection = "both"
+)
+
+type ResearchGraphRelationFilter struct {
+	RelationType string                 `json:"relation_type"`
+	Direction    ResearchGraphDirection `json:"direction"`
+}
+
+type ResearchGraphFactPolicy struct {
+	EntityStatus              string
+	EntityRelationStatus      string
+	IndustryChainReviewStatus string
+	MembershipReviewStatus    string
+	MembershipStatus          string
+	GraphEdgeReviewStatus     string
+	GraphEdgeStatus           string
+}
+
+func ApprovedActiveResearchGraphFactPolicy() ResearchGraphFactPolicy {
+	return ResearchGraphFactPolicy{
+		EntityStatus:              "active",
+		EntityRelationStatus:      "active",
+		IndustryChainReviewStatus: "approved",
+		MembershipReviewStatus:    "approved",
+		MembershipStatus:          "active",
+		GraphEdgeReviewStatus:     "approved",
+		GraphEdgeStatus:           "active",
+	}
+}
+
+type ResearchGraphQuery struct {
+	AnalysisAsOf          time.Time
+	SeedEntityIDs         []string
+	RelationFilters       []ResearchGraphRelationFilter
+	MaxDepth              int
+	IndustryChainEntityID *string
+	NodeBudget            int
+	EdgeBudget            int
+	FactPolicy            ResearchGraphFactPolicy
+}
+
+type ResearchGraphSubgraph struct {
+	ActualDepth              int                           `json:"actual_depth"`
+	Entities                 []ResearchGraphEntity         `json:"entities"`
+	RelationDefinitions      []ResearchGraphRelation       `json:"relation_definitions"`
+	EntityRelations          []ResearchGraphEntityRelation `json:"entity_relations"`
+	IndustryChains           []ResearchGraphIndustryChain  `json:"industry_chains"`
+	IndustryChainMemberships []ResearchGraphMembership     `json:"industry_chain_memberships"`
+	IndustryChainGraphEdges  []ResearchGraphIndustryEdge   `json:"industry_chain_graph_edges"`
+}
+
+type ResearchGraphEntity struct {
+	EntityID      string   `json:"entity_id"`
+	EntityType    string   `json:"entity_type"`
+	Name          string   `json:"name"`
+	CanonicalName string   `json:"canonical_name"`
+	Aliases       []string `json:"aliases"`
+	Status        string   `json:"status"`
+}
+
+type ResearchGraphRelation struct {
+	RelationType string `json:"relation_type"`
+	Direction    string `json:"direction"`
+}
+
+type ResearchGraphEntityRelation struct {
+	EntityRelationID string `json:"entity_relation_id"`
+	FromEntityID     string `json:"from_entity_id"`
+	ToEntityID       string `json:"to_entity_id"`
+	RelationType     string `json:"relation_type"`
+	Status           string `json:"status"`
+}
+
+type ResearchGraphIndustryChain struct {
+	IndustryChainEntityID string `json:"industry_chain_entity_id"`
+	Scope                 string `json:"scope"`
+	TargetOutput          string `json:"target_output"`
+	EndUse                string `json:"end_use"`
+	Geography             string `json:"geography"`
+	AsOfDate              string `json:"as_of_date"`
+	ReviewStatus          string `json:"review_status"`
+}
+
+type ResearchGraphMembership struct {
+	IndustryChainEntityID string `json:"industry_chain_entity_id"`
+	ChainNodeEntityID     string `json:"chain_node_entity_id"`
+	Position              int    `json:"position"`
+	ContextualStage       string `json:"contextual_stage"`
+	ReviewStatus          string `json:"review_status"`
+	Status                string `json:"status"`
+}
+
+type ResearchGraphIndustryEdge struct {
+	IndustryChainGraphEdgeID string  `json:"industry_chain_graph_edge_id"`
+	IndustryChainEntityID    string  `json:"industry_chain_entity_id"`
+	FromChainNodeEntityID    string  `json:"from_chain_node_entity_id"`
+	ToChainNodeEntityID      string  `json:"to_chain_node_entity_id"`
+	RelationType             string  `json:"relation_type"`
+	Mechanism                string  `json:"mechanism"`
+	ConditionNote            *string `json:"condition_note"`
+	SegmentKind              string  `json:"segment_kind"`
+	OmittedStepNote          *string `json:"omitted_step_note"`
+	ReviewStatus             string  `json:"review_status"`
+	Status                   string  `json:"status"`
+}
+
+type ResearchGraphValidationError struct{ Reason string }
+
+func (e *ResearchGraphValidationError) Error() string { return e.Reason }
+
+type ResearchGraphResourceLimitError struct {
+	Reason        string
+	Component     string
+	ActualRows    *int64
+	MaxRows       *int64
+	ActualBytes   *int64
+	MaxBytes      *int64
+	RetryGuidance string
+}
+
+func (e *ResearchGraphResourceLimitError) Error() string { return e.Reason }
 
 type Status string
 

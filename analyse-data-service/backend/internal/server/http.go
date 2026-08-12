@@ -20,6 +20,7 @@ import (
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
+	researchapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 )
 
@@ -32,12 +33,15 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, researchApplication researchapi.Service, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if application == nil {
 		return nil, errors.New("Data API service is required")
 	}
 	if evidenceApplication == nil {
 		return nil, errors.New("Evidence API service is required")
+	}
+	if researchApplication == nil {
+		return nil, errors.New("Research API service is required")
 	}
 	if eventApplication == nil {
 		return nil, errors.New("Event API service is required")
@@ -72,6 +76,7 @@ func NewHTTPServer(config conf.Config, application v1.DataHTTPServer, eventAppli
 
 	registerHealthRoutes(server, config.App)
 	v1.RegisterDataHTTPServer(server, application)
+	researchapi.RegisterHTTPServer(server, researchApplication)
 	eventapi.RegisterHTTPServer(server, eventApplication)
 	eventsemanticapi.RegisterHTTPServer(server, eventSemanticApplication)
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)

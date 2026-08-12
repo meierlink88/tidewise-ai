@@ -27,6 +27,8 @@ type ReadStore interface {
 	ListEligibleEvents(context.Context, int, *EligibleEventCursor) ([]EligibleEvent, error)
 	Context(context.Context, string) (Context, error)
 	GetEventSemantics(context.Context, string) (EventSemanticsResult, error)
+	ListResearchSemantics(context.Context, ResearchSemanticQuery) ([]ResearchSemanticRecord, error)
+	ResearchSemanticClosure(context.Context, ResearchSemanticClosureQuery) (ResearchSemanticDictionaries, error)
 }
 
 type NotFoundError struct{ Resource string }
@@ -99,6 +101,184 @@ func (s *UseCase) ListEligibleEvents(
 	}
 	return page, nil
 }
+
+func (s *UseCase) ListResearchSemantics(ctx context.Context, query ResearchSemanticQuery) ([]ResearchSemanticRecord, error) {
+	if s == nil || s.store == nil {
+		return nil, errors.New("Event Semantic store is required")
+	}
+	return s.store.ListResearchSemantics(ctx, query)
+}
+
+func (s *UseCase) ResearchSemanticClosure(ctx context.Context, query ResearchSemanticClosureQuery) (ResearchSemanticDictionaries, error) {
+	if s == nil || s.store == nil {
+		return ResearchSemanticDictionaries{}, errors.New("Event Semantic store is required")
+	}
+	return s.store.ResearchSemanticClosure(ctx, query)
+}
+
+type ResearchSemanticQuery struct {
+	EventIDs                                 []string
+	DiscoveryWindowStart, DiscoveryWindowEnd time.Time
+	AnalysisAsOf                             time.Time
+}
+
+type ResearchSemanticRecord struct {
+	EventID         string                   `json:"-"`
+	EntityLinks     []ResearchEntityLink     `json:"entity_links"`
+	VariableSignals []ResearchVariableSignal `json:"variable_signals"`
+}
+
+type ResearchVersionedReference struct {
+	Key     string
+	Version int
+}
+
+type ResearchSemanticClosureQuery struct {
+	AnalysisAsOf            time.Time
+	VariableDefinitions     []ResearchVersionedReference
+	DirectTransmissionRules []ResearchVersionedReference
+	SemanticSubmissionIDs   []string
+}
+
+type ResearchSemanticDictionaries struct {
+	VariableDefinitions     []ResearchVariableDefinition     `json:"variable_definitions"`
+	DirectTransmissionRules []ResearchDirectTransmissionRule `json:"direct_transmission_rules"`
+	AcceptancePolicies      []ResearchAcceptancePolicy       `json:"acceptance_policies"`
+}
+
+type ResearchEntityLink struct {
+	EventEntityLinkID    string   `json:"event_entity_link_id"`
+	SemanticSubmissionID string   `json:"semantic_submission_id"`
+	EntityID             string   `json:"entity_id"`
+	EntityRole           string   `json:"entity_role"`
+	ResolvedMention      *string  `json:"resolved_mention"`
+	ResolutionMethod     *string  `json:"resolution_method"`
+	ResolutionConfidence *float64 `json:"resolution_confidence"`
+	EvidenceIDs          []string `json:"evidence_ids"`
+	ReviewStatus         string   `json:"review_status"`
+}
+
+type ResearchVariableSignal struct {
+	VariableSignalID         string                 `json:"variable_signal_id"`
+	SemanticSubmissionID     string                 `json:"semantic_submission_id"`
+	SourceEventID            string                 `json:"source_event_id"`
+	SubjectEventEntityLinkID string                 `json:"subject_event_entity_link_id"`
+	SubjectEntityID          string                 `json:"subject_entity_id"`
+	VariableKey              string                 `json:"variable_key"`
+	VariableVersion          int                    `json:"variable_version"`
+	Direction                string                 `json:"direction"`
+	AssertionModality        string                 `json:"assertion_modality"`
+	EvidenceIDs              []string               `json:"evidence_ids"`
+	StatementAt              *time.Time             `json:"statement_at"`
+	ValidFrom                *time.Time             `json:"valid_from"`
+	ValidUntil               *time.Time             `json:"valid_until"`
+	ForecastPeriodStart      *time.Time             `json:"forecast_period_start"`
+	ForecastPeriodEnd        *time.Time             `json:"forecast_period_end"`
+	ExtractionConfidence     *float64               `json:"extraction_confidence"`
+	ReviewStatus             string                 `json:"review_status"`
+	Measurements             []ResearchMeasurement  `json:"measurements"`
+	DirectImpacts            []ResearchDirectImpact `json:"direct_impacts"`
+}
+
+type ResearchMeasurement struct {
+	MeasurementID    string  `json:"measurement_id"`
+	MeasurementRole  string  `json:"measurement_role"`
+	ValueShape       string  `json:"value_shape"`
+	RawValue         *string `json:"raw_value"`
+	RawLower         *string `json:"raw_lower"`
+	RawUpper         *string `json:"raw_upper"`
+	RawUnit          *string `json:"raw_unit"`
+	CanonicalValue   *string `json:"canonical_value"`
+	CanonicalLower   *string `json:"canonical_lower"`
+	CanonicalUpper   *string `json:"canonical_upper"`
+	CanonicalUnit    *string `json:"canonical_unit"`
+	Currency         *string `json:"currency"`
+	Scale            *string `json:"scale"`
+	ComparisonBasis  *string `json:"comparison_basis"`
+	ComparisonPeriod *string `json:"comparison_period"`
+	RawText          string  `json:"raw_text"`
+	IsApproximate    bool    `json:"is_approximate"`
+	EvidenceID       string  `json:"evidence_id"`
+}
+
+type ResearchDirectImpact struct {
+	DirectImpactAssertionID string     `json:"direct_impact_assertion_id"`
+	SemanticSubmissionID    string     `json:"semantic_submission_id"`
+	SourceVariableSignalID  string     `json:"source_variable_signal_id"`
+	TargetEntityID          string     `json:"target_entity_id"`
+	AffectedVariableKey     string     `json:"affected_variable_key"`
+	AffectedVariableVersion int        `json:"affected_variable_version"`
+	AffectedDirection       string     `json:"affected_direction"`
+	DerivationType          string     `json:"derivation_type"`
+	MechanismSummary        string     `json:"mechanism_summary"`
+	EvidenceIDs             []string   `json:"evidence_ids"`
+	EntityRelationID        *string    `json:"entity_relation_id"`
+	RuleKey                 *string    `json:"rule_key"`
+	RuleVersion             *int       `json:"rule_version"`
+	AssertionConfidence     *float64   `json:"assertion_confidence"`
+	EffectiveFrom           *time.Time `json:"effective_from"`
+	EffectiveTo             *time.Time `json:"effective_to"`
+	ReviewStatus            string     `json:"review_status"`
+}
+
+type ResearchVariableDefinition struct {
+	Key                   string   `json:"key"`
+	Version               int      `json:"version"`
+	NameZH                string   `json:"name_zh"`
+	NameEN                string   `json:"name_en"`
+	Domain                string   `json:"domain"`
+	BusinessDefinition    string   `json:"business_definition"`
+	ValueType             string   `json:"value_type"`
+	AllowedDirections     []string `json:"allowed_directions"`
+	CanonicalUnit         *string  `json:"canonical_unit"`
+	Status                string   `json:"status"`
+	ApplicableEntityTypes []string `json:"applicable_entity_types"`
+}
+type ResearchDirectTransmissionRule struct {
+	RuleKey                 string `json:"rule_key"`
+	Version                 int    `json:"version"`
+	SourceEntityType        string `json:"source_entity_type"`
+	SourceVariableKey       string `json:"source_variable_key"`
+	SourceVariableVersion   int    `json:"source_variable_version"`
+	SourceDirection         string `json:"source_direction"`
+	RelationType            string `json:"relation_type"`
+	TargetEntityType        string `json:"target_entity_type"`
+	AffectedVariableKey     string `json:"affected_variable_key"`
+	AffectedVariableVersion int    `json:"affected_variable_version"`
+	AffectedDirection       string `json:"affected_direction"`
+	ConditionSummary        string `json:"condition_summary"`
+	MechanismTemplate       string `json:"mechanism_template"`
+	Status                  string `json:"status"`
+}
+type ResearchAcceptancePolicy struct {
+	PolicyKey   string          `json:"policy_key"`
+	Version     int             `json:"version"`
+	RetryBudget int             `json:"retry_budget"`
+	Status      string          `json:"status"`
+	Policy      json.RawMessage `json:"policy"`
+}
+
+var ErrResearchHistoricalSemanticsUnavailable = errors.New("strict historical Event semantics are unavailable because a selected Event was superseded after analysis_as_of")
+var ErrResearchReferenceClosureInconsistent = errors.New("Research Analysis Context reference closure is inconsistent; restart from the first page")
+
+const (
+	ResearchMaxBundleBytes     = 512 * 1024
+	ResearchMaxDictionaryBytes = 4 * 1024 * 1024
+	ResearchMaxBundleRows      = 1_000
+	ResearchMaxDictionaryRows  = 50_000
+)
+
+type ResearchResourceLimitError struct {
+	Reason        string
+	Component     string
+	ActualRows    *int64
+	MaxRows       *int64
+	ActualBytes   *int64
+	MaxBytes      *int64
+	RetryGuidance string
+}
+
+func (e *ResearchResourceLimitError) Error() string { return e.Reason }
 
 type eligibleEventCursorPayload struct {
 	Version     int       `json:"v"`

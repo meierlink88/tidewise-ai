@@ -14,6 +14,15 @@ import (
 	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
 )
 
+func TestResearchSemanticDictionariesRejectMalformedPersistedDefinitions(t *testing.T) {
+	value := eventbiz.ResearchSemanticDictionaries{
+		VariableDefinitions: []eventbiz.ResearchVariableDefinition{{Key: "metric", Version: 1, NameZH: "指标", BusinessDefinition: "definition", Status: "invalid", AllowedDirections: []string{"increase"}}},
+	}
+	if err := validateResearchSemanticDictionaries(value); err == nil {
+		t.Fatal("validateResearchSemanticDictionaries() error = nil")
+	}
+}
+
 func TestEventSemanticEligibilityAllowsUnknownOccurredAt(t *testing.T) {
 	if strings.Contains(strings.ToLower(eventSemanticInputEligibilitySQL), "event_time is not null") {
 		t.Fatal("Event Semantic eligibility still excludes Events with unknown occurred_at")

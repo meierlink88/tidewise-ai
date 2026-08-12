@@ -11,32 +11,29 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
+	entitybiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/entity"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
 	eventsemanticbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 	evidencebiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/evidence"
 	rawdocumentbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/rawdocument"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchanalysiscontext"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchgraph"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
+	entitydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/entity"
 	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
 	evidencedata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidence"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	rawdocumentdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
-	researchanalysiscontextdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchanalysiscontext"
-	researchgraphdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchgraph"
-	researchpublicationdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/researchpublication"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/eventsemantic"
 	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
 	rawdocumentservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/rawdocument"
+	researchservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/research"
 )
 
 const applicationStopTimeout = 10 * time.Second
@@ -99,14 +96,35 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument use case: %w", err))
 	}
+	entityStore, err := entitydata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Entity store: %w", err))
+	}
+	entityUseCase, err := entitybiz.NewUseCase(entityStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Entity use case: %w", err))
+	}
+	researchStore, err := researchdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Research store: %w", err))
+	}
+	researchUseCase, err := research.NewUseCase(
+		researchStore,
+		researchStore,
+		eventUseCase,
+		eventSemanticUseCase,
+		entityUseCase,
+		time.Now,
+	)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Research use case: %w", err))
+	}
 
-	application := service.NewDataService(service.Dependencies{
-		ResearchThemeImports:    researchpublication.NewService(researchpublicationdata.NewRepository(db)),
-		Research:                research.NewService(researchdata.NewRepository(db), time.Now),
-		ResearchAnalysisContext: researchanalysiscontext.NewService(researchanalysiscontextdata.NewRepository(db)),
-		ResearchGraph:           researchgraph.NewService(researchgraphdata.NewRepository(db)),
-		RuntimeHealth:           runtimehealth.New(time.Now),
-	})
+	application := service.NewDataService(service.Dependencies{RuntimeHealth: runtimehealth.New(time.Now)})
+	researchApplication, err := researchservice.NewService(researchUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Research API service: %w", err))
+	}
 	evidenceApplication, err := evidenceservice.NewService(evidenceUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Evidence API service: %w", err))
@@ -123,7 +141,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, application, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, authenticator, logger)
+	httpServer, err := server.NewHTTPServer(config, application, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}

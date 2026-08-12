@@ -32,6 +32,14 @@ func (f fakeStore) GetEventSemantics(ctx context.Context, eventID string) (Event
 	return f.getEventSemantics(ctx, eventID)
 }
 
+func (fakeStore) ListResearchSemantics(context.Context, ResearchSemanticQuery) ([]ResearchSemanticRecord, error) {
+	return nil, nil
+}
+
+func (fakeStore) ResearchSemanticClosure(context.Context, ResearchSemanticClosureQuery) (ResearchSemanticDictionaries, error) {
+	return ResearchSemanticDictionaries{}, nil
+}
+
 func (f fakeStore) InTransaction(ctx context.Context, fn func(Transaction) error) error {
 	return fn(f)
 }

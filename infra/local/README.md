@@ -127,7 +127,6 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 Run Data-owned commands from the Data image:
 
 ```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --entrypoint /usr/local/bin/research-theme-dev-seed data
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --entrypoint /usr/local/bin/research-theme-dev-reset data
 ```
 

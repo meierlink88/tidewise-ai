@@ -26,30 +26,6 @@ type Response[T any] struct {
 	Result T
 }
 
-type ListResearchThemesRequest struct {
-	WindowHours   string
-	PublishedFrom string
-	PublishedTo   string
-	Limit         string
-	Cursor        string
-}
-
-type GetResearchThemeRequest struct {
-	ThemeID     string
-	WindowHours string
-}
-
-type ReasoningTreeListRequest struct {
-	ThemeID  string
-	HasQuery bool
-}
-
-type ReasoningTreeDetailRequest struct {
-	ThemeID         string
-	ReasoningTreeID string
-	HasQuery        bool
-}
-
 type RuntimeHealthRequest struct{}
 
 type RuntimeHealth struct {

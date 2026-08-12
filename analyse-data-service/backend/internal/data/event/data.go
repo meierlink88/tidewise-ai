@@ -1,20 +1,161 @@
 package event
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"strings"
 	"time"
 
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/event"
+	bizidentity "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/identity"
 )
 
 type Store struct{ db *sql.DB }
+
+func (s Store) ListResearchEvents(ctx context.Context, query eventbiz.ResearchEventQuery) (eventbiz.ResearchEventPage, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT
+    jsonb_build_object(
+        'id', event.id,
+        'title', event.title,
+        'summary', event.summary,
+        'occurred_at', event.event_time,
+        'first_seen_at', event.first_seen_at,
+        'knowledge_available_at', COALESCE(event.knowable_at, event.first_seen_at),
+        'event_status', event.event_status,
+        'fact_status', event.fact_status
+    ),
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+            'evidence_id', source.id,
+            'evidence_hash', source.evidence_hash,
+            'evidence_statement', source.evidence_statement,
+            'source_level', source.source_level,
+            'relation', source.evidence_relation,
+            'supports_fields', source.supports_fields,
+            'raw_document_id', document.id,
+            'source_name', document.source_name,
+            'source_type', document.source_type,
+            'source_url', document.source_url,
+            'title', document.title,
+            'published_at', document.published_at,
+            'first_seen_at', document.collected_at,
+            'knowledge_available_at', GREATEST(COALESCE(document.published_at, document.collected_at), document.collected_at),
+            'accepted_at', source.created_at,
+            'statement_source', COALESCE(NULLIF(event.fact_payload ->> 'statement_source', ''), '')
+        ) ORDER BY source.created_at, source.id)
+        FROM event_sources source
+        JOIN raw_documents document ON document.id = source.raw_document_id
+        WHERE source.event_id = event.id
+          AND GREATEST(COALESCE(document.published_at, document.collected_at), document.collected_at) <= $3
+          AND source.created_at <= $3
+    ), '[]'::jsonb),
+    COALESCE(event.knowable_at, event.first_seen_at)
+FROM events event
+WHERE event.event_status = 'confirmed'
+  AND event.fact_status = 'verified'
+  AND COALESCE(event.knowable_at, event.first_seen_at) >= $1
+  AND COALESCE(event.knowable_at, event.first_seen_at) < $2
+  AND COALESCE(event.knowable_at, event.first_seen_at) <= $3
+  AND ($4::timestamptz IS NULL OR (COALESCE(event.knowable_at, event.first_seen_at), event.id) > ($4::timestamptz, $5::uuid))
+ORDER BY COALESCE(event.knowable_at, event.first_seen_at), event.id
+LIMIT $6`, query.DiscoveryWindowStart, query.DiscoveryWindowEnd, query.AnalysisAsOf,
+		query.AfterKnowledgeAvailableAt, nullResearchEventUUID(query.AfterEventID), query.PageSize+1)
+	if err != nil {
+		return eventbiz.ResearchEventPage{}, fmt.Errorf("query Research Events: %w", err)
+	}
+	defer rows.Close()
+	page := eventbiz.ResearchEventPage{Events: make([]eventbiz.ResearchEventRecord, 0, query.PageSize+1)}
+	for rows.Next() {
+		var eventPayload, evidencePayload []byte
+		var record eventbiz.ResearchEventRecord
+		if err := rows.Scan(&eventPayload, &evidencePayload, &record.KnowledgeAvailableAt); err != nil {
+			return eventbiz.ResearchEventPage{}, fmt.Errorf("scan Research Event: %w", err)
+		}
+		if err := strictDecodeResearchEvent(eventPayload, &record.Event); err != nil {
+			return eventbiz.ResearchEventPage{}, err
+		}
+		if err := strictDecodeResearchEvent(evidencePayload, &record.Evidence); err != nil {
+			return eventbiz.ResearchEventPage{}, err
+		}
+		if err := validateResearchEventRecord(record); err != nil {
+			return eventbiz.ResearchEventPage{}, err
+		}
+		page.Events = append(page.Events, record)
+	}
+	if err := rows.Err(); err != nil {
+		return eventbiz.ResearchEventPage{}, fmt.Errorf("iterate Research Events: %w", err)
+	}
+	page.HasMore = len(page.Events) > query.PageSize
+	if page.HasMore {
+		page.Events = page.Events[:query.PageSize]
+	}
+	return page, nil
+}
+
+func strictDecodeResearchEvent(payload []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return fmt.Errorf("decode persisted Research Event projection: %w", err)
+	}
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return errors.New("decode persisted Research Event projection: trailing JSON value")
+	}
+	return nil
+}
+
+func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
+	if !bizidentity.IsUUID(record.Event.ID) || strings.TrimSpace(record.Event.Title) == "" || strings.TrimSpace(record.Event.Summary) == "" ||
+		record.Event.FirstSeenAt.IsZero() || record.Event.KnowledgeAvailableAt.IsZero() ||
+		record.KnowledgeAvailableAt.IsZero() || !record.Event.KnowledgeAvailableAt.Equal(record.KnowledgeAvailableAt) ||
+		record.Event.EventStatus != string(eventbiz.EventStatusConfirmed) ||
+		record.Event.FactStatus != string(eventbiz.FactStatusVerified) {
+		return errors.New("persisted Research Event violates invariants")
+	}
+	seen := make(map[string]struct{}, len(record.Evidence))
+	knowledgeAnchorFound := false
+	for _, evidence := range record.Evidence {
+		stored := eventbiz.StoredEventEvidenceLink{
+			ID: evidence.EvidenceID, EventID: record.Event.ID, RawDocumentID: evidence.RawDocumentID,
+			SourceLevel: evidence.SourceLevel, EvidenceRelation: eventbiz.EvidenceRelation(evidence.Relation),
+			EvidenceStatement: evidence.Statement, EvidenceHash: evidence.EvidenceHash,
+			SupportsFields: evidence.SupportsFields,
+		}
+		if err := validateStoredEvidenceLink(stored, record.Event.ID, evidence.RawDocumentID); err != nil ||
+			!bizidentity.IsUUID(evidence.RawDocumentID) || strings.TrimSpace(evidence.SourceName) == "" ||
+			strings.TrimSpace(evidence.SourceType) == "" || strings.TrimSpace(evidence.Title) == "" ||
+			evidence.FirstSeenAt.IsZero() || evidence.KnowledgeAvailableAt.IsZero() || evidence.AcceptedAt.IsZero() ||
+			evidence.KnowledgeAvailableAt.Before(record.KnowledgeAvailableAt) {
+			return errors.New("persisted Research Evidence violates invariants")
+		}
+		if evidence.KnowledgeAvailableAt.Equal(record.KnowledgeAvailableAt) {
+			knowledgeAnchorFound = true
+		}
+		if _, duplicate := seen[evidence.EvidenceID]; duplicate {
+			return errors.New("persisted Research Evidence contains a duplicate")
+		}
+		seen[evidence.EvidenceID] = struct{}{}
+	}
+	if len(record.Evidence) == 0 || !knowledgeAnchorFound {
+		return errors.New("persisted Research Event has no Evidence knowledge anchor")
+	}
+	return nil
+}
+
+func nullResearchEventUUID(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
 
 func NewStore(db *sql.DB) (Store, error) {
 	if db == nil {
