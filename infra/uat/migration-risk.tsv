@@ -42,3 +42,4 @@
 000041	high	schema	forward-only Analyst snapshot publication identity constraints and nullable formal-reference columns
 000042	high	schema	forward-only Raw Evidence and immutable atomic Evidence publication contracts
 000043	normal	schema	add database-owned creation timestamps for future Raw Evidence and Evidence rows without historical backfill
+000044	high	mixed	remove retired Evidence publication receipt tables and their historical audit rows after the receipt-free application became the rollback baseline

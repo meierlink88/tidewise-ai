@@ -202,10 +202,13 @@ Data migration ledger 新增 forward-only `000042`：
 行不发生回填；随后仅为未来 INSERT 设置 `transaction_timestamp()` 默认值，并使用
 `NOT VALID CHECK` 约束新写入非空。该约束不扫描或改写历史行，部署 scope 为 schema-only。
 
-本版本停止读写 `raw_evidence_publication_receipts`、`evidence_publication_receipts`，但在
-上一版应用镜像仍处于可回滚窗口时保留这两张兼容空表及其专用 trigger function。待本版本
-完成部署且不再回滚到旧写入方后，另以独立 forward-only migration 物理删除；清理不得修改
-正式 Raw Evidence/Evidence 行、身份、约束或内部 `created_at`。
+停止读写 Receipt 的 Data Service 版本已完成 UAT 部署并成为下一次发布的回滚基线。后续
+forward-only `000044` 物理删除 `raw_evidence_publication_receipts`、
+`evidence_publication_receipts` 及其专用不可变 trigger function；该清理不修改正式 Raw
+Evidence/Evidence 行、身份、约束或内部 `created_at`。由于表删除同时销毁历史回执行，
+`000044` 的 scope 为 `mixed`，只能在确认数据库恢复点后通过独立、可审计的受控 migration
+执行，普通系统部署不得执行或通过备份勾选绕过。旧写入方不得再作为 `000044` 之后的应用
+回滚目标；受控 migration 成功后，后续系统部署只会观察到该版本已经应用。
 
 应用回滚使用上一版已知良好镜像；数据库只允许 reviewed forward repair，不提供 destructive
 down migration。
@@ -244,7 +247,8 @@ publication 只作为公开方法和 operation，不作为 package 或手写源�
   复用原行且时间不变；历史行不由 migration 回填。
 - FK、唯一 split order、非唯一 expression key 索引、generated content hash、Keywords
   `TEXT[] DEFAULT '{}'`、schema comments 和 migration ledger/risk manifest。
-- migration 前后既有 Data 表/行保持不变，异常同名表 fail closed。
+- 除 `000044` 明确退役的两张 Receipt 表及其历史行外，migration 前后正式 Raw
+  Evidence/Evidence 和其他 Data 表/行保持不变，异常同名表 fail closed。
 
 ### Provider/Consumer fixture
 
