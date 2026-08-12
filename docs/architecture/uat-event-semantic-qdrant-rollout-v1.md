@@ -1,12 +1,28 @@
 # UAT Event Semantic Qdrant Rollout V1
 
-> Data-owned projection steps are superseded by ADR-0013; AgentRun retrieval remains paused until a new projection owner is approved.
+> Retired historical record. Data-owned projection steps are superseded by ADR-0013. ADR-0014 restores
+> AgentRun retrieval against the retained read-only Qdrant Entity snapshot without restoring a
+> projector. No command, gate or rebuild instruction below is current or executable authority.
 
-Status: partially retired
+Status: retired
 
 Date: 2026-08-03
 
 Owners: Data context, AgentRun context, UAT deployment control plane
+
+## Current authority
+
+- UAT CD only performs read-only Qdrant readiness checks and never projects, rebuilds or mutates a
+  collection.
+- AgentRun starts the Event Semantic worker and consumes the retained `entity_semantic_v1` snapshot.
+- New or changed PostgreSQL Entity facts are not reflected in retrieval until a separately approved
+  projection owner and rollout contract exist.
+- Current runtime and deployment behavior is owned by ADR-0013, ADR-0014 and `uat-cd-design.md`.
+
+## Historical rollout record
+
+The remaining sections preserve the completed first-rollout evidence for audit only. They do not
+authorize a binary, workflow input, Secret, database operation or infrastructure mutation.
 
 ## Outcome
 
@@ -34,14 +50,14 @@ PostgreSQL remains the fact owner. Neo4j and Qdrant remain rebuildable projectio
 
 ## Owner and dependency map
 
-| Contract | Provider/owner | Consumer | Boundary |
-| --- | --- | --- | --- |
-| Entity and Variable Definition facts | Data PostgreSQL | Data projector | Existing Data database operation configuration |
-| Semantic collection writes | Data projector | Qdrant | One-shot internal HTTP operation |
-| Semantic collection reads | Qdrant | AgentRun | Existing typed AgentRun retrieval adapter |
-| Industry graph facts | Data PostgreSQL frozen package | Data graph projector | Existing one-shot projector |
-| Industry graph view | host-managed Neo4j | Data graph projector | Scoped Bolt credentials only during projection |
-| Deployment state | UAT control plane | Docker Compose | Runtime/image env plus current/previous release snapshots |
+| Contract                             | Provider/owner                 | Consumer             | Boundary                                                  |
+| ------------------------------------ | ------------------------------ | -------------------- | --------------------------------------------------------- |
+| Entity and Variable Definition facts | Data PostgreSQL                | Data projector       | Existing Data database operation configuration            |
+| Semantic collection writes           | Data projector                 | Qdrant               | One-shot internal HTTP operation                          |
+| Semantic collection reads            | Qdrant                         | AgentRun             | Existing typed AgentRun retrieval adapter                 |
+| Industry graph facts                 | Data PostgreSQL frozen package | Data graph projector | Existing one-shot projector                               |
+| Industry graph view                  | host-managed Neo4j             | Data graph projector | Scoped Bolt credentials only during projection            |
+| Deployment state                     | UAT control plane              | Docker Compose       | Runtime/image env plus current/previous release snapshots |
 
 No API or cross-service wire DTO changes are introduced.
 
@@ -92,10 +108,10 @@ When enabled:
 
 The frozen first-rollout result is:
 
-| Collection | Points | Vector contract |
-| --- | ---: | --- |
-| `entity_semantic_v1` | 4,973 | 1,024 dimensions, Cosine |
-| `variable_definition_semantic_v1` | 12 | 1,024 dimensions, Cosine |
+| Collection                        | Points | Vector contract          |
+| --------------------------------- | -----: | ------------------------ |
+| `entity_semantic_v1`              |  4,973 | 1,024 dimensions, Cosine |
+| `variable_definition_semantic_v1` |     12 | 1,024 dimensions, Cosine |
 
 The local entity collection has three additional synthetic acceptance points and is intentionally not
 the UAT acceptance count.

@@ -133,9 +133,10 @@ Data 单个 Batch 最多十个 Event，但一个 Artifact Unit 可以拥有多�
 _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草稿
 
 **Event Semantic Enricher**:
-当前 Data-owned Qdrant projector 已退役，collection freshness 没有正式 owner，因此
-AgentRun Server 保留 Qdrant reader、健康检查、Work Item 与 API 合同，但不启动或通知
-Event Semantic worker。恢复执行必须先批准新的 projection owner 与 rollout 合同。
+当前 Data-owned Qdrant projector 已退役，AgentRun Server 仍启动 Event Semantic worker，
+并继续只读消费外部 Qdrant 中已保留的 Entity 快照。Qdrant reader、健康检查、Work Item
+与 API 合同保持不变；新增或修改 Entity 不会自动进入召回目录，直到新的 projection owner
+与 rollout 合同获批。Event Semantic 最终事实继续写入 Data PostgreSQL，不写入 Qdrant。
 在正式 Event 已存在后，从 Data 的精简、pinned Context 动态取得 Entity Type/角色、
 Variable Definition、适用 Entity Type、方向、modality 和 Measurement 合同。
 `event-semantic-enricher.v3` 的 Stage A 只提取 Event 原文 raw mention 与 Evidence 血缘；
@@ -222,7 +223,7 @@ image 和 Compose 运行。每个环境只保留一份 `configs/config.<environm
 容器可访问的外部基础设施 endpoint，不维护宿主机直跑配置。PostgreSQL、Qdrant 不进入
 AgentRun application Compose/release artifact。Docker 化不改变 AgentRun 的独立数据库、
 Artifact volume、API 或待退役 ownership。Event Semantic worker 当前按上述 projection
-freshness 边界保持暂停。
+freshness 限制消费已保留的 Qdrant 快照。
 
 ## Language
 

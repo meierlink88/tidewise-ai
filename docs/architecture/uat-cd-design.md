@@ -30,8 +30,9 @@ UAT 的 Neo4j 可继续由 ECS systemd 独立管理，但 Data 不再拥有 Indu
 
 Qdrant 由独立运维动作管理，是 AgentRun Event Semantic retrieval 的内部运行依赖；
 应用 CD 只读检查 `http://qdrant:6333` 可用性，不再运行 Data-owned one-shot projector，
-也不得安装、升级、重启、删除或回滚 Qdrant。依赖 collection freshness 的 Event Semantic
-执行保持暂停，直到新的 projection owner 与 rollout 合同获批。
+也不得安装、升级、重启、删除或回滚 Qdrant。AgentRun Event Semantic worker 继续只读消费
+已保留的 UAT Entity 快照；新增或修改 Entity 不会自动进入召回目录，直到新的 projection
+owner 与 rollout 合同获批。
 
 ## Deployment Trigger
 
