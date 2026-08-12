@@ -34,6 +34,7 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000029_add_event_publication_v2.sql`：保留历史 Event/证据正文与关联，把新 `raw_documents` 收敛为轻量 Event 证据记录，新增 V2 Receipt，并退出 Data 内旧 Source、采集运行及 V1 Import Receipt 结构。
 - `000042_add_evidence_publications.sql`：新增与 Event Publication 隔离的 `raw_evidences`、原子 `evidences` 和两类不可变 Receipt；完整原文与 Keywords 先发布，清洗后的完整 `1..N` Evidence 集合后发布。
 - `000043_add_evidence_creation_times.sql`：为新建 Raw Evidence 和 Atomic Evidence 增加 Data 数据库生成的内部创建时间；历史行保持空值且不回填。
+- `000044_remove_evidence_publication_receipts.sql`：在不再写 Receipt 的 Data Service 版本完成部署并成为回滚基线后，通过独立受控 migration 物理删除两张 Evidence 发布回执表及其专用不可变函数；该版本包含历史回执清理，普通系统部署不得执行，正式事实不变。
 
 实体基础库 seed 使用 repo 内版本化 JSON 文件：
 
