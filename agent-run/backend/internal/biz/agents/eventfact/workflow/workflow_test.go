@@ -318,7 +318,6 @@ func TestWorkflowAutoApprovesSingleVerifiedSource(t *testing.T) {
 			},
 		},
 		Catalog: eventfact.TagCatalog{
-			Revision: "event-tags:r", Hash: strings.Repeat("b", 64),
 			Tags: []eventfact.Tag{{
 				ID: "33333333-3333-4333-8333-333333333333", Kind: "news_category",
 				Code: "technology", Name: "科技", IsActive: true,
@@ -613,7 +612,6 @@ func testInput() *Input {
 			},
 		},
 		Catalog: eventfact.TagCatalog{
-			Revision: "event-tags:r", Hash: strings.Repeat("b", 64),
 			Tags: []eventfact.Tag{{
 				ID: "33333333-3333-4333-8333-333333333333", Kind: "news_category",
 				Code: "technology", Name: "科技", IsActive: true,

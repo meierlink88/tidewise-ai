@@ -66,7 +66,7 @@ func (s *Service) ListActiveEventTags(ctx context.Context, request *eventapi.Tag
 		}
 	}
 	return &v1.Response[eventapi.TagCatalog]{Status: v1.StatusOK, Result: eventapi.TagCatalog{
-		CatalogRevision: catalog.Revision, CatalogHash: catalog.Hash, Tags: tags,
+		Tags: tags,
 	}}, nil
 }
 

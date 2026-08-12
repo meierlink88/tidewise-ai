@@ -90,9 +90,6 @@ func (r *memoryRepository) RetryExtraction(context.Context, eventfact.ExecutionA
 	r.retryCalls++
 	return nil
 }
-func (*memoryRepository) SetExecutionCatalog(context.Context, string, string, string, time.Time) error {
-	return nil
-}
 func (r *memoryRepository) CompleteExtraction(_ context.Context, _ eventfact.ExecutionAttempt, _ eventfact.Result, journals []eventfact.JournalEntry, _ time.Time) error {
 	r.journals = append([]eventfact.JournalEntry(nil), journals...)
 	return nil
@@ -143,7 +140,6 @@ func (d *lossThenSuccessData) ActiveEventTags(context.Context) (eventfact.TagCat
 		return eventfact.TagCatalog{}, errors.New("catalog unavailable")
 	}
 	return eventfact.TagCatalog{
-		Revision: "event-tags:r", Hash: strings.Repeat("a", 64),
 		Tags: []eventfact.Tag{{
 			ID: "33333333-3333-4333-8333-333333333333", Kind: "news_category",
 			Code: "technology", Name: "科技", IsActive: true,
@@ -222,7 +218,10 @@ func TestTagCatalogRecoveryResumesPersistedFactsWithoutFactExtractionRerun(t *te
 		t.Fatal(err)
 	}
 	if factCalls != 1 || resumeCalls != 1 {
-		t.Fatalf("Catalog recovery factCalls=%d resumeCalls=%d", factCalls, resumeCalls)
+		t.Fatalf(
+			"Catalog recovery factCalls=%d resumeCalls=%d",
+			factCalls, resumeCalls,
+		)
 	}
 	if len(logger.info) != 3 ||
 		logger.info[1].Code != "agent_execution_started" ||

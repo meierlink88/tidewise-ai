@@ -124,8 +124,11 @@ _Avoid_: 完整正文副本、无语义 Artifact 引用、真实性认证结果
 _Avoid_: 待审核 Tag、未知或停用 Tag、静默覆盖已有分配依据
 
 **Event Tag Catalog**:
-Data 拥有的 Event 分类主数据集合，包含稳定 Tag ID、kind、code、名称、启停状态和可校验版本身份；AgentRun 只能通过 Data 的版本化只读合同取得快照后进行分类。
-_Avoid_: AgentRun 自建 Tag 主数据、在 Prompt 或 YAML 中复制 Tag ID、模型创造 Tag
+Data PostgreSQL 拥有的唯一当前 Event 分类主数据集合，包含稳定 Tag ID、kind、code、名称和
+启停状态。V1 不提供 Catalog 历史、版本、revision 或内容 hash；AgentRun 每次分类通过 Data
+只读合同取得当前 active Tag，校验 wire 字段、受控 kind、稳定排序和重复身份后使用。Event
+Publication 仍由 Data 根据 PostgreSQL 当前 Tag 校验 ID、kind、code 和 active 状态。
+_Avoid_: AgentRun 自建或持久化 Tag Catalog 副本、Catalog 版本身份、对 JSON 字节重复计算 hash、在 Prompt 或 YAML 中复制 Tag ID、模型创造 Tag
 
 **Event Publication Batch**:
 AgentRun 将一至十个已完成提取与审核、状态固定为 `confirmed + verified` 的原子 Event，连同其共享 Event Evidence Record、证据关联、Tag、Review 和提取血缘，按照 Data 定义的严格同步合同整批原子提交为正式事实；候选、未验证或拒绝 Event 不进入 Data，任一成员失败时整批不可见。

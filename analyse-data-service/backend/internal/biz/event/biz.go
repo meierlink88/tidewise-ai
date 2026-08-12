@@ -1289,9 +1289,7 @@ func randomUUID() (string, error) {
 }
 
 type EventTagCatalog struct {
-	Revision string
-	Hash     string
-	Tags     []EventTag
+	Tags []EventTag
 }
 
 type EventListRequest struct {
@@ -1375,13 +1373,7 @@ func (s *UseCase) ActiveTags(ctx context.Context) (EventTagCatalog, error) {
 			return EventTagCatalog{}, errors.New("Event Tag Catalog contains duplicate identity")
 		}
 	}
-	encoded, err := json.Marshal(tags)
-	if err != nil {
-		return EventTagCatalog{}, fmt.Errorf("encode Event Tag Catalog: %w", err)
-	}
-	digest := sha256.Sum256(encoded)
-	hash := hex.EncodeToString(digest[:])
-	return EventTagCatalog{Revision: "event-tags:" + hash, Hash: hash, Tags: tags}, nil
+	return EventTagCatalog{Tags: tags}, nil
 }
 
 func validateEventTag(tag EventTag) error {

@@ -133,9 +133,7 @@ type PublicationCounts struct {
 type TagCatalogRequest struct{ Active bool }
 
 type TagCatalog struct {
-	CatalogRevision string           `json:"catalog_revision"`
-	CatalogHash     string           `json:"catalog_hash"`
-	Tags            []TagCatalogItem `json:"tags"`
+	Tags []TagCatalogItem `json:"tags"`
 }
 
 type TagCatalogItem struct {

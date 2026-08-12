@@ -59,10 +59,7 @@ func TestCancellationPreservesLegacyPublicErrorMapping(t *testing.T) {
 }
 
 func TestListActiveEventTagsMapsCatalogSnapshot(t *testing.T) {
-	const catalogHash = "1a7035195312cdf7652880308d9fffcc6aea180f7c09b5c07f6678514a1298eb"
 	service, err := NewService(fakeUseCase{catalog: eventbiz.EventTagCatalog{
-		Revision: "event-tags:" + catalogHash,
-		Hash:     catalogHash,
 		Tags: []eventbiz.EventTag{{
 			ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category",
 			Code: "technology_industry", Name: "科技产业", Active: true,
@@ -75,8 +72,7 @@ func TestListActiveEventTagsMapsCatalogSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Result.CatalogHash != catalogHash || response.Result.CatalogRevision != "event-tags:"+catalogHash ||
-		len(response.Result.Tags) != 1 || !response.Result.Tags[0].IsActive {
+	if len(response.Result.Tags) != 1 || !response.Result.Tags[0].IsActive {
 		t.Fatalf("catalog = %#v", response.Result)
 	}
 }

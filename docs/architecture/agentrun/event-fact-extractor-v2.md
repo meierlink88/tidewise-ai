@@ -10,6 +10,19 @@ status: accepted
 独立 Review、Tag Catalog、Publication Journal 和 Data 副作用所有权。V2 只替换模型结果
 传输合同及无效的原文字符串门禁，并发布到 Event Publication V3。
 
+## Current-only Event Tag Catalog amendment
+
+Issue #211 修订 V1 继承的 Tag Catalog identity 合同。Data PostgreSQL 只维护唯一当前 Event
+Tag Catalog；`GET /api/data/v1/event-tags?active=true` 只返回按 `tag_kind, code, id` 稳定排序的
+active `tags[]`，不返回 `catalog_revision` 或 `catalog_hash`。AgentRun 不保存 Catalog 副本、
+不对 JSON 序列化字节重复计算 hash，也不为新 Work Item、Artifact Unit 或 Execution 写入
+Catalog revision/hash；既有数据库列和历史值暂时保留，只作为遗留兼容数据。
+
+AgentRun 仍在 Data Client 边界校验 Tag 必填字段、受控 kind、active 状态、排序和重复身份，
+Workflow 只能选择本次读取到的 code。Event Publication 时 Data 继续按 PostgreSQL 当前 Tag
+校验 ID、kind、code 和 active 状态，因此取消 Catalog identity 不放宽正式 Tag 门禁。Tag API
+不可用时仍沿用 `awaiting_tag_catalog` 与有限重试，不重新运行已完成的提取阶段。
+
 ## Eino Function Call 合同
 
 四个模型阶段分别绑定并强制调用一个结果函数：
