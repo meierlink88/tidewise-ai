@@ -1,43 +1,43 @@
-# version<TAB>risk<TAB>reason
-000001	normal	initial schema on a new database
-000002	normal	additive organization profile table
-000003	normal	additive snapshot columns
-000004	normal	additive source configuration
-000005	normal	additive historical scheduler schema
-000006	normal	additive graph projection ledger
-000007	normal	additive edge provenance
-000008	normal	additive benchmark foundation
-000009	high	benchmark metric data rewrite
-000010	normal	additive market sector foundation
-000011	normal	additive sector convergence
-000012	high	convergence alias data repair
-000013	high	convergence alias order normalization
-000014	normal	additive industry chain foundation
-000015	high	industry chain node refactor and data rewrite
-000016	high	external identifier constraint migration
-000017	normal	additive chain node relations
-000018	high	alliance and economy foundation reinitialization
-000019	high	event fact contract constraint migration
-000020	high	event import receipt and tag seed migration
-000021	normal	additive research theme and anchor foundation
-000022	normal	additive raw document import receipts
-000023	high	transmission stage constraint correction
-000024	high	research theme receipt backfill and constraints
-000025	high	legacy Anchor APIs removed; destructive empty-table reasoning tree rebuild
-000026	high	research anchor branch summaries require empty publication tables
-000027	high	additive typed master data schema with new identity constraints and forward-only triggers
-000028	high	chain node review promotion identity validation trigger
-000029	high	replace Data ingestion control-plane schema with Event Publication V2 evidence contract
-000030	high	forward-only Industry relationship import contract with fail-closed empty-table checks
-000031	high	destructive Theme and Reason Tree V1 publication-table rebuild
-000032	high	forward-only Event semantics TBox/ABox schema and event entity link constraint migration
-000033	high	forward-only atomic Theme publication lineage constraints and indexes
-000034	normal	additive partial index for stable Event Semantic eligible scans
-000035	normal	additive compact Event Semantic context manifest and selected anchor resolution bindings
-000036	high	forward-only Event Semantic V2 Measurement constraint relaxation and dynamic TBox contract extension
-000037	high	forward-only Entity Type Definition semantic boundary columns and authored active-definition backfill
-000038	high	remove primary Event Evidence columns and rename the preserved evidence statement contract
-000039	normal	rebuild the Event Semantic eligible scan index without requiring event_time
-000040	high	forward-only completion of the active Event Semantic Entity Type catalog
-000041	high	forward-only Analyst snapshot publication identity constraints and nullable formal-reference columns
-000042	high	forward-only Raw Evidence and immutable atomic Evidence publication contracts
+# version<TAB>risk<TAB>scope<TAB>reason
+000001	normal	schema	initial schema on a new database
+000002	normal	schema	additive organization profile table
+000003	normal	schema	additive snapshot columns
+000004	normal	schema	additive source configuration
+000005	normal	mixed	additive scheduler schema with initial scheduler configuration
+000006	normal	schema	additive graph projection ledger
+000007	normal	schema	additive edge provenance
+000008	normal	schema	additive benchmark foundation
+000009	high	data	benchmark metric data rewrite
+000010	normal	mixed	additive market sector foundation with profile backfill
+000011	normal	schema	additive sector convergence
+000012	high	data	convergence alias data repair
+000013	high	data	convergence alias order normalization
+000014	normal	schema	additive industry chain foundation
+000015	high	mixed	industry chain node refactor and data rewrite
+000016	high	schema	external identifier constraint migration
+000017	normal	mixed	additive chain node relations with retirement of the previous relation tables
+000018	high	schema	alliance and economy foundation reinitialization
+000019	high	schema	event fact contract constraint migration
+000020	high	mixed	event import receipt schema and tag seed publication
+000021	normal	schema	additive research theme and anchor foundation
+000022	normal	schema	additive raw document import receipts
+000023	high	schema	transmission stage constraint correction
+000024	high	mixed	research theme receipt backfill and constraints
+000025	high	schema	legacy Anchor APIs removed; destructive empty-table reasoning tree rebuild
+000026	high	schema	research anchor branch summaries require empty publication tables
+000027	high	schema	additive typed master data schema with new identity constraints and forward-only triggers
+000028	high	schema	chain node review promotion identity validation trigger
+000029	high	mixed	replace and remove the previous Data ingestion control-plane schema
+000030	high	schema	forward-only Industry relationship import contract with fail-closed empty-table checks
+000031	high	mixed	destructive Theme and Reason Tree V1 publication-table rebuild
+000032	high	mixed	Event semantics schema, reference backfill, and initial TBox/ABox catalog publication
+000033	high	schema	forward-only atomic Theme publication lineage constraints and indexes
+000034	normal	schema	additive partial index for stable Event Semantic eligible scans
+000035	normal	schema	additive compact Event Semantic context manifest and selected anchor resolution bindings
+000036	high	mixed	Event Semantic V2 schema, authored definition backfill, and policy publication
+000037	high	mixed	Entity Type Definition semantic boundary columns and authored active-definition backfill
+000038	high	mixed	remove primary Event Evidence columns after evidence statement backfill
+000039	normal	schema	rebuild the Event Semantic eligible scan index without requiring event_time
+000040	high	data	completion of the active Event Semantic Entity Type catalog
+000041	high	schema	forward-only Analyst snapshot publication identity constraints and nullable formal-reference columns
+000042	high	schema	forward-only Raw Evidence and immutable atomic Evidence publication contracts

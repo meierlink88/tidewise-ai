@@ -6,6 +6,14 @@ deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 runtime_env="${RUNTIME_ENV:?RUNTIME_ENV is required}"
 candidate_images="${CANDIDATE_IMAGES:?CANDIDATE_IMAGES is required}"
 release_sha="${COMMIT_SHA:?COMMIT_SHA is required}"
+expected_current_available="${EXPECTED_CURRENT_RELEASE_AVAILABLE:?EXPECTED_CURRENT_RELEASE_AVAILABLE is required}"
+expected_current_state_fingerprint="${EXPECTED_CURRENT_RELEASE_STATE_FINGERPRINT:?EXPECTED_CURRENT_RELEASE_STATE_FINGERPRINT is required}"
+expected_current_sha="${EXPECTED_CURRENT_RELEASE_SHA:-}"
+expected_current_data_image="${EXPECTED_CURRENT_DATA_IMAGE:-}"
+expected_current_miniapp_image="${EXPECTED_CURRENT_MINIAPP_IMAGE:-}"
+expected_current_adminportal_image="${EXPECTED_CURRENT_ADMINPORTAL_IMAGE:-}"
+expected_current_admin_image="${EXPECTED_CURRENT_ADMIN_IMAGE:-}"
+expected_current_agentrun_image="${EXPECTED_CURRENT_AGENTRUN_IMAGE:-}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
 agentrun_recovery_target_version="${AGENTRUN_RECOVERY_TARGET_VERSION:-}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
@@ -97,6 +105,51 @@ restore_interrupted_release_state() {
   echo "PASS recovered-interrupted-release-state"
 }
 
+current_image_value() {
+  local key="$1"
+  sed -n "s/^${key}=//p" "$current_images" | tail -n 1
+}
+
+current_release_state_fingerprint() {
+  local path
+  for path in "$current_runtime" "$current_sha" "$current_images" "$current_compose" "$release_state_write_marker"; do
+    if [ -e "$path" ]; then
+      sha256sum "$path"
+    else
+      printf 'missing  %s\n' "$path"
+    fi
+  done | sha256sum | cut -d ' ' -f 1
+}
+
+verify_planned_release_state() {
+  if [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
+    echo "FAIL release-state-plan-gate: current release state changed after planning; rerun deployment" >&2
+    return 1
+  fi
+  if [ "$expected_current_available" = false ]; then
+    echo "PASS release-state-plan-gate"
+    return 0
+  fi
+  if [ "$expected_current_available" != true ]; then
+    echo "FAIL release-state-plan-gate: expected current release availability must be true or false" >&2
+    return 1
+  fi
+  if [ -e "$release_state_write_marker" ] || [ ! -s "$current_runtime" ] || [ ! -s "$current_images" ] || [ ! -s "$current_compose" ] || [ ! -s "$current_sha" ]; then
+    echo "FAIL release-state-plan-gate: current release became incomplete after planning; rerun deployment" >&2
+    return 1
+  fi
+  if [ "$(sed -n '1p' "$current_sha")" != "$expected_current_sha" ] || \
+    [ "$(current_image_value DATA_IMAGE)" != "$expected_current_data_image" ] || \
+    [ "$(current_image_value MINIAPP_IMAGE)" != "$expected_current_miniapp_image" ] || \
+    [ "$(current_image_value ADMINPORTAL_IMAGE)" != "$expected_current_adminportal_image" ] || \
+    [ "$(current_image_value ADMIN_IMAGE)" != "$expected_current_admin_image" ] || \
+    [ "$(current_image_value AGENTRUN_IMAGE)" != "$expected_current_agentrun_image" ]; then
+    echo "FAIL release-state-plan-gate: current release changed after planning; rerun deployment" >&2
+    return 1
+  fi
+  echo "PASS release-state-plan-gate"
+}
+
 exec 9>"${deployment_root}/deploy.lock"
 if ! flock -n 9; then
   echo "FAIL deployment-lock: another UAT deployment holds ${deployment_root}/deploy.lock" >&2
@@ -106,6 +159,7 @@ echo "PASS deployment-lock"
 if [ -f "$release_state_write_marker" ]; then
   restore_interrupted_release_state
 fi
+verify_planned_release_state
 
 # Process environment variables have higher precedence than Compose --env-file.
 # The workflow exposes candidate image names at job scope, so clear them before
@@ -203,6 +257,9 @@ rollback_current_release() {
     rollback_images="$previous_images"
     rollback_compose_file="$previous_compose"
     rollback_sha="$previous_sha"
+  elif [ "$expected_current_available" != true ]; then
+    echo "FAIL rollback: no trusted previous repository-managed UAT release is available" >&2
+    return 1
   fi
   if [ ! -s "$rollback_runtime" ] || [ ! -s "$rollback_images" ] || [ ! -s "$rollback_compose_file" ] || [ ! -s "$rollback_sha" ]; then
     echo "FAIL rollback: no previous repository-managed UAT release is available" >&2
@@ -251,7 +308,7 @@ cleanup_unfinished_agentrun_migration() {
 }
 
 validate_application_only_release "$runtime_env" "$candidate_images" "$compose_file" candidate
-if [ -s "$current_runtime" ] && [ -s "$current_images" ] && [ -s "$current_compose" ] && [ -s "$current_sha" ]; then
+if [ "$expected_current_available" = true ]; then
   validate_application_only_release \
     "$current_runtime" "$current_images" "$current_compose" rollback
 fi
@@ -310,21 +367,30 @@ risk = {}
 for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
     if not line.strip() or line.lstrip().startswith("#"):
         continue
-    version, classification, *_ = line.split("\t")
+    fields = line.split("\t", 3)
+    if len(fields) != 4:
+        raise SystemExit(f"invalid migration manifest row: {line}")
+    version, classification, scope, reason = fields
     if classification not in {"normal", "high", "blocked"}:
         raise SystemExit(f"invalid migration risk classification for {version}: {classification}")
-    risk[version] = classification
+    if scope not in {"schema", "data", "mixed"}:
+        raise SystemExit(f"invalid migration scope for {version}: {scope}")
+    if not reason.strip():
+        raise SystemExit(f"migration reason is required for {version}")
+    risk[version] = (classification, scope)
 pending = report.get("pending") or []
 versions = [str(item.get("Version", item.get("version", ""))).zfill(6) for item in pending]
 unclassified = [version for version in versions if version not in risk]
 if unclassified:
     raise SystemExit("pending migrations lack risk classification: " + ",".join(unclassified))
-print(",".join(version for version in versions if risk[version] == "high"))
-print(",".join(version for version in versions if risk[version] == "blocked"))
+print(",".join(version for version in versions if risk[version][0] == "high"))
+print(",".join(version for version in versions if risk[version][0] == "blocked"))
+print(",".join(f"{version}:{risk[version][1]}" for version in versions if risk[version][1] != "schema"))
 PY
 )"
 high_risk_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '1p')"
 blocked_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '2p')"
+non_schema_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '3p')"
 
 agentrun_migration_risk_summary="$(python3 - "$agentrun_report_file" "$agentrun_migration_risk_manifest" <<'PY'
 import json
@@ -336,17 +402,25 @@ risk = {}
 for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
     if not line.strip() or line.lstrip().startswith("#"):
         continue
-    version, classification, *_ = line.split("\t")
+    fields = line.split("\t", 3)
+    if len(fields) != 4:
+        raise SystemExit(f"invalid AgentRun migration manifest row: {line}")
+    version, classification, scope, reason = fields
     if classification not in {"normal", "high", "blocked"}:
         raise SystemExit(f"invalid AgentRun migration risk classification for {version}: {classification}")
-    risk[version] = classification
+    if scope not in {"schema", "data", "mixed"}:
+        raise SystemExit(f"invalid AgentRun migration scope for {version}: {scope}")
+    if not reason.strip():
+        raise SystemExit(f"AgentRun migration reason is required for {version}")
+    risk[version] = (classification, scope)
 pending = report.get("pending") or []
 versions = [str(item.get("version", item.get("Version", ""))).zfill(3) for item in pending]
 unclassified = [version for version in versions if version not in risk]
 if unclassified:
     raise SystemExit("pending AgentRun migrations lack risk classification: " + ",".join(unclassified))
-print(",".join(version for version in versions if risk[version] == "high"))
-print(",".join(version for version in versions if risk[version] == "blocked"))
+print(",".join(version for version in versions if risk[version][0] == "high"))
+print(",".join(version for version in versions if risk[version][0] == "blocked"))
+print(",".join(f"{version}:{risk[version][1]}" for version in versions if risk[version][1] != "schema"))
 rollback_versions = {"011", "012", "013", "014", "015"}
 print("true" if rollback_versions.intersection(versions) else "false")
 print(str(report.get("current_version") or "").zfill(3))
@@ -354,8 +428,9 @@ PY
 )"
 agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
 agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '2p')"
-agentrun_rollback_compatibility_required="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '3p')"
-agentrun_rollback_target_version="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '4p')"
+agentrun_non_schema_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '3p')"
+agentrun_rollback_compatibility_required="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '4p')"
+agentrun_rollback_target_version="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '5p')"
 
 database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
 
@@ -367,8 +442,10 @@ database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
   echo "- TLS database check: passed"
   echo "- High-risk pending migrations: \`${high_risk_pending:-none}\`"
   echo "- Release-blocked pending migrations: \`${blocked_pending:-none}\`"
+  echo "- Non-schema pending migrations: \`${non_schema_pending:-none}\`"
   echo "- AgentRun high-risk pending migrations: \`${agentrun_high_risk_pending:-none}\`"
   echo "- AgentRun release-blocked pending migrations: \`${agentrun_blocked_pending:-none}\`"
+  echo "- AgentRun non-schema pending migrations: \`${agentrun_non_schema_pending:-none}\`"
   echo
   echo '<details><summary>Migration state before apply</summary>'
   echo
@@ -390,6 +467,12 @@ if [ -n "$blocked_pending" ] || [ -n "$agentrun_blocked_pending" ]; then
   exit 1
 fi
 echo "PASS migration-release-gate"
+
+if [ -n "$non_schema_pending" ] || [ -n "$agentrun_non_schema_pending" ]; then
+  echo "FAIL migration-scope-gate: UAT system deploy accepts schema-only migrations: data=${non_schema_pending:-none} agentrun=${agentrun_non_schema_pending:-none}" >&2
+  exit 1
+fi
+echo "PASS migration-scope-gate"
 
 if { [ -n "$high_risk_pending" ] || [ -n "$agentrun_high_risk_pending" ]; } && [ "$backup_confirmed" != true ]; then
   echo "FAIL migration-risk-gate: confirm_high_risk_backup=true is required for data=${high_risk_pending:-none} agentrun=${agentrun_high_risk_pending:-none}" >&2
@@ -474,7 +557,7 @@ fi
 candidate_services_started=true
 trap cleanup_unfinished_agentrun_migration EXIT
 
-if [ -s "$current_runtime" ] && [ -s "$current_images" ] && [ -s "$current_compose" ] && [ -s "$current_sha" ]; then
+if [ "$expected_current_available" = true ]; then
   install -m 0600 "$current_runtime" "$previous_runtime"
   install -m 0640 "$current_images" "$previous_images"
   install -m 0640 "$current_compose" "$previous_compose"
@@ -506,7 +589,7 @@ echo "PASS release-state-recorded"
   echo
   echo "### UAT deployment"
   echo
-  echo "Deployed \`${release_sha}\` as one five-business-image release unit; Qdrant remains independently operated."
+  echo "Deployed \`${release_sha}\` with a complete five-service immutable image state; Qdrant remains independently operated."
   if [ -s "$previous_sha" ]; then
     echo "Previous successful release: \`$(sed -n '1p' "$previous_sha")\`."
   fi

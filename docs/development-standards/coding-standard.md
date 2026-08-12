@@ -112,6 +112,7 @@
 - Schema、constraint、index、backfill 和代码 rollout 必须说明顺序与 mixed-version 行为；
 - destructive DDL、全表 rewrite、长锁、不可逆数据转换和历史清理必须通过独立设计门禁；
 - 大数据 backfill 与在线 contract change 分离，具有批次、幂等、观测和恢复策略；
+- 系统部署只执行 Schema migration；Seed、目录、配置、事实回填、转换和清理必须使用独立的数据发布机制，不默认以开发环境为数据来源；
 - 新 constraint 应先处理历史兼容，再验证并收紧；
 - index 必须对应查询或约束责任，不因推测增加；
 - 数据库 owner 的 migration 按仓库部署规则加入对应 UAT risk manifest；

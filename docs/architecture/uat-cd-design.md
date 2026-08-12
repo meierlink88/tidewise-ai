@@ -92,9 +92,9 @@ Admin Portal 不持有数据库凭据。Qdrant、Neo4j 和 PostgreSQL 的运行�
 
 UAT 使用华为云 SWR 私有镜像仓库，不使用 GHCR 作为正式部署镜像来源。
 
-- GitHub-hosted runner 构建并向 SWR 推送五个可独立部署的业务镜像：Data Service、
+- GitHub-hosted runner 按本次 deployment plan 构建并向 SWR 推送受影响的业务镜像：Data Service、
   Miniapp Backend Service、Admin Portal Backend Service、Admin Portal Frontend、
-  AgentRun。
+  AgentRun。未受影响的服务复用 UAT 当前 release state 中记录的不可变镜像。
 - Qdrant 不从本仓库构建或镜像到 SWR；其镜像、版本、存储和生命周期由独立运维维护。
 - 同一 build job 额外生成一个 UAT deployment bundle image。Bundle 包含目标 release
   的 Compose 和 UAT 配置、当前 workflow SHA 对应的受信 preflight/deploy/diagnostics
@@ -119,8 +119,8 @@ SWR 镜像保留策略：
 - 每个组件保留最近 20 套完整 Git SHA 版本。
 - 当前运行版本和上一个可回退版本始终受保护，不得被清理。
 - 发布 workflow 不执行镜像删除；清理由 SWR 生命周期规则或独立维护任务完成。
-- 五个业务组件与同 SHA 的 deployment bundle 按完整发布单元清理，不能只保留部分
-  制品。
+- 当前与上一成功 release state 引用的业务镜像及 deployment bundle 均不得清理；其他
+  未引用制品可按各仓库生命周期策略独立清理。
 
 ## Public Entry And TLS
 
@@ -149,18 +149,33 @@ UAT 当前没有域名，且 Miniapp 尚未进入上架阶段。本期允许开�
 
 以上端口在 local 与 UAT 保持一致。Backend Service 配置、Docker 暴露端口、Compose 健康检查、前端开发代理和服务间 Base URL 必须统一使用该合同。正式部署 preflight 必须检查 ECS 端口占用；不得占用 `9000/9001` 等常见中间件端口。
 
-## Database Migration
+## Schema Migration
 
-每次 UAT 手工发布自动包含数据库 migration，固定顺序如下：
+每次 UAT 手工发布只自动包含应用兼容所需的数据库 Schema migration，固定顺序如下：
 
-1. 完成只读 preflight，并拉取目标 Git commit SHA 对应的全部镜像。
-2. 使用目标版本的 Data Service 与 AgentRun 镜像分别运行只读 migration preflight，再运行各自一次性 migration command。
+1. 完成只读 preflight，并拉取 deployment plan 合成的完整五服务镜像集合。
+2. 使用目标版本的 Data Service 与 AgentRun 镜像分别运行只读 migration preflight；待执行版本必须在 UAT manifest 中标记为 `schema`，再运行各自一次性 migration command。
 3. migration 使用 PostgreSQL advisory lock，防止并发发布同时修改 schema。
 4. migration 成功后才允许更新和启动新版本服务。
 5. migration 失败时立即终止发布，新版本服务不得启动，当前运行中的旧服务保持不变。
 6. migration 执行结果必须进入 GitHub Actions job summary，但不得输出数据库凭据。
 
 Migration 遵循项目 forward-only 原则。是否允许应用镜像自动回退以及数据库兼容窗口，由失败回滚策略进一步确定。
+
+Risk manifest 对每个账本版本同时记录风险等级与发布 scope：
+
+- `schema`：只改变应用兼容所需的表、列、索引、约束、函数或触发器，由系统部署执行；
+- `data`：发布或修改目录、Seed、配置、事实或其他可变数据；
+- `mixed`：同一历史 migration 同时包含 Schema 与数据操作，或通过 Schema 重建删除既有事实。
+
+系统部署只放行 `schema`。任一 pending `data` 或 `mixed` 版本都会在 apply 前阻断，且不能用
+备份确认绕过。已经进入共享环境的历史 migration 与 ledger 保持不可变；scope 只用于审计、
+新环境 bootstrap 判定和 pending gate。
+
+UAT 数据来源不默认绑定开发环境。目录、Seed、Agent 注册数据、事实回填、转换与清理属于
+独立的 UAT 数据发布机制，必须自行定义来源 Artifact、review、dry-run、幂等、Receipt、审计、
+恢复和失败处理，不得借系统部署或 Schema migration 隐式发布。若新约束依赖历史数据处理，
+应分为兼容 Schema、独立数据发布、验证、后续约束收紧四个阶段。
 
 ## Failure Rollback
 
@@ -177,7 +192,7 @@ Workflow 必须在发布前记录当前运行镜像身份，不能依赖可变�
 
 ## Release Unit
 
-UAT 将一个 Git commit SHA 对应的五个业务组件作为不可拆分的完整发布单元：
+UAT release state 始终记录五个业务组件的完整不可变镜像集合：
 
 - Data Domain Service
 - Miniapp Application Backend Service
@@ -185,9 +200,19 @@ UAT 将一个 Git commit SHA 对应的五个业务组件作为不可拆分的完
 - Admin Portal Frontend
 - AgentRun Backend Service
 
-每次手工发布均构建并部署五个相同 SHA 标签的业务镜像，即使该提交只修改其中一个组件；
-发布成功、版本记录和失败回退均按整套执行，不允许把不同 Git SHA 的业务组件混合成一个
-UAT 版本。Qdrant 健康是发布前置依赖，但不属于该发布单元。
+Workflow 以 ECS 上一次成功记录的 `current.sha` 到目标 release SHA 的完整 Git diff 规划
+服务范围。变更只位于上述五个应用目录时，仅构建对应服务并复用其他当前镜像；只要存在
+任一目录外变更，就构建全部五个服务。缺失或非法当前状态、历史分叉、相同 SHA 显式重发
+均 fail-safe 为全量部署。
+
+规划读取的当前状态必须同时具备 runtime、Compose、SHA 和完整五镜像记录，且不存在中断写入
+标记。部署脚本取得本机锁并完成中断恢复后，必须再次比较规划时的 SHA 与五镜像快照；构建
+期间若当前状态发生变化，应在任何 migration 前失败并要求重新运行，不能复用过期镜像。
+
+目标 release SHA 表示本次仓库状态与 deployment plan，不要求五个实际镜像都使用同一
+SHA；`current.images.env` 始终记录部署后真实的完整五镜像集合。Compose 仍对完整集合执行
+`up`，只重建镜像或运行配置发生变化的服务。失败回退恢复上一成功 release state 的完整
+集合。Qdrant 健康是发布前置依赖，但不属于该发布单元。
 
 ## Health Verification
 
@@ -291,7 +316,8 @@ UAT migration 采用分级数据保护：
 - RDS 必须启用自动备份和时间点恢复能力。
 - 普通 forward-only 增量 DDL 不在每次发布前创建手工快照。
 - migration 前记录当前 migration 版本、目标数据库和目标 Git SHA，写入部署摘要。
-- 涉及批量数据重写、不可逆数据转换或高风险约束收紧的 migration，必须由 workflow 明确标记为高风险，并在发布前要求人工确认备份；不得按普通 migration 自动放行。
+- 高风险 Schema migration 必须由 workflow 明确标记为高风险，并在发布前要求人工确认备份；不得按普通 migration 自动放行。
+- 数据发布、批量数据重写、不可逆数据转换与历史清理不得由系统部署执行；备份确认不能绕过 migration scope gate。
 - 数据库恢复始终属于人工故障恢复流程，CD 不自动 restore。
 
 ## RDS Network Boundary

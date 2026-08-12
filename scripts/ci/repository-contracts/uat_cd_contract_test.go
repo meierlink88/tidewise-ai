@@ -63,6 +63,54 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 	}
 }
 
+func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	for _, required := range []string{
+		"current-release:",
+		"Read repository-managed release state",
+		"release-state-write-in-progress",
+		"runtime.env",
+		"current.sha",
+		"current.images.env",
+		"current.compose.yaml",
+		"config --quiet",
+		"plan-release:",
+		"plan-service-release.sh",
+		"CURRENT_RELEASE_SHA:",
+		"TARGET_RELEASE_SHA:",
+		"CURRENT_DATA_IMAGE:",
+		"EXPECTED_CURRENT_RELEASE_AVAILABLE:",
+		"EXPECTED_CURRENT_RELEASE_STATE_FINGERPRINT:",
+		"EXPECTED_CURRENT_RELEASE_SHA:",
+		"data_image=$(select_image",
+		"if: needs.plan-release.outputs.deploy_data == 'true'",
+		"if: needs.plan-release.outputs.deploy_agentrun == 'true'",
+		"if: needs.plan-release.outputs.deploy_miniapp == 'true'",
+		"if: needs.plan-release.outputs.deploy_adminportal == 'true'",
+		"if: needs.plan-release.outputs.deploy_admin == 'true'",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT workflow missing selective service contract %q", required)
+		}
+	}
+	planner := readContractFile(t, filepath.Join(root, "infra", "uat", "plan-service-release.sh"))
+	for _, required := range []string{
+		"git diff --name-only --no-renames -z",
+		"analyse-data-service/*",
+		"agent-run/*",
+		"miniapp/backend/*",
+		"admin-portal/backend/*",
+		"admin-portal/frontend/*",
+		"outside_application_directories",
+		"divergent_release_history",
+	} {
+		if !strings.Contains(planner, required) {
+			t.Fatalf("UAT service planner missing %q", required)
+		}
+	}
+}
+
 func TestUATWorkflowExcludesRetiredDataProjectionInputs(t *testing.T) {
 	workflow, prepare := uatWorkflowAndPrepareStep(t)
 	for _, forbidden := range []string{
@@ -260,7 +308,8 @@ func TestEveryAgentRunMigrationHasExplicitUATRiskClassification(t *testing.T) {
 			continue
 		}
 		fields := strings.Split(line, "\t")
-		if len(fields) < 3 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") || strings.TrimSpace(fields[2]) == "" {
+		if len(fields) != 4 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") ||
+			(fields[2] != "schema" && fields[2] != "data" && fields[2] != "mixed") || strings.TrimSpace(fields[3]) == "" {
 			t.Fatalf("invalid AgentRun UAT migration risk row %q", line)
 		}
 		classified = append(classified, fields[0])
@@ -290,7 +339,8 @@ func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 			continue
 		}
 		fields := strings.Split(line, "\t")
-		if len(fields) < 3 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") || strings.TrimSpace(fields[2]) == "" {
+		if len(fields) != 4 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") ||
+			(fields[2] != "schema" && fields[2] != "data" && fields[2] != "mixed") || strings.TrimSpace(fields[3]) == "" {
 			t.Fatalf("invalid UAT migration risk row %q", line)
 		}
 		if fields[0] == "000025" && fields[1] != "high" {
