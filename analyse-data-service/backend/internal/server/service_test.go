@@ -16,6 +16,7 @@ import (
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
 	researchapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/research"
+	runtimehealthapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	researchfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/research"
 	"gopkg.in/yaml.v3"
@@ -219,7 +220,7 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 	}
 	for _, test := range []struct {
 		name          string
-		application   dataapi.DataHTTPServer
+		application   runtimehealthapi.Service
 		research      researchapi.Service
 		event         eventapi.Service
 		eventSemantic eventsemanticapi.Service
@@ -227,7 +228,7 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		rawDocument   rawdocumentapi.Service
 		auth          *Authenticator
 	}{
-		{name: "Data API", research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
 		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
 		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
 		{name: "Event Semantic API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
@@ -273,7 +274,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 			openAPIOperations[anchor] = struct{}{}
 		}
 	}
-	businessOperations := append(dataapi.BusinessOperations(), eventapi.BusinessOperations()...)
+	businessOperations := append(runtimehealthapi.BusinessOperations(), eventapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, researchapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, eventsemanticapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, evidenceapi.BusinessOperations()...)
@@ -322,7 +323,7 @@ func TestServerRecoveryPreservesStableErrorEnvelope(t *testing.T) {
 	}
 }
 
-func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) http.Handler {
+func testHTTPHandler(config conf.Config, application runtimehealthapi.Service) http.Handler {
 	if application == nil {
 		application = serverTestDataService{}
 	}
@@ -339,11 +340,11 @@ func testHTTPHandler(config conf.Config, application dataapi.DataHTTPServer) htt
 	return newTestHTTPServer(config, application, serverTestEvidenceService{}, authenticator).Server.Handler
 }
 
-func newTestHTTPServer(config conf.Config, application dataapi.DataHTTPServer, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
+func newTestHTTPServer(config conf.Config, application runtimehealthapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
 	return newTestHTTPServerWithEvent(config, application, serverTestEventService{}, evidenceApplication, authenticator)
 }
 
-func newTestHTTPServerWithEvent(config conf.Config, application dataapi.DataHTTPServer, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
+func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
 	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
@@ -428,8 +429,8 @@ func (serverTestDataService) ListResearchAnalysisContext(context.Context, *resea
 func (serverTestDataService) SearchResearchGraph(context.Context, *researchapi.ResearchGraphSearchRequest) (*dataapi.Response[researchapi.ResearchGraphSearchResult], error) {
 	return serverTestResponse[researchapi.ResearchGraphSearchResult]()
 }
-func (serverTestDataService) GetRuntimeHealth(context.Context, *dataapi.RuntimeHealthRequest) (*dataapi.Response[dataapi.RuntimeHealth], error) {
-	return serverTestResponse[dataapi.RuntimeHealth]()
+func (serverTestDataService) GetRuntimeHealth(context.Context, *runtimehealthapi.Request) (*dataapi.Response[runtimehealthapi.Result], error) {
+	return serverTestResponse[runtimehealthapi.Result]()
 }
 
 type principalRecordingEventService struct {

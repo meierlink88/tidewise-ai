@@ -19,7 +19,6 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 		"analyse-data-service/backend/cmd/server",
 		"analyse-data-service/backend/internal/conf",
 		"analyse-data-service/backend/internal/server",
-		"analyse-data-service/backend/internal/service",
 		"miniapp/backend/api/miniapp/v1",
 		"miniapp/backend/cmd/server",
 		"miniapp/backend/internal/biz",

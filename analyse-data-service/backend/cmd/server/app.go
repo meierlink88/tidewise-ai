@@ -19,21 +19,21 @@ import (
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
+	data "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/dbmigration"
 	entitydata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/entity"
 	eventdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/event"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
 	evidencedata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/evidence"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
 	rawdocumentdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/research"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 	eventservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/event"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/eventsemantic"
 	evidenceservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/evidence"
 	rawdocumentservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/rawdocument"
 	researchservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/research"
+	runtimehealthservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/runtimehealth"
 )
 
 const applicationStopTimeout = 10 * time.Second
@@ -47,7 +47,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 
 	connectTimeout := time.Duration(config.Database.ConnectTimeoutSeconds) * time.Second
 	databaseContext, cancelDatabase := context.WithTimeout(context.Background(), connectTimeout)
-	db, err := postgres.Open(databaseContext, config)
+	db, err := data.OpenPostgres(databaseContext, config)
 	cancelDatabase()
 	if err != nil {
 		return nil, nil, fmt.Errorf("open Data PostgreSQL: %w", err)
@@ -120,7 +120,10 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Research use case: %w", err))
 	}
 
-	application := service.NewDataService(service.Dependencies{RuntimeHealth: runtimehealth.New(time.Now)})
+	runtimeHealthApplication, err := runtimehealthservice.NewService(runtimehealth.New(time.Now))
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Runtime Health API service: %w", err))
+	}
 	researchApplication, err := researchservice.NewService(researchUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Research API service: %w", err))
@@ -141,7 +144,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, application, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, authenticator, logger)
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}

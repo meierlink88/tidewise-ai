@@ -1,4 +1,4 @@
-package v1
+package runtimehealth
 
 import (
 	"context"
@@ -9,15 +9,15 @@ import (
 	"testing"
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+	v1 "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1"
 )
 
-type runtimeHealthHTTPStub struct {
-}
+type httpStub struct{}
 
-func (runtimeHealthHTTPStub) GetRuntimeHealth(context.Context, *RuntimeHealthRequest) (*Response[RuntimeHealth], error) {
-	return &Response[RuntimeHealth]{Status: http.StatusOK, Result: RuntimeHealth{
+func (httpStub) GetRuntimeHealth(context.Context, *Request) (*v1.Response[Result], error) {
+	return &v1.Response[Result]{Status: http.StatusOK, Result: Result{
 		CheckedAt: "2026-08-04T10:00:00Z",
-		Services: []RuntimeHealthService{
+		Services: []ServiceStatus{
 			{Key: "data", DisplayName: "Data Service", Status: "ready", CheckedAt: "2026-08-04T10:00:00Z", LatencyMS: int64Pointer(4)},
 		},
 	}}, nil
@@ -25,15 +25,15 @@ func (runtimeHealthHTTPStub) GetRuntimeHealth(context.Context, *RuntimeHealthReq
 
 func TestRuntimeHealthRoutePublishesDataStatus(t *testing.T) {
 	server := kratoshttp.NewServer()
-	RegisterDataHTTPServer(server, runtimeHealthHTTPStub{})
+	RegisterHTTPServer(server, httpStub{})
 
 	response := httptest.NewRecorder()
-	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/runtime-health", nil))
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/runtime-health", nil))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", response.Code, response.Body.String())
 	}
-	var body RuntimeHealth
+	var body Result
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}

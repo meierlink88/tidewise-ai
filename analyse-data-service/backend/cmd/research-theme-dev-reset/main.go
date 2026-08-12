@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/postgres"
+	data "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data"
 )
 
 const (
@@ -144,7 +144,7 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	db, err := postgres.Open(ctx, cfg)
+	db, err := data.OpenPostgres(ctx, cfg)
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}

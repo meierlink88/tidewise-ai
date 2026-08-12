@@ -19,11 +19,11 @@ import (
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
+	runtimehealthapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/runtimehealth"
 	eventbiz "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/biz/eventsemantic"
 	"github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/conf"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/data/eventsemantic"
 	serverpkg "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/server"
-	parentservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/service/eventsemantic"
 	eventsemanticfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/eventsemantic"
 	postgresfixture "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/internal/testsupport/postgres"
@@ -464,7 +464,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	}
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
-		parentservice.NewDataService(parentservice.Dependencies{}), researchfixture.Service{}, semanticTestEventService{}, application,
+		semanticTestRuntimeHealthService{}, researchfixture.Service{}, semanticTestEventService{}, application,
 		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, authenticator, nil,
 	)
 	if err != nil {
@@ -474,6 +474,12 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 }
 
 type semanticTestEventService struct{}
+
+type semanticTestRuntimeHealthService struct{}
+
+func (semanticTestRuntimeHealthService) GetRuntimeHealth(context.Context, *runtimehealthapi.Request) (*v1.Response[runtimehealthapi.Result], error) {
+	return &v1.Response[runtimehealthapi.Result]{Status: http.StatusNoContent}, nil
+}
 
 type semanticTestRawDocumentService struct{}
 

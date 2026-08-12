@@ -16,6 +16,7 @@ import (
 	evidenceapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/rawdocument"
 	researchapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/research"
+	runtimehealthapi "github.com/meierlink88/tidewise-ai/analyse-data-service/backend/api/data/v1/runtimehealth"
 )
 
 const (
@@ -120,7 +121,7 @@ func requiredScope(operation string) (string, bool) {
 		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
 		researchapi.OperationListResearchAnalysisContext, researchapi.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
-	case rawdocumentapi.OperationList, eventapi.OperationListAdminEvents, v1.OperationGetRuntimeHealth:
+	case rawdocumentapi.OperationList, eventapi.OperationListAdminEvents, runtimehealthapi.OperationGet:
 		return ScopeAdminRead, true
 	case eventsemanticapi.OperationListEligibleEvents,
 		eventsemanticapi.OperationGetContext, eventsemanticapi.OperationGetSemantics:
