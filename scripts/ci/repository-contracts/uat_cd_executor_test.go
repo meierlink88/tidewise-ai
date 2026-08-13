@@ -117,7 +117,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS migration-scope-gate", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS migration-scope-gate", "PASS migration-apply", "PASS agent-version-publication", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}

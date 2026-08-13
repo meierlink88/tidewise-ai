@@ -128,6 +128,8 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 	for _, required := range []string{
 		"-o /out/agentrun-event-semantic-history ./agent-run/backend/cmd/event-semantic-history",
 		"COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-semantic-history",
+		"-o /out/agentrun-agent-version ./agent-run/backend/cmd/agent-version",
+		"COPY --from=build /out/agentrun-agent-version /app/agentrun-agent-version",
 	} {
 		if !strings.Contains(agentrunDockerfile, required) {
 			t.Fatalf("AgentRun runtime image missing Event Semantic history contract %q", required)
@@ -234,7 +236,7 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	text := string(contents)
 	for _, required := range []string{
 		"  data:", "  data-migrate:", "  miniapp:",
-		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:",
+		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:", "  agentrun-agent-version:",
 		"context: ../..",
 		"data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
 		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile", "agent-run/backend/Dockerfile",

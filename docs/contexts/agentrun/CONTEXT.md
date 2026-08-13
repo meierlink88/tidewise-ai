@@ -10,6 +10,9 @@ _Avoid_: 用命令名、模型名或一次任务标识 Agent
 
 **Agent Version**:
 某个 Agent Definition 的不可变执行合同版本，冻结其输入、输出、工作流能力和执行协议。
+当前 Agent Version 是代码拥有的目录事实，由 AgentRun 镜像内的一次性数据发布
+命令在 schema migration 之后、服务启动之前幂等登记；新版本不得通过 schema
+migration 或服务启动副作用写入。
 已批准的特定例外只有 Collector Issue #121：其 Web Search freshness 修正按
 `collector.v1` conformance fix 交付，并由 Collector 可靠性 Spec 记录部署前后的
 可观察差异；以及 Event Fact Extractor Issue #211：`event-fact-extractor.v2` 原 Tag
@@ -176,7 +179,7 @@ Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/�
 审核对照 Evidence，不进行数值解析或归一化。
 严格 envelope 要求 mention/selection/signal/review 分别显式携带 `mentions`、`selections`、
 `variable_signals`、`items` 数组；`null`、`{}`、缺字段、`null` 数组或错误类型不能解释为空结果。
-顶层 envelope 严格解析后，数组 item 按本 V3 固定 DTO 独立解析；单个 item 字段/类型非法只隔离
+顶层 envelope 严格解析后，数组 item 按本 V4 固定 DTO 独立解析；单个 item 字段/类型非法只隔离
 该 item，不触发整个 envelope repair。Semantic retrieval 的取消与 deadline 原样向 Execution 传播，
 不包装为可重试远端错误。
 AgentRun 对 Qdrant 外层 point ID 与 payload Entity ID、source identity、projection version、

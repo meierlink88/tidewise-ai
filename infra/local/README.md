@@ -41,8 +41,9 @@ Build and start the application stack:
 npm run runtime:up
 ```
 
-Data and AgentRun migrations run as one-shot dependency services before their servers. A failed
-migration prevents the dependent service from starting. Normal shutdown preserves the
+Data and AgentRun migrations run as one-shot dependency services before their servers. AgentRun
+then publishes the code-owned current Agent Versions through a separate one-shot data operation.
+A failed migration or Agent Version publication prevents the dependent service from starting. Normal shutdown preserves the
 service-owned Artifact volume and never manages infrastructure data:
 
 ```bash
@@ -139,6 +140,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
   run --rm agentrun-migrate --check-only
 
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
+  run --rm agentrun-agent-version
+
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
   run --rm --no-deps --entrypoint /app/agentrun-config agentrun check
 
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
@@ -150,7 +154,7 @@ in YAML, command arguments, logs or committed environment files.
 
 ## Failure diagnosis
 
-- `data-migrate` or `agentrun-migrate` failed: inspect the one-shot container logs before restarting.
+- `data-migrate`, `agentrun-migrate` or `agentrun-agent-version` failed: inspect the one-shot container logs before restarting.
 - `pending migrations exist`: rebuild the image and rerun the owning migration service.
 - `configuration_not_ready`: configure the required AgentRun Model Provider/Connector records.
 - Admin CORS failure: `ADMIN_ALLOWED_ORIGIN` must match the mapped Admin Web origin, normally

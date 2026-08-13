@@ -113,6 +113,12 @@ jobs:
             exit 1
           fi
 
+      - name: Setup Python for OpenSPG schema validation
+        if: steps.risks.outputs.object_schema == 'true'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.11'
+
       - name: Verify OpenSPG Object Schemas
         if: steps.risks.outputs.object_schema == 'true'
         run: bash scripts/ci/verify-openspg-schemas.sh
@@ -591,6 +597,7 @@ jobs:
         run: |
           go build -o /tmp/agentrun ./agent-run/backend/cmd/server
           go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate
+          go build -o /tmp/agentrun-agent-version ./agent-run/backend/cmd/agent-version
           go build -o /tmp/agentrun-config ./agent-run/backend/cmd/config
           go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts
 

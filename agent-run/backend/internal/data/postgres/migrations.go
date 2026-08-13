@@ -256,32 +256,24 @@ func PreparePreviousReleaseRollback(
 			"migrations/013_event_fact_function_call_v2.sql",
 			"migrations/014_event_artifact_unit_multi_journal.sql",
 			"migrations/015_monitoring_window_indexes.sql",
-			"migrations/016_event_semantic_enricher_v4.sql",
 		},
 		"011": {
 			"migrations/012_event_semantic_entity_first_v3.sql",
 			"migrations/013_event_fact_function_call_v2.sql",
 			"migrations/014_event_artifact_unit_multi_journal.sql",
 			"migrations/015_monitoring_window_indexes.sql",
-			"migrations/016_event_semantic_enricher_v4.sql",
 		},
 		"012": {
 			"migrations/013_event_fact_function_call_v2.sql",
 			"migrations/014_event_artifact_unit_multi_journal.sql",
 			"migrations/015_monitoring_window_indexes.sql",
-			"migrations/016_event_semantic_enricher_v4.sql",
 		},
 		"013": {
 			"migrations/014_event_artifact_unit_multi_journal.sql",
 			"migrations/015_monitoring_window_indexes.sql",
-			"migrations/016_event_semantic_enricher_v4.sql",
 		},
 		"014": {
 			"migrations/015_monitoring_window_indexes.sql",
-			"migrations/016_event_semantic_enricher_v4.sql",
-		},
-		"015": {
-			"migrations/016_event_semantic_enricher_v4.sql",
 		},
 	}
 	rollbackMigrations, ok := rollbackMigrationsByPreviousVersion[previousReleaseVersion]

@@ -14,4 +14,3 @@
 013	normal	data	Register the immutable Event Fact V2 Function Calling Agent Version.
 014	normal	schema	Allow one Event Artifact Unit to own multiple bounded Publication Journals.
 015	normal	schema	Add monitoring time-window indexes without rewriting AgentRun facts.
-016	normal	data	Register the immutable Event Semantic V4 Agent Version for the database-type-definition-free context contract.

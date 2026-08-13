@@ -6,6 +6,7 @@ RUN go mod download
 COPY agent-run/backend ./agent-run/backend
 RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w" -o /out/agentrun ./agent-run/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w" -o /out/agentrun-migrate ./agent-run/backend/cmd/migrate
+RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w" -o /out/agentrun-agent-version ./agent-run/backend/cmd/agent-version
 RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w" -o /out/agentrun-config ./agent-run/backend/cmd/config
 RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w" -o /out/agentrun-artifacts ./agent-run/backend/cmd/artifacts
 RUN CGO_ENABLED=0 GOOS=linux go build -tags timetzdata -trimpath -ldflags="-s -w" -o /out/agentrun-event-semantic-history ./agent-run/backend/cmd/event-semantic-history
@@ -20,6 +21,7 @@ RUN apk add --no-cache ca-certificates \
 WORKDIR /app
 COPY --from=build /out/agentrun /app/agentrun
 COPY --from=build /out/agentrun-migrate /app/agentrun-migrate
+COPY --from=build /out/agentrun-agent-version /app/agentrun-agent-version
 COPY --from=build /out/agentrun-config /app/agentrun-config
 COPY --from=build /out/agentrun-artifacts /app/agentrun-artifacts
 COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-semantic-history

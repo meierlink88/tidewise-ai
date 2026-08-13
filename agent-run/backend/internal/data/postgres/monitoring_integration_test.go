@@ -36,6 +36,7 @@ func TestEventSemanticCompletionFeedsMonitoringProjection(t *testing.T) {
 	}
 
 	store := postgres.New(database)
+	publishCurrentEventSemanticVersion(t, ctx, store)
 	now := time.Now().UTC().Truncate(time.Second)
 	if _, err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{
 		EventID: "11111111-1111-4111-8111-111111111111",

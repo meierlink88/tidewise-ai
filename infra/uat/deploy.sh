@@ -459,6 +459,8 @@ if [ "$agentrun_rollback_compatibility_required" = true ]; then
   trap cleanup_unfinished_agentrun_migration EXIT
 fi
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /app/agentrun-migrate agentrun > "$agentrun_report_file"
+"${candidate_compose[@]}" run --rm --no-deps \
+  --entrypoint /app/agentrun-agent-version agentrun publish-current
 {
   echo
   echo '<details><summary>Migration apply result</summary>'
@@ -476,6 +478,7 @@ fi
   echo '</details>'
 } >> "$summary_file"
 echo "PASS migration-apply"
+echo "PASS agent-version-publication"
 
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120; then
   if [ "$candidate_services_started" != true ]; then

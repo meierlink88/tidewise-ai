@@ -25,6 +25,20 @@ var testConnectorKeys = []string{
 	"eastmoney_fastnews", "eastmoney_stock_news", "stcn_quicknews",
 }
 
+func publishCurrentEventSemanticVersion(
+	t *testing.T,
+	ctx context.Context,
+	store *postgres.Store,
+) {
+	t.Helper()
+	if err := store.PublishAgentVersions(ctx, []agentrun.AgentVersion{{
+		AgentKey: eventsemantic.AgentKey,
+		Version:  eventsemantic.AgentVersion,
+	}}); err != nil {
+		t.Fatalf("publish current Event Semantic Agent Version: %v", err)
+	}
+}
+
 func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -47,7 +61,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 16 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 15 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -65,13 +79,13 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "016" ||
-		len(report.Applied) != 16 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "015" ||
+		len(report.Applied) != 15 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
 
-func TestMigrateSeedsCurrentAgentVersions(t *testing.T) {
+func TestPublishAgentVersionsMakesCurrentVersionAvailable(t *testing.T) {
 	databaseURL := os.Getenv("AGENTRUN_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("AGENTRUN_TEST_DATABASE_URL is not configured")
@@ -128,21 +142,33 @@ func TestMigrateSeedsCurrentAgentVersions(t *testing.T) {
 	if semanticVersion.AgentKey != "event-semantic-enricher" {
 		t.Fatalf("Event Semantic Enricher agent key = %q", semanticVersion.AgentKey)
 	}
-	semanticV3, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion)
-	if err != nil {
-		t.Fatalf("get seeded Event Semantic V3 version: %v", err)
+	if _, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion); err == nil {
+		t.Fatal("current Event Semantic version was unexpectedly installed by schema migration")
 	}
-	if semanticV3.AgentKey != eventsemantic.AgentKey {
-		t.Fatalf("Event Semantic V3 agent key = %q", semanticV3.AgentKey)
+	currentVersions := []agentrun.AgentVersion{
+		{AgentKey: eventsemantic.AgentKey, Version: eventsemantic.AgentVersion},
+	}
+	if err := store.PublishAgentVersions(ctx, currentVersions); err != nil {
+		t.Fatalf("publish current Agent Versions: %v", err)
+	}
+	if err := store.PublishAgentVersions(ctx, currentVersions); err != nil {
+		t.Fatalf("replay current Agent Version publication: %v", err)
+	}
+	semanticV4, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion)
+	if err != nil {
+		t.Fatalf("get published Event Semantic V4 version: %v", err)
+	}
+	if semanticV4.AgentKey != eventsemantic.AgentKey {
+		t.Fatalf("Event Semantic V4 agent key = %q", semanticV4.AgentKey)
 	}
 	execution, disposition, err := store.CreateExecution(ctx, agentrun.CreateExecutionInput{
-		IdempotencyKey: "event-semantic-v3-registry-test",
+		IdempotencyKey: "event-semantic-v4-registry-test",
 		InputPayload:   json.RawMessage(`{"work_item_id":"11111111-1111-4111-8111-111111111111"}`),
 		CreatedAt:      time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
 		AgentVersion:   eventsemantic.AgentVersion,
 	})
 	if err != nil || disposition != agentrun.ExecutionCreated || execution.AgentKey != eventsemantic.AgentKey {
-		t.Fatalf("create Event Semantic V3 execution = %#v, %q, %v", execution, disposition, err)
+		t.Fatalf("create Event Semantic V4 execution = %#v, %q, %v", execution, disposition, err)
 	}
 	if _, err := database.Exec(ctx, `ALTER TABLE connector_configs DROP COLUMN updated_at`); err != nil {
 		t.Fatal(err)
@@ -356,7 +382,7 @@ func TestPreparePreviousReleaseRollbackRestoresPre011InvariantAndMigrationsRepla
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014", "015", "016"}) {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014", "015"}) {
 		t.Fatalf("rollback-compatible migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
@@ -395,14 +421,14 @@ func TestPreparePreviousReleaseRollbackPreservesMigrationsOwnedByPreviousRelease
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014", "015", "016"}) {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014", "015"}) {
 		t.Fatalf("partial rollback migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
 		t.Fatal(err)
 	}
 	if !postgres.New(database).SchemaReady(ctx) {
-		t.Fatal("replayed migrations 014-016 schema is not ready")
+		t.Fatal("replayed migrations 014-015 schema is not ready")
 	}
 }
 
@@ -870,6 +896,7 @@ func TestEventSemanticWorkItemRetriesAreOwnedByAgentRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := postgres.New(database)
+	publishCurrentEventSemanticVersion(t, ctx, store)
 	now := time.Date(2026, 7, 29, 8, 30, 0, 0, time.UTC)
 	eventID := "22222222-2222-4222-8222-222222222222"
 	if _, err := store.EnsureInitialWorkItems(ctx, []eventsemantic.EligibleEvent{{EventID: eventID}}, now); err != nil {
@@ -934,6 +961,7 @@ func TestHistoricalEventDispositionIsIdempotentAndRecoversOnlyValidFailures(t *t
 		t.Fatal(err)
 	}
 	store := postgres.New(database)
+	publishCurrentEventSemanticVersion(t, ctx, store)
 	now := time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC)
 	invalidExisting := "22222222-2222-4222-8222-222222222221"
 	invalidMissing := "22222222-2222-4222-8222-222222222222"

@@ -216,14 +216,14 @@ func TestStageUATDeployBundlePinsIdentityAndChecksums(t *testing.T) {
 	bundleRoot := filepath.Join(temp, "bundle")
 
 	fixtures := map[string]string{
-		filepath.Join(releaseRoot, "infra/uat/docker-compose.yaml"):                        "release-compose\n",
+		filepath.Join(releaseRoot, "infra/uat/docker-compose.yaml"):                "release-compose\n",
 		filepath.Join(releaseRoot, "data-service/backend/configs/config.uat.yaml"): "data-config\n",
-		filepath.Join(releaseRoot, "agent-run/backend/configs/config.uat.yaml"):            "agentrun-config\n",
-		filepath.Join(controlRoot, "infra/uat/preflight.sh"):                               "preflight\n",
-		filepath.Join(controlRoot, "infra/uat/deploy.sh"):                                  "deploy\n",
-		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):                     "diagnostics\n",
-		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                         "data-risk\n",
-		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):                "agentrun-risk\n",
+		filepath.Join(releaseRoot, "agent-run/backend/configs/config.uat.yaml"):    "agentrun-config\n",
+		filepath.Join(controlRoot, "infra/uat/preflight.sh"):                       "preflight\n",
+		filepath.Join(controlRoot, "infra/uat/deploy.sh"):                          "deploy\n",
+		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):             "diagnostics\n",
+		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                 "data-risk\n",
+		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):        "agentrun-risk\n",
 		filepath.Join(controlRoot, "infra/uat/deploy-bundle-files.txt"): strings.Join([]string{
 			"release\tinfra/uat/docker-compose.yaml",
 			"release\tdata-service/backend/configs/config.uat.yaml",
@@ -460,6 +460,7 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	deploy := readContractFile(t, filepath.Join(root, "infra", "uat", "deploy.sh"))
 	for _, required := range []string{
 		"flock -n", "dbmigrate -apply", "rollback_current_release",
+		"/app/agentrun-agent-version", "publish-current", "PASS agent-version-publication",
 		"current.images.env", "previous.images.env", "current.compose.yaml", "previous.compose.yaml",
 		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS agentrun-rds-tls-readonly", "PASS bff-to-service-read-paths",
 		"/api/admin/v1/model-providers",

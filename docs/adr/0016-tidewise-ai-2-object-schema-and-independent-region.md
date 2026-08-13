@@ -23,7 +23,9 @@ Tidewise AI 2.0 不保留该模式的兼容入口。每个 Object 需要自己�
 - 删除 `entity_type_definitions` 表以及 Data/AgentRun 中的专用领域类型、查询、
   HTTP 字段、Context manifest 引用和提交门禁。Context manifest 升为 v4，
   因输入 DTO、Prompt 和校验行为发生变化，Agent Version 同步升为不可变的
-  `event-semantic-enricher.v4`。
+  `event-semantic-enricher.v4`。Agent Version 是代码拥有的目录事实，不由 schema
+  migration 写入；AgentRun 镜像在 migration 之后、服务启动之前通过独立的
+  `agentrun-agent-version publish-current` 数据发布命令幂等登记当前版本。
 - Data Service 根目录建立 `doctype/`，每个 Object Type 使用一个 OpenSPG Schema
   Mark Language `.schema` 文件描述完整元数据。语法以
   `docs/development-standards/openspg-schema.md` 及其固定的 OpenSPG/KAG revision 为准。
@@ -61,7 +63,7 @@ Tidewise AI 2.0 不保留该模式的兼容入口。每个 Object 需要自己�
 - 已评估替代方案：重新实现部分语法会形成第二解析器；引入完整 KAG runtime
   会扩大运行依赖；把上游源码 vendoring 到仓库会增加升级与许可维护。因此选择
   仅 CI 临时获取固定 revision 并安装 parser 的最小直接 Python 依赖。
-- 安全影响限于 CI 出站获取；固定 Git SHA 与 Python 版本，并由 GitHub
+- 安全影响限于 CI 出站获取；固定 Git SHA 与 Python `3.12.11`，并由 GitHub
   dependency review 检查新依赖风险。不执行不受控 Schema 输入。
 - KAG 为 Apache-2.0；直接 Python 依赖为 Apache-2.0、MIT、BSD、PSF 或
   MPL-2.0 等允许性/文件级开源许可。它们只作为 CI 工具不随产品分发。
